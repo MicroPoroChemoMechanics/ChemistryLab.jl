@@ -25,6 +25,7 @@ ENV["GKSwstype"] = "100"   # headless GR backend — prevents Plots from hanging
 makedocs(;
     clean=false,
     modules=[ChemistryLab],
+    remotes=nothing,
     authors="Jean-François Barthélémy and Anthony Soive",
     sitename="ChemistryLab.jl",
     format=Documenter.HTML(;
