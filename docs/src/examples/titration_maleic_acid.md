@@ -64,7 +64,7 @@ solver = EquilibriumSolver(
     abstol  = 1e-8,
     reltol  = 1e-8,
     maxiters = 100,
-    verbose = 0,
+    verbose = false,
 )
 ```
 
@@ -81,7 +81,7 @@ solver = EquilibriumSolver(
     abstol  = 1e-8,
     reltol  = 1e-8,
     maxiters = 100,
-    verbose = 0,
+    verbose = false,
 )
 ```
 
