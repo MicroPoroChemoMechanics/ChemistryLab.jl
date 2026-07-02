@@ -25,13 +25,15 @@ ENV["GKSwstype"] = "100"   # headless GR backend — prevents Plots from hanging
 makedocs(;
     clean=false,
     modules=[ChemistryLab],
+    remotes=nothing,
     authors="Jean-François Barthélémy and Anthony Soive",
     sitename="ChemistryLab.jl",
     format=Documenter.HTML(;
         mathengine=Documenter.MathJax3(Dict(
             :loader => Dict("load" => ["[tex]/mhchem"]),
         )),
-        canonical="https://ChemistryTools.github.io/ChemistryLab.jl",
+        canonical="https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl",
+        repolink="https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl",
         edit_link="main",
         assets=["assets/favicon.ico", "assets/custom.css"],
         prettyurls=(get(ENV, "CI", nothing) == "true"),
@@ -44,4 +46,8 @@ makedocs(;
     draft=false,
 )
 
-deploydocs(; repo="github.com/ChemistryTools/ChemistryLab.jl", devbranch="main")
+deploydocs(;
+    repo         = "github.com/MicroPoroChemoMechanics/ChemistryLab.jl.git",
+    devbranch    = "main",
+    push_preview = false,
+)

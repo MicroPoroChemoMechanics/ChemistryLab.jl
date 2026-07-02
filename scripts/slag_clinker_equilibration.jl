@@ -22,9 +22,9 @@ using LinearAlgebra
 
 substances = build_species("data/cemdata18-thermofun.json")
 
-clinker  = "C3S C2S C3A C4AF Gp Anh"
+clinker = "C3S C2S C3A C4AF Gp Anh"
 hydrates = "Portlandite Jennite H2O@ ettringite monosulphate12 C3AH6 C3FH6 C4FH13"
-slag     = "hydrotalcite C3AFS0.84H4.32 C3AS0.84H4.32 C4AH13"
+slag = "hydrotalcite C3AFS0.84H4.32 C3AS0.84H4.32 C4AH13"
 
 species = speciation(
     substances,

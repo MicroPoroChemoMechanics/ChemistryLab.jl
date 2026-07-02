@@ -138,10 +138,14 @@ p = plot(
     ylims = (0, 14), legend = :bottomright,
 )
 lVb = range(0.01 * V_eq, 3 * V_eq; length = 10_000)
-plot!(p, lVb, ana_pH.(lVb);
-    label = "Analytical (Henderson-Hasselbalch)", lw = 2, color = :orange)
-scatter!(p, [0, V_eq], [pH0, pHeq];
-    label = "Characteristic points", color = :red, markersize = 6)
-vline!(p, [V_eq]; ls = :dash, color = :red, label = "PE ($(round(V_eq, digits=1)) mL)")
-hline!(p, [pKa]; ls = :dot, color = :grey, label = "pKₐ = $(round(pKa, digits=2))")
+plot!(
+    p, lVb, ana_pH.(lVb);
+    label = "Analytical (Henderson-Hasselbalch)", lw = 2, color = :orange
+)
+scatter!(
+    p, [0, V_eq], [pH0, pHeq];
+    label = "Characteristic points", color = :red, markersize = 6
+)
+vline!(p, [V_eq]; ls = :dash, color = :red, label = "PE ($(round(V_eq, digits = 1)) mL)")
+hline!(p, [pKa]; ls = :dot, color = :grey, label = "pKₐ = $(round(pKa, digits = 2))")
 display(p)
