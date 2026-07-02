@@ -49,7 +49,8 @@ pk_C4AF = parrot_killoh(PK_PARAMS_C4AF, "C4AF"; α_max)
 
 # ── 3. ChemicalSystem with kinetic_species ───────────────────────────────────
 
-cs = ChemicalSystem(species, CEMDATA_PRIMARIES;
+cs = ChemicalSystem(
+    species, CEMDATA_PRIMARIES;
     kinetic_species = Dict(
         "C3S" => pk_C3S,
         "C2S" => pk_C2S,
@@ -83,7 +84,7 @@ println("  nₖ = ", length(kp.idx_kinetic), " kinetic species")
 
 println("\nODE integration (7 days)...")
 sol = integrate(kp)
-println("  $(length(sol.t)) time steps, t_final = $(@sprintf("%.1f", sol.t[end]/86400)) days")
+println("  $(length(sol.t)) time steps, t_final = $(@sprintf("%.1f", sol.t[end] / 86400)) days")
 
 # ── 7. Results ───────────────────────────────────────────────────────────────
 
@@ -95,8 +96,10 @@ for (j, idx) in enumerate(kp.idx_kinetic)
     n0 = u0[j]
     nf = u_end[j]
     α = 1.0 - nf / n0
-    @printf("  %-6s : %.4f → %.4f mol  (α = %.1f%%)\n",
-        symbol(sp), n0, nf, 100α)
+    @printf(
+        "  %-6s : %.4f → %.4f mol  (α = %.1f%%)\n",
+        symbol(sp), n0, nf, 100α
+    )
 end
 
 println("\nChecks:")
