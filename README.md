@@ -4,10 +4,10 @@
 
 # ChemistryLab
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://ChemistryTools.github.io/ChemistryLab.jl/stable/)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://ChemistryTools.github.io/ChemistryLab.jl/dev/)
-[![Build Status](https://github.com/ChemistryTools/ChemistryLab.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/ChemistryTools/ChemistryLab.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Docs - Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl/stable/)
+[![Docs - Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl/dev/)
 
+[![License: LGPL v2.1+](https://img.shields.io/badge/License-LGPL_v2.1+-blue.svg)](https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl/blob/main/LICENSE)
 [![code style: runic](https://img.shields.io/badge/code_style-%E1%9A%B1%E1%9A%A2%E1%9A%BE%E1%9B%81%E1%9A%B2-pink)](https://github.com/fredrikekre/Runic.jl)
 
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.17756074-blue)](https://doi.org/10.5281/zenodo.17756074)
@@ -27,17 +27,22 @@ ChemistryLab.jl is a computational chemistry toolkit. Although initially dedicat
 
 ## Installation
 
-The package can be installed with the Julia package manager.
-From the Julia REPL, type `]` to enter the Pkg REPL mode and run:
+ChemistryLab.jl is hosted on the [MPCM registry](https://github.com/MicroPoroChemoMechanics/MPCM-Registry).
+Add the registry once, then install as usual.
 
-```julia
+In Pkg REPL mode (press `]` in the Julia REPL):
+
+```julia-repl
+pkg> registry add https://github.com/MicroPoroChemoMechanics/MPCM-Registry
 pkg> add ChemistryLab
 ```
 
 Or, equivalently, via the `Pkg` API:
 
 ```julia
-julia> import Pkg; Pkg.add("ChemistryLab")
+using Pkg
+Pkg.Registry.add(RegistrySpec(url="https://github.com/MicroPoroChemoMechanics/MPCM-Registry"))
+Pkg.add("ChemistryLab")
 ```
 
 ## Example
@@ -246,7 +251,7 @@ rescale!(state_eq, 1.0u"m^3")   # total volume → 1 m³   (in-place)
 
 ## Usage
 
-See the [documentation and tutorials](https://ChemistryTools.github.io/ChemistryLab.jl) for examples on formula creation, species management, reaction parsing, and database merging.
+See the [documentation and tutorials](https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl) for examples on formula creation, species management, reaction parsing, and database merging.
 
 ## License
 
@@ -273,14 +278,6 @@ cement hydration model, calorimetry — is original work copyright
 See [`LICENSE`](LICENSE) for the full notice and
 [`COPYING.LESSER`](COPYING.LESSER) for the full LGPL-2.1 text.
 
-**Licensing history.** Versions 0.2.0 through 0.2.4 of this package were
-inadvertently published under the MIT license. This was an error: the HKF
-and water-property modules are Julia ports adapted from Reaktoro (LGPL-2.1),
-so ChemistryLab.jl as a whole is a derivative work under copyright law and
-cannot be legitimately relicensed under MIT without explicit authorisation
-from the upstream copyright holder. Version 0.3.0 corrects this oversight
-by adopting LGPL-2.1-or-later to match the upstream Reaktoro license.
-
 **Practical note for downstream users.** The LGPL permits `using ChemistryLab`
 from Julia code of **any** licence (MIT, Apache-2.0, proprietary). The
 copyleft applies only to modifications of ChemistryLab.jl itself, which must
@@ -296,10 +293,10 @@ See [CITATION.cff](CITATION.cff) for citation details.
 
 ```bibtex
 @software{chemistrylab_jl,
-  authors = {Barthélémy, Jean-François and Soive, Anthony},
-  title = {ChemistryLab.jl: Numerical laboratory for computational chemistry},
-  doi = {10.5281/zenodo.17756074},
-  url = {https://github.com/ChemistryTools/ChemistryLab.jl}
+  author = {Barth{\'e}lemy, Jean-Fran{\c{c}}ois and Soive, Anthony},
+  title  = {{ChemistryLab.jl}: Numerical laboratory for computational chemistry},
+  doi    = {10.5281/zenodo.17756074},
+  url    = {https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl}
 }
 ```
 

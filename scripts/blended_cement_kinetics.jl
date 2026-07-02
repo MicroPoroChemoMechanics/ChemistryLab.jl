@@ -223,7 +223,7 @@ rxn_GGBS = Reaction(
     symbol = "GGBS hydration",
 )
 rxn_GGBS[:rate] = pk_ggbs
-rxn_GGBS[:ΔᵣH⁰] = NumericFunc((T,) -> -36_100.0, (:T,), u"J/mol")
+rxn_GGBS[:ΔᵣH⁰] = NumericFunc((T) -> -36_100.0, (:T,), u"J/mol")
 
 # MK: Al₂Si₂O₇ + 2 Ca(OH)₂ + 5 H₂O → stratlingite
 rxn_MK = Reaction(
@@ -232,7 +232,7 @@ rxn_MK = Reaction(
     symbol = "MK hydration",
 )
 rxn_MK[:rate] = pk_mk
-rxn_MK[:ΔᵣH⁰] = NumericFunc((T,) -> -55_500.0, (:T,), u"J/mol")
+rxn_MK[:ΔᵣH⁰] = NumericFunc((T) -> -55_500.0, (:T,), u"J/mol")
 
 kinetic_reactions = [rxn_C3S, rxn_C2S, rxn_C3A, rxn_C4AF, rxn_GGBS, rxn_MK]
 

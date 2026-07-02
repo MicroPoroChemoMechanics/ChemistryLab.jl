@@ -109,8 +109,8 @@ p = plot(
     title = "Titration of maleic acid (0.1 M) by NaOH (2 M)",
     ylims = (0, 14), legend = :topleft,
 )
-vline!(p, [V_eq1]; ls = :dash, color = :red, label = "PE₁ ($(round(V_eq1, digits=1)) mL)")
-vline!(p, [V_eq2]; ls = :dash, color = :blue, label = "PE₂ ($(round(V_eq2, digits=1)) mL)")
+vline!(p, [V_eq1]; ls = :dash, color = :red, label = "PE₁ ($(round(V_eq1, digits = 1)) mL)")
+vline!(p, [V_eq2]; ls = :dash, color = :blue, label = "PE₂ ($(round(V_eq2, digits = 1)) mL)")
 hline!(p, [pKa1]; ls = :dot, color = :orange, label = "pKₐ₁ = $pKa1")
 hline!(p, [pKa2]; ls = :dot, color = :green, label = "pKₐ₂ = $pKa2")
 display(p)
