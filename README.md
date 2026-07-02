@@ -4,10 +4,10 @@
 
 # ChemistryLab
 
-[![Docs - Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://MicroPoroChemoMechanics.codeberg.page/ChemistryLab.jl/stable/)
-[![Docs - Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://MicroPoroChemoMechanics.codeberg.page/ChemistryLab.jl/dev/)
+[![Docs - Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl/stable/)
+[![Docs - Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl/dev/)
 
-[![License: LGPL v2.1+](https://img.shields.io/badge/License-LGPL_v2.1+-blue.svg)](https://codeberg.org/MicroPoroChemoMechanics/ChemistryLab.jl/src/branch/main/LICENSE)
+[![License: LGPL v2.1+](https://img.shields.io/badge/License-LGPL_v2.1+-blue.svg)](https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl/blob/main/LICENSE)
 [![code style: runic](https://img.shields.io/badge/code_style-%E1%9A%B1%E1%9A%A2%E1%9A%BE%E1%9B%81%E1%9A%B2-pink)](https://github.com/fredrikekre/Runic.jl)
 
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.17756074-blue)](https://doi.org/10.5281/zenodo.17756074)
@@ -27,13 +27,13 @@ ChemistryLab.jl is a computational chemistry toolkit. Although initially dedicat
 
 ## Installation
 
-ChemistryLab.jl is hosted on the [MPCM registry](https://codeberg.org/MicroPoroChemoMechanics/MPCM-Registry).
+ChemistryLab.jl is hosted on the [MPCM registry](https://github.com/MicroPoroChemoMechanics/MPCM-Registry).
 Add the registry once, then install as usual.
 
 In Pkg REPL mode (press `]` in the Julia REPL):
 
 ```julia-repl
-pkg> registry add https://codeberg.org/MicroPoroChemoMechanics/MPCM-Registry
+pkg> registry add https://github.com/MicroPoroChemoMechanics/MPCM-Registry
 pkg> add ChemistryLab
 ```
 
@@ -41,7 +41,7 @@ Or, equivalently, via the `Pkg` API:
 
 ```julia
 using Pkg
-Pkg.Registry.add(RegistrySpec(url="https://codeberg.org/MicroPoroChemoMechanics/MPCM-Registry"))
+Pkg.Registry.add(RegistrySpec(url="https://github.com/MicroPoroChemoMechanics/MPCM-Registry"))
 Pkg.add("ChemistryLab")
 ```
 
@@ -251,7 +251,7 @@ rescale!(state_eq, 1.0u"m^3")   # total volume → 1 m³   (in-place)
 
 ## Usage
 
-See the [documentation and tutorials](https://MicroPoroChemoMechanics.codeberg.page/ChemistryLab.jl) for examples on formula creation, species management, reaction parsing, and database merging.
+See the [documentation and tutorials](https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl) for examples on formula creation, species management, reaction parsing, and database merging.
 
 ## License
 
@@ -296,7 +296,7 @@ See [CITATION.cff](CITATION.cff) for citation details.
   author = {Barth{\'e}lemy, Jean-Fran{\c{c}}ois and Soive, Anthony},
   title  = {{ChemistryLab.jl}: Numerical laboratory for computational chemistry},
   doi    = {10.5281/zenodo.17756074},
-  url    = {https://codeberg.org/MicroPoroChemoMechanics/ChemistryLab.jl}
+  url    = {https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl}
 }
 ```
 

@@ -32,8 +32,8 @@ makedocs(;
         mathengine=Documenter.MathJax3(Dict(
             :loader => Dict("load" => ["[tex]/mhchem"]),
         )),
-        canonical="https://MicroPoroChemoMechanics.codeberg.page/ChemistryLab.jl",
-        repolink="https://codeberg.org/MicroPoroChemoMechanics/ChemistryLab.jl",
+        canonical="https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl",
+        repolink="https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl",
         edit_link="main",
         assets=["assets/favicon.ico", "assets/custom.css"],
         prettyurls=(get(ENV, "CI", nothing) == "true"),
@@ -47,7 +47,7 @@ makedocs(;
 )
 
 deploydocs(;
-    repo         = "git@codeberg-docs:MicroPoroChemoMechanics/ChemistryLab.jl.git",
+    repo         = "github.com/MicroPoroChemoMechanics/ChemistryLab.jl.git",
     devbranch    = "main",
     push_preview = false,
 )

@@ -22,6 +22,6 @@ keywords:
 version: "0.3.0"
 date-released: "2026-05-14"
 doi: "10.5281/zenodo.17756074"
-url: "https://codeberg.org/MicroPoroChemoMechanics/ChemistryLab.jl"
-repository-code: "https://codeberg.org/MicroPoroChemoMechanics/ChemistryLab.jl"
+url: "https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl"
+repository-code: "https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl"
 license: "LGPL-2.1-or-later"
