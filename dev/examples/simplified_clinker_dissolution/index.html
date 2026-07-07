@@ -51,7 +51,7 @@ state_eq = equilibrate(state)</code></pre><pre class="documenter-example-output"
 │        FeO2H@│          9.89221e-8│          8.78933e-6│          7.13161e-7│          1.19994e-6│
 │      AlSiO5-3│          9.39011e-8│          1.26824e-5│         -3.20501e-6│          1.13903e-6│
 │            H+│          6.87555e-8│          6.93055e-8│                 0.0│          8.34013e-7│
-│           O2@│          5.47678e-8│          1.75246e-6│          1.67047e-6│          6.64341e-7│
+│           O2@│          5.47677e-8│          1.75246e-6│          1.67046e-6│           6.6434e-7│
 │          FeO+│          4.54479e-8│          3.26516e-6│         -1.90975e-6│          5.51289e-7│
 │          AlO+│          4.22899e-8│          1.81764e-6│          1.29972e-8│          5.12982e-7│
 │         HSO4-│           4.0066e-8│          3.88897e-6│          1.39594e-6│          4.86006e-7│
@@ -61,7 +61,7 @@ state_eq = equilibrate(state)</code></pre><pre class="documenter-example-output"
 │        FeOH+2│          2.38753e-8│          1.73936e-6│         -6.05011e-7│           2.8961e-7│
 │          Fe+2│          2.07896e-8│          1.16099e-6│         -4.70685e-7│           2.5218e-7│
 │          Al+3│          1.80262e-8│          4.86373e-7│         -8.15554e-7│           2.1866e-7│
-│      Fe(SO4)@│          1.71644e-8│          2.60728e-6│          2.86967e-8│          2.08206e-7│
+│      Fe(SO4)@│          1.71644e-8│          2.60729e-6│          2.86967e-8│          2.08206e-7│
 │      Al(SO4)+│          1.61508e-8│          1.98716e-6│         -9.72125e-8│          1.95912e-7│
 │          Fe+3│          1.53987e-8│          8.59941e-7│         -5.81921e-7│          1.86788e-7│
 │      Fe(SO4)+│          1.40688e-8│          2.13707e-6│         -3.70775e-8│          1.70657e-7│
@@ -72,7 +72,7 @@ state_eq = equilibrate(state)</code></pre><pre class="documenter-example-output"
 │         SO3-2│          1.10755e-8│           8.8667e-7│         -4.55866e-8│          1.34347e-7│
 │    Fe(HSO4)+2│          1.01722e-8│          1.55542e-6│          2.35981e-8│           1.2339e-7│
 │         HSO3-│          9.79624e-9│          7.94132e-7│          3.22853e-7│           1.1883e-7│
-│           HS-│          3.56424e-9│          1.17862e-7│          7.20317e-8│          4.32348e-8│
+│           HS-│          3.56425e-9│          1.17862e-7│          7.20317e-8│          4.32348e-8│
 │          H2S@│          3.41339e-9│          1.16315e-7│          1.19302e-7│          4.14049e-8│
 │        S2O3-2│          3.17902e-9│          3.56423e-7│          8.77165e-8│           3.8562e-8│
 ╞══════════════════════════════════════════════════════════════════════════════════════════════════╡
@@ -85,11 +85,11 @@ state_eq = equilibrate(state)</code></pre><pre class="documenter-example-output"
 │monosulphate12│            0.118055│             73.4901│              36.609│                    │
 │         C3FH6│             0.10755│             46.8926│             16.7011│                    │
 │         C3AH6│           0.0969555│             36.6764│             14.5144│                    │
-│        C4FH13│          5.68515e-7│          0.00035145│         0.000162561│                    │
+│        C4FH13│          5.68508e-7│         0.000351446│         0.000162559│                    │
 │           C2S│          2.62224e-7│          4.51646e-5│          1.35806e-5│                    │
-│    ettringite│          2.37131e-7│         0.000297616│         0.000167659│                    │
+│    ettringite│          2.37128e-7│         0.000297613│         0.000167656│                    │
 │            Gp│          1.04572e-7│          1.80036e-5│           7.8105e-6│                    │
-│           Anh│          9.78947e-8│          1.33268e-5│          4.49728e-6│                    │
+│           Anh│          9.78935e-8│          1.33266e-5│          4.49723e-6│                    │
 │           C3S│          3.17065e-8│          7.23903e-6│          2.32028e-6│                    │
 │          C4AF│           1.3876e-8│           6.7431e-6│          1.80668e-6│                    │
 │           C3A│          1.22265e-8│          3.30349e-6│          1.09081e-6│                    │
@@ -161,4 +161,4 @@ function ChemistryLab.activity_model(::ChemicalSystem, ::MyModel)
     return (_, _) -&gt; begin
         # compute and return log-activities
     end
-end</code></pre><p>Pass your model to <code>equilibrate</code> or <code>EquilibriumSolver</code>:</p><pre><code class="language-julia hljs">state_eq = equilibrate(state; model=MyModel(...))</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../co2_carbonate_system/">« CO₂ Dissolution and the Carbonate System</a><a class="docs-footer-nextpage" href="../cement_carbonation/">Carbonation of a Cement Paste »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 3 July 2026 07:34">Friday 3 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><p>Pass your model to <code>equilibrate</code> or <code>EquilibriumSolver</code>:</p><pre><code class="language-julia hljs">state_eq = equilibrate(state; model=MyModel(...))</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../co2_carbonate_system/">« CO₂ Dissolution and the Carbonate System</a><a class="docs-footer-nextpage" href="../cement_carbonation/">Carbonation of a Cement Paste »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Tuesday 7 July 2026 14:10">Tuesday 7 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
