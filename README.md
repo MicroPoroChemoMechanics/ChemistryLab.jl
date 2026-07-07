@@ -295,7 +295,7 @@ See [CITATION.cff](CITATION.cff) for citation details.
 
 ```bibtex
 @software{chemistrylab_jl,
-  author = {Barth{\'e}lemy, Jean-Fran{\c{c}}ois and Soive, Anthony},
+  author = {Barth{\'e}l{\'e}my, Jean-Fran{\c{c}}ois and Soive, Anthony},
   title  = {{ChemistryLab.jl}: Numerical laboratory for computational chemistry},
   doi    = {10.5281/zenodo.17756074},
   url    = {https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl}
