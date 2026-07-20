@@ -27,11 +27,9 @@
 
 ### Infrastructure
 - Relicensed to LGPL-2.1-or-later
-- Migrated to Codeberg (`MicroPoroChemoMechanics/ChemistryLab.jl`)
-- Forgejo workflows: CI, Documentation, Release, Runic, Zenodo
 - Registered in MPCM-Registry (OptimaSolver resolved via registry)
+- GitHub Actions workflows: CI, Documentation, Register, CompatHelper, Format, TagBot
 - Multi-version documentation deployment (`docs/deploy_docs.jl`)
-- Runic.yml: switch to `workflow_dispatch` only
 
 ## v0.2.3 — Activity models & solid solutions
 
