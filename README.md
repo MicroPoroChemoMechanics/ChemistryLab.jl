@@ -30,13 +30,11 @@ ChemistryLab.jl is a computational chemistry toolkit. Although initially dedicat
 
 ## Installation
 
-ChemistryLab.jl is hosted on the [MPCM registry](https://github.com/MicroPoroChemoMechanics/MPCM-Registry).
-Add the registry once, then install as usual.
+ChemistryLab.jl is registered in Julia's General registry.
 
 In Pkg REPL mode (press `]` in the Julia REPL):
 
 ```julia-repl
-pkg> registry add https://github.com/MicroPoroChemoMechanics/MPCM-Registry
 pkg> add ChemistryLab
 ```
 
@@ -44,7 +42,6 @@ Or, equivalently, via the `Pkg` API:
 
 ```julia
 using Pkg
-Pkg.Registry.add(RegistrySpec(url="https://github.com/MicroPoroChemoMechanics/MPCM-Registry"))
 Pkg.add("ChemistryLab")
 ```
 
