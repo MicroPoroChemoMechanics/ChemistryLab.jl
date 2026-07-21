@@ -37,14 +37,6 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q git ssh
 
-      - name: Add MPCM-Registry
-        run: |
-          julia -e '
-            using Pkg
-            Pkg.Registry.add(RegistrySpec(url="https://codeberg.org/MicroPoroChemoMechanics/MPCM-Registry.git"))
-            Pkg.Registry.add("General")
-          '
-
       - name: Install doc dependencies
         run: |
           julia -e '

@@ -39,14 +39,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-julia-${{ matrix.version }}-
 
-      - name: Add MPCM-Registry
-        run: |
-          julia -e '
-            using Pkg
-            Pkg.Registry.add(RegistrySpec(url="https://codeberg.org/MicroPoroChemoMechanics/MPCM-Registry.git"))
-            Pkg.Registry.add("General")
-          '
-
       - name: Build package
         run: julia --project -e 'using Pkg; Pkg.instantiate()'
 
