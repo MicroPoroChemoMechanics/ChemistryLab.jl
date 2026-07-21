@@ -57,7 +57,7 @@ SymbolicNumericIntegration = "1.10.0"
 Symbolics = "7"
 TOML = "1"
 Tables = "1"
-TimerOutputs = "0.5"
+TimerOutputs = "0.5, 1"
 Unicode = "1"
 julia = "1.12"
 
