@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.3.1 — Maintenance
+
+- `[compat]` upper bounds raised: `OrdinaryDiffEq` to `"6, 7"`, `TimerOutputs`
+  to `"0.5, 1"`.
+- CI badge restored; Runic badge.
+- Installation instructions updated for registration in Julia's General
+  registry; documented the optional optimization backend required to solve
+  equilibria (`Optimization`+`OptimizationIpopt`, or `OptimaSolver`).
+- Confirmed each GitHub Release keeps archiving automatically to Zenodo's
+  existing concept DOI `10.5281/zenodo.17756074` via the native
+  GitHub↔Zenodo integration (no workflow or token needed).
+- Retired the Codeberg return path (`.forgejo/` workflows and
+  `docs/deploy_docs.jl` removed); MPCM-Registry deprecated in favor of the
+  General registry.
+
 ## v0.3.0 — Chemical kinetics module
 
 ### New features

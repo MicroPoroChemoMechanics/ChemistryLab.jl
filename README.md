@@ -45,6 +45,20 @@ using Pkg
 Pkg.add("ChemistryLab")
 ```
 
+### Optimization backend for equilibrium
+
+Solving a thermodynamic equilibrium (`equilibrate`) requires an optimization
+backend, loaded on demand through a package extension. Load **one** of:
+
+```julia
+using Optimization, OptimizationIpopt   # default backend (Ipopt), works out of the box
+# or
+using OptimaSolver                       # optional Julia-native interior-point backend
+```
+
+All backends are optional (`[weakdeps]`); parsing, species/system/state handling,
+databases and thermodynamic data work without any of them.
+
 ## Example
 
 Let's imagine we want to study the equilibrium of calcite in water.
