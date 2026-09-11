@@ -332,12 +332,12 @@ gr()
 p1 = plot(t_T ./ 3600, T_°C;
     xlabel="Time [h]", ylabel="T [°C]",
     title="Temperature", label="T(t)", lw=2, color=:red)
-hline!(p1, [20.0]; ls=:dash, color=:gray, label="T₀")
+hline!(p1, [20.0]; ls=:dash, color=:gray, label="T0")
 
 p2 = plot(t_h, [α_C3S α_C2S α_C3A α_C4AF α_mean];
     xlabel="Time [h]", ylabel="α",
     title="Degree of hydration", lw=2,
-    label=["C₃S" "C₂S" "C₃A" "C₄AF" "ᾱ"],
+    label=["C3S" "C2S" "C3A" "C4AF" "ᾱ"],
     ls=[:solid :dash :dot :dashdot :solid])
 hline!(p2, [α_max]; ls=:dash, color=:black, label="α_max")
 

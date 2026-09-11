@@ -116,7 +116,7 @@ ms = exp10.(range(-3, log10(3.0); length = 120))
 aw(mod, m) = exp(log_activities(nacl(m), mod)[sym_w])
 A25 = hkf_debye_huckel_params(298.15, 1.0e5).A
 
-p1 = plot(; xscale = :log10, xlabel = "molality m (mol/kg)", ylabel = "γ(Na⁺)",
+p1 = plot(; xscale = :log10, xlabel = "molality m (mol/kg)", ylabel = "γ(Na+)",
     title = "Three models, one electrolyte", legend = :bottomleft)
 for ((name, mod), col) in zip(models, (:gray, :firebrick, :steelblue))
     plot!(p1, ms, [γ(mod, m) for m in ms]; label = name, linewidth = 2, color = col)

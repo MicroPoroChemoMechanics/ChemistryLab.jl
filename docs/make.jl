@@ -12,6 +12,39 @@ using PrettyTables
 
 include("pages.jl")
 
+# ── Guard: no Unicode sub/superscript in a plot label ────────────────────────
+#
+# GR has no glyph for these in most fonts. It then prints `GKS: glyph missing
+# from current font` and looks for a fallback — instant locally, where
+# fontconfig is warm, but slow enough in a CI container that a build once spent
+# its entire timeout doing it and was canceled. Two seconds of scanning here
+# beats discovering it two hours in, so this fails the build immediately and
+# says which line to fix.
+let
+    marks = "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿ₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑₒₓₕₖₗₘₙₚₛₜ"
+    # The VALUE of a label keyword only: prose, species symbols such as
+    # `Species("H₂O")` and identifiers such as `.ΔₐG⁰` are none of its business.
+    pat = r"\b(?:[xyz]?label|title|annotate)\s*=\s*\[?\s*(\"[^\"\n]*\"\s*)+"
+    offenders = String[]
+    for (root, _, files) in walkdir(joinpath(@__DIR__, "src")),
+            f in filter(endswith(".md"), files)
+
+        path = joinpath(root, f)
+        for (i, line) in enumerate(eachline(path))
+            m = match(pat, line)
+            m === nothing && continue
+            any(c -> occursin(c, m.match), marks) || continue
+            push!(offenders, "  $(relpath(path, @__DIR__)):$i  $(strip(line))")
+        end
+    end
+    isempty(offenders) || error(
+        "Unicode sub/superscripts in plot labels — GR has no glyph for these " *
+        "and the font fallback can consume the whole CI budget. Write them " *
+        "plainly (`Ca2+`, `CO3^2-`, `Delta_a G0`); the surrounding prose may " *
+        "keep them.\n" * join(offenders, "\n"),
+    )
+end
+
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"); style = :authoryear)
 
 DocMeta.setdocmeta!(
@@ -36,6 +69,24 @@ Plots.default(;
     bottom_margin = 6Plots.mm,
     right_margin = 4Plots.mm,
     top_margin = 3Plots.mm,
+    # The font is set HERE and nowhere else, and that is not a style preference.
+    #
+    # Documenter runs every `@example` block in one process, so a page calling
+    # `default(fontfamily = ...)` changes the font for every page built after it.
+    # `examples/cem1_solid_solutions.md` did exactly that with "Computer Modern",
+    # which has no Unicode sub/superscripts.
+    #
+    # Whenever a label needs a glyph the font lacks, GR prints `GKS: glyph
+    # missing from current font` and falls back. Locally that fallback is
+    # instant, because fontconfig's cache is warm; in a CI container it is not,
+    # and a documentation build spent its whole two-hour budget emitting those
+    # lines and was canceled by the timeout. So this is not cosmetic.
+    #
+    # Two defenses, because either alone is fragile: the font is pinned here to
+    # one that carries the glyphs, and no plot label in `docs/src` uses Unicode
+    # sub/superscripts at all. A page may set `framestyle`, `grid` and the like;
+    # it must not set the font.
+    fontfamily = "sans-serif",
 )
 
 # ── Stopgap: CitationSiteNode in the Markdown writer ─────────────────────────

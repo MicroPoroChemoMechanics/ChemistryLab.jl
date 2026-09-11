@@ -49,7 +49,7 @@ using Plots
 xs = range(0.001, 0.999; length = 300)
 Gmix(x, w) = x * log(x) + (1 - x) * log(1 - x) + w * x * (1 - x)
 
-p1 = plot(; xlabel = "mole fraction x₁", ylabel = "G_mix / RT",
+p1 = plot(; xlabel = "mole fraction x1", ylabel = "G_mix / RT",
     title = "Mixing free energy across the critical point", legend = :bottom)
 for (w, col, st) in ((0.0, :steelblue, :solid), (1.0, :seagreen, :solid),
                      (2.0, :black, :dash), (2.5, :darkorange, :solid),
@@ -126,7 +126,7 @@ diluted in a host, which is how a solid solution takes up an ion that would
 never precipitate on its own.
 
 ```@example ss
-p2 = plot(; xlabel = "mole fraction x₁", ylabel = "activity a₁",
+p2 = plot(; xlabel = "mole fraction x1", ylabel = "activity a1",
     title = "An end-member's activity, and what W does to it", legend = :topleft)
 plot!(p2, xs, collect(xs); label = "ideal (a = x)", linewidth = 2, color = :black,
     linestyle = :dot)

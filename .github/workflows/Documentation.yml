@@ -17,9 +17,13 @@ jobs:
   build:
     #needs: test
     runs-on: ubuntu-latest
-    # The VitePress pass runs after Documenter's, so the job is longer than it
-    # was; a bound keeps a hung build from occupying a runner indefinitely.
-    timeout-minutes: 120
+    # A bound keeps a hung build from occupying a runner indefinitely. It is a
+    # safety net, NOT a capacity plan: when a build approaches this, the cause is
+    # to be found rather than the number raised. One such cause is on record —
+    # GR emits `GKS: glyph missing from current font` and the build stops there,
+    # so the font is now pinned once in `docs/make.jl` and no page may override
+    # it. A healthy build produces no such line.
+    timeout-minutes: 180
     permissions:
         actions: write # needed to allow julia-actions/cache to proactively delete old caches that it has created
         pull-requests: read
@@ -72,10 +76,17 @@ jobs:
             using Pkg
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()
+      # `JULIA_DEBUG=Documenter` makes Documenter name each page as it expands it.
+      # Without it the whole `ExpandTemplates` stage — which is where every
+      # `@example` block runs, and so nearly all the wall time — prints nothing
+      # at all, and a build that is working normally is indistinguishable in the
+      # log from one that has hung. That ambiguity cost two hours of runner time
+      # once; the extra lines are worth it.
       - name: Build and deploy
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+            JULIA_DEBUG: Documenter
         run: julia --project=docs/ docs/make.jl
     #   - name: Run doctests
     #     shell: julia --project=docs --color=yes {0}

@@ -232,7 +232,7 @@ this composition never does.
 ```@example wc_setup
 p3 = plot(collect(wc_range), n_portl;
     xlabel = "w/c ratio", ylabel = "Amount (mol / kg of paste)",
-    label = "Portlandite  Ca(OH)₂", linewidth = 2, marker = :circle,
+    label = "Portlandite  Ca(OH)2", linewidth = 2, marker = :circle,
     markersize = 4, color = :steelblue, title = "Hydrate assemblage at equilibrium",
     legend = :right)
 plot!(p3, collect(wc_range), n_jennite;

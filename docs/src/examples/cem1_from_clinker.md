@@ -218,7 +218,7 @@ plot(p4; size = (760, 430), left_margin = 10Plots.mm, right_margin = 12Plots.mm,
 
 ```@example cem1
 p5 = plot(days, shrink; xscale = :log10, xlabel = "time (days)",
-    ylabel = "volume lost (cm³)", label = "chemical shrinkage", linewidth = 2,
+    ylabel = "volume lost (cm3)", label = "chemical shrinkage", linewidth = 2,
     color = :seagreen, title = "Chemical shrinkage", legend = :topleft)
 plot(p5; size = (720, 400), left_margin = 10Plots.mm, bottom_margin = 8Plots.mm)
 ```

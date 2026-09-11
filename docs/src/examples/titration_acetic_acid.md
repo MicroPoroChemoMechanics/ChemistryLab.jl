@@ -206,7 +206,7 @@ scatter!(p, [0, V_eq], [pH0, pHeq];
     markersize = 6,
 )
 vline!(p, [V_eq]; linestyle = :dash, color = :red,  label = "PE ($(round(V_eq, digits=1)) mL)")
-hline!(p, [pKa];  linestyle = :dot,  color = :grey, label = "pKₐ = $(round(pKa, digits=2)) at V = 50 mL")
+hline!(p, [pKa];  linestyle = :dot,  color = :grey, label = "pKa = $(round(pKa, digits=2)) at V = 50 mL")
 ```
 
 ![Acetic acid titration curve](../assets/acetic_titration.png)

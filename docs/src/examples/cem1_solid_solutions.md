@@ -19,7 +19,11 @@ using OptimaSolver
 using OrderedCollections
 using Printf
 using Plots
-default(fontfamily = "Computer Modern", framestyle = :box, grid = false)
+# Frame style only — never the font. Documenter runs all `@example` blocks in
+# ONE process, so `default(fontfamily = ...)` here would apply to every page
+# built after this one. The font is set once, for the whole site, in
+# `docs/make.jl`, and the reason is recorded there.
+default(framestyle = :box, grid = false)
 nothing # hide
 ```
 
@@ -308,7 +312,7 @@ this formula, derived independently of the solve, says it is.
 nms = collect(keys(Ω))
 vals = [log10(w) for w in values(Ω)]
 bar(nms, vals;
-    legend = false, ylabel = "log₁₀ Ω",
+    legend = false, ylabel = "log10 Ω",
     title = "How far each solid solution is from forming",
     color = [v > -1.0e-6 ? :seagreen : :steelblue for v in vals],
     xrotation = 30, size = (760, 420),
@@ -416,7 +420,7 @@ vols = [ustrip(uconvert(us"cm^3", volume(e).total)) for e in (eq, eq2, eq3)]
 phs = [pH(e, model) for e in (eq, eq2, eq3)]
 ok = [cert.optimal, cert2.optimal, cert3.optimal]
 
-p1 = bar(labels, vols; legend = false, ylabel = "total volume (cm³)",
+p1 = bar(labels, vols; legend = false, ylabel = "total volume (cm3)",
     color = [o ? :seagreen : :firebrick for o in ok], title = "Volume")
 p2 = bar(labels, phs; legend = false, ylabel = "pH",
     color = [o ? :seagreen : :firebrick for o in ok], title = "pH",
