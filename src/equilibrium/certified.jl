@@ -190,6 +190,56 @@ function _repair_start(eq::ChemicalState, model, bfix, ϵ::Float64)
 end
 
 """
+    _LazyStarts
+
+The starting points offered to [`solve_certified`](@ref), each back end solved
+only when the search actually asks for it, and cached once it has been.
+
+`solve_certified` returns at the **first** start that certifies, so solving
+every registered back end before the search begins pays for answers the search
+may never look at.
+
+Measured honestly, the gain depends entirely on whether the first start
+certifies. On the CEM I of `docs/src/examples/cem1_solid_solutions.md` it does
+**not**, the later starts are genuinely consumed, and this buys nothing: 107.9 s
+against 105.1 s eager, within noise. The saving appears only where the first
+back end settles the problem, which is the common case for the smaller systems.
+So this is a correctness-of-effort change — never compute a start no one reads —
+and not a cement optimization; the expensive cement case needs a different
+answer.
+
+Cached, and that is not optional: the route search offers the same starts again
+after the ideal pre-solve and again after the continuation, so recomputing them
+each time would more than undo the gain.
+
+Iterating yields each back end's answer in registration order, skipping any that
+threw, and finally `tail` — the caller's own state, which is the only start left
+if every back end failed.
+"""
+struct _LazyStarts{F, S}
+    solve_one::F                     # factory -> a state, or `nothing` if it threw
+    factories::Vector{Function}
+    tail::S                          # the caller's own state, offered last
+    cache::Vector{S}
+    tried::Base.RefValue{Int}
+end
+
+Base.IteratorSize(::Type{<:_LazyStarts}) = Base.SizeUnknown()
+Base.eltype(::Type{_LazyStarts{F, S}}) where {F, S} = S
+
+function Base.iterate(s::_LazyStarts, i::Int = 1)
+    # Solve just far enough to answer for element `i`, and no further.
+    while i > length(s.cache) && s.tried[] < length(s.factories)
+        s.tried[] += 1
+        r = s.solve_one(s.factories[s.tried[]])
+        r === nothing || push!(s.cache, r)
+    end
+    i <= length(s.cache) && return (s.cache[i], i + 1)
+    i == length(s.cache) + 1 && return (s.tail, i + 1)
+    return nothing
+end
+
+"""
     _ideal_start(state, model, bfix, ϵ, constraint, verbose; kwargs...)
         -> Union{ChemicalState, Nothing}
 
@@ -384,25 +434,24 @@ function equilibrate_certified(
     # returned 1.8e-14. The result is still judged strictly, at the end of this
     # function, which is where the flag belongs.
     function starts_from(from::ChemicalState, what::AbstractString)
-        out = ChemicalState[]
-        strict = STRICT_CONVERGENCE[]
-        STRICT_CONVERGENCE[] = false
-        try
-            _exploring_starts() do
-                for f in _SOLVER_FACTORIES
-                    try
-                        esolver = EquilibriumSolver(state.system, model, f(); kwargs...)
-                        push!(out, SciMLBase.solve(esolver, from; ϵ = ϵ, b = bfix))
-                    catch err
-                        verbose && @info "$what rejected" backend = f err
-                    end
+        solve_one = function (f)
+            strict = STRICT_CONVERGENCE[]
+            STRICT_CONVERGENCE[] = false
+            return try
+                _exploring_starts() do
+                    esolver = EquilibriumSolver(state.system, model, f(); kwargs...)
+                    SciMLBase.solve(esolver, from; ϵ = ϵ, b = bfix)
                 end
+            catch err
+                verbose && @info "$what rejected" backend = f err
+                nothing
+            finally
+                STRICT_CONVERGENCE[] = strict
             end
-        finally
-            STRICT_CONVERGENCE[] = strict
         end
-        push!(out, from)
-        return out
+        return _LazyStarts(
+            solve_one, copy(_SOLVER_FACTORIES), from, typeof(from)[], Ref(0),
+        )
     end
 
     # Every candidate the search tries is a candidate, and a candidate that does
@@ -436,7 +485,7 @@ function equilibrate_certified(
         if ideal !== nothing
             eq, cert = _keep_better(
                 eq, cert,
-                search(vcat(starts_from(ideal, "start from the ideal answer"), starts))...,
+                search(Iterators.flatten((starts_from(ideal, "start from the ideal answer"), starts)))...,
             )
         end
     end
@@ -468,7 +517,7 @@ function equilibrate_certified(
             before = _kkt_error(cert)
             eq, cert = _keep_better(
                 eq, cert,
-                search(vcat(starts_from(guess, "start from the continuation"), starts))...,
+                search(Iterators.flatten((starts_from(guess, "start from the continuation"), starts)))...,
             )
             note = cert.optimal ?
                 "the continuation certified it" :
@@ -513,7 +562,7 @@ function equilibrate_certified(
         # replace. Handing the search the repaired composition *and* the
         # candidates it already had keeps the chemistry of the one and the trace
         # components of the others.
-        repair_search(f) = search(vcat(starts_from(f, "repair start"), starts))
+        repair_search(f) = search(Iterators.flatten((starts_from(f, "repair start"), starts)))
         for _ in 1:_MAX_RESTARTS
             cert.optimal && break
             eq, cert, improved = _repair_round(
