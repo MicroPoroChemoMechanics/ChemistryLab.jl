@@ -536,7 +536,7 @@ julia> r.equation
 "SO₄²⁻ + 9H⁺ + 8e⁻ = 4H₂O@ + HS⁻"
 ```
 
-See also: [`pe`](@ref), [`Eh`](@ref).
+See also: [`pe`](@ref), [`Eh`](@ref), [`FixedpE`](@ref).
 """
 const ELECTRON = let e = Species("e-")
     e.ΔₐG⁰ = 0.0
@@ -617,7 +617,7 @@ is sulfate/sulfide, which is the couple a slag-blended cement buffers.
     couples and comparing them measures how far the assumption of a single redox
     state is from holding — which is worth doing before trusting either.
 
-See also: [`Eh`](@ref), [`half_reaction`](@ref).
+See also: [`Eh`](@ref), [`half_reaction`](@ref), [`FixedpE`](@ref).
 """
 function pe(
         state::ChemicalState, model::AbstractActivityModel;

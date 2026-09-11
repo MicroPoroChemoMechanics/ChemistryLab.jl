@@ -263,6 +263,8 @@ module ChemistryLab
         SealedVolume,
         FixedActivity,
         FixedpH,
+        FixedpE,
+        FixedEh,
         CapillaryWater,
         KineticStepSolver,
         kinetic_step,

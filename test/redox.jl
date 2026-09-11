@@ -99,3 +99,64 @@
         @test !("Zz" in String.(symbol.(cs1.SM.primaries)))
     end
 end
+
+@testsection "redox as a prescribed condition" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    sp = speciation(
+        substances, ["SO4-2", "HS-", "Ca+2", "O2@", "H2@"];
+        aggregate_state = [AS_AQUEOUS],
+    )
+    cs = ChemicalSystem(sp, CEMDATA_PRIMARIES)
+    st = ChemicalState(cs)
+    set_quantity!(st, "H2O@", 1.0u"kg")
+    set_quantity!(st, "SO4-2", 1.0e-3u"mol")
+    set_quantity!(st, "HS-", 1.0e-3u"mol")
+    set_quantity!(st, "Ca+2", 1.0e-3u"mol")
+    model = DiluteSolutionModel()
+    b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+
+    @testset "the prescribed potential is the one obtained" begin
+        for target in (-6.0, -3.0, 0.0)
+            eq, cert = equilibrate_certified(
+                st; model = model, b = b, constraint = FixedpE(target)
+            )
+            @test cert.optimal
+            # Read back through `pe`, which knows nothing of the constraint:
+            # agreement is a check on the whole path, not on one formula.
+            @test pe(eq, model) ≈ target atol = 1.0e-3
+        end
+    end
+
+    @testset "raising the potential oxidizes the sulfur" begin
+        ratios = map((-6.0, -3.0, 0.0)) do target
+            eq, _ = equilibrate_certified(
+                st; model = model, b = b, constraint = FixedpE(target)
+            )
+            ustrip(us"mol", moles(eq, "SO4-2")) / ustrip(us"mol", moles(eq, "HS-"))
+        end
+        # S(VI)/S(-II) must increase with pe, and by orders of magnitude.
+        @test issorted(ratios)
+        @test ratios[end] / ratios[1] > 100
+    end
+
+    @testset "FixedEh is FixedpE through Nernst" begin
+        # 0.05916 V per pe unit at 25 C.
+        eq_e, cert_e = equilibrate_certified(
+            st; model = model, b = b, constraint = FixedEh(-0.1775u"V")
+        )
+        @test cert_e.optimal
+        @test pe(eq_e, model) ≈ -3.0 atol = 5.0e-3
+    end
+
+    @testset "refusals" begin
+        # A couple at one oxidation state prescribes nothing.
+        @test_throws ArgumentError equilibrate_certified(
+            st; model = model, b = b,
+            constraint = FixedpE(0.0; couple = "Ca+2" => "Ca+2"),
+        )
+        # The titrant has to be a species of the system.
+        @test_throws ArgumentError equilibrate_certified(
+            st; model = model, b = b, constraint = FixedpE(0.0; titrant = "NotHere"),
+        )
+    end
+end
