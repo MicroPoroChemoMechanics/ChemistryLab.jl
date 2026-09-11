@@ -20,10 +20,31 @@ recomputing its heaviest trajectories at every build.
   whole file and declares everything in it now also declares that phase — and,
   by the rule above, can no longer also declare `CSHQ`. Loading the file has
   always been an explicit act; which phases to declare remains the caller's.
+- **`[compat] OptimaSolver` moves to `"0.5.3"`.** That release carries
+  `phase_split_measure`, without which a mixing phase that is present is
+  certified on the stationarity of its members alone — and stationarity cannot
+  see that the Gibbs minimum for a non-ideal phase is two coexisting
+  compositions. `OptimaSolver` 0.5.3 must be registered before this release.
 - **The registry treats a minor bump below 1.0 as breaking whatever the API
   did**, so `[compat] ChemistryLab = "0.17"` will not accept `0.18` and
   downstream bounds must be widened. `MeanFieldHomogenization.jl` depends on this
   package only in `docs/Project.toml`.
+
+### Added — a miscibility gap is now detected rather than certified past
+
+With `OptimaSolver` 0.5.3, the certificate tests a **present** mixing phase for
+wanting to split. Measured on the AFm sulfate/hydroxide binary with the
+published Redlich-Kister parameters, whose spinodal is x ∈ [0.631, 0.914]:
+
+| model | certificate | worst violation |
+|:--|:--|--:|
+| ideal mixing | `optimal = true` | +1.0e-10 |
+| published Redlich-Kister | **`optimal = false`** | +8.7e-03 |
+
+The second used to certify. It was a KKT point and not a minimum, and the
+certificate said otherwise. `SolidSolutionPhase` still refuses a concave model at
+construction; what changes is that `check_convexity = false` is no longer a
+silent loss of the proof.
 
 ### Added — oxidation state
 
