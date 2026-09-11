@@ -122,6 +122,10 @@ pages = [
         # computed.
         "Cementitious media from the clinker up" => [
             "examples/cem1_from_clinker.md",
+            # The phase list as a modeling decision: declare every solid
+            # solution the database defines and let the minimization choose,
+            # rather than choosing for it.
+            "examples/cem1_solid_solutions.md",
         ],
         "Cementitious media at equilibrium" => [
             "examples/simplified_clinker_dissolution.md",

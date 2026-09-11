@@ -75,10 +75,9 @@ end
 ```
 
 The Pitzer column follows the measurement to better than half a percent from a
-millimolal to six molal — through the **minimum near 1.2 mol/kg and the return
-above unity at saturation**, neither of which any Debye-Hückel form can produce,
-since both require a term that grows faster than ``\sqrt{I}`` and then turns
-over. The osmotic coefficient agrees to the same order, independently.
+millimolal to six molal — through the **minimum near 1 mol/kg and the climb back
+to 0.99 at six molal**, neither of which any Debye-Hückel form can produce, since
+both require a term that grows faster than ``\sqrt{I}`` and then turns over. The osmotic coefficient agrees to the same order, independently.
 
 The B-dot column is not being criticized for failing outside its stated range.
 The point is that the range is real — 5 % out at a tenth molal, 19 % at one,

@@ -200,8 +200,8 @@ wrong one. Hamer & Wu (1972), Table 16 — a critical compilation of the osmotic
 the model is checked separately:
 
 **Pitzer follows the measurement to better than half a percent from 0.001 to
-6 mol/kg**, through the minimum near 1.2 mol/kg and the return above unity at
-saturation, neither of which a Debye-Hückel form can produce. The osmotic
+6 mol/kg**, through the minimum near 1 mol/kg and the climb back to 0.99 at six
+molal, neither of which a Debye-Hückel form can produce. The osmotic
 coefficient agrees to the same order. On the same points the B-dot model is 5 %
 out at a tenth molal, 19 % at one and 44 % at six — its stated range is real,
 and nothing in its output announces the exit.
