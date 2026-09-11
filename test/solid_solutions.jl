@@ -397,16 +397,24 @@ end
         "CSHQ", [dict[m] for m in six]; model = RedlichKisterModel(a0 = 1.0)
     )
 
-    # And the shipped file loads, with the five phases added in 0.15.0.
+    # And the shipped file loads. Asserted by NAME rather than by count: the
+    # file gains phases as the database is exploited further, and a bare count
+    # turns every such addition into a spurious failure that says nothing about
+    # what broke.
     ss_all = build_solid_solutions(datapath("solid_solutions.toml"), dict)
     names = Set(p.name for p in ss_all)
-    @test length(ss_all) == 11
     for n in (
+            "CSHQ", "C3(AF)S0.84H", "AFm", "Hydrogarnet", "Ettringite_ss",
+            "Hydrotalcite",
+            # added in 0.15.0
             "Straetlingite_ss", "AFm_SO4_OH", "AFt_SO4_CO3",
             "Hydrotalcite_AlFe", "MSH",
+            # the alkali- and aluminum-bearing C-S-H a blended cement needs
+            "CNASH_ss",
         )
         @test n in names
     end
+    @test length(ss_all) == length(names)   # no phase declared twice
     @test all(length(end_members(p)) >= 2 for p in ss_all)
 end
 
