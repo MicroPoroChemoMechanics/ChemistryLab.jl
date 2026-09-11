@@ -519,5 +519,124 @@ end
     finally
         ChemistryLab.STRICT_CONVERGENCE[] = strict
     end
+end
+
+
+# The three routes that make a complete phase list usable: refusing an answer
+# outside the model's domain, the ideal model as a starting point, and offering a
+# solid solution back by its own criterion. Their own fixtures, since each needs a
+# system the earlier sections do not build.
+@testsection "what makes a complete phase list usable" begin
+
+    sp2 = Dict(
+        symbol(s) => s for s in build_species(
+                datapath("slop98-inorganic-thermofun.json"); verbose = false
+            )
+    )
+    species2 = [sp2[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal")]
+    cs2 = ChemicalSystem(species2, ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"])
+    A2 = Matrix{Float64}(cs2.SM.A)
+
+    function calcite2(; nco2 = 0.0)
+        st = ChemicalState(cs2)
+        set_quantity!(st, "Cal", 1.0e-3u"mol")
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        nco2 > 0 && set_quantity!(st, "CO2@", nco2 * u"mol")
+        V = volume(st)
+        set_quantity!(st, "H+", 1.0e-4u"mol/L" * V.liquid)
+        set_quantity!(st, "OH-", 1.0e-10u"mol/L" * V.liquid)
+        return st
+    end
+
+    @testset "ranking refuses an answer outside the model's domain" begin
+        # `_check_solvent` already reports a state whose solvent has been taken by
+        # the solids; what it could not do is stop one from being CHOSEN. The
+        # ranking now compares admissibility first, in both directions, as it
+        # already did for the optimality flag.
+        good = calcite2()
+        @test ChemistryLab._within_domain(good)
+        @test solvent_fraction(good) >= ChemistryLab.SOLVENT_FRACTION_FLOOR
+
+        # The same system with the water taken out: `x_w` falls under the floor.
+        starved = ChemicalState(cs2)
+        set_quantity!(starved, "H2O@", 1.0e-3u"mol")
+        set_quantity!(starved, "Ca+2", 1.0u"mol")
+        set_quantity!(starved, "CO3-2", 1.0u"mol")
+        @test solvent_fraction(starved) < ChemistryLab.SOLVENT_FRACTION_FLOOR
+        @test !ChemistryLab._within_domain(starved)
+
+        # A system with no solvent at all has no such question to answer.
+        @test ChemistryLab._within_domain(
+            ChemicalState(ChemicalSystem([sp2["Ca+2"], sp2["CO3-2"]], ["Ca+2", "CO3-2"]))
+        )
+
+        # And the ranking uses it: an inadmissible answer loses to an admissible
+        # one even when its residuals are smaller.
+        c(opt, err) = (;
+            optimal = opt, stationarity = err, balance = err,
+            worst_supersaturation = 0.0,
+        )
+        kb = ChemistryLab._keep_better
+        @test first(kb(starved, c(false, 1.0e-12), good, c(false, 1.0))) === good
+        @test first(kb(good, c(false, 1.0), starved, c(false, 1.0e-12))) === good
+        # a certified answer still beats an admissible uncertified one
+        @test first(kb(good, c(false, 1.0e-16), starved, c(true, 1.0))) === starved
+    end
+
+    @testset "the ideal model is a usable starting point" begin
+        # `_ideal_start` answers the same question without activity coefficients,
+        # which is better conditioned and certifies where the non-ideal model may
+        # not. What it returns is an equilibrium of the ideal problem, so the
+        # non-ideal solve that starts from it begins with the right active set.
+        st = calcite2(; nco2 = 0.01)
+        b = A2 * ustrip.(us"mol", st.n)
+
+        ideal = ChemistryLab._ideal_start(
+            st, HKFActivityModel(), b, 1.0e-16, FixedTP(), false
+        )
+        @test ideal isa ChemicalState
+        _, cert = equilibrate_certified(ideal; model = DiluteSolutionModel(), b = b)
+        @test cert.optimal
+
+        # Already ideal: there is no easier question to fall back on.
+        @test ChemistryLab._ideal_start(
+            st, DiluteSolutionModel(), b, 1.0e-16, FixedTP(), false
+        ) === nothing
+
+        # A failure inside is swallowed: this builds a start, and the caller is
+        # owed the outer verdict rather than an error raised in a heuristic.
+        @test ChemistryLab._ideal_start(
+            st, HKFActivityModel(), Float64[], 1.0e-16, FixedTP(), false
+        ) === nothing
+    end
+
+    @testset "a missing solid solution is offered back by its own criterion" begin
+        # `_repair_start` skips solid-solution end-members, and rightly: the
+        # saturation index of a member at the bound reports a small mole fraction,
+        # not a phase that should form. The PHASE has its own criterion —
+        # `Omega = sum_i 10^SI_i(pure) > 1` — and without it a search that has lost
+        # a solid solution cannot get it back, because no member is ever offered.
+        cs_ss = ChemicalSystem(
+            [sp2[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal Arg")],
+            ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"];
+            solid_solutions = [
+                SolidSolutionPhase("carbonate", [sp2["Cal"], sp2["Arg"]]),
+            ],
+        )
+        st = ChemicalState(cs_ss)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "Ca+2", 0.05u"mol")
+        set_quantity!(st, "CO3-2", 0.05u"mol")
+        bfix = Float64.(cs_ss.SM.A) * ustrip.(us"mol", st.n)
+
+        # Both end-members sit at the floor while the solution is loaded with
+        # calcium carbonate, so the phase is supersaturated and comes back in.
+        repaired = ChemistryLab._repair_start(st, DiluteSolutionModel(), bfix, 1.0e-16)
+        @test repaired isa ChemicalState
+        n = ustrip.(us"mol", repaired.n)
+        grp = only(cs_ss.ss_groups)
+        @test any(n[i] > 1.0e-8 for i in grp)
+        @test all(n[i] >= 0 for i in grp)
+    end
 
 end

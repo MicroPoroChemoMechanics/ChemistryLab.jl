@@ -190,6 +190,50 @@ function _repair_start(eq::ChemicalState, model, bfix, ϵ::Float64)
 end
 
 """
+    _ideal_start(state, model, bfix, ϵ, constraint, verbose; kwargs...)
+        -> Union{ChemicalState, Nothing}
+
+A certified answer to the same problem under **ideal** activities, to be used as a
+starting point. `nothing` when that solve does not certify either, or when
+`model` is already the ideal one.
+
+The easier question is the useful one here. Without activity coefficients the
+residual does not depend on the composition through a second, non-linear path, so
+the solve is far better conditioned and certifies where the non-ideal model does
+not; and the phases it finds are the same ones — they differ in amount, not in
+identity — so the non-ideal solve that starts from it begins with the correct
+active set instead of discovering it.
+
+That discovery is what was fragile. On a CEM I at `w/c = 0.5` with the eight
+distinct CEMDATA18 solid solutions, eighty phases sit at the bound in the cold
+state and the active-set search decides its route on comparisons of nearly equal
+quantities: `100/sum(oxides)` summed over a `Dict` and over an `OrderedDict`
+differ by one ulp, and that was enough to choose between an equilibrium certified
+to 1.1e-14 and a failure with an element balance of 71 mol. Started from the ideal
+answer, both reach the same certified composition.
+
+Any failure of the inner solve is swallowed: this builds a starting point, and a
+caller who asked for a result is entitled to the outer verdict rather than to an
+error raised inside a heuristic.
+"""
+function _ideal_start(
+        state::ChemicalState, model, bfix, ϵ::Float64, constraint,
+        verbose::Bool; kwargs...,
+    )
+    model isa DiluteSolutionModel && return nothing
+    return try
+        eq0, cert0 = equilibrate_certified(
+            state; model = DiluteSolutionModel(), b = bfix, ϵ = ϵ,
+            constraint = constraint, verbose = false, autostart = true, kwargs...,
+        )
+        cert0.optimal ? eq0 : nothing
+    catch err
+        verbose && @info "the ideal pre-solve did not run" err
+        nothing
+    end
+end
+
+"""
     _REPAIR_FRACTION
 
 What fraction of the amount the recipe could make of a missing phase
@@ -388,16 +432,7 @@ function equilibrate_certified(
     # Only when nothing else certified, so the ordinary case pays nothing, and
     # guarded against recursion: the inner call is already ideal.
     if autostart && !cert.optimal && !(model isa DiluteSolutionModel)
-        ideal = try
-            eq0, cert0 = equilibrate_certified(
-                state; model = DiluteSolutionModel(), b = bfix, ϵ = ϵ,
-                constraint = constraint, verbose = false, autostart = true, kwargs...,
-            )
-            cert0.optimal ? eq0 : nothing
-        catch err
-            verbose && @info "the ideal pre-solve did not run" err
-            nothing
-        end
+        ideal = _ideal_start(state, model, bfix, ϵ, constraint, verbose; kwargs...)
         if ideal !== nothing
             eq, cert = _keep_better(
                 eq, cert,
