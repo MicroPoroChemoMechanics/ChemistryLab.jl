@@ -220,6 +220,7 @@ function SolidSolutionPhase(
         name::AbstractString,
         end_members::AbstractVector{<:AbstractSpecies};
         model::AbstractSolidSolutionModel = IdealSolidSolutionModel(),
+        check_convexity::Bool = true, T::Real = 298.15,
     )
     for sp in end_members
         aggregate_state(sp) == AS_CRYSTAL ||
@@ -235,6 +236,42 @@ function SolidSolutionPhase(
                 "got $(length(end_members))",
         )
     end
+    # A mixing energy that is concave somewhere does not describe one phase there.
+    #
+    # Refused rather than warned, and at construction rather than at the solve,
+    # because what fails downstream fails obscurely: the minimization returns a
+    # composition it cannot certify, with a small element-balance residual and no
+    # phase reported missing, and nothing in that output names the cause. Measured
+    # on the CEM II of `these_abcael`, whose two AFm/AFt Redlich-Kister sets are
+    # concave over `x in [0.63, 0.91]` and `[0.56, 0.83]`: the solve stopped at
+    # stationarity 9.2e-5 and element balance 2.6e-3, and the same eight phases
+    # with ideal mixing certified to 1.1e-14.
+    #
+    # The physics is that the Gibbs minimum inside a spinodal is two coexisting
+    # compositions, not one. Representing that needs the binary declared twice,
+    # which a formulation with one entry per species cannot do — and neither
+    # GEM-Selektor nor Reaktoro detects the condition either: both assume
+    # convexity and leave the duplication to the user.
+    #
+    # `check_convexity = false` proceeds anyway, for a caller who knows the answer
+    # stays outside the gap. The optimality certificate then loses its ground,
+    # since its sufficiency rests on the problem being convex.
+    if check_convexity
+        gap = spinodal_interval(model, length(end_members); T = T)
+        gap === nothing || error(
+            "SolidSolutionPhase \"$name\": the mixing energy of this model is " *
+                "CONCAVE for x in [$(round(gap[1]; digits = 3)), " *
+                "$(round(gap[2]; digits = 3))] at T = $(T) K, so the phase " *
+                "unmixes there: the Gibbs minimum inside that interval is two " *
+                "coexisting compositions, not one, and this formulation has a " *
+                "single amount per species to describe it with. Use ideal mixing, " *
+                "or parameters that keep the energy convex, or pass " *
+                "`check_convexity = false` to proceed anyway — in which case the " *
+                "optimality certificate no longer proves anything, its " *
+                "sufficiency resting on convexity."
+        )
+    end
+
     qualified = [
         class(sp) == SC_SSENDMEMBER ? sp : with_class(sp, SC_SSENDMEMBER)
             for sp in end_members
@@ -243,6 +280,73 @@ function SolidSolutionPhase(
     return SolidSolutionPhase{T, typeof(model)}(
         String(name), collect(T, qualified), model
     )
+end
+
+# ── Convexity of the mixing energy ────────────────────────────────────────────
+
+"""
+    spinodal_interval(model, n_members; T = 298.15) -> Union{Nothing, Tuple{Float64, Float64}}
+
+The interval of composition over which a binary mixing energy is **concave**, or
+`nothing` when it is convex throughout.
+
+A solid solution exists as one homogeneous phase only where its molar Gibbs
+energy of mixing is convex. Where `d²g/dx² < 0` — inside the spinodal — the
+minimum of `G` is not a single composition but **two coexisting ones**: the phase
+unmixes, and the equilibrium is a miscibility gap.
+
+For a binary with the package's Redlich-Kister convention,
+
+```math
+\\frac{g}{RT} = x\\ln x + (1-x)\\ln(1-x)
+             + x(1-x)\\left[A_0 + A_1(2x-1) + A_2(2x-1)^2\\right] ,
+\\qquad A_k = a_k/RT ,
+```
+
+and the second derivative is evaluated on a grid rather than in closed form, so
+that the same routine covers `a₂` and the symmetric
+[`RegularSolutionModel`](@ref) without a separate derivation. The classical
+symmetric result is recovered as a check: `d²g/dx²` at `x = 1/2` is `4 − 2A₀`, so
+a regular solution unmixes above `W = 2RT`.
+
+`T` is the temperature the parameters are read at; they are stored in J/mol and
+the criterion is `a/RT`, so a model that is convex at 25 °C may not be at 5 °C.
+
+Returns `nothing` for an ideal model, whose second derivative is `1/x + 1/(1-x)`
+and therefore positive everywhere, and for a phase with more than two
+end-members, where a one-dimensional scan is not the right test — see the note in
+[`SolidSolutionPhase`](@ref).
+
+See also: [`RedlichKisterModel`](@ref), [`RegularSolutionModel`](@ref).
+"""
+function spinodal_interval(
+        model::AbstractSolidSolutionModel, n_members::Int; T::Real = 298.15
+    )
+    n_members == 2 || return nothing
+    RT = 8.31446261815324 * T          # J/(mol K), CODATA
+    A0, A1, A2 = if model isa RedlichKisterModel
+        (model.a0 / RT, model.a1 / RT, model.a2 / RT)
+    elseif model isa RegularSolutionModel
+        (model.W[1, 2] / RT, 0.0, 0.0)
+    else
+        return nothing                      # ideal: convex everywhere
+    end
+    (A0 == 0 && A1 == 0 && A2 == 0) && return nothing
+
+    gx(x) = x * log(x) + (1 - x) * log(1 - x) +
+        x * (1 - x) * (A0 + A1 * (2x - 1) + A2 * (2x - 1)^2)
+
+    xs = range(1.0e-3, 1 - 1.0e-3; length = 2001)
+    h = step(xs)
+    lo, hi = Inf, -Inf
+    for i in 2:(length(xs) - 1)
+        d2 = (gx(xs[i + 1]) - 2gx(xs[i]) + gx(xs[i - 1])) / h^2
+        if d2 < 0
+            lo = min(lo, xs[i])
+            hi = max(hi, xs[i])
+        end
+    end
+    return isfinite(lo) ? (lo, hi) : nothing
 end
 
 # ── Accessors ─────────────────────────────────────────────────────────────────

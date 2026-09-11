@@ -54,8 +54,38 @@ while conserving mass. The search computed a usable answer and discarded it.
 """
 function _keep_better(eq, cert, eq2, cert2)
     cert2.optimal == cert.optimal || return cert2.optimal ? (eq2, cert2) : (eq, cert)
+    a, a2 = _within_domain(eq), _within_domain(eq2)
+    a == a2 || return a2 ? (eq2, cert2) : (eq, cert)
     return _kkt_error(cert2) < _kkt_error(cert) ? (eq2, cert2) : (eq, cert)
 end
+
+"""
+    _within_domain(eq) -> Bool
+
+Whether the answer is inside the domain the model is written for: an aqueous
+system whose solvent has been eaten by the solids is not.
+
+This is a ranking question, not a diagnosis. [`_check_solvent`](@ref) already
+reports such a state on the answer that is returned; what it could not do is stop
+one from being *chosen*. Measured on a CEM I with eight solid solutions: a wandering
+iterate came back with the solvent at `x_w = 0.033` and an element balance of
+71 mol, the continuation's answer stood at 160, and the smaller number won — so
+the search settled on a composition in which the water had gone into the solids,
+and every route that conserved mass was discarded behind it.
+
+Ranking on residuals alone cannot separate the two: both are large, and one is
+merely larger. The distinction that matters is not how big the residual is but
+whether the point is a composition this model can describe at all.
+"""
+function _within_domain(eq::ChemicalState)
+    isempty(eq.system.idx_solvent) && return true
+    return solvent_fraction(eq) >= SOLVENT_FRACTION_FLOOR
+end
+
+# The ranking is exercised on placeholders in `test/certified_equilibrium.jl`,
+# where the answers are stand-ins rather than compositions. Nothing that is not a
+# state carries a solvent to have lost, so the question does not arise.
+_within_domain(::Any) = true
 
 """
     _repair_start(eq, model, bfix, ϵ) -> Union{ChemicalState, Nothing}
@@ -93,32 +123,114 @@ function _repair_start(eq::ChemicalState, model, bfix, ϵ::Float64)
     si = saturation_indices(eq, model; ϵ = ϵ)
     n = Float64[ustrip(us"mol", x) for x in eq.n]
     A = cs.SM.A
-    # Solid-solution end-members are excluded: their activity is `ln x`, so the
-    # index of one sitting at the bound says its mole fraction is small, not that
-    # the phase should form. Only pure phases are repaired here.
+    # A solid-solution end-member is not a pure phase and its own index does not
+    # decide anything: the activity of a member is `ln x`, so an index taken at
+    # the bound reports that its mole fraction is small, not that the phase should
+    # form. The phase has its own criterion, applied below.
     ss = Set(cs.idx_ssendmembers)
     missing_phases = [
         i for i in cs.idx_crystal
             if !(i in ss) && n[i] <= 10ϵ && get(si, symbol(cs.species[i]), -Inf) > 1.0e-4
     ]
-    isempty(missing_phases) && return nothing
 
     n2 = copy(n)
+    cap_of(i) = minimum(
+        (
+            bfix[c] / A[c, i]
+                for c in eachindex(bfix) if A[c, i] > 0 && bfix[c] > 0
+        );
+        init = Inf,
+    )
     for i in missing_phases
-        cap = minimum(
-            (
-                bfix[c] / A[c, i]
-                    for c in eachindex(bfix) if A[c, i] > 0 && bfix[c] > 0
-            );
-            init = Inf,
-        )
+        cap = cap_of(i)
         isfinite(cap) && cap > 0 || continue
         n2[i] = max(n2[i], _REPAIR_FRACTION * cap)
     end
+
+    # ── the phases that are not pure ──
+    #
+    # An ideal solid solution can only exist at `xᵢ = 10^SIᵢ`, with `SIᵢ` the index
+    # of the PURE end-member: that is what `μᵢ⁰ + RT ln xᵢ = νᵢ` says, one equation
+    # per member. A composition needs `Σᵢ xᵢ = 1`, so the phase is exactly
+    # saturated when `Ω = Σᵢ 10^SIᵢ = 1` and should form above it. Those numbers
+    # are available here: `saturation_indices` reports `SIᵢ − log₁₀ xᵢ`, and adding
+    # `ln aᵢ / ln 10` back removes the mole fraction — and with it the `0/0` a
+    # phase sitting entirely at the floor would otherwise produce.
+    #
+    # Without this a search that has lost a solid solution cannot get it back:
+    # every member reports a small index because its mole fraction is small, no
+    # member is offered, and the round does nothing. On a CEM I with eight solid
+    # solutions that is the difference between an answer whose element balance is
+    # 13.6 mol and one certified to 1.1e-14.
+    lna = log_activities(eq, model; ϵ = ϵ)
+    inv_ln10 = inv(log(10))
+    for (grp, phase) in zip(cs.ss_groups, cs.solid_solutions)
+        all(n[i] <= 10ϵ for i in grp) || continue        # already present
+        sip = [
+            si[symbol(cs.species[i])] + lna[symbol(cs.species[i])] * inv_ln10
+                for i in grp
+        ]
+        m = maximum(sip)
+        isfinite(m) || continue
+        Ω = sum(10^(v - m) for v in sip) * 10^m
+        Ω > 1 || continue                                 # cannot form, whatever mixing
+        x = [10^(v - m) for v in sip]
+        x ./= sum(x)                                      # the composition it would take
+        cap = minimum((cap_of(i) for i in grp); init = Inf)
+        isfinite(cap) && cap > 0 || continue
+        for (j, i) in enumerate(grp)
+            n2[i] = max(n2[i], _REPAIR_FRACTION * cap * x[j])
+        end
+    end
+
     n2 == n && return nothing
     return ChemicalState(
         cs, n2 .* u"mol"; T = temperature(eq), P = pressure(eq),
     )
+end
+
+"""
+    _ideal_start(state, model, bfix, ϵ, constraint, verbose; kwargs...)
+        -> Union{ChemicalState, Nothing}
+
+A certified answer to the same problem under **ideal** activities, to be used as a
+starting point. `nothing` when that solve does not certify either, or when
+`model` is already the ideal one.
+
+The easier question is the useful one here. Without activity coefficients the
+residual does not depend on the composition through a second, non-linear path, so
+the solve is far better conditioned and certifies where the non-ideal model does
+not; and the phases it finds are the same ones — they differ in amount, not in
+identity — so the non-ideal solve that starts from it begins with the correct
+active set instead of discovering it.
+
+That discovery is what was fragile. On a CEM I at `w/c = 0.5` with the eight
+distinct CEMDATA18 solid solutions, eighty phases sit at the bound in the cold
+state and the active-set search decides its route on comparisons of nearly equal
+quantities: `100/sum(oxides)` summed over a `Dict` and over an `OrderedDict`
+differ by one ulp, and that was enough to choose between an equilibrium certified
+to 1.1e-14 and a failure with an element balance of 71 mol. Started from the ideal
+answer, both reach the same certified composition.
+
+Any failure of the inner solve is swallowed: this builds a starting point, and a
+caller who asked for a result is entitled to the outer verdict rather than to an
+error raised inside a heuristic.
+"""
+function _ideal_start(
+        state::ChemicalState, model, bfix, ϵ::Float64, constraint,
+        verbose::Bool; kwargs...,
+    )
+    model isa DiluteSolutionModel && return nothing
+    return try
+        eq0, cert0 = equilibrate_certified(
+            state; model = DiluteSolutionModel(), b = bfix, ϵ = ϵ,
+            constraint = constraint, verbose = false, autostart = true, kwargs...,
+        )
+        cert0.optimal ? eq0 : nothing
+    catch err
+        verbose && @info "the ideal pre-solve did not run" err
+        nothing
+    end
 end
 
 """
@@ -306,6 +418,28 @@ function equilibrate_certified(
     starts = starts_from(state, "start")
 
     eq, cert = search(starts)
+
+    # The ideal model as a stepping stone.
+    #
+    # A start near the answer is what this problem needs, and the cheapest good
+    # one is the answer to an easier question: the same minimization under ideal
+    # activities, which has no activity coefficients to make the residual depend
+    # on the composition and certifies where the non-ideal model does not. Its
+    # assemblage is the right one — the phases present differ from the non-ideal
+    # answer by their amounts, not by their identity — so the non-ideal solve
+    # starts with the correct active set instead of discovering it.
+    #
+    # Only when nothing else certified, so the ordinary case pays nothing, and
+    # guarded against recursion: the inner call is already ideal.
+    if autostart && !cert.optimal && !(model isa DiluteSolutionModel)
+        ideal = _ideal_start(state, model, bfix, ϵ, constraint, verbose; kwargs...)
+        if ideal !== nothing
+            eq, cert = _keep_better(
+                eq, cert,
+                search(vcat(starts_from(ideal, "start from the ideal answer"), starts))...,
+            )
+        end
+    end
 
     # An automatic initial approximation, computed rather than asked for.
     #
