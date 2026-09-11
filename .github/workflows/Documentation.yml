@@ -23,7 +23,7 @@ jobs:
     # GR emits `GKS: glyph missing from current font` and the build stops there,
     # so the font is now pinned once in `docs/make.jl` and no page may override
     # it. A healthy build produces no such line.
-    timeout-minutes: 180
+    timeout-minutes: 240
     permissions:
         actions: write # needed to allow julia-actions/cache to proactively delete old caches that it has created
         pull-requests: read
