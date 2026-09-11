@@ -93,6 +93,7 @@ Run one paste, replay it on `TIMES`, and write two files: the phase history
 (volume fractions of each family, pH, porosity) and the calorimetry.
 """
 function write_case(tag, filler, label)
+    mkpath(OUT)          # cheap, and survives the directory being moved under us
     @info "running" tag filler
     t0 = time()
     run = run_ionic_hydration(;

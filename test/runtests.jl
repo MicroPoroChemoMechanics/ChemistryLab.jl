@@ -79,6 +79,7 @@ end
 
 @testsection "System and State tests" begin
     include("chemical_systems.jl")
+    include("oxide_budget.jl")
     include("chemical_states.jl")
     include("test_volume_fractions.jl")
 end

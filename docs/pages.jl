@@ -47,6 +47,12 @@ pages = [
             "theory/activity_models.md",
             "theory/solid_solutions.md",
         ],
+        # The conservation law that is not an element, and the potential
+        # conjugate to it. Needed by any binder whose sulfur is not all
+        # sulfate -- which is every binder containing slag.
+        "Oxidation state" => [
+            "theory/redox.md",
+        ],
         # The material this package exists for. What a Gibbs minimization can
         # predict about a drying paste, and what is not a thermodynamic
         # quantity at all.
