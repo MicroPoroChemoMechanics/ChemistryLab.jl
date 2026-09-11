@@ -610,6 +610,48 @@ end
         ) === nothing
     end
 
+    @testset "the ideal pre-solve is reached only when nothing else certifies" begin
+        # The call site, not the helper: it runs only under `autostart`, only when
+        # no route has certified, and only for a non-ideal model. An infeasible
+        # budget — every component negative against non-negative stoichiometry —
+        # never certifies, so the cascade is entered and the pre-solve with it.
+        st = calcite2()
+        b = A2 * ustrip.(us"mol", st.n)
+        strict = ChemistryLab.STRICT_CONVERGENCE[]
+        try
+            ChemistryLab.STRICT_CONVERGENCE[] = false
+            eq, cert = equilibrate_certified(st; model = HKFActivityModel(), b = -b)
+            @test !cert.optimal
+            @test eq isa ChemicalState
+        finally
+            ChemistryLab.STRICT_CONVERGENCE[] = strict
+        end
+    end
+
+    @testset "a vanished aqueous phase is reported, and raised under the strict flag" begin
+        # `_check_solvent` is the diagnosis `_within_domain` turned into a ranking.
+        # Both halves of its verdict are exercised here.
+        starved = ChemicalState(cs2)
+        set_quantity!(starved, "H2O@", 1.0e-3u"mol")
+        set_quantity!(starved, "Ca+2", 1.0u"mol")
+        set_quantity!(starved, "CO3-2", 1.0u"mol")
+
+        strict = ChemistryLab.STRICT_CONVERGENCE[]
+        try
+            ChemistryLab.STRICT_CONVERGENCE[] = false
+            @test_logs (:warn, r"aqueous phase has effectively vanished") match_mode = :any (
+                ChemistryLab._check_solvent(starved)
+            )
+            ChemistryLab.STRICT_CONVERGENCE[] = true
+            @test_throws ErrorException ChemistryLab._check_solvent(starved)
+        finally
+            ChemistryLab.STRICT_CONVERGENCE[] = strict
+        end
+
+        # An answer inside the domain says nothing at all.
+        @test ChemistryLab._check_solvent(calcite2()) === nothing
+    end
+
     @testset "a missing solid solution is offered back by its own criterion" begin
         # `_repair_start` skips solid-solution end-members, and rightly: the
         # saturation index of a member at the bound reports a small mole fraction,
