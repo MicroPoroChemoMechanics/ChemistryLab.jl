@@ -1,14 +1,19 @@
 # Changelog
 
-## v0.17.0 — the water that is there, and the water that counts
+## v0.17.0 — the water that is there, the water that counts, and every solid solution declared
 
-Two halves. An **ion-interaction activity model**, which is the second of the
-two ingredients the roadmap named for predicting where a sealed paste stops; and
-the **coupled kinetic run** that 0.16.0 described and never performed, which
-turns out to have been impossible for a reason worth recording. Around them, the
-documentation was reorganized into four chapters, and every activity model in
-the package now states the physics behind its formulas and the provenance of
-every default it carries.
+Three halves, which is one too many for the metaphor and an honest count of
+the release. An **ion-interaction activity model**, the second of the two
+ingredients the roadmap named for predicting where a sealed paste stops. The
+**coupled kinetic run** that 0.16.0 described and never performed, which turns
+out to have been impossible for a reason worth recording. And a cement whose
+**phase list is no longer chosen by hand**: declaring every solid solution the
+database defines and letting the minimization decide was not usable before this
+release, and now is.
+
+Around them, the documentation was reorganized into four chapters, and every
+activity model in the package states the physics behind its formulas and the
+provenance of every default it carries.
 
 ### Breaking changes
 
@@ -19,13 +24,27 @@ every default it carries.
   activity model written against the old name now fails with a
   `NamedTuple has no field` error rather than silently. 45 occurrences renamed.
 - **The registry treats a minor bump below 1.0 as breaking whatever the API
-  did**, so `[compat] ChemistryLab = "0.16"` will not accept `0.17`. Downstream
-  packages must widen their bound. `MeanFieldHomogenization.jl` depends on this
-  package only in `docs/Project.toml`.
+  did**, so a downstream bound pinned to the previous minor will not accept
+  `0.17` and must be widened. `MeanFieldHomogenization.jl` depends on this
+  package only in `docs/Project.toml`, which already reads
+  `"0.14, 0.15, 0.16, 0.17"` and needs no change.
 - **`PoreHumidity` no longer differentiates its retention law at full
   saturation.** Its value there is unchanged; its derivative is now zero instead
   of infinite. Anything that read the derivative at `S = 1` — nothing could,
   since the integration it exists for did not run — changes.
+- **`SolidSolutionPhase` refuses a model whose mixing energy is concave.** A
+  phase with a spinodal unmixes: the Gibbs minimum there is two coexisting
+  compositions, and this formulation has one amount per species to describe it
+  with. Code that built such a phase and got an answer now raises at
+  construction, with the interval named. `check_convexity = false` restores the
+  old behavior, and the optimality certificate — whose sufficiency rests on
+  convexity — is then explicitly given up. Nothing in
+  `data/solid_solutions.toml` is affected: every shipped model is convex.
+- **The composition a solve returns may differ** where it previously could not
+  certify. An answer whose solvent had been taken by the solids is no longer
+  ranked against ones that conserve mass, and a route that failed before may now
+  certify, so a script that recorded an uncertified result will see a different
+  one.
 
 ### Added — `PitzerActivityModel`
 
@@ -244,6 +263,55 @@ completely. The gaps were not scattered lines but three untested behaviors — a
 neutral solute reaching the λ terms, a gas phase, and solid-solution
 end-members, the last of which is the silent failure where an aqueous model that
 forgets the solid-solution branch leaves them as pure phases.
+
+### Fixed — the search could settle outside the model's domain
+
+`_keep_better` ranked candidates on the KKT error alone. A composition in which
+the solids have taken the water — solvent mole fraction 0.033, against the
+`SOLVENT_FRACTION_FLOOR` of 0.5 — is not an answer this model can describe, and
+letting it win on a smaller residual hid every candidate that conserved mass
+behind it. Admissibility is now compared first, in both directions, as the
+optimality flag already was. The package diagnosed that state already; what it
+could not do was stop one from being chosen.
+
+### Fixed — a lost solid solution could not be recovered
+
+`_repair_start` skipped solid-solution end-members, on the correct observation
+that the saturation index of a member at the bound reports a small mole fraction
+rather than a phase that should form. The phase has its own criterion, and it is
+now used: for ideal mixing a solid solution exists only at `xᵢ = 10^SIᵢ` with
+`SIᵢ` the index of the **pure** end-member, so it is saturated exactly when
+`Ω = Σᵢ 10^SIᵢ = 1` and should form above it. The reported index gives `SIᵢ` back
+once `ln aᵢ / ln 10` is added, which also removes the `0/0` a phase sitting
+entirely at the floor would produce.
+
+### Added — the ideal model as a stepping stone
+
+When no route certifies, the same minimization is solved first under
+`DiluteSolutionModel` — no activity coefficients, well conditioned, and it
+certifies — and its answer becomes the start for the non-ideal solve, which then
+begins with the correct active set instead of discovering it. Only when nothing
+else certified, so the ordinary case pays nothing.
+
+### Added — `spinodal_interval`, and a refusal that names the interval
+
+A solid solution exists as one homogeneous phase only where its mixing energy is
+convex. Where `d²g/dx² < 0` the Gibbs minimum is **two coexisting compositions**,
+and a formulation with one amount per species cannot hold them.
+`SolidSolutionPhase` now refuses such a model at construction and says where the
+interval is; `check_convexity = false` proceeds anyway, with the certificate's
+sufficiency — which rests on convexity — explicitly given up.
+
+The classical symmetric threshold is recovered as a check: a regular solution
+unmixes above `W = 2RT`. The parameters this matters for are real ones: the AFm
+and AFt Redlich-Kister sets used for a CEM II are concave over `x ∈ [0.63, 0.91]`
+and `[0.56, 0.83]`, which is why GEM-Selektor declares each of those binaries
+twice — ten phases where the distinct chemistry is eight. Run with them, the
+solve stopped at an element balance of 2.6e-3 with nothing reported missing;
+with ideal mixing the same eight phases certify to 4.8e-13 and reproduce the
+reference to 0.005 units of pH.
+
+Nothing in `data/solid_solutions.toml` is refused: every shipped model is convex.
 
 ### Compatibility
 

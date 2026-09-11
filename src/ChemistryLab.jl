@@ -273,6 +273,7 @@ module ChemistryLab
         RegularSolutionModel,
         AbstractSolidSolutionPhase,
         SolidSolutionPhase,
+        spinodal_interval,
         end_members,
         model,
         with_class

@@ -409,3 +409,58 @@ end
     end
     @test all(length(end_members(p)) >= 2 for p in ss_all)
 end
+
+@testset "a mixing energy that is concave is refused, and says where" begin
+    # The Gibbs minimum inside a spinodal is two coexisting compositions, and a
+    # formulation with one amount per species cannot hold them. Refused at
+    # construction rather than discovered as an uncertifiable answer.
+    RT = 8.31446261815324 * 298.15
+    em = [
+        Species("Ca2SiO4"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),
+        Species("Ca3Si2O7"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),
+    ]
+
+    # The classical symmetric threshold: a regular solution unmixes above 2RT.
+    @test spinodal_interval(RegularSolutionModel([0.0 1.9RT; 1.9RT 0.0]), 2) === nothing
+    gap = spinodal_interval(RegularSolutionModel([0.0 2.1RT; 2.1RT 0.0]), 2)
+    @test gap !== nothing
+    @test gap[1] < 0.5 < gap[2]          # symmetric, so it straddles the middle
+
+    # Ideal mixing is convex everywhere, and so is the `AFm` entry this package
+    # ships in `data/solid_solutions.toml` — the check does not refuse our own data.
+    @test spinodal_interval(IdealSolidSolutionModel(), 2) === nothing
+    @test spinodal_interval(RedlichKisterModel(a0 = 3000.0, a1 = 500.0), 2) === nothing
+
+    # The two AFm/AFt parameter sets of the CEM II study, which are concave.
+    g1 = spinodal_interval(RedlichKisterModel(a0 = 0.188RT, a1 = 2.49RT), 2)
+    g2 = spinodal_interval(RedlichKisterModel(a0 = 1.67RT, a1 = 0.946RT), 2)
+    @test g1 !== nothing && isapprox(g1[1], 0.631; atol = 2.0e-3)
+    @test g2 !== nothing && isapprox(g2[2], 0.83; atol = 2.0e-3)
+
+    # More than two end-members: a one-dimensional scan is not the right test.
+    @test spinodal_interval(RegularSolutionModel([0.0 3RT; 3RT 0.0]), 3) === nothing
+
+    # The refusal names the interval, and can be waived.
+    err = try
+        SolidSolutionPhase("gap", em; model = RedlichKisterModel(a0 = 0.188RT, a1 = 2.49RT))
+        nothing
+    catch e
+        e
+    end
+    @test err isa ErrorException
+    @test occursin("CONCAVE", err.msg)
+    @test occursin("0.631", err.msg)
+    @test occursin("check_convexity", err.msg)
+
+    ss = SolidSolutionPhase(
+        "gap", em; model = RedlichKisterModel(a0 = 0.188RT, a1 = 2.49RT),
+        check_convexity = false,
+    )
+    @test name(ss) == "gap"
+
+    # Temperature matters: the criterion is a/RT, so the same parameters can be
+    # convex hot and concave cold.
+    m = RegularSolutionModel([0.0 2.1RT; 2.1RT 0.0])
+    @test spinodal_interval(m, 2; T = 298.15) !== nothing
+    @test spinodal_interval(m, 2; T = 400.0) === nothing
+end

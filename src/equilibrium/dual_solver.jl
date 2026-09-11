@@ -348,6 +348,7 @@ function solve_certified(
     best_cert = nothing
     best_err = Inf
     best_q = Float64[]
+    best_ok = false
     for s0 in starts
         # Each candidate's own parameters, captured here rather than written
         # straight into the caller's `Ref`. Written straight through, the `Ref`
@@ -371,12 +372,18 @@ function solve_certified(
             parameters === nothing || (parameters[] = qref[])
             return (eq, cert)
         end
+        # Ranked on the KKT error, but only among answers the model can describe:
+        # a composition whose solvent has been taken by the solids is outside the
+        # formulation, and letting it win on a smaller residual hides every
+        # candidate that conserved mass behind it. See `_within_domain`.
         err = _kkt_error(cert)
-        if err < best_err
+        ok = _within_domain(eq)
+        if (ok && !best_ok) || ((ok == best_ok) && err < best_err)
             best_err = err
             best = eq
             best_cert = cert
             best_q = qref[]
+            best_ok = ok
         end
     end
     parameters === nothing || (parameters[] = best_q)

@@ -26,7 +26,7 @@ const OUT = joinpath(@__DIR__, "out")
 mkpath(OUT)
 
 # A non-converged solve must never pass silently as a result.
-ChemistryLab.STRICT_CONVERGENCE[] = false   # TEMPORAIRE: test de diagnostic
+ChemistryLab.STRICT_CONVERGENCE[] = true
 
 # ── The datasheet ────────────────────────────────────────────────────────────
 const OXIDES = OrderedDict(
