@@ -241,22 +241,78 @@ pOH(state)
     set them explicitly (e.g. to impose a specific initial pH), your values are
     preserved.
 
-```@example cst_derived
-v = volume(state)
+### Volume and porosity
+
+A volume needs a **molar volume**, and a species built from a formula does not
+have one: `Species("H2O")` knows its composition and its molar mass, both
+computed from the formula, but nothing about how much room a mole of it takes.
+So the state above — real enough for pH, which needs only amounts — reports
+`0.0 m³` for every volume and `NaN` for the porosity, a quotient of two zeros.
+
+Volumes therefore come from a **database**, where the molar volume is a measured
+quantity:
+
+```@example cst_volume
+using ChemistryLab
+using DynamicQuantities
+
+substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+sp = speciation(substances, ["Portlandite"]; aggregate_state = [AS_AQUEOUS])
+cs = ChemicalSystem(sp, CEMDATA_PRIMARIES)
+
+wet = ChemicalState(cs)
+set_quantity!(wet, "H2O@", 1.0u"kg")
+set_quantity!(wet, "Portlandite", 5.0u"mol")
+nothing # hide
+```
+
+```@example cst_volume
+v = volume(wet)
 println("V liquid = ", v.liquid)
 println("V solid  = ", v.solid)
 println("V total  = ", v.total)
 ```
 
-```@example cst_derived
-m = moles(state)
+`moles` splits the amounts the same way:
+
+```@example cst_volume
+m = moles(wet)
 println("n liquid = ", m.liquid)
 println("n solid  = ", m.solid)
 ```
 
-```@example cst_derived
-porosity(state)
+[`porosity`](@ref) is then the liquid share of the total volume — for a
+suspension of five moles of portlandite in a kilogram of water, most of it:
+
+```@example cst_volume
+porosity(wet)
 ```
+
+!!! warning "A volume of zero means missing data, not an empty phase"
+    Every accessor that divides by a volume — `porosity`, and the molarity
+    conventions of [`pH`](@ref) — returns `NaN` when the species carry no molar
+    volume. `NaN` here is the honest answer to `0/0` and a sign that the species
+    came from formulas rather than from a database, not a defect in the state.
+
+### Rescaling a state
+
+A recipe is usually written for a chosen basis — one kilogram of paste, one mole
+of binder, one cubic meter of concrete — and [`rescale!`](@ref) multiplies every
+amount by the one factor that puts the state on it. The **composition does not
+change**; only the size of the sample does, so every intensive quantity (pH,
+porosity, the mole fractions) is left exactly where it was.
+
+The target's dimension chooses what is held: an amount rescales the total moles,
+a mass the total mass, a volume the total volume.
+
+```@example cst_volume
+rescale!(wet, 1.0u"kg")          # the same paste, weighed out to one kilogram
+println("total mass   = ", sum(mass(wet)))
+println("porosity     = ", porosity(wet), "   (unchanged: it is intensive)")
+```
+
+A volume target needs molar volumes for the same reason as above, and the
+rescaling is refused rather than silently wrong if the current total is zero.
 
 ### Copying a state
 

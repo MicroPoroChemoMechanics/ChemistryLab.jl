@@ -73,6 +73,9 @@ pages = [
         # The cement-specific syntax: phase names, the Bogue notation, the
         # shorthand the literature uses.
         "Cementitious media" => [
+            # The shorthand first: every page below writes phases in it, and a
+            # reader who has not met `C3S` cannot follow them.
+            "manual/cement_notation.md",
             "manual/cement_species.md",
         ],
         "Appendices" => [
