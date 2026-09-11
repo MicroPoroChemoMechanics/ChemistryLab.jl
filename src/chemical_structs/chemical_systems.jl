@@ -85,6 +85,51 @@ end
 
 
 """
+    _refuse_overlapping_solid_solutions(solid_solutions)
+
+Refuse a system in which two declared solid solutions describe the same
+substance, naming the pair.
+
+The case this exists for is the calcium silicate hydrate. CEMDATA18 carries
+three descriptions of it — `CSHQ`, `CNASH_ss` and the `ECSH` family — and they
+are three *models of one gel*, not three phases. Declaring two of them counts
+the same hydrate twice: the calcium, the silicon and the alkalis all enter the
+element balance once and come out distributed over two phases that are supposed
+to be alternatives.
+
+The overlap is exact rather than approximate, which is what makes it detectable
+here: `KSiOH` (an end-member of `CSHQ`), `ECSH1-KSH` and `ECSH2-KSH` all carry
+the formula `((KOH)2.5SiO2H2O)0.2`. Two end-members of two different declared
+phases with the same composition are therefore the signature, and the check is
+composition-based rather than name-based so that it does not depend on the
+database's naming.
+
+Two end-members of the SAME phase may of course share nothing — that is a
+mixture — and a pure phase repeating a mixing phase's composition is a separate
+question the rank test upstream already refuses.
+"""
+function _refuse_overlapping_solid_solutions(solid_solutions)
+    phases = collect(solid_solutions)
+    length(phases) < 2 && return nothing
+    for i in eachindex(phases), j in (i + 1):lastindex(phases)
+        for a in end_members(phases[i]), b in end_members(phases[j])
+            atoms(a) == atoms(b) || continue
+            error(
+                "solid solutions \"$(name(phases[i]))\" and " *
+                    "\"$(name(phases[j]))\" both contain the composition " *
+                    "$(unicode(a)) — as \"$(symbol(a))\" and \"$(symbol(b))\". Two " *
+                    "declared phases sharing a composition describe the same " *
+                    "substance twice, so its elements would be distributed over " *
+                    "both. CEMDATA18's `CSHQ`, `CNASH_ss` and `ECSH` families are " *
+                    "three models of one C-S-H gel: declare exactly one of them.",
+            )
+        end
+    end
+    return nothing
+end
+
+
+"""
     ChemicalSystem(species, primaries=species; kinetic_species, solid_solutions) -> ChemicalSystem
 
 Construct a fully typed `ChemicalSystem` from a vector of species,
@@ -234,6 +279,7 @@ function ChemicalSystem(
             end
         end
         idx_ssendmembers = isempty(ss_groups) ? Int[] : vcat(ss_groups...)
+        _refuse_overlapping_solid_solutions(solid_solutions)
         ss = collect(solid_solutions)
 
         return ChemicalSystem{T, R, typeof(CSM), typeof(SM), typeof(ss)}(

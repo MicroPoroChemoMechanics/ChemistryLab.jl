@@ -464,3 +464,72 @@ end
     @test spinodal_interval(m, 2; T = 298.15) !== nothing
     @test spinodal_interval(m, 2; T = 400.0) === nothing
 end
+
+# ── C-(N-)A-S-H, and the overlap that must be refused ────────────────────────
+
+@testsection "one gel, three models: the overlap is refused" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    byname = Dict(symbol(s) => s for s in substances)
+    mk(n, ms) = SolidSolutionPhase(n, [byname[m] for m in ms])
+
+    CSHQ_MEMBERS = [
+        "CSHQ-TobD", "CSHQ-TobH", "CSHQ-JenH", "CSHQ-JenD",
+        "KSiOH", "NaSiOH",
+    ]
+    ECSH_MEMBERS = ["ECSH1-TobCa", "ECSH1-KSH", "ECSH1-NaSH", "ECSH1-SH"]
+    CNASH_MEMBERS = [
+        "T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
+        "5CA", "5CNA", "INFCA", "INFCN", "INFCNA",
+    ]
+
+    all_names = vcat(CSHQ_MEMBERS, ECSH_MEMBERS, CNASH_MEMBERS)
+    sp = speciation(substances, all_names; aggregate_state = [AS_AQUEOUS])
+
+    @testset "CNASH_ss is shipped and complete" begin
+        # All eight end-members are in the public database; the phase was simply
+        # not declared before. It is what carries the Al and the alkalis of a
+        # blended cement, which `CSHQ` -- having no aluminum end-member at all --
+        # cannot.
+        ss = build_solid_solutions(datapath("solid_solutions.toml"), byname)
+        cnash = findfirst(p -> ChemistryLab.name(p) == "CNASH_ss", ss)
+        @test cnash !== nothing
+        @test length(end_members(ss[cnash])) == 8
+        @test all(haskey(byname, m) for m in CNASH_MEMBERS)
+        # It must carry aluminum, which is the whole reason it exists.
+        @test any(haskey(atoms(byname[m]), :Al) for m in CNASH_MEMBERS)
+        @test !any(haskey(atoms(byname[m]), :Al) for m in CSHQ_MEMBERS)
+    end
+
+    @testset "the overlap is exact, not approximate" begin
+        # This is what makes it detectable by composition rather than by name.
+        @test atoms(byname["KSiOH"]) == atoms(byname["ECSH1-KSH"])
+        @test atoms(byname["KSiOH"]) == atoms(byname["ECSH2-KSH"])
+    end
+
+    @testset "one at a time builds, two together are refused" begin
+        for (nm, members) in (
+                ("CSHQ", CSHQ_MEMBERS), ("ECSH1", ECSH_MEMBERS),
+                ("CNASH_ss", CNASH_MEMBERS),
+            )
+            @test ChemicalSystem(
+                sp, CEMDATA_PRIMARIES; solid_solutions = [mk(nm, members)]
+            ) isa ChemicalSystem
+        end
+
+        err = try
+            ChemicalSystem(
+                sp, CEMDATA_PRIMARIES;
+                solid_solutions = [mk("CSHQ", CSHQ_MEMBERS), mk("ECSH1", ECSH_MEMBERS)],
+            )
+            nothing
+        catch e
+            sprint(showerror, e)
+        end
+        @test err !== nothing
+        # The message must name both phases and the shared species, or it sends
+        # the reader hunting.
+        @test occursin("CSHQ", err)
+        @test occursin("ECSH1", err)
+        @test occursin("KSiOH", err)
+    end
+end

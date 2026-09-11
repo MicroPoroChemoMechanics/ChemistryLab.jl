@@ -165,3 +165,40 @@ name        = "MSH"
 end_members = ["M075SH", "M15SH"]
 model       = "ideal"
 source      = "Lothenbach2019"
+
+# ── C-(N-)A-S-H — the alkali- and aluminum-bearing C-S-H ─────────────────────
+#
+# Sources
+#   Myers2014 : Myers, Bernal & Provis, "A thermodynamic model for C-(N-)A-S-H
+#               gel: CNASH_ss. Derivation and validation against experimental
+#               data", Cement and Concrete Research 66 (2014) 27-47,
+#               doi:10.1016/j.cemconres.2014.07.005
+#
+# This is the phase a blended cement needs and `CSHQ` cannot supply. CSHQ has no
+# aluminum end-member at all, so the Al released by a slag or a calcined clay
+# has nowhere to go but the AFm/AFt phases, and the aluminum balance of the
+# paste comes out wrong. `CNASH_ss` carries both the Al and the alkalis in the
+# C-S-H structure, which is what the pozzolanic reaction actually produces.
+#
+# !! DO NOT DECLARE THIS ALONGSIDE `CSHQ` OR THE `ECSH` FAMILY !!
+#
+# The three are three descriptions of the same gel, not three phases, and
+# declaring two of them counts the same calcium silicate hydrate twice. The
+# overlap is exact rather than approximate: `KSiOH` (a CSHQ end-member),
+# `ECSH1-KSH` and `ECSH2-KSH` all carry the formula ((KOH)2.5SiO2H2O)0.2 — the
+# same substance under three names. `ChemicalSystem` refuses a system in which
+# two declared solid solutions share a composition, and names the pair.
+#
+# Known degeneracy, and it is real rather than a defect of the transcription:
+# the eight end-members span a space of rank 5, because Myers' model carries
+# site-occupancy constraints that an ideal eight-component mixture does not
+# reproduce. The feasible set stays bounded, so a solve is well posed, but the
+# individual end-member amounts are not determined by the element balance alone
+# — only their combinations are. Read the total and the Ca/Si, Al/Si ratios,
+# not the eight numbers one by one.
+[[solid_solution]]
+name        = "CNASH_ss"
+end_members = ["T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
+               "5CA", "5CNA", "INFCA", "INFCN", "INFCNA"]
+model       = "ideal"
+source      = "Myers2014"
