@@ -1,11 +1,12 @@
 # CEM I with 3.5 % limestone filler -- volume fractions of the phase families, pH, porosity
 # produced by scripts/precompute_docs.jl -- do not edit by hand
-# ChemistryLab version: 0.17.0
-# commit: 97ea82f6
-# generated: 2026-09-12 00:51
+# ChemistryLab version: 0.18.0
+# commit: abd6a4a6
+# generated: 2026-09-12 01:16
 # instants: 80 log-spaced over 28.0 days
 # w/b 0.50, Blaine default, 20 C, 1 kg of binder
 # clinker (mass fractions): (C3S = 0.65, C2S = 0.11, C3A = 0.11, C4AF = 0.08)
+# certified: 79 of 80 replayed instants proved optimal against the KKT conditions
 time_s,AFm,AFt,C-S-H,CH,FH3,anhydrous,calcite,gypsum,hydrogarnet,void,water,pore_pH,poro_liquid,poro_void,poro_total
 4.320000e+03,3.708928e-08,9.783047e-03,2.012039e-07,1.957464e-08,4.205192e-05,3.384591e-01,1.036095e-02,1.600872e-02,3.210684e-09,1.245698e-02,6.128888e-01,11.695714,0.612889,0.012457,0.625346
 4.680270e+03,0.000000e+00,1.074529e-02,0.000000e+00,0.000000e+00,4.720689e-05,3.383309e-01,9.994323e-03,1.544224e-02,0.000000e+00,1.326458e-02,6.121754e-01,11.742055,0.612175,0.013265,0.625440

@@ -33,12 +33,19 @@ using Optimization, OptimizationOptimJL
 using OrderedCollections
 using Printf
 using Dates
+using Logging
 
 const QUICK = "--quick" in ARGS
 const OUT = joinpath(@__DIR__, "..", "docs", "src", "assets", "precomputed")
 
+# Both at top level, and NOT inside the functions that use them: new methods
+# defined by an `include` during a call are not visible to that call (Julia's
+# world age), so a nested include compiles fine and fails at run time with a
+# `no method matching` for something the file plainly defines.
 isdefined(Main, :run_ionic_hydration) ||
     include(joinpath(@__DIR__, "ionic_hydration.jl"))
+isdefined(Main, :forward_Q) ||
+    include(joinpath(@__DIR__, "hydration_calibration.jl"))
 
 """
 Sampling of the reported instants.
@@ -103,16 +110,41 @@ function write_case(tag, filler, label)
         time() - t0, length(run.sol.t), run.sol.retcode)
     flush(stdout)
 
+    # How many instants are PROVED optimal, not merely converged. The number
+    # belongs in the file: "80 instants, 79 of them proved" is a different claim
+    # from "80 instants", and a stored result is worth what its provenance is.
+    #
+    # Taken from `speciated_states` itself, which already decides it per instant
+    # and says so in a warning. Re-deriving it here would be a second opinion
+    # with no authority over the first, and an earlier attempt at exactly that
+    # reported 0 of 80 where the replay had certified 79.
+    # Captured by listening to `speciated_states`, which already decides it per
+    # instant and warns. The warning goes to a buffer so it does not also land in
+    # the console twice; the text is then echoed, because a silenced warning is
+    # worse than a noisy one.
     t1 = time()
-    states = speciated_states(run.sol, run.kp; times = TIMES)
+    logbuf = IOBuffer()
+    states = Logging.with_logger(Logging.SimpleLogger(logbuf, Logging.Info)) do
+        speciated_states(run.sol, run.kp; times = TIMES)
+    end
+    logged = String(take!(logbuf))
+    m = match(r"(\d+) of (\d+) replayed instants could not be certified", logged)
+    n_uncertified = m === nothing ? 0 : parse(Int, m.captures[1])
+    n_certified = length(TIMES) - n_uncertified
+    @printf("  %d of %d instants proved optimal\n", n_certified, length(TIMES))
+    n_uncertified > 0 && println("  (", strip(first(split(logged, "\n"))), ")")
+    flush(stdout)
     times, fracs, pore_pH, poro = ionic_phase_history(run, TIMES; states = states)
     @printf("  %d instants certified in %.0f s\n", length(TIMES), time() - t1)
     flush(stdout)
 
     groups = sort(collect(union(keys.(fracs)...)))
 
+
     open(joinpath(OUT, "$(tag)_phases.csv"), "w") do io
         provenance(io, "$label -- volume fractions of the phase families, pH, porosity")
+        println(io, "# certified: ", n_certified, " of ", length(TIMES),
+            " replayed instants proved optimal against the KKT conditions")
         println(io, "time_s,", join(groups, ","), ",pore_pH,poro_liquid,poro_void,poro_total")
         for (i, t) in enumerate(times)
             vals = [get(fracs[i], g, 0.0) for g in groups]
@@ -140,13 +172,111 @@ function write_case(tag, filler, label)
     return nothing
 end
 
+"""
+    write_calibration()
+
+The coupled curves of `examples/hydration_calibration.md`: the published
+Parrott-Killoh parameters and the calibrated ones, each on the calibration
+target and on the holdout record.
+
+Five coupled forward solves, some six minutes each. The fitted parameter vector
+itself is NOT refitted here — it is `CALIBRATED_THETA`, already a stored
+constant of `hydration_calibration.jl`, obtained by the optimization that script
+performs and that the page has never run at build time either.
+"""
+function write_calibration()
+    mkpath(OUT)
+    θ0 = prior_vector()
+    θ̂ = CALIBRATED_THETA
+
+    for (tag, record, label) in (
+            ("calibration_target", CEM_I_TARGET,
+                "CEM I 52.5 R Cizkovice, w/b 0.50 -- the calibration target"),
+            ("calibration_holdout", CEM_I_HOLDOUT,
+                "CEM I 52.5 R Ladce, w/b 0.45 -- the holdout, never fitted"),
+        )
+        @info "coupled forward solves" tag
+        t0 = time()
+        data = resample_log(record, N_RESIDUALS_COUPLED)
+        Q_prior = forward_Q(θ0, data; mode = :coupled)
+        Q_fit = forward_Q(θ̂, data; mode = :coupled)
+        @printf("  two coupled solves in %.0f s\n", time() - t0)
+        flush(stdout)
+
+        open(joinpath(OUT, "$(tag).csv"), "w") do io
+            provenance(io, "$label -- measured against published and calibrated")
+            println(io, "# measured data: Smilauer & Reiterman (2025), Zenodo")
+            println(io, "#   10.5281/zenodo.15212785, CC-BY-4.0")
+            println(io, "# Q_prior: published Parrott-Killoh parameters, untouched")
+            println(io, "# Q_fit:   CALIBRATED_THETA of scripts/hydration_calibration.jl")
+            println(io, "time_s,Q_measured,Q_prior,Q_fit,Q_depositors_fit")
+            for i in eachindex(data.t)
+                @printf(io, "%.6e,%.6e,%.6e,%.6e,%.6e\n",
+                    data.t[i], data.Q[i], Q_prior[i], Q_fit[i], data.Qref[i])
+            end
+        end
+        @printf("  wrote %s.csv\n", tag)
+        flush(stdout)
+    end
+
+    # The clinker-sensitivity of section 5: the same fit with the alite content
+    # moved by plus and minus twenty percent, far more than a Bogue or a QXRD
+    # analysis is uncertain by. Two more full coupled runs.
+    @info "clinker sensitivity"
+    t0 = time()
+    data = resample_log(CEM_I_TARGET, N_RESIDUALS_COUPLED)
+    open(joinpath(OUT, "calibration_sensitivity.csv"), "w") do io
+        provenance(io, "sensitivity of the fit to the alite content")
+        println(io, "# the fitted rate constants are held at CALIBRATED_THETA;")
+        println(io, "# only the clinker composition moves, the rest rescaled to close")
+        println(io, "delta_C3S,C3S,Q_end_J_per_g,RMSE_J_per_g")
+        for δ in (0.0, -0.20, 0.20)
+            c = CALIB_CLINKER.C3S * (1 + δ)
+            scale = (1 - c) / (1 - CALIB_CLINKER.C3S)
+            clinker = (
+                C3S = c, C2S = CALIB_CLINKER.C2S * scale,
+                C3A = CALIB_CLINKER.C3A * scale, C4AF = CALIB_CLINKER.C4AF * scale,
+            )
+            run = run_ionic_hydration(;
+                wb = data.meta.wb, clinker, gypsum = CALIB_GYPSUM,
+                filler = CALIB_FILLER, blaine = data.meta.blaine * u"m^2/kg",
+                tend = data.t[end], pk_params = apply_parameters(θ̂),
+            )
+            _, Q, _ = heat_release(run.sol, run.kp; times = data.t)
+            rmse = sqrt(sum(abs2, Q ./ 1000 .- data.Q) / length(data.Q))
+            @printf(io, "%.2f,%.4f,%.4f,%.4f\n", δ, c, Q[end] / 1000, rmse)
+            @printf("  delta %+.0f %% done\n", 100δ)
+            flush(stdout)
+        end
+    end
+    @printf("  wrote calibration_sensitivity.csv in %.0f s\n", time() - t0)
+    return nothing
+end
+
+"""
+    main()
+
+Produce every file the documentation reads, or the subset named on the command
+line: `--only=ionic`, `--only=calibration`. Selecting is not an optimization for
+its own sake — each group costs minutes, and re-running the ones already in hand
+wastes them for nothing.
+"""
 function main()
     mkpath(OUT)
-    @info "precomputing the documentation's coupled runs" N_INSTANTS QUICK
+    only = ""
+    for a in ARGS
+        startswith(a, "--only=") && (only = split(a, "=")[2])
+    end
+    want(group) = isempty(only) || only == group
+
+    @info "precomputing the documentation's coupled runs" N_INSTANTS QUICK only
     t0 = time()
-    write_case("ionic_opc", 0.035, "CEM I with 3.5 % limestone filler")
-    write_case("ionic_nolimestone", 0.0, "the same paste with the limestone removed")
-    @printf("\nall cases written to %s in %.0f s\n", OUT, time() - t0)
+    if want("ionic")
+        write_case("ionic_opc", 0.035, "CEM I with 3.5 % limestone filler")
+        write_case("ionic_nolimestone", 0.0, "the same paste with the limestone removed")
+    end
+    want("calibration") && write_calibration()
+    @printf("\nwritten to %s in %.0f s\n", OUT, time() - t0)
     return nothing
 end
 
