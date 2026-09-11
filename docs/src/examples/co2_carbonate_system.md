@@ -194,20 +194,20 @@ using Plots
 
 p1 = plot(
     log10.(n_CO2_range), pH_vals;
-    xlabel    = "log10([CO2]_0) (mol/L)",
+    xlabel    = "log₁₀([CO₂]₀) (mol/L)",
     ylabel    = "Equilibrium pH",
     label     = "Numerical (ChemistryLab)",
     linewidth = 2,
     marker    = :circle,
     markersize = 3,
     color     = :steelblue,
-    title     = "CO2 dissolution in pure water (25 °C)",
+    title     = "CO₂ dissolution in pure water (25 °C)",
     ylims     = (3, 7),
     legend    = :right,
 )
 hline!(p1, [pKa1]; linestyle = :dot, color = :orange, label = "pKa1 = $(round(pKa1, digits=2))")
 vline!(p1, [log10(1.4e-5)]; linestyle = :dash, color = :grey,
-       label = "Atmospheric CO2 (~400 ppm)")
+       label = "Atmospheric CO₂ (~400 ppm)")
 p1
 ```
 
@@ -246,10 +246,10 @@ p2 = plot(
     collect(pH_axis), [f0 f1 f2];
     xlabel    = "pH",
     ylabel    = "Mole fraction",
-    label     = ["CO2(aq)" "HCO3-" "CO3^2-"],
+    label     = ["CO₂(aq)" "HCO₃⁻" "CO₃²⁻"],
     linewidth = 2,
     color     = [:steelblue :orange :green],
-    title     = "Carbonate speciation (25 °C, pKa from database)",
+    title     = "Carbonate speciation (25 °C, pKₐ from database)",
     legend    = :right,
 )
 vline!(p2, [pKa1]; linestyle = :dash, color = :grey,   label = "pKa1 = $(round(pKa1, digits=2))")

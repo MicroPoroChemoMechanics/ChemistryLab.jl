@@ -12,36 +12,37 @@ using PrettyTables
 
 include("pages.jl")
 
-# ── Guard: no Unicode sub/superscript in a plot label ────────────────────────
+# ── Guard: no page may set the plot font ─────────────────────────────────────
 #
-# GR has no glyph for these in most fonts. It then prints `GKS: glyph missing
-# from current font` and looks for a fallback — instant locally, where
-# fontconfig is warm, but slow enough in a CI container that a build once spent
-# its entire timeout doing it and was canceled. Two seconds of scanning here
-# beats discovering it two hours in, so this fails the build immediately and
-# says which line to fix.
+# Documenter runs every `@example` block in ONE process, so `default(fontfamily
+# = ...)` on any page silently applies to every page built after it. When the
+# chosen font lacks a glyph a label needs — Computer Modern has no Unicode
+# sub/superscripts, and the labels here use them freely — GR prints `GKS: glyph
+# missing from current font` for each one and hunts for a fallback. That is
+# instant locally, where fontconfig is warm, but not in a CI container, and it
+# buries the build log besides.
+#
+# The font is therefore chosen once, above, as one that carries those glyphs,
+# and this refuses any page that tries to change it. Two seconds of scanning
+# instead of a buried log and a slow fallback.
 let
-    marks = "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿ₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑₒₓₕₖₗₘₙₚₛₜ"
-    # The VALUE of a label keyword only: prose, species symbols such as
-    # `Species("H₂O")` and identifiers such as `.ΔₐG⁰` are none of its business.
-    pat = r"\b(?:[xyz]?label|title|annotate)\s*=\s*\[?\s*(\"[^\"\n]*\"\s*)+"
     offenders = String[]
     for (root, _, files) in walkdir(joinpath(@__DIR__, "src")),
             f in filter(endswith(".md"), files)
 
         path = joinpath(root, f)
         for (i, line) in enumerate(eachline(path))
-            m = match(pat, line)
-            m === nothing && continue
-            any(c -> occursin(c, m.match), marks) || continue
+            startswith(strip(line), "#") && continue        # a comment, not a call
+            occursin(r"\bfontfamily\s*=", line) || continue
             push!(offenders, "  $(relpath(path, @__DIR__)):$i  $(strip(line))")
         end
     end
     isempty(offenders) || error(
-        "Unicode sub/superscripts in plot labels — GR has no glyph for these " *
-        "and the font fallback can consume the whole CI budget. Write them " *
-        "plainly (`Ca2+`, `CO3^2-`, `Delta_a G0`); the surrounding prose may " *
-        "keep them.\n" * join(offenders, "\n"),
+        "a page sets `fontfamily`. Documenter shares one process, so this " *
+        "applies to every page built after it; a font missing a label's glyph " *
+        "then sends GR into a fallback that is slow in CI. Set the font only " *
+        "in docs/make.jl; a page may still set `framestyle`, `grid` and the " *
+        "like.\n" * join(offenders, "\n"),
     )
 end
 

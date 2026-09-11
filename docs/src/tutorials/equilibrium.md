@@ -566,7 +566,7 @@ p1 = plot(collect(temperatures), pH_vals,
     xlabel = "T (°C)", ylabel = "pH", label = "pH",
     marker = :circle, linewidth = 2, title = "pH")
 p2 = plot(collect(temperatures), nCa_vals,
-    xlabel = "T (°C)", ylabel = "n (mmol)", label = "Ca2+",
+    xlabel = "T (°C)", ylabel = "n (mmol)", label = "Ca²⁺",
     marker = :circle, linewidth = 2, title = "Dissolved species")
 plot!(p2, collect(temperatures), nCal_vals,
     label = "Cal", marker = :square, linewidth = 2)

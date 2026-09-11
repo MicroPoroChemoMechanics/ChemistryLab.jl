@@ -117,8 +117,8 @@ calcite.ΔₐG⁰ = dtf_calcite[:ΔₐG⁰]
 ```@example example1
 using Plots
 
-p1 = plot(xlabel="Temperature [°C]", ylabel="Δ_a G° [J/mol]", title="Gibbs energy of calcite \nas a function of temperature")
-plot!(p1, θ -> calcite.ΔₐG⁰(T = 273.15+θ), 0:0.1:100, label="Δ_a G° of calcite")
+p1 = plot(xlabel="Temperature [°C]", ylabel="ΔₐG⁰ [J.mol⁻¹]", title="Gibbs energy of calcite \nas a function of temperature")
+plot!(p1, θ -> calcite.ΔₐG⁰(T = 273.15+θ), 0:0.1:100, label="ΔₐG⁰ of calcite")
 ```
 
 

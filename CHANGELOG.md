@@ -256,34 +256,27 @@ Gibbs-Duhem residual on log-log axes, and the mixing free energy of a regular
 solution across the critical point, which makes the miscibility gap visible
 rather than tabulated.
 
-### Fixed — the documentation build could spend its whole CI budget on fonts
+### Fixed — a page could change the plot font for every page after it
 
-A plot label that uses a Unicode sub- or superscript (`ΔₐG⁰ [J.mol⁻¹]`, `Ca²⁺`,
-`CO₃²⁻`) asks GR for a glyph most fonts do not carry. GR prints `GKS: glyph
-missing from current font` and looks for a fallback. On a developer machine that
-fallback is instant, because fontconfig's cache is warm; in a CI container it is
-not, and a documentation build was canceled by its two-hour timeout while still
-emitting those lines.
+`examples/cem1_solid_solutions.md` called `default(fontfamily = "Computer
+Modern")`. Documenter runs every `@example` block in one process, so that
+applied to every page built afterwards — and Computer Modern has no Unicode
+sub- or superscripts, which the axis labels here use freely (`ΔₐG⁰ [J.mol⁻¹]`,
+`Ca²⁺`, `CO₃²⁻`). GR then prints `GKS: glyph missing from current font` for each
+one and looks for a fallback: instant on a developer machine, where fontconfig
+is warm, slower in a CI container, and in either case hundreds of log lines that
+bury what the build is actually doing.
 
-Nothing in the rendered pages changes except the affected labels, which now read
-plainly (`Ca2+`, `CO3^2-`, `Delta_a G0`). The surrounding prose keeps its
-typography — only the strings GR has to rasterize were touched, and identifiers
-such as the `ΔₐG⁰` field are untouched.
+The labels keep their typography. What changed is that the font is now chosen
+**once**, in `docs/make.jl`, as one that carries those glyphs, and `make.jl`
+refuses to build if any page sets `fontfamily` itself — naming the file and
+line, in two seconds rather than after an hour. A page may still set
+`framestyle`, `grid` and the rest.
 
-Three things stop it recurring, because each alone is fragile:
-
-- the font is pinned **once**, in `docs/make.jl`. A page must not set it:
-  Documenter runs every `@example` block in one process, so
-  `default(fontfamily = ...)` on one page silently applies to every page built
-  after it — which `examples/cem1_solid_solutions.md` was doing with Computer
-  Modern, a font with none of those glyphs;
-- `docs/make.jl` refuses to build if any plot label in `docs/src` still carries
-  one, naming the file and line. It costs two seconds and replaces a two-hour
-  failure;
-- the workflow sets `JULIA_DEBUG=Documenter`, so each page is named as it is
-  expanded. Without it the stage that executes all 299 `@example` blocks prints
-  nothing at all, and a build working normally is indistinguishable in the log
-  from one that has died — which is what made this take so long to find.
+The workflow also sets `JULIA_DEBUG=Documenter`, which makes Documenter name
+each page as it expands it. Without it the stage that executes all 299
+`@example` blocks prints nothing at all, so a build working normally is
+indistinguishable in the log from one that has died.
 
 ### Coverage
 

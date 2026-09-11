@@ -75,8 +75,8 @@ dict_species_calcite["Cal"]
 ```@example from_scratch
 using Plots
 
-p1 = plot(xlabel="Temperature [°C]", ylabel="Cp° [J/mol/K]", title="Heat capacity of calcite \nas a function of temperature")
-plot!(p1, θ -> dict_species_calcite["Cal"].Cp⁰(T = θ*ua"degC"), 0:0.1:100, label="Cp°")
+p1 = plot(xlabel="Temperature [°C]", ylabel="Cp⁰ [J/mol/K]", title="Heat capacity of calcite \nas a function of temperature")
+plot!(p1, θ -> dict_species_calcite["Cal"].Cp⁰(T = θ*ua"degC"), 0:0.1:100, label="Cp⁰")
 ```
 
 Obtaining stoichiometric matrices requires the choice of a species-independent basis.

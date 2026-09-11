@@ -203,7 +203,7 @@ using Plots
 
 p1 = plot(
     collect(ξ_range), pH_vals;
-    xlabel     = "CO2 / Portlandite_0  (mol/mol)",
+    xlabel     = "CO₂ / Portlandite₀  (mol/mol)",
     ylabel     = "Pore solution pH",
     label      = "Numerical (ChemistryLab)",
     linewidth  = 2,
@@ -230,9 +230,9 @@ p1
 ```julia
 p2 = plot(
     collect(ξ_range), n_Port_vals ./ n_port0;
-    xlabel     = "CO2 / Portlandite_0  (mol/mol)",
+    xlabel     = "CO₂ / Portlandite₀  (mol/mol)",
     ylabel     = "Relative amount  (–)",
-    label      = "Portlandite  Ca(OH)2",
+    label      = "Portlandite  Ca(OH)₂",
     linewidth  = 2,
     marker     = :circle,
     markersize = 4,
@@ -242,7 +242,7 @@ p2 = plot(
     legend     = :topright,
 )
 plot!(p2, collect(ξ_range), n_Cal_vals   ./ n_port0;
-    label     = "Calcite  CaCO3",
+    label     = "Calcite  CaCO₃",
     linewidth = 2, marker = :square, markersize = 4, color = :firebrick,
 )
 plot!(p2, collect(ξ_range), n_Monoc_vals ./ n_port0;

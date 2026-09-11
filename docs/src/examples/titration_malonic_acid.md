@@ -164,10 +164,10 @@ p = plot(
     ylims      = (0, 14),
     legend     = :topleft,
 )
-vline!(p, [V_eq1]; linestyle = :dash, color = :red,    label = "PE1 ($(round(V_eq1, digits = 1)) mL)")
-vline!(p, [V_eq2]; linestyle = :dash, color = :blue,   label = "PE2 ($(round(V_eq2, digits = 1)) mL)")
-hline!(p, [pKa1];  linestyle = :dot,  color = :orange, label = "pKa1 = $(round(pKa1, digits = 2)) (from the database)")
-hline!(p, [pKa2];  linestyle = :dot,  color = :green,  label = "pKa2 = $(round(pKa2, digits = 2)) (from the database)")
+vline!(p, [V_eq1]; linestyle = :dash, color = :red,    label = "PE₁ ($(round(V_eq1, digits = 1)) mL)")
+vline!(p, [V_eq2]; linestyle = :dash, color = :blue,   label = "PE₂ ($(round(V_eq2, digits = 1)) mL)")
+hline!(p, [pKa1];  linestyle = :dot,  color = :orange, label = "pKₐ₁ = $(round(pKa1, digits = 2)) (from the database)")
+hline!(p, [pKa2];  linestyle = :dot,  color = :green,  label = "pKₐ₂ = $(round(pKa2, digits = 2)) (from the database)")
 ```
 
 ![Malonic acid titration curve](../assets/malonic_titration.png)
