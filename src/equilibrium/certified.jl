@@ -484,9 +484,14 @@ function equilibrate_certified(
     if !cert.optimal
         lp = _lp_start(des, state, bfix, ϵ, verbose)
         if lp !== nothing
+            # Handed STRAIGHT to the certifying search, not through
+            # `starts_from`: the vertex is already a starting point, and
+            # pre-solving it with every registered back end would pay an
+            # interior point per back end to reach something the dual Newton
+            # can start from as it stands. That mistake made this cost more
+            # than it saved on its first wiring.
             eq, cert = _keep_better(
-                eq, cert,
-                search(Iterators.flatten((starts_from(lp, "start from the LP vertex"), starts)))...,
+                eq, cert, search(Iterators.flatten(((lp,), starts)))...,
             )
         end
     end
