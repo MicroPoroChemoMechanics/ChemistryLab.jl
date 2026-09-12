@@ -80,19 +80,21 @@ accepted steps, some four minutes. The activity model is `HKFActivityModel` on
 both halves of the coupling: a cement pore solution sits at I ≈ 0.1–0.7 mol/kg,
 where a dilute model is not defensible.
 
-!!! note "This run is computed once, not at every documentation build"
-    The call above is shown and **not executed here**. It is made by
-    [`scripts/precompute_docs.jl`](https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl/blob/main/scripts/precompute_docs.jl),
-    which writes what it found to `docs/src/assets/precomputed/`, and this page
-    reads that. Running it at every build cost the documentation more than an
-    hour for this page and its neighbors.
+!!! note "This run is performed by the build, and it is the expensive part"
+    The call above is shown and not executed *here*; it is made by
+    [`scripts/precomputed.jl`](https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl/blob/main/scripts/precomputed.jl),
+    which the next block includes. That script memoizes per process, so this
+    page's phase history and its calorimetry come from **one** integration rather
+    than two — Documenter runs the whole site in a single process, which is
+    usually a hazard and here is the thing that makes this affordable.
 
-    Nothing is approximated to make that possible, and the exchange is the other
-    way round: because the cost is paid once, the trajectory is reported on
-    **eighty** log-spaced instants rather than the forty a build could afford.
-    Every number below is a computed number, and each file carries the package
-    version, the commit, the composition and the sampling it was produced at —
-    printed below so it is visible rather than buried.
+    Nothing is approximated: the trajectory is integrated, then replayed and
+    certified instant by instant, by this build. It used to be read from a stored
+    file — a coupled equilibrium cost 583 ms and the site called for thousands of
+    them — and two solver fixes later it costs 17 ms, which makes computing it
+    affordable again. That is worth the build time: a stored result is a claim
+    about code that may since have changed, and keeping the two in step needed a
+    guard, a procedure, and a list of traps.
 
 ```@example ionicopc
 include(joinpath(pkgdir(ChemistryLab), "scripts", "precomputed.jl"))
@@ -413,7 +415,7 @@ instant, so it is not counted twice.
     deliberate: the alternative is to change a published number in silence.
 
 ```@example ionicopc
-# Computed alongside the run, in `precompute_docs.jl`: the cell temperature
+# Computed alongside the run, in `precomputed.jl`: the cell temperature
 # needs the heat capacity of the paste at each instant, so it needs the states
 # themselves rather than the heat curve alone.
 T_c = heat_c.columns["T_semiadiabatic_K"]

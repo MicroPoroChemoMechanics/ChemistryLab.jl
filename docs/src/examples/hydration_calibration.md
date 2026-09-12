@@ -115,11 +115,12 @@ C₄AF 8 by mass of clinker, 4.6 % gypsum, 3.5 % limestone. It was chosen becaus
 the target record's w/b of 0.50 and Blaine of 397 m²/kg are within a few percent
 of the mix it was published for.
 
-The five coupled forward solves this page needs cost some six minutes each, so
-they are made once by
-[`scripts/precompute_docs.jl`](https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl/blob/main/scripts/precompute_docs.jl)
-and read here. The calls are shown where they belong, unexecuted; the curves are
-the ones those calls produced, at the resolution they were produced with.
+The coupled forward solves this page needs are performed **by this build**,
+through [`scripts/precomputed.jl`](https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl/blob/main/scripts/precomputed.jl),
+which memoizes them per process so that the two pages asking for the same
+trajectory pay for it once. The calls are shown where they belong, unexecuted,
+because showing the call and running it twice would be the same computation
+written down twice.
 
 ```julia
 target = resample_log(CEM_I_TARGET, N_RESIDUALS_COUPLED)

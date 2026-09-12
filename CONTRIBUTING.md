@@ -1,42 +1,39 @@
 # Contributing to ChemistryLab.jl
 
-## The one thing that will bite you first
+## The documentation computes what it shows
 
-**If you change anything under `src/`, the documentation build will refuse to
-run until you regenerate the precomputed trajectories.**
+Every number in the manual is computed by the build. Nothing is read from a
+stored result, and that is a deliberate reversal: the heavy coupled
+kinetics/equilibrium trajectories *were* precomputed into CSV files for a while,
+because one coupled equilibrium cost 583 ms and the site needs thousands of them.
 
-It refuses rather than warns, on purpose. Four of the documentation's pages read
-coupled kinetics/equilibrium runs that are computed **once** rather than at every
-build — a single coupled forward solve costs about 210 s and the site calls for a
-dozen, which is the difference between a 23-minute build and a three-hour one.
-Those stored results are a cache, and a cache that can go stale without saying so
-is not a cache but a false claim: the site would keep publishing the trajectory
-of a solver that no longer exists.
+Two solver fixes later it costs 17 ms, and computing them is affordable again.
+The exchange was worth making in both directions, and it is worth knowing why it
+came back: a stored result is a claim about code that may since have changed, so
+keeping the two in step needed a staleness guard, a documented procedure, and a
+list of traps for the ways it could silently go wrong — an interrupted run
+leaving a partial file whose header was already correct, a regeneration done
+before the commit it was meant to follow. **None of that exists any more.** If
+you change the solver, the next build simply shows the new answer.
 
-So each stored file records the commit and the solver version it was produced
-with, and `docs/make.jl` compares both against what the build resolves.
+What this costs is build time, and where it goes:
 
-### What to do
+| | |
+|:--|--:|
+| one coupled hydration integration to 28 days | a few minutes |
+| its certified replay on 40 reported instants | comparable |
+| everything else on the site together | about ten minutes |
 
-```bash
-# 1. Commit your code change FIRST -- the files record the commit they ran at.
-git commit -m "..."
+`scripts/precomputed.jl` holds those runs and **memoizes them per process**.
+That matters more than it looks: Documenter runs every `@example` block of the
+whole site in one process, so a page asking for a run's phase history and its
+calorimetry as two tables gets one integration. The shared process is usually a
+hazard — see the plot-font guard below — and here it is the thing that makes
+this affordable.
 
-# 2. Regenerate (about 35-40 min; one heavy process at a time).
-julia --project=docs scripts/precompute_docs.jl
-
-# 3. Commit the regenerated CSVs.
-git add docs/src/assets/precomputed/ && git commit -m "docs: regenerate ..."
-```
-
-`--only=ionic` and `--only=calibration` restrict it to one group when only one is
-affected. `docs/src/assets/precomputed/README.md` carries the full procedure, the
-cost of each part, and the two traps that have actually caught someone: an
-interrupted run leaves a **partial** file the guard cannot detect, and
-regenerating *before* committing records the previous commit.
-
-**Do not try to decide that your change cannot have moved a trajectory.** Proving
-it costs more than the run, and the guard is deliberately not configurable.
+If a change of yours makes the build much slower, the resolution of the reported
+trajectories is the lever: `N_INSTANTS` in that script. Say so in the page rather
+than quietly coarsening it.
 
 ## Building the documentation
 
