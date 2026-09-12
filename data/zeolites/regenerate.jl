@@ -133,6 +133,13 @@ function substance_entry(z::ZeoliteRecord)
             "log_Ksp_error" => z.logKsp_err,
             "S_Cp_origin" => String(z.origin),
             "transcribed_from" => "published table, verbatim",
+            # The congruent dissolution products, as the paper writes them.
+            # TRANSCRIBED, not inferred: a sodalite is Na8(Al6Si6)O24Cl2 and a
+            # cancrinite carries nitrate, so the tempting shortcut "one alkali
+            # per aluminum" is wrong for four of the twenty-eight. Storing them
+            # lets a consumer re-run the `log Ksp` round trip on exactly the
+            # reaction this build checked, rather than on a guess at it.
+            "dissolution_products" => z.products,
         ),
     )
 end
@@ -185,9 +192,14 @@ function main()
         ),
         "note" => "CEMDATA18 entries are copied unchanged; nothing is overwritten.",
     )
-    open(OUT, "w") do io
+    # Written through a temporary and moved into place: this file is read by the
+    # documentation build, and a reader that catches it half-written gets a
+    # parse error whose cause is nowhere near its symptom.
+    tmp = OUT * ".tmp"
+    open(tmp, "w") do io
         JSON.print(io, db, 2)
     end
+    mv(tmp, OUT; force = true)
     println("wrote $OUT  ($(length(db["substances"])) substances)")
     return nothing
 end

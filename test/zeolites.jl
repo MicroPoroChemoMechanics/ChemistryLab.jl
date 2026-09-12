@@ -51,6 +51,19 @@ using JSON
     end
 
     @testset "log Ksp closes against the CEMDATA18 aqueous energies" begin
+        # The check that makes the merge defensible, re-run here on the shipped
+        # file. Both source papers publish `log Ksp` AND `ΔfG⁰` for each phase,
+        # referred to the CEMDATA18 primary species; recomputing one from the
+        # other through CEMDATA18's own aqueous Gibbs energies closes the loop,
+        # and it can only close if the two datasets share a reference state and
+        # the transcription is exact.
+        #
+        # The dissolution products are READ FROM THE FILE, not inferred from the
+        # formula. Inferring them means assuming one alkali per aluminum, which
+        # is wrong for the sodalites and the cancrinite: `SOD-Cl-Na` is
+        # Na8(Al6Si6)O24Cl2, eight sodiums for six aluminums, and the balance is
+        # made up by chloride. A test that guessed the reaction would be checking
+        # a different reaction from the one the generator checked.
         R = 8.31446261815324          # J/(mol·K), CODATA
         RTln10 = R * 298.15 * log(10)
         G = Dict{String, Float64}()
@@ -59,31 +72,18 @@ using JSON
             v === nothing || isempty(v) || (G[String(s["symbol"])] = Float64(v[1]))
         end
 
-        # The dissolution products are not stored in the JSON -- they belong to
-        # the transcription -- so they are read back from the formula, over the
-        # primary species the papers refer their constants to. A zeolite is
-        # M_x(Al_x Si_y)O_z (H2O)_w and dissolves congruently to x M+, x AlO2-,
-        # y SiO2@ and w H2O@.
         worst = 0.0
         added = sort(collect(setdiff(keys(E), keys(B))))
         for k in added
             s = E[k]
-            atoms = Dict(
-                Symbol(a) => Float64(n)
-                    for (a, n) in ChemistryLab.parse_formula(String(s["formula"]))
-            )
-            al = get(atoms, :Al, 0.0)
-            si = get(atoms, :Si, 0.0)
-            na = get(atoms, :Na, 0.0)
-            ka = get(atoms, :K, 0.0)
-            # oxygen beyond the framework and the aluminate is structural water
-            h2o = get(atoms, :H, 0.0) / 2
+            products = s["zeolite_provenance"]["dissolution_products"]
+            @test !isempty(products)
+            # Every product must be a CEMDATA18 aqueous species, or the reaction
+            # is not written over the primaries the papers refer their constants
+            # to and the round trip below would be meaningless.
+            @test all(haskey(G, String(sp)) for sp in keys(products))
 
-            @test al > 0 && si > 0
-            @test isapprox(na + ka, al; atol = 1.0e-9)   # charge balance of the framework
-
-            ΔrG = na * G["Na+"] + ka * G["K+"] + al * G["AlO2-"] +
-                si * G["SiO2@"] + h2o * G["H2O@"] -
+            ΔrG = sum(Float64(ν) * G[String(sp)] for (sp, ν) in products) -
                 Float64(s["sm_gibbs_energy"]["values"][1])
             lk = -ΔrG / RTln10
             published = Float64(s["zeolite_provenance"]["log_Ksp_298K"])

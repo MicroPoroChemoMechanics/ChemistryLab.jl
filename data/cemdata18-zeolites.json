@@ -27337,6 +27337,12 @@
       "symbol": "ANA-Na",
       "zeolite_provenance": {
         "S_Cp_origin": "literature",
+        "dissolution_products": {
+          "AlO2-": 2.0,
+          "H2O@": 2.0,
+          "Na+": 2.0,
+          "SiO2@": 4.0
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -26.8,
         "log_Ksp_error": 0.8,
@@ -27386,6 +27392,12 @@
       "symbol": "GIS-LSP-Na",
       "zeolite_provenance": {
         "S_Cp_origin": "additivity",
+        "dissolution_products": {
+          "AlO2-": 2.0,
+          "H2O@": 3.8,
+          "Na+": 2.0,
+          "SiO2@": 2.0
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -19.6,
         "log_Ksp_error": 0.6,
@@ -27435,6 +27447,12 @@
       "symbol": "PHI-Na",
       "zeolite_provenance": {
         "S_Cp_origin": "additivity",
+        "dissolution_products": {
+          "AlO2-": 2.5,
+          "H2O@": 5.0,
+          "Na+": 2.5,
+          "SiO2@": 5.5
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -39.4,
         "log_Ksp_error": 1.2,
@@ -27484,6 +27502,13 @@
       "symbol": "PHI-NaK",
       "zeolite_provenance": {
         "S_Cp_origin": "additivity",
+        "dissolution_products": {
+          "AlO2-": 2.5,
+          "H2O@": 5.0,
+          "K+": 1.0,
+          "Na+": 1.5,
+          "SiO2@": 5.5
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -39.9,
         "log_Ksp_error": 1.2,
@@ -27533,6 +27558,12 @@
       "symbol": "LTA-Na",
       "zeolite_provenance": {
         "S_Cp_origin": "additivity",
+        "dissolution_products": {
+          "AlO2-": 1.98,
+          "H2O@": 5.31,
+          "Na+": 1.98,
+          "SiO2@": 2.02
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -18.2,
         "log_Ksp_error": 0.6,
@@ -27582,6 +27613,12 @@
       "symbol": "LTA-4A-Na",
       "zeolite_provenance": {
         "S_Cp_origin": "additivity",
+        "dissolution_products": {
+          "AlO2-": 2.0,
+          "H2O@": 4.5,
+          "Na+": 2.0,
+          "SiO2@": 2.0
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -20.5,
         "log_Ksp_error": 0.6,
@@ -27631,6 +27668,13 @@
       "symbol": "SOD-OH-Na",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 6.0,
+          "H2O@": 2.0,
+          "Na+": 8.0,
+          "OH-": 2.0,
+          "SiO2@": 6.0
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -65.2,
         "log_Ksp_error": 2.0,
@@ -27680,6 +27724,12 @@
       "symbol": "SOD-Cl-Na",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 6.0,
+          "Cl-": 2.0,
+          "Na+": 8.0,
+          "SiO2@": 6.0
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -69.4,
         "log_Ksp_error": 2.1,
@@ -27729,6 +27779,13 @@
       "symbol": "CAN-NO3-Na",
       "zeolite_provenance": {
         "S_Cp_origin": "additivity",
+        "dissolution_products": {
+          "AlO2-": 6.0,
+          "H2O@": 4.0,
+          "NO3-": 2.0,
+          "Na+": 8.0,
+          "SiO2@": 6.0
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -64.8,
         "log_Ksp_error": 1.9,
@@ -27778,6 +27835,12 @@
       "symbol": "CHA-Na",
       "zeolite_provenance": {
         "S_Cp_origin": "additivity",
+        "dissolution_products": {
+          "AlO2-": 2.0,
+          "H2O@": 6.0,
+          "Na+": 2.0,
+          "SiO2@": 4.0
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -31.9,
         "log_Ksp_error": 1.0,
@@ -27827,6 +27890,12 @@
       "symbol": "FAU-X-Na",
       "zeolite_provenance": {
         "S_Cp_origin": "literature",
+        "dissolution_products": {
+          "AlO2-": 2.0,
+          "H2O@": 6.2,
+          "Na+": 2.0,
+          "SiO2@": 2.5
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -21.9,
         "log_Ksp_error": 0.7,
@@ -27876,6 +27945,12 @@
       "symbol": "FAU-Y-Na",
       "zeolite_provenance": {
         "S_Cp_origin": "literature",
+        "dissolution_products": {
+          "AlO2-": 2.0,
+          "H2O@": 8.0,
+          "Na+": 2.0,
+          "SiO2@": 4.0
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -29.5,
         "log_Ksp_error": 0.9,
@@ -27925,6 +28000,12 @@
       "symbol": "NAT-Na",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 2.0,
+          "H2O@": 2.0,
+          "Na+": 2.0,
+          "SiO2@": 3.0
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -26.6,
         "log_Ksp_error": 0.8,
@@ -27974,6 +28055,12 @@
       "symbol": "MOR-Na",
       "zeolite_provenance": {
         "S_Cp_origin": "additivity",
+        "dissolution_products": {
+          "AlO2-": 0.72,
+          "H2O@": 2.71,
+          "Na+": 0.72,
+          "SiO2@": 5.28
+        },
         "doi": "10.1016/j.cemconres.2020.106111",
         "log_Ksp_298K": -22.5,
         "log_Ksp_error": 0.7,
@@ -28023,6 +28110,11 @@
       "symbol": "LEU-K",
       "zeolite_provenance": {
         "S_Cp_origin": "literature",
+        "dissolution_products": {
+          "AlO2-": 2.0,
+          "K+": 2.0,
+          "SiO2@": 4.0
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -27.6,
         "log_Ksp_error": 0.83,
@@ -28072,6 +28164,12 @@
       "symbol": "GIS-LSP-K",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 2.0,
+          "H2O@": 2.0,
+          "K+": 2.0,
+          "SiO2@": 2.0
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -19.6,
         "log_Ksp_error": 0.59,
@@ -28121,6 +28219,12 @@
       "symbol": "GIS-P1-K",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 1.67,
+          "H2O@": 1.9,
+          "K+": 1.67,
+          "SiO2@": 2.33
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -21.2,
         "log_Ksp_error": 0.64,
@@ -28170,6 +28274,12 @@
       "symbol": "PHI-K",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 2.5,
+          "H2O@": 5.0,
+          "K+": 2.5,
+          "SiO2@": 5.5
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -42.6,
         "log_Ksp_error": 1.28,
@@ -28219,6 +28329,12 @@
       "symbol": "LTA-K",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 2.0,
+          "H2O@": 3.3,
+          "K+": 2.0,
+          "SiO2@": 2.0
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -20.5,
         "log_Ksp_error": 0.62,
@@ -28268,6 +28384,12 @@
       "symbol": "CHA-K",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 2.0,
+          "H2O@": 4.0,
+          "K+": 2.0,
+          "SiO2@": 4.0
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -32.3,
         "log_Ksp_error": 0.97,
@@ -28317,6 +28439,12 @@
       "symbol": "FAU-X-K",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 2.03,
+          "H2O@": 6.04,
+          "K+": 2.03,
+          "SiO2@": 2.47
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -22.5,
         "log_Ksp_error": 0.68,
@@ -28366,6 +28494,12 @@
       "symbol": "FAU-Y-K",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 2.18,
+          "H2O@": 7.72,
+          "K+": 2.18,
+          "SiO2@": 3.82
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -32.35,
         "log_Ksp_error": 0.97,
@@ -28415,6 +28549,12 @@
       "symbol": "NAT-tetra-K",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 2.0,
+          "H2O@": 2.0,
+          "K+": 2.0,
+          "SiO2@": 3.0
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -25.27,
         "log_Ksp_error": 0.76,
@@ -28464,6 +28604,12 @@
       "symbol": "NAT-K",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 2.0,
+          "H2O@": 2.0,
+          "K+": 2.0,
+          "SiO2@": 3.0
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -26.35,
         "log_Ksp_error": 0.79,
@@ -28513,6 +28659,12 @@
       "symbol": "MOR-K",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 0.65,
+          "H2O@": 2.3,
+          "K+": 0.65,
+          "SiO2@": 5.35
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -22.0,
         "log_Ksp_error": 0.66,
@@ -28562,6 +28714,12 @@
       "symbol": "STI-K",
       "zeolite_provenance": {
         "S_Cp_origin": "additivity",
+        "dissolution_products": {
+          "AlO2-": 2.2,
+          "H2O@": 4.8,
+          "K+": 2.2,
+          "SiO2@": 6.8
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -45.2,
         "log_Ksp_error": 1.36,
@@ -28611,6 +28769,12 @@
       "symbol": "HEU-K",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 2.22,
+          "H2O@": 4.7,
+          "K+": 2.22,
+          "SiO2@": 6.78
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -45.15,
         "log_Ksp_error": 1.35,
@@ -28660,6 +28824,12 @@
       "symbol": "CLI-K",
       "zeolite_provenance": {
         "S_Cp_origin": "measured",
+        "dissolution_products": {
+          "AlO2-": 1.01,
+          "H2O@": 2.3,
+          "K+": 1.01,
+          "SiO2@": 4.99
+        },
         "doi": "10.1016/j.cemconres.2021.106537",
         "log_Ksp_298K": -26.8,
         "log_Ksp_error": 0.8,
