@@ -143,7 +143,14 @@ function integrate(kp::KineticsProblem, ks::KineticsSolver; kwargs...)
                 integrator.p.on_accepted[] = true
                 respeciate!(integrator.p, integrator.u)
                 integrator.p.on_accepted[] = false
-                SciMLBase.u_modified!(integrator, false)
+                # `u_modified!` was renamed in SciMLBase; call the new name
+                # where it exists and fall back so the extension keeps working
+                # against the versions the compat bound still admits.
+                if isdefined(SciMLBase, :derivative_discontinuity!)
+                    SciMLBase.derivative_discontinuity!(integrator, false)
+                else
+                    SciMLBase.u_modified!(integrator, false)
+                end
             end;
             save_positions = (false, false),
         )

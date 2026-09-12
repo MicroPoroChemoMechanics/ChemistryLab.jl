@@ -144,6 +144,11 @@ pages = [
             "examples/cement_wc_ratio.md",
             "examples/cement_carbonation.md",
         ],
+        # Beyond the Portland cement: a binder whose clinker is half replaced,
+        # which is where the oxidation state stops being ignorable.
+        "Blended binders" => [
+            "examples/cem3_slag.md",
+        ],
         "Cementitious media in time" => [
             "examples/cement_clinker_kinetics.md",
             "examples/coupled_hydration.md",
