@@ -53,7 +53,8 @@ proves a composition optimal. See
 
 ```@autodocs
 Modules = [ChemistryLab]
-Pages = ["equilibrium/dual_solver.jl", "equilibrium/certified.jl"]
+Pages = ["equilibrium/dual_solver.jl", "equilibrium/certified.jl",
+         "equilibrium/lp_start.jl"]
 ```
 
 ## Constraints
