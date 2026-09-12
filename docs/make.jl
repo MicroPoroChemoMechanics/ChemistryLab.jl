@@ -13,6 +13,58 @@ using PrettyTables
 
 include("pages.jl")
 
+# ── Guard: the precomputed trajectories must not be stale ────────────────────
+#
+# The heavy coupled runs are computed once by `scripts/precompute_docs.jl` and
+# read back by the pages. That is a cache, and a cache that can go stale without
+# saying so is not a cache but a false claim: the documentation would keep
+# showing the trajectory of a solver that no longer exists.
+#
+# So each file records the commit it was produced at, and this compares that
+# commit against the last one that touched the code those runs depend on. It
+# refuses the build rather than warning, because a warning in a three-hundred-
+# line build log is not read.
+let
+    dir = joinpath(@__DIR__, "src", "assets", "precomputed")
+    files = isdir(dir) ? filter(endswith(".csv"), readdir(dir)) : String[]
+    if !isempty(files)
+        # What the stored results depend on: the solver, the kinetics, and the
+        # two scripts that drive them. Documentation and tests are excluded --
+        # they cannot change a trajectory.
+        watched = ["src", "scripts/ionic_hydration.jl", "scripts/hydration_calibration.jl",
+            "scripts/precompute_docs.jl"]
+        code_commit = try
+            readchomp(`git -C $(dirname(@__DIR__)) log -1 --format=%H -- $watched`)
+        catch
+            ""
+        end
+        stale = String[]
+        for f in files
+            stored = ""
+            for line in eachline(joinpath(dir, f))
+                startswith(line, "#") || break
+                m = match(r"^#\s*commit:\s*(\S+)", line)
+                m === nothing || (stored = m.captures[1])
+            end
+            isempty(stored) && continue
+            isempty(code_commit) && continue
+            # `stored` is abbreviated; compare on the prefix it carries.
+            startswith(code_commit, stored) || push!(stale, "$f (produced at $stored)")
+        end
+        isempty(stale) || error(
+            "precomputed results are older than the code that produces them.\n" *
+                "  last commit touching the solver or the driving scripts: " *
+                "$(code_commit[1:min(end, 8)])\n" *
+                join("  stale: " .* stale, "\n") *
+                "\n\nRegenerate them with\n" *
+                "    julia --project=docs scripts/precompute_docs.jl\n" *
+                "or, if the change cannot have moved a trajectory, re-run it anyway: " *
+                "a stored result that no longer matches its source is worse than " *
+                "a slow build.",
+        )
+    end
+end
+
 # ── Guard: no page may set the plot font ─────────────────────────────────────
 #
 # Documenter runs every `@example` block in ONE process, so `default(fontfamily
