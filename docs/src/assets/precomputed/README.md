@@ -1,5 +1,77 @@
 # Precomputed trajectories
 
+## If you changed the code, read this first
+
+**The documentation build will refuse to run** — not warn, refuse — as soon as
+these files are older than the code that produces them. That is deliberate: a
+cache that can go stale silently is not a cache, it is a false claim, and the
+site would keep showing the trajectory of a solver that no longer exists.
+
+### What makes them stale
+
+Two things, both checked by the guard at the top of `docs/make.jl`:
+
+1. **A commit touching the code they depend on** — `src/`,
+   `scripts/ionic_hydration.jl`, `scripts/hydration_calibration.jl`, or
+   `scripts/precompute_docs.jl` itself. Documentation and tests are excluded:
+   they cannot change a trajectory.
+2. **A different resolved version of `OptimaSolver`.** The solver is source too,
+   and it does not live in this repository, so no commit here can speak for it.
+   This is not hypothetical: 0.5.3 changed what the certificate reports and 0.5.4
+   changed it back, and `docs/Manifest.toml` once pinned 0.5.1 for months without
+   anyone noticing.
+
+### The procedure, in order
+
+```bash
+# 1. Commit your code change FIRST.
+git add src/... && git commit -m "..."
+
+# 2. Only then regenerate. The files record the commit they ran at, so a run
+#    started before the commit records the OLD one and the guard still refuses.
+julia --project=docs scripts/precompute_docs.jl
+
+# 3. Check the headers actually moved.
+head -8 docs/src/assets/precomputed/ionic_opc_phases.csv
+
+# 4. Commit the regenerated files, ideally in the very next commit.
+git add docs/src/assets/precomputed/ && git commit -m "docs: regenerate ..."
+
+# 5. Now the build runs.
+julia --project=docs docs/make.jl
+```
+
+### What it costs, and how not to hurt the machine
+
+About **35 to 40 minutes** on two cores: two coupled hydration runs to 28 days
+(225 s and 182 s of integration, plus the certified replay of 80 instants each),
+then five coupled forward solves for the calibration pages at roughly 210 s
+apiece, then three more for the clinker sensitivity.
+
+Run it as **one heavy process at a time** — it is a long single-threaded job, and
+starting a documentation build beside it helps nobody. `--only=ionic` and
+`--only=calibration` exist so that a change affecting one group does not pay for
+the other.
+
+### Two traps, both met in practice
+
+- **An interrupted run leaves a partial file.** The script writes each CSV as it
+  goes, so a run killed in the middle of the sensitivity loop leaves
+  `calibration_sensitivity.csv` with one row of three. The guard cannot see this:
+  the header is already correct. **Check the row counts** against the table
+  below, or simply re-run the group.
+- **Regenerating before committing** records the previous commit in the header,
+  and the guard refuses with a message that looks like the regeneration did not
+  happen. It did; it was just early.
+
+### If you are sure the change cannot move a trajectory
+
+Regenerate anyway. A renamed variable cannot change a number, but proving that
+costs more than the run does, and a stored result that no longer matches its
+source is worse than a slow build. The guard is deliberately not configurable.
+
+---
+
 Every file here is **produced by a script in this repository**, not transcribed
 from anywhere, and can be reproduced:
 
