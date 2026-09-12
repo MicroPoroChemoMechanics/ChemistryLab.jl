@@ -1,3 +1,5 @@
+using Logging
+
 # Redox: the electron as a component, and the potentials read off a couple.
 #
 # Nothing in the package solved a multi-valence system before this file existed,
@@ -72,8 +74,12 @@
     @testset "refusals" begin
         @test_throws ArgumentError half_reaction(st, "SO4-2", "NotASpecies")
         @test_throws ArgumentError half_reaction(st, "NotASpecies", "HS-")
-        # Ca(II) has one valence here, so the "couple" balances with no electron.
+        # A species cannot be both members. Asked for it, the balance closes by
+        # creating matter -- `∅ = Ca²⁺ + 2e⁻` -- and returns a plausible-looking
+        # potential (-49.9) from no chemistry at all, which is worse than an
+        # error.
         @test_throws ArgumentError pe(st, model; couple = "Ca+2" => "Ca+2")
+        @test_throws ArgumentError half_reaction(st, "Ca+2", "Ca+2")
     end
 
     @testset "the charge row survives as a conservation component" begin
@@ -159,4 +165,30 @@ end
             st; model = model, b = b, constraint = FixedpE(0.0; titrant = "NotHere"),
         )
     end
+end
+
+@testsection "a couple that does not buffer is said so" begin
+    # A slag paste puts all of its sulfur into an AFm phase, leaving the aqueous
+    # sulfide at the solver floor. The `pe` computed from such a couple is set by
+    # `ϵ` and not by the chemistry, and it looks like an ordinary answer -- which
+    # is exactly why it has to announce itself.
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    sp = speciation(
+        substances, ["SO4-2", "HS-", "Ca+2", "O2@"]; aggregate_state = [AS_AQUEOUS]
+    )
+    cs = ChemicalSystem(sp, CEMDATA_PRIMARIES)
+    model = DiluteSolutionModel()
+
+    both = ChemicalState(cs)
+    set_quantity!(both, "H2O@", 1.0u"kg")
+    set_quantity!(both, "SO4-2", 1.0e-3u"mol")
+    set_quantity!(both, "HS-", 1.0e-3u"mol")
+    set_quantity!(both, "Ca+2", 1.0e-3u"mol")
+    @test_logs min_level = Logging.Warn pe(both, model)      # both present: silent
+
+    starved = ChemicalState(cs)
+    set_quantity!(starved, "H2O@", 1.0u"kg")
+    set_quantity!(starved, "SO4-2", 1.0e-3u"mol")
+    set_quantity!(starved, "Ca+2", 1.0e-3u"mol")             # no sulfide at all
+    @test_logs (:warn,) match_mode = :any pe(starved, model)
 end

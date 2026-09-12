@@ -565,6 +565,14 @@ function half_reaction(
         state::ChemicalState, oxidized::AbstractString, reduced::AbstractString
     )
     cs = state.system
+    oxidized == reduced && throw(
+        ArgumentError(
+            "`$oxidized` cannot be both members of a redox couple. Asked for " *
+                "one, the balance produces a reaction that creates matter out " *
+                "of nothing — `∅ = Ca²⁺ + 2e⁻` for calcium — which then yields " *
+                "a plausible-looking potential from no chemistry at all.",
+        ),
+    )
     byname = Dict(symbol(s) => s for s in cs.species)
     for sym in (oxidized, reduced)
         haskey(byname, sym) || throw(
@@ -583,9 +591,21 @@ function half_reaction(
     haskey(byname, "H+") || throw(
         ArgumentError("a redox half-reaction needs `H+`, and this system has none"),
     )
-    return Reaction(
+    r = Reaction(
         [byname[oxidized], byname["H+"], ELECTRON, byname[reduced], water]
     )
+    # A half-reaction must have matter on both sides. An empty side means the
+    # balance could only close by creating or destroying the species outright,
+    # which is what a pair that is not a redox couple produces.
+    real(d) = count(sp -> symbol(sp) != symbol(ELECTRON), keys(d))
+    (real(r.reactants) == 0 || real(r.products) == 0) && throw(
+        ArgumentError(
+            "`$oxidized`/`$reduced` does not balance as a half-reaction: the " *
+                "result is `$(r.equation)`, with nothing on one side. They are " *
+                "not two oxidation states of the same element.",
+        ),
+    )
+    return r
 end
 
 """
@@ -626,22 +646,54 @@ function pe(
     )
     cs = state.system
     _require_aqueous(cs, "pe(state, model)")
+
+    # A couple buffers the potential only while BOTH members are present. Let
+    # one fall to the solver's floor and its activity is the floor, not a
+    # measured quantity -- the number that comes out is then set by `ϵ` and not
+    # by the chemistry. That case is common and quiet: a slag paste puts all of
+    # its sulfur into an AFm phase, leaving the aqueous sulfide at 1e-300, and
+    # the `pe` computed from it looks like an ordinary answer.
+    for sym in (first(couple), last(couple))
+        i = findfirst(sp -> symbol(sp) == sym, cs.species)
+        i === nothing && continue
+        n_i = _primal(ustrip(us"mol", state.n[i]))
+        n_i > 1.0e3 * ϵ || @warn """
+        `$sym` is at $(n_i) mol, at or near the solver floor, so the             $(first(couple))/$(last(couple)) couple does not buffer anything             here: the `pe` returned is set by the floor `ϵ`, not by the             chemistry. Read it as a bound, or choose a couple whose members are             both present.""" maxlog = 1
+    end
+
     r = half_reaction(state, first(couple), last(couple))
     lna = log_activities(state, model; ϵ = ϵ)
     inv_ln10 = inv(log(10))
 
-    n_e = 0.0
+    # The electron count comes from the CHARGE BALANCE, not from the reaction's
+    # species dictionaries: `Reaction` strips `e⁻` (and the charge pseudo-species
+    # `Zz`) from both sides before storing them, so the electron shows in the
+    # printed equation and nowhere else. Searching the dictionaries for it finds
+    # nothing and silently reports a couple as non-redox.
+    #
+    # Writing the half-reaction as reactants = products, the electrons on the
+    # reactant side are what closes the charge:
+    #
+    #     Σ z(reactants) − n = Σ z(products)     ⟹     n = Σz(react) − Σz(prod)
+    # Whether the electron survives in the dictionaries is not consistent: it is
+    # there for the sulfate/sulfide couple and gone for iron(III)/iron(II). So it
+    # is skipped in the activity sums -- it has no activity to look up, and
+    # `lna` has no entry for it -- and its count is taken from the charge
+    # balance, which is defined either way.
+    is_electron(sp) = symbol(sp) == symbol(ELECTRON)
+    charge_of(d) = sum(
+        (Float64(ν) * charge(sp) for (sp, ν) in d if !is_electron(sp)); init = 0.0
+    )
+    n_e = charge_of(r.reactants) - charge_of(r.products)
+
     acc = r.logK⁰(T = ustrip(us"K", temperature(state)))
     for (sp, ν) in r.reactants
-        if symbol(sp) == symbol(ELECTRON)
-            n_e = Float64(ν)
-        else
-            acc += Float64(ν) * lna[symbol(sp)] * inv_ln10
-        end
+        is_electron(sp) && continue
+        acc += Float64(ν) * lna[symbol(sp)] * inv_ln10
     end
     for (sp, ν) in r.products
-        symbol(sp) == symbol(ELECTRON) && (n_e = -Float64(ν))
-        symbol(sp) == symbol(ELECTRON) || (acc -= Float64(ν) * lna[symbol(sp)] * inv_ln10)
+        is_electron(sp) && continue
+        acc -= Float64(ν) * lna[symbol(sp)] * inv_ln10
     end
     n_e == 0 && throw(
         ArgumentError(

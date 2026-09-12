@@ -174,17 +174,34 @@ s2 = ustrip(us"mol", moles(eq, "HS-"))
 @printf("\naqueous S(VI)  : %.3e mol\naqueous S(-II) : %.3e mol\n", s6, s2)
 ```
 
-!!! danger "This is an equilibrium answer, and sulfate reduction is slow"
-    The number above is what the thermodynamics gives if every redox couple is
-    allowed to reach mutual equilibrium. In a real paste that is false on the
-    time scale of hydration: sulfate reduction is kinetically frozen, so the
-    sulfur stays closer to what the slag brought than to what equilibrium would
-    make of it.
+Read that output carefully, because it contains a trap the calculation itself
+warns about. **The aqueous sulfide is at the solver's floor** — the equilibrium
+put essentially all of this paste's sulfur into the AFm phase
+(`monosulphate12` above), leaving nothing in solution on either side of the
+couple.
 
-    A real slag paste is therefore **somewhere between** its initial oxidation
-    state and this one, and nothing in a Gibbs minimization says where. The
-    package can now pose the question; answering it needs a kinetic description
-    of sulfate reduction, which it does not have.
+A couple buffers a potential only while both of its members are present. With
+one at the floor, the `pe` printed above is set by the floor `ϵ` and not by the
+chemistry, which is why [`pe`](@ref) emits a warning here rather than returning
+the number silently. Read it as a **bound**, not as the redox state of the
+paste.
+
+That is not a defect of the calculation; it is the answer. A CEM III/A at this
+sulfur content has no aqueous sulfur to speak of, so it has no sulfur redox
+buffer either. A cement whose slag brings more sulfur, or a paste carbonated
+enough to release the AFm sulfate, would.
+
+!!! danger "And even a buffered answer would be an equilibrium answer"
+    Suppose the couple were buffered. The potential would still be what the
+    thermodynamics gives if every redox couple reaches **mutual** equilibrium,
+    and on the time scale of hydration that is false: sulfate reduction is
+    kinetically frozen, so the sulfur stays closer to what the slag brought than
+    to what equilibrium would make of it.
+
+    A real slag paste is therefore somewhere between its initial oxidation state
+    and this one, and nothing in a Gibbs minimization says where. The package can
+    now pose the question; answering it needs a kinetic description of sulfate
+    reduction, which it does not have.
 
 ## 6. What the measured calorimetry says, and what it does not
 
