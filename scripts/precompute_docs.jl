@@ -70,7 +70,7 @@ const CLINKER = (C3S = 0.65, C2S = 0.11, C3A = 0.11, C4AF = 0.08)
 The header every file carries: what produced it, when, with which package, and
 at which commit. A precomputed number is only as good as its traceability.
 """
-function provenance(io, what)
+function provenance(io, what; instants = N_INSTANTS, window = TEND)
     commit = try
         readchomp(`git -C $(pkgdir(ChemistryLab)) rev-parse --short HEAD`)
     catch
@@ -86,7 +86,8 @@ function provenance(io, what)
     println(io, "# ChemistryLab version: ", ver)
     println(io, "# commit: ", commit)
     println(io, "# generated: ", Dates.format(now(), "yyyy-mm-dd HH:MM"))
-    println(io, "# instants: ", N_INSTANTS, " log-spaced over ", TEND / 86400, " days")
+    println(io, "# instants: ", instants, " log-spaced over ",
+        round(window / 86400; digits = 2), " days")
     println(io, "# w/b 0.50, Blaine default, 20 C, 1 kg of binder")
     println(io, "# clinker (mass fractions): ", CLINKER)
     QUICK && println(io, "# !! QUICK MODE -- coarse sampling, not for publication !!")
@@ -204,7 +205,10 @@ function write_calibration()
         flush(stdout)
 
         open(joinpath(OUT, "$(tag).csv"), "w") do io
-            provenance(io, "$label -- measured against published and calibrated")
+            provenance(
+                io, "$label -- measured against published and calibrated";
+                instants = length(data.t), window = data.t[end],
+            )
             println(io, "# measured data: Smilauer & Reiterman (2025), Zenodo")
             println(io, "#   10.5281/zenodo.15212785, CC-BY-4.0")
             println(io, "# Q_prior: published Parrott-Killoh parameters, untouched")
@@ -226,7 +230,10 @@ function write_calibration()
     t0 = time()
     data = resample_log(CEM_I_TARGET, N_RESIDUALS_COUPLED)
     open(joinpath(OUT, "calibration_sensitivity.csv"), "w") do io
-        provenance(io, "sensitivity of the fit to the alite content")
+        provenance(
+            io, "sensitivity of the fit to the alite content";
+            instants = length(data.t), window = data.t[end],
+        )
         println(io, "# the fitted rate constants are held at CALIBRATED_THETA;")
         println(io, "# only the clinker composition moves, the rest rescaled to close")
         println(io, "delta_C3S,C3S,Q_end_J_per_g,RMSE_J_per_g")
