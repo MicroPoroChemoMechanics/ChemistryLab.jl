@@ -27,12 +27,18 @@ const sidebarTemp = {
 
 // DocumenterVitepress mirrors the whole `pages` tree into the navbar, a
 // duplicate of the sidebar that can fill the bar edge to edge and push the
-// GitHub link off screen. Fold the reference material into one menu.
-// This manual's top level is short enough to sit in the bar as it is; the
-// grouping exists so the rule is stated in one place if it ever grows.
-const MORE: string[] = ['API', 'References']
+// GitHub link off screen. This folds named top-level entries into one menu.
+//
+// `API` USED TO BE IN THIS LIST, AND MUST NOT GO BACK INTO IT. Folding it made
+// the docstring reference reachable only through a dropdown labeled something
+// else, which reads as the API having been removed from the manual -- it was
+// reported as exactly that on v0.17.0. The navbar of this manual is eight
+// entries wide and fits; the mechanism stays because the rule belongs in one
+// place if the top level ever does grow, but the API is not what gets folded.
+const MORE: string[] = []
 
 function curateNav(items: any[]): any[] {
+  if (!MORE.length) return items
   const more = items.filter((i) => MORE.includes(i.text))
   const out = items.filter((i) => !more.includes(i))
   if (more.length) out.push({ text: 'Reference', items: more })

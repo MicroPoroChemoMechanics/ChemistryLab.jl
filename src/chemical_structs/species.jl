@@ -1573,3 +1573,43 @@ SC_SSENDMEMBER::Class = 5
 function with_class(s::Species{T}, c::Class) where {T}
     return Species{T}(s.name, s.symbol, s.formula, s.aggregate_state, c, s.properties)
 end
+
+"""
+    with_symbol(s::Species, sym::AbstractString) -> Species
+
+The same species under a different symbol, everything else shared.
+
+Exists for one purpose: a **miscibility gap** needs the same substance present
+twice, as two coexisting compositions, and a formulation carrying one amount per
+species can only express that if the species appears twice. `ChemicalSystem`
+uses this to build the extra copies a `SolidSolutionPhase` declared with
+`instances > 1` asks for — see [`SolidSolutionPhase`](@ref).
+
+The copy shares the formula and the whole property dictionary, so the two carry
+byte-identical thermodynamic data: they are one substance under two labels, not
+two substances. Only the label distinguishes them, and it is what keeps the
+solid-solution groups disjoint.
+
+# Examples
+
+```jldoctest
+julia> s = Species("CaCO3"; aggregate_state=AS_CRYSTAL, class=SC_COMPONENT);
+
+julia> s2 = with_symbol(s, "CaCO3#2");
+
+julia> symbol(s2), atoms(s2) == atoms(s)
+("CaCO3#2", true)
+```
+"""
+function with_symbol(s::Species{T}, sym::AbstractString) where {T}
+    return Species{T}(
+        s.name, String(sym), s.formula, s.aggregate_state, s.class, s.properties
+    )
+end
+
+function with_symbol(s::CemSpecies{T, S}, sym::AbstractString) where {T, S}
+    return CemSpecies{T, S}(
+        s.name, String(sym), s.formula, s.cemformula, s.aggregate_state,
+        s.class, s.properties,
+    )
+end

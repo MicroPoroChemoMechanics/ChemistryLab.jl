@@ -182,6 +182,41 @@ SolidSolutionPhase(name, end_members; model = IdealSolidSolutionModel())
 Validation at construction time:
 - All end-members must have `aggregate_state == AS_CRYSTAL`.
 - [`RedlichKisterModel`](@ref) requires exactly 2 end-members.
+- The mixing energy must be convex, unless `instances > 1` or
+  `check_convexity = false`.
+
+# A miscibility gap: `instances`
+
+`instances` is how many **coexisting compositions** the declaration may hold. It
+is 1 for every phase the shipped data describes, and it is 1 because those models
+are convex: a convex mixing energy has one minimum, so one composition describes
+the phase.
+
+Inside a spinodal it does not. Where `d²g/dx² < 0` the Gibbs minimum is the
+**common-tangent pair** — two compositions of the same substance, coexisting —
+and a formulation carrying one amount per species cannot write that down. So
+`instances = 2` asks `ChemicalSystem` for a second copy of each end-member, under
+a derived symbol (`monosulphate12#2`) sharing the same thermodynamic record, and
+the minimization is free to put material in either lobe or in both.
+
+This is how GEM-Selektor represents the same thing: CEMDATA18 ships the AFm and
+AFt binaries under two names each, so that the user can declare them twice. The
+difference here is only that the duplication is asked for by a keyword rather
+than carried in the database.
+
+`instances > 1` is **refused for a convex model**, and that is not a formality:
+two instances of a convex phase are degenerate, every split of the amount between
+them having the same energy, so the minimum becomes a flat manifold and the
+optimizer is asked to choose a point on it for no reason. Inside a spinodal the
+common-tangent pair is unique and the degeneracy does not arise.
+
+```julia
+# The published AFm sulfate/hydroxide parameters, whose spinodal is
+# x in [0.631, 0.914] at 25 C. With one instance this is refused; with two it is
+# the case the model was written for.
+SolidSolutionPhase("AFm_SO4_OH", [c4ah13, monosulphate];
+                   model = RedlichKisterModel(a0 = 20_000.0), instances = 2)
+```
 
 # Example
 
@@ -205,6 +240,17 @@ struct SolidSolutionPhase{T <: AbstractSpecies, M <: AbstractSolidSolutionModel}
     name::String
     end_members::Vector{T}
     model::M
+    # How many coexisting compositions this declaration is allowed to hold. One
+    # for every convex phase, which is every phase the shipped data describes.
+    # Greater than one only inside a miscibility gap; see the keyword
+    # constructor, which refuses it otherwise.
+    instances::Int
+    # The name of the declaration this phase is an instance of. Equal to `name`
+    # for an ordinary phase, and for the first instance of a multi-instance one;
+    # the later instances are named `"$declared#k"`. `ChemicalSystem` uses it to
+    # tell "the same substance declared twice on purpose" from "the same
+    # substance declared twice by mistake", which it refuses.
+    declared::String
 end
 
 """
@@ -221,6 +267,11 @@ function SolidSolutionPhase(
         end_members::AbstractVector{<:AbstractSpecies};
         model::AbstractSolidSolutionModel = IdealSolidSolutionModel(),
         check_convexity::Bool = true, T::Real = 298.15,
+        instances::Integer = 1, declared::AbstractString = name,
+    )
+    instances >= 1 || error(
+        "SolidSolutionPhase \"$name\": `instances` is how many coexisting " *
+            "compositions the phase may take, so it is at least 1; got $instances."
     )
     for sp in end_members
         aggregate_state(sp) == AS_CRYSTAL ||
@@ -256,7 +307,26 @@ function SolidSolutionPhase(
     # `check_convexity = false` proceeds anyway, for a caller who knows the answer
     # stays outside the gap. The optimality certificate then loses its ground,
     # since its sufficiency rests on the problem being convex.
-    if check_convexity
+    #
+    # `instances > 1` inverts the test rather than skipping it. Two instances of
+    # a CONVEX phase are degenerate -- every way of splitting the amount between
+    # them has the same energy, so the minimum is a flat manifold and the
+    # optimizer is asked to pick a point on it for no reason. Inside a spinodal
+    # they are not degenerate at all: the minimum is the common-tangent pair, and
+    # it is unique. So a second instance is admitted exactly where it is needed
+    # and refused where it would only add a null direction.
+    if instances > 1
+        gap = spinodal_interval(model, length(end_members); T = T)
+        gap === nothing && error(
+            "SolidSolutionPhase \"$name\": `instances = $instances` asks for " *
+                "$instances coexisting compositions of this phase, but its mixing " *
+                "energy is CONVEX at T = $(T) K, so it has one. The instances would " *
+                "be degenerate -- every split of the amount between them has the " *
+                "same energy -- and the minimization would be asked to choose a " *
+                "point on a flat manifold. Use `instances = 1`, or a model whose " *
+                "energy has a spinodal (`spinodal_interval` reports it)."
+        )
+    elseif check_convexity
         gap = spinodal_interval(model, length(end_members); T = T)
         gap === nothing || error(
             "SolidSolutionPhase \"$name\": the mixing energy of this model is " *
@@ -264,11 +334,12 @@ function SolidSolutionPhase(
                 "$(round(gap[2]; digits = 3))] at T = $(T) K, so the phase " *
                 "unmixes there: the Gibbs minimum inside that interval is two " *
                 "coexisting compositions, not one, and this formulation has a " *
-                "single amount per species to describe it with. Use ideal mixing, " *
-                "or parameters that keep the energy convex, or pass " *
-                "`check_convexity = false` to proceed anyway — in which case the " *
-                "optimality certificate no longer proves anything, its " *
-                "sufficiency resting on convexity."
+                "single amount per species to describe it with. Declare it with " *
+                "`instances = 2` to give it two, which is what a miscibility gap " *
+                "needs; or use ideal mixing, or parameters that keep the energy " *
+                "convex; or pass `check_convexity = false` to proceed with one " *
+                "composition anyway — in which case the optimality certificate no " *
+                "longer proves anything, its sufficiency resting on convexity."
         )
     end
 
@@ -278,7 +349,7 @@ function SolidSolutionPhase(
     ]
     T = eltype(qualified)
     return SolidSolutionPhase{T, typeof(model)}(
-        String(name), collect(T, qualified), model
+        String(name), collect(T, qualified), model, Int(instances), String(declared)
     )
 end
 
@@ -379,5 +450,7 @@ function Base.show(io::IO, ss::SolidSolutionPhase{T, M}) where {T, M}
     println(io, "SolidSolutionPhase{$T, $M}")
     println(io, "  name: $(ss.name)")
     println(io, "  end-members ($(length(ss.end_members))): $em_names")
-    return print(io, "  model: $M")
+    print(io, "  model: $M")
+    ss.instances > 1 && print(io, "\n  instances: $(ss.instances) (miscibility gap)")
+    return nothing
 end

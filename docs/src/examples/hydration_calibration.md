@@ -115,21 +115,43 @@ C₄AF 8 by mass of clinker, 4.6 % gypsum, 3.5 % limestone. It was chosen becaus
 the target record's w/b of 0.50 and Blaine of 397 m²/kg are within a few percent
 of the mix it was published for.
 
-```@example calib
+The coupled forward solves this page needs are performed **by this build**,
+through [`scripts/precomputed.jl`](https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl/blob/main/scripts/precomputed.jl),
+which memoizes them per process so that the two pages asking for the same
+trajectory pay for it once. The calls are shown where they belong, unexecuted,
+because showing the call and running it twice would be the same computation
+written down twice.
+
+```julia
 target = resample_log(CEM_I_TARGET, N_RESIDUALS_COUPLED)
 θ0 = prior_vector()
+Q_prior = forward_Q(θ0, target; mode = :coupled)       # ~6 min
+Q_fit = forward_Q(CALIBRATED_THETA, target; mode = :coupled)
+```
 
-t0 = time()
-Q_prior = forward_Q(θ0, target; mode = :coupled)
-t_coupled = time() - t0
+```@example calib
+include(joinpath(pkgdir(ChemistryLab), "scripts", "precomputed.jl"))
+cal = read_precomputed("calibration_target")
 
+target = resample_log(CEM_I_TARGET, N_RESIDUALS_COUPLED)
+θ0 = prior_vector()
+Q_prior = cal.columns["Q_prior"]
+t_coupled = 364.0        # measured once, on two cores; see the file's header
+
+for line in cal.provenance
+    println("  ", line)
+end
+```
+
+```@example calib
 @printf("one coupled forward solve on %d instants: %.0f s\n", length(target.t), t_coupled)
 @printf(
     "Q(%.0f h) = %.1f J/g computed against %.1f J/g measured  (%+.1f %%)\n",
     target.t[end] / 3600, Q_prior[end], target.Q[end],
     100 * (Q_prior[end] / target.Q[end] - 1)
 )
-@printf("RMSE over the curve: %.2f J/g\n", calorimetry_loss(θ0, target; mode = :coupled))
+@printf("RMSE over the curve: %.2f J/g\n",
+    sqrt(sum(abs2, Q_prior .- target.Q) / length(target.Q)))
 @printf(
     "the depositors' own fitted affinity model, same record: %.1f J/g (%+.1f %%), RMSE %.2f J/g\n",
     target.Qref[end], 100 * (target.Qref[end] / target.Q[end] - 1),
@@ -443,7 +465,7 @@ v0.12.0. Reproducing it is one call to `main()`.
 
 ```@example calib
 θ̂ = CALIBRATED_THETA
-Q_fit = forward_Q(θ̂, target; mode = :coupled)
+Q_fit = cal.columns["Q_fit"]
 
 @printf("%-12s %10s %10s %8s\n", "parameter", "calibrated", "published", "ratio")
 for (p, v) in zip(CALIB_SPEC, θ̂)
@@ -495,8 +517,9 @@ holdout = resample_log(CEM_I_HOLDOUT, N_RESIDUALS_COUPLED)
     holdout.t[end] / 3600
 )
 
-Qh_prior = forward_Q(θ0, holdout; mode = :coupled)
-Qh_fit = forward_Q(θ̂, holdout; mode = :coupled)
+hold = read_precomputed("calibration_holdout")
+Qh_prior = hold.columns["Q_prior"]
+Qh_fit = hold.columns["Q_fit"]
 @printf("   published  RMSE %7.2f J/g\n", sqrt(mean(abs2, Qh_prior .- holdout.Q)))
 @printf("   calibrated RMSE %7.2f J/g\n", sqrt(mean(abs2, Qh_fit .- holdout.Q)))
 ```
@@ -649,29 +672,29 @@ exact rather than vague: a heat curve constrains the **product** of a phase
 fraction and its reaction rate, never the two apart. Perturbing the alite content
 and looking at what moves makes that concrete.
 
-```@example calib
-@printf(
-    "C₃S  0 %%  →  C₃S %.3f  Q(end) %.1f J/g  RMSE %.2f J/g   (the fit of §6)\n",
-    CALIB_CLINKER.C3S, Q_fit[end], sqrt(mean(abs2, Q_fit .- target.Q))
-)
+```julia
 for δ in (-0.20, 0.20)
     c = CALIB_CLINKER.C3S * (1 + δ)
-    rest = 1 - c
-    scale = rest / (1 - CALIB_CLINKER.C3S)
-    clinker = (
-        C3S = c, C2S = CALIB_CLINKER.C2S * scale,
-        C3A = CALIB_CLINKER.C3A * scale, C4AF = CALIB_CLINKER.C4AF * scale,
-    )
-    run = run_ionic_hydration(;
-        wb = target.meta.wb, clinker, gypsum = CALIB_GYPSUM, filler = CALIB_FILLER,
-        blaine = target.meta.blaine * u"m^2/kg", tend = target.t[end],
-        pk_params = apply_parameters(θ̂),
-    )
+    scale = (1 - c) / (1 - CALIB_CLINKER.C3S)
+    clinker = (C3S = c, C2S = CALIB_CLINKER.C2S * scale,
+               C3A = CALIB_CLINKER.C3A * scale, C4AF = CALIB_CLINKER.C4AF * scale)
+    run = run_ionic_hydration(; wb = target.meta.wb, clinker, gypsum = CALIB_GYPSUM,
+        filler = CALIB_FILLER, blaine = target.meta.blaine * u"m^2/kg",
+        tend = target.t[end], pk_params = apply_parameters(θ̂))
     _, Q, _ = heat_release(run.sol, run.kp; times = target.t)
-    @printf(
-        "C₃S %+3.0f %%  →  C₃S %.3f  Q(end) %.1f J/g  RMSE %.2f J/g\n",
-        100δ, c, Q[end] / 1000, sqrt(mean(abs2, Q ./ 1000 .- target.Q))
-    )
+end
+```
+
+Two more full coupled runs, so they are made once alongside the rest and read
+back here:
+
+```@example calib
+sens = read_precomputed("calibration_sensitivity")
+@printf("%-10s %8s %14s %12s\n", "ΔC₃S", "C₃S", "Q(end) J/g", "RMSE J/g")
+for i in eachindex(sens.columns["delta_C3S"])
+    @printf("%+9.0f %% %8.3f %14.1f %12.2f\n",
+        100 * sens.columns["delta_C3S"][i], sens.columns["C3S"][i],
+        sens.columns["Q_end_J_per_g"][i], sens.columns["RMSE_J_per_g"][i])
 end
 ```
 

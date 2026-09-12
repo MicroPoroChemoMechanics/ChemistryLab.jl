@@ -66,21 +66,65 @@ composition C₃S 65 / C₂S 11 / C₃A 11 / C₄AF 8, gypsum 4.6 %, calcite 3.5
 Blaine 380 m²/kg, w/b = 0.50, one kilogram of binder so every extensive result is
 per kilogram.
 
-```@example ionicopc
+```julia
 CLINKER = (C3S = 0.65, C2S = 0.11, C3A = 0.11, C4AF = 0.08)
 TEND = 28 * 86400.0
-TIMES = 10 .^ range(log10(0.05 * 86400), log10(TEND); length = 40)
 
 run_cal = run_ionic_hydration(;
     wb = 0.5, clinker = CLINKER, gypsum = 0.046, filler = 0.035, tend = TEND,
 )
-@printf "%d accepted steps, retcode = %s\n" length(run_cal.sol.t) run_cal.sol.retcode
 ```
 
-One Gibbs minimization per accepted step, so this is the expensive part of the
-page. The activity model is `HKFActivityModel` on both halves of the coupling: a
-cement pore solution sits at I ≈ 0.1–0.7 mol/kg, where a dilute model is not
-defensible.
+One Gibbs minimization per accepted step, so this is the expensive part — 216
+accepted steps, some four minutes. The activity model is `HKFActivityModel` on
+both halves of the coupling: a cement pore solution sits at I ≈ 0.1–0.7 mol/kg,
+where a dilute model is not defensible.
+
+!!! note "This run is performed by the build, and it is the expensive part"
+    The call above is shown and not executed *here*; it is made by
+    [`scripts/precomputed.jl`](https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl/blob/main/scripts/precomputed.jl),
+    which the next block includes. That script memoizes per process, so this
+    page's phase history and its calorimetry come from **one** integration rather
+    than two — Documenter runs the whole site in a single process, which is
+    usually a hazard and here is the thing that makes this affordable.
+
+    Nothing is approximated: the trajectory is integrated, then replayed and
+    certified instant by instant, by this build. It used to be read from a stored
+    file — a coupled equilibrium cost 583 ms and the site called for thousands of
+    them — and two solver fixes later it costs 17 ms, which makes computing it
+    affordable again. That is worth the build time: a stored result is a claim
+    about code that may since have changed, and keeping the two in step needed a
+    guard, a procedure, and a list of traps.
+
+```@example ionicopc
+include(joinpath(pkgdir(ChemistryLab), "scripts", "precomputed.jl"))
+
+phases_c = read_precomputed("ionic_opc_phases")
+heat_c = read_precomputed("ionic_opc_heat")
+
+for line in phases_c.provenance
+    println("  ", line)
+end
+```
+
+The columns come back as the page's own variables, so everything downstream is
+the same calculation it always was:
+
+```@example ionicopc
+families = phase_families(phases_c)
+TIMES = phases_c.columns["time_s"]
+times = TIMES
+pore_pH = phases_c.columns["pore_pH"]
+poro = [
+    (
+        liquid = phases_c.columns["poro_liquid"][i],
+        void = phases_c.columns["poro_void"][i],
+        total = phases_c.columns["poro_total"][i],
+    ) for i in eachindex(TIMES)
+]
+fracs = [Dict(f => phases_c.columns[f][i] for f in families) for i in eachindex(TIMES)]
+nothing # hide
+```
 
 ## 3. The pore solution
 
@@ -89,8 +133,6 @@ calorimetry of §5 needs the very same compositions, so the replay is done once 
 and handed on.
 
 ```@example ionicopc
-states_c = speciated_states(run_cal.sol, run_cal.kp; times = TIMES)
-times, fracs, pore_pH, poro = ionic_phase_history(run_cal, TIMES; states = states_c)
 p_pH = plot(
     times ./ 86400, pore_pH; xscale = :log10, lw = 2, legend = false,
     xlabel = "time [days]", ylabel = "pore-solution pH",
@@ -118,17 +160,98 @@ solution belongs. Nothing in the input fixes it.
     candidate hydrate present, four of them at 1e-5 to 1e-6 mol — which no
     certifying Newton recovers from, since it inherits the start.
 
+## 3bis. The paste, from cast to 28 days
+
+The figure a cement chemist reads first: what the volume of the specimen is made
+of, at every instant, stacked from the anhydrous grains at the bottom to the pore
+water and the empty porosity at the top. Each band is a **volume fraction of the
+fresh specimen**, so the total stays at one and the Le Chatelier contraction
+appears as the `void` band opening rather than as a shrinking total.
+
+Nothing in this figure was imposed. The clinker was told only to dissolve; that
+the C-S-H and the portlandite grow together, that the ettringite forms early and
+then gives way, that the empty porosity opens after set — all of it is what the
+Gibbs minimization chose at each of the eighty instants.
+
+```@example ionicopc
+cols = family_colors()
+shown = [f for f in families if maximum(phases_c.columns[f]) > 1.0e-4]
+
+p_stack = plot(;
+    xscale = :log10, xlabel = "time [days]",
+    ylabel = "volume fraction of the fresh paste",
+    title = "CEM I, w/b = 0.50 — the paste from cast to 28 days",
+    legend = :outerright, size = (900, 440), ylims = (0, 1),
+    left_margin = 8Plots.mm, bottom_margin = 8Plots.mm,
+)
+areaplot!(
+    p_stack, times ./ 86400,
+    hcat((phases_c.columns[f] for f in shown)...);
+    label = permutedims(shown), color = permutedims([cols[f] for f in shown]),
+    fillalpha = 0.85, linewidth = 0,
+)
+savefig(p_stack, "ionic-stack.svg"); nothing # hide
+```
+
+![](ionic-stack.svg)
+
+The same information at the two ends, which is what a mix design is actually
+compared on — what went in, and what it became:
+
+```@example ionicopc
+first_i, last_i = 1, length(times)
+bars = [f for f in families if max(phases_c.columns[f][first_i],
+    phases_c.columns[f][last_i]) > 1.0e-3]
+
+# Two series side by side, with `Plots` alone: the x positions are shifted by
+# half a bar width rather than reaching for a grouped-bar package.
+x = collect(eachindex(bars))
+w = 0.38
+p_bar = bar(
+    x .- w / 2, [phases_c.columns[f][first_i] for f in bars];
+    bar_width = w, label = "at 1.2 h", color = :grey70,
+    xticks = (x, bars), xrotation = 30,
+    ylabel = "volume fraction of the fresh paste",
+    title = "What went in, and what it became",
+    size = (860, 400), legend = :topright,
+    left_margin = 8Plots.mm, bottom_margin = 12Plots.mm,
+)
+bar!(
+    p_bar, x .+ w / 2, [phases_c.columns[f][last_i] for f in bars];
+    bar_width = w, label = "at 28 days", color = :steelblue,
+)
+savefig(p_bar, "ionic-bars.svg"); nothing # hide
+```
+
+![](ionic-bars.svg)
+
+```@example ionicopc
+@printf("%-12s %10s %10s\n", "family", "1.2 h", "28 d")
+for f in bars
+    @printf("%-12s %10.4f %10.4f\n", f,
+        phases_c.columns[f][first_i], phases_c.columns[f][last_i])
+end
+@printf("%-12s %10.4f %10.4f\n", "TOTAL",
+    sum(phases_c.columns[f][first_i] for f in families),
+    sum(phases_c.columns[f][last_i] for f in families))
+```
+
+The total holding at one to four decimals is not a normalization: the volume
+fractions are computed independently against the fresh specimen, so their sum
+closing is a check that nothing was created or lost.
+
 ## 4. The aluminate sequence, and how to deplete the ettringite
 
 The same paste, run a second time with the limestone removed and nothing else
 changed.
 
 ```@example ionicopc
-run_nol = run_ionic_hydration(;
-    wb = 0.5, clinker = CLINKER, gypsum = 0.046, filler = 0.0, tend = TEND,
-)
-states_n = speciated_states(run_nol.sol, run_nol.kp; times = TIMES)
-_, fracs_nl, _, _ = ionic_phase_history(run_nol, TIMES; states = states_n)
+phases_n = read_precomputed("ionic_nolimestone_phases")
+heat_n = read_precomputed("ionic_nolimestone_heat")
+families_n = phase_families(phases_n)
+fracs_nl = [
+    Dict(f => phases_n.columns[f][i] for f in families_n) for i in eachindex(TIMES)
+]
 td = times ./ 86400
 
 p_seq = plot(;
@@ -202,9 +325,14 @@ calorimeter has ever measured. [`heat_release`](@ref) therefore reads the
 **certified** speciations of §3.
 
 ```@example ionicopc
-t_cal, Q_c, qd_c = heat_release(run_cal.sol, run_cal.kp; times = TIMES, states = states_c)
-_, Q_n, qd_n = heat_release(run_nol.sol, run_nol.kp; times = TIMES, states = states_n)
+t_cal = heat_c.columns["time_s"]
+# The stored curves are already per gram of binder; the page below works in
+# joules per kilogram, so they are scaled back to it rather than the reverse.
 BINDER_G = 1000.0                       # the runs simulate 1 kg of binder
+Q_c = heat_c.columns["Q_J_per_g"] .* BINDER_G
+qd_c = heat_c.columns["heat_flow_W_per_g"] .* BINDER_G
+Q_n = heat_n.columns["Q_J_per_g"] .* BINDER_G
+qd_n = heat_n.columns["heat_flow_W_per_g"] .* BINDER_G
 @printf "monotone: with limestone %s, without %s\n" all(diff(Q_c) .>= -1.0e-9) all(
     diff(Q_n) .>= -1.0e-9
 )
@@ -287,8 +415,11 @@ instant, so it is not counted twice.
     deliberate: the alternative is to change a published number in silence.
 
 ```@example ionicopc
-T_c = langavant_temperature(t_cal, qd_c ./ BINDER_G, states_c)
-T_n = langavant_temperature(t_cal, qd_n ./ BINDER_G, states_n)
+# Computed alongside the run, in `precomputed.jl`: the cell temperature
+# needs the heat capacity of the paste at each instant, so it needs the states
+# themselves rather than the heat curve alone.
+T_c = heat_c.columns["T_semiadiabatic_K"]
+T_n = heat_n.columns["T_semiadiabatic_K"]
 
 p_T = plot(;
     xscale = :log10, xlabel = "time [days]", ylabel = "T − T_env [K]",

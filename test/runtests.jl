@@ -68,6 +68,7 @@ end
     include("formulas.jl")
     include("stoich_matrices.jl")
     include("databases.jl")
+    include("zeolites.jl")
     include("parsing_utils.jl")
     include("reactions.jl")
 
@@ -79,6 +80,7 @@ end
 
 @testsection "System and State tests" begin
     include("chemical_systems.jl")
+    include("oxide_budget.jl")
     include("chemical_states.jl")
     include("test_volume_fractions.jl")
 end
@@ -91,6 +93,7 @@ end
 @testsection "Equilibrium tests" begin
     include("activities.jl")
     include("aqueous_properties.jl")
+    include("redox.jl")
     include("solid_solutions.jl")
     include("equilibrium_reference.jl")
     include("published_values.jl")

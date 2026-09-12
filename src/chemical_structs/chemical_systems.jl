@@ -85,6 +85,165 @@ end
 
 
 """
+    _declared(ss) -> String
+
+The name of the declaration a solid-solution phase is an instance of.
+
+Falls back to the phase's own name for any `AbstractSolidSolutionPhase` that does
+not carry the field, so a user-defined phase type keeps working.
+"""
+_declared(ss) = hasproperty(ss, :declared) ? getproperty(ss, :declared) : name(ss)
+
+"""
+    _instances(ss) -> Int
+
+How many coexisting compositions a declaration asks for; 1 for a phase type that
+does not carry the field.
+"""
+_instances(ss) = hasproperty(ss, :instances) ? Int(getproperty(ss, :instances)) : 1
+
+"""
+    _expand_instances(species, solid_solutions) -> (species, solid_solutions)
+
+Give every declaration asking for `instances > 1` the extra species it needs.
+
+A `SolidSolutionPhase` with `instances = k` becomes `k` phases: the declaration
+itself, then `k-1` copies named `"\$name#2"`, `"\$name#3"`, … whose end-members
+are copies of the originals under `"\$symbol#2"`, `"\$symbol#3"`, … Each copy
+shares the whole property dictionary of the species it was made from, so the two
+are one substance under two labels and carry byte-identical thermodynamic data.
+
+Why the copies are needed at all: the composition vector has one entry per
+species, so a species belongs to exactly one phase. Two coexisting compositions
+of one substance — which is what the Gibbs minimum is inside a spinodal — cannot
+be written down without the substance appearing twice.
+
+Why it is done by duplicating the species rather than by letting two phases share
+them: it keeps `ss_groups` **disjoint**, so the activity assembly, the mole
+fraction fill and the optimality certificate need no change at all. Sharing an
+index would make the last group written win.
+
+The duplicated column leaves the row rank of the conservation matrix unchanged —
+it is a copy of a column already there — so conservation is untouched, and the
+copies start at zero amount, so a budget computed as `A n` is unchanged too.
+
+Returns the inputs unchanged, and without copying, when no declaration asks for
+more than one instance. That is every system the shipped data describes.
+"""
+function _expand_instances(species::AbstractVector, solid_solutions)
+    solid_solutions === nothing && return species, solid_solutions
+    phases = collect(solid_solutions)
+    any(ss -> _instances(ss) > 1, phases) || return species, solid_solutions
+
+    extra_species = eltype(species)[]
+    expanded = AbstractSolidSolutionPhase[]
+    known = Set(symbol(s) for s in species)
+    # The copy is made from the species AS IT SITS IN THE LIST, not from the
+    # phase's qualified end-member. The two differ in `class` -- an end-member is
+    # requalified to `SC_SSENDMEMBER` when the phase is built, while the entry in
+    # the species list keeps whatever the caller passed -- and copying the wrong
+    # one would put the two instances in different class partitions of the same
+    # system. `ChemicalSystem` then requalifies both, identically, downstream.
+    in_list = Dict(symbol(s) => s for s in species)
+
+    for ss in phases
+        push!(expanded, ss)
+        k = _instances(ss)
+        k > 1 || continue
+        for i in 2:k
+            copies = map(end_members(ss)) do em
+                src = get(in_list, symbol(em), nothing)
+                src === nothing && error(
+                    "SolidSolutionPhase \"$(name(ss))\": end-member " *
+                        "\"$(symbol(em))\" is not in the species list, so its " *
+                        "instance $i cannot be built. Add it to the species vector " *
+                        "first.",
+                )
+                sym = "$(symbol(em))#$i"
+                sym in known && error(
+                    "SolidSolutionPhase \"$(name(ss))\" needs the symbol " *
+                        "\"$sym\" for instance $i of its end-member " *
+                        "\"$(symbol(em))\", and a species of that name is already " *
+                        "in the system. Rename it, or declare fewer instances.",
+                )
+                push!(known, sym)
+                cp = with_symbol(src, sym)
+                push!(extra_species, cp)
+                cp
+            end
+            # The convexity test has already run on the declaration, and it ran
+            # the other way round: it REQUIRED a spinodal. Running it again here
+            # would refuse the very phase this branch exists to build, so the
+            # instance is constructed with the check off and `instances = 1` --
+            # it is one composition; the declaration is what holds several.
+            push!(
+                expanded,
+                SolidSolutionPhase(
+                    "$(name(ss))#$i", copies; model = model(ss),
+                    check_convexity = false, declared = _declared(ss),
+                ),
+            )
+        end
+    end
+    return vcat(collect(species), extra_species), expanded
+end
+
+"""
+    _refuse_overlapping_solid_solutions(solid_solutions)
+
+Refuse a system in which two declared solid solutions describe the same
+substance, naming the pair.
+
+The case this exists for is the calcium silicate hydrate. CEMDATA18 carries
+three descriptions of it — `CSHQ`, `CNASH_ss` and the `ECSH` family — and they
+are three *models of one gel*, not three phases. Declaring two of them counts
+the same hydrate twice: the calcium, the silicon and the alkalis all enter the
+element balance once and come out distributed over two phases that are supposed
+to be alternatives.
+
+The overlap is exact rather than approximate, which is what makes it detectable
+here: `KSiOH` (an end-member of `CSHQ`), `ECSH1-KSH` and `ECSH2-KSH` all carry
+the formula `((KOH)2.5SiO2H2O)0.2`. Two end-members of two different declared
+phases with the same composition are therefore the signature, and the check is
+composition-based rather than name-based so that it does not depend on the
+database's naming.
+
+Two end-members of the SAME phase may of course share nothing — that is a
+mixture — and a pure phase repeating a mixing phase's composition is a separate
+question the rank test upstream already refuses.
+
+**Instances of one declaration are exempt**, and that exemption is the whole
+reason `SolidSolutionPhase` carries a `declared` field. A miscibility gap is
+represented by the same binary present twice, on purpose, as two coexisting
+compositions — which is composition overlap of exactly the kind this function
+refuses. Telling the deliberate case from the mistake cannot be done by
+composition, since they look identical; it is done by provenance, and two phases
+share a `declared` name only when `ChemicalSystem` itself made the second from
+the first.
+"""
+function _refuse_overlapping_solid_solutions(solid_solutions)
+    phases = collect(solid_solutions)
+    length(phases) < 2 && return nothing
+    for i in eachindex(phases), j in (i + 1):lastindex(phases)
+        _declared(phases[i]) == _declared(phases[j]) && continue
+        for a in end_members(phases[i]), b in end_members(phases[j])
+            atoms(a) == atoms(b) || continue
+            error(
+                "solid solutions \"$(name(phases[i]))\" and " *
+                    "\"$(name(phases[j]))\" both contain the composition " *
+                    "$(unicode(a)) — as \"$(symbol(a))\" and \"$(symbol(b))\". Two " *
+                    "declared phases sharing a composition describe the same " *
+                    "substance twice, so its elements would be distributed over " *
+                    "both. CEMDATA18's `CSHQ`, `CNASH_ss` and `ECSH` families are " *
+                    "three models of one C-S-H gel: declare exactly one of them.",
+            )
+        end
+    end
+    return nothing
+end
+
+
+"""
     ChemicalSystem(species, primaries=species; kinetic_species, solid_solutions) -> ChemicalSystem
 
 Construct a fully typed `ChemicalSystem` from a vector of species,
@@ -152,6 +311,7 @@ function ChemicalSystem(
         solid_solutions::Union{Nothing, AbstractVector} = nothing,
     ) where {T <: AbstractSpecies}
     solid_solutions = _normalize_solid_solutions(solid_solutions)
+    species, solid_solutions = _expand_instances(species, solid_solutions)
     idx(f) = findall(f, species)
     # Extract kinetic species keys for StoichMatrix construction
     kin_keys = if isnothing(kinetic_species)
@@ -234,6 +394,7 @@ function ChemicalSystem(
             end
         end
         idx_ssendmembers = isempty(ss_groups) ? Int[] : vcat(ss_groups...)
+        _refuse_overlapping_solid_solutions(solid_solutions)
         ss = collect(solid_solutions)
 
         return ChemicalSystem{T, R, typeof(CSM), typeof(SM), typeof(ss)}(

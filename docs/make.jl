@@ -3,6 +3,7 @@ using Optimization, OptimizationIpopt  # load extension OptimizationIpoptExt
 using OptimaSolver                     # load extension OptimaSolverExt
 using OrdinaryDiffEq                  # load extension KineticsOrdinaryDiffEqExt
 using Documenter
+using Logging
 using DocumenterCitations
 # VitePress renders the site from the Markdown that Documenter emits, and
 # typesets every formula — chemical equations included — at build time into
@@ -233,6 +234,61 @@ function DocumenterVitepress.render(
     return nothing
 end
 
+# ── Per-block timing, so a slow build says what is slow ──────────────────────
+#
+# Under `JULIA_DEBUG=Documenter` Documenter announces each block it is about to
+# evaluate, but without timing — so a three-hour build names three hundred
+# blocks and does not say which one spent the three hours. Diagnosing that from
+# outside is guesswork, and guesswork on this has already cost several rounds.
+#
+# This logger passes every message through untouched and, each time a new block
+# starts, reports on stderr how long the PREVIOUS one took. Blocks under the
+# threshold stay silent, so the log gains a line only where there is something
+# to see. `println` rather than `@info`, deliberately: emitting a log record
+# from inside a log handler re-enters the handler.
+const SLOW_BLOCK_SECONDS = 5.0
+
+struct BlockTimer{L <: AbstractLogger} <: AbstractLogger
+    inner::L
+    t0::Base.RefValue{Float64}
+    label::Base.RefValue{String}
+    total::Base.RefValue{Float64}
+end
+
+Logging.min_enabled_level(l::BlockTimer) = Logging.min_enabled_level(l.inner)
+Logging.shouldlog(l::BlockTimer, args...) = Logging.shouldlog(l.inner, args...)
+Logging.catch_exceptions(l::BlockTimer) = Logging.catch_exceptions(l.inner)
+
+function Logging.handle_message(
+        l::BlockTimer, level, message, _module, group, id, file, line; kwargs...,
+    )
+    msg = string(message)
+    if occursin("Evaluating ", msg) && occursin("block:", msg)
+        now = time()
+        dt = now - l.t0[]
+        l.total[] += dt
+        if dt >= SLOW_BLOCK_SECONDS
+            println(
+                stderr,
+                "⏱  previous block took ", round(dt; digits = 1), " s",
+                "  (running total ", round(l.total[] / 60; digits = 1), " min)",
+                "  — ", l.label[],
+            )
+            flush(stderr)
+        end
+        l.t0[] = now
+        body = replace(msg, r"^.*?block:\s*"s => "")
+        l.label[] = first(split(strip(body), '\n'))
+    end
+    return Logging.handle_message(
+        l.inner, level, message, _module, group, id, file, line; kwargs...,
+    )
+end
+
+Logging.with_logger(
+    BlockTimer(Logging.current_logger(), Ref(time()), Ref("start"), Ref(0.0)),
+) do
+
 makedocs(;
     # `clean = false` lets pages deleted from the source survive in `build/`
     # and go on being deployed. Nothing writes there before `makedocs`.
@@ -256,6 +312,8 @@ makedocs(;
     warnonly=[:docs_block],
     draft=false,
 )
+
+end  # Logging.with_logger
 
 # DocumenterVitepress writes a real directory per version rather than the
 # symlinks Documenter used, so it needs its own `deploydocs`.

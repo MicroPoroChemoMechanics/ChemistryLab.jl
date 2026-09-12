@@ -47,6 +47,12 @@ pages = [
             "theory/activity_models.md",
             "theory/solid_solutions.md",
         ],
+        # The conservation law that is not an element, and the potential
+        # conjugate to it. Needed by any binder whose sulfur is not all
+        # sulfate -- which is every binder containing slag.
+        "Oxidation state" => [
+            "theory/redox.md",
+        ],
         # The material this package exists for. What a Gibbs minimization can
         # predict about a drying paste, and what is not a thermodynamic
         # quantity at all.
@@ -73,7 +79,13 @@ pages = [
         # The cement-specific syntax: phase names, the Bogue notation, the
         # shorthand the literature uses.
         "Cementitious media" => [
+            # The shorthand first: every page below writes phases in it, and a
+            # reader who has not met `C3S` cannot follow them.
+            "manual/cement_notation.md",
             "manual/cement_species.md",
+            # Then the map: which binder is which, what each constituent brings,
+            # and which of the package's models a given family needs.
+            "manual/binder_families.md",
         ],
         "Appendices" => [
             "manual/advanced.md",
@@ -110,6 +122,9 @@ pages = [
         "Non-ideal mixtures, measured" => [
             "examples/activity_models_compared.md",
             "examples/solid_solution_models.md",
+            # The case a non-ideal model is written for and a single-composition
+            # formulation cannot hold: the published AFm binary, run three ways.
+            "examples/miscibility_gap.md",
             "examples/pitzer_model.md",
         ],
         # Small, checkable aqueous cases with an analytical answer to compare to.
@@ -131,6 +146,19 @@ pages = [
             "examples/simplified_clinker_dissolution.md",
             "examples/cement_wc_ratio.md",
             "examples/cement_carbonation.md",
+        ],
+        # Beyond the Portland cement. One page per EN 197-1 family, in order of
+        # how much of the clinker is replaced and of what the replacement asks
+        # of the models: a carbonate and a first slag (CEM II), then the slag
+        # binder where the oxidation state stops being ignorable (CEM III), the
+        # pozzolanic binder where the C-S-H must carry the aluminum (CEM IV),
+        # and the composite where all of it holds at once (CEM V). The map of
+        # the families themselves is in the manual.
+        "Blended binders" => [
+            "examples/cem2_blended.md",
+            "examples/cem3_slag.md",
+            "examples/cem4_pozzolanic.md",
+            "examples/cem5_composite.md",
         ],
         "Cementitious media in time" => [
             "examples/cement_clinker_kinetics.md",

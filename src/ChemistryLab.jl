@@ -111,6 +111,7 @@ module ChemistryLab
     include("chemical_structs/formulas.jl")
     include("chemical_structs/species.jl")
     include("chemical_structs/solid_solutions.jl")
+    include("chemical_structs/oxide_budget.jl")
     include("chemical_structs/reactions.jl")
     include("chemical_structs/speciation.jl")
     include("chemical_structs/stoich_matrices.jl")
@@ -263,6 +264,8 @@ module ChemistryLab
         SealedVolume,
         FixedActivity,
         FixedpH,
+        FixedpE,
+        FixedEh,
         CapillaryWater,
         KineticStepSolver,
         kinetic_step,
@@ -276,7 +279,8 @@ module ChemistryLab
         spinodal_interval,
         end_members,
         model,
-        with_class
+        with_class,
+        with_symbol
 
     export ChemicalSystem,
         aqueous,
@@ -307,6 +311,10 @@ module ChemistryLab
         missing_enthalpy,
         pH,
         pOH,
+        pe,
+        Eh,
+        ELECTRON,
+        half_reaction,
         porosity,
         saturation,
         volume_fractions,
@@ -320,6 +328,8 @@ module ChemistryLab
         build_species,
         build_reactions,
         build_solid_solutions,
+        oxide_budget,
+        primary_decomposition,
         get_compatible_species,
         HKF_SI_CONVERSIONS
 

@@ -315,19 +315,174 @@ FixedpH(pH; titrant = "H+") = FixedpH(pH, titrant)
 The parameter block of a prescribed chemical potential: one unknown, the titrant
 amount; one linear column, its formula; one equation, `ln aᵢ = ln a_target`.
 """
-function _titrant_blocks(des, state, p, i_species, i_titrant, ln_a_target)
+function _titrant_blocks(des, state, p, i_species::Integer, i_titrant, ln_a_target)
+    return _titrant_blocks(des, state, p, [i_species => 1.0], i_titrant, ln_a_target)
+end
+
+"""
+    _titrant_blocks(des, state, p, terms, i_titrant, ln_target)
+
+The implicit-titrant blocks for a prescribed **linear combination** of
+log-activities, `Σᵢ νᵢ ln aᵢ = ln_target`, where `terms` is a vector of
+`index => coefficient`.
+
+One species with coefficient 1 is a prescribed activity, which is what
+[`FixedActivity`](@ref) and [`FixedpH`](@ref) need. A whole half-reaction is
+what a prescribed redox potential needs, since no electron activity can be read
+off a species that does not exist — see [`FixedpE`](@ref).
+
+The vehicle is the same either way: one unknown (the titrant amount), one column
+`−A[:, titrant]` added to the conservation rows, and one equation.
+"""
+function _titrant_blocks(
+        des, state, p, terms::AbstractVector{<:Pair{<:Integer, <:Real}},
+        i_titrant, ln_a_target,
+    )
     # `−A[:, titrant]`: the titrant ADDS to the budget, and the rows are written
     # as `A x + Aq q − b = 0`.
     Aq = reshape(-des.A[:, i_titrant], size(des.A, 1), 1)
     # A mole scale for the difference step, taken from the system's own size so
     # it is neither absurdly large nor below the resolution of the balance.
     scale = max(sum(Float64[ustrip(us"mol", x) for x in state.n]), 1.0) * 1.0e-6
-    cq = (x, q, params) -> [des.lna(x, params)[i_species] - ln_a_target]
+    idxs = [first(t) for t in terms]
+    coef = [Float64(last(t)) for t in terms]
+    cq = function (x, q, params)
+        lna = des.lna(x, params)
+        acc = zero(eltype(lna))
+        @inbounds for k in eachindex(idxs)
+            acc += coef[k] * lna[idxs[k]]
+        end
+        return [acc - ln_a_target]
+    end
     return (;
         nq = 1, gq = (q, params) -> params.ΔₐG⁰overRT, hq = nothing, cq = cq,
         Aq = Aq, q0 = [0.0], qscale = [scale],
         apply = (T, P, q) -> (T, P),
         titrant_amount = q -> q[1],
+    )
+end
+
+"""
+    FixedpE(pe; couple = "SO4-2" => "HS-", titrant = "O2@")
+
+Equilibrium at a **prescribed electron activity**, `pe = −log₁₀ a(e⁻)`, with the
+oxidation state of the system free to follow.
+
+The vehicle is the implicit titrant of [`FixedpH`](@ref), with one difference
+that is forced on it: there is no electron species, so nothing can have its
+activity prescribed directly. What is prescribed instead is the **half-reaction**
+of `couple`, whose `log K` fixes the electron activity once the other members'
+activities are known:
+
+```math
+\\sum_i \\nu_i \\log_{10} a_i = \\log_{10} K - n \\, pe
+```
+
+summed over the couple with the products positive and the reactants negative,
+`n` being the number of electrons. That is one linear equation in the
+log-activities, which is exactly what the titrant mechanism solves.
+
+`titrant` is the substance the system may draw on to reach the prescribed
+potential — `O2@` by default, so that oxidizing means adding oxygen. It must be
+a species of the system.
+
+!!! note "When to prescribe a potential, and when not to"
+    The default in this package is to **conserve** the oxidation state and let
+    the potential come out as a result, which is what a sealed paste does and
+    what [`pe`](@ref) then reports. Prescribe one only when the system is open
+    to a redox buffer that is genuinely imposed from outside — a measured `Eh`,
+    a controlled atmosphere, an electrode. A prescribed potential on a closed
+    paste is a statement about a system that is not the one being modeled.
+
+See also: [`FixedEh`](@ref), [`pe`](@ref), [`half_reaction`](@ref).
+"""
+struct FixedpE{R, S} <: EquilibriumConstraint
+    pe::R
+    couple::Pair{S, S}
+    titrant::S
+end
+function FixedpE(
+        pe; couple::Pair{<:AbstractString, <:AbstractString} = "SO4-2" => "HS-",
+        titrant::AbstractString = "O2@",
+    )
+    return FixedpE(pe, String(first(couple)) => String(last(couple)), String(titrant))
+end
+
+"""
+    FixedEh(Eh; couple = "SO4-2" => "HS-", titrant = "O2@")
+
+Equilibrium at a **prescribed redox potential in volts**. Converted to a `pe`
+through the Nernst relation at the state's own temperature, and handled by
+[`FixedpE`](@ref) from there — so everything said there applies, including the
+warning about prescribing a potential on a closed system.
+
+`Eh` is a quantity with the dimensions of an electric potential, so that the
+unit is stated rather than assumed.
+"""
+struct FixedEh{Q, S} <: EquilibriumConstraint
+    Eh::Q
+    couple::Pair{S, S}
+    titrant::S
+end
+function FixedEh(
+        Eh; couple::Pair{<:AbstractString, <:AbstractString} = "SO4-2" => "HS-",
+        titrant::AbstractString = "O2@",
+    )
+    return FixedEh(Eh, String(first(couple)) => String(last(couple)), String(titrant))
+end
+
+"""
+    _redox_terms(des, state, couple) -> (terms, logK, n_e)
+
+The half-reaction of `couple` as a list of `index => coefficient` over the
+system's species, with products positive and reactants negative, together with
+its `log₁₀ K` at the state's temperature and its electron count.
+
+The electron is dropped from `terms`: it has no index, which is the whole
+reason a redox constraint cannot be written as a prescribed activity.
+"""
+function _redox_terms(des, state, couple)
+    r = half_reaction(state, first(couple), last(couple))
+    terms = Pair{Int, Float64}[]
+    n_e = 0.0
+    for (sp, ν) in r.reactants
+        if symbol(sp) == symbol(ELECTRON)
+            n_e = Float64(ν)
+        else
+            push!(terms, _species_index(des, symbol(sp)) => -Float64(ν))
+        end
+    end
+    for (sp, ν) in r.products
+        if symbol(sp) == symbol(ELECTRON)
+            n_e = -Float64(ν)
+        else
+            push!(terms, _species_index(des, symbol(sp)) => Float64(ν))
+        end
+    end
+    n_e == 0 && throw(
+        ArgumentError(
+            "the couple $(first(couple))/$(last(couple)) balances with no " *
+                "electron, so no redox potential can be prescribed through it.",
+        ),
+    )
+    return terms, r.logK⁰(T = ustrip(us"K", temperature(state))), n_e
+end
+
+function _constraint_blocks(c::FixedpE, des, state, p, n0)
+    terms, logK, n_e = _redox_terms(des, state, c.couple)
+    i_t = _species_index(des, c.titrant)
+    # Σ ν log₁₀ a = log₁₀K − n·pe, carried into natural logs for `lna`.
+    return _titrant_blocks(
+        des, state, p, terms, i_t, (logK - n_e * c.pe) * log(10)
+    )
+end
+
+function _constraint_blocks(c::FixedEh, des, state, p, n0)
+    T = ustrip(us"K", temperature(state))
+    F = 96485.33212                       # C/mol, CODATA (exact)
+    pe = ustrip(us"V", c.Eh) * F / (ustrip(Constants.R) * T * log(10))
+    return _constraint_blocks(
+        FixedpE(pe; couple = c.couple, titrant = c.titrant), des, state, p, n0
     )
 end
 

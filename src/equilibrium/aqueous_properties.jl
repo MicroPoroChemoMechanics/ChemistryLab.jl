@@ -502,6 +502,236 @@ function _p_activity(
     return -lna[sym] / log(10)
 end
 
+
+# ── Redox: the electron as a component ───────────────────────────────────────
+#
+# A cement made with blast-furnace slag carries sulfur as S(-II) while its pore
+# solution carries S(+VI), and no calculation can report both unless the
+# **oxidation state** is a conserved quantity of its own. It is: when an element
+# appears at more than one valence, `StoichMatrix` keeps the charge row as an
+# independent component, so charge is conserved separately from the elements.
+#
+# What was missing is the intensive variable conjugate to it. These are it.
+
+"""
+    ELECTRON :: Species
+
+The electron, `e⁻`, carrying the conventional standard state
+``\\Delta_f G^0 = \\Delta_f H^0 = S^0 = C_p^0 = V^0 = 0``.
+
+This is a **convention**, exactly as it is for `H⁺`, and not a measurement: no
+thermodynamic database tabulates a free electron in solution. Fixing its
+standard state at zero is what makes a half-reaction's ``\\log K`` well defined,
+and every redox potential computed from it inherits that convention. The choice
+is the usual one in geochemistry, so the numbers here are comparable with
+published half-reaction constants.
+
+Used to balance half-reactions:
+
+```julia
+julia> r = Reaction([byname["SO4-2"], byname["H+"], ELECTRON,
+                     byname["HS-"], byname["H2O@"]]);
+
+julia> r.equation
+"SO₄²⁻ + 9H⁺ + 8e⁻ = 4H₂O@ + HS⁻"
+```
+
+See also: [`pe`](@ref), [`Eh`](@ref), [`FixedpE`](@ref).
+"""
+const ELECTRON = let e = Species("e-")
+    e.ΔₐG⁰ = 0.0
+    e.ΔₐH⁰ = 0.0
+    e.S⁰ = 0.0
+    e.Cp⁰ = 0.0
+    e.V⁰ = 0.0
+    e
+end
+
+"""
+    half_reaction(state, oxidized, reduced) -> Reaction
+
+The balanced half-reaction taking `oxidized` to `reduced`, over the species the
+system already contains plus `H⁺`, `H₂O` and [`ELECTRON`](@ref).
+
+Nothing is transcribed: the coefficients come from the element and charge
+balance, so the reaction is the one this system's species actually support.
+
+```julia
+julia> half_reaction(eq, "SO4-2", "HS-").equation
+"SO₄²⁻ + 9H⁺ + 8e⁻ = 4H₂O@ + HS⁻"
+```
+"""
+function half_reaction(
+        state::ChemicalState, oxidized::AbstractString, reduced::AbstractString
+    )
+    cs = state.system
+    oxidized == reduced && throw(
+        ArgumentError(
+            "`$oxidized` cannot be both members of a redox couple. Asked for " *
+                "one, the balance produces a reaction that creates matter out " *
+                "of nothing — `∅ = Ca²⁺ + 2e⁻` for calcium — which then yields " *
+                "a plausible-looking potential from no chemistry at all.",
+        ),
+    )
+    byname = Dict(symbol(s) => s for s in cs.species)
+    for sym in (oxidized, reduced)
+        haskey(byname, sym) || throw(
+            ArgumentError(
+                "`$sym` is not a species of this system, so no half-reaction " *
+                    "can be written over it. The couple must be present for its " *
+                    "activity to mean anything.",
+            ),
+        )
+    end
+    water = haskey(byname, "H2O@") ? byname["H2O@"] :
+        (haskey(byname, "H2O") ? byname["H2O"] : nothing)
+    water === nothing && throw(
+        ArgumentError("a redox half-reaction needs water, and this system has none"),
+    )
+    haskey(byname, "H+") || throw(
+        ArgumentError("a redox half-reaction needs `H+`, and this system has none"),
+    )
+    r = Reaction(
+        [byname[oxidized], byname["H+"], ELECTRON, byname[reduced], water]
+    )
+    # A half-reaction must have matter on both sides. An empty side means the
+    # balance could only close by creating or destroying the species outright,
+    # which is what a pair that is not a redox couple produces.
+    real(d) = count(sp -> symbol(sp) != symbol(ELECTRON), keys(d))
+    (real(r.reactants) == 0 || real(r.products) == 0) && throw(
+        ArgumentError(
+            "`$oxidized`/`$reduced` does not balance as a half-reaction: the " *
+                "result is `$(r.equation)`, with nothing on one side. They are " *
+                "not two oxidation states of the same element.",
+        ),
+    )
+    return r
+end
+
+"""
+    pe(state, model; couple = "SO4-2" => "HS-") -> Float64
+
+The electron activity of the pore solution as ``pe = -\\log_{10} a_{e^-}``,
+read off one redox couple.
+
+There is no electron species to read an activity from, so `pe` is **inferred
+from a half-reaction**: the couple's two members are balanced over `H⁺`, `H₂O`
+and the electron, the reaction's ``\\log K`` is computed from the standard
+Gibbs energies the database carries, and the electron activity is what remains.
+For a half-reaction with `n` electrons on the oxidized side,
+
+```math
+pe = \\frac{1}{n}\\left(\\log_{10} K
+     - \\sum_{\\text{products}} \\nu_i \\log_{10} a_i
+     + \\sum_{\\text{reactants} \\neq e^-} \\nu_i \\log_{10} a_i \\right)
+```
+
+`couple` names the oxidized and the reduced member, in that order. The default
+is sulfate/sulfide, which is the couple a slag-blended cement buffers.
+
+!!! warning "Different couples need not agree, and the disagreement is a result"
+    A single `pe` exists only if every couple is at **mutual** equilibrium. In a
+    real paste they are not: sulfate reduction is slow enough to be frozen on
+    the time scale of hydration, so the sulfur couple and the iron couple can
+    report potentials hundreds of millivolts apart. Computing `pe` from two
+    couples and comparing them measures how far the assumption of a single redox
+    state is from holding — which is worth doing before trusting either.
+
+See also: [`Eh`](@ref), [`half_reaction`](@ref), [`FixedpE`](@ref).
+"""
+function pe(
+        state::ChemicalState, model::AbstractActivityModel;
+        couple::Pair{<:AbstractString, <:AbstractString} = "SO4-2" => "HS-",
+        ϵ::Float64 = 1.0e-16,
+    )
+    cs = state.system
+    _require_aqueous(cs, "pe(state, model)")
+
+    # A couple buffers the potential only while BOTH members are present. Let
+    # one fall to the solver's floor and its activity is the floor, not a
+    # measured quantity -- the number that comes out is then set by `ϵ` and not
+    # by the chemistry. That case is common and quiet: a slag paste puts all of
+    # its sulfur into an AFm phase, leaving the aqueous sulfide at 1e-300, and
+    # the `pe` computed from it looks like an ordinary answer.
+    for sym in (first(couple), last(couple))
+        i = findfirst(sp -> symbol(sp) == sym, cs.species)
+        i === nothing && continue
+        n_i = _primal(ustrip(us"mol", state.n[i]))
+        n_i > 1.0e3 * ϵ || @warn """
+        `$sym` is at $(n_i) mol, at or near the solver floor, so the             $(first(couple))/$(last(couple)) couple does not buffer anything             here: the `pe` returned is set by the floor `ϵ`, not by the             chemistry. Read it as a bound, or choose a couple whose members are             both present.""" maxlog = 1
+    end
+
+    r = half_reaction(state, first(couple), last(couple))
+    lna = log_activities(state, model; ϵ = ϵ)
+    inv_ln10 = inv(log(10))
+
+    # The electron count comes from the CHARGE BALANCE, not from the reaction's
+    # species dictionaries: `Reaction` strips `e⁻` (and the charge pseudo-species
+    # `Zz`) from both sides before storing them, so the electron shows in the
+    # printed equation and nowhere else. Searching the dictionaries for it finds
+    # nothing and silently reports a couple as non-redox.
+    #
+    # Writing the half-reaction as reactants = products, the electrons on the
+    # reactant side are what closes the charge:
+    #
+    #     Σ z(reactants) − n = Σ z(products)     ⟹     n = Σz(react) − Σz(prod)
+    # Whether the electron survives in the dictionaries is not consistent: it is
+    # there for the sulfate/sulfide couple and gone for iron(III)/iron(II). So it
+    # is skipped in the activity sums -- it has no activity to look up, and
+    # `lna` has no entry for it -- and its count is taken from the charge
+    # balance, which is defined either way.
+    is_electron(sp) = symbol(sp) == symbol(ELECTRON)
+    charge_of(d) = sum(
+        (Float64(ν) * charge(sp) for (sp, ν) in d if !is_electron(sp)); init = 0.0
+    )
+    n_e = charge_of(r.reactants) - charge_of(r.products)
+
+    acc = r.logK⁰(T = ustrip(us"K", temperature(state)))
+    for (sp, ν) in r.reactants
+        is_electron(sp) && continue
+        acc += Float64(ν) * lna[symbol(sp)] * inv_ln10
+    end
+    for (sp, ν) in r.products
+        is_electron(sp) && continue
+        acc -= Float64(ν) * lna[symbol(sp)] * inv_ln10
+    end
+    n_e == 0 && throw(
+        ArgumentError(
+            "the couple $(first(couple))/$(last(couple)) balances with no " *
+                "electron, so it is not a redox couple: its two members are at the " *
+                "same oxidation state.",
+        ),
+    )
+    return acc / n_e
+end
+
+"""
+    Eh(state, model; couple = "SO4-2" => "HS-") -> Float64
+
+The redox potential in **volts**, from the same half-reaction as [`pe`](@ref)
+through the Nernst relation
+
+```math
+E_h = \\frac{R T \\ln 10}{F}\\, pe
+```
+
+with ``F`` the Faraday constant. At 25 °C the factor is 0.05916 V per pe unit.
+
+The caveat of [`pe`](@ref) applies unchanged: this is the potential *of the
+couple named*, and a paste whose couples are not at mutual equilibrium has no
+single `Eh`.
+"""
+function Eh(
+        state::ChemicalState, model::AbstractActivityModel;
+        couple::Pair{<:AbstractString, <:AbstractString} = "SO4-2" => "HS-",
+        ϵ::Float64 = 1.0e-16,
+    )
+    T = ustrip(us"K", temperature(state))
+    R = ustrip(Constants.R)
+    F = 96485.33212            # C/mol, the Faraday constant (CODATA, exact)
+    return (R * T * log(10) / F) * pe(state, model; couple = couple, ϵ = ϵ)
+end
+
 # ── Automatic initial approximation by continuation ──────────────────────────
 #
 # A Gibbs energy minimization needs a starting point, and on a cement the choice

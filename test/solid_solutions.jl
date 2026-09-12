@@ -397,16 +397,24 @@ end
         "CSHQ", [dict[m] for m in six]; model = RedlichKisterModel(a0 = 1.0)
     )
 
-    # And the shipped file loads, with the five phases added in 0.15.0.
+    # And the shipped file loads. Asserted by NAME rather than by count: the
+    # file gains phases as the database is exploited further, and a bare count
+    # turns every such addition into a spurious failure that says nothing about
+    # what broke.
     ss_all = build_solid_solutions(datapath("solid_solutions.toml"), dict)
     names = Set(p.name for p in ss_all)
-    @test length(ss_all) == 11
     for n in (
+            "CSHQ", "C3(AF)S0.84H", "AFm", "Hydrogarnet", "Ettringite_ss",
+            "Hydrotalcite",
+            # added in 0.15.0
             "Straetlingite_ss", "AFm_SO4_OH", "AFt_SO4_CO3",
             "Hydrotalcite_AlFe", "MSH",
+            # the alkali- and aluminum-bearing C-S-H a blended cement needs
+            "CNASH_ss",
         )
         @test n in names
     end
+    @test length(ss_all) == length(names)   # no phase declared twice
     @test all(length(end_members(p)) >= 2 for p in ss_all)
 end
 
@@ -463,4 +471,157 @@ end
     m = RegularSolutionModel([0.0 2.1RT; 2.1RT 0.0])
     @test spinodal_interval(m, 2; T = 298.15) !== nothing
     @test spinodal_interval(m, 2; T = 400.0) === nothing
+end
+
+@testset "a miscibility gap can be represented: `instances`" begin
+    # Detection was the subject of the test above; this one is about
+    # REPRESENTATION. Inside a spinodal the Gibbs minimum is the common-tangent
+    # PAIR, and a formulation with one amount per species can only write that
+    # down if the substance appears twice.
+    RT = 8.31446261815324 * 298.15
+    em = [
+        Species("Ca2SiO4"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),
+        Species("Ca3Si2O7"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),
+    ]
+    concave = RedlichKisterModel(a0 = 0.188RT, a1 = 2.49RT)
+
+    @testset "refused where it would only add a null direction" begin
+        # Two instances of a convex phase are degenerate: every split of the
+        # amount between them has the same energy.
+        err = try
+            SolidSolutionPhase("ideal", em; instances = 2)
+            nothing
+        catch e
+            e
+        end
+        @test err isa ErrorException
+        @test occursin("CONVEX", err.msg)
+        @test occursin("degenerate", err.msg)
+
+        @test_throws ErrorException SolidSolutionPhase(
+            "gap", em;
+            model = concave, instances = 0
+        )
+    end
+
+    @testset "accepted, and it carries the convexity waiver with it" begin
+        # The same declaration that `instances = 1` refuses.
+        ss = SolidSolutionPhase("gap", em; model = concave, instances = 2)
+        @test ss.instances == 2
+        @test ss.declared == "gap"
+        @test name(ss) == "gap"
+    end
+
+    @testset "ChemicalSystem builds the second composition" begin
+        ss1 = SolidSolutionPhase("gap", em; model = concave, check_convexity = false)
+        ss2 = SolidSolutionPhase("gap", em; model = concave, instances = 2)
+
+        cs1 = ChemicalSystem(em; solid_solutions = [ss1])
+        cs2 = ChemicalSystem(em; solid_solutions = [ss2])
+
+        # One extra copy of each end-member, under a derived symbol.
+        @test length(cs2.species) == length(cs1.species) + length(em)
+        syms = symbol.(cs2.species)
+        @test "Ca2SiO4#2" in syms && "Ca3Si2O7#2" in syms
+
+        # One substance under two labels: byte-identical composition.
+        i = findfirst(==("Ca2SiO4"), syms)
+        j = findfirst(==("Ca2SiO4#2"), syms)
+        @test atoms(cs2.species[i]) == atoms(cs2.species[j])
+
+        # Two phases, and their groups are DISJOINT -- which is what lets the
+        # activity assembly, the mole-fraction fill and the certificate stay
+        # unchanged.
+        @test length(cs2.solid_solutions) == 2
+        @test isempty(intersect(cs2.ss_groups[1], cs2.ss_groups[2]))
+        @test name.(cs2.solid_solutions) == ["gap", "gap#2"]
+
+        # Conservation is untouched: the new column is a COPY of one already
+        # there, so it adds nothing to the row space and the budget `A n` is
+        # unchanged as long as the copy starts empty.
+        A = Float64.(cs2.CSM.A)
+        @test A[:, j] == A[:, i]
+    end
+
+    @testset "instances of one declaration are exempt from the overlap refusal" begin
+        # Two phases sharing a composition are normally refused -- that is the
+        # C-S-H double-count. A miscibility gap is exactly that overlap, on
+        # purpose, so the exemption is by provenance and not by composition.
+        ss2 = SolidSolutionPhase("gap", em; model = concave, instances = 2)
+        @test ChemicalSystem(em; solid_solutions = [ss2]) isa ChemicalSystem
+
+        # ... and a genuine double-count is still refused, instances or not.
+        other = SolidSolutionPhase("other", em; model = concave, check_convexity = false)
+        one = SolidSolutionPhase("gap", em; model = concave, check_convexity = false)
+        @test_throws ErrorException ChemicalSystem(em; solid_solutions = [one, other])
+    end
+end
+
+# ── C-(N-)A-S-H, and the overlap that must be refused ────────────────────────
+
+@testsection "one gel, three models: the overlap is refused" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    byname = Dict(symbol(s) => s for s in substances)
+    mk(n, ms) = SolidSolutionPhase(n, [byname[m] for m in ms])
+
+    CSHQ_MEMBERS = [
+        "CSHQ-TobD", "CSHQ-TobH", "CSHQ-JenH", "CSHQ-JenD",
+        "KSiOH", "NaSiOH",
+    ]
+    ECSH_MEMBERS = ["ECSH1-TobCa", "ECSH1-KSH", "ECSH1-NaSH", "ECSH1-SH"]
+    CNASH_MEMBERS = [
+        "T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
+        "5CA", "5CNA", "INFCA", "INFCN", "INFCNA",
+    ]
+
+    all_names = vcat(CSHQ_MEMBERS, ECSH_MEMBERS, CNASH_MEMBERS)
+    sp = speciation(substances, all_names; aggregate_state = [AS_AQUEOUS])
+
+    @testset "CNASH_ss is shipped and complete" begin
+        # All eight end-members are in the public database; the phase was simply
+        # not declared before. It is what carries the Al and the alkalis of a
+        # blended cement, which `CSHQ` -- having no aluminum end-member at all --
+        # cannot.
+        ss = build_solid_solutions(datapath("solid_solutions.toml"), byname)
+        cnash = findfirst(p -> ChemistryLab.name(p) == "CNASH_ss", ss)
+        @test cnash !== nothing
+        @test length(end_members(ss[cnash])) == 8
+        @test all(haskey(byname, m) for m in CNASH_MEMBERS)
+        # It must carry aluminum, which is the whole reason it exists.
+        @test any(haskey(atoms(byname[m]), :Al) for m in CNASH_MEMBERS)
+        @test !any(haskey(atoms(byname[m]), :Al) for m in CSHQ_MEMBERS)
+    end
+
+    @testset "the overlap is exact, not approximate" begin
+        # This is what makes it detectable by composition rather than by name.
+        @test atoms(byname["KSiOH"]) == atoms(byname["ECSH1-KSH"])
+        @test atoms(byname["KSiOH"]) == atoms(byname["ECSH2-KSH"])
+    end
+
+    @testset "one at a time builds, two together are refused" begin
+        for (nm, members) in (
+                ("CSHQ", CSHQ_MEMBERS), ("ECSH1", ECSH_MEMBERS),
+                ("CNASH_ss", CNASH_MEMBERS),
+            )
+            @test ChemicalSystem(
+                sp, CEMDATA_PRIMARIES; solid_solutions = [mk(nm, members)]
+            ) isa ChemicalSystem
+        end
+
+        err = try
+            ChemicalSystem(
+                sp, CEMDATA_PRIMARIES;
+                solid_solutions = [mk("CSHQ", CSHQ_MEMBERS), mk("ECSH1", ECSH_MEMBERS)],
+            )
+            nothing
+        catch e
+            sprint(showerror, e)
+        end
+        @test err !== nothing
+        # The message must name both phases and the shared species, or it sends
+        # the reader hunting.
+        @test occursin("CSHQ", err)
+        @test occursin("ECSH1", err)
+        @test occursin("KSiOH", err)
+    end
 end
