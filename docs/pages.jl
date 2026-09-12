@@ -83,6 +83,9 @@ pages = [
             # reader who has not met `C3S` cannot follow them.
             "manual/cement_notation.md",
             "manual/cement_species.md",
+            # Then the map: which binder is which, what each constituent brings,
+            # and which of the package's models a given family needs.
+            "manual/binder_families.md",
         ],
         "Appendices" => [
             "manual/advanced.md",
