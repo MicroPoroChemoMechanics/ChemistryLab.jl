@@ -132,7 +132,6 @@ module ChemistryLab
     include("equilibrium/constraints.jl")
     include("equilibrium/equilibrium_solver.jl")
     include("equilibrium/dual_solver.jl")
-    include("equilibrium/lp_start.jl")
     include("equilibrium/certified.jl")
     include("equilibrium/aqueous_properties.jl")
 
