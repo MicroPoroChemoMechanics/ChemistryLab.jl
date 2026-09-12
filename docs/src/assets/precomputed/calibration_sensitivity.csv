@@ -1,0 +1,14 @@
+# sensitivity of the fit to the alite content
+# produced by scripts/precompute_docs.jl -- do not edit by hand
+# ChemistryLab version: 0.18.0
+# commit: a786655a
+# generated: 2026-09-12 08:30
+# instants: 20 log-spaced over 10.93 days
+# w/b 0.50, Blaine default, 20 C, 1 kg of binder
+# clinker (mass fractions): (C3S = 0.65, C2S = 0.11, C3A = 0.11, C4AF = 0.08)
+# the fitted rate constants are held at CALIBRATED_THETA;
+# only the clinker composition moves, the rest rescaled to close
+delta_C3S,C3S,Q_end_J_per_g,RMSE_J_per_g
+0.00,0.6500,399.8093,13.5795
+-0.20,0.5200,387.9145,15.2941
+0.20,0.7800,403.4013,12.1415
