@@ -159,11 +159,19 @@ function write_case(tag, filler, label)
     tcal, Q, qd = heat_release(run.sol, run.kp; times = TIMES, states = states)
     @printf("  calorimetry in %.0f s\n", time() - t2)
 
+    # The semi-adiabatic temperature needs the heat capacity of the paste at each
+    # instant, so it needs the STATES -- which is exactly what a page reading a
+    # CSV no longer has. Computed here, where they are in hand, and stored as a
+    # column beside the heat it comes from.
+    T_semi = langavant_temperature(tcal, qd ./ 1000, states)
+
     open(joinpath(OUT, "$(tag)_heat.csv"), "w") do io
         provenance(io, "$label -- isothermal calorimetry at 20 C, per gram of binder")
-        println(io, "time_s,Q_J_per_g,heat_flow_W_per_g")
+        println(io, "# T_semiadiabatic_K: the Langavant cell of NF EN 196-9, same run")
+        println(io, "time_s,Q_J_per_g,heat_flow_W_per_g,T_semiadiabatic_K")
         for i in eachindex(tcal)
-            @printf(io, "%.6e,%.6e,%.6e\n", tcal[i], Q[i] / 1000, qd[i] / 1000)
+            @printf(io, "%.6e,%.6e,%.6e,%.6e\n",
+                tcal[i], Q[i] / 1000, qd[i] / 1000, T_semi[i])
         end
     end
 

@@ -413,8 +413,11 @@ instant, so it is not counted twice.
     deliberate: the alternative is to change a published number in silence.
 
 ```@example ionicopc
-T_c = langavant_temperature(t_cal, qd_c ./ BINDER_G, states_c)
-T_n = langavant_temperature(t_cal, qd_n ./ BINDER_G, states_n)
+# Computed alongside the run, in `precompute_docs.jl`: the cell temperature
+# needs the heat capacity of the paste at each instant, so it needs the states
+# themselves rather than the heat curve alone.
+T_c = heat_c.columns["T_semiadiabatic_K"]
+T_n = heat_n.columns["T_semiadiabatic_K"]
 
 p_T = plot(;
     xscale = :log10, xlabel = "time [days]", ylabel = "T − T_env [K]",
