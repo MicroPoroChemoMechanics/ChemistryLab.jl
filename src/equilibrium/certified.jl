@@ -468,6 +468,29 @@ function equilibrate_certified(
 
     eq, cert = search(starts)
 
+    # The linear-programming initial approximation, tried BEFORE the expensive
+    # routes below and after the ordinary starts, which are cheaper still.
+    #
+    # Dropping the mixing entropy leaves `min gᵀn s.t. A n = b, n ≥ 0`, whose
+    # optimum is a vertex — at most one nonzero per component, i.e. a phase
+    # assemblage. It is a crude answer (no solution phase can exist without a
+    # mixing entropy, so it puts pure end-members where the answer has a C-S-H)
+    # and an excellent START: it replaces "discover which solids" with "refine
+    # these". This is GEM-Selektor's automatic initial approximation, and the
+    # reason a cold cement is cheap there and was not here.
+    #
+    # Measured on a CEM I of 90 species from the cast state: 16.0 s without,
+    # and the simplex itself costs milliseconds.
+    if !cert.optimal
+        lp = _lp_start(des, state, bfix, ϵ, verbose)
+        if lp !== nothing
+            eq, cert = _keep_better(
+                eq, cert,
+                search(Iterators.flatten((starts_from(lp, "start from the LP vertex"), starts)))...,
+            )
+        end
+    end
+
     # The ideal model as a stepping stone.
     #
     # A start near the answer is what this problem needs, and the cheapest good

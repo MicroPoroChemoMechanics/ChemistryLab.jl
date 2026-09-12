@@ -5,10 +5,32 @@ without network access. Unlike everything else under `data/`, these files are
 **not** thermodynamic databases and **not** covered by the package's license —
 see [`LICENSE`](LICENSE) in this directory.
 
-| file | cement | w/b | Blaine | *T* | duration | final *Q* | role |
-|--- |--- |--- |--- |--- |--- |--- |--- |
-| `smilauer2025-122-cemI-52.5R-cizkovice.csv` | CEM I 52.5 R, Čížkovice | 0.50 | 397 m²/kg | 20 °C | 262 h | 376 J/g | calibration target |
-| `smilauer2025-116-cemI-52.5R-ladce.csv` | CEM I 52.5 R, Ladce | 0.45 | 415 m²/kg | 20 °C | 617 h | 355 J/g | holdout |
+| record | cement | w/b | Blaine (m²/kg) | duration | final *Q* (J/g) | role |
+|--- |--- |--- |--- |--- |--- |--- |
+| `122-cemI-52.5R-cizkovice` | CEM I 52.5 R Cizkovice | 0.50 | 397 | 262 h | **376** | calibration target |
+| `116-cemI-52.5R-ladce` | CEM I 52.5 R Ladce | 0.45 | 415 | 617 h | **355** | holdout |
+| `165-cemII-A-LL-42.5R-hranice` | CEM II-A-LL 42.5 R Hranice | 0.45 | 423 | 384 h | **329** | limestone-blended Portland |
+| `149-cemII-B-S-32.5R-mokra` | CEM II-B-S 32.5 R Mokra | 0.40 | 380 | 504 h | **296** | slag-blended Portland |
+| `184-cemIII-A-42.5N-hranice` | CEM III-A 42.5 N Hranice | 0.40 | 408 | 359 h | **261** | blastfurnace, 36-65 % slag |
+| `200-cemV-A-S-V-32.5R-prachovice` | CEM V-A (S-V) 32.5 R Prachovice | 0.40 | 444 | 501 h | **259** | composite, slag + fly ash |
+| `121-cemIII-B-32.5N-mokra` | CEM III-B-32.5 N LH-SR Mokra | 0.45 | 495 | 663 h | **234** | blastfurnace, 66-80 % slag |
+
+!!! warning "The deposit's internal `Cement name` field is not reliable — the file name is"
+    Each source record carries a `Cement name:` line, and it disagrees with the
+    file name often enough that it cannot be used. Record 122 gives
+    `Cizkovice 52.5R`, with no EN 197-1 designation at all. Record 116 gives
+    `CEM I 42.5R Ladce` where its own file name says **52.5 R** — the two
+    contradict each other, and nothing in the deposit settles which is right.
+
+    The designations in the table above are therefore taken from the **file
+    name**, which is the deposit's own index and is consistent across all 65
+    records. The internal field is left in each vendored file, unedited, so a
+    reader can see the discrepancy rather than take our word for it.
+
+Sorted by the heat released, which is the physical ordering: **every joule comes
+from the clinker**, so replacing clinker with slag, fly ash or limestone lowers
+it. The 376 J/g of a CEM I and the 234 J/g of a CEM III/B are the two ends of the
+EN 197-1 range, measured on the same instrument at the same temperature.
 
 Both come from the CC-BY-4.0 Zenodo deposit
 [10.5281/zenodo.15212785](https://doi.org/10.5281/zenodo.15212785) of Šmilauer
