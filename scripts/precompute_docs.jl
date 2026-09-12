@@ -81,9 +81,19 @@ function provenance(io, what; instants = N_INSTANTS, window = TEND)
     catch
         "unknown"
     end
+    # The solver is source too. A stored trajectory depends on the optimizer
+    # that produced it as much as on the package that called it -- 0.5.3 added a
+    # stability test to the certificate, which changes how many instants are
+    # reported as proved -- so its version is recorded and the build checks it.
+    osver = try
+        string(pkgversion(OptimaSolver))
+    catch
+        "unknown"
+    end
     println(io, "# ", what)
     println(io, "# produced by scripts/precompute_docs.jl -- do not edit by hand")
     println(io, "# ChemistryLab version: ", ver)
+    println(io, "# OptimaSolver version: ", osver)
     println(io, "# commit: ", commit)
     println(io, "# generated: ", Dates.format(now(), "yyyy-mm-dd HH:MM"))
     println(io, "# instants: ", instants, " log-spaced over ",

@@ -1,8 +1,8 @@
 # CEM I with 3.5 % limestone filler -- volume fractions of the phase families, pH, porosity
 # produced by scripts/precompute_docs.jl -- do not edit by hand
 # ChemistryLab version: 0.18.0
-# commit: abd6a4a6
-# generated: 2026-09-12 01:16
+# commit: e2996fd0
+# generated: 2026-09-12 10:50
 # instants: 80 log-spaced over 28.0 days
 # w/b 0.50, Blaine default, 20 C, 1 kg of binder
 # clinker (mass fractions): (C3S = 0.65, C2S = 0.11, C3A = 0.11, C4AF = 0.08)

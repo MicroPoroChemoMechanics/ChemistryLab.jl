@@ -279,7 +279,8 @@ module ChemistryLab
         spinodal_interval,
         end_members,
         model,
-        with_class
+        with_class,
+        with_symbol
 
     export ChemicalSystem,
         aqueous,

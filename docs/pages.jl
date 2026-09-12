@@ -122,6 +122,9 @@ pages = [
         "Non-ideal mixtures, measured" => [
             "examples/activity_models_compared.md",
             "examples/solid_solution_models.md",
+            # The case a non-ideal model is written for and a single-composition
+            # formulation cannot hold: the published AFm binary, run three ways.
+            "examples/miscibility_gap.md",
             "examples/pitzer_model.md",
         ],
         # Small, checkable aqueous cases with an analytical answer to compare to.
@@ -144,10 +147,18 @@ pages = [
             "examples/cement_wc_ratio.md",
             "examples/cement_carbonation.md",
         ],
-        # Beyond the Portland cement: a binder whose clinker is half replaced,
-        # which is where the oxidation state stops being ignorable.
+        # Beyond the Portland cement. One page per EN 197-1 family, in order of
+        # how much of the clinker is replaced and of what the replacement asks
+        # of the models: a carbonate and a first slag (CEM II), then the slag
+        # binder where the oxidation state stops being ignorable (CEM III), the
+        # pozzolanic binder where the C-S-H must carry the aluminum (CEM IV),
+        # and the composite where all of it holds at once (CEM V). The map of
+        # the families themselves is in the manual.
         "Blended binders" => [
+            "examples/cem2_blended.md",
             "examples/cem3_slag.md",
+            "examples/cem4_pozzolanic.md",
+            "examples/cem5_composite.md",
         ],
         "Cementitious media in time" => [
             "examples/cement_clinker_kinetics.md",

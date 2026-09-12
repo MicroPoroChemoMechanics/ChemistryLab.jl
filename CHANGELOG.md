@@ -30,21 +30,55 @@ recomputing its heaviest trajectories at every build.
   downstream bounds must be widened. `MeanFieldHomogenization.jl` depends on this
   package only in `docs/Project.toml`.
 
-### Added — a miscibility gap is now detected rather than certified past
+### Added — a miscibility gap, detected and then represented
 
-With `OptimaSolver` 0.5.3, the certificate tests a **present** mixing phase for
-wanting to split. Measured on the AFm sulfate/hydroxide binary with the
-published Redlich-Kister parameters, whose spinodal is x ∈ [0.631, 0.914]:
+Detection and representation are separate problems, and 0.18.0 closes both.
+
+**Detected.** With `OptimaSolver` 0.5.3, the certificate tests a **present**
+mixing phase for wanting to split. Measured on the AFm sulfate/hydroxide binary
+with the published Redlich-Kister parameters, whose spinodal is
+x ∈ [0.631, 0.914]:
 
 | model | certificate | worst violation |
 |:--|:--|--:|
 | ideal mixing | `optimal = true` | +1.0e-10 |
 | published Redlich-Kister | **`optimal = false`** | +8.7e-03 |
 
-The second used to certify. It was a KKT point and not a minimum, and the
-certificate said otherwise. `SolidSolutionPhase` still refuses a concave model at
-construction; what changes is that `check_convexity = false` is no longer a
-silent loss of the proof.
+The second used to certify. It was a KKT point and not a minimum, and nothing in
+the output said which: stationarity is blind to the one failure that matters for
+a non-ideal phase — that the minimum is two coexisting compositions rather than
+the one reported.
+
+**Represented.** `SolidSolutionPhase(...; instances = 2)` asks `ChemicalSystem`
+for a second copy of each end-member, under a derived symbol (`monosulphate12#2`)
+sharing the same thermodynamic record, so the minimization can put material in
+either lobe of the gap or in both. The composition vector carries one amount per
+species, so this is what it takes: two coexisting compositions of one substance
+need the substance to appear twice.
+
+The duplication is done by copying the species rather than by letting two phases
+share them, which keeps `ss_groups` **disjoint** — the activity assembly, the
+mole-fraction fill and the certificate are unchanged. The duplicated column is a
+copy of one already present, so the row rank of the conservation matrix is
+unchanged and the copies start empty, leaving a budget computed as `A n`
+unchanged too.
+
+`instances > 1` is **refused for a convex model**, and not as a formality: two
+instances of a convex phase are degenerate, every split of the amount between
+them having the same energy, so the minimum becomes a flat manifold. Inside a
+spinodal the common-tangent pair is unique. So the second instance is admitted
+exactly where it is needed.
+
+This is how GEM-Selektor represents the same thing — CEMDATA18 ships the AFm and
+AFt binaries under two names each, so its users declare the binary twice. The
+criterion is the same object in both codes: GEMS' phase stability index
+Λ_k = log₁₀ Ω_k is, term for term, what `phase_split_measure` computes, derived
+independently from the same KKT conditions [Kulik et al. 2013]. Neither code
+splits a phase by itself; the difference is only that the duplication is asked
+for here by a keyword rather than carried in the database.
+
+Also new: **`with_symbol`**, the same species under a different label, which is
+what builds those copies.
 
 ### Added — oxidation state
 
@@ -122,6 +156,40 @@ nothing about what it does: a slag and a quartz sand of the same analysis give
 the same `b`, and the degree of reaction is a kinetic quantity supplied from
 outside.
 
+### Added — zeolites, in a database of their own
+
+`data/cemdata18-zeolites.json` is CEMDATA18 with 28 zeolites appended. It is
+**generated** by `data/zeolites/regenerate.jl` and shipped, so it can be
+reproduced and audited rather than trusted.
+
+A pozzolanic or an alkali-activated binder at high alkalinity precipitates
+zeolites. Without them in the species list the alkalis have nowhere to go but the
+pore solution and the calculated pH comes out too high — an error in the phase
+list that looks like an error in the solver. CEMDATA18 carries five zeolites;
+clinoptilolite, heulandite, mordenite, phillipsite, analcime, stilbite and the
+gismondine/faujasite/LTA series, in both their Na and their K forms, are not
+among them.
+
+The data are transcribed number by number from two open-access papers by the
+laboratory that produced CEMDATA18 itself — Ma & Lothenbach, *Cement and
+Concrete Research* **135** (2020) 106111 and **148** (2021) 106537, both DOIs
+resolved against Crossref. Nothing is estimated, interpolated or adjusted.
+
+The generator refuses on three grounds rather than warning: a symbol that would
+overwrite a CEMDATA18 entry, a dissolution that does not balance in elements and
+charge when re-derived from the formula string, and a `log Ksp` that does not
+close to within 0.05 log units when recomputed from `ΔfG⁰` through CEMDATA18's
+own aqueous Gibbs energies. That last one is what makes the merge defensible at
+all: two thermodynamic datasets may only be merged if they share a reference
+state, and the usual failure is silent — an offset of a few kJ/mol on `Na+` moves
+every dissolution equilibrium by an order of magnitude with no solver
+complaining. All 28 phases agree to within 0.026. The same three checks are
+asserted in the test suite, because a generator can only refuse at the moment it
+runs.
+
+Three other candidate datasets were examined and rejected on measurement rather
+than on preference; `data/zeolites/README.md` records which and why.
+
 ### Fixed — the documentation build
 
 It had reached 3 h 20 and was being canceled by its own timeout. The cause was
@@ -145,6 +213,14 @@ it took the right one:
   named each block and timed none of them, so a three-hour build identified
   nothing. A logger now reports the duration of each block that exceeds a
   threshold, with a running total.
+- the staleness guard now also compares the **version of the optimizer**. The
+  solver is source too, and it is not in this repository, so a commit cannot
+  speak for it: `OptimaSolver` 0.5.3 added a stability test to the certificate,
+  which changes how many instants a replay reports as proved. Each precomputed
+  file records the version it was produced with, and the build refuses a
+  mismatch. This was found by looking: `docs/Manifest.toml` still pinned
+  `OptimaSolver` 0.5.1, so the documentation had never once exercised
+  `phase_split_measure` — the guard existed and had nothing to say about it.
 - `equilibrate_certified` **solves a starting point only when the search asks for
   it**. It offered every registered back end's answer as a start and returned at
   the first that certified, so the later ones were computed and thrown away. The
@@ -171,6 +247,46 @@ it took the right one:
 - `manual/chemical_system_state.md` — the volume and porosity example reported
   `0.0 m³` and `NaN`, because species built from formulas carry no molar volume.
   It now uses database species, and the rescaling of a state is documented.
+- **`manual/binder_families.md`** — the map of EN 197-1: the families and their
+  composition ranges as a table, what each constituent brings to the element
+  budget and therefore which of this package's models the calculation needs, and
+  the measured heats of the seven shipped records in the order of their
+  replacement level, 376 J/g down to 234 J/g.
+- **`examples/miscibility_gap.md`** — the same CEM I run three ways on the AFm
+  sulfate/hydroxide binary: ideal mixing (certified, to a question that was
+  changed), the published parameters with one composition (refused at
+  construction, and uncertifiable when the refusal is waived), and the published
+  parameters with two (certified, at the common tangent). With the mixing-energy
+  curve and its spinodal drawn, and an explicit statement of what `optimal` does
+  and does not prove once the problem is no longer convex.
+- **One executed page per blended family**, each an element budget in and a
+  certified assemblage out, beside the measured calorimetry of a real specimen
+  where one exists:
+  - `examples/cem2_blended.md` — a CEM II/A-LL against a CEM II/B-S, with the
+    limestone removed from the first to isolate the carbonate effect from the
+    dilution. The carbonate takes the AFm site, the sulfate stays in ettringite,
+    and the mechanism comes out of the element budget with nothing fitted.
+  - `examples/cem3_slag.md` — the glass entry route, hydrotalcite, and the
+    sulfur ladder that makes charge a component of its own.
+  - `examples/cem4_pozzolanic.md` — the same paste solved with `CSHQ` and with
+    `CNASH_ss`, which is where the aluminum question becomes visible, and
+    portlandite as the limiting reagent along a replacement sweep. **This is the
+    one page with no measured specimen behind it** — the deposit carries no
+    CEM IV record — and it says so at its head.
+  - `examples/cem5_composite.md` — slag and fly ash at once, on one additive
+    budget, with every element traced to the constituent that brought it.
+
+  Every composition not in the deposit is labeled `ASSUMED` at the point of use,
+  at the midpoint of the EN 197-1 range for its designation. The deposit reports
+  fineness, water/binder ratio and calorimetry, and reports neither the clinker
+  phase composition nor the replacement level of any blend.
+
+### Fixed — the API section had vanished from the navigation bar
+
+A navbar curation added in August folded `API` and `References` into a dropdown
+labeled `Reference`. On v0.17.0 that read, correctly, as the docstring reference
+having been removed from the manual. `API` is a top-level entry again, and the
+mechanism carries a comment saying why it is not what gets folded.
 
 
 ## v0.17.0 — the water that is there, the water that counts, and every solid solution declared

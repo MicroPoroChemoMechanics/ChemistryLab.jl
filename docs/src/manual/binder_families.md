@@ -107,5 +107,16 @@ full provenance and for one inconsistency found in the source metadata.
 | [The full Portland cement, through its pore solution](@ref ex-ionic-opc) | the coupled run, and its calorimetry |
 | [Calibrating hydration kinetics](@ref) | the inverse problem, against measured calorimetry |
 
-Pages for the blended families follow the same shape: element budget in,
-certified assemblage out, measured calorimetry to compare against.
+And one page per blended family, each on the same shape — element budget in,
+certified assemblage out, measured calorimetry beside it:
+
+| page | family | what it is about |
+|:--|:--|:--|
+| [Two CEM II, and the two different things a replacement can do](@ref ex-cem2-blended) | CEM II | a carbonate that rewrites the aluminate sequence, against a glass that brings magnesium |
+| [A blastfurnace cement, and the oxidation state it needs](@ref ex-cem3-slag) | CEM III | the glass entry route, hydrotalcite, and sulfur at two oxidation states |
+| [A pozzolanic binder, and the C-S-H that has to carry the aluminum](@ref ex-cem4-pozzolanic) | CEM IV | `CSHQ` against `CNASH_ss`, and portlandite as the limiting reagent |
+| [A composite binder: two glasses at once](@ref ex-cem5-composite) | CEM V | all four difficulties simultaneously, on one additive budget |
+
+The CEM IV page is the one without a measured specimen behind it — the deposit
+carries no record of that family — and it says so at its head rather than in a
+footnote.

@@ -473,6 +473,90 @@ end
     @test spinodal_interval(m, 2; T = 400.0) === nothing
 end
 
+@testset "a miscibility gap can be represented: `instances`" begin
+    # Detection was the subject of the test above; this one is about
+    # REPRESENTATION. Inside a spinodal the Gibbs minimum is the common-tangent
+    # PAIR, and a formulation with one amount per species can only write that
+    # down if the substance appears twice.
+    RT = 8.31446261815324 * 298.15
+    em = [
+        Species("Ca2SiO4"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),
+        Species("Ca3Si2O7"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),
+    ]
+    concave = RedlichKisterModel(a0 = 0.188RT, a1 = 2.49RT)
+
+    @testset "refused where it would only add a null direction" begin
+        # Two instances of a convex phase are degenerate: every split of the
+        # amount between them has the same energy.
+        err = try
+            SolidSolutionPhase("ideal", em; instances = 2)
+            nothing
+        catch e
+            e
+        end
+        @test err isa ErrorException
+        @test occursin("CONVEX", err.msg)
+        @test occursin("degenerate", err.msg)
+
+        @test_throws ErrorException SolidSolutionPhase(
+            "gap", em;
+            model = concave, instances = 0
+        )
+    end
+
+    @testset "accepted, and it carries the convexity waiver with it" begin
+        # The same declaration that `instances = 1` refuses.
+        ss = SolidSolutionPhase("gap", em; model = concave, instances = 2)
+        @test ss.instances == 2
+        @test ss.declared == "gap"
+        @test name(ss) == "gap"
+    end
+
+    @testset "ChemicalSystem builds the second composition" begin
+        ss1 = SolidSolutionPhase("gap", em; model = concave, check_convexity = false)
+        ss2 = SolidSolutionPhase("gap", em; model = concave, instances = 2)
+
+        cs1 = ChemicalSystem(em; solid_solutions = [ss1])
+        cs2 = ChemicalSystem(em; solid_solutions = [ss2])
+
+        # One extra copy of each end-member, under a derived symbol.
+        @test length(cs2.species) == length(cs1.species) + length(em)
+        syms = symbol.(cs2.species)
+        @test "Ca2SiO4#2" in syms && "Ca3Si2O7#2" in syms
+
+        # One substance under two labels: byte-identical composition.
+        i = findfirst(==("Ca2SiO4"), syms)
+        j = findfirst(==("Ca2SiO4#2"), syms)
+        @test atoms(cs2.species[i]) == atoms(cs2.species[j])
+
+        # Two phases, and their groups are DISJOINT -- which is what lets the
+        # activity assembly, the mole-fraction fill and the certificate stay
+        # unchanged.
+        @test length(cs2.solid_solutions) == 2
+        @test isempty(intersect(cs2.ss_groups[1], cs2.ss_groups[2]))
+        @test name.(cs2.solid_solutions) == ["gap", "gap#2"]
+
+        # Conservation is untouched: the new column is a COPY of one already
+        # there, so it adds nothing to the row space and the budget `A n` is
+        # unchanged as long as the copy starts empty.
+        A = Float64.(cs2.CSM.A)
+        @test A[:, j] == A[:, i]
+    end
+
+    @testset "instances of one declaration are exempt from the overlap refusal" begin
+        # Two phases sharing a composition are normally refused -- that is the
+        # C-S-H double-count. A miscibility gap is exactly that overlap, on
+        # purpose, so the exemption is by provenance and not by composition.
+        ss2 = SolidSolutionPhase("gap", em; model = concave, instances = 2)
+        @test ChemicalSystem(em; solid_solutions = [ss2]) isa ChemicalSystem
+
+        # ... and a genuine double-count is still refused, instances or not.
+        other = SolidSolutionPhase("other", em; model = concave, check_convexity = false)
+        one = SolidSolutionPhase("gap", em; model = concave, check_convexity = false)
+        @test_throws ErrorException ChemicalSystem(em; solid_solutions = [one, other])
+    end
+end
+
 # ── C-(N-)A-S-H, and the overlap that must be refused ────────────────────────
 
 @testsection "one gel, three models: the overlap is refused" begin
