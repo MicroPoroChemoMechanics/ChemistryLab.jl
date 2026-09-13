@@ -49,6 +49,95 @@ end
 
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"); style = :authoryear)
 
+# ── the bibliography is formatted NOW, not at the end of the build ───────────
+#
+# `ExpandBibliography` is one of the last stages of `makedocs`: it runs after
+# every `@example` block of the site has been executed. So a bibliography entry
+# DocumenterCitations cannot parse does not fail the build in seconds — it fails
+# it after every hour of computation has already been spent.
+#
+# That is not hypothetical. A title carrying `CNASH\_ss`, the LaTeX escape for an
+# underscore, threw `ArgumentError: Invalid command: \_ss` from the TeX parser
+# and killed a **three-hour** build at `ExpandBibliography`, with every page
+# already expanded and nothing written.
+#
+# Formatting every entry here costs milliseconds and moves that failure to the
+# first second of the build, with the offending key named. It calls exactly what
+# the late stage calls, so it cannot drift away from what it is guarding.
+let failures = String[]
+    for (key, entry) in bib.entries
+        try
+            DocumenterCitations.format_bibliography_reference(:authoryear, entry)
+        catch err
+            push!(failures, "  $key : " * sprint(showerror, err))
+        end
+    end
+    isempty(failures) || error(
+        "docs/src/refs.bib has $(length(failures)) entry/entries DocumenterCitations " *
+            "cannot format. This would otherwise kill the build at its LAST stage, " *
+            "after every example has run:\n" * join(failures, "\n") *
+            "\n\nA LaTeX escape the TeX parser does not implement is the usual " *
+            "cause — write the character bare inside braces instead."
+    )
+end
+
+# ── the `@ref` anchors are resolved NOW, for the same reason ─────────────────
+#
+# `CrossReferences` is another late stage: a `@ref` naming an anchor that does
+# not exist fails the build after every page has been expanded, exactly as the
+# bibliography does. This resolves the ones that can be resolved by reading the
+# sources — a target written as an explicit id, `[text](@ref some-anchor)` —
+# against the `(@id ...)` anchors and the header slugs Documenter generates.
+#
+# It does NOT replace Documenter's own check: a bare `[Name](@ref)` resolves
+# against docstrings, which needs the modules loaded, and that is Documenter's
+# business. What this catches is the typo in a hand-written anchor, which is the
+# one a writer actually makes.
+let
+    srcdir = joinpath(@__DIR__, "src")
+    mds = String[]
+    for (root, _, files) in walkdir(srcdir), f in files
+        endswith(f, ".md") && push!(mds, joinpath(root, f))
+    end
+
+    anchors = Set{String}()
+    for f in mds
+        text = read(f, String)
+        for m in eachmatch(r"\(@id\s+([^)]+?)\s*\)", text)
+            push!(anchors, m.captures[1])
+        end
+        # Documenter's own slug for a header carrying no explicit id: the text
+        # with runs of whitespace turned into single hyphens. Fenced blocks are
+        # removed first -- a Julia comment opens with `#` too, and counting those
+        # as headers would invent anchors that mask a genuine typo.
+        prose = replace(text, r"^```.*?^```"ms => "")
+        for m in eachmatch(r"^#+\s+(.+?)\s*$"m, prose)
+            title = m.captures[1]
+            occursin("(@id", title) && continue
+            push!(anchors, replace(strip(title), r"\s+" => "-"))
+        end
+    end
+
+    unresolved = String[]
+    for f in mds
+        for m in eachmatch(r"\]\(@ref\s+([^)]+?)\s*\)", read(f, String))
+            target = m.captures[1]
+            # A target with no hyphen and no space is a docstring name, which
+            # only Documenter can resolve.
+            occursin('-', target) || continue
+            startswith(target, '`') && continue
+            target in anchors ||
+                push!(unresolved, "  " * relpath(f, srcdir) * " -> @ref " * target)
+        end
+    end
+    isempty(unresolved) || error(
+        "$(length(unresolved)) cross-reference(s) name an anchor that does not " *
+            "exist. Documenter would report this only at its `CrossReferences` " *
+            "stage, after every example on the site has run:\n" *
+            join(sort(unique(unresolved)), "\n")
+    )
+end
+
 DocMeta.setdocmeta!(
     ChemistryLab,
     :DocTestSetup,

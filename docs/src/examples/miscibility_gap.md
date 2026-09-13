@@ -119,8 +119,17 @@ aqueous = ["SO4-2", "CO2@"]
 
 model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
 
-"""One system, differing only in how the AFm binary is declared."""
-function run_case(afm_phase)
+"""
+One system, differing only in how the AFm binary is declared.
+
+`autostart` is a keyword because two of the three cases below are *meant* not to
+certify. For those the multi-start cascade -- every backend, then the ideal
+pre-solve, then the homotopy continuation -- cannot help: there is no admissible
+single-composition minimum for it to find, so it spends minutes arriving at the
+answer the first route already gave. The certificate reported is the same one
+either way; declining the cascade declines only the search for a better start.
+"""
+function run_case(afm_phase; autostart = true)
     sp = speciation(substances, vcat(pure, CSHQ, AFM, aqueous);
                     aggregate_state = [AS_AQUEOUS])
     ss = [SolidSolutionPhase("CSHQ", [byname[m] for m in CSHQ]), afm_phase]
@@ -135,7 +144,7 @@ function run_case(afm_phase)
     set_quantity!(st, "H2O@", BINDER_G * WB / molar_mass("H2O@") * u"mol")
     b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
 
-    eq, cert = equilibrate_certified(st; model = model, b = b)
+    eq, cert = equilibrate_certified(st; model = model, b = b, autostart = autostart)
     return cs, eq, cert
 end
 
@@ -171,7 +180,8 @@ the gap. Here it does not, and the certificate is what says so:
 
 ```@example gap
 cs2, eq2, c2 = run_case(SolidSolutionPhase("AFm_SO4_OH", afm_em;
-                                           model = published, check_convexity = false))
+                                           model = published, check_convexity = false);
+                        autostart = false)
 @printf("optimal=%-5s  worst SI=%+.2e  balance=%.1e  pH=%.4f\n",
         c2.optimal, c2.worst_supersaturation, c2.balance, pH(eq2, model))
 if hasproperty(c2, :worst_violation_split)
@@ -191,7 +201,8 @@ in the output said which.
 
 ```@example gap
 cs3, eq3, c3 = run_case(SolidSolutionPhase("AFm_SO4_OH", afm_em;
-                                           model = published, instances = 2))
+                                           model = published, instances = 2);
+                        autostart = false)
 @printf("optimal=%-5s  worst SI=%+.2e  balance=%.1e  pH=%.4f\n",
         c3.optimal, c3.worst_supersaturation, c3.balance, pH(eq3, model))
 

@@ -131,6 +131,15 @@ Q_fit = forward_Q(CALIBRATED_THETA, target; mode = :coupled)
 
 ```@example calib
 include(joinpath(pkgdir(ChemistryLab), "scripts", "precomputed.jl"))
+
+# Six coupled 28-day trajectories stand behind this page -- the published
+# parameters and the fitted ones on two records, and the alite content moved
+# either way. They share nothing, so they are computed together instead of one
+# at a time; on a single-threaded session this is the same work in the same
+# order. Every `read_precomputed` below is then a cache hit.
+warm_precomputed(["calibration_target", "calibration_holdout",
+                  "calibration_sensitivity"])
+
 cal = read_precomputed("calibration_target")
 
 target = resample_log(CEM_I_TARGET, N_RESIDUALS_COUPLED)
@@ -680,13 +689,20 @@ for δ in (-0.20, 0.20)
                C3A = CALIB_CLINKER.C3A * scale, C4AF = CALIB_CLINKER.C4AF * scale)
     run = run_ionic_hydration(; wb = target.meta.wb, clinker, gypsum = CALIB_GYPSUM,
         filler = CALIB_FILLER, blaine = target.meta.blaine * u"m^2/kg",
-        tend = target.t[end], pk_params = apply_parameters(θ̂))
+        tend = target.t[end], pk_params = apply_parameters(θ̂),
+        # The fitted induction period is part of the model being perturbed. An
+        # earlier version of this left it out, which quietly made the δ = 0 row a
+        # different model from the fit whose sensitivity it was reporting.
+        induction = induction_of(θ̂), induction_phases = INDUCTION_PHASES,
+        ode_solver = COUPLED_SOLVER)
     _, Q, _ = heat_release(run.sol, run.kp; times = target.t)
 end
 ```
 
-Two more full coupled runs, so they are made once alongside the rest and read
-back here:
+Two more full coupled runs — **two**, not three: the δ = 0 row is by construction
+the calibrated fit, so it is read from the curve this page already plots rather
+than integrated a second time. They are computed alongside the rest, concurrently,
+and read back here:
 
 ```@example calib
 sens = read_precomputed("calibration_sensitivity")

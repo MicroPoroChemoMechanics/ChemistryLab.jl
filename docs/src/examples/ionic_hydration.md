@@ -99,6 +99,13 @@ where a dilute model is not defensible.
 ```@example ionicopc
 include(joinpath(pkgdir(ChemistryLab), "scripts", "precomputed.jl"))
 
+# The two pastes this page compares are two independent 28-day integrations,
+# each followed by a certified replay at every reported instant. Nothing is
+# shared between them, so they are computed together rather than one after the
+# other; on a single-threaded session this is exactly the same work in the same
+# order. Every `read_precomputed` below is then a cache hit.
+warm_precomputed(["ionic_opc_phases", "ionic_nolimestone_phases"])
+
 phases_c = read_precomputed("ionic_opc_phases")
 heat_c = read_precomputed("ionic_opc_heat")
 

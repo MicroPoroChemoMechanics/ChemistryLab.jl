@@ -20,6 +20,7 @@
 using Printf
 using DynamicQuantities
 using Logging
+using Base: @lock
 
 isdefined(Main, :run_ionic_hydration) ||
     include(joinpath(@__DIR__, "ionic_hydration.jl"))
@@ -53,6 +54,62 @@ const IONIC_CASES = Dict(
 )
 
 const _CACHE = Dict{String, Any}()
+const _CACHE_LOCK = ReentrantLock()
+
+"""
+    _cached(f, key) -> value
+
+`get!(f, _CACHE, key)`, safe to call from several tasks at once.
+
+The function comes **first**, as it does in `get!`, so that the call sites keep
+their `do` blocks: `_cached(key) do ... end` passes the block as the first
+argument, and a signature with the key first is a `MethodError` waiting for the
+first caller. That is not hypothetical — it cost a documentation build.
+
+The lock is held only while the dictionary is touched, never while `f` runs: a
+coupled trajectory takes minutes, and serializing on it would defeat the whole
+point of computing them concurrently. Two tasks asking for the *same* key at the
+same instant would therefore both compute it -- which is why `warm_precomputed`
+below asks for each key exactly once, and in the order that makes the one
+dependency between them a cache hit.
+"""
+function _cached(f, key::AbstractString)
+    # `Some` rather than the value itself, so that a stored `nothing` counts as
+    # a hit. Nothing stored here is `nothing` today; relying on that would be a
+    # trap for whoever adds the first thing that is.
+    hit = @lock _CACHE_LOCK (haskey(_CACHE, key) ? Some(_CACHE[key]) : nothing)
+    hit === nothing || return something(hit)
+    v = f()
+    @lock _CACHE_LOCK (_CACHE[key] = v)
+    return v
+end
+
+"""
+    _par_map(f, xs) -> Vector
+
+`map(f, xs)`, on as many threads as the session was started with.
+
+The trajectories are independent -- separate systems, separate solver buffers,
+separate ODE states -- so this changes wall time and nothing else. It was
+measured rather than assumed. The two coupled 28-day runs of
+`calibration_target`, on two threads:
+
+| | wall time |
+|:--|--:|
+| one after the other | 1093.4 s |
+| together | 593.2 s (x1.84) |
+
+and both vectors came back **identical bit for bit** to the serial ones, maximum
+deviation exactly 0. The only globals the solve path mutates are a warning gate
+and a warning counter, neither of which enters the numerics.
+
+With one thread the call is an ordinary `map`, so a default session behaves
+exactly as it did before.
+"""
+function _par_map(f, xs)
+    Threads.nthreads() == 1 && return map(f, xs)
+    return fetch.([Threads.@spawn f(x) for x in xs])
+end
 
 """
     _provenance(what; instants, window, extra) -> Vector{String}
@@ -99,7 +156,7 @@ and the calorimetry together — they come from one trajectory and one certified
 replay, and splitting them into two calls would integrate twice.
 """
 function _ionic_case(tag::AbstractString)
-    return get!(_CACHE, "case:" * tag) do
+    return _cached("case:" * tag) do
         case = IONIC_CASES[tag]
         run = run_ionic_hydration(;
             wb = 0.5, clinker = DOC_CLINKER, gypsum = 0.046,
@@ -191,12 +248,17 @@ const CALIBRATION_CASES = Dict(
 )
 
 function _calibration_table(tag)
-    return get!(_CACHE, tag) do
+    return _cached(tag) do
         case = CALIBRATION_CASES[tag]
         record = case.record === :target ? CEM_I_TARGET : CEM_I_HOLDOUT
         data = resample_log(record, N_RESIDUALS_COUPLED)
-        Q_prior = forward_Q(prior_vector(), data; mode = :coupled)
-        Q_fit = forward_Q(CALIBRATED_THETA, data; mode = :coupled)
+        # Two coupled trajectories of the same record, one on the published
+        # parameters and one on the fitted ones. They share nothing, so they run
+        # concurrently when the session has the threads for it.
+        Q_prior, Q_fit = _par_map(
+            θ -> forward_Q(θ, data; mode = :coupled),
+            (prior_vector(), CALIBRATED_THETA),
+        )
         columns = Dict{String, Vector{Float64}}(
             "time_s" => collect(data.t),
             "Q_measured" => collect(data.Q),
@@ -229,30 +291,58 @@ The clinker sensitivity of the calibration page: the same fitted rate constants
 with the alite content moved by ±20 %, far more than a Bogue or a QXRD analysis
 is uncertain by. Three coupled runs.
 """
+function _moved_clinker(δ)
+    c = CALIB_CLINKER.C3S * (1 + δ)
+    scale = (1 - c) / (1 - CALIB_CLINKER.C3S)
+    return (
+        C3S = c, C2S = CALIB_CLINKER.C2S * scale,
+        C3A = CALIB_CLINKER.C3A * scale, C4AF = CALIB_CLINKER.C4AF * scale,
+    )
+end
+
+"""
+    _sensitivity_Q(clinker, data) -> Vector
+
+Released heat [J/g] at `data.t` from one coupled run on `clinker`.
+
+Everything except the clinker is held at what the calibration itself used --
+the fitted rate constants, **and the fitted induction period**, which an earlier
+version of this function left out. That omission made the δ = 0 row a different
+model from the fit whose sensitivity it was supposed to measure, so its RMSE was
+not the fit's RMSE. It is now the same call `forward_Q` makes, with the clinker
+as its only freedom.
+"""
+function _sensitivity_Q(clinker, data)
+    run = run_ionic_hydration(;
+        wb = data.meta.wb, clinker, gypsum = CALIB_GYPSUM,
+        filler = CALIB_FILLER, blaine = data.meta.blaine * u"m^2/kg",
+        tend = data.t[end], pk_params = apply_parameters(CALIBRATED_THETA),
+        induction = induction_of(CALIBRATED_THETA),
+        induction_phases = INDUCTION_PHASES, ode_solver = COUPLED_SOLVER,
+    )
+    _, Q, _ = heat_release(run.sol, run.kp; times = data.t)
+    return Q ./ 1000
+end
+
 function _sensitivity_table()
-    return get!(_CACHE, "calibration_sensitivity") do
+    return _cached("calibration_sensitivity") do
         data = resample_log(CEM_I_TARGET, N_RESIDUALS_COUPLED)
+        # δ = 0 IS the calibrated fit, and the target table has already computed
+        # it. Reading it back rather than integrating it again saves one coupled
+        # trajectory of the build and, more to the point, guarantees that the
+        # reference row of this table is the very curve the page plots.
+        Q0 = _calibration_table("calibration_target").columns["Q_fit"]
+        moved = _par_map(δ -> _sensitivity_Q(_moved_clinker(δ), data), (-0.2, 0.2))
+
         δs = Float64[]
         c3s = Float64[]
         qend = Float64[]
         rmse = Float64[]
-        for δ in (0.0, -0.2, 0.2)
-            c = CALIB_CLINKER.C3S * (1 + δ)
-            scale = (1 - c) / (1 - CALIB_CLINKER.C3S)
-            clinker = (
-                C3S = c, C2S = CALIB_CLINKER.C2S * scale,
-                C3A = CALIB_CLINKER.C3A * scale, C4AF = CALIB_CLINKER.C4AF * scale,
-            )
-            run = run_ionic_hydration(;
-                wb = data.meta.wb, clinker, gypsum = CALIB_GYPSUM,
-                filler = CALIB_FILLER, blaine = data.meta.blaine * u"m^2/kg",
-                tend = data.t[end], pk_params = apply_parameters(CALIBRATED_THETA),
-            )
-            _, Q, _ = heat_release(run.sol, run.kp; times = data.t)
+        for (δ, Q) in ((0.0, Q0), (-0.2, moved[1]), (0.2, moved[2]))
             push!(δs, δ)
-            push!(c3s, c)
-            push!(qend, Q[end] / 1000)
-            push!(rmse, sqrt(sum(abs2, Q ./ 1000 .- data.Q) / length(data.Q)))
+            push!(c3s, _moved_clinker(δ).C3S)
+            push!(qend, Q[end])
+            push!(rmse, sqrt(sum(abs2, Q .- data.Q) / length(data.Q)))
         end
         prov = _provenance(
             "sensitivity of the fit to the alite content";
@@ -307,6 +397,44 @@ function read_precomputed(name::AbstractString)
             ), ", ",
         ),
     )
+end
+
+"""
+    warm_precomputed(tags)
+
+Compute the coupled trajectories behind `tags` concurrently, before the page
+asks for them one at a time.
+
+Documenter expands a page block by block in a single process, so a page that
+reads three tables integrates three trajectories strictly in series even though
+they share nothing at all — separate systems, separate solver buffers, separate
+ODE states. Warming them together puts them on as many threads as the session
+was started with, and every later `read_precomputed` is then a cache hit. On one
+thread it is the same work in the same order, so it can never be a pessimization.
+
+Two orderings are forced, and both are about not computing the same trajectory
+twice:
+
+  - `<case>_phases` and `<case>_heat` are **one** run, so only one of each pair
+    is warmed;
+  - `calibration_sensitivity` reads the fitted curve of `calibration_target`, so
+    it is warmed last, after that curve is in the cache.
+"""
+function warm_precomputed(tags)
+    first_wave = String[]
+    seen = Set{String}()
+    sensitivity = false
+    for t in tags
+        if t == "calibration_sensitivity"
+            sensitivity = true
+        else
+            key = replace(String(t), r"_(phases|heat)$" => "")
+            key in seen || (push!(seen, key); push!(first_wave, String(t)))
+        end
+    end
+    _par_map(read_precomputed, first_wave)
+    sensitivity && read_precomputed("calibration_sensitivity")
+    return nothing
 end
 
 """
