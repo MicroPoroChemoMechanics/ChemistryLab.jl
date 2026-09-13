@@ -479,8 +479,9 @@ end
 
 function _constraint_blocks(c::FixedEh, des, state, p, n0)
     T = ustrip(us"K", temperature(state))
-    F = 96485.33212                       # C/mol, CODATA (exact)
-    pe = ustrip(us"V", c.Eh) * F / (ustrip(Constants.R) * T * log(10))
+    # Nernst, once: `Eh = (RT ln10 / F) pe`. The factor lives in `RT_over_F` so
+    # that this and `Eh` cannot drift apart.
+    pe = ustrip(us"V", c.Eh) / (RT_over_F(T) * log(10))
     return _constraint_blocks(
         FixedpE(pe; couple = c.couple, titrant = c.titrant), des, state, p, n0
     )

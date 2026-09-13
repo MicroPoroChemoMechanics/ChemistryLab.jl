@@ -98,6 +98,7 @@ module ChemistryLab
 
     RuntimeGeneratedFunctions.init(@__MODULE__)
 
+    include("utils/constants.jl")
     include("utils/misc.jl")
     include("utils/subsuperscripts.jl")
 
@@ -277,9 +278,15 @@ module ChemistryLab
         AbstractSolidSolutionPhase,
         SolidSolutionPhase,
         spinodal_interval,
+        common_tangent,
+        miscibility_split,
         end_members,
         model,
         with_class,
+        R_GAS,
+        R_GAS_Q,
+        FARADAY,
+        FARADAY_Q,
         with_symbol
 
     export ChemicalSystem,

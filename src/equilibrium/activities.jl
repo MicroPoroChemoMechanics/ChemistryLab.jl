@@ -974,7 +974,7 @@ _excess_ln_gamma(::IdealSolidSolutionModel, k::Int, x::AbstractVector, T::Real) 
 # `Σ_{j≠k} W_kj x_j − Σ_{i<j} W_ij x_i x_j`. For two end-members this reduces to
 # `W₁₂ x₂²` and `W₁₂ x₁²`, i.e. `RedlichKisterModel(a0 = W₁₂)`.
 function _excess_ln_gamma(m::RegularSolutionModel, k::Int, x::AbstractVector, T::Real)
-    RT = 8.31446261815324 * T   # J/mol
+    RT = R_GAS * T   # J/mol
     n = length(x)
     W = m.W
     lin = zero(eltype(x))
@@ -991,7 +991,7 @@ end
 
 function _excess_ln_gamma(m::RedlichKisterModel, k::Int, x::AbstractVector, T::Real)
     x1, x2 = x[1], x[2]
-    RT = 8.31446261815324 * T   # J/mol
+    RT = R_GAS * T   # J/mol
     a0 = m.a0 / RT
     a1 = m.a1 / RT
     a2 = m.a2 / RT

@@ -727,9 +727,7 @@ function Eh(
         ϵ::Float64 = 1.0e-16,
     )
     T = ustrip(us"K", temperature(state))
-    R = ustrip(Constants.R)
-    F = 96485.33212            # C/mol, the Faraday constant (CODATA, exact)
-    return (R * T * log(10) / F) * pe(state, model; couple = couple, ϵ = ϵ)
+    return RT_over_F(T) * log(10) * pe(state, model; couple = couple, ϵ = ϵ)
 end
 
 # ── Automatic initial approximation by continuation ──────────────────────────
