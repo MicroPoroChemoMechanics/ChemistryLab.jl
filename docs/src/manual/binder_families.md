@@ -86,6 +86,24 @@ A CEM I needs none of this package's later machinery; a CEM III needs the
 oxidation state to be a conserved quantity; a CEM IV or V needs a C-S-H that can
 take aluminum and alkalis.
 
+Two things the table does not contain, and both belong to every row of it.
+
+**The alkalis of the clinker.** A Bogue calculation returns four phases and no
+Na₂O or K₂O — they are minor oxides, outside the decomposition — and they are
+what sets the pH of the pore solution, the calcium being held at the portlandite
+floor near 12.5. A budget entered through Bogue and nothing else returns that
+floor on every binder alike, which is a signature worth recognizing; see
+[trap 4](@ref man-choosing-species).
+
+**How much of each constituent has reacted.** The percentages above are what was
+*put in*, not what has dissolved. A Gibbs minimization reacts everything it is
+handed, so the reacted fraction is part of posing the problem: capped for every
+constituent alike by the water and space available
+([`powers_alpha_max`](@ref), and [the water budget](@ref sec-theory-water-budget)
+for why that cap is not thermodynamics), and for a glass capped far lower still
+by its own dissolution rate — measured, at 28 days, at 38–49 % for a slag and
+about 20 % for a siliceous fly ash [Durdzinski2017](@cite).
+
 ## What the heat says about all of it
 
 Every joule of hydration heat comes from the clinker. Replacing clinker with

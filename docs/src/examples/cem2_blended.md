@@ -127,12 +127,48 @@ BS_SLAG = 0.28
 SLAG = OrderedDict("CaO" => 0.41, "SiO2" => 0.36, "Al2O3" => 0.11,
                    "MgO" => 0.08, "SO3" => 0.02)
 
+# THE CLINKER'S ALKALIS, which Bogue does not account for and which set the pH.
+# They are minor oxides, a fraction of a percent, sitting outside the four-phase
+# decomposition -- and in a cement paste they are what fixes the pH, dissolving
+# almost completely into the pore solution and staying there while the calcium is
+# held down by portlandite at 12.5. Omitting them does not make the calculation
+# conservative: it makes it report a portlandite floor as a pore solution.
+# ASSUMED at a usual industrial level, as a fraction of the CLINKER mass.
+# [The CEM III page](@ref cem3-alkali) sweeps this over the industrial range and
+# shows that it, and almost nothing else, is what moves the pH.
+ALKALIS = OrderedDict("K2O" => 0.008, "Na2O" => 0.002)
+
 # The calcium sulfate ground in with every Portland clinker, as a mass fraction
 # of the binder. ASSUMED at a usual industrial level.
 GYPSUM = 0.046
 
 BINDER_G = 100.0
-nothing # hide
+
+# HOW MUCH REACTS, and it is not everything. Two ceilings; the reacted fraction
+# is the lower of them.
+#
+# The WATER ceiling, Powers (1948): complete hydration needs about 0.42 g of
+# water per gram of cement, 0.23 g written into the hydrates and 0.19 g held in
+# the gel pores those hydrates create. Below that the paste stops with water
+# still in it, in pores too fine to reach an unhydrated grain. It is a property
+# of the pore space, so it caps the slag as it caps the clinker; and it depends
+# on the mix, which is why the two pastes here do not get the same number --
+# the limestone paste was mixed at w/b 0.45 and the slag paste at 0.40.
+#
+# The KINETIC ceiling, for the slag only: [Durdzinski2017](@cite), Table 4, a
+# ground granulated slag at 28 days by SEM image analysis, 38-49 % across two
+# slags and two laboratories, with a stated precision of "at best +/- 5 %".
+# ASSUMED at 45 %. The limestone needs none: calcite is a declared phase, and
+# the minimization dissolves exactly as much of it as is stable.
+ALPHA_SLAG_KINETIC = 0.45
+reacted(wb) = (clinker = powers_alpha_max(wb),
+               slag = min(ALPHA_SLAG_KINETIC, powers_alpha_max(wb)))
+
+for wb in (0.45, 0.40)
+    r = reacted(wb)
+    @printf("w/b = %.2f : water ceiling %.3f -> clinker %.0f %%, slag %.0f %%\n",
+            wb, powers_alpha_max(wb), 100r.clinker, 100r.slag)
+end
 ```
 
 ## 2. One species list for all three pastes
@@ -182,19 +218,29 @@ limestone as calcite — a species with a formula — and the slag through
 ```@example cem2
 """Element budget of one paste, in moles per 100 g of binder."""
 function budget(; clinker_frac, limestone = 0.0, slag = 0.0, wb)
+    α = reacted(wb)
     state = ChemicalState(cs)
+    # Only the reacted clinker is posed to the minimization; the unhydrated
+    # cores are still in the specimen but are not at equilibrium with it.
     for (phase, frac) in CLINKER
         set_quantity!(state, phase,
-            BINDER_G * clinker_frac * frac / molar_mass(phase) * u"mol")
+            α.clinker * BINDER_G * clinker_frac * frac / molar_mass(phase) * u"mol")
     end
+    # The calcium sulfate is soluble and the limestone is a declared phase, so
+    # neither carries a ceiling. All of the mixing water enters: the ceiling
+    # says how far the reaction goes, not how much water was poured in.
     set_quantity!(state, "Gp", BINDER_G * GYPSUM / molar_mass("Gp") * u"mol")
     limestone > 0 && set_quantity!(state, "Cal",
         BINDER_G * limestone / molar_mass("Cal") * u"mol")
     set_quantity!(state, "H2O@", BINDER_G * wb / molar_mass("H2O@") * u"mol")
 
     b = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
+    # The alkalis leave the grain as it dissolves, so they follow the clinker and
+    # its reacted fraction.
+    b .+= oxide_budget(ALKALIS, cs.SM.primaries;
+                       mass = BINDER_G * clinker_frac * α.clinker * u"g")
     slag > 0 && (b .+= oxide_budget(SLAG, cs.SM.primaries;
-                                    mass = BINDER_G * slag * u"g"))
+                                    mass = BINDER_G * slag * α.slag * u"g"))
     return state, b
 end
 

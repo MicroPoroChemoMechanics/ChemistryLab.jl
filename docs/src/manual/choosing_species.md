@@ -51,7 +51,7 @@ nothing # hide
 | **high replacement** (> ~35 %) | **zeolites** — [the extension](@ref sec-zeolites) | past that the alkalis exceed what the C-A-S-H and the sulfates can hold |
 | **alkalis from any source** | `K2SO4`, `syngenite`, `Na2SO4`, and an alkali-bearing gel | otherwise they stay in solution and the pH comes out too high |
 
-## Six traps, each one met in practice
+## Seven traps, each one met in practice
 
 ### 1. Declaring one end-member of a family and not the other
 
@@ -105,6 +105,28 @@ The mirror image of trap 1, and it is not harmless. Declaring `KSiOH` and
 solver's floor; their saturation indices then run to +7 and the certificate has
 to decide what that means.
 
+The expensive version of this trap is quieter, and it was met on these very
+pages. A **Bogue calculation returns four phases and no alkalis** — Na₂O and K₂O
+are minor oxides, outside the four-phase decomposition — so a binder entered
+through Bogue has no sodium and no potassium in its budget however carefully its
+C-S-H is declared. Nothing fails. Every solve certifies. What comes out is a pH
+of **12.51 on every paste**, because portlandite is then the only thing setting
+it, and a portlandite buffer is by construction insensitive to everything else.
+
+!!! tip "The diagnostic is the invariance, not the value"
+    Three CEM II pastes and a CEM III, differing in replacement level, in w/b and
+    in assemblage, all returned **12.510 to three decimals**. A quantity that
+    does not move when the inputs move is either buffered or not computed from
+    them — here both. The corroboration was a fifth calculation: the CEM V, whose
+    fly ash carries 2.5 % K₂O, was the only one with alkalis in its budget and
+    the only one that did not return 12.510.
+
+    A real cement pore solution sits above 13 for exactly this reason: the
+    alkalis dissolve almost completely and stay in solution, while the calcium is
+    held at the portlandite floor. If your pH comes out at 12.5 and will not
+    move, look at the `K+` and `Na+` rows of the budget before looking at the
+    solver.
+
 Two of the twenty-eight zeolites are a chloride and a nitrate sodalite. On a
 binder carrying neither element, declaring them pulls every aqueous chloride and
 nitrate species in the database into the system on a budget of exactly zero —
@@ -138,11 +160,57 @@ The failure modes of a missing phase, as they actually appeared:
 |:--|:--|
 | element balance stuck at 1e-1 with **negative** worst supersaturation | an element has nowhere to go — nothing is asking to form because nothing *can* |
 | pH exactly 6.999 | the solve failed and returned neutral water |
+| pH exactly 12.51, and the same on unrelated pastes | portlandite is the only buffer, because the budget carries no alkalis |
 | an assemblage still containing anhydrous clinker | the solve never reached hydration |
 | a sweep whose pH jumps around non-monotonically | isolated failed solves inside an otherwise fine scan |
+| **one** point failing between two that certify | a starting point, not an infeasibility — walk to it by continuation from its neighbor |
 | a saturation index of +7 on a phase at 1e-305 mol | a declared phase whose element is absent from the budget |
 
-None of these says "add a phase", and all of them did mean exactly that.
+Most of these say "add a phase", and all of them did mean exactly that — except
+the last, which says the opposite and is worth separating out. A configuration
+that has **no** admissible assemblage fails everywhere near itself; a point that
+fails while both of its neighbors certify has an answer the search did not
+reach. The remedy there is not a species but a **start**: solve the easy neighbor
+first and continue from it. On a convex problem the minimum is unique, so a
+continuation cannot change what is found — only whether it is found — and the
+certificate still decides every point. Both blended-binder sweeps in this
+documentation are written that way, and both had a point that needed it.
+
+### 7. Declaring a solid solution whose range cannot reach where the answer is
+
+Trap 1's family has a second edge to it, and it is sharper. The siliceous
+hydrogarnet is a substitution on **two sites**, so its three members are not
+three points on one axis but
+
+| member | occupancy | ``x(\mathrm{Al})`` |
+|:--|:--|--:|
+| `C3AS0.84H4.32` | (AlAl)O₃ | 1.0 |
+| `C3AFS0.84H4.32` | (AlFe³⁺)O₃ | 0.5 |
+| `C3FS0.84H4.32` | (Fe³⁺Fe³⁺)O₃ | 0.0 |
+
+and CEMDATA18 declares the binary between the **middle and the iron end**
+[Lothenbach2019](@cite) — spanning ``x(\mathrm{Al}) \in [0, 0.5]`` and no
+further. A CEM I is iron-rich through its ferrite phase and never needs more. A
+binder whose pozzolana brings twice as much aluminum as iron does, and the
+declared phase **cannot go there**: the minimization will drive the solution to
+its aluminum-richest admissible composition and stop, with aluminum left over and
+nothing in the output saying the range was the binding constraint.
+
+The remedy used on [the CEM IV](@ref ex-cem4-pozzolanic) and
+[CEM V](@ref ex-cem5-composite) pages is to declare `C3AS0.84H4.32` as a separate
+**pure phase** beside the binary, which is how the aluminum-rich half of the
+series becomes reachable at all. It is an approximation and it is named as one:
+as a pure phase it carries no mixing entropy, where a site-fraction model over
+``x(\mathrm{Al}) \in [0,1]`` would.
+
+!!! warning "Extending the solid solution to three end-members would be worse"
+    The tempting fix — declare all three as an ideal ternary — is wrong, and
+    wrong in a way that certifies. Three compositions of a two-site substitution
+    are not three independent end-members; an ideal ternary over them counts
+    configurations that do not exist and gets the mixing entropy wrong, so it
+    returns a confident answer to a model nobody published. A solid solution is
+    only ever as good as the model that was fitted for it: declare the range that
+    was fitted, and handle what lies outside it explicitly.
 
 ## A habit worth adopting
 

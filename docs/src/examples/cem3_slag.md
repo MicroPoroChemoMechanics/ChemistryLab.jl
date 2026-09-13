@@ -98,17 +98,58 @@ CLINKER = OrderedDict("C3S" => 0.65, "C2S" => 0.11, "C3A" => 0.11, "C4AF" => 0.0
 SLAG = Dict("CaO" => 0.41, "SiO2" => 0.36, "Al2O3" => 0.11,
             "MgO" => 0.08, "SO3" => 0.02)
 
+# THE CLINKER'S ALKALIS, which Bogue does not account for and which set the pH.
+#
+# A Bogue calculation returns four phases and no sodium or potassium: they are
+# minor oxides, a fraction of a percent, and they sit outside the four-phase
+# decomposition. They are also, in a cement paste, **what fixes the pH** -- they
+# dissolve almost completely into the pore solution and stay there, where the
+# calcium is held down by portlandite at 12.5. Leaving them out does not make the
+# calculation conservative: it makes it report a portlandite floor as though it
+# were a pore solution.
+#
+# ASSUMED at a usual industrial level, as a fraction of the CLINKER mass.
+ALKALIS = Dict("K2O" => 0.008, "Na2O" => 0.002)
+
 WB = 0.40            # MEASURED, from the record above
 BINDER_G = 100.0
-nothing # hide
+
+# HOW MUCH REACTS. Two ceilings, and the reacted fraction is the lower.
+#
+# The WATER ceiling is Powers (1948): about 0.42 g of water per gram of cement
+# is needed for complete hydration -- 0.23 g written into the hydrate formulae
+# and 0.19 g held in the gel pores those hydrates create. Below that the paste
+# stops WITH WATER STILL IN IT, what remains being in pores far too fine to
+# reach an unhydrated grain. That argument is about the pore space and not about
+# the grain, so it caps the slag exactly as it caps the alite. Water curing
+# moves it to 0.36, the volume emptied by chemical shrinkage being refilled from
+# outside -- `powers_alpha_max(WB; curing = :saturated)`.
+ALPHA_WATER = powers_alpha_max(WB)                 # sealed, ASSUMED
+
+# The KINETIC ceiling is the slag's own dissolution rate, and at 28 days it is
+# the lower of the two by a wide margin. The RILEM TC 238-SCM round robin
+# [Durdzinski2017](@cite) measured two ground granulated slags at 40 %
+# replacement and w/b 0.40 in seven laboratories -- this page's geometry. Its
+# Table 4 at 28 days, by SEM image analysis, the technique the study found most
+# consistent: 38 % and 48 % for the first slag, 45 % and 49 % for the second.
+# The study's verdict on the precision of any technique: "at best +/- 5 %".
+#
+# ASSUMED from that table. [The CEM V page](@ref cem5-dor) sweeps the same
+# quantity across the round robin's 7-, 28- and 90-day columns.
+ALPHA_SLAG = min(0.45, ALPHA_WATER)
+ALPHA_CLINKER = ALPHA_WATER
+
+@printf("water ceiling at w/b = %.2f : %.3f\n", WB, ALPHA_WATER)
+@printf("reacted: clinker %.0f %%, slag %.0f %%\n", 100ALPHA_CLINKER, 100ALPHA_SLAG)
 ```
 
 !!! warning "Read the results as a family, not as this specimen"
-    Everything below follows from those three assumptions as much as from the
+    Everything below follows from those assumptions as much as from the
     thermodynamics. A different slag content inside the same EN 197-1 range
-    moves the assemblage; a different clinker Bogue moves it again. What the
-    calculation shows is how a **CEM III/A behaves**, not what this particular
-    cement from Hranice contains.
+    moves the assemblage; a different clinker Bogue moves it again; and the
+    reacted fractions move the amounts more than either. What the calculation
+    shows is how a **CEM III/A behaves**, not what this particular cement from
+    Hranice contains.
 
 ## 2. The slag enters as an element budget
 
@@ -155,18 +196,41 @@ components = String.(symbol.(cs.SM.primaries))
 ## 3. The budget, clinker plus glass
 
 ```@example cem3
-state = ChemicalState(cs)
 molar_mass(n) = ustrip(us"g/mol", byname[n][:M])
 
-for (phase, frac) in CLINKER
-    set_quantity!(state, phase,
-        BINDER_G * CLINKER_FRACTION * frac / molar_mass(phase) * u"mol")
-end
-set_quantity!(state, "H2O@", BINDER_G * WB / molar_mass("H2O@") * u"mol")
+"""
+    paste(; alkali = 1.0) -> (; state, clinker, slag, total)
 
-b_clinker = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
-b_slag = oxide_budget(SLAG, cs.SM.primaries; mass = BINDER_G * SLAG_FRACTION * u"g")
-b = b_clinker .+ b_slag
+The fresh state and the element budget, with `alkali` scaling the clinker's
+sodium and potassium so that section 6 can sweep the one input that sets the pH.
+
+The state carries only what has reacted. The rest -- unhydrated clinker cores and
+undissolved glass -- is still in the specimen, and is no part of the
+minimization: an intact grain is not at equilibrium with the solution around it.
+All of the mixing water enters, though: the ceiling limits how far the reaction
+can go, not how much water was poured in, and the water that cannot reach a grain
+is still in the balance.
+"""
+function paste(; alkali = 1.0)
+    st = ChemicalState(cs)
+    for (phase, frac) in CLINKER
+        set_quantity!(st, phase,
+            ALPHA_CLINKER * BINDER_G * CLINKER_FRACTION * frac / molar_mass(phase) * u"mol")
+    end
+    set_quantity!(st, "H2O@", BINDER_G * WB / molar_mass("H2O@") * u"mol")
+
+    clinker = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    # The alkalis follow the clinker, and its reacted fraction: they leave the
+    # grain as it dissolves.
+    clinker .+= alkali * oxide_budget(ALKALIS, cs.SM.primaries;
+                                      mass = BINDER_G * CLINKER_FRACTION * ALPHA_CLINKER * u"g")
+    slag = oxide_budget(SLAG, cs.SM.primaries;
+                        mass = BINDER_G * SLAG_FRACTION * ALPHA_SLAG * u"g")
+    return (; state = st, clinker, slag, total = clinker .+ slag)
+end
+
+p0 = paste()
+state, b = p0.state, p0.total
 
 for (comp, v) in zip(components, b)
     abs(v) > 1.0e-6 && @printf("  %-8s %10.5f mol\n", comp, v)
@@ -241,7 +305,59 @@ enough to release the AFm sulfate, would.
     now pose the question; answering it needs a kinetic description of sulfate
     reduction, which it does not have.
 
-## 6. What the measured calorimetry says, and what it does not
+## [6. The one input that sets the pH](@id cem3-alkali)
+
+Everything on this page is assumed except the water/binder ratio, the fineness
+and the calorimetry — and of the assumptions, **one dominates the pore
+solution**. The calcium is held at the portlandite floor and cannot rise; what
+rises above it is the alkalis, which dissolve almost entirely and stay there. So
+a page that assumes an alkali content owes the reader its sensitivity, and this
+is it: the same paste with the clinker's Na₂O and K₂O scaled over the industrial
+range, from a low-alkali cement to a high-alkali one.
+
+```@example cem3
+i_ch = findfirst(sp -> symbol(sp) == "Portlandite", cs.species)
+na2o_eq(scale) = 100 * scale * (ALKALIS["Na2O"] + 0.658 * ALKALIS["K2O"])
+
+@printf("%-14s %10s %11s %8s %13s\n",
+        "Na2O eq (%)", "certified", "balance", "pH", "portlandite")
+
+# `let` rather than a bare loop: a top-level `for` that assigns to a name of the
+# enclosing scope makes a NEW LOCAL, so `prev` would be read before it is ever
+# written. Wrapping the sweep gives it a scope of its own, which is cleaner than
+# reaching for `global`.
+let prev = nothing
+    for scale in (0.5, 1.0, 1.5)
+        pa = paste(; alkali = scale)
+        e, c = equilibrate_certified(something(prev, pa.state);
+                                     model = model, b = pa.total)
+        c.optimal && (prev = e)
+        nn = ustrip.(us"mol", e.n)
+        @printf("%-14.2f %10s %11.1e %8.3f %13.5f\n",
+                na2o_eq(scale), c.optimal, c.balance, pH(e, model), nn[i_ch])
+    end
+end
+```
+
+Read the two right-hand columns against each other. A **factor of three** on the
+alkali content moves the pH by **0.40 unit** and the portlandite by under **5 %**.
+That separation is the whole point: the calcium is held by portlandite and cannot
+follow, so in a cement paste the alkalis *are* the pH and the calcium hydroxide
+is only a floor beneath them.
+
+The middle row is the page's own case, and it returns the 13.041 of section 4 —
+which is worth checking rather than assuming, since a sweep that did not
+reproduce its own nominal point would be measuring something else.
+
+Two consequences for anyone using this page. A pH quoted from it is worth exactly
+what the assumed alkali content is worth, so **substitute your own analysis** —
+the constant is `ALKALIS` in section 1 and nothing else needs to change. And a
+durability argument that turns on pore-solution pH — alkali-silica reaction,
+steel passivation, leaching — cannot be settled by a calculation whose alkali
+input was assumed. That is not a limitation of the minimization; it is what the
+minimization is telling you about which measurement to go and make.
+
+## 7. What the measured calorimetry says, and what it does not
 
 The record gives the heat, and the heat is the one quantity here that was
 measured rather than assumed. It is worth putting beside the CEM I of the same

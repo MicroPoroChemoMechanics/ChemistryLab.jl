@@ -147,8 +147,14 @@
   doi     = {10.1061/(ASCE)0733-9399(1999)125:9(1018)},
 }
 
+% The names are written in UTF-8 rather than with LaTeX accent commands, and
+% deliberately: the :authoryear style abbreviates a given name by slicing the
+% RAW string, which cuts inside `{\v s}` and throws
+% `ArgumentError: Premature end of tex string`. `Tomáš` is five characters and
+% survives any slice. Found by the bibliography pre-flight in `docs/make.jl`
+% before it could kill a build; the names themselves are unchanged.
 @article{SmilauerKrejci2009,
-  author  = {{\v S}milauer, V{\'\i}t and Krej{\v c}{\'\i}, Tom{\'a}{\v s}},
+  author  = {Šmilauer, Vít and Krejčí, Tomáš},
   title   = {Multiscale model for temperature distribution in hydrating concrete},
   journal = {International Journal for Multiscale Computational Engineering},
   volume  = {7},
@@ -405,10 +411,17 @@
 % ── the aluminum- and alkali-bearing C-S-H ───────────────────────────────────
 % DOI resolved against the Crossref REST API on 2026-09-12; the title is as
 % Crossref returns it.
+%
+% The underscore of `CNASH_ss` is written BARE, inside braces, and not as the
+% LaTeX escape `\_`. DocumenterCitations parses the title as TeX and rejects
+% `\_` with `ArgumentError: Invalid command: \_ss` -- from `ExpandBibliography`,
+% which runs AFTER every executed block of the site. One character cost a
+% three-hour build once. `docs/make.jl` now formats every entry before
+% `makedocs` so that failure takes seconds instead.
 
 @article{Myers2014,
   author  = {Myers, Rupert J. and Bernal, Susan A. and Provis, John L.},
-  title   = {A thermodynamic model for {C-(N-)A-S-H} gel: {CNASH\_ss}. Derivation and validation},
+  title   = {A thermodynamic model for {C-(N-)A-S-H} gel: {CNASH_ss}. Derivation and validation},
   journal = {Cement and Concrete Research},
   volume  = {66},
   pages   = {27--47},
@@ -475,4 +488,30 @@
   pages   = {164--201},
   year    = {1990},
   doi     = {10.2475/ajs.290.2.164},
+}
+
+% ── added for the blended-binder pages: how far an SCM actually reacts ────────
+% Both DOIs resolved against Crossref on 2026-09-13, title, authors, volume,
+% issue and pages checked against what Crossref returns.
+
+@article{Durdzinski2017,
+  author  = {Durdzi{\'n}ski, Pawe{\l} T. and {Ben Haha}, Mohsen and Bernal, Susan A. and {De Belie}, Nele and Gruyaert, Elke and Lothenbach, Barbara and {Men{\'e}ndez M{\'e}ndez}, Esperanza and Provis, John L. and Sch{\"o}ler, Axel and Stabler, Christopher and Tan, Zhijun and {Villagr{\'a}n Zaccardi}, Yury and Vollpracht, Anya and Winnefeld, Frank and Zaj{\k a}c, Maciej and Scrivener, Karen L.},
+  title   = {Outcomes of the {RILEM} round robin on degree of reaction of slag and fly ash in blended cements},
+  journal = {Materials and Structures},
+  volume  = {50},
+  number  = {2},
+  pages   = {135},
+  year    = {2017},
+  doi     = {10.1617/s11527-017-1002-1},
+}
+
+@article{Kocaba2012,
+  author  = {Kocaba, Vanessa and Gallucci, Emmanuel and Scrivener, Karen L.},
+  title   = {Methods for determination of degree of reaction of slag in blended cement pastes},
+  journal = {Cement and Concrete Research},
+  volume  = {42},
+  number  = {3},
+  pages   = {511--525},
+  year    = {2012},
+  doi     = {10.1016/j.cemconres.2011.11.010},
 }

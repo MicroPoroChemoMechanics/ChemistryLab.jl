@@ -86,6 +86,16 @@ FLYASH = OrderedDict("SiO2" => 0.53, "Al2O3" => 0.26, "Fe2O3" => 0.07,
                      "CaO" => 0.04, "MgO" => 0.02, "K2O" => 0.025,
                      "Na2O" => 0.008, "SO3" => 0.005)
 
+# THE CLINKER'S OWN ALKALIS, which Bogue does not account for. They are minor
+# oxides outside the four-phase decomposition, and in a paste they are what fixes
+# the pH: they dissolve almost completely and stay in solution while the calcium
+# is held down by portlandite at 12.5. On this page they matter twice over, since
+# the whole question of section 6 is what the pozzolana does to the alkalis.
+# ASSUMED at a usual industrial level, as a fraction of the CLINKER mass.
+# [The CEM III page](@ref cem3-alkali) sweeps this over the industrial range and
+# shows that it, and almost nothing else, is what moves the pH.
+ALKALIS = OrderedDict("K2O" => 0.008, "Na2O" => 0.002)
+
 # ASSUMED: the midpoint of the EN 197-1 range for a CEM IV/A, which is 65-89 %
 # clinker and 11-35 % pozzolana. Section 7 goes to a CEM IV/B, and shows what
 # has to be added to the phase list before that is a question with an answer.
@@ -94,15 +104,41 @@ ASH_FRACTION_B = 0.45
 GYPSUM = 0.046
 WB = 0.50
 BINDER_G = 100.0
-nothing # hide
+
+# HOW MUCH REACTS. Two ceilings, and the reacted fraction is the lower.
+#
+# The WATER ceiling is Powers (1948): about 0.42 g of water per gram of cement
+# is needed for complete hydration, 0.23 g written into the hydrates and 0.19 g
+# held in gel pores too fine to feed a grain. It is a property of the pore space
+# rather than of the grain, so it caps every constituent alike. At w/b = 0.50
+# it does not bind at all -- water is abundant here, and the function correctly
+# returns 1. It binds on [the CEM V page](@ref ex-cem5-composite), mixed at 0.40.
+ALPHA_WATER = powers_alpha_max(WB)              # 1.0 at w/b = 0.50
+
+# The KINETIC ceiling is what actually limits a fly ash, and by a long way. Only
+# the glassy fraction reacts at all -- the crystalline mullite and quartz do not
+# dissolve on any relevant time scale -- and the glass itself is slow. The RILEM
+# TC 238-SCM round robin [Durdzinski2017](@cite) measured a siliceous fly ash at
+# 30 % replacement and w/b 0.40 in seven laboratories; its Table 4 at 28 days
+# gives 20 % by SEM image analysis, the technique the study found most
+# consistent, with XRD-PONKCS between 19 % and 23 %. The study's verdict on the
+# precision of any of these: "at best +/- 5 %".
+#
+# ASSUMED from that table. Section 7 drives it to 1 and shows what changes.
+ALPHA_ASH = min(0.20, ALPHA_WATER)
+ALPHA_CLINKER = ALPHA_WATER
+
+@printf("water ceiling at w/b = %.2f : %.3f\n", WB, ALPHA_WATER)
+@printf("reacted: clinker %.0f %%, fly ash %.0f %%\n",
+        100ALPHA_CLINKER, 100ALPHA_ASH)
 ```
 
-Only the reactive part of a fly ash takes part in the chemistry — the glassy
-fraction — and the crystalline mullite and quartz in it do not dissolve on any
-relevant time scale. An equilibrium calculation has no way to distinguish them,
-so it treats the whole analysis as available. **That overstates what the ash
-contributes**, and it is stated here rather than corrected, because correcting it
-would need a degree-of-reaction that only a kinetic description supplies.
+An equilibrium calculation cannot tell glass from mullite, and it cannot tell a
+dissolved grain from an intact one: it reacts whatever budget it is handed. So
+the reacted fraction is not a refinement to be added later — it is part of
+posing the problem, and a page that leaves it at 1 has quietly asked what the
+paste becomes after every ash sphere has dissolved, which is a question about
+geological time, not about a specimen at 28 days.
 
 ## 2. Two species lists, differing in one phase
 
@@ -130,6 +166,28 @@ aqueous = ["SO4-2", "CO2@", "O2@"]
 CSHQ = ["CSHQ-JenD", "CSHQ-JenH", "CSHQ-TobD", "CSHQ-TobH", "KSiOH", "NaSiOH"]
 CNASH = ["T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
          "5CA", "5CNA", "INFCA", "INFCN", "INFCNA"]
+    # THE DECLARED SOLID SOLUTION CANNOT REACH AN ALUMINUM-RICH COMPOSITION,
+    # so the aluminum end-member is declared beside it. The siliceous
+    # hydrogarnet is a substitution of Al and Fe(III) on TWO sites:
+    #
+    #   C3AS0.84H4.32   (AlAlO3)[...]       x(Al) = 1.0
+    #   C3AFS0.84H4.32  (AlFe|3|O3)[...]    x(Al) = 0.5
+    #   C3FS0.84H4.32   (Fe|3|Fe|3|O3)[...] x(Al) = 0.0
+    #
+    # CEMDATA18 declares the binary between the middle and the iron end
+    # (`data/solid_solutions.toml`, source Lothenbach2019), which spans
+    # x(Al) from 0.5 down to 0. A CEM I is iron-rich through its ferrite
+    # phase and never needs more. A binder whose pozzolana brings twice as
+    # much aluminum as iron does, and the declared phase cannot go there.
+    #
+    # Declaring the aluminum end-member as a separate pure phase is how that
+    # half of the series is reachable at all. It is an approximation, and the
+    # approximation is named: as a pure phase it carries no mixing entropy,
+    # where a site-fraction model over x(Al) in [0,1] would. Extending the
+    # solid solution to three end-members would be WORSE, not better --
+    # three compositions of a two-site substitution are not three independent
+    # end-members, and an ideal ternary over them gets the configurational
+    # entropy wrong.
 FEAL = ["C3AFS0.84H4.32", "C3FS0.84H4.32"]
 
 function system(gel_name, gel_members)
@@ -158,18 +216,27 @@ model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
 ## 3. The budget
 
 ```@example cem4
-function budget(cs; ash, wb = WB)
+# `α_ash` is a keyword rather than a constant so that section 7 can drive it,
+# and the state carries only the reacted clinker: what has not reacted is still
+# in the specimen but is not at equilibrium with the pore solution.
+function budget(cs; ash, wb = WB, α_ash = ALPHA_ASH, α_clinker = ALPHA_CLINKER)
     clinker_frac = 1 - ash - GYPSUM
     state = ChemicalState(cs)
     for (phase, frac) in CLINKER
         set_quantity!(state, phase,
-            BINDER_G * clinker_frac * frac / molar_mass(phase) * u"mol")
+            α_clinker * BINDER_G * clinker_frac * frac / molar_mass(phase) * u"mol")
     end
+    # The calcium sulfate is soluble and carries no ceiling, and all of the
+    # mixing water enters: the ceiling limits how far the reaction goes, not how
+    # much water was poured in.
     set_quantity!(state, "Gp", BINDER_G * GYPSUM / molar_mass("Gp") * u"mol")
     set_quantity!(state, "H2O@", BINDER_G * wb / molar_mass("H2O@") * u"mol")
     b = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
+    # The alkalis leave the grain as it dissolves: same fraction as the clinker.
+    b .+= oxide_budget(ALKALIS, cs.SM.primaries;
+                       mass = BINDER_G * clinker_frac * α_clinker * u"g")
     ash > 0 && (b .+= oxide_budget(FLYASH, cs.SM.primaries;
-                                   mass = BINDER_G * ash * u"g"))
+                                   mass = BINDER_G * ash * α_ash * u"g"))
     return state, b
 end
 
@@ -252,31 +319,73 @@ end
 
 ## 6. Portlandite is the limiting reagent
 
-The pozzolanic reaction consumes calcium hydroxide. Sweep the replacement level
-and the point where it runs out is visible directly:
+The pozzolanic reaction consumes calcium hydroxide, so sweeping the replacement
+level says how much of it survives. The sweep is run **twice** — at the reacted
+fraction of section 1, and in the limit where the ash has entirely dissolved —
+because the two answer different questions and are routinely confused:
 
 ```@example cem4
-fractions = 0.0:0.05:0.30
-ch = Float64[]
-phs = Float64[]
-for f in fractions
-    st, b = budget(cs_n; ash = f)
-    eq, _ = equilibrate_certified(st; model = model, b = b)
-    n = ustrip.(us"mol", eq.n)
-    i = findfirst(s -> symbol(s) == "Portlandite", cs_n.species)
-    push!(ch, n[i])
-    push!(phs, pH(eq, model))
-    @printf("  ash %3.0f %%   portlandite %8.5f mol   pH %.3f\n", 100f, n[i], phs[end])
+fractions = 0.0:0.10:0.30
+curves = Dict{Float64, Tuple{Vector{Float64}, Vector{Float64}, Vector{Bool}}}()
+i_ch = findfirst(s -> symbol(s) == "Portlandite", cs_n.species)
+for α in (ALPHA_ASH, 1.0)
+    ch, phs, ok = Float64[], Float64[], Bool[]
+    prev = nothing
+    for f in fractions
+        st, b = budget(cs_n; ash = f, α_ash = α)
+        # CONTINUATION along the sweep: each point starts from its neighbor's
+        # answer rather than from a fresh paste.
+        #
+        # That is safe here for a reason that is CHECKED rather than assumed.
+        # Both solid solutions above are declared with the default ideal mixing
+        # model, and `SolidSolutionPhase` refuses a model whose mixing energy has
+        # a spinodal -- so the Gibbs function is convex, its minimum is unique,
+        # and a continuation cannot change WHAT is found, only whether the search
+        # finds it, which on a 109-species cement is the whole difficulty. Waive
+        # that refusal with `check_convexity = false` and none of it holds: inside
+        # a spinodal the minimum is two compositions, the certificate loses the
+        # sufficiency that rests on convexity, and the start would then decide
+        # which branch you land on. The certificate still decides every point
+        # here, and a start is reused only once it has been certified.
+        eq, c = equilibrate_certified(something(prev, st); model = model, b = b)
+        c.optimal && (prev = eq)
+        n = ustrip.(us"mol", eq.n)
+        push!(ch, n[i_ch])
+        push!(phs, pH(eq, model))
+        push!(ok, c.optimal)
+        # The certificate is carried through to the figure, not just printed. A
+        # point that does not certify is a point whose portlandite and pH mean
+        # nothing, and a sweep that hides one draws a curve through a number the
+        # solver never stood behind.
+        @printf("  ash reacted %3.0f %% of %3.0f %%   certified %-5s   balance %8.1e   portlandite %8.5f mol   pH %.3f\n",
+                100α, 100f, c.optimal, c.balance, n[i_ch], phs[end])
+    end
+    curves[α] = (ch, phs, ok)
 end
 ```
 
 ```@example cem4
-p1 = plot(100 .* collect(fractions), ch; marker = :circle, legend = false,
-          xlabel = "fly ash (% of binder)", ylabel = "portlandite (mol / 100 g)",
-          color = :seagreen, title = "Calcium hydroxide consumed")
-p2 = plot(100 .* collect(fractions), phs; marker = :circle, legend = false,
-          xlabel = "fly ash (% of binder)", ylabel = "pH",
-          color = :steelblue, title = "Pore solution pH")
+x = 100 .* collect(fractions)
+p1 = plot(; xlabel = "fly ash (% of binder)", ylabel = "portlandite (mol / 100 g)",
+          title = "Calcium hydroxide consumed", legend = :bottomleft)
+p2 = plot(; xlabel = "fly ash (% of binder)", ylabel = "pH",
+          title = "Pore solution pH", legend = false)
+for (α, color, lab) in ((ALPHA_ASH, :seagreen, "ash reacted 20 % (28 days)"),
+                        (1.0, :indianred, "ash reacted 100 % (the limit)"))
+    ch, phs, ok = curves[α]
+    plot!(p1, x, ch; marker = :circle, color, label = lab)
+    plot!(p2, x, phs; marker = :circle, color, label = lab)
+    # A point the certificate refused is drawn hollow and black, so that a
+    # reader sees the gap in the evidence rather than a smooth curve through it.
+    bad = .!ok
+    if any(bad)
+        scatter!(p1, x[bad], ch[bad]; marker = :circle, markersize = 8,
+                 markercolor = :white, markerstrokecolor = :black,
+                 label = "not certified")
+        scatter!(p2, x[bad], phs[bad]; marker = :circle, markersize = 8,
+                 markercolor = :white, markerstrokecolor = :black, label = "")
+    end
+end
 fig = plot(p1, p2; layout = (1, 2), size = (900, 380),
            bottom_margin = 10Plots.mm, left_margin = 10Plots.mm)
 savefig(fig, "cem4-sweep.svg"); nothing # hide
@@ -284,42 +393,61 @@ savefig(fig, "cem4-sweep.svg"); nothing # hide
 
 ![](cem4-sweep.svg)
 
-Two things happen at once along that sweep, and they are worth separating.
-The **portlandite** falls because the ash's silica turns it into more C-S-H —
-that is the pozzolanic reaction, and it is the property the family is specified
-for. The **pH** moves much less, because in a cement paste it is the alkalis that
-set it, not the calcium hydroxide; portlandite only fixes a floor around 12.5 at
-25 °C. A pozzolanic binder lowers the pH mainly by **binding alkalis into the
-C-A-S-H**, and that is a mechanism only the `CNASH_ss` model can express at all.
+Three things are visible, and they are worth separating — plus one honest gap,
+marked hollow wherever the certificate refused a point. A refused point is not a
+result: its portlandite and its pH are whatever the iteration stopped at, and a
+pH of exactly 6.999 is the signature of a solve that fell back to neutral water.
+They are drawn rather than dropped, because dropping them would put a smooth
+curve where the evidence has a hole.
 
-## 7. Push to a CEM IV/B, and the calculation stops having an answer
+The **portlandite falls** because the ash's silica turns it into more C-S-H —
+that is the pozzolanic reaction, and it is the property the family is specified
+for. **How far it falls is entirely a matter of how much ash has reacted**: in
+the limit a CEM IV/A exhausts its portlandite inside the EN 197-1 range — and the
+last points of that branch stop certifying as it goes, which is what the hollow
+markers are — while at 28 days the same binder still has about half of it. Reporting the first as though it
+described a specimen is the single easiest mistake to make with an equilibrium
+code, and it is not a small one — portlandite is what buffers the pH and what
+protects the reinforcement.
+
+The **pH moves much less** than the portlandite, because in a cement paste it is
+the alkalis that set it, not the calcium hydroxide; portlandite only fixes a
+floor around 12.5 at 25 °C. A pozzolanic binder lowers the pH mainly by **binding
+alkalis into the C-A-S-H**, and that is a mechanism only the `CNASH_ss` model can
+express at all.
+
+## 7. A CEM IV/B, and the limit where the phase list runs out
 
 Everything so far was a CEM IV/**A**, 23 % ash. Take it to a CEM IV/**B** — the
-midpoint of 36–55 % — and the equilibrium **fails to certify**, on either C-S-H
-model. That is not a numerical accident and it is not a defect of `CNASH_ss`:
+midpoint of 36–55 % — and ask the same question twice: once at the reacted
+fraction a specimen has at 28 days, and once in the limit where every ash sphere
+has dissolved.
 
 ```@example cem4
-eq_b, c_b = nothing, nothing          # the CNASH_ss case, kept for section 7
-for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
-    st, b = budget(cs; ash = ASH_FRACTION_B)
+eq_b, c_b = nothing, nothing          # the full-reaction case, kept below
+for α in (ALPHA_ASH, 1.0), (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
+    st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = α)
     eq, c = equilibrate_certified(st; model = model, b = b)
-    label == "CNASH_ss" && (global eq_b, c_b = eq, c)
-    @printf("%-10s at %2.0f %% ash: optimal=%-5s  balance=%.1e  pH=%.3f\n",
-            label, 100ASH_FRACTION_B, c.optimal, c.balance, pH(eq, model))
+    (α == 1.0 && label == "CNASH_ss") && (global eq_b, c_b = eq, c)
+    @printf("%2.0f %% ash reacted %3.0f %%  %-10s optimal=%-5s balance=%.1e  pH=%.3f\n",
+            100ASH_FRACTION_B, 100α, label, c.optimal, c.balance, pH(eq, model))
 end
 ```
 
-**The element budget has nowhere to put what the ash brings.** At 23 % the
-aluminum fits in the C-A-S-H, the AFm/AFt phases and strätlingite, and the
-alkalis fit in the C-A-S-H and the sulfates. At 45 % there is more aluminum and
-more alkali than those phases can hold, portlandite is gone so the calcium
-potential is no longer buffered by a pure phase, and the minimization is looking
-for an assemblage that the declared phase list cannot form.
+At 28 days a CEM IV/B is an ordinary calculation: what the ash has released by
+then fits in the phases the paste can form, and the answer certifies. **In the
+limit it does not.** With every sphere dissolved there is more aluminum and more
+alkali than the C-A-S-H, the AFm/AFt phases and strätlingite can hold together,
+portlandite is long gone so the calcium potential is no longer buffered by a pure
+phase, and the minimization is looking for an assemblage the declared phase list
+cannot form.
 
-A real cement does not have this problem, because a real alkaline aluminosilicate
-paste precipitates **zeolites** — and CEMDATA18 carries five of them, none of the
-families this binder needs. That is exactly what
-[the zeolite extension](@ref sec-zeolites) was built for.
+That limit is not an idle question. It is where a pozzolanic binder is heading
+over years, and it is the regime an alkali-activated system is in from the start.
+A real alkaline aluminosilicate does have an answer there, because it
+precipitates **zeolites** — and CEMDATA18 carries five, none of the families this
+binder needs. That is exactly what [the zeolite extension](@ref sec-zeolites) was
+built for.
 
 ```@example cem4
 zeo_db = build_species(datapath("cemdata18-zeolites.json"); verbose = false)
@@ -360,8 +488,9 @@ end
 set_quantity!(st_z, "Gp", BINDER_G * GYPSUM / molar_mass("Gp") * u"mol")
 set_quantity!(st_z, "H2O@", BINDER_G * WB / molar_mass("H2O@") * u"mol")
 b_z = Float64.(cs_z.SM.A) * ustrip.(us"mol", st_z.n)
+# The full-reaction limit, so that this is the same question `c_b` failed.
 b_z .+= oxide_budget(FLYASH, cs_z.SM.primaries;
-                     mass = BINDER_G * ASH_FRACTION_B * u"g")
+                     mass = BINDER_G * ASH_FRACTION_B * 1.0 * u"g")
 
 eq_z, c_z = equilibrate_certified(st_z; model = model, b = b_z)
 @printf("with zeolites: optimal=%-5s  worst SI=%+.2e  pH=%.3f

@@ -44,12 +44,13 @@ The aluminum goes the other way. Both glasses bring it, the ash twice as much pe
 gram, and there are only so many aluminate hydrates to hold it — which is what
 makes the C-A-S-H model the load-bearing choice here rather than a refinement.
 
-!!! note "Read this page as a limit, not as a specimen"
-    Equilibrium treats every constituent as fully reacted. A real CEM V at 28
-    days has dissolved a fraction of its slag and less of its ash, so the paste
-    below is the state this formulation *tends to*, not what a cylinder would
-    contain. The degree of reaction is a kinetic quantity, supplied from outside
-    — see [the coupled runs](@ref ex-ionic-opc).
+!!! note "Nothing here reacts completely, and the page says how much does"
+    A Gibbs minimization reacts whatever it is given. What it is given is
+    therefore a modeling decision, not a detail: hand it the whole binder and it
+    answers *what this paste becomes if everything reacts*, which no paste does —
+    not the glasses, and not the clinker either. Section 1 fixes a reacted
+    fraction for each constituent, from the water available and from published
+    28-day measurements, and [section 6](@ref cem5-dor) sweeps it.
 
 ```@example cem5
 using ChemistryLab
@@ -116,9 +117,56 @@ FLYASH = OrderedDict("SiO2" => 0.53, "Al2O3" => 0.26, "Fe2O3" => 0.07,
                      "CaO" => 0.04, "MgO" => 0.02, "K2O" => 0.025,
                      "Na2O" => 0.008, "SO3" => 0.005)
 
+# THE CLINKER'S OWN ALKALIS, which Bogue does not account for -- minor oxides
+# outside the four-phase decomposition, and in a paste what fixes the pH: they
+# dissolve almost completely and stay in solution, while the calcium is held down
+# by portlandite at 12.5. ASSUMED at a usual industrial level, as a fraction of
+# the CLINKER mass. The fly ash brings alkalis of its own, and section 3's table
+# shows which constituent brought what. [The CEM III page](@ref cem3-alkali)
+# sweeps this input over the industrial range: it, and almost nothing else, is
+# what moves the pH.
+ALKALIS = OrderedDict("K2O" => 0.008, "Na2O" => 0.002)
+
 WB = 0.40            # MEASURED, from the record above
 BINDER_G = 100.0
-nothing # hide
+
+# HOW MUCH OF EACH CONSTITUENT HAS REACTED. Two ceilings, and the reacted
+# fraction is the lower of them.
+#
+# THE WATER CEILING is the same for every constituent, because it is a property
+# of the pore space and not of the grain. Powers (1948): a gram of cement needs
+# about 0.42 g of water to hydrate completely -- 0.23 g written into the hydrate
+# formulae, and 0.19 g held in the gel pores those hydrates create. Below that
+# the paste desiccates itself and stops WITH WATER STILL IN IT, the remaining
+# water being in pores too fine to reach an unhydrated grain at a scale orders
+# of magnitude larger. Nothing about that argument mentions clinker, so it
+# applies to a slag particle and an ash sphere exactly as it does to an alite
+# grain. Under water curing the ceiling moves to 0.36, the volume emptied by
+# chemical shrinkage being refilled from the bath -- `curing = :saturated`.
+CURING = :sealed                                   # ASSUMED: the record is silent
+ALPHA_WATER = powers_alpha_max(WB; curing = CURING)
+
+# THE KINETIC CEILING is each constituent's own dissolution rate at the age
+# considered, and for the two glasses it is far the lower of the two. The RILEM
+# TC 238-SCM round robin [Durdzinski2017](@cite) measured exactly this geometry
+# -- Portland cement blended with slag and with a siliceous fly ash, w/b 0.40 --
+# in seven laboratories. Its Table 4 at 28 days, by SEM image analysis, the one
+# technique the study found consistent: 38 % and 48 % for one slag, 45 % and
+# 49 % for the other, 20 % for the siliceous fly ash. The study's own verdict on
+# the precision is worth carrying: "at best +/- 5 %".
+#
+# ASSUMED from that table, and [section 6](@ref cem5-dor) sweeps both.
+ALPHA_SLAG = min(0.45, ALPHA_WATER)
+ALPHA_ASH = min(0.20, ALPHA_WATER)
+
+# The clinker is taken AT its water ceiling. At 28 days it has not quite got
+# there, so the assemblage below is an upper bound on what the clinker
+# contributes; section 6 moves it too.
+ALPHA_CLINKER = ALPHA_WATER
+
+@printf("water ceiling (%s, w/b = %.2f) : %.3f\n", CURING, WB, ALPHA_WATER)
+@printf("reacted: clinker %.0f %%, slag %.0f %%, fly ash %.0f %%\n",
+        100ALPHA_CLINKER, 100ALPHA_SLAG, 100ALPHA_ASH)
 ```
 
 ## 2. The system: C-A-S-H, hydrotalcite and the sulfur ladder
@@ -142,6 +190,28 @@ pure = split(
 pure = vcat(String.(pure), ZEOLITES)
 gel = ["T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
        "5CA", "5CNA", "INFCA", "INFCN", "INFCNA"]
+    # THE DECLARED SOLID SOLUTION CANNOT REACH AN ALUMINUM-RICH COMPOSITION,
+    # so the aluminum end-member is declared beside it. The siliceous
+    # hydrogarnet is a substitution of Al and Fe(III) on TWO sites:
+    #
+    #   C3AS0.84H4.32   (AlAlO3)[...]       x(Al) = 1.0
+    #   C3AFS0.84H4.32  (AlFe|3|O3)[...]    x(Al) = 0.5
+    #   C3FS0.84H4.32   (Fe|3|Fe|3|O3)[...] x(Al) = 0.0
+    #
+    # CEMDATA18 declares the binary between the middle and the iron end
+    # (`data/solid_solutions.toml`, source Lothenbach2019), which spans
+    # x(Al) from 0.5 down to 0. A CEM I is iron-rich through its ferrite
+    # phase and never needs more. A binder whose pozzolana brings twice as
+    # much aluminum as iron does, and the declared phase cannot go there.
+    #
+    # Declaring the aluminum end-member as a separate pure phase is how that
+    # half of the series is reachable at all. It is an approximation, and the
+    # approximation is named: as a pure phase it carries no mixing entropy,
+    # where a site-fraction model over x(Al) in [0,1] would. Extending the
+    # solid solution to three end-members would be WORSE, not better --
+    # three compositions of a two-site substitution are not three independent
+    # end-members, and an ideal ternary over them gets the configurational
+    # entropy wrong.
 feal = ["C3AFS0.84H4.32", "C3FS0.84H4.32"]
 redox_species = ["HS-", "H2S@", "SO4-2", "SO3-2", "S2O3-2", "O2@", "H2@", "CO2@"]
 
@@ -167,44 +237,120 @@ through [`oxide_budget`](@ref).
 
 ```@example cem5
 clinker_frac = 1 - SLAG_FRACTION - ASH_FRACTION - GYPSUM
-state = ChemicalState(cs)
-for (phase, frac) in CLINKER
-    set_quantity!(state, phase,
-        BINDER_G * clinker_frac * frac / molar_mass(phase) * u"mol")
+
+"""
+    paste(α_slag, α_ash; α_clinker) -> (; state, clinker, slag, ash, total)
+
+The fresh state and the three element contributions, at given reacted fractions.
+
+The state carries ONLY what reacts. What does not is still in the specimen --
+unhydrated clinker cores and undissolved glass, both of them measurable -- but it
+is no part of the minimization, and putting it in would be a different and false
+statement: that an unreacted grain is at equilibrium with the pore solution it is
+sitting in.
+
+Two things carry no ceiling. The calcium sulfate is soluble and is gone within
+hours, ceiling or no ceiling. And ALL of the mixing water enters: the ceiling
+limits how far the reaction can go, not how much water was poured in -- the water
+that cannot reach a grain is still in the specimen, and still in the balance.
+"""
+function paste(α_slag, α_ash; α_clinker = ALPHA_CLINKER)
+    st = ChemicalState(cs)
+    for (phase, frac) in CLINKER
+        set_quantity!(st, phase,
+            α_clinker * BINDER_G * clinker_frac * frac / molar_mass(phase) * u"mol")
+    end
+    set_quantity!(st, "Gp", BINDER_G * GYPSUM / molar_mass("Gp") * u"mol")
+    set_quantity!(st, "H2O@", BINDER_G * WB / molar_mass("H2O@") * u"mol")
+
+    clinker = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    # The alkalis leave the grain as it dissolves: same fraction as the clinker.
+    clinker .+= oxide_budget(ALKALIS, cs.SM.primaries;
+                             mass = BINDER_G * clinker_frac * α_clinker * u"g")
+    slag = oxide_budget(SLAG, cs.SM.primaries;
+                        mass = BINDER_G * SLAG_FRACTION * α_slag * u"g")
+    ash = oxide_budget(FLYASH, cs.SM.primaries;
+                       mass = BINDER_G * ASH_FRACTION * α_ash * u"g")
+    return (; state = st, clinker, slag, ash, total = clinker .+ slag .+ ash)
 end
-set_quantity!(state, "Gp", BINDER_G * GYPSUM / molar_mass("Gp") * u"mol")
-set_quantity!(state, "H2O@", BINDER_G * WB / molar_mass("H2O@") * u"mol")
 
-b_clinker = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
-b_slag = oxide_budget(SLAG, cs.SM.primaries;
-                      mass = BINDER_G * SLAG_FRACTION * u"g")
-b_ash = oxide_budget(FLYASH, cs.SM.primaries;
-                     mass = BINDER_G * ASH_FRACTION * u"g")
-b = b_clinker .+ b_slag .+ b_ash
+"""
+    solve_paste(α_slag, α_ash; start) -> (state, certificate)
 
-@printf("clinker %.1f %%, slag %.1f %%, fly ash %.1f %%, gypsum %.1f %%\n\n",
+The certified equilibrium of the paste at given reacted fractions.
+
+`start` is where the search begins. A cement equilibrium is **hard to start
+cold** -- 135 species, an assemblage that is not known in advance, and a pore
+solution four orders of magnitude more dilute than the solids -- and the standard
+remedy is to walk to it from a state that is easier. Here the walk is in the
+reacted fraction itself: a younger paste has released less of everything, so it
+is a smaller perturbation of pure water, and its answer is a good start for an
+older one.
+
+That is safe here for a reason that is **checked rather than assumed**. Both
+solid solutions of section 2 carry the default ideal mixing model, and
+`SolidSolutionPhase` refuses a model whose mixing energy has a spinodal — so the
+Gibbs function is convex, its minimum is unique, and a continuation **cannot
+change what is found**, only whether the search finds it.
+
+Waive that refusal with `check_convexity = false` and none of it holds: inside a
+spinodal the minimum is two coexisting compositions rather than one, the
+certificate loses the sufficiency that rests on convexity, and the starting point
+would then decide which branch the answer lands on — which is exactly the
+path-dependence [the miscibility gap page](@ref ex-miscibility-gap) is about. The
+certificate decides at every step here, and a start is reused only after it has
+been certified.
+"""
+function solve_paste(α_slag, α_ash; start = nothing)
+    pa = paste(α_slag, α_ash)
+    return equilibrate_certified(something(start, pa.state); model = model, b = pa.total)
+end
+
+p28 = paste(ALPHA_SLAG, ALPHA_ASH)
+state, b = p28.state, p28.total
+
+@printf("of 100 g of binder: clinker %.1f g, slag %.1f g, fly ash %.1f g, gypsum %.1f g\n",
         100clinker_frac, 100SLAG_FRACTION, 100ASH_FRACTION, 100GYPSUM)
+@printf("of which reacted   : clinker %.1f g, slag %.1f g, fly ash %.1f g, gypsum %.1f g\n\n",
+        100clinker_frac * ALPHA_CLINKER, 100SLAG_FRACTION * ALPHA_SLAG,
+        100ASH_FRACTION * ALPHA_ASH, 100GYPSUM)
 @printf("%-8s %10s %10s %10s %10s\n", "", "clinker", "slag", "fly ash", "total")
 for (i, c) in enumerate(components)
     abs(b[i]) > 1.0e-6 &&
         @printf("%-8s %10.5f %10.5f %10.5f %10.5f\n",
-                c, b_clinker[i], b_slag[i], b_ash[i], b[i])
+                c, p28.clinker[i], p28.slag[i], p28.ash[i], b[i])
 end
 ```
 
 That table is the page in one object. The aluminum comes mostly from the ash,
 the magnesium only from the slag, the sulfur from all three at two different
-oxidation states, and the calcium overwhelmingly from the clinker even at 48 %
-replacement.
+oxidation states, the alkalis from the clinker and the ash together — and the
+calcium overwhelmingly from the clinker even at 48 % replacement.
+
+Read the `K+` and `Na+` rows in particular. They are a few hundredths of a mole
+against nearly a mole of calcium, and they are what sets the pH: the calcium is
+buffered by portlandite at 12.5 and cannot rise, while the alkalis dissolve
+almost entirely and stay in solution. A budget that leaves them out — and a Bogue
+calculation leaves them out, since they sit outside the four-phase decomposition
+— returns a portlandite floor and calls it a pore solution.
 
 ## 4. The equilibrium
 
 ```@example cem5
-eq, cert = equilibrate_certified(state; model = model, b = b)
+# Continued from a seven-day paste rather than started cold -- see `solve_paste`
+# above for why, and section 6 for the ages this walk passes through.
+eq_early, cert_early = solve_paste(0.35, 0.10)
+eq, cert = solve_paste(ALPHA_SLAG, ALPHA_ASH;
+                       start = cert_early.optimal ? eq_early : nothing)
 
+@printf("started from a 7-day paste: certified %s\n", cert_early.optimal)
 @printf("certificate: optimal=%s  worst SI=%.2e  element balance=%.1e\n",
         cert.optimal, cert.worst_supersaturation, cert.balance)
-@printf("pH = %.3f   total volume = %.2f cm3\n",
+# The volume is that of the REACTED system and its pore solution. The
+# unhydrated clinker and the undissolved glass occupy volume too; the clinker's
+# is computable from its phases, the glass's would need a density this page has
+# not been given, so neither is added rather than one of them being.
+@printf("pH = %.3f   volume of the reacted system = %.2f cm3\n",
         pH(eq, model), ustrip(uconvert(us"cm^3", volume(eq).total)))
 ```
 
@@ -261,7 +407,75 @@ paste's redox state — and even a buffered value would be the *mutual* equilibr
 of every couple, which sulfate reduction is far too slow to reach during
 hydration.
 
-## 6. Where a CEM V sits among the others
+## [6. What the reacted fractions are worth](@id cem5-dor)
+
+The three fractions of section 1 are the page's only real assumption, so the
+page is obliged to say what turns on them. The round robin gives the answer its
+own way: it reports the same two glasses at 7, 28 and 90 days, so sweeping the
+*age* rather than an abstract parameter keeps every point on measured ground.
+The pairs below are read off its Table 4, SEM image analysis, rounded to the two
+laboratories' agreement.
+
+```@example cem5
+AGES = [(" 7 days", 0.35, 0.10), ("28 days", ALPHA_SLAG, ALPHA_ASH),
+        ("90 days", 0.52, 0.25)]
+
+@printf("%-9s %7s %7s   %-9s %9s %7s %9s\n",
+        "age", "slag", "ash", "certified", "balance", "pH", "portlandite")
+i_portlandite = findfirst(sp -> symbol(sp) == "Portlandite", cs.species)
+
+# `let` rather than a bare loop: a top-level `for` that assigns to a name of the
+# enclosing scope makes a NEW LOCAL, so `prev` would be read before it is ever
+# written. Wrapping the sweep gives it a scope of its own.
+let prev = nothing
+    for (label, a_sl, a_as) in AGES
+        # Ordered by age and continued, for the reason `solve_paste` gives: each
+        # answer is the next one's start. The certificate decides every point.
+        e, c = solve_paste(a_sl, a_as; start = prev)
+        c.optimal && (prev = e)
+        nn = ustrip.(us"mol", e.n)
+        @printf("%-9s %6.0f %% %6.0f %%   %-9s %9.1e %7.3f %9.5f\n",
+                label, 100a_sl, 100a_as, c.optimal, c.balance, pH(e, model),
+                nn[i_portlandite])
+    end
+end
+```
+
+The package's own kinetics would answer this differently, and the disagreement is
+worth knowing about: the Waller sigmoid shipped for a slag and a fly ash gives
+0.29 and 0.32 at 28 days where the round robin measures 0.38–0.49 and 0.20. Both
+are fits to particular materials, and "a slag" is not a substance — [the rate law
+chapter](@ref sec-theory-kinetics) sets the two side by side.
+
+Read the columns against each other. The **portlandite** falls by nearly 40 %
+across the three ages — that is the pozzolanic reaction, and the reason the
+family exists. The **pH** moves the other way and by almost nothing, six
+hundredths of a unit, because it is the alkalis that set it and the glasses
+release them only slowly; the calcium hydroxide is a floor beneath, not a lever.
+And every one of the three **certifies**, with element balances of 2.6·10⁻¹²,
+8.2·10⁻¹⁴ and 1.1·10⁻¹³.
+
+That is the useful conclusion, and it is worth stating as a limit on what the
+page claims: between 7 and 90 days the slag's reacted fraction changes by half
+again, and the assemblage's *character* does not. **The answer is sensitive to
+the reacted fraction in its amounts and robust in its identity** — so a reader
+who disagrees with the fractions assumed here can move them and keep the
+qualitative reading, while a reader who wants the amounts must supply a measured
+degree of reaction for their own materials.
+
+!!! warning "Where this stops being true"
+    Push the fractions to 1 — every grain of slag and every ash sphere fully
+    dissolved — and the calculation stops having an answer at all: the
+    minimization reports supersaturated hydrotalcite and layered double
+    hydroxides it has no room to precipitate, an element balance off by 3·10⁻¹,
+    and a pH of 14.4 that no cement paste has ever had. That is not a solver
+    failure and not a gap in CEMDATA18. It is the formulation being asked an
+    unphysical question: a 48 %-replaced binder whose glasses have entirely
+    dissolved would have to place alkalis and aluminum that a real paste never
+    releases, and no assemblage the database can form will hold them. The
+    remedy is not a better minimizer. It is the reacted fraction.
+
+## 7. Where a CEM V sits among the others
 
 ```@example cem5
 function final_heat(file)
