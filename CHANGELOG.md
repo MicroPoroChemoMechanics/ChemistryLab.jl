@@ -20,11 +20,24 @@ recomputing its heaviest trajectories at every build.
   whole file and declares everything in it now also declares that phase — and,
   by the rule above, can no longer also declare `CSHQ`. Loading the file has
   always been an explicit act; which phases to declare remains the caller's.
-- **`[compat] OptimaSolver` moves to `"0.5.3"`.** That release carries
+- **`[compat] OptimaSolver` moves to `"0.5.5"`.** 0.5.3 carries
   `phase_split_measure`, without which a mixing phase that is present is
   certified on the stationarity of its members alone — and stationarity cannot
   see that the Gibbs minimum for a non-ideal phase is two coexisting
-  compositions. `OptimaSolver` 0.5.3 must be registered before this release.
+  compositions. The bound is **0.5.4 and not 0.5.3** because 0.5.3 shipped that
+  test with a defect this package's own documentation exposed: the measure
+  probed compositions the element balance forbids, reading a sentinel
+  multiplier as a chemical potential. On the CEM III/A page it turned a
+  converged equilibrium — element balance 3.8e-14, pH 12.489, assemblage
+  unchanged — into `optimal = false` with a violation of +54.06, the same +54.06
+  on every unrelated system carrying the same declaration. Worse than a wrong
+  verdict: `equilibrate_certified` ranks its routes on that flag, so a false
+  negative sent it through the whole cascade to return a *worse composition*.
+  The bound is 0.5.5 rather than 0.5.4 for a second reason: **the documentation
+  cannot be built without it.** Under 0.5.4 a warm cement equilibrium costs
+  583 ms, and the site performs thousands of them; the build exceeded two hours
+  and was killed by its own timeout. 0.5.5 takes that equilibrium to 17 ms.
+  `OptimaSolver` 0.5.5 must be registered before this release.
 - **The registry treats a minor bump below 1.0 as breaking whatever the API
   did**, so `[compat] ChemistryLab = "0.17"` will not accept `0.18` and
   downstream bounds must be widened. `MeanFieldHomogenization.jl` depends on this
@@ -49,7 +62,7 @@ the output said which: stationarity is blind to the one failure that matters for
 a non-ideal phase — that the minimum is two coexisting compositions rather than
 the one reported.
 
-**Represented.** `SolidSolutionPhase(...; instances = 2)` asks `ChemicalSystem`
+**Represented, not yet resolved.** `SolidSolutionPhase(...; instances = 2)` asks `ChemicalSystem`
 for a second copy of each end-member, under a derived symbol (`monosulphate12#2`)
 sharing the same thermodynamic record, so the minimization can put material in
 either lobe of the gap or in both. The composition vector carries one amount per
@@ -76,6 +89,22 @@ criterion is the same object in both codes: GEMS' phase stability index
 independently from the same KKT conditions [Kulik et al. 2013]. Neither code
 splits a phase by itself; the difference is only that the duplication is asked
 for here by a keyword rather than carried in the database.
+
+**What this release does not do is find the pair.** Measured on the AFm binary of
+a real CEM I, whose sulfate fraction comes out at x = 0.649, just inside the
+published spinodal of [0.631, 0.914]: with two instances the solver returns both
+at the *same* composition, and seeding them in different lobes does not change
+it. The symmetric state is itself a stationary point — the same fact that made
+the tangent-plane measure need corner starts rather than a uniform one — and the
+route search discards a hand-placed seed when it chooses its own start.
+
+So the position at the end of this release is: the gap is **detected** (the
+certificate refuses a single composition inside one, naming the phase),
+**representable** (the species exist, the groups stay disjoint, conservation is
+untouched), and **not resolved**. Closing it needs an outer step that reads the
+negative tangent-plane distance and seeds an instance at the composition it
+points to. `examples/miscibility_gap.md` says exactly this, with the numbers,
+rather than presenting a common tangent it did not find.
 
 Also new: **`with_symbol`**, the same species under a different label, which is
 what builds those copies.
@@ -190,21 +219,29 @@ runs.
 Three other candidate datasets were examined and rejected on measurement rather
 than on preference; `data/zeolites/README.md` records which and why.
 
-### Fixed — the documentation build
+### Fixed — the documentation build, and then un-fixed the fix
 
 It had reached 3 h 20 and was being canceled by its own timeout. The cause was
-not diffuse: four pages ran coupled hydration trajectories, and a single coupled
-forward solve costs 364 s while everything else on the site together costs about
+not diffuse: four pages ran coupled hydration trajectories, and one coupled
+forward solve cost 364 s while everything else on the site together cost about
 ten minutes.
 
-Those trajectories are now computed **once**, by `scripts/precompute_docs.jl`,
-and the pages read what it wrote. Nothing is approximated to make that possible,
-and the exchange runs the other way: because the cost is paid once, the
-trajectories are reported on **eighty** log-spaced instants instead of the forty
-a build could afford. Every file carries the package version, the commit, the
-composition, the sampling — and how many of its instants were **proved optimal**
-rather than merely converged, because a stored result is worth what its
-provenance is.
+The first answer was to compute them **once** and store the result, which worked
+and brought the build to 23 minutes. It also brought a staleness guard comparing
+the commit and the resolved solver version, a documented refresh procedure, and a
+list of ways it could silently go wrong.
+
+The second answer removed all of that. `OptimaSolver` 0.5.5 takes a warm cement
+equilibrium from 583 ms to 17 ms, so the trajectories are affordable at build
+time again and **every number in the manual is computed by the build that shows
+it**. A stored result is a claim about code that may since have changed; nothing
+here makes that claim any more.
+
+`scripts/precomputed.jl` holds those runs and memoizes them per process — which
+matters, because Documenter runs the whole site in one process and a page asks
+for a trajectory's phase history and its calorimetry as two tables. Two calls,
+one integration. The shared process is a hazard everywhere else in this file and
+here it is what makes the arrangement work.
 
 Two further changes came out of the diagnosis, which took four wrong turns before
 it took the right one:
@@ -213,14 +250,6 @@ it took the right one:
   named each block and timed none of them, so a three-hour build identified
   nothing. A logger now reports the duration of each block that exceeds a
   threshold, with a running total.
-- the staleness guard now also compares the **version of the optimizer**. The
-  solver is source too, and it is not in this repository, so a commit cannot
-  speak for it: `OptimaSolver` 0.5.3 added a stability test to the certificate,
-  which changes how many instants a replay reports as proved. Each precomputed
-  file records the version it was produced with, and the build refuses a
-  mismatch. This was found by looking: `docs/Manifest.toml` still pinned
-  `OptimaSolver` 0.5.1, so the documentation had never once exercised
-  `phase_split_measure` — the guard existed and had nothing to say about it.
 - `equilibrate_certified` **solves a starting point only when the search asks for
   it**. It offered every registered back end's answer as a start and returned at
   the first that certified, so the later ones were computed and thrown away. The
