@@ -76,6 +76,38 @@ end
 
 end
 
+@testset "_reconstruction_guess! lands on the current budget" begin
+    # The guess that carries NO active set: the composition the specimen was cast
+    # with, carried onto the element budget of the moment. It is what
+    # `_respeciate_solve!` falls back on where the assemblage switches and the
+    # warm start's active set is the wrong one.
+    #
+    # Two properties, and they are the whole contract: it writes into the buffer
+    # it is given (no allocation on a path taken thousands of times per run), and
+    # what it leaves satisfies `Aₑ n = bₑ` with `n ≥ 0`.
+    Ae = Float64[1 1 0; 0 1 1]
+    n_init = [0.5, 0.2, 0.3]
+    be = Ae * [0.3, 0.1, 0.4]          # a DIFFERENT budget from the cast one
+    p = (; n_eq_init = n_init, Ae = Ae)
+    buf = fill(-1.0, 3)
+
+    out = ChemistryLab._reconstruction_guess!(buf, p, be)
+    @test out === buf                      # writes in place, returns the buffer
+    @test all(>=(0), buf)
+    @test maximum(abs, Ae * buf .- be) <= 1.0e-8
+
+    # Called again on the same buffer it must give the same answer: it is a
+    # function of `(p, be)`, not of what the buffer happened to hold.
+    buf2 = fill(17.0, 3)
+    ChemistryLab._reconstruction_guess!(buf2, p, be)
+    @test buf2 ≈ buf
+
+    # And on the budget the specimen was cast with, it returns that composition.
+    be0 = Ae * n_init
+    ChemistryLab._reconstruction_guess!(buf, p, be0)
+    @test buf ≈ n_init
+end
+
 @testset "speciated_states replays the equilibrium partition" begin
 
     # A small carbonate system: enough to exercise the replay without paying for

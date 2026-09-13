@@ -535,6 +535,18 @@ end
         # right object, and a guess would be worse than a refusal.
         @test common_tangent(RegularSolutionModel([0.0 3RT; 3RT 0.0]), 3) === nothing
     end
+
+    @testset "nothing rather than an unconverged pair" begin
+        # Newton is given one iteration, so it cannot reach the root. The
+        # function must say so rather than return where it happened to stop: a
+        # pair that is not the common tangent is worse than no pair, because
+        # everything downstream treats it as exact.
+        m = RegularSolutionModel([0.0 3RT; 3RT 0.0])
+        @test common_tangent(m, 2; maxit = 1) === nothing
+        # And with enough iterations it converges, so the refusal above is the
+        # iteration budget and not a broken model.
+        @test common_tangent(m, 2; maxit = 100) !== nothing
+    end
 end
 
 @testset "the lever rule inside the gap" begin

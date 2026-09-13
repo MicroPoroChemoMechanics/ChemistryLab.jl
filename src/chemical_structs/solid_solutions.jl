@@ -353,6 +353,44 @@ function SolidSolutionPhase(
     )
 end
 
+"""
+    _rk_coefficients(model, T) -> Union{Nothing, NTuple{3,Float64}}
+
+The three Redlich-Kister coefficients of a **binary** mixing model, in units of
+`RT`, or `nothing` when the model has no excess term this form can express.
+
+`RegularSolutionModel` is the one-parameter case, `a₀ = W₁₂` with `a₁ = a₂ = 0`,
+which is why the two share this. `IdealSolidSolutionModel` — and any model a
+caller adds — returns `nothing`: an ideal mixture is convex everywhere, so every
+construction below is vacuous for it.
+
+Factored out because three functions need exactly this and had three copies of
+it, which is two opportunities for them to disagree.
+"""
+function _rk_coefficients(model::AbstractSolidSolutionModel, T::Real)
+    RT = R_GAS * T
+    model isa RedlichKisterModel &&
+        return (model.a0 / RT, model.a1 / RT, model.a2 / RT)
+    model isa RegularSolutionModel && return (model.W[1, 2] / RT, 0.0, 0.0)
+    return nothing
+end
+
+"""
+    _mixing_energy(A0, A1, A2) -> Function
+
+Molar Gibbs energy of mixing of a binary, in units of `RT`:
+
+```math
+g(x)/RT = x\\ln x + (1-x)\\ln(1-x) + x(1-x)\\bigl[A_0 + A_1(2x-1) + A_2(2x-1)^2\\bigr]
+```
+
+The ideal part is convex everywhere — its second derivative is `1/x + 1/(1-x)` —
+so every miscibility gap is the excess term's doing.
+"""
+_mixing_energy(A0, A1, A2) =
+    x -> x * log(x) + (1 - x) * log(1 - x) +
+    x * (1 - x) * (A0 + A1 * (2x - 1) + A2 * (2x - 1)^2)
+
 # ── Convexity of the mixing energy ────────────────────────────────────────────
 
 """
@@ -394,18 +432,12 @@ function spinodal_interval(
         model::AbstractSolidSolutionModel, n_members::Int; T::Real = 298.15
     )
     n_members == 2 || return nothing
-    RT = R_GAS * T
-    A0, A1, A2 = if model isa RedlichKisterModel
-        (model.a0 / RT, model.a1 / RT, model.a2 / RT)
-    elseif model isa RegularSolutionModel
-        (model.W[1, 2] / RT, 0.0, 0.0)
-    else
-        return nothing                      # ideal: convex everywhere
-    end
+    coeffs = _rk_coefficients(model, T)
+    coeffs === nothing && return nothing    # ideal: convex everywhere
+    A0, A1, A2 = coeffs
     (A0 == 0 && A1 == 0 && A2 == 0) && return nothing
 
-    gx(x) = x * log(x) + (1 - x) * log(1 - x) +
-        x * (1 - x) * (A0 + A1 * (2x - 1) + A2 * (2x - 1)^2)
+    gx = _mixing_energy(A0, A1, A2)
 
     xs = range(1.0e-3, 1 - 1.0e-3; length = 2001)
     h = step(xs)
@@ -489,17 +521,10 @@ function common_tangent(
     gap = spinodal_interval(model, n_members; T = T)
     gap === nothing && return nothing
 
-    RT = R_GAS * T
-    A0, A1, A2 = if model isa RedlichKisterModel
-        (model.a0 / RT, model.a1 / RT, model.a2 / RT)
-    elseif model isa RegularSolutionModel
-        (model.W[1, 2] / RT, 0.0, 0.0)
-    else
-        return nothing
-    end
-
-    g(x) = x * log(x) + (1 - x) * log(1 - x) +
-        x * (1 - x) * (A0 + A1 * (2x - 1) + A2 * (2x - 1)^2)
+    # `spinodal_interval` above already refused every model these cannot express,
+    # so the coefficients are here.
+    A0, A1, A2 = _rk_coefficients(model, T)
+    g = _mixing_energy(A0, A1, A2)
     g′(x) = ForwardDiff.derivative(g, x)
 
     # Two residuals: equal slopes, and the slope equal to the chord. Both vanish
@@ -604,16 +629,12 @@ function miscibility_split(
     ct = common_tangent(model, n_members; T = T)
     ct === nothing && return nothing
     xa, xb = ct
+    # `common_tangent` has already returned for every model whose excess term
+    # these coefficients cannot express, so no second refusal is needed here --
+    # and one written anyway would be unreachable, which is worse than absent.
     RT = R_GAS * T
-    A0, A1, A2 = if model isa RedlichKisterModel
-        (model.a0 / RT, model.a1 / RT, model.a2 / RT)
-    elseif model isa RegularSolutionModel
-        (model.W[1, 2] / RT, 0.0, 0.0)
-    else
-        return nothing
-    end
-    g(x) = x * log(x) + (1 - x) * log(1 - x) +
-        x * (1 - x) * (A0 + A1 * (2x - 1) + A2 * (2x - 1)^2)
+    A0, A1, A2 = _rk_coefficients(model, T)
+    g = _mixing_energy(A0, A1, A2)
 
     # Outside the pair the phase is homogeneous, and saying so is part of the
     # answer rather than an edge case to guard against.
