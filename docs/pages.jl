@@ -53,6 +53,12 @@ pages = [
         "Oxidation state" => [
             "theory/redox.md",
         ],
+        # When, rather than what: the rate laws, their parameters and the
+        # provenance of every number in them. Equilibrium says nothing about
+        # time, and a binder's engineering behavior is entirely about time.
+        "Kinetics" => [
+            "theory/kinetics.md",
+        ],
         # The material this package exists for. What a Gibbs minimization can
         # predict about a drying paste, and what is not a thermodynamic
         # quantity at all.

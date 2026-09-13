@@ -218,6 +218,48 @@ The common tangent construction is wider than the spinodal: the *binodal*
 ``[x_\alpha, x_\beta]`` contains the spinodal, and between the two the phase is
 metastable rather than unstable. A minimization sees only the tangent.
 
+### Computing the pair: what PHREEQC does, and what it costs
+
+The pair is not found by minimizing. It is **computed from the model alone**, by
+[`common_tangent`](@ref): two equations in two unknowns, solved by Newton with
+`ForwardDiff` supplying the derivatives. Nothing about the rest of the chemical
+system enters — not the aqueous solution, not the other phases, not the element
+budget — which is why it costs microseconds and can be used as the starting point
+of a full equilibrium rather than as its result.
+
+This is the construction PHREEQC uses for binary solid solutions, after
+[GlynnReardon1990](@cite). It was validated here against a case with a closed
+form: for a symmetric model the pair must be symmetric about ``x = 1/2``, and it
+comes out at ``(0.070720,\ 0.929280)`` with a residual of ``2.3\times10^{-13}``
+and the symmetry exact to the last bit.
+
+[`miscibility_split`](@ref) then applies the lever rule. Inside the gap the two
+**compositions are fixed** and only their proportions move with the overall
+composition — which is what makes a miscibility gap flat in a phase diagram, and
+what a single-composition answer cannot reproduce at any resolution.
+
+!!! note "Where the three codes agree, and where this one adds a step"
+    The criterion is the **same object** in GEM-Selektor and here, arrived at
+    independently from the same KKT conditions — its phase stability index
+    ``\Lambda_k = \log_{10}\Omega_k`` is term for term what `phase_split_measure`
+    computes [Kulik2013](@cite). The *construction* of the pair is PHREEQC's,
+    after Glynn & Reardon. Neither this package nor the others invented either.
+
+    What differs is only where the duplication comes from. GEM-Selektor's users
+    get the right answer inside a gap because CEMDATA18 ships the AFm and AFt
+    binaries under two names each, so the declaration is already doubled in the
+    database; here it is asked for by a keyword. Both are sound, and the database
+    route has the advantage of being the published one.
+
+    The step this package adds is the **refusal**: `SolidSolutionPhase` evaluates
+    the second derivative at construction and declines a model that unmixes,
+    naming the interval — and `OptimaSolver`'s certificate applies the
+    tangent-plane test to phases that are **present**, not only to absent ones.
+    Assuming convexity and leaving the duplication to the caller is a reasonable
+    design for a general-purpose code; checking it is worth the few lines here,
+    because a phase sitting inside its own spinodal otherwise certifies on the
+    stationarity of its members alone and says nothing.
+
 ### Why a formulation with one amount per species cannot hold it
 
 The composition vector of a `ChemicalSystem` has one entry per species, so a
