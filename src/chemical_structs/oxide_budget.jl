@@ -49,6 +49,100 @@ function primary_decomposition(species::AbstractSpecies, primaries)
 end
 
 """
+    glass_species(oxides; symbol, M = 100.0u"g/mol", name, ΔₐG⁰) -> Species
+
+A **pseudo-species for a material that has no formula unit** — a blastfurnace
+slag, a fly ash, a calcined clay — built from its oxide analysis, so that a rate
+law can consume it and release every element the analysis reports.
+
+`oxide_budget` solves this for an *equilibrium*: a glass enters as a contribution
+to `b` and never needs to be a species at all. A **kinetic** run cannot do that,
+because a rate law consumes a species. So the glass has to be given a formula,
+and where that formula comes from decides what the dissolution can produce.
+
+# Why not pick a representative mineral
+
+Because the elements it leaves out cannot come back. A slag written as anorthite,
+`CaAl₂Si₂O₈`, carries no magnesium — so no hydrotalcite can form from it, which
+is the one phase a slag is certain to make. Writing the formula from the analysis
+puts every reported element into the budget in its reported proportion, and the
+question stops being which mineral the glass resembles.
+
+# The two masses, and why they differ
+
+The formula unit carries the elements of the **reported** oxides. `M` is the mass
+of **material** it stands for. These are not the same number, and the difference
+is the part of the analysis that is not modeled — loss on ignition, and the minor
+oxides a datasheet omits. The analysis is **not** renormalized, for the reason
+`oxide_budget` gives: scaling the reported fractions up to one would invent
+material. `modeled_mass_fraction` in the returned species' properties records
+what fraction of the material the formula actually accounts for.
+
+`ΔₐG⁰` is optional and defaults to a placeholder far below anything the system
+contains, so that the dissolution is always favored. That is sound for a rate law
+of the `waller` or Parrott–Killoh kind, which never reads the saturation ratio;
+it is **not** sound for a mechanistic rate driven by `Ω`, and such a law needs a
+real Gibbs energy, which a glass does not have.
+
+# Examples
+
+```julia
+slag = Dict("CaO" => 0.41, "SiO2" => 0.36, "Al2O3" => 0.11,
+            "MgO" => 0.08, "SO3" => 0.02)
+sp = glass_species(slag; symbol = "GGBS", M = 95.0u"g/mol")
+atoms(sp)                        # Ca, Si, Al, Mg, S and O, in the reported ratio
+rate = waller(WALLER_PARAMS_SLAG, "GGBS"; α_max = 0.9)
+```
+
+See also: [`oxide_budget`](@ref), [`waller`](@ref).
+"""
+function glass_species(
+        oxides::AbstractDict{<:AbstractString, <:Real};
+        symbol::AbstractString,
+        M = 100.0u"g/mol",
+        name::AbstractString = symbol,
+        ΔₐG⁰ = nothing,
+    )
+    M_g = ustrip(us"g/mol", M)
+    M_g > 0 || throw(ArgumentError("`M` must be positive, got $M."))
+
+    # Element amounts in one gram of material, from the analysis as reported.
+    per_gram = OrderedDict{Symbol, Float64}()
+    modeled = 0.0
+    for (formula, frac) in oxides
+        frac == 0 && continue
+        frac < 0 && throw(
+            ArgumentError("the mass fraction of `$formula` is negative ($frac)"),
+        )
+        ox = Species(formula)
+        n_ox = float(frac) / ustrip(us"g/mol", ox[:M])
+        for (el, k) in atoms(ox)
+            per_gram[el] = get(per_gram, el, 0.0) + n_ox * k
+        end
+        modeled += float(frac)
+    end
+    isempty(per_gram) && throw(
+        ArgumentError(
+            "the analysis carries no oxide with a positive mass fraction, so " *
+                "there is no material to make a species out of."
+        ),
+    )
+
+    counts = OrderedDict{Symbol, Float64}(el => v * M_g for (el, v) in per_gram)
+    props = OrderedDict{Symbol, PropertyType}(
+        :M => M,
+        :modeled_mass_fraction => modeled,
+    )
+    ΔₐG⁰ === nothing ||
+        (props[:ΔₐG⁰] = ΔₐG⁰)
+    return Species(
+        counts, 0;
+        symbol = String(symbol), name = String(name),
+        aggregate_state = AS_CRYSTAL, properties = props,
+    )
+end
+
+"""
     oxide_budget(oxides, primaries; mass = 100.0u"g") -> Vector{Float64}
 
 The component totals `b` contributed by a material reported as an **oxide

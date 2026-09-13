@@ -72,3 +72,42 @@
         @test_throws ArgumentError primary_decomposition(Species("TiO2"), prim)
     end
 end
+
+@testsection "glass_species — a material with no formula unit" begin
+    slag = Dict(
+        "CaO" => 0.41, "SiO2" => 0.36, "Al2O3" => 0.11,
+        "MgO" => 0.08, "SO3" => 0.02,
+    )
+    sp = glass_species(slag; symbol = "GGBS", M = 95.0u"g/mol")
+    a = atoms(sp)
+
+    # Every element the analysis reports is carried, MAGNESIUM INCLUDED, which
+    # is the whole reason this exists: a slag written as a representative
+    # mineral -- anorthite, `CaAl2Si2O8` -- has no magnesium, so no hydrotalcite
+    # can form from it, and hydrotalcite is the one phase a slag is certain to
+    # make.
+    for el in (:Ca, :Si, :Al, :Mg, :S, :O)
+        @test haskey(a, el) && a[el] > 0
+    end
+    @test symbol(sp) == "GGBS"
+    @test ustrip(us"g/mol", sp[:M]) ≈ 95.0
+    # The analysis is not renormalized; what it does not report is recorded.
+    @test sp[:modeled_mass_fraction] ≈ 0.98
+
+    # The element RATIOS are the analysis's, whatever formula-unit size is asked
+    # for: `M` scales the unit, it does not change the material.
+    sp2 = glass_species(slag; symbol = "GGBS2", M = 190.0u"g/mol")
+    a2 = atoms(sp2)
+    @test a2[:Ca] / a[:Ca] ≈ 2.0
+    @test a2[:Mg] / a[:Mg] ≈ 2.0
+
+    # And the ratio is the one the analysis implies, computed from molar masses
+    # the database supplies rather than from a table written here.
+    @test a[:Ca] / a[:Si] ≈
+        (0.41 / ustrip(us"g/mol", Species("CaO")[:M])) /
+        (0.36 / ustrip(us"g/mol", Species("SiO2")[:M])) rtol = 1.0e-10
+
+    @test_throws ArgumentError glass_species(Dict("CaO" => -0.1); symbol = "X")
+    @test_throws ArgumentError glass_species(Dict("CaO" => 0.0); symbol = "X")
+    @test_throws ArgumentError glass_species(slag; symbol = "X", M = -1.0u"g/mol")
+end

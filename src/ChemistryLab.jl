@@ -257,6 +257,7 @@ module ChemistryLab
         optimality_certificate,
         solve_certified,
         equilibrate_certified,
+        equilibrate_path,
         EquilibriumConstraint,
         FixedTP,
         FixedEnthalpy,
@@ -337,6 +338,7 @@ module ChemistryLab
         build_reactions,
         build_solid_solutions,
         oxide_budget,
+        glass_species,
         primary_decomposition,
         get_compatible_species,
         HKF_SI_CONVERSIONS

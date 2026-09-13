@@ -317,6 +317,74 @@ function _repair_round(eq, cert, model, bfix, ϵ::Float64, solve_from, verbose::
 end
 
 """
+    equilibrate_path(state, budgets; model, kwargs...) -> (states, certificates)
+
+A **sequence** of certified equilibria, each one started from the last that
+certified.
+
+`budgets` is any iterable of element budgets — the vectors `equilibrate_certified`
+takes as `b`. The first is solved from `state`; every later one is solved from the
+previous answer, and a previous answer is reused only once the certificate has
+accepted it. Where none has yet, `state` is used again.
+
+# Why this exists
+
+A cement equilibrium is hard to start cold and easy to start warm, and the gap is
+not marginal. Measured on the 135-species paste of `scripts/ionic_hydration.jl`:
+
+| | |
+|:--|--:|
+| cold start, the full multi-start cascade | 15.2 s |
+| warm start from a neighboring answer | 0.19 s |
+
+Eighty to one. So a sweep that rebuilds its state at every point pays the cold
+price at every point, and — worse — can fail at one while both of its neighbors
+certify, which is a *starting point* and not an infeasibility. Both blended-binder
+sweeps in this package's documentation had such a point before they were written
+this way.
+
+# What it does and does not change
+
+For a **convex** problem the minimum is unique, so walking to it cannot change
+*what* is found — only whether the search finds it. That premise is checked
+rather than assumed: [`SolidSolutionPhase`](@ref) refuses a mixing model whose
+energy has a spinodal, so a system that was constructed at all is convex unless
+the refusal was explicitly waived. Waive it and this becomes a genuine choice of
+branch, because inside a gap the starting point decides which lobe the answer
+lands in — see [`common_tangent`](@ref).
+
+The certificate still decides every point. A refused point is returned like any
+other, with its certificate, and does **not** become the next start.
+
+# Examples
+
+```julia
+budgets = [budget_at(f) for f in 0.0:0.05:0.30]
+states, certs = equilibrate_path(fresh, budgets; model = HKFActivityModel())
+all(c.optimal for c in certs)      # every point proved, not merely converged
+```
+
+See also: [`equilibrate_certified`](@ref), [`common_tangent`](@ref).
+"""
+function equilibrate_path(
+        state::ChemicalState, budgets;
+        model::AbstractActivityModel = DiluteSolutionModel(), kwargs...,
+    )
+    states = ChemicalState[]
+    certs = Any[]
+    warm = nothing
+    for b in budgets
+        eq, cert = equilibrate_certified(
+            something(warm, state); model = model, b = b, kwargs...,
+        )
+        cert.optimal && (warm = eq)
+        push!(states, eq)
+        push!(certs, cert)
+    end
+    return states, certs
+end
+
+"""
     equilibrate_certified(state; model, ϵ, b, verbose, autostart) -> (state, certificate)
 
 Equilibrium composition together with a proof of its global optimality, obtained

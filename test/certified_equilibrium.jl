@@ -682,3 +682,35 @@ end
     end
 
 end
+
+@testsection "equilibrate_path — a sweep continued from its own answers" begin
+    sp = Dict(
+        symbol(s) => s for s in build_species(
+                datapath("slop98-inorganic-thermofun.json"); verbose = false
+            )
+    )
+    cs = ChemicalSystem(
+        [sp[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal")],
+        ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"],
+    )
+    st = ChemicalState(cs)
+    set_quantity!(st, "H2O@", 1.0u"kg")
+    set_quantity!(st, "Cal", 0.05u"mol")
+    b0 = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    budgets = [b0 .* f for f in (1.0, 1.1, 1.2)]
+
+    states, certs = equilibrate_path(st, budgets)
+    @test length(states) == 3
+    @test length(certs) == 3
+    @test all(c.optimal for c in certs)
+
+    # THE ASSERTION THAT MATTERS. On a convex problem the minimum is unique, so
+    # walking to it from a neighbor cannot change what is found -- only whether
+    # it is found. If this drifts, the continuation is choosing answers rather
+    # than reaching them.
+    for (k, b) in enumerate(budgets)
+        eq, c = equilibrate_certified(st; b = b)
+        @test c.optimal
+        @test ustrip.(us"mol", eq.n) ≈ ustrip.(us"mol", states[k].n) rtol = 1.0e-6
+    end
+end
