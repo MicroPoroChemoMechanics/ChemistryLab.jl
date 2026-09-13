@@ -394,7 +394,7 @@ function spinodal_interval(
         model::AbstractSolidSolutionModel, n_members::Int; T::Real = 298.15
     )
     n_members == 2 || return nothing
-    RT = 8.31446261815324 * T          # J/(mol K), CODATA
+    RT = R_GAS * T
     A0, A1, A2 = if model isa RedlichKisterModel
         (model.a0 / RT, model.a1 / RT, model.a2 / RT)
     elseif model isa RegularSolutionModel
@@ -419,6 +419,221 @@ function spinodal_interval(
     end
     return isfinite(lo) ? (lo, hi) : nothing
 end
+
+"""
+    common_tangent(model; T = 298.15, tol = 1e-12, maxit = 100)
+        -> Union{Nothing, Tuple{Float64,Float64}}
+
+The two compositions a binary solid solution separates into inside a miscibility
+gap, or `nothing` when its mixing energy is convex.
+
+# What this computes, and why it is not a minimization
+
+Where the molar Gibbs energy of mixing is concave the equilibrium is not one
+composition but **two**, and they are the pair ``(x_\\alpha, x_\\beta)`` at which a
+single straight line is tangent to ``g`` twice — equivalently, at which both
+end-members have equal chemical potentials in the two phases:
+
+```math
+\\mu_A(x_\\alpha) = \\mu_A(x_\\beta), \\qquad \\mu_B(x_\\alpha) = \\mu_B(x_\\beta) .
+```
+
+In terms of ``g`` alone that is
+
+```math
+g'(x_\\alpha) = g'(x_\\beta) = \\frac{g(x_\\beta) - g(x_\\alpha)}{x_\\beta - x_\\alpha},
+```
+
+two equations in two unknowns, solved here by Newton with `ForwardDiff` for the
+derivatives. **It does not involve the rest of the chemical system at all**: the
+pair depends only on the mixing model and the temperature, which is what makes it
+computable in microseconds and usable as the starting point of a full
+equilibrium.
+
+This is the approach PHREEQC takes for binary solid solutions, after
+[GlynnReardon1990](@cite), and it is a different thing from asking a global minimization
+to discover the split. A minimization started from two identical compositions
+sits on a **stationary point**: both instances satisfy every first-order
+condition jointly, so there is no downhill direction to follow, and it stays
+there however unstable the state is. Handing it the pair removes the question.
+
+# The binodal contains the spinodal
+
+[`spinodal_interval`](@ref) reports where ``g'' < 0``, which is where the phase is
+*unstable*. The pair returned here is wider: between the two the phase is
+metastable rather than unstable, and a minimization sees only the tangent. So the
+spinodal edges bracket the search from inside, and that is where Newton starts.
+
+# Verification
+
+For a **symmetric** model ``g(1-x) = g(x)``, hence ``g'(1-x) = -g'(x)``, and the
+common-tangent condition collapses to ``g'(x) = 0``:
+
+```math
+\\ln\\frac{x}{1-x} + A(1-2x) = 0 , \\qquad A = W/RT .
+```
+
+The test suite checks the returned pair against that equation rather than against
+a stored number.
+
+Returns `nothing` for an ideal model, for a phase with more than two end-members
+(where a one-dimensional construction is not the right object), and when Newton
+does not converge — never a guess.
+
+See also: [`spinodal_interval`](@ref), [`SolidSolutionPhase`](@ref).
+"""
+function common_tangent(
+        model::AbstractSolidSolutionModel, n_members::Integer = 2;
+        T::Real = 298.15, tol::Real = 1.0e-12, maxit::Integer = 100,
+    )
+    gap = spinodal_interval(model, n_members; T = T)
+    gap === nothing && return nothing
+
+    RT = R_GAS * T
+    A0, A1, A2 = if model isa RedlichKisterModel
+        (model.a0 / RT, model.a1 / RT, model.a2 / RT)
+    elseif model isa RegularSolutionModel
+        (model.W[1, 2] / RT, 0.0, 0.0)
+    else
+        return nothing
+    end
+
+    g(x) = x * log(x) + (1 - x) * log(1 - x) +
+        x * (1 - x) * (A0 + A1 * (2x - 1) + A2 * (2x - 1)^2)
+    g′(x) = ForwardDiff.derivative(g, x)
+
+    # Two residuals: equal slopes, and the slope equal to the chord. Both vanish
+    # exactly at the common tangent and nowhere else on `a < b`.
+    function F(v)
+        a, b = v
+        chord = (g(b) - g(a)) / (b - a)
+        return [g′(a) - g′(b), g′(a) - chord]
+    end
+
+    # Started OUTSIDE the spinodal on each side, since the binodal contains it.
+    v = [gap[1] / 2, (1 + gap[2]) / 2]
+    for _ in 1:maxit
+        r = F(v)
+        maximum(abs, r) < tol && break
+        J = ForwardDiff.jacobian(F, v)
+        Δ = try
+            J \ r
+        catch
+            return nothing
+        end
+        # Damped, and kept strictly inside (0,1) with a < b: the residual has a
+        # logarithmic singularity at either end, and a Newton step that jumps
+        # over it loses the root for good.
+        α = 1.0
+        for _ in 1:50
+            w = v .- α .* Δ
+            if 0 < w[1] < w[2] < 1 && all(isfinite, F(w))
+                v = w
+                break
+            end
+            α /= 2
+        end
+        α < 1.0e-12 && return nothing
+    end
+    maximum(abs, F(v)) < 1.0e-8 || return nothing
+    return (v[1], v[2])
+end
+
+"""
+    common_tangent(phase::SolidSolutionPhase; T = 298.15) -> Union{Nothing, Tuple}
+
+As above for a declared phase.
+"""
+common_tangent(phase::SolidSolutionPhase; T::Real = 298.15) =
+    common_tangent(model(phase), length(end_members(phase)); T = T)
+
+"""
+    miscibility_split(model, x̄; T = 298.15) -> NamedTuple
+
+How a binary of overall composition `x̄` separates inside its miscibility gap.
+
+Returns `(; x_alpha, x_beta, f_alpha, f_beta, Δg)` — the two coexisting
+compositions, the mole fraction of the binary in each, and the molar Gibbs energy
+the separation releases, in J/mol. Returns `nothing` when the model is convex, and
+a single phase (`f_alpha = 1`, `Δg = 0`) when `x̄` lies outside the pair.
+
+# The construction
+
+The compositions come from [`common_tangent`](@ref) and **do not depend on `x̄`**:
+inside a gap the two phases in equilibrium always have the same pair of
+compositions, only their proportions change. Those proportions are then the lever
+rule,
+
+```math
+f_\\alpha = \\frac{x_\\beta - \\bar{x}}{x_\\beta - x_\\alpha},
+\\qquad f_\\beta = 1 - f_\\alpha ,
+```
+
+which is mass balance and nothing more: ``f_\\alpha x_\\alpha + f_\\beta x_\\beta = \\bar{x}``.
+
+`Δg` is the distance from the curve down to the common tangent at `x̄`,
+
+```math
+\\Delta g = g(\\bar{x}) - \\bigl[f_\\alpha\\, g(x_\\alpha) + f_\\beta\\, g(x_\\beta)\\bigr] \\;\\ge\\; 0 ,
+```
+
+so it measures, in J/mol of binary, how much a single-composition answer
+overstates the Gibbs energy — that is, how wrong it is.
+
+This is the construction of [GlynnReardon1990](@cite), the one PHREEQC uses for a
+binary solid solution.
+
+# What this does and does not settle
+
+Given `x̄`, everything above is exact and costs microseconds. **Obtaining `x̄`
+from a full aqueous equilibrium inside a gap is the part a minimization over two
+declared instances does not currently deliver**: the symmetric state is a
+stationary point, and the two-instance problem carries a near-null direction that
+more iterations make worse rather than better (measured: the element balance
+degrades from 1.5e-01 to 4.5e+00 between 200 and 5000 iterations).
+
+So read `x̄` as the overall composition you have — from a single-phase solve, from
+an analysis, or as a scan — and this as the exact answer for it.
+
+See also: [`common_tangent`](@ref), [`spinodal_interval`](@ref).
+"""
+function miscibility_split(
+        model::AbstractSolidSolutionModel, x̄::Real, n_members::Integer = 2;
+        T::Real = 298.15,
+    )
+    ct = common_tangent(model, n_members; T = T)
+    ct === nothing && return nothing
+    xa, xb = ct
+    RT = R_GAS * T
+    A0, A1, A2 = if model isa RedlichKisterModel
+        (model.a0 / RT, model.a1 / RT, model.a2 / RT)
+    elseif model isa RegularSolutionModel
+        (model.W[1, 2] / RT, 0.0, 0.0)
+    else
+        return nothing
+    end
+    g(x) = x * log(x) + (1 - x) * log(1 - x) +
+        x * (1 - x) * (A0 + A1 * (2x - 1) + A2 * (2x - 1)^2)
+
+    # Outside the pair the phase is homogeneous, and saying so is part of the
+    # answer rather than an edge case to guard against.
+    if x̄ <= xa || x̄ >= xb
+        return (; x_alpha = x̄, x_beta = x̄, f_alpha = 1.0, f_beta = 0.0, Δg = 0.0)
+    end
+
+    fa = (xb - x̄) / (xb - xa)
+    fb = 1 - fa
+    Δg = RT * (g(x̄) - (fa * g(xa) + fb * g(xb)))
+    return (; x_alpha = xa, x_beta = xb, f_alpha = fa, f_beta = fb, Δg = Δg)
+end
+
+"""
+    miscibility_split(phase::SolidSolutionPhase, x̄; T = 298.15)
+
+As above for a declared phase.
+"""
+miscibility_split(phase::SolidSolutionPhase, x̄::Real; T::Real = 298.15) =
+    miscibility_split(model(phase), x̄, length(end_members(phase)); T = T)
 
 # ── Accessors ─────────────────────────────────────────────────────────────────
 

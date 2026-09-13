@@ -473,6 +473,117 @@ end
     @test spinodal_interval(m, 2; T = 400.0) === nothing
 end
 
+@testset "the common tangent, against an analytic oracle" begin
+    # The pair a binary separates into inside a gap, computed from the model
+    # alone -- no chemical system, no solver. Checked against an EQUATION rather
+    # than a stored number.
+    #
+    # For a SYMMETRIC model `g(1-x) = g(x)`, so `g'(1-x) = -g'(x)`, and the
+    # common-tangent condition `g'(a) = g'(b) = chord` collapses to `g'(x) = 0`:
+    #
+    #     ln(x/(1-x)) + A(1-2x) = 0,    A = W/RT.
+    #
+    # That is the oracle. It also fixes the symmetry `b = 1 - a`, which is a
+    # second independent check on the same answer.
+    RT = 8.31446261815324 * 298.15
+
+    @testset "symmetric regular solution" begin
+        for A in (2.5, 3.0, 4.0)
+            m = RegularSolutionModel([0.0 A * RT; A * RT 0.0])
+            ct = common_tangent(m, 2)
+            @test ct !== nothing
+            a, b = ct
+            @test 0 < a < b < 1
+            @test isapprox(b, 1 - a; atol = 1.0e-8)        # symmetry
+            # The oracle, to machine precision.
+            @test abs(log(a / (1 - a)) + A * (1 - 2a)) < 1.0e-9
+            @test abs(log(b / (1 - b)) + A * (1 - 2b)) < 1.0e-9
+            # And the binodal CONTAINS the spinodal, never the other way round.
+            sp = spinodal_interval(m, 2)
+            @test sp !== nothing
+            @test a < sp[1] && sp[2] < b
+        end
+    end
+
+    @testset "the defining conditions hold for an asymmetric model" begin
+        # No closed form here, so the test is the definition itself: equal
+        # slopes, and the slope equal to the chord.
+        m = RedlichKisterModel(a0 = 0.188RT, a1 = 2.49RT)
+        ct = common_tangent(m, 2)
+        @test ct !== nothing
+        a, b = ct
+        A0, A1 = 0.188, 2.49
+        g(x) = x * log(x) + (1 - x) * log(1 - x) +
+            x * (1 - x) * (A0 + A1 * (2x - 1))
+        d(x) = ForwardDiff.derivative(g, x)
+        @test isapprox(d(a), d(b); atol = 1.0e-7)
+        @test isapprox(d(a), (g(b) - g(a)) / (b - a); atol = 1.0e-7)
+        # The tangent line must lie BELOW the curve between the two points --
+        # that is what makes the pair the minimum rather than a stationary point.
+        line(x) = g(a) + d(a) * (x - a)
+        for x in range(a + 1.0e-3, b - 1.0e-3; length = 25)
+            @test line(x) <= g(x) + 1.0e-12
+        end
+        sp = spinodal_interval(m, 2)
+        @test a < sp[1] && sp[2] < b
+    end
+
+    @testset "nothing where there is no gap" begin
+        @test common_tangent(IdealSolidSolutionModel(), 2) === nothing
+        @test common_tangent(RegularSolutionModel([0.0 1.9RT; 1.9RT 0.0]), 2) === nothing
+        # More than two end-members: a one-dimensional construction is not the
+        # right object, and a guess would be worse than a refusal.
+        @test common_tangent(RegularSolutionModel([0.0 3RT; 3RT 0.0]), 3) === nothing
+    end
+end
+
+@testset "the lever rule inside the gap" begin
+    # Given an overall composition, how the binary separates. Three properties,
+    # each checkable without trusting the implementation.
+    RT = 8.31446261815324 * 298.15
+    A = 3.0
+    m = RegularSolutionModel([0.0 A * RT; A * RT 0.0])
+    xa, xb = common_tangent(m, 2)
+
+    @testset "mass balance is exact" begin
+        for x̄ in (0.1, 0.2, 0.35, 0.5, 0.65, 0.8, 0.9)
+            r = miscibility_split(m, x̄)
+            @test r !== nothing
+            @test isapprox(r.f_alpha * r.x_alpha + r.f_beta * r.x_beta, x̄; atol = 1.0e-12)
+            @test isapprox(r.f_alpha + r.f_beta, 1.0; atol = 1.0e-14)
+            @test 0 <= r.f_alpha <= 1
+        end
+    end
+
+    @testset "the compositions do not depend on the overall one" begin
+        # That is the content of the construction: inside a gap only the
+        # PROPORTIONS move, never the two compositions.
+        for x̄ in (0.2, 0.5, 0.8)
+            r = miscibility_split(m, x̄)
+            @test isapprox(r.x_alpha, xa; atol = 1.0e-12)
+            @test isapprox(r.x_beta, xb; atol = 1.0e-12)
+        end
+    end
+
+    @testset "the energy released is positive, symmetric, and largest in the middle" begin
+        mid = miscibility_split(m, 0.5).Δg
+        left = miscibility_split(m, 0.2).Δg
+        right = miscibility_split(m, 0.8).Δg
+        @test mid > left > 0
+        @test isapprox(left, right; atol = 1.0e-9)      # the model is symmetric
+        # And zero outside the pair, where the phase is homogeneous.
+        out = miscibility_split(m, 0.02)
+        @test out.Δg == 0.0
+        @test out.f_alpha == 1.0
+        @test out.x_alpha == 0.02
+    end
+
+    @testset "nothing where there is no gap" begin
+        @test miscibility_split(IdealSolidSolutionModel(), 0.5, 2) === nothing
+        @test miscibility_split(RegularSolutionModel([0.0 1.9RT; 1.9RT 0.0]), 0.5, 2) === nothing
+    end
+end
+
 @testset "a miscibility gap can be represented: `instances`" begin
     # Detection was the subject of the test above; this one is about
     # REPRESENTATION. Inside a spinodal the Gibbs minimum is the common-tangent
