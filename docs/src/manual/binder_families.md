@@ -32,6 +32,27 @@ This page is the map. The calculations themselves are on the pages it points to.
 | **CEM V/A** | Composite | 40–64 % | slag 18–30 % **and** pozzolana/fly ash 18–30 % |
 | **CEM V/B** | Composite | 20–38 % | slag 31–49 % **and** pozzolana/fly ash 31–49 % |
 
+### The letters
+
+EN 197-1 designates each constituent by a letter, and the composite families
+(`CEM II/*-M`, `CEM IV`, `CEM V`) use them without repeating the name. They are:
+
+| letter | constituent |
+|:--:|:--|
+| **S** | blastfurnace slag |
+| **D** | silica fume — the letter is not a mnemonic in English; it is simply the code the standard assigns |
+| **P** | natural pozzolana |
+| **Q** | natural **calcined** pozzolana |
+| **V** | siliceous fly ash (low calcium) |
+| **W** | calcareous fly ash (high calcium) |
+| **T** | burnt shale |
+| **L**, **LL** | limestone — `LL` is the stricter grade, capped at 0.20 % total organic carbon against 0.50 % for `L` |
+
+So a `CEM V/A (S-V)` is a composite of slag **and** siliceous fly ash, and a
+`CEM IV/B (V)` is pozzolanic with siliceous fly ash alone. The letter in
+parentheses is what the binder actually contains, which the calculation needs and
+the type alone does not give.
+
 !!! warning "The standard is the authority, not this table"
     The ranges above summarize **EN 197-1**, *Cement — Part 1: Composition,
     specifications and conformity criteria for common cements*. They are given
@@ -96,6 +117,16 @@ full provenance and for one inconsistency found in the source metadata.
     presented "40 % clinker" as a property of the specimen would be inventing
     it, and the distinction matters most exactly where a reader is least able to
     check.
+
+!!! tip "Before you compute: which species to declare"
+    Each line of the table above is also a **requirement on the species list**,
+    and a Gibbs minimization cannot form a phase it was not given — nor will it
+    tell you that the one it needed was missing. It reports a poor element
+    balance, or a pH of 7, or an assemblage that looks almost right.
+
+    [Choosing the species list](@ref man-choosing-species) is the check-list, with
+    the six traps that were met while writing this manual and what each looked
+    like when it happened.
 
 ## Where the calculations are
 

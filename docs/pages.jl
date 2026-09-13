@@ -81,6 +81,10 @@ pages = [
         "Cementitious media" => [
             # The shorthand first: every page below writes phases in it, and a
             # reader who has not met `C3S` cannot follow them.
+            # The check-list that turns a missing phase from a silent wrong
+            # answer into a decision made on purpose. Every trap in it was met
+            # while writing this manual.
+            "manual/choosing_species.md",
             "manual/cement_notation.md",
             "manual/cement_species.md",
             # Then the map: which binder is which, what each constituent brings,
