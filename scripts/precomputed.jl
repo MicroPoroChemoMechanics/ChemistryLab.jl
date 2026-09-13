@@ -42,10 +42,14 @@ const DOC_CLINKER = (C3S = 0.65, C2S = 0.11, C3A = 0.11, C4AF = 0.08)
 
 # One entry per coupled case the documentation plots.
 const IONIC_CASES = Dict(
-    "ionic_opc" => (filler = 0.035,
-        label = "CEM I with 3.5 % limestone filler"),
-    "ionic_nolimestone" => (filler = 0.0,
-        label = "the same paste with the limestone removed"),
+    "ionic_opc" => (
+        filler = 0.035,
+        label = "CEM I with 3.5 % limestone filler",
+    ),
+    "ionic_nolimestone" => (
+        filler = 0.0,
+        label = "the same paste with the limestone removed",
+    ),
 )
 
 const _CACHE = Dict{String, Any}()
@@ -176,10 +180,14 @@ function _ionic_heat_table(tag)
 end
 
 const CALIBRATION_CASES = Dict(
-    "calibration_target" => (record = :target,
-        label = "CEM I 52.5 R Cizkovice, w/b 0.50 -- the calibration target"),
-    "calibration_holdout" => (record = :holdout,
-        label = "CEM I 52.5 R Ladce, w/b 0.45 -- the holdout, never fitted"),
+    "calibration_target" => (
+        record = :target,
+        label = "CEM I 52.5 R Cizkovice, w/b 0.50 -- the calibration target",
+    ),
+    "calibration_holdout" => (
+        record = :holdout,
+        label = "CEM I 52.5 R Ladce, w/b 0.45 -- the holdout, never fitted",
+    ),
 )
 
 function _calibration_table(tag)
@@ -228,7 +236,7 @@ function _sensitivity_table()
         c3s = Float64[]
         qend = Float64[]
         rmse = Float64[]
-        for δ in (0.0, -0.20, 0.20)
+        for δ in (0.0, -0.2, 0.2)
             c = CALIB_CLINKER.C3S * (1 + δ)
             scale = (1 - c) / (1 - CALIB_CLINKER.C3S)
             clinker = (
@@ -300,6 +308,20 @@ function read_precomputed(name::AbstractString)
         ),
     )
 end
+
+"""
+    coupled_states(tag) -> Vector{ChemicalState}
+
+The certified speciations of one coupled run, at the reported instants.
+
+A page that only plots needs the columns; one that computes a property of the
+PASTE — its heat capacity, say, for a semi-adiabatic temperature — needs the
+states themselves. They come from the same memoized run as the tables, so asking
+for them costs nothing beyond the integration that has already happened.
+
+`tag` is the run, not the table: `"ionic_opc"`, not `"ionic_opc_phases"`.
+"""
+coupled_states(tag::AbstractString) = _ionic_case(tag).states
 
 """
     phase_families(tbl) -> Vector{String}
