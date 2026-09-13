@@ -73,9 +73,10 @@ cs
 
 !!! note "Why `cemdata18-merged`?"
     Not for calcite: `Cal` is present in `cemdata18-thermofun.json` too, and an
-    earlier version of this note said otherwise. The merged database carries the
-    phase-volume data of the PHREEQC `.dat` file alongside Cemdata18, which is
-    what makes volumes and porosity available on the same consistent dataset.
+    earlier version of this note said otherwise. Nor for species at all — both
+    files describe the same 228 substances. What the PHREEQC `.dat` file brings is
+    the **reactions**, 148 against 7, and with them the phase-volume data that
+    makes volumes and porosity available on one consistent dataset.
 
 ---
 

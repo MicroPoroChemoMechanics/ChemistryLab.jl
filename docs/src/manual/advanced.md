@@ -232,7 +232,16 @@ species_list = build_species(aqueous)
 
 ### Merging databases
 
-`merge_json` combines a ThermoFun JSON file with a Phreeqc `.dat` file (phase definitions) into a single merged JSON:
+`merge_json` combines a ThermoFun JSON file with a Phreeqc `.dat` file into a
+single merged JSON.
+
+**What it adds is not species.** That is the reading the word "merged" invites and
+it is the wrong one: the two files describe the same substances, and the shipped
+`cemdata18-merged.json` carries exactly the 228 of `cemdata18-thermofun.json`.
+What the `.dat` file brings is the **reactions** — 148 against 7 — and with them
+the phase-volume data, which is what makes volumes and porosity available on one
+consistent dataset. The test suite asserts both: identical in substances, a strict
+superset in reactions.
 
 ```julia
 merge_json(

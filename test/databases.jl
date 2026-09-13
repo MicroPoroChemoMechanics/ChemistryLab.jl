@@ -1,6 +1,40 @@
+using JSON
 using TOML
 
 @testsection "Databases" begin
+    @testset "the merged database: what the .dat file actually adds" begin
+        # `merge_json` exists because Cemdata18's ThermoFun file and PHREEQC's
+        # `.dat` file carry DIFFERENT things about the same phases, and the
+        # merged database this package ships is the result.
+        #
+        # What it adds is not species -- a reasonable reading of the word
+        # "merged", and the wrong one. Both files describe the same 228
+        # substances. What the `.dat` file brings is the REACTIONS, and with them
+        # the phase-volume data that makes volumes and porosity available on one
+        # consistent dataset.
+        #
+        # Asserted here so the claim in the manual is checked rather than
+        # believed, and so that a future regeneration cannot quietly change it.
+        base = JSON.parsefile(datapath("cemdata18-thermofun.json"); dicttype = Dict{String, Any})
+        merged = JSON.parsefile(datapath("cemdata18-merged.json"); dicttype = Dict{String, Any})
+
+        syms(db) = Set(String(s["symbol"]) for s in db["substances"])
+        @test syms(merged) == syms(base)          # identical in substances
+
+        nrxn(db) = length(get(db, "reactions", []))
+        @test nrxn(base) > 0
+        @test nrxn(merged) > nrxn(base)           # and a strict superset in reactions
+
+        # Every reaction names substances the database defines, or the merge
+        # produced a reaction nothing can be solved with.
+        known = syms(merged)
+        for r in merged["reactions"]
+            for part in get(r, "reactants", [])
+                @test String(part["symbol"]) in known
+            end
+        end
+    end
+
     # Test parse_reaction_stoich_cemdata
     @testset "parse_reaction_stoich_cemdata" begin
         # Test basic reaction parsing
