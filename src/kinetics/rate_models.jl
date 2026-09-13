@@ -1202,12 +1202,22 @@ end
 # two are declared long before this type is.
 @inline _humidity_at(h::PoreHumidity, _t, n) = h(n.data)
 
+# The two water/cement ratios at which Powers (1948) has a paste hydrate
+# completely: 0.42 sealed, 0.36 with curing water supplied from outside. The
+# difference, 0.06 g of water per gram of cement, is the chemical shrinkage --
+# the volume the reaction loses because the hydrates are denser than the
+# reagents. Sealed, that volume empties into the pore space and the paste
+# desiccates itself; immersed, it is refilled from the bath, so the same paste
+# reaches full hydration from a lower mixing water content.
+const POWERS_W_SEALED = 0.42
+const POWERS_W_SATURATED = 0.36
+
 """
-    powers_alpha_max(w_c) -> Real
+    powers_alpha_max(w_c; curing = :sealed) -> Real
 
 Powers (1948) upper bound on the degree of hydration set by the availability of
-water, `α_max = min(1, w/c / 0.42)`: a sealed paste below `w/c = 0.42` cannot
-hydrate completely.
+water, `α_max = min(1, w/c / k)`: a paste below `w/c = k` cannot hydrate
+completely, `k` being 0.42 sealed or 0.36 water-cured, according to `curing`.
 
 The 0.42 is **not** a stoichiometric demand, and reading it as one leads to the
 wrong conclusion about what a Gibbs minimization should return. It is about
@@ -1218,11 +1228,34 @@ unavailable. In a sealed paste hydration stops by self-desiccation with water
 still in the specimen, so this bound is a statement about transport and access,
 not about thermodynamics: an equilibrium calculation on the same mix consumes all
 the clinker well below 0.42, and only runs out of water near the stoichiometric
-demand. With curing water supplied from outside the bound is nearer 0.36, the
-capillary space emptied by chemical shrinkage being refilled.
+demand.
+
+# The two curing conventions
+
+`curing = :sealed` is a specimen that exchanges nothing with its surroundings —
+the convention of [`porosity`](@ref) and of the [w/c example](@ref sec-wc-ratio).
+`curing = :saturated` is a specimen kept under water after setting, free to draw
+in what the chemical shrinkage empties; the bound is then 0.36 and a mix that
+would arrest sealed can go on reacting. **Neither is a property of the cement**:
+they are two boundary conditions on the same paste, and which one applies is the
+caller's to state.
+
+Where water is abundant — `w/c` above the coefficient, or a cure that keeps
+supplying it — the bound is 1 and this function stops doing anything, which is
+the correct answer rather than a degenerate case: nothing about water is then
+limiting the reaction.
 
 Pass the result as the `α_max` keyword of [`parrot_killoh`](@ref),
 [`parrot_killoh_avrami`](@ref) or [`waller`](@ref).
+
+!!! note "It is a ceiling, not a schedule"
+    `α_max` says how far the reaction can go, never how far it has got. At an
+    early age the degree of reaction is set by the kinetics and is far below this
+    bound; the bound binds only at long times, and only for the constituents
+    whose kinetics would otherwise have taken them past it. For a constituent
+    that reacts slowly — a slag, and a fly ash still more — the binding limit at
+    28 days is its own dissolution rate, not the water. Take the **smaller** of
+    the two.
 
 # Examples
 
@@ -1232,6 +1265,18 @@ julia> powers_alpha_max(0.5)
 
 julia> round(powers_alpha_max(0.32); digits = 4)
 0.7619
+
+julia> round(powers_alpha_max(0.32; curing = :saturated); digits = 4)
+0.8889
 ```
 """
-powers_alpha_max(w_c::Real) = min(one(w_c), w_c / oftype(w_c, 0.42))
+function powers_alpha_max(w_c::Real; curing::Symbol = :sealed)
+    k = if curing === :sealed
+        POWERS_W_SEALED
+    elseif curing === :saturated
+        POWERS_W_SATURATED
+    else
+        throw(ArgumentError("curing must be :sealed or :saturated, got :$curing"))
+    end
+    return min(one(w_c), w_c / oftype(w_c, k))
+end

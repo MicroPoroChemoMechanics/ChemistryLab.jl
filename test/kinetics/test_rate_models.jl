@@ -406,6 +406,27 @@ end
     # AD through the cap (calibration on w/c must not need finite differences)
     @test ForwardDiff.derivative(powers_alpha_max, 0.3) ≈ 1 / 0.42
 
+    # ── the two curing conventions ────────────────────────────────────────────
+    # Sealed is the default, so the one-argument call must be untouched.
+    @test powers_alpha_max(0.32; curing = :sealed) == powers_alpha_max(0.32)
+    @test powers_alpha_max(0.32; curing = :saturated) ≈ 0.32 / 0.36
+
+    # Under water the same paste reacts further, and the gap between the two
+    # coefficients is the chemical shrinkage, 0.42 - 0.36 = 0.06 g/g.
+    @test powers_alpha_max(0.32; curing = :saturated) >
+        powers_alpha_max(0.32; curing = :sealed)
+    @test powers_alpha_max(0.36; curing = :saturated) ≈ 1.0
+    @test powers_alpha_max(0.36) ≈ 0.36 / 0.42
+
+    # Abundant water: neither convention does anything, which is the right
+    # answer rather than a degenerate case.
+    @test powers_alpha_max(0.6) == 1.0
+    @test powers_alpha_max(0.6; curing = :saturated) == 1.0
+
+    @test ForwardDiff.derivative(w -> powers_alpha_max(w; curing = :saturated), 0.3) ≈
+        1 / 0.36
+    @test_throws ArgumentError powers_alpha_max(0.3; curing = :immersed)
+
 end
 
 # ── parrot_killoh_avrami ──────────────────────────────────────────────────────
