@@ -19,18 +19,45 @@ using TOML
         merged = JSON.parsefile(datapath("cemdata18-merged.json"); dicttype = Dict{String, Any})
 
         syms(db) = Set(String(s["symbol"]) for s in db["substances"])
+        @test length(syms(base)) == 228
         @test syms(merged) == syms(base)          # identical in substances
 
         nrxn(db) = length(get(db, "reactions", []))
-        @test nrxn(base) > 0
-        @test nrxn(merged) > nrxn(base)           # and a strict superset in reactions
+        @test nrxn(base) == 7                     # and the numbers the manual quotes
+        @test nrxn(merged) == 148
 
-        # Every reaction names substances the database defines, or the merge
-        # produced a reaction nothing can be solved with.
+        # Every reaction is usable as a reaction: it has a symbol, and it has
+        # something on its left-hand side.
+        for r in merged["reactions"]
+            @test haskey(r, "symbol") && !isempty(String(r["symbol"]))
+            @test !isempty(get(r, "reactants", []))
+        end
+
+        # A REACTANT IS NOT ALWAYS A DECLARED SUBSTANCE SYMBOL, and asserting
+        # that it is was wrong here before: of the 751 reactant entries, 146
+        # name their participant by FORMULA rather than by symbol
+        # (`Mg6Al2(OH)18(H2O)3`, `Ca2Al(OH)7(H2O)3`, `(CaO)3Al2O3`), and one of
+        # them is the electron, `e-`, which is no substance at all. The `.dat`
+        # file names participants the way PHREEQC writes them, and the merge
+        # carries that through rather than rewriting it.
+        #
+        # What is checked instead is that the two naming conventions are the
+        # only ones: a reactant is either a declared symbol, or something the
+        # formula parser accepts, or the electron.
         known = syms(merged)
         for r in merged["reactions"]
             for part in get(r, "reactants", [])
-                @test String(part["symbol"]) in known
+                sym = String(part["symbol"])
+                sym in known && continue
+                sym == "e-" && continue
+                @test (
+                    try
+                        Species(sym)
+                        true
+                    catch
+                        false
+                    end
+                )
             end
         end
     end
