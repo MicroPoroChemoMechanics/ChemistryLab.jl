@@ -268,6 +268,7 @@ module ChemistryLab
         FixedpE,
         FixedEh,
         CapillaryWater,
+        SaturatedCuring,
         KineticStepSolver,
         kinetic_step,
         kinetic_step_adaptive,
