@@ -8,7 +8,7 @@ authors:
     given-names: "Anthony"
     orcid: "0000-0002-2368-6848"
 title: "ChemistryLab.jl: Numerical laboratory for computational chemistry"
-abstract: "Computational chemistry toolkit providing formula handling, species management, stoichiometric matrix construction, thermodynamic equilibrium via Gibbs free energy minimization, extended Debye-Hückel and Davies activity models, ideal and Redlich-Kister solid solution phases, interoperability with ThermoFun and Cemdata databases, and a kinetics module for mineral dissolution/precipitation coupled to ODE-based integration (Parrot-Killoh model, semi-adiabatic calorimetry). Initially focused on cement chemistry but applicable more broadly."
+abstract: "Computational chemistry toolkit providing formula handling, species management, stoichiometric matrix construction, certified thermodynamic equilibrium via Gibbs free energy minimization, extended Debye-Hückel, Davies and Pitzer activity models, ideal and Redlich-Kister solid solution phases with miscibility-gap detection, oxidation state as an independent conserved quantity with pe and Eh, interoperability with ThermoFun and Cemdata databases, and a kinetics module for mineral dissolution/precipitation coupled to ODE-based integration (Parrott-Killoh and Waller rate laws, semi-adiabatic calorimetry). Initially focused on cement chemistry, including blended binders entered from an oxide analysis, but applicable more broadly."
 keywords:
   - "computational chemistry"
   - "Julia"
@@ -20,7 +20,7 @@ keywords:
   - "chemical kinetics"
   - "cement"
 version: 0.18.0
-date-released: '2026-09-12'
+date-released: '2026-09-13'
 doi: "10.5281/zenodo.17756074"
 url: "https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl"
 repository-code: "https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl"

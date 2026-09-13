@@ -39,8 +39,10 @@ a solver have to be driven from code rather than from a dialog box.
 - **Database interoperability**: Import and merge ThermoFun (.json) and Cemdata (.dat) data; load solid solution definitions from a TOML file with `build_solid_solutions`.
 - **Parsing tools**: Convert chemical notations, extract charges, calculate molar mass, and more.
 - **Solid solutions**: Define ideal (`IdealSolidSolutionModel`) or non-ideal binary (`RedlichKisterModel`) mineral mixing phases via `SolidSolutionPhase`; end-members are automatically requalified at construction time.
-- **Activity models**: Built-in aqueous activity models for equilibrium: `DiluteSolutionModel` (ideal), `HKFActivityModel` (extended Debye-Hückel B-dot), and `DaviesActivityModel`.
-- **Chemical equilibrium**: Compute thermodynamic equilibrium compositions from initial states using Gibbs energy minimization (`equilibrate`, `ChemicalSystem`, `ChemicalState`).
+- **Activity models**: Built-in aqueous activity models for equilibrium: `DiluteSolutionModel` (ideal), `HKFActivityModel` (extended Debye-Hückel B-dot), `DaviesActivityModel` and `PitzerActivityModel`.
+- **Chemical equilibrium**: Compute thermodynamic equilibrium compositions from initial states using Gibbs energy minimization (`equilibrate`, `ChemicalSystem`, `ChemicalState`), with `equilibrate_certified` returning a KKT certificate — a proof of the global minimum, not a report that an iteration stopped.
+- **Oxidation state**: Charge is kept as a conservation law of its own wherever an element appears at several valences, with `pe`, `Eh`, `half_reaction` and the `FixedpE` / `FixedEh` constraints — which is what a slag-blended binder needs, its sulfur arriving as S(-II) into a pore solution carrying S(+VI).
+- **Cementitious binders, CEM I to CEM V**: A glass with no formula enters through `oxide_budget` from its oxide analysis; how far each constituent has reacted is stated rather than assumed complete, bounded by `powers_alpha_max` for the water and space available, under either curing convention; `CapillaryWater` and `SaturatedCuring` are the two boundary conditions a specimen can be cured under.
 
 ## Installation
 

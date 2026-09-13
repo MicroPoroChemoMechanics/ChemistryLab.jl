@@ -90,9 +90,9 @@ depends on one.
 
 ## Deliberately deferred
 
-Two pieces of work are identified, designed, and **not** in the current release.
-They are recorded here rather than left as folklore, with enough detail to be
-picked up without rediscovering the analysis.
+Three pieces of work are identified, designed, and **not** in the current
+release. They are recorded here rather than left as folklore, with enough detail
+to be picked up without rediscovering the analysis.
 
 ### 1. Register the kinetic rate laws symbolically, as the thermodynamic ones are
 
@@ -152,3 +152,28 @@ The rule that produced the gains in 0.18.0, and that this audit should keep:
 **profile first, and let the measurement name the line**. Four wrong turns were
 taken in that release by reasoning about where the time "must" be; the profiler
 found it in one pass.
+
+### 3. A coupled run that is open to water
+
+`SaturatedCuring` opens an **equilibrium** to water: the specimen's total volume
+is held at the fresh paste's and water is drawn in to make up the chemical
+shrinkage, with the amount imbibed as the answer. A **coupled kinetic run** is
+still closed. So a cure enters a trajectory through `α_max`
+(`powers_alpha_max(w_c; curing = :saturated)`) and not through its water balance,
+and the pore solution a cured run reports is the one the mix water made.
+
+**What it would take.** `run_ionic_hydration` integrates a closed system: the
+element budget `b` is fixed at the start and conserved. Opening it to water means
+one extra state variable — the water taken up — with its own rate, since the
+uptake is not instantaneous but transport-limited through the specimen. That rate
+is a length-scale problem (how fast water reaches the interior of a cylinder),
+which is precisely the physics a 0D framework does not contain, and putting an
+arbitrary time constant on it would be the kind of unmeasured parameter the rest
+of this package refuses.
+
+**So the honest version is bounded rather than approximate:** integrate closed,
+and report the sealed and the saturated ceilings as two bounds on the degree of
+reaction. A specimen cured under water lies between them, nearer the saturated
+one the thinner it is. Doing better needs a transport calculation, which is a
+different package — the same conclusion `theory/cement_water_budget.md` reaches
+about the arrest itself.
