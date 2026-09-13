@@ -105,3 +105,34 @@ using Printf
 
 [Getting started](@ref) takes the same problem more slowly, and shows how the
 solubility constant is obtained analytically before any solver is involved.
+
+## Where this comes from
+
+This package would not exist without two bodies of work that came before it, and
+it is worth saying so on the first page rather than in a footnote.
+
+**GEM-Selektor and GEMS3K**, from the Paul Scherrer Institute and Empa
+[Kulik2013](@cite), established the Gibbs energy minimization approach used here,
+and much of the vocabulary with it — the phase stability index this package
+computes as ``\Omega`` is the same quantity as their ``\Lambda_k``, reached from
+the same KKT conditions. **CEMDATA18** [Lothenbach2019](@cite), the thermodynamic
+database behind every cement calculation in this manual, is their laboratory's
+work and ships here unchanged; the zeolite extension is transcribed from two
+further papers by the same group. Nothing here would produce a number without it.
+
+**Reaktoro** [Leal2017](@cite), by Allan Leal and contributors, is both an
+ancestor and a reference: parts of the thermodynamics and kinetics here are Julia
+ports of its C++ implementation, and it is the code this package checks itself
+against throughout — see [the validation page](@ref Validation-against-Reaktoro).
+Where a result differs, the burden of proof has been on us.
+
+Both are mature, carefully built and widely used, and both address a wider range
+of problems than this package attempts. What ChemistryLab tries to add is
+narrower: a Julia-native formulation in which an equilibrium comes with a
+**proof** of its optimality rather than a converged iterate, differentiable end
+to end so that a calibration can be posed as an optimization, and with the
+cementitious special cases — cement chemist notation, Bogue, the oxide-budget
+entry route for a glass, the binder families of EN 197-1 — treated as first-class
+rather than as an application layer.
+
+That is an addition to their work, not a substitute for it.

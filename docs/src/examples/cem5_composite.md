@@ -17,6 +17,40 @@ every difficulty of the preceding pages arrives together:
 None of these is new here. What is new is that they must hold simultaneously,
 and the point of the page is that the same element budget answers all four.
 
+## 0. Why two constituents are not one constituent twice
+
+A natural first reaction to a composite binder is that 24 % slag plus 24 % fly
+ash should behave like 48 % of "something in between". It does not, and the
+reason is worth stating because it is the reason the family exists.
+
+The two glasses differ where it matters most — in **calcium**:
+
+| | CaO | SiO₂ | Al₂O₃ | MgO |
+|:--|--:|--:|--:|--:|
+| blastfurnace slag | ~41 % | ~36 % | ~11 % | ~8 % |
+| siliceous fly ash | ~4 % | ~53 % | ~26 % | ~2 % |
+
+A slag is *latently hydraulic*: it carries nearly as much calcium as it needs and
+mostly wants an alkaline trigger. A fly ash is *pozzolanic*: it carries almost
+none, so it must **take** calcium from the paste — which means consuming the
+portlandite the clinker makes.
+
+Put them together and the slag's calcium partly feeds the ash's appetite, so the
+portlandite lasts further than it would with the same mass of ash alone. That is
+why a CEM V reaches a replacement level a CEM IV cannot, and it is visible in the
+budget table of section 3: read the `Ca+2` row across the three columns.
+
+The aluminum goes the other way. Both glasses bring it, the ash twice as much per
+gram, and there are only so many aluminate hydrates to hold it — which is what
+makes the C-A-S-H model the load-bearing choice here rather than a refinement.
+
+!!! note "Read this page as a limit, not as a specimen"
+    Equilibrium treats every constituent as fully reacted. A real CEM V at 28
+    days has dissolved a fraction of its slag and less of its ash, so the paste
+    below is the state this formulation *tends to*, not what a cylinder would
+    contain. The degree of reaction is a kinetic quantity, supplied from outside
+    — see [the coupled runs](@ref ex-ionic-opc).
+
 ```@example cem5
 using ChemistryLab
 using DynamicQuantities
@@ -26,9 +60,25 @@ using Printf
 using Plots
 default(framestyle = :box, grid = false)
 
-substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+# The ZEOLITE-EXTENDED database, and that is not a detail of convenience.
+# [The CEM IV page](@ref ex-cem4-pozzolanic) establishes why: past roughly a
+# third replacement the aluminum and the alkalis the pozzolana brings exceed what
+# the C-A-S-H and the aluminate hydrates can hold, and with no phase left to
+# receive them the minimization has no admissible assemblage at all. A CEM V/A at
+# the midpoint of its range is 48 % replaced, well inside that regime.
+substances = build_species(datapath("cemdata18-zeolites.json"); verbose = false)
 byname = Dict(symbol(s) => s for s in substances)
 molar_mass(n) = ustrip(us"g/mol", byname[n][:M])
+
+# Only the zeolites this binder could form. Two of the twenty-eight are a
+# chloride and a nitrate sodalite, and this paste carries neither element:
+# declaring them would pull every aqueous chloride and nitrate species into the
+# system on a budget of exactly zero.
+base = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+carries(sp, el) = haskey(atoms(sp), Symbol(el))
+ZEOLITES = [z for z in sort(collect(setdiff(Set(symbol.(substances)),
+                                            Set(symbol.(base)))))
+            if !carries(byname[z], "Cl") && !carries(byname[z], "N")]
 nothing # hide
 ```
 
@@ -78,8 +128,18 @@ pure = split(
     "C3S C2S C3A C4AF Gp Anh Cal Portlandite ettringite monosulphate12 " *
     "monocarbonate hemicarbonate C4AH13 C3AH6 C3FH6 straetlingite " *
     "hydrotalcite Mg2AlC0.5OH Brc FeOOHmic AlOHmic Amor-Sl Mgs " *
+    # Aluminum sinks that CEMDATA18 documents and an earlier version of this
+    # list simply did not declare. The siliceous hydrogarnet `C3AS0.84H4.32`
+    # is the one that matters most here: it is the ALUMINUM end-member of the
+    # family whose iron end-member was already present, and a blended binder
+    # puts a great deal of aluminum into it. Leaving it out does not make the
+    # calculation conservative -- it makes it insoluble, because the element
+    # has to go somewhere.
+    "C3AS0.84H4.32 C3AS0.41H5.18 straetlingite7 Gbs AlOHam " *
+    "M4A-OH-LDH M6A-OH-LDH M8A-OH-LDH C2AH7.5 C4AH11 C4AH19 " *
     "Tro Py Sulfur K2SO4 syngenite Na2SO4"
 )
+pure = vcat(String.(pure), ZEOLITES)
 gel = ["T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
        "5CA", "5CNA", "INFCA", "INFCN", "INFCNA"]
 feal = ["C3AFS0.84H4.32", "C3FS0.84H4.32"]

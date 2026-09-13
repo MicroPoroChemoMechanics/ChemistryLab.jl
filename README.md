@@ -336,4 +336,35 @@ See [CITATION.cff](CITATION.cff) for citation details.
 
 Developed by [Jean-François Barthélémy](https://github.com/jfbarthelemy) and [Anthony Soive](https://github.com/anthonysoive), both researchers at [Cerema](https://www.cerema.fr/en) in the research team [UMR MCD](https://mcd.univ-gustave-eiffel.fr/).
 
+### Standing on other people's work
+
+This package exists because two bodies of work came before it, and it would not
+be possible without either.
+
+**[GEM-Selektor and GEMS3K](https://gems.web.psi.ch/)**, from the Paul Scherrer
+Institute and Empa — Kulik, Wagner, Dmytrieva, Kosakowski, Hingerl, Chudnenko,
+Berner and their colleagues. The Gibbs energy minimization approach used here is
+theirs, and so is much of the vocabulary: the phase stability index this package
+computes as `Ω` is the same quantity as their `Λ_k`, arrived at from the same KKT
+conditions. **CEMDATA18**, the thermodynamic database that makes every cement
+calculation in this manual possible, is the work of Lothenbach, Kulik, Matschei,
+Balonis, Baquerizo, Dilnesa, Miron and Myers, and it is shipped here unchanged.
+The zeolite extension is transcribed from two further papers by Ma and
+Lothenbach. Nothing in this package would produce a number without that data.
+
+**[Reaktoro](https://github.com/reaktoro/reaktoro)**, by Allan Leal and
+contributors. Parts of the thermodynamics and kinetics subsystems here are Julia
+ports of its C++ implementation — see the license section above for the list —
+and it has served throughout as the reference this package checks itself against.
+Where a result of ours differs from Reaktoro's, the burden of proof has been on
+us.
+
+Both are mature, carefully built and widely used, and both solve a wider range of
+problems than this package attempts. What ChemistryLab tries to add is narrower:
+a Julia-native formulation in which an equilibrium comes with a **proof** of its
+optimality, differentiable end to end, with the cementitious special cases —
+cement chemist notation, Bogue, the oxide-budget entry route for a glass —
+first-class rather than bolted on. That is a contribution on top of their work,
+not a replacement for it.
+
 Parts of the codebase were developed with the support of [Claude Code](https://claude.ai/code) (Anthropic) as an AI pair-programming assistant.

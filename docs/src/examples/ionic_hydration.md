@@ -430,6 +430,12 @@ plot!(p_T, t_cal ./ 86400, T_n .- 293.15; lw = 2, color = 2, ls = :dash, label =
 ```
 
 ```@example ionicopc
+# The states themselves, not just the columns: a heat capacity is a property of
+# the whole paste, so it needs the speciation and not a plotted curve. They come
+# from the same memoized run as the tables above.
+states_c = coupled_states("ionic_opc")
+states_n = coupled_states("ionic_nolimestone")
+
 m_binder_g = ustrip(us"kg", CALORIMETRY_MIX_C100.binder) * 1000
 C_fixed = CALORIMETRY_VESSEL_CP + sand_heat_capacity(CALORIMETRY_MIX_C100.sand)
 for (lbl, T, Q, st) in (("with 3.5 % calcite", T_c, Q_c, states_c),

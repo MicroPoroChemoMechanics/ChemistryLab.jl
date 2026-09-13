@@ -17,6 +17,35 @@ Two things follow for the calculation, and this page is about both.
 2. **Portlandite becomes the limiting reagent.** Past a certain replacement it
    runs out, and what the paste can do afterwards changes.
 
+## 0. What a pozzolana actually does
+
+A pozzolana is not a binder on its own. Mix siliceous fly ash with water and
+nothing happens. What makes it work is that a Portland clinker, while hydrating,
+produces a large amount of **portlandite** — calcium hydroxide, ``\mathrm{Ca(OH)_2}``
+— which is a by-product of the silicates:
+
+```math
+2\,\mathrm{C_3S} + 6\,\mathrm{H} \;\longrightarrow\; \mathrm{C_3S_2H_3} + 3\,\mathrm{CH}
+```
+
+Roughly a fifth of a hydrated CEM I paste is portlandite, and it contributes
+little strength while being the phase most easily leached. The **pozzolanic
+reaction** puts it to work: the ash's amorphous silica consumes it and makes more
+of the phase that does carry the strength, the calcium silicate hydrate.
+
+```math
+\mathrm{S} + 1.7\,\mathrm{CH} + \text{water} \;\longrightarrow\; \mathrm{C_{1.7}SH_x}
+```
+
+So a pozzolanic binder trades a weak, soluble phase for a strong one, at the cost
+of a slower reaction. Section 6 measures exactly that trade, by sweeping the
+replacement level and watching the portlandite go.
+
+But the ash brings something else that the equation above ignores, and it is what
+the rest of the page is about: **aluminum**, almost as much as silicon. Where it
+goes decides the answer, and it depends entirely on which C-S-H model the
+calculation is given.
+
 ```@example cem4
 using ChemistryLab
 using DynamicQuantities
@@ -57,9 +86,11 @@ FLYASH = OrderedDict("SiO2" => 0.53, "Al2O3" => 0.26, "Fe2O3" => 0.07,
                      "CaO" => 0.04, "MgO" => 0.02, "K2O" => 0.025,
                      "Na2O" => 0.008, "SO3" => 0.005)
 
-# ASSUMED: the midpoint of the EN 197-1 range for a CEM IV/B, which is 45-64 %
-# clinker and 36-55 % pozzolana.
-ASH_FRACTION = 0.45
+# ASSUMED: the midpoint of the EN 197-1 range for a CEM IV/A, which is 65-89 %
+# clinker and 11-35 % pozzolana. Section 7 goes to a CEM IV/B, and shows what
+# has to be added to the phase list before that is a question with an answer.
+ASH_FRACTION = 0.23
+ASH_FRACTION_B = 0.45
 GYPSUM = 0.046
 WB = 0.50
 BINDER_G = 100.0
@@ -83,6 +114,15 @@ pure = split(
     "C3S C2S C3A C4AF Gp Anh Cal Portlandite ettringite monosulphate12 " *
     "monocarbonate hemicarbonate C4AH13 C3AH6 C3FH6 straetlingite " *
     "hydrotalcite Brc FeOOHmic AlOHmic Amor-Sl Mgs " *
+    # Aluminum sinks that CEMDATA18 documents and an earlier version of this
+    # list simply did not declare. The siliceous hydrogarnet `C3AS0.84H4.32`
+    # is the one that matters most here: it is the ALUMINUM end-member of the
+    # family whose iron end-member was already present, and a blended binder
+    # puts a great deal of aluminum into it. Leaving it out does not make the
+    # calculation conservative -- it makes it insoluble, because the element
+    # has to go somewhere.
+    "C3AS0.84H4.32 C3AS0.41H5.18 straetlingite7 Gbs AlOHam " *
+    "M4A-OH-LDH M6A-OH-LDH M8A-OH-LDH C2AH7.5 C4AH11 C4AH19 " *
     "K2SO4 syngenite Na2SO4"
 )
 aqueous = ["SO4-2", "CO2@", "O2@"]
@@ -216,7 +256,7 @@ The pozzolanic reaction consumes calcium hydroxide. Sweep the replacement level
 and the point where it runs out is visible directly:
 
 ```@example cem4
-fractions = 0.0:0.1:0.5
+fractions = 0.0:0.05:0.30
 ch = Float64[]
 phs = Float64[]
 for f in fractions
@@ -252,23 +292,53 @@ set it, not the calcium hydroxide; portlandite only fixes a floor around 12.5 at
 25 °C. A pozzolanic binder lowers the pH mainly by **binding alkalis into the
 C-A-S-H**, and that is a mechanism only the `CNASH_ss` model can express at all.
 
-## 7. The alkalis, and the phases that could take them
+## 7. Push to a CEM IV/B, and the calculation stops having an answer
 
-Section 6 left a loose end: the pH barely moves, and the reason given was that
-the alkalis stay in solution. That is a statement about the **phase list**, not
-about the chemistry — nothing in the species list above can hold potassium or
-sodium except the C-A-S-H and two sulfates. A pozzolanic paste at high alkalinity
-has another option, and it is the one CEMDATA18 does not carry:
-[the zeolite extension](@ref sec-zeolites).
+Everything so far was a CEM IV/**A**, 23 % ash. Take it to a CEM IV/**B** — the
+midpoint of 36–55 % — and the equilibrium **fails to certify**, on either C-S-H
+model. That is not a numerical accident and it is not a defect of `CNASH_ss`:
+
+```@example cem4
+eq_b, c_b = nothing, nothing          # the CNASH_ss case, kept for section 7
+for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
+    st, b = budget(cs; ash = ASH_FRACTION_B)
+    eq, c = equilibrate_certified(st; model = model, b = b)
+    label == "CNASH_ss" && (global eq_b, c_b = eq, c)
+    @printf("%-10s at %2.0f %% ash: optimal=%-5s  balance=%.1e  pH=%.3f\n",
+            label, 100ASH_FRACTION_B, c.optimal, c.balance, pH(eq, model))
+end
+```
+
+**The element budget has nowhere to put what the ash brings.** At 23 % the
+aluminum fits in the C-A-S-H, the AFm/AFt phases and strätlingite, and the
+alkalis fit in the C-A-S-H and the sulfates. At 45 % there is more aluminum and
+more alkali than those phases can hold, portlandite is gone so the calcium
+potential is no longer buffered by a pure phase, and the minimization is looking
+for an assemblage that the declared phase list cannot form.
+
+A real cement does not have this problem, because a real alkaline aluminosilicate
+paste precipitates **zeolites** — and CEMDATA18 carries five of them, none of the
+families this binder needs. That is exactly what
+[the zeolite extension](@ref sec-zeolites) was built for.
 
 ```@example cem4
 zeo_db = build_species(datapath("cemdata18-zeolites.json"); verbose = false)
 zeo_byname = Dict(symbol(s) => s for s in zeo_db)
-zeolites = sort(collect(setdiff(Set(keys(zeo_byname)), Set(keys(byname)))))
+added = sort(collect(setdiff(Set(keys(zeo_byname)), Set(keys(byname)))))
 
-# Only the ones this paste could form: its alkalis are K and Na, and it has no
-# chloride or nitrate.
-println(length(zeolites), " phases added by the extension:")
+# Only the ones this paste could form. Two of the twenty-eight are a chloride
+# and a nitrate sodalite, and this binder carries neither element: declaring them
+# would widen the species list to every aqueous chloride and nitrate species in
+# the database, all of them on a budget of exactly zero, for no phase that can
+# form. Dropping them is not a modeling choice, it is arithmetic.
+carries(sp, el) = haskey(atoms(sp), Symbol(el))
+zeolites = [z for z in added
+            if !carries(zeo_byname[z], "Cl") && !carries(zeo_byname[z], "N")]
+
+@printf("%d phases added by the extension, %d of them usable here\n",
+        length(added), length(zeolites))
+println("left out (no Cl and no N in this binder): ",
+        join(setdiff(added, zeolites), ", "))
 for z in zeolites
     print(z, "  ")
 end
@@ -285,13 +355,13 @@ cs_z = ChemicalSystem(sp_z, CEMDATA_PRIMARIES; solid_solutions = ss_z)
 st_z = ChemicalState(cs_z)
 for (phase, frac) in CLINKER
     set_quantity!(st_z, phase,
-        BINDER_G * (1 - ASH_FRACTION - GYPSUM) * frac / molar_mass(phase) * u"mol")
+        BINDER_G * (1 - ASH_FRACTION_B - GYPSUM) * frac / molar_mass(phase) * u"mol")
 end
 set_quantity!(st_z, "Gp", BINDER_G * GYPSUM / molar_mass("Gp") * u"mol")
 set_quantity!(st_z, "H2O@", BINDER_G * WB / molar_mass("H2O@") * u"mol")
 b_z = Float64.(cs_z.SM.A) * ustrip.(us"mol", st_z.n)
 b_z .+= oxide_budget(FLYASH, cs_z.SM.primaries;
-                     mass = BINDER_G * ASH_FRACTION * u"g")
+                     mass = BINDER_G * ASH_FRACTION_B * u"g")
 
 eq_z, c_z = equilibrate_certified(st_z; model = model, b = b_z)
 @printf("with zeolites: optimal=%-5s  worst SI=%+.2e  pH=%.3f
@@ -299,7 +369,7 @@ eq_z, c_z = equilibrate_certified(st_z; model = model, b = b_z)
         c_z.optimal, c_z.worst_supersaturation, pH(eq_z, model))
 @printf("without      : optimal=%-5s  worst SI=%+.2e  pH=%.3f
 ",
-        c_n.optimal, c_n.worst_supersaturation, pH(eq_n, model))
+        c_b.optimal, c_b.worst_supersaturation, pH(eq_b, model))
 
 nz = ustrip.(us"mol", eq_z.n)
 formed = sort([(symbol(cs_z.species[i]), nz[i])

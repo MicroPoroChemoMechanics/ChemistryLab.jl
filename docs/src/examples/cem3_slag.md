@@ -26,6 +26,44 @@ byname = Dict(symbol(s) => s for s in substances)
 nothing # hide
 ```
 
+## 0. Why a glass is a different kind of input
+
+A clinker phase has a formula. ``\mathrm{C_3S}`` is ``\mathrm{Ca_3SiO_5}``, and
+the package can look up its molar mass, its Gibbs energy and its molar volume.
+A **glass cannot be written that way at all.**
+
+Ground granulated blastfurnace slag is quenched molten slag: its atoms are frozen
+in a disordered network with no repeating unit, so there is no formula unit to
+name and no tabulated thermodynamic data for "slag". What a datasheet reports is
+an **oxide analysis** — how much CaO, SiO₂, Al₂O₃, MgO the material contains by
+mass — and nothing else.
+
+That is enough, because a Gibbs minimization does not need to know what the
+starting material *was*. It needs the totals:
+
+```math
+\mathbf{A}\,\mathbf{n} = \mathbf{b}
+```
+
+where ``\mathbf{n}`` holds the amount of each species, ``\mathbf{A}`` says how
+many units of each conserved component each species carries, and ``\mathbf{b}``
+is the budget — how much of each component the paste contains in total. The
+minimization finds the ``\mathbf{n}`` of lowest Gibbs energy subject to that.
+
+A clinker enters through its phases, which have formulas, and ``\mathbf{b}``
+follows as ``\mathbf{A}\mathbf{n}_0``. A glass enters by going straight to
+``\mathbf{b}``: [`oxide_budget`](@ref) converts an oxide analysis into component
+totals, and the two contributions are simply added.
+
+!!! warning "A budget says what a material CONTAINS, not what it does"
+    A slag and a quartz sand of the same analysis give the same ``\mathbf{b}``.
+    Equilibrium has no notion of reactivity: it answers what the paste would
+    become if everything reacted. How much of the glass actually dissolves, and
+    how fast, is a **kinetic** question answered elsewhere — see
+    [the coupled runs](@ref ex-ionic-opc).
+
+    So read this page as the limit the paste tends to, not as a 28-day specimen.
+
 ## 1. What is measured, and what is assumed
 
 This page is built around a **measured** record: CEM III/A 42.5 N from Hranice,

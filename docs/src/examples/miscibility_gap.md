@@ -205,11 +205,109 @@ for (grp, ph) in zip(cs3.ss_groups, cs3.solid_solutions)
 end
 ```
 
-The two instances are the **common-tangent pair**: one sits on each side of the
-spinodal, and together they hold the amount that a single composition could not.
-That is the whole content of `instances = 2` — the substance is present twice,
-under derived symbols sharing one thermodynamic record, so the composition vector
-has somewhere to put each lobe.
+Read that output carefully, because it does **not** show a common-tangent pair.
+The two instances come out at the **same** composition, with the amount split
+lopsidedly between them, and the certificate still refuses.
+
+That is an honest result, and the page states it rather than dressing it up.
+
+## 3. The pair itself is computable — the minimization is what does not find it
+
+The two compositions are not unknown. They follow from the mixing model alone,
+by the construction Glynn and Reardon set out [GlynnReardon1990](@cite) and that
+PHREEQC uses for a binary solid solution: the pair at which a single straight
+line is tangent to ``g`` twice, equivalently at which both end-members have equal
+chemical potentials in the two phases.
+
+```@example gap
+ct = common_tangent(published, 2)
+sp = spinodal_interval(published, 2)
+@printf("common tangent : x = %.4f and %.4f\n", ct[1], ct[2])
+@printf("spinodal       : x = %.4f to %.4f  (contained in it, as it must be)\n",
+        sp[1], sp[2])
+```
+
+[`common_tangent`](@ref) solves two equations in two unknowns by Newton and costs
+microseconds — it involves no chemical system at all. Its answer is checkable
+without trusting the code: for a **symmetric** model ``g(1-x) = g(x)``, so
+``g'(1-x) = -g'(x)``, and the condition collapses to ``g'(x) = 0``:
+
+```@example gap
+A = 3.0                                  # W/RT, well past the threshold of 2
+sym = RegularSolutionModel([0.0 A*RT; A*RT 0.0])
+a, b = common_tangent(sym, 2)
+@printf("symmetric model: x = %.6f and %.6f, and b = 1 - a to %.1e\n",
+        a, b, abs(b - (1 - a)))
+@printf("residual of  ln(x/(1-x)) + A(1-2x) = 0  :  %+.2e and %+.2e\n",
+        log(a / (1 - a)) + A * (1 - 2a), log(b / (1 - b)) + A * (1 - 2b))
+```
+
+So the endpoints of the gap are available to a user who needs them. What does
+**not** work is handing them to the minimization as a starting point and
+expecting it to keep the two lobes apart:
+
+### And the split follows, by mass balance
+
+Inside a gap **only the proportions move**: the two compositions are the same
+whatever the overall composition is. So once the pair is known, how a given
+overall composition ``\bar{x}`` separates is the lever rule and nothing more —
+which [`miscibility_split`](@ref) returns, together with the Gibbs energy the
+separation releases:
+
+```@example gap
+for x̄ in (0.20, 0.40, 0.5268, 0.80, 0.96)
+    r = miscibility_split(published, x̄, 2)
+    if r.f_beta == 0
+        @printf("x̄ = %.4f : homogeneous (outside the pair)\n", x̄)
+    else
+        @printf("x̄ = %.4f : %.1f %% at x=%.4f and %.1f %% at x=%.4f" *
+                "   —  releases %6.1f J/mol   (mass balance %+.0e)\n",
+                x̄, 100r.f_alpha, r.x_alpha, 100r.f_beta, r.x_beta, r.Δg,
+                r.f_alpha * r.x_alpha + r.f_beta * r.x_beta - x̄)
+    end
+end
+```
+
+`Δg` is the distance from the curve down to the common tangent: it says, in
+joules per mole of binary, **how much a single-composition answer overstates the
+Gibbs energy**. The AFm of this paste sits at x̄ = 0.5268, inside the pair, so the
+figure is not academic.
+
+### The one thing the minimization does not deliver
+
+Everything above costs microseconds and needs no solver. What a minimization over
+two declared instances does not deliver is ``\bar{x}`` **itself**, computed inside
+a gap with the aqueous solution iterated along with it. Seeding the two instances
+at ``x_\alpha`` and ``x_\beta`` and solving with `autostart = false` so the seed
+survives: the second instance empties and the solve stalls at a stationarity of
+1.8e-04 where the ideal case reaches 1.1e-15. It is not the starting point —
+three were tried, including the exact pair — and it is not the iteration budget:
+between 200 and 5000 iterations the element balance **degrades** from 1.5e-01 to
+4.5e+00. Two instances of one substance put a nearly null direction into the
+problem, and more iterations walk further along it.
+
+That is also where PHREEQC draws the line: its binary solid-solution calculation
+is a dedicated construction, not a job handed to the global minimization.
+
+!!! info "Where this leaves the three questions"
+    | | |
+    |:--|:--|
+    | **detect** a gap | yes — the certificate refuses a single composition inside one, and names the phase |
+    | **locate** it | yes — `spinodal_interval` and `common_tangent`, from the model alone |
+    | **represent** it | yes — `instances = 2`; the species exist, the groups stay disjoint, conservation is untouched |
+    | **split** a given overall composition | yes — `miscibility_split`, exact, with the energy it releases |
+    | iterate that back through the aqueous equilibrium | not by minimization over two instances |
+
+    The first four are what a user needs to answer "is this phase homogeneous,
+    and if not, into what?". The last is the coupling, and it is the one place
+    this package stops — for a reason that is measured rather than asserted.
+
+    Neither GEM-Selektor nor Reaktoro splits a phase by itself either, and
+    PHREEQC draws the same line: it treats a binary solid solution with a
+    dedicated construction rather than handing it to the global minimization.
+
+    Stated plainly because a reader deciding whether to trust a number here
+    deserves to know which of these five they are relying on.
 
 !!! note "Why the second instance is refused for a convex model"
     Two instances of a convex phase are **degenerate**: every way of splitting
@@ -219,7 +317,7 @@ has somewhere to put each lobe.
     not arise. `SolidSolutionPhase` therefore admits `instances > 1` exactly
     where `spinodal_interval` reports a gap.
 
-## 3. The three answers side by side
+## 4. The three answers side by side
 
 ```@example gap
 labels = ["ideal\nmixing", "published,\none composition", "published,\ntwo compositions"]
@@ -241,9 +339,11 @@ savefig(fig3, "gap-summary.svg"); nothing # hide
 
 ![](gap-summary.svg)
 
-Green is a proof and red is its absence — not a claim that the red bar is far
-from the truth, which nothing here establishes. The point of the middle case is
-precisely that it *looks* like the others.
+Green is a proof and red is its absence — not a claim that a red bar is far from
+the truth, which nothing here establishes. The point of the middle case is
+precisely that it *looks* like the others: same pH to four figures, element
+balance at 2e-14, a perfectly ordinary-looking assemblage. Only the certificate
+tells it apart, and only since it learned to test a phase that is **present**.
 
 !!! danger "What this does and does not settle"
     `optimal = true` in case 3 is a proof of a **KKT point at which no present
@@ -255,11 +355,12 @@ precisely that it *looks* like the others.
     tangent-plane test, which is exactly the condition that separates a
     common-tangent pair from a spurious stationary point.
 
-    Read case 3 as: the answer satisfies every first-order condition *and* the
-    stability test that case 2 fails. That is a stronger statement than case 2's,
-    and a weaker one than the proof the convex pages carry.
+    Case 3 does not reach that state here, so nothing in this page is offered as
+    a certified non-convex answer. What the page establishes is narrower and
+    solid: the criterion detects the gap, the refusal names it, and the
+    representation exists for a solver that can use it.
 
-## 4. How other codes represent the same thing
+## 5. How other codes represent the same thing
 
 GEM-Selektor computes the same criterion — its phase stability index
 ``Λ_k = \log_{10} Ω_k`` is, term for term, the quantity this package's `Ω` and
@@ -269,5 +370,9 @@ CEMDATA18 ships the AFm and AFt binaries under two names each, so a GEMS user
 represents a gap by declaring the binary twice, in the database. `instances = 2`
 is the same representation asked for by a keyword instead.
 
-Neither code splits a phase by itself. That is the honest statement of where
-things stand, and it is a point of agreement rather than of difference.
+**Neither code splits a phase by itself.** A GEMS user gets the right answer
+because the database ships the binary twice and the solver is handed two
+declarations to populate; here the declarations exist and the solver still has to
+be told to look in the other lobe. That is the honest statement of where things
+stand, and the remaining gap is the same one in both: nothing decides, on its
+own, that a phase should be split in two.

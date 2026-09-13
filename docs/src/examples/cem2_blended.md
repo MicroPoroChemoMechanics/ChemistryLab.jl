@@ -14,6 +14,66 @@ most common ones sit at opposite ends:
 This page runs both against measured records, and isolates the carbonate effect
 by removing the limestone from an otherwise identical paste.
 
+## 0. Two words you need first: AFm and AFt
+
+Everything below turns on where the **aluminum** and the **sulfate** of a cement
+end up, and the two families that hold them have names worth learning once.
+
+They are both calcium aluminate hydrates built on the same idea: layers of
+``\mathrm{Ca_2Al(OH)_6^+}`` with anions and water between them. What differs is
+how many sulfates one aluminum carries.
+
+| family | full name | anion per Al | archetype | formula |
+|:--|:--|:--|:--|:--|
+| **AFt** | alumino-ferrite-**tri** | 3 | ettringite | ``\mathrm{Ca_6Al_2(SO_4)_3(OH)_{12}\cdot 26\,H_2O}`` |
+| **AFm** | alumino-ferrite-**mono** | 1 | monosulfate | ``\mathrm{Ca_4Al_2(SO_4)(OH)_{12}\cdot 6\,H_2O}`` |
+
+The AFm layer is not fussy about *which* single anion it holds: sulfate gives
+monosulfate, carbonate gives **monocarbonate**, hydroxide gives ``\mathrm{C_4AH_{13}}``.
+That indifference is the whole mechanism of this page.
+
+A Portland cement is ground with 3–5 % gypsum, so its early hydration makes
+ettringite, which holds three sulfates per aluminum:
+
+```math
+\mathrm{C_3A} + 3\,\mathrm{C\bar{S}H_2} + 26\,\mathrm{H}
+  \;\longrightarrow\; \mathrm{C_6A\bar{S}_3H_{32}} \quad (\text{ettringite, AFt})
+```
+
+Once the gypsum runs out, the remaining ``\mathrm{C_3A}`` attacks the ettringite
+it just made, and three sulfates are spread over three aluminums instead of one:
+
+```math
+\mathrm{C_6A\bar{S}_3H_{32}} + 2\,\mathrm{C_3A} + 4\,\mathrm{H}
+  \;\longrightarrow\; 3\,\mathrm{C_4A\bar{S}H_{12}} \quad (\text{monosulfate, AFm})
+```
+
+**Unless there is carbonate.** Calcite supplies an anion the AFm layer likes
+better, so the aluminate goes to monocarbonate instead — and the sulfate it did
+*not* consume has nowhere to go but back into ettringite:
+
+```math
+\mathrm{C_3A} + \mathrm{C\bar{C}} + 11\,\mathrm{H}
+  \;\longrightarrow\; \mathrm{C_4A\bar{C}H_{11}} \quad (\text{monocarbonate, AFm})
+```
+
+That is why a few percent of ground limestone is not a filler. Ettringite carries
+26 waters to monosulfate's 12, so keeping the sulfate in the AFt phase binds more
+water into solids and the paste occupies more volume — with less clinker.
+
+!!! note "Cement chemist notation"
+    ``\mathrm{C = CaO}``, ``\mathrm{A = Al_2O_3}``, ``\mathrm{S = SiO_2}``,
+    ``\mathrm{H = H_2O}``, ``\bar{\mathrm{S}} = \mathrm{SO_3}``,
+    ``\bar{\mathrm{C}} = \mathrm{CO_2}``. The bar marks an acidic oxide, which
+    is how ``\bar{\mathrm{S}}`` (sulfate) is told from ``\mathrm{S}`` (silica).
+    [The notation page](@ref man-cement-notation) has the full alphabet.
+
+**Nothing below assumes any of this.** The calculation is a Gibbs energy
+minimization over an element budget: it is told which phases exist and how much
+of each element the paste contains, and it finds the assemblage of lowest energy.
+The reactions above are what the answer will turn out to mean, not what it was
+told.
+
 ```@example cem2
 using ChemistryLab
 using DynamicQuantities
