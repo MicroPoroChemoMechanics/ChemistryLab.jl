@@ -1570,6 +1570,28 @@ Apply a function to all species and coefficients in a reaction.
 # Returns
 
   - A new Reaction with transformed species and coefficients
+
+!!! warning "A function that throws leaves the coefficient untouched, silently"
+    `func` is applied inside a `try`, and a coefficient it cannot handle is
+    returned **unchanged** rather than raising. That is deliberate — a reaction
+    can mix plain numbers with symbolic or dimensioned coefficients, and a
+    transform meaningful for one kind is not meaningful for the others — but it
+    means a transform that **fails everywhere** is indistinguishable from one
+    with nothing to do.
+
+    The case that bites is a substitution. `apply(x -> Int(substitute(x, d)), r)`
+    on an alkane combustion silently keeps the symbol wherever the coefficient is
+    a half-integer, because `Int(7//2)` throws, and the result then reads as a
+    mixture of numbers and symbols that looks like a partial substitution rather
+    than like a bug:
+
+        n = 1 : CH₄  + 2O₂                   = 2H₂O + CO₂
+        n = 2 : C₂H₆ + (n+(1//4)(2+2n))O₂    = 3H₂O + 2CO₂     ← Int(7//2) threw
+
+    Drop the conversion — `apply(x -> Symbolics.value(substitute(x, d)), r)`
+    keeps the rational and substitutes everywhere — and check the result rather
+    than assuming it: a coefficient that is still symbolic after a full
+    substitution is the signal.
 """
 function apply(
         func::Function, r::Reaction{SR, TR, SP, TP}, args...; kwargs...

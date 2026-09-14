@@ -77,7 +77,23 @@ CSH = CemSpecies(Dict(:C => a, :S => one(Num), :H => g))
 C3S = CemSpecies("C3S")
 H = CemSpecies("H")
 CH = CemSpecies("CH")
-r = map(simplify, Reaction([C3S, H], [CH, CSH]; equal_sign='→'))
+# `apply`, not `map`: `map` over a reaction iterates its coefficients and hands
+# back a plain vector, losing the reaction. `apply` rebuilds one.
+r = apply(simplify, Reaction([C3S, H], [CH, CSH]; equal_sign = '→'))
+r.equation
+```
+
+The same decomposition as a matrix, with the symbols carried into it:
+
+```@example
+using ChemistryLab
+using Symbolics
+using PrettyTables
+@variables a b g
+CSH = CemSpecies(Dict(:C => a, :S => one(Num), :H => g))
+C3S = CemSpecies("C3S")
+H = CemSpecies("H")
+CH = CemSpecies("CH")
 SM = StoichMatrix([C3S], [CSH, H, CH])
 pprint(SM)
 ```
@@ -209,8 +225,43 @@ cs_propane = ChemicalSystem([C3H8, O2, CO2, H2O], primaries)
 pprint(-reactions(cs_propane.SM)[1])
 ```
 
-The general formula for saturated alkanes CₙH₂ₙ₊₂ is:
-`CₙH₂ₙ₊₂ + (3n+1)/2 O₂ → n CO₂ + (n+1) H₂O`
+### The general alkane, balanced once
+
+The two blocks above each balance one alkane. The *family* can be balanced
+instead, by giving the species a symbolic carbon number and letting the same
+element balance carry it through — `n` sits in the formula exactly where an
+integer sits, and every operation downstream keeps it:
+
+```@example combustion_symbolic
+using ChemistryLab
+using Symbolics
+
+@variables n
+CnH = Species(Dict(:C => n, :H => 2n + 2))
+O2, H2O, CO2 = Species.(split("O2 H2O CO2"))
+
+r = apply(Symbolics.expand, Reaction([CnH, O2], [H2O, CO2]))
+r.equation
+```
+
+That is the general law, **derived rather than asserted**: one half plus three
+halves of `n` moles of oxygen, `n` of carbon dioxide and `n + 1` of water. The
+two numeric cases above are two of its values, and so is every other alkane:
+
+```@example combustion_symbolic
+for vn in 1:6
+    rn = apply(x -> Symbolics.value(substitute(x, Dict(n => vn))), r)
+    println("  n = ", vn, " : ", rn.equation)
+end
+```
+
+!!! warning "Do not convert the coefficients while substituting"
+    Writing `apply(x -> Int(substitute(x, d)), r)` looks tidier and is wrong:
+    half the alkanes need a half-integer of oxygen, `Int(7//2)` throws, and
+    [`apply`](@ref) returns the **original coefficient** when the function throws
+    rather than raising. The output then reads as a mixture of numbers and
+    symbols that looks like a partial substitution instead of like a failure.
+    Keep the rational.
 
 ### Example: combustion of alkenes (CₙH₂ₙ)
 
