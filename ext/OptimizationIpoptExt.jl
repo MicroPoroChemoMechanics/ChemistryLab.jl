@@ -174,6 +174,20 @@ function _default_ipopt_solver()
         acceptable_iter = 1000,
         constr_viol_tol = 1.0e-12,
         warm_start_init_point = "no",
+        # SILENT, because this solver is one back end of a multi-start cascade
+        # that may run it hundreds of times in one call. At Ipopt's default
+        # `print_level = 5` each of those prints a banner and a full iteration
+        # table: measured on the `quickstart` page, a single equilibrium produced
+        # 110 lines of output of which about 80 were Ipopt's, burying the three
+        # lines the example was written to show.
+        #
+        # `sb = "yes"` suppresses the banner as well; `print_level` alone leaves
+        # it. A caller who wants the trace builds their own optimizer —
+        # `IpoptOptimizer(print_level = 5)` — and passes it explicitly, which is
+        # the case where seeing it is a choice rather than an accident.
+        # `additional_options`, because `IpoptOptimizer` has no `print_level`
+        # field: it forwards this dictionary to Ipopt verbatim.
+        additional_options = Dict{String, Any}("print_level" => 0, "sb" => "yes"),
     )
 end
 

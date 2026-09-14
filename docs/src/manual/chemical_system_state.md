@@ -377,7 +377,9 @@ a mass the total mass, a volume the total volume.
 
 ```@example cst_volume
 rescale!(wet, 1.0u"kg")          # the same paste, weighed out to one kilogram
-println("total mass   = ", sum(mass(wet)))
+# `.total`, not `sum`: `mass` returns `(liquid, solid, gas, total)`, so summing
+# the NamedTuple adds the phases AND their total and reports twice the mass.
+println("total mass   = ", mass(wet).total)
 println("porosity     = ", porosity(wet), "   (unchanged: it is intensive)")
 ```
 
