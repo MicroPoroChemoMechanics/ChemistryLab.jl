@@ -424,6 +424,11 @@ end
 
 Convenience constructor that resolves primary species from their symbol strings.
 
+The components must span the species: every species is written as a combination
+of them, and that combination **is** the conservation law the equilibrium enforces
+for it. A list that cannot express a species is refused by name — see
+[`StoichMatrix`](@ref).
+
 # Examples
 ```jldoctest
 julia> sp = [
@@ -431,12 +436,18 @@ julia> sp = [
            Species("NaCl"; aggregate_state=AS_CRYSTAL),
        ];
 
-julia> cs = ChemicalSystem(sp, ["H2O"]);
+julia> cs = ChemicalSystem(sp, ["H2O", "NaCl"]);
 
 julia> symbol.(cs.SM.primaries)
-1-element Vector{String}:
+2-element Vector{String}:
  "H2O"
+ "NaCl"
 ```
+
+Water alone would not do. Sodium and chlorine would have nowhere to be conserved,
+and `ChemicalSystem(sp, ["H2O"])` raises an `ArgumentError` naming `NaCl` rather
+than projecting it onto `H2O` — a projection that would balance arithmetically
+and let the solver make salt out of water.
 """
 function ChemicalSystem(
         species::AbstractVector{T},

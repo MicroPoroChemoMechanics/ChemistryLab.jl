@@ -277,9 +277,14 @@ end
     # i.e. treated as pure phases, which is the silent failure this asserts on.
     ss = build_solid_solutions(datapath("solid_solutions.toml"), d; skip_missing = true)
     cshq = only(filter(p -> name(p) == "CSHQ", ss))
+    # The components are chosen from the species themselves. Naming only
+    # `["H2O@", "Na+", "Cl-"]` leaves calcium, silicon and potassium with no
+    # component to be conserved in, and the C-S-H end-members then cannot be
+    # written over the components at all -- which 0.18.0 refuses rather than
+    # projecting. What this test is about is the activity model, not the basis.
     cs_ss = ChemicalSystem(
-        vcat([d[s] for s in split("H2O@ Na+ Cl-")], end_members(cshq)),
-        ["H2O@", "Na+", "Cl-"]; solid_solutions = [cshq],
+        vcat([d[s] for s in split("H2O@ Na+ Cl-")], end_members(cshq));
+        solid_solutions = [cshq],
     )
     k = length(cs_ss.species)
     n = vcat([n_w, 0.1, 0.1], fill(0.25, k - 3))

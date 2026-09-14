@@ -47,10 +47,31 @@
     end
 
     @testsection "Construction with explicit primaries" begin
+        # WATER ALONE CANNOT DESCRIBE THIS SYSTEM, and until 0.18.0 nothing said
+        # so. The three species span a two-dimensional space — over (H, O,
+        # charge) the determinant of their columns is exactly zero, so the rank
+        # is 2 — and a single component cannot express the other two. The
+        # decomposition runs through `pinv`, which projects rather than refuses,
+        # so the matrix came out reading `H+ = 0.4 H2O` and `OH- = 0.6 H2O`.
+        # That is not an approximation: it conserves a quantity that is not
+        # conserved, and it lets a solver make `H+` out of water with no `OH-`
+        # to go with it, charge and all.
         sp = [h2o, hplus, oh]
-        cs = ChemicalSystem(sp, [h2o])
-        @test length(cs.SM.primaries) == 1
-        @test symbol(cs.SM.primaries[1]) == "H2O"
+        err = try
+            ChemicalSystem(sp, [h2o])
+            nothing
+        catch e
+            e
+        end
+        @test err isa ArgumentError
+        @test occursin("cannot be written over", sprint(showerror, err))
+
+        # Two components, and the same species list is expressible: this is the
+        # smallest basis that describes an acid-base system, and it is what the
+        # refusal points the caller at.
+        cs = ChemicalSystem(sp, [h2o, hplus])
+        @test length(cs.SM.primaries) == 2
+        @test Set(String.(symbol.(cs.SM.primaries))) == Set(["H2O", "H+"])
     end
 
     @testsection "Construction from string primaries" begin

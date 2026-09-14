@@ -38,6 +38,17 @@ When it holds, `Zz` — the unit-charge pseudo-component — is kept as a row of
 conservation matrix, and the **oxidation state of the system is conserved**
 alongside its elements. When it does not, the row is dropped as redundant.
 
+!!! note "Both ranks are computed exactly"
+    The matrices here hold element counts and charges, so their rank is an
+    integer fact about the chemistry and the test above is a comparison of two
+    integers. Computing them by counting singular values above a tolerance would
+    answer that question with a floating-point comparison, and a singular value
+    near the threshold then decides differently on different machines — which is
+    not a rounding difference but a different *conservation law*: with the charge
+    row dropped, the electron's column is identically zero and a half-reaction
+    "balances" without it. Both ranks come from exact rational row reduction, so
+    this system either has redox freedom or it does not, everywhere.
+
 !!! note "This happens more often than a reader expects"
     Species lists are usually built with [`speciation`](@ref), which derives
     species from the **atoms** of what it is given. Ask for `SO4-2` and it

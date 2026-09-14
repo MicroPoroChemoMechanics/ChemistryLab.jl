@@ -82,6 +82,33 @@ for r in rxns
 end
 ```
 
+#### The components have to span the species
+
+A component list is not a preference. Every species must be writable as a
+combination of the components, because that combination **is** the conservation
+law the equilibrium solver enforces for it. A list that cannot express a species
+is refused, by name:
+
+```@example cs_primaries
+try
+    ChemicalSystem([H2O, Hp, OHm], [H2O])          # water alone
+catch e
+    println(sprint(showerror, e))
+end
+```
+
+Water alone cannot describe an acid-base system: those three species span a
+two-dimensional space, and one component cannot reach it. The refusal matters
+more than it looks, because the decomposition is a least-squares projection and
+a projection never fails — asked for this, it used to answer `H+ = 0.4 H2O` and
+`OH- = 0.6 H2O`, which balances arithmetically and lets a solver make `H+` out of
+water with no `OH-` and no charge to pay for it.
+
+The check is a rank comparison in exact rational arithmetic, so it is the same on
+every machine and has no tolerance to tune. When it fires, add a component
+carrying the missing element — or let the constructor choose for you by naming no
+components at all, in which case every species is a candidate.
+
 ### Filtered views
 
 `ChemicalSystem` is an `AbstractVector{<:AbstractSpecies}`. Filtered views return sub-vectors without copying data:
@@ -179,7 +206,11 @@ H2O  = Species("H2O";  aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
 Hp   = Species("H+";   aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
 OHm  = Species("OH-";  aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
 Cal  = Species("Cal";  aggregate_state = AS_CRYSTAL,  class = SC_COMPONENT)
-cs   = ChemicalSystem([H2O, Hp, OHm, Cal], [H2O, Hp])
+# Three components, not two: calcite carries elements that water and the proton
+# do not, so a two-component basis cannot express it — and a decomposition that
+# cannot express a species is refused rather than projected onto the ones that
+# are there. `OH-` needs no component of its own, being `H2O - H+`.
+cs   = ChemicalSystem([H2O, Hp, OHm, Cal], [H2O, Hp, Cal])
 
 state = ChemicalState(cs)
 

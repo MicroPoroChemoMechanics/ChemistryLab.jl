@@ -247,7 +247,13 @@ end
     calcite = Species("CaCO3"; symbol = "Calcite", aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
     h2o = Species("H2O"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
     ca2p = Species("Ca+2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
-    cs = ChemicalSystem([calcite, h2o, ca2p])
+    # The carbonate is here because calcite dissolution needs somewhere to put
+    # the carbon: `CaCO3 = Ca+2` does not balance, and a `Reaction` built from an
+    # unbalanceable set is refused since 0.18.0 rather than least-squares fitted
+    # into one. The tests below are about `KineticReaction`, not about chemistry,
+    # but the reaction they carry still has to be a reaction.
+    co3 = Species("CO3-2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    cs = ChemicalSystem([calcite, h2o, ca2p, co3])
     n_sp = length(cs.species)
 
     pk = parrot_killoh(PK_PARAMS_C3S, "Calcite")
@@ -277,7 +283,7 @@ end
     @test_throws ArgumentError KineticReaction(cs, "Quartz", pk)
 
     # ── Low-level constructor ─────────────────────────────────────────────────
-    rxn = Reaction([calcite, ca2p]; symbol = "calcite dissolution")
+    rxn = Reaction([calcite, ca2p, co3]; symbol = "calcite dissolution")
     kr_low = KineticReaction(rxn, pk, 1, [-1.0, 0.0, 1.0])
     @test kr_low.reaction isa AbstractReaction
     @test kr_low.idx_mineral == 1
@@ -295,7 +301,6 @@ end
 
     # ── KineticsProblem via kinetic_species API ──────────────────────────────
     # Need 6 species for 2 nullspace reactions (4 atoms → 6 - 4 = 2 reactions)
-    co3 = Species("CO3-2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
     hplus = Species("H+"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
     oh = Species("OH-"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
     cs_kin = ChemicalSystem(
@@ -321,9 +326,11 @@ end
     calcite = Species("CaCO3"; symbol = "Calcite", aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
     h2o = Species("H2O"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
     ca2p = Species("Ca+2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
-    cs = ChemicalSystem([calcite, h2o, ca2p])
+    # As above: the carbon needs a carrier, or the reaction does not balance.
+    co3 = Species("CO3-2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    cs = ChemicalSystem([calcite, h2o, ca2p, co3])
 
-    rxn = Reaction([calcite, ca2p]; symbol = "calcite dissolution")
+    rxn = Reaction([calcite, ca2p, co3]; symbol = "calcite dissolution")
 
     # ── Missing :rate raises ArgumentError ────────────────────────────────────
     @test_throws ArgumentError KineticReaction(cs, rxn)
@@ -344,14 +351,14 @@ end
     @test kr.stoich[2] == 0
 
     # ── Attach a plain callable → auto-wrapped in KineticFunc ─────────────────
-    rxn2 = Reaction([calcite, ca2p]; symbol = "plain callable test")
+    rxn2 = Reaction([calcite, ca2p, co3]; symbol = "plain callable test")
     plain_fn = (T, P, t, n, lna, n0) -> 1.0e-9
     rxn2[:rate] = plain_fn
     kr2 = KineticReaction(cs, rxn2)
     @test kr2.rate_fn isa KineticFunc   # wrapped automatically
 
     # ── :heat_per_mol picked up correctly ─────────────────────────────────────
-    rxn3 = Reaction([calcite, ca2p]; symbol = "heat test")
+    rxn3 = Reaction([calcite, ca2p, co3]; symbol = "heat test")
     rxn3[:rate] = pk
     rxn3[:heat_per_mol] = 12_500.0
     kr3 = KineticReaction(cs, rxn3)
@@ -359,7 +366,6 @@ end
     @test kr3.heat_per_mol ≈ 12_500.0
 
     # ── Build KineticsProblem from kinetic_species API ──────────────────────────
-    co3 = Species("CO3-2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
     hplus = Species("H+"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
     oh = Species("OH-"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
     cs_kin = ChemicalSystem(

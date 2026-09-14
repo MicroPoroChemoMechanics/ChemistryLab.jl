@@ -223,9 +223,13 @@ end
 
     # No H+ in the system → NaN rather than an error.
     substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    # The components are the species themselves. `["H2O@", "Ca+2", "Zz"]` was
+    # asked for here and cannot describe this system: `OH-` is one hydrogen and
+    # one oxygen, and no combination of water, calcium and unit charge has that
+    # composition -- water fixes the ratio at 2:1. Until 0.18.0 the least-squares
+    # decomposition projected it onto them anyway and said nothing.
     no_h = ChemicalSystem(
-        [s for s in substances if symbol(s) in ("H2O@", "Ca+2", "OH-")],
-        ["H2O@", "Ca+2", "Zz"],
+        [s for s in substances if symbol(s) in ("H2O@", "Ca+2", "OH-")]
     )
     st_no_h = ChemicalState(no_h)
     set_quantity!(st_no_h, "H2O@", 55.5u"mol")
