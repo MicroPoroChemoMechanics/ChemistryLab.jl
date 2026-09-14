@@ -365,6 +365,43 @@ plot!(p_q, t_cal ./ 86400, qd_c ./ BINDER_G .* 1000; lw = 2, color = 1, label = 
 plot!(p_q, t_cal ./ 86400, qd_n ./ BINDER_G .* 1000; lw = 2, color = 2, ls = :dash, label = "no limestone")
 ```
 
+Both axes above are logarithmic in time, which is the scale a calorimetrist
+reads: it opens out the induction period and the peak, which occupy the first
+decade and would be a single vertical rise otherwise. It also flatters the late
+curve, where nothing much happens and a decade of time is a centimeter of paper.
+
+The **linear** axis answers the other question — how much of the total is already
+released at a date on the calendar, and how flat the curve has become. Same
+arrays, no recomputation:
+
+```@example ionicopc
+p_Qlin = plot(;
+    xlabel = "time [days]", ylabel = "Q [J / g of binder]",
+    title = "Heat released, linear time", legend = :bottomright, size = (760, 420),
+)
+plot!(p_Qlin, t_cal ./ 86400, Q_c ./ BINDER_G; lw = 2, color = 1, label = "with 3.5 % calcite")
+plot!(p_Qlin, t_cal ./ 86400, Q_n ./ BINDER_G; lw = 2, color = 2, ls = :dash, label = "no limestone")
+vline!(p_Qlin, [1, 7, 28]; ls = :dot, color = :gray, label = "1, 7, 28 days")
+```
+
+And the pairing matters here, because the two curves separate **late**, not
+early. From the figures printed above:
+
+| | 1 day | 7 days | 28 days | peak |
+|:--|--:|--:|--:|:--|
+| with 3.5 % calcite | 179.1 | 354.0 | **428.3** | 3.89 mW/g at 7.15 h |
+| no limestone | 177.6 | 342.7 | **413.1** | 3.93 mW/g at 7.15 h |
+
+1.5 J/g apart at one day — eight tenths of a percent, invisible — and 15.2 J/g
+apart at twenty-eight, which is 3.7 % and plainly visible. The peaks sit at the
+**same** time, 7.15 h, and at nearly the same height.
+
+So the limestone does not shift *when* the heat comes out; it adds to *how much*,
+and it does so gradually, over the weeks the logarithmic axis compresses into its
+last centimeter. A reader shown only the log plot would conclude that the calcite
+does nothing, because everything it does happens where that axis has no room
+left.
+
 ```@example ionicopc
 for (lbl, Q, qd) in (("with 3.5 % calcite", Q_c, qd_c), ("no limestone", Q_n, qd_n))
     j = argmax(qd)
