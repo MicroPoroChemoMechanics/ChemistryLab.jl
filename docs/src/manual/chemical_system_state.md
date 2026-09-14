@@ -180,6 +180,21 @@ OHm  = Species("OH-";  aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
 cs   = ChemicalSystem([H2O, Hp, OHm], [H2O, Hp])
 
 state = ChemicalState(cs)
+```
+
+A state **displays itself**, and that display is the normal way to look at one:
+the species grouped by phase with their amounts, masses and volumes, a total per
+phase, and the scalar diagnostics — pH, pOH, porosity, saturation — underneath.
+Fresh out of the constructor everything is zero, which is what an empty state
+looks like:
+
+```@example cst_basic
+state
+```
+
+The temperature and pressure are read from the fields:
+
+```@example cst_basic
 ustrip(state.T[])      # temperature in K
 ```
 
@@ -228,6 +243,18 @@ set_quantity!(state, "Cal", 1e-3u"mol")
 # Inspect moles
 ustrip.(state.n)
 ```
+
+The state itself shows the same amounts in context — which phase each species
+belongs to, and what the phase totals are:
+
+```@example cst_setq
+state
+```
+
+The volumes come out at zero and the porosity at `NaN` here, and that is not a
+defect: these species were built from formulas, which carry a composition and a
+molar mass but no molar volume. [Volume and porosity](@ref) below takes the same
+state from a database instead, and the same display then fills in.
 
 ### Changing temperature and pressure
 
@@ -294,8 +321,20 @@ cs = ChemicalSystem(sp, CEMDATA_PRIMARIES)
 wet = ChemicalState(cs)
 set_quantity!(wet, "H2O@", 1.0u"kg")
 set_quantity!(wet, "Portlandite", 5.0u"mol")
-nothing # hide
+wet
 ```
+
+This is the same display as above, on species that carry molar volumes: every
+column is now filled, the liquid and the solid are totaled separately, and the
+porosity at the bottom is a number rather than `NaN`.
+
+!!! note "A negative volume in that table is physics, not a defect"
+    `OH-` shows a volume of about `-4.7e-7 cm³` for 1.0e-7 mol, which is a
+    partial molar volume of −4.7 cm³/mol. Partial molar volumes of ions are
+    genuinely negative: the charge pulls the surrounding water in tighter than
+    bulk water is packed, so adding the ion makes the solution *smaller*. The
+    figure is CEMDATA18's, not an artifact of the arithmetic, and the phase
+    totals are right to add it with its sign.
 
 ```@example cst_volume
 v = volume(wet)
@@ -401,6 +440,10 @@ set_quantity!(state, "CO2",   1e-3u"mol")
 
 println("pH       = ", pH(state))
 println("n liquid = ", moles(state).liquid)
+```
+
+```@example full_example
+state
 ```
 
 !!! tip "Next step: equilibrium"
