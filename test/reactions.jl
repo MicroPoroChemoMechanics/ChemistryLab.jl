@@ -98,3 +98,45 @@ using Test
         @test s[Species("O")] == 4 && s[Species("H")] == 8
     end
 end
+
+@testsection "a half-reaction keeps its electrons on every Julia" begin
+    # THE REGRESSION. CI was green on Julia 1.13 and red on 1.12 from the same
+    # commit, with `SO4-2/HS-` reported as "balancing with no electron" on 1.12
+    # alone. The cause was not the chemistry and not the CPU: the `Reaction`
+    # constructor stripped the `Zz` and `e` pseudo-species with `delete!`, which
+    # looks a key up by `hash` and confirms with `isequal` -- and for
+    # `AbstractSpecies` those two disagree.
+    #
+    # `isequal` compares formula, aggregate state and class; `hash` also mixes in
+    # the SYMBOL. So `ELECTRON` and `Species("e")` are `==` while hashing
+    # differently, and whether `delete!` reaches one through the other depends on
+    # where the table puts them, hence on the hash function, hence on the Julia
+    # version. Removing by symbol is version-independent.
+    e = ChemistryLab.ELECTRON
+    @test symbol(e) == "e-"
+    # The disagreement itself, asserted so that a future fix to `isequal` or
+    # `hash` shows up here as a deliberate change rather than as a surprise.
+    @test e == Species("e")                       # equal...
+    @test hash(e) != hash(Species("e"))           # ...and not hash-equal
+
+    # And the property that matters: the electron survives the constructor.
+    subs = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    by = Dict(symbol(s) => s for s in subs)
+    r = Reaction([by["SO4-2"], by["H+"], e, by["HS-"], by["H2O@"]])
+    n_e = 0
+    for (sp, ν) in merge(r.reactants, r.products)
+        symbol(sp) == symbol(e) && (n_e = ν)
+    end
+    @test n_e != 0                                # it is there at all
+    @test occursin("e⁻", r.equation)
+    # Eight of them, from the element and charge balance alone -- no coefficient
+    # is transcribed here.
+    @test occursin("8e⁻", r.equation)
+
+    # A pseudo-species that SHOULD be stripped still is.
+    r2 = Reaction([by["Cal"], by["Ca+2"], by["CO3-2"]])
+    @test !any(
+        String(symbol(sp)) in ("Zz", "e")
+            for sp in keys(merge(r2.reactants, r2.products))
+    )
+end

@@ -719,10 +719,34 @@ function Reaction(
             merge_species_by_stoich(reactants, products); side = side
         )
     end
-    delete!(reactants, root_type(SR)("Zz"))
-    delete!(reactants, root_type(SR)("e"))
-    delete!(products, root_type(SP)("Zz"))
-    delete!(products, root_type(SP)("e"))
+    # BY SYMBOL, not by `delete!`, and the difference decides whether a redox
+    # half-reaction keeps its electrons.
+    #
+    # `delete!` looks the key up by `hash` and then confirms with `isequal`, and
+    # for `AbstractSpecies` those two disagree: `isequal` compares formula,
+    # aggregate state and class, while `hash` also mixes in the SYMBOL. So
+    # `ELECTRON` and `Species("e")` are `==` but hash differently, and whether
+    # `delete!` finds one through the other depends on where the hash table
+    # happens to put them — that is, on the hash function, that is, on the Julia
+    # version.
+    #
+    # Measured: CI green on 1.13 and red on 1.12 from the same commit, with
+    # `SO4-2/HS-` reported as "balancing with no electron" on 1.12 alone. There
+    # the electron WAS deleted; here it was not. Removing by symbol is exactly
+    # what this is for, and it does the same thing on every machine.
+    #
+    # The underlying `isequal`/`hash` disagreement is a defect of its own —
+    # calcite and aragonite are `==` under it, and so is a species and its `#2`
+    # instance twin — and it is not fixed here because it is a behavior change
+    # that deserves its own campaign, not a side effect of a bug fix.
+    #
+    # `ChemistryLab.symbol` is spelled out because this constructor takes a
+    # KEYWORD ARGUMENT named `symbol`, which shadows the function throughout the
+    # body: a bare `symbol(sp)` here tries to call a `String`.
+    strip_pseudo!(d) =
+        filter!(kv -> !(String(ChemistryLab.symbol(first(kv))) in ("Zz", "e")), d)
+    strip_pseudo!(reactants)
+    strip_pseudo!(products)
     sreac, creac, charge_left = format_side(reactants)
     sprod, cprod, charge_right = format_side(products)
     charge_diff = charge_right - charge_left
