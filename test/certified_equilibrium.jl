@@ -715,7 +715,7 @@ end
     end
 end
 
-@testsection "equilibrate_split — the split loop, executed" begin
+@testsection "equilibrate_split — the split loop, and the pair it is about" begin
     # THE REGRESSION THIS GUARDS. `equilibrate_split` reads the incipient
     # composition out of the certificate and seeds a second instance with it.
     # Two links in that chain were broken and neither could be seen by reading
@@ -731,69 +731,103 @@ end
                 datapath("slop98-inorganic-thermofun.json"); verbose = false
             )
     )
-    names = split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal Arg")
-
-    function system(; model = nothing, instances = 1)
-        phase = model === nothing ?
-            SolidSolutionPhase("carbonate", [sp["Cal"], sp["Arg"]]) :
-            SolidSolutionPhase(
-                "carbonate", [sp["Cal"], sp["Arg"]];
-                model = model, instances = instances,
-            )
-        return ChemicalSystem(
-            [sp[s] for s in names], ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"];
-            solid_solutions = [phase],
-        )
-    end
-
-    function loaded(cs)
-        st = ChemicalState(cs)
-        set_quantity!(st, "H2O@", 1.0u"kg")
-        set_quantity!(st, "Cal", 0.05u"mol")
-        return st, Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
-    end
 
     # 1. WITHOUT instances there is nothing to split into, and the function must
     #    be exactly `equilibrate_certified` -- same answer, not merely a good one.
-    let (st, b) = loaded(system())
+    let
+        names = split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal Arg")
+        cs = ChemicalSystem(
+            [sp[s] for s in names], ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"];
+            solid_solutions = [SolidSolutionPhase("carbonate", [sp["Cal"], sp["Arg"]])],
+        )
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "Cal", 0.05u"mol")
+        b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
         eq_s, c_s = equilibrate_split(st; b = b)
         eq_c, c_c = equilibrate_certified(st; b = b)
         @test c_s.optimal == c_c.optimal
         @test ustrip.(us"mol", eq_s.n) ≈ ustrip.(us"mol", eq_c.n) rtol = 1.0e-8
     end
 
-    # 2. WITH a concave model and two instances the loop runs. Redlich-Kister at
-    #    a₀ = 20 kJ/mol is 8.1 RT, far inside the regime where the mixing energy
-    #    is concave -- `SolidSolutionPhase` admits `instances = 2` only there, so
-    #    constructing this at all is already the convexity check speaking.
-    gap = RedlichKisterModel(a0 = 20_000.0)
-    @test spinodal_interval(gap, 2) !== nothing
-    cs2 = system(; model = gap, instances = 2)
-    @test length(cs2.species) == length(names) + 2     # the `#2` twins exist
-    st2, b2 = loaded(cs2)
+    # 2. THE PAIR ITSELF, against an analytic oracle. Calcite and magnesite are
+    #    two different substances, so the element budget PINS the overall
+    #    composition: 0.025 mol of each fixes x̄ = 1/2 whatever the energetics
+    #    say. Put a Redlich-Kister gap on that binary and x̄ = 1/2 is inside it,
+    #    so the Gibbs minimum is two coexisting compositions — and with two
+    #    instances declared, the minimization finds them. They must be the
+    #    common-tangent pair, which [`common_tangent`](@ref) computes from the
+    #    mixing model alone and which nothing in the solve has been told.
+    #
+    #    This is the case the AFm binary of a real CEM I is NOT: there the
+    #    sulfate has somewhere else to go (ettringite) and the hydroxide is
+    #    abundant, so nothing pins the phase's composition and both instances sit
+    #    at the same x. Pinned, the pair comes out by itself.
+    names = split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Mg+2 Cal Mgs")
+    comps = ["H2O@", "H+", "Ca+2", "Mg+2", "CO3-2", "Zz"]
+    for a0 in (8_000.0, 14_000.0, 20_000.0)
+        gap = RedlichKisterModel(a0 = a0)
+        @test spinodal_interval(gap, 2) !== nothing        # it IS a gap
+        pair = common_tangent(gap)
+        @test pair !== nothing
 
-    eq0, c0 = equilibrate_certified(st2; b = b2)
-    eq1, c1 = equilibrate_split(st2; b = b2, maxpasses = 2)
+        cs = ChemicalSystem(
+            [sp[s] for s in names], comps;
+            solid_solutions = [
+                SolidSolutionPhase(
+                    "carbonate", [sp["Cal"], sp["Mgs"]]; model = gap, instances = 2
+                ),
+            ],
+        )
+        @test length(cs.species) == length(names) + 2      # the `#2` twins exist
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "Cal", 0.025u"mol")
+        set_quantity!(st, "Mgs", 0.025u"mol")
+        b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
 
-    # THE PROMISE. A pass is kept only when the KKT error improves, so the
-    # result is never worse than the answer without splitting. This is what the
-    # `FieldError` used to prevent from ever being evaluated.
-    @test ChemistryLab._kkt_error(c1) <= ChemistryLab._kkt_error(c0) * (1 + 1.0e-8)
+        eq, cert = equilibrate_certified(st; b = b)
+        @test cert.optimal
+        n = ustrip.(us"mol", eq.n)
+        xs = Float64[]
+        totals = Float64[]
+        for g in cs.ss_groups
+            tot = sum(n[i] for i in g)
+            tot > 1.0e-10 || continue
+            push!(totals, tot)
+            push!(xs, n[g[2]] / tot)
+        end
+        @test length(xs) == 2
+        sort!(xs)
+        # The two instances sit ON the binodal, computed independently.
+        @test xs[1] ≈ pair[1] atol = 1.0e-3
+        @test xs[2] ≈ pair[2] atol = 1.0e-3
+        # And in the proportions the lever rule asks for at x̄ = 1/2.
+        f = totals[1] / sum(totals)
+        @test f ≈ (pair[2] - 0.5) / (pair[2] - pair[1]) atol = 5.0e-3
 
-    # 3. THE WIRING. Whatever the verdict, the certificate must carry the split
-    #    diagnostics through -- they are computed in `OptimaSolver` and were
-    #    being discarded on the way out.
-    @test hasproperty(c0, :split_trials)
-    @test hasproperty(c0, :split_phases)
-    @test hasproperty(c0, :worst_violation_split)
-    for (_, t) in c0.split_trials
-        @test length(t.x) == length(t.members)
-        @test all(t.x .>= 0)
-        @test sum(t.x) ≈ 1.0 rtol = 1.0e-6
-        @test all(1 <= i <= length(cs2.species) for i in t.members)
+        # 3. THE WIRING. Whatever the verdict, the certificate must carry the
+        #    split diagnostics through -- they are computed in `OptimaSolver` and
+        #    were being discarded on the way out.
+        @test hasproperty(cert, :split_trials)
+        @test hasproperty(cert, :split_phases)
+        @test hasproperty(cert, :worst_violation_split)
+        for (_, t) in cert.split_trials
+            @test length(t.x) == length(t.members)
+            @test all(t.x .>= 0)
+            @test sum(t.x) ≈ 1.0 rtol = 1.0e-6
+            @test all(1 <= i <= length(cs.species) for i in t.members)
+        end
+
+        # 4. THE PROMISE. A pass is kept only when the KKT error improves, so the
+        #    result is never worse than the answer without splitting. This is
+        #    what the `FieldError` used to prevent from ever being evaluated.
+        eq2, cert2 = equilibrate_split(st; b = b, maxpasses = 2)
+        @test ChemistryLab._kkt_error(cert2) <=
+            ChemistryLab._kkt_error(cert) * (1 + 1.0e-8)
+
+        # 5. `share` is a fraction and is checked, not trusted.
+        @test_throws ArgumentError equilibrate_split(st; b = b, share = 0.0)
+        @test_throws ArgumentError equilibrate_split(st; b = b, share = 1.0)
     end
-
-    # 4. `share` is a fraction and is checked, not trusted.
-    @test_throws ArgumentError equilibrate_split(st2; b = b2, share = 0.0)
-    @test_throws ArgumentError equilibrate_split(st2; b = b2, share = 1.0)
 end

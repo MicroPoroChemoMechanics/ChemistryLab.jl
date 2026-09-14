@@ -208,22 +208,41 @@ exact to the last bit.
 two compositions are **fixed** and only their proportions move with the overall
 composition, which is the property that makes the gap flat in a phase diagram.
 
-**What no version of this does is let the minimization discover the pair by
-itself.** Measured on the AFm binary of a real CEM I, whose sulfate fraction comes
-out at x = 0.649, just inside the published spinodal of [0.631, 0.914]: with two
-instances the solver returns both at the *same* composition, and seeding them in
-different lobes does not change it. The reason is structural rather than
-numerical — the symmetric state **is** a stationary point, both instances
-satisfying every first-order condition jointly, so there is no downhill direction
-to follow however unstable the state is. That is the same fact that made the
-tangent-plane measure need corner starts rather than a uniform one.
+**Found by minimizing, when the budget pins the composition — and not otherwise.**
+This is the part that had to be measured rather than argued, and the first
+measurement pointed the wrong way.
 
-So the pair is not found by minimizing; it is **computed**, from the model, by
-`common_tangent`, and that is not a workaround but the standard construction —
-neither GEM-Selektor nor Reaktoro asks a global minimization to discover a
-binodal either. `examples/miscibility_gap.md` shows the whole chain with the
-numbers: the certificate refusing a single composition, the pair computed, and
-the lever rule applied.
+Where the element balance *fixes* the overall composition inside the gap, two
+declared instances separate onto the common-tangent pair by themselves, and the
+certificate proves it. Measured on a calcite/magnesite binary — two different
+substances, so 0.025 mol of each pins x̄ = 1/2 whatever the energetics say —
+with a Redlich-Kister gap, against `common_tangent` computed from the mixing
+model alone and told to nothing in the solve:
+
+| `a₀` | binodal | the two instances | certificate |
+|--:|:--|:--|:--|
+| 8 kJ/mol | (0.052846, 0.947154) | 0.0528 and 0.9472 | `optimal = true`, 1.5e-10 |
+| 14 kJ/mol | (0.003662, 0.996338) | 0.0037 and 0.9963 | `optimal = true`, 1.0e-10 |
+| 20 kJ/mol | (0.000315, 0.999685) | 0.0003 and 0.9997 | `optimal = true`, 1.0e-10 |
+
+with the amounts in the proportions the lever rule asks for — 0.5010 against
+0.4990 at x̄ = 1/2. That is the whole construction recovered by the
+minimization, from a start that had everything in one instance.
+
+The AFm binary of a real CEM I is **not** that case, and the difference is
+chemical rather than numerical: nothing pins the phase's composition there. The
+sulfate has somewhere else to go — ettringite — and the hydroxide is abundant,
+so the composition is free, the two instances start at the same x and stay at it.
+The symmetric state satisfies every first-order condition jointly, so it *is* a
+stationary point and no descent direction leads away from it.
+
+Which is why `common_tangent` exists as well: for a phase whose composition is
+free, the pair is **computed** from the model rather than discovered by the
+solver, and that is not a workaround but the standard construction — neither
+GEM-Selektor nor Reaktoro asks a global minimization to find a binodal either.
+`examples/miscibility_gap.md` shows the whole chain with the numbers: the
+certificate refusing a single composition, the pair computed, and the lever rule
+applied.
 
 Also new: **`with_symbol`**, the same species under a different label, which is
 what builds those copies.
@@ -571,10 +590,18 @@ is decided in `CheckDocument`, which runs *after* `ExpandTemplates`. A build die
 there at minute 70 over five undocumented constants, having executed every
 example on the site to reach the check and then terminating **before rendering**,
 so the seventy minutes bought nothing. A **draft** build runs the same pipeline
-with the `@example` blocks skipped and reaches the same checks in minutes, so
-`docs/make.jl` now runs one first — into a temporary directory, with its own
-`CitationBibliography` since the plugin carries state across a build. It is
-Documenter's own check, run early, rather than a second implementation of it.
+with the `@example` blocks skipped and reaches the same checks in **24.2 s**,
+measured, so `docs/make.jl` now runs one first — into a temporary directory, with
+its own `CitationBibliography` since the plugin carries state across a build. It
+is Documenter's own check, run early, rather than a second implementation of it.
+
+Two things had to be turned off in that pass, and both for the same reason —
+draft mode breaks them by construction, and each was found by running it rather
+than by reasoning about it. `cross_references`: the figures on this site are
+written by the `@example` blocks themselves, so with the blocks skipped every
+`![](...)` on fourteen pages is an invalid local link. `size_threshold`: an
+HTML-renderer limit that the real build, rendered by DocumenterVitepress, does
+not have. `missing_docs` — the one the pass exists for — stays strict.
 
 ### Documentation
 

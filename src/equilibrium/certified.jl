@@ -328,12 +328,21 @@ giving a phase that wants to split a second composition to split into.
 Inside a miscibility gap the Gibbs minimum of a mixing phase is two coexisting
 compositions, not one. A formulation carrying one amount per species describes
 that by declaring the phase twice — `SolidSolutionPhase(...; instances = 2)` —
-but declaring it is not enough: **two instances started at the same composition
-stay there**. The symmetric state satisfies every first-order condition jointly,
-so it is a stationary point of the minimization, and no descent direction leads
-away from it however unstable it is. The overall composition is typically
-*metastable* rather than unstable — outside the spinodal, inside the binodal —
-where reaching the pair needs a finite jump and not a gradient step.
+and when the element balance **pins** the phase's overall composition inside the
+gap, declaring it is enough: the minimization separates the two instances onto
+the common-tangent pair by itself, and the certificate proves it. Measured on a
+calcite/magnesite binary, where 0.025 mol of each fixes x̄ = 1/2 whatever the
+energetics say, the instances land on the binodal to within 1e-3 and in the
+proportions the lever rule asks for.
+
+This function is for the case where nothing pins it. In a cement paste the AFm
+composition is free — the sulfate has ettringite to go to and the hydroxide is
+abundant — so **two instances started at the same composition stay there**. The
+symmetric state satisfies every first-order condition jointly, so it is a
+stationary point of the minimization, and no descent direction leads away from it
+however unstable it is. The composition is typically *metastable* rather than
+unstable — outside the spinodal, inside the binodal — where reaching the pair
+needs a finite jump and not a gradient step.
 
 # What it does
 

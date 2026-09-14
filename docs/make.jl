@@ -410,6 +410,16 @@ end
 # it — in particular `missing_docs`, which needs the module loaded and the
 # `@autodocs` filters applied, and which no amount of grepping decides.
 #
+# WHAT IT CHECKS, AND WHAT IT CANNOT. `missing_docs` only. `cross_references` is
+# demoted to a warning here and **must** be, because a draft build breaks it by
+# construction: the figures on this site are written by the `@example` blocks
+# themselves, and with the blocks skipped those files do not exist, so every
+# `![](...)` on fourteen pages is reported as an invalid local link. That is the
+# draft mode talking and not the source — measured, on the first run of this
+# very pre-flight. Cross-references are covered instead by the static pre-flight
+# above, which resolves both the explicit and the bare form against the anchors,
+# and by the real build.
+#
 # Its own `CitationBibliography`: the plugin carries state across a build, and
 # the real pass must start from a fresh one. Plain `Documenter.HTML` into a
 # temporary directory, because what is wanted here is the checks and not the
@@ -422,7 +432,14 @@ let t0 = time()
             remotes = nothing,
             authors = "Jean-François Barthélémy and Anthony Soive",
             sitename = "ChemistryLab.jl",
-            format = Documenter.HTML(; edit_link = nothing, repolink = nothing),
+            # `size_threshold` disabled: it is an HTML-renderer limit and this
+            # site is rendered by DocumenterVitepress, which has none. Left on,
+            # it fails the pre-flight on `api/equilibrium.md` for a reason that
+            # cannot affect the real build — measured on the first run.
+            format = Documenter.HTML(;
+                edit_link = nothing, repolink = nothing,
+                size_threshold = nothing, size_threshold_warn = nothing,
+            ),
             build = draftdir,
             pages = pages,
             plugins = [
@@ -430,7 +447,7 @@ let t0 = time()
                     joinpath(@__DIR__, "src", "refs.bib"); style = :authoryear
                 ),
             ],
-            warnonly = [:docs_block],
+            warnonly = [:docs_block, :cross_references, :example_block, :linkcheck],
             draft = true,
         )
     end
