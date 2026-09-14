@@ -186,19 +186,28 @@ rxns = reactions(cs.SM)
 pprint(rxns[1])
 ```
 
-!!! note "Reading the matrix"
-    The stoichiometric matrix for this system (elements as rows, species as columns) is:
+### Reading the matrix behind it
 
-    |       | C | H | O |
-    |:------|:--|:--|:--|
-    | CH₄   | 1 | 4 | 0 |
-    | O₂    | 0 | 0 | 2 |
-    | CO₂   | 1 | 0 | 2 |
-    | H₂O   | 0 | 2 | 1 |
+The balance above is read off a matrix, and the matrix displays itself — there is
+no reason to transcribe one by hand into a table, and a transcription is one more
+thing that can be wrong. `cs.CSM` is the **canonical** form, atoms down the rows
+and species across the columns:
 
-    With CH₄, O₂, H₂O as primaries, CO₂ is the dependent species.
-    `reactions(cs.SM)` expresses CO₂ as: CO₂ = CH₄ + 2 O₂ − 2 H₂O,
-    yielding the balanced equation CH₄ + 2 O₂ → CO₂ + 2 H₂O.
+```@example combustion
+pprint(cs.CSM; label = :symbol)
+```
+
+`cs.SM` is the other one, and the pair is worth separating. The canonical matrix
+above counts atoms. `SM` expresses every species over the **primaries** chosen
+for the system, which is what the balance actually uses:
+
+```@example combustion
+pprint(cs.SM; label = :symbol)
+```
+
+With CH₄, O₂ and H₂O as primaries, CO₂ is the dependent species, and its column
+in `SM` is the reaction: `CO₂ = CH₄ + 2 O₂ − 2 H₂O`, that is
+CH₄ + 2 O₂ → CO₂ + 2 H₂O.
 
 ### Example: combustion of alkanes (CₙH₂ₙ₊₂)
 
