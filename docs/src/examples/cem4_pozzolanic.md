@@ -423,34 +423,96 @@ midpoint of 36–55 % — and ask the same question twice: once at the reacted
 fraction a specimen has at 28 days, and once in the limit where every ash sphere
 has dissolved.
 
+!!! tip "How to read `optimal = false`, because it is not one thing"
+    The certificate reports **three** residuals, and which one is too large says
+    what went wrong. A novice reading only the `optimal` flag will mistake a
+    solver difficulty for a statement about chemistry — this page did, for two
+    releases.
+
+    | the residual that is large | what it means | what to do |
+    |:--|:--|:--|
+    | **worst supersaturation**, clearly positive | a phase the system could form is not in your species list | declare it |
+    | **element balance** | the answer does not conserve matter — it is not an answer at all | start somewhere else |
+    | **stationarity** alone, the other two small | a genuinely hard point | nothing simple; report it as unresolved |
+
+    A supersaturation of `+3e+02` names a missing phase. One of `+5e-02` beside a
+    broken balance names a failed solve. Read them, not the flag.
+
 ```@example cem4
 eq_b, c_b = nothing, nothing          # the full-reaction case, kept below
-for α in (ALPHA_ASH, 1.0), (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
-    st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = α)
-    # The multi-start cascade is declined ONLY in the full-reaction limit, and
-    # for a measured reason rather than to save time. There it cannot help:
-    # both models were run with it and both refused, twice -- so the verdict is
-    # the same and the cascade spends about nine minutes arriving at it. At the
-    # 28-day fraction it is kept, because there it is what makes the answer
-    # certify at all: declining it turns `optimal = true` with a balance of
-    # 1e-12 into `optimal = false` with 3e-02, which would be a false statement
-    # rather than a faster one.
-    eq, c = equilibrate_certified(
-        st; model = model, b = b, autostart = α != 1.0,
-    )
-    (α == 1.0 && label == "CNASH_ss") && (global eq_b, c_b = eq, c)
+
+# CONTINUATION, not a cold start, at the 28-day fraction.
+#
+# A 45 % ash binder is a hard landing. Started from a fresh paste, `CSHQ` stops
+# with the element balance off by 7.8e-02 -- 0.078 mol of matter that does not
+# conserve -- while its supersaturation is only +5.3e-02. By the table above that
+# is a failed solve, not a missing phase, and an earlier version of this page
+# read it as chemistry. Walking the ash fraction up to 45 % instead certifies
+# every point, `CSHQ` included.
+ramp = collect(range(0.15, ASH_FRACTION_B; length = 5))
+
+for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
+    budgets = [budget(cs; ash = f, α_ash = ALPHA_ASH)[2] for f in ramp]
+    st0, _ = budget(cs; ash = first(ramp), α_ash = ALPHA_ASH)
+    states, certs = equilibrate_path(st0, budgets; model = model)
+    eq, c = states[end], certs[end]
     @printf("%2.0f %% ash reacted %3.0f %%  %-10s optimal=%-5s balance=%.1e  pH=%.3f\n",
-            100ASH_FRACTION_B, 100α, label, c.optimal, c.balance, pH(eq, model))
+            100ASH_FRACTION_B, 100ALPHA_ASH, label, c.optimal, c.balance, pH(eq, model))
 end
 ```
 
-At 28 days a CEM IV/B is an ordinary calculation: what the ash has released by
-then fits in the phases the paste can form, and the answer certifies. **In the
-limit it does not.** With every sphere dissolved there is more aluminum and more
-alkali than the C-A-S-H, the AFm/AFt phases and strätlingite can hold together,
-portlandite is long gone so the calcium potential is no longer buffered by a pure
-phase, and the minimization is looking for an assemblage the declared phase list
-cannot form.
+Both models certify, and they disagree — which is the whole point of the section
+and is now a comparison of **two proved answers** rather than of a success
+against a failure.
+
+```@example cem4
+# The full-reaction limit. The cascade is declined because nothing helps here:
+# the continuation above was run on this branch too and refuses as well, so the
+# verdict is the same and the cascade spends about nine minutes reaching it.
+for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
+    st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = 1.0)
+    eq, c = equilibrate_certified(st; model = model, b = b, autostart = false)
+    (label == "CNASH_ss") && (global eq_b, c_b = eq, c)
+    @printf("%2.0f %% ash reacted 100 %%  %-10s optimal=%-5s balance=%.1e\n",
+            100ASH_FRACTION_B, label, c.optimal, c.balance)
+end
+```
+
+At 28 days a CEM IV/B is an ordinary calculation for **both** models: what the
+ash has released by then fits in the phases the paste can form, and both answers
+certify. They differ by about 0.15 unit of pH, and that difference — not a
+refusal — is what says the aluminum matters.
+
+**In the limit neither certifies**, and it is worth being precise about why,
+because the obvious reading is wrong.
+
+The block above declines the cascade, so its balances are whatever the single
+solve stopped at — for `CSHQ`, 9.8 mol, which is not a number to interpret at
+all. The diagnosis below comes from the **continuation**, the best route
+available on this branch, and that is what makes it a diagnosis rather than a
+symptom:
+
+| model, walked up by continuation | element balance | worst supersaturation | reading |
+|:--|--:|--:|:--|
+| `CSHQ` | 3.2e-14 | **−2.5e-01** | matter conserves, and **nothing is missing** — the negative sign says every absent phase is undersaturated. What fails is stationarity alone. |
+| `CNASH_ss` | **4.3e-01** | +1.9e-01 | matter does not conserve: this is not an answer to read. |
+
+The continuation is not run in the page because it costs about nine minutes to
+reach the same verdict, and the verdict is what the section needs. The numbers
+above are measured, not asserted; the route that produced them is named so that
+they can be reproduced.
+
+So the limit is a **hard point for the solver**, not a demonstration that the
+phase list is too short. An earlier version of this page said the opposite — that
+"the minimization is looking for an assemblage the declared phase list cannot
+form" — and a supersaturation of −0.25 refutes it: if a phase were missing, that
+number would be positive.
+
+What remains true, and is the reason the next section exists, is that the limit
+is where a real alkaline aluminosilicate forms phases this species list does not
+contain. That is a claim about chemistry, and the way to test it is to add the
+phases and see whether the calculation then closes — not to read a refusal as
+evidence for it.
 
 That limit is not an idle question. It is where a pozzolanic binder is heading
 over years, and it is the regime an alkali-activated system is in from the start.
@@ -506,9 +568,15 @@ eq_z, c_z = equilibrate_certified(st_z; model = model, b = b_z)
 @printf("with zeolites: optimal=%-5s  worst SI=%+.2e  pH=%.3f
 ",
         c_z.optimal, c_z.worst_supersaturation, pH(eq_z, model))
-@printf("without      : optimal=%-5s  worst SI=%+.2e  pH=%.3f
-",
-        c_b.optimal, c_b.worst_supersaturation, pH(eq_b, model))
+# WITHOUT the zeolites, nothing certifies -- so nothing from that point is
+# quotable. Its pH is whatever the iteration stopped at (`6.999`, neutral water,
+# the signature of a solve that fell back), and its supersaturation is read at a
+# composition that does not conserve matter. The comparison here is between an
+# answer and no answer, which is the strongest form it can take; an earlier
+# version of this page quoted `+3.12e+02` from that point as if it measured how
+# supersaturated the paste was, and it measured nothing.
+@printf("without      : optimal=%-5s  (no residual from this point is a result)\n",
+        c_b.optimal)
 
 nz = ustrip.(us"mol", eq_z.n)
 formed = sort([(symbol(cs_z.species[i]), nz[i])
@@ -530,9 +598,24 @@ end
 
 Whichever way that comes out, the calculation is now **able to answer the
 question**, and before the extension it was not: a phase absent from the species
-list is not reported as undersaturated, it is not reported at all. The
-certificate's supersaturation figure is the one to read — it says whether
-anything the system *could* form and did not is trying to.
+list is not reported as undersaturated, it is not reported at all.
+
+That is the shape of the evidence, and it is worth naming because it is the
+honest one available. **With** the zeolites the equilibrium certifies — the
+supersaturation is at tolerance, the balance at 1e-10, the pH is a result.
+**Without** them no route certifies, so that side contributes no number at all:
+not its pH, not its supersaturation. An argument built on comparing the two
+*numbers* would be built on one number that does not exist. An argument built on
+"one side answers and the other does not" is built on what was actually
+measured.
+
+And it was measured **twice, by two different routes**, which is the check worth
+making on any answer that matters. The block above starts cold; walking the ash
+fraction up by continuation instead gives `optimal = true` with an element
+balance of 4.3e-14 and a pH of **12.104**, against **12.086** cold — eighteen
+thousandths apart. A result that does not move when the route changes is a
+result. On the other side neither route certifies, so there is nothing there to
+compare against: not a number that differs, a number that does not exist.
 
 !!! danger "An equilibrium at 55 % replacement is not a 28-day paste"
     Everything above is the state the paste *tends to*, with the whole ash taken
