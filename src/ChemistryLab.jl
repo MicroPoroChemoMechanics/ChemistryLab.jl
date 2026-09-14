@@ -258,6 +258,7 @@ module ChemistryLab
         solve_certified,
         equilibrate_certified,
         equilibrate_path,
+        equilibrate_split,
         EquilibriumConstraint,
         FixedTP,
         FixedEnthalpy,

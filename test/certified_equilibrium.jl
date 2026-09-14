@@ -714,3 +714,86 @@ end
         @test ustrip.(us"mol", eq.n) ≈ ustrip.(us"mol", states[k].n) rtol = 1.0e-6
     end
 end
+
+@testsection "equilibrate_split — the split loop, executed" begin
+    # THE REGRESSION THIS GUARDS. `equilibrate_split` reads the incipient
+    # composition out of the certificate and seeds a second instance with it.
+    # Two links in that chain were broken and neither could be seen by reading
+    # the code: `optimality_certificate` rebuilt its NamedTuple and DROPPED
+    # `split_trials`, so the loop always read `nothing` and returned on its first
+    # pass; and the pass was accepted on `cert.worst_violation`, a field this
+    # package's certificate does not have, so reaching that line at all raised a
+    # `FieldError`. Both are the same defect in the end -- a function that had
+    # never been run -- and a test that runs it is the only thing that catches
+    # them.
+    sp = Dict(
+        symbol(s) => s for s in build_species(
+                datapath("slop98-inorganic-thermofun.json"); verbose = false
+            )
+    )
+    names = split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal Arg")
+
+    function system(; model = nothing, instances = 1)
+        phase = model === nothing ?
+            SolidSolutionPhase("carbonate", [sp["Cal"], sp["Arg"]]) :
+            SolidSolutionPhase(
+                "carbonate", [sp["Cal"], sp["Arg"]];
+                model = model, instances = instances,
+            )
+        return ChemicalSystem(
+            [sp[s] for s in names], ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"];
+            solid_solutions = [phase],
+        )
+    end
+
+    function loaded(cs)
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "Cal", 0.05u"mol")
+        return st, Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    end
+
+    # 1. WITHOUT instances there is nothing to split into, and the function must
+    #    be exactly `equilibrate_certified` -- same answer, not merely a good one.
+    let (st, b) = loaded(system())
+        eq_s, c_s = equilibrate_split(st; b = b)
+        eq_c, c_c = equilibrate_certified(st; b = b)
+        @test c_s.optimal == c_c.optimal
+        @test ustrip.(us"mol", eq_s.n) ≈ ustrip.(us"mol", eq_c.n) rtol = 1.0e-8
+    end
+
+    # 2. WITH a concave model and two instances the loop runs. Redlich-Kister at
+    #    a₀ = 20 kJ/mol is 8.1 RT, far inside the regime where the mixing energy
+    #    is concave -- `SolidSolutionPhase` admits `instances = 2` only there, so
+    #    constructing this at all is already the convexity check speaking.
+    gap = RedlichKisterModel(a0 = 20_000.0)
+    @test spinodal_interval(gap, 2) !== nothing
+    cs2 = system(; model = gap, instances = 2)
+    @test length(cs2.species) == length(names) + 2     # the `#2` twins exist
+    st2, b2 = loaded(cs2)
+
+    eq0, c0 = equilibrate_certified(st2; b = b2)
+    eq1, c1 = equilibrate_split(st2; b = b2, maxpasses = 2)
+
+    # THE PROMISE. A pass is kept only when the KKT error improves, so the
+    # result is never worse than the answer without splitting. This is what the
+    # `FieldError` used to prevent from ever being evaluated.
+    @test ChemistryLab._kkt_error(c1) <= ChemistryLab._kkt_error(c0) * (1 + 1.0e-8)
+
+    # 3. THE WIRING. Whatever the verdict, the certificate must carry the split
+    #    diagnostics through -- they are computed in `OptimaSolver` and were
+    #    being discarded on the way out.
+    @test hasproperty(c0, :split_trials)
+    @test hasproperty(c0, :split_phases)
+    @test hasproperty(c0, :worst_violation_split)
+    for (_, t) in c0.split_trials
+        @test length(t.x) == length(t.members)
+        @test all(t.x .>= 0)
+        @test sum(t.x) ≈ 1.0 rtol = 1.0e-6
+        @test all(1 <= i <= length(cs2.species) for i in t.members)
+    end
+
+    # 4. `share` is a fraction and is checked, not trusted.
+    @test_throws ArgumentError equilibrate_split(st2; b = b2, share = 0.0)
+    @test_throws ArgumentError equilibrate_split(st2; b = b2, share = 1.0)
+end

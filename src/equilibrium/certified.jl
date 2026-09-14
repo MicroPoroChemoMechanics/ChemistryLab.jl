@@ -317,6 +317,153 @@ function _repair_round(eq, cert, model, bfix, ϵ::Float64, solve_from, verbose::
 end
 
 """
+    equilibrate_split(state; model, b, maxpasses = 3, share = 0.5, kwargs...)
+        -> (state, certificate)
+
+The certified equilibrium of a system whose mixing phases may **unmix**, found by
+giving a phase that wants to split a second composition to split into.
+
+# The problem this solves
+
+Inside a miscibility gap the Gibbs minimum of a mixing phase is two coexisting
+compositions, not one. A formulation carrying one amount per species describes
+that by declaring the phase twice — `SolidSolutionPhase(...; instances = 2)` —
+but declaring it is not enough: **two instances started at the same composition
+stay there**. The symmetric state satisfies every first-order condition jointly,
+so it is a stationary point of the minimization, and no descent direction leads
+away from it however unstable it is. The overall composition is typically
+*metastable* rather than unstable — outside the spinodal, inside the binodal —
+where reaching the pair needs a finite jump and not a gradient step.
+
+# What it does
+
+Michelsen's stability analysis, which is what the certificate already runs on
+every present mixing phase, does not only answer *whether* a phase splits: the
+trial composition that minimizes the tangent-plane distance is an estimate of the
+**incipient phase**, and that is what seeds the second instance here. The pass is
+then repeated until the certificate accepts or stops improving.
+
+The seed comes from the analysis of the **full system** — the trial composition
+is computed with the chemical potentials the pore solution actually has — and not
+from the mixing model alone. [`common_tangent`](@ref) gives the binodal of the
+*isolated* binary, which is a different pair and is the wrong place to start
+from: seeding there was measured to collapse straight back to one composition.
+
+# What it returns, and what it promises
+
+The best certified answer found, or — if none certifies — the last one, exactly
+as [`equilibrate_certified`](@ref) would. A pass is kept only when the
+certificate's **KKT error** improves — the worst of stationarity, element
+balance, supersaturation and the constraint residual, not one of them — so the
+result is never worse than the answer without splitting.
+
+`share` is how much of the phase's amount is moved into the incipient instance on
+each pass; `maxpasses` bounds the work.
+
+!!! note "This is where convexity has already been given up"
+    A phase that unmixes has a concave mixing energy, so `G` is not convex and
+    `cert.optimal` no longer proves a *global* minimum — it proves a KKT point
+    whose present phases are additionally stable against splitting, which is
+    strictly more than stationarity gives. `SolidSolutionPhase` refuses such a
+    model unless `instances > 1` is asked for, so a system reaching this function
+    was built deliberately.
+
+See also: [`equilibrate_certified`](@ref), [`common_tangent`](@ref),
+[`miscibility_split`](@ref).
+"""
+function equilibrate_split(
+        state::ChemicalState;
+        model::AbstractActivityModel = DiluteSolutionModel(),
+        b = nothing,
+        maxpasses::Int = 3,
+        share::Float64 = 0.5,
+        kwargs...,
+    )
+    0 < share < 1 || throw(
+        ArgumentError("`share` must lie strictly between 0 and 1, got $share."),
+    )
+    eq, cert = equilibrate_certified(state; model = model, b = b, kwargs...)
+    cert.optimal && return eq, cert
+
+    cs = state.system
+    names = String[String(symbol(s)) for s in cs.species]
+    # species index <-> the index of its `#2` twin, when the system was declared
+    # with `instances = 2`. Both directions, because a trial can be reported on
+    # EITHER instance and the pair has to be recovered from whichever it names.
+    # Built once: it is a property of the system.
+    twin = Dict{Int, Int}()
+    untwin = Dict{Int, Int}()
+    for (i, nm) in enumerate(names)
+        j = findfirst(==(nm * "#2"), names)
+        j === nothing && continue
+        twin[i] = j
+        untwin[j] = i
+    end
+    isempty(twin) && return eq, cert
+
+    best_eq, best_cert = eq, cert
+    for _ in 1:maxpasses
+        trials = get(best_cert, :split_trials, nothing)
+        (trials === nothing || isempty(trials)) && break
+
+        n = Float64[ustrip(us"mol", x) for x in best_eq.n]
+        moved = false
+        seen = Set{Vector{Int}}()
+        for (_, t) in trials
+            # Recover the pair of instances from the one the trial names. The
+            # two member lists are parallel — same end-member order — so `t.x`
+            # indexes either of them.
+            base = if all(haskey(twin, i) for i in t.members)
+                collect(t.members)
+            elseif all(haskey(untwin, i) for i in t.members)
+                [untwin[i] for i in t.members]
+            else
+                continue                        # not an instanced phase
+            end
+            base in seen && continue            # both instances flag the same pair
+            push!(seen, base)
+            other = [twin[i] for i in base]
+
+            n_base = sum(n[i] for i in base)
+            n_other = sum(n[i] for i in other)
+            total = max(n_base, n_other)
+            total > 0 || continue
+            # FROM the fuller instance INTO the emptier one. Not the other way
+            # round, and not from whichever the trial happened to name: the
+            # material is typically all in one of the two, and moving `share` of
+            # an instance holding 1.5e-4 mol while its twin holds 5.1e-2 is a
+            # perturbation of three parts in a thousand — a seed that cannot
+            # move the answer is indistinguishable from no seed at all.
+            from, to = n_base >= n_other ? (base, other) : (other, base)
+            move = share * total
+            for i in from
+                n[i] -= move * n[i] / total
+            end
+            for (j, i) in enumerate(to)
+                n[i] += move * t.x[j]
+            end
+            moved = true
+        end
+        moved || break
+
+        seeded = ChemicalState(cs, n .* u"mol")
+        # `autostart = false`: the seed IS the information, and the route search
+        # would discard it for a start of its own choosing.
+        eq2, cert2 = equilibrate_certified(
+            seeded; model = model, b = b, autostart = false, kwargs...,
+        )
+        # Ranked by the package's own KKT error and not by one residual of it.
+        # `worst_supersaturation` alone would accept a pass that improved the
+        # saturation indices while losing moles of an element — the very failure
+        # `_kkt_error` exists to prevent.
+        _kkt_error(cert2) < _kkt_error(best_cert) || break
+        best_eq, best_cert = eq2, cert2
+        best_cert.optimal && break
+    end
+    return best_eq, best_cert
+end
+
+"""
     equilibrate_path(state, budgets; model, kwargs...) -> (states, certificates)
 
 A **sequence** of certified equilibria, each one started from the last that
