@@ -106,6 +106,7 @@ end
 
 @testsection "Utils tests" begin
     include("utils.jl")
+    include("scripts.jl")
 end
 
 @testsection "Kinetics tests" begin
