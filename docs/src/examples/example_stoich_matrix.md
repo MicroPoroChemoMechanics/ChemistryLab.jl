@@ -43,7 +43,7 @@ pprint(cs_ox.SM.A, oxides, clinker; label = :name)
 That is the same chemistry in a different basis, and the column for `C3S` now
 reads what its name says: three lime, one silica. Neither basis is more correct;
 the choice is made by what the problem is posed in. A datasheet reports oxides,
-so the oxide basis is the one the [Bogue calculation](@ref) inverts.
+so the oxide basis is the one the [Bogue Calculation](@ref) inverts.
 
 !!! note "`C` is lime here, not carbon"
     The components above are [`CemSpecies`](@ref), so `C` is ``\ce{CaO}`` and `S`

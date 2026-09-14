@@ -15,8 +15,14 @@ related omissions had the same shape — a Bogue clinker carries no alkalis, so 
 budget built from it returned a portlandite floor and called it a pore solution.
 
 Around them, the documentation build: the coupled trajectories now run
-concurrently, and the two stages that used to kill a three-hour build at its very
-last step now check themselves at its first.
+concurrently, and the three stages that used to kill a three-hour build at its
+very last step now check themselves at its first.
+
+And underneath all of it, three defects in the **conservation laws themselves** —
+a species projected onto components that cannot carry it, a rank decided by a
+singular-value threshold, and a null space one vector short. Those are below the
+cement chemistry rather than beside it: they decide what the certificate's
+element balance is a balance *of*.
 
 ### Breaking changes
 
@@ -49,10 +55,97 @@ last step now check themselves at its first.
   583 ms, and the site performs thousands of them; the build exceeded two hours
   and was killed by its own timeout. 0.5.5 takes that equilibrium to 17 ms.
   `OptimaSolver` 0.5.5 was registered ahead of this release for that reason.
+  The bound now reads `"0.5.5, 0.6"`: 0.6.0 adds `split_trials` to its
+  certificate and `split_starts` to `SolutionPhase`, which is what
+  [`equilibrate_split`](@ref) needs to seed a second instance at all. Both are
+  read through `hasproperty`/`hasfield`, so the package works under either — but
+  the split loop has nothing to act on under 0.5.
+- **A species that no declared component can carry is now refused**, where it
+  used to be projected onto the components by the least-squares decomposition.
+  A system that was built before and made moles of that species out of nothing
+  now raises at construction, naming the species and the components. The answer
+  it gave before was not a conservative approximation; it conserved the wrong
+  thing. The smallest case is one line long, and this package's own test suite
+  asserted it: `ChemicalSystem([H2O, H+, OH-], [H2O])` — water as the only
+  component. Those three species span a **two**-dimensional space, so one
+  component cannot express the other two, and the matrix came out reading
+  `H+ = 0.4 H2O` and `OH- = 0.6 H2O`, which balances arithmetically and lets a
+  solver make `H+` out of water with no `OH-` and no charge to pay for it. Two
+  components are needed and the refusal says so. See the fix below.
 - **The registry treats a minor bump below 1.0 as breaking whatever the API
   did**, so `[compat] ChemistryLab = "0.17"` will not accept `0.18` and
   downstream bounds must be widened. `MeanFieldHomogenization.jl` depends on this
   package only in `docs/Project.toml`.
+
+### Fixed — three holes in the conservation laws themselves
+
+The stoichiometric matrix is what every other answer rests on: it states which
+quantities are conserved, and the certificate measures the element balance
+against *it*. Three defects in how it was built are fixed here. None of them
+announced itself, and two of them made the solver report a perfectly balanced
+answer to the wrong problem.
+
+**A species no component could carry was projected onto them instead of
+refused.** The decomposition runs through `pinv`, and a projection never fails:
+asked to write a species over components that cannot express it, it returns the
+least-squares answer and says nothing. Measured — magnetite declared in a system
+with no iron component came back as `4 H₂O@ − 8 H⁺`, a column that satisfies
+every row of the matrix, and the equilibrium then made **2.4 mol of magnetite out
+of a budget holding no iron at all**, with the certificate confirming the element
+balance to 1e-11. It was right to: that balance was the one the matrix stated.
+Membership in the span is now checked and a species outside it **refused by
+name**, with the components listed and the reason given. The check is a rank
+comparison in exact rational arithmetic, not a tolerance on the least-squares
+residual, and that distinction is not stylistic: several CEMDATA18 formulas carry
+decimal stoichiometry — jennite is `(SiO2)1(CaO)1.666667(H2O)2.1` — and the
+parser keeps `5//3` on the calcium row while the oxygen row sums the decimal, so
+a perfectly expressible species shows a numerical residual of 1e-6. A threshold
+placed above that is a threshold, with everything that follows from one; a rank
+comparison has none.
+
+**A rank decided by a singular-value threshold.** Two booleans were read off
+`rank(A; rtol = 1e-6)`: whether the charge row survives as a conservation law
+independent of the elements, and which species are independent enough to be
+components. A LAPACK SVD deciding a combinatorial question about integer element
+counts is a threshold deciding something exact, and it decides differently on
+different CPUs and LAPACK builds. The package's CI showed precisely that — the
+same commit green on one Julia and red on another, with the sulfate/sulfide
+half-reaction "balancing with no electron" because the charge row had been
+dropped and the electron's column was identically zero. The rank is now computed
+by exact rational row reduction and is the same everywhere.
+
+**The null space was one vector short.** The exact elimination behind it was
+fraction-free (Bareiss), on the strength of the theorem that its division is
+exact — but the division is `÷` on `BigInt`, which **truncates** rather than
+throwing, and it is not exact once pivots are skipped. On a 5×6 integer matrix of
+rank 4 (smallest singular value exactly zero), two divisions left a remainder, an
+eliminated column kept a stray entry, the pivot count came out 5, and the null
+space came back with one vector instead of two. A null space one vector short is
+a **missing conservation law**, not a slow answer. Both it and the rank now come
+from one exact rational row reduction; validated on 1800 matrices — random
+shapes, constructed rank deficiencies and rational entries — where the exact rank
+matches the numerical one, the null space has the complementary dimension, and it
+annihilates the matrix exactly.
+
+### Fixed — `equilibrate_split` had never been executed
+
+Two defects, both invisible to reading and both fatal on the first call, in a
+function this release introduces. `optimality_certificate` rebuilds its return
+value field by field and **dropped `split_trials`** — the incipient composition
+Michelsen's analysis computes — so the loop read `nothing` and returned on its
+first pass, silently doing nothing. Past that, the pass was accepted on
+`cert.worst_violation`, a field this package's certificate does not have, so
+reaching the line at all raised a `FieldError`.
+
+The certificate now forwards `worst_violation_split`, `split_phases` and
+`split_trials`, guarded by `hasproperty` so a back end that does not run the test
+costs nothing. A pass is kept on the **KKT error** — the worst of stationarity,
+element balance, supersaturation and the constraint residual — and not on one
+residual of it, which is the same ranking mistake `_kkt_error` exists to prevent.
+The seed also moves material **from the fuller instance into the emptier one**:
+moving a share of an instance holding 1.5e-4 mol while its twin holds 5.1e-2 is a
+perturbation of three parts in a thousand, and a seed that cannot move the answer
+is indistinguishable from no seed at all. There is now a test that runs the loop.
 
 ### Added — a miscibility gap, detected and then represented
 
@@ -466,10 +559,22 @@ survives any slice — the names themselves unchanged.
 `CrossReferences` is a late stage for the same reason, so the same treatment is
 applied to it: every `@ref` written as an explicit anchor is now resolved against
 the `(@id ...)` anchors and the header slugs **before** `makedocs`, naming the
-file and the target. It does not replace Documenter's own check — a bare
-`[Name](@ref)` resolves against a docstring, which needs the modules loaded — but
-it catches the typo in a hand-written anchor, which is the mistake a writer
-actually makes, and catches it in the first second rather than the last.
+file and the target. The bare form is checked too — `[Some Heading](@ref)`
+resolves against the *heading text*, slugified and case-sensitively, so a heading
+renamed or merely recapitalized silently breaks every link to it, and three were
+broken that way.
+
+**And then a draft pass, which is the one that closes the class.** The static
+checks above catch what can be caught by reading the markdown. `missing_docs`
+cannot be: it needs the module loaded and the `@autodocs` filters applied, and it
+is decided in `CheckDocument`, which runs *after* `ExpandTemplates`. A build died
+there at minute 70 over five undocumented constants, having executed every
+example on the site to reach the check and then terminating **before rendering**,
+so the seventy minutes bought nothing. A **draft** build runs the same pipeline
+with the `@example` blocks skipped and reaches the same checks in minutes, so
+`docs/make.jl` now runs one first — into a temporary directory, with its own
+`CitationBibliography` since the plugin carries state across a build. It is
+Documenter's own check, run early, rather than a second implementation of it.
 
 ### Documentation
 

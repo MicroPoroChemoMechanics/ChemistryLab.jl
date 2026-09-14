@@ -73,7 +73,7 @@ can form.
 
 | constituent | brings | consequence for the calculation |
 |:--|:--|:--|
-| **clinker** | Ca, Si, Al, Fe, and all of the heat | the reference case; see [CEM I from the clinker up](@ref) |
+| **clinker** | Ca, Si, Al, Fe, and all of the heat | the reference case; see [CEM I from the clinker up](@ref sec-cem1-from-clinker) |
 | **blastfurnace slag (S)** | Ca, Si, Al, **Mg**, and sulfur as **S(-II)** | needs a [redox](@ref theory-redox) treatment: the slag's sulfide meets the pore solution's sulfate, and both must be held at once. The Mg forms hydrotalcite |
 | **fly ash (V, W)** | Si, Al, alkalis; W also Ca | the Al goes into the C-S-H, which then needs `CNASH_ss` rather than `CSHQ` |
 | **natural/calcined pozzolana (P, Q)** | Si, Al, alkalis | as fly ash, and at high alkali the zeolites become stable |
@@ -150,11 +150,11 @@ full provenance and for one inconsistency found in the source metadata.
 
 | page | what it does |
 |:--|:--|
-| [Bogue calculation](@ref) | an oxide analysis to clinker phases — the entry point for a CEM I |
-| [CEM I from the clinker up](@ref) | the reference paste, hydrated and certified |
+| [Bogue Calculation](@ref) | an oxide analysis to clinker phases — the entry point for a CEM I |
+| [CEM I from the clinker up](@ref sec-cem1-from-clinker) | the reference paste, hydrated and certified |
 | [A CEM I at equilibrium, with every solid solution declared](@ref) | the phase list as a modeling decision |
 | [The full Portland cement, through its pore solution](@ref ex-ionic-opc) | the coupled run, and its calorimetry |
-| [Calibrating hydration kinetics](@ref) | the inverse problem, against measured calorimetry |
+| [Calibrating hydration kinetics](@ref ex-hydration-calibration) | the inverse problem, against measured calorimetry |
 
 And one page per blended family, each on the same shape — element budget in,
 certified assemblage out, measured calorimetry beside it:

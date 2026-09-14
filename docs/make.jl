@@ -120,7 +120,8 @@ let
 
     unresolved = String[]
     for f in mds
-        for m in eachmatch(r"\]\(@ref\s+([^)]+?)\s*\)", read(f, String))
+        text = read(f, String)
+        for m in eachmatch(r"\]\(@ref\s+([^)]+?)\s*\)", text)
             target = m.captures[1]
             # A target with no hyphen and no space is a docstring name, which
             # only Documenter can resolve.
@@ -128,6 +129,26 @@ let
             startswith(target, '`') && continue
             target in anchors ||
                 push!(unresolved, "  " * relpath(f, srcdir) * " -> @ref " * target)
+        end
+        # ── the BARE form, `[Some Heading](@ref)` ────────────────────────────
+        #
+        # This is the one that bit. A bare `@ref` resolves against the HEADING
+        # TEXT, slugified and case-sensitively, so a heading renamed or merely
+        # recapitalized silently breaks every link to it. Three did:
+        # `[Bogue calculation](@ref)` against a heading reading "Bogue
+        # Calculation", and two links to headings that had gained an `@id` and
+        # lost their old wording. Documenter reports them at `CrossReferences`,
+        # which is after every example on the site has run.
+        #
+        # A bare ref whose text is a CODE SPAN is a docstring name instead, and
+        # resolving that needs the modules loaded -- Documenter's business, and
+        # checked by `missing_docs` below.
+        for m in eachmatch(r"\[([^]]+)\]\(@ref\)", text)
+            label = strip(m.captures[1])
+            startswith(label, '`') && continue
+            slug = replace(label, r"\s+" => "-")
+            slug in anchors ||
+                push!(unresolved, "  " * relpath(f, srcdir) * " -> [" * label * "](@ref)")
         end
     end
     isempty(unresolved) || error(
@@ -372,6 +393,48 @@ function Logging.handle_message(
     return Logging.handle_message(
         l.inner, level, message, _module, group, id, file, line; kwargs...,
     )
+end
+
+# ── A DRAFT PASS FIRST ────────────────────────────────────────────────────────
+#
+# `missing_docs` and `cross_references` are decided in Documenter's
+# `CheckDocument` stage, which runs AFTER `ExpandTemplates`. On this site that
+# means they are reported **seventy minutes in**, every example on the site
+# having been executed to get there — and then the build terminates before
+# rendering, so the seventy minutes buy nothing. It happened twice.
+#
+# A draft build runs the whole pipeline with the `@example` blocks skipped, so it
+# reaches the same checks in a couple of minutes. The static pre-flights above
+# catch what can be caught by reading the markdown; this catches the rest, and it
+# catches it with Documenter's own code rather than a second implementation of
+# it — in particular `missing_docs`, which needs the module loaded and the
+# `@autodocs` filters applied, and which no amount of grepping decides.
+#
+# Its own `CitationBibliography`: the plugin carries state across a build, and
+# the real pass must start from a fresh one. Plain `Documenter.HTML` into a
+# temporary directory, because what is wanted here is the checks and not the
+# site.
+let t0 = time()
+    @info "pre-flight: draft build (checks only, no example executed)"
+    mktempdir() do draftdir
+        makedocs(;
+            modules = [ChemistryLab],
+            remotes = nothing,
+            authors = "Jean-François Barthélémy and Anthony Soive",
+            sitename = "ChemistryLab.jl",
+            format = Documenter.HTML(; edit_link = nothing, repolink = nothing),
+            build = draftdir,
+            pages = pages,
+            plugins = [
+                CitationBibliography(
+                    joinpath(@__DIR__, "src", "refs.bib"); style = :authoryear
+                ),
+            ],
+            warnonly = [:docs_block],
+            draft = true,
+        )
+    end
+    @info "pre-flight: draft build clean" seconds = round(time() - t0; digits = 1)
 end
 
 Logging.with_logger(

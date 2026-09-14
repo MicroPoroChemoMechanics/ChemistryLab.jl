@@ -166,5 +166,5 @@ end
 - the oxide components of a stoichiometric decomposition — see
   [Stoichiometric matrices](@ref ex-stoich-matrix), where a clinker phase is
   expressed over `C`, `S`, `A`, `F`;
-- the [Bogue calculation](@ref), which is that decomposition inverted and
+- the [Bogue Calculation](@ref), which is that decomposition inverted and
   converted to mass.

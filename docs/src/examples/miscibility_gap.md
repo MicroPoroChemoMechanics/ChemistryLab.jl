@@ -271,10 +271,14 @@ for x̄ in (0.20, 0.40, 0.5268, 0.80, 0.96)
     if r.f_beta == 0
         @printf("x̄ = %.4f : homogeneous (outside the pair)\n", x̄)
     else
-        @printf("x̄ = %.4f : %.1f %% at x=%.4f and %.1f %% at x=%.4f" *
-                "   —  releases %6.1f J/mol   (mass balance %+.0e)\n",
-                x̄, 100r.f_alpha, r.x_alpha, 100r.f_beta, r.x_beta, r.Δg,
-                r.f_alpha * r.x_alpha + r.f_beta * r.x_beta - x̄)
+        # Two calls rather than one: `@printf` takes a LITERAL format string,
+        # and `"a" * "b"` is an expression -- `ArgumentError: First argument to
+        # @printf after io must be a format string`, raised while the block is
+        # lowered, so it kills the build rather than the line.
+        @printf("x̄ = %.4f : %.1f %% at x=%.4f and %.1f %% at x=%.4f",
+                x̄, 100r.f_alpha, r.x_alpha, 100r.f_beta, r.x_beta)
+        @printf("   —  releases %6.1f J/mol   (mass balance %+.0e)\n",
+                r.Δg, r.f_alpha * r.x_alpha + r.f_beta * r.x_beta - x̄)
     end
 end
 ```

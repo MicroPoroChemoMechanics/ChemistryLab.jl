@@ -427,7 +427,17 @@ has dissolved.
 eq_b, c_b = nothing, nothing          # the full-reaction case, kept below
 for α in (ALPHA_ASH, 1.0), (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
     st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = α)
-    eq, c = equilibrate_certified(st; model = model, b = b)
+    # The multi-start cascade is declined ONLY in the full-reaction limit, and
+    # for a measured reason rather than to save time. There it cannot help:
+    # both models were run with it and both refused, twice -- so the verdict is
+    # the same and the cascade spends about nine minutes arriving at it. At the
+    # 28-day fraction it is kept, because there it is what makes the answer
+    # certify at all: declining it turns `optimal = true` with a balance of
+    # 1e-12 into `optimal = false` with 3e-02, which would be a false statement
+    # rather than a faster one.
+    eq, c = equilibrate_certified(
+        st; model = model, b = b, autostart = α != 1.0,
+    )
     (α == 1.0 && label == "CNASH_ss") && (global eq_b, c_b = eq, c)
     @printf("%2.0f %% ash reacted %3.0f %%  %-10s optimal=%-5s balance=%.1e  pH=%.3f\n",
             100ASH_FRACTION_B, 100α, label, c.optimal, c.balance, pH(eq, model))
