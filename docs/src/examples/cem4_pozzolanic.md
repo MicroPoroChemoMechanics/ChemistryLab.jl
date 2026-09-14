@@ -331,6 +331,7 @@ i_ch = findfirst(s -> symbol(s) == "Portlandite", cs_n.species)
 for α in (ALPHA_ASH, 1.0)
     ch, phs, ok = Float64[], Float64[], Bool[]
     prev = nothing
+    refused = false          # set once this branch has run out; see below
     for f in fractions
         st, b = budget(cs_n; ash = f, α_ash = α)
         # CONTINUATION along the sweep: each point starts from its neighbor's
@@ -347,8 +348,26 @@ for α in (ALPHA_ASH, 1.0)
         # sufficiency that rests on convexity, and the start would then decide
         # which branch you land on. The certificate still decides every point
         # here, and a start is reused only once it has been certified.
-        eq, c = equilibrate_certified(something(prev, st); model = model, b = b)
-        c.optimal && (prev = eq)
+        # The cascade is declined only AFTER this branch has already refused
+        # once, and that condition is exact rather than cautious.
+        #
+        # Measured: this block cost 654 s, of which about 600 were the two
+        # points of the α = 1 branch that refuse — a refusal pays every back
+        # end, then the ideal pre-solve, then the homotopy, before returning the
+        # same verdict. Past the composition where a branch first runs out, the
+        # cascade has been shown on this very branch not to change the verdict,
+        # so paying it again buys nothing.
+        #
+        # Declining it from the START of the branch was tried and REJECTED: the
+        # two points of that branch that do certify (0 % and 10 % ash) stop
+        # certifying without it, their balances going from 1e-15 and 7e-13 to
+        # 1.8e-02 and 3.9e-07. That trades two proved answers for two hollow
+        # markers of the page's own making, which is a downgrade dressed as a
+        # saving.
+        eq, c = equilibrate_certified(
+            something(prev, st); model = model, b = b, autostart = !refused,
+        )
+        c.optimal ? (prev = eq) : (refused = true)
         n = ustrip.(us"mol", eq.n)
         push!(ch, n[i_ch])
         push!(phs, pH(eq, model))
