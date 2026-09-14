@@ -19,5 +19,10 @@ CLAUDE.md
 # them into its build directory, so a copy at the repository root is always a
 # measurement artifact and never a deliverable. Six of them reached a commit
 # once; this is so it cannot happen twice.
+# Figures written by the executed documentation blocks. `savefig` writes into
+# the CWD, which is the repository root or `docs/` depending on where the build
+# was launched from, so both are covered. The assets committed on purpose are
+# the exception.
 /*.svg
+docs/*.svg
 !docs/src/assets/*.svg
