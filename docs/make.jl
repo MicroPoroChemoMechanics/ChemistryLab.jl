@@ -3,6 +3,7 @@ using Optimization, OptimizationIpopt  # load extension OptimizationIpoptExt
 using OptimaSolver                     # load extension OptimaSolverExt
 using OrdinaryDiffEq                  # load extension KineticsOrdinaryDiffEqExt
 using Documenter
+using Logging
 using DocumenterCitations
 # VitePress renders the site from the Markdown that Documenter emits, and
 # typesets every formula — chemical equations included — at build time into
@@ -47,6 +48,116 @@ let
 end
 
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"); style = :authoryear)
+
+# ── the bibliography is formatted NOW, not at the end of the build ───────────
+#
+# `ExpandBibliography` is one of the last stages of `makedocs`: it runs after
+# every `@example` block of the site has been executed. So a bibliography entry
+# DocumenterCitations cannot parse does not fail the build in seconds — it fails
+# it after every hour of computation has already been spent.
+#
+# That is not hypothetical. A title carrying `CNASH\_ss`, the LaTeX escape for an
+# underscore, threw `ArgumentError: Invalid command: \_ss` from the TeX parser
+# and killed a **three-hour** build at `ExpandBibliography`, with every page
+# already expanded and nothing written.
+#
+# Formatting every entry here costs milliseconds and moves that failure to the
+# first second of the build, with the offending key named. It calls exactly what
+# the late stage calls, so it cannot drift away from what it is guarding.
+let failures = String[]
+    for (key, entry) in bib.entries
+        try
+            DocumenterCitations.format_bibliography_reference(:authoryear, entry)
+        catch err
+            push!(failures, "  $key : " * sprint(showerror, err))
+        end
+    end
+    isempty(failures) || error(
+        "docs/src/refs.bib has $(length(failures)) entry/entries DocumenterCitations " *
+            "cannot format. This would otherwise kill the build at its LAST stage, " *
+            "after every example has run:\n" * join(failures, "\n") *
+            "\n\nA LaTeX escape the TeX parser does not implement is the usual " *
+            "cause — write the character bare inside braces instead."
+    )
+end
+
+# ── the `@ref` anchors are resolved NOW, for the same reason ─────────────────
+#
+# `CrossReferences` is another late stage: a `@ref` naming an anchor that does
+# not exist fails the build after every page has been expanded, exactly as the
+# bibliography does. This resolves the ones that can be resolved by reading the
+# sources — a target written as an explicit id, `[text](@ref some-anchor)` —
+# against the `(@id ...)` anchors and the header slugs Documenter generates.
+#
+# It does NOT replace Documenter's own check: a bare `[Name](@ref)` resolves
+# against docstrings, which needs the modules loaded, and that is Documenter's
+# business. What this catches is the typo in a hand-written anchor, which is the
+# one a writer actually makes.
+let
+    srcdir = joinpath(@__DIR__, "src")
+    mds = String[]
+    for (root, _, files) in walkdir(srcdir), f in files
+        endswith(f, ".md") && push!(mds, joinpath(root, f))
+    end
+
+    anchors = Set{String}()
+    for f in mds
+        text = read(f, String)
+        for m in eachmatch(r"\(@id\s+([^)]+?)\s*\)", text)
+            push!(anchors, m.captures[1])
+        end
+        # Documenter's own slug for a header carrying no explicit id: the text
+        # with runs of whitespace turned into single hyphens. Fenced blocks are
+        # removed first -- a Julia comment opens with `#` too, and counting those
+        # as headers would invent anchors that mask a genuine typo.
+        prose = replace(text, r"^```.*?^```"ms => "")
+        for m in eachmatch(r"^#+\s+(.+?)\s*$"m, prose)
+            title = m.captures[1]
+            occursin("(@id", title) && continue
+            push!(anchors, replace(strip(title), r"\s+" => "-"))
+        end
+    end
+
+    unresolved = String[]
+    for f in mds
+        text = read(f, String)
+        for m in eachmatch(r"\]\(@ref\s+([^)]+?)\s*\)", text)
+            target = m.captures[1]
+            # A target with no hyphen and no space is a docstring name, which
+            # only Documenter can resolve.
+            occursin('-', target) || continue
+            startswith(target, '`') && continue
+            target in anchors ||
+                push!(unresolved, "  " * relpath(f, srcdir) * " -> @ref " * target)
+        end
+        # ── the BARE form, `[Some Heading](@ref)` ────────────────────────────
+        #
+        # This is the one that bit. A bare `@ref` resolves against the HEADING
+        # TEXT, slugified and case-sensitively, so a heading renamed or merely
+        # recapitalized silently breaks every link to it. Three did:
+        # `[Bogue calculation](@ref)` against a heading reading "Bogue
+        # Calculation", and two links to headings that had gained an `@id` and
+        # lost their old wording. Documenter reports them at `CrossReferences`,
+        # which is after every example on the site has run.
+        #
+        # A bare ref whose text is a CODE SPAN is a docstring name instead, and
+        # resolving that needs the modules loaded -- Documenter's business, and
+        # checked by `missing_docs` below.
+        for m in eachmatch(r"\[([^]]+)\]\(@ref\)", text)
+            label = strip(m.captures[1])
+            startswith(label, '`') && continue
+            slug = replace(label, r"\s+" => "-")
+            slug in anchors ||
+                push!(unresolved, "  " * relpath(f, srcdir) * " -> [" * label * "](@ref)")
+        end
+    end
+    isempty(unresolved) || error(
+        "$(length(unresolved)) cross-reference(s) name an anchor that does not " *
+            "exist. Documenter would report this only at its `CrossReferences` " *
+            "stage, after every example on the site has run:\n" *
+            join(sort(unique(unresolved)), "\n")
+    )
+end
 
 DocMeta.setdocmeta!(
     ChemistryLab,
@@ -233,6 +344,120 @@ function DocumenterVitepress.render(
     return nothing
 end
 
+# ── Per-block timing, so a slow build says what is slow ──────────────────────
+#
+# Under `JULIA_DEBUG=Documenter` Documenter announces each block it is about to
+# evaluate, but without timing — so a three-hour build names three hundred
+# blocks and does not say which one spent the three hours. Diagnosing that from
+# outside is guesswork, and guesswork on this has already cost several rounds.
+#
+# This logger passes every message through untouched and, each time a new block
+# starts, reports on stderr how long the PREVIOUS one took. Blocks under the
+# threshold stay silent, so the log gains a line only where there is something
+# to see. `println` rather than `@info`, deliberately: emitting a log record
+# from inside a log handler re-enters the handler.
+const SLOW_BLOCK_SECONDS = 5.0
+
+struct BlockTimer{L <: AbstractLogger} <: AbstractLogger
+    inner::L
+    t0::Base.RefValue{Float64}
+    label::Base.RefValue{String}
+    total::Base.RefValue{Float64}
+end
+
+Logging.min_enabled_level(l::BlockTimer) = Logging.min_enabled_level(l.inner)
+Logging.shouldlog(l::BlockTimer, args...) = Logging.shouldlog(l.inner, args...)
+Logging.catch_exceptions(l::BlockTimer) = Logging.catch_exceptions(l.inner)
+
+function Logging.handle_message(
+        l::BlockTimer, level, message, _module, group, id, file, line; kwargs...,
+    )
+    msg = string(message)
+    if occursin("Evaluating ", msg) && occursin("block:", msg)
+        now = time()
+        dt = now - l.t0[]
+        l.total[] += dt
+        if dt >= SLOW_BLOCK_SECONDS
+            println(
+                stderr,
+                "⏱  previous block took ", round(dt; digits = 1), " s",
+                "  (running total ", round(l.total[] / 60; digits = 1), " min)",
+                "  — ", l.label[],
+            )
+            flush(stderr)
+        end
+        l.t0[] = now
+        body = replace(msg, r"^.*?block:\s*"s => "")
+        l.label[] = first(split(strip(body), '\n'))
+    end
+    return Logging.handle_message(
+        l.inner, level, message, _module, group, id, file, line; kwargs...,
+    )
+end
+
+# ── A DRAFT PASS FIRST ────────────────────────────────────────────────────────
+#
+# `missing_docs` and `cross_references` are decided in Documenter's
+# `CheckDocument` stage, which runs AFTER `ExpandTemplates`. On this site that
+# means they are reported **seventy minutes in**, every example on the site
+# having been executed to get there — and then the build terminates before
+# rendering, so the seventy minutes buy nothing. It happened twice.
+#
+# A draft build runs the whole pipeline with the `@example` blocks skipped, so it
+# reaches the same checks in a couple of minutes. The static pre-flights above
+# catch what can be caught by reading the markdown; this catches the rest, and it
+# catches it with Documenter's own code rather than a second implementation of
+# it — in particular `missing_docs`, which needs the module loaded and the
+# `@autodocs` filters applied, and which no amount of grepping decides.
+#
+# WHAT IT CHECKS, AND WHAT IT CANNOT. `missing_docs` only. `cross_references` is
+# demoted to a warning here and **must** be, because a draft build breaks it by
+# construction: the figures on this site are written by the `@example` blocks
+# themselves, and with the blocks skipped those files do not exist, so every
+# `![](...)` on fourteen pages is reported as an invalid local link. That is the
+# draft mode talking and not the source — measured, on the first run of this
+# very pre-flight. Cross-references are covered instead by the static pre-flight
+# above, which resolves both the explicit and the bare form against the anchors,
+# and by the real build.
+#
+# Its own `CitationBibliography`: the plugin carries state across a build, and
+# the real pass must start from a fresh one. Plain `Documenter.HTML` into a
+# temporary directory, because what is wanted here is the checks and not the
+# site.
+let t0 = time()
+    @info "pre-flight: draft build (checks only, no example executed)"
+    mktempdir() do draftdir
+        makedocs(;
+            modules = [ChemistryLab],
+            remotes = nothing,
+            authors = "Jean-François Barthélémy and Anthony Soive",
+            sitename = "ChemistryLab.jl",
+            # `size_threshold` disabled: it is an HTML-renderer limit and this
+            # site is rendered by DocumenterVitepress, which has none. Left on,
+            # it fails the pre-flight on `api/equilibrium.md` for a reason that
+            # cannot affect the real build — measured on the first run.
+            format = Documenter.HTML(;
+                edit_link = nothing, repolink = nothing,
+                size_threshold = nothing, size_threshold_warn = nothing,
+            ),
+            build = draftdir,
+            pages = pages,
+            plugins = [
+                CitationBibliography(
+                    joinpath(@__DIR__, "src", "refs.bib"); style = :authoryear
+                ),
+            ],
+            warnonly = [:docs_block, :cross_references, :example_block, :linkcheck],
+            draft = true,
+        )
+    end
+    @info "pre-flight: draft build clean" seconds = round(time() - t0; digits = 1)
+end
+
+Logging.with_logger(
+    BlockTimer(Logging.current_logger(), Ref(time()), Ref("start"), Ref(0.0)),
+) do
+
 makedocs(;
     # `clean = false` lets pages deleted from the source survive in `build/`
     # and go on being deployed. Nothing writes there before `makedocs`.
@@ -256,6 +481,8 @@ makedocs(;
     warnonly=[:docs_block],
     draft=false,
 )
+
+end  # Logging.with_logger
 
 # DocumenterVitepress writes a real directory per version rather than the
 # symlinks Documenter used, so it needs its own `deploydocs`.

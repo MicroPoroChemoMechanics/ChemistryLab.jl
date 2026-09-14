@@ -82,6 +82,33 @@ for r in rxns
 end
 ```
 
+#### The components have to span the species
+
+A component list is not a preference. Every species must be writable as a
+combination of the components, because that combination **is** the conservation
+law the equilibrium solver enforces for it. A list that cannot express a species
+is refused, by name:
+
+```@example cs_primaries
+try
+    ChemicalSystem([H2O, Hp, OHm], [H2O])          # water alone
+catch e
+    println(sprint(showerror, e))
+end
+```
+
+Water alone cannot describe an acid-base system: those three species span a
+two-dimensional space, and one component cannot reach it. The refusal matters
+more than it looks, because the decomposition is a least-squares projection and
+a projection never fails — asked for this, it used to answer `H+ = 0.4 H2O` and
+`OH- = 0.6 H2O`, which balances arithmetically and lets a solver make `H+` out of
+water with no `OH-` and no charge to pay for it.
+
+The check is a rank comparison in exact rational arithmetic, so it is the same on
+every machine and has no tolerance to tune. When it fires, add a component
+carrying the missing element — or let the constructor choose for you by naming no
+components at all, in which case every species is a candidate.
+
 ### Filtered views
 
 `ChemicalSystem` is an `AbstractVector{<:AbstractSpecies}`. Filtered views return sub-vectors without copying data:
@@ -153,6 +180,21 @@ OHm  = Species("OH-";  aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
 cs   = ChemicalSystem([H2O, Hp, OHm], [H2O, Hp])
 
 state = ChemicalState(cs)
+```
+
+A state **displays itself**, and that display is the normal way to look at one:
+the species grouped by phase with their amounts, masses and volumes, a total per
+phase, and the scalar diagnostics — pH, pOH, porosity, saturation — underneath.
+Fresh out of the constructor everything is zero, which is what an empty state
+looks like:
+
+```@example cst_basic
+state
+```
+
+The temperature and pressure are read from the fields:
+
+```@example cst_basic
 ustrip(state.T[])      # temperature in K
 ```
 
@@ -179,7 +221,11 @@ H2O  = Species("H2O";  aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
 Hp   = Species("H+";   aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
 OHm  = Species("OH-";  aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
 Cal  = Species("Cal";  aggregate_state = AS_CRYSTAL,  class = SC_COMPONENT)
-cs   = ChemicalSystem([H2O, Hp, OHm, Cal], [H2O, Hp])
+# Three components, not two: calcite carries elements that water and the proton
+# do not, so a two-component basis cannot express it — and a decomposition that
+# cannot express a species is refused rather than projected onto the ones that
+# are there. `OH-` needs no component of its own, being `H2O - H+`.
+cs   = ChemicalSystem([H2O, Hp, OHm, Cal], [H2O, Hp, Cal])
 
 state = ChemicalState(cs)
 
@@ -197,6 +243,18 @@ set_quantity!(state, "Cal", 1e-3u"mol")
 # Inspect moles
 ustrip.(state.n)
 ```
+
+The state itself shows the same amounts in context — which phase each species
+belongs to, and what the phase totals are:
+
+```@example cst_setq
+state
+```
+
+The volumes come out at zero and the porosity at `NaN` here, and that is not a
+defect: these species were built from formulas, which carry a composition and a
+molar mass but no molar volume. [Volume and porosity](@ref) below takes the same
+state from a database instead, and the same display then fills in.
 
 ### Changing temperature and pressure
 
@@ -241,22 +299,90 @@ pOH(state)
     set them explicitly (e.g. to impose a specific initial pH), your values are
     preserved.
 
-```@example cst_derived
-v = volume(state)
+### Volume and porosity
+
+A volume needs a **molar volume**, and a species built from a formula does not
+have one: `Species("H2O")` knows its composition and its molar mass, both
+computed from the formula, but nothing about how much room a mole of it takes.
+So the state above — real enough for pH, which needs only amounts — reports
+`0.0 m³` for every volume and `NaN` for the porosity, a quotient of two zeros.
+
+Volumes therefore come from a **database**, where the molar volume is a measured
+quantity:
+
+```@example cst_volume
+using ChemistryLab
+using DynamicQuantities
+
+substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+sp = speciation(substances, ["Portlandite"]; aggregate_state = [AS_AQUEOUS])
+cs = ChemicalSystem(sp, CEMDATA_PRIMARIES)
+
+wet = ChemicalState(cs)
+set_quantity!(wet, "H2O@", 1.0u"kg")
+set_quantity!(wet, "Portlandite", 5.0u"mol")
+wet
+```
+
+This is the same display as above, on species that carry molar volumes: every
+column is now filled, the liquid and the solid are totaled separately, and the
+porosity at the bottom is a number rather than `NaN`.
+
+!!! note "A negative volume in that table is physics, not a defect"
+    `OH-` shows a volume of about `-4.7e-7 cm³` for 1.0e-7 mol, which is a
+    partial molar volume of −4.7 cm³/mol. Partial molar volumes of ions are
+    genuinely negative: the charge pulls the surrounding water in tighter than
+    bulk water is packed, so adding the ion makes the solution *smaller*. The
+    figure is CEMDATA18's, not an artifact of the arithmetic, and the phase
+    totals are right to add it with its sign.
+
+```@example cst_volume
+v = volume(wet)
 println("V liquid = ", v.liquid)
 println("V solid  = ", v.solid)
 println("V total  = ", v.total)
 ```
 
-```@example cst_derived
-m = moles(state)
+`moles` splits the amounts the same way:
+
+```@example cst_volume
+m = moles(wet)
 println("n liquid = ", m.liquid)
 println("n solid  = ", m.solid)
 ```
 
-```@example cst_derived
-porosity(state)
+[`porosity`](@ref) is then the liquid share of the total volume — for a
+suspension of five moles of portlandite in a kilogram of water, most of it:
+
+```@example cst_volume
+porosity(wet)
 ```
+
+!!! warning "A volume of zero means missing data, not an empty phase"
+    Every accessor that divides by a volume — `porosity`, and the molarity
+    conventions of [`pH`](@ref) — returns `NaN` when the species carry no molar
+    volume. `NaN` here is the honest answer to `0/0` and a sign that the species
+    came from formulas rather than from a database, not a defect in the state.
+
+### Rescaling a state
+
+A recipe is usually written for a chosen basis — one kilogram of paste, one mole
+of binder, one cubic meter of concrete — and [`rescale!`](@ref) multiplies every
+amount by the one factor that puts the state on it. The **composition does not
+change**; only the size of the sample does, so every intensive quantity (pH,
+porosity, the mole fractions) is left exactly where it was.
+
+The target's dimension chooses what is held: an amount rescales the total moles,
+a mass the total mass, a volume the total volume.
+
+```@example cst_volume
+rescale!(wet, 1.0u"kg")          # the same paste, weighed out to one kilogram
+println("total mass   = ", sum(mass(wet)))
+println("porosity     = ", porosity(wet), "   (unchanged: it is intensive)")
+```
+
+A volume target needs molar volumes for the same reason as above, and the
+rescaling is refused rather than silently wrong if the current total is zero.
 
 ### Copying a state
 
@@ -314,6 +440,10 @@ set_quantity!(state, "CO2",   1e-3u"mol")
 
 println("pH       = ", pH(state))
 println("n liquid = ", moles(state).liquid)
+```
+
+```@example full_example
+state
 ```
 
 !!! tip "Next step: equilibrium"

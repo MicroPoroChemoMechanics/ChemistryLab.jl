@@ -87,6 +87,17 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
             JULIA_DEBUG: Documenter
+            # The coupled hydration trajectories are the bulk of the build: eight
+            # 28-day integrations that share nothing with each other. Documenter
+            # expands pages one at a time, so without threads they run strictly
+            # in series. `warm_precomputed` in `scripts/precomputed.jl` puts each
+            # page's own trajectories on the runner's cores instead. Measured on
+            # two of them, on two threads: 1093.4 s serial against 593.2 s
+            # together, and both results identical bit for bit.
+            JULIA_NUM_THREADS: '4'
+            # One thread per BLAS call, so the concurrency above is not
+            # multiplied by a second layer competing for the same cores.
+            OPENBLAS_NUM_THREADS: '1'
         run: julia --project=docs/ docs/make.jl
     #   - name: Run doctests
     #     shell: julia --project=docs --color=yes {0}

@@ -75,10 +75,9 @@ function merge_reactions(json_data, new_reactions)
 
                 reaction_dict["logKr"] = phase["logKr"]
 
-                R = 8.31446261815324
                 Tst = reaction_dict["Tst"]
                 logKr = phase["logKr"]["values"][1]
-                dG = R * Tst * log(10) * logKr
+                dG = R_GAS * Tst * log(10) * logKr
                 reaction_dict["drsm_gibbs_energy"] = Dict{String, Any}(
                     "values" => [dG], "units" => ["J/mol"]
                 )

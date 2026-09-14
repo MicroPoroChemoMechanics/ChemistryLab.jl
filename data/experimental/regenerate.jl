@@ -61,6 +61,21 @@ class, different w/b *and* different Blaine, and a 26-day record.
 const RECORDS = [
     ("122-CEM I 52.5 R Cizkovice-397", "smilauer2025-122-cemI-52.5R-cizkovice", "calibration target"),
     ("116-CEM I 52.5 R Ladce-415", "smilauer2025-116-cemI-52.5R-ladce", "holdout"),
+    # The blended binders. One record per EN 197-1 family the deposit covers,
+    # chosen to span the slag content rather than to be the best fit of
+    # anything: II/B-S sits at 21-35 % slag, III/A at 36-65 %, III/B at 66-80 %,
+    # and V-A (S-V) adds fly ash beside the slag. II/A-LL is the limestone
+    # family, which changes the aluminate sequence rather than the silicate one.
+    #
+    # What the deposit reports for each is the calorimetry, the Blaine fineness
+    # and the water/binder ratio. It does NOT report the clinker phase
+    # composition, nor the actual slag content of the blend -- those are read
+    # from the EN 197-1 range for the family, and every page using them says so.
+    ("149-CEM II-B-S 32.5 R Mokra-380", "smilauer2025-149-cemII-B-S-32.5R-mokra", "slag-blended Portland"),
+    ("165-CEM II-A-LL 42.5 R Hranice-423", "smilauer2025-165-cemII-A-LL-42.5R-hranice", "limestone-blended Portland"),
+    ("184-CEM III-A 42.5 N Hranice-408", "smilauer2025-184-cemIII-A-42.5N-hranice", "blastfurnace, 36-65 % slag"),
+    ("121-CEM III-B-32.5 N LH-SR Mokra-495", "smilauer2025-121-cemIII-B-32.5N-mokra", "blastfurnace, 66-80 % slag"),
+    ("200-CEM V-A (S-V) 32.5 R Prachovice-444", "smilauer2025-200-cemV-A-S-V-32.5R-prachovice", "composite, slag + fly ash"),
 ]
 
 # ── download and extract ──────────────────────────────────────────────────────
@@ -234,7 +249,20 @@ function render(source_stem, out_stem, role, cache)
     curve = affinity_curve(cache, source_stem)
 
     io = IOBuffer()
-    println(io, "# Isothermal calorimetry of a CEM I paste — $role")
+    # The designation is taken from the deposit's FILE NAME, which is its own
+    # index and the only field that is consistent across the 65 records. The
+    # `Cement name:` line inside a record is not: record 122 gives "Cizkovice
+    # 52.5R" with no EN 197-1 designation at all, and record 116 gives
+    # "CEM I 42.5R Ladce" where its file name says 52.5 R -- the two disagree,
+    # and the README records that rather than picking one silently.
+    #
+    # A literal was worse still: this file used to open "Isothermal calorimetry
+    # of a CEM I paste" on every record, which was true of the first two and
+    # false of every blended one added since.
+    designation = strip(
+        replace(replace(source_stem, r"^\d+-" => ""), r"-\d+$" => "")
+    )
+    println(io, "# Isothermal calorimetry of a $designation paste — $role")
     println(io, "#")
     println(io, "# Source dataset: Šmilauer V., Reiterman P. (2025), Isothermal calorimetry")
     println(io, "#   database of 65 cements and approximations. Zenodo.")

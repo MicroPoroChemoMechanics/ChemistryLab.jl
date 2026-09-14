@@ -398,13 +398,12 @@ function transition_state(
     )
     mineral_name, M = _mineral_name_and_mass(cs, rxn)
     stoich_species = _stoich_named(cs, rxn)   # Vector of (name, ν, ΔG°_fn)
-    R_gas = 8.31446261815324
 
     f = (T, _P, _t, n, lna, n_initial) -> begin
         n_m = max(n[mineral_name], oneunit(T) * 1.0e-30)
         A = surface_area(surface_model, n_m, M)
         ln_iap = sum(ν * lna[sp] for (sp, ν, _) in stoich_species)
-        ln_K = -sum(ν * ΔG_fn(; T = T, unit = false) / (R_gas * T) for (_, ν, ΔG_fn) in stoich_species)
+        ln_K = -sum(ν * ΔG_fn(; T = T, unit = false) / (R_GAS * T) for (_, ν, ΔG_fn) in stoich_species)
         Ω = exp(ln_iap - ln_K)
         r = zero(promote_type(typeof(T), typeof(Ω), typeof(A)))
         for mech in mechanisms

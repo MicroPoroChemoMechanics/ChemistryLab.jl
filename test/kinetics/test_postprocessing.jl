@@ -447,17 +447,19 @@ end
     )
 
     names = Set(p.name for p in ss)
-    # Eleven since 0.15.0: the five last entries complete the set of
-    # multi-end-member phases a GEM-Selektor CEMDATA18 run of a Portland cement
-    # is given. `test/solid_solutions.jl` checks the count and the new names;
-    # here the point is only that every declared entry actually builds.
-    @test names == Set(
-        [
+    # Asserted as a SUBSET rather than as equality: the point here is that every
+    # declared entry actually builds, and the file gains phases as the database
+    # is exploited further -- `CNASH_ss` in 0.18.0. Equality turned each such
+    # addition into a failure of a test that was not about it.
+    # `test/solid_solutions.jl` is where the full list is pinned by name.
+    for n in (
             "CSHQ", "C3(AF)S0.84H", "AFm", "Hydrogarnet", "Ettringite_ss",
             "Hydrotalcite", "Straetlingite_ss", "AFm_SO4_OH", "AFt_SO4_CO3",
             "Hydrotalcite_AlFe", "MSH",
-        ]
-    )
+        )
+        @test n in names
+    end
+    @test length(ss) == length(names)          # no phase declared twice
 
     byname = Dict(p.name => p for p in ss)
     # Six, not four: `KSiOH` and `NaSiOH` are the alkali-uptake end-members of

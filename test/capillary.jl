@@ -252,3 +252,69 @@ end
         @test a0[k] == a1[k]
     end
 end
+
+@testsection "SaturatedCuring — the specimen open to water, closed to everything else" begin
+    # The mirror image of `CapillaryWater`, on the same calcite system: the
+    # sealed constraint lowers the water activity as the pore space empties, this
+    # one refills the pore space instead and reports how much it took.
+    sp = Dict(
+        symbol(s) => s for s in build_species(
+                datapath("slop98-inorganic-thermofun.json"); verbose = false
+            )
+    )
+    cs = ChemicalSystem(
+        [sp[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal")],
+        ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"],
+    )
+    fresh = ChemicalState(cs)
+    set_quantity!(fresh, "H2O@", 1.0u"kg")
+    set_quantity!(fresh, "Cal", 0.05u"mol")
+
+    V_fresh = volume(fresh).total
+
+    # ── the inert limit: asking for the volume the answer already has ────────
+    # The unconstrained equilibrium of this system barely changes its volume, so
+    # holding the total at the ANSWER's own volume must draw in nothing and give
+    # back the same composition. If this drifts, the constraint is moving answers
+    # it has no business moving.
+    eq0, c0 = equilibrate_certified(fresh)
+    @test c0.optimal
+    q = Ref(Float64[])
+    eq1, c1 = equilibrate_certified(
+        fresh; constraint = SaturatedCuring(volume(eq0).total), parameters = q,
+    )
+    @test c1.optimal
+    @test c1.param_residual < 1.0e-8
+    @test only(q[]) ≈ 0.0 atol = 1.0e-6
+    @test ustrip.(us"mol", eq1.n) ≈ ustrip.(us"mol", eq0.n) rtol = 1.0e-6
+
+    # ── a volume deficit really is made up, and with WATER ───────────────────
+    # Ask for one percent more volume than the answer occupies. The system is
+    # open to water and closed to everything else, so the extra volume can only
+    # come from water and the calcium budget must be untouched.
+    target = 1.01 * volume(eq0).total
+    q2 = Ref(Float64[])
+    eq2, c2 = equilibrate_certified(
+        fresh; constraint = SaturatedCuring(target), parameters = q2,
+    )
+    @test c2.optimal
+    @test isapprox(ustrip(us"m^3", volume(eq2).total), ustrip(us"m^3", target); rtol = 1.0e-6)
+    @test only(q2[]) > 0                       # water was drawn IN
+    # Every element but hydrogen and oxygen is conserved: the titrant is water.
+    A = Float64.(cs.SM.A)
+    b0 = A * ustrip.(us"mol", eq0.n)
+    b2 = A * ustrip.(us"mol", eq2.n)
+    comps = String.(symbol.(cs.SM.primaries))
+    for (i, c) in enumerate(comps)
+        c in ("H2O@", "H+") && continue
+        @test b2[i] ≈ b0[i] rtol = 1.0e-6
+    end
+
+    # ── what it refuses ──────────────────────────────────────────────────────
+    @test_throws ArgumentError equilibrate_certified(
+        fresh; constraint = SaturatedCuring(-1.0u"m^3"),
+    )
+    # The `reference` form takes the volume from a state, which is the way a
+    # cured specimen is actually posed: the fresh paste is the reference.
+    @test SaturatedCuring(; reference = fresh).V_ref == V_fresh
+end

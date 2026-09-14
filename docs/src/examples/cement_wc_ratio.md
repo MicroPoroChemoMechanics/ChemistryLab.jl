@@ -319,9 +319,16 @@ clinker(st) = sum(
 println(" w/c   clinker left (%)   certified   free water (mol)   x(solvent)   I (mol/kg)")
 for wc in low
     fr = fresh_paste(wc)
+    # `autostart = false`: the point of this table is a configuration that does
+    # NOT certify, and the multi-start cascade is exactly what cannot help there
+    # -- it would try every backend, then the ideal pre-solve, then the homotopy
+    # continuation, and arrive at the same answer several minutes later. The
+    # certificate reported below is the same one; only the search for a better
+    # start is declined.
+    #
     # The warnings are what the table reports; they are not the transcript.
     eq, cert = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-        equilibrate_certified(deepcopy(fr))
+        equilibrate_certified(deepcopy(fr); autostart = false)
     end
     @printf(
         "%5.2f   %16.1f   %9s   %16.3e   %10.3f   %10.4g\n",
@@ -464,6 +471,193 @@ else is then a proved Gibbs minimum.
     siliceous hydrogarnet, hydrotalcite and the alkali sulfates are absent, as
     are the alkalis themselves, which in a real paste raise the pore-solution pH
     to 13 or above.
+
+## The other boundary condition: curing under water
+
+The assumption list says an immersed specimen "would draw water in and `ϕ.void`
+would fill". That is not a thought experiment — it is a constraint, and it is the
+mirror image of the sealed convention everything above uses:
+
+```@example wc_setup
+wc_cure = 0.40
+fresh_c = fresh_paste(wc_cure)
+
+# Sealed: the ceiling is 0.42-based, the shrinkage volume stays empty.
+α_sealed = powers_alpha_max(wc_cure)
+eq_s, c_s = equilibrate_certified(arrested(wc_cure, α_sealed))
+
+# Cured: the ceiling is 0.36-based because the bath refills what the reaction
+# empties, AND the specimen is genuinely open to water -- `SaturatedCuring`
+# holds its total volume at the fresh paste's and reports how much it drank.
+α_cured = powers_alpha_max(wc_cure; curing = :saturated)
+q = Ref(Float64[])
+eq_c, c_c = equilibrate_certified(
+    arrested(wc_cure, α_cured);
+    constraint = SaturatedCuring(; reference = fresh_c), parameters = q,
+)
+
+function with_unreacted(eq, α)
+    n = collect(eq.n)
+    for (sym, _) in compo
+        n[sp_idx[sym]] += (1 - α) * fresh_c.n[sp_idx[sym]]
+    end
+    return ChemicalState(cs, n)
+end
+
+@printf("%-10s %7s %10s %12s %14s %12s\n",
+        "curing", "alpha", "certified", "pH", "water in (mol)", "void")
+@printf("%-10s %7.3f %10s %12.2f %14s %12.4f\n",
+        "sealed", α_sealed, c_s.optimal, pH(eq_s), "—",
+        porosity(with_unreacted(eq_s, α_sealed), fresh_c).void)
+@printf("%-10s %7.3f %10s %12.2f %14.4f %12.4f\n",
+        "under water", α_cured, c_c.optimal, pH(eq_c), only(q[]),
+        porosity(with_unreacted(eq_c, α_cured), fresh_c).void)
+```
+
+Two things to read there. The **ceiling moves**, so more of the clinker reacts —
+that is [`powers_alpha_max`](@ref) and its `curing` keyword, and it would apply to
+a kinetic run just as well. And the **void closes**, because the water drawn in
+occupies the volume the chemical shrinkage emptied.
+
+### The chemical shrinkage is computed, not supplied
+
+That last column is worth dwelling on, because it is not an input anywhere in
+this calculation.
+
+**What the quantity is.** Hydration products are denser than the reagents that
+made them, so a paste occupies less volume after reacting than before. Le
+Chatelier measured it in 1900 by watching a sealed flask draw water in. Here it
+is
+
+```math
+\Delta V = \sum_i \bar V_i\, n_i^{\text{fresh}} - \sum_i \bar V_i\, n_i^{\text{hydrated}} ,
+```
+
+a difference of **standard molar volumes** read from the database — the same
+thermodynamic data that fixed the assemblage, and the same ``\bar V_i`` that
+[`volume`](@ref) and [`porosity`](@ref) use everywhere else on this page. No
+calorimetry, no shrinkage test, nothing fitted.
+
+**What Powers says about the same quantity.** His two complete-hydration ratios
+differ by ``0.42 - 0.36 = 0.06`` g of water per gram of cement, and that gap *is*
+this quantity: the water an immersed specimen takes up and a sealed one must find
+in itself. He measured it on pastes in 1948.
+
+So the package can be asked a question it was never fitted to answer: **does it
+reproduce the coefficient Powers measured?**
+
+```@example wc_setup
+# The molar mass comes from the database, never from a table typed here.
+M_H2O = ustrip(us"g/mol", cs.species[sp_idx["H2O@"]][:M])
+m_cement = 1000 / (1 + wc_cure)         # g: `fresh_paste` normalizes to 1 kg of paste
+
+# The thermodynamic shrinkage: a difference of molar volumes, per gram REACTED.
+ΔV = ustrip(uconvert(us"cm^3", volume(fresh_c).total)) -
+     ustrip(uconvert(us"cm^3", volume(with_unreacted(eq_s, α_sealed)).total))
+shrink_vol = ΔV / (α_sealed * m_cement)
+
+# The same quantity as the water a cured specimen drinks, per gram reacted.
+shrink_mass = only(q[]) * M_H2O / (α_cured * m_cement)
+
+@printf("chemical shrinkage, from molar volumes : %.4f cm3 per g of reacted cement\n",
+        shrink_vol)
+@printf("water drawn in by the cured specimen   : %.4f g   per g of reacted cement\n",
+        shrink_mass)
+# Powers' two coefficients, read back out of the function that applies them --
+# below either one the cap is w/c divided by it, so the page cannot quote a
+# number the code does not use.
+w_probe = 0.25
+k_sealed = w_probe / powers_alpha_max(w_probe)
+k_saturated = w_probe / powers_alpha_max(w_probe; curing = :saturated)
+@printf("Powers, as the gap between his two coefficients (%.2f - %.2f): %.4f g/g\n",
+        k_sealed, k_saturated, k_sealed - k_saturated)
+```
+
+#### Is the comparison circular? No, and that is testable rather than arguable
+
+Powers' coefficients do enter the calculation, through `α_sealed = w/c / 0.42`.
+An objection follows immediately: if his number sets how much reacts, is the
+agreement above anything more than his number coming back out?
+
+It is not, and the reason is the normalization. ``\Delta V`` scales with how much
+clinker reacted, and it is divided by **that same reacted mass**, so `α` cancels
+to first order. The way to settle it is not to argue but to move `α` and watch:
+
+```@example wc_setup
+@printf("%8s %12s %14s\n", "alpha", "certified", "cm3 per g reacted")
+for α in (0.60, α_sealed, 1.00)
+    e, c = equilibrate_certified(arrested(wc_cure, α))
+    dv = ustrip(uconvert(us"cm^3", volume(fresh_c).total)) -
+         ustrip(uconvert(us"cm^3", volume(with_unreacted(e, α)).total))
+    @printf("%8.3f %12s %14.4f\n", α, c.optimal, dv / (α * m_cement))
+end
+```
+
+The shrinkage per gram of reacted cement is **flat in `α`** — it moves by 0.3 %
+while `α` moves by two thirds, and all three points certify. So Powers' 0.42,
+which is what fixes `α = 0.952`, is demonstrably not what produces the answer.
+What produces it is the table of molar volumes, and the comparison with his
+0.06 g/g is therefore a check on that table rather than his own number coming
+back out.
+
+#### Every hypothesis behind the number
+
+Stated in full, because a number that reproduces a measurement is worth exactly
+what its assumptions are worth:
+
+  - **The species list is closed** — the 14 species declared at the head of this
+    page. No alkalis, no siliceous hydrogarnet, no hydrotalcite. A different
+    assemblage has a different volume, and this is the assumption with the most
+    room in it.
+  - **Molar volumes are ideal**: the volume of a phase is ``\sum_i n_i \bar V_i``
+    with no excess term, for the solids and for the solution alike. Real mixing
+    volumes are small but not zero.
+  - **The standard molar volumes are the database's**, at 25 °C and 1 bar, and
+    they are pressure-independent in the shipped data — which is also why
+    [`FixedVolume`](@ref) refuses a condensed system.
+  - **The pore solution is treated with [`DiluteSolutionModel`](@ref)**, so no
+    ionic-strength correction enters the volume either.
+  - **The reference is the fresh paste's volume**, the specimen keeping its cast
+    dimensions; the contraction appears as internal void rather than as external
+    shrinkage. That is the usual convention for a set paste and wrong before
+    setting.
+  - **Powers' 0.06 is itself an average** over the cements he had, and the
+    difference of two separately measured ratios, so it carries the uncertainty
+    of both.
+
+None of these is tuned. Two of them — the closed species list and the ideal
+volumes — are the ones that would move the answer if the agreement were worse,
+and they are the ones to revisit first if a reader's own mix disagrees.
+
+Powers' two complete-hydration ratios differ by
+`0.42 − 0.36 = 0.06` g of water per gram of cement, and that gap is his statement
+of the same quantity: the water an immersed specimen takes up that a sealed one
+must find in itself. It was measured on pastes in 1948. The numbers above come
+from a table of standard molar volumes and a Gibbs minimization, with no
+calorimetry, no shrinkage test and nothing fitted — so the comparison is a real
+check on the volume data rather than a restatement.
+
+The two are under no obligation to agree, and the reasons they need not are worth
+naming: the assemblage here is the 14 declared species and not a real paste's,
+the molar volumes are ideal with no mixing term, and Powers' coefficient is an
+average over the cements he had in 1948. Whatever comes out is therefore a real
+check on the volume data rather than a restatement of it — and it is what makes
+an empirical coefficient *intelligible* rather than merely used.
+
+Read the `void` column of the table above alongside it, and read it for what it
+is. Sealed, that fraction of the specimen is gas-filled porosity, and it is a
+**result** — where a sealed paste's self-desiccation comes from. Under water it
+is zero **by construction**, since holding the total volume is exactly what the
+constraint does. The independent quantity there is the column beside it: how much
+water it took, which is what the comparison above is about.
+
+!!! warning "Curing is not `FixedActivity(\"H2O@\", 1.0)`"
+    A cement pore solution sits near ``a_w = 0.98`` from its dissolved salts
+    alone, so prescribing unit water activity would draw water in until the
+    solution was dilute enough to reach it — which never happens. A bath does not
+    fix the activity inside the specimen; it fixes the **availability**, which is
+    a statement about volume. That is why [`SaturatedCuring`](@ref) is written on
+    the volume closure and not on an activity.
 
 !!! note "Extending the scan"
     To study **supplementary cementitious materials**, substitute part of the

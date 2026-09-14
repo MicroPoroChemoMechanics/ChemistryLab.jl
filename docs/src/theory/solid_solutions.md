@@ -164,7 +164,180 @@ never precipitate as a phase of its own, and it is the whole reason C-S-H and
 the AFm phases can absorb alkalis, sulfate and carbonate continuously instead of
 in jumps.
 
-## 6. How a solid solution is declared
+## 6. The spinodal, the common tangent, and why one amount is not enough
+
+Sections 3 and 4 gave models whose excess term can be strong enough to make the
+molar Gibbs energy of mixing **concave** over an interval. This section is about
+what that means for the equilibrium, because it is not a detail of the model: it
+changes what the answer *is*.
+
+### Convexity is the hypothesis under everything else
+
+For a binary write the molar Gibbs energy of mixing, in units of ``RT``, as
+
+```math
+\frac{g(x)}{RT} = x\ln x + (1-x)\ln(1-x) + \frac{g^{\mathrm{ex}}(x)}{RT} .
+```
+
+The ideal part is convex everywhere — its second derivative is
+``1/x + 1/(1-x) > 0`` — so unmixing is always the excess term's doing. Where
+
+```math
+\frac{\mathrm{d}^2 g}{\mathrm{d}x^2} < 0
+```
+
+the phase is **inside its spinodal**, and there the straight line joining two
+compositions lies *below* the curve between them. A system at an intermediate
+overall composition therefore lowers its energy by separating into those two, and
+the minimum of ``G`` is not a point but a **pair**.
+
+For the symmetric regular solution of section 3 the criterion is exactly
+``\mathrm{d}^2g/\mathrm{d}x^2 = 4 - 2W/RT`` at ``x = \tfrac12``, so unmixing
+begins at ``W = 2RT`` — the threshold section 3 already quoted, here derived from
+the same inequality. [`spinodal_interval`](@ref) evaluates the second derivative
+on a grid rather than in closed form, which is why the same routine covers the
+asymmetric Redlich-Kister case without a separate derivation.
+
+### The answer inside a gap is the common tangent
+
+Which pair? The two compositions ``x_\alpha < x_\beta`` at which the chemical
+potentials of *both* end-members agree:
+
+```math
+\left.\frac{\mathrm{d}g}{\mathrm{d}x}\right|_{x_\alpha}
+  = \left.\frac{\mathrm{d}g}{\mathrm{d}x}\right|_{x_\beta}
+  = \frac{g(x_\beta) - g(x_\alpha)}{x_\beta - x_\alpha} ,
+```
+
+which says geometrically that one straight line is tangent to the curve at both
+points — the **common tangent**. Between ``x_\alpha`` and ``x_\beta`` the
+equilibrium state is a mixture of the two, in the proportions the lever rule
+gives, and the energy follows the tangent line rather than the curve.
+
+The common tangent construction is wider than the spinodal: the *binodal*
+``[x_\alpha, x_\beta]`` contains the spinodal, and between the two the phase is
+metastable rather than unstable. A minimization sees only the tangent.
+
+### Computing the pair: what PHREEQC does, and what it costs
+
+The pair is not found by minimizing. It is **computed from the model alone**, by
+[`common_tangent`](@ref): two equations in two unknowns, solved by Newton with
+`ForwardDiff` supplying the derivatives. Nothing about the rest of the chemical
+system enters — not the aqueous solution, not the other phases, not the element
+budget — which is why it costs microseconds and can be used as the starting point
+of a full equilibrium rather than as its result.
+
+This is the construction PHREEQC uses for binary solid solutions, after
+[GlynnReardon1990](@cite). It was validated here against a case with a closed
+form: for a symmetric model the pair must be symmetric about ``x = 1/2``, and it
+comes out at ``(0.070720,\ 0.929280)`` with a residual of ``2.3\times10^{-13}``
+and the symmetry exact to the last bit.
+
+[`miscibility_split`](@ref) then applies the lever rule. Inside the gap the two
+**compositions are fixed** and only their proportions move with the overall
+composition — which is what makes a miscibility gap flat in a phase diagram, and
+what a single-composition answer cannot reproduce at any resolution.
+
+!!! note "Where the three codes agree, and where this one adds a step"
+    The criterion is the **same object** in GEM-Selektor and here, arrived at
+    independently from the same KKT conditions — its phase stability index
+    ``\Lambda_k = \log_{10}\Omega_k`` is term for term what `phase_split_measure`
+    computes [Kulik2013](@cite). The *construction* of the pair is PHREEQC's,
+    after Glynn & Reardon. Neither this package nor the others invented either.
+
+    What differs is only where the duplication comes from. GEM-Selektor's users
+    get the right answer inside a gap because CEMDATA18 ships the AFm and AFt
+    binaries under two names each, so the declaration is already doubled in the
+    database; here it is asked for by a keyword. Both are sound, and the database
+    route has the advantage of being the published one.
+
+    The step this package adds is the **refusal**: `SolidSolutionPhase` evaluates
+    the second derivative at construction and declines a model that unmixes,
+    naming the interval — and `OptimaSolver`'s certificate applies the
+    tangent-plane test to phases that are **present**, not only to absent ones.
+    Assuming convexity and leaving the duplication to the caller is a reasonable
+    design for a general-purpose code; checking it is worth the few lines here,
+    because a phase sitting inside its own spinodal otherwise certifies on the
+    stationarity of its members alone and says nothing.
+
+### Why a formulation with one amount per species cannot hold it
+
+The composition vector of a `ChemicalSystem` has one entry per species, so a
+species belongs to exactly one phase and a phase has exactly one composition. A
+common-tangent pair is *two compositions of one substance*, and there is no way
+to write that down with one amount each.
+
+So the formulation has to be given the substance twice. That is what
+`SolidSolutionPhase(...; instances = 2)` does: `ChemicalSystem` builds a second
+copy of each end-member under a derived symbol (`monosulphate12#2`) sharing the
+same thermodynamic record, and each copy belongs to its own phase. The groups
+stay disjoint, the duplicated columns of the conservation matrix are copies of
+columns already there — so the row rank, and with it conservation, is untouched —
+and the minimization is free to populate either lobe or both.
+
+It is refused for a convex model, and the reason is worth stating because it is
+not conservatism. Two instances of a convex phase are **degenerate**: the energy
+is the same however the amount is split between them, so the minimum becomes a
+flat manifold and the optimizer is asked to pick a point on it arbitrarily.
+Inside a spinodal the common-tangent pair is unique and no such direction exists.
+
+### Michelsen's tangent-plane distance, which is what detects it
+
+Representation is one problem; knowing that it is needed is another. A phase
+sitting inside its own spinodal satisfies every first-order condition — its
+end-members are stationary, the element balance closes, nothing absent is
+supersaturated — so stationarity alone certifies a non-minimum.
+
+The test that separates them is Michelsen's: for a trial composition
+``\hat{\mathbf{x}}`` of the phase, the **tangent-plane distance**
+
+```math
+D(\hat{\mathbf{x}}) = \sum_k \hat{x}_k\,
+   \bigl[\,\mu_k(\hat{\mathbf{x}}) - \mu_k(\mathbf{x}^\star)\,\bigr]
+```
+
+measures how far the Gibbs surface at ``\hat{\mathbf{x}}`` lies above the tangent
+plane drawn at the reported composition ``\mathbf{x}^\star``. If ``D`` is
+negative anywhere, some other composition lies *below* that plane and the
+reported state is not a minimum. At ``\hat{\mathbf{x}} = \mathbf{x}^\star`` the
+distance is exactly zero and is a stationary point of the search, which is why
+the measure has to be started from the **end-member corners** — the other lobe is
+where the negative value lives.
+
+`OptimaSolver`'s `phase_split_measure` computes this for every present
+mole-fraction phase and folds the result into the certificate. Concretely:
+`check_convexity = false` stops being a silent loss of the proof — a concave
+declaration that does unmix now fails to certify, with the phase named.
+
+### The same criterion, in another code
+
+GEM-Selektor's `PhaseSelection` computes, for every phase, a stability index
+
+```math
+\Lambda_k = \log_{10}\Omega_k , \qquad
+\Omega_k = \sum_{j\in l_k}\pi_j , \qquad
+\pi_j = \frac{\omega_j(\hat{\mathbf{u}})}{\gamma_j(\hat{\mathbf{n}})} ,
+```
+
+the activity from the **dual** solution divided by the activity coefficient from
+the **primal** one — an estimate of the mole fraction. That is term for term what
+this package computes, in `_repair_start`'s ``\Omega = \sum_i 10^{SI_i}`` (the
+ideal case ``\gamma = 1``) and in `phase_split_measure`'s log-sum-exp of
+``d_j = u_i - g_i - \ln\gamma_i``. The GEMS3K paper calls ``\Omega_k``
+*"a generalization of the saturation index"* and notes that it derives from the
+KKT conditions [Kulik2013](@cite).
+
+So the criterion is one object, arrived at independently. What differs is only
+the declaration: CEMDATA18 ships the AFm and AFt binaries under two names each,
+so a GEMS user represents a gap by declaring the binary twice in the database;
+`instances = 2` asks for the same thing with a keyword. **Neither code splits a
+phase by itself.**
+
+The executed counterpart of this section is
+[the miscibility-gap page](@ref ex-miscibility-gap), which runs one cement three
+ways and reports the certificate each time.
+
+## 7. How a solid solution is declared
 
 A [`SolidSolutionPhase`](@ref) names its end-members and carries a model:
 
@@ -175,7 +348,9 @@ phase = SolidSolutionPhase("CSHQ", [sp["CSHQ-JenD"], sp["CSHQ-JenH"],
 ```
 
 Every end-member must be `AS_CRYSTAL`, and the phase is checked against its
-model's arity at construction. Sets of end-members with their interaction
+model's arity **and against the convexity of its mixing energy** at construction;
+`instances` is how a declaration asks for more than one coexisting composition,
+which section 6 is about. Sets of end-members with their interaction
 parameters are read from a TOML through
 [`build_solid_solutions`](@ref), which is also the only interaction-parameter
 file format in the package — `data/solid_solutions.toml` is the shipped example.

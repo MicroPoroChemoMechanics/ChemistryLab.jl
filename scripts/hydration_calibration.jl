@@ -746,9 +746,9 @@ function stoichiometric_run(
     s(name) = cs[name]
     rates = Dict(
         ph => damped_rate(
-                parrot_killoh_avrami(pk[ph], ph; α_max, blaine = blaine * u"m^2/kg"),
-                ph in INDUCTION_PHASES ? induction : nothing,
-            ) for ph in ("C3S", "C2S", "C3A", "C4AF")
+            parrot_killoh_avrami(pk[ph], ph; α_max, blaine = blaine * u"m^2/kg"),
+            ph in INDUCTION_PHASES ? induction : nothing,
+        ) for ph in ("C3S", "C2S", "C3A", "C4AF")
     )
 
     specs = (

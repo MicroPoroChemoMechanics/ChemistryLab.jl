@@ -13,3 +13,11 @@
 .continue
 .claude
 CLAUDE.md
+
+# Figures an `@example` block writes when a page is run OUTSIDE the Documenter
+# build -- extracted to a script for debugging, say. Documenter itself writes
+# them into its build directory, so a copy at the repository root is always a
+# measurement artifact and never a deliverable. Six of them reached a commit
+# once; this is so it cannot happen twice.
+/*.svg
+!docs/src/assets/*.svg

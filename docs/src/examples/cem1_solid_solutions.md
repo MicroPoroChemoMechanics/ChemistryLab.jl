@@ -38,6 +38,15 @@ oxides = OrderedDict(
     "MgO" => 1.0, "K2O" => 0.46, "Na2O" => 0.13, "SO3" => 2.3, "CO2" => 0.0,
 )
 water_g = 50.0                      # w/c = 0.5
+
+# At w/c = 0.5 the whole clinker can react, and that is computed rather than
+# assumed: `powers_alpha_max(0.5)` is 1, because complete hydration needs about
+# 0.42 g of water per gram of cement and there is more than that here. Below
+# 0.42 it would not be 1, the paste would arrest with water still in it, and
+# reacting the whole clinker would be the wrong question -- which is the subject
+# of [the w/c example](@ref sec-wc-ratio).
+@assert powers_alpha_max(water_g / 100) == 1.0
+
 sum(values(oxides))                 # the analysis does not close at 100 g
 ```
 

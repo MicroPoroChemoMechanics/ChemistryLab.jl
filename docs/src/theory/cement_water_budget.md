@@ -187,6 +187,133 @@ in it: a microstructural one, where the arrest emerges because the liquid path
 percolates no longer, or a transport calculation on the pore network. That is a
 different package.
 
+## 6. The same argument for a blended binder
+
+Nothing in sections 3 and 4 mentions alite. The coefficient
+
+```math
+k = b + s\,\frac{S^\ast}{1-S^\ast}
+```
+
+is built from the water the hydrates bind and the water the gel holds at arrest;
+it is a property of the **pore space**, not of the grain that made it. A slag
+particle or a fly ash sphere sitting in the same paste is in the same predicament
+as an unhydrated clinker core: the water that remains is in gel pores two
+molecules wide, and it is not going to reach a grain a thousand times larger.
+
+So the ceiling transposes, and [`powers_alpha_max`](@ref) is applied to every
+constituent of a blended binder on the pages for
+[CEM II](@ref ex-cem2-blended), [CEM III](@ref ex-cem3-slag),
+[CEM IV](@ref ex-cem4-pozzolanic) and [CEM V](@ref ex-cem5-composite). Two
+qualifications go with it, and both matter:
+
+**It is the water/*binder* ratio that is used.** Powers measured ``b`` and ``s``
+on Portland cement pastes, and a slag binder's C-A-S-H is not his C-S-H: it has a
+lower Ca/Si, it binds a different amount of water, and nobody has published the
+equivalent coefficients per supplementary material. Using ``w/b`` treats every
+constituent as drawing on the same water, which is the conservative reading and
+is stated as an approximation rather than presented as a measurement.
+
+**For a slag or an ash the water is usually not what binds.** The ceiling says
+how far the reaction *can* go. What decides how far it *has* gone at an ordinary
+age is the glass's own dissolution rate, and that is much the lower of the two:
+the RILEM TC 238-SCM round robin [Durdzinski2017](@cite) reports, at 28 days and
+by SEM image analysis, 38–49 % for two ground granulated slags and about 20 % for
+a siliceous fly ash — against a water ceiling of 0.95 at ``w/b = 0.40``. So the
+reacted fraction is the **smaller** of the two ceilings, and for the glasses it
+is the kinetic one. The same study is worth quoting on how well any of this is
+known: the precision of determination is "rather low, at best ± 4-5 %".
+
+!!! danger "This is the assumption an equilibrium code hides best"
+    A Gibbs minimization reacts whatever budget it is handed, without comment. A
+    page that hands it the whole binder has asked what the paste becomes after
+    every grain has dissolved — a question about geological time — and will get a
+    confident, certified, completely unphysical answer: on a CEM V at 48 %
+    replacement, a pH of 14.4 and an element balance that cannot close because no
+    assemblage in the database will hold the alkalis and aluminum released. The
+    failure is in the question. [The CEM V page](@ref cem5-dor) shows both.
+
+## 7. Curing is a boundary condition, and there are two of them
+
+Everything above is a **sealed** specimen: it exchanges nothing with its
+surroundings, the volume that chemical shrinkage empties becomes gas-filled
+porosity, the saturation falls, and the paste desiccates itself. That is one
+boundary condition. The other is a specimen kept under water after setting,
+which draws in what the shrinkage empties and never desiccates.
+
+Powers gives both, and the difference between them is exactly the chemical
+shrinkage:
+
+```math
+k_{\text{sealed}} = 0.42 ,
+\qquad
+k_{\text{saturated}} = 0.36 ,
+\qquad
+k_{\text{sealed}} - k_{\text{saturated}} \approx 0.06 \;\text{g/g} ,
+```
+
+the 0.06 g of water per gram of cement being the volume the reaction loses
+because the hydrates are denser than the reagents that made them. Sealed, that
+volume has to come out of the paste's own water; immersed, it comes from the
+bath. So the same mix reaches full hydration from a lower mixing water content
+when it is cured under water — which is why curing is specified, and why a
+strength result quoted without its curing regime is incomplete.
+
+```julia
+powers_alpha_max(0.32)                        # 0.762 -- sealed
+powers_alpha_max(0.32; curing = :saturated)   # 0.889 -- under water
+```
+
+`curing = :saturated` moves the **ceiling**, which is what a kinetic run needs.
+It does not by itself open the specimen: a coupled run is a closed system, so the
+water the bath supplies is not in its balance.
+
+For an equilibrium the specimen *can* be opened, and that is
+[`SaturatedCuring`](@ref) — the mirror image of [`CapillaryWater`](@ref). Where
+the sealed constraint lets the saturation fall and lowers the water activity by
+the Kelvin term, this one holds the specimen's total volume at the fresh paste's
+and draws water in to make up what chemical shrinkage empties:
+
+```math
+\sum_i \bar V_i\, n_i = V_{\text{ref}} ,
+```
+
+one equation, linear in the composition, with the amount of water imbibed as its
+unknown. That amount is not a numerical device: it **is** the chemical shrinkage,
+the quantity a chemical-shrinkage test measures by watching a specimen drink.
+
+!!! tip "And the shrinkage is computed, which makes 0.06 a prediction rather than a constant"
+    ``\Delta V`` is a difference of standard molar volumes — the same data that
+    fixed the assemblage — so the package can be asked a question it was never
+    fitted to answer: does it reproduce the coefficient Powers measured? On a
+    w/c = 0.40 paste, per gram of reacted cement:
+
+    | | |
+    |:--|--:|
+    | shrinkage from the molar volumes | 0.0606 cm³ |
+    | water the cured specimen drew in | 0.0604 g |
+    | Powers, as ``k_{\text{sealed}} - k_{\text{saturated}}`` | 0.0600 g |
+
+    The two internal routes agree with each other to 0.3 %, and both land within
+    1 % of a number measured on pastes in 1948. They are not obliged to: the
+    assemblage is a declared species list and not a real paste's, the molar
+    volumes are ideal, and Powers' coefficient is an average over the cements he
+    had. Which is what makes the agreement a check on the volume data rather
+    than a restatement of it — and what makes an empirical coefficient
+    *intelligible* rather than merely used. [The w/c example](@ref sec-wc-ratio)
+    runs it.
+
+
+!!! warning "A cure is not `FixedActivity("H2O@", 1.0)`"
+    The tempting way to write "kept under water" is to prescribe unit water
+    activity, and it is wrong. A cement pore solution sits near ``a_w = 0.98``
+    from its dissolved salts alone, so prescribing 1 would draw water in until
+    the solution was dilute enough to reach it — which never happens, and the
+    constraint would imbibe without bound. A bath does not fix the activity
+    inside the specimen. It fixes the **availability**: the pore space stays
+    full. That is a volume statement, and it is why the constraint is written on
+    the volume.
+
 ## See also
 
   - [Self-desiccation](@ref sec-self-desiccation) — the budget closed, with the

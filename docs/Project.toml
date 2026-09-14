@@ -78,7 +78,7 @@ LiveServer = "1"
 # nor `nullspace_step`, so every equilibrium `@example` block failed with a
 # MethodError while the package's own tests passed. Keep this in step with the
 # bound in the root `Project.toml`.
-OptimaSolver = "0.5"
+OptimaSolver = "0.5.5, 0.6"
 Optimization = "5"
 OptimizationIpopt = "1.1.1"
 OptimizationOptimJL = "0.4"

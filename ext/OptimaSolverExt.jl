@@ -161,6 +161,29 @@ _default_optima_solver() = OptimaOptimizer(;
 # strictly positive, which may vanish, and which is the solvent. The algorithm
 # is `OptimaSolver`'s, and these three methods are the join.
 
+# `split_starts` reached `SolutionPhase` in OptimaSolver 0.6.0. This package's
+# `[compat]` admits 0.5 as well, where the field does not exist and passing it is
+# a `MethodError` — so the extension asks the type it was compiled against rather
+# than assuming. Straddling is deliberate: the extra starts make a metastable
+# mixing phase detectable, and everything else works without them.
+const _HAS_SPLIT_STARTS = hasfield(SolutionPhase, :split_starts)
+
+function _solution_phase(ph)
+    starts = get(ph, :split_starts, ())
+    return if _HAS_SPLIT_STARTS
+        SolutionPhase(
+            ph.members, ph.j_ref;
+            always_present = ph.always_present, mole_fraction = ph.mole_fraction,
+            split_starts = starts,
+        )
+    else
+        SolutionPhase(
+            ph.members, ph.j_ref;
+            always_present = ph.always_present, mole_fraction = ph.mole_fraction,
+        )
+    end
+end
+
 function ChemistryLab._optima_dual_problem(
         A, g, lna, phases, idx_bounded, params,
         gq = nothing, hq = nothing, cq = nothing,
@@ -169,12 +192,7 @@ function ChemistryLab._optima_dual_problem(
     )
     return DualNewtonProblem(
         A, g, lna;
-        phases = [
-            SolutionPhase(
-                ph.members, ph.j_ref;
-                always_present = ph.always_present, mole_fraction = ph.mole_fraction,
-            ) for ph in phases
-        ],
+        phases = [_solution_phase(ph) for ph in phases],
         idx_bounded = idx_bounded, params = params,
         gq = gq, hq = hq, cq = cq, q0 = q0, qscale = qscale,
         Aq = Aq === nothing ? zeros(Float64, size(A, 1), length(q0)) : Aq,

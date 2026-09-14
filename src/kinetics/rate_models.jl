@@ -190,7 +190,7 @@ Values are `ThermoFactory` callables that return `SymbolicFunc{1}` instances.
 
 ```julia
 factory = KINETICS_RATE_FACTORIES[:arrhenius]
-k = factory(; k₀=1e-5, Ea=50000.0, T_ref=298.15, R_gas=8.31446)
+k = factory(; k₀=1e-5, Ea=50000.0, T_ref=298.15, R_gas=R_GAS)
 k(; T = 298.15)   # → 1e-5  (rate constant at reference temperature)
 ```
 """
@@ -235,7 +235,7 @@ end
 # ── arrhenius_rate_constant ────────────────────────────────────────────────────
 
 """
-    arrhenius_rate_constant(k₀, Ea; T_ref=298.15, R_gas=8.31446261815324) -> NumericFunc
+    arrhenius_rate_constant(k₀, Ea; T_ref=298.15, R_gas=R_GAS) -> NumericFunc
 
 Build a temperature-dependent Arrhenius rate constant as a [`NumericFunc`](@ref):
 
@@ -258,7 +258,8 @@ constants can be composed with activity or surface-area functions.
     (e.g. `62.0u"kJ/mol"`).
   - `T_ref`: reference temperature. Plain `Real` → SI [K]; `Quantity` → converted
     (e.g. `298.15u"K"`). Default `298.15`.
-  - `R_gas`: gas constant [J/(mol K)] (plain `Real` only; default `8.31446261815324`).
+  - `R_gas`: gas constant [J/(mol K)] (plain `Real` only; default [`R_GAS`](@ref),
+    the CODATA value taken from `DynamicQuantities.Constants`).
 
 # Returns
 
@@ -292,7 +293,7 @@ function arrhenius_rate_constant(
         k₀,
         Ea;
         T_ref = 298.15,
-        R_gas::Real = 8.31446261815324,
+        R_gas::Real = R_GAS,
     )
     k₀_si = safe_ustrip(us"mol/(m^2*s)", k₀)
     Ea_si = safe_ustrip(us"J/mol", Ea)
@@ -529,7 +530,6 @@ function parrot_killoh(params::NamedTuple, mineral_name::AbstractString; α_max:
     near 0.61. Use `parrot_killoh_avrami` with `PK84_PARAMS_*`.""" maxlog = 1
 
     α_max_f = float(α_max)
-    R_gas = 8.31446261815324
 
     f = (T, _P, _t, n, _lna, n_initial) -> begin
         n_m = n[mineral_name]
@@ -538,7 +538,7 @@ function parrot_killoh(params::NamedTuple, mineral_name::AbstractString; α_max:
         α = min(max(one(T) - n_m / n_init, zero(T)), α_max_f - oftype(T, 1.0e-10))
         ξ = α / α_max_f
         # Arrhenius temperature correction
-        Aₜ = exp(-Ea / R_gas * (one(T) / T - one(T) / T_ref))
+        Aₜ = exp(-Ea / R_GAS * (one(T) / T - one(T) / T_ref))
         one_m_ξ = one(ξ) - ξ
         # r_NG: nucleation–growth [s⁻¹]
         r_NG = (K₁ / N₁) * one_m_ξ^N₁ / (one(ξ) + B * ξ^N₃)
@@ -752,14 +752,13 @@ function parrot_killoh_avrami(
     T_ref = safe_ustrip(us"K", params.T_ref)
     α_max_f = float(α_max)
     β_B = blaine === nothing ? 1.0 : blaine_factor(blaine)
-    R_gas = 8.31446261815324
 
     f = (T, _P, t, n, _lna, n_initial) -> begin
         n_m = n[mineral_name]
         n_init = max(n_initial[mineral_name], oneunit(n_m) * 1.0e-30)
         α = min(max(one(T) - n_m / n_init, zero(T)), α_max_f - oftype(T, 1.0e-10))
         ξ = α / α_max_f
-        Aₜ = exp(-Ea / R_gas * (one(T) / T - one(T) / T_ref))
+        Aₜ = exp(-Ea / R_GAS * (one(T) / T - one(T) / T_ref))
         β_h = humidity === nothing ? one(ξ) : humidity_factor(_humidity_at(humidity, t, n))
         one_m_ξ = max(one(ξ) - ξ, oftype(ξ, 1.0e-12))
         # α̇₁ — Avrami nucleation and growth. For n₁ < 1 the (-ln(1-ξ))^(1-n₁)
@@ -936,14 +935,13 @@ function waller(
     α_max_f = float(α_max)
     blaine_ref = hasproperty(params, :blaine_ref) ? params.blaine_ref : 400.0u"m^2/kg"
     β_B = blaine === nothing ? 1.0 : blaine_factor(blaine; blaine_ref = blaine_ref)
-    R_gas = 8.31446261815324
 
     f = (T, _P, t, n, _lna, n_initial) -> begin
         n_m = n[mineral_name]
         n_init = max(n_initial[mineral_name], oneunit(n_m) * 1.0e-30)
         α = min(max(one(T) - n_m / n_init, zero(T)), α_max_f - oftype(T, 1.0e-10))
         ξ = α / α_max_f
-        Aₜ = exp(-Ea / R_gas * (one(T) / T - one(T) / T_ref))
+        Aₜ = exp(-Ea / R_GAS * (one(T) / T - one(T) / T_ref))
         β_h = humidity === nothing ? one(ξ) : humidity_factor(_humidity_at(humidity, t, n))
         # At ξ = 0 the closed form α̇(α) is singular (α^(1-1/n) → ∞ for n < 1).
         # Fall back to the explicit α̇(t) of the sigmoid, which is finite for t > 0
@@ -1204,12 +1202,22 @@ end
 # two are declared long before this type is.
 @inline _humidity_at(h::PoreHumidity, _t, n) = h(n.data)
 
+# The two water/cement ratios at which Powers (1948) has a paste hydrate
+# completely: 0.42 sealed, 0.36 with curing water supplied from outside. The
+# difference, 0.06 g of water per gram of cement, is the chemical shrinkage --
+# the volume the reaction loses because the hydrates are denser than the
+# reagents. Sealed, that volume empties into the pore space and the paste
+# desiccates itself; immersed, it is refilled from the bath, so the same paste
+# reaches full hydration from a lower mixing water content.
+const POWERS_W_SEALED = 0.42
+const POWERS_W_SATURATED = 0.36
+
 """
-    powers_alpha_max(w_c) -> Real
+    powers_alpha_max(w_c; curing = :sealed) -> Real
 
 Powers (1948) upper bound on the degree of hydration set by the availability of
-water, `α_max = min(1, w/c / 0.42)`: a sealed paste below `w/c = 0.42` cannot
-hydrate completely.
+water, `α_max = min(1, w/c / k)`: a paste below `w/c = k` cannot hydrate
+completely, `k` being 0.42 sealed or 0.36 water-cured, according to `curing`.
 
 The 0.42 is **not** a stoichiometric demand, and reading it as one leads to the
 wrong conclusion about what a Gibbs minimization should return. It is about
@@ -1220,11 +1228,34 @@ unavailable. In a sealed paste hydration stops by self-desiccation with water
 still in the specimen, so this bound is a statement about transport and access,
 not about thermodynamics: an equilibrium calculation on the same mix consumes all
 the clinker well below 0.42, and only runs out of water near the stoichiometric
-demand. With curing water supplied from outside the bound is nearer 0.36, the
-capillary space emptied by chemical shrinkage being refilled.
+demand.
+
+# The two curing conventions
+
+`curing = :sealed` is a specimen that exchanges nothing with its surroundings —
+the convention of [`porosity`](@ref) and of the [w/c example](@ref sec-wc-ratio).
+`curing = :saturated` is a specimen kept under water after setting, free to draw
+in what the chemical shrinkage empties; the bound is then 0.36 and a mix that
+would arrest sealed can go on reacting. **Neither is a property of the cement**:
+they are two boundary conditions on the same paste, and which one applies is the
+caller's to state.
+
+Where water is abundant — `w/c` above the coefficient, or a cure that keeps
+supplying it — the bound is 1 and this function stops doing anything, which is
+the correct answer rather than a degenerate case: nothing about water is then
+limiting the reaction.
 
 Pass the result as the `α_max` keyword of [`parrot_killoh`](@ref),
 [`parrot_killoh_avrami`](@ref) or [`waller`](@ref).
+
+!!! note "It is a ceiling, not a schedule"
+    `α_max` says how far the reaction can go, never how far it has got. At an
+    early age the degree of reaction is set by the kinetics and is far below this
+    bound; the bound binds only at long times, and only for the constituents
+    whose kinetics would otherwise have taken them past it. For a constituent
+    that reacts slowly — a slag, and a fly ash still more — the binding limit at
+    28 days is its own dissolution rate, not the water. Take the **smaller** of
+    the two.
 
 # Examples
 
@@ -1234,6 +1265,18 @@ julia> powers_alpha_max(0.5)
 
 julia> round(powers_alpha_max(0.32); digits = 4)
 0.7619
+
+julia> round(powers_alpha_max(0.32; curing = :saturated); digits = 4)
+0.8889
 ```
 """
-powers_alpha_max(w_c::Real) = min(one(w_c), w_c / oftype(w_c, 0.42))
+function powers_alpha_max(w_c::Real; curing::Symbol = :sealed)
+    k = if curing === :sealed
+        POWERS_W_SEALED
+    elseif curing === :saturated
+        POWERS_W_SATURATED
+    else
+        throw(ArgumentError("curing must be :sealed or :saturated, got :$curing"))
+    end
+    return min(one(w_c), w_c / oftype(w_c, k))
+end

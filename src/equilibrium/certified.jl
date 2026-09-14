@@ -317,6 +317,278 @@ function _repair_round(eq, cert, model, bfix, ϵ::Float64, solve_from, verbose::
 end
 
 """
+    equilibrate_split(state; model, b, maxpasses = 3, share = 0.5, kwargs...)
+        -> (state, certificate)
+
+The certified equilibrium of a system whose mixing phases may **unmix**, found by
+giving a phase that wants to split a second composition to split into.
+
+# The problem this solves
+
+Inside a miscibility gap the Gibbs minimum of a mixing phase is two coexisting
+compositions, not one. A formulation carrying one amount per species describes
+that by declaring the phase twice — `SolidSolutionPhase(...; instances = 2)` —
+and when the element balance **pins** the phase's overall composition inside the
+gap, declaring it is enough: the minimization separates the two instances onto
+the common-tangent pair by itself, and the certificate proves it. Measured on a
+calcite/magnesite binary, where 0.025 mol of each fixes x̄ = 1/2 whatever the
+energetics say, the instances land on the binodal to within 1e-3 and in the
+proportions the lever rule asks for.
+
+This function is for the case where nothing pins it. In a cement paste the AFm
+composition is free — the sulfate has ettringite to go to and the hydroxide is
+abundant — so **two instances started at the same composition stay there**. The
+symmetric state satisfies every first-order condition jointly, so it is a
+stationary point of the minimization, and no descent direction leads away from it
+however unstable it is. The composition is typically *metastable* rather than
+unstable — outside the spinodal, inside the binodal — where reaching the pair
+needs a finite jump and not a gradient step.
+
+# What it does
+
+Michelsen's stability analysis, which is what the certificate already runs on
+every present mixing phase, does not only answer *whether* a phase splits: the
+trial composition that minimizes the tangent-plane distance is an estimate of the
+**incipient phase**, and that is what seeds the second instance here. The pass is
+then repeated until the certificate accepts or stops improving.
+
+The seed comes from the analysis of the **full system** — the trial composition
+is computed with the chemical potentials the pore solution actually has — and not
+from the mixing model alone. [`common_tangent`](@ref) gives the binodal of the
+*isolated* binary, which is a different pair and is the wrong place to start
+from: seeding there was measured to collapse straight back to one composition.
+
+# What it returns, and what it promises
+
+The best certified answer found, or — if none certifies — the last one, exactly
+as [`equilibrate_certified`](@ref) would. A pass is kept only when the
+certificate's **KKT error** improves — the worst of stationarity, element
+balance, supersaturation and the constraint residual, not one of them — so the
+result is never worse than the answer without splitting.
+
+`share` is how much of the phase's amount is moved into the incipient instance on
+each pass; `maxpasses` bounds the work.
+
+!!! note "This is where convexity has already been given up"
+    A phase that unmixes has a concave mixing energy, so `G` is not convex and
+    `cert.optimal` no longer proves a *global* minimum — it proves a KKT point
+    whose present phases are additionally stable against splitting, which is
+    strictly more than stationarity gives. `SolidSolutionPhase` refuses such a
+    model unless `instances > 1` is asked for, so a system reaching this function
+    was built deliberately.
+
+See also: [`equilibrate_certified`](@ref), [`common_tangent`](@ref),
+[`miscibility_split`](@ref).
+"""
+function equilibrate_split(
+        state::ChemicalState;
+        model::AbstractActivityModel = DiluteSolutionModel(),
+        b = nothing,
+        maxpasses::Int = 3,
+        share::Float64 = 0.5,
+        kwargs...,
+    )
+    0 < share < 1 || throw(
+        ArgumentError("`share` must lie strictly between 0 and 1, got $share."),
+    )
+    eq, cert = equilibrate_certified(state; model = model, b = b, kwargs...)
+    cert.optimal && return eq, cert
+
+    cs = state.system
+    twin, untwin = _instance_pairs(cs)
+    isempty(twin) && return eq, cert
+
+    best_eq, best_cert = eq, cert
+    for _ in 1:maxpasses
+        trials = get(best_cert, :split_trials, nothing)
+        (trials === nothing || isempty(trials)) && break
+
+        n = Float64[ustrip(us"mol", x) for x in best_eq.n]
+        _seed_split!(n, trials, twin, untwin, share) || break
+
+        seeded = ChemicalState(cs, n .* u"mol")
+        # `autostart = false`: the seed IS the information, and the route search
+        # would discard it for a start of its own choosing.
+        eq2, cert2 = equilibrate_certified(
+            seeded; model = model, b = b, autostart = false, kwargs...,
+        )
+        # Ranked by the package's own KKT error and not by one residual of it.
+        # `worst_supersaturation` alone would accept a pass that improved the
+        # saturation indices while losing moles of an element — the very failure
+        # `_kkt_error` exists to prevent.
+        _kkt_error(cert2) < _kkt_error(best_cert) || break
+        best_eq, best_cert = eq2, cert2
+        best_cert.optimal && break
+    end
+    return best_eq, best_cert
+end
+
+"""
+    _instance_pairs(cs) -> (twin, untwin)
+
+The species index of each `#2` twin, by the index of the species it copies, and
+the inverse map.
+
+Both directions, because Michelsen's trial can be reported on **either** instance
+of a pair and the pair has to be recovered from whichever it names. Empty when
+the system was not declared with `instances = 2`, which is how
+[`equilibrate_split`](@ref) knows there is nowhere to split into.
+"""
+function _instance_pairs(cs)
+    names = String[String(symbol(s)) for s in cs.species]
+    twin = Dict{Int, Int}()
+    untwin = Dict{Int, Int}()
+    for (i, nm) in enumerate(names)
+        j = findfirst(==(nm * "#2"), names)
+        j === nothing && continue
+        twin[i] = j
+        untwin[j] = i
+    end
+    return twin, untwin
+end
+
+"""
+    _seed_split!(n, trials, twin, untwin, share) -> Bool
+
+Move material from the fuller instance of each flagged phase into the emptier
+one, **at the composition Michelsen's analysis asks for**. Mutates `n` and
+returns whether anything moved.
+
+# The element budget is not touched, and that is the whole design
+
+The transfer takes the incipient composition `t.x` out of one instance and puts
+the same `t.x` into the other, so the total of every end-member across the pair
+is unchanged and `A n` is exactly what it was. The obvious alternative — remove
+at the DONOR's composition and add at the trial's — moves the same number of
+moles but a different mixture, so it silently rewrites the element budget the
+solver is about to be measured against. Two end-members of one binary are
+different substances; `C4AH13` and `monosulphate12` do not have the same sulfur.
+
+`move` is then bounded so that no end-member of the donor goes negative, which
+is what makes `share` a request rather than a command.
+
+# From the fuller into the emptier
+
+Not the other way round, and not from whichever instance the trial happened to
+name. The material is typically all in one of the two, and moving a share of an
+instance holding 1.5e-4 mol while its twin holds 5.1e-2 is a perturbation of
+three parts in a thousand — a seed that cannot move the answer is
+indistinguishable from no seed at all.
+"""
+function _seed_split!(
+        n::AbstractVector{Float64}, trials, twin::Dict{Int, Int},
+        untwin::Dict{Int, Int}, share::Float64,
+    )
+    moved = false
+    seen = Set{Vector{Int}}()
+    for (_, t) in trials
+        # Recover the pair of instances from the one the trial names. The two
+        # member lists are parallel — same end-member order — so `t.x` indexes
+        # either of them.
+        base = if all(haskey(twin, i) for i in t.members)
+            collect(t.members)
+        elseif all(haskey(untwin, i) for i in t.members)
+            [untwin[i] for i in t.members]
+        else
+            continue                        # not an instanced phase
+        end
+        base in seen && continue            # both instances flag the same pair
+        push!(seen, base)
+        other = [twin[i] for i in base]
+
+        n_base = sum(n[i] for i in base)
+        n_other = sum(n[i] for i in other)
+        total = max(n_base, n_other)
+        total > 0 || continue
+        from, to = n_base >= n_other ? (base, other) : (other, base)
+
+        move = share * total
+        for (j, i) in enumerate(from)
+            t.x[j] > 0 || continue
+            move = min(move, n[i] / t.x[j])
+        end
+        move > 0 || continue
+
+        for (j, i) in enumerate(from)
+            n[i] -= move * t.x[j]
+        end
+        for (j, i) in enumerate(to)
+            n[i] += move * t.x[j]
+        end
+        moved = true
+    end
+    return moved
+end
+
+"""
+    equilibrate_path(state, budgets; model, kwargs...) -> (states, certificates)
+
+A **sequence** of certified equilibria, each one started from the last that
+certified.
+
+`budgets` is any iterable of element budgets — the vectors `equilibrate_certified`
+takes as `b`. The first is solved from `state`; every later one is solved from the
+previous answer, and a previous answer is reused only once the certificate has
+accepted it. Where none has yet, `state` is used again.
+
+# Why this exists
+
+A cement equilibrium is hard to start cold and easy to start warm, and the gap is
+not marginal. Measured on the 135-species paste of `scripts/ionic_hydration.jl`:
+
+| | |
+|:--|--:|
+| cold start, the full multi-start cascade | 15.2 s |
+| warm start from a neighboring answer | 0.19 s |
+
+Eighty to one. So a sweep that rebuilds its state at every point pays the cold
+price at every point, and — worse — can fail at one while both of its neighbors
+certify, which is a *starting point* and not an infeasibility. Both blended-binder
+sweeps in this package's documentation had such a point before they were written
+this way.
+
+# What it does and does not change
+
+For a **convex** problem the minimum is unique, so walking to it cannot change
+*what* is found — only whether the search finds it. That premise is checked
+rather than assumed: [`SolidSolutionPhase`](@ref) refuses a mixing model whose
+energy has a spinodal, so a system that was constructed at all is convex unless
+the refusal was explicitly waived. Waive it and this becomes a genuine choice of
+branch, because inside a gap the starting point decides which lobe the answer
+lands in — see [`common_tangent`](@ref).
+
+The certificate still decides every point. A refused point is returned like any
+other, with its certificate, and does **not** become the next start.
+
+# Examples
+
+```julia
+budgets = [budget_at(f) for f in 0.0:0.05:0.30]
+states, certs = equilibrate_path(fresh, budgets; model = HKFActivityModel())
+all(c.optimal for c in certs)      # every point proved, not merely converged
+```
+
+See also: [`equilibrate_certified`](@ref), [`common_tangent`](@ref).
+"""
+function equilibrate_path(
+        state::ChemicalState, budgets;
+        model::AbstractActivityModel = DiluteSolutionModel(), kwargs...,
+    )
+    states = ChemicalState[]
+    certs = Any[]
+    warm = nothing
+    for b in budgets
+        eq, cert = equilibrate_certified(
+            something(warm, state); model = model, b = b, kwargs...,
+        )
+        cert.optimal && (warm = eq)
+        push!(states, eq)
+        push!(certs, cert)
+    end
+    return states, certs
+end
+
+"""
     equilibrate_certified(state; model, ϵ, b, verbose, autostart) -> (state, certificate)
 
 Equilibrium composition together with a proof of its global optimality, obtained
@@ -467,28 +739,6 @@ function equilibrate_certified(
     starts = starts_from(state, "start")
 
     eq, cert = search(starts)
-
-    # The ideal model as a stepping stone.
-    #
-    # A start near the answer is what this problem needs, and the cheapest good
-    # one is the answer to an easier question: the same minimization under ideal
-    # activities, which has no activity coefficients to make the residual depend
-    # on the composition and certifies where the non-ideal model does not. Its
-    # assemblage is the right one — the phases present differ from the non-ideal
-    # answer by their amounts, not by their identity — so the non-ideal solve
-    # starts with the correct active set instead of discovering it.
-    #
-    # Only when nothing else certified, so the ordinary case pays nothing, and
-    # guarded against recursion: the inner call is already ideal.
-    if autostart && !cert.optimal && !(model isa DiluteSolutionModel)
-        ideal = _ideal_start(state, model, bfix, ϵ, constraint, verbose; kwargs...)
-        if ideal !== nothing
-            eq, cert = _keep_better(
-                eq, cert,
-                search(Iterators.flatten((starts_from(ideal, "start from the ideal answer"), starts)))...,
-            )
-        end
-    end
 
     # An automatic initial approximation, computed rather than asked for.
     #

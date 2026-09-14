@@ -147,8 +147,14 @@
   doi     = {10.1061/(ASCE)0733-9399(1999)125:9(1018)},
 }
 
+% The names are written in UTF-8 rather than with LaTeX accent commands, and
+% deliberately: the :authoryear style abbreviates a given name by slicing the
+% RAW string, which cuts inside `{\v s}` and throws
+% `ArgumentError: Premature end of tex string`. `Tomáš` is five characters and
+% survives any slice. Found by the bibliography pre-flight in `docs/make.jl`
+% before it could kill a build; the names themselves are unchanged.
 @article{SmilauerKrejci2009,
-  author  = {{\v S}milauer, V{\'\i}t and Krej{\v c}{\'\i}, Tom{\'a}{\v s}},
+  author  = {Šmilauer, Vít and Krejčí, Tomáš},
   title   = {Multiscale model for temperature distribution in hydrating concrete},
   journal = {International Journal for Multiscale Computational Engineering},
   volume  = {7},
@@ -361,4 +367,151 @@
   pages   = {1047--1100},
   year    = {1972},
   doi     = {10.1063/1.3253108},
+}
+
+@article{Chen2007a,
+  author  = {Chen, Wei and Brouwers, H. J. H.},
+  title   = {The hydration of slag, part 1: reaction models for
+             alkali-activated slag},
+  journal = {Journal of Materials Science},
+  volume  = {42},
+  number  = {2},
+  pages   = {428--443},
+  year    = {2007},
+  doi     = {10.1007/s10853-006-0873-2},
+}
+
+@article{Chen2007b,
+  author  = {Chen, Wei and Brouwers, H. J. H.},
+  title   = {The hydration of slag, part 2: reaction models for
+             blended cement},
+  journal = {Journal of Materials Science},
+  volume  = {42},
+  number  = {2},
+  pages   = {444--464},
+  year    = {2007},
+  doi     = {10.1007/s10853-006-0874-1},
+}
+
+% ── the carbonate effect on the aluminate sequence ───────────────────────────
+% DOI resolved against the Crossref REST API on 2026-09-12; title, authors,
+% journal, volume, issue, pages and year are as Crossref returns them.
+
+@article{Matschei2007,
+  author  = {Matschei, Thomas and Lothenbach, Barbara and Glasser, Fred P.},
+  title   = {The role of calcium carbonate in cement hydration},
+  journal = {Cement and Concrete Research},
+  volume  = {37},
+  number  = {4},
+  pages   = {551--558},
+  year    = {2007},
+  doi     = {10.1016/j.cemconres.2006.10.013},
+}
+
+% ── the aluminum- and alkali-bearing C-S-H ───────────────────────────────────
+% DOI resolved against the Crossref REST API on 2026-09-12; the title is as
+% Crossref returns it.
+%
+% The underscore of `CNASH_ss` is written BARE, inside braces, and not as the
+% LaTeX escape `\_`. DocumenterCitations parses the title as TeX and rejects
+% `\_` with `ArgumentError: Invalid command: \_ss` -- from `ExpandBibliography`,
+% which runs AFTER every executed block of the site. One character cost a
+% three-hour build once. `docs/make.jl` now formats every entry before
+% `makedocs` so that failure takes seconds instead.
+
+@article{Myers2014,
+  author  = {Myers, Rupert J. and Bernal, Susan A. and Provis, John L.},
+  title   = {A thermodynamic model for {C-(N-)A-S-H} gel: {CNASH_ss}. Derivation and validation},
+  journal = {Cement and Concrete Research},
+  volume  = {66},
+  pages   = {27--47},
+  year    = {2014},
+  doi     = {10.1016/j.cemconres.2014.07.005},
+}
+
+% ── zeolites: the Empa Na and K series ───────────────────────────────────────
+% Both DOIs resolved against the Crossref REST API on 2026-09-12; titles,
+% authors, journal, volumes, pages and years are as Crossref returns them.
+
+@article{MaLothenbach2020,
+  author  = {Ma, Bin and Lothenbach, Barbara},
+  title   = {Synthesis, characterization, and thermodynamic study of selected {Na}-based zeolites},
+  journal = {Cement and Concrete Research},
+  volume  = {135},
+  pages   = {106111},
+  year    = {2020},
+  doi     = {10.1016/j.cemconres.2020.106111},
+}
+
+@article{MaLothenbach2021,
+  author  = {Ma, Bin and Lothenbach, Barbara},
+  title   = {Synthesis, characterization, and thermodynamic study of selected {K}-based zeolites},
+  journal = {Cement and Concrete Research},
+  volume  = {148},
+  pages   = {106537},
+  year    = {2021},
+  doi     = {10.1016/j.cemconres.2021.106537},
+}
+
+% ── the GEMS3K algorithm paper ───────────────────────────────────────────────
+% DOI resolved against the Crossref REST API on 2026-09-12. Crossref confirms
+% the title, the seven authors and the DOI, but returns `issued` 2012 (online
+% first) with no volume, issue or pages. The article itself is the 2013 print
+% record, Computational Geosciences 17(1), 1-24, which is what is cited here --
+% and the key says 2013 so that it is not misleading about the entry it names.
+
+@article{Kulik2013,
+  author  = {Kulik, Dmitrii A. and Wagner, Thomas and Dmytrieva, Svitlana V. and
+             Kosakowski, Georg and Hingerl, Ferdinand F. and Chudnenko, Konstantin V. and
+             Berner, Urs R.},
+  title   = {{GEM-Selektor} geochemical modeling package: revised algorithm and
+             {GEMS3K} numerical kernel for coupled simulation codes},
+  journal = {Computational Geosciences},
+  volume  = {17},
+  number  = {1},
+  pages   = {1--24},
+  year    = {2013},
+  doi     = {10.1007/s10596-012-9310-6},
+}
+
+% ── miscibility gaps in solid solutions, the construction PHREEQC uses ───────
+% DOI resolved against the Crossref REST API on 2026-09-12; title, authors,
+% journal, volume, pages and year are as Crossref returns them. The title's
+% semicolons are the journal's own punctuation, not a transcription slip.
+
+@article{GlynnReardon1990,
+  author  = {Glynn, Pierre D. and Reardon, Eric J.},
+  title   = {Solid-solution aqueous-solution equilibria; thermodynamic theory and representation},
+  journal = {American Journal of Science},
+  volume  = {290},
+  number  = {2},
+  pages   = {164--201},
+  year    = {1990},
+  doi     = {10.2475/ajs.290.2.164},
+}
+
+% ── added for the blended-binder pages: how far an SCM actually reacts ────────
+% Both DOIs resolved against Crossref on 2026-09-13, title, authors, volume,
+% issue and pages checked against what Crossref returns.
+
+@article{Durdzinski2017,
+  author  = {Durdzi{\'n}ski, Pawe{\l} T. and {Ben Haha}, Mohsen and Bernal, Susan A. and {De Belie}, Nele and Gruyaert, Elke and Lothenbach, Barbara and {Men{\'e}ndez M{\'e}ndez}, Esperanza and Provis, John L. and Sch{\"o}ler, Axel and Stabler, Christopher and Tan, Zhijun and {Villagr{\'a}n Zaccardi}, Yury and Vollpracht, Anya and Winnefeld, Frank and Zaj{\k a}c, Maciej and Scrivener, Karen L.},
+  title   = {Outcomes of the {RILEM} round robin on degree of reaction of slag and fly ash in blended cements},
+  journal = {Materials and Structures},
+  volume  = {50},
+  number  = {2},
+  pages   = {135},
+  year    = {2017},
+  doi     = {10.1617/s11527-017-1002-1},
+}
+
+@article{Kocaba2012,
+  author  = {Kocaba, Vanessa and Gallucci, Emmanuel and Scrivener, Karen L.},
+  title   = {Methods for determination of degree of reaction of slag in blended cement pastes},
+  journal = {Cement and Concrete Research},
+  volume  = {42},
+  number  = {3},
+  pages   = {511--525},
+  year    = {2012},
+  doi     = {10.1016/j.cemconres.2011.11.010},
 }

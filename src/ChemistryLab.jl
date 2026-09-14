@@ -98,6 +98,7 @@ module ChemistryLab
 
     RuntimeGeneratedFunctions.init(@__MODULE__)
 
+    include("utils/constants.jl")
     include("utils/misc.jl")
     include("utils/subsuperscripts.jl")
 
@@ -111,6 +112,7 @@ module ChemistryLab
     include("chemical_structs/formulas.jl")
     include("chemical_structs/species.jl")
     include("chemical_structs/solid_solutions.jl")
+    include("chemical_structs/oxide_budget.jl")
     include("chemical_structs/reactions.jl")
     include("chemical_structs/speciation.jl")
     include("chemical_structs/stoich_matrices.jl")
@@ -255,6 +257,8 @@ module ChemistryLab
         optimality_certificate,
         solve_certified,
         equilibrate_certified,
+        equilibrate_path,
+        equilibrate_split,
         EquilibriumConstraint,
         FixedTP,
         FixedEnthalpy,
@@ -263,7 +267,10 @@ module ChemistryLab
         SealedVolume,
         FixedActivity,
         FixedpH,
+        FixedpE,
+        FixedEh,
         CapillaryWater,
+        SaturatedCuring,
         KineticStepSolver,
         kinetic_step,
         kinetic_step_adaptive,
@@ -274,9 +281,16 @@ module ChemistryLab
         AbstractSolidSolutionPhase,
         SolidSolutionPhase,
         spinodal_interval,
+        common_tangent,
+        miscibility_split,
         end_members,
         model,
-        with_class
+        with_class,
+        R_GAS,
+        R_GAS_Q,
+        FARADAY,
+        FARADAY_Q,
+        with_symbol
 
     export ChemicalSystem,
         aqueous,
@@ -307,6 +321,10 @@ module ChemistryLab
         missing_enthalpy,
         pH,
         pOH,
+        pe,
+        Eh,
+        ELECTRON,
+        half_reaction,
         porosity,
         saturation,
         volume_fractions,
@@ -320,6 +338,9 @@ module ChemistryLab
         build_species,
         build_reactions,
         build_solid_solutions,
+        oxide_budget,
+        glass_species,
+        primary_decomposition,
         get_compatible_species,
         HKF_SI_CONVERSIONS
 

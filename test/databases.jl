@@ -1,6 +1,67 @@
+using JSON
 using TOML
 
 @testsection "Databases" begin
+    @testset "the merged database: what the .dat file actually adds" begin
+        # `merge_json` exists because Cemdata18's ThermoFun file and PHREEQC's
+        # `.dat` file carry DIFFERENT things about the same phases, and the
+        # merged database this package ships is the result.
+        #
+        # What it adds is not species -- a reasonable reading of the word
+        # "merged", and the wrong one. Both files describe the same 228
+        # substances. What the `.dat` file brings is the REACTIONS, and with them
+        # the phase-volume data that makes volumes and porosity available on one
+        # consistent dataset.
+        #
+        # Asserted here so the claim in the manual is checked rather than
+        # believed, and so that a future regeneration cannot quietly change it.
+        base = JSON.parsefile(datapath("cemdata18-thermofun.json"); dicttype = Dict{String, Any})
+        merged = JSON.parsefile(datapath("cemdata18-merged.json"); dicttype = Dict{String, Any})
+
+        syms(db) = Set(String(s["symbol"]) for s in db["substances"])
+        @test length(syms(base)) == 228
+        @test syms(merged) == syms(base)          # identical in substances
+
+        nrxn(db) = length(get(db, "reactions", []))
+        @test nrxn(base) == 7                     # and the numbers the manual quotes
+        @test nrxn(merged) == 148
+
+        # Every reaction is usable as a reaction: it has a symbol, and it has
+        # something on its left-hand side.
+        for r in merged["reactions"]
+            @test haskey(r, "symbol") && !isempty(String(r["symbol"]))
+            @test !isempty(get(r, "reactants", []))
+        end
+
+        # A REACTANT IS NOT ALWAYS A DECLARED SUBSTANCE SYMBOL, and asserting
+        # that it is was wrong here before: of the 751 reactant entries, 146
+        # name their participant by FORMULA rather than by symbol
+        # (`Mg6Al2(OH)18(H2O)3`, `Ca2Al(OH)7(H2O)3`, `(CaO)3Al2O3`), and one of
+        # them is the electron, `e-`, which is no substance at all. The `.dat`
+        # file names participants the way PHREEQC writes them, and the merge
+        # carries that through rather than rewriting it.
+        #
+        # What is checked instead is that the two naming conventions are the
+        # only ones: a reactant is either a declared symbol, or something the
+        # formula parser accepts, or the electron.
+        known = syms(merged)
+        for r in merged["reactions"]
+            for part in get(r, "reactants", [])
+                sym = String(part["symbol"])
+                sym in known && continue
+                sym == "e-" && continue
+                @test (
+                    try
+                        Species(sym)
+                        true
+                    catch
+                        false
+                    end
+                )
+            end
+        end
+    end
+
     # Test parse_reaction_stoich_cemdata
     @testset "parse_reaction_stoich_cemdata" begin
         # Test basic reaction parsing

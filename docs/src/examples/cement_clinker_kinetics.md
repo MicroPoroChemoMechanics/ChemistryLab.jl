@@ -348,3 +348,39 @@ p3 = plot(t_Q ./ 3600, Q_kJ;
 plot(p1, p2, p3; layout=(1,3), top_margin = 7Plots.mm, left_margin = 8Plots.mm, bottom_margin = 8Plots.mm, size=(1400, 420),
     plot_title="CEM I w/c=$WC — Parrot–Killoh + semi-adiabatic calorimeter")
 ```
+
+### The same two curves on a logarithmic time axis
+
+A hydration curve has to be read on **both** scales, and each hides what the
+other shows. Linear time, above, shows where the curve flattens and how much is
+left to react — the question a 28-day strength depends on. Logarithmic time,
+below, opens out the first hours: the induction period, the acceleration that
+follows it, and the peak, all of which happen inside the first decade and are a
+single vertical rise on a linear axis.
+
+Nothing is recomputed here. These are the same arrays, drawn against the same
+times, with `xscale = :log10`:
+
+```@example clinker
+p2log = plot(t_h, [α_C3S α_C2S α_C3A α_C4AF α_mean];
+    xscale = :log10, xlabel = "Time [h], log scale", ylabel = "α",
+    title = "Degree of hydration", lw = 2, legend = :topleft,
+    label = ["C₃S" "C₂S" "C₃A" "C₄AF" "ᾱ"],
+    ls = [:solid :dash :dot :dashdot :solid])
+hline!(p2log, [α_max]; ls = :dash, color = :black, label = "α_max")
+
+p3log = plot(t_Q ./ 3600, Q_kJ;
+    xscale = :log10, xlabel = "Time [h], log scale", ylabel = "Q [kJ/kg]",
+    title = "Cumulative heat", label = "Q(t)", lw = 2, color = :purple,
+    legend = :topleft)
+
+plot(p2log, p3log; layout = (1, 2), size = (950, 400),
+     left_margin = 8Plots.mm, bottom_margin = 8Plots.mm,
+     plot_title = "The same run, logarithmic time")
+```
+
+Read together they answer different questions. On the log axis the four clinker
+phases separate: `C₃A` is essentially finished while `C₂S` has barely started,
+which is why a cement's early strength and its late strength come from different
+minerals. On the linear axis that separation is invisible and the ceiling
+`α_max` — the Powers water limit — is the only thing worth looking at.

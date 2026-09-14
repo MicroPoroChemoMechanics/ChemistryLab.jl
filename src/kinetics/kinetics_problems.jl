@@ -437,6 +437,12 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
         on_accepted = Ref(false),
         # Set once a speciation exists, so `respeciate!` can warm-start from it.
         eq_warm = Ref(false),
+        # Whether the LAST respeciation had to fall back on the reconstruction
+        # because the warm start was in the wrong basin. An assemblage switch is
+        # not a single-step event -- a phase takes several steps to exhaust --
+        # so this says which guess to try FIRST on the next call. See
+        # `_respeciate_solve!`.
+        eq_switching = Ref(false),
     )
 end
 
@@ -690,7 +696,23 @@ function respeciate!(p, u)
     _budget_clip!(n_eq, p.Ae, be)
     _restore_feasibility!(n_eq, p.Ae, be; maxit = RESTORE_MAXIT[])
 
-    return _respeciate_solve!(p, n_eq, be)
+    return _respeciate_solve!(p, n_eq, be; is_reconstruction = true)
+end
+
+"""
+    _reconstruction_guess!(buf, p, be) -> buf
+
+The independent guess: the composition the specimen was cast with, carried onto
+the current element budget. It holds no active set at all, which is exactly what
+recommends it where the assemblage is switching.
+"""
+function _reconstruction_guess!(buf, p, be)
+    @inbounds for j in eachindex(buf)
+        buf[j] = max(p.n_eq_init[j], _EQ_GUESS_FLOOR)
+    end
+    _budget_clip!(buf, p.Ae, be)
+    _restore_feasibility!(buf, p.Ae, be; maxit = RESTORE_MAXIT[])
+    return buf
 end
 
 """
@@ -698,32 +720,65 @@ end
 
 Solve `φ(bₑ)` from the guess `n_eq`, write the result into `p.n_full`, and record
 the element-balance residual. Returns `false` if the solve threw.
+
+Two guesses are available and the order between them is chosen, not fixed. The
+**warm** one is the previous speciation; the **reconstruction** is the cast
+composition carried onto the current budget. Whichever runs first, the other is
+tried when the first leaves too much matter unaccounted for, and the better of
+the two is kept — so the answer does not depend on the order, only the cost
+does.
+
+WHY THE ORDER IS WORTH CHOOSING. The warm start carries the previous ACTIVE SET,
+and where the assemblage switches it is the wrong one: an interior-point method
+started inside a set of phases that no longer exists does not cross over, it
+exhausts its iterations. Measured on a six-hour hydration, 143 respeciations:
+
+| | first solve | then |
+|:--|--:|:--|
+| the 98 calls the warm guess handled | 1247 ms | — |
+| the 45 calls where the assemblage switched | **8087 ms**, rejected | 1467 ms from the reconstruction |
+
+Eight seconds spent learning that a guess is wrong, then one and a half to get
+the answer without it. That was 66 % of the whole integration.
+
+An assemblage switch is not a single-step event — a phase takes several steps to
+exhaust — so the previous call's outcome says which guess to try first, and
+`eq_switching` carries it. This is information the problem already has, not a
+tuning parameter: no threshold is introduced, and the tolerance that decides
+"too much matter unaccounted for" is the same `_RETRY_ABS_TOL` as before.
 """
-function _respeciate_solve!(p, n_eq, be)
-    ok, n_e, abs_res = _one_speciation(p, n_eq, be)
+function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
+    # `is_reconstruction` says that `n_eq` IS the reconstruction, because the
+    # caller has already fallen back to it. There is then no second guess to
+    # try: both would be the same vector, and solving it twice to compare it
+    # with itself is the kind of waste that hides in a symmetric-looking branch.
+    switching = p.eq_switching[] && !is_reconstruction
+    first_guess = switching ? _reconstruction_guess!(p.n_eq_buf2, p, be) : n_eq
+
+    ok, n_e, abs_res = _one_speciation(p, first_guess, be)
     ok || return false
 
-    # RETRY FROM AN INDEPENDENT GUESS. The warm start carries the previous
-    # active set, and where the assemblage switches it is the wrong one — an
-    # interior-point method started inside it does not cross over. A guess built
-    # from the cast composition carries no active set at all, so it can land in a
-    # different basin; keeping whichever conserves matter better costs one extra
-    # solve, and only at the steps that need it.
-    #
-    # This is decided on the ABSOLUTE balance, in moles, because that is the
-    # quantity with a meaning: it is the matter the composition fails to account
-    # for. The relative measure is for reporting.
-    if abs_res > _RETRY_ABS_TOL
-        cold = p.n_eq_buf2
-        @inbounds for j in eachindex(cold)
-            cold[j] = max(p.n_eq_init[j], _EQ_GUESS_FLOOR)
-        end
-        _budget_clip!(cold, p.Ae, be)
-        _restore_feasibility!(cold, p.Ae, be; maxit = RESTORE_MAXIT[])
-        ok2, n2, abs2 = _one_speciation(p, cold, be)
+    # The other guess, when the first leaves too much matter unaccounted for.
+    # Decided on the ABSOLUTE balance, in moles, because that is the quantity
+    # with a meaning: it is the matter the composition fails to account for. The
+    # relative measure is for reporting.
+    if abs_res > _RETRY_ABS_TOL && is_reconstruction
+        # Already on the reconstruction and still short: nothing left to try, but
+        # the regime is plainly switching, so the next call should start there.
+        p.eq_switching[] = true
+    elseif abs_res > _RETRY_ABS_TOL
+        other = switching ? n_eq : _reconstruction_guess!(p.n_eq_buf2, p, be)
+        ok2, n2, abs2 = _one_speciation(p, other, be)
         if ok2 && abs2 < abs_res
             n_e, abs_res = n2, abs2
         end
+        # The regime is switching: prefer the reconstruction next time.
+        p.eq_switching[] = true
+    else
+        # The guess that ran first was enough. Whichever it was, the regime is
+        # settled: go back to the warm start, which is the cheap one when it
+        # works and is right far more often than not (98 of 143 above).
+        p.eq_switching[] = false
     end
 
     for (j, idx) in enumerate(p.idx_equilibrium)
@@ -781,12 +836,29 @@ function _one_speciation(p, guess, be)
     # ESCALATE, do not certify every time. The interior point is right on most
     # partitions and cheap; where it is not, it is wrong by percent, not by
     # rounding — measured, 3 % on the charge balance of a calcite solution. So
-    # the certified route is spent only on the solves that need it, which keeps
-    # the cost of a run essentially unchanged and removes the failures.
+    # the certified route is spent only on the solves that need it.
+    #
+    # ONE START, NOT TWO, and which one is not a detail. `solve_certified` tries
+    # its starts in order and stops at the first that certifies, so a second
+    # start is only ever paid for when the first fails — but when it is paid
+    # for, it is the whole cost of the step. `state_eq` is the raw guess, with no
+    # active set and far from the answer, and a dual solve from there is the
+    # COLD path: 45 s against 18 ms from a good start.
+    #
+    # Measured on a six-hour hydration before this changed: the escalation fired
+    # on 37 % of speciations and cost 6.9 s each, which was 99.1 % of the whole
+    # integration. The interior point it escalates from cost 19.7 ms.
+    #
+    # And the second start was redundant besides. `_respeciate_solve!` already
+    # retries the entire speciation from an independent guess when the balance
+    # is poor — the reconstruction, which carries no active set either and is
+    # built to be feasible on the current budget, so it converges in 1.5 s where
+    # `state_eq` takes seconds to tens of seconds. Two layers were paying for the
+    # same idea and the inner one was the expensive way to have it.
     if abs_res > _RETRY_ABS_TOL && hasproperty(p, :eq_dual) && p.eq_dual !== nothing
         try
             eq_c, cert = solve_certified(
-                p.eq_dual, (eq_result, state_eq); b = be, ϵ = p.ϵ,
+                p.eq_dual, (eq_result,); b = be, ϵ = p.ϵ,
             )
             n_c = [ustrip(us"mol", x) for x in eq_c.n]
             abs_c = _abs_residual(p.Ae, n_c, be)

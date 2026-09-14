@@ -119,8 +119,10 @@ charge, free_water = recipe(byname)
 
 println("anhydrous charge (mol per 100 g of oxides):")
 for (k, v) in charge
-    @printf("  %-5s %10.6f mol   (%6.2f g/mol)\n", k,
-        v, ustrip(us"g/mol", byname[k][:M]))
+    @printf(
+        "  %-5s %10.6f mol   (%6.2f g/mol)\n", k,
+        v, ustrip(us"g/mol", byname[k][:M])
+    )
 end
 @printf("  %-5s %10.6f mol\n\n", "H2O@", free_water)
 
@@ -158,8 +160,10 @@ dt = time() - t0
     "certificate: optimal=%s  worst supersaturation=%+.4f  balance=%.1e  (%.1f s)\n",
     cert.optimal, cert.worst_supersaturation, cert.balance, dt
 )
-@printf("pH = %.4f     total volume = %.4f cm3\n",
-    pH(eq, model), ustrip(uconvert(us"cm^3", volume(eq).total)))
+@printf(
+    "pH = %.4f     total volume = %.4f cm3\n",
+    pH(eq, model), ustrip(uconvert(us"cm^3", volume(eq).total))
+)
 
 n = ustrip.(us"mol", eq.n)
 println("\nsolid assemblage (mol):")

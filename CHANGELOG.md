@@ -1,5 +1,707 @@
 # Changelog
 
+## v0.18.0 — every cement in EN 197-1, and a documentation that builds
+
+Four things a blended cement needs and this package did not have: a **redox
+variable**, the **C-S-H that carries aluminum and alkalis**, a way to enter a
+**glass** that has no phases to name, and an honest answer to *how much of it has
+reacted*. With those, CEM I through CEM V all certify.
+
+The last of the four is the one that changed the most results, and it is not a
+refinement. A Gibbs minimization reacts whatever budget it is handed, so what it
+is handed is the modeling decision: hand it the whole binder and it answers what
+the paste becomes after every grain has dissolved, which no paste does. Two
+related omissions had the same shape — a Bogue clinker carries no alkalis, so a
+budget built from it returned a portlandite floor and called it a pore solution.
+
+Around them, the documentation build: the coupled trajectories now run
+concurrently, and the three stages that used to kill a three-hour build at its
+very last step now check themselves at its first.
+
+And underneath all of it, three defects in the **conservation laws themselves** —
+a species projected onto components that cannot carry it, a rank decided by a
+singular-value threshold, and a null space one vector short. Those are below the
+cement chemistry rather than beside it: they decide what the certificate's
+element balance is a balance *of*.
+
+### Breaking changes
+
+- **`ChemicalSystem` refuses two declared solid solutions that share a
+  composition**, naming the pair. CEMDATA18 carries three descriptions of one
+  C-S-H gel — `CSHQ`, `CNASH_ss` and the `ECSH` family — and declaring two of
+  them counts the same hydrate twice. The overlap is exact, not approximate:
+  `KSiOH`, `ECSH1-KSH` and `ECSH2-KSH` all carry `((KOH)2.5SiO2H2O)0.2`. A
+  script that declared two of these families got an answer before and now
+  raises; the answer it got was wrong.
+- **`data/solid_solutions.toml` gains `CNASH_ss`**, so a script that loads the
+  whole file and declares everything in it now also declares that phase — and,
+  by the rule above, can no longer also declare `CSHQ`. Loading the file has
+  always been an explicit act; which phases to declare remains the caller's.
+- **`[compat] OptimaSolver` moves to `"0.5.5"`.** 0.5.3 carries
+  `phase_split_measure`, without which a mixing phase that is present is
+  certified on the stationarity of its members alone — and stationarity cannot
+  see that the Gibbs minimum for a non-ideal phase is two coexisting
+  compositions. The bound is **0.5.4 and not 0.5.3** because 0.5.3 shipped that
+  test with a defect this package's own documentation exposed: the measure
+  probed compositions the element balance forbids, reading a sentinel
+  multiplier as a chemical potential. On the CEM III/A page it turned a
+  converged equilibrium — element balance 3.8e-14, pH 12.489, assemblage
+  unchanged — into `optimal = false` with a violation of +54.06, the same +54.06
+  on every unrelated system carrying the same declaration. Worse than a wrong
+  verdict: `equilibrate_certified` ranks its routes on that flag, so a false
+  negative sent it through the whole cascade to return a *worse composition*.
+  The bound is 0.5.5 rather than 0.5.4 for a second reason: **the documentation
+  cannot be built without it.** Under 0.5.4 a warm cement equilibrium costs
+  583 ms, and the site performs thousands of them; the build exceeded two hours
+  and was killed by its own timeout. 0.5.5 takes that equilibrium to 17 ms.
+  `OptimaSolver` 0.5.5 was registered ahead of this release for that reason.
+  The bound now reads `"0.5.5, 0.6"`: 0.6.0 adds `split_trials` to its
+  certificate and `split_starts` to `SolutionPhase`, which is what
+  [`equilibrate_split`](@ref) needs to seed a second instance at all. Both are
+  read through `hasproperty`/`hasfield`, so the package works under either — but
+  the split loop has nothing to act on under 0.5.
+- **A species that no declared component can carry is now refused**, where it
+  used to be projected onto the components by the least-squares decomposition.
+  A system that was built before and made moles of that species out of nothing
+  now raises at construction, naming the species and the components. The answer
+  it gave before was not a conservative approximation; it conserved the wrong
+  thing. The smallest case is one line long, and this package's own test suite
+  asserted it: `ChemicalSystem([H2O, H+, OH-], [H2O])` — water as the only
+  component. Those three species span a **two**-dimensional space, so one
+  component cannot express the other two, and the matrix came out reading
+  `H+ = 0.4 H2O` and `OH- = 0.6 H2O`, which balances arithmetically and lets a
+  solver make `H+` out of water with no `OH-` and no charge to pay for it. Two
+  components are needed and the refusal says so. See the fix below.
+- **The registry treats a minor bump below 1.0 as breaking whatever the API
+  did**, so `[compat] ChemistryLab = "0.17"` will not accept `0.18` and
+  downstream bounds must be widened. `MeanFieldHomogenization.jl` depends on this
+  package only in `docs/Project.toml`.
+
+### Fixed — three holes in the conservation laws themselves
+
+The stoichiometric matrix is what every other answer rests on: it states which
+quantities are conserved, and the certificate measures the element balance
+against *it*. Three defects in how it was built are fixed here. None of them
+announced itself, and two of them made the solver report a perfectly balanced
+answer to the wrong problem.
+
+**A species no component could carry was projected onto them instead of
+refused.** The decomposition runs through `pinv`, and a projection never fails:
+asked to write a species over components that cannot express it, it returns the
+least-squares answer and says nothing. Measured — magnetite declared in a system
+with no iron component came back as `4 H₂O@ − 8 H⁺`, a column that satisfies
+every row of the matrix, and the equilibrium then made **2.4 mol of magnetite out
+of a budget holding no iron at all**, with the certificate confirming the element
+balance to 1e-11. It was right to: that balance was the one the matrix stated.
+Membership in the span is now checked and a species outside it **refused by
+name**, with the components listed and the reason given. The check is a rank
+comparison in exact rational arithmetic, not a tolerance on the least-squares
+residual, and that distinction is not stylistic: several CEMDATA18 formulas carry
+decimal stoichiometry — jennite is `(SiO2)1(CaO)1.666667(H2O)2.1` — and the
+parser keeps `5//3` on the calcium row while the oxygen row sums the decimal, so
+a perfectly expressible species shows a numerical residual of 1e-6. A threshold
+placed above that is a threshold, with everything that follows from one; a rank
+comparison has none.
+
+**A rank decided by a singular-value threshold.** Two booleans were read off
+`rank(A; rtol = 1e-6)`: whether the charge row survives as a conservation law
+independent of the elements, and which species are independent enough to be
+components. A LAPACK SVD deciding a combinatorial question about integer element
+counts is a threshold deciding something exact, and it decides differently on
+different CPUs and LAPACK builds. The package's CI showed precisely that — the
+same commit green on one Julia and red on another, with the sulfate/sulfide
+half-reaction "balancing with no electron" because the charge row had been
+dropped and the electron's column was identically zero. The rank is now computed
+by exact rational row reduction and is the same everywhere.
+
+**The null space was one vector short.** The exact elimination behind it was
+fraction-free (Bareiss), on the strength of the theorem that its division is
+exact — but the division is `÷` on `BigInt`, which **truncates** rather than
+throwing, and it is not exact once pivots are skipped. On a 5×6 integer matrix of
+rank 4 (smallest singular value exactly zero), two divisions left a remainder, an
+eliminated column kept a stray entry, the pivot count came out 5, and the null
+space came back with one vector instead of two. A null space one vector short is
+a **missing conservation law**, not a slow answer. Both it and the rank now come
+from one exact rational row reduction; validated on 1800 matrices — random
+shapes, constructed rank deficiencies and rational entries — where the exact rank
+matches the numerical one, the null space has the complementary dimension, and it
+annihilates the matrix exactly.
+
+### Fixed — `equilibrate_split` had never been executed
+
+Two defects, both invisible to reading and both fatal on the first call, in a
+function this release introduces. `optimality_certificate` rebuilds its return
+value field by field and **dropped `split_trials`** — the incipient composition
+Michelsen's analysis computes — so the loop read `nothing` and returned on its
+first pass, silently doing nothing. Past that, the pass was accepted on
+`cert.worst_violation`, a field this package's certificate does not have, so
+reaching the line at all raised a `FieldError`.
+
+The certificate now forwards `worst_violation_split`, `split_phases` and
+`split_trials`, guarded by `hasproperty` so a back end that does not run the test
+costs nothing. A pass is kept on the **KKT error** — the worst of stationarity,
+element balance, supersaturation and the constraint residual — and not on one
+residual of it, which is the same ranking mistake `_kkt_error` exists to prevent.
+The seed also moves material **from the fuller instance into the emptier one**:
+moving a share of an instance holding 1.5e-4 mol while its twin holds 5.1e-2 is a
+perturbation of three parts in a thousand, and a seed that cannot move the answer
+is indistinguishable from no seed at all. There is now a test that runs the loop.
+
+### Added — a miscibility gap, detected and then represented
+
+Detection and representation are separate problems, and 0.18.0 closes both.
+
+**Detected.** With `OptimaSolver` 0.5.3, the certificate tests a **present**
+mixing phase for wanting to split. Measured on the AFm sulfate/hydroxide binary
+with the published Redlich-Kister parameters, whose spinodal is
+x ∈ [0.631, 0.914]:
+
+| model | certificate | worst violation |
+|:--|:--|--:|
+| ideal mixing | `optimal = true` | +1.0e-10 |
+| published Redlich-Kister | **`optimal = false`** | +8.7e-03 |
+
+The second used to certify. It was a KKT point and not a minimum, and nothing in
+the output said which: stationarity is blind to the one failure that matters for
+a non-ideal phase — that the minimum is two coexisting compositions rather than
+the one reported.
+
+**Represented.** `SolidSolutionPhase(...; instances = 2)` asks `ChemicalSystem`
+for a second copy of each end-member, under a derived symbol (`monosulphate12#2`)
+sharing the same thermodynamic record, so a composition vector carrying one
+amount per species can hold material in either lobe of the gap or in both. Two
+coexisting compositions of one substance need the substance to appear twice.
+
+The duplication is done by copying the species rather than by letting two phases
+share them, which keeps `ss_groups` **disjoint** — the activity assembly, the
+mole-fraction fill and the certificate are unchanged. The duplicated column is a
+copy of one already present, so the row rank of the conservation matrix is
+unchanged and the copies start empty, leaving a budget computed as `A n`
+unchanged too.
+
+`instances > 1` is **refused for a convex model**, and not as a formality: two
+instances of a convex phase are degenerate, every split of the amount between
+them having the same energy, so the minimum becomes a flat manifold. Inside a
+spinodal the common-tangent pair is unique. So the second instance is admitted
+exactly where it is needed.
+
+This is how GEM-Selektor represents the same thing — CEMDATA18 ships the AFm and
+AFt binaries under two names each, so its users declare the binary twice. The
+criterion is the same object in both codes: GEMS' phase stability index
+Λ_k = log₁₀ Ω_k is, term for term, what `phase_split_measure` computes, derived
+independently from the same KKT conditions [Kulik et al. 2013]. Neither code
+splits a phase by itself; the difference is only that the duplication is asked
+for here by a keyword rather than carried in the database.
+
+**Located.** `common_tangent(model; T)` returns the pair itself — the two
+compositions at which one straight line is tangent twice to the molar Gibbs
+energy of mixing, equivalently where both end-members have equal chemical
+potentials in the two phases. It is two equations in two unknowns, solved by
+Newton with `ForwardDiff` derivatives, and it involves **no part of the chemical
+system but the mixing model**, which is what makes it cost microseconds. This is
+the construction PHREEQC uses for binary solid solutions, after
+[Glynn & Reardon 1990]. Validated against an analytic oracle: for a symmetric
+model the pair comes out at (0.070720, 0.929280), residual 2.3e-13, symmetry
+exact to the last bit.
+
+`miscibility_split(model, x̄; T)` then applies the lever rule: inside the gap the
+two compositions are **fixed** and only their proportions move with the overall
+composition, which is the property that makes the gap flat in a phase diagram.
+
+**Found by minimizing, when the budget pins the composition — and not otherwise.**
+This is the part that had to be measured rather than argued, and the first
+measurement pointed the wrong way.
+
+Where the element balance *fixes* the overall composition inside the gap, two
+declared instances separate onto the common-tangent pair by themselves, and the
+certificate proves it. Measured on a calcite/magnesite binary — two different
+substances, so 0.025 mol of each pins x̄ = 1/2 whatever the energetics say —
+with a Redlich-Kister gap, against `common_tangent` computed from the mixing
+model alone and told to nothing in the solve:
+
+| `a₀` | binodal | the two instances | certificate |
+|--:|:--|:--|:--|
+| 8 kJ/mol | (0.052846, 0.947154) | 0.0528 and 0.9472 | `optimal = true`, 1.5e-10 |
+| 14 kJ/mol | (0.003662, 0.996338) | 0.0037 and 0.9963 | `optimal = true`, 1.0e-10 |
+| 20 kJ/mol | (0.000315, 0.999685) | 0.0003 and 0.9997 | `optimal = true`, 1.0e-10 |
+
+with the amounts in the proportions the lever rule asks for — 0.5010 against
+0.4990 at x̄ = 1/2. That is the whole construction recovered by the
+minimization, from a start that had everything in one instance.
+
+The AFm binary of a real CEM I is **not** that case, and the difference is
+chemical rather than numerical: nothing pins the phase's composition there. The
+sulfate has somewhere else to go — ettringite — and the hydroxide is abundant,
+so the composition is free, the two instances start at the same x and stay at it.
+The symmetric state satisfies every first-order condition jointly, so it *is* a
+stationary point and no descent direction leads away from it.
+
+Which is why `common_tangent` exists as well: for a phase whose composition is
+free, the pair is **computed** from the model rather than discovered by the
+solver, and that is not a workaround but the standard construction — neither
+GEM-Selektor nor Reaktoro asks a global minimization to find a binodal either.
+`examples/miscibility_gap.md` shows the whole chain with the numbers: the
+certificate refusing a single composition, the pair computed, and the lever rule
+applied.
+
+Also new: **`with_symbol`**, the same species under a different label, which is
+what builds those copies.
+
+### Added — how far a binder actually reacts, and under which cure
+
+A Gibbs minimization reacts whatever budget it is handed, without comment. Every
+cement page of this documentation used to hand it the **whole** binder, which
+asks what the paste becomes after every grain has dissolved — a question about
+geological time, not about a specimen at 28 days. On a CEM I at w/c 0.5 the
+difference is small enough to ignore. On a CEM V at 48 % replacement it is not:
+the full-reaction budget puts in alkalis and aluminum that no real paste
+releases, and the answer comes back with a pH of 14.4, an element balance stuck
+at 3·10⁻¹ and supersaturated layered double hydroxides it has no room to
+precipitate. The failure was in the question.
+
+- **`powers_alpha_max(w_c; curing = :sealed | :saturated)`** — the water ceiling
+  now carries its curing convention. Powers gives both coefficients: **0.42**
+  sealed and **0.36** under water, the 0.06 g/g between them being the chemical
+  shrinkage, which a sealed specimen pays out of its own water and an immersed
+  one draws from the bath. The one-argument call is unchanged and still sealed,
+  so nothing that used it moves.
+
+- **The ceiling applies to every constituent, not only to the clinker.** The
+  coefficient is built from the water the hydrates bind and the water the gel
+  holds at arrest; it is a property of the **pore space**, and water in a gel
+  pore two molecules wide is no more able to reach a slag particle than an
+  unhydrated alite core. Which is to say: nothing in the argument mentions
+  clinker, and the pages no longer pretend it does.
+
+- **For a glass the kinetic ceiling is the lower one, and it is now cited.** The
+  RILEM TC 238-SCM round robin [Durdzinski2017] measured the degree of reaction
+  of two slags and a siliceous fly ash in seven laboratories at exactly the
+  geometry these pages use — Portland cement blended at 40 % and 30 %, w/b
+  0.40 — and reports, at 28 days by SEM image analysis, 38–49 % for the slags and
+  about 20 % for the ash. Against a water ceiling of 0.95 at that w/b, the glass
+  is limited by its own dissolution and not by the water. The reacted fraction is
+  the **smaller** of the two ceilings.
+
+The CEM II, CEM III, CEM IV and CEM V pages now state a reacted fraction per
+constituent and sweep it, and `theory/cement_water_budget.md` gains two sections
+saying why the mechanism transposes and what a cure is. Two consequences are
+visible in the results and are the point of the change: a CEM IV/A at 28 days
+keeps about half of its portlandite where the full-reaction answer had exhausted
+it, and **a CEM V/A certifies** where it previously had no admissible assemblage
+at all.
+
+A third is sharper still, and it is the aluminum question of the CEM IV page made
+decisive. At 45 % replacement and a 28-day reacted fraction, `CNASH_ss` certifies
+with an element balance of 1·10⁻¹² and **`CSHQ` does not**, stopping at 8·10⁻².
+At 23 % the two models merely disagreed about where the aluminum sat; at 45 % the
+model with no aluminum end-member has nowhere to put it.
+
+- **`SaturatedCuring(V_ref)`** — and the specimen is genuinely opened, not only
+  its ceiling moved. The mirror image of `CapillaryWater`: where the sealed
+  constraint lets the saturation fall and lowers the water activity by the Kelvin
+  term, this one holds the total volume at the fresh paste's and draws water in
+  to make up what chemical shrinkage empties. One unknown, the water imbibed; one
+  column in the conservation rows, so the system is open to water and closed to
+  everything else; one equation, `Σ V̄ᵢ nᵢ = V_ref`, which is **linear** in the
+  composition — so unlike `CapillaryWater` the problem stays a convex
+  minimization on an affine set and `optimal` keeps its full meaning.
+
+  The amount drawn in is not a numerical device: it is the **chemical
+  shrinkage**, which is what a chemical-shrinkage test measures by watching a
+  specimen drink — and it is computed from standard molar volumes rather than
+  supplied. That makes it a check the package was never fitted to pass, and
+  `examples/cement_wc_ratio.md` runs it. On a w/c = 0.40 paste:
+
+  | | per gram of reacted cement |
+  |:--|--:|
+  | shrinkage from the standard molar volumes | 0.0606 cm³ |
+  | water the cured specimen drew in | 0.0604 g |
+  | Powers, as the gap between his two ratios 0.42 − 0.36 | 0.0600 g |
+
+  The two internal routes agree with each other to 0.3 % — one is a difference of
+  molar volumes, the other is the titrant the constraint had to admit — and both
+  land within 1 % of a coefficient measured on pastes in 1948, with nothing
+  fitted anywhere. The same page shows the `void` column at 0.0803 sealed and
+  zero under water.
+
+  The obvious objection is answered on the page rather than argued: Powers' 0.42
+  does enter, through `α`, so is the agreement his number coming back out? The
+  page moves `α` from 0.60 to 1.00 and the shrinkage per gram of reacted cement
+  moves by **0.3 %** — flat, because the normalization divides by the same
+  reacted mass. And it lists every hypothesis the number rests on: a closed
+  14-species list, ideal molar volumes with no excess term, a dilute pore
+  solution, the fresh volume as reference, and the fact that Powers' 0.06 is
+  itself a difference of two separately measured averages. The obvious alternative, `FixedActivity("H2O@", 1.0)`, is wrong
+  and the docstring says why — a cement pore solution sits near a_w = 0.98 from
+  its salts alone, so prescribing 1 would imbibe without bound. A bath does not
+  fix the activity inside the specimen; it fixes the availability, and that is a
+  volume statement.
+
+  What is still closed is a **coupled** run: the kinetic integration remains a
+  closed system, so a cure enters it through `α_max` and not through its water
+  balance.
+
+### Fixed — a Bogue clinker has no alkalis, and the pH said so
+
+Every blended-binder page entered its clinker through a Bogue composition, which
+returns four phases — C₃S, C₂S, C₃A, C₄AF — and **no sodium or potassium**: they
+are minor oxides, outside the four-phase decomposition. The pages nonetheless
+declared `KSiOH` and `NaSiOH` as C-S-H end-members. Phases present, elements
+absent: the package's own trap 4, taken from the wrong side.
+
+Nothing failed. Every solve certified, with element balances at the level of
+rounding. What came out was a pH of **12.510 on three CEM II pastes and a
+CEM III alike**, to three decimals — because with no alkalis in the budget,
+portlandite is the only thing setting the pH, and a portlandite buffer is by
+construction insensitive to everything else. A real cement pore solution sits
+above 13 for exactly the complementary reason: the alkalis dissolve almost
+entirely and stay in solution while the calcium is held at that floor.
+
+The diagnostic worth keeping is the **invariance, not the value**: a quantity
+that does not move when the inputs move is either buffered or not computed from
+them. The corroboration was the CEM V, whose fly ash carries 2.5 % K₂O — the only
+page with alkalis in its budget, and the only one that did not return 12.510.
+
+The clinker's alkalis are now part of the budget on all four blended pages, at a
+usual industrial level (Na₂O equivalent 0.73 %), labeled `ASSUMED` like every
+other composition not in the deposit, and carried at the clinker's own reacted
+fraction since they leave the grain with it. The four pastes that all returned
+12.510 now return 13.280, 13.261, 13.182 and 13.041, **ordered by how much
+clinker was replaced** — the dilution comes out of the element balance with
+nothing prescribing it.
+
+Because that one input now carries the pH almost by itself, the CEM III page
+**sweeps it** across the industrial range. A factor of three on the alkali
+content moves the pH by 0.40 unit and the portlandite by under 5 %, all three
+points certified — which is the separation stated as a measurement: the calcium
+is held by portlandite and cannot follow, so the alkalis *are* the pH. The page
+then says what to do about it: a pH quoted from these pages is worth what the
+assumed alkali content is worth, so substitute a real analysis, and a durability
+argument that turns on pore-solution pH cannot be settled by a calculation whose
+alkali input was assumed.
+`manual/choosing_species.md` records the trap and its signature — the invariance,
+not the value.
+
+### Added — oxidation state
+
+Nothing in the package could hold sulfur at two valences, and no test anywhere
+solved a multi-valence system. A slag-blended cement is exactly that problem: the
+slag brings S(-II), the pore solution carries S(+VI).
+
+Half of it was already there and never exercised — `StoichMatrix` keeps the charge
+row as an independent component when an element appears at several valences, so
+the oxidation state is conserved separately from the elements. What was missing
+is the intensive variable conjugate to it.
+
+- **`ELECTRON`** — the electron at the conventional standard state, zero for
+  every thermodynamic function, as `H+` is. A convention, not a measurement, and
+  the docstring says so: every potential computed from it inherits it.
+- **`half_reaction(state, oxidized, reduced)`** — the couple balanced over `H+`,
+  water and the electron. No coefficient is transcribed; they come from the
+  element and charge balance.
+- **`pe`** and **`Eh`** — the electron activity inferred from that
+  half-reaction's `log K`, and the same number through Nernst.
+- **`FixedpE`** and **`FixedEh`** — equilibrium at a prescribed potential, for a
+  system genuinely open to a redox buffer. The titrant mechanism of `FixedpH`
+  could not express it (there is no electron species to prescribe an activity
+  for), so `_titrant_blocks` now takes a **linear combination** of
+  log-activities; `FixedActivity` and `FixedpH` are its one-term case.
+
+Validated against published half-reaction constants, computed here from
+CEMDATA18's own Gibbs energies — so the agreement also checks that the two
+datasets share a reference state:
+
+| half-reaction | computed | published |
+|:--|--:|--:|
+| `SO4-2 + 9 H+ + 8 e- = HS- + 4 H2O` | 33.69 | 33.66 |
+| `Fe+3 + e- = Fe+2` | 13.02 | 13.03 |
+
+And with a prescribed potential, every point certified, the sulfur partition
+moves three orders of magnitude over six pe units — `pe` read back through an
+accessor that knows nothing of the constraint agreeing with the prescribed value
+to 1e-3.
+
+The documentation is explicit about the limit. Different couples need not agree,
+and on one solution carrying both, iron reports pe = +13.0 while sulfur reports
+−3.7. A paste has a single redox state only if its couples are at mutual
+equilibrium, which on the time scale of hydration they are not.
+
+### Added — the C-S-H a blended cement actually forms
+
+`CNASH_ss` is declared, with its eight end-members. They were in the shipped
+database all along; the phase was simply never declared. `CSHQ` has no aluminum
+end-member at all, so with `CSHQ` alone the Al released by a slag or a calcined
+clay has nowhere to go but the AFm/AFt phases and the aluminum balance comes out
+wrong.
+
+Its known degeneracy is documented rather than hidden: the eight end-members span
+a space of rank 5, because Myers' model carries site constraints an ideal
+eight-component mixture does not. The feasible set stays bounded, so a solve is
+well posed, but the individual amounts are not determined by the element balance
+alone — read the total and the ratios, not the eight numbers.
+
+### Added — an oxide analysis as an element budget
+
+`oxide_budget` is the entry route for a material with no phases. A clinker phase
+has a formula; ground granulated slag, a fly ash and a natural pozzolana are
+glasses, reported by their oxide analysis and by nothing else. Bogue does not
+help — it inverts a decomposition over phases that exist.
+
+`primary_decomposition` does the algebra and **refuses** above a 1e-8 residual: an
+oxide outside the span of the primaries has no decomposition, and a least-squares
+approximation of one would put elements into the budget that the oxide does not
+carry. The analysis is **not renormalized** — a datasheet summing to 0.96 is
+missing its loss on ignition, and scaling it to 1 invents material.
+
+The docstring is equally explicit that a budget says what a glass *contains* and
+nothing about what it does: a slag and a quartz sand of the same analysis give
+the same `b`, and the degree of reaction is a kinetic quantity supplied from
+outside.
+
+### Added — zeolites, in a database of their own
+
+`data/cemdata18-zeolites.json` is CEMDATA18 with 28 zeolites appended. It is
+**generated** by `data/zeolites/regenerate.jl` and shipped, so it can be
+reproduced and audited rather than trusted.
+
+A pozzolanic or an alkali-activated binder at high alkalinity precipitates
+zeolites. Without them in the species list the alkalis have nowhere to go but the
+pore solution and the calculated pH comes out too high — an error in the phase
+list that looks like an error in the solver. CEMDATA18 carries five zeolites;
+clinoptilolite, heulandite, mordenite, phillipsite, analcime, stilbite and the
+gismondine/faujasite/LTA series, in both their Na and their K forms, are not
+among them.
+
+The data are transcribed number by number from two open-access papers by the
+laboratory that produced CEMDATA18 itself — Ma & Lothenbach, *Cement and
+Concrete Research* **135** (2020) 106111 and **148** (2021) 106537, both DOIs
+resolved against Crossref. Nothing is estimated, interpolated or adjusted.
+
+The generator refuses on three grounds rather than warning: a symbol that would
+overwrite a CEMDATA18 entry, a dissolution that does not balance in elements and
+charge when re-derived from the formula string, and a `log Ksp` that does not
+close to within 0.05 log units when recomputed from `ΔfG⁰` through CEMDATA18's
+own aqueous Gibbs energies. That last one is what makes the merge defensible at
+all: two thermodynamic datasets may only be merged if they share a reference
+state, and the usual failure is silent — an offset of a few kJ/mol on `Na+` moves
+every dissolution equilibrium by an order of magnitude with no solver
+complaining. All 28 phases agree to within 0.026. The same three checks are
+asserted in the test suite, because a generator can only refuse at the moment it
+runs.
+
+Three other candidate datasets were examined and rejected on measurement rather
+than on preference; `data/zeolites/README.md` records which and why.
+
+### Fixed — the documentation build, and then un-fixed the fix
+
+It had reached 3 h 20 and was being canceled by its own timeout. The cause was
+not diffuse: four pages ran coupled hydration trajectories, and one coupled
+forward solve cost 364 s while everything else on the site together cost about
+ten minutes.
+
+The first answer was to compute them **once** and store the result, which worked
+and brought the build to 23 minutes. It also brought a staleness guard comparing
+the commit and the resolved solver version, a documented refresh procedure, and a
+list of ways it could silently go wrong.
+
+The second answer removed all of that. `OptimaSolver` 0.5.5 takes a warm cement
+equilibrium from 583 ms to 17 ms, so the trajectories are affordable at build
+time again and **every number in the manual is computed by the build that shows
+it**. A stored result is a claim about code that may since have changed; nothing
+here makes that claim any more.
+
+`scripts/precomputed.jl` holds those runs and memoizes them per process — which
+matters, because Documenter runs the whole site in one process and a page asks
+for a trajectory's phase history and its calorimetry as two tables. Two calls,
+one integration. The shared process is a hazard everywhere else in this file and
+here it is what makes the arrangement work.
+
+Two further changes came out of the diagnosis, which took four wrong turns before
+it took the right one:
+
+- the build **reports which block is slow**. Under `JULIA_DEBUG=Documenter` it
+  named each block and timed none of them, so a three-hour build identified
+  nothing. A logger now reports the duration of each block that exceeds a
+  threshold, with a running total.
+- `equilibrate_certified` **solves a starting point only when the search asks for
+  it**. It offered every registered back end's answer as a start and returned at
+  the first that certified, so the later ones were computed and thrown away. The
+  honest measurement is in the docstring: this buys nothing where the first start
+  does not certify, which includes the cement case.
+
+A third change closes the arithmetic. Eight 28-day trajectories stand behind the
+site, they share nothing at all — separate systems, separate solver buffers,
+separate ODE states — and Documenter expands pages one at a time, so they ran
+strictly in series. `warm_precomputed` now computes each page's own trajectories
+**together**, on whatever threads the session was started with; the workflow asks
+for four. Measured on the two runs behind the calibration target, on two threads:
+1093.4 s one after the other against **593.2 s together, a factor 1.84** — and
+both vectors came back identical bit for bit, maximum deviation exactly 0. The
+only globals the solve path mutates are a warning gate and a warning counter,
+neither of which enters the numerics. With one thread the call is an ordinary
+`map`, so a default session behaves as before.
+
+Two smaller economies, both of them fixes rather than trims:
+
+- the alite-sensitivity table no longer integrates its own reference curve. The
+  δ = 0 row **is** the calibrated fit, so it is read from the fit the page
+  already plots — which also removes a real inconsistency, that run having
+  silently omitted the fitted induction period and so measured the sensitivity of
+  a different model from the one it reported.
+- three tables whose *point* is a configuration that does not certify now pass
+  `autostart = false`. The multi-start cascade — every back end, then the ideal
+  pre-solve, then the homotopy continuation — cannot help where no admissible
+  single-composition minimum exists; it spends minutes arriving at the answer the
+  first route already gave. The certificate reported is the same one.
+
+### Fixed — a one-character bibliography entry killed a three-hour build, and the build now checks itself first
+
+`ExpandBibliography` is one of the **last** stages of `makedocs`: it runs after
+every executed block of the site. So an entry DocumenterCitations cannot parse
+does not fail the build in seconds — it fails it once every hour of computation
+has already been spent, and nothing is written.
+
+That is what happened. A title carrying `CNASH\_ss`, the LaTeX escape for an
+underscore, threw `ArgumentError: Invalid command: \_ss` from the TeX parser and
+took a three-hour run down at the very end.
+
+The entry is fixed — the underscore is written bare inside braces — but the entry
+was never the real problem. **`docs/make.jl` now formats every bibliography entry
+before `makedocs` is called**, with exactly the call the late stage makes, so this
+class of failure takes milliseconds and names the offending key. It immediately
+earned itself: a second entry, `SmilauerKrejci2009`, threw
+`ArgumentError: Premature end of tex string` because the `:authoryear` style
+abbreviates a given name by slicing the raw string and cut inside `{\v s}`. That
+one would have killed the next build. Its names are now written in UTF-8, which
+survives any slice — the names themselves unchanged.
+
+`CrossReferences` is a late stage for the same reason, so the same treatment is
+applied to it: every `@ref` written as an explicit anchor is now resolved against
+the `(@id ...)` anchors and the header slugs **before** `makedocs`, naming the
+file and the target. The bare form is checked too — `[Some Heading](@ref)`
+resolves against the *heading text*, slugified and case-sensitively, so a heading
+renamed or merely recapitalized silently breaks every link to it, and three were
+broken that way.
+
+**And then a draft pass, which is the one that closes the class.** The static
+checks above catch what can be caught by reading the markdown. `missing_docs`
+cannot be: it needs the module loaded and the `@autodocs` filters applied, and it
+is decided in `CheckDocument`, which runs *after* `ExpandTemplates`. A build died
+there at minute 70 over five undocumented constants, having executed every
+example on the site to reach the check and then terminating **before rendering**,
+so the seventy minutes bought nothing. A **draft** build runs the same pipeline
+with the `@example` blocks skipped and reaches the same checks in **24.2 s**,
+measured, so `docs/make.jl` now runs one first — into a temporary directory, with
+its own `CitationBibliography` since the plugin carries state across a build. It
+is Documenter's own check, run early, rather than a second implementation of it.
+
+Two things had to be turned off in that pass, and both for the same reason —
+draft mode breaks them by construction, and each was found by running it rather
+than by reasoning about it. `cross_references`: the figures on this site are
+written by the `@example` blocks themselves, so with the blocks skipped every
+`![](...)` on fourteen pages is an invalid local link. `size_threshold`: an
+HTML-renderer limit that the real build, rendered by DocumenterVitepress, does
+not have. `missing_docs` — the one the pass exists for — stays strict.
+
+### Documentation
+
+- **`theory/redox.md`** — why charge is a conservation law independent of the
+  elements and when the rank test keeps it, why the electron activity must be
+  inferred rather than read, and what a slag cement does and does not get from
+  the calculation.
+- **`manual/cement_notation.md`** — the oxide alphabet as a table, checked at
+  build time against `CEMENT_TO_MENDELEEV` (formulas *and* molar masses), the bar
+  convention, and the trap that `Species("C3S")` and `CemSpecies("C3S")` both
+  print `C₃S` and differ threefold in molar mass.
+- **`examples/example_stoich_matrix.md`** — a page titled "Stoichiometric
+  Matrix" that displayed no stoichiometric matrix now shows three, and restores
+  the parameterized decomposition of Chen & Brouwers: a C-S-H written
+  `C_a S A_b H_g`, inverted symbolically over the anhydrous oxides, then
+  collapsed to numbers and differentiated. One error in the old script is
+  deliberately not carried over — it wrote ettringite without its alumina, which
+  parses, weighs 1153 g/mol and is not a cement phase.
+- `manual/chemical_system_state.md` — the volume and porosity example reported
+  `0.0 m³` and `NaN`, because species built from formulas carry no molar volume.
+  It now uses database species, and the rescaling of a state is documented.
+- **`manual/binder_families.md`** — the map of EN 197-1: the families and their
+  composition ranges as a table, what each constituent brings to the element
+  budget and therefore which of this package's models the calculation needs, and
+  the measured heats of the seven shipped records in the order of their
+  replacement level, 376 J/g down to 234 J/g.
+- **`examples/miscibility_gap.md`** — the same CEM I run three ways on the AFm
+  sulfate/hydroxide binary: ideal mixing (certified, to a question that was
+  changed), the published parameters with one composition (refused at
+  construction, and uncertifiable when the refusal is waived), and the published
+  parameters with two instances — which the page shows returning the **same**
+  composition twice, then computes the pair the minimization did not find with
+  `common_tangent` and applies the lever rule to it. With the mixing-energy curve
+  and its spinodal drawn, and an explicit statement of what `optimal` does and
+  does not prove once the problem is no longer convex.
+- **One executed page per blended family**, each an element budget in and a
+  certified assemblage out, beside the measured calorimetry of a real specimen
+  where one exists:
+  - `examples/cem2_blended.md` — a CEM II/A-LL against a CEM II/B-S, with the
+    limestone removed from the first to isolate the carbonate effect from the
+    dilution. The carbonate takes the AFm site, the sulfate stays in ettringite,
+    and the mechanism comes out of the element budget with nothing fitted.
+  - `examples/cem3_slag.md` — the glass entry route, hydrotalcite, and the
+    sulfur ladder that makes charge a component of its own.
+  - `examples/cem4_pozzolanic.md` — the same paste solved with `CSHQ` and with
+    `CNASH_ss`, which is where the aluminum question becomes visible, and
+    portlandite along a replacement sweep run **twice**: at the reacted fraction
+    a specimen has at 28 days, and in the limit. The two answer different
+    questions and are routinely confused — in the limit a CEM IV/A exhausts its
+    portlandite inside the EN 197-1 range, at 28 days the same binder keeps most
+    of it. The sweep advances by continuation, each point starting from its
+    neighbor's certified answer, and it carries the **certificate into the
+    figure**: a point the certificate refused is drawn hollow rather than
+    dropped, because a smooth curve through a hole in the evidence is worse than
+    the hole. **This is the one page with no measured specimen behind it** — the
+    deposit carries no CEM IV record — and it says so at its head.
+  - `examples/cem5_composite.md` — slag and fly ash at once, on one additive
+    budget, with every element traced to the constituent that brought it, and a
+    sweep over the round robin's own 7-, 28- and 90-day columns so that the
+    sensitivity to the reacted fraction is measured on published ground rather
+    than on an abstract parameter. Like the CEM IV sweep it advances by
+    continuation in the reacted fraction — a younger paste has released less of
+    everything, so it is a smaller perturbation of pure water and a good start
+    for an older one. On a convex problem that cannot change what is found, only
+    whether it is found, which on a 135-species cement is the whole difficulty.
+
+  Every composition not in the deposit is labeled `ASSUMED` at the point of use,
+  at the midpoint of the EN 197-1 range for its designation. The deposit reports
+  fineness, water/binder ratio and calorimetry, and reports neither the clinker
+  phase composition nor the replacement level of any blend. Each page also states
+  a **reacted fraction** per constituent — the water ceiling for the clinker, the
+  measured 28-day value for a glass — because handing the whole binder to a Gibbs
+  minimization asks a question about geological time.
+
+- **`theory/kinetics.md`** — every rate law the package ships, the physics each
+  one encodes, its parameters with their units, and a table saying which numbers
+  are published and which were fitted here. The saturation-ratio form and its
+  catalysts; the canonical Parrott–Killoh with its three competing mechanisms,
+  and why the attribution of the older variant was withdrawn rather than
+  repaired; the Waller sigmoid for supplementary materials; the three
+  multiplicative corrections, including the genuine discontinuity at 80 % RH; and
+  `α_max`, which is the one parameter that is not about speed. It also sets the
+  package's own Waller kinetics against the RILEM round robin's direct
+  measurements and reports that they disagree, in opposite directions, rather
+  than quoting whichever is convenient.
+- **`manual/choosing_species.md` gains a seventh trap** — a solid solution whose
+  declared range cannot reach where the answer is. CEMDATA18's siliceous
+  hydrogarnet binary spans x(Al) ∈ [0, 0.5] only, which no CEM I ever needs and
+  every aluminum-rich blend does; the minimization stops at the edge of the range
+  with aluminum left over and says nothing. Including why the tempting fix —
+  declaring all three members as an ideal ternary — is worse, not better.
+
+### Fixed — the API section had vanished from the navigation bar
+
+A navbar curation added in August folded `API` and `References` into a dropdown
+labeled `Reference`. On v0.17.0 that read, correctly, as the docstring reference
+having been removed from the manual. `API` is a top-level entry again, and the
+mechanism carries a comment saying why it is not what gets folded.
+
+
 ## v0.17.0 — the water that is there, the water that counts, and every solid solution declared
 
 Three halves, which is one too many for the metaphor and an honest count of

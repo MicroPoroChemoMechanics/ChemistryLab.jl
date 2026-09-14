@@ -397,16 +397,24 @@ end
         "CSHQ", [dict[m] for m in six]; model = RedlichKisterModel(a0 = 1.0)
     )
 
-    # And the shipped file loads, with the five phases added in 0.15.0.
+    # And the shipped file loads. Asserted by NAME rather than by count: the
+    # file gains phases as the database is exploited further, and a bare count
+    # turns every such addition into a spurious failure that says nothing about
+    # what broke.
     ss_all = build_solid_solutions(datapath("solid_solutions.toml"), dict)
     names = Set(p.name for p in ss_all)
-    @test length(ss_all) == 11
     for n in (
+            "CSHQ", "C3(AF)S0.84H", "AFm", "Hydrogarnet", "Ettringite_ss",
+            "Hydrotalcite",
+            # added in 0.15.0
             "Straetlingite_ss", "AFm_SO4_OH", "AFt_SO4_CO3",
             "Hydrotalcite_AlFe", "MSH",
+            # the alkali- and aluminum-bearing C-S-H a blended cement needs
+            "CNASH_ss",
         )
         @test n in names
     end
+    @test length(ss_all) == length(names)   # no phase declared twice
     @test all(length(end_members(p)) >= 2 for p in ss_all)
 end
 
@@ -463,4 +471,280 @@ end
     m = RegularSolutionModel([0.0 2.1RT; 2.1RT 0.0])
     @test spinodal_interval(m, 2; T = 298.15) !== nothing
     @test spinodal_interval(m, 2; T = 400.0) === nothing
+end
+
+@testset "the common tangent, against an analytic oracle" begin
+    # The pair a binary separates into inside a gap, computed from the model
+    # alone -- no chemical system, no solver. Checked against an EQUATION rather
+    # than a stored number.
+    #
+    # For a SYMMETRIC model `g(1-x) = g(x)`, so `g'(1-x) = -g'(x)`, and the
+    # common-tangent condition `g'(a) = g'(b) = chord` collapses to `g'(x) = 0`:
+    #
+    #     ln(x/(1-x)) + A(1-2x) = 0,    A = W/RT.
+    #
+    # That is the oracle. It also fixes the symmetry `b = 1 - a`, which is a
+    # second independent check on the same answer.
+    RT = 8.31446261815324 * 298.15
+
+    @testset "symmetric regular solution" begin
+        for A in (2.5, 3.0, 4.0)
+            m = RegularSolutionModel([0.0 A * RT; A * RT 0.0])
+            ct = common_tangent(m, 2)
+            @test ct !== nothing
+            a, b = ct
+            @test 0 < a < b < 1
+            @test isapprox(b, 1 - a; atol = 1.0e-8)        # symmetry
+            # The oracle, to machine precision.
+            @test abs(log(a / (1 - a)) + A * (1 - 2a)) < 1.0e-9
+            @test abs(log(b / (1 - b)) + A * (1 - 2b)) < 1.0e-9
+            # And the binodal CONTAINS the spinodal, never the other way round.
+            sp = spinodal_interval(m, 2)
+            @test sp !== nothing
+            @test a < sp[1] && sp[2] < b
+        end
+    end
+
+    @testset "the defining conditions hold for an asymmetric model" begin
+        # No closed form here, so the test is the definition itself: equal
+        # slopes, and the slope equal to the chord.
+        m = RedlichKisterModel(a0 = 0.188RT, a1 = 2.49RT)
+        ct = common_tangent(m, 2)
+        @test ct !== nothing
+        a, b = ct
+        A0, A1 = 0.188, 2.49
+        g(x) = x * log(x) + (1 - x) * log(1 - x) +
+            x * (1 - x) * (A0 + A1 * (2x - 1))
+        d(x) = ForwardDiff.derivative(g, x)
+        @test isapprox(d(a), d(b); atol = 1.0e-7)
+        @test isapprox(d(a), (g(b) - g(a)) / (b - a); atol = 1.0e-7)
+        # The tangent line must lie BELOW the curve between the two points --
+        # that is what makes the pair the minimum rather than a stationary point.
+        line(x) = g(a) + d(a) * (x - a)
+        for x in range(a + 1.0e-3, b - 1.0e-3; length = 25)
+            @test line(x) <= g(x) + 1.0e-12
+        end
+        sp = spinodal_interval(m, 2)
+        @test a < sp[1] && sp[2] < b
+    end
+
+    @testset "nothing where there is no gap" begin
+        @test common_tangent(IdealSolidSolutionModel(), 2) === nothing
+        @test common_tangent(RegularSolutionModel([0.0 1.9RT; 1.9RT 0.0]), 2) === nothing
+        # More than two end-members: a one-dimensional construction is not the
+        # right object, and a guess would be worse than a refusal.
+        @test common_tangent(RegularSolutionModel([0.0 3RT; 3RT 0.0]), 3) === nothing
+    end
+
+    @testset "nothing rather than an unconverged pair" begin
+        # Newton is given one iteration, so it cannot reach the root. The
+        # function must say so rather than return where it happened to stop: a
+        # pair that is not the common tangent is worse than no pair, because
+        # everything downstream treats it as exact.
+        m = RegularSolutionModel([0.0 3RT; 3RT 0.0])
+        @test common_tangent(m, 2; maxit = 1) === nothing
+        # And with enough iterations it converges, so the refusal above is the
+        # iteration budget and not a broken model.
+        @test common_tangent(m, 2; maxit = 100) !== nothing
+    end
+end
+
+@testset "the lever rule inside the gap" begin
+    # Given an overall composition, how the binary separates. Three properties,
+    # each checkable without trusting the implementation.
+    RT = 8.31446261815324 * 298.15
+    A = 3.0
+    m = RegularSolutionModel([0.0 A * RT; A * RT 0.0])
+    xa, xb = common_tangent(m, 2)
+
+    @testset "mass balance is exact" begin
+        for x̄ in (0.1, 0.2, 0.35, 0.5, 0.65, 0.8, 0.9)
+            r = miscibility_split(m, x̄)
+            @test r !== nothing
+            @test isapprox(r.f_alpha * r.x_alpha + r.f_beta * r.x_beta, x̄; atol = 1.0e-12)
+            @test isapprox(r.f_alpha + r.f_beta, 1.0; atol = 1.0e-14)
+            @test 0 <= r.f_alpha <= 1
+        end
+    end
+
+    @testset "the compositions do not depend on the overall one" begin
+        # That is the content of the construction: inside a gap only the
+        # PROPORTIONS move, never the two compositions.
+        for x̄ in (0.2, 0.5, 0.8)
+            r = miscibility_split(m, x̄)
+            @test isapprox(r.x_alpha, xa; atol = 1.0e-12)
+            @test isapprox(r.x_beta, xb; atol = 1.0e-12)
+        end
+    end
+
+    @testset "the energy released is positive, symmetric, and largest in the middle" begin
+        mid = miscibility_split(m, 0.5).Δg
+        left = miscibility_split(m, 0.2).Δg
+        right = miscibility_split(m, 0.8).Δg
+        @test mid > left > 0
+        @test isapprox(left, right; atol = 1.0e-9)      # the model is symmetric
+        # And zero outside the pair, where the phase is homogeneous.
+        out = miscibility_split(m, 0.02)
+        @test out.Δg == 0.0
+        @test out.f_alpha == 1.0
+        @test out.x_alpha == 0.02
+    end
+
+    @testset "nothing where there is no gap" begin
+        @test miscibility_split(IdealSolidSolutionModel(), 0.5, 2) === nothing
+        @test miscibility_split(RegularSolutionModel([0.0 1.9RT; 1.9RT 0.0]), 0.5, 2) === nothing
+    end
+end
+
+@testset "a miscibility gap can be represented: `instances`" begin
+    # Detection was the subject of the test above; this one is about
+    # REPRESENTATION. Inside a spinodal the Gibbs minimum is the common-tangent
+    # PAIR, and a formulation with one amount per species can only write that
+    # down if the substance appears twice.
+    RT = 8.31446261815324 * 298.15
+    em = [
+        Species("Ca2SiO4"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),
+        Species("Ca3Si2O7"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),
+    ]
+    concave = RedlichKisterModel(a0 = 0.188RT, a1 = 2.49RT)
+
+    @testset "refused where it would only add a null direction" begin
+        # Two instances of a convex phase are degenerate: every split of the
+        # amount between them has the same energy.
+        err = try
+            SolidSolutionPhase("ideal", em; instances = 2)
+            nothing
+        catch e
+            e
+        end
+        @test err isa ErrorException
+        @test occursin("CONVEX", err.msg)
+        @test occursin("degenerate", err.msg)
+
+        @test_throws ErrorException SolidSolutionPhase(
+            "gap", em;
+            model = concave, instances = 0
+        )
+    end
+
+    @testset "accepted, and it carries the convexity waiver with it" begin
+        # The same declaration that `instances = 1` refuses.
+        ss = SolidSolutionPhase("gap", em; model = concave, instances = 2)
+        @test ss.instances == 2
+        @test ss.declared == "gap"
+        @test name(ss) == "gap"
+    end
+
+    @testset "ChemicalSystem builds the second composition" begin
+        ss1 = SolidSolutionPhase("gap", em; model = concave, check_convexity = false)
+        ss2 = SolidSolutionPhase("gap", em; model = concave, instances = 2)
+
+        cs1 = ChemicalSystem(em; solid_solutions = [ss1])
+        cs2 = ChemicalSystem(em; solid_solutions = [ss2])
+
+        # One extra copy of each end-member, under a derived symbol.
+        @test length(cs2.species) == length(cs1.species) + length(em)
+        syms = symbol.(cs2.species)
+        @test "Ca2SiO4#2" in syms && "Ca3Si2O7#2" in syms
+
+        # One substance under two labels: byte-identical composition.
+        i = findfirst(==("Ca2SiO4"), syms)
+        j = findfirst(==("Ca2SiO4#2"), syms)
+        @test atoms(cs2.species[i]) == atoms(cs2.species[j])
+
+        # Two phases, and their groups are DISJOINT -- which is what lets the
+        # activity assembly, the mole-fraction fill and the certificate stay
+        # unchanged.
+        @test length(cs2.solid_solutions) == 2
+        @test isempty(intersect(cs2.ss_groups[1], cs2.ss_groups[2]))
+        @test name.(cs2.solid_solutions) == ["gap", "gap#2"]
+
+        # Conservation is untouched: the new column is a COPY of one already
+        # there, so it adds nothing to the row space and the budget `A n` is
+        # unchanged as long as the copy starts empty.
+        A = Float64.(cs2.CSM.A)
+        @test A[:, j] == A[:, i]
+    end
+
+    @testset "instances of one declaration are exempt from the overlap refusal" begin
+        # Two phases sharing a composition are normally refused -- that is the
+        # C-S-H double-count. A miscibility gap is exactly that overlap, on
+        # purpose, so the exemption is by provenance and not by composition.
+        ss2 = SolidSolutionPhase("gap", em; model = concave, instances = 2)
+        @test ChemicalSystem(em; solid_solutions = [ss2]) isa ChemicalSystem
+
+        # ... and a genuine double-count is still refused, instances or not.
+        other = SolidSolutionPhase("other", em; model = concave, check_convexity = false)
+        one = SolidSolutionPhase("gap", em; model = concave, check_convexity = false)
+        @test_throws ErrorException ChemicalSystem(em; solid_solutions = [one, other])
+    end
+end
+
+# ── C-(N-)A-S-H, and the overlap that must be refused ────────────────────────
+
+@testsection "one gel, three models: the overlap is refused" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    byname = Dict(symbol(s) => s for s in substances)
+    mk(n, ms) = SolidSolutionPhase(n, [byname[m] for m in ms])
+
+    CSHQ_MEMBERS = [
+        "CSHQ-TobD", "CSHQ-TobH", "CSHQ-JenH", "CSHQ-JenD",
+        "KSiOH", "NaSiOH",
+    ]
+    ECSH_MEMBERS = ["ECSH1-TobCa", "ECSH1-KSH", "ECSH1-NaSH", "ECSH1-SH"]
+    CNASH_MEMBERS = [
+        "T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
+        "5CA", "5CNA", "INFCA", "INFCN", "INFCNA",
+    ]
+
+    all_names = vcat(CSHQ_MEMBERS, ECSH_MEMBERS, CNASH_MEMBERS)
+    sp = speciation(substances, all_names; aggregate_state = [AS_AQUEOUS])
+
+    @testset "CNASH_ss is shipped and complete" begin
+        # All eight end-members are in the public database; the phase was simply
+        # not declared before. It is what carries the Al and the alkalis of a
+        # blended cement, which `CSHQ` -- having no aluminum end-member at all --
+        # cannot.
+        ss = build_solid_solutions(datapath("solid_solutions.toml"), byname)
+        cnash = findfirst(p -> ChemistryLab.name(p) == "CNASH_ss", ss)
+        @test cnash !== nothing
+        @test length(end_members(ss[cnash])) == 8
+        @test all(haskey(byname, m) for m in CNASH_MEMBERS)
+        # It must carry aluminum, which is the whole reason it exists.
+        @test any(haskey(atoms(byname[m]), :Al) for m in CNASH_MEMBERS)
+        @test !any(haskey(atoms(byname[m]), :Al) for m in CSHQ_MEMBERS)
+    end
+
+    @testset "the overlap is exact, not approximate" begin
+        # This is what makes it detectable by composition rather than by name.
+        @test atoms(byname["KSiOH"]) == atoms(byname["ECSH1-KSH"])
+        @test atoms(byname["KSiOH"]) == atoms(byname["ECSH2-KSH"])
+    end
+
+    @testset "one at a time builds, two together are refused" begin
+        for (nm, members) in (
+                ("CSHQ", CSHQ_MEMBERS), ("ECSH1", ECSH_MEMBERS),
+                ("CNASH_ss", CNASH_MEMBERS),
+            )
+            @test ChemicalSystem(
+                sp, CEMDATA_PRIMARIES; solid_solutions = [mk(nm, members)]
+            ) isa ChemicalSystem
+        end
+
+        err = try
+            ChemicalSystem(
+                sp, CEMDATA_PRIMARIES;
+                solid_solutions = [mk("CSHQ", CSHQ_MEMBERS), mk("ECSH1", ECSH_MEMBERS)],
+            )
+            nothing
+        catch e
+            sprint(showerror, e)
+        end
+        @test err !== nothing
+        # The message must name both phases and the shared species, or it sends
+        # the reader hunting.
+        @test occursin("CSHQ", err)
+        @test occursin("ECSH1", err)
+        @test occursin("KSiOH", err)
+    end
 end

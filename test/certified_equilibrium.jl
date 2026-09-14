@@ -682,3 +682,269 @@ end
     end
 
 end
+
+@testsection "equilibrate_path — a sweep continued from its own answers" begin
+    sp = Dict(
+        symbol(s) => s for s in build_species(
+                datapath("slop98-inorganic-thermofun.json"); verbose = false
+            )
+    )
+    cs = ChemicalSystem(
+        [sp[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal")],
+        ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"],
+    )
+    st = ChemicalState(cs)
+    set_quantity!(st, "H2O@", 1.0u"kg")
+    set_quantity!(st, "Cal", 0.05u"mol")
+    b0 = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    budgets = [b0 .* f for f in (1.0, 1.1, 1.2)]
+
+    states, certs = equilibrate_path(st, budgets)
+    @test length(states) == 3
+    @test length(certs) == 3
+    @test all(c.optimal for c in certs)
+
+    # THE ASSERTION THAT MATTERS. On a convex problem the minimum is unique, so
+    # walking to it from a neighbor cannot change what is found -- only whether
+    # it is found. If this drifts, the continuation is choosing answers rather
+    # than reaching them.
+    for (k, b) in enumerate(budgets)
+        eq, c = equilibrate_certified(st; b = b)
+        @test c.optimal
+        @test ustrip.(us"mol", eq.n) ≈ ustrip.(us"mol", states[k].n) rtol = 1.0e-6
+    end
+end
+
+@testsection "the split seed moves material without moving the budget" begin
+    # THE ARITHMETIC OF THE SEED, on its own. `equilibrate_split` needs a system
+    # that fails to certify AND reports an incipient composition before its loop
+    # runs at all, which on this package's chemistry means a 91-species cement.
+    # The transfer itself is pure arithmetic on a vector of moles, so it is
+    # tested here as such — and it is the part that was wrong.
+    #
+    # WHAT WAS WRONG. The first version removed material at the DONOR's
+    # composition and added it at the trial's. That moves the right number of
+    # moles and the wrong mixture: the total of each end-member changes, so the
+    # seed no longer satisfies the element budget the solver is about to be
+    # measured against. Two end-members of one binary are different substances —
+    # `C4AH13` and `monosulphate12` do not have the same sulfur.
+    #
+    # Species 1,2 are the base instance; 3,4 its `#2` twin.
+    twin = Dict(1 => 3, 2 => 4)
+    untwin = Dict(3 => 1, 4 => 2)
+    trial(members, x) = Dict(1 => (members = members, x = x))
+
+    # 1. THE CONSERVATION. Whatever moves, the total of each end-member across
+    #    the pair is unchanged — to the last bit, since the same `t.x` leaves one
+    #    instance and enters the other.
+    let n = [0.3, 0.1, 0.0, 0.0]
+        before = (n[1] + n[3], n[2] + n[4])
+        @test ChemistryLab._seed_split!(n, trial([1, 2], [0.25, 0.75]), twin, untwin, 0.5)
+        @test n[1] + n[3] ≈ before[1] atol = 0.0
+        @test n[2] + n[4] ≈ before[2] atol = 0.0
+        @test all(n .>= -1.0e-15)
+        # And the receiving instance holds exactly the trial composition.
+        tot = n[3] + n[4]
+        @test tot > 0
+        @test n[4] / tot ≈ 0.75 rtol = 1.0e-12
+    end
+
+    # 2. FROM THE FULLER INTO THE EMPTIER, whichever instance the trial names.
+    #    The trial below names the TWIN, and the base still holds everything, so
+    #    the base is the donor.
+    let n = [0.3, 0.1, 0.0, 0.0]
+        @test ChemistryLab._seed_split!(n, trial([3, 4], [0.25, 0.75]), twin, untwin, 0.5)
+        @test n[3] + n[4] > 0                       # the twin received
+        @test n[1] + n[2] < 0.4                    # the base gave
+    end
+    let n = [0.0, 0.0, 0.3, 0.1]                  # everything in the twin
+        @test ChemistryLab._seed_split!(n, trial([1, 2], [0.25, 0.75]), twin, untwin, 0.5)
+        @test n[1] + n[2] > 0                       # now the base receives
+        @test n[3] + n[4] < 0.4
+    end
+
+    # 3. `move` IS BOUNDED so no end-member of the donor goes negative. Here the
+    #    donor holds almost no member 2 and the trial asks for three quarters of
+    #    it, so `share = 0.5` cannot be honored in full — and must not be.
+    let n = [0.4, 0.001, 0.0, 0.0]
+        @test ChemistryLab._seed_split!(n, trial([1, 2], [0.25, 0.75]), twin, untwin, 0.5)
+        @test all(n .>= -1.0e-15)
+        @test n[2] ≈ 0.0 atol = 1.0e-12             # drained, not overdrawn
+        @test n[1] + n[3] ≈ 0.4 atol = 1.0e-15     # still conserved
+    end
+
+    # 4. A PAIR IS SEEDED ONCE even when both of its instances are flagged, and a
+    #    trial on a phase with no twin is left alone.
+    let n = [0.3, 0.1, 0.0, 0.0]
+        both = Dict(
+            1 => (members = [1, 2], x = [0.25, 0.75]),
+            2 => (members = [3, 4], x = [0.25, 0.75]),
+        )
+        @test ChemistryLab._seed_split!(n, both, twin, untwin, 0.5)
+        @test n[1] + n[3] ≈ 0.3 atol = 0.0
+        # One transfer, not two — and of the BOUNDED amount. `share = 0.5` of a
+        # 0.4 mol pair asks for 0.2, but the donor is 75/25 while the trial wants
+        # 25/75, so the scarce end-member runs out first: 0.1 / 0.75 = 0.1333.
+        # Seeded twice, this would read 0.2444.
+        @test n[3] + n[4] ≈ 0.1 / 0.75 rtol = 1.0e-12
+    end
+    let n = [0.3, 0.1, 0.0, 0.0]
+        @test !ChemistryLab._seed_split!(
+            n, Dict(1 => (members = [7, 8], x = [0.5, 0.5])), twin, untwin, 0.5
+        )
+        @test n == [0.3, 0.1, 0.0, 0.0]           # untouched
+    end
+
+    # 5. Nothing to move: an empty pair is skipped rather than divided by zero.
+    let n = [0.0, 0.0, 0.0, 0.0]
+        @test !ChemistryLab._seed_split!(n, trial([1, 2], [0.25, 0.75]), twin, untwin, 0.5)
+    end
+
+    # 6. `_instance_pairs` finds the twins, and finds none when there are none.
+    let
+        sp = Dict(
+            symbol(s) => s for s in build_species(
+                    datapath("slop98-inorganic-thermofun.json"); verbose = false
+                )
+        )
+        names = split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Mg+2 Cal Mgs")
+        comps = ["H2O@", "H+", "Ca+2", "Mg+2", "CO3-2", "Zz"]
+        plain = ChemicalSystem([sp[s] for s in names], comps)
+        @test isempty(first(ChemistryLab._instance_pairs(plain)))
+
+        doubled = ChemicalSystem(
+            [sp[s] for s in names], comps;
+            solid_solutions = [
+                SolidSolutionPhase(
+                    "carbonate", [sp["Cal"], sp["Mgs"]];
+                    model = RedlichKisterModel(a0 = 20_000.0), instances = 2,
+                ),
+            ],
+        )
+        tw, un = ChemistryLab._instance_pairs(doubled)
+        @test length(tw) == 2                      # one pair per end-member
+        @test length(un) == 2
+        syms = String.(symbol.(doubled.species))
+        for (i, j) in tw
+            @test syms[j] == syms[i] * "#2"        # and they are the right ones
+            @test un[j] == i
+        end
+    end
+end
+
+@testsection "equilibrate_split — the split loop, and the pair it is about" begin
+    # THE REGRESSION THIS GUARDS. `equilibrate_split` reads the incipient
+    # composition out of the certificate and seeds a second instance with it.
+    # Two links in that chain were broken and neither could be seen by reading
+    # the code: `optimality_certificate` rebuilt its NamedTuple and DROPPED
+    # `split_trials`, so the loop always read `nothing` and returned on its first
+    # pass; and the pass was accepted on `cert.worst_violation`, a field this
+    # package's certificate does not have, so reaching that line at all raised a
+    # `FieldError`. Both are the same defect in the end -- a function that had
+    # never been run -- and a test that runs it is the only thing that catches
+    # them.
+    sp = Dict(
+        symbol(s) => s for s in build_species(
+                datapath("slop98-inorganic-thermofun.json"); verbose = false
+            )
+    )
+
+    # 1. WITHOUT instances there is nothing to split into, and the function must
+    #    be exactly `equilibrate_certified` -- same answer, not merely a good one.
+    let
+        names = split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal Arg")
+        cs = ChemicalSystem(
+            [sp[s] for s in names], ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"];
+            solid_solutions = [SolidSolutionPhase("carbonate", [sp["Cal"], sp["Arg"]])],
+        )
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "Cal", 0.05u"mol")
+        b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+        eq_s, c_s = equilibrate_split(st; b = b)
+        eq_c, c_c = equilibrate_certified(st; b = b)
+        @test c_s.optimal == c_c.optimal
+        @test ustrip.(us"mol", eq_s.n) ≈ ustrip.(us"mol", eq_c.n) rtol = 1.0e-8
+    end
+
+    # 2. THE PAIR ITSELF, against an analytic oracle. Calcite and magnesite are
+    #    two different substances, so the element budget PINS the overall
+    #    composition: 0.025 mol of each fixes x̄ = 1/2 whatever the energetics
+    #    say. Put a Redlich-Kister gap on that binary and x̄ = 1/2 is inside it,
+    #    so the Gibbs minimum is two coexisting compositions — and with two
+    #    instances declared, the minimization finds them. They must be the
+    #    common-tangent pair, which [`common_tangent`](@ref) computes from the
+    #    mixing model alone and which nothing in the solve has been told.
+    #
+    #    This is the case the AFm binary of a real CEM I is NOT: there the
+    #    sulfate has somewhere else to go (ettringite) and the hydroxide is
+    #    abundant, so nothing pins the phase's composition and both instances sit
+    #    at the same x. Pinned, the pair comes out by itself.
+    names = split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Mg+2 Cal Mgs")
+    comps = ["H2O@", "H+", "Ca+2", "Mg+2", "CO3-2", "Zz"]
+    for a0 in (8_000.0, 14_000.0, 20_000.0)
+        gap = RedlichKisterModel(a0 = a0)
+        @test spinodal_interval(gap, 2) !== nothing        # it IS a gap
+        pair = common_tangent(gap)
+        @test pair !== nothing
+
+        cs = ChemicalSystem(
+            [sp[s] for s in names], comps;
+            solid_solutions = [
+                SolidSolutionPhase(
+                    "carbonate", [sp["Cal"], sp["Mgs"]]; model = gap, instances = 2
+                ),
+            ],
+        )
+        @test length(cs.species) == length(names) + 2      # the `#2` twins exist
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "Cal", 0.025u"mol")
+        set_quantity!(st, "Mgs", 0.025u"mol")
+        b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+
+        eq, cert = equilibrate_certified(st; b = b)
+        @test cert.optimal
+        n = ustrip.(us"mol", eq.n)
+        xs = Float64[]
+        totals = Float64[]
+        for g in cs.ss_groups
+            tot = sum(n[i] for i in g)
+            tot > 1.0e-10 || continue
+            push!(totals, tot)
+            push!(xs, n[g[2]] / tot)
+        end
+        @test length(xs) == 2
+        sort!(xs)
+        # The two instances sit ON the binodal, computed independently.
+        @test xs[1] ≈ pair[1] atol = 1.0e-3
+        @test xs[2] ≈ pair[2] atol = 1.0e-3
+        # And in the proportions the lever rule asks for at x̄ = 1/2.
+        f = totals[1] / sum(totals)
+        @test f ≈ (pair[2] - 0.5) / (pair[2] - pair[1]) atol = 5.0e-3
+
+        # 3. THE WIRING. Whatever the verdict, the certificate must carry the
+        #    split diagnostics through -- they are computed in `OptimaSolver` and
+        #    were being discarded on the way out.
+        @test hasproperty(cert, :split_trials)
+        @test hasproperty(cert, :split_phases)
+        @test hasproperty(cert, :worst_violation_split)
+        for (_, t) in cert.split_trials
+            @test length(t.x) == length(t.members)
+            @test all(t.x .>= 0)
+            @test sum(t.x) ≈ 1.0 rtol = 1.0e-6
+            @test all(1 <= i <= length(cs.species) for i in t.members)
+        end
+
+        # 4. THE PROMISE. A pass is kept only when the KKT error improves, so the
+        #    result is never worse than the answer without splitting. This is
+        #    what the `FieldError` used to prevent from ever being evaluated.
+        eq2, cert2 = equilibrate_split(st; b = b, maxpasses = 2)
+        @test ChemistryLab._kkt_error(cert2) <=
+            ChemistryLab._kkt_error(cert) * (1 + 1.0e-8)
+
+        # 5. `share` is a fraction and is checked, not trusted.
+        @test_throws ArgumentError equilibrate_split(st; b = b, share = 0.0)
+        @test_throws ArgumentError equilibrate_split(st; b = b, share = 1.0)
+    end
+end

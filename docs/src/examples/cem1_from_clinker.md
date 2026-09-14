@@ -68,7 +68,12 @@ println("$(length(cs.species)) species in the system")
 ## 3. The reactions, and the rate law each one carries
 
 Four hydration reactions, each with a Parrot-Killoh rate in its Avrami form.
-`α_max = 1.0` and the arrest, if any, is left to the humidity coupling of §7.
+The water ceiling is computed rather than assumed — [`powers_alpha_max`](@ref)
+returns exactly 1 at `w/c = 0.45`, because above 0.42 there is enough water for
+complete hydration and nothing about water is limiting. Below it the same call
+would return a real ceiling, and [the w/c example](@ref sec-wc-ratio) is where
+that is the subject. Here the arrest, if any, is left to the humidity coupling
+of §7.
 
 ```@example cem1
 law = VanGenuchten(; a = 37.5479e6, m = 1 / 2.1684)   # Baroghel-Bouny, mix CO
@@ -100,7 +105,8 @@ function build(compo; humidity = true, tend = 90 * 86400.0)
     for (nm, pk, reac, prod) in specs
         rx = Reaction(reac, prod; symbol = nm)
         rx[:rate] = parrot_killoh_avrami(
-            pk, nm; α_max = 1.0, blaine = 380.0u"m^2/kg", humidity = h
+            pk, nm; α_max = powers_alpha_max(WC), blaine = 380.0u"m^2/kg",
+            humidity = h
         )
         push!(rxns, rx)
     end

@@ -315,19 +315,175 @@ FixedpH(pH; titrant = "H+") = FixedpH(pH, titrant)
 The parameter block of a prescribed chemical potential: one unknown, the titrant
 amount; one linear column, its formula; one equation, `ln aᵢ = ln a_target`.
 """
-function _titrant_blocks(des, state, p, i_species, i_titrant, ln_a_target)
+function _titrant_blocks(des, state, p, i_species::Integer, i_titrant, ln_a_target)
+    return _titrant_blocks(des, state, p, [i_species => 1.0], i_titrant, ln_a_target)
+end
+
+"""
+    _titrant_blocks(des, state, p, terms, i_titrant, ln_target)
+
+The implicit-titrant blocks for a prescribed **linear combination** of
+log-activities, `Σᵢ νᵢ ln aᵢ = ln_target`, where `terms` is a vector of
+`index => coefficient`.
+
+One species with coefficient 1 is a prescribed activity, which is what
+[`FixedActivity`](@ref) and [`FixedpH`](@ref) need. A whole half-reaction is
+what a prescribed redox potential needs, since no electron activity can be read
+off a species that does not exist — see [`FixedpE`](@ref).
+
+The vehicle is the same either way: one unknown (the titrant amount), one column
+`−A[:, titrant]` added to the conservation rows, and one equation.
+"""
+function _titrant_blocks(
+        des, state, p, terms::AbstractVector{<:Pair{<:Integer, <:Real}},
+        i_titrant, ln_a_target,
+    )
     # `−A[:, titrant]`: the titrant ADDS to the budget, and the rows are written
     # as `A x + Aq q − b = 0`.
     Aq = reshape(-des.A[:, i_titrant], size(des.A, 1), 1)
     # A mole scale for the difference step, taken from the system's own size so
     # it is neither absurdly large nor below the resolution of the balance.
     scale = max(sum(Float64[ustrip(us"mol", x) for x in state.n]), 1.0) * 1.0e-6
-    cq = (x, q, params) -> [des.lna(x, params)[i_species] - ln_a_target]
+    idxs = [first(t) for t in terms]
+    coef = [Float64(last(t)) for t in terms]
+    cq = function (x, q, params)
+        lna = des.lna(x, params)
+        acc = zero(eltype(lna))
+        @inbounds for k in eachindex(idxs)
+            acc += coef[k] * lna[idxs[k]]
+        end
+        return [acc - ln_a_target]
+    end
     return (;
         nq = 1, gq = (q, params) -> params.ΔₐG⁰overRT, hq = nothing, cq = cq,
         Aq = Aq, q0 = [0.0], qscale = [scale],
         apply = (T, P, q) -> (T, P),
         titrant_amount = q -> q[1],
+    )
+end
+
+"""
+    FixedpE(pe; couple = "SO4-2" => "HS-", titrant = "O2@")
+
+Equilibrium at a **prescribed electron activity**, `pe = −log₁₀ a(e⁻)`, with the
+oxidation state of the system free to follow.
+
+The vehicle is the implicit titrant of [`FixedpH`](@ref), with one difference
+that is forced on it: there is no electron species, so nothing can have its
+activity prescribed directly. What is prescribed instead is the **half-reaction**
+of `couple`, whose `log K` fixes the electron activity once the other members'
+activities are known:
+
+```math
+\\sum_i \\nu_i \\log_{10} a_i = \\log_{10} K - n \\, pe
+```
+
+summed over the couple with the products positive and the reactants negative,
+`n` being the number of electrons. That is one linear equation in the
+log-activities, which is exactly what the titrant mechanism solves.
+
+`titrant` is the substance the system may draw on to reach the prescribed
+potential — `O2@` by default, so that oxidizing means adding oxygen. It must be
+a species of the system.
+
+!!! note "When to prescribe a potential, and when not to"
+    The default in this package is to **conserve** the oxidation state and let
+    the potential come out as a result, which is what a sealed paste does and
+    what [`pe`](@ref) then reports. Prescribe one only when the system is open
+    to a redox buffer that is genuinely imposed from outside — a measured `Eh`,
+    a controlled atmosphere, an electrode. A prescribed potential on a closed
+    paste is a statement about a system that is not the one being modeled.
+
+See also: [`FixedEh`](@ref), [`pe`](@ref), [`half_reaction`](@ref).
+"""
+struct FixedpE{R, S} <: EquilibriumConstraint
+    pe::R
+    couple::Pair{S, S}
+    titrant::S
+end
+function FixedpE(
+        pe; couple::Pair{<:AbstractString, <:AbstractString} = "SO4-2" => "HS-",
+        titrant::AbstractString = "O2@",
+    )
+    return FixedpE(pe, String(first(couple)) => String(last(couple)), String(titrant))
+end
+
+"""
+    FixedEh(Eh; couple = "SO4-2" => "HS-", titrant = "O2@")
+
+Equilibrium at a **prescribed redox potential in volts**. Converted to a `pe`
+through the Nernst relation at the state's own temperature, and handled by
+[`FixedpE`](@ref) from there — so everything said there applies, including the
+warning about prescribing a potential on a closed system.
+
+`Eh` is a quantity with the dimensions of an electric potential, so that the
+unit is stated rather than assumed.
+"""
+struct FixedEh{Q, S} <: EquilibriumConstraint
+    Eh::Q
+    couple::Pair{S, S}
+    titrant::S
+end
+function FixedEh(
+        Eh; couple::Pair{<:AbstractString, <:AbstractString} = "SO4-2" => "HS-",
+        titrant::AbstractString = "O2@",
+    )
+    return FixedEh(Eh, String(first(couple)) => String(last(couple)), String(titrant))
+end
+
+"""
+    _redox_terms(des, state, couple) -> (terms, logK, n_e)
+
+The half-reaction of `couple` as a list of `index => coefficient` over the
+system's species, with products positive and reactants negative, together with
+its `log₁₀ K` at the state's temperature and its electron count.
+
+The electron is dropped from `terms`: it has no index, which is the whole
+reason a redox constraint cannot be written as a prescribed activity.
+"""
+function _redox_terms(des, state, couple)
+    r = half_reaction(state, first(couple), last(couple))
+    terms = Pair{Int, Float64}[]
+    n_e = 0.0
+    for (sp, ν) in r.reactants
+        if symbol(sp) == symbol(ELECTRON)
+            n_e = Float64(ν)
+        else
+            push!(terms, _species_index(des, symbol(sp)) => -Float64(ν))
+        end
+    end
+    for (sp, ν) in r.products
+        if symbol(sp) == symbol(ELECTRON)
+            n_e = -Float64(ν)
+        else
+            push!(terms, _species_index(des, symbol(sp)) => Float64(ν))
+        end
+    end
+    n_e == 0 && throw(
+        ArgumentError(
+            "the couple $(first(couple))/$(last(couple)) balances with no " *
+                "electron, so no redox potential can be prescribed through it.",
+        ),
+    )
+    return terms, r.logK⁰(T = ustrip(us"K", temperature(state))), n_e
+end
+
+function _constraint_blocks(c::FixedpE, des, state, p, n0)
+    terms, logK, n_e = _redox_terms(des, state, c.couple)
+    i_t = _species_index(des, c.titrant)
+    # Σ ν log₁₀ a = log₁₀K − n·pe, carried into natural logs for `lna`.
+    return _titrant_blocks(
+        des, state, p, terms, i_t, (logK - n_e * c.pe) * log(10)
+    )
+end
+
+function _constraint_blocks(c::FixedEh, des, state, p, n0)
+    T = ustrip(us"K", temperature(state))
+    # Nernst, once: `Eh = (RT ln10 / F) pe`. The factor lives in `RT_over_F` so
+    # that this and `Eh` cannot drift apart.
+    pe = ustrip(us"V", c.Eh) / (RT_over_F(T) * log(10))
+    return _constraint_blocks(
+        FixedpE(pe; couple = c.couple, titrant = c.titrant), des, state, p, n0
     )
 end
 
@@ -454,6 +610,130 @@ function _molar_volumes(system, T, P)
         _has_molar_volume(sp) ? ustrip(us"m^3/mol", sp[:V⁰](T = T, P = P; unit = true)) : 0.0
             for sp in system.species
     ]
+end
+
+"""
+    SaturatedCuring(V_ref; titrant = "H2O@")
+    SaturatedCuring(; reference, titrant = "H2O@")
+
+A specimen cured under water: free to draw in whatever the reaction's own volume
+loss empties, so the pore space never desiccates.
+
+This is the mirror image of [`CapillaryWater`](@ref), and the pair is the two
+boundary conditions a paste can be cured under. Sealed, the volume that chemical
+shrinkage empties becomes gas-filled porosity, the saturation falls, the water
+activity falls with it and the reaction slows — which is what `CapillaryWater`
+expresses. Immersed, that volume is refilled from the bath, the specimen stays
+saturated, and the water activity stays the composition's own.
+
+`V_ref` is the volume the specimen occupies, normally the fresh paste's: pass the
+fresh state as `reference` and it is taken from it. The constraint holds
+
+```math
+\\sum_i \\bar V_i\\, n_i = V_{\\text{ref}} ,
+```
+
+the **total** volume of the system, solids and solution together — external
+dimensions unchanged, the deficit made up by water from outside. Every species
+carrying no standard molar volume would contribute zero to that sum in silence,
+so the constructor refuses such a system and names them.
+
+# What it does to the solve
+
+One unknown, `q[1]`, the amount of water imbibed; one column `−A[:, titrant]` in
+the conservation rows, so the system is **open to water and closed to everything
+else**; one equation, the volume closure above — which is *linear* in the
+composition, unlike the retention law of `CapillaryWater`.
+
+# The answer includes the chemical shrinkage
+
+`q[1]` is not a numerical device. It is the water the specimen took up, which is
+exactly what a chemical-shrinkage measurement reports, and it comes back through
+the `parameters` keyword the way a titrant amount does:
+
+```julia
+q = Ref(Float64[])
+fresh = fresh_paste(0.40)
+eq, cert = equilibrate_certified(
+    state; constraint = SaturatedCuring(; reference = fresh), parameters = q,
+)
+only(q[])                       # moles of water drawn in
+```
+
+!!! warning "This is a volume condition, not an activity condition"
+    The tempting way to write "cured under water" is `FixedActivity("H2O@", 1.0)`
+    — and it is wrong. A cement pore solution has a water activity near 0.98 from
+    its dissolved salts alone, so prescribing 1 would draw water in until the
+    solution was dilute enough to reach it, which never happens: the constraint
+    would imbibe without bound. What a bath fixes is not the activity inside the
+    specimen, it is the *availability*: the pore space stays full. That is a
+    volume statement, and this is it.
+
+!!! note "What the certificate proves under it"
+    The volume closure is linear and the conservation rows stay affine, so the
+    problem remains a convex minimization on an affine set and `cert.optimal`
+    keeps its usual meaning — a **global** minimum of `G` subject to the budget
+    and the closure. This is a stronger guarantee than `CapillaryWater` gives,
+    whose composition-dependent activity shift is not derived from a convex `G`.
+
+See also: [`CapillaryWater`](@ref), [`powers_alpha_max`](@ref),
+[`porosity`](@ref).
+"""
+struct SaturatedCuring{Q, S} <: EquilibriumConstraint
+    V_ref::Q
+    titrant::S
+end
+
+SaturatedCuring(V_ref; titrant = "H2O@") = SaturatedCuring(V_ref, titrant)
+SaturatedCuring(; reference, titrant = "H2O@") =
+    SaturatedCuring(volume(reference).total, titrant)
+
+function _constraint_blocks(c::SaturatedCuring, des, state, p, n0)
+    cs = des.system
+
+    # Same refusal as `CapillaryWater`, for the same reason: a species with no
+    # standard molar volume contributes zero to the closure without saying so,
+    # and the imbibed water would silently absorb the error.
+    missing_V = missing_molar_volumes(state)
+    isempty(missing_V) || throw(
+        ArgumentError(
+            "SaturatedCuring needs a volume balance it can trust, and these species " *
+                "are present with no standard molar volume: " * join(missing_V, ", ") *
+                ". They would contribute zero to the total volume in silence, so the " *
+                "water drawn in would make up an error rather than the shrinkage."
+        )
+    )
+
+    i_t = _species_index(des, c.titrant)
+    V̄ = _molar_volumes(cs, temperature(state), pressure(state))
+    V_ref = ustrip(us"m^3", c.V_ref)
+    V_ref > 0 || throw(
+        ArgumentError(
+            "SaturatedCuring: the reference volume must be positive, got $(V_ref) m³. " *
+                "It is the volume the specimen occupies -- normally the fresh paste's."
+        )
+    )
+
+    # The titrant ADDS to the budget, and the rows read `A x + Aq q − b = 0`.
+    Aq = reshape(-des.A[:, i_t], size(des.A, 1), 1)
+    scale = max(sum(Float64[ustrip(us"mol", x) for x in state.n]), 1.0) * 1.0e-6
+
+    # Scaled by the reference, so the residual is a relative volume error --
+    # the same convention `_pressure_blocks` uses.
+    cq = function (x, q, params)
+        V = zero(eltype(x))
+        @inbounds for i in eachindex(x)
+            V += V̄[i] * x[i]
+        end
+        return [(V - V_ref) / V_ref]
+    end
+
+    return (;
+        nq = 1, gq = (q, params) -> params.ΔₐG⁰overRT, hq = nothing, cq = cq,
+        Aq = Aq, q0 = [0.0], qscale = [scale],
+        apply = (T, P, q) -> (T, P),
+        titrant_amount = q -> q[1],
+    )
 end
 
 function _constraint_blocks(c::CapillaryWater, des, state, p, n0)

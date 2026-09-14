@@ -130,20 +130,111 @@ function _dual_phases(des::DualEquilibriumSolver, n0)
     # happens to be minor sends that unknown towards −∞ and the Jacobian with it.
     # So the reference is chosen by magnitude, from the composition the caller
     # supplied, which is what the solvent already is for the aqueous phase.
+    # `split_starts` is empty here and carried all the same: the vector's element
+    # type is fixed by its FIRST entry, so an aqueous phase without the field
+    # would make every solid solution that has one unpushable. And the aqueous
+    # phase cannot unmix anyway -- there is one solvent.
     phases = [
         (
             members = des.idx_aq, j_ref = des.j_solvent,
             always_present = true, mole_fraction = false,
+            split_starts = Vector{Vector{Float64}}(),
         ),
     ]
-    for grp in des.ss_groups
+    models = _ss_models(des)
+    for (k, grp) in pairs(des.ss_groups)
         j_ref = argmax(@view n0[grp])
         push!(
             phases,
-            (members = grp, j_ref = j_ref, always_present = false, mole_fraction = true),
+            (
+                members = grp, j_ref = j_ref,
+                always_present = false, mole_fraction = true,
+                split_starts = _split_starts(get(models, k, nothing), length(grp)),
+            ),
         )
     end
     return phases
+end
+
+"""
+    _ss_models(des) -> Dict{Int, Any}
+
+The mixing model of each entry of `des.ss_groups`, by position.
+
+`ss_groups` is built by walking `system.solid_solutions` and **skipping** any
+declaration whose end-members are not all in the species list, so the two lists
+are the same length only when nothing was skipped. Rebuilding the correspondence
+the same way is the only way to be sure a model is matched to its own group; a
+positional zip would silently pair a phase with someone else's model the first
+time a declaration is dropped.
+"""
+function _ss_models(des::DualEquilibriumSolver)
+    out = Dict{Int, Any}()
+    ss = des.system.solid_solutions
+    ss === nothing && return out
+    byname = Dict(symbol(sp) => i for (i, sp) in enumerate(des.system.species))
+    k = 0
+    for phase in ss
+        idx = [byname[symbol(em)] for em in phase.end_members if haskey(byname, symbol(em))]
+        length(idx) == length(phase.end_members) || continue
+        k += 1
+        out[k] = model(phase)
+    end
+    return out
+end
+
+"""
+    _split_starts(model, nmembers) -> Vector{Vector{Float64}}
+
+Where to look for the other lobe of a phase that may unmix, as mole fractions
+over its members.
+
+The tangent-plane search in `OptimaSolver` probes the **corners** of the
+composition simplex and refines by successive substitution, which converges to
+the stationary point nearest its start. A corner is usually on the right side of
+the barrier and sometimes is not; where it is not, the iteration walks back to
+the phase's own composition and reports nothing, though splitting would lower the
+energy.
+
+Measured on the AFm sulfate/hydroxide binary with the published Redlich-Kister
+parameters (spinodal [0.631, 0.914], binodal [0.4999, 0.9700]):
+
+| phase sits at | corners alone | with the binodal handed over |
+|:--|--:|--:|
+| x = 0.5268, where a CEM I settles | +3.99e-02, found | the same verdict |
+| x = 0.95 | +2.4e-16, **missed** | +1.23e-01, trial x = 0.444 |
+| x = 0.98, outside the binodal | stable | stable |
+
+Both flagged compositions are metastable, so being metastable is not by itself
+what defeats the corners — sitting in the lobe they lead back into is, and that
+is not knowable in advance. Hence a start supplied unconditionally rather than a
+rule for when to supply one.
+
+[`common_tangent`](@ref) computes the binodal from the mixing model alone, in
+microseconds and with no reference to the rest of the system, and the search then
+refines it with the chemical potentials the system actually has — which is the
+pair that matters. That division is the whole point: the model's binodal is a
+good *place to look*, not the answer. Extra starts can only raise the maximum the
+search returns, so they never take a verdict away and, as the last row shows, do
+not invent one.
+
+Empty for anything but a binary with a gap, which is the only case
+`common_tangent` is defined for.
+"""
+function _split_starts(model, nmembers::Int)
+    out = Vector{Vector{Float64}}()
+    (model === nothing || nmembers != 2) && return out
+    pair = try
+        common_tangent(model)
+    catch
+        nothing
+    end
+    pair === nothing && return out
+    for x in pair
+        (isfinite(x) && 0 < x < 1) || continue
+        push!(out, Float64[1 - x, x])
+    end
+    return out
 end
 
 function _dual_problem(des::DualEquilibriumSolver, p, n0, blocks = nothing)
@@ -208,7 +299,8 @@ end
 """
     optimality_certificate(des, state; b = nothing, ϵ = 1e-16, floor = 1e-25)
         -> (; stationarity, balance, worst_supersaturation, n_interior,
-             n_absent_component, optimal)
+             n_absent_component, param_residual, worst_violation_split,
+             split_phases, split_trials, optimal)
 
 Check the KKT conditions at a composition, independently of how it was obtained.
 
@@ -220,6 +312,15 @@ a cement equilibrium and cannot say whether the point it returns is the answer.
 The three quantities are the stationarity of the interior species, the component
 balance, and the worst saturation index among absent phases (negative when every
 one of them is undersaturated, as optimality requires).
+
+`worst_violation_split` extends that last test to the phases that are **present**:
+Michelsen's tangent-plane distance, which asks whether a mixing phase would lower
+the Gibbs energy by separating into two compositions. It is `-Inf` when no phase
+could be tested, negative when every one of them is stable, and positive when one
+wants to unmix — `split_phases` then names them and `split_trials` carries, per
+phase, the composition it wants to split into. That composition is what
+[`equilibrate_split`](@ref) seeds a second instance with; it exists nowhere else,
+being a property of the full system and not of the mixing model alone.
 """
 function optimality_certificate(
         des::DualEquilibriumSolver, state::ChemicalState;
@@ -258,6 +359,18 @@ function optimality_certificate(
         # Zero on the unconstrained route, so it costs nothing there and is the
         # constraint's own residual when there is one.
         param_residual = hasproperty(c, :param_residual) ? c.param_residual : 0.0,
+        # Michelsen's split verdict on the PRESENT mixing phases, forwarded
+        # rather than dropped. `equilibrate_split` seeds a second instance from
+        # `split_trials`, and it is the only place that composition exists: the
+        # trial is a property of the full system, fixed jointly with the solution
+        # the phase sits in, so a caller cannot recompute it from the mixing
+        # model alone. Read through `hasproperty` because a certificate also
+        # arrives from a back end that does not run the test.
+        worst_violation_split = hasproperty(c, :worst_violation_split) ?
+            c.worst_violation_split : -Inf,
+        split_phases = hasproperty(c, :split_phases) ? c.split_phases : Int[],
+        split_trials = hasproperty(c, :split_trials) ? c.split_trials :
+            Dict{Int, NamedTuple{(:members, :x), Tuple{Vector{Int}, Vector{Float64}}}}(),
         optimal = c.optimal,
     )
 end

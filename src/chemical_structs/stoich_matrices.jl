@@ -75,57 +75,121 @@ function _to_bigint_matrix(A::AbstractMatrix)
     return [numerator(x) * (D ÷ denominator(x)) for x in B_rat]
 end
 
-# Exact rational null space via Bareiss algorithm (forward pass) + back-substitution.
-#
-# Bareiss's theorem guarantees that `÷ prev` is exact ONLY for forward (downward)
-# elimination. Clearing rows above the pivot (full RREF) does NOT satisfy this property
-# and silently corrupts B via truncation. We therefore do a forward-only pass (upper
-# triangular form) and extract null vectors by rational back-substitution.
-#
-# Returns Matrix{Rational{BigInt}} of shape (n, dim_ker).
-function _rational_nullspace(A::AbstractMatrix)
-    m, n = size(A)
-    B = _to_bigint_matrix(A)
+"""
+    _rref_rational(A) -> (R, pivot_cols)
+
+Reduced row echelon form of `A` over `Rational{BigInt}`, with the list of pivot
+columns.
+
+# Why exact rationals rather than fraction-free elimination
+
+The package used a Bareiss (fraction-free) forward pass here, on the strength of
+Bareiss's theorem that the division `÷ prev` is exact. It is not exact once
+pivots are skipped, and the failure is silent because `÷` on `BigInt` **truncates**
+rather than throwing. Measured, on a 5×6 integer matrix of rank 4 — smallest
+singular value exactly zero, every 5×5 minor singular:
+
+    two of the divisions left a non-zero remainder, the eliminated column kept a
+    stray 1, the pivot count came out 5, and the null space came back one vector
+    short.
+
+A null space one vector short is not a slow answer, it is a wrong conservation
+law. The matrices this runs on are small — a few dozen atom rows by a few hundred
+species — so exact rational elimination costs nothing that matters and cannot
+truncate. Correctness first; the fraction-free version can come back the day it
+is both needed and right.
+"""
+function _rref_rational(A::AbstractMatrix)
+    B = Rational{BigInt}.(_to_bigint_matrix(A))
+    m, n = size(B)
     pivot_cols = Int[]
-    prev = one(BigInt)
     row = 1
-    # Forward-only Bareiss: produces upper-triangular form with exact BigInt entries.
     for col in 1:n
-        i = findfirst(!iszero, B[row:end, col])
+        row > m && break
+        i = findfirst(!iszero, @view B[row:end, col])
         isnothing(i) && continue
         i += row - 1
         i != row && (B[[row, i], :] = B[[i, row], :])
         piv = B[row, col]
-        for k in (row + 1):m           # forward only — no backward clearing
-            bkc = B[k, col]
-            iszero(bkc) && continue
-            for j in 1:n
-                B[k, j] = (piv * B[k, j] - bkc * B[row, j]) ÷ prev
-            end
+        B[row, :] ./= piv
+        for k in 1:m
+            k == row && continue
+            f = B[k, col]
+            iszero(f) && continue
+            B[k, :] .-= f .* B[row, :]
         end
         push!(pivot_cols, col)
-        prev = piv
         row += 1
-        row > m && break
     end
+    return B, pivot_cols
+end
+
+"""
+    _exact_rank(A) -> Int
+
+The rank of `A` computed **exactly**, by rational row reduction.
+
+# Why this is not a refinement of `rank`
+
+`LinearAlgebra.rank` counts singular values above a tolerance, so it answers a
+*combinatorial* question — how many species are independent — with a *numerical*
+comparison. On a matrix of element counts the answer is never in doubt
+mathematically, but the computation runs through a LAPACK SVD, and a singular
+value sitting near the threshold decides differently on different CPUs and
+different LAPACK builds.
+
+That is not hypothetical here. The decision this rank feeds — whether the charge
+row survives as an independent conservation law — is a **boolean**, and when it
+flips the electron's column becomes identically zero: a half-reaction then
+"balances" with no electron in it, and no redox potential can be written at all.
+The package's CI showed exactly that, green on one Julia and red on another from
+the same source, which is the signature of a threshold deciding a question that
+has an exact answer.
+
+Falls back to the floating-point rank for a matrix that cannot be rationalized,
+which in this package means a symbolic element type.
+"""
+function _exact_rank(A::AbstractMatrix)
+    _is_rationalizable(A) || return _float_rank(A)
+    (isempty(A) || minimum(size(A)) == 0) && return 0
+    return length(last(_rref_rational(A)))
+end
+
+# The floating-point rank, kept for element types that cannot be rationalized,
+# with the same defensive fallbacks the call sites relied on before.
+function _float_rank(A::AbstractMatrix; rtol = 1.0e-6)
+    return try
+        rank(A; rtol = rtol)
+    catch
+        try
+            rank(A)
+        catch
+            min(size(A)...)
+        end
+    end
+end
+
+# The exact null space, read straight off the reduced row echelon form: for each
+# free column one vector, carrying 1 in that column and minus the pivot row's
+# entry in each pivot column.
+#
+# This replaced a fraction-free (Bareiss) elimination whose `÷ prev` truncated
+# once pivots were skipped -- see `_rref_rational` for the measurement. The
+# symptom was a null space one vector SHORT, which is a missing conservation law
+# and not a slow answer.
+#
+# Returns Matrix{Rational{BigInt}} of shape (n, dim_ker).
+function _rational_nullspace(A::AbstractMatrix)
+    n = size(A, 2)
+    R, pivot_cols = _rref_rational(A)
     free_cols = setdiff(1:n, pivot_cols)
     isempty(free_cols) && return zeros(Rational{BigInt}, n, 0)
-    # Rational back-substitution on the upper-triangular Bareiss matrix.
-    # For each free column fc: set v[fc]=1, then solve for v[pivot_cols] back-to-front.
-    rk = length(pivot_cols)
     N_rat = zeros(Rational{BigInt}, n, length(free_cols))
     for (j, fc) in enumerate(free_cols)
-        v = zeros(Rational{BigInt}, n)
-        v[fc] = one(Rational{BigInt})
-        for r in rk:-1:1
-            pc = pivot_cols[r]
-            s = -Rational{BigInt}(B[r, fc])
-            for r2 in (r + 1):rk
-                s -= Rational{BigInt}(B[r, pivot_cols[r2]]) * v[pivot_cols[r2]]
-            end
-            v[pc] = s / Rational{BigInt}(B[r, pc])
+        N_rat[fc, j] = one(Rational{BigInt})
+        for (r, pc) in enumerate(pivot_cols)
+            N_rat[pc, j] = -R[r, fc]
         end
-        N_rat[:, j] = v
     end
     return N_rat
 end
@@ -545,16 +609,11 @@ function StoichMatrix(
         optimize_primaries = false,
         kinetic_species = nothing,
     )
-    safe_rank(A; rtol = 1.0e-6) =
-    try
-        rank(A; rtol = rtol)
-    catch
-        try
-            rank(A)
-        catch
-            min(size(A)...)
-        end
-    end
+    # EXACT, not `rank(A; rtol)`. Every matrix here holds element counts and
+    # charges, so its rank is an integer fact about the chemistry; deciding it
+    # with a singular-value threshold makes the answer depend on the LAPACK
+    # build and the CPU. See `_exact_rank`.
+    safe_rank(A) = _exact_rank(A)
     safe_pinv(A) =
     try
         pinv(A)
@@ -624,6 +683,12 @@ function StoichMatrix(
 
     r = Int(safe_rank(M_subset))
     if optimize_primaries
+        # A pivoted QR, so WHICH components come out depends on floating-point
+        # comparisons — unlike the greedy branch below, which now ranks exactly.
+        # Both give a valid basis; only this one can give a different basis on a
+        # different machine. It is off by default and nothing in the package
+        # turns it on; the note is here so that a caller who does knows what is
+        # being traded for the better conditioning.
         F = qr(M_subset, Val(true))
         pivot_idx = F.p[1:r]
         independent_cols_indices = sort(cols_candidates[pivot_idx])
@@ -653,7 +718,64 @@ function StoichMatrix(
     )
     M_indep = M[:, independent_cols_indices]
     M_indep = promote_type(typeof.(M_indep)...).(M_indep)
-    A = stoich_coef_round.(safe_pinv(M_indep) * M)
+    A_raw = safe_pinv(M_indep) * M
+
+    # THE DECOMPOSITION IS A PROJECTION, AND A PROJECTION NEVER FAILS.
+    #
+    # `pinv` returns the least-squares answer whether or not the species lies in
+    # the span of the chosen components. A species carrying an element that no
+    # component has therefore comes back written over them anyway, silently, and
+    # the conservation matrix it produces conserves the wrong thing. Measured:
+    # magnetite (Fe₃O₄) declared in a system with no iron component decomposes
+    # as `4 H2O@ − 8 H+`, whose column satisfies every row of `A` — so the
+    # equilibrium is free to make moles of magnetite out of water, and the
+    # certificate confirms the element balance to 1e-11 because that balance is
+    # the one this matrix states. 2.4 mol of it formed from a budget holding no
+    # iron at all, and nothing anywhere said so.
+    #
+    # So membership in the span is checked. EXACTLY, and not against a tolerance
+    # on the least-squares residual: several CEMDATA18 formulas carry decimal
+    # stoichiometry — jennite is `(SiO2)1(CaO)1.666667(H2O)2.1` — and the parser
+    # keeps `5//3` on the calcium row while the oxygen row sums the decimal, so
+    # the numerical residual of a perfectly expressible species comes out at
+    # 1e-6. A threshold placed above that is a threshold, with all that follows;
+    # a rank comparison has no threshold at all. `_exact_rank` rationalizes with
+    # the package's own tolerance, so the two rows agree again and the residual
+    # is exactly zero where it should be.
+    let r_indep = _exact_rank(M_indep)
+        if _exact_rank(hcat(M_indep, M)) != r_indep
+            # Only now is it worth asking which columns are the offenders: one
+            # rank computation per species, and only on a system that is already
+            # known to be ill-posed.
+            bad = [
+                j for j in axes(M, 2)
+                    if _exact_rank(hcat(M_indep, M[:, j])) != r_indep
+            ]
+            throw(
+                ArgumentError(
+                    "these species cannot be written over the chosen components, " *
+                        "so no conservation law covers them: " *
+                        join(
+                        (
+                            string(symbol(newspecies[j])) * " (" *
+                                string(formula(newspecies[j])) * ")" for j in bad
+                        ), ", ",
+                    ) *
+                        ". The components are [" *
+                        join(
+                        (
+                            string(symbol(newspecies[c]))
+                                for c in independent_cols_indices
+                        ), ", ",
+                    ) *
+                        "]. Add a component carrying the missing element, or drop " *
+                        "the species: decomposing it anyway projects it onto the " *
+                        "components and lets the solver create it out of nothing.",
+                ),
+            )
+        end
+    end
+    A = stoich_coef_round.(A_raw)
 
     indep_comp = newspecies[independent_cols_indices]
     dep_comp = newspecies[1:num_initial_species]
