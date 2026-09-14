@@ -358,19 +358,37 @@ below, opens out the first hours: the induction period, the acceleration that
 follows it, and the peak, all of which happen inside the first decade and are a
 single vertical rise on a linear axis.
 
-Nothing is recomputed here. These are the same arrays, drawn against the same
-times, with `xscale = :log10`:
+Nothing is recomputed here — the same arrays, a different axis. Two things have
+to be decided though, and both are about what the axis shows rather than about
+the chemistry:
+
+- **`t = 0` cannot be drawn**, since `log10(0)` is `-Inf`.
+- **Nor should the first few steps be.** The integrator's first accepted step is
+  at 3.6·10⁻⁴ h — a third of a second — so plotting every positive time spends
+  four of the five decades on an interval where nothing has happened and
+  squeezes the whole of hydration into the right-hand fifth of the panel.
+
+So the axis starts at six minutes — still well inside the induction period, with
+every α at zero — and carries explicit decade ticks:
 
 ```@example clinker
-p2log = plot(t_h, [α_C3S α_C2S α_C3A α_C4AF α_mean];
-    xscale = :log10, xlabel = "Time [h], log scale", ylabel = "α",
+t_lo = 0.1                            # h — before this, nothing has happened yet
+keep_α = t_h .>= t_lo
+keep_Q = t_Q .>= t_lo * 3600
+xt = ([0.1, 1.0, 10.0, 100.0], ["0.1", "1", "10", "100"])
+
+p2log = plot(t_h[keep_α],
+    [α_C3S[keep_α] α_C2S[keep_α] α_C3A[keep_α] α_C4AF[keep_α] α_mean[keep_α]];
+    xscale = :log10, xticks = xt, xlims = (t_lo, 200.0),
+    xlabel = "Time [h], log scale", ylabel = "α",
     title = "Degree of hydration", lw = 2, legend = :topleft,
     label = ["C₃S" "C₂S" "C₃A" "C₄AF" "ᾱ"],
     ls = [:solid :dash :dot :dashdot :solid])
 hline!(p2log, [α_max]; ls = :dash, color = :black, label = "α_max")
 
-p3log = plot(t_Q ./ 3600, Q_kJ;
-    xscale = :log10, xlabel = "Time [h], log scale", ylabel = "Q [kJ/kg]",
+p3log = plot(t_Q[keep_Q] ./ 3600, Q_kJ[keep_Q];
+    xscale = :log10, xticks = xt, xlims = (t_lo, 200.0),
+    xlabel = "Time [h], log scale", ylabel = "Q [kJ/kg]",
     title = "Cumulative heat", label = "Q(t)", lw = 2, color = :purple,
     legend = :topleft)
 
@@ -379,8 +397,36 @@ plot(p2log, p3log; layout = (1, 2), size = (950, 400),
      plot_title = "The same run, logarithmic time")
 ```
 
-Read together they answer different questions. On the log axis the four clinker
-phases separate: `C₃A` is essentially finished while `C₂S` has barely started,
-which is why a cement's early strength and its late strength come from different
-minerals. On the linear axis that separation is invisible and the ceiling
-`α_max` — the Powers water limit — is the only thing worth looking at.
+Rather than describe the separation in words, read it off the solution at a few
+instants:
+
+```@example clinker
+@printf "%8s %8s %8s %8s %8s %8s\n" "t [h]" "C₃S" "C₂S" "C₃A" "C₄AF" "ᾱ"
+for t_target in (1.0, 6.0, 24.0, 168.0)
+    i = argmin(abs.(t_h .- t_target))
+    @printf("%8.1f %8.3f %8.3f %8.3f %8.3f %8.3f\n",
+        t_h[i], α_C3S[i], α_C2S[i], α_C3A[i], α_C4AF[i], α_mean[i])
+end
+@printf "\nα_max = %.4f (Powers water limit at w/c = %.2f)\n" α_max WC
+```
+
+Two things in that table are worth naming, because both come straight from the
+parameter sets rather than from the figure:
+
+- **`C₃S` and `C₃A` track each other** to within a few thousandths at every one
+  of those instants. That is a property of Parrot & Killoh's calibration, not a
+  general fact about cement: the two minerals are given nearly the same
+  diffusion-branch constant, `k₂` = 0.05 d⁻¹ for `C₃S` against 0.04 d⁻¹ for
+  `C₃A`, and it is `k₂` that governs once the shell has formed.
+- **The ranking at seven days is the ranking of `k₂`**: 0.05, 0.04, 0.015 and
+  0.006 d⁻¹ for `C₃S`, `C₃A`, `C₄AF` and `C₂S`, in the same order as the degrees
+  of hydration they reach. Belite's slowness is the well-founded half — the late
+  strength of a Portland cement comes from a mineral that has done about a third
+  of its work after a week.
+
+Each axis answers half the question. The log axis opens out the first hours: the
+induction period, flat out to about one hour, then `C₃S` and `C₃A` accelerating
+together while `C₄AF` and `C₂S` wait several hours more — a spread that is a
+single vertical rise on a linear axis. The linear axis shows the other half, that
+none of the curves is anywhere near the ceiling `α_max`, so this paste still has
+a great deal of hydration ahead of it when the run stops at seven days.

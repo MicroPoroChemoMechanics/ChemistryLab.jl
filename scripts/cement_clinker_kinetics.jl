@@ -254,3 +254,41 @@ display(
         plot_title = "ChemistryLab — KineticsProblem cement — CEM I w/c=$WC",
     )
 )
+
+# The same two curves on a logarithmic time axis, which is the scale a
+# calorimetrist reads: it opens out the induction period and the acceleration,
+# which are a single vertical rise above. Two exclusions, both about the axis
+# rather than the chemistry: `t = 0` cannot be drawn at all, and the first
+# accepted steps (a fraction of a second) would spend four decades on an
+# interval where nothing has happened.
+t_lo = 0.1                            # h — before this, nothing has happened yet
+keep_α = t_h .>= t_lo
+keep_Q = t_Q .>= t_lo * 3600
+xt = ([0.1, 1.0, 10.0, 100.0], ["0.1", "1", "10", "100"])
+
+p2log = plot(
+    t_h[keep_α],
+    [α_C3S[keep_α] α_C2S[keep_α] α_C3A[keep_α] α_C4AF[keep_α] α_mean[keep_α]];
+    xscale = :log10, xticks = xt, xlims = (t_lo, 200.0),
+    xlabel = "Time [h], log scale", ylabel = "Degree of hydration α",
+    title = "Clinker phase hydration", legend = :topleft,
+    label = ["C₃S" "C₂S" "C₃A" "C₄AF" "ᾱ mean"],
+    lw = 2, ls = [:solid :dash :dot :dashdot :solid],
+)
+hline!(p2log, [α_max]; linestyle = :dash, color = :black, label = "α_max (Powers)")
+
+p3log = plot(
+    t_Q[keep_Q] ./ 3600, Q_kJ_vec[keep_Q];
+    xscale = :log10, xticks = xt, xlims = (t_lo, 200.0),
+    xlabel = "Time [h], log scale", ylabel = "Q [kJ/kg cement]",
+    title = "Cumulative heat", label = "Q(t)", lw = 2, color = :purple,
+    legend = :topleft,
+)
+
+display(
+    plot(
+        p2log, p3log; layout = (1, 2), size = (950, 400),
+        left_margin = 8Plots.mm, bottom_margin = 8Plots.mm,
+        plot_title = "The same run, logarithmic time",
+    )
+)
