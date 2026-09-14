@@ -159,21 +159,37 @@ found it in one pass.
 is held at the fresh paste's and water is drawn in to make up the chemical
 shrinkage, with the amount imbibed as the answer. A **coupled kinetic run** is
 still closed. So a cure enters a trajectory through `α_max`
-(`powers_alpha_max(w_c; curing = :saturated)`) and not through its water balance,
-and the pore solution a cured run reports is the one the mix water made.
+(`powers_alpha_max(w_c; curing = :saturated)`) and not through its water balance.
 
-**What it would take.** `run_ionic_hydration` integrates a closed system: the
-element budget `b` is fixed at the start and conserved. Opening it to water means
-one extra state variable — the water taken up — with its own rate, since the
-uptake is not instantaneous but transport-limited through the specimen. That rate
-is a length-scale problem (how fast water reaches the interior of a cylinder),
-which is precisely the physics a 0D framework does not contain, and putting an
-arbitrary time constant on it would be the kind of unmeasured parameter the rest
-of this package refuses.
+**The design, which is smaller than it first looked.** An earlier version of this
+note said the missing piece was a transport rate for the uptake, and that a 0D
+framework cannot supply one. That was wrong on both counts, and the reason is how
+the coupling is built: `run_ionic_hydration` uses **operator splitting**. The ODE
+advances the kinetic minerals with the speciation frozen, and a `DiscreteCallback`
+re-equilibrates once per **accepted** step. The element budget `bₑ` is already
+part of the state vector, `u[1:n_be]`.
 
-**So the honest version is bounded rather than approximate:** integrate closed,
-and report the sealed and the saturated ceilings as two bounds on the degree of
-reaction. A specimen cured under water lies between them, nearer the saturated
-one the thinner it is. Doing better needs a transport calculation, which is a
-different package — the same conclusion `theory/cement_water_budget.md` reaches
-about the arrest itself.
+Under a bath that keeps up — a thin specimen, properly cured — the uptake is not
+rate-limited at all: at every instant it is **whatever keeps the pore space
+full**, which is determined by the current assemblage. So it is algebraic, and it
+belongs in the same callback that already re-equilibrates:
+
+1. re-equilibrate as now;
+2. compute the volume deficit `V_ref − Σᵢ V̄ᵢ nᵢ`;
+3. add `deficit / V̄(H₂O)` moles of water to the water row of `bₑ` in `u`;
+4. re-equilibrate once more, or let the next step absorb it.
+
+No new state variable, no mass matrix, no invented time constant. The splitting
+error is the one the scheme already accepts everywhere else.
+
+**Why it is not done.** Step 3 writes to `u` inside a callback that currently
+declares `u_modified!(integrator, false)`. Touching `u` there requires `true`
+instead, which forces the integrator to re-evaluate and changes its step control
+on the accepted-step path — the most fragile code in the package, and the one
+whose failures are silent: a trajectory that is quietly wrong looks exactly like
+one that is right. It needs a regression campaign against the current coupled
+results, not an afternoon.
+
+**The honest interim.** Report the sealed and the saturated ceilings as two
+bounds on the degree of reaction. A specimen cured under water lies between them,
+nearer the saturated one the thinner it is.
