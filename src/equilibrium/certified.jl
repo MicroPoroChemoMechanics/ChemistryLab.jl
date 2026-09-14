@@ -395,19 +395,7 @@ function equilibrate_split(
     cert.optimal && return eq, cert
 
     cs = state.system
-    names = String[String(symbol(s)) for s in cs.species]
-    # species index <-> the index of its `#2` twin, when the system was declared
-    # with `instances = 2`. Both directions, because a trial can be reported on
-    # EITHER instance and the pair has to be recovered from whichever it names.
-    # Built once: it is a property of the system.
-    twin = Dict{Int, Int}()
-    untwin = Dict{Int, Int}()
-    for (i, nm) in enumerate(names)
-        j = findfirst(==(nm * "#2"), names)
-        j === nothing && continue
-        twin[i] = j
-        untwin[j] = i
-    end
+    twin, untwin = _instance_pairs(cs)
     isempty(twin) && return eq, cert
 
     best_eq, best_cert = eq, cert
@@ -416,44 +404,7 @@ function equilibrate_split(
         (trials === nothing || isempty(trials)) && break
 
         n = Float64[ustrip(us"mol", x) for x in best_eq.n]
-        moved = false
-        seen = Set{Vector{Int}}()
-        for (_, t) in trials
-            # Recover the pair of instances from the one the trial names. The
-            # two member lists are parallel — same end-member order — so `t.x`
-            # indexes either of them.
-            base = if all(haskey(twin, i) for i in t.members)
-                collect(t.members)
-            elseif all(haskey(untwin, i) for i in t.members)
-                [untwin[i] for i in t.members]
-            else
-                continue                        # not an instanced phase
-            end
-            base in seen && continue            # both instances flag the same pair
-            push!(seen, base)
-            other = [twin[i] for i in base]
-
-            n_base = sum(n[i] for i in base)
-            n_other = sum(n[i] for i in other)
-            total = max(n_base, n_other)
-            total > 0 || continue
-            # FROM the fuller instance INTO the emptier one. Not the other way
-            # round, and not from whichever the trial happened to name: the
-            # material is typically all in one of the two, and moving `share` of
-            # an instance holding 1.5e-4 mol while its twin holds 5.1e-2 is a
-            # perturbation of three parts in a thousand — a seed that cannot
-            # move the answer is indistinguishable from no seed at all.
-            from, to = n_base >= n_other ? (base, other) : (other, base)
-            move = share * total
-            for i in from
-                n[i] -= move * n[i] / total
-            end
-            for (j, i) in enumerate(to)
-                n[i] += move * t.x[j]
-            end
-            moved = true
-        end
-        moved || break
+        _seed_split!(n, trials, twin, untwin, share) || break
 
         seeded = ChemicalState(cs, n .* u"mol")
         # `autostart = false`: the seed IS the information, and the route search
@@ -470,6 +421,103 @@ function equilibrate_split(
         best_cert.optimal && break
     end
     return best_eq, best_cert
+end
+
+"""
+    _instance_pairs(cs) -> (twin, untwin)
+
+The species index of each `#2` twin, by the index of the species it copies, and
+the inverse map.
+
+Both directions, because Michelsen's trial can be reported on **either** instance
+of a pair and the pair has to be recovered from whichever it names. Empty when
+the system was not declared with `instances = 2`, which is how
+[`equilibrate_split`](@ref) knows there is nowhere to split into.
+"""
+function _instance_pairs(cs)
+    names = String[String(symbol(s)) for s in cs.species]
+    twin = Dict{Int, Int}()
+    untwin = Dict{Int, Int}()
+    for (i, nm) in enumerate(names)
+        j = findfirst(==(nm * "#2"), names)
+        j === nothing && continue
+        twin[i] = j
+        untwin[j] = i
+    end
+    return twin, untwin
+end
+
+"""
+    _seed_split!(n, trials, twin, untwin, share) -> Bool
+
+Move material from the fuller instance of each flagged phase into the emptier
+one, **at the composition Michelsen's analysis asks for**. Mutates `n` and
+returns whether anything moved.
+
+# The element budget is not touched, and that is the whole design
+
+The transfer takes the incipient composition `t.x` out of one instance and puts
+the same `t.x` into the other, so the total of every end-member across the pair
+is unchanged and `A n` is exactly what it was. The obvious alternative — remove
+at the DONOR's composition and add at the trial's — moves the same number of
+moles but a different mixture, so it silently rewrites the element budget the
+solver is about to be measured against. Two end-members of one binary are
+different substances; `C4AH13` and `monosulphate12` do not have the same sulfur.
+
+`move` is then bounded so that no end-member of the donor goes negative, which
+is what makes `share` a request rather than a command.
+
+# From the fuller into the emptier
+
+Not the other way round, and not from whichever instance the trial happened to
+name. The material is typically all in one of the two, and moving a share of an
+instance holding 1.5e-4 mol while its twin holds 5.1e-2 is a perturbation of
+three parts in a thousand — a seed that cannot move the answer is
+indistinguishable from no seed at all.
+"""
+function _seed_split!(
+        n::AbstractVector{Float64}, trials, twin::Dict{Int, Int},
+        untwin::Dict{Int, Int}, share::Float64,
+    )
+    moved = false
+    seen = Set{Vector{Int}}()
+    for (_, t) in trials
+        # Recover the pair of instances from the one the trial names. The two
+        # member lists are parallel — same end-member order — so `t.x` indexes
+        # either of them.
+        base = if all(haskey(twin, i) for i in t.members)
+            collect(t.members)
+        elseif all(haskey(untwin, i) for i in t.members)
+            [untwin[i] for i in t.members]
+        else
+            continue                        # not an instanced phase
+        end
+        base in seen && continue            # both instances flag the same pair
+        push!(seen, base)
+        other = [twin[i] for i in base]
+
+        n_base = sum(n[i] for i in base)
+        n_other = sum(n[i] for i in other)
+        total = max(n_base, n_other)
+        total > 0 || continue
+        from, to = n_base >= n_other ? (base, other) : (other, base)
+
+        move = share * total
+        for (j, i) in enumerate(from)
+            t.x[j] > 0 || continue
+            move = min(move, n[i] / t.x[j])
+        end
+        move > 0 || continue
+
+        for (j, i) in enumerate(from)
+            n[i] -= move * t.x[j]
+        end
+        for (j, i) in enumerate(to)
+            n[i] += move * t.x[j]
+        end
+        moved = true
+    end
+    return moved
 end
 
 """

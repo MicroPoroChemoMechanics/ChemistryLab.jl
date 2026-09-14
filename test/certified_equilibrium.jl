@@ -715,6 +715,123 @@ end
     end
 end
 
+@testsection "the split seed moves material without moving the budget" begin
+    # THE ARITHMETIC OF THE SEED, on its own. `equilibrate_split` needs a system
+    # that fails to certify AND reports an incipient composition before its loop
+    # runs at all, which on this package's chemistry means a 91-species cement.
+    # The transfer itself is pure arithmetic on a vector of moles, so it is
+    # tested here as such — and it is the part that was wrong.
+    #
+    # WHAT WAS WRONG. The first version removed material at the DONOR's
+    # composition and added it at the trial's. That moves the right number of
+    # moles and the wrong mixture: the total of each end-member changes, so the
+    # seed no longer satisfies the element budget the solver is about to be
+    # measured against. Two end-members of one binary are different substances —
+    # `C4AH13` and `monosulphate12` do not have the same sulfur.
+    #
+    # Species 1,2 are the base instance; 3,4 its `#2` twin.
+    twin = Dict(1 => 3, 2 => 4)
+    untwin = Dict(3 => 1, 4 => 2)
+    trial(members, x) = Dict(1 => (members = members, x = x))
+
+    # 1. THE CONSERVATION. Whatever moves, the total of each end-member across
+    #    the pair is unchanged — to the last bit, since the same `t.x` leaves one
+    #    instance and enters the other.
+    let n = [0.3, 0.1, 0.0, 0.0]
+        before = (n[1] + n[3], n[2] + n[4])
+        @test ChemistryLab._seed_split!(n, trial([1, 2], [0.25, 0.75]), twin, untwin, 0.5)
+        @test n[1] + n[3] ≈ before[1] atol = 0.0
+        @test n[2] + n[4] ≈ before[2] atol = 0.0
+        @test all(n .>= -1.0e-15)
+        # And the receiving instance holds exactly the trial composition.
+        tot = n[3] + n[4]
+        @test tot > 0
+        @test n[4] / tot ≈ 0.75 rtol = 1.0e-12
+    end
+
+    # 2. FROM THE FULLER INTO THE EMPTIER, whichever instance the trial names.
+    #    The trial below names the TWIN, and the base still holds everything, so
+    #    the base is the donor.
+    let n = [0.3, 0.1, 0.0, 0.0]
+        @test ChemistryLab._seed_split!(n, trial([3, 4], [0.25, 0.75]), twin, untwin, 0.5)
+        @test n[3] + n[4] > 0                       # the twin received
+        @test n[1] + n[2] < 0.4                    # the base gave
+    end
+    let n = [0.0, 0.0, 0.3, 0.1]                  # everything in the twin
+        @test ChemistryLab._seed_split!(n, trial([1, 2], [0.25, 0.75]), twin, untwin, 0.5)
+        @test n[1] + n[2] > 0                       # now the base receives
+        @test n[3] + n[4] < 0.4
+    end
+
+    # 3. `move` IS BOUNDED so no end-member of the donor goes negative. Here the
+    #    donor holds almost no member 2 and the trial asks for three quarters of
+    #    it, so `share = 0.5` cannot be honored in full — and must not be.
+    let n = [0.4, 0.001, 0.0, 0.0]
+        @test ChemistryLab._seed_split!(n, trial([1, 2], [0.25, 0.75]), twin, untwin, 0.5)
+        @test all(n .>= -1.0e-15)
+        @test n[2] ≈ 0.0 atol = 1.0e-12             # drained, not overdrawn
+        @test n[1] + n[3] ≈ 0.4 atol = 1.0e-15     # still conserved
+    end
+
+    # 4. A PAIR IS SEEDED ONCE even when both of its instances are flagged, and a
+    #    trial on a phase with no twin is left alone.
+    let n = [0.3, 0.1, 0.0, 0.0]
+        both = Dict(
+            1 => (members = [1, 2], x = [0.25, 0.75]),
+            2 => (members = [3, 4], x = [0.25, 0.75]),
+        )
+        @test ChemistryLab._seed_split!(n, both, twin, untwin, 0.5)
+        @test n[1] + n[3] ≈ 0.3 atol = 0.0
+        # One transfer, not two — and of the BOUNDED amount. `share = 0.5` of a
+        # 0.4 mol pair asks for 0.2, but the donor is 75/25 while the trial wants
+        # 25/75, so the scarce end-member runs out first: 0.1 / 0.75 = 0.1333.
+        # Seeded twice, this would read 0.2444.
+        @test n[3] + n[4] ≈ 0.1 / 0.75 rtol = 1.0e-12
+    end
+    let n = [0.3, 0.1, 0.0, 0.0]
+        @test !ChemistryLab._seed_split!(
+            n, Dict(1 => (members = [7, 8], x = [0.5, 0.5])), twin, untwin, 0.5
+        )
+        @test n == [0.3, 0.1, 0.0, 0.0]           # untouched
+    end
+
+    # 5. Nothing to move: an empty pair is skipped rather than divided by zero.
+    let n = [0.0, 0.0, 0.0, 0.0]
+        @test !ChemistryLab._seed_split!(n, trial([1, 2], [0.25, 0.75]), twin, untwin, 0.5)
+    end
+
+    # 6. `_instance_pairs` finds the twins, and finds none when there are none.
+    let
+        sp = Dict(
+            symbol(s) => s for s in build_species(
+                    datapath("slop98-inorganic-thermofun.json"); verbose = false
+                )
+        )
+        names = split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Mg+2 Cal Mgs")
+        comps = ["H2O@", "H+", "Ca+2", "Mg+2", "CO3-2", "Zz"]
+        plain = ChemicalSystem([sp[s] for s in names], comps)
+        @test isempty(first(ChemistryLab._instance_pairs(plain)))
+
+        doubled = ChemicalSystem(
+            [sp[s] for s in names], comps;
+            solid_solutions = [
+                SolidSolutionPhase(
+                    "carbonate", [sp["Cal"], sp["Mgs"]];
+                    model = RedlichKisterModel(a0 = 20_000.0), instances = 2,
+                ),
+            ],
+        )
+        tw, un = ChemistryLab._instance_pairs(doubled)
+        @test length(tw) == 2                      # one pair per end-member
+        @test length(un) == 2
+        syms = String.(symbol.(doubled.species))
+        for (i, j) in tw
+            @test syms[j] == syms[i] * "#2"        # and they are the right ones
+            @test un[j] == i
+        end
+    end
+end
+
 @testsection "equilibrate_split — the split loop, and the pair it is about" begin
     # THE REGRESSION THIS GUARDS. `equilibrate_split` reads the incipient
     # composition out of the certificate and seeds a second instance with it.
