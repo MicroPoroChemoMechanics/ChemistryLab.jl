@@ -21,16 +21,13 @@ concurrency:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   spelling:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          # The push below needs the branch, not the detached commit.
-          ref: ${{ github.head_ref || github.ref_name }}
 
       - uses: actions/setup-python@v7
         with:
@@ -43,36 +40,5 @@ jobs:
           echo "convention=$conv" >> "$GITHUB_OUTPUT"
           echo "Convention: $conv"
 
-      - name: Convert to the configured convention
-        run: python3 .github/scripts/spelling_tool.py convert . --to '${{ steps.cfg.outputs.convention }}'
-
-      # A pull request from a fork hands this job a read-only token, so pushing
-      # a correction is impossible there. Report instead — the contributor
-      # fixes it, or the maintainer does after merging.
-      - name: Report (pull request — cannot push a fix)
-        if: github.event_name == 'pull_request'
-        run: |
-          if ! git diff --quiet; then
-            echo "::error::Spelling deviates from the ${{ steps.cfg.outputs.convention }} convention. Run:"
-            echo "::error::  python3 .github/scripts/spelling_tool.py convert . --to ${{ steps.cfg.outputs.convention }}"
-            git diff --stat
-            exit 1
-          fi
-          echo "Already consistent."
-
-      # On a push to `main` the token can write, so the correction is committed
-      # rather than merely announced. `[skip ci]` stops this job from
-      # retriggering itself on the commit it just made.
-      - name: Commit the correction (push to main)
-        if: github.event_name == 'push'
-        run: |
-          if git diff --quiet; then
-            echo "Already consistent."
-            exit 0
-          fi
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "style: apply ${{ steps.cfg.outputs.convention }} spelling convention [skip ci]"
-          git push
-          echo "Correction pushed — pull before your next commit."
+      - name: Check spelling
+        run: python3 .github/scripts/spelling_tool.py check . --convention '${{ steps.cfg.outputs.convention }}'
