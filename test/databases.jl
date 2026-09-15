@@ -22,6 +22,11 @@ using TOML
             )
             @test parse_unit(text) == uparse(text)
         end
+        # A negative numeric literal such as -1 is folded by Julia's parser;
+        # exercise actual unary and binary subtraction in unit expressions.
+        @test parse_unit("-K") == -u"K"
+        @test parse_unit("2*K - K") == u"K"
+        @test parse_unit("-(K, K, K)", u"Pa") == u"Pa"
         for text in ("unknown_unit", "K[1]", "@time K", "K; mol", "K = mol", repr("K"), "(")
             @test parse_unit(text, u"Pa") == u"Pa"
         end
