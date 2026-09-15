@@ -1,0 +1,14 @@
+# Scientific changes require the principal developer's approval.
+# Routine paths use the repository's required maintainer review.
+# Major changes elsewhere must request @jfbarthelemy explicitly.
+/src/ChemistryLab.jl @jfbarthelemy
+/src/chemical_structs/ @jfbarthelemy
+/src/thermodynamics/ @jfbarthelemy
+/src/equilibrium/ @jfbarthelemy
+/src/kinetics/ @jfbarthelemy
+/src/databases/ @jfbarthelemy
+/ext/ @jfbarthelemy
+/data/ @jfbarthelemy
+/docs/src/theory/ @jfbarthelemy
+/.github/CODEOWNERS @jfbarthelemy
+/.github/branch-protection.json @jfbarthelemy
