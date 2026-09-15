@@ -2,6 +2,101 @@ using JSON
 using TOML
 
 @testsection "Databases" begin
+    @testset "ThermoFun metadata is data" begin
+        parse_unit = ChemistryLab.extract_unit
+        classify = ChemistryLab.extract_classification
+        for fallback in (AS_UNDEF, SC_UNDEF)
+            for value in instances(typeof(fallback))
+                @test classify(Dict("0" => string(value)), fallback) == value
+            end
+            for value in (
+                    missing, nothing, Dict(), Dict("0" => "unknown"),
+                    Dict("0" => "AS_LIQUID"), Dict("0" => "AS_GAS", "1" => "AS_CRYSTAL"),
+                )
+                @test classify(value, fallback) == fallback
+            end
+        end
+        for text in (
+                "1", "1e-05/K", "J/(mol*K^0.5)", "J/(mol*bar)",
+                "K^(-1)", "K^(1//2)", "1/√K", "sqrt(K)", "Constants.c^2 * Hz^2",
+            )
+            @test parse_unit(text) == uparse(text)
+        end
+        for text in ("unknown_unit", "K[1]", "@time K", "K; mol", "K = mol", repr("K"), "(")
+            @test parse_unit(text, u"Pa") == u"Pa"
+        end
+        @test parse_unit(missing, u"Pa") == u"Pa"
+
+        # Scan every shipped ThermoFun unit, including coefficient metadata.
+        bundled_units = Set{String}()
+        function collect_units(value)
+            if value isa AbstractDict
+                for (key, child) in value
+                    if key == "units"
+                        for unit in child
+                            push!(bundled_units, unit)
+                        end
+                    else
+                        collect_units(child)
+                    end
+                end
+            elseif value isa AbstractVector
+                foreach(collect_units, value)
+            end
+        end
+        for (directory, _, files) in walkdir(datapath())
+            for file in files
+                endswith(file, ".json") || continue
+                collect_units(JSON.parsefile(joinpath(directory, file); dicttype = Dict{String, Any}))
+            end
+        end
+
+        for unit in bundled_units
+            # Compare with the old reader, including its unknown-unit fallback.
+            expected = try
+                uparse(unit)
+            catch
+                u"1"
+            end
+            @test ChemistryLab.is_unit_expression(Meta.parse(unit))
+            @test parse_unit(unit) == expected
+        end
+
+        mktempdir() do directory
+            sentinel = joinpath(directory, "metadata-executed")
+            payload = "touch($(repr(sentinel)))"
+            for text in (
+                    payload, "Base.$payload", "($payload; K)", "K * $payload",
+                    "(x -> $payload)(K)", "getfield(Base, :touch)($(repr(sentinel)))",
+                )
+                @test parse_unit(text, u"Pa") == u"Pa"
+                @test !ispath(sentinel)
+            end
+            database = JSON.parsefile(datapath("cemdata18-thermofun.json"); dicttype = Dict{String, Any})
+            original = deepcopy(first(database["substances"]))
+            database["substances"] = [deepcopy(original)]
+            filename = joinpath(directory, "metadata.json")
+            # Exercise the public file loader for each formerly evaluated field.
+            for field in ("aggregate_state", "class_", "sm_gibbs_energy")
+                substance = deepcopy(original)
+                if field == "sm_gibbs_energy"
+                    substance[field] = Dict("values" => [1.0], "units" => [payload])
+                else
+                    substance[field] = Dict("0" => "($payload; AS_GAS)")
+                end
+                database["substances"] = [substance]
+                write(filename, JSON.json(database))
+                species = only(build_species(filename))
+                @test !ispath(sentinel)
+                if field == "aggregate_state"
+                    @test aggregate_state(species) == AS_UNDEF
+                elseif field == "class_"
+                    @test class(species) == SC_UNDEF
+                end
+            end
+        end
+    end
+
     @testset "the merged database: what the .dat file actually adds" begin
         # `merge_json` exists because Cemdata18's ThermoFun file and PHREEQC's
         # `.dat` file carry DIFFERENT things about the same phases, and the
