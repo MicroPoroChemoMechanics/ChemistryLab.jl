@@ -67,17 +67,60 @@ function read_thermofun_database(filename)
     return df_elements, df_substances, df_reactions
 end
 
+# Validate the entire syntax tree before calling uparse: its parser can evaluate
+# arbitrary call heads. Only unit arithmetic and named constants are data here.
+function is_unit_expression(ex)
+    if ex isa Real
+        return isfinite(ex)
+    elseif ex isa Symbol
+        return true # uparse itself resolves symbols only from its unit registry.
+    elseif ex isa Expr && ex.head == :call && length(ex.args) >= 2
+        op = first(ex.args)
+        arity = length(ex.args) - 1
+        allowed = if op in (:+, :*)
+            arity >= 1
+        elseif op == :-
+            arity in (1, 2)
+        elseif op in (:/, ://, :^)
+            arity == 2
+        elseif op in (:sqrt, :√, :cbrt, :∛)
+            arity == 1
+        else
+            false
+        end
+        return allowed && all(is_unit_expression, ex.args[2:end])
+    elseif ex isa Expr && ex.head == :. && length(ex.args) == 2
+        return ex.args[1] == :Constants && ex.args[2] isa QuoteNode &&
+            ex.args[2].value isa Symbol
+    end
+    return false
+end
+
 """
     extract_unit(v, default_unit=u"1") -> AbstractQuantity
 
-Try to parse the string `v` as a unit via `uparse`.
-Returns `default_unit` if parsing fails.
+Parse unit arithmetic (including powers, roots, and `Constants` names).
+Reject executable syntax before calling `uparse`. Returns `default_unit` for
+unsupported expressions, unknown units, or malformed input.
 """
 function extract_unit(v, default_unit = u"1")
     return try
+        is_unit_expression(Meta.parse(v)) || return default_unit
         uparse(v)
     catch
         default_unit
+    end
+end
+
+# Classification labels are enum names, never Julia expressions. Preserve the
+# existing undefined fallback for missing, malformed, and unsupported labels.
+function extract_classification(value, fallback::T) where {T <: Enum}
+    return try
+        label = only(values(value))
+        index = findfirst(x -> string(x) == label, instances(T))
+        isnothing(index) ? fallback : instances(T)[index]
+    catch
+        fallback
     end
 end
 
@@ -214,16 +257,8 @@ function build_species(
             row.formula;
             name = row.name,
             symbol = row.symbol,
-            aggregate_state = try
-                eval(Meta.parse(only(values(row.aggregate_state))))
-            catch
-                AS_UNDEF
-            end,
-            class = try
-                eval(Meta.parse(only(values(row.class_))))
-            catch
-                SC_UNDEF
-            end,
+            aggregate_state = extract_classification(get(row, :aggregate_state, missing), AS_UNDEF),
+            class = extract_classification(get(row, :class_, missing), SC_UNDEF),
         )
         complete_species_with_thermo_model!(species, row; verbose = verbose)
         key = row.symbol
