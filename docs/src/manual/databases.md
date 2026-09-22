@@ -43,6 +43,19 @@ build. Written with `datapath`, the same line runs from anywhere.
     *is* one of the bundled files, so a mistyped path to a file of your own
     still fails, with an error listing what is available.
 
+## ThermoFun metadata
+
+Classification fields contain exact enum names, such as `AS_AQUEOUS` and
+`SC_AQSOLUTE`. Missing, malformed, or unknown labels retain the undefined-state
+fallback (`AS_UNDEF` or `SC_UNDEF`).
+
+Unit fields accept numbers, registered unit symbols, arithmetic (`+`, `-`, `*`,
+`/`, `//`, `^`), square and cube roots, and `Constants` names. Examples include
+`J/(mol*K)`, `1e-05/K`, and `K^(1//2)`. Other function calls and executable Julia
+syntax are rejected before unit parsing. An invalid or unsupported unit retains
+the caller's default unit; rejection does not establish that the supplied data
+are scientifically valid. Database metadata cannot define custom Julia code.
+
 ## [The zeolite extension of CEMDATA18](@id sec-zeolites)
 
 `cemdata18-zeolites.json` is one of the bundled files, and unlike the others it
