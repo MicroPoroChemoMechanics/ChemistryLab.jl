@@ -413,3 +413,103 @@ end
     g = ForwardDiff.gradient(n -> lna(n, p)[2], n)
     @test all(isfinite, g)
 end
+
+@testsection "which activity models come from one excess Gibbs energy" begin
+    # TWO RELATIONS EVERY MODEL DERIVED FROM A SINGLE G^E MUST SATISFY, measured
+    # by automatic differentiation of `ln_activities` alone -- no `G` is built,
+    # no solver runs, and nothing is differenced against a second solve.
+    #
+    #   symmetry     ∂ln aᵢ/∂nⱼ = ∂ln aⱼ/∂nᵢ     (Maxwell: a potential exists)
+    #   Gibbs-Duhem  Σᵢ nᵢ ∂ln aᵢ/∂nⱼ = 0        (μᵢ homogeneous of degree 0)
+    #
+    # Symmetry is the sharper of the two: it fails exactly when no function of
+    # `n` has these activities for its gradient, whatever that function is.
+    #
+    # Both are RELATIVE measures. An absolute residual is meaningless here: the
+    # Jacobian holds self-derivatives of trace species of order 1/n, so dividing
+    # by its largest entry makes every real inconsistency look like zero. That
+    # mistake was made once and reported 1e-8 for a model that is off by 20 %.
+
+    subs = build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false)
+    d = Dict(symbol(s) => s for s in subs)
+    cs = ChemicalSystem(
+        [d[s] for s in ["H2O@", "Na+", "Cl-", "Ca+2", "SO4-2"]],
+        ["H2O@", "Na+", "Cl-", "Ca+2", "SO4-2", "Zz"],
+    )
+    nm = symbol.(cs.species)
+    amounts = Dict("H2O@" => 55.5, "Na+" => 0.1, "Cl-" => 0.12, "Ca+2" => 0.02, "SO4-2" => 0.01)
+    n0 = [get(amounts, s, 1.0e-10) for s in nm]
+    state = ChemicalState(cs, [x * u"mol" for x in n0])
+    p = ChemistryLab._build_params(state)
+    i_w = findfirst(==("H2O@"), nm)
+
+    # Split ion/ion from solvent/ion: they have different causes, and merging
+    # them is what hid the second one.
+    function asymmetries(model)
+        J = ForwardDiff.jacobian(nn -> activity_model(cs, model)(nn, p), n0)
+        ion, solvent = 0.0, 0.0
+        for i in eachindex(n0), j in (i + 1):length(n0)
+            scale = max(abs(J[i, j]), abs(J[j, i]))
+            scale > 1.0e-30 || continue
+            r = abs(J[i, j] - J[j, i]) / scale
+            (i == i_w || j == i_w) ? (solvent = max(solvent, r)) : (ion = max(ion, r))
+        end
+        gd = 0.0
+        for j in eachindex(n0)
+            terms = [n0[i] * J[i, j] for i in eachindex(n0)]
+            s = sum(abs, terms)
+            s > 1.0e-30 || continue
+            gd = max(gd, abs(sum(terms)) / s)
+        end
+        return (; ion, solvent, gd)
+    end
+
+    # THE DEBYE-HÜCKEL LIMITING LAW IS EXACT, which is the classical result and
+    # the anchor for everything below: it does come from one excess energy.
+    limiting = asymmetries(HKFActivityModel(; å = 0.0, Ḃ = 0.0))
+    @test limiting.ion < 1.0e-12
+    @test limiting.solvent < 1.0e-10
+    @test limiting.gd < 1.0e-10
+
+    # AND SO IS A COMMON ION SIZE WITH NO EXTENDED TERM.
+    common = asymmetries(HKFActivityModel(; å = 3.72, Ḃ = 0.0))
+    @test common.ion < 1.0e-12
+    @test common.solvent < 1.0e-10
+
+    # WHAT BREAKS IT, and it takes BOTH to be switched off. Neither alone is
+    # enough, and dropping the extended term while keeping ion-specific radii
+    # makes the ion/ion asymmetry WORSE, not better.
+    #
+    #   ∂ln γᵢ/∂nⱼ = ln10 · f′(I; zᵢ, åᵢ) · zⱼ²/(2·kg)
+    #
+    # so symmetry demands that f′(I; zᵢ, åᵢ)/zᵢ² not depend on i. An ion-specific
+    # `å` puts i in the Debye-Hückel denominator, and the extended term `Ḃ·I` is
+    # added with the SAME coefficient to every ion, so it contributes `Ḃ` rather
+    # than `Ḃ·zᵢ²`. Both are properties of the published extended form, which
+    # every geochemical code uses; they are approximations with a stated domain,
+    # not defects of this implementation.
+    @test asymmetries(HKFActivityModel(; å = 3.72)).ion > 1.0e-2       # Ḃ alone
+    @test asymmetries(HKFActivityModel(; Ḃ = 0.0)).ion > 1.0e-2        # å alone
+
+    # PITZER IS THE CONTROL, and it holds to machine precision -- γ and the
+    # osmotic coefficient are derivatives of one virial expansion, which is
+    # exactly what `pitzer.jl` claims for it.
+    cs_nacl = ChemicalSystem([d[s] for s in ["H2O@", "Na+", "Cl-"]], ["H2O@", "Na+", "Cl-"])
+    nm2 = symbol.(cs_nacl.species)
+    m0 = [get(Dict("H2O@" => 55.5, "Na+" => 0.1, "Cl-" => 0.1), s, 1.0e-10) for s in nm2]
+    st2 = ChemicalState(cs_nacl, [x * u"mol" for x in m0])
+    p2 = ChemistryLab._build_params(st2)
+    J = ForwardDiff.jacobian(
+        nn -> activity_model(
+            cs_nacl,
+            PitzerActivityModel(; parameters = build_pitzer_parameters(datapath("pitzer-reardon1990.toml"))),
+        )(nn, p2),
+        m0,
+    )
+    pz_sym = maximum(
+        abs(J[i, j] - J[j, i]) / max(abs(J[i, j]), abs(J[j, i]))
+            for i in eachindex(m0) for j in (i + 1):length(m0)
+            if max(abs(J[i, j]), abs(J[j, i])) > 1.0e-30
+    )
+    @test pz_sym < 1.0e-12
+end
