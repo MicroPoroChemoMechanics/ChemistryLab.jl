@@ -21,9 +21,8 @@
 # `git push --no-verify` skips it, an unconfigured clone has no hooks at all,
 # and the GitHub web editor and the Actions bots never touch this machine.
 # **The guarantee is CI**: `Spelling.yml` and `Format.yml` fail a pull request
-# and auto-correct a push to `main`, and they do not care where a commit came
-# from. This hook exists so that the bot never has to push a correction you
-# then have to pull -- it is fast local feedback, not the rule's enforcement.
+# and check pushes to `main` without changing files, regardless of where a
+# commit came from. This hook provides fast local feedback before CI.
 #
 # ## Why a temporary worktree rather than the files on disk
 #

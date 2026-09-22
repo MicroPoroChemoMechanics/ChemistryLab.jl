@@ -17,13 +17,9 @@ jobs:
   format:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v7
-        with:
-          # A full history, because the auto-format step below rebases before it
-          # pushes. The default shallow clone has no merge base to rebase onto.
-          fetch-depth: 0
       - uses: julia-actions/setup-julia@v3
         with:
           version: '1'
@@ -58,32 +54,9 @@ jobs:
       # `--inplace` first.
       - name: Install Runic
         run: julia -e 'using Pkg; Pkg.activate("runic", shared=true); Pkg.add(name="Runic", version="1.10")'
-      - name: Check formatting (PR)
-        if: github.event_name == 'pull_request'
+      - name: Check formatting
         run: |
           julia --project=@runic -e '
             using Runic
             paths = filter(isdir, ["src", "test", "ext"])
             exit(Runic.main(["--check"; paths]))'
-      - name: Auto-format (push to main)
-        if: github.event_name == 'push'
-        run: |
-          julia --project=@runic -e '
-            using Runic
-            paths = filter(isdir, ["src", "test", "ext"])
-            Runic.main(["--inplace"; paths])'
-          if [ -n "$(git diff --name-only)" ]; then
-            git config --local user.name "github-actions[bot]"
-            git config --local user.email "github-actions[bot]@users.noreply.github.com"
-            git add -A
-            git commit -m "Style: auto-format with Runic"
-            # Rebase before pushing. This job checked the repository out at one
-            # commit and pushes minutes later; anything landing on the branch in
-            # between — a hand push, a version bump, another workflow — makes a
-            # plain `git push` fail with "fetch first", and the formatting is then
-            # lost even though it conflicts with nothing. The commit only
-            # reformats, so replaying it on top of whatever arrived is always the
-            # right resolution.
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi

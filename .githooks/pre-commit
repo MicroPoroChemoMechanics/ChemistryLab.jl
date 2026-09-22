@@ -30,9 +30,8 @@ cd "$(git rev-parse --show-toplevel)"
 # ── Runic formatting ────────────────────────────────────────────────────────
 #
 # Same principle as the spelling section below: fix and re-stage rather than
-# refuse. `Format.yml` auto-formats pushes to `main` and commits the result,
-# which leaves the local clone one commit behind every time — formatting here
-# means the Action finds nothing to do and never creates that commit.
+# refuse. `Format.yml` checks formatting on PRs and pushes to `main`;
+# formatting here catches problems before CI. CI does not commit corrections.
 #
 # This block runs *before* the spelling section, which exits early when it has
 # nothing to fix — the common case, and it would skip everything after it.

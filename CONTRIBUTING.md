@@ -1,5 +1,47 @@
 # Contributing to ChemistryLab.jl
 
+## Branches, pull requests, and approval
+
+Create a dedicated branch from the latest accepted `main` for each coherent
+change, for example `fix/safe-database-import` or `fix/species-identity`.
+Include the implementation, regression tests, and documentation in the same PR.
+Link the relevant item in [the consolidation roadmap](CONSOLIDATION.md).
+
+Open a draft PR while work is in progress. For changes to species identity,
+thermodynamic formulations, or public APIs, discuss the proposed contract in a
+tracking issue before implementing dependent changes. After a prerequisite PR
+is merged, start its dependent branch from the updated `main`.
+
+Before requesting review, report validation commands and results, including any
+known baseline failures. Scientific changes also need assumptions, reference
+comparisons, and conservation residuals. Formatting and spelling CI only check
+the submitted code; apply corrections on the PR branch.
+
+Routine PRs require approval from one maintainer. Scientific changes and major
+changes (including public API or architectural changes) require approval from
+@jfbarthelemy. Request that review explicitly even when no owned path changes.
+Authors cannot approve their own PRs. Maintainers merge after the required review
+and checks; coding agents prepare PRs but do not merge them, enable automatic
+merging, or push directly to `main`.
+
+### Repository settings maintained on GitHub
+
+These settings require repository administration; committing this document does
+not enable them. Protect `main` with required PRs, at least one approval, required
+code-owner reviews, dismissal of stale approvals, resolved review conversations,
+and required CI checks. Apply the policy to administrators and automation without
+routine bypasses. `.github/CODEOWNERS` designates @jfbarthelemy for scientific
+paths and ownership policy. GitHub matches paths, not the scientific impact of a
+change: maintainers must also request his approval for major changes elsewhere.
+Code owners need explicit write access, and the CODEOWNERS file must be present
+on the PR base branch before it controls reviews.
+
+The desired REST API payload is stored in `.github/branch-protection.json`.
+It requires Julia 1.12, formatting, spelling, and documentation checks; newer
+Julia versions remain additional CI coverage. Verify the actual check names
+reported by CI before applying it.
+Keep publication of generated documentation on its separate deployment branch.
+
 ## The documentation computes what it shows
 
 Every number in the manual is computed by the build. Nothing is read from a
