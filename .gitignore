@@ -8,6 +8,7 @@
 /build/
 
 /local
+/codex
 
 .vscode
 .continue
