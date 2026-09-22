@@ -609,3 +609,45 @@ end
     @test n_rx[idx4["C3A"]] < n_sp[idx4["C3A"]]     # the two disagree, as they must
 
 end
+
+@testsection "a starting guess that cannot be computed is not a failed step" begin
+    # `_warm_x0` equilibrates the guess an implicit step starts from, and returns
+    # `n0` — the cold start — when it cannot. That fallback is the whole reason
+    # the `try` is there: the step is judged on its own result, not on the
+    # quality of where it began, so a guess that throws must not take the step
+    # down with it.
+    #
+    # An activity model whose only behavior is to fail. It is a stand-in for a
+    # failure and says so: the point is not which chemistry breaks, it is that
+    # ANY break on this path is absorbed. Nothing else in the suite reaches this
+    # branch, because every guess the real models produce succeeds.
+    struct UncomputableModel <: ChemistryLab.AbstractActivityModel end
+
+    dict = Dict(
+        symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"))
+    )
+    cs = ChemicalSystem(
+        [dict[s] for s in ["H2O@", "H+", "OH-", "Ca+2", "Portlandite"]],
+        ["H2O@", "H+", "Ca+2", "Zz"],
+    )
+    n = Any[fill(0.0u"mol", length(cs.species))...]
+    n[findfirst(==("H2O@"), symbol.(cs.species))] = 55.5u"mol"
+    n[findfirst(==("Portlandite"), symbol.(cs.species))] = 0.01u"mol"
+    state = ChemicalState(cs, n)
+    n0 = Float64[ustrip(us"mol", x) for x in state.n]
+
+    # The fallback: `n0` itself, unchanged and not merely equal in value.
+    fallback = ChemistryLab._warm_x0(UncomputableModel(), state, n0, 1.0e-16)
+    @test fallback === n0
+
+    # And the success path returns something else — otherwise the assertion above
+    # would pass even if the function always returned `n0`.
+    warm = ChemistryLab._warm_x0(DiluteSolutionModel(), state, n0, 1.0e-16)
+    @test warm !== n0
+    @test length(warm) == length(n0)
+    @test all(>=(0), warm)
+
+    # The failure leaves no flag behind, which is what the scoped values buy.
+    @test ChemistryLab._strict_convergence() == false
+    @test ChemistryLab._EXPLORING_STARTS[] == false
+end

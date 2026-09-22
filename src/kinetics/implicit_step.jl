@@ -135,6 +135,57 @@ the same basis.
 _primary_symbols(system::ChemicalSystem) = symbol.(system.SM.primaries)
 
 """
+    _warm_x0(model, state, n0, ϵ) -> Vector{Float64}
+
+The equilibrated starting guess for an implicit step, **or `n0` when it cannot be
+computed**.
+
+# Why the guess is equilibrated at all
+
+The dual solver admits a mixing phase by a tangent-plane test inside its
+active-set loop, and from a composition where the phase is entirely absent that
+admission fails. Measured on C₃S dissolving into a C-S-H solid solution: a cold
+start left one end-member at 2.7e-9 with a stationarity residual of 6.5, while
+the same problem started from an equilibrated guess certified at 3.6e-13 with all
+four end-members present. The failure belongs to the cold start, not to the
+kinetics — a plain equilibrium fails the same way.
+
+`autostart = false`, because the continuation fallback of
+[`equilibrate_certified`](@ref) is for a caller who has no starting point. Here
+`state` **is** one — the previous instant of the integration — and a handful of
+extra solves would be paid at every implicit step. Same principle as Reaktoro's
+coupled use, where the solver is reused across instants.
+
+# Why a failure here is not a failure of the step
+
+What this computes is a STARTING POINT, not a result, so strict convergence is
+suspended for it — the same distinction the continuation makes. Left set, the
+strict flag would turn an uncertified guess into a raise, the `catch` would
+swallow it, and the step would fall back on `n0` anyway: a caller asking for
+strict results would silently get a *worse* start than a caller who did not.
+
+And whatever else goes wrong, the fallback **is** the cold start. A guess that
+cannot be computed must not take the step down with it: the step is judged on its
+own result, not on the quality of where it began. Both suspensions are scoped to
+this task, so a trajectory integrated beside another cannot take its flags away —
+nor leave them behind.
+"""
+function _warm_x0(model, state, n0, ϵ)
+    return _relaxed_convergence() do
+        _exploring_starts() do
+            try
+                eq = first(
+                    equilibrate_certified(state; model = model, ϵ = ϵ, autostart = false)
+                )
+                Float64[ustrip(us"mol", x) for x in eq.n]
+            catch
+                n0
+            end
+        end
+    end
+end
+
+"""
     kinetic_step(kss, state, Δt; t = 0.0, ϵ = 1e-16, parameters = nothing)
         -> ChemicalState
 
@@ -334,35 +385,7 @@ function kinetic_step(
     # 3.6e-13 with all four end-members present. The failure belongs to the cold
     # start, not to the kinetics — a plain equilibrium fails the same way.
     x0 = if warm_start && !isempty(des.ss_groups) && _DUAL_AVAILABLE[]
-        # What this computes is a STARTING POINT, not a result, so
-        # `STRICT_CONVERGENCE[]` is cleared for it and restored after — the same
-        # distinction the continuation makes. Left set, the strict flag would
-        # turn an uncertified guess into a raise, the `catch` below would swallow
-        # it, and the step would fall back on `n0`: a caller asking for strict
-        # results would silently get a worse start than a caller who did not.
-        strict = STRICT_CONVERGENCE[]
-        STRICT_CONVERGENCE[] = false
-        was = _EXPLORING_STARTS[]
-        _EXPLORING_STARTS[] = true
-        try
-            # `autostart = false`: the continuation fallback of
-            # `equilibrate_certified` is for a caller who has no starting
-            # point. Here `state` IS one — the previous instant of the
-            # integration — and a handful of extra solves would be paid at
-            # every implicit step. Same principle as Reaktoro's coupled
-            # use, where the solver is reused across instants.
-            eq = first(
-                equilibrate_certified(
-                    state; model = des.model, ϵ = ϵ, autostart = false
-                )
-            )
-            Float64[ustrip(us"mol", x) for x in eq.n]
-        catch
-            n0
-        finally
-            STRICT_CONVERGENCE[] = strict
-            _EXPLORING_STARTS[] = was
-        end
+        _warm_x0(des.model, state, n0, ϵ)
     else
         n0
     end
@@ -384,7 +407,7 @@ function kinetic_step(
     res = _optima_dual_solve(prob, b_aug, x0, des.opts)
 
     res.converged || begin
-        NONCONVERGED[] += 1
+        Threads.atomic_add!(NONCONVERGED, 1)
         @warn "the implicit kinetic step did not converge; try a smaller Δt" maxlog = 1
     end
     parameters === nothing || (parameters[] = copy(res.q))

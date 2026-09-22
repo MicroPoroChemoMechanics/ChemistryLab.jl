@@ -276,7 +276,7 @@ function SciMLBase.solve(
     res = _optima_dual_solve(_dual_problem(des, p, n0, blocks), bv, n0, des.opts)
 
     res.converged || begin
-        NONCONVERGED[] += 1
+        Threads.atomic_add!(NONCONVERGED, 1)
         # Silent while a multi-start route is trying candidates: one of them not
         # converging is what the search is for, and the verdict belongs to the
         # certificate of the answer, not to a candidate.
