@@ -159,6 +159,21 @@ the JSON's own unit metadata is wrong for `a3` and `a4`, and `m_expansivity` is
 not read by this package at all. Every unit on a field that *is* read parses,
 fractional exponents included, and a test now walks the files and says so.
 
+The same guard is applied to the classifications. `extract_classification`
+matches a label by name and falls back when there is no match, and a fallback is
+a valid value, so a label the enum does not carry is data the import throws away
+without saying so -- `AS_LIQUID` was one. A test now requires every
+`aggregate_state` and `class_` on the `substances` of every shipped database to
+resolve to a member, and both enums document the correspondence: the four
+aggregate states ThermoFun uses here, and the four substance classes. `ELEMENT`
+and `CHARGE` appear only in the `elements` section, so `Class` is right not to
+carry them.
+
+Adding a member also turns every hand-written list of "all of them" into a
+filter. `idx_speciation` carried one -- four aggregate states named when there
+were four -- and reads `instances(AggregateState)` now. Its class list stays
+explicit, because `SC_SSENDMEMBER` is excluded on purpose.
+
 ### Changed — the documentation can be checked in minutes
 
 Not a change to the package, and the reason it is here: verifying that an example
