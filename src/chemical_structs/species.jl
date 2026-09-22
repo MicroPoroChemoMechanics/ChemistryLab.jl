@@ -16,8 +16,16 @@ Enumeration for species aggregate states.
   - `AS_AQUEOUS`: aqueous solution.
   - `AS_CRYSTAL`: crystalline solid.
   - `AS_GAS`: gas phase.
+  - `AS_LIQUID`: a pure liquid phase.
+
+`AS_LIQUID` is appended rather than inserted, so no existing member changes its
+integer value. It exists because a shipped database uses it: metallic mercury in
+`slop98-inorganic-thermofun.json` is declared `AS_LIQUID`, and until this was
+added it was read as `AS_UNDEF` -- an import silently losing what the file said.
+Classifications are matched by name, so nothing depends on ThermoFun's own
+numbering agreeing with ours.
 """
-@enum AggregateState AS_UNDEF AS_AQUEOUS AS_CRYSTAL AS_GAS
+@enum AggregateState AS_UNDEF AS_AQUEOUS AS_CRYSTAL AS_GAS AS_LIQUID
 
 """
     @enum Class
