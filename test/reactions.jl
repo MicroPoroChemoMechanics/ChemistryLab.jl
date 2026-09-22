@@ -100,24 +100,29 @@ using Test
 end
 
 @testsection "a half-reaction keeps its electrons on every Julia" begin
-    # THE REGRESSION. CI was green on Julia 1.13 and red on 1.12 from the same
-    # commit, with `SO4-2/HS-` reported as "balancing with no electron" on 1.12
-    # alone. The cause was not the chemistry and not the CPU: the `Reaction`
-    # constructor stripped the `Zz` and `e` pseudo-species with `delete!`, which
-    # looks a key up by `hash` and confirms with `isequal` -- and for
-    # `AbstractSpecies` those two disagree.
+    # THE REGRESSION, AND ITS ROOT CAUSE, NOW REMOVED. CI was green on Julia 1.13
+    # and red on 1.12 from the same commit, with `SO4-2/HS-` reported as
+    # "balancing with no electron" on 1.12 alone. The cause was not the chemistry
+    # and not the CPU: the `Reaction` constructor stripped the `Zz` and `e`
+    # pseudo-species with `delete!`, which looks a key up by `hash` and confirms
+    # with `isequal` -- and for `AbstractSpecies` those two disagreed. `isequal`
+    # compared formula, aggregate state and class; `hash` also mixed in the
+    # SYMBOL. So `ELECTRON` and `Species("e")` were `==` while hashing
+    # differently, and whether `delete!` reached one through the other depended
+    # on where the table put them, hence on the hash function, hence on the Julia
+    # version.
     #
-    # `isequal` compares formula, aggregate state and class; `hash` also mixes in
-    # the SYMBOL. So `ELECTRON` and `Species("e")` are `==` while hashing
-    # differently, and whether `delete!` reaches one through the other depends on
-    # where the table puts them, hence on the hash function, hence on the Julia
-    # version. Removing by symbol is version-independent.
+    # This testset used to assert that disagreement, "so that a future fix shows
+    # up here as a deliberate change rather than as a surprise". This is that
+    # change: `hash` and `isequal` now rest on the same four things, so the two
+    # agree and the version-dependence has nowhere to come from. Removing by
+    # symbol remains what the constructor does, and stays correct either way.
     e = ChemistryLab.ELECTRON
     @test symbol(e) == "e-"
-    # The disagreement itself, asserted so that a future fix to `isequal` or
-    # `hash` shows up here as a deliberate change rather than as a surprise.
-    @test e == Species("e")                       # equal...
-    @test hash(e) != hash(Species("e"))           # ...and not hash-equal
+    # Agreement, in both directions, on the very pair that broke.
+    @test e == Species("e")
+    @test hash(e) == hash(Species("e"))
+    @test Dict(e => 1)[Species("e")] == 1         # what `delete!` needs
 
     # And the property that matters: the electron survives the constructor.
     subs = build_species(datapath("cemdata18-thermofun.json"); verbose = false)

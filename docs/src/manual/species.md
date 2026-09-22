@@ -81,6 +81,57 @@ CO₂ = Species(Dict(:C=>1, :O=>2); name="Carbon dioxide", symbol="CO₂⤴", ag
 
 ---
 
+## [When are two species the same species?](@id sec-species-identity)
+
+Two species are equal when their **formula**, **aggregate state** and **class**
+agree, and when their **symbol** agrees on top of that — but only insofar as the
+symbol says something the formula does not.
+
+The symbol is in the contract because the first three do not separate
+**polymorphs**, and a polymorph is a different substance. Calcite and aragonite
+are both `CaCO3`, both `AS_CRYSTAL`, both `SC_COMPONENT`, and in CEMDATA18 their
+standard Gibbs energies differ by 821 J/mol — at 298 K, 0.33 in `ln K`, which is
+the whole difference in solubility between them.
+
+```@example identity
+using ChemistryLab
+
+calcite   = Species("CaCO3"; symbol = "Cal", aggregate_state = AS_CRYSTAL)
+aragonite = Species("CaCO3"; symbol = "Arg", aggregate_state = AS_CRYSTAL)
+
+(calcite == aragonite, length(unique([calcite, aragonite])))
+```
+
+At the same time, a symbol that merely **spells the species' own formula** adds
+nothing, and is ignored. So the same substance typed two ways is one species,
+with one hash — which is what a `Dict` or a `Set` needs:
+
+```@example identity
+a, b = Species("Ca+2"), Species("Ca⁺²")
+
+(a == b, hash(a) == hash(b), Dict(a => 1)[b])
+```
+
+!!! note "The symbol is also a lookup key, and stays what you typed"
+    [`ChemicalSystem`](@ref) indexes its species by symbol — `cs["H2O"]` — so the
+    stored symbol is never rewritten. The canonicalization above happens inside
+    the comparison only. In particular it does **not** replace a derived symbol
+    by a canonical spelling, because `unicode` is not constant on formulas that
+    compare equal: `Formula("e")` and `Formula("e-")` are equal yet spell
+    themselves `"e"` and `"e⁻"`, and `Formula("Ca+2")` and `Formula("Ca⁺²")` are
+    equal yet spell themselves `"Ca²⁺"` and `"Ca⁺²"`. A derived symbol therefore
+    contributes nothing at all rather than a canonical form.
+
+```@example identity
+cs = ChemicalSystem([Species("H2O"; aggregate_state = AS_AQUEOUS)])
+
+symbol.(cs.species), cs["H2O"] == Species("H2O"; aggregate_state = AS_AQUEOUS)
+```
+
+Species read from a database always carry an explicit symbol — `"Cal"`, `"Arg"`,
+`"H2O@"` — so every identity question about them is decided by that symbol, as it
+should be.
+
 ## Species properties
 
 The molar mass is automatically calculated and stored in the species `properties` dict under the key `:M`. Beyond that, the properties dict is open: any value of type `Number`, `AbstractVector{<:Number}`, `Function`, or `AbstractString` can be added at any time.
