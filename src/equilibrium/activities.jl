@@ -841,6 +841,80 @@ concentration_scale(::DaviesActivityModel) = :molality
 # passed in even where a model ignores them, so that all three share one
 # signature. AD-safe: arithmetic only.
 
+raw"""
+    log10_gamma_expression(model, z, å) -> Num
+
+The symbolic `log₁₀ γ` of an ion of charge `z` and size `å`, in the ionic
+strength `I`, with the model's own parameters substituted.
+
+# Why a package that computes this also writes it down
+
+`thermo_factories.jl` keeps a thermodynamic model in two forms: a symbolic
+expression, which makes the law and its parameters visible so that a wrong entry
+is caught by reading, and a compiled function for a solver's inner loop. The
+activity kernels had only the second.
+
+This is the first form, and the compiled path is untouched: `_log10γ_ion` is
+still what every activity evaluation calls, and this is never in that path. A
+test asserts the two agree, which is what makes a formula quoted in prose true by
+construction rather than by proofreading.
+
+# What it is for, beyond inspection
+
+[Activity models](@ref sec-theory-potential) shows that a model derived from a
+single excess Gibbs energy must satisfy `∂ln aᵢ/∂nⱼ = ∂ln aⱼ/∂nᵢ`, and that for
+these kernels
+
+```math
+\frac{\partial \ln\gamma_i}{\partial n_j}
+   = \ln 10 \; f'(I; z_i, \mathring{a}_i)\; \frac{z_j^2}{2\,\text{kg}} ,
+```
+
+so symmetry demands that `f'(I; zᵢ, åᵢ)/zᵢ²` not depend on `i`. With this
+function that `f` is an expression one can differentiate symbolically and look
+at, rather than a residual one can only measure.
+
+# Example
+
+```jldoctest
+julia> using Symbolics
+
+julia> expr = log10_gamma_expression(DaviesActivityModel(), -2, 0.0);
+
+julia> expr isa Num
+true
+```
+
+See also: [`_log10γ_ion`](@ref), [`HKFActivityModel`](@ref),
+[`DaviesActivityModel`](@ref).
+"""
+function log10_gamma_expression(model::HKFActivityModel, z, å)
+    I = Symbolics.variable(:I)
+    return _log10γ_ion(model, z, å, I, sqrt(I), model.A, model.B)
+end
+
+# Davies fixes the ion size at one value for everything, so its kernel ignores
+# both `å` and `B`; they are accepted and passed through for one signature.
+function log10_gamma_expression(model::DaviesActivityModel, z, å = zero(model.A))
+    I = Symbolics.variable(:I)
+    return _log10γ_ion(model, z, å, I, sqrt(I), model.A, zero(model.A))
+end
+
+"""
+    _log10γ_ion(model, z, å, I, sqrtI, A, B) -> Real
+
+`log₁₀ γ` for an ion of charge `z` and size `å` at ionic strength `I`, the
+**compiled** half of the pair [`log10_gamma_expression`](@ref) writes out.
+
+Takes `sqrtI` rather than computing it, because the caller already regularizes it
+as `sqrt(I + ϵ)` to keep a `ForwardDiff.Dual` finite at `I = 0`, and takes `A`
+and `B` rather than reading them off `model`, because they depend on temperature
+and pressure through the water model and the caller has them.
+
+This is the function every activity evaluation calls, and the accessor calls it
+too, so the two cannot drift. `DaviesActivityModel` fixes one ion size for
+everything and ignores `å` and `B`.
+"""
 @inline function _log10γ_ion(model::HKFActivityModel, z, å, I, sqrtI, A, B)
     return -A * z^2 * sqrtI / (1 + B * å * sqrtI) + model.Ḃ * I
 end

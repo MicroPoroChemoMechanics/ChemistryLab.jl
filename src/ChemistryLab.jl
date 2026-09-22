@@ -284,6 +284,7 @@ module ChemistryLab
         spinodal_interval,
         common_tangent,
         excess_ln_gamma_expression,
+        log10_gamma_expression,
         miscibility_split,
         end_members,
         model,

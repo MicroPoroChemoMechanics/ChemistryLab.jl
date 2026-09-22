@@ -327,6 +327,14 @@ and §6 is about what that costs.
 `test/activities.jl` pins the zeros and the orders of magnitude above, so a change
 to any ``\gamma`` shows up here rather than in a result.
 
+The two lines of the derivation are checked as such rather than only through
+their consequence. [`log10_gamma_expression`](@ref) returns the kernel as a
+symbolic expression, so ``f'(I;z_i,\mathring{a}_i)/z_i^2`` can be differentiated
+and compared between ions: with a common ``\mathring{a}`` and no ``\dot{B}`` the
+two agree to ``10^{-14}``, and with either correction in place they do not. The
+same expression is asserted to agree with the compiled kernel, which is what
+makes the formula written in §1 the formula that runs.
+
 ## 6. The ion-interaction model: a different kind of object
 
 Everything above is a **corrected Debye-Hückel law**: one screening term derived

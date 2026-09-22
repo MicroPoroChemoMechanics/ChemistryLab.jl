@@ -127,6 +127,14 @@ symbolic `ln γₖ`, and a test asserts it agrees with the compiled path — whi
 makes the formula in the docstring true by construction rather than by
 proofreading. The compiled path itself is untouched.
 
+`log10_gamma_expression` does the same for the activity kernels, and buys more
+than inspection: the derivation behind the table above — that Maxwell demands
+`f′(I; zᵢ, åᵢ)/zᵢ²` not depend on the ion — is now **checked** rather than only
+its consequence measured. Differentiated symbolically, the ratio agrees between
+charges to `1e-14` with a common `å` and no `Ḃ`, and disagrees as soon as either
+correction is present. `_log10γ_ion`, the compiled half, gains the docstring it
+never had.
+
 ### Fixed — pure water, where the assertion that passed was not the one that mattered
 
 An audit reported the Schur-complement route failing the autoprotolysis test on

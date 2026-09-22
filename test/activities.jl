@@ -1,3 +1,4 @@
+using Symbolics
 using ForwardDiff
 using LinearAlgebra: norm
 
@@ -512,4 +513,61 @@ end
             if max(abs(J[i, j]), abs(J[j, i])) > 1.0e-30
     )
     @test pz_sym < 1.0e-12
+end
+
+@testsection "the written activity kernel and the compiled one are the same kernel" begin
+    # The pair `thermo_factories.jl` keeps for thermodynamic models -- a symbolic
+    # expression to read and a compiled function to run -- extended to the
+    # activity kernels. The compiled path is untouched: `_log10γ_ion` is still
+    # what every evaluation calls. What this asserts is that the expression says
+    # the same thing, so a formula quoted in the theory page is true by
+    # construction rather than by proofreading.
+    Ivar = Symbolics.variable(:I)
+    cases = (
+        (HKFActivityModel(), -2, 4.5),
+        (HKFActivityModel(; å = 3.72), 1, 3.72),
+        (HKFActivityModel(; Ḃ = 0.0), 3, 9.0),
+        (DaviesActivityModel(), -1, 0.0),
+    )
+    for (model, z, å) in cases
+        expr = log10_gamma_expression(model, z, å)
+        @test expr isa Num
+        f = Symbolics.build_function(expr, Ivar; expression = Val(false))
+        for I in (1.0e-6, 0.01, 0.1, 0.5, 1.0)
+            A = model.A
+            B = model isa HKFActivityModel ? model.B : zero(A)
+            numeric = ChemistryLab._log10γ_ion(model, z, å, I, sqrt(I), A, B)
+            @test f(I) ≈ numeric atol = 1.0e-12
+        end
+    end
+
+    # AND THE DERIVATION OF §5b, SYMBOLICALLY. Maxwell demands that
+    # `f'(I; zᵢ, åᵢ) / zᵢ²` not depend on the ion. With a common `å` and no
+    # extended term it does not -- the ratio is one expression for every charge,
+    # and their difference simplifies to zero, which is stronger than a small
+    # residual. With either correction in place it does, which is why the
+    # measured asymmetry is what it is.
+    D = Symbolics.Differential(Ivar)
+    ratio(m, z, å) = Symbolics.expand_derivatives(D(log10_gamma_expression(m, z, å))) / z^2
+
+    # The difference is EVALUATED rather than simplified to zero. `simplify`
+    # does not reduce these to `0` -- the parameters are floating point and it
+    # declines to cancel them -- and asserting on what a simplifier happens to
+    # reach would test the simplifier. Evaluating the derivative expression at
+    # several ionic strengths tests the identity.
+    function gap(m, z1, å1, z2, å2)
+        d = Symbolics.build_function(
+            ratio(m, z1, å1) - ratio(m, z2, å2), Ivar; expression = Val(false)
+        )
+        return maximum(abs(d(I)) for I in (1.0e-4, 0.01, 0.1, 0.5, 1.0))
+    end
+
+    exact = HKFActivityModel(; å = 3.72, Ḃ = 0.0)
+    @test gap(exact, 1, 3.72, 2, 3.72) < 1.0e-14
+    @test gap(exact, 1, 3.72, 3, 3.72) < 1.0e-14
+
+    # The extended term alone breaks it: it contributes `Ḃ`, not `Ḃ·z²`.
+    @test gap(HKFActivityModel(; å = 3.72), 1, 3.72, 2, 3.72) > 1.0e-3
+    # And so does an ion-specific size, with no extended term at all.
+    @test gap(HKFActivityModel(; Ḃ = 0.0), 1, 3.0, 1, 5.0) > 1.0e-3
 end
