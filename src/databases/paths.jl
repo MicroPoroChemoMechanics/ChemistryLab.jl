@@ -91,12 +91,25 @@ A file inside the package is shown relative to the package root
 matters because these banners are captured verbatim into the documentation:
 printing the absolute path would bake the build machine's directories
 (`/home/runner/work/...`) into every page that loads a database.
+
+Whether a file is inside the package is decided by a prefix test and not by
+asking `relpath` and reading `..` off its answer. `relpath` compares two paths
+component by component, and on Windows two paths on **different drives** share no
+component at all: it returns a chain of `..` and the target, which starts with
+`..` only by accident, or a path that starts with the drive letter and does not.
+A GitHub Windows runner checks out on one drive and puts `tempdir()` on another,
+so a file plainly outside the package could come back rewritten. The prefix test
+has no such case.
 """
 function display_data_path(path::AbstractString)
     root = pkgdir(@__MODULE__)
     if root !== nothing
-        relative = relpath(abspath(path), root)
-        startswith(relative, "..") || return relative
+        absolute = abspath(path)
+        sep = Base.Filesystem.path_separator
+        prefix = endswith(root, sep) ? root : root * sep
+        # The separator is part of the prefix on purpose: without it, a sibling
+        # directory whose name merely begins with the package's would match.
+        startswith(absolute, prefix) && return relpath(absolute, root)
     end
     return String(path)
 end

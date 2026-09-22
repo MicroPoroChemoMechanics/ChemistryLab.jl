@@ -258,7 +258,18 @@ using TOML
         # The banner a reader sees stays machine-independent.
         @test ChemistryLab.display_data_path(bundled) ==
             joinpath("data", "cemdata18-thermofun.json")
+        # Outside the package, shown unchanged -- including a path built the way
+        # the running platform builds one, since `tempdir()` is on another drive
+        # from the checkout on a Windows runner and that is exactly the case a
+        # `relpath`-based test would get wrong.
+        outside = joinpath(tempdir(), "elsewhere", "foo.json")
+        @test ChemistryLab.display_data_path(outside) == outside
         @test ChemistryLab.display_data_path("/elsewhere/foo.json") == "/elsewhere/foo.json"
+        # A sibling of the package root whose name begins with it is not inside
+        # it, which the prefix test has to get right.
+        sibling = pkgdir(ChemistryLab) * "-elsewhere"
+        @test ChemistryLab.display_data_path(joinpath(sibling, "f.json")) ==
+            joinpath(sibling, "f.json")
     end
 
 end

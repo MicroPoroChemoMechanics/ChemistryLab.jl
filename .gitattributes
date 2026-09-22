@@ -1,0 +1,21 @@
+# Line endings are normalized to LF in the working tree on every platform.
+#
+# Without this, git on Windows checks text files out with CRLF by default, and
+# three things in this repository read text and compare it: `readlines` over the
+# bundled `.dat` databases, the doctests, and `test/scripts.jl`, which checks
+# that each generated script still matches the page it came from. That last one
+# compares syntax trees rather than bytes and so survives either ending, but the
+# other two are one stray `\r` away from a failure that says nothing about the
+# code.
+#
+# LF everywhere also keeps a diff from showing every line of a file as changed
+# the first time a Windows contributor saves it.
+* text=auto eol=lf
+
+# Binaries, left exactly as they are.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary

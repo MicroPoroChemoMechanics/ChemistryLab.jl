@@ -15,9 +15,10 @@
 # to one manual page still had the build inside `examples/` fifty minutes later.
 #
 # What does work is giving Documenter a different source tree. It walks with
-# `follow_symlinks = true`, so the pruned tree is a farm of symlinks to the real
-# files -- nothing is copied, and no page can go stale against its original. The
-# page tree is filtered to match, so the navigation shows what was built.
+# `follow_symlinks = true`, so a kept page is linked rather than copied and
+# cannot go stale against its original -- falling back to a copy on a platform
+# that refuses to create a symlink, which Windows does without Developer Mode.
+# The page tree is filtered to match, so the navigation shows what was built.
 #
 # WHAT A PARTIAL BUILD PROVES: that the `@example` blocks of the pages it kept
 # run, and that those pages render.
@@ -117,7 +118,18 @@ function pruned_source(srcdir, pats)
             dst = normpath(joinpath(tmp, rel, f))
             if endswith(f, ".md")
                 is_kept(replace(normpath(joinpath(rel, f)), '\\' => '/'), pats) || continue
-                symlink(src, dst)
+                # A symlink where the platform allows one, a copy where it does
+                # not. Creating a symlink on Windows needs Developer Mode or an
+                # elevated process, and a documentation build must not depend on
+                # either; the copy is equivalent for a page, which is only ever
+                # read. What it loses is the guarantee that a pruned page cannot
+                # drift from its source -- and it cannot drift far, since the
+                # tree lives only for the length of the build.
+                try
+                    symlink(src, dst)
+                catch
+                    cp(src, dst; force = true)
+                end
             else
                 cp(src, dst; force = true)
             end
