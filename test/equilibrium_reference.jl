@@ -140,20 +140,46 @@ const N_H2O, N_CAL, N_CO2 = 55.5, 0.05, 0.01
         @test h ≈ oh rtol = 1.0e-4
         @test 13.9 < -log10(h * oh) < 14.1
 
-        # The Schur-complement route used to get this wrong, and no longer does.
+        # THE SCHUR-COMPLEMENT ROUTE IS STILL WRONG, and this testset used to say
+        # otherwise because it only looked at the half that happens to be right.
         #
-        # It came out at [H⁺]/[OH⁻] ≈ 3.78, then at 8.7e-5, both far from one, and
-        # this assertion was written the other way round — "the answer is wrong" —
+        # History: the route came out at [H⁺]/[OH⁻] ≈ 3.78, then at 8.7e-5, and
+        # the assertion was written the other way round — "the answer is wrong" —
         # with the note that if it ever started passing, the defect had been cured
-        # elsewhere. It has: with the feasibility error scaled row by row
-        # (OptimaSolver 0.5.0) the route reaches 0.9956, within half a percent of
-        # unity. The unscaled measure was dominated by the solvent row at 55.5 mol
-        # and stopped the iteration on a point that satisfied it while the trace
-        # ions did not, which on pure water is the whole answer.
+        # elsewhere. It started passing, and the note was taken at its word.
+        #
+        # It should not have been. The ratio is electroneutrality, which is
+        # necessary and not sufficient; the other half of "this is pure water" is
+        # the ion product, and nothing asserted it for this route. Measured on
+        # Linux x86_64, Julia 1.13, OptimaSolver 0.6.0:
+        #
+        #     route     [H⁺]/[OH⁻]   [H⁺]        [OH⁻]       pKw
+        #     default   1.000000     1.0002e-7   1.0002e-7   13.9998
+        #     Schur     0.995604     1.1833e-6   1.1885e-6   11.8519
+        #
+        # Both ions come out about twelve times too large, so the product is off
+        # by a factor of 140 while their RATIO stays within half a percent of one.
+        # The element balance closes exactly either way — 111.000000 mol of H
+        # against 111.0 in — so the route returns a point that conserves matter
+        # and is not an equilibrium, and it says so: the solve reports `MaxIters`.
+        #
+        # This also reframes the failure an external audit saw on macOS ARM64,
+        # where the ratio came out 0.83683 and the assertion went red. The route
+        # is wrong on Linux too; the platform only changes how visibly.
         eqs = equilibrate(ChemicalState(csw, n), OptimaOptimizer(; nullspace_step = false))
         vs = [ustrip(us"mol", x) for x in eqs.n]
-        ratio = vs[findfirst(==("H+"), nw)] / vs[findfirst(==("OH-"), nw)]
+        hs, ohs = vs[findfirst(==("H+"), nw)], vs[findfirst(==("OH-"), nw)]
+        ratio = hs / ohs
+
+        # Reported, not merely asserted: a boolean against a tolerance hides how
+        # much room is left, and there is little — 0.44 % against 1 %.
+        @info "water autoprotolysis, Schur route" ratio pKw = -log10(hs * ohs)
+
         @test isapprox(ratio, 1.0; rtol = 1.0e-2)
+        # The half that was missing. `@test_broken`, so the suite states the
+        # defect instead of passing over it — and turns red the day it is fixed,
+        # which is how we will hear about it.
+        @test_broken 13.9 < -log10(hs * ohs) < 14.1
     end
 
     @testset "element balance closes exactly" begin
