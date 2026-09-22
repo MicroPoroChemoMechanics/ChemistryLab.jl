@@ -12,6 +12,9 @@ using DocumenterVitepress
 using PrettyTables
 
 include("pages.jl")
+# Reads `pages`, and may replace it. See its header for why a partial build
+# needs a pruned SOURCE tree and not just a pruned page tree.
+include("partial.jl")
 
 # ── Guard: no page may set the plot font ─────────────────────────────────────
 #
@@ -159,12 +162,9 @@ let
     )
 end
 
-DocMeta.setdocmeta!(
-    ChemistryLab,
-    :DocTestSetup,
-    :(using ChemistryLab, DynamicQuantities, OrderedCollections, Symbolics);
-    recursive=true,
-)
+# Shared with the `Doctests` job of `.github/workflows/Documentation.yml`, which
+# runs the same blocks without ever loading this file. See the header there.
+include("doctest_setup.jl")
 
 ENV["FORCE_COLOR"] = "true"
 ENV["COLUMNS"] = "200"
@@ -424,7 +424,15 @@ end
 # the real pass must start from a fresh one. Plain `Documenter.HTML` into a
 # temporary directory, because what is wanted here is the checks and not the
 # site.
-let t0 = time()
+#
+# SKIPPED IN A PARTIAL BUILD, and the reason is the pre-flight's own. It exists
+# to reach `missing_docs` in two minutes instead of seventy -- but a partial
+# build prunes the API pages, so every docstring on them is "missing" and the
+# check reports 602 of them. It is the pre-flight that is right there, not the
+# build: docstring coverage is a property of the whole site, and a partial build
+# says up front that it does not check it. There are also no seventy minutes
+# left to protect. The full build reaches the same check, strictly.
+PARTIAL_BUILD || let t0 = time()
     @info "pre-flight: draft build (checks only, no example executed)"
     mktempdir() do draftdir
         makedocs(;
@@ -440,6 +448,7 @@ let t0 = time()
                 edit_link = nothing, repolink = nothing,
                 size_threshold = nothing, size_threshold_warn = nothing,
             ),
+            source = DOCS_SOURCE,
             build = draftdir,
             pages = pages,
             plugins = [
@@ -476,9 +485,24 @@ makedocs(;
         deploy_url = "https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl",
         description = "Aqueous and cement chemistry in Julia: speciation, equilibrium and kinetics",
     ),
+    # `src`, or the pruned symlink tree a partial build stands up. Filtering
+    # `pages` alone would leave every other page still executing.
+    source=DOCS_SOURCE,
     pages=pages,
     plugins=[bib],
-    warnonly=[:docs_block],
+    # A partial build can resolve neither a reference into a page it did not
+    # build nor a docstring whose API page it pruned, so those two are demoted
+    # THERE AND ONLY THERE. The full build keeps the narrow list, which is what
+    # makes it the gate.
+    warnonly=PARTIAL_BUILD ?
+        [:docs_block, :cross_references, :missing_docs, :linkcheck] :
+        [:docs_block],
+    # Doctests have their own job in `.github/workflows/Documentation.yml`, which
+    # finishes in minutes. Left at the default `true` they run inside this build
+    # instead, so a broken one-line example failed a two-hour job. The two must
+    # stay in step: turning this back on means turning that job off, or every
+    # doctest runs twice.
+    doctest=false,
     draft=false,
 )
 
@@ -486,10 +510,20 @@ end  # Logging.with_logger
 
 # DocumenterVitepress writes a real directory per version rather than the
 # symlinks Documenter used, so it needs its own `deploydocs`.
-DocumenterVitepress.deploydocs(;
-    repo         = "github.com/MicroPoroChemoMechanics/ChemistryLab.jl.git",
-    target       = joinpath(@__DIR__, "build"),
-    branch       = "gh-pages",
-    devbranch    = "main",
-    push_preview = false,
-)
+#
+# A partial build must never reach this. `deploydocs` replaces the deployed tree
+# with what is in `build/`, so deploying a three-page site would take the other
+# twenty offline — and it would do so from a build that did not check a single
+# cross-reference. The guard is here rather than left to the caller because the
+# mistake is one command away and silent until the site is already gone.
+if PARTIAL_BUILD
+    @info "partial build: deployment skipped"
+else
+    DocumenterVitepress.deploydocs(;
+        repo         = "github.com/MicroPoroChemoMechanics/ChemistryLab.jl.git",
+        target       = joinpath(@__DIR__, "build"),
+        branch       = "gh-pages",
+        devbranch    = "main",
+        push_preview = false,
+    )
+end

@@ -41,14 +41,67 @@ than quietly coarsening it.
 julia --project=docs docs/make.jl
 ```
 
-Roughly 23 minutes. Every `@example` block runs, in **one shared process** — so a
-global set on one page (`Plots.default(fontfamily = ...)` is the one that has
-caused trouble) applies to every page built afterwards. `docs/make.jl` carries a
-guard that refuses a page setting the plot font, and a timer that names any block
-taking more than five seconds.
+Over two hours, and one page is most of it. Every `@example` block runs, in **one
+shared process** — so a global set on one page (`Plots.default(fontfamily = ...)`
+is the one that has caused trouble) applies to every page built afterwards.
+`docs/make.jl` carries a guard that refuses a page setting the plot font, and a
+timer that names any block taking more than five seconds, which is how to find
+out where the hours went.
 
 A `draft` build executes nothing and therefore proves nothing. Do not report a
 page as working on the strength of one.
+
+### Building only the pages you touched
+
+```bash
+CHEMLAB_DOCS_ONLY=examples/cem3_slag julia --project=docs docs/make.jl
+CHEMLAB_DOCS_ONLY=manual/,theory/    julia --project=docs docs/make.jl
+```
+
+A comma-separated list of patterns, each matched against the path as
+`docs/pages.jl` spells it. A pattern that matches nothing is an error rather than
+a small site: a typo must not look like a build that passed. `index.md` and
+`references.md` are always kept.
+
+One manual page rebuilds in **under two minutes**, against over two hours for
+the site. An example page costs whatever its own solves cost, and no more.
+
+**How it works, and why it is not just a filter on `pages`.** Documenter walks
+the *source directory* and builds every `.md` it finds there; `pages` only
+decides the navigation. So `docs/partial.jl` stands up a temporary tree of
+**symlinks** to `docs/src`, leaving out the pages the filter rejects, and hands
+that to `makedocs` as its `source`. Nothing is copied, so a pruned tree cannot
+drift from the files it stands for. `docs/src/.vitepress/config.mts` reads the
+same variable to allow dead links, because the unresolved references Documenter
+then emits are exactly what VitePress refuses; the draft pre-flight is skipped,
+because its own check — `missing_docs` — cannot mean anything once the API pages
+are pruned.
+
+**What a partial build proves:** the `@example` blocks of the pages it kept run,
+and those pages render.
+
+**What it cannot prove, and does not claim to:** anything about links or about
+docstring coverage. Every `@ref` into a pruned page points at nothing, and every
+docstring whose API page was pruned is "missing", so `cross_references` and
+`missing_docs` are demoted to warnings — for that build only. It also refuses to
+deploy. **The full build stays the gate before a merge**, and it is the only one
+that checks those, with `warnonly` kept down to `[:docs_block]`.
+
+### Doctests are not part of that build
+
+They have their own job in `.github/workflows/Documentation.yml`, which finishes
+in minutes instead of failing the two-hour build over a printed digit. Locally:
+
+```bash
+julia --project=docs -e 'using Documenter: doctest;
+                         include("docs/doctest_setup.jl"); doctest(ChemistryLab)'
+```
+
+`docs/doctest_setup.jl` holds the preamble, and both the build and the CI job
+include it — the two had drifted while one of them was commented out, so it is
+now one file rather than two copies. `makedocs` is called with `doctest = false`
+to match: turning it back on means turning that job off, or every doctest runs
+twice.
 
 ## Before you push
 
