@@ -112,8 +112,11 @@ function kelvin_radius(a_w; γ, V_m, T)
                 "got $a_w — at a_w = 1 the meniscus is flat and the radius infinite"
         )
     )
+    # `_adim`, not a bare `log`: an activity is dimensionless by definition, and a
+    # caller is free to hand one over as a `Quantity`. This is the one place in
+    # the package that took a logarithm of a possibly-dimensioned value.
     return -2 * _si(us"N/m", γ) * _si(us"m^3/mol", V_m) /
-        (log(a_w) * ustrip(us"J/mol/K", Constants.R) * _si(us"K", T))
+        (log(_adim(a_w)) * ustrip(us"J/mol/K", Constants.R) * _si(us"K", T))
 end
 
 """

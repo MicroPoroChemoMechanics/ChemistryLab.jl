@@ -20,6 +20,43 @@ f = Formula(comp_with_units)
 f_scaled = apply(x -> x * 2, f)
 ```
 
+### Dimensioned arguments to dimensionless functions
+
+`log`, `exp` and the rest take a **number**. Handing one a quantity that carries
+a dimension is an error, and ChemistryLab leaves it that way:
+
+```@example dims
+using ChemistryLab, DynamicQuantities
+
+try
+    log(2u"m")
+catch err
+    err isa DimensionError ? "DimensionError, as it should be" : rethrow()
+end
+```
+
+A ratio whose units cancel is a number, and works:
+
+```@example dims
+log(2u"m/m"), exp(1u"1")
+```
+
+!!! warning "This was not always so"
+    Up to and including 0.18.1, loading ChemistryLab extended some thirty `Base`
+    math functions to `DynamicQuantities.Quantity`, stripping the unit first. Two
+    consequences, and the second is the one that could change a result:
+
+    - the methods were **global**, so every package loaded beside this one
+      inherited them whether or not it asked;
+    - `ustrip` returns the value in SI **base** units, so the answer depended on
+      how the quantity had been written — `log(1u"mol/L")` gave `6.908` and
+      `log(1u"mmol/L")` gave `0.0`, for what is the same concentration scale one
+      thousand apart.
+
+    If you relied on `log(x)` accepting a dimensioned `x`, form the dimensionless
+    ratio yourself and take the logarithm of that. It is one more line, and it is
+    the line that says which reference the logarithm is taken against.
+
 ### Arithmetic with fractional stoichiometry
 
 ChemistryLab preserves rational coefficients when parsing fractional formulas (use `//` for rational notation) and when doing arithmetic.

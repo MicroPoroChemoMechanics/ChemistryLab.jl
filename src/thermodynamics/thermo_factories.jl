@@ -8,7 +8,14 @@ using Symbolics
 """
     ADIM_MATH_FUNCTIONS
 
-List of dimensionless mathematical functions to be extended for `Quantity` arguments.
+The mathematical functions that take a **dimensionless** argument.
+
+Used to extend [`SymbolicFunc`](@ref) and [`NumericFunc`](@ref), which are this
+package's own types, so that a compiled or symbolic expression can be written
+with them. It is **not** used to extend them to `DynamicQuantities.Quantity`:
+that was type piracy, it applied to every package loaded beside this one, and it
+replaced a dimension error by an answer that depended on SI normalization. See
+[`_adim`](@ref), which restores the check at the two places that needed one.
 """
 const ADIM_MATH_FUNCTIONS = [
     :log,
@@ -48,12 +55,6 @@ const ADIM_MATH_FUNCTIONS = [
     :gamma,
     :lgamma,
 ]
-
-for f in ADIM_MATH_FUNCTIONS
-    if isdefined(Base, f)
-        @eval Base.$f(x::Quantity) = $f(ustrip(x))
-    end
-end
 
 # ── Abstract type ──────────────────────────────────────────────────────────────
 

@@ -48,14 +48,10 @@ end
 @testsection "Aqua" begin
     Aqua.test_all(
         ChemistryLab;
-        # `thermo_factories.jl` extends some thirty `Base` math functions to
-        # `DynamicQuantities.Quantity`, stripping the unit before applying them.
-        # That is type piracy by construction — the function and the type both
-        # belong elsewhere — and it is deliberate: it is what lets a
-        # dimensionless quantity be used wherever a number is expected. Declared
-        # rather than hidden. It stays global, though: any code loading
-        # ChemistryLab gets these methods whether it asked for them or not.
-        piracies = (treat_as_own = [DynamicQuantities.Quantity],),
+        # No `piracies` exemption any more. `thermo_factories.jl` used to extend
+        # some thirty `Base` math functions to `DynamicQuantities.Quantity`,
+        # declared here rather than hidden; those methods are gone, and this
+        # check is what keeps them from coming back.
         # Run apart, see `aqua_persistent_tasks` above.
         persistent_tasks = false,
     )
