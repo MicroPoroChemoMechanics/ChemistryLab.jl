@@ -67,7 +67,15 @@ union_atoms(species_list::AbstractVector{<:AbstractSpecies}, order_vec = ATOMIC_
 
 function idx_speciation(
         species_list, atoms_list::AbstractVector{Symbol};
-        aggregate_state = [AS_AQUEOUS, AS_CRYSTAL, AS_GAS, AS_UNDEF],
+        # EVERY state, written as `instances` rather than listed. The list used
+        # to name all four members there were, so its intent was "do not filter
+        # on state at all" -- and the day a fifth was added it silently became a
+        # filter, excluding it. `instances` cannot go stale that way.
+        aggregate_state = collect(instances(AggregateState)),
+        # The classes are NOT `instances`, and the difference is deliberate:
+        # `SC_SSENDMEMBER` is absent because a solid-solution end member enters a
+        # system through its phase and not as a species of its own. Five of six,
+        # on purpose.
         class = [SC_AQSOLUTE, SC_AQSOLVENT, SC_COMPONENT, SC_GASFLUID, SC_UNDEF],
         exclude_species = [],
         include_species = [],

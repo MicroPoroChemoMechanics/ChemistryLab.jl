@@ -18,12 +18,29 @@ Enumeration for species aggregate states.
   - `AS_GAS`: gas phase.
   - `AS_LIQUID`: a pure liquid phase.
 
+# Correspondence with ThermoFun
+
+An imported label is matched **by name**, so ThermoFun's numbering and this
+enum's are independent and neither constrains the other. The codes below are the
+ones its files carry, counted over the databases shipped in `data/`:
+
+| ThermoFun code | label | occurrences | here |
+|---:|:--|---:|:--|
+| 4 | `AS_AQUEOUS` | 2183 | `AS_AQUEOUS` |
+| 3 | `AS_CRYSTAL` | 870 | `AS_CRYSTAL` |
+| 0 | `AS_GAS` | 57 | `AS_GAS` |
+| 1 | `AS_LIQUID` | 1 | `AS_LIQUID` |
+| — | not stated | — | `AS_UNDEF` |
+
 `AS_LIQUID` is appended rather than inserted, so no existing member changes its
-integer value. It exists because a shipped database uses it: metallic mercury in
-`slop98-inorganic-thermofun.json` is declared `AS_LIQUID`, and until this was
-added it was read as `AS_UNDEF` -- an import silently losing what the file said.
-Classifications are matched by name, so nothing depends on ThermoFun's own
-numbering agreeing with ours.
+integer value. It is here because a shipped database uses it -- metallic mercury
+in `slop98-inorganic-thermofun.json` -- and until it was added that record read
+as `AS_UNDEF`, an import silently losing what the file said.
+
+A label with no member to land on takes the fallback, and a fallback is a valid
+value, so nothing announces the loss. `test/databases.jl` therefore walks the
+`substances` of every shipped database and requires each label to resolve, which
+is what turns the table above from a claim into a check.
 """
 @enum AggregateState AS_UNDEF AS_AQUEOUS AS_CRYSTAL AS_GAS AS_LIQUID
 
@@ -42,6 +59,16 @@ Enumeration for species chemical classes.
   - `SC_SSENDMEMBER`: end-member of a solid solution phase.
 """
 @enum Class SC_UNDEF SC_AQSOLVENT SC_AQSOLUTE SC_COMPONENT SC_GASFLUID SC_SSENDMEMBER
+
+# Correspondence with ThermoFun, counted over `data/`: `SC_AQSOLUTE` (2179),
+# `SC_COMPONENT` (868), `SC_GASFLUID` (57) and `SC_AQSOLVENT` (7) appear on
+# substances and all have a member here. `ELEMENT` (221) and `CHARGE` (7) appear
+# only in the `elements` section -- they are ThermoFun's classes for ELEMENTS,
+# not for substances, so this enum is right not to carry them, and the guard in
+# `test/databases.jl` walks `substances` alone for that reason.
+#
+# `SC_SSENDMEMBER` has no ThermoFun counterpart: it is this package's own role
+# for an end member that enters a system through its solid-solution phase.
 
 """
     abstract type AbstractSpecies end
