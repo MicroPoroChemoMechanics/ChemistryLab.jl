@@ -475,6 +475,30 @@ function to_mendeleev(oxides::AbstractDict{Symbol, T}) where {T <: Number}
     end
 end
 
+raw"""
+    _parse_coefficient(str::AbstractString) -> Real
+
+The stoichiometric coefficient a reaction term wrote, as the number it is.
+
+`str` has already been matched by the coefficient group of the term regex, which
+admits `[-+]?\d+//\d+` and `[-+]?\d*\.?\d+` and nothing else — a rational, a
+decimal or an integer, each with an optional sign. This reads exactly those and
+returns the types the parser returned before it: `1//2` a `Rational`, `1.5` a
+`Float64`, `2` an `Int`.
+
+It replaces `eval(Meta.parse(str))`. That was never a way in for anything
+executable — the regex has already decided the string is a number — but it called
+`eval` at run time, inside a function, to read a numeric literal, and the type
+check that stood guard over its result could not fire for the same reason. Both
+are gone.
+"""
+function _parse_coefficient(str::AbstractString)
+    occursin("//", str) || return occursin('.', str) ?
+        parse(Float64, str) : parse(Int, str)
+    num, den = split(str, "//")
+    return parse(Int, num) // parse(Int, den)
+end
+
 """
     parse_equation(equation::AbstractString) -> Tuple{OrderedDict{String,Real}, OrderedDict{String,Real}, Char}
 
@@ -531,11 +555,7 @@ function parse_equation(equation::AbstractString)
                 coeff = if coeff_str === nothing || coeff_str == ""
                     1
                 else
-                    eval(Meta.parse(coeff_str))
-                end
-
-                if !(coeff isa Real)
-                    error("Invalid coefficient: $coeff_str")
+                    _parse_coefficient(coeff_str)
                 end
 
                 result[formula] = coeff

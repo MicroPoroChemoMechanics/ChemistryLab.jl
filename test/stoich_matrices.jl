@@ -215,4 +215,46 @@ using LinearAlgebra
         CSM = CanonicalStoichMatrix(species)
         @test_nowarn pprint(CSM.A, CSM.primaries, CSM.species)
     end
+
+    @testsection "pprint labels the rows the way it was asked to" begin
+        # `row_labels` read `col_label`. `row_label` was assigned from `label`
+        # and then never used, so asking for one accessor on the rows and
+        # another on the columns labeled BOTH by the column's — silently, since
+        # a wrong label prints as happily as a right one.
+        #
+        # Shown on species passed straight to `pprint`, because that is where it
+        # is visible at all: the primaries of a `CanonicalStoichMatrix` are plain
+        # `Symbol`s (`[:H, :O, :Zz]`), `symbol` of a `Symbol` throws, and the
+        # surrounding `try` falls back to the raw names whatever was asked for.
+        water = Species("H2O"; name = "Water", symbol = "H2O@")
+        proton = Species("H+"; name = "Proton", symbol = "H+")
+        rows = [water, proton]
+        A = [1 0; 0 1]
+
+        captured(; kwargs...) = mktemp() do _, io
+            redirect_stdout(io) do
+                pprint(A, rows, rows; kwargs...)
+            end
+            flush(io)
+            seekstart(io)
+            read(io, String)
+        end
+
+        by_name = captured(; row_label = :name, col_label = :symbol)
+        @test occursin("Water", by_name)        # the rows carry `row_label`
+        @test occursin("H2O@", by_name)         # the columns still carry theirs
+
+        # The regression stated without naming a string: asking for a different
+        # accessor on the rows must change the output. It did not before.
+        @test by_name != captured(; row_label = :symbol, col_label = :symbol)
+
+        # An accessor a label does not support, and a name outside the set, both
+        # fall back rather than raising — the behavior the `try` always gave.
+        @test_nowarn captured(; row_label = :no_such_accessor)
+        @test ChemistryLab._label_accessor(:no_such_accessor) === identity
+        @test ChemistryLab._label_accessor(:identity) === identity
+        @test ChemistryLab._label_accessor(:symbol) === symbol
+        @test ChemistryLab._label_accessor(:name) === name
+        @test ChemistryLab._label_accessor(:formula) === formula
+    end
 end

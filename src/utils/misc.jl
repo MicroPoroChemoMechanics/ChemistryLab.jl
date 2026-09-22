@@ -171,17 +171,6 @@ _ensure_unit(unit, x::Real) = x * unit
 _ensure_unit(unit, x) = safe_uconvert(unit, x)
 
 """
-    safe_uparse(x::AbstractString) -> AbstractQuantity
-    safe_uparse(x::AbstractQuantity) -> AbstractQuantity
-
-Parse a unit string into a quantity via `uparse`, or return an existing
-quantity unchanged. Acts as an idempotent wrapper.
-"""
-safe_uparse(x::AbstractString) = uparse(x)
-
-safe_uparse(x::AbstractQuantity) = x
-
-"""
     force_uconvert(qout::UnionAbstractQuantity, q) -> AbstractQuantity
 
 Strip units from `q` (converting to `qout` dimensions when possible) and

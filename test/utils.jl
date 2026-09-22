@@ -17,15 +17,6 @@
         @test ChemistryLab.safe_uconvert(us"m", 3.0) == 3.0
     end
 
-    @testsection "safe_uparse" begin
-        # String input → parsed unit quantity
-        @test ChemistryLab.safe_uparse("m/s") isa AbstractQuantity
-
-        # Quantity input → returned as-is
-        q = 1u"m"
-        @test ChemistryLab.safe_uparse(q) === q
-    end
-
     @testsection "force_uconvert" begin
         result = ChemistryLab.force_uconvert(1u"m", 100u"cm")
         @test ustrip(result) ≈ 1.0
