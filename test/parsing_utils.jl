@@ -91,6 +91,46 @@ using Test
         reac, prod, sign = result
         @test reac == Dict("CaCO3" => 1)
         @test prod == Dict("Ca+2" => 1, "CO3-2" => 1)
+
+        # EVERY FORM THE COEFFICIENT REGEX ADMITS, and its Julia type.
+        #
+        # The type is half of the assertion, not decoration. `_parse_coefficient`
+        # replaced `eval(Meta.parse(coeff_str))`, and what had to be preserved was
+        # not only the value: a coefficient that came back `2.0` where it used to
+        # be `2` changes the element type of the stoichiometry dictionary and so
+        # of the conservation matrix built from it. Until this test existed the
+        # equation parser was exercised on integers alone — `parse_formula` covers
+        # rationals, but through a different path — so the `//` branch was never
+        # reached at all.
+        rational, _, _ = parse_equation("1//2H2O = H+ + OH-")
+        @test rational["H2O"] === 1 // 2
+
+        negrational, _, _ = parse_equation("-1//2H2O = H+")
+        @test negrational["H2O"] === -1 // 2
+
+        # A decimal comes back RATIONAL from `parse_equation`, because
+        # `parse_side` passes every coefficient through `stoich_coef_round`
+        # afterwards. `_parse_coefficient` itself returns `1.5`, as asserted
+        # below; the two steps are pinned separately so that a change to either
+        # is attributed to the right one.
+        decimal, _, _ = parse_equation("1.5H2O = H+")
+        @test decimal["H2O"] === 3 // 2
+
+        leading_dot, _, _ = parse_equation(".5H2O = H+")
+        @test leading_dot["H2O"] === 1 // 2
+
+        integer, _, _ = parse_equation("2H2O = H+")
+        @test integer["H2O"] === 2
+
+        # The helper on its own, so a failure names the coefficient and not a
+        # whole equation.
+        @test ChemistryLab._parse_coefficient("1//2") === 1 // 2
+        @test ChemistryLab._parse_coefficient("-1//2") === -1 // 2
+        @test ChemistryLab._parse_coefficient("1.5") === 1.5
+        @test ChemistryLab._parse_coefficient(".5") === 0.5
+        @test ChemistryLab._parse_coefficient("2") === 2
+        @test ChemistryLab._parse_coefficient("-3") === -3
+        @test ChemistryLab._parse_coefficient("+3") === 3
     end
 
     @testset "Formula formatting" begin

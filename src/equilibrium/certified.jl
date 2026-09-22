@@ -696,8 +696,9 @@ function equilibrate_certified(
     # Every back end's answer from `from`, and `from` itself — the only start
     # available if they all threw.
     #
-    # `STRICT_CONVERGENCE[]` is cleared for the duration and restored after: what
-    # this computes is a STARTING POINT, not a result. Left set, a back end that
+    # Strict convergence is suspended for the duration, through
+    # `_relaxed_convergence` and so for this task alone: what this computes is a
+    # STARTING POINT, not a result. Left set, a back end that
     # reports `MaxIters` raises, the `catch` below swallows it, and the search
     # silently loses that candidate — so a caller asking for strict results gets
     # a *worse* search than a caller who did not. Measured on a CEM I paste where
@@ -707,18 +708,16 @@ function equilibrate_certified(
     # function, which is where the flag belongs.
     function starts_from(from::ChemicalState, what::AbstractString)
         solve_one = function (f)
-            strict = STRICT_CONVERGENCE[]
-            STRICT_CONVERGENCE[] = false
-            return try
-                _exploring_starts() do
-                    esolver = EquilibriumSolver(state.system, model, f(); kwargs...)
-                    SciMLBase.solve(esolver, from; ϵ = ϵ, b = bfix)
+            return _relaxed_convergence() do
+                try
+                    _exploring_starts() do
+                        esolver = EquilibriumSolver(state.system, model, f(); kwargs...)
+                        SciMLBase.solve(esolver, from; ϵ = ϵ, b = bfix)
+                    end
+                catch err
+                    verbose && @info "$what rejected" backend = f err
+                    nothing
                 end
-            catch err
-                verbose && @info "$what rejected" backend = f err
-                nothing
-            finally
-                STRICT_CONVERGENCE[] = strict
             end
         end
         return _LazyStarts(
@@ -836,7 +835,7 @@ function equilibrate_certified(
             "$(cert.stationarity), element balance $(cert.balance), worst " *
             "supersaturation $(cert.worst_supersaturation). Automatic initial " *
             "approximation: $note"
-        STRICT_CONVERGENCE[] && error(
+        _strict_convergence() && error(
             msg * ". `ChemistryLab.STRICT_CONVERGENCE[]` is set, so this raises " *
                 "rather than returning an answer that is not an equilibrium. " *
                 "Audit it with `optimality_certificate`; " *
@@ -881,7 +880,7 @@ function _check_solvent(eq::ChemicalState)
         "activity model is being evaluated far outside its range. The solids " *
         "have taken the water: this is a mix below its stoichiometric water " *
         "demand, not an equilibrium the model can describe"
-    STRICT_CONVERGENCE[] && error(
+    _strict_convergence() && error(
         msg * ". `ChemistryLab.STRICT_CONVERGENCE[]` is set, so this raises."
     )
     @warn msg maxlog = 1

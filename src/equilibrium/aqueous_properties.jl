@@ -919,7 +919,8 @@ function homotopy_initial_state(
     i_w = only(cs.idx_solvent)
     n0 = ustrip.(us"mol", state.n)
 
-    # `STRICT_CONVERGENCE[]` has to be off along the walk, and restored after.
+    # Strict convergence has to be off along the walk, and it is suspended for
+    # this task alone rather than written into the caller's setting.
     #
     # The walk *relies* on its early rungs being allowed to fall short: measured
     # on a CEM I paste, the first one (λ = 0.01) does not converge and it does
@@ -933,17 +934,13 @@ function homotopy_initial_state(
     # rung that ends on `MaxIters` is expected, and warning about it makes a walk
     # that worked read as a walk that failed. `verbose = true` reports every rung
     # either way.
-    strict = STRICT_CONVERGENCE[]
-    STRICT_CONVERGENCE[] = false
-    try
-        return _exploring_starts() do
+    return _relaxed_convergence() do
+        _exploring_starts() do
             _homotopy_walk(
                 cs, i_w, n0, model, steps, ϵ, verbose, max_bisections,
                 balance_atol, balance_rtol,
             )
         end
-    finally
-        STRICT_CONVERGENCE[] = strict
     end
 end
 

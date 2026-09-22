@@ -1,5 +1,127 @@
 # Changelog
 
+## v0.18.1 — a database file was a program, and one solve could silence the next
+
+Two defects that had nothing to do with chemistry and everything to do with
+whether an answer can be trusted: **a database file was executed rather than
+read**, and **a flag one solve set could be left behind for every solve after
+it**. Around them, the work needed to check any of this without paying two hours
+for it.
+
+### Fixed — imported metadata is interpreted as data, not as code
+
+Reading a ThermoFun database executed what the file said. Not as a corner case of
+malformed input: the ordinary path through `read_thermofun_database` evaluated
+two of its fields as Julia source.
+
+**Classification labels** — `aggregate_state` and `class_` — went through
+`eval(Meta.parse(...))`. They are now matched by name against the corresponding
+enum, which is what they always were.
+
+**Unit strings** went straight to `uparse`. DynamicQuantities maps the
+*arguments* of a call expression into its unit registry but leaves the call
+**head** alone, and the head is then evaluated inside a module which — like every
+Julia module — sees `Base`. So a unit field reading `write("…", "…")` was not
+rejected before it ran, and did not even raise: the call executed, its return
+value was a number, and a `Quantity` came back as though the field had been an
+ordinary unit.
+
+The whole expression tree is now validated before `uparse` is reached. Numbers,
+registered unit symbols, the arithmetic operators, roots and named constants are
+accepted; every other call, and every macro, assignment, index and block, is
+refused and takes the default-unit fallback that unparsable fields already took.
+`safe_uparse`, an unguarded wrapper on the same function that nothing but its own
+test called, is deleted rather than hardened.
+
+**Nothing about the bundled databases changes.** They read identically — 876
+assertions across the import, zeolite, thermodynamics and HKF suites — and the
+scientific questions this deliberately does not touch stay open: a unit the
+installed DynamicQuantities does not know, such as `cal`, still falls back
+silently rather than warning, and the label `AS_LIQUID` (one species in
+`slop98-inorganic-thermofun.json`, metallic mercury) is still not in the
+`AggregateState` enum and still resolves to `AS_UNDEF`. Both belong to a separate
+piece of work on the validity of imported values, not to a fix whose whole point
+is to be narrow.
+
+### Fixed — a solve's policy no longer escapes into the next one
+
+Two module-level flags were saved, written and restored in a `finally`. That is
+correct while no two of them overlap, and two solves on two tasks do overlap.
+Measured, with A entering the scope first and leaving first while B was still
+inside its own: B lost the flag inside its own region, and — the half that
+matters — B's restore put back the value it had saved, which was A's `true`, so
+the flag was left **set** after both had finished. `_EXPLORING_STARTS` exists to
+silence the non-convergence warnings of a start search, so from that point on
+every solve in the session swallowed its own. A real failure stopped announcing
+itself.
+
+`_EXPLORING_STARTS` is internal and is now a `ScopedValue`: dynamic extent,
+inherited by child tasks, invisible to siblings, and nothing to restore.
+
+**`STRICT_CONVERGENCE` keeps its `Ref`**, because it is public and documented and
+a `ScopedValue` cannot be assigned. What the package needed was never to change
+that setting but to *suspend* it while computing a starting point, and it now
+does exactly that, scoped to one task. A caller's `ChemistryLab.STRICT_CONVERGENCE[] = true`
+behaves as before and is never written by the package.
+
+`NONCONVERGED` becomes a `Threads.Atomic{Int}` — `[]` reads and writes unchanged,
+which is its whole documented interface, but concurrent increments can no longer
+be lost. Its docstring claimed `integrate` reset it and reported the total;
+nothing in `src/` resets or reads that counter, and the docstring now says so.
+
+### Fixed — Ipopt no longer buries the output it was called from
+
+`_default_ipopt_solver` set no print level, so Ipopt ran at its default 5: a
+banner, a full iteration table and a summary **per solve**. This back end is one
+of several in a multi-start cascade that can run it hundreds of times in a single
+call. On the quickstart page, one equilibrium produced 110 lines of output, about
+80 of them Ipopt's, around the three the example exists to show; it now produces
+28, with the same pH. A caller who wants the trace builds their own optimizer and
+passes it, which makes seeing it a choice rather than an accident.
+
+### Fixed — a printing keyword that was assigned and never read
+
+`pprint` built its row labels from `col_label`. `row_label` was assigned on the
+line above and then never used, so asking for one accessor on the rows and
+another on the columns labeled both by the column's — silently, a wrong label
+printing as happily as a right one.
+
+Two `eval`s go with it, neither of which was a vulnerability and neither of which
+is claimed to have been. `eval(col_label)` becomes a choice among four accessors:
+a printing keyword needs that, not the power to evaluate an expression in this
+module. `eval(Meta.parse(coeff_str))` read a coefficient the term regex had
+already constrained to a rational, a decimal or an integer — so it called `eval`
+at run time, inside a function, to read a numeric literal, and the type check
+guarding its result could not fire for the same reason. The replacement returns
+the same values *and* the same types on every form the regex admits.
+
+### Development — the documentation can be checked in minutes
+
+Not a change to the package, and the reason it is here: verifying that an example
+still runs used to cost over two hours, so it was not done often enough to be a
+check.
+
+**Doctests have their own CI job.** `makedocs` ran them by default, so a
+docstring example printing one digit differently failed a two-hour build. The
+suite now runs in 27.6 s, and the preamble it shares with `docs/make.jl` lives in
+`docs/doctest_setup.jl` — it had been written out twice and had drifted, the
+commented-out job naming a package this one does not depend on while missing one
+several doctests use.
+
+**`CHEMLAB_DOCS_ONLY` builds only the pages you touched**, one manual page in
+1 min 49 s. Filtering `pages` is not enough and was tried: Documenter walks the
+*source* directory and builds every `.md` it finds, so a filtered page tree was
+still inside `examples/` fifty minutes later. `docs/partial.jl` stands up a farm
+of symlinks to `docs/src` without the pruned pages instead. Such a build states
+what it does not check — links and docstring coverage — and refuses to deploy.
+The full build is untouched and remains the gate.
+
+### Compatibility
+
+No exported name, signature or numerical result changes, and no compat bound
+moves. A downstream package bounded on `"0.18"` resolves this release without any
+edit.
+
 ## v0.18.0 — every cement in EN 197-1, and a documentation that builds
 
 Four things a blended cement needs and this package did not have: a **redox

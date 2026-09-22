@@ -281,6 +281,80 @@ end
     end
     @test ChemistryLab._EXPLORING_STARTS[] == false
 
+    # TWO SEARCHES THAT OVERLAP, which is what a save-and-restore around a module
+    # global cannot do and a scoped value can. The ordering that breaks it is A
+    # entering first and leaving first, with B still inside its own scope:
+    # save-and-restore then took the flag away from B, and -- worse -- B's own
+    # restore put back the value it had saved, which was A's `true`, leaving the
+    # flag SET for the rest of the session. Every later solve then swallowed its
+    # non-convergence warning. Measured before the fix: `false` inside B, `true`
+    # afterwards; both assertions below failed.
+    function interleaved(flag, wrap)
+        ch1, ch2 = Channel{Nothing}(1), Channel{Nothing}(1)
+        inside_b = Ref(false)
+        @sync begin
+            @async wrap() do                     # A: in first, out first
+                put!(ch1, nothing)
+                take!(ch2)
+                nothing
+            end
+            @async begin                         # B: overlaps A
+                take!(ch1)
+                wrap() do
+                    put!(ch2, nothing)
+                    yield()
+                    sleep(0.05)
+                    inside_b[] = flag()
+                    nothing
+                end
+            end
+        end
+        return inside_b[], flag()
+    end
+
+    inside_b, afterwards = interleaved(
+        () -> ChemistryLab._EXPLORING_STARTS[], ChemistryLab._exploring_starts
+    )
+    @test inside_b                  # B keeps its own scope
+    @test afterwards == false       # and nothing is left behind
+
+    # Same for the strict-convergence suspension, where a leak is worse still: it
+    # decides whether a solve RAISES, not merely whether it warns.
+    inside_b, afterwards = interleaved(
+        ChemistryLab._strict_convergence, ChemistryLab._relaxed_convergence
+    )
+    @test inside_b == false
+    @test afterwards == false
+
+    # The suspension is internal and must not touch the caller's setting, which
+    # is the documented `Ref` and stays one.
+    ChemistryLab.STRICT_CONVERGENCE[] = true
+    try
+        @test ChemistryLab._strict_convergence()
+        ChemistryLab._relaxed_convergence() do
+            @test ChemistryLab._strict_convergence() == false
+            @test ChemistryLab.STRICT_CONVERGENCE[]          # untouched
+        end
+        @test ChemistryLab._strict_convergence()
+        # It is restored on the way out of a body that throws, too.
+        @test_throws ErrorException ChemistryLab._relaxed_convergence() do
+            error("a back end failed")
+        end
+        @test ChemistryLab._strict_convergence()
+    finally
+        ChemistryLab.STRICT_CONVERGENCE[] = false
+    end
+
+    # The counter survives as an integer under `[]`, which is its documented use.
+    @test ChemistryLab.NONCONVERGED[] isa Int
+    let before = ChemistryLab.NONCONVERGED[]
+        ChemistryLab.NONCONVERGED[] = 7
+        @test ChemistryLab.NONCONVERGED[] == 7
+        Threads.atomic_add!(ChemistryLab.NONCONVERGED, 1)
+        @test ChemistryLab.NONCONVERGED[] == 8
+        ChemistryLab.NONCONVERGED[] = before
+    end
+
     # The contract as a caller sees it: a call that ends with a certificate emits
     # nothing at all. `@test_logs` installs a fresh logger, so the `maxlog = 1`
     # carried by those warnings does not make this depend on what ran before.

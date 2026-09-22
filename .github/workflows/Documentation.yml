@@ -99,10 +99,64 @@ jobs:
             # multiplied by a second layer competing for the same cores.
             OPENBLAS_NUM_THREADS: '1'
         run: julia --project=docs/ docs/make.jl
-    #   - name: Run doctests
-    #     shell: julia --project=docs --color=yes {0}
-    #     run: |
-    #         using Documenter: DocMeta, doctest
-    #         using ChemistryLab
-    #         DocMeta.setdocmeta!(ChemistryLab, :DocTestSetup, :(using ChemistryLab, DynamicQuantities, OrderedCollections, ModelingToolkit); recursive=true)
-    #         doctest(ChemistryLab)
+
+  # Doctests, in a job of their own and NOT inside the build above.
+  #
+  # `makedocs` runs them by default, so until now a one-line docstring example
+  # could only fail after the whole site had been built -- two hours to learn
+  # that a printed value had changed by a digit. `doctest = false` in
+  # `docs/make.jl` turns that off, and this job is the other half of that pair:
+  # the two must stay in step, or every doctest runs twice.
+  #
+  # It runs on `docs/` rather than on a lighter environment built by hand. A
+  # doctest compares PRINTED OUTPUT, so it can pass under one Documenter and
+  # fail under another, and pinning the version by hand here would be a second
+  # place to keep in step with `docs/Project.toml` -- the very thing that let
+  # the preamble drift while this job was commented out. Instantiating `docs/`
+  # costs minutes against the build's hours, and it runs alongside it, not after.
+  doctests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+        actions: write # julia-actions/cache prunes the caches it created
+        contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1'
+      - uses: julia-actions/cache@v3
+      # Same registry fallback as the build job, and for the same reason: the
+      # Pkg server intermittently advertises a tree hash its CDN answers with a
+      # 404, which kills the first `Pkg.add` of a cold depot.
+      - name: Install the General registry
+        shell: julia --color=yes {0}
+        run: |
+          using Pkg
+          regdir = joinpath(first(DEPOT_PATH), "registries")
+          if isdir(joinpath(regdir, "General")) || isfile(joinpath(regdir, "General.tar.gz"))
+              @info "General registry already installed"
+          else
+              try
+                  Pkg.Registry.add("General")
+              catch err
+                  @warn "Pkg server could not serve the registry; cloning from GitHub" err
+                  withenv("JULIA_PKG_SERVER" => "") do
+                      Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/JuliaRegistries/General.git"))
+                  end
+              end
+          end
+      - name: Install dependencies
+        shell: julia --project=docs/ --color=yes {0}
+        run: |
+            using Pkg
+            Pkg.develop(PackageSpec(path=pwd()))
+            Pkg.instantiate()
+      - name: Run doctests
+        shell: julia --project=docs/ --color=yes {0}
+        run: |
+            using Documenter: doctest
+            # The preamble shared with `docs/make.jl`, so the blocks run here
+            # with exactly the modules they run with there.
+            include(joinpath(pwd(), "docs", "doctest_setup.jl"))
+            doctest(ChemistryLab)

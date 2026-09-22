@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright © 2025-2026 Jean-François Barthélémy and Anthony Soive (Cerema, UMR MCD)
 
+using Base.ScopedValues: ScopedValue, with
 using DynamicQuantities
 using ForwardDiff
 using LinearAlgebra: pinv
@@ -278,8 +279,56 @@ giving `[H⁺]/[OH⁻] = 1.000003` — and reports success on points that are no
 minimum. Raising on the flag alone would reject good answers and would still
 miss the bad ones, so it is offered as an opt-in for callers who want the
 strictest possible reading.
+
+This is the **session default**, set by the caller and read by every solve.
+Internally the package sometimes has to suspend it — while it is computing a
+starting point rather than an answer — and it does so through
+[`_relaxed_convergence`](@ref), which is scoped to one task and leaves this
+`Ref` untouched. Read the effective value with [`_strict_convergence`](@ref),
+never this `Ref` directly.
 """
 const STRICT_CONVERGENCE = Ref(false)
+
+"""
+    _STRICT_OVERRIDE
+
+A per-task override of [`STRICT_CONVERGENCE`](@ref), `nothing` when none is in
+force.
+
+It exists because the two readers of that setting want different things. A
+caller sets it once for a session; the package suspends it for the duration of a
+start search. Saving the `Ref`, writing it, and restoring it in a `finally` does
+the second correctly only while no two of them overlap — and two solves on two
+tasks do overlap. Measured, with A entering first and leaving first: B lost the
+relaxation inside its own region, and the flag was left **set** after both had
+finished, so every later solve in that session inherited it.
+
+A `ScopedValue` has exactly the semantics the `finally` was imitating — dynamic
+extent, inherited by child tasks, invisible to siblings — and cannot be left
+behind, because there is nothing to restore.
+"""
+const _STRICT_OVERRIDE = ScopedValue{Union{Nothing, Bool}}(nothing)
+
+"""
+    _strict_convergence() -> Bool
+
+The effective strict-convergence setting: the innermost
+[`_STRICT_OVERRIDE`](@ref) in force, or the session's
+[`STRICT_CONVERGENCE`](@ref) when there is none.
+"""
+_strict_convergence() = something(_STRICT_OVERRIDE[], STRICT_CONVERGENCE[])
+
+"""
+    _relaxed_convergence(f)
+
+Run `f` with strict convergence suspended, for this task only.
+
+Used wherever the package is computing a **starting point** rather than a
+result: a back end that reports `MaxIters` on a candidate must not raise, or the
+`catch` around it silently loses that candidate and a caller asking for strict
+results gets a worse search than one who did not.
+"""
+_relaxed_convergence(f) = with(f, _STRICT_OVERRIDE => false)
 
 """
     _EXPLORING_STARTS
@@ -297,27 +346,24 @@ reads as a failed solve and is not one.
 The verdict on the *answer* is untouched: `equilibrate_certified` warns or raises
 on its own certificate after the search, and `verbose = true` still reports every
 rejected start.
+
+Scoped to the task that set it, for the reason given under
+[`_STRICT_OVERRIDE`](@ref) — and here the leak was the quieter of the two: a
+flag left set silences the non-convergence warnings of every later solve in the
+session, so a genuine failure stops announcing itself.
 """
-const _EXPLORING_STARTS = Ref(false)
+const _EXPLORING_STARTS = ScopedValue(false)
 
 """
     _exploring_starts(f)
 
-Run `f` with [`_EXPLORING_STARTS`](@ref) set, restoring it afterwards. Nested
-calls are safe: the previous value is saved rather than assumed `false`.
+Run `f` with [`_EXPLORING_STARTS`](@ref) set, for this task only. Nesting is
+safe, and so is overlapping with another task's search.
 """
-function _exploring_starts(f)
-    was = _EXPLORING_STARTS[]
-    _EXPLORING_STARTS[] = true
-    try
-        return f()
-    finally
-        _EXPLORING_STARTS[] = was
-    end
-end
+_exploring_starts(f) = with(f, _EXPLORING_STARTS => true)
 
 """
-    NONCONVERGED :: Ref{Int}
+    NONCONVERGED :: Threads.Atomic{Int}
 
 Running count of equilibrium solves that returned a non-success retcode.
 
@@ -327,10 +373,17 @@ steps of a coupled kinetics run that is one warning for an arbitrary number of
 bad speciations, and it never reached the failure count reported by
 [`integrate`](@ref), which only saw solves that actually *threw*.
 
-Reset it with `ChemistryLab.NONCONVERGED[] = 0` before a run and read it after;
-[`integrate`](@ref) does exactly that and reports the total.
+Reset it with `ChemistryLab.NONCONVERGED[] = 0` before a run and read it after.
+**The caller does this, not the package**: nothing in `src/` resets or reports
+the counter, so a figure read without resetting first covers the whole session
+and not the run. (This docstring claimed [`integrate`](@ref) did it; it never
+has.)
+
+It is an `Atomic` rather than a `Ref` only so that increments cannot be lost when
+solves run on several tasks, which `+= 1` on a `Ref` does not guarantee. Reading
+and writing it are unchanged.
 """
-const NONCONVERGED = Ref(0)
+const NONCONVERGED = Threads.Atomic{Int}(0)
 
 """
     EXACT_HESSIAN
@@ -393,8 +446,8 @@ it were the equilibrium.
 """
 function _check_converged(sol, what::AbstractString)
     SciMLBase.successful_retcode(sol) && return sol
-    NONCONVERGED[] += 1
-    if !STRICT_CONVERGENCE[]
+    Threads.atomic_add!(NONCONVERGED, 1)
+    if !_strict_convergence()
         _EXPLORING_STARTS[] || @warn "$what returned `$(sol.retcode)`; the \
                composition may not be an equilibrium. Set \
                `ChemistryLab.STRICT_CONVERGENCE[] = true` to raise instead." maxlog = 1

@@ -4,6 +4,7 @@ import { mathjaxPlugin } from './mathjax-plugin'
 import { juliaReplTransformer } from './julia-repl-transformer'
 import footnote from "markdown-it-footnote";
 import path from 'path'
+import process from 'node:process'
 
 const mathjax = mathjaxPlugin()
 
@@ -78,6 +79,16 @@ export default defineConfig({
   description: 'REPLACE_ME_DOCUMENTER_VITEPRESS',
   lastUpdated: true,
   cleanUrls: true,
+  // A partial build (CHEMLAB_DOCS_ONLY, see docs/partial.jl) leaves out pages,
+  // so Documenter cannot resolve the `@ref`s that pointed into them and emits
+  // them literally -- which VitePress then sees as dead links. Refusing those is
+  // right for the full build, which is the gate and keeps `cross_references`
+  // strict, and wrong for a partial one, which says up front that it checks no
+  // links. Driven by the same variable, so the two halves cannot disagree.
+  // `.trim()` so that whitespace reads as unset on this side too: Julia strips
+  // the variable before testing it, and a full build must not lose its link
+  // check because someone exported a blank.
+  ignoreDeadLinks: Boolean(process.env.CHEMLAB_DOCS_ONLY?.trim()),
   outDir: 'REPLACE_ME_DOCUMENTER_VITEPRESS', // This is required for MarkdownVitepress to work correctly...
   head: [
     ['link', { rel: 'icon', href: 'REPLACE_ME_DOCUMENTER_VITEPRESS_FAVICON' }],

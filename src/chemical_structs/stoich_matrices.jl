@@ -416,6 +416,30 @@ function apply(f::Function, SM::StoichMatrix, args...; kwargs...)
 end
 
 """
+    _label_accessor(label::Symbol) -> Function
+
+The accessor a `row_label` or `col_label` names, or `identity` for anything else.
+
+A fixed set rather than `eval(label)`: a printing keyword needs a choice among
+four functions, not the power to evaluate an arbitrary expression in this
+module, and `eval` at run time on a display path buys a world-age barrier for
+nothing. Behavior is unchanged for every name that was meaningful before; one
+outside the set falls back to `identity`, which is what the surrounding `try`
+already gave it.
+
+Written as a function and not as a table of function objects on purpose: a
+`const` would capture `symbol`, `name` and `formula` at load time and so depend
+on `species.jl` being included first, which is true today and is not something
+this file should rely on.
+"""
+function _label_accessor(label::Symbol)
+    label === :symbol && return symbol
+    label === :name && return name
+    label === :formula && return formula
+    return identity
+end
+
+"""
     pprint(A::AbstractMatrix, indep_comp_names::AbstractVector, dep_comp_names::AbstractVector)
 
 Print a stoichiometric matrix with colored formatting.
@@ -427,6 +451,11 @@ Print a stoichiometric matrix with colored formatting.
   - `dep_comp_names`: column labels (dependent components).
 
 Uses text highlighters to color positive (red), negative (blue), and zero (concealed) values.
+
+`row_label` and `col_label` name the accessor applied to each label — `:symbol`,
+`:name`, `:formula`, or `:identity` for the object as given. `label` sets both at
+once. A name outside that set falls back to `:identity`, as does an accessor that
+a particular label object does not support.
 """
 function pprint(
         A::AbstractMatrix,
@@ -442,12 +471,15 @@ function pprint(
         col_label = label
     end
     column_labels = try
-        eval(col_label).(dep_comp_names)
+        _label_accessor(col_label).(dep_comp_names)
     catch
         dep_comp_names
     end
+    # `row_label`, not `col_label`. It was the latter, so `row_label` was
+    # assigned above and then never read: asking for `row_label = :name` with
+    # `col_label = :symbol` labeled the rows by symbol, silently.
     row_labels = try
-        eval(col_label).(indep_comp_names)
+        _label_accessor(row_label).(indep_comp_names)
     catch
         indep_comp_names
     end
