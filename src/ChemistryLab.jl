@@ -197,7 +197,8 @@ module ChemistryLab
         AS_UNDEF,
         AS_AQUEOUS,
         AS_CRYSTAL,
-        AS_GAS
+        AS_GAS,
+        AS_LIQUID
 
     export Class,
         SC_UNDEF,
@@ -282,6 +283,7 @@ module ChemistryLab
         SolidSolutionPhase,
         spinodal_interval,
         common_tangent,
+        excess_ln_gamma_expression,
         miscibility_split,
         end_members,
         model,

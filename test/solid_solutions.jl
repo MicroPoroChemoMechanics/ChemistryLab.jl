@@ -1,6 +1,7 @@
 using ChemistryLab
 using DynamicQuantities
 using ForwardDiff
+using Symbolics
 using LinearAlgebra
 using Test
 
@@ -746,5 +747,70 @@ end
         @test occursin("CSHQ", err)
         @test occursin("ECSH1", err)
         @test occursin("KSiOH", err)
+    end
+end
+
+@testsection "an interaction parameter says which convention it is in" begin
+    # THE ERROR THIS CATCHES. The literature writes these coefficients two ways.
+    # CEMDATA18 gives the AFm sulfate/hydroxide binary as A₀ = 0.188, A₁ = 2.49
+    # in RT UNITS; this package takes J/mol and divides by RT internally. The
+    # factor between them is RT ≈ 2478 J/mol at 25 °C, and nothing in a bare
+    # `Float64` says which was meant -- so both are accepted and one is wrong by
+    # three orders of magnitude.
+    #
+    # A `Quantity` says. RT units have none to give, which is the point: a caller
+    # holding 0.188 has to multiply by RT themselves, and that is where the
+    # convention becomes visible.
+
+    @test RedlichKisterModel(; a0 = 4000.0u"J/mol").a0 == 4000.0
+    @test RedlichKisterModel(; a0 = 4.0u"kJ/mol").a0 == 4000.0      # converted
+    @test RedlichKisterModel(; a0 = 4000.0).a0 == 4000.0            # bare: unchanged
+    # An energy is not an energy PER MOLE, and the difference is the whole trap.
+    @test_throws DimensionError RedlichKisterModel(; a0 = 4000.0u"J")
+    @test_throws DimensionError RedlichKisterModel(; a1 = 1.0u"K")
+    # Nothing to convert a dimensionless number into: RT units cannot pass as
+    # J/mol by accident.
+    @test_throws DimensionError RedlichKisterModel(; a0 = 0.188u"1")
+
+    # The diagonal zeros of a `W` literal arrive dimensionless, because Julia
+    # promotes the literal before the constructor sees it. A zero carries no
+    # convention to get wrong, so it passes; every nonzero value is still checked.
+    @test RegularSolutionModel([0.0 4.0u"kJ/mol"; 4.0u"kJ/mol" 0.0]).W[1, 2] == 4000.0
+    @test RegularSolutionModel([0.0 4.0u"kJ/mol"; 4.0u"kJ/mol" 0.0]).W[1, 1] == 0.0
+    @test_throws DimensionError RegularSolutionModel([0.0 4.0u"J"; 4.0u"J" 0.0])
+    @test RedlichKisterModel(; a0 = 0.0u"K").a0 == 0.0
+
+    # Every existing call still means what it meant.
+    @test RedlichKisterModel(; a0 = 20_000.0).a0 == 20_000.0
+    @test RegularSolutionModel([0.0 4000.0; 4000.0 0.0]).W[1, 2] == 4000.0
+end
+
+@testsection "the written formula and the compiled one are the same formula" begin
+    # `thermo_factories.jl` keeps a thermodynamic model as a symbolic expression
+    # AND a compiled function: the first makes the law readable, the second runs
+    # in a solver's inner loop. Solid solutions had only the second, with the
+    # formula transcribed into a docstring beside it -- two copies free to drift.
+    #
+    # `excess_ln_gamma_expression` is the first form, and this asserts that the
+    # two agree. That is what makes the written formula true by construction
+    # rather than by proofreading. The compiled path is untouched: it is still
+    # `_excess_ln_gamma` that every activity evaluation calls.
+    models = (
+        RedlichKisterModel(; a0 = 4000.0, a1 = 500.0, a2 = -250.0),
+        RegularSolutionModel([0.0 4000.0; 4000.0 0.0]),
+        IdealSolidSolutionModel(),
+    )
+    for m in models, k in 1:2
+        expr = excess_ln_gamma_expression(m, k)
+        @test expr isa Union{Num, Real}
+        f = Symbolics.build_function(
+            Symbolics.Num(expr),
+            Symbolics.variable(:x, 1), Symbolics.variable(:x, 2), Symbolics.variable(:T);
+            expression = Val(false),
+        )
+        for (x1, T) in ((0.3, 298.15), (0.7, 298.15), (0.5, 350.0), (0.05, 273.15))
+            numeric = ChemistryLab._excess_ln_gamma(m, k, [x1, 1 - x1], T)
+            @test f(x1, 1 - x1, T) ≈ numeric atol = 1.0e-12
+        end
     end
 end

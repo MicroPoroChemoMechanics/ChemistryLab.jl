@@ -989,6 +989,47 @@ function _excess_ln_gamma(m::RegularSolutionModel, k::Int, x::AbstractVector, T:
     return lin - quad
 end
 
+"""
+    excess_ln_gamma_expression(model, k::Int, n::Int = 2) -> Num
+
+The symbolic `ln γₖ` of a solid-solution model, in the variables `x₁ … xₙ` and
+`T`, with the model's own parameter values substituted.
+
+# Why a package that already computes this also writes it down
+
+`thermo_factories.jl` keeps a thermodynamic model in two forms: a **symbolic
+expression**, which makes the law and the unit of every parameter visible so
+that a wrong entry is caught by reading rather than by a wrong result, and a
+**compiled function**, type-stable and fit for a solver's inner loop. Solid
+solutions had only the second, with the formula transcribed into a docstring
+beside it -- two copies of one law, free to drift.
+
+This is the first form. The second stays exactly where it was, on the hot path,
+untouched: `_excess_ln_gamma` is still what every activity evaluation calls, and
+this function is never in that path. What the pair buys is a test that they
+agree, which is what makes the written formula true by construction rather than
+by proofreading.
+
+# Example
+
+```jldoctest
+julia> using Symbolics
+
+julia> expr = excess_ln_gamma_expression(RedlichKisterModel(a0 = 4000.0), 1);
+
+julia> expr isa Num
+true
+```
+
+See also: [`_excess_ln_gamma`](@ref), [`RedlichKisterModel`](@ref),
+[`RegularSolutionModel`](@ref).
+"""
+function excess_ln_gamma_expression(model::AbstractSolidSolutionModel, k::Int, n::Int = 2)
+    x = [Symbolics.variable(:x, i) for i in 1:n]
+    T = Symbolics.variable(:T)
+    return _excess_ln_gamma(model, k, x, T)
+end
+
 function _excess_ln_gamma(m::RedlichKisterModel, k::Int, x::AbstractVector, T::Real)
     x1, x2 = x[1], x[2]
     RT = R_GAS * T   # J/mol

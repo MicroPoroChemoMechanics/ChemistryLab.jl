@@ -99,14 +99,58 @@ struct RegularSolutionModel{T <: Real} <: AbstractSolidSolutionModel
 end
 
 """
+    _interaction_energy(x) -> Real
+
+An interaction parameter as a bare number of **joules per mole**, checking the
+unit when one is given.
+
+# The error it exists to catch
+
+`RedlichKisterModel(a0 = 4000.0)` and `RedlichKisterModel(a0 = 0.188)` are both
+accepted, and one of them is a published parameter set read in the wrong
+convention. The literature writes these coefficients two ways: CEMDATA18 gives
+the AFm sulfate/hydroxide binary as `A₀ = 0.188, A₁ = 2.49` **in RT units**,
+while this package -- and the Guggenheim form its `ln γ` is written in -- takes
+J/mol and divides by `RT` internally. The factor between them is
+`RT ≈ 2478 J/mol` at 25 °C, and nothing in a bare `Float64` says which one was
+meant.
+
+A `Quantity` says. `u"J/mol"` passes and is stripped; `u"kJ/mol"` is converted;
+anything else raises rather than being silently reinterpreted. A bare number is
+still accepted and still means J/mol, so no existing call changes -- the unit is
+an opportunity to be explicit, not a new obligation.
+
+RT units have no unit to give, which is the point: a caller holding `A₀ = 0.188`
+has to multiply by `RT` themselves, and that multiplication is where the
+convention becomes visible.
+
+# Zero is exempt, and has to be
+
+`[0.0 4.0u"kJ/mol"; 4.0u"kJ/mol" 0.0]` is how one writes a binary `W` matrix, and
+Julia promotes that literal to a common element type before this function ever
+sees it: the bare `0.0` on the diagonal arrives as a **dimensionless** quantity.
+Refusing it would mean writing `0.0u"J/mol"` on a diagonal the model documents as
+ignored. A zero also carries no convention to get wrong -- 0 J/mol, 0 kJ/mol and
+0 RT are the same number -- so it passes whatever dimension it arrived with, and
+every nonzero value is still checked.
+"""
+_interaction_energy(x::Real) = float(x)
+function _interaction_energy(x::DynamicQuantities.AbstractQuantity)
+    iszero(ustrip(x)) && return 0.0
+    return ustrip(us"J/mol", x)
+end
+
+"""
     RegularSolutionModel(W::AbstractMatrix) -> RegularSolutionModel
 
 Construct a [`RegularSolutionModel`](@ref) from a symmetric matrix of
 interaction parameters in J/mol. Raises if `W` is not square or not symmetric;
 the diagonal is ignored. Integer entries are promoted to a floating-point type.
 """
-RegularSolutionModel(W::AbstractMatrix) =
-    RegularSolutionModel{float(eltype(W))}(W)
+function RegularSolutionModel(W::AbstractMatrix)
+    vals = _interaction_energy.(W)
+    return RegularSolutionModel{eltype(vals)}(vals)
+end
 
 """
     struct RedlichKisterModel{T<:Real} <: AbstractSolidSolutionModel
@@ -148,7 +192,7 @@ Keyword constructor for [`RedlichKisterModel`](@ref). Parameters are promoted to
 common type.
 """
 function RedlichKisterModel(; a0 = 0.0, a1 = 0.0, a2 = 0.0)
-    vals = promote(a0, a1, a2)
+    vals = promote(_interaction_energy(a0), _interaction_energy(a1), _interaction_energy(a2))
     return RedlichKisterModel{eltype(vals)}(vals...)
 end
 
