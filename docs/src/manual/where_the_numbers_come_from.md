@@ -220,6 +220,66 @@ its own standing, a borrowed one does not inherit the compilation's, and
 `missing_epsilon_pairs` says which pairs are resting on the convention that an
 unlisted coefficient is zero.
 
+## When the number does not exist yet
+
+Some numbers nobody has measured. A surface site density for a phase that has
+never been titrated, an interaction coefficient for a pair no compilation
+carries: they are real quantities and there is no source to take them from.
+
+The answer is not to invent one. It is to make the calculation able to
+**identify** it from data — and then to be exact about what the identification
+established, which is usually less than the number of parameters that came out
+of it.
+
+```@example numbers
+# A model with a collinearity put in on purpose: `a` and `c` enter only as
+# their product, so no measurement of y can separate them.
+t = range(0, 5; length = 40)
+decay(p) = @. p[1] * p[3] * exp(-p[2] * t)
+θ = [2.0, 0.7, 1.0]
+
+id = identifiability(decay, θ; names = ["a", "b", "c"], observed = decay(θ))
+id
+```
+
+Three things are worth reading there.
+
+**The spectrum falls off a cliff.** [`identifiable_rank`](@ref) reads the rank
+off the largest *ratio* between consecutive singular values, not off a
+threshold — a threshold has units and a gap does not.
+
+**The empty direction names the trade-off.**
+
+```@example numbers
+round.(id.V[:, end]; digits = 3)     # equal and opposite in a and c, nothing in b
+```
+
+**And the correlation says it more directly**, which is why it is the instrument
+to reach for when two parameters trade off rather than one being invisible.
+`scripts/hydration_calibration.jl` found a rate constant and an Avrami exponent
+correlated at −0.985 — the data see a product, not its factors — and therefore
+fitted one of the two. *Which* one is a modeling judgement and not a statistical
+one: it kept the rate constant, because that is the quantity a different clinker
+plausibly changes.
+
+### What comes out is a claim, and it says so
+
+```@example numbers
+as_traced(id, θ; source = "a synthetic fit")
+```
+
+Two `fitted` and one `placeholder`. The third parameter is not reported as
+identified, because the data did not identify it — the optimization simply had
+to leave it somewhere. That is `PROV_FITTED` and `PROV_PLACEHOLDER` doing the
+work they exist for, and it is why [`is_evidence`](@ref) is false for both.
+
+!!! warning "A fit is not a mechanism"
+    Reproducing a measurement establishes that a model *can* reproduce it.
+    Adjusting a site density can absorb a denticity or a lateral interaction and
+    still fit, so a parameter constrained independently, and data held out of
+    the fit, are what separate a mechanism from a curve that passes through the
+    points.
+
 ## A checklist
 
 Before a number goes into a script:
@@ -234,7 +294,9 @@ Before a number goes into a script:
  5. Is it a value whose standing someone downstream will need to know — a
     placeholder, an estimate, a fitted parameter? → wrap it in [`Traced`](@ref),
     so the claim travels with it.
- 6. None of the above? → it is probably case 2 and you have not found it yet.
+ 6. Does the number not exist yet? → make it identifiable from data, and let
+    [`as_traced`](@ref) say which parameters the data actually determined.
+ 7. None of the above? → it is probably case 2 and you have not found it yet.
 
 ## See also
 

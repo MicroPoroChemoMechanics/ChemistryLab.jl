@@ -162,6 +162,41 @@ error: `+` is a charge as well as a separator, so splitting
 `Ca+2 + 2 MntxNa = Mntx2Ca + 2 Na+` on the character yields three terms, none of
 them the calcium ion. The separator is a plus with whitespace on both sides.
 
+### Which parameters a measurement can actually determine
+
+`identifiability` answers, for any forward model and any parameter vector, the
+question that has to be settled before a fitted number is quoted. It is the
+reasoning `scripts/hydration_calibration.jl` worked out for calorimetry, taken
+out of that one script and made to work on anything: the singular values of
+`∂y/∂log θ`, the parameter correlation matrix, and the linearized standard
+errors.
+
+Three deliberate choices in it.
+
+**Against the logarithm**, so a rate constant and a dimensionless exponent are
+comparable — a matrix mixing `∂y/∂k` with `∂y/∂n` has a spectrum that says more
+about the units than about the data.
+
+**A rank read off a gap, not a threshold**, because a threshold has units and a
+gap does not. The spectrum that calibration measured, `[420, 100, 60, 6.3, 1.4,
+0.20]`, has its largest ratio between the third and the fourth — which is why it
+fits three parameters and not six.
+
+**And it closes onto `Traced`.** `as_traced` returns the fitted parameters
+carrying `PROV_FITTED`, the dataset, and the standard error as their
+uncertainty — and marks anything beyond the identifiable rank `PROV_PLACEHOLDER`
+instead, because a number the data did not constrain is one the optimization had
+to put somewhere, not one it determined.
+
+Tested on a model with a collinearity **put in on purpose** — two parameters
+entering only as their product — so the method has a known right answer rather
+than a plausible one. It finds rank 2 of 3, names the trade-off direction as
+equal and opposite in exactly those two, and reports a correlation of 1.
+
+`where_the_numbers_come_from.md` gains the section on what to do when the number
+does not exist yet, ending on the caution that a fit is not a mechanism:
+adjusting a site density can absorb a denticity and still fit.
+
 ### A number that says where it came from
 
 `Traced` attaches a [`ProvenanceKind`](@ref) and a source to a value, so what a

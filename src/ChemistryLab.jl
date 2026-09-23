@@ -100,6 +100,7 @@ module ChemistryLab
 
     include("utils/constants.jl")
     include("utils/provenance.jl")
+    include("utils/identifiability.jl")
     include("utils/misc.jl")
     include("utils/subsuperscripts.jl")
 
@@ -326,6 +327,11 @@ module ChemistryLab
         is_evidence,
         weakest,
         provenance_report,
+        Identifiability,
+        identifiability,
+        identifiable_rank,
+        log_sensitivity,
+        as_traced,
         VACUUM_PERMITTIVITY_Q,
         FARADAY_Q,
         with_symbol

@@ -98,6 +98,7 @@ end
     include("diffuse_layer.jl")
     include("sit.jl")
     include("provenance.jl")
+    include("identifiability.jl")
     include("sorption_models.jl")
     include("claysor.jl")
     include("equilibrium_reference.jl")

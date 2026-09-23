@@ -48,3 +48,15 @@ of a data file and into a table, a figure or a fitted result. See
 Modules = [ChemistryLab]
 Pages   = ["utils/provenance.jl"]
 ```
+
+## Identifiability
+
+Which parameters a measurement can actually determine, and which it only
+appears to. See [Where the numbers come from](@ref sec-manual-numbers) for how
+this closes onto [`Traced`](@ref): a parameter the data did not constrain comes
+back as a placeholder rather than as a fitted value.
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["utils/identifiability.jl"]
+```
