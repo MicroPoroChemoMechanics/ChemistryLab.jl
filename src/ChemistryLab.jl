@@ -447,6 +447,7 @@ module ChemistryLab
         IdealSiteMixing,
         VanselowMixing,
         GainesThomasMixing,
+        ConstantCapacitance,
         supports_multidentate,
         SiteFamily,
         site_moles,

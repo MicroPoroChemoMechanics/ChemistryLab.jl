@@ -263,17 +263,88 @@ Both conventions are checked against Reaktoro, which carries both, on a
 heterovalent Na/K/Ca exchange, and agree to 4 parts in 10⁹. On that composition
 they differ from **each other** by 48 % on the sodium, which is the point.
 
-## 8. What this page does not cover
+## 8. A charged surface, and why it needs no new unknown
+
+Everything above ignored one thing: a surface that binds protons **becomes
+charged**, and the work of putting one more charge on an already charged object
+is not zero. The chemical potential of a member acquires an electrical term,
+
+```math
+\mu_j = \mu_j^\circ + RT\ln a_j + z_j F \Psi
+```
+
+with `Ψ` the potential of the surface plane and `z_j` the species' formal
+charge. What relates `Ψ` to the charge the surface carries is a **closure**, and
+the simplest is a capacitor: ``\sigma = C\,\Psi``.
+
+### The elimination, and what it buys
+
+The literature presents an electrostatic surface model as one extra unknown per
+surface with one extra equation. For the diffuse layer that is unavoidable: `Ψ`
+there depends on the ionic strength through a relation with no closed inverse.
+For a **constant capacitance** it is not. The closure inverts, so
+
+```math
+\tilde\psi \equiv \frac{F\Psi}{RT}
+ = \frac{F^2}{C\,\mathcal{A}\,RT}\sum_k z_k n_k
+```
+
+is an explicit function of the composition — and a composition-dependent term in
+a chemical potential is exactly what an activity coefficient is. So the model
+belongs with the mixing, and the solver needs no new machinery at all.
+
+### The certificate survives it, and that is a proof
+
+The electrical work of charging the surface is ``\int_0^\sigma \Psi\,ds``
+over the area, which with ``\Psi = \sigma/C`` integrates to
+
+```math
+G_{\mathrm{el}}(n) = \frac{F^2}{2\,C\,\mathcal{A}}\left(\sum_k z_k n_k\right)^2
+```
+
+a quadratic form whose Hessian ``(F^2/C\mathcal{A})\,z z^{\mathsf T}`` is
+positive semi-definite for any positive capacitance. Convex term, convex mixing,
+linear constraint: the certificate of §6 covers the sum unchanged. Its gradient
+is ``z_j F \Psi``, which is how one knows the energy is the right one.
+
+That is *this* model. It does not transfer: the diffuse layer's `Ψ` depends on
+the ionic strength, hence on the aqueous composition, so convexity at fixed
+ionic strength is not convexity in the composition, and that question has to be
+reopened rather than inherited.
+
+### What it does, and where it stops
+
+A surface already charged resists charging further, so a titration curve
+**flattens**: the transitions spread over more pH units than the constants alone
+would give. On hydrous ferric oxide at pH 5, protonation falls from 0.995 without
+the term to 0.81 at `C = 3 F/m²`.
+
+Convexity makes the minimum unique, so any failure to find it is numerical.
+There is one, and its scale is
+
+```math
+\tilde\psi_{\max} = \frac{F^2 N}{C\,\mathcal{A}\,RT}
+```
+
+the potential the surface would reach fully charged. Below about 5 the solve is
+found to machine precision; above it the Newton loses it. On that same oxide
+that is `C ≳ 3 F/m²`, which puts the usual oxide range of 1–3 at the edge.
+
+**The remedy is the formulation, not the tolerance.** Carrying `Ψ` as an unknown
+with ``\sigma = C\Psi`` as its equation is the same problem — the elimination
+proved that — but the Newton then controls the potential directly instead of
+meeting it through a stiff exponential. The extra unknown of the textbooks is a
+preconditioner.
+
+## 9. What this page does not cover
 
 Saying what is absent is part of describing what is present.
 
-  - **No surface potential.** Real surfaces are charged, and that charge
-    attracts counter-ions and repels co-ions, changing what binds. The models
-    that describe it — constant capacitance, the diffuse double layer, the
-    Donnan approximation — add one unknown per surface and a closure relating
-    charge to potential. None is in this release, so a set of constants fitted
-    *with* an electrostatic term must not be used here: it would be a different
-    model wearing the same numbers.
+  - **No diffuse layer.** The constant-capacitance model is here (§8); the
+    diffuse double layer and the Donnan approximation are not, and they are the
+    ones a published Dzombak & Morel calibration assumes. A set of constants
+    fitted *with* a diffuse layer used without one is a different model wearing
+    the same numbers.
   - **No evolving support.** The site budget is fixed. In a hydrating cement the
     support is a phase that precipitates, so its sites appear with it and the
     site row becomes bilinear — the one thing the linear budget `A n = b` has

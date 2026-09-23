@@ -129,6 +129,143 @@ struct GainesThomasMixing <: AbstractSiteMixingModel end
 supports_multidentate(::GainesThomasMixing) = true
 
 """
+    struct ConstantCapacitance{M<:AbstractSiteMixingModel, T<:Real} <: AbstractSiteMixingModel
+
+A charged surface, in the **constant-capacitance** model: the potential is
+proportional to the charge the surface carries.
+
+```math
+\\sigma = C\\, \\Psi, \\qquad
+\\sigma = \\frac{F}{\\mathcal{A}} \\sum_k z_k n_k
+```
+
+with `C` the capacitance in F/m², `𝒜` the surface area in m², and `z_k` the
+formal charge of each member. It **decorates** another mixing model rather than
+replacing one: the site fractions are still whatever `base` says they are, and
+this adds the electrical work of putting a charge on a charged surface.
+
+# Why this needs no unknown of its own
+
+The literature presents an electrostatic surface model as one extra unknown per
+surface, `Ψ`, with one extra equation to close it. That is true of the diffuse
+layer, where `Ψ` depends on the ionic strength and the closure cannot be
+inverted. It is **not** true here: `σ = CΨ` makes `Ψ` an explicit function of
+the composition,
+
+```math
+\\tilde\\psi \\equiv \\frac{F\\Psi}{RT}
+ = \\frac{F^2}{C\\,\\mathcal{A}\\,RT} \\sum_k z_k n_k
+```
+
+so the whole model is a composition-dependent term in the chemical potential —
+which is what an activity coefficient is. It belongs with the mixing, not with
+the constraints, and putting it there is what keeps the solver unchanged.
+
+# The convexity, written rather than assumed
+
+The electrical work of charging the surface is
+`G_el = ∫₀^σ Ψ(s)\\,ds \\cdot 𝒜`, and with `Ψ = σ/C` that integrates to
+
+```math
+G_{\\mathrm{el}}(n) = \\frac{F^2}{2\\,C\\,\\mathcal{A}} \\left(\\sum_k z_k n_k\\right)^2
+```
+
+a quadratic form in `n` with Hessian `\\frac{F^2}{C\\mathcal{A}} z z^{\\mathsf T}`,
+positive semi-definite for any positive capacitance. So this term is **convex**,
+the site mixing it decorates is convex, and the equilibrium certificate covers
+the sum unchanged. That is a proof, not an expectation, and it is the reason
+this model could be added without reopening the certificate.
+
+Its gradient is `∂G_el/∂n_j = z_j F Ψ`, the electrochemical work the physics
+asks for — which is the check that the energy above is the right one.
+
+# How far the solve reaches, measured
+
+Convexity makes the minimum unique, so any failure to find it is numerical and
+not a second answer. And there is one: eliminating `Ψ` puts the whole
+electrostatic stiffness into the composition dependence of an activity, and the
+Newton loses it when that stiffness grows.
+
+The scale of it is dimensionless and worth computing before a run:
+
+```math
+\\tilde\\psi_{\\max} = \\frac{F^2 N}{C\\,\\mathcal{A}\\,RT}
+```
+
+`N` being the site budget — the potential the surface would reach with every
+site charged. Measured on hydrous ferric oxide, `N = 2·10⁻⁴` mol on 53.4 m²:
+
+| `C` [F/m²] | `ψ̃_max` | stationarity of the solve |
+|---:|---:|---:|
+| 10 | 1.4 | 3e-16 |
+| 5 | 2.8 | 2e-16 |
+| 3 | 4.7 | 2e-16 |
+| 2 | 7.0 | 0.04 — lost |
+| 1.2 | 11.7 | 0.07 — lost |
+
+So `ψ̃_max ≲ 5` is reached directly, and stepping `C` down from a large value
+while reusing the previous composition extends the range but does not remove the
+limit. Oxide capacitances of 1–3 F/m² therefore sit at the edge of it.
+
+**What lifts it is the formulation, not the tolerance.** Carrying `Ψ` as an
+unknown of the solve with `σ = CΨ` as its closing equation is mathematically the
+same problem — that is what eliminating it proved — but the Newton then controls
+the potential directly instead of meeting it through a stiff exponential. The
+literature's extra unknown is a preconditioner, and it is what this model is
+missing rather than a correction to it.
+
+# Fields
+
+  - `base`: the site mixing this decorates, usually [`IdealSiteMixing`](@ref).
+  - `C`: capacitance [F/m²]. Values of 1–3 F/m² are the usual range for an oxide.
+  - `area`: the charged area [m²].
+
+# What it does to a titration
+
+A surface that has already taken protons resists taking more, because the work
+of adding a charge to an object that is already charged grows with the charge.
+The visible effect is a **flattened** titration curve: the transitions spread
+over more pH units than the constants alone would give. A set of constants
+fitted *with* an electrostatic term and used *without* one — or the reverse —
+therefore describes a different surface.
+
+See also: [`IdealSiteMixing`](@ref), [`SiteFamily`](@ref).
+"""
+struct ConstantCapacitance{M <: AbstractSiteMixingModel, T <: Real} <:
+    AbstractSiteMixingModel
+    base::M
+    C::T
+    area::T
+    function ConstantCapacitance{M, T}(base::AbstractSiteMixingModel, C::Real, area::Real) where {M <: AbstractSiteMixingModel, T <: Real}
+        C > 0 || throw(ArgumentError("capacitance must be positive; got $C F/m²."))
+        area > 0 || throw(ArgumentError("area must be positive; got $area m²."))
+        return new{M, T}(base, convert(T, C), convert(T, area))
+    end
+end
+
+"""
+    ConstantCapacitance(base, C, area) -> ConstantCapacitance
+    ConstantCapacitance(; C, area, base = IdealSiteMixing()) -> ConstantCapacitance
+
+Build a [`ConstantCapacitance`](@ref). `C` is a capacitance in F/m² and `area`
+an area in m², each a plain `Real` in SI or a `Quantity`.
+"""
+function ConstantCapacitance(
+        base::AbstractSiteMixingModel, C, area
+    )
+    c = _area_si(us"F/m^2", C, "ConstantCapacitance capacitance")
+    a = _area_si(us"m^2", area, "ConstantCapacitance area")
+    v = promote(c, a)
+    return ConstantCapacitance{typeof(base), eltype(v)}(base, v[1], v[2])
+end
+
+ConstantCapacitance(; C, area, base::AbstractSiteMixingModel = IdealSiteMixing()) =
+    ConstantCapacitance(base, C, area)
+
+# The decoration is transparent to everything the base model decides.
+supports_multidentate(m::ConstantCapacitance) = supports_multidentate(m.base)
+
+"""
     abstract type AbstractSiteCapacity end
 
 How many moles of sites a family offers.

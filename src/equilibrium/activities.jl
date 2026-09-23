@@ -166,6 +166,9 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
     site_denticity = has_sites ?
         [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
         nothing
+    site_charges = has_sites ?
+        [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
+        nothing
 
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
@@ -199,7 +202,9 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
         # wrong — the same trap the solid-solution call has carried since 0.8.2.
         if has_sites
             T_val = hasproperty(p, :T) ? p.T : 298.15
-            _site_mixing_lna!(out, _n, site_groups, site_models, site_denticity, T_val, ϵ)
+            _site_mixing_lna!(
+                out, _n, site_groups, site_models, site_denticity, site_charges, T_val, ϵ
+            )
         end
 
         return out
@@ -630,6 +635,9 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
     site_denticity = has_sites ?
         [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
         nothing
+    site_charges = has_sites ?
+        [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
+        nothing
 
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])   # kg/mol, e.g. 0.018015
 
@@ -741,7 +749,9 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
         # wrong — the same trap the solid-solution call has carried since 0.8.2.
         if has_sites
             T_val = hasproperty(p, :T) ? p.T : 298.15
-            _site_mixing_lna!(out, _n, site_groups, site_models, site_denticity, T_val, ϵ)
+            _site_mixing_lna!(
+                out, _n, site_groups, site_models, site_denticity, site_charges, T_val, ϵ
+            )
         end
 
         return out
@@ -990,6 +1000,9 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
     site_denticity = has_sites ?
         [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
         nothing
+    site_charges = has_sites ?
+        [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
+        nothing
 
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
 
@@ -1063,7 +1076,9 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
         # wrong — the same trap the solid-solution call has carried since 0.8.2.
         if has_sites
             T_val = hasproperty(p, :T) ? p.T : 298.15
-            _site_mixing_lna!(out, _n, site_groups, site_models, site_denticity, T_val, ϵ)
+            _site_mixing_lna!(
+                out, _n, site_groups, site_models, site_denticity, site_charges, T_val, ϵ
+            )
         end
 
         return out
@@ -1224,6 +1239,49 @@ agree on a homovalent exchange and part company on a heterovalent one.
 """
 _site_weight(::AbstractSiteMixingModel, ::Int) = 1
 _site_weight(::GainesThomasMixing, d::Int) = d
+_site_weight(m::ConstantCapacitance, d::Int) = _site_weight(m.base, d)
+
+_site_excess_ln_gamma(m::ConstantCapacitance, k::Int, x::AbstractVector, T::Real) =
+    _site_excess_ln_gamma(m.base, k, x, T)
+
+"""
+    _electrostatic_ln_a(model, k, z, n, T) -> Real
+
+The electrical work of adding one mole of member `k` to a **charged** surface,
+in units of `RT`, given the members' formal charges `z` and amounts `n`.
+
+Zero for a model that does not describe a surface potential, which is every one
+of them but [`ConstantCapacitance`](@ref).
+
+For that one it is `z_k ψ̃` with
+
+```math
+\\tilde\\psi = \\frac{F^2}{C\\,\\mathcal{A}\\,RT}\\sum_j z_j n_j
+```
+
+an explicit function of the composition, because `σ = CΨ` can be inverted. It
+is written here, beside the mixing, rather than as an extra unknown of the
+solve: the term is a composition-dependent contribution to a chemical potential,
+which is what an activity coefficient is.
+
+A diffuse layer cannot be written this way — there `Ψ` depends on the ionic
+strength through a relation with no closed inverse — and that one will need the
+unknown this one does not.
+"""
+_electrostatic_ln_a(
+    ::AbstractSiteMixingModel, ::Int, ::AbstractVector, n::AbstractVector, ::Real
+) = zero(eltype(n))
+
+function _electrostatic_ln_a(
+        m::ConstantCapacitance, k::Int, z::AbstractVector, n::AbstractVector, T::Real
+    )
+    charge_sum = zero(eltype(n))
+    @inbounds for j in eachindex(n)
+        charge_sum += z[j] * n[j]
+    end
+    ψ = FARADAY^2 * charge_sum / (m.C * m.area * R_GAS * T)
+    return z[k] * ψ
+end
 
 """
     _site_mixing_lna!(out, _n, site_groups, site_models, T, ϵ)
@@ -1254,16 +1312,20 @@ solution, and the element type follows `_n`, so the whole path differentiates.
 """
 function _site_mixing_lna!(
         out::AbstractVector, _n::AbstractVector{ET},
-        site_groups::Vector{Vector{Int}}, site_models, site_denticity, T, ϵ
+        site_groups::Vector{Vector{Int}}, site_models, site_denticity, site_charges,
+        T, ϵ
     ) where {ET}
-    for (grp, mdl, dent) in zip(site_groups, site_models, site_denticity)
+    for (grp, mdl, dent, z) in zip(site_groups, site_models, site_denticity, site_charges)
         n_total = sum(_site_weight(mdl, dent[j]) * _n[i] for (j, i) in enumerate(grp)) + ϵ
         x = Vector{ET}(undef, length(grp))
+        ngrp = Vector{ET}(undef, length(grp))
         @inbounds for (j, i) in enumerate(grp)
             x[j] = _site_weight(mdl, dent[j]) * _n[i] / n_total
+            ngrp[j] = _n[i]
         end
         @inbounds for (k, i) in enumerate(grp)
-            out[i] = log(x[k] + ϵ) + _site_excess_ln_gamma(mdl, k, x, T)
+            out[i] = log(x[k] + ϵ) + _site_excess_ln_gamma(mdl, k, x, T) +
+                _electrostatic_ln_a(mdl, k, z, ngrp, T)
         end
     end
     return out

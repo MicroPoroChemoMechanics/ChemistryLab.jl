@@ -4,6 +4,7 @@
 using ChemistryLab
 using DynamicQuantities
 using ForwardDiff
+using LinearAlgebra
 using SciMLBase
 using Test
 
@@ -448,6 +449,95 @@ end
         @test davies_gap < 0.02
         # And the improvement is an order of magnitude, which is the attribution.
         @test ideal_gap / davies_gap > 10
+    end
+
+    @testset "a charged surface: the model, and where the solve stops" begin
+        # Hydrous ferric oxide's real geometry, because this term is a surface
+        # *density* effect and an unphysical one makes nonsense of it: 2e-4 mol
+        # of sites on 1 m² would put σ at 96 C/m², a hundred times anything
+        # measured, and every exponential in the model with it.
+        N, A = 2.0e-4, 53.4
+        _sys(model) = begin
+            cs, st, _ = _amphoteric_system(; logK1 = 7.29, logK2 = -8.93, n_sites = N)
+            fam = SiteFamily(
+                "Xs", cs.species[4], cs.species[5:6];
+                capacity = TotalSiteAmount(N), support = SurfaceSupport(
+                    "oxide", nothing, FixedSurfaceArea(A)
+                ), model,
+            )
+            cs2 = ChemicalSystem(
+                cs.species, cs.SM.primaries; site_families = [fam],
+            )
+            n = Any[fill(1.0e-12u"mol", length(cs2.species))...]
+            n[1] = (1.0 / 0.018015)u"mol"; n[4] = N * u"mol"
+            (cs2, ChemicalState(cs2, n))
+        end
+
+        # ── the shift is exactly z_k ψ̃, evaluated rather than trusted ──────
+        C = 3.0
+        cs_e, st_e = _sys(ConstantCapacitance(; C = C, area = A))
+        cs_i, _ = _sys(IdealSiteMixing())
+        n = zeros(length(cs_e.species))
+        n[1] = 1.0 / 0.018015; n[2] = 1.0e-5; n[3] = 1.0e-9
+        n[4], n[5], n[6] = 0.2N, 0.8N, 1.0e-14
+        p = (ϵ = 1.0e-30, T = 298.15)
+        lna_e = activity_model(cs_e, DiluteSolutionModel())(n, p)
+        lna_i = activity_model(cs_i, DiluteSolutionModel())(n, p)
+        ψ = FARADAY^2 * (n[5] - n[6]) / (C * A * R_GAS * 298.15)
+        @test lna_e[4] ≈ lna_i[4] rtol = 1.0e-12          # neutral, untouched
+        @test lna_e[5] - lna_i[5] ≈ ψ rtol = 1.0e-10      # z = +1, penalized
+        @test lna_e[6] - lna_i[6] ≈ -ψ rtol = 1.0e-10     # z = −1, favored
+
+        # ── convex, and measured so ───────────────────────────────────────
+        # G_el is a quadratic form with Hessian (F²/CA) z zᵀ, positive
+        # semi-definite. Its second derivative along the charge direction is the
+        # only non-zero eigenvalue, and it must be positive.
+        gel(m) = FARADAY^2 * (m[5] - m[6])^2 / (2 * C * A * R_GAS * 298.15)
+        H = ForwardDiff.hessian(gel, n)
+        @test issymmetric(round.(H; digits = 12))
+        @test minimum(eigvals(H[4:6, 4:6])) > -1.0e-8     # no negative curvature
+        @test maximum(eigvals(H[4:6, 4:6])) ≈ 2 * FARADAY^2 / (C * A * R_GAS * 298.15) rtol =
+            1.0e-8
+
+        # ── an infinite capacitance is no electrostatics at all ───────────
+        for pH in (5.0, 7.0)
+            solve_at(cs, st, pH) = begin
+                des = DualEquilibriumSolver(cs, DiluteSolutionModel())
+                b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
+                eq = SciMLBase.solve(des, st; b = b, constraint = FixedpH(pH))
+                m = Float64[ustrip(us"mol", x) for x in eq.n]
+                m[5] / (m[4] + m[5] + m[6])
+            end
+            # The approach is `O(1/C)`: at C = 1000 the residual stiffness is
+            # still ψ̃_max ≈ 0.014 and the protonation differs in the third
+            # digit. Taking C large enough that ψ̃_max is 1e-5 makes the limit
+            # unambiguous rather than approximate.
+            cs_big, st_big = _sys(ConstantCapacitance(; C = 1.0e6, area = A))
+            cs_id, st_id = _sys(IdealSiteMixing())
+            @test solve_at(cs_big, st_big, pH) ≈ solve_at(cs_id, st_id, pH) rtol = 1.0e-4
+        end
+
+        # ── and a real capacitance does what the physics says ─────────────
+        # A surface already charged resists charging further, so at an acid pH
+        # it protonates *less*. Measured: 0.995 without, 0.81 at C = 3 F/m².
+        cs_c, st_c = _sys(ConstantCapacitance(; C = C, area = A))
+        des_c = DualEquilibriumSolver(cs_c, DiluteSolutionModel())
+        b_c = Float64.(cs_c.SM.A) * Float64[ustrip(us"mol", x) for x in st_c.n]
+        eq_c = SciMLBase.solve(des_c, st_c; b = b_c, constraint = FixedpH(5.0))
+        m = Float64[ustrip(us"mol", x) for x in eq_c.n]
+        prot = m[5] / (m[4] + m[5] + m[6])
+        cert = optimality_certificate(des_c, eq_c; b = b_c, constraint = FixedpH(5.0))
+        @test cert.stationarity < 1.0e-10        # the solve is found, not guessed
+        @test 0.7 < prot < 0.9                   # and it is damped, not saturated
+
+        # ── the limit, stated as a number rather than discovered ──────────
+        # ψ̃_max is the dimensionless stiffness the elimination puts into an
+        # activity. Below about 5 the Newton finds the minimum; above it, it does
+        # not — and convexity says that is the solver, since the minimum is
+        # unique. The formulation with Ψ as an unknown is what lifts it.
+        ψmax(c) = FARADAY^2 * N / (c * A * R_GAS * 298.15)
+        @test ψmax(3.0) < 5.0
+        @test ψmax(1.2) > 10.0
     end
 
     @testset "a system without a surface is unchanged" begin

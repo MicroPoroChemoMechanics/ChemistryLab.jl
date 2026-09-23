@@ -254,6 +254,9 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
     site_denticity = has_sites ?
         [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
         nothing
+    site_charges = has_sites ?
+        [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
+        nothing
 
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
     n_sp = lastindex(cs.species)
@@ -470,7 +473,9 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
         # wrong — the same trap the solid-solution call has carried since 0.8.2.
         if has_sites
             T_val = hasproperty(p, :T) ? p.T : 298.15
-            _site_mixing_lna!(out, _n, site_groups, site_models, site_denticity, T_val, ϵ)
+            _site_mixing_lna!(
+                out, _n, site_groups, site_models, site_denticity, site_charges, T_val, ϵ
+            )
         end
         return out
     end
