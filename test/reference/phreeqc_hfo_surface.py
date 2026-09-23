@@ -31,6 +31,7 @@
 import argparse
 import hashlib
 import os
+import re
 import sys
 
 import phreeqpython
@@ -54,6 +55,52 @@ REPORTED = [
     "Hfo_wOH", "Hfo_wOH2+", "Hfo_wO-", "Hfo_wOZn+",
     "Zn+2",
 ]
+
+# The protolysis-only case: weak sites, no metal. It is the narrowest comparison
+# that still exercises everything the first milestone implements — a site
+# balance, ideal site mixing, and two states competing for one budget — and it
+# is narrow on purpose: with no metal there is nothing in it that depends on the
+# aqueous activity model, so the two codes are compared on the surface chemistry
+# alone.
+PROTOLYSIS_REPORTED = ["Hfo_wOH", "Hfo_wOH2+", "Hfo_wO-"]
+SITES_PROTOLYSIS = 2.0e-4
+
+
+def protolysis_logks(db: str):
+    """The two log K this case matches, read from the database, never typed.
+
+    A constant copied by hand is a constant that drifts from the file it came
+    from; reading it means the comparison is against what PHREEQC actually used.
+    """
+    wanted = {
+        "Hfo_wOH\t+ H+ = Hfo_wOH2+": "protonation",
+        "Hfo_wOH = Hfo_wO- + H+": "deprotonation",
+    }
+    found = {}
+    lines = open(db, encoding="utf-8", errors="ignore").read().split("\n")
+    for i, line in enumerate(lines):
+        key = line.strip().replace("  ", "\t")
+        for pattern, label in wanted.items():
+            if key.replace("\t", " ").replace("  ", " ") == pattern.replace("\t", " "):
+                for follow in lines[i + 1 : i + 4]:
+                    if "log_k" in follow:
+                        found[label] = float(follow.split("log_k")[1].split("#")[0])
+                        break
+    if len(found) != 2:
+        raise SystemExit(f"could not read both log K from {db}; got {found}")
+    return found
+
+
+def jl(value: float) -> str:
+    """A float as Julia's formatter writes it.
+
+    Python renders an exponent with a leading zero, `6.0e-09`; Runic, which
+    gates this repository's formatting, writes `6.0e-9`. The fix belongs here
+    rather than in the file this emits: correcting the output alone means the
+    next regeneration puts the leading zero back, and a formatting job fails on
+    a file nobody edited.
+    """
+    return re.sub(r"e([+-])0(\d)$", r"e\1\2", repr(value))
 
 
 def database_path(name: str) -> str:
@@ -154,18 +201,99 @@ END
                 "is not imposing what this script means to impose."
             )
         entries = ", ".join(
-            f'"{name}" => {value!r}' for name, value in zip(header, values)
+            f'"{name}" => {jl(value)}' for name, value in zip(header, values)
         )
         print(f"    {ph} => ({entries}),")
 
     print(")")
 
 
+def run_protolysis():
+    """The acid-base case: one family of weak sites, nothing else."""
+    db = database_path(DATABASE)
+    ip = VIPhreeqc()
+    ip.load_database(db)
+    if ip.phc_database_error_count:
+        raise SystemExit(f"{DATABASE} failed to load: {ip.get_error_string()}")
+
+    logks = protolysis_logks(db)
+    provenance(db)
+    print("# model        no_edl, weak sites only, no metal")
+    print(f"# sites        {SITES_PROTOLYSIS} mol")
+    print(f"# log K        protonation {logks['protonation']}, "
+          f"deprotonation {logks['deprotonation']}")
+    print()
+    print("const PHREEQC_PROTOLYSIS = (")
+    print(f"    logK_protonation = {jl(logks['protonation'])},")
+    print(f"    logK_deprotonation = {jl(logks['deprotonation'])},")
+    print(f"    n_sites = {jl(SITES_PROTOLYSIS)},")
+    print("    points = [")
+
+    for ph in PH_VALUES:
+        script = f"""
+PHASES
+Fix_H+
+    H+ = H+
+    log_k    0.0
+HCl
+    HCl = H+ + Cl-
+    log_k    7.0
+END
+SOLUTION 1
+    units    mol/kgw
+    temp     25.0
+    water    1.0
+    pH       7.0
+    Na       0.01
+    Cl       0.01 charge
+SURFACE 1
+    Hfo_wOH  {SITES_PROTOLYSIS}  {AREA_PER_GRAM}  {MASS_SOLID * 1000.0}
+    -no_edl
+EQUILIBRIUM_PHASES 1
+    Fix_H+   {-ph}  HCl  10.0
+SELECTED_OUTPUT
+    -reset      false
+    -high_precision true
+    -pH         true
+    -activities H+
+    -molalities {' '.join(PROTOLYSIS_REPORTED)}
+END
+"""
+        ip.run_string(script)
+        rows = ip.get_selected_output_array()
+        header, values = rows[0], rows[-1]
+        got_ph = values[header.index("pH")]
+        if abs(got_ph - ph) > 1.0e-6:
+            raise SystemExit(f"PHREEQC returned pH {got_ph} for a requested {ph}")
+        la_h = values[header.index("la_H+")]
+        amounts = [values[header.index(f"m_{nm}(mol/kgw)")] for nm in PROTOLYSIS_REPORTED]
+        total = sum(amounts)
+        fractions = [a / total for a in amounts]
+        print(
+            f"        (pH = {jl(ph)}, la_H = {jl(la_h)}, "
+            f"free = {jl(fractions[0])}, protonated = {jl(fractions[1])}, "
+            f"deprotonated = {jl(fractions[2])}),"
+        )
+
+    print("    ],")
+    print(")")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--case",
+        choices=("protolysis", "zn-edge"),
+        default="protolysis",
+        help="which comparison to emit (default: the acid-base one)",
+    )
     parser.add_argument(
         "--edl",
         action="store_true",
         help="use the diffuse double layer instead of -no_edl (a different model)",
     )
-    run(parser.parse_args().edl)
+    args = parser.parse_args()
+    if args.case == "protolysis":
+        run_protolysis()
+    else:
+        run(args.edl)

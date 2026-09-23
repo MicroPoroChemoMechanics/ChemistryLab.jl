@@ -53,6 +53,13 @@ pages = [
         "Oxidation state" => [
             "theory/redox.md",
         ],
+        # The second conserved quantity that is not an element, and the third
+        # place a mixture stops being ideal. It reads after the two above
+        # because it uses both: a site balance is written like the charge row,
+        # and site mixing is written like a solid solution's.
+        "Surfaces and interfaces" => [
+            "theory/surface_complexation.md",
+        ],
         # When, rather than what: the rate laws, their parameters and the
         # provenance of every number in them. Equilibrium says nothing about
         # time, and a binder's engineering behavior is entirely about time.
@@ -142,6 +149,12 @@ pages = [
             # formulation cannot hold: the published AFm binary, run three ways.
             "examples/miscibility_gap.md",
             "examples/pitzer_model.md",
+        ],
+        # The smallest complete surface calculation, against the closed form it
+        # is supposed to reproduce -- and it reproduces it rather than assuming
+        # it, which is the whole claim.
+        "Surfaces" => [
+            "examples/surface_langmuir.md",
         ],
         # Small, checkable aqueous cases with an analytical answer to compare to.
         "Aqueous equilibria" => [
