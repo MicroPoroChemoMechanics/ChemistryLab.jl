@@ -99,6 +99,7 @@ end
     include("sit.jl")
     include("provenance.jl")
     include("sorption_models.jl")
+    include("claysor.jl")
     include("equilibrium_reference.jl")
     include("published_values.jl")
     include("test_dual_solver.jl")

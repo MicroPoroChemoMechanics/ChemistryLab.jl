@@ -93,6 +93,38 @@ Stacking two electrostatic models is refused. Adding two potentials is how a
 Stern model is *drawn* and not how it works: the capacitances belong to
 different charge planes, and summing them puts every species on both.
 
+### A published clay model, run end to end
+
+ClaySor 2023 — the 2SPNE SC/CE model of Bradbury and Baeyens, two-site
+protolysis plus cation exchange on illite and montmorillonite — is the first
+model in this package that somebody else published and that is read from their
+own file rather than rebuilt here.
+
+It exercises something no previous case did: **four site budgets on one solid**,
+three edge families counting particles and an exchanger counting charge
+equivalents, competing for the same solution. Against PHREEQC on the
+Na-montmorillonite subset:
+
+| what | worst relative gap |
+|:--|--:|
+| edge sites (protolysis) | **2.5 × 10⁻⁶** |
+| exchanger (Na/Ca) | **2.0 × 10⁻²** |
+
+Four orders of magnitude apart, and structurally so. The edge sites see only the
+proton, whose activity is prescribed on both sides, so no aqueous model enters
+and what is compared is the surface model alone. The exchanger sees the sodium
+and calcium activities — and that is a measurement, not an excuse: the identical
+system under ideal activities is off by 23.8 % and under Davies by 1.95 %, a
+factor of twelve from changing nothing but the solution.
+
+**It is not a reproduction of ClaySor, and the fixture says so as a field.**
+ClaySor's constants were fitted against PSI/Nagra TDB 2020, which this
+repository does not have; both sides run the sorption model over `phreeqc.dat`'s
+aqueous chemistry instead. Using published constants over a different aqueous
+database is a different model, in the same way a surface constant fitted with a
+diffuse layer is a different constant from one fitted without — and the whole
+point of saying which is that both look like the same number.
+
 ### Reading a published sorption model
 
 `read_sorption_model` reads the `SURFACE_MASTER_SPECIES`, `SURFACE_SPECIES`,

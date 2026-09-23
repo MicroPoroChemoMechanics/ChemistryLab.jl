@@ -161,6 +161,7 @@ pages = [
             # difference lives.
             "examples/hfo_titration.md",
             "examples/hfo_diffuse_layer.md",
+            "examples/claysor_clay.md",
         ],
         # Small, checkable aqueous cases with an analytical answer to compare to.
         "Aqueous equilibria" => [
