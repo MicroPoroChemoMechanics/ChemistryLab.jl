@@ -462,30 +462,30 @@ PARTIAL_BUILD || let t0 = time()
     @info "pre-flight: draft build (checks only, no example executed)"
     mktempdir() do draftdir
         Logging.with_logger(RecordingLogger(Logging.current_logger(), _PREFLIGHT_LOG)) do
-        makedocs(;
-            modules = [ChemistryLab],
-            remotes = nothing,
-            authors = "Jean-François Barthélémy and Anthony Soive",
-            sitename = "ChemistryLab.jl",
-            # `size_threshold` disabled: it is an HTML-renderer limit and this
-            # site is rendered by DocumenterVitepress, which has none. Left on,
-            # it fails the pre-flight on `api/equilibrium.md` for a reason that
-            # cannot affect the real build — measured on the first run.
-            format = Documenter.HTML(;
-                edit_link = nothing, repolink = nothing,
-                size_threshold = nothing, size_threshold_warn = nothing,
-            ),
-            source = DOCS_SOURCE,
-            build = draftdir,
-            pages = pages,
-            plugins = [
-                CitationBibliography(
-                    joinpath(@__DIR__, "src", "refs.bib"); style = :authoryear
+            makedocs(;
+                modules = [ChemistryLab],
+                remotes = nothing,
+                authors = "Jean-François Barthélémy and Anthony Soive",
+                sitename = "ChemistryLab.jl",
+                # `size_threshold` disabled: it is an HTML-renderer limit and this
+                # site is rendered by DocumenterVitepress, which has none. Left on,
+                # it fails the pre-flight on `api/equilibrium.md` for a reason that
+                # cannot affect the real build — measured on the first run.
+                format = Documenter.HTML(;
+                    edit_link = nothing, repolink = nothing,
+                    size_threshold = nothing, size_threshold_warn = nothing,
                 ),
-            ],
-            warnonly = [:docs_block, :cross_references, :example_block, :linkcheck],
-            draft = true,
-        )
+                source = DOCS_SOURCE,
+                build = draftdir,
+                pages = pages,
+                plugins = [
+                    CitationBibliography(
+                        joinpath(@__DIR__, "src", "refs.bib"); style = :authoryear
+                    ),
+                ],
+                warnonly = [:docs_block, :cross_references, :example_block, :linkcheck],
+                draft = true,
+            )
         end
     end
     # AND THE HALF OF `cross_references` THAT A DRAFT BUILD CAN JUDGE.
@@ -504,10 +504,10 @@ PARTIAL_BUILD || let t0 = time()
     # refuses that shape outright; this is the second net, and it catches the
     # general case rather than one spelling of it.
     let failures = [
-                String(m.match) for m in eachmatch(
+            String(m.match) for m in eachmatch(
                     r"Cannot resolve @ref for [^\n]+", String(take!(_PREFLIGHT_LOG))
                 )
-            ]
+        ]
         isempty(failures) || error(
             "$(length(failures)) unresolvable `@ref` in a rendered docstring. " *
                 "The real build reaches this only after every example has run:\n  " *
