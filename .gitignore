@@ -28,3 +28,7 @@ AGENTS.md
 /*.svg
 docs/*.svg
 !docs/src/assets/*.svg
+
+# Written by xgems wherever it is imported; the oracle bench in
+# test/reference/ runs from the repository root.
+xGEMS.log
