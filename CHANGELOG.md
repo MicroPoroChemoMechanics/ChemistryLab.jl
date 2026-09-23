@@ -93,6 +93,58 @@ Stacking two electrostatic models is refused. Adding two potentials is how a
 Stern model is *drawn* and not how it works: the capacitances belong to
 different charge planes, and summing them puts every species on both.
 
+### SIT, the model the published compilations are written in
+
+`SITActivityModel` implements the Specific ion Interaction Theory: Debye-Hückel
+with a deviation term summed over ion **pairs** rather than one coefficient
+times the ionic strength.
+
+That difference is the point. Davies says the correction depends on how much
+salt there is; SIT says it depends on which salt, and
+`ε(Na⁺,Cl⁻) = +0.03` against `ε(Na⁺,SO₄²⁻) = −0.12` are of opposite sign. It
+also means `γ` turns around instead of falling forever — in NaCl at 25 °C,
+`log₁₀γ(Na⁺)` reaches −0.174 near `I = 1` and is back to −0.156 at `I = 3`, which
+a one-parameter deviation term cannot reproduce while matching the dilute end.
+
+It matters here beyond being one more option: the NEA reviews and ANDRA's
+ThermoChimie database are **calibrated in SIT**, so a `log K` taken from them and
+used under Davies is not the constant that was fitted — the same category of
+error as using a surface constant fitted with a diffuse layer in a model without
+one.
+
+Checked against PHREEQC on the formula alone: the fixture carries the molality
+*and* the activity coefficient for every species, so the comparison involves no
+speciation, no database of `log K` and no convergence path. Agreement
+1.4 × 10⁻³ in `log₁₀γ` over four decades of ionic strength, the residual being
+the Debye-Hückel slope rather than the coefficients, which are the same numbers
+on both sides.
+
+**No compilation ships with the package.** `build_sit_parameters` reads the
+`SIT` block of a PHREEQC-format database the caller already has; the one
+PHREEQC distributes is the ANDRA/RWM ThermoChimie-TDB, which is not USGS-
+authored and is not ours to redistribute. Reading rather than transcribing is
+also what keeps five hundred coefficients from becoming five hundred chances to
+mistype one.
+
+`SITCoefficient` carries **where each coefficient came from**, and
+`missing_epsilon_pairs` reports which of a system's pairs are resting on the
+literature's convention that an unlisted `ε` is zero. A convention silently
+applied is indistinguishable from a coefficient somebody determined.
+
+And it differentiates **with respect to the coefficients**, not only the
+composition: `∂ln a(Na⁺)/∂ε(Na⁺,Cl⁻) = ln10 · m(Cl⁻)` exactly. That is what
+makes identifying an interaction coefficient from data a well-posed question
+rather than a finite-difference exercise, and getting there needed the element
+type to follow the parameters — the promotion trap that lets every piece pass
+its own test while the chain breaks.
+
+A side effect worth recording: SIT gives the diffuse-layer comparison a third
+aqueous model, and it **rules the aqueous model out** as the cause of that
+comparison's residual. Ideal 2.12 × 10⁻⁴, Davies 2.07 × 10⁻⁴, SIT
+2.09 × 10⁻⁴ — two per cent apart. Together with the dielectric constant and the
+surface species set, that is three explanations measured and discarded; the
+residual stays small and unattributed, which is what the measurements support.
+
 ### Reproducibility, which turned out to need the most work
 
 Three habits were removed from this repository, all of them silent and all of

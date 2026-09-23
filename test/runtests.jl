@@ -96,6 +96,7 @@ end
     include("surface_complexation.jl")
     include("ion_exchange.jl")
     include("diffuse_layer.jl")
+    include("sit.jl")
     include("equilibrium_reference.jl")
     include("published_values.jl")
     include("test_dual_solver.jl")

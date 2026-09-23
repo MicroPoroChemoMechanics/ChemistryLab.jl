@@ -79,6 +79,19 @@ Regenerate a fixture by running its script; each names itself in the file's own
 `generator` field. The JSON is committed, the generators are not run in CI —
 running them needs PHREEQC, Reaktoro or GEMS, which CI does not have.
 
+## What is vendored here, and what deliberately is not
+
+`phreeqc.dat` **is** committed, unmodified, with the USGS User Rights Notice
+beside it — see `PHREEQC-PROVENANCE.md`. That notice covers data as well as
+code, and requires the notice to travel with any copy.
+
+`sit.dat` is **not**, and the difference is not an oversight. It is the ANDRA/RWM
+*ThermoChimie-TDB* compilation, redistributed with PHREEQC but not USGS-authored,
+so the notice above says nothing about its terms. `phreeqc_sit.py` therefore
+takes `--database` pointing at a copy the caller already has, and writes into its
+fixture only the handful of `ε` the comparison uses, with the database named and
+hashed. A test stays runnable in CI without a compilation being redistributed.
+
 ## Provenance
 
 Every generator reads its own versions at run time and writes them into the

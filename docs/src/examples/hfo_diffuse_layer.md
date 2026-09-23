@@ -229,10 +229,13 @@ plot(p1, p2; layout = (1, 2), size = (1000, 420), dpi = 130,
     the match very slightly *worse*, which rules the constant out as the cause
     of the residual and makes the agreement a stronger result: it holds with a
     different constant, not because of a shared one.
-  - The residual is **not** the aqueous activity model either: Davies improves
-    it by 14 %, not by the factor of fifty the zinc edge showed. What is left is
-    small, and saying it is unattributed is worth more than naming a cause that
-    measurement does not support.
+  - The residual is **not** the aqueous activity model either, and three of them
+    now say so: ideal gives 2.12 × 10⁻⁴ absolute, Davies 2.07 × 10⁻⁴ and
+    [SIT](@ref sec-theory-sit) 2.09 × 10⁻⁴ — two per cent apart. Nor is it a
+    missing surface complex: the weak-site block of `phreeqc.dat` defines
+    twenty-nine `Hfo_w` species and a sodium chloride system can form three of
+    them. What is left is small, and saying it is unattributed is worth more
+    than naming a cause that measurement does not support.
   - A diffuse-layer solve is a self-consistent speciation, **not a certified
     minimum**: the model's activity map is not the gradient of any Gibbs energy,
     and carrying the potential as an unknown does not change that.

@@ -131,10 +131,12 @@ module ChemistryLab
     include("databases/phreeqc_dat.jl")
     include("databases/thermofun_json.jl")
     include("databases/pitzer_toml.jl")
+    include("databases/sit_dat.jl")
     include("databases/merge_dat_json.jl")
 
     include("equilibrium/activities.jl")
     include("equilibrium/pitzer.jl")
+    include("equilibrium/sit.jl")
     include("equilibrium/equilibrium_problems.jl")
     include("equilibrium/retention.jl")
     include("equilibrium/constraints.jl")
@@ -377,6 +379,12 @@ module ChemistryLab
         pitzer_origin,
         HKFActivityModel,
         DaviesActivityModel,
+        SITActivityModel,
+        SITParameters,
+        SITCoefficient,
+        sit_epsilon,
+        missing_epsilon_pairs,
+        build_sit_parameters,
         activity_model,
         build_potentials,
         concentration_scale,

@@ -11,6 +11,24 @@ Modules = [ChemistryLab]
 Pages = ["equilibrium/activities.jl"]
 ```
 
+## Specific ion Interaction Theory (SIT)
+
+Debye-Hückel with a deviation term that is a sum over ion **pairs** rather than
+one coefficient times the ionic strength — so a sodium sulfate solution and a
+sodium chloride one of the same ionic strength get different activity
+coefficients. See [Activity models](@ref sec-theory-sit) §6a.
+
+Nothing here carries a default compilation: `ε` is caller input, and an unlisted
+pair is taken as zero by the literature's convention, which
+[`missing_epsilon_pairs`](@ref) reports rather than leaves implied. The
+coefficients carry their own provenance, so a borrowed value never becomes
+indistinguishable from a measured one.
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["equilibrium/sit.jl", "databases/sit_dat.jl"]
+```
+
 ## Ion-interaction (Pitzer) model
 
 The virial expansion of the excess Gibbs energy: a coefficient per ion pair and

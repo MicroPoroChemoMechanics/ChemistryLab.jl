@@ -308,12 +308,20 @@ end
     end
 
     @testset "what the residual is not" begin
-        # Neither explanation survives measurement, and saying so is worth more
-        # than attributing it to the first plausible cause.
+        # No explanation survives measurement, and saying so is worth more than
+        # attributing the residual to the first plausible cause.
         #
-        #   aqueous activity model   ideal 2.385e-3 → Davies 2.052e-3, 14 % better
-        #   dielectric constant      ours (78.245, κ = 0.117215) 2.385e-3
+        #   aqueous activity model   ideal  2.121e-4 absolute
+        #                            Davies 2.072e-4
+        #                            SIT    2.085e-4   — three models, 2 % apart
+        #   dielectric constant      ours (78.245, κ = 0.117215) 2.385e-3 relative
         #                            PHREEQC's (78.5, κ = 0.117406) 2.408e-3, WORSE
+        #   surface species set      identical: the weak-site block of
+        #                            phreeqc.dat defines twenty-nine Hfo_w
+        #                            species and a Na/Cl system can form three
+        #
+        # So it is not aqueous, not the dielectric constant, and not a missing
+        # complex. It is 2e-4 on a site fraction, and it stays unattributed.
         #
         # So adopting PHREEQC's own constant does not improve the match, which
         # rules it out as the cause and makes the agreement a stronger result:
