@@ -139,8 +139,13 @@ pages = [
             "tutorials/self_desiccation.md",
             "tutorials/self_desiccation_kinetics.md",
         ],
-        "Validation against other codes" => [
+        # Two halves of the same question, and neither substitutes for the
+        # other: a second code reading the same database cannot see an error in
+        # the database, and a paper's own tables cannot see an error in the
+        # solver.
+        "Validation" => [
             "tutorials/reaktoro_comparison.md",
+            "tutorials/published_data_validation.md",
         ],
     ],
     "Applications" => [

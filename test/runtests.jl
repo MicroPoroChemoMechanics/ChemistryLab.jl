@@ -87,6 +87,7 @@ end
 @testsection "Thermodynamics tests" begin
     include("thermodynamics.jl")
     include("hkf.jl")
+    include("cemdata18_reference.jl")
 end
 
 @testsection "Equilibrium tests" begin
@@ -106,6 +107,7 @@ end
     include("claysor.jl")
     include("equilibrium_reference.jl")
     include("published_values.jl")
+    include("atkins1992_reference.jl")
     include("test_dual_solver.jl")
     include("certified_equilibrium.jl")
     include("equilibrium_constraints.jl")

@@ -1,0 +1,213 @@
+# Validation against published data
+
+[Validation against Reaktoro](@ref) compares this package against another code
+reading the same database. That comparison cannot see an error in the database
+itself: both codes would make it together, agree perfectly, and be wrong.
+
+This page is the other half. It checks the **vendored data and the package
+against the papers the data came from** — first the Cemdata18 article
+([Lothenbach2019](@cite)), which publishes its solubility products *and* the
+standard properties they were derived from, so the two can be required to agree;
+then a set of measured solution compositions ([Atkins1992](@cite)), which can
+disagree with the database and does.
+
+Every number below is pinned by an assertion in
+`test/cemdata18_reference.jl` (584 of them) or `test/atkins1992_reference.jl`
+(12), so it is checked on every CI run.
+
+## Cemdata18 Tables 2 and 3: the solubility products
+
+Table 2 gives `log Ks0` for each phase **and** writes out the dissolution
+reaction it refers to; Table 1 gives the `ΔfG°` those constants were computed
+from. Recomputing one from the other through Cemdata18's own aqueous Gibbs
+energies closes a loop that can only close if the transcription is exact and the
+two halves of the paper share a reference state.
+
+### Transcribing a reaction without transcribing it twice
+
+Table 2 writes its reactions over `Al(OH)₄⁻`, `Fe(OH)₄⁻` and `SiO(OH)₃⁻`.
+Cemdata18's GEMS primaries are `AlO2-`, `FeO2-` and `HSiO3-`, which differ from
+those by 2, 2 and 1 H₂O. Transcribing both the substitution and the paper's
+water coefficients would be two chances to get it wrong, and the second would
+silently absorb the first.
+
+So only the **non-water** products are transcribed, and the water is recovered
+from the hydrogen balance. Oxygen and charge then become free checks — they can
+only close if the transcribed products are right. They close to `10⁻⁹` on all 52
+rows.
+
+### Result
+
+**50 of the 52 rows close.** The largest disagreement among them is `0.041` on
+`M8A-OH-LDH`, whose published value is quoted to one decimal; 48 are inside
+`0.005`.
+
+Two do not:
+
+| phase | from tabulated `ΔfG°` | published `log Ks0` | Δ | in energy |
+|:--|--:|--:|--:|--:|
+| `M075SH` (M₁.₅S₂H₂.₅) | −28.317 | −28.80 | **+0.483** | 2.76 kJ/mol |
+| `M15SH` (M₁.₅SH₂.₅) | −23.175 | −23.57 | **+0.395** | 2.26 kJ/mol |
+
+Both are M-S-H end members. With every other phase in the table closing to
+better than `0.05`, this is a property of the source and not of the
+transcription.
+
+### The same two phases disagree with themselves
+
+`ΔₐG⁰(T)` is formed from `ΔfH°` and `S°` rather than read off the file, so at
+`T = 298.15 K` it must reproduce the tabulated `ΔfG°`. For **220 of the 228**
+substances it does, to the last bit. For eight it does not:
+
+| substances | gap on `ΔfG°` | implied inconsistency in `S°` |
+|:--|--:|--:|
+| `ECSH1-KSH`, `ECSH2-KSH` | −243.7 J/mol | 0.82 J/K/mol |
+| `ECSH1-NaSH`, `ECSH2-NaSH` | −207.6 J/mol | 0.70 J/K/mol |
+| `KSiOH`, `NaSiOH` | −208.6 J/mol | 0.70 J/K/mol |
+| `M15SH` | −1088.6 J/mol | 3.65 J/K/mol |
+| `M075SH` | −1364.8 J/mol | 4.58 J/K/mol |
+
+The eight are not a random selection, and — this was the first guess and it is
+wrong — they are **not** the ones missing a heat-capacity block: six of them
+have one. What they share is that Cemdata18 says their entropy and heat capacity
+were **estimated rather than measured**: the six alkali C-S-H end members by the
+linear Ca/Si relations of Table 4 (the paper's Eqs 2a and 2b), the two M-S-H
+end members from talc, chrysotile and water (Table 1, footnote r, after
+[Nied2016](@cite)).
+
+An estimated `S°` that was never reconciled with the tabulated `ΔfG°` leaves the
+triplet `(ΔfG°, ΔfH°, S°)` inconsistent, and rebuilding the third from the other
+two is what makes it visible. The control is the five zeolites: they carry no
+heat-capacity block at all and still land on their tabulated value exactly. So
+this is the data, not the code path.
+
+For `M075SH` that makes **three** mutually inconsistent numbers for one phase in
+one paper — the tabulated `ΔfG°`, the value its own `ΔfH°` and `S°` imply, and
+the value its published `log Ks0` implies — spread over 2.8 kJ/mol. Nothing in a
+calculation announces this; the phase simply sits half a log unit off wherever
+M-S-H matters.
+
+## Appendix D: what the solubility products cannot test
+
+Table 2 exercises the `ΔfG°` of the aqueous primaries hard — a drift in any one
+of them breaks dozens of reactions at once — but says nothing about `S°`, `Cp°`,
+`V°` or the HKF equation-of-state coefficients, which are what carry the
+database away from 25 °C and 1 bar. Those are checked directly against
+Tables D.1 and D.2, on 19 aqueous species and all seven gases.
+
+Two conventions of the printed tables have to be undone first.
+
+**The HKF columns are scaled.** Table D.1 prints `a₁·10`, `a₂·10⁻²`, `a₄·10⁻⁴`,
+`c₂·10⁻⁴` and `ω⁰·10⁻⁵`, in the calorimetric units the HKF papers use. For
+Ca²⁺:
+
+| | `a₁` | `a₂` | `a₃` | `a₄` | `c₁` | `c₂` | `ω⁰` |
+|:--|--:|--:|--:|--:|--:|--:|--:|
+| printed | −0.1947 | −7.2520 | 5.2966 | −2.4792 | 9.0000 | −2.5220 | 1.2366 |
+| in the file | −0.01947 | −725.20 | 5.2966 | −24792 | 9.0 | −25220 | 123660 |
+
+All seven match on all 19 species, which is what makes the reading of the
+scaling more than a guess.
+
+**Table D.1's volume column is mislabelled.** It is headed `V⁰ (J/bar)` and
+carries cm³/mol: Ca²⁺ is listed at −18.44, and −18.44 J/bar would be
+−184.4 cm³/mol. The file stores −1.8439 J/bar, which is the same −18.44 cm³/mol.
+
+Table D.2's gas column, under the same header, really is J/bar — 2479 J/bar is
+24.79 L/mol, the ideal-gas molar volume at 298.15 K and 1 bar. The two tables
+share a header and not a unit.
+
+## What the shipped file does not carry
+
+Two rows of Table 2 cannot be checked, because the phase is in the printed table
+and not in the vendored file. The test asserts their absence, so that a database
+update which adds them turns this note red rather than leaving it stale.
+
+| row | why not |
+|:--|:--|
+| nitrite-AFm | the solid `mononitrite` is present; `NO2-` is not, so the reaction cannot be written over the file's own primaries |
+| Fe-Friedel's salt (`C4FCl2H10`, `log Ks0 = −28.62`) | absent altogether, as are amorphous and microcrystalline `Fe(OH)₃` |
+
+## Atkins et al. (1992): a measurement, not a calculation
+
+Their Table 2 reports **analyzed** solution compositions for slurries of
+synthetic hydrates in CO₂-free water at 25 °C, two to four solids at a time.
+Ten mixtures are tabulated. **One is usable quantitatively**, and the reasons the
+others are not are worth knowing before anyone spends an afternoon on them.
+
+### The one that is: ettringite + C-S-H
+
+Nominal C-S-H at Ca/Si = 0.9, measured at six months (mmol/L):
+
+| | measured | calculated | |
+|:--|--:|--:|:--|
+| Al | 0.136 | 0.149 | agreement |
+| pH | 11.0 | 11.33 | agreement |
+| SO₄ | 1.08 | 1.18 | close, but see below |
+| Si | 0.076 | 0.396 | **×5.2** |
+| Ca | 1.95 | 2.72 | **+40 %** |
+
+**Aluminum is the strong result.** Across a sweep of the C-S-H Ca/Si from 0.75
+to 1.0 and a fourfold change in solid loading it never leaves 0.138–0.159
+mmol/L. That is the database answering, not a fit.
+
+**Silicon is over-predicted for a reason the paper gives.** Atkins' own model
+gave 0.448 mmol/L on the same mixture, and they explain it: electron microscopy
+showed the ettringite had taken up silicon, *"substituting on average for 40 %
+of the available SO₄ sites"*, which *"would tend to lower aqueous Si
+concentrations, and increase SO₄ levels as observed"*. Cemdata18 carries no
+Si-bearing AFt end member either, so the same silicon has nowhere to go and
+stays in solution.
+
+**Calcium is a disagreement the model cannot absorb**, and the obvious escape
+does not work. Atkins report that their C-S-H dissolved incongruently over the
+test, which would have lowered its Ca/Si below the nominal 0.9 — and a lower
+Ca/Si ought to mean less calcium in solution. It does not:
+
+| C-S-H Ca/Si | Ca | Al | Si | SO₄ | pH |
+|--:|--:|--:|--:|--:|--:|
+| 0.75 | 3.39 | 0.156 | 0.498 | 2.41 | 11.02 |
+| 0.80 | 3.04 | 0.154 | 0.463 | 1.90 | 11.14 |
+| 0.85 | 2.83 | 0.152 | 0.429 | 1.50 | 11.24 |
+| 0.90 | **2.72** | 0.149 | 0.396 | 1.18 | 11.33 |
+| 1.00 | 2.73 | 0.142 | 0.335 | 0.74 | 11.47 |
+| *measured* | *1.95* | *0.136* | *0.076* | *1.08* | *11.0* |
+
+Calculated calcium goes through a **minimum near Ca/Si 0.85–0.90** and rises
+again below it. It never approaches 1.95. The floor is a property of the CSHQ
+model, not a free parameter, so the gap is real.
+
+Sulfate lands close, but it is the one number here that moves freely with the
+Ca/Si — 0.74 at 1.0, 2.41 at 0.75 — so the agreement is not evidence of much.
+Atkins' own 1992 model gave 0.597; Cemdata18 is nearer, and that is the whole
+claim.
+
+!!! note "Gibbsite has to be suppressed, and it changes the answer"
+    Cemdata18 §2.1 says its precipitation *"should be suppressed for
+    calculations at ambient temperatures, where microcrystalline Al(OH)₃ will
+    form instead"*. Leaving `Gbs` in the phase list is not a harmless
+    over-specification: it takes over from AH₃ in the sulfate-poor mixtures and
+    moves the aluminum.
+
+### Why the other nine are not usable
+
+| reason | evidence |
+|:--|:--|
+| the solid-to-water ratio is not reported, and these assemblages are **not invariant** | wherever a C-S-H buffers the calcium, a fourfold change in loading moves the answer by a factor of two: mixture 1 (AFt + CSH 1.7) gives Ca = 8.0 mmol/L at one loading and 16.0 at four times it, against 2.67 measured |
+| four mixtures grew a phase Atkins identifies as **metastable**, so the measured solution is not an equilibrium one | AFm in mixture 3, C₄AH₁₃ in 8 and 21, siliceous hydrogarnet in 30 — the paper says so itself and uses them to argue the point |
+| two are in **0.4 M NaOH** | past the range the B-dot term in [`HKFActivityModel`](@ref) was fitted for (`I ≲ 1 mol/kg`, and less for the water activity); a Pitzer model would be the honest instrument |
+
+Their Table 3 — pore fluids of five-year-old OPC, 30 % BFS and 30 % FA pastes —
+is a better target for a future test: alkali and pH are reported and the binder
+compositions are given. It needs the alkali uptake of the CSHQ Na/K end members
+and belongs with the CEM I/II examples.
+
+## Reproducing
+
+```sh
+julia --project=. -e 'using Pkg; Pkg.test()'
+```
+
+The Cemdata18 checks are pure arithmetic over the shipped file and need no
+solver. The Atkins case runs one `equilibrate_certified` and takes about a
+second once compiled.
