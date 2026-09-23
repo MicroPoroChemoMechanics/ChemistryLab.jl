@@ -66,41 +66,48 @@ PROTOLYSIS_REPORTED = ["Hfo_wOH", "Hfo_wOH2+", "Hfo_wO-"]
 SITES_PROTOLYSIS = 2.0e-4
 
 
-def protolysis_logks(db: str):
-    """The two log K this case matches, read from the database, never typed.
+def logk_for(db: str, reaction: str) -> float:
+    """The log K of one reaction, read from the database rather than typed.
 
     A constant copied by hand is a constant that drifts from the file it came
     from; reading it means the comparison is against what PHREEQC actually used.
+    The match is on the reaction written with single spaces, so the database's
+    mixture of tabs and spaces does not matter.
     """
-    wanted = {
-        "Hfo_wOH\t+ H+ = Hfo_wOH2+": "protonation",
-        "Hfo_wOH = Hfo_wO- + H+": "deprotonation",
-    }
-    found = {}
+    def norm(text):
+        return " ".join(text.replace("\t", " ").split())
+
+    target = norm(reaction)
     lines = open(db, encoding="utf-8", errors="ignore").read().split("\n")
     for i, line in enumerate(lines):
-        key = line.strip().replace("  ", "\t")
-        for pattern, label in wanted.items():
-            if key.replace("\t", " ").replace("  ", " ") == pattern.replace("\t", " "):
-                for follow in lines[i + 1 : i + 4]:
-                    if "log_k" in follow:
-                        found[label] = float(follow.split("log_k")[1].split("#")[0])
-                        break
-    if len(found) != 2:
-        raise SystemExit(f"could not read both log K from {db}; got {found}")
-    return found
+        if norm(line) != target:
+            continue
+        for follow in lines[i + 1 : i + 4]:
+            if "log_k" in follow:
+                return float(follow.split("log_k")[1].split("#")[0])
+    raise SystemExit(f"no log K for {reaction!r} in {os.path.basename(db)}")
 
 
 def jl(value: float) -> str:
     """A float as Julia's formatter writes it.
 
-    Python renders an exponent with a leading zero, `6.0e-09`; Runic, which
-    gates this repository's formatting, writes `6.0e-9`. The fix belongs here
-    rather than in the file this emits: correcting the output alone means the
-    next regeneration puts the leading zero back, and a formatting job fails on
-    a file nobody edited.
+    Two differences, both of which Runic — the formatter this repository's CI
+    gates on — would otherwise flag. Python renders an exponent with a leading
+    zero, `6.0e-09` against `6.0e-9`, and it drops the fractional part of a
+    round mantissa, `5e-06` against `5.0e-6`.
+
+    The fix belongs here rather than in the file this emits: correcting the
+    output alone means the next regeneration puts both back, and a formatting
+    job then fails on a file nobody edited.
     """
-    return re.sub(r"e([+-])0(\d)$", r"e\1\2", repr(value))
+    text = repr(value)
+    if "e" not in text:
+        return text
+    mantissa, exponent = text.split("e")
+    if "." not in mantissa:
+        mantissa += ".0"
+    exponent = re.sub(r"^([+-])0(\d)$", r"\1\2", exponent)
+    return f"{mantissa}e{exponent}"
 
 
 def database_path(name: str) -> str:
@@ -123,40 +130,43 @@ def provenance(db: str) -> None:
     print(f"# database     {os.path.basename(db)}  md5 {digest}")
 
 
-def run(edl: bool):
+def run_zn_edge(edl: bool):
+    """The two-site case: strong and weak sites, protolysis, and a metal.
+
+    Dzombak & Morel's ferrihydrite has two families that differ in exactly two
+    ways — the strong sites are forty times scarcer and bind zinc about a
+    thousand times more strongly — and share the same protolysis constants. The
+    consequence is the shape of a sorption edge: the strong sites take the metal
+    first and saturate, the weak ones take over.
+    """
     db = database_path(DATABASE)
     ip = VIPhreeqc()
     ip.load_database(db)
     if ip.phc_database_error_count:
         raise SystemExit(f"{DATABASE} failed to load: {ip.get_error_string()}")
 
+    logks = {
+        "protonation": logk_for(db, "Hfo_wOH + H+ = Hfo_wOH2+"),
+        "deprotonation": logk_for(db, "Hfo_wOH = Hfo_wO- + H+"),
+        "zn_strong": logk_for(db, "Hfo_sOH + Zn+2 = Hfo_sOZn+ + H+"),
+        "zn_weak": logk_for(db, "Hfo_wOH + Zn+2 = Hfo_wOZn+ + H+"),
+    }
+
     provenance(db)
     print(f"# model        {'diffuse double layer' if edl else 'no_edl'}")
-    print(f"# Fe           {N_FE} mol, strong {SITES_STRONG} mol, weak {SITES_WEAK} mol")
+    print(f"# Fe           {N_FE} mol -> strong {SITES_STRONG}, weak {SITES_WEAK} mol")
     print(f"# Zn total     {ZN_TOTAL} mol/kgw")
     print()
+    print("const PHREEQC_HFO_ZN = (")
+    for key, value in logks.items():
+        print(f"    logK_{key} = {jl(value)},")
+    print(f"    n_strong = {jl(SITES_STRONG)},")
+    print(f"    n_weak = {jl(SITES_WEAK)},")
+    print(f"    zn_total = {jl(ZN_TOTAL)},")
+    print("    points = [")
 
     edl_line = "" if edl else "    -no_edl\n"
-    header = ["pH"] + REPORTED
-    print("const PHREEQC_HFO = Dict(")
-
     for ph in PH_VALUES:
-        # `water 1` pins a kilogram of solvent so the reported molalities and the
-        # surface amounts share one basis.
-        #
-        # The pH is **imposed** through `Fix_H+`, not written into the solution.
-        # Two ways of writing it look right and are not:
-        #
-        #   * `pH {ph} charge` asks PHREEQC to *compute* the pH from the charge
-        #     balance and treats the number as a starting guess, so every point
-        #     of the sweep returns the same equilibrium -- silently;
-        #   * `pH {ph}` alone sets the pH of the solution *before* the surface
-        #     is brought into contact with it, and protolysis then moves it. At
-        #     a requested 4.0 this run came back at 7.08.
-        #
-        # `Fix_H+` with an HCl reservoir titrates to hold the pH through the
-        # surface equilibration, which is the experiment the D&M parameters were
-        # fitted to. The assertion below is what keeps that honest.
         script = f"""
 PHASES
 Fix_H+
@@ -183,28 +193,30 @@ SELECTED_OUTPUT
     -reset      false
     -high_precision true
     -pH         true
+    -activities H+ Zn+2
     -molalities {' '.join(REPORTED)}
 END
 """
         ip.run_string(script)
         rows = ip.get_selected_output_array()
-        if len(rows) < 2:
-            raise SystemExit(f"no selected output at pH {ph}")
-        values = rows[-1]
-        # The oracle checks that it computed what it was asked. A directive that
-        # silently reinterprets an input -- `pH ... charge` did exactly that --
-        # produces a table that looks like a sweep and is one point repeated.
-        got_ph = values[0]
+        header, values = rows[0], rows[-1]
+        got_ph = values[header.index("pH")]
         if abs(got_ph - ph) > 1.0e-6:
-            raise SystemExit(
-                f"PHREEQC returned pH {got_ph} for a requested {ph}: the input "
-                "is not imposing what this script means to impose."
-            )
-        entries = ", ".join(
-            f'"{name}" => {jl(value)}' for name, value in zip(header, values)
+            raise SystemExit(f"PHREEQC returned pH {got_ph} for a requested {ph}")
+        col = lambda name: values[header.index(name)]
+        m = {nm: col(f"m_{nm}(mol/kgw)") for nm in REPORTED}
+        zn_sorbed = m["Hfo_sOZn+"] + m["Hfo_wOZn+"]
+        print(
+            f"        (pH = {jl(ph)}, la_H = {jl(col('la_H+'))}, "
+            f"la_Zn = {jl(col('la_Zn+2'))}, "
+            f"s_free = {jl(m['Hfo_sOH'])}, s_prot = {jl(m['Hfo_sOH2+'])}, "
+            f"s_depr = {jl(m['Hfo_sO-'])}, s_zn = {jl(m['Hfo_sOZn+'])}, "
+            f"w_free = {jl(m['Hfo_wOH'])}, w_prot = {jl(m['Hfo_wOH2+'])}, "
+            f"w_depr = {jl(m['Hfo_wO-'])}, w_zn = {jl(m['Hfo_wOZn+'])}, "
+            f"zn_free = {jl(m['Zn+2'])}, zn_sorbed_fraction = {jl(zn_sorbed / ZN_TOTAL)}),"
         )
-        print(f"    {ph} => ({entries}),")
 
+    print("    ],")
     print(")")
 
 
@@ -216,7 +228,10 @@ def run_protolysis():
     if ip.phc_database_error_count:
         raise SystemExit(f"{DATABASE} failed to load: {ip.get_error_string()}")
 
-    logks = protolysis_logks(db)
+    logks = {
+        "protonation": logk_for(db, "Hfo_wOH + H+ = Hfo_wOH2+"),
+        "deprotonation": logk_for(db, "Hfo_wOH = Hfo_wO- + H+"),
+    }
     provenance(db)
     print("# model        no_edl, weak sites only, no metal")
     print(f"# sites        {SITES_PROTOLYSIS} mol")
@@ -296,4 +311,4 @@ if __name__ == "__main__":
     if args.case == "protolysis":
         run_protolysis()
     else:
-        run(args.edl)
+        run_zn_edge(args.edl)

@@ -155,6 +155,10 @@ pages = [
         # it, which is the whole claim.
         "Surfaces" => [
             "examples/surface_langmuir.md",
+            # Two families on one support, which is what makes a sorption edge
+            # bend, and the cross-code comparison that says where the remaining
+            # difference lives.
+            "examples/hfo_titration.md",
         ],
         # Small, checkable aqueous cases with an analytical answer to compare to.
         "Aqueous equilibria" => [
