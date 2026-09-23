@@ -67,6 +67,7 @@ end
     include("zeolites.jl")
     include("parsing_utils.jl")
     include("reactions.jl")
+    include("surfaces.jl")
 
 end
 

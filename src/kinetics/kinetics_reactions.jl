@@ -8,121 +8,6 @@
 
 using DynamicQuantities
 
-# ── Abstract surface area model ───────────────────────────────────────────────
-
-"""
-    abstract type AbstractSurfaceModel end
-
-Base type for models that compute the reactive surface area of a mineral phase.
-
-Concrete subtypes must implement:
-```julia
-surface_area(model, n::Real, molar_mass::Real) -> Real
-```
-returning the reactive surface area in m².
-
-All methods must be AD-compatible (no `Float64` casts).
-"""
-abstract type AbstractSurfaceModel end
-
-# ── FixedSurfaceArea ──────────────────────────────────────────────────────────
-
-"""
-    struct FixedSurfaceArea{T<:Real} <: AbstractSurfaceModel
-
-Constant reactive surface area, independent of mineral abundance.
-
-Suitable for short simulations or when the surface area is externally controlled
-(e.g. from BET measurements on a fixed mass of powder).
-
-# Fields
-
-  - `A`: total reactive surface area [m²].
-
-# Examples
-
-```julia
-FixedSurfaceArea(0.5)            # 0.5 m²  (plain Real → SI)
-FixedSurfaceArea(500.0u"cm^2")  # 500 cm² → 0.05 m²
-```
-"""
-struct FixedSurfaceArea{T <: Real} <: AbstractSurfaceModel
-    A::T
-end
-
-"""
-    FixedSurfaceArea(A) -> FixedSurfaceArea
-
-Construct a [`FixedSurfaceArea`](@ref).
-`A` can be a plain `Real` (SI [m²]) or a `Quantity` (automatically converted to m²).
-"""
-function FixedSurfaceArea(A)
-    A_si = Float64(safe_ustrip(us"m^2", A))
-    return FixedSurfaceArea{Float64}(A_si)
-end
-
-"""
-    surface_area(model::FixedSurfaceArea, n::Real, molar_mass::Real) -> Real
-
-Return the fixed surface area `model.A` [m²], independent of moles `n`.
-AD-compatible.
-"""
-surface_area(model::FixedSurfaceArea, ::Real, ::Real) = model.A
-
-# ── BETSurfaceArea ────────────────────────────────────────────────────────────
-
-"""
-    struct BETSurfaceArea{T<:Real} <: AbstractSurfaceModel
-
-Reactive surface area that scales with the mineral mass, following a BET
-(Brunauer-Emmett-Teller) specific-surface-area measurement.
-
-```
-A = A_spec × n × M_mineral       [m²]
-```
-
-where `A_spec` [m²/kg] is the specific BET surface area, `n` is the current
-molar amount [mol], and `M_mineral` is the molar mass [kg/mol].
-
-This is the standard approach in reactive-transport models (Palandri & Kharaka 2004).
-
-# Fields
-
-  - `A_specific`: specific BET surface area [m²/kg].
-
-# Examples
-
-```julia
-BETSurfaceArea(90.0)              # 90 m²/kg  (plain Real → SI)
-BETSurfaceArea(0.09u"m^2/g")     # 0.09 m²/g → 90 m²/kg
-```
-"""
-struct BETSurfaceArea{T <: Real} <: AbstractSurfaceModel
-    A_specific::T   # m²/kg
-end
-
-"""
-    BETSurfaceArea(A_specific) -> BETSurfaceArea
-
-Construct a [`BETSurfaceArea`](@ref).
-`A_specific` can be a plain `Real` (SI [m²/kg]) or a `Quantity` (automatically
-converted to m²/kg), e.g. `0.09u"m^2/g"` → 90 m²/kg.
-"""
-function BETSurfaceArea(A_specific)
-    A_si = Float64(safe_ustrip(us"m^2/kg", A_specific))
-    return BETSurfaceArea{Float64}(A_si)
-end
-
-"""
-    surface_area(model::BETSurfaceArea, n::Real, molar_mass::Real) -> Real
-
-Return `A_specific × n × molar_mass` [m²].  Clamps at zero to avoid negative
-surface areas when `n → 0`. AD-compatible.
-"""
-function surface_area(model::BETSurfaceArea, n::Real, molar_mass::Real)
-    return model.A_specific * max(n, zero(n)) * molar_mass
-end
-
 # ── KineticReaction ───────────────────────────────────────────────────────────
 
 """
@@ -350,14 +235,16 @@ end
 # ── transition_state factory ──────────────────────────────────────────────────
 
 """
-    transition_state(mechanisms, cs, rxn, surface_model; ϵ=1e-16) -> KineticFunc
+    transition_state(mechanisms, cs, rxn, surface; ϵ=1e-16) -> KineticFunc
 
 Build a Transition-State Theory (TST) dissolution/precipitation rate function from a
 list of [`RateMechanism`](@ref) objects, returning a [`KineticFunc`](@ref).
 
 The compiled closure captures:
-  - the mineral name and molar mass (from `rxn` + `cs`)
-  - the surface model (`FixedSurfaceArea` or `BETSurfaceArea`)
+  - the host name and its molar mass, from the [`Surface`](@ref) when one is
+    given, otherwise rediscovered from `rxn` + `cs`
+  - the area model, evaluated at **every** step from the current and initial
+    amounts, so an area that follows the microstructure needs no change here
   - stoichiometry and `ΔₐG⁰` callables for all aqueous species (T-dependent Ω)
 
 The net rate [mol/s] is:
@@ -374,8 +261,15 @@ step — correct for variable-temperature semi-adiabatic calorimetry.
   - `mechanisms`: vector of [`RateMechanism`](@ref) (acid, neutral, base, …).
   - `cs`: [`ChemicalSystem`](@ref) supplying `ΔₐG⁰` callables for aqueous species.
   - `rxn`: `AbstractReaction` defining stoichiometry and the mineral species.
-  - `surface_model`: [`AbstractSurfaceModel`](@ref) — captures area as a function of `n`.
+  - `surface`: a [`Surface`](@ref), which names the host solid and carries its
+    area model, or an [`AbstractSurfaceModel`](@ref) alone, in which case the
+    host is the first solid reactant of `rxn`.
   - `ϵ`: regularization floor near Ω = 1 (default `1e-16`).
+
+!!! note "The molar mass is no longer guessed"
+    A host species without an `:M` property used to fall back to 0.1 kg/mol,
+    silently, which is wrong by up to an order of magnitude and scales the whole
+    rate. It now raises, naming the species.
 
 # Returns
 
@@ -393,15 +287,16 @@ function transition_state(
         mechanisms::AbstractVector{<:RateMechanism},
         cs::ChemicalSystem,
         rxn::AbstractReaction,
-        surface_model::AbstractSurfaceModel;
+        surface::Union{Surface, AbstractSurfaceModel};
         ϵ::Real = 1.0e-16,
     )
-    mineral_name, M = _mineral_name_and_mass(cs, rxn)
+    mineral_name, M, area_model = _surface_context(cs, rxn, surface)
     stoich_species = _stoich_named(cs, rxn)   # Vector of (name, ν, ΔG°_fn)
 
     f = (T, _P, _t, n, lna, n_initial) -> begin
         n_m = max(n[mineral_name], oneunit(T) * 1.0e-30)
-        A = surface_area(surface_model, n_m, M)
+        n_m0 = max(n_initial[mineral_name], oneunit(T) * 1.0e-30)
+        A = total_area(area_model, n_m, n_m0, M)
         ln_iap = sum(ν * lna[sp] for (sp, ν, _) in stoich_species)
         ln_K = -sum(ν * ΔG_fn(; T = T, unit = false) / (R_GAS * T) for (_, ν, ΔG_fn) in stoich_species)
         Ω = exp(ln_iap - ln_K)
@@ -444,7 +339,7 @@ mechanism. Useful as a minimal test case or for empirical fits.
 
   - `k`: rate constant as an [`AbstractFunc`](@ref) (e.g. from
     [`arrhenius_rate_constant`](@ref)).
-  - `cs`, `rxn`, `surface_model`: same as [`transition_state`](@ref).
+  - `cs`, `rxn`, `surface`: same as [`transition_state`](@ref).
   - `p`, `q`: saturation exponents (defaults `1.0`).
   - `ϵ`: regularization floor (default `1e-16`).
 
@@ -452,7 +347,7 @@ mechanism. Useful as a minimal test case or for empirical fits.
 
 ```julia
 k = arrhenius_rate_constant(1e-7, 40000.0)
-rf = first_order_rate(k, cs, rxn, BETSurfaceArea(90.0))
+rf = first_order_rate(k, cs, rxn, Surface("calcite", "Cal", BETSurfaceArea(90.0)))
 kr = KineticReaction(cs, rxn, rf)
 ```
 """
@@ -460,14 +355,14 @@ function first_order_rate(
         k::AbstractFunc,
         cs::ChemicalSystem,
         rxn::AbstractReaction,
-        surface_model::AbstractSurfaceModel;
+        surface::Union{Surface, AbstractSurfaceModel};
         p::Real = 1.0,
         q::Real = 1.0,
         ϵ::Real = 1.0e-16,
     )
     T_p = typeof(promote(p, q)[1])
     mech = RateMechanism{typeof(k), T_p}(k, T_p(p), T_p(q), RateModelCatalyst{T_p}[])
-    return transition_state([mech], cs, rxn, surface_model; ϵ = ϵ)
+    return transition_state([mech], cs, rxn, surface; ϵ = ϵ)
 end
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
@@ -539,6 +434,22 @@ function _stoich_from_reaction(cs::ChemicalSystem, rxn::AbstractReaction)
     return s
 end
 
+# Molar mass of a species in kg/mol, refusing to invent one.
+#
+# The previous default of 0.1 kg/mol was silent and multiplicative: it scales the
+# reactive area, hence the whole rate. A species carrying no `:M` is a data
+# problem, and naming it is the only useful answer.
+function _molar_mass_si(sp::AbstractSpecies)
+    haskey(properties(sp), :M) || throw(
+        ArgumentError(
+            "species \"$(symbol(sp))\" carries no molar mass `:M`, which the " *
+                "reactive area needs. Supply it on the species, or use a " *
+                "`FixedSurfaceArea`, whose area does not depend on a mass.",
+        )
+    )
+    return Float64(ustrip(us"kg/mol", sp[:M]))
+end
+
 # Returns (mineral_name::String, M::Float64) for the controlling mineral in rxn.
 function _mineral_name_and_mass(cs::ChemicalSystem, rxn::AbstractReaction)
     idx = _find_mineral_idx(cs, rxn)
@@ -546,8 +457,28 @@ function _mineral_name_and_mass(cs::ChemicalSystem, rxn::AbstractReaction)
         ArgumentError("No mineral reactant found in reaction \"$(rxn.symbol)\"."),
     )
     sp = cs.species[idx]
-    M = haskey(properties(sp), :M) ? Float64(ustrip(us"kg/mol", sp[:M])) : 0.1
-    return phreeqc(formula(sp)), M
+    return phreeqc(formula(sp)), _molar_mass_si(sp)
+end
+
+# Returns (host_name::String, M::Float64, area_model) for a rate factory.
+#
+# Two entry points, one contract: a bare area model keeps the historical
+# behavior of rediscovering the host from the reaction, while a `Surface` names
+# it once and is looked up by symbol.
+_surface_context(cs::ChemicalSystem, rxn::AbstractReaction, m::AbstractSurfaceModel) =
+    (_mineral_name_and_mass(cs, rxn)..., m)
+
+function _surface_context(cs::ChemicalSystem, rxn::AbstractReaction, s::Surface)
+    s.host === nothing && return (_mineral_name_and_mass(cs, rxn)..., s.area)
+    sp = get(cs.dict_species, s.host, nothing)
+    sp === nothing && throw(
+        ArgumentError(
+            "Surface \"$(s.name)\" names host \"$(s.host)\", which is not a species " *
+                "of this system. Known symbols include " *
+                "$(join(sort(collect(keys(cs.dict_species)))[1:min(end, 6)], ", ")), …",
+        )
+    )
+    return (phreeqc(formula(sp)), _molar_mass_si(sp), s.area)
 end
 
 # Returns Vector of (name::String, ν::Float64, ΔG_fn) for all species in rxn
@@ -576,15 +507,21 @@ end
 """
     molar_mass(kr::KineticReaction) -> Float64
 
-Return the molar mass of the mineral species [kg/mol], used internally for
-[`BETSurfaceArea`](@ref) calculations.
+Return the molar mass of the mineral species [kg/mol], used by every
+specific-area model to turn an amount into an area.
 
-Searches `kr.reaction.reactants` for a species with an `:M` property.
-Falls back to `0.1` kg/mol when `:M` is unavailable.
+Searches `kr.reaction.reactants` for a species with an `:M` property, and raises
+when none has one: a default here is worse than a refusal, because it scales the
+reactive area and therefore the whole rate.
 """
 function molar_mass(kr::KineticReaction)
     for (sp_obj, _) in kr.reaction.reactants
         haskey(properties(sp_obj), :M) && return ustrip(us"kg/mol", sp_obj[:M])
     end
-    return 0.1
+    throw(
+        ArgumentError(
+            "no reactant of \"$(kr.reaction.symbol)\" carries a molar mass `:M`, " *
+                "which the reactive area needs.",
+        )
+    )
 end

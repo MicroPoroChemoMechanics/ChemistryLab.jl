@@ -136,6 +136,8 @@ module ChemistryLab
     include("equilibrium/certified.jl")
     include("equilibrium/aqueous_properties.jl")
 
+    include("surfaces/surface_areas.jl")
+
     include("kinetics/rate_models.jl")
     include("kinetics/kinetics_reactions.jl")
     include("kinetics/kinetics_problems.jl")
@@ -412,8 +414,18 @@ module ChemistryLab
         pore_saturation
 
     export AbstractSurfaceModel,
+        AbstractSpecificArea,
         FixedSurfaceArea,
         BETSurfaceArea,
+        BlaineSurfaceArea,
+        GeometricSurfaceArea,
+        ShrinkingCoreArea,
+        SHRINK_FLOOR,
+        Surface,
+        specific_area,
+        total_area,
+        area_ratio,
+        area_method,
         surface_area,
         transition_state,
         first_order_rate,
