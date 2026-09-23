@@ -23,3 +23,17 @@ turned into a conservation row by the ordinary matrix assembly.
 Modules = [ChemistryLab]
 Pages   = ["surfaces/site_families.jl"]
 ```
+
+## The surface potential as an unknown
+
+A [`DiffuseLayer`](@ref) written as an activity coefficient is exact and not
+always reachable: the solver's inner loop recovers a mixing phase with `lnγ`
+read at the previous iterate, which contracts only while
+[`electrostatic_stiffness`](@ref) stays below
+[`ELECTROSTATIC_STIFFNESS_LIMIT`](@ref). Carrying the potential as an unknown of
+the outer Newton removes that fixed point rather than taming it.
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["surfaces/surface_potential.jl"]
+```

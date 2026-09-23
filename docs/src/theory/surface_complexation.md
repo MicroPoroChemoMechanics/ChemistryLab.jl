@@ -436,12 +436,42 @@ Three things follow, and all three are measured rather than argued:
     ``NF^2/(C\mathcal{A}RT)``, does not depend on the composition at all.
 
 The forecast is [`electrostatic_stiffness`](@ref) and the threshold
-[`ELECTROSTATIC_STIFFNESS_LIMIT`](@ref); the verdict, as always, is the
-stationarity residual of the certificate, which separates the two regimes by
-fourteen orders of magnitude. The honest resolution — carrying ``\Psi`` as an
-unknown with its own equation, so the coupling is linearized instead of
-iterated — is not in this package yet, and the page says so rather than leaving
-a reader to discover it at pH 7.
+[`ELECTROSTATIC_STIFFNESS_LIMIT`](@ref); the verdict is the stationarity
+residual of the certificate, which separates the two regimes by fourteen orders
+of magnitude.
+
+### Which is why ``\Psi`` is carried as an unknown
+
+The resolution is to stop eliminating it. Writing the potential as an activity
+coefficient is what creates the fixed point; declaring it an unknown of the
+solve, with Gouy-Chapman's relation as its equation,
+
+```math
+c(n, \tilde\psi) \;=\; \tilde\psi
+   - 2\operatorname{asinh}\!\left(\frac{\sigma(n)}{\kappa\sqrt{I(n)}}\right)
+   \;=\; 0
+```
+
+moves the coupling into the outer Newton, which has a Jacobian for it. The
+activity model is then *told* its potential rather than computing one, so during
+the inner solve ``\ln\gamma`` is a constant and that loop converges in a single
+pass — exactly as it does for ideal mixing.
+
+This is what `solve` does by default for a family whose model needs it,
+and nothing else changes: the residual is already in units of ``RT``, so it sits
+in the Newton system unscaled, and the starting guess ``\tilde\psi = 0`` is the
+uncharged surface a solve without electrostatics would return.
+
+The elimination remains reachable, by `surface_potential = :eliminated`, and it
+is kept because it is what makes the statement above a measurement: over the
+same eighteen points, the eliminated route certifies three and the unknown
+certifies all eighteen.
+
+**None of this repairs the first price.** The model is still not the gradient of
+a Gibbs energy, whichever way the potential is obtained. An unknown makes the
+system solvable; it does not make an asymmetric Jacobian symmetric, and what
+comes back is still a self-consistent speciation rather than a certified
+minimum.
 
 ## 10. What this page does not cover
 
@@ -452,9 +482,10 @@ Saying what is absent is part of describing what is present.
     census: the counter-ions accumulated in the layer are not tracked as a
     separate reservoir, which is PHREEQC's default and not its `-diffuse_layer`
     option. The Donnan approximation, which a compacted clay needs, is absent.
-  - **No surface potential beyond the point where eliminating it works.** §9
-    measures where that is. Above it the answer is refused by the certificate
-    rather than returned.
+  - **No charge planes beyond one.** A Stern or triple-layer model puts
+    different surface species on different planes with a capacitance between
+    them; here there is one potential per family, and stacking two electrostatic
+    models is refused rather than summed.
   - **No evolving support.** The site budget is fixed. In a hydrating cement the
     support is a phase that precipitates, so its sites appear with it and the
     site row becomes bilinear — the one thing the linear budget `A n = b` has

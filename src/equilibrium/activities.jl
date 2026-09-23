@@ -217,9 +217,12 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
             I_site = site_needs_I ?
                 _aqueous_ionic_strength(_n, site_ions, site_ion_z, site_solvent, site_Mw) :
                 zero(eltype(_n))
+            # A surface potential carried as an unknown of the solve arrives
+            # here, the way an adiabatic temperature does: through `p`.
+            ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
             _site_mixing_lna!(
                 out, _n, site_groups, site_models, site_denticity, site_charges,
-                I_site, T_val, ϵ
+                I_site, T_val, ϵ, ψ_site
             )
         end
 
@@ -779,9 +782,12 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
             I_site = site_needs_I ?
                 _aqueous_ionic_strength(_n, site_ions, site_ion_z, site_solvent, site_Mw) :
                 zero(eltype(_n))
+            # A surface potential carried as an unknown of the solve arrives
+            # here, the way an adiabatic temperature does: through `p`.
+            ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
             _site_mixing_lna!(
                 out, _n, site_groups, site_models, site_denticity, site_charges,
-                I_site, T_val, ϵ
+                I_site, T_val, ϵ, ψ_site
             )
         end
 
@@ -1121,9 +1127,12 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
             I_site = site_needs_I ?
                 _aqueous_ionic_strength(_n, site_ions, site_ion_z, site_solvent, site_Mw) :
                 zero(eltype(_n))
+            # A surface potential carried as an unknown of the solve arrives
+            # here, the way an adiabatic temperature does: through `p`.
+            ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
             _site_mixing_lna!(
                 out, _n, site_groups, site_models, site_denticity, site_charges,
-                I_site, T_val, ϵ
+                I_site, T_val, ϵ, ψ_site
             )
         end
 
@@ -1347,7 +1356,7 @@ diffuse layer in pure water is the model outside its range of validity.
 """
 _electrostatic_ln_a(
     ::AbstractSiteMixingModel, ::Int, ::AbstractVector, n::AbstractVector,
-    ::Real, ::Real
+    ::Real, ::Real, ::Any
 ) = zero(eltype(n))
 
 function _surface_charge_density(z::AbstractVector, n::AbstractVector, area::Real)
@@ -1360,7 +1369,7 @@ end
 
 function _electrostatic_ln_a(
         m::ConstantCapacitance, k::Int, z::AbstractVector, n::AbstractVector,
-        ::Real, T::Real
+        ::Real, T::Real, ::Any
     )
     σ = _surface_charge_density(z, n, m.area)
     return z[k] * FARADAY * σ / (m.C * R_GAS * T)
@@ -1368,14 +1377,43 @@ end
 
 function _electrostatic_ln_a(
         m::DiffuseLayer, k::Int, z::AbstractVector, n::AbstractVector,
-        I::Real, T::Real
+        I::Real, T::Real, ψ_given
+    )
+    # TOLD rather than computed, when the solve carries the potential as an
+    # unknown. That is the whole difference between a fixed-point iteration on
+    # the activity — which stops contracting above a stiffness of about five —
+    # and a Newton step that has the coupling in its Jacobian.
+    ψ_given === nothing || return m.scale * z[k] * ψ_given
+    return m.scale * z[k] * diffuse_layer_potential(m, z, n, I, T)
+end
+
+"""
+    diffuse_layer_potential(model, z, n, I, T) -> Real
+
+The dimensionless surface potential `ψ̃ = FΨ/RT` that Gouy-Chapman's closure
+gives for a surface carrying `Σ_j z_j n_j` moles of charge on `model.area`,
+screened by a solution of ionic strength `I`:
+
+```math
+\\tilde\\psi = 2\\,\\operatorname{asinh}\\!\\left(\\frac{\\sigma}{\\kappa\\sqrt{I}}\\right),
+\\qquad \\kappa = \\sqrt{8\\,\\varepsilon_r\\varepsilon_0 RT\\rho}
+```
+
+`ρ = 1000 kg/m³` turns a molal ionic strength into the volumetric one the
+relation is written for. At 25 °C in water `κ = 0.117215`, against the `0.1174`
+PHREEQC carries in its source.
+
+This is the **eliminated** form of the potential — a function of the
+composition. It is what the activity model uses when the solve does not carry
+`Ψ` as an unknown, and what the closure equation is written against when it
+does, which is why it lives in one place.
+"""
+function diffuse_layer_potential(
+        m::DiffuseLayer, z::AbstractVector, n::AbstractVector, I::Real, T::Real
     )
     σ = _surface_charge_density(z, n, m.area)
-    # κ = √(8 ε_r ε₀ R T ρ), with ρ = 1000 kg/m³ turning a molal ionic strength
-    # into the volumetric one Gouy-Chapman is written for. At 25 °C in water
-    # this is 0.117215, against the 0.1174 PHREEQC carries in its source.
     κ = sqrt(8 * m.ε_r * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
-    return m.scale * z[k] * 2 * asinh(σ / (κ * sqrt(max(I, eps(float(one(I)))))))
+    return 2 * asinh(σ / (κ * sqrt(max(I, eps(float(one(I)))))))
 end
 
 """
@@ -1500,7 +1538,7 @@ end
 
 """
     _site_mixing_lna!(out, _n, site_groups, site_models, site_denticity,
-                      site_charges, I, T, ϵ)
+                      site_charges, I, T, ϵ, ψ_site)
 
 Fill `out[i]` with `ln a_i = ln x_i + ln γ_i` for every species occupying a
 surface site, `x_i` being its fraction of its family's **site** budget.
@@ -1529,9 +1567,12 @@ solution, and the element type follows `_n`, so the whole path differentiates.
 function _site_mixing_lna!(
         out::AbstractVector, _n::AbstractVector{ET},
         site_groups::Vector{Vector{Int}}, site_models, site_denticity, site_charges,
-        I, T, ϵ
+        I, T, ϵ, ψ_site = nothing
     ) where {ET}
-    for (grp, mdl, dent, z) in zip(site_groups, site_models, site_denticity, site_charges)
+    for (f, (grp, mdl, dent, z)) in enumerate(
+            zip(site_groups, site_models, site_denticity, site_charges)
+        )
+        ψ_given = ψ_site === nothing ? nothing : ψ_site[f]
         n_total = sum(_site_weight(mdl, dent[j]) * _n[i] for (j, i) in enumerate(grp)) + ϵ
         x = Vector{ET}(undef, length(grp))
         ngrp = Vector{ET}(undef, length(grp))
@@ -1541,7 +1582,7 @@ function _site_mixing_lna!(
         end
         @inbounds for (k, i) in enumerate(grp)
             out[i] = log(x[k] + ϵ) + _site_excess_ln_gamma(mdl, k, x, T) +
-                _electrostatic_ln_a(mdl, k, z, ngrp, I, T)
+                _electrostatic_ln_a(mdl, k, z, ngrp, I, T, ψ_given)
         end
     end
     return out

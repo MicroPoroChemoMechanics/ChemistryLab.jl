@@ -487,9 +487,12 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
             I_site = site_needs_I ?
                 _aqueous_ionic_strength(_n, site_ions, site_ion_z, site_solvent, site_Mw) :
                 zero(eltype(_n))
+            # A surface potential carried as an unknown of the solve arrives
+            # here, the way an adiabatic temperature does: through `p`.
+            ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
             _site_mixing_lna!(
                 out, _n, site_groups, site_models, site_denticity, site_charges,
-                I_site, T_val, ϵ
+                I_site, T_val, ϵ, ψ_site
             )
         end
         return out

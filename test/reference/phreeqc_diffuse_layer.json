@@ -3,7 +3,7 @@
   "python": "3.12.14",
   "phreeqpython": "1.6.2",
   "database": "phreeqc.dat",
-  "database_md5": "fca384eb269fda632fcefa6f74c8f90e",
+  "database_md5": "4d3f4378c46498730d569cacc37c4fa8",
   "model": "diffuse layer (PHREEQC's default SURFACE), weak sites, no metal",
   "logK_protonation": 7.29,
   "logK_deprotonation": -8.93,

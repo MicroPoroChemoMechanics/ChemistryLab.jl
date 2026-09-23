@@ -110,7 +110,22 @@ def emit(name: str, payload: dict) -> None:
 
 
 def database_path(name: str) -> str:
-    return os.path.join(os.path.dirname(phreeqpython.__file__), "database", name)
+    """The database this repository ships, not the one the wheel happens to carry.
+
+    `phreeqpython` bundles its own `phreeqc.dat`, and using it made these
+    fixtures depend on a file that is not in this repository: the md5 recorded
+    beside them pinned something nobody here could check, and that copy matches
+    no upstream PHREEQC tag. The vendored one does, and it is the database of
+    exactly the engine version bundled here (3.7.3). See PHREEQC-PROVENANCE.md.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    vendored = os.path.join(here, name)
+    if os.path.exists(vendored):
+        return vendored
+    raise SystemExit(
+        f"{name} is not in {here}; it is committed there on purpose — "
+        "see PHREEQC-PROVENANCE.md"
+    )
 
 
 def provenance(db: str, **extra) -> dict:

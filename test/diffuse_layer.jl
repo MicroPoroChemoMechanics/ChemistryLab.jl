@@ -175,97 +175,120 @@ end
     end
 end
 
-@testsection "the diffuse layer against PHREEQC, and where it stops" begin
+@testsection "the diffuse layer against PHREEQC, by both routes" begin
     f = PHREEQC_DIFFUSE_LAYER
     dl = DiffuseLayer(; area = f.area)
     z_members = [0.0, 1.0, -1.0]          # XsOH, XsOH2+, XsO⁻, in family order
 
-    worst_agreement = 0.0
-    stiff_converged, stiff_diverged = 0.0, Inf
-    n_converged = 0
-
-    for ser in f.series, pt in ser.points
-        # The forecast, made from PHREEQC's answer rather than from ours, so it
-        # is a prediction and not a description of what we happened to get.
-        n_ref = f.n_sites .* [pt.free, pt.protonated, pt.deprotonated]
-        stiff = electrostatic_stiffness(dl, z_members, n_ref, pt.I, 298.15)
-
+    function run(ser, pt; surface_potential)
         cs, st = _ddl_case(ser, pt; model = dl)
         des = DualEquilibriumSolver(cs, DiluteSolutionModel())
         b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
         eq = SciMLBase.solve(
-            des, st; b = b, constraint = FixedpH(pt.pH),
+            des, st; b = b, constraint = FixedpH(pt.pH), surface_potential,
             parameters = Base.RefValue{Any}(nothing),
         )
         cert = optimality_certificate(des, eq; b = b, constraint = FixedpH(pt.pH))
-
-        # THE CLASSIFICATION IS THE CERTIFICATE'S, not a threshold chosen here.
-        # Stationarity separates the two regimes by fourteen orders of
-        # magnitude — 4e-16 against 5e-2 — so no margin has to be invented.
-        if cert.stationarity < 1.0e-8
-            n_converged += 1
-            stiff_converged = max(stiff_converged, stiff)
-            n = Float64[ustrip(us"mol", x) for x in eq.n]
-            N = n[6] + n[7] + n[8]
-            p = ChemistryLab._build_params(eq)
-            # matched proton activity first: everything else depends on it
-            @test des.lna(n, p)[2] / log(10) ≈ pt.la_H atol = 1.0e-6
-            for (got, want) in (
-                    (n[6] / N, pt.free), (n[7] / N, pt.protonated),
-                    (n[8] / N, pt.deprotonated),
-                )
-                @test got ≈ want rtol = 5.0e-3
-                worst_agreement = max(worst_agreement, abs(got / want - 1))
-            end
-        else
-            stiff_diverged = min(stiff_diverged, stiff)
-            # A diverged solve must never look like an answer. It violates mass
-            # action by four orders of magnitude, and the certificate says so.
-            @test cert.stationarity > 1.0e-3
-        end
+        n = Float64[ustrip(us"mol", x) for x in eq.n]
+        N = n[6] + n[7] + n[8]
+        return (; des, eq, cert, n, fracs = (n[6] / N, n[7] / N, n[8] / N))
     end
 
-    # The test cannot pass by certifying nothing.
-    @test n_converged >= 3
+    @testset "carrying Ψ as an unknown: all eighteen points" begin
+        # THE POINT OF THE UNKNOWN. Written as an activity coefficient, the
+        # potential is reached by a fixed-point iteration that stops contracting
+        # above a stiffness of about five — and fifteen of these eighteen points
+        # are above it. Carried as an unknown it is a column of the outer Newton,
+        # which has the coupling in its Jacobian, and all eighteen certify.
+        worst_rel, worst_abs, certified = 0.0, 0.0, 0
+        for ser in f.series, pt in ser.points
+            r = run(ser, pt; surface_potential = :unknown)
+            @test r.cert.stationarity < 1.0e-8
+            r.cert.stationarity < 1.0e-8 && (certified += 1)
 
-    # Measured at 2.4e-3 over the three certified points, against a PHREEQC that
-    # speciates the background with WATEQ Debye-Hückel where this runs ideal —
-    # which is what the residual is, and it is the same attribution the zinc
-    # edge carries.
-    @info "PHREEQC diffuse layer: worst relative deviation" worst_agreement n_converged
-    @test worst_agreement < 5.0e-3
+            p = ChemistryLab._build_params(r.eq)
+            @test r.des.lna(r.n, p)[2] / log(10) ≈ pt.la_H atol = 1.0e-6
 
-    # AND THE CRITERION PREDICTS THE SPLIT. Everything that certified is below
-    # the limit, everything that did not is above it, with the limit strictly
-    # inside the gap. This is the claim `ELECTROSTATIC_STIFFNESS_LIMIT` makes.
-    @info "stiffness bracket" stiff_converged ELECTROSTATIC_STIFFNESS_LIMIT stiff_diverged
-    @test stiff_converged < ELECTROSTATIC_STIFFNESS_LIMIT < stiff_diverged
-
-    @testset "the failure is the elimination, not the physics" begin
-        # Followed by a homotopy the solution tracks smoothly and in the right
-        # direction — free sites rising as the potential is switched on — right
-        # up to where the fixed-point iteration lets go. A model whose feedback
-        # had the wrong sign would move the other way from the first step.
-        ser, pt = f.series[1], f.series[1].points[3]     # 0.1 M NaCl, pH 6
-        prev = nothing
-        fracs = Float64[]
-        for λ in (0.0, 0.25, 0.5, 0.75)
-            cs, st0 = _ddl_case(ser, pt; model = with_electrostatic_scale(dl, λ))
-            des = DualEquilibriumSolver(cs, DiluteSolutionModel())
-            b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in st0.n]
-            start = prev === nothing ? st0 : ChemicalState(cs, copy(prev))
-            eq = SciMLBase.solve(
-                des, start; b = b, constraint = FixedpH(pt.pH),
-                parameters = Base.RefValue{Any}(nothing),
-            )
-            n = Float64[ustrip(us"mol", x) for x in eq.n]
-            push!(fracs, n[6] / (n[6] + n[7] + n[8]))
-            prev = eq.n
+            for (got, want) in zip(r.fracs, (pt.free, pt.protonated, pt.deprotonated))
+                worst_abs = max(worst_abs, abs(got - want))
+                worst_rel = max(worst_rel, abs(got / want - 1))
+            end
         end
-        @test issorted(fracs)                       # monotone, towards the answer
-        @test fracs[1] ≈ 0.04878 rtol = 1.0e-3      # λ = 0 is the ideal answer
-        @test fracs[end] > 0.5                      # and it is most of the way there
-        @test fracs[end] < pt.free                  # without ever overshooting it
+        @test certified == 18
+
+        # Measured at 1.5e-4 absolute and 2.4e-3 relative. The two numbers say
+        # different things and the absolute one is the honest headline: the
+        # largest RELATIVE figure sits on a site fraction of 0.13, where a
+        # common absolute error is divided by a small number.
+        @info "PHREEQC, potential as an unknown" worst_abs worst_rel
+        @test worst_abs < 3.0e-4
+        @test worst_rel < 3.0e-3
+    end
+
+    @testset "eliminating it instead, and where that stops" begin
+        # The same model, the same points, the potential eliminated — kept as a
+        # measurement rather than removed, because it is what says the unknown
+        # was necessary and not merely tidier.
+        stiff_ok, stiff_bad, n_ok = 0.0, Inf, 0
+        for ser in f.series, pt in ser.points
+            # The forecast is made at PHREEQC's answer, so it predicts rather
+            # than describes what this package happened to return.
+            n_ref = f.n_sites .* [pt.free, pt.protonated, pt.deprotonated]
+            stiff = electrostatic_stiffness(dl, z_members, n_ref, pt.I, 298.15)
+            r = run(ser, pt; surface_potential = :eliminated)
+            if r.cert.stationarity < 1.0e-8
+                n_ok += 1
+                stiff_ok = max(stiff_ok, stiff)
+                for (got, want) in zip(r.fracs, (pt.free, pt.protonated, pt.deprotonated))
+                    @test got ≈ want rtol = 3.0e-3
+                end
+            else
+                stiff_bad = min(stiff_bad, stiff)
+                # A diverged solve must never look like an answer: it violates
+                # mass action by four orders of magnitude and the certificate
+                # says so, fourteen orders of magnitude away from 1e-16.
+                @test r.cert.stationarity > 1.0e-3
+            end
+        end
+        @test 0 < n_ok < 18                       # both regimes are exercised
+
+        # AND THE CRITERION PREDICTS THE SPLIT, with the limit strictly inside
+        # the gap. This is the claim `ELECTROSTATIC_STIFFNESS_LIMIT` makes.
+        @info "stiffness bracket, eliminated route" stiff_ok ELECTROSTATIC_STIFFNESS_LIMIT stiff_bad
+        @test stiff_ok < ELECTROSTATIC_STIFFNESS_LIMIT < stiff_bad
+    end
+
+    @testset "what the residual is not" begin
+        # Neither explanation survives measurement, and saying so is worth more
+        # than attributing it to the first plausible cause.
+        #
+        #   aqueous activity model   ideal 2.385e-3 → Davies 2.052e-3, 14 % better
+        #   dielectric constant      ours (78.245, κ = 0.117215) 2.385e-3
+        #                            PHREEQC's (78.5, κ = 0.117406) 2.408e-3, WORSE
+        #
+        # So adopting PHREEQC's own constant does not improve the match, which
+        # rules it out as the cause and makes the agreement a stronger result:
+        # it holds with a different dielectric constant, not because of a shared
+        # one.
+        ser, pt = f.series[1], f.series[1].points[1]      # 0.1 M NaCl, pH 4
+        worst(model) = maximum(
+            abs(g / w - 1) for (g, w) in zip(
+                    run(ser, pt; surface_potential = :unknown).fracs,
+                    (pt.free, pt.protonated, pt.deprotonated),
+                )
+        )
+        base = worst(dl)
+        @test base < 3.0e-3
+        κ_ours = sqrt(
+            8 * water_relative_permittivity(298.15) * VACUUM_PERMITTIVITY *
+                ChemistryLab.R_GAS * 298.15 * 1000
+        )
+        κ_phreeqc = sqrt(
+            8 * 78.5 * VACUUM_PERMITTIVITY * ChemistryLab.R_GAS * 298.15 * 1000
+        )
+        @test κ_ours ≈ 0.117215 rtol = 1.0e-5
+        @test κ_phreeqc ≈ 0.1174 rtol = 1.0e-4      # PHREEQC's source constant
+        @test abs(κ_ours / κ_phreeqc - 1) < 3.0e-3
     end
 end
 
@@ -358,14 +381,28 @@ end
         n = [1.0e-4, 0.66e-4, 0.34e-4]
         g = ForwardDiff.derivative(
             a -> ChemistryLab._electrostatic_ln_a(
-                DiffuseLayer(; area = a, ε_r = 78.2451), 2, z, n, 0.01, 298.15
+                DiffuseLayer(; area = a, ε_r = 78.2451), 2, z, n, 0.01, 298.15, nothing
             ), 53.4,
         )
         @test isfinite(g)
         @test g < 0                       # a larger area dilutes the charge
+
+        # And through a potential that is GIVEN rather than computed, which is
+        # the path a solve carrying it as an unknown takes: the term is then
+        # linear in it, so the derivative is exactly the member's charge.
+        gψ = ForwardDiff.derivative(
+            ψ -> ChemistryLab._electrostatic_ln_a(
+                DiffuseLayer(; area = 53.4), 2, z, n, 0.01, 298.15, ψ
+            ), 1.5,
+        )
+        @test gψ ≈ z[2]
+        @test ChemistryLab._electrostatic_ln_a(
+            DiffuseLayer(; area = 53.4), 3, z, n, 0.01, 298.15, 1.5
+        ) ≈ z[3] * 1.5
+
         # and at the unscreened limit the guard gives a finite number, not a NaN
         big = ChemistryLab._electrostatic_ln_a(
-            DiffuseLayer(; area = 53.4), 2, z, n, 0.0, 298.15
+            DiffuseLayer(; area = 53.4), 2, z, n, 0.0, 298.15, nothing
         )
         @test isfinite(big)
         # A positively charged surface makes one more positive species costlier

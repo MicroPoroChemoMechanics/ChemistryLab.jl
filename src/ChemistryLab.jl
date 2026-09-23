@@ -138,6 +138,10 @@ module ChemistryLab
     include("equilibrium/equilibrium_problems.jl")
     include("equilibrium/retention.jl")
     include("equilibrium/constraints.jl")
+    # After `constraints.jl`, whose block contract it extends, and after
+    # `activities.jl`, whose eliminated potential its closure equation is
+    # written against.
+    include("surfaces/surface_potential.jl")
     include("equilibrium/equilibrium_solver.jl")
     include("equilibrium/dual_solver.jl")
     include("equilibrium/certified.jl")
@@ -452,6 +456,8 @@ module ChemistryLab
         ConstantCapacitance,
         DiffuseLayer,
         with_electrostatic_scale,
+        needs_potential_unknown,
+        diffuse_layer_potential,
         electrostatic_stiffness,
         site_gradient_asymmetry,
         ELECTROSTATIC_STIFFNESS_LIMIT,

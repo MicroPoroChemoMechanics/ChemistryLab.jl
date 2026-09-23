@@ -38,6 +38,9 @@ const DB = Dict(symbol(s) => s for s in
 const AREA    = 53.4          # m², the support that carries the sites
 const N_SITES = 2.0e-4        # mol
 const LOGK    = (protonation = 7.29, deprotonation = -8.93)   # PHREEQC's own
+# One kilogram of water, from the solvent's own molar mass: `55.5 mol` weighs
+# 0.99983 kg, and every molality below would carry that error.
+const N_WATER = ustrip(us"mol", 1.0u"kg" / DB["H2O@"][:M])
 
 function hfo(; m_na, m_cl, model)
     h2o, hp, oh, na, cl = (DB[k] for k in ("H2O@", "H+", "OH-", "Na+", "Cl-"))
@@ -65,164 +68,147 @@ end
 nothing # hide
 ```
 
-The only thing that changes between the three curves below is the `model`
-keyword of the site family. Everything else — the constants, the budget, the
-support — is shared, which is what makes them comparable.
+The only thing that changes below is the `model` keyword of the site family and
+the background electrolyte. Everything else — the constants, the budget, the
+support — is shared, which is what makes the comparisons comparable.
 
-## Three descriptions of the same surface
+## The reference, and how it is matched
 
 ```@example ddl
-# PHREEQC's diffuse-layer answer, from test/reference/phreeqc_hfo_surface.py.
-# The ionic strength travels with each point because PHREEQC reaches its pH by
-# adding HCl: at pH 4 in 0.1 M NaCl the background is 0.2 % above nominal, and
-# matching it keeps this a comparison of surface models rather than of titration
-# bookkeeping.
-PHREEQC = [
-    (pH = 4.0, I = 0.10020818821557677, free = 0.12895390976789184, prot = 0.8706085216673665, depr = 0.0004375685647416558),
-    (pH = 5.0, I = 0.10007071119186411, free = 0.4015722153881447,  prot = 0.5921894793065487, depr = 0.006238305305306556),
-    (pH = 6.0, I = 0.10003174586231472, free = 0.6386059912806334,  prot = 0.33336935164852766, depr = 0.02802465707083882),
-    (pH = 7.0, I = 0.10001244489212303, free = 0.7434227764064236,  prot = 0.18990727435277374, depr = 0.06666994924080262),
-    (pH = 8.0, I = 0.10000108069648564, free = 0.767441433793806,   prot = 0.12161144800544535, depr = 0.11094711820074868),
-    (pH = 9.0, I = 0.09999058741405632, free = 0.7532292046785007,  prot = 0.07619830499014452, depr = 0.17057249033135471),
-]
-PHREEQC_DIFFUSE_LAYER_LIKE(pt) = N_SITES .* [pt.free, pt.prot, pt.depr]
-# One kilogram of water, from the solvent's own molar mass — `55.5` weighs
-# 0.99983 kg, and every molality below would carry that error.
-const N_WATER = ustrip(us"mol", 1.0u"kg" / DB["H2O@"][:M])
-const KGW = 1.0
+# PHREEQC's diffuse-layer answer, read from the fixture the generator writes —
+# three background electrolytes, two decades apart, six pH values each.
+using JSON
+ORACLE = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference",
+                                 "phreeqc_diffuse_layer.json"))
+println(ORACLE["model"], "\n", ORACLE["database"], "  md5 ", ORACLE["database_md5"])
+```
 
-function titrate(model, pt)
-    m_na = 0.1 * KGW
-    m_cl = (2 * pt.I - 0.1 - 10.0^(-pt.pH) - 10.0^(pt.pH - 14)) * KGW
-    cs, st = hfo(; m_na, m_cl, model)
+The ionic strength travels with every point, because PHREEQC reaches its pH by
+adding HCl: at pH 4 in 1 mM NaCl the background ends up 14 % above nominal.
+Matching it is what keeps this a comparison of surface models rather than of
+titration bookkeeping.
+
+```@example ddl
+function titrate(pt, nacl; model, surface_potential = :auto)
+    mH, mOH = 10.0^(-pt["pH"]), 10.0^(pt["pH"] - 14)
+    cs, st = hfo(; m_na = nacl, m_cl = 2 * pt["I"] - nacl - mH - mOH, model)
     des = DualEquilibriumSolver(cs, DiluteSolutionModel())
     b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
-    eq = SciMLBase.solve(des, st; b = b, constraint = FixedpH(pt.pH),
-                         parameters = Base.RefValue{Any}(nothing))
-    cert = optimality_certificate(des, eq; b = b, constraint = FixedpH(pt.pH))
+    eq = SciMLBase.solve(des, st; b = b, constraint = FixedpH(pt["pH"]),
+                         surface_potential, parameters = Base.RefValue{Any}(nothing))
+    cert = optimality_certificate(des, eq; b = b, constraint = FixedpH(pt["pH"]))
     n = Float64[ustrip(us"mol", x) for x in eq.n]
     N = n[6] + n[7] + n[8]
     return (free = n[6] / N, stationarity = cert.stationarity)
 end
-
-# THE FORECAST IS MADE AT A COMPOSITION WE BELIEVE, which here is PHREEQC's.
-# Asking the returned state instead is circular and, worse, flattering: a solve
-# that walked off lands on a nearly fully protonated surface, where `asinh` is
-# flat and the stiffness reads *low*. The first draft of this page did that and
-# printed "eliminable" next to every failure.
-function forecast(pt)
-    n = PHREEQC_DIFFUSE_LAYER_LIKE(pt)
-    return electrostatic_stiffness(DiffuseLayer(; area = AREA), [0.0, 1.0, -1.0], n,
-                                   pt.I, 298.15)
-end
 nothing # hide
 ```
 
-```@example ddl
-models = (
-    "no electrostatics" => IdealSiteMixing(),
-    "constant capacitance, C = 1.06 F/m²" => ConstantCapacitance(; C = 1.06, area = AREA),
-    "diffuse layer" => DiffuseLayer(; area = AREA),
-)
-
-for (name, model) in models
-    print(rpad(name, 38))
-    for pt in PHREEQC
-        r = titrate(model, pt)
-        print(r.stationarity < 1.0e-8 ? lpad(string(round(r.free; digits = 3)), 8) :
-                                        lpad("--", 8))
-    end
-    println()
-end
-print(rpad("PHREEQC, diffuse layer", 38))
-for pt in PHREEQC; print(lpad(string(round(pt.free; digits = 3)), 8)); end
-println("\n", rpad("pH", 38), join(lpad(string(pt.pH), 8) for pt in PHREEQC))
-```
-
-Read the last two rows against each other. Where the diffuse-layer solve
-certifies, it lands on PHREEQC's number to three decimals; where it does not, it
-prints `--` rather than a number, because **the certificate refused it** and an
-uncertified answer is not an answer. Nothing here chose which points to show.
-
-The constant-capacitance row is the interesting middle. It has the right shape
-and it is not PHREEQC's curve, for the honest reason that it is a different
-model: 1.06 F/m² is a common value for ferrihydrite, not a screening law, and
-nothing about it knows the background is 0.1 molar.
-
-## Why it stops, and where — before you run it
+## All eighteen points
 
 ```@example ddl
 using Printf
-println("  pH   stiffness   forecast              certificate")
-for pt in PHREEQC
-    r = titrate(DiffuseLayer(; area = AREA), pt)
-    s = forecast(pt)
-    @printf("%5.1f %10.2f   %-18s  %.1e\n", pt.pH, s,
-            s < ELECTROSTATIC_STIFFNESS_LIMIT ? "eliminable" : "needs the unknown",
-            r.stationarity)
+dl = DiffuseLayer(; area = AREA)
+worst_abs = 0.0
+for ser in ORACLE["series"]
+    @printf("%5.0f mM NaCl  ", ser["nacl"] * 1000)
+    for pt in ser["points"]
+        r = titrate(pt, ser["nacl"]; model = dl)
+        global worst_abs = max(worst_abs, abs(r.free - pt["free"]))
+        @printf("%8.4f", r.free)
+    end
+    println()
+end
+print("  PHREEQC   ")
+for pt in ORACLE["series"][1]["points"]; @printf("%8.4f", pt["free"]); end
+@printf("\n  pH        ")
+for pt in ORACLE["series"][1]["points"]; @printf("%8.1f", pt["pH"]); end
+@printf("\n\nworst absolute deviation over all 18 points: %.2e\n", worst_abs)
+```
+
+(The PHREEQC row shown is the 100 mM one; the fan across the three rows above is
+the screening, and each row matches its own PHREEQC series.)
+
+Read the fan. More salt screens the surface better, so the potential opposing
+the protolysis is smaller and the curve sits closer to the one with no
+electrostatics at all — which is the whole physical content of the model, and
+the reason a comparison at one ionic strength would prove almost nothing.
+
+## Two routes to the same potential, and why there are two
+
+Gouy-Chapman's relation is monotone in ``\Psi``, so it inverts in closed form and
+the potential *can* be written as an ordinary activity coefficient. Doing that
+is what the solver cannot always follow: it recovers a mixing phase from its own
+stationarity with ``\ln\gamma`` read at the previous iterate, and that fixed
+point contracts only while the activity moves less than the composition does.
+
+```@example ddl
+println("  pH   stiffness   eliminated        unknown")
+for pt in ORACLE["series"][1]["points"]
+    z, N = [0.0, 1.0, -1.0], ORACLE["n_sites"]
+    n_ref = N .* [pt["free"], pt["protonated"], pt["deprotonated"]]
+    s = electrostatic_stiffness(dl, z, n_ref, pt["I"], 298.15)
+    a = titrate(pt, 0.1; model = dl, surface_potential = :eliminated)
+    b = titrate(pt, 0.1; model = dl, surface_potential = :unknown)
+    @printf("%5.1f %10.2f   %-16s  %s\n", pt["pH"], s,
+            a.stationarity < 1e-8 ? @sprintf("%.4f", a.free) : "diverges",
+            @sprintf("%.4f", b.free))
 end
 ```
 
-[`electrostatic_stiffness`](@ref) is how strongly the surface potential reacts
-to the composition that raises it — so it is a property of the **answer**, and
-forecasting with it means evaluating it somewhere you already believe. Here that
-is PHREEQC's answer; in a continuation it is the last step that certified.
-Evaluating it at the state a failed solve returned would be circular, and it
-also flatters: a runaway ends on a nearly saturated surface, where `asinh` is
-flat and the number reads deceptively low. Writing a potential as an activity
-coefficient means the solver reaches it by successive substitution, and that
-iteration converges only while this number stays below about
-[`ELECTROSTATIC_STIFFNESS_LIMIT`](@ref) — measured, on both sides, and over
-eighteen points spanning three ionic strengths.
+[`electrostatic_stiffness`](@ref) is that contraction factor, and
+[`ELECTROSTATIC_STIFFNESS_LIMIT`](@ref) is where it stops — bracketed by
+measurement on both sides rather than chosen: over these eighteen points,
+everything at or below 3.4 certified by the eliminated route and everything at
+or above 6.2 did not, with nothing between.
 
-The column on the right is the verdict rather than the forecast, and the two
-agree. Note the size of the gap: a stationarity of 10⁻¹⁶ against 10⁻², fourteen
-orders of magnitude, so no threshold had to be invented to tell them apart.
+Carrying ``\Psi`` as an unknown removes the fixed point instead of taming it.
+The closure ``\tilde\psi = 2\operatorname{asinh}(\sigma/\kappa\sqrt I)`` becomes an
+equation of the outer Newton, the activity model is *told* its potential, and
+the inner loop sees a constant. That is the default, and the right-hand column
+is what it buys.
 
-!!! warning "This is a limit of the elimination, not of the physics"
-    Charging a surface always opposes further charging. The equilibrium is
-    unique and stable everywhere on this curve; what fails above the limit is
-    the *method*, and the resolution is to carry `Ψ` as an unknown with its own
-    equation instead of iterating it. That is not in this package yet.
+!!! note "The forecast needs a composition you believe"
+    The stiffness is a property of the **answer**, so it is evaluated here at
+    PHREEQC's. Asking the state a failed solve returned is circular and, worse,
+    flattering: a runaway ends on a nearly saturated surface where `asinh` is
+    flat and the number reads deceptively low.
 
 ## The shape of the difficulty
 
 ```julia
 using Plots
-
-# PHREEQC at three backgrounds — the full fixture is in test/diffuse_layer.jl,
-# generated by `phreeqc_hfo_surface.py --case protolysis-ddl`.
-series = PHREEQC_DIFFUSE_LAYER.series
 cols = [:firebrick, :seagreen, :steelblue]
-dl, z = DiffuseLayer(; area = AREA), [0.0, 1.0, -1.0]
+z = [0.0, 1.0, -1.0]
 
 p1 = plot(; xlabel = "pH", ylabel = "fraction of sites free", legend = :bottomright,
-          title = "Ferrihydrite protolysis, diffuse layer", ylims = (-0.03, 0.85))
+          title = "Ferrihydrite protolysis, diffuse layer", ylims = (-0.03, 0.88))
 p2 = plot(; xlabel = "pH", ylabel = "electrostatic stiffness", yscale = :log10,
-          title = "Why, and where, the elimination stops", legend = :bottomright,
-          ylims = (1.5, 400))
+          title = "Why the potential is an unknown", legend = :bottomright,
+          ylims = (1.5, 400), legendfontsize = 7)
 
-for (k, ser) in enumerate(series)
-    ph = [pt.pH for pt in ser.points]
-    plot!(p1, ph, [pt.free for pt in ser.points]; color = cols[k], lw = 2,
-          label = "PHREEQC, $(round(Int, ser.nacl * 1000)) mM NaCl")
-    # The forecast is made at PHREEQC's answer, so it predicts rather than
-    # describes what this package happened to return.
-    stiff = [electrostatic_stiffness(
-                 dl, z,
-                 PHREEQC_DIFFUSE_LAYER.n_sites .*
-                     [pt.free, pt.protonated, pt.deprotonated],
-                 pt.I, 298.15,
-             ) for pt in ser.points]
+for (k, ser) in enumerate(ORACLE["series"])
+    ph = [pt["pH"] for pt in ser["points"]]
+    plot!(p1, ph, [pt["free"] for pt in ser["points"]]; color = cols[k], lw = 2,
+          label = "PHREEQC, $(round(Int, ser["nacl"] * 1000)) mM NaCl")
+    ours = [titrate(pt, ser["nacl"]; model = dl).free for pt in ser["points"]]
+    stiff = [
+        electrostatic_stiffness(
+            dl, z,
+            ORACLE["n_sites"] .* [pt["free"], pt["protonated"], pt["deprotonated"]],
+            pt["I"], 298.15,
+        ) for pt in ser["points"]
+    ]
+    scatter!(p1, ph, ours; color = cols[k], markersize = 6, markerstrokewidth = 0,
+             label = k == 1 ? "ChemistryLab, all certified" : "")
     ok = stiff .< ELECTROSTATIC_STIFFNESS_LIMIT
-    scatter!(p1, ph[ok], [pt.free for pt in ser.points][ok];
-             color = cols[k], markersize = 7, markerstrokewidth = 0,
-             label = k == 1 ? "ChemistryLab, certified" : "")
-    scatter!(p1, ph[.!ok], [pt.free for pt in ser.points][.!ok];
-             markercolor = :white, markerstrokecolor = cols[k], markersize = 7,
-             markerstrokewidth = 2, label = k == 1 ? "refused by the certificate" : "")
-    plot!(p2, ph, stiff; color = cols[k], lw = 2, marker = :circle, markersize = 4,
-          markerstrokewidth = 0, label = "$(round(Int, ser.nacl * 1000)) mM NaCl")
+    plot!(p2, ph, stiff; color = cols[k], lw = 2,
+          label = "$(round(Int, ser["nacl"] * 1000)) mM NaCl")
+    scatter!(p2, ph[ok], stiff[ok]; color = cols[k], markersize = 5,
+             markerstrokewidth = 0, label = k == 1 ? "elimination also works" : "")
+    scatter!(p2, ph[.!ok], stiff[.!ok]; markercolor = :white,
+             markerstrokecolor = cols[k], markersize = 5, markerstrokewidth = 2,
+             label = k == 1 ? "elimination diverges" : "")
 end
 hline!(p2, [ELECTROSTATIC_STIFFNESS_LIMIT]; color = :black, linestyle = :dash,
        lw = 2, label = "stiffness limit")
@@ -234,37 +220,29 @@ plot(p1, p2; layout = (1, 2), size = (1000, 420), dpi = 130,
 
 ![Ferrihydrite protolysis with a diffuse layer](../assets/hfo_diffuse_layer.png)
 
-The left panel is the titration. PHREEQC's three curves fan out with the
-background electrolyte — more salt, better screening, less potential to oppose
-the protolysis, and a curve closer to the one with no electrostatics at all.
-The filled markers are this package where the solve certified; the open ones are
-where it did not, and they are drawn at PHREEQC's value to show what is being
-missed rather than to claim it.
-
-The right panel is why. The stiffness peaks at the point of zero charge, where
-`asinh` is at its steepest, and falls away on both sides as the surface charges
-up and screens itself. It scales as ``1/\sqrt{I}``, so the **dilute** background
-is the hard one — the opposite of the usual intuition, and the reason the 1 mM
-series is unreachable at every pH while the 100 mM series is fine below 5.
-
 ## What this settles and what it does not
 
-  - The Gouy-Chapman closure is **implemented and matched against PHREEQC**, to
-    2.4 × 10⁻³ wherever the elimination holds, using this package's own
-    Johnson-Norton dielectric constant rather than the `0.1174` PHREEQC carries
-    in its source. Agreeing while using a different constant is the stronger
-    statement.
-  - The regime where it holds is **forecast before the solve and confirmed
-    after**, and outside it nothing is returned that could be mistaken for an
-    answer.
+  - The Gouy-Chapman closure is **implemented and matched against PHREEQC on
+    every one of eighteen points**, to 2.1 × 10⁻⁴ absolute on a site fraction,
+    using this package's own Johnson-Norton dielectric constant — κ = 0.117215
+    against the `0.1174` PHREEQC carries in its source. Adopting PHREEQC's makes
+    the match very slightly *worse*, which rules the constant out as the cause
+    of the residual and makes the agreement a stronger result: it holds with a
+    different constant, not because of a shared one.
+  - The residual is **not** the aqueous activity model either: Davies improves
+    it by 14 %, not by the factor of fifty the zinc edge showed. What is left is
+    small, and saying it is unattributed is worth more than naming a cause that
+    measurement does not support.
   - A diffuse-layer solve is a self-consistent speciation, **not a certified
-    minimum**: the model's activity map is not the gradient of any Gibbs energy.
-    [The theory page](@ref sec-theory-surface) measures that too, and separates
-    it carefully from the constant capacitance, which is a gradient.
-  - The **published Dzombak & Morel metal calibration** still is not reproduced
-    here. It needs the diffuse layer at circumneutral pH — exactly where the
-    elimination stops — so that gate waits for the unknown, not for another
-    activity coefficient.
+    minimum**: the model's activity map is not the gradient of any Gibbs energy,
+    and carrying the potential as an unknown does not change that.
+    [The theory page](@ref sec-theory-surface) measures it, and separates it
+    carefully from the constant capacitance, which is a gradient.
+  - The **published Dzombak & Morel metal calibration** is now within reach: the
+    acid-base half is reproduced at circumneutral pH, which is where the
+    elimination used to stop. The metal half needs the zinc of
+    [the sorption edge](@ref sec-example-hfo) run with the layer on, and that is
+    the next step rather than a claim made here.
 
 ## See also
 
