@@ -64,7 +64,7 @@ using JSON
         # Na8(Al6Si6)O24Cl2, eight sodiums for six aluminums, and the balance is
         # made up by chloride. A test that guessed the reaction would be checking
         # a different reaction from the one the generator checked.
-        R = 8.31446261815324          # J/(mol·K), CODATA
+        R = ChemistryLab.R_GAS          # J/(mol·K), CODATA
         RTln10 = R * 298.15 * log(10)
         G = Dict{String, Float64}()
         for s in base["substances"]

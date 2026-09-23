@@ -3,10 +3,13 @@
 
 using ChemistryLab
 using DynamicQuantities
+using JSON
 using SciMLBase
 using Test
 
-const RT_EX = 8.31446261815324 * 298.15
+const RT_EX = ChemistryLab.R_GAS * 298.15
+include("reference_species.jl")
+
 _gx(v) = SymbolicFunc(v * u"J/mol")
 
 # ── Cation exchange, in both conventions ─────────────────────────────────────
@@ -27,18 +30,14 @@ _gx(v) = SymbolicFunc(v * u"J/mol")
 # aqueous   ideal on both sides, deliberately
 # capacity  1.0 mmol of charge
 # solution  {'Na+': 1.0, 'K+': 1.0, 'Ca+2': 0.5, 'Cl-': 3.0} mmol
-const REAKTORO_EXCHANGE = (
-    # exchange constants relative to the sodium form, from the database
-    logK_K = 0.6999975622118972,      # K+ + NaX = KX + Na+
-    logK_Ca = 0.8000035307807066,     # Ca+2 + 2 NaX = CaX2 + 2 Na+
-    capacity = 0.001,
-    vanselow = (NaX = 4.478299273756262e-5, KX = 0.00010297254456897795, CaX2 = 0.00042612223134687967, equivalents = 0.0010000000000003),
-    gainesthomas = (NaX = 6.623054431034638e-5, KX = 0.0001465049207605679, CaX2 = 0.0003936322674646928, equivalents = 0.0010000000000003),
-)
+const REAKTORO_EXCHANGE = reference_oracle("reaktoro_ion_exchange")
 
 # Standard energies of the aqueous cations. Only their *differences* enter an
 # exchange reaction, so any consistent set does; these are the usual ones.
-const G_NA, G_K, G_CA = -261881.0, -282462.0, -552790.0
+# The aqueous standard energies that enter each exchange constant, read off the
+# species the database gives rather than written here. They were a line of three
+# literals, and two of them had already drifted in the last digits.
+_G298(s) = ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
 
 """
 Build an exchanger with `model` as its convention. `heterovalent = false` drops
@@ -55,9 +54,8 @@ function _exchanger(model; heterovalent = true, capacity = REAKTORO_EXCHANGE.cap
         s[:ΔₐG⁰] = _gx(g); s
     end
 
-    h2o = aq("H2O@", -237181.0, SC_AQSOLVENT); h2o[:M] = 0.018015u"kg/mol"
-    hp = aq("H+", 0.0)
-    na, k, ca = aq("Na+", G_NA), aq("K+", G_K), aq("Ca+2", G_CA)
+    h2o, hp, na, k, ca = reference_species(("H2O@", "H+", "Na+", "K+", "Ca+2"))
+    G_NA, G_K, G_CA = _G298(na), _G298(k), _G298(ca)
 
     # The reference form carries the zero of the family's energy scale, so each
     # exchanger's standard energy follows from its exchange constant against it.
@@ -89,7 +87,7 @@ function _exchanger(model; heterovalent = true, capacity = REAKTORO_EXCHANGE.cap
     # Exactly one kilogram of water, because Reaktoro's `set("H2O", 1.0, "kg")`
     # does the same and the dilute model reads activities as molalities. At
     # 55.5 mol the two bases differ by 1.7e-4, which the exchange propagates.
-    n0[idx["H2O@"]] = (1.0 / 0.018015)u"mol"
+    n0[idx["H2O@"]] = moles_of_water() * u"mol"
     n0[idx["NaXc"]] = capacity * u"mol"
     n0[idx["Na+"]] = 1.0e-3u"mol"
     n0[idx["K+"]] = 1.0e-3u"mol"

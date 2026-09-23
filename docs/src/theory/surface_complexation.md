@@ -336,15 +336,125 @@ proved that — but the Newton then controls the potential directly instead of
 meeting it through a stiff exponential. The extra unknown of the textbooks is a
 preconditioner.
 
-## 9. What this page does not cover
+## 9. The diffuse layer, and the price of eliminating a potential
+
+§8 removed an unknown by inverting a closure. The diffuse layer is where that
+trick is usually said to stop, and it is worth being precise about what stops
+and what does not.
+
+### The closure inverts too
+
+Gouy and Chapman's solution of the Poisson-Boltzmann equation beside a flat
+surface, for a symmetric 1:1 electrolyte, relates the charge the surface carries
+to the potential it raises and to how well the solution screens it:
+
+```math
+\sigma \;=\; \kappa\sqrt{I}\;\sinh\!\left(\frac{F\Psi}{2RT}\right),
+\qquad \kappa = \sqrt{8\,\varepsilon_r\varepsilon_0 RT\rho}
+```
+
+with ``I`` the ionic strength of the bulk solution and ``\rho = 1000`` kg/m³ the
+factor that makes it a volumetric concentration. This is transcendental in
+``\Psi`` — and *monotone* in it, which is a different thing. A monotone relation
+inverts, and this one inverts in closed form:
+
+```math
+\tilde\psi \;=\; 2\,\operatorname{asinh}\!\left(\frac{\sigma}{\kappa\sqrt{I}}\right)
+```
+
+`asinh` is smooth, its derivative is bounded by one, and it costs the solver a
+single call. So the diffuse layer, like the constant capacitance, is an
+*activity coefficient*: `ln a_k = ln x_k + z_k ψ̃`, with the same convention and
+a different closure. No unknown is added.
+
+### What is actually lost is not the unknown
+
+Two different questions are usually merged into one word, "consistency", and
+this is the model that separates them.
+
+| | is it a gradient? | is that gradient extensive? |
+|:--|:--|:--|
+| ideal site mixing | yes | yes |
+| constant capacitance | **yes** | no |
+| diffuse layer | **no** | no |
+
+The first column is the one the certificate needs: a minimization has to be
+minimizing *something*. Symmetry of the activity Jacobian,
+``\partial \ln a_i/\partial n_j = \partial \ln a_j/\partial n_i``, is exactly
+the statement that such a something exists.
+
+A constant capacitance passes it — its charging work
+``F^2(z\cdot n)^2/(2C\mathcal{A})`` is a genuine potential — and fails the
+second column, because that expression is homogeneous of degree two in the
+amounts while a Gibbs energy is homogeneous of degree one. That failure is not a
+defect. The area is a *parameter* of the problem, fixed from outside like a
+volume; scaling the amounts without scaling the surface is not the extensive
+scaling Gibbs-Duhem is about.
+
+A diffuse layer fails the first column, and that one is a defect. ``\tilde\psi``
+depends on ``I``, which depends on the aqueous composition, while the activity
+of an aqueous ion does not depend in return on what is bound to the surface. The
+coupling is one-way, so the Jacobian is asymmetric, and an asymmetric Jacobian
+is the Hessian of nothing.
+
+This is a property of the model, not of any implementation of it. Treating the
+bulk as a reservoir whose ionic strength is a parameter is precisely the
+approximation that lets a diffuse layer be written without carrying its own
+inventory of counter-ions — the approximation Dzombak and Morel make, and the
+one PHREEQC's default `SURFACE` block makes. What comes back from such a solve
+is a **self-consistent speciation**, mass action and conservation satisfied
+together. It is not a certified minimum, and this package says which it is
+rather than letting the word "certificate" cover both.
+
+### And a second price, which is the one that bites
+
+Writing a potential as an activity coefficient means the solver reaches it by
+successive substitution: a composition implies activities, which imply a
+composition. That iteration converges while the activity moves less than the
+composition does — while the dimensionless sensitivity
+
+```math
+N\left|\frac{\partial\tilde\psi}{\partial n}\right|
+\;=\;\frac{2NF}{\mathcal{A}\,\kappa\sqrt{I}\,\sqrt{1+u^2}},
+\qquad u = \frac{\sigma}{\kappa\sqrt{I}}
+```
+
+is small. Above roughly five it is not, and what the solve returns is not a
+second root but a point that violates mass action outright.
+
+Three things follow, and all three are measured rather than argued:
+
+  - **The physics is never the problem.** Charging a surface always opposes
+    further charging, so the equilibrium is unique and stable at every
+    composition. Only the elimination fails.
+  - **A diffuse layer is hard in the middle and easy at the edges.** Far from
+    the point of zero charge ``u`` is large, `asinh` flattens, and the same
+    system that will not solve at pH 7 solves at pH 4. It is also harder in a
+    *dilute* background, as ``1/\sqrt{I}``, which is the opposite of the usual
+    intuition about difficult chemistry.
+  - **A constant capacitance is judged once.** Its sensitivity,
+    ``NF^2/(C\mathcal{A}RT)``, does not depend on the composition at all.
+
+The forecast is [`electrostatic_stiffness`](@ref) and the threshold
+[`ELECTROSTATIC_STIFFNESS_LIMIT`](@ref); the verdict, as always, is the
+stationarity residual of the certificate, which separates the two regimes by
+fourteen orders of magnitude. The honest resolution — carrying ``\Psi`` as an
+unknown with its own equation, so the coupling is linearized instead of
+iterated — is not in this package yet, and the page says so rather than leaving
+a reader to discover it at pH 7.
+
+## 10. What this page does not cover
 
 Saying what is absent is part of describing what is present.
 
-  - **No diffuse layer.** The constant-capacitance model is here (§8); the
-    diffuse double layer and the Donnan approximation are not, and they are the
-    ones a published Dzombak & Morel calibration assumes. A set of constants
-    fitted *with* a diffuse layer used without one is a different model wearing
-    the same numbers.
+  - **No Donnan approximation, and no diffuse-layer inventory.** The diffuse
+    layer is here (§9), in the form that carries a potential and not an ion
+    census: the counter-ions accumulated in the layer are not tracked as a
+    separate reservoir, which is PHREEQC's default and not its `-diffuse_layer`
+    option. The Donnan approximation, which a compacted clay needs, is absent.
+  - **No surface potential beyond the point where eliminating it works.** §9
+    measures where that is. Above it the answer is refused by the certificate
+    rather than returned.
   - **No evolving support.** The site budget is fixed. In a hydrating cement the
     support is a phase that precipitates, so its sites appear with it and the
     site row becomes bilinear — the one thing the linear budget `A n = b` has

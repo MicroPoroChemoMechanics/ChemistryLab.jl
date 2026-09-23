@@ -38,7 +38,7 @@ end
     @test haskey(KINETICS_RATE_FACTORIES, :arrhenius)
 
     factory = KINETICS_RATE_FACTORIES[:arrhenius]
-    k = factory(; k₀ = 1.0e-6, Ea = 40000.0, T_ref = 298.15, R_gas = 8.31446)
+    k = factory(; k₀ = 1.0e-6, Ea = 40000.0, T_ref = 298.15, R_gas = ChemistryLab.R_GAS)
     @test k isa AbstractFunc
     @test isapprox(k(; T = 298.15), 1.0e-6; rtol = 1.0e-10)
 

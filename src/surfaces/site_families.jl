@@ -147,10 +147,8 @@ this adds the electrical work of putting a charge on a charged surface.
 # Why this needs no unknown of its own
 
 The literature presents an electrostatic surface model as one extra unknown per
-surface, `Ψ`, with one extra equation to close it. That is true of the diffuse
-layer, where `Ψ` depends on the ionic strength and the closure cannot be
-inverted. It is **not** true here: `σ = CΨ` makes `Ψ` an explicit function of
-the composition,
+surface, `Ψ`, with one extra equation to close it. It is not needed here:
+`σ = CΨ` makes `Ψ` an explicit function of the composition,
 
 ```math
 \\tilde\\psi \\equiv \\frac{F\\Psi}{RT}
@@ -239,6 +237,7 @@ struct ConstantCapacitance{M <: AbstractSiteMixingModel, T <: Real} <:
     function ConstantCapacitance{M, T}(base::AbstractSiteMixingModel, C::Real, area::Real) where {M <: AbstractSiteMixingModel, T <: Real}
         C > 0 || throw(ArgumentError("capacitance must be positive; got $C F/m²."))
         area > 0 || throw(ArgumentError("area must be positive; got $area m²."))
+        _refuse_stacked_electrostatics(base, "ConstantCapacitance")
         return new{M, T}(base, convert(T, C), convert(T, area))
     end
 end
@@ -264,6 +263,252 @@ ConstantCapacitance(; C, area, base::AbstractSiteMixingModel = IdealSiteMixing()
 
 # The decoration is transparent to everything the base model decides.
 supports_multidentate(m::ConstantCapacitance) = supports_multidentate(m.base)
+
+"""
+    struct DiffuseLayer{M<:AbstractSiteMixingModel, T<:Real} <: AbstractSiteMixingModel
+
+A charged surface, in the **diffuse-layer** (Gouy-Chapman) model: the potential
+is raised by the charge the surface carries and screened by the ions in
+solution, so it depends on the ionic strength as well as on the charge.
+
+```math
+\\sigma = \\sqrt{8\\,\\varepsilon_r\\varepsilon_0 RT\\,\\rho\\,I}\\;
+         \\sinh\\!\\left(\\frac{F\\Psi}{2RT}\\right),
+\\qquad
+\\sigma = \\frac{F}{\\mathcal{A}}\\sum_k z_k n_k
+```
+
+with `I` the molal ionic strength of the aqueous solution, `ρ = 1000 kg/m³` the
+factor that turns it into a volumetric concentration, `𝒜` the surface area in
+m², and `ε_r` the relative permittivity of the solvent. Like
+[`ConstantCapacitance`](@ref) it **decorates** another mixing model: the site
+fractions stay whatever `base` says, and this adds the electrical work.
+
+This is the model behind the calibration of Dzombak and Morel (1990) and the
+default of PHREEQC's `SURFACE` block — which is what makes it checkable against
+another code rather than only against itself.
+
+# It needs no unknown of its own either, and that is not obvious
+
+A diffuse layer is usually presented as one extra unknown `Ψ` per surface with
+one extra equation to close it, on the grounds that the relation above is
+transcendental. It is transcendental in `Ψ`, but it is **monotone** in `Ψ`, so
+it inverts in closed form:
+
+```math
+\\tilde\\psi \\equiv \\frac{F\\Psi}{RT}
+ = 2\\,\\operatorname{asinh}\\!\\left(\\frac{\\sigma}{\\kappa\\sqrt{I}}\\right),
+\\qquad \\kappa = \\sqrt{8\\,\\varepsilon_r\\varepsilon_0 RT\\rho}
+```
+
+`asinh` is smooth and bounded in its derivative everywhere, so the term costs
+the solver nothing and differentiates cleanly. `κ` is computed from `ε_r`, and
+`ε_r` from this package's own Johnson-Norton model of water rather than typed
+in: at 25 °C that gives `κ = 0.117215`, against the `0.1174` PHREEQC writes
+into its source. Agreeing with PHREEQC while using a different dielectric
+constant is a stronger statement than agreeing with its arithmetic.
+
+# What this model costs the certificate, stated rather than hidden
+
+Unlike [`ConstantCapacitance`](@ref), **this term is not the gradient of any
+Gibbs energy**, and no implementation can make it one. At fixed `I` it is: the
+electrical work integrates to
+
+```math
+G_{\\mathrm{el}} = \\frac{2RT\\mathcal{A}}{F}\\left[
+  \\sigma\\operatorname{asinh}\\frac{\\sigma}{a} - \\sqrt{\\sigma^2+a^2} + a \\right],
+\\qquad a = \\kappa\\sqrt{I}
+```
+
+whose derivative in `n_k` is exactly `RT z_k \\tilde\\psi`. But `I` is itself a
+function of the aqueous composition, and the aqueous activity of an ion does
+**not** depend in return on how much is bound to the surface. The Jacobian of
+the activity map is therefore asymmetric, and an asymmetric Jacobian is not the
+Hessian of anything.
+
+That is a property of the Dzombak-Morel model, not of this code: it treats the
+bulk solution as a reservoir whose ionic strength is a parameter, which is
+precisely the approximation that lets the diffuse layer be written without
+carrying its ion inventory. PHREEQC's default `SURFACE` makes the same one.
+
+The consequence here is named rather than papered over.
+[`is_gradient_consistent`](@ref) returns `false` for this model, a system that
+uses it says so, and what comes back from a solve is a **self-consistent
+speciation** — mass action and conservation satisfied together — not a
+certified minimum. Everything the other models certify, they still certify;
+this one buys agreement with the published calibrations at that price, and the
+price is written on it.
+
+# Fields
+
+  - `base`: the mixing model this decorates, `IdealSiteMixing()` by default.
+  - `area`: the surface area carrying the charge, in m².
+  - `ε_r`: the relative permittivity of the solvent, dimensionless. Fixed at
+    construction; differentiating a solve with respect to temperature does not
+    propagate through it.
+
+See also: [`ConstantCapacitance`](@ref), [`is_gradient_consistent`](@ref),
+[`water_relative_permittivity`](@ref).
+"""
+struct DiffuseLayer{M <: AbstractSiteMixingModel, T <: Real} <:
+    AbstractSiteMixingModel
+    base::M
+    area::T
+    ε_r::T
+    scale::T
+    function DiffuseLayer{M, T}(base::AbstractSiteMixingModel, area::Real, ε_r::Real, scale::Real) where {M <: AbstractSiteMixingModel, T <: Real}
+        area > 0 || throw(ArgumentError("area must be positive; got $area m²."))
+        ε_r > 0 ||
+            throw(ArgumentError("relative permittivity must be positive; got $ε_r."))
+        0 <= scale <= 1 ||
+            throw(ArgumentError("scale is a homotopy parameter in [0, 1]; got $scale."))
+        _refuse_stacked_electrostatics(base, "DiffuseLayer")
+        return new{M, T}(base, convert(T, area), convert(T, ε_r), convert(T, scale))
+    end
+end
+
+"""
+    DiffuseLayer(base, area, ε_r) -> DiffuseLayer
+    DiffuseLayer(; area, temperature = 298.15, pressure = 1.0e5,
+                   ε_r = water_relative_permittivity(temperature, pressure),
+                   base = IdealSiteMixing()) -> DiffuseLayer
+
+Build a [`DiffuseLayer`](@ref). `area` is in m², a plain `Real` in SI or a
+`Quantity`; `ε_r` is dimensionless and defaults to the permittivity of water at
+`temperature` and `pressure`, from this package's own model.
+
+That default costs a few milliseconds of water-property evaluation, paid once
+here rather than once per solver iteration — which is the whole reason it is a
+stored field and not a call inside the activity model.
+"""
+function DiffuseLayer(base::AbstractSiteMixingModel, area, ε_r, scale = 1.0)
+    a = _area_si(us"m^2", area, "DiffuseLayer area")
+    e = _area_si(us"m^2/m^2", ε_r, "DiffuseLayer relative permittivity")
+    v = promote(a, e, float(scale))
+    return DiffuseLayer{typeof(base), eltype(v)}(base, v[1], v[2], v[3])
+end
+
+function DiffuseLayer(;
+        area,
+        temperature::Real = 298.15,
+        pressure::Real = 1.0e5,
+        ε_r = water_relative_permittivity(temperature, pressure),
+        scale::Real = 1.0,
+        base::AbstractSiteMixingModel = IdealSiteMixing(),
+    )
+    return DiffuseLayer(base, area, ε_r, scale)
+end
+
+"""
+    with_electrostatic_scale(model, λ) -> model
+
+The same model with its electrostatic term scaled by `λ ∈ [0, 1]`, `λ = 0`
+switching it off entirely and `λ = 1` being the model itself.
+
+This exists for one reason, and it is not a physical one: near the point of zero
+charge the diffuse-layer term is stiff, and a cold Newton solve walks off it.
+See [`ChemistryLab.electrostatic_stiffness`](@ref) for the number, and the
+manual for the continuation that uses this.
+
+Returns the model unchanged for one that carries no electrostatics, so a
+continuation loop can be written without asking what it is solving.
+"""
+with_electrostatic_scale(m::AbstractSiteMixingModel, ::Real) = m
+with_electrostatic_scale(m::DiffuseLayer, λ::Real) =
+    DiffuseLayer(m.base, m.area, m.ε_r, λ)
+
+supports_multidentate(m::DiffuseLayer) = supports_multidentate(m.base)
+
+"""
+    water_relative_permittivity(T_K, P_Pa = 1.0e5) -> Real
+
+The relative permittivity (dielectric constant) of liquid water at `T_K` kelvin
+and `P_Pa` pascal, from the Johnson-Norton (1991) model this package already
+carries for the HKF activity model.
+
+It is `78.245` at 25 °C and 1 bar, and falls to `66.68` at 60 °C — which is why
+a surface electrostatic model calibrated at room temperature is not transferable
+to a hydrating paste without saying so.
+
+This evaluates the water equation of state and costs milliseconds. It is meant
+for **construction time**, not for an inner loop; [`DiffuseLayer`](@ref) calls
+it once and stores the result.
+"""
+water_relative_permittivity(T_K::Real, P_Pa::Real = 1.0e5) =
+    water_electro_props_jn(T_K, P_Pa, water_thermo_props(T_K, P_Pa)).epsilon
+
+"""
+    is_electrostatic(model) -> Bool
+
+Whether a site mixing model adds the work of charging a surface, on top of
+whatever mixing it decorates.
+
+`true` for [`ConstantCapacitance`](@ref) and [`DiffuseLayer`](@ref), `false`
+otherwise — including for a model that merely *decorates* one, which is why the
+predicate exists rather than an `isa` test at each use.
+"""
+is_electrostatic(::AbstractSiteMixingModel) = false
+is_electrostatic(::ConstantCapacitance) = true
+is_electrostatic(::DiffuseLayer) = true
+
+"""
+    _refuse_stacked_electrostatics(base, outer)
+
+Refuse an electrostatic decorator applied to another one.
+
+Stacking a diffuse layer on a constant capacitance is how a Stern or a
+triple-layer model is *drawn*, and adding the two potentials is not how it
+*works*: the two capacitances belong to different charge planes, and each
+surface species sits on one plane or the other. Summing them puts every species
+on both. A plane-resolved model is a different object, and it is not in this
+package yet; refusing here is what keeps someone from assembling a wrong one
+out of right parts.
+"""
+function _refuse_stacked_electrostatics(base::AbstractSiteMixingModel, outer::AbstractString)
+    return is_electrostatic(base) && throw(
+        ArgumentError(
+            "$outer cannot decorate $(nameof(typeof(base))), which is already an " *
+                "electrostatic model. Two charge planes need a model that resolves " *
+                "them — summing two potentials puts every surface species on both " *
+                "planes at once, which is not the Stern or triple-layer model it " *
+                "looks like. Pick one electrostatic model, or describe the second " *
+                "plane explicitly once this package carries one."
+        )
+    )
+end
+
+"""
+    is_gradient_consistent(model) -> Bool
+
+Whether the activity contribution of a site mixing model is the gradient of a
+Gibbs energy — which is what the equilibrium certificate assumes about every
+term it certifies.
+
+`true` for every model here but [`DiffuseLayer`](@ref), whose potential depends
+on the ionic strength of a bulk solution that does not depend in return on the
+surface, making the activity Jacobian asymmetric. See that model's docstring for
+why this is the Dzombak-Morel approximation itself rather than a defect of the
+implementation, and [`site_gradient_asymmetry`](@ref) for the
+measurement.
+"""
+is_gradient_consistent(::AbstractSiteMixingModel) = true
+is_gradient_consistent(::DiffuseLayer) = false
+is_gradient_consistent(m::ConstantCapacitance) = is_gradient_consistent(m.base)
+
+"""
+    needs_ionic_strength(model) -> Bool
+
+Whether evaluating a site mixing model requires the ionic strength of the
+aqueous solution.
+
+Only [`DiffuseLayer`](@ref) does. The activity closures test this once, when
+they are built, and skip the ionic-strength sum entirely when no family asks for
+it — so a system without a diffuse layer pays nothing for the possibility of
+one.
+"""
+needs_ionic_strength(::AbstractSiteMixingModel) = false
+needs_ionic_strength(::DiffuseLayer) = true
+needs_ionic_strength(m::ConstantCapacitance) = needs_ionic_strength(m.base)
 
 """
     abstract type AbstractSiteCapacity end

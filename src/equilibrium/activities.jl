@@ -2,6 +2,7 @@
 # Copyright © 2025-2026 Jean-François Barthélémy and Anthony Soive (Cerema, UMR MCD)
 
 using DynamicQuantities
+using ForwardDiff
 using LinearAlgebra
 
 # ── Abstract activity model ───────────────────────────────────────────────────
@@ -170,6 +171,17 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
         [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
         nothing
 
+    # A diffuse layer is screened by the ions in solution, so it needs the ionic
+    # strength; nothing else here does. The question is asked once, when the
+    # closure is built, so a system without one never walks the solute list.
+    site_needs_I = has_sites && any(needs_ionic_strength, site_models)
+    site_solvent = isempty(cs.idx_solvent) ? 0 : only(cs.idx_solvent)
+    site_ions = site_needs_I ?
+        [i for i in cs.idx_solutes if !iszero(charge(cs.species[i]))] : Int[]
+    site_ion_z = Float64[charge(cs.species[i]) for i in site_ions]
+    site_Mw = (site_needs_I && !iszero(site_solvent)) ?
+        ustrip(us"kg/mol", cs.species[site_solvent][:M]) : 1.0
+
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
         _n = max.(n, ϵ)     # ϵ::Float64 — promotion vers Dual automatique si n est Dual
@@ -202,8 +214,12 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
         # wrong — the same trap the solid-solution call has carried since 0.8.2.
         if has_sites
             T_val = hasproperty(p, :T) ? p.T : 298.15
+            I_site = site_needs_I ?
+                _aqueous_ionic_strength(_n, site_ions, site_ion_z, site_solvent, site_Mw) :
+                zero(eltype(_n))
             _site_mixing_lna!(
-                out, _n, site_groups, site_models, site_denticity, site_charges, T_val, ϵ
+                out, _n, site_groups, site_models, site_denticity, site_charges,
+                I_site, T_val, ϵ
             )
         end
 
@@ -639,6 +655,17 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
         [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
         nothing
 
+    # A diffuse layer is screened by the ions in solution, so it needs the ionic
+    # strength; nothing else here does. The question is asked once, when the
+    # closure is built, so a system without one never walks the solute list.
+    site_needs_I = has_sites && any(needs_ionic_strength, site_models)
+    site_solvent = isempty(cs.idx_solvent) ? 0 : only(cs.idx_solvent)
+    site_ions = site_needs_I ?
+        [i for i in cs.idx_solutes if !iszero(charge(cs.species[i]))] : Int[]
+    site_ion_z = Float64[charge(cs.species[i]) for i in site_ions]
+    site_Mw = (site_needs_I && !iszero(site_solvent)) ?
+        ustrip(us"kg/mol", cs.species[site_solvent][:M]) : 1.0
+
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])   # kg/mol, e.g. 0.018015
 
     A_fixed = model.A
@@ -749,8 +776,12 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
         # wrong — the same trap the solid-solution call has carried since 0.8.2.
         if has_sites
             T_val = hasproperty(p, :T) ? p.T : 298.15
+            I_site = site_needs_I ?
+                _aqueous_ionic_strength(_n, site_ions, site_ion_z, site_solvent, site_Mw) :
+                zero(eltype(_n))
             _site_mixing_lna!(
-                out, _n, site_groups, site_models, site_denticity, site_charges, T_val, ϵ
+                out, _n, site_groups, site_models, site_denticity, site_charges,
+                I_site, T_val, ϵ
             )
         end
 
@@ -1004,6 +1035,17 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
         [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
         nothing
 
+    # A diffuse layer is screened by the ions in solution, so it needs the ionic
+    # strength; nothing else here does. The question is asked once, when the
+    # closure is built, so a system without one never walks the solute list.
+    site_needs_I = has_sites && any(needs_ionic_strength, site_models)
+    site_solvent = isempty(cs.idx_solvent) ? 0 : only(cs.idx_solvent)
+    site_ions = site_needs_I ?
+        [i for i in cs.idx_solutes if !iszero(charge(cs.species[i]))] : Int[]
+    site_ion_z = Float64[charge(cs.species[i]) for i in site_ions]
+    site_Mw = (site_needs_I && !iszero(site_solvent)) ?
+        ustrip(us"kg/mol", cs.species[site_solvent][:M]) : 1.0
+
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
 
     A_fixed = model.A
@@ -1076,8 +1118,12 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
         # wrong — the same trap the solid-solution call has carried since 0.8.2.
         if has_sites
             T_val = hasproperty(p, :T) ? p.T : 298.15
+            I_site = site_needs_I ?
+                _aqueous_ionic_strength(_n, site_ions, site_ion_z, site_solvent, site_Mw) :
+                zero(eltype(_n))
             _site_mixing_lna!(
-                out, _n, site_groups, site_models, site_denticity, site_charges, T_val, ϵ
+                out, _n, site_groups, site_models, site_denticity, site_charges,
+                I_site, T_val, ϵ
             )
         end
 
@@ -1245,46 +1291,216 @@ _site_excess_ln_gamma(m::ConstantCapacitance, k::Int, x::AbstractVector, T::Real
     _site_excess_ln_gamma(m.base, k, x, T)
 
 """
-    _electrostatic_ln_a(model, k, z, n, T) -> Real
+    _aqueous_ionic_strength(_n, idx_ions, z_ions, idx_solvent, M_w) -> Real
 
-The electrical work of adding one mole of member `k` to a **charged** surface,
-in units of `RT`, given the members' formal charges `z` and amounts `n`.
+The molal ionic strength `I = ½ Σ zᵢ² mᵢ` of the aqueous solution, from the
+amounts `_n` and the solvent mass `_n[idx_solvent] · M_w`.
 
-Zero for a model that does not describe a surface potential, which is every one
-of them but [`ConstantCapacitance`](@ref).
+Written here, beside the site mixing, rather than reused from an activity
+model: three of the four models compute an ionic strength of their own and one
+does not, so taking it from them would make the surface answer depend on which
+aqueous model is in force through a path no one asked for. This is one
+definition, evaluated identically under all four.
 
-For that one it is `z_k ψ̃` with
-
-```math
-\\tilde\\psi = \\frac{F^2}{C\\,\\mathcal{A}\\,RT}\\sum_j z_j n_j
-```
-
-an explicit function of the composition, because `σ = CΨ` can be inverted. It
-is written here, beside the mixing, rather than as an extra unknown of the
-solve: the term is a composition-dependent contribution to a chemical potential,
-which is what an activity coefficient is.
-
-A diffuse layer cannot be written this way — there `Ψ` depends on the ionic
-strength through a relation with no closed inverse — and that one will need the
-unknown this one does not.
+The element type follows `_n`, so the whole path differentiates.
 """
-_electrostatic_ln_a(
-    ::AbstractSiteMixingModel, ::Int, ::AbstractVector, n::AbstractVector, ::Real
-) = zero(eltype(n))
-
-function _electrostatic_ln_a(
-        m::ConstantCapacitance, k::Int, z::AbstractVector, n::AbstractVector, T::Real
-    )
-    charge_sum = zero(eltype(n))
-    @inbounds for j in eachindex(n)
-        charge_sum += z[j] * n[j]
+function _aqueous_ionic_strength(
+        _n::AbstractVector{ET}, idx_ions, z_ions, idx_solvent::Int, M_w::Real
+    ) where {ET}
+    iszero(idx_solvent) && return zero(ET)
+    kg_w = _n[idx_solvent] * M_w
+    acc = zero(ET)
+    @inbounds for (j, i) in enumerate(idx_ions)
+        acc += z_ions[j]^2 * _n[i]
     end
-    ψ = FARADAY^2 * charge_sum / (m.C * m.area * R_GAS * T)
-    return z[k] * ψ
+    return acc / (2 * kg_w)
 end
 
 """
-    _site_mixing_lna!(out, _n, site_groups, site_models, T, ϵ)
+    _electrostatic_ln_a(model, k, z, n, I, T) -> Real
+
+The electrical work of adding one mole of member `k` to a **charged** surface,
+in units of `RT`, given the members' formal charges `z` and amounts `n`, the
+ionic strength `I` of the bulk solution, and the temperature `T`.
+
+Zero for a model that does not describe a surface potential, which is every one
+of them but [`ConstantCapacitance`](@ref) and [`DiffuseLayer`](@ref). Both
+write it as `z_k ψ̃` with `ψ̃ = FΨ/RT`; they differ only in the closure that
+gives `Ψ` from the surface charge density `σ = F Σ_j z_j n_j / 𝒜`.
+
+  - Constant capacitance: `σ = CΨ` inverts to
+    `ψ̃ = F² Σ_j z_j n_j / (C 𝒜 RT)`, which is linear in the composition and
+    ignores the solution entirely.
+  - Diffuse layer: Gouy-Chapman's `σ = κ√I sinh(ψ̃/2)` inverts to
+    `ψ̃ = 2 asinh(σ / (κ√I))`, with `κ = √(8 ε_r ε₀ R T ρ)`. It is monotone in
+    `Ψ`, which is why it inverts at all, and `asinh` keeps it smooth.
+
+Neither needs an unknown of its own. What the second costs instead is written
+in [`is_gradient_consistent`](@ref): `I` depends on the aqueous composition,
+and the aqueous activities do not depend in return on the surface, so this term
+is not the gradient of a Gibbs energy.
+
+`I` is floored at `eps()` so that an unscreened surface gives a large finite
+potential rather than a `NaN`. That floor is a numerical guard, not a physical
+one: Gouy-Chapman genuinely diverges as the solution runs out of ions, and a
+diffuse layer in pure water is the model outside its range of validity.
+"""
+_electrostatic_ln_a(
+    ::AbstractSiteMixingModel, ::Int, ::AbstractVector, n::AbstractVector,
+    ::Real, ::Real
+) = zero(eltype(n))
+
+function _surface_charge_density(z::AbstractVector, n::AbstractVector, area::Real)
+    acc = zero(eltype(n))
+    @inbounds for j in eachindex(n)
+        acc += z[j] * n[j]
+    end
+    return FARADAY * acc / area
+end
+
+function _electrostatic_ln_a(
+        m::ConstantCapacitance, k::Int, z::AbstractVector, n::AbstractVector,
+        ::Real, T::Real
+    )
+    σ = _surface_charge_density(z, n, m.area)
+    return z[k] * FARADAY * σ / (m.C * R_GAS * T)
+end
+
+function _electrostatic_ln_a(
+        m::DiffuseLayer, k::Int, z::AbstractVector, n::AbstractVector,
+        I::Real, T::Real
+    )
+    σ = _surface_charge_density(z, n, m.area)
+    # κ = √(8 ε_r ε₀ R T ρ), with ρ = 1000 kg/m³ turning a molal ionic strength
+    # into the volumetric one Gouy-Chapman is written for. At 25 °C in water
+    # this is 0.117215, against the 0.1174 PHREEQC carries in its source.
+    κ = sqrt(8 * m.ε_r * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
+    return m.scale * z[k] * 2 * asinh(σ / (κ * sqrt(max(I, eps(float(one(I)))))))
+end
+
+"""
+    ELECTROSTATIC_STIFFNESS_LIMIT
+
+The largest [`electrostatic_stiffness`](@ref) at which eliminating the surface
+potential — rather than carrying it as an unknown — still converges here, `5.0`.
+
+It is a **measured** threshold, not a derived one, and both sides of it were
+measured. A constant capacitance of 3 F/m² on ferrihydrite gives 4.7 and solves
+to a stationarity of 2e-16; 2 F/m² gives 7.0 and does not solve. Across
+eighteen diffuse-layer points spanning three ionic strengths and six pH values,
+everything at or below 3.4 converged and everything at or above 6.2 did not,
+with nothing in between. The bracket is therefore `[3.4, 6.2]` and `5.0` sits
+in it.
+
+See [`electrostatic_stiffness`](@ref) for what the number means and why a
+threshold exists at all.
+"""
+const ELECTROSTATIC_STIFFNESS_LIMIT = 5.0
+
+"""
+    electrostatic_stiffness(model, z, n, I, T) -> Real
+
+How strongly the surface potential reacts to the composition that raises it:
+the dimensionless sensitivity `N |∂ψ̃/∂n|`, with `N = Σ_k n_k` the family's site
+budget. Zero for a model that carries no potential.
+
+# What it predicts, and why a threshold exists
+
+Both electrostatic models here are written as activity coefficients, which the
+dual solver reaches by successive substitution: it forms a composition, reads
+the activities it implies, and forms a composition again. That iteration
+contracts only while the activity moves less than the composition does — which
+is exactly this number being smaller than one, up to the damping the solver
+already applies. Above it the iteration walks off, and what comes back is not a
+second root but a point that violates mass action outright.
+
+It is not a property of the physics. The feedback is always negative — charging
+the surface always opposes further charging, so the equilibrium is unique and
+stable. What fails is the elimination, and the answer to that is to carry `Ψ`
+as an unknown with its own equation, which linearizes the coupling instead of
+iterating it. That is not in this package yet.
+
+# The shape of it
+
+```math
+\\text{constant capacitance:}\\quad \\frac{N F^2}{C\\,\\mathcal{A}\\,RT},
+\\qquad
+\\text{diffuse layer:}\\quad \\frac{2NF}{\\mathcal{A}\\,\\kappa\\sqrt{I}\\,\\sqrt{1+u^2}},
+\\quad u = \\frac{\\sigma}{\\kappa\\sqrt{I}}
+```
+
+The first does not depend on the composition at all, so a capacitance can be
+judged once. The second does, through `u`, and that is what makes a diffuse
+layer hard in the middle and easy at the edges: far from the point of zero
+charge `asinh` flattens, the surface screens itself, and the same system that
+diverges at pH 7 converges at pH 4. It also scales as `1/√I`, so a dilute
+background is the difficult case, not the easy one.
+
+# Use
+
+Evaluate it at a composition you believe — a solve without the electrostatics,
+or another code's answer — and compare against
+[`ELECTROSTATIC_STIFFNESS_LIMIT`](@ref) before trusting a solve. It is a
+forecast, not a verdict: the verdict is the stationarity residual of
+`optimality_certificate`, which separates the two regimes by fourteen orders of
+magnitude and never lets a diverged answer pass silently.
+"""
+electrostatic_stiffness(
+    ::AbstractSiteMixingModel, ::AbstractVector, n::AbstractVector, ::Real, ::Real
+) = zero(eltype(n))
+
+function electrostatic_stiffness(
+        m::ConstantCapacitance, ::AbstractVector, n::AbstractVector, ::Real, T::Real
+    )
+    return sum(n) * FARADAY^2 / (m.C * m.area * R_GAS * T)
+end
+
+function electrostatic_stiffness(
+        m::DiffuseLayer, z::AbstractVector, n::AbstractVector, I::Real, T::Real
+    )
+    σ = _surface_charge_density(z, n, m.area)
+    κ = sqrt(8 * m.ε_r * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
+    a = κ * sqrt(max(I, eps(float(one(I)))))
+    u = σ / a
+    return m.scale * sum(n) * 2 * FARADAY / (m.area * a * sqrt(1 + u^2))
+end
+
+"""
+    electrostatic_stiffness(state; model = DiluteSolutionModel(), T = 298.15) -> Vector
+
+[`electrostatic_stiffness`](@ref) for every site family of `state`'s system, in
+the order `site_families` returns them, evaluated at the composition `state`
+holds and at the ionic strength that composition implies.
+
+This is the form to reach for: it takes the state a solve produced, or the one
+a solve without electrostatics produced, and says whether the elimination will
+hold there.
+"""
+function electrostatic_stiffness(
+        state::ChemicalState; model::AbstractActivityModel = DiluteSolutionModel(),
+        T::Real = 298.15
+    )
+    cs = state.system
+    n = Float64[ustrip(us"mol", x) for x in state.n]
+    solvent = isempty(cs.idx_solvent) ? 0 : only(cs.idx_solvent)
+    ions = [i for i in cs.idx_solutes if !iszero(charge(cs.species[i]))]
+    M_w = iszero(solvent) ? 1.0 : ustrip(us"kg/mol", cs.species[solvent][:M])
+    I = _aqueous_ionic_strength(
+        n, ions, Float64[charge(cs.species[i]) for i in ions], solvent, M_w
+    )
+    return [
+        electrostatic_stiffness(
+            f.model,
+            Float64[charge(sp) for sp in site_members(f)],
+            Float64[n[i] for i in grp],
+            I, T,
+        ) for (f, grp) in zip(cs.site_families, cs.site_groups)
+    ]
+end
+
+"""
+    _site_mixing_lna!(out, _n, site_groups, site_models, site_denticity,
+                      site_charges, I, T, ϵ)
 
 Fill `out[i]` with `ln a_i = ln x_i + ln γ_i` for every species occupying a
 surface site, `x_i` being its fraction of its family's **site** budget.
@@ -1313,7 +1529,7 @@ solution, and the element type follows `_n`, so the whole path differentiates.
 function _site_mixing_lna!(
         out::AbstractVector, _n::AbstractVector{ET},
         site_groups::Vector{Vector{Int}}, site_models, site_denticity, site_charges,
-        T, ϵ
+        I, T, ϵ
     ) where {ET}
     for (grp, mdl, dent, z) in zip(site_groups, site_models, site_denticity, site_charges)
         n_total = sum(_site_weight(mdl, dent[j]) * _n[i] for (j, i) in enumerate(grp)) + ϵ
@@ -1325,8 +1541,68 @@ function _site_mixing_lna!(
         end
         @inbounds for (k, i) in enumerate(grp)
             out[i] = log(x[k] + ϵ) + _site_excess_ln_gamma(mdl, k, x, T) +
-                _electrostatic_ln_a(mdl, k, z, ngrp, T)
+                _electrostatic_ln_a(mdl, k, z, ngrp, I, T)
         end
     end
     return out
+end
+
+
+"""
+    site_gradient_asymmetry(cs, model, n; T = 298.15, ϵ = 1.0e-30) -> NamedTuple
+
+How far the activity map of `cs` under `model` is from being the gradient of a
+potential, at the composition `n`. Returns `(; worst, pair, gd)`:
+
+  - `worst`: the largest **relative** asymmetry over pairs,
+    `|J_ij − J_ji| / max(|J_ij|, |J_ji|)` with `J_ij = ∂ln a_i/∂n_j`;
+  - `pair`: the species symbols of the pair that attains it;
+  - `gd`: the largest relative Gibbs-Duhem residual, `|Σ_i n_i J_ij| / Σ_i |n_i J_ij|`.
+
+A twice-differentiable Gibbs energy has a symmetric Hessian, so an activity map
+that comes from one is symmetric here and both numbers are zero to rounding.
+This is the measurement behind [`is_gradient_consistent`](@ref): rather than
+assert that [`DiffuseLayer`](@ref) breaks the certificate's premise, run it and
+read the number.
+
+# Why the scale is per pair and not the whole Jacobian
+
+Because the Jacobian holds self-derivatives of trace species of order `1/n`,
+normalizing by its largest entry makes every real inconsistency look like zero.
+The equivalent measurement in `test/activities.jl` records that this was done
+once and reported `1e-8` for a model off by 20 %. The per-pair scale is what
+makes the number mean what it says, and the two measurements deliberately agree.
+
+Differentiates the whole activity closure with `ForwardDiff`, so it costs about
+`length(n)` evaluations of it. It is a diagnostic, not part of a solve.
+"""
+function site_gradient_asymmetry(
+        cs::ChemicalSystem, model::AbstractActivityModel, n::AbstractVector;
+        T::Real = 298.15, ϵ::Real = 1.0e-30
+    )
+    n0 = collect(float.(n))
+    lna = activity_model(cs, model)
+    J = ForwardDiff.jacobian(x -> lna(x, (; ϵ = ϵ, T = T)), n0)
+
+    worst = 0.0
+    pair = ("", "")
+    for i in eachindex(n0), j in (i + 1):length(n0)
+        scale = max(abs(J[i, j]), abs(J[j, i]))
+        scale > 1.0e-30 || continue
+        r = abs(J[i, j] - J[j, i]) / scale
+        if r > worst
+            worst = r
+            pair = (symbol(cs.species[i]), symbol(cs.species[j]))
+        end
+    end
+
+    gd = 0.0
+    for j in eachindex(n0)
+        terms = (n0[i] * J[i, j] for i in eachindex(n0))
+        tot = sum(abs, terms)
+        tot > 1.0e-30 || continue
+        gd = max(gd, abs(sum(terms)) / tot)
+    end
+
+    return (; worst, pair, gd)
 end

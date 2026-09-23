@@ -59,10 +59,30 @@ export needs GEM-Selektor itself, a graphical application.
 So that floor is open, and no substitute number is invented for it. See
 `gems_bench.py`, which states the blocker and what unblocks it.
 
+## The fixtures are JSON, and why
+
+Each generator writes a `*.json` file beside itself, which the test reads with
+`reference_oracle` (see `test/reference_species.jl`). They used to print a block
+of Julia for a human to paste into a test file, and that was wrong in three
+ways:
+
+  - pasting is a **manual transcription**, which is the error class these
+    generators exist to remove;
+  - a data file emitted as Julia has to be written in the *formatter's* dialect.
+    `phreeqc_hfo_surface.py` carried a `jl()` whose only job was to rewrite
+    `6.0e-09` as `6.0e-9` and `5e-06` as `5.0e-6`, because Runic gates CI and
+    Python renders neither the way Julia does;
+  - provenance written as `#` comments is readable by nobody and assertable by
+    nothing.
+
+Regenerate a fixture by running its script; each names itself in the file's own
+`generator` field. The JSON is committed, the generators are not run in CI —
+running them needs PHREEQC, Reaktoro or GEMS, which CI does not have.
+
 ## Provenance
 
-Every generator reads its own versions at run time and prints them into the
-block it emits — never a version assumed from a package list. Databases are
+Every generator reads its own versions at run time and writes them into the
+fixture as fields — never a version assumed from a package list. Databases are
 identified by md5, because two files with one name are the usual way a
 cross-code comparison quietly stops comparing.
 

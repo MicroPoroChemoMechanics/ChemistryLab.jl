@@ -13,9 +13,11 @@ Pages = ["ChemistryLab.jl"]
 
 ## Physical constants
 
-The gas constant and the Faraday constant, taken from `DynamicQuantities` rather
-than written down, each in two forms: the bare SI number for arithmetic and the
-dimensioned quantity for anything that must carry its unit.
+The gas constant, the Faraday constant and the electric constant, taken from
+`DynamicQuantities` rather than written down, each in two forms: the bare SI
+number for arithmetic and the dimensioned quantity for anything that must carry
+its unit. See [Where the numbers come from](@ref sec-manual-numbers) for how to
+reach these, and everything else the package already knows, from a script.
 
 ```@autodocs
 Modules = [ChemistryLab]

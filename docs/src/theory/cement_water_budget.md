@@ -106,7 +106,7 @@ short enough to do here:
 
 ```@example wb
 using Printf
-R, T = 8.31446261815324, 298.15
+R, T = R_GAS, 298.15
 a_w = 0.80                     # the internal humidity a sealed paste arrests at
 ΔG_water = R * T * log(a_w)                    # J per mole of water
 n_water_per_alite = 3.3                        # mol H₂O per mol C3S → C-S-H + CH

@@ -173,7 +173,7 @@ end
     cs = ChemicalSystem([em1, em2]; solid_solutions = [ss])
 
     T = 298.15
-    RT = 8.31446261815324 * T
+    RT = ChemistryLab.R_GAS * T
 
     lna = activity_model(cs, DiluteSolutionModel())
     p = (ΔₐG⁰overRT = zeros(2), T = T, P = 1.0e5, ϵ = 1.0e-30)
@@ -347,7 +347,7 @@ end
     # That is what makes this the right generalization rather than a new model:
     # `ln γ₁ = W x₂²/RT`, `ln γ₂ = W x₁²/RT`.
     T = 298.15
-    RT = 8.31446261815324 * T
+    RT = ChemistryLab.R_GAS * T
     W = 4000.0
     reg = RegularSolutionModel([0.0 W; W 0.0])
     rk = RedlichKisterModel(a0 = W)
@@ -423,7 +423,7 @@ end
     # The Gibbs minimum inside a spinodal is two coexisting compositions, and a
     # formulation with one amount per species cannot hold them. Refused at
     # construction rather than discovered as an uncertifiable answer.
-    RT = 8.31446261815324 * 298.15
+    RT = ChemistryLab.R_GAS * 298.15
     em = [
         Species("Ca2SiO4"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),
         Species("Ca3Si2O7"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),
@@ -486,7 +486,7 @@ end
     #
     # That is the oracle. It also fixes the symmetry `b = 1 - a`, which is a
     # second independent check on the same answer.
-    RT = 8.31446261815324 * 298.15
+    RT = ChemistryLab.R_GAS * 298.15
 
     @testset "symmetric regular solution" begin
         for A in (2.5, 3.0, 4.0)
@@ -553,7 +553,7 @@ end
 @testset "the lever rule inside the gap" begin
     # Given an overall composition, how the binary separates. Three properties,
     # each checkable without trusting the implementation.
-    RT = 8.31446261815324 * 298.15
+    RT = ChemistryLab.R_GAS * 298.15
     A = 3.0
     m = RegularSolutionModel([0.0 A * RT; A * RT 0.0])
     xa, xb = common_tangent(m, 2)
@@ -602,7 +602,7 @@ end
     # REPRESENTATION. Inside a spinodal the Gibbs minimum is the common-tangent
     # PAIR, and a formulation with one amount per species can only write that
     # down if the substance appears twice.
-    RT = 8.31446261815324 * 298.15
+    RT = ChemistryLab.R_GAS * 298.15
     em = [
         Species("Ca2SiO4"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),
         Species("Ca3Si2O7"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),

@@ -74,7 +74,7 @@ using LinearAlgebra
                 KineticFunc((T, P, t, n, lna, n0) -> 0.0, NamedTuple(), u"mol/s"),
             ).stoich,
         )
-        R = 8.31446261815324
+        R = ChemistryLab.R_GAS
         GT = [
             ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true)) /
                 (R * 298.15) for s in cs.species
@@ -346,7 +346,7 @@ end
             KineticFunc((T, P, t, n, lna, n0) -> 0.0, NamedTuple(), u"mol/s"),
         ).stoich,
     )
-    R = 8.31446261815324
+    R = ChemistryLab.R_GAS
     GT = [
         ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true)) /
             (R * 298.15) for s in cs.species
@@ -457,7 +457,7 @@ end
             KineticFunc((T, P, t, n, lna, n0) -> 0.0, NamedTuple(), u"mol/s"),
         ).stoich,
     )
-    R = 8.31446261815324
+    R = ChemistryLab.R_GAS
     GT = [
         ustrip(us"J/mol", x[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true)) /
             (R * 298.15) for x in cs.species
