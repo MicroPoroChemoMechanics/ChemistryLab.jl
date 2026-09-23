@@ -198,8 +198,16 @@ end
         p = ChemistryLab._build_params(st)
         N = n[4] + n[5] + n[6]
 
+        # All four, not three. A site fraction owes nothing to the ionic
+        # strength of the solution beside it, so every aqueous model has to
+        # apply the same site mixing — and one that skips it leaves its surface
+        # species at `ln a = 0`, unit activity, which is a plausible number and
+        # a wrong one. Pitzer is the one that would have been forgotten.
+        pitzer = PitzerActivityModel(;
+            parameters = build_pitzer_parameters(datapath("pitzer-reardon1990.toml")),
+        )
         for model in (
-                DiluteSolutionModel(), HKFActivityModel(), DaviesActivityModel(),
+                DiluteSolutionModel(), HKFActivityModel(), DaviesActivityModel(), pitzer,
             )
             lna = activity_model(cs, model)(n, p)
             for i in 4:6
@@ -458,7 +466,12 @@ end
         p = ChemistryLab._build_params(st)
 
         @test isempty(cs.site_groups)
-        for model in (DiluteSolutionModel(), HKFActivityModel(), DaviesActivityModel())
+        pitzer = PitzerActivityModel(;
+            parameters = build_pitzer_parameters(datapath("pitzer-reardon1990.toml")),
+        )
+        for model in (
+                DiluteSolutionModel(), HKFActivityModel(), DaviesActivityModel(), pitzer,
+            )
             lna = activity_model(cs, model)(n, p)
             @test all(isfinite, lna)
             @test length(lna) == 3

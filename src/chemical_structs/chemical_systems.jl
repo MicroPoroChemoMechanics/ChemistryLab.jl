@@ -114,7 +114,8 @@ alternative is a wrong number rather than an error:
     refuses two solid solutions sharing a composition;
   - two families sharing one pseudo-element — one symbol, one budget, one
     family, or the site balance silently merges them;
-  - a species in two families, for the same reason.
+  - two families sharing a pseudo-element, which is also what makes a species
+    in two families impossible: a species carries exactly one site symbol.
 """
 function _resolve_site_families(site_families, species, idx_surface)
     if site_families === nothing || isempty(site_families)
@@ -162,14 +163,11 @@ function _resolve_site_families(site_families, species, idx_surface)
                         "species list. Add it to the species vector first.",
                 )
             )
-            if haskey(seen_members, i)
-                throw(
-                    ArgumentError(
-                        "\"$(symbol(sp))\" belongs to both \"$(f.name)\" and " *
-                            "\"$(seen_members[i])\". A species occupies sites of one family.",
-                    )
-                )
-            end
+            # No check that `i` is already claimed: it cannot be. Two families
+            # can only share a member if they share a site symbol — a species
+            # carries exactly one, enforced by `SiteFamily` — and two families
+            # sharing a symbol are refused above, before any member is looked
+            # at. A guard for that case would be a branch no input can reach.
             seen_members[i] = f.name
             push!(group, i)
         end
