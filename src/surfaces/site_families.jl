@@ -56,6 +56,79 @@ the identity between the two forms is asserted rather than assumed.
 struct IdealSiteMixing <: AbstractSiteMixingModel end
 
 """
+    supports_multidentate(model::AbstractSiteMixingModel) -> Bool
+
+Whether `model` describes a species occupying more than one site.
+
+`false` by default, and deliberately: the site **balance** holds for any
+denticity — a species carrying two of the family's pseudo-elements contributes
+twice to it — but a *mixing* law does not follow from the balance. Counting the
+ways a molecule can straddle two neighboring sites is a combinatorial problem
+with its own answer, and returning a number without having solved it would be
+worse than refusing.
+
+The ion-exchange conventions are the exception, and not because they solved that
+problem: on a permanent-charge exchanger the "sites" being counted are **units
+of charge**, which a divalent cation neutralizes two of without straddling
+anything. Their multidentate case is bookkeeping, not combinatorics.
+
+See also: [`VanselowMixing`](@ref), [`GainesThomasMixing`](@ref).
+"""
+supports_multidentate(::AbstractSiteMixingModel) = false
+
+"""
+    struct VanselowMixing <: AbstractSiteMixingModel
+
+Cation exchange in the **Vanselow** convention: the activity of an exchanger
+species is its **mole fraction**, counting molecules.
+
+```math
+a_i = \\frac{n_i}{\\sum_j n_j}
+```
+
+A calcium and a sodium on the exchanger count as one particle each, whatever
+charge they neutralize.
+
+See also: [`GainesThomasMixing`](@ref), and the note on conversion there.
+"""
+struct VanselowMixing <: AbstractSiteMixingModel end
+supports_multidentate(::VanselowMixing) = true
+
+"""
+    struct GainesThomasMixing <: AbstractSiteMixingModel
+
+Cation exchange in the **Gaines-Thomas** convention: the activity of an
+exchanger species is its **equivalent fraction**, counting the charge it
+compensates.
+
+```math
+a_i = \\frac{z_i \\, n_i}{\\sum_j z_j \\, n_j}
+```
+
+with `z_i` read from the formula as the number of the family's pseudo-elements
+the species carries — which on a permanent-charge exchanger *is* the charge it
+neutralizes.
+
+# The two conventions are not interchangeable, and the conversion is not a factor
+
+For a homovalent exchange, `Na⁺/K⁺`, the two fractions are proportional and the
+selectivity coefficients agree. For a heterovalent one, `Na⁺/Ca²⁺`, they do not:
+one calcium and one sodium are one particle each but one and two charges, so
+`x_i` and `E_i` diverge, and so do the constants fitted under each.
+
+The literature sometimes quotes conversion factors of 2, 3 or 4. Those are
+**trace-composition limits**, not constant offsets: the exact relation depends
+on the exchanger's composition, which is what the calculation is solving for.
+This package therefore **declares** the convention and converts nothing
+implicitly. A constant fitted under one convention used under the other is a
+different model.
+
+See also: [`VanselowMixing`](@ref), [`supports_multidentate`](@ref).
+"""
+struct GainesThomasMixing <: AbstractSiteMixingModel end
+supports_multidentate(::GainesThomasMixing) = true
+
+"""
     abstract type AbstractSiteCapacity end
 
 How many moles of sites a family offers.
@@ -291,10 +364,11 @@ function SiteFamily(
     end
 
     d_free = Int(get(atoms(free_site), site, 0))
-    d_free == 1 || throw(
+    (d_free == 1 || (d_free > 1 && supports_multidentate(model))) || throw(
         ArgumentError(
-            "SiteFamily \"$name\": the free site \"$(symbol(free_site))\" occupies " *
-                "$d_free sites; it must occupy exactly one.",
+            "SiteFamily \"$name\": the reference member \"$(symbol(free_site))\" " *
+                "occupies $d_free sites; it must occupy at least one, and more than " *
+                "one only under a model that describes multidentate occupancy.",
         )
     )
 
@@ -306,13 +380,17 @@ function SiteFamily(
                     "not a member of this family.",
             )
         )
-        d == 1 || throw(
+        (d == 1 || supports_multidentate(model)) || throw(
             ArgumentError(
-                "SiteFamily \"$name\": \"$(symbol(sp))\" occupies $d sites. The site " *
-                    "balance holds for any denticity, but ideal mixing of occupied " *
-                    "and free sites is exact only for one, so a multidentate species " *
-                    "needs a quasi-chemical activity model this release does not " *
-                    "provide. Declare it as monodentate, or wait for that model.",
+                "SiteFamily \"$name\": \"$(symbol(sp))\" occupies $d sites, and " *
+                    "$(nameof(typeof(model))) does not describe that. The site balance " *
+                    "holds for any denticity, but a mixing law does not follow from " *
+                    "the balance: ideal mixing of occupied and free sites is exact " *
+                    "only for one site per molecule. An exchange convention " *
+                    "(`VanselowMixing`, `GainesThomasMixing`) does handle it, because " *
+                    "there the sites counted are units of charge; for a surface " *
+                    "complex that genuinely straddles two sites, the quasi-chemical " *
+                    "model this release does not provide is the one needed.",
             )
         )
     end
@@ -369,6 +447,24 @@ Accessors of a [`SiteFamily`](@ref). `members` lists the free site first, which
 is the order the site mixing and the solver's reference member both expect.
 """
 name(family::SiteFamily) = family.name
+
+"""
+    reference_member(family::SiteFamily) -> AbstractSpecies
+
+The member the mixing is written against, and the one the solver carries instead
+of inverting — `site_members(family)` puts it first for that reason.
+
+On an oxide it is the **unoccupied** site, and `family.free_site` names it
+literally: as the surface fills, its amount falls and every occupied state costs
+more to form, which is where saturation comes from.
+
+On a permanent-charge **exchanger** there is no unoccupied site at all: every
+charge is compensated by some cation, and what this returns is the form chosen
+as the reference of the exchange — usually the abundant monovalent one, `Na-X`.
+The field keeps the name `free_site` from the case it was written for; this
+accessor exists to say what it means in the case it was not.
+"""
+reference_member(family::SiteFamily) = family.free_site
 site_members(family::SiteFamily) = vcat([family.free_site], family.complexes)
 site_capacity(family::SiteFamily) = family.capacity
 surface_support(family::SiteFamily) = family.support

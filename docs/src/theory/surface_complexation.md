@@ -209,7 +209,61 @@ convexity in the composition. Where that fails, the honest outcome is a
 certificate that **refuses**, as it already does for a concave solid solution —
 not one that quietly means less.
 
-## 7. What this page does not cover
+## 7. Cation exchange: the same machinery, counting charge
+
+A permanent-charge clay is not an oxide. Its charge does not come and go with
+pH — it is built into the mineral, from substitutions in the lattice — and
+there is no such thing as an unoccupied site: every unit of charge is
+compensated by some cation, and what varies is *which*.
+
+That sounds like a different model. It is the same one, with the sites counted
+differently.
+
+### The budget is in charge, and it says so in the formula
+
+Write the exchanger species as `Na-X` and `Ca-X₂`. The second carries **two** of
+the family's pseudo-elements because a calcium neutralizes two units of charge,
+and the conservation row that comes out of the matrix assembly is therefore
+
+```math
+n_{\mathrm{Na\text{-}X}} + n_{\mathrm{K\text{-}X}} + 2\,n_{\mathrm{Ca\text{-}X_2}} = \mathrm{CEC}
+```
+
+— the **cation exchange capacity**, in moles of charge. Nothing was declared to
+make that happen: the coefficient is in the formula, and the row counts what
+the formula says.
+
+There is also no free site to serve as the reference of the mixing, so one of
+the forms is chosen as the reference — the abundant monovalent one, usually.
+
+### Two conventions, and no factor between them
+
+Here the two literatures part company, and the package refuses to guess which
+one a number came from.
+
+| convention | activity of an exchanger species | counts |
+|:--|:--|:--|
+| **Vanselow** | ``x_i = n_i / \sum_j n_j`` | particles |
+| **Gaines-Thomas** | ``E_i = z_i n_i / \sum_j z_j n_j`` | charges |
+
+One calcium and one sodium are **one particle each** and **two charges against
+one**. For a homovalent exchange, `Na⁺/K⁺`, every ``z`` is 1 and the two
+fractions are the same number — which is why an oxide surface never has to
+choose. For a heterovalent one they diverge, and so do the selectivity
+coefficients fitted under each.
+
+The literature quotes conversion factors of 2, 3 or 4 between them. Those are
+**trace-composition limits**, not constant offsets: the exact relation depends
+on the exchanger's composition, which is what the calculation is solving for
+[Marinich2025](@cite). So this package converts nothing implicitly. The
+convention is part of the declaration, and a constant fitted under one and used
+under the other is a different model — not a rescaled one.
+
+Both conventions are checked against Reaktoro, which carries both, on a
+heterovalent Na/K/Ca exchange, and agree to 4 parts in 10⁹. On that composition
+they differ from **each other** by 48 % on the sodium, which is the point.
+
+## 8. What this page does not cover
 
 Saying what is absent is part of describing what is present.
 
@@ -225,11 +279,10 @@ Saying what is absent is part of describing what is present.
     site row becomes bilinear — the one thing the linear budget `A n = b` has
     never had to carry.
   - **No multidentate species**, per the note above.
-  - **No ion exchange conventions.** Cation exchange on a permanent-charge
-    surface is close kin to what is here, but its capacity is counted in moles
-    of *charge* and its selectivity coefficients come in two conventions,
-    Vanselow and Gaines-Thomas, that are not interchangeable
-    [Marinich2025](@cite).
+  - **No lateral interactions.** Neighbors on a surface affect each other's
+    binding energy, and the models that describe it — Frumkin's interaction
+    term, the quasi-chemical approximation — can make the mixing energy
+    non-convex. Neither is here.
 
 ## See also
 

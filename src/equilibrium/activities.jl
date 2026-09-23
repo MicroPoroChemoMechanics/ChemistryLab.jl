@@ -163,6 +163,9 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
     site_groups = cs.site_groups
     has_sites = !isempty(site_groups)
     site_models = has_sites ? map(f -> f.model, cs.site_families) : nothing
+    site_denticity = has_sites ?
+        [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
+        nothing
 
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
@@ -196,7 +199,7 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
         # wrong — the same trap the solid-solution call has carried since 0.8.2.
         if has_sites
             T_val = hasproperty(p, :T) ? p.T : 298.15
-            _site_mixing_lna!(out, _n, site_groups, site_models, T_val, ϵ)
+            _site_mixing_lna!(out, _n, site_groups, site_models, site_denticity, T_val, ϵ)
         end
 
         return out
@@ -624,6 +627,9 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
     site_groups = cs.site_groups
     has_sites = !isempty(site_groups)
     site_models = has_sites ? map(f -> f.model, cs.site_families) : nothing
+    site_denticity = has_sites ?
+        [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
+        nothing
 
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])   # kg/mol, e.g. 0.018015
 
@@ -735,7 +741,7 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
         # wrong — the same trap the solid-solution call has carried since 0.8.2.
         if has_sites
             T_val = hasproperty(p, :T) ? p.T : 298.15
-            _site_mixing_lna!(out, _n, site_groups, site_models, T_val, ϵ)
+            _site_mixing_lna!(out, _n, site_groups, site_models, site_denticity, T_val, ϵ)
         end
 
         return out
@@ -981,6 +987,9 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
     site_groups = cs.site_groups
     has_sites = !isempty(site_groups)
     site_models = has_sites ? map(f -> f.model, cs.site_families) : nothing
+    site_denticity = has_sites ?
+        [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
+        nothing
 
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
 
@@ -1054,7 +1063,7 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
         # wrong — the same trap the solid-solution call has carried since 0.8.2.
         if has_sites
             T_val = hasproperty(p, :T) ? p.T : 298.15
-            _site_mixing_lna!(out, _n, site_groups, site_models, T_val, ϵ)
+            _site_mixing_lna!(out, _n, site_groups, site_models, site_denticity, T_val, ϵ)
         end
 
         return out
@@ -1195,8 +1204,26 @@ separate generic: a site fraction and a mole fraction obey different closures �
 a site family's total is pinned by a conservation row, a solid solution's is
 free — so a model written for one is not automatically valid for the other.
 """
-_site_excess_ln_gamma(::IdealSiteMixing, ::Int, x::AbstractVector, ::Real) =
+_site_excess_ln_gamma(::AbstractSiteMixingModel, ::Int, x::AbstractVector, ::Real) =
     zero(eltype(x))
+
+"""
+    _site_weight(model, d::Int) -> Int
+
+What one molecule of a family member counts as, in the fraction the convention
+takes for its activity.
+
+One particle for a mole fraction — [`IdealSiteMixing`](@ref) and
+[`VanselowMixing`](@ref) — and `d` units of charge for an equivalent fraction,
+[`GainesThomasMixing`](@ref), `d` being how many of the family's
+pseudo-elements the species carries.
+
+That single number is the whole difference between the two exchange
+conventions. It is one for every monodentate species, which is why the two
+agree on a homovalent exchange and part company on a heterovalent one.
+"""
+_site_weight(::AbstractSiteMixingModel, ::Int) = 1
+_site_weight(::GainesThomasMixing, d::Int) = d
 
 """
     _site_mixing_lna!(out, _n, site_groups, site_models, T, ϵ)
@@ -1204,8 +1231,13 @@ _site_excess_ln_gamma(::IdealSiteMixing, ::Int, x::AbstractVector, ::Real) =
 Fill `out[i]` with `ln a_i = ln x_i + ln γ_i` for every species occupying a
 surface site, `x_i` being its fraction of its family's **site** budget.
 
-`site_groups[k]` lists the members of the k-th family, the free site first, and
-`site_models[k]` is how they mix.
+`site_groups[k]` lists the members of the k-th family, the free site first,
+`site_models[k]` is how they mix, and `site_denticity[k]` how many of the
+family's sites each member occupies.
+
+Which fraction the activity is — mole or equivalent — is the convention's, and
+it enters through [`_site_weight`](@ref). For a family of monodentate species
+the two coincide, which is why an oxide surface never has to choose.
 
 # Why this is not `_solid_solution_lna!` under another name
 
@@ -1222,13 +1254,13 @@ solution, and the element type follows `_n`, so the whole path differentiates.
 """
 function _site_mixing_lna!(
         out::AbstractVector, _n::AbstractVector{ET},
-        site_groups::Vector{Vector{Int}}, site_models, T, ϵ
+        site_groups::Vector{Vector{Int}}, site_models, site_denticity, T, ϵ
     ) where {ET}
-    for (grp, mdl) in zip(site_groups, site_models)
-        n_total = sum(_n[i] for i in grp) + ϵ
+    for (grp, mdl, dent) in zip(site_groups, site_models, site_denticity)
+        n_total = sum(_site_weight(mdl, dent[j]) * _n[i] for (j, i) in enumerate(grp)) + ϵ
         x = Vector{ET}(undef, length(grp))
         @inbounds for (j, i) in enumerate(grp)
-            x[j] = _n[i] / n_total
+            x[j] = _site_weight(mdl, dent[j]) * _n[i] / n_total
         end
         @inbounds for (k, i) in enumerate(grp)
             out[i] = log(x[k] + ϵ) + _site_excess_ln_gamma(mdl, k, x, T)

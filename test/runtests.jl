@@ -94,6 +94,7 @@ end
     include("redox.jl")
     include("solid_solutions.jl")
     include("surface_complexation.jl")
+    include("ion_exchange.jl")
     include("equilibrium_reference.jl")
     include("published_values.jl")
     include("test_dual_solver.jl")
