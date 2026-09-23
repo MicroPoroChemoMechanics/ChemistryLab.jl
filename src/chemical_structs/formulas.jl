@@ -263,7 +263,21 @@ function Formula(
     ) where {T <: Number}
     charge_symbols = [:Zz, :Zz⁺, :e, :e⁻]
     filtered_keys = setdiff(keys(composition), charge_symbols)
-    sorted_keys = sort(collect(filtered_keys); by = k -> findfirst(==(k), order))
+    # `findfirst` returns `nothing` for a symbol absent from `order`, and
+    # comparing that against an `Int` raises `isless(::Int64, ::Nothing)` — a
+    # failure that names neither the symbol nor the list. Say which, instead.
+    function _rank(k)
+        i = findfirst(==(k), order)
+        i === nothing && throw(
+            ArgumentError(
+                "symbol :$k has no place in the ordering passed to `Formula`. " *
+                    "A surface site must use one of `SITE_SYMBOLS`, and any other " *
+                    "new symbol must be added to `ATOMIC_ORDER`.",
+            )
+        )
+        return i
+    end
+    sorted_keys = sort(collect(filtered_keys); by = _rank)
 
     expr_parts = String[]
     uni_parts = String[]
@@ -631,18 +645,41 @@ end
 """
     check_mendeleev(f::Formula) -> Bool
 
-Validate that all element symbols in `f` exist in the package `elements`
-registry. Returns `true` when valid; otherwise throws an informative error.
+Whether every symbol in `f` is one this package can weigh.
+
+Three kinds pass: a real element of the `elements` registry, the charge
+placeholder `:Zz`, and a surface site symbol ([`SITE_SYMBOLS`](@ref)). Anything
+else — a typo, most often — makes this `false`, and a species built from such a
+formula is then left **without** a molar mass rather than given a wrong one.
+
+It **returns** `false`; it does not throw. The docstring claimed otherwise until
+0.20, and the difference matters: callers branch on it.
+
+# What a site symbol weighs
+
+Nothing, by declaration. [`calculate_molar_mass`](@ref) sums over the symbols it
+recognizes, so `XsOH` weighs an O and an H — the adsorbed part alone. The mass
+of the support is carried once, by the host mineral species, and counting it
+again on every occupied site would be double counting.
 
 # Examples
 
 ```jldoctest
 julia> check_mendeleev(Formula("NaCl"))
 true
+
+julia> check_mendeleev(Formula("XsOH"))      # a surface site is weighable
+true
+
+julia> check_mendeleev(Formula("QqOH"))      # a symbol that is neither is not
+false
 ```
 """
 function check_mendeleev(f::Formula)
-    nonatoms = filter(k -> k ∉ keys(elements.bysymbol) && k != :Zz, keys(composition(f)))
+    nonatoms = filter(
+        k -> k ∉ keys(elements.bysymbol) && k != :Zz && !is_site_symbol(k),
+        keys(composition(f)),
+    )
     return isempty(nonatoms)
 end
 

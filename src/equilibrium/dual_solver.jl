@@ -53,6 +53,7 @@ struct DualEquilibriumSolver{L, M <: AbstractActivityModel}
     idx_pure::Vector{Int}
     j_solvent::Int
     ss_groups::Vector{Vector{Int}}   # end-members of each declared solid solution
+    site_groups::Vector{Vector{Int}} # members of each surface site family
     A::Matrix{Float64}
     opts::NamedTuple
 end
@@ -96,12 +97,18 @@ function DualEquilibriumSolver(
             length(idx) == length(phase.end_members) && push!(ss_groups, idx)
         end
     end
-    in_ss = Set(vcat(ss_groups...))
-    idx_pure = [i for i in idx_pure if !(i in in_ss)]
+    # A surface site family is a mixing phase too, and for a sharper reason: its
+    # members' activities are site fractions, so none is ever exactly absent
+    # while the family has a budget, and the budget is pinned by a conservation
+    # row. Left in the bound-constrained set they would be pure phases of unit
+    # activity — the site mixing never computed, the balance unsatisfiable.
+    site_groups = copy(system.site_groups)
+    in_mixing = Set(vcat(ss_groups..., site_groups...))
+    idx_pure = [i for i in idx_pure if !(i in in_mixing)]
 
     return DualEquilibriumSolver(
         system, activity_model(system, model), model,
-        idx_aq, idx_pure, jw, ss_groups, Float64.(system.SM.A),
+        idx_aq, idx_pure, jw, ss_groups, site_groups, Float64.(system.SM.A),
         (; tol, maxit, max_active_updates, si_tol, verbose),
     )
 end
@@ -150,6 +157,32 @@ function _dual_phases(des::DualEquilibriumSolver, n0)
                 members = grp, j_ref = j_ref,
                 always_present = false, mole_fraction = true,
                 split_starts = _split_starts(get(models, k, nothing), length(grp)),
+            ),
+        )
+    end
+
+    # One more per surface site family, and `always_present = true` is not a
+    # convenience here. With `false`, the seeding test asks whether the members
+    # already hold more than 1e-9 mol; from a cold start they all sit at the
+    # floor, the phase is never activated, and the conservation row
+    # `Σ n_member = N_t` with `N_t > 0` is infeasible from the first Newton
+    # iteration. `true` also exempts it from the drop rule, which is right: a
+    # phase whose total is pinned must not be dropped because its members are
+    # small.
+    #
+    # The reference is the **free site**, the first member by construction. It is
+    # the state a fresh surface is mostly in, which is the same criterion the
+    # solvent meets for the aqueous phase, and it is stable: a family cannot run
+    # out of free sites without the occupied ones taking their place.
+    #
+    # A site family does not unmix, so no split start is offered.
+    for grp in des.site_groups
+        push!(
+            phases,
+            (
+                members = grp, j_ref = 1,
+                always_present = true, mole_fraction = true,
+                split_starts = Vector{Vector{Float64}}(),
             ),
         )
     end

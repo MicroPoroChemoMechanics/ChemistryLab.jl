@@ -1,5 +1,169 @@
 # Changelog
 
+## v0.20.0 — chemistry that happens on a surface
+
+An equilibrium can now have part of its chemistry on an interface. That is the
+one thing the formulation could not express at all: alkali held by a C-S-H,
+chloride bound without forming Friedel's salt, a radionuclide retained by an
+oxide — all of them described until now, when they were described, by a bulk
+proxy.
+
+Nothing about a system without a surface changes. No exported name, signature or
+number moves for it.
+
+### Breaking changes
+
+`ChemicalSystem` gains a sixth type parameter for its surface declarations, so
+code spelling its parameters out — `ChemicalSystem{T, R, C, S, SS}` — must add
+one. Partial parameterizations such as `ChemicalSystem{C, S}` are unaffected.
+
+`AggregateState` gains `AS_SURFACE` and `Class` gains `SC_SURFCOMPLEX`, both
+**appended**, so no existing member changes its integer value. Code that
+enumerates either exhaustively now sees one more.
+
+`molar_mass(::KineticReaction)` raises when no reactant carries a molar mass,
+where it used to return **0.1 kg/mol**. That default was silent and
+multiplicative — it scales the reactive area and therefore the whole rate, and
+could be wrong by an order of magnitude. The same default is gone from the
+internal helper the rate factories use.
+
+And below 1.0 the registry treats a minor bump as breaking whatever the API did,
+so a downstream bound of `"0.19"` will not accept this release.
+
+### Added — sites, and the machinery that was already there
+
+A **site** is a conserved quantity that is not a chemical element. The package
+already had one of those: electric charge, carried as a pseudo-element in a
+species' formula and turned into a conservation row by the ordinary matrix
+assembly. Site families are carried the same way, each with its own
+pseudo-element from the twenty-four reserved `SITE_SYMBOLS`.
+
+The consequence is that **not one line of `stoich_matrices.jl` changed**. On an
+oxide with one family and its protolysis, the assembly produces
+
+```
+  H2O@   [1, 0,  1, 0, 0, 0,  0]
+  H+     [0, 1, -1, 0, 0, 1, -1]
+  Ca+2   [0, 0,  0, 1, 0, 0,  0]
+  XsOH   [0, 0,  0, 0, 1, 1,  1]      <- the site balance
+```
+
+and the rest of the matrix is the protolysis itself.
+
+`SiteFamily` groups the species sharing one budget, free site included, with an
+`AbstractSiteCapacity` in one of three forms — a site density per square meter,
+a capacity per kilogram of dry support, or a prescribed total. Three because
+published data comes in three shapes and converting between them needs a number
+nobody measured: turning a clay's exchange capacity into an area density would
+mean inventing a BET area to divide by.
+
+### Added — Langmuir, as a consequence
+
+The activity of a species on a site is its **site fraction**, and that is the
+whole model. Competitive Langmuir is not implemented; it falls out:
+
+```math
+n_j / N = β_j / (1 + Σ_k β_k),   β_j = K_j a_j
+```
+
+with the shared denominator that is the signature of a finite capacity. No
+isotherm is written anywhere in the package.
+
+Verified against that derived form to a relative `1e-6` across four pH values,
+and against **PHREEQC** computing Dzombak & Morel's model from its own database
+to **1.7e-8** on the protolysis of hydrous ferric oxide.
+
+Kulik's surface activity coefficient `1/(1 − θ)` is deliberately **absent**: it
+exists so that an *eliminated* free site can reproduce what an explicit one
+already does, and applying it here would count saturation twice. The identity is
+asserted instead, to `1e-8`.
+
+### Added — one area abstraction for the kinetics and the surface
+
+Two notions of surface lived in the kinetics and never met: `AbstractSurfaceModel`,
+a total area with no caller at all, and `blaine_factor`, a dimensionless ratio
+frozen at construction and used by every cement run.
+
+They are one family now, and the **measurement is the type**. The package warned
+three times in prose that a BET area is not a Blaine fineness — silica fume is
+about 20 000 m²/kg by the first and 2 000 by the second, a factor of ten on the
+hydration rate — and nothing enforced it. `area_ratio` is defined only between
+two areas of the same kind, so that substitution now raises instead of returning
+a plausible number. `blaine_factor` is that ratio, and its numbers do not move.
+
+`total_area(model, n, n₀, M)` carries the initial amount from the start, because
+an area that cannot see where it began cannot follow a microstructure that
+evolves. `ShrinkingCoreArea` is the consequence — area as `(n/n₀)^p`, with
+`p = 2/3` for spheres and `p = 1` recovering the mass-proportional law exactly.
+The power law is regularized so its derivative stays finite at exhaustion, which
+an integrator does reach.
+
+`SurfaceSupport` names the host solid once, which is what let the 0.1 kg/mol
+default go.
+
+### Added — coupled to the kinetics
+
+The equilibrium is re-solved on a rebuilt system at every accepted step, and
+that rebuild takes its declarations by keyword: anything not passed is dropped
+silently, as solid solutions were until 0.8.2. Site families now travel with it,
+on the same all-or-nothing rule, and a family split between the partitions is
+refused by name rather than dropped.
+
+A surface species is not aqueous, so the automatic partition would have made it
+kinetic — taking its family's conservation row with it. It no longer does.
+
+Checked on a solid releasing calcium at a constant rate onto an inert sorbent:
+the site budget holds at every reported instant, the released calcium is exactly
+`k·t` and all of it is accounted for, the binding reaction's law of mass action
+holds on the **integrated** state, and tightening the integrator by two decades
+moves the answer by under `1e-5`.
+
+### Added — two families, and what a cross-code difference measures
+
+Dzombak & Morel's ferrihydrite has strong sites and weak ones, forty times more
+numerous and a thousand times less avid for a metal. That contrast is what makes
+a sorption edge bend, and it needs two families on one support.
+
+Against PHREEQC on the zinc edge, `-no_edl` on both sides, the worst departure
+is **0.94 %** — a hundred million times worse than the protolysis comparison.
+The difference is **not** in the surface model, and the suite measures that
+rather than claiming it: the identical system under ideal aqueous activities is
+49 % off, under Davies 0.94 %. A factor of fifty, from changing nothing but the
+aqueous phase. Zinc is divalent and its activity coefficient leaves 1 quickly.
+
+That is also why the protolysis comparison carries no metal: with only protons,
+and the proton activity prescribed on both sides, no activity coefficient enters
+and the surface chemistry is compared alone.
+
+### Documentation
+
+A theory chapter written for someone who has never done surface chemistry, with
+the derivation of Langmuir in full and an explicit account of what the model
+does **not** cover — no surface potential, no evolving support, no multidentate
+species, no exchange conventions.
+
+Two worked cases, both executed at build time: one family titrated by pH against
+the closed form, and the two-family zinc edge against PHREEQC. Their figures
+carry numbers the build computed.
+
+An oracle bench under `test/reference/`, with PHREEQC and GEMS3K alongside the
+Reaktoro generators that were already there. GEMS3K **loads and cannot run**: it
+needs a system export that the ClaySor deposit, which ships a GEM-Selektor
+database, does not contain. That is recorded rather than worked around — a
+tolerance floor invented from a comparison nobody ran would be worse than none.
+
+### What this release does not do
+
+No surface potential, so a parameter set fitted **with** an electrostatic term —
+including Dzombak & Morel's own published calibration — is being used outside
+its model if used here. The comparisons above run `-no_edl` on both sides for
+that reason, and are cross-code checks rather than reproductions.
+
+No evolving support: the site budget is fixed. No multidentate species: the site
+balance holds for any denticity, but ideal mixing of occupied and free sites is
+exact only for one, so anything else is refused at construction rather than
+returned as a number that looks like an isotherm.
+
 ## v0.19.0 — two polymorphs are two species, and a dimensioned argument is an error again
 
 Three defects a test suite could not see because the assertion guarding each one

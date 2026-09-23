@@ -1007,6 +1007,16 @@ const WALLER_PARAMS_SLAG = (
 
 # ── Correction factors ───────────────────────────────────────────────────────
 
+# A bare number or quantity is a Blaine fineness, which is what every caller of
+# `blaine_factor` has always meant. A typed area passes through, and that is the
+# whole guard: a `BETSurfaceArea` reaches `area_ratio` as a BET area and is
+# refused there rather than divided.
+#
+# Defined here rather than just above the function: a comment between a
+# docstring's closing quotes and the definition detaches the docstring, silently.
+_as_blaine(x::AbstractSpecificArea) = x
+_as_blaine(x) = BlaineSurfaceArea(x)
+
 """
     blaine_factor(blaine; blaine_ref = 385u"m^2/kg") -> Real
 
@@ -1014,9 +1024,16 @@ Fineness correction of the hydration rate: the Parrot & Killoh parameters were
 adjusted for a cement of Blaine fineness `blaine_ref`, and the rate scales as
 `blaine / blaine_ref`.
 
-Both arguments accept a `DynamicQuantities.Quantity` or a plain `Real` in m²/kg.
-The default reference is 385 m²/kg for clinker phases; pass
-`blaine_ref = 400u"m^2/kg"` for the Waller kinetics of additions.
+Both arguments accept a `DynamicQuantities.Quantity`, a plain `Real` in m²/kg,
+or a [`BlaineSurfaceArea`](@ref). The default reference is 385 m²/kg for clinker
+phases; pass `blaine_ref = 400u"m^2/kg"` for the Waller kinetics of additions.
+
+!!! warning "A BET area is not a Blaine fineness"
+    Passing a [`BETSurfaceArea`](@ref) raises instead of returning a number.
+    Silica fume is about 20 000 m²/kg by BET and about 2 000 m²/kg by effective
+    Blaine, so the substitution would multiply its hydration rate by ten. A bare
+    number is still read as a Blaine fineness, which is the historical contract;
+    type the argument to get the check.
 
 # Examples
 
@@ -1029,9 +1046,7 @@ julia> round(blaine_factor(462u"m^2/kg"); digits = 4)
 ```
 """
 function blaine_factor(blaine; blaine_ref = 385.0u"m^2/kg")
-    B = safe_ustrip(us"m^2/kg", blaine)
-    B₀ = safe_ustrip(us"m^2/kg", blaine_ref)
-    return B / B₀
+    return area_ratio(_as_blaine(blaine), _as_blaine(blaine_ref))
 end
 
 """

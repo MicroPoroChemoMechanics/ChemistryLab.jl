@@ -4,6 +4,63 @@
 using OrderedCollections
 
 """
+    SITE_SYMBOLS :: NTuple{24, Symbol}
+
+The pseudo-element symbols reserved for **surface site families**.
+
+A site is a conserved quantity that is not a chemical element: a species
+occupying one carries the family's symbol in its formula, exactly as a charged
+species carries `:Zz`, and the conservation row then falls out of the ordinary
+matrix assembly instead of being bolted on at the solve.
+
+# Why a fixed list rather than a registry
+
+A registry would be mutable global state shared between calculations, which is
+the defect release 0.19.0 removed from the solver. A fixed list is a pure
+predicate, [`is_site_symbol`](@ref), and it cannot drift between two systems
+built in the same session.
+
+# Why these twenty-five
+
+The formula parser accepts one uppercase letter and at most one lowercase one,
+so a site symbol has two characters; `Xs1` would parse as `Xs` followed by the
+stoichiometric coefficient 1. That leaves `X` plus a lowercase letter, minus two:
+
+  - **`:Xe` is xenon**, a real element;
+  - **`:Xx` is the conventional placeholder for "not an element"**, and this
+    package already uses it as one. Making it a site would mean a typo could
+    quietly become a valid site family.
+
+Twenty-four families is a ceiling, and it is a real one — say so rather than
+work around it if a system ever needs a twenty-fifth.
+
+By convention `:Xs`, `:Xw` and `:Xv` read as strong, weak and second-weak sites,
+which is the naming the clay and oxide literature uses, but nothing enforces it.
+
+See also: [`is_site_symbol`](@ref), [`ATOMIC_ORDER`](@ref).
+"""
+const SITE_SYMBOLS = (
+    :Xa, :Xb, :Xc, :Xd, :Xf, :Xg, :Xh, :Xi, :Xj, :Xk, :Xl, :Xm,
+    :Xn, :Xo, :Xp, :Xq, :Xr, :Xs, :Xt, :Xu, :Xv, :Xw, :Xy, :Xz,
+)
+
+"""
+    is_site_symbol(s::Symbol) -> Bool
+
+Whether `s` is one of the [`SITE_SYMBOLS`](@ref) reserved for surface sites.
+
+Pure, and false for every real element — `:Xe` included.
+
+# Examples
+
+```jldoctest
+julia> is_site_symbol(:Xs), is_site_symbol(:Xe), is_site_symbol(:Xx)
+(true, false, false)
+```
+"""
+is_site_symbol(s::Symbol) = s in SITE_SYMBOLS
+
+"""
     ATOMIC_ORDER :: Vector{Symbol}
 
 Canonical atomic ordering used across the package for serialization,
@@ -45,6 +102,11 @@ const ATOMIC_ORDER = [
     :Br,
     :I,
     :U,
+    # The site families, between the elements and the charge. Their position
+    # matters twice: `Formula` sorts a composition by this list and has no
+    # fallback for a symbol absent from it, and `speciation` relies on `:Zz`
+    # staying last.
+    SITE_SYMBOLS...,
     :Zz,
 ]
 

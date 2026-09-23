@@ -496,9 +496,44 @@ function _equilibrium_subsystem(system::ChemicalSystem, idx_equilibrium)
         isempty(kept) ? nothing : kept
     end
 
+    # And the surface site families, on the same all-or-nothing rule and for the
+    # same reason: a family the partition does not know about is a set of
+    # species with no shared budget and no mixing, which is not a surface.
+    #
+    # A family split between the two partitions is refused rather than dropped.
+    # Dropping it would leave its members in `sub_species` as `AS_SURFACE`
+    # species belonging to no family, which `ChemicalSystem` refuses anyway —
+    # but with a message about orphans rather than about the split that caused
+    # them. Sites equilibrate fast by construction in this release, so a split is
+    # a declaration error, and it is worth saying which family and why.
+    families = system.site_families
+    sub_families = if families === nothing
+        nothing
+    else
+        for f in families
+            present = count(sp -> symbol(sp) in sub_names, site_members(f))
+            0 < present < length(site_members(f)) && throw(
+                ArgumentError(
+                    "SiteFamily \"$(name(f))\" is split between the kinetic and " *
+                        "equilibrium partitions ($present of " *
+                        "$(length(site_members(f))) members on the equilibrium " *
+                        "side). Its members share one site budget, so they have to " *
+                        "be solved together; declare the whole family as fast, or " *
+                        "none of it.",
+                )
+            )
+        end
+        kept = [
+            f for f in families
+                if all(sp -> symbol(sp) in sub_names, site_members(f))
+        ]
+        isempty(kept) ? nothing : kept
+    end
+
     return ChemicalSystem(
         sub_species, isempty(prim) ? sub_species : prim;
         solid_solutions = sub_ss,
+        site_families = sub_families,
     )
 end
 

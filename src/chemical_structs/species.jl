@@ -17,6 +17,7 @@ Enumeration for species aggregate states.
   - `AS_CRYSTAL`: crystalline solid.
   - `AS_GAS`: gas phase.
   - `AS_LIQUID`: a pure liquid phase.
+  - `AS_SURFACE`: bound to a surface site — not a bulk phase at all.
 
 # Correspondence with ThermoFun
 
@@ -32,8 +33,11 @@ ones its files carry, counted over the databases shipped in `data/`:
 | 1 | `AS_LIQUID` | 1 | `AS_LIQUID` |
 | — | not stated | — | `AS_UNDEF` |
 
-`AS_LIQUID` is appended rather than inserted, so no existing member changes its
-integer value. It is here because a shipped database uses it -- metallic mercury
+`AS_SURFACE` has no ThermoFun counterpart: no database describes a surface
+complex, because it is a modeling declaration rather than a substance record.
+
+Both `AS_LIQUID` and `AS_SURFACE` are appended rather than inserted, so no
+existing member changes its integer value. It is here because a shipped database uses it -- metallic mercury
 in `slop98-inorganic-thermofun.json` -- and until it was added that record read
 as `AS_UNDEF`, an import silently losing what the file said.
 
@@ -42,7 +46,7 @@ value, so nothing announces the loss. `test/databases.jl` therefore walks the
 `substances` of every shipped database and requires each label to resolve, which
 is what turns the table above from a claim into a check.
 """
-@enum AggregateState AS_UNDEF AS_AQUEOUS AS_CRYSTAL AS_GAS AS_LIQUID
+@enum AggregateState AS_UNDEF AS_AQUEOUS AS_CRYSTAL AS_GAS AS_LIQUID AS_SURFACE
 
 """
     @enum Class
@@ -57,8 +61,11 @@ Enumeration for species chemical classes.
   - `SC_COMPONENT`: component.
   - `SC_GASFLUID`: gas or fluid.
   - `SC_SSENDMEMBER`: end-member of a solid solution phase.
+  - `SC_SURFCOMPLEX`: a species occupying a surface site — the free site itself
+    as much as an occupied one, since both take part in the site mixing and both
+    consume the family's site budget.
 """
-@enum Class SC_UNDEF SC_AQSOLVENT SC_AQSOLUTE SC_COMPONENT SC_GASFLUID SC_SSENDMEMBER
+@enum Class SC_UNDEF SC_AQSOLVENT SC_AQSOLUTE SC_COMPONENT SC_GASFLUID SC_SSENDMEMBER SC_SURFCOMPLEX
 
 # Correspondence with ThermoFun, counted over `data/`: `SC_AQSOLUTE` (2179),
 # `SC_COMPONENT` (868), `SC_GASFLUID` (57) and `SC_AQSOLVENT` (7) appear on
@@ -1693,6 +1700,42 @@ SC_SSENDMEMBER::Class = 5
 """
 function with_class(s::Species{T}, c::Class) where {T}
     return Species{T}(s.name, s.symbol, s.formula, s.aggregate_state, c, s.properties)
+end
+
+function with_class(s::CemSpecies{T, S}, c::Class) where {T, S}
+    return CemSpecies{T, S}(
+        s.name, s.symbol, s.formula, s.cemformula, s.aggregate_state, c, s.properties
+    )
+end
+
+"""
+    with_aggregate_state(s::AbstractSpecies, a::AggregateState) -> AbstractSpecies
+
+Return a copy of `s` in aggregate state `a`, everything else preserved.
+
+The counterpart of [`with_class`](@ref), and it exists for the same reason: a
+species is immutable, and a database record has to be requalified before it can
+join a phase that the database knows nothing about. [`SiteFamily`](@ref) uses it
+to put its members in `AS_SURFACE`, which is what keeps them out of the index
+sets the solver reads as "a pure mineral phase".
+
+# Examples
+
+```jldoctest
+julia> s = Species("XsOH"; aggregate_state=AS_CRYSTAL, class=SC_COMPONENT);
+
+julia> aggregate_state(with_aggregate_state(s, AS_SURFACE))
+AS_SURFACE::AggregateState = 5
+```
+"""
+function with_aggregate_state(s::Species{T}, a::AggregateState) where {T}
+    return Species{T}(s.name, s.symbol, s.formula, a, s.class, s.properties)
+end
+
+function with_aggregate_state(s::CemSpecies{T, S}, a::AggregateState) where {T, S}
+    return CemSpecies{T, S}(
+        s.name, s.symbol, s.formula, s.cemformula, a, s.class, s.properties
+    )
 end
 
 """

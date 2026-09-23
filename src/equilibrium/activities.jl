@@ -50,13 +50,14 @@ concentration_scale(model::YourModel)                          # :molality | :mo
 `lna(n, p)` receives the **full mole vector** `n`, indexed like `cs.species`,
 and the parameter tuple `p` carrying at least `ϵ` and usually `T`, `P` and
 `ΔₐG⁰overRT`; it returns `ln aᵢ` for every species — solutes, solvent, pure
-crystals (`0`), gases, and solid-solution end-members. Three properties are
-required rather than nice to have:
+crystals (`0`), gases, solid-solution end-members, and species occupying a
+surface site. Three properties are required rather than nice to have:
 
   - it is differentiated by `ForwardDiff` at every Newton step, so the output
     element type must follow `n` and any regularization must be smooth;
-  - it must call `_solid_solution_lna!`, or the end-members of a solid solution
-    silently get `ln a = 0`;
+  - it must call **both** `_solid_solution_lna!` and `_site_mixing_lna!`, or the
+    members of a solid solution, or of a surface site family, silently get
+    `ln a = 0` — unit activity, which is a plausible number and a wrong one;
   - `concentration_scale` has no fallback: without it the aqueous accessors
     raise a `MethodError` rather than guessing a convention.
 
@@ -159,6 +160,10 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
     has_gas = !isempty(idx_gas)
     ss_models = has_ss ? map(ss -> ss.model, cs.solid_solutions) : nothing
 
+    site_groups = cs.site_groups
+    has_sites = !isempty(site_groups)
+    site_models = has_sites ? map(f -> f.model, cs.site_families) : nothing
+
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
         _n = max.(n, ϵ)     # ϵ::Float64 — promotion vers Dual automatique si n est Dual
@@ -184,6 +189,14 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
         if has_ss
             T_val = hasproperty(p, :T) ? p.T : 298.15
             _solid_solution_lna!(out, _n, ss_groups, ss_models, T_val, ϵ)
+        end
+
+        # Surface sites mix on a budget of their own. Skipping this leaves every
+        # surface species at `ln a = 0`, i.e. unit activity, which is silent and
+        # wrong — the same trap the solid-solution call has carried since 0.8.2.
+        if has_sites
+            T_val = hasproperty(p, :T) ? p.T : 298.15
+            _site_mixing_lna!(out, _n, site_groups, site_models, T_val, ϵ)
         end
 
         return out
@@ -608,6 +621,10 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
     has_gas = !isempty(idx_gas)
     ss_models = has_ss ? map(ss -> ss.model, cs.solid_solutions) : nothing
 
+    site_groups = cs.site_groups
+    has_sites = !isempty(site_groups)
+    site_models = has_sites ? map(f -> f.model, cs.site_families) : nothing
+
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])   # kg/mol, e.g. 0.018015
 
     A_fixed = model.A
@@ -711,6 +728,14 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
         if has_ss
             T_val = hasproperty(p, :T) ? p.T : 298.15
             _solid_solution_lna!(out, _n, ss_groups, ss_models, T_val, ϵ)
+        end
+
+        # Surface sites mix on a budget of their own. Skipping this leaves every
+        # surface species at `ln a = 0`, i.e. unit activity, which is silent and
+        # wrong — the same trap the solid-solution call has carried since 0.8.2.
+        if has_sites
+            T_val = hasproperty(p, :T) ? p.T : 298.15
+            _site_mixing_lna!(out, _n, site_groups, site_models, T_val, ϵ)
         end
 
         return out
@@ -953,6 +978,10 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
     has_gas = !isempty(idx_gas)
     ss_models = has_ss ? map(ss -> ss.model, cs.solid_solutions) : nothing
 
+    site_groups = cs.site_groups
+    has_sites = !isempty(site_groups)
+    site_models = has_sites ? map(f -> f.model, cs.site_families) : nothing
+
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
 
     A_fixed = model.A
@@ -1018,6 +1047,14 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
         if has_ss
             T_val = hasproperty(p, :T) ? p.T : 298.15
             _solid_solution_lna!(out, _n, ss_groups, ss_models, T_val, ϵ)
+        end
+
+        # Surface sites mix on a budget of their own. Skipping this leaves every
+        # surface species at `ln a = 0`, i.e. unit activity, which is silent and
+        # wrong — the same trap the solid-solution call has carried since 0.8.2.
+        if has_sites
+            T_val = hasproperty(p, :T) ? p.T : 298.15
+            _site_mixing_lna!(out, _n, site_groups, site_models, T_val, ϵ)
         end
 
         return out
@@ -1141,6 +1178,60 @@ function _solid_solution_lna!(
         end
         @inbounds for (k, i) in enumerate(grp)
             out[i] = log(x[k] + ϵ) + _excess_ln_gamma(mdl, k, x, T)
+        end
+    end
+    return out
+end
+
+"""
+    _site_excess_ln_gamma(model, k, x, T) -> Real
+
+The departure from ideality of the `k`-th member of a site family, given the
+site fractions `x` of the whole family. Zero for [`IdealSiteMixing`](@ref),
+which is the only model this release provides.
+
+The twin of [`_excess_ln_gamma`](@ref) for solid solutions, and deliberately a
+separate generic: a site fraction and a mole fraction obey different closures —
+a site family's total is pinned by a conservation row, a solid solution's is
+free — so a model written for one is not automatically valid for the other.
+"""
+_site_excess_ln_gamma(::IdealSiteMixing, ::Int, x::AbstractVector, ::Real) =
+    zero(eltype(x))
+
+"""
+    _site_mixing_lna!(out, _n, site_groups, site_models, T, ϵ)
+
+Fill `out[i]` with `ln a_i = ln x_i + ln γ_i` for every species occupying a
+surface site, `x_i` being its fraction of its family's **site** budget.
+
+`site_groups[k]` lists the members of the k-th family, the free site first, and
+`site_models[k]` is how they mix.
+
+# Why this is not `_solid_solution_lna!` under another name
+
+The arithmetic is the same and the meaning is not. A solid solution's total is
+an unknown the minimization is free to move; a site family's total is fixed by a
+conservation row, because sites are neither created nor destroyed while the
+support is fixed. The free site is a member like any other, and it is what makes
+saturation happen: as it runs out, `ln x` of every occupied state rises, and the
+cost of binding one more molecule with it. Langmuir is the consequence, not the
+premise.
+
+`ϵ` regularizes the logarithm at exhaustion, exactly as it does for a solid
+solution, and the element type follows `_n`, so the whole path differentiates.
+"""
+function _site_mixing_lna!(
+        out::AbstractVector, _n::AbstractVector{ET},
+        site_groups::Vector{Vector{Int}}, site_models, T, ϵ
+    ) where {ET}
+    for (grp, mdl) in zip(site_groups, site_models)
+        n_total = sum(_n[i] for i in grp) + ϵ
+        x = Vector{ET}(undef, length(grp))
+        @inbounds for (j, i) in enumerate(grp)
+            x[j] = _n[i] / n_total
+        end
+        @inbounds for (k, i) in enumerate(grp)
+            out[i] = log(x[k] + ϵ) + _site_excess_ln_gamma(mdl, k, x, T)
         end
     end
     return out

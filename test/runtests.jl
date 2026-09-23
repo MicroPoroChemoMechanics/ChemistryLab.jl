@@ -67,6 +67,7 @@ end
     include("zeolites.jl")
     include("parsing_utils.jl")
     include("reactions.jl")
+    include("surfaces.jl")
 
 end
 
@@ -78,6 +79,7 @@ end
     include("chemical_systems.jl")
     include("oxide_budget.jl")
     include("chemical_states.jl")
+    include("site_families.jl")
     include("test_volume_fractions.jl")
 end
 
@@ -91,6 +93,7 @@ end
     include("aqueous_properties.jl")
     include("redox.jl")
     include("solid_solutions.jl")
+    include("surface_complexation.jl")
     include("equilibrium_reference.jl")
     include("published_values.jl")
     include("test_dual_solver.jl")
@@ -113,6 +116,7 @@ end
     include("kinetics/test_calibration.jl")
     include("kinetics/test_implicit_step.jl")
     include("kinetics/test_pore_humidity.jl")
+    include("kinetics/test_surface_coupling.jl")
     include("coupling_reference.jl")
 end
 

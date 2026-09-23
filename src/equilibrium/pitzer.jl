@@ -248,6 +248,10 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
     has_gas = !isempty(idx_gas)
     ss_models = has_ss ? map(ss -> ss.model, cs.solid_solutions) : nothing
 
+    site_groups = cs.site_groups
+    has_sites = !isempty(site_groups)
+    site_models = has_sites ? map(f -> f.model, cs.site_families) : nothing
+
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
     n_sp = lastindex(cs.species)
     par = model.parameters
@@ -456,6 +460,14 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
         if has_ss
             T_val = hasproperty(p, :T) ? p.T : 298.15
             _solid_solution_lna!(out, _n, ss_groups, ss_models, T_val, ϵ)
+        end
+
+        # Surface sites mix on a budget of their own. Skipping this leaves every
+        # surface species at `ln a = 0`, i.e. unit activity, which is silent and
+        # wrong — the same trap the solid-solution call has carried since 0.8.2.
+        if has_sites
+            T_val = hasproperty(p, :T) ? p.T : 298.15
+            _site_mixing_lna!(out, _n, site_groups, site_models, T_val, ϵ)
         end
         return out
     end
