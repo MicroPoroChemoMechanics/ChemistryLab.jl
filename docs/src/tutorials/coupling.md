@@ -24,6 +24,18 @@ Split the species into two sets:
 Each kinetic reaction ``j`` has a stoichiometric row that touches both, so the
 full stoichiometric matrix splits column-wise as ``\nu = [\nu_e \;\; \nu_k]``.
 
+!!! note "Surface sites are on the equilibrium side, and not by choice"
+    A species occupying a [surface site](@ref sec-theory-surface) is not
+    aqueous, so the automatic partition would sweep it in with the minerals. It
+    does not, deliberately: a site family's budget is a **conservation row** of
+    the equilibrium problem, and moving one member across would take that row
+    with it, leaving the equilibrium a surface with no sites.
+
+    The states of a site redistribute as fast as the aqueous speciation does,
+    which is the assumption this release makes. Adsorption slow enough to need a
+    rate law of its own is a different model, and it takes an explicit
+    `kinetic_species` list rather than happening by accident.
+
 ## Why the state is ``(b_e, n_k)`` and not ``(n_e, n_k)``
 
 The obvious choice — integrate every species — does not work, and the reason is
@@ -82,6 +94,20 @@ Two ODEs and one constrained minimization. The rates ``r`` depend on the full
 composition — a dissolution rate needs the saturation index, hence the aqueous
 activities — so ``\varphi`` feeds back into the right-hand side.
 
+### What travels with the partition, and what used to not
+
+The equilibrium is solved on a **rebuilt** system containing only the
+equilibrium partition, and that rebuild takes its phase declarations by keyword.
+Anything not passed is dropped silently — which is what happened to solid
+solutions until 0.8.2: a run could declare CSHQ and the solve would treat its
+end-members as separate pure phases, the mixing entropy never entering the Gibbs
+energy.
+
+Site families travel the same way now, on the same all-or-nothing rule: a family
+survives into the partition only if **every** member is there. One split between
+the two sides is refused by name rather than dropped, because its members share
+a single budget and cannot be solved apart.
+
 ## Solving it: operator splitting
 
 ``\varphi`` is not evaluated inside the ODE right-hand side. It is applied once
@@ -126,6 +152,25 @@ trajectory is not the one the equations describe.
     species, and the **coupling** along a constant-rate dissolution trajectory,
     where the two agree to 4.3 % or better — see
     [Validation against Reaktoro](@ref).
+
+## A worked coupling with a surface
+
+`test/kinetics/test_surface_coupling.jl` runs the smallest case that exercises
+all of it: a solid releasing calcium at a **constant** rate — so the kinetic half
+is exactly integrable and anything that disagrees is the equilibrium map — onto
+an inert sorbent that binds some of it.
+
+What it checks is what this page describes:
+
+  - the site budget holds at every reported instant, not only at the end;
+  - the released calcium is exactly ``k\,t``, and all of it is somewhere — in
+    solution or on the sorbent, nothing lost between the partitions;
+  - the law of mass action of the binding reaction holds on the **integrated**
+    state, which is the independent check that the coupling reached the
+    equilibrium it was supposed to rather than merely conserving matter;
+  - tightening the integrator by two decades moves the answer by less than
+    ``10^{-5}``, so the trajectory is converged in the time step rather than
+    reproducible at one setting.
 
 ## See also
 

@@ -116,6 +116,7 @@ end
     include("kinetics/test_calibration.jl")
     include("kinetics/test_implicit_step.jl")
     include("kinetics/test_pore_humidity.jl")
+    include("kinetics/test_surface_coupling.jl")
     include("coupling_reference.jl")
 end
 

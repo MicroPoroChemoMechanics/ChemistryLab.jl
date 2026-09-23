@@ -462,6 +462,12 @@ participant of a declared reaction**. That covers both styles of model:
     minimizing `G`. That is a different model, deliberately, and it is the one to
     write when the hydrate assemblage is part of what you are prescribing.
 
+Species occupying a **surface site** are excluded from the automatic partition
+whatever reaction they take part in: their family's site budget is a
+conservation row of the equilibrium problem, and moving one member to the
+kinetic side would move that row with it. Adsorption slow enough to need a rate
+law of its own is a different model, and it takes an explicit list.
+
 Pass an explicit list of species (symbols or indices) to override the partition.
 
 Several reactions may share a mineral — the whole point of a reaction-centric
@@ -476,12 +482,18 @@ function _reactivity_matrix(reactions, system::ChemicalSystem, kinetic_species)
     ns = length(system.species)
     syms = symbol.(system.species)
     aqueous = Set(system.idx_aqueous)
+    # A species occupying a surface site is **not** kinetic just because it is
+    # not aqueous. Its family's budget is fixed and its states redistribute as
+    # fast as the aqueous speciation does, so it belongs on the equilibrium side
+    # — and putting it on the kinetic one would take its conservation row with
+    # it, leaving the equilibrium a surface with no sites.
+    surface = Set(system.idx_surface)
 
     kin = if kinetic_species === :auto
         s = Set{Int}()
         for kr in reactions, i in 1:ns
             kr.stoich[i] == 0 && continue
-            i in aqueous || push!(s, i)
+            (i in aqueous || i in surface) || push!(s, i)
         end
         s
     else
