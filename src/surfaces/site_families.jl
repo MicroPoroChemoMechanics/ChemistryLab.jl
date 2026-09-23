@@ -10,6 +10,52 @@
 # `SITE_SYMBOLS`. Nothing in `StoichMatrix` had to change for that.
 
 """
+    abstract type AbstractSiteMixingModel end
+
+How the species of a [`SiteFamily`](@ref) mix on their shared budget of sites.
+
+Concrete subtypes implement
+
+```julia
+_site_excess_ln_gamma(model, k, x, T) -> Real
+```
+
+the departure from ideality of the `k`-th member, given the site fractions `x`
+of the whole family. The ideal part, `ln x_k`, is added by the caller, exactly
+as it is for a solid solution.
+
+Only [`IdealSiteMixing`](@ref) exists in this release. The others the literature
+uses — Frumkin's interaction term, the quasi-chemical approximation for a
+multidentate adsorbate — are separate models with their own parameters and their
+own validation, and this is where they will attach.
+
+See also: [`IdealSiteMixing`](@ref), [`SiteFamily`](@ref).
+"""
+abstract type AbstractSiteMixingModel end
+
+"""
+    struct IdealSiteMixing <: AbstractSiteMixingModel
+
+Occupied and free sites mix ideally: the activity of a member is its site
+fraction, `a_j = n_j / N_t`.
+
+# What this is, and what it is not
+
+It is the production form of the Langmuir model, and Langmuir *falls out* of it
+rather than being imposed: eliminating the free site from the equilibrium of
+`n_free + Σ n_j = N_t` gives `n_j/N_t = β_j /(1 + Σ_k β_k)` with
+`β_j = K_j a_j`, saturation and competition included, with no isotherm written
+anywhere.
+
+It is **not** a place to also apply a surface activity coefficient of the
+`1/(1 − θ)` kind. That factor is what an eliminated-free-site formulation needs
+in order to recover what this one already produces; applying both counts the
+same physics twice. The ratio is available as a diagnostic — see the tests — and
+the identity between the two forms is asserted rather than assumed.
+"""
+struct IdealSiteMixing <: AbstractSiteMixingModel end
+
+"""
     abstract type AbstractSiteCapacity end
 
 How many moles of sites a family offers.
@@ -166,6 +212,8 @@ species; the quasi-chemical treatment of the rest is a later, separate model.
   - `complexes`: the occupied ones.
   - `capacity`: how many moles of sites, as an [`AbstractSiteCapacity`](@ref).
   - `support`: the [`SurfaceSupport`](@ref) carrying it.
+  - `model`: how the members mix on the budget, an
+    [`AbstractSiteMixingModel`](@ref).
 
 # Examples
 
@@ -178,13 +226,17 @@ SiteFamily("Hfo_s", free, [bound]; capacity = TotalSiteAmount(5.0e-6u"mol"), sup
 
 See also: [`site_moles`](@ref), [`denticity`](@ref), [`SITE_SYMBOLS`](@ref).
 """
-struct SiteFamily{S <: AbstractSpecies, C <: AbstractSiteCapacity, U <: SurfaceSupport}
+struct SiteFamily{
+        S <: AbstractSpecies, C <: AbstractSiteCapacity, U <: SurfaceSupport,
+        M <: AbstractSiteMixingModel,
+    }
     name::String
     site::Symbol
     free_site::S
     complexes::Vector{S}
     capacity::C
     support::U
+    model::M
 end
 
 """
@@ -221,6 +273,7 @@ function SiteFamily(
         complexes::AbstractVector{<:AbstractSpecies} = AbstractSpecies[];
         capacity::AbstractSiteCapacity,
         support::SurfaceSupport,
+        model::AbstractSiteMixingModel = IdealSiteMixing(),
     )
     site = _family_site_symbol(name, free_site, complexes)
 
@@ -265,8 +318,11 @@ function SiteFamily(
     end
 
     qualified = [_as_surface_species(sp) for sp in members]
-    return SiteFamily{eltype(qualified), typeof(capacity), typeof(support)}(
-        String(name), site, first(qualified), qualified[2:end], capacity, support
+    return SiteFamily{
+        eltype(qualified), typeof(capacity), typeof(support), typeof(model),
+    }(
+        String(name), site, first(qualified), qualified[2:end],
+        capacity, support, model,
     )
 end
 
@@ -316,6 +372,13 @@ name(family::SiteFamily) = family.name
 site_members(family::SiteFamily) = vcat([family.free_site], family.complexes)
 site_capacity(family::SiteFamily) = family.capacity
 surface_support(family::SiteFamily) = family.support
+
+"""
+    site_mixing_model(family::SiteFamily) -> AbstractSiteMixingModel
+
+How the members of `family` mix on their shared site budget.
+"""
+site_mixing_model(family::SiteFamily) = family.model
 
 """
     site_moles(family::SiteFamily, n_host, n_host₀, M_host) -> Real

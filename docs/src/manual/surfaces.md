@@ -225,3 +225,64 @@ symbol.(surface(cs))
 
 They are nonetheless counted in the **solid** compartment of a state, because
 that is where their matter is.
+
+## What mixes on the sites, and what Langmuir has to do with it
+
+Declaring the family is half of it. The other half is the activity of its
+members, and it is the simplest one there is: a **site fraction**.
+
+```@example sites
+grp = cs.site_groups[1]              # the family's members, free site first
+n = zeros(length(cs.species))
+n[1] = 55.5                          # water
+n[grp] .= [5.0e-4, 3.0e-4, 2.0e-4]   # free, protonated, deprotonated
+lna = activity_model(cs, DiluteSolutionModel())(n, (ϵ = 1.0e-30, T = 298.15))
+[exp(lna[i]) for i in grp]           # each one is n_i / Σ n
+```
+
+Half the sites free, three tenths protonated, two tenths deprotonated — the
+composition put in, read back as activities.
+
+That is [`IdealSiteMixing`](@ref), and every activity model the package ships
+applies it — dilute, HKF, Davies and Pitzer alike — because a site fraction owes
+nothing to the ionic strength of the solution beside it.
+
+### Langmuir is the consequence, not the premise
+
+No isotherm is written anywhere in this package. Put the site balance
+`n_free + Σ n_j = N` next to the mass-action law of each binding reaction, with
+the free site's activity in it, and eliminate the free site:
+
+```math
+\frac{n_j}{N} = \frac{\beta_j}{1 + \sum_k \beta_k},
+\qquad \beta_j = K_j\,a_j
+```
+
+— competitive Langmuir, with the **shared denominator** that is the signature of
+a finite capacity. `test/surface_complexation.jl` checks it against that derived
+form on an amphoteric surface across four pH values, to a relative 1e-6.
+
+!!! warning "Do not apply a surface activity coefficient on top of this"
+    The literature's surface activity coefficient, `γ_L = 1/(1 − θ)`, exists to
+    make an *eliminated* free site reproduce what an explicit one already does.
+    This formulation keeps the free site as a species, so the correction is
+    already in the mixing. Applying it again counts saturation twice.
+
+    The identity is worth knowing as a **diagnostic**, and the test suite asserts
+    it rather than assuming it: at equilibrium `1/(1 − θ)` equals `N/n_free` to
+    1e-8.
+
+### In the solver, a family is a phase
+
+A site family reaches the dual solver as a mixing phase, like the aqueous
+solution and like a solid solution — never as a set of pure phases, which is
+what it would be if it kept its default classification. Two settings differ from
+a solid solution's, and neither is cosmetic:
+
+  - the reference member is the **free site**, not the most abundant one. It is
+    the state a fresh surface is mostly in, and a family cannot run out of it
+    without the occupied states taking its place;
+  - the phase is **always present**. A family's total is pinned by a
+    conservation row, so a presence test on the size of its members would refuse
+    to activate it from a cold start and leave `Σ n = N > 0` unsatisfiable from
+    the first Newton iteration.
