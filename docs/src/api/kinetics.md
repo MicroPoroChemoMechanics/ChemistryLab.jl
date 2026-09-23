@@ -9,7 +9,10 @@ Modules = [ChemistryLab]
 Pages   = ["kinetics/rate_models.jl"]
 ```
 
-## Kinetic reactions and surface area
+## Kinetic reactions
+
+The area models the rate factories consume live on their own page, since they
+are shared with surface chemistry: see [Surfaces API](@ref).
 
 ```@autodocs
 Modules = [ChemistryLab]

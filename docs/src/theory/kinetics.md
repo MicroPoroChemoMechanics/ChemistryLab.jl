@@ -228,7 +228,15 @@ one, and it is a prediction of the parameter and not an extra rule.
 Silica fume carries the same τ and n as fly ash: its much higher reactivity is
 represented **through the fineness**, at an effective Blaine of 2000 m²/kg
 recommended by [Lavergne2018](@cite). Its BET surface, about 20 000 m²/kg, is a
-different measurement of a different thing and must not be substituted.
+different measurement of a different thing and must not be substituted — a factor
+of ten on the rate.
+
+That is now enforced rather than advised. [`BETSurfaceArea`](@ref) and
+[`BlaineSurfaceArea`](@ref) are distinct types, and the ratio that produces a
+fineness factor is defined only between two of the same kind, so handing a BET
+area to [`blaine_factor`](@ref) raises instead of returning a plausible number.
+A bare quantity is still read as a Blaine fineness, which is the contract every
+existing call relies on; see [Surface areas](@ref sec-manual-surfaces).
 
 ## 4. The three multiplicative corrections
 

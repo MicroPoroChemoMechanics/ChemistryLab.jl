@@ -183,14 +183,14 @@ using Test
         @test dfac ≈ 1 / 385.0 rtol = 1.0e-12
     end
 
-    # ── Surface: one support, one area ────────────────────────────────────────
-    @testset "Surface names its host once" begin
-        s = Surface("calcite", "Cal", BETSurfaceArea(90.0))
+    # ── SurfaceSupport: one support, one area ────────────────────────────────────────
+    @testset "SurfaceSupport names its host once" begin
+        s = SurfaceSupport("calcite", "Cal", BETSurfaceArea(90.0))
         @test s.name == "calcite"
         @test s.host == "Cal"
         @test area_method(s) === :BET
 
-        prescribed = Surface("inert sorbent", FixedSurfaceArea(0.5))
+        prescribed = SurfaceSupport("inert sorbent", FixedSurfaceArea(0.5))
         @test prescribed.host === nothing
         @test occursin("prescribed support", sprint(show, prescribed))
         @test occursin("calcite", sprint(show, s))

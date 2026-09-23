@@ -515,10 +515,10 @@ function area_ratio(model::AbstractSpecificArea, reference::AbstractSpecificArea
     )
 end
 
-# ── Surface: the support an area belongs to ───────────────────────────────────
+# ── SurfaceSupport: the support an area belongs to ───────────────────────────────────
 
 """
-    struct Surface{M<:AbstractSurfaceModel}
+    struct SurfaceSupport{M<:AbstractSurfaceModel}
 
 A support and the area it offers: a named host solid together with its area
 model.
@@ -528,12 +528,20 @@ model.
 The rate factories used to carry a surface model and rediscover the mineral it
 belonged to from the reaction, through a helper that fell back to **0.1 kg/mol**
 when the species had no molar mass — silently, and wrong by up to an order of
-magnitude. A `Surface` names the host once, so the molar mass is looked up once
+magnitude. A `SurfaceSupport` names the host once, so the molar mass is looked up once
 and its absence is an error that names the species.
 
 The same object is what a family of surface sites will hang from, which is why
 it lives here rather than in the kinetics: one support, one area, whether what
 happens on it is dissolution or binding.
+
+# Why not simply `Surface`
+
+Because `Plots` exports that name, and every documentation page that draws a
+result does `using ChemistryLab, Plots`. The two would be ambiguous at the point
+of use, which is the least helpful moment to find out. `SurfaceSupport` also says
+what the object is: the plan's vocabulary calls the grain the *support*, and the
+sites are what it carries.
 
 # Fields
 
@@ -545,32 +553,32 @@ happens on it is dissolution or binding.
 # Examples
 
 ```julia
-Surface("calcite", "Cal", BETSurfaceArea(90.0))
-Surface("inert sorbent", nothing, FixedSurfaceArea(0.5))
+SurfaceSupport("calcite", "Cal", BETSurfaceArea(90.0))
+SurfaceSupport("inert sorbent", nothing, FixedSurfaceArea(0.5))
 ```
 """
-struct Surface{M <: AbstractSurfaceModel}
+struct SurfaceSupport{M <: AbstractSurfaceModel}
     name::String
     host::Union{Nothing, String}
     area::M
 end
 
 """
-    Surface(name, host, area) -> Surface
-    Surface(name, area) -> Surface
+    SurfaceSupport(name, host, area) -> SurfaceSupport
+    SurfaceSupport(name, area) -> SurfaceSupport
 
-Build a [`Surface`](@ref). The two-argument form leaves the host unset, for a
+Build a [`SurfaceSupport`](@ref). The two-argument form leaves the host unset, for a
 support whose amount is prescribed rather than solved for.
 """
-Surface(name::AbstractString, area::AbstractSurfaceModel) =
-    Surface{typeof(area)}(String(name), nothing, area)
+SurfaceSupport(name::AbstractString, area::AbstractSurfaceModel) =
+    SurfaceSupport{typeof(area)}(String(name), nothing, area)
 
-Surface(name::AbstractString, host, area::AbstractSurfaceModel) =
-    Surface{typeof(area)}(String(name), host === nothing ? nothing : String(host), area)
+SurfaceSupport(name::AbstractString, host, area::AbstractSurfaceModel) =
+    SurfaceSupport{typeof(area)}(String(name), host === nothing ? nothing : String(host), area)
 
-area_method(s::Surface) = area_method(s.area)
+area_method(s::SurfaceSupport) = area_method(s.area)
 
-function Base.show(io::IO, s::Surface)
+function Base.show(io::IO, s::SurfaceSupport)
     host = s.host === nothing ? "prescribed support" : "on $(s.host)"
-    return print(io, "Surface(\"$(s.name)\", $host, $(nameof(typeof(s.area))))")
+    return print(io, "SurfaceSupport(\"$(s.name)\", $host, $(nameof(typeof(s.area))))")
 end

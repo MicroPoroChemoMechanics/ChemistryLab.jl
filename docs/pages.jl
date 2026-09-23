@@ -82,6 +82,12 @@ pages = [
         "Systems and states" => [
             "manual/chemical_system_state.md",
         ],
+        # How much area a solid offers, and to what. One page because the same
+        # objects serve a dissolution rate law and, later, the sites a surface
+        # binds with -- the numbers differ, the abstraction does not.
+        "Surfaces" => [
+            "manual/surfaces.md",
+        ],
         # The cement-specific syntax: phase names, the Bogue notation, the
         # shorthand the literature uses.
         "Cementitious media" => [
@@ -198,6 +204,7 @@ pages = [
         ],
         "Kinetics" => [
             "Kinetics" => "api/kinetics.md",
+            "Surfaces" => "api/surfaces.md",
         ],
         "Utilities" => [
             "Utilities" => "api/utils.md",

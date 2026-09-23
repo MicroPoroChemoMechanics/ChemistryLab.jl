@@ -241,7 +241,7 @@ Build a Transition-State Theory (TST) dissolution/precipitation rate function fr
 list of [`RateMechanism`](@ref) objects, returning a [`KineticFunc`](@ref).
 
 The compiled closure captures:
-  - the host name and its molar mass, from the [`Surface`](@ref) when one is
+  - the host name and its molar mass, from the [`SurfaceSupport`](@ref) when one is
     given, otherwise rediscovered from `rxn` + `cs`
   - the area model, evaluated at **every** step from the current and initial
     amounts, so an area that follows the microstructure needs no change here
@@ -261,7 +261,7 @@ step — correct for variable-temperature semi-adiabatic calorimetry.
   - `mechanisms`: vector of [`RateMechanism`](@ref) (acid, neutral, base, …).
   - `cs`: [`ChemicalSystem`](@ref) supplying `ΔₐG⁰` callables for aqueous species.
   - `rxn`: `AbstractReaction` defining stoichiometry and the mineral species.
-  - `surface`: a [`Surface`](@ref), which names the host solid and carries its
+  - `surface`: a [`SurfaceSupport`](@ref), which names the host solid and carries its
     area model, or an [`AbstractSurfaceModel`](@ref) alone, in which case the
     host is the first solid reactant of `rxn`.
   - `ϵ`: regularization floor near Ω = 1 (default `1e-16`).
@@ -287,7 +287,7 @@ function transition_state(
         mechanisms::AbstractVector{<:RateMechanism},
         cs::ChemicalSystem,
         rxn::AbstractReaction,
-        surface::Union{Surface, AbstractSurfaceModel};
+        surface::Union{SurfaceSupport, AbstractSurfaceModel};
         ϵ::Real = 1.0e-16,
     )
     mineral_name, M, area_model = _surface_context(cs, rxn, surface)
@@ -347,7 +347,7 @@ mechanism. Useful as a minimal test case or for empirical fits.
 
 ```julia
 k = arrhenius_rate_constant(1e-7, 40000.0)
-rf = first_order_rate(k, cs, rxn, Surface("calcite", "Cal", BETSurfaceArea(90.0)))
+rf = first_order_rate(k, cs, rxn, SurfaceSupport("calcite", "Cal", BETSurfaceArea(90.0)))
 kr = KineticReaction(cs, rxn, rf)
 ```
 """
@@ -355,7 +355,7 @@ function first_order_rate(
         k::AbstractFunc,
         cs::ChemicalSystem,
         rxn::AbstractReaction,
-        surface::Union{Surface, AbstractSurfaceModel};
+        surface::Union{SurfaceSupport, AbstractSurfaceModel};
         p::Real = 1.0,
         q::Real = 1.0,
         ϵ::Real = 1.0e-16,
@@ -463,17 +463,17 @@ end
 # Returns (host_name::String, M::Float64, area_model) for a rate factory.
 #
 # Two entry points, one contract: a bare area model keeps the historical
-# behavior of rediscovering the host from the reaction, while a `Surface` names
+# behavior of rediscovering the host from the reaction, while a `SurfaceSupport` names
 # it once and is looked up by symbol.
 _surface_context(cs::ChemicalSystem, rxn::AbstractReaction, m::AbstractSurfaceModel) =
     (_mineral_name_and_mass(cs, rxn)..., m)
 
-function _surface_context(cs::ChemicalSystem, rxn::AbstractReaction, s::Surface)
+function _surface_context(cs::ChemicalSystem, rxn::AbstractReaction, s::SurfaceSupport)
     s.host === nothing && return (_mineral_name_and_mass(cs, rxn)..., s.area)
     sp = get(cs.dict_species, s.host, nothing)
     sp === nothing && throw(
         ArgumentError(
-            "Surface \"$(s.name)\" names host \"$(s.host)\", which is not a species " *
+            "SurfaceSupport \"$(s.name)\" names host \"$(s.host)\", which is not a species " *
                 "of this system. Known symbols include " *
                 "$(join(sort(collect(keys(cs.dict_species)))[1:min(end, 6)], ", ")), …",
         )

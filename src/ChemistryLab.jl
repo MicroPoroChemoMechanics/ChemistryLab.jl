@@ -421,7 +421,7 @@ module ChemistryLab
         GeometricSurfaceArea,
         ShrinkingCoreArea,
         SHRINK_FLOOR,
-        Surface,
+        SurfaceSupport,
         specific_area,
         total_area,
         area_ratio,
