@@ -79,6 +79,7 @@ end
     include("chemical_systems.jl")
     include("oxide_budget.jl")
     include("chemical_states.jl")
+    include("site_families.jl")
     include("test_volume_fractions.jl")
 end
 

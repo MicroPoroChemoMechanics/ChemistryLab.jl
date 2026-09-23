@@ -120,6 +120,13 @@ module ChemistryLab
     include("chemical_structs/chemical_states.jl")
     include("chemical_structs/volume_fractions.jl")
 
+    # After `chemical_structs`, because a site family is built from species and
+    # requalifies them. `chemical_systems.jl` refers to `SiteFamily` before it
+    # exists, which Julia resolves at call time; the two are one unit and the
+    # order between them is the only one that works.
+    include("surfaces/surface_areas.jl")
+    include("surfaces/site_families.jl")
+
     include("databases/paths.jl")
     include("databases/phreeqc_dat.jl")
     include("databases/thermofun_json.jl")
@@ -135,8 +142,6 @@ module ChemistryLab
     include("equilibrium/dual_solver.jl")
     include("equilibrium/certified.jl")
     include("equilibrium/aqueous_properties.jl")
-
-    include("surfaces/surface_areas.jl")
 
     include("kinetics/rate_models.jl")
     include("kinetics/kinetics_reactions.jl")
@@ -167,6 +172,8 @@ module ChemistryLab
         build_thermo_functions
 
     export ATOMIC_ORDER,
+        SITE_SYMBOLS,
+        is_site_symbol,
         CEMENT_TO_MENDELEEV,
         OXIDE_ORDER,
         CEMDATA_PRIMARIES
@@ -200,7 +207,8 @@ module ChemistryLab
         AS_AQUEOUS,
         AS_CRYSTAL,
         AS_GAS,
-        AS_LIQUID
+        AS_LIQUID,
+        AS_SURFACE
 
     export Class,
         SC_UNDEF,
@@ -208,7 +216,8 @@ module ChemistryLab
         SC_AQSOLUTE,
         SC_COMPONENT,
         SC_GASFLUID,
-        SC_SSENDMEMBER
+        SC_SSENDMEMBER,
+        SC_SURFCOMPLEX
 
     export AbstractSpecies,
         Species,
@@ -291,6 +300,7 @@ module ChemistryLab
         end_members,
         model,
         with_class,
+        with_aggregate_state,
         R_GAS,
         R_GAS_Q,
         FARADAY,
@@ -300,6 +310,7 @@ module ChemistryLab
     export ChemicalSystem,
         aqueous,
         crystal,
+        surface,
         gas,
         solutes,
         solvent,
@@ -307,6 +318,7 @@ module ChemistryLab
         gasfluid,
         get_reaction,
         solid_solutions,
+        site_families,
         kinetic_species
 
     export ChemicalState,
@@ -427,6 +439,16 @@ module ChemistryLab
         area_ratio,
         area_method,
         surface_area,
+        AbstractSiteCapacity,
+        AreaSiteDensity,
+        MassSiteDensity,
+        TotalSiteAmount,
+        SiteFamily,
+        site_moles,
+        site_members,
+        site_capacity,
+        surface_support,
+        denticity,
         transition_state,
         first_order_rate,
         KineticReaction,

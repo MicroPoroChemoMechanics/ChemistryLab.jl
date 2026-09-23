@@ -135,6 +135,25 @@ Must be called as `_molar_volume(s)(T=T, P=P; unit=true)` to get a quantity.
 _molar_volume(s::AbstractSpecies) = s[:V⁰]
 
 """
+    _solid_indices(system) -> Vector{Int}
+
+The species counted in the **solid** compartment: the crystalline ones, and the
+surface complexes.
+
+Written once rather than three times because it is a decision, not a detail. A
+species bound to a site is matter, and it sits on a mineral, so its amount, its
+mass and its volume belong with the solid. It is kept out of `idx_crystal`
+itself because that index means "a pure mineral phase" to the solver and to the
+start repair, which a site occupancy is not.
+
+A surface complex has no standard molar volume, so it contributes nothing to the
+solid volume — the volume it occupies is the host's, already counted.
+"""
+_solid_indices(system::ChemicalSystem) =
+    isempty(system.idx_surface) ? system.idx_crystal :
+    vcat(system.idx_crystal, system.idx_surface)
+
+"""
     _compute_n_phases(system, n) -> NamedTuple
 
 Compute moles per phase from species vector `n`.
@@ -144,7 +163,7 @@ function _compute_n_phases(system::ChemicalSystem, n::AbstractVector)
         return sum((n[i] for i in idx); init = 0.0u"mol")
     end
     n_liquid = _phase(system.idx_aqueous)
-    n_solid = _phase(system.idx_crystal)
+    n_solid = _phase(_solid_indices(system))
     n_gas = _phase(system.idx_gas)
     return (liquid = n_liquid, solid = n_solid, gas = n_gas, total = n_liquid + n_solid + n_gas)
 end
@@ -159,7 +178,7 @@ function _compute_m_phases(system::ChemicalSystem, n::AbstractVector)
         return sum((n[i] * system.species[i][:M] for i in idx); init = 0.0u"kg")
     end
     m_liquid = _phase(system.idx_aqueous)
-    m_solid = _phase(system.idx_crystal)
+    m_solid = _phase(_solid_indices(system))
     m_gas = _phase(system.idx_gas)
     return (liquid = m_liquid, solid = m_solid, gas = m_gas, total = m_liquid + m_solid + m_gas)
 end
@@ -179,7 +198,7 @@ function _compute_V_phases(system::ChemicalSystem, n::AbstractVector, T, P)
     )
 
     V_liquid = _phase(system.idx_aqueous)
-    V_solid = _phase(system.idx_crystal)
+    V_solid = _phase(_solid_indices(system))
 
     if isempty(system.idx_gas)
         V_gas = 0.0u"m^3"
@@ -1541,7 +1560,7 @@ function Base.show(io::IO, ::MIME"text/plain", state::ChemicalState)
     end
 
     _print_phase("liquid", :liquid, cs.idx_aqueous)
-    _print_phase("solid", :solid, cs.idx_crystal)
+    _print_phase("solid", :solid, _solid_indices(cs))
     _print_phase("gas", :gas, cs.idx_gas)
 
     # ── Total ─────────────────────────────────────────────────────────────────

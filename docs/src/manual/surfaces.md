@@ -120,3 +120,108 @@ SurfaceSupport("inert sorbent", FixedSurfaceArea(0.5u"m^2"))
     a rate law, and why the fineness correction of the empirical cement laws is a
     constant rather than an area.
   - [Surfaces API](@ref) — the docstrings.
+
+## Site families: a conserved quantity that is not an element
+
+A surface that only has an area does nothing. What makes it chemistry is a
+finite number of **sites**, and species that occupy them.
+
+The package already had a conserved quantity that is not a chemical element:
+electric charge, carried as the pseudo-element `:Zz` in a formula and turned
+into a conservation row by the ordinary matrix assembly. A site family works the
+same way, with a pseudo-element of its own from [`SITE_SYMBOLS`](@ref):
+
+```@example sites
+using ChemistryLab, DynamicQuantities
+
+surf(sym) = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+
+free = surf("XsOH")          # the free site — a species like any other
+prot = surf("XsOH2+")        # protonated
+depr = surf("XsO-")          # deprotonated
+atoms(free)
+```
+
+`:Xs` is the family; `O` and `H` are the real atoms. That matters for the mass:
+
+```@example sites
+free[:M]                     # oxygen and hydrogen only
+```
+
+**The site weighs nothing, by declaration.** The mass of the support is carried
+once, by its own mineral species; adding it again on every occupied site would
+be double counting. The same applies to volume — a surface complex has no
+standard molar volume, because the volume it occupies is the host's.
+
+### Declaring the family
+
+```@example sites
+support = SurfaceSupport("hydrous ferric oxide", nothing, FixedSurfaceArea(600.0u"m^2"))
+family = SiteFamily("Hfo_s", free, [prot, depr];
+                    capacity = TotalSiteAmount(5.0e-6u"mol"), support)
+```
+
+The capacity comes in three shapes because the published data does, and
+converting between them needs a number nobody measured:
+[`TotalSiteAmount`](@ref) for a prescribed sorbent, [`AreaSiteDensity`](@ref) in
+mol/m² for the oxide literature, [`MassSiteDensity`](@ref) in mol/kg for a clay
+exchange capacity — the last needing no area at all.
+
+```@example sites
+site_moles(family, 0.0, 0.0, 0.0)     # this one ignores the host entirely
+```
+
+### The site balance falls out of the matrix
+
+Build the system with the **free site species as the primary**, and the
+conservation row appears on its own:
+
+```@example sites
+aq(sym, cl = SC_AQSOLUTE) = Species(sym; aggregate_state = AS_AQUEOUS, class = cl)
+species = [aq("H2O@", SC_AQSOLVENT), aq("H+"), aq("OH-"), aq("Ca+2"), free, prot, depr]
+cs = ChemicalSystem(species, [species[1], species[2], species[4], free];
+                    site_families = [family])
+row = cs.SM.A[findfirst(p -> symbol(p) == "XsOH", cs.SM.primaries), :]
+Int.(row)
+```
+
+One per surface species, zero on every aqueous one: that row **is**
+`n_free + n_protonated + n_deprotonated = N_t`. And the rest of the matrix is
+the protolysis, `XsOH2+ = XsOH + H+` and `XsO- = XsOH − H+`, written by the same
+assembly that writes every other reaction.
+
+!!! warning "The primary is the free site, never a bare site species"
+    Declaring `Species("Xs")` as the site primary looks equivalent and is not. A
+    neutral bare site is inconsistent in charge with a neutral free site, which
+    flips the exact rank test inside [`StoichMatrix`](@ref) and adds a spurious
+    charge component — silently. It also never enters `cs.species`, so
+    [`saturation_indices`](@ref) would zero its potential and report a wrong
+    index for every surface species, again without a word.
+
+### What is refused, and why
+
+Each of these produces a wrong number rather than an error if it is allowed
+through, so each raises at construction: a member carrying no site symbol or two
+of them; a free site occupying anything but one site; a species in two families;
+two families sharing one pseudo-element; and an `AS_SURFACE` species belonging
+to no declared family at all — it would carry a pseudo-element into the matrix,
+and so a row, with nothing mixing on it.
+
+Multidentate species are refused too, for now. The site balance holds for any
+denticity — `Xs2OCa` contributes two — but ideal mixing of occupied and free
+sites is exact only for one, and the quasi-chemical treatment of the rest is a
+separate model this release does not provide. Saying so is better than returning
+a number that looks like an isotherm.
+
+### Where the species end up
+
+`AS_SURFACE` is its own aggregate state, deliberately. Surface complexes are
+**not** in `crystal(cs)`, because `idx_crystal` is what the solver and the start
+repair read as "a pure mineral phase", which a site occupancy is not:
+
+```@example sites
+symbol.(surface(cs))
+```
+
+They are nonetheless counted in the **solid** compartment of a state, because
+that is where their matter is.

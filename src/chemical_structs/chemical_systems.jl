@@ -30,9 +30,15 @@ construct a new `ChemicalSystem`.
     its end-members. Populated via the `solid_solutions` keyword constructor.
   - `ss_groups`: for each solid solution, the indices of its end-members in `species`.
   - `idx_ssendmembers`: union of all end-member indices (flattened `ss_groups`).
+  - `idx_surface`: indices of species in `AS_SURFACE`, i.e. bound to a site.
+  - `site_families`: `Nothing` when no surface is declared, or a concrete
+    `Vector{<:SiteFamily}`. Populated through the `site_families` keyword.
+  - `site_groups`: for each family, the indices of its members in `species`, the
+    **free site first** — the order the site mixing and the solver's reference
+    member both rely on.
   - `idx_kinetic`: indices of kinetic species (empty when none declared).
 """
-struct ChemicalSystem{T <: AbstractSpecies, R <: AbstractReaction, C, S, SS} <:
+struct ChemicalSystem{T <: AbstractSpecies, R <: AbstractReaction, C, S, SS, SF} <:
     AbstractVector{T}
     species::Vector{T}
     dict_species::Dict{String, T}               # fast O(1) lookup by symbol
@@ -41,6 +47,7 @@ struct ChemicalSystem{T <: AbstractSpecies, R <: AbstractReaction, C, S, SS} <:
     idx_aqueous::Vector{Int}
     idx_crystal::Vector{Int}
     idx_gas::Vector{Int}
+    idx_surface::Vector{Int}
 
     # Indices by class
     idx_solutes::Vector{Int}
@@ -58,6 +65,10 @@ struct ChemicalSystem{T <: AbstractSpecies, R <: AbstractReaction, C, S, SS} <:
     solid_solutions::SS
     ss_groups::Vector{Vector{Int}}              # per-SS end-member indices
     idx_ssendmembers::Vector{Int}               # all end-member indices (flattened)
+
+    # Surface site families — SF = Nothing, or Vector{<:SiteFamily}
+    site_families::SF
+    site_groups::Vector{Vector{Int}}            # per-family member indices, free site first
 
     idx_kinetic::Vector{Int}                    # kinetic species indices (empty if none)
 end
@@ -83,6 +94,98 @@ function _normalize_solid_solutions(ss)
     return collect(AbstractSolidSolutionPhase, ss)
 end
 
+
+"""
+    _resolve_site_families(site_families, species, idx_surface) -> (families, groups)
+
+Resolve declared [`SiteFamily`](@ref) objects against the species list.
+
+Returns `(nothing, Vector{Int}[])` when none is declared, so a system without a
+surface is byte-identical to what it was before surfaces existed.
+
+Four things are refused here rather than discovered later, each because the
+alternative is a wrong number rather than an error:
+
+  - a member that is not in the species list — the family would share a budget
+    with a species the system cannot see;
+  - **an `AS_SURFACE` species belonging to no family** — it would carry a site
+    pseudo-element into the conservation matrix, and so a row, with nothing
+    mixing on it. This is the surface counterpart of the check that already
+    refuses two solid solutions sharing a composition;
+  - two families sharing one pseudo-element — one symbol, one budget, one
+    family, or the site balance silently merges them;
+  - a species in two families, for the same reason.
+"""
+function _resolve_site_families(site_families, species, idx_surface)
+    if site_families === nothing || isempty(site_families)
+        isempty(idx_surface) || throw(
+            ArgumentError(
+                "species $(join([symbol(species[i]) for i in idx_surface], ", ")) are " *
+                    "in AS_SURFACE but no site family is declared. A surface species " *
+                    "carries a site pseudo-element, which becomes a conservation row; " *
+                    "without a family nothing mixes on it. Pass `site_families = [...]`.",
+            )
+        )
+        return nothing, Vector{Int}[]
+    end
+
+    all(f -> f isa SiteFamily, site_families) || throw(
+        ArgumentError(
+            "site_families must hold `SiteFamily` values; got element types " *
+                "$(unique(typeof.(site_families))).",
+        )
+    )
+
+    by_symbol = Dict(symbol(sp) => i for (i, sp) in enumerate(species))
+    groups = Vector{Int}[]
+    seen_sites = Dict{Symbol, String}()
+    seen_members = Dict{Int, String}()
+
+    for f in site_families
+        if haskey(seen_sites, f.site)
+            throw(
+                ArgumentError(
+                    "SiteFamily \"$(f.name)\" and \"$(seen_sites[f.site])\" both use " *
+                        ":$(f.site). One pseudo-element is one site budget, so two " *
+                        "families sharing it would share a conservation row.",
+                )
+            )
+        end
+        seen_sites[f.site] = f.name
+
+        group = Int[]
+        for sp in site_members(f)
+            i = get(by_symbol, symbol(sp), nothing)
+            i === nothing && throw(
+                ArgumentError(
+                    "SiteFamily \"$(f.name)\": member \"$(symbol(sp))\" is not in the " *
+                        "species list. Add it to the species vector first.",
+                )
+            )
+            if haskey(seen_members, i)
+                throw(
+                    ArgumentError(
+                        "\"$(symbol(sp))\" belongs to both \"$(f.name)\" and " *
+                            "\"$(seen_members[i])\". A species occupies sites of one family.",
+                    )
+                )
+            end
+            seen_members[i] = f.name
+            push!(group, i)
+        end
+        push!(groups, group)
+    end
+
+    orphans = setdiff(idx_surface, keys(seen_members))
+    isempty(orphans) || throw(
+        ArgumentError(
+            "species $(join([symbol(species[i]) for i in orphans], ", ")) are in " *
+                "AS_SURFACE but belong to no declared site family.",
+        )
+    )
+
+    return collect(SiteFamily, site_families), groups
+end
 
 """
     _declared(ss) -> String
@@ -309,6 +412,7 @@ function ChemicalSystem(
         primaries::AbstractVector{<:AbstractSpecies} = species;
         kinetic_species = nothing,
         solid_solutions::Union{Nothing, AbstractVector} = nothing,
+        site_families::Union{Nothing, AbstractVector} = nothing,
     ) where {T <: AbstractSpecies}
     solid_solutions = _normalize_solid_solutions(solid_solutions)
     species, solid_solutions = _expand_instances(species, solid_solutions)
@@ -361,13 +465,17 @@ function ChemicalSystem(
     end
     R = isempty(kin_reactions) ? AbstractReaction : eltype(kin_reactions)
 
+    idx_surface = idx(s -> aggregate_state(s) == AS_SURFACE)
+    sf, site_groups = _resolve_site_families(site_families, species, idx_surface)
+
     if isnothing(solid_solutions)
-        return ChemicalSystem{T, R, typeof(CSM), typeof(SM), Nothing}(
+        return ChemicalSystem{T, R, typeof(CSM), typeof(SM), Nothing, typeof(sf)}(
             collect(T, species),
             Dict{String, T}(symbol(s) => s for s in species),
             idx(s -> aggregate_state(s) == AS_AQUEOUS),
             idx(s -> aggregate_state(s) == AS_CRYSTAL),
             idx(s -> aggregate_state(s) == AS_GAS),
+            idx_surface,
             idx(s -> class(s) == SC_AQSOLUTE),
             idx(s -> class(s) == SC_AQSOLVENT),
             idx(s -> class(s) == SC_COMPONENT),
@@ -379,6 +487,8 @@ function ChemicalSystem(
             nothing,
             Vector{Int}[],
             Int[],
+            sf,
+            site_groups,
             idx_kinetic,
         )
     else
@@ -397,12 +507,13 @@ function ChemicalSystem(
         _refuse_overlapping_solid_solutions(solid_solutions)
         ss = collect(solid_solutions)
 
-        return ChemicalSystem{T, R, typeof(CSM), typeof(SM), typeof(ss)}(
+        return ChemicalSystem{T, R, typeof(CSM), typeof(SM), typeof(ss), typeof(sf)}(
             collect(T, species),
             Dict{String, T}(symbol(s) => s for s in species),
             idx(s -> aggregate_state(s) == AS_AQUEOUS),
             idx(s -> aggregate_state(s) == AS_CRYSTAL),
             idx(s -> aggregate_state(s) == AS_GAS),
+            idx_surface,
             idx(s -> class(s) == SC_AQSOLUTE),
             idx(s -> class(s) == SC_AQSOLVENT),
             idx(s -> class(s) == SC_COMPONENT),
@@ -414,6 +525,8 @@ function ChemicalSystem(
             ss,
             ss_groups,
             idx_ssendmembers,
+            sf,
+            site_groups,
             idx_kinetic,
         )
     end
@@ -491,6 +604,17 @@ julia> length(solid_solutions(cs))
 ```
 """
 solid_solutions(cs::ChemicalSystem) = cs.solid_solutions
+
+"""
+    site_families(cs::ChemicalSystem) -> Union{Nothing, Vector{<:SiteFamily}}
+
+The surface site families declared on `cs`, or `nothing` when it has no surface.
+
+Mirrors [`solid_solutions`](@ref), and for the same reason: a family is a named
+group of species with its own mixing, and the system has to carry the
+declaration because the species alone do not say which budget they share.
+"""
+site_families(cs::ChemicalSystem) = cs.site_families
 
 """
     kinetic_species(cs::ChemicalSystem) -> SubArray
@@ -691,6 +815,18 @@ true
 ```
 """
 crystal(cs::ChemicalSystem) = @view cs.species[cs.idx_crystal]
+
+"""
+    surface(cs::ChemicalSystem) -> SubArray
+
+A view of the species bound to a surface site, i.e. those in `AS_SURFACE`.
+
+They are deliberately **not** in `crystal(cs)`: `idx_crystal` is read by the
+solver and by the start repair as "a pure mineral phase", which a site occupancy
+is not. They are nonetheless counted in the *solid* compartment of a
+[`ChemicalState`](@ref), because that is where their matter is.
+"""
+surface(cs::ChemicalSystem) = @view cs.species[cs.idx_surface]
 
 """
     gas(cs::ChemicalSystem) -> SubArray

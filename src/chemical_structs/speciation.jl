@@ -74,8 +74,9 @@ function idx_speciation(
         aggregate_state = collect(instances(AggregateState)),
         # The classes are NOT `instances`, and the difference is deliberate:
         # `SC_SSENDMEMBER` is absent because a solid-solution end member enters a
-        # system through its phase and not as a species of its own. Five of six,
-        # on purpose.
+        # system through its phase and not as a species of its own, and
+        # `SC_SURFCOMPLEX` is absent for exactly the same reason -- a surface
+        # species enters through its `SiteFamily`. Five of seven, on purpose.
         class = [SC_AQSOLUTE, SC_AQSOLVENT, SC_COMPONENT, SC_GASFLUID, SC_UNDEF],
         exclude_species = [],
         include_species = [],
