@@ -70,12 +70,18 @@ julia> using ChemistryLab
 
 julia> ε = Traced(0.05, PROV_ESTIMATED, "analog: SO4-2");
 
-julia> value(ε), provenance(ε)
+julia> ChemistryLab.value(ε), provenance(ε)
 (0.05, PROV_ESTIMATED)
 
 julia> is_evidence(ε)
 false
 ```
+
+`value` and `source` are **not exported**, and reaching for them through the
+module is not an oversight. Both names are taken: `Symbolics` and `SciMLBase`
+each export a `value`, so exporting one here would make the bare name ambiguous
+for anyone loading either beside this package — and a doc page that did would
+fail on use rather than on import.
 
 See also: [`weakest`](@ref), [`provenance_report`](@ref).
 """

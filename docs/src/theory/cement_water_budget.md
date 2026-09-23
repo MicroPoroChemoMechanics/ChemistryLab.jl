@@ -105,7 +105,7 @@ become less stable, and the arrest should fall out of the minimization.
 short enough to do here:
 
 ```@example wb
-using Printf
+using ChemistryLab, Printf          # `R_GAS` is the package's, not a literal
 R, T = R_GAS, 298.15
 a_w = 0.80                     # the internal humidity a sealed paste arrests at
 ΔG_water = R * T * log(a_w)                    # J per mole of water
@@ -347,14 +347,39 @@ the second most abundant hydrate in a paste.
 The aqueous phase is excluded, which is the distinction this whole page is
 about: pore solution is water and is not bound water.
 
-!!! note "What is missing, and why it is not guessed"
-    This gives the **total**, not a thermogram. Turning it into a curve needs to
-    know which phase releases what between which temperatures — C-S-H, AFt and
-    AFm overlap below 200 °C, portlandite has its own step, carbonates theirs —
-    and those windows are **literature values**, not consequences of a formula.
-    This package does not carry them. Supplying them is what would complete a
-    TGA observation operator, and inventing them would fabricate precisely the
-    part of the measurement that does the identifying.
+### From the total to a curve
 
-    [`bound_water_per_phase`](@ref) is the quantity those windows would attach
-    to, which is why it is exposed per phase rather than only as a total.
+A total is not a thermogram, and the difference is what identifies phases:
+C-S-H, AFt and AFm all release below 200 °C and are told apart by the *shape* of
+the release, not by its size. That needs, per phase, a temperature window —
+
+```math
+f_i(T) = \frac{1}{1 + \exp\!\left(-\dfrac{T - T_{1/2,i}}{w_i}\right)}
+```
+
+— and a window is **not** a consequence of a formula. It comes from one of two
+places, and [`DecompositionWindow`](@ref) makes a curve say which:
+
+ 1. **A publication.** Then the two numbers are `PROV_PUBLISHED` and carry their
+    source.
+ 2. **A measured thermogram.** The windows are *identifiable* from one, which is
+    the whole reason [`thermogram`](@ref) is written as a smooth function of
+    them: `window_parameters` hands them to an optimizer, and
+    [`identifiability`](@ref) says afterwards which of them the curve actually
+    determined.
+
+Neither is invented. A window given as a bare number is `PROV_UNSTATED` — the
+weakest claim there is — and one written to get a picture on the screen should
+say `PROV_PLACEHOLDER` and keep saying it until a measurement replaces it.
+
+!!! warning "Overlapping peaks are where this earns its keep"
+    Two phases releasing in the same window is the ordinary case in a paste, and
+    a fit that reported four numbers there would be reporting two. Running
+    [`identifiability`](@ref) on the windows is not a formality: for two peaks
+    5 K apart it returns a rank below four and a condition number in the tens,
+    which is the measurement saying so.
+
+[`phases_without_windows`](@ref) is the other half of the honesty: a phase with
+no window contributes to the starting mass and never leaves, so a curve computed
+without noticing integrates to less than `ignition_loss` and says nothing about
+it.

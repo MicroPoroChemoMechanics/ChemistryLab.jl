@@ -162,6 +162,39 @@ error: `+` is a charge as well as a separator, so splitting
 `Ca+2 + 2 MntxNa = Mntx2Ca + 2 Na+` on the character yields three terms, none of
 them the calcium ion. The separator is a plus with whitespace on both sides.
 
+### A thermogram, and the windows it takes to have one
+
+`ignition_loss` gives the total. `thermogram` gives the curve, which is what
+identifies phases — C-S-H, AFt and AFm all release below 200 °C and are told
+apart by the shape of the release, not by its size.
+
+A window is **not** a consequence of a formula, so `DecompositionWindow` carries
+both its parameters as [`Traced`](@ref) values and makes a curve say where they
+came from: a publication (`PROV_PUBLISHED`), a measurement, or a placeholder
+that keeps printing as one. A bare number is `PROV_UNSTATED`, the weakest claim
+there is.
+
+**And they are recoverable from a curve**, which is what closes the chain.
+`thermogram` is written as a smooth function of its windows so that
+`window_parameters` hands them to an optimizer and `identifiability` says
+afterwards which of them the curve determined. On three separated peaks, a
+Gauss-Newton started 40 K and 40 % away recovers them exactly and the rank is
+6 of 6.
+
+**Where it stops is the useful part.** Two phases releasing 5 K apart — the
+ordinary case in a paste — give a rank of **1 of 4** and a condition number of
+332: the curve sees one peak with a position and a width, not two with four
+parameters between them. A fit would still return four numbers, and
+`as_traced` marks everything beyond the identifiable rank `PROV_PLACEHOLDER`
+rather than `PROV_FITTED` for exactly that reason.
+
+Two things are stated rather than smoothed over. A phase with no window
+contributes to the starting mass and never leaves, so `phases_without_windows`
+reports it rather than letting a curve integrate quietly to the wrong total. And
+a logistic has infinite tails, so the curve does not start at zero; no
+renormalization happens, because rescaling a curve to start at zero would put
+the discrepancy somewhere a reader cannot see.
+
 ### What a solid assemblage loses on heating
 
 `ignition_loss` and `bound_water` compute, from the formulas the database
