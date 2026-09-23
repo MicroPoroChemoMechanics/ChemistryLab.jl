@@ -841,7 +841,7 @@ concentration_scale(::DaviesActivityModel) = :molality
 # passed in even where a model ignores them, so that all three share one
 # signature. AD-safe: arithmetic only.
 
-raw"""
+@doc raw"""
     log10_gamma_expression(model, z, å) -> Num
 
 The symbolic `log₁₀ γ` of an ion of charge `z` and size `å`, in the ionic

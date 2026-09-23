@@ -182,6 +182,24 @@ filter. `idx_speciation` carried one -- four aggregate states named when there
 were four -- and reads `instances(AggregateState)` now. Its class list stays
 explicit, because `SC_SSENDMEMBER` is excluded on purpose.
 
+### Fixed — a docstring that documented nothing, and the guard that let it through
+
+`raw"""` is a string **macro**, not a string literal, so Julia does not attach
+it: a definition below one has no documentation at all, silently. Two docstrings
+in this release were written that way, to escape the backslashes of a LaTeX
+block. `@doc raw"""` attaches; they use it.
+
+The cost was not the mistake but the delay in seeing it. `check_docrefs.py`
+stripped the `raw` prefix and credited the docstring, so the local guard said
+nothing, and Documenter reports an unresolvable `@ref` at its `CrossReferences`
+stage — **after** every example on the site has run. Ninety minutes of CI to
+learn it.
+
+Both ends are closed. The script refuses a bare `raw"""` outright and names it.
+And `CHEMLAB_DOCS_PREFLIGHT_ONLY=1` runs the static checks and a draft build and
+stops: 61 s when the tree is clean, 84 s to reject that same `@ref`, against the
+ninety minutes it took before.
+
 ### Changed — the documentation can be checked in minutes
 
 Not a change to the package, and the reason it is here: verifying that an example
