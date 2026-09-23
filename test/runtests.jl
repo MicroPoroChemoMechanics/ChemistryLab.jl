@@ -98,6 +98,7 @@ end
     include("diffuse_layer.jl")
     include("sit.jl")
     include("provenance.jl")
+    include("sorption_models.jl")
     include("equilibrium_reference.jl")
     include("published_values.jl")
     include("test_dual_solver.jl")

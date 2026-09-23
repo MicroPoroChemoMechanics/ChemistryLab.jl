@@ -133,6 +133,7 @@ module ChemistryLab
     include("databases/thermofun_json.jl")
     include("databases/pitzer_toml.jl")
     include("databases/sit_dat.jl")
+    include("databases/phreeqc_sorption.jl")
     include("databases/merge_dat_json.jl")
 
     include("equilibrium/activities.jl")
@@ -321,6 +322,7 @@ module ChemistryLab
         PROV_PUBLISHED,
         PROV_MEASURED,
         provenance,
+        uncertainty,
         is_evidence,
         weakest,
         provenance_report,
@@ -397,6 +399,12 @@ module ChemistryLab
         sit_epsilon,
         missing_epsilon_pairs,
         build_sit_parameters,
+        read_sorption_model,
+        SorptionModel,
+        SorptionSite,
+        SorptionReaction,
+        log_constants,
+        reactions_involving,
         activity_model,
         build_potentials,
         concentration_scale,

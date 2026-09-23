@@ -93,6 +93,43 @@ Stacking two electrostatic models is refused. Adding two potentials is how a
 Stern model is *drawn* and not how it works: the capacitances belong to
 different charge planes, and summing them puts every species on both.
 
+### Reading a published sorption model
+
+`read_sorption_model` reads the `SURFACE_MASTER_SPECIES`, `SURFACE_SPECIES`,
+`EXCHANGE_MASTER_SPECIES` and `EXCHANGE_SPECIES` blocks of a PHREEQC-format
+database into site families, exchangers and reactions — **keeping what travels
+with each constant**. A published sorption compilation writes it into every
+line:
+
+```
+Am+3 + Ilt_sOH = Ilt_sOAm+2 + H+   # … error: 0.26 ref: Marinich_ea:2024:rep:
+```
+
+and a reader that took the `-log_K` and dropped the rest would be discarding the
+part that says how much to believe it. Each `log K` therefore arrives as a
+`Traced`, its source the `ref:` tag and its uncertainty the `error:` one.
+
+On ClaySor 2023 that is 187 reactions across six edge-site families and four
+exchangers, all published — and **60 of the 187 state no uncertainty at all**,
+which `provenance_report` says in one line and which no amount of reading the
+numbers would reveal.
+
+`Traced` gains an `uncertainty` field for this, which is what a second real
+customer is for. `nothing` there means the source says nothing, which is not the
+same as saying the value is exact.
+
+**Nothing ships.** ClaySor 2023 is CC-BY-4.0 and freely available from its
+Zenodo deposit; this reads the copy a user has. And reading a model is not being
+able to solve it: one is written against a particular *aqueous* database — ClaySor
+names PSI/Nagra TDB 2020 in its own first lines — and its constants are that
+database's, in exactly the way a surface constant fitted with a diffuse layer is
+not the same constant as one fitted without.
+
+One parsing trap, because it produces a plausible wrong answer rather than an
+error: `+` is a charge as well as a separator, so splitting
+`Ca+2 + 2 MntxNa = Mntx2Ca + 2 Na+` on the character yields three terms, none of
+them the calcium ion. The separator is a plus with whitespace on both sides.
+
 ### A number that says where it came from
 
 `Traced` attaches a [`ProvenanceKind`](@ref) and a source to a value, so what a

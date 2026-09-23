@@ -95,6 +95,11 @@ DEF_PATTERNS = [
     re.compile(r"^\s*abstract\s+type\s+([A-Za-z_]\w*)"),
     re.compile(r"^\s*const\s+([A-Za-z_]\w*)"),
     re.compile(r"^\s*macro\s+([A-Za-z_]\w*)"),
+    # `@enum Name A B C` and `@enum Name begin … end`. Documenter attaches a
+    # docstring written above either form to the TYPE, and resolves an `@ref`
+    # to it; without this the checker reports a missing docstring for a name
+    # that has one, which is the opposite of what it is for.
+    re.compile(r"^\s*@enum\s+([A-Za-z_]\w*)"),
     re.compile(r"^\s*@inline\s+([A-Za-z_][\w!]*)\s*\("),
     re.compile(r"^\s*([A-Za-z_][\w!]*)\s*\([^)]*\)\s*(?:where[^=]*)?="),
 ]
@@ -126,6 +131,13 @@ DOC_TARGETS = [
     re.compile(
         r"^\s*" + MACROS + r"(?:[A-Za-z_]\w*\.)*([A-Za-z_][\w!]*)\s*[({=]"
     ),
+    # `@enum Name A B C` and `@enum Name begin … end`. Neither pattern above
+    # reaches it: the macro prefix is eaten by MACROS and what follows the name
+    # is a space, not one of `(`, `{` or `=`. Documenter attaches a docstring
+    # written above either form to the TYPE and resolves an `@ref` to it, so
+    # without this the checker reports a missing docstring for a name that
+    # plainly has one — the opposite of what it is for.
+    re.compile(r"^\s*(?:[A-Za-z_]\w*\.)*@enum\s+([A-Za-z_]\w*)"),
     BARE_NAME,
 ]
 

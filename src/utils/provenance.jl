@@ -12,7 +12,7 @@
 # how much to trust it.
 
 """
-    @enum ProvenanceKind
+    ProvenanceKind
 
 How a number came to be, ordered from the weakest claim to the strongest.
 
@@ -57,6 +57,11 @@ where a reader can see the claim being dropped.
   - `kind`: a [`ProvenanceKind`](@ref).
   - `source`: free text — a database and version, a paper, the analog a value
     was borrowed from, the dataset it was fitted to.
+  - `uncertainty`: what the source says about how well it is known, in the same
+    unit as `value`, or `nothing` when it says nothing. Published sorption
+    compilations report it per entry — ClaySor 2023 writes `error: 0.17` beside
+    a `log K` — and a compilation where half the constants are known to 0.1 and
+    half to 0.5 is not one number's worth of information.
 
 # Example
 
@@ -78,8 +83,11 @@ struct Traced{T}
     value::T
     kind::ProvenanceKind
     source::String
+    uncertainty::Union{Nothing, T}
 end
 
+Traced(v, kind::ProvenanceKind, source::AbstractString; uncertainty = nothing) =
+    Traced(v, kind, String(source), uncertainty === nothing ? nothing : convert(typeof(v), uncertainty))
 Traced(v) = Traced(v, PROV_UNSTATED, "")
 Traced(v, kind::ProvenanceKind) = Traced(v, kind, "")
 
@@ -135,12 +143,23 @@ by accident.
 weakest(ts...) = isempty(ts) ? PROV_UNSTATED : minimum(provenance(t) for t in ts)
 
 function Base.show(io::IO, t::Traced)
-    print(io, t.value, " [", _prov_label(t.kind))
+    print(io, t.value)
+    t.uncertainty === nothing || print(io, " ± ", t.uncertainty)
+    print(io, " [", _prov_label(t.kind))
     isempty(t.source) || print(io, ": ", t.source)
     return print(io, "]")
 end
 
 _prov_label(k::ProvenanceKind) = lowercase(replace(string(k), "PROV_" => ""))
+
+"""
+    uncertainty(t::Traced)
+
+What the source says about how well `t` is known, or `nothing` when it says
+nothing — which is not the same as saying it is exact.
+"""
+uncertainty(t::Traced) = t.uncertainty
+uncertainty(::Any) = nothing
 
 """
     provenance_report(values) -> NamedTuple
@@ -162,5 +181,8 @@ function provenance_report(values)
         counts = counts,
         weakest = isempty(items) ? PROV_UNSTATED : weakest(items...),
         all_evidence = !isempty(items) && all(is_evidence, items),
+        # How many say nothing about how well they are known — which is not the
+        # same as saying they are exact.
+        without_uncertainty = count(t -> uncertainty(t) === nothing, items),
     )
 end
