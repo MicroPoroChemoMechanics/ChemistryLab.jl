@@ -37,3 +37,14 @@ Pages = ["utils/misc.jl"]
 Modules = [ChemistryLab]
 Pages = ["utils/subsuperscripts.jl"]
 ```
+
+## Provenance
+
+A number that says how it was obtained and from where, so the claim survives out
+of a data file and into a table, a figure or a fitted result. See
+[Where the numbers come from](@ref sec-manual-numbers) for when to reach for it.
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["utils/provenance.jl"]
+```

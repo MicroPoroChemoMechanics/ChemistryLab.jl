@@ -8,6 +8,8 @@ using JSON
 using SciMLBase
 using Test
 
+using ChemistryLab: value, source
+
 include("reference_species.jl")
 
 # ── The matched PHREEQC case ──────────────────────────────────────────────────
@@ -28,7 +30,7 @@ const PHREEQC_SIT = reference_oracle("phreeqc_sit")
 
 _sit_parameters() = SITParameters(
     [
-        (e.a, e.b) => SITCoefficient(e.value, PHREEQC_SIT.database)
+        (e.a, e.b) => Traced(e.value, PROV_PUBLISHED, PHREEQC_SIT.database)
             for e in PHREEQC_SIT.epsilon
     ];
     source = "$(PHREEQC_SIT.database) sha256 $(first(PHREEQC_SIT.database_sha256, 12))",
@@ -43,15 +45,18 @@ end
 @testsection "SIT, the model the NEA reviews are calibrated in" begin
 
     @testset "a compilation says where each coefficient came from" begin
-        p = SITParameters([("Na+", "Cl-") => 0.03]; source = "a source")
+        p = SITParameters(
+            [("Na+", "Cl-") => 0.03]; source = "a source", kind = PROV_PUBLISHED,
+        )
         @test length(p) == 1
         @test !isempty(p)
         # Symmetric in the pair, because SIT sums over opposite charges and the
         # pair is unordered — one coefficient, reachable either way round.
-        @test sit_epsilon(p, "Na+", "Cl-").value == 0.03
-        @test sit_epsilon(p, "Cl-", "Na+").value == 0.03
+        @test value(sit_epsilon(p, "Na+", "Cl-")) == 0.03
+        @test value(sit_epsilon(p, "Cl-", "Na+")) == 0.03
         @test sit_epsilon(p, "Na+", "SO4-2") === nothing
-        @test sit_epsilon(p, "Na+", "Cl-").origin == "a source"
+        @test source(sit_epsilon(p, "Na+", "Cl-")) == "a source"
+        @test is_evidence(sit_epsilon(p, "Na+", "Cl-"))
 
         # The same pair twice with two values is the compilation contradicting
         # itself, not a last-one-wins.
@@ -65,11 +70,21 @@ end
         # the type: a borrowed coefficient must not become indistinguishable
         # from a measured one on the way through.
         q = SITParameters(
-            [("Al(OH)4-", "Na+") => SITCoefficient(0.05, "estimated:SO4-2")];
-            source = "a compilation",
+            [("Al(OH)4-", "Na+") => Traced(0.05, PROV_ESTIMATED, "analog: SO4-2")];
+            source = "a compilation", kind = PROV_PUBLISHED,
         )
-        @test sit_epsilon(q, "Na+", "Al(OH)4-").origin == "estimated:SO4-2"
-        @test occursin("estimated:SO4-2", sprint(show, sit_epsilon(q, "Na+", "Al(OH)4-")))
+        # A BORROWED COEFFICIENT KEEPS ITS OWN STANDING. It does not inherit
+        # the compilation's, which is the whole reason the provenance is on the
+        # value and not on the table.
+        c = sit_epsilon(q, "Na+", "Al(OH)4-")
+        @test provenance(c) === PROV_ESTIMATED
+        @test !is_evidence(c)
+        @test source(c) == "analog: SO4-2"
+        @test occursin("estimated", sprint(show, c))
+        # and the report says so about the compilation as a whole
+        r = provenance_report(values(q.epsilon))
+        @test r.weakest === PROV_ESTIMATED
+        @test !r.all_evidence
 
         @test isempty(SITParameters())
         @test occursin("empty", sprint(show, SITParameters()))
@@ -106,9 +121,9 @@ end
         )
         p = build_sit_parameters(path)
         @test length(p) == 3
-        @test sit_epsilon(p, "Na+", "Cl-").value == 0.03
-        @test sit_epsilon(p, "H+", "Cl-").value == 0.12
-        @test sit_epsilon(p, "Na+", "SO4-2").value == -0.12
+        @test value(sit_epsilon(p, "Na+", "Cl-")) == 0.03
+        @test value(sit_epsilon(p, "H+", "Cl-")) == 0.12
+        @test value(sit_epsilon(p, "Na+", "SO4-2")) == -0.12
         # The block ends at the next keyword; nothing after it is read as a pair.
         @test sit_epsilon(p, "H2O", "H2O") === nothing
         # And the source names the file and its content, so a coefficient can
@@ -196,7 +211,7 @@ end
         filled = SITParameters(
             vcat(
                 [(a, b) => 0.0 for (a, b) in miss],
-                [(k[1], k[2]) => c.value for (k, c) in params.epsilon],
+                [(k[1], k[2]) => value(c) for (k, c) in params.epsilon],
             ),
         )
         @test isempty(

@@ -93,6 +93,37 @@ Stacking two electrostatic models is refused. Adding two potentials is how a
 Stern model is *drawn* and not how it works: the capacitances belong to
 different charge planes, and summing them puts every species on both.
 
+### A number that says where it came from
+
+`Traced` attaches a [`ProvenanceKind`](@ref) and a source to a value, so what a
+data file knew about a number survives into a table, a figure or a fitted
+result. This is not a new idea in this repository — `data/pitzer-reardon1990.toml`
+already carries `origin = "estimated:<analog>"` on every coefficient Reardon had
+to borrow, and explains why in its own header — it is that idea promoted from
+data into a type.
+
+Six kinds, ordered from the weakest claim to the strongest, and two of them are
+the point:
+
+  - **`PROV_UNSTATED` is the weakest, not the middle.** A number that forgot to
+    say where it came from must never strengthen a result.
+  - **`PROV_FITTED` is not evidence.** A fitted value may be excellent, and
+    whether it is depends on the data, the model and whether the parameter was
+    identifiable at all — three questions a predicate cannot answer. So
+    `is_evidence` is true for `PROV_MEASURED` and `PROV_PUBLISHED` only.
+
+`Traced` is deliberately **not** a `Real`. A value that flowed silently into
+arithmetic would arrive at the far end with its history gone; unwrapping it is
+an act a reader can see. `weakest` is what a derived quantity can honestly claim
+about itself, and `provenance_report` is what to print beside a result — a table
+where nine coefficients are published and one is a placeholder is a different
+object from one where all ten are, and the difference shows in none of the
+numbers.
+
+`SITActivityModel` is the first model built on it: a borrowed `ε` keeps its own
+standing instead of inheriting its compilation's. `docs/src/manual/where_the_numbers_come_from.md`
+gains the section that says when to reach for it.
+
 ### SIT, the model the published compilations are written in
 
 `SITActivityModel` implements the Specific ion Interaction Theory: Debye-Hückel
@@ -126,7 +157,7 @@ authored and is not ours to redistribute. Reading rather than transcribing is
 also what keeps five hundred coefficients from becoming five hundred chances to
 mistype one.
 
-`SITCoefficient` carries **where each coefficient came from**, and
+`Traced` carries **where each coefficient came from**, and
 `missing_epsilon_pairs` reports which of a system's pairs are resting on the
 literature's convention that an unlisted `ε` is zero. A convention silently
 applied is indistinguishable from a coefficient somebody determined.

@@ -99,6 +99,7 @@ module ChemistryLab
     RuntimeGeneratedFunctions.init(@__MODULE__)
 
     include("utils/constants.jl")
+    include("utils/provenance.jl")
     include("utils/misc.jl")
     include("utils/subsuperscripts.jl")
 
@@ -311,6 +312,18 @@ module ChemistryLab
         R_GAS_Q,
         FARADAY,
         VACUUM_PERMITTIVITY,
+        Traced,
+        ProvenanceKind,
+        PROV_UNSTATED,
+        PROV_PLACEHOLDER,
+        PROV_ESTIMATED,
+        PROV_FITTED,
+        PROV_PUBLISHED,
+        PROV_MEASURED,
+        provenance,
+        is_evidence,
+        weakest,
+        provenance_report,
         VACUUM_PERMITTIVITY_Q,
         FARADAY_Q,
         with_symbol
@@ -381,7 +394,6 @@ module ChemistryLab
         DaviesActivityModel,
         SITActivityModel,
         SITParameters,
-        SITCoefficient,
         sit_epsilon,
         missing_epsilon_pairs,
         build_sit_parameters,

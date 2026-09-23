@@ -6,42 +6,9 @@ using DynamicQuantities
 # ── Specific ion Interaction Theory ───────────────────────────────────────────
 
 """
-    struct SITCoefficient{T<:Real}
-
-One specific-ion interaction coefficient, `ε`, together with **where it came
-from**.
-
-A number in a thermodynamic model is not self-describing: `ε(Na⁺, Cl⁻)` measured
-on a sodium chloride solution and `ε(Al(OH)₄⁻, Na⁺)` borrowed from a sulfate
-analog because nobody ever measured an aluminate one are the same Julia
-`Float64` and are not the same claim. This package already makes that
-distinction in data — `data/pitzer-reardon1990.toml` carries
-`origin = "estimated:<analog>"` on every entry it had to borrow — and this type
-carries it into the code, so it survives into a printed table or a fitted
-result instead of stopping at the file.
-
-# Fields
-
-  - `value`: the coefficient, in kg/mol.
-  - `origin`: a short free-text provenance, for example the database and version
-    it was read from, `"estimated:<analog>"` for a borrowed value, or
-    `"fitted:<dataset>"` for one this package identified.
-
-See also: [`SITParameters`](@ref), [`sit_epsilon`](@ref).
-"""
-struct SITCoefficient{T <: Real}
-    value::T
-    origin::String
-end
-
-SITCoefficient(value::Real) = SITCoefficient(value, "unstated")
-
-Base.show(io::IO, c::SITCoefficient) = print(io, c.value, " (", c.origin, ")")
-
-"""
     struct SITParameters{T<:Real}
 
-A compilation of [`SITCoefficient`](@ref)s, keyed by the unordered pair of
+A compilation of [`Traced`](@ref) coefficients, keyed by the unordered pair of
 species symbols, with the source of the compilation as a whole.
 
 SIT sums `ε` over ions of **opposite** charge only, so the pair is unordered and
@@ -50,25 +17,32 @@ the lookup is symmetric: `sit_epsilon(p, "Na+", "Cl-")` and
 
 # Fields
 
-  - `epsilon`: `(a, b) => SITCoefficient`, with `a ≤ b` as strings so one pair
+  - `epsilon`: `(a, b) => Traced`, with `a ≤ b` as strings so one pair
     has one key.
   - `source`: what the compilation is, as a whole — a database name and version,
     a paper, or a note saying it was assembled here.
 """
 struct SITParameters{T <: Real}
-    epsilon::Dict{Tuple{String, String}, SITCoefficient{T}}
+    epsilon::Dict{Tuple{String, String}, Traced{T}}
     source::String
 end
 
 """
-    SITParameters(pairs; source = "unstated") -> SITParameters
+    SITParameters(pairs; source = "unstated", kind = PROV_UNSTATED) -> SITParameters
 
 Build a compilation from `(a, b) => ε` pairs, where `ε` is a number or a
-[`SITCoefficient`](@ref). Keys are normalized so that a pair given either way
-round is one entry, and giving the same pair twice with different values is an
-error rather than a last-one-wins.
+[`Traced`](@ref). A bare number takes `kind` and `source`; a `Traced` keeps its
+own, so a borrowed coefficient does not silently acquire the compilation's
+standing.
+
+Keys are normalized so that a pair given either way round is one entry, and
+giving the same pair twice with different values is an error rather than a
+last-one-wins.
 """
-function SITParameters(pairs; source::AbstractString = "unstated")
+function SITParameters(
+        pairs; source::AbstractString = "unstated",
+        kind::ProvenanceKind = PROV_UNSTATED,
+    )
     # The element type FOLLOWS the values rather than being pinned to `Float64`.
     # Pinning it is the eltype-promotion trap this package has been caught by
     # before, and here it would be fatal to the point of the type: a coefficient
@@ -77,16 +51,16 @@ function SITParameters(pairs; source::AbstractString = "unstated")
     collected = [
         (
             k,
-            v isa SITCoefficient ? v : SITCoefficient(v, source),
+            v isa Traced ? v : Traced(v, kind, source),
         ) for (k, v) in pairs
     ]
     T = isempty(collected) ? Float64 :
         promote_type((typeof(c.value) for (_, c) in collected)...)
-    out = Dict{Tuple{String, String}, SITCoefficient{T}}()
+    out = Dict{Tuple{String, String}, Traced{T}}()
     for (k, v) in collected
         a, b = String(first(k)), String(last(k))
         key = a <= b ? (a, b) : (b, a)
-        c = SITCoefficient(convert(T, v.value), v.origin)
+        c = Traced(convert(T, v.value), v.kind, v.source)
         if haskey(out, key) && out[key].value != c.value
             throw(
                 ArgumentError(
@@ -111,7 +85,7 @@ function Base.show(io::IO, p::SITParameters)
 end
 
 """
-    sit_epsilon(p::SITParameters, a, b) -> SITCoefficient or nothing
+    sit_epsilon(p::SITParameters, a, b) -> Traced or nothing
 
 The coefficient for the unordered pair `(a, b)`, or `nothing` when the
 compilation does not carry it.
@@ -270,7 +244,7 @@ function _sit_epsilon_matrix(cs::ChemicalSystem, model::SITActivityModel)
         sign(z[i]) == sign(z[j]) && continue
         c = sit_epsilon(model.parameters, syms[i], syms[j])
         c === nothing && continue
-        E[i, j] = c.value
+        E[i, j] = value(c)
     end
     return E
 end

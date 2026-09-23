@@ -82,5 +82,7 @@ function build_sit_parameters(path::AbstractString; source = nothing)
                 "`sit.dat` does."
         ),
     )
-    return SITParameters(pairs; source = src)
+    # Read out of a named, hashed database: published, not estimated and not
+    # this package's own measurement.
+    return SITParameters(pairs; source = src, kind = PROV_PUBLISHED)
 end
