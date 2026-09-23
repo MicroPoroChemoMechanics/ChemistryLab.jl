@@ -1,5 +1,111 @@
 # Changelog
 
+## v0.21.0 — the chemistry a charged surface does
+
+v0.20.0 gave an equilibrium sites to bind to. It gave them no charge, and a
+surface that binds protons acquires one: the work of putting another charge on
+an already charged object is not zero, and every published calibration of an
+oxide surface assumes it. This release adds that work, in both of the forms the
+literature uses, and adds cation exchange alongside it.
+
+### Cation exchange, in the convention it was fitted in
+
+`VanselowMixing` and `GainesThomasMixing` differ in what fraction an exchanger's
+activity is: a fraction of *particles* or a fraction of *charge equivalents*.
+For a homovalent exchange they coincide; for Ca²⁺ against Na⁺ they do not, and
+the two are related by the exchanger's own composition — which is what the
+calculation is solving for, so no constant converts between them. This package
+therefore **declares** the convention and converts nothing implicitly. A
+constant fitted under one and used under the other is a different model.
+
+Checked against Reaktoro, which carries both: agreement 4.1e-9 on each.
+
+### A charged surface, two models, and the unknown only one of them needs
+
+`ConstantCapacitance` and `DiffuseLayer` both write the electrical work as
+`z_k ψ̃` and differ only in the closure that gives the potential.
+
+For a constant capacitance, `σ = CΨ` inverts to something linear in the
+composition, the charging work is a genuine quadratic potential with a positive
+semi-definite Hessian, and **the certificate covers it unchanged** — a proof,
+not an expectation.
+
+For a diffuse layer, Gouy-Chapman's relation is transcendental in `Ψ` but
+monotone in it, so it inverts too: `ψ̃ = 2 asinh(σ/κ√I)`. Writing it that way is
+exact and the solver cannot always follow it — the inner loop that recovers a
+mixing phase reads `lnγ` at the previous iterate, a fixed point that contracts
+only while `electrostatic_stiffness` stays below
+`ELECTROSTATIC_STIFFNESS_LIMIT`. So the potential is carried as an **unknown of
+the outer Newton** instead, with the closure as its equation. Over eighteen
+points spanning three ionic strengths and six pH values, the eliminated route
+certifies three and the unknown certifies all eighteen, agreeing with PHREEQC
+to 2.1e-4 on a site fraction.
+
+The threshold is measured on both sides rather than chosen: 3.38 certified,
+6.18 not, nothing between. It also explains a number v0.20.0 recorded as a
+conditioning artifact — a capacitance below about 3 F/m² on ferrihydrite fails
+for exactly this reason, not that one.
+
+### What the certificate means for each, stated rather than implied
+
+Measuring two criteria that one word had been hiding separated them:
+
+| | is it a gradient? | is that gradient extensive? |
+|:--|:--|:--|
+| ideal site mixing | yes | yes |
+| constant capacitance | **yes** | no |
+| diffuse layer | **no** | no |
+
+Only the first column is the certificate's. A constant capacitance fails the
+second because its charging work is homogeneous of degree two in the amounts
+while a Gibbs energy is homogeneous of degree one — the area is a parameter,
+like a volume, and extensivity in the amounts alone is not what a surface of
+given area has. A diffuse layer fails the first, and that one is a real cost:
+its potential depends on a bulk ionic strength that does not depend in return
+on the surface, so the activity Jacobian is asymmetric and is the Hessian of
+nothing. That is the Dzombak-Morel approximation itself, which PHREEQC's
+default `SURFACE` block makes too; what comes back is a self-consistent
+speciation, not a certified minimum, and `is_gradient_consistent` says which.
+`site_gradient_asymmetry` measures it rather than asserting it.
+
+Stacking two electrostatic models is refused. Adding two potentials is how a
+Stern model is *drawn* and not how it works: the capacitances belong to
+different charge planes, and summing them puts every species on both.
+
+### Reproducibility, which turned out to need the most work
+
+Three habits were removed from this repository, all of them silent and all of
+them found by review rather than by a test.
+
+Physical constants were written as literals in sixteen files while
+`src/utils/constants.jl` exists to take them from `DynamicQuantities`. Standard
+Gibbs energies were retyped from databases the package ships, and had already
+drifted — water read `-237181` against slop98's `-237183.0`, portlandite
+`-897010` against CEMDATA18's `-897013.0`. And `55.5 mol` of water, which is
+0.99983 kg rather than 1 kg, was the basis of every molality.
+
+`docs/src/manual/where_the_numbers_come_from.md` is new, written for a reader
+who has not met these traps: how to ask the package for a constant, a molar
+mass, a kilogram of water or a standard energy, which databases exist and why
+not to mix them, and the three kinds of number it *is* right to type.
+
+The cross-code fixtures move from Julia blocks pasted into test files to
+`test/reference/*.json` with their provenance as fields. PHREEQC's `phreeqc.dat`
+is vendored — unmodified, from tag v3.7.3, with the USGS User Rights Notice
+beside it as that notice requires — so the md5 the fixtures record now pins a
+file in this repository instead of one inside somebody's conda environment.
+
+### Breaking changes
+
+**Below 1.0 the registry treats a minor bump as breaking whatever the API did,
+so `[compat] = "0.20"` will not accept `0.21` and any dependent must widen its
+bound.** No package in this organization depends on ChemistryLab, so there is
+nothing else to change.
+
+Beyond that the release is **additive**: eighteen exported names are new, none
+was removed, and no existing signature or number moves. A system that declares
+no surface is bit-for-bit unchanged.
+
 ## v0.20.0 — chemistry that happens on a surface
 
 An equilibrium can now have part of its chemistry on an interface. That is the
