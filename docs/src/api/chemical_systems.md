@@ -31,3 +31,15 @@ Pages = ["chemical_structs/volume_fractions.jl"]
 Modules = [ChemistryLab]
 Pages = ["chemical_structs/oxide_budget.jl"]
 ```
+
+## Loss on ignition
+
+What a solid assemblage would lose on heating, from the formulas its phases
+carry — the total a thermogram integrates to. See
+[The water budget of a hydrating paste](@ref sec-theory-water-budget) for what
+this gives and what a full thermogravimetric operator would still need.
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["chemical_structs/ignition_loss.jl"]
+```

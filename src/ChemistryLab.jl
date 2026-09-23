@@ -121,6 +121,7 @@ module ChemistryLab
     include("chemical_structs/chemical_systems.jl")
     include("chemical_structs/chemical_states.jl")
     include("chemical_structs/volume_fractions.jl")
+    include("chemical_structs/ignition_loss.jl")
 
     # After `chemical_structs`, because a site family is built from species and
     # requalifies them. `chemical_systems.jl` refers to `SiteFamily` before it
@@ -314,6 +315,9 @@ module ChemistryLab
         R_GAS_Q,
         FARADAY,
         VACUUM_PERMITTIVITY,
+        bound_water,
+        ignition_loss,
+        bound_water_per_phase,
         Traced,
         ProvenanceKind,
         PROV_UNSTATED,

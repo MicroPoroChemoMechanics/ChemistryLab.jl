@@ -162,6 +162,30 @@ error: `+` is a charge as well as a separator, so splitting
 `Ca+2 + 2 MntxNa = Mntx2Ca + 2 Na+` on the character yields three terms, none of
 them the calcium ion. The separator is a plus with whitespace on both sides.
 
+### What a solid assemblage loses on heating
+
+`ignition_loss` and `bound_water` compute, from the formulas the database
+already carries, the total a thermogram integrates to. Thermogravimetry is the
+second observable the calibration example asks for by name, and the reason is
+identifiability: calorimetry constrains three combinations of six kinetic
+parameters, and a measurement that sees the *phases* breaks correlations heat
+cannot.
+
+It counts **hydrogen**, not formula water, and the difference is not pedantry —
+portlandite is `Ca(OH)₂`, has no `H₂O` written in it, and loses one water per
+formula unit. A rule searching for `H₂O` would report zero for the second most
+abundant hydrate in a paste. The aqueous phase is excluded, which is the
+distinction the water-budget page exists for: pore solution is water and is not
+bound water.
+
+**What it is not is a thermogram, and that is stated rather than approximated.**
+Turning the total into a curve needs the temperature window each phase releases
+in, and those are literature values rather than consequences of a formula. This
+package does not carry them; `bound_water_per_phase` is the quantity they would
+attach to, which is why it is exposed per phase. Supplying them completes a TGA
+observation operator, and inventing them would fabricate exactly the part of the
+measurement that does the identifying.
+
 ### Which parameters a measurement can actually determine
 
 `identifiability` answers, for any forward model and any parameter vector, the

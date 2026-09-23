@@ -99,6 +99,7 @@ end
     include("sit.jl")
     include("provenance.jl")
     include("identifiability.jl")
+    include("ignition_loss.jl")
     include("sorption_models.jl")
     include("claysor.jl")
     include("equilibrium_reference.jl")

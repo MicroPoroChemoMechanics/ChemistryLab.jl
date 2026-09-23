@@ -322,3 +322,39 @@ the quantity a chemical-shrinkage test measures by watching a specimen drink.
   - [Activity models](@ref sec-theory-activity) — why the screening length
     matters here
   - [`powers_alpha_max`](@ref), [`PoreHumidity`](@ref), [`CapillaryWater`](@ref)
+
+## Measuring it: what thermogravimetry gives, and what it needs
+
+Bound water is the quantity a thermogram integrates to, which makes
+thermogravimetry the natural second observable beside calorimetry — and the one
+[the calibration example](@ref ex-hydration-calibration) asks for by
+name, because heat constrains three combinations of six kinetic parameters and
+a measurement that sees the *phases* breaks correlations heat cannot.
+
+[`ignition_loss`](@ref) computes the total from the formulas alone:
+
+```math
+m_{\mathrm{H_2O}} = M_{\mathrm{H_2O}}\sum_{\text{solids}} \frac{n_i H_i}{2},
+\qquad
+m_{\mathrm{CO_2}} = M_{\mathrm{CO_2}}\sum_{\text{solids}} n_i C_i
+```
+
+It counts **hydrogen**, not formula water, and the difference is not pedantry:
+portlandite is `Ca(OH)₂`, has no `H₂O` written in it, and loses one water per
+formula unit on ignition. A rule that searched for `H₂O` would report zero for
+the second most abundant hydrate in a paste.
+
+The aqueous phase is excluded, which is the distinction this whole page is
+about: pore solution is water and is not bound water.
+
+!!! note "What is missing, and why it is not guessed"
+    This gives the **total**, not a thermogram. Turning it into a curve needs to
+    know which phase releases what between which temperatures — C-S-H, AFt and
+    AFm overlap below 200 °C, portlandite has its own step, carbonates theirs —
+    and those windows are **literature values**, not consequences of a formula.
+    This package does not carry them. Supplying them is what would complete a
+    TGA observation operator, and inventing them would fabricate precisely the
+    part of the measurement that does the identifying.
+
+    [`bound_water_per_phase`](@ref) is the quantity those windows would attach
+    to, which is why it is exposed per phase rather than only as a total.
