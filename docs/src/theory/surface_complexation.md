@@ -239,5 +239,5 @@ Saying what is absent is part of describing what is present.
     the smallest complete case, computed, against the closed form above.
   - [Proving that an answer is the answer](@ref sec-theory-certificate) — what
     the certificate checks, and what it does not.
-  - [Solid solutions](@ref) — the other mixing phase, whose arithmetic is the
+  - [Solid solutions](@ref sec-theory-solid-solutions) — the other mixing phase, whose arithmetic is the
     same and whose closure is not.
