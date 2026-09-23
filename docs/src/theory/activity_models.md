@@ -231,6 +231,110 @@ and ``\sum m`` fixed, where it measures a few parts in a thousand. That is the
 direction `test/activities.jl` uses, which is why its tolerance is `5e-3` rather
 than solver tolerance.
 
+## [5b. Does a model come from one excess Gibbs energy at all?](@id sec-theory-potential)
+
+§5 measures a Gibbs-Duhem residual **along one path**. A small residual there is
+necessary and not sufficient: a model can cancel along a dissolution and fail
+badly in another direction. The question underneath is whether the activities are
+the gradient of *any* function of ``n``, and that has an exact test.
+
+If ``\mu_i = \partial G/\partial n_i`` for some ``G``, then second derivatives
+commute, so
+
+```math
+\frac{\partial \ln a_i}{\partial n_j} = \frac{\partial \ln a_j}{\partial n_i}
+\qquad\text{(Maxwell)},
+```
+
+and, ``\mu_i`` being homogeneous of degree zero,
+
+```math
+\sum_i n_i \frac{\partial \ln a_i}{\partial n_j} = 0
+\qquad\text{(Gibbs-Duhem)} .
+```
+
+The first is the sharper: it fails exactly when **no** ``G`` has these activities
+for its gradient, whatever ``G`` might be. Both are read off the Jacobian of
+`ln_activities` by automatic differentiation — no ``G`` is constructed, no solve
+runs, nothing is differenced against a second solve.
+
+### What is measured
+
+On `H2O@ / Na⁺ / Cl⁻ / Ca²⁺ / SO₄²⁻` at 0.1, 0.12, 0.02 and 0.01 mol, worst
+relative asymmetry over pairs, ion/ion and solvent/ion separated:
+
+| model | ion/ion | solvent/ion |
+|:--|--:|--:|
+| Pitzer (on NaCl) | ``1.3\times10^{-15}`` | ``1.3\times10^{-15}`` |
+| B-dot, ``\mathring{a}`` per ion, ``\dot{B}\neq0`` (default) | ``1.8\times10^{-1}`` | ``2.9\times10^{-2}`` |
+| B-dot, common ``\mathring{a}``, ``\dot{B}\neq0`` | ``1.2\times10^{-1}`` | ``2.6\times10^{-2}`` |
+| B-dot, ``\mathring{a}`` per ion, ``\dot{B}=0`` | ``2.4\times10^{-1}`` | ``6.0\times10^{-2}`` |
+| **B-dot, common ``\mathring{a}`` and ``\dot{B}=0``** | ``0`` | ``1.8\times10^{-14}`` |
+| **Debye-Hückel limiting law** (``\mathring{a}=0``, ``\dot{B}=0``) | ``0`` | ``3.4\times10^{-13}`` |
+| ``\mathring{a}=0``, ``\dot{B}=0.0976`` (the GEMS setting) | ``1.2\times10^{-1}`` | ``3.6\times10^{-1}`` |
+
+Two readings, and the second is the one that was not expected.
+
+**The limiting law is exact.** It is the classical result, and it is the anchor:
+that model *does* come from one excess energy, to machine precision.
+
+**It takes both corrections to break it, and removing either alone does not
+mend it.** Dropping ``\dot{B}`` while keeping per-ion radii makes the ion/ion
+asymmetry *worse*.
+
+### Why, in two lines
+
+Every ``\gamma_i`` of §1 depends on composition only through ``I``, and
+``\partial I/\partial n_j = z_j^2/(2\,\text{kg})``. So
+
+```math
+\frac{\partial \ln\gamma_i}{\partial n_j}
+   = \ln 10 \; f'(I;z_i,\mathring{a}_i)\; \frac{z_j^2}{2\,\text{kg}} ,
+```
+
+and Maxwell demands that ``f'(I;z_i,\mathring{a}_i)/z_i^2`` not depend on ``i``.
+
+- With a **common** ``\mathring{a}`` and no ``\dot{B}``, ``f'`` is proportional
+  to ``z_i^2`` exactly, and the ratio is the same for every ion. Hence the zeros
+  in the table.
+- A **per-ion** ``\mathring{a}_i`` puts ``i`` inside the denominator
+  ``1+B\mathring{a}_i\sqrt{I}``, where it does not factor out.
+- The **``\dot{B} I`` term is added with the same coefficient to every ion**, so
+  it contributes ``\dot{B}`` and not ``\dot{B}z_i^2``. An ion of charge 2 and an
+  ion of charge 1 then disagree by construction.
+
+Neither is a defect of this implementation: both are the published extended form,
+which every geochemical code uses. §2 already says what ``\dot{B}`` is — a
+deviation function fitted to one salt — and this is the same fact seen from the
+thermodynamics rather than from the fit. The model is an approximation with a
+stated domain; outside a fairly dilute solution it does not have a potential
+behind it, and saying so is not a criticism of the model or of the codes built
+on it.
+
+### What it means for a certificate
+
+[`equilibrate_certified`](@ref) proves a KKT point of the problem it is handed.
+When the activities are not the gradient of a single ``G``, that problem is not
+the minimization of a Gibbs energy, and `optimal = true` says less than its name
+suggests: a stationary point of the residuals, not a minimum of a potential.
+
+In practice this is the regime every geochemical calculation on extended
+Debye-Hückel has always worked in, and the table says how far from a potential
+one is standing. Where the water activity carries the answer — a sealed paste,
+a concentrated brine — [`PitzerActivityModel`](@ref) is the model that has one,
+and §6 is about what that costs.
+
+`test/activities.jl` pins the zeros and the orders of magnitude above, so a change
+to any ``\gamma`` shows up here rather than in a result.
+
+The two lines of the derivation are checked as such rather than only through
+their consequence. [`log10_gamma_expression`](@ref) returns the kernel as a
+symbolic expression, so ``f'(I;z_i,\mathring{a}_i)/z_i^2`` can be differentiated
+and compared between ions: with a common ``\mathring{a}`` and no ``\dot{B}`` the
+two agree to ``10^{-14}``, and with either correction in place they do not. The
+same expression is asserted to agree with the compiled kernel, which is what
+makes the formula written in §1 the formula that runs.
+
 ## 6. The ion-interaction model: a different kind of object
 
 Everything above is a **corrected Debye-Hückel law**: one screening term derived

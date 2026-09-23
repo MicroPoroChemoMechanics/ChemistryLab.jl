@@ -5,6 +5,52 @@ using Crayons
 using DynamicQuantities
 using ForwardDiff
 
+"""
+    _adim(x) -> Real
+
+`x` as a bare number, **checking** that it carries no dimension.
+
+# What it replaces, and why that had to go
+
+`thermo_factories.jl` used to extend some thirty `Base` math functions to
+`DynamicQuantities.Quantity` by stripping the unit first:
+
+```julia
+Base.log(x::Quantity) = log(ustrip(x))     # removed
+```
+
+That is type piracy — the function and the type both belong elsewhere — so it
+applied to **every** package loaded beside this one, whether or not it asked. And
+it did not merely remove a dimension check; it made the result depend on an
+invisible normalization, because `ustrip` returns the value in SI **base** units:
+
+```
+log(2u"m")       = 0.693      instead of raising
+log(1u"mol/L")   = 6.908      the same quantity written two ways,
+log(1u"mmol/L")  = 0.0        two different answers
+```
+
+# What this does instead
+
+Dispatch rather than a branch, so `Float64`, `ForwardDiff.Dual` and
+`Symbolics.Num` all take the first method untouched — none of them carries a
+dimension — and only a genuine `Quantity` pays for the test.
+
+A dimensionless `Quantity` passes, which is the case the extensions existed for:
+a ratio whose units cancel is a number, and saying so explicitly is the point.
+Anything else raises, which is the check being restored rather than a new
+restriction.
+"""
+@inline _adim(x::Real) = x
+@inline function _adim(x::DynamicQuantities.AbstractQuantity)
+    iszero(dimension(x)) || throw(
+        DimensionError(
+            x, one(x)
+        )
+    )
+    return ustrip(x)
+end
+
 """Terminal color for charge display (cyan bold)."""
 const COL_CHARGE = crayon"cyan bold"
 """Terminal color for parentheses (magenta bold)."""

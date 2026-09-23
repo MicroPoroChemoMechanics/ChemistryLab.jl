@@ -129,3 +129,65 @@ end
     ss_auto = @test_nowarn SolidSolutionPhase("SSAuto", [raw1, raw2])
     @test class(end_members(ss_auto)[1]) == SC_SSENDMEMBER
 end
+
+@testsection "what makes two species the same species" begin
+    # The contract: formula, aggregate state, class, and whatever the SYMBOL adds
+    # to that. The symbol is in it because the first three do not separate
+    # polymorphs, and a polymorph is a different substance.
+
+    cal = Species("CaCO3"; symbol = "Cal", aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
+    arg = Species("CaCO3"; symbol = "Arg", aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
+
+    # SAME formula, state and class -- which is exactly why the symbol has to
+    # count. In CEMDATA18 their standard Gibbs energies differ by 821 J/mol.
+    @test formula(cal) == formula(arg)
+    @test aggregate_state(cal) == aggregate_state(arg)
+    @test class(cal) == class(arg)
+
+    @test cal != arg
+    @test hash(cal) != hash(arg)
+    @test !haskey(Dict(cal => 1), arg)
+    @test length(unique([cal, arg])) == 2
+    @test length(Set([cal, arg])) == 2
+    # A generic CaCO3 names no polymorph, so it is neither of them.
+    @test Species("CaCO3"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT) != cal
+
+    # THE OTHER DIRECTION, which is what `_identity_symbol` exists for: a symbol
+    # that merely spells the species' own formula adds nothing, so two spellings
+    # are one species -- with equal hashes, or `Dict` would disagree with `==`.
+    #
+    # `unicode(formula(s))` would NOT do as the canonical form: it is not
+    # constant on the equality classes of `Formula`, which are composition and
+    # charge. `Formula("e") == Formula("e-")` while their unicode spellings are
+    # "e" and "e⁻", and `Formula("Ca+2") == Formula("Ca⁺²")` while theirs are
+    # "Ca²⁺" and "Ca⁺²". Canonicalizing would have split those pairs; dropping
+    # the symbol entirely does not, because the formula is compared anyway.
+    for (a, b) in (("H2O", "H₂O"), ("e", "e-"), ("Ca+2", "Ca⁺²"), ("CO3-2", "CO₃²⁻"))
+        s1, s2 = Species(a), Species(b)
+        @test s1 == s2
+        @test hash(s1) == hash(s2)
+        @test Dict(s1 => 1)[s2] == 1
+        @test length(unique([s1, s2])) == 1
+        # and the stored symbol is untouched -- it is a lookup key, not an
+        # identity, and `cs["H2O"]` depends on it being what the caller typed.
+        @test symbol(s1) == a
+        @test symbol(s2) == b
+    end
+    @test ChemistryLab._identity_symbol(Species("H2O")) === nothing
+    @test ChemistryLab._identity_symbol(cal) == "Cal"
+
+    # The lookup key, asserted here because canonicalizing the stored symbol --
+    # the obvious way to do all of the above -- breaks it.
+    cs = ChemicalSystem([Species("H2O"; aggregate_state = AS_AQUEOUS)])
+    @test cs["H2O"] == Species("H2O"; aggregate_state = AS_AQUEOUS)
+
+    # The invariant `isequal ⟹ hash`, over a whole shipped database rather than
+    # over a handful of cases chosen to pass.
+    subs = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    violations = [
+        (symbol(subs[i]), symbol(subs[j]))
+            for i in eachindex(subs) for j in eachindex(subs)
+            if i < j && isequal(subs[i], subs[j]) && hash(subs[i]) != hash(subs[j])
+    ]
+    @test isempty(violations)
+end

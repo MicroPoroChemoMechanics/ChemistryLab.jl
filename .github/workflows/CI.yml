@@ -32,6 +32,18 @@ jobs:
           - ubuntu-latest
         arch:
           - x64
+        include:
+          # WINDOWS, on the current release only. What this job is here to catch
+          # is platform-specific -- path separators, line endings, spawning a
+          # child process, anything that assumes a POSIX filesystem -- and none
+          # of that needs three Julia versions to show itself. One job rather
+          # than three, because a Windows runner minute costs several Linux ones.
+          #
+          # `.gitattributes` normalizes the working tree to LF, so a `\r` cannot
+          # reach the code that reads the bundled `.dat` databases.
+          - version: '1.13'
+            os: windows-latest
+            arch: x64
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
@@ -66,11 +78,11 @@ jobs:
         with:
           # Instrument only the primary job: coverage disables precompilation
           # caching and would slow down every other matrix entry for nothing.
-          coverage: ${{ matrix.version == '1.12' }}
+          coverage: ${{ matrix.version == '1.12' && matrix.os == 'ubuntu-latest' }}
       # Not julia-actions/julia-processcoverage: see the header of the script
       # for why its `amend_coverage_from_src!` step misreports this package.
       - name: Process coverage
-        if: matrix.version == '1.12'
+        if: matrix.version == '1.12' && matrix.os == 'ubuntu-latest'
         shell: julia --color=yes {0}
         run: |
           using Pkg
@@ -81,7 +93,7 @@ jobs:
           # resolves relative to THAT file's directory, not the cwd.
           include(joinpath(pwd(), ".github", "scripts", "coverage.jl"))
       - uses: codecov/codecov-action@v7
-        if: matrix.version == '1.12'
+        if: matrix.version == '1.12' && matrix.os == 'ubuntu-latest'
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}

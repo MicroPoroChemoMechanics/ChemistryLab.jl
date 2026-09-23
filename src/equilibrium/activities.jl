@@ -841,6 +841,80 @@ concentration_scale(::DaviesActivityModel) = :molality
 # passed in even where a model ignores them, so that all three share one
 # signature. AD-safe: arithmetic only.
 
+@doc raw"""
+    log10_gamma_expression(model, z, å) -> Num
+
+The symbolic `log₁₀ γ` of an ion of charge `z` and size `å`, in the ionic
+strength `I`, with the model's own parameters substituted.
+
+# Why a package that computes this also writes it down
+
+`thermo_factories.jl` keeps a thermodynamic model in two forms: a symbolic
+expression, which makes the law and its parameters visible so that a wrong entry
+is caught by reading, and a compiled function for a solver's inner loop. The
+activity kernels had only the second.
+
+This is the first form, and the compiled path is untouched: `_log10γ_ion` is
+still what every activity evaluation calls, and this is never in that path. A
+test asserts the two agree, which is what makes a formula quoted in prose true by
+construction rather than by proofreading.
+
+# What it is for, beyond inspection
+
+[Activity models](@ref sec-theory-potential) shows that a model derived from a
+single excess Gibbs energy must satisfy `∂ln aᵢ/∂nⱼ = ∂ln aⱼ/∂nᵢ`, and that for
+these kernels
+
+```math
+\frac{\partial \ln\gamma_i}{\partial n_j}
+   = \ln 10 \; f'(I; z_i, \mathring{a}_i)\; \frac{z_j^2}{2\,\text{kg}} ,
+```
+
+so symmetry demands that `f'(I; zᵢ, åᵢ)/zᵢ²` not depend on `i`. With this
+function that `f` is an expression one can differentiate symbolically and look
+at, rather than a residual one can only measure.
+
+# Example
+
+```jldoctest
+julia> using Symbolics
+
+julia> expr = log10_gamma_expression(DaviesActivityModel(), -2, 0.0);
+
+julia> expr isa Num
+true
+```
+
+See also: [`_log10γ_ion`](@ref), [`HKFActivityModel`](@ref),
+[`DaviesActivityModel`](@ref).
+"""
+function log10_gamma_expression(model::HKFActivityModel, z, å)
+    I = Symbolics.variable(:I)
+    return _log10γ_ion(model, z, å, I, sqrt(I), model.A, model.B)
+end
+
+# Davies fixes the ion size at one value for everything, so its kernel ignores
+# both `å` and `B`; they are accepted and passed through for one signature.
+function log10_gamma_expression(model::DaviesActivityModel, z, å = zero(model.A))
+    I = Symbolics.variable(:I)
+    return _log10γ_ion(model, z, å, I, sqrt(I), model.A, zero(model.A))
+end
+
+"""
+    _log10γ_ion(model, z, å, I, sqrtI, A, B) -> Real
+
+`log₁₀ γ` for an ion of charge `z` and size `å` at ionic strength `I`, the
+**compiled** half of the pair [`log10_gamma_expression`](@ref) writes out.
+
+Takes `sqrtI` rather than computing it, because the caller already regularizes it
+as `sqrt(I + ϵ)` to keep a `ForwardDiff.Dual` finite at `I = 0`, and takes `A`
+and `B` rather than reading them off `model`, because they depend on temperature
+and pressure through the water model and the caller has them.
+
+This is the function every activity evaluation calls, and the accessor calls it
+too, so the two cannot drift. `DaviesActivityModel` fixes one ion size for
+everything and ignores `å` and `B`.
+"""
 @inline function _log10γ_ion(model::HKFActivityModel, z, å, I, sqrtI, A, B)
     return -A * z^2 * sqrtI / (1 + B * å * sqrtI) + model.Ḃ * I
 end
@@ -987,6 +1061,47 @@ function _excess_ln_gamma(m::RegularSolutionModel, k::Int, x::AbstractVector, T:
         quad = quad + (W[i, j] / RT) * x[i] * x[j]
     end
     return lin - quad
+end
+
+"""
+    excess_ln_gamma_expression(model, k::Int, n::Int = 2) -> Num
+
+The symbolic `ln γₖ` of a solid-solution model, in the variables `x₁ … xₙ` and
+`T`, with the model's own parameter values substituted.
+
+# Why a package that already computes this also writes it down
+
+`thermo_factories.jl` keeps a thermodynamic model in two forms: a **symbolic
+expression**, which makes the law and the unit of every parameter visible so
+that a wrong entry is caught by reading rather than by a wrong result, and a
+**compiled function**, type-stable and fit for a solver's inner loop. Solid
+solutions had only the second, with the formula transcribed into a docstring
+beside it -- two copies of one law, free to drift.
+
+This is the first form. The second stays exactly where it was, on the hot path,
+untouched: `_excess_ln_gamma` is still what every activity evaluation calls, and
+this function is never in that path. What the pair buys is a test that they
+agree, which is what makes the written formula true by construction rather than
+by proofreading.
+
+# Example
+
+```jldoctest
+julia> using Symbolics
+
+julia> expr = excess_ln_gamma_expression(RedlichKisterModel(a0 = 4000.0), 1);
+
+julia> expr isa Num
+true
+```
+
+See also: [`_excess_ln_gamma`](@ref), [`RedlichKisterModel`](@ref),
+[`RegularSolutionModel`](@ref).
+"""
+function excess_ln_gamma_expression(model::AbstractSolidSolutionModel, k::Int, n::Int = 2)
+    x = [Symbolics.variable(:x, i) for i in 1:n]
+    T = Symbolics.variable(:T)
+    return _excess_ln_gamma(model, k, x, T)
 end
 
 function _excess_ln_gamma(m::RedlichKisterModel, k::Int, x::AbstractVector, T::Real)

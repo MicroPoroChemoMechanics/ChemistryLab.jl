@@ -475,7 +475,7 @@ function to_mendeleev(oxides::AbstractDict{Symbol, T}) where {T <: Number}
     end
 end
 
-raw"""
+@doc raw"""
     _parse_coefficient(str::AbstractString) -> Real
 
 The stoichiometric coefficient a reaction term wrote, as the number it is.

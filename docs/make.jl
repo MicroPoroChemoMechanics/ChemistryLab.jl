@@ -432,35 +432,98 @@ end
 # build: docstring coverage is a property of the whole site, and a partial build
 # says up front that it does not check it. There are also no seventy minutes
 # left to protect. The full build reaches the same check, strictly.
+# ── A logger that records while it passes messages through ───────────────────
+#
+# The draft pre-flight below has to demote `cross_references` -- with the
+# `@example` blocks skipped, the figures they write do not exist and every
+# `![](...)` is reported as a broken local link. But an unresolvable `@ref` is
+# reported in that same class and is perfectly decidable in a draft, so the
+# messages are kept and sifted afterwards rather than thrown away.
+const _PREFLIGHT_LOG = IOBuffer()
+
+struct RecordingLogger{L <: AbstractLogger} <: AbstractLogger
+    inner::L
+    sink::IOBuffer
+end
+
+Logging.min_enabled_level(l::RecordingLogger) = Logging.min_enabled_level(l.inner)
+Logging.shouldlog(l::RecordingLogger, args...) = Logging.shouldlog(l.inner, args...)
+Logging.catch_exceptions(l::RecordingLogger) = Logging.catch_exceptions(l.inner)
+function Logging.handle_message(
+        l::RecordingLogger, level, message, _module, group, id, file, line; kwargs...
+    )
+    println(l.sink, message)
+    return Logging.handle_message(
+        l.inner, level, message, _module, group, id, file, line; kwargs...
+    )
+end
+
 PARTIAL_BUILD || let t0 = time()
     @info "pre-flight: draft build (checks only, no example executed)"
     mktempdir() do draftdir
-        makedocs(;
-            modules = [ChemistryLab],
-            remotes = nothing,
-            authors = "Jean-François Barthélémy and Anthony Soive",
-            sitename = "ChemistryLab.jl",
-            # `size_threshold` disabled: it is an HTML-renderer limit and this
-            # site is rendered by DocumenterVitepress, which has none. Left on,
-            # it fails the pre-flight on `api/equilibrium.md` for a reason that
-            # cannot affect the real build — measured on the first run.
-            format = Documenter.HTML(;
-                edit_link = nothing, repolink = nothing,
-                size_threshold = nothing, size_threshold_warn = nothing,
-            ),
-            source = DOCS_SOURCE,
-            build = draftdir,
-            pages = pages,
-            plugins = [
-                CitationBibliography(
-                    joinpath(@__DIR__, "src", "refs.bib"); style = :authoryear
+        Logging.with_logger(RecordingLogger(Logging.current_logger(), _PREFLIGHT_LOG)) do
+            makedocs(;
+                modules = [ChemistryLab],
+                remotes = nothing,
+                authors = "Jean-François Barthélémy and Anthony Soive",
+                sitename = "ChemistryLab.jl",
+                # `size_threshold` disabled: it is an HTML-renderer limit and this
+                # site is rendered by DocumenterVitepress, which has none. Left on,
+                # it fails the pre-flight on `api/equilibrium.md` for a reason that
+                # cannot affect the real build — measured on the first run.
+                format = Documenter.HTML(;
+                    edit_link = nothing, repolink = nothing,
+                    size_threshold = nothing, size_threshold_warn = nothing,
                 ),
-            ],
-            warnonly = [:docs_block, :cross_references, :example_block, :linkcheck],
-            draft = true,
+                source = DOCS_SOURCE,
+                build = draftdir,
+                pages = pages,
+                plugins = [
+                    CitationBibliography(
+                        joinpath(@__DIR__, "src", "refs.bib"); style = :authoryear
+                    ),
+                ],
+                warnonly = [:docs_block, :cross_references, :example_block, :linkcheck],
+                draft = true,
+            )
+        end
+    end
+    # AND THE HALF OF `cross_references` THAT A DRAFT BUILD CAN JUDGE.
+    #
+    # The demotion above is unavoidable: with the `@example` blocks skipped the
+    # figures they write do not exist, so every `![](...)` is reported as a
+    # broken local link. But an `@ref` that names a binding carrying no docstring
+    # is reported in the same class, and that one IS decidable here -- Documenter
+    # resolves an `@ref` to a docstring, and whether a docstring exists does not
+    # depend on any example having run.
+    #
+    # Left in the warning pile it terminates the real build at its
+    # CrossReferences stage, which is AFTER every example on the site has run.
+    # That cost ninety minutes of CI once, for a docstring written as a bare
+    # `raw"""` -- a string macro Julia does not attach. `check_docrefs.py` now
+    # refuses that shape outright; this is the second net, and it catches the
+    # general case rather than one spelling of it.
+    let failures = [
+            String(m.match) for m in eachmatch(
+                    r"Cannot resolve @ref for [^\n]+", String(take!(_PREFLIGHT_LOG))
+                )
+        ]
+        isempty(failures) || error(
+            "$(length(failures)) unresolvable `@ref` in a rendered docstring. " *
+                "The real build reaches this only after every example has run:\n  " *
+                join(unique(failures), "\n  ")
         )
     end
     @info "pre-flight: draft build clean" seconds = round(time() - t0; digits = 1)
+    # `CHEMLAB_DOCS_PREFLIGHT_ONLY=1` stops here. Everything above is decided
+    # without running a single `@example`, so it costs a couple of minutes and
+    # covers the checks whose failure the real build reports only after every
+    # example on the site has run: missing docstrings, unresolvable `@ref`, the
+    # page tree, the bibliography and the plot-font rule.
+    if !isempty(get(ENV, "CHEMLAB_DOCS_PREFLIGHT_ONLY", ""))
+        @info "CHEMLAB_DOCS_PREFLIGHT_ONLY is set: stopping before the real build"
+        exit(0)
+    end
 end
 
 Logging.with_logger(

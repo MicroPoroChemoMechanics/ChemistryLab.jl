@@ -1,5 +1,217 @@
 # Changelog
 
+## v0.19.0 — two polymorphs are two species, and a dimensioned argument is an error again
+
+Three defects a test suite could not see because the assertion guarding each one
+tested something adjacent to it; a global that leaked into every package loaded
+beside this one; and a measurement of which activity models actually come from an
+excess Gibbs energy.
+
+### Breaking changes
+
+- **`isequal` on species now compares the symbol as well**, so two polymorphs are
+  two species. Calcite and aragonite are both `CaCO3`, both `AS_CRYSTAL`, both
+  `SC_COMPONENT`; in CEMDATA18 their standard Gibbs energies differ by 821 J/mol,
+  which at 298 K is 0.33 in `ln K` — the whole difference in solubility between
+  them. They compared equal. Code relying on two differently-named species of one
+  formula being `==` now sees them as distinct, which is the point.
+- **`AggregateState` gains `AS_LIQUID`**, appended, so no member is renumbered.
+  Metallic mercury in `slop98-inorganic-thermofun.json` now comes back
+  `AS_LIQUID` instead of `AS_UNDEF`, and `instances(AggregateState)` has one more
+  entry.
+- **`log`, `exp` and some thirty other `Base` functions no longer accept a
+  `DynamicQuantities.Quantity`.** Loading ChemistryLab used to add those methods
+  globally. Code that passed a dimensioned value to one of them was getting an
+  answer; it now gets a `DimensionError`, which is what it should always have
+  got. Form the dimensionless ratio and take the logarithm of that.
+- **Below 1.0 the registry treats a minor bump as breaking whatever the API did**,
+  so a downstream bound pinned to `"0.18"` will not resolve `0.19` and must be
+  widened.
+
+### Fixed — a `Dict` could not tell two species apart, and said so inconsistently
+
+`hash` mixed in the symbol while `isequal` ignored it, so `isequal ⟹ hash` was
+broken in both directions at once: `calcite == aragonite` returned `true` while
+`Dict(calcite => 1)` raised `KeyError` on `aragonite`.
+
+That disagreement had already cost a day. CI was green on Julia 1.13 and red on
+1.12 from the same commit, because the `Reaction` constructor strips
+pseudo-species with `delete!`, which finds a key by `hash` and confirms with
+`isequal`; whether it reached `ELECTRON` through `Species("e")` depended on where
+the table put them, hence on the Julia version. The root cause is gone.
+
+Identity is now formula, aggregate state, class, and whatever the symbol adds to
+those. A symbol that merely spells the species' own formula adds nothing and is
+dropped, so `Species("H2O")` and `Species("H₂O")` remain one species — and so do
+`ELECTRON` and `Species("e")`, and `Species("Ca+2")` and `Species("Ca⁺²")`. The
+stored symbol is untouched: it is also the lookup key, and `cs["H2O"]` must keep
+working.
+
+Two designs were tried first. Canonicalizing the stored symbol broke that lookup
+key outright. Canonicalizing inside the comparison, to `unicode(formula(s))`,
+looked right and is not: `unicode` is **not constant** on the equality classes of
+`Formula`, which are composition and charge — `Formula("e") == Formula("e-")`
+while their spellings are `"e"` and `"e⁻"`. Both were found by running the suite.
+
+### Fixed — a dimensioned argument to a dimensionless function
+
+`thermo_factories.jl` extended `Base` math functions to `Quantity` by stripping
+the unit first. Type piracy by construction, so the methods were global. And it
+did not only remove a check: `ustrip` returns the value in SI **base** units, so
+`log(1u"mol/L")` gave `6.908` and `log(1u"mmol/L")` gave `0.0` — the same
+concentration scale a thousand apart, two different answers, nothing in the
+source to show it.
+
+`_adim` restores the check by dispatch, so `Float64`, `ForwardDiff.Dual` and
+`Symbolics.Num` take the identity method untouched and only a genuine `Quantity`
+pays for the test. A dimensionless quantity passes, which is the case the
+extensions existed for. The Aqua exemption that declared the piracy is gone with
+the methods, which is what stops them coming back.
+
+Measured: Aqua 10/10 with no `piracies` entry, and a warm cement equilibrium at
+2.4 ms against 2.5 ms before, same session and same script.
+
+### Fixed — a printing keyword that was assigned and never read
+
+`pprint` built its row labels from `col_label`; `row_label` was assigned on the
+line above and never used, so asking for one accessor on the rows and another on
+the columns labeled both by the column's. Two `eval`s go with it — one reading a
+numeric literal the term regex had already constrained, one turning a printing
+keyword into a function — neither a vulnerability, both replaced by code that
+cannot be anything else.
+
+### Measured — which activity models come from one excess Gibbs energy
+
+The consolidation roadmap asked for an analysis of reported discrepancies between
+chemical potentials and the gradient of an energy built from them. A sharper test
+than the one planned answers it: if `μᵢ = ∂G/∂nᵢ` for any `G`, second derivatives
+commute, so `∂ln aᵢ/∂nⱼ = ∂ln aⱼ/∂nᵢ`. That is read off the Jacobian of
+`ln_activities` by automatic differentiation — no `G` is built, no solver runs,
+nothing is differenced against a second solve.
+
+Worst relative asymmetry over pairs, ion/ion and solvent/ion split:
+
+| model | ion/ion | solvent/ion |
+|:--|--:|--:|
+| Pitzer | 1.3e-15 | 1.3e-15 |
+| B-dot, `å` per ion, `Ḃ ≠ 0` (the default) | 1.8e-01 | 2.9e-02 |
+| B-dot, common `å` **and** `Ḃ = 0` | 0 | 1.8e-14 |
+| Debye-Hückel limiting law | 0 | 3.4e-13 |
+| `å = 0`, `Ḃ = 0.0976` (the GEMS setting) | 1.2e-01 | 3.6e-01 |
+
+The limiting law is exact, which is the classical result, and Pitzer is exact,
+which is what it claims for itself. It takes **both** corrections to break it:
+dropping `Ḃ` while keeping per-ion radii makes the ion/ion asymmetry worse. The
+reason is one line — `∂ln γᵢ/∂nⱼ = ln10 · f′(I; zᵢ, åᵢ) · zⱼ²/(2 kg)`, so symmetry
+demands `f′/zᵢ²` not depend on `i`; a per-ion `å` puts `i` in the denominator, and
+`Ḃ·I` is added with the same coefficient to every ion, so it contributes `Ḃ` and
+not `Ḃ·zᵢ²`.
+
+Neither is a defect of this implementation: both are the published extended form,
+which every geochemical code uses. The theory page states the consequence where a
+reader meets it — when the activities are not the gradient of a single `G`,
+`optimal = true` is a stationary point of the residuals rather than a minimum of a
+potential — and `test/activities.jl` pins the zeros.
+
+### Changed — a solid-solution parameter says which convention it is in
+
+The literature writes Redlich-Kister coefficients two ways: CEMDATA18 gives the
+AFm sulfate/hydroxide binary as `A₀ = 0.188, A₁ = 2.49` in RT units, while this
+package takes J/mol and divides by `RT` internally. The factor is `RT ≈ 2478`, and
+a bare `Float64` cannot say which was meant.
+
+`RedlichKisterModel` and `RegularSolutionModel` now accept a `Quantity`:
+`u"J/mol"` passes, `u"kJ/mol"` converts, `u"J"` raises. A bare number still means
+J/mol, so no existing call changes. `excess_ln_gamma_expression` returns the
+symbolic `ln γₖ`, and a test asserts it agrees with the compiled path — which
+makes the formula in the docstring true by construction rather than by
+proofreading. The compiled path itself is untouched.
+
+`log10_gamma_expression` does the same for the activity kernels, and buys more
+than inspection: the derivation behind the table above — that Maxwell demands
+`f′(I; zᵢ, åᵢ)/zᵢ²` not depend on the ion — is now **checked** rather than only
+its consequence measured. Differentiated symbolically, the ratio agrees between
+charges to `1e-14` with a common `å` and no `Ḃ`, and disagrees as soon as either
+correction is present. `_log10γ_ion`, the compiled half, gains the docstring it
+never had.
+
+### Fixed — pure water, where the assertion that passed was not the one that mattered
+
+An audit reported the Schur-complement route failing the autoprotolysis test on
+macOS ARM64 while CI stayed green on Linux. It is not a platform difference.
+Measured on Linux: both ions come out about twelve times too large, so the ion
+product is off by a factor of 140 — while their **ratio** stays within half a
+percent of one, and the ratio was all this route asserted. The element balance
+closes exactly either way, so the route returns a point that conserves matter and
+is not an equilibrium, and it reports `MaxIters` while doing so. The missing half
+is a `@test_broken`, which turns red the day it is fixed.
+
+### Added — Windows in the CI matrix, and what had to change for it
+
+`windows-latest` joins the matrix on the current release. Three things had to
+change first, and one was a defect: `display_data_path` decided a file was outside
+the package by asking `relpath` and reading `..` off its answer, which on two
+different drives it does not produce — so a path plainly outside could have come
+back rewritten, into the banner every documentation page showing a database load
+captures verbatim. It is a prefix test now. Line endings are normalized to LF by a
+`.gitattributes`, and the partial documentation build falls back to a copy where a
+symlink cannot be created.
+
+### Changed — the shipped databases, measured rather than assumed
+
+PR #59 left two questions open by name. Both are settled. Of seven distinct unit
+strings in `data/*.json`, two do not parse — `cal/(mol*bar)` with 1768
+occurrences and `kbar` with 109 — and **neither reaches the parser**:
+`eos_hkf_coeffs` is converted by an explicit SUPCRT-to-SI table, written because
+the JSON's own unit metadata is wrong for `a3` and `a4`, and `m_expansivity` is
+not read by this package at all. Every unit on a field that *is* read parses,
+fractional exponents included, and a test now walks the files and says so.
+
+The same guard is applied to the classifications. `extract_classification`
+matches a label by name and falls back when there is no match, and a fallback is
+a valid value, so a label the enum does not carry is data the import throws away
+without saying so -- `AS_LIQUID` was one. A test now requires every
+`aggregate_state` and `class_` on the `substances` of every shipped database to
+resolve to a member, and both enums document the correspondence: the four
+aggregate states ThermoFun uses here, and the four substance classes. `ELEMENT`
+and `CHARGE` appear only in the `elements` section, so `Class` is right not to
+carry them.
+
+Adding a member also turns every hand-written list of "all of them" into a
+filter. `idx_speciation` carried one -- four aggregate states named when there
+were four -- and reads `instances(AggregateState)` now. Its class list stays
+explicit, because `SC_SSENDMEMBER` is excluded on purpose.
+
+### Fixed — a docstring that documented nothing, and the guard that let it through
+
+`raw"""` is a string **macro**, not a string literal, so Julia does not attach
+it: a definition below one has no documentation at all, silently. Two docstrings
+in this release were written that way, to escape the backslashes of a LaTeX
+block. `@doc raw"""` attaches; they use it.
+
+The cost was not the mistake but the delay in seeing it. `check_docrefs.py`
+stripped the `raw` prefix and credited the docstring, so the local guard said
+nothing, and Documenter reports an unresolvable `@ref` at its `CrossReferences`
+stage — **after** every example on the site has run. Ninety minutes of CI to
+learn it.
+
+Both ends are closed. The script refuses a bare `raw"""` outright and names it.
+And `CHEMLAB_DOCS_PREFLIGHT_ONLY=1` runs the static checks and a draft build and
+stops: 61 s when the tree is clean, 84 s to reject that same `@ref`, against the
+ninety minutes it took before.
+
+### Changed — the documentation can be checked in minutes
+
+Not a change to the package, and the reason it is here: verifying that an example
+still runs used to cost over two hours. Doctests have their own CI job and finish
+in 28 s, and `CHEMLAB_DOCS_ONLY` builds only the pages a change touched — one
+manual page in 1 min 49 s. A partial build states what it does not check and
+refuses to deploy; the full build is untouched and remains the gate.
+
+### Compatibility
+
+No compat bound moves. `OptimaSolver` stays at `"0.5.5, 0.6"`.
+
 ## v0.18.1 — a database file was a program, and one solve could silence the next
 
 Two defects that had nothing to do with chemistry and everything to do with

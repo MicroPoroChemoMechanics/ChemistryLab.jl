@@ -93,6 +93,28 @@ out where the hours went.
 A `draft` build executes nothing and therefore proves nothing. Do not report a
 page as working on the strength of one.
 
+### The two-minute gate, before anything longer
+
+```bash
+CHEMLAB_DOCS_PREFLIGHT_ONLY=1 julia --project=docs docs/make.jl
+```
+
+Measured at **61 s**. It runs the static checks and a draft build — no
+`@example` executes — and stops. That covers everything the real build decides
+only at its `CheckDocument` and `CrossReferences` stages, which it reaches
+*after* every example on the site has run:
+
+- a docstring missing from the manual;
+- an `@ref` that cannot be resolved;
+- the page tree, the bibliography, and the rule that no page may set the plot
+  font.
+
+**Run it before any full build.** An unresolvable `@ref` terminated a CI build
+after ninety minutes once — for a docstring written as a bare `raw"""`, which is
+a string macro Julia does not attach, so the definition below it had no
+documentation at all. `check_docrefs.py` refuses that shape outright now, and
+this gate catches the general case in eighty-four seconds.
+
 ### Building only the pages you touched
 
 ```bash

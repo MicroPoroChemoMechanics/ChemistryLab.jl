@@ -16,8 +16,33 @@ Enumeration for species aggregate states.
   - `AS_AQUEOUS`: aqueous solution.
   - `AS_CRYSTAL`: crystalline solid.
   - `AS_GAS`: gas phase.
+  - `AS_LIQUID`: a pure liquid phase.
+
+# Correspondence with ThermoFun
+
+An imported label is matched **by name**, so ThermoFun's numbering and this
+enum's are independent and neither constrains the other. The codes below are the
+ones its files carry, counted over the databases shipped in `data/`:
+
+| ThermoFun code | label | occurrences | here |
+|---:|:--|---:|:--|
+| 4 | `AS_AQUEOUS` | 2183 | `AS_AQUEOUS` |
+| 3 | `AS_CRYSTAL` | 870 | `AS_CRYSTAL` |
+| 0 | `AS_GAS` | 57 | `AS_GAS` |
+| 1 | `AS_LIQUID` | 1 | `AS_LIQUID` |
+| — | not stated | — | `AS_UNDEF` |
+
+`AS_LIQUID` is appended rather than inserted, so no existing member changes its
+integer value. It is here because a shipped database uses it -- metallic mercury
+in `slop98-inorganic-thermofun.json` -- and until it was added that record read
+as `AS_UNDEF`, an import silently losing what the file said.
+
+A label with no member to land on takes the fallback, and a fallback is a valid
+value, so nothing announces the loss. `test/databases.jl` therefore walks the
+`substances` of every shipped database and requires each label to resolve, which
+is what turns the table above from a claim into a check.
 """
-@enum AggregateState AS_UNDEF AS_AQUEOUS AS_CRYSTAL AS_GAS
+@enum AggregateState AS_UNDEF AS_AQUEOUS AS_CRYSTAL AS_GAS AS_LIQUID
 
 """
     @enum Class
@@ -34,6 +59,16 @@ Enumeration for species chemical classes.
   - `SC_SSENDMEMBER`: end-member of a solid solution phase.
 """
 @enum Class SC_UNDEF SC_AQSOLVENT SC_AQSOLUTE SC_COMPONENT SC_GASFLUID SC_SSENDMEMBER
+
+# Correspondence with ThermoFun, counted over `data/`: `SC_AQSOLUTE` (2179),
+# `SC_COMPONENT` (868), `SC_GASFLUID` (57) and `SC_AQSOLVENT` (7) appear on
+# substances and all have a member here. `ELEMENT` (221) and `CHARGE` (7) appear
+# only in the `elements` section -- they are ThermoFun's classes for ELEMENTS,
+# not for substances, so this enum is right not to carry them, and the guard in
+# `test/databases.jl` walks `substances` alone for that reason.
+#
+# `SC_SSENDMEMBER` has no ThermoFun counterpart: it is this package's own role
+# for an end member that enters a system through its solid-solution phase.
 
 """
     abstract type AbstractSpecies end
@@ -55,9 +90,77 @@ const PropertyType = Union{
 }
 
 """
+    _identity_symbol(s::AbstractSpecies) -> Union{Nothing, String}
+
+What the symbol contributes to a species' **identity**: `nothing` when it is
+merely a spelling of the species' own formula, and the symbol itself otherwise.
+
+# Why identity cannot just read `symbol`
+
+Because a symbol serves two masters. It is the **lookup key** — `cs["H2O"]`
+indexes a [`ChemicalSystem`](@ref) by it, so it must stay the string the caller
+typed — and it is the only thing that separates two substances sharing a formula,
+a state and a class. Rewriting the stored symbol satisfies the second and breaks
+the first: measured, `cs["H2O"]` raised `KeyError` and
+`ChemicalSystem(sp, ["H2O", "NaCl"])` could no longer name its components.
+
+# Why `nothing`, and not a canonical spelling
+
+The obvious move is to replace a derived symbol by `unicode(formula(s))`. It is
+wrong, and measurably so: `unicode` is **not constant** on the equality classes
+of [`Formula`](@ref), which are composition and charge.
+
+```
+Formula("e")    == Formula("e-")     yet unicode is "e"    and "e⁻"
+Formula("Ca+2") == Formula("Ca⁺²")   yet unicode is "Ca²⁺" and "Ca⁺²"
+```
+
+Two species that are the same substance, both with derived symbols, would then
+have carried different identity symbols and compared unequal. So a derived symbol
+must contribute **nothing** rather than a canonical form: the formula it spells is
+already compared, and spelling it twice cannot add information.
+
+`expr`, `phreeqc` and `unicode` are stored fields of a `Formula`, so the three
+tests below are string comparisons, not re-parsing.
+
+# What it returns
+
+| species | symbol | identity symbol |
+|:--|:--|:--|
+| `Species("H2O")` | `"H2O"` | `nothing` — a spelling of its formula |
+| `Species("H₂O")` | `"H₂O"` | `nothing` — the same species |
+| `ELECTRON` | `"e-"` | `nothing` — and `Species("e")` likewise |
+| `Species("CaCO3"; symbol="Cal")` | `"Cal"` | `"Cal"` — names a polymorph |
+| `Species("CaCO3"; symbol="Arg")` | `"Arg"` | `"Arg"` — names the other one |
+"""
+function _identity_symbol(s::AbstractSpecies)
+    sym = symbol(s)
+    f = formula(s)
+    return (sym == expr(f) || sym == unicode(f) || sym == phreeqc(f)) ? nothing : sym
+end
+
+"""
     Base.isequal(s1::AbstractSpecies, s2::AbstractSpecies) -> Bool
 
-Compare two species for equality based on formula, aggregate state, and class.
+Whether two species are the same species: same **formula**, **aggregate state**,
+**class**, and whatever the symbol adds to that.
+
+# Why the symbol is part of it
+
+Because the first three do not separate polymorphs, and a polymorph is a
+different substance. Calcite and aragonite are both `CaCO3`, both `AS_CRYSTAL`,
+both `SC_COMPONENT`; in CEMDATA18 their standard Gibbs energies differ by
+821 J/mol, which at 298 K is 0.33 in `ln K` — the whole difference in solubility
+between them. Without the symbol they compared equal, and a `Dict` keyed by
+species could not tell them apart.
+
+It also restores the invariant `isequal ⟹ hash`, which [`Base.hash`](@ref) had
+always broken by including the symbol when this did not: `Dict(calcite => 1)`
+raised `KeyError` on `aragonite` while `calcite == aragonite` said `true`.
+
+Two spellings of one formula remain one species, because
+[`_identity_symbol`](@ref) drops a symbol that merely spells the formula instead
+of comparing it as text.
 
 # Examples
 
@@ -68,22 +171,40 @@ julia> s2 = Species("H₂O"; aggregate_state=AS_AQUEOUS);
 
 julia> s1 == s2
 true
+
+julia> calcite = Species("CaCO3"; symbol="Cal", aggregate_state=AS_CRYSTAL);
+
+julia> aragonite = Species("CaCO3"; symbol="Arg", aggregate_state=AS_CRYSTAL);
+
+julia> calcite == aragonite
+false
 ```
+
+See also: [`Base.hash`](@ref), [`_identity_symbol`](@ref).
 """
 function Base.isequal(s1::AbstractSpecies, s2::AbstractSpecies)
     return isequal(formula(s1), formula(s2)) &&
         isequal(aggregate_state(s1), aggregate_state(s2)) &&
-        isequal(class(s1), class(s2))
+        isequal(class(s1), class(s2)) &&
+        isequal(_identity_symbol(s1), _identity_symbol(s2))
 end
 ==(s1::AbstractSpecies, s2::AbstractSpecies) = isequal(s1, s2)
 
 """
     Base.hash(s::AbstractSpecies, h::UInt) -> UInt
 
-Compute hash for a species based on symbol, formula, aggregate state, and class.
+Hash a species on exactly what [`Base.isequal`](@ref) compares — formula,
+aggregate state, class, and [`_identity_symbol`](@ref) — which is what `Dict` and
+`Set` require of the pair.
+
+It used to hash the stored `symbol` while `isequal` ignored it altogether, so two
+species that compared equal could land in different buckets.
 """
 function Base.hash(s::AbstractSpecies, h::UInt)
-    return hash(symbol(s), hash(formula(s), hash(aggregate_state(s), hash(class(s), h))))
+    return hash(
+        _identity_symbol(s),
+        hash(formula(s), hash(aggregate_state(s), hash(class(s), h)))
+    )
 end
 
 """

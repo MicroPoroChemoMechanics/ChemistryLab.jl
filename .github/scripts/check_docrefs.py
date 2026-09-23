@@ -146,6 +146,12 @@ ONE_LINE_DOC = re.compile(r'^\s*(?:raw)?"(?:[^"\\]|\\.)*"\s*$')
 DOC_ALIAS = re.compile(r"^\s*@doc\s+\S.*?\s([A-Za-z_][\w!]*)\s*$")
 
 
+# Bare `raw\"\"\"` docstrings found while parsing: `(path, line, name)`. Filled by
+# `doc_blocks` and reported by `main`; a module-level list because `doc_blocks`
+# is called from several places and the finding belongs to the run, not a call.
+DETACHED_RAW = []
+
+
 def doc_blocks(path):
     """Every docstring in a file as `(first_line, last_line, documented_name)`.
 
@@ -202,13 +208,25 @@ def doc_blocks(path):
                 blocks.append((i + 1, i + 1, alias.group(1)))
             i += 1
             continue
-        if head.startswith("@doc"):
+        at_doc = head.startswith("@doc")
+        if at_doc:
             head = head[4:].lstrip()
-        if head.startswith("raw" + q):
+        # `raw"""` is a STRING MACRO, not a string literal, and Julia's
+        # docstring mechanism does not attach it: the definition below it ends up
+        # with no documentation at all, silently. Only `@doc raw"""` works.
+        #
+        # This is not hypothetical. Treating a bare `raw"""` as a docstring is
+        # what this script used to do, and it cost a documentation build ninety
+        # minutes before Documenter said "No docstring found in doc for binding".
+        # A bare one preceding a definition is therefore collected separately and
+        # reported, because nobody writes it on purpose.
+        raw_head = head.startswith("raw" + q)
+        if raw_head:
             head = head[3:]
         if not head.startswith(q):
             i += 1
             continue
+        detached = raw_head and not at_doc
         rest = head[3:]
         if q in rest:                       # opens and closes on one line
             close, tail = i, rest.split(q, 1)[1]
@@ -232,6 +250,9 @@ def doc_blocks(path):
                 if m:
                     name = m.group(1)
                     break
+        if detached and name is not None:
+            DETACHED_RAW.append((path, i + 1, name))
+            name = None
         blocks.append((i + 1, close + 1, name))
         i = code + 1
     return blocks
@@ -464,12 +485,29 @@ def main(root="src"):
             "those docstrings is listed on an API page, so they are worth fixing,\n"
             "and they do not refuse a push.\n"
         )
-    if not bad and not undocumented:
+    if not bad and not undocumented and not DETACHED_RAW:
         print(
             f"OK: every unqualified @ref under {root}/ is reachable from its "
-            "module, and every rendered one has a docstring"
+            "module, every rendered one has a docstring, and no docstring is "
+            "detached"
         )
         return 0
+    if DETACHED_RAW:
+        # Deduplicated: `doc_blocks` runs over each file more than once, so the
+        # raw list holds a finding per pass rather than per docstring.
+        found = sorted(set(DETACHED_RAW))
+        print(
+            f"FAIL: {len(found)} docstring written as a bare `raw\"\"\"`, "
+            "which documents nothing"
+        )
+        for path, lineno, name in found:
+            print(f"  {path}:{lineno}  before `{name}`")
+        print(
+            "\n`raw\"\"\"` is a string MACRO, not a string literal, so Julia does not\n"
+            "attach it and the definition below ends up with no documentation --\n"
+            "silently, which is the whole problem. Write `@doc raw\"\"\"` instead, or\n"
+            "use an ordinary docstring and escape the backslashes.\n"
+        )
     if bad:
         print(f"FAIL: {len(bad)} unqualified @ref out of reach of its own module")
         for path, lineno, mod, target in bad:

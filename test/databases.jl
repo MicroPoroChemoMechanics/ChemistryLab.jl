@@ -6,12 +6,17 @@ using TOML
         parse_unit = ChemistryLab.extract_unit
         classify = ChemistryLab.extract_classification
         for fallback in (AS_UNDEF, SC_UNDEF)
+            # Every member of the enum round-trips through its own name. This
+            # loop is why `AS_LIQUID` no longer appears in the list below: it
+            # used to be an unsupported label that fell back, and is now a member
+            # like any other, so `instances` covers it here.
             for value in instances(typeof(fallback))
                 @test classify(Dict("0" => string(value)), fallback) == value
             end
             for value in (
                     missing, nothing, Dict(), Dict("0" => "unknown"),
-                    Dict("0" => "AS_LIQUID"), Dict("0" => "AS_GAS", "1" => "AS_CRYSTAL"),
+                    Dict("0" => "AS_SOLID_SOLUTION"),   # a name no enum carries
+                    Dict("0" => "AS_GAS", "1" => "AS_CRYSTAL"),
                 )
                 @test classify(value, fallback) == fallback
             end
@@ -258,7 +263,18 @@ using TOML
         # The banner a reader sees stays machine-independent.
         @test ChemistryLab.display_data_path(bundled) ==
             joinpath("data", "cemdata18-thermofun.json")
+        # Outside the package, shown unchanged -- including a path built the way
+        # the running platform builds one, since `tempdir()` is on another drive
+        # from the checkout on a Windows runner and that is exactly the case a
+        # `relpath`-based test would get wrong.
+        outside = joinpath(tempdir(), "elsewhere", "foo.json")
+        @test ChemistryLab.display_data_path(outside) == outside
         @test ChemistryLab.display_data_path("/elsewhere/foo.json") == "/elsewhere/foo.json"
+        # A sibling of the package root whose name begins with it is not inside
+        # it, which the prefix test has to get right.
+        sibling = pkgdir(ChemistryLab) * "-elsewhere"
+        @test ChemistryLab.display_data_path(joinpath(sibling, "f.json")) ==
+            joinpath(sibling, "f.json")
     end
 
 end
@@ -360,4 +376,142 @@ end
 
     rm(tmp; force = true)
     rm(tmp_missing; force = true)
+end
+
+@testsection "every unit the reader actually reads can be parsed" begin
+    # A GUARD, not a discovery. `extract_unit` falls back on a default unit when
+    # a string does not parse, and a fallback is silent: a value declared in one
+    # unit would then be used as though it were in another. PR #59 recorded that
+    # `cal` already takes that fallback with the installed DynamicQuantities, and
+    # left the scientific question open. This settles it for the shipped data.
+    #
+    # Measured over `data/*.json`: seven distinct unit strings, of which two do
+    # not parse -- `cal/(mol*bar)` on `eos_hkf_coeffs` and `kbar` on
+    # `m_expansivity`. NEITHER REACHES THE PARSER.
+    #
+    #   * `eos_hkf_coeffs` is converted by `HKF_SI_CONVERSIONS`, an explicit
+    #     SUPCRT-to-SI table, precisely because the JSON's own unit metadata is
+    #     wrong for `a3` and `a4`. It never calls `extract_unit`.
+    #   * `m_expansivity` is not read by this package at all.
+    #
+    # So no value the package uses is off by a factor of 4.184. This test is what
+    # keeps that true when a database is added or a field starts being read.
+    read_fields = Set(
+        [
+            "sm_gibbs_energy", "sm_enthalpy", "sm_entropy_abs", "sm_heat_capacity_p",
+            "sm_volume", "drsm_gibbs_energy", "drsm_enthalpy", "drsm_entropy_abs",
+            "drsm_volume", "logKr", "m_heat_capacity_ft_coeffs",
+        ]
+    )
+    units = Set{String}()
+    function collect_units!(o, key)
+        if o isa AbstractDict
+            if key in read_fields && haskey(o, "units") && o["units"] isa AbstractVector
+                for u in o["units"]
+                    u isa AbstractString && push!(units, u)
+                end
+            end
+            for (k, v) in o
+                collect_units!(v, k)
+            end
+        elseif o isa AbstractVector
+            for v in o
+                collect_units!(v, key)
+            end
+        end
+        return nothing
+    end
+    for f in filter(endswith(".json"), readdir(datapath(); join = true))
+        collect_units!(JSON.parsefile(f; dicttype = Dict{String, Any}), "")
+    end
+
+    @test !isempty(units)                       # the walk found something
+    parses(u) = ChemistryLab.is_unit_expression(Meta.parse(u)) && (
+        try
+            uparse(u)
+            true
+        catch
+            false
+        end
+    )
+    @test isempty(filter(!parses, collect(units)))
+
+    # Fractional exponents are among them and must survive both the security
+    # guard and `uparse`: `J/(mol*K^0.5)` is a heat-capacity coefficient.
+    @test ChemistryLab.is_unit_expression(Meta.parse("J/(mol*K^0.5)"))
+    @test dimension(uparse("J/(mol*K^0.5)")) == dimension(u"J/mol" / sqrt(u"K"))
+end
+
+@testsection "AS_LIQUID is read from the database instead of being lost" begin
+    # One species in `slop98-inorganic-thermofun.json` declares `AS_LIQUID`:
+    # metallic mercury. Until the enum carried that member the label matched
+    # nothing and the import fell back on `AS_UNDEF`, silently discarding what
+    # the file said.
+    @test AS_LIQUID isa AggregateState
+    @test Int(AS_LIQUID) == 4                   # appended, so nothing renumbered
+    @test Int(AS_UNDEF) == 0 && Int(AS_GAS) == 3
+
+    sp = build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false)
+    hg = only(s for s in sp if symbol(s) == "Hg")
+    @test aggregate_state(hg) == AS_LIQUID
+
+    # AND IT IS NOT FILTERED OUT ANYWHERE THE OTHERS ARE KEPT. Adding a member to
+    # an enum turns every hand-written list of "all of them" into a filter,
+    # silently. `idx_speciation` carried one: four states named when there were
+    # four, so its intent was not to filter on state at all. It now says
+    # `instances`, and this is the assertion that would have caught the day it
+    # stopped meaning that.
+    # `idx_speciation` returns a BOOLEAN MASK, not a list of indices, so the
+    # assertion has to read it as one: `length` of the mask is the number of
+    # candidates, not the number kept, and an empty mask never happens.
+    @test only(ChemistryLab.idx_speciation([hg], collect(keys(atoms(hg)))))
+    # Naming a state still filters, so the default is permissive rather than the
+    # filter being inert.
+    @test !any(
+        ChemistryLab.idx_speciation(
+            [hg], collect(keys(atoms(hg))); aggregate_state = [AS_GAS]
+        )
+    )
+end
+
+@testsection "every ThermoFun substance label has a member to land on" begin
+    # THE GENERAL FORM OF THE `AS_LIQUID` DEFECT. `extract_classification` matches
+    # a label by name against `instances`, and falls back when there is no match
+    # -- silently, because a fallback is a valid value. So a label the enum does
+    # not carry is data the import throws away without saying so, and `AS_LIQUID`
+    # was one: metallic mercury read as `AS_UNDEF` until the member was added.
+    #
+    # Testing that one label would leave the next one to be found the same way.
+    # This walks the `substances` of every shipped database instead and requires
+    # each label to resolve.
+    #
+    # `substances` and not the whole file, deliberately. The `elements` section
+    # uses `ELEMENT` (221 occurrences) and `CHARGE` (7), which are ThermoFun's
+    # classes for ELEMENTS; `Class` describes substances, so it is right not to
+    # carry them, and widening this walk would turn that correctness into a
+    # failure.
+    agg_names = Set(string.(instances(AggregateState)))
+    class_names = Set(string.(instances(Class)))
+    unknown_agg, unknown_class = Set{String}(), Set{String}()
+    for f in filter(endswith(".json"), readdir(datapath(); join = true))
+        d = JSON.parsefile(f; dicttype = Dict{String, Any})
+        for item in get(d, "substances", Any[])
+            item isa AbstractDict || continue
+            a = get(item, "aggregate_state", nothing)
+            a isa AbstractDict && for v in values(a)
+                v isa AbstractString && !(v in agg_names) && push!(unknown_agg, v)
+            end
+            c = get(item, "class_", nothing)
+            c isa AbstractDict && for v in values(c)
+                v isa AbstractString && !(v in class_names) && push!(unknown_class, v)
+            end
+        end
+    end
+    @test isempty(unknown_agg)
+    @test isempty(unknown_class)
+
+    # The walk found something, so an empty result above means agreement and not
+    # a broken loop.
+    @test "AS_LIQUID" in agg_names
+    @test "SC_AQSOLUTE" in class_names
 end
