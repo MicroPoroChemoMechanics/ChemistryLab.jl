@@ -51,13 +51,61 @@ function _potential_families(cs::ChemicalSystem)
 end
 
 """
+    _potential_supports(cs) -> Vector{Vector{Int}}
+
+The distinct supports of `cs` that need a potential unknown, each as the list of
+family indices on it.
+
+One unknown per **surface**, not per family: ferrihydrite's strong and weak
+sites are two families on one oxide and share one `Ψ`. See
+[`support_group`](@ref).
+
+Refuses a support whose families disagree — one asking for a potential and
+another not, or two declaring different areas for the same surface. Both are
+incoherent rather than merely unusual, and both would otherwise produce a
+number.
+"""
+function _potential_supports(cs::ChemicalSystem)
+    groups = support_group(cs)
+    isempty(groups) && return Vector{Vector{Int}}()
+    out = Vector{Vector{Int}}()
+    seen = Set{Int}()
+    for grp in groups
+        first(grp) in seen && continue
+        push!(seen, first(grp))
+        wants = [needs_potential_unknown(cs.site_families[g].model) for g in grp]
+        any(wants) || continue
+        name = cs.site_families[first(grp)].support.name
+        all(wants) || throw(
+            ArgumentError(
+                "the families on support \"$name\" disagree about the surface " *
+                    "potential: $(count(wants)) of $(length(grp)) declare a model " *
+                    "that needs one. A surface carries one potential, so either " *
+                    "all of its families describe it or none does."
+            ),
+        )
+        areas = unique(cs.site_families[g].model.area for g in grp)
+        listed = join(areas, ", ")
+        length(areas) == 1 || throw(
+            ArgumentError(
+                "the families on support \"$name\" declare different areas for it " *
+                    "($listed m²). One surface has one area, and the charge " *
+                    "density it carries depends on it."
+            ),
+        )
+        push!(out, grp)
+    end
+    return out
+end
+
+"""
     _surface_potential_blocks(des, state, p, n0) -> NamedTuple or nothing
 
 The parameter block the **system** contributes, as opposed to the one its
-constraint does: one unknown `ψ̃ = FΨ/RT` per site family that needs it, with
-the Gouy-Chapman closure as its equation.
+constraint does: one unknown `ψ̃ = FΨ/RT` per surface that needs it, with the
+Gouy-Chapman closure as its equation.
 
-`nothing` when no family needs one, which is every system without a diffuse
+`nothing` when no surface needs one, which is every system without a diffuse
 layer — so nothing pays for the possibility.
 
 # The closure, and why its residual is already dimensionless
@@ -67,39 +115,44 @@ c_k(n, \\tilde\\psi) \\;=\\; \\tilde\\psi_k
   \\;-\\; 2\\operatorname{asinh}\\!\\left(\\frac{\\sigma_k(n)}{\\kappa\\sqrt{I(n)}}\\right)
 ```
 
-`ψ̃` is in units of `RT` by construction, which is what the stationarity rows
-are in, so no scaling is needed — unlike the enthalpy residual of an adiabatic
-solve, which is `10⁵ J` and has to be divided by `RT` before it can sit in the
-same Newton system.
+`σ_k` is summed over every member of every family on the k-th surface. `ψ̃` is
+in units of `RT` by construction, which is what the stationarity rows are in, so
+no scaling is needed — unlike the enthalpy residual of an adiabatic solve, which
+is `10⁵ J` and has to be divided by `RT` before it can sit in the same Newton
+system.
 
 `q0 = 0` starts the solve on an uncharged surface, which is the composition a
 solve without electrostatics would return and therefore the natural cold start.
 """
 function _surface_potential_blocks(des, state, p, n0)
     cs = state.system
-    fams = _potential_families(cs)
-    isempty(fams) && return nothing
+    supports = _potential_supports(cs)
+    isempty(supports) && return nothing
 
-    models = [cs.site_families[k].model for k in fams]
-    groups = [cs.site_groups[k] for k in fams]
+    models = [cs.site_families[first(grp)].model for grp in supports]
+    members = [
+        reduce(vcat, (cs.site_groups[g] for g in grp); init = Int[]) for grp in supports
+    ]
     charges = [
-        Float64[charge(sp) for sp in site_members(cs.site_families[k])] for k in fams
+        Float64[charge(sp) for g in grp for sp in site_members(cs.site_families[g])]
+            for grp in supports
     ]
     solvent = isempty(cs.idx_solvent) ? 0 : only(cs.idx_solvent)
     ions = [i for i in cs.idx_solutes if !iszero(charge(cs.species[i]))]
     ion_z = Float64[charge(cs.species[i]) for i in ions]
     M_w = iszero(solvent) ? 1.0 : ustrip(us"kg/mol", cs.species[solvent][:M])
-    nq = length(fams)
+    nq = length(supports)
 
     # The activity model, evaluated at the potential the solve currently holds.
-    hq = (x, q, params) -> des.lna(x, merge(params, (ψ_site = _scatter(cs, fams, q),)))
+    hq = (x, q, params) ->
+    des.lna(x, merge(params, (ψ_site = _scatter(cs, supports, q),)))
 
     cq = function (x, q, params)
         T = hasproperty(params, :T) ? params.T : 298.15
         I = _aqueous_ionic_strength(x, ions, ion_z, solvent, M_w)
         return [
             q[k] - diffuse_layer_potential(
-                models[k], charges[k], [x[i] for i in groups[k]], I, T,
+                models[k], charges[k], [x[i] for i in members[k]], I, T,
             ) for k in 1:nq
         ]
     end
@@ -109,20 +162,20 @@ function _surface_potential_blocks(des, state, p, n0)
         Aq = zeros(Float64, size(des.A, 1), nq),
         q0 = zeros(Float64, nq), qscale = ones(Float64, nq),
         apply = (T, P, q) -> (T, P),
-        families = fams,
+        supports = supports,
     )
 end
 
 """
-    _scatter(cs, fams, q) -> Vector
+    _scatter(cs, supports, q) -> Vector
 
-The potentials `q` placed at the families they belong to, `nothing` elsewhere,
-so the activity kernel can index by family without knowing which ones carry an
-unknown.
+Each surface's potential placed at every family standing on it, `nothing`
+elsewhere, so the activity kernel can index by family without knowing which
+families share a surface.
 """
-function _scatter(cs::ChemicalSystem, fams::Vector{Int}, q)
+function _scatter(cs::ChemicalSystem, supports::Vector{Vector{Int}}, q)
     out = Vector{Any}(nothing, length(cs.site_families))
-    @inbounds for (k, f) in enumerate(fams)
+    @inbounds for (k, grp) in enumerate(supports), f in grp
         out[f] = q[k]
     end
     return out

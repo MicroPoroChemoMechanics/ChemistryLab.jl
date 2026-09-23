@@ -209,6 +209,7 @@ SELECTED_OUTPUT
     -reset      false
     -high_precision true
     -pH         true
+    -ionic_strength true
     -activities H+ Zn+2
     -molalities {' '.join(REPORTED)}
 END
@@ -224,6 +225,7 @@ END
         zn_sorbed = m["Hfo_sOZn+"] + m["Hfo_wOZn+"]
         points.append({
             "pH": ph, "la_H": col("la_H+"), "la_Zn": col("la_Zn+2"),
+            "I": col("mu"),
             "s_free": m["Hfo_sOH"], "s_prot": m["Hfo_sOH2+"],
             "s_depr": m["Hfo_sO-"], "s_zn": m["Hfo_sOZn+"],
             "w_free": m["Hfo_wOH"], "w_prot": m["Hfo_wOH2+"],

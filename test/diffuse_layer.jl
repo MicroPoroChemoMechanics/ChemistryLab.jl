@@ -128,10 +128,20 @@ end
         dl = DiffuseLayer(; area = 53.4)
         @test_throws ArgumentError DiffuseLayer(; area = 53.4, base = cc)
         @test_throws ArgumentError ConstantCapacitance(; C = 1.06, area = 53.4, base = dl)
-        # but decorating an ordinary mixing model is exactly what they are for
+        # but decorating an ordinary mixing model is exactly what they are for,
+        # and the decoration is transparent to what the base decides — for BOTH
+        # electrostatic models, because a trait that delegates for one and not
+        # the other is a trap rather than a trait.
         @test_nowarn DiffuseLayer(; area = 53.4, base = GainesThomasMixing())
         @test supports_multidentate(DiffuseLayer(; area = 53.4, base = GainesThomasMixing()))
         @test !supports_multidentate(DiffuseLayer(; area = 53.4))
+        @test supports_multidentate(
+            ConstantCapacitance(; C = 1.06, area = 53.4, base = GainesThomasMixing()),
+        )
+        @test supports_multidentate(
+            ConstantCapacitance(; C = 1.06, area = 53.4, base = VanselowMixing()),
+        )
+        @test !supports_multidentate(ConstantCapacitance(; C = 1.06, area = 53.4))
     end
 
     @testset "the constants are the package's own, not PHREEQC's" begin
@@ -258,6 +268,45 @@ end
         @test stiff_ok < ELECTROSTATIC_STIFFNESS_LIMIT < stiff_bad
     end
 
+    @testset "two unknowns that both rebuild the activity model are refused" begin
+        # An adiabatic solve makes the activity model a function of an unknown
+        # temperature; a diffuse layer makes it a function of an unknown
+        # potential. Composing the two would mean threading one's parameter
+        # merge through the other's, and the shipped callbacks are opaque to
+        # that — so it refuses and says where to start, rather than silently
+        # applying one and dropping the other.
+        ser, pt = f.series[1], f.series[1].points[1]
+        cs, st = _ddl_case(ser, pt; model = dl)
+        des = DualEquilibriumSolver(cs, DiluteSolutionModel())
+        b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
+        err = try
+            SciMLBase.solve(
+                des, st; b = b, constraint = Adiabatic(),
+                parameters = Base.RefValue{Any}(nothing),
+            )
+            nothing
+        catch e
+            e
+        end
+        @test err isa ArgumentError
+        @test occursin("DiffuseLayer", sprint(showerror, err))
+
+        # And the same system under the same constraint goes through once the
+        # potential is eliminated, which is what says the refusal is about the
+        # composition and not about either model.
+        @test_nowarn SciMLBase.solve(
+            des, st; b = b, constraint = Adiabatic(),
+            surface_potential = :eliminated,
+            parameters = Base.RefValue{Any}(nothing),
+        )
+
+        # The keyword refuses what it cannot do, too.
+        @test_throws ArgumentError SciMLBase.solve(
+            des, st; b = b, constraint = FixedpH(pt.pH), surface_potential = :nonsense,
+            parameters = Base.RefValue{Any}(nothing),
+        )
+    end
+
     @testset "what the residual is not" begin
         # Neither explanation survives measurement, and saying so is worth more
         # than attributing it to the first plausible cause.
@@ -379,9 +428,12 @@ end
         # parameter is the area, which enters σ, κ√I and the stiffness alike.
         z = [0.0, 1.0, -1.0]
         n = [1.0e-4, 0.66e-4, 0.34e-4]
+        # The second argument is the MEMBER's charge, not its index: the rest of
+        # the vector is the whole support's, because that is what raises the
+        # potential, and the member only rides on it.
         g = ForwardDiff.derivative(
             a -> ChemistryLab._electrostatic_ln_a(
-                DiffuseLayer(; area = a, ε_r = 78.2451), 2, z, n, 0.01, 298.15, nothing
+                DiffuseLayer(; area = a, ε_r = 78.2451), z[2], z, n, 0.01, 298.15, nothing
             ), 53.4,
         )
         @test isfinite(g)
@@ -392,17 +444,17 @@ end
         # linear in it, so the derivative is exactly the member's charge.
         gψ = ForwardDiff.derivative(
             ψ -> ChemistryLab._electrostatic_ln_a(
-                DiffuseLayer(; area = 53.4), 2, z, n, 0.01, 298.15, ψ
+                DiffuseLayer(; area = 53.4), z[2], z, n, 0.01, 298.15, ψ
             ), 1.5,
         )
         @test gψ ≈ z[2]
         @test ChemistryLab._electrostatic_ln_a(
-            DiffuseLayer(; area = 53.4), 3, z, n, 0.01, 298.15, 1.5
+            DiffuseLayer(; area = 53.4), z[3], z, n, 0.01, 298.15, 1.5
         ) ≈ z[3] * 1.5
 
         # and at the unscreened limit the guard gives a finite number, not a NaN
         big = ChemistryLab._electrostatic_ln_a(
-            DiffuseLayer(; area = 53.4), 2, z, n, 0.0, 298.15, nothing
+            DiffuseLayer(; area = 53.4), z[2], z, n, 0.0, 298.15, nothing
         )
         @test isfinite(big)
         # A positively charged surface makes one more positive species costlier

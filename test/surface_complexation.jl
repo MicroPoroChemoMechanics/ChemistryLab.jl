@@ -100,10 +100,18 @@ const PHREEQC_PROTOLYSIS = reference_oracle("phreeqc_protolysis")
 # Zn total     1e-05 mol/kgw
 const PHREEQC_HFO_ZN = reference_oracle("phreeqc_hfo_zn")
 
+# The SAME experiment with the double layer on — PHREEQC's default `SURFACE`
+# rather than `-no_edl`. It is a different model, not a refinement: the edge
+# moves by about half a pH unit, from 0.372 sorbed at pH 6 to 0.182. That shift
+# is what makes this a gate rather than a formality.
+const PHREEQC_HFO_ZN_DDL = reference_oracle("phreeqc_hfo_zn_ddl")
+
 # Both families of the HFO model, with a metal that binds to each. Built from
 # PHREEQC's own constants, so the standard energies below *are* those log K.
-function _hfo_system(; background = 0.01)
-    f = PHREEQC_HFO_ZN
+function _hfo_system(;
+        background = 0.01, chloride = background, model = IdealSiteMixing(),
+        f = PHREEQC_HFO_ZN,
+    )
     sf(sym, g) = begin
         s = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
         s[:ΔₐG⁰] = _g0(g)
@@ -135,11 +143,11 @@ function _hfo_system(; background = 0.01)
     support = SurfaceSupport("hydrous ferric oxide", nothing, FixedSurfaceArea(53.4))
     fam_s = SiteFamily(
         "Hfo_s", s_free, [s_prot, s_depr, s_zn];
-        capacity = TotalSiteAmount(f.n_strong), support,
+        capacity = TotalSiteAmount(f.n_strong), support, model,
     )
     fam_w = SiteFamily(
         "Hfo_w", w_free, [w_prot, w_depr, w_zn];
-        capacity = TotalSiteAmount(f.n_weak), support,
+        capacity = TotalSiteAmount(f.n_weak), support, model,
     )
 
     species = [
@@ -156,7 +164,7 @@ function _hfo_system(; background = 0.01)
     # PHREEQC's `-water 1`.
     n0[idx["H2O@"]] = moles_of_water() * u"mol"
     n0[idx["Na+"]] = background * u"mol"
-    n0[idx["Cl-"]] = background * u"mol"
+    n0[idx["Cl-"]] = chloride * u"mol"
     n0[idx["Zn+2"]] = f.zn_total * u"mol"
     n0[idx["XsOH"]] = f.n_strong * u"mol"
     n0[idx["XwOH"]] = f.n_weak * u"mol"
@@ -424,6 +432,64 @@ end
         @test davies_gap < 0.02
         # And the improvement is an order of magnitude, which is the attribution.
         @test ideal_gap / davies_gap > 10
+    end
+
+    @testset "the same edge with the double layer on — Dzombak & Morel's model" begin
+        # THE GATE THE ZINC PAGE HAS BEEN LEAVING OPEN. Everything above runs
+        # `-no_edl` on both sides, which is a fair cross-code check and is not
+        # the model the published constants were fitted in. This is.
+        #
+        # It is also the first case where two families share one surface AND
+        # carry a potential, and that is not a detail: a proton on a weak site
+        # charges the same oxide a proton on a strong site does. A potential
+        # computed per family would make the two electrostatically invisible to
+        # each other and is not this model.
+        f = PHREEQC_HFO_ZN_DDL
+        @test length(
+            unique(
+                surface_support(fam).name
+                    for fam in _hfo_system(; f)[1].site_families
+            )
+        ) == 1                                   # one surface, two families
+        @test length(_hfo_system(; f)[1].site_families) == 2
+
+        worst, n_certified = 0.0, 0
+        for pt in f.points
+            # The ionic strength is matched to PHREEQC's, which its own titrant
+            # moves; the chloride carries the difference.
+            cs, st, idx = _hfo_system(;
+                background = 0.01,
+                chloride = 2 * pt.I - 0.01 - 10.0^(-pt.pH) - 10.0^(pt.pH - 14),
+                model = DiffuseLayer(; area = f.area), f,
+            )
+            des = DualEquilibriumSolver(cs, DaviesActivityModel())
+            b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
+            eq = SciMLBase.solve(
+                des, st; b = b, constraint = FixedpH(pt.pH),
+                parameters = Base.RefValue{Any}(nothing),
+            )
+            cert = optimality_certificate(des, eq; b = b, constraint = FixedpH(pt.pH))
+            cert.stationarity < 1.0e-8 || continue
+            n_certified += 1
+            n = Float64[ustrip(us"mol", x) for x in eq.n]
+            sorbed = (n[idx["XsOZn+"]] + n[idx["XwOZn+"]]) / f.zn_total
+            # Only where there is a zinc front to compare: below 1 % sorbed the
+            # relative figure is the ratio of two numbers near zero.
+            pt.zn_sorbed_fraction < 0.01 && continue
+            worst = max(worst, abs(sorbed / pt.zn_sorbed_fraction - 1))
+        end
+        @test n_certified == length(f.points)
+        @info "zinc edge, diffuse layer: worst relative gap to PHREEQC" worst
+        @test worst < 0.05
+
+        # AND IT IS A DIFFERENT ANSWER, not a rounding of the previous one. The
+        # layer moves the edge by about half a pH unit; a test that passed both
+        # fixtures would be testing nothing.
+        plain = Dict(pt.pH => pt.zn_sorbed_fraction for pt in PHREEQC_HFO_ZN.points)
+        shifted = maximum(
+            abs(pt.zn_sorbed_fraction - plain[pt.pH]) for pt in f.points
+        )
+        @test shifted > 0.15
     end
 
     @testset "a charged surface: the model, and where the solve stops" begin

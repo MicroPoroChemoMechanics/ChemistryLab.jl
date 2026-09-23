@@ -24,11 +24,10 @@ PHREEQC computing the same thing from its own database.
     published Dzombak & Morel calibration assumes a diffuse layer, so these
     constants are being used outside the model they were fitted in. That is
     legitimate as a cross-code check — the two codes are doing the same thing —
-    and it is **not** a reproduction of the published titration. The
-    electrostatic term now exists — see
-    [A charged surface, screened](@ref sec-example-diffuse-layer) — but the
-    regime a metal edge needs is the one where eliminating the potential stops
-    working, so that gate is still open.
+    and it is **not** a reproduction of the published titration. The layer is
+    switched on at the end of this page, which is that reproduction; it is kept
+    apart because comparing two codes on one model and comparing a model with
+    and without its double layer are two different questions.
 
 ## The two families
 
@@ -194,10 +193,70 @@ protons involved, and the proton activity prescribed on both sides, no aqueous
 activity coefficient enters at all, and the surface chemistry is compared alone.
 `test/surface_complexation.jl` keeps both comparisons for that reason.
 
+## The same edge, with the double layer
+
+Everything above ran `-no_edl`. Dzombak & Morel's constants were fitted **with**
+a diffuse layer, so this is the comparison that is actually a reproduction of
+the published model rather than a cross-code check on a truncated one.
+
+Two families sit on one oxide here, and that matters as soon as there is a
+potential: a proton bound to a weak site charges the same surface a proton bound
+to a strong site does, so both feel one `Ψ`. The potential belongs to the
+support, not to the family.
+
+```@example hfo
+using JSON
+DDL = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference",
+                              "phreeqc_hfo_zn_ddl.json"))
+layered = SiteFamily[]   # the same two families, with the layer on
+for (name, free, others, N) in (
+        ("Hfo_s", s_free, [s_prot, s_depr, s_zn], N_strong),
+        ("Hfo_w", w_free, [w_prot, w_depr, w_zn], N_weak),
+    )
+    push!(layered, SiteFamily(name, free, others; capacity = TotalSiteAmount(N),
+                              support, model = DiffuseLayer(; area = 53.4)))
+end
+cs_dl = ChemicalSystem(species, [h2o, hp, zn, na, cl, s_free, w_free];
+                       site_families = layered)
+j = Dict(symbol(sp) => k for (k, sp) in enumerate(cs_dl.species))
+des_dl = DualEquilibriumSolver(cs_dl, DaviesActivityModel())
+
+function sorbed_with_layer(pt)
+    n0 = Any[fill(1.0e-14u"mol", length(cs_dl.species))...]
+    n0[j["H2O@"]] = ustrip(us"mol", 1.0u"kg" / h2o[:M]) * u"mol"
+    n0[j["Na+"]] = 0.01u"mol"
+    # the chloride carries PHREEQC's own titrant, so the ionic strengths match
+    n0[j["Cl-"]] = (2 * pt["I"] - 0.01 - 10.0^(-pt["pH"]) - 10.0^(pt["pH"] - 14))u"mol"
+    n0[j["Zn+2"]] = Zn_total * u"mol"
+    n0[j["XsOH"]] = N_strong * u"mol"; n0[j["XwOH"]] = N_weak * u"mol"
+    st = ChemicalState(cs_dl, n0)
+    bb = Float64.(cs_dl.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
+    eq = SciMLBase.solve(des_dl, st; b = bb, constraint = FixedpH(pt["pH"]))
+    n = Float64[ustrip(us"mol", x) for x in eq.n]
+    return (n[j["XsOZn+"]] + n[j["XwOZn+"]]) / Zn_total
+end
+
+using Printf
+println("  pH   no layer   with layer   PHREEQC (layer)")
+for pt in DDL["points"]
+    a = at(pt["pH"])
+    @printf("%5.1f %10.4f %12.4f %16.4f\n",
+            pt["pH"], a.strong + a.weak, sorbed_with_layer(pt),
+            pt["zn_sorbed_fraction"])
+end
+```
+
+The layer moves the edge by about **half a pH unit** — at pH 6 the sorbed
+fraction falls from 0.37 to 0.18 — which is why a calibration made with it
+cannot be used without it. The middle column follows the right-hand one to
+0.5 %, slightly better than the 0.94 % of the comparison without the layer.
+
 ## See also
 
+  - [A charged surface, screened](@ref sec-example-diffuse-layer) — the same
+    layer on the acid-base half, across three ionic strengths, and why the
+    potential is carried as an unknown.
   - [Adsorption on a single site family](@ref sec-example-surface-langmuir) —
     the same machinery on one family, against a closed form.
-  - [Chemistry that happens on a surface](@ref sec-theory-surface) — and in
-    particular what an electrostatic term would add, which is what the published
-    calibration of this very model assumes.
+  - [Chemistry that happens on a surface](@ref sec-theory-surface) — where the
+    electrostatic models are derived and what each costs the certificate.

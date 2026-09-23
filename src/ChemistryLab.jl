@@ -457,6 +457,7 @@ module ChemistryLab
         DiffuseLayer,
         with_electrostatic_scale,
         needs_potential_unknown,
+        support_group,
         diffuse_layer_potential,
         electrostatic_stiffness,
         site_gradient_asymmetry,

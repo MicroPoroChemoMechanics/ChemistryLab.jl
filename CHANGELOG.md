@@ -46,6 +46,27 @@ The threshold is measured on both sides rather than chosen: 3.38 certified,
 conditioning artifact — a capacitance below about 3 F/m² on ferrihydrite fails
 for exactly this reason, not that one.
 
+### A surface carries one potential, not one per family
+
+Ferrihydrite is two families — strong sites and weak sites — on one oxide, so a
+proton bound to a weak site charges the same surface a proton bound to a strong
+site does, and both feel the same `Ψ`. The potential therefore belongs to the
+**support**, and the charge that raises it is summed over every family standing
+on it. `support_group` is that grouping; a support whose families disagree about
+having a potential, or about the area of the surface they share, is refused.
+
+This is what makes the published calibration reachable. Dzombak & Morel's zinc
+edge, run with the layer on and its ionic strength matched to PHREEQC's:
+
+| pH | no layer | with layer | PHREEQC, with layer |
+|---:|---------:|-----------:|--------------------:|
+| 6.0 | 0.3732 | **0.1825** | 0.1816 |
+| 7.0 | 0.9044 | **0.7094** | 0.7069 |
+
+The layer moves the edge by about half a pH unit, which is why constants fitted
+with it cannot be used without it, and the agreement is 0.47 % — slightly better
+than the 0.94 % of the same comparison without the layer.
+
 ### What the certificate means for each, stated rather than implied
 
 Measuring two criteria that one word had been hiding separated them:

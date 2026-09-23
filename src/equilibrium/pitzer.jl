@@ -268,6 +268,9 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
     site_ion_z = Float64[charge(cs.species[i]) for i in site_ions]
     site_Mw = (site_needs_I && !iszero(site_solvent)) ?
         ustrip(us"kg/mol", cs.species[site_solvent][:M]) : 1.0
+    # A surface potential belongs to the support, so the charge that raises it
+    # is summed over every family on it, not over one family's own members.
+    site_support_idx, site_support_z = has_sites ? _support_members(cs) : (nothing, nothing)
 
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
     n_sp = lastindex(cs.species)
@@ -492,7 +495,7 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
             ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
             _site_mixing_lna!(
                 out, _n, site_groups, site_models, site_denticity, site_charges,
-                I_site, T_val, ϵ, ψ_site
+                I_site, T_val, ϵ, ψ_site, site_support_idx, site_support_z
             )
         end
         return out

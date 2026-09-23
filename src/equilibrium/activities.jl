@@ -181,6 +181,9 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
     site_ion_z = Float64[charge(cs.species[i]) for i in site_ions]
     site_Mw = (site_needs_I && !iszero(site_solvent)) ?
         ustrip(us"kg/mol", cs.species[site_solvent][:M]) : 1.0
+    # A surface potential belongs to the support, so the charge that raises it
+    # is summed over every family on it, not over one family's own members.
+    site_support_idx, site_support_z = has_sites ? _support_members(cs) : (nothing, nothing)
 
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
@@ -222,7 +225,7 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
             ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
             _site_mixing_lna!(
                 out, _n, site_groups, site_models, site_denticity, site_charges,
-                I_site, T_val, ϵ, ψ_site
+                I_site, T_val, ϵ, ψ_site, site_support_idx, site_support_z
             )
         end
 
@@ -668,6 +671,9 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
     site_ion_z = Float64[charge(cs.species[i]) for i in site_ions]
     site_Mw = (site_needs_I && !iszero(site_solvent)) ?
         ustrip(us"kg/mol", cs.species[site_solvent][:M]) : 1.0
+    # A surface potential belongs to the support, so the charge that raises it
+    # is summed over every family on it, not over one family's own members.
+    site_support_idx, site_support_z = has_sites ? _support_members(cs) : (nothing, nothing)
 
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])   # kg/mol, e.g. 0.018015
 
@@ -787,7 +793,7 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
             ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
             _site_mixing_lna!(
                 out, _n, site_groups, site_models, site_denticity, site_charges,
-                I_site, T_val, ϵ, ψ_site
+                I_site, T_val, ϵ, ψ_site, site_support_idx, site_support_z
             )
         end
 
@@ -1051,6 +1057,9 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
     site_ion_z = Float64[charge(cs.species[i]) for i in site_ions]
     site_Mw = (site_needs_I && !iszero(site_solvent)) ?
         ustrip(us"kg/mol", cs.species[site_solvent][:M]) : 1.0
+    # A surface potential belongs to the support, so the charge that raises it
+    # is summed over every family on it, not over one family's own members.
+    site_support_idx, site_support_z = has_sites ? _support_members(cs) : (nothing, nothing)
 
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
 
@@ -1132,7 +1141,7 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
             ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
             _site_mixing_lna!(
                 out, _n, site_groups, site_models, site_denticity, site_charges,
-                I_site, T_val, ϵ, ψ_site
+                I_site, T_val, ϵ, ψ_site, site_support_idx, site_support_z
             )
         end
 
@@ -1355,7 +1364,7 @@ one: Gouy-Chapman genuinely diverges as the solution runs out of ions, and a
 diffuse layer in pure water is the model outside its range of validity.
 """
 _electrostatic_ln_a(
-    ::AbstractSiteMixingModel, ::Int, ::AbstractVector, n::AbstractVector,
+    ::AbstractSiteMixingModel, ::Real, ::AbstractVector, n::AbstractVector,
     ::Real, ::Real, ::Any
 ) = zero(eltype(n))
 
@@ -1368,23 +1377,23 @@ function _surface_charge_density(z::AbstractVector, n::AbstractVector, area::Rea
 end
 
 function _electrostatic_ln_a(
-        m::ConstantCapacitance, k::Int, z::AbstractVector, n::AbstractVector,
+        m::ConstantCapacitance, z_k::Real, z::AbstractVector, n::AbstractVector,
         ::Real, T::Real, ::Any
     )
     σ = _surface_charge_density(z, n, m.area)
-    return z[k] * FARADAY * σ / (m.C * R_GAS * T)
+    return z_k * FARADAY * σ / (m.C * R_GAS * T)
 end
 
 function _electrostatic_ln_a(
-        m::DiffuseLayer, k::Int, z::AbstractVector, n::AbstractVector,
+        m::DiffuseLayer, z_k::Real, z::AbstractVector, n::AbstractVector,
         I::Real, T::Real, ψ_given
     )
     # TOLD rather than computed, when the solve carries the potential as an
     # unknown. That is the whole difference between a fixed-point iteration on
     # the activity — which stops contracting above a stiffness of about five —
     # and a Newton step that has the coupling in its Jacobian.
-    ψ_given === nothing || return m.scale * z[k] * ψ_given
-    return m.scale * z[k] * diffuse_layer_potential(m, z, n, I, T)
+    ψ_given === nothing || return m.scale * z_k * ψ_given
+    return m.scale * z_k * diffuse_layer_potential(m, z, n, I, T)
 end
 
 """
@@ -1567,22 +1576,28 @@ solution, and the element type follows `_n`, so the whole path differentiates.
 function _site_mixing_lna!(
         out::AbstractVector, _n::AbstractVector{ET},
         site_groups::Vector{Vector{Int}}, site_models, site_denticity, site_charges,
-        I, T, ϵ, ψ_site = nothing
+        I, T, ϵ, ψ_site = nothing, support_idx = nothing, support_z = nothing
     ) where {ET}
     for (f, (grp, mdl, dent, z)) in enumerate(
             zip(site_groups, site_models, site_denticity, site_charges)
         )
         ψ_given = ψ_site === nothing ? nothing : ψ_site[f]
+        # The charge that raises the potential is the SUPPORT's, over every
+        # family on it — two families on one oxide share one surface and one Ψ.
+        sup_i = support_idx === nothing ? grp : support_idx[f]
+        sup_z = support_z === nothing ? z : support_z[f]
+        nsup = Vector{ET}(undef, length(sup_i))
+        @inbounds for (j, i) in enumerate(sup_i)
+            nsup[j] = _n[i]
+        end
         n_total = sum(_site_weight(mdl, dent[j]) * _n[i] for (j, i) in enumerate(grp)) + ϵ
         x = Vector{ET}(undef, length(grp))
-        ngrp = Vector{ET}(undef, length(grp))
         @inbounds for (j, i) in enumerate(grp)
             x[j] = _site_weight(mdl, dent[j]) * _n[i] / n_total
-            ngrp[j] = _n[i]
         end
         @inbounds for (k, i) in enumerate(grp)
             out[i] = log(x[k] + ϵ) + _site_excess_ln_gamma(mdl, k, x, T) +
-                _electrostatic_ln_a(mdl, k, z, ngrp, I, T, ψ_given)
+                _electrostatic_ln_a(mdl, z[k], sup_z, nsup, I, T, ψ_given)
         end
     end
     return out

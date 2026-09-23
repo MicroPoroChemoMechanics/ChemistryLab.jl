@@ -873,3 +873,47 @@ function Base.show(io::IO, f::SiteFamily)
         "$(nameof(typeof(f.capacity))) on $(f.support.name))",
     )
 end
+
+"""
+    support_group(cs) -> Vector{Vector{Int}}
+
+For each site family of `cs`, the indices of **every** family sharing its
+support — itself included — identified by the support's name.
+
+A surface carries one potential, not one per family. Ferrihydrite is the case
+that makes this concrete: Dzombak and Morel's strong and weak sites are two
+families on one oxide, so a proton bound to a weak site charges the same
+surface a proton bound to a strong site does, and both feel the same `Ψ`.
+Computing a potential from one family's members alone would make the two sites
+electrostatically invisible to each other, which is neither the published model
+nor the physics.
+
+Empty when `cs` declares no surface.
+"""
+function support_group(cs::ChemicalSystem)
+    fams = cs.site_families
+    fams === nothing && return Vector{Vector{Int}}()
+    byname = Dict{String, Vector{Int}}()
+    for (k, f) in enumerate(fams)
+        push!(get!(byname, f.support.name, Int[]), k)
+    end
+    return [byname[f.support.name] for f in fams]
+end
+
+"""
+    _support_members(cs) -> (indices, charges)
+
+Per family, the species indices and the formal charges of every member of every
+family on its support, in one flat list each and in the same order — what a
+surface charge density has to be summed over.
+"""
+function _support_members(cs::ChemicalSystem)
+    groups = support_group(cs)
+    idx = [reduce(vcat, (cs.site_groups[g] for g in grp); init = Int[]) for grp in groups]
+    chg = [
+        Float64[
+            charge(sp) for g in grp for sp in site_members(cs.site_families[g])
+        ] for grp in groups
+    ]
+    return idx, chg
+end
