@@ -496,7 +496,62 @@ among the species.
 function _is_bare_site(sp::AbstractSpecies, site::Symbol)
     a = atoms(sp)
     get(a, site, 0) == 1 || return false
-    return all(k === site || iszero(v) for (k, v) in a) && iszero(charge(sp))
+    # A CHARGE IS ALLOWED, and usually required. The bare component carries no
+    # matter, but it does carry whatever charge the free site carries with its
+    # site symbol: `XsOH` is `Xs⁺ + OH⁻`, so the component is `Xs+`; an
+    # exchanger `NaXc` is `Xc⁻ + Na⁺`, so its component is negative. Insisting
+    # on neutrality here is what makes the basis degenerate — see
+    # `_refuse_parasitic_charge`.
+    return all(k === site || k === :Zz || iszero(v) for (k, v) in a)
+end
+
+"""
+    _refuse_parasitic_charge(cs, family, r)
+
+Refuse a coupled family whose bare component leaves `Zz` among the primaries.
+
+# What goes wrong, measured
+
+Every species carrying a site symbol carries it together with a fixed amount of
+charge: `XsOH` decomposes as `H₂O − H⁺ + Xs + Zz` and `XsOCa⁺` as
+`Ca²⁺ + H₂O − 2H⁺ + Xs + Zz`. The site component and the charge component
+therefore appear in the **same ratio** everywhere, so only their sum is
+identifiable and the basis is degenerate along `y_Xs + y_Zz`.
+
+The solver finds that out the hard way. Measured on portlandite carrying sites,
+with a neutral bare component: the two multipliers ran to `+234 650` and
+`−234 710` — four decades past any chemical potential — while their sum stayed
+at `−60`; the dual Newton stalled at a KKT error of `2.3e-9`; and the host came
+out at `0.0999 mol` where the uncoupled answer is `0.0883`.
+
+Giving the component the charge the free site carries with its site symbol
+removes the `Zz` primary altogether. The same run then converges at `4.8e-11`,
+`max|y|` is `227`, the host lands on `0.08826` against `0.08827` uncoupled, and
+the coupling holds to `1.8e-7`.
+
+The charge to use is not guessed: it is the coefficient of `Zz` in the free
+site's own decomposition, which is what this reports.
+"""
+function _refuse_parasitic_charge(cs::ChemicalSystem, family::SiteFamily, r::Int)
+    zz = findfirst(p -> symbol(p) == "Zz", cs.SM.primaries)
+    zz === nothing && return nothing
+    jf = findfirst(s -> symbol(s) == symbol(reference_member(family)), cs.species)
+    z = jf === nothing ? 1 : Int(round(Float64(cs.SM.A[zz, jf])))
+    sug = z == 0 ? "" : (z > 0 ? "+"^z : "-"^(-z))
+    throw(
+        ArgumentError(
+            "SiteFamily \"$(name(family))\" follows its host over the bare component " *
+                "\"$(symbol(cs.SM.primaries[r]))\", and that leaves :Zz among the " *
+                "primaries. Every species carrying :$(family.site) carries it with a " *
+                "fixed amount of charge, so the site and the charge components appear " *
+                "in one ratio everywhere and only their sum is identifiable.\n" *
+                "Measured, the cost is not subtle: the two multipliers ran to " *
+                "±2.3e5 while their sum stayed at −60, the solve stalled at a KKT " *
+                "error of 2.3e-9, and the host came out thirteen percent off.\n" *
+                "Declare the component with the charge the free site carries with its " *
+                "site symbol — here `Species(\"$(family.site)$sug\")`.",
+        )
+    )
 end
 
 """
@@ -537,10 +592,28 @@ unit vector, so subtracting `ν` from that one entry subtracts `ν` times a
 component carrying no atom and no charge. Element conservation is exact by
 construction, and nothing else in the matrix moves.
 
-Measured on the uncoupled case, the substitution costs nothing: the same system
-solved over a bare-site primary and over the free site returns the same host
-amount to eight digits, converges in both, and conserves its elements to
-`5.6e-16` against `1.8e-15`.
+The component carries the **charge** the free site carries with its site symbol
+— `XsOH` is `Xs⁺ + OH⁻`, so the component is `Xs+`. A neutral one leaves `Zz`
+among the primaries and the basis is then degenerate; `_refuse_parasitic_charge`
+says so, with what it costs.
+
+# Measured
+
+Uncoupled, the substitution costs nothing: the same system over a bare-site
+component and over the free site returns the same host amount to eight digits,
+converges in both, elements to `5.6e-16` against `1.8e-15`.
+
+Coupled, on portlandite carrying sites at `Γ = 1e-5 mol/m²` over `90 m²/kg`, at
+three host amounts:
+
+| host | converged | `Σdn / n_host / ν − 1` | elements | host, coupled vs fixed |
+|:--|:--|--:|--:|:--|
+| 0.05 | yes, kkt `1.4e-14` | `3.9e-7` | `4.2e-15` | 0.0382614 / 0.0382737 |
+| 0.10 | yes, kkt `5.7e-14` | `1.7e-7` | `1.5e-15` | 0.0882592 / 0.0882715 |
+| 0.20 | yes, kkt `4.5e-11` | `8.0e-8` | `2.1e-12` | 0.1882548 / 0.188267 |
+
+The fixed budget is off by 13 %, 6 % and 31 % on the same three, which is not a
+defect of it: a budget that does not follow its host cannot track one.
 """
 function conservation_matrix(cs::ChemicalSystem)
     A = Float64.(cs.SM.A)
@@ -577,33 +650,8 @@ function conservation_matrix(cs::ChemicalSystem)
                     "species of this system.",
             )
         )
+        _refuse_parasitic_charge(cs, f, r)
         A[r, j] -= sites_per_host(f, _molar_mass_si(cs.species[j]))
-        _warn_coupling_unconverged(name(f))
     end
     return A
-end
-
-# Declaring a coupled support is opting into a path that does not yet return a
-# trustworthy number, and that has to be said where it cannot be missed rather
-# than left in a docstring.
-#
-# The formulation is right and measured: the constraint is satisfied exactly
-# (`viol = 0` from the solver's own diagnostics), element conservation holds to
-# 5e-13, and an uncoupled system is bit-identical to what it was. What fails is
-# the solve. On portlandite carrying sites at Γ = 1e-5 mol/m² over 90 m²/kg, the
-# dual Newton stalls at a KKT error of 2.3e-9 against a 1e-10 tolerance — a
-# fixed point, not a budget: raising `maxit` and `max_active_updates` from 200 to
-# 3000 changes not one digit. The host then comes out at 0.0999 mol where the
-# same chemistry uncoupled gives 0.0883, so the answer is WRONG by thirteen
-# percent and not merely uncertified.
-#
-# `always_present` was the obvious suspect and is not the cause: switching it off
-# for the site phase changes nothing at all.
-function _warn_coupling_unconverged(fam::AbstractString)
-    @warn """SiteFamily "$fam" follows its host, and the coupled equilibrium does \
-    NOT yet converge. The constraint and the element balance are exact, but the \
-    dual Newton stalls at a KKT error of 2.3e-9 and returns a host amount wrong \
-    by about thirteen percent on the case it was measured on. Treat any number \
-    from a coupled solve as provisional.""" maxlog = 1
-    return nothing
 end

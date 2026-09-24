@@ -492,7 +492,8 @@ end
         aggregate_state = AS_CRYSTAL, class = SC_COMPONENT,
     )
     free, occ = _surf("XsOH"), _surf("XsOCa+")
-    bare = _surf("Xs")                       # the pure component, not a substance
+    bare = _surf("Xs+")                      # the pure component, not a substance
+    bare0 = _surf("Xs")                      # neutral: degenerate, and refused
     sp = [h2o, hp, ca, host, free, occ]
     M = ustrip(us"kg/mol", host[:M])
     ν = 1.0e-5 * 90.0 * M
@@ -528,7 +529,7 @@ end
         cs = ChemicalSystem(sp, [h2o, hp, ca, bare]; site_families = [fam(SITES_FOLLOW_HOST)])
         A0 = Float64.(cs.SM.A)
         A = conservation_matrix(cs)
-        r = findfirst(p -> symbol(p) == "Xs", cs.SM.primaries)
+        r = findfirst(p -> get(atoms(p), :Xs, 0) > 0, cs.SM.primaries)
         j = findfirst(==("Portlandite"), symbol.(cs.species))
         @test A[r, j] ≈ A0[r, j] - ν
         # Nothing else moves. Asserting the difference matrix is sparse in one
@@ -543,14 +544,37 @@ end
         @test A[r, :] ≈ rows[1, :]
     end
 
+    @testset "a neutral component leaves a parasitic charge, and is refused" begin
+        # Every species carrying :Xs carries it with a fixed amount of charge,
+        # so a neutral component leaves :Zz among the primaries and only
+        # `y_Xs + y_Zz` is identifiable. Measured, the two multipliers ran to
+        # ±2.3e5 while their sum stayed at −60 and the solve stalled.
+        cs = ChemicalSystem(sp, [h2o, hp, ca, bare0]; site_families = [fam(SITES_FOLLOW_HOST)])
+        @test "Zz" in symbol.(cs.SM.primaries)      # the parasite, visible
+        e = try
+            conservation_matrix(cs)
+            nothing
+        catch err
+            err
+        end
+        @test e isa ArgumentError
+        @test occursin("only their sum is identifiable", e.msg)
+        # And the message names the charge to use, derived from the free site's
+        # own decomposition rather than guessed.
+        @test occursin("Species(\"Xs+\")", e.msg)
+    end
+
     @testset "the bare component need not be a species" begin
         cs = ChemicalSystem(sp, [h2o, hp, ca, bare]; site_families = [fam(SITES_FOLLOW_HOST)])
-        @test !("Xs" in symbol.(cs.species))
-        @test "Xs" in symbol.(cs.SM.primaries)
+        @test !("Xs+" in symbol.(cs.species))
+        @test "Xs+" in symbol.(cs.SM.primaries)
         # It carries the site symbol and nothing else, which is the property the
         # whole correction rests on.
-        prim = cs.SM.primaries[findfirst(p -> symbol(p) == "Xs", cs.SM.primaries)]
+        prim = cs.SM.primaries[findfirst(p -> get(atoms(p), :Xs, 0) > 0, cs.SM.primaries)]
         @test ChemistryLab._is_bare_site(prim, :Xs)
         @test !ChemistryLab._is_bare_site(free, :Xs)
+        # A charge is allowed and usually required; real atoms are not.
+        @test ChemistryLab._is_bare_site(bare0, :Xs)
+        @test !ChemistryLab._is_bare_site(occ, :Xs)
     end
 end
