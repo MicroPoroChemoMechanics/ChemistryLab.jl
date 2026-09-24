@@ -115,6 +115,17 @@
         # property of the CSHQ model, not a free parameter, so the gap is real.
         @test total(:Ca) ≈ 2.72 rtol = 0.1
         @test total(:Ca) > 1.3 * 1.95
+        # The page prints a "calculated" column beside Atkins' measured one.
+        # Those five numbers are this package's answer, and until now only the
+        # calcium had an assertion anchored on it — at 10 %, which is wider than
+        # the three digits printed. Pinned here at the printed precision. The
+        # assertions above stay: they say something different, namely how far
+        # the answer is from the MEASUREMENT, which is what the page is about.
+        @test total(:Ca) ≈ 2.72 atol = 5.0e-3
+        @test total(:Al) ≈ 0.149 atol = 5.0e-4
+        @test total(:Si) ≈ 0.396 atol = 5.0e-4
+        @test total(:S) ≈ 1.18 atol = 5.0e-3
+        @test pH(eq, model) ≈ 11.33 atol = 5.0e-3
 
         # Sulfate lands close (1.18 against 1.08 measured), but it is the one
         # number here that moves freely with the C-S-H Ca/Si — 0.55 at Ca/Si 1.0,

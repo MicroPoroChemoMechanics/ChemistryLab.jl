@@ -11,10 +11,29 @@ standard properties they were derived from, so the two can be required to agree;
 then a set of measured solution compositions ([Atkins1992](@cite)), which can
 disagree with the database and does.
 
-Every number below is pinned by an assertion in `test/cemdata18_reference.jl`
-(584 of them), `test/atkins1992_reference.jl` (12), `test/limestone_blending_reference.jl` (25)
-`test/chloride_binding_reference.jl` (25) or
-`test/duan2016_reference.jl` (11), so it is checked on every CI run.
+Every number below is pinned by an assertion in `test/cemdata18_reference.jl`,
+`test/atkins1992_reference.jl`, `test/limestone_blending_reference.jl`,
+`test/chloride_binding_reference.jl` or `test/duan2016_reference.jl`, so it is
+checked on every CI run — **pinned, not merely bounded**.
+
+The distinction is what makes a page like this worth reading. A threshold that
+says a disagreement is *under* `0.05` leaves the `0.041` printed beside it free
+to drift to `0.047` while the suite stays green and the page goes quietly
+stale. Every displayed value is therefore asserted at the precision it is
+printed to, which is half of its last digit.
+
+!!! note "Two classes of number that are not pinned, and say so"
+    **The intermediate rungs of a sweep.** Where a table exists to make a
+    mechanism visible — calculated calcium against the C-S-H Ca/Si, siliceous
+    hydrogarnet against `Fe₂O₃`, Kuzel's salt against chloride — the rungs that
+    carry the argument are computed and pinned, and the rest are *written in
+    italics*. An italic rung is a measurement recorded when the section was
+    written; it is not recomputed on every run, and a reader should treat it as
+    an illustration of the trend rather than as a current result.
+
+    **The timings.** The seconds quoted for a cold and a warm solve measure one
+    machine. Asserting them would make the suite fail on a faster one without
+    anything being wrong, which is the opposite of what a test is for.
 
 ## What has been checked
 
@@ -247,12 +266,18 @@ Ca/Si ought to mean less calcium in solution. It does not:
 
 | C-S-H Ca/Si | Ca | Al | Si | SO₄ | pH |
 |--:|--:|--:|--:|--:|--:|
-| 0.75 | 3.39 | 0.156 | 0.498 | 2.41 | 11.02 |
-| 0.80 | 3.04 | 0.154 | 0.463 | 1.90 | 11.14 |
-| 0.85 | 2.83 | 0.152 | 0.429 | 1.50 | 11.24 |
+| *0.75* | *3.39* | *0.156* | *0.498* | *2.41* | *11.02* |
+| *0.80* | *3.04* | *0.154* | *0.463* | *1.90* | *11.14* |
+| *0.85* | *2.83* | *0.152* | *0.429* | *1.50* | *11.24* |
 | 0.90 | **2.72** | 0.149 | 0.396 | 1.18 | 11.33 |
-| 1.00 | 2.73 | 0.142 | 0.335 | 0.74 | 11.47 |
+| *1.00* | *2.73* | *0.142* | *0.335* | *0.74* | *11.47* |
 | *measured* | *1.95* | *0.136* | *0.076* | *1.08* | *11.0* |
+
+The mixture the test solves is the nominal one, Ca/Si `0.90`, and its row is
+pinned to the digits above. The other four rungs are recorded, in the sense the
+note at the top of this page defines: they were measured when this section was
+written, they carry the *shape* of the argument, and only the shape is checked
+— that calculated calcium stays above `1.3 × 1.95` everywhere on the sweep.
 
 Calculated calcium goes through a **minimum near Ca/Si 0.85–0.90** and rises
 again below it. It never approaches 1.95. The floor is a property of the CSHQ
@@ -322,8 +347,13 @@ It is not a defect, and the mechanism is stoichiometric. `C3AFS0.84H4.32` takes
 
 | `Fe₂O₃` % | 4.49 | 3.50 | 2.50 | 1.50 | 1.00 | 0.50 |
 |:--|--:|--:|--:|--:|--:|--:|
-| siliceous hydrogarnet | 0.0487 | 0.0396 | 0.0283 | 0.0170 | 0.0113 | 0.0057 |
-| monocarbonate | **0** | 0.0031 | 0.0083 | 0.0135 | 0.0161 | 0.0187 |
+| siliceous hydrogarnet | 0.0487 | *0.0396* | 0.0283 | *0.0170* | *0.0113* | *0.0057* |
+| monocarbonate | **0** | *0.0031* | 0.0083 | *0.0135* | *0.0161* | *0.0187* |
+
+The ladder the test walks carries two iron contents, `4.49 %` and `2.50 %`, and
+both columns are pinned — including the hydrogarnet amount, which this section
+turns on and which the test did not read off until it was asked to. The four
+italic columns are recorded rungs.
 
 The hydrogarnet tracks the iron one for one. Where there is enough iron to pair
 with every aluminum, nothing is left to make a carboaluminate; below about
@@ -397,7 +427,7 @@ Restricted to those, the figure comes back (mol per liter of concrete):
 | AFt at 0 % | 0.017928 | 22.5 g / 1255.1 = 0.017927 |
 | AFm at 1 % | **0** | consumed by ≈ 1 % |
 | AFt plateau | 0.02274 | 0.023 |
-| Friedel's salt plateau | 0.00964 | 0.010 |
+| Friedel's salt plateau | 0.00965 | 0.010 |
 
 What makes the agreement more than two curves happening to sit on top of each
 other is that both conservation statements behind it close as well. Writing
@@ -407,7 +437,7 @@ other is that both conservation statements behind it close as well. Writing
   `ΔAFt = ΔAFm / 3`: 0.00482 against 0.014455/3 = 0.004818;
 - **aluminum** — what the AFm held is split between Friedel's salt and the
   ettringite that grew, both carrying two aluminums per formula, so
-  `FS + ΔAFt = ΔAFm`: 0.00964 + 0.00482 = 0.01446.
+  `FS + ΔAFt = ΔAFm`: 0.00965 + 0.00482 = 0.01447, against 0.014455.
 
 ### What a fuller phase list adds
 
@@ -429,9 +459,15 @@ and peaks at 0.5 % NaCl — where Guo has Friedel's salt barely starting:
 
 | % NaCl | 0.1 | 0.25 | 0.5 | 0.75 | 1.0 | 1.5 |
 |:--|--:|--:|--:|--:|--:|--:|
-| monosulfate (14-hydrate) | 0.0131 | 0.0085 | 0.0010 | 0 | 0 | 0 |
-| Kuzel's salt | 0.0011 | 0.0047 | 0.0107 | **0.0116** | 0.0058 | 0 |
-| Friedel's salt | 0 | 0 | 0 | 0 | 0.0048 | 0.0096 |
+| monosulfate (14-hydrate) | 0.0131 | *0.0085* | 0.0010 | *0* | 0 | *0* |
+| Kuzel's salt | 0.0011 | *0.0047* | 0.0107 | ***0.0116*** | 0.0058 | *0* |
+| Friedel's salt | 0 | *0* | 0 | *0* | 0.0048 | *0.0096* |
+
+The sweep solves `0`, `0.1`, `0.5`, `1` and `2 %`, so three of the six columns
+above are pinned and three are recorded rungs. The peak in italics at `0.75 %`
+is therefore an illustration of where the maximum sits, not a measured
+maximum — what the suite checks is that Kuzel's salt holds the low-chloride
+range and is gone by `2 %`.
 
 **And where it stops mattering.** Once the chloride is high enough to take the
 last sulfate out of the AFm layer, Kuzel's salt is gone and the two phase lists
