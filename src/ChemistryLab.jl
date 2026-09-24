@@ -130,6 +130,8 @@ module ChemistryLab
     # order between them is the only one that works.
     include("surfaces/surface_areas.jl")
     include("surfaces/site_families.jl")
+    # After both, because it reads a family's capacity and its support's host.
+    include("surfaces/host_coupling.jl")
 
     include("databases/paths.jl")
     include("databases/phreeqc_dat.jl")
@@ -491,6 +493,12 @@ module ChemistryLab
         SurfaceSupport,
         specific_area,
         total_area,
+        declared_site_moles,
+        present_site_moles,
+        site_budget_residual,
+        check_site_budget,
+        host_consistent_state,
+        InconsistentSiteBudget,
         area_ratio,
         area_method,
         surface_area,

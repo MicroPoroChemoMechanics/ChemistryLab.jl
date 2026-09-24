@@ -37,3 +37,15 @@ the outer Newton removes that fixed point rather than taming it.
 Modules = [ChemistryLab]
 Pages   = ["surfaces/surface_potential.jl"]
 ```
+
+## The site budget, and the declaration it has to match
+
+A family declares a capacity; a state carries amounts. Until these functions
+existed nothing compared the two, so a capacity could be changed with no effect
+on the answer and a certificate could report `optimal = true` over a budget the
+declaration contradicted.
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["surfaces/host_coupling.jl"]
+```

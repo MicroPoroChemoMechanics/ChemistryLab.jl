@@ -604,3 +604,95 @@ end
     end
 
 end
+
+@testsection "a declared capacity is compared with the state that uses it" begin
+
+    # The audit's reproduction, kept as the shape of the test: a family
+    # declaring one capacity and a state initialized with another gave an
+    # equilibrium holding the state's, with `optimality_certificate` reporting
+    # `optimal = true`. The certificate was not wrong — it checks the budget it
+    # is given. Nothing compared that budget with the declaration, and changing
+    # the declared capacity alone changed no number in the answer.
+
+    declared = 1.0e-3                      # `_amphoteric_system`'s default
+    cs, st, family = _amphoteric_system()
+    nm = symbol.(cs.species)
+    idx(s) = findfirst(==(s), nm)
+
+    function state_with(n_free)
+        n = Any[fill(1.0e-12u"mol", length(cs.species))...]
+        n[idx("H2O@")] = moles_of_water() * u"mol"
+        n[idx("XsOH")] = n_free * u"mol"
+        return ChemicalState(cs, n)
+    end
+
+    @testset "agreement reads zero and raises nothing" begin
+        @test declared_site_moles(st, family) ≈ declared
+        # The two tiny complexes are in the state at the 1e-12 floor, so the
+        # present total is the free sites plus that — which is why this is a
+        # tolerance and not an equality.
+        @test present_site_moles(st, family) ≈ declared rtol = 1.0e-8
+        @test abs(site_budget_residual(st)["Xs"]) < 1.0e-6 * declared
+        @test check_site_budget(st) === nothing
+    end
+
+    @testset "disagreement is named, with both numbers" begin
+        bad = state_with(1.0e-1)
+        @test site_budget_residual(bad)["Xs"] ≈ 1.0e-1 - declared rtol = 1.0e-6
+        e = try
+            check_site_budget(bad)
+            nothing
+        catch err
+            err
+        end
+        @test e isa InconsistentSiteBudget
+        # The message carries BOTH numbers, or it says only that something is
+        # wrong — which the caller already knew.
+        msg = sprint(showerror, e)
+        @test occursin("Xs", msg)
+        @test occursin("host_consistent_state", msg)
+    end
+
+    @testset "the tolerance is relative, because a site budget has no scale" begin
+        # 1e-6 mol on an oxide and 1e-1 mol on a clay: an absolute threshold
+        # would be meaningless on one of the two.
+        @test check_site_budget(state_with(declared * (1 + 1.0e-9))) === nothing
+        @test_throws InconsistentSiteBudget check_site_budget(
+            state_with(declared * (1 + 1.0e-3)),
+        )
+    end
+
+    @testset "the repair derives the free site, and refuses the impossible" begin
+        fixed = host_consistent_state(state_with(1.0e-1))
+        @test abs(site_budget_residual(fixed)["Xs"]) < 1.0e-6 * declared
+        @test check_site_budget(fixed) === nothing
+        # It moved the FREE site and nothing else: an occupied site holds a
+        # sorbate whose elements the rest of the system accounts for.
+        @test ustrip(us"mol", fixed.n[idx("XsOH")]) ≈ declared rtol = 1.0e-8
+        @test fixed.n[idx("H2O@")] == state_with(1.0e-1).n[idx("H2O@")]
+
+        # Complexes already over the capacity is a declaration to correct, not
+        # an initialization to repair.
+        n = Any[fill(1.0e-12u"mol", length(cs.species))...]
+        n[idx("H2O@")] = moles_of_water() * u"mol"
+        n[idx("XsOH2+")] = 10 * declared * u"mol"
+        @test_throws ArgumentError host_consistent_state(ChemicalState(cs, n))
+    end
+
+    @testset "a capacity that needs a host, without one, is refused" begin
+        # An area or mass density cannot be evaluated without the solid that
+        # carries the sites. Evaluating it at zero would report a capacity of
+        # zero, which is a different model rather than a missing input.
+        free2 = Species("XwOH"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        free2[:ΔₐG⁰] = _g0(0.0)
+        fam2 = SiteFamily(
+            "Xw", free2, AbstractSpecies[];
+            capacity = AreaSiteDensity(1.0e-5),
+            support = SurfaceSupport("oxide", nothing, FixedSurfaceArea(1.0)),
+        )
+        h2o, hp = reference_species(("H2O@", "H+"))
+        cs2 = ChemicalSystem([h2o, hp, free2], [h2o, hp, free2]; site_families = [fam2])
+        st2 = ChemicalState(cs2, [moles_of_water() * u"mol", 1.0e-12u"mol", 1.0e-3u"mol"])
+        @test_throws ArgumentError declared_site_moles(st2, fam2)
+    end
+end
