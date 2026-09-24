@@ -183,6 +183,23 @@ his published `−0.73` and `−2.33` on Dzombak and Morel's own two densities.
 `REFERENCE_SITE_DENSITY_NM2` is the `12.05 nm⁻²` he writes; the SI form is
 derived from it through Avogadro rather than written twice.
 
+### A worked example of the thing itself
+
+`examples/evolving_sorbent.md` titrates hydrous ferric oxide carrying Dzombak
+and Morel's own weak-site density until it is gone, with manganese on it. It is
+written for a reader who has never done surface complexation: what a site is,
+why its budget is a conservation row and not an element, and why posting the
+budget as a number fails on a solid that dissolves — you would need the answer
+in order to set up the question.
+
+Two things happen in one sweep and telling them apart is the point. Up to about
+`0.2 mol` of acid per mole of oxide nothing dissolves and the acid simply takes
+the manganese off the surface, which a fixed budget describes perfectly well.
+Past that the oxide goes and its sites go with it, the ratio holding at `ν` to
+six decimals. Every number on the page comes out of a block the build executes,
+including the three checks it closes on: the relation to `1.5e-7`, element
+conservation to `5.1e-12` and every present phase at `log SI = 0` to `1.0e-11`.
+
 ### PHREEQC as the oracle
 
 PHREEQC has coupled a `SURFACE` to an `EQUILIBRIUM_PHASES` mineral since v2.

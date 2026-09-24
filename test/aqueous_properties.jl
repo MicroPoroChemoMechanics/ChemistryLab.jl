@@ -9,7 +9,7 @@
 # GEM-Selektor:
 #
 #   * γ from a ratio a/m diverges for a species at the solver's lower bound,
-#     whose log-activity is dominated by the closures' `+ ϵ` term;
+#     whose log-activity is the floor rather than a concentration;
 #   * `å_default` does not impose a common ionic radius;
 #   * `pH(state)` and `pH(state, model)` are different quantities.
 
@@ -545,14 +545,17 @@ end
     # a formula retyped here, so the test cannot drift from the closure it
     # guards: `activity_coefficients` and the solver call the same `_log10γ_ion`.
 
-    dict = Dict(
-        symbol(s) => s for s in reference_species(
-                split("H2O@ H+ OH- Na+ Cl- Ca+2")
-            )
+    # Built from the database here rather than through `reference_species`,
+    # which is a helper each test file that wants it includes for itself — and
+    # this one does not. The suite passed file by file and failed under
+    # `runtests.jl`, which is the only place that distinction shows.
+    wanted = split("H2O@ H+ OH- Na+ Cl- Ca+2")
+    subs = build_species(
+        datapath("slop98-inorganic-thermofun.json"); verbose = false
     )
+    dict = Dict(symbol(s) => s for s in subs if symbol(s) in wanted)
     cs = ChemicalSystem(
-        [dict[s] for s in split("H2O@ H+ OH- Na+ Cl- Ca+2")],
-        ["H2O@", "H+", "Na+", "Cl-", "Ca+2", "Zz"],
+        [dict[s] for s in wanted], ["H2O@", "H+", "Na+", "Cl-", "Ca+2", "Zz"],
     )
     st = ChemicalState(cs)
     set_quantity!(st, "H2O@", 1.0u"kg")
