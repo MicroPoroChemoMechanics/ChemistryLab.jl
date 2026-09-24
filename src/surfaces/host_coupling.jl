@@ -315,3 +315,74 @@ function convert_logk_site_density(
     shift = log10(Γ_C / Γ0)
     return free_site_side === :reactant ? logK + shift : logK - shift
 end
+
+# ── ν, the moles of sites one mole of host carries ───────────────────────────
+
+"""
+    sites_per_host(family::SiteFamily, M_host) -> Float64
+
+`ν`, the moles of sites one mole of the host carries, for a family whose
+support is `SITES_FOLLOW_HOST`.
+
+This is Kulik's equation (30) read as a coefficient: the moles of sites of a
+surface type are `ψ · A_s · M · Γ` times the moles of sorbent, so the whole
+dependence on the host is one number multiplying its amount.
+
+# The capacity has to be homogeneous of degree one, and that is measured
+
+`ν` only exists if the capacity really is proportional to the host's amount, and
+which capacities are is not a list to maintain but a property to check. This
+evaluates `site_moles` at two scaled amounts and requires the answer to scale
+with them:
+
+```math
+\\text{site\\_moles}(\\lambda n, n_0, M) = \\lambda \\, \\text{site\\_moles}(n, n_0, M)
+```
+
+with `n₀` held **fixed**. Scaling `n₀` along with `n` would make a
+[`ShrinkingCoreArea`](@ref)'s ratio `n/n₀` equal one at every `λ` and hide
+exactly the nonlinearity this exists to find.
+
+What the probe accepts and refuses follows without being enumerated:
+[`MassSiteDensity`](@ref) and [`AreaSiteDensity`](@ref) over a specific area
+pass, being `q M n` and `Γ a M n`; a [`TotalSiteAmount`](@ref) and an
+`AreaSiteDensity` over a [`FixedSurfaceArea`](@ref) are refused, being constants
+that do not follow anything; and a `ShrinkingCoreArea` passes only at `p = 1`,
+where it genuinely is linear. A capacity type written later is judged on the
+same evidence rather than on whether somebody remembered to add it here.
+
+A capacity of zero is refused too: it passes the proportionality test for the
+empty reason that `0 = λ·0`, and it is a family with no sites, which is a
+declaration to correct.
+"""
+function sites_per_host(family::SiteFamily, M_host::Real)
+    cap = site_capacity(family)
+    support = surface_support(family)
+    ν = Float64(site_moles(cap, support, 1.0, 1.0, M_host))
+
+    ν > 0 || throw(
+        ArgumentError(
+            "SiteFamily \"$(name(family))\" evaluates to $ν mol of sites per mole of " *
+                "host. A coupled family with no sites is a declaration to correct: " *
+                "check the capacity, and the host's molar mass if the capacity is " *
+                "measured per unit mass or area.",
+        )
+    )
+
+    for λ in (0.37, 2.9)
+        got = Float64(site_moles(cap, support, λ, 1.0, M_host))
+        isapprox(got, λ * ν; rtol = 1.0e-10) || throw(
+            ArgumentError(
+                "SiteFamily \"$(name(family))\" is declared SITES_FOLLOW_HOST, but its " *
+                    "$(nameof(typeof(cap))) is not proportional to the host's amount: " *
+                    "scaling that amount by $λ changes the site budget by " *
+                    "$(round(got / ν; sigdigits = 4)) instead. Measured, not assumed.\n" *
+                    "A budget that follows the host has to be a coefficient times its " *
+                    "amount, or the site row stops being linear and the problem stops " *
+                    "being a polyhedron. Use a capacity measured per unit mass or per " *
+                    "unit specific area, or leave the support at SITES_FIXED.",
+            )
+        )
+    end
+    return ν
+end

@@ -357,3 +357,62 @@ end
         @test_throws ArgumentError convert_logk_site_density(0.0, 1.0; free_site_side = :both)
     end
 end
+
+@testsection "a site budget that follows its host" begin
+
+    fs = _surf("XsOH")
+    mk(cap, sup) = SiteFamily("Xs", fs, AbstractSpecies[]; capacity = cap, support = sup)
+    coupled(area) = SurfaceSupport("s", "Host", area; coupling = SITES_FOLLOW_HOST)
+    M = 0.1                                   # kg/mol, the host's molar mass
+
+    @testset "the coupling is asked for, never inferred" begin
+        # Naming a host does not couple anything: the kinetics has named one
+        # since long before, to find the amount a rate law scales with.
+        @test SurfaceSupport("s", "Host", FixedSurfaceArea(1.0)).coupling === SITES_FIXED
+        @test SurfaceSupport("s", FixedSurfaceArea(1.0)).coupling === SITES_FIXED
+        @test coupled(BETSurfaceArea(90.0)).coupling === SITES_FOLLOW_HOST
+        # And following a host with no host named is refused at construction.
+        @test_throws ArgumentError SurfaceSupport(
+            "s", nothing, FixedSurfaceArea(1.0); coupling = SITES_FOLLOW_HOST,
+        )
+        @test_throws ArgumentError SurfaceSupport(
+            "s", FixedSurfaceArea(1.0); coupling = SITES_FOLLOW_HOST,
+        )
+    end
+
+    @testset "ν is the coefficient, and it is the obvious product" begin
+        # q·M for a mass density, Γ·a·M for an area density over a specific
+        # area — both checkable by hand, which is why they are checked that way.
+        @test ChemistryLab.sites_per_host(
+            mk(MassSiteDensity(2.0), coupled(BETSurfaceArea(90.0))), M,
+        ) ≈ 2.0 * M
+        @test ChemistryLab.sites_per_host(
+            mk(AreaSiteDensity(1.0e-5), coupled(BETSurfaceArea(90.0))), M,
+        ) ≈ 1.0e-5 * 90.0 * M
+    end
+
+    @testset "what is refused is refused on evidence, not on a type list" begin
+        # A total amount and an area over a FIXED area are constants: they do
+        # not follow anything, and the probe finds that by scaling the host.
+        @test_throws ArgumentError ChemistryLab.sites_per_host(
+            mk(TotalSiteAmount(5.0e-6), coupled(BETSurfaceArea(90.0))), M,
+        )
+        @test_throws ArgumentError ChemistryLab.sites_per_host(
+            mk(AreaSiteDensity(1.0e-5), coupled(FixedSurfaceArea(600.0))), M,
+        )
+        # A shrinking core is linear exactly at p = 1 and nowhere else, which is
+        # the case the probe exists for: the nonlinearity is invisible if `n₀`
+        # is scaled along with `n`, because the ratio is then always one.
+        @test ChemistryLab.sites_per_host(
+            mk(AreaSiteDensity(1.0e-5), coupled(ShrinkingCoreArea(BETSurfaceArea(90.0); exponent = 1))), M,
+        ) ≈ 1.0e-5 * 90.0 * M rtol = 1.0e-6
+        @test_throws ArgumentError ChemistryLab.sites_per_host(
+            mk(AreaSiteDensity(1.0e-5), coupled(ShrinkingCoreArea(BETSurfaceArea(90.0); exponent = 2 // 3))), M,
+        )
+        # A capacity of zero passes proportionality emptily, and is refused for
+        # that reason rather than admitted as a family with no sites.
+        @test_throws ArgumentError ChemistryLab.sites_per_host(
+            mk(MassSiteDensity(0.0), coupled(BETSurfaceArea(90.0))), M,
+        )
+    end
+end
