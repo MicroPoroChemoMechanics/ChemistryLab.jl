@@ -88,7 +88,9 @@ and the one a wrong window silently breaks.
 !!! warning "A phase with no window never leaves"
     It contributes to the starting mass and stays there, so a curve computed
     without noticing integrates to less than `ignition_loss` — and says nothing
-    about it. [`phases_without_windows`](@ref) is how to see it.
+    about it. [`phases_without_windows`](@ref) is how to see it — reporting
+    `phase => product`, because a carbonated hydrate needs two windows and
+    counting per phase would call it covered when half of it is.
 
     ```@example tga
     phases_without_windows(state, windows[1:2])   # calcite left out
@@ -138,7 +140,8 @@ id
 ```
 
 Six parameters, six directions constrained — because the three peaks are well
-separated. That is not the usual case.
+separated, and the spectrum falls off by factors of two and three with no drop
+anywhere. That is not the usual case.
 
 ## Where it stops, and why that is the useful part
 
@@ -150,15 +153,26 @@ fwd2(θ) = thermogram(state, with_window_parameters(overlapped, θ; kind = PROV_
 identifiability(fwd2, θ2; names = names2)
 ```
 
-Two phases releasing 5 K apart, and the rank drops below four: the curve sees
-**one** peak with a position and a width, not two with four parameters between
-them. A fit would still return four numbers.
+Two phases releasing 5 K apart, and the rank comes out **two of four** — which
+is exactly what the curve looks like: **one** peak, with a position and a width,
+rather than two with four parameters between them. The spectrum says the same
+thing more bluntly, `[0.055, 0.0054, 0.00048, 0.00016]`: two drops of about ten
+and then nothing. A fit would still return four numbers.
 
 This is the ordinary case in a cement paste — C-S-H, AFt and AFm all release
 below 200 °C — which is why running [`identifiability`](@ref) on the windows is
-not a formality. And it is the reason `as_traced` marks everything beyond the
-identifiable rank `PROV_PLACEHOLDER` rather than `PROV_FITTED`: a number the
-curve did not determine is one the optimizer had to leave somewhere.
+not a formality.
+
+```@example tga
+null_participation(identifiability(fwd2, θ2; names = names2))
+```
+
+That is what `as_traced` reads to decide which parameters to report as fitted
+and which as `PROV_PLACEHOLDER` — a number the curve did not determine is one
+the optimizer had to leave somewhere. It reads the **subspace**, not the
+parameter's position relative to the rank: the rank counts directions, the
+position is the packing order, and confusing them flags whichever of a
+trading-off pair happened to be listed second.
 
 ## What this settles
 

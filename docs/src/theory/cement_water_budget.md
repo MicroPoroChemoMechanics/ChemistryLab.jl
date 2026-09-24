@@ -372,6 +372,14 @@ Neither is invented. A window given as a bare number is `PROV_UNSTATED` — the
 weakest claim there is — and one written to get a picture on the screen should
 say `PROV_PLACEHOLDER` and keep saying it until a measurement replaces it.
 
+**A phase can need more than one window.** Gypsum loses its two waters in two
+steps, `CaSO₄·2H₂O → CaSO₄·½H₂O → CaSO₄`, and C-S-H does not leave in one piece
+either; a window per stage with `fraction` splitting the release is how that is
+written. The fractions are checked to sum to one, because two windows each
+accounting for all of a phase would release its mass **twice** and the only
+symptom would be a curve integrating to more than `ignition_loss` — a silent
+doubling rather than an error.
+
 !!! warning "Overlapping peaks are where this earns its keep"
     Two phases releasing in the same window is the ordinary case in a paste, and
     a fit that reported four numbers there would be reporting two. Running
@@ -382,4 +390,12 @@ say `PROV_PLACEHOLDER` and keep saying it until a measurement replaces it.
 [`phases_without_windows`](@ref) is the other half of the honesty: a phase with
 no window contributes to the starting mass and never leaves, so a curve computed
 without noticing integrates to less than `ignition_loss` and says nothing about
-it.
+it. It reports `phase => product` pairs rather than phases, because **a phase
+can need two windows** — a carbonated hydrate carries hydrogen and carbon,
+releases water and carbon dioxide, and does so at different temperatures.
+Counting coverage per phase would call such a phase done when half of it is, and
+a hemicarboaluminate is not an exotic case in a cement.
+
+[`windows_without_phases`](@ref) is the mirror, and it is the one that catches a
+typo: a window on a phase that releases nothing contributes nothing and raises
+nothing, so its only symptom is a peak that is not there.

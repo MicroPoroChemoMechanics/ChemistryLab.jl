@@ -324,6 +324,7 @@ module ChemistryLab
         released_fraction,
         released_rate,
         phases_without_windows,
+        windows_without_phases,
         window_parameters,
         with_window_parameters,
         Traced,
@@ -344,6 +345,7 @@ module ChemistryLab
         identifiable_rank,
         log_sensitivity,
         as_traced,
+        null_participation,
         VACUUM_PERMITTIVITY_Q,
         FARADAY_Q,
         with_symbol

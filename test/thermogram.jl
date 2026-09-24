@@ -98,14 +98,83 @@ include("reference_species.jl")
     @testset "a phase with no window is named, not silently dropped" begin
         short = windows[1:2]                       # calcite left out
         missing_ones = phases_without_windows(st, short)
-        @test "Cal" in missing_ones
-        @test !("Gp" in missing_ones)
+        @test ("Cal" => :carbon_dioxide) in missing_ones
+        @test !(("Gp" => :water) in missing_ones)
+
+        # COVERAGE IS PER PHASE **AND** PRODUCT. A carbonated hydrate carries
+        # hydrogen and carbon, releases both, and at different temperatures —
+        # so a phase covered for its water and not for its carbon dioxide is
+        # half covered, and counting per phase alone would call it done.
+        half = [
+            placeholder("Gp", 400.0, 15.0),
+            placeholder("Portlandite", 720.0, 12.0),
+            placeholder("Cal", 500.0, 10.0),      # water window on a carbonate
+        ]
+        @test ("Cal" => :carbon_dioxide) in phases_without_windows(st, half)
+        @test "Cal" in windows_without_phases(st, half)   # calcite releases no water
         # And the curve is short by exactly the carbon dioxide, which is the
         # silent failure this guards against.
         tg = thermogram(st, short; temperatures = grid)
         co2 = ustrip(us"kg", ignition_loss(st).carbon_dioxide)
         @test ustrip(us"kg", ignition_loss(st).total) - tg.loss[end] ≈ co2 rtol = 1.0e-3
         @test isempty(phases_without_windows(st, windows))
+
+        # AND THE MIRROR, which is the one that catches a typo: a window on a
+        # phase the state has nothing to release from contributes nothing and
+        # raises nothing, so the only symptom would be a missing peak.
+        typo = [placeholder("Portlandit", 720.0, 12.0)]      # one letter short
+        @test windows_without_phases(st, typo) == ["Portlandit"]
+        @test thermogram(st, typo; temperatures = grid).loss[end] == 0
+        @test isempty(windows_without_phases(st, windows))
+        # A window that names the right phase but the wrong product is caught
+        # too: portlandite releases no carbon dioxide.
+        wrong = [placeholder("Portlandite", 720.0, 12.0; releases = :carbon_dioxide)]
+        @test windows_without_phases(st, wrong) == ["Portlandite"]
+    end
+
+    @testset "a phase that goes in stages" begin
+        # Gypsum really does lose its two waters in two steps,
+        # CaSO4·2H2O -> CaSO4·0.5H2O -> CaSO4, so a window per stage with the
+        # fractions splitting the release is the ordinary case, not an exotic
+        # one.
+        staged = [
+            DecompositionWindow(
+                "Gp", 380.0, 8.0; fraction = 0.75,
+                kind = PROV_PLACEHOLDER, source = "illustrative"
+            ),
+            DecompositionWindow(
+                "Gp", 430.0, 8.0; fraction = 0.25,
+                kind = PROV_PLACEHOLDER, source = "illustrative"
+            ),
+            windows[2], windows[3],
+        ]
+        tg = thermogram(st, staged; temperatures = grid)
+        @test tg.loss[end] ≈ ustrip(us"kg", ignition_loss(st).total) rtol = 1.0e-4
+        @test occursin("75.0 %", sprint(show, staged[1]))
+
+        # AND TWO WINDOWS THAT EACH CLAIM ALL OF IT ARE REFUSED. Without the
+        # check they would release the phase's mass twice, and the only symptom
+        # would be a curve integrating to more than `ignition_loss` — a silent
+        # doubling rather than an error.
+        doubled = [windows[1], windows[1], windows[2], windows[3]]
+        err = try
+            thermogram(st, doubled; temperatures = grid)
+            nothing
+        catch e
+            e
+        end
+        @test err isa ArgumentError
+        @test occursin("summing to 2.0", sprint(showerror, err))
+        @test occursin("twice", sprint(showerror, err))
+
+        # A fraction outside (0, 1] is refused at construction.
+        @test_throws ArgumentError DecompositionWindow("Gp", 400.0, 15.0; fraction = 0.0)
+        @test_throws ArgumentError DecompositionWindow("Gp", 400.0, 15.0; fraction = 1.5)
+
+        # And a round trip through the parameters keeps the split.
+        θs, _ = window_parameters(staged)
+        @test [w.fraction for w in with_window_parameters(staged, θs)] ==
+            [w.fraction for w in staged]
     end
 
     @testset "what a window claims about itself" begin
@@ -200,7 +269,11 @@ include("reference_species.jl")
         ).dtg
         θ, names = window_parameters(overlapped)
         id = identifiability(forward, θ; names = names)
-        @test id.rank < 4                        # not four independent numbers
+        # Two of four, and not pinned to exactly two on purpose: the two
+        # qualifying ratios are 10.1 and 11.2, close enough that a different
+        # machine could swap which is the larger and answer one instead. What is
+        # structural is that a single peak's worth of parameters is visible.
+        @test id.rank <= 2                       # not four independent numbers
         @test id.condition > 20
         @info "overlapping windows" rank = id.rank condition = id.condition
     end

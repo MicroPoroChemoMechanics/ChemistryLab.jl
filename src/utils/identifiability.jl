@@ -26,11 +26,26 @@ about the units than about the data.
 Central differences rather than automatic differentiation, because a forward
 model is often a solver whose parameters do not carry duals — `hydration_calibration.jl`
 names exactly why for its own: the integrator casts to `Float64` on the way in.
-`forward` is free to be AD-clean; this does not require it, and costs `2n`
-evaluations.
+`forward` is free to be AD-clean; this does not require it, and costs exactly
+`2n` evaluations: the output is sized from the first perturbed call rather than
+from an extra unperturbed one. On a forward model that is a solver, that saved
+call is a whole solve.
 
 `relstep` is a **relative** step, so a parameter near zero needs rescaling before
 it is passed here — which is the same condition as the logarithm being defined.
+
+!!! warning "A coarse step can hide an exact degeneracy"
+    The default 5 % is chosen so a noisy forward model still gives a usable
+    derivative, and it is coarse. On a rate law that goes as `(1-ξ)^{n₃}`, a 5 %
+    step moves `n₃ = 3.3` by 0.165 in the exponent, which is far enough that the
+    second-order error differs between two parameters that are **exactly**
+    collinear — and the collinearity then shows up as a condition number of 80
+    rather than of 3 × 10⁵. Measured on that case, the third singular value goes
+    from 2.0e-7 at `relstep = 0.05` to 5.1e-11 at 0.01 and is unchanged below.
+
+    So a condition number of a few hundred is not evidence that a model is well
+    posed. **Refine `relstep` and see whether the answer moves**; if it does, the
+    coarse one was measuring the differencing and not the model.
 """
 function log_sensitivity(forward, θ; relstep::Real = 0.05)
     p = collect(float.(θ))
@@ -40,14 +55,18 @@ function log_sensitivity(forward, θ; relstep::Real = 0.05)
                 "differentiates against. Rescale or shift the parameter first."
         ),
     )
-    y0 = forward(p)
-    J = Matrix{Float64}(undef, length(y0), length(p))
+    # Sized from the first column rather than from an extra unperturbed call. A
+    # forward model here is often a solver, so that call is a whole solve, and
+    # the first perturbation already says how long the output is.
+    J = nothing
     for j in eachindex(p)
         up = copy(p); up[j] *= (1 + relstep)
         dn = copy(p); dn[j] *= (1 - relstep)
-        J[:, j] = (forward(up) .- forward(dn)) ./ (2 * relstep)
+        col = (forward(up) .- forward(dn)) ./ (2 * relstep)
+        J === nothing && (J = Matrix{Float64}(undef, length(col), length(p)))
+        J[:, j] = col
     end
-    return J
+    return J === nothing ? Matrix{Float64}(undef, 0, 0) : J
 end
 
 """
@@ -61,9 +80,13 @@ point.
   - `J`: the log-sensitivity matrix `∂y/∂log θ`.
   - `S`, `U`, `V`: its singular value decomposition. `V[:, k]` is the parameter
     combination the k-th singular value belongs to.
-  - `condition`: `S[1]/S[end]`.
-  - `rank`: how many directions the data constrain, by the largest gap in the
-    spectrum — see [`identifiable_rank`](@ref).
+  - `condition`: `S[1]/S[end]`, or `Inf` when the problem is exactly
+    rank-deficient — see below.
+  - `rank`: how many **directions** the data constrain, by the largest gap in
+    the spectrum that exceeds `gap` — see [`identifiable_rank`](@ref). It is a
+    count of directions
+    and not of parameters; [`null_participation`](@ref) is what says which
+    parameters those directions leave undetermined.
   - `correlation`: the parameter correlation matrix from `(JᵀJ)⁻¹`.
   - `stderr`: approximate **relative** standard errors, `σ√diag((JᵀJ)⁻¹)`, or
     `nothing` when no observation was given to get `σ` from.
@@ -74,6 +97,17 @@ These are **linearized** errors at one point. They say which numbers in a fit
 deserve to be quoted; they are not confidence intervals, and a model that is
 nonlinear in its parameters — which is most of them — will have a likelihood
 that is not the ellipse this describes.
+
+# Fewer observations than parameters
+
+The problem is then exactly rank-deficient, and that case is reported rather
+than smoothed over: `condition` is `Inf`, and `null_participation` accounts for
+the directions the data cannot see at all — not only the ones they see badly.
+`correlation` and `stderr`, on the other hand, come from a pseudo-inverse of a
+singular `JᵀJ`, so they are finite where the truth is not, and **understate**
+the error on any parameter with weight in that null space. The participation is
+what to read there; it is also what marks those parameters `PROV_PLACEHOLDER` in
+[`as_traced`](@ref).
 """
 struct Identifiability{T}
     J::Matrix{Float64}
@@ -89,8 +123,21 @@ struct Identifiability{T}
 end
 
 """
+    nparameters(id::Identifiability) -> Int
+
+How many parameters were differentiated against.
+
+Not `length(id.S)`: the singular spectrum is as long as the SMALLER of the two
+dimensions, so with fewer observations than parameters it is shorter than the
+parameter vector. Every count of parameters reads this, and every count of
+directions reads `length(id.S)` — conflating the two is what made an
+under-determined fit report a shorter answer than it was asked about.
+"""
+nparameters(id::Identifiability) = size(id.V, 1)
+
+"""
     identifiability(forward, θ; observed = nothing, relstep = 0.05,
-                    names = nothing, gap = 10.0) -> Identifiability
+                    names = nothing, gap = 5.0) -> Identifiability
 
 How much of `θ` the output of `forward` determines.
 
@@ -117,10 +164,16 @@ See also: [`identifiable_rank`](@ref), [`as_traced`](@ref).
 """
 function identifiability(
         forward, θ; observed = nothing, relstep::Real = 0.05,
-        names = nothing, gap::Real = 10.0,
+        names = nothing, gap::Real = 5.0,
     )
     J = log_sensitivity(forward, θ; relstep)
-    F = svd(J)
+    # `full` only when the thin `V` would be SHORT OF COLUMNS. With fewer
+    # observations than parameters the thin factorization returns a `V` of size
+    # `n_par × n_obs`, which silently omits the `n_par - n_obs` directions the
+    # data cannot see at all — precisely the ones worth naming. Asking for the
+    # complete factorization then costs nothing extra, because the `U` that grows
+    # with it is `n_obs × n_obs` and `n_obs` is the small dimension in that case.
+    F = svd(J; full = size(J, 1) < size(J, 2))
     JtJ = J' * J
     C = try
         inv(JtJ)
@@ -140,7 +193,10 @@ function identifiability(
     stderr = rmse === nothing ? nothing : rmse .* d
     return Identifiability(
         J, Matrix(F.U), Vector(F.S), Matrix(F.V),
-        F.S[1] / max(F.S[end], eps()),
+        # An exactly rank-deficient problem has an infinite condition number, and
+        # `S[1] / S[end]` over the singular values that EXIST would report a
+        # finite one — the structurally missing directions are the worst ones.
+        size(F.V, 2) > length(F.S) ? Inf : F.S[1] / max(F.S[end], eps()),
         identifiable_rank(F.S; gap),
         correlation, stderr, rmse,
         names === nothing ? ["θ$i" for i in eachindex(θ)] : collect(names),
@@ -148,34 +204,85 @@ function identifiability(
 end
 
 """
-    identifiable_rank(S; gap = 10.0) -> Int
+    identifiable_rank(S; gap = 5.0) -> Int
 
 How many directions a singular spectrum constrains: the number of singular
 values before the first **ratio** larger than `gap`.
 
 A rank is read off a gap rather than a threshold because a threshold has units
-and a gap does not. `[420, 100, 60, 6.3, 1.4, 0.20]` has its largest ratio
-between the third and the fourth — a factor of nine at `gap = 5`, and the reason
-that calibration fits three parameters and not six.
+and a gap does not.
 
-Returns `length(S)` when no gap exceeds `gap`, which is the honest answer when
-the spectrum is flat: everything is constrained, or nothing distinguishes what
-is not.
+# Where the default comes from
+
+From the one case in this repository where the answer is known independently.
+`scripts/hydration_calibration.jl` measured `[420, 100, 60, 6.3, 1.4, 0.20]` and
+concluded, on the correlation structure, that the data determine three
+combinations — and the largest ratio in that spectrum is **9.5**, between the
+third singular value and the fourth. A default of 10 would have returned 6 on
+the very case the rule exists for, which is how this default came to be 5 rather
+than a round number chosen for looking careful.
+
+# Which gap, when there are several
+
+The cut is at the **largest** qualifying ratio, not the first one. That
+distinction has a case behind it. Measuring a rate law against its own
+shrinking-core exponent gives `[1.62e-5, 2.71e-6, 5.1e-11]`: a ratio of 6.0 and
+then one of fifty thousand. The first rule cut at 6.0 and answered **one**
+determined direction, which says the amplitude alone is visible; the truth is
+that the amplitude and one exponent combination are both determined and only
+their split is not, which is **two**. A factor of six is ordinary conditioning.
+A factor of fifty thousand is a structure.
+
+Returns `length(S)` when no ratio exceeds `gap`, which is the honest answer for
+a flat spectrum: everything is constrained, or nothing distinguishes what is
+not.
 """
-function identifiable_rank(S::AbstractVector; gap::Real = 10.0)
+function identifiable_rank(S::AbstractVector; gap::Real = 5.0)
     isempty(S) && return 0
+    best, cut = zero(float(gap)), 0
     for k in 1:(length(S) - 1)
+        # A singular value at or below zero is a direction that does not exist,
+        # and no finite ratio describes it: cut there and stop.
         S[k + 1] <= 0 && return k
-        S[k] / S[k + 1] > gap && return k
+        r = S[k] / S[k + 1]
+        if r > gap && r > best
+            best, cut = r, k
+        end
     end
-    return length(S)
+    return cut == 0 ? length(S) : cut
 end
 
-identifiable_rank(id::Identifiability; gap::Real = 10.0) =
+identifiable_rank(id::Identifiability; gap::Real = 5.0) =
     identifiable_rank(id.S; gap)
 
 """
-    as_traced(id::Identifiability, θ; source, rank_limit = true) -> Vector{Traced}
+    null_participation(id::Identifiability) -> Vector{Float64}
+
+For each parameter, how much of it lies in the directions the data do **not**
+constrain: `Σ_{k > rank} V[i,k]²`, which is between 0 and 1.
+
+# Why this and not "beyond the rank"
+
+A rank of 2 out of 3 says the data constrain two *directions in parameter
+space*. It says nothing about which *parameters* are determined, because the
+directions are the singular vectors and the parameter order is whatever the
+caller packed. Reading the rank as "the first two parameters are fine" confuses
+an index with a subspace, and for a model where two parameters trade off it
+picks the wrong one — the one that happened to be listed second.
+
+The participation is the honest version. In a model where `a` and `c` enter only
+as their product, it comes out `[0.5, 0, 0.5]`: neither `a` nor `c` is
+determined on its own, `b` is, and no ordering was consulted to say so.
+"""
+function null_participation(id::Identifiability)
+    n = nparameters(id)
+    id.rank >= size(id.V, 2) && return zeros(Float64, n)
+    return [sum(abs2, @view id.V[i, (id.rank + 1):size(id.V, 2)]) for i in 1:n]
+end
+
+"""
+    as_traced(id::Identifiability, θ; source, null_threshold = 0.1)
+        -> Vector{Traced}
 
 The fitted parameters, each carrying `PROV_FITTED`, the dataset it was fitted
 to, and its linearized standard error as [`uncertainty`](@ref).
@@ -184,19 +291,24 @@ This is where an identification meets [`Traced`](@ref): a number that came out
 of an optimization is not the same kind of claim as one somebody measured, and
 `is_evidence` returns `false` for it on purpose.
 
-With `rank_limit`, parameters beyond `id.rank` are marked `PROV_PLACEHOLDER`
-instead — because a number the data did not constrain is a value the fit had to
-put somewhere, not a value the fit determined. Pass `false` to report them all
-as fitted and take the responsibility.
+A parameter with more than `null_threshold` of its weight in the directions the
+data do not constrain is marked `PROV_PLACEHOLDER` instead — a value the fit had
+to leave somewhere is not a value the fit determined. That test is
+[`null_participation`](@ref) and **not** the parameter's position relative to
+the rank: the rank counts directions, the position is the caller's packing
+order, and confusing the two flags whichever of a trading-off pair was listed
+second. Pass `null_threshold = Inf` to report them all as fitted and take the
+responsibility.
 """
 function as_traced(
-        id::Identifiability, θ; source::AbstractString, rank_limit::Bool = true,
+        id::Identifiability, θ; source::AbstractString, null_threshold::Real = 0.1,
     )
     σ = id.stderr
+    p = null_participation(id)
     return [
         Traced(
             float(θ[i]),
-            (rank_limit && i > id.rank) ? PROV_PLACEHOLDER : PROV_FITTED,
+            p[i] > null_threshold ? PROV_PLACEHOLDER : PROV_FITTED,
             source;
             uncertainty = σ === nothing ? nothing : σ[i],
         ) for i in eachindex(θ)
@@ -204,13 +316,14 @@ function as_traced(
 end
 
 function Base.show(io::IO, ::MIME"text/plain", id::Identifiability)
-    println(io, "Identifiability of ", length(id.S), " parameters")
+    np = nparameters(id)
+    println(io, "Identifiability of ", np, " parameters")
     println(io, "  singular values  ", round.(id.S; sigdigits = 3))
     println(io, "  condition        ", round(id.condition; sigdigits = 4))
-    println(io, "  constrained      ", id.rank, " of ", length(id.S), " directions")
+    println(io, "  constrained      ", id.rank, " of ", size(id.V, 2), " directions")
     id.rmse === nothing || println(io, "  residual RMSE    ", round(id.rmse; sigdigits = 4))
     worst, pair = 0.0, (0, 0)
-    for i in eachindex(id.S), j in (i + 1):length(id.S)
+    for i in 1:np, j in (i + 1):np
         abs(id.correlation[i, j]) > worst &&
             ((worst, pair) = (abs(id.correlation[i, j]), (i, j)))
     end
@@ -221,4 +334,4 @@ function Base.show(io::IO, ::MIME"text/plain", id::Identifiability)
 end
 
 Base.show(io::IO, id::Identifiability) =
-    print(io, "Identifiability(", length(id.S), " parameters, rank ", id.rank, ")")
+    print(io, "Identifiability(", nparameters(id), " parameters, rank ", id.rank, ")")

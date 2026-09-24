@@ -38,8 +38,13 @@ width — are already at the edge of what one peak in a thermogram determines.
   - `width`: `w` in kelvin. The release runs from roughly `T₁/₂ − 3w` to
     `T₁/₂ + 3w`, so a peak 100 K wide has `w ≈ 17 K`.
   - `releases`: `:water` or `:carbon_dioxide`.
+  - `fraction`: how much of that phase's release this window accounts for, `1`
+    by default. **A phase can go in stages** — gypsum loses its two waters in
+    two steps, `CaSO₄·2H₂O → CaSO₄·½H₂O → CaSO₄` — and one window per stage with
+    fractions summing to one is how that is written. The sum is checked, in
+    [`thermogram`](@ref), against each phase and product it is given for.
 
-Both parameters are [`Traced`](@ref), which is the point rather than a
+Both temperature parameters are [`Traced`](@ref), which is the point rather than a
 decoration: a window read from a paper and a window guessed to get a picture on
 the screen are the same two numbers and are not the same claim.
 
@@ -50,10 +55,11 @@ struct DecompositionWindow{T <: Real}
     midpoint::Traced{T}
     width::Traced{T}
     releases::Symbol
+    fraction::T
 end
 
 """
-    DecompositionWindow(phase, midpoint, width; releases = :water,
+    DecompositionWindow(phase, midpoint, width; releases = :water, fraction = 1,
                         kind = PROV_UNSTATED, source = "") -> DecompositionWindow
 
 Build a window. `midpoint` and `width` are in kelvin, as plain numbers or as
@@ -65,8 +71,8 @@ strengthens a result.
 """
 function DecompositionWindow(
         phase::AbstractString, midpoint, width;
-        releases::Symbol = :water, kind::ProvenanceKind = PROV_UNSTATED,
-        source::AbstractString = "",
+        releases::Symbol = :water, fraction::Real = 1,
+        kind::ProvenanceKind = PROV_UNSTATED, source::AbstractString = "",
     )
     releases in (:water, :carbon_dioxide) || throw(
         ArgumentError(
@@ -79,7 +85,13 @@ function DecompositionWindow(
     value(w) > 0 || throw(
         ArgumentError("a window's width must be positive; got $(value(w)) K."),
     )
-    v = promote(value(m), value(w))
+    0 < fraction <= 1 || throw(
+        ArgumentError(
+            "a window accounts for a fraction in (0, 1] of its phase's release; " *
+                "got $fraction. Use several windows to split a release in stages."
+        ),
+    )
+    v = promote(value(m), value(w), float(fraction))
     # `m.source` and not `source(m)`: the keyword argument of this constructor is
     # itself named `source`, so inside here that name is a `String` and calling
     # it is the error it sounds like. The field is unambiguous.
@@ -88,15 +100,17 @@ function DecompositionWindow(
         Traced(convert(eltype(v), value(m)), provenance(m), m.source),
         Traced(convert(eltype(v), value(w)), provenance(w), w.source),
         releases,
+        convert(eltype(v), fraction),
     )
 end
 
 function Base.show(io::IO, w::DecompositionWindow)
-    return print(
+    print(
         io, "DecompositionWindow(", w.phase, ", ", value(w.midpoint), " K ± ",
-        value(w.width), " K, ", w.releases, ", ",
-        _prov_label(weakest(w.midpoint, w.width)), ")",
+        value(w.width), " K, ", w.releases,
     )
+    isone(w.fraction) || print(io, ", ", round(100 * w.fraction; digits = 1), " %")
+    return print(io, ", ", _prov_label(weakest(w.midpoint, w.width)), ")")
 end
 
 """
@@ -126,10 +140,17 @@ A thermogravimetric curve for `state` under `windows`, as
   - `temperature`: the grid, in kelvin, as given.
   - `mass`: the sample mass remaining, in kilograms — the **solid** mass of
     `state`, residue included, because that is what sits on the pan.
-  - `loss`: what has been released, in kilograms — `mass[1] - mass`.
+  - `loss`: what has been released, in kilograms, counted from nothing rather
+    than from the first point of the grid — so `mass = mass₀ - loss` with
+    `mass₀` the solid mass, and `loss[1]` is the tail already gone before the
+    grid begins rather than zero by definition.
   - `dtg`: `-dm/dT` in kilograms per kelvin, which is the curve a
     thermogravimetric analysis actually resolves peaks in.
   - `by_phase`: the same loss, per phase, so a peak can be attributed.
+
+A window whose phase `state` has nothing to release from contributes nothing and
+raises nothing — [`windows_without_phases`](@ref) is how a typo in a phase name
+is caught rather than read off a missing peak.
 
 Every phase of `state` that carries hydrogen or carbon and has **no window**
 contributes its mass to the starting point and never leaves — which is the
@@ -160,7 +181,8 @@ function thermogram(
         state::ChemicalState, windows::AbstractVector{<:DecompositionWindow};
         temperatures,
     )
-    system = state.system
+    _check_fractions(windows)          # fail before doing any of the work
+
     per_phase = bound_water_per_phase(state)
     water = Dict(p.first => p.second for p in per_phase)
     co2 = _co2_per_phase(state)
@@ -180,7 +202,7 @@ function thermogram(
     for w in windows
         pool = w.releases === :water ? water : co2
         haskey(pool, w.phase) || continue
-        m = ustrip(us"kg", pool[w.phase])
+        m = ustrip(us"kg", pool[w.phase]) * w.fraction
         curve = [m * released_fraction(w, t) for t in T]
         by_phase[w.phase] = get(by_phase, w.phase, zeros(ET, length(T))) .+ curve
         loss .+= curve
@@ -193,6 +215,39 @@ function thermogram(
         dtg = dtg,
         by_phase = by_phase,
     )
+end
+
+"""
+    _check_fractions(windows)
+
+Refuse a set of windows whose fractions do not sum to one for some phase and
+product.
+
+Two windows on one phase with the default fraction would release its mass
+**twice**, and the only symptom is a curve that integrates to more than
+[`ignition_loss`](@ref) — a silent doubling rather than an error. The check is
+here rather than at construction because a window does not know what it will be
+used with.
+"""
+function _check_fractions(windows::AbstractVector{<:DecompositionWindow})
+    sums = Dict{Tuple{String, Symbol}, Float64}()
+    for w in windows
+        k = (w.phase, w.releases)
+        sums[k] = get(sums, k, 0.0) + float(w.fraction)
+    end
+    for (k, total) in sums
+        isapprox(total, 1.0; atol = 1.0e-8) && continue
+        throw(
+            ArgumentError(
+                "the windows for $(k[1]) releasing $(k[2]) have fractions summing " *
+                    "to $total, not 1. A phase that goes in stages needs one " *
+                    "window per stage with the fractions splitting its release; " *
+                    "two windows both accounting for all of it would release its " *
+                    "mass twice."
+            ),
+        )
+    end
+    return nothing
 end
 
 """
@@ -216,27 +271,61 @@ function _co2_per_phase(state::ChemicalState)
 end
 
 """
-    phases_without_windows(state, windows) -> Vector{String}
+    phases_without_windows(state, windows) -> Vector{Pair{String,Symbol}}
 
-Which phases of `state` would release something on heating and have no window
-saying when.
+What `state` would release on heating and has no window saying when, as
+`phase => product` pairs.
 
 A thermogram computed with one of these present integrates to less than
 [`ignition_loss`](@ref) says, and the difference is silent. This is how to see
 it before reading a curve.
+
+# Why the product is in the answer
+
+**A phase can need two windows.** A carbonated hydrate carries hydrogen and
+carbon, releases water and carbon dioxide, and does so at different
+temperatures — a hemicarboaluminate is not an exotic case in a cement. Coverage
+counted per phase rather than per `phase => product` reports such a phase as
+covered when only half of it is, and the missing half is precisely the silent
+shortfall this exists to catch.
 """
 function phases_without_windows(
         state::ChemicalState, windows::AbstractVector{<:DecompositionWindow},
     )
-    covered = Set(w.phase for w in windows)
-    out = String[]
+    covered = Set((w.phase, w.releases) for w in windows)
+    out = Pair{String, Symbol}[]
     for p in bound_water_per_phase(state)
-        p.first in covered || push!(out, p.first)
+        (p.first, :water) in covered || push!(out, p.first => :water)
     end
-    for k in keys(_co2_per_phase(state))
-        (k in covered || k in out) || push!(out, k)
+    for k in sort!(collect(keys(_co2_per_phase(state))))
+        (k, :carbon_dioxide) in covered || push!(out, k => :carbon_dioxide)
     end
     return out
+end
+
+"""
+    windows_without_phases(state, windows) -> Vector{String}
+
+Which windows name a phase `state` has nothing to release from.
+
+The mirror of [`phases_without_windows`](@ref), and the one that catches a
+**typo**: a window on `"Portlandit"` contributes nothing, raises nothing, and
+leaves a curve that is simply missing a peak. Both directions are silent by
+themselves, which is why both are reported rather than one.
+
+A window on a phase that is genuinely absent — a paste with no calcite — is not
+an error and shows up here too; the two are indistinguishable from inside, and
+naming them is all this can honestly do.
+"""
+function windows_without_phases(
+        state::ChemicalState, windows::AbstractVector{<:DecompositionWindow},
+    )
+    water = Set(p.first for p in bound_water_per_phase(state))
+    co2 = Set(keys(_co2_per_phase(state)))
+    return [
+        w.phase for w in windows
+            if !(w.phase in (w.releases === :water ? water : co2))
+    ]
 end
 
 """
@@ -282,7 +371,8 @@ function with_window_parameters(
     return [
         DecompositionWindow(
             w.phase, θ[2i - 1], θ[2i];
-            releases = w.releases, kind = kind, source = source,
+            releases = w.releases, fraction = w.fraction,
+            kind = kind, source = source,
         ) for (i, w) in enumerate(windows)
     ]
 end
