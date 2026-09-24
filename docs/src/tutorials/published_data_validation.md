@@ -11,9 +11,9 @@ standard properties they were derived from, so the two can be required to agree;
 then a set of measured solution compositions ([Atkins1992](@cite)), which can
 disagree with the database and does.
 
-Every number below is pinned by an assertion in
-`test/cemdata18_reference.jl` (584 of them) or `test/atkins1992_reference.jl`
-(12), so it is checked on every CI run.
+Every number below is pinned by an assertion in `test/cemdata18_reference.jl`
+(584 of them), `test/atkins1992_reference.jl` (12) or
+`test/limestone_blending_reference.jl` (25), so it is checked on every CI run.
 
 ## Cemdata18 Tables 2 and 3: the solubility products
 
@@ -201,6 +201,78 @@ Their Table 3 — pore fluids of five-year-old OPC, 30 % BFS and 30 % FA pastes 
 is a better target for a future test: alkali and pH are reported and the binder
 compositions are given. It needs the alkali uptake of the CSHQ Na/K end members
 and belongs with the CEM I/II examples.
+
+## Blending a CEM I with limestone
+
+[Kulik2021](@cite) Fig. 7A and [Lothenbach2019](@cite) Figs. 13-14 report the
+same thing: what happens to the aluminate phases as limestone replaces clinker.
+CemGEMS is the closest oracle this package has — same CEMDATA18, same
+Gibbs-energy minimization, and the paper states that it and GEM-Selektor agree
+exactly. What it does not give is the cement it ran on, so what is checked is
+the part that does not depend on it: the order the phases appear in, where added
+limestone stops reacting, and where the iron goes.
+
+### The iron
+
+Fig. 14D is the sharpest quantitative claim in either paper: with Cemdata18
+*"close to 100 % of the iron is bound by the siliceous hydrogarnet solid
+solution"*, against about 80 % sitting in hemi-/monocarbonate under Cemdata07.
+
+Measured here: **100.0 %**, at every limestone content and both iron contents
+tried, to within `10⁻³`. That one reproduces without qualification.
+
+### The sequence, and the condition nobody states
+
+Both papers report
+
+```
+monosulfate  →  hemicarbonate  →  monocarbonate + ettringite  →  free calcite
+```
+
+It does not appear on every CEM I. On the oxide analysis this repository uses
+elsewhere — `Fe₂O₃ = 4.49 %` — **no carbonate AFm forms at any limestone
+content**, the added calcite stays inert, and every aluminum ends in the mixed
+Al-Fe siliceous hydrogarnet. That is precisely the behavior [Lothenbach2019](@cite)
+§3.1 attributes to *Cemdata07* and says Cemdata18 cures.
+
+It is not a defect, and the mechanism is stoichiometric. `C3AFS0.84H4.32` takes
+**one aluminum per iron**, so the phase is capped by the iron available. Sweeping
+`Fe₂O₃` at 4 g of limestone, the balance going to CaO:
+
+| `Fe₂O₃` % | 4.49 | 3.50 | 2.50 | 1.50 | 1.00 | 0.50 |
+|:--|--:|--:|--:|--:|--:|--:|
+| siliceous hydrogarnet | 0.0487 | 0.0396 | 0.0283 | 0.0170 | 0.0113 | 0.0057 |
+| monocarbonate | **0** | 0.0031 | 0.0083 | 0.0135 | 0.0161 | 0.0187 |
+
+The hydrogarnet tracks the iron one for one. Where there is enough iron to pair
+with every aluminum, nothing is left to make a carboaluminate; below about
+3.5 % there is, and the published sequence returns.
+
+At `Fe₂O₃ = 2.5 %` the figure comes back step by step (mol per 100 g of binder):
+
+| g limestone | monosulfate | hemicarbonate | monocarbonate | ettringite | free calcite |
+|--:|--:|--:|--:|--:|--:|
+| 0.0 | 0.0090 | 0 | 0 | 0.0067 | 0 |
+| 0.5 | **0** | 0.0028 | 0.0036 | 0.0097 | 0 |
+| 1.0 | 0 | **0** | 0.0085 | 0.0096 | 0.0015 |
+| 4.0 | 0 | 0 | 0.0083 | 0.0093 | 0.0317 |
+
+Half a gram destroys the monosulfate outright and stabilizes the ettringite by
+more than 40 % — the mechanism the whole figure is about. By one gram the
+hemicarbonate is spent and calcite begins to survive undissolved; past that the
+limestone is a filler.
+
+!!! tip "Walk the sweep downhill"
+    A cold solve of this system costs about 26 s; a warm one, started from a
+    neighboring answer, 0.2-0.7 s. But a warm start only helps while the phase
+    *assemblage* holds: where a phase appears or vanishes the certificate
+    refuses the warm answer and the full multi-start cascade runs again.
+
+    Ascending from 0 g, the monosulfate-to-carboaluminate switch at 0.5 g cost
+    **125 s on its own**. Descending from 4 g, where the assemblage is simple and
+    stable, the same sweep costs **52 s in total**. Same answers, three times
+    faster — and dropping a single intermediate rung, so that one step crosses
+    the boundary in one jump, puts it back to two and a half minutes.
 
 ## Reproducing
 
