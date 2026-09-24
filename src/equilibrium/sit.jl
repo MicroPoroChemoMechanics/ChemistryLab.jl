@@ -204,6 +204,10 @@ The SIT literature takes an unlisted coefficient as zero. That convention is
 usually harmless and is never a measurement, so this reports what a calculation
 is resting on rather than leaving it to be assumed. An empty result means every
 pair the system can form is carried by the compilation.
+
+Neutral solutes are **not** reported. A neutral with no coefficient is ideal,
+which is SIT's own answer and not a gap in the compilation; listing every
+neutral-ion pair as missing would bury the pairs that are.
 """
 function missing_epsilon_pairs(cs::ChemicalSystem, model::SITActivityModel)
     syms = symbol.(cs.species)
@@ -225,7 +229,15 @@ _sit_eltype(::SITParameters{T}) where {T} = T
     _sit_epsilon_matrix(cs, model) -> Matrix
 
 The `ε` a system needs, as a dense matrix over its species indices: zero for a
-like-charged pair, for a neutral, and for a pair the compilation does not carry.
+like-charged pair, for two neutrals, and for a pair the compilation does not
+carry.
+
+A **neutral solute against an ion** is kept when — and only when — the
+compilation supplies a coefficient for it. SIT leaves a neutral ideal by
+default, and that default is the absence of a coefficient rather than a rule
+applied here: excluding neutrals outright made the closure's neutral branch
+unable to do anything at all, so a coefficient somebody wrote down was dropped
+on the way in and the calculation silently ignored it.
 
 Its element type is the compilation's, so a `Dual` coefficient stays a `Dual`
 all the way to the activity — which is what differentiating with respect to an
@@ -240,8 +252,14 @@ function _sit_epsilon_matrix(cs::ChemicalSystem, model::SITActivityModel)
     syms = symbol.(cs.species)
     z = Int[charge(sp) for sp in cs.species]
     for i in cs.idx_solutes, j in cs.idx_solutes
-        (iszero(z[i]) || iszero(z[j])) && continue
-        sign(z[i]) == sign(z[j]) && continue
+        # Two neutrals interact through no term SIT carries, so that pair is
+        # never read and is not looked up.
+        (iszero(z[i]) && iszero(z[j])) && continue
+        # Two ions of the same sign have no ε in SIT. A neutral against an ion
+        # does, whenever the compilation says so, and falls through to the
+        # lookup below — which returns `nothing`, and hence zero, for the usual
+        # case where nobody tabulated one.
+        (!iszero(z[i]) && !iszero(z[j]) && sign(z[i]) == sign(z[j])) && continue
         c = sit_epsilon(model.parameters, syms[i], syms[j])
         c === nothing && continue
         E[i, j] = value(c)
@@ -350,9 +368,11 @@ function activity_model(cs::ChemicalSystem, model::SITActivityModel)
             out[i] = ln10 * (-zv[i]^2 * D + pair) + log(mᵢ + ϵ)
         end
 
-        # A neutral solute has no Debye-Hückel term and, in SIT, an interaction
-        # with ions only through an `ε` that is almost never tabulated — so this
-        # is ideal unless the compilation says otherwise.
+        # A neutral solute has no Debye-Hückel term — no `z²` to carry one — and
+        # in SIT it interacts with ions only through an `ε` that is almost never
+        # tabulated. So this is ideal unless the compilation says otherwise, and
+        # `_sit_epsilon_matrix` keeps a neutral-ion coefficient precisely so that
+        # "otherwise" can happen.
         @inbounds for i in idx_neutrals
             pair = zero(ET)
             for k in idx_ions

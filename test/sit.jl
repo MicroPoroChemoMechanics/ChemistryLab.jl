@@ -131,6 +131,23 @@ end
         @test occursin("tiny-sit.dat", p.source)
         @test occursin("sha256", p.source)
 
+        # A SIT block may carry sub-keywords OTHER than `-epsilon`, and reading
+        # their rows as coefficients would invent pairs nobody wrote. The reader
+        # leaves the coefficient state at the first one it does not recognize.
+        two = joinpath(dirname(path), "two-subkeywords.dat")
+        write(
+            two, """
+            SIT
+            -epsilon
+                Na+     Cl-     0.03
+            -co2_coefs
+                Na+     Cl-     9.99
+            """,
+        )
+        q = build_sit_parameters(two)
+        @test length(q) == 1
+        @test value(sit_epsilon(q, "Na+", "Cl-")) == 0.03     # not 9.99
+
         @test_throws ArgumentError build_sit_parameters(joinpath(dirname(path), "nope.dat"))
         # A database with no SIT block is refused by name rather than returning
         # an empty compilation that would silently be Debye-Hückel.
@@ -242,5 +259,157 @@ end
         # ∂ln a(Na⁺)/∂ε = ln10 · m(Cl⁻) — the coefficient enters linearly, which
         # is why identifying one from data is a well-posed question.
         @test dε ≈ log(10.0) * 1.0 rtol = 1.0e-6
+    end
+end
+
+# ── The branches a real system turns on ───────────────────────────────────────
+#
+# The sections above exercise the ions and the solvent, which is the equation
+# SIT is. A real system adds four more things — a neutral solute, a gas phase,
+# a solid solution and site families — and each is a branch the aqueous model
+# has to HAND ON to rather than leave alone. The failure when it does not is
+# silent and specific: an entry never written stays at `ln a = 0`, which reads
+# as a pure phase at unit activity, so a solid solution behaves as if every
+# end-member were its own mineral.
+
+_sit_p(k) = (ΔₐG⁰overRT = zeros(k), T = 298.15, P = 1.0e5, ϵ = 1.0e-30)
+
+@testsection "the branches a real system turns on" begin
+
+    @testset "a neutral solute has no Debye-Hückel term" begin
+        h2o, na, cl, co2 = reference_species(("H2O@", "Na+", "Cl-", "CO2@"))
+        cs = ChemicalSystem([h2o, na, cl, co2], [h2o, na, cl, co2])
+        i = Dict(symbol(sp) => k for (k, sp) in enumerate(cs.species))
+        n = fill(1.0e-12, length(cs.species))
+        # One kilogram of water, so a molality IS a mole number here and the
+        # assertions below can be read without converting anything.
+        n[i["H2O@"]] = moles_of_water()
+        n[i["Na+"]] = 1.0
+        n[i["Cl-"]] = 1.0
+        n[i["CO2@"]] = 0.1
+
+        out = activity_model(cs, SITActivityModel(; parameters = _sit_parameters()))(
+            n, _sit_p(length(cs.species)),
+        )
+        # With no ε carried against it, SIT leaves a neutral solute IDEAL: its
+        # `ln a` is exactly its log molality. In particular it carries no `z²`
+        # term, which is the whole reason the neutral case is a branch of its
+        # own rather than the ion loop with `z = 0`.
+        @test out[i["CO2@"]] ≈ log(0.1) rtol = 1.0e-8
+        # And the ions beside it are NOT ideal, so the difference is the model
+        # and not an accident of this composition.
+        @test out[i["Na+"]] < log(1.0)
+
+        # Given a coefficient, the neutral does interact — linearly in ε, which
+        # is what makes an ε identifiable from a solubility measurement.
+        shifted = activity_model(
+            cs, SITActivityModel(; parameters = SITParameters([("CO2@", "Na+") => 0.05])),
+        )(n, _sit_p(length(cs.species)))
+        @test shifted[i["CO2@"]] - log(0.1) ≈ log(10.0) * 0.05 * 1.0 rtol = 1.0e-8
+    end
+
+    @testset "a gas phase is an ideal mixture" begin
+        d = Dict(
+            symbol(s) => s for s in
+                build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+        )
+        cs = ChemicalSystem(
+            [d[s] for s in split("H2O@ Na+ Cl- CO2 O2")],
+            ["H2O@", "Na+", "Cl-", "CO2", "O2"],
+        )
+        i = Dict(symbol(sp) => k for (k, sp) in enumerate(cs.species))
+        n = zeros(length(cs.species))
+        n[i["H2O@"]] = moles_of_water()
+        n[i["Na+"]] = 0.1
+        n[i["Cl-"]] = 0.1
+        n[i["CO2"]] = 3.0
+        n[i["O2"]] = 1.0
+        out = activity_model(cs, SITActivityModel(; parameters = _sit_parameters()))(
+            n, _sit_p(length(cs.species)),
+        )
+        @test out[i["CO2"]] ≈ log(3.0 / 4.0) rtol = 1.0e-10
+        @test out[i["O2"]] ≈ log(1.0 / 4.0) rtol = 1.0e-10
+    end
+
+    @testset "solid-solution end-members are filled in, not left pure" begin
+        d = Dict(
+            symbol(s) => s for s in
+                build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+        )
+        ss = build_solid_solutions(datapath("solid_solutions.toml"), d; skip_missing = true)
+        cshq = only(filter(p -> name(p) == "CSHQ", ss))
+        cs = ChemicalSystem(
+            vcat([d[s] for s in split("H2O@ Na+ Cl-")], end_members(cshq));
+            solid_solutions = [cshq],
+        )
+        k = length(cs.species)
+        n = vcat([moles_of_water(), 0.1, 0.1], fill(0.25, k - 3))
+        out = activity_model(cs, SITActivityModel(; parameters = _sit_parameters()))(
+            n, _sit_p(k),
+        )
+        # `ln x < 0` for every fraction below one. Zero here would mean the
+        # branch was never reached and the end-members are being treated as
+        # separate pure minerals.
+        for j in 4:k
+            @test isfinite(out[j])
+            @test out[j] < 0
+        end
+    end
+
+    @testset "site families are filled in too" begin
+        h2o, hp, na, cl = reference_species(("H2O@", "H+", "Na+", "Cl-"))
+        free = Species("XsOH"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        occ = Species("XsONa"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        family = SiteFamily(
+            "Xs", free, [occ];
+            capacity = TotalSiteAmount(1.0e-3),
+            support = SurfaceSupport("oxide", nothing, FixedSurfaceArea(600.0)),
+            model = IdealSiteMixing(),
+        )
+        cs = ChemicalSystem(
+            [h2o, hp, na, cl, free, occ], [h2o, hp, na, cl, free];
+            site_families = [family],
+        )
+        i = Dict(symbol(sp) => k for (k, sp) in enumerate(cs.species))
+        n = fill(1.0e-12, length(cs.species))
+        n[i["H2O@"]] = moles_of_water()
+        n[i["Na+"]] = 0.1
+        n[i["Cl-"]] = 0.1
+        n[i["XsOH"]] = 6.0e-4
+        n[i["XsONa"]] = 4.0e-4
+        out = activity_model(cs, SITActivityModel(; parameters = _sit_parameters()))(
+            n, _sit_p(length(cs.species)),
+        )
+        # Ideal mixing on the sites: `ln a = ln(n_j / Σ n)`, with the sum over
+        # the family. Zero would again mean the branch was skipped.
+        tot = 6.0e-4 + 4.0e-4
+        @test out[i["XsOH"]] ≈ log(6.0e-4 / tot) rtol = 1.0e-8
+        @test out[i["XsONa"]] ≈ log(4.0e-4 / tot) rtol = 1.0e-8
+    end
+
+    @testset "the Debye-Hückel slope can follow the temperature" begin
+        cs, i = _sit_system()
+        n = fill(1.0e-12, length(cs.species))
+        n[i["H2O@"]] = moles_of_water()
+        n[i["Na+"]] = 0.5
+        n[i["Cl-"]] = 0.5
+        params = _sit_parameters()
+        fixed = activity_model(cs, SITActivityModel(; parameters = params))
+        varying = activity_model(
+            cs, SITActivityModel(; parameters = params, temperature_dependent = true),
+        )
+        k = length(cs.species)
+        at25 = (ΔₐG⁰overRT = zeros(k), T = 298.15, P = 1.0e5, ϵ = 1.0e-30)
+        at60 = (ΔₐG⁰overRT = zeros(k), T = 333.15, P = 1.0e5, ϵ = 1.0e-30)
+
+        # Fixed: the temperature in `p` is ignored, by construction, so a
+        # database calibrated at 25 °C is not silently extrapolated.
+        @test fixed(n, at25) ≈ fixed(n, at60)
+        # Varying: `A` rises with temperature, so the ions are further from
+        # ideal and `ln γ` falls.
+        @test !isapprox(varying(n, at25), varying(n, at60))
+        @test varying(n, at60)[i["Na+"]] < varying(n, at25)[i["Na+"]]
+        # And at 25 °C the two agree, since that is where 0.509 comes from.
+        @test isapprox(varying(n, at25), fixed(n, at25); rtol = 1.0e-2)
     end
 end

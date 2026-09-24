@@ -146,6 +146,15 @@ rather than a finite-difference exercise, and getting there needed the element
 type to follow the parameters — the promotion trap that lets every piece pass
 its own test while the chain breaks.
 
+**A coefficient for a neutral solute now reaches the calculation.** The matrix
+of `ε` excluded every pair involving a neutral, so the closure's neutral branch
+could never receive one — a compilation that carried a neutral-ion coefficient
+had it dropped on the way in, and the result was ideal with nothing said. SIT
+still leaves a neutral ideal *by default*, which is the absence of a
+coefficient and not a rule imposed here; what changed is that "unless the
+compilation says otherwise" is now something that can happen. Found by a
+coverage report: the branch was unreachable, which is why no test covered it.
+
 A side effect worth recording: SIT gives the diffuse-layer comparison a third
 aqueous model, and it **rules the aqueous model out** as the cause of that
 comparison's residual. Ideal 2.12 × 10⁻⁴, Davies 2.07 × 10⁻⁴, SIT
