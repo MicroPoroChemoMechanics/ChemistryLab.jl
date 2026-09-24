@@ -608,9 +608,18 @@ species [mol] and `M_host` its molar mass [kg/mol]. A [`TotalSiteAmount`](@ref)
 ignores all three; the other two do not, which is what will let a support that
 precipitates carry its sites with it.
 
-The first milestone holds the support fixed, so this is evaluated once. Writing
-it as a function of the state rather than as a number is what makes an evolving
-support a change of *when* it is called, not of the data model.
+# Who calls this
+
+You do. Nothing inside the solve does, and that is exactly what "the support is
+fixed" means here: the site budget reaches the calculation through the initial
+amounts of the site-bearing species, so this is the helper that computes the
+number you put there, evaluated once, before the solve.
+
+Writing it as a function of the host's amount rather than as a constant is what
+makes an evolving support a change of *when* it is called, not of the data
+model — see
+[the theory chapter](@ref sec-theory-surface) §10 for the two things that still
+stand in the way.
 """
 function site_moles end
 

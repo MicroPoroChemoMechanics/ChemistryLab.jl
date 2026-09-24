@@ -474,6 +474,7 @@ module ChemistryLab
         WALLER_PARAMS_SILICA_FUME,
         WALLER_PARAMS_SLAG,
         blaine_factor,
+        PK_BLAINE_REF,
         humidity_factor,
         powers_alpha_max,
         PoreHumidity,

@@ -487,9 +487,26 @@ Saying what is absent is part of describing what is present.
     them; here there is one potential per family, and stacking two electrostatic
     models is refused rather than summed.
   - **No evolving support.** The site budget is fixed. In a hydrating cement the
-    support is a phase that precipitates, so its sites appear with it and the
-    site row becomes bilinear — the one thing the linear budget `A n = b` has
-    never had to carry.
+    support is a phase that precipitates, so its sites should appear with it.
+    What blocks that is worth stating precisely, because the obvious obstacle is
+    not the real one.
+
+    A capacity written as a site density times an area, or times a dry mass, is
+    **linear** in the host's amount: ``N_t = q\,M\,n_{\text{host}}`` or
+    ``N_t = \Gamma_C\,a\,M\,n_{\text{host}}``. So the site row stays linear and
+    folds into ``A\,n = b`` exactly, as a coefficient on the host's column —
+    there is no bilinear term to carry. (A [`ShrinkingCoreArea`](@ref) is the
+    exception: its ``(n/n_0)^p`` is nonlinear, and only for ``p \neq 1``.)
+
+    The two real obstacles are elsewhere. First, a free site is a **chemical
+    species**: `XsOH` carries an oxygen and a hydrogen, so growing the support
+    creates surface hydroxyls, and those must be debited from the water instead
+    of appearing from nothing — an update that balances the sites and not the
+    oxygen is off by exactly the number of sites added. Second, a coefficient on
+    the host's column shifts that host's saturation index by the site potential,
+    which is the thermodynamic statement that a sorbing surface is more stable
+    than a bare one. That is a real effect and a modeling decision, not a matrix
+    entry to write in passing.
   - **No multidentate species**, per the note above.
   - **No lateral interactions.** Neighbors on a surface affect each other's
     binding energy, and the models that describe it — Frumkin's interaction

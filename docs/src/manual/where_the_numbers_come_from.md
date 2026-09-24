@@ -268,10 +268,21 @@ plausibly changes.
 as_traced(id, θ; source = "a synthetic fit")
 ```
 
-Two `fitted` and one `placeholder`. The third parameter is not reported as
-identified, because the data did not identify it — the optimization simply had
-to leave it somewhere. That is `PROV_FITTED` and `PROV_PLACEHOLDER` doing the
-work they exist for, and it is why [`is_evidence`](@ref) is false for both.
+One `fitted` and **two** `placeholder`, and which two is the interesting part.
+
+`a` and `c` enter only as their product, so neither is determined on its own —
+both are placeholders — while `b` is determined and is reported as fitted. That
+answer comes from [`null_participation`](@ref), which asks how much of each
+parameter lies in the directions the data do not constrain:
+
+```@example numbers
+null_participation(id)     # a and c, half each; b, none
+```
+
+**Not** from the parameter's position relative to the rank. A rank of 2 counts
+*directions in parameter space*, and the parameter order is whatever the caller
+packed; reading it as "the first two are fine" would have cleared `a` and
+flagged `c` — the wrong answer, reached by a plausible route.
 
 !!! warning "A fit is not a mechanism"
     Reproducing a measurement establishes that a model *can* reproduce it.
@@ -279,6 +290,108 @@ work they exist for, and it is why [`is_evidence`](@ref) is false for both.
     still fit, so a parameter constrained independently, and data held out of
     the fit, are what separate a mechanism from a curve that passes through the
     points.
+
+### The same question on a real model
+
+The collinearity above was put in by hand. Here is one nobody put in.
+
+A rate law here scales with the binder's fineness, and passing a
+[`ShrinkingCoreArea`](@ref) makes that factor follow the grains as they are
+consumed, `(n/n₀)^p`. Is `p` a new parameter, or a rewriting of one the law
+already had? Over the range where the shell-formation branch controls, the law
+reads `k₃(1-ξ)^{n₃} · (1-ξ)^p = k₃(1-ξ)^{n₃+p}`, so on paper only the **sum** is
+visible. Now ask the model rather than the algebra.
+
+```@example numbers
+# Remaining fraction n/n₀ over the range where that branch is the active one.
+fracs = collect(range(0.8, 0.1; length = 30))
+idx = Dict("C3S" => 1)
+lna0 = StateView([0.0], idx)
+nini = StateView([1.0], idx)
+
+function pk_curve(q)
+    pr = merge(PK84_PARAMS_C3S, (k₃ = q[1] * u"1/d", n₃ = q[2]))
+    law = parrot_killoh_avrami(
+        pr, "C3S";
+        blaine = ShrinkingCoreArea(BlaineSurfaceArea(PK_BLAINE_REF); exponent = q[3]),
+    )
+    return [law(293.15, 1.0e5, 86400.0, StateView([f], idx), lna0, nini) for f in fracs]
+end
+
+θpk = [1.1, 3.3, 2 / 3]     # k₃ [1/d], n₃, and the shrinking-core exponent
+identifiability(pk_curve, θpk; names = ["k₃", "n₃", "p"])
+```
+
+Two of three directions, and the pair named is `n₃` / `p` — the degeneracy the
+algebra predicted, found from the model rather than asserted about it.
+
+#### But look at the condition number, and then refine the step
+
+It comes out around eighty, which for a model with an **exact** degeneracy in it
+is far too small. The reason is the differencing, not the model:
+
+```@example numbers
+# Wrapped in a function on purpose: `id` is already a global on this page, and
+# assigning it inside a top-level loop is the soft-scope ambiguity Julia warns
+# about. A function body has no such question.
+function step_sweep()
+    for rs in (0.05, 0.01, 0.002)
+        s = identifiability(pk_curve, θpk; names = ["k₃", "n₃", "p"], relstep = rs)
+        println("relstep = ", rs,
+                "   condition = ", round(s.condition; sigdigits = 4),
+                "   r(n₃, p) = ", round(s.correlation[2, 3]; digits = 6))
+    end
+end
+step_sweep()
+```
+
+The default 5 % step moves `n₃ = 3.3` by 0.165 **in an exponent**, which is far
+enough that the second-order differencing error differs between two parameters
+that are exactly collinear — and the degeneracy is partly hidden.
+
+At 1 % the correlation reaches −1.000 and **stays there** while the condition
+number keeps climbing. That pair of behaviors is the numerical signature of an
+*exact* degeneracy: the smallest singular value is converging to zero, so its
+ratio to the largest diverges and no refinement gives a finite answer, while the
+direction it belongs to has already settled. A merely ill-conditioned model
+behaves the other way — both numbers settle.
+
+!!! tip "The habit this asks for"
+    A condition number of a few hundred is not evidence that a model is well
+    posed. Refine `relstep` and see whether the answer moves. If it does, the
+    coarse one was measuring the differencing and not the model.
+
+#### What it says, once the step is fine enough
+
+```@example numbers
+idpk = identifiability(pk_curve, θpk; names = ["k₃", "n₃", "p"], relstep = 0.01)
+round.(idpk.V[:, end]; digits = 4)     # the direction the data cannot see
+```
+
+Nothing in `k₃` and a trade-off between `n₃` and `p`, as written on paper.
+
+```@example numbers
+null_participation(idpk)
+```
+
+**Here the two instruments part company, and that is worth understanding.** The
+correlation says `n₃` and `p` trade off exactly. The participation does *not*
+split the blame evenly, because it is computed in **logarithms of the
+parameters**: only `n₃ + p` is visible, so a one-percent change in `p` moves the
+curve five times less than a one-percent change in `n₃` — `n₃` is 3.3 and `p` is
+2/3. In relative terms `p` really is the less determined of the two, and a
+reported uncertainty is a relative statement.
+
+So `as_traced` keeps `k₃` and `n₃` as fitted and marks `p` a placeholder:
+
+```@example numbers
+as_traced(idpk, θpk; source = "a synthetic hydration curve")
+```
+
+Which is the right advice. Fitting `p` and `n₃` from a single hydration curve is
+fitting a sum; fitting `p` with `n₃` held at its published value is a different
+and legitimate thing, and what comes out is a `ShrinkingCoreArea` exponent for
+that binder, not a geometry.
 
 ## A checklist
 

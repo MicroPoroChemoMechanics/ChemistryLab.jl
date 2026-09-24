@@ -1,12 +1,20 @@
 # Changelog
 
-## v0.21.0 — the chemistry a charged surface does
+## v0.21.0 — charged surfaces, published models, and numbers that say where they came from
 
-v0.20.0 gave an equilibrium sites to bind to. It gave them no charge, and a
-surface that binds protons acquires one: the work of putting another charge on
-an already charged object is not zero, and every published calibration of an
-oxide surface assumes it. This release adds that work, in both of the forms the
-literature uses, and adds cation exchange alongside it.
+Two threads, and they meet.
+
+**A surface acquires charge**, so this release adds the electrical work of
+putting one more charge on a charged object — in both forms the literature uses
+— along with cation exchange, and it reads two published models from the files
+their authors released rather than rebuilding them here.
+
+**And doing that ran into the other thread.** A published model is a body of
+fitted constants, and what makes one usable by somebody else is not the numbers
+but what travels with them: which measurement each came from, how well it is
+known, and — once a parameter is identified rather than looked up — whether the
+data determined it at all. So the release also carries `Traced`,
+`identifiability`, and the two observables that make an identification possible.
 
 ### Cation exchange, in the convention it was fitted in
 
@@ -93,198 +101,6 @@ Stacking two electrostatic models is refused. Adding two potentials is how a
 Stern model is *drawn* and not how it works: the capacitances belong to
 different charge planes, and summing them puts every species on both.
 
-### A published clay model, run end to end
-
-ClaySor 2023 — the 2SPNE SC/CE model of Bradbury and Baeyens, two-site
-protolysis plus cation exchange on illite and montmorillonite — is the first
-model in this package that somebody else published and that is read from their
-own file rather than rebuilt here.
-
-It exercises something no previous case did: **four site budgets on one solid**,
-three edge families counting particles and an exchanger counting charge
-equivalents, competing for the same solution. Against PHREEQC on the
-Na-montmorillonite subset:
-
-| what | worst relative gap |
-|:--|--:|
-| edge sites (protolysis) | **2.5 × 10⁻⁶** |
-| exchanger (Na/Ca) | **2.0 × 10⁻²** |
-
-Four orders of magnitude apart, and structurally so. The edge sites see only the
-proton, whose activity is prescribed on both sides, so no aqueous model enters
-and what is compared is the surface model alone. The exchanger sees the sodium
-and calcium activities — and that is a measurement, not an excuse: the identical
-system under ideal activities is off by 23.8 % and under Davies by 1.95 %, a
-factor of twelve from changing nothing but the solution.
-
-**It is not a reproduction of ClaySor, and the fixture says so as a field.**
-ClaySor's constants were fitted against PSI/Nagra TDB 2020, which this
-repository does not have; both sides run the sorption model over `phreeqc.dat`'s
-aqueous chemistry instead. Using published constants over a different aqueous
-database is a different model, in the same way a surface constant fitted with a
-diffuse layer is a different constant from one fitted without — and the whole
-point of saying which is that both look like the same number.
-
-### Reading a published sorption model
-
-`read_sorption_model` reads the `SURFACE_MASTER_SPECIES`, `SURFACE_SPECIES`,
-`EXCHANGE_MASTER_SPECIES` and `EXCHANGE_SPECIES` blocks of a PHREEQC-format
-database into site families, exchangers and reactions — **keeping what travels
-with each constant**. A published sorption compilation writes it into every
-line:
-
-```
-Am+3 + Ilt_sOH = Ilt_sOAm+2 + H+   # … error: 0.26 ref: Marinich_ea:2024:rep:
-```
-
-and a reader that took the `-log_K` and dropped the rest would be discarding the
-part that says how much to believe it. Each `log K` therefore arrives as a
-`Traced`, its source the `ref:` tag and its uncertainty the `error:` one.
-
-On ClaySor 2023 that is 187 reactions across six edge-site families and four
-exchangers, all published — and **60 of the 187 state no uncertainty at all**,
-which `provenance_report` says in one line and which no amount of reading the
-numbers would reveal.
-
-`Traced` gains an `uncertainty` field for this, which is what a second real
-customer is for. `nothing` there means the source says nothing, which is not the
-same as saying the value is exact.
-
-**Nothing ships.** ClaySor 2023 is CC-BY-4.0 and freely available from its
-Zenodo deposit; this reads the copy a user has. And reading a model is not being
-able to solve it: one is written against a particular *aqueous* database — ClaySor
-names PSI/Nagra TDB 2020 in its own first lines — and its constants are that
-database's, in exactly the way a surface constant fitted with a diffuse layer is
-not the same constant as one fitted without.
-
-One parsing trap, because it produces a plausible wrong answer rather than an
-error: `+` is a charge as well as a separator, so splitting
-`Ca+2 + 2 MntxNa = Mntx2Ca + 2 Na+` on the character yields three terms, none of
-them the calcium ion. The separator is a plus with whitespace on both sides.
-
-### A thermogram, and the windows it takes to have one
-
-`ignition_loss` gives the total. `thermogram` gives the curve, which is what
-identifies phases — C-S-H, AFt and AFm all release below 200 °C and are told
-apart by the shape of the release, not by its size.
-
-A window is **not** a consequence of a formula, so `DecompositionWindow` carries
-both its parameters as [`Traced`](@ref) values and makes a curve say where they
-came from: a publication (`PROV_PUBLISHED`), a measurement, or a placeholder
-that keeps printing as one. A bare number is `PROV_UNSTATED`, the weakest claim
-there is.
-
-**And they are recoverable from a curve**, which is what closes the chain.
-`thermogram` is written as a smooth function of its windows so that
-`window_parameters` hands them to an optimizer and `identifiability` says
-afterwards which of them the curve determined. On three separated peaks, a
-Gauss-Newton started 40 K and 40 % away recovers them exactly and the rank is
-6 of 6.
-
-**Where it stops is the useful part.** Two phases releasing 5 K apart — the
-ordinary case in a paste — give a rank of **1 of 4** and a condition number of
-332: the curve sees one peak with a position and a width, not two with four
-parameters between them. A fit would still return four numbers, and
-`as_traced` marks everything beyond the identifiable rank `PROV_PLACEHOLDER`
-rather than `PROV_FITTED` for exactly that reason.
-
-Two things are stated rather than smoothed over. A phase with no window
-contributes to the starting mass and never leaves, so `phases_without_windows`
-reports it rather than letting a curve integrate quietly to the wrong total. And
-a logistic has infinite tails, so the curve does not start at zero; no
-renormalization happens, because rescaling a curve to start at zero would put
-the discrepancy somewhere a reader cannot see.
-
-### What a solid assemblage loses on heating
-
-`ignition_loss` and `bound_water` compute, from the formulas the database
-already carries, the total a thermogram integrates to. Thermogravimetry is the
-second observable the calibration example asks for by name, and the reason is
-identifiability: calorimetry constrains three combinations of six kinetic
-parameters, and a measurement that sees the *phases* breaks correlations heat
-cannot.
-
-It counts **hydrogen**, not formula water, and the difference is not pedantry —
-portlandite is `Ca(OH)₂`, has no `H₂O` written in it, and loses one water per
-formula unit. A rule searching for `H₂O` would report zero for the second most
-abundant hydrate in a paste. The aqueous phase is excluded, which is the
-distinction the water-budget page exists for: pore solution is water and is not
-bound water.
-
-**What it is not is a thermogram, and that is stated rather than approximated.**
-Turning the total into a curve needs the temperature window each phase releases
-in, and those are literature values rather than consequences of a formula. This
-package does not carry them; `bound_water_per_phase` is the quantity they would
-attach to, which is why it is exposed per phase. Supplying them completes a TGA
-observation operator, and inventing them would fabricate exactly the part of the
-measurement that does the identifying.
-
-### Which parameters a measurement can actually determine
-
-`identifiability` answers, for any forward model and any parameter vector, the
-question that has to be settled before a fitted number is quoted. It is the
-reasoning `scripts/hydration_calibration.jl` worked out for calorimetry, taken
-out of that one script and made to work on anything: the singular values of
-`∂y/∂log θ`, the parameter correlation matrix, and the linearized standard
-errors.
-
-Three deliberate choices in it.
-
-**Against the logarithm**, so a rate constant and a dimensionless exponent are
-comparable — a matrix mixing `∂y/∂k` with `∂y/∂n` has a spectrum that says more
-about the units than about the data.
-
-**A rank read off a gap, not a threshold**, because a threshold has units and a
-gap does not. The spectrum that calibration measured, `[420, 100, 60, 6.3, 1.4,
-0.20]`, has its largest ratio between the third and the fourth — which is why it
-fits three parameters and not six.
-
-**And it closes onto `Traced`.** `as_traced` returns the fitted parameters
-carrying `PROV_FITTED`, the dataset, and the standard error as their
-uncertainty — and marks anything beyond the identifiable rank `PROV_PLACEHOLDER`
-instead, because a number the data did not constrain is one the optimization had
-to put somewhere, not one it determined.
-
-Tested on a model with a collinearity **put in on purpose** — two parameters
-entering only as their product — so the method has a known right answer rather
-than a plausible one. It finds rank 2 of 3, names the trade-off direction as
-equal and opposite in exactly those two, and reports a correlation of 1.
-
-`where_the_numbers_come_from.md` gains the section on what to do when the number
-does not exist yet, ending on the caution that a fit is not a mechanism:
-adjusting a site density can absorb a denticity and still fit.
-
-### A number that says where it came from
-
-`Traced` attaches a [`ProvenanceKind`](@ref) and a source to a value, so what a
-data file knew about a number survives into a table, a figure or a fitted
-result. This is not a new idea in this repository — `data/pitzer-reardon1990.toml`
-already carries `origin = "estimated:<analog>"` on every coefficient Reardon had
-to borrow, and explains why in its own header — it is that idea promoted from
-data into a type.
-
-Six kinds, ordered from the weakest claim to the strongest, and two of them are
-the point:
-
-  - **`PROV_UNSTATED` is the weakest, not the middle.** A number that forgot to
-    say where it came from must never strengthen a result.
-  - **`PROV_FITTED` is not evidence.** A fitted value may be excellent, and
-    whether it is depends on the data, the model and whether the parameter was
-    identifiable at all — three questions a predicate cannot answer. So
-    `is_evidence` is true for `PROV_MEASURED` and `PROV_PUBLISHED` only.
-
-`Traced` is deliberately **not** a `Real`. A value that flowed silently into
-arithmetic would arrive at the far end with its history gone; unwrapping it is
-an act a reader can see. `weakest` is what a derived quantity can honestly claim
-about itself, and `provenance_report` is what to print beside a result — a table
-where nine coefficients are published and one is a placeholder is a different
-object from one where all ten are, and the difference shows in none of the
-numbers.
-
-`SITActivityModel` is the first model built on it: a borrowed `ε` keeps its own
-standing instead of inheriting its compilation's. `docs/src/manual/where_the_numbers_come_from.md`
-gains the section that says when to reach for it.
-
 ### SIT, the model the published compilations are written in
 
 `SITActivityModel` implements the Specific ion Interaction Theory: Debye-Hückel
@@ -337,6 +153,252 @@ comparison's residual. Ideal 2.12 × 10⁻⁴, Davies 2.07 × 10⁻⁴, SIT
 surface species set, that is three explanations measured and discarded; the
 residual stays small and unattributed, which is what the measurements support.
 
+### Reading a published sorption model
+
+`read_sorption_model` reads the `SURFACE_MASTER_SPECIES`, `SURFACE_SPECIES`,
+`EXCHANGE_MASTER_SPECIES` and `EXCHANGE_SPECIES` blocks of a PHREEQC-format
+database into site families, exchangers and reactions — **keeping what travels
+with each constant**. A published sorption compilation writes it into every
+line:
+
+```
+Am+3 + Ilt_sOH = Ilt_sOAm+2 + H+   # … error: 0.26 ref: Marinich_ea:2024:rep:
+```
+
+and a reader that took the `-log_K` and dropped the rest would be discarding the
+part that says how much to believe it. Each `log K` therefore arrives as a
+`Traced`, its source the `ref:` tag and its uncertainty the `error:` one.
+
+On ClaySor 2023 that is 187 reactions across six edge-site families and four
+exchangers, all published — and **60 of the 187 state no uncertainty at all**,
+which `provenance_report` says in one line and which no amount of reading the
+numbers would reveal.
+
+`Traced` gains an `uncertainty` field for this, which is what a second real
+customer is for. `nothing` there means the source says nothing, which is not the
+same as saying the value is exact.
+
+**Nothing ships.** ClaySor 2023 is CC-BY-4.0 and freely available from its
+Zenodo deposit; this reads the copy a user has. And reading a model is not being
+able to solve it: one is written against a particular *aqueous* database — ClaySor
+names PSI/Nagra TDB 2020 in its own first lines — and its constants are that
+database's, in exactly the way a surface constant fitted with a diffuse layer is
+not the same constant as one fitted without.
+
+One parsing trap, because it produces a plausible wrong answer rather than an
+error: `+` is a charge as well as a separator, so splitting
+`Ca+2 + 2 MntxNa = Mntx2Ca + 2 Na+` on the character yields three terms, none of
+them the calcium ion. The separator is a plus with whitespace on both sides.
+
+### A published clay model, run end to end
+
+ClaySor 2023 — the 2SPNE SC/CE model of Bradbury and Baeyens, two-site
+protolysis plus cation exchange on illite and montmorillonite — is the first
+model in this package that somebody else published and that is read from their
+own file rather than rebuilt here.
+
+It exercises something no previous case did: **four site budgets on one solid**,
+three edge families counting particles and an exchanger counting charge
+equivalents, competing for the same solution. Against PHREEQC on the
+Na-montmorillonite subset:
+
+| what | worst relative gap |
+|:--|--:|
+| edge sites (protolysis) | **2.5 × 10⁻⁶** |
+| exchanger (Na/Ca) | **2.0 × 10⁻²** |
+
+Four orders of magnitude apart, and structurally so. The edge sites see only the
+proton, whose activity is prescribed on both sides, so no aqueous model enters
+and what is compared is the surface model alone. The exchanger sees the sodium
+and calcium activities — and that is a measurement, not an excuse: the identical
+system under ideal activities is off by 23.8 % and under Davies by 1.95 %, a
+factor of twelve from changing nothing but the solution.
+
+**It is not a reproduction of ClaySor, and the fixture says so as a field.**
+ClaySor's constants were fitted against PSI/Nagra TDB 2020, which this
+repository does not have; both sides run the sorption model over `phreeqc.dat`'s
+aqueous chemistry instead. Using published constants over a different aqueous
+database is a different model, in the same way a surface constant fitted with a
+diffuse layer is a different constant from one fitted without — and the whole
+point of saying which is that both look like the same number.
+
+### A number that says where it came from
+
+`Traced` attaches a [`ProvenanceKind`](@ref) and a source to a value, so what a
+data file knew about a number survives into a table, a figure or a fitted
+result. This is not a new idea in this repository — `data/pitzer-reardon1990.toml`
+already carries `origin = "estimated:<analog>"` on every coefficient Reardon had
+to borrow, and explains why in its own header — it is that idea promoted from
+data into a type.
+
+Six kinds, ordered from the weakest claim to the strongest, and two of them are
+the point:
+
+  - **`PROV_UNSTATED` is the weakest, not the middle.** A number that forgot to
+    say where it came from must never strengthen a result.
+  - **`PROV_FITTED` is not evidence.** A fitted value may be excellent, and
+    whether it is depends on the data, the model and whether the parameter was
+    identifiable at all — three questions a predicate cannot answer. So
+    `is_evidence` is true for `PROV_MEASURED` and `PROV_PUBLISHED` only.
+
+`Traced` is deliberately **not** a `Real`. A value that flowed silently into
+arithmetic would arrive at the far end with its history gone; unwrapping it is
+an act a reader can see. `weakest` is what a derived quantity can honestly claim
+about itself, and `provenance_report` is what to print beside a result — a table
+where nine coefficients are published and one is a placeholder is a different
+object from one where all ten are, and the difference shows in none of the
+numbers.
+
+`SITActivityModel` is the first model built on it: a borrowed `ε` keeps its own
+standing instead of inheriting its compilation's. `docs/src/manual/where_the_numbers_come_from.md`
+gains the section that says when to reach for it.
+
+### Which parameters a measurement can actually determine
+
+`identifiability` answers, for any forward model and any parameter vector, the
+question that has to be settled before a fitted number is quoted. It is the
+reasoning `scripts/hydration_calibration.jl` worked out for calorimetry, taken
+out of that one script and made to work on anything: the singular values of
+`∂y/∂log θ`, the parameter correlation matrix, and the linearized standard
+errors.
+
+Three deliberate choices in it.
+
+**Against the logarithm**, so a rate constant and a dimensionless exponent are
+comparable — a matrix mixing `∂y/∂k` with `∂y/∂n` has a spectrum that says more
+about the units than about the data.
+
+**A rank read off a gap, not a threshold**, because a threshold has units and a
+gap does not. The spectrum that calibration measured, `[420, 100, 60, 6.3, 1.4,
+0.20]`, has its largest ratio between the third and the fourth — which is why it
+fits three parameters and not six. That case also **set the default**: the ratio
+there is 9.5, so a round threshold of 10 would have answered six on the very
+spectrum the rule exists for, and the default is 5.
+
+**And it closes onto `Traced`.** `as_traced` returns the fitted parameters
+carrying `PROV_FITTED`, the dataset, and the standard error as their
+uncertainty — and marks `PROV_PLACEHOLDER` any parameter lying mostly in the
+directions the data do not constrain, because a number the data did not
+constrain is one the optimization had to put somewhere, not one it determined.
+
+Which parameters those are is a **subspace** question — `null_participation` —
+and not the parameter's position relative to the rank. The rank counts
+directions; the order is the caller's packing. For two parameters entering only
+as their product the participation is `[0.5, 0, 0.5]`, so neither is determined
+alone, whereas reading the rank by index would have cleared the first and
+flagged the second: the wrong answer by a plausible route.
+
+Tested on a model with a collinearity **put in on purpose** — two parameters
+entering only as their product — so the method has a known right answer rather
+than a plausible one. It finds rank 2 of 3, names the trade-off direction as
+equal and opposite in exactly those two, and reports a correlation of 1.
+
+And then it was pointed at a model in this package rather than at a synthetic
+one, which changed two things.
+
+**The cut goes at the largest qualifying gap, not the first.** Measuring a rate
+law against its own shrinking-core exponent gives `[1.6e-5, 2.7e-6, 5.1e-11]`: a
+ratio of six, then one of fifty thousand. Cutting at the first answered *one*
+determined direction — the amplitude alone — when the amplitude and one exponent
+combination are both determined and only their split is not. A factor of six is
+ordinary conditioning; a factor of fifty thousand is a structure.
+
+**And a coarse difference step can hide an exact degeneracy.** The default 5 %
+moves that law's exponent by 0.165, far enough that the second-order differencing
+error differs between two parameters that are exactly collinear: the condition
+number comes out 80 instead of 3 × 10⁵, and the correlation −0.97 instead of
+−1.000. Refining to 1 % restores both. `log_sensitivity` now says so, with the
+habit it asks for — refine the step and see whether the answer moves — and the
+manual shows the sweep rather than describing it.
+
+`where_the_numbers_come_from.md` gains the section on what to do when the number
+does not exist yet, both the synthetic collinearity and that real one, ending on
+the caution that a fit is not a mechanism: adjusting a site density can absorb a
+denticity and still fit.
+
+### What a solid assemblage loses on heating
+
+`ignition_loss` and `bound_water` compute, from the formulas the database
+already carries, the total a thermogram integrates to. Thermogravimetry is the
+second observable the calibration example asks for by name, and the reason is
+identifiability: calorimetry constrains three combinations of six kinetic
+parameters, and a measurement that sees the *phases* breaks correlations heat
+cannot.
+
+It counts **hydrogen**, not formula water, and the difference is not pedantry —
+portlandite is `Ca(OH)₂`, has no `H₂O` written in it, and loses one water per
+formula unit. A rule searching for `H₂O` would report zero for the second most
+abundant hydrate in a paste. The aqueous phase is excluded, which is the
+distinction the water-budget page exists for: pore solution is water and is not
+bound water.
+
+**What it is not is a thermogram, and that is stated rather than approximated.**
+Turning the total into a curve needs the temperature window each phase releases
+in, and those are literature values rather than consequences of a formula. This
+package does not carry them; `bound_water_per_phase` is the quantity they would
+attach to, which is why it is exposed per phase. Supplying them completes a TGA
+observation operator, and inventing them would fabricate exactly the part of the
+measurement that does the identifying.
+
+### A thermogram, and the windows it takes to have one
+
+`ignition_loss` gives the total. `thermogram` gives the curve, which is what
+identifies phases — C-S-H, AFt and AFm all release below 200 °C and are told
+apart by the shape of the release, not by its size.
+
+A window is **not** a consequence of a formula, so `DecompositionWindow` carries
+both its parameters as [`Traced`](@ref) values and makes a curve say where they
+came from: a publication (`PROV_PUBLISHED`), a measurement, or a placeholder
+that keeps printing as one. A bare number is `PROV_UNSTATED`, the weakest claim
+there is.
+
+**And they are recoverable from a curve**, which is what closes the chain.
+`thermogram` is written as a smooth function of its windows so that
+`window_parameters` hands them to an optimizer and `identifiability` says
+afterwards which of them the curve determined. On three separated peaks, a
+Gauss-Newton started 40 K and 40 % away recovers them exactly and the rank is
+6 of 6.
+
+**Where it stops is the useful part.** Two phases releasing 5 K apart — the
+ordinary case in a paste — give a rank of **1 of 4** and a condition number of
+332: the curve sees one peak with a position and a width, not two with four
+parameters between them. A fit would still return four numbers, and
+`as_traced` marks as `PROV_PLACEHOLDER` every parameter lying mostly in the
+unconstrained directions — for exactly that reason.
+
+Two things are stated rather than smoothed over. A phase with no window
+contributes to the starting mass and never leaves, so `phases_without_windows`
+reports it rather than letting a curve integrate quietly to the wrong total. And
+a logistic has infinite tails, so the curve does not start at zero; no
+renormalization happens, because rescaling a curve to start at zero would put
+the discrepancy somewhere a reader cannot see.
+
+### An area that follows the grains, and the measurement that says what it is worth
+
+The rate laws here scale with the binder's fineness, and that factor has always
+been a **number**: computed once from the fineness given at construction and
+carried unchanged through the integration. A dissolving grain does not keep its
+area, so `parrot_killoh_avrami` and `waller` now also accept a
+`ShrinkingCoreArea`, and then the factor follows the amount left.
+
+What is new is not only the mechanism but what comes with it. Multiplying the
+shell-formation branch `k₃(1-ξ)^n₃` by `(1-ξ)^p` gives `k₃(1-ξ)^(n₃+p)`: on that
+branch the new exponent and the old one are **the same parameter written
+twice**, and fitting both fits a sum. The Jander branch carries no such
+exponent, so there `p` is a genuine new shape; and the Waller sigmoid moves its
+two exponents together while `p` moves one, so there `p` is distinguishable from
+`n`. Which of these a given dataset sees is a measurement, and `identifiability`
+— added in this same release — is what makes it.
+
+The published constants were fitted with the factor frozen, so an evolving area
+leaves the calibration it came with. That is said in the docstrings, in the
+theory chapter and here, rather than left for a reader to discover from
+parameters that no longer mean what their source said.
+
+Nothing changes for anyone who does not ask for it: at `n = n₀` the evolving
+factor is exactly one, and a frozen factor now takes a branch that returns the
+same object rather than multiplying by one. Both are asserted bit-for-bit.
+
 ### Reproducibility, which turned out to need the most work
 
 Three habits were removed from this repository, all of them silent and all of
@@ -359,6 +421,46 @@ The cross-code fixtures move from Julia blocks pasted into test files to
 is vendored — unmodified, from tag v3.7.3, with the USGS User Rights Notice
 beside it as that notice requires — so the md5 the fixtures record now pins a
 file in this repository instead of one inside somebody's conda environment.
+
+### What this release does not do
+
+**The support is still fixed.** A site budget is a number set once, and the
+destination — sorption on a C-S-H that precipitates as the paste hydrates —
+needs it to follow the phase. The data model was written for that from the
+start: `site_moles` takes the host's amount rather than returning a constant.
+What is missing is not the data model but two things that only show up when the
+support is allowed to move.
+
+The first is where the sites come from. A capacity written as a site density
+times an area, or times a dry mass, is **linear** in the host's amount, so the
+site conservation row stays linear and folds into the budget exactly — no
+bilinear term, contrary to what one expects. But a free site is a chemical
+species: `XsOH` carries an oxygen and a hydrogen. Growing the support therefore
+creates surface hydroxyls, and those have to be debited from the water rather
+than appearing from nothing, or the element balance is violated by exactly the
+number of sites added. Any outer iteration that updates the budget between
+solves has to carry that bookkeeping, and an implementation that only updates
+the site row would balance the sites and silently unbalance the oxygen.
+
+The second is whether sorption feeds back on the support's own stability. Giving
+the host a coefficient in the site row shifts its saturation index by the site
+potential, which is thermodynamically the statement that a sorbing surface is
+more stable than a bare one. That is a real effect and a real modeling decision,
+and it is not one to make implicitly by writing a matrix entry.
+
+Both are named here rather than left as an absence, because the architecture
+makes them look like small steps and they are not.
+
+**No multidentate species, no lateral interactions.** Unchanged from v0.20.0:
+the site balance holds for any denticity, ideal mixing of occupied and free
+sites is exact only for one, and anything else is refused at construction.
+Frumkin and quasi-chemical mixing are the route, and neither is here.
+
+**The evolving fineness is a mechanism, not a calibration.** It is delivered
+with the measurement that says when its exponent is identifiable and when it is
+a rewriting of a parameter the law already had — and with no fitted value,
+because fitting one against constants calibrated at a frozen area would be
+making up a number.
 
 ### Breaking changes
 

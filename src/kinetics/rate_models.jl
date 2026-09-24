@@ -710,10 +710,29 @@ against.
 # Keyword arguments
 
   - `α_max`: Powers (1948) water availability cap — see [`powers_alpha_max`](@ref).
-  - `blaine`: Blaine fineness of the binder, as a `Quantity` or a plain `Real`
-    in m²/kg. `nothing` (default) means no correction.
+  - `blaine`: Blaine fineness of the binder, as a `Quantity`, a plain `Real` in
+    m²/kg, a [`BlaineSurfaceArea`](@ref) — all three frozen for the whole
+    integration — or a [`ShrinkingCoreArea`](@ref), which makes the factor
+    follow the grains as they are consumed. `nothing` (default) means no
+    correction. See the warning below before using the last one.
   - `humidity`: internal relative humidity, either a constant in `[0, 1]` or a
     callable `t -> h(t)`. `nothing` (default) means no correction.
+
+!!! warning "An evolving fineness is not a free improvement"
+    The Parrot & Killoh constants were fitted with `β_B` **constant**, so
+    passing a [`ShrinkingCoreArea`](@ref) leaves this law outside the
+    calibration it came with and it has to be recalibrated — the machinery is
+    `scripts/hydration_calibration.jl`.
+
+    Worse, the extra freedom largely **already exists** in the law. With
+    `α_max = 1` the remaining fraction is `n/n₀ = 1 - ξ`, so multiplying by
+    `(1-ξ)^p` turns the shell-formation branch `k₃(1-ξ)^{n₃}` into
+    `k₃(1-ξ)^{n₃+p}`: wherever that branch is the active one, `p` and `n₃` are
+    the same parameter written twice, and fitting both is fitting a sum. The
+    Jander branch has no such exponent, so `p` is a genuine degree of freedom
+    only while diffusion controls. Which of the two holds over a given dataset
+    is a measurement, and [`identifiability`](@ref) is what makes it — do not
+    report `p` and `n₃` from one curve without it.
 
 # Returns
 
@@ -751,7 +770,7 @@ function parrot_killoh_avrami(
     Ea = safe_ustrip(us"J/mol", params.Ea)
     T_ref = safe_ustrip(us"K", params.T_ref)
     α_max_f = float(α_max)
-    β_B = blaine === nothing ? 1.0 : blaine_factor(blaine)
+    β_B0, β_Bp = _fineness_parts(blaine, PK_BLAINE_REF)
 
     f = (T, _P, t, n, _lna, n_initial) -> begin
         n_m = n[mineral_name]
@@ -759,6 +778,7 @@ function parrot_killoh_avrami(
         α = min(max(one(T) - n_m / n_init, zero(T)), α_max_f - oftype(T, 1.0e-10))
         ξ = α / α_max_f
         Aₜ = exp(-Ea / R_GAS * (one(T) / T - one(T) / T_ref))
+        β_B = _fineness_at(β_B0, β_Bp, max(n_m / n_init, zero(ξ)))
         β_h = humidity === nothing ? one(ξ) : humidity_factor(_humidity_at(humidity, t, n))
         one_m_ξ = max(one(ξ) - ξ, oftype(ξ, 1.0e-12))
         # α̇₁ — Avrami nucleation and growth. For n₁ < 1 the (-ln(1-ξ))^(1-n₁)
@@ -904,7 +924,16 @@ physical phenomena and are not interchangeable.
 
 Identical to [`parrot_killoh_avrami`](@ref). The Blaine correction is taken
 relative to `params.blaine_ref` (400 m²/kg for fly ash), not to the clinker
-reference of 385 m²/kg.
+reference of [`PK_BLAINE_REF`](@ref).
+
+!!! note "Here an evolving area is a real degree of freedom"
+    The degeneracy warned about on [`parrot_killoh_avrami`](@ref) does **not**
+    carry over in the same form. The sigmoid rate is
+    `(n/τ)(1-ξ)^{1+1/n} ξ^{1-1/n}`, and `n` sets both exponents at once, in
+    opposite directions; a [`ShrinkingCoreArea`](@ref) exponent `p` shifts only
+    the `(1-ξ)` one. So `p` is not a rewriting of `n` — it is a separate shape,
+    correlated with `n` but distinguishable. The calibration caveat still
+    applies in full: these constants were fitted with `β_B` frozen.
 
 # Examples
 
@@ -934,7 +963,7 @@ function waller(
     T_ref = safe_ustrip(us"K", params.T_ref)
     α_max_f = float(α_max)
     blaine_ref = hasproperty(params, :blaine_ref) ? params.blaine_ref : 400.0u"m^2/kg"
-    β_B = blaine === nothing ? 1.0 : blaine_factor(blaine; blaine_ref = blaine_ref)
+    β_B0, β_Bp = _fineness_parts(blaine, blaine_ref)
 
     f = (T, _P, t, n, _lna, n_initial) -> begin
         n_m = n[mineral_name]
@@ -942,6 +971,7 @@ function waller(
         α = min(max(one(T) - n_m / n_init, zero(T)), α_max_f - oftype(T, 1.0e-10))
         ξ = α / α_max_f
         Aₜ = exp(-Ea / R_GAS * (one(T) / T - one(T) / T_ref))
+        β_B = _fineness_at(β_B0, β_Bp, max(n_m / n_init, zero(ξ)))
         β_h = humidity === nothing ? one(ξ) : humidity_factor(_humidity_at(humidity, t, n))
         # At ξ = 0 the closed form α̇(α) is singular (α^(1-1/n) → ∞ for n < 1).
         # Fall back to the explicit α̇(t) of the sigmoid, which is finite for t > 0
@@ -1007,6 +1037,19 @@ const WALLER_PARAMS_SLAG = (
 
 # ── Correction factors ───────────────────────────────────────────────────────
 
+"""
+    PK_BLAINE_REF :: Quantity
+
+The Blaine fineness the Parrot & Killoh constants were calibrated at,
+385 m²/kg.
+
+It is the default reference of [`blaine_factor`](@ref) and the one
+[`parrot_killoh_avrami`](@ref) applies, written once so the two cannot drift
+apart — a rate constant and the fineness it was measured against are one datum
+in two places.
+"""
+const PK_BLAINE_REF = 385.0u"m^2/kg"
+
 # A bare number or quantity is a Blaine fineness, which is what every caller of
 # `blaine_factor` has always meant. A typed area passes through, and that is the
 # whole guard: a `BETSurfaceArea` reaches `area_ratio` as a BET area and is
@@ -1018,7 +1061,36 @@ _as_blaine(x::AbstractSpecificArea) = x
 _as_blaine(x) = BlaineSurfaceArea(x)
 
 """
-    blaine_factor(blaine; blaine_ref = 385u"m^2/kg") -> Real
+    _fineness_parts(blaine, blaine_ref) -> (β₀, p)
+
+The fineness factor split into the part that can be computed once and the part
+that has to be read from the state at every evaluation.
+
+`p === nothing` means the factor is **frozen**, which is what a bare fineness has
+always meant and what every rate law shipped in this package was calibrated
+with. A [`ShrinkingCoreArea`](@ref) instead returns its exponent, and the caller
+multiplies `β₀` by `g(n/n₀)` at each evaluation.
+
+The split exists so that the frozen path keeps costing nothing: a constant
+fineness is still one `area_ratio` for the whole integration, evaluated here.
+"""
+_fineness_parts(::Nothing, _ref) = (1.0, nothing)
+_fineness_parts(m::ShrinkingCoreArea, ref) =
+    (area_ratio(m.initial, _as_blaine(ref)), m.exponent)
+_fineness_parts(m, ref) = (blaine_factor(m; blaine_ref = ref), nothing)
+
+"""
+    _fineness_at(β₀, p, fraction) -> Real
+
+The fineness factor at a remaining fraction `n/n₀`. `p === nothing` returns `β₀`
+**identically** — same object, no arithmetic — so a law with a frozen factor
+computes exactly the number it computed before this existed.
+"""
+@inline _fineness_at(β₀, ::Nothing, _fraction) = β₀
+@inline _fineness_at(β₀, p, fraction) = β₀ * _shrink_fraction(fraction, p)
+
+"""
+    blaine_factor(blaine; blaine_ref = PK_BLAINE_REF) -> Real
 
 Fineness correction of the hydration rate: the Parrot & Killoh parameters were
 adjusted for a cement of Blaine fineness `blaine_ref`, and the rate scales as
@@ -1045,7 +1117,7 @@ julia> round(blaine_factor(462u"m^2/kg"); digits = 4)
 1.2
 ```
 """
-function blaine_factor(blaine; blaine_ref = 385.0u"m^2/kg")
+function blaine_factor(blaine; blaine_ref = PK_BLAINE_REF)
     return area_ratio(_as_blaine(blaine), _as_blaine(blaine_ref))
 end
 
