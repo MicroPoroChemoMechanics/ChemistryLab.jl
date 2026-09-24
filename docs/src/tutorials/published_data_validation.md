@@ -13,7 +13,8 @@ disagree with the database and does.
 
 Every number below is pinned by an assertion in `test/cemdata18_reference.jl`
 (584 of them), `test/atkins1992_reference.jl` (12), `test/limestone_blending_reference.jl` (25)
-or `test/chloride_binding_reference.jl` (25), so it is checked on every CI run.
+`test/chloride_binding_reference.jl` (25) or
+`test/duan2016_reference.jl` (11), so it is checked on every CI run.
 
 ## Cemdata18 Tables 2 and 3: the solubility products
 
@@ -376,6 +377,75 @@ theirs.
   the diffuse layer, the Ca²⁺ > Cl⁻ > Na⁺ > K⁺ ordering. `SC_SURFCOMPLEX` and
   the site families arrived in v0.20.0, so it is now expressible; it is simply
   not attempted yet.
+
+## The HKF model away from 25 °C and 1 bar
+
+The Cemdata18 section above pins every HKF equation-of-state coefficient in the
+shipped file. Nothing there pins what the model *does* with them once the
+temperature and pressure leave the reference point — and that is the half that
+carries a burial, an autoclave or a steam-cured calculation.
+
+[Duan2016](@cite) is a weak source in most respects: their carbonate data for
+ferrocalcite and ankerite are estimated rather than measured, their tables
+disagree with their own text about which is which, and their conclusion prints
+"−2.24 mmol·L⁻¹mmol·L⁻¹". But their Table 4 carries one column this package can
+be held to — two constants computed by **HKF itself**, taken from Yu, Dong and
+Ruan (2008), at two temperatures. That is an HKF oracle, and it is the only one
+in this chapter.
+
+| | ChemistryLab | Duan Table 4 | difference |
+|:--|--:|--:|--:|
+| `K₃` (HCO₃⁻ ⇌ H⁺ + CO₃²⁻), 298.15 K, 1 bar | 4.6885×10⁻¹¹ | 4.69×10⁻¹¹ | −0.03 % |
+| `K₄` (H₂O ⇌ H⁺ + OH⁻), 298.15 K, 1 bar | 9.9971×10⁻¹⁵ | 1.00×10⁻¹⁴ | −0.03 % |
+
+### Their pressure column is in bar, and `K₃` proves it
+
+Table 4 is headed `P(Pa)` and reads `1.0` and `1000.0`. Neither can be pascals —
+1 Pa is a hard vacuum, and no aqueous constant is tabulated there. Bar fits, and
+the second row settles it. At 373.15 K the published `K₃` is 2.42×10⁻¹⁰, against
+
+| pressure | `K₃` | difference |
+|:--|--:|--:|
+| 1 bar | 8.240×10⁻¹¹ | −66 % |
+| **1000 bar** | **2.412×10⁻¹⁰** | **−0.3 %** |
+
+Reproducing a factor of 2.9 in pressure to three parts in a thousand is a real
+check of the volume terms, and it is the strongest single piece of evidence in
+this chapter that the HKF implementation is right away from the reference point.
+
+!!! warning "The same row mixes two pressures"
+    `K₄` does not agree at 1000 bar. It matches at **1 bar** — 5.504×10⁻¹³
+    against their 5.38×10⁻¹³, 2.3 % — and is 14.7 % out at 1000 bar. Water
+    autoprotolysis at 100 °C and 1 bar is `pKw = 12.26`, so the 1 bar value is
+    the physical one and the row carries its two constants at different
+    pressures.
+
+### Calcite, and a method that is not HKF
+
+Their Table 6 gives calcite over 298–478 K and 0.1–70 MPa, computed with their
+own Gibbs-energy integration and SRK volumes rather than with HKF. So a
+disagreement is a difference of method, not a defect — but at the reference
+point there is an independent arbiter, and it favors this package: the accepted
+`log Ksp` of calcite at 25 °C and 1 bar is **−8.48**, which is what comes out
+here. Duan print −8.53.
+
+| T (K) | P (MPa) | ChemistryLab | Duan | Δ |
+|--:|--:|--:|--:|--:|
+| 298.15 | 0.1 | **−8.480** | −8.53 | +0.05 |
+| 301.15 | 15 | −8.440 | −8.53 | +0.09 |
+| 301.15 | 70 | −8.261 | −7.82 | −0.44 |
+| 343.15 | 15 | −8.855 | −8.69 | −0.17 |
+| 418.15 | 40 | −9.827 | −9.06 | −0.77 |
+| 478.15 | 15 | −11.055 | −9.69 | −1.37 |
+
+Both agree on the two signs a burial calculation turns on — heating dissolves
+less, compressing dissolves more — and diverge steadily with temperature, this
+package giving the lower solubility. The divergence is worth recording because
+Duan's own Table 4 puts their method within 3 % of HKF on `K₃` and `K₄`, which
+is 0.01 log units; 1.4 log units on calcite is far outside what they claim for
+it. Their estimated carbonate data are the likeliest reason — the ferrocalcite
+row of their Table 3 carries a heat-capacity coefficient of `+2.09×10⁶` where
+every other carbonate in the table has zero or a large negative.
 
 ## Reproducing
 

@@ -88,6 +88,7 @@ end
     include("thermodynamics.jl")
     include("hkf.jl")
     include("cemdata18_reference.jl")
+    include("duan2016_reference.jl")
 end
 
 @testsection "Equilibrium tests" begin
