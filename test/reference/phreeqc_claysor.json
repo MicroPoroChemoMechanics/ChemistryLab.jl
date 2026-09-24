@@ -1,0 +1,218 @@
+{
+  "generator": "test/reference/phreeqc_claysor.py",
+  "python": "3.12.14",
+  "model": "ClaySor 2023 (2SPNE SC/CE), Na-montmorillonite subset",
+  "model_file": "claysor23_v0.7.dat",
+  "model_sha256": "6df84ee9cdbcf49ba7a2310a7224e7bf5b448f49de17e4dd80b1c5c4c9d7b387",
+  "model_doi": "10.5281/zenodo.15095062",
+  "model_licence": "CC-BY-4.0",
+  "aqueous_database": "phreeqc.dat (NOT ClaySor's own PSI/Nagra TDB 2020)",
+  "not_a_reproduction": "ClaySor's constants were fitted against PSI/Nagra TDB 2020. Run here over phreeqc.dat on both sides, this tests the sorption model and is not a reproduction of ClaySor.",
+  "exchange_convention": "Gaines-Thomas (PHREEQC's EXCHANGE default)",
+  "grams": 1.0,
+  "specific_area_m2_per_g": 18.0,
+  "cec_mol_per_g": 0.00087,
+  "sites_mol_per_g": {
+    "Mnt_sOH": 2e-06,
+    "Mnt_vOH": 4e-05,
+    "Mnt_wOH": 4e-05
+  },
+  "na": 0.1,
+  "ca": 0.005,
+  "reactions": {
+    "surface": [
+      {
+        "equation": "H+ + Mnt_sOH = Mnt_sOH2+",
+        "log_K": 4.5,
+        "reference": "Bradbury_Baeyens:1997:pap:",
+        "uncertainty": null
+      },
+      {
+        "equation": "Mnt_sOH = Mnt_sO- + H+",
+        "log_K": -7.9,
+        "reference": "Bradbury_Baeyens:1997:pap:",
+        "uncertainty": null
+      },
+      {
+        "equation": "H+ + Mnt_vOH = Mnt_vOH2+",
+        "log_K": 4.5,
+        "reference": "Bradbury_Baeyens:1997:pap:",
+        "uncertainty": null
+      },
+      {
+        "equation": "Mnt_vOH = Mnt_vO- + H+",
+        "log_K": -7.9,
+        "reference": "Bradbury_Baeyens:1997:pap:",
+        "uncertainty": null
+      },
+      {
+        "equation": "H+ + Mnt_wOH = Mnt_wOH2+",
+        "log_K": 6.0,
+        "reference": "Bradbury_Baeyens:1997:pap:",
+        "uncertainty": null
+      },
+      {
+        "equation": "Mnt_wOH = Mnt_wO- + H+",
+        "log_K": -10.5,
+        "reference": "Bradbury_Baeyens:1997:pap:",
+        "uncertainty": null
+      }
+    ],
+    "exchange": [
+      {
+        "equation": "Mntx- + Na+ = MntxNa",
+        "log_K": 0.0,
+        "reference": null,
+        "uncertainty": null
+      },
+      {
+        "equation": "Ca+2 + 2 MntxNa = Mntx2Ca + 2 Na+",
+        "log_K": 0.396,
+        "reference": "Curti:2023:rep:",
+        "uncertainty": 0.27
+      }
+    ]
+  },
+  "points": [
+    {
+      "pH": 4.0,
+      "I": 0.11501305262016108,
+      "la_H": -4.0,
+      "la_Na": -1.108230861892795,
+      "la_Ca": -2.739164420731428,
+      "species": {
+        "MntxNa": 0.0005805887905919069,
+        "Mntx2Ca": 0.00014470560362113427,
+        "Mnt_sOH": 4.804916125249507e-07,
+        "Mnt_sOH2+": 1.5194478921859336e-06,
+        "Mnt_sO-": 6.04903101161617e-11,
+        "Mnt_vOH": 9.609832250499027e-06,
+        "Mnt_vOH2+": 3.0388957843718706e-05,
+        "Mnt_vO-": 1.209806202323229e-09,
+        "Mnt_wOH": 3.9603960173446897e-07,
+        "Mnt_wOH2+": 3.9603960173446916e-05,
+        "Mnt_wO-": 1.2523871851068934e-13
+      }
+    },
+    {
+      "pH": 5.0,
+      "I": 0.1148906853076503,
+      "la_H": -5.0,
+      "la_Na": -1.108197293068356,
+      "la_Ca": -2.739033674903231,
+      "species": {
+        "MntxNa": 0.000580567564067129,
+        "Mntx2Ca": 0.00014471621689327144,
+        "Mnt_sOH": 1.5180418960415392e-06,
+        "Mnt_sOH2+": 4.800469975051813e-07,
+        "Mnt_sO-": 1.911101519094895e-09,
+        "Mnt_vOH": 3.0360837920830815e-05,
+        "Mnt_vOH2+": 9.600939950103623e-06,
+        "Mnt_vO-": 3.822203038189787e-08,
+        "Mnt_wOH": 3.636362582011653e-06,
+        "Mnt_wOH2+": 3.6363625820116504e-05,
+        "Mnt_wO-": 1.1499188157367669e-11
+      }
+    },
+    {
+      "pH": 6.0,
+      "I": 0.11486688294353486,
+      "la_H": -6.0,
+      "la_Na": -1.1081907589690148,
+      "la_Ca": -2.7390082570066236,
+      "species": {
+        "MntxNa": 0.0005805634429627469,
+        "Mntx2Ca": 0.00014471827754292742,
+        "Mnt_sOH": 1.9153198169299325e-06,
+        "Mnt_sOH2+": 6.056773069155305e-08,
+        "Mnt_sO-": 2.4112447892460407e-08,
+        "Mnt_vOH": 3.830639633859869e-05,
+        "Mnt_vOH2+": 1.2113546138310625e-06,
+        "Mnt_vO-": 4.822489578492087e-07,
+        "Mnt_wOH": 1.9999683732374042e-05,
+        "Mnt_wOH2+": 1.9999683732374042e-05,
+        "Mnt_wO-": 6.324455307731941e-10
+      }
+    },
+    {
+      "pH": 7.0,
+      "I": 0.11485492410641125,
+      "la_H": -7.0,
+      "la_Na": -1.1081874750532168,
+      "la_Ca": -2.7389957773129296,
+      "species": {
+        "MntxNa": 0.0005805614714028102,
+        "Mntx2Ca": 0.00014471926429756825,
+        "Mnt_sOH": 1.7713931747359754e-06,
+        "Mnt_sOH2+": 5.601637063842322e-09,
+        "Mnt_sO-": 2.2300518819538644e-07,
+        "Mnt_vOH": 3.5427863494719546e-05,
+        "Mnt_vOH2+": 1.1203274127684637e-07,
+        "Mnt_vO-": 4.460103763907734e-06,
+        "Mnt_wOH": 3.6353185557497985e-05,
+        "Mnt_wOH2+": 3.6353185557497942e-06,
+        "Mnt_wO-": 1.149588665644314e-08
+      }
+    },
+    {
+      "pH": 8.0,
+      "I": 0.11484365307870993,
+      "la_H": -8.0,
+      "la_Na": -1.1081843749159752,
+      "la_Ca": -2.7389868064880987,
+      "species": {
+        "MntxNa": 0.0005805605598431817,
+        "Mntx2Ca": 0.0001447197298240437,
+        "Mnt_sOH": 8.852528254555373e-07,
+        "Mnt_sOH2+": 2.7994152335389775e-10,
+        "Mnt_sO-": 1.1144672778285614e-06,
+        "Mnt_vOH": 1.7705056509110736e-05,
+        "Mnt_vOH2+": 5.598830467077952e-09,
+        "Mnt_vO-": 2.228934555657121e-05,
+        "Mnt_wOH": 3.948034957294933e-05,
+        "Mnt_wOH2+": 3.9480349572949314e-07,
+        "Mnt_wO-": 1.2484782747017575e-07
+      }
+    },
+    {
+      "pH": 9.0,
+      "I": 0.11483448674851157,
+      "la_H": -9.0,
+      "la_Na": -1.108181805119383,
+      "la_Ca": -2.7390078306683594,
+      "species": {
+        "MntxNa": 0.000580569421078166,
+        "Mntx2Ca": 0.0001447153966723305,
+        "Mnt_sOH": 1.471748060262664e-07,
+        "Mnt_sOH2+": 4.654076012364762e-12,
+        "Mnt_sO-": 1.8528210328234415e-06,
+        "Mnt_vOH": 2.943496120525321e-06,
+        "Mnt_vOH2+": 9.308152024729485e-11,
+        "Mnt_vO-": 3.705642065646874e-05,
+        "Mnt_wOH": 3.873632343279557e-05,
+        "Mnt_wOH2+": 3.8736323432795505e-08,
+        "Mnt_wO-": 1.2249501022858632e-06
+      }
+    },
+    {
+      "pH": 10.0,
+      "I": 0.1148221911439577,
+      "la_H": -10.0,
+      "la_Na": -1.108177902043436,
+      "la_Ca": -2.739302842456126,
+      "species": {
+        "MntxNa": 0.0005806717711154675,
+        "Mntx2Ca": 0.0001446651962795093,
+        "Mnt_sOH": 1.5761406506112455e-08,
+        "Mnt_sOH2+": 4.9841943687111924e-14,
+        "Mnt_sO-": 1.984243517616288e-06,
+        "Mnt_vOH": 3.1522813012224776e-07,
+        "Mnt_vOH2+": 9.968388737422343e-13,
+        "Mnt_vO-": 3.968487035232559e-05,
+        "Mnt_wOH": 3.0387643953090567e-05,
+        "Mnt_wOH2+": 3.038764395309054e-09,
+        "Mnt_wO-": 9.609416761800898e-06
+      }
+    }
+  ]
+}

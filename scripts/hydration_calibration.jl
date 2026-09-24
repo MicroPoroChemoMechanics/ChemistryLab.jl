@@ -1333,22 +1333,21 @@ provided `θ` is extended to match — that is how a parameter's sensitivity is
 shown to be negligible without spending an optimization on it.
 """
 function sensitivity_matrix(θ, data; mode::Symbol = :surrogate, spec = CALIB_SPEC, relstep = 0.05)
-    J = Matrix{Float64}(undef, length(data.t), length(spec))
-    for j in eachindex(spec)
-        θp = copy(collect(float.(θ)));  θp[j] *= (1 + relstep)
-        θm = copy(collect(float.(θ)));  θm[j] *= (1 - relstep)
-        Qp = forward_Q(θp, data; mode, spec)
-        Qm = forward_Q(θm, data; mode, spec)
-        J[:, j] = (Qp .- Qm) ./ (2 * relstep)
-    end
-    return J
+    # Central differences against the logarithm, which is what
+    # `ChemistryLab.log_sensitivity` is: this script is where that calculation
+    # was written, and keeping a second copy of it here is how the two would
+    # come to disagree. The cost is identical — `2n` forward solves, the output
+    # sized from the first column on both sides.
+    return ChemistryLab.log_sensitivity(
+        q -> forward_Q(q, data; mode, spec), θ; relstep = relstep,
+    )
 end
 
 """
     local_identifiability(θ, data; mode, spec, relstep)
-        -> (; J, U, S, V, cond, correlation, stderr, rmse)
+        -> (; J, U, S, V, cond, rank, correlation, stderr, rmse)
 
-Local identifiability of `θ` from `data`.
+Local identifiability of `θ` from `data`, by `ChemistryLab.identifiability`.
 
 `S` holds the singular values of `∂Q/∂log θ`. A ratio `S[1]/S[end]` of a few
 means every direction is constrained; several orders of magnitude means the data
@@ -1360,26 +1359,28 @@ names which combination. `correlation` is the parameter correlation matrix from
 These are the *linearized* errors at one point, which is all six parameters and a
 few hundred forward solves can buy. They are reported to say which numbers in a
 fit deserve to be quoted, not as confidence intervals.
+
+`rank` comes from the package and is the number of directions the measurement
+constrains, read off the largest gap in the spectrum. On the six candidates here
+it answers three, which is the conclusion this script reached by hand before the
+rule existed.
 """
 function local_identifiability(
         θ, data; mode::Symbol = :surrogate, spec = CALIB_SPEC, relstep = 0.05,
     )
-    J = sensitivity_matrix(θ, data; mode, spec, relstep)
-    Qm = forward_Q(θ, data; mode, spec)
-    rmse = sqrt(mean(abs2, Qm .- data.Q))
-    F = svd(J)
-    JtJ = J' * J
-    C = try
-        inv(JtJ)
-    catch
-        pinv(JtJ)
-    end
-    d = sqrt.(abs.(diag(C)))
-    correlation = C ./ (d * d')
+    # Delegated for the same reason as `sensitivity_matrix` above:
+    # `ChemistryLab.identifiability` IS this calculation, lifted out of this
+    # script and generalized. The cost is unchanged at `2n + 1` solves, the
+    # returned shape is exactly what the reporting below expects — `cond`
+    # included — and `rank` is what comes free.
+    id = ChemistryLab.identifiability(
+        q -> forward_Q(q, data; mode, spec), θ;
+        observed = data.Q, relstep = relstep,
+        names = [string(cp.name) for cp in spec],
+    )
     return (;
-        J, U = F.U, S = F.S, V = F.V,
-        cond = F.S[1] / max(F.S[end], eps()),
-        correlation, stderr = rmse .* d, rmse,
+        id.J, id.U, id.S, id.V, cond = id.condition, id.rank,
+        id.correlation, id.stderr, id.rmse,
     )
 end
 

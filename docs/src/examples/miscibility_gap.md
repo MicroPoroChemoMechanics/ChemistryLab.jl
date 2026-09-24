@@ -40,7 +40,7 @@ returns the interval over which it is negative, or `nothing` when the model is
 convex. It needs no solve and no system:
 
 ```@example gap
-RT = 8.31446261815324 * 298.15
+RT = R_GAS * 298.15
 
 models = OrderedDict(
     "ideal" => IdealSolidSolutionModel(),

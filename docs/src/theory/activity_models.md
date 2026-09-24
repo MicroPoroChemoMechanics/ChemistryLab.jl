@@ -178,19 +178,19 @@ with the provenance of every default, are in the docstrings
 ([`HKFActivityModel`](@ref), [`DaviesActivityModel`](@ref)); this is the summary
 that lets you choose.
 
-| | [`DiluteSolutionModel`](@ref) | [`DaviesActivityModel`](@ref) | [`HKFActivityModel`](@ref) | [`PitzerActivityModel`](@ref) |
-|:--|:--|:--|:--|:--|
-| solute scale | molarity | molality | molality | molality |
-| ``\gamma_i`` | ``\equiv 1`` | Davies | extended D-H + ``\dot{B} I`` | virial expansion |
-| ``a_w`` | Raoult | Raoult | osmotic coefficient | osmotic coefficient |
-| per-species data | none | none | ion radii ``\mathring{a}_i`` (tabulated, overridable) | **a parameter per ion pair and per triplet — caller input** |
-| scalar inputs | none | ``A``, ``b``, ``b_n`` | ``A``, ``B``, ``\dot{B}``, ``K_n``, ``\mathring{a}_{\text{default}}`` | the shape constants ``\alpha_1``, ``\alpha_2``, ``b`` |
-| ``T``, ``P`` dependence | none | ``A(T,P)`` on request | ``A(T,P)``, ``B(T,P)`` on request | ``A_\varphi(T,P)`` only; the ``\beta`` set is fitted at one temperature |
-| returns | ``\ln a_i`` for every species | same | same | same |
-| ``\gamma`` useful to | ``I \lesssim 0.01`` | ``I \lesssim 0.5`` | ``I \lesssim 1`` | the range its set was fitted over, a few mol/kg |
-| Gibbs-Duhem consistent | approximately | **no** (§5) | to ``10^{-5}`` (§5) | **exactly, by construction** (§6) |
+| | [`DiluteSolutionModel`](@ref) | [`DaviesActivityModel`](@ref) | [`HKFActivityModel`](@ref) | [`SITActivityModel`](@ref) | [`PitzerActivityModel`](@ref) |
+|:--|:--|:--|:--|:--|:--|
+| solute scale | molarity | molality | molality | molality | molality |
+| ``\gamma_i`` | ``\equiv 1`` | Davies | extended D-H + ``\dot{B} I`` | D-H + ``\sum_k \varepsilon_{ik} m_k`` | virial expansion |
+| ``a_w`` | Raoult | Raoult | osmotic coefficient | Raoult (§6a) | osmotic coefficient |
+| per-species data | none | none | ion radii ``\mathring{a}_i`` (tabulated, overridable) | **one parameter per ion pair — caller input** | **a parameter per ion pair and per triplet — caller input** |
+| scalar inputs | none | ``A``, ``b``, ``b_n`` | ``A``, ``B``, ``\dot{B}``, ``K_n``, ``\mathring{a}_{\text{default}}`` | ``A`` and the convention ``b = 1.5`` | the shape constants ``\alpha_1``, ``\alpha_2``, ``b`` |
+| ``T``, ``P`` dependence | none | ``A(T,P)`` on request | ``A(T,P)``, ``B(T,P)`` on request | ``A(T,P)`` on request; the ``\varepsilon`` set is fitted at one temperature | ``A_\varphi(T,P)`` only; the ``\beta`` set is fitted at one temperature |
+| returns | ``\ln a_i`` for every species | same | same | same | same |
+| ``\gamma`` useful to | ``I \lesssim 0.01`` | ``I \lesssim 0.5`` | ``I \lesssim 1`` | ``I \lesssim 3`` to ``4`` | the range its set was fitted over, a few mol/kg |
+| Gibbs-Duhem consistent | approximately | **no** (§5) | to ``10^{-5}`` (§5) | see §6a | **exactly, by construction** (§6) |
 
-All three return the same object — a vector of ``\ln a_i`` indexed like
+All of them return the same object — a vector of ``\ln a_i`` indexed like
 `cs.species`, covering solutes, solvent, pure crystals (``0``), gases and
 solid-solution end-members — so they are interchangeable at every call site, and
 `concentration_scale` tells the accessors which convention was used.
@@ -334,6 +334,69 @@ and compared between ions: with a common ``\mathring{a}`` and no ``\dot{B}`` the
 two agree to ``10^{-14}``, and with either correction in place they do not. The
 same expression is asserted to agree with the compiled kernel, which is what
 makes the formula written in §1 the formula that runs.
+
+## [6a. SIT: one parameter per pair, and no radius](@id sec-theory-sit)
+
+Between the corrected Debye-Hückel laws above and the virial expansion below
+sits the **Specific ion Interaction Theory** of Brønsted, Guggenheim and
+Scatchard. It keeps the screening term and replaces the empirical deviation term
+with a sum over *pairs*:
+
+```math
+\log_{10}\gamma_i \;=\; -z_i^2\,\frac{A\sqrt{I}}{1 + 1.5\sqrt{I}}
+   \;+\; \sum_k \varepsilon(i,k)\, m_k
+```
+
+the sum running over ions ``k`` of charge **opposite** to ``i``.
+
+Read that against §2. Davies and the ``\dot{B} I`` form both write the deviation
+as *one number times the ionic strength*, which says the correction depends on
+how much salt there is and not on which salt. SIT says it does depend on which:
+``\varepsilon(\mathrm{Na}^+,\mathrm{Cl}^-)`` and
+``\varepsilon(\mathrm{Na}^+,\mathrm{SO}_4^{2-})`` are ``+0.03`` and ``-0.12``,
+of opposite sign. That is the whole content of the model, and it is why a
+sodium sulfate solution and a sodium chloride solution of the same ionic
+strength do not have the same activity coefficients.
+
+The ``1.5`` is a **convention**, not a fit. Every published ``\varepsilon`` was
+obtained with it, so changing it makes a compilation inconsistent with the model
+that produced it; [`SITActivityModel`](@ref) exposes it as a field only to make
+that visible.
+
+### What it buys, and where it stops
+
+``\gamma`` under SIT does not fall forever: the pairwise term is positive for
+many pairs and eventually overcomes the screening term, so the curve **turns
+around**. In sodium chloride at 25 °C, ``\log_{10}\gamma_{\mathrm{Na}^+}``
+reaches ``-0.174`` near ``I = 1`` and has come back to ``-0.156`` at ``I = 3``.
+A one-parameter deviation term cannot do that and match the dilute end too,
+which is why the range is the test rather than a single point.
+
+The model is a **truncation**: the pairwise term is the first order of the same
+virial expansion §6 carries to second order, so above roughly 3 to 4 mol/kg the
+terms it drops stop being small. It also expects genuine ion pairs to appear in
+the *speciation* and not inside ``\varepsilon``.
+
+### Why it matters here, beyond being one more option
+
+The thermodynamic databases of the NEA reviews and of ANDRA's ThermoChimie are
+**calibrated in SIT**. A ``\log K`` taken from those and used under Davies is
+not the constant that was fitted, and the difference is not a rounding: it is
+the same category of error as using a surface constant fitted with a diffuse
+layer in a model without one. Reproducing published work from those compilations
+needs the model they were written in.
+
+### What it costs
+
+The water activity here uses the same mole-fraction approximation as
+[`DaviesActivityModel`](@ref), not an osmotic coefficient — a departure from a
+full SIT treatment, shared with this package's other Debye-Hückel models, and
+one that does not enter a comparison made at prescribed proton activity.
+
+And an unlisted ``\varepsilon`` is taken as **zero**, which is the literature's
+convention and never a measurement. `missing_epsilon_pairs` reports which pairs
+of a given system are resting on it, because a convention silently applied is
+indistinguishable from a coefficient somebody determined.
 
 ## 6. The ion-interaction model: a different kind of object
 

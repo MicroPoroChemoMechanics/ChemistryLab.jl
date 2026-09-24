@@ -251,6 +251,26 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
     site_groups = cs.site_groups
     has_sites = !isempty(site_groups)
     site_models = has_sites ? map(f -> f.model, cs.site_families) : nothing
+    site_denticity = has_sites ?
+        [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
+        nothing
+    site_charges = has_sites ?
+        [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
+        nothing
+
+    # A diffuse layer is screened by the ions in solution, so it needs the ionic
+    # strength; nothing else here does. The question is asked once, when the
+    # closure is built, so a system without one never walks the solute list.
+    site_needs_I = has_sites && any(needs_ionic_strength, site_models)
+    site_solvent = isempty(cs.idx_solvent) ? 0 : only(cs.idx_solvent)
+    site_ions = site_needs_I ?
+        [i for i in cs.idx_solutes if !iszero(charge(cs.species[i]))] : Int[]
+    site_ion_z = Float64[charge(cs.species[i]) for i in site_ions]
+    site_Mw = (site_needs_I && !iszero(site_solvent)) ?
+        ustrip(us"kg/mol", cs.species[site_solvent][:M]) : 1.0
+    # A surface potential belongs to the support, so the charge that raises it
+    # is summed over every family on it, not over one family's own members.
+    site_support_idx, site_support_z = has_sites ? _support_members(cs) : (nothing, nothing)
 
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
     n_sp = lastindex(cs.species)
@@ -467,7 +487,16 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
         # wrong — the same trap the solid-solution call has carried since 0.8.2.
         if has_sites
             T_val = hasproperty(p, :T) ? p.T : 298.15
-            _site_mixing_lna!(out, _n, site_groups, site_models, T_val, ϵ)
+            I_site = site_needs_I ?
+                _aqueous_ionic_strength(_n, site_ions, site_ion_z, site_solvent, site_Mw) :
+                zero(eltype(_n))
+            # A surface potential carried as an unknown of the solve arrives
+            # here, the way an adiabatic temperature does: through `p`.
+            ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
+            _site_mixing_lna!(
+                out, _n, site_groups, site_models, site_denticity, site_charges,
+                I_site, T_val, ϵ, ψ_site, site_support_idx, site_support_z
+            )
         end
         return out
     end

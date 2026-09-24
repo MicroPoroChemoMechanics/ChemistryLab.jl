@@ -300,12 +300,29 @@ function SciMLBase.solve(
         ϵ::Float64 = 1.0e-16,
         constraint::EquilibriumConstraint = FixedTP(),
         parameters::Union{Nothing, Base.RefValue} = nothing,
+        surface_potential::Symbol = :auto,
+    )
+    surface_potential in (:auto, :unknown, :eliminated) || throw(
+        ArgumentError(
+            "surface_potential must be :auto, :unknown or :eliminated; " *
+                "got :$surface_potential"
+        ),
     )
     p = _build_params(state; ϵ = ϵ)
     n0 = Float64[ustrip(us"mol", x) for x in state.n]
     bv = b === nothing ? des.A * n0 : Float64.(collect(b))
 
     blocks = _constraint_blocks(constraint, des, state, p, n0)
+    if surface_potential !== :eliminated
+        surf = _surface_potential_blocks(des, state, p, n0)
+        surface_potential === :unknown && surf === nothing && throw(
+            ArgumentError(
+                "surface_potential = :unknown was asked for, and no site family of " *
+                    "this system needs one. Only a `DiffuseLayer` does."
+            ),
+        )
+        blocks = _compose_blocks(blocks, surf)
+    end
     res = _optima_dual_solve(_dual_problem(des, p, n0, blocks), bv, n0, des.opts)
 
     res.converged || begin

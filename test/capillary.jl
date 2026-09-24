@@ -193,7 +193,7 @@ end
     γ = 0.0728u"N/m"
     V_m = 1.807e-5u"m^3/mol"
     T = 298.15u"K"
-    RT = 8.31446261815324 * 298.15
+    RT = ChemistryLab.R_GAS * 298.15
 
     # Alite going to a C-S-H plus portlandite consumes about 3.3 mol of water per
     # mole, so at a_w = 0.80 the whole capillary contribution to the affinity is

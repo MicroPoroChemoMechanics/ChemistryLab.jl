@@ -13,7 +13,7 @@ which is the cheapest way to see what a parameter does before putting it in a
 using ChemistryLab
 using Printf
 
-RT25 = 8.31446261815324 * 298.15        # J/mol at 25 °C
+RT25 = R_GAS * 298.15        # J/mol at 25 °C
 nothing # hide
 ```
 

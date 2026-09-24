@@ -209,27 +209,309 @@ convexity in the composition. Where that fails, the honest outcome is a
 certificate that **refuses**, as it already does for a concave solid solution —
 not one that quietly means less.
 
-## 7. What this page does not cover
+## 7. Cation exchange: the same machinery, counting charge
+
+A permanent-charge clay is not an oxide. Its charge does not come and go with
+pH — it is built into the mineral, from substitutions in the lattice — and
+there is no such thing as an unoccupied site: every unit of charge is
+compensated by some cation, and what varies is *which*.
+
+That sounds like a different model. It is the same one, with the sites counted
+differently.
+
+### The budget is in charge, and it says so in the formula
+
+Write the exchanger species as `Na-X` and `Ca-X₂`. The second carries **two** of
+the family's pseudo-elements because a calcium neutralizes two units of charge,
+and the conservation row that comes out of the matrix assembly is therefore
+
+```math
+n_{\mathrm{Na\text{-}X}} + n_{\mathrm{K\text{-}X}} + 2\,n_{\mathrm{Ca\text{-}X_2}} = \mathrm{CEC}
+```
+
+— the **cation exchange capacity**, in moles of charge. Nothing was declared to
+make that happen: the coefficient is in the formula, and the row counts what
+the formula says.
+
+There is also no free site to serve as the reference of the mixing, so one of
+the forms is chosen as the reference — the abundant monovalent one, usually.
+
+### Two conventions, and no factor between them
+
+Here the two literatures part company, and the package refuses to guess which
+one a number came from.
+
+| convention | activity of an exchanger species | counts |
+|:--|:--|:--|
+| **Vanselow** | ``x_i = n_i / \sum_j n_j`` | particles |
+| **Gaines-Thomas** | ``E_i = z_i n_i / \sum_j z_j n_j`` | charges |
+
+One calcium and one sodium are **one particle each** and **two charges against
+one**. For a homovalent exchange, `Na⁺/K⁺`, every ``z`` is 1 and the two
+fractions are the same number — which is why an oxide surface never has to
+choose. For a heterovalent one they diverge, and so do the selectivity
+coefficients fitted under each.
+
+The literature quotes conversion factors of 2, 3 or 4 between them. Those are
+**trace-composition limits**, not constant offsets: the exact relation depends
+on the exchanger's composition, which is what the calculation is solving for
+[Marinich2025](@cite). So this package converts nothing implicitly. The
+convention is part of the declaration, and a constant fitted under one and used
+under the other is a different model — not a rescaled one.
+
+Both conventions are checked against Reaktoro, which carries both, on a
+heterovalent Na/K/Ca exchange, and agree to 4 parts in 10⁹. On that composition
+they differ from **each other** by 48 % on the sodium, which is the point.
+
+## 8. A charged surface, and why it needs no new unknown
+
+Everything above ignored one thing: a surface that binds protons **becomes
+charged**, and the work of putting one more charge on an already charged object
+is not zero. The chemical potential of a member acquires an electrical term,
+
+```math
+\mu_j = \mu_j^\circ + RT\ln a_j + z_j F \Psi
+```
+
+with `Ψ` the potential of the surface plane and `z_j` the species' formal
+charge. What relates `Ψ` to the charge the surface carries is a **closure**, and
+the simplest is a capacitor: ``\sigma = C\,\Psi``.
+
+### The elimination, and what it buys
+
+The literature presents an electrostatic surface model as one extra unknown per
+surface with one extra equation. For the diffuse layer that is unavoidable: `Ψ`
+there depends on the ionic strength through a relation with no closed inverse.
+For a **constant capacitance** it is not. The closure inverts, so
+
+```math
+\tilde\psi \equiv \frac{F\Psi}{RT}
+ = \frac{F^2}{C\,\mathcal{A}\,RT}\sum_k z_k n_k
+```
+
+is an explicit function of the composition — and a composition-dependent term in
+a chemical potential is exactly what an activity coefficient is. So the model
+belongs with the mixing, and the solver needs no new machinery at all.
+
+### The certificate survives it, and that is a proof
+
+The electrical work of charging the surface is ``\int_0^\sigma \Psi\,ds``
+over the area, which with ``\Psi = \sigma/C`` integrates to
+
+```math
+G_{\mathrm{el}}(n) = \frac{F^2}{2\,C\,\mathcal{A}}\left(\sum_k z_k n_k\right)^2
+```
+
+a quadratic form whose Hessian ``(F^2/C\mathcal{A})\,z z^{\mathsf T}`` is
+positive semi-definite for any positive capacitance. Convex term, convex mixing,
+linear constraint: the certificate of §6 covers the sum unchanged. Its gradient
+is ``z_j F \Psi``, which is how one knows the energy is the right one.
+
+That is *this* model. It does not transfer: the diffuse layer's `Ψ` depends on
+the ionic strength, hence on the aqueous composition, so convexity at fixed
+ionic strength is not convexity in the composition, and that question has to be
+reopened rather than inherited.
+
+### What it does, and where it stops
+
+A surface already charged resists charging further, so a titration curve
+**flattens**: the transitions spread over more pH units than the constants alone
+would give. On hydrous ferric oxide at pH 5, protonation falls from 0.995 without
+the term to 0.81 at `C = 3 F/m²`.
+
+Convexity makes the minimum unique, so any failure to find it is numerical.
+There is one, and its scale is
+
+```math
+\tilde\psi_{\max} = \frac{F^2 N}{C\,\mathcal{A}\,RT}
+```
+
+the potential the surface would reach fully charged. Below about 5 the solve is
+found to machine precision; above it the Newton loses it. On that same oxide
+that is `C ≳ 3 F/m²`, which puts the usual oxide range of 1–3 at the edge.
+
+**The remedy is the formulation, not the tolerance.** Carrying `Ψ` as an unknown
+with ``\sigma = C\Psi`` as its equation is the same problem — the elimination
+proved that — but the Newton then controls the potential directly instead of
+meeting it through a stiff exponential. The extra unknown of the textbooks is a
+preconditioner.
+
+## 9. The diffuse layer, and the price of eliminating a potential
+
+§8 removed an unknown by inverting a closure. The diffuse layer is where that
+trick is usually said to stop, and it is worth being precise about what stops
+and what does not.
+
+### The closure inverts too
+
+Gouy and Chapman's solution of the Poisson-Boltzmann equation beside a flat
+surface, for a symmetric 1:1 electrolyte, relates the charge the surface carries
+to the potential it raises and to how well the solution screens it:
+
+```math
+\sigma \;=\; \kappa\sqrt{I}\;\sinh\!\left(\frac{F\Psi}{2RT}\right),
+\qquad \kappa = \sqrt{8\,\varepsilon_r\varepsilon_0 RT\rho}
+```
+
+with ``I`` the ionic strength of the bulk solution and ``\rho = 1000`` kg/m³ the
+factor that makes it a volumetric concentration. This is transcendental in
+``\Psi`` — and *monotone* in it, which is a different thing. A monotone relation
+inverts, and this one inverts in closed form:
+
+```math
+\tilde\psi \;=\; 2\,\operatorname{asinh}\!\left(\frac{\sigma}{\kappa\sqrt{I}}\right)
+```
+
+`asinh` is smooth, its derivative is bounded by one, and it costs the solver a
+single call. So the diffuse layer, like the constant capacitance, is an
+*activity coefficient*: `ln a_k = ln x_k + z_k ψ̃`, with the same convention and
+a different closure. No unknown is added.
+
+### What is actually lost is not the unknown
+
+Two different questions are usually merged into one word, "consistency", and
+this is the model that separates them.
+
+| | is it a gradient? | is that gradient extensive? |
+|:--|:--|:--|
+| ideal site mixing | yes | yes |
+| constant capacitance | **yes** | no |
+| diffuse layer | **no** | no |
+
+The first column is the one the certificate needs: a minimization has to be
+minimizing *something*. Symmetry of the activity Jacobian,
+``\partial \ln a_i/\partial n_j = \partial \ln a_j/\partial n_i``, is exactly
+the statement that such a something exists.
+
+A constant capacitance passes it — its charging work
+``F^2(z\cdot n)^2/(2C\mathcal{A})`` is a genuine potential — and fails the
+second column, because that expression is homogeneous of degree two in the
+amounts while a Gibbs energy is homogeneous of degree one. That failure is not a
+defect. The area is a *parameter* of the problem, fixed from outside like a
+volume; scaling the amounts without scaling the surface is not the extensive
+scaling Gibbs-Duhem is about.
+
+A diffuse layer fails the first column, and that one is a defect. ``\tilde\psi``
+depends on ``I``, which depends on the aqueous composition, while the activity
+of an aqueous ion does not depend in return on what is bound to the surface. The
+coupling is one-way, so the Jacobian is asymmetric, and an asymmetric Jacobian
+is the Hessian of nothing.
+
+This is a property of the model, not of any implementation of it. Treating the
+bulk as a reservoir whose ionic strength is a parameter is precisely the
+approximation that lets a diffuse layer be written without carrying its own
+inventory of counter-ions — the approximation Dzombak and Morel make, and the
+one PHREEQC's default `SURFACE` block makes. What comes back from such a solve
+is a **self-consistent speciation**, mass action and conservation satisfied
+together. It is not a certified minimum, and this package says which it is
+rather than letting the word "certificate" cover both.
+
+### And a second price, which is the one that bites
+
+Writing a potential as an activity coefficient means the solver reaches it by
+successive substitution: a composition implies activities, which imply a
+composition. That iteration converges while the activity moves less than the
+composition does — while the dimensionless sensitivity
+
+```math
+N\left|\frac{\partial\tilde\psi}{\partial n}\right|
+\;=\;\frac{2NF}{\mathcal{A}\,\kappa\sqrt{I}\,\sqrt{1+u^2}},
+\qquad u = \frac{\sigma}{\kappa\sqrt{I}}
+```
+
+is small. Above roughly five it is not, and what the solve returns is not a
+second root but a point that violates mass action outright.
+
+Three things follow, and all three are measured rather than argued:
+
+  - **The physics is never the problem.** Charging a surface always opposes
+    further charging, so the equilibrium is unique and stable at every
+    composition. Only the elimination fails.
+  - **A diffuse layer is hard in the middle and easy at the edges.** Far from
+    the point of zero charge ``u`` is large, `asinh` flattens, and the same
+    system that will not solve at pH 7 solves at pH 4. It is also harder in a
+    *dilute* background, as ``1/\sqrt{I}``, which is the opposite of the usual
+    intuition about difficult chemistry.
+  - **A constant capacitance is judged once.** Its sensitivity,
+    ``NF^2/(C\mathcal{A}RT)``, does not depend on the composition at all.
+
+The forecast is [`electrostatic_stiffness`](@ref) and the threshold
+[`ELECTROSTATIC_STIFFNESS_LIMIT`](@ref); the verdict is the stationarity
+residual of the certificate, which separates the two regimes by fourteen orders
+of magnitude.
+
+### Which is why ``\Psi`` is carried as an unknown
+
+The resolution is to stop eliminating it. Writing the potential as an activity
+coefficient is what creates the fixed point; declaring it an unknown of the
+solve, with Gouy-Chapman's relation as its equation,
+
+```math
+c(n, \tilde\psi) \;=\; \tilde\psi
+   - 2\operatorname{asinh}\!\left(\frac{\sigma(n)}{\kappa\sqrt{I(n)}}\right)
+   \;=\; 0
+```
+
+moves the coupling into the outer Newton, which has a Jacobian for it. The
+activity model is then *told* its potential rather than computing one, so during
+the inner solve ``\ln\gamma`` is a constant and that loop converges in a single
+pass — exactly as it does for ideal mixing.
+
+This is what `solve` does by default for a family whose model needs it,
+and nothing else changes: the residual is already in units of ``RT``, so it sits
+in the Newton system unscaled, and the starting guess ``\tilde\psi = 0`` is the
+uncharged surface a solve without electrostatics would return.
+
+The elimination remains reachable, by `surface_potential = :eliminated`, and it
+is kept because it is what makes the statement above a measurement: over the
+same eighteen points, the eliminated route certifies three and the unknown
+certifies all eighteen.
+
+**None of this repairs the first price.** The model is still not the gradient of
+a Gibbs energy, whichever way the potential is obtained. An unknown makes the
+system solvable; it does not make an asymmetric Jacobian symmetric, and what
+comes back is still a self-consistent speciation rather than a certified
+minimum.
+
+## 10. What this page does not cover
 
 Saying what is absent is part of describing what is present.
 
-  - **No surface potential.** Real surfaces are charged, and that charge
-    attracts counter-ions and repels co-ions, changing what binds. The models
-    that describe it — constant capacitance, the diffuse double layer, the
-    Donnan approximation — add one unknown per surface and a closure relating
-    charge to potential. None is in this release, so a set of constants fitted
-    *with* an electrostatic term must not be used here: it would be a different
-    model wearing the same numbers.
+  - **No Donnan approximation, and no diffuse-layer inventory.** The diffuse
+    layer is here (§9), in the form that carries a potential and not an ion
+    census: the counter-ions accumulated in the layer are not tracked as a
+    separate reservoir, which is PHREEQC's default and not its `-diffuse_layer`
+    option. The Donnan approximation, which a compacted clay needs, is absent.
+  - **No charge planes beyond one.** A Stern or triple-layer model puts
+    different surface species on different planes with a capacitance between
+    them; here there is one potential per family, and stacking two electrostatic
+    models is refused rather than summed.
   - **No evolving support.** The site budget is fixed. In a hydrating cement the
-    support is a phase that precipitates, so its sites appear with it and the
-    site row becomes bilinear — the one thing the linear budget `A n = b` has
-    never had to carry.
+    support is a phase that precipitates, so its sites should appear with it.
+    What blocks that is worth stating precisely, because the obvious obstacle is
+    not the real one.
+
+    A capacity written as a site density times an area, or times a dry mass, is
+    **linear** in the host's amount: ``N_t = q\,M\,n_{\text{host}}`` or
+    ``N_t = \Gamma_C\,a\,M\,n_{\text{host}}``. So the site row stays linear and
+    folds into ``A\,n = b`` exactly, as a coefficient on the host's column —
+    there is no bilinear term to carry. (A [`ShrinkingCoreArea`](@ref) is the
+    exception: its ``(n/n_0)^p`` is nonlinear, and only for ``p \neq 1``.)
+
+    The two real obstacles are elsewhere. First, a free site is a **chemical
+    species**: `XsOH` carries an oxygen and a hydrogen, so growing the support
+    creates surface hydroxyls, and those must be debited from the water instead
+    of appearing from nothing — an update that balances the sites and not the
+    oxygen is off by exactly the number of sites added. Second, a coefficient on
+    the host's column shifts that host's saturation index by the site potential,
+    which is the thermodynamic statement that a sorbing surface is more stable
+    than a bare one. That is a real effect and a modeling decision, not a matrix
+    entry to write in passing.
   - **No multidentate species**, per the note above.
-  - **No ion exchange conventions.** Cation exchange on a permanent-charge
-    surface is close kin to what is here, but its capacity is counted in moles
-    of *charge* and its selectivity coefficients come in two conventions,
-    Vanselow and Gaines-Thomas, that are not interchangeable
-    [Marinich2025](@cite).
+  - **No lateral interactions.** Neighbors on a surface affect each other's
+    binding energy, and the models that describe it — Frumkin's interaction
+    term, the quasi-chemical approximation — can make the mixing energy
+    non-convex. Neither is here.
 
 ## See also
 

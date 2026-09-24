@@ -286,3 +286,61 @@ a solid solution's, and neither is cosmetic:
     conservation row, so a presence test on the size of its members would refuse
     to activate it from a cold start and leave `Σ n = N > 0` unsatisfiable from
     the first Newton iteration.
+
+## Cation exchange: declaring the convention
+
+A permanent-charge exchanger uses the same machinery with the sites counted as
+**units of charge**. Write the divalent form with two of the family's
+pseudo-elements and the conservation row becomes the cation exchange capacity:
+
+```@example exchange
+using ChemistryLab, DynamicQuantities
+
+ex(sym) = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+aq(sym, cl = SC_AQSOLUTE) = Species(sym; aggregate_state = AS_AQUEOUS, class = cl)
+
+naX, kX, caX = ex("NaXc"), ex("KXc"), ex("CaXc2")
+atoms(caX)          # two units of charge, from the formula
+```
+
+The convention is part of the declaration. There is no default, and nothing is
+converted behind your back:
+
+```@example exchange
+support = SurfaceSupport("clay", nothing, FixedSurfaceArea(1.0))
+family = SiteFamily("X", naX, [kX, caX];
+                    capacity = TotalSiteAmount(1.0e-3u"mol"),   # moles of charge
+                    support, model = GainesThomasMixing())
+site_mixing_model(family)
+```
+
+```@example exchange
+species = [aq("H2O@", SC_AQSOLVENT), aq("H+"), aq("Na+"), aq("K+"), aq("Ca+2"),
+           naX, kX, caX]
+cs = ChemicalSystem(species, species[[1, 2, 3, 4, 5, 6]]; site_families = [family])
+Int.(cs.SM.A[findfirst(p -> symbol(p) == "NaXc", cs.SM.primaries), :])
+```
+
+One for each monovalent form, **two** for the calcium: the row counts
+equivalents, and it counts them because the formula said so.
+
+!!! warning "The two conventions are not a rescaling of each other"
+    [`VanselowMixing`](@ref) takes the activity to be a mole fraction,
+    [`GainesThomasMixing`](@ref) an equivalent fraction. On a homovalent
+    exchange they are the same number. On a heterovalent one they are not, and
+    the conversion between the constants fitted under each depends on the
+    exchanger's composition — which is what you are solving for.
+
+    Factors of 2, 3 or 4 appear in the literature; they are trace-composition
+    limits. A constant fitted under one convention and used under the other is
+    a different model.
+
+There is no *free* site on an exchanger — every charge is compensated — so the
+first member is a reference form rather than a vacancy.
+[`reference_member`](@ref) says so where `free_site` would mislead.
+
+Multidentate occupancy is refused under [`IdealSiteMixing`](@ref) and accepted
+under either exchange convention. That is not an inconsistency: on an exchanger
+the sites counted are charges, and a divalent cation neutralizes two of them
+without straddling two surface groups. A surface complex that genuinely
+straddles two sites is a combinatorial problem this release does not solve.

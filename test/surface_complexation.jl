@@ -3,11 +3,15 @@
 
 using ChemistryLab
 using DynamicQuantities
+using JSON
 using ForwardDiff
+using LinearAlgebra
 using SciMLBase
 using Test
 
-const RT25 = 8.31446261815324 * 298.15
+const RT25 = ChemistryLab.R_GAS * 298.15
+include("reference_species.jl")
+
 
 # An amphoteric surface, which is the physics of every oxide and also the one
 # shape in which competition has a **closed form under a single constraint**:
@@ -26,15 +30,9 @@ const RT25 = 8.31446261815324 * 298.15
 _g0(value) = SymbolicFunc(value * u"J/mol")
 
 function _amphoteric_system(; logK1 = 7.0, logK2 = -9.0, n_sites = 1.0e-3)
-    h2o = Species("H2O@"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
-    h2o[:ΔₐG⁰] = _g0(-237181.0)
-    h2o[:M] = 0.018015u"kg/mol"
-    h2o[:V⁰] = SymbolicFunc(1.807e-5u"m^3/mol")
-
-    hp = Species("H+"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
-    hp[:ΔₐG⁰] = _g0(0.0)
-    oh = Species("OH-"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
-    oh[:ΔₐG⁰] = _g0(-157297.0)
+    # Aqueous species from the shipped database; only the surface species are
+    # built here, because their standard energies ARE the log K under test.
+    h2o, hp, oh = reference_species(("H2O@", "H+", "OH-"))
 
     free = Species("XsOH"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
     free[:ΔₐG⁰] = _g0(0.0)
@@ -52,7 +50,7 @@ function _amphoteric_system(; logK1 = 7.0, logK2 = -9.0, n_sites = 1.0e-3)
     cs = ChemicalSystem(species, [h2o, hp, free]; site_families = [family])
 
     n = Any[fill(1.0e-12u"mol", length(cs.species))...]
-    n[1] = 55.5u"mol"
+    n[1] = moles_of_water() * u"mol"
     n[4] = n_sites * u"mol"          # all sites free to start with
     return cs, ChemicalState(cs, n), family
 end
@@ -83,19 +81,7 @@ _langmuir(β) = (1 ./ (1 + sum(β)), β ./ (1 + sum(β)))
 # model        no_edl, weak sites only, no metal
 # sites        0.0002 mol
 # log K        protonation 7.29, deprotonation -8.93
-const PHREEQC_PROTOLYSIS = (
-    logK_protonation = 7.29,
-    logK_deprotonation = -8.93,
-    n_sites = 0.0002,
-    points = [
-        (pH = 4.0, la_H = -4.0, free = 0.0005125984889321876, protonated = 0.9994873954885607, deprotonated = 6.022507113121253e-9),
-        (pH = 5.0, la_H = -5.0, free = 0.005102442309144079, protonated = 0.9948969582061565, deprotonated = 5.994846993233386e-7),
-        (pH = 6.0, la_H = -6.0, free = 0.0487813899152302, protonated = 0.9511612969490318, deprotonated = 5.731313573795587e-5),
-        (pH = 7.0, la_H = -7.0, free = 0.33765605393582376, protonated = 0.658376833342379, deprotonated = 0.003967112721797296),
-        (pH = 8.0, la_H = -8.0, free = 0.7619197300893887, protonated = 0.14856250711639016, deprotonated = 0.08951776279422106),
-        (pH = 9.0, la_H = -9.0, free = 0.455706262485419, protonated = 0.00888556394983117, deprotonated = 0.5354081735647499),
-    ],
-)
+const PHREEQC_PROTOLYSIS = reference_oracle("phreeqc_protolysis")
 
 # ── Two families on one support: Dzombak & Morel's ferrihydrite ───────────────
 #
@@ -112,28 +98,20 @@ const PHREEQC_PROTOLYSIS = (
 # model        no_edl
 # Fe           0.001 mol -> strong 5e-06, weak 0.0002 mol
 # Zn total     1e-05 mol/kgw
-const PHREEQC_HFO_ZN = (
-    logK_protonation = 7.29,
-    logK_deprotonation = -8.93,
-    logK_zn_strong = 0.99,
-    logK_zn_weak = -1.99,
-    n_strong = 5.0e-6,
-    n_weak = 0.0002,
-    zn_total = 1.0e-5,
-    points = [
-        (pH = 4.0, la_H = -4.0, la_Zn = -5.185138490125704, s_free = 2.562154433971782e-9, s_prot = 4.995802986826005e-6, s_depr = 3.0102689798509237e-14, s_zn = 1.6348082217479586e-9, w_free = 1.02519662256492e-7, w_prot = 0.00019989740981983975, w_depr = 1.2045010051837894e-12, w_zn = 6.849654667554699e-11, zn_free = 9.815116717770936e-6, zn_sorbed_fraction = 0.00017033047684235052),
-        (pH = 5.0, la_H = -5.0, la_Zn = -5.1914005129500085, s_free = 2.4718965460702547e-8, s_prot = 4.819814131515647e-6, s_depr = 2.9042252080414057e-12, s_zn = 1.5546397854754539e-7, w_free = 1.0204541674107353e-6, w_prot = 0.00019897270476264172, w_depr = 1.1989291062187247e-10, w_zn = 6.720367001603556e-9, zn_free = 9.658133783949691e-6, zn_sorbed_fraction = 0.016218434554914892),
-        (pH = 6.0, la_H = -6.0, la_Zn = -5.386450540389415, s_free = 8.245784848101475e-8, s_prot = 1.6077999056837405e-6, s_depr = 9.687952456591873e-11, s_zn = 3.309645347459107e-6, w_free = 9.736316210593181e-6, w_prot = 0.0001898430358476183, w_depr = 1.143917410994405e-8, w_zn = 4.092080134460339e-7, zn_free = 6.161096800883752e-6, zn_sorbed_fraction = 0.37188533609051405),
-        (pH = 7.0, la_H = -7.0, la_Zn = -6.200927421320358, s_free = 7.753192610410841e-8, s_prot = 1.511752074229357e-7, s_depr = 9.109207040946931e-10, s_zn = 4.7703819364614295e-6, w_free = 6.609338861596599e-5, w_prot = 0.00012887183687255126, w_depr = 7.76529606825665e-7, w_zn = 4.258244532359745e-6, zn_free = 9.437120668726694e-7, zn_sorbed_fraction = 0.9028626468821174),
-        (pH = 8.0, la_H = -8.0, la_Zn = -7.471499477584883, s_free = 1.4572393171909458e-7, s_prot = 2.8413902131798714e-8, s_depr = 1.712106910729392e-8, s_zn = 4.808741179098876e-6, w_free = 0.00014847497259009844, w_prot = 2.8950312350402767e-5, w_depr = 1.744428822658206e-5, w_zn = 5.130430115199375e-6, zn_free = 5.056055260744571e-8, zn_sorbed_fraction = 0.9939171294298249),
-        (pH = 9.0, la_H = -9.0, la_Zn = -8.250538418622458, s_free = 8.759576588032303e-8, s_prot = 1.7079813106341766e-9, s_depr = 1.0291605115584693e-7, s_zn = 4.807781207204123e-6, w_free = 8.881514289031195e-5, w_prot = 1.7317572674141364e-6, w_depr = 0.00010434869422343237, w_zn = 5.104445840881339e-6, zn_free = 8.401202338101974e-9, zn_sorbed_fraction = 0.991222704808546),
-    ],
-)
+const PHREEQC_HFO_ZN = reference_oracle("phreeqc_hfo_zn")
+
+# The SAME experiment with the double layer on — PHREEQC's default `SURFACE`
+# rather than `-no_edl`. It is a different model, not a refinement: the edge
+# moves by about half a pH unit, from 0.372 sorbed at pH 6 to 0.182. That shift
+# is what makes this a gate rather than a formality.
+const PHREEQC_HFO_ZN_DDL = reference_oracle("phreeqc_hfo_zn_ddl")
 
 # Both families of the HFO model, with a metal that binds to each. Built from
 # PHREEQC's own constants, so the standard energies below *are* those log K.
-function _hfo_system(; background = 0.01)
-    f = PHREEQC_HFO_ZN
+function _hfo_system(;
+        background = 0.01, chloride = background, model = IdealSiteMixing(),
+        f = PHREEQC_HFO_ZN,
+    )
     sf(sym, g) = begin
         s = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
         s[:ΔₐG⁰] = _g0(g)
@@ -146,24 +124,30 @@ function _hfo_system(; background = 0.01)
     end
     mRT(logK) = -RT25 * log(10.0^logK)
 
-    h2o = aq("H2O@", -237181.0, SC_AQSOLVENT); h2o[:M] = 0.018015u"kg/mol"
-    hp, oh = aq("H+", 0.0), aq("OH-", -157297.0)
-    zn = aq("Zn+2", 0.0)
-    na, cl = aq("Na+", -261881.0), aq("Cl-", -131290.0)
+    h2o, hp, oh, zn, na, cl =
+        reference_species(("H2O@", "H+", "OH-", "Zn+2", "Na+", "Cl-"))
+    # The zinc complexes carry the aqueous zinc's own standard energy, because
+    # XsOH + Zn²⁺ = XsOZn⁺ + H⁺ puts it in the balance:
+    #   G(XsOZn⁺) = −RT ln K + G(Zn²⁺),  with G(XsOH) = G(H⁺) = 0 by the gauge.
+    # An earlier version set G(Zn²⁺) to zero, which made the arithmetic trivial
+    # and the species fictitious.
+    G_ZN = ustrip(us"J/mol", zn[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
 
     s_free, s_prot = sf("XsOH", 0.0), sf("XsOH2+", mRT(f.logK_protonation))
-    s_depr, s_zn = sf("XsO-", mRT(f.logK_deprotonation)), sf("XsOZn+", mRT(f.logK_zn_strong))
+    s_depr = sf("XsO-", mRT(f.logK_deprotonation))
+    s_zn = sf("XsOZn+", mRT(f.logK_zn_strong) + G_ZN)
     w_free, w_prot = sf("XwOH", 0.0), sf("XwOH2+", mRT(f.logK_protonation))
-    w_depr, w_zn = sf("XwO-", mRT(f.logK_deprotonation)), sf("XwOZn+", mRT(f.logK_zn_weak))
+    w_depr = sf("XwO-", mRT(f.logK_deprotonation))
+    w_zn = sf("XwOZn+", mRT(f.logK_zn_weak) + G_ZN)
 
     support = SurfaceSupport("hydrous ferric oxide", nothing, FixedSurfaceArea(53.4))
     fam_s = SiteFamily(
         "Hfo_s", s_free, [s_prot, s_depr, s_zn];
-        capacity = TotalSiteAmount(f.n_strong), support,
+        capacity = TotalSiteAmount(f.n_strong), support, model,
     )
     fam_w = SiteFamily(
         "Hfo_w", w_free, [w_prot, w_depr, w_zn];
-        capacity = TotalSiteAmount(f.n_weak), support,
+        capacity = TotalSiteAmount(f.n_weak), support, model,
     )
 
     species = [
@@ -178,9 +162,9 @@ function _hfo_system(; background = 0.01)
     n0 = Any[fill(1.0e-14u"mol", length(cs.species))...]
     # Exactly one kilogram of water, so amounts and molalities share a basis with
     # PHREEQC's `-water 1`.
-    n0[idx["H2O@"]] = (1.0 / 0.018015)u"mol"
+    n0[idx["H2O@"]] = moles_of_water() * u"mol"
     n0[idx["Na+"]] = background * u"mol"
-    n0[idx["Cl-"]] = background * u"mol"
+    n0[idx["Cl-"]] = chloride * u"mol"
     n0[idx["Zn+2"]] = f.zn_total * u"mol"
     n0[idx["XsOH"]] = f.n_strong * u"mol"
     n0[idx["XwOH"]] = f.n_weak * u"mol"
@@ -450,18 +434,159 @@ end
         @test ideal_gap / davies_gap > 10
     end
 
+    @testset "the same edge with the double layer on — Dzombak & Morel's model" begin
+        # THE GATE THE ZINC PAGE HAS BEEN LEAVING OPEN. Everything above runs
+        # `-no_edl` on both sides, which is a fair cross-code check and is not
+        # the model the published constants were fitted in. This is.
+        #
+        # It is also the first case where two families share one surface AND
+        # carry a potential, and that is not a detail: a proton on a weak site
+        # charges the same oxide a proton on a strong site does. A potential
+        # computed per family would make the two electrostatically invisible to
+        # each other and is not this model.
+        f = PHREEQC_HFO_ZN_DDL
+        @test length(
+            unique(
+                surface_support(fam).name
+                    for fam in _hfo_system(; f)[1].site_families
+            )
+        ) == 1                                   # one surface, two families
+        @test length(_hfo_system(; f)[1].site_families) == 2
+
+        worst, n_certified = 0.0, 0
+        for pt in f.points
+            # The ionic strength is matched to PHREEQC's, which its own titrant
+            # moves; the chloride carries the difference.
+            cs, st, idx = _hfo_system(;
+                background = 0.01,
+                chloride = 2 * pt.I - 0.01 - 10.0^(-pt.pH) - 10.0^(pt.pH - 14),
+                model = DiffuseLayer(; area = f.area), f,
+            )
+            des = DualEquilibriumSolver(cs, DaviesActivityModel())
+            b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
+            eq = SciMLBase.solve(
+                des, st; b = b, constraint = FixedpH(pt.pH),
+                parameters = Base.RefValue{Any}(nothing),
+            )
+            cert = optimality_certificate(des, eq; b = b, constraint = FixedpH(pt.pH))
+            cert.stationarity < 1.0e-8 || continue
+            n_certified += 1
+            n = Float64[ustrip(us"mol", x) for x in eq.n]
+            sorbed = (n[idx["XsOZn+"]] + n[idx["XwOZn+"]]) / f.zn_total
+            # Only where there is a zinc front to compare: below 1 % sorbed the
+            # relative figure is the ratio of two numbers near zero.
+            pt.zn_sorbed_fraction < 0.01 && continue
+            worst = max(worst, abs(sorbed / pt.zn_sorbed_fraction - 1))
+        end
+        @test n_certified == length(f.points)
+        @info "zinc edge, diffuse layer: worst relative gap to PHREEQC" worst
+        @test worst < 0.05
+
+        # AND IT IS A DIFFERENT ANSWER, not a rounding of the previous one. The
+        # layer moves the edge by about half a pH unit; a test that passed both
+        # fixtures would be testing nothing.
+        plain = Dict(pt.pH => pt.zn_sorbed_fraction for pt in PHREEQC_HFO_ZN.points)
+        shifted = maximum(
+            abs(pt.zn_sorbed_fraction - plain[pt.pH]) for pt in f.points
+        )
+        @test shifted > 0.15
+    end
+
+    @testset "a charged surface: the model, and where the solve stops" begin
+        # Hydrous ferric oxide's real geometry, because this term is a surface
+        # *density* effect and an unphysical one makes nonsense of it: 2e-4 mol
+        # of sites on 1 m² would put σ at 96 C/m², a hundred times anything
+        # measured, and every exponential in the model with it.
+        N, A = 2.0e-4, 53.4
+        _sys(model) = begin
+            cs, st, _ = _amphoteric_system(; logK1 = 7.29, logK2 = -8.93, n_sites = N)
+            fam = SiteFamily(
+                "Xs", cs.species[4], cs.species[5:6];
+                capacity = TotalSiteAmount(N), support = SurfaceSupport(
+                    "oxide", nothing, FixedSurfaceArea(A)
+                ), model,
+            )
+            cs2 = ChemicalSystem(
+                cs.species, cs.SM.primaries; site_families = [fam],
+            )
+            n = Any[fill(1.0e-12u"mol", length(cs2.species))...]
+            n[1] = moles_of_water() * u"mol"; n[4] = N * u"mol"
+            (cs2, ChemicalState(cs2, n))
+        end
+
+        # ── the shift is exactly z_k ψ̃, evaluated rather than trusted ──────
+        C = 3.0
+        cs_e, st_e = _sys(ConstantCapacitance(; C = C, area = A))
+        cs_i, _ = _sys(IdealSiteMixing())
+        n = zeros(length(cs_e.species))
+        n[1] = moles_of_water(); n[2] = 1.0e-5; n[3] = 1.0e-9
+        n[4], n[5], n[6] = 0.2N, 0.8N, 1.0e-14
+        p = (ϵ = 1.0e-30, T = 298.15)
+        lna_e = activity_model(cs_e, DiluteSolutionModel())(n, p)
+        lna_i = activity_model(cs_i, DiluteSolutionModel())(n, p)
+        ψ = FARADAY^2 * (n[5] - n[6]) / (C * A * R_GAS * 298.15)
+        @test lna_e[4] ≈ lna_i[4] rtol = 1.0e-12          # neutral, untouched
+        @test lna_e[5] - lna_i[5] ≈ ψ rtol = 1.0e-10      # z = +1, penalized
+        @test lna_e[6] - lna_i[6] ≈ -ψ rtol = 1.0e-10     # z = −1, favored
+
+        # ── convex, and measured so ───────────────────────────────────────
+        # G_el is a quadratic form with Hessian (F²/CA) z zᵀ, positive
+        # semi-definite. Its second derivative along the charge direction is the
+        # only non-zero eigenvalue, and it must be positive.
+        gel(m) = FARADAY^2 * (m[5] - m[6])^2 / (2 * C * A * R_GAS * 298.15)
+        H = ForwardDiff.hessian(gel, n)
+        @test issymmetric(round.(H; digits = 12))
+        @test minimum(eigvals(H[4:6, 4:6])) > -1.0e-8     # no negative curvature
+        @test maximum(eigvals(H[4:6, 4:6])) ≈ 2 * FARADAY^2 / (C * A * R_GAS * 298.15) rtol =
+            1.0e-8
+
+        # ── an infinite capacitance is no electrostatics at all ───────────
+        for pH in (5.0, 7.0)
+            solve_at(cs, st, pH) = begin
+                des = DualEquilibriumSolver(cs, DiluteSolutionModel())
+                b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
+                eq = SciMLBase.solve(des, st; b = b, constraint = FixedpH(pH))
+                m = Float64[ustrip(us"mol", x) for x in eq.n]
+                m[5] / (m[4] + m[5] + m[6])
+            end
+            # The approach is `O(1/C)`: at C = 1000 the residual stiffness is
+            # still ψ̃_max ≈ 0.014 and the protonation differs in the third
+            # digit. Taking C large enough that ψ̃_max is 1e-5 makes the limit
+            # unambiguous rather than approximate.
+            cs_big, st_big = _sys(ConstantCapacitance(; C = 1.0e6, area = A))
+            cs_id, st_id = _sys(IdealSiteMixing())
+            @test solve_at(cs_big, st_big, pH) ≈ solve_at(cs_id, st_id, pH) rtol = 1.0e-4
+        end
+
+        # ── and a real capacitance does what the physics says ─────────────
+        # A surface already charged resists charging further, so at an acid pH
+        # it protonates *less*. Measured: 0.995 without, 0.81 at C = 3 F/m².
+        cs_c, st_c = _sys(ConstantCapacitance(; C = C, area = A))
+        des_c = DualEquilibriumSolver(cs_c, DiluteSolutionModel())
+        b_c = Float64.(cs_c.SM.A) * Float64[ustrip(us"mol", x) for x in st_c.n]
+        eq_c = SciMLBase.solve(des_c, st_c; b = b_c, constraint = FixedpH(5.0))
+        m = Float64[ustrip(us"mol", x) for x in eq_c.n]
+        prot = m[5] / (m[4] + m[5] + m[6])
+        cert = optimality_certificate(des_c, eq_c; b = b_c, constraint = FixedpH(5.0))
+        @test cert.stationarity < 1.0e-10        # the solve is found, not guessed
+        @test 0.7 < prot < 0.9                   # and it is damped, not saturated
+
+        # ── the limit, stated as a number rather than discovered ──────────
+        # ψ̃_max is the dimensionless stiffness the elimination puts into an
+        # activity. Below about 5 the Newton finds the minimum; above it, it does
+        # not — and convexity says that is the solver, since the minimum is
+        # unique. The formulation with Ψ as an unknown is what lifts it.
+        ψmax(c) = FARADAY^2 * N / (c * A * R_GAS * 298.15)
+        @test ψmax(3.0) < 5.0
+        @test ψmax(1.2) > 10.0
+    end
+
     @testset "a system without a surface is unchanged" begin
         # The kernel must be a no-op when nothing declares a site, in all four
         # activity models — the guard against a regression reaching every solve.
-        h2o = Species("H2O@"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
-        h2o[:ΔₐG⁰] = _g0(-237181.0)
-        h2o[:M] = 0.018015u"kg/mol"
-        hp = Species("H+"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
-        hp[:ΔₐG⁰] = _g0(0.0)
-        oh = Species("OH-"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
-        oh[:ΔₐG⁰] = _g0(-157297.0)
+        h2o, hp, oh = reference_species(("H2O@", "H+", "OH-"))
         cs = ChemicalSystem([h2o, hp, oh], [h2o, hp])
-        st = ChemicalState(cs, Any[55.5u"mol", 1.0e-7u"mol", 1.0e-7u"mol"])
+        st = ChemicalState(cs, Any[moles_of_water() * u"mol", 1.0e-7u"mol", 1.0e-7u"mol"])
         n = Float64[ustrip(us"mol", x) for x in st.n]
         p = ChemistryLab._build_params(st)
 

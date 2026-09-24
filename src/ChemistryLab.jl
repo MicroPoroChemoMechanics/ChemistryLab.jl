@@ -99,6 +99,8 @@ module ChemistryLab
     RuntimeGeneratedFunctions.init(@__MODULE__)
 
     include("utils/constants.jl")
+    include("utils/provenance.jl")
+    include("utils/identifiability.jl")
     include("utils/misc.jl")
     include("utils/subsuperscripts.jl")
 
@@ -119,6 +121,8 @@ module ChemistryLab
     include("chemical_structs/chemical_systems.jl")
     include("chemical_structs/chemical_states.jl")
     include("chemical_structs/volume_fractions.jl")
+    include("chemical_structs/ignition_loss.jl")
+    include("chemical_structs/thermogram.jl")
 
     # After `chemical_structs`, because a site family is built from species and
     # requalifies them. `chemical_systems.jl` refers to `SiteFamily` before it
@@ -131,13 +135,20 @@ module ChemistryLab
     include("databases/phreeqc_dat.jl")
     include("databases/thermofun_json.jl")
     include("databases/pitzer_toml.jl")
+    include("databases/sit_dat.jl")
+    include("databases/phreeqc_sorption.jl")
     include("databases/merge_dat_json.jl")
 
     include("equilibrium/activities.jl")
     include("equilibrium/pitzer.jl")
+    include("equilibrium/sit.jl")
     include("equilibrium/equilibrium_problems.jl")
     include("equilibrium/retention.jl")
     include("equilibrium/constraints.jl")
+    # After `constraints.jl`, whose block contract it extends, and after
+    # `activities.jl`, whose eliminated potential its closure equation is
+    # written against.
+    include("surfaces/surface_potential.jl")
     include("equilibrium/equilibrium_solver.jl")
     include("equilibrium/dual_solver.jl")
     include("equilibrium/certified.jl")
@@ -304,6 +315,38 @@ module ChemistryLab
         R_GAS,
         R_GAS_Q,
         FARADAY,
+        VACUUM_PERMITTIVITY,
+        bound_water,
+        ignition_loss,
+        bound_water_per_phase,
+        DecompositionWindow,
+        thermogram,
+        released_fraction,
+        released_rate,
+        phases_without_windows,
+        windows_without_phases,
+        window_parameters,
+        with_window_parameters,
+        Traced,
+        ProvenanceKind,
+        PROV_UNSTATED,
+        PROV_PLACEHOLDER,
+        PROV_ESTIMATED,
+        PROV_FITTED,
+        PROV_PUBLISHED,
+        PROV_MEASURED,
+        provenance,
+        uncertainty,
+        is_evidence,
+        weakest,
+        provenance_report,
+        Identifiability,
+        identifiability,
+        identifiable_rank,
+        log_sensitivity,
+        as_traced,
+        null_participation,
+        VACUUM_PERMITTIVITY_Q,
         FARADAY_Q,
         with_symbol
 
@@ -371,6 +414,17 @@ module ChemistryLab
         pitzer_origin,
         HKFActivityModel,
         DaviesActivityModel,
+        SITActivityModel,
+        SITParameters,
+        sit_epsilon,
+        missing_epsilon_pairs,
+        build_sit_parameters,
+        read_sorption_model,
+        SorptionModel,
+        SorptionSite,
+        SorptionReaction,
+        log_constants,
+        reactions_involving,
         activity_model,
         build_potentials,
         concentration_scale,
@@ -420,6 +474,7 @@ module ChemistryLab
         WALLER_PARAMS_SILICA_FUME,
         WALLER_PARAMS_SLAG,
         blaine_factor,
+        PK_BLAINE_REF,
         humidity_factor,
         powers_alpha_max,
         PoreHumidity,
@@ -445,9 +500,26 @@ module ChemistryLab
         TotalSiteAmount,
         AbstractSiteMixingModel,
         IdealSiteMixing,
+        VanselowMixing,
+        GainesThomasMixing,
+        ConstantCapacitance,
+        DiffuseLayer,
+        with_electrostatic_scale,
+        needs_potential_unknown,
+        support_group,
+        diffuse_layer_potential,
+        electrostatic_stiffness,
+        site_gradient_asymmetry,
+        ELECTROSTATIC_STIFFNESS_LIMIT,
+        supports_multidentate,
+        is_electrostatic,
+        is_gradient_consistent,
+        needs_ionic_strength,
+        water_relative_permittivity,
         SiteFamily,
         site_moles,
         site_mixing_model,
+        reference_member,
         site_members,
         site_capacity,
         surface_support,

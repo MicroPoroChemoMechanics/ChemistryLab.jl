@@ -30,7 +30,7 @@
         @test occursin("H2O4", string(formula(sp["Mal-2"])))
 
         T = 298.15
-        RT = 8.31446261815324 * T
+        RT = ChemistryLab.R_GAS * T
         _pKa(num, den) = -log10(
             exp(
                 -(sum(sp[x].ΔₐG⁰(T = T) for x in num) - sp[den].ΔₐG⁰(T = T)) / RT
@@ -106,7 +106,7 @@
                 sp["Ca+2"].ΔₐG⁰(T = T) + sp["CO3-2"].ΔₐG⁰(T = T)
                     - sp["Cal"].ΔₐG⁰(T = T)
             )
-            @test logQ ≈ -ΔG / (8.31446261815324 * T) / log(10) atol = 0.01
+            @test logQ ≈ -ΔG / (ChemistryLab.R_GAS * T) / log(10) atol = 0.01
         end
 
         # And yet dissolved calcium RISES, because the pH falls and shifts

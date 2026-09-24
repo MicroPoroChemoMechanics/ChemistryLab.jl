@@ -1,0 +1,29 @@
+{
+  "generator": "test/reference/reaktoro_ion_exchange.py",
+  "python": "3.12.13",
+  "reaktoro": "2.13.0",
+  "database": "phreeqc.dat (via Reaktoro's PhreeqcDatabase)",
+  "aqueous_model": "ideal on both sides, deliberately",
+  "capacity_mmol_of_charge": 1.0,
+  "solution_mmol": {
+    "Na+": 1.0,
+    "K+": 1.0,
+    "Ca+2": 0.5,
+    "Cl-": 3.0
+  },
+  "logK_K": 0.6999975622118972,
+  "logK_Ca": 0.8000035307807066,
+  "capacity": 0.001,
+  "vanselow": {
+    "NaX": 4.478299273756262e-05,
+    "KX": 0.00010297254456897795,
+    "CaX2": 0.00042612223134687967,
+    "equivalents": 0.0010000000000003
+  },
+  "gainesthomas": {
+    "NaX": 6.623054431034638e-05,
+    "KX": 0.0001465049207605679,
+    "CaX2": 0.0003936322674646928,
+    "equivalents": 0.0010000000000003
+  }
+}

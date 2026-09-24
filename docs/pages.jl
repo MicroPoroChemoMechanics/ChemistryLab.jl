@@ -77,6 +77,7 @@ pages = [
         # What a formula, a species and a reaction *are* here. Everything else
         # consumes these.
         "Chemical description" => [
+            "manual/where_the_numbers_come_from.md",
             "manual/formula_manipulation.md",
             "manual/species.md",
             "manual/reactions.md",
@@ -159,6 +160,9 @@ pages = [
             # bend, and the cross-code comparison that says where the remaining
             # difference lives.
             "examples/hfo_titration.md",
+            "examples/hfo_diffuse_layer.md",
+            "examples/claysor_clay.md",
+            "examples/thermogravimetry.md",
         ],
         # Small, checkable aqueous cases with an analytical answer to compare to.
         "Aqueous equilibria" => [

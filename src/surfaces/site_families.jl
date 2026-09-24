@@ -56,6 +56,461 @@ the identity between the two forms is asserted rather than assumed.
 struct IdealSiteMixing <: AbstractSiteMixingModel end
 
 """
+    supports_multidentate(model::AbstractSiteMixingModel) -> Bool
+
+Whether `model` describes a species occupying more than one site.
+
+`false` by default, and deliberately: the site **balance** holds for any
+denticity — a species carrying two of the family's pseudo-elements contributes
+twice to it — but a *mixing* law does not follow from the balance. Counting the
+ways a molecule can straddle two neighboring sites is a combinatorial problem
+with its own answer, and returning a number without having solved it would be
+worse than refusing.
+
+The ion-exchange conventions are the exception, and not because they solved that
+problem: on a permanent-charge exchanger the "sites" being counted are **units
+of charge**, which a divalent cation neutralizes two of without straddling
+anything. Their multidentate case is bookkeeping, not combinatorics.
+
+See also: [`VanselowMixing`](@ref), [`GainesThomasMixing`](@ref).
+"""
+supports_multidentate(::AbstractSiteMixingModel) = false
+
+"""
+    struct VanselowMixing <: AbstractSiteMixingModel
+
+Cation exchange in the **Vanselow** convention: the activity of an exchanger
+species is its **mole fraction**, counting molecules.
+
+```math
+a_i = \\frac{n_i}{\\sum_j n_j}
+```
+
+A calcium and a sodium on the exchanger count as one particle each, whatever
+charge they neutralize.
+
+See also: [`GainesThomasMixing`](@ref), and the note on conversion there.
+"""
+struct VanselowMixing <: AbstractSiteMixingModel end
+supports_multidentate(::VanselowMixing) = true
+
+"""
+    struct GainesThomasMixing <: AbstractSiteMixingModel
+
+Cation exchange in the **Gaines-Thomas** convention: the activity of an
+exchanger species is its **equivalent fraction**, counting the charge it
+compensates.
+
+```math
+a_i = \\frac{z_i \\, n_i}{\\sum_j z_j \\, n_j}
+```
+
+with `z_i` read from the formula as the number of the family's pseudo-elements
+the species carries — which on a permanent-charge exchanger *is* the charge it
+neutralizes.
+
+# The two conventions are not interchangeable, and the conversion is not a factor
+
+For a homovalent exchange, `Na⁺/K⁺`, the two fractions are proportional and the
+selectivity coefficients agree. For a heterovalent one, `Na⁺/Ca²⁺`, they do not:
+one calcium and one sodium are one particle each but one and two charges, so
+`x_i` and `E_i` diverge, and so do the constants fitted under each.
+
+The literature sometimes quotes conversion factors of 2, 3 or 4. Those are
+**trace-composition limits**, not constant offsets: the exact relation depends
+on the exchanger's composition, which is what the calculation is solving for.
+This package therefore **declares** the convention and converts nothing
+implicitly. A constant fitted under one convention used under the other is a
+different model.
+
+See also: [`VanselowMixing`](@ref), [`supports_multidentate`](@ref).
+"""
+struct GainesThomasMixing <: AbstractSiteMixingModel end
+supports_multidentate(::GainesThomasMixing) = true
+
+"""
+    struct ConstantCapacitance{M<:AbstractSiteMixingModel, T<:Real} <: AbstractSiteMixingModel
+
+A charged surface, in the **constant-capacitance** model: the potential is
+proportional to the charge the surface carries.
+
+```math
+\\sigma = C\\, \\Psi, \\qquad
+\\sigma = \\frac{F}{\\mathcal{A}} \\sum_k z_k n_k
+```
+
+with `C` the capacitance in F/m², `𝒜` the surface area in m², and `z_k` the
+formal charge of each member. It **decorates** another mixing model rather than
+replacing one: the site fractions are still whatever `base` says they are, and
+this adds the electrical work of putting a charge on a charged surface.
+
+# Why this needs no unknown of its own
+
+The literature presents an electrostatic surface model as one extra unknown per
+surface, `Ψ`, with one extra equation to close it. It is not needed here:
+`σ = CΨ` makes `Ψ` an explicit function of the composition,
+
+```math
+\\tilde\\psi \\equiv \\frac{F\\Psi}{RT}
+ = \\frac{F^2}{C\\,\\mathcal{A}\\,RT} \\sum_k z_k n_k
+```
+
+so the whole model is a composition-dependent term in the chemical potential —
+which is what an activity coefficient is. It belongs with the mixing, not with
+the constraints, and putting it there is what keeps the solver unchanged.
+
+# The convexity, written rather than assumed
+
+The electrical work of charging the surface is
+`G_el = ∫₀^σ Ψ(s)\\,ds \\cdot 𝒜`, and with `Ψ = σ/C` that integrates to
+
+```math
+G_{\\mathrm{el}}(n) = \\frac{F^2}{2\\,C\\,\\mathcal{A}} \\left(\\sum_k z_k n_k\\right)^2
+```
+
+a quadratic form in `n` with Hessian `\\frac{F^2}{C\\mathcal{A}} z z^{\\mathsf T}`,
+positive semi-definite for any positive capacitance. So this term is **convex**,
+the site mixing it decorates is convex, and the equilibrium certificate covers
+the sum unchanged. That is a proof, not an expectation, and it is the reason
+this model could be added without reopening the certificate.
+
+Its gradient is `∂G_el/∂n_j = z_j F Ψ`, the electrochemical work the physics
+asks for — which is the check that the energy above is the right one.
+
+# How far the solve reaches, measured
+
+Convexity makes the minimum unique, so any failure to find it is numerical and
+not a second answer. And there is one: eliminating `Ψ` puts the whole
+electrostatic stiffness into the composition dependence of an activity, and the
+Newton loses it when that stiffness grows.
+
+The scale of it is dimensionless and worth computing before a run:
+
+```math
+\\tilde\\psi_{\\max} = \\frac{F^2 N}{C\\,\\mathcal{A}\\,RT}
+```
+
+`N` being the site budget — the potential the surface would reach with every
+site charged. Measured on hydrous ferric oxide, `N = 2·10⁻⁴` mol on 53.4 m²:
+
+| `C` [F/m²] | `ψ̃_max` | stationarity of the solve |
+|---:|---:|---:|
+| 10 | 1.4 | 3e-16 |
+| 5 | 2.8 | 2e-16 |
+| 3 | 4.7 | 2e-16 |
+| 2 | 7.0 | 0.04 — lost |
+| 1.2 | 11.7 | 0.07 — lost |
+
+So `ψ̃_max ≲ 5` is reached directly, and stepping `C` down from a large value
+while reusing the previous composition extends the range but does not remove the
+limit. Oxide capacitances of 1–3 F/m² therefore sit at the edge of it.
+
+**What lifts it is the formulation, not the tolerance.** Carrying `Ψ` as an
+unknown of the solve with `σ = CΨ` as its closing equation is mathematically the
+same problem — that is what eliminating it proved — but the Newton then controls
+the potential directly instead of meeting it through a stiff exponential. The
+literature's extra unknown is a preconditioner, and it is what this model is
+missing rather than a correction to it.
+
+# Fields
+
+  - `base`: the site mixing this decorates, usually [`IdealSiteMixing`](@ref).
+  - `C`: capacitance [F/m²]. Values of 1–3 F/m² are the usual range for an oxide.
+  - `area`: the charged area [m²].
+
+# What it does to a titration
+
+A surface that has already taken protons resists taking more, because the work
+of adding a charge to an object that is already charged grows with the charge.
+The visible effect is a **flattened** titration curve: the transitions spread
+over more pH units than the constants alone would give. A set of constants
+fitted *with* an electrostatic term and used *without* one — or the reverse —
+therefore describes a different surface.
+
+See also: [`IdealSiteMixing`](@ref), [`SiteFamily`](@ref).
+"""
+struct ConstantCapacitance{M <: AbstractSiteMixingModel, T <: Real} <:
+    AbstractSiteMixingModel
+    base::M
+    C::T
+    area::T
+    function ConstantCapacitance{M, T}(base::AbstractSiteMixingModel, C::Real, area::Real) where {M <: AbstractSiteMixingModel, T <: Real}
+        C > 0 || throw(ArgumentError("capacitance must be positive; got $C F/m²."))
+        area > 0 || throw(ArgumentError("area must be positive; got $area m²."))
+        _refuse_stacked_electrostatics(base, "ConstantCapacitance")
+        return new{M, T}(base, convert(T, C), convert(T, area))
+    end
+end
+
+"""
+    ConstantCapacitance(base, C, area) -> ConstantCapacitance
+    ConstantCapacitance(; C, area, base = IdealSiteMixing()) -> ConstantCapacitance
+
+Build a [`ConstantCapacitance`](@ref). `C` is a capacitance in F/m² and `area`
+an area in m², each a plain `Real` in SI or a `Quantity`.
+"""
+function ConstantCapacitance(
+        base::AbstractSiteMixingModel, C, area
+    )
+    c = _area_si(us"F/m^2", C, "ConstantCapacitance capacitance")
+    a = _area_si(us"m^2", area, "ConstantCapacitance area")
+    v = promote(c, a)
+    return ConstantCapacitance{typeof(base), eltype(v)}(base, v[1], v[2])
+end
+
+ConstantCapacitance(; C, area, base::AbstractSiteMixingModel = IdealSiteMixing()) =
+    ConstantCapacitance(base, C, area)
+
+# The decoration is transparent to everything the base model decides.
+supports_multidentate(m::ConstantCapacitance) = supports_multidentate(m.base)
+
+"""
+    struct DiffuseLayer{M<:AbstractSiteMixingModel, T<:Real} <: AbstractSiteMixingModel
+
+A charged surface, in the **diffuse-layer** (Gouy-Chapman) model: the potential
+is raised by the charge the surface carries and screened by the ions in
+solution, so it depends on the ionic strength as well as on the charge.
+
+```math
+\\sigma = \\sqrt{8\\,\\varepsilon_r\\varepsilon_0 RT\\,\\rho\\,I}\\;
+         \\sinh\\!\\left(\\frac{F\\Psi}{2RT}\\right),
+\\qquad
+\\sigma = \\frac{F}{\\mathcal{A}}\\sum_k z_k n_k
+```
+
+with `I` the molal ionic strength of the aqueous solution, `ρ = 1000 kg/m³` the
+factor that turns it into a volumetric concentration, `𝒜` the surface area in
+m², and `ε_r` the relative permittivity of the solvent. Like
+[`ConstantCapacitance`](@ref) it **decorates** another mixing model: the site
+fractions stay whatever `base` says, and this adds the electrical work.
+
+This is the model behind the calibration of Dzombak and Morel (1990) and the
+default of PHREEQC's `SURFACE` block — which is what makes it checkable against
+another code rather than only against itself.
+
+# It needs no unknown of its own either, and that is not obvious
+
+A diffuse layer is usually presented as one extra unknown `Ψ` per surface with
+one extra equation to close it, on the grounds that the relation above is
+transcendental. It is transcendental in `Ψ`, but it is **monotone** in `Ψ`, so
+it inverts in closed form:
+
+```math
+\\tilde\\psi \\equiv \\frac{F\\Psi}{RT}
+ = 2\\,\\operatorname{asinh}\\!\\left(\\frac{\\sigma}{\\kappa\\sqrt{I}}\\right),
+\\qquad \\kappa = \\sqrt{8\\,\\varepsilon_r\\varepsilon_0 RT\\rho}
+```
+
+`asinh` is smooth and bounded in its derivative everywhere, so the term costs
+the solver nothing and differentiates cleanly. `κ` is computed from `ε_r`, and
+`ε_r` from this package's own Johnson-Norton model of water rather than typed
+in: at 25 °C that gives `κ = 0.117215`, against the `0.1174` PHREEQC writes
+into its source. Agreeing with PHREEQC while using a different dielectric
+constant is a stronger statement than agreeing with its arithmetic.
+
+# What this model costs the certificate, stated rather than hidden
+
+Unlike [`ConstantCapacitance`](@ref), **this term is not the gradient of any
+Gibbs energy**, and no implementation can make it one. At fixed `I` it is: the
+electrical work integrates to
+
+```math
+G_{\\mathrm{el}} = \\frac{2RT\\mathcal{A}}{F}\\left[
+  \\sigma\\operatorname{asinh}\\frac{\\sigma}{a} - \\sqrt{\\sigma^2+a^2} + a \\right],
+\\qquad a = \\kappa\\sqrt{I}
+```
+
+whose derivative in `n_k` is exactly `RT z_k \\tilde\\psi`. But `I` is itself a
+function of the aqueous composition, and the aqueous activity of an ion does
+**not** depend in return on how much is bound to the surface. The Jacobian of
+the activity map is therefore asymmetric, and an asymmetric Jacobian is not the
+Hessian of anything.
+
+That is a property of the Dzombak-Morel model, not of this code: it treats the
+bulk solution as a reservoir whose ionic strength is a parameter, which is
+precisely the approximation that lets the diffuse layer be written without
+carrying its ion inventory. PHREEQC's default `SURFACE` makes the same one.
+
+The consequence here is named rather than papered over.
+[`is_gradient_consistent`](@ref) returns `false` for this model, a system that
+uses it says so, and what comes back from a solve is a **self-consistent
+speciation** — mass action and conservation satisfied together — not a
+certified minimum. Everything the other models certify, they still certify;
+this one buys agreement with the published calibrations at that price, and the
+price is written on it.
+
+# Fields
+
+  - `base`: the mixing model this decorates, `IdealSiteMixing()` by default.
+  - `area`: the surface area carrying the charge, in m².
+  - `ε_r`: the relative permittivity of the solvent, dimensionless. Fixed at
+    construction; differentiating a solve with respect to temperature does not
+    propagate through it.
+
+See also: [`ConstantCapacitance`](@ref), [`is_gradient_consistent`](@ref),
+[`water_relative_permittivity`](@ref).
+"""
+struct DiffuseLayer{M <: AbstractSiteMixingModel, T <: Real} <:
+    AbstractSiteMixingModel
+    base::M
+    area::T
+    ε_r::T
+    scale::T
+    function DiffuseLayer{M, T}(base::AbstractSiteMixingModel, area::Real, ε_r::Real, scale::Real) where {M <: AbstractSiteMixingModel, T <: Real}
+        area > 0 || throw(ArgumentError("area must be positive; got $area m²."))
+        ε_r > 0 ||
+            throw(ArgumentError("relative permittivity must be positive; got $ε_r."))
+        0 <= scale <= 1 ||
+            throw(ArgumentError("scale is a homotopy parameter in [0, 1]; got $scale."))
+        _refuse_stacked_electrostatics(base, "DiffuseLayer")
+        return new{M, T}(base, convert(T, area), convert(T, ε_r), convert(T, scale))
+    end
+end
+
+"""
+    DiffuseLayer(base, area, ε_r) -> DiffuseLayer
+    DiffuseLayer(; area, temperature = 298.15, pressure = 1.0e5,
+                   ε_r = water_relative_permittivity(temperature, pressure),
+                   base = IdealSiteMixing()) -> DiffuseLayer
+
+Build a [`DiffuseLayer`](@ref). `area` is in m², a plain `Real` in SI or a
+`Quantity`; `ε_r` is dimensionless and defaults to the permittivity of water at
+`temperature` and `pressure`, from this package's own model.
+
+That default costs a few milliseconds of water-property evaluation, paid once
+here rather than once per solver iteration — which is the whole reason it is a
+stored field and not a call inside the activity model.
+"""
+function DiffuseLayer(base::AbstractSiteMixingModel, area, ε_r, scale = 1.0)
+    a = _area_si(us"m^2", area, "DiffuseLayer area")
+    e = _area_si(us"m^2/m^2", ε_r, "DiffuseLayer relative permittivity")
+    v = promote(a, e, float(scale))
+    return DiffuseLayer{typeof(base), eltype(v)}(base, v[1], v[2], v[3])
+end
+
+function DiffuseLayer(;
+        area,
+        temperature::Real = 298.15,
+        pressure::Real = 1.0e5,
+        ε_r = water_relative_permittivity(temperature, pressure),
+        scale::Real = 1.0,
+        base::AbstractSiteMixingModel = IdealSiteMixing(),
+    )
+    return DiffuseLayer(base, area, ε_r, scale)
+end
+
+"""
+    with_electrostatic_scale(model, λ) -> model
+
+The same model with its electrostatic term scaled by `λ ∈ [0, 1]`, `λ = 0`
+switching it off entirely and `λ = 1` being the model itself.
+
+This exists for one reason, and it is not a physical one: near the point of zero
+charge the diffuse-layer term is stiff, and a cold Newton solve walks off it.
+See [`ChemistryLab.electrostatic_stiffness`](@ref) for the number, and the
+manual for the continuation that uses this.
+
+Returns the model unchanged for one that carries no electrostatics, so a
+continuation loop can be written without asking what it is solving.
+"""
+with_electrostatic_scale(m::AbstractSiteMixingModel, ::Real) = m
+with_electrostatic_scale(m::DiffuseLayer, λ::Real) =
+    DiffuseLayer(m.base, m.area, m.ε_r, λ)
+
+supports_multidentate(m::DiffuseLayer) = supports_multidentate(m.base)
+
+"""
+    water_relative_permittivity(T_K, P_Pa = 1.0e5) -> Real
+
+The relative permittivity (dielectric constant) of liquid water at `T_K` kelvin
+and `P_Pa` pascal, from the Johnson-Norton (1991) model this package already
+carries for the HKF activity model.
+
+It is `78.245` at 25 °C and 1 bar, and falls to `66.68` at 60 °C — which is why
+a surface electrostatic model calibrated at room temperature is not transferable
+to a hydrating paste without saying so.
+
+This evaluates the water equation of state and costs milliseconds. It is meant
+for **construction time**, not for an inner loop; [`DiffuseLayer`](@ref) calls
+it once and stores the result.
+"""
+water_relative_permittivity(T_K::Real, P_Pa::Real = 1.0e5) =
+    water_electro_props_jn(T_K, P_Pa, water_thermo_props(T_K, P_Pa)).epsilon
+
+"""
+    is_electrostatic(model) -> Bool
+
+Whether a site mixing model adds the work of charging a surface, on top of
+whatever mixing it decorates.
+
+`true` for [`ConstantCapacitance`](@ref) and [`DiffuseLayer`](@ref), `false`
+otherwise — including for a model that merely *decorates* one, which is why the
+predicate exists rather than an `isa` test at each use.
+"""
+is_electrostatic(::AbstractSiteMixingModel) = false
+is_electrostatic(::ConstantCapacitance) = true
+is_electrostatic(::DiffuseLayer) = true
+
+"""
+    _refuse_stacked_electrostatics(base, outer)
+
+Refuse an electrostatic decorator applied to another one.
+
+Stacking a diffuse layer on a constant capacitance is how a Stern or a
+triple-layer model is *drawn*, and adding the two potentials is not how it
+*works*: the two capacitances belong to different charge planes, and each
+surface species sits on one plane or the other. Summing them puts every species
+on both. A plane-resolved model is a different object, and it is not in this
+package yet; refusing here is what keeps someone from assembling a wrong one
+out of right parts.
+"""
+function _refuse_stacked_electrostatics(base::AbstractSiteMixingModel, outer::AbstractString)
+    return is_electrostatic(base) && throw(
+        ArgumentError(
+            "$outer cannot decorate $(nameof(typeof(base))), which is already an " *
+                "electrostatic model. Two charge planes need a model that resolves " *
+                "them — summing two potentials puts every surface species on both " *
+                "planes at once, which is not the Stern or triple-layer model it " *
+                "looks like. Pick one electrostatic model, or describe the second " *
+                "plane explicitly once this package carries one."
+        )
+    )
+end
+
+"""
+    is_gradient_consistent(model) -> Bool
+
+Whether the activity contribution of a site mixing model is the gradient of a
+Gibbs energy — which is what the equilibrium certificate assumes about every
+term it certifies.
+
+`true` for every model here but [`DiffuseLayer`](@ref), whose potential depends
+on the ionic strength of a bulk solution that does not depend in return on the
+surface, making the activity Jacobian asymmetric. See that model's docstring for
+why this is the Dzombak-Morel approximation itself rather than a defect of the
+implementation, and [`site_gradient_asymmetry`](@ref) for the
+measurement.
+"""
+is_gradient_consistent(::AbstractSiteMixingModel) = true
+is_gradient_consistent(::DiffuseLayer) = false
+is_gradient_consistent(m::ConstantCapacitance) = is_gradient_consistent(m.base)
+
+"""
+    needs_ionic_strength(model) -> Bool
+
+Whether evaluating a site mixing model requires the ionic strength of the
+aqueous solution.
+
+Only [`DiffuseLayer`](@ref) does. The activity closures test this once, when
+they are built, and skip the ionic-strength sum entirely when no family asks for
+it — so a system without a diffuse layer pays nothing for the possibility of
+one.
+"""
+needs_ionic_strength(::AbstractSiteMixingModel) = false
+needs_ionic_strength(::DiffuseLayer) = true
+needs_ionic_strength(m::ConstantCapacitance) = needs_ionic_strength(m.base)
+
+"""
     abstract type AbstractSiteCapacity end
 
 How many moles of sites a family offers.
@@ -153,9 +608,18 @@ species [mol] and `M_host` its molar mass [kg/mol]. A [`TotalSiteAmount`](@ref)
 ignores all three; the other two do not, which is what will let a support that
 precipitates carry its sites with it.
 
-The first milestone holds the support fixed, so this is evaluated once. Writing
-it as a function of the state rather than as a number is what makes an evolving
-support a change of *when* it is called, not of the data model.
+# Who calls this
+
+You do. Nothing inside the solve does, and that is exactly what "the support is
+fixed" means here: the site budget reaches the calculation through the initial
+amounts of the site-bearing species, so this is the helper that computes the
+number you put there, evaluated once, before the solve.
+
+Writing it as a function of the host's amount rather than as a constant is what
+makes an evolving support a change of *when* it is called, not of the data
+model — see
+[the theory chapter](@ref sec-theory-surface) §10 for the two things that still
+stand in the way.
 """
 function site_moles end
 
@@ -291,10 +755,11 @@ function SiteFamily(
     end
 
     d_free = Int(get(atoms(free_site), site, 0))
-    d_free == 1 || throw(
+    (d_free == 1 || (d_free > 1 && supports_multidentate(model))) || throw(
         ArgumentError(
-            "SiteFamily \"$name\": the free site \"$(symbol(free_site))\" occupies " *
-                "$d_free sites; it must occupy exactly one.",
+            "SiteFamily \"$name\": the reference member \"$(symbol(free_site))\" " *
+                "occupies $d_free sites; it must occupy at least one, and more than " *
+                "one only under a model that describes multidentate occupancy.",
         )
     )
 
@@ -306,13 +771,17 @@ function SiteFamily(
                     "not a member of this family.",
             )
         )
-        d == 1 || throw(
+        (d == 1 || supports_multidentate(model)) || throw(
             ArgumentError(
-                "SiteFamily \"$name\": \"$(symbol(sp))\" occupies $d sites. The site " *
-                    "balance holds for any denticity, but ideal mixing of occupied " *
-                    "and free sites is exact only for one, so a multidentate species " *
-                    "needs a quasi-chemical activity model this release does not " *
-                    "provide. Declare it as monodentate, or wait for that model.",
+                "SiteFamily \"$name\": \"$(symbol(sp))\" occupies $d sites, and " *
+                    "$(nameof(typeof(model))) does not describe that. The site balance " *
+                    "holds for any denticity, but a mixing law does not follow from " *
+                    "the balance: ideal mixing of occupied and free sites is exact " *
+                    "only for one site per molecule. An exchange convention " *
+                    "(`VanselowMixing`, `GainesThomasMixing`) does handle it, because " *
+                    "there the sites counted are units of charge; for a surface " *
+                    "complex that genuinely straddles two sites, the quasi-chemical " *
+                    "model this release does not provide is the one needed.",
             )
         )
     end
@@ -369,6 +838,24 @@ Accessors of a [`SiteFamily`](@ref). `members` lists the free site first, which
 is the order the site mixing and the solver's reference member both expect.
 """
 name(family::SiteFamily) = family.name
+
+"""
+    reference_member(family::SiteFamily) -> AbstractSpecies
+
+The member the mixing is written against, and the one the solver carries instead
+of inverting — `site_members(family)` puts it first for that reason.
+
+On an oxide it is the **unoccupied** site, and `family.free_site` names it
+literally: as the surface fills, its amount falls and every occupied state costs
+more to form, which is where saturation comes from.
+
+On a permanent-charge **exchanger** there is no unoccupied site at all: every
+charge is compensated by some cation, and what this returns is the form chosen
+as the reference of the exchange — usually the abundant monovalent one, `Na-X`.
+The field keeps the name `free_site` from the case it was written for; this
+accessor exists to say what it means in the case it was not.
+"""
+reference_member(family::SiteFamily) = family.free_site
 site_members(family::SiteFamily) = vcat([family.free_site], family.complexes)
 site_capacity(family::SiteFamily) = family.capacity
 surface_support(family::SiteFamily) = family.support
@@ -394,4 +881,48 @@ function Base.show(io::IO, f::SiteFamily)
         "SiteFamily(\"$(f.name)\", :$(f.site), $(length(f.complexes) + 1) members, ",
         "$(nameof(typeof(f.capacity))) on $(f.support.name))",
     )
+end
+
+"""
+    support_group(cs) -> Vector{Vector{Int}}
+
+For each site family of `cs`, the indices of **every** family sharing its
+support — itself included — identified by the support's name.
+
+A surface carries one potential, not one per family. Ferrihydrite is the case
+that makes this concrete: Dzombak and Morel's strong and weak sites are two
+families on one oxide, so a proton bound to a weak site charges the same
+surface a proton bound to a strong site does, and both feel the same `Ψ`.
+Computing a potential from one family's members alone would make the two sites
+electrostatically invisible to each other, which is neither the published model
+nor the physics.
+
+Empty when `cs` declares no surface.
+"""
+function support_group(cs::ChemicalSystem)
+    fams = cs.site_families
+    fams === nothing && return Vector{Vector{Int}}()
+    byname = Dict{String, Vector{Int}}()
+    for (k, f) in enumerate(fams)
+        push!(get!(byname, f.support.name, Int[]), k)
+    end
+    return [byname[f.support.name] for f in fams]
+end
+
+"""
+    _support_members(cs) -> (indices, charges)
+
+Per family, the species indices and the formal charges of every member of every
+family on its support, in one flat list each and in the same order — what a
+surface charge density has to be summed over.
+"""
+function _support_members(cs::ChemicalSystem)
+    groups = support_group(cs)
+    idx = [reduce(vcat, (cs.site_groups[g] for g in grp); init = Int[]) for grp in groups]
+    chg = [
+        Float64[
+            charge(sp) for g in grp for sp in site_members(cs.site_families[g])
+        ] for grp in groups
+    ]
+    return idx, chg
 end

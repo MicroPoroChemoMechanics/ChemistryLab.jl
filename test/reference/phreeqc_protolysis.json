@@ -1,0 +1,55 @@
+{
+  "generator": "test/reference/phreeqc_hfo_surface.py",
+  "python": "3.12.14",
+  "phreeqpython": "1.6.2",
+  "database": "phreeqc.dat",
+  "database_md5": "4d3f4378c46498730d569cacc37c4fa8",
+  "model": "no_edl, weak sites only, no metal",
+  "logK_protonation": 7.29,
+  "logK_deprotonation": -8.93,
+  "n_sites": 0.0002,
+  "points": [
+    {
+      "pH": 4.0,
+      "la_H": -4.0,
+      "free": 0.0005125984889321876,
+      "protonated": 0.9994873954885607,
+      "deprotonated": 6.022507113121253e-09
+    },
+    {
+      "pH": 5.0,
+      "la_H": -5.0,
+      "free": 0.005102442309144079,
+      "protonated": 0.9948969582061565,
+      "deprotonated": 5.994846993233386e-07
+    },
+    {
+      "pH": 6.0,
+      "la_H": -6.0,
+      "free": 0.0487813899152302,
+      "protonated": 0.9511612969490318,
+      "deprotonated": 5.731313573795587e-05
+    },
+    {
+      "pH": 7.0,
+      "la_H": -7.0,
+      "free": 0.33765605393582376,
+      "protonated": 0.658376833342379,
+      "deprotonated": 0.003967112721797296
+    },
+    {
+      "pH": 8.0,
+      "la_H": -8.0,
+      "free": 0.7619197300893887,
+      "protonated": 0.14856250711639016,
+      "deprotonated": 0.08951776279422106
+    },
+    {
+      "pH": 9.0,
+      "la_H": -9.0,
+      "free": 0.455706262485419,
+      "protonated": 0.00888556394983117,
+      "deprotonated": 0.5354081735647499
+    }
+  ]
+}

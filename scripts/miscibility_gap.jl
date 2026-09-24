@@ -32,7 +32,7 @@ byname = Dict(symbol(s) => s for s in substances)
 molar_mass(n) = ustrip(us"g/mol", byname[n][:M])
 nothing # hide
 
-RT = 8.31446261815324 * 298.15
+RT = R_GAS * 298.15
 
 models = OrderedDict(
     "ideal" => IdealSolidSolutionModel(),

@@ -29,7 +29,7 @@ site balance into a row of the conservation matrix.
 ```@example surface
 using ChemistryLab, DynamicQuantities, SciMLBase
 
-const RT = 8.31446261815324 * 298.15
+const RT = R_GAS * 298.15
 g0(v) = SymbolicFunc(v * u"J/mol")          # a constant standard energy
 
 logK₁, logK₂ = 7.29, -8.93                  # protonation, deprotonation
@@ -56,10 +56,11 @@ free[:M]        # an oxygen and a hydrogen: the adsorbed part alone
 ## The surface, and its budget of sites
 
 ```@example surface
-aq(sym, cl = SC_AQSOLUTE) = Species(sym; aggregate_state = AS_AQUEOUS, class = cl)
-h2o = aq("H2O@", SC_AQSOLVENT); h2o[:ΔₐG⁰] = g0(-237181.0); h2o[:M] = 0.018015u"kg/mol"
-hp  = aq("H+");  hp[:ΔₐG⁰]  = g0(0.0)
-oh  = aq("OH-"); oh[:ΔₐG⁰] = g0(-157297.0)
+# The aqueous species come from a database the package ships, not from numbers
+# typed here — see [Where the numbers come from](@ref sec-manual-numbers).
+db = Dict(symbol(s) => s for s in
+          build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+h2o, hp, oh = db["H2O@"], db["H+"], db["OH-"]
 
 N_sites = 2.0e-4                               # mol of sites
 support = SurfaceSupport("hydrous ferric oxide", nothing, FixedSurfaceArea(600.0))
@@ -100,7 +101,7 @@ Start with every site free, and hold the pH at 6.
 
 ```@example surface
 n0 = Any[fill(1.0e-12u"mol", length(cs.species))...]
-n0[1] = 55.5u"mol"
+n0[1] = ustrip(us"mol", 1.0u"kg" / h2o[:M]) * u"mol"   # exactly one kilogram
 n0[4] = N_sites * u"mol"
 state = ChemicalState(cs, n0)
 

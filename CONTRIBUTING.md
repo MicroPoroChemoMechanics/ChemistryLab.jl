@@ -190,6 +190,16 @@ julia --project=@runic -e 'using Runic; exit(Runic.main(["--check", "--diff", "s
   composition chosen at the midpoint of an EN 197-1 range is written `ASSUMED` at
   the point of use, because that is where a reader is least able to check it.
 - **Molar masses come from the species**, never from a table typed by hand.
+- **Physical constants come from `src/utils/constants.jl`**, never from a
+  literal — in `src/`, in `test/`, in an executed `docs/` block, anywhere.
+  That file takes them from `DynamicQuantities.Constants` and exports each in
+  two forms: dimensional (`R_GAS_Q`, `FARADAY_Q`, `VACUUM_PERMITTIVITY_Q`)
+  and stripped for inner loops (`R_GAS`, `FARADAY`, `VACUUM_PERMITTIVITY`).
+  A constant is missing? Add it there, with its docstring, rather than at the
+  place that needs it. Typing `8.31446261815324` is a magic number, silently
+  asserts a unit system, and drifts: `FARADAY` is `96485.33212331`, so a
+  value recalled to seven digits is not the same constant. The one legitimate
+  literal is a test that **pins** the library's value against published CODATA.
 - The comparison with GEM-Selektor, Reaktoro and Optima is **constructive**:
   where this package differs, the difficulty is in the formulation, not in the
   other code.

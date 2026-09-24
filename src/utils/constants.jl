@@ -67,3 +67,20 @@ electrochemical potential, and the factor in Nernst's relation. At 25 °C,
 `RT ln(10)/F` is the familiar `0.05916 V` per unit of `pe`.
 """
 RT_over_F(T::Real) = R_GAS * T / FARADAY
+
+"""
+    VACUUM_PERMITTIVITY_Q
+
+The electric constant with its dimensions, `8.8541878128e-12 F/m`, from
+`DynamicQuantities.Constants.eps_0` (CODATA).
+"""
+const VACUUM_PERMITTIVITY_Q = _DQConstants.eps_0
+
+"""
+    VACUUM_PERMITTIVITY
+
+The electric constant as a plain `Float64` in `F/m`, derived from
+[`VACUUM_PERMITTIVITY_Q`](@ref). Used by the Gouy-Chapman relation between a
+surface charge density and the potential it raises, in [`DiffuseLayer`](@ref).
+"""
+const VACUUM_PERMITTIVITY = ustrip(us"F/m", VACUUM_PERMITTIVITY_Q)

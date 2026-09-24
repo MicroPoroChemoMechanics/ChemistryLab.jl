@@ -282,6 +282,52 @@ magnitude from β_h(0.99) = 0.914 — but a solver stepping across it will feel 
 which is why [`PoreHumidity`](@ref) exists to supply `h` from the current
 saturation rather than from a schedule.
 
+### When the area stops being constant
+
+In every law shipped here ``\beta_B`` is a **number**, computed once from the
+fineness given at construction and carried through the whole integration. That
+is not an oversight: it is the form the Parrot–Killoh and Waller constants were
+fitted in, so it is the form in which those constants mean what they say.
+
+A grain that dissolves does not keep its area. [`ShrinkingCoreArea`](@ref) says
+so, and passing one where a fineness is expected makes the factor follow the
+amount left,
+
+```math
+\beta_B(\xi) = \beta_B^0 \, g\!\left(\frac{n}{n_0}\right),
+\qquad g(f) \simeq f^{\,p},
+\qquad \frac{n}{n_0} = 1-\xi \ \ (\alpha_{\max}=1),
+```
+
+with ``p = 2/3`` the geometric value for spheres. The evolving factor is exactly
+``\beta_B^0`` at ``n = n_0``, so nothing changes at the first instant; what
+changes is everything after it.
+
+**And that freedom is not new everywhere.** Multiply the shell-formation branch
+by ``(1-\xi)^p``:
+
+```math
+k_3 (1-\xi)^{n_3} \cdot (1-\xi)^{p} = k_3 (1-\xi)^{\,n_3+p} ,
+```
+
+so wherever that branch is the active one, ``p`` and ``n_3`` are the same
+parameter written twice and no amount of data separates them. The Jander branch
+carries no such exponent, so there ``p`` is a genuine new shape. The Waller
+sigmoid is the interesting case: its ``n`` sets ``(1-\xi)^{1+1/n}`` and
+``\xi^{1-1/n}`` together, in opposite directions, while ``p`` moves only the
+first — so ``p`` is distinguishable from ``n``, though correlated with it.
+
+Which of these holds over a given dataset is a measurement and not an argument.
+[`identifiability`](@ref) is what makes it, and
+[Where the numbers come from](@ref sec-manual-numbers) is where a parameter that
+the data turn out not to constrain gets labeled as such instead of quoted.
+
+!!! warning "An evolving area needs its own calibration"
+    The published constants were fitted with ``\beta_B`` frozen. Turning the
+    area into a function of the state moves the law out of that fit, and the
+    honest response is to recalibrate — `scripts/hydration_calibration.jl` is
+    the machinery — not to keep the old constants and add a new factor on top.
+
 ## 5. How far the reaction can go: `α_max`
 
 Every law above is written in ``\xi = \alpha/\alpha_{\max}``, and

@@ -105,8 +105,8 @@ become less stable, and the arrest should fall out of the minimization.
 short enough to do here:
 
 ```@example wb
-using Printf
-R, T = 8.31446261815324, 298.15
+using ChemistryLab, Printf          # `R_GAS` is the package's, not a literal
+R, T = R_GAS, 298.15
 a_w = 0.80                     # the internal humidity a sealed paste arrests at
 ΔG_water = R * T * log(a_w)                    # J per mole of water
 n_water_per_alite = 3.3                        # mol H₂O per mol C3S → C-S-H + CH
@@ -322,3 +322,80 @@ the quantity a chemical-shrinkage test measures by watching a specimen drink.
   - [Activity models](@ref sec-theory-activity) — why the screening length
     matters here
   - [`powers_alpha_max`](@ref), [`PoreHumidity`](@ref), [`CapillaryWater`](@ref)
+
+## Measuring it: what thermogravimetry gives, and what it needs
+
+Bound water is the quantity a thermogram integrates to, which makes
+thermogravimetry the natural second observable beside calorimetry — and the one
+[the calibration example](@ref ex-hydration-calibration) asks for by
+name, because heat constrains three combinations of six kinetic parameters and
+a measurement that sees the *phases* breaks correlations heat cannot.
+
+[`ignition_loss`](@ref) computes the total from the formulas alone:
+
+```math
+m_{\mathrm{H_2O}} = M_{\mathrm{H_2O}}\sum_{\text{solids}} \frac{n_i H_i}{2},
+\qquad
+m_{\mathrm{CO_2}} = M_{\mathrm{CO_2}}\sum_{\text{solids}} n_i C_i
+```
+
+It counts **hydrogen**, not formula water, and the difference is not pedantry:
+portlandite is `Ca(OH)₂`, has no `H₂O` written in it, and loses one water per
+formula unit on ignition. A rule that searched for `H₂O` would report zero for
+the second most abundant hydrate in a paste.
+
+The aqueous phase is excluded, which is the distinction this whole page is
+about: pore solution is water and is not bound water.
+
+### From the total to a curve
+
+A total is not a thermogram, and the difference is what identifies phases:
+C-S-H, AFt and AFm all release below 200 °C and are told apart by the *shape* of
+the release, not by its size. That needs, per phase, a temperature window —
+
+```math
+f_i(T) = \frac{1}{1 + \exp\!\left(-\dfrac{T - T_{1/2,i}}{w_i}\right)}
+```
+
+— and a window is **not** a consequence of a formula. It comes from one of two
+places, and [`DecompositionWindow`](@ref) makes a curve say which:
+
+ 1. **A publication.** Then the two numbers are `PROV_PUBLISHED` and carry their
+    source.
+ 2. **A measured thermogram.** The windows are *identifiable* from one, which is
+    the whole reason [`thermogram`](@ref) is written as a smooth function of
+    them: `window_parameters` hands them to an optimizer, and
+    [`identifiability`](@ref) says afterwards which of them the curve actually
+    determined.
+
+Neither is invented. A window given as a bare number is `PROV_UNSTATED` — the
+weakest claim there is — and one written to get a picture on the screen should
+say `PROV_PLACEHOLDER` and keep saying it until a measurement replaces it.
+
+**A phase can need more than one window.** Gypsum loses its two waters in two
+steps, `CaSO₄·2H₂O → CaSO₄·½H₂O → CaSO₄`, and C-S-H does not leave in one piece
+either; a window per stage with `fraction` splitting the release is how that is
+written. The fractions are checked to sum to one, because two windows each
+accounting for all of a phase would release its mass **twice** and the only
+symptom would be a curve integrating to more than `ignition_loss` — a silent
+doubling rather than an error.
+
+!!! warning "Overlapping peaks are where this earns its keep"
+    Two phases releasing in the same window is the ordinary case in a paste, and
+    a fit that reported four numbers there would be reporting two. Running
+    [`identifiability`](@ref) on the windows is not a formality: for two peaks
+    5 K apart it returns a rank below four and a condition number in the tens,
+    which is the measurement saying so.
+
+[`phases_without_windows`](@ref) is the other half of the honesty: a phase with
+no window contributes to the starting mass and never leaves, so a curve computed
+without noticing integrates to less than `ignition_loss` and says nothing about
+it. It reports `phase => product` pairs rather than phases, because **a phase
+can need two windows** — a carbonated hydrate carries hydrogen and carbon,
+releases water and carbon dioxide, and does so at different temperatures.
+Counting coverage per phase would call such a phase done when half of it is, and
+a hemicarboaluminate is not an exotic case in a cement.
+
+[`windows_without_phases`](@ref) is the mirror, and it is the one that catches a
+typo: a window on a phase that releases nothing contributes nothing and raises
+nothing, so its only symptom is a peak that is not there.

@@ -38,7 +38,7 @@ end
     @test haskey(KINETICS_RATE_FACTORIES, :arrhenius)
 
     factory = KINETICS_RATE_FACTORIES[:arrhenius]
-    k = factory(; k₀ = 1.0e-6, Ea = 40000.0, T_ref = 298.15, R_gas = 8.31446)
+    k = factory(; k₀ = 1.0e-6, Ea = 40000.0, T_ref = 298.15, R_gas = ChemistryLab.R_GAS)
     @test k isa AbstractFunc
     @test isapprox(k(; T = 298.15), 1.0e-6; rtol = 1.0e-10)
 
@@ -665,5 +665,103 @@ end
             a -> w(T_ref, 1.0e5, 30day, StateView([1.0 - a], index), lna_sv, n0_sv), 0.3
         )
     )
+
+end
+
+# ── An area that follows the grains ───────────────────────────────────────────
+
+@testset "an evolving fineness factor" begin
+
+    idx = Dict("C3S" => 1)
+    lna = StateView([0.0], idx)
+    n0 = StateView([1.0], idx)
+    ev(pk, f) = pk(293.15, 1.0e5, 3.0 * 86400.0, StateView([f], idx), lna, n0)
+
+    frozen = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; blaine = 380u"m^2/kg")
+    typed = parrot_killoh_avrami(
+        PK84_PARAMS_C3S, "C3S"; blaine = BlaineSurfaceArea(380u"m^2/kg")
+    )
+
+    # A TYPED constant area is the same law as a bare fineness, to the last bit:
+    # the guard added a type, it did not add arithmetic.
+    for f in (0.999, 0.8, 0.4, 0.05)
+        @test ev(typed, f) === ev(frozen, f)
+    end
+
+    # At n = n₀ the evolving factor is exactly one — `_shrink_fraction(1, p)` is
+    # an identity by construction, not to a tolerance — so the first instant of
+    # an evolving run is BIT-IDENTICAL to the frozen one whatever the exponent.
+    for p in (0.0, 1 // 3, 2 // 3, 1.0, 1.5)
+        shrink = parrot_killoh_avrami(
+            PK84_PARAMS_C3S, "C3S";
+            blaine = ShrinkingCoreArea(BlaineSurfaceArea(380u"m^2/kg"); exponent = p),
+        )
+        @test ev(shrink, 1.0) === ev(frozen, 1.0)
+    end
+
+    # `p = 0` is a constant area written as an evolving one, so it reproduces the
+    # frozen law everywhere, up to the regularization and nothing else.
+    #
+    # The tolerance follows the floor's own algebra rather than a round number.
+    # `_shrink_fraction(f, p) = f (f+fc)^{p-1} / (1+fc)^{p-1}` departs from `f^p`
+    # by a relative `|p-1| fc / f`, so the error GROWS as the grain is consumed:
+    # measured 1.0e-8 at `f = 0.5` and 9.0e-8 at `f = 0.1`, both `fc/f` for
+    # `p = 0`. A flat `2 fc` passes at `f = 0.5` and fails at `f = 0.1`, which is
+    # how the scaling came to be written here instead of assumed away.
+    flat = parrot_killoh_avrami(
+        PK84_PARAMS_C3S, "C3S";
+        blaine = ShrinkingCoreArea(BlaineSurfaceArea(380u"m^2/kg"); exponent = 0),
+    )
+    for f in (0.9, 0.5, 0.1)
+        @test ev(flat, f) ≈ ev(frozen, f) rtol = 2 * SHRINK_FLOOR / f
+    end
+
+    # And a nonzero exponent scales the rate by exactly `(n/n₀)^p`, which is the
+    # whole claim of the model: the law is unchanged, its prefactor is not.
+    p = 2 / 3
+    shrink = parrot_killoh_avrami(
+        PK84_PARAMS_C3S, "C3S";
+        blaine = ShrinkingCoreArea(BlaineSurfaceArea(380u"m^2/kg"); exponent = p),
+    )
+    # Same floor, same `|p-1| fc / f` scaling: measured 3.3e-9 at `f = 0.5` and
+    # 3.0e-8 at `f = 0.1`, both `(1-p) fc / f`.
+    for f in (0.9, 0.5, 0.1)
+        @test ev(shrink, f) ≈ ev(frozen, f) * f^p rtol = 2 * SHRINK_FLOOR / f
+    end
+
+    # The measurement-method guard survives the new route: a BET area is refused
+    # where a Blaine fineness is expected, inside a `ShrinkingCoreArea` as
+    # outside one. This is the case that would otherwise divide 20 000 m²/kg of
+    # silica fume by 385 and call the result a fineness.
+    @test_throws ArgumentError parrot_killoh_avrami(
+        PK84_PARAMS_C3S, "C3S";
+        blaine = ShrinkingCoreArea(BETSurfaceArea(20000.0u"m^2/kg")),
+    )
+
+    # Waller takes the same route, against its own reference.
+    wf = waller(WALLER_PARAMS_FLY_ASH, "FlyAsh"; blaine = 500u"m^2/kg")
+    ws = waller(
+        WALLER_PARAMS_FLY_ASH, "FlyAsh";
+        blaine = ShrinkingCoreArea(BlaineSurfaceArea(500u"m^2/kg"); exponent = 2 / 3),
+    )
+    widx = Dict("FlyAsh" => 1)
+    wlna = StateView([0.0], widx)
+    w0 = StateView([1.0], widx)
+    wev(k, f) = k(293.15, 1.0e5, 30 * 86400.0, StateView([f], widx), wlna, w0)
+    @test wev(ws, 1.0) === wev(wf, 1.0)
+    @test wev(ws, 0.6) ≈ wev(wf, 0.6) * 0.6^(2 / 3) rtol = 2 * SHRINK_FLOOR / 0.6
+
+    # AD through the EXPONENT, which is the parameter an inverse analysis moves.
+    # The rate must fall as `p` grows, because `n/n₀ < 1`.
+    dr_dp = ForwardDiff.derivative(
+        q -> ev(
+            parrot_killoh_avrami(
+                PK84_PARAMS_C3S, "C3S";
+                blaine = ShrinkingCoreArea(BlaineSurfaceArea(380u"m^2/kg"); exponent = q),
+            ), 0.5,
+        ), 2 / 3,
+    )
+    @test isfinite(dr_dp)
+    @test dr_dp < 0
 
 end
