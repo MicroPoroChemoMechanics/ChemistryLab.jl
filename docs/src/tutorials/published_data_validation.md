@@ -42,7 +42,7 @@ was not fitted there.
 
 ## Traps
 
-Five things that cost time to find, collected because each is reusable well
+Six things that cost time to find, collected because each is reusable well
 beyond the case that established it.
 
 **A solid entered as oxides loses its water.** Feeding a C-S-H as lime and
@@ -71,6 +71,23 @@ available. On a clinker with `Fe₂O₃ = 4.49 %` there is enough iron to pair w
 every aluminum, no monocarbonate forms at any limestone content, and the
 published sequence simply does not appear. Below about 3.5 % it does. See
 [The sequence, and the condition nobody states](@ref).
+
+**A surface species' standard energy is on the aqueous gauge, not its own.**
+The site occupancies are driven by `ΔₐG⁰` like everything else, so a complex
+formed from an aqueous ion has to carry that ion's formation energy:
+
+```
+≡SOH + M^z ⇌ ≡SOM^(z−1) + H⁺     ⟹     G(≡SOM) = G(M^z) − RT ln K
+```
+
+with `G(≡SOH) = G(H⁺) = 0` fixing the gauge. Setting `G(≡SOM) = −RT ln K` and
+dropping `G(M^z)` is off by 553 kJ/mol for calcium — and it does not produce a
+wrong answer, it produces `0.00000` mol of every cation complex while the solve
+still certifies. Deprotonation keeps working throughout, because `≡SO⁻` is the
+one complex whose reaction involves no aqueous species but H⁺, so the omission
+is invisible on the row most likely to be checked first. `test/surface_complexation.jl`
+carries the same warning at its zinc case. See
+[The surface half of Guo, and why it is not built](@ref).
 
 **A rebuilt Gibbs energy is not always the tabulated one.** `ΔₐG⁰(T)` is formed
 from `ΔfH°` and `S°`, so at 298.15 K it must reproduce `ΔfG°` — and does, for
@@ -437,9 +454,81 @@ theirs.
   fitted for; the solve stops certifying and returns pH 15.3. The sweep here
   stops at 2 %, where `I ≈ 0.4`. Pitzer is the instrument for the rest.
 - **The surface complexation half of the paper** — the five `≡SiOH` reactions,
-  the diffuse layer, the Ca²⁺ > Cl⁻ > Na⁺ > K⁺ ordering. `SC_SURFCOMPLEX` and
-  the site families arrived in v0.20.0, so it is now expressible; it is simply
-  not attempted yet.
+  the diffuse layer, the Ca²⁺ > Cl⁻ > Na⁺ > K⁺ ordering. The machinery for it
+  shipped in v0.20.0; the reason it is not built is the table, not the code.
+  See [The surface half of Guo, and why it is not built](@ref).
+
+## The surface half of Guo, and why it is not built
+
+This is a negative result, recorded so that nobody spends the afternoon on it
+twice. [Guo2018](@cite) closes their chloride model with a `≡SiOH` surface on
+the C-S-H — 500 m²/g, 4·10⁻³ mol of sites per gram, a diffuse layer, and five
+reactions in their Table 1. Two of those five rows cannot be entered as printed.
+
+| row | reaction as printed | `log K` | status |
+|:--|:--|:--|:--|
+| 1 | `≡SiOH + OH⁻ → ≡SiO⁻ + H₂O` | `−12.7` | constant belongs to a different reaction |
+| 2 | `≡SiOH + Ca²⁺ → ≡SiOCa⁺ + H⁺` | `−9.4` | usable |
+| 3 | `≡SiOH + Cl⁻ → ≡SiOHCl` | `−0.35` | not charge balanced |
+| 4 | `≡SiOH + Na⁺ → ≡SiONa + H⁺` | `−13.6` | usable |
+| 5 | `≡SiOH + K⁺ → ≡SiOK + H⁺` | `−13.6` | usable |
+
+Row 1 is a transcription slip and can be repaired: `−12.7` is the deprotonation
+constant in the proton form, `≡SiOH ⇌ ≡SiO⁻ + H⁺`. Written against `OH⁻` as the
+table has it, the same surface would carry `log K ≈ +1.3`. Repairing it means
+choosing which half of the row to believe, which is already a modeling decision
+rather than a transcription.
+
+Row 3 cannot be repaired the same way. The left side carries `−1` and the right
+side `0`; no assignment of a standard energy makes that a reaction. And it is
+the row that matters — it is the *chloride* row, the one the surface exists to
+provide. A surface built from rows 1, 2, 4 and 5 is a calcium and alkali
+surface with no chloride uptake at all, so it cannot reproduce the figure it was
+built for. That is where this case stops.
+
+### The machinery is not what is missing
+
+Worth separating, because the two failures look alike from the outside. The
+site-family route reproduces the chemistry it is given. On a 1 kg pore solution
+holding 20 mmol Ca, 100 mmol NaCl and 10 mmol KCl, with rows 1, 2, 4 and 5 and
+`DiffuseLayer`, every point certifies and the occupancies behave:
+
+| sites, site model | `≡SiOH` | `≡SiO⁻` | `≡SiOCa⁺` | `≡SiONa` | `≡SiOK` |
+|:--|--:|--:|--:|--:|--:|
+| Guo's 0.90 mol, `DiffuseLayer` | `0.939` | `0.038` | `0.022` | `0.0007` | `0.0001` |
+| 1/100 of that, ideal mixing | `0.175` | `0.120` | `0.704` | `0.0011` | `0.0001` |
+| 1/100 of that, `DiffuseLayer` | `0.217` | `0.376` | `0.406` | `0.0013` | `0.0001` |
+
+Three checks on those numbers, none of which needs the paper.
+
+**The inventory bounds the calcium.** At Guo's loading there are 0.9 mol of
+sites and 0.02 mol of calcium in the entire system, so the calcium fraction
+cannot exceed `0.02/0.9 = 0.0222` — and it sits at `0.0219`. The surface has
+taken essentially all of it, and the ceiling is the inventory, not the affinity.
+
+**The alkali competition is exact.** Rows 4 and 5 share a `log K`, and both
+cations are monovalent, so the competitive closed form collapses to
+
+```
+≡SiONa / ≡SiOK = a(Na⁺) / a(K⁺)
+```
+
+with the site capacity, the shared denominator and the proton activity all
+canceling. At one hundredth of the loading the surface removes `9.5·10⁻⁶` mol
+of sodium out of `0.1`, so the free concentrations still stand at `10.000` — and
+the occupancy ratio comes out `9.864`. The residual `1.4 %` is `γ(Na⁺)/γ(K⁺)`,
+the one term the cancellation leaves behind. That is a check on the site
+mixing itself, not on any constant.
+
+**The diffuse layer pushes the right way.** At 70 % `≡SiOCa⁺` against 12 %
+`≡SiO⁻` the surface carries `+0.58` charge per site, so the electrostatic term
+must repel Ca²⁺ and favor deprotonation — which is the `0.704 → 0.406` shift in
+the last two rows. The sign is worth checking explicitly, because the intuition
+that a silanol surface is negative is wrong here: calcium has reversed it.
+
+For a surface case that *is* checked against an external oracle, see
+`test/surface_complexation.jl`, which runs against PHREEQC at matched proton
+activity, and `test/diffuse_layer.jl`.
 
 ## The HKF model away from 25 °C and 1 bar
 
