@@ -343,6 +343,10 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
         Aφ = A_log10 * log(10) / 3       # the osmotic-coefficient basis
 
         kg = _n[idx_solvent] * M_w
+        # `m` is built from `max.(n, ϵ)` and is therefore strictly positive:
+        # the log below takes it bare. Adding ϵ a second time returns
+        # `log(2ϵ)` at the floor, an `ln 2` offset that propagates into the
+        # saturation index of every phase built on a floored primary.
         m = [_n[i] / kg for i in eachindex(_n)]
 
         I = zero(TT)
@@ -396,7 +400,7 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
             for (inn, nn) in enumerate(neus)
                 s += 2 * m[nn] * ΛNC[inn, ic]
             end
-            out[c] = s + log(m[c] + ϵ)
+            out[c] = s + log(m[c])
         end
 
         # ── anions ───────────────────────────────────────────────────────────
@@ -422,7 +426,7 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
             for (inn, nn) in enumerate(neus)
                 s += 2 * m[nn] * ΛNA[inn, ia]
             end
-            out[a] = s + log(m[a] + ϵ)
+            out[a] = s + log(m[a])
         end
 
         # ── neutral solutes ──────────────────────────────────────────────────
@@ -434,7 +438,7 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
             for (ia, a) in enumerate(ans)
                 s += 2 * m[a] * ΛNA[inn, ia]
             end
-            out[nn] = s + log(m[nn] + ϵ)
+            out[nn] = s + log(m[nn])
         end
 
         # ── the solvent, from the osmotic coefficient ────────────────────────

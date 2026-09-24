@@ -54,7 +54,16 @@ struct DualEquilibriumSolver{L, M <: AbstractActivityModel}
     j_solvent::Int
     ss_groups::Vector{Vector{Int}}   # end-members of each declared solid solution
     site_groups::Vector{Vector{Int}} # members of each surface site family
+    # `A` is the composition matrix with the site-coupling rows APPENDED, not
+    # merged into it: `SM.A` is what encodes element conservation, and a family
+    # whose sites follow its host adds an equation rather than changing a
+    # composition. `n_element_rows` is where the original rows stop, which is
+    # also the range the degeneracy criterion may judge — an added row has a
+    # right-hand side of zero by construction and entries of both signs, and
+    # asking a question meant for an element balance of it gets the wrong
+    # answer.
     A::Matrix{Float64}
+    n_element_rows::Int
     opts::NamedTuple
 end
 
@@ -106,9 +115,14 @@ function DualEquilibriumSolver(
     in_mixing = Set(vcat(ss_groups..., site_groups...))
     idx_pure = [i for i in idx_pure if !(i in in_mixing)]
 
+    # `conservation_matrix`, not `SM.A`: identical when nothing follows its host,
+    # and carrying the `−ν` in each coupled family's (site row, host column)
+    # entry when something does. The site row then states the coupling instead
+    # of a fixed budget, which is what makes the budget follow the host at all.
+    A_elem = conservation_matrix(system)
     return DualEquilibriumSolver(
         system, activity_model(system, model), model,
-        idx_aq, idx_pure, jw, ss_groups, site_groups, Float64.(system.SM.A),
+        idx_aq, idx_pure, jw, ss_groups, site_groups, A_elem, size(A_elem, 1),
         (; tol, maxit, max_active_updates, si_tol, verbose),
     )
 end
@@ -276,7 +290,8 @@ function _dual_problem(des::DualEquilibriumSolver, p, n0, blocks = nothing)
         _constraint_blocks(FixedTP(), des, nothing, p, n0) : blocks
     return _optima_dual_problem(
         des.A, Float64.(p.ΔₐG⁰overRT), des.lna, phases, des.idx_pure, p,
-        bl.gq, bl.hq, bl.cq, bl.q0, bl.qscale, bl.Aq, Int[], nothing,
+        bl.gq, bl.hq, bl.cq, bl.q0, bl.qscale, bl.Aq, Int[],
+        1:des.n_element_rows,
     )
 end
 

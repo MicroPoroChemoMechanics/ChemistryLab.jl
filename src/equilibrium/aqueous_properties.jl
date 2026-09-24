@@ -766,6 +766,119 @@ end
 # state is exactly the one given.
 
 """
+    _fill_site_potentials!(yv, cs, g)
+
+Give a **site** primary that is not among the species the potential it actually
+has, instead of zero.
+
+# Why zero is right for charge and wrong for a site
+
+The rule above it — a primary absent from the species contributes nothing —
+was written for the charge row, and there it is exact: every phase whose index
+is reported is neutral, so its coefficient in that row is zero and the
+potential multiplying it never appears.
+
+A site row is not like that. A coupled family declares its component as the
+**bare** site, which is a component and not a substance, so it is absent from
+the species by construction. Every surface species carries it with coefficient
+one, and the host carries it with `−ν`. Zeroing it therefore shifts every
+surface index by `y_site/ln 10` and the host's by `−ν y_site/ln 10` — and
+`y_site` is not small: measured at `+95.7` on an amphoteric oxide, so the
+surface indices would be off by more than forty log units.
+
+# Where the value comes from
+
+Not from a convention. The free site is a species, it is always present, so its
+stationarity is exact:
+
+```math
+g_{\\text{free}} = \\sum_c A_{c,\\text{free}}\\, y_c
+```
+
+and every `y_c` but the site's own is known. Solving that one equation for the
+missing one is the whole function. It is the same relation the solver enforced,
+read backwards.
+
+A missing primary that no site family owns is left at zero, which keeps the
+charge row behaving as it did.
+"""
+function _fill_site_potentials!(yv, cs::ChemicalSystem, g)
+    fams = cs.site_families
+    fams === nothing && return yv
+    present = Set(symbol(sp) for sp in cs.species)
+    for f in fams
+        r = findfirst(p -> get(atoms(p), f.site, 0) > 0, cs.SM.primaries)
+        r === nothing && continue
+        symbol(cs.SM.primaries[r]) in present && continue   # nothing to derive
+        j = findfirst(s -> symbol(s) == symbol(reference_member(f)), cs.species)
+        j === nothing && continue
+        a = cs.SM.A[r, j]
+        iszero(a) && continue
+        rest = sum(
+            c == r ? zero(eltype(g)) : cs.SM.A[c, j] * yv[c] for c in eachindex(yv)
+        )
+        yv[r] = (g[j] - rest) / a
+    end
+    return yv
+end
+
+"""
+    _repair_clipped_potentials!(yv, cs, A, g, n, ϵ)
+
+Replace the potential of any primary whose species has collapsed to the
+activity floor, where reading it off that species is reading the floor.
+
+# The defect, measured
+
+A primary's potential is read as that primary species' own `μ/RT`, which is
+exact **while the species is there**. Below the floor it is not there: `ln a` is
+clipped at `ϵ` and `μ/RT` reports the clip.
+
+Measured on amorphous ferric hydroxide carrying a surface. Without the surface
+the solution sits at pH 7, `Fe³⁺` is a `10⁻¹⁶` species, the clip barely bites
+and the solid reports `log SI ≈ 0` as it must. Add the surface and its protolysis
+takes the pH to 8.1, where `Fe³⁺` is nearer `10⁻²⁵`: the clip is then worth nine
+decades, and the solid — present, and at an equilibrium the certificate accepts
+— reported `log SI = 3.3`. The certificate was right; it reads the solver's own
+multipliers. The index was reading a floor.
+
+# What replaces it, and why it cannot disturb anything else
+
+Every aqueous species clear of the floor is a free variable, so at an
+equilibrium each one states `μ_i/RT = Σ_c A_{c,i} y_c` exactly. Over the set of
+them that is an overdetermined system for `y`, and the repair is its
+**minimum-norm** least-squares correction. Minimum norm matters: it puts nothing
+in the directions those species do not determine, so a primary supplied by
+[`_fill_site_potentials!`](@ref) keeps the value that function gave it.
+
+!!! warning "This one assumes the state is an equilibrium"
+    The rest of [`saturation_indices`](@ref) does not: it forms each species
+    from the primaries' actual potentials, which is defined at any composition.
+    This repair is different, because a primary that is not there has no
+    potential to read and the only way to recover one is the stationarity of the
+    species that are. It therefore fires **only when a primary is at or below
+    the floor** — never otherwise, so an arbitrary state returns exactly what it
+    always did — and on such a state the repaired index is a statement about the
+    nearest equilibrium rather than about the state.
+"""
+function _repair_clipped_potentials!(yv, cs::ChemicalSystem, A, g, n, ϵ)
+    idx = Dict(symbol(sp) => i for (i, sp) in enumerate(cs.species))
+    clipped = any(cs.SM.primaries) do pr
+        k = get(idx, symbol(pr), 0)
+        k != 0 && n[k] <= ϵ
+    end
+    clipped || return yv
+    # Pure phases that are ABSENT are undersaturated rather than stationary, so
+    # their equation is an inequality and would pull the fit the wrong way; only
+    # the aqueous ones are used, and only clear of the floor.
+    reliable = [i for i in cs.idx_aqueous if n[i] > 10ϵ]
+    length(reliable) < 2 && return yv
+    At = Matrix(transpose(@view A[:, reliable]))
+    yv .+= pinv(At) * (g[reliable] .- At * yv)
+    return yv
+end
+
+"""
     saturation_indices(state, model; ϵ = 1e-16) -> OrderedDict{String, <:Real}
 
 `LogSI` for every species at `state`: `log₁₀(IAP/K)` of the reaction that forms it
@@ -820,12 +933,20 @@ function saturation_indices(
     lna = log_activities(state, model; ϵ = ϵ)
     p = _build_params(state; ϵ = ϵ)
     g = [p.ΔₐG⁰overRT[i] + lna[symbol(cs.species[i])] for i in eachindex(cs.species)]
-    A = cs.SM.A
+    # `conservation_matrix`, the same matrix the solve was constrained with.
+    # Reading `SM.A` here instead leaves the host's `−ν` out of its own index:
+    # measured, portlandite carrying sites came back at `LogSI = 0.0015` while
+    # being present and at equilibrium, where a present phase is exactly zero by
+    # definition. An index that disagrees with the stationarity the solver
+    # reached is a diagnostic that lies.
+    A = conservation_matrix(cs)
     idx = Dict(symbol(sp) => i for (i, sp) in enumerate(cs.species))
-    # A row whose primary is not among the species — the charge row — gets zero,
-    # which is exact for every neutral phase.
+    # A row whose primary is not among the species gets zero, which is exact for
+    # the charge row against every neutral phase — and wrong for a site row.
     y = [get(idx, symbol(pr), 0) for pr in cs.SM.primaries]
     yv = [k == 0 ? zero(eltype(g)) : g[k] for k in y]
+    _fill_site_potentials!(yv, cs, g)
+    _repair_clipped_potentials!(yv, cs, A, g, ustrip.(us"mol", state.n), ϵ)
     inv_ln10 = inv(log(10))
     return OrderedDict(
         symbol(cs.species[i]) =>

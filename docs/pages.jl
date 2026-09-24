@@ -161,6 +161,9 @@ pages = [
             # difference lives.
             "examples/hfo_titration.md",
             "examples/hfo_diffuse_layer.md",
+            # And the case a fixed budget cannot describe: the solid carrying
+            # the sites is itself dissolving, so the budget has to follow it.
+            "examples/evolving_sorbent.md",
             "examples/claysor_clay.md",
             "examples/thermogravimetry.md",
         ],

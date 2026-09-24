@@ -103,7 +103,7 @@ Resolve declared [`SiteFamily`](@ref) objects against the species list.
 Returns `(nothing, Vector{Int}[])` when none is declared, so a system without a
 surface is byte-identical to what it was before surfaces existed.
 
-Four things are refused here rather than discovered later, each because the
+Everything refused here is refused rather than discovered later, because the
 alternative is a wrong number rather than an error:
 
   - a member that is not in the species list — the family would share a budget
@@ -114,8 +114,24 @@ alternative is a wrong number rather than an error:
     refuses two solid solutions sharing a composition;
   - two families sharing one pseudo-element — one symbol, one budget, one
     family, or the site balance silently merges them;
-  - two families sharing a pseudo-element, which is also what makes a species
-    in two families impossible: a species carries exactly one site symbol.
+  - a member whose **identity** does not survive the lookup: the system's
+    species of that name must have the family's formula, must carry the
+    family's site symbol, and must be `AS_SURFACE`;
+  - a species claimed by **two** families.
+
+# Why the last two are not redundant with the third
+
+They were once believed to be. The reasoning was that two families can only
+share a member if they share a site symbol, that a species carries exactly one,
+and that a shared symbol is refused above — so no input could reach the case.
+
+The reasoning skips a step. Members are matched to the system by `symbol`, and a
+symbol is a label: the species the lookup lands on need not be the species the
+family validated. Two families with **different** site symbols and the same
+member labels therefore resolved to the same indices, one family's conservation
+row disappeared, and nothing said so. The same gap let a family hold `AS_SURFACE`
+copies while the system kept the caller's unqualified originals, leaving
+`idx_surface` empty with the site mixing still running.
 """
 function _resolve_site_families(site_families, species, idx_surface)
     if site_families === nothing || isempty(site_families)
@@ -163,11 +179,57 @@ function _resolve_site_families(site_families, species, idx_surface)
                         "species list. Add it to the species vector first.",
                 )
             )
-            # No check that `i` is already claimed: it cannot be. Two families
-            # can only share a member if they share a site symbol — a species
-            # carries exactly one, enforced by `SiteFamily` — and two families
-            # sharing a symbol are refused above, before any member is looked
-            # at. A guard for that case would be a branch no input can reach.
+
+            # The label found a species. Whether it found the RIGHT one is a
+            # separate question, and it was not being asked.
+            #
+            # A family validates its own members and qualifies copies of them as
+            # `AS_SURFACE`; the system keeps whatever the caller passed, and the
+            # two are matched by `symbol` alone. So a lookup can land on a
+            # species that merely shares a name — a different formula, a
+            # different site symbol, or the caller's unqualified original while
+            # the family holds a qualified copy. Each produces a system that is
+            # plausible and wrong: in the last case `idx_surface` comes back
+            # empty, so the site mixing and the phase accounting disagree about
+            # which species are on a surface, silently.
+            got = species[i]
+            formula(got) == formula(sp) || throw(
+                ArgumentError(
+                    "SiteFamily \"$(f.name)\": member \"$(symbol(sp))\" has formula " *
+                        "$(phreeqc(formula(sp))), but the species of that name in this " *
+                        "system has formula $(phreeqc(formula(got))). A symbol is a " *
+                        "label; two different species must not share one.",
+                )
+            )
+            get(atoms(got), f.site, 0) > 0 || throw(
+                ArgumentError(
+                    "SiteFamily \"$(f.name)\" claims \"$(symbol(sp))\", but that species " *
+                        "carries no :$(f.site). A family owns the species carrying ITS " *
+                        "site symbol; matching by name alone would give this family a " *
+                        "member that belongs to another one, and leave its own " *
+                        "conservation row out of the matrix.",
+                )
+            )
+            aggregate_state(got) == AS_SURFACE || throw(
+                ArgumentError(
+                    "SiteFamily \"$(f.name)\": member \"$(symbol(sp))\" is " *
+                        "$(aggregate_state(got)) in the species list. A family qualifies " *
+                        "its own copies as AS_SURFACE, but the system keeps the species " *
+                        "you passed, and `idx_surface` is built from those — so the two " *
+                        "would disagree about what is on a surface. Declare it " *
+                        "`aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX`.",
+                )
+            )
+
+            owner = get(seen_members, i, nothing)
+            owner === nothing || throw(
+                ArgumentError(
+                    "species \"$(symbol(got))\" is claimed by both SiteFamily " *
+                        "\"$owner\" and \"$(f.name)\". One species belongs to one " *
+                        "family: shared ownership means one of the two site budgets " *
+                        "has no row of its own.",
+                )
+            )
             seen_members[i] = f.name
             push!(group, i)
         end

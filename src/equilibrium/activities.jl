@@ -742,17 +742,24 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
         # ── Ion log-activity coefficients ──────────────────────────────────
         # The formula lives in `_log10γ_ion`, which `activity_coefficients`
         # also calls, so the accessor cannot drift from the solver.
+        # `log(mᵢ)` and NOT `log(mᵢ + ϵ)`. `mᵢ` is built from `max.(n, ϵ)`, so
+        # it is already strictly positive and the second regularization only
+        # STACKS: at the floor it returns `log(2ϵ)` where the dilute model
+        # returns `log(ϵ)`, an offset of `ln 2`. Measured, that is how an
+        # amorphous ferric hydroxide sitting at equilibrium came back at
+        # `log SI = 0.298 = ln2/ln10` — the floored `Fe⁺³` is a primary, so
+        # every phase carrying an iron inherited its corrupted potential.
         @inbounds for i in idx_ions
             log10γᵢ = _log10γ_ion(model, zv[i], åv[i], I, sqrtI, A, B)
             mᵢ = _n[i] / denom_mol
-            out[i] = ln10 * log10γᵢ + log(mᵢ + ϵ)
+            out[i] = ln10 * log10γᵢ + log(mᵢ)
         end
 
         # ── Neutral solute log-activities ──────────────────────────────────
         @inbounds for i in idx_neutrals
             log10γᵢ = _log10γ_neutral(model, I, Kₙv[i])
             mᵢ = _n[i] / denom_mol
-            out[i] = ln10 * log10γᵢ + log(mᵢ + ϵ)
+            out[i] = ln10 * log10γᵢ + log(mᵢ)
         end
 
         # ── Water activity via osmotic coefficient (Gibbs-Duhem) ───────────
@@ -1100,13 +1107,13 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
         @inbounds for i in idx_ions
             log10γᵢ = _log10γ_ion(model, zv[i], 0.0, I, sqrtI, A, 0.0)
             mᵢ = _n[i] / denom_mol
-            out[i] = ln10 * log10γᵢ + log(mᵢ + ϵ)
+            out[i] = ln10 * log10γᵢ + log(mᵢ)
         end
 
         # Neutral solutes
         @inbounds for i in idx_neutrals
             mᵢ = _n[i] / denom_mol
-            out[i] = ln10 * _log10γ_neutral(model, I) + log(mᵢ + ϵ)
+            out[i] = ln10 * _log10γ_neutral(model, I) + log(mᵢ)
         end
 
         # Water activity — Raoult (mole fraction) approximation

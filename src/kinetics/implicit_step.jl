@@ -110,12 +110,21 @@ function KineticStepSolver(
     # an assemblage, and `nr` is a handful where the composition is dozens.
     free, dual_free = if coupling === :species
         fr = setdiff(1:ns, idx_kin)
-        (
-            fr, DualEquilibriumSolver(
-                ChemicalSystem(system.species[fr], _primary_symbols(system)), model;
-                kwargs...,
-            ),
-        )
+        # `_equilibrium_subsystem`, not a bare `ChemicalSystem`. Rebuilding the
+        # free side from its species and the parent's primary NAMES dropped
+        # every piece of metadata the parent carried: the solid solutions —
+        # which is the defect `kinetics_problems.jl` documents at length and
+        # fixed on its own path in 0.8.2, end-members silently becoming separate
+        # pure phases with no mixing entropy — and the site families, whose loss
+        # leaves their members in the sub-system as `AS_SURFACE` species
+        # belonging to no family, which `ChemicalSystem` refuses outright. So
+        # `coupling = :species` could not be combined with a surface at all.
+        #
+        # It also filters the primaries to those actually on this side, where
+        # `_primary_symbols` handed over the parent's whole list, and it refuses
+        # a family split across the partition by name instead of by its
+        # downstream orphan symptom.
+        (fr, DualEquilibriumSolver(_equilibrium_subsystem(system, fr), model; kwargs...))
     else
         (Int[], nothing)
     end
@@ -126,13 +135,6 @@ function KineticStepSolver(
     )
 end
 
-"""
-    _primary_symbols(system) -> Vector{String}
-
-The symbols of the system's primary components, to rebuild a reduced system over
-the same basis.
-"""
-_primary_symbols(system::ChemicalSystem) = symbol.(system.SM.primaries)
 
 """
     _warm_x0(model, state, n0, ϵ) -> Vector{Float64}

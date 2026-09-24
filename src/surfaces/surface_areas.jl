@@ -518,6 +518,28 @@ end
 # ── SurfaceSupport: the support an area belongs to ───────────────────────────────────
 
 """
+    SiteCoupling
+
+Whether a support's site budget is a number posed once or follows the amount of
+the species carrying it.
+
+  - `SITES_FIXED` — the budget is whatever the state was initialized with, and
+    the host's amount does not enter it. This is every support declared before
+    the option existed, and the default.
+  - `SITES_FOLLOW_HOST` — the budget is `ν` moles of sites per mole of host,
+    evaluated on the host's current amount, so a sorbent that precipitates
+    brings its sites with it and one that dissolves takes them away.
+
+The second is a *different model*, not a refinement of the first, which is why
+it is asked for rather than inferred. Naming a host is not enough on its own:
+the kinetics has named one since long before, to find the amount a rate law
+scales with.
+
+See also: [`SurfaceSupport`](@ref), [`SiteFamily`](@ref).
+"""
+@enum SiteCoupling SITES_FIXED SITES_FOLLOW_HOST
+
+"""
     struct SurfaceSupport{M<:AbstractSurfaceModel}
 
 A support and the area it offers: a named host solid together with its area
@@ -549,32 +571,59 @@ sites are what it carries.
   - `host`: the symbol of the species carrying it, or `nothing` when the support
     is externally prescribed and does not appear in the system.
   - `area`: the [`AbstractSurfaceModel`](@ref).
+  - `coupling`: `SITES_FIXED` or `SITES_FOLLOW_HOST` — whether
+    the site budget is a number posed once or tracks the host's amount.
 
 # Examples
 
 ```julia
 SurfaceSupport("calcite", "Cal", BETSurfaceArea(90.0))
 SurfaceSupport("inert sorbent", nothing, FixedSurfaceArea(0.5))
+SurfaceSupport("C-S-H", "CSHQ-JenD", BETSurfaceArea(90.0); coupling = SITES_FOLLOW_HOST)
 ```
 """
 struct SurfaceSupport{M <: AbstractSurfaceModel}
     name::String
     host::Union{Nothing, String}
     area::M
+    coupling::SiteCoupling
 end
 
 """
-    SurfaceSupport(name, host, area) -> SurfaceSupport
-    SurfaceSupport(name, area) -> SurfaceSupport
+    SurfaceSupport(name, host, area; coupling = SITES_FIXED) -> SurfaceSupport
+    SurfaceSupport(name, area; coupling = SITES_FIXED) -> SurfaceSupport
 
 Build a [`SurfaceSupport`](@ref). The two-argument form leaves the host unset, for a
 support whose amount is prescribed rather than solved for.
-"""
-SurfaceSupport(name::AbstractString, area::AbstractSurfaceModel) =
-    SurfaceSupport{typeof(area)}(String(name), nothing, area)
 
-SurfaceSupport(name::AbstractString, host, area::AbstractSurfaceModel) =
-    SurfaceSupport{typeof(area)}(String(name), host === nothing ? nothing : String(host), area)
+`coupling` is `SITES_FIXED` unless asked otherwise, so every support
+declared before this option existed behaves exactly as it did. Naming a host
+does **not** by itself couple the sites to it: the kinetics has named a host
+since long before, to find the amount a rate law scales with, and turning that
+into a coupling would change those systems without anyone asking.
+"""
+SurfaceSupport(
+    name::AbstractString, area::AbstractSurfaceModel;
+    coupling::SiteCoupling = SITES_FIXED,
+) = _surface_support(String(name), nothing, area, coupling)
+
+SurfaceSupport(
+    name::AbstractString, host, area::AbstractSurfaceModel;
+    coupling::SiteCoupling = SITES_FIXED,
+) = _surface_support(
+    String(name), host === nothing ? nothing : String(host), area, coupling,
+)
+
+function _surface_support(name, host, area, coupling)
+    coupling === SITES_FOLLOW_HOST && host === nothing && throw(
+        ArgumentError(
+            "SurfaceSupport \"$name\" asks for SITES_FOLLOW_HOST but names no host. " *
+                "The sites are to follow a species' amount, so there has to be a " *
+                "species: pass its symbol, or leave the coupling at SITES_FIXED.",
+        )
+    )
+    return SurfaceSupport{typeof(area)}(name, host, area, coupling)
+end
 
 area_method(s::SurfaceSupport) = area_method(s.area)
 

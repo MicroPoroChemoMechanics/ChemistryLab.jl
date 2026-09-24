@@ -473,7 +473,97 @@ system solvable; it does not make an asymmetric Jacobian symmetric, and what
 comes back is still a self-consistent speciation rather than a certified
 minimum.
 
-## 10. What this page does not cover
+## 10. A support that appears and disappears
+
+Everything above holds the sorbent still. In a hydrating cement it does not: the
+C-S-H that would carry the sites *precipitates*, and a budget posed once is then
+a statement about a quantity that no longer exists.
+
+A capacity measured per unit mass, or per unit specific area, is **linear** in
+the host's amount,
+
+```math
+N_t = q\,M\,n_{\text{host}}
+\qquad\text{or}\qquad
+N_t = \Gamma_C\,a\,M\,n_{\text{host}} ,
+```
+
+so the whole dependence is one coefficient, ``\nu``, and the site balance
+becomes
+
+```math
+\sum_k d_k n_k - \nu\, n_{\text{host}} = 0 .
+```
+
+That is equation (30) of [Kulik2002](@cite) read as a coefficient. Whether a
+capacity really is homogeneous of degree one is **measured** rather than
+assumed: [`sites_per_host`](@ref) evaluates it at two scaled host amounts and
+requires the budget to scale with them — with ``n_0`` held fixed, since scaling
+it too makes a [`ShrinkingCoreArea`](@ref) ratio equal one everywhere and hides
+the nonlinearity the probe exists to find.
+
+### Why the component is the bare site, and why it carries a charge
+
+The coupling is one entry of the constraint matrix. Which entry is not a free
+choice, and the reason is worth following because two plausible routes are
+wrong.
+
+Subtracting from a row of the projected matrix subtracts the **primary's whole
+composition**: the rows are indexed by primary species, not by elements, and
+``M = M_{\text{indep}} A``. With the free site for primary that composition
+includes real atoms — `XsOH` carries an oxygen and a hydrogen — so the
+subtraction invents matter. Measured at Dzombak and Morel's weak-site density,
+``\nu = 0.2``: seven percent of the oxygen of ``\mathrm{Fe(OH)_3}``, out of
+nothing.
+
+Repairing it would need a preimage of the **pure** site pseudo-element, and with
+the free site for primary there is none. Measured as the least-squares residual
+``\lVert M_{\text{indep}} v - \mathrm{Xs}\rVert``: `0.378` on an amphoteric
+oxide, `0.500` on a cation exchanger. The obstruction is structural rather than
+a quirk of one basis — a site symbol never appears alone, every species carrying
+it carries it attached to matter, and only one site species can be primary.
+
+Declaring the **bare** site as the component removes the obstruction instead of
+working around it. It is a component, not a substance, so it need not be among
+the species; the residual is then zero and the preimage is the unit vector, and
+subtracting ``\nu`` from that one entry subtracts ``\nu`` times something
+carrying no atom. Element conservation is exact by construction.
+
+It carries the **charge** the free site carries with its site symbol — `XsOH` is
+``\mathrm{Xs^+ + OH^-}``, an exchanger `NaXc` is ``\mathrm{Xc^- + Na^+}``. This
+is not decoration. Every species bearing a site symbol bears it with a fixed
+amount of charge, so a neutral component leaves the charge row among the
+primaries, the two appear in one ratio everywhere, and only their sum is
+identifiable. The solver finds that out: measured, the two multipliers ran to
+``\pm 2.3\times 10^{5}`` — four decades past any chemical potential — while
+their sum stayed at ``-60``, the dual Newton stalled, and the host came out
+thirteen percent wrong. With the charge, the same run converges and the host
+lands on the uncoupled answer.
+
+### What the coupling costs, and what it does not
+
+It shifts the host's saturation index by the site potential, which is the
+thermodynamic statement that a sorbing surface is not the same phase as a bare
+one. That is a real effect, and it is why
+[`saturation_indices`](@ref) forms the index with the same matrix the solve was
+constrained with, and derives the bare component's potential from the free
+site's own stationarity rather than leaving it at zero.
+
+What it does not cost is the certificate. The coupling row is linear, so the
+feasible set is the polyhedron it always was and the objective is unchanged.
+
+### Measured
+
+On portlandite carrying sites at ``\Gamma = 10^{-5}\ \mathrm{mol/m^2}`` over
+``90\ \mathrm{m^2/kg}``, at three host amounts, the coupled solve converges as
+well as the uncoupled one, holds the constraint to ``10^{-7}``, conserves its
+elements to ``10^{-15}``, and reports every present phase at ``\log \mathrm{SI}
+= 0`` to ``10^{-14}``. Against PHREEQC, whose `SURFACE` has been couplable to an
+`EQUILIBRIUM_PHASES` mineral since v2, the site total is the declared
+coefficient times the phase amount to ``2\times 10^{-10}`` over five partially
+dissolved states.
+
+## 11. What this page does not cover
 
 Saying what is absent is part of describing what is present.
 
@@ -486,27 +576,6 @@ Saying what is absent is part of describing what is present.
     different surface species on different planes with a capacitance between
     them; here there is one potential per family, and stacking two electrostatic
     models is refused rather than summed.
-  - **No evolving support.** The site budget is fixed. In a hydrating cement the
-    support is a phase that precipitates, so its sites should appear with it.
-    What blocks that is worth stating precisely, because the obvious obstacle is
-    not the real one.
-
-    A capacity written as a site density times an area, or times a dry mass, is
-    **linear** in the host's amount: ``N_t = q\,M\,n_{\text{host}}`` or
-    ``N_t = \Gamma_C\,a\,M\,n_{\text{host}}``. So the site row stays linear and
-    folds into ``A\,n = b`` exactly, as a coefficient on the host's column —
-    there is no bilinear term to carry. (A [`ShrinkingCoreArea`](@ref) is the
-    exception: its ``(n/n_0)^p`` is nonlinear, and only for ``p \neq 1``.)
-
-    The two real obstacles are elsewhere. First, a free site is a **chemical
-    species**: `XsOH` carries an oxygen and a hydrogen, so growing the support
-    creates surface hydroxyls, and those must be debited from the water instead
-    of appearing from nothing — an update that balances the sites and not the
-    oxygen is off by exactly the number of sites added. Second, a coefficient on
-    the host's column shifts that host's saturation index by the site potential,
-    which is the thermodynamic statement that a sorbing surface is more stable
-    than a bare one. That is a real effect and a modeling decision, not a matrix
-    entry to write in passing.
   - **No multidentate species**, per the note above.
   - **No lateral interactions.** Neighbors on a surface affect each other's
     binding energy, and the models that describe it — Frumkin's interaction

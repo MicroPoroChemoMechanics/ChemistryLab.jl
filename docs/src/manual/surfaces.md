@@ -190,13 +190,15 @@ One per surface species, zero on every aqueous one: that row **is**
 the protolysis, `XsOH2+ = XsOH + H+` and `XsO- = XsOH − H+`, written by the same
 assembly that writes every other reaction.
 
-!!! warning "The primary is the free site, never a bare site species"
-    Declaring `Species("Xs")` as the site primary looks equivalent and is not. A
-    neutral bare site is inconsistent in charge with a neutral free site, which
+!!! warning "With a fixed support, the primary is the free site"
+    Declaring a **neutral** `Species("Xs")` as the site primary looks equivalent
+    and is not. It is inconsistent in charge with a neutral free site, which
     flips the exact rank test inside [`StoichMatrix`](@ref) and adds a spurious
-    charge component — silently. It also never enters `cs.species`, so
-    [`saturation_indices`](@ref) would zero its potential and report a wrong
-    index for every surface species, again without a word.
+    charge component — silently.
+
+    A support whose sites **follow their host** is the one case that needs a
+    bare component, and it needs a *charged* one. See below: the package refuses
+    the other two declarations by name rather than letting either through.
 
 ### What is refused, and why
 
@@ -344,3 +346,105 @@ under either exchange convention. That is not an inconsistency: on an exchanger
 the sites counted are charges, and a divalent cation neutralizes two of them
 without straddling two surface groups. A surface complex that genuinely
 straddles two sites is a combinatorial problem this release does not solve.
+
+
+## When the support precipitates
+
+Everything above poses the site budget once. A sorbent that appears during a
+calculation — a C-S-H forming as a paste hydrates — carries its sites with it,
+so the budget has to follow its amount instead.
+
+Ask for it on the support, and give the family a capacity measured per unit mass
+or per unit specific area, since those are the ones proportional to how much
+host there is:
+
+```julia
+support = SurfaceSupport(
+    "C-S-H", "CSHQ-JenD", BETSurfaceArea(90.0u"m^2/kg");
+    coupling = SITES_FOLLOW_HOST,
+)
+family = SiteFamily("Xs", free, [bound]; capacity = AreaSiteDensity(1.0e-5), support)
+```
+
+Naming a host does **not** couple anything on its own: the kinetics has named
+one since long before, to find the amount a rate law scales with. The coupling
+is asked for.
+
+`ν`, the moles of sites one mole of host carries, is then `Γ·a·M` — or `q·M` for
+a mass density — and [`sites_per_host`](@ref) returns it. Which capacities
+qualify is **measured**, not listed: it evaluates the capacity at two scaled
+host amounts and requires the budget to scale with them. A
+[`TotalSiteAmount`](@ref) and an area density over a [`FixedSurfaceArea`](@ref)
+are constants and are refused; a [`ShrinkingCoreArea`](@ref) passes at `p = 1`
+and nowhere else.
+
+### The component is the bare site, carrying a charge
+
+A coupled family needs its **component** — not its free site — as the primary,
+and that component carries the charge the free site carries with its site
+symbol. `XsOH` is `Xs⁺ + OH⁻`, so the component is `Species("Xs+")`; an
+exchanger `NaXc` is `Xc⁻ + Na⁺`, so its component is negative.
+
+```julia
+bare = Species("Xs+"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+cs = ChemicalSystem(species, [h2o, hp, ca, bare]; site_families = [family])
+```
+
+It need not be among the species: it is a component, not a substance.
+
+Both ways of getting this wrong are refused, by name and with what they cost.
+Over the **free site**, subtracting the coupling would subtract that site's real
+atoms too — seven percent of the oxygen of `Fe(OH)₃` invented, at Dzombak and
+Morel's weak-site density. Over a **neutral** bare site, only the sum of the
+site and charge potentials is identifiable, and the solver runs the two to
+`±2.3e5` before stalling.
+
+### The free site's reference energy stops being a gauge
+
+With a **fixed** budget, `ΔₐG⁰` of the free site cancels out of every surface
+reaction — both sides carry a site — so setting it to zero costs nothing.
+Measured: shifting a whole family by up to 20 kJ/mol moves the host amount and
+its saturation index by `3e-11`, which is the solver's own noise.
+
+With a budget that **follows its host** it does not cancel. The host carries
+`−ν` of the site component, so the site potential enters the host's own chemical
+potential. A phase that is present at an equilibrium has `log SI = 0` by
+stationarity whatever the potentials are, so what moves is **how much of it
+there is** — and at Dzombak and Morel's weak-site density, `ν = 0.2`, a free
+site left at `ΔₐG⁰ = 0` does not move the sorbent, it **removes** it.
+
+!!! tip "What to set it to, and what the package does if you do not"
+    The free site is made of something: `XsOH` carries a real oxygen and a real
+    hydrogen. Its reference energy is therefore not free — it is the energy of
+    that matter, `μ°(H₂O) − μ°(H⁺) = −237.2 kJ/mol` for an oxide, and
+    [`host_coupling_bias`](@ref) computes it from the matrix for any free site,
+    an exchanger's included.
+
+    Set it, and the coupling costs nothing measurable: hydrous ferric oxide at
+    `ν = 0.2` keeps `9.999993e-4 mol` of solid against `9.999693e-4` with a
+    fixed budget, the site total is `0.2` times the host amount to seven digits,
+    and the host reports `log SI = −2e-13`. Leave it at zero and the family is
+    **refused**, with the value to use in the message.
+
+!!! warning "Why zero is refused rather than warned about"
+    Measured on amorphous ferric hydroxide carrying `ν = 0.2`: with
+    `ΔₐG⁰(free site) = 0` the coupled host comes out **2.3 log units
+    undersaturated and dissolves completely**, where the same system with a
+    fixed budget keeps its solid at equilibrium. The coupling arithmetic is not
+    at fault — the constraint holds to `4e-9` and the elements to `1e-14` — the
+    reference energy is.
+
+    A family whose bias exceeds `0.05` log units is refused at construction,
+    because below that threshold the gap is smaller than the spread between two
+    databases for the same phase and above it the gap **is** the answer. At the
+    site density a cement paste implies, `ν = 6.7e-5`, the bias is `0.003` and
+    an unreferenced free site passes; the refusal is for the densities where it
+    matters.
+
+### What to check afterwards
+
+[`site_budget_residual`](@ref) reports, per family, the moles of sites the state
+carries minus the moles its capacity declares. Zero means the two say the same
+thing. [`host_consistent_state`](@ref) derives the free-site amount from the
+declaration so they do, and [`check_site_budget`](@ref) turns a disagreement into
+an error instead of a silently different calculation.

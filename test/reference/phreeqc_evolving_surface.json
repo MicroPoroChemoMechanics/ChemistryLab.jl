@@ -1,0 +1,72 @@
+{
+  "generator": "test/reference/phreeqc_evolving_surface.py",
+  "python": "3.12.14",
+  "phreeqpython": "1.6.2",
+  "phreeqc_engine": "3.7.3-15968",
+  "database": "phreeqc.dat",
+  "database_md5": "4d3f4378c46498730d569cacc37c4fa8",
+  "phase": "Fe(OH)3(a)",
+  "sites_strong_per_mol": 0.005,
+  "sites_weak_per_mol": 0.2,
+  "area_m2_per_mol": 53300.0,
+  "electrostatics": "-no_edl",
+  "not_a_reproduction": "This captures PHREEQC's COUPLING LAW, not a shared surface model. PHREEQC scales the site totals from the phase and applies no back-reaction on the phase's own stability, where this package carries the coupling in the constraint matrix so the host's saturation index picks up the site potential. The two agree on the ratio of sites to phase and on the amounts the acid budget fixes; they are expected to differ on dissolved iron.",
+  "points": [
+    {
+      "hcl_added": 0.0,
+      "fe_phase": 0.0009999744502442712,
+      "kgw": 0.9999999766650965,
+      "pH": 8.09727318018475,
+      "strong_total": 4.999872250658247e-06,
+      "weak_total": 0.00019999489004857336
+    },
+    {
+      "hcl_added": 0.001,
+      "fe_phase": 0.0007756845610980024,
+      "kgw": 1.000006986974681,
+      "pH": 3.384586183019194,
+      "strong_total": 3.878422804697346e-06,
+      "weak_total": 0.0001551369122193048
+    },
+    {
+      "hcl_added": 0.002,
+      "fe_phase": 0.00039670603369143054,
+      "kgw": 1.000020789060493,
+      "pH": 3.159387114935475,
+      "strong_total": 1.983530168128533e-06,
+      "weak_total": 7.934120673814198e-05
+    },
+    {
+      "hcl_added": 0.0026,
+      "fe_phase": 0.0001524441800421535,
+      "kgw": 1.0000300788687115,
+      "pH": 3.090276117172258,
+      "strong_total": 7.622209000927882e-07,
+      "weak_total": 3.048883600838652e-05
+    },
+    {
+      "hcl_added": 0.0029,
+      "fe_phase": 2.751979740336077e-05,
+      "kgw": 1.000034896701031,
+      "pH": 3.063642656966323,
+      "strong_total": 1.3759898699605618e-07,
+      "weak_total": 5.503959480664685e-06
+    },
+    {
+      "hcl_added": 0.00299,
+      "fe_phase": 0.0,
+      "kgw": 1.0000360746484906,
+      "pH": 3.0502974295399894,
+      "strong_total": 2.2457580708027098e-26,
+      "weak_total": 2.2457580725462592e-26
+    },
+    {
+      "hcl_added": 0.003,
+      "fe_phase": 0.0,
+      "kgw": 1.0000361200601942,
+      "pH": 3.047036465137189,
+      "strong_total": 2.2529672134613644e-26,
+      "weak_total": 2.2529672151683774e-26
+    }
+  ]
+}

@@ -765,3 +765,85 @@ end
     @test dr_dp < 0
 
 end
+
+# ── A named host is the host that was named ───────────────────────────────────
+
+@testset "a named host resolves to that species, not to its formula" begin
+
+    # Two polymorphs of one formula, which is the whole point: `Cal` and `Arg`
+    # are both `CaCO3`. `build_kinetics_params` registers BOTH a formula key and
+    # a symbol key per species, so the shared formula key is written twice and
+    # keeps whichever was declared last. A rate that asks for its host by
+    # formula therefore silently follows the other phase.
+    cal = Species("CaCO3"; symbol = "Cal", aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
+    arg = Species("CaCO3"; symbol = "Arg", aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
+    ca2p = Species("Ca+2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    co3 = Species("CO3-2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    h2o = Species("H2O@"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
+    hp_ = Species("H+"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    cs = ChemicalSystem([h2o, ca2p, co3, cal, arg], [h2o, ca2p, co3])
+    rxn = Reaction([cal, ca2p, co3]; symbol = "calcite dissolution")
+
+    support = SurfaceSupport("carbonate", "Cal", BETSurfaceArea(90.0u"m^2/kg"))
+    name, M, area = ChemistryLab._surface_context(cs, rxn, support)
+
+    # The key handed to the rate law is the SYMBOL. Handing back `"CaCO3"` was
+    # the defect: the index resolves that to `Arg`, the last one declared.
+    @test name == "Cal"
+    @test name != "CaCO3"
+
+    # And it is the key the index actually carries, which is the property that
+    # matters — asserting the string alone would not prove the lookup works.
+    index = Dict{String, Int}()
+    for (i, sp) in enumerate(cs.species)
+        index[ChemistryLab.phreeqc(formula(sp))] = i
+        s = symbol(sp)
+        isempty(s) || (index[s] = i)
+    end
+    @test cs.species[index[name]] === cal
+    @test cs.species[index["CaCO3"]] === arg      # the collision, still there
+
+    # The consequence, in the unit the rate law feels it. Cal at 1 mol and Arg
+    # at 100 mol: following the formula key multiplies the reactive area by a
+    # hundred, and a rate proportional to area inherits that exactly.
+    n = StateView([55.5, 0.0, 0.0, 1.0, 100.0], index)
+    @test total_area(area, n[name], n[name], M) ≈ 90.0 * 1.0 * M
+    @test total_area(area, n["CaCO3"], n["CaCO3"], M) ≈ 100 * total_area(area, n[name], n[name], M)
+
+    # Declaration order must not matter, which a single ordering cannot show.
+    cs_rev = ChemicalSystem([h2o, ca2p, co3, arg, cal], [h2o, ca2p, co3])
+    @test ChemistryLab._surface_context(cs_rev, rxn, support)[1] == "Cal"
+
+    # The other entry point: a bare area model, which rediscovers the host from
+    # the reaction instead of being told. It must resolve to a symbol too — the
+    # two entry points share one contract, and only one of them was tested.
+    bare_name, bare_M, bare_area = ChemistryLab._surface_context(
+        cs, rxn, BETSurfaceArea(90.0u"m^2/kg"),
+    )
+    @test bare_name == "Cal"                  # the reaction's mineral, by symbol
+    @test bare_area isa BETSurfaceArea
+    @test bare_M ≈ ustrip(us"kg/mol", cal[:M])
+    # `_find_mineral_idx` falls back to the first reactant present when no
+    # crystal is found, so an all-aqueous reaction resolves to a species rather
+    # than failing. That is the shipped behavior and it is asserted, not
+    # assumed — a reader looking for a refusal here would be looking for the
+    # wrong thing.
+    oh = Species("OH-"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    cs_aq = ChemicalSystem([h2o, hp_, oh], [h2o, hp_])
+    aq_only = Reaction([h2o, hp_, oh]; symbol = "water dissociation")
+    @test ChemistryLab._mineral_name_and_mass(cs_aq, aq_only)[1] in symbol.(cs_aq.species)
+
+    # It refuses only when no reactant of the reaction is in the system at all,
+    # which is a reaction written against a different system.
+    @test_throws ArgumentError ChemistryLab._mineral_name_and_mass(cs_aq, rxn)
+
+    # A species with no symbol at all falls back to its formula, and that is
+    # refused when the formula names more than one species rather than being
+    # resolved to an arbitrary one.
+    bare = Species("CaCO3"; symbol = "", aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
+    cs_bare = ChemicalSystem([h2o, ca2p, co3, bare, cal], [h2o, ca2p, co3])
+    @test_throws ArgumentError ChemistryLab._rate_lookup_key(cs_bare, bare)
+    # …and accepted when it names exactly one.
+    cs_one = ChemicalSystem([h2o, ca2p, co3, bare], [h2o, ca2p, co3])
+    @test ChemistryLab._rate_lookup_key(cs_one, bare) == "CaCO3"
+end

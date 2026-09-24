@@ -1,5 +1,243 @@
 # Changelog
 
+## v0.22.0 — a sorbent that appears and disappears
+
+The site budget can now follow the phase that carries it. Until this release a
+capacity was a number posed once; a C-S-H that precipitates as a paste hydrates
+carries its sites with it, and a budget that cannot move is a statement about a
+quantity that no longer exists.
+
+Three defects found by an external audit are fixed first, because the feature
+leans on all three.
+
+### A named host is the host that was named
+
+`SurfaceSupport.host` was resolved by symbol, correctly, and the symbol was then
+thrown away in favor of the formula. The kinetics index registers both, so a
+formula shared by two polymorphs is written twice and keeps whichever came last.
+Calcite and aragonite are both `CaCO3`; holding 1 and 100 mol, a law asking for
+`Cal` got Arg's amount and a reactive area a hundred times too large.
+
+Nothing changes for an ordinary species, which takes its formula as its symbol.
+It differs exactly where the two differ, and a species with no symbol at all is
+now required to have an unambiguous formula rather than resolving to whichever
+sibling was declared last.
+
+### A family member is matched by identity, not by its label
+
+`_resolve_site_families` looked its members up by symbol against the system's
+own vector and checked nothing about what it found. The file carried a comment
+asserting that a shared member was unreachable. It is reachable: the species a
+label lands on need not be the species the family validated, so two families
+with **different** site symbols and the same member labels resolved to the same
+indices and one family's conservation row was simply absent from the matrix.
+
+The same gap let a family hold the `AS_SURFACE` copies it qualifies while the
+system kept the caller's unqualified originals, leaving `idx_surface` empty with
+the site mixing still running.
+
+### A declared capacity is compared with the state that uses it
+
+`site_moles` had no caller anywhere in `src`. The site row took its right-hand
+side from the initial amounts like every other row, so declaring `1e-6 mol` of
+sites and initializing `1e-3` gave an equilibrium holding `1e-3`, with
+`optimality_certificate` reporting `optimal = true`. The certificate was not
+wrong — it checks the budget it is given. Changing the capacity alone changed no
+number, which also makes calibrating one impossible.
+
+`site_budget_residual`, `check_site_budget` and `host_consistent_state` close
+that. The tolerance is relative and its default comes from a measurement: a
+state initialized with its occupied sites at the `1e-12` solver floor is
+correctly initialized and still `2e-9` off, so `1e-9` would fire on the ordinary
+case.
+
+### The site budget follows its host
+
+`SITES_FOLLOW_HOST` on the support, a capacity measured per unit mass or per
+unit specific area, and the budget becomes `ν` moles of sites per mole of host —
+equation (30) of Kulik (2002) read as a coefficient. Which capacities qualify is
+**measured** rather than listed: `sites_per_host` evaluates the capacity at two
+scaled host amounts and requires the budget to scale with them, with `n₀` held
+fixed, since scaling it too makes a `ShrinkingCoreArea` ratio equal one
+everywhere and hides the nonlinearity the probe exists to find.
+
+The coupling is one entry of the constraint matrix, and which entry is not a
+free choice. Two plausible routes are wrong, both measurably:
+
+Subtracting from the row of the **free site** subtracts that primary's whole
+composition, because the rows are indexed by species and `XsOH` carries an
+oxygen and a hydrogen. At Dzombak and Morel's weak-site density that invents
+seven percent of the oxygen of `Fe(OH)₃`. Repairing it needs a preimage of the
+pure site pseudo-element, and there is none — least-squares residuals of `0.378`
+on an amphoteric oxide and `0.500` on a cation exchanger, structural rather than
+a quirk of one basis.
+
+Appending a row **instead** of replacing one leaves two equations on one
+quantity, which together say the host may not dissolve at all. Measured: the
+solve returned `MaxIters`, the host moved regardless, and the site total stayed
+at its initial value.
+
+The **bare** site as the component removes the obstruction instead of working
+around it. It is a component and not a substance, so it need not be among the
+species; the residual is then zero, the preimage is the unit vector, and element
+conservation is exact by construction. It carries the charge the free site
+carries with its site symbol — `XsOH` is `Xs⁺ + OH⁻`. A neutral one leaves the
+charge row among the primaries, the two appear in one ratio everywhere, and only
+their sum is identifiable: measured, the multipliers ran to `±2.3e5` while their
+sum stayed at `−60`, the dual Newton stalled, and the host came out thirteen
+percent wrong.
+
+Measured, on portlandite carrying sites at three host amounts: converges as well
+as the uncoupled solve, holds the constraint to `10⁻⁷`, conserves its elements
+to `10⁻¹⁵`, and reports every present phase at `log SI = 0` to `10⁻¹⁴`.
+
+### A species at the activity floor was worth `ln 2` more than the floor
+
+Molalities are built from `max.(n, ϵ)` and were then passed to `log(mᵢ + ϵ)`.
+Two regularizations stacked, so any species sitting at the floor came back at
+`log(2ϵ)` instead of `log(ϵ)` — in the HKF, Davies and Pitzer closures, while
+the dilute model, which takes the log bare, was right.
+
+`ln 2` on a species nobody looks at would be harmless. A **primary** can sit at
+the floor, and `saturation_indices` reads each element potential off its primary
+species, so the offset reached every phase carrying that element. Measured on
+amorphous ferric hydroxide, where `Fe³⁺` at pH 7 is a `10⁻¹⁶` species: the
+solid, present and at equilibrium, reported `log SI = 0.298` — which is
+`ln 2 / ln 10` — under HKF and Davies and `0` under the dilute model.
+`optimality_certificate` reported `optimal` and was right; it reads the solver's
+own multipliers. The index was the thing that lied, on every non-dilute model
+the package ships.
+
+The second `ϵ` is gone. No number moves anywhere else: the molality is already
+strictly positive, so the term only ever did something at the floor.
+
+### What a coupled family costs, and the one thing it does not yet settle
+
+`SITES_FOLLOW_HOST` is a constraint, and as a constraint it is exact. It is not
+yet a complete thermodynamic model, and the gap has a size.
+
+With a fixed budget the free site's `ΔₐG⁰` cancels out of every surface
+reaction, so zero is free: shifting a whole family by 20 kJ/mol moves nothing by
+more than `3e-11`. Coupled it does not cancel, because the host carries `−ν` of
+the site component — and `ΔₐG⁰ = 0` on a free site is not a gauge but a claim,
+namely that a surface hydroxyl forms from the elements for nothing. `XsOH`
+carries a real oxygen and a real hydrogen. At Dzombak and Morel's weak-site
+density, `ν = 0.2`, that claim is worth 8.3 log units on the host's own
+solubility, and measured, it dissolves an amorphous ferric hydroxide outright
+where the same system with a fixed budget holds its solid.
+
+The reference is not a convention to choose: it is the energy of the matter the
+free site carries, `μ°(H₂O) − μ°(H⁺) = −237.2 kJ/mol` for an oxide, read off the
+same matrix the constraint is built from — so `host_coupling_bias` computes it
+for any free site, an exchanger's included. Set it, and the coupling costs
+nothing measurable: the host keeps `9.999993e-4 mol` against `9.999693e-4` with
+a fixed budget, the site total is `ν` times the host amount to seven digits, the
+solve certifies, and across the whole band the guard allows the answer moves by
+`7e-8`. Leave it at zero and the family is refused at construction, with the
+value to use in the message.
+
+Kulik (2002) reaches the same place from the other side, and the theory page now
+says so: he keeps the free site out of the balance entirely, as a *surface
+monolayer solvent* of fixed activity with `μ_n = 0`, and carries the capacity in
+a surface activity term. That formulation needs no reference energy at all. This
+one does, and now states it.
+
+### A charge component is refused on a measurement, not on its presence
+
+The first form of this guard refused a coupled family whenever `Zz` survived
+among the primaries. That is a symptom and not the defect. Charge stays an
+independent component whenever it is independent of the element rows — one
+element in two oxidation states is enough — and such a system is perfectly well
+posed: measured on hydrous ferric oxide in a mixed-valence iron chloride
+solution, the coupled matrix has full identifiable rank and its charge row is
+nonzero on a ferrous complex, so it is not the site row at all. Worse, the
+charge the refusal then suggested was itself refused on the next call, so the
+two suggestions pointed at each other.
+
+The decision is now the identifiable rank of the matrix the solve will be
+constrained with, read off its singular values, and the message reports what it
+measured. It refuses everything the old one correctly refused — the tightest of
+those has a spectral gap of 13 — and admits the redox systems it wrongly did,
+the tightest of which sits at 2.2.
+
+### A saturation index that agrees with the stationarity the solver reached
+
+Two rules that were right for the charge row and wrong for a coupled site row.
+A primary absent from the species was given zero potential — which shifted every
+surface index by more than forty log units, `y_site` being `+95.7`. And the
+index was formed with `SM.A` rather than the matrix the solve was constrained
+with, leaving the host's own `−ν` out of its own index: portlandite came back at
+`log SI = 0.0015` while present and at equilibrium, where a present phase is
+zero by definition.
+
+The missing potential is not a convention: the free site is a species and is
+always present, so its stationarity determines it exactly.
+
+### The site-density scale a constant was fitted at
+
+An intrinsic adsorption constant is fitted at some total site density and its
+value depends on that choice, so two constants fitted at different densities are
+not comparable — including two from the same paper.
+`convert_logk_site_density` is Kulik's equation (21), and a doctest reproduces
+his published `−0.73` and `−2.33` on Dzombak and Morel's own two densities.
+`REFERENCE_SITE_DENSITY_NM2` is the `12.05 nm⁻²` he writes; the SI form is
+derived from it through Avogadro rather than written twice.
+
+### A worked example of the thing itself
+
+`examples/evolving_sorbent.md` titrates hydrous ferric oxide carrying Dzombak
+and Morel's own weak-site density until it is gone, with manganese on it. It is
+written for a reader who has never done surface complexation: what a site is,
+why its budget is a conservation row and not an element, and why posting the
+budget as a number fails on a solid that dissolves — you would need the answer
+in order to set up the question.
+
+Two things happen in one sweep and telling them apart is the point. Up to about
+`0.2 mol` of acid per mole of oxide nothing dissolves and the acid simply takes
+the manganese off the surface, which a fixed budget describes perfectly well.
+Past that the oxide goes and its sites go with it, the ratio holding at `ν` to
+six decimals. Every number on the page comes out of a block the build executes,
+including the three checks it closes on: the relation to `1.5e-7`, element
+conservation to `5.1e-12` and every present phase at `log SI = 0` to `1.0e-11`.
+
+### PHREEQC as the oracle
+
+PHREEQC has coupled a `SURFACE` to an `EQUILIBRIUM_PHASES` mineral since v2.
+`test/reference/phreeqc_evolving_surface.py` titrates a sorbent to exhaustion
+and the site totals are the declared coefficient times the phase amount to
+`2.0e-10` across five partially dissolved states.
+
+Two traps were caught by assertions rather than by reading, both leaving a
+plausible table: PHREEQC punches the initial solution too, so the output carries
+one row more than there are reaction steps; and `-molalities` are per kilogram
+of water, which is not 1 kg once acid has been added. The generator also records
+the PHREEQC **engine** version, which the older surface generator does not.
+
+### The eliminating kinetic route keeps what the parent declared
+
+`coupling = :species` rebuilt the free side from its species and the parent's
+primary names, dropping the solid solutions and the site families. A surface
+therefore could not be combined with that route at all, before this release and
+independently of it.
+
+### Breaking changes
+
+Below 1.0 the registry treats a minor bump as breaking whatever the API did, so
+`[compat] = "0.21"` will not accept `0.22` and any dependent must widen its
+bound. No package in this organization depends on ChemistryLab, so there is
+nothing else to change.
+
+Beyond that: eighteen exported names are new and none was removed, but four
+behaviors change deliberately. A rate law's host is now found by symbol rather
+than by formula, which is a different species exactly when two share a formula
+and one carries a distinct symbol. A site family whose members do not match the
+system's species by formula, site symbol and aggregate state is now refused
+where it was accepted. And a state whose site amounts contradict its declared
+capacity is refused where it was solved. A site family that follows its host and
+whose free site is left without a reference energy is refused where it was
+solved, and a saturation index computed on a primary that has collapsed to the
+activity floor now reports the equilibrium instead of the floor.
+
 ## v0.21.0 — charged surfaces, published models, and numbers that say where they came from
 
 Two threads, and they meet.

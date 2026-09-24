@@ -130,6 +130,8 @@ module ChemistryLab
     # order between them is the only one that works.
     include("surfaces/surface_areas.jl")
     include("surfaces/site_families.jl")
+    # After both, because it reads a family's capacity and its support's host.
+    include("surfaces/host_coupling.jl")
 
     include("databases/paths.jl")
     include("databases/phreeqc_dat.jl")
@@ -315,6 +317,8 @@ module ChemistryLab
         R_GAS,
         R_GAS_Q,
         FARADAY,
+        AVOGADRO,
+        AVOGADRO_Q,
         VACUUM_PERMITTIVITY,
         bound_water,
         ignition_loss,
@@ -489,8 +493,24 @@ module ChemistryLab
         ShrinkingCoreArea,
         SHRINK_FLOOR,
         SurfaceSupport,
+        SiteCoupling,
+        SITES_FIXED,
+        SITES_FOLLOW_HOST,
         specific_area,
         total_area,
+        declared_site_moles,
+        present_site_moles,
+        site_budget_residual,
+        check_site_budget,
+        host_consistent_state,
+        InconsistentSiteBudget,
+        REFERENCE_SITE_DENSITY,
+        REFERENCE_SITE_DENSITY_NM2,
+        convert_logk_site_density,
+        sites_per_host,
+        site_coupling_rows,
+        host_coupling_bias,
+        conservation_matrix,
         area_ratio,
         area_method,
         surface_area,

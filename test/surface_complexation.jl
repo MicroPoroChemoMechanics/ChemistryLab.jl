@@ -604,3 +604,371 @@ end
     end
 
 end
+
+@testsection "a declared capacity is compared with the state that uses it" begin
+
+    # The audit's reproduction, kept as the shape of the test: a family
+    # declaring one capacity and a state initialized with another gave an
+    # equilibrium holding the state's, with `optimality_certificate` reporting
+    # `optimal = true`. The certificate was not wrong — it checks the budget it
+    # is given. Nothing compared that budget with the declaration, and changing
+    # the declared capacity alone changed no number in the answer.
+
+    declared = 1.0e-3                      # `_amphoteric_system`'s default
+    cs, st, family = _amphoteric_system()
+    nm = symbol.(cs.species)
+    idx(s) = findfirst(==(s), nm)
+
+    function state_with(n_free)
+        n = Any[fill(1.0e-12u"mol", length(cs.species))...]
+        n[idx("H2O@")] = moles_of_water() * u"mol"
+        n[idx("XsOH")] = n_free * u"mol"
+        return ChemicalState(cs, n)
+    end
+
+    @testset "agreement reads zero and raises nothing" begin
+        @test declared_site_moles(st, family) ≈ declared
+        # The two tiny complexes are in the state at the 1e-12 floor, so the
+        # present total is the free sites plus that — which is why this is a
+        # tolerance and not an equality.
+        @test present_site_moles(st, family) ≈ declared rtol = 1.0e-8
+        @test abs(site_budget_residual(st)["Xs"]) < 1.0e-6 * declared
+        @test check_site_budget(st) === nothing
+    end
+
+    @testset "disagreement is named, with both numbers" begin
+        bad = state_with(1.0e-1)
+        @test site_budget_residual(bad)["Xs"] ≈ 1.0e-1 - declared rtol = 1.0e-6
+        e = try
+            check_site_budget(bad)
+            nothing
+        catch err
+            err
+        end
+        @test e isa InconsistentSiteBudget
+        # The message carries BOTH numbers, or it says only that something is
+        # wrong — which the caller already knew.
+        msg = sprint(showerror, e)
+        @test occursin("Xs", msg)
+        @test occursin("host_consistent_state", msg)
+    end
+
+    @testset "the tolerance is relative, because a site budget has no scale" begin
+        # 1e-6 mol on an oxide and 1e-1 mol on a clay: an absolute threshold
+        # would be meaningless on one of the two.
+        @test check_site_budget(state_with(declared * (1 + 1.0e-9))) === nothing
+        @test_throws InconsistentSiteBudget check_site_budget(
+            state_with(declared * (1 + 1.0e-3)),
+        )
+    end
+
+    @testset "the repair derives the free site, and refuses the impossible" begin
+        fixed = host_consistent_state(state_with(1.0e-1))
+        @test abs(site_budget_residual(fixed)["Xs"]) < 1.0e-6 * declared
+        @test check_site_budget(fixed) === nothing
+        # It moved the FREE site and nothing else: an occupied site holds a
+        # sorbate whose elements the rest of the system accounts for.
+        @test ustrip(us"mol", fixed.n[idx("XsOH")]) ≈ declared rtol = 1.0e-8
+        @test fixed.n[idx("H2O@")] == state_with(1.0e-1).n[idx("H2O@")]
+
+        # Complexes already over the capacity is a declaration to correct, not
+        # an initialization to repair.
+        n = Any[fill(1.0e-12u"mol", length(cs.species))...]
+        n[idx("H2O@")] = moles_of_water() * u"mol"
+        n[idx("XsOH2+")] = 10 * declared * u"mol"
+        @test_throws ArgumentError host_consistent_state(ChemicalState(cs, n))
+    end
+
+    @testset "a capacity measured on a host is evaluated on that host" begin
+        # The other half of the contract: given a host, the density is read on
+        # its amount. This is the path a coupled support takes, and until now
+        # only its refusal was exercised.
+        h2o, hp, ca2 = reference_species(("H2O@", "H+", "Ca+2"))
+        host = reference_species("Portlandite"; db = :cemdata18)
+        free3 = Species("XsOH"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        free3[:ΔₐG⁰] = _g0(0.0)
+        fam3 = SiteFamily(
+            "Xs", free3, AbstractSpecies[];
+            capacity = MassSiteDensity(2.0),
+            support = SurfaceSupport(
+                "sorbent", "Portlandite", FixedSurfaceArea(1.0);
+                coupling = SITES_FOLLOW_HOST,
+            ),
+        )
+        cs3 = ChemicalSystem(
+            [h2o, hp, ca2, host, free3], [h2o, hp, ca2, free3]; site_families = [fam3],
+        )
+        M = ustrip(us"kg/mol", host[:M])
+        n_host = 0.1
+        st3 = ChemicalState(
+            cs3,
+            [moles_of_water() * u"mol", 1.0e-12u"mol", 1.0e-12u"mol", n_host * u"mol", 1.0e-12u"mol"],
+        )
+        # q · M · n_host, checkable by hand.
+        @test declared_site_moles(st3, fam3) ≈ 2.0 * M * n_host
+        # And it MOVES with the host, which is the whole point of the coupling.
+        st4 = ChemicalState(
+            cs3,
+            [moles_of_water() * u"mol", 1.0e-12u"mol", 1.0e-12u"mol", 2n_host * u"mol", 1.0e-12u"mol"],
+        )
+        @test declared_site_moles(st4, fam3) ≈ 2 * declared_site_moles(st3, fam3)
+    end
+
+    @testset "a capacity that needs a host, without one, is refused" begin
+        # An area or mass density cannot be evaluated without the solid that
+        # carries the sites. Evaluating it at zero would report a capacity of
+        # zero, which is a different model rather than a missing input.
+        free2 = Species("XwOH"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        free2[:ΔₐG⁰] = _g0(0.0)
+        fam2 = SiteFamily(
+            "Xw", free2, AbstractSpecies[];
+            capacity = AreaSiteDensity(1.0e-5),
+            support = SurfaceSupport("oxide", nothing, FixedSurfaceArea(1.0)),
+        )
+        h2o, hp = reference_species(("H2O@", "H+"))
+        cs2 = ChemicalSystem([h2o, hp, free2], [h2o, hp, free2]; site_families = [fam2])
+        st2 = ChemicalState(cs2, [moles_of_water() * u"mol", 1.0e-12u"mol", 1.0e-3u"mol"])
+        @test_throws ArgumentError declared_site_moles(st2, fam2)
+    end
+end
+
+@testsection "a site budget that follows its phase, against PHREEQC" begin
+
+    # PHREEQC has coupled a SURFACE to an EQUILIBRIUM_PHASES mineral since v2:
+    #
+    #     Hfo_sOH   Fe(OH)3(a)   equilibrium_phase   0.005   53300
+    #
+    # which is `SITES_FOLLOW_HOST` in another code's words. The fixture captures
+    # its COUPLING LAW over a titration that dissolves the sorbent step by step;
+    # `not_a_reproduction` states what is deliberately not shared between the
+    # two, and the test asserts on that field rather than trusting the prose
+    # around it.
+    F = reference_oracle("phreeqc_evolving_surface")
+
+    @testset "the oracle really is coupled" begin
+        # A fixture of a feature that was not switched on would compare nothing.
+        # Every partially dissolved state must carry exactly the declared moles
+        # of sites per mole of phase.
+        worst = 0.0
+        n_partial = 0
+        for pt in F.points
+            pt.fe_phase > 0 || continue
+            n_partial += 1
+            for (tot, coef) in (
+                    (pt.strong_total, F.sites_strong_per_mol),
+                    (pt.weak_total, F.sites_weak_per_mol),
+                )
+                worst = max(worst, abs(tot / pt.fe_phase / coef - 1))
+            end
+        end
+        @test n_partial >= 4                 # a law, not a single point
+        @info "PHREEQC coupling law" worst n_partial
+        # Measured at 2.0e-10; the threshold keeps three decades of margin. It
+        # was 7e-6 until the molalities were multiplied by the water mass, which
+        # is not 1 kg once acid has been added — a units error that reads as a
+        # coupling error.
+        @test worst < 1.0e-7
+    end
+
+    @testset "the sorbent goes with the phase, all the way to nothing" begin
+        first_pt, last_pt = F.points[1], F.points[end]
+        @test first_pt.fe_phase > 0.9e-3                 # intact at the start
+        @test last_pt.fe_phase == 0                      # gone at the end
+        # And the sites go with it: PHREEQC leaves them at the floor, not at a
+        # remembered value.
+        @test last_pt.strong_total < 1.0e-20
+        @test last_pt.weak_total < 1.0e-20
+        # In between, both fall monotonically with the phase — while there IS a
+        # phase. Past exhaustion the totals sit at a 1e-26 floor where their
+        # order carries no information, and requiring monotonicity there would
+        # be asserting on noise.
+        live = [pt for pt in F.points if pt.fe_phase > 0]
+        @test issorted([pt.fe_phase for pt in live]; rev = true)
+        @test issorted([pt.strong_total for pt in live]; rev = true)
+        @test all(pt -> pt.strong_total < 1.0e-20, setdiff(F.points, live))
+    end
+
+    @testset "this package states the same law" begin
+        # PHREEQC declares moles of sites per mole of phase directly. Here that
+        # is `ν`, and a mass density reaches it as `q · M`, so the two
+        # declarations meet on a number rather than on an intention.
+        host = reference_species("Portlandite"; db = :cemdata18)
+        M = ustrip(us"kg/mol", host[:M])
+        q = F.sites_strong_per_mol / M
+        free2 = Species("XwOH"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        free2[:ΔₐG⁰] = _g0(0.0)
+        fam = SiteFamily(
+            "Xw", free2, AbstractSpecies[];
+            capacity = MassSiteDensity(q),
+            support = SurfaceSupport(
+                "sorbent", "Portlandite", FixedSurfaceArea(1.0);
+                coupling = SITES_FOLLOW_HOST,
+            ),
+        )
+        @test ChemistryLab.sites_per_host(fam, M) ≈ F.sites_strong_per_mol rtol = 1.0e-12
+
+        # And the row the package builds is that law: `Σ d n − ν n_host = 0`.
+        h2o, hp, ca2 = reference_species(("H2O@", "H+", "Ca+2"))
+        bare = Species("Xw+"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        cs = ChemicalSystem(
+            [h2o, hp, ca2, host, free2], [h2o, hp, ca2, bare]; site_families = [fam],
+        )
+        rows, _ = site_coupling_rows(cs)
+        i = Dict(s => k for (k, s) in enumerate(symbol.(cs.species)))
+        @test rows[1, i["XwOH"]] == 1.0
+        @test rows[1, i["Portlandite"]] ≈ -F.sites_strong_per_mol rtol = 1.0e-12
+    end
+
+    @testset "what is not compared is written down" begin
+        @test occursin("not a shared surface model", F.not_a_reproduction)
+        @test occursin("no back-reaction", F.not_a_reproduction)
+        # Provenance read at run time, never assumed — including the engine
+        # version, which the older surface generator does not record.
+        @test F.phreeqc_engine == "3.7.3-15968"
+        @test F.database == "phreeqc.dat"
+        @test F.electrostatics == "-no_edl"
+    end
+end
+
+@testsection "the standard state of a free site is a gauge only while nothing follows" begin
+
+    # THE TEST THAT MEASURES THE BOUNDARY BETWEEN A GAUGE AND A PARAMETER, and
+    # the reason it exists: with a fixed budget, `ΔₐG⁰` of the free site cancels
+    # out of every surface reaction, both sides carrying a site, so setting it
+    # to zero is free. With a budget that FOLLOWS ITS HOST it does not cancel:
+    # the host carries `−ν` of the site component, so the site potential enters
+    # the host's own chemical potential and moves its solubility.
+    #
+    # Shifting the WHOLE family by the same Δ leaves every internal log K
+    # untouched, which is what isolates the gauge from the chemistry.
+    #
+    # Measured on amorphous ferric hydroxide at Dzombak and Morel's weak-site
+    # density, `ν = 0.2`, over 40 kJ/mol of shift: the host's saturation index
+    # moves by `−ν Δ / (RT ln 10)` to five decimals, and the uncoupled system
+    # does not move at all. At `ν = 0.2` that is 0.35 log units per 10 kJ/mol —
+    # which is why a coupled family cannot be given an arbitrary reference.
+
+    psi = build_species(datapath("psinagra-12-07-thermofun.json"); verbose = false)
+    bn = Dict(symbol(s) => s for s in psi)
+    M = ustrip(us"kg/mol", bn["Fe(OH)3(am)"][:M])
+    ν = 0.2
+    aq = speciation(
+        psi, ["Fe(OH)3(am)"]; aggregate_state = [AS_AQUEOUS],
+        exclude_species = split("H2@ O2@ Fe+2 FeOH+ FeO+"),
+    )
+    surf(sym, g) = (
+        s = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX);
+        s[:ΔₐG⁰] = _g0(g); s
+    )
+
+    # The reference the free site's matter implies: `XwOH` is a site plus an
+    # `OH`, so `μ°(H₂O) − μ°(H⁺)`. A coupled family is refused away from it
+    # (`host_coupling_bias`), so the gauge is swept AROUND it rather than from
+    # zero — which is also the only place the sweep means anything, since zero
+    # is a declaration the package now rejects.
+    G(sp) = ustrip(us"J/mol", sp[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+    reference = G(bn["H2O@"]) - G(bn["H+"])
+
+    function run(Δ; coupled)
+        g = coupled ? reference + Δ : Δ
+        mem = [
+            surf("XwOH", g), surf("XwOH2+", g - RT25 * log(10.0^7.29)),
+            surf("XwO-", g - RT25 * log(10.0^-8.93)),
+        ]
+        support = SurfaceSupport(
+            "hydrous ferric oxide", "Fe(OH)3(am)", FixedSurfaceArea(1.0);
+            coupling = coupled ? SITES_FOLLOW_HOST : SITES_FIXED,
+        )
+        family = SiteFamily(
+            "Xw", mem[1], mem[2:3];
+            capacity = coupled ? MassSiteDensity(ν / M) : TotalSiteAmount(ν * 1.0e-3),
+            support,
+        )
+        # Coupled, the component is the BARE site; uncoupled, the free site.
+        comp = coupled ?
+            Species("Xw+"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX) : mem[1]
+        cs = ChemicalSystem(
+            AbstractSpecies[vcat(aq, mem)...],
+            AbstractSpecies[bn["H2O@"], bn["H+"], bn["Fe+3"], comp];
+            site_families = [family],
+        )
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", moles_of_water() * u"mol")
+        set_quantity!(st, "Fe(OH)3(am)", 1.0e-3u"mol")
+        if coupled
+            st = host_consistent_state(st)
+        else
+            set_quantity!(st, "XwOH", (ν * 1.0e-3)u"mol")
+        end
+        b = conservation_matrix(cs) * Float64[ustrip(us"mol", x) for x in st.n]
+        model = DaviesActivityModel()
+        eq, _ = equilibrate_certified(st; model, b = b)
+        i = findfirst(==("Fe(OH)3(am)"), symbol.(cs.species))
+        return (
+            host = ustrip(us"mol", eq.n[i]),
+            si = saturation_indices(eq, model)["Fe(OH)3(am)"],
+        )
+    end
+
+    @testset "a fixed budget: invariant to the solver's own noise" begin
+        # NOT asserted bit for bit, and the reason is worth stating: shifting
+        # every member's reference energy changes the numbers the dual Newton
+        # iterates on, so it takes a different path to the same answer. What is
+        # invariant is the answer, over a range no coupled family would be
+        # allowed anywhere near.
+        ref = run(0.0; coupled = false)
+        worst = 0.0
+        for Δ in (-5.0e3, -2.0e4, 1.0e4)
+            r = run(Δ; coupled = false)
+            @test r.host ≈ ref.host rtol = 1.0e-6
+            @test r.si ≈ ref.si atol = 1.0e-5
+            worst = max(worst, abs(r.si - ref.si))
+        end
+        @info "gauge invariance, fixed budget" worst
+    end
+
+    @testset "a budget that follows its host: the reference is not a gauge" begin
+        # WHERE THE EFFECT IS, and it is not where an earlier version of this
+        # testset looked. A phase that is PRESENT at an equilibrium has
+        # `log SI = 0` by stationarity, whatever the potentials are, so the
+        # index cannot show this. What moves is the AMOUNT.
+        #
+        # Measured at Dzombak and Morel's weak-site density, `ν = 0.2`: with the
+        # free site referenced to the matter it carries the host keeps
+        # `9.999993e-4 mol` against `9.999693e-4` with a fixed budget, three
+        # parts in 1e5. With `ΔₐG⁰ = 0` — a surface hydroxyl formed from the
+        # elements for nothing — the same solve dissolves the sorbent outright,
+        # which is why that declaration is refused rather than solved.
+        ref = run(0.0; coupled = true)
+        fixed = run(0.0; coupled = false)
+        @test ref.host ≈ fixed.host rtol = 1.0e-3
+        @test ref.si ≈ 0.0 atol = 1.0e-8            # present, hence exactly zero
+
+        worst = 0.0
+        for Δ in (-1.2e3, -6.0e2, 6.0e2, 1.2e3)
+            r = run(Δ; coupled = true)
+            @test r.si ≈ 0.0 atol = 1.0e-8
+            worst = max(worst, abs(r.host / ref.host - 1))
+        end
+        @info "coupled host amount across the allowed band" worst
+        # Inside the band the guard allows, the declaration is worth little.
+        # Outside it, it is worth the sorbent.
+        @test worst < 1.0e-3
+    end
+
+    @testset "an unreferenced free site is refused, and the message says what to set" begin
+        # `ΔₐG⁰ = 0` on a free site that carries an oxygen and a hydrogen is the
+        # declaration that dissolved the sorbent. It is worth 8.3 log units at
+        # Dzombak and Morel's density and is refused; the same declaration at
+        # the density a cement paste implies is worth 0.003 and passes.
+        e = try
+            run(-reference; coupled = true)      # back to ΔₐG⁰ = 0
+            nothing
+        catch err
+            err
+        end
+        @test e isa ArgumentError
+        @test occursin("log units", e.msg)
+        @test occursin("-237.2 kJ/mol", e.msg)
+    end
+end

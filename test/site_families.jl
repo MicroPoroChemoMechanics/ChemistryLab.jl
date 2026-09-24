@@ -4,6 +4,7 @@
 using ChemistryLab
 using DynamicQuantities
 using Test
+using LinearAlgebra
 
 # Helpers — a surface species is an ordinary species in AS_SURFACE, and the
 # family requalifies it anyway; building it plainly is the point.
@@ -224,4 +225,386 @@ end
         @test ustrip(us"m^3", volume(state).solid) == 0.0
     end
 
+end
+
+@testsection "a member is matched by identity, not by its label" begin
+
+    # `_resolve_site_families` matched members to the system by `symbol` alone.
+    # A symbol is a label, and the species a label lands on need not be the one
+    # the family validated. The code carried a comment asserting that a shared
+    # member was unreachable; these are the inputs that reach it.
+
+    support = SurfaceSupport("oxide", nothing, FixedSurfaceArea(600.0))
+    cap = TotalSiteAmount(5.0e-6)
+    aq = [_aq("H2O@", SC_AQSOLVENT), _aq("H+")]
+
+    @testset "two families, different site symbols, one set of labels" begin
+        # Same label `S1`/`S2` on both sides, different pseudo-elements behind
+        # them. Resolving by name gives BOTH families the same indices, so the
+        # second family's conservation row is simply absent from the matrix —
+        # and nothing says so.
+        s_free = Species("XsOH"; symbol = "S1", aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        s_occ = Species("XsONa"; symbol = "S2", aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        w_free = Species("XwOH"; symbol = "S1", aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        w_occ = Species("XwONa"; symbol = "S2", aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+
+        fam_s = SiteFamily("Xs", s_free, [s_occ]; capacity = cap, support)
+        fam_w = SiteFamily("Xw", w_free, [w_occ]; capacity = cap, support)
+
+        # The two families are legitimate on their own: different pseudo-elements,
+        # so the "one symbol, one family" guard does not fire. It is the label
+        # collision that has to be caught, and it was not.
+        @test fam_s.site === :Xs
+        @test fam_w.site === :Xw
+
+        species = vcat(aq, [s_free, s_occ])
+        @test_throws ArgumentError ChemicalSystem(
+            species, [aq[1], aq[2], s_free]; site_families = [fam_s, fam_w],
+        )
+    end
+
+    @testset "a family's qualified copy is not the system's species" begin
+        # `SiteFamily` requalifies copies of its members as AS_SURFACE. The
+        # system keeps what the caller passed. Pass unqualified species to both
+        # and the family believes itself on a surface while `idx_surface` is
+        # empty — the site mixing runs and the phase accounting disagrees.
+        raw_free = Species("XsOH")                       # AS_UNDEF, deliberately
+        raw_occ = Species("XsONa")
+        fam = SiteFamily("Xs", raw_free, [raw_occ]; capacity = cap, support)
+
+        # The family did qualify its own copies…
+        @test all(sp -> aggregate_state(sp) == AS_SURFACE, ChemistryLab.site_members(fam))
+        # …so the mismatch with the caller's originals is real, and refused.
+        species = vcat(aq, [raw_free, raw_occ])
+        @test_throws ArgumentError ChemicalSystem(
+            species, [aq[1], aq[2], raw_free]; site_families = [fam],
+        )
+    end
+
+    @testset "same label, different formula" begin
+        # The narrowest form: one label, two chemistries.
+        declared = Species("XsOH"; symbol = "T", aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        present = Species("XsOH2+"; symbol = "T", aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        other = Species("XsO-"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        fam = SiteFamily("Xs", declared, [other]; capacity = cap, support)
+        species = vcat(aq, [present, other])
+        @test_throws ArgumentError ChemicalSystem(
+            species, [aq[1], aq[2], present]; site_families = [fam],
+        )
+    end
+
+    @testset "the ordinary declaration still builds" begin
+        # The guard must not cost anything to a system declared properly.
+        cs, _ = _hfo_system()
+        @test cs isa ChemicalSystem
+        @test length(cs.site_groups) == 1
+        @test !isempty(cs.idx_surface)
+    end
+end
+
+@testsection "the site-density scale a constant refers to" begin
+
+    # An intrinsic adsorption constant is not a property of a surface alone: it
+    # is fitted at some total site density, and its value depends on that
+    # choice. Kulik (2002) eq. 21 is the conversion, and he makes the point on
+    # Dzombak & Morel's own two densities — which is what makes this checkable
+    # against a published number rather than against itself.
+
+    @testset "Kulik's own worked example" begin
+        # Published: +log(2.254/12.05) = -0.73 for the weak sites and
+        # log(0.056/12.05) = -2.33 for the strong ones.
+        @test round(convert_logk_site_density(0.0, 2.254); digits = 2) == -0.73
+        @test round(convert_logk_site_density(0.0, 0.056); digits = 2) == -2.33
+
+        # The two shifts differ by 1.6 log units, which is the substance of the
+        # remark: correlating one of their constants against the other without
+        # converting compares two different scales.
+        weak = convert_logk_site_density(0.0, 2.254)
+        strong = convert_logk_site_density(0.0, 0.056)
+        @test abs(weak - strong) ≈ log10(2.254 / 0.056) rtol = 1.0e-12
+        @test abs(weak - strong) > 1.6
+    end
+
+    @testset "the conversion is a change of scale, with the properties of one" begin
+        # Identity at the reference density: nothing to convert.
+        @test convert_logk_site_density(3.7, REFERENCE_SITE_DENSITY_NM2) == 3.7
+        # Additive in logK, since it only shifts.
+        @test convert_logk_site_density(3.7, 2.254) - convert_logk_site_density(0.0, 2.254) ≈ 3.7
+        # Reversible: converting to Γ° and back gives the original.
+        there = convert_logk_site_density(2.5, 2.254)
+        back = convert_logk_site_density(there, REFERENCE_SITE_DENSITY_NM2^2 / 2.254)
+        @test back ≈ 2.5 rtol = 1.0e-12
+        # The side the neutral group is written on flips the sign, and nothing
+        # else — that is the whole content of the second half of eq. 21.
+        @test convert_logk_site_density(0.0, 2.254; free_site_side = :product) ≈
+            -convert_logk_site_density(0.0, 2.254)
+        # Only the RATIO enters, so any consistent unit works.
+        @test convert_logk_site_density(0.0, 2.254) ≈
+            convert_logk_site_density(0.0, 2.254e18 / AVOGADRO; Γ0 = REFERENCE_SITE_DENSITY)
+    end
+
+    @testset "the reference density is derived, not transcribed twice" begin
+        # 12.05 nm⁻² is what Kulik writes; the mol/m² form comes from it through
+        # the library's Avogadro constant, so the two cannot drift apart.
+        @test REFERENCE_SITE_DENSITY ≈ REFERENCE_SITE_DENSITY_NM2 * 1.0e18 / AVOGADRO
+        @test REFERENCE_SITE_DENSITY ≈ 2.0e-5 rtol = 1.0e-3
+        @test AVOGADRO == ustrip(us"1/mol", AVOGADRO_Q)
+    end
+
+    @testset "refusals" begin
+        @test_throws ArgumentError convert_logk_site_density(0.0, 0.0)
+        @test_throws ArgumentError convert_logk_site_density(0.0, -1.0)
+        @test_throws ArgumentError convert_logk_site_density(0.0, 1.0; Γ0 = 0.0)
+        @test_throws ArgumentError convert_logk_site_density(0.0, 1.0; free_site_side = :both)
+    end
+end
+
+@testsection "a site budget that follows its host" begin
+
+    fs = _surf("XsOH")
+    mk(cap, sup) = SiteFamily("Xs", fs, AbstractSpecies[]; capacity = cap, support = sup)
+    coupled(area) = SurfaceSupport("s", "Host", area; coupling = SITES_FOLLOW_HOST)
+    M = 0.1                                   # kg/mol, the host's molar mass
+
+    @testset "the coupling is asked for, never inferred" begin
+        # Naming a host does not couple anything: the kinetics has named one
+        # since long before, to find the amount a rate law scales with.
+        @test SurfaceSupport("s", "Host", FixedSurfaceArea(1.0)).coupling === SITES_FIXED
+        @test SurfaceSupport("s", FixedSurfaceArea(1.0)).coupling === SITES_FIXED
+        @test coupled(BETSurfaceArea(90.0)).coupling === SITES_FOLLOW_HOST
+        # And following a host with no host named is refused at construction.
+        @test_throws ArgumentError SurfaceSupport(
+            "s", nothing, FixedSurfaceArea(1.0); coupling = SITES_FOLLOW_HOST,
+        )
+        @test_throws ArgumentError SurfaceSupport(
+            "s", FixedSurfaceArea(1.0); coupling = SITES_FOLLOW_HOST,
+        )
+    end
+
+    @testset "ν is the coefficient, and it is the obvious product" begin
+        # q·M for a mass density, Γ·a·M for an area density over a specific
+        # area — both checkable by hand, which is why they are checked that way.
+        @test ChemistryLab.sites_per_host(
+            mk(MassSiteDensity(2.0), coupled(BETSurfaceArea(90.0))), M,
+        ) ≈ 2.0 * M
+        @test ChemistryLab.sites_per_host(
+            mk(AreaSiteDensity(1.0e-5), coupled(BETSurfaceArea(90.0))), M,
+        ) ≈ 1.0e-5 * 90.0 * M
+    end
+
+    @testset "what is refused is refused on evidence, not on a type list" begin
+        # A total amount and an area over a FIXED area are constants: they do
+        # not follow anything, and the probe finds that by scaling the host.
+        @test_throws ArgumentError ChemistryLab.sites_per_host(
+            mk(TotalSiteAmount(5.0e-6), coupled(BETSurfaceArea(90.0))), M,
+        )
+        @test_throws ArgumentError ChemistryLab.sites_per_host(
+            mk(AreaSiteDensity(1.0e-5), coupled(FixedSurfaceArea(600.0))), M,
+        )
+        # A shrinking core is linear exactly at p = 1 and nowhere else, which is
+        # the case the probe exists for: the nonlinearity is invisible if `n₀`
+        # is scaled along with `n`, because the ratio is then always one.
+        @test ChemistryLab.sites_per_host(
+            mk(AreaSiteDensity(1.0e-5), coupled(ShrinkingCoreArea(BETSurfaceArea(90.0); exponent = 1))), M,
+        ) ≈ 1.0e-5 * 90.0 * M rtol = 1.0e-6
+        @test_throws ArgumentError ChemistryLab.sites_per_host(
+            mk(AreaSiteDensity(1.0e-5), coupled(ShrinkingCoreArea(BETSurfaceArea(90.0); exponent = 2 // 3))), M,
+        )
+        # A capacity of zero passes proportionality emptily, and is refused for
+        # that reason rather than admitted as a family with no sites.
+        @test_throws ArgumentError ChemistryLab.sites_per_host(
+            mk(MassSiteDensity(0.0), coupled(BETSurfaceArea(90.0))), M,
+        )
+    end
+end
+
+@testsection "the coupling row, built from the declaration" begin
+
+    # `site_coupling_rows` states `Σ dₖ nₖ − ν n_host = 0` for a coupled family.
+    # It is built and checked here; it is deliberately NOT imposed by the solver
+    # yet, for the reason its docstring measures — `SM.A` already carries a site
+    # row pinning the same total, and two of them forbid the host to move.
+
+    h2o = _aq("H2O@", SC_AQSOLVENT)
+    hp = _aq("H+")
+    ca = _aq("Ca+2")
+    host = Species(
+        "Ca(OH)2"; symbol = "Portlandite",
+        aggregate_state = AS_CRYSTAL, class = SC_COMPONENT,
+    )
+    free, occ = _surf("XsOH"), _surf("XsOH2+")
+
+    function build(coupling)
+        sup = SurfaceSupport("sorbent", "Portlandite", BETSurfaceArea(90.0); coupling)
+        cap = coupling === SITES_FOLLOW_HOST ?
+            AreaSiteDensity(1.0e-5) : TotalSiteAmount(1.0e-3)
+        fam = SiteFamily("Xs", free, [occ]; capacity = cap, support = sup)
+        cs = ChemicalSystem(
+            [h2o, hp, ca, host, free, occ], [h2o, hp, ca, free]; site_families = [fam],
+        )
+        return cs, fam
+    end
+
+    @testset "uncoupled systems get nothing at all" begin
+        cs, _ = build(SITES_FIXED)
+        rows, labels = site_coupling_rows(cs)
+        @test size(rows) == (0, length(cs.species))
+        @test isempty(labels)
+    end
+
+    @testset "a coupled family gets one row, and it is the obvious one" begin
+        cs, _ = build(SITES_FOLLOW_HOST)
+        rows, labels = site_coupling_rows(cs)
+        @test labels == ["Xs"]
+        @test size(rows) == (1, length(cs.species))
+
+        idx(s) = findfirst(==(s), symbol.(cs.species))
+        M = ustrip(us"kg/mol", host[:M])
+        ν = 1.0e-5 * 90.0 * M                 # Γ · a · M, checkable by hand
+        @test rows[1, idx("XsOH")] == 1.0     # denticity, read from the formula
+        @test rows[1, idx("XsOH2+")] == 1.0
+        @test rows[1, idx("Portlandite")] ≈ -ν
+        # Everything else is untouched: the row says nothing about the aqueous
+        # species, which is what makes it a site balance and not a mass balance.
+        for s in ("H2O@", "H+", "Ca+2")
+            @test rows[1, idx(s)] == 0.0
+        end
+
+        # And the row is exactly `Σ d n − ν n_host` evaluated on any composition.
+        n = [55.5, 1.0e-6, 1.0e-3, 0.1, 5.0e-6, 2.0e-6]
+        @test rows[1, :]' * n ≈ 5.0e-6 + 2.0e-6 - ν * 0.1
+    end
+
+    @testset "a host that is not in the system is refused by name" begin
+        sup = SurfaceSupport("sorbent", "Ghost", BETSurfaceArea(90.0); coupling = SITES_FOLLOW_HOST)
+        fam = SiteFamily("Xs", free, [occ]; capacity = AreaSiteDensity(1.0e-5), support = sup)
+        cs = ChemicalSystem(
+            [h2o, hp, ca, host, free, occ], [h2o, hp, ca, free]; site_families = [fam],
+        )
+        @test_throws ArgumentError site_coupling_rows(cs)
+    end
+end
+
+@testsection "the matrix the equilibrium is constrained with" begin
+
+    h2o, hp, ca = _aq("H2O@", SC_AQSOLVENT), _aq("H+"), _aq("Ca+2")
+    host = Species(
+        "Ca(OH)2"; symbol = "Portlandite",
+        aggregate_state = AS_CRYSTAL, class = SC_COMPONENT,
+    )
+    free, occ = _surf("XsOH"), _surf("XsOCa+")
+    bare = _surf("Xs+")                      # the pure component, not a substance
+    bare0 = _surf("Xs")                      # neutral: degenerate, and refused
+    sp = [h2o, hp, ca, host, free, occ]
+    M = ustrip(us"kg/mol", host[:M])
+    ν = 1.0e-5 * 90.0 * M
+
+    fam(coupling) = SiteFamily(
+        "Xs", free, [occ];
+        capacity = coupling === SITES_FOLLOW_HOST ?
+            AreaSiteDensity(1.0e-5) : TotalSiteAmount(1.0e-3),
+        support = SurfaceSupport("s", "Portlandite", BETSurfaceArea(90.0); coupling),
+    )
+
+    @testset "uncoupled: the matrix is SM.A, untouched" begin
+        cs = ChemicalSystem(sp, [h2o, hp, ca, free]; site_families = [fam(SITES_FIXED)])
+        @test conservation_matrix(cs) == Float64.(cs.SM.A)
+    end
+
+    @testset "coupled over the free site: refused, and the message says why" begin
+        # The free site carries an oxygen and a hydrogen, so subtracting from
+        # its row subtracts those too. This is the case that invents matter.
+        cs = ChemicalSystem(sp, [h2o, hp, ca, free]; site_families = [fam(SITES_FOLLOW_HOST)])
+        e = try
+            conservation_matrix(cs)
+            nothing
+        catch err
+            err
+        end
+        @test e isa ArgumentError
+        @test occursin("BARE site", e.msg)
+        @test occursin("Species(\"Xs\")", e.msg)
+    end
+
+    @testset "coupled over the bare component: one entry, and only one" begin
+        cs = ChemicalSystem(sp, [h2o, hp, ca, bare]; site_families = [fam(SITES_FOLLOW_HOST)])
+        A0 = Float64.(cs.SM.A)
+        A = conservation_matrix(cs)
+        r = findfirst(p -> get(atoms(p), :Xs, 0) > 0, cs.SM.primaries)
+        j = findfirst(==("Portlandite"), symbol.(cs.species))
+        @test A[r, j] ≈ A0[r, j] - ν
+        # Nothing else moves. Asserting the difference matrix is sparse in one
+        # entry is stronger than checking the entry alone.
+        D = A - A0
+        D[r, j] = 0.0
+        @test all(iszero, D)
+
+        # And the corrected site row IS the row form of the same constraint.
+        rows, labels = site_coupling_rows(cs)
+        @test labels == ["Xs"]
+        @test A[r, :] ≈ rows[1, :]
+    end
+
+    @testset "a component the basis cannot separate from charge is refused" begin
+        # Here every species carrying :Xs carries it with a fixed amount of
+        # charge and nothing else puts :Zz in the matrix, so the site row and
+        # the charge row are one row and only `y_Xs + y_Zz` is identifiable.
+        # Measured, the two multipliers ran to ±2.3e5 while their sum stayed at
+        # −60 and the solve stalled.
+        cs = ChemicalSystem(sp, [h2o, hp, ca, bare0]; site_families = [fam(SITES_FOLLOW_HOST)])
+        @test "Zz" in symbol.(cs.SM.primaries)
+        e = try
+            conservation_matrix(cs)
+            nothing
+        catch err
+            err
+        end
+        @test e isa ArgumentError
+        @test occursin("y_Xs + y_Zz", e.msg)
+        # The refusal reports what it measured rather than only its verdict:
+        # the rows are exactly parallel here.
+        @test occursin("|cos| = 1.0", e.msg)
+        # And the message names the charge to use, derived from the free site's
+        # own decomposition rather than guessed.
+        @test occursin("Species(\"Xs+\")", e.msg)
+    end
+
+    @testset "a charge component that is genuinely independent is not a parasite" begin
+        # THE REASON THIS TESTSET EXISTS. Refusing on the PRESENCE of :Zz among
+        # the primaries — which is what this did first — refuses systems that
+        # are perfectly well posed, and the charge it then suggested was itself
+        # refused on the next call, so the two suggestions pointed at each other.
+        #
+        # :Zz survives as a primary whenever charge is independent of the
+        # element rows, and one element in two oxidation states is enough: iron
+        # here. The charge row is then nonzero on the ferrous species and is not
+        # the site row at all.
+        fe2, fe3 = _aq("Fe+2"), _aq("Fe|3|+3")
+        sp_redox = [h2o, hp, ca, fe2, fe3, host, free, occ]
+        for comp in (bare, bare0)
+            cs = ChemicalSystem(
+                sp_redox, [h2o, hp, ca, fe3, comp]; site_families = [fam(SITES_FOLLOW_HOST)],
+            )
+            @test "Zz" in symbol.(cs.SM.primaries)
+            A = conservation_matrix(cs)          # accepted, both ways round
+            @test rank(A) == size(A, 1)
+            r = findfirst(p -> get(atoms(p), :Xs, 0) > 0, cs.SM.primaries)
+            j = findfirst(==("Portlandite"), symbol.(cs.species))
+            @test A[r, j] ≈ Float64(cs.SM.A[r, j]) - ν
+        end
+    end
+
+    @testset "the bare component need not be a species" begin
+        cs = ChemicalSystem(sp, [h2o, hp, ca, bare]; site_families = [fam(SITES_FOLLOW_HOST)])
+        @test !("Xs+" in symbol.(cs.species))
+        @test "Xs+" in symbol.(cs.SM.primaries)
+        # It carries the site symbol and nothing else, which is the property the
+        # whole correction rests on.
+        prim = cs.SM.primaries[findfirst(p -> get(atoms(p), :Xs, 0) > 0, cs.SM.primaries)]
+        @test ChemistryLab._is_bare_site(prim, :Xs)
+        @test !ChemistryLab._is_bare_site(free, :Xs)
+        # A charge is allowed and usually required; real atoms are not.
+        @test ChemistryLab._is_bare_site(bare0, :Xs)
+        @test !ChemistryLab._is_bare_site(occ, :Xs)
+    end
 end
