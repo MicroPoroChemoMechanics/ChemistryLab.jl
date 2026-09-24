@@ -416,3 +416,70 @@ end
         )
     end
 end
+
+@testsection "the coupling row, built from the declaration" begin
+
+    # `site_coupling_rows` states `Σ dₖ nₖ − ν n_host = 0` for a coupled family.
+    # It is built and checked here; it is deliberately NOT imposed by the solver
+    # yet, for the reason its docstring measures — `SM.A` already carries a site
+    # row pinning the same total, and two of them forbid the host to move.
+
+    h2o = _aq("H2O@", SC_AQSOLVENT)
+    hp = _aq("H+")
+    ca = _aq("Ca+2")
+    host = Species(
+        "Ca(OH)2"; symbol = "Portlandite",
+        aggregate_state = AS_CRYSTAL, class = SC_COMPONENT,
+    )
+    free, occ = _surf("XsOH"), _surf("XsOH2+")
+
+    function build(coupling)
+        sup = SurfaceSupport("sorbent", "Portlandite", BETSurfaceArea(90.0); coupling)
+        cap = coupling === SITES_FOLLOW_HOST ?
+            AreaSiteDensity(1.0e-5) : TotalSiteAmount(1.0e-3)
+        fam = SiteFamily("Xs", free, [occ]; capacity = cap, support = sup)
+        cs = ChemicalSystem(
+            [h2o, hp, ca, host, free, occ], [h2o, hp, ca, free]; site_families = [fam],
+        )
+        return cs, fam
+    end
+
+    @testset "uncoupled systems get nothing at all" begin
+        cs, _ = build(SITES_FIXED)
+        rows, labels = site_coupling_rows(cs)
+        @test size(rows) == (0, length(cs.species))
+        @test isempty(labels)
+    end
+
+    @testset "a coupled family gets one row, and it is the obvious one" begin
+        cs, _ = build(SITES_FOLLOW_HOST)
+        rows, labels = site_coupling_rows(cs)
+        @test labels == ["Xs"]
+        @test size(rows) == (1, length(cs.species))
+
+        idx(s) = findfirst(==(s), symbol.(cs.species))
+        M = ustrip(us"kg/mol", host[:M])
+        ν = 1.0e-5 * 90.0 * M                 # Γ · a · M, checkable by hand
+        @test rows[1, idx("XsOH")] == 1.0     # denticity, read from the formula
+        @test rows[1, idx("XsOH2+")] == 1.0
+        @test rows[1, idx("Portlandite")] ≈ -ν
+        # Everything else is untouched: the row says nothing about the aqueous
+        # species, which is what makes it a site balance and not a mass balance.
+        for s in ("H2O@", "H+", "Ca+2")
+            @test rows[1, idx(s)] == 0.0
+        end
+
+        # And the row is exactly `Σ d n − ν n_host` evaluated on any composition.
+        n = [55.5, 1.0e-6, 1.0e-3, 0.1, 5.0e-6, 2.0e-6]
+        @test rows[1, :]' * n ≈ 5.0e-6 + 2.0e-6 - ν * 0.1
+    end
+
+    @testset "a host that is not in the system is refused by name" begin
+        sup = SurfaceSupport("sorbent", "Ghost", BETSurfaceArea(90.0); coupling = SITES_FOLLOW_HOST)
+        fam = SiteFamily("Xs", free, [occ]; capacity = AreaSiteDensity(1.0e-5), support = sup)
+        cs = ChemicalSystem(
+            [h2o, hp, ca, host, free, occ], [h2o, hp, ca, free]; site_families = [fam],
+        )
+        @test_throws ArgumentError site_coupling_rows(cs)
+    end
+end

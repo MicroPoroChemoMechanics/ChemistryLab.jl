@@ -679,6 +679,41 @@ end
         @test_throws ArgumentError host_consistent_state(ChemicalState(cs, n))
     end
 
+    @testset "a capacity measured on a host is evaluated on that host" begin
+        # The other half of the contract: given a host, the density is read on
+        # its amount. This is the path a coupled support takes, and until now
+        # only its refusal was exercised.
+        h2o, hp, ca2 = reference_species(("H2O@", "H+", "Ca+2"))
+        host = reference_species("Portlandite"; db = :cemdata18)
+        free3 = Species("XsOH"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        free3[:ΔₐG⁰] = _g0(0.0)
+        fam3 = SiteFamily(
+            "Xs", free3, AbstractSpecies[];
+            capacity = MassSiteDensity(2.0),
+            support = SurfaceSupport(
+                "sorbent", "Portlandite", FixedSurfaceArea(1.0);
+                coupling = SITES_FOLLOW_HOST,
+            ),
+        )
+        cs3 = ChemicalSystem(
+            [h2o, hp, ca2, host, free3], [h2o, hp, ca2, free3]; site_families = [fam3],
+        )
+        M = ustrip(us"kg/mol", host[:M])
+        n_host = 0.1
+        st3 = ChemicalState(
+            cs3,
+            [moles_of_water() * u"mol", 1.0e-12u"mol", 1.0e-12u"mol", n_host * u"mol", 1.0e-12u"mol"],
+        )
+        # q · M · n_host, checkable by hand.
+        @test declared_site_moles(st3, fam3) ≈ 2.0 * M * n_host
+        # And it MOVES with the host, which is the whole point of the coupling.
+        st4 = ChemicalState(
+            cs3,
+            [moles_of_water() * u"mol", 1.0e-12u"mol", 1.0e-12u"mol", 2n_host * u"mol", 1.0e-12u"mol"],
+        )
+        @test declared_site_moles(st4, fam3) ≈ 2 * declared_site_moles(st3, fam3)
+    end
+
     @testset "a capacity that needs a host, without one, is refused" begin
         # An area or mass density cannot be evaluated without the solid that
         # carries the sites. Evaluating it at zero would report a capacity of

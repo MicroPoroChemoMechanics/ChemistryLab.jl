@@ -780,6 +780,7 @@ end
     ca2p = Species("Ca+2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
     co3 = Species("CO3-2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
     h2o = Species("H2O@"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
+    hp_ = Species("H+"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
     cs = ChemicalSystem([h2o, ca2p, co3, cal, arg], [h2o, ca2p, co3])
     rxn = Reaction([cal, ca2p, co3]; symbol = "calcite dissolution")
 
@@ -812,6 +813,29 @@ end
     # Declaration order must not matter, which a single ordering cannot show.
     cs_rev = ChemicalSystem([h2o, ca2p, co3, arg, cal], [h2o, ca2p, co3])
     @test ChemistryLab._surface_context(cs_rev, rxn, support)[1] == "Cal"
+
+    # The other entry point: a bare area model, which rediscovers the host from
+    # the reaction instead of being told. It must resolve to a symbol too — the
+    # two entry points share one contract, and only one of them was tested.
+    bare_name, bare_M, bare_area = ChemistryLab._surface_context(
+        cs, rxn, BETSurfaceArea(90.0u"m^2/kg"),
+    )
+    @test bare_name == "Cal"                  # the reaction's mineral, by symbol
+    @test bare_area isa BETSurfaceArea
+    @test bare_M ≈ ustrip(us"kg/mol", cal[:M])
+    # `_find_mineral_idx` falls back to the first reactant present when no
+    # crystal is found, so an all-aqueous reaction resolves to a species rather
+    # than failing. That is the shipped behavior and it is asserted, not
+    # assumed — a reader looking for a refusal here would be looking for the
+    # wrong thing.
+    oh = Species("OH-"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    cs_aq = ChemicalSystem([h2o, hp_, oh], [h2o, hp_])
+    aq_only = Reaction([h2o, hp_, oh]; symbol = "water dissociation")
+    @test ChemistryLab._mineral_name_and_mass(cs_aq, aq_only)[1] in symbol.(cs_aq.species)
+
+    # It refuses only when no reactant of the reaction is in the system at all,
+    # which is a reaction written against a different system.
+    @test_throws ArgumentError ChemistryLab._mineral_name_and_mass(cs_aq, rxn)
 
     # A species with no symbol at all falls back to its formula, and that is
     # refused when the formula names more than one species rather than being

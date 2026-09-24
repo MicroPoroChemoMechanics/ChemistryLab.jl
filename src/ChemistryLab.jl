@@ -507,6 +507,8 @@ module ChemistryLab
         REFERENCE_SITE_DENSITY,
         REFERENCE_SITE_DENSITY_NM2,
         convert_logk_site_density,
+        sites_per_host,
+        site_coupling_rows,
         area_ratio,
         area_method,
         surface_area,

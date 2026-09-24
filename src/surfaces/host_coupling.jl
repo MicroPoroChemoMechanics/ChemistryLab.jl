@@ -386,3 +386,108 @@ function sites_per_host(family::SiteFamily, M_host::Real)
     end
     return ν
 end
+
+# ── The coupling as an ADDED row, never as a changed composition ─────────────
+
+"""
+    site_coupling_rows(cs::ChemicalSystem) -> (Matrix{Float64}, Vector{String})
+
+One row per family whose support is `SITES_FOLLOW_HOST`, stating that the sites
+in use equal `ν` times the host's amount:
+
+```math
+\\sum_k d_k\\, n_k \\;-\\; \\nu\\, n_{\\text{host}} \\;=\\; 0
+```
+
+with `d_k` the denticity of each member. Returns the rows and the family names
+that label them; both are empty when nothing is coupled, so a system without a
+coupled surface gets back exactly what it had.
+
+# Why an added row, and not a coefficient in the composition matrix
+
+Because the obvious alternative is **impossible**, and that is worth stating
+once rather than rediscovering.
+
+Writing the coupling as `A[site, host] -= ν` in the projected matrix changes
+what the system conserves: the rows of `A` are indexed by primary species, so
+subtracting there subtracts the free site's whole composition — and a free site
+carries real atoms, an oxygen and a hydrogen for `XsOH`. The system then
+conserves `M n − ν m_free n_host`, which creates `ν` moles of oxygen and `ν` of
+hydrogen per mole of host. For Dzombak and Morel's weak sites, `ν = 0.2`: seven
+percent of the oxygen of `Fe(OH)₃`, invented.
+
+The repair would be to subtract `ν` times a preimage of the **pure** site
+pseudo-element instead. No such preimage exists. Measured on two systems of
+different structure — an amphoteric oxide over `[:H, :O, :Xs, :Zz]` and a
+cation exchanger over `[:Na, :K, :H, :O, :Xc, :Zz]` — the least-squares residual
+`‖M_indep v − Xs_unit‖` comes out `0.378` and `0.500`, not zero. The reason is
+structural rather than a quirk of a basis: a site symbol never appears alone.
+Every species carrying it carries it attached to matter, and only one site
+species can be primary, so no combination of primaries yields a bare site with
+every real atom and the charge at zero.
+
+An added row has none of this to answer for. `SM.A` **is** the encoding of
+element conservation, and leaving it alone leaves that conservation exact: the
+surface species carry their own oxygen and hydrogen in their own formulas, the
+host carries its own, and growing the site population draws them from the water
+through the ordinary element rows. Automatically, with nothing to correct.
+
+What it does cost is that `saturation_indices` reads `SM.A` and does not see
+this row; the host's reported index has to be taught about it separately, or it
+would disagree with the stationarity the solver actually reached.
+
+# !!! warning "These rows are built, and deliberately not yet imposed"
+
+`DualEquilibriumSolver` does **not** append them, because appending them alone
+over-determines the system, and that was measured rather than reasoned about.
+
+`SM.A` already carries a site row: the one whose primary is the free site, which
+reads `Σ dₖ nₖ = b` with `b` taken from the initial amounts. Adding a row that
+ties the same sum to the host leaves two equations on one quantity, and together
+they say `n_host = n_host,0` — the host may not dissolve at all. Run on
+portlandite carrying sites at `Γ = 1e-5 mol/m²` over a BET area of 90 m²/kg, the
+solve returned `MaxIters`, the host moved from 0.1 to 0.0883 mol anyway, and the
+site total stayed at `ν × 0.1` exactly: the solver satisfied the old row and
+violated the new one.
+
+Element conservation was excellent through all of it — oxygen to `6e-16` and
+hydrogen to `5e-13` relative — which is the one thing this design was for and
+does deliver.
+
+Making the coupling real needs the ORIGINAL site row to stop being a
+conservation row. That is not a line of code: in the projected basis the site
+row is entangled with the element rows through `M_indep`, so freeing it destroys
+oxygen and hydrogen unless the freed degree of freedom is compensated — and the
+compensation is the preimage of the bare site pseudo-element, which is exactly
+what does not exist. The two facts are the same fact seen twice.
+"""
+function site_coupling_rows(cs::ChemicalSystem)
+    empty_rows = Matrix{Float64}(undef, 0, length(cs.species))
+    fams = cs.site_families
+    fams === nothing && return empty_rows, String[]
+    coupled = [f for f in fams if surface_support(f).coupling === SITES_FOLLOW_HOST]
+    isempty(coupled) && return empty_rows, String[]
+
+    out = zeros(Float64, length(coupled), length(cs.species))
+    labels = String[]
+    for (r, f) in enumerate(coupled)
+        host = surface_support(f).host
+        j = findfirst(s -> symbol(s) == host, cs.species)
+        j === nothing && throw(
+            ArgumentError(
+                "SiteFamily \"$(name(f))\" follows host \"$host\", which is not a " *
+                    "species of this system. A coupled family needs the solid whose " *
+                    "amount its sites track.",
+            )
+        )
+        ν = sites_per_host(f, _molar_mass_si(cs.species[j]))
+        for sp in site_members(f)
+            i = findfirst(s -> symbol(s) == symbol(sp), cs.species)
+            i === nothing && continue
+            out[r, i] += denticity(f, sp)
+        end
+        out[r, j] -= ν
+        push!(labels, name(f))
+    end
+    return out, labels
+end
