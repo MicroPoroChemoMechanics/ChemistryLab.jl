@@ -190,13 +190,15 @@ One per surface species, zero on every aqueous one: that row **is**
 the protolysis, `XsOH2+ = XsOH + H+` and `XsO- = XsOH − H+`, written by the same
 assembly that writes every other reaction.
 
-!!! warning "The primary is the free site, never a bare site species"
-    Declaring `Species("Xs")` as the site primary looks equivalent and is not. A
-    neutral bare site is inconsistent in charge with a neutral free site, which
+!!! warning "With a fixed support, the primary is the free site"
+    Declaring a **neutral** `Species("Xs")` as the site primary looks equivalent
+    and is not. It is inconsistent in charge with a neutral free site, which
     flips the exact rank test inside [`StoichMatrix`](@ref) and adds a spurious
-    charge component — silently. It also never enters `cs.species`, so
-    [`saturation_indices`](@ref) would zero its potential and report a wrong
-    index for every surface species, again without a word.
+    charge component — silently.
+
+    A support whose sites **follow their host** is the one case that needs a
+    bare component, and it needs a *charged* one. See below: the package refuses
+    the other two declarations by name rather than letting either through.
 
 ### What is refused, and why
 
@@ -344,3 +346,63 @@ under either exchange convention. That is not an inconsistency: on an exchanger
 the sites counted are charges, and a divalent cation neutralizes two of them
 without straddling two surface groups. A surface complex that genuinely
 straddles two sites is a combinatorial problem this release does not solve.
+
+
+## When the support precipitates
+
+Everything above poses the site budget once. A sorbent that appears during a
+calculation — a C-S-H forming as a paste hydrates — carries its sites with it,
+so the budget has to follow its amount instead.
+
+Ask for it on the support, and give the family a capacity measured per unit mass
+or per unit specific area, since those are the ones proportional to how much
+host there is:
+
+```julia
+support = SurfaceSupport(
+    "C-S-H", "CSHQ-JenD", BETSurfaceArea(90.0u"m^2/kg");
+    coupling = SITES_FOLLOW_HOST,
+)
+family = SiteFamily("Xs", free, [bound]; capacity = AreaSiteDensity(1.0e-5), support)
+```
+
+Naming a host does **not** couple anything on its own: the kinetics has named
+one since long before, to find the amount a rate law scales with. The coupling
+is asked for.
+
+`ν`, the moles of sites one mole of host carries, is then `Γ·a·M` — or `q·M` for
+a mass density — and [`sites_per_host`](@ref) returns it. Which capacities
+qualify is **measured**, not listed: it evaluates the capacity at two scaled
+host amounts and requires the budget to scale with them. A
+[`TotalSiteAmount`](@ref) and an area density over a [`FixedSurfaceArea`](@ref)
+are constants and are refused; a [`ShrinkingCoreArea`](@ref) passes at `p = 1`
+and nowhere else.
+
+### The component is the bare site, carrying a charge
+
+A coupled family needs its **component** — not its free site — as the primary,
+and that component carries the charge the free site carries with its site
+symbol. `XsOH` is `Xs⁺ + OH⁻`, so the component is `Species("Xs+")`; an
+exchanger `NaXc` is `Xc⁻ + Na⁺`, so its component is negative.
+
+```julia
+bare = Species("Xs+"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+cs = ChemicalSystem(species, [h2o, hp, ca, bare]; site_families = [family])
+```
+
+It need not be among the species: it is a component, not a substance.
+
+Both ways of getting this wrong are refused, by name and with what they cost.
+Over the **free site**, subtracting the coupling would subtract that site's real
+atoms too — seven percent of the oxygen of `Fe(OH)₃` invented, at Dzombak and
+Morel's weak-site density. Over a **neutral** bare site, only the sum of the
+site and charge potentials is identifiable, and the solver runs the two to
+`±2.3e5` before stalling.
+
+### What to check afterwards
+
+[`site_budget_residual`](@ref) reports, per family, the moles of sites the state
+carries minus the moles its capacity declares. Zero means the two say the same
+thing. [`host_consistent_state`](@ref) derives the free-site amount from the
+declaration so they do, and [`check_site_budget`](@ref) turns a disagreement into
+an error instead of a silently different calculation.
