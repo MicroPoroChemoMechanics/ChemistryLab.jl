@@ -239,28 +239,43 @@ end
         # The same model, the same points, the potential eliminated — kept as a
         # measurement rather than removed, because it is what says the unknown
         # was necessary and not merely tidier.
+        #
+        # The points are classified by a margin and not by a line drawn close to
+        # one of them. With OptimaSolver 0.6.0 the solved points ended below
+        # 1.3e-16 and every refused one above 4.9e-2. OptimaSolver 0.6.1 stops
+        # its inner iteration once it has ceased to contract, and two of the
+        # refused points (stiffness 6.21 and 14.35) then stop at 1.0e-8 and
+        # 3.2e-7 instead of diverging, while the solved ones stay below 5.4e-15.
+        # Neither version moves a point across, but the first of those two sat
+        # 0.4 % above the 1e-8 line this test used to classify with, where
+        # another machine could have counted it as solved. The line is now at
+        # 1e-11, and the claim that matters — nothing lies in between — is
+        # asserted on both sides with a decade of margin under either version.
         stiff_ok, stiff_bad, n_ok = 0.0, Inf, 0
+        nearest_miss = Inf
         for ser in f.series, pt in ser.points
             # The forecast is made at PHREEQC's answer, so it predicts rather
             # than describes what this package happened to return.
             n_ref = f.n_sites .* [pt.free, pt.protonated, pt.deprotonated]
             stiff = electrostatic_stiffness(dl, z_members, n_ref, pt.I, 298.15)
             r = run(ser, pt; surface_potential = :eliminated)
-            if r.cert.stationarity < 1.0e-8
+            if r.cert.stationarity < 1.0e-11
                 n_ok += 1
                 stiff_ok = max(stiff_ok, stiff)
+                @test r.cert.stationarity < 1.0e-13   # solved outright, not narrowly
                 for (got, want) in zip(r.fracs, (pt.free, pt.protonated, pt.deprotonated))
                     @test got ≈ want rtol = 3.0e-3
                 end
             else
                 stiff_bad = min(stiff_bad, stiff)
-                # A diverged solve must never look like an answer: it violates
-                # mass action by four orders of magnitude and the certificate
-                # says so, fourteen orders of magnitude away from 1e-16.
-                @test r.cert.stationarity > 1.0e-3
+                nearest_miss = min(nearest_miss, r.cert.stationarity)
+                # Refused, and not by a hair: a solve that does not converge must
+                # not end close enough to the solved ones to be taken for one.
+                @test r.cert.stationarity > 1.0e-9
             end
         end
         @test 0 < n_ok < 18                       # both regimes are exercised
+        @info "eliminated route, the refused point nearest to solving" nearest_miss
 
         # AND THE CRITERION PREDICTS THE SPLIT, with the limit strictly inside
         # the gap. This is the claim `ELECTROSTATIC_STIFFNESS_LIMIT` makes.
