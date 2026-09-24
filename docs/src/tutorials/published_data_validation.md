@@ -13,7 +13,7 @@ disagree with the database and does.
 
 Every number below is pinned by an assertion in `test/cemdata18_reference.jl`
 (584 of them), `test/atkins1992_reference.jl` (12), `test/limestone_blending_reference.jl` (25)
-or `test/chloride_binding_reference.jl` (26), so it is checked on every CI run.
+or `test/chloride_binding_reference.jl` (25), so it is checked on every CI run.
 
 ## Cemdata18 Tables 2 and 3: the solubility products
 
@@ -279,15 +279,35 @@ limestone is a filler.
 [Guo2018](@cite) Fig. 1(b) is unusually easy to reproduce, because the paper
 states its inventory outright instead of leaving it to be reconstructed: per
 liter of concrete, C-S-H 225 g, CH 90 g, AFm 9 g, AFt 22.5 g, porosity 14.6 %.
-Their thermodynamic data are CEMDATA18's, and the molar masses of their Table 3
-confirm the phases match one for one — AFm 622.5, AFt 1255.1, Friedel's salt
-561.3, CH 74.1 all reproduce from the CEMDATA18 formulas to better than
-0.03 g/mol. (Their CaCO₃, printed at 100.9, is a typo for 100.09; it touches
-nothing in this figure.)
+
+**Their constants are not CEMDATA18's.** Their §2 says so — *"Cemdata2007 gives
+`Kp` and `Δ_r G_T^0` for nearly all phases in cement hydrate"* — and the note
+under their dissolution table points at Lothenbach, Matschei, Möschner and
+Glasser (2008), which is Cemdata07. So this is a comparison **across database
+versions**, and the interesting question is where the two still agree.
+
+The phases do map one to one, and the molar masses of their Table 3 settle it:
+AFm 622.5, AFt 1255.1, Friedel's salt 561.3, CH 74.1 all reproduce from the
+CEMDATA18 formulas to better than 0.03 g/mol. (Their CaCO₃, printed at 100.9, is
+a typo for 100.09; it touches nothing in this figure.)
+
+!!! warning "The C-S-H carries 44.5 g of water, and it is easy to drop"
+    Guo write the C-S-H dissolution for `(CaO)₅(SiO₂)₃(H₂O)₆.₃`, `M = 574.1`,
+    while their Table 3's `191.4` is **one third** of that. So 225 g is
+    1.1755 mol of `(CaO)₁.₆₆₇(SiO₂)(H₂O)₂.₁` and carries **2.469 mol — 44.5 g —
+    of water inside the solid**.
+
+    Entering the C-S-H as lime and silica alone leaves the system 44.5 g short,
+    and the solver then takes that water back out of the pore solution to
+    hydrate the C-S-H: the pore volume comes out at **84 mL** against the
+    146 mL the stated porosity implies, every concentration is wrong by nearly a
+    factor of two, and Friedel's salt appears at 0.1 % NaCl where the paper says
+    it cannot. Counting the water moves the pore volume to 129 mL and the onset
+    back above 0.1 %.
 
 ### On the phase list that drew the figure
 
-Guo's Tables 1 and 2 carry five solids: C-S-H, CH, AFm, AFt and Friedel's salt.
+Guo's dissolution table carries five solids: C-S-H, CH, AFm, AFt and Friedel's salt.
 Restricted to those, the figure comes back (mol per liter of concrete):
 
 | | calculated | Fig. 1(b) |
@@ -315,11 +335,12 @@ mattering.
 
 **The hydration state.** CEMDATA18 carries monosulfate at 9, 10.5, 12, 14 and 16
 waters, and at these conditions the stable one is the **14-hydrate**, not the 12
-Guo used. Their own constant says so without their noticing: Table 2 gives
-`log K = −29.2628` for a phase written `Ca₄Al₂(SO₄)(OH)₁₂·6H₂O`, `M = 622.5`,
-which is the 12-hydrate — but Cemdata18's value for the 12-hydrate is −29.23,
-and −29.26 is the 14-hydrate. One hydrate's constant paired with another's
-formula. It changes nothing, because the two are 0.03 log units apart.
+Guo wrote. That is a difference between database versions, not a slip of theirs:
+their `log K = −29.2628` is Cemdata07's value for the 12-hydrate, and Cemdata18
+*recalculated* it to −29.23 — its Table 2 marks that entry `***`, "recalculated
+in this paper from ΔfG° values" — while carrying −29.26 for the 14-hydrate.
+Their number therefore lands within 0.003 of CEMDATA18's 14-hydrate by
+arithmetic coincidence. The amount is the same either way.
 
 **Kuzel's salt**, half a chloride and half a sulfate per AFm layer, is the phase
 the transition actually passes through. It holds the entire low-chloride range
@@ -327,8 +348,9 @@ and peaks at 0.5 % NaCl — where Guo has Friedel's salt barely starting:
 
 | % NaCl | 0.1 | 0.25 | 0.5 | 0.75 | 1.0 | 1.5 |
 |:--|--:|--:|--:|--:|--:|--:|
-| Kuzel's salt | 0.0016 | 0.0052 | **0.0113** | 0.0096 | 0.0017 | 0 |
-| Friedel's salt | 0 | 0 | 0 | 0.0017 | 0.0082 | 0.0096 |
+| monosulfate (14-hydrate) | 0.0131 | 0.0085 | 0.0010 | 0 | 0 | 0 |
+| Kuzel's salt | 0.0011 | 0.0047 | 0.0107 | **0.0116** | 0.0058 | 0 |
+| Friedel's salt | 0 | 0 | 0 | 0 | 0.0048 | 0.0096 |
 
 **And where it stops mattering.** Once the chloride is high enough to take the
 last sulfate out of the AFm layer, Kuzel's salt is gone and the two phase lists
@@ -337,6 +359,11 @@ theirs.
 
 ### Not checked, and why
 
+- **The pore volume**, which comes out at 129 mL against the 146 mL their
+  14.6 % porosity states. The 17 mL is the difference between Guo's C-S-H,
+  carrying 2.1 H₂O per `(CaO)₁.₆₆₇(SiO₂)`, and CEMDATA18's CSHQ end members,
+  which carry more and take the rest out of the pore. Nothing closes that gap
+  without replacing the C-S-H model.
 - **pH.** Guo reports 13.213 falling to 13.128; this system sits at 12.5, which
   is portlandite in alkali-free water. The difference is their pore solution's
   alkalis, whose concentrations the paper takes from a reference it does not

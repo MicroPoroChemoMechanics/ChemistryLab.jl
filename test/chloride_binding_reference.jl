@@ -12,10 +12,15 @@
 #     chloride replaces the sulfate of the AFm; the sulfate released converts
 #     more AFm into ettringite; by about 1 % NaCl no AFm is left.
 #
-# Guo's thermodynamic data are CEMDATA18's, cited as such, so the phases can be
-# matched one to one — and the molar masses of their Table 3 confirm it:
-# AFm 622.5, AFt 1255.1, Friedel's salt 561.3, CH 74.1 all reproduce from the
-# CEMDATA18 formulas to better than 0.03 g/mol.
+# GUO'S CONSTANTS ARE NOT CEMDATA18'S. Their §2 says so plainly -- "Cemdata2007
+# gives Kp and DrGT0 for nearly all phases in cement hydrate" -- and the note
+# under their dissolution table points at Lothenbach, Matschei, Moschner &
+# Glasser (2008), which is Cemdata07. So this is a comparison ACROSS database
+# versions, and the interesting question is where the two versions still agree.
+#
+# The phases themselves do map one to one, and the molar masses of their Table 3
+# settle it: AFm 622.5, AFt 1255.1, Friedel's salt 561.3, CH 74.1 all reproduce
+# from the CEMDATA18 formulas to better than 0.03 g/mol.
 
 @testsection "Chloride binding in a hydrated paste" begin
 
@@ -55,12 +60,22 @@
     function charged(cs, nacl_frac)
         st = ChemicalState(cs)
         n_csh = 225 / 191.4                       # Guo's C-S-H, M = 191.4
-        set_quantity!(st, "Lim", (1.67 * n_csh) * u"mol")
+        set_quantity!(st, "Lim", (1.6667 * n_csh) * u"mol")
         set_quantity!(st, "Amor-Sl", n_csh * u"mol")
+        # AND ITS STRUCTURAL WATER. Guo's dissolution reaction is written for
+        # (CaO)5(SiO2)3(H2O)6.3, M = 574.1; their Table 3's 191.4 is one third
+        # of that, so 225 g is 1.1755 mol of (CaO)1.667(SiO2)(H2O)2.1 and
+        # carries 2.469 mol -- 44.5 g -- of water in the SOLID. Leaving it out
+        # makes the system 44.5 g short: the solver then draws that water out
+        # of the pore solution to hydrate the C-S-H, and the pore volume comes
+        # out at 84 mL against the 146 mL the paper's porosity states.
         set_quantity!(st, "Portlandite", (90 / molar("Portlandite")) * u"mol")
         set_quantity!(st, "monosulphate12", (9 / molar("monosulphate12")) * u"mol")
         set_quantity!(st, "ettringite", (22.5 / molar("ettringite")) * u"mol")
-        set_quantity!(st, "H2O@", (pore_g * (1 - nacl_frac) / 18.015) * u"mol")
+        set_quantity!(
+            st, "H2O@",
+            (pore_g * (1 - nacl_frac) / 18.015 + 2.1 * n_csh) * u"mol"
+        )
         salt = pore_g * nacl_frac / 58.44
         if salt > 0
             set_quantity!(st, "Na+", salt * u"mol")
@@ -97,8 +112,9 @@
         return Dict(fractions[i] => rows[i] for i in eachindex(fractions))
     end
 
-    # Guo's own phase list — their Tables 1 and 2 carry C-S-H, CH, AFm, AFt and
-    # Friedel's salt, and nothing else.
+    # Guo's own phase list. Their dissolution table carries C-S-H, CH, AFm,
+    # AFt and Friedel's salt, and nothing else. (It is their Table 2 by the
+    # captions and their Table 1 by the body text, which disagree.)
     guo = sweep(split("Portlandite monosulphate12 ettringite C4AClH10 Lim Amor-Sl"))
 
     @testset "the figure, on the phase list that drew it" begin
@@ -111,7 +127,13 @@
         # Consumed by 1 %, which is where Guo places it and where the XRD of
         # Hirao et al. that they cite loses the AFm reflection.
         @test guo[0.01].AFm == 0
-        @test 0 < guo[0.005].AFm < guo[0.001].AFm < guo[0.0].AFm
+        @test 0 < guo[0.005].AFm < guo[0.0].AFm
+
+        # And nothing at all has happened at 0.1 %, which is Guo's own claim:
+        # below about 0.5 % "the concentration of chloride is so low that it
+        # cannot form Friedel's salt". The inventory is still untouched there.
+        @test guo[0.001].FS == 0
+        @test guo[0.001].AFm ≈ guo[0.0].AFm rtol = 1.0e-4
 
         # The plateau. Guo read 0.023 and 0.010 mol/L off Fig. 1(b).
         @test guo[0.02].AFt ≈ 0.023 rtol = 0.02
@@ -141,17 +163,14 @@
         #
         # FIRST, the hydration state. CEMDATA18 carries monosulfate at 9, 10.5,
         # 12, 14 and 16 waters, and at these conditions the stable one is the
-        # 14-hydrate — not the 12 Guo used. Their own constant says as much
-        # without their noticing: Guo's Table 2 gives log K = -29.2628 for a
-        # phase they write as Ca4Al2(SO4)(OH)12·6H2O, M = 622.5, which is the
-        # 12-hydrate. Cemdata18's value for the 12-hydrate is -29.23; -29.26 is
-        # the 14-hydrate. They paired one hydrate's constant with another's
-        # formula, and it made no difference because the two are 0.03 log units
-        # apart.
-        @test full[0.0].AFm14 > 0
-        @test full[0.0].AFm12 == 0
-        @test full[0.0].AFm ≈ guo[0.0].AFm rtol = 1.0e-3     # same amount either way
-
+        # 14-hydrate -- not the 12 Guo wrote. That is a difference between the
+        # two database versions and not a slip of theirs: Guo's log K of
+        # -29.2628 is Cemdata07's value for the 12-hydrate, and Cemdata18
+        # RECALCULATED it to -29.23 (its Table 2 marks that entry ***,
+        # "recalculated in this paper from DfG values") while carrying -29.26
+        # for the 14-hydrate. Their number therefore lands within 0.003 of
+        # CEMDATA18's 14-hydrate by arithmetic coincidence, and the amount is
+        # unaffected either way.
         # SECOND, Kuzel's salt — half a chloride and half a sulfate per AFm
         # layer — which is the phase the transition actually goes through. It
         # holds the whole low-chloride range and peaks where Guo has Friedel's
@@ -170,6 +189,12 @@
     end
 
     # NOT CHECKED, and worth saying why.
+    #
+    #  - The pore volume, which comes out at 129 mL against the 146 mL their
+    #    14.6 % porosity states. The 17 mL is the difference between Guo's
+    #    C-S-H, which carries 2.1 H2O per (CaO)1.667(SiO2), and CEMDATA18's
+    #    CSHQ end members, which carry more and take the rest out of the pore.
+    #    Nothing can close that gap without replacing the C-S-H model.
     #
     #  - pH. Guo reports 13.213 falling to 13.128 across the sweep; this system
     #    sits at 12.5, which is portlandite in alkali-free water. The difference
