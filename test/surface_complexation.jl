@@ -731,3 +731,101 @@ end
         @test_throws ArgumentError declared_site_moles(st2, fam2)
     end
 end
+
+@testsection "a site budget that follows its phase, against PHREEQC" begin
+
+    # PHREEQC has coupled a SURFACE to an EQUILIBRIUM_PHASES mineral since v2:
+    #
+    #     Hfo_sOH   Fe(OH)3(a)   equilibrium_phase   0.005   53300
+    #
+    # which is `SITES_FOLLOW_HOST` in another code's words. The fixture captures
+    # its COUPLING LAW over a titration that dissolves the sorbent step by step;
+    # `not_a_reproduction` states what is deliberately not shared between the
+    # two, and the test asserts on that field rather than trusting the prose
+    # around it.
+    F = reference_oracle("phreeqc_evolving_surface")
+
+    @testset "the oracle really is coupled" begin
+        # A fixture of a feature that was not switched on would compare nothing.
+        # Every partially dissolved state must carry exactly the declared moles
+        # of sites per mole of phase.
+        worst = 0.0
+        n_partial = 0
+        for pt in F.points
+            pt.fe_phase > 0 || continue
+            n_partial += 1
+            for (tot, coef) in (
+                    (pt.strong_total, F.sites_strong_per_mol),
+                    (pt.weak_total, F.sites_weak_per_mol),
+                )
+                worst = max(worst, abs(tot / pt.fe_phase / coef - 1))
+            end
+        end
+        @test n_partial >= 4                 # a law, not a single point
+        @info "PHREEQC coupling law" worst n_partial
+        # Measured at 2.0e-10; the threshold keeps three decades of margin. It
+        # was 7e-6 until the molalities were multiplied by the water mass, which
+        # is not 1 kg once acid has been added — a units error that reads as a
+        # coupling error.
+        @test worst < 1.0e-7
+    end
+
+    @testset "the sorbent goes with the phase, all the way to nothing" begin
+        first_pt, last_pt = F.points[1], F.points[end]
+        @test first_pt.fe_phase > 0.9e-3                 # intact at the start
+        @test last_pt.fe_phase == 0                      # gone at the end
+        # And the sites go with it: PHREEQC leaves them at the floor, not at a
+        # remembered value.
+        @test last_pt.strong_total < 1.0e-20
+        @test last_pt.weak_total < 1.0e-20
+        # In between, both fall monotonically with the phase — while there IS a
+        # phase. Past exhaustion the totals sit at a 1e-26 floor where their
+        # order carries no information, and requiring monotonicity there would
+        # be asserting on noise.
+        live = [pt for pt in F.points if pt.fe_phase > 0]
+        @test issorted([pt.fe_phase for pt in live]; rev = true)
+        @test issorted([pt.strong_total for pt in live]; rev = true)
+        @test all(pt -> pt.strong_total < 1.0e-20, setdiff(F.points, live))
+    end
+
+    @testset "this package states the same law" begin
+        # PHREEQC declares moles of sites per mole of phase directly. Here that
+        # is `ν`, and a mass density reaches it as `q · M`, so the two
+        # declarations meet on a number rather than on an intention.
+        host = reference_species("Portlandite"; db = :cemdata18)
+        M = ustrip(us"kg/mol", host[:M])
+        q = F.sites_strong_per_mol / M
+        free2 = Species("XwOH"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        free2[:ΔₐG⁰] = _g0(0.0)
+        fam = SiteFamily(
+            "Xw", free2, AbstractSpecies[];
+            capacity = MassSiteDensity(q),
+            support = SurfaceSupport(
+                "sorbent", "Portlandite", FixedSurfaceArea(1.0);
+                coupling = SITES_FOLLOW_HOST,
+            ),
+        )
+        @test ChemistryLab.sites_per_host(fam, M) ≈ F.sites_strong_per_mol rtol = 1.0e-12
+
+        # And the row the package builds is that law: `Σ d n − ν n_host = 0`.
+        h2o, hp, ca2 = reference_species(("H2O@", "H+", "Ca+2"))
+        bare = Species("Xw+"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        cs = ChemicalSystem(
+            [h2o, hp, ca2, host, free2], [h2o, hp, ca2, bare]; site_families = [fam],
+        )
+        rows, _ = site_coupling_rows(cs)
+        i = Dict(s => k for (k, s) in enumerate(symbol.(cs.species)))
+        @test rows[1, i["XwOH"]] == 1.0
+        @test rows[1, i["Portlandite"]] ≈ -F.sites_strong_per_mol rtol = 1.0e-12
+    end
+
+    @testset "what is not compared is written down" begin
+        @test occursin("not a shared surface model", F.not_a_reproduction)
+        @test occursin("no back-reaction", F.not_a_reproduction)
+        # Provenance read at run time, never assumed — including the engine
+        # version, which the older surface generator does not record.
+        @test F.phreeqc_engine == "3.7.3-15968"
+        @test F.database == "phreeqc.dat"
+        @test F.electrostatics == "-no_edl"
+    end
+end

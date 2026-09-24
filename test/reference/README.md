@@ -153,6 +153,7 @@ wherever its data is used.
 | `reaktoro_calcite_co2.py` | `reaktoro-env` | the `REAKTORO` fixture of `test/equilibrium_reference.jl` |
 | `reaktoro_coupling.py` | `reaktoro-env` | the `RKC` fixture of `test/coupling_reference.jl` |
 | `phreeqc_hfo_surface.py` | `mpcm-oracles` | a Zn sorption edge on hydrous ferric oxide, strong and weak sites, `-no_edl`; `--edl` switches to the diffuse layer, which is a **different model** |
+| `phreeqc_evolving_surface.py` | `mpcm-oracles` | a sorbent that DISSOLVES: a `SURFACE` coupled to an `EQUILIBRIUM_PHASES` mineral, titrated to exhaustion. Captures the coupling law, not a shared surface model |
 | `gems_bench.py` | `mpcm-oracles` | the GEMS3K status report above |
 
 ### A trap `phreeqc_hfo_surface.py` exists to not fall into twice
