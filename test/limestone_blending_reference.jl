@@ -95,6 +95,11 @@
             Mc = amount("monocarbonate"),
             AFt = amount("ettringite") + amount("ettringite30"),
             calcite = amount("Cal"),
+            # The page's argument is that the siliceous hydrogarnet tracks the
+            # iron one for one, and until now the AMOUNT was never read off —
+            # only the fraction of iron sitting in it. A claim about a phase
+            # needs the phase.
+            hydrogarnet = amount("C3AFS0.84H4.32") + amount("C3FS0.84H4.32"),
             fe_in_hg = (fe("C3AFS0.84H4.32") + fe("C3FS0.84H4.32")) /
                 sum(
                 n[i] * Float64(get(atoms_charge(cs.species[i]), :Fe, 0))
@@ -196,5 +201,43 @@
         # left over, to within the little the plateau keeps drifting.
         @test a4.calcite - a1.calcite ≈ 3.0 / oxide_mass("CaCO3") rtol = 0.05
         @test a4.Mc ≈ a1.Mc rtol = 0.05
+
+        # AND THE TABLE ITSELF, at the precision the page prints it. Everything
+        # above states the SHAPE of the figure — this phase is gone, that one
+        # has appeared, this one gained more than 40 %. None of it pins the four
+        # digits printed beside them, so a drift of 20 % in an amount would
+        # leave the suite green and the page stale. Half of the last printed
+        # digit is the tolerance; a number that moves past that is a number the
+        # page has to be told about.
+        @info "limestone: the computed step table" a0 a05 a1 a4
+        @info "limestone: hydrogarnet" hg449 = at[(4.0, 4.49)].hydrogarnet hg25 = at[(4.0, 2.5)].hydrogarnet
+        for (row, Ms, Hc, Mc, AFt, cal) in (
+                (a0, 0.009, 0.0, 0.0, 0.0067, 0.0),
+                (a05, 0.0, 0.0028, 0.0036, 0.0097, 0.0),
+                (a1, 0.0, 0.0, 0.0085, 0.0096, 0.0015),
+                (a4, 0.0, 0.0, 0.0083, 0.0093, 0.0317),
+            )
+            @test row.Ms ≈ Ms atol = 5.0e-5
+            @test row.Hc ≈ Hc atol = 5.0e-5
+            @test row.Mc ≈ Mc atol = 5.0e-5
+            @test row.AFt ≈ AFt atol = 5.0e-5
+            @test row.calcite ≈ cal atol = 5.0e-5
+        end
+
+        # The iron-capped hydrogarnet, at the two iron contents the ladder
+        # actually walks. The page prints six and computes two; the other four
+        # are marked there as the recorded rungs they are.
+        @test at[(4.0, 4.49)].hydrogarnet ≈ 0.0487 atol = 5.0e-5
+        @test at[(4.0, 2.5)].hydrogarnet ≈ 0.0283 atol = 5.0e-5
+        # One aluminum per iron: dropping the iron drops the phase with it, and
+        # that is the mechanism the whole section turns on. "Tracks the iron one
+        # for one" is an approximation and the measurement says by how much —
+        # the phase ratio is 0.581 where the iron ratio is 0.557, so it tracks
+        # to 4.3 %, not exactly. The ratio is pinned; the proportionality is
+        # then asserted at a tolerance that states the measured departure rather
+        # than hiding it.
+        ratio = at[(4.0, 2.5)].hydrogarnet / at[(4.0, 4.49)].hydrogarnet
+        @test ratio ≈ 0.581 atol = 5.0e-3
+        @test ratio ≈ 2.5 / 4.49 rtol = 0.06
     end
 end

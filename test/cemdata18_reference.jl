@@ -137,6 +137,8 @@ using JSON
         @test length(table2) == 52
 
         worst_ordinary = 0.0
+        worst_row = ""
+        ordinary = Float64[]
         for (s, logK_published, products) in table2
             @test haskey(sp, s)
 
@@ -152,13 +154,25 @@ using JSON
                 @test logK - logK_published ≈ msh_offset[s] atol = 0.005
             else
                 @test logK ≈ logK_published atol = 0.05
-                worst_ordinary = max(worst_ordinary, abs(logK - logK_published))
+                dev = abs(logK - logK_published)
+                push!(ordinary, dev)
+                dev > worst_ordinary && (worst_ordinary = dev; worst_row = s)
             end
         end
 
-        # Not merely "each within tolerance": the whole table agrees to better
-        # than the rounding of the published values.
-        @test worst_ordinary < 0.05
+        # PINNED, NOT BOUNDED. `worst_ordinary < 0.05` is what this asserted
+        # first, and the page quotes the number it displays — 0.041 — from a run
+        # rather than from the assertion. A threshold BOUNDS a disagreement; it
+        # does not PIN it. If the worst row drifted to 0.047 the suite would stay
+        # green while the page printed a stale 0.041, which is the one failure
+        # mode a comparison page cannot afford.
+        @test worst_ordinary ≈ 0.0406 atol = 5.0e-4
+        @test worst_row == "M8A-OH-LDH"
+        # 48 of the 50 are an order of magnitude better again, and the two that
+        # are not are the two layered double hydroxides whose published values
+        # are quoted to one decimal.
+        @test count(<(0.005), ordinary) == 48
+        @test sort(ordinary)[end - 1] ≈ 0.0204 atol = 5.0e-4
     end
 
     # ── Where the rebuilt Gibbs energy meets the tabulated one ───────────────
@@ -202,6 +216,25 @@ using JSON
             @test gap ≈ get(rebuilt, k, NaN) atol = 1.0
         end
         @test sort(found) == sort(collect(keys(rebuilt)))
+        # "220 of the 228" on the page is this subtraction, so the 228 is pinned
+        # here rather than recalled: a database update that adds a substance
+        # changes the sentence, and this is what says so.
+        @test count(k -> haskey(rec[k], "sm_gibbs_energy"), keys(rec)) == 228
+        # The entropy the gap implies, which is the column the page prints and
+        # nothing asserted. `ΔfG° = ΔfH° − T S°`, so a gap on `ΔfG°` at the
+        # reference temperature is `−T` times an inconsistency in `S°`.
+        # The page prints this column to two decimals, so that is the precision
+        # it is pinned at — half the last displayed digit. Writing more digits
+        # here than the page shows would assert something the page does not say.
+        implied = Dict(
+            "ECSH1-KSH" => 0.82, "ECSH2-KSH" => 0.82,
+            "ECSH1-NaSH" => 0.7, "ECSH2-NaSH" => 0.7,
+            "KSiOH" => 0.7, "NaSiOH" => 0.7,
+            "M075SH" => 4.58, "M15SH" => 3.65,
+        )
+        for (k, gap) in rebuilt
+            @test -gap / 298.15 ≈ implied[k] atol = 5.0e-3
+        end
 
         # Six of the eight carry a heat-capacity block, so a missing one is not
         # the explanation.

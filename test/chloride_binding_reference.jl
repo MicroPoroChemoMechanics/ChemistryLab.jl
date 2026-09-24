@@ -138,6 +138,12 @@
         # The plateau. Guo read 0.023 and 0.010 mol/L off Fig. 1(b).
         @test guo[0.02].AFt ≈ 0.023 rtol = 0.02
         @test guo[0.02].FS ≈ 0.01 rtol = 0.05
+        # Those two are THEIR numbers, read off a figure by eye, so the
+        # agreement is a tolerance against a reading. The values this package
+        # computes are printed on the page beside them, and are pinned here.
+        @info "chloride: the plateau this package computes" AFt = guo[0.02].AFt FS = guo[0.02].FS
+        @test guo[0.02].AFt ≈ 0.02274 atol = 5.0e-5
+        @test guo[0.02].FS ≈ 0.00965 atol = 5.0e-6
         @test guo[0.02].AFt ≈ guo[0.01].AFt rtol = 1.0e-3      # flat once AFm is gone
 
         # And the two conservation statements behind those numbers, which is
@@ -186,6 +192,28 @@
         @test full[0.02].Kuzel == 0
         @test full[0.02].FS ≈ guo[0.02].FS rtol = 1.0e-3
         @test full[0.02].AFt ≈ guo[0.02].AFt rtol = 1.0e-3
+
+        # AND THE TABLE, at the three chloride loadings this sweep computes. The
+        # page prints six columns; three of them are rungs no solve here visits,
+        # and they are marked there rather than presented as results. What is
+        # computed is pinned at half the last printed digit — a bound of the
+        # form `Kuzel > 0.01` leaves `0.0107` free to become `0.0140` with
+        # nothing going red.
+        @info "chloride: the computed columns of the Kuzel table" columns = [
+            (f, full[f].AFm14, full[f].Kuzel, full[f].FS) for f in (0.001, 0.005, 0.01)
+        ]
+        for (frac, ms, kuzel, fs) in (
+                (0.001, 0.0131, 0.0011, 0.0),
+                (0.005, 0.001, 0.0107, 0.0),
+                (0.01, 0.0, 0.0058, 0.0048),
+            )
+            @test full[frac].AFm14 ≈ ms atol = 5.0e-5
+            @test full[frac].Kuzel ≈ kuzel atol = 5.0e-5
+            @test full[frac].FS ≈ fs atol = 5.0e-5
+        end
+        # The 14-hydrate is the stable one at these conditions, not the 12 Guo
+        # wrote: asserted rather than left to the prose above.
+        @test full[0.001].AFm12 == 0
     end
 
     # NOT CHECKED, and worth saying why.
