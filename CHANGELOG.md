@@ -469,9 +469,11 @@ so `[compat] = "0.20"` will not accept `0.21` and any dependent must widen its
 bound.** No package in this organization depends on ChemistryLab, so there is
 nothing else to change.
 
-Beyond that the release is **additive**: eighteen exported names are new, none
+Beyond that the release is **additive**: sixty-one exported names are new, none
 was removed, and no existing signature or number moves. A system that declares
-no surface is bit-for-bit unchanged.
+no surface is bit-for-bit unchanged, and so is a rate law given a plain fineness
+— the evolving area is reached only by asking for it, and equals the frozen
+factor exactly at the initial amount.
 
 ## v0.20.0 — chemistry that happens on a surface
 
