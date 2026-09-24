@@ -483,3 +483,74 @@ end
         @test_throws ArgumentError site_coupling_rows(cs)
     end
 end
+
+@testsection "the matrix the equilibrium is constrained with" begin
+
+    h2o, hp, ca = _aq("H2O@", SC_AQSOLVENT), _aq("H+"), _aq("Ca+2")
+    host = Species(
+        "Ca(OH)2"; symbol = "Portlandite",
+        aggregate_state = AS_CRYSTAL, class = SC_COMPONENT,
+    )
+    free, occ = _surf("XsOH"), _surf("XsOCa+")
+    bare = _surf("Xs")                       # the pure component, not a substance
+    sp = [h2o, hp, ca, host, free, occ]
+    M = ustrip(us"kg/mol", host[:M])
+    ν = 1.0e-5 * 90.0 * M
+
+    fam(coupling) = SiteFamily(
+        "Xs", free, [occ];
+        capacity = coupling === SITES_FOLLOW_HOST ?
+            AreaSiteDensity(1.0e-5) : TotalSiteAmount(1.0e-3),
+        support = SurfaceSupport("s", "Portlandite", BETSurfaceArea(90.0); coupling),
+    )
+
+    @testset "uncoupled: the matrix is SM.A, untouched" begin
+        cs = ChemicalSystem(sp, [h2o, hp, ca, free]; site_families = [fam(SITES_FIXED)])
+        @test conservation_matrix(cs) == Float64.(cs.SM.A)
+    end
+
+    @testset "coupled over the free site: refused, and the message says why" begin
+        # The free site carries an oxygen and a hydrogen, so subtracting from
+        # its row subtracts those too. This is the case that invents matter.
+        cs = ChemicalSystem(sp, [h2o, hp, ca, free]; site_families = [fam(SITES_FOLLOW_HOST)])
+        e = try
+            conservation_matrix(cs)
+            nothing
+        catch err
+            err
+        end
+        @test e isa ArgumentError
+        @test occursin("BARE site", e.msg)
+        @test occursin("Species(\"Xs\")", e.msg)
+    end
+
+    @testset "coupled over the bare component: one entry, and only one" begin
+        cs = ChemicalSystem(sp, [h2o, hp, ca, bare]; site_families = [fam(SITES_FOLLOW_HOST)])
+        A0 = Float64.(cs.SM.A)
+        A = conservation_matrix(cs)
+        r = findfirst(p -> symbol(p) == "Xs", cs.SM.primaries)
+        j = findfirst(==("Portlandite"), symbol.(cs.species))
+        @test A[r, j] ≈ A0[r, j] - ν
+        # Nothing else moves. Asserting the difference matrix is sparse in one
+        # entry is stronger than checking the entry alone.
+        D = A - A0
+        D[r, j] = 0.0
+        @test all(iszero, D)
+
+        # And the corrected site row IS the row form of the same constraint.
+        rows, labels = site_coupling_rows(cs)
+        @test labels == ["Xs"]
+        @test A[r, :] ≈ rows[1, :]
+    end
+
+    @testset "the bare component need not be a species" begin
+        cs = ChemicalSystem(sp, [h2o, hp, ca, bare]; site_families = [fam(SITES_FOLLOW_HOST)])
+        @test !("Xs" in symbol.(cs.species))
+        @test "Xs" in symbol.(cs.SM.primaries)
+        # It carries the site symbol and nothing else, which is the property the
+        # whole correction rests on.
+        prim = cs.SM.primaries[findfirst(p -> symbol(p) == "Xs", cs.SM.primaries)]
+        @test ChemistryLab._is_bare_site(prim, :Xs)
+        @test !ChemistryLab._is_bare_site(free, :Xs)
+    end
+end

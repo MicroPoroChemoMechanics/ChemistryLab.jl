@@ -115,13 +115,11 @@ function DualEquilibriumSolver(
     in_mixing = Set(vcat(ss_groups..., site_groups...))
     idx_pure = [i for i in idx_pure if !(i in in_mixing)]
 
-    A_elem = Float64.(system.SM.A)
-    # The site-coupling rows are NOT appended here, and the measurement that
-    # says why is in `site_coupling_rows`: `SM.A` already carries a site row
-    # pinning the family's total, so adding a second one that ties the same
-    # total to the host over-determines the system and forbids the host to
-    # move at all. Wiring this needs the original row to stop being a
-    # conservation row, which is not a line of code.
+    # `conservation_matrix`, not `SM.A`: identical when nothing follows its host,
+    # and carrying the `−ν` in each coupled family's (site row, host column)
+    # entry when something does. The site row then states the coupling instead
+    # of a fixed budget, which is what makes the budget follow the host at all.
+    A_elem = conservation_matrix(system)
     return DualEquilibriumSolver(
         system, activity_model(system, model), model,
         idx_aq, idx_pure, jw, ss_groups, site_groups, A_elem, size(A_elem, 1),

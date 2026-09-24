@@ -436,30 +436,20 @@ What it does cost is that `saturation_indices` reads `SM.A` and does not see
 this row; the host's reported index has to be taught about it separately, or it
 would disagree with the stationarity the solver actually reached.
 
-# !!! warning "These rows are built, and deliberately not yet imposed"
+# These rows state the constraint; they are not how it is imposed
 
-`DualEquilibriumSolver` does **not** append them, because appending them alone
-over-determines the system, and that was measured rather than reasoned about.
+[`conservation_matrix`](@ref) imposes it, as a single `−ν` in the site row's
+host column. This returns the same statement in row form, which is what lets the
+two be checked against each other rather than believed.
 
-`SM.A` already carries a site row: the one whose primary is the free site, which
-reads `Σ dₖ nₖ = b` with `b` taken from the initial amounts. Adding a row that
-ties the same sum to the host leaves two equations on one quantity, and together
-they say `n_host = n_host,0` — the host may not dissolve at all. Run on
-portlandite carrying sites at `Γ = 1e-5 mol/m²` over a BET area of 90 m²/kg, the
-solve returned `MaxIters`, the host moved from 0.1 to 0.0883 mol anyway, and the
-site total stayed at `ν × 0.1` exactly: the solver satisfied the old row and
-violated the new one.
-
-Element conservation was excellent through all of it — oxygen to `6e-16` and
-hydrogen to `5e-13` relative — which is the one thing this design was for and
-does deliver.
-
-Making the coupling real needs the ORIGINAL site row to stop being a
-conservation row. That is not a line of code: in the projected basis the site
-row is entangled with the element rows through `M_indep`, so freeing it destroys
-oxygen and hydrogen unless the freed degree of freedom is compensated — and the
-compensation is the preimage of the bare site pseudo-element, which is exactly
-what does not exist. The two facts are the same fact seen twice.
+Appending these rows *instead* does not work, and the measurement is worth
+keeping: `SM.A` already carries a site row, so a second one tying the same sum
+to the host leaves two equations on one quantity, and together they say
+`n_host = n_host,0` — the host may not dissolve at all. Run on portlandite, the
+solve returned `MaxIters`, the host moved from 0.1 to 0.0883 mol regardless, and
+the site total stayed at exactly `ν × 0.1`: the solver satisfied the old row and
+violated the new one. The constraint has to **replace** the site row, not join
+it.
 """
 function site_coupling_rows(cs::ChemicalSystem)
     empty_rows = Matrix{Float64}(undef, 0, length(cs.species))
@@ -490,4 +480,130 @@ function site_coupling_rows(cs::ChemicalSystem)
         push!(labels, name(f))
     end
     return out, labels
+end
+
+"""
+    _is_bare_site(sp, site::Symbol) -> Bool
+
+Whether `sp` carries the site pseudo-element `site` **and nothing else** — no
+real atom, no charge.
+
+Such a species is not a chemical species at all. It is a *component*: the pure
+site, with no matter attached. That is exactly what a coupled family needs its
+primary to be, and why one is allowed to sit among the primaries without being
+among the species.
+"""
+function _is_bare_site(sp::AbstractSpecies, site::Symbol)
+    a = atoms(sp)
+    get(a, site, 0) == 1 || return false
+    return all(k === site || iszero(v) for (k, v) in a) && iszero(charge(sp))
+end
+
+"""
+    conservation_matrix(cs::ChemicalSystem) -> Matrix{Float64}
+
+The matrix the equilibrium is constrained with: `SM.A` as it stands when no
+family follows its host, and `SM.A` with `ν` subtracted from each coupled
+family's `(site row, host column)` entry when one does.
+
+That single entry is the whole coupling. It states
+
+```math
+\\sum_k d_k n_k - \\nu n_{\\text{host}} = 0
+```
+
+and [`site_coupling_rows`](@ref) returns the same statement in row form, which
+is how the two are checked against each other.
+
+# Why one entry is enough, and why it was not before
+
+Subtracting from a row of the projected matrix subtracts the **primary's whole
+composition**, not the site symbol alone: `M = M_indep A`, so a correction `v`
+in primary coordinates removes `M_indep v` of matter. Getting the pure site out
+of it needs `M_indep v = Xs_unit`, a preimage of the bare pseudo-element.
+
+With the free site for primary that preimage does **not exist**. Measured, as
+the least-squares residual `‖M_indep v − Xs_unit‖`: `0.378` on an amphoteric
+oxide over `[:H, :O, :Xs, :Zz]`, `0.500` on a cation exchanger over
+`[:Na, :K, :H, :O, :Xc, :Zz]`. The reason is structural — a site symbol never
+appears alone, every species carrying it carries it attached to matter, and only
+one site species can be primary. Subtracting anyway invents `ν` moles of oxygen
+and `ν` of hydrogen per mole of host: seven percent of the oxygen of `Fe(OH)₃`
+at Dzombak and Morel's weak-site density.
+
+Declaring the **bare** site as the primary removes the obstruction rather than
+working around it. The residual is then `0.0` exactly and the preimage is the
+unit vector, so subtracting `ν` from that one entry subtracts `ν` times a
+component carrying no atom and no charge. Element conservation is exact by
+construction, and nothing else in the matrix moves.
+
+Measured on the uncoupled case, the substitution costs nothing: the same system
+solved over a bare-site primary and over the free site returns the same host
+amount to eight digits, converges in both, and conserves its elements to
+`5.6e-16` against `1.8e-15`.
+"""
+function conservation_matrix(cs::ChemicalSystem)
+    A = Float64.(cs.SM.A)
+    fams = cs.site_families
+    fams === nothing && return A
+    for f in fams
+        surface_support(f).coupling === SITES_FOLLOW_HOST || continue
+        r = findfirst(p -> get(atoms(p), f.site, 0) > 0, cs.SM.primaries)
+        r === nothing && throw(
+            ArgumentError(
+                "SiteFamily \"$(name(f))\" follows its host, but no primary of this " *
+                    "system carries :$(f.site), so there is no site row to couple.",
+            )
+        )
+        prim = cs.SM.primaries[r]
+        _is_bare_site(prim, f.site) || throw(
+            ArgumentError(
+                "SiteFamily \"$(name(f))\" follows its host, but its site primary is " *
+                    "\"$(symbol(prim))\", which carries more than :$(f.site).\n" *
+                    "A coupled family needs the BARE site as its component. " *
+                    "Subtracting from the row of a primary that carries matter " *
+                    "subtracts that matter too — measured, ν moles of oxygen and ν of " *
+                    "hydrogen invented per mole of host, seven percent of the oxygen " *
+                    "of Fe(OH)₃ at Dzombak and Morel's weak-site density.\n" *
+                    "Declare `Species(\"$(f.site)\")` among the primaries. It need not " *
+                    "be among the species: it is a component, not a substance.",
+            )
+        )
+        host = surface_support(f).host
+        j = findfirst(s -> symbol(s) == host, cs.species)
+        j === nothing && throw(
+            ArgumentError(
+                "SiteFamily \"$(name(f))\" follows host \"$host\", which is not a " *
+                    "species of this system.",
+            )
+        )
+        A[r, j] -= sites_per_host(f, _molar_mass_si(cs.species[j]))
+        _warn_coupling_unconverged(name(f))
+    end
+    return A
+end
+
+# Declaring a coupled support is opting into a path that does not yet return a
+# trustworthy number, and that has to be said where it cannot be missed rather
+# than left in a docstring.
+#
+# The formulation is right and measured: the constraint is satisfied exactly
+# (`viol = 0` from the solver's own diagnostics), element conservation holds to
+# 5e-13, and an uncoupled system is bit-identical to what it was. What fails is
+# the solve. On portlandite carrying sites at Γ = 1e-5 mol/m² over 90 m²/kg, the
+# dual Newton stalls at a KKT error of 2.3e-9 against a 1e-10 tolerance — a
+# fixed point, not a budget: raising `maxit` and `max_active_updates` from 200 to
+# 3000 changes not one digit. The host then comes out at 0.0999 mol where the
+# same chemistry uncoupled gives 0.0883, so the answer is WRONG by thirteen
+# percent and not merely uncertified.
+#
+# `always_present` was the obvious suspect and is not the cause: switching it off
+# for the site phase changes nothing at all.
+function _warn_coupling_unconverged(fam::AbstractString)
+    @warn """SiteFamily "$fam" follows its host, and the coupled equilibrium does \
+    NOT yet converge. The constraint and the element balance are exact, but the \
+    dual Newton stalls at a KKT error of 2.3e-9 and returns a host amount wrong \
+    by about thirteen percent on the case it was measured on. Treat any number \
+    from a coupled solve as provisional.""" maxlog = 1
+    return nothing
 end
