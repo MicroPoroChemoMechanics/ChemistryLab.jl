@@ -91,6 +91,46 @@ Measured, on portlandite carrying sites at three host amounts: converges as well
 as the uncoupled solve, holds the constraint to `10⁻⁷`, conserves its elements
 to `10⁻¹⁵`, and reports every present phase at `log SI = 0` to `10⁻¹⁴`.
 
+### What a coupled family costs, and the one thing it does not yet settle
+
+`SITES_FOLLOW_HOST` is a constraint, and as a constraint it is exact. It is not
+yet a complete thermodynamic model, and the gap has a size.
+
+With a fixed budget the free site's `ΔₐG⁰` cancels out of every surface
+reaction, so zero is free: shifting a whole family by 20 kJ/mol moves nothing
+by more than `5e-14`. Coupled, it does not cancel — the host carries `−ν` of the
+site component — and the host's saturation index moves by exactly
+`−ν Δ / (RT ln 10)`, verified to five decimals over 40 kJ/mol. At Dzombak and
+Morel's weak-site density that is 0.35 log units per 10 kJ/mol, and with the
+reference at zero an amorphous ferric hydroxide comes out 2.3 log units
+undersaturated and dissolves entirely where the same system with a fixed budget
+holds its solid at equilibrium.
+
+So the reference energy of a free site is a **gauge only while nothing follows
+its host**, and at a realistic site density it is a parameter of the
+calculation. Kulik's `Γ°` convention is the candidate for fixing it and
+`convert_logk_site_density` is the part of it that is implemented; the absolute
+standard state is not, and the documentation says so where a user would reach
+for the feature rather than in a note at the end.
+
+### A charge component is refused on a measurement, not on its presence
+
+The first form of this guard refused a coupled family whenever `Zz` survived
+among the primaries. That is a symptom and not the defect. Charge stays an
+independent component whenever it is independent of the element rows — one
+element in two oxidation states is enough — and such a system is perfectly well
+posed: measured on hydrous ferric oxide in a mixed-valence iron chloride
+solution, the coupled matrix has full identifiable rank and its charge row is
+nonzero on a ferrous complex, so it is not the site row at all. Worse, the
+charge the refusal then suggested was itself refused on the next call, so the
+two suggestions pointed at each other.
+
+The decision is now the identifiable rank of the matrix the solve will be
+constrained with, read off its singular values, and the message reports what it
+measured. It refuses everything the old one correctly refused — the tightest of
+those has a spectral gap of 13 — and admits the redox systems it wrongly did,
+the tightest of which sits at 2.2.
+
 ### A saturation index that agrees with the stationarity the solver reached
 
 Two rules that were right for the charge row and wrong for a coupled site row.

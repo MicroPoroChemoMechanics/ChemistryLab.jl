@@ -4,6 +4,7 @@
 using ChemistryLab
 using DynamicQuantities
 using Test
+using LinearAlgebra
 
 # Helpers — a surface species is an ordinary species in AS_SURFACE, and the
 # family requalifies it anyway; building it plainly is the point.
@@ -544,13 +545,14 @@ end
         @test A[r, :] ≈ rows[1, :]
     end
 
-    @testset "a neutral component leaves a parasitic charge, and is refused" begin
-        # Every species carrying :Xs carries it with a fixed amount of charge,
-        # so a neutral component leaves :Zz among the primaries and only
-        # `y_Xs + y_Zz` is identifiable. Measured, the two multipliers ran to
-        # ±2.3e5 while their sum stayed at −60 and the solve stalled.
+    @testset "a component the basis cannot separate from charge is refused" begin
+        # Here every species carrying :Xs carries it with a fixed amount of
+        # charge and nothing else puts :Zz in the matrix, so the site row and
+        # the charge row are one row and only `y_Xs + y_Zz` is identifiable.
+        # Measured, the two multipliers ran to ±2.3e5 while their sum stayed at
+        # −60 and the solve stalled.
         cs = ChemicalSystem(sp, [h2o, hp, ca, bare0]; site_families = [fam(SITES_FOLLOW_HOST)])
-        @test "Zz" in symbol.(cs.SM.primaries)      # the parasite, visible
+        @test "Zz" in symbol.(cs.SM.primaries)
         e = try
             conservation_matrix(cs)
             nothing
@@ -558,10 +560,38 @@ end
             err
         end
         @test e isa ArgumentError
-        @test occursin("only their sum is identifiable", e.msg)
+        @test occursin("y_Xs + y_Zz", e.msg)
+        # The refusal reports what it measured rather than only its verdict:
+        # the rows are exactly parallel here.
+        @test occursin("|cos| = 1.0", e.msg)
         # And the message names the charge to use, derived from the free site's
         # own decomposition rather than guessed.
         @test occursin("Species(\"Xs+\")", e.msg)
+    end
+
+    @testset "a charge component that is genuinely independent is not a parasite" begin
+        # THE REASON THIS TESTSET EXISTS. Refusing on the PRESENCE of :Zz among
+        # the primaries — which is what this did first — refuses systems that
+        # are perfectly well posed, and the charge it then suggested was itself
+        # refused on the next call, so the two suggestions pointed at each other.
+        #
+        # :Zz survives as a primary whenever charge is independent of the
+        # element rows, and one element in two oxidation states is enough: iron
+        # here. The charge row is then nonzero on the ferrous species and is not
+        # the site row at all.
+        fe2, fe3 = _aq("Fe+2"), _aq("Fe|3|+3")
+        sp_redox = [h2o, hp, ca, fe2, fe3, host, free, occ]
+        for comp in (bare, bare0)
+            cs = ChemicalSystem(
+                sp_redox, [h2o, hp, ca, fe3, comp]; site_families = [fam(SITES_FOLLOW_HOST)],
+            )
+            @test "Zz" in symbol.(cs.SM.primaries)
+            A = conservation_matrix(cs)          # accepted, both ways round
+            @test rank(A) == size(A, 1)
+            r = findfirst(p -> get(atoms(p), :Xs, 0) > 0, cs.SM.primaries)
+            j = findfirst(==("Portlandite"), symbol.(cs.species))
+            @test A[r, j] ≈ Float64(cs.SM.A[r, j]) - ν
+        end
     end
 
     @testset "the bare component need not be a species" begin

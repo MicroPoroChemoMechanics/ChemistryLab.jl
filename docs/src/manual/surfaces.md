@@ -399,6 +399,40 @@ Morel's weak-site density. Over a **neutral** bare site, only the sum of the
 site and charge potentials is identifiable, and the solver runs the two to
 `±2.3e5` before stalling.
 
+### The free site's reference energy stops being a gauge
+
+With a **fixed** budget, `ΔₐG⁰` of the free site cancels out of every surface
+reaction — both sides carry a site — so setting it to zero costs nothing.
+Measured: shifting a whole family by up to 20 kJ/mol moves the host amount and
+its saturation index by `5e-14`, which is the solver's own noise.
+
+With a budget that **follows its host** it does not cancel. The host carries
+`−ν` of the site component, so the site potential enters the host's own chemical
+potential and its saturation index moves by
+
+```math
+\Delta \log \mathrm{SI}_{\text{host}} = -\,\frac{\nu\,\Delta}{RT \ln 10}
+```
+
+verified to five decimals over 40 kJ/mol of shift. At Dzombak and Morel's
+weak-site density, `ν = 0.2`, that is **0.35 log units of solubility per
+10 kJ/mol** of reference energy.
+
+!!! warning "At a realistic site density this is a parameter, not a convention"
+    Measured on amorphous ferric hydroxide carrying `ν = 0.2`: with
+    `ΔₐG⁰(free site) = 0` the coupled host comes out **2.3 log units
+    undersaturated and dissolves completely**, where the same system with a
+    fixed budget keeps its solid at equilibrium. The coupling arithmetic is not
+    at fault — the constraint holds to `4e-9` and the elements to `1e-14` — the
+    reference energy is.
+
+    The package does not choose that energy for you, and zero is not a safe
+    default here. Until a standard state is fixed — Kulik's `Γ°` convention is
+    the candidate, and [`convert_logk_site_density`](@ref) is the part of it
+    that is implemented — treat a coupled family on a phase whose stability
+    matters as **a model with one more parameter in it**, and check the host's
+    saturation index against the same system uncoupled.
+
 ### What to check afterwards
 
 [`site_budget_residual`](@ref) reports, per family, the moles of sites the state

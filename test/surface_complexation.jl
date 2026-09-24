@@ -829,3 +829,109 @@ end
         @test F.electrostatics == "-no_edl"
     end
 end
+
+@testsection "the standard state of a free site is a gauge only while nothing follows" begin
+
+    # THE TEST THAT MEASURES THE BOUNDARY BETWEEN A GAUGE AND A PARAMETER, and
+    # the reason it exists: with a fixed budget, `ΔₐG⁰` of the free site cancels
+    # out of every surface reaction, both sides carrying a site, so setting it
+    # to zero is free. With a budget that FOLLOWS ITS HOST it does not cancel:
+    # the host carries `−ν` of the site component, so the site potential enters
+    # the host's own chemical potential and moves its solubility.
+    #
+    # Shifting the WHOLE family by the same Δ leaves every internal log K
+    # untouched, which is what isolates the gauge from the chemistry.
+    #
+    # Measured on amorphous ferric hydroxide at Dzombak and Morel's weak-site
+    # density, `ν = 0.2`, over 40 kJ/mol of shift: the host's saturation index
+    # moves by `−ν Δ / (RT ln 10)` to five decimals, and the uncoupled system
+    # does not move at all. At `ν = 0.2` that is 0.35 log units per 10 kJ/mol —
+    # which is why a coupled family cannot be given an arbitrary reference.
+
+    psi = build_species(datapath("psinagra-12-07-thermofun.json"); verbose = false)
+    bn = Dict(symbol(s) => s for s in psi)
+    M = ustrip(us"kg/mol", bn["Fe(OH)3(am)"][:M])
+    ν = 0.2
+    aq = speciation(
+        psi, ["Fe(OH)3(am)"]; aggregate_state = [AS_AQUEOUS],
+        exclude_species = split("H2@ O2@ Fe+2 FeOH+ FeO+"),
+    )
+    surf(sym, g) = (
+        s = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX);
+        s[:ΔₐG⁰] = _g0(g); s
+    )
+
+    function run(Δ; coupled)
+        mem = [
+            surf("XwOH", Δ), surf("XwOH2+", Δ - RT25 * log(10.0^7.29)),
+            surf("XwO-", Δ - RT25 * log(10.0^-8.93)),
+        ]
+        support = SurfaceSupport(
+            "hydrous ferric oxide", "Fe(OH)3(am)", FixedSurfaceArea(1.0);
+            coupling = coupled ? SITES_FOLLOW_HOST : SITES_FIXED,
+        )
+        family = SiteFamily(
+            "Xw", mem[1], mem[2:3];
+            capacity = coupled ? MassSiteDensity(ν / M) : TotalSiteAmount(ν * 1.0e-3),
+            support,
+        )
+        # Coupled, the component is the BARE site; uncoupled, the free site.
+        comp = coupled ?
+            Species("Xw+"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX) : mem[1]
+        cs = ChemicalSystem(
+            AbstractSpecies[vcat(aq, mem)...],
+            AbstractSpecies[bn["H2O@"], bn["H+"], bn["Fe+3"], comp];
+            site_families = [family],
+        )
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", moles_of_water() * u"mol")
+        set_quantity!(st, "Fe(OH)3(am)", 1.0e-3u"mol")
+        if coupled
+            st = host_consistent_state(st)
+        else
+            set_quantity!(st, "XwOH", (ν * 1.0e-3)u"mol")
+        end
+        b = conservation_matrix(cs) * Float64[ustrip(us"mol", x) for x in st.n]
+        model = DaviesActivityModel()
+        eq, _ = equilibrate_certified(st; model, b = b)
+        i = findfirst(==("Fe(OH)3(am)"), symbol.(cs.species))
+        return (
+            host = ustrip(us"mol", eq.n[i]),
+            si = saturation_indices(eq, model)["Fe(OH)3(am)"],
+        )
+    end
+
+    @testset "a fixed budget: invariant to the solver's own noise" begin
+        # NOT asserted bit for bit, and the reason is worth stating: shifting
+        # every member's reference energy changes the numbers the dual Newton
+        # iterates on, so it takes a different path to the same answer. What is
+        # invariant is the answer. The scale below is the solver's own
+        # reproducibility, and the contrast at the end is what makes it mean
+        # something — the coupled system moves by four orders of magnitude more
+        # on the same shift.
+        ref = run(0.0; coupled = false)
+        worst = 0.0
+        for Δ in (-5.0e3, -2.0e4, 1.0e4)
+            r = run(Δ; coupled = false)
+            @test r.host ≈ ref.host rtol = 1.0e-6
+            @test r.si ≈ ref.si atol = 1.0e-5
+            worst = max(worst, abs(r.si - ref.si))
+        end
+        @info "gauge invariance, fixed budget" worst
+        # The comparison that makes the two testsets one statement.
+        coupled_shift = abs(run(-2.0e4; coupled = true).si - run(0.0; coupled = true).si)
+        @test coupled_shift > 1.0e3 * max(worst, 1.0e-9)
+    end
+
+    @testset "a budget that follows its host: the shift is −ν Δ / (RT ln 10)" begin
+        ref = run(0.0; coupled = true)
+        for Δ in (-5.0e3, -1.0e4, -2.0e4, -3.0e4, -4.0e4)
+            r = run(Δ; coupled = true)
+            @test r.si - ref.si ≈ -ν * Δ / (RT25 * log(10)) atol = 1.0e-4
+        end
+        # And the magnitude is the point: at this site density the reference
+        # energy is worth 0.35 log units of solubility per 10 kJ/mol, so it is
+        # a parameter of the calculation and not a convention inside it.
+        @test abs(run(-1.0e4; coupled = true).si - ref.si) > 0.3
+    end
+end

@@ -261,6 +261,16 @@ reads in the units the surface literature uses.
 """
 const REFERENCE_SITE_DENSITY = REFERENCE_SITE_DENSITY_NM2 * 1.0e18 / AVOGADRO
 
+# The spectral gap that decides whether a coupled matrix determines its site
+# potential, used by `_refuse_unidentifiable_site`. It is `identifiable_rank`'s
+# own default, kept rather than tuned, and the five systems it was checked on
+# sit well clear of it on both sides: the tightest refusal has a ratio of 13
+# across the gap (`1.39 / 0.105`, hydrous ferric oxide over a neutral component)
+# and the tightest acceptance a ratio of 2.2 (`1.42 / 0.656`, the same oxide in
+# a mixed-valence iron chloride solution). A threshold read off one machine's
+# solve would not have that margin; this one is read off the matrix.
+const _SITE_RANK_GAP = 5.0
+
 """
     convert_logk_site_density(logK, Γ_C; Γ0 = REFERENCE_SITE_DENSITY_NM2,
                               free_site_side = :reactant) -> Float64
@@ -506,17 +516,17 @@ function _is_bare_site(sp::AbstractSpecies, site::Symbol)
 end
 
 """
-    _refuse_parasitic_charge(cs, family, r)
+    _refuse_unidentifiable_site(cs, family, A, r)
 
-Refuse a coupled family whose bare component leaves `Zz` among the primaries.
+Refuse a coupled family whose site potential the basis cannot determine.
 
 # What goes wrong, measured
 
 Every species carrying a site symbol carries it together with a fixed amount of
 charge: `XsOH` decomposes as `H₂O − H⁺ + Xs + Zz` and `XsOCa⁺` as
-`Ca²⁺ + H₂O − 2H⁺ + Xs + Zz`. The site component and the charge component
-therefore appear in the **same ratio** everywhere, so only their sum is
-identifiable and the basis is degenerate along `y_Xs + y_Zz`.
+`Ca²⁺ + H₂O − 2H⁺ + Xs + Zz`. Where that is the *only* way `Zz` enters, the site
+row and the charge row of the coupled matrix are the same row up to the host
+entry, so only `y_Xs + y_Zz` is identifiable.
 
 The solver finds that out the hard way. Measured on portlandite carrying sites,
 with a neutral bare component: the two multipliers ran to `+234 650` and
@@ -529,22 +539,60 @@ removes the `Zz` primary altogether. The same run then converges at `4.8e-11`,
 `max|y|` is `227`, the host lands on `0.08826` against `0.08827` uncoupled, and
 the coupling holds to `1.8e-7`.
 
-The charge to use is not guessed: it is the coefficient of `Zz` in the free
-site's own decomposition, which is what this reports.
+# Why this is measured and not inferred from `Zz` being a primary
+
+Refusing on the *presence* of a charge component is what this did first, and it
+refuses systems that are perfectly well posed. `Zz` survives as a primary
+whenever charge is genuinely independent of the element rows — which is the
+ordinary situation in a redox system. Measured, on hydrous ferric oxide over
+`Fe(OH)₃(am)` with chloride and a mixed-valence iron speciation, singular
+values of the coupled matrix:
+
+| system | component | `σ` (smallest three) | identifiable rank |
+|:--|:--|--:|:--|
+| portlandite, no `Zz` row possible | `Xs+` | `1.19, 0.872` | 4 of 4 |
+| portlandite | `Xs` | `1.21, 0.957, 1.7e-5` | **4 of 5** |
+| HFO, Fe(III) only | `Xs` | `2.16, 1.39, 0.105` | **4 of 5** |
+| HFO, Fe(II) and Fe(III), chloride | `Xs+` | `1.90, 1.35, 0.916` | 6 of 6 |
+| HFO, Fe(II) and Fe(III), chloride | `Xs` | `2.14, 1.42, 0.656` | 6 of 6 |
+
+The last two carry a `Zz` primary and are not degenerate at all — the charge row
+is nonzero on an iron chloride complex, so it is not the site row. The old test
+refused both of them, and the charge it then suggested was itself refused on the
+next call: the two suggestions pointed at each other and the user went in a
+circle.
+
+[`identifiable_rank`](@ref) on the singular values separates the two groups with
+the spectral gap it is built for — a factor of 13 at the tightest refusal
+against 2.2 at the tightest acceptance. The charge suggested on a refusal is the
+coefficient of `Zz` in the free site's own decomposition, which is correct
+exactly where the refusal now fires.
 """
-function _refuse_parasitic_charge(cs::ChemicalSystem, family::SiteFamily, r::Int)
+function _refuse_unidentifiable_site(
+        cs::ChemicalSystem, family::SiteFamily, A::AbstractMatrix, r::Int,
+    )
     zz = findfirst(p -> symbol(p) == "Zz", cs.SM.primaries)
     zz === nothing && return nothing
+    # The decision is the identifiable rank of the matrix the solve will be
+    # constrained with, NOT the presence of a charge component. See the
+    # docstring for the five systems this was calibrated on.
+    σ = svdvals(A)
+    identifiable_rank(σ; gap = _SITE_RANK_GAP) == size(A, 1) && return nothing
+
+    site_row, charge_row = A[r, :], A[zz, :]
+    nn = norm(site_row) * norm(charge_row)
+    cosine = iszero(nn) ? 1.0 : abs(dot(site_row, charge_row)) / nn
     jf = findfirst(s -> symbol(s) == symbol(reference_member(family)), cs.species)
     z = jf === nothing ? 1 : Int(round(Float64(cs.SM.A[zz, jf])))
     sug = z == 0 ? "" : (z > 0 ? "+"^z : "-"^(-z))
     throw(
         ArgumentError(
             "SiteFamily \"$(name(family))\" follows its host over the bare component " *
-                "\"$(symbol(cs.SM.primaries[r]))\", and that leaves :Zz among the " *
-                "primaries. Every species carrying :$(family.site) carries it with a " *
-                "fixed amount of charge, so the site and the charge components appear " *
-                "in one ratio everywhere and only their sum is identifiable.\n" *
+                "\"$(symbol(cs.SM.primaries[r]))\", and the coupled matrix cannot " *
+                "determine its site potential: the singular values end " *
+                "$(join(string.(round.(σ[max(1, end - 2):end]; sigdigits = 3)), ", ")) " *
+                "and the site row sits at |cos| = $(round(cosine; digits = 5)) from the " *
+                "charge row, so only `y_$(family.site) + y_Zz` is identifiable.\n" *
                 "Measured, the cost is not subtle: the two multipliers ran to " *
                 "±2.3e5 while their sum stayed at −60, the solve stalled at a KKT " *
                 "error of 2.3e-9, and the host came out thirteen percent off.\n" *
@@ -650,8 +698,10 @@ function conservation_matrix(cs::ChemicalSystem)
                     "species of this system.",
             )
         )
-        _refuse_parasitic_charge(cs, f, r)
         A[r, j] -= sites_per_host(f, _molar_mass_si(cs.species[j]))
+        # AFTER the coupling, because the host entry is what separates the site
+        # row from the charge row when it is separable at all.
+        _refuse_unidentifiable_site(cs, f, A, r)
     end
     return A
 end
