@@ -12,8 +12,8 @@ then a set of measured solution compositions ([Atkins1992](@cite)), which can
 disagree with the database and does.
 
 Every number below is pinned by an assertion in `test/cemdata18_reference.jl`
-(584 of them), `test/atkins1992_reference.jl` (12) or
-`test/limestone_blending_reference.jl` (25), so it is checked on every CI run.
+(584 of them), `test/atkins1992_reference.jl` (12), `test/limestone_blending_reference.jl` (25)
+or `test/chloride_binding_reference.jl` (26), so it is checked on every CI run.
 
 ## Cemdata18 Tables 2 and 3: the solubility products
 
@@ -273,6 +273,82 @@ limestone is a filler.
     stable, the same sweep costs **52 s in total**. Same answers, three times
     faster — and dropping a single intermediate rung, so that one step crosses
     the boundary in one jump, puts it back to two and a half minutes.
+
+## Chloride binding
+
+[Guo2018](@cite) Fig. 1(b) is unusually easy to reproduce, because the paper
+states its inventory outright instead of leaving it to be reconstructed: per
+liter of concrete, C-S-H 225 g, CH 90 g, AFm 9 g, AFt 22.5 g, porosity 14.6 %.
+Their thermodynamic data are CEMDATA18's, and the molar masses of their Table 3
+confirm the phases match one for one — AFm 622.5, AFt 1255.1, Friedel's salt
+561.3, CH 74.1 all reproduce from the CEMDATA18 formulas to better than
+0.03 g/mol. (Their CaCO₃, printed at 100.9, is a typo for 100.09; it touches
+nothing in this figure.)
+
+### On the phase list that drew the figure
+
+Guo's Tables 1 and 2 carry five solids: C-S-H, CH, AFm, AFt and Friedel's salt.
+Restricted to those, the figure comes back (mol per liter of concrete):
+
+| | calculated | Fig. 1(b) |
+|:--|--:|--:|
+| AFm at 0 % NaCl | 0.014455 | 9 g / 622.5 = 0.014458 |
+| AFt at 0 % | 0.017928 | 22.5 g / 1255.1 = 0.017927 |
+| AFm at 1 % | **0** | consumed by ≈ 1 % |
+| AFt plateau | 0.02274 | 0.023 |
+| Friedel's salt plateau | 0.00964 | 0.010 |
+
+What makes the agreement more than two curves happening to sit on top of each
+other is that both conservation statements behind it close as well. Writing
+`Δ` for what the AFm loses:
+
+- **sulfate** — the AFm gives up one, ettringite takes three, so
+  `ΔAFt = ΔAFm / 3`: 0.00482 against 0.014455/3 = 0.004818;
+- **aluminum** — what the AFm held is split between Friedel's salt and the
+  ettringite that grew, both carrying two aluminums per formula, so
+  `FS + ΔAFt = ΔAFm`: 0.00964 + 0.00482 = 0.01446.
+
+### What a fuller phase list adds
+
+Two things Guo's five solids cannot express, and one place where it stops
+mattering.
+
+**The hydration state.** CEMDATA18 carries monosulfate at 9, 10.5, 12, 14 and 16
+waters, and at these conditions the stable one is the **14-hydrate**, not the 12
+Guo used. Their own constant says so without their noticing: Table 2 gives
+`log K = −29.2628` for a phase written `Ca₄Al₂(SO₄)(OH)₁₂·6H₂O`, `M = 622.5`,
+which is the 12-hydrate — but Cemdata18's value for the 12-hydrate is −29.23,
+and −29.26 is the 14-hydrate. One hydrate's constant paired with another's
+formula. It changes nothing, because the two are 0.03 log units apart.
+
+**Kuzel's salt**, half a chloride and half a sulfate per AFm layer, is the phase
+the transition actually passes through. It holds the entire low-chloride range
+and peaks at 0.5 % NaCl — where Guo has Friedel's salt barely starting:
+
+| % NaCl | 0.1 | 0.25 | 0.5 | 0.75 | 1.0 | 1.5 |
+|:--|--:|--:|--:|--:|--:|--:|
+| Kuzel's salt | 0.0016 | 0.0052 | **0.0113** | 0.0096 | 0.0017 | 0 |
+| Friedel's salt | 0 | 0 | 0 | 0.0017 | 0.0082 | 0.0096 |
+
+**And where it stops mattering.** Once the chloride is high enough to take the
+last sulfate out of the AFm layer, Kuzel's salt is gone and the two phase lists
+agree to three digits. Guo's plateau is right even though the path to it is not
+theirs.
+
+### Not checked, and why
+
+- **pH.** Guo reports 13.213 falling to 13.128; this system sits at 12.5, which
+  is portlandite in alkali-free water. The difference is their pore solution's
+  alkalis, whose concentrations the paper takes from a reference it does not
+  reproduce.
+- **The 5 % end of their abscissa.** At that loading the ionic strength reaches
+  1.4 mol/L, past the range the B-dot term of [`HKFActivityModel`](@ref) was
+  fitted for; the solve stops certifying and returns pH 15.3. The sweep here
+  stops at 2 %, where `I ≈ 0.4`. Pitzer is the instrument for the rest.
+- **The surface complexation half of the paper** — the five `≡SiOH` reactions,
+  the diffuse layer, the Ca²⁺ > Cl⁻ > Na⁺ > K⁺ ordering. `SC_SURFCOMPLEX` and
+  the site families arrived in v0.20.0, so it is now expressible; it is simply
+  not attempted yet.
 
 ## Reproducing
 
