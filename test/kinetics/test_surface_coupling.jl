@@ -121,6 +121,46 @@ end
         @test all(!(i in kinetic_rows) for i in cs.idx_surface)
     end
 
+    @testset "the eliminating route keeps them too" begin
+        # `coupling = :species` removes the pinned species and rebuilds the free
+        # side as its own system. That rebuild took the species and the parent's
+        # primary NAMES and nothing else, so every declaration the parent
+        # carried was dropped — the solid solutions, which is the defect
+        # `_equilibrium_subsystem` documents on its own path, and the site
+        # families, whose loss leaves their members as `AS_SURFACE` species
+        # belonging to no family. `ChemicalSystem` refuses that outright, so a
+        # surface could not be combined with this route at all.
+        cs, _, n_sites = _sorbent_system()
+        nm = symbol.(cs.species)
+        idx(s) = findfirst(==(s), nm)
+        spc = Dict(s => cs.species[idx(s)] for s in nm)
+        rxn = Reaction(
+            OrderedDict(spc["Portlandite"] => 1),
+            OrderedDict(spc["Ca+2"] => 1, spc["OH-"] => 2);
+            symbol = "dissolution", equal_sign = '→',
+        )
+        st = zeros(Float64, length(nm))
+        st[idx("Portlandite")] = -1.0; st[idx("Ca+2")] = 1.0; st[idx("OH-")] = 2.0
+        kr = KineticReaction(rxn, (T, P, t, n, lna, n0) -> 2.0e-8, idx("Portlandite"), st)
+
+        # Constructing it is the test: this raised before.
+        kss = KineticStepSolver(cs, DiluteSolutionModel(), [kr]; coupling = :species)
+        @test kss.coupling === :species
+        @test kss.dual_free !== nothing
+
+        # And the family really is on the free side, not merely tolerated there.
+        free_sys = kss.dual_free.system
+        @test free_sys.site_families !== nothing
+        @test length(free_sys.site_groups) == 1
+        @test !isempty(free_sys.idx_surface)
+        # The member set is the parent's, unshortened.
+        @test Set(symbol.(ChemistryLab.site_members(only(free_sys.site_families)))) ==
+            Set(["XsOH", "XsOCa+"])
+        # The eliminated mineral is gone from the free side, which is the point
+        # of the route — so this is not simply the parent system handed back.
+        @test !("Portlandite" in symbol.(free_sys.species))
+    end
+
     @testset "a constant-rate release onto an inert sorbent" begin
         # The kinetic half is exactly integrable — a constant rate — so the
         # amount of calcium released by time t is k·t and nothing else. What is
