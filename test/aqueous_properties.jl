@@ -523,3 +523,82 @@ end
         @test abs(si["Ca+2"]) < 1.0e-10
     end
 end
+
+@testsection "a species at the activity floor is at the floor, not at twice it" begin
+
+    # THE BUG THIS PINS, and it was silent. Molalities are built from
+    # `max.(n, ϵ)` and were then passed to `log(mᵢ + ϵ)`: two regularizations
+    # stacked, so a species sitting at the floor came back at `log(2ϵ)` instead
+    # of `log(ϵ)` — an offset of `ln 2` — in the HKF, Davies and Pitzer
+    # closures, while the dilute model, which takes the log bare, did not.
+    #
+    # An `ln 2` on a species nobody looks at sounds harmless. It is not, because
+    # a PRIMARY can sit at the floor: `saturation_indices` reads each element
+    # potential off its primary species, so the offset propagates to every phase
+    # carrying that element. Measured on amorphous ferric hydroxide, where
+    # `Fe⁺³` at pH 7 is a `10⁻¹⁶` species: the solid, present and at
+    # equilibrium, reported `log SI = 0.298 = ln 2 / ln 10` under HKF and Davies
+    # and `0` under the dilute model. `optimality_certificate` said `optimal`
+    # and was right — it reads the solver's own multipliers. The index lied.
+    #
+    # Asserted against the model's OWN activity coefficient rather than against
+    # a formula retyped here, so the test cannot drift from the closure it
+    # guards: `activity_coefficients` and the solver call the same `_log10γ_ion`.
+
+    dict = Dict(
+        symbol(s) => s for s in reference_species(
+                split("H2O@ H+ OH- Na+ Cl- Ca+2")
+            )
+    )
+    cs = ChemicalSystem(
+        [dict[s] for s in split("H2O@ H+ OH- Na+ Cl- Ca+2")],
+        ["H2O@", "H+", "Na+", "Cl-", "Ca+2", "Zz"],
+    )
+    st = ChemicalState(cs)
+    set_quantity!(st, "H2O@", 1.0u"kg")
+    set_quantity!(st, "Na+", 1.0e-3u"mol")
+    set_quantity!(st, "Cl-", 1.0e-3u"mol")
+    set_quantity!(st, "H+", 1.0e-7u"mol")
+    set_quantity!(st, "OH-", 1.0e-7u"mol")
+    set_quantity!(st, "Ca+2", 0.0u"mol")          # the one at the floor
+    ϵ = 1.0e-16
+    kgw = ustrip(us"mol", st.n[1]) * ustrip(us"kg/mol", dict["H2O@"][:M])
+
+    for model in (HKFActivityModel(), DaviesActivityModel())
+        lna = log_activities(st, model; ϵ = ϵ)
+        γ = activity_coefficients(st, model; ϵ = ϵ)["Ca+2"]
+        @test lna["Ca+2"] ≈ log(γ * ϵ / kgw) atol = 1.0e-9
+        # And the discriminating half: `log(2ϵ)` is 0.69 away, so the assertion
+        # above has three hundred million times the margin it needs, while this
+        # one names the value it is not.
+        @test !isapprox(lna["Ca+2"], log(γ * 2ϵ / kgw); atol = 0.1)
+    end
+
+    # Pitzer carries the same two regularizations and no `activity_coefficients`
+    # accessor, so it is pinned by a ratio instead — which needs no formula and
+    # no coefficient. Doubling an amount that is ABOVE the floor must double the
+    # activity. With `ϵ` added a second time it does not: `log(2ϵ + ϵ)` against
+    # `log(4ϵ + ϵ)` is a factor 5/3, and the test reads 0.51 where it wants 0.69.
+    pitzer = PitzerActivityModel(;
+        parameters = build_pitzer_parameters(datapath("pitzer-reardon1990.toml")),
+    )
+    for model in (HKFActivityModel(), DaviesActivityModel(), pitzer)
+        two, four = ChemicalState(cs), ChemicalState(cs)
+        for (target, amount) in ((two, 2ϵ), (four, 4ϵ))
+            set_quantity!(target, "H2O@", 1.0u"kg")
+            set_quantity!(target, "Na+", 1.0e-3u"mol")
+            set_quantity!(target, "Cl-", 1.0e-3u"mol")
+            set_quantity!(target, "Ca+2", amount * u"mol")
+        end
+        Δ = log_activities(four, model; ϵ = ϵ)["Ca+2"] -
+            log_activities(two, model; ϵ = ϵ)["Ca+2"]
+        @test Δ ≈ log(2) atol = 1.0e-9
+    end
+
+    # A present species is untouched: the floor is a floor and nothing else.
+    for model in (HKFActivityModel(), DaviesActivityModel())
+        lna = log_activities(st, model; ϵ = ϵ)
+        γ = activity_coefficients(st, model; ϵ = ϵ)["Na+"]
+        @test lna["Na+"] ≈ log(γ * 1.0e-3 / kgw) rtol = 1.0e-9
+    end
+end

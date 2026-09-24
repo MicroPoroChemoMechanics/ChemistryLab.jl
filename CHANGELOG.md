@@ -91,6 +91,26 @@ Measured, on portlandite carrying sites at three host amounts: converges as well
 as the uncoupled solve, holds the constraint to `10⁻⁷`, conserves its elements
 to `10⁻¹⁵`, and reports every present phase at `log SI = 0` to `10⁻¹⁴`.
 
+### A species at the activity floor was worth `ln 2` more than the floor
+
+Molalities are built from `max.(n, ϵ)` and were then passed to `log(mᵢ + ϵ)`.
+Two regularizations stacked, so any species sitting at the floor came back at
+`log(2ϵ)` instead of `log(ϵ)` — in the HKF, Davies and Pitzer closures, while
+the dilute model, which takes the log bare, was right.
+
+`ln 2` on a species nobody looks at would be harmless. A **primary** can sit at
+the floor, and `saturation_indices` reads each element potential off its primary
+species, so the offset reached every phase carrying that element. Measured on
+amorphous ferric hydroxide, where `Fe³⁺` at pH 7 is a `10⁻¹⁶` species: the
+solid, present and at equilibrium, reported `log SI = 0.298` — which is
+`ln 2 / ln 10` — under HKF and Davies and `0` under the dilute model.
+`optimality_certificate` reported `optimal` and was right; it reads the solver's
+own multipliers. The index was the thing that lied, on every non-dilute model
+the package ships.
+
+The second `ϵ` is gone. No number moves anywhere else: the molality is already
+strictly positive, so the term only ever did something at the floor.
+
 ### What a coupled family costs, and the one thing it does not yet settle
 
 `SITES_FOLLOW_HOST` is a constraint, and as a constraint it is exact. It is not
