@@ -509,6 +509,7 @@ module ChemistryLab
         convert_logk_site_density,
         sites_per_host,
         site_coupling_rows,
+        host_coupling_bias,
         conservation_matrix,
         area_ratio,
         area_method,

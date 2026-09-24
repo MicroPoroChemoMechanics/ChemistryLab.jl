@@ -823,6 +823,62 @@ function _fill_site_potentials!(yv, cs::ChemicalSystem, g)
 end
 
 """
+    _repair_clipped_potentials!(yv, cs, A, g, n, ϵ)
+
+Replace the potential of any primary whose species has collapsed to the
+activity floor, where reading it off that species is reading the floor.
+
+# The defect, measured
+
+A primary's potential is read as that primary species' own `μ/RT`, which is
+exact **while the species is there**. Below the floor it is not there: `ln a` is
+clipped at `ϵ` and `μ/RT` reports the clip.
+
+Measured on amorphous ferric hydroxide carrying a surface. Without the surface
+the solution sits at pH 7, `Fe³⁺` is a `10⁻¹⁶` species, the clip barely bites
+and the solid reports `log SI ≈ 0` as it must. Add the surface and its protolysis
+takes the pH to 8.1, where `Fe³⁺` is nearer `10⁻²⁵`: the clip is then worth nine
+decades, and the solid — present, and at an equilibrium the certificate accepts
+— reported `log SI = 3.3`. The certificate was right; it reads the solver's own
+multipliers. The index was reading a floor.
+
+# What replaces it, and why it cannot disturb anything else
+
+Every aqueous species clear of the floor is a free variable, so at an
+equilibrium each one states `μ_i/RT = Σ_c A_{c,i} y_c` exactly. Over the set of
+them that is an overdetermined system for `y`, and the repair is its
+**minimum-norm** least-squares correction. Minimum norm matters: it puts nothing
+in the directions those species do not determine, so a primary supplied by
+[`_fill_site_potentials!`](@ref) keeps the value that function gave it.
+
+!!! warning "This one assumes the state is an equilibrium"
+    The rest of [`saturation_indices`](@ref) does not: it forms each species
+    from the primaries' actual potentials, which is defined at any composition.
+    This repair is different, because a primary that is not there has no
+    potential to read and the only way to recover one is the stationarity of the
+    species that are. It therefore fires **only when a primary is at or below
+    the floor** — never otherwise, so an arbitrary state returns exactly what it
+    always did — and on such a state the repaired index is a statement about the
+    nearest equilibrium rather than about the state.
+"""
+function _repair_clipped_potentials!(yv, cs::ChemicalSystem, A, g, n, ϵ)
+    idx = Dict(symbol(sp) => i for (i, sp) in enumerate(cs.species))
+    clipped = any(cs.SM.primaries) do pr
+        k = get(idx, symbol(pr), 0)
+        k != 0 && n[k] <= ϵ
+    end
+    clipped || return yv
+    # Pure phases that are ABSENT are undersaturated rather than stationary, so
+    # their equation is an inequality and would pull the fit the wrong way; only
+    # the aqueous ones are used, and only clear of the floor.
+    reliable = [i for i in cs.idx_aqueous if n[i] > 10ϵ]
+    length(reliable) < 2 && return yv
+    At = Matrix(transpose(@view A[:, reliable]))
+    yv .+= pinv(At) * (g[reliable] .- At * yv)
+    return yv
+end
+
+"""
     saturation_indices(state, model; ϵ = 1e-16) -> OrderedDict{String, <:Real}
 
 `LogSI` for every species at `state`: `log₁₀(IAP/K)` of the reaction that forms it
@@ -890,6 +946,7 @@ function saturation_indices(
     y = [get(idx, symbol(pr), 0) for pr in cs.SM.primaries]
     yv = [k == 0 ? zero(eltype(g)) : g[k] for k in y]
     _fill_site_potentials!(yv, cs, g)
+    _repair_clipped_potentials!(yv, cs, A, g, ustrip.(us"mol", state.n), ϵ)
     inv_ln10 = inv(log(10))
     return OrderedDict(
         symbol(cs.species[i]) =>

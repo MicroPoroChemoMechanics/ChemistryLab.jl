@@ -117,21 +117,30 @@ strictly positive, so the term only ever did something at the floor.
 yet a complete thermodynamic model, and the gap has a size.
 
 With a fixed budget the free site's `ΔₐG⁰` cancels out of every surface
-reaction, so zero is free: shifting a whole family by 20 kJ/mol moves nothing
-by more than `5e-14`. Coupled, it does not cancel — the host carries `−ν` of the
-site component — and the host's saturation index moves by exactly
-`−ν Δ / (RT ln 10)`, verified to five decimals over 40 kJ/mol. At Dzombak and
-Morel's weak-site density that is 0.35 log units per 10 kJ/mol, and with the
-reference at zero an amorphous ferric hydroxide comes out 2.3 log units
-undersaturated and dissolves entirely where the same system with a fixed budget
-holds its solid at equilibrium.
+reaction, so zero is free: shifting a whole family by 20 kJ/mol moves nothing by
+more than `3e-11`. Coupled it does not cancel, because the host carries `−ν` of
+the site component — and `ΔₐG⁰ = 0` on a free site is not a gauge but a claim,
+namely that a surface hydroxyl forms from the elements for nothing. `XsOH`
+carries a real oxygen and a real hydrogen. At Dzombak and Morel's weak-site
+density, `ν = 0.2`, that claim is worth 8.3 log units on the host's own
+solubility, and measured, it dissolves an amorphous ferric hydroxide outright
+where the same system with a fixed budget holds its solid.
 
-So the reference energy of a free site is a **gauge only while nothing follows
-its host**, and at a realistic site density it is a parameter of the
-calculation. Kulik's `Γ°` convention is the candidate for fixing it and
-`convert_logk_site_density` is the part of it that is implemented; the absolute
-standard state is not, and the documentation says so where a user would reach
-for the feature rather than in a note at the end.
+The reference is not a convention to choose: it is the energy of the matter the
+free site carries, `μ°(H₂O) − μ°(H⁺) = −237.2 kJ/mol` for an oxide, read off the
+same matrix the constraint is built from — so `host_coupling_bias` computes it
+for any free site, an exchanger's included. Set it, and the coupling costs
+nothing measurable: the host keeps `9.999993e-4 mol` against `9.999693e-4` with
+a fixed budget, the site total is `ν` times the host amount to seven digits, the
+solve certifies, and across the whole band the guard allows the answer moves by
+`7e-8`. Leave it at zero and the family is refused at construction, with the
+value to use in the message.
+
+Kulik (2002) reaches the same place from the other side, and the theory page now
+says so: he keeps the free site out of the balance entirely, as a *surface
+monolayer solvent* of fixed activity with `μ_n = 0`, and carries the capacity in
+a surface activity term. That formulation needs no reference energy at all. This
+one does, and now states it.
 
 ### A charge component is refused on a measurement, not on its presence
 
@@ -201,13 +210,16 @@ Below 1.0 the registry treats a minor bump as breaking whatever the API did, so
 bound. No package in this organization depends on ChemistryLab, so there is
 nothing else to change.
 
-Beyond that: seventeen exported names are new and none was removed, but three
+Beyond that: eighteen exported names are new and none was removed, but four
 behaviors change deliberately. A rate law's host is now found by symbol rather
 than by formula, which is a different species exactly when two share a formula
 and one carries a distinct symbol. A site family whose members do not match the
 system's species by formula, site symbol and aggregate state is now refused
 where it was accepted. And a state whose site amounts contradict its declared
-capacity is refused where it was solved.
+capacity is refused where it was solved. A site family that follows its host and
+whose free site is left without a reference energy is refused where it was
+solved, and a saturation index computed on a primary that has collapsed to the
+activity floor now reports the equilibrium instead of the floor.
 
 ## v0.21.0 — charged surfaces, published models, and numbers that say where they came from
 

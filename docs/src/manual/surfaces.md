@@ -404,21 +404,29 @@ site and charge potentials is identifiable, and the solver runs the two to
 With a **fixed** budget, `ΔₐG⁰` of the free site cancels out of every surface
 reaction — both sides carry a site — so setting it to zero costs nothing.
 Measured: shifting a whole family by up to 20 kJ/mol moves the host amount and
-its saturation index by `5e-14`, which is the solver's own noise.
+its saturation index by `3e-11`, which is the solver's own noise.
 
 With a budget that **follows its host** it does not cancel. The host carries
 `−ν` of the site component, so the site potential enters the host's own chemical
-potential and its saturation index moves by
+potential. A phase that is present at an equilibrium has `log SI = 0` by
+stationarity whatever the potentials are, so what moves is **how much of it
+there is** — and at Dzombak and Morel's weak-site density, `ν = 0.2`, a free
+site left at `ΔₐG⁰ = 0` does not move the sorbent, it **removes** it.
 
-```math
-\Delta \log \mathrm{SI}_{\text{host}} = -\,\frac{\nu\,\Delta}{RT \ln 10}
-```
+!!! tip "What to set it to, and what the package does if you do not"
+    The free site is made of something: `XsOH` carries a real oxygen and a real
+    hydrogen. Its reference energy is therefore not free — it is the energy of
+    that matter, `μ°(H₂O) − μ°(H⁺) = −237.2 kJ/mol` for an oxide, and
+    [`host_coupling_bias`](@ref) computes it from the matrix for any free site,
+    an exchanger's included.
 
-verified to five decimals over 40 kJ/mol of shift. At Dzombak and Morel's
-weak-site density, `ν = 0.2`, that is **0.35 log units of solubility per
-10 kJ/mol** of reference energy.
+    Set it, and the coupling costs nothing measurable: hydrous ferric oxide at
+    `ν = 0.2` keeps `9.999993e-4 mol` of solid against `9.999693e-4` with a
+    fixed budget, the site total is `0.2` times the host amount to seven digits,
+    and the host reports `log SI = −2e-13`. Leave it at zero and the family is
+    **refused**, with the value to use in the message.
 
-!!! warning "At a realistic site density this is a parameter, not a convention"
+!!! warning "Why zero is refused rather than warned about"
     Measured on amorphous ferric hydroxide carrying `ν = 0.2`: with
     `ΔₐG⁰(free site) = 0` the coupled host comes out **2.3 log units
     undersaturated and dissolves completely**, where the same system with a
@@ -426,12 +434,12 @@ weak-site density, `ν = 0.2`, that is **0.35 log units of solubility per
     at fault — the constraint holds to `4e-9` and the elements to `1e-14` — the
     reference energy is.
 
-    The package does not choose that energy for you, and zero is not a safe
-    default here. Until a standard state is fixed — Kulik's `Γ°` convention is
-    the candidate, and [`convert_logk_site_density`](@ref) is the part of it
-    that is implemented — treat a coupled family on a phase whose stability
-    matters as **a model with one more parameter in it**, and check the host's
-    saturation index against the same system uncoupled.
+    A family whose bias exceeds `0.05` log units is refused at construction,
+    because below that threshold the gap is smaller than the spread between two
+    databases for the same phase and above it the gap **is** the answer. At the
+    site density a cement paste implies, `ν = 6.7e-5`, the bias is `0.003` and
+    an unreferenced free site passes; the refusal is for the densities where it
+    matters.
 
 ### What to check afterwards
 

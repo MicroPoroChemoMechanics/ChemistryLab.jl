@@ -861,10 +861,19 @@ end
         s[:ΔₐG⁰] = _g0(g); s
     )
 
+    # The reference the free site's matter implies: `XwOH` is a site plus an
+    # `OH`, so `μ°(H₂O) − μ°(H⁺)`. A coupled family is refused away from it
+    # (`host_coupling_bias`), so the gauge is swept AROUND it rather than from
+    # zero — which is also the only place the sweep means anything, since zero
+    # is a declaration the package now rejects.
+    G(sp) = ustrip(us"J/mol", sp[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+    reference = G(bn["H2O@"]) - G(bn["H+"])
+
     function run(Δ; coupled)
+        g = coupled ? reference + Δ : Δ
         mem = [
-            surf("XwOH", Δ), surf("XwOH2+", Δ - RT25 * log(10.0^7.29)),
-            surf("XwO-", Δ - RT25 * log(10.0^-8.93)),
+            surf("XwOH", g), surf("XwOH2+", g - RT25 * log(10.0^7.29)),
+            surf("XwO-", g - RT25 * log(10.0^-8.93)),
         ]
         support = SurfaceSupport(
             "hydrous ferric oxide", "Fe(OH)3(am)", FixedSurfaceArea(1.0);
@@ -905,10 +914,8 @@ end
         # NOT asserted bit for bit, and the reason is worth stating: shifting
         # every member's reference energy changes the numbers the dual Newton
         # iterates on, so it takes a different path to the same answer. What is
-        # invariant is the answer. The scale below is the solver's own
-        # reproducibility, and the contrast at the end is what makes it mean
-        # something — the coupled system moves by four orders of magnitude more
-        # on the same shift.
+        # invariant is the answer, over a range no coupled family would be
+        # allowed anywhere near.
         ref = run(0.0; coupled = false)
         worst = 0.0
         for Δ in (-5.0e3, -2.0e4, 1.0e4)
@@ -918,20 +925,50 @@ end
             worst = max(worst, abs(r.si - ref.si))
         end
         @info "gauge invariance, fixed budget" worst
-        # The comparison that makes the two testsets one statement.
-        coupled_shift = abs(run(-2.0e4; coupled = true).si - run(0.0; coupled = true).si)
-        @test coupled_shift > 1.0e3 * max(worst, 1.0e-9)
     end
 
-    @testset "a budget that follows its host: the shift is −ν Δ / (RT ln 10)" begin
+    @testset "a budget that follows its host: the reference is not a gauge" begin
+        # WHERE THE EFFECT IS, and it is not where an earlier version of this
+        # testset looked. A phase that is PRESENT at an equilibrium has
+        # `log SI = 0` by stationarity, whatever the potentials are, so the
+        # index cannot show this. What moves is the AMOUNT.
+        #
+        # Measured at Dzombak and Morel's weak-site density, `ν = 0.2`: with the
+        # free site referenced to the matter it carries the host keeps
+        # `9.999993e-4 mol` against `9.999693e-4` with a fixed budget, three
+        # parts in 1e5. With `ΔₐG⁰ = 0` — a surface hydroxyl formed from the
+        # elements for nothing — the same solve dissolves the sorbent outright,
+        # which is why that declaration is refused rather than solved.
         ref = run(0.0; coupled = true)
-        for Δ in (-5.0e3, -1.0e4, -2.0e4, -3.0e4, -4.0e4)
+        fixed = run(0.0; coupled = false)
+        @test ref.host ≈ fixed.host rtol = 1.0e-3
+        @test ref.si ≈ 0.0 atol = 1.0e-8            # present, hence exactly zero
+
+        worst = 0.0
+        for Δ in (-1.2e3, -6.0e2, 6.0e2, 1.2e3)
             r = run(Δ; coupled = true)
-            @test r.si - ref.si ≈ -ν * Δ / (RT25 * log(10)) atol = 1.0e-4
+            @test r.si ≈ 0.0 atol = 1.0e-8
+            worst = max(worst, abs(r.host / ref.host - 1))
         end
-        # And the magnitude is the point: at this site density the reference
-        # energy is worth 0.35 log units of solubility per 10 kJ/mol, so it is
-        # a parameter of the calculation and not a convention inside it.
-        @test abs(run(-1.0e4; coupled = true).si - ref.si) > 0.3
+        @info "coupled host amount across the allowed band" worst
+        # Inside the band the guard allows, the declaration is worth little.
+        # Outside it, it is worth the sorbent.
+        @test worst < 1.0e-3
+    end
+
+    @testset "an unreferenced free site is refused, and the message says what to set" begin
+        # `ΔₐG⁰ = 0` on a free site that carries an oxygen and a hydrogen is the
+        # declaration that dissolved the sorbent. It is worth 8.3 log units at
+        # Dzombak and Morel's density and is refused; the same declaration at
+        # the density a cement paste implies is worth 0.003 and passes.
+        e = try
+            run(-reference; coupled = true)      # back to ΔₐG⁰ = 0
+            nothing
+        catch err
+            err
+        end
+        @test e isa ArgumentError
+        @test occursin("log units", e.msg)
+        @test occursin("-237.2 kJ/mol", e.msg)
     end
 end

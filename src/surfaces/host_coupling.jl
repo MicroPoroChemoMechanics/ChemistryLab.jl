@@ -602,6 +602,170 @@ function _refuse_unidentifiable_site(
     )
 end
 
+
+"""
+    host_coupling_bias(cs::ChemicalSystem) -> OrderedDict{String, Float64}
+
+Per coupled family, the shift in `log SI` that the coupling imposes on the host
+at standard state — the size of the modeling gap described below, in the units
+the answer is read in.
+
+# Why a coupled family has one and a fixed one does not
+
+With a **fixed** budget the free site's `ΔₐG⁰` cancels out of every surface
+reaction, since both sides carry a site. It is a gauge, and the suite measures
+it as one: shifting a whole family by 20 kJ/mol moves nothing by more than
+`5e-14`.
+
+With a budget that **follows its host**, the host carries `−ν` of the site
+component, so the site potential enters the host's own chemical potential and
+the reference energy has stopped being a gauge. Where that shows depends on the
+host: a phase that is **present** at an equilibrium has `log SI = 0` by
+stationarity whatever the potentials are, so the effect is on its **amount**; a
+phase that is absent shows it directly in its index.
+
+What it has become is not a convention either. `XsOH` carries a real oxygen and
+a real hydrogen, so giving it `ΔₐG⁰ = 0` states that a surface hydroxyl forms
+from the elements for nothing. That is wrong by the energy of the matter in it,
+and this function measures exactly that:
+
+```math
+\\text{bias} = \\frac{\\nu}{RT \\ln 10}
+  \\left| \\Delta_a G^0_{\\text{free}}
+        - \\sum_{c \\neq \\text{site}} A_{c,\\text{free}}\\, \\Delta_a G^0_c \\right|
+```
+
+the second term being the standard energy of the free site's own decomposition
+over the other primaries — `μ°(H₂O) − μ°(H⁺)` for an oxide, `μ°(Na⁺)` for a
+sodium exchanger. It is general because the matrix supplies it.
+
+# What the number means, measured
+
+At the site density a cement paste implies — `Γ = 10⁻⁵ mol/m²` over `90 m²/kg`,
+so `ν = 6.7e-5` — the bias is `0.003` log units and the coupling is harmless.
+At Dzombak and Morel's weak-site density for hydrous ferric oxide, `ν = 0.2`, it
+is **8.3 log units**: with the reference at zero the host came back 2.3 log
+units undersaturated and dissolved completely, where the same system with a
+fixed budget holds its solid at equilibrium.
+
+# What setting it fixes, measured
+
+With `ΔₐG⁰(free site) = μ°(H₂O) − μ°(H⁺) = −237.2 kJ/mol`, the bias is zero and
+the same hydrous ferric oxide at `ν = 0.2` keeps its solid: `9.999993e-4 mol`
+against `9.999693e-4` with a fixed budget — three parts in `10⁵` — the site
+total is `0.2` times the host amount to seven digits, the solve certifies, and
+the host reports `log SI = −2e-13`.
+
+That is a **reference**, not a fitted number: it is what the free site is made
+of, read off the same matrix the constraint is built from. It is nonetheless a
+statement this package makes rather than one a database supplies, which is why
+it is measured here instead of assumed.
+
+[Kulik2002](@cite) reaches the same place from the other side and is worth
+reading before relying on this: he keeps the free site out of the balance
+entirely, as a *surface monolayer solvent* of fixed activity with `μ_n = 0`, and
+carries the capacity in a surface activity term. That formulation needs no
+reference energy at all, and it is the one to move to if this ever has to hold
+at densities where the approximation shows.
+
+See also: [`sites_per_host`](@ref), [`conservation_matrix`](@ref).
+"""
+function host_coupling_bias(cs::ChemicalSystem)
+    out = OrderedDict{String, Float64}()
+    fams = cs.site_families
+    fams === nothing && return out
+    RT = R_GAS * 298.15
+    for f in fams
+        surface_support(f).coupling === SITES_FOLLOW_HOST || continue
+        r = findfirst(p -> get(atoms(p), f.site, 0) > 0, cs.SM.primaries)
+        r === nothing && continue
+        jf = findfirst(s -> symbol(s) == symbol(reference_member(f)), cs.species)
+        jh = findfirst(s -> symbol(s) == surface_support(f).host, cs.species)
+        (jf === nothing || jh === nothing) && continue
+        ν = sites_per_host(f, _molar_mass_si(cs.species[jh]))
+        m = _reference_matter_energy(cs, f, r, jf)
+        m === nothing && continue          # no standard energies: nothing to measure
+        out[name(f)] = ν * abs(_standard_gibbs(cs.species[jf]) - m) / (RT * log(10))
+    end
+    return out
+end
+
+"""
+    _standard_gibbs(sp) -> Union{Float64, Nothing}
+
+`ΔₐG⁰` at 298.15 K and 1 bar, in J/mol, or `nothing` when the species carries
+none. A missing property reads back as an `Int` zero rather than as an error
+(`species.jl`), so the test is on the type and not on the value: a species whose
+energy is genuinely zero must not be confused with one that has none.
+"""
+function _standard_gibbs(sp::AbstractSpecies)
+    g = sp[:ΔₐG⁰]
+    g isa Number && return nothing
+    return ustrip(us"J/mol", g(T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+end
+
+"""
+    _reference_matter_energy(cs, family, r, jf) -> Union{Float64, Nothing}
+
+The standard energy of the free site's own decomposition over the primaries
+other than its site component — the energy of the matter the free site carries.
+`nothing` if any primary it needs has no standard energy.
+"""
+function _reference_matter_energy(cs::ChemicalSystem, family::SiteFamily, r::Int, jf::Int)
+    total = 0.0
+    for c in eachindex(cs.SM.primaries)
+        c == r && continue
+        a = Float64(cs.SM.A[c, jf])
+        iszero(a) && continue
+        g = _standard_gibbs(cs.SM.primaries[c])
+        g === nothing && return nothing
+        total += a * g
+    end
+    return _standard_gibbs(cs.species[jf]) === nothing ? nothing : total
+end
+
+# Above this many log units on the host's saturation index, a coupled family is
+# refused rather than solved. It is not a machine-dependent threshold: it is a
+# statement about how much of an answer the modeling gap is allowed to be, and
+# 0.05 log units is 12 % on a solubility — below the spread between two
+# databases for the same phase, and four orders below the 8.3 that Dzombak and
+# Morel's own site density produces with an unreferenced free site.
+const _MAX_COUPLING_BIAS = 0.05
+
+"""
+    _refuse_biased_coupling(cs, family)
+
+Refuse a coupled family whose free site is not referenced to the matter in it.
+
+[`host_coupling_bias`](@ref) says what this measures and why a fixed budget has
+no equivalent. This is the gate: a modeling gap worth more than
+`$(_MAX_COUPLING_BIAS)` log units on the host's own solubility is not a detail
+of the answer, it is the answer.
+"""
+function _refuse_biased_coupling(cs::ChemicalSystem, family::SiteFamily)
+    bias = get(host_coupling_bias(cs), name(family), 0.0)
+    bias ≤ _MAX_COUPLING_BIAS && return nothing
+    r = findfirst(p -> get(atoms(p), family.site, 0) > 0, cs.SM.primaries)
+    jf = findfirst(s -> symbol(s) == symbol(reference_member(family)), cs.species)
+    matter = _reference_matter_energy(cs, family, r, jf)
+    throw(
+        ArgumentError(
+            "SiteFamily \"$(name(family))\" follows its host, and the reference " *
+                "energy of its free site \"$(symbol(cs.species[jf]))\" would move " *
+                "the host's own saturation index by " *
+                "$(round(bias; sigdigits = 3)) log units.\n" *
+                "With a FIXED budget that energy is a gauge and cancels; with a " *
+                "budget that follows its host it does not, because the host carries " *
+                "−ν of the site component. Measured on hydrous ferric oxide at " *
+                "Dzombak and Morel's weak-site density: the host came back 2.3 log " *
+                "units undersaturated and dissolved completely.\n" *
+                "Set `ΔₐG⁰` of the free site to the energy of the matter it carries, " *
+                "$(round(matter / 1000; digits = 1)) kJ/mol here, which is its own " *
+                "decomposition over the other primaries; see `host_coupling_bias`.",
+        )
+    )
+end
+
 """
     conservation_matrix(cs::ChemicalSystem) -> Matrix{Float64}
 
@@ -702,6 +866,7 @@ function conservation_matrix(cs::ChemicalSystem)
         # AFTER the coupling, because the host entry is what separates the site
         # row from the charge row when it is separable at all.
         _refuse_unidentifiable_site(cs, f, A, r)
+        _refuse_biased_coupling(cs, f)
     end
     return A
 end
