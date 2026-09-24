@@ -16,6 +16,69 @@ Every number below is pinned by an assertion in `test/cemdata18_reference.jl`
 `test/chloride_binding_reference.jl` (25) or
 `test/duan2016_reference.jl` (11), so it is checked on every CI run.
 
+## What has been checked
+
+Five sources, seven hundred assertions, and the coverage is uneven on purpose:
+the database is checked exhaustively because it is cheap to check exhaustively,
+while the equilibrium cases are checked one composition at a time because each
+one costs seconds to minutes.
+
+| what | against | how closely | where it stops |
+|:--|:--|:--|:--|
+| **every solubility product** in the shipped CEMDATA18 — 52 phases | [Lothenbach2019](@cite) Tables 2-3 | 50 close to `0.041`, 48 to `0.005` | two M-S-H end members are `0.48` and `0.40` out; the source disagrees with itself |
+| **standard properties and HKF coefficients**, 19 aqueous species and 7 gases | [Lothenbach2019](@cite) Tables D.1-D.2 | exact, all seven coefficients each | nitrite-AFm and Fe-Friedel's salt are not in the file |
+| **`ΔₐG⁰` rebuilt from `ΔfH°` and `S°`** | the file's own `ΔfG°` | exact for 220 of 228 substances | the eight exceptions are all phases whose `S°` Cemdata18 estimated |
+| **HKF away from 298.15 K, 1 bar** | [Duan2016](@cite) Table 4, HKF column | `0.03 %` at the reference point; `0.3 %` across a factor 2.9 in pressure | their two constants in one row sit at two different pressures |
+| **calcite `log Ksp`** at 25 °C | the accepted value | `−8.480` against `−8.48` | diverges from Duan's non-HKF method by 1.4 log units at 478 K |
+| **a measured solution** over a two-phase assemblage | [Atkins1992](@cite) Table 2 | Al and pH agree, robustly | Si is `×5` and Ca has a floor the model cannot leave; 9 of their 10 mixtures are not usable at all |
+| **the carboaluminate sequence** under limestone | [Kulik2021](@cite) Fig. 7A, [Lothenbach2019](@cite) Figs. 13-14 | order and thresholds reproduce; iron partition exact | only appears when Al exceeds Fe — see below |
+| **chloride binding** and the AFm → Friedel transition | [Guo2018](@cite) Fig. 1(b) | plateau to `1 %`, both conservation laws close | pH not reproducible (their alkalis are unpublished); above 2 % NaCl the activity model is out of range |
+
+Two things this chapter deliberately does **not** do. It does not check the
+kinetics — [Validation against Reaktoro](@ref) covers the coupling, and no
+published hydration curve is reproduced here. And it does not check anything
+above about `1 mol/kg` ionic strength, because `HKFActivityModel`'s B-dot term
+was not fitted there.
+
+## Traps
+
+Five things that cost time to find, collected because each is reusable well
+beyond the case that established it.
+
+**A solid entered as oxides loses its water.** Feeding a C-S-H as lime and
+silica gives the solver its calcium and its silicon and none of the 2.1 H₂O per
+formula unit it carries. On [Guo2018](@cite)'s inventory that is 44.5 g per liter
+of concrete: the solver takes it back out of the pore solution, the pore volume
+falls from 146 mL to 84, and every concentration is wrong by nearly a factor of
+two. See [Chloride binding](@ref).
+
+**Walk a sweep downhill.** A warm start survives only while the phase
+*assemblage* holds; at a point where a phase appears or vanishes the certificate
+refuses it and the full multi-start cascade runs again. Starting from the
+composition-rich end and walking toward the simple one put one limestone sweep
+from 152 s to 52 s — and removing a single intermediate rung, so that one step
+crossed the boundary in a jump, put it back to two and a half minutes. See
+[Blending a CEM I with limestone](@ref).
+
+**Suppress gibbsite below 60 °C.** Cemdata18 §2.1 says so, and it is not a
+harmless over-specification: left in the phase list it takes over from
+microcrystalline `AlOHmic` in the sulfate-poor mixtures and moves the aluminum.
+See [Atkins et al. (1992): a measurement, not a calculation](@ref).
+
+**The iron decides whether carboaluminates form at all.** `C3AFS0.84H4.32` takes
+one aluminum per iron, so the siliceous hydrogarnet is capped by the iron
+available. On a clinker with `Fe₂O₃ = 4.49 %` there is enough iron to pair with
+every aluminum, no monocarbonate forms at any limestone content, and the
+published sequence simply does not appear. Below about 3.5 % it does. See
+[The sequence, and the condition nobody states](@ref).
+
+**A rebuilt Gibbs energy is not always the tabulated one.** `ΔₐG⁰(T)` is formed
+from `ΔfH°` and `S°`, so at 298.15 K it must reproduce `ΔfG°` — and does, for
+220 of the 228 substances. The eight that do not are exactly those whose entropy
+and heat capacity Cemdata18 estimated rather than measured. If a result turns on
+one of them, check which number you are standing on. See
+[The same two phases disagree with themselves](@ref).
+
 ## Cemdata18 Tables 2 and 3: the solubility products
 
 Table 2 gives `log Ks0` for each phase **and** writes out the dissolution
