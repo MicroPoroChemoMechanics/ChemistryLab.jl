@@ -450,6 +450,38 @@ function _molar_mass_si(sp::AbstractSpecies)
     return Float64(ustrip(us"kg/mol", sp[:M]))
 end
 
+# The key a rate law uses to find its host in a `StateView`.
+#
+# THE SYMBOL, NOT THE FORMULA. `build_kinetics_params` registers both — the
+# formula first, then the symbol — so a formula shared by two polymorphs is
+# overwritten and resolves to whichever was declared last. Measured on calcite
+# and aragonite, both `CaCO3`, holding 1 and 100 mol: asking for `Cal` came back
+# with Arg's amount and a reactive area a hundred times too large. The host had
+# been resolved correctly and the resolution was then thrown away.
+#
+# Nothing changes for the ordinary species: one built without an explicit symbol
+# takes its formula as its symbol, so this returns the same string it always
+# did. It differs exactly where the two differ, which is the case that was wrong.
+#
+# A species with no symbol at all falls back to its formula, and that formula is
+# then required to be unique — a rate that silently follows another phase is
+# worse than one that refuses to be built.
+function _rate_lookup_key(cs::ChemicalSystem, sp::AbstractSpecies)
+    sym = symbol(sp)
+    isempty(sym) || return sym
+    key = phreeqc(formula(sp))
+    n = count(s -> phreeqc(formula(s)) == key, cs.species)
+    n == 1 || throw(
+        ArgumentError(
+            "species with formula \"$key\" carries no symbol, and $n species of " *
+                "this system share that formula, so it cannot name one of them. " *
+                "Give the species a symbol — that is what distinguishes two " *
+                "polymorphs.",
+        )
+    )
+    return key
+end
+
 # Returns (mineral_name::String, M::Float64) for the controlling mineral in rxn.
 function _mineral_name_and_mass(cs::ChemicalSystem, rxn::AbstractReaction)
     idx = _find_mineral_idx(cs, rxn)
@@ -457,7 +489,7 @@ function _mineral_name_and_mass(cs::ChemicalSystem, rxn::AbstractReaction)
         ArgumentError("No mineral reactant found in reaction \"$(rxn.symbol)\"."),
     )
     sp = cs.species[idx]
-    return phreeqc(formula(sp)), _molar_mass_si(sp)
+    return _rate_lookup_key(cs, sp), _molar_mass_si(sp)
 end
 
 # Returns (host_name::String, M::Float64, area_model) for a rate factory.
@@ -478,7 +510,7 @@ function _surface_context(cs::ChemicalSystem, rxn::AbstractReaction, s::SurfaceS
                 "$(join(sort(collect(keys(cs.dict_species)))[1:min(end, 6)], ", ")), …",
         )
     )
-    return (phreeqc(formula(sp)), _molar_mass_si(sp), s.area)
+    return (_rate_lookup_key(cs, sp), _molar_mass_si(sp), s.area)
 end
 
 # Returns Vector of (name::String, ν::Float64, ΔG_fn) for all species in rxn

@@ -225,3 +225,78 @@ end
     end
 
 end
+
+@testsection "a member is matched by identity, not by its label" begin
+
+    # `_resolve_site_families` matched members to the system by `symbol` alone.
+    # A symbol is a label, and the species a label lands on need not be the one
+    # the family validated. The code carried a comment asserting that a shared
+    # member was unreachable; these are the inputs that reach it.
+
+    support = SurfaceSupport("oxide", nothing, FixedSurfaceArea(600.0))
+    cap = TotalSiteAmount(5.0e-6)
+    aq = [_aq("H2O@", SC_AQSOLVENT), _aq("H+")]
+
+    @testset "two families, different site symbols, one set of labels" begin
+        # Same label `S1`/`S2` on both sides, different pseudo-elements behind
+        # them. Resolving by name gives BOTH families the same indices, so the
+        # second family's conservation row is simply absent from the matrix —
+        # and nothing says so.
+        s_free = Species("XsOH"; symbol = "S1", aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        s_occ = Species("XsONa"; symbol = "S2", aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        w_free = Species("XwOH"; symbol = "S1", aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        w_occ = Species("XwONa"; symbol = "S2", aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+
+        fam_s = SiteFamily("Xs", s_free, [s_occ]; capacity = cap, support)
+        fam_w = SiteFamily("Xw", w_free, [w_occ]; capacity = cap, support)
+
+        # The two families are legitimate on their own: different pseudo-elements,
+        # so the "one symbol, one family" guard does not fire. It is the label
+        # collision that has to be caught, and it was not.
+        @test fam_s.site === :Xs
+        @test fam_w.site === :Xw
+
+        species = vcat(aq, [s_free, s_occ])
+        @test_throws ArgumentError ChemicalSystem(
+            species, [aq[1], aq[2], s_free]; site_families = [fam_s, fam_w],
+        )
+    end
+
+    @testset "a family's qualified copy is not the system's species" begin
+        # `SiteFamily` requalifies copies of its members as AS_SURFACE. The
+        # system keeps what the caller passed. Pass unqualified species to both
+        # and the family believes itself on a surface while `idx_surface` is
+        # empty — the site mixing runs and the phase accounting disagrees.
+        raw_free = Species("XsOH")                       # AS_UNDEF, deliberately
+        raw_occ = Species("XsONa")
+        fam = SiteFamily("Xs", raw_free, [raw_occ]; capacity = cap, support)
+
+        # The family did qualify its own copies…
+        @test all(sp -> aggregate_state(sp) == AS_SURFACE, ChemistryLab.site_members(fam))
+        # …so the mismatch with the caller's originals is real, and refused.
+        species = vcat(aq, [raw_free, raw_occ])
+        @test_throws ArgumentError ChemicalSystem(
+            species, [aq[1], aq[2], raw_free]; site_families = [fam],
+        )
+    end
+
+    @testset "same label, different formula" begin
+        # The narrowest form: one label, two chemistries.
+        declared = Species("XsOH"; symbol = "T", aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        present = Species("XsOH2+"; symbol = "T", aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        other = Species("XsO-"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        fam = SiteFamily("Xs", declared, [other]; capacity = cap, support)
+        species = vcat(aq, [present, other])
+        @test_throws ArgumentError ChemicalSystem(
+            species, [aq[1], aq[2], present]; site_families = [fam],
+        )
+    end
+
+    @testset "the ordinary declaration still builds" begin
+        # The guard must not cost anything to a system declared properly.
+        cs, _ = _hfo_system()
+        @test cs isa ChemicalSystem
+        @test length(cs.site_groups) == 1
+        @test !isempty(cs.idx_surface)
+    end
+end
