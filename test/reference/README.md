@@ -100,12 +100,48 @@ identified by md5, because two files with one name are the usual way a
 cross-code comparison quietly stops comparing.
 
 The ClaySor 2023 deposit is `doi:10.5281/zenodo.15095062`, CC-BY-4.0, and its
-archives are **not** committed here; fetch them and check:
+archives are **not** committed here. Fetch them into a scratch directory — never
+into the working tree — and check the sums before using anything from them:
+
+```sh
+curl -LO https://zenodo.org/records/15095062/files/PHREEQC-ClaySor2023.zip
+curl -LO https://zenodo.org/records/15095062/files/GEMS-ClaySor2023.zip
+md5sum PHREEQC-ClaySor2023.zip GEMS-ClaySor2023.zip
+```
 
 ```
 0ed43657662b71d03d34b5903e7f6bdb  PHREEQC-ClaySor2023.zip
 22af072618380f5bc0086c2836ae8954  GEMS-ClaySor2023.zip
 ```
+
+The model file the `phreeqc_claysor.py` generator reads out of the first archive
+is recorded in its fixture by sha256,
+`6df84ee9cdbcf49ba7a2310a7224e7bf5b448f49de17e4dd80b1c5c4c9d7b387`, so a
+re-fetch that differs is caught rather than compared.
+
+`sit.dat` is the same kind of thing and is likewise **not** committed. It is the
+ANDRA/RWM ThermoChimie-TDB in PHREEQC format, and its own header identifies the
+copy this fixture was made from:
+
+```
+# Thermodynamic database ANDRA/RWM - THERMOCHIMIE-TDB (www.thermochimie-tdb.com)
+# Version 9b0
+# BDD Date: 10/8/2015
+```
+
+It comes from the ThermoChimie project, `www.thermochimie-tdb.com`, whose terms
+are the project's own. `phreeqc_sit.py` defaults to looking for it beside
+`phreeqpython`'s other databases and **it is not shipped there**, so point the
+generator at wherever the file was put:
+
+```sh
+python3 test/reference/phreeqc_sit.py --database /path/to/sit.dat
+sha256sum /path/to/sit.dat   # 427d6114ed3f3135054683882319a0852b593d2685f0ccc80855f10ae1c4b840
+```
+
+The generator writes that sha256 into the fixture, and the three `ε` the
+comparison actually uses travel in the fixture with it — so `test/sit.jl` runs
+in CI without the compilation being present at all, which is the point.
 
 Attribution goes to Marinich et al. (2025), `doi:10.1016/j.apgeochem.2025.106510`,
 wherever its data is used.
