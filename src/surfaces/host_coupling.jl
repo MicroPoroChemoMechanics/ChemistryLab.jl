@@ -223,3 +223,95 @@ function host_consistent_state(state::ChemicalState)
     end
     return ChemicalState(cs, n; T = state.T[1], P = state.P[1])
 end
+
+# ── The site-density scale an adsorption constant refers to ──────────────────
+
+"""
+    REFERENCE_SITE_DENSITY_NM2
+
+The conventional reference site density `Γ° = 12.05 nm⁻²` of
+[Kulik2002](@cite), used to define the standard state of a monodentate surface
+species.
+
+# What it is for
+
+An intrinsic adsorption constant is not a property of a surface alone: it is
+fitted at some **total site density** `Γ_C`, and the value depends on that
+choice. Dzombak and Morel fitted their hydrous-ferric-oxide constants at
+`2.254 nm⁻²` for the weak sites and `0.056 nm⁻²` for the strong ones, a factor
+of forty apart, so two of their own constants are not directly comparable with
+each other, let alone with a constant from another compilation.
+
+Fixing one conventional `Γ°` for every sorbent and every surface makes them
+comparable, and [`convert_logk_site_density`](@ref) is the conversion. This is
+a **choice of concentration scale**, not a measurement: it is one number, it is
+stated here rather than assumed, and it can be changed.
+"""
+const REFERENCE_SITE_DENSITY_NM2 = 12.05
+
+"""
+    REFERENCE_SITE_DENSITY
+
+[`REFERENCE_SITE_DENSITY_NM2`](@ref) in `mol/m²`, **derived** through
+[`AVOGADRO`](@ref) rather than written again — `2.0009e-5 mol/m²`.
+
+That it comes out so close to a round `2 × 10⁻⁵ mol/m²` is not a coincidence:
+that is the number the convention was chosen to be, and `12.05 nm⁻²` is how it
+reads in the units the surface literature uses.
+"""
+const REFERENCE_SITE_DENSITY = REFERENCE_SITE_DENSITY_NM2 * 1.0e18 / AVOGADRO
+
+"""
+    convert_logk_site_density(logK, Γ_C; Γ0 = REFERENCE_SITE_DENSITY_NM2,
+                              free_site_side = :reactant) -> Float64
+
+An intrinsic adsorption constant moved from the total site density it was
+fitted at to a reference one — equation (21) of [Kulik2002](@cite):
+
+```math
+\\log K^\\circ = \\log K^{C} + \\log_{10}\\!\\frac{\\Gamma_C}{\\Gamma^\\circ}
+```
+
+with the sign of the last term **inverted** when the neutral functional group
+sits on the product side of the reaction, which is what `free_site_side`
+selects. Written `≡OH + H⁺ = ≡OH₂⁺` the free site is a reactant, the default.
+
+Only the **ratio** of the two densities enters, so they may be given in any
+unit as long as it is the same one. The default `Γ0` is in `nm⁻²`, which is how
+the surface literature quotes a site density.
+
+# Example
+
+Dzombak and Morel's own two densities, which is the case Kulik uses to make
+the point that their weak and strong constants are not on one scale:
+
+```jldoctest
+julia> using ChemistryLab
+
+julia> round(convert_logk_site_density(0.0, 2.254), digits = 2)   # weak sites
+-0.73
+
+julia> round(convert_logk_site_density(0.0, 0.056), digits = 2)   # strong sites
+-2.33
+```
+
+A constant fitted at a density **below** the reference moves down, and by
+different amounts for the two site types — 1.6 log units apart here. Correlating
+one against the other without this conversion compares two different scales.
+"""
+function convert_logk_site_density(
+        logK::Real, Γ_C::Real;
+        Γ0::Real = REFERENCE_SITE_DENSITY_NM2, free_site_side::Symbol = :reactant,
+    )
+    Γ_C > 0 || throw(ArgumentError("a site density must be positive; got $Γ_C."))
+    Γ0 > 0 || throw(ArgumentError("the reference site density must be positive; got $Γ0."))
+    free_site_side in (:reactant, :product) || throw(
+        ArgumentError(
+            "free_site_side is :reactant or :product; got :$free_site_side. It says " *
+                "which side of the reaction the neutral functional group is written " *
+                "on, and it flips the sign of the correction.",
+        )
+    )
+    shift = log10(Γ_C / Γ0)
+    return free_site_side === :reactant ? logK + shift : logK - shift
+end

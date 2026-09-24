@@ -300,3 +300,60 @@ end
         @test !isempty(cs.idx_surface)
     end
 end
+
+@testsection "the site-density scale a constant refers to" begin
+
+    # An intrinsic adsorption constant is not a property of a surface alone: it
+    # is fitted at some total site density, and its value depends on that
+    # choice. Kulik (2002) eq. 21 is the conversion, and he makes the point on
+    # Dzombak & Morel's own two densities — which is what makes this checkable
+    # against a published number rather than against itself.
+
+    @testset "Kulik's own worked example" begin
+        # Published: +log(2.254/12.05) = -0.73 for the weak sites and
+        # log(0.056/12.05) = -2.33 for the strong ones.
+        @test round(convert_logk_site_density(0.0, 2.254); digits = 2) == -0.73
+        @test round(convert_logk_site_density(0.0, 0.056); digits = 2) == -2.33
+
+        # The two shifts differ by 1.6 log units, which is the substance of the
+        # remark: correlating one of their constants against the other without
+        # converting compares two different scales.
+        weak = convert_logk_site_density(0.0, 2.254)
+        strong = convert_logk_site_density(0.0, 0.056)
+        @test abs(weak - strong) ≈ log10(2.254 / 0.056) rtol = 1.0e-12
+        @test abs(weak - strong) > 1.6
+    end
+
+    @testset "the conversion is a change of scale, with the properties of one" begin
+        # Identity at the reference density: nothing to convert.
+        @test convert_logk_site_density(3.7, REFERENCE_SITE_DENSITY_NM2) == 3.7
+        # Additive in logK, since it only shifts.
+        @test convert_logk_site_density(3.7, 2.254) - convert_logk_site_density(0.0, 2.254) ≈ 3.7
+        # Reversible: converting to Γ° and back gives the original.
+        there = convert_logk_site_density(2.5, 2.254)
+        back = convert_logk_site_density(there, REFERENCE_SITE_DENSITY_NM2^2 / 2.254)
+        @test back ≈ 2.5 rtol = 1.0e-12
+        # The side the neutral group is written on flips the sign, and nothing
+        # else — that is the whole content of the second half of eq. 21.
+        @test convert_logk_site_density(0.0, 2.254; free_site_side = :product) ≈
+            -convert_logk_site_density(0.0, 2.254)
+        # Only the RATIO enters, so any consistent unit works.
+        @test convert_logk_site_density(0.0, 2.254) ≈
+            convert_logk_site_density(0.0, 2.254e18 / AVOGADRO; Γ0 = REFERENCE_SITE_DENSITY)
+    end
+
+    @testset "the reference density is derived, not transcribed twice" begin
+        # 12.05 nm⁻² is what Kulik writes; the mol/m² form comes from it through
+        # the library's Avogadro constant, so the two cannot drift apart.
+        @test REFERENCE_SITE_DENSITY ≈ REFERENCE_SITE_DENSITY_NM2 * 1.0e18 / AVOGADRO
+        @test REFERENCE_SITE_DENSITY ≈ 2.0e-5 rtol = 1.0e-3
+        @test AVOGADRO == ustrip(us"1/mol", AVOGADRO_Q)
+    end
+
+    @testset "refusals" begin
+        @test_throws ArgumentError convert_logk_site_density(0.0, 0.0)
+        @test_throws ArgumentError convert_logk_site_density(0.0, -1.0)
+        @test_throws ArgumentError convert_logk_site_density(0.0, 1.0; Γ0 = 0.0)
+        @test_throws ArgumentError convert_logk_site_density(0.0, 1.0; free_site_side = :both)
+    end
+end

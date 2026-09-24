@@ -60,6 +60,26 @@ The Faraday constant as a plain `Float64` in `C/mol`, derived from
 const FARADAY = ustrip(us"C/mol", FARADAY_Q)
 
 """
+    AVOGADRO_Q
+
+The Avogadro constant with its dimensions, `6.02214076e23 mol⁻¹`, from
+`DynamicQuantities.Constants.N_A` (exact by the 2019 SI redefinition).
+
+Surface chemistry states site densities per square nanometer and the rest of
+this package works in moles per square meter; this is the only bridge between
+them, so it is taken from the library rather than written down.
+"""
+const AVOGADRO_Q = _DQConstants.N_A
+
+"""
+    AVOGADRO
+
+The Avogadro constant as a plain `Float64` in `mol⁻¹`, derived from
+[`AVOGADRO_Q`](@ref).
+"""
+const AVOGADRO = ustrip(us"1/mol", AVOGADRO_Q)
+
+"""
     RT_over_F(T)
 
 `RT/F` in volts at temperature `T` in kelvin — the natural scale of an
