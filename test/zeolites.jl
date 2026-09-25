@@ -18,6 +18,23 @@ using JSON
     base = JSON.parsefile(datapath("cemdata18-thermofun.json"); dicttype = Dict{String, Any})
     ext = JSON.parsefile(datapath("cemdata18-zeolites.json"); dicttype = Dict{String, Any})
 
+    @testset "the vendored entries are the published rows" begin
+        # The generator reads data/literature/MaLothenbach20{20,21}.json; the
+        # shipped file must still hold what those files say.
+        byname = Dict(s["symbol"] => s for s in ext["substances"])
+        for key in ("MaLothenbach2020", "MaLothenbach2021")
+            t = literature_table(key, "zeolites")
+            @test length(t.symbol) == 14
+            for (i, sym) in enumerate(t.symbol)
+                e = byname[sym]
+                @test only(e["sm_gibbs_energy"]["values"]) ≈ ustrip(u"J/mol", t.dfG[i])
+                @test only(e["sm_enthalpy"]["values"]) ≈ ustrip(u"J/mol", t.dfH[i])
+                @test e["zeolite_provenance"]["log_Ksp_298K"] == t.log_Ksp[i]
+                @test e["zeolite_provenance"]["doi"] == literature(key).source["doi"]
+            end
+        end
+    end
+
     by_symbol(db) = Dict(String(s["symbol"]) => s for s in db["substances"])
     B, E = by_symbol(base), by_symbol(ext)
 
