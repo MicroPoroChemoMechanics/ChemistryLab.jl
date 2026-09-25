@@ -49,9 +49,10 @@ end
 @testsection "hkf_debye_huckel_params" begin
     p = hkf_debye_huckel_params(298.15, 1.0e5)
 
-    # Helgeson et al. (1981) Table 1 reference values at 25 °C / 1 bar
-    @test isapprox(p.A, 0.5114; rtol = 1.0e-3)
-    @test isapprox(p.B, 0.3288; rtol = 1.0e-3)
+    # Helgeson et al. (1981) Table 1 reference values at 25 °C / 1 bar, against
+    # the package's own water model
+    @test isapprox(p.A, literature_value("Helgeson1981", "debye_huckel_A_25C"); rtol = 1.0e-3)
+    @test isapprox(p.B, literature_value("Helgeson1981", "debye_huckel_B_25C"); rtol = 1.0e-3)
 
     # A increases with temperature (water structure breaks down)
     p100 = hkf_debye_huckel_params(373.15, 1.0e5)
@@ -70,24 +71,23 @@ end
 # ── REJ_HKF table ─────────────────────────────────────────────────────────────
 
 @testsection "REJ_HKF" begin
-    @test REJ_HKF["H+"] ≈ 3.08
-    @test REJ_HKF["Na+"] ≈ 1.91
-    @test REJ_HKF["K+"] ≈ 2.27
-    @test REJ_HKF["Ca+2"] ≈ 2.87
-    @test REJ_HKF["Mg+2"] ≈ 2.54
-    @test REJ_HKF["Al+3"] ≈ 3.33
-    @test REJ_HKF["Cl-"] ≈ 1.81
-    @test REJ_HKF["OH-"] ≈ 1.4
-    @test REJ_HKF["SO4-2"] ≈ 3.15
-    @test REJ_HKF["CO3-2"] ≈ 2.81
+    # Every row of the table, and nothing else, keyed by its PHREEQC formula.
+    t = literature_table("Helgeson1981", "effective_electrostatic_radii")
+    @test length(REJ_HKF) == length(t.species)
+    for (sp, r) in zip(t.species, t.radius_angstrom)
+        @test REJ_HKF[sp] === r
+    end
+    @test all(>(0), values(REJ_HKF))
 end
 
 # ── REJ_CHARGE_DEFAULT table ──────────────────────────────────────────────────
 
 @testsection "REJ_CHARGE_DEFAULT" begin
-    for z in [-3, -2, -1, 1, 2, 3, 4]
-        @test haskey(REJ_CHARGE_DEFAULT, z)
-        @test REJ_CHARGE_DEFAULT[z] > 0
+    t = literature_table("Xu2011", "radius_by_charge")
+    @test sort!(collect(keys(REJ_CHARGE_DEFAULT))) == sort!(Int.(t.charge))
+    for (z, r) in zip(t.charge, t.radius_angstrom)
+        @test REJ_CHARGE_DEFAULT[Int(z)] === r
+        @test r > 0
     end
     # Roughly monotone: larger |z| → larger radius
     @test REJ_CHARGE_DEFAULT[2] < REJ_CHARGE_DEFAULT[3] < REJ_CHARGE_DEFAULT[4]
@@ -98,8 +98,8 @@ end
 
 @testsection "HKFActivityModel constructors" begin
     m = HKFActivityModel()
-    @test m.A ≈ 0.5114
-    @test m.B ≈ 0.3288
+    @test m.A === literature_value("Helgeson1981", "debye_huckel_A_25C")
+    @test m.B === literature_value("Helgeson1981", "debye_huckel_B_25C")
     @test m.Ḃ ≈ 0.041
     @test m.Kₙ ≈ 0.1
     @test m.å_default ≈ 3.72
@@ -111,7 +111,7 @@ end
     @test m2.temperature_dependent
 
     # Numeric type promotion: all explicit args must be Float32 for the struct to be Float32
-    m3 = HKFActivityModel(A = 0.5114f0, B = 0.3288f0, Ḃ = 0.041f0, Kₙ = 0.1f0, å_default = 3.72f0)
+    m3 = HKFActivityModel(A = 0.51f0, B = 0.33f0, Ḃ = 0.041f0, Kₙ = 0.1f0, å_default = 3.72f0)
     @test m3 isa HKFActivityModel{Float32}
 end
 
@@ -119,7 +119,7 @@ end
 
 @testsection "DaviesActivityModel constructors" begin
     m = DaviesActivityModel()
-    @test m.A ≈ 0.5114
+    @test m.A === literature_value("Helgeson1981", "debye_huckel_A_25C")
     @test m.b ≈ 0.3
     @test m.bₙ ≈ 0.1
     @test !m.temperature_dependent
@@ -164,7 +164,9 @@ end
     p = (ΔₐG⁰overRT = zeros(3), T = 298.15, P = 1.0e5, ϵ = 1.0e-30)
     out = lna(n, p)
 
-    A, B, Ḃ = 0.5114, 0.3288, 0.041
+    A = literature_value("Helgeson1981", "debye_huckel_A_25C")
+    B = literature_value("Helgeson1981", "debye_huckel_B_25C")
+    Ḃ = 0.041
     I = m   # NaCl 1:1 electrolyte: I = ½ × 2m = m
     sqI = sqrt(I)
     ln10 = log(10.0)
@@ -254,7 +256,7 @@ end
     # We use formula "Sr+2" which IS in REJ_HKF — let's verify Sr+2 lookup
     sr = Species("Sr+2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
     @test ChemistryLab._hkf_lookup_å(sr, model) ≈ REJ_HKF["Sr+2"]
-    @test REJ_HKF["Sr+2"] ≈ 3.0
+    @test REJ_HKF["Sr+2"] === literature_row("Helgeson1981", "effective_electrostatic_radii", "Sr+2").radius_angstrom
 end
 
 # ── HKF: temperature-dependent mode ──────────────────────────────────────────
@@ -398,7 +400,7 @@ end
     out = lna(n, p)
 
     # Verify analytical Davies formula for NaCl: z=1, I=m
-    A = 0.5114
+    A = literature_value("Helgeson1981", "debye_huckel_A_25C")
     I = m
     sqI = sqrt(I)
     ln10 = log(10.0)

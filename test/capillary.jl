@@ -39,7 +39,7 @@ end
 
 @testsection "water retention laws" begin
     # ── no defaults, and the language is what enforces it ────────────────────
-    @test_throws UndefKeywordError VanGenuchten(; a = 37.5479e6)
+    @test_throws UndefKeywordError VanGenuchten(; a = 1.0e7)
     @test_throws UndefKeywordError VanGenuchten(; m = 0.46)
     @test_throws UndefKeywordError TabulatedRetention(; S = [0.5, 1.0])
 
@@ -48,14 +48,16 @@ end
     # paste at W/C = 0.34. They write the expression with `b = 1/m`, so a `b`
     # from that literature enters here as `m = 1/b`. Getting that inversion
     # wrong is silent and changes the exponent, which is why it is pinned.
-    co = VanGenuchten(; a = 37.5479e6, m = 1 / 2.1684)
+    fit = literature_row("BaroghelBouny1999", "retention_fit", "CO")
+    co = VanGenuchten(; a = fit.a, m = 1 / fit.b)
+    @test co.a == ustrip(fit.a)                       # the MPa of the table, in Pa
     @test co.m ≈ 0.46117 atol = 1.0e-6
     @test capillary_pressure(co, 1.0) == 0.0          # a flat meniscus holds nothing
     @test capillary_pressure(co, 0.5) > capillary_pressure(co, 0.9) > 0
     # Against the closed form, evaluated independently.
     S = 0.7
     @test capillary_pressure(co, S) ≈
-        37.5479e6 * (S^(-2.1684) - 1)^(1 - 1 / 2.1684) rtol = 1.0e-12
+        ustrip(fit.a) * (S^(-fit.b) - 1)^(1 - 1 / fit.b) rtol = 1.0e-12
 
     # Ranges are checked in an inner constructor rather than trusted.
     @test_throws ArgumentError VanGenuchten(; a = -1.0, m = 0.5)

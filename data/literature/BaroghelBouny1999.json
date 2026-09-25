@@ -1,0 +1,73 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "BaroghelBouny1999",
+    "doi": "10.1016/S0008-8846(99)00102-7",
+    "citation": "Baroghel-Bouny, V., Mainguy, M., Lassabatere, T., Coussy, O. (1999). Characterization and identification of equilibrium and transfer moisture properties for ordinary and high-performance cementitious materials. Cement and Concrete Research 29, 1225-1238.",
+    "location": null
+  },
+  "transcription": {
+    "from": "the published article (PDF), Tables 1 and 2 (p. 1226) and Tables 4 and 5 (p. 1234)",
+    "checked_against_source": true,
+    "note": "The retention fits and the cement composition were typed in src/, test/, docs/ and scripts/ before this file existed, and agree with the article."
+  },
+  "tables": {
+    "mixes": {
+      "columns": ["mix", "W_C", "silica_fume_per_cement", "superplasticizer_per_cement"],
+      "units": [null, "1", "1", "1"],
+      "kind": "published",
+      "location": "Table 1, p. 1226",
+      "rows": [
+        ["CO", 0.34, 0.0, 0.0],
+        ["CH", 0.19, 0.1, 0.018],
+        ["BO", 0.48, 0.0, 0.0],
+        ["BH", 0.26, 0.1, 0.018]
+      ]
+    },
+    "cement_composition": {
+      "columns": ["compound", "content_percent"],
+      "units": [null, "1"],
+      "kind": "published",
+      "location": "Table 2, p. 1226",
+      "rows": [
+        ["C3S", 57.28],
+        ["C2S", 23.98],
+        ["C3A", 3.03],
+        ["C4AF", 7.59],
+        ["Gypsum", 4.39],
+        ["CaCO3", 1.84],
+        ["Free CaO", 0.53],
+        ["Na2O eq.", 0.48]
+      ]
+    },
+    "porosity": {
+      "columns": ["mix", "total_porosity_percent", "apparent_density"],
+      "units": [null, "1", "kg/m^3"],
+      "kind": "measured",
+      "location": "Table 4, p. 1234",
+      "rows": [
+        ["BO", 12.2, 2285],
+        ["BH", 8.2, 2385],
+        ["CO", 30.3, 1717],
+        ["CH", 20.4, 2086]
+      ]
+    },
+    "retention_fit": {
+      "columns": ["mix", "a", "b"],
+      "units": [null, "MPa", "1"],
+      "kind": "fitted",
+      "location": "Table 5, p. 1234",
+      "rows": [
+        ["BO", 18.6237, 2.2748],
+        ["BH", 46.9364, 2.0601],
+        ["CO", 37.5479, 2.1684],
+        ["CH", 96.2837, 1.954]
+      ]
+    }
+  },
+  "notes": [
+    "CO and CH are cement pastes, BO and BH concretes; CH and BH contain silica fume and a superplasticizer. A dash in Table 1, no such addition, is recorded as 0.",
+    "Table 2 is the mineral composition of the type I cement calculated by Bogue's formula from its chemical composition, in mass percent.",
+    "Table 5 fits Eq. (20), p_c(S) = a (S^(-b) - 1)^(1 - 1/b), the van Genuchten form written with b = 1/m, to the desorption isotherms."
+  ]
+}

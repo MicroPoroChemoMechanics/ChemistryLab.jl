@@ -140,7 +140,7 @@ registers the file as a dependency, so that editing it recompiles the package
 instead of leaving a stale value in the compiled image.
 
 See also: [`literature_value`](@ref), [`literature_table`](@ref),
-[`Traced`](@ref).
+[`literature_row`](@ref), [`Traced`](@ref).
 """
 function literature(key::AbstractString)
     k = String(key)
@@ -198,6 +198,31 @@ function literature_table(key::AbstractString, name::AbstractString)
     return r.tables[name]
 end
 
+"""
+    literature_row(key, table, label) -> NamedTuple
+
+The row of the table `table` of the source `key` whose first column is `label`,
+as a `NamedTuple` of its entries: the phase, mix or species a row is about is
+what a caller knows, not its position.
+
+```julia
+co = literature_row("BaroghelBouny1999", "retention_fit", "CO")
+VanGenuchten(; a = co.a, m = 1 / co.b)
+```
+"""
+function literature_row(key::AbstractString, table::AbstractString, label::AbstractString)
+    t = literature_table(key, table)
+    first_col = first(t)
+    i = findfirst(==(label), first_col)
+    i === nothing && throw(
+        KeyError(
+            "$key, table \"$table\", has no row \"$label\"; its rows are: " *
+                join(first_col, ", ")
+        )
+    )
+    return map(col -> col[i], t)
+end
+
 # ── reading and checking one file ────────────────────────────────────────────
 
 _literature_error(path, msg) = throw(ArgumentError("$(basename(path)): $msg"))
@@ -214,10 +239,30 @@ end
 # to. Names resolve in the unit registry of `DynamicQuantities` and nowhere else.
 const _UNIT_OPS = Dict{Symbol, Function}(:* => *, :/ => /, :^ => ^, :+ => +, :- => -)
 
+# The registry of DynamicQuantities carries only the prefixes each unit commonly
+# takes (`kPa` but not `MPa`), and extending it is a change of global state that
+# every package in the session would see. A name the registry lacks is read here
+# as an SI prefix followed by a unit it has, the factors being the exact powers
+# of ten the SI defines.
+const _SI_PREFIXES = Dict{Char, Float64}(
+    'T' => 1.0e12, 'G' => 1.0e9, 'M' => 1.0e6, 'k' => 1.0e3, 'h' => 1.0e2,
+    'd' => 1.0e-1, 'c' => 1.0e-2, 'm' => 1.0e-3, 'μ' => 1.0e-6, 'n' => 1.0e-9,
+    'p' => 1.0e-12,
+)
+
+_registry_unit(s::Symbol) = isdefined(DynamicQuantities.Units, s) ?
+    getfield(DynamicQuantities.Units, s) : nothing
+
 _eval_unit(x::Real, path, where) = x
 function _eval_unit(s::Symbol, path, where)
-    isdefined(DynamicQuantities.Units, s) || _literature_error(path, "$where: unit \"$s\" is unknown")
-    x = getfield(DynamicQuantities.Units, s)
+    x = _registry_unit(s)
+    if x === nothing
+        name = String(s)
+        base = _registry_unit(Symbol(chop(name; head = 1, tail = 0)))
+        (haskey(_SI_PREFIXES, first(name)) && base isa AbstractQuantity) ||
+            _literature_error(path, "$where: unit \"$s\" is unknown")
+        x = _SI_PREFIXES[first(name)] * base
+    end
     x isa AbstractQuantity || _literature_error(path, "$where: \"$s\" is not a unit")
     return x
 end

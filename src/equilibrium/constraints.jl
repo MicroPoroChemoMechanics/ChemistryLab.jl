@@ -573,7 +573,8 @@ not the proof the fixed-(T, P) route gives.
 
 ```julia
 fresh = fresh_paste(0.30)                     # the volume reference
-r     = VanGenuchten(; a = 37.5479e6, m = 1 / 2.1684)   # a measured isotherm
+co    = literature_row("BaroghelBouny1999", "retention_fit", "CO")
+r     = VanGenuchten(; a = co.a, m = 1 / co.b)      # a measured isotherm
 q = Ref(Float64[])
 eq, cert = equilibrate_certified(
     state; constraint = CapillaryWater(r; reference = fresh), parameters = q,

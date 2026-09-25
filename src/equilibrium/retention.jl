@@ -200,6 +200,20 @@ function (r::TabulatedRetention)(S::Real)
     return exp((1 - t) * log(r.a_w[k]) + t * log(r.a_w[k + 1]))
 end
 
+# The table of published fits in the docstring below is generated from the data
+# file rather than typed there, so that the two cannot disagree. A comment
+# between a docstring and its definition would detach it, hence the placement.
+function _retention_fit_table()
+    key = "BaroghelBouny1999"
+    fit = literature_table(key, "retention_fit")
+    rows = map(eachindex(fit.mix)) do i
+        wc = literature_row(key, "mixes", fit.mix[i]).W_C
+        a_MPa = round(ustrip(fit.a[i]) / 1.0e6; digits = 4)
+        "| $(fit.mix[i]) | $(wc) | $(a_MPa) | $(fit.b[i]) | $(round(1 / fit.b[i]; digits = 5)) |"
+    end
+    return join(vcat(["| mix | W/C | `a` (MPa) | `b` | `m = 1/b` |", "|:--|:--|:--|:--|:--|"], rows), "\n")
+end
+
 """
     VanGenuchten(; a, m) -> VanGenuchten
 
@@ -227,21 +241,19 @@ desorption isotherms, and write it with `b = 1/m`:
 p_c(S) = a (S^(-b) - 1)^(1 - 1/b)
 ```
 
-so a `b` from that literature becomes `m = 1/b` here. Their Table 5, for
-materials whose mixes and porosities are in their Tables 1 and 4:
+so a `b` from that literature becomes `m = 1/b` here. Their Table 5, read from
+`data/literature/BaroghelBouny1999.json` with the water-to-cement ratios of their
+Table 1 (CO and CH are pastes, BO and BH concretes, CH and BH contain 10 % silica
+fume):
 
-| mix | material | W/C | `a` (MPa) | `b` | `m = 1/b` |
-|:--|:--|:--|:--|:--|:--|
-| CO | cement paste | 0.34 | 37.5479 | 2.1684 | 0.46117 |
-| CH | paste, 10 % silica fume | 0.19 | 96.2837 | 1.9540 | 0.51177 |
-| BO | concrete | 0.48 | 18.6237 | 2.2748 | 0.43960 |
-| BH | concrete, 10 % silica fume | 0.26 | 46.9364 | 2.0601 | 0.48541 |
+$(_retention_fit_table())
 
 # Examples
 
 ```julia
 # The ordinary cement paste of Baroghel-Bouny et al. (1999), their mix CO
-r = VanGenuchten(; a = 37.5479e6, m = 1 / 2.1684)
+co = literature_row("BaroghelBouny1999", "retention_fit", "CO")
+r = VanGenuchten(; a = co.a, m = 1 / co.b)
 ```
 
 !!! warning "A pair belongs to a material, not to this package"
@@ -304,7 +316,8 @@ Both are keywords without defaults, for the reason given in
 # Examples
 
 ```julia
-co = VanGenuchten(; a = 37.5479e6, m = 1 / 2.1684)
+fit = literature_row("BaroghelBouny1999", "retention_fit", "CO")
+co = VanGenuchten(; a = fit.a, m = 1 / fit.b)
 water_activity(co, 0.786; V_m = 1.807e-5, T = 298.15)     # ≈ 0.80
 ```
 

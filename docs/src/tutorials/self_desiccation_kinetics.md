@@ -47,7 +47,8 @@ sp(name) = cs[name]
 
 # Baroghel-Bouny et al. (1999), Table 5, mix CO — the same measured curve the
 # static page uses, so the two are comparable.
-law = VanGenuchten(; a = 37.5479e6, m = 1 / 2.1684)
+co = literature_row("BaroghelBouny1999", "retention_fit", "CO")
+law = VanGenuchten(; a = co.a, m = 1 / co.b)
 nothing # hide
 ```
 

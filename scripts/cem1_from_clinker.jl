@@ -26,14 +26,16 @@ using OrderedCollections
 using Plots
 using Printf
 
-# mass fractions of the anhydrous cement. C3S + C2S is held at 0.8126.
+# Mass fractions of the anhydrous cement. The measured one is Table 2 of
+# Baroghel-Bouny et al. (1999); the two constructed ones move alite into belite
+# and back, holding C3S + C2S and every other phase at the measured values.
+pct(c) = literature_row("BaroghelBouny1999", "cement_composition", c).content_percent / 100
+measured = (C3S = pct("C3S"), C2S = pct("C2S"), C3A = pct("C3A"), C4AF = pct("C4AF"), Gp = pct("Gypsum"))
+silicates = measured.C3S + measured.C2S
 CLINKERS = OrderedDict(
-    "measured (Baroghel-Bouny CO)" =>
-        (C3S = 0.5728, C2S = 0.2398, C3A = 0.0303, C4AF = 0.0759, Gp = 0.0439),
-    "alite-rich (constructed)" =>
-        (C3S = 0.7126, C2S = 0.1, C3A = 0.0303, C4AF = 0.0759, Gp = 0.0439),
-    "belite-rich (constructed)" =>
-        (C3S = 0.4128, C2S = 0.3998, C3A = 0.0303, C4AF = 0.0759, Gp = 0.0439),
+    "measured (Baroghel-Bouny CO)" => measured,
+    "alite-rich (constructed)" => merge(measured, (C3S = silicates - 0.1, C2S = 0.1)),
+    "belite-rich (constructed)" => merge(measured, (C3S = silicates - 0.3998, C2S = 0.3998)),
 )
 WC = 0.45          # enough water that the arrest is not the subject here
 
@@ -55,7 +57,8 @@ cs = ChemicalSystem(
 sp(n) = cs[n]
 println("$(length(cs.species)) species in the system")
 
-law = VanGenuchten(; a = 37.5479e6, m = 1 / 2.1684)   # Baroghel-Bouny, mix CO
+co = literature_row("BaroghelBouny1999", "retention_fit", "CO")   # Baroghel-Bouny, mix CO
+law = VanGenuchten(; a = co.a, m = 1 / co.b)
 
 function build(compo; humidity = true, tend = 90 * 86400.0)
     st = ChemicalState(cs)

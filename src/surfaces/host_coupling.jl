@@ -229,25 +229,25 @@ end
 """
     REFERENCE_SITE_DENSITY_NM2
 
-The conventional reference site density `Γ° = 12.05 nm⁻²` of
+The conventional reference site density `Γ° = $(literature_value("Kulik2002", "reference_site_density_nm2")) nm⁻²` of
 [Kulik2002](@cite), used to define the standard state of a monodentate surface
-species.
+species, read from `data/literature/Kulik2002.json`.
 
 # What it is for
 
 An intrinsic adsorption constant is not a property of a surface alone: it is
 fitted at some **total site density** `Γ_C`, and the value depends on that
-choice. Dzombak and Morel fitted their hydrous-ferric-oxide constants at
-`2.254 nm⁻²` for the weak sites and `0.056 nm⁻²` for the strong ones, a factor
-of forty apart, so two of their own constants are not directly comparable with
-each other, let alone with a constant from another compilation.
+choice. Dzombak and Morel fitted their hydrous-ferric-oxide constants at two
+site densities, one for the weak sites and one for the strong, a factor of forty
+apart, so two of their own constants are not directly comparable with each
+other, let alone with a constant from another compilation.
 
 Fixing one conventional `Γ°` for every sorbent and every surface makes them
 comparable, and [`convert_logk_site_density`](@ref) is the conversion. This is
 a **choice of concentration scale**, not a measurement: it is one number, it is
 stated here rather than assumed, and it can be changed.
 """
-const REFERENCE_SITE_DENSITY_NM2 = 12.05
+const REFERENCE_SITE_DENSITY_NM2 = literature_value("Kulik2002", "reference_site_density_nm2")
 
 """
     REFERENCE_SITE_DENSITY
@@ -256,8 +256,8 @@ const REFERENCE_SITE_DENSITY_NM2 = 12.05
 [`AVOGADRO`](@ref) rather than written again — `2.0009e-5 mol/m²`.
 
 That it comes out so close to a round `2 × 10⁻⁵ mol/m²` is not a coincidence:
-that is the number the convention was chosen to be, and `12.05 nm⁻²` is how it
-reads in the units the surface literature uses.
+that is the number the convention was chosen to be, and the value in `nm⁻²` is
+how it reads in the units the surface literature uses.
 """
 const REFERENCE_SITE_DENSITY = REFERENCE_SITE_DENSITY_NM2 * 1.0e18 / AVOGADRO
 
@@ -298,10 +298,14 @@ the point that their weak and strong constants are not on one scale:
 ```jldoctest
 julia> using ChemistryLab
 
-julia> round(convert_logk_site_density(0.0, 2.254), digits = 2)   # weak sites
+julia> weak = literature_value("Kulik2002", "dzombak_morel_weak_site_density_nm2");
+
+julia> strong = literature_value("Kulik2002", "dzombak_morel_strong_site_density_nm2");
+
+julia> round(convert_logk_site_density(0.0, weak), digits = 2)
 -0.73
 
-julia> round(convert_logk_site_density(0.0, 0.056), digits = 2)   # strong sites
+julia> round(convert_logk_site_density(0.0, strong), digits = 2)
 -2.33
 ```
 

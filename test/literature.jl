@@ -50,6 +50,15 @@ using JSON
         @test literature("Powers1948") === r
     end
 
+    @testset "a row is found by its label" begin
+        co = literature_row("BaroghelBouny1999", "retention_fit", "CO")
+        t = literature_table("BaroghelBouny1999", "retention_fit")
+        i = findfirst(==("CO"), t.mix)
+        @test co.mix == "CO"
+        @test co.a === t.a[i] && co.b === t.b[i]
+        @test_throws KeyError literature_row("BaroghelBouny1999", "retention_fit", "no such mix")
+    end
+
     @testset "the rate-law constants are the ones their sources give" begin
         t = literature_table("Lavergne2018", "parrot_killoh_1984")
         e = literature_table("Lavergne2018", "activation_energies")
@@ -131,7 +140,7 @@ using JSON
         # Unit arithmetic over the registry of DynamicQuantities, and nothing
         # else: not a syntax error, a string, a bare number, an unknown name, or
         # a name of that module which is not a unit.
-        for u in ("K)", "\"K\"", "2", "no_such_unit", "eval")
+        for u in ("K)", "\"K\"", "2", "no_such_unit", "eval", "Mno_such_unit", "Qm")
             bad = deepcopy(good); bad["quantities"]["w_c_sealed"]["unit"] = u
             @test_throws ArgumentError ChemistryLab.read_literature(write_as(bad, "Powers1948"))
         end
@@ -148,9 +157,10 @@ using JSON
         d = JSON.parsefile(literature_path("Powers1948"); dicttype = Dict{String, Any})
         d["tables"] = Dict(
             "t" => Dict(
-                "columns" => ["phase", "m", "ratio"], "units" => [nothing, "mol/kg", "1"],
+                "columns" => ["phase", "m", "ratio", "p"],
+                "units" => [nothing, "mol/kg", "1", "MPa"],
                 "kind" => "published", "location" => "Table 1",
-                "rows" => [["A", 0.1, 1.5], ["B", 0.2, 2.5]]
+                "rows" => [["A", 0.1, 1.5, 2.0], ["B", 0.2, 2.5, 3.0]]
             )
         )
         d["quantities"]["with_unit"] = Dict(
@@ -163,6 +173,8 @@ using JSON
         @test t.phase == ["A", "B"]
         @test t.m ≈ [0.1, 0.2] .* u"mol/kg"
         @test t.ratio == [1.5, 2.5]
+        # A prefix the unit registry does not carry is read as its SI factor.
+        @test t.p == [2.0e6, 3.0e6] .* u"Pa"
         q = r["with_unit"]
         @test ChemistryLab.value(q) ≈ 8.0u"J/mol"
         @test uncertainty(q) ≈ 0.5u"J/mol"

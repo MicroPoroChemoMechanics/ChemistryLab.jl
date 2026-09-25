@@ -100,6 +100,7 @@ module ChemistryLab
 
     include("utils/constants.jl")
     include("utils/provenance.jl")
+    include("databases/literature.jl")
     include("utils/identifiability.jl")
     include("utils/misc.jl")
     include("utils/subsuperscripts.jl")
@@ -136,7 +137,6 @@ module ChemistryLab
     include("databases/paths.jl")
     include("databases/phreeqc_dat.jl")
     include("databases/thermofun_json.jl")
-    include("databases/literature.jl")
     include("databases/pitzer_toml.jl")
     include("databases/sit_dat.jl")
     include("databases/phreeqc_sorption.jl")
@@ -414,6 +414,7 @@ module ChemistryLab
     export literature,
         literature_value,
         literature_table,
+        literature_row,
         available_literature,
         literature_path,
         LiteratureRecord,

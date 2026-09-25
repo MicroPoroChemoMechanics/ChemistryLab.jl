@@ -326,7 +326,7 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
 
     α2 = par.alpha2
     bp = par.b
-    A_fixed = 0.5114                     # log10-basis Debye-Hückel A at 25 °C
+    A_fixed = _DH_A_25C                  # log10-basis Debye-Hückel A at 25 °C
     temp_dep = model.temperature_dependent
 
     function lna(n::AbstractVector, p)

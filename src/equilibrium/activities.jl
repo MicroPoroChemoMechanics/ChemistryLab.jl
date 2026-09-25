@@ -289,7 +289,8 @@ end
     REJ_HKF::Dict{String,Float64}
 
 Effective electrostatic radii åᵢ [Å] for aqueous ions from
-Helgeson, Kirkham & Flowers (1981), *Am. J. Sci.* **281**, Table 3.
+Helgeson, Kirkham & Flowers (1981), *Am. J. Sci.* **281**, Table 3, read from
+`data/literature/Helgeson1981.json`.
 
 Keys are PHREEQC-format formula strings (e.g. `"Na+"`, `"Ca+2"`, `"SO4-2"`).
 Used by [`HKFActivityModel`](@ref) with priority 2 in the radius lookup chain:
@@ -297,31 +298,31 @@ Used by [`HKFActivityModel`](@ref) with priority 2 in the radius lookup chain:
 
 See also: [`REJ_CHARGE_DEFAULT`](@ref), [`HKFActivityModel`](@ref).
 """
-const REJ_HKF = Dict{String, Float64}(
-    "H+" => 3.08, "Li+" => 1.64, "Na+" => 1.91, "K+" => 2.27,
-    "Rb+" => 2.41, "Cs+" => 2.61, "NH4+" => 2.31, "Ag+" => 2.2,
-    "Mg+2" => 2.54, "Ca+2" => 2.87, "Sr+2" => 3.0, "Ba+2" => 3.22,
-    "Fe+2" => 2.62, "Al+3" => 3.33, "Fe+3" => 3.46, "La+3" => 3.96,
-    "F-" => 1.33, "Cl-" => 1.81, "Br-" => 1.96, "I-" => 2.2,
-    "OH-" => 1.4, "HS-" => 1.84, "NO3-" => 2.81, "HCO3-" => 2.1,
-    "HSO4-" => 2.37, "SO4-2" => 3.15, "CO3-2" => 2.81,
-)
+const REJ_HKF = let t = literature_table("Helgeson1981", "effective_electrostatic_radii")
+    Dict{String, Float64}(zip(t.species, t.radius_angstrom))
+end
 
 """
     REJ_CHARGE_DEFAULT::Dict{Int,Float64}
 
-Fallback effective electrostatic radii åᵢ [Å] indexed by formal charge,
-from ToughReact V2 (Xu et al. 2011, Table A2; after Helgeson et al. 1981).
+Fallback effective electrostatic radii åᵢ [Å] indexed by formal charge, read
+from `data/literature/Xu2011.json`. The package has attributed them to ToughReact
+V2 (Xu et al. 2011, Table A2; after Helgeson et al. 1981), a location not yet
+checked against the article, which the file records.
 
 Used by [`HKFActivityModel`](@ref) with priority 3 in the radius lookup chain:
 `sp[:å]` > [`REJ_HKF`](@ref) > `REJ_CHARGE_DEFAULT` > `model.å_default`.
 
 See also: [`REJ_HKF`](@ref), [`HKFActivityModel`](@ref).
 """
-const REJ_CHARGE_DEFAULT = Dict{Int, Float64}(
-    -3 => 4.2, -2 => 3.0, -1 => 1.81,
-    1 => 2.31, 2 => 2.8, 3 => 3.6, 4 => 4.5,
-)
+const REJ_CHARGE_DEFAULT = let t = literature_table("Xu2011", "radius_by_charge")
+    Dict{Int, Float64}(Int(z) => r for (z, r) in zip(t.charge, t.radius_angstrom))
+end
+
+# The Debye-Hückel A and B of water at 25 °C and 1 bar, the defaults of the
+# activity models below, read from Helgeson et al. (1981), Table 1.
+const _DH_A_25C = literature_value("Helgeson1981", "debye_huckel_A_25C")
+const _DH_B_25C = literature_value("Helgeson1981", "debye_huckel_B_25C")
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -371,10 +372,10 @@ AD-compatible (ForwardDiff-safe). Returns a `NamedTuple` `(A=..., B=...)`.
 ```jldoctest
 julia> p = hkf_debye_huckel_params(298.15, 1e5);
 
-julia> isapprox(p.A, 0.5114; rtol=1e-3)
+julia> isapprox(p.A, literature_value("Helgeson1981", "debye_huckel_A_25C"); rtol=1e-3)
 true
 
-julia> isapprox(p.B, 0.3288; rtol=1e-3)
+julia> isapprox(p.B, literature_value("Helgeson1981", "debye_huckel_B_25C"); rtol=1e-3)
 true
 ```
 """
@@ -491,8 +492,8 @@ Helgeson et al. 1981 Eqs. 132–137).
 
 | field | default | unit | provenance |
 |:--|:--|:--|:--|
-| `A` | 0.5114 | (kg/mol)^½ | [Helgeson1981](@cite) Table 1 at 25 °C / 1 bar — **and** reproduced to `1e-3` by [`hkf_debye_huckel_params`](@ref) from this package's own water model, which is the check in `test/activities.jl` |
-| `B` | 0.3288 | Å⁻¹(kg/mol)^½ | same |
+| `A` | $(_DH_A_25C) | (kg/mol)^½ | [Helgeson1981](@cite) Table 1 at 25 °C / 1 bar, read from `data/literature/Helgeson1981.json` — **and** reproduced to `1e-3` by [`hkf_debye_huckel_params`](@ref) from this package's own water model, which is the check in `test/activities.jl` |
+| `B` | $(_DH_B_25C) | Å⁻¹(kg/mol)^½ | same |
 | `Ḃ` | 0.041 | kg/mol | the value conventionally carried for a NaCl-dominated solution at 25 °C. What the term *is* has a source ([AndersonCrerar1993](@cite) §17.7.1); **this particular number has none recorded in this package**, so treat it as a convention rather than a measurement |
 | `Kₙ` | 0.1 | kg/mol | a generic salting-out coefficient, **no source recorded**; overridden per species by `sp[:Kₙ]`, which is how `CO₂(aq)` gets its own |
 | `å_default` | 3.72 | Å | last resort, reached only for a charge no table covers (`|z| ≥ 5`). **No source recorded** |
@@ -500,7 +501,8 @@ Helgeson et al. 1981 Eqs. 132–137).
 | `temperature_dependent` | `false` | — | recompute `A` and `B` from `p.T`, `p.P` at every call (needs `T` and `P` in `p`) |
 
 Per-ion radii come from [`REJ_HKF`](@ref) ([Helgeson1981](@cite) Table 3) and,
-failing that, from [`REJ_CHARGE_DEFAULT`](@ref) ([Xu2011](@cite) Table A2).
+failing that, from [`REJ_CHARGE_DEFAULT`](@ref) (attributed to [Xu2011](@cite),
+location unconfirmed).
 
 !!! note "Three of these defaults are conventions, not data"
     `Ḃ`, `Kₙ` and `å_default` are numbers this package carries without a source
@@ -571,12 +573,14 @@ struct HKFActivityModel{T <: Real} <: AbstractActivityModel
 end
 
 """
-    HKFActivityModel(; A=0.5114, B=0.3288, Ḃ=0.041, Kₙ=0.1, å_default=3.72,
+    HKFActivityModel(; A=$(_DH_A_25C), B=$(_DH_B_25C), Ḃ=0.041, Kₙ=0.1, å_default=3.72,
                        å=nothing, temperature_dependent=false) -> HKFActivityModel
 
 Construct an [`HKFActivityModel`](@ref) with the given parameters.
 
-Default values are from Helgeson et al. (1981), Table 1, at 25 °C / 1 bar.
+`A` and `B` default to their values at 25 °C / 1 bar, Helgeson et al. (1981),
+Table 1; the other defaults are conventions, whose provenance
+[`HKFActivityModel`](@ref) sets out.
 
 `å` imposes **one common** effective radius on every charged aqueous species,
 overriding the per-species tables. Use it to reproduce a published model that
@@ -603,8 +607,8 @@ HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
 ```
 """
 function HKFActivityModel(;
-        A::Real = 0.5114,
-        B::Real = 0.3288,
+        A::Real = _DH_A_25C,
+        B::Real = _DH_B_25C,
         Ḃ::Real = 0.041,
         Kₙ::Real = 0.1,
         å_default::Real = 3.72,
@@ -854,7 +858,7 @@ distinguish Na⁺ from K⁺ at all.
 
 | field | default | unit | provenance |
 |:--|:--|:--|:--|
-| `A` | 0.5114 | (kg/mol)^½ | [Helgeson1981](@cite) Table 1 at 25 °C / 1 bar, and reproduced by [`hkf_debye_huckel_params`](@ref) from this package's water model |
+| `A` | $(_DH_A_25C) | (kg/mol)^½ | [Helgeson1981](@cite) Table 1 at 25 °C / 1 bar, and reproduced by [`hkf_debye_huckel_params`](@ref) from this package's water model |
 | `b` | 0.3 | kg/mol | **part of the published equation** — Davies fixed it, it is not a free parameter of this implementation |
 | `bₙ` | 0.1 | kg/mol | a generic salting-out coefficient for neutral species. **No source recorded in this package** |
 | `temperature_dependent` | `false` | — | recompute `A` from `p.T`, `p.P` at every call |
@@ -884,12 +888,12 @@ struct DaviesActivityModel{T <: Real} <: AbstractActivityModel
 end
 
 """
-    DaviesActivityModel(; A=0.5114, b=0.3, bₙ=0.1, temperature_dependent=false)
+    DaviesActivityModel(; A=$(_DH_A_25C), b=0.3, bₙ=0.1, temperature_dependent=false)
 
 Construct a [`DaviesActivityModel`](@ref).
 """
 function DaviesActivityModel(;
-        A::Real = 0.5114,
+        A::Real = _DH_A_25C,
         b::Real = 0.3,
         bₙ::Real = 0.1,
         temperature_dependent::Bool = false,

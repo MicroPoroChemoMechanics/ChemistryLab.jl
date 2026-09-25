@@ -7,9 +7,9 @@
     "location": null
   },
   "transcription": {
-    "from": "src/kinetics/rate_models.jl, ChemistryLab 0.22.1 (constants POWERS_W_SEALED and POWERS_W_SATURATED)",
+    "from": "src/kinetics/rate_models.jl (the two ratios) and docs/src/tutorials/self_desiccation.md (the split of the sealed ratio), ChemistryLab 0.22.1",
     "checked_against_source": false,
-    "note": "Moved out of the code unchanged. The proceedings have no DOI and the article was not re-read during the move; the two ratios are the ones the package has used and documented since it first cited this source."
+    "note": "Moved out of the code unchanged. The proceedings have no DOI and the article was not re-read during the move; the values are the ones the package has used and documented since it first cited this source."
   },
   "quantities": {
     "w_c_sealed": {
@@ -25,6 +25,20 @@
       "kind": "published",
       "uncertainty": null,
       "description": "The same bound when curing water is supplied from outside, the chemical shrinkage being refilled."
+    },
+    "non_evaporable_water": {
+      "value": 0.23,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "Non-evaporable water per gram of cement at complete hydration, g/g: the water that survives D-drying, part of the sealed ratio."
+    },
+    "gel_water": {
+      "value": 0.19,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "Gel water per gram of cement at complete hydration, g/g: the rest of the sealed ratio."
     }
   },
   "notes": [

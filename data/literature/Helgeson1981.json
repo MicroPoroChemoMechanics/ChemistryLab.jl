@@ -1,0 +1,72 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Helgeson1981",
+    "doi": "10.2475/ajs.281.10.1249",
+    "citation": "Helgeson, H. C., Kirkham, D. H., Flowers, G. C. (1981). Theoretical prediction of the thermodynamic behavior of aqueous electrolytes by high pressures and temperatures; IV, Calculation of activity coefficients, osmotic coefficients, and apparent molal and standard and relative partial molal properties to 600 degrees C and 5kb. American Journal of Science 281, 1249-1516.",
+    "location": null
+  },
+  "transcription": {
+    "from": "src/equilibrium/activities.jl, ChemistryLab 0.22.2 (REJ_HKF and the defaults of HKFActivityModel)",
+    "checked_against_source": false,
+    "note": "Moved out of the code unchanged. The article was not re-read during the move: the locations are the ones the package has cited. The Debye-Hueckel A and B are also reproduced to 1e-3 by hkf_debye_huckel_params from the package's own water model, which test/activities.jl checks."
+  },
+  "quantities": {
+    "debye_huckel_A_25C": {
+      "value": 0.5114,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 1",
+      "description": "Debye-Hueckel A of water at 25 C and 1 bar, in (kg/mol)^(1/2), for decimal logarithms."
+    },
+    "debye_huckel_B_25C": {
+      "value": 0.3288,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 1",
+      "description": "Debye-Hueckel B of water at 25 C and 1 bar, in 1/Angstrom (kg/mol)^(1/2)."
+    }
+  },
+  "tables": {
+    "effective_electrostatic_radii": {
+      "columns": ["species", "radius_angstrom"],
+      "units": [null, "1"],
+      "kind": "published",
+      "location": "Table 3",
+      "rows": [
+        ["H+", 3.08],
+        ["Li+", 1.64],
+        ["Na+", 1.91],
+        ["K+", 2.27],
+        ["Rb+", 2.41],
+        ["Cs+", 2.61],
+        ["NH4+", 2.31],
+        ["Ag+", 2.2],
+        ["Mg+2", 2.54],
+        ["Ca+2", 2.87],
+        ["Sr+2", 3.0],
+        ["Ba+2", 3.22],
+        ["Fe+2", 2.62],
+        ["Al+3", 3.33],
+        ["Fe+3", 3.46],
+        ["La+3", 3.96],
+        ["F-", 1.33],
+        ["Cl-", 1.81],
+        ["Br-", 1.96],
+        ["I-", 2.2],
+        ["OH-", 1.4],
+        ["HS-", 1.84],
+        ["NO3-", 2.81],
+        ["HCO3-", 2.1],
+        ["HSO4-", 2.37],
+        ["SO4-2", 3.15],
+        ["CO3-2", 2.81]
+      ]
+    }
+  },
+  "notes": [
+    "Species are keyed by their PHREEQC formula. The radii are used by HKFActivityModel as ion-size parameters of the extended Debye-Hueckel equation."
+  ]
+}

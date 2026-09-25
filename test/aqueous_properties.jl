@@ -197,7 +197,7 @@ end
     _, st_mut5 = _aqp_state(; ion_size = 5.0)
     γ_over = activity_coefficients(st_mut5, HKFActivityModel(å = 0.0))
     @test γ_over["Ca+2"] ≈
-        10.0^(-0.5114 * 4 * sqrt(I) + 0.041 * I) rtol = 1.0e-12
+        10.0^(-literature_value("Helgeson1981", "debye_huckel_A_25C") * 4 * sqrt(I) + 0.041 * I) rtol = 1.0e-12
 end
 
 @testsection "aqueous properties: pH in the activity convention" begin

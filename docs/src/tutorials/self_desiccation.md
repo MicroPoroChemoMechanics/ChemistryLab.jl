@@ -113,13 +113,14 @@ using Logging
 using OptimaSolver
 using Printf
 
-# Baroghel-Bouny et al. (1999), Table 2. The balance is free lime and alkalis,
-# which this species list does not carry.
-compo = ["C3S" => 0.5728, "C2S" => 0.2398, "C3A" => 0.0303,
-         "C4AF" => 0.0759, "Gp" => 0.0439, "Cal" => 0.0184]
+# Baroghel-Bouny et al. (1999): the cement of their Table 2, in mass percent, and
+# the water-to-cement ratio of their mix CO, Table 1. The balance of Table 2 is
+# free lime and alkalis, which this species list does not carry.
+pct(c) = literature_row("BaroghelBouny1999", "cement_composition", c).content_percent / 100
+compo = ["C3S" => pct("C3S"), "C2S" => pct("C2S"), "C3A" => pct("C3A"),
+         "C4AF" => pct("C4AF"), "Gp" => pct("Gypsum"), "Cal" => pct("CaCO3")]
 cmass = sum(last.(compo))
-wc    = 0.34                     # their mix CO
-M_H2O = 0.0180153                # kg/mol
+wc    = literature_row("BaroghelBouny1999", "mixes", "CO").W_C
 
 phases = split("C3S C2S C3A C4AF Gp Anh Cal Portlandite Jennite H2O@ " *
                "ettringite monosulphate12 C3AH6 C3FH6 C4FH13 monocarbonate")
@@ -129,6 +130,7 @@ cs = ChemicalSystem(
 )
 iw = only(cs.idx_solvent)
 ic = [findfirst(s -> symbol(s) == sym, cs.species) for (sym, _) in compo]
+M_H2O = ustrip(us"kg/mol", cs.species[iw][:M])
 nothing # hide
 ```
 
@@ -226,20 +228,24 @@ introduce Mualem's relative permeability. So a ``b`` from that literature enters
 [`VanGenuchten`](@ref) as ``m = 1/b``, and **getting that inversion wrong is
 silent**: it changes the exponent and nothing complains.
 
-Their Table 5, with the mixes from their Table 1:
+Their Table 5, with the water-to-cement ratios of their Table 1. CO and CH are
+cement pastes, BO and BH concretes, and CH and BH contain 10 % silica fume:
 
-| mix | material | W/C | ``a`` (MPa) | ``b`` | ``m = 1/b`` |
-|:--|:--|:--|:--|:--|:--|
-| CO | cement paste | 0.34 | 37.5479 | 2.1684 | 0.46117 |
-| CH | paste, 10 % silica fume | 0.19 | 96.2837 | 1.9540 | 0.51177 |
-| BO | concrete | 0.48 | 18.6237 | 2.2748 | 0.43960 |
-| BH | concrete, 10 % silica fume | 0.26 | 46.9364 | 2.0601 | 0.48541 |
+```@example sd
+fits = literature_table("BaroghelBouny1999", "retention_fit")
+println("mix    W/C    a (MPa)       b    m = 1/b")
+for (mix, a, b) in zip(fits.mix, fits.a, fits.b)
+    w_c = literature_row("BaroghelBouny1999", "mixes", mix).W_C
+    @printf("%-4s  %5.2f  %9.4f  %6.4f  %9.5f\n", mix, w_c, ustrip(a) / 1.0e6, b, 1 / b)
+end
+```
 
 The capillary pressure becomes a water activity through Kelvin,
 ``a_w = \exp(-p_c V_m / RT)``, which is what [`water_activity`](@ref) does:
 
 ```@example sd
-co    = VanGenuchten(; a = 37.5479e6, m = 1 / 2.1684)   # their mix CO
+fit_co = literature_row("BaroghelBouny1999", "retention_fit", "CO")
+co    = VanGenuchten(; a = fit_co.a, m = 1 / fit_co.b)   # their mix CO
 V_m   = 1.807e-5      # m³/mol, liquid water at 25 °C
 T_K   = 298.15
 γ_w   = 0.0728        # N/m
@@ -289,13 +295,14 @@ Everything the boxed formula needs is now in hand, each from its own source.
 
 ```@example sd
 powers_k(b, s, S★) = b + s * S★ / (1 - S★)
+k_powers = literature_value("Powers1948", "w_c_sealed")
 
 S80 = saturation_at(0.80)
 @printf("S* = %.4f  so  S*/(1-S*) = %.4f\n\n", S80, S80 / (1 - S80))
 @printf("with the model's formula water, b = %.4f:\n", b_model)
-@printf("   k = %.4f      α_max(w/c=0.34) = %.4f     (Powers: 0.42 and %.4f)\n",
-        powers_k(b_model, s_shrink, S80), wc / powers_k(b_model, s_shrink, S80),
-        min(1.0, wc / 0.42))
+@printf("   k = %.4f      α_max(w/c=%.2f) = %.4f     (Powers: %.2f and %.4f)\n",
+        powers_k(b_model, s_shrink, S80), wc, wc / powers_k(b_model, s_shrink, S80),
+        k_powers, min(1.0, wc / k_powers))
 ```
 
 **30 % above Powers.** Before calling that a disagreement, look at what ``b``
@@ -310,7 +317,7 @@ removed it. The model's ``b`` and Powers' ``w_n`` are therefore not the same
 quantity, and their difference is not an error:
 
 ```@example sd
-b_powers = 0.23                     # Powers' non-evaporable water, his own number
+b_powers = literature_value("Powers1948", "non_evaporable_water")   # his own number
 @printf("model formula water   %.4f g/g\n", b_model)
 @printf("Powers' w_n           %.4f g/g   (defined by D-drying)\n", b_powers)
 @printf("difference            %.4f g/g   — interlayer water, counted differently\n",
@@ -322,9 +329,9 @@ and the isotherm exactly as measured:
 
 ```@example sd
 @printf("with Powers' w_n = %.2f:\n", b_powers)
-@printf("   k = %.4f      α_max(w/c=0.34) = %.4f     (Powers: 0.42 and %.4f)\n",
-        powers_k(b_powers, s_shrink, S80), wc / powers_k(b_powers, s_shrink, S80),
-        min(1.0, wc / 0.42))
+@printf("   k = %.4f      α_max(w/c=%.2f) = %.4f     (Powers: %.2f and %.4f)\n",
+        powers_k(b_powers, s_shrink, S80), wc, wc / powers_k(b_powers, s_shrink, S80),
+        k_powers, min(1.0, wc / k_powers))
 ```
 
 11 % above. The remaining gap is a fifth of a point of saturation, and §6 shows
@@ -349,9 +356,9 @@ function invert_k(b, s, k_target)
     return (lo + hi) / 2
 end
 
-println("k = 0.42 implies:")
+@printf("k = %.2f implies:\n", k_powers)
 for (label, b) in (("the model's formula water", b_model), ("Powers' own w_n", b_powers))
-    S = invert_k(b, s_shrink, 0.42)
+    S = invert_k(b, s_shrink, k_powers)
     @printf("   b = %.4f (%-26s)   S* = %.4f   RH = %.4f\n", b, label, S, a_w(S))
 end
 ```
@@ -393,7 +400,7 @@ humidity. The derivative is worth knowing before believing any single number:
 
 ```@example sd
 @printf("dk/dS* = %.3f at S* = %.4f\n\n", s_shrink / (1 - S80)^2, S80)
-println("   RH      S*        k (model b)   k (Powers w_n)   α_max(0.34)")
+@printf("   RH      S*        k (model b)   k (Powers w_n)   α_max(%.2f)\n", wc)
 for rh in (0.70, 0.75, 0.80, 0.85, 0.90)
     S = saturation_at(rh)
     @printf("  %4.2f  %6.4f  %13.4f  %16.4f  %12.4f\n", rh, S,
@@ -410,9 +417,10 @@ ks_p = [powers_k(b_powers, s_shrink, saturation_at(r)) for r in rhs]
 p2 = plot(rhs, ks_m; xlabel = "assumed arrest humidity", ylabel = "k = (w/c) / α_max",
     label = "b = model formula water", linewidth = 2, color = :steelblue,
     title = "What the coefficient depends on", legend = :topleft, ylims = (0.25, 1.0))
-plot!(p2, rhs, ks_p; label = "b = Powers' w_n = 0.23", linewidth = 2, color = :firebrick)
-hline!(p2, [0.42]; label = "Powers 0.42", linestyle = :dash, color = :black)
-hline!(p2, [0.36]; label = "Powers 0.36, saturated curing", linestyle = :dot, color = :gray)
+plot!(p2, rhs, ks_p; label = "b = Powers' w_n = $(b_powers)", linewidth = 2, color = :firebrick)
+k_saturated = literature_value("Powers1948", "w_c_saturated")
+hline!(p2, [k_powers]; label = "Powers $(k_powers)", linestyle = :dash, color = :black)
+hline!(p2, [k_saturated]; label = "Powers $(k_saturated), saturated curing", linestyle = :dot, color = :gray)
 plot(p2; size = (700, 420), left_margin = 8Plots.mm, bottom_margin = 8Plots.mm)
 ```
 
@@ -478,7 +486,8 @@ same construction on a second measured curve from the same table — mix BH, a
 different material at a different W/C — and watch which number moves.
 
 ```@example sd
-bh = VanGenuchten(; a = 46.9364e6, m = 1 / 2.0601)   # their mix BH
+fit_bh = literature_row("BaroghelBouny1999", "retention_fit", "BH")
+bh = VanGenuchten(; a = fit_bh.a, m = 1 / fit_bh.b)   # their mix BH
 
 function saturation_of(law, rh)
     lo, hi = 1e-4, 1 - 1e-12
@@ -520,7 +529,7 @@ explicitly and says so.
 | clinker composition | Table 2 | [BaroghelBouny1999](@cite) | no |
 | thermodynamic data | Cemdata18 | [Lothenbach2019](@cite) | no |
 | ``b``, ``s`` | 0.3095 g/g, 0.0639 cm³/g | computed here, certified | no |
-| retention curve | ``a`` = 37.5479 MPa, ``b`` = 2.1684 | [BaroghelBouny1999](@cite) Table 5 | no |
+| retention curve | mix CO | [BaroghelBouny1999](@cite) Table 5 | no |
 | ``\gamma``, ``V_m``, ``T`` | 0.0728 N/m, 1.807e-5 m³/mol, 298.15 K | water at 25 °C | no |
 | ``w_n`` = 0.23 | Powers' own split of his 0.42 | [Powers1948](@cite) | **yes** |
 

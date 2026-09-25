@@ -32,12 +32,13 @@ using Printf
 # this script uses further down. Taking the isotherm from one paper and the
 # clinker from another would compare two materials.
 
+pct(c) = literature_row("BaroghelBouny1999", "cement_composition", c).content_percent / 100
 const COMPO = [
-    "C3S" => 0.5728, "C2S" => 0.2398, "C3A" => 0.0303,
-    "C4AF" => 0.0759, "Gp" => 0.0439, "Cal" => 0.0184,
+    "C3S" => pct("C3S"), "C2S" => pct("C2S"), "C3A" => pct("C3A"),
+    "C4AF" => pct("C4AF"), "Gp" => pct("Gypsum"), "Cal" => pct("CaCO3"),
 ]
-const CMASS = sum(last.(COMPO))      # 0.9811 — the rest is free lime and alkalis
-const WC = 0.34                      # their mix CO
+const CMASS = sum(last.(COMPO))      # the rest is free lime and alkalis
+const WC = literature_row("BaroghelBouny1999", "mixes", "CO").W_C   # their mix CO
 const M_H2O = 0.0180153              # kg/mol
 const RHO_W = 1.0e3                  # kg/m³, for the water volume
 
@@ -140,10 +141,11 @@ const S_SHRINK = REF.s
 # ── 2. The retention curve, from measurement ─────────────────────────────────
 #
 # Baroghel-Bouny et al. (1999), their Eq. (20) and Table 5, mix CO. They write
-# the van Genuchten expression with `b = 1/m`, so their `b = 2.1684` enters here
-# as `m = 1/2.1684`. Getting that inversion wrong is silent.
+# the van Genuchten expression with `b = 1/m`, so their `b` enters here as
+# `m = 1/b`. Getting that inversion wrong is silent.
 
-const CO_CURVE = VanGenuchten(; a = 37.5479e6, m = 1 / 2.1684)
+const CO_FIT = literature_row("BaroghelBouny1999", "retention_fit", "CO")
+const CO_CURVE = VanGenuchten(; a = CO_FIT.a, m = 1 / CO_FIT.b)
 const V_M_WATER = 1.807e-5      # m³/mol
 const T_K = 298.15
 
@@ -201,7 +203,8 @@ function invert_k(b, s, k_target)
 end
 
 const S_AT_80 = saturation_at(0.8)
-const B_POWERS = 0.23     # Powers' non-evaporable water, g/g — his own number
+const B_POWERS = literature_value("Powers1948", "non_evaporable_water")   # g/g, his own number
+const K_POWERS = literature_value("Powers1948", "w_c_sealed")
 
 println("\n", "="^78)
 println("3. THE BUDGET CLOSED")
@@ -209,22 +212,22 @@ println("="^78)
 @printf("S* at RH 0.80 = %.4f,   so S*/(1-S*) = %.4f\n\n", S_AT_80, S_AT_80 / (1 - S_AT_80))
 
 @printf("FORWARD, with the model's formula water b = %.4f:\n", B_MODEL)
-@printf("    k = %.4f          (Powers: 0.42)\n", powers_k(B_MODEL, S_SHRINK, S_AT_80))
+@printf("    k = %.4f          (Powers: %.2f)\n", powers_k(B_MODEL, S_SHRINK, S_AT_80), K_POWERS)
 @printf(
     "    alpha_max(w/c = %.2f) = %.4f   (Powers: %.4f)\n\n",
-    WC, WC / powers_k(B_MODEL, S_SHRINK, S_AT_80), min(1.0, WC / 0.42)
+    WC, WC / powers_k(B_MODEL, S_SHRINK, S_AT_80), min(1.0, WC / K_POWERS)
 )
 
 @printf("FORWARD, with Powers' own non-evaporable water b = %.2f:\n", B_POWERS)
-@printf("    k = %.4f          (Powers: 0.42)\n", powers_k(B_POWERS, S_SHRINK, S_AT_80))
+@printf("    k = %.4f          (Powers: %.2f)\n", powers_k(B_POWERS, S_SHRINK, S_AT_80), K_POWERS)
 @printf(
     "    alpha_max(w/c = %.2f) = %.4f   (Powers: %.4f)\n\n",
-    WC, min(1.0, WC / powers_k(B_POWERS, S_SHRINK, S_AT_80)), min(1.0, WC / 0.42)
+    WC, min(1.0, WC / powers_k(B_POWERS, S_SHRINK, S_AT_80)), min(1.0, WC / K_POWERS)
 )
 
-println("INVERTED — what internal humidity does Powers' 0.42 imply?")
+@printf("INVERTED — what internal humidity does Powers' %.2f imply?\n", K_POWERS)
 for (label, b) in (("the model's formula water", B_MODEL), ("Powers' own w_n", B_POWERS))
-    S = invert_k(b, S_SHRINK, 0.42)
+    S = invert_k(b, S_SHRINK, K_POWERS)
     @printf(
         "    b = %.4f (%-26s):  S* = %.4f  =>  RH = %.4f\n",
         b, label, S, water_activity_at(S)
@@ -243,7 +246,11 @@ println("="^78)
     B_MODEL - B_POWERS
 )
 println("                                  into the C-S-H formula and D-drying removes")
-@printf("\nPowers' own split:   w_n %.2f + gel %.2f = %.2f\n", 0.23, 0.19, 0.42)
+@printf(
+    "\nPowers' own split:   w_n %.2f + gel %.2f = %.2f\n",
+    B_POWERS, literature_value("Powers1948", "gel_water"),
+    literature_value("Powers1948", "w_c_sealed")
+)
 @printf(
     "this budget:         b   %.4f + s S*/(1-S*) %.4f = %.4f\n",
     B_MODEL, S_SHRINK * S_AT_80 / (1 - S_AT_80), powers_k(B_MODEL, S_SHRINK, S_AT_80)
@@ -294,7 +301,8 @@ println("="^78)
 println("The same construction on a second measured curve from the same table.")
 println("Watch which column moves and which one does not.")
 
-const BH_CURVE = VanGenuchten(; a = 46.9364e6, m = 1 / 2.0601)   # their mix BH
+const BH_FIT = literature_row("BaroghelBouny1999", "retention_fit", "BH")
+const BH_CURVE = VanGenuchten(; a = BH_FIT.a, m = 1 / BH_FIT.b)   # their mix BH
 
 function saturation_of(law, rh)
     lo, hi = 1.0e-4, 1.0 - 1.0e-12
