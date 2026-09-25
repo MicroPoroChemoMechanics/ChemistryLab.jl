@@ -1,5 +1,8 @@
 # [The full Portland cement, through its pore solution](@id ex-ionic-opc)
 
+!!! info "Before this page"
+    [The hydrating paste, end to end](@ref sec-coupled-hydration).
+
 [The hydrating paste, end to end](@ref sec-coupled-hydration) runs the two silicate clinker phases this
 way: prescribe the dissolution, let the thermodynamics decide the hydrates. This
 page does the same for a **complete CEM I** — alite, belite, aluminate, ferrite,
@@ -538,3 +541,9 @@ self-consistent/Mori–Tanaka scheme, and the setting threshold that comes with 
 is the chapter *Hydration through the pore solution* of
 [MeanFieldHomogenization.jl](https://microporochemomechanics.github.io/MeanFieldHomogenization.jl/stable/),
 which duplicates the model of this page and adds the homogenization.
+
+## Where to go next
+
+The kinetic parameters used here are published values; fitting them to a
+measured calorimetry curve, and what such a fit can and cannot identify, is
+[Calibrating hydration kinetics on measured calorimetry](@ref ex-hydration-calibration).

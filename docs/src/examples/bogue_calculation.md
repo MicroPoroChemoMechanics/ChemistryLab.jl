@@ -1,4 +1,8 @@
-# Bogue Calculation
+# [Bogue Calculation](@id ex-bogue)
+
+!!! info "Before this page"
+    [Cement chemist notation](@ref man-cement-notation) and [Stoichiometric
+    Matrix](@ref sec-stoich-matrices).
 
 The way in which species and cementitious species are constructed in ChemistryLab and expressed as a linear combination of reference species opens the door to equilibrium calculations. It also makes it quite natural to retrieve Bogue's formulas and use them simply.
 
@@ -47,3 +51,9 @@ A more direct route uses `mass_matrix` on the canonical stoichiometric matrix. T
 massCSM = mass_matrix(CanonicalStoichMatrix(cemspecies))
 pprint(inv(massCSM.A), cemspecies, oxides; label=:name)
 ```
+
+## Where to go next
+
+The matrix inverted here is examined for itself in
+[Stoichiometric matrices](@ref ex-stoich-matrix). The phase masses obtained are
+the starting point of [A CEM I from its clinker phases](@ref sec-cem1-from-clinker).

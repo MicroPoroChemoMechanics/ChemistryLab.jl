@@ -1,5 +1,8 @@
 # [Cement chemist notation](@id man-cement-notation)
 
+!!! info "Before this page"
+    [Chemical Formula Manipulation](@ref sec-formulas).
+
 Cement chemistry writes its phases in a shorthand that is opaque on first sight
 and indispensable once learned: alite is `C3S`, portlandite is `CH`, ettringite
 is `C6AS̄3H32`. This page is the key to it, and to how ChemistryLab reads it.
@@ -166,5 +169,11 @@ end
 - the oxide components of a stoichiometric decomposition — see
   [Stoichiometric matrices](@ref ex-stoich-matrix), where a clinker phase is
   expressed over `C`, `S`, `A`, `F`;
-- the [Bogue Calculation](@ref), which is that decomposition inverted and
+- the [Bogue Calculation](@ref ex-bogue), which is that decomposition inverted and
   converted to mass.
+
+## Where to go next
+
+The notation is attached to species in [Cement Species](@ref man-cement-species),
+and its inversion from an oxide analysis to phase masses is
+[Bogue Calculation](@ref ex-bogue).

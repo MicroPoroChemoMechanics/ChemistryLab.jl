@@ -1,5 +1,10 @@
 # [A CEM I from its clinker phases](@id sec-cem1-from-clinker)
 
+!!! info "Before this page"
+    The tutorial [Chemical Equilibrium](@ref sec-equilibrium), [Cement chemist
+    notation](@ref man-cement-notation) and [Choosing the species list](@ref
+    man-choosing-species).
+
 This page starts where a cement data sheet stops: four anhydrous phases and a
 sulfate carrier, a water/cement ratio, and nothing else. Everything after that —
 how fast each phase reacts, which hydrates appear and in what amounts, how the
@@ -292,7 +297,13 @@ cannot run out. Two ways round it, and this page takes the first:
   - **two constructed clinkers**, which exist to isolate one variable and are
     not cements anyone has made.
 
-See also: [Cement clinker hydration kinetics](@ref) for the same machinery on
-one composition with calorimetry, [the w/c example](@ref sec-wc-ratio) for the
-equilibrium view, and [the water budget](@ref sec-theory-water-budget) for what
-the arrest is and is not.
+## Where to go next
+
+The phase list of this page is revisited in
+[A CEM I at equilibrium, with every solid solution declared](@ref), where every
+solid solution the database defines is declared. The same machinery on one
+composition with calorimetry is [Cement clinker hydration kinetics](@ref), the
+equilibrium view of the water content is [the w/c example](@ref sec-wc-ratio), and
+what the arrest is and is not is discussed in
+[the water budget](@ref sec-theory-water-budget). The blended binders begin with
+[Two CEM II](@ref ex-cem2-blended).

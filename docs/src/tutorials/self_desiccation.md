@@ -1,5 +1,10 @@
 # [Self-desiccation: where Powers' 0.42 comes from](@id sec-self-desiccation)
 
+!!! info "Before this page"
+    The tutorial [Chemical Equilibrium](@ref sec-equilibrium), and [The water
+    budget of a hydrating paste](@ref sec-theory-water-budget) for the theory
+    this page applies.
+
 A sealed cement paste stops hydrating before it runs out of cement. Powers'
 rule of thumb caps the degree of hydration at
 
@@ -568,7 +573,12 @@ Every block above is executed when this page is built, so the numbers printed ar
 whatever the code produced. The script computes the same quantities outside
 Documenter and prints the intermediate ones this page summarizes.
 
-See also: [`CapillaryWater`](@ref), [`PoreHumidity`](@ref),
-[`WaterRetention`](@ref), [`powers_alpha_max`](@ref), and
-[the w/c example](@ref sec-wc-ratio), which shows what a Gibbs minimization does
-*without* an arrest criterion.
+## Where to go next
+
+The degree of hydration is an input on this page;
+[Self-desiccation in time](@ref sec-self-desiccation-kinetics) makes it the
+result of a rate law that reads the internal humidity. What a Gibbs minimization
+does without any arrest criterion is shown in
+[the w/c example](@ref sec-wc-ratio). The API entries are
+[`CapillaryWater`](@ref), [`PoreHumidity`](@ref), [`WaterRetention`](@ref) and
+[`powers_alpha_max`](@ref).

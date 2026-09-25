@@ -1,4 +1,7 @@
-# Chemical Formula Manipulation
+# [Chemical Formula Manipulation](@id sec-formulas)
+
+!!! info "Before this page"
+    [Getting started](@ref sec-quickstart).
 
 ChemistryLab allows you to create and manipulate chemical formulas. It provides the `Formula` type (holds a formula string, multiple string representations, an atom composition map and a charge) and `AtomGroup` helper values, plus utilities to convert between notations (Phreeqc ↔ Unicode), to format/color formulas, to perform arithmetic on formulas, and to validate atom symbols.
 
@@ -122,4 +125,9 @@ apply(x -> x * 0.5, Formula("H2O"))   # H₁O½  — same as f / 2
 !!! note "Advanced operations"
     For fractional stoichiometry, reaction algebra, and notation conversion see the [Advanced Topics](@ref) page.
 
----
+## Where to go next
+
+A formula becomes a chemical species once it is given an aggregate state, a
+class and thermodynamic properties, which is the subject of
+[Species](@ref sec-species). The less common operations on formulas are
+gathered in [Advanced Topics](@ref).

@@ -1,4 +1,8 @@
-# Stoichiometric Matrix
+# [Stoichiometric Matrix](@id sec-stoich-matrices)
+
+!!! info "Before this page"
+    [Species](@ref sec-species), and [Chemical Reactions](@ref sec-reactions)
+    for the reactions a matrix generates.
 
 ## Concept
 
@@ -185,4 +189,11 @@ list_reactions = reactions(cs.SM)
 !!! note "ChemicalSystem vs StoichMatrix"
     `ChemicalSystem` is the recommended entry point for equilibrium workflows: it holds the species list, reaction list, index maps and both stoichiometric matrices in one immutable object. `StoichMatrix` and `CanonicalStoichMatrix` remain available for standalone use when equilibrium solving is not needed.
 
----
+## Where to go next
+
+The matrix is computed from real data once species are read from a database,
+which is the subject of [Database Interoperability](@ref sec-databases); the
+application page [Stoichiometric matrices](@ref ex-stoich-matrix) shows it over
+atoms, over primary species and in cement notation. In an equilibrium
+calculation the matrix is held by a [`ChemicalSystem`](@ref), described in
+[ChemicalSystem and ChemicalState](@ref sec-system-state).

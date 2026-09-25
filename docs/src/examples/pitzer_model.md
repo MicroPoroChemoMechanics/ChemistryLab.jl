@@ -1,5 +1,8 @@
 # [The Pitzer model, and what it can be used with](@id sec-app-pitzer)
 
+!!! info "Before this page"
+    [Activity models](@ref sec-theory-activity) §6.
+
 [Activity models](@ref sec-theory-activity) §6 derives the ion-interaction
 model and says why its Gibbs-Duhem consistency is exact rather than
 approximate. This page loads the shipped parameter set, checks that claim, and
@@ -248,6 +251,9 @@ is right is a question for measurement, not for a docstring — but only one of
 the two is thermodynamically consistent with its own water activity, and §3 says
 which.
 
-See also: [Activity models](@ref sec-theory-activity),
-[`PitzerParameters`](@ref), [`build_pitzer_parameters`](@ref),
-[`pitzer_origin`](@ref).
+## Where to go next
+
+The derivation is in [Activity models](@ref sec-theory-activity), and the API
+entries are [`PitzerParameters`](@ref), [`build_pitzer_parameters`](@ref) and
+[`pitzer_origin`](@ref). The next group of applications moves to surfaces,
+beginning with [Adsorption on a single site family](@ref sec-example-surface-langmuir).

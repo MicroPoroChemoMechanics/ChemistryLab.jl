@@ -1,5 +1,9 @@
 # [A composite binder: two glasses at once](@id ex-cem5-composite)
 
+!!! info "Before this page"
+    [A blastfurnace cement](@ref ex-cem3-slag) and [A pozzolanic binder](@ref
+    ex-cem4-pozzolanic), whose difficulties this page combines.
+
 A CEM V carries **both** a blastfurnace slag and a pozzolana, each between 18 %
 and 30 % for a CEM V/A, leaving 40 % to 64 % clinker. It is the binder in which
 every difficulty of the preceding pages arrives together:
@@ -537,3 +541,11 @@ same reduction in heat and clinker, reached with two *different* constituents, a
 therefore with a different assemblage, a different aluminum balance and a
 different long-term reactivity. The equilibrium calculation above distinguishes
 them where the calorimeter does not.
+
+## Where to go next
+
+The pages of this group compute where a binder ends; how it gets there is the
+subject of the applications in time, beginning with
+[Cement clinker hydration kinetics](@ref), and of
+[The full Portland cement, through its pore solution](@ref ex-ionic-opc) for the
+coupled route.

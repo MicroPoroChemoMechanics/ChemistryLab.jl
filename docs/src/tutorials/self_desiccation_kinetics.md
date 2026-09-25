@@ -1,5 +1,9 @@
 # [Self-desiccation in time: the arrest as a result](@id sec-self-desiccation-kinetics)
 
+!!! info "Before this page"
+    [Self-desiccation](@ref sec-self-desiccation) and the tutorial [Chemical
+    Kinetics](@ref sec-kinetics).
+
 [Self-desiccation](@ref sec-self-desiccation) takes Powers' 0.42 apart into a
 water budget and reads the arrest off it at an assumed humidity. The degree of
 hydration is an **input** there, and the page says so. This one integrates
@@ -175,3 +179,11 @@ Every block above runs when this page is built. See also
 [Self-desiccation](@ref sec-self-desiccation) for the static budget,
 [`PoreHumidity`](@ref), [`humidity_factor`](@ref),
 [`parrot_killoh_avrami`](@ref) and [`VanGenuchten`](@ref).
+
+## Where to go next
+
+The kinetics of complete cements are run in the applications, from
+[Cement clinker hydration kinetics](@ref) to
+[The full Portland cement, through its pore solution](@ref ex-ionic-opc), and the
+limits of a zero-dimensional description of a drying paste are argued in
+[The water budget of a hydrating paste](@ref sec-theory-water-budget).

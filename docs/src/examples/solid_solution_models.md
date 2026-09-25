@@ -1,5 +1,8 @@
 # [Solid solution models, in numbers](@id sec-app-solid-solutions)
 
+!!! info "Before this page"
+    [Solid solutions](@ref sec-theory-solid-solutions).
+
 [Solid solutions](@ref sec-theory-solid-solutions) derives the three mixing
 models and says what each parameter means. This page evaluates them: what an
 end-member's activity actually is, where a regular solution stops being one
@@ -143,6 +146,10 @@ The three curves meet at `x₁ = 1`, where the standard state is, and separate
 most at the dilute end — which is exactly where a solid solution decides whether
 it will take up a trace component.
 
-See also: [Solid solutions](@ref sec-theory-solid-solutions) for the derivations,
-and [What the choice of activity model costs](@ref sec-app-activity-models) for
-the same exercise on the aqueous side.
+## Where to go next
+
+The case these expressions are written for, a phase that unmixes, is computed on
+a published cement binary in [A miscibility gap](@ref ex-miscibility-gap). The
+derivations are in [Solid solutions](@ref sec-theory-solid-solutions), and the same
+exercise on the aqueous side is
+[What the choice of activity model costs](@ref sec-app-activity-models).

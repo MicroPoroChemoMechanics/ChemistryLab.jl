@@ -1,5 +1,9 @@
 # [A pozzolanic binder, and the C-S-H that has to carry the aluminum](@id ex-cem4-pozzolanic)
 
+!!! info "Before this page"
+    [A blastfurnace cement](@ref ex-cem3-slag), whose skeleton this page
+    follows, and [Solid solutions](@ref sec-theory-solid-solutions).
+
 A CEM IV replaces 11 % to 55 % of the clinker with a pozzolana — siliceous fly
 ash, natural or calcined pozzolana, silica fume, or a mixture of them. The
 replacement is not a filler: a pozzolana **consumes portlandite** and makes more
@@ -414,10 +418,9 @@ savefig(fig, "cem4-sweep.svg"); nothing # hide
 
 Three things are visible, and they are worth separating — plus one honest gap,
 marked hollow wherever the certificate refused a point. A refused point is not a
-result: its portlandite and its pH are whatever the iteration stopped at, and a
-pH of exactly 6.999 is the signature of a solve that fell back to neutral water.
-They are drawn rather than dropped, because dropping them would put a smooth
-curve where the evidence has a hole.
+result: its portlandite and its pH are whatever the iteration stopped at, and
+nothing in them can be quoted. They are drawn rather than dropped, because
+dropping them would put a smooth curve where the evidence has a hole.
 
 The **portlandite falls** because the ash's silica turns it into more C-S-H —
 that is the pozzolanic reaction, and it is the property the family is specified
@@ -584,16 +587,15 @@ b_z .+= oxide_budget(FLYASH, cs_z.SM.primaries;
                      mass = BINDER_G * ASH_FRACTION_B * 1.0 * u"g")
 
 eq_z, c_z = equilibrate_certified(st_z; model = model, b = b_z)
-@printf("with zeolites: optimal=%-5s  worst SI=%+.2e  pH=%.3f
-",
+@printf("with zeolites: optimal=%-5s  worst SI=%+.2e  pH=%.3f\n",
         c_z.optimal, c_z.worst_supersaturation, pH(eq_z, model))
 # WITHOUT the zeolites, nothing certifies -- so nothing from that point is
-# quotable. Its pH is whatever the iteration stopped at (`6.999`, neutral water,
-# the signature of a solve that fell back), and its supersaturation is read at a
-# composition that does not conserve matter. The comparison here is between an
-# answer and no answer, which is the strongest form it can take; an earlier
-# version of this page quoted `+3.12e+02` from that point as if it measured how
-# supersaturated the paste was, and it measured nothing.
+# quotable. Its pH is whatever the iteration stopped at, and its
+# supersaturation is read at a composition that does not conserve matter. The
+# comparison here is between an answer and no answer, which is the strongest
+# form it can take; an earlier version of this page quoted `+3.12e+02` from that
+# point as if it measured how supersaturated the paste was, and it measured
+# nothing.
 @printf("without      : optimal=%-5s  (no residual from this point is a result)\n",
         c_b.optimal)
 
@@ -603,14 +605,11 @@ formed = sort([(symbol(cs_z.species[i]), nz[i])
                if nz[i] > 1.0e-6 && symbol(cs_z.species[i]) in zeolites];
               by = last, rev = true)
 if isempty(formed)
-    println("
-no zeolite is stable in this paste")
+    println("\nno zeolite is stable in this paste")
 else
-    println("
-zeolites formed:")
+    println("\nzeolites formed:")
     for (name, amount) in formed
-        @printf("  %-16s %9.5f mol
-", name, amount)
+        @printf("  %-16s %9.5f mol\n", name, amount)
     end
 end
 ```
@@ -643,3 +642,8 @@ compare against: not a number that differs, a number that does not exist.
     is the coupled route of [the kinetic pages](@ref ex-ionic-opc), which needs a
     rate law for the ash — `waller` ships published parameters for fly ash, and
     that is the subject of the coupled runs rather than of this page.
+
+## Where to go next
+
+The composite binder, which carries a slag and a pozzolana at once, is
+[A composite binder: two glasses at once](@ref ex-cem5-composite).

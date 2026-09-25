@@ -39,6 +39,9 @@ pages = [
         # remaining pages use its notation, which is the code's.
         "Foundations" => [
             "theory/thermodynamics.md",
+            # What an activity is measured from. Before the certificate, because
+            # every potential the certificate compares rests on these conventions.
+            "theory/standard_states.md",
             "theory/equilibrium.md",
         ],
         # The two places a mixture stops being ideal, and the only two where a
@@ -89,6 +92,13 @@ pages = [
         ],
         "Systems and states" => [
             "manual/chemical_system_state.md",
+        ],
+        # The options of a calculation, split out of the two tutorials so that
+        # a tutorial reads as a calculation and the reference is found in one
+        # place. Both assume the corresponding tutorial has been read.
+        "Solving and integrating" => [
+            "manual/solving.md",
+            "manual/kinetics_syntax.md",
         ],
         # How much area a solid offers, and to what. One page because the same
         # objects serve a dissolution rate law and, later, the sites a surface

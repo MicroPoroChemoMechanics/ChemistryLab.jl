@@ -1,5 +1,8 @@
 # [Database Interoperability](@id sec-databases)
 
+!!! info "Before this page"
+    [Species](@ref sec-species).
+
 So far, we have looked at the possibility of creating and manipulating any species, whether they exist or not. If we wanted to create a H₂O⁺⁴ molecule, it would not be a problem. However, you will admit that it is a little strange...
 
 This is why ChemistryLab relies on existing databases, in particular [Cemdata18](https://www.empa.ch/web/s308/thermodynamic-data) and [PSI-Nagra-12-07](https://www.psi.ch/en/les/thermodynamic-databases). Cemdata18 is a chemical thermodynamic database for hydrated Portland cements and alkali-activated materials. PSI-Nagra is a Chemical Thermodynamic Database. The formalism adopted for these databases is that of [Thermofun](https://thermohub.org/thermofun/thermofun/) which is a universal open-source client that delivers thermodynamic properties of substances and reactions at the temperature and pressure of interest. The information is stored in json files.
@@ -254,4 +257,11 @@ Phases whose end-members are not found in `dict` are skipped with a warning
 em = with_class(dict["CSHQ-TobD"], SC_SSENDMEMBER)
 ```
 
----
+## Where to go next
+
+How a species read from a database carries its temperature dependence is the
+subject of [Thermodynamic Functions](@ref sec-thermodynamics), and
+[ChemicalSystem and ChemicalState](@ref sec-system-state) turns a list of such
+species into the system an equilibrium is computed on. Selecting that list for
+a cement is a decision of its own, treated in
+[Choosing the species list](@ref man-choosing-species).

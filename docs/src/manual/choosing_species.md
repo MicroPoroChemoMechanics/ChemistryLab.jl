@@ -1,5 +1,9 @@
 # [Choosing the species list](@id man-choosing-species)
 
+!!! info "Before this page"
+    [Database Interoperability](@ref sec-databases) and the tutorial [Chemical
+    Equilibrium](@ref sec-equilibrium).
+
 A Gibbs energy minimization answers the question *"of the phases I was told
 about, which assemblage has the lowest energy?"*. It cannot form a phase it was
 not given, and it will not tell you that the one it needed was missing. It will
@@ -229,3 +233,12 @@ end
 
 Potassium comes back empty in that list, which is the point: on a paste whose
 clinker carries alkalis, that line is the warning the solver will not give you.
+
+## Where to go next
+
+The phases of a cement are written in a shorthand of their own, the key to which
+is [Cement chemist notation](@ref man-cement-notation). Which phases a given
+binder calls for is mapped in
+[The binders, and what distinguishes them](@ref man-binder-families), and the
+check-list above is applied from the first cement page,
+[A CEM I from its clinker phases](@ref sec-cem1-from-clinker).

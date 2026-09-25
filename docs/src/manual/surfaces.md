@@ -1,5 +1,10 @@
 # [Surface areas](@id sec-manual-surfaces)
 
+!!! info "Before this page"
+    [ChemicalSystem and ChemicalState](@ref sec-system-state); the theory of
+    site families is in [Chemistry that happens on a surface](@ref
+    sec-theory-surface).
+
 A reaction on a solid needs to know how much of that solid the liquid can reach.
 This page is the syntax for saying so: the area models, what each one assumes,
 and why the measurement an area comes from is part of its type.

@@ -1,5 +1,9 @@
 # A CEM I at equilibrium, with every solid solution declared
 
+!!! info "Before this page"
+    [A CEM I from its clinker phases](@ref sec-cem1-from-clinker) and [Solid
+    solutions](@ref sec-theory-solid-solutions).
+
 A thermodynamic model of a cement is only as good as the list of phases it is
 allowed to form. Leave one out and the calculation cannot report it; put one in
 that does not belong and it can take mass that belongs elsewhere. The list is
@@ -71,7 +75,7 @@ nothing # hide
 ```
 
 The Bogue conversion turns those four main oxides into the four clinker phases.
-It is not reimplemented here: [Bogue Calculation](@ref) obtains it by inverting
+It is not reimplemented here: [Bogue Calculation](@ref ex-bogue) obtains it by inverting
 the **mass stoichiometric matrix** of the clinker phases over the oxide
 components, which is built from the species data, so no molar mass and no
 tabulated coefficient appears anywhere.
@@ -502,3 +506,11 @@ procedure transfers; the result does not.
 time and complete reaction. What a paste actually reaches, and why it stops
 short, is [The hydrating paste, end to end](@ref sec-coupled-hydration) and
 [Self-desiccation](@ref sec-self-desiccation).
+
+## Where to go next
+
+The equilibrium view continues with the water content in
+[Effect of Water/Cement Ratio on Cement Hydration](@ref sec-wc-ratio) and with
+carbonation in [Carbonation of a Cement Paste](@ref sec-cement-carbonation). The
+binders that replace part of the clinker begin with
+[Two CEM II](@ref ex-cem2-blended).

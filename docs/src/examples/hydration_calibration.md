@@ -1,5 +1,10 @@
 # [Calibrating hydration kinetics on measured calorimetry](@id ex-hydration-calibration)
 
+!!! info "Before this page"
+    [The full Portland cement, through its pore solution](@ref ex-ionic-opc),
+    and [Where the numbers come from](@ref sec-manual-numbers) for the
+    provenance of a fitted parameter.
+
 [The full Portland cement, through its pore solution](@ref ex-ionic-opc) runs a
 complete CEM I forward and reads its calorimetry off a certified replay, with the
 kinetic parameters [Parrott and Killoh published in 1984](@cite ParrotKilloh1984).
@@ -720,7 +725,7 @@ calibrated rates absorb most of it. Read the right way round, that is the
 limitation: the fitted numbers are rates **given this composition**, and they are
 not transferable to a cement whose mineralogy is known to be different. A reader
 who has an oxide analysis should go through
-[the Bogue calculation](@ref "Bogue Calculation") instead of accepting this
+[the Bogue calculation](@ref ex-bogue) instead of accepting this
 default.
 
 ## 9. Doing this with your own data
@@ -800,3 +805,10 @@ and it is blocked only by data, not by the code.
   sensitivity in §5, one each for the prior and the fit, two for the holdout and
   two for the composition sensitivity, at tens of seconds apiece. That is the price
   of a diagnostic computed rather than quoted.
+
+## Where to go next
+
+The correlations calorimetry leaves unresolved are addressed with a second
+measurement in [A thermogram, and the windows it takes to have one](@ref sec-example-tga).
+The rate laws and the provenance of their parameters are discussed in
+[Rate laws, and every parameter in them](@ref sec-theory-kinetics).

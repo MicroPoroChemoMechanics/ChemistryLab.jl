@@ -1,5 +1,9 @@
 # [ChemicalSystem and ChemicalState](@id sec-system-state)
 
+!!! info "Before this page"
+    [Species](@ref sec-species) and [Database Interoperability](@ref
+    sec-databases).
+
 These two types are the bridge between species definitions and equilibrium calculations:
 
 - **[`ChemicalSystem`](@ref)** — immutable container that groups species, stoichiometric matrices, and index maps. Built once; shared across many states.
@@ -448,5 +452,9 @@ println("n liquid = ", moles(state).liquid)
 state
 ```
 
-!!! tip "Next step: equilibrium"
-    Once you have a `ChemicalSystem` and a `ChemicalState`, pass the state to [`equilibrate`](@ref) to find the thermodynamic equilibrium. See the [Equilibrium](@ref sec-equilibrium) page for details.
+## Where to go next
+
+A [`ChemicalState`](@ref) is what [`equilibrate`](@ref) takes and returns, and the
+tutorial [Chemical Equilibrium](@ref sec-equilibrium) drives that calculation from
+start to finish. Its options are gathered in
+[Solving an equilibrium](@ref sec-solving).

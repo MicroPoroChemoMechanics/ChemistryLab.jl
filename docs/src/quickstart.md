@@ -1,59 +1,62 @@
-# Getting started
+# [Getting started](@id sec-quickstart)
+
+This page takes a first calculation from installation to a solved equilibrium in
+three steps: the thermodynamic data of a few species are read from a database
+distributed with the package, the reaction between them is written and its
+equilibrium constant evaluated, and the equilibrium of calcite with water is
+finally computed. No knowledge of chemical thermodynamics is assumed. Each
+quantity is defined in the chapter [Theory](@ref sec-theory), to which the text
+refers at the point where the quantity is first needed.
 
 ## Installation
 
-To install ChemistryLab.jl, use the Julia package manager:
-
-- From the Julia REPL, type `]` to enter the Pkg REPL mode and run:
+ChemistryLab.jl is registered in the General registry and is installed with the
+Julia package manager, either from the Pkg mode of the REPL (entered by typing
+`]`)
 
 ```julia
 pkg> add ChemistryLab
 ```
 
-- Or, equivalently, via the `Pkg` API:
+or, equivalently, through the `Pkg` API:
 
 ```julia
 julia> import Pkg; Pkg.add("ChemistryLab")
 ```
 
-## Citation
+## A first reaction: calcite in water
 
-If you use ChemistryLab in your work, please cite the following:
-
-```bibtex
-@software{chemistrylab_jl,
-  author       = {Barthélémy, Jean-François and
-                  Soive, Anthony},
-  title        = {ChemistryLab.jl: Numerical laboratory for
-                   computational chemistry},
-  doi          = {10.5281/zenodo.17756074},
-  url          = {https://doi.org/10.5281/zenodo.17756074},
-}
-```
-
-This quickstart shows a few common, minimal examples to get you productive with ChemistryLab. It demonstrates loading species from a database, building reactions and solving a thermodynamic equilibrium problem.
-
-## Simplified example
-
-Let us start with a minimal example in which we compute the thermodynamic properties of a reaction. As a first illustration, we consider the equilibrium of calcite in water. This equilibrium can be written as:
+The dissolution of calcite is written
 
 $\ce{CaCO3 <=> Ca^2+ + CO3^2-}$
 
-It is possible to calculate the thermodynamic properties of the reaction, in particular the solubility constant of the reaction ($\ln K$) which is related to the Gibbs free energy of the reaction ($\Delta_r G^°$). This solubility constant is a function of temperature and the calculation is performed at a reference temperature of 298 K and at a pressure of 1 Atm using the following equation:
+and its equilibrium constant ``K``, here a solubility product, is related to the
+standard Gibbs energy of reaction by
 
-$\Delta_r G^° = - RT\ln K$
+```math
+\Delta_r G^\circ = -RT \ln K ,
+\qquad
+\Delta_r G^\circ = \sum_i \nu_i\, \Delta_a G_i^\circ
+```
 
-where $\Delta_r G^°$ is deduced from the Gibbs energies of formation ($\Delta_f {G_i}^°$) of the other chemical species involved in the reaction:
+where ``\nu_i`` are the stoichiometric coefficients of the reaction, negative
+for the reactants, and ``\Delta_a G_i^\circ`` the Gibbs energies of the species
+at the temperature ``T`` and the reference pressure of 1 bar. The subscript
+``a`` stands for *apparent*: the package works with apparent Gibbs energies of
+formation, which coincide with the ordinary Gibbs energies of formation at the
+reference temperature of 298.15 K and differ from them elsewhere. The
+distinction, and the reason for it, are the subject of
+[Apparent and formation Gibbs energies](@ref sec-theory-apparent).
 
-$\Delta_r G^° = \sum_i \nu_i \Delta_f {G_i}^°$
-
-------------------------
-
-To do this, we load the species from one of the databases integrated into ChemistryLab, filter those relevant to the calcite–water system, then build the stoichiometric matrix and derive the reactions.
-
-In this example, the database is [cemdata](https://www.empa.ch/web/s308/thermodynamic-data). The `.json` file is included in ChemistryLab but is a copy of a file which can be found in [ThermoHub](https://github.com/thermohub).
-
-`build_species` reads the database file and returns a `Vector{Species}` with compiled thermodynamic functions. `speciation` then filters this list to the species whose atomic composition is a subset of the seed atoms (here Ca, C, H and O from `Cal`, `H2O@` and `CO2`):
+The species are read from CEMDATA18 [Lothenbach2019](@cite), a database for
+cement systems whose file is distributed with the package as a copy of the one
+maintained on [ThermoHub](https://github.com/thermohub). `build_species` reads
+the file and returns a vector of species whose thermodynamic functions are
+already compiled; `speciation` then keeps the species whose elements are all
+found among those of a few seed species, here calcium, carbon, hydrogen and
+oxygen from `Cal`, `H2O@` and `CO2`. The three aqueous gases listed in
+`exclude_species` are left out because their presence would open a redox
+equilibrium that this example does not need.
 
 ```@example from_scratch
 using ChemistryLab
@@ -66,7 +69,9 @@ species_calcite = speciation(all_species, split("Cal H2O@ CO2");
 dict_species_calcite = Dict(symbol(s) => s for s in species_calcite)
 ```
 
-During species creation, ChemistryLab calculates the molar mass of the species. It also constructs thermodynamic functions (heat capacity, entropy, enthalpy, and Gibbs free energy of formation) as a function of temperature. The evolution of thermodynamic properties as a function of temperature, such as heat capacity, can thus be easily plotted.
+Each species carries its molar mass and its standard thermodynamic functions of
+temperature: heat capacity, entropy, enthalpy and Gibbs energy. They can be
+inspected and plotted directly.
 
 ```@example from_scratch
 dict_species_calcite["Cal"]
@@ -79,7 +84,11 @@ p1 = plot(xlabel="Temperature [°C]", ylabel="Cp⁰ [J/mol/K]", title="Heat capa
 plot!(p1, θ -> dict_species_calcite["Cal"].Cp⁰(T = θ*ua"degC"), 0:0.1:100, label="Cp⁰")
 ```
 
-Obtaining stoichiometric matrices requires the choice of a species-independent basis.
+Writing the reactions requires a choice of independent species, the
+*primaries*, in terms of which every other species is expressed. The
+stoichiometric matrix collects those decompositions, one column per species and
+one row per primary; its construction is detailed in
+[Stoichiometric matrices](@ref ex-stoich-matrix).
 
 ```@example from_scratch
 primaries = [dict_species_calcite[s] for s in split("H2O@ H+ CO3-2 Ca+2")]
@@ -87,14 +96,13 @@ SM = StoichMatrix(collect(values(dict_species_calcite)), primaries)
 pprint(SM)
 ```
 
-These stoichiometric matrices thus allow us to write the chemical reactions at work.
+The reactions follow from the matrix, each carrying its own thermodynamic
+functions of temperature, among which the equilibrium constant.
 
 ```@example from_scratch
 list_reactions = reactions(SM)
 dict_reactions_calcite = Dict(r.symbol => r for r in list_reactions)
 ```
-
-Again, when constructing the reactions, the thermodynamic properties of the reactions as a function of temperature are deduced. It is thus possible to see, for example, the expression for the solubility product of calcite for the reaction under study and to plot its evolution.
 
 ```@example from_scratch
 dict_reactions_calcite["Cal"].logK⁰
@@ -105,17 +113,18 @@ p2 = plot(xlabel="Temperature [°C]", ylabel="pKs", title="Solubility product (p
 plot!(p2, θ -> dict_reactions_calcite["Cal"].logK⁰(T = θ*ua"degC"), 0:0.1:100, label="pKs")
 ```
 
-## Equilibrium solving
+## A first equilibrium
 
-The previous section computed thermodynamic properties of reactions analytically. ChemistryLab can go further and solve the full **thermodynamic equilibrium** — that is, find the species amounts that minimize the Gibbs free energy of the system given initial conditions.
+The previous section evaluated a property of one reaction. Solving the
+equilibrium of a system is a different question: the amounts of all species are
+sought that minimize the Gibbs energy of the system under the conservation of
+its elements. Three objects are involved.
 
-Three objects are needed:
-
-| Object | Role |
-|:-------|:-----|
-| [`ChemicalSystem`](@ref) | Immutable description of the system: species list, primary species, stoichiometric matrices, and derived index maps. Built once and reused. |
-| [`ChemicalState`](@ref) | Mutable thermodynamic state: amounts `n` (mol), temperature `T` and pressure `P`. Modified in-place before and after solving. |
-| `equilibrate` | Convenience function that wraps a `ChemicalSystem` + `ChemicalState` into an optimization problem and solves it. Returns a new equilibrated `ChemicalState`. |
+| object | role |
+|:--|:--|
+| [`ChemicalSystem`](@ref) | the immutable description of the system: species, primaries, stoichiometric matrices; built once and reused |
+| [`ChemicalState`](@ref) | the mutable state: amounts in mol, temperature and pressure |
+| [`equilibrate`](@ref) | the solver, which tries every available route and returns the state that [`optimality_certificate`](@ref) proves to be the minimum; [`equilibrate_certified`](@ref) returns the certificate as well |
 
 ```@example from_scratch
 using Optimization, OptimizationIpopt
@@ -156,25 +165,42 @@ state_eq
 println("pH = ", round(pH(state_eq), digits = 2))
 ```
 
-Derived quantities such as pH, pOH, phase volumes and individual species amounts are all accessible on the returned `ChemicalState`. For a detailed description of the solver options, activity models, and temperature sweeps, see the equilibrium tutorial (`Tutorials → Chemical Equilibrium`).
+The returned state gives access to every derived quantity: pH, the volumes of
+the phases, the amount of each species. Why the minimum exists, why it is
+unique, and how the solver proves that the state it returns is that minimum are
+explained in [Proving that an answer is the answer](@ref sec-theory-certificate);
+the options of the solver are described in
+[Chemical Equilibrium](@ref sec-equilibrium).
 
-## Notes and next steps
+## Where to go next
 
-- The `Formula`, `Species`, `Reaction` and `StoichMatrix` APIs are intentionally small and composable — explore the `docs/src/` pages for detailed examples.
-- For equilibrium calculations, see `docs/src/tutorials/equilibrium.md` and the worked examples `co2_carbonate_system` and `cement_carbonation`.
-- For cement-specific workflows, use `CemSpecies` and the `databases` utilities to convert between oxide- and atom-based representations.
+The documentation can be entered from three directions, depending on what the
+reader already knows.
 
-Now try the `quickstart` examples interactively in the REPL and then follow the next pages of the tutorial for deeper coverage.
+- A reader new to chemical thermodynamics is best served by the chapter
+  [Theory](@ref sec-theory) read in its stated order, starting from
+  [Thermochemistry](@ref sec-theory-thermo), before the Manual, which describes
+  one kind of object per page from [Species](@ref sec-species) onwards.
+- A reader who knows what is to be computed can go to the tutorial
+  [Chemical Equilibrium](@ref sec-equilibrium), then to the aqueous examples,
+  whose answers can be checked against closed forms, starting with
+  [CO₂ dissolution and the carbonate system](@ref sec-co2-carbonate).
+- A reader holding the oxide analysis of a cement will find the route from an
+  analysis to a chemical system in [Bogue calculation](@ref ex-bogue), and the
+  worked binders from [A CEM I from its clinker phases](@ref sec-cem1-from-clinker)
+  onwards.
 
-## Quick tips
+## Citing ChemistryLab
 
-- In the REPL try small calls like `using ChemistryLab; Species("CaCO3")` and `Formula("SO4-2")` to explore parsing behavior interactively.
-- Start with `docs/src/examples/example_stoich_matrix.md` to see a concise, runnable example converting a stoichiometric matrix into reactions.
-- For equilibrium calculations, see `docs/src/tutorials/equilibrium.md` for the minimal workflow, then explore the `co2_carbonate_system` and `cement_carbonation` examples.
-- If you plan to work with ThermoFun/Cemdata sources, run the examples in `docs/src/tutorials/databases.md` after placing the required `.json`/`.dat` data files in the `data/` directory.
+When ChemistryLab is used in published work, it is to be cited as follows.
 
-## Next steps
-
-You can see the `examples` section for more advanced runnable examples and small worked problems, including CO₂ dissolution, carbonate speciation, cement carbonation, and clinker dissolution.
-
-Happy exploring — this tutorial aims to be practical and runnable, so please tell me which example you want expanded into a fully reproducible script.
+```bibtex
+@software{chemistrylab_jl,
+  author       = {Barthélémy, Jean-François and
+                  Soive, Anthony},
+  title        = {ChemistryLab.jl: Numerical laboratory for
+                   computational chemistry},
+  doi          = {10.5281/zenodo.17756074},
+  url          = {https://doi.org/10.5281/zenodo.17756074},
+}
+```

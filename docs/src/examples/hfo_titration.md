@@ -1,5 +1,8 @@
 # [Two families of sites, and a metal between them](@id sec-example-hfo)
 
+!!! info "Before this page"
+    [Adsorption on a single site family](@ref sec-example-surface-langmuir).
+
 The canonical benchmark of surface complexation is **hydrous ferric oxide**, and
 the reason it is canonical is a single modeling idea: a real oxide does not
 offer one kind of site but two, and they differ in the two ways that matter

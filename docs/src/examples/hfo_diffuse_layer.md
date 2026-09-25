@@ -1,5 +1,9 @@
 # [A charged surface, screened](@id sec-example-diffuse-layer)
 
+!!! info "Before this page"
+    [Two families of sites, and a metal between them](@ref sec-example-hfo), and
+    [Chemistry that happens on a surface](@ref sec-theory-surface) §8 and §9.
+
 [The zinc edge](@ref sec-example-hfo) ran with the electrostatics switched off,
 and said in a box that the published Dzombak & Morel constants were therefore
 being used outside the model they were fitted in. This page closes that gap for

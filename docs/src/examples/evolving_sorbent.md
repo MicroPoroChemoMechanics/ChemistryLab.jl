@@ -1,5 +1,10 @@
 # [A sorbent that appears and disappears](@id sec-example-evolving-sorbent)
 
+!!! info "Before this page"
+    [Adsorption on a single site family](@ref sec-example-surface-langmuir),
+    [Chemistry that happens on a surface](@ref sec-theory-surface) §10 and
+    [Standard states](@ref sec-theory-standard-states) §4.
+
 Everywhere else in this documentation, a surface is something that is simply
 *there*: you say how many moles of binding sites the system holds, and that
 number stays what you said. This page is about the case where it cannot —

@@ -1,5 +1,8 @@
 # [Titration of Acetic Acid by NaOH](@id sec-titration-acetic)
 
+!!! info "Before this page"
+    The tutorial [Chemical Equilibrium](@ref sec-equilibrium).
+
 This example simulates the **potentiometric titration** of acetic acid (CH₃COOH, a monoprotic weak acid)
 by sodium hydroxide (NaOH, a strong base), both at 0.1 M.
 The dissociation constant pKₐ is computed directly from the thermodynamic database,
@@ -210,3 +213,11 @@ hline!(p, [pKa];  linestyle = :dot,  color = :grey, label = "pKₐ = $(round(pKa
 ```
 
 ![Acetic acid titration curve](../assets/acetic_titration.png)
+
+## Where to go next
+
+A diprotic acid, whose two dissociation constants are derived in the same way,
+is titrated in [Titration of Malonic Acid by NaOH](@ref sec-titration-malonic).
+The constraint that holds a pH rather than an amount, which is what a titration
+imposes, is described in
+[Constraints other than fixed T and P](@ref sec-equilibrium-constraints).

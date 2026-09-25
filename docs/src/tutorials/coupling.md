@@ -1,4 +1,9 @@
-# Coupling kinetics and equilibrium
+# [Coupling kinetics and equilibrium](@id sec-coupling)
+
+!!! info "Before this page"
+    The tutorial [Chemical Kinetics](@ref sec-kinetics), and [Proving that an
+    answer is the answer](@ref sec-theory-certificate) for the meaning of
+    partial equilibrium.
 
 Some reactions are fast enough to be treated as instantaneous, others are not.
 A hydrating cement paste has both: aqueous speciation — protonation,

@@ -1,5 +1,9 @@
 # [A blastfurnace cement, and the oxidation state it needs](@id ex-cem3-slag)
 
+!!! info "Before this page"
+    [Two CEM II](@ref ex-cem2-blended), whose skeleton this page follows, and
+    [Oxidation state, and the potential conjugate to it](@ref theory-redox).
+
 A CEM III is between a third and four fifths blastfurnace slag. That single fact
 changes the calculation in three ways, and this page follows each:
 
@@ -395,3 +399,8 @@ equilibrium: it says what the paste tends to, not how fast. Coupling it to the
 Waller kinetics that ship for slag is the subject of
 [the coupled runs](@ref ex-ionic-opc), and doing it on a blend needs a degree of
 reaction for the slag that this deposit does not report either.
+
+## Where to go next
+
+The pozzolanic binder, in which the C-S-H has to carry the aluminum, is
+[A pozzolanic binder](@ref ex-cem4-pozzolanic).

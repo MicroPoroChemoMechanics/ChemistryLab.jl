@@ -1,5 +1,9 @@
 # Validation against Reaktoro
 
+!!! info "Before this page"
+    The tutorial [Chemical Equilibrium](@ref sec-equilibrium), and [Coupling
+    kinetics and equilibrium](@ref sec-coupling) for the last section.
+
 [Reaktoro](https://reaktoro.org) solves the same problem this package does, from
 the same literature ([Leal2017](@cite)), and is mature and widely used. It makes
 a good oracle — provided the comparison is set up so that a disagreement means
@@ -214,3 +218,12 @@ assertion there is a plain `@test` and all 26 pass — species above `10⁻⁵` 
 `10⁻³` relative, trace ions to 5 %. There is no `@test_broken` left in the
 comparison; if one is ever needed again, the tolerance it hides belongs in the
 comment beside it.
+
+## Where to go next
+
+The same comparison on the derivatives of an equilibrium is reported in
+[Differentiating an equilibrium](@ref), and the cross-code comparisons of the
+surface models are in [Two families of sites, and a metal between them](@ref sec-example-hfo)
+and [A published clay sorption model](@ref sec-example-claysor). The
+application pages follow, beginning with
+[Bogue Calculation](@ref ex-bogue).

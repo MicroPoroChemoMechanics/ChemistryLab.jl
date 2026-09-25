@@ -1,5 +1,8 @@
 # [What the choice of activity model costs](@id sec-app-activity-models)
 
+!!! info "Before this page"
+    [Activity models](@ref sec-theory-activity).
+
 [Activity models](@ref sec-theory-activity) sets out what the three built-in
 models are and where each comes from. This page puts numbers on the difference,
 because the answer is not the one a reader would guess: the models disagree
@@ -226,6 +229,8 @@ every molality, and the B-dot model below both by three to four orders.
     because none of them knows. [`solvent_fraction`](@ref) is the guard that
     does.
 
-See also: [Activity models](@ref sec-theory-activity) for where the expressions
-come from, and [Solid solution models](@ref sec-app-solid-solutions) for the
-same exercise on the mole-fraction side.
+## Where to go next
+
+The expressions compared here are derived in
+[Activity models](@ref sec-theory-activity), and the same exercise on the
+mole-fraction side is [Solid solution models, in numbers](@ref sec-app-solid-solutions).

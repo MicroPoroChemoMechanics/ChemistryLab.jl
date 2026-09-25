@@ -1,5 +1,9 @@
 # [A miscibility gap, and the three answers a formulation can give](@id ex-miscibility-gap)
 
+!!! info "Before this page"
+    [Solid solutions](@ref sec-theory-solid-solutions) §6 and [Solid solution
+    models, in numbers](@ref sec-app-solid-solutions).
+
 The AFm and AFt phases of a Portland cement are binaries — sulfate against
 hydroxide, sulfate against carbonate — and the Redlich-Kister parameters
 published for them are strong enough that the mixing energy is **concave over an
@@ -391,3 +395,11 @@ declarations to populate; here the declarations exist and the solver still has t
 be told to look in the other lobe. That is the honest statement of where things
 stand, and the remaining gap is the same one in both: nothing decides, on its
 own, that a phase should be split in two.
+
+## Where to go next
+
+A cement declared with every solid solution of its database, and the phase list
+treated as a modeling decision, is
+[A CEM I at equilibrium, with every solid solution declared](@ref). The aqueous
+counterpart of this chapter continues with
+[The Pitzer model, and what it can be used with](@ref sec-app-pitzer).

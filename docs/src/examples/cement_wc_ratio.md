@@ -1,5 +1,8 @@
 # [Effect of Water/Cement Ratio on Cement Hydration](@id sec-wc-ratio)
 
+!!! info "Before this page"
+    [Simplified Clinker Dissolution](@ref sec-clinker-dissolution).
+
 The **water-to-cement ratio** (w/c) is the single most important mix-design parameter
 of concrete. It controls workability, compressive strength, and durability simultaneously.
 From a thermodynamic perspective, it determines how much water is available to hydrate the
@@ -664,3 +667,10 @@ water it took, which is what the comparison above is about.
     clinker and add the corresponding species from `cemdata18` (e.g. `C2ASH8`).
     For **carbonation**, add `CO2@`, `HCO3-`, `CO3-2` and the carbonate phases —
     see the [cement carbonation example](@ref sec-cement-carbonation).
+
+## Where to go next
+
+The sweep above has no arrest criterion; where a sealed paste stops hydrating,
+and why, is the subject of [Self-desiccation](@ref sec-self-desiccation). The
+equilibrium view continues with
+[Carbonation of a Cement Paste](@ref sec-cement-carbonation).

@@ -1,5 +1,10 @@
 # [A published clay sorption model](@id sec-example-claysor)
 
+!!! info "Before this page"
+    [Two families of sites, and a metal between them](@ref sec-example-hfo), and
+    [Chemistry that happens on a surface](@ref sec-theory-surface) §7 for cation
+    exchange.
+
 Every surface example so far was built here, from constants chosen to make a
 point. This one is somebody else's model, read out of the file its authors
 published, and run against the code they published it for.
