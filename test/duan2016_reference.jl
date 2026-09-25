@@ -23,12 +23,19 @@
         symbol(s) => s for s in
             build_species(datapath("cemdata18-thermofun.json"); verbose = false)
     )
-    R = 8.31446261815324
     function logK(products, reactants, T, P)
         ΔrG = sum(sp[k].ΔₐG⁰(T = T, P = P) for k in products) -
             sum(sp[k].ΔₐG⁰(T = T, P = P) for k in reactants)
-        return -ΔrG / (R * T * log(10))
+        return -ΔrG / (R_GAS * T * log(10))
     end
+
+    # Duan's Tables 4 and 6, from data/literature/Duan2016.json. Table 4's first
+    # row is at 298.15 K and its second at 373.15 K; its pressure column is
+    # discussed below.
+    t4 = literature_table("Duan2016", "equilibrium_constants")
+    calcite_row(T, P_MPa) = only(
+        literature_table("Duan2016", "calcite"; T = T * u"K", P = P_MPa * 1.0e6u"Pa").log_K
+    )
     K(args...) = 10.0^logK(args...)
 
     # K3 is the second dissociation of carbonic acid, K4 water autoprotolysis,
@@ -39,8 +46,8 @@
     @testset "Table 4 at the reference point" begin
         # 298.15 K, 1 bar. Both to 0.03 %, which is inside the two figures Duan
         # quote.
-        @test k3(298.15, 1.0e5) ≈ 4.69e-11 rtol = 1.0e-3
-        @test k4(298.15, 1.0e5) ≈ 1.0e-14 rtol = 1.0e-3
+        @test k3(298.15, 1.0e5) ≈ t4.K3_HKF[1] rtol = 1.0e-3
+        @test k4(298.15, 1.0e5) ≈ t4.K4_HKF[1] rtol = 1.0e-3
     end
 
     @testset "Table 4 at 373.15 K, and the unit its pressure column is in" begin
@@ -54,7 +61,7 @@
         #
         # so the row is at 1000 bar, and reproducing a factor of 2.9 in pressure
         # to three parts in a thousand is a real check of the volume terms.
-        @test k3(373.15, 1.0e8) ≈ 2.42e-10 rtol = 5.0e-3
+        @test k3(373.15, 1.0e8) ≈ t4.K3_HKF[2] rtol = 5.0e-3
         @test k3(373.15, 1.0e5) / k3(373.15, 1.0e8) < 0.4      # the factor itself
 
         # K4 IN THE SAME ROW DOES NOT AGREE AT THAT PRESSURE. It matches at
@@ -62,8 +69,8 @@
         # bar. Water autoprotolysis at 100 °C and 1 bar is pKw = 12.26, so the
         # 1 bar value is the physical one and the row mixes two pressures.
         # Pinned as found: the tolerance on the second is the disagreement.
-        @test k4(373.15, 1.0e5) ≈ 5.38e-13 rtol = 0.03
-        @test !isapprox(k4(373.15, 1.0e8), 5.38e-13; rtol = 0.05)
+        @test k4(373.15, 1.0e5) ≈ t4.K4_HKF[2] rtol = 0.03
+        @test !isapprox(k4(373.15, 1.0e8), t4.K4_HKF[2]; rtol = 0.05)
     end
 
     @testset "calcite: the textbook value, and a method that is not HKF" begin
@@ -75,7 +82,8 @@
         # At the reference point there is an independent arbiter, and it favors
         # this package: the accepted log Ksp of calcite at 25 °C and 1 bar is
         # -8.48, which is what comes out here. Duan print -8.53.
-        @test logK(("Ca+2", "CO3-2"), ("Cal",), 298.15, 1.0e5) ≈ -8.48 atol = 0.01
+        @test logK(("Ca+2", "CO3-2"), ("Cal",), 298.15, 1.0e5) ≈
+            literature_value("PlummerBusenberg1982", "log_K_calcite_25C") atol = 0.01
 
         # The two signs both papers agree on, and which any burial calculation
         # turns on: heating dissolves less, compressing dissolves more.
@@ -94,7 +102,7 @@
         # reason. Their ferrocalcite row carries a heat-capacity coefficient of
         # +2.09e6 where every other carbonate in the table has zero or a large
         # negative.
-        @test abs(cold - (-8.53)) < 0.15
-        @test hot - (-9.69) < -1.0
+        @test abs(cold - calcite_row(301.15, 15.0)) < 0.15
+        @test hot - calcite_row(478.15, 15.0) < -1.0
     end
 end

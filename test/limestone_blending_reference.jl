@@ -18,6 +18,8 @@
 # and reproducing it turned out to depend on something neither paper states in
 # those terms. See the second testset.
 
+include("reference_species.jl")
+
 @testsection "Limestone blending of a CEM I" begin
 
     subs = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
@@ -52,12 +54,16 @@
         ],
     )
     idx = Dict(symbol(s) => i for (i, s) in enumerate(cs.species))
-    model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+    model = HKFActivityModel(å = 0.0, Ḃ = gems_bdot(), Kₙ = 0.0)
 
     # `limestone_g` grams of calcite in exchange for clinker, the binder held at
     # 100 g, w/b = 0.5, complete hydration — the convention of Fig. 7A, whose
     # abscissa is "the addition of dry SCMs in grams in exchange to dry PC so
     # that the mass of the binder remains constant at 100 g".
+    #
+    # The oxide analysis is the representative CEM I of the documentation page
+    # `cem1_solid_solutions`, whose source is not recorded; Fig. 7A's own cement
+    # is not given in the paper, and the iron content is varied below anyway.
     function charged(limestone_g; Fe2O3 = 4.49)
         oxides = Dict(
             "CaO" => 65.03 + (4.49 - Fe2O3), "SiO2" => 21.4, "Al2O3" => 3.84,

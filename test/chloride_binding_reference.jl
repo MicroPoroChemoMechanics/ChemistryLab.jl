@@ -22,6 +22,8 @@
 # settle it: AFm 622.5, AFt 1255.1, Friedel's salt 561.3, CH 74.1 all reproduce
 # from the CEMDATA18 formulas to better than 0.03 g/mol.
 
+include("reference_species.jl")
+
 @testsection "Chloride binding in a hydrated paste" begin
 
     subs = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
@@ -29,16 +31,20 @@
     molar(s) = ustrip(us"g/mol", byname[s][:M])
     cshq = ["CSHQ-TobD", "CSHQ-TobH", "CSHQ-JenH", "CSHQ-JenD", "NaSiOH", "KSiOH"]
 
+    # Guo's inventory and tables, from data/literature/Guo2018.json.
+    guo_g(q) = ustrip(u"g", literature_value("Guo2018", q))       # g per liter of concrete
+    guo_M(phase) = ustrip(u"g/mol", literature_row("Guo2018", "hydrates", phase).molar_mass)
+
     @testset "Guo's Table 3 is CEMDATA18, phase for phase" begin
-        for (phase, published) in (
-                "monosulphate12" => 622.5, "ettringite" => 1255.1,
-                "C4AClH10" => 561.3, "Portlandite" => 74.1,
+        for (phase, printed) in (
+                "monosulphate12" => "AFm", "ettringite" => "AFt",
+                "C4AClH10" => "Friedel's salt", "Portlandite" => "CH",
             )
-            @test molar(phase) ≈ published atol = 0.03
+            @test molar(phase) ≈ guo_M(printed) atol = 0.03
         end
         # Their CaCO3 is printed as 100.9; calcite is 100.09. A typo, and it
         # touches nothing in this figure, which carries no carbonate.
-        @test molar("Cal") ≈ 100.09 atol = 0.01
+        @test abs(molar("Cal") - guo_M("CaCO3")) > 0.8
     end
 
     function build(pure)
@@ -56,11 +62,19 @@
     # The C-S-H enters as its bulk oxides at Guo's Ca/Si = 1.67; only the
     # element vector reaches the solver, so lime and silica here are
     # bookkeeping.
-    pore_g = 146.0
+    # The pore solution fills the porosity, at a density of 1 g/cm³.
+    pore_g = 10 * literature_value("Guo2018", "porosity_percent")   # g per liter
+    # Their C-S-H is 5(CaO)·3(SiO2)·6.3(H2O) (Table 2), and its molar mass (Table
+    # 3) is that of one third of it: moles of silicon, then lime and water.
+    csh = let t = literature_table("Guo2018", "csh_formula")
+        Dict(zip(t.oxide, t.coefficient ./ t.coefficient[findfirst(==("SiO2"), t.oxide)]))
+    end
+    M_water = molar("H2O@")
+    M_salt = ustrip(us"g/mol", Species("NaCl")[:M])
     function charged(cs, nacl_frac)
         st = ChemicalState(cs)
-        n_csh = 225 / 191.4                       # Guo's C-S-H, M = 191.4
-        set_quantity!(st, "Lim", (1.6667 * n_csh) * u"mol")
+        n_csh = guo_g("csh_per_liter") / guo_M("CSH")
+        set_quantity!(st, "Lim", (csh["CaO"] * n_csh) * u"mol")
         set_quantity!(st, "Amor-Sl", n_csh * u"mol")
         # AND ITS STRUCTURAL WATER. Guo's dissolution reaction is written for
         # (CaO)5(SiO2)3(H2O)6.3, M = 574.1; their Table 3's 191.4 is one third
@@ -69,14 +83,14 @@
         # makes the system 44.5 g short: the solver then draws that water out
         # of the pore solution to hydrate the C-S-H, and the pore volume comes
         # out at 84 mL against the 146 mL the paper's porosity states.
-        set_quantity!(st, "Portlandite", (90 / molar("Portlandite")) * u"mol")
-        set_quantity!(st, "monosulphate12", (9 / molar("monosulphate12")) * u"mol")
-        set_quantity!(st, "ettringite", (22.5 / molar("ettringite")) * u"mol")
+        set_quantity!(st, "Portlandite", (guo_g("ch_per_liter") / molar("Portlandite")) * u"mol")
+        set_quantity!(st, "monosulphate12", (guo_g("afm_per_liter") / molar("monosulphate12")) * u"mol")
+        set_quantity!(st, "ettringite", (guo_g("aft_per_liter") / molar("ettringite")) * u"mol")
         set_quantity!(
             st, "H2O@",
-            (pore_g * (1 - nacl_frac) / 18.015 + 2.1 * n_csh) * u"mol"
+            (pore_g * (1 - nacl_frac) / M_water + csh["H2O"] * n_csh) * u"mol"
         )
-        salt = pore_g * nacl_frac / 58.44
+        salt = pore_g * nacl_frac / M_salt
         if salt > 0
             set_quantity!(st, "Na+", salt * u"mol")
             set_quantity!(st, "Cl-", salt * u"mol")
@@ -95,7 +109,7 @@
         ]
         states, certs = equilibrate_path(
             charged(cs, first(fractions)), budgets; model = HKFActivityModel(
-                å = 0.0, Ḃ = 0.097637, Kₙ = 0.0
+                å = 0.0, Ḃ = gems_bdot(), Kₙ = 0.0
             )
         )
         @test all(c.optimal for c in certs)
@@ -120,8 +134,8 @@
     @testset "the figure, on the phase list that drew it" begin
         # The inventory is preserved where there is no chloride to disturb it:
         # 9 g of AFm and 22.5 g of AFt are still 9 g and 22.5 g.
-        @test guo[0.0].AFm ≈ 9 / molar("monosulphate12") rtol = 1.0e-3
-        @test guo[0.0].AFt ≈ 22.5 / molar("ettringite") rtol = 1.0e-3
+        @test guo[0.0].AFm ≈ guo_g("afm_per_liter") / molar("monosulphate12") rtol = 1.0e-3
+        @test guo[0.0].AFt ≈ guo_g("aft_per_liter") / molar("ettringite") rtol = 1.0e-3
         @test guo[0.0].FS == 0
 
         # Consumed by 1 %, which is where Guo places it and where the XRD of
@@ -136,8 +150,8 @@
         @test guo[0.001].AFm ≈ guo[0.0].AFm rtol = 1.0e-4
 
         # The plateau. Guo read 0.023 and 0.010 mol/L off Fig. 1(b).
-        @test guo[0.02].AFt ≈ 0.023 rtol = 0.02
-        @test guo[0.02].FS ≈ 0.01 rtol = 0.05
+        @test guo[0.02].AFt ≈ ustrip(u"mol", literature_value("Guo2018", "aft_plateau")) rtol = 0.02
+        @test guo[0.02].FS ≈ ustrip(u"mol", literature_value("Guo2018", "friedel_plateau")) rtol = 0.05
         # Those two are THEIR numbers, read off a figure by eye, so the
         # agreement is a tolerance against a reading. The values this package
         # computes are printed on the page beside them, and are pinned here.

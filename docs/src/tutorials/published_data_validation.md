@@ -48,7 +48,7 @@ one costs seconds to minutes.
 | **standard properties and HKF coefficients**, 19 aqueous species and 7 gases | [Lothenbach2019](@cite) Tables D.1-D.2 | exact, all seven coefficients each | nitrite-AFm and Fe-Friedel's salt are not in the file |
 | **`ΔₐG⁰` rebuilt from `ΔfH°` and `S°`** | the file's own `ΔfG°` | exact for 220 of 228 substances | the eight exceptions are all phases whose `S°` Cemdata18 estimated |
 | **HKF away from 298.15 K, 1 bar** | [Duan2016](@cite) Table 4, HKF column | `0.03 %` at the reference point; `0.3 %` across a factor 2.9 in pressure | their two constants in one row sit at two different pressures |
-| **calcite `log Ksp`** at 25 °C | the accepted value | `−8.480` against `−8.48` | diverges from Duan's non-HKF method by 1.4 log units at 478 K |
+| **calcite `log Ksp`** at 25 °C | the accepted value, [PlummerBusenberg1982](@cite) | `−8.480` against `−8.48` | diverges from Duan's non-HKF method by 1.4 log units at 478 K |
 | **a measured solution** over a two-phase assemblage | [Atkins1992](@cite) Table 2 | Al and pH agree, robustly | Si is `×5` and Ca has a floor the model cannot leave; 9 of their 10 mixtures are not usable at all |
 | **the carboaluminate sequence** under limestone | [Kulik2021](@cite) Fig. 7A, [Lothenbach2019](@cite) Figs. 13-14 | order and thresholds reproduce; iron partition exact | only appears when Al exceeds Fe — see below |
 | **chloride binding** and the AFm → Friedel transition | [Guo2018](@cite) Fig. 1(b) | plateau to `1 %`, both conservation laws close | pH not reproducible (their alkalis are unpublished); above 2 % NaCl the activity model is out of range |
@@ -106,7 +106,7 @@ still certifies. Deprotonation keeps working throughout, because `≡SO⁻` is t
 one complex whose reaction involves no aqueous species but H⁺, so the omission
 is invisible on the row most likely to be checked first. `test/surface_complexation.jl`
 carries the same warning at its zinc case. See
-[The surface half of Guo, and why it is not built](@ref).
+[The surface half of Guo](@ref).
 
 **A rebuilt Gibbs energy is not always the tabulated one.** `ΔₐG⁰(T)` is formed
 from `ΔfH°` and `S°`, so at 298.15 K it must reproduce `ΔfG°` — and does, for
@@ -490,22 +490,22 @@ theirs.
   fitted for; the solve stops certifying and returns pH 15.3. The sweep here
   stops at 2 %, where `I ≈ 0.4`. Pitzer is the instrument for the rest.
 - **The surface complexation half of the paper** — the five `≡SiOH` reactions,
-  the diffuse layer, the Ca²⁺ > Cl⁻ > Na⁺ > K⁺ ordering. The machinery for it
-  shipped in v0.20.0; the reason it is not built is the table, not the code.
-  See [The surface half of Guo, and why it is not built](@ref).
+  the diffuse layer, the Ca²⁺ > Cl⁻ > Na⁺ > K⁺ ordering. Four of the five rows
+  can be entered as printed; the surface is not built in this chapter. See
+  [The surface half of Guo](@ref).
 
-## The surface half of Guo, and why it is not built
+## The surface half of Guo
 
-This is a negative result, recorded so that nobody spends the afternoon on it
-twice. [Guo2018](@cite) closes their chloride model with a `≡SiOH` surface on
-the C-S-H — 500 m²/g, 4·10⁻³ mol of sites per gram, a diffuse layer, and five
-reactions in their Table 1. Two of those five rows cannot be entered as printed.
+[Guo2018](@cite) closes their chloride model with a `≡SiOH` surface on the
+C-S-H — 500 m²/g, 4·10⁻³ mol of sites per gram, a diffuse layer, and five
+reactions in their Table 1. Four of the five rows can be entered as printed; one
+cannot.
 
 | row | reaction as printed | `log K` | status |
 |:--|:--|:--|:--|
 | 1 | `≡SiOH + OH⁻ → ≡SiO⁻ + H₂O` | `−12.7` | constant belongs to a different reaction |
 | 2 | `≡SiOH + Ca²⁺ → ≡SiOCa⁺ + H⁺` | `−9.4` | usable |
-| 3 | `≡SiOH + Cl⁻ → ≡SiOHCl` | `−0.35` | not charge balanced |
+| 3 | `≡SiOH + Cl⁻ → ≡SiOHCl⁻` | `−0.35` | usable |
 | 4 | `≡SiOH + Na⁺ → ≡SiONa + H⁺` | `−13.6` | usable |
 | 5 | `≡SiOH + K⁺ → ≡SiOK + H⁺` | `−13.6` | usable |
 
@@ -515,12 +515,11 @@ table has it, the same surface would carry `log K ≈ +1.3`. Repairing it means
 choosing which half of the row to believe, which is already a modeling decision
 rather than a transcription.
 
-Row 3 cannot be repaired the same way. The left side carries `−1` and the right
-side `0`; no assignment of a standard energy makes that a reaction. And it is
-the row that matters — it is the *chloride* row, the one the surface exists to
-provide. A surface built from rows 1, 2, 4 and 5 is a calcium and alkali
-surface with no chloride uptake at all, so it cannot reproduce the figure it was
-built for. That is where this case stops.
+Row 3, the chloride row, is balanced: the product carries the charge of the
+chloride it took up, `≡SiOHCl⁻`, as the table prints it. It is the row the
+surface exists to provide. The surface is not built here: it belongs with a
+model of chloride binding by C-S-H, and this chapter checks the dissolution half
+only.
 
 ### The machinery is not what is missing
 

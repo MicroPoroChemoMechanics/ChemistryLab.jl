@@ -14,6 +14,8 @@
 # are not is recorded at the end of this file: it is worth knowing before anyone
 # spends an afternoon on them.
 
+include("reference_species.jl")
+
 @testsection "Atkins et al. (1992) hydrate slurries" begin
 
     subs = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
@@ -43,7 +45,14 @@
 
     # CEMDATA18 carries no ion-size parameter, so a GEM-Selektor run of it
     # starts from å = 0; this is the same model the CEM I cross-check uses.
-    model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+    model = HKFActivityModel(å = 0.0, Ḃ = gems_bdot(), Kₙ = 0.0)
+
+    # Atkins' Table 2, from data/literature/Atkins1992.json: the analyzed
+    # solution of mixture 32, in mmol/L.
+    measured = let t = literature_table("Atkins1992", "mixture_32_solution")
+        Dict(zip(t.element, ustrip.(u"mol/m^3", t.measured)))   # mol/m³ = mmol/L
+    end
+    Ca_Si = literature_value("Atkins1992", "mixture_32_Ca_Si")
 
     # Experiment 32: ettringite + a C-S-H of nominal Ca/Si = 0.9, in water.
     # The C-S-H enters as its bulk oxides — only the element vector `b` reaches
@@ -52,8 +61,8 @@
     state = ChemicalState(cs)
     set_quantity!(state, "ettringite", 0.002u"mol")
     set_quantity!(state, "Lim", 0.018u"mol")        # Ca
-    set_quantity!(state, "Amor-Sl", 0.02u"mol")    # Si, so Ca/Si = 0.9
-    set_quantity!(state, "H2O@", (1000 / 18.015)u"mol")
+    set_quantity!(state, "Amor-Sl", 0.018u"mol" / Ca_Si)   # Si, so Ca/Si = 0.9
+    set_quantity!(state, "H2O@", 1.0u"kg")
     b = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
 
     eq, cert = equilibrate_certified(state; model = model, b = b)
@@ -84,8 +93,8 @@
         # Al is the strong result. Across a sweep of the C-S-H Ca/Si from 0.75
         # to 1.0 and a fourfold change in solid loading it never leaves
         # 0.138-0.159 mmol/L, so this is the database answering, not a fit.
-        @test total(:Al) ≈ 0.136 rtol = 0.15
-        @test pH(eq, model) ≈ 11.0 atol = 0.4
+        @test total(:Al) ≈ measured["Al"] rtol = 0.15
+        @test pH(eq, model) ≈ literature_value("Atkins1992", "mixture_32_pH") atol = 0.4
     end
 
     @testset "silicon: over-predicted, for a reason the paper gives" begin
@@ -100,8 +109,8 @@
         # end-member either, so the same silicon has nowhere to go and stays in
         # solution. A database that gained one would move this number, which is
         # why it is pinned rather than skipped.
-        @test total(:Si) / 0.076 > 3.5
-        @test total(:Si) / 0.076 < 7.0
+        @test total(:Si) / measured["Si"] > 3.5
+        @test total(:Si) / measured["Si"] < 7.0
     end
 
     @testset "calcium: a disagreement the model cannot absorb" begin
@@ -114,7 +123,7 @@
         # rises to 3.4 at 0.75 — it never approaches 1.95. The floor is a
         # property of the CSHQ model, not a free parameter, so the gap is real.
         @test total(:Ca) ≈ 2.72 rtol = 0.1
-        @test total(:Ca) > 1.3 * 1.95
+        @test total(:Ca) > 1.3 * measured["Ca"]
         # The page prints a "calculated" column beside Atkins' measured one.
         # Those five numbers are this package's answer, and until now only the
         # calcium had an assertion anchored on it — at 10 %, which is wider than
