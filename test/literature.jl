@@ -40,6 +40,52 @@ using JSON
         @test provenance(literature("Powers1948")["w_c_sealed"]) == PROV_PUBLISHED
     end
 
+    @testset "the rate-law constants are the ones their sources give" begin
+        t = literature_table("Lavergne2018", "parrot_killoh_1984")
+        e = literature_table("Lavergne2018", "activation_energies")
+        T_ref = literature_value("Lavergne2018", "T_ref")
+        for (phase, pk) in (
+                ("C3S", PK84_PARAMS_C3S), ("C2S", PK84_PARAMS_C2S),
+                ("C3A", PK84_PARAMS_C3A), ("C4AF", PK84_PARAMS_C4AF),
+            )
+            i = findfirst(==(phase), t.phase)
+            j = findfirst(==(phase), e.phase)
+            @test (pk.k₁, pk.n₁, pk.k₂, pk.k₃, pk.n₃) ===
+                (t.k1[i], t.n1[i], t.k2[i], t.k3[i], t.n3[i])
+            @test pk.Ea === e.Ea[j]
+            @test pk.T_ref === T_ref
+        end
+        # Table 4 prints E and E/R side by side, E/R rounded to 100 K: the two
+        # columns agree on R to that rounding, which catches a transposed row.
+        @test all(isapprox.(ustrip.(e.Ea) ./ ustrip.(e.Ea_over_R), R_GAS; rtol = 0.02))
+
+        s = literature_table("ParrotKilloh1984", "smoothed_variant")
+        for (phase, pk) in (
+                ("C3S", PK_PARAMS_C3S), ("C2S", PK_PARAMS_C2S),
+                ("C3A", PK_PARAMS_C3A), ("C4AF", PK_PARAMS_C4AF),
+            )
+            i = findfirst(==(phase), s.phase)
+            @test (pk.K₁, pk.N₁, pk.K₂, pk.N₂, pk.K₃, pk.N₃, pk.B, pk.Ea) ===
+                (s.K1[i], s.N1[i], s.K2[i], s.N2[i], s.K3[i], s.N3[i], s.B[i], s.Ea[i])
+        end
+
+        @test PK_BLAINE_REF === literature_value("Lavergne2018", "blaine_ref_clinker")
+        @test WALLER_PARAMS_FLY_ASH.τ === literature_value("Lavergne2018", "waller_tau_fly_ash")
+        @test WALLER_PARAMS_FLY_ASH.Ea === literature_value("Lavergne2018", "waller_Ea")
+        @test WALLER_PARAMS_SILICA_FUME === WALLER_PARAMS_FLY_ASH
+        # Slag differs from fly ash by its characteristic time and nothing else.
+        @test WALLER_PARAMS_SLAG.τ === literature_value("Waller1999", "tau_slag")
+        @test Base.structdiff(WALLER_PARAMS_SLAG, (τ = 0,)) ===
+            Base.structdiff(WALLER_PARAMS_FLY_ASH, (τ = 0,))
+
+        # What was checked against its source says so, and what was not says that.
+        @test literature("Lavergne2018").transcription["checked_against_source"] === true
+        @test provenance(literature("Waller1999")["tau_slag"]) == PROV_UNSTATED
+        @test all(
+            provenance(q) == PROV_UNSTATED for q in values(literature("ParrotKilloh1984").quantities)
+        )
+    end
+
     @testset "a malformed file is refused, with its name and the field" begin
         dir = mktempdir()
         good = JSON.parsefile(literature_path("Powers1948"); dicttype = Dict{String, Any})

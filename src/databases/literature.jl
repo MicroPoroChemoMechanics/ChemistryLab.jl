@@ -207,22 +207,38 @@ function _literature_field(d::AbstractDict, name, path, where)
     return d[name]
 end
 
-# Unit arithmetic only, through the same guard the ThermoFun reader uses: the
-# parser of `uparse` can evaluate a call, and a data file must not be able to.
+# Unit arithmetic only, evaluated by walking the expression rather than by
+# `uparse`: the parser of `uparse` evaluates into a module of its own, which is
+# refused while this package precompiles (the constants of the rate laws are read
+# at load time), and it can evaluate a call, which a data file must not be able
+# to. Names resolve in the unit registry of `DynamicQuantities` and nowhere else.
+const _UNIT_OPS = Dict{Symbol, Function}(:* => *, :/ => /, :^ => ^, :+ => +, :- => -)
+
+_eval_unit(x::Real, path, where) = x
+function _eval_unit(s::Symbol, path, where)
+    isdefined(DynamicQuantities.Units, s) || _literature_error(path, "$where: unit \"$s\" is unknown")
+    x = getfield(DynamicQuantities.Units, s)
+    x isa AbstractQuantity || _literature_error(path, "$where: \"$s\" is not a unit")
+    return x
+end
+function _eval_unit(ex::Expr, path, where)
+    (ex.head === :call && haskey(_UNIT_OPS, ex.args[1])) ||
+        _literature_error(path, "$where: \"$ex\" is not unit arithmetic")
+    return _UNIT_OPS[ex.args[1]]((_eval_unit(a, path, where) for a in ex.args[2:end])...)
+end
+_eval_unit(ex, path, where) = _literature_error(path, "$where: \"$ex\" is not unit arithmetic")
+
 function _literature_unit(u, path, where)
     u == "1" && return 1
     u isa AbstractString || _literature_error(path, "$where: the unit must be a string")
-    ok = try
-        is_unit_expression(Meta.parse(u))
+    ex = try
+        Meta.parse(u)
     catch
-        false
+        _literature_error(path, "$where: \"$u\" is not unit arithmetic")
     end
-    ok || _literature_error(path, "$where: \"$u\" is not unit arithmetic")
-    return try
-        uparse(u)
-    catch err
-        _literature_error(path, "$where: unit \"$u\" is unknown ($(sprint(showerror, err)))")
-    end
+    q = _eval_unit(ex, path, where)
+    q isa AbstractQuantity || _literature_error(path, "$where: \"$u\" is not unit arithmetic")
+    return q
 end
 
 function _literature_kind(k, path, where)
