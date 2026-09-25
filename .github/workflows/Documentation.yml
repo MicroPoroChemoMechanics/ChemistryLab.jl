@@ -210,8 +210,10 @@ jobs:
       - name: Pages of shard ${{ matrix.shard }}
         shell: julia --color=yes {0}
         run: |
-            include(joinpath("docs", "pages.jl"))
-            include(joinpath("docs", "shards.jl"))
+            # `pwd()`, not a bare relative path: this script runs from a
+            # temporary file, and `include` resolves against the including file.
+            include(joinpath(pwd(), "docs", "pages.jl"))
+            include(joinpath(pwd(), "docs", "shards.jl"))
             sel = shard_pages("${{ matrix.shard }}", doc_page_leaves(pages))
             println(join(sel, "\n"))
             open(ENV["GITHUB_ENV"], "a") do io
