@@ -8,8 +8,9 @@ tests, the executed documentation and the scripts, is now read from a file that
 names its source and where in that source it was found. Moving them meant
 reading each one against its source again, which found wrong attributions, one
 model error and several quiet defects. The release also adds a way to build a
-surface from published reactions, and uses it to check the C-S-H surface model
-of the chloride literature against PHREEQC, alone and in a hydrated paste.
+surface from published reactions and to count the ions of its diffuse layer,
+and uses both to check the C-S-H surface model of the chloride literature
+against PHREEQC, alone and in a hydrated paste.
 
 ### Breaking changes
 
@@ -18,7 +19,7 @@ Below 1.0 the registry treats a minor bump as breaking whatever the API did, so
 The documentation environment of MeanFieldHomogenization.jl lists ChemistryLab
 up to `0.22` and needs `0.23` added.
 
-Two behaviors change deliberately:
+Three behaviors change deliberately:
 
 - **`HKFActivityModel` computes different results.** It used the effective
   electrostatic radius of each ion (Table 3 of Helgeson et al., 1981) as the
@@ -37,6 +38,14 @@ Two behaviors change deliberately:
   costs a pore solution the change in pKw, 0.17 between 20 and 25 °C. The four
   keywords `T`, `P`, `temperature` and `pressure` now raise an error that points
   to `set_temperature!`.
+- **The shipped `data/solid_solutions.toml` follows Cemdata18 on the AFm and AFt
+  binaries.** Its `AFm` entry mixed monosulfate and monocarbonate with
+  Redlich-Kister parameters that have no published source, while Cemdata18
+  treats the two as pure phases; it is removed, not made ideal. `AFm_SO4_OH`
+  and `AFt_SO4_CO3`, which Cemdata18 publishes as non-ideal, were declared
+  ideal because a phase that unmixes could not be expressed; they now carry its
+  Guggenheim parameters with two instances each, and open the gaps the article
+  prints. Code that built the whole file gets a different phase set.
 
 ### A surface from its published reactions
 
@@ -48,6 +57,19 @@ That one line of arithmetic was repeated by every hand-built surface, and when
 it was left out, a cation's complex certified with nothing formed. Built from
 `phreeqc.dat`, it reproduces the hydrous-ferric-oxide families the tests used to
 build by hand.
+
+### The ions of the diffuse layer
+
+`DonnanLayer`, `diffuse_layer_contents` and `equilibrate_donnan` count the ions
+that screen a charged surface, which a `DiffuseLayer` leaves in the solution. As
+in PHREEQC's `SURFACE -Donnan`, read in its source, the surface keeps its
+Gouy-Chapman potential and a layer of water of fixed thickness holds each
+solute at the average Boltzmann enrichment whose charge balances the surface's.
+`equilibrate_donnan` withdraws the layer's contents from the solution and
+solves again until the two agree; the layer's water is added to the solution's,
+as PHREEQC adds it, or taken from it, as a closed pore solution requires.
+Against PHREEQC on the C-S-H surface in 18 solutions, the layer's chloride
+agrees to 3 × 10⁻⁴ relative and its water exactly.
 
 ### The C-S-H surface against PHREEQC
 
@@ -64,10 +86,11 @@ molar mass and atomic mass it needs from the package itself.
   salts), swept in NaCl, the phases agree to 2.9 × 10⁻⁴ mol, the surface species
   to 4.5 × 10⁻⁴ mol and the bound chloride to 5 × 10⁻⁵ mol.
 - A new page, *Chloride binding by C-S-H and Friedel's salt*, splits the bound
-  chloride between the salts and the surface. The surface holds all of it
-  before any salt forms and a third of it at 0.4 mol/kg. The page states its
-  scope first: a C-S-H of fixed composition, not the CSHQ solid solution, and a
-  diffuse layer that sets the potential without counting its ions.
+  chloride between the salts, the surface and the diffuse layer. The surface
+  holds all of it before any salt forms and a third of it at 0.4 mol/kg; the
+  layer, one Debye length thick, adds 2 to 8 %. The page states its scope first:
+  a C-S-H of fixed composition, not the CSHQ solid solution, and a layer
+  thickness that nothing published fixes.
 
 Guo's deprotonation row is taken in its proton form. Guo, and Elakneswaran et
 al. (2010), print it against OH⁻ with a constant that Elakneswaran et al. (2009)
@@ -104,6 +127,9 @@ Results of other codes (Reaktoro, GEM-Selektor, PHREEQC) are fixtures in
   modifying that registry.
 - `water_surface_tension(T)` evaluates the IAPWS R1-76(2014) equation, tested
   against its Table 1.
+- `build_solid_solutions` reads `guggenheim = "<key>:<pair>"`, published
+  dimensionless parameters taken from `data/literature` rather than copied, and
+  `instances`, for a solid solution that unmixes.
 
 ### Attributions corrected
 
@@ -142,6 +168,10 @@ Results of other codes (Reaktoro, GEM-Selektor, PHREEQC) are fixtures in
   now weigh them from the formula, as every species is weighed. A script and a
   test gave a species written as CaAl₂Si₂O₈ a molar mass of 95 g/mol against the
   278.2 g/mol of its atoms, and the override is gone.
+- The slag and metakaolin reactions of the blended-cement script created and
+  destroyed elements; they are balanced from the formulas. Their heats per
+  gram, credited to articles that could not be checked, are stated as
+  assumptions.
 
 ### Validation
 
@@ -149,8 +179,12 @@ New reference tests, each reading its published values from the files above:
 every solubility product and HKF coefficient of Cemdata18 against its tables;
 the HKF model away from the reference point against Duan et al. (2016), whose
 pressure column is in bar although it is headed in pascals; Atkins et al.
-(1992); a limestone blend; Guo's chloride binding; and the two PHREEQC
-comparisons above. The validation chapter pins every number it prints at the
+(1992); a limestone blend; Guo's chloride binding; the three PHREEQC
+comparisons above; alkali uptake by C-S-H against the 48 solutions of Hong and
+Glasser (1999), where the pH agrees to 0.072 from 15 to 100 mM and the alkali
+is over-bound, as expected of end members fitted to those data; and the
+Cemdata07 generation of Lothenbach (2010), which shows which of its 29
+solubility products Cemdata18 kept and confirms that Guo et al. used it. The validation chapter pins every number it prints at the
 precision it prints it, and opens with what has been checked and the traps
 worth knowing.
 
