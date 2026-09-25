@@ -130,6 +130,9 @@ Dispatches on `Val(model_name)` — add a new method for each new model.
 # Returns
 
   - `OrderedDict` containing the constructed thermodynamic functions (`Cp⁰`, `ΔₐH⁰`, `S⁰`, `ΔₐG⁰`).
+    `ΔₐH⁰` and `ΔₐG⁰` are *apparent* quantities of formation: the elements are held
+    at the reference temperature, so that `ΔₐG⁰(Tref)` equals the `ΔfG⁰` supplied
+    and `ΔₐG⁰(T) = ΔfG⁰ − S⁰(Tref)(T − Tref) + ∫Cp dT − T ∫Cp/T dT`.
 """
 build_thermo_functions(model_name::Symbol, params) =
     build_thermo_functions(Val(model_name), params)
@@ -196,8 +199,14 @@ model for aqueous solutes.
   - `:wref`                      — reference Born coefficient ω_ref (J/mol)
   - `:z`                         — species charge (dimensionless)
   - `:S⁰` or `:Sr`               — standard entropy at (Tr, Pr) (J·mol⁻¹·K⁻¹)
-  - `:ΔₐH⁰` or `:ΔfH⁰`          — standard enthalpy of formation (J/mol)
-  - `:ΔₐG⁰` or `:ΔfG⁰`          — standard Gibbs energy of formation (J/mol)
+  - `:ΔₐH⁰` or `:ΔfH⁰`          — standard enthalpy of formation at (Tr, Pr) (J/mol)
+  - `:ΔₐG⁰` or `:ΔfG⁰`          — standard Gibbs energy of formation at (Tr, Pr) (J/mol)
+
+At (Tr, Pr) the apparent and the traditional quantities of formation coincide,
+which is why either key is accepted; away from it the functions returned are the
+apparent ones, the elements being held at (Tr, Pr) (Benson-Helgeson convention).
+See the theory page on thermochemistry, section *Apparent and formation Gibbs
+energies*.
 """
 function _build_hkf_thermo_functions(params)
     dp = Dict(params)

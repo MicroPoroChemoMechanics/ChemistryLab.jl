@@ -1,4 +1,8 @@
-# Cement Species
+# [Cement Species](@id man-cement-species)
+
+!!! info "Before this page"
+    [Cement chemist notation](@ref man-cement-notation) and [Species](@ref
+    sec-species).
 
 The manipulation of chemical formulas can also be done in cement notation. `CemSpecies` is a composite type similar to `Species`.
 
@@ -94,4 +98,9 @@ CSH = Species("(SiO2)1(CaO)1.666667(H2O)2.1", aggregate_state=AS_CRYSTAL, class=
 jennite = CemSpecies(CSH)
 ```
 
----
+## Where to go next
+
+The families of binders built from these phases are mapped in
+[The binders, and what distinguishes them](@ref man-binder-families), and the
+first calculation on a real clinker is
+[A CEM I from its clinker phases](@ref sec-cem1-from-clinker).

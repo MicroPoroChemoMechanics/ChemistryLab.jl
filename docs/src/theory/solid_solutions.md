@@ -1,5 +1,10 @@
 # [Solid solutions](@id sec-theory-solid-solutions)
 
+!!! info "Before this page"
+    [Thermochemistry](@ref sec-theory-thermo) and [Standard states](@ref
+    sec-theory-standard-states) §2, where the standard state of an end-member is
+    set.
+
 A pure solid has ``a = 1``: it is its own standard state, its chemical potential
 does not depend on how much of it there is, and it either precipitates or it does
 not. A **solid solution** is a single crystalline phase whose composition varies
@@ -369,5 +374,5 @@ Two consequences to keep in mind when reading results:
 
   - [Thermochemistry](@ref sec-theory-thermo) — where ``\ln a`` enters ``\mu``
   - [Activity models](@ref sec-theory-activity) — the aqueous half
-  - [Chemical Equilibrium](@ref sec-equilibrium) — declaring and solving with
+  - [Solving an equilibrium](@ref sec-solving) — declaring and solving with
     solid solutions

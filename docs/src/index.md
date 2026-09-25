@@ -15,10 +15,10 @@ hero:
       text: Get started
       link: /quickstart
     - theme: alt
-      text: Tutorials
-      link: /tutorials/formula_manipulation
+      text: Theory
+      link: /theory/
     - theme: alt
-      text: Examples
+      text: Applications
       link: /examples/co2_carbonate_system
     - theme: alt
       text: View on GitHub
@@ -27,28 +27,28 @@ hero:
 features:
   - icon: 🚀
     title: Getting started
-    details: Install the package, compute the solubility constant of a reaction, then solve a first equilibrium.
+    details: Install the package, evaluate the solubility constant of a reaction, then solve and certify a first equilibrium.
     link: /quickstart
   - icon: 🎓
+    title: Theory
+    details: Why each calculation is the right one, written for a reader who has never studied chemical thermodynamics, with every equation the one the code evaluates.
+    link: /theory/
+  - icon: 🧰
+    title: Manual
+    details: One kind of object per page — formulas, species, databases, stoichiometric matrices, systems and states, surfaces, cement notation.
+    link: /manual/where_the_numbers_come_from
+  - icon: 🧭
     title: Tutorials
-    details: The library topic by topic — formulas, species, databases, stoichiometric matrices, reactions, equilibrium, kinetics, coupling.
-    link: /tutorials/formula_manipulation
-  - icon: 🧪
-    title: Examples
-    details: Complete problems solved end to end — carbonate speciation, cement carbonation, acid-base titrations, clinker dissolution and hydration.
-    link: /examples/co2_carbonate_system
-  - icon: 🗄️
-    title: Databases
-    details: Read, merge and write ThermoFun and Cemdata sources, and pull species and reactions out of them programmatically.
-    link: /tutorials/databases
-  - icon: ⚖️
-    title: Equilibrium and kinetics
-    details: Gibbs-energy minimization with dilute-solution, HKF and Davies activity models, and time-resolved dissolution-precipitation.
+    details: A calculation driven from start to finish — an equilibrium, a kinetic trajectory, their coupling, the self-desiccation of a paste.
     link: /tutorials/equilibrium
+  - icon: 🧪
+    title: Applications
+    details: Complete cases and what the modeling choices cost in numbers — aqueous equilibria, surfaces, Portland and blended cements, hydration in time.
+    link: /examples/co2_carbonate_system
   - icon: 📖
     title: API reference
-    details: Every exported function, grouped by topic, from parsing tools to thermodynamic models.
-    link: /api/thermo_functions
+    details: Every exported function and type, grouped by topic.
+    link: /api/formulas
 ---
 ```
 
@@ -103,8 +103,41 @@ using Printf
 @printf("remaining calcite = %.3e mol\n", ustrip(moles(equilibrated, "Cal")))
 ```
 
-[Getting started](@ref) takes the same problem more slowly, and shows how the
-solubility constant is obtained analytically before any solver is involved.
+[Getting started](@ref sec-quickstart) takes the same problem more slowly, and
+shows how the solubility constant is obtained analytically before any solver is
+involved.
+
+## Reading paths
+
+The documentation is organized by the question each chapter answers.
+[Theory](@ref sec-theory) explains why a calculation is the right one, the
+Manual describes how each kind of object is written, the Tutorials drive a
+calculation from start to finish, and the Applications show complete cases and
+what the modeling choices cost in numbers. Three entry points follow from it,
+depending on what the reader already knows.
+
+**New to chemical thermodynamics.** The chapter [Theory](@ref sec-theory) is
+written for this reader and is best read in the order it states, beginning with
+[Thermochemistry](@ref sec-theory-thermo) and
+[Standard states](@ref sec-theory-standard-states), which fix the notation and
+the conventions every other page relies on. The Manual then introduces the
+objects one at a time, from [Species](@ref sec-species) onwards, and the tutorial
+[Chemical Equilibrium](@ref sec-equilibrium) puts them together.
+
+**Knowing what is to be computed.** [Getting started](@ref sec-quickstart) and
+the tutorial [Chemical Equilibrium](@ref sec-equilibrium) are enough to write a
+first calculation. The aqueous applications, beginning with
+[CO₂ dissolution and the carbonate system](@ref sec-co2-carbonate), are small
+enough to check by hand and are the place to test one's understanding before a
+larger system.
+
+**Holding the analysis of a cement.** The route from an oxide analysis to a
+chemical system is laid out in [Bogue calculation](@ref ex-bogue) and
+[Choosing the species list](@ref man-choosing-species); the binders of EN 197-1
+are then worked in increasing order of difficulty, from
+[A CEM I from its clinker phases](@ref sec-cem1-from-clinker) to the composite
+cements, and [The binders, and what distinguishes them](@ref man-binder-families)
+says which of the package's models each family requires.
 
 ## Where this comes from
 

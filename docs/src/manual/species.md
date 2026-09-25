@@ -1,6 +1,9 @@
 
 # [Species](@id sec-species)
 
+!!! info "Before this page"
+    [Chemical Formula Manipulation](@ref sec-formulas).
+
 `Species` is a composite type (introduced by the keyword `struct`) and is defined by a human-readable name, a chemical symbol/notation, an underlying `Formula` object holding composition, charge, and string representations, a physical state `aggregate_state`, a species `class`, as well as an extensible map of custom properties (molar mass, thermodynamic data, etc.)
 
 
@@ -267,3 +270,11 @@ println("formula preserved: ", formula(em) == formula(cal))
     `with_class` is still useful when you need to track the requalified object
     explicitly (e.g. to inspect its class, or for types other than solid solution
     end-members).
+
+## Where to go next
+
+Species combine into reactions in [Chemical Reactions](@ref sec-reactions),
+and into the conservation matrix of a system in
+[Stoichiometric Matrix](@ref sec-stoich-matrices). Species are seldom built by
+hand in practice: [Database Interoperability](@ref sec-databases) reads them
+from the shipped databases.

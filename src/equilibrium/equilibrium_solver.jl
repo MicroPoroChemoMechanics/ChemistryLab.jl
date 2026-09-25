@@ -155,9 +155,19 @@ const _DEFAULT_SOLVER_FACTORY = Ref{Union{Nothing, Function}}(nothing)
 """
     _SOLVER_FACTORIES
 
-Every back end an extension has registered, in load order. `equilibrate` uses the
-first as its default; [`equilibrate_certified`](@ref) uses all of them as starting
-points, because neither back end dominates the other — see [`solve_certified`](@ref).
+Every back end an extension has registered, in load order. The default back end is
+[`_DEFAULT_SOLVER_FACTORY`](@ref), not the first entry; [`equilibrate_certified`](@ref)
+uses all of them as starting points, because neither back end dominates the other —
+see [`solve_certified`](@ref).
+
+The search tries them in this order, and the order is not neutral: a start that
+certifies ends the search, so which one comes first decides both the time and, on a
+hard case, the verdict. Putting the default back end first was measured and not
+kept. On the documentation's cements it saved about an eighth of the time overall,
+but it slowed two pages down and it lost the certificate of a composite binder at
+seven days (element balance 1.0 against 7.4e-13), which the search starting from
+Ipopt finds.
+
 """
 const _SOLVER_FACTORIES = Function[]
 

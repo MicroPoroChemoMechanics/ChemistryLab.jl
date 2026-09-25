@@ -1,5 +1,9 @@
 # [The binders, and what distinguishes them](@id man-binder-families)
 
+!!! info "Before this page"
+    [Cement chemist notation](@ref man-cement-notation) and [Choosing the
+    species list](@ref man-choosing-species).
+
 A "cement" is not one material. EN 197-1 recognizes five main types and some
 twenty-seven products, and the difference between them is **how much of the
 clinker has been replaced, and by what**. That single question decides the
@@ -150,7 +154,7 @@ full provenance and for one inconsistency found in the source metadata.
 
 | page | what it does |
 |:--|:--|
-| [Bogue Calculation](@ref) | an oxide analysis to clinker phases — the entry point for a CEM I |
+| [Bogue Calculation](@ref ex-bogue) | an oxide analysis to clinker phases — the entry point for a CEM I |
 | [CEM I from the clinker up](@ref sec-cem1-from-clinker) | the reference paste, hydrated and certified |
 | [A CEM I at equilibrium, with every solid solution declared](@ref) | the phase list as a modeling decision |
 | [The full Portland cement, through its pore solution](@ref ex-ionic-opc) | the coupled run, and its calorimetry |

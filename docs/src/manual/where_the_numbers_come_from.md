@@ -1,5 +1,9 @@
 # [Where the numbers come from](@id sec-manual-numbers)
 
+!!! info "Before this page"
+    [Getting started](@ref sec-quickstart). This is the first page of the
+    Manual, and it assumes nothing else.
+
 A geochemical calculation is made almost entirely of numbers somebody measured:
 gas constants, molar masses, standard Gibbs energies, equilibrium constants. Most
 of them are already inside this package, and the single most useful habit when

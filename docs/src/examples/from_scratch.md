@@ -1,4 +1,8 @@
-# Calculation of thermodynamic properties of calcite dissolution
+# [Calculation of thermodynamic properties of calcite dissolution](@id ex-from-scratch)
+
+!!! info "Before this page"
+    [Getting started](@ref sec-quickstart), whose calcite example this page
+    rebuilds without a database.
 
 This example is equivalent to quickstart except that no database is needed.
 

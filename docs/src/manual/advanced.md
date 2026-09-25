@@ -1,5 +1,10 @@
 # Advanced Topics
 
+!!! info "Before this page"
+    [Chemical Formula Manipulation](@ref sec-formulas), [Chemical
+    Reactions](@ref sec-reactions) and [Cement Species](@ref
+    man-cement-species).
+
 This page covers advanced usage patterns and techniques for working with ChemistryLab: complex formula transformations, cement species, reaction algebra, and programmatic database operations.
 
 ## Advanced Formula Manipulation
@@ -318,8 +323,10 @@ df_primary = extract_primary_species("path/to/file.dat")
 
 5. **Custom properties as metadata**: Attach source information, uncertainty, or application-specific data as custom properties — they are preserved during conversions and copies.
 
-## Next steps
+## Where to go next
 
-- Explore the reference documentation for full API signatures and options.
-- See `docs/src/examples/` for complete worked examples (cement hydration calculations, equilibrium problems, etc.).
-- If you encounter edge cases or need custom workflows, open an issue or extend the examples here.
+The signatures of every function used on this page are in the API reference,
+beginning with [Formulas](@ref). The calculations these operations serve are the
+subject of the tutorial [Chemical Equilibrium](@ref sec-equilibrium) and of the
+application pages, beginning with
+[Stoichiometric matrices](@ref ex-stoich-matrix).

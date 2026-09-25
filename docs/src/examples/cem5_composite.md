@@ -1,5 +1,9 @@
 # [A composite binder: two glasses at once](@id ex-cem5-composite)
 
+!!! info "Before this page"
+    [A blastfurnace cement](@ref ex-cem3-slag) and [A pozzolanic binder](@ref
+    ex-cem4-pozzolanic), whose difficulties this page combines.
+
 A CEM V carries **both** a blastfurnace slag and a pozzolana, each between 18 %
 and 30 % for a CEM V/A, leaving 40 % to 64 % clinker. It is the binder in which
 every difficulty of the preceding pages arrives together:
@@ -452,8 +456,8 @@ across the three ages — that is the pozzolanic reaction, and the reason the
 family exists. The **pH** moves the other way and by almost nothing, six
 hundredths of a unit, because it is the alkalis that set it and the glasses
 release them only slowly; the calcium hydroxide is a floor beneath, not a lever.
-And every one of the three **certifies**, with element balances of 2.6·10⁻¹²,
-8.2·10⁻¹⁴ and 1.1·10⁻¹³.
+And every one of the three **certifies**, with the element balances the table
+prints, all below 10⁻¹⁰.
 
 That is the useful conclusion, and it is worth stating as a limit on what the
 page claims: between 7 and 90 days the slag's reacted fraction changes by half
@@ -537,3 +541,11 @@ same reduction in heat and clinker, reached with two *different* constituents, a
 therefore with a different assemblage, a different aluminum balance and a
 different long-term reactivity. The equilibrium calculation above distinguishes
 them where the calorimeter does not.
+
+## Where to go next
+
+The pages of this group compute where a binder ends; how it gets there is the
+subject of the applications in time, beginning with
+[Cement clinker hydration kinetics](@ref), and of
+[The full Portland cement, through its pore solution](@ref ex-ionic-opc) for the
+coupled route.

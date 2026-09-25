@@ -1,5 +1,9 @@
 # [Carbonation of a Cement Paste](@id sec-cement-carbonation)
 
+!!! info "Before this page"
+    [CO₂ Dissolution and the Carbonate System](@ref sec-co2-carbonate) and
+    [Effect of Water/Cement Ratio on Cement Hydration](@ref sec-wc-ratio).
+
 **Carbonation** is the principal durability threat to reinforced concrete.
 Atmospheric CO₂ diffuses into the concrete cover, dissolves into the pore water, and reacts
 with the alkaline hydration products — above all portlandite Ca(OH)₂ and calcium silicate
@@ -298,3 +302,10 @@ Key observations:
     CO₂(aq), HCO₃⁻ and CO₃²⁻ — follows the same equilibria described in the
     [CO₂ dissolution example](@ref sec-co2-carbonate).
     In the high-pH pore solution (pH > 12), CO₃²⁻ dominates; below pH 8.3, CO₂(aq) takes over.
+
+## Where to go next
+
+The binders that replace part of the clinker, and change what there is to
+carbonate, are mapped in
+[The binders, and what distinguishes them](@ref man-binder-families) and computed
+from [Two CEM II](@ref ex-cem2-blended) onwards.

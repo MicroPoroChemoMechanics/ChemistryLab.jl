@@ -1,5 +1,9 @@
 # A CEM I at equilibrium, with every solid solution declared
 
+!!! info "Before this page"
+    [A CEM I from its clinker phases](@ref sec-cem1-from-clinker) and [Solid
+    solutions](@ref sec-theory-solid-solutions).
+
 A thermodynamic model of a cement is only as good as the list of phases it is
 allowed to form. Leave one out and the calculation cannot report it; put one in
 that does not belong and it can take mass that belongs elsewhere. The list is
@@ -71,7 +75,7 @@ nothing # hide
 ```
 
 The Bogue conversion turns those four main oxides into the four clinker phases.
-It is not reimplemented here: [Bogue Calculation](@ref) obtains it by inverting
+It is not reimplemented here: [Bogue Calculation](@ref ex-bogue) obtains it by inverting
 the **mass stoichiometric matrix** of the clinker phases over the oxide
 components, which is built from the species data, so no molar mass and no
 tabulated coefficient appears anywhere.
@@ -338,12 +342,11 @@ everything, in one number.
 ## 5. What declaring only some of them costs
 
 The common practice is to declare the solid solutions one expects to find and
-leave the rest out. There are two ways to do that, and they behave very
-differently.
+leave the rest out. There are two ways to do that. On this cement both reproduce
+the answer, and neither proves what the complete declaration proves.
 
-**Leaving the other end-members in the system as pure phases.** This is the
-variant that looks safest — "their saturation is still tested" — and it is the
-one that fails.
+**Leaving the other end-members in the system as pure phases.** Their
+saturation is then still tested, each end-member as a pure solid:
 
 ```@example ss
 three = solutions[1:3]
@@ -367,8 +370,8 @@ eq2, cert2 = equilibrate_certified(st; model = model, b = b2)
         ustrip(uconvert(us"cm^3", volume(eq2).total)))
 ```
 
-The certificate refuses, and the answer is wrong by a quarter of the volume. The
-reason is visible in the assemblage:
+The answer is that of the eight-phase run, to the printed digit, and it is
+certified. The assemblage shows why nothing else could have happened:
 
 ```@example ss
 n2 = ustrip.(us"mol", eq2.n)
@@ -380,15 +383,20 @@ for (s, x) in bad
 end
 ```
 
-`ettringite03_ss` and `C4AH13` have taken mass. Offered as a pure phase,
-`ettringite03_ss` — ettringite divided by three — competes with ettringite and
-wins, because as a pure solid its activity is one whatever its amount, and the
-mixing term that would have held it at a small mole fraction inside
-`AFt_SO4_CO3` is not there. **An end-member of a solid solution is not a
-candidate pure phase**, and offering it as one is not a conservative choice.
+No end-member offered as a pure solid has taken any mass, and none could have.
+As a pure phase an end-member has unit activity, whereas inside its solution its
+activity is its mole fraction, below one; its chemical potential as a pure solid
+is therefore never lower than inside the solution, and the pure phase can form
+only where the solution itself would consist of that end-member alone.
+Declaring end-members as pure phases is thus harmless, but it is not a test of
+the solution they belong to. Each pure end-member may be undersaturated while
+their mixture is not, since the entropy of mixing lowers the Gibbs energy of
+the solution below the composition-weighted mean of its end-members, and this
+certificate tests the five omitted solid solutions only through their
+end-members.
 
 **Keeping the other end-members out of the system entirely.** This is what a
-hand-written species list usually does, and it does reproduce the answer:
+hand-written species list usually does, and it reproduces the answer as well:
 
 ```@example ss
 species3 = speciation(
@@ -415,12 +423,13 @@ eq3, cert3 = equilibrate_certified(st3; model = model, b = b3)
         ustrip(uconvert(us"cm^3", volume(eq3).total)))
 ```
 
-Same pH, same volume, same assemblage as the eight-phase run — but the
-certificate is a **weaker statement**. Its worst supersaturation is far from
-zero because the five phases it never declared are not among those it tested;
-the eight-phase certificate, whose margin is only `0.03`, is the one that
-actually proves the five are out. A comfortable certificate over a small phase
-list is not stronger evidence than a tight one over a complete list.
+Same pH, same volume, same assemblage as the eight-phase run, and a
+certificate again — but a weaker statement, since the five solid solutions it
+never declared are not among the phases it tested, not even through their
+end-members. The eight-phase certificate, whose margin on `AFt_SO4_CO3` is only
+`0.03`, is the one that actually proves the five are out. A certificate over a
+small phase list says nothing about the phases left out of it, however
+comfortable its margin.
 
 ```@example ss
 labels = ["all eight\ndeclared", "three declared,\nothers pure",
@@ -502,3 +511,11 @@ procedure transfers; the result does not.
 time and complete reaction. What a paste actually reaches, and why it stops
 short, is [The hydrating paste, end to end](@ref sec-coupled-hydration) and
 [Self-desiccation](@ref sec-self-desiccation).
+
+## Where to go next
+
+The equilibrium view continues with the water content in
+[Effect of Water/Cement Ratio on Cement Hydration](@ref sec-wc-ratio) and with
+carbonation in [Carbonation of a Cement Paste](@ref sec-cement-carbonation). The
+binders that replace part of the clinker begin with
+[Two CEM II](@ref ex-cem2-blended).

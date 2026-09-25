@@ -1,5 +1,9 @@
 # [Simplified Clinker Dissolution](@id sec-clinker-dissolution)
 
+!!! info "Before this page"
+    The tutorial [Chemical Equilibrium](@ref sec-equilibrium) and [Cement
+    chemist notation](@ref man-cement-notation).
+
 This example illustrates ChemistryLab's equilibrium workflow applied to cement chemistry: computing the hydration state of a simplified Portland clinker at a given water-to-cement ratio. ChemistryLab computes thermodynamic equilibrium by minimizing the Gibbs free energy of the system subject to element-conservation constraints. The workflow always follows the same four steps:
 
 1. Build a [`ChemicalSystem`](@ref) (species + stoichiometric matrix).
@@ -234,3 +238,10 @@ Pass your model to `equilibrate` or `EquilibriumSolver`:
 ```julia
 state_eq = equilibrate(state; model=MyModel(...))
 ```
+
+## Where to go next
+
+The same system is swept over the water-to-cement ratio in
+[Effect of Water/Cement Ratio on Cement Hydration](@ref sec-wc-ratio). A clinker
+described by its four main phases and its sulfate carrier, rather than
+simplified, is [A CEM I from its clinker phases](@ref sec-cem1-from-clinker).

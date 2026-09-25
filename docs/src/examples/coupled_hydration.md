@@ -1,6 +1,10 @@
 # [The hydrating paste, end to end](@id sec-coupled-hydration)
 
-A worked application of [Coupling kinetics and equilibrium](@ref): alite and
+!!! info "Before this page"
+    [Coupling kinetics and equilibrium](@ref sec-coupling) and [Cement clinker
+    hydration kinetics](@ref).
+
+A worked application of [Coupling kinetics and equilibrium](@ref sec-coupling): alite and
 belite dissolve according to [ParrotKilloh1984](@cite), and the hydrate
 assemblage that forms is **computed** by Gibbs minimization rather than imposed
 from a stoichiometric recipe.
@@ -219,3 +223,8 @@ cert = optimality_certificate(des, sub_state; b = be)
 @printf "component balance %.2e mol\n" cert.balance
 @printf "worst supersaturation %+.2e  (negative: every absent phase undersaturated)\n" cert.worst_supersaturation
 ```
+
+## Where to go next
+
+The same route applied to a complete CEM I, aluminate and ferrite included, is
+[The full Portland cement, through its pore solution](@ref ex-ionic-opc).

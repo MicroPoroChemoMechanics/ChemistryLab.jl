@@ -271,7 +271,8 @@ for α in (ALPHA_ASH, 1.0)
         # The cascade is declined only AFTER this branch has already refused
         # once, and that condition is exact rather than cautious.
         #
-        # Measured: this block cost 654 s, of which about 600 were the two
+        # Measured with ChemistryLab 0.22.0 and OptimaSolver 0.6.0: this block
+        # cost 654 s, of which about 600 were the two
         # points of the α = 1 branch that refuse — a refusal pays every back
         # end, then the ideal pre-solve, then the homotopy, before returning the
         # same verdict. Past the composition where a branch first runs out, the
@@ -433,17 +434,16 @@ b_z .+= oxide_budget(
 
 eq_z, c_z = equilibrate_certified(st_z; model = model, b = b_z)
 @printf(
-    "with zeolites: optimal=%-5s  worst SI=%+.2e  pH=%.3f
-",
+    "with zeolites: optimal=%-5s  worst SI=%+.2e  pH=%.3f\n",
     c_z.optimal, c_z.worst_supersaturation, pH(eq_z, model)
 )
 # WITHOUT the zeolites, nothing certifies -- so nothing from that point is
-# quotable. Its pH is whatever the iteration stopped at (`6.999`, neutral water,
-# the signature of a solve that fell back), and its supersaturation is read at a
-# composition that does not conserve matter. The comparison here is between an
-# answer and no answer, which is the strongest form it can take; an earlier
-# version of this page quoted `+3.12e+02` from that point as if it measured how
-# supersaturated the paste was, and it measured nothing.
+# quotable. Its pH is whatever the iteration stopped at, and its
+# supersaturation is read at a composition that does not conserve matter. The
+# comparison here is between an answer and no answer, which is the strongest
+# form it can take; an earlier version of this page quoted `+3.12e+02` from that
+# point as if it measured how supersaturated the paste was, and it measured
+# nothing.
 @printf(
     "without      : optimal=%-5s  (no residual from this point is a result)\n",
     c_b.optimal
@@ -459,13 +459,10 @@ formed = sort(
     by = last, rev = true
 )
 if isempty(formed)
-    println("
-no zeolite is stable in this paste")
+    println("\nno zeolite is stable in this paste")
 else
-    println("
-zeolites formed:")
+    println("\nzeolites formed:")
     for (name, amount) in formed
-        @printf("  %-16s %9.5f mol
-", name, amount)
+        @printf("  %-16s %9.5f mol\n", name, amount)
     end
 end

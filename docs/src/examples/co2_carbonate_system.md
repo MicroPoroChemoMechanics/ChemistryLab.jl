@@ -1,5 +1,8 @@
 # [CO₂ Dissolution and the Carbonate System](@id sec-co2-carbonate)
 
+!!! info "Before this page"
+    The tutorial [Chemical Equilibrium](@ref sec-equilibrium).
+
 The **carbonate system** — CO₂(aq) / HCO₃⁻ / CO₃²⁻ — is one of the most important
 chemical equilibria in natural water chemistry, geochemistry, and environmental science.
 It controls the pH of rainwater, rivers, oceans, and aquifers, and governs the dissolution
@@ -288,3 +291,11 @@ p2
     shifts leftward until portlandite (Ca(OH)₂) is consumed and the pH drops below 9.
     This process — **carbonation** — is the main cause of corrosion initiation in reinforced
     concrete, and is explored in the [cement carbonation example](@ref sec-cement-carbonation).
+
+## Where to go next
+
+The same equilibria in a cement pore solution, where they drive the
+carbonation of the hydrates, are computed in
+[Carbonation of a Cement Paste](@ref sec-cement-carbonation). The first
+calculation on a complete cement is
+[A CEM I from its clinker phases](@ref sec-cem1-from-clinker).

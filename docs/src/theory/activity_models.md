@@ -1,5 +1,9 @@
 # [Activity models](@id sec-theory-activity)
 
+!!! info "Before this page"
+    [Thermochemistry](@ref sec-theory-thermo) and [Standard states](@ref
+    sec-theory-standard-states), which define the activity this page models.
+
 Every equilibrium this package computes rests on
 
 ```math
@@ -514,3 +518,13 @@ per kilogram of a solvent that is no longer there. See
 A Pitzer model does **not** rescue that regime. Its fitted range is a few
 mol/kg, not hundreds, and no activity model repairs a composition that has left
 the physical picture of a solution.
+
+## Where to go next
+
+The chapter continues with [Solid solutions](@ref sec-theory-solid-solutions),
+the other place where a mixture departs from ideality. The expressions of this
+page are evaluated side by side in
+[What the choice of activity model costs](@ref sec-app-activity-models), the
+ion-interaction model is loaded and checked in
+[The Pitzer model, and what it can be used with](@ref sec-app-pitzer), and the
+syntax for choosing a model is in [Activity models](@ref sec-activity-models).

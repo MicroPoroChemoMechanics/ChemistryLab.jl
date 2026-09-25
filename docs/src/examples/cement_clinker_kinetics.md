@@ -1,5 +1,8 @@
 # Cement clinker hydration kinetics
 
+!!! info "Before this page"
+    The tutorial [Chemical Kinetics](@ref sec-kinetics).
+
 This example demonstrates the full kinetics workflow: from database loading to
 ODE integration and calorimetric post-processing. It models the hydration of an
 OPC (CEM I 52.5 R) clinker using the Parrot--Killoh [ParrotKilloh1984](@cite)
@@ -430,3 +433,9 @@ together while `C₄AF` and `C₂S` wait several hours more — a spread that is
 single vertical rise on a linear axis. The linear axis shows the other half, that
 none of the curves is anywhere near the ceiling `α_max`, so this paste still has
 a great deal of hydration ahead of it when the run stops at seven days.
+
+## Where to go next
+
+The hydrate assemblage is imposed by the stoichiometry on this page;
+[The hydrating paste, end to end](@ref sec-coupled-hydration) computes it by
+Gibbs minimization at every step instead.

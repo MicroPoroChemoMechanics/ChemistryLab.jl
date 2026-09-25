@@ -1,5 +1,9 @@
 # [A thermogram, and the windows it takes to have one](@id sec-example-tga)
 
+!!! info "Before this page"
+    [Calibrating hydration kinetics on measured calorimetry](@ref
+    ex-hydration-calibration), whose parameters this page constrains further.
+
 Calorimetry constrains three combinations of six kinetic parameters and no more
 — [the calibration example](@ref ex-hydration-calibration) measures exactly
 that. Breaking the remaining correlations needs a measurement that sees the

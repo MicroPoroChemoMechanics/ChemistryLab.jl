@@ -1,5 +1,9 @@
 # [Two CEM II, and the two different things a replacement can do](@id ex-cem2-blended)
 
+!!! info "Before this page"
+    [A CEM I from its clinker phases](@ref sec-cem1-from-clinker) and [The
+    binders, and what distinguishes them](@ref man-binder-families).
+
 A CEM II replaces between 6 % and 35 % of the clinker. What that does to the
 chemistry depends entirely on **what the replacement is made of**, and the two
 most common ones sit at opposite ends:
@@ -429,3 +433,8 @@ calculation at a single instant cannot show at all.
     CEM I's is. Comparing final values of truncated curves understates the slag
     binder, and the deposit's own fitted `DoHInf` of 0.85 is a reminder that the
     depositors extrapolated rather than measured the end.
+
+## Where to go next
+
+A binder in which the slag is the main constituent, and its sulfur can no longer
+be taken as sulfate, is [A blastfurnace cement, and the oxidation state it needs](@ref ex-cem3-slag).

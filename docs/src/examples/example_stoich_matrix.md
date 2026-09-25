@@ -1,5 +1,8 @@
 # [Stoichiometric matrices](@id ex-stoich-matrix)
 
+!!! info "Before this page"
+    [Stoichiometric Matrix](@ref sec-stoich-matrices).
+
 Every calculation in this package rests on one object: a matrix that says how
 each species is built out of a chosen set of components. Equilibrium is the
 minimization of Gibbs energy *subject to* `A n = b`, and `A` is that matrix. This
@@ -43,7 +46,7 @@ pprint(cs_ox.SM.A, oxides, clinker; label = :name)
 That is the same chemistry in a different basis, and the column for `C3S` now
 reads what its name says: three lime, one silica. Neither basis is more correct;
 the choice is made by what the problem is posed in. A datasheet reports oxides,
-so the oxide basis is the one the [Bogue Calculation](@ref) inverts.
+so the oxide basis is the one the [Bogue Calculation](@ref ex-bogue) inverts.
 
 !!! note "`C` is lime here, not carbon"
     The components above are [`CemSpecies`](@ref), so `C` is ``\ce{CaO}`` and `S`
@@ -166,3 +169,10 @@ compositions is the stable one — that is the Gibbs energy's business, and it
 needs the thermodynamic data the matrix knows nothing about. A stoichiometric
 matrix built from formulas alone, as on this page, can balance a reaction and
 cannot predict whether it proceeds.
+
+## Where to go next
+
+The thermodynamic data the matrix knows nothing about enter in
+[Calculation of thermodynamic properties of calcite dissolution](@ref ex-from-scratch),
+and the matrix meets them in an equilibrium in the tutorial
+[Chemical Equilibrium](@ref sec-equilibrium).

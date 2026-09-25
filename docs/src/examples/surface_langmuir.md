@@ -1,5 +1,9 @@
 # [Adsorption on a single site family](@id sec-example-surface-langmuir)
 
+!!! info "Before this page"
+    [Chemistry that happens on a surface](@ref sec-theory-surface) §1 to §4, and
+    [Surface areas](@ref sec-manual-surfaces) for the syntax.
+
 The smallest complete surface calculation: **one family of sites on an oxide,
 titrated by pH**. It is small enough to check by hand, and it exercises
 everything the surface model does — a site budget, a conservation row, ideal

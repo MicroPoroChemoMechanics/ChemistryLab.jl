@@ -1,4 +1,7 @@
-# Chemical Reactions
+# [Chemical Reactions](@id sec-reactions)
+
+!!! info "Before this page"
+    [Species](@ref sec-species).
 
 In ChemistryLab it is possible to build chemical reactions and manipulate them. A reaction is constructed as a structure, "a composite data type that allows you to store multiple values in a single object". The `struct` is organized as follows:
 
@@ -327,3 +330,10 @@ end
     - The system has many species and manual balancing would be error-prone.
     - You load species from a database and want all independent reactions automatically.
     - You want to verify that a set of species is stoichiometrically consistent.
+
+## Where to go next
+
+The reactions of a system need not be written by hand: they follow from its
+conservation matrix, introduced in [Stoichiometric Matrix](@ref sec-stoich-matrices).
+The thermodynamic functions a reaction inherits from its species are described
+in [Thermodynamic Functions](@ref sec-thermodynamics).

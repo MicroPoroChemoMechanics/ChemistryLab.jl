@@ -1,5 +1,8 @@
 # [Titration of Malonic Acid by NaOH](@id sec-titration-malonic)
 
+!!! info "Before this page"
+    [Titration of Acetic Acid by NaOH](@ref sec-titration-acetic).
+
 This example simulates the **potentiometric titration** of malonic acid (H₂A, a diprotic weak acid)
 by sodium hydroxide (NaOH, a strong base). Both dissociation constants are **derived from the
 database**, not tabulated.
@@ -199,3 +202,8 @@ hline!(p, [pKa2];  linestyle = :dot,  color = :green,  label = "pKₐ₂ = $(rou
     equivalence point rises steeply. An earlier version of this page claimed
     "Δ pKₐ ≈ 4.35 … two clearly resolved inflection points" — that figure belongs to maleic
     acid, and the claim does not survive looking at the curve it accompanied.
+
+## Where to go next
+
+The carbonate system, which adds a gas and a solid to the acid-base equilibria
+of this page, is [CO₂ Dissolution and the Carbonate System](@ref sec-co2-carbonate).

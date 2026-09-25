@@ -1,5 +1,9 @@
 # [Rate laws, and every parameter in them](@id sec-theory-kinetics)
 
+!!! info "Before this page"
+    [Proving that an answer is the answer](@ref sec-theory-certificate), for the
+    meaning of partial equilibrium on which a kinetic run relies.
+
 A Gibbs minimization answers *what is stable*. It says nothing about *when*, and
 a cement paste is a material whose whole engineering behavior lives in the when.
 This page is the catalog of what supplies that: every rate law the package

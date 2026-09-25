@@ -27,8 +27,11 @@
 # docstring coverage. Every `@ref` into a pruned page points at nothing, and
 # every docstring whose API page was pruned is "missing", so `cross_references`
 # and `missing_docs` are demoted to warnings -- for that build only. It also
-# refuses to deploy. **The full build stays the gate before a merge**, and it is
-# the only one that checks those, with `warnonly` kept down to `[:docs_block]`.
+# refuses to deploy. On a pull request the gate is therefore two jobs together:
+# the partial builds of `docs/shards.jl`, which between them run every page, and
+# the draft pre-flight of `docs/make.jl`, which checks links and docstring
+# coverage on the whole tree. The full build, with `warnonly` kept down to
+# `[:docs_block]`, runs on `main` and is the only one that deploys.
 #
 # `index.md` and `references.md` are always kept: the site root the nav is
 # rendered around, and the page every `[@cite]` on a kept page resolves into.
