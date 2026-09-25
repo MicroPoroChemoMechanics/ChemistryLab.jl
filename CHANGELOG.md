@@ -112,8 +112,9 @@ New records, each checked against its source (on the page image wherever the
 text extraction loses signs or charges):
 Atkins1992, BaroghelBouny1999, Blanc2012 (Thermoddem), Duan2016, Durdzinski2017,
 DzombakMorel1990, Elakneswaran2009, Guo2018, HamerWu1972, Helgeson1981,
-IAPWS2014, Kettler1992, Kulik2002, Lothenbach2019 (Cemdata18, Tables 2, 3, D.1
-and D.2), MaLothenbach2020 and 2021 (the zeolites), PalandriKharaka2004,
+HongGlasser1999, IAPWS2014, Kettler1992, Kulik2002, Lothenbach2010 (Cemdata07),
+Lothenbach2019 (Cemdata18, Tables 2, 3, D.1 and D.2), MaLothenbach2020 and 2021
+(the zeolites), PalandriKharaka2004,
 ParkhurstAppelo2013, PlummerBusenberg1982, Pointeau2006 and Xu2012; Lavergne2018
 and Powers1948 are extended. Every exported constant keeps its name and its
 value, and a test compares it row by row with its file. The vendored
