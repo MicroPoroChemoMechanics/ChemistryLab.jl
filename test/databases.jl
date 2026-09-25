@@ -2,6 +2,15 @@ using JSON
 using TOML
 
 @testsection "Databases" begin
+    @testset "progress bars only on a terminal" begin
+        # A test runner's output is usually not a terminal, so the readers draw
+        # no bar there; this checks the step they take when there is one.
+        p = ChemistryLab.ProgressMeter.Progress(2; output = devnull)
+        ChemistryLab._tick!(p)
+        @test p.counter == 1
+        @test ChemistryLab._tick!(nothing) === nothing
+    end
+
     @testset "ThermoFun metadata is data" begin
         parse_unit = ChemistryLab.extract_unit
         classify = ChemistryLab.extract_classification

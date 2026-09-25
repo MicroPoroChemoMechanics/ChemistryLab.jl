@@ -118,7 +118,19 @@ using JSON
         )
         @test_throws ArgumentError ChemistryLab.read_literature(write_as(bad, "Powers1948"))
 
+        # Unit arithmetic over the registry of DynamicQuantities, and nothing
+        # else: not a syntax error, a string, a bare number, an unknown name, or
+        # a name of that module which is not a unit.
+        for u in ("K)", "\"K\"", "2", "no_such_unit", "eval")
+            bad = deepcopy(good); bad["quantities"]["w_c_sealed"]["unit"] = u
+            @test_throws ArgumentError ChemistryLab.read_literature(write_as(bad, "Powers1948"))
+        end
+
         @test_throws ArgumentError literature("NoSuchSource2099")
+        r = literature("Powers1948")
+        @test_throws KeyError r["no_such_quantity"]
+        @test_throws KeyError literature_table("Powers1948", "no_such_table")
+        @test occursin("Powers1948", sprint(show, r))
     end
 
     @testset "tables carry their units, and text columns stay text" begin
