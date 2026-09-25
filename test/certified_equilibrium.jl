@@ -702,6 +702,79 @@ end
         end
     end
 
+    @testset "a cold cement is rescued by the ideal pre-solve" begin
+        # The call site doing its job, on the case that showed it missing. The
+        # stage had been unwired by accident when the linear-programming start
+        # was removed, and nothing here noticed: the test above reaches it only
+        # with a budget no stage can rescue. This is a 109-species paste of
+        # clinker and gypsum at w/b = 0.5, with the C-N-A-S-H gel declared, solved
+        # from the cast state. Neither back end hands the dual solve a start it
+        # can certify from -- the search alone ends with an element balance of
+        # 0.12 -- and the ideal answer does: the same paste then certifies, at
+        # the pH the CEM IV page reports for it.
+        substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+        byname = Dict(symbol(s) => s for s in substances)
+        M(n) = ustrip(us"g/mol", byname[n][:M])
+        pure = split(
+            "C3S C2S C3A C4AF Gp Anh Cal Portlandite ettringite monosulphate12 " *
+                "monocarbonate hemicarbonate C4AH13 C3AH6 C3FH6 straetlingite " *
+                "hydrotalcite Brc FeOOHmic AlOHmic Amor-Sl Mgs " *
+                "C3AS0.84H4.32 C3AS0.41H5.18 straetlingite7 Gbs AlOHam " *
+                "M4A-OH-LDH M6A-OH-LDH M8A-OH-LDH C2AH7.5 C4AH11 C4AH19 " *
+                "K2SO4 syngenite Na2SO4"
+        )
+        gel = [
+            "T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
+            "5CA", "5CNA", "INFCA", "INFCN", "INFCNA",
+        ]
+        feal = ["C3AFS0.84H4.32", "C3FS0.84H4.32"]
+        cs = ChemicalSystem(
+            speciation(
+                substances, vcat(pure, gel, feal, ["SO4-2", "CO2@", "O2@"]);
+                aggregate_state = [AS_AQUEOUS],
+            ),
+            CEMDATA_PRIMARIES;
+            solid_solutions = [
+                SolidSolutionPhase("CNASH_ss", [byname[m] for m in gel]),
+                SolidSolutionPhase("C3(AF)S0.84H", [byname[m] for m in feal]),
+            ],
+        )
+        st = ChemicalState(cs)
+        clinker = 100.0 * (1 - 0.046)                       # g, of 100 g binder
+        for (p, f) in (("C3S", 0.65), ("C2S", 0.11), ("C3A", 0.11), ("C4AF", 0.08))
+            set_quantity!(st, p, clinker * f / M(p) * u"mol")
+        end
+        set_quantity!(st, "Gp", 4.6 / M("Gp") * u"mol")
+        set_quantity!(st, "H2O@", 50.0 / M("H2O@") * u"mol")
+        b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+        b .+= oxide_budget(
+            OrderedDict("K2O" => 0.008, "Na2O" => 0.002), cs.SM.primaries;
+            mass = clinker * u"g",
+        )
+        model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+
+        strict = ChemistryLab.STRICT_CONVERGENCE[]
+        try
+            ChemistryLab.STRICT_CONVERGENCE[] = false
+            quiet(f) = Base.CoreLogging.with_logger(f, Base.CoreLogging.NullLogger())
+            _, declined = quiet(
+                () -> equilibrate_certified(st; model = model, b = b, autostart = false)
+            )
+            @test !declined.optimal
+            @test declined.balance > 1.0e-3
+
+            @test ChemistryLab._ideal_start(
+                st, model, b, 1.0e-16, FixedTP(), false
+            ) isa ChemicalState
+            eq, cert = quiet(() -> equilibrate_certified(st; model = model, b = b))
+            @test cert.optimal
+            @test cert.balance < 1.0e-10
+            @test pH(eq, model) ≈ 13.444 atol = 1.0e-3
+        finally
+            ChemistryLab.STRICT_CONVERGENCE[] = strict
+        end
+    end
+
     @testset "a vanished aqueous phase is reported, and raised under the strict flag" begin
         # `_check_solvent` is the diagnosis `_within_domain` turned into a ranking.
         # Both halves of its verdict are exercised here.

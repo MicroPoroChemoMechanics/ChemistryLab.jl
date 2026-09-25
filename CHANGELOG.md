@@ -44,7 +44,9 @@ and so masked the loss. With that path corrected, a cold CEM IV paste without
 ash no longer certified from either back end, and the points of the page that
 depend on it were refused in turn. The stage is restored where it stood, runs
 only when nothing has certified yet, and from its answer the paste certifies at
-3.6e-15. Replayed with the packages the documentation loads, every certified
+3.6e-15. Nothing in the test suite had noticed the removal, since the only test
+reaching the stage used a budget no stage can rescue; that paste, solved from
+its cast state, is now a test of its own. Replayed with the packages the documentation loads, every certified
 and every refused point of the cement pages is again the one their text
 describes.
 
