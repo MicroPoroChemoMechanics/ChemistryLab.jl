@@ -56,11 +56,15 @@ cs_base = ChemicalSystem(species_base, CEMDATA_PRIMARIES)
 # GGBS (ground granulated blast-furnace slag):
 #   Typical CEM I-like composition: ~42% CaO, 35% SiO₂, 12% Al₂O₃, 8% MgO.
 #   Representative formula (charge-neutral): CaAl₂Si₂O₈ (anorthite analogy).
-#   |ΔᵣH⁰| = 380 J/g × M  (Gruyaert 2010)
+#   |ΔᵣH⁰| = 380 J/g × M
 #
 # MK (metakaolin):
 #   Exact formula: Al₂Si₂O₇ (dehydroxylated kaolinite).
-#   |ΔᵣH⁰| = 250 J/g × M  (Lothenbach 2011)
+#   |ΔᵣH⁰| = 250 J/g × M
+#
+# The two heats per gram are assumptions. This script has long credited them to
+# Gruyaert et al. (2010) and to Lothenbach et al. (2011); neither article could
+# be checked against them, so neither is cited for them here.
 #
 # M is the molar mass the package computes from each formula. A value written
 # over it would contradict the atoms the species carries.
@@ -177,10 +181,31 @@ pk_mk = waller(WALLER_PARAMS_SILICA_FUME, "MK"; α_max = 0.95)
 #
 # GGBS and MK have artificial formulas (no ΔₐH⁰ in database); ΔᵣH⁰ is set
 # directly on the reaction (thermodynamic convention: negative = exothermic),
-# from the heat per gram and the molar mass of the formula unit.
-#   GGBS: 380 J/g  (Gruyaert 2010)
-#   MK  : 250 J/g  (Lothenbach 2011)
+# from the heat per gram (assumed, see above) and the molar mass of the formula
+# unit.
 heat_per_mol(sp, q_J_per_g) = -q_J_per_g * ustrip(us"g/mol", sp[:M])
+
+# Both additions react with portlandite into strätlingite and a jennite-type
+# C-S-H, one of each per formula unit: the aluminum and the silicon of the
+# formula balance with that. The portlandite consumed and the water taken are
+# what the calcium and the hydrogen balances then require, computed from the
+# formulas, and the oxygen and the charge are checked.
+function pozzolanic(solid; products = ("straetlingite" => 1.0, "Jennite" => 1.0))
+    a(s) = atoms(sp(s))
+    n(s, e) = Float64(get(a(s), e, 0))
+    ch = sum(ν * n(p, :Ca) for (p, ν) in products) - n(solid, :Ca)
+    w = (sum(ν * n(p, :H) for (p, ν) in products) - n(solid, :H) - 2ch) / 2
+    for e in (:Al, :Si, :O)
+        lhs = n(solid, e) + ch * n("Portlandite", e) + w * n("H2O@", e)
+        rhs = sum(ν * n(p, e) for (p, ν) in products)
+        isapprox(lhs, rhs; atol = 1.0e-3) || error("$solid: $e does not balance ($lhs vs $rhs)")
+    end
+    return Reaction(
+        OrderedDict(sp(solid) => 1.0, sp("Portlandite") => ch, sp("H2O@") => w),
+        OrderedDict(sp(p) => ν for (p, ν) in products);
+        symbol = "$solid hydration",
+    )
+end
 
 sp(name) = cs[name]
 
@@ -212,23 +237,14 @@ rxn_C4AF = Reaction(
 )
 rxn_C4AF[:rate] = pk_C4AF
 
-# GGBS: artificial formula → approximate products (Jennite + stratlingite)
-# ΔᵣH⁰ set directly (no ΔₐH⁰ for custom species)
-rxn_GGBS = Reaction(
-    OrderedDict(sp("GGBS") => 1.0, sp("H2O@") => 3.0),
-    OrderedDict(sp("Jennite") => 0.05, sp("straetlingite") => 0.2);
-    symbol = "GGBS hydration",
-)
+# GGBS: CaAl₂Si₂O₈ + 8/3 Ca(OH)₂ + … H₂O → strätlingite + jennite
+rxn_GGBS = pozzolanic("GGBS")
 rxn_GGBS[:rate] = pk_ggbs
 const ΔH_GGBS = heat_per_mol(sp_ggbs, 380.0)
 rxn_GGBS[:ΔᵣH⁰] = NumericFunc((T) -> ΔH_GGBS, (:T,), u"J/mol")
 
-# MK: Al₂Si₂O₇ + 2 Ca(OH)₂ + 5 H₂O → stratlingite
-rxn_MK = Reaction(
-    OrderedDict(sp("MK") => 1.0, sp("Portlandite") => 2.0, sp("H2O@") => 5.0),
-    OrderedDict(sp("straetlingite") => 1.0);
-    symbol = "MK hydration",
-)
+# MK: Al₂Si₂O₇ + 11/3 Ca(OH)₂ + … H₂O → strätlingite + jennite
+rxn_MK = pozzolanic("MK")
 rxn_MK[:rate] = pk_mk
 const ΔH_MK = heat_per_mol(sp_mk, 250.0)
 rxn_MK[:ΔᵣH⁰] = NumericFunc((T) -> ΔH_MK, (:T,), u"J/mol")

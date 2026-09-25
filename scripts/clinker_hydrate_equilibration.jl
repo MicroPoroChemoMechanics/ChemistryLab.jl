@@ -36,6 +36,8 @@ cs = ChemicalSystem(species, CEMDATA_PRIMARIES)
 
 # ── Initial state ────────────────────────────────────────────────────────────
 # Typical OPC clinker composition (mass fractions), w/c = 0.4
+# The clinker is an assumed CEM I composition, typical of the class; its source
+# is not recorded.
 
 state = ChemicalState(cs)
 compo = [
