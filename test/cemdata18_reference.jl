@@ -36,71 +36,18 @@ using JSON
     # charge balances are then free checks: they can only close if the
     # transcribed products are right.
     #
-    # Coefficients are the paper's, phase by phase, in its own order.
+    # Coefficients are the paper's, phase by phase, in its own order, as
+    # transcribed in data/literature/Lothenbach2019.json. Its rows with no
+    # package symbol are the four phases the vendored file does not carry.
+    solubility = literature_table("Lothenbach2019", "solubility_products")
+    products_of(phase) = let r = literature_table(
+            "Lothenbach2019", "dissolution_products"; phase
+        )
+        Dict(zip(r.species, r.coefficient))
+    end
     table2 = [
-        # AFt
-        ("ettringite", -44.9, Dict("Ca+2" => 6, "AlO2-" => 2, "SO4-2" => 3, "OH-" => 4)),
-        ("tricarboalu", -46.5, Dict("Ca+2" => 6, "AlO2-" => 2, "CO3-2" => 3, "OH-" => 4)),
-        ("Fe-ettringite", -44.0, Dict("Ca+2" => 6, "FeO2-" => 2, "SO4-2" => 3, "OH-" => 4)),
-        ("thaumasite", -24.75, Dict("Ca+2" => 3, "HSiO3-" => 1, "SO4-2" => 1, "CO3-2" => 1, "OH-" => 1)),
-        # Hydrogarnet
-        ("C3AH6", -20.5, Dict("Ca+2" => 3, "AlO2-" => 2, "OH-" => 4)),
-        ("C3AS0.41H5.18", -25.35, Dict("Ca+2" => 3, "AlO2-" => 2, "HSiO3-" => 0.41, "OH-" => 3.59)),
-        ("C3AS0.84H4.32", -26.7, Dict("Ca+2" => 3, "AlO2-" => 2, "HSiO3-" => 0.84, "OH-" => 3.16)),
-        ("C3FH6", -26.3, Dict("Ca+2" => 3, "FeO2-" => 2, "OH-" => 4)),
-        ("C3FS0.84H4.32", -32.5, Dict("Ca+2" => 3, "FeO2-" => 2, "HSiO3-" => 0.84, "OH-" => 3.16)),
-        ("C3AFS0.84H4.32", -30.2, Dict("Ca+2" => 3, "AlO2-" => 1, "FeO2-" => 1, "HSiO3-" => 0.84, "OH-" => 3.16)),
-        ("C3FS1.34H3.32", -34.2, Dict("Ca+2" => 3, "FeO2-" => 2, "HSiO3-" => 1.34, "OH-" => 2.66)),
-        # AFm
-        ("C4AH19", -25.45, Dict("Ca+2" => 4, "AlO2-" => 2, "OH-" => 6)),
-        ("C4AH13", -25.25, Dict("Ca+2" => 4, "AlO2-" => 2, "OH-" => 6)),
-        ("C2AH7.5", -13.8, Dict("Ca+2" => 2, "AlO2-" => 2, "OH-" => 2)),
-        ("CAH10", -7.6, Dict("Ca+2" => 1, "AlO2-" => 2)),
-        ("hemicarbonate", -29.13, Dict("Ca+2" => 4, "AlO2-" => 2, "CO3-2" => 0.5, "OH-" => 5)),
-        ("monocarbonate", -31.47, Dict("Ca+2" => 4, "AlO2-" => 2, "CO3-2" => 1, "OH-" => 4)),
-        ("monosulphate14", -29.26, Dict("Ca+2" => 4, "AlO2-" => 2, "SO4-2" => 1, "OH-" => 4)),
-        ("monosulphate12", -29.23, Dict("Ca+2" => 4, "AlO2-" => 2, "SO4-2" => 1, "OH-" => 4)),
-        ("straetlingite", -19.7, Dict("Ca+2" => 2, "AlO2-" => 2, "HSiO3-" => 1, "OH-" => 1)),
-        ("C4AClH10", -27.27, Dict("Ca+2" => 4, "AlO2-" => 2, "Cl-" => 2, "OH-" => 4)),      # Friedel's salt
-        ("C4AsClH12", -28.53, Dict("Ca+2" => 4, "AlO2-" => 2, "Cl-" => 1, "SO4-2" => 0.5, "OH-" => 4)),  # Kuzel's salt
-        ("mononitrate", -28.67, Dict("Ca+2" => 4, "AlO2-" => 2, "NO3-" => 2, "OH-" => 4)),
-        # Fe-AFm
-        ("C4FH13", -30.75, Dict("Ca+2" => 4, "FeO2-" => 2, "OH-" => 6)),
-        ("Fe-hemicarbonate", -30.83, Dict("Ca+2" => 4, "FeO2-" => 2, "CO3-2" => 0.5, "OH-" => 5)),
-        ("Femonocarbonate", -34.59, Dict("Ca+2" => 4, "FeO2-" => 2, "CO3-2" => 1, "OH-" => 4)),
-        ("Fe-monosulphate", -31.57, Dict("Ca+2" => 4, "FeO2-" => 2, "SO4-2" => 1, "OH-" => 4)),
-        # Sulfates
-        ("Anh", -4.357, Dict("Ca+2" => 1, "SO4-2" => 1)),
-        ("Gp", -4.581, Dict("Ca+2" => 1, "SO4-2" => 1)),
-        ("hemihydrate", -3.59, Dict("Ca+2" => 1, "SO4-2" => 1)),
-        ("syngenite", -7.2, Dict("K+" => 2, "Ca+2" => 1, "SO4-2" => 2)),
-        # (Hydr)oxides
-        ("AlOHam", 0.24, Dict("AlO2-" => 1, "OH-" => -1)),
-        ("AlOHmic", -0.67, Dict("AlO2-" => 1, "OH-" => -1)),
-        ("Gbs", -1.12, Dict("AlO2-" => 1, "OH-" => -1)),
-        ("FeOOHmic", -5.6, Dict("FeO2-" => 1, "OH-" => -1)),
-        ("Gt", -8.6, Dict("FeO2-" => 1, "OH-" => -1)),
-        ("Portlandite", -5.2, Dict("Ca+2" => 1, "OH-" => 2)),
-        ("Amor-Sl", -2.714, Dict("SiO2@" => 1)),
-        ("Qtz", -3.746, Dict("SiO2@" => 1)),
-        # Hydrotalcite-pyroaurite, M-S-H
-        ("Mg3AlC0.5OH", -33.29, Dict("Mg+2" => 3, "AlO2-" => 1, "CO3-2" => 0.5, "OH-" => 4)),
-        ("Mg3FeC0.5OH", -33.64, Dict("Mg+2" => 3, "FeO2-" => 1, "CO3-2" => 0.5, "OH-" => 4)),
-        ("M075SH", -28.8, Dict("Mg+2" => 1.5, "SiO2@" => 2, "OH-" => 3)),
-        ("M15SH", -23.57, Dict("Mg+2" => 1.5, "SiO2@" => 1, "OH-" => 3)),
-        # Zeolites
-        ("zeoliteP_Ca", -20.3, Dict("Ca+2" => 1, "AlO2-" => 2, "SiO2@" => 2)),
-        ("natrolite", -30.2, Dict("Na+" => 2, "AlO2-" => 2, "SiO2@" => 3)),
-        ("chabazite", -25.8, Dict("Ca+2" => 1, "AlO2-" => 2, "SiO2@" => 4)),
-        ("zeoliteX", -20.1, Dict("Na+" => 2, "AlO2-" => 2, "SiO2@" => 2.5)),
-        ("zeoliteY", -25.0, Dict("Na+" => 2, "AlO2-" => 2, "SiO2@" => 4)),
-        # Table 3 — the two alternative hydrotalcite modules. `hydrotalcite` is
-        # the single phase recommended for PC; the `M*A-OH-LDH` trio is the
-        # ideal solid solution recommended for alkali-activated materials.
-        ("hydrotalcite", -56.02, Dict("Mg+2" => 4, "AlO2-" => 2, "OH-" => 6)),
-        ("M4A-OH-LDH", -49.7, Dict("Mg+2" => 4, "AlO2-" => 2, "OH-" => 6)),
-        ("M6A-OH-LDH", -72.0, Dict("Mg+2" => 6, "AlO2-" => 2, "OH-" => 10)),
-        ("M8A-OH-LDH", -94.3, Dict("Mg+2" => 8, "AlO2-" => 2, "OH-" => 14)),
+        (s, logK, products_of(s)) for (s, logK) in zip(solubility.phase, solubility.log_Ks0)
+            if !isempty(s)
     ]
 
     # The two M-S-H end-members do not close. Their tabulated ΔfG° and their
@@ -121,8 +68,7 @@ using JSON
     # so that a corrected upstream file shows up as a failing test, not silence.
     msh_offset = Dict("M075SH" => 0.4828, "M15SH" => 0.3951)
 
-    R = 8.31446261815324                     # J/(mol·K), CODATA
-    RTln10 = R * 298.15 * log(10)
+    RTln10 = R_GAS * 298.15 * log(10)
     # The TABULATED ΔfG°, read from the file, not `ΔₐG⁰(T = 298.15)`. The two
     # are the same number for 220 of the 228 substances and the testset after
     # this one pins which eight they are not; using the tabulated value here
@@ -267,28 +213,15 @@ using JSON
     #    ideal-gas molar volume at 298.15 K and 1 bar), so the two tables share
     #    a header and not a unit.
     #
-    # ΔG⁰ and ΔH⁰ below are in kJ/mol as printed; V⁰ in cm³/mol.
+    # Read back in the printed units: kJ/mol, and cm³/mol for V⁰.
+    d1 = literature_table("Lothenbach2019", "aqueous_species")
     tableD1 = [
-        #  symbol          ΔG⁰       ΔH⁰       S⁰       Cp⁰      V⁰      a1·10    a2·10⁻²   a3       a4·10⁻⁴  c1        c2·10⁻⁴   ω0·10⁻⁵
-        ("Al+3", -483.71, -530.63, -325.1, -128.7, -45.24, -3.3802, -17.0071, 14.5185, -2.0758, 10.7, -8.06, 2.753),
-        ("AlO2-", -827.48, -925.57, -30.21, -49.04, 9.47, 3.7221, 3.9954, -1.5879, -2.9441, 15.2391, -5.4585, 1.7418),
-        ("AlOH+2", -692.6, -767.27, -184.93, 55.97, -2.73, 2.0469, -2.7813, 6.8376, -2.6639, 29.7923, -0.3457, 1.7247),
-        ("Ca+2", -552.79, -543.07, -56.48, -30.92, -18.44, -0.1947, -7.252, 5.2966, -2.4792, 9.0, -2.522, 1.2366),
-        ("Ca(SO4)@", -1310.38, -1448.43, 20.92, -104.6, 4.7, 2.4079, -1.8992, 6.4895, -2.7004, -8.4942, -8.1271, -0.001),
-        ("CaOH+", -717.02, -751.65, 28.03, 6.05, 5.76, 2.7243, -1.1303, 6.1958, -2.7322, 11.1286, -2.7493, 0.4496),
-        ("Cl-", -131.29, -167.11, 56.74, -122.49, 17.34, 4.032, 4.801, 5.563, -2.847, -4.4, -5.714, 1.456),
-        ("CO2@", -386.02, -413.84, 117.57, 243.08, 32.81, 6.2466, 7.4711, 2.8136, -3.0879, 40.0325, 8.8004, -0.02),
-        ("CO3-2", -527.98, -675.31, -50.0, -289.33, -6.06, 2.8524, -3.9844, 6.4142, -2.6143, -3.3206, -17.1917, 3.3914),
-        ("Fe+2", -91.5, -92.24, -105.86, -32.44, -22.64, -0.7867, -9.6969, 9.5479, -2.378, 14.786, -4.6437, 1.4382),
-        ("FeO2-", -368.26, -443.82, 44.35, -234.93, 0.45, 2.3837, -1.9602, 6.5182, -2.6979, -13.3207, -14.5028, 1.4662),
-        ("HCO3-", -586.94, -690.01, 98.45, -34.85, 24.21, 7.5621, 1.1505, 1.2346, -2.8266, 12.9395, -4.7579, 1.2733),
-        ("HSiO3-", -1014.6, -1144.68, 20.92, -87.2, 4.53, 2.9735, -0.5181, 5.9467, -2.7575, 8.1489, -7.3123, 1.5511),
-        ("K+", -282.46, -252.14, 101.04, 8.39, 9.01, 3.559, -1.473, 5.435, -2.712, 7.4, -1.791, 0.1927),
-        ("Mg+2", -453.99, -465.93, -138.07, -21.66, -22.01, -0.8217, -8.599, 8.39, -2.39, 20.8, -5.892, 1.5372),
-        ("Na+", -261.88, -240.28, 58.41, 38.12, -1.21, 1.839, -2.285, 3.256, -2.726, 18.18, -2.981, 0.3306),
-        ("NO3-", -110.91, -206.89, 146.94, -66.8, 28.66, 7.3161, 6.7824, -4.6838, -3.0594, 7.7, -6.725, 1.0977),
-        ("OH-", -157.27, -230.01, -10.71, -136.34, -4.71, 1.2527, 0.0738, 1.8423, -2.7821, 4.15, -10.346, 1.7246),
-        ("SO4-2", -744.46, -909.7, 18.83, -266.09, 12.92, 8.3014, -1.9846, -6.2122, -2.697, 1.64, -17.998, 3.1463),
+        (
+            d1.species[i], ustrip(u"kJ/mol", d1.dfG[i]), ustrip(u"kJ/mol", d1.dfH[i]),
+            ustrip(u"J/(mol*K)", d1.S[i]), ustrip(u"J/(mol*K)", d1.Cp[i]),
+            ustrip(u"cm^3/mol", d1.V[i]), d1.a1_e1[i], d1.a2_em2[i], d1.a3[i],
+            d1.a4_em4[i], d1.c1[i], d1.c2_em4[i], d1.omega_em5[i],
+        ) for i in eachindex(d1.species)
     ]
 
     prop(s, key) = Float64(rec[s][key]["values"][1])
@@ -327,34 +260,29 @@ using JSON
     # SiO2@ borrows S° and C°p from quartz, which is why a0, a1 and a2 below are
     # quartz's.
     @testset "Table D.1: the non-HKF tail" begin
-        @test prop("SiO2@", "sm_gibbs_energy") / 1000 ≈ -833.41 atol = 0.01
-        @test prop("SiO2@", "sm_entropy_abs") ≈ 41.34 atol = 0.01
-        @test prop("SiO2@", "sm_heat_capacity_p") ≈ 44.47 atol = 0.01
+        tail = literature_table("Lothenbach2019", "aqueous_species_cp")
+        for (k, sym) in enumerate(tail.species)
+            @test prop(sym, "sm_gibbs_energy") / 1000 ≈ ustrip(u"kJ/mol", tail.dfG[k]) atol = 0.01
+            @test prop(sym, "sm_entropy_abs") ≈ ustrip(u"J/(mol*K)", tail.S[k]) atol = 0.01
+            @test prop(sym, "sm_heat_capacity_p") ≈ ustrip(u"J/(mol*K)", tail.Cp[k]) atol = 0.01
+        end
+        quartz = literature_row("Lothenbach2019", "aqueous_cp_polynomial", "SiO2@")
         cp = rec["SiO2@"]["TPMethods"][1]["m_heat_capacity_ft_coeffs"]["values"]
-        @test Float64(cp[1]) ≈ 46.94 atol = 0.01
-        @test Float64(cp[2]) ≈ 0.034 atol = 0.001
-        @test Float64(cp[3]) ≈ -1.13e6 rtol = 3.0e-3
-
-        @test prop("SiO3-2", "sm_gibbs_energy") / 1000 ≈ -938.51 atol = 0.01
-        @test prop("SiO3-2", "sm_entropy_abs") ≈ -80.2 atol = 0.01
-        @test prop("SiO3-2", "sm_heat_capacity_p") ≈ 119.83 atol = 0.01
-
-        @test prop("CaSiO3@", "sm_gibbs_energy") / 1000 ≈ -1517.56 atol = 0.01
-        @test prop("CaSiO3@", "sm_entropy_abs") ≈ -136.68 atol = 0.01
-        @test prop("CaSiO3@", "sm_heat_capacity_p") ≈ 88.9 atol = 0.01
+        @test Float64(cp[1]) ≈ ustrip(u"J/(mol*K)", quartz.a0) atol = 0.01
+        @test Float64(cp[2]) ≈ ustrip(u"J/(mol*K^2)", quartz.a1) atol = 0.001
+        @test Float64(cp[3]) ≈ ustrip(u"J*K/mol", quartz.a2) rtol = 3.0e-3
     end
 
     # Table D.2. The gas volume column really is J/bar here: 2479 J/bar is
     # 24.79 L/mol, the ideal-gas molar volume at 298.15 K and 1 bar.
+    d2 = literature_table("Lothenbach2019", "gases")
     tableD2 = [
-        #  symbol   ΔG⁰      ΔH⁰      S⁰       Cp⁰     V⁰(J/bar)  a0      a1        a2
-        ("CH4", -50.66, -74.81, 186.26, 35.75, 2479, 23.64, 0.0479, -192464),
-        ("CO2", -394.39, -393.51, 213.74, 37.15, 2479, 44.22, 0.0088, -861904),
-        ("H2", 0.0, 0.0, 130.68, 28.82, 2479, 27.28, 0.0033, 50208),
-        ("H2O", -228.68, -242.4, 187.25, 40.07, 2479, 52.99, -0.0435, 5472),
-        ("H2S", -33.75, -20.63, 205.79, 34.2, 2479, 32.68, 0.0124, -192464),
-        ("N2", 0.0, 0.0, 191.61, 29.13, 2479, 28.58, 0.0038, -50208),
-        ("O2", 0.0, 0.0, 205.14, 29.32, 2479, 29.96, 0.0042, -167360),
+        (
+            d2.species[i], ustrip(u"kJ/mol", d2.dfG[i]), ustrip(u"kJ/mol", d2.dfH[i]),
+            ustrip(u"J/(mol*K)", d2.S[i]), ustrip(u"J/(mol*K)", d2.Cp[i]),
+            ustrip(u"J/bar", d2.V[i]), ustrip(u"J/(mol*K)", d2.a0[i]),
+            ustrip(u"J/(mol*K^2)", d2.a1[i]), ustrip(u"J*K/mol", d2.a2[i]),
+        ) for i in eachindex(d2.species)
     ]
 
     @testset "Table D.2: gaseous standard properties" begin
