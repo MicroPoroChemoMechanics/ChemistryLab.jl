@@ -1,5 +1,11 @@
 # [Chemistry that happens on a surface](@id sec-theory-surface)
 
+!!! info "Before this page"
+    [Standard states](@ref sec-theory-standard-states), [Solid solutions](@ref
+    sec-theory-solid-solutions) and [Oxidation state](@ref theory-redox): a site
+    balance is written like the charge row, and site mixing like a solid
+    solution.
+
 Most of this package treats a solid as a *bulk* phase: so many moles of calcite,
 with a composition and a chemical potential, and nothing about its shape. That
 is enough for dissolution and precipitation. It is not enough for the class of

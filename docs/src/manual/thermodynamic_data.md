@@ -1,5 +1,10 @@
 # [Thermodynamic Functions](@id sec-thermodynamics)
 
+!!! info "Before this page"
+    [Species](@ref sec-species) and [Database Interoperability](@ref
+    sec-databases); the quantities themselves are defined in [Apparent and
+    formation Gibbs energies](@ref sec-theory-apparent).
+
 ChemistryLab represents temperature-dependent thermodynamic properties (Cp°, ΔₐH°, S°, ΔₐG°, log K°, …) as **callable function objects** rather than plain numbers. This page explains the three concrete types — `SymbolicFunc`, `NumericFunc`, and `ThermoFactory` — and shows how to build, combine, and extend them.
 
 ---
@@ -131,7 +136,7 @@ The standard heat-capacity polynomial for crystalline and gas-phase species:
 Cp°(T) = a₀ + a₁T + a₂/T² + a₃/√T + a₄T² + a₅T³ + a₆T⁴ + a₇/T³ + a₈/T + a₉√T + a₁₀log(T)
 ```
 
-S°, ΔₐH°, and ΔₐG° are the analytical integrals, adjusted so that the reference-state values S°(Tᵣ), ΔₐH°(Tᵣ), ΔₐG°(Tᵣ) match the provided data.
+S°, ΔₐH°, and ΔₐG° are the analytical integrals, adjusted so that the reference-state values S°(Tᵣ), ΔₐH°(Tᵣ), ΔₐG°(Tᵣ) match the provided data. The parameters are therefore values of formation at Tᵣ, where the apparent and the traditional definitions coincide, whereas the functions returned are apparent quantities, the elements being held at Tᵣ; [Apparent and formation Gibbs energies](@ref sec-theory-apparent) explains the difference and why it cancels from every reaction.
 
 **Parameters** (all keyword arguments, in SI):
 
@@ -140,7 +145,7 @@ S°, ΔₐH°, and ΔₐG° are the analytical integrals, adjusted so that the r
 | `a₀` … `a₁₀` | see table below | Cp coefficients (unused ones set to 0) |
 | `S⁰` | J mol⁻¹ K⁻¹ | Entropy at reference T |
 | `ΔₐH⁰` | J mol⁻¹ | Enthalpy of formation at reference T |
-| `ΔₐG⁰` | J mol⁻¹ | Gibbs free energy of formation at reference T |
+| `ΔₐG⁰` | J mol⁻¹ | Gibbs energy of formation at reference T |
 | `T` | K | Reference temperature (usually 298.15 K) |
 
 Coefficient units:
@@ -395,3 +400,11 @@ f_piece(T = 600.0)
 | Register new model from Cp | `add_thermo_model(:mymodel, :(a + b*T))` |
 | Call with units | `f(T=400.0u"K", unit=true)` |
 | Arithmetic | `f1 + f2`, `2*f`, `-f` |
+
+## Where to go next
+
+The functions of this page are what a [`ChemicalSystem`](@ref) evaluates at the
+temperature of each state, which is the subject of
+[ChemicalSystem and ChemicalState](@ref sec-system-state). Their definitions,
+and the convention they follow away from the reference temperature, are in
+[Thermochemistry](@ref sec-theory-thermo).

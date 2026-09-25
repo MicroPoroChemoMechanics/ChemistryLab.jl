@@ -1,5 +1,10 @@
 # [Oxidation state, and the potential conjugate to it](@id theory-redox)
 
+!!! info "Before this page"
+    [Thermochemistry](@ref sec-theory-thermo) §4, where the conservation matrix
+    and its multipliers are introduced; the charge row treated there is the
+    model for the electron row treated here.
+
 A Portland cement can be modeled without ever mentioning oxidation states. Its
 sulfur is sulfate, its iron is ferric, and nothing in the paste changes either.
 A cement made with blast-furnace slag cannot: the slag brings sulfur as
@@ -180,3 +185,11 @@ Putting the pieces together, the reason this chapter exists:
 Point 4 is the honest limit of this chapter. The calculation is now able to pose
 the question; a kinetic description of sulfate reduction, which this package does
 not have, is what would answer it.
+
+## Where to go next
+
+The chapter continues with
+[Chemistry that happens on a surface](@ref sec-theory-surface), which adds a
+second conserved quantity that is not an element. The binder for which the
+oxidation state cannot be ignored is computed in
+[A blastfurnace cement, and the oxidation state it needs](@ref ex-cem3-slag).

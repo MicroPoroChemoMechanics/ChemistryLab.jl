@@ -1,5 +1,10 @@
 # [The water budget of a hydrating paste](@id sec-theory-water-budget)
 
+!!! info "Before this page"
+    [Thermochemistry](@ref sec-theory-thermo) §6, where volumes and porosity are
+    defined, and [Rate laws, and every parameter in them](@ref
+    sec-theory-kinetics).
+
 Mix one gram of cement with ``w/c`` grams of water, seal it, and wait. Some of
 the water ends up inside hydrate formulas, some stays in pores the hydrates
 leave behind, and the reaction stops well before the cement is gone. Powers'
