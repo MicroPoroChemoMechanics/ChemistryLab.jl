@@ -71,8 +71,9 @@ SLAG = OrderedDict(
 ALKALIS = OrderedDict("K2O" => 0.008, "Na2O" => 0.002)
 
 # The calcium sulfate ground in with every Portland clinker, as a mass fraction
-# of the binder. ASSUMED at a usual industrial level.
-GYPSUM = 0.046
+# of the binder. ASSUMED at a usual industrial level: the 4.6 % of the CEM I of
+# [Lavergne2018](@cite), Table 9.
+GYPSUM = literature_value("Lavergne2018", "gypsum_percent") / 100
 
 BINDER_G = 100.0
 
@@ -87,12 +88,19 @@ BINDER_G = 100.0
 # on the mix, which is why the two pastes here do not get the same number --
 # the limestone paste was mixed at w/b 0.45 and the slag paste at 0.40.
 #
-# The KINETIC ceiling, for the slag only: [Durdzinski2017](@cite), Table 4, a
+# The KINETIC ceiling, for the slag only: [Durdzinski2017](@cite), Table 5, a
 # ground granulated slag at 28 days by SEM image analysis, 38-49 % across two
 # slags and two laboratories, with a stated precision of "at best +/- 5 %".
-# ASSUMED at 45 %. The limestone needs none: calcite is a declared phase, and
-# the minimization dissolves exactly as much of it as is stable.
-ALPHA_SLAG_KINETIC = 0.45
+# ASSUMED at their mean, 45 %. The limestone needs none: calcite is a declared
+# phase, and the minimization dissolves exactly as much of it as is stable.
+# Degrees of reaction measured by SEM image analysis on sealed pastes, in
+# percent: [Durdzinski2017](@cite), Table 5, from data/literature/Durdzinski2017.json.
+sem(material, age) = literature_table(
+    "Durdzinski2017", "degree_of_reaction";
+    technique = "SEM-IA", material, curing = "sealed", age_days = age
+).degree_percent
+mean_percent(x) = sum(x) / length(x)
+ALPHA_SLAG_KINETIC = mean_percent([sem("S1", 28); sem("S2", 28)]) / 100
 reacted(wb) = (
     clinker = powers_alpha_max(wb),
     slag = min(ALPHA_SLAG_KINETIC, powers_alpha_max(wb)),

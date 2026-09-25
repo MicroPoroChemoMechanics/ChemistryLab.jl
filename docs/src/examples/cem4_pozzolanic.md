@@ -81,8 +81,10 @@ nothing # hide
     about does not depend on the exact analysis, while the assemblage does.
 
 ```@example cem4
-# ASSUMED: a Bogue composition representative of a CEM I clinker.
-CLINKER = OrderedDict("C3S" => 0.65, "C2S" => 0.11, "C3A" => 0.11, "C4AF" => 0.08)
+# ASSUMED: a Bogue composition representative of a CEM I clinker, here
+# the Bogue composition of the CEM I 52.5 N of [Lavergne2018](@cite), Table 9.
+bogue = literature_table("Lavergne2018", "cement_bogue")
+CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))
 
 # ASSUMED: a siliceous (class V) fly ash analysis of the kind European standards
 # admit — low calcium, high silica and alumina, and the alkalis that make the
@@ -106,7 +108,8 @@ ALKALIS = OrderedDict("K2O" => 0.008, "Na2O" => 0.002)
 # has to be added to the phase list before that is a question with an answer.
 ASH_FRACTION = 0.23
 ASH_FRACTION_B = 0.45
-GYPSUM = 0.046
+# The gypsum of the same cement, 4.6 % of the binder.
+GYPSUM = literature_value("Lavergne2018", "gypsum_percent") / 100
 WB = 0.50
 BINDER_G = 100.0
 
@@ -124,13 +127,18 @@ ALPHA_WATER = powers_alpha_max(WB)              # 1.0 at w/b = 0.50
 # the glassy fraction reacts at all -- the crystalline mullite and quartz do not
 # dissolve on any relevant time scale -- and the glass itself is slow. The RILEM
 # TC 238-SCM round robin [Durdzinski2017](@cite) measured a siliceous fly ash at
-# 30 % replacement and w/b 0.40 in seven laboratories; its Table 4 at 28 days
+# 30 % replacement and w/b 0.40 in seven laboratories; its Table 5 at 28 days
 # gives 20 % by SEM image analysis, the technique the study found most
 # consistent, with XRD-PONKCS between 19 % and 23 %. The study's verdict on the
 # precision of any of these: "at best +/- 5 %".
 #
 # ASSUMED from that table. Section 7 drives it to 1 and shows what changes.
-ALPHA_ASH = min(0.20, ALPHA_WATER)
+# Degrees of reaction measured by SEM image analysis on sealed pastes, in
+# percent: [Durdzinski2017](@cite), Table 5, from data/literature/Durdzinski2017.json.
+sem(material, age) = literature_table("Durdzinski2017", "degree_of_reaction";
+    technique = "SEM-IA", material, curing = "sealed", age_days = age).degree_percent
+mean_percent(x) = sum(x) / length(x)
+ALPHA_ASH = min(only(sem("SFA", 28)) / 100, ALPHA_WATER)
 ALPHA_CLINKER = ALPHA_WATER
 
 @printf("water ceiling at w/b = %.2f : %.3f\n", WB, ALPHA_WATER)

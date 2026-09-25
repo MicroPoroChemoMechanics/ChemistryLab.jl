@@ -243,12 +243,14 @@ const TSPAN = (0.0u"s", 28.0u"d")
 # 900 J/(kg·K). The paste's own `Σᵢ nᵢ Cp⁰ᵢ(T)` is added by the solver from the
 # database at every step, so counting the binder and the water here as well
 # would count them twice.
-# Quadratic losses (Lavergne et al. 2018)
+# Quadratic losses, the form of Lavergne et al. (2018), Eq. (23), with
+# illustrative coefficients: their calibrated device has a = 75 J/(h·K) and
+# b = 0.26 J/(h·K²) (data/literature/Lavergne2018.json).
 
 cal = SemiAdiabaticCalorimeter(;
     Cp = 900.0u"J/K",              # Dewar flask alone
     T_env = 293.15u"K",
-    heat_loss = ΔT -> 0.3 * ΔT + 0.003 * ΔT^2,
+    heat_loss = ΔT -> 0.3 * ΔT + 0.003 * ΔT^2,   # illustrative a, b in W/K and W/K²
     T0 = 293.15u"K",
 )
 

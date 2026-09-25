@@ -41,13 +41,14 @@ const N_INSTANTS = 40
 const TEND_DOC = 28 * 86400.0
 const TIMES_DOC = 10 .^ range(log10(0.05 * 86400), log10(TEND_DOC); length = N_INSTANTS)
 
-# The CEM I 52.5 N of Lavergne et al. (2018), Table 9.
-const DOC_CLINKER = (C3S = 0.65, C2S = 0.11, C3A = 0.11, C4AF = 0.08)
+# The CEM I 52.5 N of Lavergne et al. (2018), Table 9 (`IONIC_CEMENT`, read by
+# `ionic_hydration.jl` from data/literature/Lavergne2018.json).
+const DOC_CLINKER = IONIC_CEMENT.clinker
 
 # One entry per coupled case the documentation plots.
 const IONIC_CASES = Dict(
     "ionic_opc" => (
-        filler = 0.035,
+        filler = IONIC_CEMENT.filler,
         label = "CEM I with 3.5 % limestone filler",
     ),
     "ionic_nolimestone" => (
@@ -162,7 +163,7 @@ function _ionic_case(tag::AbstractString)
     return _cached("case:" * tag) do
         case = IONIC_CASES[tag]
         run = run_ionic_hydration(;
-            wb = 0.5, clinker = DOC_CLINKER, gypsum = 0.046,
+            wb = 0.5, clinker = DOC_CLINKER, gypsum = IONIC_CEMENT.gypsum,
             filler = case.filler, tend = TEND_DOC,
         )
 

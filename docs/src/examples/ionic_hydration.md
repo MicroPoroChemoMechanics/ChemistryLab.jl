@@ -70,11 +70,13 @@ Blaine 380 m²/kg, w/b = 0.50, one kilogram of binder so every extensive result 
 per kilogram.
 
 ```julia
-CLINKER = (C3S = 0.65, C2S = 0.11, C3A = 0.11, C4AF = 0.08)
+# Table 9 of Lavergne et al. (2018), read by scripts/ionic_hydration.jl from
+# data/literature/Lavergne2018.json
+IONIC_CEMENT.clinker    # (C3S = 0.65, C2S = 0.11, C3A = 0.11, C4AF = 0.08)
 TEND = 28 * 86400.0
 
 run_cal = run_ionic_hydration(;
-    wb = 0.5, clinker = CLINKER, gypsum = 0.046, filler = 0.035, tend = TEND,
+    wb = 0.5, IONIC_CEMENT.clinker, IONIC_CEMENT.gypsum, IONIC_CEMENT.filler, tend = TEND,
 )
 ```
 

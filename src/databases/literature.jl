@@ -182,20 +182,40 @@ literature_value(key::AbstractString, name::AbstractString) =
     value(literature(key)[name])
 
 """
-    literature_table(key, name) -> NamedTuple
+    literature_table(key, name; column = value, ...) -> NamedTuple
 
 The table `name` taken from the source `key`, as a `NamedTuple` of columns.
 Each column carries the unit the file declares for it, and a column declared
 without a unit holds text.
+
+Keywords keep the rows whose columns equal the values given, all of them, which
+is how a table in long format is read — one row per measurement, the conditions
+of each in its other columns:
+
+```julia
+literature_table("Durdzinski2017", "degree_of_reaction";
+                 technique = "SEM-IA", material = "S1", curing = "sealed", age_days = 28)
+```
+
+A keyword that names no column is an error rather than a filter that keeps
+nothing.
 """
-function literature_table(key::AbstractString, name::AbstractString)
+function literature_table(key::AbstractString, name::AbstractString; where...)
     r = literature(key)
     haskey(r.tables, name) || throw(
         KeyError(
             "$(r.key) has no table \"$name\"; it has: " * join(keys(r.tables), ", ")
         )
     )
-    return r.tables[name]
+    t = r.tables[name]
+    isempty(where) && return t
+    for c in keys(where)
+        haskey(t, c) || throw(
+            KeyError("$(r.key), table \"$name\", has no column \"$c\"; it has: " * join(keys(t), ", "))
+        )
+    end
+    keep = [all(t[c][i] == v for (c, v) in pairs(where)) for i in eachindex(first(t))]
+    return map(col -> col[keep], t)
 end
 
 """

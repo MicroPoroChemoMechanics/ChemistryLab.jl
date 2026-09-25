@@ -81,8 +81,11 @@ plot!(
 vspan!(fig, [gap[1], gap[2]]; color = :firebrick, alpha = 0.12, label = "spinodal")
 savefig(fig, "gap-energy.svg"); nothing # hide
 
-CLINKER = OrderedDict("C3S" => 0.65, "C2S" => 0.11, "C3A" => 0.11, "C4AF" => 0.08)
-GYPSUM = 0.046
+# The Bogue composition of the CEM I 52.5 N of [Lavergne2018](@cite), Table 9,
+# and its gypsum.
+bogue = literature_table("Lavergne2018", "cement_bogue")
+CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))
+GYPSUM = literature_value("Lavergne2018", "gypsum_percent") / 100
 WB = 0.5
 BINDER_G = 100.0
 

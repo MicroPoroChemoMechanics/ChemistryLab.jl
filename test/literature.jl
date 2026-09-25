@@ -38,6 +38,39 @@ using JSON
         @test ChemistryLab.POWERS_W_SEALED === literature_value("Powers1948", "w_c_sealed")
         @test powers_alpha_max(0.21) ≈ 0.5
         @test provenance(literature("Powers1948")["w_c_sealed"]) == PROV_PUBLISHED
+
+        # The cement of Lavergne et al. (2018), Table 9, as the scripts and the
+        # pages typed it: a percent read and divided is the literal it replaced.
+        bogue = literature_table("Lavergne2018", "cement_bogue")
+        @test bogue.phase == ["C3S", "C2S", "C3A", "C4AF"]
+        @test bogue.percent ./ 100 == [0.65, 0.11, 0.11, 0.08]
+        @test literature_value("Lavergne2018", "gypsum_percent") / 100 === 0.046
+        @test literature_value("Lavergne2018", "limestone_percent") / 100 === 0.035
+        @test ustrip(u"m^2/kg", literature_value("Lavergne2018", "blaine_cement")) == 380
+        c100 = literature_row("Lavergne2018", "semi_adiabatic_mixes_wb050", "C100")
+        @test (c100.binder, c100.dry_sand, c100.water) == (371, 1113, 196) .* u"g"
+        @test ustrip(u"W/K", literature_value("Lavergne2018", "heat_loss_a")) ≈ 75 / 3600
+        @test ustrip(u"W/K^2", literature_value("Lavergne2018", "heat_loss_b")) ≈ 0.26 / 3600
+        @test ustrip(u"kJ/K", literature_value("Lavergne2018", "calorimeter_heat_capacity")) == 380
+
+        # The degrees of reaction of the blended-cement pages: the mean of the
+        # four slag values at 28 days is the 45 % they used, exactly.
+        sem(m, a) = literature_table(
+            "Durdzinski2017", "degree_of_reaction";
+            technique = "SEM-IA", material = m, curing = "sealed", age_days = a,
+        ).degree_percent
+        slag28 = [sem("S1", 28); sem("S2", 28)]
+        @test sort(slag28) == [38, 45, 48, 49]
+        @test sum(slag28) / length(slag28) / 100 === 0.45
+        @test only(sem("SFA", 28)) / 100 === 0.2
+
+        # Thermoddem's calcite: its polynomial returns the heat capacity the same
+        # page tabulates, which is what the from_scratch example relies on.
+        cal = literature_row("Blanc2012", "individual_properties", "Calcite")
+        mk = literature_row("Blanc2012", "maier_kelley", "Calcite")
+        T = 298.15u"K"
+        @test mk.a + mk.b * T + mk.c / T^2 ≈ cal.Cp rtol = 1.0e-4
+        @test ustrip(u"J/mol", cal.dfG) == -1129109
     end
 
     @testset "a record is read from its file on first use, then cached" begin
@@ -57,6 +90,23 @@ using JSON
         @test co.mix == "CO"
         @test co.a === t.a[i] && co.b === t.b[i]
         @test_throws KeyError literature_row("BaroghelBouny1999", "retention_fit", "no such mix")
+    end
+
+    @testset "a table in long format is read by its columns" begin
+        t = literature_table("Durdzinski2017", "degree_of_reaction")
+        s1 = literature_table(
+            "Durdzinski2017", "degree_of_reaction";
+            technique = "SEM-IA", material = "S1", curing = "sealed", age_days = 28,
+        )
+        @test s1.lab == ["B", "E"] && s1.degree_percent == [48.0, 38.0]
+        @test length(s1) == length(t)
+        # A number compares with the column whatever its type, and nothing kept
+        # is still a table, with its columns.
+        @test literature_table("Durdzinski2017", "degree_of_reaction"; age_days = 7.0).age_days ==
+            fill(7.0, count(==(7), t.age_days))
+        none = literature_table("Durdzinski2017", "degree_of_reaction"; lab = "Z")
+        @test keys(none) == keys(t) && all(isempty, none)
+        @test_throws KeyError literature_table("Durdzinski2017", "degree_of_reaction"; no_such_column = 1)
     end
 
     @testset "the rate-law constants are the ones their sources give" begin

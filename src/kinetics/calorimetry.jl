@@ -188,8 +188,9 @@ where:
 # Linear heat loss — Newton cooling
 cal = SemiAdiabaticCalorimeter(; Cp=4000.0u"J/K", T_env=293.15u"K", L=0.5u"W/K", T0=293.15u"K")
 
-# Quadratic heat loss (Lavergne et al. 2018). `Cp` is the vessel alone;
-# the paste's own heat capacity is added by the solver from the database.
+# Quadratic heat loss, the form of Lavergne et al. (2018), Eq. (23), with
+# illustrative coefficients. `Cp` is the vessel alone; the paste's own heat
+# capacity is added by the solver from the database.
 cal = SemiAdiabaticCalorimeter(;
     Cp        = 900.0u"J/K",
     T_env     = 293.15u"K",
