@@ -34,9 +34,12 @@ nothing # hide
 ## 1. The datasheet, and the Bogue conversion
 
 The input is what a cement works publishes: an oxide analysis, in grams per
-hundred grams. Nothing else about the cement is assumed.
+hundred grams. Nothing else about the cement is assumed. The analysis below is
+a representative CEM I; where it was first taken from is not recorded, so it
+stands for a class of cement rather than for a product.
 
 ```@example ss
+# A representative CEM I analysis, g per 100 g; its source is not recorded.
 oxides = OrderedDict(
     "CaO" => 65.03, "SiO2" => 21.4, "Al2O3" => 3.84, "Fe2O3" => 4.49,
     "MgO" => 1.0, "K2O" => 0.46, "Na2O" => 0.13, "SO3" => 2.3, "CO2" => 0.0,
@@ -224,7 +227,14 @@ b = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
 # The activity model of a cement pore solution: CEMDATA18 carries no ion-size
 # parameter, so the Debye-Hückel limiting law with the non-ideality in the B-dot
 # term and none of it on the neutral species.
-model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+using JSON
+# The B-dot is GEM-Selektor's, identified from the activity coefficients it
+# printed on a CEMDATA18 Portland paste (test/reference/gems_cemdata18_portland.json):
+# the two lowest charge classes fix the limiting-law slope and the B-dot, about 0.0976.
+gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
+lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
+Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
+model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
 eq, cert = equilibrate_certified(state; model = model, b = b)
 
 @printf("certificate: optimal=%s  worst supersaturation=%.3e  balance=%.1e\n",

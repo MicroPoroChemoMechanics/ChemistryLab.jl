@@ -40,8 +40,9 @@ println("Chemical system: $(length(cs.species)) species")
 
 ## 2. Initial state
 
-Typical CEM I 52.5 R composition from [Lavergne2018](@cite). We work with 1 kg
-of cement at water/cement ratio ``w/c = 0.4``.
+An assumed CEM I clinker composition, typical of the class but not taken from a
+published analysis. We work with 1 kg of cement at water/cement ratio
+``w/c = 0.4``.
 
 ```@example clinker
 const WC = 0.4
@@ -126,7 +127,10 @@ The semi-adiabatic calorimeter [Lavergne2018](@cite) solves
 \frac{dT}{dt} = \frac{\dot{q}(t) - \varphi(\Delta T)}{C_p^{\text{total}}}
 ```
 where ``\varphi(\Delta T) = a \, \Delta T + b \, \Delta T^2`` models quadratic
-heat losses and ``C_p^{\text{total}} = C_p + \sum_i n_i C_{p,i}^0(T)``.
+heat losses and ``C_p^{\text{total}} = C_p + \sum_i n_i C_{p,i}^0(T)``. The
+coefficients ``a`` and ``b`` below are illustrative: the device of
+[Lavergne2018](@cite), calibrated to NF EN 196-9, has ``a = 75`` J/(h·K) and
+``b = 0.26`` J/(h·K²), which [the pore-solution page](@ref ex-ionic-opc) uses.
 
 Since the second term is recomputed from the database at every step, the `Cp`
 field must carry the **fixed part only** — here the flask. This page used to add
@@ -137,7 +141,7 @@ understating ``\Delta T`` by a factor of about 1.75.
 cal = SemiAdiabaticCalorimeter(;
     Cp        = 900.0u"J/K",            # flask alone; the sample is added by the model
     T_env     = 293.15u"K",
-    heat_loss = ΔT -> 0.3 * ΔT + 0.003 * ΔT^2,
+    heat_loss = ΔT -> 0.3 * ΔT + 0.003 * ΔT^2,   # illustrative a, b in W/K and W/K²
     T0        = 293.15u"K",
 )
 

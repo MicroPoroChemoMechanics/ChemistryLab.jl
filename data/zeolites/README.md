@@ -30,10 +30,12 @@ produced CEMDATA18 itself:
 Both DOIs were resolved against the Crossref REST API; the titles, authors,
 journal, volumes, pages and years above are as Crossref returns them.
 
-**Every number in `zeolite_data.jl` is copied from the published table.** None is
-estimated, interpolated, averaged or adjusted. The `origin` field records the
-paper's own footnote for `S⁰` and `Cp⁰` — `:measured`, `:additivity` or
-`:literature` — and is metadata that no calculation reads.
+**The published values are in `data/literature/MaLothenbach2020.json` and
+`MaLothenbach2021.json`, each copied from its table** (Table 6 and Table 5); the
+generator reads them from there. None is estimated, interpolated, averaged or
+adjusted. The `S_Cp_origin` column records the paper's own footnote for `S⁰` and
+`Cp⁰` — `measured`, `additivity` or `literature` — and is metadata that no
+calculation reads.
 
 ### Sources that were examined and rejected
 

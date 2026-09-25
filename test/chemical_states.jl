@@ -1,3 +1,5 @@
+using JSON
+
 @testsection "ChemicalState" begin
     # ── Shared fixtures ──────────────────────────────────────────────────────
     h2o = Species("H2O"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
@@ -204,7 +206,6 @@
             :(G0 + a * T); G0 = -237000.0, a = -70.0,
             units = [:T => "K", :G0 => "J/mol", :a => "J/(mol*K)"]
         )
-        h2o_ad[:M] = 0.018u"kg/mol"
         h2o_ad[:V⁰] = SymbolicFunc(1.8e-5u"m^3/mol")
 
         hp_ad = Species("H+"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
@@ -212,7 +213,6 @@
             :(G0 + b * T); G0 = 0.0, b = 0.0,
             units = [:T => "K", :G0 => "J/mol", :b => "J/(mol*K)"]
         )
-        hp_ad[:M] = 0.001u"kg/mol"
 
         cs_ad = ChemicalSystem([h2o_ad, hp_ad])
         state_ad = ChemicalState(cs_ad; T = 298.15u"K", P = 1.0e5u"Pa")
@@ -265,8 +265,14 @@ end
     # so the sum is not just the two set by hand.
     @test H ≈ sum(ustrip(us"J", enthalpy(st, nm)) for nm in symbol.(cs.species)) rtol = 1.0e-12
     @test H ≈ H_w + H_p rtol = 1.0e-6
-    @test H_w / 55.5 ≈ -285_830 rtol = 5.0e-3      # liquid water
-    @test H_p ≈ -984_675 rtol = 5.0e-3             # portlandite
+    # The values CEMDATA18 tabulates, read from the file itself.
+    tabulated = Dict(
+        s["symbol"] => float(only(s["sm_enthalpy"]["values"]))
+            for s in JSON.parsefile(datapath("cemdata18-thermofun.json"))["substances"]
+            if s["symbol"] in ("H2O@", "Portlandite")
+    )
+    @test H_w / 55.5 ≈ tabulated["H2O@"] rtol = 1.0e-6         # liquid water
+    @test H_p ≈ tabulated["Portlandite"] rtol = 1.0e-6         # portlandite
 
     C = ustrip(us"J/K", heat_capacity(st))
     @test C ≈ sum(ustrip(us"J/K", heat_capacity(st, nm)) for nm in symbol.(cs.species)) rtol = 1.0e-12

@@ -8,6 +8,17 @@
   doi     = {10.1515/pac-2016-1107},
 }
 
+@article{Kettler1992,
+  author  = {Kettler, Richard M. and Wesolowski, David J. and Palmer, Donald A.},
+  title   = {Dissociation quotients of malonic acid in aqueous sodium chloride media to 100 °C},
+  journal = {Journal of Solution Chemistry},
+  volume  = {21},
+  number  = {8},
+  pages   = {883--900},
+  year    = {1992},
+  doi     = {10.1007/BF00651513},
+}
+
 @techreport{PalandriKharaka2004,
   author      = {Palandri, James L. and Kharaka, Yousif K.},
   title       = {A compilation of rate parameters of water-mineral interaction kinetics for application to geochemical modeling},
@@ -15,6 +26,7 @@
   type        = {Open-File Report},
   number      = {2004-1068},
   year        = {2004},
+  doi         = {10.3133/ofr20041068},
 }
 
 % The surname is Parrott, with two t's — a large part of the cement literature,
@@ -224,6 +236,46 @@
   doi     = {10.1016/j.cemconres.2007.08.017},
 }
 
+% Resolved on Crossref (doi:10.1617/s11527-010-9592-x): author, title, journal,
+% volume, issue and pages as registered there. Received in 2008, published in
+% 2010; not Lothenbach2008 above. Its Table 1 is a Cemdata07 compilation of
+% solubility products, and prints no Gibbs energies and no molar volumes.
+@article{Lothenbach2010,
+  author  = {Lothenbach, Barbara},
+  title   = {Thermodynamic equilibrium calculations in cementitious systems},
+  journal = {Materials and Structures},
+  volume  = {43},
+  number  = {10},
+  pages   = {1413--1433},
+  year    = {2010},
+  doi     = {10.1617/s11527-010-9592-x},
+}
+
+% Resolved on Crossref (doi:10.1016/S0008-8846(99)00187-8 and
+% doi:10.1016/S0008-8846(02)00753-6): authors, titles, journal, volumes, issues
+% and pages as registered there.
+@article{HongGlasser1999,
+  author  = {Hong, Sung-Yoon and Glasser, F. P.},
+  title   = {Alkali binding in cement pastes: {Part I}. {The C-S-H} phase},
+  journal = {Cement and Concrete Research},
+  volume  = {29},
+  number  = {12},
+  pages   = {1893--1903},
+  year    = {1999},
+  doi     = {10.1016/S0008-8846(99)00187-8},
+}
+
+@article{HongGlasser2002,
+  author  = {Hong, Sung-Yoon and Glasser, F. P.},
+  title   = {Alkali sorption by {C-S-H} and {C-A-S-H} gels: {Part II}. {Role} of alumina},
+  journal = {Cement and Concrete Research},
+  volume  = {32},
+  number  = {7},
+  pages   = {1101--1111},
+  year    = {2002},
+  doi     = {10.1016/S0008-8846(02)00753-6},
+}
+
 % ── Activity models ─────────────────────────────────────────────────────────
 % Every DOI below was resolved against the Crossref REST API; the metadata
 % (title, authors, container, volume, pages, year) is as Crossref returns it.
@@ -307,6 +359,69 @@
   number      = {2131},
   year        = {1995},
   doi         = {10.3133/b2131},
+}
+
+% No DOI: a release of the association, distributed on its website
+% (iapws.org/technical-guidance/release/Surf-H2O). Title, number, place and date
+% are those of its cover page. The author is the association, written as its
+% acronym: DocumenterCitations splits an author field on "and" even inside
+% braces, so the full name, "... Water and Steam", cannot stand there. The
+% constants B, b and mu go back to the release
+% of 1976, whose tables Vargaftik, Volkov and Voljak published as
+% doi:10.1063/1.555688 (resolved on Crossref); this revision refers T_c to
+% ITS-90.
+@techreport{IAPWS2014,
+  author      = {IAPWS},
+  title       = {Revised Release on Surface Tension of Ordinary Water Substance},
+  institution = {International Association for the Properties of Water and Steam},
+  type        = {Release},
+  number      = {IAPWS R1-76(2014)},
+  address     = {Moscow, Russia},
+  year        = {2014},
+  url         = {https://iapws.org/technical-guidance/release/Surf-H2O},
+}
+
+% Resolved on Crossref (doi:10.1016/0016-7037(82)90056-4): authors, title,
+% journal, volume, issue and pages as registered there. The source of the
+% accepted log K of calcite at 25 C, -8.480, which its abstract states.
+@article{PlummerBusenberg1982,
+  author  = {Plummer, L. Niel and Busenberg, Eurybiades},
+  title   = {The solubilities of calcite, aragonite and vaterite in {CO2-H2O} solutions between 0 and 90 °C, and an evaluation of the aqueous model for the system {CaCO3-CO2-H2O}},
+  journal = {Geochimica et Cosmochimica Acta},
+  volume  = {46},
+  number  = {6},
+  pages   = {1011--1040},
+  year    = {1982},
+  doi     = {10.1016/0016-7037(82)90056-4},
+}
+
+% Resolved on Crossref (doi:10.1016/j.apgeochem.2012.06.002): authors, title,
+% journal, volume, issue and pages as registered there.
+%
+% The reference publication of the Thermoddem database. The properties the
+% `from_scratch` example builds calcite, Ca2+ and CO3-2 from are those the
+% database's website displays for them, captured in `docs/src/assets/`.
+@article{Blanc2012,
+  author  = {Blanc, Ph. and Lassin, A. and Piantone, P. and Azaroual, M. and Jacquemet, N. and Fabbri, A. and Gaucher, E. C.},
+  title   = {Thermoddem: A geochemical database focused on low temperature water/rock interactions and waste materials},
+  journal = {Applied Geochemistry},
+  volume  = {27},
+  number  = {10},
+  pages   = {2107--2116},
+  year    = {2012},
+  doi     = {10.1016/j.apgeochem.2012.06.002},
+}
+
+% No DOI: a draft report of the laboratory, distributed on its website. Authors,
+% title, number and date are those of its title page.
+@techreport{Xu2012,
+  author      = {Xu, Tianfu and Spycher, Nicolas and Sonnenthal, Eric and Zheng, Liange and Pruess, Karsten},
+  title       = {{TOUGHREACT} User's Guide: A Simulation Program for Non-isothermal Multiphase Reactive Transport in Variably Saturated Geologic Media, Version 2.0},
+  institution = {Lawrence Berkeley National Laboratory},
+  number      = {LBNL-DRAFT},
+  year        = {2012},
+  note        = {Draft, October 2012},
+  url         = {https://tough.lbl.gov/assets/docs/TOUGHREACT_V2_Users_Guide.pdf},
 }
 
 @article{Xu2011,
@@ -601,4 +716,112 @@
   address   = {New York},
   year      = {1990},
   isbn      = {9780471637318},
+}
+
+@article{Atkins1992,
+  author  = {Atkins, M. and Bennett, D. G. and Dawes, A. C. and Glasser, F. P. and Kindness, A. and Read, D.},
+  title   = {A thermodynamic model for blended cements},
+  journal = {Cement and Concrete Research},
+  volume  = {22},
+  number  = {2--3},
+  pages   = {497--502},
+  year    = {1992},
+  doi     = {10.1016/0008-8846(92)90093-B},
+}
+
+@article{Nied2016,
+  author  = {Nied, David and Enemark-Rasmussen, Kasper and L'H{\^o}pital, El{\'e}onore and Skibsted, J{\o}rgen and Lothenbach, Barbara},
+  title   = {Properties of magnesium silicate hydrates ({M-S-H})},
+  journal = {Cement and Concrete Research},
+  volume  = {79},
+  pages   = {323--332},
+  year    = {2016},
+  doi     = {10.1016/j.cemconres.2015.10.003},
+}
+
+@article{Kulik2021,
+  author  = {Kulik, Dmitrii A. and Winnefeld, Frank and Kulik, Anton and Miron, George Dan and Lothenbach, Barbara},
+  title   = {{CemGEMS} -- an easy-to-use web application for thermodynamic modeling of cementitious materials},
+  journal = {RILEM Technical Letters},
+  volume  = {6},
+  pages   = {36--52},
+  year    = {2021},
+  doi     = {10.21809/rilemtechlett.2021.140},
+}
+
+% Resolved on Crossref (doi:10.1016/j.cemconres.2009.01.006): authors, title,
+% journal, volume, issue and pages as registered there.
+@article{Elakneswaran2009,
+  author  = {Elakneswaran, Y. and Nawa, T. and Kurumisawa, K.},
+  title   = {Electrokinetic potential of hydrated cement in relation to adsorption of chlorides},
+  journal = {Cement and Concrete Research},
+  volume  = {39},
+  number  = {4},
+  pages   = {340--344},
+  year    = {2009},
+  doi     = {10.1016/j.cemconres.2009.01.006},
+}
+
+% Resolved on Crossref (doi:10.1021/es0629256): authors, title, journal,
+% volume, issue and pages as registered there. Its supporting information
+% describes the SURFACE -donnan option it added to PHREEQC, which DonnanLayer
+% reproduces.
+@article{AppeloWersin2007,
+  author  = {Appelo, C. Anthony J. and Wersin, Paul},
+  title   = {Multicomponent diffusion modeling in clay systems with application to the diffusion of tritium, iodide, and sodium in {Opalinus} {Clay}},
+  journal = {Environmental Science \& Technology},
+  volume  = {41},
+  number  = {14},
+  pages   = {5002--5007},
+  year    = {2007},
+  doi     = {10.1021/es0629256},
+}
+
+% Resolved on Crossref (doi:10.1016/j.jcis.2006.03.018): authors, title,
+% journal, volume, issue and pages as registered there.
+@article{Pointeau2006,
+  author  = {Pointeau, Ingmar and Reiller, Pascal and Mac{\'e}, Nathalie and Landesman, Catherine and Coreau, Nathalie},
+  title   = {Measurement and modeling of the surface potential evolution of hydrated cement pastes as a function of degradation},
+  journal = {Journal of Colloid and Interface Science},
+  volume  = {300},
+  number  = {1},
+  pages   = {33--44},
+  year    = {2006},
+  doi     = {10.1016/j.jcis.2006.03.018},
+}
+
+% Resolved on Crossref (doi:10.1016/j.cemconres.2010.08.019): authors, title,
+% journal, volume, issue and pages as registered there. The source of the
+% surface reactions of Guo2018's Table 1: its Eq. (13) is their chloride row,
+% with the same -0.35, and its Eqs. (15)-(16) are their sodium and potassium rows.
+@article{Elakneswaran2010,
+  author  = {Elakneswaran, Y. and Iwasa, A. and Nawa, T. and Sato, T. and Kurumisawa, K.},
+  title   = {Ion-cement hydrate interactions govern multi-ionic transport model for cementitious materials},
+  journal = {Cement and Concrete Research},
+  volume  = {40},
+  number  = {12},
+  pages   = {1756--1765},
+  year    = {2010},
+  doi     = {10.1016/j.cemconres.2010.08.019},
+}
+
+@article{Guo2018,
+  author  = {Guo, Bingbing and Hong, Yi and Qiao, Guofu and Ou, Jinping and Li, Zuohua},
+  title   = {Thermodynamic modeling of the essential physicochemical interactions between the pore solution and the cement hydrates in chloride-contaminated cement-based materials},
+  journal = {Journal of Colloid and Interface Science},
+  volume  = {531},
+  pages   = {56--63},
+  year    = {2018},
+  doi     = {10.1016/j.jcis.2018.07.005},
+}
+
+@article{Duan2016,
+  author  = {Duan, Yiping and Feng, Mingshi and Zhong, Xinyan and Shang, Ruishu and Huang, Lihong},
+  title   = {Thermodynamic simulation of carbonate cements-water-carbon dioxide equilibrium in sandstone for prediction of precipitation/dissolution of carbonate cements},
+  journal = {PLoS ONE},
+  volume  = {11},
+  number  = {12},
+  pages   = {e0167035},
+  year    = {2016},
+  doi     = {10.1371/journal.pone.0167035},
 }

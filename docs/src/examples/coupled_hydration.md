@@ -117,13 +117,17 @@ end # hide
 @printf "%d accepted steps, retcode = %s\n" length(sol.t) sol.retcode
 ```
 
+```@raw html
 <details><summary>What the solvers reported during the integration</summary>
+```
 
 ```@example coupled
 print(String(take!(diagnostics))) # hide
 ```
 
+```@raw html
 </details>
+```
 
 ## 5. Reading the result
 
@@ -147,13 +151,17 @@ for (t, st) in zip(times, states)
 end
 ```
 
+```@raw html
 <details><summary>What the solvers reported during the replay</summary>
+```
 
 ```@example coupled
 print(String(take!(diagnostics))) # hide
 ```
 
+```@raw html
 </details>
+```
 
 Check the partition constraint — conservation of matter is one of the three
 conditions a certificate rests on, and the one with an immediate meaning:

@@ -193,25 +193,29 @@ convention, its reference term being ``\Delta_f G_i^\circ(T_r,P_r)`` and its
 other terms depending on the species alone, so that a solute and a mineral enter
 one reaction without any conversion.
 
-For a heat capacity linear in temperature, ``C_p^\circ = a_0 + a_1 T``, both
-integrals are elementary, and the closed form can be set against the function
-the package builds from the same data. With the parameters of gaseous CO₂ used
-in [Thermodynamic Functions](@ref sec-thermodynamics), at 500 K:
+For the Maier-Kelley heat capacity, ``C_p^\circ = a_0 + a_1 T + a_2 T^{-2}``,
+both integrals are elementary, and the closed form can be set against the
+function the package builds from the same data. With the parameters of calcite
+used in [Thermodynamic Functions](@ref sec-thermodynamics), at 500 K:
 
 ```@example thermo
 using DynamicQuantities
 Tr, T = 298.15, 500.0
-ΔfG, S, a₀, a₁ = -394373.0, 213.785, 33.98, 23.88e-3
+# Thermoddem's calcite, as transcribed in data/literature/Blanc2012.json (SI units)
+cal = literature_row("Blanc2012", "individual_properties", "Calcite")
+mk = literature_row("Blanc2012", "maier_kelley", "Calcite")
+ΔfG, S = ustrip(cal.dfG), ustrip(cal.S)
+a₀, a₁, a₂ = ustrip(mk.a), ustrip(mk.b), ustrip(mk.c)
 
-∫Cp = a₀ * (T - Tr) + a₁ / 2 * (T^2 - Tr^2)         # ∫ Cp dT
-∫Cp_T = a₀ * log(T / Tr) + a₁ * (T - Tr)            # ∫ Cp/T dT
+∫Cp = a₀ * (T - Tr) + a₁ / 2 * (T^2 - Tr^2) - a₂ * (1 / T - 1 / Tr)        # ∫ Cp dT
+∫Cp_T = a₀ * log(T / Tr) + a₁ * (T - Tr) - a₂ / 2 * (1 / T^2 - 1 / Tr^2)   # ∫ Cp/T dT
 closed_form = ΔfG - S * (T - Tr) + ∫Cp - T * ∫Cp_T
 
 dtf = build_thermo_functions(
     :cp_ft_equation,
     Dict(
-        :S⁰ => S * u"J/K/mol", :ΔₐH⁰ => -393510.0u"J/mol", :ΔₐG⁰ => ΔfG * u"J/mol",
-        :a₀ => a₀ * u"J/K/mol", :a₁ => a₁ * u"J/(mol*K^2)", :T => Tr * u"K",
+        :S⁰ => cal.S, :ΔₐH⁰ => cal.dfH, :ΔₐG⁰ => cal.dfG,
+        :a₀ => mk.a, :a₁ => mk.b, :a₂ => mk.c, :T => Tr * u"K",
     ),
 )
 (code = dtf[:ΔₐG⁰](T = T), closed_form = closed_form)

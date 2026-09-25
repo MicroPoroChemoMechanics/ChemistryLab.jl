@@ -10,7 +10,7 @@
 #
 # CEMDATA18 is copied through **verbatim**: all 228 substances, the reactions,
 # the elements, byte-for-byte the values ChemistryLab already ships. Nothing is
-# recalibrated, nothing is overwritten. The 28 zeolites of `zeolite_data.jl` are
+# recalibrated, nothing is overwritten. The 28 zeolites of Ma & Lothenbach are
 # appended under new symbols, so `natrolite` and `NAT-Na` coexist and a caller
 # chooses; `README.md` in this directory records why their `ΔfG⁰` differ.
 #
@@ -36,9 +36,60 @@ const HERE = @__DIR__
 const SRC = joinpath(pkgdir(ChemistryLab), "data", "cemdata18-thermofun.json")
 const OUT = joinpath(pkgdir(ChemistryLab), "data", "cemdata18-zeolites.json")
 
-include(joinpath(HERE, "zeolite_data.jl"))
+# ── the published values ─────────────────────────────────────────────────────
+#
+# Transcribed from the two articles into data/literature/MaLothenbach2020.json
+# (Na series, Table 6) and MaLothenbach2021.json (K series, Table 5). They are
+# read here as the numbers the files hold, not through `literature_table`, whose
+# conversion to SI units would take every emitted value through a unit factor
+# and back, and could move a last digit of the vendored database.
 
-const R = 8.31446261815324          # J/(mol·K), CODATA
+"One zeolite as published: energies in kJ/mol, S⁰/Cp⁰ in J/(mol·K), V⁰ in cm³/mol."
+struct ZeoliteRecord
+    symbol::String
+    name::String
+    formula::String          # ThermoFun formula syntax
+    logKsp::Float64
+    logKsp_err::Float64
+    ΔfG⁰::Float64
+    ΔfH⁰::Float64
+    S⁰::Float64
+    Cp⁰::Float64
+    V⁰::Float64
+    products::Dict{String, Float64}   # aqueous products of congruent dissolution
+    doi::String
+    origin::Symbol                    # the article's footnote on S⁰ and Cp⁰
+end
+
+function read_zeolites(key::AbstractString)
+    d = JSON.parsefile(
+        joinpath(pkgdir(ChemistryLab), "data", "literature", key * ".json");
+        dicttype = Dict{String, Any},
+    )
+    t = d["tables"]["zeolites"]
+    c = Dict(name => i for (i, name) in enumerate(t["columns"]))
+    products = Dict{String, Dict{String, Float64}}()
+    for (sym, sp, ν) in d["tables"]["dissolution_products"]["rows"]
+        get!(products, sym, Dict{String, Float64}())[sp] = Float64(ν)
+    end
+    num(r, name) = Float64(r[c[name]])
+    return [
+        ZeoliteRecord(
+            r[c["symbol"]], r[c["name"]], r[c["formula"]],
+            num(r, "log_Ksp"), num(r, "log_Ksp_error"), num(r, "dfG"), num(r, "dfH"),
+            num(r, "S"), num(r, "Cp"), num(r, "V"),
+            products[r[c["symbol"]]], d["source"]["doi"], Symbol(r[c["S_Cp_origin"]]),
+        ) for r in t["rows"]
+    ]
+end
+
+const ZEOLITES_NA = read_zeolites("MaLothenbach2020")
+const ZEOLITES_K = read_zeolites("MaLothenbach2021")
+const ZEOLITES = vcat(ZEOLITES_NA, ZEOLITES_K)
+const DOI_NA = first(ZEOLITES_NA).doi
+const DOI_K = first(ZEOLITES_K).doi
+
+const R = ChemistryLab.R_GAS        # J/(mol·K), from the package, CODATA 2018
 const T₀ = 298.15                   # K
 const RTln10 = R * T₀ * log(10)     # J/mol
 const LOGK_TOL = 0.05               # log units

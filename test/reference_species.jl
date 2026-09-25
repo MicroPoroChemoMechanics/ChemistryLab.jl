@@ -97,6 +97,21 @@ function reference_oracle(name::AbstractString)
     return _as_namedtuple(JSON.parsefile(path; dicttype = Dict{String, Any}))
 end
 
+"""
+    gems_bdot() -> Float64
+
+The B-dot a GEM-Selektor run of a CEMDATA18 Portland cement implies, identified
+from the activity coefficients it printed for |z| = 1 and 2 at its ionic
+strength (fixture `gems_cemdata18_portland`), the limiting-law slope taken from
+the same two: about 0.0976. `test/aqueous_properties.jl` checks that it
+predicts the coefficient of |z| = 3.
+"""
+function gems_bdot()
+    g = reference_oracle("gems_cemdata18_portland")
+    D = (log10(g.gamma.z1) - log10(g.gamma.z2)) / 3
+    return (log10(g.gamma.z1) + D) / g.ionic_strength_mol_per_kg
+end
+
 _as_namedtuple(x::AbstractDict) =
     (; (Symbol(k) => _as_namedtuple(v) for (k, v) in x)...)
 _as_namedtuple(x::AbstractVector) = [_as_namedtuple(v) for v in x]

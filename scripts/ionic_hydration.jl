@@ -35,6 +35,26 @@ using Printf
 
 const IONIC_CEMDATA = datapath("cemdata18-thermofun.json")
 
+"""
+    IONIC_CEMENT
+
+The CEM I 52.5 N of Lavergne et al. (2018), Table 9, read from
+`data/literature/Lavergne2018.json`: the Bogue composition of its clinker as mass
+fractions of clinker (`clinker`), its gypsum and its limestone as mass fractions
+of binder (`gypsum`, `filler`), and its Blaine fineness (`blaine`). The keyword
+defaults of [`run_ionic_hydration`](@ref) are these, so the pages that run this
+cement and the calibration read it from one place.
+"""
+const IONIC_CEMENT = let bogue = literature_table("Lavergne2018", "cement_bogue")
+    fraction(q) = literature_value("Lavergne2018", q) / 100
+    (
+        clinker = NamedTuple{Tuple(Symbol.(bogue.phase))}(Tuple(bogue.percent ./ 100)),
+        gypsum = fraction("gypsum_percent"),
+        filler = fraction("limestone_percent"),
+        blaine = literature_value("Lavergne2018", "blaine_cement"),
+    )
+end
+
 # Four systems. `:opc` is the model; the three smaller ones are the ladder that
 # was used to isolate what made it hard, and they are kept because reproducing an
 # intermediate is the fastest way to localize a regression.
@@ -346,9 +366,9 @@ I ≈ 0.1–0.7 mol/kg, where a dilute model is not defensible.
 """
 function run_ionic_hydration(;
         wb = 0.5,
-        clinker = (C3S = 0.65, C2S = 0.11, C3A = 0.11, C4AF = 0.08),
-        gypsum = 0.046, filler = 0.035,
-        blaine = 380.0u"m^2/kg", tend = 28 * 86400.0,
+        clinker = IONIC_CEMENT.clinker,
+        gypsum = IONIC_CEMENT.gypsum, filler = IONIC_CEMENT.filler,
+        blaine = IONIC_CEMENT.blaine, tend = 28 * 86400.0,
         reltol = 1.0e-7, abstol = 1.0e-10,
         system::Symbol = IONIC_DEFAULT_SYSTEM,
         binder_mass = 1.0u"kg",
@@ -406,22 +426,25 @@ _calorimeter_T0(cal::SemiAdiabaticCalorimeter) = cal.T0
     CALORIMETRY_MIX_C100
 
 Mix proportions of the plain-cement semi-adiabatic test of Lavergne et al.
-(2018), Table 11, at w/b = 0.5: 371 g of binder, 1113 g of dry sand, 196 g of
-water. The sand is there to keep the temperature rise moderate, as NF EN 196-9
-prescribes; it takes no part in the chemistry and enters only through its heat
-capacity.
+(2018), Table 11, at w/b = 0.5, read from `data/literature/Lavergne2018.json`:
+371 g of binder, 1113 g of dry sand, 196 g of water. The sand is there to keep
+the temperature rise moderate, as NF EN 196-9 prescribes; it takes no part in the
+chemistry and enters only through its heat capacity.
 """
-const CALORIMETRY_MIX_C100 = (binder = 0.371u"kg", sand = 1.113u"kg", water = 0.196u"kg")
+const CALORIMETRY_MIX_C100 = let m = literature_row("Lavergne2018", "semi_adiabatic_mixes_wb050", "C100")
+    (binder = m.binder, sand = m.dry_sand, water = m.water)
+end
 
 """
     CALORIMETRY_LOSS_A, CALORIMETRY_LOSS_B
 
 Calibration of the calorimeter's heat loss, Lavergne et al. (2018) Eq. (23):
 `φ(ΔT) = a ΔT + b ΔT²`, with `a = 75 J/(h·K)` and `b = 0.260 J/(h·K²)` from the
-NF EN 196-9 calibration. Converted here to watts.
+NF EN 196-9 calibration (p. 51), read from `data/literature/Lavergne2018.json`
+and converted here to watts.
 """
-const CALORIMETRY_LOSS_A = 75.0 / 3600            # W/K
-const CALORIMETRY_LOSS_B = 0.26 / 3600           # W/K²
+const CALORIMETRY_LOSS_A = ustrip(us"W/K", literature_value("Lavergne2018", "heat_loss_a"))
+const CALORIMETRY_LOSS_B = ustrip(us"W/K^2", literature_value("Lavergne2018", "heat_loss_b"))
 
 """
     CALORIMETRY_VESSEL_CP
@@ -435,9 +458,10 @@ correspond to. Its Table 11 mix holds 371 g of binder, which releases of order
 with joules: sand and water alone contribute roughly 1.6 kJ/K, so a vessel of
 380 J/K puts the total near 2.1 kJ/K and the adiabatic rise near 75 K, which is
 the order the measurements show. It is read as 380 J/K here, and this note is
-deliberate: the alternative is to change a published number in silence.
+deliberate: the alternative is to change a published number in silence. The
+data file keeps the number as printed, in kJ/K, and this takes it in J/K.
 """
-const CALORIMETRY_VESSEL_CP = 380.0               # J/K
+const CALORIMETRY_VESSEL_CP = ustrip(us"kJ/K", literature_value("Lavergne2018", "calorimeter_heat_capacity"))
 
 const _SAND_CP_PER_KG = Ref{Float64}(NaN)
 
@@ -577,7 +601,7 @@ end
 # ── driver ────────────────────────────────────────────────────────────────────
 
 function main()
-    clinker = (C3S = 0.65, C2S = 0.11, C3A = 0.11, C4AF = 0.08)
+    clinker = IONIC_CEMENT.clinker
     tend = 28 * 86400.0
     times = 10 .^ range(log10(0.05 * 86400), log10(tend); length = 40)
 
@@ -585,10 +609,10 @@ function main()
     println("Run twice: with 3.5 % limestone filler, and without it.\n")
 
     run_cal = run_ionic_hydration(;
-        wb = 0.5, clinker, gypsum = 0.046, filler = 0.035, tend,
+        wb = 0.5, clinker, gypsum = IONIC_CEMENT.gypsum, filler = IONIC_CEMENT.filler, tend,
     )
     run_nol = run_ionic_hydration(;
-        wb = 0.5, clinker, gypsum = 0.046, filler = 0.0, tend,
+        wb = 0.5, clinker, gypsum = IONIC_CEMENT.gypsum, filler = 0.0, tend,
     )
     @printf "with limestone: %d accepted steps, retcode = %s\n" length(run_cal.sol.t) run_cal.sol.retcode
     @printf "no limestone  : %d accepted steps, retcode = %s\n\n" length(run_nol.sol.t) run_nol.sol.retcode

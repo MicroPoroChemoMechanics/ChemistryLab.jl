@@ -6,25 +6,17 @@
 # its HKF model instead shifts ∂Ca²⁺/∂(CO₂) by 35 %, which says nothing about
 # either code.
 
-# Reaktoro 2.13.0, Cemdata18, ideal activities
-# finite-difference spread across h ∈ {1e-3, 1e-4, 1e-5}: 7.12e-4
-const REAKTORO = Dict(
-    "H2O@" => (n = 55.4961389, dn = -0.181397291),
-    "H+" => (n = 3.69286738e-7, dn = 3.25691398e-5),
-    "OH-" => (n = 2.70633096e-8, dn = -2.38767062e-6),
-    "CO2@" => (n = 0.00613892838, dn = 0.818600249),
-    "HCO3-" => (n = 0.00738915525, dn = 0.333426734),
-    "CO3-2" => (n = 9.37864261e-7, dn = -4.03977783e-5),
-    "Ca+2" => (n = 0.00352901991, dn = 0.151986657),
-    "CaOH+" => (n = 1.58551676e-9, dn = -7.15930328e-8),
-    "Ca(CO3)@" => (n = 5.54793457e-6, dn = -1.8134238e-8),
-    "Ca(HCO3)+" => (n = 0.000332647348, dn = 0.029337739),
-    "Cal" => (n = 0.0461327832, dn = -0.181324306),
-)
+include("reference_species.jl")
+
+# The oracle's output, read from its fixture: amounts at equilibrium and their
+# derivatives with respect to the CO₂ added, with the versions and the database
+# md5 it was computed from.
+const RK = reference_oracle("reaktoro_calcite_co2")
+const REAKTORO = Dict(String(k) => (n = v.n, dn = v.dn_dCO2) for (k, v) in pairs(RK.species))
 
 # The oracle is itself a finite difference; nothing below its own step-size
 # spread is meaningful, so that is the tolerance.
-const RK_SPREAD = 7.12e-4
+const RK_SPREAD = RK.fd_spread
 
 # ── Trace species ─────────────────────────────────────────────────────────────
 #
@@ -56,7 +48,8 @@ const RK_SPREAD = 7.12e-4
 #
 const TRACE_CUTOFF = 1.0e-5
 
-const N_H2O, N_CAL, N_CO2 = 55.5, 0.05, 0.01
+# The composition the oracle was computed for.
+const N_H2O, N_CAL, N_CO2 = RK.n_H2O, RK.n_Cal, RK.n_CO2
 
 @testset "Reaktoro reference: calcite + CO₂ + water" begin
     data = datapath("cemdata18-thermofun.json")

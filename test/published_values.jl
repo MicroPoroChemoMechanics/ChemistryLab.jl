@@ -10,8 +10,8 @@
     @testsection "malonic acid pKa from SLOP98" begin
         # The titration example long called these species "maleic acid". They are
         # not: SLOP98 carries MALONIC-ACID,AQ / H-MALONATE,AQ / MALONATE,AQ, the
-        # three-carbon diacid. The pKa derived from their ΔₐG⁰ settle the matter,
-        # since malonic (2.83, 5.69) and maleic (1.92, 6.27) are far apart.
+        # three-carbon diacid. The formula settles it, and the pKa derived from
+        # their ΔₐG⁰ are those measured for malonic acid.
         sp = Dict(
             symbol(s) => s for s in vcat(
                     build_species(datapath("slop98-inorganic-thermofun.json")),
@@ -23,10 +23,14 @@
             @test haskey(sp, name)
         end
 
-        # Three carbons, not four: malonate is C₃H₂O₄²⁻ at 102.05 g/mol, maleate
-        # is C₄H₂O₄²⁻ at 114.06. The formula settles it on its own.
-        @test ustrip(us"g/mol", sp["Mal-2"].M) ≈ 102.045 atol = 0.01
-        @test ustrip(us"g/mol", sp["MalH2@"].M) ≈ 104.061 atol = 0.01
+        # Three carbons, not four: each species weighs what the malonate formula
+        # weighs, with the atomic masses of the library, and maleate's extra
+        # carbon would put it twelve grams away. The formula settles it on its own.
+        M(atoms) = ustrip(us"g/mol", calculate_molar_mass(atoms))
+        M_mal = ustrip(us"g/mol", sp["Mal-2"].M)
+        @test M_mal ≈ M(Dict(:C => 3, :H => 2, :O => 4)) atol = 0.01
+        @test ustrip(us"g/mol", sp["MalH2@"].M) ≈ M(Dict(:C => 3, :H => 4, :O => 4)) atol = 0.01
+        @test abs(M_mal - M(Dict(:C => 4, :H => 2, :O => 4))) > 10
         @test occursin("H2O4", string(formula(sp["Mal-2"])))
 
         T = 298.15
@@ -44,12 +48,13 @@
         @test pKa1 ≈ 2.851 atol = 0.002
         @test pKa2 ≈ 5.696 atol = 0.002
 
-        # And agreeing with the tabulated values for malonic acid to 0.02,
-        # while being nowhere near maleic acid's.
-        @test abs(pKa1 - 2.83) < 0.03
-        @test abs(pKa2 - 5.69) < 0.03
-        @test abs(pKa1 - 1.92) > 0.5      # would hold if these were maleate
-        @test abs(pKa2 - 6.27) > 0.5
+        # And agreeing with the thermodynamic dissociation constants of malonic
+        # acid at 25 °C measured by Kettler et al. (1992), to within three of
+        # their stated uncertainties.
+        for (pKa, name) in ((pKa1, "log_K1"), (pKa2, "log_K2"))
+            k = literature("Kettler1992")[name]
+            @test abs(pKa + ChemistryLab.value(k)) < 3 * uncertainty(k)
+        end
     end
 
     @testsection "calcite: retrograde Kₛₚ in a closed system" begin
@@ -123,8 +128,8 @@ end
     # Hamer & Wu, *Osmotic Coefficients and Mean Activity Coefficients of
     # Uni-univalent Electrolytes in Water at 25 °C*, J. Phys. Chem. Ref. Data
     # 1(4), 1047-1100 (1972), Table 16 — a critical compilation, not a single
-    # experiment. Read from the rendered page; the value at 6.144 mol/kg is
-    # their saturated solution and is not used.
+    # experiment — read from `data/literature/HamerWu1972.json`: every row below
+    # saturation, which the file keeps apart.
     #
     # This is the only assertion in the package that pins an activity model to a
     # *measurement* above a millimolal. Everything else about `PitzerActivityModel`
@@ -132,19 +137,8 @@ end
     # distinguish a correct parameter set from a self-consistent wrong one. It
     # therefore also checks the transcription of Reardon's Na/Cl parameters:
     # nothing mistyped reproduces a measured curve over four decades.
-    HAMER_WU_NACL = [
-        # m [mol/kg]   φ        γ±
-        (0.001, 0.988, 0.965),
-        (0.01, 0.968, 0.903),
-        (0.1, 0.933, 0.779),
-        (0.5, 0.921, 0.681),
-        (1.0, 0.936, 0.657),
-        (2.0, 0.984, 0.668),
-        (3.0, 1.045, 0.714),
-        (4.0, 1.116, 0.783),
-        (5.0, 1.191, 0.874),
-        (6.0, 1.27, 0.986),
-    ]
+    hw = literature_table("HamerWu1972", "nacl")
+    HAMER_WU_NACL = collect(zip(ustrip.(us"mol/kg", hw.m), hw.phi, hw.gamma))
 
     subs = build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false)
     d = Dict(symbol(s) => s for s in subs)
@@ -162,7 +156,7 @@ end
     bd = activity_model(cs, HKFActivityModel())
 
     worst_pz = 0.0
-    for (m, φ_meas, γ_meas) in HAMER_WU_NACL
+    for (m, φ_meas, γ_meas) in HAMER_WU_NACL   # m [mol/kg], φ, γ±
         out = pz([n_w, m, m], p)
         γ = exp((out[2] + out[3]) / 2 - log(m))
         φ = -out[1] / (M_w * 2m)
@@ -172,19 +166,25 @@ end
         worst_pz = max(worst_pz, abs(γ - γ_meas) / γ_meas)
     end
     # Tighter than the assertions above: the whole curve, four decades of
-    # molality, within half a percent — including the minimum near 1.2 mol/kg
-    # and the return above unity at 6 mol/kg, neither of which a Debye-Hückel
-    # form can produce at all.
+    # molality, within half a percent — including the minimum of γ± and its
+    # return towards unity at the top of the range, neither of which a
+    # Debye-Hückel form can produce at all.
     @test worst_pz < 0.005
 
-    # The B-dot model on the same data. It is not being criticized for failing
-    # outside its stated range; the point is that the range is real and that
-    # nothing in its output announces the exit.
-    dev(m, γ_meas) = let out = bd([n_w, m, m], p)
+    # The B-dot model on the same data, with the ion size Helgeson et al. give
+    # NaCl. Inside its range it follows the measurement to 1.5 %; the range is
+    # nonetheless real, and nothing in its output announces the exit. (Until
+    # 0.22 the model used the radius of each ion as its ion size, which put it
+    # 5 % out at a tenth molal and 19 % at one: that was the defect, not the
+    # range.)
+    # The molalities below pick rows of the table; the measured γ± is the table's.
+    dev(m) = let out = bd([n_w, m, m], p),
+            γ_meas = HAMER_WU_NACL[findfirst(r -> r[1] == m, HAMER_WU_NACL)][3]
         abs(exp((out[2] + out[3]) / 2 - log(m)) - γ_meas) / γ_meas
     end
-    @test dev(0.001, 0.965) < 0.01        # agrees where it should
-    @test dev(0.1, 0.779) > 0.03        # 5 % out at a tenth molal
-    @test dev(1.0, 0.657) > 0.15        # 19 % at one
-    @test dev(6.0, 0.986) > 0.35        # 44 % at six
+    @test dev(0.001) < 0.005       # agrees where it should
+    @test dev(0.1) < 0.015
+    @test dev(1.0) < 0.02
+    @test dev(3.0) < 0.05
+    @test dev(6.0) > 0.1          # beyond a few mol/kg the range shows
 end

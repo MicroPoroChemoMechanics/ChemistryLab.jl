@@ -139,8 +139,13 @@ pages = [
             "tutorials/self_desiccation.md",
             "tutorials/self_desiccation_kinetics.md",
         ],
-        "Validation against other codes" => [
+        # Two halves of the same question, and neither substitutes for the
+        # other: a second code reading the same database cannot see an error in
+        # the database, and a paper's own tables cannot see an error in the
+        # solver.
+        "Validation" => [
             "tutorials/reaktoro_comparison.md",
+            "tutorials/published_data_validation.md",
         ],
     ],
     "Applications" => [
@@ -175,6 +180,9 @@ pages = [
             # the sites is itself dissolving, so the budget has to follow it.
             "examples/evolving_sorbent.md",
             "examples/claysor_clay.md",
+            # A surface in a cement paste, competing with the AFm salts for the
+            # same chloride, against PHREEQC on the same model.
+            "examples/csh_chloride_binding.md",
             "examples/thermogravimetry.md",
         ],
         # Small, checkable aqueous cases with an analytical answer to compare to.

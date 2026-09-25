@@ -310,18 +310,22 @@ end
     # Dzombak & Morel's own two densities — which is what makes this checkable
     # against a published number rather than against itself.
 
+    # Kulik's densities and the shifts he prints for them, p. 250.
+    Γ_weak = literature_value("Kulik2002", "dzombak_morel_weak_site_density_nm2")
+    Γ_strong = literature_value("Kulik2002", "dzombak_morel_strong_site_density_nm2")
+
     @testset "Kulik's own worked example" begin
-        # Published: +log(2.254/12.05) = -0.73 for the weak sites and
-        # log(0.056/12.05) = -2.33 for the strong ones.
-        @test round(convert_logk_site_density(0.0, 2.254); digits = 2) == -0.73
-        @test round(convert_logk_site_density(0.0, 0.056); digits = 2) == -2.33
+        @test round(convert_logk_site_density(0.0, Γ_weak); digits = 2) ==
+            literature_value("Kulik2002", "logk_shift_weak")
+        @test round(convert_logk_site_density(0.0, Γ_strong); digits = 2) ==
+            literature_value("Kulik2002", "logk_shift_strong")
 
         # The two shifts differ by 1.6 log units, which is the substance of the
         # remark: correlating one of their constants against the other without
         # converting compares two different scales.
-        weak = convert_logk_site_density(0.0, 2.254)
-        strong = convert_logk_site_density(0.0, 0.056)
-        @test abs(weak - strong) ≈ log10(2.254 / 0.056) rtol = 1.0e-12
+        weak = convert_logk_site_density(0.0, Γ_weak)
+        strong = convert_logk_site_density(0.0, Γ_strong)
+        @test abs(weak - strong) ≈ log10(Γ_weak / Γ_strong) rtol = 1.0e-12
         @test abs(weak - strong) > 1.6
     end
 
@@ -329,25 +333,26 @@ end
         # Identity at the reference density: nothing to convert.
         @test convert_logk_site_density(3.7, REFERENCE_SITE_DENSITY_NM2) == 3.7
         # Additive in logK, since it only shifts.
-        @test convert_logk_site_density(3.7, 2.254) - convert_logk_site_density(0.0, 2.254) ≈ 3.7
+        @test convert_logk_site_density(3.7, Γ_weak) - convert_logk_site_density(0.0, Γ_weak) ≈ 3.7
         # Reversible: converting to Γ° and back gives the original.
-        there = convert_logk_site_density(2.5, 2.254)
-        back = convert_logk_site_density(there, REFERENCE_SITE_DENSITY_NM2^2 / 2.254)
+        there = convert_logk_site_density(2.5, Γ_weak)
+        back = convert_logk_site_density(there, REFERENCE_SITE_DENSITY_NM2^2 / Γ_weak)
         @test back ≈ 2.5 rtol = 1.0e-12
         # The side the neutral group is written on flips the sign, and nothing
         # else — that is the whole content of the second half of eq. 21.
-        @test convert_logk_site_density(0.0, 2.254; free_site_side = :product) ≈
-            -convert_logk_site_density(0.0, 2.254)
+        @test convert_logk_site_density(0.0, Γ_weak; free_site_side = :product) ≈
+            -convert_logk_site_density(0.0, Γ_weak)
         # Only the RATIO enters, so any consistent unit works.
-        @test convert_logk_site_density(0.0, 2.254) ≈
-            convert_logk_site_density(0.0, 2.254e18 / AVOGADRO; Γ0 = REFERENCE_SITE_DENSITY)
+        @test convert_logk_site_density(0.0, Γ_weak) ≈
+            convert_logk_site_density(0.0, Γ_weak * 1.0e18 / AVOGADRO; Γ0 = REFERENCE_SITE_DENSITY)
     end
 
     @testset "the reference density is derived, not transcribed twice" begin
-        # 12.05 nm⁻² is what Kulik writes; the mol/m² form comes from it through
+        # The density in nm⁻² is what Kulik writes; the mol/m² form comes from it through
         # the library's Avogadro constant, so the two cannot drift apart.
         @test REFERENCE_SITE_DENSITY ≈ REFERENCE_SITE_DENSITY_NM2 * 1.0e18 / AVOGADRO
-        @test REFERENCE_SITE_DENSITY ≈ 2.0e-5 rtol = 1.0e-3
+        @test REFERENCE_SITE_DENSITY ≈
+            ustrip(literature_value("Kulik2002", "reference_site_density")) rtol = 1.0e-3
         @test AVOGADRO == ustrip(us"1/mol", AVOGADRO_Q)
     end
 

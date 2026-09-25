@@ -58,8 +58,8 @@ cs = ChemicalSystem(species, CEMDATA_PRIMARIES)
 
 # ── 2. Cement paste composition ──────────────────────────────────────────────
 #
-# Typical CEM I 52.5, from Lavergne et al. (2018)
-# Mass fractions in the clinker
+# An assumed CEM I clinker, typical of the class but not taken from a
+# published analysis. Mass fractions in the clinker
 
 const PHASE_MASS_FRAC = (C3S = 0.619, C2S = 0.165, C3A = 0.08, C4AF = 0.087)
 
@@ -141,7 +141,10 @@ kinetic_reactions = [rxn_C3S, rxn_C2S, rxn_C3A, rxn_C4AF]
 # ── 6. Semi-adiabatic calorimeter ────────────────────────────────────────────
 #
 # Langavant-type device (standard NF EN 196-9).
-# Quadratic heat loss φ(ΔT) = a·ΔT + b·ΔT² (Lavergne et al. 2018).
+# Quadratic heat loss φ(ΔT) = a·ΔT + b·ΔT², the form of Lavergne et al. (2018),
+# Eq. (23). The coefficients below are illustrative, not the paper's: their
+# calibrated device has a = 75 J/(h·K) and b = 0.26 J/(h·K²)
+# (data/literature/Lavergne2018.json), which `scripts/ionic_hydration.jl` uses.
 # `CP` is the FIXED heat capacity only — the flask, 1 kg at about
 # 900 J/(kg·K). The paste's own `Σᵢ nᵢ Cp⁰ᵢ(T)` is added by the solver from the
 # database at every step, so counting cement and water here as well would count
@@ -152,8 +155,8 @@ const T0_K = 20.0 + 273.15    # initial temperature [K]
 const T_ENV_K = 20.0 + 273.15  # ambient temperature [K]
 const CP = 1.0 * 900.0        # flask alone [J/K]
 
-const A_CAL = 0.3   # linear coefficient  [W/K]
-const B_CAL = 0.003  # quadratic coefficient [W/K²]
+const A_CAL = 0.3   # linear coefficient  [W/K], illustrative
+const B_CAL = 0.003  # quadratic coefficient [W/K²], illustrative
 
 cal = SemiAdiabaticCalorimeter(;
     Cp = CP * u"J/K",
@@ -224,7 +227,7 @@ end
 println()
 println("╔══════════════════════════════════════════════╗")
 println("║    Semi-adiabatic calorimetry results         ║")
-println("║    CEM I — Lavergne et al. (2018)             ║")
+println("║    CEM I, after Lavergne et al. (2018)        ║")
 println("╠══════════════════════════════════════════════╣")
 println("║  Duration    = 7 days")
 @printf "║  T final     = %.2f °C\n" T_°C_vec[end]
@@ -276,6 +279,6 @@ p4 = plot(
 display(
     plot(
         p1, p2, p3, p4; layout = (2, 2), top_margin = 7Plots.mm, left_margin = 8Plots.mm, bottom_margin = 8Plots.mm, size = (1200, 800),
-        plot_title = "Lavergne et al. (2018) — CEM I, w/c = $WC",
+        plot_title = "CEM I, w/c = $WC, after the method of Lavergne et al. (2018)",
     )
 )

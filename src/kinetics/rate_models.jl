@@ -154,10 +154,12 @@ stored in [`KINETICS_RATE_FACTORIES`](@ref).
 # Example
 
 ```julia
+# The acid mechanism of calcite dissolution, Palandri & Kharaka (2004), Table 33
+calcite = literature_row("PalandriKharaka2004", "carbonate_rates", "calcite")
 k_acid = KINETICS_RATE_FACTORIES[:arrhenius](;
-    k₀    = 5.012e-1,   # mol/(m² s) at T_ref
-    Ea    = 14400.0,    # J/mol
-    T_ref = 298.15,     # K
+    k₀    = 10.0^calcite.acid_log_k,           # mol/(m² s) at T_ref
+    Ea    = ustrip(us"J/mol", calcite.acid_E),  # J/mol
+    T_ref = 298.15,                            # K
 )
 k_acid(; T = 310.0)   # → Float64 rate constant
 ```
@@ -402,8 +404,9 @@ r_mech = k(T) × [Π_catalysts aᵢ^nᵢ] × sign(1 - Ω) × |1 - Ω^p|^q
 # Examples
 
 ```julia
-k_acid = arrhenius_rate_constant(5.012e-1, 14400.0)
-mech   = RateMechanism(k_acid, 1.0, 1.0, [RateModelCatalyst("H+", 1.0)])
+calcite = literature_row("PalandriKharaka2004", "carbonate_rates", "calcite")
+k_acid = arrhenius_rate_constant(10.0^calcite.acid_log_k, calcite.acid_E)
+mech   = RateMechanism(k_acid, 1.0, 1.0, [RateModelCatalyst("H+", calcite.acid_n_H)])
 ```
 """
 struct RateMechanism{F <: AbstractFunc, T <: Real}

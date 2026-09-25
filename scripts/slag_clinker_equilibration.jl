@@ -38,6 +38,8 @@ cs = ChemicalSystem(species, CEMDATA_PRIMARIES)
 
 # ── Initial state ────────────────────────────────────────────────────────────
 # Clinker + gypsum + MgSO4 additive, w/c = 0.4, normalized to 1 kg total
+# The clinker is an assumed CEM I composition, typical of the class; its source
+# is not recorded.
 
 state = ChemicalState(cs)
 compo = [

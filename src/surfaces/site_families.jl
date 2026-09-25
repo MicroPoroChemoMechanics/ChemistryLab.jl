@@ -682,7 +682,8 @@ species; the quasi-chemical treatment of the rest is a later, separate model.
 # Examples
 
 ```julia
-support = SurfaceSupport("hydrous ferric oxide", "Fe(OH)3", BETSurfaceArea(600.0u"m^2/g"))
+ssa = literature_value("DzombakMorel1990", "specific_surface_area")   # 600 m²/g
+support = SurfaceSupport("hydrous ferric oxide", "Fe(OH)3", BETSurfaceArea(ssa))
 free    = Species("XsOH"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
 bound   = Species("XsOH2+"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
 SiteFamily("Hfo_s", free, [bound]; capacity = TotalSiteAmount(5.0e-6u"mol"), support)

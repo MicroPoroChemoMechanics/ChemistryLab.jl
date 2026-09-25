@@ -110,8 +110,8 @@ models = ["ideal" => IdealSolidSolutionModel(),
 println("            a₁ = x₁ γ₁")
 println("   x₁      ideal    W>0      W<0")
 for x1 in (0.01, 0.1, 0.3, 0.5, 0.7, 0.9)
-    x = [x1, 1 - x1]
-    a = [x1 * exp(ChemistryLab._excess_ln_gamma(mod, 1, x, 298.15)) for (_, mod) in models]
+    fractions = [x1, 1 - x1]
+    a = [x1 * exp(ChemistryLab._excess_ln_gamma(mod, 1, fractions, 298.15)) for (_, mod) in models]
     @printf("%6.2f   %7.4f  %7.4f  %7.4f\n", x1, a...)
 end
 ```

@@ -8,9 +8,9 @@
 #
 # CEMDATA18 does not contain GGBS or MK as reactants: we create custom Species
 # with a dummy ΔₐG⁰ (the Parrot-Killoh model ignores Ω).
-# The reference mole of each addition is defined by the explicit :M field
-# of the Species (mass per "representative formula unit"), which must be
-# consistent with ΔᵣH⁰ for correct calorimetry:
+# A mole of each addition is its representative formula unit, weighed by the
+# package from that formula, and the reaction enthalpy follows from the heat per
+# gram:
 #
 #     |ΔᵣH⁰| [J/mol] = specific_heat [J/g] × M [g/mol]
 #
@@ -56,32 +56,37 @@ cs_base = ChemicalSystem(species_base, CEMDATA_PRIMARIES)
 # GGBS (ground granulated blast-furnace slag):
 #   Typical CEM I-like composition: ~42% CaO, 35% SiO₂, 12% Al₂O₃, 8% MgO.
 #   Representative formula (charge-neutral): CaAl₂Si₂O₈ (anorthite analogy).
-#   Molar mass of the formula unit overridden to 95 g/mol so that:
-#       |ΔᵣH⁰| = 380 J/g × 95 g/mol ≈ 36 100 J/mol  (Gruyaert 2010)
+#   |ΔᵣH⁰| = 380 J/g × M
 #
 # MK (metakaolin):
 #   Exact formula: Al₂Si₂O₇ (dehydroxylated kaolinite).
-#   Auto-computed molar mass: M = 222 g/mol.
-#   |ΔᵣH⁰| = 250 J/g × 222 g/mol ≈ 55 500 J/mol  (Lothenbach 2011)
+#   |ΔᵣH⁰| = 250 J/g × M
+#
+# The two heats per gram are assumptions. This script once credited them to
+# Gruyaert et al. (2010) and to Lothenbach et al. (2011), and neither article
+# gives them: Gruyaert et al. report the total heat per gram of binder, not of
+# slag, and Lothenbach et al. no heat of metakaolin.
+#
+# M is the molar mass the package computes from each formula. A value written
+# over it would contradict the atoms the species carries.
 #
 # Dummy ΔₐG⁰: very negative → Ω ≈ 0 (dissolution always favored).
 # Parrot-Killoh ignores Ω; the value does not affect kinetic rates.
 
 const _dummy_G = NumericFunc((T, P) -> -1_200_000.0, (:T, :P), u"J/mol")
 
-# GGBS: formula CaAl₂Si₂O₈, :M overridden to 95 g/mol
+# GGBS: formula CaAl₂Si₂O₈
 sp_ggbs = Species(
     "CaAl2Si2O8";
     symbol = "GGBS",
     name = "GGBS",
     aggregate_state = AS_CRYSTAL,
     properties = Dict{Symbol, Any}(
-        :M => 0.095u"kg/mol",
         :ΔₐG⁰ => _dummy_G,
     ),
 )
 
-# MK: formula Al₂Si₂O₇ (metakaolin), M = 222 g/mol auto-computed
+# MK: formula Al₂Si₂O₇ (metakaolin)
 sp_mk = Species(
     "Al2Si2O7";
     symbol = "MK",
@@ -105,7 +110,8 @@ cs = ChemicalSystem(all_species, CEMDATA_PRIMARIES)
 # Water/binder ratio w/b = 0.40
 #
 # Clinker phases (mass fractions in CEM I 52.5 R clinker):
-#   C₃S: 61.9%, C₂S: 16.5%, C₃A: 8.0%, C₄AF: 8.7%   (Lavergne 2018)
+#   C₃S: 61.9%, C₂S: 16.5%, C₃A: 8.0%, C₄AF: 8.7%   (assumed: typical of the
+#   class, not taken from a published analysis)
 # Clinker fraction in the ternary cement: 0.63
 
 const WB = 0.4      # water/binder ratio
@@ -175,9 +181,32 @@ pk_mk = waller(WALLER_PARAMS_SILICA_FUME, "MK"; α_max = 0.95)
 #   C₄AF + 2 Portlandite + 10 H₂O → C₃AH₆ + C₃FH₆         (ΔᵣH⁰ ≈ −147 kJ/mol)
 #
 # GGBS and MK have artificial formulas (no ΔₐH⁰ in database); ΔᵣH⁰ is set
-# directly on the reaction (thermodynamic convention: negative = exothermic).
-#   GGBS: 380 J/g ×  95 g/mol ≈  36 100 J/mol  (Gruyaert 2010)
-#   MK  : 250 J/g × 222 g/mol ≈  55 500 J/mol  (Lothenbach 2011)
+# directly on the reaction (thermodynamic convention: negative = exothermic),
+# from the heat per gram (assumed, see above) and the molar mass of the formula
+# unit.
+heat_per_mol(sp, q_J_per_g) = -q_J_per_g * ustrip(us"g/mol", sp[:M])
+
+# Both additions react with portlandite into strätlingite and a jennite-type
+# C-S-H, one of each per formula unit: the aluminum and the silicon of the
+# formula balance with that. The portlandite consumed and the water taken are
+# what the calcium and the hydrogen balances then require, computed from the
+# formulas, and the oxygen and the charge are checked.
+function pozzolanic(solid; products = ("straetlingite" => 1.0, "Jennite" => 1.0))
+    a(s) = atoms(sp(s))
+    n(s, e) = Float64(get(a(s), e, 0))
+    ch = sum(ν * n(p, :Ca) for (p, ν) in products) - n(solid, :Ca)
+    w = (sum(ν * n(p, :H) for (p, ν) in products) - n(solid, :H) - 2ch) / 2
+    for e in (:Al, :Si, :O)
+        lhs = n(solid, e) + ch * n("Portlandite", e) + w * n("H2O@", e)
+        rhs = sum(ν * n(p, e) for (p, ν) in products)
+        isapprox(lhs, rhs; atol = 1.0e-3) || error("$solid: $e does not balance ($lhs vs $rhs)")
+    end
+    return Reaction(
+        OrderedDict(sp(solid) => 1.0, sp("Portlandite") => ch, sp("H2O@") => w),
+        OrderedDict(sp(p) => ν for (p, ν) in products);
+        symbol = "$solid hydration",
+    )
+end
 
 sp(name) = cs[name]
 
@@ -209,24 +238,17 @@ rxn_C4AF = Reaction(
 )
 rxn_C4AF[:rate] = pk_C4AF
 
-# GGBS: artificial formula → approximate products (Jennite + stratlingite)
-# ΔᵣH⁰ set directly (no ΔₐH⁰ for custom species)
-rxn_GGBS = Reaction(
-    OrderedDict(sp("GGBS") => 1.0, sp("H2O@") => 3.0),
-    OrderedDict(sp("Jennite") => 0.05, sp("straetlingite") => 0.2);
-    symbol = "GGBS hydration",
-)
+# GGBS: CaAl₂Si₂O₈ + 8/3 Ca(OH)₂ + … H₂O → strätlingite + jennite
+rxn_GGBS = pozzolanic("GGBS")
 rxn_GGBS[:rate] = pk_ggbs
-rxn_GGBS[:ΔᵣH⁰] = NumericFunc((T) -> -36_100.0, (:T,), u"J/mol")
+const ΔH_GGBS = heat_per_mol(sp_ggbs, 380.0)
+rxn_GGBS[:ΔᵣH⁰] = NumericFunc((T) -> ΔH_GGBS, (:T,), u"J/mol")
 
-# MK: Al₂Si₂O₇ + 2 Ca(OH)₂ + 5 H₂O → stratlingite
-rxn_MK = Reaction(
-    OrderedDict(sp("MK") => 1.0, sp("Portlandite") => 2.0, sp("H2O@") => 5.0),
-    OrderedDict(sp("straetlingite") => 1.0);
-    symbol = "MK hydration",
-)
+# MK: Al₂Si₂O₇ + 11/3 Ca(OH)₂ + … H₂O → strätlingite + jennite
+rxn_MK = pozzolanic("MK")
 rxn_MK[:rate] = pk_mk
-rxn_MK[:ΔᵣH⁰] = NumericFunc((T) -> -55_500.0, (:T,), u"J/mol")
+const ΔH_MK = heat_per_mol(sp_mk, 250.0)
+rxn_MK[:ΔᵣH⁰] = NumericFunc((T) -> ΔH_MK, (:T,), u"J/mol")
 
 kinetic_reactions = [rxn_C3S, rxn_C2S, rxn_C3A, rxn_C4AF, rxn_GGBS, rxn_MK]
 
@@ -243,12 +265,14 @@ const TSPAN = (0.0u"s", 28.0u"d")
 # 900 J/(kg·K). The paste's own `Σᵢ nᵢ Cp⁰ᵢ(T)` is added by the solver from the
 # database at every step, so counting the binder and the water here as well
 # would count them twice.
-# Quadratic losses (Lavergne et al. 2018)
+# Quadratic losses, the form of Lavergne et al. (2018), Eq. (23), with
+# illustrative coefficients: their calibrated device has a = 75 J/(h·K) and
+# b = 0.26 J/(h·K²) (data/literature/Lavergne2018.json).
 
 cal = SemiAdiabaticCalorimeter(;
     Cp = 900.0u"J/K",              # Dewar flask alone
     T_env = 293.15u"K",
-    heat_loss = ΔT -> 0.3 * ΔT + 0.003 * ΔT^2,
+    heat_loss = ΔT -> 0.3 * ΔT + 0.003 * ΔT^2,   # illustrative a, b in W/K and W/K²
     T0 = 293.15u"K",
 )
 

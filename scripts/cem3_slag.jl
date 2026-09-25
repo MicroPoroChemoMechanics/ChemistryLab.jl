@@ -43,9 +43,11 @@ end
 CLINKER_FRACTION = 0.5
 SLAG_FRACTION = 0.5
 
-# ASSUMED: a Bogue composition representative of a CEM I clinker. The deposit
-# does not report one for this cement.
-CLINKER = OrderedDict("C3S" => 0.65, "C2S" => 0.11, "C3A" => 0.11, "C4AF" => 0.08)
+# ASSUMED: a Bogue composition representative of a CEM I clinker, here
+# the Bogue composition of the CEM I 52.5 N of [Lavergne2018](@cite), Table 9.
+# The deposit does not report one for this cement.
+bogue = literature_table("Lavergne2018", "cement_bogue")
+CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))
 
 # ASSUMED: a European ground granulated blastfurnace slag analysis. The sulfur
 # is the part that matters here, and it is the part a datasheet reports least
@@ -87,13 +89,20 @@ ALPHA_WATER = powers_alpha_max(WB)                 # sealed, ASSUMED
 # the lower of the two by a wide margin. The RILEM TC 238-SCM round robin
 # [Durdzinski2017](@cite) measured two ground granulated slags at 40 %
 # replacement and w/b 0.40 in seven laboratories -- this page's geometry. Its
-# Table 4 at 28 days, by SEM image analysis, the technique the study found most
+# Table 5 at 28 days, by SEM image analysis, the technique the study found most
 # consistent: 38 % and 48 % for the first slag, 45 % and 49 % for the second.
 # The study's verdict on the precision of any technique: "at best +/- 5 %".
 #
-# ASSUMED from that table. [The CEM V page](@ref cem5-dor) sweeps the same
-# quantity across the round robin's 7-, 28- and 90-day columns.
-ALPHA_SLAG = min(0.45, ALPHA_WATER)
+# ASSUMED at the mean of those four, 45 %. [The CEM V page](@ref cem5-dor)
+# sweeps the same quantity across the round robin's 7-, 28- and 90-day columns.
+# Degrees of reaction measured by SEM image analysis on sealed pastes, in
+# percent: [Durdzinski2017](@cite), Table 5, from data/literature/Durdzinski2017.json.
+sem(material, age) = literature_table(
+    "Durdzinski2017", "degree_of_reaction";
+    technique = "SEM-IA", material, curing = "sealed", age_days = age
+).degree_percent
+mean_percent(x) = sum(x) / length(x)
+ALPHA_SLAG = min(mean_percent([sem("S1", 28); sem("S2", 28)]) / 100, ALPHA_WATER)
 ALPHA_CLINKER = ALPHA_WATER
 
 @printf("water ceiling at w/b = %.2f : %.3f\n", WB, ALPHA_WATER)
@@ -178,7 +187,14 @@ for (comp, v) in zip(components, b)
     abs(v) > 1.0e-6 && @printf("  %-8s %10.5f mol\n", comp, v)
 end
 
-model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+# Debye-Hückel limiting law with a B-dot term, as GEM-Selektor runs CEMDATA18.
+# The B-dot is identified from the activity coefficients GEMS printed on a
+# Portland paste (test/reference/gems_cemdata18_portland.json), about 0.0976.
+using JSON
+gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
+lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
+Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
+model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
 eq, cert = equilibrate_certified(state; model = model, b = b)
 
 @printf(

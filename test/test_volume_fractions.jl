@@ -159,10 +159,7 @@ end
 
     # A hand-built species without V⁰ is invisible to the volume balance, and
     # `missing_molar_volumes` is what makes that visible.
-    sp_x = Species(
-        "CaAl2Si2O8"; symbol = "GGBS", aggregate_state = AS_CRYSTAL,
-        properties = Dict{Symbol, Any}(:M => 0.095u"kg/mol")
-    )
+    sp_x = Species("CaAl2Si2O8"; symbol = "GGBS", aggregate_state = AS_CRYSTAL)
     cs2 = ChemicalSystem(vcat(cs.species, sp_x), CEMDATA_PRIMARIES)
     state2 = ChemicalState(cs2)
     set_quantity!(state2, "C3S", 1.0u"mol")

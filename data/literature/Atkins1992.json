@@ -1,0 +1,65 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Atkins1992",
+    "doi": "10.1016/0008-8846(92)90093-B",
+    "citation": "Atkins, M., Bennett, D. G., Dawes, A. C., Glasser, F. P., Kindness, A., Read, D. (1992). A thermodynamic model for blended cements. Cement and Concrete Research 22, 497-502.",
+    "location": "Table 2, p. 500"
+  },
+  "transcription": {
+    "from": "the published article (PDF), Table 2, p. 500, read on the page text",
+    "checked_against_source": true,
+    "note": "The values were typed into test/atkins1992_reference.jl before this file existed and agree with the article. Mixture 32 is ettringite with a C-S-H of nominal Ca/Si = 0.9 in CO2-free water at 25 C; the solution is the one analyzed after 6 months (the table also gives 10 weeks). The authors' own model is the row MODEL: AFt + 0.9 CSH."
+  },
+  "quantities": {
+    "mixture_32_Ca_Si": {
+      "value": 0.9,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 2, mixture 32",
+      "description": "Nominal Ca/Si of the C-S-H of mixture 32."
+    },
+    "mixture_32_pH": {
+      "value": 11.0,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Table 2, mixture 32",
+      "description": "pH of the solution of mixture 32."
+    },
+    "mixture_1_Ca": {
+      "value": 2.67,
+      "unit": "mmol/L",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Table 2, mixture 1",
+      "description": "Calcium in the solution of mixture 1, ettringite with a C-S-H of Ca/Si = 1.7, after 6 months."
+    },
+    "model_mixture_32_pH": {
+      "value": 11.2,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 2, mixture 32",
+      "description": "pH the authors' own 1992 model gives for mixture 32."
+    }
+  },
+  "tables": {
+    "mixture_32_solution": {
+      "columns": ["element", "measured", "model_1992"],
+      "units": [null, "mmol/L", "mmol/L"],
+      "kind": "measured",
+      "location": "Table 2, p. 500, mixture 32: the solution analyzed after 6 months, and the authors' model",
+      "rows": [
+        ["Ca", 1.95, 2.04],
+        ["Al", 0.136, 0.398],
+        ["Si", 0.076, 0.448],
+        ["S", 1.08, 0.597]
+      ]
+    }
+  },
+  "notes": [
+    "The table reports sulfate as SO4; the element column names it S, which is what the test totals."
+  ]
+}

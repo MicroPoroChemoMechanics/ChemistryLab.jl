@@ -89,9 +89,12 @@ B = 50.29158649\,\frac{\sqrt{\rho_w}}{\sqrt{\varepsilon T}} ,
 
 which is what [`hkf_debye_huckel_params`](@ref) evaluates from this package's own
 equation of state for water. So the ``A = 0.5114`` and ``B = 0.3288`` that the
-models carry as defaults are **derived**, not adopted, and they agree with
-[Helgeson1981](@cite) Table 1 — evaluated at three temperatures in
-[What the choice of activity model costs](@ref sec-app-activity-models).
+models carry as defaults at 25 °C are **derived** as well as tabulated: they
+agree to 0.01 % with the values of the LLNL aqueous model that
+[ParkhurstAppelo2013](@cite) tabulate, from 0 to 100 °C — compared at three
+temperatures in [What the choice of activity model costs](@ref sec-app-activity-models).
+[Helgeson1981](@cite), Table 1, computed from the water properties of the time,
+gives 0.5091 and 0.3283 at 25 °C.
 
 Both rise with temperature, because water's dielectric constant falls faster than
 ``T`` rises: hot water screens worse, so the same ionic strength costs more.
@@ -210,17 +213,18 @@ than about the numbers:
 **The ideal model is already several percent off at a millimolal.** Ideality is
 not a safe default that degrades gracefully; it is exact only in a limit.
 
-**Davies and the B-dot model part company around a tenth molal**, and by
+**Davies and the B-dot model part company above a tenth molal**, and by
 3 mol/kg Davies returns ``\gamma > 1`` while the B-dot model is still below 1.
 That is the ``bI`` term of §2 taking over from the screening term — the ceiling
 of a deviation function arriving, visible in the numbers.
 
 **The values of ``a_w`` barely separate at all** — Raoult and the osmotic route
-differ by a few parts in a thousand even at 3 mol/kg — while their
-**derivatives** differ by four orders of magnitude. Measured as the Gibbs-Duhem
+differ by less than one percent even at 3 mol/kg — while their
+**derivatives** differ by orders of magnitude. Measured as the Gibbs-Duhem
 residual ``\lvert\sum_i n_i\,\mathrm{d}\mu_i\rvert`` along a dissolution at
-1 mol/kg: ``1.9\times10^{-1}`` for Davies against ``6.7\times10^{-5}`` for the
-B-dot model, with the ideal model at ``2.9\times10^{-2}`` in between.
+1 mol/kg: ``1.9\times10^{-1}`` for Davies and ``2.9\times10^{-2}`` for the
+ideal model, while the B-dot model sits at ``4\times10^{-7}``, the truncation
+error of the finite difference that measures it.
 
 The third result follows from §3: **Davies is less thermodynamically consistent
 than assuming ideality.** Correcting the
@@ -229,11 +233,9 @@ model against each other, and a model can be *more* wrong for being *partly*
 corrected. Since equilibrium is set by derivatives and not by values, a
 disagreement invisible in ``a_w`` is decisive in ``\mu_w``.
 
-The B-dot model's own defect — the single charge-weighted mean radius in its
-osmotic coefficient — appears only along a composition change that holds ``I``
-and ``\sum m`` fixed, where it measures a few parts in a thousand. That is the
-direction `test/activities.jl` uses, which is why its tolerance is `5e-3` rather
-than solver tolerance.
+The B-dot model's own approximation — a single charge-weighted mean ion size in
+its osmotic coefficient — costs nothing in NaCl, whose two ions carry the ion
+size of the salt, and appears only in a solution whose ions differ in size.
 
 ## [5b. Does a model come from one excess Gibbs energy at all?](@id sec-theory-potential)
 

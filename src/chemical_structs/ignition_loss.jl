@@ -71,7 +71,6 @@ ustrip(us"g", loss.water), ustrip(us"g", loss.total)
 """
 function ignition_loss(state::ChemicalState)
     system = state.system
-    M_H2O = 0.018015u"kg/mol"            # replaced below by the solvent's own
     idx = _solid_indices(system)
     w = zero(0.0u"mol")
     c = zero(0.0u"mol")
@@ -85,30 +84,34 @@ function ignition_loss(state::ChemicalState)
         iszero(cc) || (c += cc * n)
     end
     # The molar masses come from the species, never from a table written here.
-    mw = _ignition_molar_mass(system, "H2O@", "H2O", M_H2O)
-    mc = _ignition_molar_mass(system, "CO2@", "CO2", 0.0440095u"kg/mol")
+    mw = _ignition_molar_mass(system, "H2O@", "H2O", _WATER_ATOMS)
+    mc = _ignition_molar_mass(system, "CO2@", "CO2", _CO2_ATOMS)
     water = uconvert(us"kg", w * mw)
     co2 = uconvert(us"kg", c * mc)
     return (; water, carbon_dioxide = co2, total = water + co2)
 end
 
 """
-    _ignition_molar_mass(system, symbols..., fallback) -> Quantity
+    _ignition_molar_mass(system, symbols..., atoms) -> Quantity
 
 The molar mass of a released gas, taken from the system's own species when it
-carries one under any of `symbols`, and from `fallback` otherwise.
+carries one under any of `symbols`, and computed from `atoms` otherwise.
 
 Preferring the system's own is the rule this package keeps everywhere: a molar
 mass written here would drift from the database the rest of the calculation
 uses. The fallback exists because an assemblage may release a species it never
-declared — a paste with no gas phase still loses water on ignition.
+declared — a paste with no gas phase still loses water on ignition — and it is
+weighed with the same atomic masses as every species.
 """
-function _ignition_molar_mass(system::ChemicalSystem, a, b, fallback)
+function _ignition_molar_mass(system::ChemicalSystem, a, b, atoms)
     for sp in system.species
         symbol(sp) in (a, b) && haskey(sp, :M) && return sp[:M]
     end
-    return fallback
+    return calculate_molar_mass(atoms)
 end
+
+const _WATER_ATOMS = OrderedDict(:H => 2, :O => 1)
+const _CO2_ATOMS = OrderedDict(:C => 1, :O => 2)
 
 """
     bound_water_per_phase(state::ChemicalState) -> Vector{Pair{String,Quantity}}
@@ -121,7 +124,7 @@ those windows would attach.
 """
 function bound_water_per_phase(state::ChemicalState)
     system = state.system
-    mw = _ignition_molar_mass(system, "H2O@", "H2O", 0.018015u"kg/mol")
+    mw = _ignition_molar_mass(system, "H2O@", "H2O", _WATER_ATOMS)
     out = Pair{String, typeof(uconvert(us"kg", 1.0u"mol" * mw))}[]
     for i in _solid_indices(system)
         sp = system.species[i]

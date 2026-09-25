@@ -1,0 +1,45 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "DzombakMorel1990",
+    "doi": null,
+    "citation": "Dzombak, D. A., Morel, F. M. M. (1990). Surface Complexation Modeling: Hydrous Ferric Oxide. Wiley-Interscience, New York. ISBN 9780471637318.",
+    "location": null
+  },
+  "transcription": {
+    "from": "test/reference/phreeqc_hfo_surface.py, ChemistryLab 0.22.2 (the SURFACE block of the hydrous-ferric-oxide oracle)",
+    "checked_against_source": false,
+    "note": "Moved out of the generator unchanged. The book was not consulted during the move; these are the site densities, specific area and molar mass the package's oracle has used, and the ones PHREEQC's documentation pairs with the Hfo surface of phreeqc.dat. The protolysis and metal constants are not here: the oracle reads them from phreeqc.dat itself."
+  },
+  "quantities": {
+    "weak_sites_per_mol_Fe": {
+      "value": 0.2,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "Moles of weak sites per mole of Fe in hydrous ferric oxide."
+    },
+    "strong_sites_per_mol_Fe": {
+      "value": 0.005,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "Moles of strong sites per mole of Fe."
+    },
+    "specific_surface_area": {
+      "value": 600,
+      "unit": "m^2/g",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "Specific surface area of hydrous ferric oxide."
+    },
+    "molar_mass": {
+      "value": 89,
+      "unit": "g/mol",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "Molar mass taken for hydrous ferric oxide, per mole of Fe, to convert the specific area into an area per mole."
+    }
+  },
+  "notes": []
+}

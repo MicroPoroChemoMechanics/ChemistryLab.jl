@@ -12,7 +12,8 @@
 #
 # Kinetics: Parrot & Killoh (1984), Arrhenius correction from Schindler &
 #   Folliard (2005).
-# Semi-adiabatic calorimeter with quadratic heat losses (Lavergne et al. 2018).
+# Semi-adiabatic calorimeter with quadratic heat losses, the form of Lavergne
+#   et al. (2018), Eq. (23), with illustrative coefficients.
 #
 # Usage:
 #   julia --project=scripts scripts/cement_clinker_kinetics.jl
@@ -54,8 +55,8 @@ cs = ChemicalSystem(species, CEMDATA_PRIMARIES)
 
 # ── 2. Initial state ─────────────────────────────────────────────────────────
 #
-# Typical CEM I 52.5 R composition (Lavergne et al. 2018):
-# mass fractions in the clinker. We work with 1 kg of cement.
+# An assumed CEM I composition, typical of the class but not taken from a
+# published analysis: mass fractions in the clinker. We work with 1 kg of cement.
 
 const WC = 0.4         # water/cement ratio [-]
 const COMPOSITION = (            # clinker phase mass fractions [kg/kg cement]
@@ -138,7 +139,10 @@ kinetic_reactions = [rxn_C3S, rxn_C2S, rxn_C3A, rxn_C4AF]
 
 const TSPAN = (0.0, 7.0 * 86400.0)
 
-# Semi-adiabatic calorimeter parameters (Lavergne et al. 2018)
+# Semi-adiabatic calorimeter: the quadratic loss law of Lavergne et al. (2018),
+# Eq. (23). Its coefficients here are illustrative, not the paper's: their
+# calibrated device has a = 75 J/(h·K) and b = 0.26 J/(h·K²), about 0.021 W/K and
+# 7.2e-5 W/K² (data/literature/Lavergne2018.json).
 #
 # `Cp` is the FIXED heat capacity only — the Dewar flask, 1 kg at about
 # 900 J/(kg·K). The paste's own heat capacity is `Σᵢ nᵢ Cp⁰ᵢ(T)`, which the
@@ -150,7 +154,7 @@ const TSPAN = (0.0, 7.0 * 86400.0)
 cal = SemiAdiabaticCalorimeter(;
     Cp = 900.0u"J/K",              # Dewar flask alone
     T_env = 293.15u"K",
-    heat_loss = ΔT -> 0.3 * ΔT + 0.003 * ΔT^2,
+    heat_loss = ΔT -> 0.3 * ΔT + 0.003 * ΔT^2,   # illustrative a, b in W/K and W/K²
     T0 = 293.15u"K",
 )
 

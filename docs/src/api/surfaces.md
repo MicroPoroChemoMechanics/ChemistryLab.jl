@@ -24,6 +24,15 @@ Modules = [ChemistryLab]
 Pages   = ["surfaces/site_families.jl"]
 ```
 
+A published surface model is a list of reactions and constants, written the way
+PHREEQC writes them. [`site_family`](@ref) turns such a list into a family,
+including the reactions [`read_sorption_model`](@ref) reads from a database.
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["surfaces/site_family_reactions.jl"]
+```
+
 ## The surface potential as an unknown
 
 A [`DiffuseLayer`](@ref) written as an activity coefficient is exact and not
@@ -36,6 +45,18 @@ the outer Newton removes that fixed point rather than taming it.
 ```@autodocs
 Modules = [ChemistryLab]
 Pages   = ["surfaces/surface_potential.jl"]
+```
+
+## The ions of the diffuse layer
+
+A [`DiffuseLayer`](@ref) leaves the ions that screen the surface in the solution,
+which then carries the counter-charge. A [`DonnanLayer`](@ref) counts them in a
+layer of water on the surface, as PHREEQC's `SURFACE -Donnan` does, and
+[`equilibrate_donnan`](@ref) solves with them withdrawn from the solution.
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["surfaces/diffuse_inventory.jl"]
 ```
 
 ## The site budget, and the declaration it has to match

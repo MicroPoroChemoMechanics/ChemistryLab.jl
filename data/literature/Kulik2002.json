@@ -1,0 +1,67 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Kulik2002",
+    "doi": "10.2475/ajs.302.3.227",
+    "citation": "Kulik, D. A. (2002). Gibbs energy minimization approach to modeling sorption equilibria at the mineral-water interface: Thermodynamic relations for multi-site-surface complexation. American Journal of Science 302, 227-279.",
+    "location": null
+  },
+  "transcription": {
+    "from": "the published article (PDF), pp. 243 and 250",
+    "checked_against_source": true,
+    "note": "The site densities were in src/surfaces/host_coupling.jl and the two shifts in test/site_families.jl before this file existed; all agree with the article. The minus signs of the two shifts are a special glyph that text extraction drops; they are read from the page and from the logarithms they print."
+  },
+  "quantities": {
+    "reference_site_density_nm2": {
+      "value": 12.05,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 243",
+      "description": "Conventional reference total site density, in sites per nm^2, proposed as 2e-5 mol/m^2 for every surface species and every sorbent: the standard state of a monodentate surface species."
+    },
+    "reference_site_density": {
+      "value": 2e-05,
+      "unit": "mol/m^2",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 243",
+      "description": "The same reference density in the form Kulik proposes it; the value in nm^-2 is its rounded reading."
+    },
+    "dzombak_morel_weak_site_density_nm2": {
+      "value": 2.254,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 250",
+      "description": "Total site density, in sites per nm^2, at which Dzombak and Morel (1990) fitted their intrinsic constants of the weak sites of hydrous ferric oxide, as reported by Kulik."
+    },
+    "dzombak_morel_strong_site_density_nm2": {
+      "value": 0.056,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 250",
+      "description": "The same for the strong sites."
+    },
+    "logk_shift_weak": {
+      "value": -0.73,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 250",
+      "description": "The term Kulik adds to a weak-site intrinsic constant of Dzombak and Morel to refer it to the reference density, log(2.254/12.05), as printed (two decimals)."
+    },
+    "logk_shift_strong": {
+      "value": -2.33,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 250",
+      "description": "The same for the strong sites, log(0.056/12.05)."
+    }
+  },
+  "notes": [
+    "Equation (21), p. 250, converts an intrinsic constant fitted at a site density to the reference one; convert_logk_site_density implements it."
+  ]
+}

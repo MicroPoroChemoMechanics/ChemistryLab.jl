@@ -1,0 +1,25 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "PlummerBusenberg1982",
+    "doi": "10.1016/0016-7037(82)90056-4",
+    "citation": "Plummer, L. N., Busenberg, E. (1982). The solubilities of calcite, aragonite and vaterite in CO2-H2O solutions between 0 and 90 C, and an evaluation of the aqueous model for the system CaCO3-CO2-H2O. Geochimica et Cosmochimica Acta 46(6), 1011-1040.",
+    "location": "abstract"
+  },
+  "transcription": {
+    "from": "the article's abstract, as quoted by indexing pages consulted on 2026-09-25; the article itself was not read",
+    "checked_against_source": false,
+    "note": "The value was typed into test/duan2016_reference.jl as 'the accepted log Ksp of calcite at 25 C' before this file existed. The abstract gives log K = -8.480 +/- 0.020 for calcite at 25 C, with -8.336 for aragonite and -7.913 for vaterite."
+  },
+  "quantities": {
+    "log_K_calcite_25C": {
+      "value": -8.48,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": 0.02,
+      "location": "abstract",
+      "description": "log K of CaCO3(calcite) = Ca2+ + CO3-2 at 25 C."
+    }
+  },
+  "notes": []
+}

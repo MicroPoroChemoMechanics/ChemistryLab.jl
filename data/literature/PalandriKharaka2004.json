@@ -1,0 +1,32 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "PalandriKharaka2004",
+    "doi": "10.3133/ofr20041068",
+    "citation": "Palandri, J. L., Kharaka, Y. K. (2004). A compilation of rate parameters of water-mineral interaction kinetics for application to geochemical modeling. U.S. Geological Survey Open-File Report 2004-1068.",
+    "location": null
+  },
+  "transcription": {
+    "from": "the published report (PDF from pubs.usgs.gov), Table 33, p. 42",
+    "checked_against_source": true,
+    "note": "The calcite acid and neutral parameters were typed in docstring examples of src/kinetics/rate_models.jl and in docs/src/manual/kinetics_syntax.md, as 10^log k rounded to four digits; they agree with the table."
+  },
+  "tables": {
+    "carbonate_rates": {
+      "columns": ["mineral", "acid_log_k", "acid_E", "acid_n_H", "neutral_log_k", "neutral_E", "carbonate_log_k", "carbonate_E", "carbonate_n_PCO2"],
+      "units": [null, "1", "kJ/mol", "1", "1", "kJ/mol", "1", "kJ/mol", "1"],
+      "kind": "fitted",
+      "location": "Table 33, p. 42",
+      "rows": [
+        ["calcite", -0.3, 14.4, 1.0, -5.81, 23.5, -3.48, 35.4, 1.0],
+        ["dolomite, sedimentary", -3.19, 36.1, 0.5, -7.53, 52.2, -5.11, 34.8, 0.5],
+        ["dolomite, hydrothermal", -3.76, 56.7, 0.5, -8.6, 95.3, -5.37, 45.7, 0.5],
+        ["magnesite", -6.38, 14.4, 1.0, -9.34, 23.5, -5.22, 62.8, 1.0]
+      ]
+    }
+  },
+  "notes": [
+    "log k is the decimal logarithm of the rate constant in mol m^-2 s^-1 at 25 C (for the acid mechanism, at pH 0); E is the Arrhenius activation energy; n is the reaction order with respect to H+ (acid) or to P(CO2) (carbonate).",
+    "Dawsonite, for which the table gives only a neutral mechanism, is left out. The activation energies of magnesite are those of calcite, which the report assigns to it for want of data."
+  ]
+}

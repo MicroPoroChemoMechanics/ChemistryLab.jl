@@ -140,7 +140,7 @@ registers the file as a dependency, so that editing it recompiles the package
 instead of leaving a stale value in the compiled image.
 
 See also: [`literature_value`](@ref), [`literature_table`](@ref),
-[`Traced`](@ref).
+[`literature_row`](@ref), [`Traced`](@ref).
 """
 function literature(key::AbstractString)
     k = String(key)
@@ -182,20 +182,65 @@ literature_value(key::AbstractString, name::AbstractString) =
     value(literature(key)[name])
 
 """
-    literature_table(key, name) -> NamedTuple
+    literature_table(key, name; column = value, ...) -> NamedTuple
 
 The table `name` taken from the source `key`, as a `NamedTuple` of columns.
 Each column carries the unit the file declares for it, and a column declared
 without a unit holds text.
+
+Keywords keep the rows whose columns equal the values given, all of them, which
+is how a table in long format is read — one row per measurement, the conditions
+of each in its other columns:
+
+```julia
+literature_table("Durdzinski2017", "degree_of_reaction";
+                 technique = "SEM-IA", material = "S1", curing = "sealed", age_days = 28)
+```
+
+A keyword that names no column is an error rather than a filter that keeps
+nothing.
 """
-function literature_table(key::AbstractString, name::AbstractString)
+function literature_table(key::AbstractString, name::AbstractString; where...)
     r = literature(key)
     haskey(r.tables, name) || throw(
         KeyError(
             "$(r.key) has no table \"$name\"; it has: " * join(keys(r.tables), ", ")
         )
     )
-    return r.tables[name]
+    t = r.tables[name]
+    isempty(where) && return t
+    for c in keys(where)
+        haskey(t, c) || throw(
+            KeyError("$(r.key), table \"$name\", has no column \"$c\"; it has: " * join(keys(t), ", "))
+        )
+    end
+    keep = [all(t[c][i] == v for (c, v) in pairs(where)) for i in eachindex(first(t))]
+    return map(col -> col[keep], t)
+end
+
+"""
+    literature_row(key, table, label) -> NamedTuple
+
+The row of the table `table` of the source `key` whose first column is `label`,
+as a `NamedTuple` of its entries: the phase, mix or species a row is about is
+what a caller knows, not its position.
+
+```julia
+co = literature_row("BaroghelBouny1999", "retention_fit", "CO")
+VanGenuchten(; a = co.a, m = 1 / co.b)
+```
+"""
+function literature_row(key::AbstractString, table::AbstractString, label::AbstractString)
+    t = literature_table(key, table)
+    first_col = first(t)
+    i = findfirst(==(label), first_col)
+    i === nothing && throw(
+        KeyError(
+            "$key, table \"$table\", has no row \"$label\"; its rows are: " *
+                join(first_col, ", ")
+        )
+    )
+    return map(col -> col[i], t)
 end
 
 # ── reading and checking one file ────────────────────────────────────────────
@@ -214,10 +259,30 @@ end
 # to. Names resolve in the unit registry of `DynamicQuantities` and nowhere else.
 const _UNIT_OPS = Dict{Symbol, Function}(:* => *, :/ => /, :^ => ^, :+ => +, :- => -)
 
+# The registry of DynamicQuantities carries only the prefixes each unit commonly
+# takes (`kPa` but not `MPa`), and extending it is a change of global state that
+# every package in the session would see. A name the registry lacks is read here
+# as an SI prefix followed by a unit it has, the factors being the exact powers
+# of ten the SI defines.
+const _SI_PREFIXES = Dict{Char, Float64}(
+    'T' => 1.0e12, 'G' => 1.0e9, 'M' => 1.0e6, 'k' => 1.0e3, 'h' => 1.0e2,
+    'd' => 1.0e-1, 'c' => 1.0e-2, 'm' => 1.0e-3, 'μ' => 1.0e-6, 'n' => 1.0e-9,
+    'p' => 1.0e-12,
+)
+
+_registry_unit(s::Symbol) = isdefined(DynamicQuantities.Units, s) ?
+    getfield(DynamicQuantities.Units, s) : nothing
+
 _eval_unit(x::Real, path, where) = x
 function _eval_unit(s::Symbol, path, where)
-    isdefined(DynamicQuantities.Units, s) || _literature_error(path, "$where: unit \"$s\" is unknown")
-    x = getfield(DynamicQuantities.Units, s)
+    x = _registry_unit(s)
+    if x === nothing
+        name = String(s)
+        base = _registry_unit(Symbol(chop(name; head = 1, tail = 0)))
+        (haskey(_SI_PREFIXES, first(name)) && base isa AbstractQuantity) ||
+            _literature_error(path, "$where: unit \"$s\" is unknown")
+        x = _SI_PREFIXES[first(name)] * base
+    end
     x isa AbstractQuantity || _literature_error(path, "$where: \"$s\" is not a unit")
     return x
 end

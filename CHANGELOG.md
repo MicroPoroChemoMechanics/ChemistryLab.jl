@@ -1,5 +1,197 @@
 # Changelog
 
+## v0.23.0 — Published values out of the code, and a C-S-H surface checked against PHREEQC
+
+0.22.2 gave published values a home in `data/literature/`. This release moves
+the rest of them there: every value taken from an article, in the source, the
+tests, the executed documentation and the scripts, is now read from a file that
+names its source and where in that source it was found. Moving them meant
+reading each one against its source again, which found wrong attributions, one
+model error and several quiet defects. The release also adds a way to build a
+surface from published reactions and to count the ions of its diffuse layer,
+and uses both to check the C-S-H surface model of the chloride literature
+against PHREEQC, alone and in a hydrated paste.
+
+### Breaking changes
+
+Below 1.0 the registry treats a minor bump as breaking whatever the API did, so
+`[compat] = "0.22"` will not accept `0.23`, and a dependent must widen its bound.
+The documentation environment of MeanFieldHomogenization.jl lists ChemistryLab
+up to `0.22` and needs `0.23` added.
+
+Three behaviors change deliberately:
+
+- **`HKFActivityModel` computes different results.** It used the effective
+  electrostatic radius of each ion (Table 3 of Helgeson et al., 1981) as the
+  ion size of the Debye-Hückel denominator, 1.91 Å for Na⁺. The ion size is a
+  property of an electrolyte, defined by their Eq. (125), which gives 3.72 Å for
+  NaCl (their Table 2). The model now forms each ion's size from that equation
+  for the electrolyte the ion makes with the NaCl background, as TOUGHREACT
+  does. It reproduces Table 2 for the twenty-one salts of ions the package
+  carries, and it follows Hamer and Wu's NaCl to 0.9 % at 0.1 mol/kg and 1.5 % at
+  1 mol/kg, where it was 5 % and 19 % out. An explicit `sp[:a]`, the model's
+  common `a` and `a_default` are ion sizes already and are unchanged.
+- **A temperature or pressure given to a solve is refused.** `equilibrate`,
+  `equilibrate_certified` and `EquilibriumSolver` passed the keywords they did
+  not know to the optimizer, so `T = …` or `P = …` was dropped and the solve ran
+  at the state's temperature without a word. At a fixed hydroxide amount that
+  costs a pore solution the change in pKw, 0.17 between 20 and 25 °C. The four
+  keywords `T`, `P`, `temperature` and `pressure` now raise an error that points
+  to `set_temperature!`.
+- **The shipped `data/solid_solutions.toml` follows Cemdata18 on the AFm and AFt
+  binaries.** Its `AFm` entry mixed monosulfate and monocarbonate with
+  Redlich-Kister parameters that have no published source, while Cemdata18
+  treats the two as pure phases; it is removed, not made ideal. `AFm_SO4_OH`
+  and `AFt_SO4_CO3`, which Cemdata18 publishes as non-ideal, were declared
+  ideal because a phase that unmixes could not be expressed; they now carry its
+  Guggenheim parameters with two instances each, and open the gaps the article
+  prints. Code that built the whole file gets a different phase set.
+
+### A surface from its published reactions
+
+`site_family(name, reactions, aqueous; master, site, capacity, support, model)`
+builds a `SiteFamily` from surface reactions written as PHREEQC writes them,
+with their log K, or from the `SorptionReaction`s `read_sorption_model` returns.
+Each complex receives the energies of the aqueous species its reaction consumes.
+That one line of arithmetic was repeated by every hand-built surface, and when
+it was left out, a cation's complex certified with nothing formed. Built from
+`phreeqc.dat`, it reproduces the hydrous-ferric-oxide families the tests used to
+build by hand.
+
+### The ions of the diffuse layer
+
+`DonnanLayer`, `diffuse_layer_contents` and `equilibrate_donnan` count the ions
+that screen a charged surface, which a `DiffuseLayer` leaves in the solution. As
+in PHREEQC's `SURFACE -Donnan`, read in its source, the surface keeps its
+Gouy-Chapman potential and a layer of water of fixed thickness holds each
+solute at the average Boltzmann enrichment whose charge balances the surface's.
+`equilibrate_donnan` withdraws the layer's contents from the solution and
+solves again until the two agree; the layer's water is added to the solution's,
+as PHREEQC adds it, or taken from it, as a closed pore solution requires.
+Against PHREEQC on the C-S-H surface in 18 solutions, the layer's chloride
+agrees to 3 × 10⁻⁴ relative and its water exactly.
+
+### The C-S-H surface against PHREEQC
+
+The silanol surface of Elakneswaran et al. (2010), as Guo et al. (2018) use it,
+is compared with PHREEQC on the same model: the same reactions, read by both
+codes from one table of `Guo2018.json`, the Davies equation on both sides, and
+Dzombak and Morel's diffuse layer. The fixture generator takes every energy,
+molar mass and atomic mass it needs from the package itself.
+
+- On eighteen closed NaOH–CaCl₂–NaCl systems every point certifies. Site
+  fractions agree to 4.4 × 10⁻⁴, log a(H⁺) to 2.2 × 10⁻⁴ and the potential to
+  0.04 mV.
+- In Guo's paste (portlandite, monosulfate, ettringite, Friedel's and Kuzel's
+  salts), swept in NaCl, the phases agree to 2.9 × 10⁻⁴ mol, the surface species
+  to 4.5 × 10⁻⁴ mol and the bound chloride to 5 × 10⁻⁵ mol.
+- A new page, *Chloride binding by C-S-H and Friedel's salt*, splits the bound
+  chloride between the salts, the surface and the diffuse layer. The surface
+  holds all of it before any salt forms and a third of it at 0.4 mol/kg; the
+  layer, one Debye length thick, adds 2 to 8 %. The page states its scope first:
+  a C-S-H of fixed composition, not the CSHQ solid solution, and a layer
+  thickness that nothing published fixes.
+
+Guo's deprotonation row is taken in its proton form. Guo, and Elakneswaran et
+al. (2010), print it against OH⁻ with a constant that Elakneswaran et al. (2009)
+compare with the proton-form values of Viallis-Terrisse (−12.3) and Pointeau et
+al. (2006, −12.0).
+
+### A prescribed pH on a diffuse layer certifies
+
+`equilibrate_certified` under `FixedpH`, on a system with a `DiffuseLayer`,
+threw a `DimensionMismatch` before measuring anything. The certificate received
+the potential of each diffuse layer after the constraint's own unknown, and
+`optimality_certificate` built the constraint's block alone. It now composes the
+surface block as `solve` does, and audits the augmented problem. A `q` of any
+other length is refused by name.
+
+### Published values read from `data/literature/`
+
+New records, each checked against its source (on the page image wherever the
+text extraction loses signs or charges):
+Atkins1992, BaroghelBouny1999, Blanc2012 (Thermoddem), Duan2016, Durdzinski2017,
+DzombakMorel1990, Elakneswaran2009, Guo2018, HamerWu1972, Helgeson1981,
+HongGlasser1999, IAPWS2014, Kettler1992, Kulik2002, Lothenbach2008 and
+Lothenbach2010 (Cemdata07),
+Lothenbach2019 (Cemdata18, Tables 2, 3, D.1 and D.2), MaLothenbach2020 and 2021
+(the zeolites), PalandriKharaka2004,
+ParkhurstAppelo2013, PlummerBusenberg1982, Pointeau2006 and Xu2012; Lavergne2018
+and Powers1948 are extended. Every exported constant keeps its name and its
+value, and a test compares it row by row with its file. The vendored
+`cemdata18-zeolites.json` is rebuilt from the new records byte for byte.
+Results of other codes (Reaktoro, GEM-Selektor, PHREEQC) are fixtures in
+`test/reference/`, with versions and checksums.
+
+- `literature_row(key, table, label)` returns a row by its label, and
+  `literature_table` filters rows by column values, for tables in long format.
+  The unit reader accepts an SI prefix the registry lacks, such as MPa, without
+  modifying that registry.
+- `water_surface_tension(T)` evaluates the IAPWS R1-76(2014) equation, tested
+  against its Table 1.
+- `build_solid_solutions` reads `guggenheim = "<key>:<pair>"`, published
+  dimensionless parameters taken from `data/literature` rather than copied, and
+  `instances`, for a solid solution that unmixes.
+
+### Attributions corrected
+
+- The Debye-Hückel A = 0.5114 and B = 0.3288 were credited to Table 1 of
+  Helgeson et al. (1981), which gives 0.5091 and 0.3283. They are the 25 °C
+  row of the LLNL table in the PHREEQC manual, which is now cited, as are
+  PHREEQC's rule for uncharged species (the default `Kₙ` and `bₙ`) and
+  Helgeson's 3.72 Å (the default `a_default`).
+- The radii by charge are those of the TOUGHREACT V2 user's guide (Xu et al.,
+  2012). The Computers & Geosciences article cited before has no such table.
+- The clinker compositions 61.9/16.5/8.0/8.7 and 67.8/16.6/4.0/7.2/2.8 have no
+  published source; they were credited to Lavergne et al. (2018) and are now
+  labeled as assumed.
+- The Redlich-Kister parameters of the AFm solid solution were credited to
+  Cemdata18, which has no monosulfate–monocarbonate solid solution. They are
+  kept, unchanged, as labeled placeholders.
+- The degrees of reaction of Durdzinski et al. (2017) are in their Table 5,
+  not Table 4.
+- The quadratic heat-loss law with coefficients 0.3 and 0.003 was credited to
+  Lavergne et al. (2018). The form is theirs, and the coefficients are
+  illustrative; their calibrated device has 75 J/(h·K) and 0.26 J/(h·K²).
+- Guo et al. (2018) used Cemdata07, not Cemdata18, and their chloride row is
+  charge balanced. The validation chapter said otherwise on both counts.
+
+### Fixed
+
+- The self-desiccation tutorial took 0.0728 N/m for the surface tension of
+  water at 25 °C, which is the 20 °C value. It now computes 0.0720 N/m, and the
+  Kelvin radius at 80 % relative humidity becomes 4.7 nm.
+- The warning of SciMLBase about parameters of mixed types survived 0.22.2, whose
+  entry said it was gone: the vector of reactions had no concrete element type
+  either. Both vectors are now held behind one wrapper, and a test checks the
+  whole parameter tuple of a problem with two rate laws of different types.
+- `ignition_loss`, `bound_water_per_phase` and the thermogram used typed molar
+  masses for water and carbon dioxide when the system declares neither. They
+  now weigh them from the formula, as every species is weighed. A script and a
+  test gave a species written as CaAl₂Si₂O₈ a molar mass of 95 g/mol against the
+  278.2 g/mol of its atoms, and the override is gone.
+- The slag and metakaolin reactions of the blended-cement script created and
+  destroyed elements; they are balanced from the formulas. Their heats per
+  gram were credited to Gruyaert et al. (2010) and Lothenbach et al. (2011),
+  neither of which gives them; they are stated as assumptions.
+
+### Validation
+
+New reference tests, each reading its published values from the files above:
+every solubility product and HKF coefficient of Cemdata18 against its tables;
+the HKF model away from the reference point against Duan et al. (2016), whose
+pressure column is in bar although it is headed in pascals; Atkins et al.
+(1992); a limestone blend; Guo's chloride binding; the three PHREEQC
+comparisons above; alkali uptake by C-S-H against the 48 solutions of Hong and
+Glasser (1999), where the pH agrees to 0.072 from 15 to 100 mM and the alkali
+is over-bound, as expected of end members fitted to those data; and the
+Cemdata07 generation, from Lothenbach (2010) and Lothenbach et al. (2008): which
+of its solubility products and formation energies Cemdata18 kept, the molar
+volumes of 28 solids (24 to half the printed digit), and the confirmation that
+Guo et al. used it. The validation chapter pins every number it prints at the
+precision it prints it, and opens with what has been checked and the traps
+worth knowing.
+
 ## v0.22.2 — Published values in data files, and output that shows only the result
 
 A value taken from an article is data: it has a source, a location in that

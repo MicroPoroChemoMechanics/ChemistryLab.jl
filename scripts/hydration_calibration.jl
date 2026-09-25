@@ -251,21 +251,21 @@ The formulation held fixed through every fit: the CEM I 52.5 N of Lavergne et al
     published for, and because `ionic_hydration.jl` already runs it — so the two
     scripts describe one cement, not two.
 """
-const CALIB_CLINKER = (C3S = 0.65, C2S = 0.11, C3A = 0.11, C4AF = 0.08)
+const CALIB_CLINKER = IONIC_CEMENT.clinker
 
 """
     CALIB_GYPSUM
 
 Gypsum, 4.6 % of the binder mass. Fixed; see [`CALIB_CLINKER`](@ref).
 """
-const CALIB_GYPSUM = 0.046
+const CALIB_GYPSUM = IONIC_CEMENT.gypsum
 
 """
     CALIB_FILLER
 
 Limestone filler, 3.5 % of the binder mass. Fixed; see [`CALIB_CLINKER`](@ref).
 """
-const CALIB_FILLER = 0.035
+const CALIB_FILLER = IONIC_CEMENT.filler
 
 # ── the induction period, which Parrott & Killoh does not have ────────────────
 

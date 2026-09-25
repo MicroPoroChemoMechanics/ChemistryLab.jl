@@ -1,9 +1,9 @@
 # The oracle bench
 
 Three established codes, used as references rather than as authorities. Each
-script here *generates* values that are then frozen into a Julia test file, with
-the version of the code and the identity of the database it read written into
-the header. Nothing in this directory runs during `Pkg.test()`.
+script here *generates* a JSON fixture that the tests read, with the version of
+the code and the identity of the database it read written into it as fields.
+Nothing in this directory runs during `Pkg.test()`.
 
 ## The rule that comes before any of them
 
@@ -150,9 +150,10 @@ wherever its data is used.
 
 | script | env | produces |
 |:--|:--|:--|
-| `reaktoro_calcite_co2.py` | `reaktoro-env` | the `REAKTORO` fixture of `test/equilibrium_reference.jl` |
-| `reaktoro_coupling.py` | `reaktoro-env` | the `RKC` fixture of `test/coupling_reference.jl` |
+| `reaktoro_calcite_co2.py` | `reaktoro-env` | `reaktoro_calcite_co2.json`, read by `test/equilibrium_reference.jl`: calcite, CO₂ and water, amounts and their sensitivities to the CO₂ added |
+| `reaktoro_coupling.py` | `reaktoro-env` | `reaktoro_coupling.json`, read by `test/coupling_reference.jl`: the aqueous partition along a constant-rate calcite dissolution |
 | `phreeqc_hfo_surface.py` | `mpcm-oracles` | a Zn sorption edge on hydrous ferric oxide, strong and weak sites, `-no_edl`; `--edl` switches to the diffuse layer, which is a **different model** |
+| `phreeqc_csh_surface.py` | `mpcm-oracles`, plus `julia` | `phreeqc_csh_surface.json`, with `--case paste` `phreeqc_csh_paste.json`, and with `--case donnan` `phreeqc_csh_donnan.json` (the first case with `SURFACE -Donnan`, the diffuse layer's water and ions reported by `EDL()`), all read by `test/csh_surface.jl`: the silanol surface of Guo et al. (2018) with a diffuse layer, in NaOH-CaCl₂-NaCl solutions, then in Guo's paste (portlandite, AFm, AFt, Friedel's and Kuzel's salts) over a NaCl sweep; closed systems. The generator writes its own database — free ions, Davies activity — and reads the surface reactions from `data/literature/Guo2018.json`, the table the Julia side reads too. The standard energies, the molar masses and the atomic masses are asked of ChemistryLab itself, through `julia --project=$CHEMISTRYLAB_PROJECT` (the repository by default), so no energy or mass is read from a database file or typed |
 | `phreeqc_evolving_surface.py` | `mpcm-oracles` | a sorbent that DISSOLVES: a `SURFACE` coupled to an `EQUILIBRIUM_PHASES` mineral, titrated to exhaustion. Captures the coupling law, not a shared surface model |
 | `gems_bench.py` | `mpcm-oracles` | the GEMS3K status report above |
 

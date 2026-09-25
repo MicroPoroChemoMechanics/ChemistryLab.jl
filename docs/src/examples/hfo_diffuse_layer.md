@@ -39,9 +39,16 @@ g0(v) = SymbolicFunc(v * u"J/mol")
 const DB = Dict(symbol(s) => s for s in
                 build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
 
-const AREA    = 53.4          # m², the support that carries the sites
-const N_SITES = 2.0e-4        # mol
-const LOGK    = (protonation = 7.29, deprotonation = -8.93)   # PHREEQC's own
+# The oracle's recipe: one millimole of iron, with Dzombak and Morel's density
+# of weak sites and the specific area they pair with it.
+dm(q) = literature_value("DzombakMorel1990", q)
+const N_FE    = 1.0e-3u"mol"
+const AREA    = ustrip(us"m^2", dm("specific_surface_area") * dm("molar_mass") * N_FE)
+const N_SITES = dm("weak_sites_per_mol_Fe") * ustrip(us"mol", N_FE)
+# PHREEQC's own constants, read from the copy of phreeqc.dat the oracle uses.
+const DAT  = read_sorption_model(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+log_k(product) = only(reactions_involving(DAT, product)).log_K.value
+const LOGK = (protonation = log_k("Hfo_wOH2+"), deprotonation = log_k("Hfo_wO-"))
 # One kilogram of water, from the solvent's own molar mass: `55.5 mol` weighs
 # 0.99983 kg, and every molality below would carry that error.
 const N_WATER = ustrip(us"mol", 1.0u"kg" / DB["H2O@"][:M])

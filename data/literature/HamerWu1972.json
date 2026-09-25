@@ -1,0 +1,82 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "HamerWu1972",
+    "doi": "10.1063/1.3253108",
+    "citation": "Hamer, W. J., Wu, Y.-C. (1972). Osmotic coefficients and mean activity coefficients of uni-univalent electrolytes in water at 25 C. Journal of Physical and Chemical Reference Data 1, 1047-1100.",
+    "location": null
+  },
+  "transcription": {
+    "from": "the published article (PDF), Table 16, p. 1067, read on the page image",
+    "checked_against_source": true,
+    "note": "Ten of these rows were typed in test/published_values.jl before this file existed and agree with the table. The text layer of the scan reads the saturated molality as 6.1448: it is 6.144 followed by the note mark a."
+  },
+  "quantities": {
+    "nacl_saturated_molality": {
+      "value": 6.144,
+      "unit": "mol/kg",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Table 16, p. 1067",
+      "description": "Molality of the saturated NaCl solution, the last row of the table."
+    },
+    "nacl_saturated_phi": {
+      "value": 1.281,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Table 16, p. 1067",
+      "description": "Osmotic coefficient of the saturated solution."
+    },
+    "nacl_saturated_gamma": {
+      "value": 1.004,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Table 16, p. 1067",
+      "description": "Mean activity coefficient of the saturated solution."
+    }
+  },
+  "tables": {
+    "nacl": {
+      "columns": ["m", "phi", "gamma"],
+      "units": ["mol/kg", "1", "1"],
+      "kind": "measured",
+      "location": "Table 16, p. 1067",
+      "rows": [
+        [0.001, 0.988, 0.965],
+        [0.002, 0.984, 0.952],
+        [0.005, 0.976, 0.928],
+        [0.01, 0.968, 0.903],
+        [0.02, 0.959, 0.872],
+        [0.05, 0.944, 0.822],
+        [0.1, 0.933, 0.779],
+        [0.2, 0.924, 0.734],
+        [0.3, 0.921, 0.709],
+        [0.4, 0.92, 0.693],
+        [0.5, 0.921, 0.681],
+        [0.6, 0.923, 0.673],
+        [0.7, 0.926, 0.667],
+        [0.8, 0.929, 0.662],
+        [0.9, 0.932, 0.659],
+        [1.0, 0.936, 0.657],
+        [1.2, 0.944, 0.655],
+        [1.4, 0.953, 0.656],
+        [1.6, 0.962, 0.658],
+        [1.8, 0.973, 0.662],
+        [2.0, 0.984, 0.668],
+        [2.5, 1.013, 0.688],
+        [3.0, 1.045, 0.714],
+        [3.5, 1.08, 0.746],
+        [4.0, 1.116, 0.783],
+        [4.5, 1.153, 0.826],
+        [5.0, 1.191, 0.874],
+        [5.5, 1.231, 0.928],
+        [6.0, 1.27, 0.986]
+      ]
+    }
+  },
+  "notes": [
+    "Osmotic coefficient phi and mean activity coefficient gamma of aqueous NaCl at 25 C, a critical compilation of many measurements; the saturated solution is kept apart, as quantities."
+  ]
+}

@@ -66,14 +66,17 @@ for line in eachline(rec)
     occursin(r"cement:|blaine:|wb:|temperature:", line) && println(line)
 end
 
-# ASSUMED: a Bogue composition representative of a CEM I clinker.
-CLINKER = OrderedDict("C3S" => 0.65, "C2S" => 0.11, "C3A" => 0.11, "C4AF" => 0.08)
+# ASSUMED: a Bogue composition representative of a CEM I clinker, here
+# the Bogue composition of the CEM I 52.5 N of [Lavergne2018](@cite), Table 9.
+bogue = literature_table("Lavergne2018", "cement_bogue")
+CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))
 
 # ASSUMED: midpoint of the EN 197-1 CEM V/A range, which is 40-64 % clinker
 # with 18-30 % slag and 18-30 % pozzolana.
 SLAG_FRACTION = 0.24
 ASH_FRACTION = 0.24
-GYPSUM = 0.046
+# The gypsum of the same cement, 4.6 % of the binder.
+GYPSUM = literature_value("Lavergne2018", "gypsum_percent") / 100
 
 # ASSUMED: the same two analyses used on the CEM III and CEM IV pages, so that
 # the three calculations differ in their proportions and not in their inputs.
@@ -120,14 +123,24 @@ ALPHA_WATER = powers_alpha_max(WB; curing = CURING)
 # considered, and for the two glasses it is far the lower of the two. The RILEM
 # TC 238-SCM round robin [Durdzinski2017](@cite) measured exactly this geometry
 # -- Portland cement blended with slag and with a siliceous fly ash, w/b 0.40 --
-# in seven laboratories. Its Table 4 at 28 days, by SEM image analysis, the one
+# in seven laboratories. Its Table 5 at 28 days, by SEM image analysis, the one
 # technique the study found consistent: 38 % and 48 % for one slag, 45 % and
 # 49 % for the other, 20 % for the siliceous fly ash. The study's own verdict on
 # the precision is worth carrying: "at best +/- 5 %".
 #
-# ASSUMED from that table, and [section 6](@ref cem5-dor) sweeps both.
-ALPHA_SLAG = min(0.45, ALPHA_WATER)
-ALPHA_ASH = min(0.2, ALPHA_WATER)
+# ASSUMED from that table: the mean of the four slag values, and the fly ash's
+# one. [Section 6](@ref cem5-dor) sweeps both.
+# Degrees of reaction measured by SEM image analysis on sealed pastes, in
+# percent: [Durdzinski2017](@cite), Table 5, from data/literature/Durdzinski2017.json.
+sem(material, age) = literature_table(
+    "Durdzinski2017", "degree_of_reaction";
+    technique = "SEM-IA", material, curing = "sealed", age_days = age
+).degree_percent
+mean_percent(x) = sum(x) / length(x)
+slag_dor(age) = mean_percent([sem("S1", age); sem("S2", age)]) / 100
+ash_dor(age) = only(sem("SFA", age)) / 100
+ALPHA_SLAG = min(slag_dor(28), ALPHA_WATER)
+ALPHA_ASH = min(ash_dor(28), ALPHA_WATER)
 
 # The clinker is taken AT its water ceiling. At 28 days it has not quite got
 # there, so the assemblage below is an upper bound on what the clinker
@@ -194,7 +207,14 @@ ss = [
     SolidSolutionPhase("C3(AF)S0.84H", [byname[m] for m in feal]),
 ]
 cs = ChemicalSystem(species, CEMDATA_PRIMARIES; solid_solutions = ss)
-model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+# Debye-Hückel limiting law with a B-dot term, as GEM-Selektor runs CEMDATA18.
+# The B-dot is identified from the activity coefficients GEMS printed on a
+# Portland paste (test/reference/gems_cemdata18_portland.json), about 0.0976.
+using JSON
+gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
+lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
+Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
+model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
 
 components = String.(symbol.(cs.SM.primaries))
 @printf(
@@ -373,8 +393,8 @@ end
 )
 
 AGES = [
-    (" 7 days", 0.35, 0.1), ("28 days", ALPHA_SLAG, ALPHA_ASH),
-    ("90 days", 0.52, 0.25),
+    (" 7 days", slag_dor(7), ash_dor(7)), ("28 days", ALPHA_SLAG, ALPHA_ASH),
+    ("90 days", slag_dor(90), ash_dor(90)),
 ]
 
 @printf(

@@ -15,7 +15,12 @@
 #
 #   conda run -n reaktoro-env python test/reference/reaktoro_coupling.py
 #
-# Paste the printed values into `REAKTORO_COUPLING` in test/coupling_reference.jl.
+# Writes `test/reference/reaktoro_coupling.json`, which the test reads.
+
+import hashlib
+import json
+import os
+import sys
 
 import reaktoro as rkt
 import numpy as np
@@ -52,11 +57,25 @@ def phi(xi):
     return np.array([state.speciesAmount(n) for n in names])
 
 
-print(f"# Reaktoro {rkt.__version__}, Cemdata18, ideal activities")
-print(f"# calcite dissolving at k = {K_RATE} mol/s")
-print("const REAKTORO_COUPLING = Dict(")
-for t in TIMES:
-    n = phi(K_RATE * t)
-    entries = ", ".join(f'"{nm}" => {n[k]:.9g}' for k, nm in enumerate(names))
-    print(f"    {t} => Dict({entries}),")
-print(")")
+with open(DB, "rb") as handle:
+    md5 = hashlib.md5(handle.read()).hexdigest()
+payload = {
+    "generator": "test/reference/reaktoro_coupling.py",
+    "python": sys.version.split()[0],
+    "reaktoro": rkt.__version__,
+    "database": DB,
+    "database_md5": md5,
+    "aqueous_model": "ideal, to match DiluteSolutionModel()",
+    "n_H2O": N_H2O,
+    "rate": K_RATE,
+    "samples": [
+        {"t": t, "amounts": {nm: float(v) for nm, v in zip(names, phi(K_RATE * t))}}
+        for t in TIMES
+    ],
+}
+here = os.path.dirname(os.path.abspath(__file__))
+path = os.path.join(here, "reaktoro_coupling.json")
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(payload, handle, indent=2, sort_keys=False)
+    handle.write("\n")
+print(f"wrote {os.path.basename(path)}")

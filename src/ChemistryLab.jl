@@ -100,6 +100,7 @@ module ChemistryLab
 
     include("utils/constants.jl")
     include("utils/provenance.jl")
+    include("databases/literature.jl")
     include("utils/identifiability.jl")
     include("utils/misc.jl")
     include("utils/subsuperscripts.jl")
@@ -136,10 +137,10 @@ module ChemistryLab
     include("databases/paths.jl")
     include("databases/phreeqc_dat.jl")
     include("databases/thermofun_json.jl")
-    include("databases/literature.jl")
     include("databases/pitzer_toml.jl")
     include("databases/sit_dat.jl")
     include("databases/phreeqc_sorption.jl")
+    include("surfaces/site_family_reactions.jl")
     include("databases/merge_dat_json.jl")
 
     include("equilibrium/activities.jl")
@@ -156,6 +157,9 @@ module ChemistryLab
     include("equilibrium/dual_solver.jl")
     include("equilibrium/certified.jl")
     include("equilibrium/aqueous_properties.jl")
+    # After the certified solve it iterates, and the site families whose charge
+    # its layer balances.
+    include("surfaces/diffuse_inventory.jl")
 
     include("kinetics/rate_models.jl")
     include("kinetics/kinetics_reactions.jl")
@@ -176,6 +180,7 @@ module ChemistryLab
         HKFGState,
         SpeciesElectroPropsHKF,
         water_thermo_props,
+        water_surface_tension,
         water_electro_props_jn,
         hkf_g_function,
         species_electro_props_hkf
@@ -414,6 +419,7 @@ module ChemistryLab
     export literature,
         literature_value,
         literature_table,
+        literature_row,
         available_literature,
         literature_path,
         LiteratureRecord,
@@ -546,6 +552,10 @@ module ChemistryLab
         needs_ionic_strength,
         water_relative_permittivity,
         SiteFamily,
+        site_family,
+        DonnanLayer,
+        diffuse_layer_contents,
+        equilibrate_donnan,
         site_moles,
         site_mixing_model,
         reference_member,

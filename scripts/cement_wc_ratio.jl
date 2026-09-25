@@ -32,6 +32,7 @@ nothing # hide
 
 cs
 
+# An assumed CEM I composition, typical of the class; its source is not recorded.
 compo = ["C3S" => 0.678, "C2S" => 0.166, "C3A" => 0.04, "C4AF" => 0.072, "Gp" => 0.028]
 c = sum(last.(compo))   # cement mass fraction (= 0.984 here)
 

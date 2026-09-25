@@ -161,13 +161,17 @@ for line in cal.provenance
 end
 ```
 
+```@raw html
 <details><summary>What the solvers reported while computing these trajectories</summary>
+```
 
 ```@example calib
 print(String(take!(diagnostics))) # hide
 ```
 
+```@raw html
 </details>
+```
 
 ```@example calib
 @printf("one coupled forward solve on %d instants: %.0f s\n", length(target.t), t_coupled)

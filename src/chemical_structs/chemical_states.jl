@@ -559,7 +559,7 @@ julia> cs = ChemicalSystem([Species("H2O"; aggregate_state=AS_AQUEOUS, class=SC_
 
 julia> state = ChemicalState(cs, [55.5u"mol"]);
 
-julia> ustrip(uconvert(us"g", mass(state, cs[1]))) ≈ 55.5 * 18.015
+julia> ustrip(uconvert(us"g", mass(state, cs[1]))) ≈ 55.5 * ustrip(us"g/mol", cs[1][:M])
 true
 ```
 """
@@ -580,7 +580,7 @@ julia> cs = ChemicalSystem([Species("H2O"; aggregate_state=AS_AQUEOUS, class=SC_
 
 julia> state = ChemicalState(cs, [55.5u"mol"]);
 
-julia> ustrip(uconvert(us"g", mass(state, "H2O"))) ≈ 55.5 * 18.015
+julia> ustrip(uconvert(us"g", mass(state, "H2O"))) ≈ 55.5 * ustrip(us"g/mol", cs[1][:M])
 true
 ```
 """

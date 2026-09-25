@@ -7,9 +7,9 @@
     "location": null
   },
   "transcription": {
-    "from": "the published article (PDF), Tables 3 and 4 and p. 42 read on the page images",
+    "from": "the published article (PDF), Tables 3, 4, 9 and 11, pp. 42 and 51, read on the page images",
     "checked_against_source": true,
-    "note": "The values were in src/kinetics/rate_models.jl before this file existed and agree with the article to the last digit. Table 3 gives the parameters of Parrott and Killoh (1984) as reported by Lothenbach et al. (2008), ref. [30] of the article. The text cites the activation energies of Table 4 to refs. [60, 64], [60] being Maekawa et al. (1999). The pozzolanic kinetics of p. 42, Eqs. (24)-(25), follow Waller (1999), ref. [31], with n and tau adjusted to the SEM analyses of ref. [81]."
+    "note": "The values were in src/kinetics/rate_models.jl before this file existed and agree with the article to the last digit. Table 3 gives the parameters of Parrott and Killoh (1984) as reported by Lothenbach et al. (2008), ref. [30] of the article. The text cites the activation energies of Table 4 to refs. [60, 64], [60] being Maekawa et al. (1999). The pozzolanic kinetics of p. 42, Eqs. (24)-(25), follow Waller (1999), ref. [31], with n and tau adjusted to the SEM analyses of ref. [81]. Table 9 and Table 11 (p. 55) and the calorimeter of p. 51 were in the scripts and pages before this file existed and agree with the article. Table 11 names one mix C75FA525 at w/b = 0.5 and C75FA25 at 0.32; both spellings are kept as printed."
   },
   "quantities": {
     "T_ref": {
@@ -75,6 +75,86 @@
       "uncertainty": null,
       "location": "p. 42",
       "description": "Pozzolanic activity of the fly ash assumed in the adjustment of the sigmoid."
+    },
+    "blaine_cement": {
+      "value": 380,
+      "unit": "m^2/kg",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 9, p. 55",
+      "description": "Blaine fineness of the cement."
+    },
+    "blaine_limestone_filler": {
+      "value": 462,
+      "unit": "m^2/kg",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 51",
+      "description": "Blaine fineness of the limestone filler of the blends."
+    },
+    "calorimeter_heat_capacity": {
+      "value": 380,
+      "unit": "kJ/K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 51",
+      "description": "Heat capacity of the semi-adiabatic calorimeter, printed 'about 380 kJ/K'. The package reads the number as 380 J/K: see CALORIMETRY_VESSEL_CP in scripts/ionic_hydration.jl."
+    },
+    "clinker_percent": {
+      "value": 96,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 9, p. 55",
+      "description": "Clinker in the CEM I 52.5 N of the study, percent by mass of cement."
+    },
+    "density_cement": {
+      "value": 3.12,
+      "unit": "g/cm^3",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 9, p. 55",
+      "description": "Density of the cement."
+    },
+    "gypsum_percent": {
+      "value": 4.6,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 9, p. 55",
+      "description": "Gypsum in the cement, percent by mass."
+    },
+    "heat_loss_a": {
+      "value": 75,
+      "unit": "J/(h*K)",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 51, Eq. (23)",
+      "description": "Linear coefficient of the calorimeter's heat loss, from its calibration to NF EN 196-9."
+    },
+    "heat_loss_b": {
+      "value": 0.26,
+      "unit": "J/(h*K^2)",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 51, Eq. (23)",
+      "description": "Quadratic coefficient of the calorimeter's heat loss; printed 0.260."
+    },
+    "limestone_percent": {
+      "value": 3.5,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 9, p. 55",
+      "description": "CaCO3 in the cement, percent by mass."
+    },
+    "bet_silica_fume": {
+      "value": 20000,
+      "unit": "m^2/kg",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 42",
+      "description": "B.E.T. specific surface of silica fume, 'about 20,000 m2/kg', which the article quotes from its ref. [31], Waller (1999)."
     }
   },
   "tables": {
@@ -101,10 +181,56 @@
         ["C4AF", 32, 3800],
         ["C2S", 21, 2500]
       ]
+    },
+    "cement_bogue": {
+      "columns": ["phase", "percent"],
+      "units": [null, "1"],
+      "kind": "published",
+      "location": "Table 9, p. 55: the Bogue composition of the clinker, percent by mass of clinker",
+      "rows": [
+        ["C3S", 65],
+        ["C2S", 11],
+        ["C3A", 11],
+        ["C4AF", 8]
+      ]
+    },
+    "semi_adiabatic_mixes_wb032": {
+      "columns": ["name", "binder", "dry_sand", "water"],
+      "units": [null, "g", "g", "g"],
+      "kind": "published",
+      "location": "Table 11, p. 55, mixes at w/b = 0.32",
+      "rows": [
+        ["C100", 566, 1131, 191],
+        ["C95L05", 616, 1173, 208],
+        ["C90L10", 629, 1143, 211],
+        ["C85L15", 645, 1121, 216],
+        ["C70L30", 686, 1055, 229],
+        ["C95SF05", 567, 1080, 191],
+        ["C85SF15", 593, 1030, 199],
+        ["C75FA25", 601, 963, 202]
+      ]
+    },
+    "semi_adiabatic_mixes_wb050": {
+      "columns": ["name", "binder", "dry_sand", "water"],
+      "units": [null, "g", "g", "g"],
+      "kind": "published",
+      "location": "Table 11, p. 55, mixes at w/b = 0.5 (C85L15 at 0.48)",
+      "rows": [
+        ["C100", 371, 1113, 196],
+        ["C95L05", 503, 947, 257],
+        ["C90L10", 517, 924, 252],
+        ["C85L15", 516, 905, 258],
+        ["C70L30", 566, 870, 291],
+        ["C95SF05", 510, 971, 263],
+        ["C85SF15", 536, 932, 277],
+        ["C75FA525", 546, 873, 280],
+        ["C50FA50", 580, 773, 297]
+      ]
     }
   },
   "notes": [
     "The article writes the first author of the 1984 model 'Parrot'; the name is Parrott.",
-    "p. 42 prints 'E_S,A = 83,14 kJ/mol (E_S,A/R = 100 K)'; the ratio of the two is 1.0e4 K. Only the activation energy is kept here."
+    "p. 42 prints 'E_S,A = 83,14 kJ/mol (E_S,A/R = 100 K)'; the ratio of the two is 1.0e4 K. Only the activation energy is kept here.",
+    "Table 11: the water accounts for the 0.9 % absorption of the dry sand; the w/b of C85L15 in the first group is 0.48 (asterisk in the table)."
   ]
 }

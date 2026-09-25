@@ -16,21 +16,35 @@ lime combined with that much silica*.
 
 ## The alphabet
 
-| Symbol | Oxide | Name | Molar mass |
-|:------:|:------|:-----|-----------:|
-| `C`  | ``\ce{CaO}``    | lime                  |  56.08 g/mol |
-| `S`  | ``\ce{SiO2}``   | silica                |  60.08 g/mol |
-| `A`  | ``\ce{Al2O3}``  | alumina               | 101.96 g/mol |
-| `F`  | ``\ce{Fe2O3}``  | ferric oxide          | 159.69 g/mol |
-| `M`  | ``\ce{MgO}``    | magnesia              |  40.30 g/mol |
-| `K`  | ``\ce{K2O}``    | potassium oxide       |  94.20 g/mol |
-| `N`  | ``\ce{Na2O}``   | sodium oxide          |  61.98 g/mol |
-| `T`  | ``\ce{TiO2}``   | titania               |  79.86 g/mol |
-| `P`  | ``\ce{P2O5}``   | phosphorus pentoxide  | 141.94 g/mol |
-| `H`  | ``\ce{H2O}``    | water                 |  18.01 g/mol |
-| `C̄`  | ``\ce{CO2}``    | carbon dioxide        |  44.01 g/mol |
-| `S̄`  | ``\ce{SO3}``    | sulfur trioxide       |  80.06 g/mol |
-| `N̄`  | ``\ce{NO3}``    | nitrate               |  62.00 g/mol |
+```@example cemnot
+using ChemistryLab
+using DynamicQuantities
+using Markdown, Printf
+
+# The names are this page's. The formulas are the parser's own mapping,
+# CEMENT_TO_MENDELEEV, and the molar masses are computed from them.
+oxide_names = [
+    :C => "lime", :S => "silica", :A => "alumina", :F => "ferric oxide",
+    :M => "magnesia", :K => "potassium oxide", :N => "sodium oxide",
+    :T => "titania", :P => "phosphorus pentoxide", :H => "water",
+    :C̄ => "carbon dioxide", :S̄ => "sulfur trioxide", :N̄ => "nitrate",
+]
+mapping = Dict(CEMENT_TO_MENDELEEV)
+@assert Set(first.(oxide_names)) == Set(keys(mapping))   # every letter, and no other
+
+rows = ["| Symbol | Oxide | Name | Molar mass |", "|:------:|:------|:-----|-----------:|"]
+for (letter, oxide_name) in oxide_names
+    formula = join(string(el, n == 1 ? "" : n) for (el, n) in mapping[letter])
+    M = ustrip(us"g/mol", Species(formula).M)
+    push!(rows, @sprintf("| `%s` | %s | %s | %.2f g/mol |",
+                         letter, phreeqc_to_unicode(formula), oxide_name, M))
+end
+Markdown.parse(join(rows, "\n"))
+```
+
+The table is produced from the mapping the parser itself uses,
+[`CEMENT_TO_MENDELEEV`](@ref), and its molar masses are computed from the
+formulas, so it cannot drift from what ChemistryLab accepts.
 
 The first four are the oxides a clinker is made of, and the four a datasheet
 always reports; the next five are the minor oxides; the last three are the
@@ -45,35 +59,6 @@ Two conventions decide everything, and they are where a newcomer stumbles:
   dioxide is `C̄` because `C` is lime, and sulfur trioxide is `S̄` because `S` is
   silica. The bar is a combining macron (`U+0304`): type the letter, then that
   character.
-
-The table above is the mapping the parser itself uses,
-[`CEMENT_TO_MENDELEEV`](@ref). The block below prints it from the code and
-checks the two agree, so the table cannot quietly drift from what ChemistryLab
-accepts:
-
-```@example cemnot
-using ChemistryLab
-using DynamicQuantities
-
-# (formula, molar mass) exactly as the table above states them
-documented = Dict(
-    :C => ("CaO", 56.08), :S => ("SiO2", 60.08), :A => ("Al2O3", 101.96),
-    :F => ("Fe2O3", 159.69), :M => ("MgO", 40.30), :K => ("K2O", 94.20),
-    :N => ("Na2O", 61.98), :T => ("TiO2", 79.86), :P => ("P2O5", 141.94),
-    :H => ("H2O", 18.01), :C̄ => ("CO2", 44.01), :S̄ => ("SO3", 80.06),
-    :N̄ => ("NO3", 62.00),
-)
-
-for (letter, oxide) in CEMENT_TO_MENDELEEV
-    sp = Species(oxide)
-    formula, mass = documented[letter]
-    @assert atoms(sp) == atoms(Species(formula)) "table disagrees on $letter"
-    computed = round(ustrip(us"g/mol", sp.M), digits = 2)
-    @assert abs(computed - mass) < 0.005 "table gives $mass for $letter, the data give $computed"
-    println(rpad(string(letter), 3), " = ", rpad(unicode(sp), 8),
-            lpad(computed, 8), " g/mol")
-end
-```
 
 `H` is water, which is why hydrates carry a large `H` count: `C4AH13` is
 ``4\,\ce{CaO}\cdot\ce{Al2O3}\cdot 13\,\ce{H2O}``.

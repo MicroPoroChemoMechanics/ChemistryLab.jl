@@ -6,7 +6,7 @@
 
 The AFm and AFt phases of a Portland cement are binaries — sulfate against
 hydroxide, sulfate against carbonate — and the Redlich-Kister parameters
-published for them are strong enough that the mixing energy is **concave over an
+published for them in Cemdata18 [Lothenbach2019](@cite) are strong enough that the mixing energy is **concave over an
 interval**. Where an energy is concave the Gibbs minimum is not one composition
 but two: the phase unmixes, and the equilibrium is a **miscibility gap**.
 
@@ -47,10 +47,17 @@ convex. It needs no solve and no system:
 ```@example gap
 RT = R_GAS * 298.15
 
+# Cemdata18's dimensionless Guggenheim parameters, from
+# data/literature/Lothenbach2019.json: a₀ = α₀RT and a₁ = α₁RT.
+function published_rk(pair)
+    p = literature_row("Lothenbach2019", "guggenheim_parameters", pair)
+    return RedlichKisterModel(a0 = p.alpha0 * RT, a1 = p.alpha1 * RT)
+end
+
 models = OrderedDict(
     "ideal" => IdealSolidSolutionModel(),
-    "AFm SO4/OH (published)" => RedlichKisterModel(a0 = 0.188RT, a1 = 2.49RT),
-    "AFt SO4/CO3 (published)" => RedlichKisterModel(a0 = 1.67RT, a1 = 0.946RT),
+    "AFm SO4/OH (published)" => published_rk("AFm SO4/OH"),
+    "AFt SO4/CO3 (published)" => published_rk("AFt SO4/CO3"),
     "regular, W = 1.9 RT" => RegularSolutionModel([0.0 1.9RT; 1.9RT 0.0]),
     "regular, W = 2.1 RT" => RegularSolutionModel([0.0 2.1RT; 2.1RT 0.0]),
 )
@@ -109,8 +116,11 @@ A CEM I paste, with the AFm binary as the only phase whose model changes between
 the three runs:
 
 ```@example gap
-CLINKER = OrderedDict("C3S" => 0.65, "C2S" => 0.11, "C3A" => 0.11, "C4AF" => 0.08)
-GYPSUM = 0.046
+# The Bogue composition of the CEM I 52.5 N of [Lavergne2018](@cite), Table 9,
+# and its gypsum.
+bogue = literature_table("Lavergne2018", "cement_bogue")
+CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))
+GYPSUM = literature_value("Lavergne2018", "gypsum_percent") / 100
 WB = 0.50
 BINDER_G = 100.0
 
@@ -122,7 +132,15 @@ CSHQ = ["CSHQ-JenD", "CSHQ-JenH", "CSHQ-TobD", "CSHQ-TobH", "KSiOH", "NaSiOH"]
 AFM = ["C4AH13", "monosulphate12"]
 aqueous = ["SO4-2", "CO2@"]
 
-model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+# Debye-Hückel limiting law with a B-dot term, as GEM-Selektor runs CEMDATA18.
+using JSON
+# The B-dot is GEM-Selektor's, identified from the activity coefficients it
+# printed on a CEMDATA18 Portland paste (test/reference/gems_cemdata18_portland.json):
+# the two lowest charge classes fix the limiting-law slope and the B-dot, about 0.0976.
+gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
+lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
+Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
+model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
 
 """
 One system, differing only in how the AFm binary is declared.
@@ -157,7 +175,7 @@ function run_case(afm_phase; autostart = true)
 end
 
 afm_em = [byname[m] for m in AFM]
-published = RedlichKisterModel(a0 = 0.188RT, a1 = 2.49RT)
+published = published_rk("AFm SO4/OH")
 nothing # hide
 ```
 
@@ -274,7 +292,13 @@ which [`miscibility_split`](@ref) returns, together with the Gibbs energy the
 separation releases:
 
 ```@example gap
-for x̄ in (0.20, 0.40, 0.5268, 0.80, 0.96)
+# The composition of the AFm of this paste, as the single-composition answer of
+# case 2 returns it: x is the fraction of C4AH13, the first end-member.
+n2 = ustrip.(us"mol", eq2.n)
+grp2 = only(g for (g, ph) in zip(cs2.ss_groups, cs2.solid_solutions) if startswith(name(ph), "AFm"))
+x̄_paste = n2[grp2[1]] / sum(n2[i] for i in grp2)
+
+for x̄ in (0.20, 0.40, x̄_paste, 0.80, 0.96)
     r = miscibility_split(published, x̄, 2)
     if r.f_beta == 0
         @printf("x̄ = %.4f : homogeneous (outside the pair)\n", x̄)
@@ -293,8 +317,8 @@ end
 
 `Δg` is the distance from the curve down to the common tangent: it says, in
 joules per mole of binary, **how much a single-composition answer overstates the
-Gibbs energy**. The AFm of this paste sits at x̄ = 0.5268, inside the pair, so the
-figure is not academic.
+Gibbs energy**. The third line is the AFm of this paste, at the composition case
+2 returns: it sits inside the pair, so the figure is not academic.
 
 ### The one thing the minimization does not deliver
 

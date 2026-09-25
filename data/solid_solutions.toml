@@ -5,6 +5,11 @@
 #   end_members – symbols of species in the database (must have AS_CRYSTAL)
 #   model       – mixing model: "ideal" | "redlich_kister" | "regular"
 #   a0, a1, a2  – Redlich-Kister parameters (J/mol), only for model = "redlich_kister"
+#   guggenheim  – instead of a0 and a1: "<literature key>:<pair>", published
+#                 dimensionless parameters read from data/literature, a = α R T
+#                 at 298.15 K
+#   instances   – how many coexisting compositions the phase may take; 2 for a
+#                 model that unmixes, which is refused otherwise
 #   w           – single interaction parameter (J/mol) of a binary "regular"
 #   W           – full symmetric interaction matrix (J/mol), rows, for a
 #                 multi-component "regular" solution of any arity
@@ -15,13 +20,13 @@
 #   Lothenbach2015 : Lothenbach & Nonat, Cement and Concrete Research 78 (2015) 57-70
 #
 # NOTE — this file is not the CEMDATA18/GEM-Selektor phase model, and is not
-# meant to be. `CSHQ` and `C3(AF)S0.84H` below match the GEMS phases of the same
-# names, but `AFm`, `Hydrogarnet` and `Hydrotalcite` are deliberate alternatives:
-# GEMS treats `monocarbonate`, `C3AH6`, `C3FH6` and `hydrotalcite` as *pure*
-# phases, its AFm solid solution is `C4AH13` + `monosulphate12`, and its
-# hydrotalcite solid solution (`hydrotalc-pyro`) is `Mg3AlC0.5OH` +
+# meant to be. `CSHQ`, `C3(AF)S0.84H`, `AFm_SO4_OH` and `AFt_SO4_CO3` below match
+# the GEMS phases, but `Hydrogarnet` and `Hydrotalcite` are deliberate
+# alternatives: GEMS treats `C3AH6`, `C3FH6` and `hydrotalcite` as *pure* phases,
+# and its hydrotalcite solid solution (`hydrotalc-pyro`) is `Mg3AlC0.5OH` +
 # `Mg3FeC0.5OH` at Mg:Al = 3. Anyone reproducing a GEMS result should declare
-# the phases in the script rather than take this file wholesale.
+# the phases in the script rather than take this file wholesale. Monosulfate and
+# monocarbonate are pure phases in Cemdata18, and this file does not mix them.
 
 # ── C-S-H gel (CSHQ) — 6 end-members, ideal mixing ───────────────────────────
 # `KSiOH` = ((KOH)2.5SiO2H2O)0.2 and `NaSiOH` = ((NaOH)2.5SiO2H2O)0.2 are the
@@ -54,20 +59,6 @@ end_members = ["C3AFS0.84H4.32", "C3FS0.84H4.32"]
 model       = "ideal"
 source      = "Lothenbach2019"
 
-# ── AFm phases (monosulfate / monocarbonate) — binary Redlich-Kister ─────────
-# The end-members were spelled "Ms" and "Mc", which exist in neither shipped
-# database: cemdata18 names them "monosulphate12" and "monocarbonate". The phase
-# was therefore skipped with a warning by `build_solid_solutions`, and being the
-# only non-ideal entry, the Redlich-Kister path had no live case at all.
-[[solid_solution]]
-name        = "AFm"
-end_members = ["monosulphate12", "monocarbonate"]
-model       = "redlich_kister"
-a0          = 3000.0   # J/mol
-a1          = 500.0    # J/mol
-a2          = 0.0      # J/mol
-source      = "Lothenbach2019"
-
 # ── Hydrogarnet (C3AH6 / C3FH6) — binary ideal ───────────────────────────────
 [[solid_solution]]
 name        = "Hydrogarnet"
@@ -98,14 +89,12 @@ source      = "Lothenbach2019"
 #
 # The five below complete the set of multi-end-member phases a GEM-Selektor
 # CEMDATA18 run of a Portland cement is given. Their end-members are all in both
-# shipped databases; what is **assumed** here is ideal mixing.
-#
-# Read that assumption as an assumption. CEMDATA18 documents non-ideal parameters
-# for some of these, and they are not reproduced here because they could not be
-# sourced with confidence — a mixing parameter written down from memory is worse
-# than an ideal model honestly labelled. If you are reproducing a published
-# result that depends on one of these phases being non-ideal, set the model
-# yourself in the script (`SolidSolutionPhase(name, members; model = ...)`).
+# shipped databases. Three are ideal, and that is **assumed**; `AFm_SO4_OH` and
+# `AFt_SO4_CO3` carry the non-ideal parameters CEMDATA18 gives them (Table 1,
+# notes g and a), read from data/literature/Lothenbach2019.json. With them each
+# of the two unmixes, so a single composition is no longer its equilibrium, and
+# both are declared with two instances; the `miscibility_gap` example shows what
+# that takes.
 #
 # Two things measured on a CEM I paste at w/c = 0.5, worth knowing before
 # loading all of them:
@@ -123,8 +112,8 @@ source      = "Lothenbach2019"
 # GEMS also carries `OH_SO4_AFm` and `CO3_SO4_AFt`, which repeat `SO4_OH_AFm` and
 # `SO4_CO3_AFt` with the two end-member roles swapped. That is how GEMS opens a
 # miscibility gap — two identical binaries, so two immiscible compositions can
-# coexist. It cannot be expressed here, or in Reaktoro, because a species belongs
-# to exactly one phase; and it is inert unless the gap actually opens.
+# coexist. Here the same is asked for with `instances = 2`, and it is inert
+# unless the gap actually opens.
 
 # Straetlingite, two hydration states (C2ASH8 / C2ASH7).
 [[solid_solution]]
@@ -133,22 +122,32 @@ end_members = ["straetlingite", "straetlingite7"]
 model       = "ideal"
 source      = "Lothenbach2019"
 
-# AFm, the SO4/OH couple GEMS uses: monosulfate against C4AH13. Distinct from
-# the `AFm` entry above, which is the SO4/CO3 couple.
+# AFm, the SO4/OH couple of Cemdata18: C4AH13 against monosulfate, non-ideal
+# with the Guggenheim parameters of its Table 1, note g, read from
+# data/literature/Lothenbach2019.json. With C4AH13 first they give the gap the
+# article prints, X(OH) from 0.50 to 0.97, hence two instances. Cemdata18 has no
+# monosulfate-monocarbonate solid solution: those two are pure phases.
 [[solid_solution]]
 name        = "AFm_SO4_OH"
 end_members = ["C4AH13", "monosulphate12"]
-model       = "ideal"
+model       = "redlich_kister"
+guggenheim  = "Lothenbach2019:AFm SO4/OH"
+instances   = 2
 source      = "Lothenbach2019"
 
 # AFt, the SO4/CO3 couple, normalised per mole of sulfate: `ettringite03_ss` is
 # (SO4)Ca2Al0.6666667(OH)4(H2O)8.6666667, exactly ettringite/3, and
 # `tricarboalu03` is its carbonate analog. Declaring this alongside
 # `Ettringite_ss` double-counts the same aluminate sulfate — pick one.
+# Non-ideal with the parameters of Table 1, note a, downscaled by the article
+# to a 1 CO2 : 1 SO3 replacement, which is this per-sulfate normalization. With
+# the carbonate first they give the printed gap, X(SO4) from 0.10 to 0.55.
 [[solid_solution]]
 name        = "AFt_SO4_CO3"
 end_members = ["tricarboalu03", "ettringite03_ss"]
-model       = "ideal"
+model       = "redlich_kister"
+guggenheim  = "Lothenbach2019:AFt SO4/CO3"
+instances   = 2
 source      = "Lothenbach2019"
 
 # Hydrotalcite-pyroaurite, the Al/Fe couple at Mg:Al = 3. Distinct from the

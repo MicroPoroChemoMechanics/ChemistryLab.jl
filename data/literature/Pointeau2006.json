@@ -1,0 +1,47 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Pointeau2006",
+    "doi": "10.1016/j.jcis.2006.03.018",
+    "citation": "Pointeau, I., Reiller, P., Macé, N., Landesman, C., Coreau, N. (2006). Measurement and modeling of the surface potential evolution of hydrated cement pastes as a function of degradation. Journal of Colloid and Interface Science 300(1), 33-44.",
+    "location": "Table 3 and p. 39"
+  },
+  "transcription": {
+    "from": "the published article (PDF), Table 3 (p. 42) and section 2.4 (pp. 38-39), read on the page text",
+    "checked_against_source": true,
+    "note": "The two surface constants come in pairs: the first value is from the authors' earlier acid titration of C-S-H (their ref. [3]), the second from Viallis-Terrisse et al. (their ref. [8]), both obtained with the diffuse double-layer model of Dzombak and Morel. The site density is not measured; it follows from the silicate-chain model of Viallis-Terrisse et al., two reactive silanols on 41 Å2, with 500 m2/g."
+  },
+  "quantities": {
+    "site_density": {
+      "value": 0.004,
+      "unit": "mol/g",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "p. 39",
+      "description": "Silanol site density of C-S-H, from a structural model rather than a measurement."
+    },
+    "specific_surface_area": {
+      "value": 500,
+      "unit": "m^2/g",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "p. 38",
+      "description": "Specific surface area of C-S-H that Viallis-Terrisse et al. took to fit their data, with which the site density is computed."
+    }
+  },
+  "tables": {
+    "surface_constants": {
+      "columns": ["reaction", "log_K_titration", "log_K_viallis_terrisse"],
+      "units": [null, "1", "1"],
+      "kind": "fitted",
+      "location": "Table 3, p. 42, at I = 0",
+      "rows": [
+        [">SOH = >SO- + H+", -12.0, -12.3],
+        [">SOH + Ca+2 = >SOCa+ + H+", -9.2, -9.4]
+      ]
+    }
+  },
+  "notes": [
+    "Both reactions are written in the proton form. The authors model the surface with PHREEQC and the diffuse double-layer model (DLM)."
+  ]
+}

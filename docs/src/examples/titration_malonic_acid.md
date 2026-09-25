@@ -69,26 +69,23 @@ pKa1 = -log10(Ka1)
 Ka2  = exp(-(sp["Mal-2"].ΔₐG⁰(T = T) + sp["H+"].ΔₐG⁰(T = T) - sp["MalH-"].ΔₐG⁰(T = T)) / RT)
 pKa2 = -log10(Ka2)
 
-println("pKa1 (MalH2@ / MalH⁻) = ", round(pKa1, digits = 2), "   (lit. malonic 2.83)")
-println("pKa2 (MalH⁻  / Mal²⁻) = ", round(pKa2, digits = 2), "   (lit. malonic 5.69)")
+# Against the thermodynamic constants measured by Kettler et al. (1992) at 25 °C
+pKa1_ref = -literature_value("Kettler1992", "log_K1")
+pKa2_ref = -literature_value("Kettler1992", "log_K2")
+println("pKa1 (MalH2@ / MalH⁻) = ", round(pKa1, digits = 3), "   (measured: ", pKa1_ref, ")")
+println("pKa2 (MalH⁻  / Mal²⁻) = ", round(pKa2, digits = 3), "   (measured: ", pKa2_ref, ")")
 println("Δ pKa                 = ", round(pKa2 - pKa1, digits = 2))
 ```
 
-Build the [`EquilibriumSolver`](@ref) once — it is reused at every titration point:
+Each titration point is solved with [`equilibrate_certified`](@ref), which returns
+the composition together with a proof that it is the equilibrium. The proof is
+not a formality here: an Ipopt [`EquilibriumSolver`](@ref) reused across the
+points leaves a few of them unconverged near both ends of the curve, where one of
+the acid forms is vanishingly rare, while returning the same pH elsewhere. The
+certificate lives in `OptimaSolver`:
 
 ```@example titration_setup
-using Optimization, OptimizationIpopt
-
-solver = EquilibriumSolver(
-    cs,
-    DiluteSolutionModel(),
-    IpoptOptimizer(
-        mu_strategy = "adaptive",
-    );
-    variable_space = Val(:linear),
-    reltol  = 1e-8,
-    verbose = false,
-)
+using OptimaSolver
 nothing # hide
 ```
 
@@ -112,6 +109,7 @@ V_eq2 = 2 * n_H2A / c_base * 1e3   # second equivalence point, 10 mL
 
 volumes_NaOH = collect(range(0, 15; length = 101))   # mL, step 0.15 mL
 pH_vals = Float64[]
+proved = 0
 
 s = ChemicalState(cs)
 for V_mL in volumes_NaOH
@@ -127,9 +125,12 @@ for V_mL in volumes_NaOH
     set_quantity!(s, "H+",  1e-7u"mol/L" * V_liq)   # pH-neutral seed
     set_quantity!(s, "OH-", 1e-7u"mol/L" * V_liq)
 
-    s_eq = solve(solver, s)
+    # A copy: the solve may change its argument, and `s` is reused.
+    s_eq, cert = equilibrate_certified(deepcopy(s))
+    global proved += cert.optimal
     push!(pH_vals, pH(s_eq))
 end
+println(proved, " of ", length(volumes_NaOH), " points certified")
 
 # Indices are looked up from the volume, never hard-coded.
 at(V) = argmin(abs.(volumes_NaOH .- V))

@@ -17,7 +17,8 @@
         speciation(subs, sel; aggregate_state = [AS_AQUEOUS]), CEMDATA_PRIMARIES
     )
     sp(n) = cs[n]
-    law = VanGenuchten(; a = 37.5479e6, m = 1 / 2.1684)     # Baroghel-Bouny mix CO
+    co = literature_row("BaroghelBouny1999", "retention_fit", "CO")
+    law = VanGenuchten(; a = co.a, m = 1 / co.b)
 
     function build(wc; humidity)
         st = ChemicalState(cs)
@@ -114,7 +115,8 @@ end
     set_quantity!(st, "C3S", 0.8u"kg")
     set_quantity!(st, "C2S", 0.2u"kg")
     set_quantity!(st, "H2O@", 0.4u"kg")
-    h = PoreHumidity(VanGenuchten(; a = 37.5479e6, m = 1 / 2.1684), cs; reference = st)
+    co = literature_row("BaroghelBouny1999", "retention_fit", "CO")
+    h = PoreHumidity(VanGenuchten(; a = co.a, m = 1 / co.b), cs; reference = st)
     n = ustrip.(us"mol", st.n)
 
     @test pore_saturation(h, n) ≈ 1.0

@@ -1,0 +1,33 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Kettler1992",
+    "doi": "10.1007/BF00651513",
+    "citation": "Kettler, R. M., Wesolowski, D. J., Palmer, D. A. (1992). Dissociation quotients of malonic acid in aqueous sodium chloride media to 100 C. Journal of Solution Chemistry 21, 883-900.",
+    "location": null
+  },
+  "transcription": {
+    "from": "the published article (PDF), abstract, p. 883",
+    "checked_against_source": true,
+    "note": "Replaces two textbook pKa of malonic acid (2.83 and 5.69) that test/published_values.jl quoted without a source."
+  },
+  "quantities": {
+    "log_K1": {
+      "value": -2.852,
+      "unit": "1",
+      "kind": "fitted",
+      "uncertainty": 0.003,
+      "location": "p. 883",
+      "description": "Decimal logarithm of the first thermodynamic dissociation constant of malonic acid at 25 C, from the regression of the authors' and previously published quotients."
+    },
+    "log_K2": {
+      "value": -5.697,
+      "unit": "1",
+      "kind": "fitted",
+      "uncertainty": 0.001,
+      "location": "p. 883",
+      "description": "The same for the second dissociation, bimalonate to malonate."
+    }
+  },
+  "notes": []
+}

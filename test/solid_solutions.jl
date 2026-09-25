@@ -405,7 +405,7 @@ end
     ss_all = build_solid_solutions(datapath("solid_solutions.toml"), dict)
     names = Set(p.name for p in ss_all)
     for n in (
-            "CSHQ", "C3(AF)S0.84H", "AFm", "Hydrogarnet", "Ettringite_ss",
+            "CSHQ", "C3(AF)S0.84H", "Hydrogarnet", "Ettringite_ss",
             "Hydrotalcite",
             # added in 0.15.0
             "Straetlingite_ss", "AFm_SO4_OH", "AFt_SO4_CO3",

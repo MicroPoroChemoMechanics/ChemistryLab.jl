@@ -1,0 +1,45 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Duan2016",
+    "doi": "10.1371/journal.pone.0167035",
+    "citation": "Duan, Y., Feng, M., Zhong, X., Shang, R., Huang, L. (2016). Thermodynamic simulation of carbonate cements-water-carbon dioxide equilibrium in sandstone for prediction of precipitation/dissolution of carbonate cements. PLoS ONE 11(12), e0167035.",
+    "location": "Tables 4 and 6"
+  },
+  "transcription": {
+    "from": "the published article (open-access PDF from journals.plos.org), Table 4 (p. 6) and Table 6 (p. 8), read on the page text",
+    "checked_against_source": true,
+    "note": "The values were typed into test/duan2016_reference.jl before this file existed and agree with the article. Table 4 heads its pressure column P(Pa) and prints 1.0 and 1000.0; the test shows that the rows are at 1 bar and 1000 bar, and the column is kept here as printed, without a unit."
+  },
+  "tables": {
+    "equilibrium_constants": {
+      "columns": ["P_printed", "T", "K3_TCM", "K3_HKF", "K4_TCM", "K4_HKF"],
+      "units": ["1", "K", "1", "1", "1", "1"],
+      "kind": "published",
+      "location": "Table 4, p. 6: K3, the second dissociation of carbonic acid, and K4, water autoprotolysis, by the authors' method (TCM) and by the HKF equation (their ref. [3])",
+      "rows": [
+        [1.0, 298.15, 4.57e-11, 4.69e-11, 1.03e-14, 1e-14],
+        [1000.0, 373.15, 2.38e-10, 2.42e-10, 5.48e-13, 5.38e-13]
+      ]
+    },
+    "calcite": {
+      "columns": ["T", "P", "dG", "log_K"],
+      "units": ["K", "MPa", "J/mol", "1"],
+      "kind": "published",
+      "location": "Table 6, p. 8: calcite dissolving to Ca2+ and CO3-2, by the authors' Gibbs-energy integration",
+      "rows": [
+        [301.15, 15.0, 49166.56, -8.53],
+        [478.15, 15.0, 88688.97, -9.69],
+        [301.15, 50.0, 46288.02, -8.03],
+        [301.15, 70.0, 45088.62, -7.82],
+        [298.15, 0.1, 48681.85, -8.53],
+        [343.15, 15.0, 57103.05, -8.69],
+        [418.15, 40.0, 72544.71, -9.06],
+        [478.15, 60.0, 85970.32, -9.39]
+      ]
+    }
+  },
+  "notes": [
+    "Table 6 also gives a burial depth for its last four rows (0, 1.5, 4.0 and 6.0 km); it is not transcribed."
+  ]
+}

@@ -398,7 +398,7 @@ Throws if the system has no aqueous phase.
 # Examples
 
 ```julia
-γ = activity_coefficients(eq, HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0))
+γ = activity_coefficients(eq, HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0))   # see HKFActivityModel
 γ["K+"], γ["Ca+2"]           # 0.6098, 0.1199 on a CEM I pore solution
 γ["H2O@"]                    # the solvent, as a_w / x_w
 ```

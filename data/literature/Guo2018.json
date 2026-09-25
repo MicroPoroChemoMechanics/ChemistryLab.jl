@@ -1,0 +1,201 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Guo2018",
+    "doi": "10.1016/j.jcis.2018.07.005",
+    "citation": "Guo, B., Hong, Y., Qiao, G., Ou, J., Li, Z. (2018). Thermodynamic modeling of the essential physicochemical interactions between the pore solution and the cement hydrates in chloride-contaminated cement-based materials. Journal of Colloid and Interface Science 531, 56-63.",
+    "location": "Tables 1-3 and pp. 58-59"
+  },
+  "transcription": {
+    "from": "the published article (PDF), Tables 1-3 read on the page images (the signs of the constants are lost in the page text), and the text of pp. 58-59",
+    "checked_against_source": true,
+    "note": "The inventory, the molar masses and the reported pH and AFt plateau were typed into test/chloride_binding_reference.jl before this file existed and agree with the article. The Friedel's salt plateau is not printed; it is read off Fig. 1(b) and marked as such. The article's captions and body text disagree on the numbering of Tables 1 and 2; the captions are followed here."
+  },
+  "quantities": {
+    "csh_per_liter": {
+      "value": 225,
+      "unit": "g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 58",
+      "description": "C-S-H per liter of concrete in the model's initial state."
+    },
+    "ch_per_liter": {
+      "value": 90,
+      "unit": "g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 58",
+      "description": "Portlandite per liter of concrete."
+    },
+    "afm_per_liter": {
+      "value": 9,
+      "unit": "g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 58",
+      "description": "AFm (monosulfate) per liter of concrete."
+    },
+    "aft_per_liter": {
+      "value": 22.5,
+      "unit": "g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 58",
+      "description": "AFt (ettringite) per liter of concrete."
+    },
+    "porosity_percent": {
+      "value": 14.6,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 58",
+      "description": "Initial porosity of the concrete, percent by volume."
+    },
+    "csh_Ca_Si": {
+      "value": 1.667,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 58",
+      "description": "Ca/Si of the C-S-H."
+    },
+    "csh_specific_surface_area": {
+      "value": 500,
+      "unit": "m^2/g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 58",
+      "description": "Specific surface area of the C-S-H."
+    },
+    "csh_site_density": {
+      "value": 0.004,
+      "unit": "mol/g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 58",
+      "description": "Surface silanol site density of the C-S-H."
+    },
+    "pH_without_NaCl": {
+      "value": 13.213,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 59, Fig. 1(d)",
+      "description": "pH of the pore solution at a NaCl mass fraction of 0 %."
+    },
+    "pH_at_5pct_NaCl": {
+      "value": 13.128,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 59, Fig. 1(d)",
+      "description": "pH of the pore solution at a NaCl mass fraction of 5 %."
+    },
+    "aft_plateau": {
+      "value": 0.023,
+      "unit": "mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 59, Fig. 1(b)",
+      "description": "AFt per liter of concrete once the AFm is exhausted."
+    },
+    "friedel_plateau": {
+      "value": 0.01,
+      "unit": "mol",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "Fig. 1(b), read off the figure",
+      "description": "Friedel's salt per liter of concrete on the plateau, read off the figure; not printed."
+    }
+  },
+  "tables": {
+    "surface_reactions": {
+      "columns": ["reaction", "log_K"],
+      "units": [null, "1"],
+      "kind": "published",
+      "location": "Table 1, p. 57: primary surface site reactions of C-S-H at 25 C (constants from their ref. [16])",
+      "rows": [
+        ["≡SiOH + OH- → ≡SiO- + H2O", -12.7],
+        ["≡SiOH + Ca+2 → ≡SiOCa+ + H+", -9.4],
+        ["≡SiOH + Cl- → ≡SiOHCl-", -0.35],
+        ["≡SiOH + Na+ → ≡SiONa + H+", -13.6],
+        ["≡SiOH + K+ → ≡SiOK + H+", -13.6]
+      ]
+    },
+    "dissolution": {
+      "columns": ["phase", "reaction", "log_K"],
+      "units": [null, null, "1"],
+      "kind": "published",
+      "location": "Table 2, p. 58: dissolution reactions of the hydrates at 25 C (constants from their ref. [20])",
+      "rows": [
+        [
+          "CSH",
+          "5(CaO)·3(SiO2)·6.3(H2O) + 1.7 H2O = 5Ca+2 + 3SiO(OH)3- + 7OH-",
+          -13.1659
+        ],
+        ["CH", "Ca(OH)2 + 2H+ = Ca+2 + 2H2O", 22.79937],
+        [
+          "AFt",
+          "Ca6Al2(SO4)3(OH)12·26H2O = 2Al(OH)4- + 6Ca+2 + 26H2O + 4OH- + 3SO4-2",
+          -44.9085
+        ],
+        [
+          "AFm",
+          "Ca4Al2(SO4)(OH)12·6H2O = 2Al(OH)4- + 4Ca+2 + SO4-2 + 4OH- + 6H2O",
+          -29.2628
+        ],
+        [
+          "Friedel's salt",
+          "Ca4Al2Cl2O6·10H2O = 4Ca+2 + 2Al+3 + 2Cl- + 4H2O + 12OH-",
+          74.93
+        ]
+      ]
+    },
+    "hydrates": {
+      "columns": ["phase", "molar_mass", "density"],
+      "units": [null, "g/mol", "g/cm^3"],
+      "kind": "published",
+      "location": "Table 3, p. 58: molar mass and density of the hydrates (densities from their ref. [39])",
+      "rows": [
+        ["CSH", 191.4, 2.331],
+        ["CH", 74.1, 2.251],
+        ["AFm", 622.5, 2.015],
+        ["AFt", 1255.1, 1.778],
+        ["Friedel's salt", 561.3, 2.064],
+        ["CaCO3", 100.9, 2.93]
+      ]
+    },
+    "csh_formula": {
+      "columns": ["oxide", "coefficient"],
+      "units": [null, "1"],
+      "kind": "published",
+      "location": "Table 2, p. 58: the formula of the C-S-H its dissolution is written for, 5(CaO)·3(SiO2)·6.3(H2O)",
+      "rows": [
+        ["CaO", 5.0],
+        ["SiO2", 3.0],
+        ["H2O", 6.3]
+      ]
+    },
+    "surface_reactions_phreeqc": {
+      "columns": ["reaction", "log_K"],
+      "units": [null, "1"],
+      "kind": "fitted",
+      "location": "Table 1, p. 57, written in PHREEQC syntax by this package: the master species Csh_w stands for ≡Si, and the first row is in the proton form",
+      "rows": [
+        ["Csh_wOH = Csh_wO- + H+", -12.7],
+        ["Csh_wOH + Ca+2 = Csh_wOCa+ + H+", -9.4],
+        ["Csh_wOH + Cl- = Csh_wOHCl-", -0.35],
+        ["Csh_wOH + Na+ = Csh_wONa + H+", -13.6],
+        ["Csh_wOH + K+ = Csh_wOK + H+", -13.6]
+      ]
+    }
+  },
+  "notes": [
+    "Table 1, first row: -12.7 is the constant of the proton form, ≡SiOH = ≡SiO- + H+; written against OH-, as printed, the same surface would carry log K of about +1.3. The row is transcribed as printed.",
+    "Table 1, third row: the product is printed ≡SiOHCl-, with the charge of the chloride; the reaction is balanced.",
+    "Table 2: the constant of Friedel's salt is printed positive, 74.93, for a dissolution into Al+3 and OH-; it is transcribed as printed. The C-S-H molar mass of Table 3, 191.4 g/mol, is one third of the formula of Table 2, 574.1 g/mol.",
+    "Table 3 prints 100.9 g/mol for CaCO3; calcite is 100.09 g/mol. It is transcribed as printed.",
+    "surface_reactions_phreeqc is not a transcription: it is Table 1 as the package's C-S-H benchmark uses it. Its first row is the deprotonation in the proton form with the printed -12.7: Guo copies the OH- form and the constant from Elakneswaran et al. (2010), whose earlier paper (Elakneswaran et al. 2009) compares that constant with the proton-form values of Viallis-Terrisse et al. (-12.3) and Pointeau et al. (-12.0); written against OH-, -12.7 would leave the surface uncharged at pH 13."
+  ]
+}

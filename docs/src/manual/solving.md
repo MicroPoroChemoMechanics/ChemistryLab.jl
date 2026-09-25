@@ -374,8 +374,8 @@ log₁₀ γᵢ = Kₙ I
 2. `sp[:å]` — explicit value set in species properties.
 3. [`REJ_HKF`](@ref) — Helgeson et al. (1981) Table 3 (27 common ions)
    [Helgeson1981](@cite).
-4. [`REJ_CHARGE_DEFAULT`](@ref) — fallback by formal charge [Xu2011](@cite).
-5. `model.å_default` (default: 3.72 Å).
+4. [`REJ_CHARGE_DEFAULT`](@ref) — fallback by formal charge, [Xu2012](@cite) Table H.1-1.
+5. `model.å_default` (default: the ion size of NaCl, 3.72 Å, [Helgeson1981](@cite) Table 2).
 
 !!! warning "`å_default` does not impose a common ionic radius"
     It is the **last resort** of the chain above, reached only for a charge that
@@ -396,8 +396,8 @@ state_eq = equilibrate(state; model=HKFActivityModel(temperature_dependent=true)
 # Custom parameters
 model = HKFActivityModel(A=0.52, B=0.33, Ḃ=0.04)
 
-# One common ion size of 3.72 Å, overriding the per-species tables
-model = HKFActivityModel(å = 3.72)
+# One common ion size, that of NaCl, overriding the per-species tables
+model = HKFActivityModel(å = literature_value("Helgeson1981", "nacl_distance_of_closest_approach"))
 
 # å = 0 collapses the denominator to 1: the Debye-Hückel limiting law plus Ḃ I
 model = HKFActivityModel(å = 0.0)
@@ -410,10 +410,13 @@ model = HKFActivityModel(å = 0.0)
     species. For a KOH-dominated pore solution that is
 
     ```julia
-    model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+    model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
     ```
 
-    which reproduces the activity coefficients such a run reports to 0.25 % on
+    with the B-dot such a run implies, ``\dot B \approx 0.0976``, which
+    [A CEM I at equilibrium, with every solid solution declared](@ref)
+    identifies from the activity coefficients GEMS printed. That model
+    reproduces the activity coefficients such a run reports to 0.25 % on
     the monovalent ions and 1.2 % on the divalent ones. The package defaults are
     a different and more defensible model — the limiting law has no validity at
     `I ≈ 0.2 mol/kg` — and give divalent coefficients about twice as large, so
@@ -514,8 +517,8 @@ substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false
 dict = Dict(symbol(s) => s for s in substances)
 
 # SolidSolutionPhase requalifies SC_COMPONENT → SC_SSENDMEMBER automatically
-ss_afm = SolidSolutionPhase("AFm",
-    [dict["monosulphate12"], dict["monocarbonate"]])
+ss_hg = SolidSolutionPhase("C3(AF)S0.84H",
+    [dict["C3AFS0.84H4.32"], dict["C3FS0.84H4.32"]])
 ```
 
 **Workflow B — automated via [`build_solid_solutions`](@ref) and a TOML file:**
@@ -537,10 +540,11 @@ pre-built `data/solid_solutions.toml` file shipped with ChemistryLab.
     pore-solution pH of a Portland cement — leaving them out strands the alkalis
     in solution. `C3(AF)S0.84H` is the Fe-siliceous hydrogarnet.
 
-    `AFm`, `Hydrogarnet` and `Hydrotalcite` are **deliberate alternatives** to
-    the CEMDATA18 phase model, not reproductions of it: GEM-Selektor treats
-    `monocarbonate`, `C3AH6`, `C3FH6` and `hydrotalcite` as *pure* phases, its
-    AFm solid solution is `C4AH13` + `monosulphate12`, and its hydrotalcite
+    `AFm_SO4_OH` and `AFt_SO4_CO3` carry CEMDATA18's non-ideal parameters, read
+    from `data/literature/Lothenbach2019.json`, with two instances each because
+    both unmix. `Hydrogarnet` and `Hydrotalcite` are **deliberate alternatives**
+    to the CEMDATA18 phase model, not reproductions of it: GEM-Selektor treats
+    `C3AH6`, `C3FH6` and `hydrotalcite` as *pure* phases, and its hydrotalcite
     solid solution is `Mg3AlC0.5OH` + `Mg3FeC0.5OH` at Mg:Al = 3. Reproducing a
     published GEM-Selektor result means declaring the phases in the script, as
     above, rather than taking this file wholesale.
@@ -549,9 +553,9 @@ Then pass `solid_solutions` as a keyword to `ChemicalSystem`:
 
 ```julia
 cs = ChemicalSystem(
-    [H2O_sp, dict["monosulphate12"], dict["monocarbonate"], ...],
+    [H2O_sp, dict["C3AFS0.84H4.32"], dict["C3FS0.84H4.32"], ...],
     ["H2O@", "Al+3", ...];           # primaries
-    solid_solutions = [ss_afm],      # or solid_solutions = ss_phases
+    solid_solutions = [ss_hg],       # or solid_solutions = ss_phases
 )
 ```
 
@@ -569,7 +573,7 @@ solid solutions automatically.
 ### Ideal solid solution
 
 ```julia
-ss = SolidSolutionPhase("AFm", [em_ms, em_mc])   # IdealSolidSolutionModel() by default
+ss = SolidSolutionPhase("C3(AF)S0.84H", [em_al, em_fe])   # IdealSolidSolutionModel() by default
 cs = ChemicalSystem([...]; solid_solutions=[ss])
 state_eq = equilibrate(state)
 ```
@@ -577,10 +581,14 @@ state_eq = equilibrate(state)
 ### Non-ideal binary: Redlich-Kister
 
 ```julia
-# Interaction parameters for monosulfoaluminate-monocarboaluminate (example values)
-rk = RedlichKisterModel(a0 = 3000.0, a1 = 500.0)          # a2 defaults to 0.0
-# or 3-parameter:  RedlichKisterModel(a0 = 3000.0, a1 = 500.0, a2 = 50.0)
-ss = SolidSolutionPhase("AFm", [em_ms, em_mc]; model=rk)
+# Cemdata18's AFm SO4/OH binary, from its dimensionless Guggenheim parameters
+# (data/literature/Lothenbach2019.json): a = α R T, C4AH13 first.
+p  = literature_row("Lothenbach2019", "guggenheim_parameters", "AFm SO4/OH")
+RT = R_GAS * 298.15
+rk = RedlichKisterModel(a0 = p.alpha0 * RT, a1 = p.alpha1 * RT)   # a2 defaults to 0.0
+# It unmixes, so it needs two coexisting compositions:
+ss = SolidSolutionPhase("AFm_SO4_OH", [dict["C4AH13"], dict["monosulphate12"]];
+                        model = rk, instances = 2)
 ```
 
 Activity coefficients (Guggenheim / ThermoCalc convention):

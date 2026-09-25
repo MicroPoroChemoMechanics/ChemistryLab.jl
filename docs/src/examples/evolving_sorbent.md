@@ -76,8 +76,12 @@ const RT = R_GAS * 298.15
 lnK(logK) = -RT * log(10.0^logK)         # ΔrG° = −RT ln K
 energy(v) = SymbolicFunc(v * u"J/mol")
 
-ν = 0.2                                  # mol of sites per mole of Fe(OH)₃
-logK_prot, logK_depr, logK_Mn = 7.29, -8.93, -3.50
+# Dzombak and Morel's weak sites per mole of iron, and PHREEQC's constants,
+# read from the copy of phreeqc.dat that the test oracles use.
+ν = literature_value("DzombakMorel1990", "weak_sites_per_mol_Fe")
+dat = read_sorption_model(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+log_k(product) = only(reactions_involving(dat, product)).log_K.value
+logK_prot, logK_depr, logK_Mn = log_k("Hfo_wOH2+"), log_k("Hfo_wO-"), log_k("Hfo_wOMn+")
 nothing # hide
 ```
 

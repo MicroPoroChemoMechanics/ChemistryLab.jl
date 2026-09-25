@@ -73,22 +73,27 @@ Blaine fineness are different measurements of different things, and the package
 now refuses to mix them:
 
 ```@example surfaces
+# The fineness figures of Lavergne et al. (2018), data/literature/Lavergne2018.json
+lav(q) = literature_value("Lavergne2018", q)
 try
-    area_ratio(BETSurfaceArea(20_000.0), BlaineSurfaceArea(385.0))
+    area_ratio(BETSurfaceArea(lav("bet_silica_fume")), BlaineSurfaceArea(lav("blaine_ref_clinker")))
 catch err
     showerror(stdout, err)
 end
 ```
 
-The numbers in that example are silica fume's: about 20 000 m²/kg by BET, about
-2 000 m²/kg as the effective Blaine fineness its kinetics were fitted with. Using
+The first number in that example is silica fume's BET area, about 20 000 m²/kg,
+against the Blaine fineness of reference of the clinker rate laws
+[Lavergne2018](@cite). The same article takes 2 000 m²/kg as the effective Blaine
+fineness of silica fume, which its kinetics were fitted with. Using
 the first where the second belongs multiplies its hydration rate by ten, and
 before this refusal nothing stopped it.
 
 Same measurement, and the ratio is just a ratio:
 
 ```@example surfaces
-area_ratio(BlaineSurfaceArea(462.0), BlaineSurfaceArea(385.0))
+filler = lav("blaine_limestone_filler")   # a limestone filler, 462 m²/kg
+area_ratio(BlaineSurfaceArea(filler), BlaineSurfaceArea(lav("blaine_ref_clinker")))
 ```
 
 which is exactly what [`blaine_factor`](@ref) computes. A bare number handed to
@@ -96,7 +101,7 @@ it is still read as a Blaine fineness — that is the historical contract and it
 has not changed — so type the argument when you want the check:
 
 ```@example surfaces
-blaine_factor(462u"m^2/kg"), blaine_factor(BlaineSurfaceArea(462.0))
+blaine_factor(filler), blaine_factor(BlaineSurfaceArea(filler))
 ```
 
 ## A surface names its support
