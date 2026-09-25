@@ -392,10 +392,12 @@ Rate constants are built as [`NumericFunc`](@ref) objects using the Arrhenius fa
 ```julia
 using ChemistryLab, ForwardDiff
 
-# Arrhenius rate constant for calcite acid dissolution ([PalandriKharaka2004](@cite))
-k_acid = arrhenius_rate_constant(5.012e-1, 14400.0)   # k₀ [mol/(m²s)], Ea [J/mol]
+# Arrhenius rate constant for calcite acid dissolution ([PalandriKharaka2004](@cite),
+# Table 33): log k at 25 °C and the activation energy, read from the data file
+calcite = literature_row("PalandriKharaka2004", "carbonate_rates", "calcite")
+k_acid = arrhenius_rate_constant(10.0^calcite.acid_log_k, calcite.acid_E)
 
-k_acid(; T = 298.15)    # → 0.5012 mol/(m²s)
+k_acid(; T = 298.15)    # → 10^log k, in mol/(m²s)
 k_acid(; T = 310.0)     # → higher value at elevated T
 
 ForwardDiff.derivative(T -> k_acid(; T = T), 298.15)  # AD-compatible
@@ -464,8 +466,9 @@ For models based on solution chemistry (calcite, quartz, …),
 [`transition_state`](@ref) builds a multi-mechanism TST [`KineticFunc`](@ref):
 
 ```julia
-k_neutral = arrhenius_rate_constant(1.549e-6, 23500.0)
-k_acid    = arrhenius_rate_constant(5.012e-1, 14400.0)
+calcite   = literature_row("PalandriKharaka2004", "carbonate_rates", "calcite")
+k_neutral = arrhenius_rate_constant(10.0^calcite.neutral_log_k, calcite.neutral_E)
+k_acid    = arrhenius_rate_constant(10.0^calcite.acid_log_k, calcite.acid_E)
 
 surface = BETSurfaceArea(90.0)   # 90 m²/kg
 
