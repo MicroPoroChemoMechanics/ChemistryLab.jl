@@ -71,7 +71,7 @@ println("Kinetic reactions: $(length(cs.reactions))")
 
 # ── 4. Initial state ─────────────────────────────────────────────────────────
 
-const COMPOSITION = (C3S = 0.619, C2S = 0.165, C3A = 0.08, C4AF = 0.087)
+const COMPOSITION = (C3S = 0.619, C2S = 0.165, C3A = 0.08, C4AF = 0.087)   # assumed, typical of a CEM I
 
 state0 = ChemicalState(cs)
 for (name, frac) in pairs(COMPOSITION)

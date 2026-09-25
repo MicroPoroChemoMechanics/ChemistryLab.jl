@@ -121,6 +121,7 @@ established by solving the equilibrium without any CO₂ input.
 This gives the initial portlandite inventory, which is used to normalize the CO₂ axis.
 
 ```@example carbonation_setup
+# An assumed CEM I composition, typical of the class; its source is not recorded.
 compo = ["C3S" => 0.678, "C2S" => 0.166, "C3A" => 0.040, "C4AF" => 0.072, "Gp" => 0.028]
 c     = sum(last.(compo))   # ≈ 0.984
 wc    = 0.40

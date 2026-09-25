@@ -44,7 +44,8 @@ cs = ChemicalSystem(species, CEMDATA_PRIMARIES)
 ```@example eq_setup
 state = ChemicalState(cs)
 
-# Clinker + gypsum composition (mass fractions, total = 1)
+# Clinker + gypsum composition, mass fractions summing to 0.984: an assumed
+# CEM I composition, typical of the class; its source is not recorded.
 compo = ["C3S" => 0.678, "C2S" => 0.166, "C3A" => 0.04, "C4AF" => 0.072, "Gp" => 0.028]
 c     = sum(last.(compo))
 wc    = 0.4          # water-to-cement ratio

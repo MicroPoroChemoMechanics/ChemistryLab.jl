@@ -57,7 +57,7 @@ The clinker and the reactions are those of
 is the `humidity` keyword.
 
 ```@example sdk
-const COMPOSITION = (C3S = 0.619, C2S = 0.165, C3A = 0.08, C4AF = 0.087)
+const COMPOSITION = (C3S = 0.619, C2S = 0.165, C3A = 0.08, C4AF = 0.087)   # assumed, typical of a CEM I
 
 function build(wc; humidity)
     st = ChemicalState(cs)
