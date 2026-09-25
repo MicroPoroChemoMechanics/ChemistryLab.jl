@@ -199,7 +199,7 @@ end
     _, st_mut5 = _aqp_state(; ion_size = 5.0)
     γ_over = activity_coefficients(st_mut5, HKFActivityModel(å = 0.0))
     @test γ_over["Ca+2"] ≈
-        10.0^(-literature_value("Helgeson1981", "debye_huckel_A_25C") * 4 * sqrt(I) + 0.041 * I) rtol = 1.0e-12
+        10.0^(-ChemistryLab._DH_A_25C * 4 * sqrt(I) + ChemistryLab._BDOT_25C * I) rtol = 1.0e-12
 end
 
 @testsection "aqueous properties: pH in the activity convention" begin
@@ -417,7 +417,7 @@ end
             if symbol(s) in ("H2O@", "H+", "OH-", "Na+", "Cl-")
     ]
     cs = ChemicalSystem(species, ["H2O@", "H+", "Na+", "Cl-", "Zz"])
-    model = HKFActivityModel(å = 3.72, Ḃ = 0.041, Kₙ = 0.041)
+    model = HKFActivityModel(å = ChemistryLab._NACL_ION_SIZE, Ḃ = ChemistryLab._BDOT_25C, Kₙ = 0.041)
 
     for (m, a_w_expected) in ((0.1, 0.996657), (0.5, 0.983603), (1.0, 0.966898))
         st = ChemicalState(cs)

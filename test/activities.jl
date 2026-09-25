@@ -16,6 +16,10 @@ end
 # solvent of these systems its molar mass, so the two cannot disagree.
 const M_W = ustrip(us"kg/mol", calculate_molar_mass(Dict(:H => 2, :O => 1)))
 
+# The ion size of NaCl (Helgeson et al. 1981, Table 2), the common radius the
+# structural tests below give every ion.
+const å_NaCl = ChemistryLab._NACL_ION_SIZE
+
 function _moles_from_molality(m_NaCl, n_w)
     return [n_w, m_NaCl * n_w * M_W, m_NaCl * n_w * M_W]
 end
@@ -51,10 +55,12 @@ end
 @testsection "hkf_debye_huckel_params" begin
     p = hkf_debye_huckel_params(298.15, 1.0e5)
 
-    # Helgeson et al. (1981) Table 1 reference values at 25 °C / 1 bar, against
-    # the package's own water model
-    @test isapprox(p.A, literature_value("Helgeson1981", "debye_huckel_A_25C"); rtol = 1.0e-3)
-    @test isapprox(p.B, literature_value("Helgeson1981", "debye_huckel_B_25C"); rtol = 1.0e-3)
+    # The tabulated values at 25 °C / 1 bar of the LLNL model (Parkhurst & Appelo
+    # 2013, p. 118), against the package's own water model
+    llnl = literature_table("ParkhurstAppelo2013", "llnl_debye_huckel")
+    i25 = findfirst(==(25.0), llnl.temperature_C)
+    @test isapprox(p.A, llnl.A[i25]; rtol = 1.0e-3)
+    @test isapprox(p.B, llnl.B[i25]; rtol = 1.0e-3)
 
     # A increases with temperature (water structure breaks down)
     p100 = hkf_debye_huckel_params(373.15, 1.0e5)
@@ -100,11 +106,14 @@ end
 
 @testsection "HKFActivityModel constructors" begin
     m = HKFActivityModel()
-    @test m.A === literature_value("Helgeson1981", "debye_huckel_A_25C")
-    @test m.B === literature_value("Helgeson1981", "debye_huckel_B_25C")
-    @test m.Ḃ ≈ 0.041
-    @test m.Kₙ ≈ 0.1
-    @test m.å_default ≈ 3.72
+    # Every default is the value its source gives.
+    llnl = literature_table("ParkhurstAppelo2013", "llnl_debye_huckel")
+    i25 = findfirst(==(25.0), llnl.temperature_C)
+    @test m.A === llnl.A[i25]
+    @test m.B === llnl.B[i25]
+    @test m.Ḃ === llnl.B_dot[i25]
+    @test m.Kₙ === literature_value("ParkhurstAppelo2013", "uncharged_log_gamma_coefficient")
+    @test m.å_default === literature_value("Helgeson1981", "nacl_distance_of_closest_approach")
     @test !m.temperature_dependent
 
     m2 = HKFActivityModel(A = 0.52, B = 0.33, temperature_dependent = true)
@@ -121,9 +130,9 @@ end
 
 @testsection "DaviesActivityModel constructors" begin
     m = DaviesActivityModel()
-    @test m.A === literature_value("Helgeson1981", "debye_huckel_A_25C")
+    @test m.A === ChemistryLab._DH_A_25C
     @test m.b ≈ 0.3
-    @test m.bₙ ≈ 0.1
+    @test m.bₙ === literature_value("ParkhurstAppelo2013", "uncharged_log_gamma_coefficient")
     @test !m.temperature_dependent
 
     m2 = DaviesActivityModel(b = 0.2, temperature_dependent = true)
@@ -166,9 +175,9 @@ end
     p = (ΔₐG⁰overRT = zeros(3), T = 298.15, P = 1.0e5, ϵ = 1.0e-30)
     out = lna(n, p)
 
-    A = literature_value("Helgeson1981", "debye_huckel_A_25C")
-    B = literature_value("Helgeson1981", "debye_huckel_B_25C")
-    Ḃ = 0.041
+    A = ChemistryLab._DH_A_25C
+    B = ChemistryLab._DH_B_25C
+    Ḃ = ChemistryLab._BDOT_25C
     I = m   # NaCl 1:1 electrolyte: I = ½ × 2m = m
     sqI = sqrt(I)
     ln10 = log(10.0)
@@ -402,7 +411,7 @@ end
     out = lna(n, p)
 
     # Verify analytical Davies formula for NaCl: z=1, I=m
-    A = literature_value("Helgeson1981", "debye_huckel_A_25C")
+    A = ChemistryLab._DH_A_25C
     I = m
     sqI = sqrt(I)
     ln10 = log(10.0)
@@ -477,7 +486,7 @@ end
     @test limiting.gd < 1.0e-10
 
     # AND SO IS A COMMON ION SIZE WITH NO EXTENDED TERM.
-    common = asymmetries(HKFActivityModel(; å = 3.72, Ḃ = 0.0))
+    common = asymmetries(HKFActivityModel(; å = å_NaCl, Ḃ = 0.0))
     @test common.ion < 1.0e-12
     @test common.solvent < 1.0e-10
 
@@ -493,7 +502,7 @@ end
     # than `Ḃ·zᵢ²`. Both are properties of the published extended form, which
     # every geochemical code uses; they are approximations with a stated domain,
     # not defects of this implementation.
-    @test asymmetries(HKFActivityModel(; å = 3.72)).ion > 1.0e-2       # Ḃ alone
+    @test asymmetries(HKFActivityModel(; å = å_NaCl)).ion > 1.0e-2       # Ḃ alone
     @test asymmetries(HKFActivityModel(; Ḃ = 0.0)).ion > 1.0e-2        # å alone
 
     # PITZER IS THE CONTROL, and it holds to machine precision -- γ and the
@@ -529,7 +538,7 @@ end
     Ivar = Symbolics.variable(:I)
     cases = (
         (HKFActivityModel(), -2, 4.5),
-        (HKFActivityModel(; å = 3.72), 1, 3.72),
+        (HKFActivityModel(; å = å_NaCl), 1, å_NaCl),
         (HKFActivityModel(; Ḃ = 0.0), 3, 9.0),
         (DaviesActivityModel(), -1, 0.0),
     )
@@ -566,12 +575,12 @@ end
         return maximum(abs(d(I)) for I in (1.0e-4, 0.01, 0.1, 0.5, 1.0))
     end
 
-    exact = HKFActivityModel(; å = 3.72, Ḃ = 0.0)
-    @test gap(exact, 1, 3.72, 2, 3.72) < 1.0e-14
-    @test gap(exact, 1, 3.72, 3, 3.72) < 1.0e-14
+    exact = HKFActivityModel(; å = å_NaCl, Ḃ = 0.0)
+    @test gap(exact, 1, å_NaCl, 2, å_NaCl) < 1.0e-14
+    @test gap(exact, 1, å_NaCl, 3, å_NaCl) < 1.0e-14
 
     # The extended term alone breaks it: it contributes `Ḃ`, not `Ḃ·z²`.
-    @test gap(HKFActivityModel(; å = 3.72), 1, 3.72, 2, 3.72) > 1.0e-3
+    @test gap(HKFActivityModel(; å = å_NaCl), 1, å_NaCl, 2, å_NaCl) > 1.0e-3
     # And so does an ion-specific size, with no extended term at all.
     @test gap(HKFActivityModel(; Ḃ = 0.0), 1, 3.0, 1, 5.0) > 1.0e-3
 end

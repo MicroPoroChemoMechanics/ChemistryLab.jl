@@ -319,10 +319,20 @@ const REJ_CHARGE_DEFAULT = let t = literature_table("Xu2011", "radius_by_charge"
     Dict{Int, Float64}(Int(z) => r for (z, r) in zip(t.charge, t.radius_angstrom))
 end
 
-# The Debye-Hückel A and B of water at 25 °C and 1 bar, the defaults of the
-# activity models below, read from Helgeson et al. (1981), Table 1.
-const _DH_A_25C = literature_value("Helgeson1981", "debye_huckel_A_25C")
-const _DH_B_25C = literature_value("Helgeson1981", "debye_huckel_B_25C")
+# The defaults of the activity models below, each read from the source that
+# gives it: A, B and B-dot at 25 °C from the LLNL aqueous model as Parkhurst and
+# Appelo (2013, p. 118) tabulate it; the coefficient of an uncharged species from
+# PHREEQC's own rule (p. 201); the ion size of NaCl from Helgeson et al. (1981,
+# Table 2).
+const _LLNL_25C = let t = literature_table("ParkhurstAppelo2013", "llnl_debye_huckel")
+    i = findfirst(==(25.0), t.temperature_C)
+    (A = t.A[i], B = t.B[i], B_dot = t.B_dot[i])
+end
+const _DH_A_25C = _LLNL_25C.A
+const _DH_B_25C = _LLNL_25C.B
+const _BDOT_25C = _LLNL_25C.B_dot
+const _UNCHARGED_B = literature_value("ParkhurstAppelo2013", "uncharged_log_gamma_coefficient")
+const _NACL_ION_SIZE = literature_value("Helgeson1981", "nacl_distance_of_closest_approach")
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -372,10 +382,10 @@ AD-compatible (ForwardDiff-safe). Returns a `NamedTuple` `(A=..., B=...)`.
 ```jldoctest
 julia> p = hkf_debye_huckel_params(298.15, 1e5);
 
-julia> isapprox(p.A, literature_value("Helgeson1981", "debye_huckel_A_25C"); rtol=1e-3)
+julia> isapprox(p.A, HKFActivityModel().A; rtol=1e-3)   # the tabulated default at 25 °C
 true
 
-julia> isapprox(p.B, literature_value("Helgeson1981", "debye_huckel_B_25C"); rtol=1e-3)
+julia> isapprox(p.B, HKFActivityModel().B; rtol=1e-3)
 true
 ```
 """
@@ -492,11 +502,11 @@ Helgeson et al. 1981 Eqs. 132–137).
 
 | field | default | unit | provenance |
 |:--|:--|:--|:--|
-| `A` | $(_DH_A_25C) | (kg/mol)^½ | [Helgeson1981](@cite) Table 1 at 25 °C / 1 bar, read from `data/literature/Helgeson1981.json` — **and** reproduced to `1e-3` by [`hkf_debye_huckel_params`](@ref) from this package's own water model, which is the check in `test/activities.jl` |
-| `B` | $(_DH_B_25C) | Å⁻¹(kg/mol)^½ | same |
-| `Ḃ` | 0.041 | kg/mol | the value conventionally carried for a NaCl-dominated solution at 25 °C. What the term *is* has a source ([AndersonCrerar1993](@cite) §17.7.1); **this particular number has none recorded in this package**, so treat it as a convention rather than a measurement |
-| `Kₙ` | 0.1 | kg/mol | a generic salting-out coefficient, **no source recorded**; overridden per species by `sp[:Kₙ]`, which is how `CO₂(aq)` gets its own |
-| `å_default` | 3.72 | Å | last resort, reached only for a charge no table covers (`|z| ≥ 5`). **No source recorded** |
+| `A` | $(_DH_A_25C) | (kg/mol)^½ | the LLNL aqueous model at 25 °C as [ParkhurstAppelo2013](@cite) tabulate it (p. 118) — **and** reproduced to `1e-3` by [`hkf_debye_huckel_params`](@ref) from this package's own water model, which is the check in `test/activities.jl`. [Helgeson1981](@cite), Table 1, gives 0.5091 at 25 °C from the water properties of their time |
+| `B` | $(_DH_B_25C) | Å⁻¹(kg/mol)^½ | the same table; Helgeson et al. give 0.3283 |
+| `Ḃ` | $(_BDOT_25C) | kg/mol | the same table: the B-dot of the LLNL model at 25 °C. What the term *is* is set out in [AndersonCrerar1993](@cite) §17.7.1 |
+| `Kₙ` | $(_UNCHARGED_B) | kg/mol | the coefficient `b` of `log γ = b I` that PHREEQC gives an uncharged species with no parameters of its own ([ParkhurstAppelo2013](@cite), p. 201); overridden per species by `sp[:Kₙ]`, which is how `CO₂(aq)` gets its own |
+| `å_default` | $(_NACL_ION_SIZE) | Å | the distance of closest approach of NaCl, [Helgeson1981](@cite) Table 2; a last resort, reached only for a charge no table covers (`|z| ≥ 5`) |
 | `å` | `nothing` | Å | one common radius for every ion, overriding the tables. `å = 0` collapses the denominator and gives the limiting law plus `Ḃ I` |
 | `temperature_dependent` | `false` | — | recompute `A` and `B` from `p.T`, `p.P` at every call (needs `T` and `P` in `p`) |
 
@@ -504,13 +514,13 @@ Per-ion radii come from [`REJ_HKF`](@ref) ([Helgeson1981](@cite) Table 3) and,
 failing that, from [`REJ_CHARGE_DEFAULT`](@ref) (attributed to [Xu2011](@cite),
 location unconfirmed).
 
-!!! note "Three of these defaults are conventions, not data"
-    `Ḃ`, `Kₙ` and `å_default` are numbers this package carries without a source
-    to point at. They are in the range everyone uses and they are almost
-    certainly right, but the honest statement is that they have not been traced,
-    and each is a keyword away from being replaced. `A`, `B` and the radius
-    tables are traceable, and `A` and `B` are additionally *derived* here rather
-    than tabulated.
+!!! note "Every default has a source, and a source is not a fit"
+    Each default is read from `data/literature/`, with the table and the page it
+    was read from. That makes them traceable, not tailored: `Ḃ` is the value of a
+    NaCl-dominated solution, `å_default` the ion size of NaCl, and a pore
+    solution that is neither calls for its own, a keyword away. `A` and `B` are
+    additionally *derived* here from the water model, and agree with the table
+    to `1e-3`.
 
 # What is approximated in the water activity
 
@@ -573,14 +583,12 @@ struct HKFActivityModel{T <: Real} <: AbstractActivityModel
 end
 
 """
-    HKFActivityModel(; A=$(_DH_A_25C), B=$(_DH_B_25C), Ḃ=0.041, Kₙ=0.1, å_default=3.72,
-                       å=nothing, temperature_dependent=false) -> HKFActivityModel
+    HKFActivityModel(; A=$(_DH_A_25C), B=$(_DH_B_25C), Ḃ=$(_BDOT_25C), Kₙ=$(_UNCHARGED_B),
+                       å_default=$(_NACL_ION_SIZE), å=nothing, temperature_dependent=false)
+        -> HKFActivityModel
 
-Construct an [`HKFActivityModel`](@ref) with the given parameters.
-
-`A` and `B` default to their values at 25 °C / 1 bar, Helgeson et al. (1981),
-Table 1; the other defaults are conventions, whose provenance
-[`HKFActivityModel`](@ref) sets out.
+Construct an [`HKFActivityModel`](@ref) with the given parameters. The provenance
+of every default is set out on [`HKFActivityModel`](@ref).
 
 `å` imposes **one common** effective radius on every charged aqueous species,
 overriding the per-species tables. Use it to reproduce a published model that
@@ -593,25 +601,26 @@ term.
 # Examples
 
 ```julia
-# The package default: per-species radii from REJ_HKF, EQ3/6 NaCl B-dot.
+# The package default: per-species radii from REJ_HKF, the B-dot of the LLNL
+# model at 25 °C.
 HKFActivityModel()
 
-# One common radius of 3.72 Å for every ion.
-HKFActivityModel(å = 3.72)
+# One common radius for every ion: the ion size of NaCl.
+HKFActivityModel(å = literature_value("Helgeson1981", "nacl_distance_of_closest_approach"))
 
-# The Debye-Hückel limiting law with a KOH-background B-dot, which is what a
-# GEM-Selektor CEMDATA18 run of a Portland cement uses: CEMDATA18 carries no
-# ion-size parameter, so GEMS starts from å = 0, and the B-dot term is not
-# applied to neutral species.
+# The Debye-Hückel limiting law with the B-dot a GEM-Selektor CEMDATA18 run of a
+# Portland cement implies (test/aqueous_properties.jl recovers it from GEMS'
+# printed coefficients): CEMDATA18 carries no ion-size parameter, so GEMS starts
+# from å = 0, and the B-dot term is not applied to neutral species.
 HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
 ```
 """
 function HKFActivityModel(;
         A::Real = _DH_A_25C,
         B::Real = _DH_B_25C,
-        Ḃ::Real = 0.041,
-        Kₙ::Real = 0.1,
-        å_default::Real = 3.72,
+        Ḃ::Real = _BDOT_25C,
+        Kₙ::Real = _UNCHARGED_B,
+        å_default::Real = _NACL_ION_SIZE,
         å::Union{Nothing, Real} = nothing,
         temperature_dependent::Bool = false,
     )
@@ -858,9 +867,9 @@ distinguish Na⁺ from K⁺ at all.
 
 | field | default | unit | provenance |
 |:--|:--|:--|:--|
-| `A` | $(_DH_A_25C) | (kg/mol)^½ | [Helgeson1981](@cite) Table 1 at 25 °C / 1 bar, and reproduced by [`hkf_debye_huckel_params`](@ref) from this package's water model |
+| `A` | $(_DH_A_25C) | (kg/mol)^½ | the LLNL aqueous model at 25 °C ([ParkhurstAppelo2013](@cite), p. 118), and reproduced by [`hkf_debye_huckel_params`](@ref) from this package's water model |
 | `b` | 0.3 | kg/mol | **part of the published equation** — Davies fixed it, it is not a free parameter of this implementation |
-| `bₙ` | 0.1 | kg/mol | a generic salting-out coefficient for neutral species. **No source recorded in this package** |
+| `bₙ` | $(_UNCHARGED_B) | kg/mol | PHREEQC's coefficient for an uncharged species, `log γ = b I` ([ParkhurstAppelo2013](@cite), p. 201) |
 | `temperature_dependent` | `false` | — | recompute `A` from `p.T`, `p.P` at every call |
 
 # Valid range
@@ -888,14 +897,14 @@ struct DaviesActivityModel{T <: Real} <: AbstractActivityModel
 end
 
 """
-    DaviesActivityModel(; A=$(_DH_A_25C), b=0.3, bₙ=0.1, temperature_dependent=false)
+    DaviesActivityModel(; A=$(_DH_A_25C), b=0.3, bₙ=$(_UNCHARGED_B), temperature_dependent=false)
 
 Construct a [`DaviesActivityModel`](@ref).
 """
 function DaviesActivityModel(;
         A::Real = _DH_A_25C,
         b::Real = 0.3,
-        bₙ::Real = 0.1,
+        bₙ::Real = _UNCHARGED_B,
         temperature_dependent::Bool = false,
     )
     vals = promote(A, b, bₙ)

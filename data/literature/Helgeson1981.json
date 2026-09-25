@@ -7,26 +7,18 @@
     "location": null
   },
   "transcription": {
-    "from": "src/equilibrium/activities.jl, ChemistryLab 0.22.2 (REJ_HKF and the defaults of HKFActivityModel)",
-    "checked_against_source": false,
-    "note": "Moved out of the code unchanged. The article was not re-read during the move: the locations are the ones the package has cited. The Debye-Hueckel A and B are also reproduced to 1e-3 by hkf_debye_huckel_params from the package's own water model, which test/activities.jl checks."
+    "from": "the published article (PDF from ajsonline.org, a scan), Table 2 (p. 1298) and Table 3 (p. 1304), read on the page images",
+    "checked_against_source": true,
+    "note": "The radii were in src/equilibrium/activities.jl before this file existed and agree with the r_e,j column of Table 3, all twenty-seven. The package also attributed its default Debye-Hueckel A and B (0.5114 and 0.3288) to Table 1 of this article; Table 1 (p. 1294) gives 0.5091 and 0.3283 at 25 C and 1 bar, and those defaults now come from Parkhurst and Appelo (2013)."
   },
   "quantities": {
-    "debye_huckel_A_25C": {
-      "value": 0.5114,
+    "nacl_distance_of_closest_approach": {
+      "value": 3.72,
       "unit": "1",
       "kind": "published",
       "uncertainty": null,
-      "location": "Table 1",
-      "description": "Debye-Hueckel A of water at 25 C and 1 bar, in (kg/mol)^(1/2), for decimal logarithms."
-    },
-    "debye_huckel_B_25C": {
-      "value": 0.3288,
-      "unit": "1",
-      "kind": "published",
-      "uncertainty": null,
-      "location": "Table 1",
-      "description": "Debye-Hueckel B of water at 25 C and 1 bar, in 1/Angstrom (kg/mol)^(1/2)."
+      "location": "Table 2, p. 1298",
+      "description": "Distance of closest approach of the ions of NaCl, in Angstrom, calculated from Eq. (125) and the radii of Table 3: the ion-size parameter of a NaCl solution."
     }
   },
   "tables": {
@@ -34,7 +26,7 @@
       "columns": ["species", "radius_angstrom"],
       "units": [null, "1"],
       "kind": "published",
-      "location": "Table 3",
+      "location": "Table 3, p. 1304",
       "rows": [
         ["H+", 3.08],
         ["Li+", 1.64],

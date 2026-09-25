@@ -46,19 +46,25 @@ nothing # hide
 The Debye-Hückel coefficients are not fitting constants: they follow from the
 density and the dielectric constant of water, and
 [`hkf_debye_huckel_params`](@ref) evaluates them from this package's own equation
-of state. The defaults the models carry, ``A = 0.5114`` and ``B = 0.3288``, are
-therefore *derived* — and they agree with [Helgeson1981](@cite) Table 1:
+of state. The defaults the models carry, ``A = 0.5114`` and ``B = 0.3288`` at
+25 °C, are therefore *derived* — and they agree with the values the LLNL aqueous
+model tabulates ([ParkhurstAppelo2013](@cite), p. 118), printed beside them:
 
 ```@example am
-for T in (298.15, 333.15, 373.15)
+llnl = literature_table("ParkhurstAppelo2013", "llnl_debye_huckel")
+for θ in (25.0, 60.0, 100.0)
+    T = 273.15 + θ
     p = hkf_debye_huckel_params(T, 1.0e5)
     w = water_thermo_props(T, 1.0e5)
     e = water_electro_props_jn(T, 1.0e5, w)
-    ρ = w.D / 1000
-    @printf("T = %6.2f K   ρ = %.4f g/cm³   ε = %6.2f   A = %.4f   B = %.4f\n",
-            T, ρ, e.epsilon, p.A, p.B)
+    i = findfirst(==(θ), llnl.temperature_C)
+    @printf("T = %6.2f K   ρ = %.4f g/cm³   ε = %6.2f   A = %.4f (%.4f)   B = %.4f (%.4f)\n",
+            T, w.D / 1000, e.epsilon, p.A, llnl.A[i], p.B, llnl.B[i])
 end
 ```
+
+[Helgeson1981](@cite), Table 1, computed from the water properties of the time,
+gives slightly lower values, 0.5091 and 0.3283 at 25 °C.
 
 Both rise with temperature, because water's dielectric constant falls faster
 than ``T`` rises: hot water screens worse, so the same ionic strength costs more.

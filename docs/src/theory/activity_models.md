@@ -89,9 +89,12 @@ B = 50.29158649\,\frac{\sqrt{\rho_w}}{\sqrt{\varepsilon T}} ,
 
 which is what [`hkf_debye_huckel_params`](@ref) evaluates from this package's own
 equation of state for water. So the ``A = 0.5114`` and ``B = 0.3288`` that the
-models carry as defaults are **derived**, not adopted, and they agree with
-[Helgeson1981](@cite) Table 1 — evaluated at three temperatures in
-[What the choice of activity model costs](@ref sec-app-activity-models).
+models carry as defaults at 25 °C are **derived** as well as tabulated: they
+agree to 0.01 % with the values of the LLNL aqueous model that
+[ParkhurstAppelo2013](@cite) tabulate, from 0 to 100 °C — compared at three
+temperatures in [What the choice of activity model costs](@ref sec-app-activity-models).
+[Helgeson1981](@cite), Table 1, computed from the water properties of the time,
+gives 0.5091 and 0.3283 at 25 °C.
 
 Both rise with temperature, because water's dielectric constant falls faster than
 ``T`` rises: hot water screens worse, so the same ionic strength costs more.

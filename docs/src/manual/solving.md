@@ -375,7 +375,7 @@ log₁₀ γᵢ = Kₙ I
 3. [`REJ_HKF`](@ref) — Helgeson et al. (1981) Table 3 (27 common ions)
    [Helgeson1981](@cite).
 4. [`REJ_CHARGE_DEFAULT`](@ref) — fallback by formal charge [Xu2011](@cite).
-5. `model.å_default` (default: 3.72 Å).
+5. `model.å_default` (default: the ion size of NaCl, 3.72 Å, [Helgeson1981](@cite) Table 2).
 
 !!! warning "`å_default` does not impose a common ionic radius"
     It is the **last resort** of the chain above, reached only for a charge that
@@ -396,8 +396,8 @@ state_eq = equilibrate(state; model=HKFActivityModel(temperature_dependent=true)
 # Custom parameters
 model = HKFActivityModel(A=0.52, B=0.33, Ḃ=0.04)
 
-# One common ion size of 3.72 Å, overriding the per-species tables
-model = HKFActivityModel(å = 3.72)
+# One common ion size, that of NaCl, overriding the per-species tables
+model = HKFActivityModel(å = literature_value("Helgeson1981", "nacl_distance_of_closest_approach"))
 
 # å = 0 collapses the denominator to 1: the Debye-Hückel limiting law plus Ḃ I
 model = HKFActivityModel(å = 0.0)

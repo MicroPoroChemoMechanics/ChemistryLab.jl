@@ -1,0 +1,45 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "ParkhurstAppelo2013",
+    "doi": "10.3133/tm6a43",
+    "citation": "Parkhurst, D. L., Appelo, C. A. J. (2013). Description of input and examples for PHREEQC version 3. U.S. Geological Survey Techniques and Methods 6-A43.",
+    "location": null
+  },
+  "transcription": {
+    "from": "the published report (PDF from pubs.usgs.gov): the example block of LLNL_AQUEOUS_MODEL_PARAMETERS, p. 118, and the activity-coefficient equations of SOLUTION_SPECIES, p. 201, read on the page image",
+    "checked_against_source": true,
+    "note": "The 25 C row of the table is what the activity models of this package have used as their defaults for A, B and B-dot; the package attributed A and B to Table 1 of Helgeson et al. (1981), which gives 0.5091 and 0.3283 at 25 C (p. 1294), from the water properties of Helgeson and Kirkham (1974). The table is the one of the LLNL aqueous model, as the database llnl.dat carries it."
+  },
+  "quantities": {
+    "uncharged_log_gamma_coefficient": {
+      "value": 0.1,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 201",
+      "description": "Coefficient b of log10(gamma) = b I, in kg/mol, which PHREEQC applies to an uncharged species that carries no activity parameters of its own."
+    }
+  },
+  "tables": {
+    "llnl_debye_huckel": {
+      "columns": ["temperature_C", "A", "B", "B_dot"],
+      "units": ["1", "1", "1", "1"],
+      "kind": "published",
+      "location": "p. 118",
+      "rows": [
+        [0.01, 0.4939, 0.3253, 0.0374],
+        [25.0, 0.5114, 0.3288, 0.041],
+        [60.0, 0.5465, 0.3346, 0.0438],
+        [100.0, 0.5995, 0.3421, 0.046],
+        [150.0, 0.6855, 0.3525, 0.047],
+        [200.0, 0.7994, 0.3639, 0.047],
+        [250.0, 0.9593, 0.3766, 0.034],
+        [300.0, 1.218, 0.3925, 0.0]
+      ]
+    }
+  },
+  "notes": [
+    "Temperature in degrees Celsius; A in (kg/mol)^(1/2) and B in 1/Angstrom (kg/mol)^(1/2), both for decimal logarithms; B-dot in kg/mol."
+  ]
+}
