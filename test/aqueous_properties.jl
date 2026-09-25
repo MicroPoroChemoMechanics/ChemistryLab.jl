@@ -13,6 +13,8 @@
 #   * `å_default` does not impose a common ionic radius;
 #   * `pH(state)` and `pH(state, model)` are different quantities.
 
+include("reference_species.jl")
+
 # A hand-built, deliberately *not* equilibrated state: every amount is known
 # exactly, so the molalities and the ionic strength have closed forms.
 function _aqp_state(; n_w = 55.5, n_ca = 0.01, n_oh = 0.02, ion_size = nothing)
@@ -238,29 +240,35 @@ end
 
 @testsection "aqueous properties: the GEM-Selektor calibration" begin
     # GEM-Selektor prints one activity coefficient per charge class, and that is
-    # enough to identify the model it ran. On a CEMDATA18 Portland cement it
-    # reported γ(1±) = 0.6113654, γ(2±) = 0.1212781 and γ(3±) = 0.008183112 at
-    # I = 0.20969247 mol/kg. Fitting log10 γ = -D z² + E on |z| = 1 and 2 alone
-    # gives D = 0.23417282 and E = +0.02047368, which then predicts |z| = 3, 4
-    # and 5 to five significant digits — so the model is the Debye-Hückel
-    # limiting law (å = 0, since CEMDATA18 carries no ion-size parameter) with
-    # Ḃ = E/I = 0.097637 and no B-dot term on the neutrals.
+    # enough to identify the model it ran. On a CEMDATA18 Portland cement,
+    # fitting log10 γ = -D z² + E on |z| = 1 and 2 alone predicts |z| = 3, 4 and
+    # 5 to five significant digits — so the model is the Debye-Hückel limiting
+    # law (å = 0, since CEMDATA18 carries no ion-size parameter) with Ḃ = E/I and
+    # no B-dot term on the neutrals.
     #
-    # This asserts that the package's formula reproduces those coefficients, at
-    # GEMS' own ionic strength, to better than 1.5 %.
-    I = 0.20969247
-    model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+    # The coefficients and the ionic strength are GEMS' output, read from their
+    # fixture; the fit is redone on them here rather than its result typed.
+    gems = reference_oracle("gems_cemdata18_portland")
+    I = gems.ionic_strength_mol_per_kg
+    γ = gems.gamma
+    D = (log10(γ.z1) - log10(γ.z2)) / 3
+    E = log10(γ.z1) + D
+    model = HKFActivityModel(å = 0.0, Ḃ = E / I, Kₙ = 0.0)
+    # The limiting-law slope GEMS used is the package's A at 25 °C.
+    @test D ≈ model.A * sqrt(I) rtol = 1.0e-3
+    # And the formula reproduces the three coefficients at GEMS' own ionic
+    # strength, the third of which the fit never saw.
     γ_lim = z -> 10.0^(-model.A * z^2 * sqrt(I) + model.Ḃ * I)
-    @test γ_lim(1) ≈ 0.6113654 rtol = 3.0e-3
-    @test γ_lim(2) ≈ 0.1212781 rtol = 1.5e-2
-    @test γ_lim(3) ≈ 0.008183112 rtol = 4.0e-2
+    @test γ_lim(1) ≈ γ.z1 rtol = 3.0e-3
+    @test γ_lim(2) ≈ γ.z2 rtol = 1.5e-2
+    @test γ_lim(3) ≈ γ.z3 rtol = 4.0e-2
     # The package defaults are a different, defensible model — and nowhere near
     # those numbers on the divalents, which is why the keyword exists.
     default = HKFActivityModel()
     γ_def = (z, å) -> 10.0^(
         -default.A * z^2 * sqrt(I) / (1 + default.B * å * sqrt(I)) + default.Ḃ * I
     )
-    ratio = γ_def(2, REJ_HKF["Ca+2"]) / 0.1212781
+    ratio = γ_def(2, REJ_HKF["Ca+2"]) / γ.z2
     @test 1.8 < ratio < 1.95
 end
 

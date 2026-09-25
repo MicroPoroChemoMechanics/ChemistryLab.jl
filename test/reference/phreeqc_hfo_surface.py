@@ -14,12 +14,14 @@
 #   /path/to/envs/mpcm-oracles/bin/python -m pip install phreeqpython
 #   conda run -n mpcm-oracles python test/reference/phreeqc_hfo_surface.py
 #
-# Paste the printed block into the fixture of `test/surface_complexation.jl`.
+# Writes the JSON fixtures that `test/surface_complexation.jl` and
+# `test/diffuse_layer.jl` read.
 #
 # What has to match for the comparison to mean anything, and what does not:
 #
-#   * the site densities and the reaction set -- taken from `phreeqc.dat`, so
-#     they are the reference's own, not ours;
+#   * the reaction set and its constants -- taken from `phreeqc.dat`, so they
+#     are the reference's own, not ours; the site densities and the area are
+#     Dzombak & Morel's, from data/literature/DzombakMorel1990.json;
 #   * the aqueous activity model -- PHREEQC's own extended Debye-Huckel here,
 #     which is *not* one of the four this package ships. A comparison of
 #     surface amounts at low ionic strength is still meaningful because the
@@ -40,13 +42,18 @@ from phreeqpython.viphreeqc import VIPhreeqc
 
 DATABASE = "phreeqc.dat"
 
-# Dzombak & Morel's ferrihydrite: 0.005 mol strong sites and 0.2 mol weak sites
-# per mole of Fe, 600 m2/g, and 89 g/mol of Fe(OH)3. One millimole of Fe here.
+# Dzombak & Morel's ferrihydrite -- strong and weak sites per mole of Fe, the
+# specific area and the molar mass taken for the solid -- read from the data file
+# the Julia side reads too, in the units it declares (m2/g and g/mol, which are
+# PHREEQC's). One millimole of Fe here.
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+with open(os.path.join(_ROOT, "data", "literature", "DzombakMorel1990.json"), encoding="utf-8") as _f:
+    _DM = {k: q["value"] for k, q in json.load(_f)["quantities"].items()}
 N_FE = 1.0e-3
-SITES_STRONG = 0.005 * N_FE
-SITES_WEAK = 0.2 * N_FE
-AREA_PER_GRAM = 600.0
-MASS_SOLID = 89.0 * N_FE * 1.0e-3        # kg -> PHREEQC wants grams
+SITES_STRONG = _DM["strong_sites_per_mol_Fe"] * N_FE
+SITES_WEAK = _DM["weak_sites_per_mol_Fe"] * N_FE
+AREA_PER_GRAM = float(_DM["specific_surface_area"])
+MASS_SOLID = _DM["molar_mass"] * N_FE * 1.0e-3        # kg -> PHREEQC wants grams
 
 ZN_TOTAL = 1.0e-5                        # mol/kgw
 PH_VALUES = [4.0, 5.0, 6.0, 7.0, 8.0, 9.0]

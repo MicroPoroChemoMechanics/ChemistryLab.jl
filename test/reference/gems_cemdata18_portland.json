@@ -1,0 +1,11 @@
+{
+  "generator": "none: transcribed from a GEM-Selektor run on a Portland cement paste with CEMDATA18; no script in this repository regenerates it",
+  "code": "GEM-Selektor",
+  "database": "CEMDATA18",
+  "ionic_strength_mol_per_kg": 0.2096924740996553,
+  "gamma": {
+    "z1": 0.6113654,
+    "z2": 0.1212781,
+    "z3": 0.008183112
+  }
+}
