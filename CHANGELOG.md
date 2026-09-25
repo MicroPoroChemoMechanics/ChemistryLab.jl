@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.23.0 — Published values in data files, and output that shows only the result
+## v0.22.2 — Published values in data files, and output that shows only the result
 
 A value taken from an article is data: it has a source, a location in that
 source, a unit and a status (measured, fitted, unverified), none of which
@@ -80,13 +80,10 @@ literal it replaces. Moving them recorded what had not been recorded:
   included two or three times into the same module, redefining every
   documented name; their guards now test the module that includes them.
 
-### Breaking changes
-
-None in the API or in any computed value. Below 1.0 the minor bump is itself
-breaking for Julia's resolver: a dependent declaring `ChemistryLab = "0.22"`
-does not accept 0.23 and must widen its bound. The only change of behavior is
-the one above: the banners and progress bars of the database readers are no
-longer printed when the output is not a terminal.
+Nothing in the API or in any computed value changes, and the new functions
+only add to the interface. The one change of behavior is the one above: the
+database readers no longer print banners and progress bars when the output is
+not a terminal.
 
 ## v0.22.1 — OptimaSolver again when Ipopt is loaded, and a documentation that reads in order
 
