@@ -746,6 +746,40 @@ function equilibrate_certified(
 
     eq, cert = search(starts)
 
+    # The ideal model as a stepping stone.
+    #
+    # A start near the answer is what this problem needs, and the cheapest good
+    # one is the answer to an easier question: the same minimization under ideal
+    # activities, which has no activity coefficients to make the residual depend
+    # on the composition and certifies where the non-ideal model does not. Its
+    # assemblage is the right one -- the phases present differ from the non-ideal
+    # answer by their amounts, not by their identity -- so the non-ideal solve
+    # starts with the correct active set instead of discovering it. See
+    # `_ideal_start`, whose docstring records the ulp sensitivity it fixed.
+    #
+    # It had been unwired by accident: the commit that removed the linear-
+    # programming start (d1035f97) took this block out with it, although its
+    # message argued for removing the LP alone. The loss stayed hidden while an
+    # `OptimaOptimizer` start silently went through the generic path whenever
+    # Ipopt was loaded, which happened to supply a start the dual solve could
+    # use. With that path corrected, a cold 109-species CEM IV paste without ash
+    # no longer certified from either back end (dual balances 4.5 and 0.12); from
+    # the ideal answer it certifies at 3.6e-15, pH 13.444.
+    #
+    # Only when nothing else certified, so the ordinary case pays nothing, and
+    # guarded against recursion: the inner call is already ideal.
+    if autostart && !cert.optimal && !(model isa DiluteSolutionModel)
+        ideal = _ideal_start(state, model, bfix, ϵ, constraint, verbose; kwargs...)
+        if ideal !== nothing
+            eq, cert = _keep_better(
+                eq, cert,
+                search(
+                    Iterators.flatten((starts_from(ideal, "start from the ideal answer"), starts)),
+                )...,
+            )
+        end
+    end
+
     # An automatic initial approximation, computed rather than asked for.
     #
     # Only when nothing above certified, so the common case pays nothing for it.
