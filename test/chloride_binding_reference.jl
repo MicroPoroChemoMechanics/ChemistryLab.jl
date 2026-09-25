@@ -19,8 +19,9 @@
 # versions, and the interesting question is where the two versions still agree.
 #
 # The phases themselves do map one to one, and the molar masses of their Table 3
-# settle it: AFm 622.5, AFt 1255.1, Friedel's salt 561.3, CH 74.1 all reproduce
-# from the CEMDATA18 formulas to better than 0.03 g/mol.
+# settle it: AFm 622.5, AFt 1255.1, Friedel's salt 561.3, CH 74.1 all reproduce,
+# to better than 0.03 g/mol, the molar masses the package computes from the
+# CEMDATA18 formulas.
 
 include("reference_species.jl")
 
@@ -35,6 +36,13 @@ include("reference_species.jl")
     guo_g(q) = ustrip(u"g", literature_value("Guo2018", q))       # g per liter of concrete
     guo_M(phase) = ustrip(u"g/mol", literature_row("Guo2018", "hydrates", phase).molar_mass)
 
+    # Their C-S-H is 5(CaO)·3(SiO2)·6.3(H2O) (Table 2), and its molar mass (Table
+    # 3) is that of one third of it: per mole of silicon, then lime and water.
+    csh = let t = literature_table("Guo2018", "csh_formula")
+        Dict(zip(t.oxide, t.coefficient ./ t.coefficient[findfirst(==("SiO2"), t.oxide)]))
+    end
+    M_csh = sum(k * ustrip(us"g/mol", Species(ox)[:M]) for (ox, k) in csh)
+
     @testset "Guo's Table 3 is CEMDATA18, phase for phase" begin
         for (phase, printed) in (
                 "monosulphate12" => "AFm", "ettringite" => "AFt",
@@ -45,6 +53,8 @@ include("reference_species.jl")
         # Their CaCO3 is printed as 100.9; calcite is 100.09. A typo, and it
         # touches nothing in this figure, which carries no carbonate.
         @test abs(molar("Cal") - guo_M("CaCO3")) > 0.8
+        # And their C-S-H is the formula of their Table 2, per silicon.
+        @test M_csh ≈ guo_M("CSH") atol = 0.03
     end
 
     function build(pure)
@@ -64,16 +74,11 @@ include("reference_species.jl")
     # bookkeeping.
     # The pore solution fills the porosity, at a density of 1 g/cm³.
     pore_g = 10 * literature_value("Guo2018", "porosity_percent")   # g per liter
-    # Their C-S-H is 5(CaO)·3(SiO2)·6.3(H2O) (Table 2), and its molar mass (Table
-    # 3) is that of one third of it: moles of silicon, then lime and water.
-    csh = let t = literature_table("Guo2018", "csh_formula")
-        Dict(zip(t.oxide, t.coefficient ./ t.coefficient[findfirst(==("SiO2"), t.oxide)]))
-    end
     M_water = molar("H2O@")
     M_salt = ustrip(us"g/mol", Species("NaCl")[:M])
     function charged(cs, nacl_frac)
         st = ChemicalState(cs)
-        n_csh = guo_g("csh_per_liter") / guo_M("CSH")
+        n_csh = guo_g("csh_per_liter") / M_csh
         set_quantity!(st, "Lim", (csh["CaO"] * n_csh) * u"mol")
         set_quantity!(st, "Amor-Sl", n_csh * u"mol")
         # AND ITS STRUCTURAL WATER. Guo's dissolution reaction is written for

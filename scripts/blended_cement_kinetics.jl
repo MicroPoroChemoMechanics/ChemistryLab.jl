@@ -8,9 +8,9 @@
 #
 # CEMDATA18 does not contain GGBS or MK as reactants: we create custom Species
 # with a dummy ΔₐG⁰ (the Parrot-Killoh model ignores Ω).
-# The reference mole of each addition is defined by the explicit :M field
-# of the Species (mass per "representative formula unit"), which must be
-# consistent with ΔᵣH⁰ for correct calorimetry:
+# A mole of each addition is its representative formula unit, weighed by the
+# package from that formula, and the reaction enthalpy follows from the heat per
+# gram:
 #
 #     |ΔᵣH⁰| [J/mol] = specific_heat [J/g] × M [g/mol]
 #
@@ -56,32 +56,32 @@ cs_base = ChemicalSystem(species_base, CEMDATA_PRIMARIES)
 # GGBS (ground granulated blast-furnace slag):
 #   Typical CEM I-like composition: ~42% CaO, 35% SiO₂, 12% Al₂O₃, 8% MgO.
 #   Representative formula (charge-neutral): CaAl₂Si₂O₈ (anorthite analogy).
-#   Molar mass of the formula unit overridden to 95 g/mol so that:
-#       |ΔᵣH⁰| = 380 J/g × 95 g/mol ≈ 36 100 J/mol  (Gruyaert 2010)
+#   |ΔᵣH⁰| = 380 J/g × M  (Gruyaert 2010)
 #
 # MK (metakaolin):
 #   Exact formula: Al₂Si₂O₇ (dehydroxylated kaolinite).
-#   Auto-computed molar mass: M = 222 g/mol.
-#   |ΔᵣH⁰| = 250 J/g × 222 g/mol ≈ 55 500 J/mol  (Lothenbach 2011)
+#   |ΔᵣH⁰| = 250 J/g × M  (Lothenbach 2011)
+#
+# M is the molar mass the package computes from each formula. A value written
+# over it would contradict the atoms the species carries.
 #
 # Dummy ΔₐG⁰: very negative → Ω ≈ 0 (dissolution always favored).
 # Parrot-Killoh ignores Ω; the value does not affect kinetic rates.
 
 const _dummy_G = NumericFunc((T, P) -> -1_200_000.0, (:T, :P), u"J/mol")
 
-# GGBS: formula CaAl₂Si₂O₈, :M overridden to 95 g/mol
+# GGBS: formula CaAl₂Si₂O₈
 sp_ggbs = Species(
     "CaAl2Si2O8";
     symbol = "GGBS",
     name = "GGBS",
     aggregate_state = AS_CRYSTAL,
     properties = Dict{Symbol, Any}(
-        :M => 0.095u"kg/mol",
         :ΔₐG⁰ => _dummy_G,
     ),
 )
 
-# MK: formula Al₂Si₂O₇ (metakaolin), M = 222 g/mol auto-computed
+# MK: formula Al₂Si₂O₇ (metakaolin)
 sp_mk = Species(
     "Al2Si2O7";
     symbol = "MK",
@@ -176,9 +176,11 @@ pk_mk = waller(WALLER_PARAMS_SILICA_FUME, "MK"; α_max = 0.95)
 #   C₄AF + 2 Portlandite + 10 H₂O → C₃AH₆ + C₃FH₆         (ΔᵣH⁰ ≈ −147 kJ/mol)
 #
 # GGBS and MK have artificial formulas (no ΔₐH⁰ in database); ΔᵣH⁰ is set
-# directly on the reaction (thermodynamic convention: negative = exothermic).
-#   GGBS: 380 J/g ×  95 g/mol ≈  36 100 J/mol  (Gruyaert 2010)
-#   MK  : 250 J/g × 222 g/mol ≈  55 500 J/mol  (Lothenbach 2011)
+# directly on the reaction (thermodynamic convention: negative = exothermic),
+# from the heat per gram and the molar mass of the formula unit.
+#   GGBS: 380 J/g  (Gruyaert 2010)
+#   MK  : 250 J/g  (Lothenbach 2011)
+heat_per_mol(sp, q_J_per_g) = -q_J_per_g * ustrip(us"g/mol", sp[:M])
 
 sp(name) = cs[name]
 
@@ -218,7 +220,8 @@ rxn_GGBS = Reaction(
     symbol = "GGBS hydration",
 )
 rxn_GGBS[:rate] = pk_ggbs
-rxn_GGBS[:ΔᵣH⁰] = NumericFunc((T) -> -36_100.0, (:T,), u"J/mol")
+const ΔH_GGBS = heat_per_mol(sp_ggbs, 380.0)
+rxn_GGBS[:ΔᵣH⁰] = NumericFunc((T) -> ΔH_GGBS, (:T,), u"J/mol")
 
 # MK: Al₂Si₂O₇ + 2 Ca(OH)₂ + 5 H₂O → stratlingite
 rxn_MK = Reaction(
@@ -227,7 +230,8 @@ rxn_MK = Reaction(
     symbol = "MK hydration",
 )
 rxn_MK[:rate] = pk_mk
-rxn_MK[:ΔᵣH⁰] = NumericFunc((T) -> -55_500.0, (:T,), u"J/mol")
+const ΔH_MK = heat_per_mol(sp_mk, 250.0)
+rxn_MK[:ΔᵣH⁰] = NumericFunc((T) -> ΔH_MK, (:T,), u"J/mol")
 
 kinetic_reactions = [rxn_C3S, rxn_C2S, rxn_C3A, rxn_C4AF, rxn_GGBS, rxn_MK]
 

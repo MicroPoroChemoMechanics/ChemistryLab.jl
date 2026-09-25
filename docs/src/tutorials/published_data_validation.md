@@ -409,8 +409,9 @@ Glasser (2008), which is Cemdata07. So this is a comparison **across database
 versions**, and the interesting question is where the two still agree.
 
 The phases do map one to one, and the molar masses of their Table 3 settle it:
-AFm 622.5, AFt 1255.1, Friedel's salt 561.3, CH 74.1 all reproduce from the
-CEMDATA18 formulas to better than 0.03 g/mol. (Their CaCO₃, printed at 100.9, is
+AFm 622.5, AFt 1255.1, Friedel's salt 561.3, CH 74.1 and C-S-H 191.4 all
+reproduce, to better than 0.03 g/mol, the molar masses the package computes from
+the CEMDATA18 formulas and from their own C-S-H formula. (Their CaCO₃, printed at 100.9, is
 a typo for 100.09; it touches nothing in this figure.)
 
 !!! warning "The C-S-H carries 44.5 g of water, and it is easy to drop"

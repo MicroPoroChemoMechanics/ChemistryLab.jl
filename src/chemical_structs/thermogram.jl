@@ -257,7 +257,7 @@ The carbon dioxide each solid species would release, by symbol.
 """
 function _co2_per_phase(state::ChemicalState)
     system = state.system
-    mc = _ignition_molar_mass(system, "CO2@", "CO2", 0.0440095u"kg/mol")
+    mc = _ignition_molar_mass(system, "CO2@", "CO2", _CO2_ATOMS)
     out = Dict{String, typeof(uconvert(us"kg", 1.0u"mol" * mc))}()
     for i in _solid_indices(system)
         sp = system.species[i]

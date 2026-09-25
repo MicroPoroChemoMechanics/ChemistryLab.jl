@@ -51,8 +51,10 @@ include("reference_species.jl")
 
     @testset "carbon leaves as carbon dioxide" begin
         loss = ignition_loss(st)
-        M_CO2 = 0.0440095
-        @test ustrip(us"kg", loss.carbon_dioxide) ≈ 3.0 * M_CO2 rtol = 1.0e-3
+        # The system declares no CO₂, so the gas is weighed from its formula,
+        # with the library's atomic masses.
+        M_CO2 = ustrip(us"kg/mol", calculate_molar_mass(Dict(:C => 1, :O => 2)))
+        @test ustrip(us"kg", loss.carbon_dioxide) ≈ 3.0 * M_CO2 rtol = 1.0e-10
         @test ustrip(us"kg", loss.total) ≈
             ustrip(us"kg", loss.water) + ustrip(us"kg", loss.carbon_dioxide)
     end

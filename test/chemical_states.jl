@@ -206,7 +206,6 @@ using JSON
             :(G0 + a * T); G0 = -237000.0, a = -70.0,
             units = [:T => "K", :G0 => "J/mol", :a => "J/(mol*K)"]
         )
-        h2o_ad[:M] = 0.018u"kg/mol"
         h2o_ad[:V⁰] = SymbolicFunc(1.8e-5u"m^3/mol")
 
         hp_ad = Species("H+"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
@@ -214,7 +213,6 @@ using JSON
             :(G0 + b * T); G0 = 0.0, b = 0.0,
             units = [:T => "K", :G0 => "J/mol", :b => "J/(mol*K)"]
         )
-        hp_ad[:M] = 0.001u"kg/mol"
 
         cs_ad = ChemicalSystem([h2o_ad, hp_ad])
         state_ad = ChemicalState(cs_ad; T = 298.15u"K", P = 1.0e5u"Pa")
