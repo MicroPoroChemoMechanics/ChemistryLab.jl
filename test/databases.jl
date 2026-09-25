@@ -54,7 +54,12 @@ using TOML
                 foreach(collect_units, value)
             end
         end
+        literature_dir = joinpath(datapath(), "literature")
         for (directory, _, files) in walkdir(datapath())
+            # `data/literature` is not ThermoFun: its files are read and checked
+            # by `read_literature` (test/literature.jl), and a text column of
+            # one of their tables has no unit at all.
+            startswith(directory, literature_dir) && continue
             for file in files
                 endswith(file, ".json") || continue
                 collect_units(JSON.parsefile(joinpath(directory, file); dicttype = Dict{String, Any}))
