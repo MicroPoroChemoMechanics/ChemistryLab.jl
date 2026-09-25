@@ -24,8 +24,9 @@ calcium and chloride constants were fitted to zeta potentials by
         solution of the cement pages. Putting the sites on CSHQ would count its
         calcium and its alkalis twice, once in the solid and once on the surface.
       - The diffuse layer sets the potential, following Dzombak and Morel as
-        PHREEQC does by default, but the ions it holds are **not counted**: the
-        chloride retained in the layer does not appear below as bound.
+        PHREEQC does by default. The ions it holds are counted only in
+        [the last section](@ref "The chloride of the diffuse layer"), and there
+        with a thickness that nothing published fixes for this paste.
       - The hydrates are those of CEMDATA18, and Guo used Cemdata07. This is
         their model on the package's database, not a reproduction of their
         figure; [the validation chapter](@ref "Validation against published data") compares
@@ -194,9 +195,49 @@ bound chloride at 0.3 mol/kg. A model that kept only the salts would miss a
 third of the bound chloride at the top of the sweep and all of it at the
 bottom.
 
-The chloride retained in the diffuse layer is the term missing from the bound
-total. With a positive surface every anion is in excess in the layer, so the
-totals above are lower bounds.
+The chloride retained in the diffuse layer is the term missing from these
+totals. With a positive surface every anion is in excess in the layer, so the
+next section counts it.
+
+## The chloride of the diffuse layer
+
+A [`DonnanLayer`](@ref) makes that layer explicit, as PHREEQC's `SURFACE -Donnan`
+does: a layer of water of fixed thickness on the surface, holding each solute at
+the average Boltzmann enrichment whose charge balances the surface's, while the
+surface keeps its Gouy-Chapman potential. [`equilibrate_donnan`](@ref) withdraws
+what the layer holds from the solution and solves again until the two agree.
+Against PHREEQC, on the surface alone in the eighteen solutions of the test
+suite, the layer's chloride agrees to 3 × 10⁻⁴ relative.
+
+The thickness is the parameter of the approach, and nothing published fixes it
+here. One Debye length of the solution, computed from its ionic strength, is
+taken below; the layer's water is taken from the pore solution, as it must be
+in a closed paste.
+
+```@example cshcl
+debye_length(I) = sqrt(water_relative_permittivity(298.15, 1.0e5) * VACUUM_PERMITTIVITY *
+                       R_GAS * 298.15 / (2 * FARADAY^2 * I * 1000))
+println(" NaCl  thickness  layer water  Cl excess  surface  Kuzel  Friedel   bound  (no layer)")
+for c in (0.4, 0.2, 0.1)
+    k = findfirst(==(c), NACL)
+    t = debye_length(ionic_strength(states[k]))
+    res = equilibrate_donnan(states[k], DonnanLayer(thickness = t); model, water = :taken)
+    r = partition(res.state)
+    ex = res.layer.excess[idx["Cl-"]]
+    @printf("%5.2f  %6.2f nm  %8.3f kg  %9.4f  %7.4f  %6.4f  %7.4f  %6.4f  (%6.4f)\n",
+            c, 1.0e9t, res.layer.water, ex, r.surface, r.kuzel, r.friedel, r.bound + ex,
+            rows[k].bound)
+end
+```
+
+The layer adds 2 to 8 % to the bound chloride. At 0.1 mol/kg its excess is two
+thirds of what the surface complexes hold, and part of it is chloride the salts
+would otherwise have taken: Kuzel's salt falls from 0.0555 to 0.0503 mol, since
+the layer lowers the concentration the AFm phases see. A layer one Debye length
+thick holds 41 to 70 % of the pore water here, because the pores of this paste
+are barely wider than the layer: this is where a Donnan average is a coarse
+description, and where the number depends on the thickness chosen more than on
+anything measured.
 
 ## See also
 
@@ -206,3 +247,4 @@ totals above are lower bounds.
     families and the potential.
   - [Validation against published data](@ref) — Guo's
     salts against their figure, without the surface.
+  - `test/csh_surface.jl` — the Donnan layer against PHREEQC's `-Donnan`.

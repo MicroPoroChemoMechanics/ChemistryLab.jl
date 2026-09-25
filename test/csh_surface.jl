@@ -299,6 +299,15 @@ const PHREEQC_CSH_DONNAN = reference_oracle("phreeqc_csh_donnan")
         if k == 1
             # One step cannot settle a layer that starts empty.
             @test_throws ErrorException equilibrate_donnan(st, layer; model, maxiter = 1)
+            @test_throws ArgumentError equilibrate_donnan(st, layer; model, water = :lost)
+            # Taken rather than added, the layer's water comes out of the
+            # solution's: free water and layer water make up the water given.
+            tk = equilibrate_donnan(st, layer; model, water = :taken)
+            W_free = ustrip(us"mol", tk.state.n[idx["H2O@"]]) * ustrip(us"kg/mol", aq["H2O@"][:M])
+            W_given = moles_of_water() * ustrip(us"kg/mol", aq["H2O@"][:M])
+            @test tk.certificate.optimal
+            # To the water the surface reactions exchange with the solution.
+            @test W_free + tk.layer.water ≈ W_given atol = 1.0e-4
         end
         res = equilibrate_donnan(st, layer; model)
         res.certificate.optimal && (certified += 1)

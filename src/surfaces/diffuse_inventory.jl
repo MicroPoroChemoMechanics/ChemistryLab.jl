@@ -38,9 +38,11 @@ Gouy-Chapman gives, and `ψ̃_D` is the smaller average over the layer. The
 left-hand side decreases in `ψ̃_D`, so the root is unique.
 
 The solutes of the layer come out of the system's totals, and the free solution
-holds the rest. Its water does not: it is added to the solution's, which is what
-PHREEQC does when a solution and a surface are reacted together, and what makes
-the free water the water the solution was given. The **excess** of a solute,
+holds the rest. Where its water comes from is a convention, and
+[`equilibrate_donnan`](@ref) offers PHREEQC's two: added to the solution's,
+which PHREEQC does when a solution and a surface are reacted together, or taken
+from it, which PHREEQC does for a surface equilibrated beforehand and which is
+the one a closed pore solution obeys. The **excess** of a solute,
 `n_i^D − m_i W_D`, is what the layer holds beyond its water at the molality of
 the free solution: positive for a counter-ion, negative for a co-ion.
 
@@ -152,7 +154,8 @@ end
 
 """
     equilibrate_donnan(state, layer::DonnanLayer; model = DiluteSolutionModel(),
-                       b = nothing, maxiter = 50, rtol = 1e-10, kwargs...)
+                       water = :added, b = nothing, maxiter = 200, rtol = 1e-8,
+                       kwargs...)
         -> NamedTuple
 
 The equilibrium of `state` with the ions of its diffuse layers counted, as
@@ -160,26 +163,39 @@ PHREEQC's `SURFACE -Donnan` counts them (see [`DonnanLayer`](@ref)).
 
 The layers take their solutes out of the solution's totals, and what they take
 depends on the solution they leave. Each step solves the solution and its
-surfaces with [`equilibrate_certified`](@ref) on the totals less the solutes the
-layers held at the previous step, from the previous answer, until the layers'
-contents stop moving by more than `rtol` relative. The layers' water is added
-to the solution's rather than taken from it, as PHREEQC does. `b` is the
-system's total budget, the layers' solutes included; by default the one `state`
-holds.
+surfaces with [`equilibrate_certified`](@ref) on the totals less what the
+layers held, from the previous answer, until the layers' contents stop moving
+by more than `rtol` relative. A layer that holds `r` times what the free
+solution holds of a solute would make a plain substitution oscillate with a
+factor `r`, and diverge beyond one; each step therefore moves that solute only
+the fraction `1/(1 + r)` of the way, which cancels the factor. `b` is the system's total
+budget, the layers included; by default the one `state` holds.
+
+`water` says where the layers' water comes from. `:added`, the default, adds it
+to the solution's: PHREEQC's convention for a solution and a surface reacted
+together, and the one its `-Donnan` results are compared against. `:taken`
+takes it out of the solution's water, so that the free water is the total less
+the layers': the convention of a closed system, and the one to use when the
+layers hold a noticeable share of the water, which `:added` would otherwise add
+to the system and dilute it by.
 Keywords other than these are passed to [`equilibrate_certified`](@ref).
 
 Returns `(state, certificate, layer, iterations)`: the free solution with its
 surfaces and solids, the certificate of its last solve, and
 [`diffuse_layer_contents`](@ref) of that state. An iteration that does not
-settle within `maxiter` steps is an error: a layer that holds a large share of
-the water does not settle, and its result would not mean anything.
+settle within `maxiter` steps is an error that gives the last relative change.
+The more of the water the layers hold, the slower they settle: a layer holding
+70 % of it takes about a hundred steps.
 """
 function equilibrate_donnan(
         state::ChemicalState, layer::DonnanLayer;
-        model::AbstractActivityModel = DiluteSolutionModel(), b = nothing,
-        maxiter::Integer = 50, rtol::Real = 1.0e-10, kwargs...,
+        model::AbstractActivityModel = DiluteSolutionModel(), water::Symbol = :added,
+        b = nothing, maxiter::Integer = 200, rtol::Real = 1.0e-8, kwargs...,
     )
     _refuse_state_keywords(kwargs, "equilibrate_donnan")
+    water in (:added, :taken) || throw(
+        ArgumentError("water must be :added or :taken; got :$water.")
+    )
     cs = state.system
     _diffuse_layer_groups(cs)
     A = Float64.(conservation_matrix(cs))
@@ -187,21 +203,30 @@ function equilibrate_donnan(
     iw = only(cs.idx_solvent)
     held = zeros(length(cs.species))
     current = state
+    last = Inf
     for it in 1:maxiter
         eq, cert = equilibrate_certified(current; model, b = b_total - A * held, kwargs...)
         contents = diffuse_layer_contents(eq, layer)
-        solutes = copy(contents.amounts)
-        solutes[iw] = 0.0                     # the layer's water is added, not taken
-        change = maximum(abs, solutes - held)
-        held = solutes
-        current = eq
-        change <= rtol * max(maximum(abs, held), eps()) &&
+        target = copy(contents.amounts)
+        water === :added && (target[iw] = 0.0)
+        change = maximum(abs, target - held)
+        last = change / max(maximum(abs, target), eps())
+        last <= rtol &&
             return (; state = eq, certificate = cert, layer = contents, iterations = it)
+        # What the layers hold of each species against what the free solution
+        # holds: the factor a plain substitution would oscillate with.
+        free = Float64[ustrip(us"mol", x) for x in eq.n]
+        for i in eachindex(held)
+            r = free[i] > 0 ? target[i] / free[i] : 0.0
+            held[i] += (target[i] - held[i]) / (1 + r)
+        end
+        current = eq
     end
     throw(
         ErrorException(
-            "equilibrate_donnan: the diffuse layer did not settle in $maxiter steps; " *
-                "a layer holding a large share of the water has no fixed point here."
+            "equilibrate_donnan: the diffuse layer did not settle in $maxiter steps " *
+                "(last relative change $(round(last; sigdigits = 3)), rtol $rtol); a layer " *
+                "holding a large share of the water may have no fixed point."
         )
     )
 end
