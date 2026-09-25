@@ -180,6 +180,9 @@ pages = [
             # the sites is itself dissolving, so the budget has to follow it.
             "examples/evolving_sorbent.md",
             "examples/claysor_clay.md",
+            # A surface in a cement paste, competing with the AFm salts for the
+            # same chloride, against PHREEQC on the same model.
+            "examples/csh_chloride_binding.md",
             "examples/thermogravimetry.md",
         ],
         # Small, checkable aqueous cases with an analytical answer to compare to.
