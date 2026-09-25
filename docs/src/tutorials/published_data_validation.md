@@ -12,8 +12,9 @@ then a set of measured solution compositions ([Atkins1992](@cite)), which can
 disagree with the database and does.
 
 Every number below is pinned by an assertion in `test/cemdata18_reference.jl`,
-`test/atkins1992_reference.jl`, `test/limestone_blending_reference.jl`,
-`test/chloride_binding_reference.jl` or `test/duan2016_reference.jl`, so it is
+`test/lothenbach2010_reference.jl`, `test/atkins1992_reference.jl`,
+`test/limestone_blending_reference.jl`, `test/chloride_binding_reference.jl`,
+`test/hong_glasser1999_reference.jl` or `test/duan2016_reference.jl`, so it is
 checked on every CI run — **pinned, not merely bounded**.
 
 The distinction is what makes a page like this worth reading. A threshold that
@@ -31,7 +32,7 @@ printed to, which is half of its last digit.
 
 ## What has been checked
 
-Six sources, more than seven hundred assertions, and the coverage is uneven on purpose:
+Eight sources, more than eight hundred assertions, and the coverage is uneven on purpose:
 the database is checked exhaustively because it is cheap to check exhaustively,
 while the equilibrium cases are checked one composition at a time because each
 one costs seconds to minutes.
@@ -46,6 +47,9 @@ one costs seconds to minutes.
 | **a measured solution** over a two-phase assemblage | [Atkins1992](@cite) Table 2 | Al and pH agree, robustly | Si is `×5` and Ca has a floor the model cannot leave; 9 of their 10 mixtures are not usable at all |
 | **the carboaluminate sequence** under limestone | [Kulik2021](@cite) Fig. 7A, [Lothenbach2019](@cite) Figs. 13-14 | order and thresholds reproduce; iron partition exact | only appears when Al exceeds Fe — see below |
 | **chloride binding** and the AFm → Friedel transition | [Guo2018](@cite) Fig. 1(b) | plateau to `1 %`, both conservation laws close | pH not reproducible (their alkalis are unpublished); above 2 % NaCl the activity model is out of range |
+| **the previous generation**, Cemdata07's 29 solubility products | [Lothenbach2010](@cite) Table 1 | 11 unchanged to the printed digit, from the package's own energies | 9 revised, by up to 1.6 log units; 9 have no CEMDATA18 solid of the same composition |
+| **an aged pore solution** against portlandite and ettringite | [Lothenbach2010](@cite) Table 2 | within a quarter of a log unit of saturation | which side depends on the activity model at `I ≈ 0.5 mol/kg` |
+| **alkali uptake by C-S-H**, 4 Ca/Si × 6 concentrations × Na and K | [HongGlasser1999](@cite) Tables 1-2 | pH to `0.072` from 15 to 100 mM below Ca/Si 1.8 | alkali over-bound at 46 of 48 points; the end members were fitted to these data |
 
 Two things this chapter deliberately does **not** do. It does not check the
 kinetics — [Validation against Reaktoro](@ref) covers the coupling, and no
@@ -405,8 +409,12 @@ liter of concrete, C-S-H 225 g, CH 90 g, AFm 9 g, AFt 22.5 g, porosity 14.6 %.
 **Their constants are not CEMDATA18's.** Their §2 says so — *"Cemdata2007 gives
 `Kp` and `Δ_r G_T^0` for nearly all phases in cement hydrate"* — and the note
 under their dissolution table points at Lothenbach, Matschei, Möschner and
-Glasser (2008), which is Cemdata07. So this is a comparison **across database
-versions**, and the interesting question is where the two still agree.
+Glasser (2008), which is Cemdata07. The Cemdata07 table of [Lothenbach2010](@cite)
+confirms it: its ettringite, monosulfate and jennite-type C-S-H are the `−44.9`,
+`−29.26` and `−13.17` that Guo print as `−44.9085`, `−29.2628` and `−13.1659`
+(see [Cemdata07, and an aged pore solution](@ref)). So this is a comparison
+**across database versions**, and the interesting question is where the two
+still agree.
 
 The phases do map one to one, and the molar masses of their Table 3 settle it:
 AFm 622.5, AFt 1255.1, Friedel's salt 561.3, CH 74.1 and C-S-H 191.4 all
@@ -681,6 +689,108 @@ is 0.01 log units; 1.4 log units on calcite is far outside what they claim for
 it. Their estimated carbonate data are the likeliest reason — the ferrocalcite
 row of their Table 3 carries a heat-capacity coefficient of `+2.09×10⁶` where
 every other carbonate in the table has zero or a large negative.
+
+## Cemdata07, and an aged pore solution
+
+[Lothenbach2010](@cite) reviews what equilibrium calculations do for cements,
+and its Table 1 lists the solubility products it computed with: those of
+Cemdata07, the generation before the one this package ships, for 29 solids. It
+prints no Gibbs energy and no molar volume, only the constant and its reaction.
+Read through the package's own energies, the same reactions separate what
+Cemdata18 kept from what it revised.
+
+| | phases |
+|:--|:--|
+| the same to the printed digit (11) | ettringite, tricarboaluminate, Fe-ettringite, monocarbonate, hemicarbonate, strätlingite, hydrotalcite (`M₄AH₁₀`), tobermorite-type C-S-H, amorphous silica, syngenite, amorphous `Al(OH)₃` |
+| revised (9), ours minus Cemdata07 | Fe-monosulfate `+1.63`, C₃AH₆ `+0.34`, C₄AH₁₃ `+0.15`, monosulfate `+0.026`, jennite-type C-S-H `+0.007`, thaumasite `−0.10`, CAH₁₀ `−0.10`, C₃FH₆ `−1.14`, C₄FH₁₃ `−1.35` |
+| no CEMDATA18 solid of the same composition (9) | siliceous hydrogarnet `C₃AS₀.₈H₄.₄`, C₂AH₈, C₂FH₈, Fe-monocarbonate, Fe-hemicarbonate, Fe-strätlingite, `M₄AC̄H₉`, `M₄FH₁₀`, `Fe(OH)₃` |
+
+Seven of the eight values the paper marks as tentative are among the revised or
+the absent; hydrotalcite is the one that survived. The phases are paired on
+their composition, never on their constant, which takes two precautions:
+amorphous silica shares its formula with quartz, and amorphous `Al(OH)₃` with
+gibbsite, so those two are paired by name; and CEMDATA18 carries several solids
+also at half their formula unit, for its solid solutions, so the whole unit is
+preferred and the constant scaled when only a half exists.
+
+### An aged pore solution
+
+Table 2 of the same paper is the pore solution of an ordinary Portland cement
+paste (w/c 0.4) after 69 days, expelled at five pressures, and the same page
+reports that the pore solutions of old pastes are often found a little above
+saturation for portlandite and for ettringite. At an ionic strength near 0.5 mol/kg, that
+statement depends on the activity model. With the analyzed totals at 25 °C (the
+table gives no temperature), the hydroxide from the charge balance, and lithium
+and strontium left out, the effective saturation indices — the index divided by
+the number of ions, 3 and 15, as the paper defines them — are:
+
+| activity model | portlandite | ettringite |
+|:--|--:|--:|
+| Davies | `+0.14` to `+0.16` | `+0.18` to `+0.23` |
+| B-dot, as identified from GEM-Selektor (`å = 0`) | `−0.11` to `−0.10` | `−0.18` to `−0.15` |
+
+Both put the solution within a quarter of a log unit of equilibrium, and
+neither can say on which side of it. With the second model the free hydroxide
+the paper reports comes back within 6 % from the charge balance of the totals.
+
+## Alkali uptake by C-S-H
+
+[HongGlasser1999](@cite) equilibrated synthetic C-S-H of Ca/Si 0.85, 1.2, 1.5 and
+1.8 with NaOH and KOH solutions of 1 to 300 mM, 0.6 g of gel in 9 mL at 20 °C,
+and analyzed 48 solutions for alkali, calcium, hydroxide and pH. Nothing else
+enters: no clinker, no kinetics, no unpublished input.
+
+!!! warning "The alkali was fitted to these data"
+    The Cemdata18 authors fine-tuned the Gibbs energies of their Na and K C-S-H
+    end members on these isotherms ([Lothenbach2019](@cite), §2.7 and Fig. 10).
+    Agreement on the alkali checks that the model is applied as it was fitted.
+    The calcium and the pH were not fitted, and they are where it can disagree.
+
+The gel enters as lime, silica and its own water: 14 % of the soft-dried mass at
+Ca/Si 0.85 and 1.2, as measured, and 18 % above, the value the authors adopt from
+Taylor. The 9 mL of solution are taken as 9 g of water. The temperature is set
+on the state, at 20 °C, and the activity model is the B-dot form identified from
+a GEM-Selektor run of CEMDATA18, as for [the Atkins case](@ref "Atkins et al. (1992): a measurement, not a calculation").
+Each Ca/Si ratio is walked down from 300 mM, and every point certifies.
+
+At the 100 mM rung, measured / computed:
+
+| Ca/Si | alkali | alkali, mmol/L | Ca, mmol/L | pH | Rd, mL/g |
+|:--|:--|--:|--:|--:|--:|
+| 0.85 | Na | 79.0 / 69.7 | 0.10 / 0.15 | 12.85 / 12.805 | 3.82 / 6.41 |
+| 1.2 | Na | 87.0 / 83.1 | 0.63 / 0.43 | 12.96 / 12.940 | 2.08 / 2.99 |
+| 1.5 | Na | 95.3 / 91.5 | 5.20 / 3.81 | 13.01 / 12.999 | 0.60 / 1.30 |
+| 1.8 | Na | 96.9 / 93.7 | 4.88 / 8.33 | 13.00 / 13.033 | 0.34 / 0.93 |
+| 0.85 | K | 78.2 / 76.1 | 0.10 / 0.15 | 12.87 / 12.835 | 4.33 / 4.94 |
+| 1.2 | K | 89.5 / 87.6 | 1.02 / 0.41 | 12.98 / 12.964 | 1.89 / 2.36 |
+| 1.5 | K | 94.0 / 94.6 | 4.80 / 3.62 | 13.00 / 13.015 | 1.09 / 1.03 |
+| 1.8 | K | 98.2 / 96.4 | 3.90 / 8.06 | 13.04 / 13.046 | 0.40 / 0.74 |
+
+Over the 48 points:
+
+  - **The pH**, which nothing was fitted to, is within `0.072` of the electrode
+    from 15 to 100 mM on the three gels below Ca/Si 1.8. At 300 mM it is low at
+    every Ca/Si, by `0.08` to `0.21`.
+  - **The alkali is over-bound.** Less stays in solution than was measured at 46
+    of the 48 points, and the computed Rd at 100 mM is 0.95 to 2.7 times the
+    measured one. The measured Rd hardly depends on the concentration, which is
+    the paper's main finding; the computed one falls as it rises.
+  - **The calcium** is low at Ca/Si 1.2 and 1.5 and high at 1.8. At 1.8 the CSHQ
+    model cannot hold all the calcium of the gel, and portlandite precipitates,
+    3.7 to 6.8 % of the solid, where the preparation carried 0.2 %.
+  - Aluminum is outside the model: [HongGlasser2002](@cite) replaced 6 to 7 % of
+    the silicon by aluminum and found a markedly higher Rd, and the CSHQ solid
+    solution carries no aluminum.
+
+What the measurements themselves can carry is read from the paper's own columns.
+It prints the cation sum `Na⁺ + 2Ca²⁺` beside the measured hydroxide, and the gap
+between them is the silicate that was not measured. The authors call ±5 %
+satisfactory at high ionic strength; two of the sixteen solutions at 100 and
+300 mM exceed it, the Ca/Si 0.85 gel in NaOH at 100 mM (9.1 %) and in KOH at
+300 mM (5.7 %). In the sixteen dilute solutions, at 1 and 5 mM, the gap reaches
+55 % and is 16 % on average, so nothing compared there carries much. One printed
+sum disagrees with its own row: 45.0 for `14.6 + 2 × 15.5 = 45.6` (KOH, 15 mM,
+Ca/Si 1.8).
 
 ## Reproducing
 

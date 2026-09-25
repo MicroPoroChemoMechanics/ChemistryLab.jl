@@ -89,6 +89,7 @@ end
     include("hkf.jl")
     include("cemdata18_reference.jl")
     include("duan2016_reference.jl")
+    include("lothenbach2010_reference.jl")
 end
 
 @testsection "Equilibrium tests" begin
@@ -112,6 +113,7 @@ end
     include("atkins1992_reference.jl")
     include("limestone_blending_reference.jl")
     include("chloride_binding_reference.jl")
+    include("hong_glasser1999_reference.jl")
     include("test_dual_solver.jl")
     include("certified_equilibrium.jl")
     include("equilibrium_constraints.jl")
