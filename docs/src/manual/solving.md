@@ -410,10 +410,13 @@ model = HKFActivityModel(å = 0.0)
     species. For a KOH-dominated pore solution that is
 
     ```julia
-    model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+    model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
     ```
 
-    which reproduces the activity coefficients such a run reports to 0.25 % on
+    with the B-dot such a run implies, ``\dot B \approx 0.0976``, which
+    [A CEM I at equilibrium, with every solid solution declared](@ref)
+    identifies from the activity coefficients GEMS printed. That model
+    reproduces the activity coefficients such a run reports to 0.25 % on
     the monovalent ions and 1.2 % on the divalent ones. The package defaults are
     a different and more defensible model — the limiting law has no validity at
     `I ≈ 0.2 mol/kg` — and give divalent coefficients about twice as large, so

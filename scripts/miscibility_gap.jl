@@ -104,7 +104,15 @@ CSHQ = ["CSHQ-JenD", "CSHQ-JenH", "CSHQ-TobD", "CSHQ-TobH", "KSiOH", "NaSiOH"]
 AFM = ["C4AH13", "monosulphate12"]
 aqueous = ["SO4-2", "CO2@"]
 
-model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+# Debye-Hückel limiting law with a B-dot term, as GEM-Selektor runs CEMDATA18.
+using JSON
+# The B-dot is GEM-Selektor's, identified from the activity coefficients it
+# printed on a CEMDATA18 Portland paste (test/reference/gems_cemdata18_portland.json):
+# the two lowest charge classes fix the limiting-law slope and the B-dot, about 0.0976.
+gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
+lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
+Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
+model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
 
 """
 One system, differing only in how the AFm binary is declared.
@@ -221,7 +229,13 @@ a, b = common_tangent(sym, 2)
     log(a / (1 - a)) + A * (1 - 2a), log(b / (1 - b)) + A * (1 - 2b)
 )
 
-for x̄ in (0.2, 0.4, 0.5268, 0.8, 0.96)
+# The composition of the AFm of this paste, as the single-composition answer of
+# case 2 returns it: x is the fraction of C4AH13, the first end-member.
+n2 = ustrip.(us"mol", eq2.n)
+grp2 = only(g for (g, ph) in zip(cs2.ss_groups, cs2.solid_solutions) if startswith(name(ph), "AFm"))
+x̄_paste = n2[grp2[1]] / sum(n2[i] for i in grp2)
+
+for x̄ in (0.2, 0.4, x̄_paste, 0.8, 0.96)
     r = miscibility_split(published, x̄, 2)
     if r.f_beta == 0
         @printf("x̄ = %.4f : homogeneous (outside the pair)\n", x̄)

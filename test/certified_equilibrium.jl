@@ -5,6 +5,8 @@
 # itself infeasible, and that the multi-start route certifies cases no single
 # back end does.
 
+include("reference_species.jl")
+
 @testsection "Certified equilibrium" begin
 
     sp = Dict(
@@ -740,18 +742,22 @@ end
             ],
         )
         st = ChemicalState(cs)
-        clinker = 100.0 * (1 - 0.046)                       # g, of 100 g binder
-        for (p, f) in (("C3S", 0.65), ("C2S", 0.11), ("C3A", 0.11), ("C4AF", 0.08))
+        # The CEM I of Lavergne et al. (2018), Table 9: its gypsum and the
+        # Bogue composition of its clinker.
+        gypsum = literature_value("Lavergne2018", "gypsum_percent")   # g, of 100 g binder
+        bogue = literature_table("Lavergne2018", "cement_bogue")
+        clinker = 100.0 * (1 - gypsum / 100)                         # g, of 100 g binder
+        for (p, f) in zip(bogue.phase, bogue.percent ./ 100)
             set_quantity!(st, p, clinker * f / M(p) * u"mol")
         end
-        set_quantity!(st, "Gp", 4.6 / M("Gp") * u"mol")
+        set_quantity!(st, "Gp", gypsum / M("Gp") * u"mol")
         set_quantity!(st, "H2O@", 50.0 / M("H2O@") * u"mol")
         b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
         b .+= oxide_budget(
             OrderedDict("K2O" => 0.008, "Na2O" => 0.002), cs.SM.primaries;
             mass = clinker * u"g",
         )
-        model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+        model = HKFActivityModel(å = 0.0, Ḃ = gems_bdot(), Kₙ = 0.0)
 
         strict = ChemistryLab.STRICT_CONVERGENCE[]
         try

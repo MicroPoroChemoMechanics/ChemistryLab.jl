@@ -91,7 +91,7 @@ end
     # ── molality-scale models: γ must equal exp(lna)/m for an abundant solute
     for model in (
             HKFActivityModel(), DaviesActivityModel(),
-            HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0),
+            HKFActivityModel(å = 0.0, Ḃ = gems_bdot(), Kₙ = 0.0),
         )
         γ = activity_coefficients(st, model)
         lna = log_activities(st, model)
@@ -160,20 +160,20 @@ end
     # `å` on the model must equal mutating `sp[:å]` on every charged species —
     # the documented route before this keyword existed.
     _, st_mutated = _aqp_state(; ion_size = 0.0)
-    γ_kw = activity_coefficients(st, HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0))
-    γ_mut = activity_coefficients(st_mutated, HKFActivityModel(Ḃ = 0.097637, Kₙ = 0.0))
+    γ_kw = activity_coefficients(st, HKFActivityModel(å = 0.0, Ḃ = gems_bdot(), Kₙ = 0.0))
+    γ_mut = activity_coefficients(st_mutated, HKFActivityModel(Ḃ = gems_bdot(), Kₙ = 0.0))
     for sym in ("Ca+2", "OH-", "CaOH+")
         @test γ_kw[sym] ≈ γ_mut[sym] rtol = 1.0e-14
     end
-    lna_kw = log_activities(st, HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0))
-    lna_mut = log_activities(st_mutated, HKFActivityModel(Ḃ = 0.097637, Kₙ = 0.0))
+    lna_kw = log_activities(st, HKFActivityModel(å = 0.0, Ḃ = gems_bdot(), Kₙ = 0.0))
+    lna_mut = log_activities(st_mutated, HKFActivityModel(Ḃ = gems_bdot(), Kₙ = 0.0))
     @test lna_kw["Ca+2"] ≈ lna_mut["Ca+2"] rtol = 1.0e-14
     @test lna_kw["H2O@"] ≈ lna_mut["H2O@"] rtol = 1.0e-14
 
     # `å = 0` is the Debye-Hückel limiting law plus the B-dot term, i.e. the
     # denominator collapses to 1.
     I = ionic_strength(st)
-    model0 = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+    model0 = HKFActivityModel(å = 0.0, Ḃ = gems_bdot(), Kₙ = 0.0)
     γ0 = activity_coefficients(st, model0)
     for (sym, z) in (("OH-", 1), ("Ca+2", 2))
         @test γ0[sym] ≈ 10.0^(-model0.A * z^2 * sqrt(I) + model0.Ḃ * I) rtol = 1.0e-12

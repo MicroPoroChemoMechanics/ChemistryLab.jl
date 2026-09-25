@@ -207,7 +207,14 @@ ss = [
     SolidSolutionPhase("C3(AF)S0.84H", [byname[m] for m in feal]),
 ]
 cs = ChemicalSystem(species, CEMDATA_PRIMARIES; solid_solutions = ss)
-model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+# Debye-Hückel limiting law with a B-dot term, as GEM-Selektor runs CEMDATA18.
+# The B-dot is identified from the activity coefficients GEMS printed on a
+# Portland paste (test/reference/gems_cemdata18_portland.json), about 0.0976.
+using JSON
+gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
+lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
+Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
+model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
 
 components = String.(symbol.(cs.SM.primaries))
 @printf(

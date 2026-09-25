@@ -641,10 +641,11 @@ HKFActivityModel()
 HKFActivityModel(å = literature_value("Helgeson1981", "nacl_distance_of_closest_approach"))
 
 # The Debye-Hückel limiting law with the B-dot a GEM-Selektor CEMDATA18 run of a
-# Portland cement implies (test/aqueous_properties.jl recovers it from GEMS'
-# printed coefficients): CEMDATA18 carries no ion-size parameter, so GEMS starts
-# from å = 0, and the B-dot term is not applied to neutral species.
-HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
+# Portland cement implies, Ḃ_gems ≈ 0.0976 (test/aqueous_properties.jl recovers
+# it from GEMS' printed coefficients, test/reference/gems_cemdata18_portland.json):
+# CEMDATA18 carries no ion-size parameter, so GEMS starts from å = 0, and the
+# B-dot term is not applied to neutral species.
+HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
 ```
 """
 function HKFActivityModel(;
