@@ -456,8 +456,8 @@ across the three ages — that is the pozzolanic reaction, and the reason the
 family exists. The **pH** moves the other way and by almost nothing, six
 hundredths of a unit, because it is the alkalis that set it and the glasses
 release them only slowly; the calcium hydroxide is a floor beneath, not a lever.
-And every one of the three **certifies**, with element balances of 2.6·10⁻¹²,
-8.2·10⁻¹⁴ and 1.1·10⁻¹³.
+And every one of the three **certifies**, with the element balances the table
+prints, all below 10⁻¹⁰.
 
 That is the useful conclusion, and it is worth stating as a limit on what the
 page claims: between 7 and 90 days the slag's reacted fraction changes by half
