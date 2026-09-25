@@ -5,9 +5,11 @@
 #   conda run -n mpcm-oracles python test/reference/phreeqc_csh_surface.py --case paste
 #
 # Writes test/reference/phreeqc_csh_surface.json (the surface in solutions of
-# NaOH, CaCl2 and NaCl) and, with --case paste, phreeqc_csh_paste.json (the same
+# NaOH, CaCl2 and NaCl), with --case paste phreeqc_csh_paste.json (the same
 # surface in Guo's hydrated paste, with portlandite, the AFm and AFt phases,
-# Friedel's and Kuzel's salts, swept in NaCl). test/csh_surface.jl reads both.
+# Friedel's and Kuzel's salts, swept in NaCl), and with --case donnan
+# phreeqc_csh_donnan.json (the first case with the ions of the diffuse layer
+# counted, SURFACE -Donnan). test/csh_surface.jl reads all three.
 #
 # One source of truth for both codes. The surface reactions and their constants
 # are read from data/literature/Guo2018.json (the table surface_reactions_phreeqc,
@@ -435,9 +437,93 @@ END
     print(f"wrote {os.path.relpath(path, _ROOT)} ({len(points)} points)")
 
 
+# ── the same solutions, with the ions of the diffuse layer counted ───────────
+
+# PHREEQC's default thickness, written out so that the fixture says it.
+DONNAN_THICKNESS = 1.0e-8           # m
+EDL_ELEMENTS = ("Na", "Ca", "Cl")
+
+
+def run_donnan():
+    lib = library_values(("H", "O", "Na", "Ca", "Cl"), {SLOP98: WATER})
+    kw = log_kw(lib, SLOP98)
+    text = database(kw, lib)
+    with tempfile.NamedTemporaryFile("w", suffix=".dat", delete=False) as handle:
+        handle.write(text)
+        dbfile = handle.name
+    ip = VIPhreeqc()
+    ip.load_database(dbfile)
+    if ip.phc_database_error_count:
+        raise SystemExit(f"the generated database failed to load: {ip.get_error_string()}")
+    points = []
+    for naoh, cacl2, nacl in GRID:
+        punch = ", ".join(f'EDL("{el}", "Csh")' for el in EDL_ELEMENTS)
+        script = f"""
+SOLUTION 1
+    units    mol/kgw
+    temp     25.0
+    water    1.0
+    pH       12.0 charge
+    Na       {naoh + nacl}
+    Ca       {cacl2}
+    Cl       {2 * cacl2 + nacl}
+SURFACE 1
+    Csh_wOH  {N_SITES}  {AREA_PER_GRAM}  {CSH_GRAMS}
+    -Donnan  {DONNAN_THICKNESS}
+USER_PUNCH
+    -headings psi_V sigma edl_water water_kg {' '.join('edl_' + el for el in EDL_ELEMENTS)}
+    10 PUNCH EDL("psi", "Csh"), EDL("sigma", "Csh"), EDL("water", "Csh"), TOT("water"), {punch}
+SELECTED_OUTPUT
+    -reset      false
+    -high_precision true
+    -pH         true
+    -ionic_strength true
+    -totals     Na Ca Cl
+    -molalities {' '.join(REPORTED)}
+END
+"""
+        ip.run_string(script)
+        if ip.get_error_string():
+            raise SystemExit(ip.get_error_string())
+        rows = ip.get_selected_output_array()
+        header, values = rows[0], rows[-1]
+        col = lambda name: values[header.index(name)]
+        amounts = {nm: col(f"m_{nm}(mol/kgw)") for nm in REPORTED}
+        total = sum(amounts.values())
+        points.append({
+            "naoh": naoh, "cacl2": cacl2, "nacl": nacl,
+            "pH": col("pH"), "I": col("mu"),
+            "psi_V": col("psi_V"), "sigma_C_m2": col("sigma"),
+            "free_molality": {el: col(f"{el}(mol/kgw)") for el in EDL_ELEMENTS},
+            "surface_mol": {nm: amounts[nm] * col("water_kg") for nm in REPORTED},
+            "free_water_kg": col("water_kg"), "layer_water_kg": col("edl_water"),
+            "layer_mol": {el: col("edl_" + el) for el in EDL_ELEMENTS},
+            "fractions": {nm: amounts[nm] / total for nm in REPORTED},
+        })
+    os.unlink(dbfile)
+    payload = {
+        "generator": "test/reference/phreeqc_csh_surface.py --case donnan",
+        "python": sys.version.split()[0],
+        "database_md5": hashlib.md5(text.encode()).hexdigest(),
+        "model": "PHREEQC SURFACE -Donnan (Gouy-Chapman surface, Donnan-averaged diffuse layer), Davies activity, closed system",
+        "inputs": "standard Gibbs energies and atomic masses from ChemistryLab (library_values)",
+        "log_kw": kw,
+        "thickness_m": DONNAN_THICKNESS,
+        "reactions": [{"equation": eq, "log_K": lk} for eq, lk in REACTIONS],
+        "n_sites": N_SITES,
+        "area_m2": AREA_PER_GRAM * CSH_GRAMS,
+        "points": points,
+    }
+    path = os.path.join(_HERE, "phreeqc_csh_donnan.json")
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2)
+        handle.write("\n")
+    print(f"wrote {os.path.relpath(path, _ROOT)} ({len(points)} points)")
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--case", choices=("surface", "paste"), default="surface")
+    parser.add_argument("--case", choices=("surface", "paste", "donnan"), default="surface")
     args = parser.parse_args()
-    run_paste() if args.case == "paste" else main()
+    {"surface": main, "paste": run_paste, "donnan": run_donnan}[args.case]()

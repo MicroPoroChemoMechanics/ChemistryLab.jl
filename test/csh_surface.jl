@@ -235,3 +235,112 @@ const PHREEQC_CSH_PASTE = reference_oracle("phreeqc_csh_paste")
     @test worst.cl_bound < 1.0e-3
     @test worst.water < 1.0e-4
 end
+
+const PHREEQC_CSH_DONNAN = reference_oracle("phreeqc_csh_donnan")
+
+@testsection "The ions of the diffuse layer, against PHREEQC's -Donnan" begin
+    # The first case again, with the layer that balances the surface charge
+    # made explicit: PHREEQC's SURFACE -Donnan, a layer of water of fixed
+    # thickness holding each solute at an average Boltzmann enrichment.
+    @testset "the average potential, where it has a closed form" begin
+        # No charge, no enrichment.
+        @test ChemistryLab._donnan_potential(0.0, [1.0, -1.0], [0.1, 0.1], 1.0e-3) == 0
+        # A 1:1 solution: σ + W m (e^-ψ - e^ψ) = 0, so ψ = asinh(σ / 2Wm).
+        for σ in (-2.0e-4, 3.0e-5, 1.0e-3)
+            @test ChemistryLab._donnan_potential(σ, [1.0, -1.0], [0.05, 0.05], 2.0e-3) ≈
+                asinh(σ / (2 * 2.0e-3 * 0.05)) rtol = 1.0e-12
+        end
+        # A positive surface in a solution with no anion has no balancing layer.
+        @test_throws ErrorException ChemistryLab._donnan_potential(1.0e-3, [1.0], [0.01], 1.0e-3)
+        @test_throws ArgumentError DonnanLayer(thickness = -1.0e-9)
+        @test DonnanLayer(thickness = 2.0e-9).thickness == DonnanLayer(thickness = 2.0e-9u"m").thickness == 2.0e-9
+    end
+
+    f = PHREEQC_CSH_DONNAN
+    aq = Dict(
+        symbol(s) => s for s in reference_species(("H2O@", "H+", "OH-", "Na+", "Ca+2", "Cl-"))
+    )
+    t = literature_table("Guo2018", "surface_reactions_phreeqc")
+    reactions = [eq => lk for (eq, lk) in zip(t.reaction, t.log_K) if !occursin("K+", eq)]
+    dl = DiffuseLayer(; area = f.area_m2)
+    family = site_family(
+        "Csh_w", reactions, collect(values(aq)); master = "Csh_w", site = "Xw",
+        capacity = TotalSiteAmount(f.n_sites * u"mol"),
+        support = SurfaceSupport("C-S-H", nothing, FixedSurfaceArea(f.area_m2)), model = dl,
+    )
+    aqueous = [aq[s] for s in ("H2O@", "H+", "OH-", "Na+", "Ca+2", "Cl-")]
+    members = vcat([family.free_site], family.complexes)
+    cs = ChemicalSystem(
+        vcat(aqueous, members),
+        [aq["H2O@"], aq["H+"], aq["Na+"], aq["Ca+2"], aq["Cl-"], family.free_site];
+        site_families = [family],
+    )
+    idx = Dict(symbol(sp) => k for (k, sp) in enumerate(cs.species))
+    model = DaviesActivityModel()
+    layer = DonnanLayer(thickness = f.thickness_m)
+    z = Float64[charge(sp) for sp in members]
+
+    # A system with no diffuse layer has no layer to count.
+    plain = ChemicalSystem(aqueous, [aq["H2O@"], aq["H+"], aq["Na+"], aq["Ca+2"], aq["Cl-"]])
+    @test_throws ArgumentError diffuse_layer_contents(ChemicalState(plain), layer)
+
+    worst = (fraction = 0.0, pH = 0.0, psi = 0.0, water = 0.0, layer = 0.0, sigma = 0.0)
+    by_element = Dict(el => 0.0 for el in keys(first(f.points).layer_mol))
+    certified = 0
+    for (k, pt) in enumerate(f.points)
+        n0 = Any[fill(1.0e-14u"mol", length(cs.species))...]
+        n0[idx["H2O@"]] = moles_of_water() * u"mol"
+        n0[idx["Na+"]] = (pt.naoh + pt.nacl) * u"mol"
+        n0[idx["OH-"]] = pt.naoh * u"mol"
+        n0[idx["Ca+2"]] = pt.cacl2 * u"mol"
+        n0[idx["Cl-"]] = (2 * pt.cacl2 + pt.nacl) * u"mol"
+        n0[idx["XwOH"]] = f.n_sites * u"mol"
+        st = ChemicalState(cs, n0)
+        if k == 1
+            # One step cannot settle a layer that starts empty.
+            @test_throws ErrorException equilibrate_donnan(st, layer; model, maxiter = 1)
+        end
+        res = equilibrate_donnan(st, layer; model)
+        res.certificate.optimal && (certified += 1)
+        eq = res.state
+        n = Float64[ustrip(us"mol", x) for x in eq.n]
+        N = sum(n[idx[symbol(sp)]] for sp in members)
+        for (name, frac) in pairs(pt.fractions)
+            sym = replace(String(name), "Csh_w" => "Xw"; count = 1)
+            worst = merge(worst, (fraction = max(worst.fraction, abs(n[idx[sym]] / N - frac)),))
+        end
+        psi = diffuse_layer_potential(dl, z, [n[idx[symbol(sp)]] for sp in members], ionic_strength(eq), 298.15)
+        held(el) = sum(
+            res.layer.amounts[i] * get(atoms(cs.species[i]), el, 0) for i in cs.idx_solutes
+        )
+        for (el, v) in pairs(pt.layer_mol)
+            e = abs(held(Symbol(el)) / v - 1)
+            by_element[el] = max(by_element[el], e)
+            worst = merge(worst, (layer = max(worst.layer, e),))
+        end
+        σ = FARADAY * sum(z .* [n[idx[symbol(sp)]] for sp in members]) / f.area_m2
+        worst = merge(worst, (sigma = max(worst.sigma, abs(σ / pt.sigma_C_m2 - 1)),))
+        worst = merge(
+            worst, (
+                pH = max(worst.pH, abs(pH(eq, model) - pt.pH)),
+                psi = max(worst.psi, abs(psi - pt.psi_V * FARADAY / (R_GAS * 298.15))),
+                water = max(worst.water, abs(res.layer.water - pt.layer_water_kg)),
+            ),
+        )
+        # The layer balances the surface: the free solution is neutral.
+        @test sum(n[i] * charge(cs.species[i]) for i in cs.idx_aqueous) ≈ 0 atol = 1.0e-10
+    end
+    @info "Donnan layer against PHREEQC" certified worst by_element
+    @test certified == length(f.points)
+    @test worst.fraction < 1.0e-3
+    @test worst.pH < 1.0e-3
+    @test worst.psi < 5.0e-3
+    @test worst.water < 1.0e-12
+    # The layer holds what balances the surface charge, and that charge — a
+    # difference of two site amounts a hundred times larger — agrees with
+    # PHREEQC's to 1.1 %. The layer inherits it: measured at 2.7e-3 relative on
+    # an element it holds, 2.7e-4 on the chloride.
+    @test worst.sigma < 2.0e-2
+    @test worst.layer < 5.0e-3
+    @test by_element[:Cl] < 1.0e-3
+end

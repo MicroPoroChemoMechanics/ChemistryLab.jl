@@ -47,6 +47,18 @@ Modules = [ChemistryLab]
 Pages   = ["surfaces/surface_potential.jl"]
 ```
 
+## The ions of the diffuse layer
+
+A [`DiffuseLayer`](@ref) leaves the ions that screen the surface in the solution,
+which then carries the counter-charge. A [`DonnanLayer`](@ref) counts them in a
+layer of water on the surface, as PHREEQC's `SURFACE -Donnan` does, and
+[`equilibrate_donnan`](@ref) solves with them withdrawn from the solution.
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["surfaces/diffuse_inventory.jl"]
+```
+
 ## The site budget, and the declaration it has to match
 
 A family declares a capacity; a state carries amounts. Until these functions

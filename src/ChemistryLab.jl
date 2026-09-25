@@ -157,6 +157,9 @@ module ChemistryLab
     include("equilibrium/dual_solver.jl")
     include("equilibrium/certified.jl")
     include("equilibrium/aqueous_properties.jl")
+    # After the certified solve it iterates, and the site families whose charge
+    # its layer balances.
+    include("surfaces/diffuse_inventory.jl")
 
     include("kinetics/rate_models.jl")
     include("kinetics/kinetics_reactions.jl")
@@ -550,6 +553,9 @@ module ChemistryLab
         water_relative_permittivity,
         SiteFamily,
         site_family,
+        DonnanLayer,
+        diffuse_layer_contents,
+        equilibrate_donnan,
         site_moles,
         site_mixing_model,
         reference_member,
