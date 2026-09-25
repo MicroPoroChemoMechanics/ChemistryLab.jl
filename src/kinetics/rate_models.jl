@@ -1296,8 +1296,11 @@ end
 # reagents. Sealed, that volume empties into the pore space and the paste
 # desiccates itself; immersed, it is refilled from the bath, so the same paste
 # reaches full hydration from a lower mixing water content.
-const POWERS_W_SEALED = 0.42
-const POWERS_W_SATURATED = 0.36
+#
+# The two ratios are read from `data/literature/Powers1948.json`, where they are
+# kept with their source, rather than typed here.
+const POWERS_W_SEALED = literature_value("Powers1948", "w_c_sealed")
+const POWERS_W_SATURATED = literature_value("Powers1948", "w_c_saturated")
 
 """
     powers_alpha_max(w_c; curing = :sealed) -> Real

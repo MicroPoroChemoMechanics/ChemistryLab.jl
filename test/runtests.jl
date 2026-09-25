@@ -64,6 +64,7 @@ end
     include("formulas.jl")
     include("stoich_matrices.jl")
     include("databases.jl")
+    include("literature.jl")
     include("zeolites.jl")
     include("parsing_utils.jl")
     include("reactions.jl")

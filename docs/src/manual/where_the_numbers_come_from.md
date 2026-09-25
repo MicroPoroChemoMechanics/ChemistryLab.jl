@@ -162,6 +162,36 @@ And in every one of these cases, write **where it came from** next to it. A
 number with a provenance is data; a number without one is a guess that someone
 will have to re-derive.
 
+## [Published values live in data files](@id man-literature-data)
+
+A value the package takes from an article (a fitted parameter, a measured
+coefficient, a composition, a table) is kept in `data/literature/<key>.json`, one
+file per source, the key being the entry of the bibliography. The file names the
+place in the source the value was read from, says how it was transcribed and
+checked, and gives its unit and, when the source states one, its uncertainty. The
+code reads it rather than repeating it:
+
+```@example numbers
+using ChemistryLab
+record = literature("Powers1948")
+```
+
+```@example numbers
+record["w_c_sealed"], literature_value("Powers1948", "w_c_sealed")
+```
+
+Each quantity comes back as a [`Traced`](@ref) value, so its source and its kind
+travel with it, and [`literature_value`](@ref) drops them at the point where the
+number enters a calculation. [`literature_table`](@ref) returns a whole table as
+columns carrying their units. The files follow the format described by
+[`literature`](@ref), which checks them as it reads them; the test suite also
+checks that every key is an entry of the bibliography and repeats its DOI.
+
+Coefficients that define an equation of state or a published model, such as the
+constants of the water equation of state or of the HKF model, are part of the
+model rather than data taken from it, and they remain in the code with their
+source in a comment.
+
 ## When a number has to carry its own history
 
 Everything above is about *finding* a number. This is about not losing what you
