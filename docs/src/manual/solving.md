@@ -517,8 +517,8 @@ substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false
 dict = Dict(symbol(s) => s for s in substances)
 
 # SolidSolutionPhase requalifies SC_COMPONENT → SC_SSENDMEMBER automatically
-ss_afm = SolidSolutionPhase("AFm",
-    [dict["monosulphate12"], dict["monocarbonate"]])
+ss_hg = SolidSolutionPhase("C3(AF)S0.84H",
+    [dict["C3AFS0.84H4.32"], dict["C3FS0.84H4.32"]])
 ```
 
 **Workflow B — automated via [`build_solid_solutions`](@ref) and a TOML file:**
@@ -540,10 +540,11 @@ pre-built `data/solid_solutions.toml` file shipped with ChemistryLab.
     pore-solution pH of a Portland cement — leaving them out strands the alkalis
     in solution. `C3(AF)S0.84H` is the Fe-siliceous hydrogarnet.
 
-    `AFm`, `Hydrogarnet` and `Hydrotalcite` are **deliberate alternatives** to
-    the CEMDATA18 phase model, not reproductions of it: GEM-Selektor treats
-    `monocarbonate`, `C3AH6`, `C3FH6` and `hydrotalcite` as *pure* phases, its
-    AFm solid solution is `C4AH13` + `monosulphate12`, and its hydrotalcite
+    `AFm_SO4_OH` and `AFt_SO4_CO3` carry CEMDATA18's non-ideal parameters, read
+    from `data/literature/Lothenbach2019.json`, with two instances each because
+    both unmix. `Hydrogarnet` and `Hydrotalcite` are **deliberate alternatives**
+    to the CEMDATA18 phase model, not reproductions of it: GEM-Selektor treats
+    `C3AH6`, `C3FH6` and `hydrotalcite` as *pure* phases, and its hydrotalcite
     solid solution is `Mg3AlC0.5OH` + `Mg3FeC0.5OH` at Mg:Al = 3. Reproducing a
     published GEM-Selektor result means declaring the phases in the script, as
     above, rather than taking this file wholesale.
@@ -552,9 +553,9 @@ Then pass `solid_solutions` as a keyword to `ChemicalSystem`:
 
 ```julia
 cs = ChemicalSystem(
-    [H2O_sp, dict["monosulphate12"], dict["monocarbonate"], ...],
+    [H2O_sp, dict["C3AFS0.84H4.32"], dict["C3FS0.84H4.32"], ...],
     ["H2O@", "Al+3", ...];           # primaries
-    solid_solutions = [ss_afm],      # or solid_solutions = ss_phases
+    solid_solutions = [ss_hg],       # or solid_solutions = ss_phases
 )
 ```
 
@@ -572,7 +573,7 @@ solid solutions automatically.
 ### Ideal solid solution
 
 ```julia
-ss = SolidSolutionPhase("AFm", [em_ms, em_mc])   # IdealSolidSolutionModel() by default
+ss = SolidSolutionPhase("C3(AF)S0.84H", [em_al, em_fe])   # IdealSolidSolutionModel() by default
 cs = ChemicalSystem([...]; solid_solutions=[ss])
 state_eq = equilibrate(state)
 ```
@@ -580,10 +581,14 @@ state_eq = equilibrate(state)
 ### Non-ideal binary: Redlich-Kister
 
 ```julia
-# Interaction parameters for monosulfoaluminate-monocarboaluminate (example values)
-rk = RedlichKisterModel(a0 = 3000.0, a1 = 500.0)          # a2 defaults to 0.0
-# or 3-parameter:  RedlichKisterModel(a0 = 3000.0, a1 = 500.0, a2 = 50.0)
-ss = SolidSolutionPhase("AFm", [em_ms, em_mc]; model=rk)
+# Cemdata18's AFm SO4/OH binary, from its dimensionless Guggenheim parameters
+# (data/literature/Lothenbach2019.json): a = α R T, C4AH13 first.
+p  = literature_row("Lothenbach2019", "guggenheim_parameters", "AFm SO4/OH")
+RT = R_GAS * 298.15
+rk = RedlichKisterModel(a0 = p.alpha0 * RT, a1 = p.alpha1 * RT)   # a2 defaults to 0.0
+# It unmixes, so it needs two coexisting compositions:
+ss = SolidSolutionPhase("AFm_SO4_OH", [dict["C4AH13"], dict["monosulphate12"]];
+                        model = rk, instances = 2)
 ```
 
 Activity coefficients (Guggenheim / ThermoCalc convention):

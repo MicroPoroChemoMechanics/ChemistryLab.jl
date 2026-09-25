@@ -216,22 +216,25 @@ end_members = ["CSHQ-TobD", "CSHQ-TobH", "CSHQ-JenH", "CSHQ-JenD",
 model       = "ideal"
 source      = "Lothenbach2015"
 
-# Binary Redlich-Kister (exactly 2 end-members, parameters in J/mol)
+# Binary Redlich-Kister (exactly 2 end-members): published dimensionless
+# Guggenheim parameters, read from data/literature (a = α R T at 298.15 K), or
+# a0, a1, a2 in J/mol. It unmixes, so it takes two coexisting compositions.
 [[solid_solution]]
-name        = "AFm"
-end_members = ["monosulphate12", "monocarbonate"]
+name        = "AFm_SO4_OH"
+end_members = ["C4AH13", "monosulphate12"]
 model       = "redlich_kister"
-a0          = 3000.0
-a1          = 500.0
-a2          = 0.0
-source      = "placeholder (no published source)"
+guggenheim  = "Lothenbach2019:AFm SO4/OH"
+instances   = 2
+source      = "Lothenbach2019"
 ```
 
 The file `data/solid_solutions.toml` shipped with ChemistryLab.jl declares the main
-cemdata18 solid solutions (CSHQ, AFm, Hydrogarnet, Ettringite_ss, Hydrotalcite, and
-others). Most are ideal, and the comments of the file say which of those ideal models
-is an assumption. The two Redlich-Kister parameters of `AFm` are placeholders with no
-published source: Cemdata18 has no monosulfate-monocarbonate solid solution.
+cemdata18 solid solutions (CSHQ, AFm_SO4_OH, AFt_SO4_CO3, Hydrogarnet, Hydrotalcite,
+and others). `AFm_SO4_OH` and `AFt_SO4_CO3` carry the non-ideal parameters of
+[Lothenbach2019](@cite), with the end-member order that reproduces the gaps the
+article prints; the others are ideal, and the comments of the file say which of
+those ideal models is an assumption. Monosulfate and monocarbonate are pure phases
+in Cemdata18, and the file does not mix them.
 
 ### Usage
 

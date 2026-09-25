@@ -463,11 +463,25 @@ Each end-member species is automatically requalified to `SC_SSENDMEMBER` via
 [[solid_solution]]
 name        = "CSHQ"
 end_members = ["CSHQ-TobD", "CSHQ-TobH", "CSHQ-JenH", "CSHQ-JenD", "KSiOH", "NaSiOH"]
-model       = "ideal"          # or "redlich_kister"
-# For redlich_kister only:
-a0          = 3000.0           # J/mol
-a1          = 500.0            # J/mol
-a2          = 0.0              # J/mol
+model       = "ideal"          # or "redlich_kister", "regular"
+```
+
+A Redlich-Kister entry gives its parameters in J/mol as `a0`, `a1`, `a2`, or
+names published dimensionless Guggenheim parameters with
+`guggenheim = "<literature key>:<pair>"`, a row of the `guggenheim_parameters`
+table of `data/literature/<key>.json`; they become `a = α R T` at 298.15 K, so
+that no published value is copied into the file. The sign of `a1` follows the
+order of `end_members`. A model that unmixes needs `instances = 2`, the number of
+coexisting compositions [`SolidSolutionPhase`](@ref) may give the phase; without
+it the phase is refused at construction, which is what makes a gap visible.
+
+```toml
+[[solid_solution]]
+name        = "AFm_SO4_OH"
+end_members = ["C4AH13", "monosulphate12"]
+model       = "redlich_kister"
+guggenheim  = "Lothenbach2019:AFm SO4/OH"
+instances   = 2
 ```
 
 # Example
@@ -511,7 +525,9 @@ function build_solid_solutions(
 
         # Build mixing model
         model_str = get(entry, "model", "ideal")
-        mixing_model = if model_str == "redlich_kister"
+        mixing_model = if model_str == "redlich_kister" && haskey(entry, "guggenheim")
+            _guggenheim_model(entry["guggenheim"], ss_name)
+        elseif model_str == "redlich_kister"
             RedlichKisterModel(;
                 a0 = get(entry, "a0", 0.0),
                 a1 = get(entry, "a1", 0.0),
@@ -534,7 +550,21 @@ function build_solid_solutions(
             IdealSolidSolutionModel()
         end
 
-        push!(phases, SolidSolutionPhase(ss_name, em_species; model = mixing_model))
+        instances = Int(get(entry, "instances", 1))
+        push!(phases, SolidSolutionPhase(ss_name, em_species; model = mixing_model, instances))
     end
     return phases
+end
+
+# Published dimensionless Guggenheim parameters, `"<key>:<pair>"`, as the
+# Redlich-Kister model at 298.15 K.
+function _guggenheim_model(ref::AbstractString, ss_name)
+    parts = split(ref, ":"; limit = 2)
+    length(parts) == 2 || error(
+        "build_solid_solutions: \"$ss_name\" names guggenheim = \"$ref\"; " *
+            "expected \"<literature key>:<pair>\", such as \"Lothenbach2019:AFm SO4/OH\"."
+    )
+    p = literature_row(String(parts[1]), "guggenheim_parameters", String(parts[2]))
+    RT = R_GAS * 298.15
+    return RedlichKisterModel(; a0 = ustrip(p.alpha0) * RT, a1 = ustrip(p.alpha1) * RT)
 end

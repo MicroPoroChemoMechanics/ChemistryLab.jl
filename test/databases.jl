@@ -385,7 +385,37 @@ end
         @test haskey(data, "solid_solution")
         @test length(data["solid_solution"]) >= 2
         @test any(e -> e["name"] == "CSHQ", data["solid_solution"])
-        @test any(e -> e["name"] == "AFm", data["solid_solution"])
+        @test any(e -> e["name"] == "AFm_SO4_OH", data["solid_solution"])
+        # Cemdata18 has no monosulfate-monocarbonate solid solution, and the
+        # file no longer declares one.
+        @test !any(e -> Set(e["end_members"]) == Set(["monosulphate12", "monocarbonate"]), data["solid_solution"])
+    end
+
+    @testset "published Guggenheim parameters, read rather than copied" begin
+        # `guggenheim = "<key>:<pair>"` reads the dimensionless parameters from
+        # data/literature and makes them a = α R T at 298.15 K; the gap they
+        # open is the one the article prints, read from the same row.
+        dcem = Dict(
+            symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+        )
+        byss = Dict(name(p) => p for p in build_solid_solutions(datapath("solid_solutions.toml"), dcem))
+        RT = ChemistryLab.R_GAS * 298.15
+        # The AFm gap is printed in X(OH), the first end-member; the AFt gap in
+        # X(SO4), the second.
+        for (ss, pair, second) in (("AFm_SO4_OH", "AFm SO4/OH", false), ("AFt_SO4_CO3", "AFt SO4/CO3", true))
+            p = literature_row("Lothenbach2019", "guggenheim_parameters", pair)
+            m = model(byss[ss])
+            @test m isa RedlichKisterModel
+            @test m.a0 ≈ ustrip(p.alpha0) * RT
+            @test m.a1 ≈ ustrip(p.alpha1) * RT
+            @test byss[ss].instances == 2
+            x = common_tangent(byss[ss])
+            gap = second ? (1 - x[2], 1 - x[1]) : (x[1], x[2])
+            @test gap[1] ≈ ustrip(p.gap_from) atol = 5.0e-3
+            @test gap[2] ≈ ustrip(p.gap_to) atol = 5.0e-3
+        end
+        @test_throws ErrorException ChemistryLab._guggenheim_model("Lothenbach2019", "AFm")
+        @test_throws KeyError ChemistryLab._guggenheim_model("Lothenbach2019:AFm SO4/CO3", "AFm")
     end
 
     rm(tmp; force = true)

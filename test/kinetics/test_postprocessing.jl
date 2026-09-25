@@ -452,10 +452,9 @@ end
 
 @testset "every declared solid solution builds" begin
 
-    # Two of the five entries named end-members that exist in no shipped
-    # database — "Ms"/"Mc" and "Ht_OH"/"Ht_CO3" — so `build_solid_solutions`
-    # skipped them with a warning. AFm being the only Redlich-Kister entry, the
-    # non-ideal path had no live case at all.
+    # Entries once named end-members that exist in no shipped database, and
+    # `build_solid_solutions` skipped them with a warning; every entry must
+    # build.
     data = datapath("cemdata18-thermofun.json")
     d = Dict(symbol(s) => s for s in build_species(data))
     ss = build_solid_solutions(
@@ -469,7 +468,7 @@ end
     # addition into a failure of a test that was not about it.
     # `test/solid_solutions.jl` is where the full list is pinned by name.
     for n in (
-            "CSHQ", "C3(AF)S0.84H", "AFm", "Hydrogarnet", "Ettringite_ss",
+            "CSHQ", "C3(AF)S0.84H", "Hydrogarnet", "Ettringite_ss",
             "Hydrotalcite", "Straetlingite_ss", "AFm_SO4_OH", "AFt_SO4_CO3",
             "Hydrotalcite_AlFe", "MSH",
         )
@@ -489,18 +488,19 @@ end
     @test all(
         length(end_members(byname[n])) == 2
             for n in (
-                "C3(AF)S0.84H", "AFm", "Hydrogarnet", "Ettringite_ss",
+                "C3(AF)S0.84H", "Hydrogarnet", "Ettringite_ss",
                 "Hydrotalcite", "Straetlingite_ss", "AFm_SO4_OH", "AFt_SO4_CO3",
                 "Hydrotalcite_AlFe", "MSH",
             )
     )
-    @test model(byname["AFm"]) isa RedlichKisterModel
+    # The two binaries Cemdata18 publishes as non-ideal carry its parameters;
+    # the others are ideal.
+    @test all(model(byname[n]) isa RedlichKisterModel for n in ("AFm_SO4_OH", "AFt_SO4_CO3"))
     @test all(
         model(byname[n]) isa IdealSolidSolutionModel
             for n in (
                 "CSHQ", "C3(AF)S0.84H", "Hydrogarnet", "Ettringite_ss",
-                "Hydrotalcite", "Straetlingite_ss", "AFm_SO4_OH", "AFt_SO4_CO3",
-                "Hydrotalcite_AlFe", "MSH",
+                "Hydrotalcite", "Straetlingite_ss", "Hydrotalcite_AlFe", "MSH",
             )
     )
 
