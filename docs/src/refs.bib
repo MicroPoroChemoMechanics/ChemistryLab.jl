@@ -323,12 +323,15 @@
 
 % No DOI: a release of the association, distributed on its website
 % (iapws.org/technical-guidance/release/Surf-H2O). Title, number, place and date
-% are those of its cover page. The constants B, b and mu go back to the release
+% are those of its cover page. The author is the association, written as its
+% acronym: DocumenterCitations splits an author field on "and" even inside
+% braces, so the full name, "... Water and Steam", cannot stand there. The
+% constants B, b and mu go back to the release
 % of 1976, whose tables Vargaftik, Volkov and Voljak published as
 % doi:10.1063/1.555688 (resolved on Crossref); this revision refers T_c to
 % ITS-90.
 @techreport{IAPWS2014,
-  author      = {{International Association for the Properties of Water and Steam}},
+  author      = {IAPWS},
   title       = {Revised Release on Surface Tension of Ordinary Water Substance},
   institution = {International Association for the Properties of Water and Steam},
   type        = {Release},
