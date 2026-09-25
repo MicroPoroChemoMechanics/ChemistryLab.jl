@@ -19,6 +19,7 @@ changes the calculation in three ways, and this page follows each:
 ```@example cem3
 using ChemistryLab
 using DynamicQuantities
+using Logging
 using OptimaSolver
 using OrderedCollections
 using Printf
@@ -272,8 +273,13 @@ is degenerate. A CEM III does.
 r = half_reaction(eq, "SO4-2", "HS-")
 println("half-reaction : ", r.equation)
 @printf("log K at 25 C : %.2f\n", r.logK⁰(T = 298.15))
-@printf("pe            : %+.2f\n", pe(eq, model))
-@printf("Eh            : %+.3f V\n", Eh(eq, model))
+# `pe` warns when a member of the couple sits at the solver's floor; the two
+# sulfur amounts printed below say the same, so the warning is not repeated.
+pe_eq, eh_eq = with_logger(NullLogger()) do
+    pe(eq, model), Eh(eq, model)
+end
+@printf("pe            : %+.2f\n", pe_eq)
+@printf("Eh            : %+.3f V\n", eh_eq)
 
 s6 = ustrip(us"mol", moles(eq, "SO4-2"))
 s2 = ustrip(us"mol", moles(eq, "HS-"))
@@ -288,8 +294,9 @@ couple.
 
 A couple buffers a potential only while both of its members are present. With
 one at the floor, the `pe` printed above is set by the floor `ϵ` and not by the
-chemistry, which is why [`pe`](@ref) emits a warning here rather than returning
-the number silently. Read it as a **bound**, not as the redox state of the
+chemistry. [`pe`](@ref) warns when it meets this case rather than returning the
+number silently; here the two amounts printed below it carry the same
+information. Read the potential as a **bound**, not as the redox state of the
 paste.
 
 That is not a defect of the calculation; it is the answer. A CEM III/A at this

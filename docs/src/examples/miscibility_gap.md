@@ -25,6 +25,7 @@ this page is the measurement.
 ```@example gap
 using ChemistryLab
 using DynamicQuantities
+using Logging
 using OptimaSolver
 using OrderedCollections
 using Printf
@@ -148,7 +149,10 @@ function run_case(afm_phase; autostart = true)
     set_quantity!(st, "H2O@", BINDER_G * WB / molar_mass("H2O@") * u"mol")
     b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
 
-    eq, cert = equilibrate_certified(st; model = model, b = b, autostart = autostart)
+    # Every case prints its certificate; the warning of a refusal would only repeat it.
+    eq, cert = with_logger(NullLogger()) do
+        equilibrate_certified(st; model = model, b = b, autostart = autostart)
+    end
     return cs, eq, cert
 end
 

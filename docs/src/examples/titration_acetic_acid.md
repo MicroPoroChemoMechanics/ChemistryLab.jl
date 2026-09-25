@@ -109,7 +109,6 @@ solver = EquilibriumSolver(
         warm_start_init_point = "no",
     );
     variable_space = Val(:linear),
-    abstol  = 1e-10,
     reltol  = 1e-10,
 )
 ```

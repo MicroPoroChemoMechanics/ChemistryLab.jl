@@ -310,10 +310,12 @@ state_eq_log = equilibrate(state; variable_space=Val(:log))
 
 ### Tolerances
 
-Tighter tolerances are passed directly as keyword arguments and forwarded to the underlying Ipopt solver:
+Solver options are passed as keyword arguments and forwarded to the optimizer.
+Ipopt reads `reltol` as its convergence tolerance `tol`; it has no counterpart
+for `abstol`, which it ignores:
 
 ```julia
-state_eq_tight = equilibrate(state; abstol=1e-12, reltol=1e-12)
+state_eq_tight = equilibrate(state; reltol = 1e-12)
 ```
 
 ## [Activity models](@id sec-activity-models)

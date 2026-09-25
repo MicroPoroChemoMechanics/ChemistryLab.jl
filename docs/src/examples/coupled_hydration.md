@@ -39,6 +39,7 @@ and the aqueous species `speciation` pulls in from the primaries.
 
 ```@example coupled
 using ChemistryLab, DynamicQuantities, OptimaSolver, OrdinaryDiffEq, Printf
+using Logging # hide
 
 data = datapath("cemdata18-thermofun.json")
 substances = build_species(data)
@@ -109,9 +110,20 @@ kp = KineticsProblem(
     activity_model = model,
     equilibrium_solver = EquilibriumSolver(cs, model, OptimaOptimizer()),
 )
+diagnostics = IOBuffer() # hide
+sol = with_logger(ConsoleLogger(diagnostics)) do # hide
 sol = integrate(kp, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-7, abstol = 1.0e-10))
+end # hide
 @printf "%d accepted steps, retcode = %s\n" length(sol.t) sol.retcode
 ```
+
+<details><summary>What the solvers reported during the integration</summary>
+
+```@example coupled
+print(String(take!(diagnostics))) # hide
+```
+
+</details>
 
 ## 5. Reading the result
 
@@ -123,7 +135,9 @@ totals the run carried, walking the instants in order.
 
 ```@example coupled
 times = [1.0, 3.0, 7.0] .* 86400
+states = with_logger(ConsoleLogger(diagnostics)) do # hide
 states = speciated_states(sol, kp; times = times)
+end # hide
 
 @printf "%6s %8s %10s %12s %10s\n" "t [d]" "pH" "Jennite" "Portlandite" "H2O"
 for (t, st) in zip(times, states)
@@ -132,6 +146,14 @@ for (t, st) in zip(times, states)
     ) ustrip(us"mol", moles(st, "Portlandite")) ustrip(us"mol", moles(st, "H2O@"))
 end
 ```
+
+<details><summary>What the solvers reported during the replay</summary>
+
+```@example coupled
+print(String(take!(diagnostics))) # hide
+```
+
+</details>
 
 Check the partition constraint — conservation of matter is one of the three
 conditions a certificate rests on, and the one with an immediate meaning:

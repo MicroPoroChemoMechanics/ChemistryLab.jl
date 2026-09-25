@@ -21,6 +21,7 @@
 
 using ChemistryLab
 using DynamicQuantities
+using Logging
 using OptimaSolver
 using OrderedCollections
 using Printf
@@ -285,9 +286,13 @@ for α in (ALPHA_ASH, 1.0)
         # 1.8e-02 and 3.9e-07. That trades two proved answers for two hollow
         # markers of the page's own making, which is a downgrade dressed as a
         # saving.
-        eq, c = equilibrate_certified(
-            something(prev, st); model = model, b = b, autostart = !refused,
-        )
+        # The certificate is printed below; the warning of a refusal would
+        # only repeat it.
+        eq, c = with_logger(NullLogger()) do
+            equilibrate_certified(
+                something(prev, st); model = model, b = b, autostart = !refused,
+            )
+        end
         c.optimal ? (prev = eq) : (refused = true)
         n = ustrip.(us"mol", eq.n)
         push!(ch, n[i_ch])
@@ -370,7 +375,10 @@ end
 # verdict is the same and the cascade spends about nine minutes reaching it.
 for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
     st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = 1.0)
-    eq, c = equilibrate_certified(st; model = model, b = b, autostart = false)
+    # The certificate is printed below; the warning of a refusal would only repeat it.
+    eq, c = with_logger(NullLogger()) do
+        equilibrate_certified(st; model = model, b = b, autostart = false)
+    end
     (label == "CNASH_ss") && (global eq_b, c_b = eq, c)
     @printf(
         "%2.0f %% ash reacted 100 %%  %-10s optimal=%-5s balance=%.1e\n",

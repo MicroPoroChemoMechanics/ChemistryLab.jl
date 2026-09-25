@@ -23,6 +23,15 @@ using ForwardDiff
 
 # ── OptimizationProblem conversions ──────────────────────────────────────────
 
+# Ipopt works with the Hessian of the Lagrangian. Handed a first-order backend,
+# OptimizationBase builds `SecondOrder(backend, backend)` itself and warns that it
+# did, once per solve; the certified cascade runs this back end many times per
+# equilibrium, and the documentation pages printed the warning by the hundred.
+# Asking for that same pair explicitly changes the computation in nothing.
+const _SECOND_ORDER_AD = Optimization.OptimizationBase.DifferentiationInterface.SecondOrder(
+    Optimization.AutoForwardDiff(), Optimization.AutoForwardDiff()
+)
+
 """
     SciMLBase.OptimizationProblem(ep::EquilibriumProblem, ::Val{:linear}; kwargs...)
 
@@ -35,7 +44,7 @@ function SciMLBase.OptimizationProblem(ep::EquilibriumProblem, ::Val{:linear}; k
 
     optf = OptimizationFunction(
         Gibbs_energy,
-        Optimization.AutoForwardDiff();
+        _SECOND_ORDER_AD;
         cons = conservation_constraints,
     )
 
@@ -64,7 +73,7 @@ function SciMLBase.OptimizationProblem(ep::EquilibriumProblem, ::Val{:log}; kwar
 
     optf = OptimizationFunction(
         Gibbs_energy_log,
-        Optimization.AutoForwardDiff();
+        _SECOND_ORDER_AD;
         cons = conservation_constraints_log,
     )
 

@@ -22,9 +22,12 @@ using DynamicQuantities
 using Logging
 using Base: @lock
 
-isdefined(Main, :run_ionic_hydration) ||
+# `@isdefined`, not `isdefined(Main, ...)`: a documentation page includes these
+# files into its own module, where a test against `Main` never sees the first
+# inclusion and every definition was made again, docstrings included.
+@isdefined(run_ionic_hydration) ||
     include(joinpath(@__DIR__, "ionic_hydration.jl"))
-isdefined(Main, :forward_Q) ||
+@isdefined(forward_Q) ||
     include(joinpath(@__DIR__, "hydration_calibration.jl"))
 
 """

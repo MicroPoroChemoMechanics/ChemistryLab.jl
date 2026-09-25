@@ -283,6 +283,20 @@ end
 
 # ── build_kinetics_params ────────────────────────────────────────────────────
 
+# One compiled thermodynamic function per species, each of its own type, so the
+# vector has no concrete element type and cannot have one. SciMLBase reads such a
+# field of the ODE parameters as a mistake and warns on every run, advising a
+# tuple, which would compile a method per system. The wrapper changes nothing to
+# how the functions are called -- iteration and indexing are the vector's -- and
+# only keeps the warning out of the output.
+struct _SpeciesFunctions{V <: AbstractVector}
+    fns::V
+end
+Base.iterate(s::_SpeciesFunctions, st...) = iterate(s.fns, st...)
+Base.length(s::_SpeciesFunctions) = length(s.fns)
+Base.getindex(s::_SpeciesFunctions, i) = s.fns[i]
+Base.eltype(::Type{_SpeciesFunctions{V}}) where {V} = eltype(V)
+
 """
     build_kinetics_params(kp::KineticsProblem; ϵ=1e-30) -> NamedTuple
 
@@ -311,8 +325,8 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
     n_initial_full = Float64[ustrip(us"mol", state.n[i]) for i in 1:n_sp]
     n_full = copy(n_initial_full)
 
-    cp_fns = [haskey(sp, :Cp⁰) ? sp[:Cp⁰] : nothing for sp in kp.system.species]
-    h_fns = [haskey(sp, :ΔₐH⁰) ? sp[:ΔₐH⁰] : nothing for sp in kp.system.species]
+    cp_fns = _SpeciesFunctions([haskey(sp, :Cp⁰) ? sp[:Cp⁰] : nothing for sp in kp.system.species])
+    h_fns = _SpeciesFunctions([haskey(sp, :ΔₐH⁰) ? sp[:ΔₐH⁰] : nothing for sp in kp.system.species])
 
     kin_rxns = kp.kinetic_reactions
     rates_buf = zeros(Float64, length(kin_rxns))
