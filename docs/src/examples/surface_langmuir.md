@@ -36,7 +36,11 @@ using ChemistryLab, DynamicQuantities, SciMLBase
 const RT = R_GAS * 298.15
 g0(v) = SymbolicFunc(v * u"J/mol")          # a constant standard energy
 
-logK₁, logK₂ = 7.29, -8.93                  # protonation, deprotonation
+# The constants are read from the copy of phreeqc.dat that the test oracles use,
+# so this page and PHREEQC work from one set of numbers.
+dat = read_sorption_model(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+log_k(product) = only(reactions_involving(dat, product)).log_K.value
+logK₁, logK₂ = log_k("Hfo_wOH2+"), log_k("Hfo_wO-")   # protonation, deprotonation
 
 free = Species("XsOH"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
 free[:ΔₐG⁰] = g0(0.0)                       # the reference state of the family

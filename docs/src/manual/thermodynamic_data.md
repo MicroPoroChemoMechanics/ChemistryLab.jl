@@ -163,24 +163,27 @@ Coefficient units:
 | `a₈` | J/mol |
 | `a₉` | J/(mol·K^1.5) |
 
-**Example — CO₂ (gas):**
+**Example — calcite:**
 
 ```@example build_thermo
 using ChemistryLab
 using DynamicQuantities
 
-params_CO2 = Dict(
-    :S⁰   => 213.785u"J/K/mol",
-    :ΔₐH⁰ => -393510.0u"J/mol",
-    :ΔₐG⁰ => -394373.0u"J/mol",
-    :a₀   => 33.98u"J/K/mol",
-    :a₁   => 23.88e-3u"J/(mol*K^2)",
-    :a₂   => 0.0u"J*K/mol",
+# Thermoddem's values for calcite, as transcribed in data/literature/Blanc2012.json
+ref = literature_row("Blanc2012", "individual_properties", "Calcite")
+mk  = literature_row("Blanc2012", "maier_kelley", "Calcite")   # Cp = a + bT + c/T²
+params_calcite = Dict(
+    :S⁰   => ref.S,
+    :ΔₐH⁰ => ref.dfH,
+    :ΔₐG⁰ => ref.dfG,
+    :a₀   => mk.a,
+    :a₁   => mk.b,
+    :a₂   => mk.c,
     :a₃   => 0.0u"J/(mol*K^0.5)",
     :T    => 298.15u"K",
 )
 
-dtf = build_thermo_functions(:cp_ft_equation, params_CO2)
+dtf = build_thermo_functions(:cp_ft_equation, params_calcite)
 ```
 
 The returned `OrderedDict` has four entries:
@@ -235,28 +238,31 @@ After building the thermodynamic function dictionary, assign each entry to the s
 using ChemistryLab
 using DynamicQuantities
 
-params_CO2 = Dict(
-    :S⁰   => 213.785u"J/K/mol",
-    :ΔₐH⁰ => -393510.0u"J/mol",
-    :ΔₐG⁰ => -394373.0u"J/mol",
-    :a₀   => 33.98u"J/K/mol",
-    :a₁   => 23.88e-3u"J/(mol*K^2)",
-    :a₂   => 0.0u"J*K/mol",
+# Thermoddem's values for calcite, as transcribed in data/literature/Blanc2012.json
+ref = literature_row("Blanc2012", "individual_properties", "Calcite")
+mk  = literature_row("Blanc2012", "maier_kelley", "Calcite")   # Cp = a + bT + c/T²
+params_calcite = Dict(
+    :S⁰   => ref.S,
+    :ΔₐH⁰ => ref.dfH,
+    :ΔₐG⁰ => ref.dfG,
+    :a₀   => mk.a,
+    :a₁   => mk.b,
+    :a₂   => mk.c,
     :a₃   => 0.0u"J/(mol*K^0.5)",
     :T    => 298.15u"K",
 )
 
-CO2 = Species("CO2"; aggregate_state = AS_GAS, class = SC_GASFLUID)
-dtf = build_thermo_functions(:cp_ft_equation, params_CO2)
+calcite = Species("CaCO3"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
+dtf = build_thermo_functions(:cp_ft_equation, params_calcite)
 for (k, v) in dtf
-    CO2[k] = v
+    calcite[k] = v
 end
 
-CO2[:Cp⁰](T = 400.0)
+calcite[:Cp⁰](T = 400.0)
 ```
 
 ```@example attach_props
-CO2[:ΔₐG⁰](T = 400.0u"K", unit = true)
+calcite[:ΔₐG⁰](T = 400.0u"K", unit = true)
 ```
 
 ---
@@ -307,11 +313,14 @@ using SymbolicNumericIntegration  # required for add_thermo_model with Cp expres
 # Use :(Cp0 * T^0) so the expression is an Expr (not a bare Symbol) and T stays in the vars list
 add_thermo_model(:const_Cp, :(Cp0 * T^0), [:T => u"K", :Cp0 => u"J/mol/K"])
 
+# Ca²⁺ with its heat capacity at 25 °C held constant, from Thermoddem's values
+# as transcribed in data/literature/Blanc2012.json
+ca = literature_row("Blanc2012", "individual_properties", "Ca+2")
 params = Dict(
-    :Cp0  => 75.3u"J/mol/K",       # water
-    :S⁰   => 69.95u"J/mol/K",
-    :ΔₐH⁰ => -285830.0u"J/mol",
-    :ΔₐG⁰ => -237140.0u"J/mol",
+    :Cp0  => ca.Cp,
+    :S⁰   => ca.S,
+    :ΔₐH⁰ => ca.dfH,
+    :ΔₐG⁰ => ca.dfG,
     :T    => 298.15u"K",
 )
 
@@ -353,11 +362,14 @@ using DynamicQuantities
 
 factory = ThermoFactory(:(a + b * T + c / T^2), [:T])
 
-# Stamp out SymbolicFunc instances for different species
-f_CO2 = factory(; a = 33.98, b = 23.88e-3, c = 0.0)
-f_H2O = factory(; a = 30.54, b = 10.29e-3, c = 0.0)
+# Stamp out SymbolicFunc instances for different species: the Maier-Kelley
+# coefficients of calcite and portlandite, in SI units
+mk(sp) = literature_row("Blanc2012", "maier_kelley", sp)
+coeffs(r) = (a = ustrip(r.a), b = ustrip(r.b), c = ustrip(r.c))
+f_calcite = factory(; coeffs(mk("Calcite"))...)
+f_portlandite = factory(; coeffs(mk("Portlandite"))...)
 
-f_CO2(T = 500.0), f_H2O(T = 500.0)
+f_calcite(T = 500.0), f_portlandite(T = 500.0)
 ```
 
 ---

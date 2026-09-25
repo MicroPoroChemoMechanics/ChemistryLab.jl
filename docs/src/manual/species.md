@@ -168,14 +168,16 @@ H2O[:M]
 ```
 
 ```@example props_simple
-# Add a scalar property
-H2O[:V⁰] = 18.07e-6u"m^3/mol"
+# Add a scalar property: the molar volume of liquid water at 25 °C, from its
+# molar mass and the density of the package's equation of state for water
+ρ = water_thermo_props(298.15, 1.0e5).D * u"kg/m^3"
+H2O[:V⁰] = H2O[:M] / ρ
 H2O[:V⁰]
 ```
 
 ```@example props_simple
 # Add a string annotation
-H2O[:source] = "CRC Handbook 2024"
+H2O[:source] = "M / ρ, ρ from the HGK equation of state at 25 °C"
 H2O[:source]
 ```
 
@@ -183,43 +185,46 @@ H2O[:source]
 
 The standard workflow uses [`build_thermo_functions`](@ref) to construct callable `SymbolicFunc` objects from reference data and Cp polynomial coefficients, then assigns them to the species:
 
-```@example CO2
+```@example calcite
 using ChemistryLab
 using DynamicQuantities
 
-CO₂ = Species("CO2"; name = "Carbon dioxide", aggregate_state = AS_GAS, class = SC_GASFLUID)
+calcite = Species("CaCO3"; name = "Calcite", aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
 
-# Reference data at 298.15 K (from e.g. thermoddem.brgm.fr)
-params_Cp_CO2 = Dict(
-    :S⁰   => 213.785u"J/K/mol",
-    :ΔₐH⁰ => -393510u"J/mol",
-    :ΔₐG⁰ => -394373u"J/mol",
-    :a₀   => 33.98u"J/K/mol",       # Cp polynomial: only a₀ and a₁ non-zero here
-    :a₁   => 23.88e-3u"J/(mol*K^2)",
-    :a₂   => 0.0u"J*K/mol",
+# Reference data at 298.15 K: Thermoddem's values, as transcribed in
+# data/literature/Blanc2012.json
+ref = literature_row("Blanc2012", "individual_properties", "Calcite")
+mk  = literature_row("Blanc2012", "maier_kelley", "Calcite")
+params_Cp_calcite = Dict(
+    :S⁰   => ref.S,
+    :ΔₐH⁰ => ref.dfH,
+    :ΔₐG⁰ => ref.dfG,
+    :a₀   => mk.a,       # Maier-Kelley: a₀ + a₁T + a₂/T², the other terms zero
+    :a₁   => mk.b,
+    :a₂   => mk.c,
     :a₃   => 0.0u"J/(mol*K^0.5)",
     :T    => 298.15u"K",             # reference temperature
 )
 
-dtf_CO2 = build_thermo_functions(:cp_ft_equation, params_Cp_CO2)
+dtf_calcite = build_thermo_functions(:cp_ft_equation, params_Cp_calcite)
 ```
 
-```@example CO2
+```@example calcite
 # Assign each function to the species
-for (k, v) in dtf_CO2
-    CO₂[k] = v
+for (k, v) in dtf_calcite
+    calcite[k] = v
 end
 
 # Evaluate at different temperatures
-CO₂[:Cp⁰](T = 298.15)    # J/mol/K at 25 °C
+calcite[:Cp⁰](T = 298.15)    # J/mol/K at 25 °C
 ```
 
-```@example CO2
-CO₂[:Cp⁰](T = 500.0)     # J/mol/K at 227 °C
+```@example calcite
+calcite[:Cp⁰](T = 500.0)     # J/mol/K at 227 °C
 ```
 
-```@example CO2
-CO₂[:ΔₐG⁰](T = 500.0u"K", unit = true)   # Gibbs energy at 227 °C with units
+```@example calcite
+calcite[:ΔₐG⁰](T = 500.0u"K", unit = true)   # Gibbs energy at 227 °C with units
 ```
 
 !!! note "Cp polynomial"

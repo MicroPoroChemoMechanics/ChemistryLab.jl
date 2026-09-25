@@ -1,0 +1,43 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Blanc2012",
+    "doi": "10.1016/j.apgeochem.2012.06.002",
+    "citation": "Blanc, Ph., Lassin, A., Piantone, P., Azaroual, M., Jacquemet, N., Fabbri, A., Gaucher, E. C. (2012). Thermoddem: A geochemical database focused on low temperature water/rock interactions and waste materials. Applied Geochemistry 27(10), 2107-2116.",
+    "location": "the Thermoddem database, thermoddem.brgm.fr, individual properties at 298.15 K"
+  },
+  "transcription": {
+    "from": "the pages of the Thermoddem website for calcite, portlandite, Ca+2 and CO3-2 (thermoddem.brgm.fr/species/calcite, portlandite, ca2, co3-2), read on 2026-09-25; calcite and the two ions are also captured in docs/src/assets/calcite_properties_thermoddem.png, ca_properties_thermoddem.png and co3_properties_thermoddem.png",
+    "checked_against_source": true,
+    "note": "The values of calcite and of the two ions were typed into the from_scratch example before this file existed and agree with the website, all of them. The website credits each value to its own primary source (CODATA, Robie and Hemingway 1995, Shock et al. 1997, Plummer and Busenberg 1982, internal calculations); the database is cited here, through its reference publication. The HKF coefficients of the two ions are not transcribed: the examples take their heat capacities as constant at 25 C."
+  },
+  "tables": {
+    "individual_properties": {
+      "columns": ["species", "M", "V", "dfG", "dfH", "S", "Cp"],
+      "units": [null, "g/mol", "cm^3/mol", "J/mol", "J/mol", "J/(mol*K)", "J/(mol*K)"],
+      "kind": "published",
+      "location": "individual properties (298.15 K)",
+      "rows": [
+        ["Calcite", 100.087, 36.934, -1129109, -1207605, 91.78, 83.47],
+        ["Portlandite", 74.093, 33.056, -896886, -984552, 83.39, 87.49],
+        ["Ca+2", 40.078, -18.154, -552806, -543000, -56.2, -26.38],
+        ["CO3-2", 60.009, -5.275, -527900, -675230, -50.0, -276.88]
+      ]
+    },
+    "maier_kelley": {
+      "columns": ["species", "a", "b", "c"],
+      "units": [null, "J/(mol*K)", "J/(mol*K^2)", "J*K/mol"],
+      "kind": "published",
+      "location": "Cp(T) = a + b T + c T^-2, T in kelvin",
+      "rows": [
+        ["Calcite", 99.72, 0.02692, -2158000.0],
+        ["Portlandite", 89.26, 0.03311, -1036000.0]
+      ]
+    }
+  },
+  "notes": [
+    "The website prints b * 10^3 and c * 10^-5 (26.92 and -21.58 for calcite); the columns hold b and c themselves.",
+    "The polynomials reproduce the heat capacity the same pages give at 298.15 K: 83.47 for calcite, and 87.48 against 87.49 for portlandite.",
+    "CO2(g), which the Manual used to build from this source, is not transcribed: its page leaves c blank, and a + b T then gives 41.10 J/(mol K) at 298.15 K where the page gives Cp = 37.14."
+  ]
+}

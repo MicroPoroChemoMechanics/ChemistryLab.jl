@@ -44,9 +44,12 @@ const RT = R_GAS * 298.15
 g0(v) = SymbolicFunc(v * u"J/mol")
 mRT(logK) = -RT * log(10.0^logK)
 
-# PHREEQC's own constants for this model.
-logK_prot, logK_depr = 7.29, -8.93
-logK_Zn_strong, logK_Zn_weak = 0.99, -1.99
+# PHREEQC's own constants for this model, read from the copy of phreeqc.dat
+# that the test oracles use rather than typed again.
+dat = read_sorption_model(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+log_k(product) = only(reactions_involving(dat, product)).log_K.value
+logK_prot, logK_depr = log_k("Hfo_wOH2+"), log_k("Hfo_wO-")
+logK_Zn_strong, logK_Zn_weak = log_k("Hfo_sOZn+"), log_k("Hfo_wOZn+")
 
 # The aqueous species come from a database the package ships, not from numbers
 # typed here — see [Where the numbers come from](@ref sec-manual-numbers).
@@ -68,10 +71,16 @@ s_depr, s_zn   = sf("XsO-", mRT(logK_depr)), sf("XsOZn+", mRT(logK_Zn_strong) + 
 w_free, w_prot = sf("XwOH", 0.0), sf("XwOH2+", mRT(logK_prot))
 w_depr, w_zn   = sf("XwO-", mRT(logK_depr)), sf("XwOZn+", mRT(logK_Zn_weak) + G(zn))
 
+# One millimole of iron, with Dzombak and Morel's site densities per mole of
+# iron and the specific area they pair with them.
+dm(q) = literature_value("DzombakMorel1990", q)
 n_Fe = 1.0e-3
-N_strong, N_weak, Zn_total = 0.005n_Fe, 0.2n_Fe, 1.0e-5
+N_strong = dm("strong_sites_per_mol_Fe") * n_Fe
+N_weak = dm("weak_sites_per_mol_Fe") * n_Fe
+Zn_total = 1.0e-5
+area = ustrip(us"m^2", dm("specific_surface_area") * dm("molar_mass") * n_Fe * u"mol")
 
-support = SurfaceSupport("hydrous ferric oxide", nothing, FixedSurfaceArea(53.4))
+support = SurfaceSupport("hydrous ferric oxide", nothing, FixedSurfaceArea(area))
 fam_s = SiteFamily("Hfo_s", s_free, [s_prot, s_depr, s_zn];
                    capacity = TotalSiteAmount(N_strong * u"mol"), support)
 fam_w = SiteFamily("Hfo_w", w_free, [w_prot, w_depr, w_zn];
@@ -217,7 +226,7 @@ for (name, free, others, N) in (
         ("Hfo_w", w_free, [w_prot, w_depr, w_zn], N_weak),
     )
     push!(layered, SiteFamily(name, free, others; capacity = TotalSiteAmount(N),
-                              support, model = DiffuseLayer(; area = 53.4)))
+                              support, model = DiffuseLayer(; area)))
 end
 cs_dl = ChemicalSystem(species, [h2o, hp, zn, na, cl, s_free, w_free];
                        site_families = layered)
