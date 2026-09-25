@@ -355,7 +355,8 @@ for α in (ALPHA_ASH, 1.0)
         # The cascade is declined only AFTER this branch has already refused
         # once, and that condition is exact rather than cautious.
         #
-        # Measured: this block cost 654 s, of which about 600 were the two
+        # Measured with ChemistryLab 0.22.0 and OptimaSolver 0.6.0: this block
+        # cost 654 s, of which about 600 were the two
         # points of the α = 1 branch that refuse — a refusal pays every back
         # end, then the ideal pre-solve, then the homotopy, before returning the
         # same verdict. Past the composition where a branch first runs out, the
@@ -509,7 +510,7 @@ refusal — is what says the aluminum matters.
 because the obvious reading is wrong.
 
 The block above declines the cascade, so its balances are whatever the single
-solve stopped at — for `CSHQ`, 9.8 mol, which is not a number to interpret at
+solve stopped at — tenths of a mole, which is not a number to interpret at
 all. The diagnosis below comes from the **continuation**, the best route
 available on this branch, and that is what makes it a diagnosis rather than a
 symptom:

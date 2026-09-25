@@ -271,7 +271,8 @@ for α in (ALPHA_ASH, 1.0)
         # The cascade is declined only AFTER this branch has already refused
         # once, and that condition is exact rather than cautious.
         #
-        # Measured: this block cost 654 s, of which about 600 were the two
+        # Measured with ChemistryLab 0.22.0 and OptimaSolver 0.6.0: this block
+        # cost 654 s, of which about 600 were the two
         # points of the α = 1 branch that refuse — a refusal pays every back
         # end, then the ideal pre-solve, then the homotopy, before returning the
         # same verdict. Past the composition where a branch first runs out, the
