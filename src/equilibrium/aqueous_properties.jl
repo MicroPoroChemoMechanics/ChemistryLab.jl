@@ -657,8 +657,11 @@ function pe(
         i = findfirst(sp -> symbol(sp) == sym, cs.species)
         i === nothing && continue
         n_i = _primal(ustrip(us"mol", state.n[i]))
-        n_i > 1.0e3 * ϵ || @warn """
-        `$sym` is at $(n_i) mol, at or near the solver floor, so the             $(first(couple))/$(last(couple)) couple does not buffer anything             here: the `pe` returned is set by the floor `ϵ`, not by the             chemistry. Read it as a bound, or choose a couple whose members are             both present.""" maxlog = 1
+        n_i > 1.0e3 * ϵ || @warn """`$sym` is at $(n_i) mol, at or near the \
+        solver floor, so the $(first(couple))/$(last(couple)) couple does not \
+        buffer anything here: the `pe` returned is set by the floor `ϵ`, not by \
+        the chemistry. Read it as a bound, or choose a couple whose members are \
+        both present.""" maxlog = 1
     end
 
     r = half_reaction(state, first(couple), last(couple))

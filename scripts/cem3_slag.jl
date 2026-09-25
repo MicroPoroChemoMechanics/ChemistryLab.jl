@@ -21,6 +21,7 @@
 
 using ChemistryLab
 using DynamicQuantities
+using Logging
 using OptimaSolver
 using OrderedCollections
 using Printf
@@ -198,8 +199,13 @@ end
 r = half_reaction(eq, "SO4-2", "HS-")
 println("half-reaction : ", r.equation)
 @printf("log K at 25 C : %.2f\n", r.logK⁰(T = 298.15))
-@printf("pe            : %+.2f\n", pe(eq, model))
-@printf("Eh            : %+.3f V\n", Eh(eq, model))
+# `pe` warns when a member of the couple sits at the solver's floor; the two
+# sulfur amounts printed below say the same, so the warning is not repeated.
+pe_eq, eh_eq = with_logger(NullLogger()) do
+    pe(eq, model), Eh(eq, model)
+end
+@printf("pe            : %+.2f\n", pe_eq)
+@printf("Eh            : %+.3f V\n", eh_eq)
 
 s6 = ustrip(us"mol", moles(eq, "SO4-2"))
 s2 = ustrip(us"mol", moles(eq, "HS-"))

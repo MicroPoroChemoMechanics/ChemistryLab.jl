@@ -277,8 +277,8 @@ k_saturated = w_probe / powers_alpha_max(w_probe; curing = :saturated)
 
 @printf("%8s %12s %14s\n", "alpha", "certified", "cm3 per g reacted")
 for α in (0.6, α_sealed, 1.0)
-    e, c = equilibrate_certified(arrested(wc_cure, α))
+    e, cert = equilibrate_certified(arrested(wc_cure, α))
     dv = ustrip(uconvert(us"cm^3", volume(fresh_c).total)) -
         ustrip(uconvert(us"cm^3", volume(with_unreacted(e, α)).total))
-    @printf("%8.3f %12s %14.4f\n", α, c.optimal, dv / (α * m_cement))
+    @printf("%8.3f %12s %14.4f\n", α, cert.optimal, dv / (α * m_cement))
 end

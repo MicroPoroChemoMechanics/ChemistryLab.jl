@@ -136,6 +136,7 @@ module ChemistryLab
     include("databases/paths.jl")
     include("databases/phreeqc_dat.jl")
     include("databases/thermofun_json.jl")
+    include("databases/literature.jl")
     include("databases/pitzer_toml.jl")
     include("databases/sit_dat.jl")
     include("databases/phreeqc_sorption.jl")
@@ -409,6 +410,14 @@ module ChemistryLab
         HKF_SI_CONVERSIONS
 
     export merge_json
+
+    export literature,
+        literature_value,
+        literature_table,
+        available_literature,
+        literature_path,
+        LiteratureRecord,
+        LITERATURE_SCHEMA
 
     export AbstractActivityModel,
         DiluteSolutionModel,

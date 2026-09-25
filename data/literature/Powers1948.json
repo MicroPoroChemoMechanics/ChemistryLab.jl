@@ -1,0 +1,33 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Powers1948",
+    "doi": null,
+    "citation": "Powers, T. C. (1948). A discussion of cement hydration in relation to the curing of concrete. Proceedings of the Highway Research Board 27, 178-188.",
+    "location": null
+  },
+  "transcription": {
+    "from": "src/kinetics/rate_models.jl, ChemistryLab 0.22.1 (constants POWERS_W_SEALED and POWERS_W_SATURATED)",
+    "checked_against_source": false,
+    "note": "Moved out of the code unchanged. The proceedings have no DOI and the article was not re-read during the move; the two ratios are the ones the package has used and documented since it first cited this source."
+  },
+  "quantities": {
+    "w_c_sealed": {
+      "value": 0.42,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "Water/cement ratio below which a sealed paste cannot hydrate completely: non-evaporable water plus gel water."
+    },
+    "w_c_saturated": {
+      "value": 0.36,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "The same bound when curing water is supplied from outside, the chemical shrinkage being refilled."
+    }
+  },
+  "notes": [
+    "The difference between the two ratios, 0.06 g of water per gram of cement, is the chemical shrinkage."
+  ]
+}

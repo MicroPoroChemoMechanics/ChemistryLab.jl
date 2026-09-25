@@ -484,7 +484,7 @@ The rate [mol/s] is `n_initial × Aₜ × min(max(r_NG, r_I), r_D)` where
 `Aₜ = exp(-Ea/R × (1/T - 1/T_ref))` is the Arrhenius factor.
 
 `α_max` can be set to apply the Powers (1948) water/cement ratio limit:
-`α_max = min(1.0, w_c / 0.42)`.
+`α_max = powers_alpha_max(w_c)`.
 
 # Returns
 
@@ -554,101 +554,66 @@ function parrot_killoh(params::NamedTuple, mineral_name::AbstractString; α_max:
     return KineticFunc(f, refs, u"mol/s")
 end
 
-# ── Predefined Parrot & Killoh (1984) parameters ─────────────────────────────
+# ── Parameters of the deprecated smoothed variant ────────────────────────────
+#
+# Read from `data/literature/ParrotKilloh1984.json`, table `smoothed_variant`,
+# where their provenance is recorded as unstated: neither the rate constants nor
+# the activation energies (attributed to Schindler & Folliard, 2005) could be
+# traced to a source.
+
+function _pk_smoothed_params(phase::AbstractString)
+    t = literature_table("ParrotKilloh1984", "smoothed_variant")
+    i = findfirst(==(phase), t.phase)
+    return (
+        K₁ = t.K1[i], N₁ = t.N1[i], K₂ = t.K2[i], N₂ = t.N2[i],
+        K₃ = t.K3[i], N₃ = t.N3[i], B = t.B[i], Ea = t.Ea[i],
+        T_ref = literature_value("ParrotKilloh1984", "T_ref"),
+    )
+end
 
 """
     PK_PARAMS_C3S :: NamedTuple
 
-Parrot & Killoh (1984) parameters for alite (C₃S = Ca₃SiO₅).
+Parameters of the deprecated smoothed variant [`parrot_killoh`](@ref) for alite
+(C₃S = Ca₃SiO₅), with keys `K₁`, `N₁`, `K₂`, `N₂`, `K₃`, `N₃`, `B`, `Ea`,
+`T_ref`.
 
-Values of the smoothed variant, of unestablished provenance (K₁=1.5, K₂=0.018, K₃=0.0024 d⁻¹).
-Activation energy from Schindler & Folliard (2005).
-Reference temperature: 293.15 K (20 °C).
-
-Pass to [`parrot_killoh`](@ref) to build a [`KineticFunc`](@ref):
+Their provenance is unestablished. They are read from the table
+`smoothed_variant` of `data/literature/ParrotKilloh1984.json`, which records
+them as such.
 
 ```julia
 pk = parrot_killoh(PK_PARAMS_C3S, "C3S")
-# or with α_max limit (Powers 1948):
-pk = parrot_killoh(PK_PARAMS_C3S, "C3S"; α_max = min(1.0, w_c / 0.42))
+# or with the water availability cap of Powers (1948):
+pk = parrot_killoh(PK_PARAMS_C3S, "C3S"; α_max = powers_alpha_max(w_c))
 ```
 """
-const PK_PARAMS_C3S = (
-    K₁ = 1.5u"1/d",
-    N₁ = 3.3,
-    K₂ = 0.018u"1/d",
-    N₂ = 2.5,
-    K₃ = 0.0024u"1/d",
-    N₃ = 4.0,
-    B = 0.5,
-    Ea = 41_570.0u"J/mol",
-    T_ref = 293.15u"K",
-)
+const PK_PARAMS_C3S = _pk_smoothed_params("C3S")
 
 """
     PK_PARAMS_C2S :: NamedTuple
 
-Parrot & Killoh (1984) parameters for belite (C₂S = Ca₂SiO₄).
-
-Values of the smoothed variant, of unestablished provenance (K₁=0.95, K₂=0.0005, K₃=0.0024 d⁻¹).
-Activation energy from Schindler & Folliard (2005).
-Reference temperature: 293.15 K (20 °C).
+Parameters of the deprecated smoothed variant for belite (C₂S = Ca₂SiO₄). See
+[`PK_PARAMS_C3S`](@ref).
 """
-const PK_PARAMS_C2S = (
-    K₁ = 0.95u"1/d",
-    N₁ = 0.5,
-    K₂ = 0.0005u"1/d",
-    N₂ = 2.5,
-    K₃ = 0.0024u"1/d",
-    N₃ = 4.0,
-    B = 0.2,
-    Ea = 43_670.0u"J/mol",
-    T_ref = 293.15u"K",
-)
+const PK_PARAMS_C2S = _pk_smoothed_params("C2S")
 
 """
     PK_PARAMS_C3A :: NamedTuple
 
-Parrot & Killoh (1984) parameters for tricalcium aluminate (C₃A = Ca₃Al₂O₆)
-in the presence of sulfate (gypsum), corresponding to ettringite formation.
-
-Values of the smoothed variant, of unestablished provenance (K₁=0.082, K₂=0.00024, K₃=0.0024 d⁻¹).
-Activation energy from Schindler & Folliard (2005).
-Reference temperature: 293.15 K (20 °C).
+Parameters of the deprecated smoothed variant for tricalcium aluminate
+(C₃A = Ca₃Al₂O₆) in the presence of sulfate (gypsum), corresponding to ettringite
+formation. See [`PK_PARAMS_C3S`](@ref).
 """
-const PK_PARAMS_C3A = (
-    K₁ = 0.082u"1/d",
-    N₁ = 0.87,
-    K₂ = 0.00024u"1/d",
-    N₂ = 2.0,
-    K₃ = 0.0024u"1/d",
-    N₃ = 4.0,
-    B = 0.04,
-    Ea = 54_040.0u"J/mol",
-    T_ref = 293.15u"K",
-)
+const PK_PARAMS_C3A = _pk_smoothed_params("C3A")
 
 """
     PK_PARAMS_C4AF :: NamedTuple
 
-Parrot & Killoh (1984) parameters for tetracalcium aluminoferrite
-(C₄AF = Ca₄Al₂Fe₂O₁₀).
-
-Values of the smoothed variant, of unestablished provenance (K₁=0.165, K₂=0.0015, K₃=0.0024 d⁻¹).
-Activation energy from Schindler & Folliard (2005).
-Reference temperature: 293.15 K (20 °C).
+Parameters of the deprecated smoothed variant for tetracalcium aluminoferrite
+(C₄AF = Ca₄Al₂Fe₂O₁₀). See [`PK_PARAMS_C3S`](@ref).
 """
-const PK_PARAMS_C4AF = (
-    K₁ = 0.165u"1/d",
-    N₁ = 3.7,
-    K₂ = 0.0015u"1/d",
-    N₂ = 2.5,
-    K₃ = 0.0024u"1/d",
-    N₃ = 4.0,
-    B = 0.5,
-    Ea = 34_420.0u"J/mol",
-    T_ref = 293.15u"K",
-)
+const PK_PARAMS_C4AF = _pk_smoothed_params("C4AF")
 
 # ── parrot_killoh_avrami — the canonical 1984 formulation ────────────────────
 
@@ -812,78 +777,67 @@ end
 
 # ── Canonical Parrot & Killoh (1984) parameters ──────────────────────────────
 #
-# Table 3 of Lavergne et al. (2018), themselves quoting Parrot & Killoh (1984)
+# Table 3 of Lavergne et al. (2018), themselves quoting Parrott & Killoh (1984)
 # as reported by Lothenbach et al. (2008); activation energies from Table 4
 # (Maekawa et al.), which differ markedly from the uniform values often assumed:
 # the minerals that hydrate later have the *lower* apparent activation energy,
-# E_C3A > E_C3S > E_C4AF > E_C2S.
+# E_C3A > E_C3S > E_C4AF > E_C2S. Both tables are read from
+# `data/literature/Lavergne2018.json`.
+
+function _pk84_params(phase::AbstractString)
+    t = literature_table("Lavergne2018", "parrot_killoh_1984")
+    e = literature_table("Lavergne2018", "activation_energies")
+    i = findfirst(==(phase), t.phase)
+    j = findfirst(==(phase), e.phase)
+    return (
+        k₁ = t.k1[i], n₁ = t.n1[i], k₂ = t.k2[i], k₃ = t.k3[i], n₃ = t.n3[i],
+        Ea = e.Ea[j], T_ref = literature_value("Lavergne2018", "T_ref"),
+    )
+end
 
 """
     PK84_PARAMS_C3S :: NamedTuple
 
-Canonical Parrot & Killoh (1984) parameters for alite (C₃S = Ca₃SiO₅), valid for
-a Blaine fineness of 385 m²/kg and a reference temperature of 20 °C.
+Canonical Parrott & Killoh (1984) parameters for alite (C₃S = Ca₃SiO₅), with keys
+`k₁`, `n₁`, `k₂`, `k₃`, `n₃`, `Ea`, `T_ref`. They are valid for the Blaine
+fineness [`PK_BLAINE_REF`](@ref) and a reference temperature of 20 °C.
 
-`k₁ = 1.5 d⁻¹`, `n₁ = 0.7`, `k₂ = 0.05 d⁻¹`, `k₃ = 1.1 d⁻¹`, `n₃ = 3.3`,
-`Ea = 42 kJ/mol`.
+The rate constants and exponents are those of Table 3 of Lavergne et al. (2018),
+the activation energy that of their Table 4, both read from
+`data/literature/Lavergne2018.json`.
 
 Pass to [`parrot_killoh_avrami`](@ref), **not** to [`parrot_killoh`](@ref) —
 the two use different functional forms and their parameters are not transferable.
 """
-const PK84_PARAMS_C3S = (
-    k₁ = 1.5u"1/d", n₁ = 0.7, k₂ = 0.05u"1/d", k₃ = 1.1u"1/d", n₃ = 3.3,
-    Ea = 42_000.0u"J/mol", T_ref = 293.15u"K",
-)
+const PK84_PARAMS_C3S = _pk84_params("C3S")
 
 """
     PK84_PARAMS_C2S :: NamedTuple
 
-Canonical Parrot & Killoh (1984) parameters for belite (C₂S = Ca₂SiO₄).
-
-`k₁ = 0.5 d⁻¹`, `n₁ = 1.0`, `k₂ = 0.006 d⁻¹`, `k₃ = 0.2 d⁻¹`, `n₃ = 5.0`,
-`Ea = 21 kJ/mol`.
+Canonical Parrott & Killoh (1984) parameters for belite (C₂S = Ca₂SiO₄).
 
 With `n₁ = 1` the Avrami branch reduces to `k₁(1-ξ)`, which never limits the
 rate: belite hydration is governed by the power law throughout.
 
 See [`PK84_PARAMS_C3S`](@ref).
 """
-const PK84_PARAMS_C2S = (
-    k₁ = 0.5u"1/d", n₁ = 1.0, k₂ = 0.006u"1/d", k₃ = 0.2u"1/d", n₃ = 5.0,
-    Ea = 21_000.0u"J/mol", T_ref = 293.15u"K",
-)
+const PK84_PARAMS_C2S = _pk84_params("C2S")
 
 """
     PK84_PARAMS_C3A :: NamedTuple
 
-Canonical Parrot & Killoh (1984) parameters for tricalcium aluminate
-(C₃A = Ca₃Al₂O₆).
-
-`k₁ = 1.0 d⁻¹`, `n₁ = 0.85`, `k₂ = 0.04 d⁻¹`, `k₃ = 1.0 d⁻¹`, `n₃ = 3.2`,
-`Ea = 54 kJ/mol`.
-
-See [`PK84_PARAMS_C3S`](@ref).
+Canonical Parrott & Killoh (1984) parameters for tricalcium aluminate
+(C₃A = Ca₃Al₂O₆). See [`PK84_PARAMS_C3S`](@ref).
 """
-const PK84_PARAMS_C3A = (
-    k₁ = 1.0u"1/d", n₁ = 0.85, k₂ = 0.04u"1/d", k₃ = 1.0u"1/d", n₃ = 3.2,
-    Ea = 54_000.0u"J/mol", T_ref = 293.15u"K",
-)
+const PK84_PARAMS_C3A = _pk84_params("C3A")
 
 """
     PK84_PARAMS_C4AF :: NamedTuple
 
-Canonical Parrot & Killoh (1984) parameters for tetracalcium aluminoferrite
-(C₄AF = Ca₄Al₂Fe₂O₁₀).
-
-`k₁ = 0.37 d⁻¹`, `n₁ = 0.7`, `k₂ = 0.015 d⁻¹`, `k₃ = 0.4 d⁻¹`, `n₃ = 3.7`,
-`Ea = 32 kJ/mol`.
-
-See [`PK84_PARAMS_C3S`](@ref).
+Canonical Parrott & Killoh (1984) parameters for tetracalcium aluminoferrite
+(C₄AF = Ca₄Al₂Fe₂O₁₀). See [`PK84_PARAMS_C3S`](@ref).
 """
-const PK84_PARAMS_C4AF = (
-    k₁ = 0.37u"1/d", n₁ = 0.7, k₂ = 0.015u"1/d", k₃ = 0.4u"1/d", n₃ = 3.7,
-    Ea = 32_000.0u"J/mol", T_ref = 293.15u"K",
-)
+const PK84_PARAMS_C4AF = _pk84_params("C4AF")
 
 # ── waller — pozzolanic and latent-hydraulic additions ───────────────────────
 
@@ -911,20 +865,20 @@ temperature, fineness and humidity corrections, is
 `blaine_ref` — see [`WALLER_PARAMS_FLY_ASH`](@ref).
 
 Pozzolanic reactions are markedly more temperature-sensitive than the hydraulic
-reactions of clinker: the shipped activation energy is 83.14 kJ/mol against
-21–54 kJ/mol for the clinker phases.
+reactions of clinker: the shipped activation energy is higher than that of any
+clinker phase in [`PK84_PARAMS_C3S`](@ref) and its siblings.
 
-Silica fume is far finer than the cement (about 20 000 m²/kg by BET). Its
-reactivity is nonetheless represented here through the *Blaine* fineness, for
-which an effective 2000 m²/kg is the recommended default
-([`WALLER_PARAMS_SILICA_FUME`](@ref)) — the two measurements probe different
-physical phenomena and are not interchangeable.
+Silica fume is far finer than the cement, by an order of magnitude when its
+surface is measured by BET. Its reactivity is nonetheless represented here
+through an effective *Blaine* fineness ([`WALLER_PARAMS_SILICA_FUME`](@ref)) —
+the two measurements probe different physical phenomena and are not
+interchangeable.
 
 # Keyword arguments
 
 Identical to [`parrot_killoh_avrami`](@ref). The Blaine correction is taken
-relative to `params.blaine_ref` (400 m²/kg for fly ash), not to the clinker
-reference of [`PK_BLAINE_REF`](@ref).
+relative to `params.blaine_ref`, the fineness of the fly ash the kinetics were
+adjusted to, not to the clinker reference of [`PK_BLAINE_REF`](@ref).
 
 !!! note "Here an evolving area is a real degree of freedom"
     The degeneracy warned about on [`parrot_killoh_avrami`](@ref) does **not**
@@ -962,7 +916,8 @@ function waller(
     Ea = safe_ustrip(us"J/mol", params.Ea)
     T_ref = safe_ustrip(us"K", params.T_ref)
     α_max_f = float(α_max)
-    blaine_ref = hasproperty(params, :blaine_ref) ? params.blaine_ref : 400.0u"m^2/kg"
+    blaine_ref = hasproperty(params, :blaine_ref) ? params.blaine_ref :
+        WALLER_PARAMS_FLY_ASH.blaine_ref
     β_B0, β_Bp = _fineness_parts(blaine, blaine_ref)
 
     f = (T, _P, t, n, _lna, n_initial) -> begin
@@ -991,64 +946,73 @@ function waller(
     return KineticFunc(f, refs, u"mol/s")
 end
 
+# The fly-ash parameters are those of p. 42 of Lavergne et al. (2018), adjusted
+# to the results of Waller (1999); the slag time is the one this package has
+# attributed to Waller since the law was added, not yet checked against the
+# thesis. Both are read from `data/literature/`.
+
+_waller_params(τ) = (
+    τ = τ, n = literature_value("Lavergne2018", "waller_n"),
+    blaine_ref = literature_value("Lavergne2018", "waller_blaine_ref"),
+    Ea = literature_value("Lavergne2018", "waller_Ea"),
+    T_ref = literature_value("Lavergne2018", "T_ref"),
+)
+
 """
     WALLER_PARAMS_FLY_ASH :: NamedTuple
 
-Waller (1999) parameters for class-F fly ash: `τ = 80 d`, `n = 0.7`,
-`blaine_ref = 400 m²/kg`, `Ea = 83.14 kJ/mol`.
-
-Adjusted on SEM image analysis assuming a fly ash of 60 % pozzolanic activity.
+Waller (1999) parameters for class-F fly ash, with keys `τ`, `n`, `blaine_ref`,
+`Ea`, `T_ref`, as adjusted by Lavergne et al. (2018, p. 42) to SEM image
+analyses of a fly ash of assumed pozzolanic activity. The values are read from
+`data/literature/Lavergne2018.json`.
 
 Pass to [`waller`](@ref).
 """
-const WALLER_PARAMS_FLY_ASH = (
-    τ = 80.0u"d", n = 0.7, blaine_ref = 400.0u"m^2/kg",
-    Ea = 83_140.0u"J/mol", T_ref = 293.15u"K",
-)
+const WALLER_PARAMS_FLY_ASH = _waller_params(literature_value("Lavergne2018", "waller_tau_fly_ash"))
 
 """
     WALLER_PARAMS_SILICA_FUME :: NamedTuple
 
 Waller (1999) parameters applied to silica fume — identical kinetics to
 [`WALLER_PARAMS_FLY_ASH`](@ref), the higher reactivity being carried by the
-fineness. Pass `blaine = 2000u"m^2/kg"` to [`waller`](@ref), the effective value
-recommended by Lavergne et al. (2018); the BET surface of silica fume (about
-20 000 m²/kg) is **not** a Blaine fineness and must not be used here.
+fineness. Pass to [`waller`](@ref) the effective Blaine fineness recommended by
+Lavergne et al. (2018),
+`blaine = literature_value("Lavergne2018", "blaine_silica_fume")`; the BET
+surface of silica fume is **not** a Blaine fineness and must not be used here.
 """
-const WALLER_PARAMS_SILICA_FUME = (
-    τ = 80.0u"d", n = 0.7, blaine_ref = 400.0u"m^2/kg",
-    Ea = 83_140.0u"J/mol", T_ref = 293.15u"K",
-)
+const WALLER_PARAMS_SILICA_FUME = WALLER_PARAMS_FLY_ASH
 
 """
     WALLER_PARAMS_SLAG :: NamedTuple
 
-Waller (1999) parameters for ground granulated blast-furnace slag:
-`τ = 100 d`, `n = 0.7`, `blaine_ref = 400 m²/kg`, `Ea = 83.14 kJ/mol`.
+Waller (1999) parameters for ground granulated blast-furnace slag: those of
+[`WALLER_PARAMS_FLY_ASH`](@ref) with a longer characteristic time `τ`.
 
 Slag is latent-hydraulic rather than pozzolanic; the longer characteristic time
 reflects its slower long-term reaction. Combine with an `α_max` below 1 (0.9 is
 customary) to account for the unreactive crystalline fraction.
+
+!!! warning "Unverified"
+    The value of `τ` is read from `data/literature/Waller1999.json`, where its
+    provenance is recorded as unstated: it does not appear in Lavergne et al.
+    (2018), and the thesis it is attributed to has not been checked.
 """
-const WALLER_PARAMS_SLAG = (
-    τ = 100.0u"d", n = 0.7, blaine_ref = 400.0u"m^2/kg",
-    Ea = 83_140.0u"J/mol", T_ref = 293.15u"K",
-)
+const WALLER_PARAMS_SLAG = _waller_params(literature_value("Waller1999", "tau_slag"))
 
 # ── Correction factors ───────────────────────────────────────────────────────
 
 """
     PK_BLAINE_REF :: Quantity
 
-The Blaine fineness the Parrot & Killoh constants were calibrated at,
-385 m²/kg.
+The Blaine fineness the Parrott & Killoh constants were calibrated at, B₀ of
+Lavergne et al. (2018, p. 39), read from `data/literature/Lavergne2018.json`.
 
 It is the default reference of [`blaine_factor`](@ref) and the one
 [`parrot_killoh_avrami`](@ref) applies, written once so the two cannot drift
 apart — a rate constant and the fineness it was measured against are one datum
 in two places.
 """
-const PK_BLAINE_REF = 385.0u"m^2/kg"
+const PK_BLAINE_REF = literature_value("Lavergne2018", "blaine_ref_clinker")
 
 # A bare number or quantity is a Blaine fineness, which is what every caller of
 # `blaine_factor` has always meant. A typed area passes through, and that is the
@@ -1097,8 +1061,9 @@ adjusted for a cement of Blaine fineness `blaine_ref`, and the rate scales as
 `blaine / blaine_ref`.
 
 Both arguments accept a `DynamicQuantities.Quantity`, a plain `Real` in m²/kg,
-or a [`BlaineSurfaceArea`](@ref). The default reference is 385 m²/kg for clinker
-phases; pass `blaine_ref = 400u"m^2/kg"` for the Waller kinetics of additions.
+or a [`BlaineSurfaceArea`](@ref). The default reference is [`PK_BLAINE_REF`](@ref)
+for clinker phases; pass `blaine_ref = WALLER_PARAMS_FLY_ASH.blaine_ref` for the
+Waller kinetics of additions.
 
 !!! warning "A BET area is not a Blaine fineness"
     Passing a [`BETSurfaceArea`](@ref) raises instead of returning a number.
@@ -1110,10 +1075,10 @@ phases; pass `blaine_ref = 400u"m^2/kg"` for the Waller kinetics of additions.
 # Examples
 
 ```jldoctest
-julia> blaine_factor(385u"m^2/kg")
+julia> blaine_factor(PK_BLAINE_REF)
 1.0
 
-julia> round(blaine_factor(462u"m^2/kg"); digits = 4)
+julia> round(blaine_factor(1.2 * PK_BLAINE_REF); digits = 4)
 1.2
 ```
 """
@@ -1290,21 +1255,23 @@ end
 @inline _humidity_at(h::PoreHumidity, _t, n) = h(n.data)
 
 # The two water/cement ratios at which Powers (1948) has a paste hydrate
-# completely: 0.42 sealed, 0.36 with curing water supplied from outside. The
-# difference, 0.06 g of water per gram of cement, is the chemical shrinkage --
-# the volume the reaction loses because the hydrates are denser than the
-# reagents. Sealed, that volume empties into the pore space and the paste
+# completely, sealed and with curing water supplied from outside. Their
+# difference is the chemical shrinkage -- the volume the reaction loses because
+# the hydrates are denser than the reagents. Sealed, that volume empties into the pore space and the paste
 # desiccates itself; immersed, it is refilled from the bath, so the same paste
 # reaches full hydration from a lower mixing water content.
-const POWERS_W_SEALED = 0.42
-const POWERS_W_SATURATED = 0.36
+#
+# The two ratios are read from `data/literature/Powers1948.json`, where they are
+# kept with their source, rather than typed here.
+const POWERS_W_SEALED = literature_value("Powers1948", "w_c_sealed")
+const POWERS_W_SATURATED = literature_value("Powers1948", "w_c_saturated")
 
 """
     powers_alpha_max(w_c; curing = :sealed) -> Real
 
 Powers (1948) upper bound on the degree of hydration set by the availability of
 water, `α_max = min(1, w/c / k)`: a paste below `w/c = k` cannot hydrate
-completely, `k` being 0.42 sealed or 0.36 water-cured, according to `curing`.
+completely, `k` being $(POWERS_W_SEALED) sealed or $(POWERS_W_SATURATED) water-cured, according to `curing`.
 
 The 0.42 is **not** a stoichiometric demand, and reading it as one leads to the
 wrong conclusion about what a Gibbs minimization should return. It is about

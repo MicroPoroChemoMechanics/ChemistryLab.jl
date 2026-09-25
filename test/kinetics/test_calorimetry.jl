@@ -252,3 +252,24 @@ end
     @test isfinite(dHdT)
 
 end
+
+@testset "the per-species functions behave as the vector they wrap" begin
+
+    f = NumericFunc((T) -> -285830.0, (:T,), u"J/mol")
+    v = [f, nothing]
+    fns = ChemistryLab._SpeciesFunctions(v)
+
+    @test length(fns) == 2
+    @test fns[1] === f && fns[2] === nothing
+    @test eltype(fns) == eltype(v)
+    @test collect(fns) == v
+    # The heat terms read it exactly as they read the vector.
+    @test ChemistryLab._total_enthalpy([0.5, 1.0], fns, 298.15) ==
+        ChemistryLab._total_enthalpy([0.5, 1.0], v, 298.15)
+
+    # What it is for: the vector, heterogeneous by nature, is what SciMLBase
+    # reads as badly typed parameters and warns about; the wrapper is not.
+    @test ChemistryLab.SciMLBase.should_warn_paramtype((cp_fns = v,))
+    @test !ChemistryLab.SciMLBase.should_warn_paramtype((cp_fns = fns,))
+
+end

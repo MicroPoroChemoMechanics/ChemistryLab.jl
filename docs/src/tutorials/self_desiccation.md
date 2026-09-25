@@ -109,6 +109,7 @@ isotherm from one paper and the clinker from another would compare two materials
 ```@example sd
 using ChemistryLab
 using DynamicQuantities
+using Logging
 using OptimaSolver
 using Printf
 
@@ -443,9 +444,12 @@ ij = findfirst(s -> symbol(s) == "Jennite", cs.species)
 
 println("  a_w imposed   n(Portlandite)   n(Jennite)   free water (mol)   certified")
 for aw in (1.00, 0.90, 0.80, 0.50)
-    eq, cert = equilibrate_certified(
-        paste(1.0); constraint = CapillaryWater(_ -> aw; reference = fresh)
-    )
+    # The last column is the certificate; the warning of a refusal would repeat it.
+    eq, cert = with_logger(NullLogger()) do
+        equilibrate_certified(
+            paste(1.0); constraint = CapillaryWater(_ -> aw; reference = fresh)
+        )
+    end
     @printf("  %11.2f   %14.6f   %10.6f   %16.5f   %s\n", aw,
             ustrip(us"mol", eq.n[ip]), ustrip(us"mol", eq.n[ij]),
             ustrip(us"mol", eq.n[iw]), cert.optimal)
@@ -455,9 +459,9 @@ end
 From saturation down to the arrest humidity the assemblage is identical to six
 digits — the imposed shift moves the answer by less than the printing precision —
 and each of those answers is certified. The last row is there to show the other
-half of that: further down, no route certifies, the warning above the table is
-[`equilibrate_certified`](@ref) saying so, and the answer it returns is a KKT
-candidate rather than a proof. The arithmetic in the opening admonition says why
+half of that: further down, no route certifies, the last column says so, and the
+answer [`equilibrate_certified`](@ref) returns is a KKT candidate rather than a
+proof. The arithmetic in the opening admonition says why
 nothing is expected to happen in that range anyway.
 
 So a Gibbs minimization under [`CapillaryWater`](@ref) arrests where it ran out

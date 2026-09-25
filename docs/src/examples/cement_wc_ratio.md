@@ -110,7 +110,7 @@ between "the solver returned" and "the answer is proved" has been measured at
     )
     solver = EquilibriumSolver(
         cs, DiluteSolutionModel(), opt;
-        variable_space = Val(:linear), abstol = 1e-8, reltol = 1e-8,
+        variable_space = Val(:linear), reltol = 1e-8,
     )
     eq = solve(solver, deepcopy(fresh))     # no certificate
     ```
@@ -589,10 +589,10 @@ to first order. The way to settle it is not to argue but to move `α` and watch:
 ```@example wc_setup
 @printf("%8s %12s %14s\n", "alpha", "certified", "cm3 per g reacted")
 for α in (0.60, α_sealed, 1.00)
-    e, c = equilibrate_certified(arrested(wc_cure, α))
+    e, cert = equilibrate_certified(arrested(wc_cure, α))
     dv = ustrip(uconvert(us"cm^3", volume(fresh_c).total)) -
          ustrip(uconvert(us"cm^3", volume(with_unreacted(e, α)).total))
-    @printf("%8.3f %12s %14.4f\n", α, c.optimal, dv / (α * m_cement))
+    @printf("%8.3f %12s %14.4f\n", α, cert.optimal, dv / (α * m_cement))
 end
 ```
 

@@ -35,6 +35,16 @@ const HKF_SI_CONVERSIONS = OrderedDict{Symbol, Float64}(
     :wref => 4.184,
 )
 
+# Banners and progress bars are for someone watching a terminal. Written to a file,
+# or captured into the documentation, they are three boxes and two bars per
+# database loaded, between the reader and the result; they are drawn only when the
+# stream is a terminal.
+_banner(title, color) = stdout isa Base.TTY &&
+    print_title(title; crayon = Crayon(; foreground = color), style = :box, indent = "")
+_progress(n) = stderr isa Base.TTY ? Progress(n) : nothing
+_tick!(::Nothing) = nothing
+_tick!(p) = next!(p)
+
 """
     read_thermofun_database(filename::AbstractString) -> (DataFrame, DataFrame, DataFrame)
 
@@ -52,14 +62,9 @@ Read a ThermoFun database from a JSON file.
 """
 function read_thermofun_database(filename)
     path = resolve_data_path(filename)
-    print_title(
-        # `display_data_path`, not `path`: the banner is captured into the
-        # documentation, so it must not carry a build machine's directories.
-        "Loading database: $(display_data_path(path))";
-        crayon = Crayon(; foreground = :green),
-        style = :box,
-        indent = "",
-    )
+    # `display_data_path`, not `path`: a banner must not carry a build machine's
+    # directories.
+    _banner("Loading database: $(display_data_path(path))", :green)
     data = JSON.parsefile(path)
     df_substances = DataFrame(Tables.dictrowtable(data["substances"]))
     df_reactions = DataFrame(Tables.dictrowtable(data["reactions"]))
@@ -246,10 +251,9 @@ function build_species(
     end
     keylist = String[]
     species_list = Species[]
-    print_title(
-        "Building species"; crayon = Crayon(; foreground = :blue), style = :box, indent = ""
-    )
-    @showprogress for row in eachrow(local_df_substances)
+    _banner("Building species", :blue)
+    progress = _progress(nrow(local_df_substances))
+    for row in eachrow(local_df_substances)
         if verbose
             println(row[:symbol])
         end
@@ -267,6 +271,7 @@ function build_species(
         end
         push!(keylist, key)
         push!(species_list, species)
+        _tick!(progress)
     end
     return species_list
 end
@@ -353,9 +358,7 @@ function build_reactions(
     dict_species = Dict(symbol(s) => s for s in species_list)
     keylist = String[]
     reactions_list = Reaction[]
-    print_title(
-        "Building reactions"; crayon = Crayon(; foreground = :red), style = :box, indent = ""
-    )
+    _banner("Building reactions", :red)
     function choose_species(k, rowsymbol, dict_species)
         if haskey(dict_species, k)
             return dict_species[k]
@@ -370,7 +373,8 @@ function build_reactions(
             end
         end
     end
-    @showprogress for row in eachrow(local_df_reactions)
+    progress = _progress(nrow(local_df_reactions))
+    for row in eachrow(local_df_reactions)
         if verbose
             println(row[:symbol])
         end
@@ -388,6 +392,7 @@ function build_reactions(
         end
         push!(keylist, key)
         push!(reactions_list, reaction)
+        _tick!(progress)
     end
     return reactions_list
 end

@@ -190,6 +190,7 @@ opt = IpoptOptimizer(
     acceptable_iter       = 1000,
     constr_viol_tol       = 1e-12,
     warm_start_init_point = "no",
+    additional_options    = Dict{String, Any}("print_level" => 0, "sb" => "yes"),
 )
 
 solver = EquilibriumSolver(
@@ -197,10 +198,14 @@ solver = EquilibriumSolver(
     DiluteSolutionModel(),
     opt;
     variable_space = Val(:linear),
-    abstol  = 1e-10,
     reltol  = 1e-10,
 )
 ```
+
+Ipopt prints an iteration table for every solve unless told otherwise;
+`print_level = 0` and `sb = "yes"` (no banner) keep it silent, and the default
+solver of [`equilibrate`](@ref) is built the same way. `reltol` becomes Ipopt's
+convergence tolerance `tol`.
 
 Once built, `solver` is called with any compatible `ChemicalState`:
 
@@ -213,6 +218,7 @@ opt = IpoptOptimizer( #hide
     acceptable_iter       = 1000, #hide
     constr_viol_tol       = 1e-12, #hide
     warm_start_init_point = "no", #hide
+    additional_options    = Dict{String, Any}("print_level" => 0, "sb" => "yes"), #hide
 ) #hide
 
 solver = EquilibriumSolver( #hide
@@ -220,10 +226,10 @@ solver = EquilibriumSolver( #hide
     DiluteSolutionModel(), #hide
     opt; #hide
     variable_space = Val(:linear), #hide
-    abstol  = 1e-10, #hide
     reltol  = 1e-10, #hide
 ) #hide
 state_eq2 = solve(solver, state)
+println("pH = ", round(pH(state_eq2); digits = 4), ", as from `equilibrate`: ", round(pH(state_eq); digits = 4))
 ```
 
 !!! note "Performance"

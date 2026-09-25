@@ -29,7 +29,7 @@ to pH 9 in sodium chloride, at three concentrations two decades apart.
     comparison made exactly that mistake and reported agreement.
 
 ```@example ddl
-using ChemistryLab, DynamicQuantities, SciMLBase, OptimaSolver
+using ChemistryLab, DynamicQuantities, SciMLBase, OptimaSolver, Logging
 
 const RT = R_GAS * 298.15
 g0(v) = SymbolicFunc(v * u"J/mol")
@@ -152,7 +152,10 @@ for pt in ORACLE["series"][1]["points"]
     z, N = [0.0, 1.0, -1.0], ORACLE["n_sites"]
     n_ref = N .* [pt["free"], pt["protonated"], pt["deprotonated"]]
     s = electrostatic_stiffness(dl, z, n_ref, pt["I"], 298.15)
-    a = titrate(pt, 0.1; model = dl, surface_potential = :eliminated)
+    # A diverging point is printed as such; the solver's warning would repeat it.
+    a = with_logger(NullLogger()) do
+        titrate(pt, 0.1; model = dl, surface_potential = :eliminated)
+    end
     b = titrate(pt, 0.1; model = dl, surface_potential = :unknown)
     @printf("%5.1f %10.2f   %-16s  %s\n", pt["pH"], s,
             a.stationarity < 1e-8 ? @sprintf("%.4f", a.free) : "diverges",

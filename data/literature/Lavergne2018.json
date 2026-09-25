@@ -1,0 +1,110 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Lavergne2018",
+    "doi": "10.1016/j.cemconres.2017.10.018",
+    "citation": "Lavergne, F., Ben Fraj, A., Bayane, I., Barthélémy, J.-F. (2018). Estimating the mechanical properties of hydrating blended cementitious materials: an investigation based on micromechanics. Cement and Concrete Research 104, 37-60.",
+    "location": null
+  },
+  "transcription": {
+    "from": "the published article (PDF), Tables 3 and 4 and p. 42 read on the page images",
+    "checked_against_source": true,
+    "note": "The values were in src/kinetics/rate_models.jl before this file existed and agree with the article to the last digit. Table 3 gives the parameters of Parrott and Killoh (1984) as reported by Lothenbach et al. (2008), ref. [30] of the article. The text cites the activation energies of Table 4 to refs. [60, 64], [60] being Maekawa et al. (1999). The pozzolanic kinetics of p. 42, Eqs. (24)-(25), follow Waller (1999), ref. [31], with n and tau adjusted to the SEM analyses of ref. [81]."
+  },
+  "quantities": {
+    "T_ref": {
+      "value": 293.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 3 caption, p. 39 (20 °C); also p. 42 for the pozzolanic reaction",
+      "description": "Temperature at which the kinetic parameters apply."
+    },
+    "blaine_ref_clinker": {
+      "value": 385,
+      "unit": "m^2/kg",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 39",
+      "description": "Blaine fineness B0 for which the Parrott-Killoh adjustments are valid."
+    },
+    "waller_n": {
+      "value": 0.7,
+      "unit": "1",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "p. 42, Eq. (24)",
+      "description": "Exponent of the sigmoid in log time of the degree of pozzolanic reaction of a fly ash."
+    },
+    "waller_tau_fly_ash": {
+      "value": 80,
+      "unit": "d",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "p. 42, Eq. (24)",
+      "description": "Characteristic time of the pozzolanic reaction of a fly ash of 60 % pozzolanic activity."
+    },
+    "waller_blaine_ref": {
+      "value": 400,
+      "unit": "m^2/kg",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 42",
+      "description": "Blaine fineness of the fly ash to which the pozzolanic kinetics refer."
+    },
+    "waller_Ea": {
+      "value": 83.14,
+      "unit": "kJ/mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 42",
+      "description": "Activation energy of the pozzolanic reactions."
+    },
+    "blaine_silica_fume": {
+      "value": 2000,
+      "unit": "m^2/kg",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "p. 42",
+      "description": "Blaine fineness taken by default for silica fume so that silica fume and fly ash share the same kinetics; a convention, not a measurement (the B.E.T. surface quoted on the same page is about 20 000 m^2/kg)."
+    },
+    "pozzolanic_activity_fly_ash": {
+      "value": 0.6,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 42",
+      "description": "Pozzolanic activity of the fly ash assumed in the adjustment of the sigmoid."
+    }
+  },
+  "tables": {
+    "parrot_killoh_1984": {
+      "columns": ["phase", "k1", "n1", "k2", "k3", "n3"],
+      "units": [null, "1/d", "1", "1/d", "1/d", "1"],
+      "kind": "fitted",
+      "location": "Table 3, p. 39",
+      "rows": [
+        ["C3S", 1.5, 0.7, 0.05, 1.1, 3.3],
+        ["C2S", 0.5, 1.0, 0.006, 0.2, 5.0],
+        ["C3A", 1.0, 0.85, 0.04, 1.0, 3.2],
+        ["C4AF", 0.37, 0.7, 0.015, 0.4, 3.7]
+      ]
+    },
+    "activation_energies": {
+      "columns": ["phase", "Ea", "Ea_over_R"],
+      "units": [null, "kJ/mol", "K"],
+      "kind": "published",
+      "location": "Table 4, p. 41",
+      "rows": [
+        ["C3A", 54, 6500],
+        ["C3S", 42, 5000],
+        ["C4AF", 32, 3800],
+        ["C2S", 21, 2500]
+      ]
+    }
+  },
+  "notes": [
+    "The article writes the first author of the 1984 model 'Parrot'; the name is Parrott.",
+    "p. 42 prints 'E_S,A = 83,14 kJ/mol (E_S,A/R = 100 K)'; the ratio of the two is 1.0e4 K. Only the activation energy is kept here."
+  ]
+}

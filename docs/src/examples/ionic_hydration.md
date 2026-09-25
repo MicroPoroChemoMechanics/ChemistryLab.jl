@@ -107,7 +107,11 @@ include(joinpath(pkgdir(ChemistryLab), "scripts", "precomputed.jl"))
 # shared between them, so they are computed together rather than one after the
 # other; on a single-threaded session this is exactly the same work in the same
 # order. Every `read_precomputed` below is then a cache hit.
+using Logging # hide
+diagnostics = IOBuffer() # hide
+with_logger(ConsoleLogger(diagnostics)) do # hide
 warm_precomputed(["ionic_opc_phases", "ionic_nolimestone_phases"])
+end # hide
 
 phases_c = read_precomputed("ionic_opc_phases")
 heat_c = read_precomputed("ionic_opc_heat")
@@ -116,6 +120,14 @@ for line in phases_c.provenance
     println("  ", line)
 end
 ```
+
+<details><summary>What the solvers reported while computing these trajectories</summary>
+
+```@example ionicopc
+print(String(take!(diagnostics))) # hide
+```
+
+</details>
 
 The columns come back as the page's own variables, so everything downstream is
 the same calculation it always was:

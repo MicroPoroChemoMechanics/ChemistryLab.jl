@@ -97,6 +97,7 @@ opt = IpoptOptimizer(
     acceptable_iter       = 100,
     constr_viol_tol       = 1e-10,
     warm_start_init_point = "no",
+    additional_options    = Dict{String, Any}("print_level" => 0, "sb" => "yes"),
 )
 
 solver = EquilibriumSolver(
@@ -104,11 +105,11 @@ solver = EquilibriumSolver(
     DiluteSolutionModel(),
     opt;
     variable_space = Val(:linear),
-    abstol  = 1e-8,
     reltol  = 1e-8,
 )
 
 sp_idx = Dict(symbol(s) => i for (i, s) in enumerate(cs.species))
+nothing # hide
 ```
 
 ---

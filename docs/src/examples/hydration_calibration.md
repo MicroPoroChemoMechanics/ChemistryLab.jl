@@ -142,8 +142,12 @@ include(joinpath(pkgdir(ChemistryLab), "scripts", "precomputed.jl"))
 # either way. They share nothing, so they are computed together instead of one
 # at a time; on a single-threaded session this is the same work in the same
 # order. Every `read_precomputed` below is then a cache hit.
+using Logging # hide
+diagnostics = IOBuffer() # hide
+with_logger(ConsoleLogger(diagnostics)) do # hide
 warm_precomputed(["calibration_target", "calibration_holdout",
                   "calibration_sensitivity"])
+end # hide
 
 cal = read_precomputed("calibration_target")
 
@@ -156,6 +160,14 @@ for line in cal.provenance
     println("  ", line)
 end
 ```
+
+<details><summary>What the solvers reported while computing these trajectories</summary>
+
+```@example calib
+print(String(take!(diagnostics))) # hide
+```
+
+</details>
 
 ```@example calib
 @printf("one coupled forward solve on %d instants: %.0f s\n", length(target.t), t_coupled)

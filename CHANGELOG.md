@@ -1,5 +1,90 @@
 # Changelog
 
+## v0.22.2 — Published values in data files, and output that shows only the result
+
+A value taken from an article is data: it has a source, a location in that
+source, a unit and a status (measured, fitted, unverified), none of which
+survives being typed into a source file, where a second copy then drifts from
+the first unnoticed. This release gives such values a home, `data/literature/`,
+one file per source, and moves there the first of them: the constants of the
+rate laws. It also removes from the rendered documentation, and from any output
+not written to a terminal, the noise that had come to outweigh the results.
+
+### Published values are read from `data/literature/`
+
+Each file, `data/literature/<key>.json`, is named after an entry of the
+bibliography and records what was taken from it: named quantities with their
+unit, kind and location, tables with a unit per column, how the transcription
+was checked, and remarks. The new exported function `literature(key)` reads
+and validates a file into a `LiteratureRecord`, whose quantities are `Traced`
+values carrying their provenance; `literature_value` and `literature_table` are
+the shortcuts a calculation needs, and `available_literature`,
+`literature_path` and `LITERATURE_SCHEMA` complete the interface. A malformed
+file is an error naming the file and the field, never a silently different
+number, and a unit is unit arithmetic over the registry of `DynamicQuantities`,
+evaluated without `eval`. Editing a file recompiles the package, so a stale
+value cannot survive in the compiled image. A test checks every file against
+`refs.bib`, key and DOI.
+
+Coefficients that define an equation of state or a published model (the water
+equation of state, the HKF constants, the Pitzer α and b) are the model rather
+than data about it, and stay in the code with their source.
+
+### The rate-law constants come from their sources
+
+`PK84_PARAMS_*`, `WALLER_PARAMS_*`, `PK_BLAINE_REF`, the Powers ratios behind
+`powers_alpha_max` and the parameters of the deprecated `PK_PARAMS_*` are now
+read from `Lavergne2018.json`, `Waller1999.json`, `ParrotKilloh1984.json` and
+`Powers1948.json`. The names are unchanged and every value is identical to the
+literal it replaces. Moving them recorded what had not been recorded:
+
+- Tables 3 and 4 and the fly-ash parameters of Lavergne et al. (2018) were
+  checked against the article, page by page.
+- The slag time of the Waller law, 100 days, has been attributed to Waller's
+  thesis since the law was added. It does not appear in Lavergne et al., and
+  the thesis has not been checked; the file records it as unstated, and the
+  docstring of `WALLER_PARAMS_SLAG` says so.
+- The parameters of the deprecated smoothed variant have no established
+  source and are recorded as such.
+
+### Output that shows only the result
+
+- **Ipopt no longer warns on every solve.** OptimizationBase warned, at each
+  solve, that Ipopt needs second derivatives and that it was building a
+  `SecondOrder` backend itself; the certified search runs this back end many
+  times per equilibrium, and the documentation printed the warning 209 times.
+  The extension now passes that same pair explicitly, so the computation is
+  unchanged.
+- **Banners and progress bars only on a terminal.** `read_thermofun_database`,
+  `build_species` and `build_reactions` drew boxed titles and progress bars on
+  every call. Written to a file or captured into a document they are no longer
+  drawn.
+- A kinetics run no longer triggers the warning of SciMLBase about parameters
+  of mixed types. The thermodynamic functions of the species are heterogeneous
+  by nature; they are held behind a wrapper, and how they are called is
+  unchanged.
+- The warning of `pe` for a couple with a member at the solver floor was
+  printed with runs of spaces inside its sentences.
+
+### Documentation
+
+- Pages that build their own `IpoptOptimizer` silence its iteration log, which
+  ran to 1700 lines on the equilibrium tutorial. They also passed `abstol`,
+  which Ipopt ignores, and the manual stated that it was forwarded; it now says
+  that `reltol` becomes the Ipopt `tol` and that `abstol` has no counterpart.
+- A warning that repeats what a printed table already reports, such as a
+  refused certificate or a potential set by the solver floor, is no longer
+  shown beside the table. The diagnostics of the kinetic runs, which no table
+  repeats, are kept in folded sections under the results.
+- The scripts shared by the ionic-hydration and calibration pages were
+  included two or three times into the same module, redefining every
+  documented name; their guards now test the module that includes them.
+
+Nothing in the API or in any computed value changes, and the new functions
+only add to the interface. The one change of behavior is the one above: the
+database readers no longer print banners and progress bars when the output is
+not a terminal.
+
 ## v0.22.1 — OptimaSolver again when Ipopt is loaded, and a documentation that reads in order
 
 The documentation build had passed two hours, and looking for where the time

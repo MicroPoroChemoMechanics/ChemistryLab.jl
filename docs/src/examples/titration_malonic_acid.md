@@ -86,9 +86,7 @@ solver = EquilibriumSolver(
         mu_strategy = "adaptive",
     );
     variable_space = Val(:linear),
-    abstol  = 1e-8,
     reltol  = 1e-8,
-    maxiters = 100,
     verbose = false,
 )
 nothing # hide

@@ -1,0 +1,24 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Waller1999",
+    "doi": null,
+    "citation": "Waller, V. (1999). Relations entre composition des bétons, exothermie en cours de prise et résistance en compression. PhD thesis, École Nationale des Ponts et Chaussées. HAL tel-01223803.",
+    "location": null
+  },
+  "transcription": {
+    "from": "src/kinetics/rate_models.jl, ChemistryLab 0.22.1 (WALLER_PARAMS_SLAG)",
+    "checked_against_source": false,
+    "note": "The package has attributed a characteristic time of 100 days for ground granulated blast-furnace slag to this thesis since its first release of the Waller law. The value does not appear in Lavergne et al. (2018), where the fly-ash parameters of the same law were verified, and the thesis was not consulted when the value was moved out of the code. It is therefore recorded as unstated until it is checked."
+  },
+  "quantities": {
+    "tau_slag": {
+      "value": 100,
+      "unit": "d",
+      "kind": "unstated",
+      "uncertainty": null,
+      "description": "Characteristic time of the reaction of a ground granulated blast-furnace slag in the Waller sigmoid; the other parameters of the set are those of the fly ash."
+    }
+  },
+  "notes": []
+}

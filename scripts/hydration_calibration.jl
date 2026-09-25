@@ -52,7 +52,9 @@ using Statistics
 
 # The forward model, the chemical system and the dissolution reactions are the
 # ones of the companion script; nothing about the physics is restated here.
-isdefined(Main, :run_ionic_hydration) || include(joinpath(@__DIR__, "ionic_hydration.jl"))
+# `@isdefined` tests the module this file is included into, which is not `Main`
+# when a documentation page includes it.
+@isdefined(run_ionic_hydration) || include(joinpath(@__DIR__, "ionic_hydration.jl"))
 
 # ── the measured data ─────────────────────────────────────────────────────────
 

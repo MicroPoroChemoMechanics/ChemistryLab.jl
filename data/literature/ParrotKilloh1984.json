@@ -1,0 +1,38 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "ParrotKilloh1984",
+    "doi": null,
+    "citation": "Parrott, L. J., Killoh, D. C. (1984). Prediction of cement hydration. British Ceramic Proceedings 35, 41-53.",
+    "location": null
+  },
+  "transcription": {
+    "from": "src/kinetics/rate_models.jl, ChemistryLab 0.22.1 (PK_PARAMS_C3S, PK_PARAMS_C2S, PK_PARAMS_C3A, PK_PARAMS_C4AF)",
+    "checked_against_source": false,
+    "note": "These are the parameters of the deprecated 'smoothed' variant of the model, used by parrot_killoh. Their provenance is unestablished: the package attributes the rate constants, exponents and B to Parrott and Killoh (1984) and the activation energies to Schindler and Folliard (2005), and neither attribution was verified. The canonical parameters are those of Table 3 of Lavergne et al. (2018), in data/literature/Lavergne2018.json."
+  },
+  "quantities": {
+    "T_ref": {
+      "value": 293.15,
+      "unit": "K",
+      "kind": "unstated",
+      "uncertainty": null,
+      "description": "Reference temperature of the smoothed variant."
+    }
+  },
+  "tables": {
+    "smoothed_variant": {
+      "columns": ["phase", "K1", "N1", "K2", "N2", "K3", "N3", "B", "Ea"],
+      "units": [null, "1/d", "1", "1/d", "1", "1/d", "1", "1", "J/mol"],
+      "kind": "unstated",
+      "location": null,
+      "rows": [
+        ["C3S", 1.5, 3.3, 0.018, 2.5, 0.0024, 4.0, 0.5, 41570.0],
+        ["C2S", 0.95, 0.5, 0.0005, 2.5, 0.0024, 4.0, 0.2, 43670.0],
+        ["C3A", 0.082, 0.87, 0.00024, 2.0, 0.0024, 4.0, 0.04, 54040.0],
+        ["C4AF", 0.165, 3.7, 0.0015, 2.5, 0.0024, 4.0, 0.5, 34420.0]
+      ]
+    }
+  },
+  "notes": []
+}

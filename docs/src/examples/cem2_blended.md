@@ -81,6 +81,7 @@ told.
 ```@example cem2
 using ChemistryLab
 using DynamicQuantities
+using Logging
 using OptimaSolver
 using OrderedCollections
 using Printf
@@ -358,7 +359,12 @@ for (name, amount) in assemblage(eq_bs)
     @printf("  %-18s %9.5f mol\n", name, amount)
 end
 
-@printf("\npe  = %+.2f\nEh  = %+.3f V\n", pe(eq_bs, model), Eh(eq_bs, model))
+# `pe` warns when a member of the couple sits at the solver's floor; the two
+# sulfur amounts printed below say the same, so the warning is not repeated.
+pe_bs, eh_bs = with_logger(NullLogger()) do
+    pe(eq_bs, model), Eh(eq_bs, model)
+end
+@printf("\npe  = %+.2f\nEh  = %+.3f V\n", pe_bs, eh_bs)
 @printf("aqueous S(VI)  : %.3e mol\naqueous S(-II) : %.3e mol\n",
         ustrip(us"mol", moles(eq_bs, "SO4-2")), ustrip(us"mol", moles(eq_bs, "HS-")))
 ```

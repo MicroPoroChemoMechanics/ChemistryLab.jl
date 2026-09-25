@@ -9,6 +9,16 @@ Modules = [ChemistryLab]
 Pages = ["databases/paths.jl", "databases/thermofun_json.jl", "databases/phreeqc_dat.jl", "databases/merge_dat_json.jl"]
 ```
 
+## Published values
+
+The values taken from articles, one file per source under `data/literature/`;
+see [Published values live in data files](@ref man-literature-data).
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["databases/literature.jl"]
+```
+
 ## Published sorption models
 
 Reading a sorption model written in the PHREEQC format — its site families, its
