@@ -40,6 +40,16 @@ using JSON
         @test provenance(literature("Powers1948")["w_c_sealed"]) == PROV_PUBLISHED
     end
 
+    @testset "a record is read from its file on first use, then cached" begin
+        # The constants read their files while the package precompiles, so the
+        # cache arrives filled; one entry is dropped to exercise the read itself.
+        lock(() -> delete!(ChemistryLab._LITERATURE_CACHE, "Powers1948"), ChemistryLab._LITERATURE_LOCK)
+        r = literature("Powers1948")
+        @test r isa LiteratureRecord
+        @test ChemistryLab.value(r["w_c_sealed"]) == ChemistryLab.POWERS_W_SEALED
+        @test literature("Powers1948") === r
+    end
+
     @testset "the rate-law constants are the ones their sources give" begin
         t = literature_table("Lavergne2018", "parrot_killoh_1984")
         e = literature_table("Lavergne2018", "activation_energies")
