@@ -405,6 +405,30 @@ function optimality_certificate(
     # constraint that shifts a chemical potential is measured against the
     # unshifted one and can never certify however right it is.
     blocks = _constraint_blocks(constraint, des, state, p, n)
+
+    # A solve that carried the surface potential as an unknown returns it in `q`
+    # after the constraint's own unknowns, and `equilibrate_certified` hands that
+    # whole vector here. It is then the augmented problem that was solved, and the
+    # one audited: the surface block is composed exactly as `solve` composes it,
+    # so the closure of each potential is part of the parameter residual. Built
+    # from the constraint alone, as this did until 0.23, a prescribed pH on a
+    # diffuse layer met a `q` one entry too long and threw a `DimensionMismatch`
+    # before measuring anything. Without the potentials in `q` — a solve that
+    # eliminated them, or a caller auditing a bare composition — the eliminated
+    # form is audited, which is exact: the activity model then evaluates each
+    # potential from the composition itself.
+    if q !== nothing && length(q) != blocks.nq
+        surf = _surface_potential_blocks(des, state, p, n)
+        nsurf = surf === nothing ? 0 : surf.nq
+        length(q) == blocks.nq + nsurf || throw(
+            ArgumentError(
+                "q has $(length(q)) entries; the constraint has $(blocks.nq) " *
+                    "unknowns and the system's surfaces $nsurf, so it should " *
+                    "have $(blocks.nq) or $(blocks.nq + nsurf)."
+            ),
+        )
+        blocks = _compose_blocks(blocks, surf)
+    end
     qv = blocks.nq == 0 ? nothing :
         (q === nothing ? Float64.(collect(blocks.q0)) : Float64.(collect(q)))
 

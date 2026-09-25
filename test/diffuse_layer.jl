@@ -180,6 +180,35 @@ end
     end
 end
 
+@testsection "a prescribed pH on a diffuse layer is certified end to end" begin
+    # `equilibrate_certified` hands the certificate every unknown the solve
+    # found: the titrant of the constraint, then the potential of the surface.
+    # The certificate built the constraint's block alone, met a vector one entry
+    # too long, and threw a DimensionMismatch; it now audits the augmented
+    # problem that was solved.
+    f = PHREEQC_DIFFUSE_LAYER
+    dl = DiffuseLayer(; area = f.area)
+    for ser in f.series, pt in ser.points[[1, 3, 6]]
+        cs, st = _ddl_case(ser, pt; model = dl)
+        b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
+        q = Base.RefValue{Any}(nothing)
+        eq, cert = equilibrate_certified(st; b = b, constraint = FixedpH(pt.pH), parameters = q)
+        @test cert.optimal
+        @test length(q[]) == 2                        # the titrant, then Ψ
+        # The proton activity the constraint prescribed, on the solver's scale.
+        des = DualEquilibriumSolver(cs, DiluteSolutionModel())
+        n = Float64[ustrip(us"mol", x) for x in eq.n]
+        @test des.lna(n, ChemistryLab._build_params(eq))[2] / log(10) ≈ pt.la_H atol = 1.0e-6
+        # The same composition audited without the potential, in the eliminated
+        # form, is stationary too: the two formulations agree at the answer.
+        bare = optimality_certificate(des, eq; b = b, constraint = FixedpH(pt.pH), q = q[][1:1])
+        @test bare.stationarity < 1.0e-8
+        @test_throws ArgumentError optimality_certificate(
+            des, eq; b = b, constraint = FixedpH(pt.pH), q = [q[]; 0.0],
+        )
+    end
+end
+
 @testsection "the diffuse layer against PHREEQC, by both routes" begin
     f = PHREEQC_DIFFUSE_LAYER
     dl = DiffuseLayer(; area = f.area)
