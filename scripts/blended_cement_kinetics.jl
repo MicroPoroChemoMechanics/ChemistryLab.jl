@@ -62,9 +62,10 @@ cs_base = ChemicalSystem(species_base, CEMDATA_PRIMARIES)
 #   Exact formula: Al₂Si₂O₇ (dehydroxylated kaolinite).
 #   |ΔᵣH⁰| = 250 J/g × M
 #
-# The two heats per gram are assumptions. This script has long credited them to
-# Gruyaert et al. (2010) and to Lothenbach et al. (2011); neither article could
-# be checked against them, so neither is cited for them here.
+# The two heats per gram are assumptions. This script once credited them to
+# Gruyaert et al. (2010) and to Lothenbach et al. (2011), and neither article
+# gives them: Gruyaert et al. report the total heat per gram of binder, not of
+# slag, and Lothenbach et al. no heat of metakaolin.
 #
 # M is the molar mass the package computes from each formula. A value written
 # over it would contradict the atoms the species carries.

@@ -202,7 +202,8 @@ next section counts it.
 ## The chloride of the diffuse layer
 
 A [`DonnanLayer`](@ref) makes that layer explicit, as PHREEQC's `SURFACE -Donnan`
-does: a layer of water of fixed thickness on the surface, holding each solute at
+does, after [AppeloWersin2007](@cite): a layer of water of fixed thickness on the
+surface, holding each solute at
 the average Boltzmann enrichment whose charge balances the surface's, while the
 surface keeps its Gouy-Chapman potential. [`equilibrate_donnan`](@ref) withdraws
 what the layer holds from the solution and solves again until the two agree.

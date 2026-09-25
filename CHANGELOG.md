@@ -112,7 +112,8 @@ New records, each checked against its source (on the page image wherever the
 text extraction loses signs or charges):
 Atkins1992, BaroghelBouny1999, Blanc2012 (Thermoddem), Duan2016, Durdzinski2017,
 DzombakMorel1990, Elakneswaran2009, Guo2018, HamerWu1972, Helgeson1981,
-HongGlasser1999, IAPWS2014, Kettler1992, Kulik2002, Lothenbach2010 (Cemdata07),
+HongGlasser1999, IAPWS2014, Kettler1992, Kulik2002, Lothenbach2008 and
+Lothenbach2010 (Cemdata07),
 Lothenbach2019 (Cemdata18, Tables 2, 3, D.1 and D.2), MaLothenbach2020 and 2021
 (the zeolites), PalandriKharaka2004,
 ParkhurstAppelo2013, PlummerBusenberg1982, Pointeau2006 and Xu2012; Lavergne2018
@@ -171,8 +172,8 @@ Results of other codes (Reaktoro, GEM-Selektor, PHREEQC) are fixtures in
   278.2 g/mol of its atoms, and the override is gone.
 - The slag and metakaolin reactions of the blended-cement script created and
   destroyed elements; they are balanced from the formulas. Their heats per
-  gram, credited to articles that could not be checked, are stated as
-  assumptions.
+  gram were credited to Gruyaert et al. (2010) and Lothenbach et al. (2011),
+  neither of which gives them; they are stated as assumptions.
 
 ### Validation
 
@@ -184,8 +185,10 @@ pressure column is in bar although it is headed in pascals; Atkins et al.
 comparisons above; alkali uptake by C-S-H against the 48 solutions of Hong and
 Glasser (1999), where the pH agrees to 0.072 from 15 to 100 mM and the alkali
 is over-bound, as expected of end members fitted to those data; and the
-Cemdata07 generation of Lothenbach (2010), which shows which of its 29
-solubility products Cemdata18 kept and confirms that Guo et al. used it. The validation chapter pins every number it prints at the
+Cemdata07 generation, from Lothenbach (2010) and Lothenbach et al. (2008): which
+of its solubility products and formation energies Cemdata18 kept, the molar
+volumes of 28 solids (24 to half the printed digit), and the confirmation that
+Guo et al. used it. The validation chapter pins every number it prints at the
 precision it prints it, and opens with what has been checked and the traps
 worth knowing.
 

@@ -12,7 +12,8 @@ then a set of measured solution compositions ([Atkins1992](@cite)), which can
 disagree with the database and does.
 
 Every number below is pinned by an assertion in `test/cemdata18_reference.jl`,
-`test/lothenbach2010_reference.jl`, `test/atkins1992_reference.jl`,
+`test/lothenbach2010_reference.jl`, `test/lothenbach2008_reference.jl`,
+`test/atkins1992_reference.jl`,
 `test/limestone_blending_reference.jl`, `test/chloride_binding_reference.jl`,
 `test/hong_glasser1999_reference.jl` or `test/duan2016_reference.jl`, so it is
 checked on every CI run — **pinned, not merely bounded**.
@@ -32,7 +33,7 @@ printed to, which is half of its last digit.
 
 ## What has been checked
 
-Eight sources, more than eight hundred assertions, and the coverage is uneven on purpose:
+Nine sources, more than eight hundred assertions, and the coverage is uneven on purpose:
 the database is checked exhaustively because it is cheap to check exhaustively,
 while the equilibrium cases are checked one composition at a time because each
 one costs seconds to minutes.
@@ -48,6 +49,8 @@ one costs seconds to minutes.
 | **the carboaluminate sequence** under limestone | [Kulik2021](@cite) Fig. 7A, [Lothenbach2019](@cite) Figs. 13-14 | order and thresholds reproduce; iron partition exact | only appears when Al exceeds Fe — see below |
 | **chloride binding** and the AFm → Friedel transition | [Guo2018](@cite) Fig. 1(b) | plateau to `1 %`, both conservation laws close | pH not reproducible (their alkalis are unpublished); above 2 % NaCl the activity model is out of range |
 | **the previous generation**, Cemdata07's 29 solubility products | [Lothenbach2010](@cite) Table 1 | 11 unchanged to the printed digit, from the package's own energies | 9 revised, by up to 1.6 log units; 9 have no CEMDATA18 solid of the same composition |
+| **the molar volumes of 28 solids** | [Lothenbach2008](@cite) Table 4, cemdata2007 | 24 within half the printed digit | the other 4 by up to `1.7 cm³/mol`, three of them iron phases |
+| **the formation energies of the same solids** | [Lothenbach2008](@cite) Table 4 | 21 solids and water the same to `0.01 kJ/mol` | 7 revised by up to `10 kJ/mol`; another hydration state costs the water's energy, within 3 % |
 | **an aged pore solution** against portlandite and ettringite | [Lothenbach2010](@cite) Table 2 | within a quarter of a log unit of saturation | which side depends on the activity model at `I ≈ 0.5 mol/kg` |
 | **alkali uptake by C-S-H**, 4 Ca/Si × 6 concentrations × Na and K | [HongGlasser1999](@cite) Tables 1-2 | pH to `0.072` from 15 to 100 mM below Ca/Si 1.8 | alkali over-bound at 46 of 48 points; the end members were fitted to these data |
 
@@ -712,6 +715,39 @@ amorphous silica shares its formula with quartz, and amorphous `Al(OH)₃` with
 gibbsite, so those two are paired by name; and CEMDATA18 carries several solids
 also at half their formula unit, for its solid solutions, so the whole unit is
 preferred and the constant scaled when only a half exists.
+
+### Cemdata07's energies and molar volumes
+
+The same generation is printed in full by [Lothenbach2008](@cite), Table 4:
+the Gibbs energy, enthalpy, entropy and molar volume of 37 solids and water,
+with the solubility products of [Lothenbach2010](@cite) phase for phase. Its
+energies can be set against the package's without any reaction in between, and
+its volumes, most of them calculated from unit cells or densities, have no
+reason to move with a revision of the solubility products.
+
+| | energies | molar volumes |
+|:--|:--|:--|
+| the same to the printed digit | 21 solids and water, to `0.01 kJ/mol` | 24 of 28 solids, to `0.5 cm³/mol` |
+| different | 7 revised: Fe-monosulfate `+9.30`, C₃AH₆ `+1.94`, C₄AH₁₃ `+0.87`, monosulfate `+0.14`, Fe-monocarbonate `+5.19`, C₃FH₆ `−6.53`, C₄FH₁₃ `−7.71` kJ/mol | Fe-monocarbonate `+1.67`, monosulfate `+1.10`, Fe-monosulfate `−0.86`, Fe-ettringite `+0.56` cm³/mol |
+| no CEMDATA18 solid of the same composition | 9 | 9 |
+
+The revisions concern the iron phases and the hydrogarnets, which Cemdata18
+revisited, and the monosulfate, recalculated from its Gibbs energy.
+
+Three of the nine unpaired rows do have a CEMDATA18 counterpart at another
+hydration state, and the difference in Gibbs energy between the two is the
+energy of the water that separates them:
+
+| Cemdata07 | CEMDATA18 | water | kJ/mol per H₂O |
+|:--|:--|--:|--:|
+| C₂AH₈ | C₂AH₇.₅ | 0.5 | `−234.4` |
+| C₄FC̄₀.₅H₁₂ | Fe-hemicarbonate | 2 | `−243.7` |
+| Fe(OH)₃ (mic.) | FeOOH (mic.) | 1 | `−231.5` |
+
+Each is within 3 % of liquid water's `−237.18 kJ/mol`, which identifies the three
+as compositional differences rather than revisions. The water is counted on the
+hydrogen: the CEMDATA18 formula of Fe-hemicarbonate ends in `(H₂O)9.5`, and it
+carries ten waters, not 9.5.
 
 ### An aged pore solution
 

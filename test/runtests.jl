@@ -90,6 +90,7 @@ end
     include("cemdata18_reference.jl")
     include("duan2016_reference.jl")
     include("lothenbach2010_reference.jl")
+    include("lothenbach2008_reference.jl")
 end
 
 @testsection "Equilibrium tests" begin

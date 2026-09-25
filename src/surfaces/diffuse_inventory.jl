@@ -17,9 +17,10 @@
     DonnanLayer(; thickness = 1.0e-8u"m")
 
 The ions of the diffuse layer that balances a charged surface, averaged over a
-layer of water of fixed `thickness`: the Donnan approach of PHREEQC's
-`SURFACE -Donnan`, which [`equilibrate_donnan`](@ref) solves with and
-[`diffuse_layer_contents`](@ref) reads.
+layer of water of fixed `thickness`: the Donnan approach that
+[AppeloWersin2007](@cite) added to PHREEQC as `SURFACE -Donnan`, which
+[`equilibrate_donnan`](@ref) solves with and [`diffuse_layer_contents`](@ref)
+reads.
 
 On each support carrying a [`DiffuseLayer`](@ref) family, of area `𝒜`, the layer
 holds `W_D = ρ 𝒜 t` of water (`ρ = 1000 kg/m³`, `t` the thickness) and each
