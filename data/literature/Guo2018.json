@@ -176,12 +176,26 @@
         ["SiO2", 3.0],
         ["H2O", 6.3]
       ]
+    },
+    "surface_reactions_phreeqc": {
+      "columns": ["reaction", "log_K"],
+      "units": [null, "1"],
+      "kind": "fitted",
+      "location": "Table 1, p. 57, written in PHREEQC syntax by this package: the master species Csh_w stands for ≡Si, and the first row is in the proton form",
+      "rows": [
+        ["Csh_wOH = Csh_wO- + H+", -12.7],
+        ["Csh_wOH + Ca+2 = Csh_wOCa+ + H+", -9.4],
+        ["Csh_wOH + Cl- = Csh_wOHCl-", -0.35],
+        ["Csh_wOH + Na+ = Csh_wONa + H+", -13.6],
+        ["Csh_wOH + K+ = Csh_wOK + H+", -13.6]
+      ]
     }
   },
   "notes": [
     "Table 1, first row: -12.7 is the constant of the proton form, ≡SiOH = ≡SiO- + H+; written against OH-, as printed, the same surface would carry log K of about +1.3. The row is transcribed as printed.",
     "Table 1, third row: the product is printed ≡SiOHCl-, with the charge of the chloride; the reaction is balanced.",
     "Table 2: the constant of Friedel's salt is printed positive, 74.93, for a dissolution into Al+3 and OH-; it is transcribed as printed. The C-S-H molar mass of Table 3, 191.4 g/mol, is one third of the formula of Table 2, 574.1 g/mol.",
-    "Table 3 prints 100.9 g/mol for CaCO3; calcite is 100.09 g/mol. It is transcribed as printed."
+    "Table 3 prints 100.9 g/mol for CaCO3; calcite is 100.09 g/mol. It is transcribed as printed.",
+    "surface_reactions_phreeqc is not a transcription: it is Table 1 as the package's C-S-H benchmark uses it. Its first row is the deprotonation in the proton form with the printed -12.7: Guo copies the OH- form and the constant from Elakneswaran et al. (2010), whose earlier paper (Elakneswaran et al. 2009) compares that constant with the proton-form values of Viallis-Terrisse et al. (-12.3) and Pointeau et al. (-12.0); written against OH-, -12.7 would leave the surface uncharged at pH 13."
   ]
 }

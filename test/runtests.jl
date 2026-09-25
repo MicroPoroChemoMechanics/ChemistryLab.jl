@@ -99,6 +99,7 @@ end
     include("surface_complexation.jl")
     include("ion_exchange.jl")
     include("diffuse_layer.jl")
+    include("csh_surface.jl")
     include("sit.jl")
     include("provenance.jl")
     include("identifiability.jl")

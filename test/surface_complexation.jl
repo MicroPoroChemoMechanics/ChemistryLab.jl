@@ -966,3 +966,49 @@ end
         @test occursin("-237.2 kJ/mol", e.msg)
     end
 end
+
+@testsection "a site family from PHREEQC's reactions is the one built by hand" begin
+    # `_hfo_system` builds its two families by hand from PHREEQC's constants.
+    # `site_family` builds them from the reactions of phreeqc.dat itself, read by
+    # `read_sorption_model`: the energies must be the same numbers.
+    cs, _, _ = _hfo_system()
+    aqueous = [sp for sp in cs.species if aggregate_state(sp) != AS_SURFACE]
+    dat = read_sorption_model(joinpath(@__DIR__, "reference", "phreeqc.dat"))
+    G(s) = ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+    for (master, site, fam) in (
+            ("Hfo_s", "Xs", cs.site_families[1]), ("Hfo_w", "Xw", cs.site_families[2]),
+        )
+        wanted = Set(replace(symbol(sp), site => master; count = 1) for sp in fam.complexes)
+        rxns = [
+            r for r in dat.surfaces[master].reactions
+                if any(k in wanted for k in keys(r.stoichiometry))
+        ]
+        built = site_family(
+            fam.name, rxns, aqueous; master, site,
+            capacity = fam.capacity, support = fam.support,
+        )
+        @test symbol(built.free_site) == symbol(fam.free_site)
+        @test G(built.free_site) == 0
+        a = sort(built.complexes; by = symbol)
+        b = sort(fam.complexes; by = symbol)
+        @test symbol.(a) == symbol.(b)
+        for (x, y) in zip(a, b)
+            @test G(x) ≈ G(y) atol = 1.0e-6
+        end
+    end
+
+    # The same from `equation => log K` pairs, and what is refused.
+    support = cs.site_families[2].support
+    capacity = TotalSiteAmount(1.0e-4u"mol")
+    pairs = ["Hfo_wOH + H+ = Hfo_wOH2+" => 7.29, "Hfo_wOH = Hfo_wO- + H+" => -8.93]
+    fam = site_family("w", pairs, aqueous; master = "Hfo_w", site = "Xw", capacity, support)
+    @test G(fam.complexes[1]) ≈ -ChemistryLab.R_GAS * 298.15 * log(10) * 7.29
+    refused(r; kw...) = site_family(
+        "w", r, aqueous; master = "Hfo_w", site = "Xw", capacity, support, kw...,
+    )
+    @test_throws ArgumentError refused(pairs; site = "Hq")                    # not a site symbol
+    @test_throws ArgumentError refused(["2Hfo_wOH + Zn+2 = Hfo_w2OZn + 2H+" => 1.0])
+    @test_throws ArgumentError refused([pairs[1], "Hfo_wO- + H+ = Hfo_wOH" => 8.93])
+    @test_throws ArgumentError refused(["Hfo_wOH + Cd+2 = Hfo_wOCd+ + H+" => -2.91])
+    @test_throws ArgumentError refused(Pair{String, Float64}[])
+end

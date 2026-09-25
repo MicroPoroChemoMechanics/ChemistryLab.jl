@@ -1,0 +1,49 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Elakneswaran2009",
+    "doi": "10.1016/j.cemconres.2009.01.006",
+    "citation": "Elakneswaran, Y., Nawa, T., Kurumisawa, K. (2009). Electrokinetic potential of hydrated cement in relation to adsorption of chlorides. Cement and Concrete Research 39(4), 340-344.",
+    "location": "Eqs. (1), (4), (8) and pp. 341-343"
+  },
+  "transcription": {
+    "from": "the published article (PDF), pp. 341-343, read on the page text",
+    "checked_against_source": true,
+    "note": "The deprotonation is written against OH-, Eq. (1), and its constant, -12.7, is set beside -12.3 (Viallis-Terrisse et al.) and -12.0 (Pointeau et al.), which are constants of the proton form >SOH = >SO- + H+; the three are compared as values of one quantity. The calcium constant, -9.4, is compared the same way with -9.4 and -9.2."
+  },
+  "quantities": {
+    "specific_surface_area": {
+      "value": 500,
+      "unit": "m^2/g",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "p. 341",
+      "description": "Specific surface area assumed for C-S-H."
+    },
+    "area_per_two_sites": {
+      "value": 41,
+      "unit": "1",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "p. 341",
+      "description": "Area, in Å2, occupied by three silicate tetrahedra carrying two negative charges when fully dissociated, after Viallis-Terrisse et al.: two sites on 41 Å2."
+    }
+  },
+  "tables": {
+    "surface_reactions": {
+      "columns": ["equation", "reaction", "log_K"],
+      "units": [null, null, "1"],
+      "kind": "fitted",
+      "location": "pp. 342-343: constants fitted to zeta potentials",
+      "rows": [
+        ["(1)", "≡SiOH + OH- = ≡SiO- + H2O", -12.7],
+        ["(4)", "≡SiOH + Ca+2 = ≡SiOCa+ + H+", -9.4],
+        ["(8)", "≡SiOH + Cl- = ≡SiOHCl-", -0.35]
+      ]
+    }
+  },
+  "notes": [
+    "Eqs. (5) and (6) add the ternary complexes ≡SiOCaSO4- and ≡SiOCaCl, without a constant in the text.",
+    "Two sites on 41 Å2 with 500 m2/g give 4.05e-3 mol of sites per gram, the density Pointeau et al. and Guo et al. use."
+  ]
+}

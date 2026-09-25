@@ -24,6 +24,15 @@ Modules = [ChemistryLab]
 Pages   = ["surfaces/site_families.jl"]
 ```
 
+A published surface model is a list of reactions and constants, written the way
+PHREEQC writes them. [`site_family`](@ref) turns such a list into a family,
+including the reactions [`read_sorption_model`](@ref) reads from a database.
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["surfaces/site_family_reactions.jl"]
+```
+
 ## The surface potential as an unknown
 
 A [`DiffuseLayer`](@ref) written as an activity coefficient is exact and not

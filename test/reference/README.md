@@ -153,6 +153,7 @@ wherever its data is used.
 | `reaktoro_calcite_co2.py` | `reaktoro-env` | `reaktoro_calcite_co2.json`, read by `test/equilibrium_reference.jl`: calcite, CO₂ and water, amounts and their sensitivities to the CO₂ added |
 | `reaktoro_coupling.py` | `reaktoro-env` | `reaktoro_coupling.json`, read by `test/coupling_reference.jl`: the aqueous partition along a constant-rate calcite dissolution |
 | `phreeqc_hfo_surface.py` | `mpcm-oracles` | a Zn sorption edge on hydrous ferric oxide, strong and weak sites, `-no_edl`; `--edl` switches to the diffuse layer, which is a **different model** |
+| `phreeqc_csh_surface.py` | `mpcm-oracles` | `phreeqc_csh_surface.json`, read by `test/csh_surface.jl`: the silanol surface of Guo et al. (2018) with a diffuse layer, in NaOH-CaCl₂-NaCl solutions, closed systems. The generator writes its own database — free ions, the ion product of water from slop98, Davies activity — and reads the surface reactions from `data/literature/Guo2018.json`, the table the Julia side reads too |
 | `phreeqc_evolving_surface.py` | `mpcm-oracles` | a sorbent that DISSOLVES: a `SURFACE` coupled to an `EQUILIBRIUM_PHASES` mineral, titrated to exhaustion. Captures the coupling law, not a shared surface model |
 | `gems_bench.py` | `mpcm-oracles` | the GEMS3K status report above |
 

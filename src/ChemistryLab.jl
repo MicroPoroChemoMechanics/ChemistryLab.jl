@@ -140,6 +140,7 @@ module ChemistryLab
     include("databases/pitzer_toml.jl")
     include("databases/sit_dat.jl")
     include("databases/phreeqc_sorption.jl")
+    include("surfaces/site_family_reactions.jl")
     include("databases/merge_dat_json.jl")
 
     include("equilibrium/activities.jl")
@@ -548,6 +549,7 @@ module ChemistryLab
         needs_ionic_strength,
         water_relative_permittivity,
         SiteFamily,
+        site_family,
         site_moles,
         site_mixing_model,
         reference_member,
