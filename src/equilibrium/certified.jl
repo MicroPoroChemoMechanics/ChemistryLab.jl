@@ -728,10 +728,17 @@ function equilibrate_certified(
     # Every candidate the search tries is a candidate, and a candidate that does
     # not converge is what the search exists for. Its diagnostics stay quiet; the
     # verdict on the answer is pronounced once, below, on the certificate.
+    #
+    # The same cached starts are offered again after the continuation, after
+    # each restart and in each repair round, and a start already solved is not
+    # solved twice: `memo` returns what it gave the first time, which is the
+    # same answer bit for bit, since `des`, `bfix`, `ϵ` and `constraint` are
+    # fixed for the whole call. See `solve_certified`.
+    memo = IdDict{Any, Any}()
     search(starts) = _exploring_starts() do
         solve_certified(
             des, starts; b = bfix, ϵ = ϵ,
-            constraint = constraint, parameters = parameters,
+            constraint = constraint, parameters = parameters, memo = memo,
         )
     end
 

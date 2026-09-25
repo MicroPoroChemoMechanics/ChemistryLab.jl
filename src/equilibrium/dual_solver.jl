@@ -471,7 +471,7 @@ _kkt_error(cert) = max(
 )
 
 """
-    solve_certified(des, starts; b = nothing, ϵ = 1e-16, floor = 1e-25)
+    solve_certified(des, starts; b = nothing, ϵ = 1e-16, floor = 1e-25, memo = nothing)
         -> (state, certificate)
 
 Solve from each starting composition in `starts` and return the first answer
@@ -515,12 +515,27 @@ cert.optimal || @warn "no start produced a certifiable answer" cert
 
 The starts are supplied by the caller rather than built here, so this adds no
 dependency: whichever back ends are loaded are the ones available.
+
+# Offering the same start twice
+
+`memo`, when given, is an `IdDict` that records the answer and the certificate
+reached from each start, keyed on the start object itself, and a start met again
+is answered from it instead of being solved a second time. The dual solve and
+the certificate are deterministic functions of the start once `des`, `b`, `ϵ`,
+`floor` and `constraint` are fixed, so the record is the result, bit for bit;
+the caller owns the dictionary and must not share it between calls that differ
+in any of those. [`equilibrate_certified`](@ref) keeps one for the duration of a
+call, because its search offers the same cached starts again after the
+continuation, after each restart and in each repair round: measured on a CEM I
+paste that does not certify at once, twelve of the thirty-six dual solves of one
+call were repeats of earlier ones.
 """
 function solve_certified(
         des::DualEquilibriumSolver, starts;
         b = nothing, ϵ::Float64 = 1.0e-16, floor::Float64 = 1.0e-25,
         constraint::EquilibriumConstraint = FixedTP(),
         parameters::Union{Nothing, Base.RefValue} = nothing,
+        memo::Union{Nothing, IdDict} = nothing,
     )
     best = nothing
     best_cert = nothing
@@ -533,19 +548,27 @@ function solve_certified(
         # would end up holding the LAST candidate's parameters while the state
         # returned is the best-by-error one — so a prescribed-pH scan would
         # report a titrant amount belonging to a different composition.
-        qref = Ref(Float64[])
-        eq = SciMLBase.solve(
-            des, s0; b = b, ϵ = ϵ, constraint = constraint, parameters = qref,
-        )
-        # The certificate is evaluated at the T and P the constrained solve
-        # FOUND, which `eq` carries — not at the ones the start had. `∇f` depends
-        # on both, so certifying against the start's conditions would measure the
-        # stationarity of a different problem. `q` is part of what the solve
-        # found in exactly the same way, and is passed for the same reason.
-        cert = optimality_certificate(
-            des, eq; b = b, ϵ = ϵ, floor = floor,
-            constraint = constraint, q = qref[],
-        )
+        hit = memo === nothing ? nothing : get(memo, s0, nothing)
+        if hit === nothing
+            qref = Ref(Float64[])
+            eq = SciMLBase.solve(
+                des, s0; b = b, ϵ = ϵ, constraint = constraint, parameters = qref,
+            )
+            # The certificate is evaluated at the T and P the constrained solve
+            # FOUND, which `eq` carries — not at the ones the start had. `∇f`
+            # depends on both, so certifying against the start's conditions would
+            # measure the stationarity of a different problem. `q` is part of what
+            # the solve found in exactly the same way, and is passed for the same
+            # reason.
+            cert = optimality_certificate(
+                des, eq; b = b, ϵ = ϵ, floor = floor,
+                constraint = constraint, q = qref[],
+            )
+            memo === nothing || (memo[s0] = (eq, cert, qref[]))
+        else
+            eq, cert, q = hit
+            qref = Ref(q)
+        end
         if cert.optimal
             parameters === nothing || (parameters[] = qref[])
             return (eq, cert)

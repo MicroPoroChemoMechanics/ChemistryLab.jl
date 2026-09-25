@@ -308,7 +308,8 @@ end
     bad_n[findfirst(==("H2O@"), names)] = 55.5u"mol"
     bad = ChemicalState(cs, bad_n)
 
-    # Bad start FIRST, so the function has to move on rather than report it.
+    # Bad start FIRST. The dual Newton happens to certify from it as well; had it
+    # not, the function would have had to move on rather than report it.
     eq, cert = solve_certified(des, [bad, good]; b = b)
     @test cert.optimal
     @test cert.stationarity < 1.0e-9
@@ -339,4 +340,45 @@ end
     @test ustrip(us"mol", eq_g.n[findfirst(==("Cal"), names)]) ≈
         ustrip(us"mol", eq.n[findfirst(==("Cal"), names)]) rtol = 1.0e-6
 
+    # A memo changes what is computed, never what is returned. The first call
+    # records every start it solves -- the dual Newton certifies from the bad
+    # start already, so that is one -- and the second is answered from the
+    # record: the very objects come back, which is how a repeat is seen not to
+    # have been solved, and nothing new is recorded. The answer is the one
+    # obtained without a memo, bit for bit.
+    memo = IdDict{Any, Any}()
+    eq_m, cert_m = solve_certified(des, [bad, good]; b = b, memo = memo)
+    recorded = length(memo)
+    @test recorded >= 1
+    @test eq_m.n == eq.n
+    @test cert_m.stationarity == cert.stationarity
+    eq_m2, cert_m2 = solve_certified(des, [bad, good]; b = b, memo = memo)
+    @test eq_m2 === eq_m
+    @test cert_m2 === cert_m
+    @test length(memo) == recorded
+
+end
+
+@testset "an OptimaOptimizer solve reaches the OptimaSolver method" begin
+    # `OptimizationIpoptExt` defines `solve(::EquilibriumSolver, ::ChemicalState)`
+    # for every back end, and the OptimaSolver method must outrank it. It did not
+    # while its signature left the struct's parameters unbounded
+    # (`EquilibriumSolver{F, <:OptimaOptimizer, V} where {F, V}`): in any session
+    # that had also loaded Ipopt -- the documentation build, among others -- an
+    # `OptimaOptimizer` solve silently took the generic path, without the exact
+    # conservation matrix or the exact gradient, and the certified cascade built
+    # on it slowed down by one to two orders of magnitude. The test suite does not
+    # load Ipopt, so the ranking is asserted directly against a generic signature.
+    ext = Base.get_extension(ChemistryLab, :OptimaSolverExt)
+    cs = ChemicalSystem(
+        [
+            Species("H2O"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT),
+            Species("Na+"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE),
+        ]
+    )
+    es = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer())
+    m = which(ChemistryLab.SciMLBase.solve, (typeof(es), ChemicalState))
+    @test m.module === ext
+    generic = Tuple{typeof(ChemistryLab.SciMLBase.solve), EquilibriumSolver, ChemicalState}
+    @test Base.morespecific(m.sig, generic)
 end

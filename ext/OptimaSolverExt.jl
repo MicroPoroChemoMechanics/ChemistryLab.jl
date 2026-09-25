@@ -96,18 +96,32 @@ end
 # ── solve(EquilibriumSolver{OptimaOptimizer}, ChemicalState) ──────────────────
 
 """
-    SciMLBase.solve(esolver::EquilibriumSolver{F,<:OptimaOptimizer,V},
+    SciMLBase.solve(esolver::EquilibriumSolver{<:Function, <:OptimaOptimizer},
                    state::ChemicalState; ϵ=1e-16) -> ChemicalState
 
 Solve a chemical equilibrium problem using an `OptimaOptimizer` solver.
 Loaded automatically when `using OptimaSolver` is active.
 """
+# The first parameter is bounded as the struct bounds it, and this is what makes
+# the method reachable at all once `OptimizationIpoptExt` is loaded. That
+# extension defines `solve(::EquilibriumSolver, ::ChemicalState)` for every
+# back end, and this signature used to read `EquilibriumSolver{F,
+# <:OptimaOptimizer, V} where {F, V}`: with `F` and `V` free of the bounds the
+# struct declares, Julia does not rank it as more specific than the bare
+# `EquilibriumSolver`, and the generic method won. Every `OptimaOptimizer` solve
+# of a session that had also loaded Ipopt then went through the generic
+# `OptimizationProblem` -- no exact conservation matrix, the gradient of
+# `dot(n, μ(n))` by automatic differentiation instead of `μ` itself -- which is
+# the path the comments above measure as wrong. On a 109-species cement it
+# returned a start 2e-3 mol away from this method's, which the dual solve could
+# not certify, and a certified solve that costs 0.7 s here cost 34 to 78 s
+# there. The documentation loads Ipopt, so every page paid it.
 function SciMLBase.solve(
-        esolver::EquilibriumSolver{F, <:OptimaOptimizer, V},
+        esolver::EquilibriumSolver{<:Function, <:OptimaOptimizer},
         state::ChemicalState;
         ϵ::Float64 = 1.0e-16,
         b = nothing,
-    ) where {F, V}
+    )
     # A composition carrying dual numbers takes the implicit-function route:
     # primal solve, then sensitivities from the optimality conditions. No solver
     # is asked to iterate on dual numbers.
