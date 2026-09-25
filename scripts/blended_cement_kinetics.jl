@@ -105,7 +105,8 @@ cs = ChemicalSystem(all_species, CEMDATA_PRIMARIES)
 # Water/binder ratio w/b = 0.40
 #
 # Clinker phases (mass fractions in CEM I 52.5 R clinker):
-#   C₃S: 61.9%, C₂S: 16.5%, C₃A: 8.0%, C₄AF: 8.7%   (Lavergne 2018)
+#   C₃S: 61.9%, C₂S: 16.5%, C₃A: 8.0%, C₄AF: 8.7%   (assumed: typical of the
+#   class, not taken from a published analysis)
 # Clinker fraction in the ternary cement: 0.63
 
 const WB = 0.4      # water/binder ratio

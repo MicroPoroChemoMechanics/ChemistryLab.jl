@@ -55,8 +55,8 @@ cs = ChemicalSystem(species, CEMDATA_PRIMARIES)
 
 # ── 2. Initial state ─────────────────────────────────────────────────────────
 #
-# Typical CEM I 52.5 R composition (Lavergne et al. 2018):
-# mass fractions in the clinker. We work with 1 kg of cement.
+# An assumed CEM I composition, typical of the class but not taken from a
+# published analysis: mass fractions in the clinker. We work with 1 kg of cement.
 
 const WC = 0.4         # water/cement ratio [-]
 const COMPOSITION = (            # clinker phase mass fractions [kg/kg cement]

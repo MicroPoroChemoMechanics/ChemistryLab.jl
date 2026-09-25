@@ -35,10 +35,17 @@ nothing # hide
 
 RT = R_GAS * 298.15
 
+# Cemdata18's dimensionless Guggenheim parameters, from
+# data/literature/Lothenbach2019.json: a₀ = α₀RT and a₁ = α₁RT.
+function published_rk(pair)
+    p = literature_row("Lothenbach2019", "guggenheim_parameters", pair)
+    return RedlichKisterModel(a0 = p.alpha0 * RT, a1 = p.alpha1 * RT)
+end
+
 models = OrderedDict(
     "ideal" => IdealSolidSolutionModel(),
-    "AFm SO4/OH (published)" => RedlichKisterModel(a0 = 0.188RT, a1 = 2.49RT),
-    "AFt SO4/CO3 (published)" => RedlichKisterModel(a0 = 1.67RT, a1 = 0.946RT),
+    "AFm SO4/OH (published)" => published_rk("AFm SO4/OH"),
+    "AFt SO4/CO3 (published)" => published_rk("AFt SO4/CO3"),
     "regular, W = 1.9 RT" => RegularSolutionModel([0.0 1.9RT; 1.9RT 0.0]),
     "regular, W = 2.1 RT" => RegularSolutionModel([0.0 2.1RT; 2.1RT 0.0]),
 )
@@ -136,7 +143,7 @@ function run_case(afm_phase; autostart = true)
 end
 
 afm_em = [byname[m] for m in AFM]
-published = RedlichKisterModel(a0 = 0.188RT, a1 = 2.49RT)
+published = published_rk("AFm SO4/OH")
 nothing # hide
 
 cs1, eq1, c1 = run_case(SolidSolutionPhase("AFm_SO4_OH", afm_em))

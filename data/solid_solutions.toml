@@ -59,14 +59,22 @@ source      = "Lothenbach2019"
 # database: cemdata18 names them "monosulphate12" and "monocarbonate". The phase
 # was therefore skipped with a warning by `build_solid_solutions`, and being the
 # only non-ideal entry, the Redlich-Kister path had no live case at all.
+#
+# THE INTERACTION PARAMETERS BELOW HAVE NO PUBLISHED SOURCE. They were credited
+# to Lothenbach2019, which does not contain them: Cemdata18 treats monosulfate
+# and monocarbonate as separate pure phases, and its non-ideal AFm binary is
+# SO4/OH (C4AH13 against monosulphate12, Table 1 note g; see
+# data/literature/Lothenbach2019.json). They are placeholders of a plausible
+# order, kept so that the Redlich-Kister path has a live case. Do not read
+# them as data.
 [[solid_solution]]
 name        = "AFm"
 end_members = ["monosulphate12", "monocarbonate"]
 model       = "redlich_kister"
-a0          = 3000.0   # J/mol
-a1          = 500.0    # J/mol
+a0          = 3000.0   # J/mol, placeholder
+a1          = 500.0    # J/mol, placeholder
 a2          = 0.0      # J/mol
-source      = "Lothenbach2019"
+source      = "placeholder (no published source)"
 
 # ── Hydrogarnet (C3AH6 / C3FH6) — binary ideal ───────────────────────────────
 [[solid_solution]]
@@ -100,12 +108,14 @@ source      = "Lothenbach2019"
 # CEMDATA18 run of a Portland cement is given. Their end-members are all in both
 # shipped databases; what is **assumed** here is ideal mixing.
 #
-# Read that assumption as an assumption. CEMDATA18 documents non-ideal parameters
-# for some of these, and they are not reproduced here because they could not be
-# sourced with confidence — a mixing parameter written down from memory is worse
-# than an ideal model honestly labelled. If you are reproducing a published
-# result that depends on one of these phases being non-ideal, set the model
-# yourself in the script (`SolidSolutionPhase(name, members; model = ...)`).
+# Read that assumption as an assumption. CEMDATA18 gives non-ideal parameters
+# for two of these, `AFm_SO4_OH` and `AFt_SO4_CO3` (Table 1, notes g and a);
+# they are transcribed in data/literature/Lothenbach2019.json and not applied
+# here, because with them each phase unmixes and a single composition is no
+# longer its equilibrium. If you are reproducing a published result that depends
+# on one of these phases being non-ideal, set the model yourself in the script
+# (`SolidSolutionPhase(name, members; model = ...)`); the `miscibility_gap`
+# example does it, and says what it takes.
 #
 # Two things measured on a CEM I paste at w/c = 0.5, worth knowing before
 # loading all of them:

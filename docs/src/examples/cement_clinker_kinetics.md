@@ -40,8 +40,9 @@ println("Chemical system: $(length(cs.species)) species")
 
 ## 2. Initial state
 
-Typical CEM I 52.5 R composition from [Lavergne2018](@cite). We work with 1 kg
-of cement at water/cement ratio ``w/c = 0.4``.
+An assumed CEM I clinker composition, typical of the class but not taken from a
+published analysis. We work with 1 kg of cement at water/cement ratio
+``w/c = 0.4``.
 
 ```@example clinker
 const WC = 0.4

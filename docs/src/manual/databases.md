@@ -224,12 +224,14 @@ model       = "redlich_kister"
 a0          = 3000.0
 a1          = 500.0
 a2          = 0.0
-source      = "Lothenbach2019"
+source      = "placeholder (no published source)"
 ```
 
-The file `data/solid_solutions.toml` shipped with ChemistryLab.jl contains
-pre-calibrated entries for the main cemdata18 solid solutions (CSHQ, AFm, Hydrogarnet,
-Ettringite_ss, Hydrotalcite).
+The file `data/solid_solutions.toml` shipped with ChemistryLab.jl declares the main
+cemdata18 solid solutions (CSHQ, AFm, Hydrogarnet, Ettringite_ss, Hydrotalcite, and
+others). Most are ideal, and the comments of the file say which of those ideal models
+is an assumption. The two Redlich-Kister parameters of `AFm` are placeholders with no
+published source: Cemdata18 has no monosulfate-monocarbonate solid solution.
 
 ### Usage
 

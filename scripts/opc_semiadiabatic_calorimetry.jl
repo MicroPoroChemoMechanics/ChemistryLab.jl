@@ -58,8 +58,8 @@ cs = ChemicalSystem(species, CEMDATA_PRIMARIES)
 
 # ── 2. Cement paste composition ──────────────────────────────────────────────
 #
-# Typical CEM I 52.5, from Lavergne et al. (2018)
-# Mass fractions in the clinker
+# An assumed CEM I clinker, typical of the class but not taken from a
+# published analysis. Mass fractions in the clinker
 
 const PHASE_MASS_FRAC = (C3S = 0.619, C2S = 0.165, C3A = 0.08, C4AF = 0.087)
 
@@ -227,7 +227,7 @@ end
 println()
 println("╔══════════════════════════════════════════════╗")
 println("║    Semi-adiabatic calorimetry results         ║")
-println("║    CEM I — Lavergne et al. (2018)             ║")
+println("║    CEM I, after Lavergne et al. (2018)        ║")
 println("╠══════════════════════════════════════════════╣")
 println("║  Duration    = 7 days")
 @printf "║  T final     = %.2f °C\n" T_°C_vec[end]
@@ -279,6 +279,6 @@ p4 = plot(
 display(
     plot(
         p1, p2, p3, p4; layout = (2, 2), top_margin = 7Plots.mm, left_margin = 8Plots.mm, bottom_margin = 8Plots.mm, size = (1200, 800),
-        plot_title = "Lavergne et al. (2018) — CEM I, w/c = $WC",
+        plot_title = "CEM I, w/c = $WC, after the method of Lavergne et al. (2018)",
     )
 )

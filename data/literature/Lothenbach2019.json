@@ -1,0 +1,30 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Lothenbach2019",
+    "doi": "10.1016/j.cemconres.2018.04.018",
+    "citation": "Lothenbach, B., Kulik, D. A., Matschei, T., Balonis, M., Baquerizo, L., Dilnesa, B., Miron, G. D., Myers, R. J. (2019). Cemdata18: A chemical thermodynamic database for hydrated Portland cements and alkali-activated materials. Cement and Concrete Research 115, 472-506.",
+    "location": "Table 1, notes a and g"
+  },
+  "transcription": {
+    "from": "the accepted manuscript (PDF, 49 pages with line numbers), notes to Table 1, lines 234-239, read on the page image; the journal's page numbers are not in that copy",
+    "checked_against_source": true,
+    "note": "The two pairs were typed into the miscibility_gap example before this file existed and agree with the manuscript. Note a attaches to (Al-)ettringite and tricarboaluminate, note g to C4AH13 and C4AsH12 (monosulfate). Monocarbonate carries no such note: Cemdata18 does not treat monosulfate and monocarbonate as a solid solution."
+  },
+  "tables": {
+    "guggenheim_parameters": {
+      "columns": ["pair", "alpha0", "alpha1", "gap_from", "gap_to"],
+      "units": [null, "1", "1", "1", "1"],
+      "kind": "fitted",
+      "location": "Table 1, notes a and g",
+      "rows": [
+        ["AFt SO4/CO3", 1.67, 0.946, 0.1, 0.55],
+        ["AFm SO4/OH", 0.188, 2.49, 0.5, 0.97]
+      ]
+    }
+  },
+  "notes": [
+    "alpha0 and alpha1 are the dimensionless Guggenheim interaction parameters, a0 = alpha0 R T and a1 = alpha1 R T in the Redlich-Kister form. The gap columns are the miscibility gap the parameters reproduce, as the article prints it: X(SO4) in the solid for the AFt pair, X(OH) for the AFm pair. The sign of alpha1 depends on which end-member comes first; with C4AH13 first, as in the miscibility_gap example, the spinodal the parameters give, X(OH) from 0.63 to 0.91, lies inside the printed gap.",
+    "For the AFt pair the article notes that the parameters are downscaled to a 1 CO2 : 1 SO3 replacement, instead of the 3 CO2 : 3 SO3 of its refs. [4, 7]."
+  ]
+}
