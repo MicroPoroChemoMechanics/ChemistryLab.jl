@@ -7,7 +7,12 @@
 #   conda create -n reaktoro-env -c conda-forge reaktoro thermofun
 #   conda run -n reaktoro-env python test/reference/reaktoro_calcite_co2.py
 #
-# Paste the printed values into `REAKTORO` in test/equilibrium_reference.jl.
+# Writes `test/reference/reaktoro_calcite_co2.json`, which the test reads.
+
+import hashlib
+import json
+import os
+import sys
 
 import reaktoro as rkt
 import numpy as np
@@ -46,9 +51,29 @@ for h in (1e-3, 1e-4, 1e-5):
 spread = np.max(np.abs(derivs[1e-3] - derivs[1e-5]))
 d = derivs[1e-5]
 
-print(f"# Reaktoro {rkt.__version__}, Cemdata18, ideal activities")
-print(f"# finite-difference spread across h: {spread:.3g}")
-print("const REAKTORO = Dict(")
-for k, name in enumerate(names):
-    print(f'    "{name}" => (n = {amounts[k]:.9g}, dn = {d[k]:.9g}),')
-print(")")
+with open(DB, "rb") as handle:
+    md5 = hashlib.md5(handle.read()).hexdigest()
+payload = {
+    "generator": "test/reference/reaktoro_calcite_co2.py",
+    "python": sys.version.split()[0],
+    "reaktoro": rkt.__version__,
+    "database": DB,
+    "database_md5": md5,
+    "aqueous_model": "ideal, to match DiluteSolutionModel()",
+    "n_H2O": N_H2O,
+    "n_Cal": N_CAL,
+    "n_CO2": N_CO2,
+    # the finite-difference spread across h in {1e-3, 1e-4, 1e-5}: nothing below
+    # it is meaningful in the sensitivities
+    "fd_spread": float(spread),
+    "species": {
+        name: {"n": float(amounts[k]), "dn_dCO2": float(d[k])}
+        for k, name in enumerate(names)
+    },
+}
+here = os.path.dirname(os.path.abspath(__file__))
+path = os.path.join(here, "reaktoro_calcite_co2.json")
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(payload, handle, indent=2, sort_keys=False)
+    handle.write("\n")
+print(f"wrote {os.path.basename(path)}")

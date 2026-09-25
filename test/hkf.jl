@@ -1,4 +1,31 @@
 using ForwardDiff
+using JSON
+
+# The HKF parameters of Al(OH)2+, read from the shipped aq17 database and brought
+# to SI with the reader's own factors: this file tests the thermo functions, and
+# a copy of the database typed here would test a transcription instead.
+_hkf_aloh2_entry() = only(
+    s for s in JSON.parsefile(datapath("aq17-thermofun.json"); dicttype = Dict{String, Any})["substances"]
+        if s["symbol"] == "Al(OH)2+"
+)
+_hkf_aloh2_value(key) = float(only(_hkf_aloh2_entry()[key]["values"]))
+function _hkf_aloh2_params()
+    s = _hkf_aloh2_entry()
+    hkf = only(m for m in s["TPMethods"] if haskey(m, "eos_hkf_coeffs"))["eos_hkf_coeffs"]["values"]
+    names = [:a1, :a2, :a3, :a4, :c1, :c2, :wref]
+    return vcat(
+        [n => float(hkf[i]) * ChemistryLab.HKF_SI_CONVERSIONS[n] for (i, n) in enumerate(names)],
+        [
+            :z => float(s["formula_charge"]),
+            :ΔₐG⁰ => _hkf_aloh2_value("sm_gibbs_energy") * u"J/mol",
+            :ΔₐH⁰ => _hkf_aloh2_value("sm_enthalpy") * u"J/mol",
+            :S⁰ => _hkf_aloh2_value("sm_entropy_abs") * u"J/(mol*K)",
+            :T => float(s["Tst"]) * u"K",
+            :P => float(s["Pst"]) * u"Pa",
+        ],
+    )
+end
+
 
 @testsection "HKF water properties (HGK EOS)" begin
     wtp = water_thermo_props(298.15, 1.0e5)
@@ -41,23 +68,7 @@ end
 end
 
 @testsection "HKF thermo functions — Al(OH)2+" begin
-    # Parameters for Al(OH)2+ from aq17-thermofun.json, converted to SI
-    # SUPCRT values × HKF_SI_CONVERSIONS factors
-    params = [
-        :a1 => 0.24940000474453 * 4.184e-5,
-        :a2 => -169.08999633789 * 4.184,
-        :a3 => 6.4145998954773 * 4.184e-5,
-        :a4 => -27091.0 * 4.184,
-        :c1 => 16.743900299072 * 4.184,
-        :c2 => -10465.0 * 4.184,
-        :wref => 53240.0 * 4.184,
-        :z => 1.0,
-        :ΔₐG⁰ => -898292.0u"J/mol",
-        :ΔₐH⁰ => -995581.0u"J/mol",
-        :S⁰ => -27.53u"J/(mol*K)",
-        :T => 298.15u"K",
-        :P => 1.0e5u"Pa",
-    ]
+    params = _hkf_aloh2_params()
 
     thermo = build_thermo_functions(:solute_hkf88_reaktoro, params)
 
@@ -81,36 +92,23 @@ end
     @test ustrip(thermo[:Cp⁰].refs.T) ≈ 298.15
     @test ustrip(thermo[:Cp⁰].refs.P) ≈ 1.0e5
 
-    # Cp at (Tr, Pr) must match database value ≈ 40.87 J/(mol·K)
-    @test isapprox(thermo[:Cp⁰](; T = 298.15, P = 1.0e5), 40.87; rtol = 1.0e-2)
+    # Cp at (Tr, Pr) must match the value the database tabulates beside the coefficients
+    @test isapprox(thermo[:Cp⁰](; T = 298.15, P = 1.0e5), _hkf_aloh2_value("sm_heat_capacity_p"); rtol = 1.0e-2)
 
     # Calling without kwargs must use refs and give the same result
     @test isapprox(thermo[:Cp⁰](), thermo[:Cp⁰](; T = 298.15, P = 1.0e5); rtol = 1.0e-10)
 
     # G at (Tr, Pr) must match Gf
-    @test isapprox(thermo[:ΔₐG⁰](; T = 298.15, P = 1.0e5), -898292.0; rtol = 1.0e-3)
-    @test isapprox(thermo[:ΔₐG⁰](), -898292.0; rtol = 1.0e-3)
+    G_ref = _hkf_aloh2_value("sm_gibbs_energy")
+    @test isapprox(thermo[:ΔₐG⁰](; T = 298.15, P = 1.0e5), G_ref; rtol = 1.0e-3)
+    @test isapprox(thermo[:ΔₐG⁰](), G_ref; rtol = 1.0e-3)
 
     # unit=true returns a Quantity
     @test thermo[:Cp⁰](; T = 298.15, P = 1.0e5, unit = true) isa AbstractQuantity
 end
 
 @testsection "HKF ForwardDiff compatibility" begin
-    params = [
-        :a1 => 0.24940000474453 * 4.184e-5,
-        :a2 => -169.08999633789 * 4.184,
-        :a3 => 6.4145998954773 * 4.184e-5,
-        :a4 => -27091.0 * 4.184,
-        :c1 => 16.743900299072 * 4.184,
-        :c2 => -10465.0 * 4.184,
-        :wref => 53240.0 * 4.184,
-        :z => 1.0,
-        :ΔₐG⁰ => -898292.0u"J/mol",
-        :ΔₐH⁰ => -995581.0u"J/mol",
-        :S⁰ => -27.53u"J/(mol*K)",
-        :T => 298.15u"K",
-        :P => 1.0e5u"Pa",
-    ]
+    params = _hkf_aloh2_params()
     thermo = build_thermo_functions(:solute_hkf88_reaktoro, params)
 
     # ∂G/∂T = -S (thermodynamic identity)
@@ -120,21 +118,7 @@ end
 end
 
 @testsection "NumericFunc arithmetic — scalar" begin
-    params = [
-        :a1 => 0.24940000474453 * 4.184e-5,
-        :a2 => -169.08999633789 * 4.184,
-        :a3 => 6.4145998954773 * 4.184e-5,
-        :a4 => -27091.0 * 4.184,
-        :c1 => 16.743900299072 * 4.184,
-        :c2 => -10465.0 * 4.184,
-        :wref => 53240.0 * 4.184,
-        :z => 1.0,
-        :ΔₐG⁰ => -898292.0u"J/mol",
-        :ΔₐH⁰ => -995581.0u"J/mol",
-        :S⁰ => -27.53u"J/(mol*K)",
-        :T => 298.15u"K",
-        :P => 1.0e5u"Pa",
-    ]
+    params = _hkf_aloh2_params()
     thermo = build_thermo_functions(:solute_hkf88_reaktoro, params)
     G = thermo[:ΔₐG⁰]
     T0, P0 = 298.15, 1.0e5
@@ -168,21 +152,7 @@ end
 end
 
 @testsection "NumericFunc arithmetic — HKF op HKF" begin
-    params = [
-        :a1 => 0.24940000474453 * 4.184e-5,
-        :a2 => -169.08999633789 * 4.184,
-        :a3 => 6.4145998954773 * 4.184e-5,
-        :a4 => -27091.0 * 4.184,
-        :c1 => 16.743900299072 * 4.184,
-        :c2 => -10465.0 * 4.184,
-        :wref => 53240.0 * 4.184,
-        :z => 1.0,
-        :ΔₐG⁰ => -898292.0u"J/mol",
-        :ΔₐH⁰ => -995581.0u"J/mol",
-        :S⁰ => -27.53u"J/(mol*K)",
-        :T => 298.15u"K",
-        :P => 1.0e5u"Pa",
-    ]
+    params = _hkf_aloh2_params()
     thermo = build_thermo_functions(:solute_hkf88_reaktoro, params)
     G = thermo[:ΔₐG⁰]
     H = thermo[:ΔₐH⁰]
@@ -205,21 +175,7 @@ end
 end
 
 @testsection "NumericFunc arithmetic — cross-type with SymbolicFunc" begin
-    params = [
-        :a1 => 0.24940000474453 * 4.184e-5,
-        :a2 => -169.08999633789 * 4.184,
-        :a3 => 6.4145998954773 * 4.184e-5,
-        :a4 => -27091.0 * 4.184,
-        :c1 => 16.743900299072 * 4.184,
-        :c2 => -10465.0 * 4.184,
-        :wref => 53240.0 * 4.184,
-        :z => 1.0,
-        :ΔₐG⁰ => -898292.0u"J/mol",
-        :ΔₐH⁰ => -995581.0u"J/mol",
-        :S⁰ => -27.53u"J/(mol*K)",
-        :T => 298.15u"K",
-        :P => 1.0e5u"Pa",
-    ]
+    params = _hkf_aloh2_params()
     thermo = build_thermo_functions(:solute_hkf88_reaktoro, params)
     G = thermo[:ΔₐG⁰]
     S = thermo[:S⁰]
@@ -228,15 +184,16 @@ end
     S0 = S(; T = T0, P = P0)
 
     # SymbolicFunc representing a constant (must carry same unit as G for +/-)
-    tf_const = SymbolicFunc(-898292.0u"J/mol")
+    c = _hkf_aloh2_value("sm_gibbs_energy")
+    tf_const = SymbolicFunc(c * u"J/mol")
 
     add_cross = G + tf_const
     @test add_cross isa NumericFunc
-    @test add_cross(; T = T0, P = P0) ≈ G0 + (-898292.0)
+    @test add_cross(; T = T0, P = P0) ≈ G0 + c
 
     diff_cross = tf_const - G
     @test diff_cross isa NumericFunc
-    @test diff_cross(; T = T0, P = P0) ≈ -898292.0 - G0
+    @test diff_cross(; T = T0, P = P0) ≈ c - G0
 
     # Division of HKF by a SymbolicFunc of T (as in logK computation)
     R_log10 = ustrip(DynamicQuantities.Constants.R) * log(10)

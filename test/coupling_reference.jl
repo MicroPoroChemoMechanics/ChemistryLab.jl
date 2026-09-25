@@ -9,13 +9,16 @@
 # relative deviation over the trajectory: 0.3 % at t = 0, rising to 4.3 % at
 # 3600 s, and always on CO₂@ — which sits at 2.3e-8 mol.
 
+include("reference_species.jl")
+
+# The oracle's output, read from its fixture: the aqueous partition at each
+# sampled time, for calcite dissolving at a constant rate into pure water.
+const RKC_FIXTURE = reference_oracle("reaktoro_coupling")
 const RKC = Dict(
-    0.0 => Dict("H2O@" => 55.4999999, "H+" => 9.99932289e-8, "OH-" => 9.99932289e-8, "CO2@" => 1.0e-16, "HCO3-" => 1.0e-16, "CO3-2" => 1.0e-16, "Ca+2" => 1.0e-16, "CaOH+" => 1.0e-16, "Ca(CO3)@" => 1.0e-16, "Ca(HCO3)+" => 1.0e-16),
-    600.0 => Dict("H2O@" => 55.4997817, "H+" => 4.61324731e-11, "OH-" => 2.16731092e-4, "CO2@" => 2.25185714e-8, "HCO3-" => 2.17047539e-4, "CO3-2" => 2.20539072e-4, "Ca+2" => 4.36040374e-4, "CaOH+" => 1.56875542e-6, "Ca(CO3)@" => 1.61183646e-4, "Ca(HCO3)+" => 1.20722502e-6),
-    1800.0 => Dict("H2O@" => 55.4996464, "H+" => 2.87008797e-11, "OH-" => 3.48350495e-4, "CO2@" => 2.25609913e-8, "HCO3-" => 3.49517142e-4, "CO3-2" => 5.7083373e-4, "Ca+2" => 9.1508186e-4, "CaOH+" => 5.29157253e-6, "Ca(CO3)@" => 8.75546793e-4, "Ca(HCO3)+" => 4.07977437e-6),
-    3600.0 => Dict("H2O@" => 55.4995418, "H+" => 2.2318587e-11, "OH-" => 4.4794503e-4, "CO2@" => 2.26011019e-8, "HCO3-" => 4.50245132e-4, "CO3-2" => 9.45622653e-4, "Ca+2" => 1.38558729e-3, "CaOH+" => 1.03030974e-5, "Ca(CO3)@" => 2.19615184e-3, "Ca(HCO3)+" => 7.95777128e-6)
+    float(smp.t) => Dict(String(k) => v for (k, v) in pairs(smp.amounts))
+        for smp in RKC_FIXTURE.samples
 )
-const K_RATE = 1.0e-6
+const K_RATE = RKC_FIXTURE.rate
 
 @testset "Reaktoro reference: kinetics/equilibrium coupling" begin
     data = datapath("cemdata18-thermofun.json")
@@ -34,7 +37,7 @@ const K_RATE = 1.0e-6
     kr = KineticReaction(rxn, (T, P, t, n, lna, n0) -> K_RATE, idx("Cal"), st)
 
     n = Any[fill(0.0u"mol", length(nm))...]
-    n[idx("H2O@")] = 55.5u"mol"; n[idx("Cal")] = 0.05u"mol"
+    n[idx("H2O@")] = RKC_FIXTURE.n_H2O * u"mol"; n[idx("Cal")] = 0.05u"mol"
     state = ChemicalState(cs, n)
     kp = KineticsProblem(
         cs, [kr], state, (0.0u"s", 3600.0u"s");
@@ -56,7 +59,7 @@ const K_RATE = 1.0e-6
         haskey(RKC, t) || continue
         be = collect(sol.u[ti][1:n_be])
         guess = Any[fill(1.0e-10u"mol", length(subnm))...]
-        guess[findfirst(==("H2O@"), subnm)] = 55.5u"mol"
+        guess[findfirst(==("H2O@"), subnm)] = RKC_FIXTURE.n_H2O * u"mol"
         eq = ChemistryLab.SciMLBase.solve(es, ChemicalState(sub, guess); b = be)
         v = [ustrip(us"mol", x) for x in eq.n]
         ref = RKC[t]

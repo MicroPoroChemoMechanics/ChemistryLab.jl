@@ -58,11 +58,11 @@ the osmotic and mean activity coefficients of NaCl at 25 °C, and it gives both,
 so each half of the model is checked separately.
 
 ```@example pz
-# Hamer & Wu (1972), Table 16. m [mol/kg], φ, γ±.
-HW = [(0.001, 0.988, 0.965), (0.010, 0.968, 0.903), (0.100, 0.933, 0.779),
-      (0.500, 0.921, 0.681), (1.000, 0.936, 0.657), (2.000, 0.984, 0.668),
-      (3.000, 1.045, 0.714), (4.000, 1.116, 0.783), (5.000, 1.191, 0.874),
-      (6.000, 1.270, 0.986)]
+# Hamer & Wu (1972), Table 16, read from the data file: m [mol/kg], φ, γ±.
+hw = literature_table("HamerWu1972", "nacl")
+HW_ALL = collect(zip(ustrip.(us"mol/kg", hw.m), hw.phi, hw.gamma))
+# Ten of its 29 rows, a decade at a time and then every molal, keep the table short.
+HW = filter(r -> r[1] in (0.001, 0.01, 0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0), HW_ALL)
 
 lna_pz = activity_model(nacl, model)
 lna_bd = activity_model(nacl, HKFActivityModel())
@@ -99,7 +99,7 @@ plot!(p1, ms, [γ_of(lna_bd, m) for m in ms];
 A25 = hkf_debye_huckel_params(298.15, 1.0e5).A
 plot!(p1, ms, [exp(-A25 * sqrt(m) * log(10)) for m in ms];
     label = "Debye-Hückel limiting law", linestyle = :dot, color = :gray, linewidth = 2)
-scatter!(p1, [h[1] for h in HW], [h[3] for h in HW];
+scatter!(p1, [h[1] for h in HW_ALL], [h[3] for h in HW_ALL];
     label = "Hamer & Wu (1972), measured", color = :black, markersize = 5)
 plot(p1; size = (720, 430), left_margin = 8Plots.mm, bottom_margin = 8Plots.mm)
 ```

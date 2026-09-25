@@ -1,9 +1,9 @@
 # The oracle bench
 
 Three established codes, used as references rather than as authorities. Each
-script here *generates* values that are then frozen into a Julia test file, with
-the version of the code and the identity of the database it read written into
-the header. Nothing in this directory runs during `Pkg.test()`.
+script here *generates* a JSON fixture that the tests read, with the version of
+the code and the identity of the database it read written into it as fields.
+Nothing in this directory runs during `Pkg.test()`.
 
 ## The rule that comes before any of them
 
@@ -150,8 +150,8 @@ wherever its data is used.
 
 | script | env | produces |
 |:--|:--|:--|
-| `reaktoro_calcite_co2.py` | `reaktoro-env` | the `REAKTORO` fixture of `test/equilibrium_reference.jl` |
-| `reaktoro_coupling.py` | `reaktoro-env` | the `RKC` fixture of `test/coupling_reference.jl` |
+| `reaktoro_calcite_co2.py` | `reaktoro-env` | `reaktoro_calcite_co2.json`, read by `test/equilibrium_reference.jl`: calcite, CO₂ and water, amounts and their sensitivities to the CO₂ added |
+| `reaktoro_coupling.py` | `reaktoro-env` | `reaktoro_coupling.json`, read by `test/coupling_reference.jl`: the aqueous partition along a constant-rate calcite dissolution |
 | `phreeqc_hfo_surface.py` | `mpcm-oracles` | a Zn sorption edge on hydrous ferric oxide, strong and weak sites, `-no_edl`; `--edl` switches to the diffuse layer, which is a **different model** |
 | `phreeqc_evolving_surface.py` | `mpcm-oracles` | a sorbent that DISSOLVES: a `SURFACE` coupled to an `EQUILIBRIUM_PHASES` mineral, titrated to exhaustion. Captures the coupling law, not a shared surface model |
 | `gems_bench.py` | `mpcm-oracles` | the GEMS3K status report above |
