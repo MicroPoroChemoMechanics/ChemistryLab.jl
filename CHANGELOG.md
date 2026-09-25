@@ -1,5 +1,129 @@
 # Changelog
 
+## v0.22.1 — OptimaSolver again when Ipopt is loaded, and a documentation that reads in order
+
+The documentation build had passed two hours, and looking for where the time
+went found two defects of the solver that had nothing to do with the
+documentation. In any session with Ipopt loaded, the OptimaSolver back end ran
+on a degraded path; and a stage of the certified search had been unwired by
+accident, a loss the first defect happened to hide. The rest of the release
+answers the other complaint about the documentation: a reader new to chemical
+thermodynamics found no way in.
+
+### An `OptimaOptimizer` solve took the generic path whenever Ipopt was loaded
+
+`OptimaSolverExt` solves an `EquilibriumSolver` built on an `OptimaOptimizer`
+with the exact conservation matrix and the exact gradient, and its comments
+measure what happens without them. `OptimizationIpoptExt` defines the same
+`solve` for every back end, and the OptimaSolver method was meant to outrank it.
+It did not: its signature, `EquilibriumSolver{F, <:OptimaOptimizer, V} where
+{F, V}`, left the struct's parameters free of the bounds the struct declares,
+and Julia does not then rank it above the bare `EquilibriumSolver`. In any
+session that loaded `Optimization` and `OptimizationIpopt` besides
+`OptimaSolver` -- the equilibrium tutorial does, and so does the documentation
+build -- every `OptimaOptimizer` solve went through the generic
+`OptimizationProblem`, with the conservation matrix rebuilt by finite
+differences and the gradient of `dot(n, μ(n))` taken by automatic
+differentiation. On the 109-species CEM IV paste its start lay 2e-3 mol away
+from the right one, and a certified solve that costs 0.7 s cost 34 to 78 s.
+
+The signature now bounds its parameters, `EquilibriumSolver{<:Function,
+<:OptimaOptimizer}`. With both extensions loaded `which` names
+`OptimaSolverExt`, and since the test suite does not load Ipopt, a test asserts
+the ranking against the generic signature directly.
+
+### The certified search pre-solves under ideal activities again
+
+The stage that solves the problem under ideal activities and restarts the
+non-ideal search from that answer -- the fix of the ulp sensitivity of a CEM I
+with eight solid solutions, recorded in the docstring of `_ideal_start` -- had
+been removed in v0.18.0 by the commit that removed the linear-programming
+start, although that commit argued for removing the LP alone. The degraded
+OptimaSolver start above happened to give the dual solve a start it could use,
+and so masked the loss. With that path corrected, a cold CEM IV paste without
+ash no longer certified from either back end, and the points of the page that
+depend on it were refused in turn. The stage is restored where it stood, runs
+only when nothing has certified yet, and from its answer the paste certifies at
+3.6e-15. Replayed with the packages the documentation loads, every certified
+and every refused point of the cement pages is again the one their text
+describes.
+
+One page described a refusal that was the defect's and not the chemistry's: on
+the CEM I with three solid solutions declared and the other end-members left as
+pure phases, the search now certifies the answer of the complete declaration,
+and the section says so, with the correct reason -- a pure end-member cannot
+outcompete the solution it belongs to, and a partial phase list certifies
+nothing about the solutions it leaves out.
+
+### The certified search no longer solves the same start twice
+
+`equilibrate_certified` offers its cached starting points again after the ideal
+pre-solve, after the continuation, after each restart and in each repair round,
+and every offer ran the dual Newton and the certificate once more from a start
+already solved. `solve_certified` now takes a `memo`, an `IdDict` keyed on the
+start object, and `equilibrate_certified` keeps one for the duration of a call.
+The dual solve and the certificate are deterministic once the solver, the
+budget, `ϵ` and the constraint are fixed, so the record is the result: the test
+suite checks that a repeated call returns the very objects of the first, and an
+in-process comparison on the CEM IV paste finds the same composition bit for bit
+with and without the memo. The saving is modest, about a tenth of the time of a
+refused point.
+
+### `ΔₐG⁰` is an apparent energy of formation, and now says so
+
+The builder documentation and the Manual described `ΔₐG⁰` as "the Gibbs energy
+of formation". It is the apparent one: the elements are held at the reference
+temperature (Benson-Helgeson convention), so that `ΔₐG⁰(Tr)` equals the `ΔfG⁰`
+supplied, and away from `Tr` the two differ by terms of the elements that cancel
+from any balanced reaction and from nothing else. The code was right; the
+glosses were not.
+
+### The documentation
+
+- **Reading paths.** The home page names three entry points by what the reader
+  already knows, and *Getting started* is rewritten around one calculation,
+  with the solubility constant obtained from the database before any solver
+  runs.
+- **Prerequisites and exits.** Every page outside the API opens with what it
+  assumes and ends with where to go next.
+- **Tutorials that are tutorials.** `tutorials/equilibrium.md` and
+  `tutorials/kinetics.md` keep the calculation; the options -- back ends,
+  constraints, derivatives, activity models, solid solutions, rate functions,
+  rate constants, kinetic reactions, calorimeters -- move verbatim to two new
+  Manual pages, *Solving an equilibrium* and *Writing a kinetic model*. Anchors
+  keep their names, and the URL cited by an earlier section of this file,
+  `tutorials/equilibrium/#sec-aqueous-properties`, still resolves.
+- **Theory.** A new page, *Standard states*, gives the convention of each class
+  of species as the code implements it, the passage between the molality and
+  mole-fraction scales (a constant `RT ln(m°M_w)`, −9.96 kJ/mol at 25 °C), the
+  pressure the heat-capacity polynomials do not carry, and the case where a
+  reference energy stops being a convention. *Thermochemistry* gains the
+  apparent energies, checked against the function the package builds, Euler's
+  theorem and the Gibbs-Duhem relation, and the structure of the HKF model;
+  *Proving that an answer is the answer* gains stable, metastable, partial and
+  local equilibrium, and the comparison between mass-action and minimization
+  formulations. Anderson and Crerar (1993) is cited by section, and Tanger and
+  Helgeson (1988) is added to the bibliography, its DOI resolved on Crossref.
+
+### The documentation build
+
+Measured with the packages `docs/make.jl` loads, in one process and without
+threads, the executed blocks of the whole site take 45 minutes on the author's
+machine. The calibration page is the heaviest at 14; CEM IV, which paid a full
+cascade for each refusal the ideal stage now avoids, went from 468 s to 335 s
+under the same conditions. The continuous-integration runners are slower, but
+integrate the coupled trajectories on four threads.
+
+A pull request no longer waits for the whole site. The draft pre-flight of
+`docs/make.jl` resolves every cross reference of the whole tree in minutes, and
+five partial builds, run side by side, execute every page between them; the
+groups are in `docs/shards.jl`, balanced on measured cost, and a page no group
+names falls into the last. The full build, the only one that deploys, runs on
+`main` and on demand. `scripts/docs_timing.jl` produces the per-block cost map
+the groups were balanced on, loading the packages `docs/make.jl` loads and in
+the same order, since which extensions are active decides the route a solve
+takes.
+
 ## v0.22.0 — a sorbent that appears and disappears
 
 The site budget can now follow the phase that carries it. Until this release a
