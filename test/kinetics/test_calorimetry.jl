@@ -1,5 +1,21 @@
 using ForwardDiff
+using JSON
 using OrderedCollections
+
+# Standard enthalpies of formation at 25 °C, read from the shipped CEMDATA18
+# rather than recalled: these tests check the algebra of the heat terms, and a
+# value typed from a table drifts from the database it came from.
+const _CAL_H298 = let d = JSON.parsefile(datapath("cemdata18-thermofun.json"))
+    Dict(
+        s["symbol"] => float(only(s["sm_enthalpy"]["values"]))
+            for s in d["substances"] if haskey(s, "sm_enthalpy")
+    )
+end
+const H_WATER = _CAL_H298["H2O@"]
+const H_CA2 = _CAL_H298["Ca+2"]
+const H_CALCITE = _CAL_H298["Cal"]
+const H_LIME = _CAL_H298["Lim"]
+const H_PORTLANDITE = _CAL_H298["Portlandite"]
 
 # ── IsothermalCalorimeter ─────────────────────────────────────────────────────
 
@@ -83,13 +99,13 @@ end
 
     # Species with known ΔₐH⁰
     H2O = Species("H2O"; name = "Water", aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
-    H2O.properties[:ΔₐH⁰] = NumericFunc((T) -> -285830.0, (:T,), u"J/mol")
+    H2O.properties[:ΔₐH⁰] = NumericFunc((T) -> H_WATER, (:T,), u"J/mol")
 
     Ca2p = Species("Ca+2"; name = "Calcium ion", aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
-    Ca2p.properties[:ΔₐH⁰] = NumericFunc((T) -> -542830.0, (:T,), u"J/mol")
+    Ca2p.properties[:ΔₐH⁰] = NumericFunc((T) -> H_CA2, (:T,), u"J/mol")
 
     Calcite = Species("Calcite"; name = "Calcite", aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
-    Calcite.properties[:ΔₐH⁰] = NumericFunc((T) -> -1206900.0, (:T,), u"J/mol")
+    Calcite.properties[:ΔₐH⁰] = NumericFunc((T) -> H_CALCITE, (:T,), u"J/mol")
 
     # Explicit reactants/products so complete_thermo_functions! gives correct ΔᵣH⁰
     reaction = Reaction(
@@ -100,9 +116,9 @@ end
     dummy_fn = KineticFunc((T, P, t, n, lna, n0) -> 0.0, NamedTuple(), u"mol/s")
     kr = KineticReaction(reaction, dummy_fn, 1, [-1.0, 1.0])
 
-    # Thermodynamic ΔᵣH⁰ = ΔₐH⁰(Ca²⁺) − ΔₐH⁰(Calcite) = +664 070 J/mol (endothermic)
+    # Thermodynamic ΔᵣH⁰ = ΔₐH⁰(Ca²⁺) − ΔₐH⁰(Calcite) > 0 (endothermic)
     # heat_rate uses −ΔᵣH⁰: negative for endothermic (heat absorbed from calorimeter)
-    ΔHr_thermo = -542830.0 - (-1206900.0)   # = +664 070 J/mol
+    ΔHr_thermo = H_CA2 - H_CALCITE
     rates = [1.0e-5]
 
     qdot = heat_rate([kr], rates, 298.15)
@@ -127,11 +143,11 @@ end
     cal = IsothermalCalorimeter(298.15)
 
     CaO = Species("CaO"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
-    CaO.properties[:ΔₐH⁰] = NumericFunc((T) -> -635090.0, (:T,), u"J/mol")
+    CaO.properties[:ΔₐH⁰] = NumericFunc((T) -> H_LIME, (:T,), u"J/mol")
     H2Osp = Species("H2O"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
-    H2Osp.properties[:ΔₐH⁰] = NumericFunc((T) -> -285830.0, (:T,), u"J/mol")
+    H2Osp.properties[:ΔₐH⁰] = NumericFunc((T) -> H_WATER, (:T,), u"J/mol")
     Ca_OH_2 = Species("Ca(OH)2"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
-    Ca_OH_2.properties[:ΔₐH⁰] = NumericFunc((T) -> -986090.0, (:T,), u"J/mol")
+    Ca_OH_2.properties[:ΔₐH⁰] = NumericFunc((T) -> H_PORTLANDITE, (:T,), u"J/mol")
 
     dummy_fn = KineticFunc((T, P, t, n, lna, n0) -> 0.0, NamedTuple(), u"mol/s")
     rxn = Reaction(
@@ -146,9 +162,9 @@ end
     p = (kin_rxns = [kr], ϵ = 1.0e-30, rates_buf = [0.001])
 
     extend_ode!(du, u, p, 1, cal)
-    # ΔᵣH⁰ = ΔₐH⁰(Ca(OH)₂) − ΔₐH⁰(CaO) − ΔₐH⁰(H₂O) = −65 170 J/mol (exothermic)
+    # ΔᵣH⁰ = ΔₐH⁰(Ca(OH)₂) − ΔₐH⁰(CaO) − ΔₐH⁰(H₂O) < 0 (exothermic)
     # heat_rate uses −ΔᵣH⁰ > 0: positive qdot for exothermic (heat generated)
-    ΔHr_thermo = -986090.0 - (-635090.0) - (-285830.0)   # = −65 170 J/mol
+    ΔHr_thermo = H_PORTLANDITE - H_LIME - H_WATER
     @test isapprox(du[2], -0.001 * ΔHr_thermo; rtol = 1.0e-6)
     @test isfinite(du[2])
 
@@ -163,11 +179,11 @@ end
     )
 
     CaO = Species("CaO"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
-    CaO.properties[:ΔₐH⁰] = NumericFunc((T) -> -635090.0, (:T,), u"J/mol")
+    CaO.properties[:ΔₐH⁰] = NumericFunc((T) -> H_LIME, (:T,), u"J/mol")
     H2Osp = Species("H2O"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
-    H2Osp.properties[:ΔₐH⁰] = NumericFunc((T) -> -285830.0, (:T,), u"J/mol")
+    H2Osp.properties[:ΔₐH⁰] = NumericFunc((T) -> H_WATER, (:T,), u"J/mol")
     Ca_OH_2 = Species("Ca(OH)2"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
-    Ca_OH_2.properties[:ΔₐH⁰] = NumericFunc((T) -> -986090.0, (:T,), u"J/mol")
+    Ca_OH_2.properties[:ΔₐH⁰] = NumericFunc((T) -> H_PORTLANDITE, (:T,), u"J/mol")
 
     dummy_fn = KineticFunc((T, P, t, n, lna, n0) -> 0.0, NamedTuple(), u"mol/s")
     rxn = Reaction(
@@ -177,11 +193,11 @@ end
     )
     kr = KineticReaction(rxn, dummy_fn, 1, [-1.0, -1.0, 1.0])
 
-    # ΔᵣH⁰ = ΔₐH⁰(Ca(OH)₂) − ΔₐH⁰(CaO) − ΔₐH⁰(H₂O) = −65 170 J/mol (exothermic)
+    # ΔᵣH⁰ = ΔₐH⁰(Ca(OH)₂) − ΔₐH⁰(CaO) − ΔₐH⁰(H₂O) < 0 (exothermic)
     # heat_rate = r × (−ΔᵣH⁰) > 0: positive for exothermic → T rises
-    ΔHr_thermo = -986090.0 - (-635090.0) - (-285830.0)   # = −65 170 J/mol
+    ΔHr_thermo = H_PORTLANDITE - H_LIME - H_WATER
     r = 0.001
-    qdot_expected = r * (-ΔHr_thermo)   # = +65.17 W (heat generated)
+    qdot_expected = r * (-ΔHr_thermo)   # > 0, heat generated
 
     # At T = T_env: no heat loss (L * ΔT = 0); dT/dt = q̇ / Cp_total
     T_curr = 293.15
@@ -231,14 +247,14 @@ end
 @testset "_total_enthalpy" begin
 
     sp1 = Species("H2O"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
-    sp1.properties[:ΔₐH⁰] = NumericFunc((T) -> -285830.0, (:T,), u"J/mol")
+    sp1.properties[:ΔₐH⁰] = NumericFunc((T) -> H_WATER, (:T,), u"J/mol")
     sp2 = Species("CaO"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
 
     h_fns = [sp1[:ΔₐH⁰], nothing]
     n_full = [0.5, 1.0]
 
     H = ChemistryLab._total_enthalpy(n_full, h_fns, 298.15)
-    @test isapprox(H, 0.5 * (-285830.0); rtol = 1.0e-10)
+    @test isapprox(H, 0.5 * H_WATER; rtol = 1.0e-10)
     @test isapprox(H - H, 0.0; atol = 1.0e-12)
 
     H_none = ChemistryLab._total_enthalpy(n_full, [nothing, nothing], 298.15)
@@ -246,7 +262,7 @@ end
 
     dHdn = ForwardDiff.derivative(n -> ChemistryLab._total_enthalpy([n, 1.0], h_fns, 298.15), 0.5)
     @test isfinite(dHdn)
-    @test isapprox(dHdn, -285830.0; rtol = 1.0e-10)
+    @test isapprox(dHdn, H_WATER; rtol = 1.0e-10)
 
     dHdT = ForwardDiff.derivative(T -> ChemistryLab._total_enthalpy(n_full, h_fns, T), 298.15)
     @test isfinite(dHdT)
@@ -255,7 +271,7 @@ end
 
 @testset "the per-species functions behave as the vector they wrap" begin
 
-    f = NumericFunc((T) -> -285830.0, (:T,), u"J/mol")
+    f = NumericFunc((T) -> H_WATER, (:T,), u"J/mol")
     v = [f, nothing]
     fns = ChemistryLab._SpeciesFunctions(v)
 

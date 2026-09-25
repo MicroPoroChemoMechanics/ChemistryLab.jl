@@ -1,3 +1,5 @@
+using JSON
+
 @testsection "Thermodynamics" begin
     @testsection "THERMO_MODELS registry" begin
         # Known models must be present
@@ -106,9 +108,16 @@
     end
 
     @testsection "build_thermo_functions" begin
-        # Build thermodynamic functions from cp_ft_equation with minimal parameters
+        # Build thermodynamic functions from cp_ft_equation with minimal
+        # parameters: a constant heat capacity and the reference properties of
+        # liquid water, read from the shipped SLOP98 rather than recalled.
+        water = only(
+            s for s in JSON.parsefile(datapath("slop98-inorganic-thermofun.json"))["substances"]
+                if s["symbol"] == "H2O@"
+        )
+        w(key) = float(only(water[key]["values"]))
         params = [
-            :a₀ => 75.0u"J/(mol*K)",
+            :a₀ => w("sm_heat_capacity_p") * u"J/(mol*K)",
             :a₁ => 0.0u"J/(mol*K^2)",
             :a₂ => 0.0u"J*K/mol",
             :a₃ => 0.0u"J/(mol*K^0.5)",
@@ -120,9 +129,9 @@
             :a₉ => 0.0u"J/(mol*K^1.5)",
             :a₁₀ => 0.0u"J/(mol*K)",
             :T => 298.15u"K",
-            :S⁰ => 70.0u"J/(mol*K)",
-            :ΔfH⁰ => -285.8u"kJ/mol",
-            :ΔfG⁰ => -237.1u"kJ/mol",
+            :S⁰ => w("sm_entropy_abs") * u"J/(mol*K)",
+            :ΔfH⁰ => w("sm_enthalpy") * u"J/mol",
+            :ΔfG⁰ => w("sm_gibbs_energy") * u"J/mol",
         ]
         thermo = build_thermo_functions(:cp_ft_equation, params)
 
@@ -133,9 +142,9 @@
 
         @test thermo[:Cp⁰] isa SymbolicFunc
 
-        # Cp at Tref should be ≈ 75 J/(mol·K) (only constant term a₀)
+        # Cp at Tref is the constant term a₀ alone
         cp_val = thermo[:Cp⁰](; T = 298.15)
-        @test isapprox(cp_val, 75.0; rtol = 1.0e-6)
+        @test isapprox(cp_val, w("sm_heat_capacity_p"); rtol = 1.0e-6)
     end
 
     @testsection "ForwardDiff — SymbolicFunc AD" begin

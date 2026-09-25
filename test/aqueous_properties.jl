@@ -421,7 +421,7 @@ end
 
     for (m, a_w_expected) in ((0.1, 0.996657), (0.5, 0.983603), (1.0, 0.966898))
         st = ChemicalState(cs)
-        set_quantity!(st, "H2O@", (1.0 / 0.01801528)u"mol")   # 1 kg of water
+        set_quantity!(st, "H2O@", 1.0u"kg" / cs.species[only(cs.idx_solvent)][:M])   # 1 kg of water
         set_quantity!(st, "Na+", m * u"mol")
         set_quantity!(st, "Cl-", m * u"mol")
         a = activities(st, model)

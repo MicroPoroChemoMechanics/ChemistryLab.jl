@@ -19,7 +19,8 @@ function _pz_system(species = split("H2O@ Na+ Cl-"), primaries = ["H2O@", "Na+",
     return ChemicalSystem([d[s] for s in species], primaries)
 end
 
-const _PZ_M_W = 0.0180153
+# kg/mol, from the library's atomic masses, as the solvent of these systems has it.
+const _PZ_M_W = ustrip(us"kg/mol", calculate_molar_mass(Dict(:H => 2, :O => 1)))
 
 _pz_p(n) = (ΔₐG⁰overRT = zeros(n), T = 298.15, P = 1.0e5, ϵ = 1.0e-30)
 

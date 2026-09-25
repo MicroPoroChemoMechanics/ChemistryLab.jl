@@ -23,10 +23,14 @@
             @test haskey(sp, name)
         end
 
-        # Three carbons, not four: malonate is C₃H₂O₄²⁻ at 102.05 g/mol, maleate
-        # is C₄H₂O₄²⁻ at 114.06. The formula settles it on its own.
-        @test ustrip(us"g/mol", sp["Mal-2"].M) ≈ 102.045 atol = 0.01
-        @test ustrip(us"g/mol", sp["MalH2@"].M) ≈ 104.061 atol = 0.01
+        # Three carbons, not four: each species weighs what the malonate formula
+        # weighs, with the atomic masses of the library, and maleate's extra
+        # carbon would put it twelve grams away. The formula settles it on its own.
+        M(atoms) = ustrip(us"g/mol", calculate_molar_mass(atoms))
+        M_mal = ustrip(us"g/mol", sp["Mal-2"].M)
+        @test M_mal ≈ M(Dict(:C => 3, :H => 2, :O => 4)) atol = 0.01
+        @test ustrip(us"g/mol", sp["MalH2@"].M) ≈ M(Dict(:C => 3, :H => 4, :O => 4)) atol = 0.01
+        @test abs(M_mal - M(Dict(:C => 4, :H => 2, :O => 4))) > 10
         @test occursin("H2O4", string(formula(sp["Mal-2"])))
 
         T = 298.15
@@ -45,7 +49,9 @@
         @test pKa2 ≈ 5.696 atol = 0.002
 
         # And agreeing with the tabulated values for malonic acid to 0.02,
-        # while being nowhere near maleic acid's.
+        # while being nowhere near maleic acid's. These four pKa have no source
+        # recorded in this package; they are approximate textbook values, used
+        # only to tell the two acids apart, which the 0.5 margin does.
         @test abs(pKa1 - 2.83) < 0.03
         @test abs(pKa2 - 5.69) < 0.03
         @test abs(pKa1 - 1.92) > 0.5      # would hold if these were maleate

@@ -12,7 +12,9 @@ function _nacl_system()
     return cs, h2o, na, cl
 end
 
-const M_W = 0.018015   # kg/mol — molar mass of water
+# kg/mol, from the library's atomic masses: the same computation that gives the
+# solvent of these systems its molar mass, so the two cannot disagree.
+const M_W = ustrip(us"kg/mol", calculate_molar_mass(Dict(:H => 2, :O => 1)))
 
 function _moles_from_molality(m_NaCl, n_w)
     return [n_w, m_NaCl * n_w * M_W, m_NaCl * n_w * M_W]
