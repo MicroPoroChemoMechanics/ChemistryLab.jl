@@ -34,9 +34,12 @@ nothing # hide
 ## 1. The datasheet, and the Bogue conversion
 
 The input is what a cement works publishes: an oxide analysis, in grams per
-hundred grams. Nothing else about the cement is assumed.
+hundred grams. Nothing else about the cement is assumed. The analysis below is
+a representative CEM I; where it was first taken from is not recorded, so it
+stands for a class of cement rather than for a product.
 
 ```@example ss
+# A representative CEM I analysis, g per 100 g; its source is not recorded.
 oxides = OrderedDict(
     "CaO" => 65.03, "SiO2" => 21.4, "Al2O3" => 3.84, "Fe2O3" => 4.49,
     "MgO" => 1.0, "K2O" => 0.46, "Na2O" => 0.13, "SO3" => 2.3, "CO2" => 0.0,

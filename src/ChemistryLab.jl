@@ -176,6 +176,7 @@ module ChemistryLab
         HKFGState,
         SpeciesElectroPropsHKF,
         water_thermo_props,
+        water_surface_tension,
         water_electro_props_jn,
         hkf_g_function,
         species_electro_props_hkf

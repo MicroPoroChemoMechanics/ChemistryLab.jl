@@ -246,9 +246,11 @@ The capillary pressure becomes a water activity through Kelvin,
 ```@example sd
 fit_co = literature_row("BaroghelBouny1999", "retention_fit", "CO")
 co    = VanGenuchten(; a = fit_co.a, m = 1 / fit_co.b)   # their mix CO
-V_m   = 1.807e-5      # m³/mol, liquid water at 25 °C
 T_K   = 298.15
-γ_w   = 0.0728        # N/m
+# Liquid water at T_K: its molar volume from the HGK equation of state, its
+# surface tension from the IAPWS equation.
+V_m   = ustrip(us"kg/mol", Species("H2O").M) / water_thermo_props(T_K, 1.0e5).D   # m³/mol
+γ_w   = water_surface_tension(T_K)                                            # N/m
 
 a_w(S) = water_activity(co, S; V_m = V_m, T = T_K)
 
@@ -271,7 +273,7 @@ end
 ```
 
 The last column sets the scale: 80 % relative humidity corresponds to a meniscus of
-radius 4.8 nm. That is the **gel-pore scale**, which is why the water Powers
+radius 4.7 nm. That is the **gel-pore scale**, which is why the water Powers
 assigns to gel pores and the water a sealed paste cannot use are the same water.
 
 ```@example sd
@@ -530,7 +532,7 @@ explicitly and says so.
 | thermodynamic data | Cemdata18 | [Lothenbach2019](@cite) | no |
 | ``b``, ``s`` | 0.3095 g/g, 0.0639 cm³/g | computed here, certified | no |
 | retention curve | mix CO | [BaroghelBouny1999](@cite) Table 5 | no |
-| ``\gamma``, ``V_m``, ``T`` | 0.0728 N/m, 1.807e-5 m³/mol, 298.15 K | water at 25 °C | no |
+| ``\gamma``, ``V_m``, ``T`` | 0.0720 N/m, 1.807e-5 m³/mol, 298.15 K | water at 25 °C: [IAPWS2014](@cite), and the HGK equation of state | no |
 | ``w_n`` = 0.23 | Powers' own split of his 0.42 | [Powers1948](@cite) | **yes** |
 
 **output**: the arrest humidity, 77.5 %.

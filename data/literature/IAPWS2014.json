@@ -1,0 +1,48 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "IAPWS2014",
+    "doi": null,
+    "citation": "International Association for the Properties of Water and Steam (2014). Revised Release on Surface Tension of Ordinary Water Substance, IAPWS R1-76(2014). Moscow, Russia, June 2014.",
+    "location": "Table 1, p. 4"
+  },
+  "transcription": {
+    "from": "the release (PDF from iapws.org, 6 pages), Table 1, p. 4, read on the page image",
+    "checked_against_source": true,
+    "note": "Transcribed for the test of water_surface_tension, whose equation and constants (p. 3) are in src/thermodynamics/water_properties.jl because they define it. Only the rows from the triple point to 100 C are transcribed; the table goes on to 370 C."
+  },
+  "tables": {
+    "surface_tension": {
+      "columns": ["t_C", "sigma", "uncertainty", "sigma_calc"],
+      "units": ["1", "mN/m", "mN/m", "mN/m"],
+      "kind": "published",
+      "location": "Table 1, p. 4: recommended values (column 2), their uncertainty (column 3), and the values of the interpolating equation (column 4)",
+      "rows": [
+        [0.01, 75.64, 0.38, 75.65],
+        [5, 74.94, 0.37, 74.94],
+        [10, 74.23, 0.37, 74.22],
+        [15, 73.49, 0.37, 73.49],
+        [20, 72.74, 0.36, 72.74],
+        [25, 71.98, 0.36, 71.97],
+        [30, 71.19, 0.36, 71.19],
+        [35, 70.41, 0.35, 70.4],
+        [40, 69.59, 0.35, 69.6],
+        [45, 68.78, 0.34, 68.78],
+        [50, 67.93, 0.34, 67.94],
+        [55, 67.09, 0.34, 67.1],
+        [60, 66.24, 0.33, 66.24],
+        [65, 65.36, 0.33, 65.37],
+        [70, 64.47, 0.32, 64.48],
+        [75, 63.57, 0.32, 63.58],
+        [80, 62.68, 0.31, 62.67],
+        [85, 61.76, 0.31, 61.75],
+        [90, 60.82, 0.3, 60.82],
+        [95, 59.88, 0.3, 59.87],
+        [100, 58.92, 0.29, 58.91]
+      ]
+    }
+  },
+  "notes": [
+    "t_C is the Celsius temperature of column 1, ITS-90; the first row is the triple point, 0.01 C."
+  ]
+}

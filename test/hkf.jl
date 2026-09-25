@@ -27,6 +27,22 @@ function _hkf_aloh2_params()
 end
 
 
+@testsection "surface tension of water (IAPWS R1-76(2014))" begin
+    # The equation against the release's own table: its calculated column to the
+    # rounding of the table, and the recommended values within their uncertainty.
+    t = literature_table("IAPWS2014", "surface_tension")
+    for (θ, σ, Δσ, σ_calc) in zip(t.t_C, t.sigma, t.uncertainty, t.sigma_calc)
+        γ = water_surface_tension(273.15 + θ) * u"N/m"
+        @test abs(ustrip(u"mN/m", γ - σ_calc)) <= 0.005 + 1.0e-9
+        @test abs(ustrip(u"mN/m", γ - σ)) <= ustrip(u"mN/m", Δσ)
+    end
+    # It vanishes at the critical point, falls with temperature, differentiates,
+    # and refuses a temperature at which there is no liquid.
+    @test water_surface_tension(647.096) == 0
+    @test ForwardDiff.derivative(water_surface_tension, 298.15) < 0
+    @test_throws DomainError water_surface_tension(700.0)
+end
+
 @testsection "HKF water properties (HGK EOS)" begin
     wtp = water_thermo_props(298.15, 1.0e5)
 

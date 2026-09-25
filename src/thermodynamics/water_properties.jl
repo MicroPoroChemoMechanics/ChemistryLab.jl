@@ -576,6 +576,45 @@ water_thermo_props(T_K::Real, P_Pa::Real) =
     water_thermo_props(promote(T_K, P_Pa)...)
 
 # ============================================================
+#  Surface tension, IAPWS R1-76(2014)
+# ============================================================
+
+"""
+    water_surface_tension(T_K) -> surface tension (N/m)
+
+Surface tension of liquid water against its vapor at the absolute temperature
+`T_K` (K), from the interpolating equation of the International Association for
+the Properties of Water and Steam [IAPWS2014](@cite):
+
+```math
+\\sigma = B \\, \\tau^{\\mu} (1 + b \\, \\tau), \\qquad \\tau = 1 - T / T_c,
+```
+
+with ``T_c = 647.096`` K, ``B = 235.8`` mN/m, ``b = -0.625`` and ``\\mu = 1.256``.
+The equation holds from the triple point to ``T_c``, where the surface tension
+vanishes, and the release extrapolates it into the supercooled liquid down to
+−25 °C. Its Table 1 lists the recommended values beside the equation's, and from
+the triple point to 200 °C the two differ by 0.01 mN/m at most.
+Above ``T_c`` there is no liquid, and asking is an error.
+
+AD-compatible in `T_K`.
+
+# Examples
+
+```jldoctest
+julia> round(1000 * water_surface_tension(298.15); digits = 2)   # mN/m at 25 °C
+71.97
+```
+"""
+function water_surface_tension(T_K::Real)
+    # IAPWS R1-76(2014), p. 3: these constants define the equation.
+    Tc, B, b, μ = 647.096, 235.8e-3, -0.625, 1.256
+    T_K <= Tc || throw(DomainError(T_K, "water has no liquid surface above T_c = $Tc K"))
+    τ = 1 - T_K / Tc
+    return B * τ^μ * (1 + b * τ)
+end
+
+# ============================================================
 #  Johnson-Norton (1991) dielectric constant and Born functions
 # ============================================================
 

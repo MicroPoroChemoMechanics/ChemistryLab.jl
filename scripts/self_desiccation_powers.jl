@@ -39,7 +39,6 @@ const COMPO = [
 ]
 const CMASS = sum(last.(COMPO))      # the rest is free lime and alkalis
 const WC = literature_row("BaroghelBouny1999", "mixes", "CO").W_C   # their mix CO
-const M_H2O = 0.0180153              # kg/mol
 const RHO_W = 1.0e3                  # kg/m³, for the water volume
 
 const PHASES = split(
@@ -52,6 +51,7 @@ species = speciation(substances, PHASES; aggregate_state = [AS_AQUEOUS])
 cs = ChemicalSystem(species, CEMDATA_PRIMARIES)
 
 const IW = only(cs.idx_solvent)
+const M_H2O = ustrip(us"kg/mol", cs.species[IW][:M])   # the database's own water
 const IC = [findfirst(s -> symbol(s) == sym, cs.species) for (sym, _) in COMPO]
 
 """
@@ -146,8 +146,11 @@ const S_SHRINK = REF.s
 
 const CO_FIT = literature_row("BaroghelBouny1999", "retention_fit", "CO")
 const CO_CURVE = VanGenuchten(; a = CO_FIT.a, m = 1 / CO_FIT.b)
-const V_M_WATER = 1.807e-5      # m³/mol
 const T_K = 298.15
+# Liquid water at T_K: molar volume from the HGK equation of state, surface
+# tension from the IAPWS equation (water_surface_tension).
+const V_M_WATER = M_H2O / water_thermo_props(T_K, 1.0e5).D   # m³/mol
+const GAMMA_WATER = water_surface_tension(T_K)                # N/m
 
 water_activity_at(S) = water_activity(CO_CURVE, S; V_m = V_M_WATER, T = T_K)
 
@@ -176,7 +179,7 @@ for rh in (0.75, 0.8, 0.85, 0.9, 0.95)
     @printf(
         "  %5.2f  %6.4f  %24.2f  %18.2f\n", rh, S,
         capillary_pressure(CO_CURVE, S) / 1.0e6,
-        kelvin_radius(rh; γ = 0.0728u"N/m", V_m = 1.807e-5u"m^3/mol", T = 298.15u"K") * 1.0e9
+        kelvin_radius(rh; γ = GAMMA_WATER, V_m = V_M_WATER, T = T_K) * 1.0e9
     )
 end
 

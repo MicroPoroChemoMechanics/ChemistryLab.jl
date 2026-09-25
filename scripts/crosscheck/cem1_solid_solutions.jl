@@ -29,6 +29,8 @@ mkpath(OUT)
 ChemistryLab.STRICT_CONVERGENCE[] = true
 
 # ── The datasheet ────────────────────────────────────────────────────────────
+# A representative CEM I analysis, g per 100 g, the one of the documentation page
+# `cem1_solid_solutions`; where it was first taken from is not recorded.
 const OXIDES = OrderedDict(
     "CaO" => 65.03, "SiO2" => 21.4, "Al2O3" => 3.84, "Fe2O3" => 4.49,
     "MgO" => 1.0, "K2O" => 0.46, "Na2O" => 0.13, "SO3" => 2.3, "CO2" => 0.0,
