@@ -268,8 +268,8 @@ end
     γ_def = (z, å) -> 10.0^(
         -default.A * z^2 * sqrt(I) / (1 + default.B * å * sqrt(I)) + default.Ḃ * I
     )
-    ratio = γ_def(2, REJ_HKF["Ca+2"]) / γ.z2
-    @test 1.8 < ratio < 1.95
+    ratio = γ_def(2, ChemistryLab._hkf_ion_size(REJ_HKF["Ca+2"], 2)) / γ.z2
+    @test 2.2 < ratio < 2.35
 end
 
 @testsection "the initial approximation is computed, not asked for" begin

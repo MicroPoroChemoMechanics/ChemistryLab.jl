@@ -288,13 +288,15 @@ end
 """
     REJ_HKF::Dict{String,Float64}
 
-Effective electrostatic radii åᵢ [Å] for aqueous ions from
+Effective electrostatic radii r_e,j [Å] of aqueous ions from
 Helgeson, Kirkham & Flowers (1981), *Am. J. Sci.* **281**, Table 3, read from
 `data/literature/Helgeson1981.json`.
 
 Keys are PHREEQC-format formula strings (e.g. `"Na+"`, `"Ca+2"`, `"SO4-2"`).
-Used by [`HKFActivityModel`](@ref) with priority 2 in the radius lookup chain:
-`sp[:å]` > `REJ_HKF` > [`REJ_CHARGE_DEFAULT`](@ref) > `model.å_default`.
+A radius is not an ion size: [`HKFActivityModel`](@ref) turns it into one with
+Eq. (125) of Helgeson et al., for the electrolyte the ion forms with the NaCl
+background (see its docstring), at priority 3 of its lookup:
+`model.å` > `sp[:å]` > `REJ_HKF` > [`REJ_CHARGE_DEFAULT`](@ref) > `model.å_default`.
 
 See also: [`REJ_CHARGE_DEFAULT`](@ref), [`HKFActivityModel`](@ref).
 """
@@ -305,13 +307,13 @@ end
 """
     REJ_CHARGE_DEFAULT::Dict{Int,Float64}
 
-Fallback effective electrostatic radii åᵢ [Å] indexed by formal charge, for
+Fallback effective electrostatic radii r_e,j [Å] indexed by formal charge, for
 species absent from Table 3 of Helgeson et al. (1981): Table H.1-1 of the
 TOUGHREACT V2 user's guide ([Xu2012](@cite)), read from
 `data/literature/Xu2012.json`.
 
-Used by [`HKFActivityModel`](@ref) with priority 3 in the radius lookup chain:
-`sp[:å]` > [`REJ_HKF`](@ref) > `REJ_CHARGE_DEFAULT` > `model.å_default`.
+Turned into an ion size by [`HKFActivityModel`](@ref) exactly as the radii of
+[`REJ_HKF`](@ref) are, when that table has no entry for the ion.
 
 See also: [`REJ_HKF`](@ref), [`HKFActivityModel`](@ref).
 """
@@ -412,9 +414,32 @@ function _setschenow(sp::AbstractSpecies, model)
     return float(model.Kₙ)
 end
 
-# Internal: ionic radius priority lookup. A model-level `å` short-circuits the
-# whole chain — that is the point of it: a common radius must not be silently
-# overridden by a per-species table entry.
+"""
+    _hkf_ion_size(r_e, z) -> Real
+
+The ion-size parameter of an ion of effective electrostatic radius `r_e` [Å] and
+charge `z` in a NaCl-dominated solution: Eq. (125) of [Helgeson1981](@cite),
+`å_k = 2 Σⱼ νⱼ,ₖ r_e,j / νₖ`, for the electrolyte the ion forms with the counter-ion
+of the background, Cl⁻ for a cation and Na⁺ for an anion,
+
+```
+å = 2 (r_e + r_e,c |z|) / (1 + |z|),
+```
+
+which is how TOUGHREACT forms it ([Xu2012](@cite), Eqs. H.4–H.5). A radius is
+not an ion size: Na⁺ has `r_e = 1.91 Å`, and NaCl `å = 3.72 Å`, the value
+Helgeson et al. tabulate (Table 2).
+"""
+function _hkf_ion_size(r_e, z)
+    zabs = abs(z)
+    r_c = z > 0 ? REJ_HKF["Cl-"] : REJ_HKF["Na+"]
+    return 2 * (r_e + r_c * zabs) / (1 + zabs)
+end
+
+# Internal: ion-size priority lookup. A model-level `å` short-circuits the whole
+# chain — that is the point of it: a common ion size must not be silently
+# overridden by a per-species table entry. `sp[:å]` and `å_default` are ion
+# sizes already; the tables hold radii, which `_hkf_ion_size` turns into one.
 function _hkf_lookup_å(sp::AbstractSpecies, model)
     if hasproperty(model, :å) && model.å !== nothing
         return float(model.å)
@@ -424,9 +449,9 @@ function _hkf_lookup_å(sp::AbstractSpecies, model)
         return v isa Number ? float(v) : float(safe_ustrip(1.0u"Å", v))
     end
     pf = phreeqc(formula(sp))
-    haskey(REJ_HKF, pf)           && return REJ_HKF[pf]
     z = Int(charge(sp))
-    haskey(REJ_CHARGE_DEFAULT, z) && return REJ_CHARGE_DEFAULT[z]
+    haskey(REJ_HKF, pf) && return _hkf_ion_size(REJ_HKF[pf], z)
+    haskey(REJ_CHARGE_DEFAULT, z) && return _hkf_ion_size(REJ_CHARGE_DEFAULT[z], z)
     return float(model.å_default)
 end
 
@@ -507,11 +532,12 @@ Helgeson et al. 1981 Eqs. 132–137).
 | `Ḃ` | $(_BDOT_25C) | kg/mol | the same table: the B-dot of the LLNL model at 25 °C. What the term *is* is set out in [AndersonCrerar1993](@cite) §17.7.1 |
 | `Kₙ` | $(_UNCHARGED_B) | kg/mol | the coefficient `b` of `log γ = b I` that PHREEQC gives an uncharged species with no parameters of its own ([ParkhurstAppelo2013](@cite), p. 201); overridden per species by `sp[:Kₙ]`, which is how `CO₂(aq)` gets its own |
 | `å_default` | $(_NACL_ION_SIZE) | Å | the distance of closest approach of NaCl, [Helgeson1981](@cite) Table 2; a last resort, reached only for a charge no table covers (`|z| ≥ 5`) |
-| `å` | `nothing` | Å | one common radius for every ion, overriding the tables. `å = 0` collapses the denominator and gives the limiting law plus `Ḃ I` |
+| `å` | `nothing` | Å | one common ion size for every ion, overriding the tables. `å = 0` collapses the denominator and gives the limiting law plus `Ḃ I` |
 | `temperature_dependent` | `false` | — | recompute `A` and `B` from `p.T`, `p.P` at every call (needs `T` and `P` in `p`) |
 
 Per-ion radii come from [`REJ_HKF`](@ref) ([Helgeson1981](@cite) Table 3) and,
-failing that, from [`REJ_CHARGE_DEFAULT`](@ref) ([Xu2012](@cite), Table H.1-1).
+failing that, from [`REJ_CHARGE_DEFAULT`](@ref) ([Xu2012](@cite), Table H.1-1);
+each is turned into an ion size as set out under *Ion-size lookup* below.
 
 !!! note "Every default has a source, and a source is not a fit"
     Each default is read from `data/literature/`, with the table and the page it
@@ -523,29 +549,36 @@ failing that, from [`REJ_CHARGE_DEFAULT`](@ref) ([Xu2012](@cite), Table H.1-1).
 
 # What is approximated in the water activity
 
-The `γᵢ` use a per-ion radius; the osmotic coefficient uses **one**
-charge-weighted mean radius `å_eff = Σ mᵢzᵢ²åᵢ / Σ mᵢzᵢ²`. So `a_w` is not
+The `γᵢ` use a per-ion size; the osmotic coefficient uses **one**
+charge-weighted mean size `å_eff = Σ mᵢzᵢ²åᵢ / Σ mᵢzᵢ²`. So `a_w` is not
 exactly the Gibbs-Duhem integral of the `γᵢ` this model returns when the ions
-differ in size, and the inconsistency is measurable: the Gibbs-Duhem residual on
-0.3 mol/kg NaCl is a few parts in a thousand (`test/activities.jl` asserts
-`< 5e-3`), where an exactly consistent model would sit at solver tolerance.
-Å-level differences between Na⁺ (1.91) and Cl⁻ (1.81) are enough to produce it.
+differ in size. In NaCl they do not — both ions have the size of the salt,
+3.72 Å — but in a solution of CaCl₂, Na₂SO₄ or a cement pore solution they do,
+and the inconsistency is then measurable.
 
 That is acceptable for a pore solution at 0.1–0.5 mol/kg and it is the first
 thing that breaks as the solution concentrates. It is also *structural*: no
-choice of `Ḃ` repairs it, because the defect is in using a mean radius at all.
+choice of `Ḃ` repairs it, because the defect is in using a mean size at all.
 
-# Ionic radius lookup
+# Ion-size lookup
 
-The effective radius `åᵢ` is resolved in order:
+The ion-size parameter `åᵢ` is resolved in order:
 
-1. `model.å` — a common radius for every ion, when given. Short-circuits the
+1. `model.å` — a common ion size for every ion, when given. Short-circuits the
    rest of the chain, so a per-species table entry cannot silently override it.
-2. `sp[:å]` — explicit value in the species properties dict.
-3. [`REJ_HKF`](@ref) — Helgeson et al. (1981) Table 3, keyed by PHREEQC formula.
-4. [`REJ_CHARGE_DEFAULT`](@ref) — fallback by formal charge.
-5. `model.å_default` — reached only for a charge no table covers, i.e. `|z| ≥ 5`.
-   It is **not** a way to impose a common radius; pass `å` for that.
+2. `sp[:å]` — explicit ion size in the species properties dict.
+3. The effective electrostatic radius `r_e,i` of [`REJ_HKF`](@ref) (Helgeson et
+   al. 1981, Table 3, keyed by PHREEQC formula), turned into an ion size by their
+   Eq. (125) for the electrolyte the ion forms with the NaCl background —
+   `åᵢ = 2 (r_e,i + r_e,c |zᵢ|) / (1 + |zᵢ|)`, `r_e,c` that of Cl⁻ for a cation
+   and of Na⁺ for an anion, as TOUGHREACT does ([Xu2012](@cite), Eqs. H.4–H.5).
+   It reproduces their Table 2: 3.72 Å for NaCl, 4.32 for CaCl₂, 4.65 for
+   Na₂SO₄.
+4. [`REJ_CHARGE_DEFAULT`](@ref) — a radius by formal charge, turned into an ion
+   size the same way.
+5. `model.å_default` — an ion size, reached only for a charge no table covers,
+   i.e. `|z| ≥ 5`. It is **not** a way to impose a common ion size; pass `å` for
+   that.
 
 # Valid range
 
@@ -589,7 +622,7 @@ end
 Construct an [`HKFActivityModel`](@ref) with the given parameters. The provenance
 of every default is set out on [`HKFActivityModel`](@ref).
 
-`å` imposes **one common** effective radius on every charged aqueous species,
+`å` imposes **one common** ion size on every charged aqueous species,
 overriding the per-species tables. Use it to reproduce a published model that
 was run with a single ion-size parameter — which is what GEM-Selektor, PHREEQC's
 `-gamma` and most cement models do. Note that `å_default` does **not** do this:
@@ -600,11 +633,11 @@ term.
 # Examples
 
 ```julia
-# The package default: per-species radii from REJ_HKF, the B-dot of the LLNL
+# The package default: per-species ion sizes from the radii of REJ_HKF, the B-dot of the LLNL
 # model at 25 °C.
 HKFActivityModel()
 
-# One common radius for every ion: the ion size of NaCl.
+# One common ion size for every ion: that of NaCl.
 HKFActivityModel(å = literature_value("Helgeson1981", "nacl_distance_of_closest_approach"))
 
 # The Debye-Hückel limiting law with the B-dot a GEM-Selektor CEMDATA18 run of a

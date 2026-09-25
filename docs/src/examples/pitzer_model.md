@@ -82,9 +82,9 @@ millimolal to six molal — through the **minimum near 1 mol/kg and the climb ba
 to 0.99 at six molal**, neither of which any Debye-Hückel form can produce, since
 both require a term that grows faster than ``\sqrt{I}`` and then turns over. The osmotic coefficient agrees to the same order, independently.
 
-The B-dot column is not being criticized for failing outside its stated range.
-The point is that the range is real — 5 % out at a tenth molal, 19 % at one,
-44 % at six — and that nothing in its output announces the exit.
+The B-dot column follows the measurement to 1.5 % up to one molal, with the ion
+size Helgeson et al. give NaCl. Its range is nonetheless real — 3 % out at three
+molal, 13 % at six — and nothing in its output announces the exit.
 
 ```@example pz
 using Plots
@@ -171,9 +171,13 @@ for (name, dn) in ("dissolution  " => [0.0, 1.0, 1.0],
 end
 ```
 
-Zero, at machine precision, in every direction and at every molality — against
-a B-dot residual that grows with concentration. No fit was involved in either
-column; the difference is structural.
+Zero, at machine precision, in every direction and at every molality — for both
+models, on NaCl. The B-dot model holds the identity too as long as its ions
+share one ion size, which Na⁺ and Cl⁻ do: both carry that of the salt. It loses
+it in a solution whose ions differ in size, where its osmotic coefficient rests
+on one mean ion size and its activity coefficients on one each; the Pitzer
+construction holds it whatever the composition, because both halves come from
+one excess Gibbs energy.
 
 ## 5. What the set refuses, and why that is correct
 

@@ -102,6 +102,36 @@ end
     @test REJ_CHARGE_DEFAULT[-1] < REJ_CHARGE_DEFAULT[-2]
 end
 
+# ── ion sizes from radii, Eq. (125) of Helgeson et al. (1981) ───────────────
+
+@testsection "an ion size is formed from the radii, as HKF Table 2 does" begin
+    # The ion that pairs with the NaCl background, and its charge, for each
+    # electrolyte of the table: Eq. (125) applied to r_e,j must return the
+    # distance of closest approach Helgeson et al. tabulate, to its rounding.
+    ion = Dict(
+        "HCl" => ("H+", 1), "NaCl" => ("Na+", 1), "RbCl" => ("Rb+", 1),
+        "CsCl" => ("Cs+", 1), "NH4Cl" => ("NH4+", 1), "MgCl2" => ("Mg+2", 2),
+        "SrCl2" => ("Sr+2", 2), "CaCl2" => ("Ca+2", 2), "BaCl2" => ("Ba+2", 2),
+        "FeCl2" => ("Fe+2", 2), "AlCl3" => ("Al+3", 3), "FeCl3" => ("Fe+3", 3),
+        "NaF" => ("F-", -1), "NaBr" => ("Br-", -1), "NaI" => ("I-", -1),
+        "NaHS" => ("HS-", -1), "NaHCO3" => ("HCO3-", -1), "NaNO3" => ("NO3-", -1),
+        "NaHSO4" => ("HSO4-", -1), "Na2SO4" => ("SO4-2", -2), "NaOH" => ("OH-", -1),
+    )
+    t = literature_table("Helgeson1981", "distance_of_closest_approach")
+    @test length(t.electrolyte) == length(ion)
+    for (electrolyte, å) in zip(t.electrolyte, t.a_angstrom)
+        sp, z = ion[electrolyte]
+        @test ChemistryLab._hkf_ion_size(REJ_HKF[sp], z) ≈ å atol = 0.01
+    end
+    # A radius by charge is turned into an ion size the same way.
+    so4 = Species("SO4-2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    po4 = Species("PO4-3"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    @test !haskey(REJ_HKF, "PO4-3")
+    @test ChemistryLab._hkf_lookup_å(po4, HKFActivityModel()) ≈
+        ChemistryLab._hkf_ion_size(REJ_CHARGE_DEFAULT[-3], -3)
+    @test ChemistryLab._hkf_lookup_å(so4, HKFActivityModel()) > REJ_HKF["SO4-2"]
+end
+
 # ── HKFActivityModel constructors ─────────────────────────────────────────────
 
 @testsection "HKFActivityModel constructors" begin
@@ -182,7 +212,11 @@ end
     sqI = sqrt(I)
     ln10 = log(10.0)
 
-    for (i, (åᵢ, key)) in enumerate([(REJ_HKF["Na+"], 2), (REJ_HKF["Cl-"], 3)])
+    # Both ions have the ion size of NaCl, Eq. (125) of Helgeson et al. (1981).
+    size_na = ChemistryLab._hkf_ion_size(REJ_HKF["Na+"], 1)
+    size_cl = ChemistryLab._hkf_ion_size(REJ_HKF["Cl-"], -1)
+    @test size_na ≈ size_cl ≈ literature_value("Helgeson1981", "nacl_distance_of_closest_approach")
+    for (i, (åᵢ, key)) in enumerate([(size_na, 2), (size_cl, 3)])
         log10γ = -A * sqI / (1 + B * åᵢ * sqI) + Ḃ * I   # z=1
         @test isapprox(out[key], ln10 * log10γ + log(m); rtol = 1.0e-6)
     end
@@ -226,12 +260,18 @@ end
     sp_custom[:å] = 5.0
     @test ChemistryLab._hkf_lookup_å(sp_custom, model) ≈ 5.0
 
-    # Priority 2: REJ_HKF — for well-known species
+    # Priority 2: the radius of REJ_HKF for well-known species, turned into the
+    # ion size of the salt the ion forms with the NaCl background — not the
+    # radius itself, which is what this lookup returned until 0.22.
     sp_normal = Species("Na+"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
-    @test ChemistryLab._hkf_lookup_å(sp_normal, model) ≈ 1.91
+    @test ChemistryLab._hkf_lookup_å(sp_normal, model) ≈
+        literature_value("Helgeson1981", "nacl_distance_of_closest_approach")
+    @test ChemistryLab._hkf_lookup_å(sp_normal, model) != REJ_HKF["Na+"]
 
     sp_so4 = Species("SO4-2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
-    @test ChemistryLab._hkf_lookup_å(sp_so4, model) ≈ 3.15
+    t2 = literature_table("Helgeson1981", "distance_of_closest_approach")
+    @test ChemistryLab._hkf_lookup_å(sp_so4, model) ≈
+        t2.a_angstrom[findfirst(==("Na2SO4"), t2.electrolyte)] atol = 0.01
 
     # Priority 4: å_default — species with unlisted charge (charge 0, which is neutral)
     # For neutral species zv[i]=0, _hkf_lookup_å is not called for neutrals in activity_model.
@@ -248,7 +288,7 @@ end
     # If Formula parsing gives a different result, we check REJ_CHARGE_DEFAULT[Int(charge(sp_exotic))]
     z_exotic = Int(charge(sp_exotic))
     expected = haskey(REJ_CHARGE_DEFAULT, z_exotic) ?
-        REJ_CHARGE_DEFAULT[z_exotic] : model.å_default
+        ChemistryLab._hkf_ion_size(REJ_CHARGE_DEFAULT[z_exotic], z_exotic) : model.å_default
     @test ChemistryLab._hkf_lookup_å(sp_exotic, model) ≈ expected
 end
 
@@ -259,14 +299,13 @@ end
     # Use Mg+2 already in REJ_HKF for comparison
     h2o = Species("H2O"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
     ca = Species("Ca+2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
-    # verify Ca+2 IS in REJ_HKF (priority 2)
+    # Ca+2 is in REJ_HKF: its radius, turned into the ion size of CaCl2
     model = HKFActivityModel()
-    @test ChemistryLab._hkf_lookup_å(ca, model) ≈ REJ_HKF["Ca+2"]
+    @test ChemistryLab._hkf_lookup_å(ca, model) ≈ ChemistryLab._hkf_ion_size(REJ_HKF["Ca+2"], 2)
 
-    # Build a system with a +2 species not in REJ_HKF.
-    # We use formula "Sr+2" which IS in REJ_HKF — let's verify Sr+2 lookup
+    # Sr+2 as well, and its radius is the one the file gives
     sr = Species("Sr+2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
-    @test ChemistryLab._hkf_lookup_å(sr, model) ≈ REJ_HKF["Sr+2"]
+    @test ChemistryLab._hkf_lookup_å(sr, model) ≈ ChemistryLab._hkf_ion_size(REJ_HKF["Sr+2"], 2)
     @test REJ_HKF["Sr+2"] === literature_row("Helgeson1981", "effective_electrostatic_radii", "Sr+2").radius_angstrom
 end
 
@@ -309,20 +348,15 @@ end
     n0 = _moles_from_molality(m, n_w)
     p = (ΔₐG⁰overRT = zeros(3), T = 298.15, P = 1.0e5, ϵ = 1.0e-30)
 
-    # Finite-difference perturbation along NaCl dissolution direction
-    δ = 1.0e-6
-    dn = [0.0, δ, -δ]
-    μ0 = μ(n0, p)
-    μ1 = μ(n0 + dn, p)
-    dμ = (μ1 - μ0) / δ
-
-    # Gibbs-Duhem: Σᵢ nᵢ ∂μᵢ/∂ξ ≈ 0
-    # Note: the B-dot model uses a charge-weighted average å for the osmotic coefficient,
-    # which is an approximation when ion radii differ (Na⁺ å=1.91 Å vs Cl⁻ å=1.81 Å).
-    # This introduces a small physical inconsistency (~0.2% for m=0.3 mol/kg NaCl),
-    # so the tolerance is relaxed to 5e-3.
+    # Gibbs-Duhem, Σᵢ nᵢ ∂μᵢ/∂ξ = 0, along an exchange of the two ions, with the
+    # derivative taken by AD so that nothing but the algebra is measured. The
+    # osmotic coefficient uses one charge-weighted mean ion size; in NaCl both
+    # ions carry the ion size of the salt, so that mean is exact and the identity
+    # holds to machine precision (an electrolyte whose ions differ in size breaks
+    # it, see test/pitzer.jl).
+    dμ = ForwardDiff.jacobian(nn -> μ(nn, p), n0) * [0.0, 1.0, -1.0]
     residual = abs(sum(n0 .* dμ)) / max(norm(n0 .* abs.(dμ)), 1.0)
-    @test residual < 5.0e-3
+    @test residual < 1.0e-12
 end
 
 # ── Gas phase: ideal mixture ──────────────────────────────────────────────────

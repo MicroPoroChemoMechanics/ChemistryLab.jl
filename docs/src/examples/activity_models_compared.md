@@ -104,13 +104,13 @@ end
 
 Read the ``\gamma`` columns first. The ideal model is already several percent off
 at a **millimolal**, which is worth knowing before treating ideality as a safe
-default. The two corrections do not agree with each other either — they part
-company around a tenth molal — and by 3 mol/kg Davies has returned
-``\gamma > 1`` while the B-dot model is still below 1: the ``bI`` term has taken
-over, which is the ceiling of the B-dot construction arriving.
+default. The two corrections agree to about 1 % up to a tenth molal and part
+company above it — 8 % apart at 0.5 mol/kg — and by 3 mol/kg Davies has
+returned ``\gamma > 1`` while the B-dot model is still below 1: the ``bI`` term
+has taken over, which is the ceiling of the B-dot construction arriving.
 
 Now the ``a_w`` columns, and here the surprise: **they barely separate at all.**
-The Raoult and osmotic routes differ by a few parts in a thousand even at
+The Raoult and osmotic routes differ by less than one percent even at
 3 mol/kg. It would be easy to conclude that the water-activity route is a
 detail.
 
@@ -159,9 +159,9 @@ change, and it is measured here along three directions, because each exposes a
 different defect.
 
 ```@example am
-M_W = 0.0180153
-n_w = 1.0 / M_W
 cs3 = ChemicalSystem([dict[s] for s in split("H2O@ Na+ Cl-")], ["H2O@", "Na+", "Cl-"])
+M_W = ustrip(us"kg/mol", cs3.species[only(cs3.idx_solvent)][:M])
+n_w = 1.0 / M_W
 
 function gd_residual(mod, m, dn)
     μ = build_potentials(cs3, mod)
@@ -186,20 +186,22 @@ end
 
 Three readings, and they are why this page exists.
 
-**Along a true dissolution**, the B-dot model is four orders of magnitude more
-consistent than Davies. And Davies is **worse than assuming ideality** — not a
+**Along a true dissolution**, the B-dot model is consistent to the precision of
+the finite difference that measures it: its residual, a few ``10^{-7}``, is the
+truncation error of the ``10^{-6}`` step, the level every model shows along the
+ion exchange below. Davies is off by ``10^{-2}`` to ``10^{-1}``. And Davies is **worse than assuming ideality** — not a
 paradox but the direct consequence of its construction: correcting the solutes
 while leaving the solvent at ``a_w = x_w`` makes the two halves of one model
 contradict each other, whereas the ideal model at least contradicts itself less.
 A model can be *more* wrong for being *partly* corrected.
 
-**Along an ion exchange** at constant ``I`` and constant ``\sum m``, Davies and
-the ideal model are indistinguishable — their coefficients depend on ``I``
-alone, which does not move — and the only residual left is the B-dot model's own
-approximation, the single charge-weighted mean radius in its osmotic
-coefficient, showing up at a few parts in a thousand. This is the direction
-`test/activities.jl` uses, which is why its tolerance is `5e-3` and not solver
-tolerance.
+**Along an ion exchange** at constant ``I`` and constant ``\sum m``, the three
+models are indistinguishable — their coefficients depend on ``I`` alone, which
+does not move — and what is left is the truncation error of the finite
+difference. The B-dot model's one approximation, a single charge-weighted mean
+ion size in its osmotic coefficient, costs nothing here: in NaCl both ions
+carry the ion size of the salt. It would show in a solution whose ions differ
+in size.
 
 **Along water removal** — the direction a drying paste takes — the ordering is
 the same as for dissolution, and the gap widens as the solution concentrates.
@@ -211,7 +213,7 @@ disagree, and only the derivatives show it.
 ```@example am
 p3 = plot(; xscale = :log10, yscale = :log10, xlabel = "molality m (mol/kg)",
     ylabel = "Gibbs-Duhem residual", legend = :topleft,
-    title = "…and the derivatives separate by four orders")
+    title = "…and the derivatives separate by orders of magnitude")
 mm = [0.03, 0.1, 0.3, 1.0, 3.0]
 for ((name, mod), col) in zip(models, (:gray, :firebrick, :steelblue))
     μ = build_potentials(cs3, mod)
@@ -222,7 +224,8 @@ plot(p3; size = (720, 430), left_margin = 10Plots.mm, bottom_margin = 8Plots.mm)
 ```
 
 Along a dissolution, on a logarithmic axis: Davies sits above the ideal model at
-every molality, and the B-dot model below both by three to four orders.
+every molality, and the B-dot model below both, at the noise of the finite
+difference.
 
 ## What to take from this
 

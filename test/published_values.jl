@@ -171,16 +171,20 @@ end
     # Debye-Hückel form can produce at all.
     @test worst_pz < 0.005
 
-    # The B-dot model on the same data. It is not being criticized for failing
-    # outside its stated range; the point is that the range is real and that
-    # nothing in its output announces the exit.
+    # The B-dot model on the same data, with the ion size Helgeson et al. give
+    # NaCl. Inside its range it follows the measurement to 1.5 %; the range is
+    # nonetheless real, and nothing in its output announces the exit. (Until
+    # 0.22 the model used the radius of each ion as its ion size, which put it
+    # 5 % out at a tenth molal and 19 % at one: that was the defect, not the
+    # range.)
     # The molalities below pick rows of the table; the measured γ± is the table's.
     dev(m) = let out = bd([n_w, m, m], p),
             γ_meas = HAMER_WU_NACL[findfirst(r -> r[1] == m, HAMER_WU_NACL)][3]
         abs(exp((out[2] + out[3]) / 2 - log(m)) - γ_meas) / γ_meas
     end
-    @test dev(0.001) < 0.01        # agrees where it should
-    @test dev(0.1) > 0.03          # 5 % out at a tenth molal
-    @test dev(1.0) > 0.15          # 19 % at one
-    @test dev(6.0) > 0.35          # 44 % at six
+    @test dev(0.001) < 0.005       # agrees where it should
+    @test dev(0.1) < 0.015
+    @test dev(1.0) < 0.02
+    @test dev(3.0) < 0.05
+    @test dev(6.0) > 0.1          # beyond a few mol/kg the range shows
 end

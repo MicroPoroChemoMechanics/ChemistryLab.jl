@@ -7,7 +7,7 @@
     "location": null
   },
   "transcription": {
-    "from": "the published article (PDF from ajsonline.org, a scan), Table 2 (p. 1298) and Table 3 (p. 1304), read on the page images",
+    "from": "the published article (PDF from ajsonline.org, a scan): Eqs. (124)-(125), p. 1297, Table 2 (p. 1298) and Table 3 (p. 1304), read on the page images",
     "checked_against_source": true,
     "note": "The radii were in src/equilibrium/activities.jl before this file existed and agree with the r_e,j column of Table 3, all twenty-seven. The package also attributed its default Debye-Hueckel A and B (0.5114 and 0.3288) to Table 1 of this article; Table 1 (p. 1294) gives 0.5091 and 0.3283 at 25 C and 1 bar, and those defaults now come from Parkhurst and Appelo (2013)."
   },
@@ -56,9 +56,39 @@
         ["SO4-2", 3.15],
         ["CO3-2", 2.81]
       ]
+    },
+    "distance_of_closest_approach": {
+      "columns": ["electrolyte", "a_angstrom"],
+      "units": [null, "1"],
+      "kind": "published",
+      "location": "Table 2, p. 1298",
+      "rows": [
+        ["HCl", 4.89],
+        ["NaCl", 3.72],
+        ["RbCl", 4.22],
+        ["CsCl", 4.42],
+        ["NH4Cl", 4.12],
+        ["MgCl2", 4.11],
+        ["SrCl2", 4.41],
+        ["CaCl2", 4.32],
+        ["BaCl2", 4.56],
+        ["FeCl2", 4.16],
+        ["AlCl3", 4.38],
+        ["FeCl3", 4.45],
+        ["NaF", 3.24],
+        ["NaBr", 3.87],
+        ["NaI", 4.11],
+        ["NaHS", 3.75],
+        ["NaHCO3", 4.01],
+        ["NaNO3", 4.72],
+        ["NaHSO4", 4.28],
+        ["Na2SO4", 4.65],
+        ["NaOH", 3.31]
+      ]
     }
   },
   "notes": [
-    "Species are keyed by their PHREEQC formula. The radii are used by HKFActivityModel as ion-size parameters of the extended Debye-Hueckel equation."
+    "Species are keyed by their PHREEQC formula. The radii are effective electrostatic radii r_e,j; the ion-size parameter of an electrolyte k is a_k = 2 sum_j nu_j,k r_e,j / nu_k, Eq. (125), which Table 2 evaluates.",
+    "Table 2 is transcribed for the chlorides of the cations of Table 3 and the sodium salts of its anions, the electrolytes an ion forms with a NaCl background. Its lithium salts are left out: they are all 0.02 A below what Eq. (125) gives with the r_e of Li+ printed in Table 3 (1.64), as if Table 2 had used 1.62."
   ]
 }

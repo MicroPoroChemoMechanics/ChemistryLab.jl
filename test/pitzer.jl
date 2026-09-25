@@ -156,11 +156,19 @@ end
         end
     end
 
-    # It is the property the B-dot model does not have. Along a dissolution at
-    # 1 mol/kg its residual is not small at all, because its water activity is
-    # an osmotic coefficient built on a single mean ionic radius while its γᵢ
-    # use per-ion radii.
-    @test residual(μ_bdot, 1.0, [0.0, 1.0, 1.0]) > 1.0e-6
+    # The B-dot model has it only when its ions share one ion size. In NaCl they
+    # do -- both take the ion size of the salt -- and the residual vanishes.
+    @test residual(μ_bdot, 1.0, [0.0, 1.0, 1.0]) < 1.0e-12
+
+    # In CaCl2 they do not (the ion sizes of CaCl2 and NaCl), and along a
+    # dissolution at 1 mol/kg the residual is not small at all: the water
+    # activity is an osmotic coefficient built on one mean ion size while the γᵢ
+    # use one each.
+    cs_ca = _pz_system(split("H2O@ Ca+2 Cl-"), ["H2O@", "Ca+2", "Cl-"])
+    μ_ca = build_potentials(cs_ca, HKFActivityModel())
+    n0 = [n_w, 1.0, 2.0]
+    dμ = ForwardDiff.jacobian(nn -> μ_ca(nn, p), n0) * [0.0, 1.0, 2.0]
+    @test abs(sum(n0 .* dμ)) / norm(n0 .* abs.(dμ)) > 1.0e-6
 end
 
 # ── differentiability, which the solver requires ─────────────────────────────
