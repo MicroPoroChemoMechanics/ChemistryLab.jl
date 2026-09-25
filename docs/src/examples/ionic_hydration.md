@@ -121,13 +121,17 @@ for line in phases_c.provenance
 end
 ```
 
+```@raw html
 <details><summary>What the solvers reported while computing these trajectories</summary>
+```
 
 ```@example ionicopc
 print(String(take!(diagnostics))) # hide
 ```
 
+```@raw html
 </details>
+```
 
 The columns come back as the page's own variables, so everything downstream is
 the same calculation it always was:

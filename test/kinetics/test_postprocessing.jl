@@ -50,6 +50,22 @@ function _pp_problem(; tend = 7 * 86400.0)
     return cs, state0, kp, integrate(kp, ks)
 end
 
+@testset "the ODE parameters hold heterogeneous rate laws without a warning" begin
+    # Two rate laws of different types make a vector with no concrete element
+    # type, which SciMLBase reads as a performance mistake and warns about on
+    # every run. The parameters hold such vectors behind a wrapper; this checks
+    # the whole tuple the integrator receives, not one field of it.
+    _, _, kp, _ = _pp_problem()
+    kr1, kr2 = kp.kinetic_reactions
+    other = KineticReaction(kr2.reaction, (T, P, t, n, lna, n0) -> 0.0, kr2.idx_mineral, kr2.stoich)
+    reactions = [kr1, other]
+    @test !isconcretetype(eltype(reactions))
+    kp2 = KineticsProblem(kp.system, reactions, kp.initial_state, kp.tspan; equilibrium_solver = nothing)
+    p = ChemistryLab.build_kinetics_params(kp2)
+    @test !ChemistryLab.SciMLBase.should_warn_paramtype(p)
+    @test ChemistryLab.heat_rate(p.kin_rxns, zeros(2), 298.15) == 0.0
+end
+
 @testset "reaction_extents" begin
 
     _, _, kp, sol = _pp_problem()

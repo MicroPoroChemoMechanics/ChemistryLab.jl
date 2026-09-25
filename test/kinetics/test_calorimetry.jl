@@ -273,7 +273,7 @@ end
 
     f = NumericFunc((T) -> H_WATER, (:T,), u"J/mol")
     v = [f, nothing]
-    fns = ChemistryLab._SpeciesFunctions(v)
+    fns = ChemistryLab._Heterogeneous(v)
 
     @test length(fns) == 2
     @test fns[1] === f && fns[2] === nothing

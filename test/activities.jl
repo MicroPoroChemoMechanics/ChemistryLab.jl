@@ -91,7 +91,7 @@ end
 # ── REJ_CHARGE_DEFAULT table ──────────────────────────────────────────────────
 
 @testsection "REJ_CHARGE_DEFAULT" begin
-    t = literature_table("Xu2011", "radius_by_charge")
+    t = literature_table("Xu2012", "radius_by_charge")
     @test sort!(collect(keys(REJ_CHARGE_DEFAULT))) == sort!(Int.(t.charge))
     for (z, r) in zip(t.charge, t.radius_angstrom)
         @test REJ_CHARGE_DEFAULT[Int(z)] === r

@@ -50,6 +50,11 @@ function heat_rate(
     return q
 end
 
+# The kinetics problem holds its reactions behind `_Heterogeneous`, which is not
+# an `AbstractVector` on purpose (see its definition); unwrap it here.
+heat_rate(kinetic_reactions::_Heterogeneous, rates::AbstractVector, T_K; kwargs...) =
+    heat_rate(kinetic_reactions.fns, rates, T_K; kwargs...)
+
 # ── _reaction_enthalpy dispatch hierarchy ────────────────────────────────────
 #
 # Priority:

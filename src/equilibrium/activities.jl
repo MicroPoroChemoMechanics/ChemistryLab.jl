@@ -305,17 +305,17 @@ end
 """
     REJ_CHARGE_DEFAULT::Dict{Int,Float64}
 
-Fallback effective electrostatic radii åᵢ [Å] indexed by formal charge, read
-from `data/literature/Xu2011.json`. The package has attributed them to ToughReact
-V2 (Xu et al. 2011, Table A2; after Helgeson et al. 1981), a location not yet
-checked against the article, which the file records.
+Fallback effective electrostatic radii åᵢ [Å] indexed by formal charge, for
+species absent from Table 3 of Helgeson et al. (1981): Table H.1-1 of the
+TOUGHREACT V2 user's guide ([Xu2012](@cite)), read from
+`data/literature/Xu2012.json`.
 
 Used by [`HKFActivityModel`](@ref) with priority 3 in the radius lookup chain:
 `sp[:å]` > [`REJ_HKF`](@ref) > `REJ_CHARGE_DEFAULT` > `model.å_default`.
 
 See also: [`REJ_HKF`](@ref), [`HKFActivityModel`](@ref).
 """
-const REJ_CHARGE_DEFAULT = let t = literature_table("Xu2011", "radius_by_charge")
+const REJ_CHARGE_DEFAULT = let t = literature_table("Xu2012", "radius_by_charge")
     Dict{Int, Float64}(Int(z) => r for (z, r) in zip(t.charge, t.radius_angstrom))
 end
 
@@ -511,8 +511,7 @@ Helgeson et al. 1981 Eqs. 132–137).
 | `temperature_dependent` | `false` | — | recompute `A` and `B` from `p.T`, `p.P` at every call (needs `T` and `P` in `p`) |
 
 Per-ion radii come from [`REJ_HKF`](@ref) ([Helgeson1981](@cite) Table 3) and,
-failing that, from [`REJ_CHARGE_DEFAULT`](@ref) (attributed to [Xu2011](@cite),
-location unconfirmed).
+failing that, from [`REJ_CHARGE_DEFAULT`](@ref) ([Xu2012](@cite), Table H.1-1).
 
 !!! note "Every default has a source, and a source is not a fit"
     Each default is read from `data/literature/`, with the table and the page it

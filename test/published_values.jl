@@ -10,8 +10,8 @@
     @testsection "malonic acid pKa from SLOP98" begin
         # The titration example long called these species "maleic acid". They are
         # not: SLOP98 carries MALONIC-ACID,AQ / H-MALONATE,AQ / MALONATE,AQ, the
-        # three-carbon diacid. The pKa derived from their ΔₐG⁰ settle the matter,
-        # since malonic (2.83, 5.69) and maleic (1.92, 6.27) are far apart.
+        # three-carbon diacid. The formula settles it, and the pKa derived from
+        # their ΔₐG⁰ are those measured for malonic acid.
         sp = Dict(
             symbol(s) => s for s in vcat(
                     build_species(datapath("slop98-inorganic-thermofun.json")),
@@ -48,14 +48,13 @@
         @test pKa1 ≈ 2.851 atol = 0.002
         @test pKa2 ≈ 5.696 atol = 0.002
 
-        # And agreeing with the tabulated values for malonic acid to 0.02,
-        # while being nowhere near maleic acid's. These four pKa have no source
-        # recorded in this package; they are approximate textbook values, used
-        # only to tell the two acids apart, which the 0.5 margin does.
-        @test abs(pKa1 - 2.83) < 0.03
-        @test abs(pKa2 - 5.69) < 0.03
-        @test abs(pKa1 - 1.92) > 0.5      # would hold if these were maleate
-        @test abs(pKa2 - 6.27) > 0.5
+        # And agreeing with the thermodynamic dissociation constants of malonic
+        # acid at 25 °C measured by Kettler et al. (1992), to within three of
+        # their stated uncertainties.
+        for (pKa, name) in ((pKa1, "log_K1"), (pKa2, "log_K2"))
+            k = literature("Kettler1992")[name]
+            @test abs(pKa + ChemistryLab.value(k)) < 3 * uncertainty(k)
+        end
     end
 
     @testsection "calcite: retrograde Kₛₚ in a closed system" begin

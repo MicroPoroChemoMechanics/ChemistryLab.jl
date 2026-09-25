@@ -374,7 +374,7 @@ log₁₀ γᵢ = Kₙ I
 2. `sp[:å]` — explicit value set in species properties.
 3. [`REJ_HKF`](@ref) — Helgeson et al. (1981) Table 3 (27 common ions)
    [Helgeson1981](@cite).
-4. [`REJ_CHARGE_DEFAULT`](@ref) — fallback by formal charge [Xu2011](@cite).
+4. [`REJ_CHARGE_DEFAULT`](@ref) — fallback by formal charge, [Xu2012](@cite) Table H.1-1.
 5. `model.å_default` (default: the ion size of NaCl, 3.72 Å, [Helgeson1981](@cite) Table 2).
 
 !!! warning "`å_default` does not impose a common ionic radius"

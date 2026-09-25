@@ -66,8 +66,11 @@ _pKa(num, den) = -log10(
 pKa1 = _pKa(("MalH-", "H+"), "MalH2@")
 pKa2 = _pKa(("Mal-2", "H+"), "MalH-")
 
-println("pKa1 (MalH2@ / MalH⁻) = ", round(pKa1, digits = 2), "   (lit. malonic 2.83)")
-println("pKa2 (MalH⁻  / Mal²⁻) = ", round(pKa2, digits = 2), "   (lit. malonic 5.69)")
+# Against the thermodynamic constants measured by Kettler et al. (1992) at 25 °C
+pKa1_ref = -literature_value("Kettler1992", "log_K1")
+pKa2_ref = -literature_value("Kettler1992", "log_K2")
+println("pKa1 (MalH2@ / MalH⁻) = ", round(pKa1, digits = 3), "   (measured: ", pKa1_ref, ")")
+println("pKa2 (MalH⁻  / Mal²⁻) = ", round(pKa2, digits = 3), "   (measured: ", pKa2_ref, ")")
 
 # ── Equilibrium solver ───────────────────────────────────────────────────────
 

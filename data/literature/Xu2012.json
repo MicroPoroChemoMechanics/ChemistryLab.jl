@@ -1,0 +1,54 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Xu2012",
+    "doi": null,
+    "citation": "Xu, T., Spycher, N., Sonnenthal, E., Zheng, L., Pruess, K. (2012). TOUGHREACT User's Guide: A Simulation Program for Non-isothermal Multiphase Reactive Transport in Variably Saturated Geologic Media, Version 2.0. Lawrence Berkeley National Laboratory, LBNL-DRAFT, October 2012.",
+    "location": "Appendix H"
+  },
+  "transcription": {
+    "from": "the report (PDF from tough.lbl.gov), Table H.1-1, p. 218",
+    "checked_against_source": true,
+    "note": "The package attributed these radii to Table A2 of Xu et al. (2011), the Computers & Geosciences article on TOUGHREACT V2; that article has no such table and no ionic radii. They are the radii this user's guide assigns, by charge, to species absent from Table 3 of Helgeson et al. (1981), and agree with it to the last digit."
+  },
+  "tables": {
+    "radius_by_charge": {
+      "columns": ["charge", "radius_angstrom", "basis"],
+      "units": ["1", "1", null],
+      "kind": "estimated",
+      "location": "Table H.1-1, p. 218",
+      "rows": [
+        [-1, 1.81, "Cl- value"],
+        [
+          -2,
+          3.0,
+          "rounded average of the CO3-- and SO4-- values"
+        ],
+        [
+          -3,
+          4.2,
+          "estimated from a straight-line fit with charge"
+        ],
+        [1, 2.31, "NH4+ value"],
+        [
+          2,
+          2.8,
+          "rounded average for the +2 species of HKF Table 3"
+        ],
+        [
+          3,
+          3.6,
+          "rounded average for the +3 species of HKF Table 3"
+        ],
+        [
+          4,
+          4.5,
+          "estimated with HKF Equation 142 and the average crystallographic radii of +4 species in the CRC Handbook"
+        ]
+      ]
+    }
+  },
+  "notes": [
+    "Effective electrostatic radii r_e,j in Angstrom. TOUGHREACT does not use them as ion-size parameters directly: it forms a_j = 2 (r_e,j + 1.91 |z_j|) / (|z_j| + 1) for anions and the same with 1.81 for cations (Eqs. H.4-H.5, the NaCl-dominated form of HKF Eq. 125)."
+  ]
+}
