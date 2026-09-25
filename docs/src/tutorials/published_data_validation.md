@@ -22,22 +22,16 @@ to drift to `0.047` while the suite stays green and the page goes quietly
 stale. Every displayed value is therefore asserted at the precision it is
 printed to, which is half of its last digit.
 
-!!! note "Two classes of number that are not pinned, and say so"
-    **The intermediate rungs of a sweep.** Where a table exists to make a
-    mechanism visible — calculated calcium against the C-S-H Ca/Si, siliceous
-    hydrogarnet against `Fe₂O₃`, Kuzel's salt against chloride — the rungs that
-    carry the argument are computed and pinned, and the rest are *written in
-    italics*. An italic rung is a measurement recorded when the section was
-    written; it is not recomputed on every run, and a reader should treat it as
-    an illustration of the trend rather than as a current result.
-
+!!! note "The one class of number that is not pinned"
     **The timings.** The seconds quoted for a cold and a warm solve measure one
     machine. Asserting them would make the suite fail on a faster one without
-    anything being wrong, which is the opposite of what a test is for.
+    anything being wrong, which is the opposite of what a test is for. Every
+    rung of every sweep in the tables below is computed and pinned, including
+    those that only illustrate a trend.
 
 ## What has been checked
 
-Five sources, seven hundred assertions, and the coverage is uneven on purpose:
+Six sources, more than seven hundred assertions, and the coverage is uneven on purpose:
 the database is checked exhaustively because it is cheap to check exhaustively,
 while the equilibrium cases are checked one composition at a time because each
 one costs seconds to minutes.
@@ -61,7 +55,7 @@ was not fitted there.
 
 ## Traps
 
-Six things that cost time to find, collected because each is reusable well
+Seven things that cost time to find, collected because each is reusable well
 beyond the case that established it.
 
 **A solid entered as oxides loses its water.** Feeding a C-S-H as lime and
@@ -91,6 +85,17 @@ every aluminum, no monocarbonate forms at any limestone content, and the
 published sequence simply does not appear. Below about 3.5 % it does. See
 [The sequence, and the condition nobody states](@ref).
 
+**Temperature belongs to the state, not to the solve.** The solves take `T` and
+`P` from the `ChemicalState`, and `equilibrate`, `equilibrate_certified` and
+`EquilibriumSolver` refuse a `T` or a `P` passed to them, with an error that
+names `set_temperature!`. They refuse it because the mistake is otherwise silent
+and not small: a keyword the solve does not know goes to the optimizer's options
+and is dropped there, and at a fixed hydroxide the pH of a pore solution moves
+by the change in `pKw` between the two temperatures, `0.17` from 20 to 25 °C —
+larger than most of the agreements this chapter reports. A measurement made at
+20 °C is compared at `ChemicalState(cs; T = 293.15u"K")`. See
+[The HKF model away from 25 °C and 1 bar](@ref).
+
 **A surface species' standard energy is on the aqueous gauge, not its own.**
 The site occupancies are driven by `ΔₐG⁰` like everything else, so a complex
 formed from an aqueous ion has to carry that ion's formation energy:
@@ -105,8 +110,17 @@ wrong answer, it produces `0.00000` mol of every cation complex while the solve
 still certifies. Deprotonation keeps working throughout, because `≡SO⁻` is the
 one complex whose reaction involves no aqueous species but H⁺, so the omission
 is invisible on the row most likely to be checked first. `test/surface_complexation.jl`
-carries the same warning at its zinc case. See
-[The surface half of Guo](@ref).
+carries the same warning at its zinc case.
+
+`G(H⁺) = 0` is the database's own convention. `G(≡SOH) = 0` is a gauge **only
+while the site budget is fixed**: both sides of every surface reaction carry a
+site, so the choice cancels, and `test/surface_complexation.jl` checks that the
+answer does not move over a 20 kJ/mol shift of the whole family. Under
+`SITES_FOLLOW_HOST` it stops canceling — the host carries `−ν` of the site
+component, so the choice reaches the host's own solubility — and the free site's
+reference is then not a convention but the energy of the matter it carries,
+`μ°(H₂O) − μ°(H⁺) = −237.2 kJ/mol` for an oxide. [`host_coupling_bias`](@ref)
+computes it. See [The surface half of Guo](@ref).
 
 **A rebuilt Gibbs energy is not always the tabulated one.** `ΔₐG⁰(T)` is formed
 from `ΔfH°` and `S°`, so at 298.15 K it must reproduce `ΔfG°` — and does, for
@@ -247,9 +261,10 @@ Nominal C-S-H at Ca/Si = 0.9, measured at six months (mmol/L):
 | Si | 0.076 | 0.396 | **×5.2** |
 | Ca | 1.95 | 2.72 | **+40 %** |
 
-**Aluminum is the strong result.** Across a sweep of the C-S-H Ca/Si from 0.75
-to 1.0 and a fourfold change in solid loading it never leaves 0.138–0.159
-mmol/L. That is the database answering, not a fit.
+**Aluminum is the strong result.** Across the sweep of the C-S-H Ca/Si below,
+from 0.75 to 1.0, it stays between 0.142 and 0.157 mmol/L. That is the database
+answering, not a fit — and it is where this package does better than Atkins' own
+1992 model, which gave 0.398 on the same mixture.
 
 **Silicon is over-predicted for a reason the paper gives.** Atkins' own model
 gave 0.448 mmol/L on the same mixture, and they explain it: electron microscopy
@@ -266,25 +281,21 @@ Ca/Si ought to mean less calcium in solution. It does not:
 
 | C-S-H Ca/Si | Ca | Al | Si | SO₄ | pH |
 |--:|--:|--:|--:|--:|--:|
-| *0.75* | *3.39* | *0.156* | *0.498* | *2.41* | *11.02* |
-| *0.80* | *3.04* | *0.154* | *0.463* | *1.90* | *11.14* |
-| *0.85* | *2.83* | *0.152* | *0.429* | *1.50* | *11.24* |
+| 0.75 | 3.46 | 0.157 | 0.504 | 2.51 | 11.00 |
+| 0.80 | 3.06 | 0.154 | 0.465 | 1.92 | 11.13 |
+| 0.85 | 2.83 | 0.152 | 0.429 | 1.50 | 11.24 |
 | 0.90 | **2.72** | 0.149 | 0.396 | 1.18 | 11.33 |
-| *1.00* | *2.73* | *0.142* | *0.335* | *0.74* | *11.47* |
-| *measured* | *1.95* | *0.136* | *0.076* | *1.08* | *11.0* |
+| 1.00 | 2.72 | 0.142 | 0.339 | 0.76 | 11.47 |
+| measured | 1.95 | 0.136 | 0.076 | 1.08 | 11.0 |
 
-The mixture the test solves is the nominal one, Ca/Si `0.90`, and its row is
-pinned to the digits above. The other four rungs are recorded, in the sense the
-note at the top of this page defines: they were measured when this section was
-written, they carry the *shape* of the argument, and only the shape is checked
-— that calculated calcium stays above `1.3 × 1.95` everywhere on the sweep.
-
-Calculated calcium goes through a **minimum near Ca/Si 0.85–0.90** and rises
-again below it. It never approaches 1.95. The floor is a property of the CSHQ
-model, not a free parameter, so the gap is real.
+The sweep holds the lime and varies the silica, and every row is pinned to the
+digits above. Calculated calcium is flat between Ca/Si 0.9 and 1.0 and rises
+below it, the direction incongruent dissolution would take it; it never
+approaches 1.95. The floor is a property of the CSHQ model, not of the mixture:
+Atkins' own 1992 model, on the same nominal C-S-H, gave 2.04.
 
 Sulfate lands close, but it is the one number here that moves freely with the
-Ca/Si — 0.74 at 1.0, 2.41 at 0.75 — so the agreement is not evidence of much.
+Ca/Si — 0.76 at 1.0, 2.51 at 0.75 — so the agreement is not evidence of much.
 Atkins' own 1992 model gave 0.597; Cemdata18 is nearer, and that is the whole
 claim.
 
@@ -324,8 +335,9 @@ Fig. 14D is the sharpest quantitative claim in either paper: with Cemdata18
 *"close to 100 % of the iron is bound by the siliceous hydrogarnet solid
 solution"*, against about 80 % sitting in hemi-/monocarbonate under Cemdata07.
 
-Measured here: **100.0 %**, at every limestone content and both iron contents
-tried, to within `10⁻³`. That one reproduces without qualification.
+Measured here: **100.0 %**, at every limestone content and every iron content
+tried, from 0.5 to 4.49 % `Fe₂O₃`, to within `10⁻³`. That one reproduces without
+qualification.
 
 ### The sequence, and the condition nobody states
 
@@ -347,13 +359,12 @@ It is not a defect, and the mechanism is stoichiometric. `C3AFS0.84H4.32` takes
 
 | `Fe₂O₃` % | 4.49 | 3.50 | 2.50 | 1.50 | 1.00 | 0.50 |
 |:--|--:|--:|--:|--:|--:|--:|
-| siliceous hydrogarnet | 0.0487 | *0.0396* | 0.0283 | *0.0170* | *0.0113* | *0.0057* |
-| monocarbonate | **0** | *0.0031* | 0.0083 | *0.0135* | *0.0161* | *0.0187* |
+| siliceous hydrogarnet | 0.0487 | 0.0396 | 0.0283 | 0.0170 | 0.0113 | 0.0057 |
+| monocarbonate | **0** | 0.0031 | 0.0083 | 0.0135 | 0.0161 | 0.0187 |
 
-The ladder the test walks carries two iron contents, `4.49 %` and `2.50 %`, and
-both columns are pinned — including the hydrogarnet amount, which this section
-turns on and which the test did not read off until it was asked to. The four
-italic columns are recorded rungs.
+The test walks the six iron contents at 4 g of limestone, downhill from the
+ferriferous clinker, and every column is pinned — the hydrogarnet amount, which
+this section turns on, as well as the monocarbonate.
 
 The hydrogarnet tracks the iron one for one. Where there is enough iron to pair
 with every aluminum, nothing is left to make a carboaluminate; below about
@@ -459,15 +470,13 @@ and peaks at 0.5 % NaCl — where Guo has Friedel's salt barely starting:
 
 | % NaCl | 0.1 | 0.25 | 0.5 | 0.75 | 1.0 | 1.5 |
 |:--|--:|--:|--:|--:|--:|--:|
-| monosulfate (14-hydrate) | 0.0131 | *0.0085* | 0.0010 | *0* | 0 | *0* |
-| Kuzel's salt | 0.0011 | *0.0047* | 0.0107 | ***0.0116*** | 0.0058 | *0* |
-| Friedel's salt | 0 | *0* | 0 | *0* | 0.0048 | *0.0096* |
+| monosulfate (14-hydrate) | 0.0131 | 0.0085 | 0.0010 | 0 | 0 | 0 |
+| Kuzel's salt | 0.0011 | 0.0047 | 0.0107 | **0.0116** | 0.0058 | 0 |
+| Friedel's salt | 0 | 0 | 0 | 0 | 0.0048 | 0.0096 |
 
-The sweep solves `0`, `0.1`, `0.5`, `1` and `2 %`, so three of the six columns
-above are pinned and three are recorded rungs. The peak in italics at `0.75 %`
-is therefore an illustration of where the maximum sits, not a measured
-maximum — what the suite checks is that Kuzel's salt holds the low-chloride
-range and is gone by `2 %`.
+The sweep solves `0`, `0.1`, `0.25`, `0.5`, `0.75`, `1`, `1.5` and `2 %`, and
+the six columns above are pinned. The largest value is at `0.75 %`, but between
+the rungs the true maximum is not located more finely than that.
 
 **And where it stops mattering.** Once the chloride is high enough to take the
 last sulfate out of the AFm layer, Kuzel's salt is gone and the two phase lists
@@ -509,17 +518,31 @@ cannot.
 | 4 | `≡SiOH + Na⁺ → ≡SiONa + H⁺` | `−13.6` | usable |
 | 5 | `≡SiOH + K⁺ → ≡SiOK + H⁺` | `−13.6` | usable |
 
-Row 1 is a transcription slip and can be repaired: `−12.7` is the deprotonation
-constant in the proton form, `≡SiOH ⇌ ≡SiO⁻ + H⁺`. Written against `OH⁻` as the
-table has it, the same surface would carry `log K ≈ +1.3`. Repairing it means
-choosing which half of the row to believe, which is already a modeling decision
-rather than a transcription.
+The table is [Elakneswaran2010](@cite)'s: its Eq. (11) is row 1 with the same
+`−12.7`, its Eq. (13) row 3 with the same `−0.35`, and its Eqs. (15) and (16)
+rows 4 and 5. So row 1 is not a slip of Guo's; the source writes it that way.
+
+As written, row 1 cannot be what the authors used. Against `OH⁻`, a constant of
+`10⁻¹²·⁷` leaves `≡SiO⁻/≡SiOH = 10⁻¹³·⁷` at pH 13 — an uncharged surface — while
+the source reports a negative ζ at that pH and explains it by this very
+dissociation. In the proton form, `≡SiOH ⇌ ≡SiO⁻ + H⁺`, the same constant gives a
+ratio of 2 at pH 13, two thirds of the sites deprotonated before electrostatics,
+which is the surface they describe; written against `OH⁻` it would carry
+`log K ≈ +1.3`. The evidence points one way, but repairing the row is still
+choosing which half of it to believe, which is a modeling decision rather than a
+transcription.
 
 Row 3, the chloride row, is balanced: the product carries the charge of the
-chloride it took up, `≡SiOHCl⁻`, as the table prints it. It is the row the
-surface exists to provide. The surface is not built here: it belongs with a
-model of chloride binding by C-S-H, and this chapter checks the dissolution half
-only.
+chloride it took up, `≡SiOHCl⁻`, as both papers print it. It is the row the
+surface exists to provide.
+
+Two things of the source are not in Guo's table. Its Eq. (14),
+`≡SiOH + Ca²⁺ + Cl⁻ ⇌ ≡SiOCaCl + H⁺`, holds chloride on a site that has already
+taken up calcium. And its double layer is written in the Donnan approximation,
+the ions of the layer related to those of the free solution by a Boltzmann
+factor and the layer kept electrically neutral (its Eqs. (9)-(10)). The surface
+is not built here: it belongs with a model of chloride binding by C-S-H, and
+this chapter checks the dissolution half only.
 
 ### The machinery is not what is missing
 
@@ -560,6 +583,30 @@ mixing itself, not on any constant.
 must repel Ca²⁺ and favor deprotonation — which is the `0.704 → 0.406` shift in
 the last two rows. The sign is worth checking explicitly, because the intuition
 that a silanol surface is negative is wrong here: calcium has reversed it.
+
+### What a budget that follows the C-S-H would cost
+
+The numbers above hold a **fixed** site budget, which is the wrong idealization
+for this system: the C-S-H is a reaction product, so its amount moves and the
+sites should move with it. `SITES_FOLLOW_HOST` expresses that, and it is worth
+knowing before reaching for it here, because Guo's site density is high enough
+to make the reference energy of the free site matter a great deal.
+
+At `4·10⁻³ mol/g` on a `(CaO)₁.₆₆₇(SiO₂)(H₂O)₂.₁` of `191.4 g/mol`, the coupling
+ratio is `ν = 0.766` mol of sites per mol of host — nearly four times Dzombak
+and Morel's `ν = 0.2` for hydrous ferric oxide, where
+[`host_coupling_bias`](@ref) records `8.3` log units. The bias is linear in `ν`,
+so here it is
+
+```
+ν · |μ°(H₂O) − μ°(H⁺)| / (RT ln 10) = 0.766 × 237.2 / 5.708 = 31.8 log units
+```
+
+which would not perturb the C-S-H, it would annihilate it. With the reference
+set to `−237.2 kJ/mol` the bias is zero and the coupling is free; left at zero,
+the family is refused and the number printed. So the fixed budget used above is
+not merely a simplification here — it is the reason the free site's energy
+could be left at zero without consequence.
 
 For a surface case that *is* checked against an external oracle, see
 `test/surface_complexation.jl`, which runs against PHREEQC at matched proton

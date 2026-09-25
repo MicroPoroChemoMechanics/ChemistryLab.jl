@@ -43,6 +43,12 @@
     k3(T, P) = K(("H+", "CO3-2"), ("HCO3-",), T, P)
     k4(T, P) = K(("H+", "OH-"), ("H2O@",), T, P)
 
+    @testset "pKw between 20 and 25 °C" begin
+        # What a solve at the wrong temperature costs a high-pH solution: at a
+        # fixed hydroxide its pH moves by the change in pKw, 0.17 over 5 K.
+        @test log10(k4(298.15, 1.0e5)) - log10(k4(293.15, 1.0e5)) ≈ 0.17 atol = 5.0e-3
+    end
+
     @testset "Table 4 at the reference point" begin
         # 298.15 K, 1 bar. Both to 0.03 %, which is inside the two figures Duan
         # quote.
@@ -102,6 +108,14 @@
         # reason. Their ferrocalcite row carries a heat-capacity coefficient of
         # +2.09e6 where every other carbonate in the table has zero or a large
         # negative.
+        # The page's table, this package's column pinned at its three decimals.
+        for (T, P, ours) in (
+                (298.15, 0.1, -8.48), (301.15, 15.0, -8.44), (301.15, 70.0, -8.261),
+                (343.15, 15.0, -8.855), (418.15, 40.0, -9.827), (478.15, 15.0, -11.055),
+            )
+            @test logK(("Ca+2", "CO3-2"), ("Cal",), T, P * 1.0e6) ≈ ours atol = 5.0e-4
+            @test !isnan(calcite_row(T, P))
+        end
         @test abs(cold - calcite_row(301.15, 15.0)) < 0.15
         @test hot - calcite_row(478.15, 15.0) < -1.0
     end

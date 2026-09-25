@@ -649,6 +649,7 @@ function equilibrate_certified(
         autostart::Bool = true,
         kwargs...,
     )
+    _refuse_state_keywords(kwargs, "equilibrate_certified")
     if !_DUAL_AVAILABLE[]
         error(
             "equilibrate_certified needs `OptimaSolver`: the KKT solver and the " *

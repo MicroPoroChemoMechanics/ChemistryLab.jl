@@ -100,7 +100,7 @@ include("reference_species.jl")
 
     # Descending, for the reason recorded in `limestone_blending_reference.jl`:
     # a warm start survives only while the assemblage holds.
-    fractions = [0.02, 0.01, 0.005, 0.001, 0.0]
+    fractions = [0.02, 0.015, 0.01, 0.0075, 0.005, 0.0025, 0.001, 0.0]
     function sweep(pure)
         cs = build(pure)
         idx = Dict(symbol(s) => i for (i, s) in enumerate(cs.species))
@@ -218,6 +218,9 @@ include("reference_species.jl")
         ]
         for (frac, ms, kuzel, fs) in (
                 (0.001, 0.0131, 0.0011, 0.0),
+                (0.0025, 0.0085, 0.0047, 0.0),
+                (0.0075, 0.0, 0.0116, 0.0),
+                (0.015, 0.0, 0.0, 0.0096),
                 (0.005, 0.001, 0.0107, 0.0),
                 (0.01, 0.0, 0.0058, 0.0048),
             )

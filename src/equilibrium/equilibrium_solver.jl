@@ -71,6 +71,7 @@ function EquilibriumSolver(
         variable_space::V = Val(:linear),
         kwargs...,
     ) where {S, V <: Val}
+    _refuse_state_keywords(kwargs, "EquilibriumSolver")
     μ = build_potentials(cs, model)     # built once — captures indices and constants
     # `model` is kept alongside `μ`, which is opaque once compiled. A coupled
     # kinetics run has to rebuild the solver for the equilibrium SUB-system, and
@@ -88,6 +89,37 @@ end
 The activity model the solver's potential function was built from.
 """
 activity_model(solver::EquilibriumSolver) = solver.model
+
+# ── Temperature and pressure belong to the state ──────────────────────────────
+
+const _STATE_KEYWORDS = (:T, :P, :temperature, :pressure)
+
+"""
+    _refuse_state_keywords(kwargs, caller)
+
+Throw if `kwargs` names a temperature or a pressure.
+
+The solves take the temperature and the pressure from the `ChemicalState`, and
+forward the keywords they do not know to the optimizer's options. So a
+`T = 293.15u"K"` handed to one of them was not an error: it reached the
+optimizer, was ignored there, and the solve ran at the state's own temperature
+without a word. On a C-S-H pore solution measured at 20 °C that is a 0.17
+difference in pH — the change in `pKw` between 20 and 25 °C — reported as if it
+were the model's.
+"""
+function _refuse_state_keywords(kwargs, caller::AbstractString)
+    bad = [k for k in keys(kwargs) if k in _STATE_KEYWORDS]
+    isempty(bad) || throw(
+        ArgumentError(
+            "$caller has no keyword " * join(string.(bad), ", ") * ": the " *
+                "temperature and the pressure belong to the state. Set them with " *
+                "`ChemicalState(cs; T = ..., P = ...)`, `set_temperature!` or " *
+                "`set_pressure!`; given here they would reach the optimizer's " *
+                "options and be ignored.",
+        ),
+    )
+    return nothing
+end
 
 # ── Internal helper: build p from ChemicalState ───────────────────────────────
 
@@ -602,7 +634,9 @@ back end.
   - `model`: activity model (default: `DiluteSolutionModel()`).
   - `variable_space`: `Val(:linear)` (default) or `Val(:log)`.
   - `ϵ`: regularization floor for mole amounts (default: `1e-16`).
-  - `kwargs...`: forwarded to the underlying solver.
+  - `kwargs...`: forwarded to the underlying solver. The temperature and the
+    pressure are not among them: they are the state's, and a `T` or a `P` given
+    here is refused rather than passed on and ignored.
 """
 function equilibrate(
         state::ChemicalState,
@@ -612,6 +646,7 @@ function equilibrate(
         ϵ::Float64 = 1.0e-16,
         kwargs...,
     )
+    _refuse_state_keywords(kwargs, "equilibrate")
     esolver = EquilibriumSolver(
         state.system, model, solver;
         variable_space = variable_space,
@@ -627,6 +662,7 @@ function equilibrate(
         constraint::EquilibriumConstraint = FixedTP(),
         kwargs...,
     )
+    _refuse_state_keywords(kwargs, "equilibrate")
     f = _DEFAULT_SOLVER_FACTORY[]
     if isnothing(f)
         error(

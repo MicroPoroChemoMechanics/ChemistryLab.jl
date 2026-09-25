@@ -40,6 +40,26 @@ include("reference_species.jl")
         return any(keep) ? maximum(abs.(r[keep] ./ b[keep])) : maximum(abs, r)
     end
 
+    @testsection "a temperature given to the solve is refused, not ignored" begin
+        # It belongs to the state. Forwarded to the optimizer, as it used to be,
+        # it was dropped there and the solve ran at the state's temperature.
+        st = calcite()
+        @test_throws ArgumentError equilibrate_certified(st; T = 293.15u"K")
+        @test_throws ArgumentError equilibrate_certified(st; P = 2.0e5u"Pa")
+        @test_throws ArgumentError equilibrate(st; temperature = 293.15)
+        @test_throws ArgumentError equilibrate_path(st, [A * ustrip.(us"mol", st.n)]; T = 300.0)
+        @test_throws ArgumentError EquilibriumSolver(cs, DiluteSolutionModel(), nothing; T = 300.0)
+        err = try
+            equilibrate_certified(st; T = 293.15u"K")
+        catch e
+            e
+        end
+        @test occursin("set_temperature!", err.msg)
+        # What is meant is honored: the state's temperature moves the answer.
+        @test pH(first(equilibrate_certified(calcite(; θ = 20.0)))) !=
+            pH(first(equilibrate_certified(calcite(; θ = 25.0))))
+    end
+
     @testsection "the certificate decides, and the answer is reproducible" begin
         st = calcite()
         eq1, c1 = equilibrate_certified(calcite())

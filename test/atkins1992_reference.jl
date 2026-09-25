@@ -69,10 +69,15 @@ include("reference_species.jl")
     @test cert.optimal
 
     n = ustrip.(us"mol", eq.n)
-    V = ustrip(uconvert(us"L", volume(eq).liquid))
-    total(el) = 1000 * sum(
-        n[i] * Float64(get(atoms_charge(cs.species[i]), el, 0)) for i in cs.idx_aqueous
-    ) / V                                            # mmol/L
+    # Dissolved totals, in mmol/L, of any equilibrium state.
+    function totals(e)
+        m = ustrip.(us"mol", e.n)
+        vol = ustrip(uconvert(us"L", volume(e).liquid))
+        return el -> 1000 * sum(
+            m[i] * Float64(get(atoms_charge(cs.species[i]), el, 0)) for i in cs.idx_aqueous
+        ) / vol
+    end
+    total = totals(eq)
 
     @testset "the assemblage Atkins reports" begin
         # AFt and C-S-H both survive, and no portlandite: that much the
@@ -142,6 +147,47 @@ include("reference_species.jl")
         # 1992 model gave 0.597, so CEMDATA18 is nearer; that is the honest
         # claim, and it is bounded loosely on purpose.
         @test 0.5 < total(:S) < 2.5
+    end
+
+    @testset "the calcium floor, across the C-S-H Ca/Si" begin
+        # Atkins report that their C-S-H dissolved incongruently, which lowers
+        # its Ca/Si below the nominal 0.9. The lime is held and the silica
+        # varied, walked from the nominal mixture already solved.
+        ratios = [1.0, 0.85, 0.8, 0.75]
+        function budget(r)
+            st = ChemicalState(cs)
+            set_quantity!(st, "ettringite", 0.002u"mol")
+            set_quantity!(st, "Lim", 0.018u"mol")
+            set_quantity!(st, "Amor-Sl", 0.018u"mol" / r)
+            set_quantity!(st, "H2O@", 1.0u"kg")
+            return Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+        end
+        sweep, certs = equilibrate_path(eq, budget.(ratios); model = model)
+        @test all(c.optimal for c in certs)
+        # Pinned at the precision the page prints, half the last digit.
+        printed = Dict(
+            1.0 => (2.72, 0.142, 0.339, 0.76, 11.47),
+            0.85 => (2.83, 0.152, 0.429, 1.5, 11.24),
+            0.8 => (3.06, 0.154, 0.465, 1.92, 11.13),
+            0.75 => (3.46, 0.157, 0.504, 2.51, 11.0),
+        )
+        for (r, e) in zip(ratios, sweep)
+            t = totals(e)
+            Ca, Al, Si, S, pHr = printed[r]
+            @test t(:Ca) ≈ Ca atol = 5.0e-3
+            @test t(:Al) ≈ Al atol = 5.0e-4
+            @test t(:Si) ≈ Si atol = 5.0e-4
+            @test t(:S) ≈ S atol = 5.0e-3
+            @test pH(e, model) ≈ pHr atol = 5.0e-3
+            # The floor: nowhere on the sweep does the calcium reach the measurement.
+            @test t(:Ca) > 1.3 * measured["Ca"]
+        end
+        # The calcium rises as the Ca/Si falls below the nominal ratio, which
+        # is the direction incongruent dissolution would take it, and is flat
+        # between 0.9 and 1.0.
+        Ca_at = [totals(e)(:Ca) for e in sweep]                      # 1.0, 0.85, 0.8, 0.75
+        @test Ca_at[4] > Ca_at[3] > Ca_at[2] > total(:Ca)
+        @test abs(Ca_at[1] - total(:Ca)) < 0.01
     end
 
     # ── Why the rest of Table 2 is not here ──────────────────────────────────

@@ -146,6 +146,20 @@ include("reference_species.jl")
     @test all(c.optimal for c in certs)
     at = Dict(ladder[i] => read_off(states[i]) for i in eachindex(ladder))
 
+    # The iron sweep at 4 g of limestone, walked down from the ferriferous
+    # clinker already solved. 2.5 % is passed again so that no step jumps two
+    # rungs; its answer is the one above.
+    iron = [3.5, 2.5, 1.5, 1.0, 0.5]
+    states_fe, certs_fe = equilibrate_path(
+        states[1],
+        [Float64.(cs.SM.A) * ustrip.(us"mol", charged(4.0; Fe2O3 = fe).n) for fe in iron];
+        model = model,
+    )
+    @test all(c.optimal for c in certs_fe)
+    for (fe, st) in zip(iron, states_fe)
+        at[(4.0, fe)] = read_off(st)
+    end
+
     @testset "the iron goes where Cemdata18 says it goes" begin
         # Fig. 14D of [Lothenbach2019]: with Cemdata18 "close to 100 % of the
         # iron is bound by the siliceous hydrogarnet solid solution", against
@@ -233,6 +247,14 @@ include("reference_species.jl")
         # The iron-capped hydrogarnet, at the two iron contents the ladder
         # actually walks. The page prints six and computes two; the other four
         # are marked there as the recorded rungs they are.
+        # The whole iron row of the page, at 4 g of limestone.
+        for (fe, hg, mc) in (
+                (4.49, 0.0487, 0.0), (3.5, 0.0396, 0.0031), (2.5, 0.0283, 0.0083),
+                (1.5, 0.017, 0.0135), (1.0, 0.0113, 0.0161), (0.5, 0.0057, 0.0187),
+            )
+            @test at[(4.0, fe)].hydrogarnet ≈ hg atol = 5.0e-5
+            @test at[(4.0, fe)].Mc ≈ mc atol = 5.0e-5
+        end
         @test at[(4.0, 4.49)].hydrogarnet ≈ 0.0487 atol = 5.0e-5
         @test at[(4.0, 2.5)].hydrogarnet ≈ 0.0283 atol = 5.0e-5
         # One aluminum per iron: dropping the iron drops the phase with it, and
