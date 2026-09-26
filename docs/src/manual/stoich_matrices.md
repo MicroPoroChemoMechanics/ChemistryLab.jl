@@ -6,17 +6,18 @@
 
 ## Concept
 
-A stoichiometric matrix encodes how each chemical species is composed of elements (or oxide components). Each row corresponds to a species; each column to an element. The entry `A[i, j]` is the number of atoms of element `j` in species `i`.
+A stoichiometric matrix encodes how each chemical species is composed of components: elements, oxides, or primary species. Each column corresponds to a species and each row to a component, the charge being the row `Zz` of a canonical matrix. The entry `A[i, j]` is the number of units of component `i` in species `j`.
 
 For example, three species:
 
-| Species | H | O | C |
-| :------ | : | : | : |
-| H₂O    | 2 | 1 | 0 |
-| H⁺     | 1 | 0 | 0 |
-| CO₂    | 0 | 2 | 1 |
+|    | H₂O | H⁺ | CO₂ |
+| :- | :-: | :-: | :-: |
+| C  | 0 | 0 | 1 |
+| H  | 2 | 1 | 0 |
+| O  | 1 | 0 | 2 |
+| Zz | 0 | 1 | 0 |
 
-This 3×3 matrix has rank 3, so all three species are linearly independent and can each serve as a "primary" (independent component). Any additional species in the system (e.g. HCO₃⁻, CO₃²⁻) can be written as a linear combination of these primaries — which is precisely a balanced chemical reaction.
+This matrix has rank 3, so the three species are linearly independent and can each serve as a "primary" (independent component). Any additional species in the system (e.g. HCO₃⁻, CO₃²⁻) can be written as a linear combination of these primaries — which is precisely a balanced chemical reaction.
 
 ```@example concept
 using ChemistryLab
@@ -63,7 +64,7 @@ Any species can be described as a linear combination of chemical elements. A spe
 ```julia
 using ChemistryLab
 H2O = Species("H₂O", symbol="H₂O@", aggregate_state=AS_AQUEOUS, class=SC_AQSOLVENT)
-HSO4 = Species("HSO₄⁻", symbol="H₂O@", aggregate_state=AS_AQUEOUS, class=SC_COMPONENT)
+HSO4 = Species("HSO₄⁻", symbol="HSO₄⁻", aggregate_state=AS_AQUEOUS, class=SC_COMPONENT)
 CO2 = Species(Dict(:C => 1, :O => 2); symbol="CO₂", aggregate_state=AS_GAS, class=SC_GASFLUID)
 species = [H2O, HSO4, CO2]
 CSM = CanonicalStoichMatrix(species)
