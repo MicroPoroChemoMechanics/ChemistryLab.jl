@@ -114,6 +114,7 @@ end
     include("atkins1992_reference.jl")
     include("limestone_blending_reference.jl")
     include("chloride_binding_reference.jl")
+    include("chloride_blended_reference.jl")
     include("hong_glasser1999_reference.jl")
     include("test_dual_solver.jl")
     include("certified_equilibrium.jl")

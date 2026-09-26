@@ -407,6 +407,52 @@ end
 
 
 """
+    _refuse_sites_on_mixing_hosts(site_families, solid_solutions)
+
+Refuse a site family whose host is an end member of a declared solid solution
+that carries an element the family binds, naming the family, the phase and the
+elements.
+
+The case is the C-S-H again. The published surface models of the C-S-H bind
+calcium and alkalis on its silanol sites, and CSHQ holds its calcium and its
+alkalis in its end members. Hosting the sites on CSHQ would let one mole of
+calcium be counted twice, in the solid and on its surface; in the paste of
+[Guo2018](@cite) the surface complexes hold about a fifth of the calcium of the
+C-S-H. The elements a family binds are those of its complexes that its free
+site does not carry, less hydrogen and oxygen, which a protonation or a
+hydroxylation exchanges with the water. A family that binds nothing the phase
+carries is accepted.
+
+The way out is two stages: [`freeze_solid_solution`](@ref) sets the solid
+solution aside after a first equilibrium, and the sites go on the frozen solid.
+"""
+function _refuse_sites_on_mixing_hosts(site_families, solid_solutions)
+    (site_families === nothing || solid_solutions === nothing) && return nothing
+    for f in site_families
+        host = f.support.host
+        host === nothing && continue
+        free = keys(atoms(f.free_site))
+        bound = setdiff(Set(e for c in f.complexes for e in keys(atoms(c))), free, (:H, :O))
+        for ss in solid_solutions
+            any(em -> symbol(em) == host, end_members(ss)) || continue
+            shared = sort!(collect(intersect(bound, Set(e for em in end_members(ss) for e in keys(atoms(em))))))
+            isempty(shared) && continue
+            throw(
+                ArgumentError(
+                    "SiteFamily \"$(f.name)\" is hosted by \"$host\", an end member of the solid " *
+                        "solution \"$(name(ss))\", and binds $(join(shared, ", ")), which that phase " *
+                        "also holds: those elements would be counted twice, in the solid and on its " *
+                        "surface. Freeze the solid solution after a first equilibrium " *
+                        "(`freeze_solid_solution`) and put the sites on the frozen solid."
+                )
+            )
+        end
+    end
+    return nothing
+end
+
+
+"""
     ChemicalSystem(species, primaries=species; kinetic_species, solid_solutions) -> ChemicalSystem
 
 Construct a fully typed `ChemicalSystem` from a vector of species,
@@ -565,6 +611,7 @@ function ChemicalSystem(
         end
         idx_ssendmembers = isempty(ss_groups) ? Int[] : vcat(ss_groups...)
         _refuse_overlapping_solid_solutions(solid_solutions)
+        _refuse_sites_on_mixing_hosts(sf, solid_solutions)
         ss = collect(solid_solutions)
 
         return ChemicalSystem{T, R, typeof(CSM), typeof(SM), typeof(ss), typeof(sf)}(

@@ -121,6 +121,7 @@ module ChemistryLab
     include("chemical_structs/stoich_matrices.jl")
     include("chemical_structs/chemical_systems.jl")
     include("chemical_structs/chemical_states.jl")
+    include("chemical_structs/frozen_phases.jl")
     include("chemical_structs/volume_fractions.jl")
     include("chemical_structs/ignition_loss.jl")
     include("chemical_structs/thermogram.jl")
@@ -397,6 +398,8 @@ module ChemistryLab
         half_reaction,
         porosity,
         saturation,
+        solid_solution_totals,
+        freeze_solid_solution,
         volume_fractions,
         chemical_shrinkage,
         missing_molar_volumes
