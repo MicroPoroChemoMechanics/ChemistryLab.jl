@@ -168,7 +168,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [cem4, binders, hydration, calibration, rest]
+        shard: [cem4, binders, hydration, calibration, calorimetry, rest]
     permissions:
         actions: write # julia-actions/cache prunes the caches it created
         contents: read

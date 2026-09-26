@@ -190,7 +190,6 @@ pages = [
             # The same surface on a C-S-H frozen after a first equilibrium with
             # CSHQ, and the chloride end member of CSHQ, in slag cements.
             "examples/chloride_binding_blended.md",
-            "examples/thermogravimetry.md",
         ],
         # Small, checkable aqueous cases with an analytical answer to compare to.
         "Aqueous equilibria" => [
@@ -225,11 +224,22 @@ pages = [
             "examples/cem4_pozzolanic.md",
             "examples/cem5_composite.md",
         ],
+        # The semi-adiabatic calorimeter belongs here rather than with the
+        # outputs below: its temperature is an unknown of the kinetics, raised
+        # by the heat and raising the rates in turn.
         "Cementitious media in time" => [
             "examples/cement_clinker_kinetics.md",
             "examples/coupled_hydration.md",
             "examples/ionic_hydration.md",
             "examples/hydration_calibration.md",
+            "examples/semiadiabatic_calorimetry.md",
+        ],
+        # What a laboratory measures on a paste, read off computed states: the
+        # heat an isothermal calorimeter records and the mass a thermobalance
+        # loses. Neither feeds back on the calculation.
+        "Outputs of a calculation" => [
+            "examples/isothermal_calorimetry.md",
+            "examples/thermogravimetry.md",
         ],
     ],
     "API" => Any[

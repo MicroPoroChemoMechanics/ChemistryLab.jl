@@ -60,7 +60,7 @@ Pages   = ["chemical_structs/ignition_loss.jl"]
 Turning that total into a curve: a decomposition window per phase, carrying its
 own provenance, and the operator that makes them **identifiable from a measured
 thermogram** rather than only supplied. See
-[A thermogram, and the windows it takes to have one](@ref sec-example-tga).
+[Bound water, and the thermogram it integrates to](@ref sec-example-tga).
 
 ```@autodocs
 Modules = [ChemistryLab]

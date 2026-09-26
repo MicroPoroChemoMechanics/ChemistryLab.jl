@@ -803,12 +803,11 @@ and it is blocked only by data, not by the code.
   `σ√diag((JᵀJ)⁻¹)` at the optimum, which says which numbers deserve to be quoted
   — not a confidence interval. A profile likelihood would, at a hundred times the
   cost.
-- **The heat is [`heat_release`](@ref), never [`cumulative_heat`](@ref).** Under
-  partial equilibrium the hydrates are precipitated by the Gibbs minimization, and
-  only the enthalpy difference between certified states sees their heat;
-  `cumulative_heat` integrates the heat of the kinetic reactions, which here is
-  the heat of dissolution alone. The two agree in the stoichiometric formulation
-  and must not be interchanged in the coupled one.
+- **The heat is [`heat_release`](@ref).** Under partial equilibrium the hydrates
+  are precipitated by the Gibbs minimization, and the heat is the enthalpy the
+  states lose. [`cumulative_heat`](@ref) follows that enthalpy along the in-run
+  partition, which is not certified; `heat_release` replays each instant through
+  a certified speciation, and is the one a fit should read.
 - **Five parameters against one scalar observable**, three rate constants and the
   two of the dormant period. §5 is not a formality: the six rate-law candidates
   support three combinations, the two exponents dropped are not "known" but
@@ -824,7 +823,7 @@ and it is blocked only by data, not by the code.
 
 ## Where to go next
 
-The correlations calorimetry leaves unresolved are addressed with a second
-measurement in [A thermogram, and the windows it takes to have one](@ref sec-example-tga).
+The correlations calorimetry leaves unresolved call for a second measurement,
+the bound water of [Bound water, and the thermogram it integrates to](@ref sec-example-tga).
 The rate laws and the provenance of their parameters are discussed in
 [Rate laws, and every parameter in them](@ref sec-theory-kinetics).

@@ -319,16 +319,7 @@ the quantity a chemical-shrinkage test measures by watching a specimen drink.
     full. That is a volume statement, and it is why the constraint is written on
     the volume.
 
-## See also
-
-  - [Self-desiccation](@ref sec-self-desiccation) — the budget closed, with the
-    numbers computed and the negative controls executed
-  - [The w/c ratio](@ref sec-wc-ratio) — the stoichiometric threshold, scanned
-  - [Activity models](@ref sec-theory-activity) — why the screening length
-    matters here
-  - [`powers_alpha_max`](@ref), [`PoreHumidity`](@ref), [`CapillaryWater`](@ref)
-
-## Measuring it: what thermogravimetry gives, and what it needs
+## 8. Measuring it: what thermogravimetry gives, and what it needs
 
 Bound water is the quantity a thermogram integrates to, which makes
 thermogravimetry the natural second observable beside calorimetry — and the one
@@ -389,8 +380,8 @@ doubling rather than an error.
     Two phases releasing in the same window is the ordinary case in a paste, and
     a fit that reported four numbers there would be reporting two. Running
     [`identifiability`](@ref) on the windows is not a formality: for two peaks
-    5 K apart it returns a rank below four and a condition number in the tens,
-    which is the measurement saying so.
+    5 K apart it returns a rank of two out of four, which is the measurement
+    saying so ([the executed case](@ref sec-example-tga)).
 
 [`phases_without_windows`](@ref) is the other half of the honesty: a phase with
 no window contributes to the starting mass and never leaves, so a curve computed
@@ -404,3 +395,12 @@ a hemicarboaluminate is not an exotic case in a cement.
 [`windows_without_phases`](@ref) is the mirror, and it is the one that catches a
 typo: a window on a phase that releases nothing contributes nothing and raises
 nothing, so its only symptom is a peak that is not there.
+
+## See also
+
+  - [Self-desiccation](@ref sec-self-desiccation) — the budget closed, with the
+    numbers computed and the negative controls executed
+  - [The w/c ratio](@ref sec-wc-ratio) — the stoichiometric threshold, scanned
+  - [Activity models](@ref sec-theory-activity) — why the screening length
+    matters here
+  - [`powers_alpha_max`](@ref), [`PoreHumidity`](@ref), [`CapillaryWater`](@ref)

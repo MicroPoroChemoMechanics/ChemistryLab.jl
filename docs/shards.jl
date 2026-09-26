@@ -42,7 +42,14 @@ const DOC_SHARDS = [
     # from those of the pages above, so separating them duplicates nothing.
     "calibration" => [
         "examples/hydration_calibration.md",
+    ],
+    # The outputs of a calculation, each a handful of certified solves on the
+    # cement system of `scripts/gruyaert2010.jl`, and the semi-adiabatic run,
+    # a coupled trajectory with the temperature among its unknowns.
+    "calorimetry" => [
+        "examples/isothermal_calorimetry.md",
         "examples/thermogravimetry.md",
+        "examples/semiadiabatic_calorimetry.md",
     ],
     # Everything else: theory, manual, the other tutorials and applications.
     "rest" => String[],
