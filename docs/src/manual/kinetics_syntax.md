@@ -596,20 +596,14 @@ t, qdot = heat_flow(sol, cal)         # q̇(t) [W]
 
 ## Calorimetry under partial equilibrium
 
-The calorimeters of this page take their heat from [`heat_rate`](@ref), which sums
-`rᵢ(−ΔᵣH⁰ᵢ)` over the **kinetic** reactions. That is exact when those reactions
-produce the hydrates. It is not, and cannot be, when a `equilibrium_solver` is
-attached: the kinetic reactions then only dissolve the anhydrous phases into
-ions, and the hydrates are precipitated by the Gibbs minimization, whose heat
-that sum does not see. On an ordinary Portland cement, driving a semi-adiabatic
-cell from it gave a temperature rise of 207 K against the few tens of kelvin a
-Langavant test measures — so that combination now warns rather than returning the
-number in silence.
-
-Use [`heat_release`](@ref) instead. Enthalpy is a state function, so the heat
-released between two states at the same temperature is simply their difference,
-with reactants, ions and hydrates each counted once and no reaction stoichiometry
-to write down — Eqs. (17)–(21) of [Lavergne2018](@cite):
+With an `equilibrium_solver` attached, the kinetic reactions only dissolve the
+anhydrous phases into ions, and the hydrates are precipitated by the Gibbs
+minimization: the heat of the kinetic reactions, [`heat_rate`](@ref), would leave
+the precipitation out. Both calorimeters therefore take their heat from the
+enthalpy of the whole composition. Enthalpy is a state function, so the heat
+released at fixed temperature is its decrease, with reactants, ions and hydrates
+each counted once and no reaction stoichiometry to write down — Eqs. (17)–(21) of
+[Lavergne2018](@cite):
 
 ```math
 -\delta Q \;=\; \mathrm{d}H
@@ -617,19 +611,32 @@ to write down — Eqs. (17)–(21) of [Lavergne2018](@cite):
 \;+\; \sum_i \Delta_f H_i(P,T)\,\mathrm{d}n_i .
 ```
 
+Between two accepted steps the equilibrium partition is followed through its
+sensitivity to the element amounts, taken from the optimality conditions of the
+last proved equilibrium. In a semi-adiabatic cell it is followed in temperature
+too, and the heat it takes up as it shifts joins the heat capacity of the cell:
+with the Gibbs–Helmholtz relation for the temperature derivative of the
+potentials, that capacity is a quadratic form in the enthalpies, positive as the
+stability of an equilibrium requires. At each accepted step, the part of the
+re-speciation these sensitivities did not predict, a phase appearing for
+instance, is added to the calorimeter's state, so that the heat follows the
+enthalpy of proved partitions. Every species needs an enthalpy of formation, and
+a system where one lacks it is refused.
+
 ```julia
 kp  = KineticsProblem(cs, reactions, state0, tspan;
+                      calorimeter = IsothermalCalorimeter(293.15u"K"),
                       equilibrium_solver = EquilibriumSolver(cs, model, OptimaOptimizer()))
 sol = integrate(kp, ks)
 
-t, Q, q̇ = heat_release(sol, kp; times = my_times)   # J and W
+t, Q = cumulative_heat(sol, kp.calorimeter)           # J, carried by the ODE
+t, Q, q̇ = heat_release(sol, kp; times = my_times)     # J and W, from certified states
 ```
 
-It reads the **certified** speciations of [`speciated_states`](@ref), not the
-composition the integrator carries. The in-run minimization is warm-started and
-uncertified, and one hydrate is worth hundreds of kilojoules: read that way the
-curve came out at 12.7, 145, 1174, 936 and 631 J/g at 1 h, 6 h, 12 h, 1 d and
-2 d — heat that rises and then falls, which no calorimeter has ever measured.
+[`heat_release`](@ref) remains the reference: it replays each instant through the
+certifying solver, where the running composition is only as good as the in-run
+minimization. The two agree at the accepted steps to within the difference
+between the in-run partition and the proved one.
 
 [`enthalpy`](@ref) and [`heat_capacity`](@ref) give the same sums for a single
 state, and [`missing_enthalpy`](@ref) lists the species that carry no `ΔₐH⁰` and
@@ -654,8 +661,10 @@ where `Cp°ᵢ(T)` are the molar heat capacities from the thermodynamic database
 using ChemistryLab, DynamicQuantities
 
 # Quadratic heat loss ([Lavergne2018](@cite): φ = a·ΔT + b·ΔT²)
+# `Cp` is what the ODE does not compute: the vessel, and anything inert in it.
+# The sample's Σᵢ nᵢ Cp°ᵢ(T) is added at every step, so it is not counted here.
 cal = SemiAdiabaticCalorimeter(;
-    Cp        = (1.0 * 800.0 + WC * 4186.0 + 1.0 * 900.0) * u"J/K",   # ≈ 3449 J/K
+    Cp        = 900.0u"J/K",
     T_env     = 293.15u"K",
     heat_loss = ΔT -> 0.3 * ΔT + 0.003 * ΔT^2,
     T0        = 293.15u"K",

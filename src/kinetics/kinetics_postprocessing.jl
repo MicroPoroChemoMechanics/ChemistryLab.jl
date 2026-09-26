@@ -216,6 +216,12 @@ end
 
 # ── speciated_states ─────────────────────────────────────────────────────────
 
+# The temperature of instant `t`: the cell's, when a semi-adiabatic calorimeter
+# carries it in the state, the problem's otherwise. Not `p.T_q[]`, which the run
+# moves with the cell and leaves at its last value.
+_replay_temperature(sol, kp, t) =
+    (kp.calorimeter isa SemiAdiabaticCalorimeter ? sol(t)[end] : sol.prob.p.T) * u"K"
+
 """
     speciated_states(sol, kp::KineticsProblem; times = sol.t) -> Vector{ChemicalState}
 
@@ -335,7 +341,7 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
                 _budget_clip!(seed, p.Ae, be0)
                 _restore_feasibility!(seed, p.Ae, be0; maxit = 100_000)
                 st0 = SciMLBase.solve(
-                    des, ChemicalState(sub, seed .* u"mol"; T = p.T_q[], P = p.P_q[]);
+                    des, ChemicalState(sub, seed .* u"mol"; T = _replay_temperature(sol, kp, tc), P = p.P_q[]);
                     b = be0,
                 )
                 if optimality_certificate(des, st0; b = be0).optimal
@@ -374,7 +380,7 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
                 _budget_clip!(guess, p.Ae, be0)
                 _restore_feasibility!(guess, p.Ae, be0; maxit = 100_000)
                 eq0 = SciMLBase.solve(
-                    es, ChemicalState(sub, guess .* u"mol"; T = p.T_q[], P = p.P_q[]);
+                    es, ChemicalState(sub, guess .* u"mol"; T = _replay_temperature(sol, kp, tc), P = p.P_q[]);
                     b = be0,
                 )
                 guess = Float64[
@@ -391,13 +397,14 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
     for t in times
         u = sol(t)
         be = collect(@view u[1:(p.n_be)])
+        Tt = _replay_temperature(sol, kp, t)
 
         _budget_clip!(guess, p.Ae, be)
         _restore_feasibility!(guess, p.Ae, be; maxit = 100_000)
 
         eq = SciMLBase.solve(
             es,
-            ChemicalState(sub, guess .* u"mol"; T = p.T_q[], P = p.P_q[]);
+            ChemicalState(sub, guess .* u"mol"; T = Tt, P = p.P_q[]);
             b = be,
         )
         n_eq = Float64[ustrip(us"mol", x) for x in eq.n]
@@ -424,7 +431,7 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
                 try
                     st_dual = SciMLBase.solve(
                         des,
-                        ChemicalState(sub, guess0 .* u"mol"; T = p.T_q[], P = p.P_q[]);
+                        ChemicalState(sub, guess0 .* u"mol"; T = Tt, P = p.P_q[]);
                         b = be,
                     )
                     if optimality_certificate(des, st_dual; b = be).optimal
@@ -473,7 +480,7 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
                         _budget_clip!(gm, p.Ae, be_m)
                         _restore_feasibility!(gm, p.Ae, be_m; maxit = 100_000)
                         st_m = SciMLBase.solve(
-                            des, ChemicalState(sub, gm .* u"mol"; T = p.T_q[], P = p.P_q[]);
+                            des, ChemicalState(sub, gm .* u"mol"; T = _replay_temperature(sol, kp, tm), P = p.P_q[]);
                             b = be_m,
                         )
                         if optimality_certificate(des, st_m; b = be_m).optimal
@@ -483,7 +490,7 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
 
                             st_t = SciMLBase.solve(
                                 des,
-                                ChemicalState(sub, certified .* u"mol"; T = p.T_q[], P = p.P_q[]);
+                                ChemicalState(sub, certified .* u"mol"; T = Tt, P = p.P_q[]);
                                 b = be,
                             )
                             if optimality_certificate(des, st_t; b = be).optimal
@@ -521,7 +528,7 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
 
         push!(
             out, ChemicalState(
-                kp.system; T = p.T * u"K", P = p.P * u"Pa",
+                kp.system; T = Tt, P = p.P * u"Pa",
                 n = [nᵢ * u"mol" for nᵢ in n],
             )
         )
@@ -596,7 +603,10 @@ conditions, and that is what this reads.
 when those reactions produce the hydrates. Under partial equilibrium they only
 dissolve the anhydrous phases into ions; the hydrates are precipitated by the
 minimization, whose heat that sum cannot see. On the same cement it put a
-semi-adiabatic temperature rise at 207 K.
+semi-adiabatic temperature rise at 207 K. The calorimeters therefore take
+`−dH/dt` under partial equilibrium, from the in-run partition and its
+sensitivity to the element amounts (see [`cumulative_heat`](@ref)); this
+function reads certified states and is the reference to check them against.
 """
 function heat_release(
         sol, kp::KineticsProblem;

@@ -429,10 +429,17 @@ Mix proportions of the plain-cement semi-adiabatic test of Lavergne et al.
 (2018), Table 11, at w/b = 0.5, read from `data/literature/Lavergne2018.json`:
 371 g of binder, 1113 g of dry sand, 196 g of water. The sand is there to keep
 the temperature rise moderate, as NF EN 196-9 prescribes; it takes no part in the
-chemistry and enters only through its heat capacity.
+chemistry and enters only through its heat capacity. The water includes what the
+dry sand absorbs, 0.9 % of its mass by the caption of the table: `absorbed` is
+that water, which stays in the sand, and `wb` the water-to-binder ratio of the
+paste once it is set aside.
 """
 const CALORIMETRY_MIX_C100 = let m = literature_row("Lavergne2018", "semi_adiabatic_mixes_wb050", "C100")
-    (binder = m.binder, sand = m.dry_sand, water = m.water)
+    absorbed = ustrip(literature_value("Lavergne2018", "sand_water_absorption")) * m.dry_sand
+    (
+        binder = m.binder, sand = m.dry_sand, water = m.water, absorbed = absorbed,
+        wb = Float64(ustrip((m.water - absorbed) / m.binder)),
+    )
 end
 
 """
@@ -480,19 +487,37 @@ function sand_heat_capacity(mass)
     return _SAND_CP_PER_KG[] * ustrip(us"kg", mass)
 end
 
+const _WATER_CP_PER_KG = Ref{Float64}(NaN)
+
+"""
+    water_heat_capacity(mass) -> Float64
+
+Heat capacity [J/K] of `mass` of liquid water, from the `H2O@` entry of
+CEMDATA18: the water the sand absorbs, which the paste does not see.
+"""
+function water_heat_capacity(mass)
+    if isnan(_WATER_CP_PER_KG[])
+        w = first(s for s in build_species(IONIC_CEMDATA) if symbol(s) == "H2O@")
+        cp = ustrip(us"J/K/mol", w[:Cp⁰](T = 293.15, P = 1.0e5, unit = true))
+        _WATER_CP_PER_KG[] = cp / ustrip(us"kg/mol", w[:M])
+    end
+    return _WATER_CP_PER_KG[] * ustrip(us"kg", mass)
+end
+
 """
     semiadiabatic_cell(; mix = CALORIMETRY_MIX_C100, T0 = 293.15u"K", T_env = T0)
 
 The NF EN 196-9 device of Lavergne et al. (2018), as a `SemiAdiabaticCalorimeter`.
 
-`Cp` here is what the ODE does NOT compute for itself: the vessel and the inert
-sand. The paste's own heat capacity is `Σᵢ nᵢ Cp⁰ᵢ(T)`, which `ChemistryLab` adds
-at every step from the database, so it must not be counted twice.
+`Cp` here is what the ODE does NOT compute for itself: the vessel, the inert
+sand and the water it absorbed. The paste's own heat capacity is
+`Σᵢ nᵢ Cp⁰ᵢ(T)`, which `ChemistryLab` adds at every step from the database, so it
+must not be counted twice.
 """
 function semiadiabatic_cell(;
         mix = CALORIMETRY_MIX_C100, T0 = 293.15u"K", T_env = T0,
     )
-    Cp_fixed = CALORIMETRY_VESSEL_CP + sand_heat_capacity(mix.sand)
+    Cp_fixed = CALORIMETRY_VESSEL_CP + sand_heat_capacity(mix.sand) + water_heat_capacity(mix.absorbed)
     return SemiAdiabaticCalorimeter(;
         Cp = Cp_fixed * u"J/K",
         heat_loss = ΔT -> CALORIMETRY_LOSS_A * ΔT + CALORIMETRY_LOSS_B * ΔT^2,
@@ -516,17 +541,16 @@ mass of binder in `mix`.
     The rate handed in was computed at `T_env`. The temperature reached in the
     cell accelerates the reactions — Parrot–Killoh carries activation energies of
     42, 21, 54 and 32 kJ/mol for C₃S, C₂S, C₃A and C₄AF — so the true peak comes
-    earlier and higher. Closing that loop needs the heat source inside the ODE,
-    which under partial equilibrium requires differentiating the equilibrium map;
-    `KineticsProblem` refuses that combination with a warning rather than
-    returning a number it cannot support.
+    earlier and higher. The cell belongs inside the ODE, as
+    [`semiadiabatic_cell`](@ref) puts it; this function is what the temperature
+    would be without that feedback, kept to show the difference.
 """
 function langavant_temperature(
         t, qdot_per_g, states;
         mix = CALORIMETRY_MIX_C100, T_env = 293.15,
     )
     m_binder_g = ustrip(us"kg", mix.binder) * 1000
-    C_fixed = CALORIMETRY_VESSEL_CP + sand_heat_capacity(mix.sand)
+    C_fixed = CALORIMETRY_VESSEL_CP + sand_heat_capacity(mix.sand) + water_heat_capacity(mix.absorbed)
     φ(ΔT) = CALORIMETRY_LOSS_A * ΔT + CALORIMETRY_LOSS_B * ΔT^2
 
     T = fill(T_env, length(t))

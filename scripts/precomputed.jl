@@ -184,10 +184,9 @@ function _ionic_case(tag::AbstractString)
 
         times, fracs, pore_pH, poro = ionic_phase_history(run, TIMES_DOC; states = states)
         tcal, Q, qd = heat_release(run.sol, run.kp; times = TIMES_DOC, states = states)
-        T_semi = langavant_temperature(tcal, qd ./ 1000, states)
 
         return (;
-            run, states, times, fracs, pore_pH, poro, tcal, Q, qd, T_semi,
+            run, states, times, fracs, pore_pH, poro, tcal, Q, qd,
             n_certified, label = case.label,
         )
     end
@@ -226,18 +225,12 @@ function _ionic_heat_table(tag)
         "time_s" => collect(c.tcal),
         "Q_J_per_g" => c.Q ./ 1000,
         "heat_flow_W_per_g" => c.qd ./ 1000,
-        "T_semiadiabatic_K" => collect(c.T_semi),
     )
     prov = _provenance(
         "$(c.label) -- isothermal calorimetry at 20 C, per gram of binder";
         instants = length(c.tcal), window = TEND_DOC,
-        extra = ["T_semiadiabatic_K: the Langavant cell of NF EN 196-9, same run"],
     )
-    return _table(
-        columns,
-        ["time_s", "Q_J_per_g", "heat_flow_W_per_g", "T_semiadiabatic_K"],
-        prov,
-    )
+    return _table(columns, ["time_s", "Q_J_per_g", "heat_flow_W_per_g"], prov)
 end
 
 const CALIBRATION_CASES = Dict(

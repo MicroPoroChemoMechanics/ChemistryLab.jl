@@ -243,7 +243,7 @@ function _primal(state::ChemicalState)
 end
 
 """
-    _equilibrium_sensitivity(A, H, gθ, bdot, nstar; maxpin = 8) -> Vector
+    _equilibrium_sensitivity(A, H, gθ, bdot, nstar; maxpin = 8, pinned = falses(length(nstar))) -> Vector
 
 Sensitivity of an equilibrium composition, from the optimality conditions.
 
@@ -272,17 +272,20 @@ satisfies `A ndot = bdot` to 4e-16 and means nothing.
 No back-end returns `z`, so the active set is recovered here: a species that is
 negligible on the scale of the system yet takes a leading share of the response
 is pinned, and the system re-solved. Each pass pins at least one species, so the
-loop terminates.
+loop terminates. A caller that knows which species are absent passes them as
+`pinned`, and the loop starts from there.
 
 `H` is singular by construction, and correctly so — a pure phase has unit
 activity, hence a zero row. The saddle-point form handles that; any method
 inverting `H` does not.
 """
-function _equilibrium_sensitivity(A, H, gθ, bdot, nstar; maxpin::Int = 8)
+function _equilibrium_sensitivity(
+        A, H, gθ, bdot, nstar; maxpin::Int = 8, pinned::AbstractVector{Bool} = falses(length(nstar)),
+    )
     ns = length(nstar)
     m = size(A, 1)
     scale = maximum(abs, nstar)
-    pinned = falses(ns)
+    pinned = BitVector(pinned)
     ndot = zeros(ns)
 
     for _ in 0:maxpin

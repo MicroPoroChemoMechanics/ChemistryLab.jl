@@ -1,0 +1,211 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Gruyaert2010",
+    "doi": "10.1007/s10973-010-0841-6",
+    "citation": "Gruyaert, E., Robeyst, N., De Belie, N. (2010). Study of the hydration of Portland cement blended with blast-furnace slag by calorimetry and thermogravimetry. Journal of Thermal Analysis and Calorimetry 102(3), 941-951.",
+    "location": "Tables 1, 2, 5 and 6, Fig. 7 and the bound water at infinite time in the text of p. 948, pp. 943-950; methods pp. 942-944"
+  },
+  "transcription": {
+    "from": "the published article (PDF): the tables from the page text, checked on the page images; Fig. 7 from its vector drawing, each marker located by its coordinates and mapped through the tick marks of the axes (a logarithmic age axis from 0.1 to 10000 days, bound water from 0 to 30), the seven series told apart by the marker the legend gives them",
+    "checked_against_source": true,
+    "note": "CEM I 52.5 N and a blast-furnace slag, pastes at w/b = 0.5 with slag-to-binder ratios 0, 0.30, 0.50 and 0.85. The calorimetry and the thermogravimetry used materials from different batches (Table 1). Before the thermogravimetry, a week of immersion in methanol and a week over silica gel arrested the hydration; the bound water is the mass lost between 378 K and 1123 K under an inert atmosphere, corrected for the carbon dioxide lost around 923 K. Fig. 7 reads to the size of a marker; its ages come out at 1, 2, 5, 7, 14, 28, 56, 91, 182, 364 and 1018 days to three digits, which is the check on the axis mapping."
+  },
+  "quantities": {
+    "water_binder_ratio": {
+      "value": 0.5,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 943",
+      "description": "Water-to-binder ratio of the pastes."
+    },
+    "isothermal_temperature_K": {
+      "value": 293.0,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 943",
+      "description": "Temperature of the isothermal calorimetry the reaction degrees of Table 6 come from, in kelvin (measurements were also made at 283 K and 308 K)."
+    },
+    "bound_water_lower_K": {
+      "value": 378.0,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 943",
+      "description": "Temperature below which the water driven off is counted as evaporable (105 C), in kelvin."
+    },
+    "bound_water_upper_K": {
+      "value": 1123.0,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "pp. 943-944",
+      "description": "Temperature the specimen is heated to (850 C), in kelvin."
+    },
+    "decarbonation_K": {
+      "value": 923.0,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 944",
+      "description": "Temperature around which the mass loss of decarbonation, subtracted from the bound water, occurs (650 C), in kelvin."
+    }
+  },
+  "tables": {
+    "oxides": {
+      "columns": ["material", "CaO", "SiO2", "Al2O3", "Fe2O3", "MgO", "SO3", "CO2", "blaine"],
+      "units": [null, "1", "1", "1", "1", "1", "1", "1", "m^2/kg"],
+      "kind": "measured",
+      "location": "Table 1, p. 943: oxide composition in mass percent, and Blaine fineness. CAL: the materials of the calorimetry; CAL/extra: of additional calorimetry; TG/a: of the thermogravimetry before 2 days; TG/b: after 2 days",
+      "rows": [
+        ["OPC-CAL", 62.2, 18.8, 5.4, 3.8, 0.9, 3.1, 0.7, 390],
+        ["OPC-CAL/extra", 63.4, 18.9, 5.7, 4.3, 0.9, 3.3, 0.5, 353],
+        ["OPC-TG/a", 63.1, 18.7, 4.9, 4.0, 1.0, 3.1, 0.7, 359],
+        ["OPC-TG/b", 62.2, 18.8, 5.4, 3.8, 0.9, 3.1, 0.7, 390],
+        ["BFS-CAL", 40.4, 34.4, 11.4, 0.5, 7.6, 1.7, 0.3, 400],
+        ["BFS-CAL/extra", 41.2, 36.4, 9.8, 0.3, 7.4, 1.6, 0.9, 339],
+        ["BFS-TG/a", 42.6, 33.9, 8.9, 0.7, 7.4, 1.6, 0.4, 397],
+        ["BFS-TG/b", 40.4, 34.4, 11.4, 0.5, 7.6, 1.7, 0.3, 400]
+      ]
+    },
+    "semi_adiabatic": {
+      "columns": ["slag_to_binder", "heat_14d", "T_max"],
+      "units": ["1", "J/g", "K"],
+      "kind": "measured",
+      "location": "Table 2, p. 947: total heat at 14 days and maximum temperature of standard mortars (EN 196-1) in a semi-adiabatic calorimeter",
+      "rows": [
+        [0.0, 411, 328.0],
+        [0.15, 411, 325.5],
+        [0.3, 400, 321.0],
+        [0.5, 363, 315.0],
+        [0.7, 308, 309.5],
+        [0.85, 253, 306.0]
+      ]
+    },
+    "isothermal_total_heat": {
+      "columns": ["slag_to_binder", "heat_infinity"],
+      "units": ["1", "J/g"],
+      "kind": "fitted",
+      "location": "Table 2, p. 947: total heat of the pastes at 293 K, the isothermal measurements extrapolated to infinite time by the three-parameter law of Eq. 6 with the bound water replaced by the heat (p. 949)",
+      "rows": [
+        [0.0, 433],
+        [0.3, 406],
+        [0.5, 395],
+        [0.85, 243]
+      ]
+    },
+    "hydration_degree": {
+      "columns": ["age_days", "slag_to_binder", "alpha", "alpha_cement"],
+      "units": ["d", "1", "1", "1"],
+      "kind": "measured",
+      "location": "Table 5, p. 949: degree of hydration of the binder and of the cement, in percent, by image analysis of BSE images at 2 days and 28 months (taken here as 852 days, 28 months of 30.44 days)",
+      "rows": [
+        [2, 0.0, 54, 54],
+        [2, 0.85, 7, 29],
+        [852, 0.0, 74, 74],
+        [852, 0.5, 83, 94],
+        [852, 0.85, 47, 91]
+      ]
+    },
+    "hydration_degree_slag": {
+      "columns": ["age_days", "slag_to_binder", "alpha_slag"],
+      "units": ["d", "1", "1"],
+      "kind": "measured",
+      "location": "Table 5, p. 949: degree of hydration of the slag, in percent",
+      "rows": [
+        [2, 0.85, 4],
+        [852, 0.5, 72],
+        [852, 0.85, 39]
+      ]
+    },
+    "reaction_degree": {
+      "columns": ["age_days", "slag_to_binder", "r"],
+      "units": ["d", "1", "1"],
+      "kind": "measured",
+      "location": "Table 6, p. 950: reaction degree Q/Q_total of the paste, in percent, by isothermal calorimetry at 293 K; not corrected for the ultimate hydration degree",
+      "rows": [
+        [2, 0.0, 57],
+        [2, 0.85, 37],
+        [7, 0.0, 87],
+        [7, 0.5, 75],
+        [7, 0.85, 71]
+      ]
+    },
+    "bound_water": {
+      "columns": ["batch", "slag_to_binder", "age_days", "bound_water"],
+      "units": [null, "1", "d", "1"],
+      "kind": "measured",
+      "location": "Fig. 7, p. 948: bound water in g per 100 g of binder against age; batch a or b as the legend labels the series (the materials TG/a and TG/b of Table 1)",
+      "rows": [
+        ["a", 0.0, 0.75, 8.76],
+        ["a", 0.0, 0.875, 9.01],
+        ["a", 0.0, 1.0, 10.23],
+        ["a", 0.0, 1.149, 10.26],
+        ["a", 0.0, 1.25, 12.15],
+        ["a", 0.0, 3.992, 13.64],
+        ["b", 0.0, 1.0, 9.5],
+        ["b", 0.0, 1.997, 11.06],
+        ["b", 0.0, 4.989, 15.49],
+        ["b", 0.0, 6.991, 16.25],
+        ["b", 0.0, 13.994, 18.38],
+        ["b", 0.0, 27.997, 20.96],
+        ["b", 0.0, 55.95, 21.46],
+        ["b", 0.0, 90.792, 20.46],
+        ["b", 0.0, 182.036, 19.35],
+        ["b", 0.0, 363.788, 25.64],
+        ["b", 0.0, 1018.264, 21.43],
+        ["a", 0.3, 0.749, 6.63],
+        ["a", 0.3, 0.874, 6.39],
+        ["a", 0.3, 0.998, 7.98],
+        ["a", 0.3, 1.123, 8.23],
+        ["a", 0.3, 1.248, 8.41],
+        ["a", 0.3, 4.073, 10.64],
+        ["a", 0.5, 0.75, 5.22],
+        ["a", 0.5, 0.875, 5.64],
+        ["a", 0.5, 1.0, 5.41],
+        ["a", 0.5, 1.124, 6.15],
+        ["a", 0.5, 1.25, 6.93],
+        ["a", 0.5, 4.077, 8.9],
+        ["b", 0.5, 1.0, 5.21],
+        ["b", 0.5, 3.992, 9.32],
+        ["b", 0.5, 6.991, 10.95],
+        ["b", 0.5, 13.994, 12.97],
+        ["b", 0.5, 27.997, 17.51],
+        ["b", 0.5, 55.95, 19.44],
+        ["b", 0.5, 90.792, 17.4],
+        ["b", 0.5, 185.948, 19.96],
+        ["b", 0.5, 278.809, 17.93],
+        ["b", 0.5, 1018.264, 20.19],
+        ["a", 0.85, 0.748, 2.21],
+        ["a", 0.85, 0.873, 2.25],
+        ["a", 0.85, 0.997, 2.59],
+        ["a", 0.85, 1.142, 2.51],
+        ["a", 0.85, 1.247, 2.55],
+        ["a", 0.85, 3.992, 4.17],
+        ["b", 0.85, 3.992, 5.01],
+        ["b", 0.85, 7.994, 6.72],
+        ["b", 0.85, 13.979, 8.07],
+        ["b", 0.85, 29.955, 10.55],
+        ["b", 0.85, 56.872, 10.58],
+        ["b", 0.85, 91.887, 8.77],
+        ["b", 0.85, 181.838, 10.6],
+        ["b", 0.85, 274.586, 9.26],
+        ["b", 0.85, 363.392, 11.49]
+      ]
+    },
+    "bound_water_infinity": {
+      "columns": ["slag_to_binder", "bound_water_infinity"],
+      "units": ["1", "1"],
+      "kind": "fitted",
+      "location": "p. 948, section on the chemically bound water: the bound water in g per 100 g of binder extrapolated to infinite time, Eq. 6 fitted by the authors to each series of Fig. 7",
+      "rows": [
+        [0.0, 23.8],
+        [0.5, 22.4],
+        [0.85, 11.4]
+      ]
+    }
+  },
+  "notes": ["Table 1 describes TG/a as the material of the measurements before 2 days; the series labeled (a) in Fig. 7 also carries a point at 4 days. The figure is transcribed as drawn.", "The curves of Fig. 5 (the isothermal heat against age) are raster images and are not transcribed; the heats at 2 and 7 days follow from Table 6 and the totals of Table 2.", "The reaction degree of Table 6 is referred to Q_total, the total heat of Table 2 for the isothermal measurements (Eq. 11)."]
+}

@@ -110,8 +110,10 @@ rxn_C4AF = Reaction(
 rxn_C4AF[:rate] = pk_C4AF
 
 # ── 5. Problem + semi-adiabatic calorimeter ─────────────────────────────────
+# `Cp` is the vessel alone: the heat capacity of the paste, Σᵢ nᵢ Cp°ᵢ(T), is
+# summed over its composition at every step and must not be counted again.
 cal = SemiAdiabaticCalorimeter(;
-    Cp        = (1.0 * 800.0 + WC * 4186.0 + 1.0 * 900.0) * u"J/K",
+    Cp        = 900.0u"J/K",
     T_env     = 293.15u"K",
     heat_loss = ΔT -> 0.30 * ΔT + 0.003 * ΔT^2,
     T0        = 293.15u"K",

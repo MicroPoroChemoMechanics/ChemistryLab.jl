@@ -342,7 +342,8 @@ reactions, which is right for a stoichiometric model whose reactions produce the
 hydrates directly. Here the kinetic reactions only dissolve the clinker into ions;
 the hydrates are precipitated by the Gibbs minimization, whose heat that sum
 cannot see. Driving a semi-adiabatic cell from it put the temperature rise at
-207 K.
+207 K. The calorimeters therefore take their heat from the enthalpy of the whole
+composition under partial equilibrium (see [`cumulative_heat`](@ref)).
 
 Nor can the enthalpy be read from the composition the integrator carries: under
 partial equilibrium that composition comes from an in-run, warm-started
@@ -443,91 +444,11 @@ that effect, which is the trade the LC³ literature is about.
 
 ### The semi-adiabatic cell
 
-A Langavant test (NF EN 196-9) lets the heat raise the temperature of the sample
-against the losses of the vessel. [Lavergne2018](@cite) write the loss as their
-Eq. (23),
-
-```math
-C_{\rm tot}(t)\,\frac{\mathrm{d}T}{\mathrm{d}t} \;=\; \dot q(t) \;-\; \varphi(T-T_{\rm env}),
-\qquad
-\varphi(\Delta T) \;=\; a\,\Delta T + b\,\Delta T^2 ,
-```
-
-and the numbers used below are theirs, for the plain-cement mix `C100` of their
-Table 11 at w/b = 0.5:
-
-| quantity | value | source |
-|:--|:--|:--|
-| binder / dry sand / water | 371 g / 1113 g / 196 g | Table 11, `C100` |
-| calorimeter vessel `C_vessel` | 380 J/K | §4.1 — see the note below |
-| sand heat capacity | 812 J/K | `Qtz` of CEMDATA18, 0.73 J/(g·K) |
-| loss coefficient `a` | 75 J/(h·K) = 0.0208 W/K | Eq. (23), NF EN 196-9 calibration |
-| loss coefficient `b` | 0.260 J/(h·K²) = 7.22e-5 W/K² | Eq. (23) |
-
-The sand takes no part in the chemistry; it is there, as the paper says, "to avoid
-large temperatures", and enters only through its heat capacity. The paste's own
-`Σᵢ nᵢ C°_{p,i}(T)` — about 900 J/K at 28 days — comes from the database at each
-instant, so it is not counted twice.
-
-!!! note "The vessel heat capacity is read as 380 J/K, not 380 kJ/K"
-    The paper prints "about 380 kJ/K", and that cannot be the figure its own
-    results correspond to. Its Table 11 mix holds 371 g of binder releasing some
-    420 J/g, i.e. about 156 kJ; against 380 kJ/K the temperature would rise by
-    0.4 K, where the test reports tens of kelvin. The rest of the setup is
-    consistent with joules — sand and water alone contribute roughly 1.6 kJ/K — so
-    380 J/K puts the total near 2.1 kJ/K and the adiabatic rise near 75 K, which is
-    the order the measurements show. It is read as 380 J/K here, and this note is
-    deliberate: the alternative is to change a published number in silence.
-
-```@example ionicopc
-# Computed alongside the run, in `precomputed.jl`: the cell temperature
-# needs the heat capacity of the paste at each instant, so it needs the states
-# themselves rather than the heat curve alone.
-T_c = heat_c.columns["T_semiadiabatic_K"]
-T_n = heat_n.columns["T_semiadiabatic_K"]
-
-p_T = plot(;
-    xscale = :log10, xlabel = "time [days]", ylabel = "T − T_env [K]",
-    title = "Semi-adiabatic cell (NF EN 196-9)", legend = :topleft, size = (760, 420),
-)
-plot!(p_T, t_cal ./ 86400, T_c .- 293.15; lw = 2, color = 1, label = "with 3.5 % calcite")
-plot!(p_T, t_cal ./ 86400, T_n .- 293.15; lw = 2, color = 2, ls = :dash, label = "no limestone")
-```
-
-```@example ionicopc
-# The states themselves, not just the columns: a heat capacity is a property of
-# the whole paste, so it needs the speciation and not a plotted curve. They come
-# from the same memoized run as the tables above.
-states_c = coupled_states("ionic_opc")
-states_n = coupled_states("ionic_nolimestone")
-
-m_binder_g = ustrip(us"kg", CALORIMETRY_MIX_C100.binder) * 1000
-C_fixed = CALORIMETRY_VESSEL_CP + sand_heat_capacity(CALORIMETRY_MIX_C100.sand)
-for (lbl, T, Q, st) in (("with 3.5 % calcite", T_c, Q_c, states_c),
-        ("no limestone", T_n, Q_n, states_n))
-    j = argmax(T)
-    C_tot = C_fixed + ustrip(us"J/K", heat_capacity(st[end])) * m_binder_g / 1000
-    @printf "%-20s  ΔT max %.1f K at %.1f h    adiabatic ΔT(28 d) %.1f K\n" lbl (
-        T[j] - 293.15
-    ) (t_cal[j] / 3600) (Q[end] / BINDER_G * m_binder_g / C_tot)
-end
-```
-
-A rise of about 19 K at roughly one day, against an adiabatic 75 K: the sand and
-the losses absorb three quarters of the heat, which is what the test is designed
-to do.
-
-!!! warning "One approximation, and it is in the direction you would expect"
-    The heat rate above was computed at 20 °C. The temperature reached in the cell
-    accelerates the reactions — Parrot–Killoh carries activation energies of 42,
-    21, 54 and 32 kJ/mol for C₃S, C₂S, C₃A and C₄AF — and that feedback is **not**
-    included, so the true peak comes earlier and higher. Closing the loop needs the
-    heat source inside the ODE, which under partial equilibrium requires
-    differentiating the equilibrium map; `KineticsProblem` refuses that combination
-    with a warning rather than returning a number it cannot support. For a
-    stoichiometric model, where the reactions do produce the hydrates, the fully
-    coupled version is
-    [`scripts/opc_semiadiabatic_calorimetry.jl`](https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl/blob/main/scripts/opc_semiadiabatic_calorimetry.jl).
+A semi-adiabatic cell is not read off a trajectory like the curves above: the
+heat raises the temperature, the temperature raises the rates, and the cell
+belongs in the kinetic problem. [A semi-adiabatic calorimeter, inside the
+kinetics](@ref ex-semiadiabatic) runs this model in the NF EN 196-9 cell of
+[Lavergne2018](@cite) and compares the temperature with theirs.
 
 ## 6. Porosity, and what it is referred to
 

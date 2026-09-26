@@ -406,7 +406,7 @@ function equilibrate_split(
         n = Float64[ustrip(us"mol", x) for x in best_eq.n]
         _seed_split!(n, trials, twin, untwin, share) || break
 
-        seeded = ChemicalState(cs, n .* u"mol")
+        seeded = ChemicalState(cs, n .* u"mol"; T = temperature(best_eq), P = pressure(best_eq))
         # `autostart = false`: the seed IS the information, and the route search
         # would discard it for a start of its own choosing.
         eq2, cert2 = equilibrate_certified(

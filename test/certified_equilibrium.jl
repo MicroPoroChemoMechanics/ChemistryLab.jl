@@ -1121,8 +1121,50 @@ end
         @test ChemistryLab._kkt_error(cert2) <=
             ChemistryLab._kkt_error(cert) * (1 + 1.0e-8)
 
+        # And at the temperature it was given: the seeded state was built at the
+        # default 25 °C until 0.24.0.
+        st20 = ChemicalState(cs, st.n; T = 293.15u"K")
+        eq20, _ = equilibrate_split(st20; b = b, maxpasses = 2)
+        @test temperature(eq20) == temperature(st20)
+
         # 5. `share` is a fraction and is checked, not trusted.
         @test_throws ArgumentError equilibrate_split(st; b = b, share = 0.0)
         @test_throws ArgumentError equilibrate_split(st; b = b, share = 1.0)
+    end
+
+    # 6. THE SEED, reached. Between the binodal and the spinodal a composition is
+    #    metastable: started with both instances at x̄ = 0.12, the minimization
+    #    has no descent direction and stays there, the certificate refuses it and
+    #    names the incipient phase, and only the seed leads to the pair. At 20 °C,
+    #    and the pair is that of 20 °C: until 0.24.0 the seeded state was built at
+    #    25 °C, where the binodal of this gap lies elsewhere (0.053 against 0.049).
+    let gap = RedlichKisterModel(a0 = 8_000.0), xbar = 0.12, T = 293.15
+        cs = ChemicalSystem(
+            [sp[s] for s in names], comps;
+            solid_solutions = [
+                SolidSolutionPhase(
+                    "carbonate", [sp["Cal"], sp["Mgs"]]; model = gap, instances = 2
+                ),
+            ],
+        )
+        pair = common_tangent(gap; T)
+        @test pair[1] < xbar < spinodal_interval(gap, 2; T)[1]   # metastable, not unstable
+        st = ChemicalState(cs; T = T * u"K")
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        for (s, x) in (("Cal", 1 - xbar), ("Mgs", xbar), ("Cal#2", 1 - xbar), ("Mgs#2", xbar))
+            set_quantity!(st, s, 0.025x * u"mol")
+        end
+        b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+        x_of(eq) = sort([ustrip(us"mol", eq.n[g[2]]) / sum(ustrip(us"mol", eq.n[i]) for i in g) for g in cs.ss_groups])
+
+        eq0, c0 = equilibrate_certified(st; b = b, autostart = false)
+        @test !c0.optimal
+        @test !isempty(c0.split_trials)
+        @test x_of(eq0)[2] - x_of(eq0)[1] < 1.0e-6       # both instances where they started
+
+        eq, c = equilibrate_split(st; b = b, autostart = false)
+        @test c.optimal
+        @test temperature(eq) == temperature(st)
+        @test x_of(eq) ≈ collect(pair) atol = 1.0e-3
     end
 end

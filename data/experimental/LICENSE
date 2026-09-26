@@ -1,10 +1,15 @@
-The two CSV files in this directory are NOT covered by the LGPL-2.1-or-later
+The seven CSV files in this directory are NOT covered by the LGPL-2.1-or-later
 license of ChemistryLab.jl. They are subsets of a separately licensed dataset,
 redistributed here under its own terms.
 
 --------------------------------------------------------------------------------
-  smilauer2025-122-cemI-52.5R-cizkovice.csv
   smilauer2025-116-cemI-52.5R-ladce.csv
+  smilauer2025-121-cemIII-B-32.5N-mokra.csv
+  smilauer2025-122-cemI-52.5R-cizkovice.csv
+  smilauer2025-149-cemII-B-S-32.5R-mokra.csv
+  smilauer2025-165-cemII-A-LL-42.5R-hranice.csv
+  smilauer2025-184-cemIII-A-42.5N-hranice.csv
+  smilauer2025-200-cemV-A-S-V-32.5R-prachovice.csv
 --------------------------------------------------------------------------------
 
 Derived from:
@@ -20,7 +25,7 @@ License: Creative Commons Attribution 4.0 International (CC BY 4.0)
 Changes made: each file here is a subset of one file of that deposit, holding the
 rows nearest to 500 log-spaced hydration times, with a provenance header
 prepended. No value was interpolated, smoothed, rescaled or otherwise altered.
-`regenerate.jl` in this directory rebuilds both files from the deposit.
+`regenerate.jl` in this directory rebuilds all seven from the deposit.
 
 The depositors ask that the companion article be cited:
 

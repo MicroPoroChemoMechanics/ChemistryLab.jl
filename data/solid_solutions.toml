@@ -13,6 +13,9 @@
 #   w           – single interaction parameter (J/mol) of a binary "regular"
 #   W           – full symmetric interaction matrix (J/mol), rows, for a
 #                 multi-component "regular" solution of any arity
+#   database    – the database file the end members exist in, for an entry
+#                 that no other database can build; skipped without a warning
+#                 when that database is not the one loaded
 #   source      – literature reference
 #
 # Sources
@@ -47,6 +50,21 @@ end_members = ["CSHQ-TobD", "CSHQ-TobH", "CSHQ-JenH", "CSHQ-JenD",
                "KSiOH", "NaSiOH"]
 model       = "ideal"
 source      = "Lothenbach2015"
+
+# ── C-S-H gel with a chloride end member (CSHQ_Cl) — 7 end-members, ideal ────
+# CSHQ with `CSHQ-Cl` = (CaCl2)0.5, an end member whose Gibbs
+# energy ChemistryLab fitted on the chloride bound by C-S-H in the sorption
+# tests of Hirao et al. (2005); data/chloride/README.md says how, and what it
+# does not describe. It ships in data/cemdata18-chloride.json alone, so the
+# phase is built from that database only. CSHQ above is unchanged, and the two
+# describe one gel: declare one of them.
+[[solid_solution]]
+name        = "CSHQ_Cl"
+end_members = ["CSHQ-TobD", "CSHQ-TobH", "CSHQ-JenH", "CSHQ-JenD",
+               "KSiOH", "NaSiOH", "CSHQ-Cl"]
+model       = "ideal"
+database    = "cemdata18-chloride.json"
+source      = "Hirao2005"
 
 # ── Fe-siliceous hydrogarnet — binary ideal ──────────────────────────────────
 # The GEMS `C3(AF)S0.84H` phase: the Al and Fe end-members of the siliceous

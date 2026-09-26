@@ -289,3 +289,166 @@ end
     @test !ChemistryLab.SciMLBase.should_warn_paramtype((cp_fns = fns,))
 
 end
+
+# ── The heat of a run, against the enthalpy of its states ─────────────────────
+#
+# A cell's first law, checked on the runs themselves. Adiabatic, the enthalpy of
+# the cell, `H(t) = Σᵢ nᵢ ΔₐH⁰ᵢ(T(t)) + C_vessel T(t)`, does not change; with a
+# heat loss it falls by exactly what left, `∫ φ(T − T_env) dt`. Isothermal, the
+# heat the calorimeter integrates is the enthalpy drop of the certified states.
+# Under partial equilibrium the heat is `−dH/dt` over the whole composition, the
+# equilibrium partition followed through `∂nₑ/∂bₑ`; before 0.24.0 it was the heat
+# of the kinetic dissolution alone, and these runs refused rather than warned.
+
+const _CAL_SUBS = Dict(
+    symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+)
+
+# Alite dissolving into ions at a rate proportional to what is left, with an
+# Arrhenius factor so that the temperature of a semi-adiabatic cell feeds back.
+function _alite_dissolution(cs; k = 2.0e-7, Ea = 40.0e3, T_ref = 293.15)
+    rxn = Reaction(
+        OrderedDict(cs["C3S"] => 1.0, cs["H2O@"] => 3.0),
+        OrderedDict(cs["Ca+2"] => 3.0, cs["SiO2@"] => 1.0, cs["OH-"] => 6.0);
+        symbol = "C3S dissolution",
+    )
+    rate(T, P, t, n, lna, n0) =
+        k * n["C3S"] / n0["C3S"] * exp(-Ea / ChemistryLab.R_GAS * (1 / T - 1 / T_ref))
+    rxn[:rate] = rate
+    return rxn
+end
+
+function _partial_equilibrium_paste(calorimeter)
+    sp = speciation(
+        collect(values(_CAL_SUBS)), ["C3S", "Portlandite", "Jennite", "Amor-Sl"];
+        aggregate_state = [AS_AQUEOUS], exclude_species = split("H2@ O2@ CH4@"),
+    )
+    cs = ChemicalSystem(sp, CEMDATA_PRIMARIES)
+    st = ChemicalState(cs; T = 293.15u"K")
+    set_quantity!(st, "H2O@", 0.5u"kg")
+    set_quantity!(st, "C3S", 0.02u"mol")
+    kp = KineticsProblem(
+        cs, [_alite_dissolution(cs)], st, (0.0, 2 * 86400.0);
+        calorimeter, activity_model = DaviesActivityModel(),
+        equilibrium_solver = EquilibriumSolver(cs, DaviesActivityModel(), OptimaOptimizer()),
+    )
+    return kp, integrate(kp, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-8, abstol = 1.0e-12))
+end
+
+@testset "under partial equilibrium the heat is the enthalpy the states lose" begin
+    cal = IsothermalCalorimeter(293.15u"K")
+    kp, sol = _partial_equilibrium_paste(cal)
+    @test sol.retcode == ReturnCode.Success
+    ts, Q_all = cumulative_heat(sol, cal)
+    @test Q_all == [u[end] for u in sol.u]
+    # At the accepted steps, where the partition has just been re-speciated and
+    # the heat of what the linearized partition did not predict has been added.
+    # Between them the heat is interpolated without it.
+    ks = unique([findmin(abs.(ts .- x))[2] for x in (0.0, 3600.0, 6 * 3600.0, 86400.0, 2 * 86400.0)])
+    _, Q_ref, _ = heat_release(sol, kp; times = ts[ks])
+    @info "isothermal heat under partial equilibrium" Q = Q_all[ks] Q_ref
+    # The portlandite and the C-S-H precipitate, and their heat is counted.
+    @test Q_ref[end] > 1000
+    # At an accepted step the heat IS the enthalpy the in-run partition lost; it
+    # differs from the certified replay only as that partition does, which is
+    # not certified. Measured: 10.5 J of 2165 near one hour, while the assemblage
+    # forms, and 2.5e-3 J at the end.
+    @test Q_all[ks[end]] ≈ Q_ref[end] rtol = 1.0e-5
+    @test maximum(abs.(Q_all[ks] .- Q_ref)) < 1.0e-2 * Q_ref[end]
+end
+
+@testset "an adiabatic cell under partial equilibrium conserves its enthalpy" begin
+    C_vessel = 50.0
+    cal = SemiAdiabaticCalorimeter(;
+        Cp = C_vessel * u"J/K", T_env = 293.15u"K", heat_loss = ΔT -> zero(ΔT), T0 = 293.15u"K",
+    )
+    kp, sol = _partial_equilibrium_paste(cal)
+    @test sol.retcode == ReturnCode.Success
+    t, T = temperature_profile(sol, cal)
+    @test T[end] > T[1] + 0.2
+    times = [0.0, 6 * 3600.0, 86400.0, 2 * 86400.0]
+    states = speciated_states(sol, kp; times)
+    Tt = [sol(x)[end] for x in times]
+    @test all(temperature(st) ≈ Ti * u"K" for (st, Ti) in zip(states, Tt))
+    H = [ustrip(us"J", enthalpy(st)) + C_vessel * Ti for (st, Ti) in zip(states, Tt)]
+    released = ustrip(us"J/K", heat_capacity(states[end])) * (Tt[end] - Tt[1])
+    @info "adiabatic cell under partial equilibrium" ΔT = Tt[end] - Tt[1] drift = H .- H[1] released
+    @test maximum(abs, H .- H[1]) < 1.0e-3 * released
+
+    # The heat the partition takes up as it shifts with temperature, from the
+    # Gibbs–Helmholtz right-hand side, against certified equilibria of the last
+    # proved partition half a kelvin either side of it.
+    p = sol.prob.p
+    Tr = p.heat_T[]
+    C_shift = ChemistryLab._equilibrium_shift_capacity(p, Tr)
+    h = [p.h_fns[i](; T = Tr, unit = false) for i in p.idx_equilibrium]
+    function n_at(T)
+        st = ChemicalState(p.eq_system, p.heat_n[] .* u"mol"; T = T * u"K", P = p.P_q[])
+        eq, cert = solve_certified(p.eq_dual, (st,); b = p.heat_b[], ϵ = p.ϵ)
+        @test cert.optimal
+        return ustrip.(us"mol", eq.n)
+    end
+    C_fd = h' * (n_at(Tr + 0.5) .- n_at(Tr - 0.5))
+    @info "shift of the partition with temperature" C_shift C_fd
+    @test C_shift > 0
+    # Measured: 1.6140 J/K against 1.6138. The Gibbs–Helmholtz form leaves out
+    # the temperature dependence of the activity coefficients, which the
+    # certified equilibria carry, with the truncation of the difference quotient.
+    @test C_shift ≈ C_fd rtol = 1.0e-3
+
+    # A partition whose audit raises proves nothing, and the heat reference stays.
+    @test ChemistryLab._proved_partition(p, p.heat_n[], p.heat_b[][1:(end - 1)]) === nothing
+end
+
+@testset "a stoichiometric cell loses exactly what leaves it" begin
+    sp = speciation(
+        collect(values(_CAL_SUBS)), ["C3S", "Portlandite", "Jennite"];
+        aggregate_state = [AS_AQUEOUS], exclude_species = split("H2@ O2@ CH4@"),
+    )
+    cs = ChemicalSystem(sp, CEMDATA_PRIMARIES)
+    rxn = Reaction(
+        OrderedDict(cs["C3S"] => 1.0, cs["H2O@"] => 103 / 30),
+        OrderedDict(cs["Jennite"] => 1.0, cs["Portlandite"] => 4 / 3);
+        symbol = "C3S hydration",
+    )
+    hydration(T, P, t, n, lna, n0) =
+        2.0e-7 * n["C3S"] / n0["C3S"] * exp(-40.0e3 / ChemistryLab.R_GAS * (1 / T - 1 / 293.15))
+    rxn[:rate] = hydration
+    st = ChemicalState(cs; T = 293.15u"K")
+    set_quantity!(st, "H2O@", 0.5u"kg")
+    set_quantity!(st, "C3S", 0.02u"mol")
+    C_vessel, L = 50.0, 0.05
+    cal = SemiAdiabaticCalorimeter(;
+        Cp = C_vessel * u"J/K", T_env = 293.15u"K", L = L * u"W/K", T0 = 293.15u"K",
+    )
+    kp = KineticsProblem(cs, [rxn], st, (0.0, 2 * 86400.0); calorimeter = cal, equilibrium_solver = nothing)
+    sol = integrate(kp, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-10, abstol = 1.0e-12))
+    t, T = temperature_profile(sol, cal)
+    @test T == [u[end] for u in sol.u]
+    # What left, integrated on the dense output.
+    ts = range(0.0, 2 * 86400.0; length = 20001)
+    lost = let φ = [L * (sol(x)[end] - 293.15) for x in ts]
+        sum((φ[i] + φ[i + 1]) / 2 * (ts[i + 1] - ts[i]) for i in 1:(length(ts) - 1))
+    end
+    H(x) = ustrip(us"J", enthalpy(state_at(sol, kp, x))) + C_vessel * sol(x)[end]
+    @info "stoichiometric cell" ΔTmax = maximum(T) - 293.15 lost drift = H(ts[end]) + lost - H(0.0)
+    @test abs(H(ts[end]) + lost - H(0.0)) < 1.0e-3 * lost
+    # The reconstruction from the vessel alone, as documented: C_vessel ΔT + ∫φ.
+    tq, q = heat_flow(sol, cal)
+    tQ, Q = cumulative_heat(sol, cal)
+    @test length(q) == length(tq) == length(Q) == length(t)
+    @test Q[end] ≈ C_vessel * (T[end] - T[1]) + lost rtol = 0.05
+end
+
+@testset "a species without an enthalpy is refused under partial equilibrium" begin
+    # Its term would drop out of `−dH/dt`, and its heat with it.
+    sp = speciation(
+        collect(values(_CAL_SUBS)), ["C3S", "Portlandite"];
+        aggregate_state = [AS_AQUEOUS], exclude_species = split("H2@ O2@ CH4@"),
+    )
+    cs = ChemicalSystem(sp, CEMDATA_PRIMARIES)
+    h = Any[sp[:ΔₐH⁰] for sp in cs.species]
+    @test ChemistryLab._refuse_missing_enthalpy(cs, h) === nothing
+    h[end] = nothing
+    @test_throws ArgumentError ChemistryLab._refuse_missing_enthalpy(cs, h)
+end

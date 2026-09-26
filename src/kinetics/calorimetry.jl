@@ -105,8 +105,9 @@ end
     struct IsothermalCalorimeter{T} <: AbstractCalorimeter
 
 Isothermal calorimeter: temperature held constant at `T` [K]; cumulative heat
-`Q(t) = ∫₀ᵗ q̇(τ) dτ` [J] integrated as the trailing ODE state, with `q̇` the heat
-of the **kinetic** reactions — see the caveat on [`cumulative_heat`](@ref).
+`Q(t) = ∫₀ᵗ q̇(τ) dτ` [J] integrated as the trailing ODE state. `q̇` is the heat of
+the kinetic reactions when they produce the hydrates, and under partial
+equilibrium `−dH/dt` over the whole composition — see [`cumulative_heat`](@ref).
 
 # Examples
 
@@ -285,8 +286,7 @@ end
     heat_flow(sol, cal::IsothermalCalorimeter) -> (t, qdot)
 
 Instantaneous heat-generation rate `q̇(t)` [W], by differencing
-[`cumulative_heat`](@ref) — and carrying the same caveat about partial
-equilibrium.
+[`cumulative_heat`](@ref).
 """
 function heat_flow(sol, cal::IsothermalCalorimeter)
     t, Q = cumulative_heat(sol, cal)
@@ -331,15 +331,18 @@ end
 Cumulative heat `Q(t) = ∫₀ᵗ q̇(τ) dτ` [J], read off the ODE state the isothermal
 calorimeter adds.
 
-!!! warning "This is the heat of the kinetic reactions only"
-    `q̇` is [`heat_rate`](@ref), i.e. `Σᵢ rᵢ(−ΔᵣH⁰ᵢ)` over the kinetic reactions.
-    That is the heat of hydration when those reactions produce the hydrates — the
-    stoichiometric formulation. Under **partial equilibrium** they only dissolve
-    the anhydrous phases into ions and the hydrates are precipitated by the Gibbs
-    minimization, whose heat this sum cannot see; on an ordinary Portland cement
-    the omission is worth hundreds of joules per gram. Use
-    [`heat_release`](@ref), which differences the enthalpy of certified
-    speciations, whenever `kp.equilibrium_solver !== nothing`.
+In the stoichiometric formulation `q̇` is [`heat_rate`](@ref), `Σᵢ rᵢ(−ΔᵣH⁰ᵢ)`
+over the kinetic reactions, which produce the hydrates. Under **partial
+equilibrium** those reactions only dissolve the anhydrous phases into ions and
+the hydrates are precipitated by the Gibbs minimization, so `q̇` is instead
+`−dH/dt` at fixed temperature over the whole composition, `H = Σᵢ nᵢ ΔₐH⁰ᵢ(T)`:
+the kinetic amounts as the integrator moves them and the equilibrium partition
+through its sensitivity to the element amounts, `dnₑ/dt = (∂nₑ/∂bₑ) dbₑ/dt`,
+taken from the optimality conditions of the partition at each accepted step.
+Every species then needs an enthalpy of formation, and a system where one lacks
+it is refused. The integral is the enthalpy difference [`heat_release`](@ref)
+computes from certified speciations, to within the accuracy of the in-run
+partition; `heat_release` remains the reference.
 """
 function cumulative_heat(sol, cal::IsothermalCalorimeter)
     n_kin = length(sol.u[1]) - n_extra_states(cal)

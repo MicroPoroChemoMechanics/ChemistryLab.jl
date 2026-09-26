@@ -484,6 +484,12 @@ guggenheim  = "Lothenbach2019:AFm SO4/OH"
 instances   = 2
 ```
 
+An entry whose end members exist in one database only names it with
+`database = "<file>"`. Where they are absent, that database was not loaded,
+which is expected rather than an anomaly: the entry is skipped without a warning,
+whatever `skip_missing` says. `CSHQ_Cl`, whose chloride end member ships in
+`data/cemdata18-chloride.json` alone, is declared so.
+
 # Example
 
 ```julia
@@ -507,7 +513,10 @@ function build_solid_solutions(
 
         # Check all end-members are available
         missing_syms = filter(sym -> !haskey(dict_species, sym), em_symbols)
-        if !isempty(missing_syms)
+        if !isempty(missing_syms) && haskey(entry, "database")
+            @debug "build_solid_solutions: \"$ss_name\" needs $(entry["database"])"
+            continue
+        elseif !isempty(missing_syms)
             missing_str = join(missing_syms, ", ")
             if skip_missing
                 @warn "build_solid_solutions: skipping \"$ss_name\" — " *

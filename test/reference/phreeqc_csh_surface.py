@@ -3,13 +3,18 @@
 #
 #   conda run -n mpcm-oracles python test/reference/phreeqc_csh_surface.py
 #   conda run -n mpcm-oracles python test/reference/phreeqc_csh_surface.py --case paste
+#   conda run -n mpcm-oracles python test/reference/phreeqc_csh_surface.py --case frozen
 #
 # Writes test/reference/phreeqc_csh_surface.json (the surface in solutions of
 # NaOH, CaCl2 and NaCl), with --case paste phreeqc_csh_paste.json (the same
 # surface in Guo's hydrated paste, with portlandite, the AFm and AFt phases,
 # Friedel's and Kuzel's salts, swept in NaCl), and with --case donnan
 # phreeqc_csh_donnan.json (the first case with the ions of the diffuse layer
-# counted, SURFACE -Donnan). test/csh_surface.jl reads all three.
+# counted, SURFACE -Donnan). test/csh_surface.jl reads all three. With --case
+# frozen, phreeqc_csh_frozen.json: Guo's inventory equilibrated first with the
+# CSHQ solid solution, then, the solid solution set aside, with the surface on
+# a C-S-H of the composition and amount the first stage gave, swept in NaCl.
+# test/chloride_blended_reference.jl reads it.
 #
 # One source of truth for both codes. The surface reactions and their constants
 # are read from data/literature/Guo2018.json (the table surface_reactions_phreeqc,
@@ -92,6 +97,7 @@ for arg in ARGS[2:end]
         G = ustrip(us"J/mol", s[:ΔₐG⁰](T = T, P = P; unit = true))
         M = haskey(s, :M) ? ustrip(us"g/mol", s[:M]) : NaN
         println("species\t", db, "\t", sym, "\t", G, "\t", M)
+        println("composition\t", db, "\t", sym, "\t", join(["$k=$(Float64(v))" for (k, v) in atoms(s)], ","))
     end
 end
 """
@@ -112,7 +118,7 @@ def library_values(elements, species):
         ["julia", f"--project={project}", "--startup-file=no", "-e", _LIBRARY_SCRIPT, *args],
         check=True, capture_output=True, text=True,
     ).stdout
-    lib = {"R": None, "atoms": {}, "G": {}, "M": {}}
+    lib = {"R": None, "atoms": {}, "G": {}, "M": {}, "composition": {}}
     for line in out.splitlines():
         f = line.split("\t")
         if f[0] == "R":
@@ -122,6 +128,10 @@ def library_values(elements, species):
         elif f[0] == "species":
             lib["G"][(f[1], f[2])] = float(f[3])
             lib["M"][(f[1], f[2])] = float(f[4])
+        elif f[0] == "composition":
+            lib["composition"][(f[1], f[2])] = {
+                k: float(v) for k, v in (kv.split("=") for kv in f[3].split(","))
+            }
     return lib
 
 
@@ -521,9 +531,198 @@ END
     print(f"wrote {os.path.relpath(path, _ROOT)} ({len(points)} points)")
 
 
+# ── two stages: CSHQ decides the C-S-H, then the surface sits on it frozen ───
+
+# The four calcium end members of CEMDATA18's CSHQ; Guo's paste carries no
+# alkali, so the sodium and potassium members would have nothing to hold.
+CSHQ = ("CSHQ-TobD", "CSHQ-TobH", "CSHQ-JenH", "CSHQ-JenD")
+FROZEN_IONS = ("H2O@", "H+", "OH-", "Ca+2", "AlO2-", "SO4-2", "HSiO3-", "Na+", "Cl-")
+FROZEN_NACL = [0.0, 0.02, 0.05, 0.1, 0.2, 0.4]
+
+
+def _silicate_phase(comp):
+    """The dissolution of a C-S-H end member over Ca+2, HSiO3-, OH- and water,
+    from the composition the package gives it. Hydrogen fixes the water, and
+    oxygen is the check."""
+    ca, si, o, h = (comp.get(el, 0.0) for el in ("Ca", "Si", "O", "H"))
+    oh = 2 * ca - si
+    w = (h - si - oh) / 2
+    assert abs(3 * si + oh + w - o) < 1e-9, comp
+    return {"Ca+2": ca, "HSiO3-": si, "OH-": oh, "H2O@": w}
+
+
+def run_frozen():
+    lib = library_values(
+        ("H", "O", "Na", "Ca", "Cl", "Al", "S", "Si"),
+        {CEMDATA18: [*FROZEN_IONS, *PHASES, *CSHQ]},
+    )
+    a = lib["atoms"]
+    reactions = dict(PHASES)
+    for em in CSHQ:
+        reactions[em] = _silicate_phase(lib["composition"][(CEMDATA18, em)])
+    g = lambda sp: lib["G"][(CEMDATA18, sp)]
+    log_k = {
+        ph: -(sum(nu * g(sp) for sp, nu in prod.items()) - g(ph)) / (lib["R"] * T_K * math.log(10))
+        for ph, prod in reactions.items()
+    }
+    ion_atoms = dict(_ION_ATOMS, **{"HSiO3-": {"H": 1, "Si": 1, "O": 3}})
+    kw = log_kw(lib, CEMDATA18)
+    full = database(kw, lib, (("Al", "AlO2-"), ("S", "SO4-2"), ("Si", "HSiO3-")))
+    base, surface = full.split("SURFACE_MASTER_SPECIES")
+    phases = "PHASES\n"
+    for ph, prod in reactions.items():
+        atoms = {}
+        for sp, nu in prod.items():
+            for el, k in ion_atoms[sp].items():
+                atoms[el] = atoms.get(el, 0) + nu * k
+        formula = "".join(
+            f"{el}{atoms[el]!r}" for el in ("Ca", "Al", "S", "Si", "Cl", "O", "H") if abs(atoms.get(el, 0)) > 1e-12
+        )
+        # Full precision: the C-S-H coefficients are thirds, and ten digits
+        # leave a charge imbalance PHREEQC refuses.
+        rhs = " + ".join(f"{nu!r} {PHREEQC_NAME.get(sp, sp)}" for sp, nu in prod.items())
+        phases += f"{ph}\n    {formula} = {rhs}\n    log_k {log_k[ph]:.10f}\n"
+    text = base + phases + "SURFACE_MASTER_SPECIES" + surface
+    with tempfile.NamedTemporaryFile("w", suffix=".dat", delete=False) as handle:
+        handle.write(text)
+        dbfile = handle.name
+    ip = VIPhreeqc()
+    ip.load_database(dbfile)
+    if ip.phc_database_error_count:
+        raise SystemExit(f"the generated database failed to load: {ip.get_error_string()}")
+
+    # Guo's C-S-H per silicon, and its molar mass from the library's atomic
+    # masses: the sites and the area are referred to the silicon of the frozen
+    # C-S-H through it.
+    formula = {r[0]: r[1] for r in _GUO["tables"]["csh_formula"]["rows"]}
+    per_si = {ox: float(k) / float(formula["SiO2"]) for ox, k in formula.items()}
+    oxide_mass = {
+        "CaO": a["Ca"] + a["O"], "SiO2": a["Si"] + 2 * a["O"], "H2O": 2 * a["H"] + a["O"],
+    }
+    m_csh = sum(k * oxide_mass[ox] for ox, k in per_si.items())
+    n_csh = _grams("csh_per_liter") / m_csh
+    initial = {
+        "Portlandite": _grams("ch_per_liter") / lib["M"][(CEMDATA18, "Portlandite")],
+        "monosulphate12": _grams("afm_per_liter") / lib["M"][(CEMDATA18, "monosulphate12")],
+        "ettringite": _grams("aft_per_liter") / lib["M"][(CEMDATA18, "ettringite")],
+    }
+    stage1_phases = ("Portlandite", "monosulphate12", "monosulphate14", "ettringite")
+    eq_phases = "\n".join(f"    {ph}  0.0  {initial.get(ph, 0.0)}" for ph in stage1_phases)
+    comps = "\n".join(f"        -comp {em}  0.0" for em in CSHQ)
+    ip.run_string(f"""
+SOLUTION 1
+    units    mol/kgw
+    temp     25.0
+    water    1.0
+    pH       7.0 charge
+EQUILIBRIUM_PHASES 1
+{eq_phases}
+SOLID_SOLUTIONS 1
+    CSHQ
+{comps}
+REACTION 1
+    CaO   {per_si["CaO"]}
+    SiO2  1.0
+    H2O   {per_si["H2O"]}
+    {n_csh} moles
+SAVE solution 1
+USER_PUNCH
+    -headings water_kg
+    10 PUNCH TOT("water")
+SELECTED_OUTPUT
+    -reset      false
+    -high_precision true
+    -pH         true
+    -totals     Ca Al S Si
+    -equilibrium_phases {' '.join(stage1_phases)}
+    -solid_solutions {' '.join(CSHQ)}
+END
+""")
+    if ip.get_error_string():
+        raise SystemExit(ip.get_error_string())
+    rows = ip.get_selected_output_array()
+    header, values = rows[0], rows[-1]
+    col = lambda name: values[header.index(name)]
+    w1 = col("water_kg")
+    stage1 = {
+        "pH": col("pH"), "water_kg": w1,
+        "phases": {ph: col(ph) for ph in stage1_phases},
+        "cshq": {em: col(f"s_{em}") for em in CSHQ},
+        "totals_mol": {el: col(f"{el}(mol/kgw)") * w1 for el in ("Ca", "Al", "S", "Si")},
+    }
+    comp = lambda em: lib["composition"][(CEMDATA18, em)]
+    n_si = sum(stage1["cshq"][em] * comp(em)["Si"] for em in CSHQ)
+    n_ca = sum(stage1["cshq"][em] * comp(em)["Ca"] for em in CSHQ)
+    n_sites = SITE_DENSITY * m_csh * n_si
+    area = AREA_PER_GRAM * m_csh * n_si
+
+    points = []
+    stage2_phases = tuple(PHASES)
+    for nacl in FROZEN_NACL:
+        eq2 = "\n".join(f"    {ph}  0.0  {stage1['phases'].get(ph, 0.0)}" for ph in stage2_phases)
+        salt = nacl if nacl > 0 else 1.0e-10
+        ip.run_string(f"""
+USE solution 1
+EQUILIBRIUM_PHASES 2
+{eq2}
+REACTION 2
+    NaCl  1.0
+    {salt} moles
+SURFACE 2
+    Csh_wOH  {n_sites}  {area}  1.0
+USER_PUNCH
+    -headings psi_V sigma water_kg
+    10 PUNCH EDL("psi", "Csh"), EDL("sigma", "Csh"), TOT("water")
+SELECTED_OUTPUT
+    -reset      false
+    -high_precision true
+    -pH         true
+    -ionic_strength true
+    -totals     Ca Cl Na Al S Si
+    -equilibrium_phases {' '.join(stage2_phases)}
+    -molalities {' '.join(REPORTED)}
+END
+""")
+        if ip.get_error_string():
+            raise SystemExit(ip.get_error_string())
+        rows = ip.get_selected_output_array()
+        header, values = rows[0], rows[-1]
+        col = lambda name: values[header.index(name)]
+        w = col("water_kg")
+        points.append({
+            "nacl": nacl, "pH": col("pH"), "I": col("mu"),
+            "psi_V": col("psi_V"), "water_kg": w,
+            "totals_mol": {el: col(f"{el}(mol/kgw)") * w for el in ("Ca", "Cl", "Na", "Al", "S", "Si")},
+            "phases": {ph: col(ph) for ph in stage2_phases},
+            "surface": {nm: col(f"m_{nm}(mol/kgw)") * w for nm in REPORTED},
+        })
+    os.unlink(dbfile)
+    payload = {
+        "generator": "test/reference/phreeqc_csh_surface.py --case frozen",
+        "python": sys.version.split()[0],
+        "database_md5": hashlib.md5(text.encode()).hexdigest(),
+        "model": "stage 1: EQUILIBRIUM_PHASES with the ideal SOLID_SOLUTIONS CSHQ (four calcium end members); "
+                 "stage 2: the stage-1 solution and phases, no solid solution, PHREEQC default SURFACE; Davies activity, closed system",
+        "inputs": "standard Gibbs energies, compositions, molar and atomic masses from ChemistryLab (library_values)",
+        "log_kw": kw,
+        "phase_log_k": log_k,
+        "phase_reactions": reactions,
+        "csh_per_si": per_si, "csh_molar_mass_per_si": m_csh, "n_csh_mol": n_csh,
+        "initial_mol": initial,
+        "stage1": stage1,
+        "frozen": {"Si_mol": n_si, "Ca_mol": n_ca, "n_sites": n_sites, "area_m2": area},
+        "points": points,
+    }
+    path = os.path.join(_HERE, "phreeqc_csh_frozen.json")
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2)
+        handle.write("\n")
+    print(f"wrote {os.path.relpath(path, _ROOT)} ({len(points)} points)")
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--case", choices=("surface", "paste", "donnan"), default="surface")
+    parser.add_argument("--case", choices=("surface", "paste", "donnan", "frozen"), default="surface")
     args = parser.parse_args()
-    {"surface": main, "paste": run_paste, "donnan": run_donnan}[args.case]()
+    {"surface": main, "paste": run_paste, "donnan": run_donnan, "frozen": run_frozen}[args.case]()
