@@ -38,6 +38,10 @@ pages = [
         # The definitions and identities the rest is written in. Read first: the
         # remaining pages use its notation, which is the code's.
         "Foundations" => [
+            # The two laws, the enthalpy a calorimeter measures, the Gibbs energy
+            # the solver minimizes and the chemical potential between them, for
+            # a reader who meets them here for the first time.
+            "theory/energies_and_potentials.md",
             "theory/thermodynamics.md",
             # What an activity is measured from. Before the certificate, because
             # every potential the certificate compares rests on these conventions.

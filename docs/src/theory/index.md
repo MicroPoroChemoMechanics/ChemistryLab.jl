@@ -33,7 +33,11 @@ first thing to read and the first thing to suspect:
 
 ## Reading order
 
-[Thermochemistry](@ref sec-theory-thermo) comes first, since it fixes the
+[Energies, enthalpies and the chemical potential](@ref sec-theory-basics) is
+written for a reader new to thermodynamics: it rebuilds from the two laws the
+enthalpy a calorimeter measures, the Gibbs energy the solver minimizes, the
+chemical potential that joins them, and the formation quantities a database
+tabulates. [Thermochemistry](@ref sec-theory-thermo) follows, since it fixes the
 notation of the whole chapter, which is that of the code, and
 [Standard states](@ref sec-theory-standard-states) completes it by stating what
 each activity is measured from. [Proving that an answer is the answer](@ref sec-theory-certificate)
