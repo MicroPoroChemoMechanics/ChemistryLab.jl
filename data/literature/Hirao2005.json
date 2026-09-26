@@ -1,0 +1,114 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Hirao2005",
+    "doi": "10.3151/jact.3.77",
+    "citation": "Hirao, H., Yamada, K., Takahashi, H., Zibara, H. (2005). Chloride binding of cement estimated by binding isotherms of hydrates. Journal of Advanced Concrete Technology 3(1), 77-84.",
+    "location": "Figs. 5 and 7, p. 80, and their regression curves; the sorption test, section 2.2, p. 78"
+  },
+  "transcription": {
+    "from": "the published article (PDF). The two figures are vector drawings: each marker is a filled square whose center was read from its coordinates in the page and mapped through the axis frame, whose corners carry the tick labels 0 and 5 (concentration) and 0.0 and 1.0 (bound chloride) to within 0.04 pt. The regression curves are printed on the figures and are transcribed as printed.",
+    "checked_against_source": true,
+    "note": "C-S-H made by hydrating synthesized alite at a water to solid ratio of 10, 56 days sealed at 20 C, dried in acetone and at 11 % RH; 1 g of it in 10 cm3 of NaCl solution for 2 days at 20 C; chloride in the filtrate by ion chromatography, the bound chloride from the depletion. The hydrate contains portlandite, quantified by DSC, and Fig. 7 is Fig. 5 recalculated per gram of C-S-H alone: at the four points above 0.1 mol/L the digitized ratio is 1.310 to 1.313, the ratio of the printed capacities being 0.61602/0.47001 = 1.3107. The concentration is the one in the solution after the test (the axis reads Cl- concentration). The printed rate constants differ in the fifth digit, 2.64987 (Fig. 5) and 2.64947 (Fig. 7); both are transcribed."
+  },
+  "quantities": {
+    "temperature_C": {
+      "value": 20.0,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "section 2.2, p. 78",
+      "description": "Temperature of the sorption tests, in degrees Celsius."
+    },
+    "solid_mass": {
+      "value": 1.0,
+      "unit": "g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "section 2.2, p. 78",
+      "description": "Mass of hydrate per test."
+    },
+    "solution_volume": {
+      "value": 10.0,
+      "unit": "mL",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "section 2.2, p. 78",
+      "description": "Volume of NaCl solution per test."
+    },
+    "contact_time": {
+      "value": 2.0,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "section 2.2, p. 78",
+      "description": "Duration of the sorption test, checked by the authors to be enough for saturation."
+    },
+    "langmuir_capacity_hydrate": {
+      "value": 0.47001,
+      "unit": "mmol/g",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "Fig. 5, p. 80",
+      "description": "Capacity of the Langmuir curve fitted to the bound chloride per gram of hydrated alite, portlandite included."
+    },
+    "langmuir_constant_hydrate": {
+      "value": 2.64987,
+      "unit": "L/mol",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "Fig. 5, p. 80",
+      "description": "Constant of the Langmuir curve of Fig. 5."
+    },
+    "langmuir_capacity_csh": {
+      "value": 0.61602,
+      "unit": "mmol/g",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "Fig. 7, p. 80",
+      "description": "Capacity of the Langmuir curve per gram of C-S-H, the portlandite of the hydrate deducted."
+    },
+    "langmuir_constant_csh": {
+      "value": 2.64947,
+      "unit": "L/mol",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "Fig. 7, p. 80",
+      "description": "Constant of the Langmuir curve of Fig. 7."
+    }
+  },
+  "tables": {
+    "binding_hydrate": {
+      "columns": ["chloride", "bound"],
+      "units": ["mol/L", "mmol/g"],
+      "kind": "measured",
+      "location": "Fig. 5, p. 80: chloride in solution after the test, and chloride bound per gram of hydrated alite (portlandite included), read from the vector drawing",
+      "rows": [
+        [0.0, 0.0],
+        [0.0975, 0.0355],
+        [0.5018, 0.3012],
+        [0.9734, 0.3399],
+        [1.9645, 0.4374],
+        [3.4663, 0.3749]
+      ]
+    },
+    "binding_csh": {
+      "columns": ["chloride", "bound"],
+      "units": ["mol/L", "mmol/g"],
+      "kind": "measured",
+      "location": "Fig. 7, p. 80: the same tests, per gram of C-S-H, read from the vector drawing",
+      "rows": [
+        [0.0018, 0.0],
+        [0.0985, 0.047],
+        [0.5055, 0.3949],
+        [0.9781, 0.4461],
+        [1.9672, 0.5731],
+        [3.4672, 0.492]
+      ]
+    }
+  },
+  "notes": [
+    "The mass fraction of portlandite in the hydrate is not printed. It follows from the two printed capacities, 1 - 0.47001/0.61602 = 0.237, since Fig. 7 is Fig. 5 divided by the mass fraction of C-S-H.",
+    "The bound chloride at 3.47 mol/L is lower than at 1.96 mol/L in both figures; the Langmuir curves are fitted through all six points."
+  ]
+}

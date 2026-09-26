@@ -66,6 +66,7 @@ end
     include("databases.jl")
     include("literature.jl")
     include("zeolites.jl")
+    include("cshq_chloride.jl")
     include("parsing_utils.jl")
     include("reactions.jl")
     include("surfaces.jl")
