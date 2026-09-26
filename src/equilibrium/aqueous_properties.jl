@@ -1062,14 +1062,14 @@ function homotopy_initial_state(
         _exploring_starts() do
             _homotopy_walk(
                 cs, i_w, n0, model, steps, ϵ, verbose, max_bisections,
-                balance_atol, balance_rtol,
+                balance_atol, balance_rtol, temperature(state), pressure(state),
             )
         end
     end
 end
 
 """
-    _homotopy_rung(cs, A, i_w, n0, model, λ, start, ϵ, verbose, atol, rtol)
+    _homotopy_rung(cs, A, i_w, n0, model, λ, start, ϵ, verbose, atol, rtol, T, P)
         -> Union{ChemicalState, Nothing}
 
 Solve one rung of the continuation, and **accept it only if it conserves mass**.
@@ -1101,11 +1101,19 @@ accuracy the interior point itself reaches (about 3e-6 mol on this class of
 problem), because a rung is a guess and not an answer. Neither number certifies
 anything: they are there to reject a rung that has *wandered*, and the
 certificate judges the result afterwards.
+
+The first rung is built at the temperature `T` and pressure `P` of the state the
+walk continues from, and every later one starts from the last. Built at the
+default 25 °C instead, as it was until 0.24.0, the whole walk solved a problem
+at the wrong temperature, and the certificate, which reads the temperature off
+the state it is given, certified that problem: a pore solution meant for 20 °C
+came back 0.19 low in pH, the shift of pKw between the two temperatures,
+whenever this route was the one that succeeded.
 """
-function _homotopy_rung(cs, A, i_w, n0, model, λ, start, ϵ, verbose, atol, rtol)
+function _homotopy_rung(cs, A, i_w, n0, model, λ, start, ϵ, verbose, atol, rtol, T, P)
     nλ = [i == i_w ? n0[i] : λ * n0[i] for i in eachindex(n0)]
     bλ = A * nλ
-    from = start === nothing ? ChemicalState(cs, nλ .* u"mol") : start
+    from = start === nothing ? ChemicalState(cs, nλ .* u"mol"; T, P) : start
     for f in _SOLVER_FACTORIES
         stepped = nothing
         try
@@ -1129,7 +1137,7 @@ function _homotopy_rung(cs, A, i_w, n0, model, λ, start, ϵ, verbose, atol, rto
 end
 
 function _homotopy_walk(
-        cs, i_w, n0, model, steps, ϵ, verbose, max_bisections, atol, rtol,
+        cs, i_w, n0, model, steps, ϵ, verbose, max_bisections, atol, rtol, T, P,
     )
     A = Float64.(cs.SM.A)
     current = nothing        # the answer at `done`
@@ -1145,7 +1153,7 @@ function _homotopy_walk(
         for _ in 0:max_bisections
             done >= target && break
             stepped = _homotopy_rung(
-                cs, A, i_w, n0, model, λ, current, ϵ, verbose, atol, rtol,
+                cs, A, i_w, n0, model, λ, current, ϵ, verbose, atol, rtol, T, P,
             )
             if stepped === nothing
                 λ = 0.5 * (done + λ)

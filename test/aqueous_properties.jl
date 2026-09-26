@@ -297,6 +297,14 @@ end
     @test A * ustrip.(us"mol", guess.n) ≈ b0 rtol = 1.0e-6
     @test all(>(0), ustrip.(us"mol", guess.n))
 
+    # At the temperature of the state it was given. The walk built its first
+    # rung at the default 25 °C until 0.24.0, so a solve at 20 °C that fell back
+    # on it was solved, and certified, at 25 °C.
+    st20 = ChemicalState(cs, st.n; T = 293.15u"K", P = 2.0u"bar")
+    guess20 = homotopy_initial_state(st20)
+    @test temperature(guess20) == temperature(st20)
+    @test pressure(guess20) == pressure(st20)
+
     # A system with no aqueous solvent has nothing to walk: `nothing`, not an
     # error, so `equilibrate_certified` can simply carry on without it.
     dry = ChemicalSystem([s for s in substances if symbol(s) == "Cal"])

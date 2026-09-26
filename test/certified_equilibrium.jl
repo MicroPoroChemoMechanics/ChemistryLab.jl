@@ -1121,6 +1121,12 @@ end
         @test ChemistryLab._kkt_error(cert2) <=
             ChemistryLab._kkt_error(cert) * (1 + 1.0e-8)
 
+        # And at the temperature it was given: the seeded state was built at the
+        # default 25 °C until 0.24.0.
+        st20 = ChemicalState(cs, st.n; T = 293.15u"K")
+        eq20, _ = equilibrate_split(st20; b = b, maxpasses = 2)
+        @test temperature(eq20) == temperature(st20)
+
         # 5. `share` is a fraction and is checked, not trusted.
         @test_throws ArgumentError equilibrate_split(st; b = b, share = 0.0)
         @test_throws ArgumentError equilibrate_split(st; b = b, share = 1.0)

@@ -69,6 +69,13 @@ include(joinpath(pkgdir(ChemistryLab), "data", "chloride", "member.jl"))
         @test prov["chloride_mol_per_L"] == pts.chloride
         @test prov["bound_measured_mmol_per_g"] == pts.bound
         r = f(δ)
+        # Every point at the 20 °C of the tests. A route of the certified
+        # cascade built its state at 25 °C until 0.24.0: where it was the one
+        # that succeeded, as it was under Windows at 1 mol/L, the point was
+        # certified at the wrong temperature, 0.19 low in pH, and the next ones
+        # started from it.
+        @info "Hirao test, as computed here" Ca_Si = r.r bound = r.bound held = r.held
+        @test all(temperature(st) == 293.15u"K" for st in r.states)
         @test r.bound ≈ prov["bound_model_mmol_per_g"] atol = 1.0e-8
         ssr(x) = sum(abs2, f(x).bound .- pts.bound)
         s0 = ssr(δ)
