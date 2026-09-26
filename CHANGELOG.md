@@ -20,7 +20,7 @@ Below 1.0 the registry treats a minor bump as breaking whatever the API did, so
 The documentation environment of MeanFieldHomogenization.jl lists ChemistryLab
 up to `0.22`, and needs `0.23` and `0.24` added.
 
-One behavior changes deliberately:
+Two behaviors change deliberately:
 
 - **A site family hosted on an end member of a solid solution is refused when it
   binds an element that solid solution holds.** Silanol sites that bind calcium,
@@ -29,6 +29,47 @@ One behavior changes deliberately:
   names the family, the phase and the elements, and points to
   `freeze_solid_solution`. A family that binds nothing the phase holds, or that
   names no host, is unaffected.
+- **A calorimeter under partial equilibrium takes its heat from the enthalpy of
+  the states, and refuses a species without one.** The heat used to be that of
+  the kinetic reactions alone, which under partial equilibrium only dissolve the
+  anhydrous phases: the precipitation of the hydrates by the minimization was
+  left out, `integrate` warned about it, and a semi-adiabatic cell overestimated
+  its temperature. The heat of such a run changes accordingly, and a system in
+  which a species carries no enthalpy of formation now raises an error naming
+  it, since its term would drop out of the heat.
+
+### Calorimetry under partial equilibrium
+
+Enthalpy is a state function, so the heat an isothermal calorimeter records is
+what the enthalpy of the whole composition loses, the hydrates precipitated by
+the minimization included. Under partial equilibrium the calorimeters now
+integrate `q̇ = −dH/dt` at the current temperature: the kinetic amounts as the
+integrator moves them, and the equilibrium partition through its sensitivity to
+the element amounts, from the optimality conditions of the last certified
+partition. In a semi-adiabatic cell the partition is followed in temperature as
+well, from the same conditions with the Gibbs–Helmholtz relation for the
+temperature derivative of the potentials, and the heat it takes up as it shifts
+joins the heat capacity of the cell. What a re-speciation changes beyond these
+linear predictions, a phase appearing within a step, is added to the
+calorimeter's state by the step callback, so the heat is conserved exactly: the
+tests close the first law of a semi-adiabatic cell to 4 × 10⁻⁶ J out of 1.7 kJ,
+and the isothermal heat agrees with `heat_release` over the certified states to
+10⁻⁵. The partition is
+re-speciated at the temperature of the cell, and `speciated_states` replays each
+instant of a semi-adiabatic run at its own temperature rather than at the
+initial one. The two warnings of `integrate` are removed.
+
+### The temperature of a state kept through two fallbacks
+
+`equilibrate_certified` falls back on a homotopy in the element amounts when a
+cold start fails, and `equilibrate_split` seeds a second solve from the best of
+several. Both built their first state at the default 298.15 K, whatever the
+temperature of the state given, so the certificate certified the problem at the
+wrong temperature. A paste at 20 °C that took either route came out at 25 °C:
+the chloride test of this release failed on Windows only, where the 1 mol/L point
+of Hirao's sorption test took the homotopy route and its pH came out lower by the
+change of pK_w between the two temperatures. Both routes now keep the temperature
+and pressure of the state.
 
 ### A solid solution, read and then frozen
 
@@ -95,6 +136,38 @@ surface takes 81 % of the portlandite's calcium before any chloride is added,
 calcium the gel's Ca/Si already counted; and at the specific area of the model
 the pore water is a film 0.57 nm thick, too thin for the ions of the diffuse
 layer to be counted. The manual describes the new database.
+
+A new section of the applications, *Outputs of a calculation*, holds what a
+laboratory measures on a paste and can be read off computed states. *An
+isothermal calorimeter, read off the states* computes the heat of the pastes of
+Gruyaert et al. (2010) at the degrees of hydration their image analysis gives,
+against their isothermal calorimetry, and the enthalpy their measurements imply
+for the slag glass, which no database holds. *Bound water, and the thermogram it
+integrates to*, moved out of the surface pages where it did not belong,
+computes the bound water of the same pastes against their thermogravimetry; its
+section on the decomposition windows is now labeled as the self-test it is.
+*A semi-adiabatic calorimeter, inside the kinetics* puts the Portland cement of
+the ionic hydration page in the calorimeter of Lavergne et al. (2018), with the
+temperature among the unknowns of the kinetics, against the temperature they
+measured: 56.4 °C at 0.82 day where they measured 52.1 °C at 0.75 day, with
+nothing adjusted, and 40.3 °C when the same heat is integrated without its
+feedback on the rates. It replaces the cell the ionic hydration page integrated
+after the calculation, from a heat flow at 20 °C, and the precomputed heat table
+no longer carries that temperature. The transcriptions are in
+`data/literature/Gruyaert2010.json` and `data/literature/Lavergne2018.json`.
+
+A new first page of the theory, *Energies, enthalpies and the chemical
+potential*, rebuilds from the two laws the enthalpy a calorimeter measures, the
+Gibbs energy the solver minimizes and the chemical potential between them; it
+defines the absolute entropy and the entropy of formation, the reference of the
+elements and that of the oxides, and the apparent quantities of the databases,
+and shows on the slaking of lime why the Gibbs-Helmholtz relation holds for a
+reaction but not for the apparent energy of one species.
+
+Two snippets of the kinetics tutorial and manual counted the heat capacity of the
+paste twice, once in the calorimeter's `Cp` and once in the sum the integrator
+adds; `Cp` is now the vessel's alone. The license of `data/experimental/` names
+all seven files it covers, where it named two.
 
 ## v0.23.0 — Published values out of the code, and a C-S-H surface checked against PHREEQC
 
