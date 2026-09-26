@@ -813,21 +813,27 @@ function _heat_sensitivity!(p, n_e, be)
     # mortar, shift capacities of -53 kJ/K between two of +60 J/K.
     scale = maximum(n_e)
     absent = [n_e[i] < 1.0e-6 * scale && Hμ[i, i] * n_e[i] < 1.0e-3 for i in eachindex(n_e)]
+    pure = falses(length(n_e))
+    pure[_pure_phase_indices(p.eq_system)] .= true
+    # A sensitivity that fails its own checks is replaced by none: the whole
+    # change of the partition is then carried by the jump at the next accepted
+    # step, which keeps the heat exact at the cost of lumping it.
+    sens(g, bdot) = try
+        _equilibrium_sensitivity(
+            p.Ae, Hμ, g, bdot, n_e; pinned = absent, pinnable = pure, maxpin = length(n_e),
+        )
+    catch err
+        err isa ErrorException || rethrow()
+        zeros(length(n_e))
+    end
     for k in 1:nb
         fill!(e, 0.0)
         e[k] = 1.0
-        # As many pinning passes as there are species: a certified partition
-        # holds its absent phases at zero, and a cement has more of them than
-        # the default eight passes pin, the rest taking the whole response.
-        S[:, k] .= _equilibrium_sensitivity(
-            p.Ae, Hμ, zero_g, e, n_e; maxpin = length(n_e), pinned = absent,
-        )
+        S[:, k] .= sens(zero_g, e)
     end
     if p.has_T
         gT = [-p.h_fns[idx](; T = T, unit = false) / (R_GAS * T^2) for idx in p.idx_equilibrium]
-        dndT = _equilibrium_sensitivity(
-            p.Ae, Hμ, gT, zeros(nb), n_e; maxpin = length(n_e), pinned = absent,
-        )
+        dndT = sens(gT, zeros(nb))
         # The capacity it implies is a quadratic form, positive when the
         # optimality conditions are well posed. When it is not, the shift is not
         # followed at all, in the prediction as in the heat capacity, and the

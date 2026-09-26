@@ -119,6 +119,7 @@ end
     include("hong_glasser1999_reference.jl")
     include("test_dual_solver.jl")
     include("certified_equilibrium.jl")
+    include("trace_sensitivity.jl")
     include("equilibrium_constraints.jl")
     include("capillary.jl")
     include("pitzer.jl")

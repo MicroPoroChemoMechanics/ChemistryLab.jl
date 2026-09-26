@@ -398,9 +398,12 @@ function optimality_certificate(
         constraint::EquilibriumConstraint = FixedTP(),
         q = nothing,
     )
+    # A composition carrying dual numbers is audited at its values: the
+    # conditions are about the point, and its derivatives are another question.
+    state = _primal(state)
     p = _build_params(state; ϵ = ϵ)
     n = Float64[ustrip(us"mol", x) for x in state.n]
-    bv = b === nothing ? des.A * n : Float64.(collect(b))
+    bv = b === nothing ? des.A * n : Float64[_plain(x) for x in collect(b)]
 
     # The certificate has to audit the problem that was SOLVED, and a constraint
     # is part of that problem. Rebuilt with `FixedTP` — which is what this did
