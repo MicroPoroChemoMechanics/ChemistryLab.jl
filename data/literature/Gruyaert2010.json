@@ -4,12 +4,12 @@
     "key": "Gruyaert2010",
     "doi": "10.1007/s10973-010-0841-6",
     "citation": "Gruyaert, E., Robeyst, N., De Belie, N. (2010). Study of the hydration of Portland cement blended with blast-furnace slag by calorimetry and thermogravimetry. Journal of Thermal Analysis and Calorimetry 102(3), 941-951.",
-    "location": "Tables 1, 2, 5 and 6 and Fig. 7, pp. 943-950; methods pp. 942-944"
+    "location": "Tables 1, 2, 5 and 6, Fig. 7 and the bound water at infinite time in the text of p. 948, pp. 943-950; methods pp. 942-944"
   },
   "transcription": {
     "from": "the published article (PDF): the tables from the page text, checked on the page images; Fig. 7 from its vector drawing, each marker located by its coordinates and mapped through the tick marks of the axes (a logarithmic age axis from 0.1 to 10000 days, bound water from 0 to 30), the seven series told apart by the marker the legend gives them",
     "checked_against_source": true,
-    "note": "CEM I 52.5 N and a blast-furnace slag, pastes at w/b = 0.5 with slag-to-binder ratios 0, 0.30, 0.50 and 0.85. The calorimetry and the thermogravimetry used materials from different batches (Table 1). The hydration was stopped by methanol for a week, then a week over silica gel, before the thermogravimetry; the bound water is the mass lost between 378 K and 1123 K under an inert atmosphere, corrected for the carbon dioxide lost around 923 K. Fig. 7 reads to the size of a marker; its ages come out at 1, 2, 5, 7, 14, 28, 56, 91, 182, 364 and 1018 days to three digits, which is the check on the axis mapping."
+    "note": "CEM I 52.5 N and a blast-furnace slag, pastes at w/b = 0.5 with slag-to-binder ratios 0, 0.30, 0.50 and 0.85. The calorimetry and the thermogravimetry used materials from different batches (Table 1). Before the thermogravimetry, a week of immersion in methanol and a week over silica gel arrested the hydration; the bound water is the mass lost between 378 K and 1123 K under an inert atmosphere, corrected for the carbon dioxide lost around 923 K. Fig. 7 reads to the size of a marker; its ages come out at 1, 2, 5, 7, 14, 28, 56, 91, 182, 364 and 1018 days to three digits, which is the check on the axis mapping."
   },
   "quantities": {
     "water_binder_ratio": {
@@ -87,8 +87,8 @@
     "isothermal_total_heat": {
       "columns": ["slag_to_binder", "heat_infinity"],
       "units": ["1", "J/g"],
-      "kind": "measured",
-      "location": "Table 2, p. 947: total heat of the pastes at 293 K, the isothermal measurements extrapolated to infinite time",
+      "kind": "fitted",
+      "location": "Table 2, p. 947: total heat of the pastes at 293 K, the isothermal measurements extrapolated to infinite time by the three-parameter law of Eq. 6 with the bound water replaced by the heat (p. 949)",
       "rows": [
         [0.0, 433],
         [0.3, 406],
@@ -193,6 +193,17 @@
         ["b", 0.85, 181.838, 10.6],
         ["b", 0.85, 274.586, 9.26],
         ["b", 0.85, 363.392, 11.49]
+      ]
+    },
+    "bound_water_infinity": {
+      "columns": ["slag_to_binder", "bound_water_infinity"],
+      "units": ["1", "1"],
+      "kind": "fitted",
+      "location": "p. 948, section on the chemically bound water: the bound water in g per 100 g of binder extrapolated to infinite time, Eq. 6 fitted by the authors to each series of Fig. 7",
+      "rows": [
+        [0.0, 23.8],
+        [0.5, 22.4],
+        [0.85, 11.4]
       ]
     }
   },

@@ -92,6 +92,14 @@
       "location": "p. 51",
       "description": "Blaine fineness of the limestone filler of the blends."
     },
+    "sand_water_absorption": {
+      "value": 0.009,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 11 caption, p. 55",
+      "description": "Water absorbed by the dry sand, as a fraction of its mass; the water of Table 11 includes it, so that the paste is at the stated w/b."
+    },
     "calorimeter_heat_capacity": {
       "value": 380,
       "unit": "kJ/K",
