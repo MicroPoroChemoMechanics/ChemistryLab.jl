@@ -370,6 +370,14 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
     has_T = kp.calorimeter isa SemiAdiabaticCalorimeter
     has_Q = kp.calorimeter isa IsothermalCalorimeter
 
+    # The heat under partial equilibrium: `−dH/dt` over the whole composition,
+    # the equilibrium partition followed through its sensitivity to `bₑ` (see
+    # `_equilibrium_heat_rate`). It needs the enthalpy of every species, since a
+    # species without one would drop out of the sum and take its heat with it.
+    heat_eq = (has_T || has_Q) && n_be > 0
+    heat_eq && _refuse_missing_enthalpy(kp.system, h_fns)
+    n_eq = length(kp.idx_equilibrium)
+
     # Calorimeter parameters (semi-adiabatic)
     cal = kp.calorimeter
     Cp_calo = cal isa SemiAdiabaticCalorimeter ? Float64(safe_ustrip(us"J/K", cal.Cp)) : 0.0
@@ -404,6 +412,17 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
         Cp_calo = Cp_calo,
         T_env = T_env,
         heat_loss_fn = heat_loss_fn,
+        # The sensitivity of the equilibrium partition, refreshed by `respeciate!`:
+        # `∂nₑ/∂bₑ` and, with a semi-adiabatic cell, `∂nₑ/∂T`.
+        heat_eq = heat_eq,
+        heat_S = Ref(zeros(Float64, n_eq, n_be)),
+        heat_dndT = Ref(zeros(Float64, n_eq)),
+        heat_ready = Ref(false),
+        # The partition and the element amounts the sensitivity was taken at, and
+        # the heat of the part of the last re-speciation it did not predict.
+        heat_n = Ref(zeros(Float64, n_eq)),
+        heat_b = Ref(zeros(Float64, n_be)),
+        heat_jump = Ref(0.0),
         # Equilibrium — Leal et al. (2017) §5. The re-speciation φ(bₑ) is a
         # minimization over the EQUILIBRIUM PARTITION ONLY, at frozen kinetic
         # amounts. Running it over the whole system would let the kinetic
@@ -647,6 +666,182 @@ function system_enthalpy(p, u, T)
     return H
 end
 
+# ── the heat under partial equilibrium ───────────────────────────────────────
+#
+# Under partial equilibrium the kinetic reactions only dissolve the anhydrous
+# phases into ions, and the hydrates are precipitated by the minimization: the
+# heat of the kinetic reactions leaves the precipitation out (on an ordinary
+# Portland cement, a semi-adiabatic rise of 207 K). The heat is the rate at which
+# the enthalpy of the WHOLE composition falls at fixed temperature,
+#
+#     q̇ = −dH/dt = −Σᵢ ΔₐH⁰ᵢ(T) dnᵢ/dt ,
+#
+# the kinetic amounts moving as the ODE moves them, and the equilibrium partition
+# as the minimization moves it when `bₑ` changes: `dnₑ/dt = S dbₑ/dt`, with
+# `S = ∂nₑ/∂bₑ` from the optimality conditions at the partition in hand
+# (`_equilibrium_sensitivity`). Integrated at fixed temperature this is the
+# enthalpy difference `heat_release` computes from certified states.
+
+"""
+    _refuse_missing_enthalpy(system, h_fns)
+
+Refuse a calorimeter under partial equilibrium when a species carries no
+enthalpy of formation: its term would drop out of `−dH/dt`, and the heat with it.
+"""
+function _refuse_missing_enthalpy(system, h_fns)
+    missing_h = [symbol(sp) for (sp, h) in zip(system.species, h_fns) if isnothing(h)]
+    isempty(missing_h) && return nothing
+    shown = join(missing_h[1:min(5, length(missing_h))], ", ")
+    throw(
+        ArgumentError(
+            "a calorimeter under partial equilibrium takes its heat from the enthalpy " *
+                "of the whole composition, and $(length(missing_h)) species carry no " *
+                "ΔₐH⁰ ($shown$(length(missing_h) > 5 ? ", …" : "")). Give them one, or " *
+                "leave them out of the system."
+        )
+    )
+end
+
+"""
+    _heat_sensitivity!(p, n_e, be)
+
+Refresh `∂nₑ/∂bₑ`, and with a semi-adiabatic cell `∂nₑ/∂T`, at the partition
+`n_e` just computed by `respeciate!` for the element amounts `be`, from the
+optimality conditions of that minimization. One Hessian of the potentials serves
+every column.
+
+Between two re-speciations the partition is followed linearly, `nₑ + S Δbₑ`.
+Where the assemblage changes within the step, a phase appearing for instance, the
+re-speciation lands elsewhere, and the enthalpy of that difference is heat the
+integrated source did not see. It is recorded in `p.heat_jump` (J, positive when
+released) for the step callback to add to the calorimeter's state, so that the
+heat follows the enthalpy of the partition at every accepted step. The first
+re-speciation, of the state the run starts from, is the reference and releases
+nothing.
+"""
+function _heat_sensitivity!(p, n_e, be)
+    T = ustrip(us"K", p.T_q[])
+    if p.heat_ready[]
+        S, n0, b0 = p.heat_S[], p.heat_n[], p.heat_b[]
+        jump = 0.0
+        for (j, idx) in enumerate(p.idx_equilibrium)
+            predicted = n0[j]
+            for k in eachindex(b0)
+                predicted += S[j, k] * (be[k] - b0[k])
+            end
+            jump -= p.h_fns[idx](; T = T, unit = false) * (n_e[j] - predicted)
+        end
+        # Accumulated, not assigned: `respeciate!` may solve twice in one call
+        # (the warm guess, then the reconstruction), and the second is measured
+        # from the first, so the two parts add up to the whole.
+        p.heat_jump[] += jump
+    end
+    p.heat_n[] .= n_e
+    p.heat_b[] .= be
+    st = ChemicalState(p.eq_system, n_e .* u"mol"; T = p.T_q[], P = p.P_q[])
+    pv = _build_params(st; ϵ = p.ϵ)
+    μ = p.eq_solver.μ
+    Hμ = ForwardDiff.jacobian(n -> μ(n, pv), n_e)
+    S = p.heat_S[]
+    nb = size(S, 2)
+    zero_g = zeros(length(n_e))
+    e = zeros(nb)
+    for k in 1:nb
+        fill!(e, 0.0)
+        e[k] = 1.0
+        S[:, k] .= _equilibrium_sensitivity(p.Ae, Hμ, zero_g, e, n_e)
+    end
+    if p.has_T
+        # ∂(μ/RT)/∂T at fixed composition, by a centered difference over 0.01 K:
+        # the potentials depend on T through tabulated functions, and nothing
+        # here is differentiated with respect to it otherwise.
+        T0 = ustrip(us"K", p.T_q[])
+        h = 0.01
+        at(T) = _build_params(
+            ChemicalState(p.eq_system, n_e .* u"mol"; T = T * u"K", P = p.P_q[]); ϵ = p.ϵ,
+        )
+        g = (μ(n_e, at(T0 + h)) .- μ(n_e, at(T0 - h))) ./ (2h)
+        p.heat_dndT[] .= _equilibrium_sensitivity(p.Ae, Hμ, g, zeros(nb), n_e)
+    end
+    p.heat_ready[] = true
+    return nothing
+end
+
+"""
+    _equilibrium_heat_rate(p, du, T) -> Real
+
+`q̇ = −Σᵢ ΔₐH⁰ᵢ(T) dnᵢ/dt` [W], the kinetic amounts from `du`, the equilibrium
+partition from `S dbₑ/dt`. Generic in the number type of `du` and `T`.
+"""
+function _equilibrium_heat_rate(p, du, T)
+    S = p.heat_S[]
+    q = zero(promote_type(eltype(du), typeof(T)))
+    for (j, idx) in enumerate(p.idx_equilibrium)
+        dn = zero(eltype(du))
+        for k in 1:(p.n_be)
+            dn += S[j, k] * du[k]
+        end
+        q -= p.h_fns[idx](; T = T, unit = false) * dn
+    end
+    for (j, idx) in enumerate(p.idx_kinetic)
+        q -= p.h_fns[idx](; T = T, unit = false) * du[p.n_be + j]
+    end
+    return q
+end
+
+"""
+    _equilibrium_shift_capacity(p, T) -> Real
+
+`Σᵢ ΔₐH⁰ᵢ(T) ∂nᵢ/∂T` [J/K] over the equilibrium partition: the heat the
+partition takes up per kelvin as the equilibrium shifts with temperature. With
+it, the enthalpy of the cell is conserved exactly by an adiabatic run.
+"""
+function _equilibrium_shift_capacity(p, T)
+    dndT = p.heat_dndT[]
+    c = zero(typeof(T))
+    for (j, idx) in enumerate(p.idx_equilibrium)
+        c += p.h_fns[idx](; T = T, unit = false) * dndT[j]
+    end
+    return c
+end
+
+"""
+    _cell_heat_capacity(p, T) -> Float64
+
+The heat capacity of the semi-adiabatic cell at the composition `p.n_full`: the
+vessel, `Σᵢ nᵢ Cp°ᵢ(T)`, and under partial equilibrium the shift of the partition.
+The denominator of `dT/dt`, for converting a heat into a temperature step.
+"""
+function _cell_heat_capacity(p, T)
+    c = p.Cp_calo
+    for (i, cp_fn) in enumerate(p.cp_fns)
+        isnothing(cp_fn) && continue
+        c += p.n_full[i] * cp_fn(; T = T, unit = false)
+    end
+    p.heat_eq && p.heat_ready[] && (c += _equilibrium_shift_capacity(p, T))
+    return c
+end
+
+"""
+    _apply_heat_jump!(p, u) -> Bool
+
+Add the heat of the last re-speciation's unpredicted part (`p.heat_jump`) to the
+calorimeter's state `u[end]`: to the heat of an isothermal cell, or as a
+temperature step to a semi-adiabatic one. Returns whether `u` changed.
+"""
+function _apply_heat_jump!(p, u)
+    p.heat_eq || return false
+    q = p.heat_jump[]
+    p.heat_jump[] = 0.0
+    iszero(q) && return false
+    if p.has_Q
+        u[end] += q
+    elseif p.has_T
+        u[end] += q / _cell_heat_capacity(p, u[end])
+    end
+    return true
+end
+
 # ── respeciate! ──────────────────────────────────────────────────────────────
 
 """
@@ -669,6 +864,10 @@ the previous speciation, projected onto `bₑ` through the pseudo-inverse of
 """
 function respeciate!(p, u)
     p.n_be > 0 || return false
+
+    # A semi-adiabatic cell carries the temperature in the state, and the
+    # partition is an equilibrium at THAT temperature, not at the initial one.
+    p.has_T && (p.T_q[] = u[end] * us"K")
 
     # φ(bₑ), Leal et al. (2017) Eq. 54: the element amounts carried by the ODE
     # state ARE the constraint of the minimization, and they are handed to the
@@ -835,6 +1034,7 @@ function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
     for (j, idx) in enumerate(p.idx_equilibrium)
         p.n_full[idx] = n_e[j]
     end
+    p.heat_eq && _heat_sensitivity!(p, n_e, be)
 
     res = _row_residual(p.Ae, n_e, be)
     abs_res > p.eq_worst_abs[] && (p.eq_worst_abs[] = abs_res)
@@ -1166,27 +1366,32 @@ function build_kinetics_ode(kp::KineticsProblem)
 
         # ── 8a. ODE: dQ/dt = q̇ (isothermal) ────────────────────────────
         #
-        # This is the heat of the KINETIC reactions. When those reactions produce
-        # the hydrates it is the heat of hydration; under partial equilibrium they
-        # only dissolve the anhydrous phases into ions and the precipitation heat
-        # is invisible to it, which is why `cumulative_heat` says so and
-        # `heat_release` exists.
+        # The heat of the kinetic reactions when they produce the hydrates. Under
+        # partial equilibrium they only dissolve the anhydrous phases into ions,
+        # and the heat is then `−dH/dt` over the whole composition, the partition
+        # followed through its sensitivity to `bₑ` (`_equilibrium_heat_rate`).
         if p.has_Q
-            du[end] = heat_rate(p.kin_rxns, rates, T_curr)
+            du[end] = p.heat_eq && p.heat_ready[] ? _equilibrium_heat_rate(p, du, T_curr) :
+                heat_rate(p.kin_rxns, rates, T_curr)
         end
 
         # ── 8b. ODE: dT/dt = (q̇ − φ(ΔT)) / Cp_total (semi-adiabatic) ───
         if p.has_T
-            # Heat generation: q̇ = Σᵢ rᵢ × (−ΔᵣH⁰ᵢ) [W]
-            qdot = heat_rate(p.kin_rxns, rates, T_curr)
+            # Heat generation [W]: `−dH/dt` at fixed T under partial
+            # equilibrium, `Σᵢ rᵢ (−ΔᵣH⁰ᵢ)` over the kinetic reactions otherwise.
+            qdot = p.heat_eq && p.heat_ready[] ? _equilibrium_heat_rate(p, du, T_curr) :
+                heat_rate(p.kin_rxns, rates, T_curr)
 
-            # Total heat capacity: Cp_calo + Σᵢ nᵢ Cp°ᵢ(T)
+            # Total heat capacity: Cp_calo + Σᵢ nᵢ Cp°ᵢ(T), and under partial
+            # equilibrium the heat the partition takes up as it shifts with T.
             Cp_total = p.Cp_calo
             for (i, cp_fn) in enumerate(p.cp_fns)
                 isnothing(cp_fn) && continue
                 cp_i = cp_fn(; T = T_curr, unit = false)
                 Cp_total = Cp_total + n_full[i] * cp_i
             end
+            p.heat_eq && p.heat_ready[] &&
+                (Cp_total = Cp_total + _equilibrium_shift_capacity(p, T_curr))
 
             ΔT = T_curr - p.T_env
             du[end] = (qdot - p.heat_loss_fn(ΔT)) / Cp_total

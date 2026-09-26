@@ -71,31 +71,6 @@ function integrate(kp::KineticsProblem, ks::KineticsSolver; kwargs...)
     u0 = build_u0(kp)
     p = build_kinetics_params(kp)
 
-    # A semi-adiabatic cell driven by an equilibrium-coupled model would be
-    # driven by the wrong heat. The temperature equation takes its source from
-    # `heat_rate`, i.e. from the KINETIC reactions, and under partial equilibrium
-    # those only dissolve the anhydrous phases into ions — the hydrates are
-    # precipitated by the Gibbs minimization, whose heat that sum cannot see.
-    # On an ordinary Portland cement this put the temperature rise at 207 K
-    # against the few tens of kelvin a Langavant test gives, and nothing in the
-    # run said so. Until the source accounts for the precipitation, say it here.
-    if kp.calorimeter isa IsothermalCalorimeter && !isnothing(kp.equilibrium_solver)
-        @warn """isothermal calorimetry is coupled to an equilibrium solver: the Q state \
-        this integrates accumulates the heat of the KINETIC reactions alone, which under \
-        partial equilibrium is the heat of DISSOLUTION and omits the precipitation of the \
-        hydrates. `cumulative_heat` and `heat_flow` will report that partial figure. Use \
-        `heat_release`, which differences the enthalpy of certified speciations."""
-    end
-
-    if kp.calorimeter isa SemiAdiabaticCalorimeter && !isnothing(kp.equilibrium_solver)
-        @warn """semi-adiabatic calorimetry is coupled to an equilibrium solver: the \
-        temperature is driven by the heat of the KINETIC reactions alone, which under \
-        partial equilibrium is the heat of DISSOLUTION and omits the precipitation of \
-        the hydrates. The temperature will be badly overestimated. Use \
-        `IsothermalCalorimeter` with `heat_release`, which reads certified \
-        speciations, until the source term accounts for the equilibrium partition."""
-    end
-
     # Warn for missing Cp° when semi-adiabatic
     if kp.calorimeter isa SemiAdiabaticCalorimeter
         missing_cp = String[]
@@ -143,13 +118,16 @@ function integrate(kp::KineticsProblem, ks::KineticsSolver; kwargs...)
                 integrator.p.on_accepted[] = true
                 respeciate!(integrator.p, integrator.u)
                 integrator.p.on_accepted[] = false
+                # The heat of the part of that re-speciation the linearized
+                # partition did not predict goes into the calorimeter's state.
+                modified = ChemistryLab._apply_heat_jump!(integrator.p, integrator.u)
                 # `u_modified!` was renamed in SciMLBase; call the new name
                 # where it exists and fall back so the extension keeps working
                 # against the versions the compat bound still admits.
                 if isdefined(SciMLBase, :derivative_discontinuity!)
-                    SciMLBase.derivative_discontinuity!(integrator, false)
+                    SciMLBase.derivative_discontinuity!(integrator, modified)
                 else
-                    SciMLBase.u_modified!(integrator, false)
+                    SciMLBase.u_modified!(integrator, modified)
                 end
             end;
             save_positions = (false, false),
