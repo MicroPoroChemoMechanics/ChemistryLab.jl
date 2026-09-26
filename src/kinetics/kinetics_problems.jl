@@ -412,17 +412,20 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
         Cp_calo = Cp_calo,
         T_env = T_env,
         heat_loss_fn = heat_loss_fn,
-        # The sensitivity of the equilibrium partition, refreshed by `respeciate!`:
-        # `∂nₑ/∂bₑ` and, with a semi-adiabatic cell, `∂nₑ/∂T`.
+        # The sensitivity `∂nₑ/∂bₑ` of the equilibrium partition, refreshed by
+        # `respeciate!`.
         heat_eq = heat_eq,
         heat_S = Ref(zeros(Float64, n_eq, n_be)),
-        heat_dndT = Ref(zeros(Float64, n_eq)),
         heat_ready = Ref(false),
         # The partition and the element amounts the sensitivity was taken at, and
         # the heat of the part of the last re-speciation it did not predict.
         heat_n = Ref(zeros(Float64, n_eq)),
         heat_b = Ref(zeros(Float64, n_be)),
         heat_jump = Ref(0.0),
+        # In a semi-adiabatic cell, the shift of the partition with temperature,
+        # `∂nₑ/∂T`, and the temperature it was taken at.
+        heat_dndT = Ref(zeros(Float64, n_eq)),
+        heat_T = Ref(T_K),
         # Equilibrium — Leal et al. (2017) §5. The re-speciation φ(bₑ) is a
         # minimization over the EQUILIBRIUM PARTITION ONLY, at frozen kinetic
         # amounts. Running it over the whole system would let the kinetic
@@ -705,27 +708,53 @@ end
 """
     _heat_sensitivity!(p, n_e, be)
 
-Refresh `∂nₑ/∂bₑ`, and with a semi-adiabatic cell `∂nₑ/∂T`, at the partition
-`n_e` just computed by `respeciate!` for the element amounts `be`, from the
-optimality conditions of that minimization. One Hessian of the potentials serves
-every column.
+Refresh `∂nₑ/∂bₑ` at the partition `n_e` just computed by `respeciate!` for the
+element amounts `be`, from the optimality conditions of that minimization. One
+Hessian of the potentials serves every column.
 
 Between two re-speciations the partition is followed linearly, `nₑ + S Δbₑ`.
-Where the assemblage changes within the step, a phase appearing for instance, the
-re-speciation lands elsewhere, and the enthalpy of that difference is heat the
-integrated source did not see. It is recorded in `p.heat_jump` (J, positive when
-released) for the step callback to add to the calorimeter's state, so that the
-heat follows the enthalpy of the partition at every accepted step. The first
-re-speciation, of the state the run starts from, is the reference and releases
-nothing.
+The re-speciation lands elsewhere wherever that is not the whole story: where
+the assemblage changes within the step, a phase appearing for instance, and in a
+semi-adiabatic cell where the temperature moved the equilibrium. The enthalpy of
+that difference is heat the integrated source did not see.
+
+In a semi-adiabatic cell the partition is also followed in temperature,
+`nₑ + S Δbₑ + (∂nₑ/∂T) ΔT`, and the heat it takes up as it shifts is part of the
+heat capacity of the cell ([`_equilibrium_shift_capacity`](@ref)). The shift is
+taken from the same optimality conditions with the right-hand side of the
+Gibbs–Helmholtz relation, `∂(μᵢ/RT)/∂T = −ΔₐH⁰ᵢ/RT²`, over the enthalpies the heat
+is counted with. The capacity is then a quadratic form in them, positive where
+the optimality conditions are well posed: the stability of an equilibrium, which
+heating shifts towards where it absorbs heat. A difference quotient of the
+potentials instead carries the temperature dependence of the activity
+coefficients, which the enthalpies do not, and it gave the C100 mortar of
+Lavergne et al. (2018) a capacity small or negative, and temperatures no water
+table covers. Where the form is not positive all the same, the shift is left
+to the jump below, in the prediction and in the capacity alike.
+
+The difference between the prediction and the re-speciation is recorded in
+`p.heat_jump` (J, positive when released) for the step callback to add to the
+calorimeter's state, so that the heat follows the enthalpy of the partition at
+every accepted step. The first re-speciation, of the state the run starts from,
+is the reference and releases nothing.
 """
 function _heat_sensitivity!(p, n_e, be)
+    # The reference is a PROVED equilibrium, or nothing moves. The in-run
+    # partition is warm-started and not certified, and an assemblage one phase
+    # off is worth more than a step's heat: taken as it came, successive
+    # partitions of the C100 mortar of Lavergne et al. (2018) differed by
+    # 120 kJ, the jumps became tens of kelvin and the Arrhenius terms ran away.
+    # An unproved partition leaves the last proved one, and its sensitivity, in
+    # place; the next proved one then settles the whole difference.
+    n_e = _proved_partition(p, n_e, be)
+    n_e === nothing && return nothing
     T = ustrip(us"K", p.T_q[])
     if p.heat_ready[]
         S, n0, b0 = p.heat_S[], p.heat_n[], p.heat_b[]
+        ΔT = p.has_T ? T - p.heat_T[] : 0.0
         jump = 0.0
         for (j, idx) in enumerate(p.idx_equilibrium)
-            predicted = n0[j]
+            predicted = n0[j] + p.heat_dndT[][j] * ΔT
             for k in eachindex(b0)
                 predicted += S[j, k] * (be[k] - b0[k])
             end
@@ -738,6 +767,7 @@ function _heat_sensitivity!(p, n_e, be)
     end
     p.heat_n[] .= n_e
     p.heat_b[] .= be
+    p.heat_T[] = T
     st = ChemicalState(p.eq_system, n_e .* u"mol"; T = p.T_q[], P = p.P_q[])
     pv = _build_params(st; ϵ = p.ϵ)
     μ = p.eq_solver.μ
@@ -746,24 +776,75 @@ function _heat_sensitivity!(p, n_e, be)
     nb = size(S, 2)
     zero_g = zeros(length(n_e))
     e = zeros(nb)
+    # The absent phases, pinned before the first pass: a pure phase has no
+    # curvature, and one left free at a negligible amount keeps its row of the
+    # optimality conditions, as if it coexisted with the rest. The system is
+    # then near-singular, and its answer noise of either sign: on the C100
+    # mortar, shift capacities of -53 kJ/K between two of +60 J/K.
+    scale = maximum(n_e)
+    absent = [n_e[i] < 1.0e-6 * scale && Hμ[i, i] * n_e[i] < 1.0e-3 for i in eachindex(n_e)]
     for k in 1:nb
         fill!(e, 0.0)
         e[k] = 1.0
-        S[:, k] .= _equilibrium_sensitivity(p.Ae, Hμ, zero_g, e, n_e)
+        # As many pinning passes as there are species: a certified partition
+        # holds its absent phases at zero, and a cement has more of them than
+        # the default eight passes pin, the rest taking the whole response.
+        S[:, k] .= _equilibrium_sensitivity(
+            p.Ae, Hμ, zero_g, e, n_e; maxpin = length(n_e), pinned = absent,
+        )
     end
     if p.has_T
-        # ∂(μ/RT)/∂T at fixed composition, by a centered difference over 0.01 K:
-        # the potentials depend on T through tabulated functions, and nothing
-        # here is differentiated with respect to it otherwise.
-        T0 = ustrip(us"K", p.T_q[])
-        h = 0.01
-        at(T) = _build_params(
-            ChemicalState(p.eq_system, n_e .* u"mol"; T = T * u"K", P = p.P_q[]); ϵ = p.ϵ,
+        gT = [-p.h_fns[idx](; T = T, unit = false) / (R_GAS * T^2) for idx in p.idx_equilibrium]
+        dndT = _equilibrium_sensitivity(
+            p.Ae, Hμ, gT, zeros(nb), n_e; maxpin = length(n_e), pinned = absent,
         )
-        g = (μ(n_e, at(T0 + h)) .- μ(n_e, at(T0 - h))) ./ (2h)
-        p.heat_dndT[] .= _equilibrium_sensitivity(p.Ae, Hμ, g, zeros(nb), n_e)
+        # The capacity it implies is a quadratic form, positive when the
+        # optimality conditions are well posed. When it is not, the shift is not
+        # followed at all, in the prediction as in the heat capacity, and the
+        # re-speciation's jump carries it: counting it in one and not the other
+        # creates or destroys heat.
+        C = sum(p.h_fns[idx](; T = T, unit = false) * dndT[j] for (j, idx) in enumerate(p.idx_equilibrium))
+        p.heat_dndT[] .= isfinite(C) && C > 0 ? dndT : zero(dndT)
     end
     p.heat_ready[] = true
+    return nothing
+end
+
+"""
+    _equilibrium_shift_capacity(p, T) -> Real
+
+`Σᵢ ΔₐH⁰ᵢ(T) ∂nᵢ/∂T` [J/K] over the equilibrium partition: the heat it takes up
+per kelvin as it shifts, in the heat capacity of a semi-adiabatic cell. The
+shift is kept only where this is positive at the reference temperature
+(`_heat_sensitivity!`), and the clamp covers what the change of the enthalpies
+with temperature can do to it away from there.
+"""
+function _equilibrium_shift_capacity(p, T)
+    dndT = p.heat_dndT[]
+    c = zero(T)
+    for (j, idx) in enumerate(p.idx_equilibrium)
+        c += p.h_fns[idx](; T = T, unit = false) * dndT[j]
+    end
+    return max(c, zero(c))
+end
+
+"""
+    _proved_partition(p, n_e, be) -> Union{Vector{Float64}, Nothing}
+
+`n_e` if the certificate proves it the equilibrium for `be`, else the certified
+solve started from it if that proves one, else `nothing`. Without a certifying
+solver for the partition, `n_e` as it is.
+"""
+function _proved_partition(p, n_e, be)
+    p.eq_dual === nothing && return n_e
+    st = ChemicalState(p.eq_system, n_e .* u"mol"; T = p.T_q[], P = p.P_q[])
+    try
+        optimality_certificate(p.eq_dual, st; b = be).optimal && return n_e
+        eq_c, cert = solve_certified(p.eq_dual, (st,); b = be, ϵ = p.ϵ)
+        cert.optimal && return Float64[ustrip(us"mol", x) for x in eq_c.n]
+    catch
+        # An audit or a solve that raises proves nothing, and nothing moves.
+    end
     return nothing
 end
 
@@ -790,27 +871,11 @@ function _equilibrium_heat_rate(p, du, T)
 end
 
 """
-    _equilibrium_shift_capacity(p, T) -> Real
-
-`Σᵢ ΔₐH⁰ᵢ(T) ∂nᵢ/∂T` [J/K] over the equilibrium partition: the heat the
-partition takes up per kelvin as the equilibrium shifts with temperature. With
-it, the enthalpy of the cell is conserved exactly by an adiabatic run.
-"""
-function _equilibrium_shift_capacity(p, T)
-    dndT = p.heat_dndT[]
-    c = zero(typeof(T))
-    for (j, idx) in enumerate(p.idx_equilibrium)
-        c += p.h_fns[idx](; T = T, unit = false) * dndT[j]
-    end
-    return c
-end
-
-"""
     _cell_heat_capacity(p, T) -> Float64
 
 The heat capacity of the semi-adiabatic cell at the composition `p.n_full`: the
-vessel, `Σᵢ nᵢ Cp°ᵢ(T)`, and under partial equilibrium the shift of the partition.
-The denominator of `dT/dt`, for converting a heat into a temperature step.
+vessel, `Σᵢ nᵢ Cp°ᵢ(T)` and the shift of the equilibrium partition, the
+denominator of `dT/dt`, for converting a heat into a temperature step.
 """
 function _cell_heat_capacity(p, T)
     c = p.Cp_calo
@@ -1382,8 +1447,8 @@ function build_kinetics_ode(kp::KineticsProblem)
             qdot = p.heat_eq && p.heat_ready[] ? _equilibrium_heat_rate(p, du, T_curr) :
                 heat_rate(p.kin_rxns, rates, T_curr)
 
-            # Total heat capacity: Cp_calo + Σᵢ nᵢ Cp°ᵢ(T), and under partial
-            # equilibrium the heat the partition takes up as it shifts with T.
+            # Total heat capacity: Cp_calo + Σᵢ nᵢ Cp°ᵢ(T), and the heat the
+            # equilibrium partition takes up as it shifts with T.
             Cp_total = p.Cp_calo
             for (i, cp_fn) in enumerate(p.cp_fns)
                 isnothing(cp_fn) && continue

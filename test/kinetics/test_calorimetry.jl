@@ -374,6 +374,30 @@ end
     released = ustrip(us"J/K", heat_capacity(states[end])) * (Tt[end] - Tt[1])
     @info "adiabatic cell under partial equilibrium" ΔT = Tt[end] - Tt[1] drift = H .- H[1] released
     @test maximum(abs, H .- H[1]) < 1.0e-3 * released
+
+    # The heat the partition takes up as it shifts with temperature, from the
+    # Gibbs–Helmholtz right-hand side, against certified equilibria of the last
+    # proved partition half a kelvin either side of it.
+    p = sol.prob.p
+    Tr = p.heat_T[]
+    C_shift = ChemistryLab._equilibrium_shift_capacity(p, Tr)
+    h = [p.h_fns[i](; T = Tr, unit = false) for i in p.idx_equilibrium]
+    function n_at(T)
+        st = ChemicalState(p.eq_system, p.heat_n[] .* u"mol"; T = T * u"K", P = p.P_q[])
+        eq, cert = solve_certified(p.eq_dual, (st,); b = p.heat_b[], ϵ = p.ϵ)
+        @test cert.optimal
+        return ustrip.(us"mol", eq.n)
+    end
+    C_fd = h' * (n_at(Tr + 0.5) .- n_at(Tr - 0.5))
+    @info "shift of the partition with temperature" C_shift C_fd
+    @test C_shift > 0
+    # Measured: 1.6140 J/K against 1.6138. The Gibbs–Helmholtz form leaves out
+    # the temperature dependence of the activity coefficients, which the
+    # certified equilibria carry, with the truncation of the difference quotient.
+    @test C_shift ≈ C_fd rtol = 1.0e-3
+
+    # A partition whose audit raises proves nothing, and the heat reference stays.
+    @test ChemistryLab._proved_partition(p, p.heat_n[], p.heat_b[][1:(end - 1)]) === nothing
 end
 
 @testset "a stoichiometric cell loses exactly what leaves it" begin
