@@ -123,7 +123,7 @@ vanish. The `H⁺` row carries `+1` for `H⁺` and `−1` for `OH⁻`, so its ze
 is the ordinary state of pure water; treating it as degenerate kills the entire
 acid–base system and returns pH 7.000 with the calcite undissolved.
 
-### What the certificate proves, and when
+### [What the certificate proves, and when](@id sec-theory-certificate-scope)
 
 The three conditions are sufficient for a global minimum only when the chemical
 potentials are the gradient of one Gibbs energy and that energy is convex. The
@@ -145,7 +145,7 @@ The certificate reports which case applies as `scope`: `:global_minimum`,
 with the reasons in `scope_reasons`. `optimal` keeps its meaning in all three,
 the conditions being met to tolerance.
 
-## Mass action or minimization
+## [Mass action or minimization](@id sec-theory-mass-action)
 
 Programs computing a speciation fall into two families, according to the data
 they take and the unknowns they solve for [AndersonCrerar1993](@cite) (§19.2).

@@ -54,8 +54,9 @@ rather than as a number.
 Pressure is treated according to the model attached to the species. The
 Helgeson-Kirkham-Flowers equation of state of aqueous solutes depends on ``P``,
 so that the standard state of a solute is at the pressure of the system. The
-heat-capacity polynomial used for solids and gases carries no pressure term, and
-their standard state is at ``P_r = 1`` bar whatever the pressure of the state.
+heat-capacity polynomial used for solids, gases and the solvent carries no
+pressure term, and their standard state is at ``P_r = 1`` bar whatever the
+pressure of the state.
 This is exact at 1 bar. Above it, a condensed phase misses the contribution
 ``\int_{P_r}^{P} V_i^\circ\,\mathrm{d}P \simeq V_i^\circ (P - P_r)`` and an ideal
 gas the contribution ``RT\ln(P/P_r)``. For portlandite, with ``V^\circ \simeq
