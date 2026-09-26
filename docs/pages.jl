@@ -183,6 +183,9 @@ pages = [
             # A surface in a cement paste, competing with the AFm salts for the
             # same chloride, against PHREEQC on the same model.
             "examples/csh_chloride_binding.md",
+            # The same surface on a C-S-H frozen after a first equilibrium with
+            # CSHQ, and the chloride end member of CSHQ, in slag cements.
+            "examples/chloride_binding_blended.md",
             "examples/thermogravimetry.md",
         ],
         # Small, checkable aqueous cases with an analytical answer to compare to.

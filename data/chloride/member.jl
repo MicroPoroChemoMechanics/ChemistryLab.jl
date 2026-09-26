@@ -252,7 +252,7 @@ end
 Chloride held per silicon by a gel below portlandite saturation, one mole of
 silicon made at Ca/Si 1.0 and at 1.4, in 0.3 mol of NaCl per kilogram of water
 at 20 °C; and the Ca/Si the gel ends at. Measured, the binding grows with the
-Ca/Si of the C-S-H.
+Ca/Si of the gel.
 """
 function calcium_trend(subs, member; model)
     cs = gel_system(subs, member)

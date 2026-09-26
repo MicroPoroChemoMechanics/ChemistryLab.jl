@@ -18,6 +18,17 @@ Modules = [ChemistryLab]
 Pages = ["chemical_structs/chemical_states.jl"]
 ```
 
+## A solid solution, read and then frozen
+
+The totals of a solid solution, and the first state of a second stage in which
+it no longer reacts. See
+[Chloride binding in blended cements](@ref sec-example-chloride-blended).
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages = ["chemical_structs/frozen_phases.jl"]
+```
+
 ## Volume fractions
 
 ```@autodocs

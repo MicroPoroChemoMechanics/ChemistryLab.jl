@@ -20,8 +20,8 @@ It can be put on a C-S-H frozen after a first equilibrium, which is what
 of the gel. An end member of CSHQ holds chloride at any Ca/Si, portlandite or
 not.
 
-It is an **effective** description. Plusquellec and Nonat (2016) found no
-specific adsorption of chloride on C-S-H: the chloride a depletion measurement
+It is an **effective** description. Plusquellec and Nonat (2016) found that
+chloride does not adsorb specifically on C-S-H: the chloride a depletion measurement
 counts as bound accompanies the calcium the surface adsorbs, and sits in the
 diffuse layer that screens it. An end member carrying CaCl2 lumps both, and says
 nothing about where in the gel the chloride is.

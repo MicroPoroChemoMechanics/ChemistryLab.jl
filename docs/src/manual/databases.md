@@ -121,6 +121,24 @@ end
     `data/zeolites/README.md` records the whole provenance, including the three
     other candidate datasets that were examined and rejected on measurement.
 
+## [The chloride extension of CEMDATA18](@id sec-chloride-extension)
+
+`cemdata18-chloride.json` is CEMDATA18 unchanged, with one end member appended:
+`CSHQ-Cl` = (CaCl₂)₀.₅. The phase `CSHQ_Cl` of `data/solid_solutions.toml` is
+CSHQ with it, and is built from this file only. Its Gibbs energy is fitted, not
+measured: on the chloride bound by C-S-H in the sorption tests of
+[Hirao2005](@cite), by `data/chloride/regenerate.jl`, which records the fit on
+the end member itself.
+
+```@example datapath
+ext_cl = build_species(datapath("cemdata18-chloride.json"); verbose = false)
+setdiff(symbol.(ext_cl), symbol.(base))
+```
+
+[Chloride binding in blended cements](@ref sec-example-chloride-blended) uses
+it, and says what it describes and what it does not. `data/chloride/README.md`
+records the data, the fit, and the candidate that was rejected.
+
 ## Loading species from a database
 
 The simplest way to load species from a ThermoFun-compatible JSON file is `build_species`, which reads the file and directly returns a `Vector{Species}` with compiled thermodynamic functions:

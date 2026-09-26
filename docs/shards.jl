@@ -28,6 +28,7 @@ const DOC_SHARDS = [
         "examples/cem1_solid_solutions.md",
         "examples/cem3_slag.md",
         "examples/cem5_composite.md",
+        "examples/chloride_binding_blended.md",
     ],
     # Kinetic trajectories, coupled or not. The coupled ones are integrated by
     # `scripts/precomputed.jl`, on the runner's threads.
