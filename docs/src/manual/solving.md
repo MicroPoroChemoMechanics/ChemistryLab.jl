@@ -431,7 +431,7 @@ ab = hkf_debye_huckel_params(298.15, 1e5)   # → (A=0.5114, B=0.3288)
 
 !!! note "Valid range"
     The B-dot model is reliable for `I ≲ 1 mol/kg`. For higher ionic
-    strengths (brines, evaporites), use the Pitzer model (planned future extension).
+    strengths (brines, evaporites), use [`PitzerActivityModel`](@ref).
 
 ---
 

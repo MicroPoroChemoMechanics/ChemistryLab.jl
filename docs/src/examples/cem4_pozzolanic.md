@@ -659,7 +659,7 @@ thousandths apart. A result that does not move when the route changes is a
 result. On the other side neither route certifies, so there is nothing there to
 compare against: not a number that differs, a number that does not exist.
 
-!!! danger "An equilibrium at 55 % replacement is not a 28-day paste"
+!!! danger "An equilibrium at 45 % replacement is not a 28-day paste"
     Everything above is the state the paste *tends to*, with the whole ash taken
     as reactive. A real fly ash binder reaches a fraction of it in a month. The
     figure is a map of the family's limit, and the way to a date on the calendar

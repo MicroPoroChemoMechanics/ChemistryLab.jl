@@ -39,9 +39,9 @@ the free site at zero and the aqueous species at their own `ΔₐG⁰`:
   - \\sum_{\\text{other products}} \\nu_i \\Delta_a G^\\circ_i .
 ```
 
-The free site at zero is a gauge while the site budget is fixed, and only then:
-under `SITES_FOLLOW_HOST` the reference of the free site reaches the host's
-solubility, and [`host_coupling_bias`](@ref) says what it must be.
+The free site at zero is a gauge while the site budget is fixed, and it is the
+required value under `SITES_FOLLOW_HOST`, where the free sites are counted as part
+of the host; [`host_coupling_bias`](@ref) explains why.
 
 The energies are constants, evaluated at `T` and `P`: a published log K carries
 no temperature dependence, and neither does the family built from it.

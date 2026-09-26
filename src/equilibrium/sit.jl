@@ -287,29 +287,9 @@ function activity_model(cs::ChemicalSystem, model::SITActivityModel)
     idx_solutes = cs.idx_solutes
     idx_gas = cs.idx_gas
 
-    ss_groups = cs.ss_groups
-    has_ss = !isempty(ss_groups)
     has_gas = !isempty(idx_gas)
-    ss_models = has_ss ? map(ss -> ss.model, cs.solid_solutions) : nothing
-
-    site_groups = cs.site_groups
-    has_sites = !isempty(site_groups)
-    site_models = has_sites ? map(f -> f.model, cs.site_families) : nothing
-    site_denticity = has_sites ?
-        [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
-        nothing
-    site_charges = has_sites ?
-        [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
-        nothing
-
-    site_needs_I = has_sites && any(needs_ionic_strength, site_models)
-    site_solvent = isempty(cs.idx_solvent) ? 0 : only(cs.idx_solvent)
-    site_ions = site_needs_I ?
-        [i for i in cs.idx_solutes if !iszero(charge(cs.species[i]))] : Int[]
-    site_ion_z = Float64[charge(cs.species[i]) for i in site_ions]
-    site_Mw = (site_needs_I && !iszero(site_solvent)) ?
-        ustrip(us"kg/mol", cs.species[site_solvent][:M]) : 1.0
-    site_support_idx, site_support_z = has_sites ? _support_members(cs) : (nothing, nothing)
+    # The solid solutions and the site families, prepared once; see `_MixingTerms`.
+    mix = _MixingTerms(cs)
 
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
 
@@ -394,22 +374,9 @@ function activity_model(cs::ChemicalSystem, model::SITActivityModel)
             end
         end
 
-        if has_ss
-            T_val = hasproperty(p, :T) ? p.T : 298.15
-            _solid_solution_lna!(out, _n, ss_groups, ss_models, T_val, ϵ)
-        end
-
-        if has_sites
-            T_val = hasproperty(p, :T) ? p.T : 298.15
-            I_site = site_needs_I ?
-                _aqueous_ionic_strength(_n, site_ions, site_ion_z, site_solvent, site_Mw) :
-                zero(eltype(_n))
-            ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
-            _site_mixing_lna!(
-                out, _n, site_groups, site_models, site_denticity, site_charges,
-                I_site, T_val, ϵ, ψ_site, site_support_idx, site_support_z
-            )
-        end
+        # Solid solutions and surface sites mix on budgets of their own; leaving
+        # either out would give its members unit activity, silently.
+        _mixing_lna!(out, _n, mix, p, ϵ)
 
         return out
     end

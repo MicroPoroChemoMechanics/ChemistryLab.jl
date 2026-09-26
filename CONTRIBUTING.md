@@ -5,7 +5,7 @@
 Create a dedicated branch from the latest accepted `main` for each coherent
 change, for example `fix/safe-database-import` or `fix/species-identity`.
 Include the implementation, regression tests, and documentation in the same PR.
-Link the relevant item in [the consolidation roadmap](CONSOLIDATION.md).
+Link the relevant item in [the consolidation roadmap](https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl/issues/57).
 
 Open a draft PR while work is in progress. For changes to species identity,
 thermodynamic formulations, or public APIs, discuss the proposed contract in a

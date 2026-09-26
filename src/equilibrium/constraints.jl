@@ -10,9 +10,9 @@
 # solve per trial temperature.
 #
 # Reaktoro has a second vehicle, the implicit titrant, for a prescribed chemical
-# potential — pH, pE, a fixed fugacity. That one adds a COLUMN to the conservation
-# matrix rather than a parameter, and is not implemented here. Asking for it
-# raises rather than silently ignoring it.
+# potential — pH, pE, a fixed fugacity. It adds a COLUMN to the conservation
+# matrix rather than a parameter, and it is how `FixedpH`, `FixedActivity`,
+# `FixedpE` and `FixedEh` are written below.
 
 """
     EquilibriumConstraint

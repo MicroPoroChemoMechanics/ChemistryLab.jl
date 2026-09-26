@@ -204,23 +204,19 @@ much as 20 kJ/mol, after which the amount of the sorbent is unchanged to
 
 The cancellation fails as soon as the budget follows the amount of the solid that
 carries the sites, the case treated in
-[Chemistry that happens on a surface](@ref sec-theory-surface) §10. The host then
-carries ``-\nu`` of the site component, the reference energy of the free site
-enters its chemical potential, and that energy becomes a statement about matter.
-A free site `XsOH` holds an oxygen and a hydrogen, and assigning it
-``\Delta_a G^\circ = 0`` states that a surface hydroxyl forms from its elements at
-no cost. The error is the energy of that matter, which [`host_coupling_bias`](@ref)
-evaluates from the conservation matrix. At the weak-site density of
-[DzombakMorel1990](@cite) for hydrous ferric oxide, where ``\nu = 0.2``, it
-amounts to 8.3 log units on the solubility of the host, enough to dissolve it
-completely where the same system with a fixed budget keeps its solid. The value
-consistent with the rest of the database is the standard energy of the matter
-the site carries, ``\mu^\circ(\mathrm{H_2O}) - \mu^\circ(\mathrm{H^+}) =
--237.2`` kJ/mol for a hydroxylated oxide, and a coupled family left at zero is
-refused at construction with that value in the error message.
-[Kulik2002](@cite) avoids the question altogether by keeping the free site out of
-the balance, as a surface solvent of fixed activity; the surface page compares
-the two routes.
+[Chemistry that happens on a surface](@ref sec-theory-surface) §10. The free
+sites are then counted as part of the host, whose database formula already
+contains the surface groups they are made of, so that a grain whose sites are all
+free has the composition of that formula; it has the database energy only if the
+free site carries no energy of its own. The reference is therefore fixed at
+zero, following [Kulik2002](@cite), and it is no longer a convention: any other
+value moves the host's solubility by ``\nu\,|\Delta_a G^\circ_{\text{free}}|/(RT
+\ln 10)``, which [`host_coupling_bias`](@ref) evaluates. Giving the free site
+`XsOH` the energy of the oxygen and hydrogen it holds, ``\mu^\circ(\mathrm{H_2O})
+- \mu^\circ(\mathrm{H^+}) = -237.2`` kJ/mol, would count that energy twice, and
+at the weak-site density of [DzombakMorel1990](@cite), ``\nu = 0.2``, it is worth
+8.3 log units; a coupled family whose free site is more than 0.05 log units away
+from zero is refused at construction.
 
 ## Where to go next
 

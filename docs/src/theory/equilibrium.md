@@ -123,6 +123,28 @@ vanish. The `H⁺` row carries `+1` for `H⁺` and `−1` for `OH⁻`, so its ze
 is the ordinary state of pure water; treating it as degenerate kills the entire
 acid–base system and returns pH 7.000 with the calcite undissolved.
 
+### What the certificate proves, and when
+
+The three conditions are sufficient for a global minimum only when the chemical
+potentials are the gradient of one Gibbs energy and that energy is convex. The
+second property belongs to the declarations: a solid solution declared inside a
+miscibility gap has a concave mixing energy, and a constraint that shifts the
+activity of water through a retention law, or that makes the temperature an
+unknown, leaves optimality conditions whose sufficiency is not established. The
+first property can be measured at the audited composition, since the second
+derivatives of one energy commute: the Jacobian of the log activities has to be
+symmetric. It is for the Debye-Hückel form with a common ion size and no linear
+term, and for Pitzer's equations; it is not for the ideal dilute model, whose
+water activity is a mole fraction, nor for the extended forms in general use,
+B-dot and Davies, whose linear and salting-out terms break the symmetry, nor for
+a diffuse layer. With these, a certified equilibrium is a composition consistent
+with its own activities rather than the minimum of an energy.
+
+The certificate reports which case applies as `scope`: `:global_minimum`,
+`:kkt_point` for a variational but non-convex problem, or `:self_consistent`,
+with the reasons in `scope_reasons`. `optimal` keeps its meaning in all three,
+the conditions being met to tolerance.
+
 ## Mass action or minimization
 
 Programs computing a speciation fall into two families, according to the data

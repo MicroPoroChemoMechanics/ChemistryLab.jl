@@ -508,76 +508,70 @@ requires the budget to scale with them — with ``n_0`` held fixed, since scalin
 it too makes a [`ShrinkingCoreArea`](@ref) ratio equal one everywhere and hides
 the nonlinearity the probe exists to find.
 
-### Why the component is the bare site, and why it carries a charge
+### The free sites belong to the host
 
-The coupling is one entry of the constraint matrix. Which entry is not a free
-choice, and the reason is worth following because two plausible routes are
-wrong.
+How the coupling enters the constraint matrix follows from what the host's
+database formula contains. A solid such as ``\mathrm{Fe(OH)_3}`` is described
+by one formula and one energy, measured on real grains whose surface exposes
+the hydroxyls that the sites are made of: the free sites are part of the host,
+and counting them on top of it would count their atoms twice. The constraint
+matrix ``A`` therefore loses, in the host's column, ``\nu`` times the column of
+the free site,
 
-Subtracting from a row of the projected matrix subtracts the **primary's whole
-composition**: the rows are indexed by primary species, not by elements, and
-``M = M_{\text{indep}} A``. With the free site for primary that composition
-includes real atoms — `XsOH` carries an oxygen and a hydrogen — so the
-subtraction invents matter. Measured at Dzombak and Morel's weak-site density,
-``\nu = 0.2``: seven percent of the oxygen of ``\mathrm{Fe(OH)_3}``, out of
-nothing.
+```math
+A'_{:,\,\text{host}} = A_{:,\,\text{host}} - \nu\, A_{:,\,\text{free}} ,
+```
 
-Repairing it would need a preimage of the **pure** site pseudo-element, and with
-the free site for primary there is none. Measured as the least-squares residual
-``\lVert M_{\text{indep}} v - \mathrm{Xs}\rVert``: `0.378` on an amphoteric
-oxide, `0.500` on a cation exchanger. The obstruction is structural rather than
-a quirk of one basis — a site symbol never appears alone, every species carrying
-it carries it attached to matter, and only one site species can be primary.
+which is the bookkeeping of [Kulik2002](@cite) for surface groups that belong to
+their sorbent. On the site row it reads ``\sum_k d_k n_k - \nu n_{\text{host}} =
+0``; on the element rows it removes from the host the atoms carried by its free
+sites, so that every atom is counted once; and since the free site is neutral,
+the charge of the system is conserved while the host dissolves or grows. The
+subtraction holds in any basis of primaries, the free site or a bare site
+component carrying the site row.
 
-Declaring the **bare** site as the component removes the obstruction instead of
-working around it. It is a component, not a substance, so it need not be among
-the species; the residual is then zero and the preimage is the unit vector, and
-subtracting ``\nu`` from that one entry subtracts ``\nu`` times something
-carrying no atom. Element conservation is exact by construction.
-
-It carries the **charge** the free site carries with its site symbol — `XsOH` is
-``\mathrm{Xs^+ + OH^-}``, an exchanger `NaXc` is ``\mathrm{Xc^- + Na^+}``. This
-is not decoration. Every species bearing a site symbol bears it with a fixed
-amount of charge, so a neutral component leaves the charge row among the
-primaries, the two appear in one ratio everywhere, and only their sum is
-identifiable. The solver finds that out: measured, the two multipliers ran to
-``\pm 2.3\times 10^{5}`` — four decades past any chemical potential — while
-their sum stayed at ``-60``, the dual Newton stalled, and the host came out
-thirteen percent wrong. With the charge, the same run converges and the host
-lands on the uncoupled answer.
+The free site then carries **zero** standard energy. An intact grain, every
+site free, has the composition of the database formula, and it has the database
+energy only if the free sites add nothing to it. With a fixed budget the free
+site's energy cancels from every surface reaction and is a gauge; with a budget
+that follows its host it enters the host's energy, and a value away from zero
+moves the host's solubility by ``\nu\,|\Delta_a G^\circ_{\text{free}}|/(RT\ln
+10)``, which [`host_coupling_bias`](@ref) reports and the construction of the
+system refuses above 0.05 log units.
 
 ### What the coupling costs, and what it does not
 
-It shifts the host's saturation index by the site potential, which is the
+The host's saturation index includes the energy of its surface, which is the
 thermodynamic statement that a sorbing surface is not the same phase as a bare
-one. That is a real effect, and it is why
-[`saturation_indices`](@ref) forms the index with the same matrix the solve was
-constrained with, and derives the bare component's potential from the free
-site's own stationarity rather than leaving it at zero.
-
-What it does not cost is the certificate. The coupling row is linear, so the
-feasible set is the polyhedron it always was and the objective is unchanged.
+one; [`saturation_indices`](@ref) forms the index with the same matrix the solve
+was constrained with. The certificate is not affected: the coupled matrix is
+linear, so the feasible set is a polyhedron and the objective is unchanged.
 
 ### Measured
 
-On portlandite carrying sites at ``\Gamma = 10^{-5}\ \mathrm{mol/m^2}`` over
-``90\ \mathrm{m^2/kg}``, at three host amounts, the coupled solve converges as
-well as the uncoupled one, holds the constraint to ``10^{-7}``, conserves its
-elements to ``10^{-15}``, and reports every present phase at ``\log \mathrm{SI}
-= 0`` to ``10^{-14}``. Against PHREEQC, whose `SURFACE` has been couplable to an
-`EQUILIBRIUM_PHASES` mineral since v2, the site total is the declared
-coefficient times the phase amount to ``2\times 10^{-10}`` over five partially
-dissolved states.
+On hydrous ferric oxide at the weak-site density of [DzombakMorel1990](@cite),
+``\nu = 0.2``, titrated by hydrochloric acid until half of it has dissolved,
+every point certifies, the charge of the system is conserved to ``10^{-12}``
+mol, and the site total is ``\nu`` times the host amount to ``10^{-8}``; the free
+site and a bare site component as primaries give the same host amount to
+``10^{-8}``. Against PHREEQC, whose `SURFACE` can be coupled to an
+`EQUILIBRIUM_PHASES` mineral, the site total is the declared coefficient times
+the phase amount to ``2\times 10^{-10}`` over five partially dissolved states.
 
 ## 11. What this page does not cover
 
 Saying what is absent is part of describing what is present.
 
-  - **No Donnan approximation, and no diffuse-layer inventory.** The diffuse
-    layer is here (§9), in the form that carries a potential and not an ion
-    census: the counter-ions accumulated in the layer are not tracked as a
-    separate reservoir, which is PHREEQC's default and not its `-diffuse_layer`
-    option. The Donnan approximation, which a compacted clay needs, is absent.
+  - **No spatial profile of the diffuse layer.** Its ions are either left in
+    the solution (§9) or counted in a layer of water of fixed thickness at the
+    average enrichment that balances the surface charge, the Donnan
+    approximation of [`DonnanLayer`](@ref); the Poisson–Boltzmann profile across
+    the layer is not computed, and neither is the overlap of two layers in a
+    pore narrower than they are.
+  - **No temperature dependence of the surface constants.** The standard
+    energies of the surface species are fixed at their 25 °C values, as the
+    published constants are, so a surface computed at another temperature rests
+    on that assumption.
   - **No charge planes beyond one.** A Stern or triple-layer model puts
     different surface species on different planes with a capacitance between
     them; here there is one potential per family, and stacking two electrostatic

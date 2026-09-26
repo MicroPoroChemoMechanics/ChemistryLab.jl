@@ -137,7 +137,7 @@ function _build_kinetics_problem(
     # row counts differ, and so do the parent's and the sub-system's: `bₑ` must
     # be built on exactly the matrix the solve is posed on, or every step fails
     # on a dimension mismatch.
-    Ae = Float64.(_equilibrium_subsystem(system, idx_eq).SM.A)
+    Ae = Float64.(_constraint_matrix(_equilibrium_subsystem(system, idx_eq)))
 
     return KineticsProblem{
         typeof(system), typeof(kin_rxns), typeof(calorimeter),
@@ -452,6 +452,11 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
             try
                 DualEquilibriumSolver(eq_sys, kp.activity_model)
         catch
+                # A coupled family is refused for the reasons
+                # `conservation_matrix` gives, which `Ae` has already met; any
+                # other system falls back on the interior point, which is
+                # constrained with the same matrix.
+                _has_coupled_family(eq_sys) && rethrow()
                 nothing
         end,
         n_eq_init = n_eq_init,
@@ -565,7 +570,32 @@ function _equilibrium_subsystem(system::ChemicalSystem, idx_equilibrium)
             f for f in families
                 if all(sp -> symbol(sp) in sub_names, site_members(f))
         ]
+        # A budget that follows its host needs the host in the same partition:
+        # a host whose amount a rate law moves would change the site budget
+        # between two re-speciations, which nothing here accounts for.
+        for f in kept
+            sup = surface_support(f)
+            sup.coupling === SITES_FOLLOW_HOST || continue
+            sup.host in sub_names || throw(
+                ArgumentError(
+                    "SiteFamily \"$(name(f))\" follows host \"$(sup.host)\", which " *
+                        "is a kinetic species of this problem. A site budget that " *
+                        "follows a host whose amount a rate law controls is not " *
+                        "supported: put the host in the equilibrium partition, or " *
+                        "keep the support at SITES_FIXED.",
+                )
+            )
+        end
         isempty(kept) ? nothing : kept
+    end
+
+    # A coupled family may carry its site row on a bare site component, which is
+    # a primary of the parent and not a species; it goes with its family.
+    if sub_families !== nothing
+        for pr in system.SM.primaries
+            symbol(pr) in sub_names && continue
+            any(f -> _is_bare_site(pr, f.site), sub_families) && push!(prim, pr)
+        end
     end
 
     return ChemicalSystem(

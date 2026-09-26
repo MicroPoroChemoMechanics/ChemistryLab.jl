@@ -136,9 +136,10 @@ function SciMLBase.solve(
     # `state` supplying only the starting guess and the T, P conditions. The
     # element totals then come from the caller — the ODE state of a kinetics
     # run — instead of being derived from a composition that may not carry them.
+    A = ChemistryLab._constraint_matrix(state.system)
     prob = isnothing(b) ?
-        EquilibriumProblem(state.system.SM.A, esolver.μ, n0; p = p) :
-        EquilibriumProblem(state.system.SM.A, esolver.μ, n0; b = collect(b), p = p)
+        EquilibriumProblem(A, esolver.μ, n0; p = p) :
+        EquilibriumProblem(A, esolver.μ, n0; b = collect(b), p = p)
     opt_prob = _build_optima_opt_prob(prob, esolver.μ, esolver.variable_space)
 
     sol = ChemistryLab._check_converged(

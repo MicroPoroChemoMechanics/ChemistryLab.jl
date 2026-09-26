@@ -516,10 +516,54 @@ end
         @test conservation_matrix(cs) == Float64.(cs.SM.A)
     end
 
-    @testset "coupled over the free site: refused, and the message says why" begin
-        # The free site carries an oxygen and a hydrogen, so subtracting from
-        # its row subtracts those too. This is the case that invents matter.
+    @testset "coupled over the free site: the host column loses ν free sites" begin
+        # The host's formula already contains the surface groups its sites are
+        # made of, so the free sites are counted as part of the host: `ν` times
+        # the free site's column comes off the host's, and nothing else moves.
         cs = ChemicalSystem(sp, [h2o, hp, ca, free]; site_families = [fam(SITES_FOLLOW_HOST)])
+        A0 = Float64.(cs.SM.A)
+        A = conservation_matrix(cs)
+        j = findfirst(==("Portlandite"), symbol.(cs.species))
+        jf = findfirst(==("XsOH"), symbol.(cs.species))
+        @test A[:, j] ≈ A0[:, j] .- ν .* A0[:, jf]
+        D = A - A0
+        D[:, j] .= 0.0
+        @test all(iszero, D)
+        # On the site row this is the coupling row itself.
+        r = findfirst(p -> get(atoms(p), :Xs, 0) > 0, cs.SM.primaries)
+        rows, _ = site_coupling_rows(cs)
+        @test A[r, :] ≈ rows[1, :]
+    end
+
+    @testset "coupled over the bare component: the same subtraction, in that basis" begin
+        cs = ChemicalSystem(sp, [h2o, hp, ca, bare]; site_families = [fam(SITES_FOLLOW_HOST)])
+        A0 = Float64.(cs.SM.A)
+        A = conservation_matrix(cs)
+        r = findfirst(p -> get(atoms(p), :Xs, 0) > 0, cs.SM.primaries)
+        j = findfirst(==("Portlandite"), symbol.(cs.species))
+        jf = findfirst(==("XsOH"), symbol.(cs.species))
+        @test A[:, j] ≈ A0[:, j] .- ν .* A0[:, jf]
+        D = A - A0
+        D[:, j] .= 0.0
+        @test all(iszero, D)
+        # The charge the free site carries is zero, so the charge the host
+        # column carries is unchanged: this is what keeps charge conserved.
+        z = [Float64(charge(s)) for s in cs.species]
+        @test iszero(z[jf])
+        rows, labels = site_coupling_rows(cs)
+        @test labels == ["Xs"]
+        @test A[r, :] ≈ rows[1, :]
+    end
+
+    @testset "a charged free site, or a host without the sites' matter, is refused" begin
+        # A charged free site would move charge with the host.
+        charged = _surf("XsOH2+")
+        fam_z = SiteFamily(
+            "Xs", charged, [free];
+            capacity = AreaSiteDensity(1.0e-5),
+            support = SurfaceSupport("s", "Portlandite", BETSurfaceArea(90.0); coupling = SITES_FOLLOW_HOST),
+        )
+        cs = ChemicalSystem([h2o, hp, ca, host, free, charged], [h2o, hp, ca, charged]; site_families = [fam_z])
         e = try
             conservation_matrix(cs)
             nothing
@@ -527,27 +571,25 @@ end
             err
         end
         @test e isa ArgumentError
-        @test occursin("BARE site", e.msg)
-        @test occursin("Species(\"Xs\")", e.msg)
-    end
+        @test occursin("carries a charge", e.msg)
 
-    @testset "coupled over the bare component: one entry, and only one" begin
-        cs = ChemicalSystem(sp, [h2o, hp, ca, bare]; site_families = [fam(SITES_FOLLOW_HOST)])
-        A0 = Float64.(cs.SM.A)
-        A = conservation_matrix(cs)
-        r = findfirst(p -> get(atoms(p), :Xs, 0) > 0, cs.SM.primaries)
-        j = findfirst(==("Portlandite"), symbol.(cs.species))
-        @test A[r, j] ≈ A0[r, j] - ν
-        # Nothing else moves. Asserting the difference matrix is sparse in one
-        # entry is stronger than checking the entry alone.
-        D = A - A0
-        D[r, j] = 0.0
-        @test all(iszero, D)
-
-        # And the corrected site row IS the row form of the same constraint.
-        rows, labels = site_coupling_rows(cs)
-        @test labels == ["Xs"]
-        @test A[r, :] ≈ rows[1, :]
+        # A host whose formula cannot supply ν free sites of oxygen: lime has
+        # one oxygen and no hydrogen per formula, and XsOH carries one of each.
+        lime = Species("CaO"; symbol = "Lime", aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
+        fam_h = SiteFamily(
+            "Xs", free, [occ];
+            capacity = AreaSiteDensity(1.0e-5),
+            support = SurfaceSupport("s", "Lime", BETSurfaceArea(90.0); coupling = SITES_FOLLOW_HOST),
+        )
+        cs = ChemicalSystem([h2o, hp, ca, lime, free, occ], [h2o, hp, ca, free]; site_families = [fam_h])
+        e = try
+            conservation_matrix(cs)
+            nothing
+        catch err
+            err
+        end
+        @test e isa ArgumentError
+        @test occursin("among the host's", e.msg)
     end
 
     @testset "a component the basis cannot separate from charge is refused" begin

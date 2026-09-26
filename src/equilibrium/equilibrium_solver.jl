@@ -556,7 +556,7 @@ function _attach_sensitivity(
     esolver = (; μ = μ)
     state_v = _primal(state)
 
-    A = Float64.(state.system.SM.A)
+    A = Float64.(_constraint_matrix(state.system))
     p_v = _build_params(state_v; ϵ = ϵ)
     H = ForwardDiff.jacobian(n -> esolver.μ(n, p_v), nstar)
 

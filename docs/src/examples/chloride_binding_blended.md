@@ -127,7 +127,10 @@ water(eq) = mol(eq, "H2O@") * molar("H2O@") / 1000
 ## Route A: the published surface on a frozen gel
 
 The second system carries the hydrates, the chloride salts and the aqueous
-species of the first, and the sites. The C-S-H is no longer one of its phases.
+species of the first, and the sites. The C-S-H is no longer one of its phases,
+so the support of the sites is declared external: it belongs to a solid outside
+the system, which is what allows sites that bind calcium beside the calcium of
+the hydrogarnet solid solution.
 The sites and their area are referred to the silicon of the frozen gel, through
 the molar mass of Guo's C-S-H per silicon: 0.004 mol/g and 500 m²/g, times
 191.4 g/mol. The gel of the first stage then carries as many sites per silicon
@@ -148,7 +151,7 @@ aqueous = [s for s in sp2 if aggregate_state(s) == AS_AQUEOUS]
 family = site_family(
     "Csh_w", [eq => lk for (eq, lk) in zip(rows.reaction, rows.log_K)], aqueous;
     master = "Csh_w", site = "Xw", capacity = TotalSiteAmount(n_sites * u"mol"),
-    support = SurfaceSupport("C-S-H", nothing, FixedSurfaceArea(area)), model = DiffuseLayer(; area),
+    support = SurfaceSupport("C-S-H", FixedSurfaceArea(area); external = true), model = DiffuseLayer(; area),
 )
 sites = vcat([family.free_site], family.complexes)
 cs2 = ChemicalSystem(vcat(sp2, sites),

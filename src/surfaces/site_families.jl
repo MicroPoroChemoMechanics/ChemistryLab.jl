@@ -24,10 +24,12 @@ the departure from ideality of the `k`-th member, given the site fractions `x`
 of the whole family. The ideal part, `ln x_k`, is added by the caller, exactly
 as it is for a solid solution.
 
-Only [`IdealSiteMixing`](@ref) exists in this release. The others the literature
-uses — Frumkin's interaction term, the quasi-chemical approximation for a
-multidentate adsorbate — are separate models with their own parameters and their
-own validation, and this is where they will attach.
+The models provided are [`IdealSiteMixing`](@ref), the two exchange conventions
+[`VanselowMixing`](@ref) and [`GainesThomasMixing`](@ref), and the electrostatic
+wrappers [`ConstantCapacitance`](@ref) and [`DiffuseLayer`](@ref). The others the
+literature uses — Frumkin's interaction term, the quasi-chemical approximation
+for a multidentate adsorbate — are separate models with their own parameters and
+their own validation, and this is where they would attach.
 
 See also: [`IdealSiteMixing`](@ref), [`SiteFamily`](@ref).
 """

@@ -122,7 +122,7 @@ function _repair_start(eq::ChemicalState, model, bfix, ϵ::Float64)
     cs = eq.system
     si = saturation_indices(eq, model; ϵ = ϵ)
     n = Float64[ustrip(us"mol", x) for x in eq.n]
-    A = cs.SM.A
+    A = _constraint_matrix(cs)
     # A solid-solution end-member is not a pure phase and its own index does not
     # decide anything: the activity of a member is `ln x`, so an index taken at
     # the bound reports that its mole fraction is small, not that the phase should

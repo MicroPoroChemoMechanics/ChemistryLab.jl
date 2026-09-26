@@ -182,11 +182,12 @@ stating because it is a difference of formulation and not of chemistry.
     then coexist as two phases. It requires a species to belong to two phases at
     once.
 
-    Here — and in several other codes — the composition vector has one entry per
-    species, so a species belongs to exactly one phase and the gap cannot be
-    expressed. The eight distinct phases are the whole of the chemistry; what is
-    given up is the ability to represent two coexisting compositions of the same
-    binary, which matters only where such a gap actually opens.
+    Here the composition vector has one entry per species, so a species belongs
+    to exactly one phase, and a gap is expressed by declaring the phase with
+    `instances = 2`, which gives it a second copy of each end member (see
+    [A miscibility gap, and the three answers a formulation can give](@ref ex-miscibility-gap)). The mixing models
+    of this page are ideal and open no gap, so the eight distinct phases are the
+    whole of the chemistry.
 
 Note also that `AFt_SO4_CO3` describes the same aluminate sulfate as `AFt_SO4`
 in a different normalization: `ettringite03_ss` is ettringite divided by three.
