@@ -444,21 +444,16 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
         # seven digits — because the error was never in the time discretization.
         #
         # With the certified route the certificate DECIDES, so a partition that
-        # does not conserve matter is not accepted in the first place.
+        # does not conserve matter is not accepted in the first place. The
+        # partitions it cannot treat, without an aqueous phase or without
+        # `H2O@`, are screened out beforehand; any other failure to build it is
+        # an error, reported rather than replaced by the interior point. It is
+        # built with the model of the user's solver, as the interior point is
+        # above: the problem's own model defaults to the dilute one.
         eq_dual = (
                 isnothing(kp.equilibrium_solver) || !_DUAL_AVAILABLE[] ||
                 !_dual_applicable(eq_sys)
-            ) ? nothing :
-            try
-                DualEquilibriumSolver(eq_sys, kp.activity_model)
-        catch
-                # A coupled family is refused for the reasons
-                # `conservation_matrix` gives, which `Ae` has already met; any
-                # other system falls back on the interior point, which is
-                # constrained with the same matrix.
-                _has_coupled_family(eq_sys) && rethrow()
-                nothing
-        end,
+            ) ? nothing : DualEquilibriumSolver(eq_sys, activity_model(kp.equilibrium_solver)),
         n_eq_init = n_eq_init,
         n_eq_buf = similar(n_eq_init),
         n_eq_buf2 = similar(n_eq_init),

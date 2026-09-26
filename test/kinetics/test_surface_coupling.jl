@@ -3,6 +3,7 @@
 
 using ChemistryLab
 using DynamicQuantities
+using Logging
 using OrderedCollections
 using Test
 
@@ -331,6 +332,20 @@ end
         @test maximum(
             abs(sum(z .* Float64[ustrip(us"mol", x) for x in s.n]) - sum(z .* n_start)) for s in states
         ) < 1.0e-10
+
+        # Left at its default, the problem's model is the dilute one; the
+        # certifying re-speciation still takes the solver's, as the interior
+        # point does, and the mismatch is only warned about.
+        kp_default = KineticsProblem(
+            cs, [kr], state, (0.0u"s", 3600.0u"s");
+            equilibrium_solver = EquilibriumSolver(cs, DaviesActivityModel(), OptimaOptimizer()),
+        )
+        p_default = with_logger(NullLogger()) do
+            ChemistryLab.build_kinetics_params(kp_default)
+        end
+        @test kp_default.activity_model isa DiluteSolutionModel
+        @test ChemistryLab.activity_model(p_default.eq_dual) isa DaviesActivityModel
+        @test ChemistryLab.activity_model(p_default.eq_solver) isa DaviesActivityModel
     end
 
     @testset "a host whose amount a rate law controls is refused" begin

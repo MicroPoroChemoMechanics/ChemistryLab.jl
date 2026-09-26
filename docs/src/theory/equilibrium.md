@@ -141,8 +141,9 @@ a diffuse layer. With these, a certified equilibrium is a composition consistent
 with its own activities rather than the minimum of an energy.
 
 The certificate reports which case applies as `scope`: `:global_minimum`,
-`:kkt_point` for a variational but non-convex problem, or `:self_consistent`,
-with the reasons in `scope_reasons`. `optimal` keeps its meaning in all three,
+`:kkt_point` when the conditions hold without being known to be sufficient, as
+in the two cases of the second property, or `:self_consistent` when the
+activities fail the first, with the reasons in `scope_reasons`. `optimal` keeps its meaning in all three,
 the conditions being met to tolerance.
 
 ## [Mass action or minimization](@id sec-theory-mass-action)

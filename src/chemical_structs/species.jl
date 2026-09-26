@@ -1625,6 +1625,12 @@ Populate thermodynamic properties (`Cp⁰`, `ΔₐH⁰`, `S⁰`, `ΔₐG⁰`, `V
 If `thermo_params` dictionary is present in `properties`, it initializes thermodynamic functions
 using `:thermo_method` (e.g., `"cp_ft_equation"`, `"solute_hkf88_reaktoro"`) or scalar defaults.
 New thermodynamic models are registered by dispatching `build_thermo_functions(Val(:model_name), params)`.
+
+Without a `:thermo_method`, the heat capacity `Cp⁰` given at the reference temperature
+is taken as constant. An entry that gives no heat capacity but carries `S⁰`, `ΔₐH⁰` and
+`ΔₐG⁰` is extrapolated with a zero heat capacity, so that `ΔₐG⁰` still follows
+`-S⁰` away from the reference temperature; an entry lacking `S⁰` keeps its tabulated
+values at every temperature.
 """
 function complete_thermo_functions!(s::AbstractSpecies)
     if haskey(properties(s), :thermo_params)
@@ -1638,13 +1644,18 @@ function complete_thermo_functions!(s::AbstractSpecies)
                 s[k] = v
             end
             delete!(s.properties, :thermo_method)
-        else
-            if !haskey(properties(s), :Cp⁰) &&
-                    haskey(dict_params, :Cp⁰) &&
-                    !ismissing(dict_params[:Cp⁰])
-                dtf = build_thermo_functions(
-                    :cp_ft_equation, [:a₀ => dict_params[:Cp⁰]; params]
-                )
+        elseif !haskey(properties(s), :Cp⁰)
+            # Without a heat-capacity model, the heat capacity given at Tref is
+            # taken as constant. An entry that gives none but carries S⁰ is
+            # extrapolated with a zero heat capacity: its Gibbs energy then
+            # still decreases as -S⁰ with temperature, whereas a constant
+            # ΔₐG⁰ would contradict the entropy it tabulates.
+            cp = get(dict_params, :Cp⁰, missing)
+            if ismissing(cp) && all(k -> !ismissing(get(dict_params, k, missing)), (:S⁰, :ΔₐH⁰, :ΔₐG⁰))
+                cp = 0.0u"J/(mol*K)"
+            end
+            if !ismissing(cp)
+                dtf = build_thermo_functions(:cp_ft_equation, [:a₀ => cp; params])
                 for (k, v) in dtf
                     s[k] = v
                 end

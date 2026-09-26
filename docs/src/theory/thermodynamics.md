@@ -91,10 +91,14 @@ G = H - TS
 
 hold by construction rather than numerically. The model has no pressure term,
 and a solid is thus evaluated at ``P_r``; [Standard states](@ref sec-theory-standard-states)
-§1 states what this leaves out above 1 bar. An entry that gives a single heat
-capacity at ``T_r`` is extrapolated with the same model reduced to its constant
-term; in CEMDATA18, the solvent, the zeolites and the magnesium silicate hydrates
-are among them.
+§1 states what this leaves out above 1 bar. A heat capacity given on several
+temperature intervals separated by phase transitions is taken on the interval that contains
+``T_r``, and the transitions above it are not followed. An entry that gives a
+single heat capacity at ``T_r`` is extrapolated with the same model reduced to its
+constant term; in CEMDATA18, the solvent, the zeolites and the magnesium silicate
+hydrates are among them. An entry that gives none, but gives the entropy, is
+extrapolated with a zero heat capacity, so that its apparent Gibbs energy still
+decreases as ``-S^\circ`` with temperature.
 
 Aqueous solutes use the model `:solute_hkf88_reaktoro`, the
 Helgeson-Kirkham-Flowers (HKF) equation of state [Helgeson1981](@cite) in its
