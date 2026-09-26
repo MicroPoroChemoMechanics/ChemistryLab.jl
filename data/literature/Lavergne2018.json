@@ -7,7 +7,7 @@
     "location": null
   },
   "transcription": {
-    "from": "the published article (PDF), Tables 3, 4, 9 and 11, pp. 42 and 51, read on the page images",
+    "from": "the published article (PDF), Tables 3, 4, 9 and 11, pp. 42 and 51, read on the page images; Fig. 15(a), p. 56, read from the figure as described in the notes",
     "checked_against_source": true,
     "note": "The values were in src/kinetics/rate_models.jl before this file existed and agree with the article to the last digit. Table 3 gives the parameters of Parrott and Killoh (1984) as reported by Lothenbach et al. (2008), ref. [30] of the article. The text cites the activation energies of Table 4 to refs. [60, 64], [60] being Maekawa et al. (1999). The pozzolanic kinetics of p. 42, Eqs. (24)-(25), follow Waller (1999), ref. [31], with n and tau adjusted to the SEM analyses of ref. [81]. Table 9 and Table 11 (p. 55) and the calorimeter of p. 51 were in the scripts and pages before this file existed and agree with the article. Table 11 names one mix C75FA525 at w/b = 0.5 and C75FA25 at 0.32; both spellings are kept as printed."
   },
@@ -194,6 +194,62 @@
         ["C4AF", 8]
       ]
     },
+    "semi_adiabatic_C100_wb050_temperature": {
+      "columns": ["time", "temperature_C"],
+      "units": ["d", "1"],
+      "kind": "measured",
+      "location": "Fig. 15(a), p. 56: temperature of the C100 mortar at w/b = 0.5 in the semi-adiabatic calorimeter (thick blue line), from its maximum to 3.5 days",
+      "rows": [
+        [0.61, 51.17],
+        [0.647, 51.83],
+        [0.7, 52.12],
+        [0.753, 52.15],
+        [0.802, 51.8],
+        [0.851, 51.27],
+        [0.9, 50.72],
+        [0.949, 50.13],
+        [0.998, 49.49],
+        [1.047, 48.77],
+        [1.096, 48.05],
+        [1.15, 47.28],
+        [1.203, 46.46],
+        [1.252, 45.73],
+        [1.301, 44.91],
+        [1.35, 44.2],
+        [1.399, 43.42],
+        [1.448, 42.7],
+        [1.497, 41.94],
+        [1.55, 41.15],
+        [1.603, 40.34],
+        [1.652, 39.63],
+        [1.701, 38.91],
+        [1.75, 38.21],
+        [1.799, 37.54],
+        [1.848, 36.87],
+        [1.897, 36.23],
+        [1.946, 35.58],
+        [2.003, 34.9],
+        [2.052, 34.32],
+        [2.101, 33.75],
+        [2.15, 33.21],
+        [2.195, 32.7],
+        [2.232, 32.31],
+        [2.289, 31.66],
+        [2.334, 31.19],
+        [2.959, 26.59],
+        [3.0, 26.38],
+        [3.049, 26.09],
+        [3.098, 25.79],
+        [3.147, 25.54],
+        [3.2, 25.29],
+        [3.254, 25.02],
+        [3.303, 24.81],
+        [3.352, 24.59],
+        [3.401, 24.38],
+        [3.45, 24.18],
+        [3.499, 23.99]
+      ]
+    },
     "semi_adiabatic_mixes_wb032": {
       "columns": ["name", "binder", "dry_sand", "water"],
       "units": [null, "g", "g", "g"],
@@ -231,6 +287,7 @@
   "notes": [
     "The article writes the first author of the 1984 model 'Parrot'; the name is Parrott.",
     "p. 42 prints 'E_S,A = 83,14 kJ/mol (E_S,A/R = 100 K)'; the ratio of the two is 1.0e4 K. Only the activation energy is kept here.",
-    "Table 11: the water accounts for the 0.9 % absorption of the dry sand; the w/b of C85L15 in the first group is 0.48 (asterisk in the table)."
+    "Table 11: the water accounts for the 0.9 % absorption of the dry sand; the w/b of C85L15 in the first group is 0.48 (asterisk in the table).",
+    "semi_adiabatic_C100_wb050_temperature is read from Fig. 15(a), which is a raster image (JPEG) under vector axes: the thick blue line of the measured C100 curve was located column by column by its color and its width, in image pixels mapped to the page through the placement of the image, and to time and temperature through the vector frame of the panel (0 to 5 days, 10 to 70 C). The points are averaged over 0.05 d. Before about 0.6 d the measured curve is drawn as crosses that overlap those of the other mixes, and after 3.5 d it lies under them: neither part is transcribed. One pixel is 0.03 K and 0.008 d; the width of the line makes the reading good to about 0.2 K."
   ]
 }
