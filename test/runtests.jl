@@ -142,5 +142,11 @@ end
     include("coupling_reference.jl")
 end
 
+# Last: loading Ipopt registers one more starting point for the certified search,
+# which no test above may depend on.
+@testsection "Ipopt extension" begin
+    include("ipopt_extension.jl")
+end
+
 print_timer()
 println()

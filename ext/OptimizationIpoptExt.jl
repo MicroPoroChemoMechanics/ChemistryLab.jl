@@ -134,11 +134,14 @@ sharing the same `ChemicalSystem` as the input.
 
 # Examples
 ```julia
-solver = EquilibriumSolver(cs, DiluteSolutionModel(), IpoptOptimizer();
-                           variable_space=Val(:log), abstol=1e-10)
+solver = EquilibriumSolver(cs, DiluteSolutionModel(), IpoptOptimizer(); abstol=1e-10)
 state0 = ChemicalState(cs, n0; T=298.15u"K", P=1u"bar")
 state_eq = solve(solver, state0)
 ```
+
+The logarithmic variable space (`variable_space = Val(:log)`) refines a solved
+state; started from amounts held at the floor `ϵ`, it returns the start, since
+the gradient in `log n` of such a species is of order `ϵ`.
 """
 function SciMLBase.solve(
         esolver::EquilibriumSolver,
