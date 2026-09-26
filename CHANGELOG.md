@@ -1,5 +1,101 @@
 # Changelog
 
+## v0.24.0 — Chloride in the C-S-H of blended cements
+
+The C-S-H of the CEMDATA18 pages is the CSHQ solid solution, which holds
+calcium and alkalis but no chloride, so a salted paste put all of its bound
+chloride in the AFm phases. The surface model of the chloride literature could
+not be added to it: its sites bind calcium that CSHQ already counts. This
+release gives the C-S-H its share in two ways, and says where each applies. The
+first freezes the gel after a first equilibrium and puts the published surface
+on it; it holds while portlandite buffers the gel. The second adds a chloride
+end member to CSHQ, fitted on published sorption tests; it holds at any Ca/Si.
+A new documentation page salts a CEM III/A along both routes and a CEM III/B,
+without portlandite, along the second.
+
+### Breaking changes
+
+Below 1.0 the registry treats a minor bump as breaking whatever the API did, so
+`[compat] = "0.23"` will not accept `0.24`, and a dependent must widen its bound.
+The documentation environment of MeanFieldHomogenization.jl lists ChemistryLab
+up to `0.22`, and needs `0.23` and `0.24` added.
+
+One behavior changes deliberately:
+
+- **A site family hosted on an end member of a solid solution is refused when it
+  binds an element that solid solution holds.** Silanol sites that bind calcium,
+  hosted on an end member of CSHQ, counted the same calcium in the solid and on
+  its surface, and nothing said so; `ChemicalSystem` now raises an error that
+  names the family, the phase and the elements, and points to
+  `freeze_solid_solution`. A family that binds nothing the phase holds, or that
+  names no host, is unaffected.
+
+### A solid solution, read and then frozen
+
+`solid_solution_totals(state, name)` returns what a solid solution holds: the
+amount of each end member, the moles of each element, and its mass, from the
+molar masses the package computes. Ratios such as Ca/Si are quotients of the
+element totals; the element type is the state's, so dual numbers give their
+derivatives.
+
+`freeze_solid_solution(state, name, target; release = (:Na, :K), buffer)` builds
+the first state of a second system in which the solid solution no longer
+reacts. Its elements are set aside, except the released ones, which return to
+the solution as their cation with as much hydroxide: NaSiOH gives back 0.5 NaOH
+and keeps its silica and water. Every element is conserved exactly across the two
+stages. It refuses, by name, a species that holds matter but is missing from the
+second system, a symbol whose composition differs between the two, an end member
+that could form again, and an absent `buffer`: for a C-S-H that is portlandite,
+without which a frozen composition models nothing.
+
+The PHREEQC oracle of the C-S-H surface gains a two-stage case. PHREEQC
+equilibrates Guo's inventory with CSHQ declared as an ideal `SOLID_SOLUTIONS` of
+its own, then, without it, the surface on a C-S-H of the amount and composition
+the first stage gave, swept in NaCl. ChemistryLab agrees at both stages, to
+5.5 × 10⁻⁵ mol on an end member and 2.8 × 10⁻⁴ mol on a salt, so the first
+stage is checked independently as well as the second.
+
+### A chloride end member for CSHQ
+
+`data/cemdata18-chloride.json` is CEMDATA18 unchanged, with `CSHQ-Cl` =
+(CaCl₂)₀.₅ appended, and `CSHQ_Cl` in `data/solid_solutions.toml` is CSHQ with
+it. Its Gibbs energy is the one fitted number, −4.9 ± 0.3 kJ/mol for its
+formation from ½ Ca²⁺ + Cl⁻ at 20 °C, on the chloride bound by C-S-H in the
+sorption tests of Hirao et al. (2005). Their Fig. 5 is a vector drawing; its
+points were read from the coordinates into `data/literature/Hirao2005.json`, and
+only the three up to 1 mol/L enter the fit, the limit of the B-dot activity
+model. The model of the test reproduces the depletion measurement, including the
+water the dried gel takes up as it rehydrates, which at 1 mol/L hides
+0.12 mmol/g of the 0.41 the end member holds. `data/chloride/regenerate.jl`
+builds the file and records the fit, its residuals and its uncertainty on the end
+member.
+
+The end member is effective. Plusquellec and Nonat (2016) found that chloride
+does not adsorb specifically on C-S-H, and one parameter cannot follow the
+measured points: the fit is within 0.05 mmol/g at 0.5 and 1 mol/L and four times
+too high at 0.1 mol/L. A first candidate, written after NaSiOH with silica in its
+formula, fitted as well but bound less chloride at a higher Ca/Si, against the
+trend Zibara et al. (2008) measured; the generator fits both and records why the
+first was rejected. The shipped one also makes a CaCl₂ solution bind twice as
+much as a NaCl one at equal chloride, the ordering Tran et al. (2018) report,
+which nothing was fitted or chosen on.
+
+`build_solid_solutions` accepts a `database` key: an entry whose end members
+exist in one database only is skipped without a warning when another is loaded.
+With CEMDATA18 alone the shipped file therefore builds as before.
+
+### Documentation
+
+*Chloride binding in blended cements* salts the CEM III/A paste of the
+blastfurnace cement page with up to 0.4 % chloride. The two routes agree on
+Kuzel's salt, which holds most of the chloride, and differ on the C-S-H, which
+holds half of the bound chloride at the lowest dose in the second route and a
+fifth in the first. The page states two limits the first route inherits: the
+surface takes 81 % of the portlandite's calcium before any chloride is added,
+calcium the gel's Ca/Si already counted; and at the specific area of the model
+the pore water is a film 0.57 nm thick, too thin for the ions of the diffuse
+layer to be counted. The manual describes the new database.
+
 ## v0.23.0 — Published values out of the code, and a C-S-H surface checked against PHREEQC
 
 0.22.2 gave published values a home in `data/literature/`. This release moves
