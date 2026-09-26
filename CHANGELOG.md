@@ -69,7 +69,8 @@ The interior-point back ends, the implicit-function sensitivities, the repaired
 start of the certified route, the homotopy and the conservation matrix of a
 kinetic partition now use one `_constraint_matrix`, which is `SM.A` itself when
 nothing is coupled. Before, only the dual solver saw the coupling, and the other
-routes held the site budget fixed. A kinetic trajectory now keeps the sites at
+routes held the site budget fixed; a test now forbids `SM.A` in the code of these
+routes. A kinetic trajectory now keeps the sites at
 `ν` times the dissolving host to 10⁻⁶ and the charge to 10⁻¹⁰.
 
 `SurfaceSupport(...; external = true)` declares that a family's sites belong to
