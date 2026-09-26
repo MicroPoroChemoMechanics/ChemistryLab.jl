@@ -147,6 +147,65 @@ using JSON
         @test isapprox(cp_val, w("sm_heat_capacity_p"); rtol = 1.0e-6)
     end
 
+    @testsection "entries without a heat-capacity model" begin
+        # Made-up reference values: only the way they are extrapolated matters.
+        Tr, T = 298.15, 350.0
+        S0, H0, G0, cp0 = 100.0, -1.0e5, -1.3e5, 50.0
+        ref = [:ΔₐH⁰ => H0 * u"J/mol", :ΔₐG⁰ => G0 * u"J/mol", :T => Tr * u"K", :P => 1.0e5u"Pa"]
+        function entry(params)
+            s = Species("CaO"; aggregate_state = AS_CRYSTAL)
+            s[:thermo_params] = params
+            return s
+        end
+
+        # A heat capacity given at Tref only is held constant.
+        const_cp = entry([:Cp⁰ => cp0 * u"J/(mol*K)"; :S⁰ => S0 * u"J/(mol*K)"; ref])
+        @test const_cp[:ΔₐH⁰](T = T, unit = false) ≈ H0 + cp0 * (T - Tr)
+        @test const_cp[:ΔₐG⁰](T = T, unit = false) ≈ G0 - S0 * (T - Tr) + cp0 * (T - Tr - T * log(T / Tr))
+
+        # No heat capacity but an entropy: a zero heat capacity, so that ΔₐG⁰
+        # still falls as -S⁰ instead of staying at its tabulated value.
+        no_cp = entry([:Cp⁰ => missing; :S⁰ => S0 * u"J/(mol*K)"; ref])
+        @test no_cp[:Cp⁰](T = T, unit = false) == 0
+        @test no_cp[:ΔₐH⁰](T = T, unit = false) ≈ H0
+        @test no_cp[:ΔₐG⁰](T = T, unit = false) ≈ G0 - S0 * (T - Tr)
+
+        # Without an entropy there is nothing to extrapolate with.
+        bare = entry([:Cp⁰ => missing; :S⁰ => missing; ref])
+        @test bare[:ΔₐG⁰](T = T, unit = false) ≈ G0
+    end
+
+    @testsection "a heat capacity given on several intervals" begin
+        # Quartz lists one polynomial below its alpha-beta transition and one
+        # above. The functions are anchored at Tref, on the interval containing it.
+        qtz = only(
+            s for s in JSON.parsefile(datapath("cemdata18-thermofun.json"))["substances"]
+                if s["symbol"] == "Qtz"
+        )
+        coeffs(m) = float.(m["m_heat_capacity_ft_coeffs"]["values"])
+        cps = [m for m in qtz["TPMethods"] if haskey(m, "m_heat_capacity_ft_coeffs")]
+        @test length(cps) == 2
+        low = only(m for m in cps if m["limitsTP"]["lowerT"] <= 298.15 <= m["limitsTP"]["upperT"])
+        # the eleven terms of `:cp_ft_equation`
+        powers(T) = [1, T, T^-2, T^-0.5, T^2, T^3, T^4, T^-3, T^-1, sqrt(T), log(T)]
+        species = only(build_species(datapath("cemdata18-thermofun.json"), ["Qtz"]; verbose = false))
+        T = 400.0
+        @test species[:Cp⁰](T = T, unit = false) ≈ sum(coeffs(low) .* powers(T))
+        @test all(!(species[:Cp⁰](T = T, unit = false) ≈ sum(coeffs(m) .* powers(T))) for m in cps if m !== low)
+
+        # The interval is chosen by its limits, not by its rank in the list.
+        methods = JSON.parse(
+            """[{"method": {"0": "cp_ft_equation"}, "limitsTP": {"lowerT": 500.0, "upperT": 900.0},
+             "m_heat_capacity_ft_coeffs": {"values": [2.0]}},
+            {"method": {"0": "cp_ft_equation"}, "limitsTP": {"lowerT": 273.15, "upperT": 500.0},
+             "m_heat_capacity_ft_coeffs": {"values": [1.0]}},
+            {"method": {"0": "mv_constant"}}]"""
+        )
+        @test ChemistryLab._reference_cp_interval(methods, 298.15) === methods[2]
+        @test ChemistryLab._reference_cp_interval(methods, 1000.0) === methods[1]
+        @test ChemistryLab._reference_cp_interval(methods[3:3], 298.15) === nothing
+    end
+
     @testsection "ForwardDiff — SymbolicFunc AD" begin
         using ForwardDiff
 

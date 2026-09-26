@@ -243,7 +243,8 @@ function _primal(state::ChemicalState)
 end
 
 """
-    _equilibrium_sensitivity(A, H, gθ, bdot, nstar; maxpin = 8, pinned = falses(length(nstar))) -> Vector
+    _equilibrium_sensitivity(A, H, gθ, bdot, nstar;
+                             pinned = falses(n), pinnable = falses(n), maxpin = 8) -> Vector
 
 Sensitivity of an equilibrium composition, from the optimality conditions.
 
@@ -263,52 +264,103 @@ with `ndot = 0` on the complement and `H = grad^2 G` at the solution. One
 factorization serves every partial derivative, and the answer is exact — no
 finite difference, no step size.
 
-The complementarity block is not optional, and dropping it fails loudly rather
-than subtly: on calcite + CO2 in water **with a gas phase declared**, the
-unreduced system puts the whole perturbation into the absent gas species —
-`n(CO2,g) = 5.8e-9`, held at its bound — returning `ndot = e_CO2(g)`, which
-satisfies `A ndot = bdot` to 4e-16 and means nothing.
+# Which species are held at zero
 
-No back-end returns `z`, so the active set is recovered here: a species that is
-negligible on the scale of the system yet takes a leading share of the response
-is pinned, and the system re-solved. Each pass pins at least one species, so the
-loop terminates. A caller that knows which species are absent passes them as
-`pinned`, and the loop starts from there.
+`pinned` names the species the caller knows to be absent, the pure phases at
+their bound. A member of a mixing phase is never absent while the phase exists,
+and an aqueous trace in particular keeps its conservation law however small its
+amount: pinning it would erase the perturbation of the component it carries.
 
-`H` is singular by construction, and correctly so — a pure phase has unit
-activity, hence a zero row. The saddle-point form handles that; any method
-inverting `H` does not.
+No back-end returns `z`, so a pure phase near its bound may still be left free.
+Among the species marked `pinnable` — the pure phases — one that is negligible
+on the scale of the system yet takes a leading share of the response is pinned,
+and the system solved again; on calcite and CO₂ in water with a gas phase
+declared, the absent gas left free took the whole perturbation, satisfying
+`A ndot = bdot` to 4e-16 and meaning nothing. Each pass pins at least one
+species, so the loop terminates.
+
+# How the system is solved
+
+A trace species has a curvature near `1/n`, up to `1e300`, beside a
+conservation block of order one, so the matrix is equilibrated by rows and
+columns before a rank-revealing solve; a pseudo-inverse of the unscaled matrix
+discards the conservation equations silently. `H` is singular by construction, a
+pure phase having unit activity and hence a zero row, which the saddle-point form
+handles and a method inverting `H` does not. Stationarity and the imposed
+component perturbation are checked on the answer, and a failure of either
+raises rather than returning a sensitivity that does not solve the problem.
 """
 function _equilibrium_sensitivity(
-        A, H, gθ, bdot, nstar; maxpin::Int = 8, pinned::AbstractVector{Bool} = falses(length(nstar)),
+        A, H, gθ, bdot, nstar;
+        pinned::AbstractVector{Bool} = falses(length(nstar)),
+        pinnable::AbstractVector{Bool} = falses(length(nstar)),
+        maxpin::Int = 8,
     )
     ns = length(nstar)
-    m = size(A, 1)
     scale = maximum(abs, nstar)
     pinned = BitVector(pinned)
     ndot = zeros(ns)
-
     for _ in 0:maxpin
         free = findall(!, pinned)
-        K = [H[free, free] A[:, free]'; A[:, free] zeros(m, m)]
-        rhs = vcat(-gθ[free], bdot)
-        sol = try
-            K \ rhs
-        catch
-            pinv(Matrix(K)) * rhs
-        end
         fill!(ndot, 0.0)
-        ndot[free] .= sol[1:length(free)]
-
+        ndot[free] .= _scaled_kkt_solve(A, H, gθ, bdot, free)
         big = maximum(abs, ndot)
         offenders = [
             i for i in free
-                if nstar[i] < 1.0e-6 * scale && abs(ndot[i]) > 0.1 * big
+                if pinnable[i] && nstar[i] < 1.0e-6 * scale && abs(ndot[i]) > 0.1 * big
         ]
-        isempty(offenders) && return ndot
+        isempty(offenders) && break
         pinned[offenders] .= true
     end
+    norm(A * ndot - bdot, Inf) <= 1.0e-8 * max(1.0, norm(bdot, Inf)) || error(
+        "equilibrium sensitivity does not conserve the imposed component perturbation"
+    )
     return ndot
+end
+
+"""
+    _scaled_kkt_solve(A, H, gθ, bdot, free) -> Vector
+
+The species part of the solution of the sensitivity system restricted to the
+species `free`, equilibrated by rows and columns and solved by a truncated
+singular value decomposition; raises when the answer does not satisfy the
+equations to `1e-8` of their scale.
+"""
+function _scaled_kkt_solve(A, H, gθ, bdot, free)
+    m = size(A, 1)
+    K = [H[free, free] A[:, free]'; A[:, free] zeros(m, m)]
+    rhs = vcat(-gθ[free], bdot)
+    all(isfinite, K) && all(isfinite, rhs) ||
+        error("nonfinite equilibrium sensitivity system")
+    scaled = copy(K)
+    load = copy(rhs)
+    columns = ones(size(K, 2))
+    for _ in 1:32
+        rs = map(x -> iszero(x) ? 1.0 : inv(x), vec(maximum(abs, scaled; dims = 2)))
+        scaled .*= rs
+        load .*= rs
+        cs = map(x -> iszero(x) ? 1.0 : inv(x), vec(maximum(abs, scaled; dims = 1)))
+        scaled .*= cs'
+        columns .*= cs
+    end
+    F = svd(scaled)
+    cutoff = maximum(F.S) * maximum(size(scaled)) * eps(Float64)
+    y = F.V * [σ > cutoff ? v / σ : 0.0 for (σ, v) in zip(F.S, F.U' * load)]
+    norm(scaled * y - load, Inf) <= 1.0e-8 * max(1.0, norm(load, Inf)) ||
+        error("equilibrium sensitivity does not satisfy stationarity")
+    return (columns .* y)[1:length(free)]
+end
+
+"""
+    _pure_phase_indices(cs) -> Vector{Int}
+
+The species of `cs` the dual solver treats as pure phases: every species outside
+the aqueous phase that belongs to no solid solution and no site family. These are
+the ones a sensitivity may hold at zero when absent.
+"""
+function _pure_phase_indices(cs::ChemicalSystem)
+    mixing = Set(vcat(cs.ss_groups..., cs.site_groups...))
+    return [i for (i, s) in enumerate(cs.species) if aggregate_state(s) != AS_AQUEOUS && !(i in mixing)]
 end
 
 """
@@ -556,15 +608,26 @@ function _attach_sensitivity(
     esolver = (; μ = μ)
     state_v = _primal(state)
 
-    A = Float64.(state.system.SM.A)
-    p_v = _build_params(state_v; ϵ = ϵ)
+    A = Float64.(_constraint_matrix(state.system))
+    # The physical log activities are differentiated, not the floor the primal
+    # optimizer regularizes with: in a certified state an aqueous trace may sit
+    # below `ϵ`, and its curvature at the floor is not its curvature.
+    positive = filter(>(0), nstar)
+    floor_s = isempty(positive) ? ϵ : min(ϵ, max(floatmin(Float64), minimum(positive) / 10))
+    p_v = _build_params(state_v; ϵ = floor_s)
     H = ForwardDiff.jacobian(n -> esolver.μ(n, p_v), nstar)
 
     # The parameter enters through the potentials and through the element
     # amounts; both partial derivatives are read off the dual parts.
-    p_d = _build_params(state; ϵ = ϵ)
+    p_d = _build_params(state; ϵ = floor_s)
     μ_d = esolver.μ(nstar, p_d)
     n0_d = _build_n0(state)
+
+    # The pure phases at their bound are absent; everything in a mixing phase,
+    # an aqueous trace included, stays free.
+    pure = falses(length(nstar))
+    pure[_pure_phase_indices(state.system)] .= true
+    pinned = pure .& (nstar .<= 10ϵ)
 
     npart = ForwardDiff.npartials(R)
     ns = length(nstar)
@@ -574,7 +637,9 @@ function _attach_sensitivity(
         bdot = isnothing(b) ?
             A * Float64[ForwardDiff.partials(nᵢ, k) for nᵢ in n0_d] :
             Float64[ForwardDiff.partials(bᵢ, k) for bᵢ in b]
-        @views ndot[:, k] .= _equilibrium_sensitivity(A, H, gθ, bdot, nstar)
+        @views ndot[:, k] .= _equilibrium_sensitivity(
+            A, H, gθ, bdot, nstar; pinned = pinned, pinnable = pure,
+        )
     end
 
     Tag = ForwardDiff.tagtype(R)

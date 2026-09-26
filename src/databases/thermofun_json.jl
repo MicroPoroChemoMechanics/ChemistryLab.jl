@@ -168,6 +168,33 @@ correct_volume_unit(v::AbstractQuantity) = uamount(v) != -1 ? v / 1u"mol" : v
 correct_volume_unit(v) = v
 
 """
+    _reference_cp_interval(methods, Tref) -> method or nothing
+
+The heat-capacity method of a ThermoFun substance that applies at the reference
+temperature `Tref` (K).
+
+A substance whose heat capacity changes form at a phase transition, such as
+quartz or hematite, lists one `cp_ft_equation` per temperature interval. The
+thermodynamic functions are anchored at `Tref`, so the interval containing it is
+the one retained; a method without temperature limits applies everywhere, and
+when no interval contains `Tref` the first one listed is kept. The transitions
+above that interval are not followed.
+"""
+function _reference_cp_interval(methods, Tref::Real)
+    cps = [
+        m for m in methods if
+            only(values(m.method)) == "cp_ft_equation" && haskey(m, :m_heat_capacity_ft_coeffs)
+    ]
+    isempty(cps) && return nothing
+    i = findfirst(cps) do m
+        lim = get(m, :limitsTP, nothing)
+        lim === nothing && return true
+        get(lim, :lowerT, -Inf) <= Tref <= get(lim, :upperT, Inf)
+    end
+    return cps[something(i, 1)]
+end
+
+"""
     complete_species_with_thermo_model!(species, row; verbose=false)
 
 Populate thermodynamic reference values and build thermodynamic functions on `species`
@@ -192,9 +219,10 @@ function complete_species_with_thermo_model!(species, row; verbose = false)
     species[:thermo_params] = [values0; :T => Tref; :P => Pref]
     TPMethods = row.TPMethods
     if !ismissing(TPMethods)
+        cp_interval = _reference_cp_interval(TPMethods, row.Tst)
         for method in TPMethods
             method_type = only(values(method.method))
-            if method_type == "cp_ft_equation" && haskey(method, :m_heat_capacity_ft_coeffs)
+            if method_type == "cp_ft_equation" && method === cp_interval
                 species[:thermo_method] = "cp_ft_equation"
                 coeffs = method.m_heat_capacity_ft_coeffs
                 vals = coeffs.values

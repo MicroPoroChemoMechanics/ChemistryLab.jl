@@ -179,6 +179,29 @@ const PHREEQC_CSH_FROZEN = reference_oracle("phreeqc_csh_frozen")
         @test occursin("Ca, Na", err.msg)
         # Deprotonation alone binds nothing the gel holds.
         @test build(on_gel([first(t.reaction) => first(t.log_K)])) isa ChemicalSystem
+
+        # The same sites with no host named are not let through by the silence:
+        # nothing says they are not on CSHQ. Declaring the support external says
+        # it, and is what the frozen gel of the second stage does.
+        hostless(external, reactions = [eq => lk for (eq, lk) in zip(t.reaction, t.log_K) if !occursin("K+", eq)]) = site_family(
+            "Csh_w", reactions, ions;
+            master = "Csh_w", site = "Xw", capacity = TotalSiteAmount(1.0u"mol"),
+            support = SurfaceSupport("C-S-H", FixedSurfaceArea(1.0e3); external),
+            model = DiffuseLayer(; area = 1.0e3),
+        )
+        err = try
+            build(hostless(false))
+            nothing
+        catch e
+            e
+        end
+        @test err isa ArgumentError
+        @test occursin("names no host", err.msg)
+        @test occursin("external = true", err.msg)
+        @test build(hostless(true)) isa ChemicalSystem
+        # Deprotonation alone binds nothing the gel holds, and needs no declaration.
+        @test build(hostless(false, [first(t.reaction) => first(t.log_K)])) isa ChemicalSystem
+        @test_throws ArgumentError SurfaceSupport("C-S-H", "CSHQ-TobD", FixedSurfaceArea(1.0); external = true)
     end
 end
 
@@ -273,7 +296,7 @@ end
     family = site_family(
         "Csh_w", reactions, ions2; master = "Csh_w", site = "Xw",
         capacity = TotalSiteAmount(n_sites * u"mol"),
-        support = SurfaceSupport("C-S-H", nothing, FixedSurfaceArea(area)), model = dl,
+        support = SurfaceSupport("C-S-H", FixedSurfaceArea(area); external = true), model = dl,
     )
     members = vcat([family.free_site], family.complexes)
     cs2 = ChemicalSystem(

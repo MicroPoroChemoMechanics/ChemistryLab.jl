@@ -1168,3 +1168,51 @@ end
         @test x_of(eq) ≈ collect(pair) atol = 1.0e-3
     end
 end
+
+@testsection "the certificate says what it proves" begin
+    # `optimal = true` is a proof of a global minimum only when the log
+    # activities are the gradient of one Gibbs energy and the problem is convex.
+    # The certificate measures the first at the composition it audits, from the
+    # symmetry of the Jacobian of the log activities, and reads the second off
+    # the declarations.
+    sp = Dict(
+        symbol(s) => s for s in build_species(
+                datapath("slop98-inorganic-thermofun.json"); verbose = false
+            )
+    )
+    names = split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Mg+2 Cal Mgs")
+    comps = ["H2O@", "H+", "Ca+2", "Mg+2", "CO3-2", "Zz"]
+    exact = HKFActivityModel(å = 4.0, Ḃ = 0.0, Kₙ = 0.0)   # symmetric by construction
+    function certified(model; gap = false)
+        ss = gap ?
+            [SolidSolutionPhase("carbonate", [sp["Cal"], sp["Mgs"]]; model = RedlichKisterModel(a0 = 8_000.0), instances = 2)] :
+            nothing
+        cs = ChemicalSystem([sp[s] for s in names], comps; solid_solutions = ss)
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "Cal", 0.025u"mol")
+        set_quantity!(st, "Mgs", 0.025u"mol")
+        b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+        return equilibrate_certified(st; model, b)
+    end
+
+    _, c = certified(exact)
+    @test c.optimal
+    @test c.scope === :global_minimum
+    @test isempty(c.scope_reasons)
+
+    # Davies carries a salting-out term on the neutral species and a
+    # mole-fraction water activity: its activities are not one gradient.
+    _, c = certified(DaviesActivityModel())
+    @test c.optimal
+    @test c.scope === :self_consistent
+    @test occursin("not the gradient", only(c.scope_reasons))
+
+    # A concave mixing energy, even with exact activities: a KKT point, stable
+    # against splitting, not a proved global minimum.
+    _, c = certified(exact; gap = true)
+    @test c.optimal
+    @test c.scope === :kkt_point
+    # One reason per instance of the phase.
+    @test !isempty(c.scope_reasons) && all(r -> occursin("concave", r), c.scope_reasons)
+end

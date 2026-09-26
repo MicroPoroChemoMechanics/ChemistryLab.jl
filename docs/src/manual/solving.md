@@ -290,17 +290,29 @@ ForwardDiff.derivative(f, 0.01)     # → 0.15193
 
 ## Controlling the solver
 
-### Variable space: `:linear` vs `:log`
+### [Variable space: `:linear` vs `:log`](@id man-variable-space)
 
 [`equilibrate`](@ref) accepts a `variable_space` keyword that selects the optimization variable space:
 
 | `variable_space`        | Variables | Recommended when |
 |:-----------------|:----------|:----------------|
-| `Val(:linear)`   | mole amounts `nᵢ ≥ 0` | most systems, default |
-| `Val(:log)`      | `log nᵢ` | systems spanning many orders of magnitude |
+| `Val(:linear)`   | mole amounts `nᵢ ≥ 0` | any start, default |
+| `Val(:log)`      | `log nᵢ` | refining a composition already close to the answer |
+
+In logarithmic variables, the optimality condition of species `i` is its amount
+`nᵢ` times the gap between its potential and the combination of component
+potentials its formula implies, so a species held at the regularization floor
+contributes almost nothing to the optimality test. A
+starting state in which most species sit at that floor, such as one built from a
+recipe, then already passes the test of the interior point: from it, an explicit
+solver in the logarithmic space returns the start or stops without converging.
+Called without a solver, [`equilibrate`](@ref) goes through the certified route,
+whose answer does not depend on this choice; with an explicit solver, the
+logarithmic space is to be started from a solved state:
 
 ```julia
-state_eq_log = equilibrate(state; variable_space=Val(:log))
+state_eq = equilibrate(state, IpoptOptimizer())                        # linear, from the recipe
+state_eq_log = equilibrate(state_eq, IpoptOptimizer(); variable_space = Val(:log))
 ```
 
 !!! warning "Convergence"
@@ -431,7 +443,7 @@ ab = hkf_debye_huckel_params(298.15, 1e5)   # → (A=0.5114, B=0.3288)
 
 !!! note "Valid range"
     The B-dot model is reliable for `I ≲ 1 mol/kg`. For higher ionic
-    strengths (brines, evaporites), use the Pitzer model (planned future extension).
+    strengths (brines, evaporites), use [`PitzerActivityModel`](@ref).
 
 ---
 

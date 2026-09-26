@@ -425,14 +425,36 @@ carries is accepted.
 
 The way out is two stages: [`freeze_solid_solution`](@ref) sets the solid
 solution aside after a first equilibrium, and the sites go on the frozen solid.
+
+A family whose support names no host is held to the same rule unless the support
+is declared `external = true`: its sites could otherwise sit on the solid
+solution unnoticed, and the declaration is what says they belong to a solid
+outside the system.
 """
 function _refuse_sites_on_mixing_hosts(site_families, solid_solutions)
     (site_families === nothing || solid_solutions === nothing) && return nothing
     for f in site_families
         host = f.support.host
-        host === nothing && continue
+        f.support.external && continue
         free = keys(atoms(f.free_site))
         bound = setdiff(Set(e for c in f.complexes for e in keys(atoms(c))), free, (:H, :O))
+        if host === nothing
+            for ss in solid_solutions
+                shared = sort!(collect(intersect(bound, Set(e for em in end_members(ss) for e in keys(atoms(em))))))
+                isempty(shared) && continue
+                throw(
+                    ArgumentError(
+                        "SiteFamily \"$(f.name)\" names no host and binds $(join(shared, ", ")), " *
+                            "which the solid solution \"$(name(ss))\" also holds. If its sites " *
+                            "are on that phase, those elements are counted twice, in the solid " *
+                            "and on its surface. If they belong to a solid outside this system, " *
+                            "such as a gel frozen by `freeze_solid_solution`, declare the support " *
+                            "with `external = true`."
+                    )
+                )
+            end
+            continue
+        end
         for ss in solid_solutions
             any(em -> symbol(em) == host, end_members(ss)) || continue
             shared = sort!(collect(intersect(bound, Set(e for em in end_members(ss) for e in keys(atoms(em))))))
@@ -674,6 +696,7 @@ function ChemicalSystem(
         primaries::AbstractVector{<:AbstractString};
         kinetic_species = nothing,
         solid_solutions::Union{Nothing, AbstractVector} = nothing,
+        site_families = nothing,
     ) where {T <: AbstractSpecies}
     # Resolve string symbols to species objects, preserving order
     primaries_species = species[symbol.(species) .∈ Ref(primaries)]
@@ -682,6 +705,7 @@ function ChemicalSystem(
         primaries_species;
         kinetic_species = kinetic_species,
         solid_solutions = solid_solutions,
+        site_families = site_families,
     )
 end
 

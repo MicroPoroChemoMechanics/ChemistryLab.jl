@@ -1139,7 +1139,7 @@ end
 function _homotopy_walk(
         cs, i_w, n0, model, steps, ϵ, verbose, max_bisections, atol, rtol, T, P,
     )
-    A = Float64.(cs.SM.A)
+    A = Float64.(_constraint_matrix(cs))
     current = nothing        # the answer at `done`
     done = 0.0               # the largest λ actually reached
     for target in steps

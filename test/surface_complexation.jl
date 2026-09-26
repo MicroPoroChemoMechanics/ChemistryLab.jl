@@ -829,8 +829,9 @@ end
     # the reason it exists: with a fixed budget, `ΔₐG⁰` of the free site cancels
     # out of every surface reaction, both sides carrying a site, so setting it
     # to zero is free. With a budget that FOLLOWS ITS HOST it does not cancel:
-    # the host carries `−ν` of the site component, so the site potential enters
-    # the host's own chemical potential and moves its solubility.
+    # the free sites are counted as part of the host, so an intact sorbent has
+    # the database energy of the host only when the free site sits at zero, and
+    # any other value moves the host's solubility.
     #
     # Shifting the WHOLE family by the same Δ leaves every internal log K
     # untouched, which is what isolates the gauge from the chemistry.
@@ -854,16 +855,14 @@ end
         s[:ΔₐG⁰] = _g0(g); s
     )
 
-    # The reference the free site's matter implies: `XwOH` is a site plus an
-    # `OH`, so `μ°(H₂O) − μ°(H⁺)`. A coupled family is refused away from it
-    # (`host_coupling_bias`), so the gauge is swept AROUND it rather than from
-    # zero — which is also the only place the sweep means anything, since zero
-    # is a declaration the package now rejects.
+    # The energy of the matter the free site carries, `μ°(H₂O) − μ°(H⁺)` for
+    # `XwOH`: the reference a coupled family must NOT be given, since that
+    # matter already belongs to the host (`host_coupling_bias`).
     G(sp) = ustrip(us"J/mol", sp[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
-    reference = G(bn["H2O@"]) - G(bn["H+"])
+    matter = G(bn["H2O@"]) - G(bn["H+"])
 
-    function run(Δ; coupled)
-        g = coupled ? reference + Δ : Δ
+    function run(Δ; coupled, basis = :bare)
+        g = Δ
         mem = [
             surf("XwOH", g),
             surf("XwOH2+", g - RT25 * log(10.0^PHREEQC_PROTOLYSIS.logK_protonation)),
@@ -878,8 +877,9 @@ end
             capacity = coupled ? MassSiteDensity(ν / M) : TotalSiteAmount(ν * 1.0e-3),
             support,
         )
-        # Coupled, the component is the BARE site; uncoupled, the free site.
-        comp = coupled ?
+        # Coupled, the site row may use the bare site or the free site as its
+        # primary; the two must give one answer.
+        comp = coupled && basis === :bare ?
             Species("Xw+"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX) : mem[1]
         cs = ChemicalSystem(
             AbstractSpecies[vcat(aq, mem)...],
@@ -927,15 +927,14 @@ end
         # `log SI = 0` by stationarity, whatever the potentials are, so the
         # index cannot show this. What moves is the AMOUNT.
         #
-        # Measured at Dzombak and Morel's weak-site density, `ν = 0.2`: with the
-        # free site referenced to the matter it carries the host keeps
-        # `9.999993e-4 mol` against `9.999693e-4` with a fixed budget, three
-        # parts in 1e5. With `ΔₐG⁰ = 0` — a surface hydroxyl formed from the
-        # elements for nothing — the same solve dissolves the sorbent outright,
-        # which is why that declaration is refused rather than solved.
+        # At Dzombak and Morel's weak-site density, `ν = 0.2`, with the free site
+        # at zero, the host stays within a part in a thousand of the fixed budget
+        # in pure water, where it barely dissolves. And the two bases of the
+        # site row give one answer.
         ref = run(0.0; coupled = true)
         fixed = run(0.0; coupled = false)
         @test ref.host ≈ fixed.host rtol = 1.0e-3
+        @test run(0.0; coupled = true, basis = :free).host ≈ ref.host rtol = 1.0e-9
         @test ref.si ≈ 0.0 atol = 1.0e-8            # present, hence exactly zero
 
         worst = 0.0
@@ -950,13 +949,12 @@ end
         @test worst < 1.0e-3
     end
 
-    @testset "an unreferenced free site is refused, and the message says what to set" begin
-        # `ΔₐG⁰ = 0` on a free site that carries an oxygen and a hydrogen is the
-        # declaration that dissolved the sorbent. It is worth 8.3 log units at
-        # Dzombak and Morel's density and is refused; the same declaration at
-        # the density a cement paste implies is worth 0.003 and passes.
+    @testset "a free site given the energy of its matter is refused" begin
+        # That matter already belongs to the host, so counting its energy again
+        # is worth 8.3 log units on the host's solubility at Dzombak and Morel's
+        # density, and is refused with the value to use instead.
         e = try
-            run(-reference; coupled = true)      # back to ΔₐG⁰ = 0
+            run(matter; coupled = true)
             nothing
         catch err
             err
@@ -964,6 +962,127 @@ end
         @test e isa ArgumentError
         @test occursin("log units", e.msg)
         @test occursin("-237.2 kJ/mol", e.msg)
+        @test occursin("free site to 0", e.msg)
+    end
+
+    @testset "charge is conserved while the host dissolves" begin
+        # A titration by HCl that dissolves half the host. The free sites are
+        # counted as part of the host and are neutral, so the total charge of
+        # the system stays at the charge it started with, whatever the host
+        # does; both bases of the site row give the same host amount.
+        aqc = speciation(
+            psi, ["Fe(OH)3(am)", "Cl-"]; aggregate_state = [AS_AQUEOUS],
+            exclude_species = split("H2@ O2@ Fe+2 FeOH+ FeO+ Cl2@ ClO- HClO@ ClO2- ClO3- ClO4- HClO2@"),
+        )
+        mem = [
+            surf("XwOH", 0.0),
+            surf("XwOH2+", -RT25 * log(10.0^PHREEQC_PROTOLYSIS.logK_protonation)),
+            surf("XwO-", -RT25 * log(10.0^PHREEQC_PROTOLYSIS.logK_deprotonation)),
+        ]
+        family = SiteFamily(
+            "Xw", mem[1], mem[2:3];
+            capacity = MassSiteDensity(ν / M),
+            support = SurfaceSupport(
+                "hydrous ferric oxide", "Fe(OH)3(am)", FixedSurfaceArea(1.0);
+                coupling = SITES_FOLLOW_HOST,
+            ),
+        )
+        hosts = Float64[]
+        for comp in (Species("Xw+"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX), mem[1])
+            cs = ChemicalSystem(
+                AbstractSpecies[vcat(aqc, mem)...],
+                AbstractSpecies[bn["H2O@"], bn["H+"], bn["Fe+3"], bn["Cl-"], comp];
+                site_families = [family],
+            )
+            st = ChemicalState(cs)
+            set_quantity!(st, "H2O@", moles_of_water() * u"mol")
+            set_quantity!(st, "Fe(OH)3(am)", 1.0e-3u"mol")
+            set_quantity!(st, "H+", 3.2e-3u"mol")
+            set_quantity!(st, "Cl-", 3.2e-3u"mol")
+            st = host_consistent_state(st)
+            n0 = Float64[ustrip(us"mol", x) for x in st.n]
+            eq, cert = equilibrate_certified(st; model = DaviesActivityModel(), b = conservation_matrix(cs) * n0)
+            @test cert.optimal
+            n = Float64[ustrip(us"mol", x) for x in eq.n]
+            z = [Float64(charge(sp)) for sp in cs.species]
+            ih = findfirst(==("Fe(OH)3(am)"), symbol.(cs.species))
+            @test n[ih] < 0.6e-3                       # half the host is gone
+            # Measured below 1e-13 mol in both bases; before the free sites were
+            # counted as part of the host the total drifted by ν times the host
+            # dissolved, 1e-4 mol here.
+            @test abs(sum(z .* n) - sum(z .* n0)) < 1.0e-10
+            push!(hosts, n[ih])
+        end
+        @test hosts[1] ≈ hosts[2] rtol = 1.0e-8
+    end
+
+    @testset "the interior point and its derivatives impose the same coupling" begin
+        # Every solver path is constrained with the coupled matrix. The interior
+        # point is checked on the titrated system above, and so is the
+        # derivative it returns through the implicit-function route: the site
+        # identity `Σ n_sites = ν n_host` holds along any change of the budget,
+        # so its derivative does too.
+        aqc = speciation(
+            psi, ["Fe(OH)3(am)", "Cl-"]; aggregate_state = [AS_AQUEOUS],
+            exclude_species = split("H2@ O2@ Fe+2 FeOH+ FeO+ Cl2@ ClO- HClO@ ClO2- ClO3- ClO4- HClO2@"),
+        )
+        mem = [
+            surf("XwOH", 0.0),
+            surf("XwOH2+", -RT25 * log(10.0^PHREEQC_PROTOLYSIS.logK_protonation)),
+            surf("XwO-", -RT25 * log(10.0^PHREEQC_PROTOLYSIS.logK_deprotonation)),
+        ]
+        family = SiteFamily(
+            "Xw", mem[1], mem[2:3];
+            capacity = MassSiteDensity(ν / M),
+            support = SurfaceSupport(
+                "hydrous ferric oxide", "Fe(OH)3(am)", FixedSurfaceArea(1.0);
+                coupling = SITES_FOLLOW_HOST,
+            ),
+        )
+        cs = ChemicalSystem(
+            AbstractSpecies[vcat(aqc, mem)...],
+            AbstractSpecies[bn["H2O@"], bn["H+"], bn["Fe+3"], bn["Cl-"], mem[1]];
+            site_families = [family],
+        )
+        nm = symbol.(cs.species)
+        ih = findfirst(==("Fe(OH)3(am)"), nm)
+        isite = [findfirst(==(s), nm) for s in ("XwOH", "XwOH2+", "XwO-")]
+        iH, iCl = findfirst(==("H+"), nm), findfirst(==("Cl-"), nm)
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", moles_of_water() * u"mol")
+        set_quantity!(st, "Fe(OH)3(am)", 1.0e-3u"mol")
+        set_quantity!(st, "H+", 2.0e-3u"mol")
+        set_quantity!(st, "Cl-", 2.0e-3u"mol")
+        st = host_consistent_state(st)
+        n0 = Float64[ustrip(us"mol", x) for x in st.n]
+        A = conservation_matrix(cs)
+        esolver = EquilibriumSolver(cs, DaviesActivityModel(), OptimaOptimizer())
+
+        eq = SciMLBase.solve(esolver, st; b = A * n0)
+        n = Float64[ustrip(us"mol", x) for x in eq.n]
+        z = [Float64(charge(sp)) for sp in cs.species]
+        # What is under test is the matrix the interior point is constrained
+        # with, and these three identities hold only with the coupled one. Its
+        # answer is not the minimum on this system, coupled or not: measured, it
+        # stops at a host of 2.5e-4 mol where the certified minimum is 7.8e-4,
+        # and at 3.1e-4 against 5.1e-4 with a fixed budget, which is why the
+        # certified route decides wherever it can.
+        @test sum(n[isite]) / n[ih] ≈ ν rtol = 1.0e-6
+        @test abs(sum(z .* n) - sum(z .* n0)) < 1.0e-9
+        @test maximum(abs, A * n .- A * n0) < 1.0e-9
+
+        # d(sites)/d(HCl) = ν d(host)/d(HCl), through `_attach_sensitivity`.
+        function host_and_sites(x)
+            nx = n0 .+ zero(x)
+            nx[iH] += x
+            nx[iCl] += x
+            eqx = SciMLBase.solve(esolver, ChemicalState(cs, nx .* u"mol"); b = A * nx)
+            m = [ustrip(us"mol", v) for v in eqx.n]
+            return [m[ih], sum(m[isite])]
+        end
+        J = ForwardDiff.jacobian(x -> host_and_sites(x[1]), [0.0])
+        @test J[1] < 0                              # more acid, less host
+        @test J[2] ≈ ν * J[1] rtol = 1.0e-6
     end
 end
 

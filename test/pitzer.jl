@@ -9,6 +9,8 @@
 # agreement with an independent implementation of a different model in the range
 # where both must equal the limiting law.
 
+using LinearAlgebra: norm
+
 const PITZER_TOML = datapath("pitzer-reardon1990.toml")
 
 _pz_params() = build_pitzer_parameters(PITZER_TOML)
@@ -325,4 +327,23 @@ end
     @test varying(n, at60)[2] < varying(n, at25)[2]
     # and at 25 °C the two agree, since that is where the fixed value comes from
     @test isapprox(varying(n, at25), fixed(n, at25); rtol = 1.0e-3)
+end
+
+# ── one Gibbs energy behind the activities ───────────────────────────────────
+
+@testsection "Pitzer's activities are the gradient of one Gibbs energy" begin
+    # The optimality certificate proves a global minimum only when the log
+    # activities are the gradient of one Gibbs energy, whose Hessian is symmetric.
+    # Pitzer's equations derive the activity coefficients and the osmotic
+    # coefficient from one excess Gibbs energy; this checks the implementation
+    # keeps that property, in a mixture reaching theta, psi and the 2-2 beta2.
+    cs = _pz_system(
+        split("H2O@ Na+ K+ Ca+2 Cl- SO4-2"), ["H2O@", "Na+", "K+", "Ca+2", "Cl-", "SO4-2"]
+    )
+    lna = activity_model(cs, PitzerActivityModel(; parameters = _pz_params()))
+    n0 = [1 / _PZ_M_W, 0.5, 0.3, 0.1, 0.6, 0.2]
+    J = ForwardDiff.jacobian(nn -> lna(nn, _pz_p(6)), n0)
+    asymmetry, _ = ChemistryLab._jacobian_asymmetry(J)
+    # below the threshold under which the certificate reports a global minimum
+    @test asymmetry < ChemistryLab._SCOPE_ASYMMETRY
 end

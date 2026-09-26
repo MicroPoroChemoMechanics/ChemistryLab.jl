@@ -119,7 +119,7 @@ end
 
 Solve a chemical equilibrium problem from an initial `ChemicalState`.
 
-The conservation matrix `A` is taken from `state.system.SM.A`.
+The conservation matrix `A` is `conservation_matrix(state.system)`, which is `SM.A` unless a site family follows its host.
 The initial mole vector `n0` and thermodynamic parameters `ΔₐG⁰/RT`
 are extracted from `state` at its current `T` and `P`.
 
@@ -134,11 +134,14 @@ sharing the same `ChemicalSystem` as the input.
 
 # Examples
 ```julia
-solver = EquilibriumSolver(cs, DiluteSolutionModel(), IpoptOptimizer();
-                           variable_space=Val(:log), abstol=1e-10)
+solver = EquilibriumSolver(cs, DiluteSolutionModel(), IpoptOptimizer(); abstol=1e-10)
 state0 = ChemicalState(cs, n0; T=298.15u"K", P=1u"bar")
 state_eq = solve(solver, state0)
 ```
+
+The logarithmic variable space (`variable_space = Val(:log)`) refines a solved
+state; started from amounts held at the floor `ϵ`, it returns the start, since
+the gradient in `log n` of such a species is of order `ϵ`.
 """
 function SciMLBase.solve(
         esolver::EquilibriumSolver,
@@ -160,9 +163,10 @@ function SciMLBase.solve(
     # `state` supplying only the starting guess and the T, P conditions. The
     # element totals then come from the caller — the ODE state of a kinetics
     # run — instead of being derived from a composition that may not carry them.
+    A = ChemistryLab._constraint_matrix(state.system)
     prob = isnothing(b) ?
-        EquilibriumProblem(state.system.SM.A, esolver.μ, n0; p = p) :
-        EquilibriumProblem(state.system.SM.A, esolver.μ, n0; b = collect(b), p = p)
+        EquilibriumProblem(A, esolver.μ, n0; p = p) :
+        EquilibriumProblem(A, esolver.μ, n0; b = collect(b), p = p)
     sol = SciMLBase.solve(prob, esolver.solver; variable_space = esolver.variable_space, esolver.kwargs...)
 
     state_eq = copy(state)

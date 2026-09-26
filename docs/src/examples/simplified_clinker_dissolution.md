@@ -123,16 +123,9 @@ end
 
 ### Variable space: `:linear` vs `:log`
 
-[`equilibrate`](@ref) accepts a `variable_space` keyword that selects the optimization variable space:
-
-| `variable_space`        | Variables | Recommended when |
-|:-----------------|:----------|:----------------|
-| `Val(:linear)`   | mole amounts `nᵢ ≥ 0` | most systems, default |
-| `Val(:log)`      | `log nᵢ` | systems spanning many orders of magnitude |
-
-```julia
-state_eq_log = equilibrate(state; variable_space=Val(:log))
-```
+The choice between the two variable spaces, and why the logarithmic one is a
+refinement rather than a start, is explained in
+[Variable space: `:linear` vs `:log`](@ref man-variable-space).
 
 !!! warning "Convergence"
     Solving a system of equations in chemistry can be a difficult undertaking. The orders of magnitude can vary greatly, and convergence is not guaranteed.

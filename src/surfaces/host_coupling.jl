@@ -401,7 +401,7 @@ function sites_per_host(family::SiteFamily, M_host::Real)
     return ν
 end
 
-# ── The coupling as an ADDED row, never as a changed composition ─────────────
+# ── The coupling: the host's formula includes its sites ──────────────────────
 
 """
     site_coupling_rows(cs::ChemicalSystem) -> (Matrix{Float64}, Vector{String})
@@ -417,53 +417,10 @@ with `d_k` the denticity of each member. Returns the rows and the family names
 that label them; both are empty when nothing is coupled, so a system without a
 coupled surface gets back exactly what it had.
 
-# Why an added row, and not a coefficient in the composition matrix
-
-Because the obvious alternative is **impossible**, and that is worth stating
-once rather than rediscovering.
-
-Writing the coupling as `A[site, host] -= ν` in the projected matrix changes
-what the system conserves: the rows of `A` are indexed by primary species, so
-subtracting there subtracts the free site's whole composition — and a free site
-carries real atoms, an oxygen and a hydrogen for `XsOH`. The system then
-conserves `M n − ν m_free n_host`, which creates `ν` moles of oxygen and `ν` of
-hydrogen per mole of host. For Dzombak and Morel's weak sites, `ν = 0.2`: seven
-percent of the oxygen of `Fe(OH)₃`, invented.
-
-The repair would be to subtract `ν` times a preimage of the **pure** site
-pseudo-element instead. No such preimage exists. Measured on two systems of
-different structure — an amphoteric oxide over `[:H, :O, :Xs, :Zz]` and a
-cation exchanger over `[:Na, :K, :H, :O, :Xc, :Zz]` — the least-squares residual
-`‖M_indep v − Xs_unit‖` comes out `0.378` and `0.500`, not zero. The reason is
-structural rather than a quirk of a basis: a site symbol never appears alone.
-Every species carrying it carries it attached to matter, and only one site
-species can be primary, so no combination of primaries yields a bare site with
-every real atom and the charge at zero.
-
-An added row has none of this to answer for. `SM.A` **is** the encoding of
-element conservation, and leaving it alone leaves that conservation exact: the
-surface species carry their own oxygen and hydrogen in their own formulas, the
-host carries its own, and growing the site population draws them from the water
-through the ordinary element rows. Automatically, with nothing to correct.
-
-What it does cost is that `saturation_indices` reads `SM.A` and does not see
-this row; the host's reported index has to be taught about it separately, or it
-would disagree with the stationarity the solver actually reached.
-
-# These rows state the constraint; they are not how it is imposed
-
-[`conservation_matrix`](@ref) imposes it, as a single `−ν` in the site row's
-host column. This returns the same statement in row form, which is what lets the
-two be checked against each other rather than believed.
-
-Appending these rows *instead* does not work, and the measurement is worth
-keeping: `SM.A` already carries a site row, so a second one tying the same sum
-to the host leaves two equations on one quantity, and together they say
-`n_host = n_host,0` — the host may not dissolve at all. Run on portlandite, the
-solve returned `MaxIters`, the host moved from 0.1 to 0.0883 mol regardless, and
-the site total stayed at exactly `ν × 0.1`: the solver satisfied the old row and
-violated the new one. The constraint has to **replace** the site row, not join
-it.
+These rows state the constraint so that it can be checked, and
+[`conservation_matrix`](@ref) is how it is imposed: on the site row the two
+coincide. Appending them to `SM.A` instead would not work, since `SM.A` already
+carries a site row and two equations on one sum forbid the host to move.
 """
 function site_coupling_rows(cs::ChemicalSystem)
     empty_rows = Matrix{Float64}(undef, 0, length(cs.species))
@@ -500,12 +457,13 @@ end
     _is_bare_site(sp, site::Symbol) -> Bool
 
 Whether `sp` carries the site pseudo-element `site` **and nothing else** — no
-real atom, no charge.
+real atom, possibly a charge.
 
-Such a species is not a chemical species at all. It is a *component*: the pure
-site, with no matter attached. That is exactly what a coupled family needs its
-primary to be, and why one is allowed to sit among the primaries without being
-among the species.
+Such a species is a *component* rather than a substance: the site with no
+matter attached. A coupled family may take one as the primary of its site row,
+or take its free site; [`conservation_matrix`](@ref) holds in either basis. The
+test matters for `_refuse_unidentifiable_site`, which concerns the bare basis
+only.
 """
 function _is_bare_site(sp::AbstractSpecies, site::Symbol)
     a = atoms(sp)
@@ -607,70 +565,37 @@ function _refuse_unidentifiable_site(
 end
 
 
+# Above this many log units on the host's saturation index, a coupled family is
+# refused rather than solved. It is a statement about how much of an answer the
+# free site's reference is allowed to be: 0.05 log units is 12 % on a
+# solubility, below the spread between two databases for the same phase.
+const _MAX_COUPLING_BIAS = 0.05
+
 """
     host_coupling_bias(cs::ChemicalSystem) -> OrderedDict{String, Float64}
 
-Per coupled family, the shift in `log SI` that the coupling imposes on the host
-at standard state — the size of the modeling gap described below, in the units
-the answer is read in.
-
-# Why a coupled family has one and a fixed one does not
-
-With a **fixed** budget the free site's `ΔₐG⁰` cancels out of every surface
-reaction, since both sides carry a site. It is a gauge, and the suite measures
-it as one: shifting a whole family by 20 kJ/mol moves nothing by more than
-`5e-14`.
-
-With a budget that **follows its host**, the host carries `−ν` of the site
-component, so the site potential enters the host's own chemical potential and
-the reference energy has stopped being a gauge. Where that shows depends on the
-host: a phase that is **present** at an equilibrium has `log SI = 0` by
-stationarity whatever the potentials are, so the effect is on its **amount**; a
-phase that is absent shows it directly in its index.
-
-What it has become is not a convention either. `XsOH` carries a real oxygen and
-a real hydrogen, so giving it `ΔₐG⁰ = 0` states that a surface hydroxyl forms
-from the elements for nothing. That is wrong by the energy of the matter in it,
-and this function measures exactly that:
+Per coupled family, the shift in `log SI` that the reference energy of the free
+site imposes on the host, in the units the answer is read in:
 
 ```math
-\\text{bias} = \\frac{\\nu}{RT \\ln 10}
-  \\left| \\Delta_a G^0_{\\text{free}}
-        - \\sum_{c \\neq \\text{site}} A_{c,\\text{free}}\\, \\Delta_a G^0_c \\right|
+\\text{bias} = \\frac{\\nu\\,\\left|\\Delta_a G^0_{\\text{free}}\\right|}{RT \\ln 10} .
 ```
 
-the second term being the standard energy of the free site's own decomposition
-over the other primaries — `μ°(H₂O) − μ°(H⁺)` for an oxide, `μ°(Na⁺)` for a
-sodium exchanger. It is general because the matrix supplies it.
+# Why the free site of a coupled family has zero energy
 
-# What the number means, measured
+With a fixed budget the free site's `ΔₐG⁰` cancels out of every surface
+reaction, both sides carrying one site, and it is a gauge. With a budget that
+follows its host it no longer cancels. [`conservation_matrix`](@ref) counts the
+free sites as part of the host, so that an intact sorbent, every site free, has
+the composition of the host's database formula; it has the database energy only
+when the free site's energy is zero. That is the convention of
+[Kulik2002](@cite) for surface groups that belong to their sorbent, and any
+other value moves the host's solubility by the amount above. A family whose bias
+exceeds `$(_MAX_COUPLING_BIAS)` log units is refused, and
+[`site_family`](@ref) builds families that satisfy it, its free site at zero and
+every complex written relative to it.
 
-At the site density a cement paste implies — `Γ = 10⁻⁵ mol/m²` over `90 m²/kg`,
-so `ν = 6.7e-5` — the bias is `0.003` log units and the coupling is harmless.
-At Dzombak and Morel's weak-site density for hydrous ferric oxide, `ν = 0.2`, it
-is **8.3 log units**: with the reference at zero the host came back 2.3 log
-units undersaturated and dissolved completely, where the same system with a
-fixed budget holds its solid at equilibrium.
-
-# What setting it fixes, measured
-
-With `ΔₐG⁰(free site) = μ°(H₂O) − μ°(H⁺) = −237.2 kJ/mol`, the bias is zero and
-the same hydrous ferric oxide at `ν = 0.2` keeps its solid: `9.999993e-4 mol`
-against `9.999693e-4` with a fixed budget — three parts in `10⁵` — the site
-total is `0.2` times the host amount to seven digits, the solve certifies, and
-the host reports `log SI = −2e-13`.
-
-That is a **reference**, not a fitted number: it is what the free site is made
-of, read off the same matrix the constraint is built from. It is nonetheless a
-statement this package makes rather than one a database supplies, which is why
-it is measured here instead of assumed.
-
-[Kulik2002](@cite) reaches the same place from the other side and is worth
-reading before relying on this: he keeps the free site out of the balance
-entirely, as a *surface monolayer solvent* of fixed activity with `μ_n = 0`, and
-carries the capacity in a surface activity term. That formulation needs no
-reference energy at all, and it is the one to move to if this ever has to hold
-at densities where the approximation shows.
+The energies are read at 298.15 K, where the surface constants are given.
 
 See also: [`sites_per_host`](@ref), [`conservation_matrix`](@ref).
 """
@@ -681,15 +606,13 @@ function host_coupling_bias(cs::ChemicalSystem)
     RT = R_GAS * 298.15
     for f in fams
         surface_support(f).coupling === SITES_FOLLOW_HOST || continue
-        r = findfirst(p -> get(atoms(p), f.site, 0) > 0, cs.SM.primaries)
-        r === nothing && continue
         jf = findfirst(s -> symbol(s) == symbol(reference_member(f)), cs.species)
         jh = findfirst(s -> symbol(s) == surface_support(f).host, cs.species)
         (jf === nothing || jh === nothing) && continue
+        g = _standard_gibbs(cs.species[jf])
+        g === nothing && continue          # no standard energy: nothing to measure
         ν = sites_per_host(f, _molar_mass_si(cs.species[jh]))
-        m = _reference_matter_energy(cs, f, r, jf)
-        m === nothing && continue          # no standard energies: nothing to measure
-        out[name(f)] = ν * abs(_standard_gibbs(cs.species[jf]) - m) / (RT * log(10))
+        out[name(f)] = ν * abs(g) / (RT * log(10))
     end
     return out
 end
@@ -709,132 +632,115 @@ function _standard_gibbs(sp::AbstractSpecies)
 end
 
 """
-    _reference_matter_energy(cs, family, r, jf) -> Union{Float64, Nothing}
-
-The standard energy of the free site's own decomposition over the primaries
-other than its site component — the energy of the matter the free site carries.
-`nothing` if any primary it needs has no standard energy.
-"""
-function _reference_matter_energy(cs::ChemicalSystem, family::SiteFamily, r::Int, jf::Int)
-    total = 0.0
-    for c in eachindex(cs.SM.primaries)
-        c == r && continue
-        a = Float64(cs.SM.A[c, jf])
-        iszero(a) && continue
-        g = _standard_gibbs(cs.SM.primaries[c])
-        g === nothing && return nothing
-        total += a * g
-    end
-    return _standard_gibbs(cs.species[jf]) === nothing ? nothing : total
-end
-
-# Above this many log units on the host's saturation index, a coupled family is
-# refused rather than solved. It is not a machine-dependent threshold: it is a
-# statement about how much of an answer the modeling gap is allowed to be, and
-# 0.05 log units is 12 % on a solubility — below the spread between two
-# databases for the same phase, and four orders below the 8.3 that Dzombak and
-# Morel's own site density produces with an unreferenced free site.
-const _MAX_COUPLING_BIAS = 0.05
-
-"""
     _refuse_biased_coupling(cs, family)
 
-Refuse a coupled family whose free site is not referenced to the matter in it.
-
-[`host_coupling_bias`](@ref) says what this measures and why a fixed budget has
-no equivalent. This is the gate: a modeling gap worth more than
-`$(_MAX_COUPLING_BIAS)` log units on the host's own solubility is not a detail
-of the answer, it is the answer.
+Refuse a coupled family whose free site is not at zero energy; see
+[`host_coupling_bias`](@ref) for why a coupled family needs it and a fixed one
+does not.
 """
 function _refuse_biased_coupling(cs::ChemicalSystem, family::SiteFamily)
     bias = get(host_coupling_bias(cs), name(family), 0.0)
     bias ≤ _MAX_COUPLING_BIAS && return nothing
-    r = findfirst(p -> get(atoms(p), family.site, 0) > 0, cs.SM.primaries)
     jf = findfirst(s -> symbol(s) == symbol(reference_member(family)), cs.species)
-    matter = _reference_matter_energy(cs, family, r, jf)
+    g = _standard_gibbs(cs.species[jf])
     throw(
         ArgumentError(
-            "SiteFamily \"$(name(family))\" follows its host, and the reference " *
-                "energy of its free site \"$(symbol(cs.species[jf]))\" would move " *
-                "the host's own saturation index by " *
+            "SiteFamily \"$(name(family))\" follows its host, and its free site " *
+                "\"$(symbol(cs.species[jf]))\" has ΔₐG⁰ = $(round(g / 1000; digits = 1)) " *
+                "kJ/mol, which moves the host's own saturation index by " *
                 "$(round(bias; sigdigits = 3)) log units.\n" *
-                "With a FIXED budget that energy is a gauge and cancels; with a " *
-                "budget that follows its host it does not, because the host carries " *
-                "−ν of the site component. Measured on hydrous ferric oxide at " *
-                "Dzombak and Morel's weak-site density: the host came back 2.3 log " *
-                "units undersaturated and dissolved completely.\n" *
-                "Set `ΔₐG⁰` of the free site to the energy of the matter it carries, " *
-                "$(round(matter / 1000; digits = 1)) kJ/mol here, which is its own " *
-                "decomposition over the other primaries; see `host_coupling_bias`.",
+                "The coupling counts the free sites as part of the host, so an intact " *
+                "sorbent has the database energy of the host only when the free site's " *
+                "energy is zero. Set ΔₐG⁰ of the free site to 0 and write every complex " *
+                "relative to it, as `site_family` does; see `host_coupling_bias`.",
         )
     )
 end
 
 """
+    _refuse_charged_free_site(family, free)
+
+Refuse a coupled family whose free site carries a charge. The coupling moves `ν`
+free sites with each mole of host, so a charged one would carry charge in and out
+of the system as the host dissolves or grows.
+"""
+function _refuse_charged_free_site(family::SiteFamily, free::AbstractSpecies)
+    z = charge(free)
+    iszero(z) && return nothing
+    throw(
+        ArgumentError(
+            "SiteFamily \"$(name(family))\" follows its host, but its free site " *
+                "\"$(symbol(free))\" carries a charge of $z. The coupling counts " *
+                "ν free sites as part of each mole of host, so a charged free site " *
+                "would create or destroy charge as the host dissolves or grows.\n" *
+                "Declare a neutral free site (for an exchanger, the site with its " *
+                "compensating cation), or keep the support at SITES_FIXED.",
+        )
+    )
+end
+
+"""
+    _refuse_host_short_of_site_matter(family, host, free, ν)
+
+Refuse a coupled family whose host formula does not contain `ν` free sites' worth
+of every element: the free sites are counted as part of the host, so their atoms
+have to be among the host's own.
+"""
+function _refuse_host_short_of_site_matter(
+        family::SiteFamily, host::AbstractSpecies, free::AbstractSpecies, ν::Real,
+    )
+    ah, af = atoms(host), atoms(free)
+    for (e, k) in af
+        (e === family.site || e === :Zz) && continue
+        left = Float64(get(ah, e, 0)) - ν * Float64(k)
+        left ≥ -1.0e-12 && continue
+        throw(
+            ArgumentError(
+                "SiteFamily \"$(name(family))\" follows host \"$(symbol(host))\" with " *
+                    "ν = $(round(ν; sigdigits = 4)) sites per mole, but its free site " *
+                    "\"$(symbol(free))\" carries $k $e per site and the host's formula " *
+                    "holds only $(get(ah, e, 0)). The coupling counts the free sites " *
+                    "as part of the host, so their atoms have to be among the host's " *
+                    "own. Check the capacity, or the choice of host.",
+            )
+        )
+    end
+    return nothing
+end
+
+"""
     conservation_matrix(cs::ChemicalSystem) -> Matrix{Float64}
 
-The matrix the equilibrium is constrained with: `SM.A` as it stands when no
-family follows its host, and `SM.A` with `ν` subtracted from each coupled
-family's `(site row, host column)` entry when one does.
-
-That single entry is the whole coupling. It states
+The matrix the equilibrium is constrained with: `SM.A` when no family follows
+its host, and otherwise `SM.A` with, for each coupled family, `ν` times the
+column of its free site subtracted from the column of its host,
 
 ```math
-\\sum_k d_k n_k - \\nu n_{\\text{host}} = 0
+A'_{:,\\,\\text{host}} = A_{:,\\,\\text{host}} - \\nu\\, A_{:,\\,\\text{free}} .
 ```
 
-and [`site_coupling_rows`](@ref) returns the same statement in row form, which
-is how the two are checked against each other.
+The host's database formula already contains the surface groups its sites are
+made of, since a hydroxide carries the hydroxyls its surface exposes, so the free
+sites are counted as part of the host rather than on top of it. On the site row
+the subtraction reads `Σ dₖ nₖ − ν n_host = 0`, the statement of
+[`site_coupling_rows`](@ref); on the element rows it removes from the host the
+atoms the free sites carry, so that every atom is counted once; and, the free
+site being neutral, it leaves the charge conserved while the host dissolves or
+grows. This is the bookkeeping of [Kulik2002](@cite) for a sorbent whose surface
+groups belong to it, and it holds in any basis of primaries: the free site may be
+the primary of the site row, or a bare site component (`Species("Xs+")`) may be
+declared in its place.
 
-# Why one entry is enough, and why it was not before
-
-Subtracting from a row of the projected matrix subtracts the **primary's whole
-composition**, not the site symbol alone: `M = M_indep A`, so a correction `v`
-in primary coordinates removes `M_indep v` of matter. Getting the pure site out
-of it needs `M_indep v = Xs_unit`, a preimage of the bare pseudo-element.
-
-With the free site for primary that preimage does **not exist**. Measured, as
-the least-squares residual `‖M_indep v − Xs_unit‖`: `0.378` on an amphoteric
-oxide over `[:H, :O, :Xs, :Zz]`, `0.500` on a cation exchanger over
-`[:Na, :K, :H, :O, :Xc, :Zz]`. The reason is structural — a site symbol never
-appears alone, every species carrying it carries it attached to matter, and only
-one site species can be primary. Subtracting anyway invents `ν` moles of oxygen
-and `ν` of hydrogen per mole of host: seven percent of the oxygen of `Fe(OH)₃`
-at Dzombak and Morel's weak-site density.
-
-Declaring the **bare** site as the primary removes the obstruction rather than
-working around it. The residual is then `0.0` exactly and the preimage is the
-unit vector, so subtracting `ν` from that one entry subtracts `ν` times a
-component carrying no atom and no charge. Element conservation is exact by
-construction, and nothing else in the matrix moves.
-
-The component carries the **charge** the free site carries with its site symbol
-— `XsOH` is `Xs⁺ + OH⁻`, so the component is `Xs+`. A neutral one leaves `Zz`
-among the primaries and the basis is then degenerate; `_refuse_parasitic_charge`
-says so, with what it costs.
-
-# Measured
-
-Uncoupled, the substitution costs nothing: the same system over a bare-site
-component and over the free site returns the same host amount to eight digits,
-converges in both, elements to `5.6e-16` against `1.8e-15`.
-
-Coupled, on portlandite carrying sites at `Γ = 1e-5 mol/m²` over `90 m²/kg`, at
-three host amounts:
-
-| host | converged | `Σdn / n_host / ν − 1` | elements | host, coupled vs fixed |
-|:--|:--|--:|--:|:--|
-| 0.05 | yes, kkt `1.4e-14` | `3.9e-7` | `4.2e-15` | 0.0382614 / 0.0382737 |
-| 0.10 | yes, kkt `5.7e-14` | `1.7e-7` | `1.5e-15` | 0.0882592 / 0.0882715 |
-| 0.20 | yes, kkt `4.5e-11` | `8.0e-8` | `2.1e-12` | 0.1882548 / 0.188267 |
-
-The fixed budget is off by 13 %, 6 % and 31 % on the same three, which is not a
-defect of it: a budget that does not follow its host cannot track one.
+Refused, each by name: a free site that carries a charge, a host whose formula
+does not contain `ν` free sites' worth of every element, a capacity that is not
+proportional to the host's amount ([`sites_per_host`](@ref)), and a free site
+whose energy is away from zero ([`host_coupling_bias`](@ref)).
 """
 function conservation_matrix(cs::ChemicalSystem)
     A = Float64.(cs.SM.A)
     fams = cs.site_families
     fams === nothing && return A
+    A0 = copy(A)
     for f in fams
         surface_support(f).coupling === SITES_FOLLOW_HOST || continue
         r = findfirst(p -> get(atoms(p), f.site, 0) > 0, cs.SM.primaries)
@@ -842,20 +748,6 @@ function conservation_matrix(cs::ChemicalSystem)
             ArgumentError(
                 "SiteFamily \"$(name(f))\" follows its host, but no primary of this " *
                     "system carries :$(f.site), so there is no site row to couple.",
-            )
-        )
-        prim = cs.SM.primaries[r]
-        _is_bare_site(prim, f.site) || throw(
-            ArgumentError(
-                "SiteFamily \"$(name(f))\" follows its host, but its site primary is " *
-                    "\"$(symbol(prim))\", which carries more than :$(f.site).\n" *
-                    "A coupled family needs the BARE site as its component. " *
-                    "Subtracting from the row of a primary that carries matter " *
-                    "subtracts that matter too — measured, ν moles of oxygen and ν of " *
-                    "hydrogen invented per mole of host, seven percent of the oxygen " *
-                    "of Fe(OH)₃ at Dzombak and Morel's weak-site density.\n" *
-                    "Declare `Species(\"$(f.site)\")` among the primaries. It need not " *
-                    "be among the species: it is a component, not a substance.",
             )
         )
         host = surface_support(f).host
@@ -866,11 +758,38 @@ function conservation_matrix(cs::ChemicalSystem)
                     "species of this system.",
             )
         )
-        A[r, j] -= sites_per_host(f, _molar_mass_si(cs.species[j]))
-        # AFTER the coupling, because the host entry is what separates the site
-        # row from the charge row when it is separable at all.
-        _refuse_unidentifiable_site(cs, f, A, r)
+        free = reference_member(f)
+        jf = findfirst(s -> symbol(s) == symbol(free), cs.species)
+        jf === nothing && throw(
+            ArgumentError(
+                "SiteFamily \"$(name(f))\" follows its host, but its free site " *
+                    "\"$(symbol(free))\" is not a species of this system.",
+            )
+        )
+        _refuse_charged_free_site(f, cs.species[jf])
+        ν = sites_per_host(f, _molar_mass_si(cs.species[j]))
+        _refuse_host_short_of_site_matter(f, cs.species[j], cs.species[jf], ν)
+        @views A[:, j] .-= ν .* A0[:, jf]
+        # The bare basis is the one whose site row can coincide with the charge
+        # row; the check reads the matrix the solve will use.
+        _is_bare_site(cs.SM.primaries[r], f.site) && _refuse_unidentifiable_site(cs, f, A, r)
         _refuse_biased_coupling(cs, f)
     end
     return A
 end
+
+"""
+    _constraint_matrix(cs::ChemicalSystem) -> AbstractMatrix
+
+The matrix every solver path constrains the equilibrium with: `cs.SM.A` itself
+when no family follows its host, and [`conservation_matrix`](@ref) otherwise.
+Returning `SM.A` untouched keeps a system without a coupled family bit-identical
+to what it was, and routing every path through here keeps a coupled one from
+being solved on the uncoupled matrix by one of them.
+"""
+_constraint_matrix(cs::ChemicalSystem) =
+    _has_coupled_family(cs) ? conservation_matrix(cs) : cs.SM.A
+
+_has_coupled_family(cs::ChemicalSystem) =
+    cs.site_families !== nothing &&
+    any(f -> surface_support(f).coupling === SITES_FOLLOW_HOST, cs.site_families)

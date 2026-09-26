@@ -56,7 +56,7 @@ surface site. Three properties are required rather than nice to have:
 
   - it is differentiated by `ForwardDiff` at every Newton step, so the output
     element type must follow `n` and any regularization must be smooth;
-  - it must call **both** `_solid_solution_lna!` and `_site_mixing_lna!`, or the
+  - it must build `_MixingTerms(cs)` once and call `_mixing_lna!`, or the
     members of a solid solution, or of a surface site family, silently get
     `ln a = 0` — unit activity, which is a plausible number and a wrong one;
   - `concentration_scale` has no fallback: without it the aqueous accessors
@@ -156,34 +156,9 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
         0.0
     end
 
-    ss_groups = cs.ss_groups
-    has_ss = !isempty(ss_groups)
     has_gas = !isempty(idx_gas)
-    ss_models = has_ss ? map(ss -> ss.model, cs.solid_solutions) : nothing
-
-    site_groups = cs.site_groups
-    has_sites = !isempty(site_groups)
-    site_models = has_sites ? map(f -> f.model, cs.site_families) : nothing
-    site_denticity = has_sites ?
-        [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
-        nothing
-    site_charges = has_sites ?
-        [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
-        nothing
-
-    # A diffuse layer is screened by the ions in solution, so it needs the ionic
-    # strength; nothing else here does. The question is asked once, when the
-    # closure is built, so a system without one never walks the solute list.
-    site_needs_I = has_sites && any(needs_ionic_strength, site_models)
-    site_solvent = isempty(cs.idx_solvent) ? 0 : only(cs.idx_solvent)
-    site_ions = site_needs_I ?
-        [i for i in cs.idx_solutes if !iszero(charge(cs.species[i]))] : Int[]
-    site_ion_z = Float64[charge(cs.species[i]) for i in site_ions]
-    site_Mw = (site_needs_I && !iszero(site_solvent)) ?
-        ustrip(us"kg/mol", cs.species[site_solvent][:M]) : 1.0
-    # A surface potential belongs to the support, so the charge that raises it
-    # is summed over every family on it, not over one family's own members.
-    site_support_idx, site_support_z = has_sites ? _support_members(cs) : (nothing, nothing)
+    # The solid solutions and the site families, prepared once; see `_MixingTerms`.
+    mix = _MixingTerms(cs)
 
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
@@ -207,27 +182,9 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
             end
         end
 
-        if has_ss
-            T_val = hasproperty(p, :T) ? p.T : 298.15
-            _solid_solution_lna!(out, _n, ss_groups, ss_models, T_val, ϵ)
-        end
-
-        # Surface sites mix on a budget of their own. Skipping this leaves every
-        # surface species at `ln a = 0`, i.e. unit activity, which is silent and
-        # wrong — the same trap the solid-solution call has carried since 0.8.2.
-        if has_sites
-            T_val = hasproperty(p, :T) ? p.T : 298.15
-            I_site = site_needs_I ?
-                _aqueous_ionic_strength(_n, site_ions, site_ion_z, site_solvent, site_Mw) :
-                zero(eltype(_n))
-            # A surface potential carried as an unknown of the solve arrives
-            # here, the way an adiabatic temperature does: through `p`.
-            ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
-            _site_mixing_lna!(
-                out, _n, site_groups, site_models, site_denticity, site_charges,
-                I_site, T_val, ϵ, ψ_site, site_support_idx, site_support_z
-            )
-        end
+        # Solid solutions and surface sites mix on budgets of their own; leaving
+        # either out would give its members unit activity, silently.
+        _mixing_lna!(out, _n, mix, p, ϵ)
 
         return out
     end
@@ -692,34 +649,9 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
     idx_solutes = cs.idx_solutes
     idx_gas = cs.idx_gas
 
-    ss_groups = cs.ss_groups
-    has_ss = !isempty(ss_groups)
     has_gas = !isempty(idx_gas)
-    ss_models = has_ss ? map(ss -> ss.model, cs.solid_solutions) : nothing
-
-    site_groups = cs.site_groups
-    has_sites = !isempty(site_groups)
-    site_models = has_sites ? map(f -> f.model, cs.site_families) : nothing
-    site_denticity = has_sites ?
-        [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
-        nothing
-    site_charges = has_sites ?
-        [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
-        nothing
-
-    # A diffuse layer is screened by the ions in solution, so it needs the ionic
-    # strength; nothing else here does. The question is asked once, when the
-    # closure is built, so a system without one never walks the solute list.
-    site_needs_I = has_sites && any(needs_ionic_strength, site_models)
-    site_solvent = isempty(cs.idx_solvent) ? 0 : only(cs.idx_solvent)
-    site_ions = site_needs_I ?
-        [i for i in cs.idx_solutes if !iszero(charge(cs.species[i]))] : Int[]
-    site_ion_z = Float64[charge(cs.species[i]) for i in site_ions]
-    site_Mw = (site_needs_I && !iszero(site_solvent)) ?
-        ustrip(us"kg/mol", cs.species[site_solvent][:M]) : 1.0
-    # A surface potential belongs to the support, so the charge that raises it
-    # is summed over every family on it, not over one family's own members.
-    site_support_idx, site_support_z = has_sites ? _support_members(cs) : (nothing, nothing)
+    # The solid solutions and the site families, prepared once; see `_MixingTerms`.
+    mix = _MixingTerms(cs)
 
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])   # kg/mol, e.g. 0.018015
 
@@ -828,27 +760,9 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
         end
 
         # ── Solid solutions ────────────────────────────────────────────────
-        if has_ss
-            T_val = hasproperty(p, :T) ? p.T : 298.15
-            _solid_solution_lna!(out, _n, ss_groups, ss_models, T_val, ϵ)
-        end
-
-        # Surface sites mix on a budget of their own. Skipping this leaves every
-        # surface species at `ln a = 0`, i.e. unit activity, which is silent and
-        # wrong — the same trap the solid-solution call has carried since 0.8.2.
-        if has_sites
-            T_val = hasproperty(p, :T) ? p.T : 298.15
-            I_site = site_needs_I ?
-                _aqueous_ionic_strength(_n, site_ions, site_ion_z, site_solvent, site_Mw) :
-                zero(eltype(_n))
-            # A surface potential carried as an unknown of the solve arrives
-            # here, the way an adiabatic temperature does: through `p`.
-            ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
-            _site_mixing_lna!(
-                out, _n, site_groups, site_models, site_denticity, site_charges,
-                I_site, T_val, ϵ, ψ_site, site_support_idx, site_support_z
-            )
-        end
+        # Solid solutions and surface sites mix on budgets of their own; leaving
+        # either out would give its members unit activity, silently.
+        _mixing_lna!(out, _n, mix, p, ϵ)
 
         return out
     end
@@ -1085,34 +999,9 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
     idx_solutes = cs.idx_solutes
     idx_gas = cs.idx_gas
 
-    ss_groups = cs.ss_groups
-    has_ss = !isempty(ss_groups)
     has_gas = !isempty(idx_gas)
-    ss_models = has_ss ? map(ss -> ss.model, cs.solid_solutions) : nothing
-
-    site_groups = cs.site_groups
-    has_sites = !isempty(site_groups)
-    site_models = has_sites ? map(f -> f.model, cs.site_families) : nothing
-    site_denticity = has_sites ?
-        [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
-        nothing
-    site_charges = has_sites ?
-        [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
-        nothing
-
-    # A diffuse layer is screened by the ions in solution, so it needs the ionic
-    # strength; nothing else here does. The question is asked once, when the
-    # closure is built, so a system without one never walks the solute list.
-    site_needs_I = has_sites && any(needs_ionic_strength, site_models)
-    site_solvent = isempty(cs.idx_solvent) ? 0 : only(cs.idx_solvent)
-    site_ions = site_needs_I ?
-        [i for i in cs.idx_solutes if !iszero(charge(cs.species[i]))] : Int[]
-    site_ion_z = Float64[charge(cs.species[i]) for i in site_ions]
-    site_Mw = (site_needs_I && !iszero(site_solvent)) ?
-        ustrip(us"kg/mol", cs.species[site_solvent][:M]) : 1.0
-    # A surface potential belongs to the support, so the charge that raises it
-    # is summed over every family on it, not over one family's own members.
-    site_support_idx, site_support_z = has_sites ? _support_members(cs) : (nothing, nothing)
+    # The solid solutions and the site families, prepared once; see `_MixingTerms`.
+    mix = _MixingTerms(cs)
 
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
 
@@ -1176,27 +1065,9 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
         end
 
         # Solid solutions
-        if has_ss
-            T_val = hasproperty(p, :T) ? p.T : 298.15
-            _solid_solution_lna!(out, _n, ss_groups, ss_models, T_val, ϵ)
-        end
-
-        # Surface sites mix on a budget of their own. Skipping this leaves every
-        # surface species at `ln a = 0`, i.e. unit activity, which is silent and
-        # wrong — the same trap the solid-solution call has carried since 0.8.2.
-        if has_sites
-            T_val = hasproperty(p, :T) ? p.T : 298.15
-            I_site = site_needs_I ?
-                _aqueous_ionic_strength(_n, site_ions, site_ion_z, site_solvent, site_Mw) :
-                zero(eltype(_n))
-            # A surface potential carried as an unknown of the solve arrives
-            # here, the way an adiabatic temperature does: through `p`.
-            ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
-            _site_mixing_lna!(
-                out, _n, site_groups, site_models, site_denticity, site_charges,
-                I_site, T_val, ϵ, ψ_site, site_support_idx, site_support_z
-            )
-        end
+        # Solid solutions and surface sites mix on budgets of their own; leaving
+        # either out would give its members unit activity, silently.
+        _mixing_lna!(out, _n, mix, p, ϵ)
 
         return out
     end
@@ -1296,6 +1167,97 @@ function _excess_ln_gamma(m::RedlichKisterModel, k::Int, x::AbstractVector, T::R
 end
 
 """
+    _MixingTerms(cs::ChemicalSystem)
+
+The solid solutions and the site families of `cs`, prepared once when an activity
+closure is built: their member indices and mixing models, the denticity and the
+charge of each site member, and what a diffuse layer needs to evaluate the ionic
+strength and the charge of each support. [`_mixing_lna!`](@ref) applies them.
+
+Every activity model holds one and calls that function, so that a new model
+cannot leave either mixing term out. The fields are concretely typed through
+the type parameters, the closure capturing the struct as it is.
+"""
+struct _MixingTerms{SSG, SSM, SG, SM, SD, SC, SPI, SPZ}
+    has_ss::Bool
+    ss_groups::SSG
+    ss_models::SSM
+    has_sites::Bool
+    site_groups::SG
+    site_models::SM
+    site_denticity::SD
+    site_charges::SC
+    site_needs_I::Bool
+    site_solvent::Int
+    site_ions::Vector{Int}
+    site_ion_z::Vector{Float64}
+    site_Mw::Float64
+    site_support_idx::SPI
+    site_support_z::SPZ
+end
+
+function _MixingTerms(cs::ChemicalSystem)
+    ss_groups = cs.ss_groups
+    has_ss = !isempty(ss_groups)
+    ss_models = has_ss ? map(ss -> ss.model, cs.solid_solutions) : nothing
+
+    site_groups = cs.site_groups
+    has_sites = !isempty(site_groups)
+    site_models = has_sites ? map(f -> f.model, cs.site_families) : nothing
+    site_denticity = has_sites ?
+        [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
+        nothing
+    site_charges = has_sites ?
+        [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
+        nothing
+
+    # A diffuse layer is screened by the ions in solution, so it needs the ionic
+    # strength; nothing else here does. The question is asked once, when the
+    # closure is built, so a system without one never walks the solute list.
+    site_needs_I = has_sites && any(needs_ionic_strength, site_models)
+    site_solvent = isempty(cs.idx_solvent) ? 0 : only(cs.idx_solvent)
+    site_ions = site_needs_I ?
+        [i for i in cs.idx_solutes if !iszero(charge(cs.species[i]))] : Int[]
+    site_ion_z = Float64[charge(cs.species[i]) for i in site_ions]
+    site_Mw = (site_needs_I && !iszero(site_solvent)) ?
+        ustrip(us"kg/mol", cs.species[site_solvent][:M]) : 1.0
+    # A surface potential belongs to the support, so the charge that raises it
+    # is summed over every family on it, not over one family's own members.
+    site_support_idx, site_support_z = has_sites ? _support_members(cs) : (nothing, nothing)
+
+    return _MixingTerms(
+        has_ss, ss_groups, ss_models, has_sites, site_groups, site_models,
+        site_denticity, site_charges, site_needs_I, site_solvent, site_ions,
+        site_ion_z, site_Mw, site_support_idx, site_support_z,
+    )
+end
+
+"""
+    _mixing_lna!(out, _n, mix::_MixingTerms, p, ϵ) -> out
+
+Write into `out` the log activities of the members of every solid solution and
+every surface site family that `mix` describes, at the amounts `_n` and the
+parameters `p`. The temperature is read from `p` (298.15 K when it carries
+none), and a surface potential carried as an unknown of the solve arrives the way
+an adiabatic temperature does, through `p.ψ_site`.
+"""
+function _mixing_lna!(out, _n, mix::_MixingTerms, p, ϵ)
+    T_val = hasproperty(p, :T) ? p.T : 298.15
+    mix.has_ss && _solid_solution_lna!(out, _n, mix.ss_groups, mix.ss_models, T_val, ϵ)
+    if mix.has_sites
+        I_site = mix.site_needs_I ?
+            _aqueous_ionic_strength(_n, mix.site_ions, mix.site_ion_z, mix.site_solvent, mix.site_Mw) :
+            zero(eltype(_n))
+        ψ_site = hasproperty(p, :ψ_site) ? p.ψ_site : nothing
+        _site_mixing_lna!(
+            out, _n, mix.site_groups, mix.site_models, mix.site_denticity, mix.site_charges,
+            I_site, T_val, ϵ, ψ_site, mix.site_support_idx, mix.site_support_z,
+        )
+    end
+    return out
+end
+
+"""
     _solid_solution_lna!(out, _n, ss_groups, ss_models, T, ϵ)
 
 Fill `out[i]` with `ln aᵢ = ln xᵢ + ln γᵢ` for all solid-solution end-members.
@@ -1328,8 +1290,8 @@ end
     _site_excess_ln_gamma(model, k, x, T) -> Real
 
 The departure from ideality of the `k`-th member of a site family, given the
-site fractions `x` of the whole family. Zero for [`IdealSiteMixing`](@ref),
-which is the only model this release provides.
+site fractions `x` of the whole family. Zero for [`IdealSiteMixing`](@ref) and
+for every model that adds no excess term to the site fractions.
 
 The twin of [`_excess_ln_gamma`](@ref) for solid solutions, and deliberately a
 separate generic: a site fraction and a mole fraction obey different closures —
@@ -1518,7 +1480,8 @@ It is not a property of the physics. The feedback is always negative — chargin
 the surface always opposes further charging, so the equilibrium is unique and
 stable. What fails is the elimination, and the answer to that is to carry `Ψ`
 as an unknown with its own equation, which linearizes the coupling instead of
-iterating it. That is not in this package yet.
+iterating it; the dual solver does so for a [`DiffuseLayer`](@ref) by default
+(`surface_potential = :auto`).
 
 # The shape of it
 
@@ -1658,6 +1621,30 @@ end
 
 
 """
+    _jacobian_asymmetry(J) -> (worst, (i, j))
+
+The largest relative asymmetry `|Jᵢⱼ − Jⱼᵢ| / max(|Jᵢⱼ|, |Jⱼᵢ|)` over the pairs of a
+square Jacobian, and the pair it is reached on (`(0, 0)` when every entry is
+negligible). Second derivatives of one energy commute, so a Jacobian of the log
+activities that is not symmetric says they are not the gradient of one Gibbs
+energy.
+"""
+function _jacobian_asymmetry(J::AbstractMatrix)
+    worst = 0.0
+    at = (0, 0)
+    for i in axes(J, 1), j in (i + 1):size(J, 2)
+        scale = max(abs(J[i, j]), abs(J[j, i]))
+        scale > 1.0e-30 || continue
+        r = abs(J[i, j] - J[j, i]) / scale
+        if r > worst
+            worst = r
+            at = (i, j)
+        end
+    end
+    return worst, at
+end
+
+"""
     site_gradient_asymmetry(cs, model, n; T = 298.15, ϵ = 1.0e-30) -> NamedTuple
 
 How far the activity map of `cs` under `model` is from being the gradient of a
@@ -1692,18 +1679,8 @@ function site_gradient_asymmetry(
     n0 = collect(float.(n))
     lna = activity_model(cs, model)
     J = ForwardDiff.jacobian(x -> lna(x, (; ϵ = ϵ, T = T)), n0)
-
-    worst = 0.0
-    pair = ("", "")
-    for i in eachindex(n0), j in (i + 1):length(n0)
-        scale = max(abs(J[i, j]), abs(J[j, i]))
-        scale > 1.0e-30 || continue
-        r = abs(J[i, j] - J[j, i]) / scale
-        if r > worst
-            worst = r
-            pair = (symbol(cs.species[i]), symbol(cs.species[j]))
-        end
-    end
+    worst, (i, j) = _jacobian_asymmetry(J)
+    pair = iszero(i) ? ("", "") : (symbol(cs.species[i]), symbol(cs.species[j]))
 
     gd = 0.0
     for j in eachindex(n0)

@@ -1,5 +1,159 @@
 # Changelog
 
+## v0.25.0 — Sites that leave with their host, and certificates that say what they prove
+
+A site family whose budget follows its host, the mechanism that lets a sorbent
+dissolve with its sites, did not conserve charge; this release corrects it and
+constrains every solver of the package with the corrected matrix. The
+certificate of an equilibrium now states whether it proves a global minimum, a
+point satisfying the optimality conditions, or a speciation consistent with its
+own activities, since the extended activity models in general use are not the
+gradient of one Gibbs energy. The derivatives of an equilibrium, which
+PoroMechanics.jl takes per cell through dual element amounts, receive the
+corrections that package carried as a local patch.
+
+### Breaking changes
+
+Below 1.0 the registry treats a minor bump as breaking whatever the API did, so
+`[compat] = "0.24"` will not accept `0.25`, and a dependent must widen its bound.
+The documentation environment of MeanFieldHomogenization.jl lists ChemistryLab
+at `0.24` and needs `0.25` added; PoroMechanics.jl lists `0.15.2, 0.18, 0.22` and
+needs `0.23`, `0.24` and `0.25`.
+
+Several behaviors change deliberately:
+
+- **A coupled site family gives other numbers.** The amounts of an equilibrium
+  with a family under `SITES_FOLLOW_HOST` change, the charge now being
+  conserved (see the erratum below). The free site of such a family sits at
+  zero energy; a family whose free site is given the energy of the matter it
+  carries is refused when the bias exceeds 0.05 log units, and so are a charged
+  free site and a host whose formula lacks the atoms of its sites.
+- **A site family that names no host is refused when it binds an element held
+  by a solid solution of the system**, unless its support is declared
+  `external = true`. Its sites could otherwise sit on the solid solution and
+  count the same element twice, which the refusal of 0.24.0 caught only when a
+  host was named.
+- **A coupled family whose host is a kinetic species is refused**: a site budget
+  that follows an amount moved by a rate law between two re-speciations is not
+  accounted for.
+- **A kinetic run re-speciates with the activity model of its equilibrium
+  solver.** The certifying solver of the equilibrium partition was built with
+  the model of the `KineticsProblem`, which defaults to the dilute one, while
+  the interior point used the solver's; a run that gave the two different
+  models, and was warned about it, re-speciated with the dilute model. An error
+  in building that solver is now raised instead of being replaced by the
+  interior point.
+- **The derivatives of an equilibrium change where they were wrong**, and a
+  sensitivity that fails its own stationarity or conservation check raises an
+  error instead of being returned.
+- **An entry with an entropy but no heat capacity is extrapolated in
+  temperature.** It kept its tabulated Gibbs energy at every temperature, which
+  contradicts the entropy it carries; it now takes a zero heat capacity. No
+  entry of the databases shipped with the package is affected.
+
+### Erratum: charge under host coupling, 0.22.0 to 0.24.0
+
+The coupling subtracted `ν` from the site component in the host's column. With
+a bare site component, which is charged, the total charge of the system then
+drifted by `ν` times the host dissolved: on hydrous ferric oxide at Dzombak and
+Morel's weak-site density titrated by hydrochloric acid, 1 × 10⁻⁴ mol for
+3.2 × 10⁻³ mol of chloride. The host's formula in the database already contains
+the surface groups its sites are made of, so the coupling now subtracts `ν`
+times the column of the free site from the host's (Kulik 2002): every atom is
+counted once, the neutral free site conserves the charge, to 10⁻¹³ in the
+free-site and in the bare-component bases, and the two bases give one answer.
+
+### Every solver on the same constraints
+
+The interior-point back ends, the implicit-function sensitivities, the repaired
+start of the certified route, the homotopy and the conservation matrix of a
+kinetic partition now use one `_constraint_matrix`, which is `SM.A` itself when
+nothing is coupled. Before, only the dual solver saw the coupling, and the other
+routes held the site budget fixed; a test now forbids `SM.A` in the code of these
+routes. A kinetic trajectory now keeps the sites at
+`ν` times the dissolving host to 10⁻⁶ and the charge to 10⁻¹⁰.
+
+`SurfaceSupport(...; external = true)` declares that a family's sites belong to
+a solid outside the system, such as a gel frozen by `freeze_solid_solution`,
+which the two-stage chloride route of 0.24.0 now does. An external support that
+names a host is refused.
+
+### What a certificate proves
+
+`optimality_certificate` returns `scope` and `scope_reasons`. The optimality
+conditions it audits prove a global minimum when the chemical potentials are the
+gradient of one convex Gibbs energy. The first property is measured at the
+audited composition from the symmetry of the Jacobian of the log activities,
+which is 2 × 10⁻¹⁶ away from symmetric for the Debye–Hückel form with a common
+ion size and no linear term, but 1.2 × 10⁻² for the ideal dilute model, 0.30 for
+the B-dot setting of the GEMS runs of CEMDATA18 and 1.0 for the default B-dot and
+Davies forms. The certificate reports `:global_minimum`; `:kkt_point` when the
+conditions hold but their sufficiency is not established, for a solid solution
+declared inside a miscibility gap or a constraint that shifts the activity of
+water or makes the temperature an unknown; or `:self_consistent` when the
+activities are not the gradient of one energy. `optimal` keeps its meaning.
+
+### Derivatives of an equilibrium
+
+The sensitivity system is equilibrated by rows and columns before a truncated
+singular value decomposition: the curvature of a trace species reaches 10³⁰⁰
+beside a conservation block of order one, and a pseudo-inverse of the unscaled
+matrix discarded the conservation equations. Pure phases at their bound are
+pinned, whereas a member of a mixing phase, an aqueous trace included, stays
+free, since pinning it erased the perturbation of the component it carries. The
+log activities are differentiated at a floor below the smallest amount present,
+and a composition carrying dual numbers is certified at its values. The
+regression cases of the PoroMechanics.jl patch are part of the tests, with the
+call that package makes, checked against a centered difference to 10⁻⁵. The heat
+of a partial-equilibrium run falls back on no sensitivity when one fails its
+checks, and then carries the whole change of the partition in its jumps; on the
+semi-adiabatic page, the peak of the run without feedback moves from 1.03 to 1.02
+day, and the coupled run does not move.
+
+### Thermodynamic data
+
+A heat capacity given on several temperature intervals, as for quartz and
+hematite in CEMDATA18, is taken on the interval that contains the reference
+temperature by an explicit choice; it was the first interval listed, by the
+order in which duplicate parameters overwrote each other, which gives the same
+values for the databases shipped.
+
+### Documentation
+
+The first two pages of the Theory chapter defined the apparent and formation
+Gibbs energies twice, one in temperature only and the other in temperature and
+pressure. The argument is now made once: balanced reactions over the elements
+and the charge, formation from the elements with the convention on the hydrogen
+ion written as a charge term, the proof that the standard Gibbs energy of
+reaction reduces to energies of formation, the same proof over primary species,
+the standard potential integrated in temperature and pressure, and the relation
+between the chemical potential and the apparent Gibbs energy the package stores.
+The page on thermochemistry keeps what belongs to the code, including the models
+by which that energy is evaluated, and no longer states that every certificate
+proves a global minimum. The manual on stoichiometric matrices had their rows and
+columns exchanged. The manual recommended the logarithmic variable space for
+systems spanning many orders of magnitude; started from a recipe, whose absent
+species sit at the regularization floor, an explicit solver in that space returns
+the start (Ipopt) or stops without converging (OptimaSolver), and the manual now
+has it refine a solved state. `equilibrate` without a solver, which certifies,
+was never affected.
+
+### Tests
+
+The implementation of Pitzer's equations is checked to give activities whose
+Jacobian is symmetric, the property on which the certificate rests. The Ipopt
+extension, never loaded by the tests so far, is tested: its solve in
+both variable spaces against the certified answer, a coupled family, the route
+of dual numbers and the registration of its back end. `OptimizationIpopt` joins
+the test dependencies, and the file runs last, since loading it adds a starting
+point to the certified search.
+
+### A correction to the notes of 0.21.0 and 0.22.0
+
+Their breaking-change sections state that no package of the organization depends
+on ChemistryLab. PoroMechanics.jl does, and so does the documentation of
+MeanFieldHomogenization.jl.
+
 ## v0.24.0 — Chloride in the C-S-H of blended cements
 
 The C-S-H of the CEMDATA18 pages is the CSHQ solid solution, which holds

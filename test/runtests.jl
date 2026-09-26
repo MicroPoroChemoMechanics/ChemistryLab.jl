@@ -119,6 +119,7 @@ end
     include("hong_glasser1999_reference.jl")
     include("test_dual_solver.jl")
     include("certified_equilibrium.jl")
+    include("trace_sensitivity.jl")
     include("equilibrium_constraints.jl")
     include("capillary.jl")
     include("pitzer.jl")
@@ -139,6 +140,12 @@ end
     include("kinetics/test_pore_humidity.jl")
     include("kinetics/test_surface_coupling.jl")
     include("coupling_reference.jl")
+end
+
+# Last: loading Ipopt registers one more starting point for the certified search,
+# which no test above may depend on.
+@testsection "Ipopt extension" begin
+    include("ipopt_extension.jl")
 end
 
 print_timer()

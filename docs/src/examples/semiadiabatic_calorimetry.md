@@ -138,7 +138,7 @@ through the cooling that follows. Nothing has been adjusted on this curve: the
 kinetic parameters are those of the preceding page, the cell and its losses those
 [Lavergne2018](@cite) calibrated. The run without feedback, the heat flow of the
 paste held at 20 °C integrated afterwards through the same cell, peaks at 40.3 °C
-only, and later, at 1.03 day. The difference, 16 K out of a rise of 36 K, is the
+only, and later, at 1.02 day. The difference, 16 K out of a rise of 36 K, is the
 acceleration of the reactions by the temperature they raise, through their
 activation energies; a semi-adiabatic test is therefore a test of those energies
 as much as of the heat, and it cannot be read off an isothermal calculation.

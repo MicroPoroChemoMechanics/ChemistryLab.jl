@@ -123,11 +123,11 @@ carries the same warning at its zinc case.
 while the site budget is fixed**: both sides of every surface reaction carry a
 site, so the choice cancels, and `test/surface_complexation.jl` checks that the
 answer does not move over a 20 kJ/mol shift of the whole family. Under
-`SITES_FOLLOW_HOST` it stops canceling — the host carries `−ν` of the site
-component, so the choice reaches the host's own solubility — and the free site's
-reference is then not a convention but the energy of the matter it carries,
-`μ°(H₂O) − μ°(H⁺) = −237.2 kJ/mol` for an oxide. [`host_coupling_bias`](@ref)
-computes it. See [The surface half of Guo](@ref).
+`SITES_FOLLOW_HOST` it stops canceling: the free sites are counted as part of
+the host, whose formula already contains their atoms, so the free site has to sit
+at zero for the host to keep its database energy, and
+[`host_coupling_bias`](@ref) reports how far a declaration is from it. See
+[The surface half of Guo](@ref).
 
 **A rebuilt Gibbs energy is not always the tabulated one.** `ΔₐG⁰(T)` is formed
 from `ΔfH°` and `S°`, so at 298.15 K it must reproduce `ΔfG°` — and does, for
@@ -600,25 +600,15 @@ that a silanol surface is negative is wrong here: calcium has reversed it.
 
 The numbers above hold a **fixed** site budget, which is the wrong idealization
 for this system: the C-S-H is a reaction product, so its amount moves and the
-sites should move with it. `SITES_FOLLOW_HOST` expresses that, and it is worth
-knowing before reaching for it here, because Guo's site density is high enough
-to make the reference energy of the free site matter a great deal.
-
-At `4·10⁻³ mol/g` on a `(CaO)₁.₆₆₇(SiO₂)(H₂O)₂.₁` of `191.4 g/mol`, the coupling
-ratio is `ν = 0.766` mol of sites per mol of host — nearly four times Dzombak
-and Morel's `ν = 0.2` for hydrous ferric oxide, where
-[`host_coupling_bias`](@ref) records `8.3` log units. The bias is linear in `ν`,
-so here it is
-
-```
-ν · |μ°(H₂O) − μ°(H⁺)| / (RT ln 10) = 0.766 × 237.2 / 5.708 = 31.8 log units
-```
-
-which would not perturb the C-S-H, it would annihilate it. With the reference
-set to `−237.2 kJ/mol` the bias is zero and the coupling is free; left at zero,
-the family is refused and the number printed. So the fixed budget used above is
-not merely a simplification here — it is the reason the free site's energy
-could be left at zero without consequence.
+sites should move with it. `SITES_FOLLOW_HOST` expresses that, and at Guo's
+density, `4·10⁻³ mol/g` on a `(CaO)₁.₆₆₇(SiO₂)(H₂O)₂.₁` of `191.4 g/mol`, the
+coupling ratio is `ν = 0.766` mol of sites per mol of host, nearly four times
+Dzombak and Morel's `ν = 0.2` for hydrous ferric oxide. What prevents it here
+is not the size of `ν` but the calcium: Guo's sites bind calcium, and a C-S-H
+whose composition already includes the calcium of its surface cannot also carry
+it on the sites. The construction of the system refuses a family that binds
+calcium on the CSHQ solid solution for that reason, and the fixed budget used
+above is the published model as Guo et al. write it.
 
 For a surface case that *is* checked against an external oracle, see
 `test/surface_complexation.jl`, which runs against PHREEQC at matched proton

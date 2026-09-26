@@ -125,39 +125,32 @@ surface(sym, g) = (
 nothing # hide
 ```
 
-### The one number a novice will get wrong
+### The energy of the free site
 
-The free site needs a standard energy, and the obvious choice — zero — is wrong
-here, in a way worth understanding because it is invisible everywhere else.
+The free site needs a standard energy, and with a fixed site budget any value
+would do: every surface reaction has a site on both sides, so the value cancels,
+and the package measures that invariance as part of its test suite.
 
-With a **fixed** site budget, zero is genuinely free. Every surface reaction has
-a site on both sides, so whatever you put there cancels; the package measures
-that invariance as part of its test suite.
-
-With a budget that follows its host it does **not** cancel, and the reason is
-simple once said: `≡FeOH` **is made of something**. It carries a real oxygen and
-a real hydrogen. Saying its formation costs nothing says that a hydroxyl appears
-from the elements for free — and now that the host is the thing supplying the
-sites, that free energy is charged to the host, which changes how soluble the
-host is.
-
-So the reference is not a convention to pick. It is the energy of the matter the
-free site carries, and the package reads it off the same matrix the constraint
-is built from:
+With a budget that follows its host the value no longer cancels, and it has to
+be zero. The reason is that `≡FeOH` is made of the host itself: the database
+formula `Fe(OH)₃` already contains the hydroxyls that the surface exposes, and
+the database energy of the solid is the energy of the whole grain, surface
+included. The package therefore counts the free sites **as part of the host**,
+so that a grain whose sites are all free has exactly the composition and the
+energy of the database formula, which holds only if the free site itself costs
+nothing. Giving it the energy of the oxygen and hydrogen it carries would count
+that energy a second time. Every other surface species is then written relative
+to the free site, through its reaction constant:
 
 ```@example sorbent
 G(s) = ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
-reference = G(db["H2O@"]) - G(db["H+"])        # μ°(H₂O) − μ°(H⁺)
-reference / 1000                                # kJ/mol
-```
 
-```@example sorbent
-free = surface("XwOH", reference)
-prot = surface("XwOH2+", reference + lnK(logK_prot))
-depr = surface("XwO-", reference + lnK(logK_depr))
+free = surface("XwOH", 0.0)                     # part of the host: zero
+prot = surface("XwOH2+", lnK(logK_prot))        # ≡FeOH + H⁺ = ≡FeOH₂⁺
+depr = surface("XwO-", lnK(logK_depr))          # ≡FeOH = ≡FeO⁻ + H⁺
 # The manganese complex carries the aqueous manganese's own energy, because
 # ≡FeOH + Mn²⁺ = ≡FeOMn⁺ + H⁺ puts it in the balance.
-mn = surface("XwOMn+", reference + lnK(logK_Mn) + G(db["Mn+2"]))
+mn = surface("XwOMn+", lnK(logK_Mn) + G(db["Mn+2"]))
 atoms(free)
 ```
 
@@ -191,37 +184,34 @@ trust: it evaluates the capacity at two host amounts and checks that the budget
 scales with them. A capacity posted as a total number of moles is refused,
 because a total is not a relation.
 
-## The system, and one declaration that is not obvious
+## The system
+
+The components are the ones the aqueous side needs, plus the free site, which
+carries the site balance:
 
 ```@example sorbent
-bare = Species("Xw+"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
-
 cs = ChemicalSystem(
     AbstractSpecies[vcat(aqueous, [free, prot, depr, mn])...],
-    AbstractSpecies[db["H2O@"], db["H+"], db["Fe+3"], db["Cl-"], db["Mn+2"], bare];
+    AbstractSpecies[db["H2O@"], db["H+"], db["Fe+3"], db["Cl-"], db["Mn+2"], free];
     site_families = [family],
 )
 symbol.(cs.SM.primaries)
 ```
 
-`Xw+` is in that list of components and **not** in the list of species, which
-looks like a mistake and is not. A component is a bookkeeping direction, not a
-substance: it is the bare site, with no matter attached, and the host supplies
-`ν` of them per mole. It carries the charge the free site carries with its site
-symbol — `≡FeOH` is a site plus an `OH⁻`, so the site is positive.
-[Surface areas](@ref sec-manual-surfaces) works through both ways of getting
-this wrong, and the package refuses both by name.
+A bare site component, `Species("Xw+")`, may be declared in place of the free
+site and gives the same answer; the test suite checks that the two agree.
 
-Now the check that catches the reference-energy mistake before it costs you an
-afternoon:
+The coupling can be checked before anything is solved. This reads, in log units
+of solubility, how much the energy of the free site moves the host:
 
 ```@example sorbent
-host_coupling_bias(cs)     # log units of solubility, on the host itself
+host_coupling_bias(cs)
 ```
 
-Zero, because the reference was set. Had it been left at zero, the same call
-would read `8.3` — and a family worth more than `0.05` log units is refused at
-construction, with the value to use in the message.
+Zero, since the free site sits at zero. Had it been given the energy of the
+matter it carries, `μ°(H₂O) − μ°(H⁺) = −237.2 kJ/mol`, the same call would read
+`8.3`, and a family worth more than `0.05` log units is refused at construction
+with the value to use in the message.
 
 ## The starting state
 
@@ -261,7 +251,7 @@ iH, iCl = findfirst(==("H+"), prim), findfirst(==("Cl-"), prim)
 idx = Dict(s => i for (i, s) in enumerate(symbol.(cs.species)))
 model = DaviesActivityModel()
 
-acid = [0.0, 0.05, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0, 2.0, 4.0, 6.0, 6.5]
+acid = [0.0, 0.05, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 4.5]
 
 function titrate(x)
     b = copy(b0)
@@ -361,11 +351,20 @@ worst_element = maximum(
 )
 ```
 
-**The elements are conserved**, computed from the species' own declared
-formulas rather than from the matrix, so this checks the matrix too. It is the
-test that would have caught the tempting shortcut of subtracting the coupling
-from the free site's row, which quietly invents `ν` moles of oxygen and `ν` of
-hydrogen per mole of host.
+**The elements are conserved.** Iron and manganese are counted from the
+species' own formulas, which checks the matrix independently; they can be,
+because the sites carry neither. Oxygen and hydrogen cannot be counted that way,
+since the free sites are part of the host and the host's formula already
+includes their atoms: the coupled matrix counts every atom once, and `A * n`
+stays at its starting value.
+
+```@example sorbent
+z = [Float64(charge(s)) for s in cs.species]
+worst_charge = maximum(abs(sum(z .* Float64[ustrip(us"mol", v) for v in r.eq.n])) for r in runs)
+```
+
+**Charge is conserved**, the solution and the surface together, while the host
+dissolves: the free sites that leave with it carry no charge.
 
 ```@example sorbent
 worst_si = maximum(
@@ -393,15 +392,15 @@ partially dissolved states.
 
 They are **not** running one surface model, and the difference is worth knowing
 before comparing anything else. PHREEQC scales the site totals from the phase
-and stops there: the phase's own stability is untouched. This package carries
-the coupling in the conservation matrix, so the host's saturation index picks up
-the site potential — which is why the free site's reference energy matters here
-and not there. The two therefore agree on the ratio of sites to phase and on the
-amounts the acid budget fixes, and are expected to differ on dissolved iron.
+and stops there: the phase's own stability is untouched. This package counts
+the free sites as part of the host, so the host's stability includes the energy
+of its surface, and a surface that binds protons or metals changes how soluble
+the host is. The two therefore agree on the ratio of sites to phase, and are
+expected to differ on how much of the phase dissolves.
 
 ## What this page does not cover
 
-  - **The sorbent exhausted.** Past about seven moles of acid per mole of oxide
+  - **The sorbent exhausted.** Past about five moles of acid per mole of oxide
     the solid is gone, its whole family sits at the solver's floor, and the
     solve stops certifying. The sweep above stops before that on purpose; a
     surface with no host is a system to describe differently, not a limit to
@@ -413,17 +412,15 @@ amounts the acid budget fixes, and are expected to differ on dissolved iron.
     measurement, not a missing feature.
   - **Electrostatics.** The surface here has a charge and no potential; see
     [A charged surface, screened](@ref sec-example-diffuse-layer).
-  - **The reference energy, taken seriously.** Setting it to the matter the free
-    site carries is what this package does, and it is stated rather than
-    inherited from a database. [Kulik2002](@cite) avoids needing it at all, by
-    keeping the free site out of the balance as a *surface monolayer solvent* of
-    fixed activity. That is a different formulation, and the one to read before
-    pushing this to site densities where the approximation would show.
+  - **The energy of the host's surface.** Counting the free sites as part of the
+    host, at zero energy, follows [Kulik2002](@cite), for whom the surface groups
+    of a sorbent belong to it. It assumes that the database energy of the solid
+    is that of its uncomplexed surface, which the measurements behind a database
+    do not state.
 
 ## See also
 
-  - [Surface areas](@ref sec-manual-surfaces) — the syntax, and the two ways of
-    declaring the component that are refused.
+  - [Surface areas](@ref sec-manual-surfaces) — the syntax of a coupled family.
   - [Surface complexation](@ref sec-theory-surface) — why a site balance is a
     conservation row, and how Langmuir falls out of it.
   - [Two families of sites, and a metal between them](@ref sec-example-hfo) —

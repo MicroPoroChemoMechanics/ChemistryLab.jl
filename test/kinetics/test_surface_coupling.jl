@@ -3,6 +3,7 @@
 
 using ChemistryLab
 using DynamicQuantities
+using Logging
 using OrderedCollections
 using Test
 
@@ -245,6 +246,158 @@ end
         states2 = speciated_states(sol2, kp)
         bound2 = Float64[ustrip(us"mol", s.n[idx("XsOCa+")]) for s in states2]
         @test maximum(abs.(bound2 ./ bound .- 1)) < 1.0e-5
+    end
+
+    @testset "a budget that follows its host, along a kinetic trajectory" begin
+        # Hydrous ferric oxide at Dzombak and Morel's weak-site density, the
+        # host of a coupled family and part of the equilibrium partition, in an
+        # acidic chloride solution. The kinetic reaction is the slow
+        # crystallization of the microcrystalline hydroxide from the dissolved
+        # iron, at a constant rate: it takes iron out of the solution, the
+        # amorphous host dissolves to replace it, and its sites have to leave
+        # with it at every instant while the charge stays where it started.
+        psi = build_species(datapath("psinagra-12-07-thermofun.json"); verbose = false)
+        bn = Dict(symbol(s) => s for s in psi)
+        M = ustrip(us"kg/mol", bn["Fe(OH)3(am)"][:M])
+        ν = literature_value("DzombakMorel1990", "weak_sites_per_mol_Fe")
+        aq = speciation(
+            psi, ["Fe(OH)3(am)", "Cl-"]; aggregate_state = [AS_AQUEOUS],
+            exclude_species = split("H2@ O2@ Fe+2 FeOH+ FeO+ Cl2@ ClO- HClO@ ClO2- ClO3- ClO4- HClO2@"),
+        )
+        sf(sym, g) = begin
+            s = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+            s[:ΔₐG⁰] = _gc(g)
+            s
+        end
+        prot = reference_oracle("phreeqc_protolysis")
+        mem = [
+            sf("XwOH", 0.0),
+            sf("XwOH2+", -RT_COUP * log(10.0^prot.logK_protonation)),
+            sf("XwO-", -RT_COUP * log(10.0^prot.logK_deprotonation)),
+        ]
+        family = SiteFamily(
+            "Xw", mem[1], mem[2:3];
+            capacity = MassSiteDensity(ν / M),
+            support = SurfaceSupport(
+                "hydrous ferric oxide", "Fe(OH)3(am)", FixedSurfaceArea(1.0);
+                coupling = SITES_FOLLOW_HOST,
+            ),
+        )
+        cs = ChemicalSystem(
+            AbstractSpecies[vcat(aq, [bn["Fe(OH)3(mic)"]], mem)...],
+            AbstractSpecies[bn["H2O@"], bn["H+"], bn["Fe+3"], bn["Cl-"], mem[1]];
+            site_families = [family],
+        )
+        nm = symbol.(cs.species)
+        idx(s) = findfirst(==(s), nm)
+        spc(s) = cs.species[idx(s)]
+
+        state = ChemicalState(cs)
+        set_quantity!(state, "H2O@", moles_of_water() * u"mol")
+        set_quantity!(state, "Fe(OH)3(am)", 1.0e-3u"mol")
+        set_quantity!(state, "H+", 2.0e-3u"mol")
+        set_quantity!(state, "Cl-", 2.0e-3u"mol")
+        state = host_consistent_state(state)
+        z = [Float64(charge(sp)) for sp in cs.species]
+        n_start = Float64[ustrip(us"mol", x) for x in state.n]
+
+        k_rate = 5.0e-8                              # mol/s, 1.8e-4 mol in an hour
+        crystallization = Reaction(
+            OrderedDict(spc("Fe+3") => 1, spc("H2O@") => 3),
+            OrderedDict(spc("Fe(OH)3(mic)") => 1, spc("H+") => 3);
+            symbol = "crystallization", equal_sign = '→',
+        )
+        st = zeros(Float64, length(nm))
+        st[idx("Fe(OH)3(mic)")] = 1.0; st[idx("Fe+3")] = -1.0
+        st[idx("H2O@")] = -3.0; st[idx("H+")] = 3.0
+        kr = KineticReaction(crystallization, (T, P, t, n, lna, n0) -> k_rate, idx("Fe(OH)3(mic)"), st)
+
+        kp = KineticsProblem(
+            cs, [kr], state, (0.0u"s", 3600.0u"s");
+            activity_model = DaviesActivityModel(),
+            equilibrium_solver = EquilibriumSolver(cs, DaviesActivityModel(), OptimaOptimizer()),
+        )
+        sol = integrate(
+            kp, KineticsSolver(;
+                ode_solver = Rodas5P(), reltol = 1.0e-9, abstol = 1.0e-16,
+                saveat = [0.0, 1200.0, 2400.0, 3600.0],
+            ),
+        )
+        states = speciated_states(sol, kp)
+        host = [ustrip(us"mol", s.n[idx("Fe(OH)3(am)")]) for s in states]
+        sites = [sum(ustrip(us"mol", s.n[idx(m)]) for m in ("XwOH", "XwOH2+", "XwO-")) for s in states]
+        @test issorted(host; rev = true)
+        @test host[end] < host[1] - 1.0e-4           # the host really dissolves
+        @test maximum(abs.(sites ./ host ./ ν .- 1)) < 1.0e-6
+        @test maximum(
+            abs(sum(z .* Float64[ustrip(us"mol", x) for x in s.n]) - sum(z .* n_start)) for s in states
+        ) < 1.0e-10
+
+        # Left at its default, the problem's model is the dilute one; the
+        # certifying re-speciation still takes the solver's, as the interior
+        # point does, and the mismatch is only warned about.
+        kp_default = KineticsProblem(
+            cs, [kr], state, (0.0u"s", 3600.0u"s");
+            equilibrium_solver = EquilibriumSolver(cs, DaviesActivityModel(), OptimaOptimizer()),
+        )
+        p_default = with_logger(NullLogger()) do
+            ChemistryLab.build_kinetics_params(kp_default)
+        end
+        @test kp_default.activity_model isa DiluteSolutionModel
+        @test ChemistryLab.activity_model(p_default.eq_dual) isa DaviesActivityModel
+        @test ChemistryLab.activity_model(p_default.eq_solver) isa DaviesActivityModel
+    end
+
+    @testset "a host whose amount a rate law controls is refused" begin
+        psi = build_species(datapath("psinagra-12-07-thermofun.json"); verbose = false)
+        bn = Dict(symbol(s) => s for s in psi)
+        M = ustrip(us"kg/mol", bn["Fe(OH)3(am)"][:M])
+        aq = speciation(
+            psi, ["Fe(OH)3(am)"]; aggregate_state = [AS_AQUEOUS],
+            exclude_species = split("H2@ O2@ Fe+2 FeOH+ FeO+"),
+        )
+        free = Species("XwOH"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+        free[:ΔₐG⁰] = _gc(0.0)
+        family = SiteFamily(
+            "Xw", free, AbstractSpecies[];
+            capacity = MassSiteDensity(0.2 / M),
+            support = SurfaceSupport(
+                "hydrous ferric oxide", "Fe(OH)3(am)", FixedSurfaceArea(1.0);
+                coupling = SITES_FOLLOW_HOST,
+            ),
+        )
+        cs = ChemicalSystem(
+            AbstractSpecies[vcat(aq, [free])...],
+            AbstractSpecies[bn["H2O@"], bn["H+"], bn["Fe+3"], free];
+            site_families = [family],
+        )
+        nm = symbol.(cs.species)
+        idx(s) = findfirst(==(s), nm)
+        spc(s) = cs.species[idx(s)]
+        state = ChemicalState(cs)
+        set_quantity!(state, "H2O@", moles_of_water() * u"mol")
+        set_quantity!(state, "Fe(OH)3(am)", 1.0e-3u"mol")
+        state = host_consistent_state(state)
+        dissolution = Reaction(
+            OrderedDict(spc("Fe(OH)3(am)") => 1, spc("H+") => 3),
+            OrderedDict(spc("Fe+3") => 1, spc("H2O@") => 3);
+            symbol = "dissolution", equal_sign = '→',
+        )
+        st = zeros(Float64, length(nm))
+        st[idx("Fe(OH)3(am)")] = -1.0; st[idx("H+")] = -3.0
+        st[idx("Fe+3")] = 1.0; st[idx("H2O@")] = 3.0
+        kr = KineticReaction(dissolution, (T, P, t, n, lna, n0) -> 1.0e-9, idx("Fe(OH)3(am)"), st)
+        e = try
+            KineticsProblem(
+                cs, [kr], state, (0.0u"s", 60.0u"s");
+                equilibrium_solver = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer()),
+            )
+            nothing
+        catch err
+            err
+        end
+        @test e isa ArgumentError
+        @test occursin("kinetic species of this problem", e.msg)
     end
 
 end

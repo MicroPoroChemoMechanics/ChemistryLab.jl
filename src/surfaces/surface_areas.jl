@@ -528,7 +528,9 @@ the species carrying it.
     the option existed, and the default.
   - `SITES_FOLLOW_HOST` — the budget is `ν` moles of sites per mole of host,
     evaluated on the host's current amount, so a sorbent that precipitates
-    brings its sites with it and one that dissolves takes them away.
+    brings its sites with it and one that dissolves takes them away. The free
+    sites are counted as part of the host, at zero energy
+    ([`conservation_matrix`](@ref)).
 
 The second is a *different model*, not a refinement of the first, which is why
 it is asked for rather than inferred. Naming a host is not enough on its own:
@@ -573,13 +575,18 @@ sites are what it carries.
   - `area`: the [`AbstractSurfaceModel`](@ref).
   - `coupling`: `SITES_FIXED` or `SITES_FOLLOW_HOST` — whether
     the site budget is a number posed once or tracks the host's amount.
+  - `external`: `true` when the support names no host because the sites belong
+    to a solid that is not part of the system, a gel frozen after a first
+    equilibrium or an inert sorbent. A family that binds an element held by a
+    solid solution of the system is refused without it, since its sites could
+    otherwise sit on that solution and count the element twice.
 
 # Examples
 
 ```julia
 SurfaceSupport("calcite", "Cal", BETSurfaceArea(90.0))
 SurfaceSupport("inert sorbent", nothing, FixedSurfaceArea(0.5))
-SurfaceSupport("C-S-H", "CSHQ-JenD", BETSurfaceArea(90.0); coupling = SITES_FOLLOW_HOST)
+SurfaceSupport("hydrous ferric oxide", "Fe(OH)3(am)", FixedSurfaceArea(1.0); coupling = SITES_FOLLOW_HOST)
 ```
 """
 struct SurfaceSupport{M <: AbstractSurfaceModel}
@@ -587,14 +594,16 @@ struct SurfaceSupport{M <: AbstractSurfaceModel}
     host::Union{Nothing, String}
     area::M
     coupling::SiteCoupling
+    external::Bool
 end
 
 """
     SurfaceSupport(name, host, area; coupling = SITES_FIXED) -> SurfaceSupport
-    SurfaceSupport(name, area; coupling = SITES_FIXED) -> SurfaceSupport
+    SurfaceSupport(name, area; coupling = SITES_FIXED, external = false) -> SurfaceSupport
 
 Build a [`SurfaceSupport`](@ref). The two-argument form leaves the host unset, for a
-support whose amount is prescribed rather than solved for.
+support whose amount is prescribed rather than solved for; `external = true`
+declares that its sites belong to a solid outside the system.
 
 `coupling` is `SITES_FIXED` unless asked otherwise, so every support
 declared before this option existed behaves exactly as it did. Naming a host
@@ -604,17 +613,17 @@ into a coupling would change those systems without anyone asking.
 """
 SurfaceSupport(
     name::AbstractString, area::AbstractSurfaceModel;
-    coupling::SiteCoupling = SITES_FIXED,
-) = _surface_support(String(name), nothing, area, coupling)
+    coupling::SiteCoupling = SITES_FIXED, external::Bool = false,
+) = _surface_support(String(name), nothing, area, coupling, external)
 
 SurfaceSupport(
     name::AbstractString, host, area::AbstractSurfaceModel;
-    coupling::SiteCoupling = SITES_FIXED,
+    coupling::SiteCoupling = SITES_FIXED, external::Bool = false,
 ) = _surface_support(
-    String(name), host === nothing ? nothing : String(host), area, coupling,
+    String(name), host === nothing ? nothing : String(host), area, coupling, external,
 )
 
-function _surface_support(name, host, area, coupling)
+function _surface_support(name, host, area, coupling, external)
     coupling === SITES_FOLLOW_HOST && host === nothing && throw(
         ArgumentError(
             "SurfaceSupport \"$name\" asks for SITES_FOLLOW_HOST but names no host. " *
@@ -622,12 +631,19 @@ function _surface_support(name, host, area, coupling)
                 "species: pass its symbol, or leave the coupling at SITES_FIXED.",
         )
     )
-    return SurfaceSupport{typeof(area)}(name, host, area, coupling)
+    external && host !== nothing && throw(
+        ArgumentError(
+            "SurfaceSupport \"$name\" names host \"$host\" and is declared external. " *
+                "An external support carries sites on a solid outside the system, so it " *
+                "has no host species: drop one of the two.",
+        )
+    )
+    return SurfaceSupport{typeof(area)}(name, host, area, coupling, external)
 end
 
 area_method(s::SurfaceSupport) = area_method(s.area)
 
 function Base.show(io::IO, s::SurfaceSupport)
-    host = s.host === nothing ? "prescribed support" : "on $(s.host)"
+    host = s.host !== nothing ? "on $(s.host)" : s.external ? "external support" : "prescribed support"
     return print(io, "SurfaceSupport(\"$(s.name)\", $host, $(nameof(typeof(s.area))))")
 end

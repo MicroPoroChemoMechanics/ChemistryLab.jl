@@ -365,12 +365,17 @@ end
     optimality_certificate(des, state; b = nothing, ϵ = 1e-16, floor = 1e-25)
         -> (; stationarity, balance, worst_supersaturation, n_interior,
              n_absent_component, param_residual, worst_violation_split,
-             split_phases, split_trials, optimal)
+             split_phases, split_trials, optimal, scope, scope_reasons)
 
 Check the KKT conditions at a composition, independently of how it was obtained.
 
 For a convex problem these conditions are sufficient, so `optimal = true` is a
-proof of **global** optimality. Use it to audit any solver — including
+proof of **global** optimality. Whether the problem is one is not always the case,
+and `scope` says what the proof covers here: `:global_minimum`, `:kkt_point` or
+`:self_consistent`, with `scope_reasons` naming the property that decided. The
+extended activity models in general use (B-dot, Davies) are not the gradient of
+one Gibbs energy, and a certified equilibrium computed with them is a composition
+consistent with its own activities rather than the minimum of an energy. Use it to audit any solver — including
 [`EquilibriumSolver`](@ref), whose interior-point iteration reports `MaxIters` on
 a cement equilibrium and cannot say whether the point it returns is the answer.
 
@@ -393,9 +398,12 @@ function optimality_certificate(
         constraint::EquilibriumConstraint = FixedTP(),
         q = nothing,
     )
+    # A composition carrying dual numbers is audited at its values: the
+    # conditions are about the point, and its derivatives are another question.
+    state = _primal(state)
     p = _build_params(state; ϵ = ϵ)
     n = Float64[ustrip(us"mol", x) for x in state.n]
-    bv = b === nothing ? des.A * n : Float64.(collect(b))
+    bv = b === nothing ? des.A * n : Float64[_plain(x) for x in collect(b)]
 
     # The certificate has to audit the problem that was SOLVED, and a constraint
     # is part of that problem. Rebuilt with `FixedTP` — which is what this did
@@ -436,6 +444,7 @@ function optimality_certificate(
         _dual_problem(des, p, n, blocks), n, bv, floor,
         des.opts.tol, des.opts.si_tol, qv,
     )
+    scope, scope_reasons = _certificate_scope(des, p, n, constraint)
     return (;
         stationarity = c.stationarity, balance = c.feasibility,
         # The unscaled stationarity, in RT units. `stationarity` is divided by the
@@ -461,7 +470,106 @@ function optimality_certificate(
         split_trials = hasproperty(c, :split_trials) ? c.split_trials :
             Dict{Int, NamedTuple{(:members, :x), Tuple{Vector{Int}, Vector{Float64}}}}(),
         optimal = c.optimal,
+        # What `optimal = true` proves for this problem; see `_certificate_scope`.
+        scope, scope_reasons,
     )
+end
+
+# Above this relative asymmetry of the Jacobian of the log activities, the
+# activities are not the gradient of one Gibbs energy. The two populations sit
+# far apart: an exact model measures 2e-16 (the Debye-Hückel form with a common
+# ion size and no linear term), and the published extended forms measure 1.2e-2
+# for the ideal dilute model on its solvent row, 0.30 for the GEMS setting of
+# the B-dot model and 1.0 for its default and for Davies, whose neutral species
+# carry a salting-out term; the threshold sits eight decades above the first and
+# six below the smallest of the others.
+const _SCOPE_ASYMMETRY = 1.0e-8
+
+"""
+    _is_variational(constraint) -> Bool
+
+Whether a constraint keeps the equilibrium a minimization whose optimality
+conditions are sufficient. `CapillaryWater` shifts the activity of water by an
+amount that is not the gradient of a convex energy for an arbitrary retention
+law, and the constraints that make the temperature or the pressure an unknown
+turn the solve into a KKT system whose convexity is not established here.
+"""
+_is_variational(::EquilibriumConstraint) = true
+_is_variational(::CapillaryWater) = false
+_is_variational(::FixedEnthalpy) = false
+_is_variational(::Adiabatic) = false
+_is_variational(::FixedVolume) = false
+_is_variational(::SealedVolume) = false
+
+"""
+    _certificate_scope(des, p, n, constraint) -> (scope, reasons)
+
+What `optimal = true` proves for the problem at the composition `n`:
+
+  - `:global_minimum` when the log activities are the gradient of one Gibbs
+    energy, every mixing energy is convex and the constraint is variational, so
+    that the optimality conditions are sufficient;
+  - `:kkt_point` when the activities are such a gradient but a mixing energy is
+    concave somewhere (a miscibility gap, where present phases are tested
+    against splitting in addition) or the constraint is not variational;
+  - `:self_consistent` when the activities are not the gradient of one energy,
+    which is the case of the extended activity models in general use and of a
+    diffuse layer: the conditions then state a composition consistent with its
+    own activities, not the minimum of an energy.
+
+`reasons` says which property decided, in words.
+"""
+function _certificate_scope(des::DualEquilibriumSolver, p, n, constraint)
+    reasons = String[]
+    level = 3
+    cs = des.system
+    J = ForwardDiff.jacobian(x -> des.lna(x, p), n)
+    asym, (i, j) = _jacobian_asymmetry(J)
+    if asym > _SCOPE_ASYMMETRY
+        level = 1
+        push!(
+            reasons,
+            "the log activities are not the gradient of one Gibbs energy: their " *
+                "Jacobian is asymmetric by $(round(asym; sigdigits = 2)) between " *
+                "$(symbol(cs.species[i])) and $(symbol(cs.species[j]))",
+        )
+    end
+    fams = cs.site_families
+    if fams !== nothing
+        for f in fams
+            is_gradient_consistent(f.model) && continue
+            level = 1
+            push!(
+                reasons,
+                "the site family $(name(f)) carries a diffuse layer, whose potential " *
+                    "depends on the ionic strength of a solution that does not depend " *
+                    "on the surface in return",
+            )
+        end
+    end
+    if !_is_variational(constraint)
+        level = min(level, 2)
+        push!(
+            reasons,
+            "the constraint $(nameof(typeof(constraint))) leaves a system of " *
+                "optimality conditions whose sufficiency is not established",
+        )
+    end
+    ss = cs.solid_solutions
+    if ss !== nothing
+        T = p.T
+        for ph in ss
+            spinodal_interval(ph.model, length(ph.end_members); T = T) === nothing && continue
+            level = min(level, 2)
+            push!(
+                reasons,
+                "the mixing energy of $(name(ph)) is concave on part of its range, so " *
+                    "the present phases are tested against splitting but the minimum " *
+                    "is not proved global",
+            )
+        end
+    end
+    return (:self_consistent, :kkt_point, :global_minimum)[level], reasons
 end
 
 """

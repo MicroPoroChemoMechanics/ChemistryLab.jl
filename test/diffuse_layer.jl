@@ -194,6 +194,10 @@ end
         q = Base.RefValue{Any}(nothing)
         eq, cert = equilibrate_certified(st; b = b, constraint = FixedpH(pt.pH), parameters = q)
         @test cert.optimal
+        # A diffuse layer is not the gradient of an energy: what is certified is
+        # a self-consistent speciation, and the certificate says so.
+        @test cert.scope === :self_consistent
+        @test any(r -> occursin("diffuse layer", r), cert.scope_reasons)
         @test length(q[]) == 2                        # the titrant, then Ψ
         # The proton activity the constraint prescribed, on the solver's scale.
         des = DualEquilibriumSolver(cs, DiluteSolutionModel())
