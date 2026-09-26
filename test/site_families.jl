@@ -655,3 +655,34 @@ end
         @test !ChemistryLab._is_bare_site(occ, :Xs)
     end
 end
+
+@testset "no solver path constrains with SM.A" begin
+    # A coupled family changes the host's column of the conservation matrix, and
+    # a route that read `SM.A` held the site budget fixed without saying so: the
+    # interior points, the sensitivities, the repaired start and the kinetic
+    # partition did, until they were routed through `_constraint_matrix`. This
+    # keeps any of them from going back. `aqueous_properties.jl` is left out on
+    # purpose: it reads `SM.A` for the columns of aqueous species and of the
+    # free site, which a coupling never modifies.
+    root = pkgdir(ChemistryLab)
+    files = vcat(
+        joinpath.(root, "src", "equilibrium", ["equilibrium_solver.jl", "certified.jl", "dual_solver.jl", "equilibrium_problems.jl", "constraints.jl"]),
+        [joinpath(root, "src", "kinetics", f) for f in readdir(joinpath(root, "src", "kinetics")) if endswith(f, ".jl")],
+        [joinpath(root, "ext", f) for f in readdir(joinpath(root, "ext")) if endswith(f, ".jl")],
+    )
+    function code_uses(path)
+        hits, indoc = String[], false
+        for (i, line) in enumerate(eachline(path))
+            t = strip(line)
+            if isodd(count("\"\"\"", t))
+                indoc = !indoc
+                continue
+            end
+            (indoc || startswith(t, "#")) && continue
+            occursin(r"SM\.A\b", first(split(line, '#'))) && push!(hits, "$(basename(path)):$i")
+        end
+        return hits
+    end
+    @test all(isfile, files)
+    @test isempty(reduce(vcat, code_uses.(files)))
+end
