@@ -15,7 +15,6 @@ Run the Julia half first; see README.md.
     conda run -n reaktoro-env python cem1_solid_solutions_reaktoro.py
 """
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -23,9 +22,6 @@ import reaktoro as rkt
 
 HERE = Path(__file__).parent
 OUT = HERE / "out"
-DATABASE = Path(
-    os.environ.get("CHEMISTRYLAB_DATA", HERE.parent.parent / "data")
-) / "cemdata18-thermofun.json"
 
 ELEMENTS = "H O C Ca Si Al Fe Mg K Na S"
 
@@ -69,16 +65,19 @@ FORMULA = {
 }
 
 
-def build_system(solutions):
-    db = rkt.ThermoFunDatabase.fromFile(str(DATABASE))
+def build_system(solutions, payload):
+    # The database file the Julia side resolved, so both codes read the same one.
+    db = rkt.ThermoFunDatabase.fromFile(payload["database"])
     aq = rkt.AqueousPhase(rkt.speciate(ELEMENTS))
-    # CEMDATA18 carries no ion-size parameter, so the Debye-Huckel limiting law
-    # with the non-ideality in the B-dot term and none of it on the neutral
-    # species.  Matches HKFActivityModel(a = 0.0, Bdot = 0.097637, Kn = 0.0).
+    # The extended Debye-Huckel law Cemdata18 prescribes (Lothenbach et al. 2019,
+    # Eq. C.1): one ion size for every ion, and the same b on the ions and on the
+    # neutral species.  The values are the ones the Julia side used, read from
+    # charge.json rather than written here.
+    edh = payload["activity_model"]
     dhp = rkt.ActivityModelDebyeHuckelParams()
-    dhp.aiondefault = 0.0
-    dhp.biondefault = 0.097637
-    dhp.bneutraldefault = 0.0
+    dhp.aiondefault = edh["ion_size"]
+    dhp.biondefault = edh["bdot"]
+    dhp.bneutraldefault = edh["b_neutral"]
     aq.set(rkt.ActivityModelDebyeHuckel(dhp))
 
     claimed = {m for members in solutions.values() for m in members}
@@ -163,7 +162,7 @@ def main():
     payload = json.loads(charge_file.read_text())
     converged = json.loads(solution_file.read_text())
 
-    system = build_system(THREE)
+    system = build_system(THREE, payload)
     reference = {
         k: v for k, v in converged.items()
         if v > 1e-8 and any(
@@ -182,7 +181,7 @@ def main():
     # end-members are all at zero has no mole fractions, so its ideal-mixing term
     # is undefined there -- a difficulty of the formulation that every code has
     # to regularize somehow.
-    system8 = build_system(ALL_SOLUTIONS)
+    system8 = build_system(ALL_SOLUTIONS, payload)
     print(f"\n  eight solid solutions declared, {len(system8.species())} species")
     state8, result8 = cold_start(system8, payload)
     report("cold start", system8, state8, result8)

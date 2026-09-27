@@ -15,9 +15,9 @@ Three knobs have to match before a difference can be attributed to anything:
 
 | knob | must match |
 |:--|:--|
-| thermodynamic database | the same file — both codes read `data/cemdata18-thermofun.json` |
+| thermodynamic database | the same file — the Julia side writes the path `datapath` resolved into `charge.json`, and the Python side reads that file |
 | species list | the same species, and the same grouping into phases |
-| activity model | the same convention, including its parameters |
+| activity model | the same convention, including its parameters — here the extended Debye-Hückel law of Cemdata18 with its KOH parameters, written into `charge.json` by the Julia side |
 
 A fourth is specific to a cement, and it is the one most easily missed: **the
 element vector**. Handing each code the grams of oxide on the datasheet lets
@@ -57,4 +57,4 @@ end-members are all at zero has no mole fractions, so its ideal-mixing term is
 undefined there and its gradient depends on the direction of approach. Every
 code regularizes it somehow. The comparison is therefore made against Reaktoro's
 three-phase configuration, which is its documented setup for this system, and
-the two answers agree to 0.043 units of pH and 0.08 % of total volume.
+the two answers agree to 0.027 units of pH and 0.06 % of total volume.

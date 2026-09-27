@@ -225,17 +225,13 @@ set_quantity!(state, "H2O@", free_water * u"mol")
 set_quantity!(state, "CO2@", 1.0e-9u"mol")
 b = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
 
-# The activity model of a cement pore solution: CEMDATA18 carries no ion-size
-# parameter, so the Debye-Hückel limiting law with the non-ideality in the B-dot
-# term and none of it on the neutral species.
-using JSON
-# The B-dot is GEM-Selektor's, identified from the activity coefficients it
-# printed on a CEMDATA18 Portland paste (test/reference/gems_cemdata18_portland.json):
-# the two lowest charge classes fix the limiting-law slope and the B-dot, about 0.0976.
-gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
-lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
-Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
-model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
+# The activity model Cemdata18 prescribes (its Eq. C.1): extended Debye-Hückel,
+# with the common ion size and B-dot the paper gives for KOH solutions (it also
+# gives them for NaOH). The alkalis of this cement are mostly potassium.
+model = cemdata18_activity_model(:KOH)
+# The molar K/Na ratio of its alkalis, which is why the KOH set applies.
+Mox(ox) = ustrip(us"g/mol", Species(ox)[:M])
+println("molar K/Na of the alkalis: ", round((2 * oxides["K2O"] / Mox("K2O")) / (2 * oxides["Na2O"] / Mox("Na2O")); digits = 1))
 eq, cert = equilibrate_certified(state; model = model, b = b)
 
 @printf("certificate: optimal=%s  worst supersaturation=%.3e  balance=%.1e\n",
@@ -470,7 +466,8 @@ matched and the agreement is quantified species by species.
 
 On this cement the cross-check was run with
 `scripts/crosscheck/cem1_solid_solutions_reaktoro.py`, over the same database,
-the same species, the same ideal mixing and the same Debye-Hückel convention,
+the same species, the same ideal mixing and the same activity model (the
+extended Debye-Hückel law of Cemdata18, with its KOH parameters),
 and — the point of the exercise — the **same element vector**, transferred as
 moles rather than as grams of oxide so that the two codes do not each convert
 the analysis with their own atomic masses. The element vectors agree to eight
@@ -479,10 +476,10 @@ decimal places, so what follows is a comparison of chemistry.
 | | ChemistryLab | Reaktoro |
 |:--|--:|--:|
 | solid solutions declared | 8 | 3 |
-| pH | 13.0994 | 13.1425 |
-| total volume | 74.190 cm³ | 74.250 cm³ |
+| pH | 13.1156 | 13.1426 |
+| total volume | 74.195 cm³ | 74.239 cm³ |
 
-The two agree to 0.043 units of pH and 0.08 % of volume, on the same twelve
+The two agree to 0.027 units of pH and 0.06 % of volume, on the same twelve
 solid phases, with the majors within a few percent.
 
 Two observations about the run itself, both of which are properties of the
@@ -492,7 +489,7 @@ problem rather than of either code:
   hundred iterations, above the default cap, and a run stopped at the cap
   returns an intermediate iterate rather than an answer. Raising
   `EquilibriumOptions.optima.maxiters` is what makes the comparison possible at
-  all; the converged run takes 345 iterations.
+  all; the converged run takes 306 iterations.
 - **The eight-phase configuration is genuinely hard.** A solid solution whose
   end-members are *all* at zero has no mole fractions, so its ideal-mixing term
   is undefined there and its gradient depends on the direction of approach — a

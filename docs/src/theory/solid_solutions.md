@@ -398,9 +398,14 @@ and the fictive activity coefficient of T5C is Kulik's Eq. (20), halved:
   + \tfrac12\ln(x_{\mathrm{T2C}} + x_{\mathrm{T5C}}) - \ln x_{\mathrm{T5C}}
 ```
 
+The block below builds that expression from the model and subtracts the formula
+above; the difference simplifies to zero:
+
 ```@example sublattice
 using Symbolics
-excess_ln_gamma_expression(csh3t, 2, 3)   # x₁ = TobH, x₂ = T5C, x₃ = T2C
+x = [Symbolics.variable(:x, i) for i in 1:3]   # x₁ = TobH, x₂ = T5C, x₃ = T2C
+λ = excess_ln_gamma_expression(csh3t, 2, 3)
+simplify(expand(λ - (0.5log(x[1] + x[2]) + 0.5log(x[3] + x[2]) - log(x[2]))))
 ```
 
 **Two properties the solver relies on.**
@@ -465,7 +470,7 @@ a lattice of compositions, and a negative one is a witness too; finding none
 proves nothing, and the verdict is then `:undecided`.
 
 ```@example ss_convexity
-using ChemistryLab
+using ChemistryLab, DynamicQuantities, Printf
 RT = ChemistryLab.R_GAS * 298.15
 W(a, b, c) = [0.0 a b; a 0.0 c; b c 0.0] .* RT
 [mixing_convexity(RegularSolutionModel(W(1.9, 1.9, 1.9)), 3).verdict,
@@ -492,11 +497,15 @@ and M8A:
 ```@example ss_convexity
 subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
 g(s) = ustrip(us"kJ/mol", subs[s][:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
-(ldh = g("M6A-OH-LDH") - (g("M4A-OH-LDH") + g("M8A-OH-LDH")) / 2,
- csh3t = g("CSH3T-T5C") - (g("CSH3T-TobH") + g("CSH3T-T2C")) / 2)   # kJ/mol
+@printf("MgAl-OH-LDH  M6A - (M4A + M8A)/2  = %+.4f kJ/mol\n",
+        g("M6A-OH-LDH") - (g("M4A-OH-LDH") + g("M8A-OH-LDH")) / 2)
+@printf("CSH3T        T5C - (TobH + T2C)/2 = %+.2f kJ/mol\n",
+        g("CSH3T-T5C") - (g("CSH3T-TobH") + g("CSH3T-T2C")) / 2)
 ```
 
-The shipped entry keeps the published model with `acknowledge_degenerate = true`.
+The LDH difference, 0.3 J/mol, is about 10⁻⁴ RT, where the −4.35 kJ/mol of T5C
+is an ordering energy. The shipped LDH entry keeps the published model with
+`acknowledge_degenerate = true`.
 
 ## 9. How a solid solution is declared
 

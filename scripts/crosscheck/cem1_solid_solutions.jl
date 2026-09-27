@@ -136,6 +136,11 @@ set_quantity!(state, "H2O@", free_water * u"mol")
 set_quantity!(state, "CO2@", 1.0e-9u"mol")
 b = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
 
+# The activity model Cemdata18 prescribes for a KOH-dominated pore solution
+# (Lothenbach et al. 2019, Appendix C, Eq. C.1): the extended Debye-Hückel law with
+# a common ion size and the same b_γ on the ions and on the neutral species.
+model = cemdata18_activity_model(:KOH)
+
 # ── The input, written before the expensive step ─────────────────────────────
 json_pairs(pairs) = join(("    \"$k\": $v" for (k, v) in pairs), ",\n")
 
@@ -148,12 +153,16 @@ open(joinpath(OUT, "charge.json"), "w") do io
         io, "{\n  \"charge\": {\n",
         json_pairs((k, v) for (k, v) in charge if v > 0), "\n  },\n",
         "  \"free_water_mol\": ", free_water, ",\n  \"elements\": {\n",
-        json_pairs(zip(cs.CSM.primaries, be)), "\n  }\n}"
+        json_pairs(zip(cs.CSM.primaries, be)), "\n  },\n",
+        # The second code reads the same file, wherever `datapath` resolved it,
+        # and the same activity parameters.
+        "  \"database\": \"", escape_string(datapath("cemdata18-thermofun.json")), "\",\n",
+        "  \"activity_model\": {\"ion_size\": ", model.å, ", \"bdot\": ", model.Ḃ,
+        ", \"b_neutral\": ", model.Kₙ, "}\n}"
     )
 end
 println("wrote ", joinpath(OUT, "charge.json"))
 
-model = HKFActivityModel(å = 0.0, Ḃ = 0.097637, Kₙ = 0.0)
 t0 = time()
 eq, cert = equilibrate_certified(state; model = model, b = b)
 dt = time() - t0

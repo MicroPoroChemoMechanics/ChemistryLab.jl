@@ -60,9 +60,13 @@ sem(material, age) = literature_table("Durdzinski2017", "degree_of_reaction";
 ALPHA_CLINKER = powers_alpha_max(WB)
 ALPHA_SLAG = min(sum([sem("S1", 28); sem("S2", 28)]) / 400, ALPHA_CLINKER)
 
-gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
-lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
-model = HKFActivityModel(å = 0.0, Ḃ = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"], Kₙ = 0.0)
+# The activity model Cemdata18 prescribes (its Eq. C.1): extended Debye-Hückel,
+# with the common ion size and B-dot the paper gives for KOH solutions (it also
+# gives them for NaOH). The clinker's alkalis are mostly potassium.
+model = cemdata18_activity_model(:KOH)
+# The molar K/Na ratio of its alkalis, which is why the KOH set applies.
+Mox(ox) = ustrip(us"g/mol", Species(ox)[:M])
+println("molar K/Na of the alkalis: ", round((2 * ALKALIS["K2O"] / Mox("K2O")) / (2 * ALKALIS["Na2O"] / Mox("Na2O")); digits = 1))
 
 pure = split(
     "C3S C2S C3A C4AF Gp Anh Cal Portlandite ettringite monosulphate12 " *
@@ -214,7 +218,7 @@ report(route_a, cs2, "XwOHCl-")
 
 Two numbers belong to the model rather than to the paste. Before any chloride
 is added, the surface binds 0.087 mol of calcium, taken from the portlandite:
-81 % of it. The pH rises from 13.04 to 13.18 for that reason alone. The C-S-H of
+80 % of it. The pH rises from 13.05 to 13.20 for that reason alone. The C-S-H of
 the first stage already held that calcium in its Ca/Si. The published model
 counts calcium on the surface on top of a bulk composition that, measured,
 includes it, and freezing the gel keeps that assumption. The portlandite
@@ -222,7 +226,7 @@ nonetheless remains at every dose, so the condition the frozen gel rests on
 holds.
 
 The chloride goes to Kuzel's salt, which holds half a sulfate and one chloride
-per formula unit. At 0.4 % it holds 0.0104 mol, and the 0.0056 mol of
+per formula unit. At 0.4 % it holds 0.0106 mol, and the 0.0056 mol of
 monosulfate of the first stage carry sulfate for 0.0112. The surface holds
 0.00018 mol from the lowest dose on: monosulfate and Kuzel's salt coexist and
 fix the chloride activity, as in [the one-stage paste](@ref sec-example-csh-chloride).
@@ -247,11 +251,11 @@ report(route_b, csB, "CSHQ-Cl")
 ```
 
 The two routes agree on the salts where most of the chloride is: Kuzel's salt
-differs by 2 % at 0.4 %, and by a third at 0.05 %, where little of it forms. They
+differs by 3 % at 0.4 %, and by a third at 0.05 %, where little of it forms. They
 differ on the C-S-H. The end member holds 0.00063 to 0.00066 mol of chloride
-where the surface holds 0.00018, and the paste binds 83 to 96 % of the chloride
-against 65 to 94 %. At the lowest dose the C-S-H holds half of the bound
-chloride in route B and a fifth in route A; at 0.4 % the AFm phases hold 94 to
+where the surface holds 0.00018, and the paste binds 85 to 97 % of the chloride
+against 74 to 96 %. At the lowest dose the C-S-H holds half of the bound
+chloride in route B and a sixth in route A; at 0.4 % the AFm phases hold 94 to
 98 % of it in both. Route B leaves the portlandite where the first stage put it.
 
 ## Without portlandite
@@ -279,7 +283,7 @@ println("certified: ", count(c -> c.optimal, certs_c), " of ", length(certs_c))
 report(route_c, csB, "CSHQ-Cl")
 ```
 
-Without portlandite the salt moves the pH further, from 12.67 to 12.97. The gel
+Without portlandite the salt moves the pH further, from 12.67 to 12.99. The gel
 holds 0.0009 to 0.0014 mol of chloride, more than in the CEM III/A paste:
 four fifths of the bound chloride at the lowest dose, a seventh at the highest.
 No measurement on a slag cement checks these numbers; they are what the fitted

@@ -213,7 +213,9 @@ A layer for what every cement calculation needs and each page wrote by hand:
   library, `decompose` (non-negative least squares on an oxide analysis) and
   `reactive_part` (the glass by difference from a Rietveld analysis);
 - **extents**: constant, tabulated, logistic in log time, the rate law of
-  Parrott and Killoh integrated, and any of them capped by Powers' limit;
+  Parrott and Killoh integrated (optionally with their water/cement factor, as
+  Lothenbach and Winnefeld (2006) apply it), and any of them capped by Powers'
+  limit;
 - **recipes** and their `budget`: the reacted parts enter the equilibrium, the
   unreacted ones are kept aside with their mass, volume and enthalpy, and an
   oxide whose element the system cannot hold is kept aside too, said so;
@@ -248,6 +250,46 @@ The titles of the application pages give the EN 197-1 designation of the cement
 they compute (CEM II/A-LL and CEM II/B-S, CEM III/A, CEM IV/A (V) and CEM IV/B
 (V), CEM V/A (S-V), and the CEM I of each Portland page), where several said
 only "a blastfurnace cement" or "the full Portland cement".
+
+### Documentation: the cement pages run the activity model Cemdata18 prescribes
+
+The pages on CEM I with its solid solutions, CEM II, CEM III/A, CEM IV, CEM V,
+the miscibility gap and chloride binding now run `cemdata18_activity_model(:KOH)`
+in place of the limiting law with `å = 0`, and each prints the molar K/Na ratio
+of its alkalis (2.3 to 2.6) that makes the KOH parameters the right set. The CEM
+IV and CEM V pages declare `CNASH_ss` as the published sublattice model. Every
+number the prose quotes was taken again from the executed output:
+
+- On the Portland and slag pastes the pH rises by 0.01 to 0.04 (CEM I 13.0994
+  to 13.1156, CEM III/A 13.041 to 13.054), and the alkali members of the C-S-H
+  hold a few percent more potassium and sodium.
+- The CEM I cross-check against Reaktoro was run again with both codes on the
+  Cemdata18 model: pH 13.1156 against 13.1426, total volume within 0.06 %. The
+  two halves of `scripts/crosscheck` now read the database file and the activity
+  parameters from the one file the Julia half writes.
+- In the chloride page the paste binds more of the added chloride: 74 to 96 %
+  instead of 65 to 94 % with the surface model, 85 to 97 % instead of 83 to 96 %
+  with the chloride end member.
+- On the CEM IV page the gel changes most. The published `CNASH_ss` takes a Ca/Si
+  of 1.17 where `CSHQ` takes 1.60, so its paste keeps more portlandite. Every
+  point of the portlandite sweep certifies, and so do both full-reaction limits
+  of the CEM IV/B, which did not under `å = 0` (element balances of 0.26 and
+  0.35 mol left). For `CSHQ` nothing else changed, so what failed there was the
+  limiting law. The `CNASH_ss` limit lies at an ionic strength of 1.09 mol/kg,
+  past the range Cemdata18 states, and its certificate says so. A cold solve now
+  certifies the CEM IV/B at 28 days, and the continuation the page walked is
+  gone.
+- The zeolite block of the CEM IV page had left the alkalis of the clinker out
+  of its budget. With the budget of the rest of the page no zeolite is stable in
+  the full-reaction limit, where the page reported FAU-Y-K.
+- On the CEM V page the fully reacted paste now certifies, at an ionic strength
+  of 1.10 mol/kg, past the stated range.
+- The miscibility-gap page stated three things its own output contradicted: the
+  AFm composition of the single-composition case lies just outside the
+  common-tangent pair, not inside; that case does not close its element balance
+  to 2e-14; and the two instances of the last case do not share the amount
+  lopsidedly. The text now says what the output shows, and the pH axis of the
+  summary figure no longer hides two of its bars.
 
 ### License notices
 

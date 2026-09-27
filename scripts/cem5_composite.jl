@@ -28,12 +28,12 @@ using Printf
 using Plots
 default(framestyle = :box, grid = false)
 
-# The ZEOLITE-EXTENDED database, and that is not a detail of convenience.
-# [The CEM IV page](@ref ex-cem4-pozzolanic) establishes why: past roughly a
-# third replacement the aluminum and the alkalis the pozzolana brings exceed what
-# the C-A-S-H and the aluminate hydrates can hold. Without a phase to receive
-# them, the alkalis stay in the pore solution and the pH comes out too high. A
-# CEM V/A at the midpoint of its range is 48 % replaced, well inside that regime.
+# The ZEOLITE-EXTENDED database, so that a zeolite can form wherever one is
+# stable. A CEM V/A at the midpoint of its range is 48 % replaced, the kind of
+# binder that might need one, and a phase the species list does not declare is
+# not reported at all: declaring them is the only way to know. [The CEM IV
+# page](@ref ex-cem4-pozzolanic) finds none stable even in its full-reaction
+# limit, and none forms in the assemblage of section 4.
 substances = build_species(datapath("cemdata18-zeolites.json"); verbose = false)
 byname = Dict(symbol(s) => s for s in substances)
 molar_mass(n) = ustrip(us"g/mol", byname[n][:M])
@@ -202,19 +202,24 @@ species = speciation(
     substances, vcat(pure, gel, feal, redox_species);
     aggregate_state = [AS_AQUEOUS]
 )
+# CNASH_ss mixes on the sites of Myers et al. (2014), as it ships in
+# data/solid_solutions.toml.
 ss = [
-    SolidSolutionPhase("CNASH_ss", [byname[m] for m in gel]),
+    SolidSolutionPhase(
+        "CNASH_ss", [byname[m] for m in gel];
+        model = sublattice_model("Myers2014:cnash", [byname[m] for m in gel])
+    ),
     SolidSolutionPhase("C3(AF)S0.84H", [byname[m] for m in feal]),
 ]
 cs = ChemicalSystem(species, CEMDATA_PRIMARIES; solid_solutions = ss)
-# Debye-Hückel limiting law with a B-dot term, as GEM-Selektor runs CEMDATA18.
-# The B-dot is identified from the activity coefficients GEMS printed on a
-# Portland paste (test/reference/gems_cemdata18_portland.json), about 0.0976.
-using JSON
-gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
-lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
-Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
-model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
+# The activity model Cemdata18 prescribes (its Eq. C.1): extended Debye-Hückel,
+# with the common ion size and B-dot the paper gives for KOH solutions (it also
+# gives them for NaOH). The alkalis of the clinker, and those of the fly ash in a similar ratio, are
+# mostly potassium.
+model = cemdata18_activity_model(:KOH)
+# The molar K/Na ratio of its alkalis, which is why the KOH set applies.
+Mox(ox) = ustrip(us"g/mol", Species(ox)[:M])
+println("molar K/Na of the alkalis: ", round((2 * ALKALIS["K2O"] / Mox("K2O")) / (2 * ALKALIS["Na2O"] / Mox("Na2O")); digits = 1))
 
 components = String.(symbol.(cs.SM.primaries))
 @printf(
@@ -285,9 +290,10 @@ reacted fraction itself: a younger paste has released less of everything, so it
 is a smaller perturbation of pure water, and its answer is a good start for an
 older one.
 
-That is safe here for a reason that is **checked rather than assumed**. Both
-solid solutions of section 2 carry the default ideal mixing model, and
-`SolidSolutionPhase` refuses a model whose mixing energy has a spinodal — so the
+That is safe here for a reason that is **checked rather than assumed**. The two
+solid solutions of section 2 mix convexly (CNASH_ss on its sites, the
+hydrogarnet ideally; see [`mixing_convexity`](@ref)), and `SolidSolutionPhase`
+refuses a model whose mixing energy is concave — so the
 Gibbs function is convex, its minimum is unique, and a continuation **cannot
 change what is found**, only whether the search finds it.
 
@@ -421,12 +427,12 @@ let prev = nothing
     end
 end
 
-perion = HKFActivityModel()
 full = paste(1.0, 1.0)
-eq_full, cert_full = equilibrate_certified(full.state; model = perion, b = full.total)
+eq_full, cert_full = equilibrate_certified(full.state; model = model, b = full.total)
 @printf(
-    "fully reacted, ion size per ion: optimal=%s  balance=%.1e  pH=%.3f  I=%.2f mol/kg\n",
-    cert_full.optimal, cert_full.balance, pH(eq_full, perion), ionic_strength(eq_full)
+    "fully reacted: optimal=%s  balance=%.1e  pH=%.3f  I=%.2f mol/kg  within range: %s\n",
+    cert_full.optimal, cert_full.balance, pH(eq_full, model),
+    cert_full.ionic_strength, cert_full.within_activity_range
 )
 
 function final_heat(file)

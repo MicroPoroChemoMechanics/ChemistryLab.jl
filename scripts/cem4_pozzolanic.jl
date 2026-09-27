@@ -58,8 +58,8 @@ FLYASH = OrderedDict(
 ALKALIS = OrderedDict("K2O" => 0.008, "Na2O" => 0.002)
 
 # ASSUMED: the midpoint of the EN 197-1 range for a CEM IV/A, which is 65-89 %
-# clinker and 11-35 % pozzolana. Section 7 goes to a CEM IV/B, and shows what
-# has to be added to the phase list before that is a question with an answer.
+# clinker and 11-35 % pozzolana. Section 7 goes to a CEM IV/B, and asks whether
+# its full-reaction limit needs phases this list does not declare.
 ASH_FRACTION = 0.23
 ASH_FRACTION_B = 0.45
 # The gypsum of the same cement, 4.6 % of the binder.
@@ -154,8 +154,12 @@ function system(gel_name, gel_members)
         substances, vcat(pure, gel_members, FEAL, aqueous);
         aggregate_state = [AS_AQUEOUS]
     )
+    # CNASH_ss mixes on the sites of Myers et al. (2014), as it ships in
+    # data/solid_solutions.toml; CSHQ and the hydrogarnet mix their end-members.
+    members = [byname[m] for m in gel_members]
+    mixing = gel_name == "CNASH_ss" ? sublattice_model("Myers2014:cnash", members) : IdealSolidSolutionModel()
     ss = [
-        SolidSolutionPhase(gel_name, [byname[m] for m in gel_members]),
+        SolidSolutionPhase(gel_name, members; model = mixing),
         SolidSolutionPhase("C3(AF)S0.84H", [byname[m] for m in FEAL]),
     ]
     return ChemicalSystem(sp, CEMDATA_PRIMARIES; solid_solutions = ss)
@@ -163,14 +167,14 @@ end
 
 cs_q = system("CSHQ", CSHQ)
 cs_n = system("CNASH_ss", CNASH)
-# Debye-Hückel limiting law with a B-dot term, as GEM-Selektor runs CEMDATA18.
-# The B-dot is identified from the activity coefficients GEMS printed on a
-# Portland paste (test/reference/gems_cemdata18_portland.json), about 0.0976.
-using JSON
-gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
-lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
-Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
-model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
+# The activity model Cemdata18 prescribes (its Eq. C.1): extended Debye-Hückel,
+# with the common ion size and B-dot the paper gives for KOH solutions (it also
+# gives them for NaOH). The alkalis of the clinker, and those of the fly ash in a similar ratio, are
+# mostly potassium.
+model = cemdata18_activity_model(:KOH)
+# The molar K/Na ratio of its alkalis, which is why the KOH set applies.
+Mox(ox) = ustrip(us"g/mol", Species(ox)[:M])
+println("molar K/Na of the alkalis: ", round((2 * ALKALIS["K2O"] / Mox("K2O")) / (2 * ALKALIS["Na2O"] / Mox("Na2O")); digits = 1))
 
 @printf("CSHQ system     : %d species\n", length(cs_q.species))
 @printf("CNASH_ss system : %d species\n", length(cs_n.species))
@@ -260,7 +264,9 @@ for (label, cs, eq) in (("CSHQ", cs_q, eq_q), ("CNASH_ss", cs_n, eq_n))
     for (name, amount) in assemblage(cs, eq)
         @printf("  %-18s %9.5f mol\n", name, amount)
     end
-    println()
+    # The gel as one phase: its atomic ratios, from the amounts of its members.
+    el = solid_solution_totals(eq, label).elements
+    @printf("  gel Ca/Si = %.2f, Al/Si = %.2f\n\n", el[:Ca] / el[:Si], get(el, :Al, 0.0) / el[:Si])
 end
 
 fractions = 0.0:0.1:0.3
@@ -269,16 +275,15 @@ i_ch = findfirst(s -> symbol(s) == "Portlandite", cs_n.species)
 for α in (ALPHA_ASH, 1.0)
     ch, phs, ok = Float64[], Float64[], Bool[]
     prev = nothing
-    refused = false          # set once this branch has run out; see below
     for f in fractions
         st, b = budget(cs_n; ash = f, α_ash = α)
         # CONTINUATION along the sweep: each point starts from its neighbor's
         # answer rather than from a fresh paste.
         #
         # That is safe here for a reason that is CHECKED rather than assumed.
-        # Both solid solutions above are declared with the default ideal mixing
-        # model, and `SolidSolutionPhase` refuses a model whose mixing energy has
-        # a spinodal -- so the Gibbs function is convex, its minimum is unique,
+        # CNASH_ss mixes on its sites and the hydrogarnet ideally, both convex
+        # (`mixing_convexity`), and `SolidSolutionPhase` refuses a model whose
+        # mixing energy is concave -- so the Gibbs function is convex, its minimum is unique,
         # and a continuation cannot change WHAT is found, only whether the search
         # finds it, which on a 109-species cement is the whole difficulty. Waive
         # that refusal with `check_convexity = false` and none of it holds: inside
@@ -286,31 +291,13 @@ for α in (ALPHA_ASH, 1.0)
         # sufficiency that rests on convexity, and the start would then decide
         # which branch you land on. The certificate still decides every point
         # here, and a start is reused only once it has been certified.
-        # The cascade is declined only AFTER this branch has already refused
-        # once, and that condition is exact rather than cautious.
         #
-        # Measured with ChemistryLab 0.22.0 and OptimaSolver 0.6.0: this block
-        # cost 654 s, of which about 600 were the two
-        # points of the α = 1 branch that refuse — a refusal pays every back
-        # end, then the ideal pre-solve, then the homotopy, before returning the
-        # same verdict. Past the composition where a branch first runs out, the
-        # cascade has been shown on this very branch not to change the verdict,
-        # so paying it again buys nothing.
-        #
-        # Declining it from the START of the branch was tried and REJECTED: the
-        # two points of that branch that do certify (0 % and 10 % ash) stop
-        # certifying without it, their balances going from 1e-15 and 7e-13 to
-        # 1.8e-02 and 3.9e-07. That trades two proved answers for two hollow
-        # markers of the page's own making, which is a downgrade dressed as a
-        # saving.
         # The certificate is printed below; the warning of a refusal would
         # only repeat it.
         eq, c = with_logger(NullLogger()) do
-            equilibrate_certified(
-                something(prev, st); model = model, b = b, autostart = !refused,
-            )
+            equilibrate_certified(something(prev, st); model = model, b = b)
         end
-        c.optimal ? (prev = eq) : (refused = true)
+        c.optimal && (prev = eq)
         n = ustrip.(us"mol", eq.n)
         push!(ch, n[i_ch])
         push!(phs, pH(eq, model))
@@ -366,42 +353,33 @@ savefig(fig, "cem4-sweep.svg"); nothing # hide
 
 eq_b, c_b = nothing, nothing          # the full-reaction case, kept below
 
-# CONTINUATION, not a cold start, at the 28-day fraction.
-#
-# A 45 % ash binder is a hard landing. Started from a fresh paste, `CSHQ` stops
-# with the element balance off by 7.8e-02 -- 0.078 mol of matter that does not
-# conserve -- while its supersaturation is only +5.3e-02. By the table above that
-# is a failed solve, not a missing phase, and an earlier version of this page
-# read it as chemistry. Walking the ash fraction up to 45 % instead certifies
-# every point, `CSHQ` included.
-ramp = collect(range(0.15, ASH_FRACTION_B; length = 5))
-
+# The 28-day fraction, each model started from its own fresh paste.
 for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
-    budgets = [budget(cs; ash = f, α_ash = ALPHA_ASH)[2] for f in ramp]
-    st0, _ = budget(cs; ash = first(ramp), α_ash = ALPHA_ASH)
-    states, certs = equilibrate_path(st0, budgets; model = model)
-    eq, c = states[end], certs[end]
+    st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = ALPHA_ASH)
+    eq, c = equilibrate_certified(st; model = model, b = b)
     @printf(
         "%2.0f %% ash reacted %3.0f %%  %-10s optimal=%-5s balance=%.1e  pH=%.3f\n",
         100ASH_FRACTION_B, 100ALPHA_ASH, label, c.optimal, c.balance, pH(eq, model)
     )
 end
 
-# The full-reaction limit. The cascade is declined because nothing helps here:
-# the continuation above was run on this branch too and refuses as well, so the
-# verdict is the same and the cascade spends about nine minutes reaching it.
+# The full-reaction limit, every ash sphere dissolved. The certificate carries
+# the ionic strength it was reached at, and whether that lies within the range
+# the activity model is stated for.
 for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
     st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = 1.0)
-    # The certificate is printed below; the warning of a refusal would only repeat it.
-    eq, c = with_logger(NullLogger()) do
-        equilibrate_certified(st; model = model, b = b, autostart = false)
-    end
+    eq, c = equilibrate_certified(st; model = model, b = b)
     (label == "CNASH_ss") && (global eq_b, c_b = eq, c)
     @printf(
-        "%2.0f %% ash reacted 100 %%  %-10s optimal=%-5s balance=%.1e\n",
-        100ASH_FRACTION_B, label, c.optimal, c.balance
+        "%2.0f %% ash reacted 100 %%  %-10s optimal=%-5s balance=%.1e  pH=%.3f  I=%.2f mol/kg  within range: %s\n",
+        100ASH_FRACTION_B, label, c.optimal, c.balance, pH(eq, model),
+        c.ionic_strength, c.within_activity_range
     )
 end
+@printf(
+    "range Cemdata18 states for its model: I up to about %.1f mol/kg\n",
+    activity_model_range(model)
+)
 
 perion = HKFActivityModel()
 for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
@@ -450,42 +428,26 @@ sp_z = speciation(
     aggregate_state = [AS_AQUEOUS]
 )
 ss_z = [
-    SolidSolutionPhase("CNASH_ss", [zeo_byname[m] for m in CNASH]),
+    SolidSolutionPhase(
+        "CNASH_ss", [zeo_byname[m] for m in CNASH];
+        model = sublattice_model("Myers2014:cnash", [zeo_byname[m] for m in CNASH])
+    ),
     SolidSolutionPhase("C3(AF)S0.84H", [zeo_byname[m] for m in FEAL]),
 ]
 cs_z = ChemicalSystem(sp_z, CEMDATA_PRIMARIES; solid_solutions = ss_z)
 
-st_z = ChemicalState(cs_z)
-for (phase, frac) in CLINKER
-    set_quantity!(
-        st_z, phase,
-        BINDER_G * (1 - ASH_FRACTION_B - GYPSUM) * frac / molar_mass(phase) * u"mol"
-    )
-end
-set_quantity!(st_z, "Gp", BINDER_G * GYPSUM / molar_mass("Gp") * u"mol")
-set_quantity!(st_z, "H2O@", BINDER_G * WB / molar_mass("H2O@") * u"mol")
-b_z = Float64.(cs_z.SM.A) * ustrip.(us"mol", st_z.n)
-# The full-reaction limit, so that this is the same question `c_b` failed.
-b_z .+= oxide_budget(
-    FLYASH, cs_z.SM.primaries;
-    mass = BINDER_G * ASH_FRACTION_B * 1.0 * u"g"
-)
+# The full-reaction limit, through the same `budget` as `c_b`, so that the two
+# answers are to one question and differ only in the phases declared.
+st_z, b_z = budget(cs_z; ash = ASH_FRACTION_B, α_ash = 1.0)
 
 eq_z, c_z = equilibrate_certified(st_z; model = model, b = b_z)
 @printf(
     "with zeolites: optimal=%-5s  worst SI=%+.2e  pH=%.3f\n",
     c_z.optimal, c_z.worst_supersaturation, pH(eq_z, model)
 )
-# WITHOUT the zeolites, nothing certifies -- so nothing from that point is
-# quotable. Its pH is whatever the iteration stopped at, and its
-# supersaturation is read at a composition that does not conserve matter. The
-# comparison here is between an answer and no answer, which is the strongest
-# form it can take; an earlier version of this page quoted `+3.12e+02` from that
-# point as if it measured how supersaturated the paste was, and it measured
-# nothing.
 @printf(
-    "without      : optimal=%-5s  (no residual from this point is a result)\n",
-    c_b.optimal
+    "without      : optimal=%-5s  worst SI=%+.2e  pH=%.3f\n",
+    c_b.optimal, c_b.worst_supersaturation, pH(eq_b, model)
 )
 
 nz = ustrip.(us"mol", eq_z.n)

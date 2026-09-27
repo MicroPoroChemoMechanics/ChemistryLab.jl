@@ -120,7 +120,7 @@ end
 extent(e::CappedExtent, t) = min(extent(e.inner, t), e.cap)
 
 """
-    ParrottKillohExtent(phase; T = 293.15u"K", α_max = 1.0, blaine = nothing)
+    ParrottKillohExtent(phase; T = 293.15u"K", α_max = 1.0, blaine = nothing, w_c = nothing)
 
 The degree of hydration of the clinker phase `phase` ("C3S", "C2S", "C3A" or
 "C4AF") under the rate law of Parrott and Killoh (1984) in the form and with the
@@ -128,6 +128,17 @@ parameters [`parrott_killoh_avrami`](@ref) uses, at the constant temperature
 `T`: the ordinary differential equation of that law integrated from zero, on a
 logarithmic grid of time. `α_max` is the ceiling of the law (Powers' water limit,
 for instance), `blaine` the fineness correction.
+
+`w_c` applies instead the water/cement factor of Parrott and Killoh, as
+Lothenbach and Winnefeld (2006, Section 4.1) state it: the rate is multiplied by
+
+```math
+f = \\begin{cases} 1 & \\alpha \\le 1.333\\, w/c \\\\
+(1 + 4.444\\, w/c - 3.333\\, \\alpha)^4 & \\alpha > 1.333\\, w/c \\end{cases}
+```
+
+which is continuous at ``\\alpha = 1.333\\, w/c`` and stops the hydration at
+``\\alpha = (1 + 4.444\\, w/c)/3.333``.
 """
 struct ParrottKillohExtent <: AbstractExtent
     phase::String
@@ -136,14 +147,15 @@ struct ParrottKillohExtent <: AbstractExtent
 end
 function ParrottKillohExtent(
         phase::AbstractString; T = 293.15u"K", α_max::Real = 1.0, blaine = nothing,
-        horizon_days::Real = 3650.0,
+        w_c = nothing, horizon_days::Real = 3650.0,
     )
     rate = parrott_killoh_avrami(_pk84_params(String(phase)), String(phase); α_max = α_max, blaine = blaine)
     TK = _days_free_temperature(T)
     # dα/dt, in 1/s, from the rate on one mole of the phase (n = 1 − α); the
     # positional call of a `KineticFunc` takes and returns bare SI numbers.
     ph = String(phase)
-    dα(α) = rate(TK, 1.0e5, 0.0, Dict(ph => 1 - α), nothing, Dict(ph => 1.0))
+    fwc(α) = (w_c === nothing || α <= 1.333 * w_c) ? 1.0 : max(1 + 4.444 * w_c - 3.333 * α, 0.0)^4
+    dα(α) = rate(TK, 1.0e5, 0.0, Dict(ph => 1 - α), nothing, Dict(ph => 1.0)) * fwc(α)
     grid = exp.(range(log(1.0e-4), log(horizon_days); length = 4001))   # days
     α = 0.0
     vals = zeros(length(grid))

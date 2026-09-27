@@ -29,6 +29,12 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
         slope = (extent(pk, t + h) - extent(pk, t - h)) / (2h) / 86400
         α = extent(pk, t)
         @test slope ≈ rate(293.15, 1.0e5, 0.0, Dict("C3S" => 1 - α), nothing, Dict("C3S" => 1.0)) rtol = 1.0e-2
+        # The w/c factor of Parrott and Killoh: no effect below 1.333 w/c, and a
+        # hydration that stops at (1 + 4.444 w/c)/3.333.
+        pk3 = ParrottKillohExtent("C3S"; w_c = 0.3)
+        @test extent(pk3, 0.5) == extent(pk, 0.5)
+        @test extent(pk3, 3650) < extent(pk, 3650)
+        @test extent(pk3, 3650) <= (1 + 4.444 * 0.3) / 3.333
     end
 
     @testset "oxides of a phase, Bogue, and decompositions" begin

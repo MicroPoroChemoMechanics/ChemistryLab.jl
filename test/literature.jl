@@ -267,4 +267,7 @@ end
     old = literature_table("Lavergne2018", "parrot_killoh_1984")
     new = literature_table("Lavergne2018", "parrott_killoh_1984")
     @test old.phase == new.phase && old.k1 == new.k1
+    # The renaming table sits before the docstring of `literature`, not between
+    # it and the function, where it would take the docstring for itself.
+    @test occursin("The values taken from the published source", string(@doc(literature)))
 end
