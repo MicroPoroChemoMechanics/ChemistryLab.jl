@@ -1,5 +1,118 @@
 # Changelog
 
+## v0.25.2 — The options of the dual solver reach it, and the range of an activity model
+
+Found while correcting a user's cement scripts, with OptimaSolver 0.6.2, which
+fixes three defects of the dual Newton's search for the phases present.
+
+### `equilibrate_certified` gave its dual solver no option
+
+**`equilibrate_certified` built its `DualEquilibriumSolver` with the defaults,
+whatever it was called with**, so a caller could not give the dual Newton more
+iterations, a larger active-set budget or a tighter inner tolerance on the route
+that certifies. It now takes `dual = (; maxit, max_active_updates, inner_tol,
+inner_maxit, tol, si_tol)`, forwarded to that solver, to the ideal pre-solve and
+to the route of a dual-number budget. `DualEquilibriumSolver` takes `inner_tol`
+and `inner_maxit`, the tolerance and the sweep budget of the inner fixed point,
+and forwards them to OptimaSolver's `DualNewtonOptions`, whose defaults it keeps.
+The docstring says what the other keywords reach: `variable_space` sets the
+formulation of the interior-point starts, Ipopt takes the common arguments of
+Optimization.jl (`maxiters`, `reltol`, `maxtime`, `verbose`), and
+`OptimaOptimizer` ignores the rest.
+
+### Added — the range an activity model is stated for
+
+`activity_model_range(model)` returns the ionic strength up to which the solving
+manual states a model valid: 1 mol/kg for `HKFActivityModel`, 0.5 for
+`DaviesActivityModel`, `nothing` where the manual gives no number. Neither formula
+announces that it has left its range, and the Debye–Hückel limiting law of a
+GEM-Selektor comparison (`å = 0`) is worse than inaccurate there: its `log γ`
+keeps falling as the ionic strength rises, so a pore solution can run away and
+the certified search not conclude. Comparing `ionic_strength(eq)` with this value
+is how a caller knows which case it is in.
+
+### Two messages that say what the composition or the species are doing
+
+**A refusal of `equilibrate_certified` names an activity model used past its
+range.** When the answer it gives up on has an ionic strength above
+`activity_model_range(model)`, the message says so, with the value, and says
+what to try: an ion size per ion if the model is the limiting law of a
+GEM-Selektor comparison, a model stated for higher ionic strengths otherwise.
+Measured on blended cement pastes taken to full reaction, that was the cause of
+the refusal, and nothing in the message pointed at it.
+
+**`ChemicalSystem` warns when two declared solid solutions, one of them
+non-ideal, hold one substance twice**: an end-member whose composition is a
+multiple of another's, with Gibbs energies that agree to that factor within
+0.1 RT per formula unit. CEMDATA18's `ettringite03_ss`, the SO4 end of the AFt
+binary, is ettringite divided by three to 5 J/mol, and GEM-Selektor's list
+declares the binary beside the `ettringite` solid solution. With ideal mixing
+that is harmless, and nothing is said. With the published Redlich–Kister model
+on the binary, measured on four cement pastes, the certified search stopped
+short of the solution on the flat direction between the two phases, and
+certified once the substance was declared once. The warning names both phases
+and both species, and says which to drop. `data/solid_solutions.toml` said it
+in a comment; the code now says it to the caller.
+
+### Data — the materials of the RILEM TC 238-SCM round robin
+
+`data/literature/Durdzinski2017.json` carries Table 1 of the accepted
+manuscript: the oxide analyses of the slags S1 and S2, the fly ashes SFA and
+CFA, the Portland cement and the quartz filler, and the phase compositions of
+the two fly ashes, with their amorphous fractions, and of the cement. The degrees of reaction the file
+already held are those of the same materials, so the composition that reacts and
+the fraction that reacts can now be taken from one source. The notes say where
+the table was read and what it prints as it is: the S1 analysis sums to 100.4 and
+gives no K2O.
+
+### Documentation
+
+- CEM IV example, section 7; CEM V example, section 6; database manual on the
+  zeolite extension. The full-reaction limits of these pages do not certify with
+  the limiting law the pages run, and the three pages gave three causes for it:
+  a hard point for the solver, an unphysical question that no assemblage can
+  answer, a gap in the phase list. Measured, the same limits certify with an ion
+  size per ion, `HKFActivityModel()`, with nothing else changed. The pages now say
+  that it is the limiting law that does not close there, and each runs the
+  per-ion solve, which on the CEM IV page lands just past the range the manual
+  states for that model too, and says so.
+- CEM IV example, section 6: `CSHQ` also binds alkalis in the gel, through `KSiOH`
+  and `NaSiOH`; the page said only `CNASH_ss` could.
+- `equilibrate_certified` docstring: a section on the options of the solvers.
+- Solving manual: `activity_model_range`, and what a refusal past the range
+  means. Database manual: when declaring `Ettringite_ss` with `AFt_SO4_CO3` is
+  harmless, and when it is not.
+- `scripts/cem4_pozzolanic.jl` and `scripts/cem5_composite.jl` regenerated from
+  their pages, which `test/scripts.jl` requires.
+
+### Dependencies
+
+`OptimaSolver = "0.6.2"`, in the root and the documentation projects: the
+results the pages now show were measured with it.
+
+### Continuous integration
+
+The coverage job, the Julia 1.12 one, gets two hours. It runs without the
+precompilation cache and took 49 and 55 minutes on the two runs of 0.25.0; on
+0.25.1 it passed the one-hour limit and was canceled while the three other jobs
+passed.
+
+### Tests
+
+- `test/test_dual_solver.jl`: the defaults of `DualEquilibriumSolver` are
+  OptimaSolver's, the inner options are stored and reach OptimaSolver's
+  `DualNewtonOptions`, an unknown option in `dual` is refused, and a
+  certificate threshold no answer can meet refuses the answer the default
+  certifies, whichever route produced the answer. On 0.25.1 the keyword was
+  accepted and ignored: an unknown option raised nothing, and the unreachable
+  threshold came back certified.
+- `test/aqueous_properties.jl`: `activity_model_range` for each model, and the
+  sentence the refusal adds past the range.
+- `test/solid_solutions.jl`: one substance in two phases is silent with ideal
+  mixing and said with the published model on the AFt binary.
+- `test/literature.jl`: the two new tables close to their rounding, and the
+  amorphous fractions and slag analyses they give.
+
 ## v0.25.1 — Two models of one C-S-H gel refused, and `equilibrate_split` under the strict flag
 
 A system that declared `CSHQ` and `CNASH_ss` together was accepted without a

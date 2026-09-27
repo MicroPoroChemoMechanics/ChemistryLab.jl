@@ -860,3 +860,37 @@ end
         end
     end
 end
+
+@testsection "one substance in two phases is said when a mixing is non-ideal" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    byname = Dict(symbol(s) => s for s in substances)
+    sp = speciation(
+        substances, ["ettringite", "ettringite30", "tricarboalu03", "ettringite03_ss"];
+        aggregate_state = [AS_AQUEOUS],
+    )
+    so4 = SolidSolutionPhase("AFt_SO4", [byname["ettringite"], byname["ettringite30"]])
+    aft = [byname["tricarboalu03"], byname["ettringite03_ss"]]
+    p = literature_row("Lothenbach2019", "guggenheim_parameters", "AFt SO4/CO3")
+    RT = R_GAS * 298.15
+    published = RedlichKisterModel(a0 = p.alpha0 * RT, a1 = p.alpha1 * RT)
+
+    # `ettringite03_ss` is ettringite over three, in a formula rounded to seven
+    # digits, and the two Gibbs energies agree to that factor within a few J/mol.
+    @test ChemistryLab._composition_ratio(byname["ettringite"], byname["ettringite03_ss"]) ≈ 1 / 3 rtol = 1.0e-6
+    @test ChemistryLab._composition_ratio(byname["ettringite"], byname["tricarboalu03"]) === nothing
+    @test abs(ChemistryLab._g298(byname["ettringite03_ss"]) - ChemistryLab._g298(byname["ettringite"]) / 3) < 10
+    # A species built from its formula alone carries no Gibbs energy to compare.
+    @test ChemistryLab._g298(Species("CaO")) === nothing
+
+    # Ideal on both sides the double declaration is harmless, and nothing is said.
+    @test_logs min_level = Base.CoreLogging.Warn ChemicalSystem(
+        sp, CEMDATA_PRIMARIES; solid_solutions = [so4, SolidSolutionPhase("AFt_SO4_CO3", aft)],
+    )
+    # With the published model on the binary it is said, naming both phases and
+    # both species.
+    @test_logs (:warn, r"\"AFt_SO4\" and \"AFt_SO4_CO3\" hold one substance twice: \"ettringite03_ss\" is \"ettringite\" times") ChemicalSystem(
+        sp, CEMDATA_PRIMARIES; solid_solutions = [
+            so4, SolidSolutionPhase("AFt_SO4_CO3", aft; model = published, check_convexity = false),
+        ],
+    )
+end

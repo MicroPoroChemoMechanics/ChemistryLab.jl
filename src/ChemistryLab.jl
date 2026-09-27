@@ -459,6 +459,7 @@ module ChemistryLab
     # Aqueous properties read back off a solved state.
     export molalities,
         ionic_strength,
+        activity_model_range,
         log_activities,
         activities,
         activity_coefficients,

@@ -346,6 +346,16 @@ its own parameter set.
 | [`HKFActivityModel`](@ref) | B-dot extended Debye-Hückel | I ≲ 1 mol/kg | `A`, `B`, `Ḃ` (defaults at 25 °C) |
 | [`DaviesActivityModel`](@ref) | Davies equation | I ≲ 0.5 mol/kg | `A`, `b` (defaults at 25 °C) |
 
+[`activity_model_range`](@ref) returns the bound of this table for a model, and
+`nothing` where the table gives no number. None of these formulas announces
+that it has left its range, so the comparison has to be made: check
+`ionic_strength(eq) <= activity_model_range(model)` on any answer that matters.
+When [`equilibrate_certified`](@ref) gives up on an answer whose ionic strength
+is past the bound, its message says so. It is not a formality: measured on
+blended cement pastes taken to full reaction, the limiting law with a B-dot term
+(`å = 0`) did not certify, and with an ion size per ion, `HKFActivityModel()`,
+the same budgets did.
+
 ---
 
 ### `DiluteSolutionModel` (ideal dilute solution)

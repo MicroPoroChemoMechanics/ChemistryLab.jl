@@ -382,3 +382,40 @@ end
     generic = Tuple{typeof(ChemistryLab.SciMLBase.solve), EquilibriumSolver, ChemicalState}
     @test Base.morespecific(m.sig, generic)
 end
+
+@testset "the options of the dual Newton reach it" begin
+    cs = _dual_calcite_system()
+    names = symbol.(cs.species)
+    n = Any[fill(0.0u"mol", length(cs.species))...]
+    n[findfirst(==("H2O@"), names)] = 55.5u"mol"
+    n[findfirst(==("Cal"), names)] = 0.05u"mol"
+    n[findfirst(==("CO2@"), names)] = 0.01u"mol"
+    st = ChemicalState(cs, n)
+    model = DiluteSolutionModel()
+
+    # The defaults are OptimaSolver's own, the inner ones included.
+    d = OptimaSolver.DualNewtonOptions()
+    o = DualEquilibriumSolver(cs, model).opts
+    @test (o.tol, o.maxit, o.max_active_updates, o.si_tol, o.inner_tol, o.inner_maxit) ==
+        (d.tol, d.maxit, d.max_active_updates, d.si_tol, d.inner_tol, d.inner_maxit)
+    o = DualEquilibriumSolver(cs, model; inner_tol = 1.0e-12, inner_maxit = 7, maxit = 3).opts
+    @test o.inner_tol === 1.0e-12 && o.inner_maxit === 7
+    # …and they are the ones OptimaSolver is handed.
+    ext = Base.get_extension(ChemistryLab, :OptimaSolverExt)
+    dn = ext._dual_newton_options(o)
+    @test (dn.inner_tol, dn.inner_maxit, dn.maxit) === (1.0e-12, 7, 3)
+
+    # `dual` is handed to the solver the certified route builds: an unknown
+    # option is refused there, and a stationarity threshold no answer can meet
+    # refuses the answer the default one certifies. The threshold is the
+    # certificate's, so this holds whichever route produced the answer; a test
+    # on the iterations of the dual Newton would not, since another start can
+    # reach an answer the certificate accepts without them.
+    @test_throws MethodError equilibrate_certified(st; model, dual = (; no_such_option = 1))
+    _, c = equilibrate_certified(st; model)
+    @test c.optimal
+    _, c0 = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+        equilibrate_certified(st; model, dual = (; tol = 1.0e-30))
+    end
+    @test !c0.optimal
+end

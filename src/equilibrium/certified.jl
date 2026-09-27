@@ -617,7 +617,7 @@ function equilibrate_path(
 end
 
 """
-    equilibrate_certified(state; model, ϵ, b, verbose, autostart) -> (state, certificate)
+    equilibrate_certified(state; model, ϵ, b, verbose, autostart, dual) -> (state, certificate)
 
 Equilibrium composition together with a proof of its global optimality, obtained
 by solving from every registered back end and keeping the answer
@@ -637,6 +637,17 @@ certified. `autostart = false` declines it, which is what the coupled kinetic
 step does: there the caller already supplies the previous instant as a warm
 start, and a handful of extra solves inside an implicit ODE step would be paid
 at every step.
+
+# Options of the solvers
+
+`dual` is a `NamedTuple` of keywords for the [`DualEquilibriumSolver`](@ref) the
+route certifies with — `maxit`, `max_active_updates`, `inner_tol`, `inner_maxit`,
+`tol`, `si_tol` — for instance `dual = (; maxit = 1000)`. Until 0.25.2 nothing
+reached it. `tol` and `si_tol` are also the thresholds of the certificate, so
+loosening them loosens the proof. The other keywords go to the interior-point
+starts: `variable_space` sets their formulation, Ipopt takes the common
+arguments of Optimization.jl (`maxiters`, `reltol`, `maxtime`, `verbose`), which
+OptimizationIpopt maps to its options, and `OptimaOptimizer` ignores the rest.
 
 `certificate.optimal == true` is a **proof** of a global minimum when the Gibbs
 minimization is convex — ideal mixing and any activity model whose excess Gibbs
@@ -678,6 +689,7 @@ function equilibrate_certified(
         constraint::EquilibriumConstraint = FixedTP(),
         parameters::Union{Nothing, Base.RefValue} = nothing,
         autostart::Bool = true,
+        dual::NamedTuple = NamedTuple(),
         kwargs...,
     )
     _refuse_state_keywords(kwargs, "equilibrate_certified")
@@ -708,11 +720,11 @@ function equilibrate_certified(
     # type rather than tested for. See `_certified_primal_then_derivative`.
     dual_route = _certified_dual_route(
         _amount_number_type(state), state, model, b, ϵ, verbose, constraint,
-        parameters, kwargs,
+        parameters, (; dual = dual, kwargs...),
     )
     dual_route === nothing || return dual_route
 
-    des = DualEquilibriumSolver(state.system, model; verbose = verbose)
+    des = DualEquilibriumSolver(state.system, model; verbose = verbose, dual...)
 
     # `b` is fixed ONCE, from the state as given. Letting each start define its
     # own would pose a different problem for each: a start that violates the
@@ -801,7 +813,7 @@ function equilibrate_certified(
     # Only when nothing else certified, so the ordinary case pays nothing, and
     # guarded against recursion: the inner call is already ideal.
     if autostart && !cert.optimal && !(model isa DiluteSolutionModel)
-        ideal = _ideal_start(state, model, bfix, ϵ, constraint, verbose; kwargs...)
+        ideal = _ideal_start(state, model, bfix, ϵ, constraint, verbose; dual = dual, kwargs...)
         if ideal !== nothing
             eq, cert = _keep_better(
                 eq, cert,
@@ -907,7 +919,7 @@ function equilibrate_certified(
         msg = "no route produced a certifiable equilibrium: stationarity " *
             "$(cert.stationarity), element balance $(cert.balance), worst " *
             "supersaturation $(cert.worst_supersaturation). Automatic initial " *
-            "approximation: $note"
+            "approximation: $note" * _activity_range_hint(eq, model)
         _strict_convergence() && error(
             msg * ". `ChemistryLab.STRICT_CONVERGENCE[]` is set, so this raises " *
                 "rather than returning an answer that is not an equilibrium. " *
@@ -918,6 +930,45 @@ function equilibrate_certified(
     end
     _check_solvent(eq)
     return (eq, cert)
+end
+
+"""
+    _activity_range_hint(eq, model) -> String
+
+A sentence for the refusal of `equilibrate_certified` when the answer it gives up
+on has an ionic strength past the range the manual states for `model`
+([`activity_model_range`](@ref)), and an empty string otherwise.
+
+Measured on blended cement pastes taken to full reaction, the refusal can be the
+activity model's rather than the solver's. The Debye–Hückel limiting law of a
+GEM-Selektor comparison, `HKFActivityModel(å = 0)`, has its `log γ` still falling
+at several mol/kg, and the search does not conclude; with an ion size per ion the
+same budgets certify. Without this sentence the message names a stationarity and
+a balance, and nothing in it points at the activity model.
+"""
+function _activity_range_hint(eq::ChemicalState, model::AbstractActivityModel)
+    r = activity_model_range(model)
+    r === nothing && return ""
+    # No aqueous phase, or an answer whose solvent is gone: nothing to say here,
+    # and `_check_solvent` speaks for the second.
+    I = try
+        Float64(ionic_strength(eq))
+    catch
+        return ""
+    end
+    (isfinite(I) && I > r) || return ""
+    tail = if model isa HKFActivityModel && model.å !== nothing
+        "; with an ion size per ion, `HKFActivityModel()`, the same budget " *
+            "may certify, and the activity model is then the thing to report"
+    else
+        "; a model stated for higher ionic strengths, such as " *
+            "`PitzerActivityModel` with parameters for these ions, is the next " *
+            "one to try, or a budget that releases less salt"
+    end
+    return ". The ionic strength it stopped at, $(round(I; sigdigits = 3)) mol/kg, " *
+        "is past the $(r) mol/kg the manual states for " *
+        "$(nameof(typeof(model))), so the failure may be the activity model's " *
+        "rather than the solver's" * tail
 end
 
 """

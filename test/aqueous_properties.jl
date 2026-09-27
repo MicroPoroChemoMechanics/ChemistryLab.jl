@@ -83,6 +83,35 @@ end
     @test_throws ArgumentError ionic_strength(dry_state)
 end
 
+@testsection "aqueous properties: the range an activity model is stated for" begin
+    # The bounds of the table "Choosing a model" in the solving manual.
+    @test activity_model_range(HKFActivityModel()) === 1.0
+    @test activity_model_range(HKFActivityModel(å = 0.0, Ḃ = gems_bdot(), Kₙ = 0.0)) === 1.0
+    @test activity_model_range(DaviesActivityModel()) === 0.5
+    # The dilute model is stated for I ≪ 1, which is no number: none is invented.
+    @test activity_model_range(DiluteSolutionModel()) === nothing
+    cs, st = _aqp_state()
+    @test ionic_strength(st) <= something(activity_model_range(DaviesActivityModel()), Inf)
+end
+
+@testsection "aqueous properties: a refusal names an activity model past its range" begin
+    _, low = _aqp_state()
+    _, high = _aqp_state(; n_ca = 1.0, n_oh = 2.0)       # I ≈ 3 mol/kg
+    @test ionic_strength(high) > 1
+    a0 = HKFActivityModel(å = 0.0, Ḃ = gems_bdot(), Kₙ = 0.0)
+    @test ChemistryLab._activity_range_hint(low, a0) == ""
+    # Past its range, the limiting law is named, and the per-ion model offered.
+    h = ChemistryLab._activity_range_hint(high, a0)
+    @test occursin("past the 1.0 mol/kg", h) && occursin("HKFActivityModel()", h)
+    # The per-ion model itself past its range points elsewhere.
+    @test occursin("PitzerActivityModel", ChemistryLab._activity_range_hint(high, HKFActivityModel()))
+    # No stated range, nothing to say; nor without a solution to say it about.
+    @test ChemistryLab._activity_range_hint(high, DiluteSolutionModel()) == ""
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    dry = ChemicalState(ChemicalSystem([s for s in substances if symbol(s) == "Portlandite"]))
+    @test ChemistryLab._activity_range_hint(dry, a0) == ""
+end
+
 @testsection "aqueous properties: γ from the formula, not from a ratio" begin
     cs, st = _aqp_state()
     I = ionic_strength(st)

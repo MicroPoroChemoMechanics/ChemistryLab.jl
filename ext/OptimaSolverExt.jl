@@ -217,15 +217,16 @@ function ChemistryLab._optima_dual_problem(
     )
 end
 
+# The options of a `DualEquilibriumSolver`, as OptimaSolver takes them.
+_dual_newton_options(o) = DualNewtonOptions(;
+    tol = o.tol, maxit = o.maxit,
+    max_active_updates = o.max_active_updates,
+    si_tol = o.si_tol, inner_tol = o.inner_tol,
+    inner_maxit = o.inner_maxit, verbose = o.verbose,
+)
+
 function ChemistryLab._optima_dual_solve(prob, b, x0, o)
-    return dual_newton_solve(
-        prob, b, x0;
-        opts = DualNewtonOptions(;
-            tol = o.tol, maxit = o.maxit,
-            max_active_updates = o.max_active_updates,
-            si_tol = o.si_tol, verbose = o.verbose,
-        ),
-    )
+    return dual_newton_solve(prob, b, x0; opts = _dual_newton_options(o))
 end
 
 function ChemistryLab._optima_kkt_certificate(
