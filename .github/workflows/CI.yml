@@ -17,7 +17,12 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    # The coverage job instruments every line and runs without the
+    # precompilation cache, which makes it the slowest by far: 49 and 55 minutes
+    # on the two runs of 0.25.0, and past 60 on 0.25.1, where it was
+    # canceled at the limit while the three other jobs passed. It gets two
+    # hours; the others keep one, which still stops a hung run early.
+    timeout-minutes: ${{ (matrix.version == '1.12' && matrix.os == 'ubuntu-latest') && 120 || 60 }}
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
       actions: write
       contents: read
