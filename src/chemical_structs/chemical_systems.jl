@@ -414,6 +414,99 @@ function _refuse_overlapping_solid_solutions(solid_solutions)
     return nothing
 end
 
+# Below this Gibbs-energy difference, per formula unit of the smaller
+# end-member, two proportional end-members are one substance: 0.1 RT, about
+# 250 J/mol at 25 °C. The case it was set on differs by 5 J/mol; two datasets'
+# values of one mineral that differ by tens of kJ/mol are not flagged, since one
+# of them then always wins.
+const _ONE_SUBSTANCE_RT = 0.1
+
+"""
+    _composition_ratio(a, b) -> Union{Float64, Nothing}
+
+The factor `k` with `atoms(b) = k · atoms(a)`, or `nothing` when the two
+compositions are not proportional.
+"""
+function _composition_ratio(a, b)
+    A, B = atoms(a), atoms(b)
+    keys(A) == keys(B) || return nothing
+    isempty(A) && return nothing
+    k = nothing
+    for (el, na) in A
+        r = Float64(B[el]) / Float64(na)
+        k === nothing && (k = r)
+        # CEMDATA18 writes rounded formulas (Al0.6666667 for 2/3), so "proportional"
+        # has to allow for the rounding of the last printed digit.
+        isapprox(r, k; rtol = 1.0e-6) || return nothing
+    end
+    return k
+end
+
+# The standard Gibbs energy of formation at 25 °C and 1 bar, in J/mol, or
+# `nothing` for a species that does not carry one.
+function _g298(s)
+    return try
+        ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+    catch
+        nothing
+    end
+end
+
+"""
+    _warn_one_substance_two_phases(solid_solutions)
+
+Warn when two declared solid solutions, one of them non-ideal, hold one
+substance under two normalizations: an end-member of one whose composition is
+`k` times that of an end-member of the other, with Gibbs energies that agree to
+the same factor within `0.1 RT` per formula unit of the smaller, at 25 °C.
+
+The case it was written for is CEMDATA18's aluminate sulfate. `ettringite03_ss`,
+the SO4 end-member of the SO4/CO3 AFt binary, is ettringite divided by three,
+5 J/mol apart, and GEM-Selektor's CEMDATA18 list declares the binary beside the
+`ettringite` solid solution. With ideal mixing the two phases share the
+substance and the certificate holds. With the published Redlich–Kister model on
+the binary, measured on four cement pastes, the certified search stopped short
+of the solution: moving the sulfate from one phase to the other changes the
+Gibbs energy by next to nothing, a flat direction the Newton cannot settle.
+Declaring the substance once certified all four.
+
+A warning, not a refusal: with ideal mixing the double declaration is harmless,
+and a page may keep it on purpose rather than decide in advance which
+normalization the answer uses. Two end-members of exactly one composition are
+refused earlier, by `_refuse_overlapping_solid_solutions`, and instances of one
+declaration are exempt, as they are there.
+"""
+function _warn_one_substance_two_phases(solid_solutions)
+    phases = collect(solid_solutions)
+    length(phases) < 2 && return nothing
+    RT = R_GAS * 298.15
+    for i in eachindex(phases), j in (i + 1):lastindex(phases)
+        P, Q = phases[i], phases[j]
+        _declared(P) == _declared(Q) && continue
+        (model(P) isa IdealSolidSolutionModel && model(Q) isa IdealSolidSolutionModel) &&
+            continue
+        for a in end_members(P), b in end_members(Q)
+            k = _composition_ratio(a, b)
+            (k === nothing || isapprox(k, 1.0; rtol = 1.0e-6)) && continue
+            ga, gb = _g298(a), _g298(b)
+            (ga === nothing || gb === nothing) && continue
+            gap = abs(gb - k * ga) / max(k, 1.0)
+            gap < _ONE_SUBSTANCE_RT * RT || continue
+            nonideal = model(P) isa IdealSolidSolutionModel ? name(Q) : name(P)
+            @warn "solid solutions \"$(name(P))\" and \"$(name(Q))\" hold one " *
+                "substance twice: \"$(symbol(b))\" is \"$(symbol(a))\" times " *
+                "$(round(k; sigdigits = 4)), and their Gibbs energies agree to that " *
+                "factor within $(round(gap; sigdigits = 2)) J/mol per formula unit. " *
+                "With \"$(nonideal)\" non-ideal, moving the substance from one phase " *
+                "to the other changes the Gibbs energy by next to nothing, and the " *
+                "certified search can stop short of the solution. Declare it once: " *
+                "keep the phase whose mixing the problem needs, and drop the other " *
+                "description of the substance."
+        end
+    end
+    return nothing
+end
+
 const _GEL_MODELS_LOCK = ReentrantLock()
 const _GEL_MODELS = Ref{Union{Nothing, Dict{String, NamedTuple{(:gel, :model), Tuple{String, String}}}}}(nothing)
 
@@ -698,6 +791,7 @@ function ChemicalSystem(
         end
         idx_ssendmembers = isempty(ss_groups) ? Int[] : vcat(ss_groups...)
         _refuse_overlapping_solid_solutions(solid_solutions)
+        _warn_one_substance_two_phases(solid_solutions)
         _refuse_sites_on_mixing_hosts(sf, solid_solutions)
         ss = collect(solid_solutions)
 

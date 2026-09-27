@@ -31,13 +31,35 @@ keeps falling as the ionic strength rises, so a pore solution can run away and
 the certified search not conclude. Comparing `ionic_strength(eq)` with this value
 is how a caller knows which case it is in.
 
+### Two messages that say what the composition or the species are doing
+
+**A refusal of `equilibrate_certified` names an activity model used past its
+range.** When the answer it gives up on has an ionic strength above
+`activity_model_range(model)`, the message says so, with the value, and says
+what to try: an ion size per ion if the model is the limiting law of a
+GEM-Selektor comparison, a model stated for higher ionic strengths otherwise.
+Measured on blended cement pastes taken to full reaction, that was the cause of
+the refusal, and nothing in the message pointed at it.
+
+**`ChemicalSystem` warns when two declared solid solutions, one of them
+non-ideal, hold one substance twice**: an end-member whose composition is a
+multiple of another's, with Gibbs energies that agree to that factor within
+0.1 RT per formula unit. CEMDATA18's `ettringite03_ss`, the SO4 end of the AFt
+binary, is ettringite divided by three to 5 J/mol, and GEM-Selektor's list
+declares the binary beside the `ettringite` solid solution. With ideal mixing
+that is harmless, and nothing is said. With the published Redlich–Kister model
+on the binary, measured on four cement pastes, the certified search stopped
+short of the solution on the flat direction between the two phases, and
+certified once the substance was declared once. The warning names both phases
+and both species, and says which to drop. `data/solid_solutions.toml` said it
+in a comment; the code now says it to the caller.
+
 ### Data — the materials of the RILEM TC 238-SCM round robin
 
-`data/literature/Durdzinski2017.json` carries the oxide analyses and the phase
-compositions of the round robin's materials (Table 1 of the accepted manuscript): the oxide
-analyses of the slags S1 and S2, the fly ashes SFA and CFA, the Portland cement
-and the quartz filler, and the phase compositions of the two fly ashes, with
-their amorphous fractions, and of the cement. The degrees of reaction the file
+`data/literature/Durdzinski2017.json` carries Table 1 of the accepted
+manuscript: the oxide analyses of the slags S1 and S2, the fly ashes SFA and
+CFA, the Portland cement and the quartz filler, and the phase compositions of
+the two fly ashes, with their amorphous fractions, and of the cement. The degrees of reaction the file
 already held are those of the same materials, so the composition that reacts and
 the fraction that reacts can now be taken from one source. The notes say where
 the table was read and what it prints as it is: the S1 analysis sums to 100.4 and
@@ -57,6 +79,9 @@ gives no K2O.
 - CEM IV example, section 6: `CSHQ` also binds alkalis in the gel, through `KSiOH`
   and `NaSiOH`; the page said only `CNASH_ss` could.
 - `equilibrate_certified` docstring: a section on the options of the solvers.
+- Solving manual: `activity_model_range`, and what a refusal past the range
+  means. Database manual: when declaring `Ettringite_ss` with `AFt_SO4_CO3` is
+  harmless, and when it is not.
 
 ### Dependencies
 
@@ -73,10 +98,16 @@ passed.
 ### Tests
 
 - `test/test_dual_solver.jl`: the defaults of `DualEquilibriumSolver` are
-  OptimaSolver's, the inner options are stored, an unknown option in `dual` is
-  refused, and a dual Newton allowed no iteration does not certify what the
-  default one does. Each fails on 0.25.1.
-- `test/aqueous_properties.jl`: `activity_model_range` for each model.
+  OptimaSolver's, the inner options are stored and reach OptimaSolver's
+  `DualNewtonOptions`, an unknown option in `dual` is refused, and a
+  certificate threshold no answer can meet refuses the answer the default
+  certifies, whichever route produced the answer. On 0.25.1 the keyword was
+  accepted and ignored: an unknown option raised nothing, and the unreachable
+  threshold came back certified.
+- `test/aqueous_properties.jl`: `activity_model_range` for each model, and the
+  sentence the refusal adds past the range.
+- `test/solid_solutions.jl`: one substance in two phases is silent with ideal
+  mixing and said with the published model on the AFt binary.
 - `test/literature.jl`: the two new tables close to their rounding, and the
   amorphous fractions and slag analyses they give.
 

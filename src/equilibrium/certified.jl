@@ -919,7 +919,7 @@ function equilibrate_certified(
         msg = "no route produced a certifiable equilibrium: stationarity " *
             "$(cert.stationarity), element balance $(cert.balance), worst " *
             "supersaturation $(cert.worst_supersaturation). Automatic initial " *
-            "approximation: $note"
+            "approximation: $note" * _activity_range_hint(eq, model)
         _strict_convergence() && error(
             msg * ". `ChemistryLab.STRICT_CONVERGENCE[]` is set, so this raises " *
                 "rather than returning an answer that is not an equilibrium. " *
@@ -930,6 +930,45 @@ function equilibrate_certified(
     end
     _check_solvent(eq)
     return (eq, cert)
+end
+
+"""
+    _activity_range_hint(eq, model) -> String
+
+A sentence for the refusal of `equilibrate_certified` when the answer it gives up
+on has an ionic strength past the range the manual states for `model`
+([`activity_model_range`](@ref)), and an empty string otherwise.
+
+Measured on blended cement pastes taken to full reaction, the refusal can be the
+activity model's rather than the solver's. The Debye–Hückel limiting law of a
+GEM-Selektor comparison, `HKFActivityModel(å = 0)`, has its `log γ` still falling
+at several mol/kg, and the search does not conclude; with an ion size per ion the
+same budgets certify. Without this sentence the message names a stationarity and
+a balance, and nothing in it points at the activity model.
+"""
+function _activity_range_hint(eq::ChemicalState, model::AbstractActivityModel)
+    r = activity_model_range(model)
+    r === nothing && return ""
+    # No aqueous phase, or an answer whose solvent is gone: nothing to say here,
+    # and `_check_solvent` speaks for the second.
+    I = try
+        Float64(ionic_strength(eq))
+    catch
+        return ""
+    end
+    (isfinite(I) && I > r) || return ""
+    tail = if model isa HKFActivityModel && model.å !== nothing
+        "; with an ion size per ion, `HKFActivityModel()`, the same budget " *
+            "may certify, and the activity model is then the thing to report"
+    else
+        "; a model stated for higher ionic strengths, such as " *
+            "`PitzerActivityModel` with parameters for these ions, is the next " *
+            "one to try, or a budget that releases less salt"
+    end
+    return ". The ionic strength it stopped at, $(round(I; sigdigits = 3)) mol/kg, " *
+        "is past the $(r) mol/kg the manual states for " *
+        "$(nameof(typeof(model))), so the failure may be the activity model's " *
+        "rather than the solver's" * tail
 end
 
 """

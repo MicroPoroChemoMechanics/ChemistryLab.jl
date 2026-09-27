@@ -277,7 +277,14 @@ cs = ChemicalSystem(species, CEMDATA_PRIMARIES; solid_solutions = chosen)
 The file is a catalog, not a phase model to take whole. `CSHQ` and `CNASH_ss`
 are two models of one C-S-H gel, which `ChemicalSystem` refuses together, and
 `Ettringite_ss` and `AFt_SO4_CO3` describe the same aluminate sulfate under two
-normalizations.
+normalizations: `ettringite03_ss` is ettringite divided by three, and their
+Gibbs energies agree to that factor within a few J/mol. With ideal mixing on
+both, declaring the two is harmless, and the CEM I example does so on purpose.
+With a non-ideal model on either, `ChemicalSystem` warns and names the pair:
+moving the substance from one phase to the other then changes the Gibbs energy
+by next to nothing, a flat direction on which the certified search can stop
+short of the solution. Keep the phase whose mixing the problem needs, and drop
+the other description.
 
 Phases whose end-members are not found in `dict` are skipped with a warning
 (pass `skip_missing = false` to raise an error instead).
