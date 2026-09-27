@@ -1,0 +1,53 @@
+# Materials of published mixes, for `material_template(name, species)`.
+#
+# This file holds references and choices only. Every number (oxide analyses,
+# phase compositions) is read from data/literature/<key>.json when the material
+# is built, so that no published value is copied here. The extents of a real mix
+# are the caller's: every constituent below reacts completely unless the entry
+# says otherwise, and `with_extents` sets them.
+#
+# Sources
+#   Durdzinski2017 : the TC 238-SCM round robin, Table 1 (XRF and XRD-Rietveld)
+
+# The Portland cement of the round robin, twice: by its Rietveld phases (the
+# crystals the database holds, the others entered by their oxides, see
+# `ChemistryLab.RIETVELD_PHASES`), and by Bogue's calculation on its oxide
+# analysis. The two budgets differ, and the difference is what the choice of
+# route costs.
+[[material]]
+name   = "PC (Durdzinski 2017), phases"
+kind   = "cement"
+phases = "Durdzinski2017:phase_composition:PC"
+source = "Durdzinski2017"
+
+[[material]]
+name     = "PC (Durdzinski 2017), Bogue"
+kind     = "cement"
+analysis = "Durdzinski2017:chemical_composition:PC"
+route    = "bogue"
+sulfate  = "Anh"   # the Rietveld analysis of this cement finds anhydrite, no gypsum
+source   = "Durdzinski2017"
+
+# The two ground granulated blast-furnace slags: glasses, known by their oxides.
+[[material]]
+name     = "S1 slag (Durdzinski 2017)"
+kind     = "scm"
+analysis = "Durdzinski2017:chemical_composition:S1"
+route    = "oxides"
+source   = "Durdzinski2017"
+
+[[material]]
+name     = "S2 slag (Durdzinski 2017)"
+kind     = "scm"
+analysis = "Durdzinski2017:chemical_composition:S2"
+route    = "oxides"
+source   = "Durdzinski2017"
+
+# The siliceous fly ash: its quartz and mullite, inert, and its glass by
+# difference from the XRF analysis, which is the part that reacts.
+[[material]]
+name        = "siliceous fly ash (Durdzinski 2017)"
+kind        = "scm"
+analysis    = "Durdzinski2017:chemical_composition:SFA"
+crystalline = "Durdzinski2017:phase_composition:SFA"
+source      = "Durdzinski2017"

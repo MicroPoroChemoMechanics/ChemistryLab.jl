@@ -173,6 +173,22 @@ module ChemistryLab
     include("kinetics/kinetics_postprocessing.jl")
     include("kinetics/implicit_step.jl")
 
+    include("recipes/extents.jl")
+    include("recipes/materials.jl")
+    include("recipes/recipes.jl")
+    include("recipes/processes.jl")
+    include("recipes/templates.jl")
+
+    # Recipes: materials, extents, budgets and processes.
+    export AbstractExtent, ConstantExtent, TabulatedExtent, LogisticExtent,
+        ParrottKillohExtent, CappedExtent, extent,
+        AbstractConstituent, MineralConstituent, OxideConstituent, Material,
+        effective_extent, oxide_content, literature_oxides, oxide_material,
+        bogue, decompose, reactive_part,
+        Recipe, budget, RecipeState, residual_mass, phase_masses, bound_water,
+        pore_solution, ProcessResult, hydrate, blend, titrate, carbonate, add_salt,
+        leach, process_table, material_template, material_templates, with_extents
+
     export SymbolicFunc,
         ThermoFactory,
         NumericFunc,

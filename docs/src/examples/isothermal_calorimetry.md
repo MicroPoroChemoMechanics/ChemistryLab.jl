@@ -32,7 +32,7 @@ from them; its assumptions are written there.
 using ChemistryLab, DynamicQuantities, Printf
 include(joinpath(pkgdir(ChemistryLab), "scripts", "gruyaert2010.jl"))
 
-c = bogue("OPC-CAL")
+c = gruyaert_bogue("OPC-CAL")
 for (ph, f) in c.clinker
     @printf("  %-5s %5.1f %%\n", ph, 100f)
 end

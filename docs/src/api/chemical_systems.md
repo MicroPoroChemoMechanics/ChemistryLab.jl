@@ -66,3 +66,14 @@ thermogram** rather than only supplied. See
 Modules = [ChemistryLab]
 Pages   = ["chemical_structs/thermogram.jl"]
 ```
+
+## Recipes and processes
+
+Materials, their extents, recipes and the processes built on them; see
+[Recipes: materials, extents and what has not reacted](@ref man-recipes).
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["recipes/extents.jl", "recipes/materials.jl", "recipes/recipes.jl",
+           "recipes/processes.jl", "recipes/templates.jl"]
+```

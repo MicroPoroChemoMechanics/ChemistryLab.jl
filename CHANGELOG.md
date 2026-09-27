@@ -204,6 +204,34 @@ of Cemdata18 is such a case (M6A is the average of M4A and M8A); it ships as
 members whose Gibbs energy departs from the mixture, as T5C of CSH3T or the
 siliceous hydrogarnets, are not reported.
 
+### Added: recipes, extents and processes
+
+A layer for what every cement calculation needs and each page wrote by hand:
+
+- **materials** of mineral constituents (database phases) and oxide
+  constituents (glasses, minor oxides), with `bogue` from the formulas of the
+  library, `decompose` (non-negative least squares on an oxide analysis) and
+  `reactive_part` (the glass by difference from a Rietveld analysis);
+- **extents**: constant, tabulated, logistic in log time, the rate law of
+  Parrott and Killoh integrated, and any of them capped by Powers' limit;
+- **recipes** and their `budget`: the reacted parts enter the equilibrium, the
+  unreacted ones are kept aside with their mass, volume and enthalpy, and an
+  oxide whose element the system cannot hold is kept aside too, said so;
+  a volume or a heat that needs a density or an enthalpy no source gives is
+  reported missing, never estimated;
+- `equilibrate_certified(recipe, system)` and a `RecipeState` read by
+  `phase_masses`, `porosity`, `bound_water`, `pore_solution`, `volume` and
+  `enthalpy`, the residue counted where it belongs;
+- **processes** as sequences of certified equilibria: `hydrate`, `blend`,
+  `titrate`, `carbonate`, `add_salt`, `leach`, tabulated by `process_table`;
+- **templates** of published materials (`data/recipe_templates.toml`, references
+  only; `material_template`), starting with the round robin of Durdziński et al.
+  (2017): the Portland cement by its phases and by Bogue, the two slags, the
+  siliceous fly ash with its glass by difference.
+
+The layer poses exactly the problem the recipe of `scripts/gruyaert2010.jl`
+built by hand (the element budget agrees to 1e-12), which the tests assert.
+
 ### Corrected: Parrott, not Parrot
 
 The author of the 1984 hydration model is L. J. Parrott. The functions are now

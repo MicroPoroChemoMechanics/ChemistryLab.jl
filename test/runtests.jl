@@ -124,6 +124,7 @@ end
     include("equilibrium_constraints.jl")
     include("capillary.jl")
     include("pitzer.jl")
+    include("recipes.jl")
 end
 
 @testsection "Utils tests" begin
