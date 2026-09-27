@@ -1,5 +1,77 @@
 # Changelog
 
+## v0.25.1 — Two models of one C-S-H gel refused, and `equilibrate_split` under the strict flag
+
+A system that declared `CSHQ` and `CNASH_ss` together was accepted without a
+word, and counted its calcium silicate hydrate twice; `equilibrate_split` could
+not be used with `STRICT_CONVERGENCE` set. Both surfaced while correcting a
+user's cement scripts, where the first also kept the certified search from
+concluding. The documentation said the pair was refused; it was not.
+
+### `CSHQ` and `CNASH_ss` declared together were accepted
+
+**A system declaring two models of the C-S-H that share no composition was
+built, and the gel counted twice.** `ChemicalSystem` refuses two declared solid
+solutions that share a composition, which catches `CSHQ` with an `ECSH` family,
+their alkali end-members being one substance under two names. `CSHQ` and
+`CNASH_ss` share none, so the pair passed, although `data/solid_solutions.toml`
+warned against it and the CEM IV example stated that it was refused. On cement
+pastes declared that way the certified search could fail altogether, and where
+it concluded, the calcium, silicon and alkalis of the gel were shared between two
+descriptions of one hydrate.
+
+`data/gel_models.toml` now lists the end-member symbols of each model of one gel
+— `CSHQ` (with `CSHQ-Cl`), `CNASH_ss`, `ECSH1`, `ECSH2` — and `ChemicalSystem`
+refuses two declared solid solutions whose end-members belong to two models of
+the same gel, naming both. Matching is by end-member symbol, whatever name a
+phase is declared under. The two instances of one declaration stay exempt, one
+model split over two declared phases is still accepted, and the composition test
+is unchanged and runs first.
+
+### `equilibrate_split` raised under `STRICT_CONVERGENCE` before seeding anything
+
+**With the strict flag set, `equilibrate_split` raised at its first pass**, which
+is by construction the pass that does not certify: the function exists to improve
+on it. The passes now run with strictness suspended, as the starting routes of
+`equilibrate_certified` already did, and the answer they end on is judged
+strictly — an error if it does not certify, and the solvent check applied to it.
+Without the flag nothing changes.
+
+### Documentation
+
+- CEM IV example: the "Never both at once" note said the pair was refused by
+  name; it now says how each pair is refused, and since when.
+- `data/solid_solutions.toml` and the manual page on choosing species: the notes
+  on declaring two models of one gel name the new test.
+- CEM I example with eight solid solutions: its last section said that the
+  non-ideal AFm/AFt parameters could not be sourced and that a miscibility gap
+  could not be represented. The parameters are in
+  `data/literature/Lothenbach2019.json`, and two instances hold a gap; the page
+  now points to the miscibility gap example.
+- Solving manual: five aqueous activity models, not three (Pitzer and SIT), and
+  `RegularSolutionModel` for a non-ideal ternary solid solution.
+- `equilibrate` and `equilibrate_certified` docstrings: what `optimal = true`
+  proves depends on `cert.scope` (0.25.0); a concave phase given two instances
+  is, besides a waived convexity check, the case where the problem is not convex.
+- README: `equilibrate` does not use Ipopt "under the hood"; with OptimaSolver
+  loaded and an aqueous phase it takes the certified route, the default since
+  0.14.
+- README, database manual and the `build_solid_solutions` docstring: their
+  examples passed the whole of `data/solid_solutions.toml` to `ChemicalSystem`,
+  which declares `CSHQ` with `CNASH_ss` and is now refused; they take the phases
+  by name, and say why the file is a catalog. The README's list of the shipped
+  phases named five of the twelve.
+
+### Tests
+
+- `test/solid_solutions.jl`: `CSHQ` with `CNASH_ss` refused, whatever the phase
+  names and the subset of end-members declared; `CNASH_ss` with `ECSH1` refused;
+  one model over two phases accepted; the registry covers every C-S-H end-member
+  of the database. Each refusal assertion fails on 0.25.0.
+- `test/certified_equilibrium.jl`: under the strict flag, `equilibrate_split`
+  returns the certified pair of the metastable binary instead of raising, and
+  raises when no pass is allowed and the first answer does not certify.
+
 ## v0.25.0 — Sites that leave with their host, and certificates that say what they prove
 
 A site family whose budget follows its host, the mechanism that lets a sorbent
