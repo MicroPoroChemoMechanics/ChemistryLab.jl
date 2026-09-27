@@ -1,6 +1,53 @@
 # Changelog
 
-## Unreleased
+## v0.26.0 — Cement modeling: databases from their publishers, the activity model of Cemdata18, sublattice mixing, a linear-programming start and recipes
+
+The thermodynamic databases are no longer shipped: they are obtained from their
+publishers on first use, checked against a checksum. The activity model that
+Cemdata18 prescribes gets a name, and every certified answer states the ionic
+strength it was reached at against the range of its model. The C-(N-)A-S-H gel
+is mixed on its sites, as Myers et al. define it, and convexity is decided for
+any number of end-members. The certified search starts from the linear program
+over the pure phases, which refuses a budget no amounts can meet and makes cold
+cement solves an order of magnitude faster. A layer of materials, extents,
+recipes and processes poses a cement calculation in the terms it is described
+in.
+
+### Breaking changes
+
+Below 1.0 the registry treats a minor bump as breaking whatever the API did, so
+`[compat] = "0.25"` will not accept `0.26`, and a dependent must widen its bound.
+The documentation environment of MeanFieldHomogenization.jl lists ChemistryLab
+at `0.24, 0.25` and OptimaSolver at `0.5, 0.6`, and needs `0.26` and `0.7`
+added; PoroMechanics.jl lists `0.15.2, 0.18, 0.22` and needs `0.23` to `0.26`.
+
+Several behaviors change deliberately:
+
+- **OptimaSolver 0.7 is required**, for its linear-programming start and its
+  Newton inversion of a sublattice phase.
+- **The databases are downloaded, not shipped.** `datapath` keeps working for
+  every database name, but the first call needs the network, a directory named
+  by `CHEMISTRYLAB_DATABASE_DIR`, or a copy installed with `install_database`.
+  Code that opened the files under `data/` directly no longer finds them, and
+  `cemdata18-merged.json` is gone (its substances are those of
+  `cemdata18-thermofun.json`). The release obtained differs from the files
+  shipped until now in ten Cemdata18 species and ten PSI/Nagra reactions, which
+  change a result only where they enter it.
+- **`CNASH_ss` is the published sublattice model**, so every CNASH answer
+  changes.
+- **A concave phase with more than two end-members is refused** at
+  construction, as a concave binary was, and a certificate is scoped
+  `:kkt_point` unless every mixing phase is proved convex.
+- **A budget no amounts of the declared species can meet is refused at once**,
+  with `budget_feasible = false` and `route = :infeasible`, and
+  `STRICT_CONVERGENCE` raises; until now it went through the whole search.
+- **The search starts from the linear program** (`lp_start = true`): the
+  answers are the same, the route to them is not, and `lp_start = false`
+  restores the former search.
+- `parrot_killoh`, `parrot_killoh_avrami` and the literature key
+  `ParrotKilloh1984` are deprecated in favor of the author's spelling, Parrott;
+  the old names still work, with a warning.
+
 
 ### Thermodynamic databases are obtained from their publishers
 
