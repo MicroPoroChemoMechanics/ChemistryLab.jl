@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### License notices
+
+Five source files carried no license header: `oxide_budget.jl`, `retention.jl`,
+`implicit_step.jl`, `certified.jl` and `constraints.jl`. They now open with the
+same `SPDX-License-Identifier: LGPL-2.1-or-later` line and copyright notice as
+every other file of the package. `NOTICE` misspelled the name of the hydration
+model's author (Parrott) and used a UK spelling; both are corrected.
+
 ## v0.25.2 — The options of the dual solver reach it, and the range of an activity model
 
 Found while correcting a user's cement scripts, with OptimaSolver 0.6.2, which
