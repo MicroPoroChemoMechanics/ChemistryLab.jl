@@ -223,7 +223,8 @@ function ChemistryLab._optima_dual_solve(prob, b, x0, o)
         opts = DualNewtonOptions(;
             tol = o.tol, maxit = o.maxit,
             max_active_updates = o.max_active_updates,
-            si_tol = o.si_tol, verbose = o.verbose,
+            si_tol = o.si_tol, inner_tol = o.inner_tol,
+            inner_maxit = o.inner_maxit, verbose = o.verbose,
         ),
     )
 end

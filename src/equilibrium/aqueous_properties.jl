@@ -230,6 +230,35 @@ function ionic_strength(
 end
 
 """
+    activity_model_range(model) -> Union{Float64, Nothing}
+
+The ionic strength, in mol/kg, up to which the manual states `model` is valid,
+or `nothing` when it states none.
+
+The values are those of the table "Choosing a model" in the solving manual: the
+extended Debye–Hückel of [`HKFActivityModel`](@ref) up to about 1 mol/kg, the
+Davies equation of [`DaviesActivityModel`](@ref) up to about 0.5. Neither formula
+announces that it has left its range, and the consequence can be worse than an
+inaccurate coefficient: with `å = 0`, the Debye–Hückel limiting law plus a B-dot
+term, `log γ` keeps falling with `I` up to several mol/kg, so a pore solution
+can run away to an ionic strength no paste has, and the certified search not
+conclude. Comparing `ionic_strength(eq)` with
+this value is how a caller knows the answer is inside the model's range.
+
+For `HKFActivityModel` the bound is that of the B-dot family as a whole. With a
+common ion size `å = 0` the Debye–Hückel term is the limiting law, which the
+manual says is valid only far below it: read the bound as the most the model can
+be asked, not as what it delivers.
+
+```julia
+ionic_strength(eq) <= something(activity_model_range(model), Inf)
+```
+"""
+activity_model_range(::AbstractActivityModel) = nothing
+activity_model_range(::HKFActivityModel) = 1.0
+activity_model_range(::DaviesActivityModel) = 0.5
+
+"""
     log_activities(state::ChemicalState, model::AbstractActivityModel;
                    ϵ = 1e-16, kelvin_shift = 0.0)
         -> OrderedDict{String,Float64}

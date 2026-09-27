@@ -83,6 +83,17 @@ end
     @test_throws ArgumentError ionic_strength(dry_state)
 end
 
+@testsection "aqueous properties: the range an activity model is stated for" begin
+    # The bounds of the table "Choosing a model" in the solving manual.
+    @test activity_model_range(HKFActivityModel()) === 1.0
+    @test activity_model_range(HKFActivityModel(å = 0.0, Ḃ = gems_bdot(), Kₙ = 0.0)) === 1.0
+    @test activity_model_range(DaviesActivityModel()) === 0.5
+    # The dilute model is stated for I ≪ 1, which is no number: none is invented.
+    @test activity_model_range(DiluteSolutionModel()) === nothing
+    cs, st = _aqp_state()
+    @test ionic_strength(st) <= something(activity_model_range(DaviesActivityModel()), Inf)
+end
+
 @testsection "aqueous properties: γ from the formula, not from a ratio" begin
     cs, st = _aqp_state()
     I = ionic_strength(st)

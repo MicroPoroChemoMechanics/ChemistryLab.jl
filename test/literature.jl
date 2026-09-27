@@ -109,6 +109,35 @@ using JSON
         @test_throws KeyError literature_table("Durdzinski2017", "degree_of_reaction"; no_such_column = 1)
     end
 
+    @testset "Durdziński's own materials: their oxides and their phases" begin
+        ox = literature_table("Durdzinski2017", "chemical_composition")
+        ph = literature_table("Durdzinski2017", "phase_composition")
+        total(t, m) = sum(t.percent[i] for i in eachindex(t.percent) if t.material[i] == m)
+        # Transcribed as printed, so the analyses close only to their rounding:
+        # the S1 column sums to 100.4, the CFA one to 98.5 with its loss on
+        # ignition. A row lost or doubled would move a sum by a whole oxide.
+        @test Set(ox.material) == Set(["S1", "S2", "CFA", "SFA", "PC", "Q"])
+        for m in unique(ox.material)
+            @test abs(total(ox, m) - 100) <= 1.5
+        end
+        # The phase quantifications are complements to 100 %, amorphous included.
+        for m in unique(ph.material)
+            @test total(ph, m) ≈ 100 atol = 1.0e-9
+        end
+        amorphous(m) = only(
+            literature_table(
+                "Durdzinski2017", "phase_composition"; material = m, phase = "Amorphous",
+            ).percent
+        )
+        @test amorphous("SFA") == 65.8 && amorphous("CFA") == 89.7
+        cao(m) = only(
+            literature_table(
+                "Durdzinski2017", "chemical_composition"; material = m, oxide = "CaO",
+            ).percent
+        )
+        @test (cao("S1"), cao("S2"), cao("SFA")) == (40.8, 38.9, 0.1)
+    end
+
     @testset "the rate-law constants are the ones their sources give" begin
         t = literature_table("Lavergne2018", "parrot_killoh_1984")
         e = literature_table("Lavergne2018", "activation_energies")

@@ -459,8 +459,10 @@ protects the reinforcement.
 The **pH moves much less** than the portlandite, because in a cement paste it is
 the alkalis that set it, not the calcium hydroxide; portlandite only fixes a
 floor around 12.5 at 25 °C. A pozzolanic binder lowers the pH mainly by **binding
-alkalis into the C-A-S-H**, and that is a mechanism only the `CNASH_ss` model can
-express at all.
+alkalis into the C-A-S-H**, and each model expresses a different part of it:
+`CSHQ` holds potassium and sodium through its `KSiOH` and `NaSiOH` end-members
+but no aluminum, `CNASH_ss` holds sodium and aluminum but no potassium. Neither
+holds all three, which is one more reason to compute both rather than trust one.
 
 ## 7. A CEM IV/B, and the limit where the phase list runs out
 
@@ -551,11 +553,39 @@ reach the same verdict, and the verdict is what the section needs. The numbers
 above are measured, not asserted; the route that produced them is named so that
 they can be reproduced.
 
-So the limit is a **hard point for the solver**, not a demonstration that the
-phase list is too short. An earlier version of this page said the opposite — that
-"the minimization is looking for an assemblage the declared phase list cannot
-form" — and a supersaturation of −0.25 refutes it: if a phase were missing, that
-number would be positive.
+So the limit is a **hard point**, not a demonstration that the phase list is
+too short. An earlier version of this page said the opposite — that "the
+minimization is looking for an assemblage the declared phase list cannot form" —
+and a supersaturation of −0.25 refutes it: if a phase were missing, that number
+would be positive.
+
+Whose hard point it is can be measured by changing one thing. The activity model
+of this page is the Debye–Hückel limiting law with a B-dot term, `å = 0`: it is
+kept because it is what GEM-Selektor runs, so that the answers compare, and
+[the solving manual](@ref sec-activity-models) says that it has no validity at
+an ionic strength of 0.2 mol/kg, that of the Portland paste GEM-Selektor
+computed (0.21). Give every ion its own size,
+which is the package's default model, and leave the budget, the phase list and
+the solver as they are:
+
+```@example cem4
+perion = HKFActivityModel()
+for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
+    st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = 1.0)
+    eq, c = equilibrate_certified(st; model = perion, b = b)
+    @printf("100 %% ash reacted  %-10s optimal=%-5s balance=%.1e  pH=%.3f  I=%.2f mol/kg\n",
+            label, c.optimal, c.balance, pH(eq, perion), ionic_strength(eq))
+end
+@printf("range the manual states for this model: I up to %.1f mol/kg\n",
+        activity_model_range(perion))
+```
+
+Both limits certify. What does not close at the limit is
+the **limiting law**, not the minimization and not the phase list. The answer it
+gives in exchange has to be read for what it is: the `CNASH_ss` limit sits at an
+ionic strength just past the range the manual states even for this model, so it
+is a composition consistent with an extrapolated activity model, certified as
+such and no more.
 
 What remains true, and is the reason the next section exists, is that the limit
 is where a real alkaline aluminosilicate forms phases this species list does not
@@ -648,7 +678,8 @@ list is not reported as undersaturated, it is not reported at all.
 That is the shape of the evidence, and it is worth naming because it is the
 honest one available. **With** the zeolites the equilibrium certifies — the
 supersaturation is at tolerance, the balance at 1e-10, the pH is a result.
-**Without** them no route certifies, so that side contributes no number at all:
+**Without** them, under this page's activity model, no route certifies, so that
+side contributes no number at all:
 not its pH, not its supersaturation. An argument built on comparing the two
 *numbers* would be built on one number that does not exist. An argument built on
 "one side answers and the other does not" is built on what was actually

@@ -69,9 +69,9 @@ default(framestyle = :box, grid = false)
 # The ZEOLITE-EXTENDED database, and that is not a detail of convenience.
 # [The CEM IV page](@ref ex-cem4-pozzolanic) establishes why: past roughly a
 # third replacement the aluminum and the alkalis the pozzolana brings exceed what
-# the C-A-S-H and the aluminate hydrates can hold, and with no phase left to
-# receive them the minimization has no admissible assemblage at all. A CEM V/A at
-# the midpoint of its range is 48 % replaced, well inside that regime.
+# the C-A-S-H and the aluminate hydrates can hold. Without a phase to receive
+# them, the alkalis stay in the pore solution and the pH comes out too high. A
+# CEM V/A at the midpoint of its range is 48 % replaced, well inside that regime.
 substances = build_species(datapath("cemdata18-zeolites.json"); verbose = false)
 byname = Dict(symbol(s) => s for s in substances)
 molar_mass(n) = ustrip(us"g/mol", byname[n][:M])
@@ -494,15 +494,25 @@ degree of reaction for their own materials.
 
 !!! warning "Where this stops being true"
     Push the fractions to 1 — every grain of slag and every ash sphere fully
-    dissolved — and the calculation stops having an answer at all: the
-    minimization reports supersaturated hydrotalcite and layered double
-    hydroxides it has no room to precipitate, an element balance off by 3·10⁻¹,
-    and a pH of 14.4 that no cement paste has ever had. That is not a solver
-    failure and not a gap in CEMDATA18. It is the formulation being asked an
-    unphysical question: a 48 %-replaced binder whose glasses have entirely
-    dissolved would have to place alkalis and aluminum that a real paste never
-    releases, and no assemblage the database can form will hold them. The
-    remedy is not a better minimizer. It is the reacted fraction.
+    dissolved — and the calculation with this page's activity model stops
+    certifying: the iteration ends with an element balance off by 3·10⁻¹ and a
+    pH of 14.4, neither of which is a result. An earlier version of this page
+    read that as the formulation being asked an unphysical question, with no
+    assemblage able to hold the alkalis and the aluminum. The measurement below
+    refutes it. The limiting law (`å = 0`) this page runs, to stay comparable
+    with GEM-Selektor, has no validity at an ionic strength of 0.2 mol/kg
+    ([Activity models](@ref sec-activity-models)); with an ion size per ion,
+    the same fully reacted paste certifies. What the section says about the
+    reacted fraction stands: a 48 %-replaced binder never dissolves its glasses
+    entirely, and the fraction, not the limit, describes a specimen.
+
+```@example cem5
+perion = HKFActivityModel()
+full = paste(1.0, 1.0)
+eq_full, cert_full = equilibrate_certified(full.state; model = perion, b = full.total)
+@printf("fully reacted, ion size per ion: optimal=%s  balance=%.1e  pH=%.3f  I=%.2f mol/kg\n",
+        cert_full.optimal, cert_full.balance, pH(eq_full, perion), ionic_strength(eq_full))
+```
 
 ## 7. Where a CEM V sits among the others
 

@@ -26,7 +26,8 @@
 using LinearAlgebra
 
 """
-    DualEquilibriumSolver(system, model; tol, maxit, max_active_updates, si_tol, verbose)
+    DualEquilibriumSolver(system, model; tol, maxit, max_active_updates, si_tol,
+                          inner_tol, inner_maxit, verbose)
 
 Equilibrium by Newton on the KKT system, in element-potential space.
 
@@ -42,6 +43,12 @@ mass-action law `aᵢ = exp(uᵢ − gᵢ)` and a pure phase is present exactly 
 
 Starting from the answer of an [`EquilibriumSolver`](@ref) is the intended use —
 the interior-point method reaches a neighborhood, this reaches the conditions.
+
+The keywords are OptimaSolver's `DualNewtonOptions`: `maxit` and
+`max_active_updates` bound the outer Newton and the active-set search,
+`inner_tol` and `inner_maxit` the inner fixed point that recovers the phase
+compositions. `tol` and `si_tol` are also the thresholds of the certificate this
+solver issues, so loosening them loosens the proof, not only the search.
 
 See also: [`optimality_certificate`](@ref), [`speciated_states`](@ref).
 """
@@ -74,6 +81,8 @@ function DualEquilibriumSolver(
         maxit::Int = 200,
         max_active_updates::Int = 200,
         si_tol::Float64 = 1.0e-8,
+        inner_tol::Float64 = 1.0e-10,
+        inner_maxit::Int = 200,
         verbose::Bool = false,
     )
     idx_aq = [i for (i, s) in enumerate(system.species) if aggregate_state(s) == AS_AQUEOUS]
@@ -123,7 +132,7 @@ function DualEquilibriumSolver(
     return DualEquilibriumSolver(
         system, activity_model(system, model), model,
         idx_aq, idx_pure, jw, ss_groups, site_groups, A_elem, size(A_elem, 1),
-        (; tol, maxit, max_active_updates, si_tol, verbose),
+        (; tol, maxit, max_active_updates, si_tol, inner_tol, inner_maxit, verbose),
     )
 end
 

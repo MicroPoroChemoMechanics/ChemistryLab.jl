@@ -1,5 +1,85 @@
 # Changelog
 
+## v0.25.2 — The options of the dual solver reach it, and the range of an activity model
+
+Found while correcting a user's cement scripts, with OptimaSolver 0.6.2, which
+fixes three defects of the dual Newton's search for the phases present.
+
+### `equilibrate_certified` gave its dual solver no option
+
+**`equilibrate_certified` built its `DualEquilibriumSolver` with the defaults,
+whatever it was called with**, so a caller could not give the dual Newton more
+iterations, a larger active-set budget or a tighter inner tolerance on the route
+that certifies. It now takes `dual = (; maxit, max_active_updates, inner_tol,
+inner_maxit, tol, si_tol)`, forwarded to that solver, to the ideal pre-solve and
+to the route of a dual-number budget. `DualEquilibriumSolver` takes `inner_tol`
+and `inner_maxit`, the tolerance and the sweep budget of the inner fixed point,
+and forwards them to OptimaSolver's `DualNewtonOptions`, whose defaults it keeps.
+The docstring says what the other keywords reach: `variable_space` sets the
+formulation of the interior-point starts, Ipopt takes the common arguments of
+Optimization.jl (`maxiters`, `reltol`, `maxtime`, `verbose`), and
+`OptimaOptimizer` ignores the rest.
+
+### Added — the range an activity model is stated for
+
+`activity_model_range(model)` returns the ionic strength up to which the solving
+manual states a model valid: 1 mol/kg for `HKFActivityModel`, 0.5 for
+`DaviesActivityModel`, `nothing` where the manual gives no number. Neither formula
+announces that it has left its range, and the Debye–Hückel limiting law of a
+GEM-Selektor comparison (`å = 0`) is worse than inaccurate there: its `log γ`
+keeps falling as the ionic strength rises, so a pore solution can run away and
+the certified search not conclude. Comparing `ionic_strength(eq)` with this value
+is how a caller knows which case it is in.
+
+### Data — the materials of the RILEM TC 238-SCM round robin
+
+`data/literature/Durdzinski2017.json` carries the oxide analyses and the phase
+compositions of the round robin's materials (Table 1 of the accepted manuscript): the oxide
+analyses of the slags S1 and S2, the fly ashes SFA and CFA, the Portland cement
+and the quartz filler, and the phase compositions of the two fly ashes, with
+their amorphous fractions, and of the cement. The degrees of reaction the file
+already held are those of the same materials, so the composition that reacts and
+the fraction that reacts can now be taken from one source. The notes say where
+the table was read and what it prints as it is: the S1 analysis sums to 100.4 and
+gives no K2O.
+
+### Documentation
+
+- CEM IV example, section 7; CEM V example, section 6; database manual on the
+  zeolite extension. The full-reaction limits of these pages do not certify with
+  the limiting law the pages run, and the three pages gave three causes for it:
+  a hard point for the solver, an unphysical question that no assemblage can
+  answer, a gap in the phase list. Measured, the same limits certify with an ion
+  size per ion, `HKFActivityModel()`, with nothing else changed. The pages now say
+  that it is the limiting law that does not close there, and each runs the
+  per-ion solve, which on the CEM IV page lands just past the range the manual
+  states for that model too, and says so.
+- CEM IV example, section 6: `CSHQ` also binds alkalis in the gel, through `KSiOH`
+  and `NaSiOH`; the page said only `CNASH_ss` could.
+- `equilibrate_certified` docstring: a section on the options of the solvers.
+
+### Dependencies
+
+`OptimaSolver = "0.6.2"`, in the root and the documentation projects: the
+results the pages now show were measured with it.
+
+### Continuous integration
+
+The coverage job, the Julia 1.12 one, gets two hours. It runs without the
+precompilation cache and took 49 and 55 minutes on the two runs of 0.25.0; on
+0.25.1 it passed the one-hour limit and was canceled while the three other jobs
+passed.
+
+### Tests
+
+- `test/test_dual_solver.jl`: the defaults of `DualEquilibriumSolver` are
+  OptimaSolver's, the inner options are stored, an unknown option in `dual` is
+  refused, and a dual Newton allowed no iteration does not certify what the
+  default one does. Each fails on 0.25.1.
+- `test/aqueous_properties.jl`: `activity_model_range` for each model.
+- `test/literature.jl`: the two new tables close to their rounding, and the
+  amorphous fractions and slag analyses they give.
+
 ## v0.25.1 — Two models of one C-S-H gel refused, and `equilibrate_split` under the strict flag
 
 A system that declared `CSHQ` and `CNASH_ss` together was accepted without a
