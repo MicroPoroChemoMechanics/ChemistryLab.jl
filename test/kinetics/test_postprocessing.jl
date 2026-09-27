@@ -2,7 +2,7 @@ using OrderedCollections
 
 # ── A small but genuine clinker hydration run, shared by the testsets below ───
 #
-# Two Parrot-Killoh phases and two balanced CEMDATA18 reactions is enough to
+# Two Parrott-Killoh phases and two balanced CEMDATA18 reactions is enough to
 # exercise every code path: several reactions consuming a shared product
 # (Portlandite), a species that is neither kinetic nor a reactant, and a
 # non-trivial stoichiometric matrix.
@@ -37,13 +37,13 @@ function _pp_problem(; tend = 7 * 86400.0)
         OrderedDict(s("Jennite") => 1.0, s("Portlandite") => ν_ch3);
         symbol = "C3S hydration",
     )
-    r1[:rate] = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S")
+    r1[:rate] = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S")
     r2 = Reaction(
         OrderedDict(s("C2S") => 1.0, s("H2O@") => _h2o_jen + ν_ch2),
         OrderedDict(s("Jennite") => 1.0, s("Portlandite") => ν_ch2);
         symbol = "C2S hydration",
     )
-    r2[:rate] = parrot_killoh_avrami(PK84_PARAMS_C2S, "C2S")
+    r2[:rate] = parrott_killoh_avrami(PK84_PARAMS_C2S, "C2S")
 
     kp = KineticsProblem(cs, [r1, r2], state0, (0.0, tend); equilibrium_solver = nothing)
     ks = KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-8, abstol = 1.0e-12)
@@ -227,7 +227,7 @@ end
     # Rosenbrock methods need a TIME gradient, obtained by calling the RHS with a
     # dual `t` and a plain `u`; typing the rate vector from `eltype(u)` alone
     # then fails with "First call to automatic differentiation for time gradient
-    # failed". Rate laws that ignore `t`, like `parrot_killoh`, never exposed it.
+    # failed". Rate laws that ignore `t`, like `parrott_killoh`, never exposed it.
 
     substances = build_species(datapath("cemdata18-thermofun.json"))
     sp = speciation(

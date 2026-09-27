@@ -1,4 +1,4 @@
-# [Two CEM II, and the two different things a replacement can do](@id ex-cem2-blended)
+# [CEM II/A-LL and CEM II/B-S: the two different things a replacement can do](@id ex-cem2-blended)
 
 !!! info "Before this page"
     [A CEM I from its clinker phases](@ref sec-cem1-from-clinker) and [The
@@ -456,4 +456,4 @@ calculation at a single instant cannot show at all.
 ## Where to go next
 
 A binder in which the slag is the main constituent, and its sulfur can no longer
-be taken as sulfate, is [A blastfurnace cement, and the oxidation state it needs](@ref ex-cem3-slag).
+be taken as sulfate, is [CEM III/A: a blastfurnace cement, and the oxidation state it needs](@ref ex-cem3-slag).

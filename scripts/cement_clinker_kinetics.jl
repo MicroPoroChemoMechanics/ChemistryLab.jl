@@ -3,14 +3,14 @@
 #
 # Kinetic simulation of OPC clinker hydration via ChemistryLab:
 #   - ChemicalSystem built from the CEMDATA18 database
-#   - KineticsProblem with parrot_killoh_avrami (KineticFunc) for the 4 clinker phases
+#   - KineticsProblem with parrott_killoh_avrami (KineticFunc) for the 4 clinker phases
 #   - Heat tracking via SemiAdiabaticCalorimeter
 #
 # This script demonstrates the full workflow:
 #   1. ChemicalSystem  → 2. ChemicalState  → 3. list of annotated Reactions
 #   → 4. KineticsProblem → 5. integrate → 6. post-processing
 #
-# Kinetics: Parrot & Killoh (1984), Arrhenius correction from Schindler &
+# Kinetics: Parrott & Killoh (1984), Arrhenius correction from Schindler &
 #   Folliard (2005).
 # Semi-adiabatic calorimeter with quadratic heat losses, the form of Lavergne
 #   et al. (2018), Eq. (23), with illustrative coefficients.
@@ -73,7 +73,7 @@ for (name, frac) in pairs(COMPOSITION)
 end
 set_quantity!(state0, "H2O@", WC * u"kg")
 
-# ── 3. Parrot & Killoh kinetic models ─────────────────────────────────────────
+# ── 3. Parrott & Killoh kinetic models ─────────────────────────────────────────
 #
 # Maximum degree of hydration according to Powers (1948): α_max ≤ w/c / 0.42
 # We create models with the computed α_max rather than the default value 1.0.
@@ -84,10 +84,10 @@ const α_max = powers_alpha_max(WC)
 # `blaine_factor`; 380 m²/kg is an ordinary CEM I.
 const BLAINE = 380.0u"m^2/kg"
 
-pk_C3S = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max, blaine = BLAINE)
-pk_C2S = parrot_killoh_avrami(PK84_PARAMS_C2S, "C2S"; α_max, blaine = BLAINE)
-pk_C3A = parrot_killoh_avrami(PK84_PARAMS_C3A, "C3A"; α_max, blaine = BLAINE)
-pk_C4AF = parrot_killoh_avrami(PK84_PARAMS_C4AF, "C4AF"; α_max, blaine = BLAINE)
+pk_C3S = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max, blaine = BLAINE)
+pk_C2S = parrott_killoh_avrami(PK84_PARAMS_C2S, "C2S"; α_max, blaine = BLAINE)
+pk_C3A = parrott_killoh_avrami(PK84_PARAMS_C3A, "C3A"; α_max, blaine = BLAINE)
+pk_C4AF = parrott_killoh_avrami(PK84_PARAMS_C4AF, "C4AF"; α_max, blaine = BLAINE)
 
 # ── 4. Kinetic reaction list ─────────────────────────────────────────────────
 #

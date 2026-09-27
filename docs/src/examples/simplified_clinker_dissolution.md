@@ -1,4 +1,4 @@
-# [Simplified Clinker Dissolution](@id sec-clinker-dissolution)
+# [Simplified dissolution of a CEM I clinker](@id sec-clinker-dissolution)
 
 !!! info "Before this page"
     The tutorial [Chemical Equilibrium](@ref sec-equilibrium) and [Cement
@@ -225,6 +225,6 @@ state_eq = equilibrate(state; model=MyModel(...))
 ## Where to go next
 
 The same system is swept over the water-to-cement ratio in
-[Effect of Water/Cement Ratio on Cement Hydration](@ref sec-wc-ratio). A clinker
+[Effect of the water/cement ratio on the hydration of a CEM I](@ref sec-wc-ratio). A clinker
 described by its four main phases and its sulfate carrier, rather than
 simplified, is [A CEM I from its clinker phases](@ref sec-cem1-from-clinker).

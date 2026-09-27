@@ -27,13 +27,14 @@ include("reference_species.jl")
 
     # Paired on composition, never on the number. A formula two phases share
     # is resolved by the name: amorphous silica is not quartz, calcite is not
-    # aragonite, the amorphous Al(OH)3 is not gibbsite; ettringite is the pure
+    # aragonite, the amorphous Al(OH)3 is not gibbsite, the microcrystalline
+    # Fe(OH)3 is not the amorphous one; ettringite is the pure
     # phase, not the copy CEMDATA18 keeps for its solid solution; and M4AH10 is
     # the hydrotalcite CEMDATA18 recommends for Portland cement, not its
     # alkali-activated M4A-OH-LDH. The two C-S-H are paired by name too, since
     # the table abbreviates them to C1.67SH2.1 and C0.83SH1.3.
     by_name = Dict(
-        "SiO2,am" => "Amor-Sl", "Al(OH)3(am)" => "AlOHam", "calcite" => "Cal",
+        "SiO2,am" => "Amor-Sl", "Al(OH)3(am)" => "AlOHam", "Fe(OH)3(mic)" => "Fe(OH)3(mic)", "calcite" => "Cal",
         "(Al-)ettringite" => "ettringite", "M4AH10" => "hydrotalcite",
         "C1.67SH2.1 (jennite)" => "Jennite", "C0.83SH1.3 (tobermorite)" => "Tob-II",
         "H2O" => "H2O@",
@@ -69,11 +70,12 @@ include("reference_species.jl")
     formula_of = Dict(zip(t.phase, t.formula))
 
     @testset "the energies: carried over, revised, or another compound" begin
-        # Twenty-two are Cemdata07's to the printed 0.01 kJ/mol: 21 solids and
-        # water. Seven were revised, none by more than 10 kJ/mol. Nine have no
-        # CEMDATA18 solid of the same composition.
+        # Twenty-three are Cemdata07's to the printed 0.01 kJ/mol: 22 solids and
+        # water, the microcrystalline Fe(OH)3 among them. Seven were revised,
+        # none by more than 10 kJ/mol. Eight have no CEMDATA18 solid of the same
+        # composition.
         same = [r for r in matched if abs(dG(r)) <= 0.005 + 1.0e-6]
-        @test length(same) == 22
+        @test length(same) == 23
         shift = Dict(symbol(r.match[1]) => dG(r) for r in matched if abs(dG(r)) > 0.005 + 1.0e-6)
         printed = Dict(
             "C3AH6" => 1.94, "C3FH6" => -6.53, "C4AH13" => 0.87, "monosulphate12" => 0.14,
@@ -86,16 +88,19 @@ include("reference_species.jl")
         @test sort([r.phase for r in rows if r.match === nothing]) == sort(
             [
                 "C3AS0.8H4.4", "C2AH8", "C2FH8", "C4FC̄0.5H12", "C2FSH8", "M4AcH9", "M4FH10",
-                "Al2O3", "Fe(OH)3(mic)",
+                "Al2O3",
             ]
         )
     end
 
     @testset "the molar volumes" begin
-        # 24 of the 28 paired solids to half the printed digit, 0.5 cm³/mol;
-        # the other four, three of them iron phases, by up to 1.7 cm³/mol.
-        solids_m = [r for r in matched if r.phase != "H2O"]
+        # 24 of the 28 paired solids that carry a volume in CEMDATA18 to half
+        # the printed digit, 0.5 cm³/mol; the other four, three of them iron
+        # phases, by up to 1.7 cm³/mol. The microcrystalline Fe(OH)3 is paired
+        # but has no volume there ("not defined" in Cemdata18).
+        solids_m = [r for r in matched if r.phase != "H2O" && haskey(r.match[1], :V⁰)]
         @test length(solids_m) == 28
+        @test any(r -> r.phase == "Fe(OH)3(mic)" && !haskey(r.match[1], :V⁰), matched)
         off = Dict(symbol(r.match[1]) => dV(r) for r in solids_m if abs(dV(r)) > 0.5 + 1.0e-6)
         @test Set(keys(off)) == Set(["Fe-ettringite", "monosulphate12", "Fe-monosulphate", "Femonocarbonate"])
         @test maximum(abs, values(off)) ≈ 1.67 atol = 5.0e-3

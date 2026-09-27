@@ -1,4 +1,4 @@
-# [A miscibility gap, and the three answers a formulation can give](@id ex-miscibility-gap)
+# [A miscibility gap in the AFm of a CEM I 52.5 N, and the three answers a formulation can give](@id ex-miscibility-gap)
 
 !!! info "Before this page"
     [Solid solutions](@ref sec-theory-solid-solutions) §6 and [Solid solution

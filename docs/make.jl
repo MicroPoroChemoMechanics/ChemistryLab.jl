@@ -12,6 +12,11 @@ using DocumenterVitepress
 using PrettyTables
 
 include("pages.jl")
+
+# Every database the pages read is obtained, or built, before the first page
+# runs: the download message of a first use then never lands in a page, and a
+# page never waits on the network.
+fetch_databases()
 # Reads `pages`, and may replace it. See its header for why a partial build
 # needs a pruned SOURCE tree and not just a pruned page tree.
 include("partial.jl")

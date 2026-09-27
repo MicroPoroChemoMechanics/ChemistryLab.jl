@@ -185,7 +185,7 @@ stating because it is a difference of formulation and not of chemistry.
     Here the composition vector has one entry per species, so a species belongs
     to exactly one phase, and a gap is expressed by declaring the phase with
     `instances = 2`, which gives it a second copy of each end member (see
-    [A miscibility gap, and the three answers a formulation can give](@ref ex-miscibility-gap)). The mixing models
+    [A miscibility gap in the AFm of a CEM I 52.5 N, and the three answers a formulation can give](@ref ex-miscibility-gap)). The mixing models
     of this page are ideal and open no gap, so the eight distinct phases are the
     whole of the chemistry.
 
@@ -522,13 +522,13 @@ procedure transfers; the result does not.
 
 **No kinetics.** This is the assemblage the cement would reach given unlimited
 time and complete reaction. What a paste actually reaches, and why it stops
-short, is [The hydrating paste, end to end](@ref sec-coupled-hydration) and
+short, is [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration) and
 [Self-desiccation](@ref sec-self-desiccation).
 
 ## Where to go next
 
 The equilibrium view continues with the water content in
-[Effect of Water/Cement Ratio on Cement Hydration](@ref sec-wc-ratio) and with
-carbonation in [Carbonation of a Cement Paste](@ref sec-cement-carbonation). The
+[Effect of the water/cement ratio on the hydration of a CEM I](@ref sec-wc-ratio) and with
+carbonation in [Carbonation of a CEM I paste](@ref sec-cement-carbonation). The
 binders that replace part of the clinker begin with
-[Two CEM II](@ref ex-cem2-blended).
+[CEM II/A-LL and CEM II/B-S](@ref ex-cem2-blended).

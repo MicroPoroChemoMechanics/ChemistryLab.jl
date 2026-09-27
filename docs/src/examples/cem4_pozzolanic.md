@@ -1,7 +1,7 @@
-# [A pozzolanic binder, and the C-S-H that has to carry the aluminum](@id ex-cem4-pozzolanic)
+# [CEM IV/A (V) and CEM IV/B (V): a pozzolanic binder, and the C-S-H that has to carry the aluminum](@id ex-cem4-pozzolanic)
 
 !!! info "Before this page"
-    [A blastfurnace cement](@ref ex-cem3-slag), whose skeleton this page
+    [CEM III/A, a blastfurnace cement](@ref ex-cem3-slag), whose skeleton this page
     follows, and [Solid solutions](@ref sec-theory-solid-solutions).
 
 A CEM IV replaces 11 % to 55 % of the clinker with a pozzolana — siliceous fly
@@ -704,4 +704,4 @@ compare against: not a number that differs, a number that does not exist.
 ## Where to go next
 
 The composite binder, which carries a slag and a pozzolana at once, is
-[A composite binder: two glasses at once](@ref ex-cem5-composite).
+[CEM V/A (S-V): a composite binder, two glasses at once](@ref ex-cem5-composite).

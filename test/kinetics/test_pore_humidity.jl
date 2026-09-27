@@ -54,7 +54,7 @@
         )
         for (nm, pk, r, p) in specs
             rx = Reaction(r, p; symbol = nm)
-            rx[:rate] = parrot_killoh_avrami(
+            rx[:rate] = parrott_killoh_avrami(
                 pk, nm; α_max = 1.0, blaine = 380.0u"m^2/kg", humidity = h
             )
             push!(rxns, rx)

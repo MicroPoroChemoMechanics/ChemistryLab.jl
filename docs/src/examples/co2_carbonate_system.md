@@ -296,6 +296,6 @@ p2
 
 The same equilibria in a cement pore solution, where they drive the
 carbonation of the hydrates, are computed in
-[Carbonation of a Cement Paste](@ref sec-cement-carbonation). The first
+[Carbonation of a CEM I paste](@ref sec-cement-carbonation). The first
 calculation on a complete cement is
 [A CEM I from its clinker phases](@ref sec-cem1-from-clinker).

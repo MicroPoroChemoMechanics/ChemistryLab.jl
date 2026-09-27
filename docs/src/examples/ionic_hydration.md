@@ -1,9 +1,9 @@
-# [The full Portland cement, through its pore solution](@id ex-ionic-opc)
+# [A complete CEM I 52.5 N, through its pore solution](@id ex-ionic-opc)
 
 !!! info "Before this page"
-    [The hydrating paste, end to end](@ref sec-coupled-hydration).
+    [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration).
 
-[The hydrating paste, end to end](@ref sec-coupled-hydration) runs the two silicate clinker phases this
+[The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration) runs the two silicate clinker phases this
 way: prescribe the dissolution, let the thermodynamics decide the hydrates. This
 page does the same for a **complete CEM I** — alite, belite, aluminate, ferrite,
 gypsum and limestone filler — and then reads its calorimetry off the result.
@@ -485,4 +485,4 @@ which duplicates the model of this page and adds the homogenization.
 
 The kinetic parameters used here are published values; fitting them to a
 measured calorimetry curve, and what such a fit can and cannot identify, is
-[Calibrating hydration kinetics on measured calorimetry](@ref ex-hydration-calibration).
+[Calibrating the hydration kinetics of a CEM I on measured calorimetry](@ref ex-hydration-calibration).

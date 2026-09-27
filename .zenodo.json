@@ -1,6 +1,6 @@
 {
     "title": "ChemistryLab.jl: Numerical laboratory for computational chemistry",
-    "description": "Computational chemistry toolkit providing formula handling, species management, stoichiometric matrix construction, thermodynamic equilibrium via Gibbs free energy minimization, extended Debye-Hückel and Davies activity models, ideal and Redlich-Kister solid solution phases, interoperability with ThermoFun and Cemdata databases, and a kinetics module for mineral dissolution/precipitation coupled to ODE-based integration (Parrot-Killoh model, semi-adiabatic calorimetry). Initially focused on cement chemistry but applicable more broadly.",
+    "description": "Computational chemistry toolkit providing formula handling, species management, stoichiometric matrix construction, thermodynamic equilibrium via Gibbs free energy minimization, extended Debye-Hückel and Davies activity models, ideal and Redlich-Kister solid solution phases, interoperability with ThermoFun and Cemdata databases, and a kinetics module for mineral dissolution/precipitation coupled to ODE-based integration (Parrott-Killoh model, semi-adiabatic calorimetry). Initially focused on cement chemistry but applicable more broadly.",
     "creators": [
         {
             "name": "Barthélémy, Jean-François",

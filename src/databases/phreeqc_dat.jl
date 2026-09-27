@@ -129,6 +129,37 @@ function parse_float_array(line)
     return float_parts
 end
 
+# The option of a PHREEQC data line, by the rules of the PHREEQC manual
+# (Parkhurst & Appelo 2013, "Description of Data Input"): case does not matter,
+# and each option has documented spellings, with or without the leading dash
+# and abbreviated. Only the spellings the manual lists are accepted, so that an
+# abbreviation shared by two options is never guessed.
+const _PHREEQC_OPTIONS = Dict(
+    :log_k => ("log_k", "logk", "-log_k", "-logk", "-l"),
+    :analytic => ("-analytic", "analytic", "analytical_expression", "-analytical_expression", "a_e", "ae", "-a_e", "-ae", "-a"),
+    :gamma => ("-gamma", "-g"),
+    :vm => ("-vm",),
+)
+function _phreeqc_option(token::AbstractString)
+    t = lowercase(token)
+    for (opt, spellings) in _PHREEQC_OPTIONS
+        t in spellings && return opt
+    end
+    return nothing
+end
+
+# The numbers following an option, up to a comment or a unit.
+function _phreeqc_numbers(parts)
+    out = Float64[]
+    for part in parts
+        startswith(part, "#") && break
+        v = tryparse(Float64, part)
+        v === nothing && break
+        push!(out, v)
+    end
+    return out
+end
+
 """
     parse_phases(dat_content::AbstractString) -> Dict{String,Any}
 
@@ -140,10 +171,14 @@ Extract phase information from PHREEQC .dat file content.
 
 # Returns
 
-  - Dictionary mapping phase names to their properties (equation, log_K, analytical_expression, V⁰).
+  - Dictionary mapping phase names to their properties: `equation`, `reactants`,
+    `logKr`, `analytical_expression` and `molar_volume`.
 
-Parses the PHASES section and extracts reaction equations, equilibrium constants, analytical
-expressions, and molar volumes for each phase.
+Parses the PHASES section. The options are recognized as PHREEQC recognizes
+them, whatever their case and in every spelling the manual documents (`log_k`,
+`-log_K`, `-l`; `-analytic`, `-analytical_expression`, `-a_e`; `-Vm`). `-Vm` is
+the **molar volume of the phase**, in cm³/mol, and is stored as such, never as a
+volume of reaction.
 """
 function parse_phases(dat_content)
     phases = Dict{String, Any}()
@@ -156,52 +191,103 @@ function parse_phases(dat_content)
             in_phases = true
             continue
         elseif in_phases && !isempty(line) && !startswith(line, "#")
-            if !occursin("=", line) && !startswith(line, "-") && !isempty(line)
-                parts = split(line)
-                if length(parts) >= 1 && !startswith(parts[1], "-")
-                    phase_name = parts[1]
-                    current_phase = Dict{String, Any}("symbol" => phase_name)
-                    phases[phase_name] = current_phase
-                end
-            elseif occursin("=", line) && current_phase !== nothing
+            parts = split(line)
+            opt = _phreeqc_option(first(parts))
+            if opt === nothing && !occursin("=", line)
+                # A new phase: its name, alone on its line.
+                current_phase = Dict{String, Any}("symbol" => first(parts))
+                phases[first(parts)] = current_phase
+            elseif opt === nothing && current_phase !== nothing
                 reactants, equation, comment = parse_reaction_stoich_cemdata(line)
                 current_phase["equation"] = equation
                 current_phase["reactants"] = reactants
-                if !isempty(comment)
-                    current_phase["comment"] = comment
+                isempty(comment) || (current_phase["comment"] = comment)
+            elseif current_phase === nothing
+                continue
+            elseif opt === :log_k
+                v = _phreeqc_numbers(parts[2:end])
+                if isempty(v)
+                    @warn "Could not parse log_K value for phase $(current_phase["symbol"]), skipping."
+                else
+                    current_phase["logKr"] = Dict("values" => [first(v)], "errors" => [2])
                 end
-            elseif startswith(line, "-log_K") && current_phase !== nothing
-                log_k_parts = split(line)
-                if length(log_k_parts) >= 2
-                    try
-                        current_phase["logKr"] = Dict(
-                            "values" => [parse(Float64, log_k_parts[2])], "errors" => [2]
-                        )
-                    catch e
-                        @warn "Could not parse log_K value for phase $(current_phase["symbol"]), skipping."
-                    end
-                end
-            elseif startswith(line, "-analytical_expression") && current_phase !== nothing
-                analytical_expression = parse_float_array(line)
+            elseif opt === :analytic
+                analytical_expression = _phreeqc_numbers(parts[2:end])
                 # coef of log10 in .dat becomes a coef of log in .json
                 if length(analytical_expression) > 3
                     analytical_expression[4] /= log(10)
                 end
                 current_phase["analytical_expression"] = analytical_expression
-            elseif startswith(line, "-V⁰") && current_phase !== nothing
-                V⁰_parts = split(line)
-                if length(V⁰_parts) >= 2
-                    try
-                        current_phase["drsm_volume"] = parse(Float64, V⁰_parts[2])
-                    catch e
-                        @warn "Could not parse V⁰ value for phase $(current_phase["symbol"]), skipping."
-                    end
-                end
+            elseif opt === :vm
+                v = _phreeqc_numbers(parts[2:end])
+                isempty(v) || (current_phase["molar_volume"] = first(v))
             end
         end
     end
 
     return phases
+end
+
+"""
+    phreeqc_gamma_parameters(path) -> Dict{String, Tuple{Float64, Float64}}
+
+The WATEQ activity-coefficient parameters `(å, b)` that the `-gamma` option of a
+PHREEQC database gives its aqueous species, by species symbol, for
+[`TruesdellJonesActivityModel`](@ref).
+
+Every `SOLUTION_SPECIES` block is read, the master species as well as the
+others. The species a reaction defines is the first one to the right of its
+equal sign, as the PHREEQC manual requires, and its name becomes a ChemistryLab
+symbol by the rule the readers of this package use: a name ending in a charge is
+kept, any other gets `@` appended (`CO2` is `CO2@`), and `H2O` is the solvent.
+
+A second `-gamma` for a species replaces the first, as PHREEQC reads the options
+of a species in order. A `-gamma` line whose numbers do not parse is reported
+with its line number and skipped.
+"""
+function phreeqc_gamma_parameters(path::AbstractString)
+    params = Dict{String, Tuple{Float64, Float64}}()
+    where_defined = Dict{String, Int}()
+    in_species = false
+    current = nothing
+    for (lineno, raw) in enumerate(eachline(resolve_data_path(path)))
+        line = strip(first(split(raw, '#')))
+        isempty(line) && continue
+        if occursin(r"^[A-Z][A-Z_0-9]*$", line)
+            in_species = line == "SOLUTION_SPECIES"
+            current = nothing
+            continue
+        end
+        in_species || continue
+        parts = split(line)
+        opt = _phreeqc_option(first(parts))
+        if opt === nothing && occursin("=", line)
+            rhs = strip(split(line, "="; limit = 2)[2])
+            first_product = first(split(rhs, r"\s+\+\s+"))
+            name = replace(strip(first_product), r"^[0-9.]+" => "")
+            current = _phreeqc_symbol(name)
+        elseif opt === :gamma && current !== nothing
+            v = _phreeqc_numbers(parts[2:end])
+            if length(v) < 2
+                @warn "phreeqc_gamma_parameters: line $lineno of $(basename(path)) has a -gamma that does not parse; skipped" line
+                continue
+            end
+            # PHREEQC reads the options of a species in order, so a second
+            # `-gamma` replaces the first; `phreeqc.dat` itself refines Na+ that
+            # way ("halite solubility").
+            haskey(params, current) &&
+                @debug "phreeqc_gamma_parameters: line $lineno replaces the -gamma of $current given at line $(where_defined[current])"
+            params[current] = (v[1], v[2])
+            where_defined[current] = lineno
+        end
+    end
+    return params
+end
+
+function _phreeqc_symbol(name::AbstractString)
+    name == "e-" && return "Zz"
+    name == "H2O" && return "H2O@"
+    return occursin(r"[+-][0-9]*$", name) ? String(name) : String(name) * "@"
 end
 
 """

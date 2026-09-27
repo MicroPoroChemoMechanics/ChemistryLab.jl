@@ -140,12 +140,12 @@ end
 
 end
 
-# ── parrot_killoh ─────────────────────────────────────────────────────────────
+# ── parrott_killoh ─────────────────────────────────────────────────────────────
 
-@testset "parrot_killoh" begin
+@testset "parrott_killoh" begin
 
     # ── Construction ─────────────────────────────────────────────────────────
-    pk = parrot_killoh(PK_PARAMS_C3S, "C3S")
+    pk = parrott_killoh(PK_PARAMS_C3S, "C3S")
     @test pk isa KineticFunc
 
     # ── Positivity and monotonicity ───────────────────────────────────────────
@@ -179,7 +179,7 @@ end
     @test r_high_T > r_low_T
 
     # ── α_max limit ───────────────────────────────────────────────────────────
-    pk_max = parrot_killoh(PK_PARAMS_C3S, "C3S"; α_max = 0.85)
+    pk_max = parrott_killoh(PK_PARAMS_C3S, "C3S"; α_max = 0.85)
     # At n ≈ 0 (α ≈ 1.0 > α_max = 0.85), rate should be very small
     n_sv_zero = StateView([1.0e-15], index)
     r_at_zero = pk_max(T_K, 1.0e5, 0.0, n_sv_zero, lna_sv, n0_sv)
@@ -192,7 +192,7 @@ end
             (PK_PARAMS_C3A, "C3A"),
             (PK_PARAMS_C4AF, "C4AF"),
         )
-        pk_k = parrot_killoh(params, name)
+        pk_k = parrott_killoh(params, name)
         idx = Dict(name => 1)
         n_k = StateView([0.5], idx)
         n0_k = StateView([1.0], idx)
@@ -256,7 +256,7 @@ end
     cs = ChemicalSystem([calcite, h2o, ca2p, co3])
     n_sp = length(cs.species)
 
-    pk = parrot_killoh(PK_PARAMS_C3S, "Calcite")
+    pk = parrott_killoh(PK_PARAMS_C3S, "Calcite")
 
     # ── Constructor finds species by phreeqc formula ───────────────────────────
     kr = KineticReaction(cs, "Calcite", pk)
@@ -336,7 +336,7 @@ end
     @test_throws ArgumentError KineticReaction(cs, rxn)
 
     # ── Attach a KineticFunc via :rate ────────────────────────────────────────
-    pk = parrot_killoh(PK_PARAMS_C3S, "Calcite")
+    pk = parrott_killoh(PK_PARAMS_C3S, "Calcite")
     rxn[:rate] = pk
     kr = KineticReaction(cs, rxn)
     @test kr isa KineticReaction
@@ -435,9 +435,9 @@ end
 
 end
 
-# ── parrot_killoh_avrami ──────────────────────────────────────────────────────
+# ── parrott_killoh_avrami ──────────────────────────────────────────────────────
 
-@testset "parrot_killoh_avrami" begin
+@testset "parrott_killoh_avrami" begin
 
     index = Dict("C3S" => 1)
     lna_sv = StateView([0.0], index)
@@ -446,7 +446,7 @@ end
     at(pk, α; T = T_ref, t = 3600.0) =
         pk(T, 1.0e5, t, StateView([1.0 - α], index), lna_sv, n0_sv)
 
-    pk = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S")
+    pk = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S")
     @test pk isa KineticFunc
 
     # ── The rate is strictly positive at α = 0 ────────────────────────────────
@@ -492,12 +492,12 @@ end
     end
 
     # ── Blaine and humidity corrections compose multiplicatively ──────────────
-    pk_fine = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; blaine = 770u"m^2/kg")
+    pk_fine = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; blaine = 770u"m^2/kg")
     @test at(pk_fine, 0.3) ≈ 2 * at(pk, 0.3) rtol = 1.0e-10
 
     # ── The same oracle, applied to the DEPRECATED smoothed variant ──────────
     #
-    # This is the test that would have caught it. `parrot_killoh` with
+    # This is the test that would have caught it. `parrott_killoh` with
     # `PK_PARAMS_*` is limited by its diffusion branch for EVERY phase from
     # α ≈ 0.028 on, because its prefactor `3K₃/N₃ = 0.0018 d⁻¹` is 28 times
     # smaller than the canonical `k₂ = 0.05 d⁻¹`. The rate then integrates in
@@ -565,18 +565,18 @@ end
         )
     ) == 1
 
-    pk_dry = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; humidity = 0.7)
+    pk_dry = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; humidity = 0.7)
     @test at(pk_dry, 0.3) == 0.0                                  # hydration stopped
-    pk_h = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; humidity = 0.9)
+    pk_h = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; humidity = 0.9)
     @test at(pk_h, 0.3) ≈ humidity_factor(0.9) * at(pk, 0.3) rtol = 1.0e-10
 
     # A time-dependent humidity is accepted as a callable
-    pk_ht = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; humidity = t -> t < 100 ? 0.99 : 0.7)
+    pk_ht = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; humidity = t -> t < 100 ? 0.99 : 0.7)
     @test at(pk_ht, 0.3; t = 10.0) > 0
     @test at(pk_ht, 0.3; t = 1000.0) == 0.0
 
     # ── α_max cap ─────────────────────────────────────────────────────────────
-    pk_cap = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max = powers_alpha_max(0.32))
+    pk_cap = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max = powers_alpha_max(0.32))
     @test at(pk_cap, 0.76) < at(pk_cap, 0.3)      # already near the cap
     @test at(pk_cap, 0.8) >= 0
 
@@ -591,7 +591,7 @@ end
     @test isfinite(dT) && dT > 0
 
     # ── The two variants are distinct objects with non-transferable parameters ─
-    @test parrot_killoh(PK_PARAMS_C3S, "C3S")(T_ref, 1.0e5, 3600.0, StateView([0.6], index), lna_sv, n0_sv) !=
+    @test parrott_killoh(PK_PARAMS_C3S, "C3S")(T_ref, 1.0e5, 3600.0, StateView([0.6], index), lna_sv, n0_sv) !=
         at(pk, 0.4)
 
 end
@@ -642,7 +642,7 @@ end
 
     # ── Pozzolanic reactions are more thermo-activated than the clinker ───────
     ratio_fa = at(w, 0.3, 30day; T = 313.15) / at(w, 0.3, 30day)
-    pk = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S")
+    pk = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S")
     idx3 = Dict("C3S" => 1)
     r(T) = pk(T, 1.0e5, 30day, StateView([0.7], idx3), StateView([0.0], idx3), StateView([1.0], idx3))
     @test ratio_fa > r(313.15) / r(293.15)
@@ -677,8 +677,8 @@ end
     n0 = StateView([1.0], idx)
     ev(pk, f) = pk(293.15, 1.0e5, 3.0 * 86400.0, StateView([f], idx), lna, n0)
 
-    frozen = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; blaine = 380u"m^2/kg")
-    typed = parrot_killoh_avrami(
+    frozen = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; blaine = 380u"m^2/kg")
+    typed = parrott_killoh_avrami(
         PK84_PARAMS_C3S, "C3S"; blaine = BlaineSurfaceArea(380u"m^2/kg")
     )
 
@@ -692,7 +692,7 @@ end
     # an identity by construction, not to a tolerance — so the first instant of
     # an evolving run is BIT-IDENTICAL to the frozen one whatever the exponent.
     for p in (0.0, 1 // 3, 2 // 3, 1.0, 1.5)
-        shrink = parrot_killoh_avrami(
+        shrink = parrott_killoh_avrami(
             PK84_PARAMS_C3S, "C3S";
             blaine = ShrinkingCoreArea(BlaineSurfaceArea(380u"m^2/kg"); exponent = p),
         )
@@ -708,7 +708,7 @@ end
     # measured 1.0e-8 at `f = 0.5` and 9.0e-8 at `f = 0.1`, both `fc/f` for
     # `p = 0`. A flat `2 fc` passes at `f = 0.5` and fails at `f = 0.1`, which is
     # how the scaling came to be written here instead of assumed away.
-    flat = parrot_killoh_avrami(
+    flat = parrott_killoh_avrami(
         PK84_PARAMS_C3S, "C3S";
         blaine = ShrinkingCoreArea(BlaineSurfaceArea(380u"m^2/kg"); exponent = 0),
     )
@@ -719,7 +719,7 @@ end
     # And a nonzero exponent scales the rate by exactly `(n/n₀)^p`, which is the
     # whole claim of the model: the law is unchanged, its prefactor is not.
     p = 2 / 3
-    shrink = parrot_killoh_avrami(
+    shrink = parrott_killoh_avrami(
         PK84_PARAMS_C3S, "C3S";
         blaine = ShrinkingCoreArea(BlaineSurfaceArea(380u"m^2/kg"); exponent = p),
     )
@@ -733,7 +733,7 @@ end
     # where a Blaine fineness is expected, inside a `ShrinkingCoreArea` as
     # outside one. This is the case that would otherwise divide 20 000 m²/kg of
     # silica fume by 385 and call the result a fineness.
-    @test_throws ArgumentError parrot_killoh_avrami(
+    @test_throws ArgumentError parrott_killoh_avrami(
         PK84_PARAMS_C3S, "C3S";
         blaine = ShrinkingCoreArea(BETSurfaceArea(20000.0u"m^2/kg")),
     )
@@ -755,7 +755,7 @@ end
     # The rate must fall as `p` grows, because `n/n₀ < 1`.
     dr_dp = ForwardDiff.derivative(
         q -> ev(
-            parrot_killoh_avrami(
+            parrott_killoh_avrami(
                 PK84_PARAMS_C3S, "C3S";
                 blaine = ShrinkingCoreArea(BlaineSurfaceArea(380u"m^2/kg"); exponent = q),
             ), 0.5,

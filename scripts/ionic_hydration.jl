@@ -200,9 +200,9 @@ const IONIC_CALIBRATION = Dict(
 
 The dormant period of the silicate phases, as the factor
 `β(t) = 1 - exp(-(t/τ)^m)` on their dissolution rate. **On by default**, because a
-CEM I has a dormant period and Parrot–Killoh does not.
+CEM I has a dormant period and Parrott–Killoh does not.
 
-`parrot_killoh_avrami` floors its Avrami argument at `PK_AVRAMI_SEED` so the ODE
+`parrott_killoh_avrami` floors its Avrami argument at `PK_AVRAMI_SEED` so the ODE
 can leave `ξ = 0` at all, which means the clinker starts hydrating the instant the
 water does. Measured against the CEM I isothermal-calorimetry record used by
 `hydration_calibration.jl`, that released 23.8 J/g by 2.7 h where the calorimeter
@@ -220,7 +220,7 @@ rate constant repairs.
     with the fit, rounded to say so.
 
 Pass `induction = nothing` to [`run_ionic_hydration`](@ref) to recover the
-published Parrot–Killoh behavior with no dormant period.
+published Parrott–Killoh behavior with no dormant period.
 """
 const IONIC_INDUCTION_TAU = 5.0 * 3600.0
 
@@ -254,7 +254,7 @@ ionic_induction(τ = IONIC_INDUCTION_TAU, m = IONIC_INDUCTION_M) =
 """
     IONIC_PK84 :: Dict{String, NamedTuple}
 
-The published Parrot–Killoh sets, keyed by phase symbol — the default rate-law
+The published Parrott–Killoh sets, keyed by phase symbol — the default rate-law
 parameters of every clinker phase here, and the reference a calibration is
 reported against.
 """
@@ -267,9 +267,9 @@ const IONIC_PK84 = Dict(
     ionic_reactions(cs; wb, blaine, system, calibration, pk_params) -> Vector{KineticReaction}
 
 Congruent dissolution of each anhydrous phase into the primary aqueous species,
-with a Parrot–Killoh rate scaled by a per-phase calibration factor.
+with a Parrott–Killoh rate scaled by a per-phase calibration factor.
 
-`pk_params` overrides the published Parrot–Killoh sets, as a
+`pk_params` overrides the published Parrott–Killoh sets, as a
 `Dict{String,NamedTuple}` keyed by phase symbol; `nothing` (default) keeps them.
 It is what `hydration_calibration.jl` varies, and it is deliberately separate
 from `calibration`: scaling a phase uniformly and editing its rate-law fields are
@@ -277,7 +277,7 @@ not independent, so a study should use one or the other.
 
 `induction` is a callable `t -> β(t) ∈ [0, 1]` multiplying the rate of the phases
 named in `induction_phases` — the dormant period, **on by default**; see
-[`IONIC_INDUCTION_TAU`](@ref). Parrot–Killoh has none of its own: its Avrami
+[`IONIC_INDUCTION_TAU`](@ref). Parrott–Killoh has none of its own: its Avrami
 branch is floored so the ODE can leave `ξ = 0` at all, so hydration starts with
 the water, and on a real heat curve that costs the first several hours. Pass
 `induction = nothing` for the published behavior.
@@ -311,7 +311,7 @@ function ionic_reactions(
         rxn = Reaction([cs[a]], [cs[p] for p in prim]; symbol = "$a dissolution")
 
         base = if haskey(pk_of, a)
-            parrot_killoh_avrami(pk_of[a], a; α_max, blaine)
+            parrott_killoh_avrami(pk_of[a], a; α_max, blaine)
         else
             # Gypsum and calcite are not clinker: give them a fast first-order
             # release so sulfate and carbonate are available to the minimization
@@ -539,7 +539,7 @@ mass of binder in `mix`.
 
 !!! warning "The Arrhenius feedback is not included"
     The rate handed in was computed at `T_env`. The temperature reached in the
-    cell accelerates the reactions — Parrot–Killoh carries activation energies of
+    cell accelerates the reactions — Parrott–Killoh carries activation energies of
     42, 21, 54 and 32 kJ/mol for C₃S, C₂S, C₃A and C₄AF — so the true peak comes
     earlier and higher. The cell belongs inside the ODE, as
     [`semiadiabatic_cell`](@ref) puts it; this function is what the temperature

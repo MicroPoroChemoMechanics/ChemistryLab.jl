@@ -1,7 +1,7 @@
-# [A blastfurnace cement, and the oxidation state it needs](@id ex-cem3-slag)
+# [CEM III/A: a blastfurnace cement, and the oxidation state it needs](@id ex-cem3-slag)
 
 !!! info "Before this page"
-    [Two CEM II](@ref ex-cem2-blended), whose skeleton this page follows, and
+    [CEM II/A-LL and CEM II/B-S](@ref ex-cem2-blended), whose skeleton this page follows, and
     [Oxidation state, and the potential conjugate to it](@ref theory-redox).
 
 A CEM III is between a third and four fifths blastfurnace slag. That single fact
@@ -424,4 +424,4 @@ reaction for the slag that this deposit does not report either.
 ## Where to go next
 
 The pozzolanic binder, in which the C-S-H has to carry the aluminum, is
-[A pozzolanic binder](@ref ex-cem4-pozzolanic).
+[CEM IV, a pozzolanic binder](@ref ex-cem4-pozzolanic).

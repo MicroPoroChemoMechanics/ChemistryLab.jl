@@ -1,7 +1,7 @@
-# [An isothermal calorimeter, read off the states](@id sec-example-isothermal)
+# [CEM I 52.5 N and slag in an isothermal calorimeter, read off the states](@id sec-example-isothermal)
 
 !!! info "Before this page"
-    [A blastfurnace cement](@ref ex-cem3-slag), for a slag entered through its
+    [CEM III/A, a blastfurnace cement](@ref ex-cem3-slag), for a slag entered through its
     oxides.
 
 An isothermal calorimeter holds the sample at one temperature and records the
@@ -156,9 +156,9 @@ enthalpy of vitrification.
 
 ## See also
 
-  - [A semi-adiabatic calorimeter, inside the kinetics](@ref ex-semiadiabatic),
+  - [A CEM I 52.5 N mortar in a semi-adiabatic calorimeter, inside the kinetics](@ref ex-semiadiabatic),
     where the heat raises the temperature and the temperature the rates.
-  - [Calibrating hydration kinetics on measured calorimetry](@ref ex-hydration-calibration),
+  - [Calibrating the hydration kinetics of a CEM I on measured calorimetry](@ref ex-hydration-calibration),
     the heat along a trajectory against measured curves.
-  - [Bound water, and the thermogram it integrates to](@ref sec-example-tga),
+  - [Bound water of CEM I 52.5 N and slag pastes, and the thermogram it integrates to](@ref sec-example-tga),
     the other measurement read off the same pastes.

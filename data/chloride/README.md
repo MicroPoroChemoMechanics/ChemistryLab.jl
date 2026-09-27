@@ -1,14 +1,17 @@
 # A chloride end member for CSHQ
 
-`data/cemdata18-chloride.json` is CEMDATA18 with one end member appended,
+`cemdata18-chloride.json` is CEMDATA18 with one end member appended,
 `CSHQ-Cl` = (CaCl2)0.5, and `CSHQ_Cl` in `data/solid_solutions.toml` is CSHQ
-with that end member. The file is **generated**, and `regenerate.jl` in this
-directory is what generates it:
+with that end member. Only what ChemistryLab adds lives in this directory: the
+fitted parameter and its provenance, in `cshq_cl.json`. The database is built
+from it the first time it is asked for, `datapath("cemdata18-chloride.json")`,
+on the Cemdata18 file obtained from its publisher. `regenerate.jl` redoes the
+fit and writes `cshq_cl.json`:
 
     julia --project=docs data/chloride/regenerate.jl
 
-It is deterministic; `test/cshq_chloride.jl` checks that the shipped file is
-what it writes.
+It is deterministic; `test/cshq_chloride.jl` checks that the record the library
+builds is the one this fit defines.
 
 ## What it is for, and what it is not
 
@@ -88,7 +91,7 @@ two formula units of NaSiOH with their NaOH exchanged for half as much CaCl2,
 ((CaCl2)1.25SiO2H2O)0.4. It fits the tests as well, and binds **less** chloride
 on a gel of Ca/Si 1.4 than on one of 1.0, where Zibara et al. (2008) and Beaudoin
 et al. (1990) measured more: the silica it carries is favored by the silica
-activity of a low-Ca/Si gel. The one shipped carries calcium chloride alone, and
+activity of a low-Ca/Si gel. The one adopted carries calcium chloride alone, and
 binds more at the higher Ca/Si. Both fits, and the trend of each, are recorded
 by the generator; the trend is a criterion the end member was chosen on, not a
 validation.

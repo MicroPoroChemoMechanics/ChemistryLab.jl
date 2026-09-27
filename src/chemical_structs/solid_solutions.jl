@@ -331,6 +331,12 @@ function SolidSolutionPhase(
                 "got $(length(end_members))",
         )
     end
+    if model isa SublatticeModel
+        _n_members(model) == length(end_members) || error(
+            "SolidSolutionPhase \"$name\": the sublattice model describes " *
+                "$(_n_members(model)) end-members, and $(length(end_members)) are given.",
+        )
+    end
     # A mixing energy that is concave somewhere does not describe one phase there.
     #
     # Refused rather than warned, and at construction rather than at the solve,

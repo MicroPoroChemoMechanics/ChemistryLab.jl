@@ -230,7 +230,7 @@ registration rather than trusted at every call, and a new model is a table entry
 rather than a hand-written closure.
 
 `KINETICS_RATE_MODELS` has the same shape but holds only `:arrhenius`. The cement
-laws — `parrot_killoh_avrami`, `waller`, `blaine_factor`, `humidity_factor` — are
+laws — `parrott_killoh_avrami`, `waller`, `blaine_factor`, `humidity_factor` — are
 hand-written closures.
 
 **The obstacle, and why it is not the one it looks like.** A thermodynamic

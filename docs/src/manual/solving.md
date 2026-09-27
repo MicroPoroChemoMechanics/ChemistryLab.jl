@@ -427,24 +427,55 @@ model = HKFActivityModel(å = literature_value("Helgeson1981", "nacl_distance_of
 model = HKFActivityModel(å = 0.0)
 ```
 
-!!! tip "Reproducing a GEM-Selektor CEMDATA18 run"
-    CEMDATA18 [Lothenbach2019](@cite) carries no ion-size parameter, so a
-    GEM-Selektor run of a Portland cement starts from `å = 0` and carries the
-    whole non-ideality in the B-dot term, with no salting-out on the neutral
-    species. For a KOH-dominated pore solution that is
+### The model Cemdata18 prescribes
 
-    ```julia
-    model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
-    ```
+Cemdata18 was derived with, and prescribes, an extended Debye–Hückel equation
+with **one** ion-size parameter and **one** B-dot common to every ion, set by the
+dominant electrolyte of the solution ([Lothenbach2019](@cite), Appendix C,
+Eq. C.1): 3.67 Å and 0.123 kg/mol for KOH, 3.31 Å and 0.098 for NaOH, with the
+same B-dot on the neutral species. It is [`cemdata18_activity_model`](@ref):
 
-    with the B-dot such a run implies, ``\dot B \approx 0.0976``, which
-    [A CEM I at equilibrium, with every solid solution declared](@ref)
-    identifies from the activity coefficients GEMS printed. That model
-    reproduces the activity coefficients such a run reports to 0.25 % on
-    the monovalent ions and 1.2 % on the divalent ones. The package defaults are
-    a different and more defensible model — the limiting law has no validity at
-    `I ≈ 0.2 mol/kg` — and give divalent coefficients about twice as large, so
-    the two must not be mixed in one comparison.
+```julia
+model = cemdata18_activity_model(:KOH)    # or :NaOH
+```
+
+The paper states it applicable up to about 1 mol/kg of ionic strength, which
+[`activity_model_range`](@ref) returns, and which the certificate of
+[`equilibrate_certified`](@ref) compares with the ionic strength of each answer
+(`cert.within_activity_range`).
+
+### Reproducing one particular GEM-Selektor run
+
+A GEM-Selektor run of a Portland cement with CEMDATA18, whose printed activity
+coefficients are the fixture of
+[A CEM I at equilibrium, with every solid solution declared](@ref), was
+configured differently: fitting its coefficients by charge class identifies the
+Debye–Hückel limiting law, `å = 0`, with a B-dot of about 0.0976 and none on the
+neutral species. That is a configuration of that run, not what Cemdata18
+prescribes, and the two models give different coefficients at the ionic
+strength of that run, 0.2097 mol/kg:
+
+```@example cemdata18_edh
+using ChemistryLab
+I = 0.2097                                   # mol/kg, the ionic strength of that run
+log10γ(m, z) = -m.A * z^2 * sqrt(I) / (1 + m.B * something(m.å, 0.0) * sqrt(I)) + m.Ḃ * I
+prescribed = cemdata18_activity_model(:KOH; temperature_dependent = false)
+that_run = HKFActivityModel(å = 0.0, Ḃ = 0.0976, Kₙ = 0.0)
+[(model = name, γ1 = round(10^log10γ(m, 1); digits = 3), γ2 = round(10^log10γ(m, 2); digits = 3))
+ for (name, m) in (("Cemdata18, Eq. C.1", prescribed), ("that GEMS run", that_run))]
+```
+
+The run printed γ = 0.611 for the monovalent ions and 0.121 for the divalent
+ones, which the second line reproduces and the first does not. To compare with
+that run, use its model; to follow Cemdata18, use the first:
+
+```julia
+model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)   # that run
+model = cemdata18_activity_model(:KOH)                   # the paper
+```
+
+The package default, `HKFActivityModel()`, is a third model, with an ion size
+per ion: do not mix it with either in one comparison.
 
 The A and B parameters depend on the water dielectric constant and density
 and can be computed explicitly via [`hkf_debye_huckel_params`](@ref):

@@ -166,7 +166,7 @@
     }
   },
   "tables": {
-    "parrot_killoh_1984": {
+    "parrott_killoh_1984": {
       "columns": ["phase", "k1", "n1", "k2", "k3", "n3"],
       "units": [null, "1/d", "1", "1/d", "1/d", "1"],
       "kind": "fitted",

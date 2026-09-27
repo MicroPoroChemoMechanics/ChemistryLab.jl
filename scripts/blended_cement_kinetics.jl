@@ -2,12 +2,12 @@
 # blended_cement_kinetics.jl
 #
 # Kinetic simulation of blended cement hydration with mineral additions:
-#   - 63% OPC clinker (CEM I 52.5 R, 4 Parrot-Killoh phases)
+#   - 63% OPC clinker (CEM I 52.5 R, 4 Parrott-Killoh phases)
 #   - 30% ground granulated blast-furnace slag (GGBS, slow)
 #   - 7% metakaolin (MK, more reactive than slag)
 #
 # CEMDATA18 does not contain GGBS or MK as reactants: we create custom Species
-# with a dummy ΔₐG⁰ (the Parrot-Killoh model ignores Ω).
+# with a dummy ΔₐG⁰ (the Parrott-Killoh model ignores Ω).
 # A mole of each addition is its representative formula unit, weighed by the
 # package from that formula, and the reaction enthalpy follows from the heat per
 # gram:
@@ -71,7 +71,7 @@ cs_base = ChemicalSystem(species_base, CEMDATA_PRIMARIES)
 # over it would contradict the atoms the species carries.
 #
 # Dummy ΔₐG⁰: very negative → Ω ≈ 0 (dissolution always favored).
-# Parrot-Killoh ignores Ω; the value does not affect kinetic rates.
+# Parrott-Killoh ignores Ω; the value does not affect kinetic rates.
 
 const _dummy_G = NumericFunc((T, P) -> -1_200_000.0, (:T, :P), u"J/mol")
 
@@ -137,24 +137,24 @@ for (name, frac) in pairs(COMPOSITION)
 end
 set_quantity!(state0, "H2O@", WB * u"kg")
 
-# ── 5. Parrot & Killoh kinetic models ────────────────────────────────────────
+# ── 5. Parrott & Killoh kinetic models ────────────────────────────────────────
 #
 # α_max according to Powers (1948): hydration limited by available water
 const α_max = min(1.0, WB / 0.42)
 
-# Clinker (Parrot & Killoh 1984, Schindler & Folliard 2005 corrections)
+# Clinker (Parrott & Killoh 1984, Schindler & Folliard 2005 corrections)
 # Blaine fineness of the binder, used by the canonical rate law through
 # `blaine_factor`. 380 m²/kg is an ordinary CEM I.
 const BLAINE = 380.0u"m^2/kg"
 
-pk_C3S = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max, blaine = BLAINE)
-pk_C2S = parrot_killoh_avrami(PK84_PARAMS_C2S, "C2S"; α_max, blaine = BLAINE)
-pk_C3A = parrot_killoh_avrami(PK84_PARAMS_C3A, "C3A"; α_max, blaine = BLAINE)
-pk_C4AF = parrot_killoh_avrami(PK84_PARAMS_C4AF, "C4AF"; α_max, blaine = BLAINE)
+pk_C3S = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max, blaine = BLAINE)
+pk_C2S = parrott_killoh_avrami(PK84_PARAMS_C2S, "C2S"; α_max, blaine = BLAINE)
+pk_C3A = parrott_killoh_avrami(PK84_PARAMS_C3A, "C3A"; α_max, blaine = BLAINE)
+pk_C4AF = parrott_killoh_avrami(PK84_PARAMS_C4AF, "C4AF"; α_max, blaine = BLAINE)
 
-# Supplementary cementitious materials do not follow Parrot-Killoh: their
+# Supplementary cementitious materials do not follow Parrott-Killoh: their
 # pozzolanic or latent-hydraulic reaction is a sigmoid in log-time, which is what
-# `waller` implements. These two used to call the deprecated `parrot_killoh` with
+# `waller` implements. These two used to call the deprecated `parrott_killoh` with
 # parameter sets adapted by hand; that function is diffusion-limited from a few
 # percent of reaction on, so both SCMs stalled at a fraction of their `α_max`.
 #

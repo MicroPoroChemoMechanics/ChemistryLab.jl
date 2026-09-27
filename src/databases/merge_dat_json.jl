@@ -246,64 +246,29 @@ Merge PHREEQC .dat phase data into a ThermoFun JSON database file.
   - `output_path`: path for output merged JSON file.
 
 Reads both files, extracts phases from the .dat file, merges them into the JSON
-database structure, and writes the result preserving the original JSON formatting.
+database structure, and writes the result with the fields of the input file in
+the order it gives them. Returns `output_path`.
 """
 function merge_json(json_path, dat_path, output_path)
-    # The two inputs are resolved against the bundled `data/` directory when the
-    # working directory does not hold them; `output_path` never is, because it
+    # The two inputs are resolved as `resolve_data_path` resolves them, a
+    # database name being obtained on demand; `output_path` never is, because it
     # names a file to create.
     json_path = resolve_data_path(json_path)
     dat_path = resolve_data_path(dat_path)
 
-    # Read the initial JSON file
-    initial_content = read(json_path, String)
-
-    # Parse the initial JSON file to get field order
+    # The fields are kept in the order the input file gives them. That order is
+    # not the same in every release: ThermoHub's own files list `elements`
+    # before `reactions`, and a writer that spliced text between those two keys
+    # assuming the opposite order failed on them.
     json_data = JSON.parsefile(json_path)
-
-    # Preserve the initial structure
-    dat_content = read(dat_path, String)
-    new_reactions = parse_phases(dat_content)
-
-    # Add new reactions
+    new_reactions = parse_phases(read(dat_path, String))
     merged_data = merge_reactions(json_data, new_reactions)
 
-    # Write the output JSON file, preserving the initial order
-    return open(output_path, "w") do f
-        # Find the start and end indices of the "reactions" section
-        lines = split(initial_content, '\n')
-        reactions_start = 0
-        reactions_end = 0
-        for (i, line) in enumerate(lines)
-            if occursin("\"reactions\": [", line)
-                reactions_start = i
-            elseif reactions_start != 0 && occursin("\"elements\": [", line)
-                reactions_end = i - 1
-                break
-            end
-        end
-
-        # Write the initial content up to the start of reactions
-        for i in 1:(reactions_start - 1)
-            write(f, lines[i] * "\n")
-        end
-
-        # Write the start line of reactions
-        write(f, lines[reactions_start] * "\n")
-
-        # Write all reactions (existing and new)
-        for (i, reaction) in enumerate(merged_data["reactions"])
-            write_reaction(f, reaction)
-            if i < length(merged_data["reactions"])
-                write(f, ",\n")
-            else
-                write(f, "\n")
-            end
-        end
-
-        # Write the end of reactions and the rest of the file
-        for i in reactions_end:length(lines)
-            write(f, lines[i] * "\n")
-        end
+    # Every reaction, the existing ones and the added ones, in the normalized
+    # form `write_reaction` gives it.
+    merged_data["reactions"] = [JSON.parse(sprint(write_reaction, r)) for r in merged_data["reactions"]]
+    open(output_path, "w") do f
+        JSON.print(f, merged_data, 2)
     end
+    return output_path
 end

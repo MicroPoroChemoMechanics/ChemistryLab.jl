@@ -109,7 +109,7 @@ so that `k₀` is the measured constant *at* `T_ref` and carries its own unit,
 instead of being an extrapolation to infinite temperature. The shipped parameter
 sets for this family come from [PalandriKharaka2004](@cite).
 
-## 2. Clinker hydration: Parrot & Killoh
+## 2. Clinker hydration: Parrott & Killoh
 
 A clinker phase does not dissolve into a solution at a rate set by its own
 undersaturation — it is consumed behind a growing layer of hydrate, and the
@@ -162,8 +162,8 @@ branch of **belite** reduces to ``k_1(1-\xi)``, which never limits, so C₂S is
 governed by the power law throughout. And **alite** never reaches its
 diffusion-controlled stage. The original authors acknowledged both.
 
-!!! warning "Two Parrot–Killoh variants ship, and only one is attributed"
-    [`parrot_killoh`](@ref) is a *different*, smoothed variant that predates
+!!! warning "Two Parrott–Killoh variants ship, and only one is attributed"
+    [`parrott_killoh`](@ref) is a *different*, smoothed variant that predates
     this one in the package (the two are set side by side in
     [the tutorial](@ref pk-variants)) — `min(max(r_{NG}, r_I), r_D)` with a damped
     nucleation term — and its `PK_PARAMS_*` are not transferable to the
@@ -175,7 +175,7 @@ diffusion-controlled stage. The original authors acknowledged both.
     was to stop claiming it. Measured consequence: with `PK_PARAMS_*` all four
     phases land on the diffusion branch almost immediately and a CEM I at
     w/c 0.40 reaches α ≈ 0.234 at seven days against the ≈ 0.61 the literature
-    reports. Use [`parrot_killoh_avrami`](@ref).
+    reports. Use [`parrott_killoh_avrami`](@ref).
 
 ## 3. Supplementary materials: the Waller sigmoid
 
@@ -290,7 +290,7 @@ saturation rather than from a schedule.
 
 In every law shipped here ``\beta_B`` is a **number**, computed once from the
 fineness given at construction and carried through the whole integration. That
-is not an oversight: it is the form the Parrot–Killoh and Waller constants were
+is not an oversight: it is the form the Parrott–Killoh and Waller constants were
 fitted in, so it is the form in which those constants mean what they say.
 
 A grain that dissolves does not keep its area. [`ShrinkingCoreArea`](@ref) says
@@ -361,7 +361,7 @@ refilled from the bath in one case and not in the other.
 | `WALLER_PARAMS_*` | Waller (1999), as used by [Lavergne2018](@cite) |
 | the dissolution rate constants and their exponents | [PalandriKharaka2004](@cite) |
 | `blaine_ref` 385 / 400 m²/kg | the finenesses those fits were made at |
-| the 0.80 humidity cut and its exponent | Parrot et al., as used by van Breugel |
+| the 0.80 humidity cut and its exponent | Parrott et al., as used by van Breugel |
 | `powers_alpha_max` 0.42 / 0.36 | [Powers1948](@cite) |
 | `CALIBRATED_THETA` | **fitted here**, on one record — [the calibration page](@ref ex-hydration-calibration) |
 | an SCM's reacted fraction at a given age | **an input**, measured or assumed — never a constant of the code |

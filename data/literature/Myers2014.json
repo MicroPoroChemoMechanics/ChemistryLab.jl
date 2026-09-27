@@ -1,0 +1,795 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Myers2014",
+    "doi": "10.1016/j.cemconres.2014.07.005",
+    "citation": "Myers, R. J., Bernal, S. A., Provis, J. L. (2014). A thermodynamic model for C-(N-)A-S-H gel: CNASH_ss. Derivation and validation. Cement and Concrete Research 66, 27-47.",
+    "location": "Table 1, Eqs. (15), (18)-(21) and Appendix B"
+  },
+  "transcription": {
+    "from": "the published article (PDF): Table 1 read on the rendered page, Eqs. (15) and (18)-(21) and the text of Section 4, and Appendix B checked on the rendered page",
+    "checked_against_source": true,
+    "note": "The sublattice formula of each end-member in Table 1 lists, after the two sites every end-member shares, [(CaSiO3.5)-]1 and [H2O]1, six sites with the stoichiometric coefficients 2, 2, 2, 1, 1 and 1, the last being the IW site (a vacancy or H2O). The species of each site are abbreviated here: AlH = Al0.0625O0.125H0.1875, AlNa = Al0.0625Na0.0625O0.125H0.125, CaH = Ca0.0625O0.0625H0.125, CaNa = Ca0.0625O0.0625Na0.125, SiH = Si0.0625O0.125H0.125, SiNa = Si0.0625O0.125Na0.125 (each with charge 0.125+), V = vacancy of the IW site, W = H2O on the IW site. As the paper defines it, a species on one site is distinct from the same chemistry on another. Eq. (15) gives the chemical potential of an end-member as its standard one plus RT times the sum over the six sites of the coefficient times the logarithm of the site fraction of its species; the model is ideal (no excess term) and the reciprocal terms are set to zero."
+  },
+  "tables": {
+    "cnash_sites": {
+      "columns": [
+        "site",
+        "multiplicity"
+      ],
+      "units": [
+        null,
+        "1"
+      ],
+      "kind": "published",
+      "location": "Table 1, sublattice formulas; Eq. (15)",
+      "rows": [
+        [
+          "n1",
+          2
+        ],
+        [
+          "n2",
+          2
+        ],
+        [
+          "n3",
+          2
+        ],
+        [
+          "n4",
+          1
+        ],
+        [
+          "n5",
+          1
+        ],
+        [
+          "n6",
+          1
+        ]
+      ]
+    },
+    "cnash_occupancy": {
+      "columns": [
+        "end_member",
+        "printed",
+        "site",
+        "species"
+      ],
+      "units": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "kind": "published",
+      "location": "Table 1, sublattice formulas",
+      "rows": [
+        [
+          "5CA",
+          "5CA",
+          "n1",
+          "AlH"
+        ],
+        [
+          "5CA",
+          "5CA",
+          "n2",
+          "AlH"
+        ],
+        [
+          "5CA",
+          "5CA",
+          "n3",
+          "CaH"
+        ],
+        [
+          "5CA",
+          "5CA",
+          "n4",
+          "CaH"
+        ],
+        [
+          "5CA",
+          "5CA",
+          "n5",
+          "CaH"
+        ],
+        [
+          "5CA",
+          "5CA",
+          "n6",
+          "V"
+        ],
+        [
+          "INFCA",
+          "INFCA",
+          "n1",
+          "AlH"
+        ],
+        [
+          "INFCA",
+          "INFCA",
+          "n2",
+          "AlH"
+        ],
+        [
+          "INFCA",
+          "INFCA",
+          "n3",
+          "SiH"
+        ],
+        [
+          "INFCA",
+          "INFCA",
+          "n4",
+          "AlH"
+        ],
+        [
+          "INFCA",
+          "INFCA",
+          "n5",
+          "SiH"
+        ],
+        [
+          "INFCA",
+          "INFCA",
+          "n6",
+          "V"
+        ],
+        [
+          "5CNA",
+          "5CNA",
+          "n1",
+          "AlNa"
+        ],
+        [
+          "5CNA",
+          "5CNA",
+          "n2",
+          "AlNa"
+        ],
+        [
+          "5CNA",
+          "5CNA",
+          "n3",
+          "CaH"
+        ],
+        [
+          "5CNA",
+          "5CNA",
+          "n4",
+          "CaNa"
+        ],
+        [
+          "5CNA",
+          "5CNA",
+          "n5",
+          "CaNa"
+        ],
+        [
+          "5CNA",
+          "5CNA",
+          "n6",
+          "V"
+        ],
+        [
+          "INFCNA",
+          "INFCNA",
+          "n1",
+          "AlNa"
+        ],
+        [
+          "INFCNA",
+          "INFCNA",
+          "n2",
+          "AlNa"
+        ],
+        [
+          "INFCNA",
+          "INFCNA",
+          "n3",
+          "SiNa"
+        ],
+        [
+          "INFCNA",
+          "INFCNA",
+          "n4",
+          "AlNa"
+        ],
+        [
+          "INFCNA",
+          "INFCNA",
+          "n5",
+          "SiNa"
+        ],
+        [
+          "INFCNA",
+          "INFCNA",
+          "n6",
+          "V"
+        ],
+        [
+          "INFCN",
+          "INFCN",
+          "n1",
+          "SiNa"
+        ],
+        [
+          "INFCN",
+          "INFCN",
+          "n2",
+          "SiNa"
+        ],
+        [
+          "INFCN",
+          "INFCN",
+          "n3",
+          "SiH"
+        ],
+        [
+          "INFCN",
+          "INFCN",
+          "n4",
+          "SiNa"
+        ],
+        [
+          "INFCN",
+          "INFCN",
+          "n5",
+          "SiH"
+        ],
+        [
+          "INFCN",
+          "INFCN",
+          "n6",
+          "V"
+        ],
+        [
+          "T2C-CNASHss",
+          "T2C*",
+          "n1",
+          "CaH"
+        ],
+        [
+          "T2C-CNASHss",
+          "T2C*",
+          "n2",
+          "CaH"
+        ],
+        [
+          "T2C-CNASHss",
+          "T2C*",
+          "n3",
+          "CaH"
+        ],
+        [
+          "T2C-CNASHss",
+          "T2C*",
+          "n4",
+          "CaH"
+        ],
+        [
+          "T2C-CNASHss",
+          "T2C*",
+          "n5",
+          "CaH"
+        ],
+        [
+          "T2C-CNASHss",
+          "T2C*",
+          "n6",
+          "W"
+        ],
+        [
+          "T5C-CNASHss",
+          "T5C*",
+          "n1",
+          "SiH"
+        ],
+        [
+          "T5C-CNASHss",
+          "T5C*",
+          "n2",
+          "SiH"
+        ],
+        [
+          "T5C-CNASHss",
+          "T5C*",
+          "n3",
+          "CaH"
+        ],
+        [
+          "T5C-CNASHss",
+          "T5C*",
+          "n4",
+          "CaH"
+        ],
+        [
+          "T5C-CNASHss",
+          "T5C*",
+          "n5",
+          "CaH"
+        ],
+        [
+          "T5C-CNASHss",
+          "T5C*",
+          "n6",
+          "W"
+        ],
+        [
+          "TobH-CNASHss",
+          "TobH*",
+          "n1",
+          "SiH"
+        ],
+        [
+          "TobH-CNASHss",
+          "TobH*",
+          "n2",
+          "SiH"
+        ],
+        [
+          "TobH-CNASHss",
+          "TobH*",
+          "n3",
+          "SiH"
+        ],
+        [
+          "TobH-CNASHss",
+          "TobH*",
+          "n4",
+          "SiH"
+        ],
+        [
+          "TobH-CNASHss",
+          "TobH*",
+          "n5",
+          "SiH"
+        ],
+        [
+          "TobH-CNASHss",
+          "TobH*",
+          "n6",
+          "W"
+        ]
+      ]
+    },
+    "cnash_species": {
+      "columns": [
+        "species",
+        "formula"
+      ],
+      "units": [
+        null,
+        null
+      ],
+      "kind": "published",
+      "location": "Table 1, sublattice formulas",
+      "rows": [
+        [
+          "AlH",
+          "Al0.0625O0.125H0.1875"
+        ],
+        [
+          "AlNa",
+          "Al0.0625Na0.0625O0.125H0.125"
+        ],
+        [
+          "CaH",
+          "Ca0.0625O0.0625H0.125"
+        ],
+        [
+          "CaNa",
+          "Ca0.0625O0.0625Na0.125"
+        ],
+        [
+          "SiH",
+          "Si0.0625O0.125H0.125"
+        ],
+        [
+          "SiNa",
+          "Si0.0625O0.125Na0.125"
+        ],
+        [
+          "V",
+          ""
+        ],
+        [
+          "W",
+          "H2O"
+        ]
+      ]
+    },
+    "cnash_end_members": {
+      "columns": [
+        "end_member",
+        "printed",
+        "formula"
+      ],
+      "units": [
+        null,
+        null,
+        null
+      ],
+      "kind": "published",
+      "location": "Table 1, chemical formulas",
+      "rows": [
+        [
+          "5CA",
+          "5CA",
+          "(CaO)1.25(Al2O3)0.125(SiO2)1(H2O)1.625"
+        ],
+        [
+          "INFCA",
+          "INFCA",
+          "(CaO)1(Al2O3)0.15625(SiO2)1.1875(H2O)1.65625"
+        ],
+        [
+          "5CNA",
+          "5CNA",
+          "(CaO)1.25(Na2O)0.25(Al2O3)0.125(SiO2)1(H2O)1.375"
+        ],
+        [
+          "INFCNA",
+          "INFCNA",
+          "(CaO)1(Na2O)0.34375(Al2O3)0.15625(SiO2)1.1875(H2O)1.3125"
+        ],
+        [
+          "INFCN",
+          "INFCN",
+          "(CaO)1(Na2O)0.3125(SiO2)1.5(H2O)1.1875"
+        ],
+        [
+          "T2C-CNASHss",
+          "T2C*",
+          "(CaO)1.5(SiO2)1(H2O)2.5"
+        ],
+        [
+          "T5C-CNASHss",
+          "T5C*",
+          "(CaO)1.25(SiO2)1.25(H2O)2.5"
+        ],
+        [
+          "TobH-CNASHss",
+          "TobH*",
+          "(CaO)1(SiO2)1.5(H2O)2.5"
+        ]
+      ]
+    },
+    "cnash_shared_sites": {
+      "columns": [
+        "species",
+        "multiplicity"
+      ],
+      "units": [
+        null,
+        "1"
+      ],
+      "kind": "published",
+      "location": "Table 1, sublattice formulas",
+      "rows": [
+        [
+          "CaSiO3.5",
+          1
+        ],
+        [
+          "H2O",
+          1
+        ]
+      ]
+    },
+    "cnash_site_mixing_terms": {
+      "columns": [
+        "equation",
+        "printed",
+        "coefficient",
+        "sum_of_mole_fractions"
+      ],
+      "units": [
+        null,
+        null,
+        "1",
+        null
+      ],
+      "kind": "published",
+      "location": "Appendix B, Eqs. (B1)-(B8)",
+      "rows": [
+        [
+          "B1",
+          "5CA",
+          2,
+          "5CA + INFCA"
+        ],
+        [
+          "B1",
+          "5CA",
+          2,
+          "5CA + INFCA"
+        ],
+        [
+          "B1",
+          "5CA",
+          2,
+          "5CA + 5CNA + T2C* + T5C*"
+        ],
+        [
+          "B1",
+          "5CA",
+          1,
+          "5CA + T2C* + T5C*"
+        ],
+        [
+          "B1",
+          "5CA",
+          1,
+          "5CA + T2C* + T5C*"
+        ],
+        [
+          "B1",
+          "5CA",
+          1,
+          "5CA + INFCA + 5CNA + INFCNA + INFCN"
+        ],
+        [
+          "B2",
+          "INFCA",
+          2,
+          "5CA + INFCA"
+        ],
+        [
+          "B2",
+          "INFCA",
+          2,
+          "5CA + INFCA"
+        ],
+        [
+          "B2",
+          "INFCA",
+          2,
+          "INFCA + INFCN + TobH*"
+        ],
+        [
+          "B2",
+          "INFCA",
+          1,
+          "INFCA"
+        ],
+        [
+          "B2",
+          "INFCA",
+          1,
+          "INFCA + INFCN + TobH*"
+        ],
+        [
+          "B2",
+          "INFCA",
+          1,
+          "5CA + INFCA + 5CNA + INFCNA + INFCN"
+        ],
+        [
+          "B3",
+          "5CNA",
+          2,
+          "5CNA + INFCNA"
+        ],
+        [
+          "B3",
+          "5CNA",
+          2,
+          "5CNA + INFCNA"
+        ],
+        [
+          "B3",
+          "5CNA",
+          2,
+          "5CA + 5CNA + T2C* + T5C*"
+        ],
+        [
+          "B3",
+          "5CNA",
+          1,
+          "5CNA"
+        ],
+        [
+          "B3",
+          "5CNA",
+          1,
+          "5CNA"
+        ],
+        [
+          "B3",
+          "5CNA",
+          1,
+          "5CA + INFCA + 5CNA + INFCNA + INFCN"
+        ],
+        [
+          "B4",
+          "INFCNA",
+          2,
+          "5CNA + INFCNA"
+        ],
+        [
+          "B4",
+          "INFCNA",
+          2,
+          "5CNA + INFCNA"
+        ],
+        [
+          "B4",
+          "INFCNA",
+          2,
+          "INFCNA"
+        ],
+        [
+          "B4",
+          "INFCNA",
+          1,
+          "INFCNA"
+        ],
+        [
+          "B4",
+          "INFCNA",
+          1,
+          "INFCNA"
+        ],
+        [
+          "B4",
+          "INFCNA",
+          1,
+          "5CA + INFCA + 5CNA + INFCNA + INFCN"
+        ],
+        [
+          "B5",
+          "INFCN",
+          2,
+          "INFCN"
+        ],
+        [
+          "B5",
+          "INFCN",
+          2,
+          "INFCN"
+        ],
+        [
+          "B5",
+          "INFCN",
+          2,
+          "INFCA + INFCN + TobH*"
+        ],
+        [
+          "B5",
+          "INFCN",
+          1,
+          "INFCN"
+        ],
+        [
+          "B5",
+          "INFCN",
+          1,
+          "INFCA + INFCN + TobH*"
+        ],
+        [
+          "B5",
+          "INFCN",
+          1,
+          "5CA + INFCA + 5CNA + INFCNA + INFCN"
+        ],
+        [
+          "B6",
+          "T2C*",
+          2,
+          "T2C*"
+        ],
+        [
+          "B6",
+          "T2C*",
+          2,
+          "T2C*"
+        ],
+        [
+          "B6",
+          "T2C*",
+          2,
+          "5CA + 5CNA + T2C* + T5C*"
+        ],
+        [
+          "B6",
+          "T2C*",
+          1,
+          "5CA + T2C* + T5C*"
+        ],
+        [
+          "B6",
+          "T2C*",
+          1,
+          "5CA + T2C* + T5C*"
+        ],
+        [
+          "B6",
+          "T2C*",
+          1,
+          "T2C* + T5C* + TobH*"
+        ],
+        [
+          "B7",
+          "T5C*",
+          2,
+          "T5C* + TobH*"
+        ],
+        [
+          "B7",
+          "T5C*",
+          2,
+          "T5C* + TobH*"
+        ],
+        [
+          "B7",
+          "T5C*",
+          2,
+          "5CA + 5CNA + T2C* + T5C*"
+        ],
+        [
+          "B7",
+          "T5C*",
+          1,
+          "5CA + T2C* + T5C*"
+        ],
+        [
+          "B7",
+          "T5C*",
+          1,
+          "5CA + T2C* + T5C*"
+        ],
+        [
+          "B7",
+          "T5C*",
+          1,
+          "T2C* + T5C* + TobH*"
+        ],
+        [
+          "B8",
+          "TobH*",
+          2,
+          "T5C* + TobH*"
+        ],
+        [
+          "B8",
+          "TobH*",
+          2,
+          "T5C* + TobH*"
+        ],
+        [
+          "B8",
+          "TobH*",
+          2,
+          "INFCA + INFCN + TobH*"
+        ],
+        [
+          "B8",
+          "TobH*",
+          1,
+          "TobH*"
+        ],
+        [
+          "B8",
+          "TobH*",
+          1,
+          "INFCA + INFCN + TobH*"
+        ],
+        [
+          "B8",
+          "TobH*",
+          1,
+          "T2C* + T5C* + TobH*"
+        ]
+      ]
+    }
+  },
+  "notes": [
+    "The two sites every end-member shares, [(CaSiO3.5)-]1 and [H2O]1, carry one species each and do not enter the configurational entropy.",
+    "cnash_site_mixing_terms is Appendix B transcribed on its own, independently of cnash_occupancy: each row is one term coefficient x ln(sum of the listed mole fractions) of ln(lambda_k) + ln(x_k), the logarithm of the activity of the end-member the equation is written for, in the paper's notation (5CA = 0, INFCA = 1, 5CNA = 2, INFCNA = 3, INFCN = 4, T2C* = 5, T5C* = 6, TobH* = 7). The test suite requires the two transcriptions to give the same activities.",
+    "cnash_end_members gives the chemical formula Table 1 prints for each end-member; cnash_shared_sites the two sites of the sublattice formula every end-member shares. The formula of an end-member is the sum of its shared sites and of its six variable sites weighted by their coefficients, which the test suite checks against both columns."
+  ]
+}

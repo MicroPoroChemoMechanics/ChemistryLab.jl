@@ -94,7 +94,7 @@ function build(compo; humidity = true, tend = 90 * 86400.0)
     rxns = AbstractReaction[]
     for (nm, pk, reac, prod) in specs
         rx = Reaction(reac, prod; symbol = nm)
-        rx[:rate] = parrot_killoh_avrami(
+        rx[:rate] = parrott_killoh_avrami(
             pk, nm; α_max = powers_alpha_max(WC), blaine = 380.0u"m^2/kg",
             humidity = h
         )

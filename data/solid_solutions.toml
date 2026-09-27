@@ -168,6 +168,32 @@ guggenheim  = "Lothenbach2019:AFt SO4/CO3"
 instances   = 2
 source      = "Lothenbach2019"
 
+# AFt, the Al/Fe couple: `ettringite05` and `Fe-ettringite05` are ettringite
+# and Fe-ettringite per mole of Al or Fe, the formula units the parameters of
+# Table 1, note b, are applied to (the CEMDATA18 cement export published with
+# xGEMS applies them to these two members, in this order). With Al first they
+# give the gap the article prints, X(Al) from 0.25 to 0.65, hence two instances.
+# Declaring this alongside a pure ettringite, or another AFt solution, counts the
+# same aluminate sulfate twice — pick one.
+[[solid_solution]]
+name        = "AFt_AlFe"
+end_members = ["ettringite05", "Fe-ettringite05"]
+model       = "redlich_kister"
+guggenheim  = "Lothenbach2019:AFt Al/Fe"
+instances   = 2
+source      = "Lothenbach2019"
+
+# AFm, the Al/Fe couple of monosulfate, per mole of Al or Fe, with the
+# parameters of Table 1, note h: with Al first, the printed gap X(Al) from 0.45
+# to 0.95. The same caution applies alongside `AFm_SO4_OH`.
+[[solid_solution]]
+name        = "AFm_AlFe"
+end_members = ["monosulphate1205", "Fe-monosulph05"]
+model       = "redlich_kister"
+guggenheim  = "Lothenbach2019:AFm Al/Fe"
+instances   = 2
+source      = "Lothenbach2019"
+
 # Hydrotalcite-pyroaurite, the Al/Fe couple at Mg:Al = 3. Distinct from the
 # `Hydrotalcite` entry above, which is the OH/CO3 couple at Mg:Al = 2.
 [[solid_solution]]
@@ -180,6 +206,38 @@ source      = "Lothenbach2019"
 [[solid_solution]]
 name        = "MSH"
 end_members = ["M075SH", "M15SH"]
+model       = "ideal"
+source      = "Lothenbach2019"
+
+# ── The other C-S-H models of Cemdata18 ────────────────────────────────────
+#
+# Sources
+#   Lothenbach2019 : Cemdata18, Table 4 and Section 4.1 -- the end-members and
+#                    the statement that each of these models, in the downscaled
+#                    form the database stores, is ideal
+#   Kulik2011      : the CSH3T model (Section 4.2) and the ECSH families
+#
+# Alternatives to `CSHQ` and `CNASH_ss`, for one gel: declare one C-S-H model
+# per system (see data/gel_models.toml, which refuses two together). CSH3T is
+# defined by Kulik as ideal mixing on two bridging-tetrahedral sites; on the
+# half formula units of the database records that mixing is close to ideal
+# mixing of the end-members, which is the form Cemdata18 ships. The site form is
+# `sublattice_model("Kulik2011:csh3t", members)`.
+[[solid_solution]]
+name        = "CSH3T"
+end_members = ["CSH3T-TobH", "CSH3T-T5C", "CSH3T-T2C"]
+model       = "ideal"
+source      = "Lothenbach2019"
+
+[[solid_solution]]
+name        = "ECSH1"
+end_members = ["ECSH1-TobCa", "ECSH1-SH", "ECSH1-NaSH", "ECSH1-KSH", "ECSH1-SrSH"]
+model       = "ideal"
+source      = "Lothenbach2019"
+
+[[solid_solution]]
+name        = "ECSH2"
+end_members = ["ECSH2-TobCa", "ECSH2-JenCa", "ECSH2-NaSH", "ECSH2-KSH", "ECSH2-SrSH"]
 model       = "ideal"
 source      = "Lothenbach2019"
 
@@ -208,16 +266,19 @@ source      = "Lothenbach2019"
 # test cannot see `CSHQ` with `CNASH_ss`, which share no composition; since
 # 0.25.1 the models listed in data/gel_models.toml are refused in pairs too.
 #
-# Known degeneracy, and it is real rather than a defect of the transcription:
-# the eight end-members span a space of rank 5, because Myers' model carries
-# site-occupancy constraints that an ideal eight-component mixture does not
-# reproduce. The feasible set stays bounded, so a solve is well posed, but the
-# individual end-member amounts are not determined by the element balance alone
-# — only their combinations are. Read the total and the Ca/Si, Al/Si ratios,
-# not the eight numbers one by one.
+# The mixing is Myers' own: ideal on six sites of the chain and interlayer
+# (their Eq. 15), not ideal between the eight end-members. The site occupancy
+# and the formula of each end-member are read from data/literature/Myers2014.json
+# by `sublattice_model`, which checks each formula against the database record.
+# Two of the end-members, 5CA and T5C*, hold no species of their own on any
+# site, so their activities stay finite as they vanish: they can be absent from
+# a gel that is present. The element balance fixes only five combinations of
+# the eight amounts; the mixing energy, strictly convex (its occupancy matrix
+# has rank 8), fixes the rest.
 [[solid_solution]]
 name        = "CNASH_ss"
 end_members = ["T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
                "5CA", "5CNA", "INFCA", "INFCN", "INFCNA"]
-model       = "ideal"
+model       = "sublattice"
+sublattice  = "Myers2014:cnash"
 source      = "Myers2014"

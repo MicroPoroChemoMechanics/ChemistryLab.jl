@@ -94,6 +94,59 @@ end
     @test ionic_strength(st) <= something(activity_model_range(DaviesActivityModel()), Inf)
 end
 
+@testsection "aqueous properties: the activity model Cemdata18 prescribes" begin
+    # Eq. (C.1) of Lothenbach et al. (2019): one ion size and one B-dot for
+    # every ion, the same B-dot on the neutral species, read from the
+    # transcription of the paper rather than typed here.
+    koh = cemdata18_activity_model(:KOH)
+    @test koh isa HKFActivityModel
+    @test koh.å == literature_value("Lothenbach2019", "edh_ion_size_KOH") == 3.67
+    @test koh.Ḃ == ustrip(us"kg/mol", literature_value("Lothenbach2019", "edh_b_gamma_KOH_25C")) == 0.123
+    @test koh.Kₙ == koh.Ḃ
+    @test koh.temperature_dependent
+    naoh = cemdata18_activity_model(:NaOH; temperature_dependent = false)
+    @test (naoh.å, naoh.Ḃ, naoh.Kₙ) == (3.31, 0.098, 0.098)
+    @test !naoh.temperature_dependent
+    @test_throws ArgumentError cemdata18_activity_model(:LiOH)
+    # The range the paper states, "up to approx. 1 m".
+    @test activity_model_range(koh) ==
+        ustrip(us"mol/kg", literature_value("Lothenbach2019", "edh_validity_ionic_strength"))
+
+    # It is NOT the model of the reconstructed GEMS run, whose limiting law
+    # reproduces that run's coefficients: at its ionic strength the prescribed
+    # model puts the monovalent coefficient more than 10 % above the printed one.
+    gems = reference_oracle("gems_cemdata18_portland")
+    I = gems.ionic_strength_mol_per_kg
+    m = cemdata18_activity_model(:KOH; temperature_dependent = false)
+    γ1 = 10.0^(-m.A * sqrt(I) / (1 + m.B * m.å * sqrt(I)) + m.Ḃ * I)
+    @test γ1 / gems.gamma.z1 > 1.1
+end
+
+@testsection "aqueous properties: the Cemdata18 model against GEMS3K on a cement" begin
+    # GEMS3K running the CEMDATA18 cement that xGEMS publishes, diluted in steps,
+    # at 20 and 25 °C (test/reference/xgems_cement.py). The export runs the
+    # extended Debye-Hückel with the Cemdata18 parameters for KOH: the same
+    # equation must give the same coefficients at the same ionic strength, with
+    # A and B from this package's water model. The export's B-dot follows the
+    # temperature (0.1227 at 20 °C), where the prescribed model keeps its 25 °C
+    # value, which is part of the tolerance.
+    x = reference_oracle("xgems_cement")
+    @test x.aqueous_model.ion_size_angstrom ≈ 3.67 atol = 1.0e-6
+    @test x.aqueous_model.b_gamma ≈ 0.123 atol = 1.0e-3
+    model = cemdata18_activity_model(:KOH)
+    for r in x.rows
+        @test r.converged
+        I = r.ionic_strength_mol_per_kg
+        AB = hkf_debye_huckel_params(r.T_K, 1.0e5)
+        f(z) = 10.0^(-AB.A * z^2 * sqrt(I) / (1 + AB.B * model.å * sqrt(I)) + model.Ḃ * I)
+        g = r.gamma
+        @test f(1) ≈ getproperty(g, Symbol("OH-")) rtol = 3.0e-3
+        @test f(1) ≈ getproperty(g, Symbol("K+")) rtol = 3.0e-3
+        @test f(2) ≈ getproperty(g, Symbol("Ca+2")) rtol = 1.0e-2
+        @test f(2) ≈ getproperty(g, Symbol("SO4-2")) rtol = 1.0e-2
+    end
+end
+
 @testsection "aqueous properties: a refusal names an activity model past its range" begin
     _, low = _aqp_state()
     _, high = _aqp_state(; n_ca = 1.0, n_oh = 2.0)       # I ≈ 3 mol/kg
@@ -272,8 +325,8 @@ end
     # enough to identify the model it ran. On a CEMDATA18 Portland cement,
     # fitting log10 γ = -D z² + E on |z| = 1 and 2 alone predicts |z| = 3, 4 and
     # 5 to five significant digits — so the model is the Debye-Hückel limiting
-    # law (å = 0, since CEMDATA18 carries no ion-size parameter) with Ḃ = E/I and
-    # no B-dot term on the neutrals.
+    # law (å = 0: the configuration of that run, which is not the Eq. C.1 that
+    # Cemdata18 prescribes) with Ḃ = E/I and no B-dot term on the neutrals.
     #
     # The coefficients and the ionic strength are GEMS' output, read from their
     # fixture; the fit is redone on them here rather than its result typed.

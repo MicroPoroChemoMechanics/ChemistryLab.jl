@@ -1,8 +1,8 @@
-# [A composite binder: two glasses at once](@id ex-cem5-composite)
+# [CEM V/A (S-V): a composite binder, two glasses at once](@id ex-cem5-composite)
 
 !!! info "Before this page"
-    [A blastfurnace cement](@ref ex-cem3-slag) and [A pozzolanic binder](@ref
-    ex-cem4-pozzolanic), whose difficulties this page combines.
+    [CEM III/A, a blastfurnace cement](@ref ex-cem3-slag) and [CEM IV, a pozzolanic
+    binder](@ref ex-cem4-pozzolanic), whose difficulties this page combines.
 
 A CEM V carries **both** a blastfurnace slag and a pozzolana, each between 18 %
 and 30 % for a CEM V/A, leaving 40 % to 64 % clinker. It is the binder in which
@@ -581,6 +581,6 @@ them where the calorimeter does not.
 
 The pages of this group compute where a binder ends; how it gets there is the
 subject of the applications in time, beginning with
-[Cement clinker hydration kinetics](@ref), and of
-[The full Portland cement, through its pore solution](@ref ex-ionic-opc) for the
+[Hydration kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics), and of
+[A complete CEM I 52.5 N, through its pore solution](@ref ex-ionic-opc) for the
 coupled route.

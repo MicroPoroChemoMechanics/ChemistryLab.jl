@@ -1,13 +1,14 @@
-# Build `data/cemdata18-chloride.json`: CEMDATA18 plus a chloride end member of
-# CSHQ, fitted on the sorption tests of Hirao et al. (2005).
+# Fit the chloride end member of CSHQ on the sorption tests of Hirao et al.
+# (2005), and write the fitted parameter to `data/chloride/cshq_cl.json`.
 #
 #   julia --project=docs data/chloride/regenerate.jl
 #
-# The file this writes is VENDORED, and this script exists so that it can be
-# reproduced and audited rather than trusted. CEMDATA18 is copied through
-# verbatim; one substance, `CSHQ-Cl`, is appended. Its Gibbs energy is the one
-# number fitted here (data/chloride/member.jl writes the end member and models
-# the tests). Two candidates are fitted, and the one the file ships is the one
+# ChemistryLab builds `cemdata18-chloride.json` from that file and the Cemdata18
+# database it obtains from its publisher (src/databases/derived.jl): CEMDATA18
+# copied through verbatim, one substance, `CSHQ-Cl`, appended. Its Gibbs energy
+# is the one number fitted here (data/chloride/member.jl writes the end member
+# and models the tests), and this script exists so that the fit can be
+# reproduced and audited rather than trusted. Two candidates are fitted, and the one the file ships is the one
 # whose binding grows with the Ca/Si of the gel, as measured; the other is
 # recorded with the reason it was rejected. README.md in this directory records
 # the choice of the data and the sets that were examined and rejected.
@@ -17,8 +18,8 @@ using ChemistryLab, DynamicQuantities, OptimaSolver, Printf
 
 const JSON = ChemistryLab.JSON
 const HERE = @__DIR__
-const SRC = joinpath(pkgdir(ChemistryLab), "data", "cemdata18-thermofun.json")
-const OUT = joinpath(pkgdir(ChemistryLab), "data", "cemdata18-chloride.json")
+const SRC = datapath("cemdata18-thermofun.json")
+const OUT = joinpath(HERE, "cshq_cl.json")
 
 include(joinpath(HERE, "member.jl"))
 using .ChlorideMember: AfterNaSiOH, CalciumChloride, SHIPPED, T_REF, calcium_trend, calibration_points,
@@ -154,20 +155,15 @@ function main()
         "activity_model" => "Debye-Hueckel limiting law with B-dot, a = 0, B-dot identified from test/reference/gems_cemdata18_portland.json",
         "generator" => "data/chloride/regenerate.jl",
     )
-    push!(db["substances"], member_entry(SHIPPED, db, byname, δ; provenance))
-    db["thermodataset"] = "cemdata18-chloride"
-    db["chloride_extension"] = Dict(
-        "base" => "cemdata18 (Lothenbach et al. 2019, doi:10.1016/j.cemconres.2018.04.018)",
-        "added_substances" => [sym],
-        "solid_solution" => "CSHQ_Cl in data/solid_solutions.toml",
-        "note" => "CEMDATA18 entries are copied unchanged; nothing is overwritten. The added end member is fitted, not measured: see its chloride_provenance.",
-    )
+    ext = JSON.parsefile(OUT; dicttype = Dict{String, Any})
+    ext["delta_J_per_mol"] = δ
+    ext["provenance"] = provenance
     tmp = OUT * ".tmp"
     open(tmp, "w") do io
-        JSON.print(io, db, 2)
+        JSON.print(io, ext, 2)
     end
     mv(tmp, OUT; force = true)
-    println("wrote $OUT ($(length(db["substances"])) substances)")
+    println("wrote $OUT (delta = $δ J/mol); the database is rebuilt from it on next use")
     return nothing
 end
 

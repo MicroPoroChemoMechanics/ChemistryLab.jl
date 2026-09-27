@@ -22,7 +22,7 @@ Pages = ["chemical_structs/chemical_states.jl"]
 
 The totals of a solid solution, and the first state of a second stage in which
 it no longer reacts. See
-[Chloride binding in blended cements](@ref sec-example-chloride-blended).
+[Chloride binding in CEM III/A and CEM III/B](@ref sec-example-chloride-blended).
 
 ```@autodocs
 Modules = [ChemistryLab]
@@ -60,7 +60,7 @@ Pages   = ["chemical_structs/ignition_loss.jl"]
 Turning that total into a curve: a decomposition window per phase, carrying its
 own provenance, and the operator that makes them **identifiable from a measured
 thermogram** rather than only supplied. See
-[Bound water, and the thermogram it integrates to](@ref sec-example-tga).
+[Bound water of CEM I 52.5 N and slag pastes, and the thermogram it integrates to](@ref sec-example-tga).
 
 ```@autodocs
 Modules = [ChemistryLab]

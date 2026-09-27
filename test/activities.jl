@@ -226,6 +226,31 @@ end
     @test γ_Na < 1.0
 end
 
+@testsection "Truesdell-Jones: parameters where given, PHREEQC's defaults elsewhere" begin
+    cs, h2o, na, cl = _nacl_system()
+    # Na+ with WATEQ parameters, Cl- without: the Davies equation for it.
+    model = TruesdellJonesActivityModel(; parameters = Dict("Na+" => (4.08, 0.082)))
+    lna = activity_model(cs, model)
+    m = 0.5
+    n_w = 1.0 / M_W
+    p = (ΔₐG⁰overRT = zeros(3), T = 298.15, P = 1.0e5, ϵ = 1.0e-30)
+    out = lna(_moles_from_molality(m, n_w), p)
+    A, B = model.A, model.B
+    sqI = sqrt(m)
+    γ_na = -A * sqI / (1 + B * 4.08 * sqI) + 0.082 * m
+    γ_cl = -A * (sqI / (1 + sqI) - 0.3 * m)
+    @test out[2] ≈ log(10) * γ_na + log(m) rtol = 1.0e-10
+    @test out[3] ≈ log(10) * γ_cl + log(m) rtol = 1.0e-10
+    # The per-species hook `activity_coefficients` calls gives the same values.
+    @test ChemistryLab._log10γ_species(model, na, 1, 0.0, m, sqI, A, B) ≈ γ_na rtol = 1.0e-12
+    @test ChemistryLab._log10γ_species(model, cl, -1, 0.0, m, sqI, A, B) ≈ γ_cl rtol = 1.0e-12
+    @test concentration_scale(model) === :molality
+    @test activity_model_range(model) === nothing
+    # Differentiable, as the other kernels are.
+    g = ForwardDiff.gradient(n -> lna(n, p)[2], _moles_from_molality(m, n_w))
+    @test all(isfinite, g)
+end
+
 # ── HKF: neutral species salting-out ─────────────────────────────────────────
 
 @testsection "HKF: neutral CO2 salting-out" begin

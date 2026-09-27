@@ -240,7 +240,7 @@ The recommended entry point is `build_species(filename)`, which reads a ThermoFu
 using ChemistryLab
 
 # Load all species from the database
-all_species = build_species(datapath("cemdata18-merged.json"))
+all_species = build_species(datapath("cemdata18-thermofun.json"))
 
 # Filter to species compatible with a seed set (Ca–C–H–O system)
 species = speciation(all_species, split("Cal H2O@ CO2");
@@ -252,7 +252,7 @@ To load only a specific subset of species by symbol, pass a list as the second a
 
 ```julia
 # Load only the listed symbols (faster for large databases)
-selected = build_species(datapath("cemdata18-merged.json"), split("Cal H2O@ H+ OH- Ca+2 CO3-2"))
+selected = build_species(datapath("cemdata18-thermofun.json"), split("Cal H2O@ H+ OH- Ca+2 CO3-2"))
 ```
 
 ### Low-level access: `read_thermofun_database`
@@ -274,31 +274,28 @@ species_list = build_species(aqueous)
 
 ### Merging databases
 
-`merge_json` combines a ThermoFun JSON file with a Phreeqc `.dat` file into a
-single merged JSON.
-
-**What it adds is not species.** That is the reading the word "merged" invites and
-it is the wrong one: the two files describe the same substances, and the shipped
-`cemdata18-merged.json` carries exactly the 228 of `cemdata18-thermofun.json`.
-What the `.dat` file brings is the **reactions** — 148 against 7 — and with them
-the phase-volume data, which is what makes volumes and porosity available on one
-consistent dataset. The test suite asserts both: identical in substances, a strict
-superset in reactions.
+`merge_json` combines a ThermoFun JSON file with a PHREEQC `.dat` file into a
+single JSON file. What it adds is the **dissolution reactions** of the `.dat`
+file, with their `log K`, and not species: the two files describe the same
+substances, and the ThermoFun file already carries their molar volumes. The test
+suite asserts both.
 
 ```julia
 merge_json(
-    datapath("cemdata18-thermofun.json"),            # bundled ThermoFun database
-    datapath("CEMDATA18-31-03-2022-phaseVol.dat"),   # bundled Phreeqc phase definitions
+    datapath("cemdata18-thermofun.json"),            # obtained from ThermoHub
+    datapath("CEMDATA18-31-03-2022-phaseVol.dat"),   # installed by hand from Empa
     "cemdata18-merged.json",                         # output: an ordinary path of your choosing
 )
 ```
 
-The two inputs are resolved against the bundled `data/` directory, so the call
-works from any working directory. The third argument is a file to be *written*,
+The two inputs are resolved as [`datapath`](@ref) resolves them, so the call
+works from any working directory once the Empa file is
+[installed](@ref sec-empa-dat). The third argument is a file to be *written*,
 and is never resolved that way: give it the path where you want the merged
-database. A pre-merged `cemdata18-merged.json` already ships with the package.
+database. The fields of the input keep their order in the output.
 
-The merged file can then be loaded with `build_species` as usual.
+The merged file can then be loaded with `build_species` or `build_reactions` as
+usual.
 
 ### Cemdata .dat parsing and extraction
 

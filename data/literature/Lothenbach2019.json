@@ -7,19 +7,48 @@
     "location": "Tables 1-3 and Appendix D"
   },
   "transcription": {
-    "from": "the accepted manuscript (PDF, 49 pages with line numbers): notes to Table 1 (lines 234-239), Table 2 (lines 247-310), Table 3 (lines 582-600), Tables D.1 and D.2 (lines 1532-1551), read on the page text and checked value by value; the journal's page numbers are not in that copy",
+    "from": "the accepted manuscript (PDF, 49 pages with line numbers): notes to Table 1 (lines 234-239), Table 2 (lines 247-310), Table 3 (lines 582-600), Appendix C (lines 1474-1483, Eq. C.1 read on the rendered page, its text layer being garbled), Tables D.1 and D.2 (lines 1532-1551), read on the page text and checked value by value; the journal's page numbers are not in that copy",
     "checked_against_source": true,
-    "note": "The Guggenheim parameters were typed into the miscibility_gap example, and the solubility products and Appendix D values into test/cemdata18_reference.jl, before this file existed; all agree with the manuscript. Note a attaches to (Al-)ettringite and tricarboaluminate, note g to C4AH13 and C4AsH12 (monosulfate). Monocarbonate carries no such note: Cemdata18 does not treat monosulfate and monocarbonate as a solid solution."
+    "note": "The Guggenheim parameters were typed into the miscibility_gap example, and the solubility products and Appendix D values into test/cemdata18_reference.jl, before this file existed; all agree with the manuscript. Note a attaches to (Al-)ettringite and tricarboaluminate, note b to (Al-)ettringite and Fe-ettringite (the gap in X_Al), note g to C4AH13 and C4AsH12 (monosulfate), note h to C4AsH12 and C4FsH12 (the Al/Fe monosulfate gap, in X_Al). Monocarbonate carries no such note: Cemdata18 does not treat monosulfate and monocarbonate as a solid solution."
+  },
+  "quantities": {
+    "edh_ion_size_KOH": {
+      "value": 3.67, "unit": "1", "kind": "published", "uncertainty": null,
+      "location": "Appendix C, lines 1476-1477",
+      "description": "Common ion-size parameter a_i of the extended Debye-Hueckel equation (C.1) for KOH solutions, in Angstrom."
+    },
+    "edh_ion_size_NaOH": {
+      "value": 3.31, "unit": "1", "kind": "published", "uncertainty": null,
+      "location": "Appendix C, lines 1476-1477",
+      "description": "Common ion-size parameter a_i of the extended Debye-Hueckel equation (C.1) for NaOH solutions, in Angstrom."
+    },
+    "edh_b_gamma_KOH_25C": {
+      "value": 0.123, "unit": "kg/mol", "kind": "published", "uncertainty": null,
+      "location": "Appendix C, line 1481",
+      "description": "Common third parameter b_y of Eq. (C.1) for a KOH electrolyte at 25 C, printed as '~0.123'. It also multiplies I for uncharged species, log(gamma) = b_y I."
+    },
+    "edh_b_gamma_NaOH_25C": {
+      "value": 0.098, "unit": "kg/mol", "kind": "published", "uncertainty": null,
+      "location": "Appendix C, line 1481",
+      "description": "Common third parameter b_y of Eq. (C.1) for a NaOH electrolyte at 25 C, printed as '~0.098'."
+    },
+    "edh_validity_ionic_strength": {
+      "value": 1.0, "unit": "mol/kg", "kind": "published", "uncertainty": null,
+      "location": "Appendix C, line 1483",
+      "description": "Effective molal ionic strength up to which the paper states the extended Debye-Hueckel correction of Eq. (C.1) applicable: 'up to approx. 1 m'."
+    }
   },
   "tables": {
     "guggenheim_parameters": {
       "columns": ["pair", "alpha0", "alpha1", "gap_from", "gap_to"],
       "units": [null, "1", "1", "1", "1"],
       "kind": "fitted",
-      "location": "Table 1, notes a and g",
+      "location": "Table 1, notes a, b, g and h",
       "rows": [
         ["AFt SO4/CO3", 1.67, 0.946, 0.1, 0.55],
-        ["AFm SO4/OH", 0.188, 2.49, 0.5, 0.97]
+        ["AFm SO4/OH", 0.188, 2.49, 0.5, 0.97],
+        ["AFt Al/Fe", 2.1, -0.169, 0.25, 0.65],
+        ["AFm Al/Fe", 1.26, 1.57, 0.45, 0.95]
       ]
     },
     "solubility_products": {
@@ -64,8 +93,8 @@
         ["AlOHam", "Al(OH)3(am)", 0.24],
         ["AlOHmic", "Al(OH)3(mic)", -0.67],
         ["Gbs", "Al(OH)3(gibbsite)", -1.12],
-        ["", "Fe(OH)3(am)", -2.6],
-        ["", "Fe(OH)3(mic)", -4.6],
+        ["Fe(OH)3(am)", "Fe(OH)3(am)", -2.6],
+        ["Fe(OH)3(mic)", "Fe(OH)3(mic)", -4.6],
         ["FeOOHmic", "FeOOH(mic)", -5.6],
         ["Gt", "FeOOH(goethite)", -8.6],
         ["Portlandite", "CH", -5.2],
@@ -210,6 +239,10 @@
         ["AlOHmic", "OH-", -1.0],
         ["Gbs", "AlO2-", 1.0],
         ["Gbs", "OH-", -1.0],
+        ["Fe(OH)3(am)", "FeO2-", 1.0],
+        ["Fe(OH)3(am)", "OH-", -1.0],
+        ["Fe(OH)3(mic)", "FeO2-", 1.0],
+        ["Fe(OH)3(mic)", "OH-", -1.0],
         ["FeOOHmic", "FeO2-", 1.0],
         ["FeOOHmic", "OH-", -1.0],
         ["Gt", "FeO2-", 1.0],

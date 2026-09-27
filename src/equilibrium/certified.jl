@@ -287,6 +287,162 @@ function _ideal_start(
 end
 
 """
+    _linear_program(des, state, bfix) -> Union{NamedTuple, Nothing}
+
+The linear program over the pure phases of the problem `equilibrate_certified`
+is about to solve: minimize `gᵀn` subject to `A n = b`, `n ≥ 0`, with the
+standard potentials, the conservation matrix and the budget of the dual solve
+itself (OptimaSolver's `lp_start`). `nothing` when it could not be set up.
+
+The program is what the equilibrium becomes when every activity is one, and it
+answers two questions at the cost of a few hundred pivots.
+
+  - **Can the budget be met at all?** The minimization has no solution when no
+    non-negative amounts of the declared species reproduce `b`, and the program
+    says so with a Farkas vector `z`, `Aᵀz ≥ 0` and `bᵀz < 0`, verified: a
+    combination of the balances that every species raises and the budget lowers.
+    The cascade would otherwise spend its restarts, repairs and continuation on a
+    problem without an answer.
+  - **Where to start.** Its vertex is the assemblage of pure phases of lowest
+    standard energy, and its multipliers give every other species an amount; see
+    `_lp_lifted_state`.
+"""
+function _linear_program(des::DualEquilibriumSolver, state::ChemicalState, bfix)
+    return try
+        p = _build_params(state)
+        n0 = Float64[ustrip(us"mol", x) for x in state.n]
+        prob = _dual_problem(des, p, n0)
+        (; start = _optima_lp(prob, bfix), prob, params = p)
+    catch err
+        nothing
+    end
+end
+
+"""
+    _lp_lifted_state(state, lp) -> ChemicalState
+
+The start the linear program gives: its vertex for the species it holds, and
+for every other one the amount `exp(uⱼ − gⱼ)` its multipliers assign, `u = −Aᵀy`,
+capped at one mole. A species the vertex leaves at zero would sit at the floor
+of a logarithmic method, the worst place to start one from; at the multipliers'
+amount it starts where an ideal dilute species would be. A dead species (one
+whose component the budget lacks) stays at zero.
+
+It does not meet the budget exactly (a species at the multipliers' amount is
+added, not balanced), which the search does not need: `b` is fixed for the whole
+call, and a start is only where the first solve begins. Measured on two cold
+cements, the certified route from this state took 0.37 s and 0.26 s against
+4.8 s and 4.3 s from the recipe, to the same composition (1e-12 relative, pH to
+1e-13).
+"""
+function _lp_lifted_state(state::ChemicalState, lp)
+    s, prob = lp.start, lp.prob
+    u = -(transpose(prob.A) * s.y)
+    n = [
+        s.x[j] > 0 ? s.x[j] :
+            isnan(s.reduced_costs[j]) ? 0.0 : exp(clamp(u[j] - prob.g[j], -700.0, 0.0))
+            for j in eachindex(prob.g)
+    ]
+    return ChemicalState(state.system; T = state.T[1], P = state.P[1], n = n .* u"mol")
+end
+
+"""
+    _refuse_infeasible_budget(des, state, bfix, lp, ϵ) -> (state, certificate)
+
+The answer to a budget no amounts of the declared species can meet: a copy of
+the state as given, and its certificate with `optimal = false`, `budget_feasible = false`,
+`route = :infeasible` and `unplaceable`, the reason in words, read from the
+Farkas vector of the linear program.
+"""
+function _refuse_infeasible_budget(des::DualEquilibriumSolver, state, bfix, lp, ϵ)
+    z = lp.start.farkas
+    A = des.A
+    prim = [symbol(sp) for sp in des.system.SM.primaries]
+    rowname(k) = k <= length(prim) ? prim[k] : "site-coupling row $(k - length(prim))"
+    zmax = maximum(abs, z)
+    rows = [k for k in eachindex(z) if abs(z[k]) > 1.0e-12 * zmax]
+    amount(k) = round(bfix[k]; sigdigits = 4)
+    why = if length(rows) == 1
+        k = only(rows)
+        z[k] > 0 ?
+            "the budget asks for $(amount(k)) mol of $(rowname(k)), and every declared species holds it with a non-negative coefficient" :
+            "the budget asks for $(amount(k)) mol of $(rowname(k)), and no declared species holds a positive amount of it"
+    else
+        Az = transpose(A) * z
+        tie = [symbol(des.system.species[j]) for j in eachindex(Az) if abs(Az[j]) <= 1.0e-12 * zmax]
+        "the combination " *
+            join(["$(round(z[k] / zmax; sigdigits = 3)) × $(rowname(k)) (budget $(amount(k)) mol)" for k in rows], " + ") *
+            " is negative for the budget and non-negative for every declared species" *
+            (isempty(tie) ? "" : ", zero only for $(join(tie, ", "))")
+    end
+    cert = optimality_certificate(des, state; b = bfix, ϵ = ϵ)
+    cert = merge(
+        cert,
+        (; optimal = false, budget_feasible = false, unplaceable = why, route = :infeasible, n_dual_solves = 0),
+    )
+    msg = "equilibrate_certified: no non-negative amounts of the declared species meet the " *
+        "element budget: $why. There is no equilibrium to search for; the state is returned as given."
+    _strict_convergence() && error(msg)
+    @warn msg maxlog = 1
+    return (copy(state), cert)
+end
+
+"""
+    _ideal_mixing_system(cs) -> Union{ChemicalSystem, Nothing}
+
+`cs` with every sublattice phase replaced by ideal mixing of the same
+end-members, the species, their order and every other phase unchanged; `nothing`
+when `cs` has no sublattice phase.
+"""
+function _ideal_mixing_system(cs::ChemicalSystem)
+    ss = cs.solid_solutions
+    (ss === nothing || !any(ph -> model(ph) isa SublatticeModel, ss)) && return nothing
+    ideal = [
+        model(ph) isa SublatticeModel ?
+            SolidSolutionPhase{eltype(ph.end_members), IdealSolidSolutionModel}(
+                ph.name, ph.end_members, IdealSolidSolutionModel(), ph.instances, ph.declared,
+            ) : ph
+            for ph in ss
+    ]
+    return ChemicalSystem(
+        (f === :solid_solutions ? ideal : getfield(cs, f) for f in fieldnames(typeof(cs)))...,
+    )
+end
+
+"""
+    _ideal_mixing_start(state, model, bfix, ϵ, constraint, verbose; kwargs...)
+        -> Union{ChemicalState, Nothing}
+
+A certified answer to the same problem with every sublattice phase mixing its
+end-members ideally, as a state of `state.system`, to start the search from.
+`nothing` when the system has no sublattice phase, or when that solve does not
+certify.
+
+The two problems differ by the site-mixing term alone, and the one without it is
+the solve the package has always done. Measured on a CEM I paste with the CNASH
+gel of Myers et al. (CEMDATA18, its eq. C.1 activity model): certified in 20.5 s
+from the state as given, in 0.67 s from this start, which costs 0.25 s itself.
+"""
+function _ideal_mixing_start(
+        state::ChemicalState, model, bfix, ϵ::Float64, constraint,
+        verbose::Bool; kwargs...,
+    )
+    cs = _ideal_mixing_system(state.system)
+    cs === nothing && return nothing
+    return try
+        st = ChemicalState(cs; T = state.T[1], P = state.P[1], n = state.n)
+        eq0, cert0 = equilibrate_certified(
+            st; model = model, b = bfix, ϵ = ϵ, constraint = constraint,
+            verbose = false, autostart = true, kwargs...,
+        )
+        cert0.optimal ? ChemicalState(state.system; T = state.T[1], P = state.P[1], n = eq0.n) : nothing
+    catch err
+        verbose && @info "the ideal-mixing pre-solve did not run" err
+        nothing
+    end
+end
+
+"""
     _REPAIR_FRACTION
 
 What fraction of the amount the recipe could make of a missing phase
@@ -620,11 +776,34 @@ function equilibrate_path(
 end
 
 """
-    equilibrate_certified(state; model, ϵ, b, verbose, autostart, dual) -> (state, certificate)
+    equilibrate_certified(state; model, ϵ, b, verbose, autostart, lp_start, dual,
+                          fallback_model, fallback_on) -> (state, certificate)
 
 Equilibrium composition together with a proof of its global optimality, obtained
 by solving from every registered back end and keeping the answer
 [`optimality_certificate`](@ref) proves optimal.
+
+# The linear program over the pure phases comes first
+
+With every activity set to one, the equilibrium is a linear program:
+`minimize gᵀn subject to A n = b, n ≥ 0`. It is solved before anything else
+(OptimaSolver's `lp_start`), and it does two things.
+
+  - **It refuses an impossible budget.** When no non-negative amounts of the
+    declared species meet `b`, the program proves it with a combination of the
+    balances that every species raises and the budget lowers. The state is then
+    returned as given, with `optimal = false`, `budget_feasible = false`,
+    `route = :infeasible` and `unplaceable`, the reason in words; nothing is
+    searched, and `STRICT_CONVERGENCE` raises.
+  - **It gives the first start.** Its vertex, with every species it leaves out
+    raised to the amount its multipliers give it, is where the search begins: on
+    two cold cements, 0.21 s and 0.09 s against 4.6 s and 4.2 s without it, to the
+    same composition.
+
+`lp_start = false` skips it, and so does `autostart = false`. The certificate
+reports `budget_feasible`, the start the answer came from as `route`
+(`:lp_start`, `:state`, `:ideal_mixing`, `:ideal`, `:continuation`, `:restart`
+or `:repair`) and the number of dual solves the search ran, `n_dual_solves`.
 
 # The starting point is found, not asked for
 
@@ -673,6 +852,25 @@ Requires `OptimaSolver` (the dual Newton lives there). Systems without an aqueou
 phase, or without `H2O@`, cannot use the dual route; for those, this falls back to
 the plain [`equilibrate`](@ref) and returns `nothing` as the certificate.
 
+# A second activity model, when the first does not hold
+
+`fallback_model` names an activity model to use when `model` does not give a
+certified answer (`fallback_on = :refusal`, the default), or also when its
+certified answer lies past the ionic strength `model` is stated valid for
+(`fallback_on = :out_of_range`, see [`activity_model_range`](@ref)). The fallback
+is solved from the first answer when it certified, from `state` otherwise. When
+it certifies, its answer is returned, a warning names both models and the
+reason, and the certificate carries `fallback_used = true`, `fallback_reason`
+and the first certificate as `primary_certificate`. When it does not, the first
+answer is returned with `fallback_used = false`. Without a fallback, nothing
+changes.
+
+```julia
+eq, cert = equilibrate_certified(state; model = cemdata18_activity_model(),
+                                 fallback_model = HKFActivityModel(),
+                                 fallback_on = :out_of_range)
+```
+
 # Example
 
 ```julia
@@ -686,12 +884,61 @@ cert.worst_supersaturation   # negative: every absent phase undersaturated
 function equilibrate_certified(
         state::ChemicalState;
         model::AbstractActivityModel = DiluteSolutionModel(),
+        fallback_model::Union{Nothing, AbstractActivityModel} = nothing,
+        fallback_on::Symbol = :refusal,
+        kwargs...,
+    )
+    fallback_on in (:refusal, :out_of_range) || throw(
+        ArgumentError("fallback_on must be :refusal or :out_of_range; got :$fallback_on"),
+    )
+    fallback_model === nothing && return _equilibrate_certified(state; model = model, kwargs...)
+
+    # The first pass is silent and never raises: whether it failed is decided
+    # here, and said once, with the fallback's outcome.
+    quiet(f) = Base.CoreLogging.with_logger(f, Base.CoreLogging.NullLogger())
+    strict = _strict_convergence()
+    eq, cert = with(_STRICT_OVERRIDE => false) do
+        quiet(() -> _equilibrate_certified(state; model = model, kwargs...))
+    end
+    cert === nothing && return (eq, cert)
+    reason = !cert.optimal ? :refusal :
+        (fallback_on === :out_of_range && cert.within_activity_range === false) ? :out_of_range :
+        nothing
+    reason === nothing && return (eq, merge(cert, (; fallback_used = false)))
+
+    # From the certified answer when there is one, which is then only outside
+    # the range of its model, and from the caller's state otherwise.
+    start = cert.optimal ? eq : state
+    eq2, cert2 = with(_STRICT_OVERRIDE => false) do
+        quiet(() -> _equilibrate_certified(start; model = fallback_model, kwargs...))
+    end
+    why = reason === :refusal ?
+        "it did not certify (stationarity $(cert.stationarity), element balance $(cert.balance))" :
+        "its answer lies at an ionic strength of $(round(cert.ionic_strength; sigdigits = 3)) mol/kg, " *
+        "past the $(cert.activity_range) mol/kg the model is stated valid for"
+    if cert2 !== nothing && cert2.optimal
+        @warn "equilibrate_certified: the answer is that of the fallback activity model " *
+            "$(nameof(typeof(fallback_model))), because with $(nameof(typeof(model))) $why." maxlog = 1
+        return (eq2, merge(cert2, (; fallback_used = true, fallback_reason = reason, primary_certificate = cert)))
+    end
+    msg = "equilibrate_certified: $(nameof(typeof(model))) was not kept because $why, and the " *
+        "fallback $(nameof(typeof(fallback_model))) did not certify either (stationarity " *
+        "$(cert2 === nothing ? NaN : cert2.stationarity)); returning the first answer."
+    strict && !cert.optimal && error(msg)
+    @warn msg maxlog = 1
+    return (eq, merge(cert, (; fallback_used = false, fallback_reason = reason, fallback_certificate = cert2)))
+end
+
+function _equilibrate_certified(
+        state::ChemicalState;
+        model::AbstractActivityModel = DiluteSolutionModel(),
         b = nothing,
         ϵ::Float64 = 1.0e-16,
         verbose::Bool = false,
         constraint::EquilibriumConstraint = FixedTP(),
         parameters::Union{Nothing, Base.RefValue} = nothing,
         autostart::Bool = true,
+        lp_start::Bool = true,
         dual::NamedTuple = NamedTuple(),
         kwargs...,
     )
@@ -740,6 +987,15 @@ function equilibrate_certified(
         des.A * Float64[ustrip(us"mol", x) for x in state.n] :
         Float64.(collect(b))
 
+    # The linear program over the pure phases, solved before anything else: it
+    # proves a budget infeasible when it is, and otherwise gives a start. See
+    # `_linear_program`.
+    lp = (autostart && lp_start && constraint isa FixedTP && isempty(state.system.site_groups)) ?
+        _linear_program(des, state, bfix) : nothing
+    if lp !== nothing && lp.start.status === :infeasible
+        return _refuse_infeasible_budget(des, state, bfix, lp, ϵ)
+    end
+
     # Every back end's answer from `from`, and `from` itself — the only start
     # available if they all threw.
     #
@@ -753,9 +1009,11 @@ function equilibrate_certified(
     # an element balance of 27.6 mol, and with it clear the very same call
     # returned 1.8e-14. The result is still judged strictly, at the end of this
     # function, which is where the flag belongs.
-    function starts_from(from::ChemicalState, what::AbstractString)
+    route_of = IdDict{Any, Symbol}()
+    function starts_from(from::ChemicalState, what::AbstractString, route::Symbol)
+        route_of[from] = route
         solve_one = function (f)
-            return _relaxed_convergence() do
+            r = _relaxed_convergence() do
                 try
                     _exploring_starts() do
                         esolver = EquilibriumSolver(state.system, model, f(); kwargs...)
@@ -766,6 +1024,8 @@ function equilibrate_certified(
                     nothing
                 end
             end
+            r === nothing || (route_of[r] = route)
+            return r
         end
         return _LazyStarts(
             solve_one, copy(_SOLVER_FACTORIES), from, typeof(from)[], Ref(0),
@@ -789,7 +1049,28 @@ function equilibrate_certified(
         )
     end
 
-    starts = starts_from(state, "start")
+    starts = starts_from(state, "start", :state)
+
+    # The vertex of the linear program, with the species it leaves out raised to
+    # the amounts its multipliers give them, comes first. Measured on two cements
+    # (cement107, and a CEM I with the CNASH gel), against the same calls with
+    # `lp_start = false`: cold 0.05 and 0.02 times the time, warm (from the
+    # answer) 1.00 and 0.06, a neighbor (1 % more water, from the answer) 1.05
+    # and 0.04, every composition the same to 2e-8. See `_lp_lifted_state`.
+    if lp !== nothing && lp.start.status === :optimal
+        lifted = _lp_lifted_state(state, lp)
+        starts = Iterators.flatten((starts_from(lifted, "start from the linear program", :lp_start), starts))
+    end
+
+    # Ideal mixing as a stepping stone for a sublattice phase: see
+    # `_ideal_mixing_start`. First, because it is cheap and the cold search is
+    # not.
+    mixed = autostart ?
+        _ideal_mixing_start(state, model, bfix, ϵ, constraint, verbose; dual = dual, kwargs...) :
+        nothing
+    if mixed !== nothing
+        starts = Iterators.flatten((starts_from(mixed, "start from ideal mixing", :ideal_mixing), starts))
+    end
 
     eq, cert = search(starts)
 
@@ -821,7 +1102,7 @@ function equilibrate_certified(
             eq, cert = _keep_better(
                 eq, cert,
                 search(
-                    Iterators.flatten((starts_from(ideal, "start from the ideal answer"), starts)),
+                    Iterators.flatten((starts_from(ideal, "start from the ideal answer", :ideal), starts)),
                 )...,
             )
         end
@@ -854,7 +1135,7 @@ function equilibrate_certified(
             before = _kkt_error(cert)
             eq, cert = _keep_better(
                 eq, cert,
-                search(Iterators.flatten((starts_from(guess, "start from the continuation"), starts)))...,
+                search(Iterators.flatten((starts_from(guess, "start from the continuation", :continuation), starts)))...,
             )
             note = cert.optimal ?
                 "the continuation certified it" :
@@ -880,7 +1161,7 @@ function equilibrate_certified(
         # hard case costs a fixed handful of solves rather than looping.
         for _ in 1:_MAX_RESTARTS
             cert.optimal && break
-            eq2, cert2 = search(starts_from(eq, "restart from the answer"))
+            eq2, cert2 = search(starts_from(eq, "restart from the answer", :restart))
             improved = cert2.optimal || _kkt_error(cert2) < _kkt_error(cert)
             eq, cert = _keep_better(eq, cert, eq2, cert2)
             improved || break
@@ -899,7 +1180,7 @@ function equilibrate_certified(
         # replace. Handing the search the repaired composition *and* the
         # candidates it already had keeps the chemistry of the one and the trace
         # components of the others.
-        repair_search(f) = search(Iterators.flatten((starts_from(f, "repair start"), starts)))
+        repair_search(f) = search(Iterators.flatten((starts_from(f, "repair start", :repair), starts)))
         for _ in 1:_MAX_RESTARTS
             cert.optimal && break
             eq, cert, improved = _repair_round(
@@ -932,7 +1213,15 @@ function equilibrate_certified(
         @warn msg * "; returning the answer with the smallest KKT error — audit it with `optimality_certificate`" maxlog = 1
     end
     _check_solvent(eq)
-    return (eq, cert)
+    # Which start the answer came from, found by identity among the dual solves.
+    route = :other
+    for (s0, hit) in memo
+        if first(hit) === eq
+            route = get(route_of, s0, :other)
+            break
+        end
+    end
+    return (eq, merge(cert, (; route, n_dual_solves = length(memo), budget_feasible = true)))
 end
 
 """

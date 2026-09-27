@@ -38,8 +38,9 @@ include("reference_species.jl")
     # many of the paper's formula units the CEMDATA18 one holds. The paper
     # prints 5/3 as 1.6667, so compositions agree to four decimals. A formula
     # two polymorphs share is resolved by the name: the paper's SiO2 and
-    # Al(OH)3 are the amorphous ones, not quartz or gibbsite.
-    polymorph = Dict("SiO2,am" => "Amor-Sl", "Al(OH)3,am" => "AlOHam")
+    # Al(OH)3 are the amorphous ones, not quartz or gibbsite, and its Fe(OH)3 is
+    # the microcrystalline one, not the amorphous.
+    polymorph = Dict("SiO2,am" => "Amor-Sl", "Al(OH)3,am" => "AlOHam", "Fe(OH)3,mic" => "Fe(OH)3(mic)")
     solids = [s for s in subs if aggregate_state(s) == AS_CRYSTAL]
     function counterpart(mineral, formula)
         haskey(polymorph, mineral) && return (byname[polymorph[mineral]], 1.0)
@@ -87,13 +88,15 @@ include("reference_species.jl")
     moved = [r for r in rows if r.ours !== nothing && abs(r.ours - r.logK) > 0.5 * 10.0^(-r.dec) + 1.0e-3]
     absent = [r for r in rows if r.ours === nothing]
     @testset "what Cemdata18 kept, revised and dropped" begin
-        # Eleven constants are Cemdata07's to the printed digit, from our own
-        # energies; nine moved; nine have no CEMDATA18 solid of the same
-        # composition (a different hydration state, or a phase not carried).
+        # Twelve constants are Cemdata07's to the printed digit, from our own
+        # energies, the microcrystalline Fe(OH)3 among them; nine moved; eight
+        # have no CEMDATA18 solid of the same composition (a different hydration
+        # state, or a phase not carried).
         @test sort([symbol(r.match[1]) for r in kept]) == sort(
             [
                 "ettringite", "tricarboalu", "Fe-ettringite", "monocarbonate", "hemicarbonate",
                 "straetlingite", "hydrotalcite", "Tob-II", "Amor-Sl", "syngenite", "AlOHam",
+                "Fe(OH)3(mic)",
             ]
         )
         # The revisions, ours minus Cemdata07, to the digit the chapter prints.
@@ -110,7 +113,7 @@ include("reference_species.jl")
         @test sort([r.m for r in absent]) == sort(
             [
                 "Siliceous hydrogarnet", "C2AH8", "C2FH8", "Fe-monocarbonate", "Fe-hemicarbonate",
-                "Fe-stratlingite", "M4ACH9", "M4FH10", "Fe(OH)3,mic",
+                "Fe-stratlingite", "M4ACH9", "M4FH10",
             ]
         )
         # All eight tentative values but one are among the moved or the absent.

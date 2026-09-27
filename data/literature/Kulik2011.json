@@ -1,0 +1,227 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Kulik2011",
+    "doi": "10.1016/j.cemconres.2011.01.012",
+    "citation": "Kulik, D. A. (2011). Improving the structural consistency of C-S-H solid solution thermodynamic models. Cement and Concrete Research 41, 477-495.",
+    "location": "Section 4.2: Eqs. (17), (19) and (20), Tables 2 and 3"
+  },
+  "transcription": {
+    "from": "the published article (PDF), Section 4.2 and Tables 2 and 3 read on the rendered page",
+    "checked_against_source": true,
+    "note": "The ternary CSH3T model of tobermorite-like C-S-H: two bridging-tetrahedral sites BTI1 and BTI2, each holding one Si0.5OH+ or one HO0.5Ca0.5+ species (abbreviated Si and Ca here), with coefficient 1 in the sublattice formula of Eq. (17), per formula unit of Table 2 (3 tetrahedral sites). Eq. (19) gives the activity of each end-member as the product of its two site fractions; the model is ideal. Table 2 writes the sublattice formula of T5C with its Si species first, [Si0.5OH+]1:[HO0.5Ca0.5+]1, while Eq. (19) puts its Ca on BTI1 and its Si on BTI2. The two readings differ only by the names given to the two sites, which changes no activity; the occupancy transcribed here follows Eq. (19)."
+  },
+  "tables": {
+    "csh3t_sites": {
+      "columns": [
+        "site",
+        "multiplicity"
+      ],
+      "units": [
+        null,
+        "1"
+      ],
+      "kind": "published",
+      "location": "Eq. (17)",
+      "rows": [
+        [
+          "BTI1",
+          1
+        ],
+        [
+          "BTI2",
+          1
+        ]
+      ]
+    },
+    "csh3t_species": {
+      "columns": [
+        "species",
+        "formula"
+      ],
+      "units": [
+        null,
+        null
+      ],
+      "kind": "published",
+      "location": "Table 2 and Section 4.2",
+      "rows": [
+        [
+          "Si",
+          "Si0.5OH"
+        ],
+        [
+          "Ca",
+          "HO0.5Ca0.5"
+        ]
+      ]
+    },
+    "csh3t_occupancy": {
+      "columns": [
+        "end_member",
+        "printed",
+        "site",
+        "species"
+      ],
+      "units": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "kind": "published",
+      "location": "Eq. (19)",
+      "rows": [
+        [
+          "CSH3T-TobH",
+          "TobH",
+          "BTI1",
+          "Si"
+        ],
+        [
+          "CSH3T-TobH",
+          "TobH",
+          "BTI2",
+          "Si"
+        ],
+        [
+          "CSH3T-T5C",
+          "T5C",
+          "BTI1",
+          "Ca"
+        ],
+        [
+          "CSH3T-T5C",
+          "T5C",
+          "BTI2",
+          "Si"
+        ],
+        [
+          "CSH3T-T2C",
+          "T2C",
+          "BTI1",
+          "Ca"
+        ],
+        [
+          "CSH3T-T2C",
+          "T2C",
+          "BTI2",
+          "Ca"
+        ]
+      ]
+    },
+    "csh3t_end_members": {
+      "columns": [
+        "end_member",
+        "printed",
+        "formula"
+      ],
+      "units": [
+        null,
+        null,
+        null
+      ],
+      "kind": "published",
+      "location": "Table 3, bulk formulas (Table 2 prints the same compositions factored)",
+      "rows": [
+        [
+          "CSH3T-TobH",
+          "TobH",
+          "(CaO)2(SiO2)3(H2O)5"
+        ],
+        [
+          "CSH3T-T5C",
+          "T5C",
+          "(CaO)2.5(SiO2)2.5(H2O)5"
+        ],
+        [
+          "CSH3T-T2C",
+          "T2C",
+          "(CaO)3(SiO2)2(H2O)5"
+        ]
+      ]
+    },
+    "csh3t_shared_sites": {
+      "columns": [
+        "species",
+        "multiplicity"
+      ],
+      "units": [
+        null,
+        "1"
+      ],
+      "kind": "published",
+      "location": "Table 2, structural sublattice formulas",
+      "rows": [
+        [
+          "CaSiO3.5",
+          2
+        ],
+        [
+          "H2O",
+          4
+        ]
+      ]
+    },
+    "csh3t_site_mixing_terms": {
+      "columns": [
+        "equation",
+        "printed",
+        "coefficient",
+        "sum_of_mole_fractions"
+      ],
+      "units": [
+        null,
+        null,
+        "1",
+        null
+      ],
+      "kind": "published",
+      "location": "Eqs. (19a)-(19c)",
+      "rows": [
+        [
+          "19a",
+          "TobH",
+          1,
+          "TobH + T5C"
+        ],
+        [
+          "19a",
+          "TobH",
+          1,
+          "TobH"
+        ],
+        [
+          "19b",
+          "T5C",
+          1,
+          "TobH + T5C"
+        ],
+        [
+          "19b",
+          "T5C",
+          1,
+          "T2C + T5C"
+        ],
+        [
+          "19c",
+          "T2C",
+          1,
+          "T2C"
+        ],
+        [
+          "19c",
+          "T2C",
+          1,
+          "T2C + T5C"
+        ]
+      ]
+    }
+  },
+  "notes": [
+    "csh3t_site_mixing_terms is Eq. (19) transcribed on its own, independently of csh3t_occupancy: each row is one term coefficient x ln(sum of the listed mole fractions) of the logarithm of the activity of the end-member the equation is written for. The test suite requires the two transcriptions to give the same activities.",
+    "The end-members of the Cemdata18 file (CSH3T-TobH, CSH3T-T5C, CSH3T-T2C) are half the formula units of Table 3. The site coefficients of a model built on them are therefore halved, which sublattice_model does from the formulas.",
+    "The species formulas are given without their charge (+1 each); the vacancy site VCH and the shared sites carry no species that varies between end-members.",
+    "Section 4.2 also gives a variant with the two BTI sites doubled (Eqs. (22)-(24)); it is not transcribed here."
+  ]
+}

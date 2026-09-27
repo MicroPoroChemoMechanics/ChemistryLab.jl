@@ -168,7 +168,7 @@ end
     d = resample_log(CEM_I_TARGET, 40)
 
     # Parrott & Killoh reported no diffusion-controlled stage for C₃S, and
-    # `parrot_killoh_avrami`'s docstring repeats it. Numerically that is not quite
+    # `parrott_killoh_avrami`'s docstring repeats it. Numerically that is not quite
     # what this implementation does: `α̇₂ = k₂(1-ξ)^(2/3)/(1-(1-ξ)^(1/3))` falls as
     # ξ grows, so at high degrees of hydration the Jander branch can become the
     # minimum and k₂ acquires a real, if modest, influence. Pinning the numbers
@@ -244,7 +244,7 @@ end
         OrderedDict(cs["Jennite"] => 1.0, cs["Portlandite"] => 4 / 3);
         symbol = "C₃S hydration",
     )
-    rxn[:rate] = parrot_killoh_avrami(pk["C3S"], "C3S"; α_max, blaine = 397u"m^2/kg")
+    rxn[:rate] = parrott_killoh_avrami(pk["C3S"], "C3S"; α_max, blaine = 397u"m^2/kg")
 
     cal = IsothermalCalorimeter(293.15u"K")
     kp = KineticsProblem(

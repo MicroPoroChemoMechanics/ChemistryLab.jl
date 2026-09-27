@@ -68,13 +68,13 @@ for (name, frac) in pairs(COMPOSITION)
 end
 set_quantity!(state0, "H2O@", WC * u"kg")
 
-# ── 3. [ParrotKilloh1984](@cite) rate functions with Powers α_max ───────────────────────
+# ── 3. [ParrottKilloh1984](@cite) rate functions with Powers α_max ───────────────────────
 α_max   = powers_alpha_max(WC)
 BLAINE  = 380.0u"m^2/kg"
-pk_C3S  = parrot_killoh_avrami(PK84_PARAMS_C3S,  "C3S";  α_max, blaine = BLAINE)
-pk_C2S  = parrot_killoh_avrami(PK84_PARAMS_C2S,  "C2S";  α_max, blaine = BLAINE)
-pk_C3A  = parrot_killoh_avrami(PK84_PARAMS_C3A,  "C3A";  α_max, blaine = BLAINE)
-pk_C4AF = parrot_killoh_avrami(PK84_PARAMS_C4AF, "C4AF"; α_max, blaine = BLAINE)
+pk_C3S  = parrott_killoh_avrami(PK84_PARAMS_C3S,  "C3S";  α_max, blaine = BLAINE)
+pk_C2S  = parrott_killoh_avrami(PK84_PARAMS_C2S,  "C2S";  α_max, blaine = BLAINE)
+pk_C3A  = parrott_killoh_avrami(PK84_PARAMS_C3A,  "C3A";  α_max, blaine = BLAINE)
+pk_C4AF = parrott_killoh_avrami(PK84_PARAMS_C4AF, "C4AF"; α_max, blaine = BLAINE)
 
 # ── 4. Kinetic reactions (reaction-centric) ─────────────────────────────────
 # Reactions follow [LothenbachWinnefeld2006](@cite) — Jennite = Ca₉Si₆O₁₈(OH)₆·8H₂O
@@ -150,7 +150,7 @@ end
 
 !!! tip "Choosing `equilibrium_solver`"
     Setting `equilibrium_solver = nothing` skips the Gibbs minimization, which is
-    appropriate for the [ParrotKilloh1984](@cite) model: its rate closure ignores
+    appropriate for the [ParrottKilloh1984](@cite) model: its rate closure ignores
     the `lna` argument, so re-speciation cannot change `α(t)` or the calorimetry.
     It does change what the *products* are — with `nothing`, the hydrate
     assemblage is whatever the hand-written reaction stoichiometry says, not what
@@ -320,8 +320,8 @@ calorimeters — is described call by call in
 [Writing a kinetic model](@ref sec-kinetics-syntax). The coupling between
 kinetics and equilibrium is derived in
 [Coupling kinetics and equilibrium](@ref sec-coupling), and the application
-pages carry it further: [Cement clinker hydration kinetics](@ref) on the same
-clinker, [The hydrating paste, end to end](@ref sec-coupled-hydration) with a
+pages carry it further: [Hydration kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics) on the same
+clinker, [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration) with a
 hydrate assemblage computed rather than imposed, and
-[Calibrating hydration kinetics on measured calorimetry](@ref ex-hydration-calibration)
+[Calibrating the hydration kinetics of a CEM I on measured calorimetry](@ref ex-hydration-calibration)
 when the parameters themselves are the question.

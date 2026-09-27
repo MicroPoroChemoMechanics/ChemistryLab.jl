@@ -1,8 +1,8 @@
-# [Carbonation of a Cement Paste](@id sec-cement-carbonation)
+# [Carbonation of a CEM I paste](@id sec-cement-carbonation)
 
 !!! info "Before this page"
     [CO₂ Dissolution and the Carbonate System](@ref sec-co2-carbonate) and
-    [Effect of Water/Cement Ratio on Cement Hydration](@ref sec-wc-ratio).
+    [Effect of the water/cement ratio on the hydration of a CEM I](@ref sec-wc-ratio).
 
 **Carbonation** is the principal durability threat to reinforced concrete.
 Atmospheric CO₂ diffuses into the concrete cover, dissolves into the pore water, and reacts
@@ -24,15 +24,15 @@ accumulation of calcite.
 
 ## System setup
 
-The **CEMDATA18-merged** database is used here because it contains both the cement
-hydration products and the carbonate mineral phases (calcite `Cal`, monocarbonate,
+The **CEMDATA18** database is used here: it contains both the cement hydration
+products and the carbonate mineral phases (calcite `Cal`, monocarbonate,
 hemicarbonate) within a single consistent dataset.
 
 ```@setup carbonation_setup
 using ChemistryLab
 using DynamicQuantities
 
-substances = build_species(datapath("cemdata18-merged.json"))
+substances = build_species(datapath("cemdata18-thermofun.json"))
 ```
 
 The species list covers the full mineralogy of a hydrating and carbonating Portland cement
@@ -74,13 +74,6 @@ cs
 ```@raw html
 </details>
 ```
-
-!!! note "Why `cemdata18-merged`?"
-    Not for calcite: `Cal` is present in `cemdata18-thermofun.json` too, and an
-    earlier version of this note said otherwise. Nor for species at all — both
-    files describe the same 228 substances. What the PHREEQC `.dat` file brings is
-    the **reactions**, 148 against 7, and with them the phase-volume data that
-    makes volumes and porosity available on one consistent dataset.
 
 ---
 
@@ -310,4 +303,4 @@ Key observations:
 The binders that replace part of the clinker, and change what there is to
 carbonate, are mapped in
 [The binders, and what distinguishes them](@ref man-binder-families) and computed
-from [Two CEM II](@ref ex-cem2-blended) onwards.
+from [CEM II/A-LL and CEM II/B-S](@ref ex-cem2-blended) onwards.

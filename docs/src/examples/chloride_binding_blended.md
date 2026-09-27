@@ -1,8 +1,8 @@
-# [Chloride binding in blended cements](@id sec-example-chloride-blended)
+# [Chloride binding in CEM III/A and CEM III/B](@id sec-example-chloride-blended)
 
 !!! info "Before this page"
     [Chloride binding by C-S-H and Friedel's salt](@ref sec-example-csh-chloride)
-    and [A blastfurnace cement](@ref ex-cem3-slag), whose paste this page salts.
+    and [CEM III/A, a blastfurnace cement](@ref ex-cem3-slag), whose paste this page salts.
 
 A blended cement binds the chloride that enters it in its AFm phases, as
 Kuzel's and Friedel's salts, and in its C-S-H. The salts are phases of

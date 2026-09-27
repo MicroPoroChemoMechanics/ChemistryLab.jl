@@ -152,7 +152,7 @@ function integrate(kp::KineticsProblem, ks::KineticsSolver; kwargs...)
             system, while 1e-2 mol against a 0.3 mol sulfate budget is not. \
             How much it matters depends on the RATE LAWS: `bₑ` is integrated from \
             the rates alone, so a law that reads only its own degree of reaction \
-            (Parrot-Killoh, Waller) gives a trajectory independent of the \
+            (Parrott-Killoh, Waller) gives a trajectory independent of the \
             speciation, and this figure then bears on the reported composition \
             only — recover that with `speciated_states`, which certifies each instant against the KKT conditions. A \
             law reading log-activities (a saturation ratio) does feed the \

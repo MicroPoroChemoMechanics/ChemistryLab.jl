@@ -550,7 +550,7 @@ authors to a drying experiment two decades before this calculation existed.
     reacts a fraction of the cement and leaves the rest inert. What this page
     computes is the ``\alpha`` at which the arrest criterion is met, not a
     trajectory in time. For that, hand [`PoreHumidity`](@ref) to
-    [`parrot_killoh_avrami`](@ref) as its `humidity` and integrate.
+    [`parrott_killoh_avrami`](@ref) as its `humidity` and integrate.
   - **One retention curve for an evolving pore structure.** The measured isotherm
     belongs to a mature paste; the page applies it at every ``\alpha``. The pore
     structure of a young paste is coarser, so its true ``S^\ast`` is higher and

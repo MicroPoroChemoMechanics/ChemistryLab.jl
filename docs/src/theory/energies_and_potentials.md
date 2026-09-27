@@ -56,7 +56,7 @@ heat, the enthalpy of the contents is constant, so that the enthalpy released by
 the reaction at the initial temperature is found again as the heating of the
 contents after the reaction, ``\Delta H(T_0) + \int_{T_0}^{T} C_P\,\mathrm{d}T' = 0``. A
 semi-adiabatic vessel adds the heat it loses to this balance, and it is the
-subject of [A semi-adiabatic calorimeter, inside the kinetics](@ref ex-semiadiabatic).
+subject of [A CEM I 52.5 N mortar in a semi-adiabatic calorimeter, inside the kinetics](@ref ex-semiadiabatic).
 
 ## 2. Entropy, and the potential of a system held at fixed temperature and pressure
 
@@ -466,7 +466,7 @@ Its values are much smaller in magnitude, and so are their uncertainties, which
 no longer include those of forming the oxides from the elements, but they cannot
 be combined with values of formation from the elements in one calculation. It is
 the natural scale for a glass, and
-[An isothermal calorimeter, read off the states](@ref sec-example-isothermal)
+[CEM I 52.5 N and slag in an isothermal calorimeter, read off the states](@ref sec-example-isothermal)
 places the slag of a blended cement on it.
 
 ## 6. Temperature, pressure, and the apparent quantities of a database
@@ -653,8 +653,8 @@ solver differentiates and the models by which ``\Delta_a G^\circ(T,P)`` is
 evaluated, and [Standard states](@ref sec-theory-standard-states) states what
 each activity is measured from.
 
-  - [An isothermal calorimeter, read off the states](@ref sec-example-isothermal)
-    and [A semi-adiabatic calorimeter, inside the kinetics](@ref ex-semiadiabatic),
+  - [CEM I 52.5 N and slag in an isothermal calorimeter, read off the states](@ref sec-example-isothermal)
+    and [A CEM I 52.5 N mortar in a semi-adiabatic calorimeter, inside the kinetics](@ref ex-semiadiabatic),
     the two calorimeters of §1 on a cement.
   - [Proving that an answer is the answer](@ref sec-theory-certificate), the
     optimality conditions from which the conditions of §3 follow.

@@ -40,6 +40,66 @@ include("reference_species.jl")
         return any(keep) ? maximum(abs.(r[keep] ./ b[keep])) : maximum(abs, r)
     end
 
+    @testsection "the certificate says whether the answer lies in its model's range" begin
+        eq, cert = equilibrate_certified(calcite(); model = DaviesActivityModel())
+        @test cert.optimal
+        @test cert.ionic_strength ≈ ionic_strength(eq)
+        @test cert.activity_range == 0.5
+        @test cert.within_activity_range === true
+        _, cert0 = equilibrate_certified(calcite())
+        @test cert0.activity_range === nothing
+        @test cert0.within_activity_range === nothing
+
+        # A brine past the range of the Davies equation: certified, and flagged.
+        brine_cs = ChemicalSystem([sp[s] for s in split("H2O@ H+ OH- Na+ Cl-")], ["H2O@", "H+", "Na+", "Cl-", "Zz"])
+        brine = ChemicalState(brine_cs)
+        set_quantity!(brine, "H2O@", 1.0u"kg")
+        set_quantity!(brine, "Na+", 2.0u"mol")
+        set_quantity!(brine, "Cl-", 2.0u"mol")
+        set_quantity!(brine, "H+", 1.0e-7u"mol")
+        set_quantity!(brine, "OH-", 1.0e-7u"mol")
+        eqb, certb = equilibrate_certified(brine; model = DaviesActivityModel())
+        @test certb.optimal
+        @test certb.ionic_strength > 1.5
+        @test certb.within_activity_range === false
+
+        # With a fallback asked for out of range, the fallback's answer is
+        # returned, said once, with the first certificate kept.
+        eqf, certf = @test_logs (:warn, r"fallback activity model HKFActivityModel") equilibrate_certified(
+            brine; model = DaviesActivityModel(), fallback_model = HKFActivityModel(), fallback_on = :out_of_range,
+        )
+        @test certf.optimal
+        @test certf.fallback_used
+        @test certf.fallback_reason === :out_of_range
+        @test certf.primary_certificate.within_activity_range === false
+        @test certf.activity_range == 1.0
+        # Without `:out_of_range`, a certified answer is kept whatever its range.
+        _, certk = equilibrate_certified(brine; model = DaviesActivityModel(), fallback_model = HKFActivityModel())
+        @test !certk.fallback_used
+        @test_throws ArgumentError equilibrate_certified(brine; fallback_model = HKFActivityModel(), fallback_on = :always)
+
+        # When neither model certifies, the first answer is returned and said so,
+        # and under the strict flag it raises.
+        impossible = A * [ustrip(us"mol", x) for x in calcite().n]
+        impossible[3] = -1.0                      # a negative calcium budget
+        strict = ChemistryLab.STRICT_CONVERGENCE[]
+        try
+            ChemistryLab.STRICT_CONVERGENCE[] = false
+            _, certn = @test_logs (:warn, r"did not certify either") match_mode = :any equilibrate_certified(
+                calcite(); model = DaviesActivityModel(), fallback_model = HKFActivityModel(), b = impossible,
+            )
+            @test !certn.optimal
+            @test !certn.fallback_used
+            @test certn.fallback_reason === :refusal
+            ChemistryLab.STRICT_CONVERGENCE[] = true
+            @test_throws ErrorException equilibrate_certified(
+                calcite(); model = DaviesActivityModel(), fallback_model = HKFActivityModel(), b = impossible,
+            )
+        finally
+            ChemistryLab.STRICT_CONVERGENCE[] = strict
+        end
+    end
+
     @testsection "a temperature given to the solve is refused, not ignored" begin
         # It belongs to the state. Forwarded to the optimizer, as it used to be,
         # it was dropped there and the solve ran at the state's temperature.
@@ -584,7 +644,9 @@ end
     strict = ChemistryLab.STRICT_CONVERGENCE[]
     try
         ChemistryLab.STRICT_CONVERGENCE[] = false
-        eq8, cert8 = equilibrate_certified(st8; b = -b8)
+        # `lp_start = false`: the cascade itself is under test here. With the
+        # linear program, the budget is refused before it; see the next section.
+        eq8, cert8 = equilibrate_certified(st8; b = -b8, lp_start = false)
         @test !cert8.optimal
         @test eq8 isa ChemicalState
         # A budget with a negative component offers nothing to lift a phase off
@@ -603,7 +665,7 @@ end
             # `Base.CoreLogging` rather than `using Logging`, which would have
             # to be declared in the test target for one call.
             eq9, cert9 = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-                equilibrate_certified(st8; b = -b8, verbose = true)
+                equilibrate_certified(st8; b = -b8, verbose = true, lp_start = false)
             end
             @test !cert9.optimal
             @test eq9 isa ChemicalState
@@ -617,6 +679,69 @@ end
     end
 end
 
+
+@testsection "an infeasible budget is refused before the search, with its reason" begin
+    # The linear program over the pure phases proves it: a Farkas vector z with
+    # Aᵀz ≥ 0 and bᵀz < 0, a combination of the balances that every species
+    # raises and the budget lowers. Until 0.25.2 such a budget went through the
+    # whole cascade (continuation, restarts, repairs) and ended uncertified, with
+    # the solver's non-convergence counter raised on the way.
+    sp8 = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json")))
+    cs8 = ChemicalSystem(
+        [sp8[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal")],
+        ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"],
+    )
+    A8 = Float64.(cs8.SM.A)
+    st8 = ChemicalState(cs8)
+    set_quantity!(st8, "H2O@", 1.0u"kg")
+    set_quantity!(st8, "Cal", 1.0e-3u"mol")
+    b8 = A8 * ustrip.(us"mol", st8.n)
+    row(name) = findfirst(==(name), [symbol(p) for p in cs8.SM.primaries])
+    quiet(f) = Base.CoreLogging.with_logger(f, Base.CoreLogging.NullLogger())
+    strict = ChemistryLab.STRICT_CONVERGENCE[]
+    try
+        ChemistryLab.STRICT_CONVERGENCE[] = false
+
+        # One balance alone: calcium, which every species holds with a
+        # coefficient of zero or more, asked for at a negative amount.
+        bCa = copy(b8)
+        bCa[row("Ca+2")] = -1.0e-3
+        before = ChemistryLab.NONCONVERGED[]
+        eq, cert = quiet(() -> equilibrate_certified(st8; b = bCa))
+        @test cert.budget_feasible === false
+        @test cert.route === :infeasible
+        @test !cert.optimal
+        @test occursin("Ca+2", cert.unplaceable)
+        @test cert.n_dual_solves == 0
+        @test ChemistryLab.NONCONVERGED[] == before
+        @test eq.n == st8.n && eq !== st8
+
+        # Two balances together: no water, and less than no hydrogen ion. OH-
+        # would lower the second only by raising the first, and CO2@, which
+        # takes water, gives back twice the hydrogen; the reason names both rows.
+        b2 = copy(b8)
+        b2[row("H2O@")] = 0.0
+        b2[row("H+")] = -1.0e-3
+        eq, cert = quiet(() -> equilibrate_certified(st8; b = b2))
+        @test cert.budget_feasible === false
+        @test occursin("H2O@", cert.unplaceable) && occursin("H+", cert.unplaceable)
+
+        # Under the strict flag it raises.
+        ChemistryLab.STRICT_CONVERGENCE[] = true
+        @test_throws "no non-negative amounts" equilibrate_certified(st8; b = bCa)
+    finally
+        ChemistryLab.STRICT_CONVERGENCE[] = strict
+    end
+
+    # A feasible budget says so, and which start the answer came from.
+    eq, cert = equilibrate_certified(st8)
+    @test cert.optimal && cert.budget_feasible === true
+    @test cert.route in (:lp_start, :state)
+    @test cert.n_dual_solves >= 1
+    eq0, cert0 = equilibrate_certified(st8; lp_start = false)
+    @test cert0.route === :state
+    @test ustrip.(us"mol", eq.n) ≈ ustrip.(us"mol", eq0.n) rtol = 1.0e-8
+end
 
 # The three routes that make a complete phase list usable: refusing an answer
 # outside the model's domain, the ideal model as a starting point, and offering a
@@ -716,7 +841,7 @@ end
         strict = ChemistryLab.STRICT_CONVERGENCE[]
         try
             ChemistryLab.STRICT_CONVERGENCE[] = false
-            eq, cert = equilibrate_certified(st; model = HKFActivityModel(), b = -b)
+            eq, cert = equilibrate_certified(st; model = HKFActivityModel(), b = -b, lp_start = false)
             @test !cert.optimal
             @test eq isa ChemicalState
         finally
@@ -797,10 +922,46 @@ end
             @test ChemistryLab._ideal_start(
                 st, model, b, 1.0e-16, FixedTP(), false
             ) isa ChemicalState
-            eq, cert = quiet(() -> equilibrate_certified(st; model = model, b = b))
+            # Without the linear-programming start, which reaches the answer
+            # before the ideal pre-solve is needed.
+            eq, cert = quiet(() -> equilibrate_certified(st; model = model, b = b, lp_start = false))
             @test cert.optimal
             @test cert.balance < 1.0e-10
             @test pH(eq, model) ≈ 13.444 atol = 1.0e-3
+
+            # With it, the default: the same answer from the first start, in
+            # fewer dual solves.
+            eqlp, certlp = quiet(() -> equilibrate_certified(st; model = model, b = b))
+            @test certlp.optimal
+            @test certlp.route === :lp_start
+            @test certlp.n_dual_solves < cert.n_dual_solves
+            @test ustrip.(us"mol", eqlp.n) ≈ ustrip.(us"mol", eq.n) rtol = 1.0e-8 atol = 1.0e-14
+
+            # The same paste with the CNASH_ss that ships, Myers' own model: ideal
+            # on six sites rather than between the eight end-members. The solver
+            # is told to invert that phase by Newton's method, the substitution
+            # diverging on it, and which members may leave it; it certifies under
+            # the activity model Cemdata18 prescribes. Under the limiting law
+            # above (å = 0) it does not: measured, the search ends uncertified
+            # at pH 14.8 after five minutes, where ideal mixing certifies at 13.44.
+            shipped = build_solid_solutions(datapath("solid_solutions.toml"), byname)
+            cnash = only(filter(p -> ChemistryLab.name(p) == "CNASH_ss", shipped))
+            @test ChemistryLab.model(cnash) isa SublatticeModel
+            cs_sl = ChemicalSystem(
+                cs.species, cs.SM.primaries;
+                solid_solutions = [cnash, SolidSolutionPhase("C3(AF)S0.84H", [byname[m] for m in feal])],
+            )
+            st_sl = ChemicalState(cs_sl; n = st.n)
+            c18 = cemdata18_activity_model(:KOH)
+            des = DualEquilibriumSolver(cs_sl, c18)
+            handed = ChemistryLab._dual_phases(des, ustrip.(us"mol", st_sl.n))
+            gel_phase = only(filter(p -> p.newton, handed))
+            @test [symbol(cs_sl.species[gel_phase.members[j]]) for j in gel_phase.bounded_members] ==
+                ["T5C-CNASHss", "5CA"]
+            @test gel_phase.local_h isa Function
+            eqs, certs = quiet(() -> equilibrate_certified(st_sl; model = c18, b = b))
+            @test certs.optimal
+            @test certs.balance < 1.0e-10
         finally
             ChemistryLab.STRICT_CONVERGENCE[] = strict
         end
