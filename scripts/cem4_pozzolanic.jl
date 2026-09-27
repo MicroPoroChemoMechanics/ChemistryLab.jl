@@ -403,6 +403,20 @@ for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
     )
 end
 
+perion = HKFActivityModel()
+for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
+    st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = 1.0)
+    eq, c = equilibrate_certified(st; model = perion, b = b)
+    @printf(
+        "100 %% ash reacted  %-10s optimal=%-5s balance=%.1e  pH=%.3f  I=%.2f mol/kg\n",
+        label, c.optimal, c.balance, pH(eq, perion), ionic_strength(eq)
+    )
+end
+@printf(
+    "range the manual states for this model: I up to %.1f mol/kg\n",
+    activity_model_range(perion)
+)
+
 zeo_db = build_species(datapath("cemdata18-zeolites.json"); verbose = false)
 zeo_byname = Dict(symbol(s) => s for s in zeo_db)
 added = sort(collect(setdiff(Set(keys(zeo_byname)), Set(keys(byname)))))

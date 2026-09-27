@@ -31,9 +31,9 @@ default(framestyle = :box, grid = false)
 # The ZEOLITE-EXTENDED database, and that is not a detail of convenience.
 # [The CEM IV page](@ref ex-cem4-pozzolanic) establishes why: past roughly a
 # third replacement the aluminum and the alkalis the pozzolana brings exceed what
-# the C-A-S-H and the aluminate hydrates can hold, and with no phase left to
-# receive them the minimization has no admissible assemblage at all. A CEM V/A at
-# the midpoint of its range is 48 % replaced, well inside that regime.
+# the C-A-S-H and the aluminate hydrates can hold. Without a phase to receive
+# them, the alkalis stay in the pore solution and the pH comes out too high. A
+# CEM V/A at the midpoint of its range is 48 % replaced, well inside that regime.
 substances = build_species(datapath("cemdata18-zeolites.json"); verbose = false)
 byname = Dict(symbol(s) => s for s in substances)
 molar_mass(n) = ustrip(us"g/mol", byname[n][:M])
@@ -420,6 +420,14 @@ let prev = nothing
         )
     end
 end
+
+perion = HKFActivityModel()
+full = paste(1.0, 1.0)
+eq_full, cert_full = equilibrate_certified(full.state; model = perion, b = full.total)
+@printf(
+    "fully reacted, ion size per ion: optimal=%s  balance=%.1e  pH=%.3f  I=%.2f mol/kg\n",
+    cert_full.optimal, cert_full.balance, pH(eq_full, perion), ionic_strength(eq_full)
+)
 
 function final_heat(file)
     t, Q = 0.0, 0.0

@@ -82,6 +82,8 @@ gives no K2O.
 - Solving manual: `activity_model_range`, and what a refusal past the range
   means. Database manual: when declaring `Ettringite_ss` with `AFt_SO4_CO3` is
   harmless, and when it is not.
+- `scripts/cem4_pozzolanic.jl` and `scripts/cem5_composite.jl` regenerated from
+  their pages, which `test/scripts.jl` requires.
 
 ### Dependencies
 
