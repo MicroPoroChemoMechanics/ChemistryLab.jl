@@ -564,9 +564,9 @@ of this page is the Debye–Hückel limiting law with a B-dot term, `å = 0`: it
 kept because it is what GEM-Selektor runs, so that the answers compare, and
 [the solving manual](@ref sec-activity-models) says that it has no validity at
 an ionic strength of 0.2 mol/kg, that of the Portland paste GEM-Selektor
-computed (0.21). Give every ion its own size,
-which is the package's default model, and leave the budget, the phase list and
-the solver as they are:
+computed (0.21). Give every ion its own size, which is what `HKFActivityModel()`
+does with its default parameters, and leave the budget, the phase list and the
+solver as they are:
 
 ```@example cem4
 perion = HKFActivityModel()
