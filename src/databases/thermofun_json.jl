@@ -524,7 +524,10 @@ whatever `skip_missing` says. `CSHQ_Cl`, whose chloride end member ships in
 substances = build_species(datapath("cemdata18-thermofun.json"))
 dict       = Dict(symbol(s) => s for s in substances)
 ss_phases  = build_solid_solutions(datapath("solid_solutions.toml"), dict)
-cs = ChemicalSystem(species, CEMDATA_PRIMARIES; solid_solutions = ss_phases)
+# The file holds alternatives (`CSHQ` or `CNASH_ss`, `Ettringite_ss` or
+# `AFt_SO4_CO3`): a system takes the phases it needs by name.
+chosen = [p for p in ss_phases if name(p) in ("CSHQ", "C3(AF)S0.84H", "Ettringite_ss")]
+cs = ChemicalSystem(species, CEMDATA_PRIMARIES; solid_solutions = chosen)
 ```
 """
 function build_solid_solutions(

@@ -369,6 +369,12 @@ result is never worse than the answer without splitting.
 `share` is how much of the phase's amount is moved into the incipient instance on
 each pass; `maxpasses` bounds the work.
 
+Under [`STRICT_CONVERGENCE`](@ref) the passes are searches, not results: they run
+with strictness suspended, and the answer they end on is judged strictly — an
+error if it does not certify. Until 0.25.1 the flag was honored by the first
+pass, which is by construction the one expected not to certify, so the function
+raised before it had seeded anything.
+
 !!! note "This is where convexity has already been given up"
     A phase that unmixes has a concave mixing energy, so `G` is not convex and
     `cert.optimal` no longer proves a *global* minimum — it proves a KKT point
@@ -391,8 +397,30 @@ function equilibrate_split(
     0 < share < 1 || throw(
         ArgumentError("`share` must lie strictly between 0 and 1, got $share."),
     )
+    # Every pass is a search. Under the strict flag the first one -- the pass
+    # this function exists to improve on -- would raise before any seeding, so
+    # strictness is suspended while they run and applied to the final answer,
+    # as `equilibrate_certified` does with its own starting routes.
+    best_eq, best_cert = _relaxed_convergence() do
+        _split_passes(state, model, b, maxpasses, share; kwargs...)
+    end
+    if best_cert !== nothing && !best_cert.optimal && _strict_convergence()
+        error(
+            "equilibrate_split: no pass produced a certifiable equilibrium: " *
+                "stationarity $(best_cert.stationarity), element balance " *
+                "$(best_cert.balance), worst supersaturation " *
+                "$(best_cert.worst_supersaturation). " *
+                "`ChemistryLab.STRICT_CONVERGENCE[]` is set, so this raises rather " *
+                "than returning an answer that is not an equilibrium.",
+        )
+    end
+    _check_solvent(best_eq)
+    return best_eq, best_cert
+end
+
+function _split_passes(state, model, b, maxpasses, share; kwargs...)
     eq, cert = equilibrate_certified(state; model = model, b = b, kwargs...)
-    cert.optimal && return eq, cert
+    (cert === nothing || cert.optimal) && return eq, cert
 
     cs = state.system
     twin, untwin = _instance_pairs(cs)
@@ -553,9 +581,9 @@ For a **convex** problem the minimum is unique, so walking to it cannot change
 *what* is found — only whether the search finds it. That premise is checked
 rather than assumed: [`SolidSolutionPhase`](@ref) refuses a mixing model whose
 energy has a spinodal, so a system that was constructed at all is convex unless
-the refusal was explicitly waived. Waive it and this becomes a genuine choice of
-branch, because inside a gap the starting point decides which lobe the answer
-lands in — see [`common_tangent`](@ref).
+the refusal was explicitly waived or the phase given two instances. Then this
+becomes a genuine choice of branch, because inside a gap the starting point
+decides which lobe the answer lands in — see [`common_tangent`](@ref).
 
 The certificate still decides every point. A refused point is returned like any
 other, with its certificate, and does **not** become the next start.
@@ -610,12 +638,15 @@ step does: there the caller already supplies the previous instant as a warm
 start, and a handful of extra solves inside an implicit ODE step would be paid
 at every step.
 
-`certificate.optimal == true` is a **proof**, valid because the Gibbs
-minimization is convex when the mixing terms are — ideal mixing and any activity
-model whose excess Gibbs energy is convex in the amounts. It is not a proof for a
-model that is not, and none of the activity models that ship here have been shown
-to violate it; `HKFActivityModel`, `DaviesActivityModel` and the Redlich–Kister
-solid solutions are used within their stated ranges.
+`certificate.optimal == true` is a **proof** of a global minimum when the Gibbs
+minimization is convex — ideal mixing and any activity model whose excess Gibbs
+energy is convex in the amounts — and the log activities are the gradient of that
+energy. `certificate.scope` says which case holds: `:global_minimum`;
+`:kkt_point` when a mixing phase is concave on part of its range (declared with
+two instances, or with the convexity check waived) or a constraint leaves the
+sufficiency unestablished; `:self_consistent` when the activities are not the
+gradient of one energy, as with the B-dot and Davies models at their default
+settings, and the answer is a speciation consistent with its own activities.
 
 When no route yields a proof, the answer with the smallest KKT error is returned,
 its certificate says so, and a warning names the residual. That is the honest

@@ -229,9 +229,12 @@ model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
 !!! danger "Never both at once"
     `CSHQ`, `CNASH_ss` and the `ECSH` family are three *models of one gel*, not
     three phases. Declaring two of them counts the same calcium silicate hydrate
-    twice, and `ChemicalSystem` refuses the pair by name. The two systems
-    above are alternatives, built separately and compared, which is the only
-    correct way to use them.
+    twice, and `ChemicalSystem` refuses the pair: by composition when two
+    end-members are one substance (`KSiOH` of `CSHQ` is `ECSH1-KSH`), and by the
+    models listed in `data/gel_models.toml` otherwise — `CSHQ` and `CNASH_ss`
+    share no composition, and until 0.25.1 that pair was accepted without a word.
+    The two systems above are alternatives, built separately and compared, which
+    is the only correct way to use them.
 
 ## 3. The budget
 

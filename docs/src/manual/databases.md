@@ -265,9 +265,15 @@ dict       = Dict(symbol(s) => s for s in substances)
 # Build all solid solution phases defined in the TOML
 ss_phases = build_solid_solutions(datapath("solid_solutions.toml"), dict)
 
-# Use them directly in ChemicalSystem
-cs = ChemicalSystem(species, CEMDATA_PRIMARIES; solid_solutions = ss_phases)
+# Take the ones the system needs, by name: the file holds alternatives
+chosen = [p for p in ss_phases if name(p) in ("CSHQ", "C3(AF)S0.84H", "Ettringite_ss")]
+cs = ChemicalSystem(species, CEMDATA_PRIMARIES; solid_solutions = chosen)
 ```
+
+The file is a catalog, not a phase model to take whole. `CSHQ` and `CNASH_ss`
+are two models of one C-S-H gel, which `ChemicalSystem` refuses together, and
+`Ettringite_ss` and `AFt_SO4_CO3` describe the same aluminate sulfate under two
+normalizations.
 
 Phases whose end-members are not found in `dict` are skipped with a warning
 (pass `skip_missing = false` to raise an error instead).

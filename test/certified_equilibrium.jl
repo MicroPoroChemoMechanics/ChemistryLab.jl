@@ -1166,6 +1166,26 @@ end
         @test c.optimal
         @test temperature(eq) == temperature(st)
         @test x_of(eq) ≈ collect(pair) atol = 1.0e-3
+
+        # 7. UNDER THE STRICT FLAG. The first pass is, by construction, the one
+        #    that does not certify (`c0` above). Until 0.25.1 the flag was
+        #    honored there, and the function raised before it had seeded
+        #    anything. The passes now run relaxed; only the final answer is
+        #    judged strictly.
+        strict = ChemistryLab.STRICT_CONVERGENCE[]
+        try
+            ChemistryLab.STRICT_CONVERGENCE[] = true
+            eq_s, c_s = equilibrate_split(st; b = b, autostart = false)
+            @test c_s.optimal
+            @test x_of(eq_s) ≈ collect(pair) atol = 1.0e-3
+            # And an answer that does not certify still raises: with no pass
+            # allowed, the unseeded first answer is the final one.
+            @test_throws ErrorException equilibrate_split(
+                st; b = b, autostart = false, maxpasses = 0,
+            )
+        finally
+            ChemistryLab.STRICT_CONVERGENCE[] = strict
+        end
     end
 end
 

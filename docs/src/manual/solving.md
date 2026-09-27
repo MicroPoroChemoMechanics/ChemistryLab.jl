@@ -332,9 +332,11 @@ state_eq_tight = equilibrate(state; reltol = 1e-12)
 
 ## [Activity models](@id sec-activity-models)
 
-All activity models inherit from [`AbstractActivityModel`](@ref). Three built-in
-models are provided, covering ideal behavior through to the extended Debye-Hückel
-level used by standard geochemical codes.
+All activity models inherit from [`AbstractActivityModel`](@ref). The three in
+the table below cover ideal behavior through to the extended Debye-Hückel level
+used by standard geochemical codes; [`PitzerActivityModel`](@ref) and
+[`SITActivityModel`](@ref) extend the range to concentrated solutions, each with
+its own parameter set.
 
 ### Choosing a model
 
@@ -614,7 +616,8 @@ Activity coefficients (Guggenheim / ThermoCalc convention):
 
 !!! note "Valid range"
     `RedlichKisterModel` requires exactly 2 end-members. For ternary or
-    higher-order solid solutions, use the ideal model (`IdealSolidSolutionModel`).
+    higher-order solid solutions, use the ideal model (`IdealSolidSolutionModel`)
+    or the symmetric multi-component Margules model ([`RegularSolutionModel`](@ref)).
 
 !!! note "Integration with aqueous models"
     Solid-solution activities are computed independently of the aqueous activity model.

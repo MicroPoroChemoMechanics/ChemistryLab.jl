@@ -748,6 +748,52 @@ end
         @test occursin("ECSH1", err)
         @test occursin("KSiOH", err)
     end
+
+    @testset "two models with no composition in common are refused too" begin
+        # THE HOLE THIS CLOSES. `CSHQ` and `CNASH_ss` share no composition -- no
+        # end-member of one is a substance of the other -- so the composition
+        # test above cannot see them, and until 0.25.1 the pair built a system in
+        # which the gel was counted twice. The models are now read from
+        # data/gel_models.toml and matched by end-member symbol.
+        @test isempty(
+            [
+                (a, b) for a in CSHQ_MEMBERS, b in CNASH_MEMBERS
+                    if atoms(byname[a]) == atoms(byname[b])
+            ]
+        )
+        refusal(phases) = try
+            ChemicalSystem(sp, CEMDATA_PRIMARIES; solid_solutions = phases)
+            nothing
+        catch e
+            sprint(showerror, e)
+        end
+
+        err = refusal([mk("CSHQ", CSHQ_MEMBERS), mk("CNASH", CNASH_MEMBERS)])
+        @test err !== nothing
+        @test occursin("`CSHQ`", err) && occursin("`CNASH_ss`", err)
+        @test occursin("gel_models.toml", err)
+
+        # Matched by the end-members, not by the name the phase is declared
+        # under, and whatever subset of a model is declared.
+        err = refusal([mk("gel A", CNASH_MEMBERS[1:3]), mk("gel B", CSHQ_MEMBERS[1:4])])
+        @test err !== nothing && occursin("`CNASH_ss`", err)
+
+        err = refusal([mk("CNASH_ss", CNASH_MEMBERS), mk("ECSH1", ECSH_MEMBERS)])
+        @test err !== nothing && occursin("`ECSH1`", err)
+
+        # One model split over two declared phases is one model, not two.
+        @test ChemicalSystem(
+            sp, CEMDATA_PRIMARIES;
+            solid_solutions = [mk("CSHQ core", CSHQ_MEMBERS[1:4]), mk("CSHQ alkali", CSHQ_MEMBERS[5:6])],
+        ) isa ChemicalSystem
+
+        # The shipped registry covers every C-S-H end-member the database has.
+        models = ChemistryLab._gel_models()
+        for m in vcat(CSHQ_MEMBERS, CNASH_MEMBERS, ECSH_MEMBERS)
+            @test haskey(models, m)
+        end
+        @test models["INFCA"] == (gel = "C-S-H", model = "CNASH_ss")
+    end
 end
 
 @testsection "an interaction parameter says which convention it is in" begin

@@ -672,7 +672,8 @@ state_eq = equilibrate(state, OptimaOptimizer())
 ```
 
 **One-argument form** — solves by every available route and returns the answer
-[`optimality_certificate`](@ref) proves globally optimal:
+[`optimality_certificate`](@ref) accepts; its `scope` says what that proves (a
+global minimum, a KKT point, or a self-consistent speciation):
 
 ```julia
 state_eq = equilibrate(state)                  # certified

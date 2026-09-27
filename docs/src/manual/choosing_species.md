@@ -99,8 +99,10 @@ CNASH = ["T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
 `CSHQ`, `CNASH_ss` and the `ECSH` family are three *models of one gel*, not three
 phases. Declaring two counts the same hydrate twice. `ChemicalSystem` refuses the
 pair when their end-members share a composition — `KSiOH`, `ECSH1-KSH` and
-`ECSH2-KSH` are all `((KOH)2.5SiO2H2O)0.2` — but **choose deliberately** rather
-than relying on the refusal.
+`ECSH2-KSH` are all `((KOH)2.5SiO2H2O)0.2` — and, since 0.25.1, when their
+end-members belong to two models listed in `data/gel_models.toml`, which is how
+`CSHQ` with `CNASH_ss` is caught: they share no composition. **Choose
+deliberately** all the same, rather than relying on the refusal.
 
 ### 4. Declaring a phase whose element you did not put in the budget
 

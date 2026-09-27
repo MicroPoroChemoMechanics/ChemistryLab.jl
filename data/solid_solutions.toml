@@ -204,7 +204,9 @@ source      = "Lothenbach2019"
 # overlap is exact rather than approximate: `KSiOH` (a CSHQ end-member),
 # `ECSH1-KSH` and `ECSH2-KSH` all carry the formula ((KOH)2.5SiO2H2O)0.2 — the
 # same substance under three names. `ChemicalSystem` refuses a system in which
-# two declared solid solutions share a composition, and names the pair.
+# two declared solid solutions share a composition, and names the pair. That
+# test cannot see `CSHQ` with `CNASH_ss`, which share no composition; since
+# 0.25.1 the models listed in data/gel_models.toml are refused in pairs too.
 #
 # Known degeneracy, and it is real rather than a defect of the transcription:
 # the eight end-members span a space of rank 5, because Myers' model carries

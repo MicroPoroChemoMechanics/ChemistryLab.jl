@@ -238,7 +238,7 @@ moles(state_eq)       # mole amounts by phase (liquid / solid / gas / total)
 moles(state_eq, "Ca+2")  # moles of a specific species
 ```
 
-The `equilibrate` function uses `IpoptOptimizer` under the hood (via Optimization.jl) and accepts optional keyword arguments to tune the solver (`abstol`, `reltol`, `variable_space`, …), as well as an `model` keyword for the aqueous activity model:
+With OptimaSolver loaded and an aqueous phase holding `H2O@`, `equilibrate` solves from every available back end and returns the answer its optimality certificate accepts (`equilibrate_certified` returns the certificate too); `certify = false`, or a solver passed explicitly, uses a single back end. The `model` keyword sets the aqueous activity model:
 
 ```julia
 state_eq = equilibrate(state0; model = HKFActivityModel())   # extended Debye-Hückel
@@ -262,13 +262,14 @@ afm = SolidSolutionPhase("AFm",
     [dict["monosulphate12"], dict["monocarbonate"]];
     model = RedlichKisterModel(a0 = 3000.0, a1 = 500.0))
 
-# Or load all solid solution phases at once from a TOML file
+# Or load the solid solution phases of a TOML file, and take the ones the system needs
 ss_phases = build_solid_solutions(datapath("solid_solutions.toml"), dict)
+chosen = [p for p in ss_phases if name(p) in ("CSHQ", "C3(AF)S0.84H", "Ettringite_ss")]
 
-cs = ChemicalSystem(species_list, primaries; solid_solutions = ss_phases)
+cs = ChemicalSystem(species_list, primaries; solid_solutions = chosen)
 ```
 
-A pre-built `data/solid_solutions.toml` (CSHQ, AFm, Hydrogarnet, Ettringite_ss, Hydrotalcite) is shipped with ChemistryLab for use with the cemdata18 database.
+A pre-built `data/solid_solutions.toml` is shipped with ChemistryLab for use with the cemdata18 database: `CSHQ`, `CSHQ_Cl`, `CNASH_ss`, `C3(AF)S0.84H`, `Hydrogarnet`, `Ettringite_ss`, `AFm_SO4_OH`, `AFt_SO4_CO3`, `Hydrotalcite`, `Hydrotalcite_AlFe`, `Straetlingite_ss` and `MSH`. It holds alternatives, so a system takes its phases by name rather than the whole file: `CSHQ` and `CNASH_ss` are two models of one C-S-H gel and are refused together, and `Ettringite_ss` and `AFt_SO4_CO3` describe the same aluminate sulfate.
 
 #### Scaling and normalization
 

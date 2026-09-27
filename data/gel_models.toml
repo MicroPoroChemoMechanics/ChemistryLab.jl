@@ -1,0 +1,52 @@
+# Models of one hydrate gel, of which a chemical system may declare only one.
+#
+# CEMDATA18 describes the calcium silicate hydrate of a cement paste in three
+# ways -- `CSHQ`, `CNASH_ss` and the `ECSH` families -- for the user to choose
+# one. They are three MODELS of one gel, not three phases: declared together as
+# solid solutions they count the same hydrate twice, the calcium, silicon and
+# alkalis being shared between two descriptions of it.
+#
+# `ChemicalSystem` refuses two declared solid solutions that share a composition,
+# which catches `CSHQ` with an `ECSH` family (their alkali end-members are the
+# same substance under two names). `CSHQ` and `CNASH_ss` share none, so that
+# check cannot see them; this file can. Each entry lists the end-member symbols
+# of one model; `ChemicalSystem` refuses two declared solid solutions whose
+# end-members belong to two different models of the same `gel`.
+#
+# A solid solution is matched by its end-members' symbols, whatever name it is
+# declared under. The two instances of one declaration are exempt, as they are
+# from the composition check.
+#
+# Sources
+#   Kulik2011 : Kulik, Cement and Concrete Research 41 (2011) 477-495 -- CSHQ; the
+#               database also attributes the ECSH families to it
+#   Myers2014 : Myers, Bernal & Provis, Cement and Concrete Research 66 (2014) 27-47
+#   the alkali end-members `KSiOH` and `NaSiOH` of CSHQ, and `CSHQ-Cl` of
+#   data/cemdata18-chloride.json, are listed with the model they extend
+
+[[gel_model]]
+gel         = "C-S-H"
+model       = "CSHQ"
+end_members = ["CSHQ-JenD", "CSHQ-JenH", "CSHQ-TobD", "CSHQ-TobH",
+               "KSiOH", "NaSiOH", "CSHQ-Cl"]
+source      = "Kulik2011"
+
+[[gel_model]]
+gel         = "C-S-H"
+model       = "CNASH_ss"
+end_members = ["T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
+               "5CA", "5CNA", "INFCA", "INFCN", "INFCNA"]
+source      = "Myers2014"
+
+[[gel_model]]
+gel         = "C-S-H"
+model       = "ECSH1"
+end_members = ["ECSH1-TobCa", "ECSH1-KSH", "ECSH1-NaSH", "ECSH1-SH", "ECSH1-SrSH"]
+source      = "Kulik2011"
+
+[[gel_model]]
+gel         = "C-S-H"
+model       = "ECSH2"
+end_members = ["ECSH2-TobCa", "ECSH2-JenCa", "ECSH2-KSH", "ECSH2-NaSH",
+               "ECSH2-SrSH", "ECSH2-SrSH(ACW)"]
+source      = "Kulik2011"

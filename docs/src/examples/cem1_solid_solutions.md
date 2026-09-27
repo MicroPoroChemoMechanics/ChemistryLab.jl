@@ -507,12 +507,14 @@ problem rather than of either code:
 ## 7. What this does not settle
 
 **The mixing is ideal, and that is an assumption.** All eight phases are
-declared with ideal mixing here. CEMDATA18 documents non-ideal parameters for
-some of them; they are not used, because a mixing parameter one cannot source is
-worse than an ideal model honestly labeled. A non-ideal phase changes ``\Omega``
-— the criterion of §4 becomes a fixed point, ``x_i = 10^{\mathrm{SI}_i} /
-\gamma_i(x)`` — and can open a miscibility gap that this formulation cannot
-represent at all.
+declared with ideal mixing here. CEMDATA18 publishes non-ideal parameters for the
+AFm and AFt binaries (Table 1 of [Lothenbach2019](@cite), in
+`data/literature/Lothenbach2019.json`), and they are not used on this page. A
+non-ideal phase changes ``\Omega`` — the criterion of §4 becomes a fixed point,
+``x_i = 10^{\mathrm{SI}_i} / \gamma_i(x)`` — and those parameters open a
+miscibility gap, which one composition per phase cannot represent. Two instances
+of the phase can: [the miscibility gap page](@ref ex-miscibility-gap) shows how,
+and what the certificate then proves.
 
 **The five absent phases are absent on *this* cement.** `AFt_SO4_CO3` at −0.03
 is the warning: a different sulfate or carbonate content moves it across. The

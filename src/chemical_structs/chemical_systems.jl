@@ -375,6 +375,14 @@ Two end-members of the SAME phase may of course share nothing — that is a
 mixture — and a pure phase repeating a mixing phase's composition is a separate
 question the rank test upstream already refuses.
 
+**Composition cannot see every pair, so a second test reads the database's own
+models.** `CSHQ` and `CNASH_ss` share no composition — no end-member of one is a
+substance of the other — and until 0.25.1 the pair passed, the gel counted
+twice without a word. `data/gel_models.toml` lists the end-member symbols of each
+model of one gel, and two declared phases whose end-members belong to two
+different models of the same gel are refused, naming both models. Matching is by
+symbol, so it does not depend on the name a phase is declared under.
+
 **Instances of one declaration are exempt**, and that exemption is the whole
 reason `SolidSolutionPhase` carries a `declared` field. A miscibility gap is
 represented by the same binary present twice, on purpose, as two coexisting
@@ -399,6 +407,63 @@ function _refuse_overlapping_solid_solutions(solid_solutions)
                     "substance twice, so its elements would be distributed over " *
                     "both. CEMDATA18's `CSHQ`, `CNASH_ss` and `ECSH` families are " *
                     "three models of one C-S-H gel: declare exactly one of them.",
+            )
+        end
+    end
+    _refuse_two_gel_models(phases)
+    return nothing
+end
+
+const _GEL_MODELS_LOCK = ReentrantLock()
+const _GEL_MODELS = Ref{Union{Nothing, Dict{String, NamedTuple{(:gel, :model), Tuple{String, String}}}}}(nothing)
+
+"""
+    _gel_models() -> Dict{String, NamedTuple{(:gel, :model)}}
+
+The gel model each listed end-member symbol belongs to, read once from
+`data/gel_models.toml`.
+"""
+function _gel_models()
+    return lock(_GEL_MODELS_LOCK) do
+        cached = _GEL_MODELS[]
+        cached === nothing || return cached
+        path = joinpath(pkgdir(@__MODULE__), "data", "gel_models.toml")
+        include_dependency(path)
+        table = Dict{String, NamedTuple{(:gel, :model), Tuple{String, String}}}()
+        for entry in TOML.parsefile(path)["gel_model"], em in entry["end_members"]
+            table[em] = (gel = entry["gel"], model = entry["model"])
+        end
+        _GEL_MODELS[] = table
+        return table
+    end
+end
+
+"""
+    _refuse_two_gel_models(phases)
+
+Refuse two declared solid solutions whose end-members belong to two different
+models of one gel in `data/gel_models.toml` — `CSHQ` with `CNASH_ss`, which share
+no composition and so pass the composition test of
+`_refuse_overlapping_solid_solutions`. Instances of one declaration are exempt,
+as they are there.
+"""
+function _refuse_two_gel_models(phases)
+    models = _gel_models()
+    # `#2`, `#3`: the symbols `ChemicalSystem` gives the copies of an instance.
+    base(sym) = replace(String(sym), r"#\d+$" => "")
+    tags = map(phases) do p
+        unique(models[base(symbol(em))] for em in end_members(p) if haskey(models, base(symbol(em))))
+    end
+    for i in eachindex(phases), j in (i + 1):lastindex(phases)
+        _declared(phases[i]) == _declared(phases[j]) && continue
+        for a in tags[i], b in tags[j]
+            a.gel == b.gel && a.model != b.model || continue
+            error(
+                "solid solutions \"$(name(phases[i]))\" and \"$(name(phases[j]))\" " *
+                    "are two models of one $(a.gel) gel, `$(a.model)` and " *
+                    "`$(b.model)` (data/gel_models.toml). Declared together they " *
+                    "count the same hydrate twice: declare exactly one of them, and " *
+                    "to compare the two, build one system with each.",
             )
         end
     end
