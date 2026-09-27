@@ -319,6 +319,7 @@ module ChemistryLab
         AbstractSolidSolutionPhase,
         SolidSolutionPhase,
         spinodal_interval,
+        mixing_convexity,
         common_tangent,
         excess_ln_gamma_expression,
         log10_gamma_expression,

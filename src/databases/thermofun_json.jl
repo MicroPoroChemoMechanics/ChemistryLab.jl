@@ -631,7 +631,11 @@ function build_solid_solutions(
         end
 
         instances = Int(get(entry, "instances", 1))
-        push!(phases, SolidSolutionPhase(ss_name, em_species; model = mixing_model, instances))
+        acknowledge_degenerate = Bool(get(entry, "acknowledge_degenerate", false))
+        push!(
+            phases,
+            SolidSolutionPhase(ss_name, em_species; model = mixing_model, instances, acknowledge_degenerate),
+        )
     end
     return phases
 end

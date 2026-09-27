@@ -434,7 +434,71 @@ the sublattice solve.
 Cemdata18 ships it, ideal between end-members; `sublattice_model("Kulik2011:csh3t",
 members)` gives the site form.
 
-## 8. How a solid solution is declared
+## 8. More than two end-members
+
+### Convexity with more than two end-members
+
+A one-dimensional scan decides a binary. With ``n`` end-members the question is
+whether the Hessian of ``g/RT`` is positive on the tangent space of the simplex,
+``\{d : \sum_i d_i = 0\}``, at every composition, and
+[`mixing_convexity`](@ref) answers it by model.
+
+For a regular model, ``g/RT = \sum_i x_i \ln x_i + \sum_{i<j} w_{ij} x_i x_j`` with
+``w = W/RT``, and the Hessian is ``\operatorname{diag}(1/x) + w``. The first term
+is at least 2 on the tangent space: for a unit ``d`` with ``\sum_i d_i = 0``, the
+Cauchy–Schwarz inequality gives
+``\sum_i d_i^2/x_i \ge (\sum_i |d_i|)^2 / \sum_i x_i = (\sum_i |d_i|)^2``, and the
+ℓ1 norm of such a ``d`` is at least ``\sqrt 2`` (its positive and negative parts
+have equal sums). Hence
+
+```math
+\lambda_{\min}\!\left(Q^\mathsf{T} w\, Q\right) \ge -2
+\quad\Longrightarrow\quad \text{convex},
+```
+
+``Q`` an orthonormal basis of the tangent space. For two end-members this is
+``W \le 2RT``, the threshold of section 3; for more it is a sufficient
+condition. In the other direction, a pair with ``W_{ij} > 2RT`` is a witness:
+at the middle of that edge the second derivative along it is ``4 - 2w_{ij} < 0``.
+Between the two, the smallest eigenvalue of the projected Hessian is searched on
+a lattice of compositions, and a negative one is a witness too; finding none
+proves nothing, and the verdict is then `:undecided`.
+
+```@example ss_convexity
+using ChemistryLab
+RT = ChemistryLab.R_GAS * 298.15
+W(a, b, c) = [0.0 a b; a 0.0 c; b c 0.0] .* RT
+[mixing_convexity(RegularSolutionModel(W(1.9, 1.9, 1.9)), 3).verdict,
+ mixing_convexity(RegularSolutionModel(W(3.0, 0.0, 0.0)), 3).verdict]
+```
+
+A phase whose verdict is `:nonconvex` is refused at construction, as a concave
+binary is, and admitted with two instances. The certificate of an answer scopes
+itself `:kkt_point` unless every mixing phase is proved convex.
+
+### A member that is a mixture of two others
+
+Two different things can make one end-member the mixture of two others in
+composition. In an **ordered** member the difference of Gibbs energy is the point:
+the pentameric T5C of CSH3T is the average of TobH and T2C less an ordering
+energy (Kulik 2011, Eq. 18), and the siliceous hydrogarnet
+C3AS0.41H5.18 lies between C3AH6 and C3AS0.84H4.32. When the Gibbs energy is
+the average as well, the phase holds one substance twice, once as a member and
+once as a mixture of two, and ideal mixing counts its configurations twice.
+[`SolidSolutionPhase`](@ref) warns when that holds within ``0.1\,RT``; the
+MgAl-OH-LDH ternary of Cemdata18 is the case, its M6A member the average of M4A
+and M8A:
+
+```@example ss_convexity
+subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+g(s) = ustrip(us"kJ/mol", subs[s][:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+(ldh = g("M6A-OH-LDH") - (g("M4A-OH-LDH") + g("M8A-OH-LDH")) / 2,
+ csh3t = g("CSH3T-T5C") - (g("CSH3T-TobH") + g("CSH3T-T2C")) / 2)   # kJ/mol
+```
+
+The shipped entry keeps the published model with `acknowledge_degenerate = true`.
+
+## 9. How a solid solution is declared
 
 A [`SolidSolutionPhase`](@ref) names its end-members and carries a model:
 

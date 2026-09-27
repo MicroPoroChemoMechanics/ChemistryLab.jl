@@ -4,6 +4,7 @@
 using DynamicQuantities
 using ForwardDiff
 using OrderedCollections
+using LinearAlgebra: I, Symmetric, eigvals, nullspace, qr
 
 # ── Solid solution activity models ────────────────────────────────────────────
 
@@ -312,6 +313,7 @@ function SolidSolutionPhase(
         model::AbstractSolidSolutionModel = IdealSolidSolutionModel(),
         check_convexity::Bool = true, T::Real = 298.15,
         instances::Integer = 1, declared::AbstractString = name,
+        acknowledge_degenerate::Bool = false,
     )
     instances >= 1 || error(
         "SolidSolutionPhase \"$name\": `instances` is how many coexisting " *
@@ -365,8 +367,13 @@ function SolidSolutionPhase(
     # they are not degenerate at all: the minimum is the common-tangent pair, and
     # it is unique. So a second instance is admitted exactly where it is needed
     # and refused where it would only add a null direction.
+    # Two end-members: the spinodal scan, whose interval the messages quote.
+    # More: `mixing_convexity`, which refuses on a witness only.
+    nm = length(end_members)
+    convexity = nm == 2 ? nothing : mixing_convexity(model, nm; T = T)
     if instances > 1
-        gap = spinodal_interval(model, length(end_members); T = T)
+        gap = nm == 2 ? spinodal_interval(model, nm; T = T) :
+            (convexity.verdict === :convex ? nothing : convexity)
         gap === nothing && error(
             "SolidSolutionPhase \"$name\": `instances = $instances` asks for " *
                 "$instances coexisting compositions of this phase, but its mixing " *
@@ -375,6 +382,16 @@ function SolidSolutionPhase(
                 "same energy -- and the minimization would be asked to choose a " *
                 "point on a flat manifold. Use `instances = 1`, or a model whose " *
                 "energy has a spinodal (`spinodal_interval` reports it)."
+        )
+    elseif check_convexity && nm > 2
+        convexity.verdict === :nonconvex && error(
+            "SolidSolutionPhase \"$name\": the mixing energy of this model is " *
+                "CONCAVE at x = $(round.(convexity.witness; digits = 3)) at T = $(T) K " *
+                "($(convexity.how)), so the phase unmixes there and one composition " *
+                "cannot describe it. Declare it with `instances = 2`, or use parameters " *
+                "that keep the energy convex, or pass `check_convexity = false` to " *
+                "proceed anyway, in which case the certificate no longer proves a " *
+                "global minimum."
         )
     elseif check_convexity
         gap = spinodal_interval(model, length(end_members); T = T)
@@ -392,6 +409,8 @@ function SolidSolutionPhase(
                 "longer proves anything, its sufficiency resting on convexity."
         )
     end
+
+    acknowledge_degenerate || _warn_degenerate_end_members(name, end_members, model)
 
     qualified = [
         class(sp) == SC_SSENDMEMBER ? sp : with_class(sp, SC_SSENDMEMBER)
@@ -473,8 +492,8 @@ the criterion is `a/RT`, so a model that is convex at 25 °C may not be at 5 °C
 
 Returns `nothing` for an ideal model, whose second derivative is `1/x + 1/(1-x)`
 and therefore positive everywhere, and for a phase with more than two
-end-members, where a one-dimensional scan is not the right test — see the note in
-[`SolidSolutionPhase`](@ref).
+end-members, where a one-dimensional scan is not the right test: see
+[`mixing_convexity`](@ref).
 
 See also: [`RedlichKisterModel`](@ref), [`RegularSolutionModel`](@ref).
 """
@@ -500,6 +519,183 @@ function spinodal_interval(
         end
     end
     return isfinite(lo) ? (lo, hi) : nothing
+end
+
+"""
+    mixing_convexity(model, n_members; T = 298.15) -> (; verdict, witness, how)
+
+Whether the molar Gibbs energy of mixing of a solid solution is convex over its
+whole composition simplex: `verdict` is `:convex`, `:nonconvex` or
+`:undecided`, `witness` a composition (mole fractions) where it is concave when
+`:nonconvex`, `nothing` otherwise, and `how` the argument, in words.
+
+Convexity is what makes a certified answer a global minimum and what lets one
+composition describe the phase; [`spinodal_interval`](@ref) answers the question
+for a binary, and this answers it for any number of end-members.
+
+# The arguments, by model
+
+  - **Ideal mixing** and **ideal mixing on sublattices** ([`SublatticeModel`](@ref))
+    are convex by construction: ``x\\ln x`` is convex, and a sum of such terms in
+    site fractions linear in ``x`` is too.
+  - **A binary** with a Redlich-Kister form is decided by the scan of
+    [`spinodal_interval`](@ref).
+  - **A regular model** ([`RegularSolutionModel`](@ref)), with ``w = W/RT``: on
+    the tangent space of the simplex, ``d^\\mathsf{T}\\operatorname{diag}(1/x)\\,d \\ge 2``
+    for every unit ``d`` with ``\\sum_i d_i = 0`` (the ℓ1 norm of such a ``d`` is at
+    least ``\\sqrt2``, and ``\\sum_i x_i = 1``), so the Hessian of ``g/RT`` is at
+    least ``2 + \\lambda_{\\min}(Q^\\mathsf{T} w Q)`` there, ``Q`` an orthonormal basis
+    of the tangent space. Hence **convex when ``\\lambda_{\\min}(Q^\\mathsf{T} w Q) \\ge -2``**,
+    which for two end-members is the classical ``W \\le 2RT``. **Not convex when
+    some ``W_{ij} > 2RT``**: at the midpoint of that edge the second derivative
+    along it is ``4 - 2w_{ij} < 0``. Between the two, the smallest eigenvalue of
+    the projected Hessian is searched on a lattice of compositions: a negative one
+    is a witness, and none found leaves the question `:undecided`.
+  - **Any other model** is sampled the same way, through `ForwardDiff` of its
+    ``g/RT``: a witness or `:undecided`, never a proof of convexity.
+"""
+function mixing_convexity(model::AbstractSolidSolutionModel, n::Int; T::Real = 298.15)
+    n >= 2 || return (; verdict = :convex, witness = nothing, how = "a single end-member")
+    model isa IdealSolidSolutionModel &&
+        return (; verdict = :convex, witness = nothing, how = "ideal mixing is strictly convex")
+    model isa SublatticeModel &&
+        return (; verdict = :convex, witness = nothing, how = "ideal mixing on each site, in site fractions linear in x")
+    if n == 2 && _rk_coefficients(model, T) !== nothing
+        gap = spinodal_interval(model, 2; T = T)
+        gap === nothing &&
+            return (; verdict = :convex, witness = nothing, how = "binary: no concave point on the spinodal scan")
+        xm = (gap[1] + gap[2]) / 2
+        return (;
+            verdict = :nonconvex, witness = [1 - xm, xm],
+            how = "binary: concave for x in [$(round(gap[1]; digits = 3)), $(round(gap[2]; digits = 3))]",
+        )
+    end
+    Q = _tangent_basis(n)
+    if model isa RegularSolutionModel
+        w = model.W ./ (R_GAS * T)
+        λ = minimum(eigvals(Symmetric(transpose(Q) * w * Q)))
+        λ >= -2 - 1.0e-12 && return (;
+            verdict = :convex, witness = nothing,
+            how = "regular: the smallest eigenvalue of W/RT on the simplex, $(round(λ; sigdigits = 3)), is at least -2",
+        )
+        for i in 1:n, j in (i + 1):n
+            if w[i, j] > 2
+                x = zeros(n); x[i] = x[j] = 0.5
+                return (;
+                    verdict = :nonconvex, witness = x,
+                    how = "regular: W[$i,$j] = $(round(w[i, j]; sigdigits = 3)) RT exceeds 2 RT, concave at the middle of that edge",
+                )
+            end
+        end
+    end
+    return _sampled_convexity(model, n, T, Q)
+end
+
+# An orthonormal basis of {d : Σ dᵢ = 0}.
+function _tangent_basis(n::Int)
+    F = qr(hcat(ones(n), Matrix{Float64}(I, n, n)[:, 1:(n - 1)]))
+    return Matrix(F.Q)[:, 2:n]
+end
+
+# The smallest eigenvalue of the projected Hessian of g/RT on a lattice of
+# compositions; a negative one is a witness of non-convexity.
+function _sampled_convexity(model, n, T, Q)
+    g(x) = sum(x[k] * (log(x[k]) + _excess_ln_gamma(model, k, x, T)) for k in 1:n)
+    steps = n <= 3 ? 40 : n <= 5 ? 12 : 4
+    worst, at = Inf, nothing
+    for c in _simplex_lattice(n, steps)
+        x = (c .+ 0.5) ./ (steps + n / 2)
+        H = ForwardDiff.hessian(g, x)
+        λ = minimum(eigvals(Symmetric(transpose(Q) * H * Q)))
+        λ < worst && ((worst, at) = (λ, x))
+    end
+    worst < -1.0e-9 && return (;
+        verdict = :nonconvex, witness = at,
+        how = "sampled: the Hessian of g/RT has the eigenvalue $(round(worst; sigdigits = 3)) on the simplex at that composition",
+    )
+    return (; verdict = :undecided, witness = nothing, how = "sampled: no concave point found, which proves nothing")
+end
+
+# Integer compositions c with Σ c = steps, n parts.
+function _simplex_lattice(n::Int, steps::Int)
+    n == 1 && return [[steps]]
+    out = Vector{Vector{Int}}()
+    for k in 0:steps, rest in _simplex_lattice(n - 1, steps - k)
+        push!(out, vcat(k, rest))
+    end
+    return out
+end
+
+"""
+    _warn_degenerate_end_members(name, end_members, model)
+
+Warn when a member of a solid solution is, to within `0.1 RT` per formula unit,
+a mixture of two others: its composition is `λ` times one member's plus `1 − λ`
+times another's, `0 < λ < 1`, and so is its standard Gibbs energy at 25 °C.
+The phase then holds one substance twice, once as a member and once as a mixture
+of two, and ideal mixing counts its configurations twice. The published
+MgAl-OH-LDH ternary of Cemdata18 is such a case (its M6A member is the average
+of M4A and M8A, 0.3 J/mol apart), and `acknowledge_degenerate = true` keeps it
+as published. A member that is such a mixture with a Gibbs energy well away from
+it, as the ordered T5C of CSH3T (−4.35 kJ/mol) or the siliceous hydrogarnet
+C3AS0.41H5.18 (−10.4 kJ/mol), is
+an ordering energy the model means, and is not reported.
+
+For a sublattice model the question is asked of the occupancy instead: a
+direction along which no site fraction changes and the Gibbs energy does not
+either is refused, since the minimization then has no unique answer.
+"""
+function _warn_degenerate_end_members(name, end_members, model)
+    G = [_g298(sp) for sp in end_members]
+    any(isnothing, G) && return nothing
+    RT = R_GAS * 298.15
+    if model isa SublatticeModel
+        model.rank == length(end_members) && return nothing
+        O = zeros(sum(length, model.species), length(end_members))
+        row = 0
+        for s in eachindex(model.species)
+            for k in eachindex(end_members)
+                O[row + model.occupancy[s, k], k] = 1.0
+            end
+            row += length(model.species[s])
+        end
+        for v in eachcol(nullspace(O))
+            v = v ./ maximum(abs, v)
+            dG = sum(v[k] * G[k] for k in eachindex(G))
+            abs(dG) < _ONE_SUBSTANCE_RT * RT && error(
+                "SolidSolutionPhase \"$name\": the combination " *
+                    join(["$(round(v[k]; sigdigits = 3)) × $(symbol(end_members[k]))" for k in eachindex(v) if abs(v[k]) > 1.0e-9], " + ") *
+                    " changes no site fraction and its Gibbs energy is zero within " *
+                    "$(round(abs(dG); sigdigits = 2)) J/mol, so the minimization has no " *
+                    "unique answer. Check the occupancy of the model."
+            )
+        end
+        return nothing
+    end
+    comps = [atoms(sp) for sp in end_members]
+    els = union(keys.(comps)...)
+    c = [[Float64(get(a, e, 0)) for e in els] for a in comps]
+    n = length(end_members)
+    for k in 1:n, i in 1:n, j in (i + 1):n
+        (k == i || k == j) && continue
+        d = c[i] .- c[j]
+        m = argmax(abs.(d))
+        abs(d[m]) > 0 || continue
+        λ = (c[k][m] - c[j][m]) / d[m]
+        (1.0e-9 < λ < 1 - 1.0e-9) || continue
+        all(isapprox.(c[k], λ .* c[i] .+ (1 - λ) .* c[j]; atol = 1.0e-9, rtol = 1.0e-6)) || continue
+        dG = G[k] - λ * G[i] - (1 - λ) * G[j]
+        abs(dG) < _ONE_SUBSTANCE_RT * RT || continue
+        @warn "solid solution \"$name\": \"$(symbol(end_members[k]))\" is " *
+            "$(round(λ; sigdigits = 3)) × \"$(symbol(end_members[i]))\" + " *
+            "$(round(1 - λ; sigdigits = 3)) × \"$(symbol(end_members[j]))\" in " *
+            "composition, and in Gibbs energy to $(round(dG; sigdigits = 2)) J/mol " *
+            "($(round(dG / RT; sigdigits = 2)) RT): the phase holds that substance " *
+            "twice, as a member and as a mixture of two, and ideal mixing counts its " *
+            "configurations twice. Declare two of the three, or pass " *
+            "`acknowledge_degenerate = true` to keep the model as published."
+    end
+    return nothing
 end
 
 """

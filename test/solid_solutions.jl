@@ -1082,3 +1082,100 @@ end
         @test_throws ErrorException sublattice_model("Kulik2011:csh3t", [byname["CSHQ-TobH"]])
     end
 end
+
+# A mixing model with no convexity argument of its own: `mixing_convexity`
+# samples it, and a sample proves nothing. Defined at the top level, a struct
+# cannot be declared inside a test set.
+struct _UnprovedMixing <: ChemistryLab.AbstractSolidSolutionModel end
+ChemistryLab._excess_ln_gamma(::_UnprovedMixing, k::Int, x::AbstractVector, T::Real) = zero(eltype(x))
+
+@testsection "convexity beyond two end-members" begin
+    RT = ChemistryLab.R_GAS * 298.15
+    W3(a, b, c) = [0.0 a b; a 0.0 c; b c 0.0] .* RT
+
+    @testset "the verdicts, and the bound that proves them" begin
+        @test mixing_convexity(IdealSolidSolutionModel(), 4).verdict === :convex
+        # λmin(QᵀwQ) ≥ −2 on the tangent space proves a regular model convex:
+        # a symmetric repulsive ternary up to 2 RT per pair.
+        @test mixing_convexity(RegularSolutionModel(W3(1.0, 1.0, 1.0)), 3).verdict === :convex
+        @test mixing_convexity(RegularSolutionModel(W3(1.9, 1.9, 1.9)), 3).verdict === :convex
+        # One pair past 2 RT: concave at the middle of that edge.
+        c = mixing_convexity(RegularSolutionModel(W3(3.0, 0.0, 0.0)), 3)
+        @test c.verdict === :nonconvex
+        @test c.witness == [0.5, 0.5, 0.0]
+        # On two members the bound is the classical threshold W = 2RT.
+        for (w, v) in ((1.99, :convex), (2.01, :nonconvex))
+            @test mixing_convexity(RegularSolutionModel([0.0 w * RT; w * RT 0.0]), 2).verdict === v
+        end
+        # A sublattice model is convex by construction.
+        @test mixing_convexity(SublatticeModel([2, 1], ["A" "B" "B"; "A" "A" "B"]), 3).verdict === :convex
+        # A model with no argument is sampled.
+        @test mixing_convexity(_UnprovedMixing(), 3).verdict === :undecided
+    end
+
+    sp = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+    members = [sp["Cal"], sp["Mgs"], sp["Str"]]
+
+    @testset "a ternary with a witness is refused, and admitted with two instances" begin
+        # REGRESSION: on 0.25.2 only a binary was checked, so this was accepted.
+        err = try
+            SolidSolutionPhase("carbonate", members; model = RegularSolutionModel(W3(3.0, 0.0, 0.0)))
+            nothing
+        catch e
+            sprint(showerror, e)
+        end
+        @test err !== nothing && occursin("CONCAVE", err)
+        @test SolidSolutionPhase(
+            "carbonate", members; model = RegularSolutionModel(W3(3.0, 0.0, 0.0)), instances = 2,
+        ) isa SolidSolutionPhase
+        # Two instances of a convex ternary are degenerate, and refused.
+        @test_throws ErrorException SolidSolutionPhase(
+            "carbonate", members; model = RegularSolutionModel(W3(1.0, 1.0, 1.0)), instances = 2,
+        )
+    end
+
+    @testset "the scope of a certificate follows the verdict" begin
+        # REGRESSION: on 0.25.2 a concave ternary was scoped `:global_minimum`.
+        names = split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Mg+2 Sr+2 Cal Mgs Str")
+        comps = ["H2O@", "H+", "Ca+2", "Mg+2", "Sr+2", "CO3-2", "Zz"]
+        exact = HKFActivityModel(å = 4.0, Ḃ = 0.0, Kₙ = 0.0)   # symmetric by construction
+        function scope(m)
+            ss = [SolidSolutionPhase("carbonate", members; model = m, check_convexity = false)]
+            cs = ChemicalSystem([sp[s] for s in names], comps; solid_solutions = ss)
+            st = ChemicalState(cs)
+            set_quantity!(st, "H2O@", 1.0u"kg")
+            for s in ("Cal", "Mgs", "Str")
+                set_quantity!(st, s, 0.01u"mol")
+            end
+            for s in ("H+", "OH-", "Ca+2", "Mg+2", "Sr+2", "CO3-2", "HCO3-", "CO2@")
+                set_quantity!(st, s, 1.0e-6u"mol")
+            end
+            des = DualEquilibriumSolver(cs, exact)
+            return ChemistryLab._certificate_scope(
+                des, ChemistryLab._build_params(st), ustrip.(us"mol", st.n), FixedTP(),
+            )
+        end
+        @test first(scope(RegularSolutionModel(W3(1.0, 1.0, 1.0)))) === :global_minimum
+        s, why = scope(RegularSolutionModel(W3(3.0, 0.0, 0.0)))
+        @test s === :kkt_point && occursin("concave", only(why))
+        s, why = scope(_UnprovedMixing())
+        @test s === :kkt_point && occursin("could not be decided", only(why))
+    end
+end
+
+@testsection "a member that is a mixture of two others is reported" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    by = Dict(symbol(s) => s for s in substances)
+    ldh = [by[n] for n in ("M4A-OH-LDH", "M6A-OH-LDH", "M8A-OH-LDH")]
+    # M6A is the average of M4A and M8A, in composition and to 0.3 J/mol in
+    # Gibbs energy: the published ternary of Cemdata18 is degenerate.
+    @test_logs (:warn, r"M6A-OH-LDH.*is 0.5 ×.*M4A-OH-LDH") SolidSolutionPhase("MgAl_OH_LDH", ldh)
+    @test_logs SolidSolutionPhase("MgAl_OH_LDH", ldh; acknowledge_degenerate = true)
+    # An ordering energy the model means is not a degeneracy: T5C of CSH3T
+    # (−4.35 kJ/mol) and the siliceous hydrogarnet (−10.4 kJ/mol).
+    @test_logs SolidSolutionPhase("CSH3T", [by[n] for n in ("CSH3T-TobH", "CSH3T-T5C", "CSH3T-T2C")])
+    @test_logs SolidSolutionPhase("Hydrogarnet_Si", [by[n] for n in ("C3AH6", "C3AS0.41H5.18", "C3AS0.84H4.32")])
+    # And no shipped phase warns.
+    ss = @test_logs min_level = Base.CoreLogging.Warn build_solid_solutions(datapath("solid_solutions.toml"), by)
+    @test "MgAl_OH_LDH" in [ChemistryLab.name(p) for p in ss]
+end

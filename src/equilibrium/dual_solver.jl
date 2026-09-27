@@ -630,13 +630,17 @@ function _certificate_scope(des::DualEquilibriumSolver, p, n, constraint)
     if ss !== nothing
         T = p.T
         for ph in ss
-            spinodal_interval(ph.model, length(ph.end_members); T = T) === nothing && continue
+            c = mixing_convexity(ph.model, length(ph.end_members); T = T)
+            c.verdict === :convex && continue
             level = min(level, 2)
             push!(
                 reasons,
-                "the mixing energy of $(name(ph)) is concave on part of its range, so " *
+                c.verdict === :nonconvex ?
+                    "the mixing energy of $(name(ph)) is concave on part of its range, so " *
                     "the present phases are tested against splitting but the minimum " *
-                    "is not proved global",
+                    "is not proved global" :
+                    "the convexity of the mixing energy of $(name(ph)) could not be " *
+                    "decided ($(c.how)), so the minimum is not proved global",
             )
         end
     end

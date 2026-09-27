@@ -181,6 +181,29 @@ CEM I paste with the published gel does not certify, where it does under
   monosulfate and its iron analog, with their published parameters and their
   miscibility gaps.
 
+### Changed: convexity is decided for any number of end-members
+
+`mixing_convexity(model, n)` says whether a mixing energy is convex over the
+whole simplex (`:convex`, `:nonconvex` with a witness composition, or
+`:undecided`), and why. A regular model is proved convex when the smallest
+eigenvalue of `W/RT` on the tangent space of the simplex is at least −2, which
+for two end-members is the familiar `W ≤ 2RT`, and shown not to be when a pair
+exceeds `2RT`. Until now only binaries were checked: a concave ternary was
+accepted without `instances = 2`, and its certified answers were scoped
+`:global_minimum`, which is what they do not prove. Such a phase is now refused
+at construction (or admitted with two instances), and a certificate is scoped
+`:kkt_point` unless every mixing phase is proved convex.
+
+### Added: a member that is a mixture of two others is reported
+
+`SolidSolutionPhase` warns when a member is, in composition and to `0.1 RT` in
+Gibbs energy, the mixture of two others: the phase then holds one substance
+twice, and ideal mixing counts its configurations twice. The MgAl-OH-LDH ternary
+of Cemdata18 is such a case (M6A is the average of M4A and M8A); it ships as
+`MgAl_OH_LDH`, as published, with `acknowledge_degenerate = true`. Ordered
+members whose Gibbs energy departs from the mixture, as T5C of CSH3T or the
+siliceous hydrogarnets, are not reported.
+
 ### Corrected: Parrott, not Parrot
 
 The author of the 1984 hydration model is L. J. Parrott. The functions are now

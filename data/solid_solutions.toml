@@ -202,6 +202,19 @@ end_members = ["Mg3AlC0.5OH", "Mg3FeC0.5OH"]
 model       = "ideal"
 source      = "Lothenbach2019"
 
+# MgAl-OH-LDH, hydrotalcite-like phases of Mg/Al 2 to 4 (Cemdata18, Table 3,
+# note **): an ideal ternary, tentative, recommended for alkali-activated
+# materials. For a Portland cement the paper recommends M4AH10 alone. M6A is the
+# average of M4A and M8A in composition and, to 0.3 J/mol, in Gibbs energy,
+# which the degeneracy guard of `SolidSolutionPhase` reports; the entry keeps
+# the model as published.
+[[solid_solution]]
+name        = "MgAl_OH_LDH"
+end_members = ["M4A-OH-LDH", "M6A-OH-LDH", "M8A-OH-LDH"]
+model       = "ideal"
+acknowledge_degenerate = true
+source      = "Lothenbach2019"
+
 # M-S-H, two Mg/Si ratios.
 [[solid_solution]]
 name        = "MSH"
