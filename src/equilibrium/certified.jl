@@ -429,17 +429,16 @@ function _ideal_mixing_start(
     )
     cs = _ideal_mixing_system(state.system)
     cs === nothing && return nothing
-    return try
-        st = ChemicalState(cs; T = state.T[1], P = state.P[1], n = state.n)
-        eq0, cert0 = equilibrate_certified(
+    # A starting point, not a result: the strict flag is for the answer the
+    # caller receives, and a refusal here only means no start.
+    st = ChemicalState(cs; T = state.T[1], P = state.P[1], n = state.n)
+    eq0, cert0 = with(_STRICT_OVERRIDE => false) do
+        equilibrate_certified(
             st; model = model, b = bfix, ϵ = ϵ, constraint = constraint,
             verbose = false, autostart = true, kwargs...,
         )
-        cert0.optimal ? ChemicalState(state.system; T = state.T[1], P = state.P[1], n = eq0.n) : nothing
-    catch err
-        verbose && @info "the ideal-mixing pre-solve did not run" err
-        nothing
     end
+    return cert0.optimal ? ChemicalState(state.system; T = state.T[1], P = state.P[1], n = eq0.n) : nothing
 end
 
 """

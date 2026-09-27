@@ -643,3 +643,27 @@ end
     # And so does an ion-specific size, with no extended term at all.
     @test gap(HKFActivityModel(; Ḃ = 0.0), 1, 3.0, 1, 5.0) > 1.0e-3
 end
+
+@testsection "Truesdell-Jones in a system with a gas, A and B from T" begin
+    sp = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+    cs = ChemicalSystem([sp[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal CO2")], ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"])
+    st = ChemicalState(cs)
+    set_quantity!(st, "H2O@", 1.0u"kg")
+    for s in ("H+", "OH-", "CO2@", "HCO3-", "CO3-2", "Ca+2")
+        set_quantity!(st, s, 1.0e-3u"mol")
+    end
+    set_quantity!(st, "CO2", 0.02u"mol")
+    p = ChemistryLab._build_params(st)
+    γp = phreeqc_gamma_parameters(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+    fixed = ChemistryLab.activity_model(cs, TruesdellJonesActivityModel(; parameters = γp, temperature_dependent = false))
+    moving = ChemistryLab.activity_model(cs, TruesdellJonesActivityModel(; parameters = γp, temperature_dependent = true))
+    n = ustrip.(us"mol", st.n)
+    ig = findfirst(==("CO2"), [symbol(s) for s in cs.species])
+    # A lone gas is a pure gas phase: its activity is its mole fraction, one.
+    @test fixed(n, p)[ig] ≈ 0.0 atol = 1.0e-12
+    # At 25 °C and 1 bar the two agree; away from it the Debye-Huckel
+    # coefficients move with the temperature.
+    @test moving(n, p) ≈ fixed(n, p) rtol = 1.0e-3
+    p50 = merge(p, (; T = 323.15))
+    @test moving(n, p50) != fixed(n, p50)
+end

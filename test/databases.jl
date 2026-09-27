@@ -667,6 +667,7 @@ end
             CO3-2 + 2 H+ = CO2 + H2O
                 -g 0 0.1
             PHASES
+                -Vm 1.0
             Calcite
                 CaCO3 = CO3-2 + Ca+2
                 -LOG_K -8.48
@@ -675,6 +676,9 @@ end
             zeoliteP_Ca
                 CaAl2Si2O8(H2O)4.5 = Ca+2 + 2AlO2- + 2SiO2 + 4.5H2O
                 -log_k -20.3
+            Broken
+                CaO + 2H+ = Ca+2 + H2O
+                -log_k not-a-number
             END
             """,
         )
@@ -685,7 +689,10 @@ end
         @test p["HCO3-"] == (5.4, 0.0)
         @test p["CO2@"] == (0.0, 0.1)
 
-        phases = ChemistryLab.parse_phases(read(f, String))
+        # An option before any phase is ignored; a -log_k that does not parse is
+        # reported and the phase is kept without one.
+        phases = @test_logs (:warn, r"Could not parse log_K value for phase Broken") match_mode = :any ChemistryLab.parse_phases(read(f, String))
+        @test !haskey(phases["Broken"], "logKr")
         @test phases["Calcite"]["logKr"]["values"] == [-8.48]
         @test phases["Calcite"]["analytical_expression"][4] ≈ 4.60517 / log(10)
         # -Vm is the molar volume of the phase, never a volume of reaction.

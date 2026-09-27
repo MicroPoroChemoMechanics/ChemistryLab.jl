@@ -69,8 +69,10 @@ Every constituent of a template reacts completely unless the entry says
 otherwise; the extents of a real mix are the caller's, set with
 `with_extents`.
 """
-function material_template(name::AbstractString, species)
-    e = _template_entry(name)
+material_template(name::AbstractString, species) = _material_from_entry(_template_entry(name), species)
+
+function _material_from_entry(e::AbstractDict, species)
+    name = e["name"]
     kind = Symbol(get(e, "kind", "other"))
     src = get(e, "source", nothing)
     if haskey(e, "phases")

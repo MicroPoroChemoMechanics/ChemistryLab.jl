@@ -43,6 +43,15 @@ analysis = "Durdzinski2017:chemical_composition:S2"
 route    = "oxides"
 source   = "Durdzinski2017"
 
+# The calcareous fly ash by its Rietveld analysis, the amorphous part its glass
+# by difference from the XRF analysis.
+[[material]]
+name     = "calcareous fly ash (Durdzinski 2017)"
+kind     = "scm"
+phases   = "Durdzinski2017:phase_composition:CFA"
+analysis = "Durdzinski2017:chemical_composition:CFA"
+source   = "Durdzinski2017"
+
 # The siliceous fly ash: its quartz and mullite, inert, and its glass by
 # difference from the XRF analysis, which is the part that reacts.
 [[material]]

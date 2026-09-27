@@ -176,14 +176,11 @@ function _residue(c::OxideConstituent, m, mass, r)
     )
 end
 
-# A thermodynamic property of a species at the recipe's T and P, or `nothing`.
+# A thermodynamic property of a species at the recipe's T and P, or `nothing`
+# when the species does not carry it; evaluated as the volumes of a state are.
 function _species_value(sp, key, unit, r)
     haskey(sp, key) || return nothing
-    return try
-        _in_unit(unit, sp[key](T = r.T * u"K", P = r.P * u"Pa"; unit = true))
-    catch
-        nothing
-    end
+    return _in_unit(unit, sp[key](T = r.T * u"K", P = r.P * u"Pa"; unit = true))
 end
 
 # ── The answer, with its residue ─────────────────────────────────────────────

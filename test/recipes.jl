@@ -79,6 +79,33 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
         )
         @test_throws ArgumentError Material("x", :nonsense; constituents = [MineralConstituent(db["C3S"]; mass_fraction = 1.0)])
         @test "S1 slag (Durdzinski 2017)" in material_templates()
+        @test_throws KeyError material_template("no such material", db)
+        @test_throws ErrorException ChemistryLab._material_from_entry(Dict("name" => "incomplete"), db)
+        # The fly ashes: the glass by difference beside its crystals, which are
+        # inert in the siliceous one and reactive in the Rietveld route.
+        sfa = material_template("siliceous fly ash (Durdzinski 2017)", db)
+        glass = only(c for c in sfa.constituents if c.name == "glass")
+        @test glass.mass_fraction ≈ 1 - 0.149 - 0.193
+        @test all(c -> extent(c.extent, 28) == 0, (c for c in sfa.constituents if c.name != "glass"))
+        cfa = material_template("calcareous fly ash (Durdzinski 2017)", db)
+        @test only(c for c in cfa.constituents if c.name == "glass").mass_fraction ≈ 0.897
+        @test sum(c.mass_fraction for c in cfa.constituents) ≈ 1 rtol = 1.0e-9
+    end
+
+    @testset "the non-negative least squares meets its optimality conditions" begin
+        # x ≥ 0, the gradient Aᵀ(Ax − b) zero where x > 0 and non-negative where
+        # x = 0: the conditions of the minimum, whatever path found it.
+        seed = UInt64(0x2026_0927_0000_0003)
+        rnd() = (seed ⊻= seed << 13; seed ⊻= seed >> 7; seed ⊻= seed << 17; (seed >> 11) / Float64(1 << 53))
+        for _ in 1:50
+            A = [rnd() for _ in 1:4, _ in 1:6]
+            b = [rnd() - 0.3 for _ in 1:4]
+            x = ChemistryLab._nnls(A, b)
+            g = transpose(A) * (A * x - b)
+            @test all(>=(0), x)
+            @test all(abs(g[j]) < 1.0e-9 for j in eachindex(x) if x[j] > 0)
+            @test all(g[j] > -1.0e-9 for j in eachindex(x) if x[j] == 0)
+        end
     end
 
     # A small paste: clinker, gypsum, slag, water.

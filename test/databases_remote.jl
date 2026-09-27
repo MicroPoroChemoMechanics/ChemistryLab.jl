@@ -7,6 +7,7 @@
 # file as any user's first call would.
 
 using SHA
+using JSON
 
 @testsection "Databases obtained from their publishers" begin
     CL = ChemistryLab
@@ -147,6 +148,44 @@ using SHA
             write(b, "{ }")
             @test CL._derived_key(d, a) != CL._derived_key(d, b)
             @test CL._derived_key(d, a) == CL._derived_key(d, a)
+        end
+    end
+
+    @testset "derived databases are built from the base, once, and again when it changes" begin
+        base = datapath("cemdata18-thermofun.json")
+        mktempdir() do dir
+            mine = joinpath(dir, "mine")
+            mkpath(mine)
+            cp(base, joinpath(mine, "cemdata18-thermofun.json"))
+            saved = CL._CACHE_OVERRIDE[]
+            try
+                CL._CACHE_OVERRIDE[] = joinpath(dir, "cache")
+                withenv("CHEMISTRYLAB_DATABASE_DIR" => mine) do
+                    n_base = length(JSON.parsefile(base)["substances"])
+                    z = database_path("cemdata18-zeolites.json")
+                    @test startswith(z, joinpath(dir, "cache", "derived"))
+                    @test length(JSON.parsefile(z)["substances"]) == n_base + length(CL.zeolite_records())
+                    c = database_path("cemdata18-chloride.json")
+                    @test length(JSON.parsefile(c)["substances"]) == n_base + 1
+                    # Built once: the second call reads the cache.
+                    t = mtime(z)
+                    @test database_path("cemdata18-zeolites.json") == z && mtime(z) == t
+                    # A key that no longer matches is a build to redo.
+                    write(z * ".key", "stale")
+                    @test database_path("cemdata18-zeolites.json") == z
+                    @test strip(read(z * ".key", String)) == CL._derived_key(CL.DERIVED_DATABASES["cemdata18-zeolites.json"], joinpath(mine, "cemdata18-thermofun.json"))
+                end
+                # With no local directory the base is found in the cache, which
+                # `database_info` says; the validated file installs as such.
+                withenv("CHEMISTRYLAB_DATABASE_DIR" => nothing) do
+                    installed = install_database(base; name = "cemdata18-thermofun.json")
+                    @test !isfile(CL._accepted_path(installed))
+                    rows = database_info(devnull)
+                    @test only(r for r in rows if r.name == "cemdata18-thermofun.json").status === :cached
+                end
+            finally
+                CL._CACHE_OVERRIDE[] = saved
+            end
         end
     end
 

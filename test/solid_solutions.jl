@@ -1179,3 +1179,42 @@ end
     ss = @test_logs min_level = Base.CoreLogging.Warn build_solid_solutions(datapath("solid_solutions.toml"), by)
     @test "MgAl_OH_LDH" in [ChemistryLab.name(p) for p in ss]
 end
+
+@testsection "convexity found on the lattice, and flat sublattice directions" begin
+    RT = ChemistryLab.R_GAS * 298.15
+    # No pair past 2 RT, and not proved convex either: the witness is found on
+    # the lattice of compositions.
+    w = [0.0 1.95 1.95; 1.95 0.0 -3.0; 1.95 -3.0 0.0]
+    Q = ChemistryLab._tangent_basis(3)
+    @test minimum(eigvals(Symmetric(transpose(Q) * w * Q))) < -2
+    c = mixing_convexity(RegularSolutionModel(w .* RT), 3)
+    @test c.verdict === :nonconvex && occursin("sampled", c.how)
+
+    sp = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+    # A reciprocal set of four members on two sites has rank 3: one direction
+    # changes no site fraction. With four different carbonates its Gibbs energy
+    # moves, and the phase is accepted.
+    recip = SublatticeModel([1, 1], ["A" "A" "B" "B"; "A" "B" "A" "B"])
+    @test recip.rank == 3
+    @test SolidSolutionPhase("reciprocal", [sp["Cal"], sp["Mgs"], sp["Str"], sp["Arg"]]; model = recip) isa SolidSolutionPhase
+    # With the same two substances at the ends of that direction, it is flat,
+    # and refused: the minimization would have no unique answer.
+    err = try
+        SolidSolutionPhase("flat", [sp["Cal"], sp["Arg"], sp["Cal"], sp["Arg"]]; model = recip)
+        nothing
+    catch e
+        sprint(showerror, e)
+    end
+    @test err !== nothing && occursin("no unique answer", err)
+
+    # Records that are not one multiple of the published units.
+    db = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+    whole = Species(Formula("(CaO)2(SiO2)3(H2O)5"); symbol = "CSH3T-TobH", aggregate_state = AS_CRYSTAL)
+    err = try
+        sublattice_model("Kulik2011:csh3t", [whole, db["CSH3T-T5C"], db["CSH3T-T2C"]])
+        nothing
+    catch e
+        sprint(showerror, e)
+    end
+    @test err !== nothing && occursin("not one multiple", err)
+end
