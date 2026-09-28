@@ -1,8 +1,8 @@
 # [The silicates of a CEM I clinker, hydrating end to end](@id sec-coupled-hydration)
 
 !!! info "Before this page"
-    [Coupling kinetics and equilibrium](@ref sec-coupling) and [Cement clinker
-    hydration kinetics](@ref).
+    [Coupling kinetics and equilibrium](@ref sec-coupling) and [Hydration
+    kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics).
 
 A worked application of [Coupling kinetics and equilibrium](@ref sec-coupling): alite and
 belite dissolve according to [ParrottKilloh1984](@cite), and the hydrate
