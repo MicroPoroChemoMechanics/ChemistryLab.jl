@@ -1,6 +1,32 @@
 # Changelog
 
-## Unreleased
+## v0.27.0 — Validated against measured pastes: phase lists, processes, a second instance on demand, and a nomenclature
+
+Three published sets of pastes are computed from their papers' data and set
+against their measurements and against GEMS3K run on the same budgets: a CEM I
+42.5 N through its first year, four ternary cements with fly ash and limestone,
+and four mortars of a CEM I 52.5 N with limestone and metakaolin, carbonated. The
+two codes agree to 0.001 in pH before carbonation and 0.011 along it. A phase
+declared `instances = :auto` is given its second composition only when the
+certificate finds it wanting to split. The phases of a paste can be taken from a
+phase list written after a paper, and the processes of the recipe layer run on
+it. A nomenclature lists the symbols of the formulas, and hovering an equation
+shows those it holds.
+
+### Breaking changes
+
+- Below 1.0 a minor release is a breaking one for Julia's resolver: a package
+  bounding `ChemistryLab = "0.26"` does not accept 0.27.0 and must widen its
+  bound.
+- ChemistryLab requires **OptimaSolver 0.7.1** (`OptimaSolver = "0.7.1"`, which
+  0.7.0 does not meet). Its test of the components a budget forces to zero is a
+  fixed point; without it, a paste declaring phases of an element its budget
+  lacks could lose the linear-programming start and take minutes.
+- A solid solution with a Redlich-Kister or regular excess term is inverted by
+  Newton's method instead of by successive substitution. A certified answer is
+  the same to the tolerance of its certificate, but the route to it, the time it
+  takes, and whether an answer certifies from a given start can change; the
+  miscibility-gap page changed its conclusion with it.
 
 ### Added: a second instance when a phase wants it, `instances = :auto`
 
