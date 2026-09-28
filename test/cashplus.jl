@@ -82,6 +82,16 @@ _cef_lna(mdl, x, g; T = 298.15, ϵ = 0.0) =
     # Any reciprocal energy makes it differ.
     @test !(_cef_lna(ideal, x, g; T) ≈ ChemistryLab._ss_log_activities!(zeros(6), 1:6, x, lat, T, 0.0))
 
+    # Integer multiplicities and real interaction energies make one real model,
+    # with the same occupancy.
+    whole = CompoundEnergyModel(
+        SublatticeModel([1, 1], ["A" "A" "A" "B" "B" "B"; "X" "Y" "Z" "X" "Y" "Z"]; sites = ["s1", "s2"]);
+        interactions = [("s1", "A", "B", -4000.0)]
+    )
+    @test whole isa CompoundEnergyModel{Float64}
+    @test whole.lattice.occupancy == lat.occupancy
+    @test whole.lattice.species == lat.species
+
     # The end-members must be every compound of the sites, each once.
     partial = SublatticeModel([1.0, 1.0], ["A" "A" "B"; "X" "Y" "X"]; sites = ["s1", "s2"])
     @test_throws ErrorException CompoundEnergyModel(partial)
