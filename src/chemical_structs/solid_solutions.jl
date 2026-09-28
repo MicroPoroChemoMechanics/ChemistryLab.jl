@@ -263,6 +263,14 @@ SolidSolutionPhase("AFm_SO4_OH", [c4ah13, monosulphate];
                    model = RedlichKisterModel(a0 = 20_000.0), instances = 2)
 ```
 
+`instances = :auto` declares one composition and allows a second. The phase is
+solved with one, and [`equilibrate_certified`](@ref) adds the second only when its
+certificate finds the phase wanting to split, through [`with_instances`](@ref):
+the answer is then a state of the enlarged system, whose `solid_solutions` hold
+the two instances. A caller whose composition stays outside the gap never pays
+for the second copy. `:auto` is refused for a convex model, as `instances = 2`
+is.
+
 # Example
 
 ```jldoctest
@@ -290,6 +298,10 @@ struct SolidSolutionPhase{T <: AbstractSpecies, M <: AbstractSolidSolutionModel}
     # Greater than one only inside a miscibility gap; see the keyword
     # constructor, which refuses it otherwise.
     instances::Int
+    # How many it may hold. Equal to `instances`, except for `instances = :auto`,
+    # which declares one and allows a second when a solve finds the phase wanting
+    # to split; see `with_instances` and `equilibrate_certified`.
+    max_instances::Int
     # The name of the declaration this phase is an instance of. Equal to `name`
     # for an ordinary phase, and for the first instance of a multi-instance one;
     # the later instances are named `"$declared#k"`. `ChemicalSystem` uses it to
@@ -312,13 +324,25 @@ function SolidSolutionPhase(
         end_members::AbstractVector{<:AbstractSpecies};
         model::AbstractSolidSolutionModel = IdealSolidSolutionModel(),
         check_convexity::Bool = true, T::Real = 298.15,
-        instances::Integer = 1, declared::AbstractString = name,
+        instances::Union{Integer, Symbol} = 1, declared::AbstractString = name,
         acknowledge_degenerate::Bool = false,
     )
-    instances >= 1 || error(
-        "SolidSolutionPhase \"$name\": `instances` is how many coexisting " *
-            "compositions the phase may take, so it is at least 1; got $instances."
-    )
+    # `:auto` declares one composition and allows a second: the phase splits only
+    # when a solve finds it wanting to.
+    if instances isa Symbol
+        instances === :auto || throw(
+            ArgumentError(
+                "SolidSolutionPhase \"$name\": `instances` is a number, or `:auto`; got :$instances."
+            ),
+        )
+        n_instances, max_instances = 1, 2
+    else
+        instances >= 1 || error(
+            "SolidSolutionPhase \"$name\": `instances` is how many coexisting " *
+                "compositions the phase may take, so it is at least 1; got $instances."
+        )
+        n_instances = max_instances = Int(instances)
+    end
     for sp in end_members
         aggregate_state(sp) == AS_CRYSTAL ||
             error(
@@ -371,12 +395,12 @@ function SolidSolutionPhase(
     # More: `mixing_convexity`, which refuses on a witness only.
     nm = length(end_members)
     convexity = nm == 2 ? nothing : mixing_convexity(model, nm; T = T)
-    if instances > 1
+    if max_instances > 1
         gap = nm == 2 ? spinodal_interval(model, nm; T = T) :
             (convexity.verdict === :convex ? nothing : convexity)
         gap === nothing && error(
-            "SolidSolutionPhase \"$name\": `instances = $instances` asks for " *
-                "$instances coexisting compositions of this phase, but its mixing " *
+            "SolidSolutionPhase \"$name\": `instances = $(repr(instances))` asks for " *
+                "up to $max_instances coexisting compositions of this phase, but its mixing " *
                 "energy is CONVEX at T = $(T) K, so it has one. The instances would " *
                 "be degenerate -- every split of the amount between them has the " *
                 "same energy -- and the minimization would be asked to choose a " *
@@ -418,7 +442,7 @@ function SolidSolutionPhase(
     ]
     T = eltype(qualified)
     return SolidSolutionPhase{T, typeof(model)}(
-        String(name), collect(T, qualified), model, Int(instances), String(declared)
+        String(name), collect(T, qualified), model, n_instances, max_instances, String(declared)
     )
 end
 
@@ -934,5 +958,7 @@ function Base.show(io::IO, ss::SolidSolutionPhase{T, M}) where {T, M}
     println(io, "  end-members ($(length(ss.end_members))): $em_names")
     print(io, "  model: $M")
     ss.instances > 1 && print(io, "\n  instances: $(ss.instances) (miscibility gap)")
+    ss.max_instances > ss.instances &&
+        print(io, "\n  instances: $(ss.instances), up to $(ss.max_instances) (:auto)")
     return nothing
 end

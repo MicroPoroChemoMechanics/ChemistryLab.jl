@@ -171,6 +171,9 @@ pages = [
             # The case a non-ideal model is written for and a single-composition
             # formulation cannot hold: the published AFm binary, run three ways.
             "examples/miscibility_gap.md",
+            # Two gels mixed on their sites: CSH3T both ways, and the chain
+            # length of the CNASH gel.
+            "examples/sublattice_csh.md",
             "examples/pitzer_model.md",
         ],
         # The smallest complete surface calculation, against the closed form it

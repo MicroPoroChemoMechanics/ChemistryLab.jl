@@ -352,6 +352,56 @@ function _expand_instances(species::AbstractVector, solid_solutions)
 end
 
 """
+    with_instances(cs, name => k, ...; T = 298.15) -> ChemicalSystem
+
+`cs` with the solid solution `name` declared with `k` instances, every other
+species and phase unchanged.
+
+The system is rebuilt from its declarations: the copies of the end-members that
+earlier instances needed are dropped, the phase is declared again with `k`
+instances, and [`ChemicalSystem`](@ref) builds the copies that number asks for,
+under the symbols `"\$symbol#2"`, … The primaries, and therefore the order of the
+components of a budget, are those of `cs`, so a budget written for `cs` is a
+budget for the result. [`with_instances(state, cs)`](@ref with_instances) maps a
+state across.
+
+`T` is the temperature the phase is checked at: more than one instance is
+refused where its mixing energy is convex, as at declaration. A system with
+kinetic species is refused, since a kinetic step works on a system it was given.
+"""
+function with_instances(cs::ChemicalSystem, changes::Pair{<:AbstractString, <:Integer}...; T::Real = 298.15)
+    isempty(cs.idx_kinetic) || throw(
+        ArgumentError(
+            "with_instances: this system has kinetic species, and a kinetic step " *
+                "works on the system it was given; declare the instances before building it."
+        ),
+    )
+    phases = cs.solid_solutions
+    phases === nothing && throw(ArgumentError("with_instances: this system declares no solid solution."))
+    declarations = [ss for ss in phases if name(ss) == _declared(ss)]
+    wanted = Dict(String(first(c)) => Int(last(c)) for c in changes)
+    for n in keys(wanted)
+        any(ss -> name(ss) == n, declarations) || throw(
+            ArgumentError(
+                "with_instances: no solid solution named \"$n\"; this system declares " *
+                    join(("\"" * name(ss) * "\"" for ss in declarations), ", ") * "."
+            ),
+        )
+    end
+    copies = Set(symbol(em) for ss in phases if name(ss) != _declared(ss) for em in end_members(ss))
+    species = [sp for sp in cs.species if !(symbol(sp) in copies)]
+    redeclared = map(declarations) do ss
+        k = get(wanted, name(ss), nothing)
+        k === nothing && return ss
+        return SolidSolutionPhase(
+            name(ss), end_members(ss); model = model(ss), instances = k, T = T,
+            acknowledge_degenerate = true,
+        )
+    end
+    return ChemicalSystem(species, cs.SM.primaries; solid_solutions = redeclared, site_families = cs.site_families)
+end
+
+"""
     _refuse_overlapping_solid_solutions(solid_solutions)
 
 Refuse a system in which two declared solid solutions describe the same

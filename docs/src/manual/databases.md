@@ -407,6 +407,38 @@ Phases whose end-members are not found in `dict` are skipped with a warning
 em = with_class(dict["CSHQ-TobD"], SC_SSENDMEMBER)
 ```
 
+### [The models of the C-S-H gel](@id sec-csh-models)
+
+The calcium silicate hydrate of a cement paste is one gel, and the file ships five
+models of it. They differ in what their end-members can hold, and that decides
+what a calculation can say: a model with no aluminum member puts every atom of
+aluminum in another phase, and one with no potassium member leaves the potassium
+in solution. `data/gel_models.toml` lists the five as models of one gel, so that a
+system declaring two of them is refused. The table is read from the two files:
+
+```@example gels
+using ChemistryLab, Printf, TOML
+subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+entries = TOML.parsefile(datapath("solid_solutions.toml"))["solid_solution"]
+@printf("%-9s %-8s %-11s %-15s %s\n", "model", "members", "mixing", "source", "elements besides Ca, Si, O, H")
+for gel in TOML.parsefile(datapath("gel_models.toml"))["gel_model"]
+    entry = only(e for e in entries if e["name"] == gel["model"])
+    members = entry["end_members"]
+    others = sort(unique(String(el) for m in members for el in keys(atoms(subs[m]))
+                         if !(el in (:Ca, :Si, :O, :H))))
+    @printf("%-9s %-8d %-11s %-15s %s\n", gel["model"], length(members), entry["model"],
+            entry["source"], isempty(others) ? "none" : join(others, ", "))
+end
+```
+
+`CNASH_ss` is the only one that mixes on the sites of its formula unit, as its
+authors define it [Myers2014](@cite); the other four mix their end-members
+ideally, which is how Cemdata18 ships them, and `sublattice_model("Kulik2011:csh3t",
+members)` gives the site form of `CSH3T` (see [Solid solutions](@ref
+sec-theory-solid-solutions)). [The CEM IV page](@ref ex-cem4-pozzolanic) computes
+one paste with `CSHQ` and with `CNASH_ss`, and shows how far apart the two answers
+are.
+
 ## Where to go next
 
 How a species read from a database carries its temperature dependence is the

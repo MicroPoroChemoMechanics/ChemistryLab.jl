@@ -521,8 +521,10 @@ names published dimensionless Guggenheim parameters with
 table of `data/literature/<key>.json`; they become `a = α R T` at 298.15 K, so
 that no published value is copied into the file. The sign of `a1` follows the
 order of `end_members`. A model that unmixes needs `instances = 2`, the number of
-coexisting compositions [`SolidSolutionPhase`](@ref) may give the phase; without
-it the phase is refused at construction, which is what makes a gap visible.
+coexisting compositions [`SolidSolutionPhase`](@ref) may give the phase, or
+`instances = "auto"`, which gives it the second only when a solve finds it
+wanting to split; without either the phase is refused at construction, which is
+what makes a gap visible.
 
 ```toml
 [[solid_solution]]
@@ -630,7 +632,8 @@ function build_solid_solutions(
             IdealSolidSolutionModel()
         end
 
-        instances = Int(get(entry, "instances", 1))
+        declared_instances = get(entry, "instances", 1)
+        instances = declared_instances == "auto" ? :auto : Int(declared_instances)
         acknowledge_degenerate = Bool(get(entry, "acknowledge_degenerate", false))
         push!(
             phases,

@@ -1,5 +1,43 @@
 # Changelog
 
+## Unreleased
+
+### Added: a second instance when a phase wants it, `instances = :auto`
+
+`SolidSolutionPhase(...; instances = :auto)`, or `instances = "auto"` in a
+solid-solution file, declares one composition and allows a second. The phase is
+solved with one, and when the certificate of `equilibrate_certified` finds it
+wanting to split, the system is rebuilt with a second instance, the answer carried
+over, and the passes of `equilibrate_split` look for the pair; their answer is
+kept when its KKT error is smaller, and the certificate then names the phase in
+`instances_added`. A caller whose composition stays outside the gap never pays for
+the second copy, and one who did not know the phase would unmix no longer has to
+declare two instances in advance. On a calcite–magnesite binary held inside its
+gap by the budget, the pair found is the common tangent of the model to 1e-3, and
+the answer of `instances = 2` to 1e-6. It needs the one-composition solve to
+converge first, which it does not on the AFm of the miscibility-gap page.
+`with_instances(cs, name => k)` rebuilds a system with `k` instances of a phase,
+the primaries unchanged, and `with_instances(state, cs)` carries a state across.
+
+### Documentation
+
+- `cemdata18_activity_model` keeps `b_γ` at its 25 °C value, and its docstring
+  now says why beyond the paper giving no other: Helgeson et al. (1981) tabulate
+  `b_γ` against temperature for six chlorides (their Table 26), not for KOH or
+  NaOH.
+- `manual/databases.md` has a table of the five models of the C-S-H gel the
+  package ships, read from the files: members, mixing, source, and the elements
+  the members hold besides calcium and silicon.
+- The comparison of activity models has a fourth column, the B-dot model with
+  the parameters Cemdata18 prescribes.
+- A new page, *Mixing on sites: the CSH3T and CNASH gels*, solves CSH3T in
+  water mixed by end-members and by sites (the silicon in solution differs by up
+  to half), and reads the minimum chain length of Eq. (11) of Myers et al.
+  (2014) from a C-(N-)A-S-H gel, the bridging-site vacancies of their Table 1
+  transcribed into `data/literature/Myers2014.json`.
+- The theory chapter and the miscibility-gap page no longer say that no code
+  splits a phase by itself.
+
 ## v0.26.0 — Cement modeling: databases from their publishers, the activity model of Cemdata18, sublattice mixing, a linear-programming start and recipes
 
 The thermodynamic databases are no longer shipped: they are obtained from their

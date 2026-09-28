@@ -1350,6 +1350,136 @@ end
     end
 end
 
+@testsection "instances = :auto: a second composition only when the phase wants it" begin
+    sp = Dict(
+        symbol(s) => s for s in build_species(
+                datapath("slop98-inorganic-thermofun.json"); verbose = false
+            )
+    )
+    names = split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Mg+2 Cal Mgs")
+    comps = ["H2O@", "H+", "Ca+2", "Mg+2", "CO3-2", "Zz"]
+    gap = RedlichKisterModel(a0 = 14_000.0)
+    pair = common_tangent(gap)
+    carbonate(instances) = SolidSolutionPhase("carbonate", [sp["Cal"], sp["Mgs"]]; model = gap, instances)
+    system(instances) = ChemicalSystem([sp[s] for s in names], comps; solid_solutions = [carbonate(instances)])
+    # `fresh`, not `st`: a closure assigning a name the enclosing testset also
+    # assigns would rebind the testset's own `st`.
+    function paste(cs, cal, mgs)
+        fresh = ChemicalState(cs)
+        set_quantity!(fresh, "H2O@", 1.0u"kg")
+        set_quantity!(fresh, "Cal", cal * u"mol")
+        set_quantity!(fresh, "Mgs", mgs * u"mol")
+        return fresh, Float64.(cs.SM.A) * ustrip.(us"mol", fresh.n)
+    end
+    compositions(eq) = begin
+        n = ustrip.(us"mol", eq.n)
+        sort(
+            [
+                (n[g[2]] / sum(n[i] for i in g), sum(n[i] for i in g)) for g in eq.system.ss_groups
+                    if sum(n[i] for i in g) > 1.0e-10
+            ]
+        )
+    end
+
+    # The declaration: one composition, room for a second, refused where there is no gap.
+    auto = carbonate(:auto)
+    @test auto.instances == 1 && auto.max_instances == 2
+    @test occursin("(:auto)", sprint(show, auto))
+    @test_throws ErrorException SolidSolutionPhase("ideal", [sp["Cal"], sp["Mgs"]]; instances = :auto)
+    @test_throws ArgumentError carbonate(:many)
+
+    # `with_instances` rebuilds the system: the copies exist, the budget reads the same.
+    cs = system(:auto)
+    @test length(cs.species) == length(names)
+    cs2 = with_instances(cs, "carbonate" => 2)
+    @test length(cs2.species) == length(names) + 2
+    @test symbol.(cs2.SM.primaries) == symbol.(cs.SM.primaries)
+    st, b = paste(cs, 0.025, 0.025)
+    st2 = with_instances(st, cs2)
+    @test Float64.(cs2.SM.A) * ustrip.(us"mol", st2.n) ≈ b rtol = 1.0e-14
+    @test temperature(st2) == temperature(st)
+    @test_throws ArgumentError with_instances(cs, "calcite" => 2)
+    @test length(with_instances(cs2, "carbonate" => 2).species) == length(cs2.species)
+
+    # Pinned inside the gap by the budget: the second instance is added, and the
+    # pair is the common tangent, in the proportions of the lever rule -- the
+    # answer of the phase declared with two instances from the start.
+    eq, cert = equilibrate_certified(st; b = b)
+    @test cert.optimal
+    @test cert.instances_added == ["carbonate"]
+    @test length(eq.system.species) == length(names) + 2
+    (x1, t1), (x2, t2) = compositions(eq)
+    @test x1 ≈ pair[1] atol = 1.0e-3
+    @test x2 ≈ pair[2] atol = 1.0e-3
+    @test t1 / (t1 + t2) ≈ (pair[2] - 0.5) / (pair[2] - pair[1]) atol = 5.0e-3
+    st_two, b_two = paste(system(2), 0.025, 0.025)
+    eq_two, _ = equilibrate_certified(st_two; b = b_two)
+    @test first.(compositions(eq)) ≈ first.(compositions(eq_two)) atol = 1.0e-6
+
+    # Never worse than one instance. A first answer that asks to split, but whose
+    # error the second instance cannot lower (here made zero), sends the solve back
+    # to the ordinary search on the one-instance system.
+    first_eq, first_cert = ChemistryLab._relaxed_convergence() do
+        ChemistryLab._certified_with_fallback(st; b = b)
+    end
+    @test ChemistryLab._wants_auto_split(cs, first_cert)
+    unbeatable = merge(first_cert, (; stationarity = 0.0, balance = 0.0, worst_supersaturation = -1.0))
+    back_eq, back_cert = ChemistryLab._relaxed_convergence() do
+        ChemistryLab._after_first_search(st, first_eq, unbeatable; b = b)
+    end
+    @test back_eq.system === cs
+    @test !hasproperty(back_cert, :instances_added)
+
+    # A budget no amounts can meet is refused as usual, and under the strict flag
+    # it raises once the second instance has been considered.
+    bad = copy(b)
+    bad[findfirst(==("Ca+2"), String.(symbol.(cs.SM.primaries)))] = -1.0e-3
+    strict = ChemistryLab.STRICT_CONVERGENCE[]
+    try
+        ChemistryLab.STRICT_CONVERGENCE[] = true
+        @test_throws ErrorException equilibrate_certified(st; b = bad)
+    finally
+        ChemistryLab.STRICT_CONVERGENCE[] = strict
+    end
+
+    # Outside the gap nothing is added: one instance, the system unchanged. The
+    # pair of this model is close to the pure end-members, so outside is half way
+    # between its calcite side and pure calcite.
+    x_out = (1 + pair[2]) / 2
+    st_out, b_out = paste(cs, 0.05x_out, 0.05(1 - x_out))
+    eq_out, cert_out = equilibrate_certified(st_out; b = b_out)
+    @test cert_out.optimal
+    @test !hasproperty(cert_out, :instances_added)
+    @test eq_out.system === cs
+
+    # Under the strict flag the one-composition solve is a search, not a result.
+    strict = ChemistryLab.STRICT_CONVERGENCE[]
+    try
+        ChemistryLab.STRICT_CONVERGENCE[] = true
+        _, cert_strict = equilibrate_certified(st; b = b)
+        @test cert_strict.optimal
+    finally
+        ChemistryLab.STRICT_CONVERGENCE[] = strict
+    end
+
+    # And from the solid-solution file.
+    mktempdir() do dir
+        path = joinpath(dir, "ss.toml")
+        write(
+            path, """
+            [[solid_solution]]
+            name        = "carbonate"
+            end_members = ["Cal", "Mgs"]
+            model       = "redlich_kister"
+            a0          = 14000.0
+            instances   = "auto"
+            """
+        )
+        ss = only(build_solid_solutions(path, sp))
+        @test ss.instances == 1 && ss.max_instances == 2
+    end
+end
+
 @testsection "the certificate says what it proves" begin
     # `optimal = true` is a proof of a global minimum only when the log
     # activities are the gradient of one Gibbs energy and the problem is convex.

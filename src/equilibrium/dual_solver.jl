@@ -743,6 +743,7 @@ function solve_certified(
         constraint::EquilibriumConstraint = FixedTP(),
         parameters::Union{Nothing, Base.RefValue} = nothing,
         memo::Union{Nothing, IdDict} = nothing,
+        stop::Union{Nothing, Function} = nothing,
     )
     best = nothing
     best_cert = nothing
@@ -777,6 +778,13 @@ function solve_certified(
             qref = Ref(q)
         end
         if cert.optimal
+            parameters === nothing || (parameters[] = qref[])
+            return (eq, cert)
+        end
+        # A caller may know that an uncertified answer is already what it needs:
+        # a phase declared `instances = :auto` asking to split, which no other
+        # start can make certify with one composition.
+        if stop !== nothing && stop(cert)
             parameters === nothing || (parameters[] = qref[])
             return (eq, cert)
         end
