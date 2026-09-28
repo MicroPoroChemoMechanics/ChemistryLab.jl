@@ -29,9 +29,13 @@ export function installSymbolHints(): void {
     const rows = (eq.getAttribute('data-nomen') || '').split(' ')
       .map((id) => nomenIndex.get(id)).filter((x) => x)
     if (rows.length === 0) return
-    // The label is HTML written in the nomenclature (<sub>, <sup>); the rest is text.
+    // The label, the name and the unit are HTML written in the nomenclature
+    // (<sub>, <sup>, <b>: test/docs_nomenclature.jl allows no other tag); the
+    // value of a constant, read from the library, is text. An escaped unit showed
+    // its tags, as in the C m<sup>−2</sup> (kg/mol)<sup>½</sup> of the
+    // Gouy–Chapman prefactor.
     tip.innerHTML = rows.map((r: any) => {
-      const unit = r.value ? `${escapeText(r.value)} ${escapeText(r.unit)}` : (r.unit && r.unit !== '1' ? escapeText(r.unit) : '')
+      const unit = r.value ? `${escapeText(r.value)} ${r.unit}` : (r.unit && r.unit !== '1' ? r.unit : '')
       return `<div class="row"><span class="sym">${r.label}</span><span class="what">${r.name}${unit ? `<span class="unit"> — ${unit}</span>` : ''}</span></div>`
     }).join('')
     tip.classList.add('is-visible')

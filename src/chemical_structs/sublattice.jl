@@ -395,11 +395,11 @@ such as TSvh + TCCh = TSCh + TCvh in CASH+, whose Gibbs energy is not zero.
 # Activities
 
 The chemical potential of end-member ``k`` is ``∂(nG)/∂n_k``. With ``G_\\text{ref}``
-the reference surface and ``S`` the number of sites,
+the reference surface and ``n_\\text{site}`` the number of sites,
 
 ```math
 \\ln a_k = \\sum_s m_s \\ln y_{s,k_s}
-  + \\frac{1}{RT}\\Big(\\sum_s \\frac{∂G_\\text{ref}}{∂y_{s,k_s}} - (S-1)\\,G_\\text{ref} - G^\\circ_k\\Big)
+  + \\frac{1}{RT}\\Big(\\sum_s \\frac{∂G_\\text{ref}}{∂y_{s,k_s}} - (n_\\text{site}-1)\\,G_\\text{ref} - G^\\circ_k\\Big)
   + \\frac{1}{RT}\\sum_s\\Big(\\sum_l W_{s,k_s l}\\, y_{s,l} - \\sum_{i<l} W_{s,il}\\, y_{s,i} y_{s,l}\\Big).
 ```
 
@@ -412,12 +412,31 @@ the model with the amounts, at the temperature of the solve.
 
 The reference surface is spanned by the compounds, one per choice of a species
 on every site. The model requires the end-members to be exactly those compounds,
-each once; the constructor refuses any other set. The end-member amounts are then
-not unique: six end-members for four independent site fractions in CASH+. The
-Gibbs energy, the activities and the element balance depend on the site
-fractions alone, so every split of the same site fractions between the
-end-members is the same equilibrium. The members hold no species of their own, so
-any of them may vanish inside a present phase.
+each once; the constructor refuses any other set. The Gibbs energy and the
+element balance then depend on the site fractions alone, and the end-member
+amounts are not unique: six end-members for four independent site fractions in
+CASH+, twelve for six in CASH+NK. Every split of the same site fractions between
+the end-members is the same equilibrium.
+
+# The split the solver is given
+
+To make the split unique, the energy the solver minimizes adds
+``RT\\,D(x)``, with
+
+```math
+D(x) = \\sum_j x_j \\ln x_j - \\sum_s \\sum_i y_{s,i} \\ln y_{s,i} \\;\\ge\\; 0 ,
+```
+
+the divergence of ``x`` from the product of its site fractions: it vanishes when
+``x_j = \\prod_s y_{s,j_s}``, and only then. At fixed site fractions the minimum is
+that product, where the added energy is zero and so is its gradient, ``\\ln x_k -
+\\sum_s \\ln y_{s,k_s}``. The equilibrium, its site fractions and the chemical
+potentials of the members are those of the model; the member amounts are the
+product of the site fractions. With the null directions gone, the activity of
+each member goes as its mole fraction when it vanishes, and the phase is
+inverted as a mixture of end-members is. Without it, the solver was left to
+choose among the splits: the twelve members of CASH+NK failed to certify beside
+potassium or at a Ca/Si of 1.6.
 
 # Example
 

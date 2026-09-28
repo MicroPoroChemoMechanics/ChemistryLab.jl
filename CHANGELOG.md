@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — The CASH+ model of C-S-H
+## v0.28.0 — The CASH+ model of C-S-H
 
 The C-S-H of a cement paste can now be described by the CASH+ model of Kulik,
 Miron & Lothenbach (2022), with the sodium and potassium of Miron et al. (2022a,
@@ -29,8 +29,18 @@ only mix ideally on the sites. Two checks against the papers:
   - The end-members must be every compound of the sites, each once; the
     constructor refuses any other set.
   - Their amounts are not unique, since the Gibbs energy depends on the site
-    fractions alone. So every member may vanish inside a present phase, and the
-    solver treats them as bounded.
+    fractions alone. The solver is given the split in which the amounts are the
+    product of the site fractions. To get it, the energy it minimizes adds `RT D`,
+    where `D` is the divergence of the amounts from that product. `D` is never
+    negative and vanishes, with its gradient, at the product, so the equilibrium
+    and the chemical potentials are those of the model. Without it, the twelve
+    members of CASH+NK failed to certify beside 0.3 mol/kg of potassium hydroxide
+    and at a Ca/Si of 1.6. With it, a gel in a solution of both hydroxides
+    certifies in under a second at Ca/Si 1 and 1.6.
+  - Known limit: a CASH+NK phase declared in a budget without potassium, or
+    without sodium, keeps members that cannot be there. Its search then stops at
+    an element balance of about 2e-8 at the lowest alkali contents. A system
+    without alkalis takes `CASH+`.
   - The activities depend on the standard Gibbs energies of the members. The
     solver passes those at the temperature of the solve, and the result is
     unchanged when each energy is shifted by that of its elements.
@@ -62,6 +72,10 @@ only mix ideally on the sites. Two checks against the papers:
 
 ### Fixed
 
+- The hint shown over an equation printed the HTML of a unit as text, as in
+  `C m<sup>−2</sup> (kg/mol)<sup>½</sup>` for the Gouy–Chapman prefactor. It
+  affected three entries of the nomenclature. The unit is now rendered like the
+  name, and a test allows only `<sub>`, `<sup>` and `<b>` in these fields.
 - A formula coefficient smaller than 1e-3 was read as zero, so the element it
   counts left the formula: in `Ca2.0993Si2.9298Na0.0004O11.0585H6.1988` the
   sodium disappeared. A coefficient that is not zero now stays so. Measured on

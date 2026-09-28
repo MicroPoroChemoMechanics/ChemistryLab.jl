@@ -641,7 +641,7 @@ tex = "y"
 label = "y"
 name = "site fraction of a moiety on a sublattice"
 unit = "1"
-pages = ["theory/solid_solutions.md", "examples/sublattice_csh.md"]
+pages = ["theory/solid_solutions.md", "examples/sublattice_csh.md", "examples/cashplus_csh.md"]
 
 [[symbol]]
 group = "Solid solutions"
@@ -666,6 +666,30 @@ label = "ν"
 name = "fraction of vacant bridging sites of an end-member"
 unit = "1"
 pages = ["examples/sublattice_csh.md"]
+
+[[symbol]]
+group = "Solid solutions"
+tex = "m"
+label = "m<sub>s</sub>"
+name = "multiplicity of site s in the formula unit of a sublattice model"
+unit = "1"
+pages = ["theory/solid_solutions.md"]
+
+[[symbol]]
+group = "Solid solutions"
+tex = "G_\\text{ref}"
+label = "G<sub>ref</sub>"
+name = "reference surface of the compound energy formalism: the standard Gibbs energies of the compounds interpolated in the site fractions"
+unit = "J/mol"
+pages = ["theory/solid_solutions.md"]
+
+[[symbol]]
+group = "Solid solutions"
+tex = "n_\\text{site}"
+label = "n<sub>site</sub>"
+name = "number of mixing sites of a compound-energy model"
+unit = "1"
+pages = ["theory/solid_solutions.md"]
 
 # ── Equilibrium and the solver ───────────────────────────────────────────────
 

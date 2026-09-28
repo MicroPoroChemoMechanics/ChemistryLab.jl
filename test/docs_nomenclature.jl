@@ -22,6 +22,17 @@ using TOML
     for f in unique(form.(entries))
         @test count(e -> form(e) == f && isempty(get(e, "pages", String[])), entries) <= 1
     end
+    # The label, the name and the unit are shown as HTML over the equations
+    # (theme/symbol-hints.ts), so they hold no tag but <sub>, <sup> and <b>, and
+    # every one is closed.
+    for e in entries, field in ("label", "name", "unit")
+        text = get(e, field, "")
+        tags = [m.match for m in eachmatch(r"</?[^>]*>", text)]
+        @test all(in(("<sub>", "</sub>", "<sup>", "</sup>", "<b>", "</b>")), tags)
+        for t in ("sub", "sup", "b")
+            @test count("<$t>", text) == count("</$t>", text)
+        end
+    end
     # The constants docs/nomenclature.jl maps to the library's values.
     @test issubset(Set(e["constant"] for e in entries if haskey(e, "constant")), Set(["R", "F", "N_A", "k_B", "e", "epsilon_0"]))
 end

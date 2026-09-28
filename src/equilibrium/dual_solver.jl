@@ -252,7 +252,10 @@ end
 # and their condition is then an inequality (`SublatticeModel`).
 _bounded_members(::Any) = Int[]
 _bounded_members(m::SublatticeModel) = findall(iszero, m.exponents)
-_bounded_members(m::CompoundEnergyModel) = _bounded_members(m.lattice)
+# A compound-energy phase selects the split of its members in which each
+# member's activity goes as its mole fraction (`CompoundEnergyModel`): none is
+# bounded.
+_bounded_members(m::CompoundEnergyModel) = Int[]
 
 """
     _ss_models(des) -> Dict{Int, Any}

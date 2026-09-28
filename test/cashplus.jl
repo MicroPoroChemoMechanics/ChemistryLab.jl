@@ -6,23 +6,31 @@ using JSON, LinearAlgebra
 
 const CASHPLUS = ["TSvh", "TSCh", "Tvvh", "TCvh", "TvCh", "TCCh"]
 
-# n G(y(n)) / RT of a compound-energy model, coded from the Gibbs energy of its
+# n G / RT of a compound-energy model, coded from the Gibbs energy of its
 # docstring and nothing else, so that ForwardDiff gives the chemical potentials
-# the model must return.
-function _cef_nG(mdl, g, T)
+# the model must return. With `split = true`, plus the divergence D(x) the solver
+# minimizes to choose the split of the members.
+_xlogx(v) = v > 0 ? v * log(v) : zero(v)
+function _cef_nG(mdl, g, T; split = true)
     RT = ChemistryLab.R_GAS * T
     o = mdl.lattice.occupancy
     return function (n)
         N = sum(n)
-        y = site_fractions(mdl, n ./ N)
+        x = n ./ N
+        y = site_fractions(mdl, x)
         G = sum(g[j] * prod(y[s][o[s, j]] for s in axes(o, 1)) for j in axes(o, 2))
-        G += sum(mdl.lattice.multiplicity[s] * sum(v > 0 ? v * log(v) : zero(v) for v in y[s]) for s in eachindex(y))
+        G += sum(mdl.lattice.multiplicity[s] * sum(_xlogx, y[s]) for s in eachindex(y))
         for (s, i, l, W) in mdl.interactions
             G += W / RT * y[s][i] * y[s][l]
         end
+        split && (G += sum(_xlogx, x) - sum(sum(_xlogx, ys) for ys in y))
         return N * G
     end
 end
+
+# The amounts with the given site fractions that the model selects: the product
+# of the fractions.
+_product_split(mdl, y) = [prod(y[s][mdl.lattice.occupancy[s, k]] for s in eachindex(y)) for k in axes(mdl.lattice.occupancy, 2)]
 
 _cef_lna(mdl, x, g; T = 298.15, ϵ = 0.0) =
     ChemistryLab._ss_log_activities!(zeros(promote_type(eltype(x), eltype(g)), length(x)), eachindex(x), x, mdl, T, ϵ, g)
@@ -43,6 +51,17 @@ _cef_lna(mdl, x, g; T = 298.15, ϵ = 0.0) =
     J = ForwardDiff.jacobian(m -> _cef_lna(mdl, m ./ sum(m), g; T), n)
     @test J ≈ J' atol = 1.0e-10
 
+    # The divergence that selects the split is not negative, and it vanishes, with
+    # its gradient, at the product of the site fractions: there the activities
+    # are those of the compound energy formalism alone.
+    y = site_fractions(mdl, n ./ sum(n))
+    xp = _product_split(mdl, y)
+    @test sum(xp) ≈ 1
+    @test site_fractions(mdl, xp) ≈ y
+    @test nG(n) > _cef_nG(mdl, g, T; split = false)(n)
+    @test nG(xp) ≈ _cef_nG(mdl, g, T; split = false)(xp) rtol = 1.0e-13
+    @test _cef_lna(mdl, xp, g; T) .+ g ≈ ForwardDiff.gradient(_cef_nG(mdl, g, T; split = false), xp) rtol = 1.0e-12
+
     # A pure end-member has unit activity.
     for k in eachindex(n)
         x = zeros(6)
@@ -56,9 +75,9 @@ _cef_lna(mdl, x, g; T = 298.15, ϵ = 0.0) =
     @test _cef_lna(mdl, n ./ sum(n), g .+ shift; T) ≈ _cef_lna(mdl, n ./ sum(n), g; T) rtol = 1.0e-12
 
     # With no interaction and no reciprocal energy (standard energies additive
-    # over the sites), it is ideal mixing on the sites.
+    # over the sites), it is ideal mixing on the sites, at the split selected.
     ideal = CompoundEnergyModel(lat)
-    x = n ./ sum(n)
+    x = xp
     @test _cef_lna(ideal, x, shift; T) ≈ ChemistryLab._ss_log_activities!(zeros(6), 1:6, x, lat, T, 0.0) rtol = 1.0e-12
     # Any reciprocal energy makes it differ.
     @test !(_cef_lna(ideal, x, g; T) ≈ ChemistryLab._ss_log_activities!(zeros(6), 1:6, x, lat, T, 0.0))
@@ -72,7 +91,7 @@ _cef_lna(mdl, x, g; T = 298.15, ϵ = 0.0) =
     # Its activities cannot be had from the mole fractions alone.
     @test_throws ErrorException ChemistryLab._ss_log_activities!(zeros(6), 1:6, x, mdl, T, 0.0)
     @test mixing_convexity(mdl, 6).verdict === :undecided
-    @test ChemistryLab._bounded_members(mdl) == 1:6
+    @test isempty(ChemistryLab._bounded_members(mdl))
 end
 
 @testsection "CASH+: the data of Kulik et al. (2022)" begin
@@ -252,7 +271,7 @@ end
     )
     RT = ChemistryLab.R_GAS * 298.15
     g = [G°(n) / RT for n in names.end_member]
-    nG = _cef_nG(mdl, g, 298.15)
+    nG = _cef_nG(mdl, g, 298.15; split = false)
     dsp = literature_table("Miron2022a", "dsp_pseudocompounds")
     @test length(dsp.name) == 110
     lat = mdl.lattice
@@ -285,4 +304,29 @@ end
         worst = max(worst, d)
     end
     @test worst < 100
+
+    # The gel in a solution of both hydroxides, three times as much potassium as
+    # sodium, as in a cement pore solution: it certifies at the Ca/Si of a gel
+    # beside portlandite and takes up both alkalis. (With one alkali alone the
+    # members of the other cannot be there, and the search stops at a balance of
+    # about 2e-8: measured, and said on the CASH+ page.)
+    sp = speciation(collect(values(subs)), vcat(["Portlandite", "Amor-Sl"], names.end_member); aggregate_state = [AS_AQUEOUS])
+    complexes(s) = charge(s) == 0 && any(el -> haskey(atoms(s), el), (:Na, :K)) && aggregate_state(s) == AS_AQUEOUS
+    cs = ChemicalSystem(filter(!complexes, sp), CEMDATA_PRIMARIES; solid_solutions = [nk])
+    st = ChemicalState(cs)
+    Mw = ustrip(us"g/mol", subs["H2O@"][:M])
+    set_quantity!(st, "H2O@", (1000 / Mw)u"mol")
+    set_quantity!(st, "Amor-Sl", 0.05u"mol")
+    set_quantity!(st, "Portlandite", 0.08u"mol")
+    set_quantity!(st, "Na+", 0.05u"mol")
+    set_quantity!(st, "K+", 0.15u"mol")
+    set_quantity!(st, "OH-", 0.2u"mol")
+    eq, cert = equilibrate_certified(st; model = cemdata18_activity_model(:KOH))
+    @test cert.optimal
+    gel = solid_solution_totals(eq, "CASH+NK").elements
+    @test gel[:Na] > 0 && gel[:K] > 0
+    # The members are the product of the site fractions, the split selected.
+    x = [ustrip(us"mol", eq.n[findfirst(s -> symbol(s) == m, cs.species)]) for m in names.end_member]
+    x ./= sum(x)
+    @test x ≈ _product_split(ChemistryLab.model(nk), site_fractions(ChemistryLab.model(nk), x)) rtol = 1.0e-6
 end

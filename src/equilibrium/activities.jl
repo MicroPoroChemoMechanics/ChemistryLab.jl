@@ -1553,8 +1553,10 @@ end
 
 # The compound energy formalism (`CompoundEnergyModel`): the site-mixing term of
 # the lattice, the reference surface, and the site interactions, as its
-# docstring derives them. Every sum runs over the few sites and compounds of one
-# phase, so the loops are written out.
+# docstring derives them, plus the gradient of the divergence D(x) that selects
+# the split of the members (ln xₖ - Σₛ ln y_{s,kₛ}, zero at that split). Every
+# sum runs over the few sites and compounds of one phase, so the loops are
+# written out.
 function _ss_log_activities!(out, grp, x, mdl::CompoundEnergyModel, T, ϵ, g)
     g === nothing && error(
         "CompoundEnergyModel: the activities depend on the standard Gibbs energies of " *
@@ -1588,10 +1590,10 @@ function _ss_log_activities!(out, grp, x, mdl::CompoundEnergyModel, T, ϵ, g)
         gex[s] += w * y[s][i] * y[s][l]
     end
     @inbounds for (k, i) in enumerate(grp)
-        acc = zero(E)
+        acc = log(x[k] + ϵ)
         for s in 1:nsite
             sp = o[s, k]
-            acc += m[s] * log(y[s][sp] + ϵ) + dref[s][sp] + dex[s][sp] - gex[s]
+            acc += (m[s] - 1) * log(y[s][sp] + ϵ) + dref[s][sp] + dex[s][sp] - gex[s]
         end
         out[i] = acc - (nsite - 1) * gref - g[k]
     end
