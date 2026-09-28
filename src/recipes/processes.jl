@@ -21,6 +21,8 @@ struct ProcessResult
 end
 Base.length(p::ProcessResult) = length(p.states)
 Base.getindex(p::ProcessResult, i) = p.states[i]
+Base.firstindex(p::ProcessResult) = firstindex(p.states)
+Base.lastindex(p::ProcessResult) = lastindex(p.states)
 Base.iterate(p::ProcessResult, s...) = iterate(p.states, s...)
 
 """

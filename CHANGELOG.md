@@ -19,6 +19,27 @@ converge first, which it does not on the AFm of the miscibility-gap page.
 `with_instances(cs, name => k)` rebuilds a system with `k` instances of a phase,
 the primaries unchanged, and `with_instances(state, cs)` carries a state across.
 
+### Added: a validation against a measured paste, and against GEMS3K
+
+The CEM I 42.5 N of Lothenbach and Winnefeld (2006) is computed from their
+published data (composition, minor elements of the clinker phases, the rate law of
+Parrott and Killoh with their water/cement factor) through its first year, and
+its pore solution compared with the one they measured (their Table 3, transcribed
+into `data/literature/LothenbachWinnefeld2006.json`, the values given only as
+detection limits marked as such). The same budgets were run through GEMS3K, on
+the Cemdata18 cement export of xGEMS with the same phases: the two codes agree to
+0.001 in pH and 1.6 % on every element, so the differences with the paste belong
+to the model. The largest is the alkalis: the `CSHQ` model of Cemdata18 holds
+96 % of the sodium and 68 % of the potassium at 317 days, and the model's sodium
+is a tenth of the measured one. The page is *Validation against a measured
+paste*; `test/validation_lw2006.jl` holds the recipe to the budgets of the replay
+and the certified equilibria to GEMS3K, with the fixture written by
+`test/reference/xgems_lw2006.py`.
+
+### Added
+
+- A `ProcessResult` is indexed with `begin` and `end`, as `result[end]`.
+
 ### Documentation
 
 - `cemdata18_activity_model` keeps `b_γ` at its 25 °C value, and its docstring

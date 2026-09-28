@@ -153,6 +153,9 @@ pages = [
         "Validation" => [
             "tutorials/reaktoro_comparison.md",
             "tutorials/published_data_validation.md",
+            # A measured paste through its first year, and the same budgets
+            # through GEMS3K: the model against the paste, the code against the code.
+            "tutorials/validation_measured_pastes.md",
         ],
     ],
     "Applications" => [

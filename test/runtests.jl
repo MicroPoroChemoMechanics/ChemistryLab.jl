@@ -125,6 +125,7 @@ end
     include("capillary.jl")
     include("pitzer.jl")
     include("recipes.jl")
+    include("validation_lw2006.jl")
 end
 
 @testsection "Utils tests" begin

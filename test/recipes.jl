@@ -234,6 +234,7 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
         @test issorted(ch)
         tbl = process_table(h; phases = ["Portlandite", "ettringite"])
         @test size(tbl, 1) == 3 && tbl.Portlandite == ch
+        @test h[end] === h[3] && h[begin] === h[1]
 
         bl = blend(r, slag, [0.0, 0.3], cs; model)
         @test all(rs -> rs.certificate.optimal, bl)
