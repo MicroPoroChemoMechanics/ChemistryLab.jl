@@ -174,6 +174,9 @@ using JSON
                     write(z * ".key", "stale")
                     @test database_path("cemdata18-zeolites.json") == z
                     @test strip(read(z * ".key", String)) == CL._derived_key(CL.DERIVED_DATABASES["cemdata18-zeolites.json"], joinpath(mine, "cemdata18-thermofun.json"))
+                    # `database_info` says the base resolves to the local copy.
+                    row = only(r for r in database_info(devnull) if r.name == "cemdata18-thermofun.json")
+                    @test row.status === :local && row.path == joinpath(mine, "cemdata18-thermofun.json")
                 end
                 # With no local directory the base is found in the cache, which
                 # `database_info` says; the validated file installs as such.
