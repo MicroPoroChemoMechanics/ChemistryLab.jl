@@ -1,5 +1,5 @@
 {
- "generator": "test/reference/xgems_lw2006.py, after test/reference/xgems_lw2006.jl",
+ "generator": "test/reference/xgems_replay.py lw2006, after test/reference/xgems_lw2006.jl",
  "code": "xgems unknown",
  "export": {
   "repository": "gemshub/xGEMS",
@@ -20,7 +20,7 @@
   "license": "LGPL-3.0 (xGEMS); the export files are not redistributed here"
  },
  "database": "CEMDATA18, as exported in the CemGEMS system of xGEMS",
- "budgets_sha256": "805818e17a94afa5056437bc027d26b3e7ead0c5f5e14e204a2b1ce15243bcc5",
+ "budgets_sha256": "ac2aee022d0fded3aa171ae6d70de1772d713945918dd57dbf83e45f2f7bdb6f",
  "temperature_K": 293.15,
  "species": [
   "Al(SO4)+",

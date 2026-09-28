@@ -60,3 +60,35 @@ kind        = "scm"
 analysis    = "Durdzinski2017:chemical_composition:SFA"
 crystalline = "Durdzinski2017:phase_composition:SFA"
 source      = "Durdzinski2017"
+
+#   DeWeerdt2011   : the clinker, fly ash and limestone of De Weerdt et al.
+#                    (2011), Tables 1 to 3 (XRF, XRD-Rietveld, TGA)
+
+# The clinker by its Rietveld phases, what its analysis holds beyond them (free
+# lime, alkalis, magnesia, sulfate) as its minor oxides.
+[[material]]
+name      = "clinker (De Weerdt 2011)"
+kind      = "cement"
+phases    = "DeWeerdt2011:mineral_composition:clinker"
+analysis  = "DeWeerdt2011:chemical_composition:clinker"
+remainder = true
+source    = "DeWeerdt2011"
+
+# The class F siliceous fly ash: quartz, mullite, hematite, calcite and
+# anhydrite, inert, and its glass by difference from the XRF analysis.
+[[material]]
+name        = "siliceous fly ash (De Weerdt 2011)"
+kind        = "scm"
+analysis    = "DeWeerdt2011:chemical_composition:fly ash"
+crystalline = "DeWeerdt2011:mineral_composition:fly ash"
+source      = "DeWeerdt2011"
+
+# The limestone powder: its calcite (by TGA), and what its analysis holds beyond
+# it, which a mix leaves unreacted.
+[[material]]
+name      = "limestone (De Weerdt 2011)"
+kind      = "scm"
+phases    = "DeWeerdt2011:mineral_composition:limestone"
+analysis  = "DeWeerdt2011:chemical_composition:limestone"
+remainder = true
+source    = "DeWeerdt2011"

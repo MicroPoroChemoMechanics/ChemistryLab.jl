@@ -33,7 +33,7 @@ printed to, which is half of its last digit.
 
 ## What has been checked
 
-Nine sources, more than eight hundred assertions, and the coverage is uneven on purpose:
+Eleven sources, more than thirteen hundred assertions, and the coverage is uneven on purpose:
 the database is checked exhaustively because it is cheap to check exhaustively,
 while the equilibrium cases are checked one composition at a time because each
 one costs seconds to minutes.
@@ -53,10 +53,14 @@ one costs seconds to minutes.
 | **the formation energies of the same solids** | [Lothenbach2008](@cite) Table 4 | 21 solids and water the same to `0.01 kJ/mol` | 7 revised by up to `10 kJ/mol`; another hydration state costs the water's energy, within 3 % |
 | **an aged pore solution** against portlandite and ettringite | [Lothenbach2010](@cite) Table 2 | within a quarter of a log unit of saturation | which side depends on the activity model at `I ≈ 0.5 mol/kg` |
 | **alkali uptake by C-S-H**, 4 Ca/Si × 6 concentrations × Na and K | [HongGlasser1999](@cite) Tables 1-2 | pH to `0.072` from 15 to 100 mM below Ca/Si 1.8 | alkali over-bound at 46 of 48 points; the end members were fitted to these data |
+| **a measured paste through its first year**, a CEM I 42.5 N | [LothenbachWinnefeld2006](@cite) Tables 1-4, and GEMS3K on the same budgets | GEMS3K to `0.001` in pH and `1.6 %` on every element; the potassium and sulfate of the first day | sodium a tenth of the measurement at a year, the C-S-H holding 96 % of it: [the page](@ref ex-validation) |
+| **four blended pastes**, CEM I to CEM II/B-M (V-LL) | [DeWeerdt2011](@cite) Tables 1-4, 7-8 and Fig. 7, and GEMS3K on the same budgets | GEMS3K to `0.001` and `1.6 %`; portlandite without fly ash within `1.5 wt.%` from 7 days | with fly ash, portlandite 4.5 against 12.5 wt.% at 90 days, `CSHQ` taking no aluminum: [the page](@ref ex-validation-blended) |
 
 Two things this chapter deliberately does **not** do. It does not check the
-kinetics — [Validation against Reaktoro](@ref) covers the coupling, and no
-published hydration curve is reproduced here. And it does not check anything
+kinetics — [Validation against Reaktoro](@ref) covers the coupling, and the two
+pastes followed in time take their degrees of reaction from their papers (the
+measured ones, or the paper's own rate law), so that what they check is the
+chemistry. And it does not check anything
 above about `1 mol/kg` ionic strength, because `HKFActivityModel`'s B-dot term
 was not fitted there.
 

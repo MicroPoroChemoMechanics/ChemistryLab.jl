@@ -1,7 +1,7 @@
 # The Julia half of the GEMS3K replay of Lothenbach & Winnefeld (2006).
 #
 #   julia --project=docs test/reference/xgems_lw2006.jl
-#   conda run -n mpcm-oracles python test/reference/xgems_lw2006.py
+#   conda run -n mpcm-oracles python test/reference/xgems_replay.py lw2006
 #
 # Writes, at each age of their Table 3, the element budget the recipe of
 # `scripts/lothenbach_winnefeld_2006.jl` puts into the equilibrium, and the list
@@ -22,6 +22,6 @@ cache = get(ENV, "CHEMISTRYLAB_ORACLE_CACHE", joinpath(homedir(), ".cache", "che
 mkpath(joinpath(cache, "lw2006"))
 path = joinpath(cache, "lw2006", "budgets.json")
 open(path, "w") do io
-    JSON.print(io, Dict("species" => [String(symbol(s)) for s in cs.species], "rows" => rows), 1)
+    JSON.print(io, Dict("species" => [String(symbol(s)) for s in cs.species], "temperature_K" => recipe.T, "rows" => rows), 1)
 end
 println("wrote ", path, ": ", length(rows), " budgets")

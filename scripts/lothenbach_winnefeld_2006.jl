@@ -5,7 +5,7 @@
 #  Tables 1 and 2), clinker kinetics (Table 4, with the w/c factor of Section
 #  4.1) and pore solution over a year (Table 3) are transcribed in
 #  data/literature/LothenbachWinnefeld2006.json. The validation page, its test and
-#  the generator of the GEMS3K replay (test/reference/xgems_lw2006.py) include
+#  the generator of the GEMS3K replay (test/reference/xgems_replay.py) include
 #  this file, so that the three compute the same paste.
 #
 #  Written once here so that they cannot drift apart. The assumptions are the
@@ -16,6 +16,8 @@ using ChemistryLab
 using DynamicQuantities
 using OptimaSolver
 using OrderedCollections
+
+include(joinpath(@__DIR__, "validation_common.jl"))
 
 const LW06 = "LothenbachWinnefeld2006"
 const LW06_SUBSTANCES = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
@@ -32,20 +34,30 @@ lw06_table(name) = literature_table(LW06, name)
 # microcrystalline FeOOH.
 const LW06_PURE = split(
     "C3S C2S C3A C4AF Gp Anh hemihydrate Cal Portlandite K2SO4 Na2SO4 syngenite " *
-        "ettringite monosulphate12 monocarbonate hemicarbonate C4AH13 C3AH6 C3FH6 " *
+        "ettringite monocarbonate hemicarbonate C3AH6 C3FH6 " *
         "hydrotalcite Brc FeOOHmic AlOHmic straetlingite Amor-Sl"
 )
 const LW06_CSH = ["CSHQ-JenD", "CSHQ-JenH", "CSHQ-TobD", "CSHQ-TobH", "KSiOH", "NaSiOH"]
 
-"""The chemical system of the paste."""
+"""
+The chemical system: the phases above, the C-S-H as `CSHQ`, and the AFm sulfate
+and hydroxide as the Guggenheim binary Cemdata18 publishes (the GEMS3K export the
+replay runs declares it so), with `instances = :auto`: one composition, and a
+second only if the certificate finds the phase wanting to split.
+"""
 function lw06_system()
+    afm = [LW06_DB["C4AH13"], LW06_DB["monosulphate12"]]
+    published = only(p for p in build_solid_solutions(datapath("solid_solutions.toml"), LW06_DB) if name(p) == "AFm_SO4_OH")
     sp = speciation(
-        LW06_SUBSTANCES, vcat(LW06_PURE, LW06_CSH);
+        LW06_SUBSTANCES, vcat(LW06_PURE, LW06_CSH, ["C4AH13", "monosulphate12"]);
         aggregate_state = [AS_AQUEOUS], exclude_species = split("H2@ O2@ CH4@"),
     )
     return ChemicalSystem(
         sp, CEMDATA_PRIMARIES;
-        solid_solutions = [SolidSolutionPhase("CSHQ", [LW06_DB[m] for m in LW06_CSH])],
+        solid_solutions = [
+            SolidSolutionPhase("CSHQ", [LW06_DB[m] for m in LW06_CSH]),
+            SolidSolutionPhase("SO4_OH_AFm", afm; model = ChemistryLab.model(published), instances = :auto),
+        ],
     )
 end
 
@@ -122,35 +134,7 @@ function lw06_measured(hours, element)
     return (; value = ustrip(ps.concentration[i]), below_limit = ps.qualifier[i] == "below_detection_limit")
 end
 
-"""
-    lw06_pore_solution(state) -> Dict
-
-The dissolved elements of an equilibrium, and the hydroxide, in mmol per kg of
-water, the elements summed over every aqueous species that holds them.
-"""
-function lw06_pore_solution(state)
-    cs = state.system
-    n = ustrip.(us"mol", state.n)
-    iw = only(cs.idx_solvent)
-    kg = n[iw] * ustrip(us"kg/mol", cs.species[iw][:M])
-    out = Dict{String, Float64}()
-    for i in cs.idx_solutes, (el, k) in atoms(cs.species[i])
-        (el === :H || el === :O) && continue
-        out[String(el)] = get(out, String(el), 0.0) + 1000 * k * n[i] / kg
-    end
-    out["OH-"] = 1000 * n[findfirst(s -> symbol(s) == "OH-", cs.species)] / kg
-    return out
-end
-
-"""
-    lw06_elements(cs, b) -> OrderedDict
-
-A budget of `cs`, written in its primaries, as amounts of the elements (and of
-the charge, `Zz`), in mol: what a second code is given to replay it.
-"""
-function lw06_elements(cs, b)
-    content(p, el) = el === :Zz ? Float64(charge(p)) : Float64(get(atoms(p), el, 0))
-    return OrderedDict(
-        String(el) => sum(content(p, el) * x for (p, x) in zip(cs.SM.primaries, b)) for el in cs.CSM.primaries
-    )
-end
+# The two helpers of `validation_common.jl`, under the names the page, its test
+# and the generator of the replay use.
+lw06_pore_solution(state) = pore_solution_mmol(state)
+lw06_elements(cs, b) = budget_elements(cs, b)

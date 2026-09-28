@@ -1,4 +1,4 @@
-# [A miscibility gap in the AFm of a CEM I 52.5 N, and the three answers a formulation can give](@id ex-miscibility-gap)
+# [The AFm of a CEM I 52.5 N and its miscibility gap: three ways to declare a binary that can unmix](@id ex-miscibility-gap)
 
 !!! info "Before this page"
     [Solid solutions](@ref sec-theory-solid-solutions) §6 and [Solid solution
@@ -14,10 +14,11 @@ This page runs the same cement three ways on the AFm sulfate/hydroxide binary,
 because the three are genuinely different claims:
 
 1. **ideal mixing** — an answer, certified, to a question that was changed;
-2. **the published parameters with one composition** — the question kept, and
-   the answer is not a minimum. The certificate now says so;
-3. **the published parameters with two compositions** — the question kept and
-   answered, at the common tangent.
+2. **the published parameters with one composition** — the question kept; the
+   answer is a minimum only if the composition falls outside the gap, and the
+   certificate tests it;
+3. **the published parameters with two compositions** — room for the pair,
+   which only a composition inside the gap needs.
 
 The theory is in [the solid-solution chapter](@ref sec-theory-solid-solutions);
 this page is the measurement.
@@ -199,7 +200,8 @@ println(err.msg)
 ```
 
 Waiving the refusal is what a caller does who believes the answer stays outside
-the gap. Here it does not, and the certificate is what says so:
+the gap. The certificate decides it, testing the present phase against splitting
+as well as for stationarity:
 
 ```@example gap
 cs2, eq2, c2 = run_case(SolidSolutionPhase("AFm_SO4_OH", afm_em;
@@ -213,12 +215,12 @@ if hasproperty(c2, :worst_violation_split)
 end
 ```
 
-Before the tangent-plane test was applied to phases that are **present**, this
-case certified: every member was stationary, nothing absent was supersaturated,
-and the element balance closed. Stationarity is blind to the one failure that
-matters for a non-ideal phase — that the minimum is two compositions rather than
-the one reported — so the answer was a KKT point and not a minimum, and nothing
-in the output said which.
+Here the belief is right: the AFm of this paste has a C4AH13 fraction of 0.28,
+outside the pair section 3 computes, and the certificate finds no phase that
+wants to split. The answer is one composition, and a minimum. Until a phase with
+an excess term was inverted by Newton's method, this solve did not converge, and
+the tangent-plane test, applied to the point it stopped at, reported the phase as
+wanting to split: a failure of the search read as one of the chemistry.
 
 ### Case 3 — the published parameters, two compositions
 
@@ -239,14 +241,15 @@ for (grp, ph) in zip(cs3.ss_groups, cs3.solid_solutions)
 end
 ```
 
-Read that output carefully, because it does **not** show a common-tangent pair.
-The two instances come out at the **same** composition, with the amount divided
-between them, and the certificate still refuses; the element balance printed
-beside it says that the search did not settle.
+With a second instance offered, the paste does not use it: the second instance
+empties, and the first holds the AFm at the composition of case 2. But two
+instances of a phase outside its gap are degenerate, the empty one free to take
+any composition at no cost, and this search does not close the certificate on
+them (element balance 1.3e-08). That is why `instances = :auto` exists: it gives a
+phase its second instance only when the certificate of the one-composition answer
+asks for it.
 
-That is an honest result, and the page states it rather than dressing it up.
-
-## 3. The pair itself is computable — the minimization is what does not find it
+## 3. The pair itself is computable, from the model alone
 
 The two compositions are not unknown. They follow from the mixing model alone,
 by the construction Glynn and Reardon set out [GlynnReardon1990](@cite) and that
@@ -315,25 +318,22 @@ end
 
 `Δg` is the distance from the curve down to the common tangent: it says, in
 joules per mole of binary, **how much a single-composition answer overstates the
-Gibbs energy**. The third line is the AFm at the composition case 2 returns, just
-outside the pair, where the lever rule leaves it homogeneous. That composition is
-the last iterate of a refused search, not an equilibrium, so it does not tell
-where the AFm of this paste lies; the two lines inside the pair show what a split
-looks like and what it is worth.
+Gibbs energy**. The third line is the AFm of this paste, at the composition case
+2 certifies: outside the pair, and homogeneous, which is what the certificate
+found. The two lines inside the pair show what a split looks like and what it is
+worth.
 
-### The one thing the minimization does not deliver
+### Inside the gap
 
-Everything above costs microseconds and needs no solver. What a minimization over
-two declared instances does not deliver is ``\bar{x}`` **itself**, computed inside
-a gap with the aqueous solution iterated along with it. Case 3 is that attempt,
-and its element balance shows it stalling. When this page was written, seeding the
-two instances at ``x_\alpha`` and ``x_\beta`` did not help: the second instance
-emptied, and raising the iteration budget made the element balance **worse**
-rather than better. Two instances of one substance put a nearly null direction
-into the problem, and more iterations walk further along it.
-
-That is also where PHREEQC draws the line: its binary solid-solution calculation
-is a dedicated construction, not a job handed to the global minimization.
+Everything above costs microseconds and needs no solver. What it does not give is
+``\bar{x}`` itself, the overall composition the paste puts in the phase, which
+the aqueous equilibrium decides. This paste's lies outside the gap. Where one
+falls inside, `instances = :auto` gives the phase its second instance and the
+split passes look for the pair, with the aqueous solution iterated along; the
+theory chapter runs that on a binary its element budget holds in the gap
+([Solid solutions](@ref sec-theory-solid-solutions), section 6). PHREEQC, for its
+part, treats a binary solid solution with a dedicated construction rather than
+the global minimization.
 
 !!! info "Where this leaves the three questions"
     | | |
@@ -342,11 +342,11 @@ is a dedicated construction, not a job handed to the global minimization.
     | **locate** it | yes — `spinodal_interval` and `common_tangent`, from the model alone |
     | **represent** it | yes — `instances = 2`, or `instances = :auto`, which adds the second when the certificate asks for it; the species exist, the groups stay disjoint, conservation is untouched |
     | **split** a given overall composition | yes — `miscibility_split`, exact, with the energy it releases |
-    | iterate that back through the aqueous equilibrium | where the budget holds the composition inside the gap, yes ([Solid solutions](@ref sec-theory-solid-solutions), section 6); on this paste, not by minimization over two instances |
+    | iterate that back through the aqueous equilibrium | yes, with `instances = :auto` where the budget holds the composition inside the gap ([Solid solutions](@ref sec-theory-solid-solutions), section 6); this paste does not need it |
 
     The first four are what a user needs to answer "is this phase homogeneous,
-    and if not, into what?". The last is the coupling, and it is the one place
-    this package stops — for a reason that is measured rather than asserted.
+    and if not, into what?". The last is the coupling with the rest of the
+    paste.
 
     In GEM-Selektor and Reaktoro the second declaration is the user's, and
     PHREEQC draws the same line: it treats a binary solid solution with a
@@ -386,27 +386,21 @@ savefig(fig3, "gap-summary.svg"); nothing # hide
 ![](gap-summary.svg)
 
 Green is a proof and red is its absence — not a claim that a red bar is far from
-the truth, which nothing here establishes. The point of the middle case is
-precisely that it *looks* like the others: the same pH as case 1 to four figures,
-and an ordinary-looking assemblage. What gives it away is the certificate, and the
-element balance printed beside it, which a caller who reads only the pH never
-looks at; the certificate has told it apart only since it learned to test a phase
-that is **present**.
+the truth, which nothing here establishes. The three give the same pH to four
+figures. The middle one is proved with the published parameters kept, because
+this paste's AFm lies outside the gap; the third, which offers a second instance
+that nothing needs, is the one the search cannot close.
 
 !!! danger "What this does and does not settle"
-    `optimal = true` in case 3 is a proof of a **KKT point at which no present
+    `optimal = true` in case 2 is a proof of a **KKT point at which no present
     phase wants to split and no absent phase is supersaturated**. For a convex
     problem those conditions are sufficient for a global minimum, and that is why
     the certificate means what it means on every other page. With a concave
     mixing model the problem is no longer convex, so global optimality is not
     implied by stationarity alone — what the certificate adds here is the
     tangent-plane test, which is exactly the condition that separates a
-    common-tangent pair from a spurious stationary point.
-
-    Case 3 does not reach that state here, so nothing in this page is offered as
-    a certified non-convex answer. What the page establishes is narrower and
-    solid: the criterion detects the gap, the refusal names it, and the
-    representation exists for a solver that can use it.
+    one-composition minimum from a spurious stationary point; its scope does not
+    claim a global minimum.
 
 ## 5. How other codes represent the same thing
 
@@ -422,10 +416,7 @@ A GEMS user gets the right answer because the database ships the binary twice
 and the solver is handed two declarations to populate. Here `instances = :auto`
 lets the certificate decide: a phase is given its second instance when the
 stability test finds it wanting to split, and the split passes then look for the
-pair ([Solid solutions](@ref sec-theory-solid-solutions), section 6). That needs
-the one-composition solve to converge first, which it does not on this paste, so
-the remaining gap here is the same in both codes: finding the pair of a phase
-whose composition nothing pins.
+pair ([Solid solutions](@ref sec-theory-solid-solutions), section 6).
 
 ## Where to go next
 

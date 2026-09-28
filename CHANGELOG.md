@@ -14,12 +14,12 @@ kept when its KKT error is smaller, and the certificate then names the phase in
 the second copy, and one who did not know the phase would unmix no longer has to
 declare two instances in advance. On a calcite–magnesite binary held inside its
 gap by the budget, the pair found is the common tangent of the model to 1e-3, and
-the answer of `instances = 2` to 1e-6. It needs the one-composition solve to
-converge first, which it does not on the AFm of the miscibility-gap page.
+the answer of `instances = 2` to 1e-6. A phase whose composition stays outside
+its gap keeps its single instance, as the AFm of the miscibility-gap page does.
 `with_instances(cs, name => k)` rebuilds a system with `k` instances of a phase,
 the primaries unchanged, and `with_instances(state, cs)` carries a state across.
 
-### Added: a validation against a measured paste, and against GEMS3K
+### Added: validations against measured pastes, and against GEMS3K
 
 The CEM I 42.5 N of Lothenbach and Winnefeld (2006) is computed from their
 published data (composition, minor elements of the clinker phases, the rate law of
@@ -34,11 +34,57 @@ to the model. The largest is the alkalis: the `CSHQ` model of Cemdata18 holds
 is a tenth of the measured one. The page is *Validation against a measured
 paste*; `test/validation_lw2006.jl` holds the recipe to the budgets of the replay
 and the certified equilibria to GEMS3K, with the fixture written by
-`test/reference/xgems_lw2006.py`.
+`test/reference/xgems_replay.py`.
+
+The ternary cements of De Weerdt et al. (2011) follow on *Validation against
+measured blended pastes*: a CEM I, the same with 5 % limestone, a CEM II/B-V with
+35 % siliceous fly ash and a CEM II/B-M (V-LL) with 30 % fly ash and 5 %
+limestone, their clinker dissolving as their XRD measured it and their fly ash at
+the rate their Fig. 7 prints, transcribed in `data/literature/DeWeerdt2011.json`.
+GEMS3K on the twenty budgets agrees with ChemistryLab to 0.001 in pH and 1.6 % on
+every element, the AFm sulfate and hydroxide declared in both as the Guggenheim
+binary of Cemdata18. Against the pastes, the portlandite without fly ash is
+within 1.5 wt.% from the seventh day; with fly ash the model consumes it far
+faster (4.5 against 12.5 wt.% at 90 days in the CEM II/B-V), its C-S-H staying at
+the Ca/Si of 1.58 that portlandite imposes, where the paper measures 1.4 and an
+Al/Si of 0.13 that `CSHQ` cannot take. `test/validation_deweerdt2011.jl` checks
+the transcription, the budgets and eight equilibria against GEMS3K.
 
 ### Added
 
 - A `ProcessResult` is indexed with `begin` and `end`, as `result[end]`.
+- Three material templates, the clinker, the siliceous fly ash and the limestone
+  of De Weerdt et al. (2011), transcribed in `data/literature/DeWeerdt2011.json`.
+  A template given by its phases can take `remainder = true`: what its analysis
+  holds beyond the phases (the free lime, alkalis and magnesia of a clinker)
+  becomes one oxide constituent, `"minor oxides"`. Hematite is among the Rietveld
+  phases a template knows.
+
+### Changed: a phase with an excess term is inverted by Newton's method
+
+The composition of a solid solution with a Redlich-Kister or regular excess term
+is now recovered by Newton's method, as that of a sublattice phase already was,
+instead of by successive substitution. On a CEM I paste declaring the published
+AFm SO4/OH binary of Cemdata18 as one composition, the substitution held the
+search for minutes and never certified; Newton certifies it in one route. With
+the binary declared as the GEMS3K export of Cemdata18 declares it, the twenty
+budgets of De Weerdt et al. (2011) give the same pore solution in both codes, to
+0.001 in pH and 1.6 % on every element. Ideal mixing keeps the substitution, and
+its results bit for bit.
+
+The miscibility-gap page changes with it. Its paste's AFm lies outside the gap,
+at a C4AH13 fraction of 0.28, and the published parameters with one composition
+now certify; the page said that the certificate refused them because the phase
+wanted to split, a verdict read off a search that had not converged.
+
+### Fixed
+
+- A glass or a remainder found by difference could not be built when two
+  analyses of one material disagree: the limestone of De Weerdt et al. is 81 %
+  CaCO3 by TGA, which holds more lime than its XRF analysis gives, and the oxides
+  left then summed to more than their share, which `OxideConstituent` refuses.
+  They are now taken as the whole of that share; a material whose analyses agree
+  is built as before.
 
 ### Documentation
 

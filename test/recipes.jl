@@ -96,6 +96,20 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
         cfa = material_template("calcareous fly ash (Durdzinski 2017)", db)
         @test only(c for c in cfa.constituents if c.name == "glass").mass_fraction ≈ 0.897
         @test sum(c.mass_fraction for c in cfa.constituents) ≈ 1 rtol = 1.0e-9
+        # A clinker by its phases and the rest of its analysis; a fly ash with a
+        # hematite; a limestone whose calcite (by TGA) holds more lime than its
+        # analysis (by XRF) does, the oxides left still fractions of their mass.
+        clinker = material_template("clinker (De Weerdt 2011)", db)
+        @test [c.name for c in clinker.constituents] == ["C2S", "C3S", "C3A", "C4AF", "minor oxides"]
+        @test only(c for c in clinker.constituents if c.name == "minor oxides").mass_fraction ≈ 0.08
+        ash = material_template("siliceous fly ash (De Weerdt 2011)", db)
+        @test "Hematite" in [c.name for c in ash.constituents]
+        @test only(c for c in ash.constituents if c.name == "glass").mass_fraction ≈ 0.68
+        rest = only(c for c in material_template("limestone (De Weerdt 2011)", db).constituents if c.name == "minor oxides")
+        @test sum(values(rest.oxides)) ≈ 1 && rest.mass_fraction ≈ 0.19
+        @test_throws ErrorException ChemistryLab._material_from_entry(
+            Dict("name" => "x", "phases" => "DeWeerdt2011:mineral_composition:clinker", "remainder" => true), db,
+        )
     end
 
     @testset "the non-negative least squares meets its optimality conditions" begin

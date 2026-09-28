@@ -1,6 +1,6 @@
 # The CEM I 42.5 N of Lothenbach & Winnefeld (2006), against GEMS3K on the same
 # budgets and the same phases (`test/reference/xgems_lw2006.json`, written by
-# `test/reference/xgems_lw2006.py`). The comparison with their measured pore
+# `test/reference/xgems_replay.py lw2006`). The comparison with their measured pore
 # solution is on the validation page: a measurement is reported against, not
 # asserted.
 

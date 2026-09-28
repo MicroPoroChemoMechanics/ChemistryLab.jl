@@ -1,21 +1,23 @@
-# GEMS3K on the paste of Lothenbach & Winnefeld (2006), as an oracle for the
-# certified equilibria ChemistryLab computes on it.
+# GEMS3K on a paste ChemistryLab has computed, as an oracle for its certified
+# equilibria: the same element budgets, the same phases.
 #
-#   julia --project=docs test/reference/xgems_lw2006.jl        # the budgets first
-#   conda run -n mpcm-oracles python test/reference/xgems_lw2006.py
+#   julia --project=docs test/reference/xgems_<name>.jl        # the budgets first
+#   conda run -n mpcm-oracles python test/reference/xgems_replay.py <name>
 #
-# The Julia half writes, for each age of their Table 3, the element budget the
-# recipe puts into the equilibrium and the species of ChemistryLab's system. This
-# half runs the CEMDATA18 cement export of xGEMS (the one `xgems_cement.py`
-# fetches, at the same pinned commit, into a cache outside this repository) on
-# those budgets, at 20 degrees C, with the SAME phases: every solid and gas the
-# system does not declare is removed by raising its standard Gibbs energy by
-# 1e6 J/mol, and every aqueous species is kept, so that the traces of elements
-# the budget lacks have somewhere to be. (An upper bound of zero on those species
-# makes GEMS3K stop without converging.) The aqueous model is the export's own,
-# the extended Debye-Hueckel of Cemdata18. What is written, `xgems_lw2006.json`,
-# is numbers computed by running the code, with the identity of the code, of the
-# export and of the budgets recorded as fields.
+# with <name> one of `lw2006` (Lothenbach & Winnefeld 2006) and `deweerdt2011`
+# (De Weerdt et al. 2011). The Julia half writes, for each paste and age, the
+# element budget the recipe puts into the equilibrium and the species of
+# ChemistryLab's system. This half runs the CEMDATA18 cement export of xGEMS (the
+# one `xgems_cement.py` fetches, at the same pinned commit, into a cache outside
+# this repository) on those budgets, at the temperature the budgets give, with
+# the SAME phases: every solid and gas the system does not declare is removed by
+# raising its standard Gibbs energy by 1e6 J/mol, and every aqueous species is
+# kept, so that the traces of elements the budget lacks have somewhere to be. (An
+# upper bound of zero on those species makes GEMS3K stop without converging.)
+# The aqueous model is the export's own, the extended Debye-Hueckel of Cemdata18.
+# What is written, `xgems_<name>.json`, is numbers computed by running the code,
+# with the identity of the code, of the export and of the budgets recorded as
+# fields.
 
 import hashlib
 import json
@@ -31,7 +33,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.environ.get(
     "CHEMISTRYLAB_ORACLE_CACHE", os.path.join(os.path.expanduser("~"), ".cache", "chemistrylab-oracles")
 )
-T_K = 293.15
 ELEMENTS_REPORTED = ("K", "Na", "Ca", "S", "Si", "Al")
 REMOVAL_J_PER_MOL = 1.0e6
 
@@ -39,9 +40,12 @@ REMOVAL_J_PER_MOL = 1.0e6
 def main():
     import xgems
 
-    path = os.path.join(CACHE, "lw2006", "budgets.json")
+    if len(sys.argv) != 2:
+        sys.exit("usage: xgems_replay.py <name>, the name of the budgets xgems_<name>.jl wrote")
+    name = sys.argv[1]
+    path = os.path.join(CACHE, name, "budgets.json")
     if not os.path.isfile(path):
-        sys.exit(f"missing {path}: run test/reference/xgems_lw2006.jl first")
+        sys.exit(f"missing {path}: run test/reference/xgems_{name}.jl first")
     raw = open(path, "rb").read()
     inputs = json.loads(raw)
     ours = set(inputs["species"])
@@ -60,6 +64,7 @@ def main():
     if missing:
         sys.exit(f"the export lacks species the system declares: {missing}")
     aq = e.indexPhase(e.aqueousPhaseName())
+    T_K = inputs["temperature_K"]
     e.setPT(T_K, 1.0e5)
     removed = []
     for i, s in enumerate(species):
@@ -91,7 +96,7 @@ def main():
         mmol["OH-"] = 1000 * float(n[species.index("OH-")]) / kg
         rows.append(
             {
-                "time_h": row["time_h"],
+                **{k: row[k] for k in ("mix", "time_h", "time_d") if k in row},
                 "elements": row["elements"],
                 "converged": bool(e.converged()),
                 "code": int(code),
@@ -100,10 +105,11 @@ def main():
                 "mmol_per_kg_water": mmol,
             }
         )
-        print(f"{row['time_h']:8.2f} h  converged={e.converged()} ({start} start)  pH={e.pH():.4f}")
+        where = " ".join(str(row[k]) for k in ("mix", "time_h", "time_d") if k in row)
+        print(f"{where}  converged={e.converged()} ({start} start)  pH={e.pH():.4f}")
 
     out = {
-        "generator": "test/reference/xgems_lw2006.py, after test/reference/xgems_lw2006.jl",
+        "generator": f"test/reference/xgems_replay.py {name}, after test/reference/xgems_{name}.jl",
         "code": "xgems " + getattr(xgems, "__version__", "unknown"),
         "export": {"repository": REPO, "commit": commit, "path": PREFIX, "files": FILES, "sha256": digests,
                    "license": "LGPL-3.0 (xGEMS); the export files are not redistributed here"},
@@ -114,7 +120,7 @@ def main():
         "removed_by_raising_G0": {"J_per_mol": REMOVAL_J_PER_MOL, "count": len(removed)},
         "rows": rows,
     }
-    target = os.path.join(HERE, "xgems_lw2006.json")
+    target = os.path.join(HERE, f"xgems_{name}.json")
     with open(target, "w") as fh:
         json.dump(out, fh, indent=1)
     print("wrote", target, len(rows), "rows")

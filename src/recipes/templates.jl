@@ -15,6 +15,7 @@ const RIETVELD_PHASES = Dict{String, Union{String, Tuple{Symbol, String}}}(
     "Calcite" => "Cal", "Anhydrite" => "Anh", "Gypsum" => "Gp",
     "Arcanite" => "K2SO4", "Quartz" => "Qtz", "Portlandite" => "Portlandite",
     "Periclase" => (:oxides, "MgO"),
+    "Hematite" => (:oxides, "Fe2O3"),
     "Mullite" => (:oxides, "Al6Si2O13"),
     "Dolomite" => (:oxides, "CaMgC2O6"),
     "CaO + Ca(OH)2" => (:oxides, "CaO"),
@@ -55,7 +56,9 @@ An entry is built one of four ways:
     phase a [`MineralConstituent`](@ref) or, when the database has no record of
     it, an [`OxideConstituent`](@ref) (see `ChemistryLab.RIETVELD_PHASES`); the
     `Amorphous` entry, when given, is the glass by difference from `analysis`
-    ([`reactive_part`](@ref));
+    ([`reactive_part`](@ref)); with `remainder = true` and no `Amorphous` entry,
+    what the analysis holds beyond the phases is one oxide constituent,
+    `"minor oxides"` (the free lime, alkalis and magnesia of a clinker);
   - `analysis = …` and `route = "bogue"`: Bogue's calculation on the oxide
     analysis ([`bogue`](@ref)), the sulfate carried by `sulfate` (gypsum by
     default), with the oxides no phase takes as one oxide constituent unless
@@ -83,6 +86,10 @@ function _material_from_entry(e::AbstractDict, species)
             haskey(e, "analysis") || error("template \"$name\": an amorphous part needs `analysis` to be found by difference")
             glass = _glass(e["analysis"], crystals, species)
             push!(cons, OxideConstituent("glass", glass.oxides; mass_fraction = glass.mass_fraction))
+        elseif get(e, "remainder", false)
+            haskey(e, "analysis") || error("template \"$name\": a remainder needs `analysis` to be found by difference")
+            rest = _glass(e["analysis"], crystals, species)
+            push!(cons, OxideConstituent("minor oxides", rest.oxides; mass_fraction = rest.mass_fraction))
         end
         return Material(name, kind; constituents = cons, source = src)
     elseif get(e, "route", "") == "bogue"
@@ -152,7 +159,11 @@ function _glass(analysis, crystals, species)
         end
     end
     frac = 1 - sum(values(crystals); init = 0.0)
-    return (; oxides = OrderedDict(k => max(v, 0.0) / frac for (k, v) in rest), mass_fraction = frac)
+    # The oxides left are fractions of what the crystals leave. When two analyses
+    # disagree (a calcite content by TGA above what the XRF lime allows), they
+    # can hold more than that mass; they are then taken as the whole of it.
+    left = sum(max(v, 0.0) for v in values(rest); init = 0.0)
+    return (; oxides = OrderedDict(k => max(v, 0.0) / max(frac, left) for (k, v) in rest), mass_fraction = frac)
 end
 
 function _literature_phases(ref)
