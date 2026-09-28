@@ -1,4 +1,4 @@
-# [Two CEM II, and the two different things a replacement can do](@id ex-cem2-blended)
+# [CEM II/A-LL and CEM II/B-S: the two different things a replacement can do](@id ex-cem2-blended)
 
 !!! info "Before this page"
     [A CEM I from its clinker phases](@ref sec-cem1-from-clinker) and [The
@@ -207,14 +207,13 @@ species = speciation(substances, vcat(pure, members, redox_species);
                      aggregate_state = [AS_AQUEOUS])
 ss = [SolidSolutionPhase(n, [byname[m] for m in ms]) for (n, ms) in solutions]
 cs = ChemicalSystem(species, CEMDATA_PRIMARIES; solid_solutions = ss)
-# Debye-Hückel limiting law with a B-dot term, as GEM-Selektor runs CEMDATA18.
-# The B-dot is identified from the activity coefficients GEMS printed on a
-# Portland paste (test/reference/gems_cemdata18_portland.json), about 0.0976.
-using JSON
-gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
-lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
-Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
-model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
+# The activity model Cemdata18 prescribes (its Eq. C.1): extended Debye-Hückel,
+# with the common ion size and B-dot the paper gives for KOH solutions (it also
+# gives them for NaOH). The clinker's alkalis are mostly potassium.
+model = cemdata18_activity_model(:KOH)
+# The molar K/Na ratio of its alkalis, which is why the KOH set applies.
+Mox(ox) = ustrip(us"g/mol", Species(ox)[:M])
+println("molar K/Na of the alkalis: ", round((2 * ALKALIS["K2O"] / Mox("K2O")) / (2 * ALKALIS["Na2O"] / Mox("Na2O")); digits = 1))
 
 components = String.(symbol.(cs.SM.primaries))
 @printf("%d species, %d conservation components: %s\n",
@@ -456,4 +455,4 @@ calculation at a single instant cannot show at all.
 ## Where to go next
 
 A binder in which the slag is the main constituent, and its sulfur can no longer
-be taken as sulfate, is [A blastfurnace cement, and the oxidation state it needs](@ref ex-cem3-slag).
+be taken as sulfate, is [CEM III/A: a blastfurnace cement, and the oxidation state it needs](@ref ex-cem3-slag).

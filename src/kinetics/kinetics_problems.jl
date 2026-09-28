@@ -96,7 +96,7 @@ Construct from a [`ChemicalSystem`](@ref) that has `kinetic_species` declared
 # From explicit reactions
 rxn = Reaction(OrderedDict(sp("C3S") => 1.0, sp("H2O@") => 3.33),
                OrderedDict(sp("Jennite") => 0.167, sp("Portlandite") => 1.5))
-rxn[:rate] = parrot_killoh(PK_PARAMS_C3S, "C3S"; α_max)
+rxn[:rate] = parrott_killoh(PK_PARAMS_C3S, "C3S"; α_max)
 kp = KineticsProblem(cs, [rxn], state0, (0.0, 7 * 86400.0))
 
 # From kinetic_species in ChemicalSystem
@@ -1361,7 +1361,7 @@ function build_kinetics_ode(kp::KineticsProblem)
         # dependence — then returns a `Dual` that cannot be stored in a
         # `Vector{Float64}`, and the solve fails with "First call to automatic
         # differentiation for time gradient failed". Rate laws that ignore `t`,
-        # like `parrot_killoh`, never exposed this.
+        # like `parrott_killoh`, never exposed this.
         T_elt = promote_type(eltype(u), typeof(t))
 
         # ── 1. Extract state components ──────────────────────────────────

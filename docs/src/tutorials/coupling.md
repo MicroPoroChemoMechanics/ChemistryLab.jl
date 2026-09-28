@@ -14,7 +14,7 @@ integrator down to their timescale. Equilibrating everything would dissolve the
 clinker instantly.
 
 The way out is [Leal2017](@cite)'s partition, which is also what Reaktoro
-implements. This page derives it; [The hydrating paste, end to end](@ref sec-coupled-hydration) puts
+implements. This page derives it; [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration) puts
 it to work.
 
 ## The partition
@@ -179,6 +179,6 @@ What it checks is what this page describes:
 
 ## See also
 
-- [The hydrating paste, end to end](@ref sec-coupled-hydration) — a worked example
+- [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration) — a worked example
 - [Validation against Reaktoro](@ref) — what agrees and what does not
 - [Chemical Kinetics](@ref sec-kinetics) — rate laws and the `KineticFunc` interface

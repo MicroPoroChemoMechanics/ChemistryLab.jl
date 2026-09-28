@@ -1,5 +1,351 @@
 # Changelog
 
+## v0.26.0 — Cement modeling: databases from their publishers, the activity model of Cemdata18, sublattice mixing, a linear-programming start and recipes
+
+The thermodynamic databases are no longer shipped: they are obtained from their
+publishers on first use, checked against a checksum. The activity model that
+Cemdata18 prescribes gets a name, and every certified answer states the ionic
+strength it was reached at against the range of its model. The C-(N-)A-S-H gel
+is mixed on its sites, as Myers et al. define it, and convexity is decided for
+any number of end-members. The certified search starts from the linear program
+over the pure phases, which refuses a budget no amounts can meet and makes cold
+cement solves an order of magnitude faster. A layer of materials, extents,
+recipes and processes poses a cement calculation in the terms it is described
+in.
+
+### Breaking changes
+
+Below 1.0 the registry treats a minor bump as breaking whatever the API did, so
+`[compat] = "0.25"` will not accept `0.26`, and a dependent must widen its bound.
+The documentation environment of MeanFieldHomogenization.jl lists ChemistryLab
+at `0.24, 0.25` and OptimaSolver at `0.5, 0.6`, and needs `0.26` and `0.7`
+added; PoroMechanics.jl lists `0.15.2, 0.18, 0.22` and needs `0.23` to `0.26`.
+
+Several behaviors change deliberately:
+
+- **OptimaSolver 0.7 is required**, for its linear-programming start and its
+  Newton inversion of a sublattice phase.
+- **The databases are downloaded, not shipped.** `datapath` keeps working for
+  every database name, but the first call needs the network, a directory named
+  by `CHEMISTRYLAB_DATABASE_DIR`, or a copy installed with `install_database`.
+  Code that opened the files under `data/` directly no longer finds them, and
+  `cemdata18-merged.json` is gone (its substances are those of
+  `cemdata18-thermofun.json`). The release obtained differs from the files
+  shipped until now in ten Cemdata18 species and ten PSI/Nagra reactions, which
+  change a result only where they enter it.
+- **`CNASH_ss` is the published sublattice model**, so every CNASH answer
+  changes.
+- **A concave phase with more than two end-members is refused** at
+  construction, as a concave binary was, and a certificate is scoped
+  `:kkt_point` unless every mixing phase is proved convex.
+- **A budget no amounts of the declared species can meet is refused at once**,
+  with `budget_feasible = false` and `route = :infeasible`, and
+  `STRICT_CONVERGENCE` raises; until now it went through the whole search.
+- **The search starts from the linear program** (`lp_start = true`): the
+  answers are the same, the route to them is not, and `lp_start = false`
+  restores the former search.
+- `parrot_killoh`, `parrot_killoh_avrami` and the literature key
+  `ParrotKilloh1984` are deprecated in favor of the author's spelling, Parrott;
+  the old names still work, with a warning.
+
+
+### Thermodynamic databases are obtained from their publishers
+
+`datapath("cemdata18-thermofun.json")`, and the same call for the PSI/Nagra,
+aq17 and slop98 databases, resolves to the file its publisher distributes:
+release v1.1.1 of ThermoHub, obtained on first use from GitHub (or the jsDelivr
+mirror of the same commit), checked against the SHA-256 of the version
+ChemistryLab is validated with, and kept in a cache of the Julia depot. Nothing
+changes for code written with `datapath`. Four functions come with it:
+
+- `database_info()` says where each database currently resolves;
+- `fetch_databases()` obtains them all in advance, for a machine that will work
+  offline, a documentation build or continuous integration;
+- `install_database(path)` installs a copy downloaded by hand, after checking
+  its checksum;
+- `database_path(name)` is what `datapath` calls for a database name.
+
+`ENV["CHEMISTRYLAB_DATABASE_DIR"]` names a directory of local copies, searched
+first. When a file cannot be obtained, `DatabaseUnavailable` says which, what was
+tried and the ways to provide it; the manual page *Database Interoperability*
+explains every message.
+
+The PHREEQC export of Cemdata18 (`CEMDATA18-31-03-2022-phaseVol.dat`) is
+distributed by Empa through a page no program can use, so it is downloaded by
+hand once and installed with `install_database`. Nothing ChemistryLab does by
+default needs it: it is the input of `merge_json` and of the PHREEQC readers.
+
+`cemdata18-zeolites.json` and `cemdata18-chloride.json` are built on first use
+from the Cemdata18 file and ChemistryLab's own data (the published zeolite
+tables, the fitted chloride end member in `data/chloride/cshq_cl.json`), and
+rebuilt whenever either changes. Their added entries are identical to those of
+0.25.2. `cemdata18-merged.json` is gone: its substances were those of
+`cemdata18-thermofun.json`, byte for byte, and the pages that loaded it load the
+latter, with the same results.
+
+### The release of the databases
+
+ThermoHub's release v1.1.1 carries values identical to the files ChemistryLab
+read until now, except for three differences, which reach a calculation only
+where the species concerned enter it:
+
+- Cemdata18 has ten more species, with their reactions: `Fe(OH)3(am)`,
+  `Fe(OH)3(mic)`, `FeCO3(pr)`, `S-2`, `CN-`, `MgSiO3@`, `AlHSiO3+2`,
+  `FeHSiO3+2`, `Fe2(OH)2+4` and `Fe3(OH)4+5`;
+- PSI/Nagra 12/07 writes ten reactions over different reactants;
+- in slop98-organic, the enthalpy of `CH4@` differs by 1 J/mol.
+
+Two consequences are measured in the test suite:
+
+- The two amorphous iron hydroxides are now checked against Table 2 of
+  Cemdata18 like the other rows, and close to the printed digit.
+- `S-2`, in a sulfate paste without reductant, stays at the floor and leaves the
+  equilibrium unchanged. Its presence nevertheless makes the implicit kinetic
+  step fail to converge on the two C3A pathways of the test suite, with extents
+  a factor 500 short. The outcome depends on the Gibbs energy of `S-2` in a way
+  no chemistry explains, which marks it as numerical. The two tests leave `S-2`
+  out, for that written reason, and a third records the failure as broken.
+
+### Fixed
+
+- **`merge_json` failed on every ThermoHub file.** It wrote its output by
+  splicing text between the lines `"reactions": [` and `"elements": [`,
+  assuming that order; ThermoHub lists `elements` first, and the splice ended
+  in a `BoundsError`. The output is now written by the JSON writer, with the
+  fields in the order the input gives them.
+- **A ThermoFun record without its reference state made the whole database
+  unreadable.** One substance of slop98-organic, `Eth@`, carries no `Tst`; it
+  is now read at ThermoFun's reference state, 298.15 K and 1 bar.
+- **The PHREEQC reader missed three options.** `parse_phases` looked for `-V⁰`,
+  which no PHREEQC file writes, so the molar volumes (`-Vm`) were never read;
+  it recognized `-log_K` but not `-log_k`, so a phase written in lowercase
+  (`zeoliteP_Ca`) had no log K and was dropped from a merge; and it recognized
+  `-analytical_expression` but not `-analytic`. Options are now recognized in
+  every spelling the PHREEQC manual documents, whatever their case, and `-Vm`
+  is kept as the molar volume of the phase, never as a volume of reaction.
+- The chloride end member of CSHQ inherited, from the NaSiOH record it is built
+  on, a `mass_per_mole` field that is NaSiOH's; ChemistryLab never read it, and
+  it is no longer written.
+- The documentation said the PHREEQC file brought the phase volumes to the
+  merged database. The ThermoFun file already carries them for all 140
+  crystalline phases; the note is removed.
+
+### Corrected: the activity model of Cemdata18
+
+The documentation, a docstring and two test comments said that CEMDATA18
+carries no ion-size parameter, so that a GEM-Selektor run starts from `å = 0`.
+The paper says otherwise: Appendix C, Eq. (C.1), prescribes the extended
+Debye–Hückel equation with a common ion size of 3.67 Å and a B-dot of 0.123
+for a KOH electrolyte (3.31 Å and 0.098 for NaOH), and the same B-dot on the
+neutral species. The GEM-Selektor run reconstructed in the documentation was
+configured with `å = 0`; that is a property of that run, now described as such.
+The CEMDATA18 cement published with xGEMS runs Eq. (C.1), and GEMS3K on it is a
+test oracle (`test/reference/xgems_cement.py`).
+
+### Added: the activity model Cemdata18 prescribes, and its range
+
+- `cemdata18_activity_model(:KOH)` or `(:NaOH)` returns that model, with its
+  parameters read from the transcription of the paper.
+- The certificate of `equilibrate_certified` reports `ionic_strength`,
+  `activity_range` (the ionic strength up to which the model is stated valid,
+  `nothing` when no range is stated) and `within_activity_range`.
+- `equilibrate_certified(...; fallback_model, fallback_on)` solves again with a
+  second activity model when the first does not certify, or, with
+  `fallback_on = :out_of_range`, when its answer lies past its range.
+
+### Added: the activity model of a PHREEQC database
+
+`TruesdellJonesActivityModel` applies the WATEQ equation to every species a
+PHREEQC database gives `-gamma` parameters, and PHREEQC's defaults to the others
+(Davies for an ion, `0.1 I` for a neutral species). `phreeqc_gamma_parameters`
+reads those parameters from a database file, master and secondary species alike.
+A second `-gamma` for a species replaces the first, as PHREEQC reads it.
+
+### Added: a budget no amounts can meet is refused, with its reason
+
+`equilibrate_certified` first solves the linear program over the pure phases,
+the equilibrium with every activity at one (OptimaSolver's `lp_start`). When no
+non-negative amounts of the declared species meet the element budget, the
+program proves it with a Farkas vector, a combination of the balances that every
+species raises and the budget lowers, and the budget is refused at once: the
+certificate has `budget_feasible = false`, `route = :infeasible` and
+`unplaceable`, the reason in words ("the budget asks for −0.001 mol of Ca+2, and
+every declared species holds it with a non-negative coefficient"), and
+`STRICT_CONVERGENCE` raises. Until now such a budget went through the whole
+search (continuation, restarts, repairs) and came back uncertified, with the
+solver's non-convergence counter raised on the way.
+
+### Changed: the search starts from the linear program
+
+The vertex of that program, with every species it leaves out raised to the
+amount its multipliers give it, is now the first start of the certified search.
+Measured on two cement pastes against the same calls with `lp_start = false`:
+
+| | cement107 | CEM I with CNASH_ss |
+|:--|--:|--:|
+| cold | 4.58 s → 0.21 s | 4.19 s → 0.09 s |
+| warm, from the answer | 0.207 s → 0.208 s | 1.49 s → 0.09 s |
+| a neighbor (1 % more water), from the answer | 0.156 s → 0.164 s | 2.40 s → 0.09 s |
+
+every composition the same to 2e-8. `lp_start = false` restores the former
+search. The certificate also says which start the answer came from (`route`:
+`:lp_start`, `:state`, `:ideal_mixing`, `:ideal`, `:continuation`, `:restart`,
+`:repair`) and how many dual solves the search ran (`n_dual_solves`).
+
+### Added: ideal mixing on sublattices, and the CNASH gel as its authors define it
+
+`SublatticeModel` is ideal mixing on several sites of a formula unit,
+`ln aₖ = Σₛ mₛ ln y_{s,σₛ(k)}`, the model of Kulik (2011) for CSH3T and of Myers
+et al. (2014) for the C-(N-)A-S-H gel. `sublattice_model("Myers2014:cnash",
+members)` reads a published model from `data/literature`, and checks each
+member's formula against the one the paper prints, rescaling the site
+coefficients when the database stores another formula unit (the Cemdata18 records
+of CSH3T are half Kulik's). `site_fractions` gives the site fractions. The
+occupancy transcribed from Myers' Table 1 reproduces the activities of their
+Appendix B, transcribed apart, and Kulik's Eq. (19) likewise; the tests hold the
+two transcriptions against each other.
+
+`CNASH_ss` in `data/solid_solutions.toml` is now that model. It was declared as
+ideal mixing of its eight end-members, which is not the model of the paper that
+defines it, so every CNASH answer of the package so far differs from the
+published model's; results computed with it change. The solver inverts such a
+phase by Newton's method (OptimaSolver 0.7, which this release requires): the
+substitution it uses for other phases diverges on it. A system holding a
+sublattice phase is first solved with that phase mixing ideally, and that answer
+starts the sublattice solve (on a CEM I paste, measured before the start from
+the linear program: 0.86 s, where the search alone took 20.5 s). Known limitation, measured: under the limiting law with `å = 0`, the
+CEM I paste with the published gel does not certify, where it does under
+`cemdata18_activity_model`.
+
+### Added: the other C-S-H models of Cemdata18, and two Al/Fe binaries
+
+- `CSH3T`, `ECSH1` and `ECSH2` are declared as ideal solid solutions, as
+  Cemdata18 ships them (Lothenbach et al. 2019, Table 4), and listed in
+  `data/gel_models.toml`, so that two models of the one gel stay refused
+  together.
+- `AFt_AlFe` and `AFm_AlFe`, the Guggenheim binaries of Cemdata18's Table 1
+  (notes b and h) between ettringite and its iron analog and between
+  monosulfate and its iron analog, with their published parameters and their
+  miscibility gaps.
+
+### Changed: convexity is decided for any number of end-members
+
+`mixing_convexity(model, n)` says whether a mixing energy is convex over the
+whole simplex (`:convex`, `:nonconvex` with a witness composition, or
+`:undecided`), and why. A regular model is proved convex when the smallest
+eigenvalue of `W/RT` on the tangent space of the simplex is at least −2, which
+for two end-members is the familiar `W ≤ 2RT`, and shown not to be when a pair
+exceeds `2RT`. Until now only binaries were checked: a concave ternary was
+accepted without `instances = 2`, and its certified answers were scoped
+`:global_minimum`, which is what they do not prove. Such a phase is now refused
+at construction (or admitted with two instances), and a certificate is scoped
+`:kkt_point` unless every mixing phase is proved convex.
+
+### Added: a member that is a mixture of two others is reported
+
+`SolidSolutionPhase` warns when a member is, in composition and to `0.1 RT` in
+Gibbs energy, the mixture of two others: the phase then holds one substance
+twice, and ideal mixing counts its configurations twice. The MgAl-OH-LDH ternary
+of Cemdata18 is such a case (M6A is the average of M4A and M8A); it ships as
+`MgAl_OH_LDH`, as published, with `acknowledge_degenerate = true`. Ordered
+members whose Gibbs energy departs from the mixture, as T5C of CSH3T or the
+siliceous hydrogarnets, are not reported.
+
+### Added: recipes, extents and processes
+
+A layer for what every cement calculation needs and each page wrote by hand:
+
+- **materials** of mineral constituents (database phases) and oxide
+  constituents (glasses, minor oxides), with `bogue` from the formulas of the
+  library, `decompose` (non-negative least squares on an oxide analysis) and
+  `reactive_part` (the glass by difference from a Rietveld analysis);
+- **extents**: constant, tabulated, logistic in log time, the rate law of
+  Parrott and Killoh integrated (optionally with their water/cement factor, as
+  Lothenbach and Winnefeld (2006) apply it), and any of them capped by Powers'
+  limit;
+- **recipes** and their `budget`: the reacted parts enter the equilibrium, the
+  unreacted ones are kept aside with their mass, volume and enthalpy, and an
+  oxide whose element the system cannot hold is kept aside too, said so;
+  a volume or a heat that needs a density or an enthalpy no source gives is
+  reported missing, never estimated;
+- `equilibrate_certified(recipe, system)` and a `RecipeState` read by
+  `phase_masses`, `porosity`, `bound_water`, `pore_solution`, `volume` and
+  `enthalpy`, the residue counted where it belongs;
+- **processes** as sequences of certified equilibria: `hydrate`, `blend`,
+  `titrate`, `carbonate`, `add_salt`, `leach`, tabulated by `process_table`;
+- **templates** of published materials (`data/recipe_templates.toml`, references
+  only; `material_template`), starting with the round robin of Durdziński et al.
+  (2017): the Portland cement by its phases and by Bogue, the two slags, the
+  siliceous fly ash with its glass by difference.
+
+The layer poses exactly the problem the recipe of `scripts/gruyaert2010.jl`
+built by hand (the element budget agrees to 1e-12), which the tests assert.
+
+### Corrected: Parrott, not Parrot
+
+The author of the 1984 hydration model is L. J. Parrott. The functions are now
+`parrott_killoh` and `parrott_killoh_avrami`, the literature key
+`ParrottKilloh1984`, and the table of Lavergne et al. (2018) `parrott_killoh_1984`.
+The old names keep working, with a deprecation warning. The evidence is
+indirect, since the 1984 paper has no DOI: the same author, with the same
+initials and in the same years, signs as Parrott on Crossref, including two
+papers on alite hydration (1981, 1983).
+
+### Documentation: the application pages name their cement
+
+The titles of the application pages give the EN 197-1 designation of the cement
+they compute (CEM II/A-LL and CEM II/B-S, CEM III/A, CEM IV/A (V) and CEM IV/B
+(V), CEM V/A (S-V), and the CEM I of each Portland page), where several said
+only "a blastfurnace cement" or "the full Portland cement".
+
+### Documentation: the cement pages run the activity model Cemdata18 prescribes
+
+The pages on CEM I with its solid solutions, CEM II, CEM III/A, CEM IV, CEM V,
+the miscibility gap and chloride binding now run `cemdata18_activity_model(:KOH)`
+in place of the limiting law with `å = 0`, and each prints the molar K/Na ratio
+of its alkalis (2.3 to 2.6) that makes the KOH parameters the right set. The CEM
+IV and CEM V pages declare `CNASH_ss` as the published sublattice model. Every
+number the prose quotes was taken again from the executed output:
+
+- On the Portland and slag pastes the pH rises by 0.01 to 0.04 (CEM I 13.0994
+  to 13.1156, CEM III/A 13.041 to 13.054), and the alkali members of the C-S-H
+  hold a few percent more potassium and sodium.
+- The CEM I cross-check against Reaktoro was run again with both codes on the
+  Cemdata18 model: pH 13.1156 against 13.1426, total volume within 0.06 %. The
+  two halves of `scripts/crosscheck` now read the database file and the activity
+  parameters from the one file the Julia half writes.
+- In the chloride page the paste binds more of the added chloride: 74 to 96 %
+  instead of 65 to 94 % with the surface model, 85 to 97 % instead of 83 to 96 %
+  with the chloride end member.
+- On the CEM IV page the gel changes most. The published `CNASH_ss` takes a Ca/Si
+  of 1.17 where `CSHQ` takes 1.60, so its paste keeps more portlandite. Every
+  point of the portlandite sweep certifies, and so do both full-reaction limits
+  of the CEM IV/B, which did not under `å = 0` (element balances of 0.26 and
+  0.35 mol left). For `CSHQ` nothing else changed, so what failed there was the
+  limiting law. The `CNASH_ss` limit lies at an ionic strength of 1.09 mol/kg,
+  past the range Cemdata18 states, and its certificate says so. A cold solve now
+  certifies the CEM IV/B at 28 days, and the continuation the page walked is
+  gone.
+- The zeolite block of the CEM IV page had left the alkalis of the clinker out
+  of its budget. With the budget of the rest of the page no zeolite is stable in
+  the full-reaction limit, where the page reported FAU-Y-K.
+- On the CEM V page the fully reacted paste now certifies, at an ionic strength
+  of 1.10 mol/kg, past the stated range.
+- The miscibility-gap page stated three things its own output contradicted: the
+  AFm composition of the single-composition case lies just outside the
+  common-tangent pair, not inside; that case does not close its element balance
+  to 2e-14; and the two instances of the last case do not share the amount
+  lopsidedly. The text now says what the output shows, and the pH axis of the
+  summary figure no longer hides two of its bars.
+
+### License notices
+
+Five source files carried no license header: `oxide_budget.jl`, `retention.jl`,
+`implicit_step.jl`, `certified.jl` and `constraints.jl`. They now open with the
+same `SPDX-License-Identifier: LGPL-2.1-or-later` line and copyright notice as
+every other file of the package. `NOTICE` misspelled the name of the hydration
+model's author (Parrott) and used a UK spelling; both are corrected.
+
 ## v0.25.2 — The options of the dual solver reach it, and the range of an activity model
 
 Found while correcting a user's cement scripts, with OptimaSolver 0.6.2, which
@@ -734,7 +1080,7 @@ than data about it, and stay in the code with their source.
 
 `PK84_PARAMS_*`, `WALLER_PARAMS_*`, `PK_BLAINE_REF`, the Powers ratios behind
 `powers_alpha_max` and the parameters of the deprecated `PK_PARAMS_*` are now
-read from `Lavergne2018.json`, `Waller1999.json`, `ParrotKilloh1984.json` and
+read from `Lavergne2018.json`, `Waller1999.json`, `ParrottKilloh1984.json` and
 `Powers1948.json`. The names are unchanged and every value is identical to the
 literal it replaces. Moving them recorded what had not been recorded:
 
@@ -1536,7 +1882,7 @@ the discrepancy somewhere a reader cannot see.
 The rate laws here scale with the binder's fineness, and that factor has always
 been a **number**: computed once from the fineness given at construction and
 carried unchanged through the integration. A dissolving grain does not keep its
-area, so `parrot_killoh_avrami` and `waller` now also accept a
+area, so `parrott_killoh_avrami` and `waller` now also accept a
 `ShrinkingCoreArea`, and then the factor follows the amount left.
 
 What is new is not only the mechanism but what comes with it. Multiplying the
@@ -2947,7 +3293,7 @@ magnification, and the data file's header says so.
 ### Fixed — `PoreHumidity` could not be integrated
 
 0.16.0 built it, wired the dispatch, and said in the self-desiccation page that
-handing it to `parrot_killoh_avrami` and integrating was how to obtain the
+handing it to `parrott_killoh_avrami` and integrating was how to obtain the
 arrest in time. Nothing ever did, and doing it found why: **the integration did
 not advance past `t = 0`.**
 
@@ -3073,7 +3419,7 @@ one variable rather than comparing three cements nobody has made.
 
 Writing it corrected three statements that reading could not have caught, and
 one of them is a trap worth knowing: the aluminate reaction
-`C3A + 3 Gp + 26 H2O → ettringite`, driven by a Parrot-Killoh rate, **violates
+`C3A + 3 Gp + 26 H2O → ettringite`, driven by a Parrott-Killoh rate, **violates
 mass conservation**. That rate follows its own clinker phase and does not watch
 its co-reactants, so the extent keeps advancing after the gypsum runs out —
 demanding 0.28164 mol against 0.25499 present, with the gypsum floored at zero
@@ -4251,7 +4597,7 @@ derivative belongs at the solution with the active set frozen.
   wrong. The script and the page are renamed, and both pKa are now derived rather
   than hard-coded — the old figures were plotted as dashed lines that crossed the
   curve at no half-equivalence, so the defect was visible in the published figure.
-- **`parrot_killoh` is deprecated and no longer attributed to Parrott & Killoh.**
+- **`parrott_killoh` is deprecated and no longer attributed to Parrott & Killoh.**
   Its nucleation term carries no Avrami logarithm, `K₃` sits where the canonical
   form has `k₂`, `N₁ = 3.3` is the canonical `n₃`, and `k₃ = 1.1` has no
   counterpart: two different models, not two parameterizations. With `PK_PARAMS_*`
@@ -4259,7 +4605,7 @@ derivative belongs at the solution with the active set frozen.
   (C₃A), and those three then land on **α(7 d) = 0.2386 whatever their `K₁`**,
   while C₄AF is limited by its own nucleation branch at 0.193. A CEM I at
   w/c = 0.40 is reported near 0.61. All demos and doc pages now use
-  `parrot_killoh_avrami` with `PK84_PARAMS_*`: the CEM I paste moves from
+  `parrott_killoh_avrami` with `PK84_PARAMS_*`: the CEM I paste moves from
   ᾱ(7 d) = 0.234 to **0.628**, ΔT from 2.0 to **14.2 °C**, and the heat released
   from 115 to **308 kJ/kg**. The slag and metakaolin laws move to `waller`.
 - **The calorimeter's `Cp` was double-counted.** The denominator is
@@ -4516,7 +4862,7 @@ curve shape the Parrott–Killoh family cannot make. Both are now documented sec
 of the page and assertions in the test suite, and together they are the
 quantitative argument for the model `ionic_hydration.jl` already implements.
 
-**A docstring claim that does not survive measurement.** `parrot_killoh_avrami`
+**A docstring claim that does not survive measurement.** `parrott_killoh_avrami`
 states, after Parrott & Killoh, that "C₃S has no diffusion-controlled stage". The
 sensitivity of the released heat to `k₂` for alite was expected to be exactly zero
 and is not: the Jander term `k₂(1-ξ)^{2/3}/(1-(1-ξ)^{1/3})` falls as ξ grows, so
@@ -4549,7 +4895,7 @@ the experimental conditions from its comment header, and `CALIB_SPEC`, a list of
 
 `run_ionic_hydration` and `ionic_reactions` take `induction` and
 `induction_phases`, and the default is **on**: `τ = 5 h`, `m = 2.5`, applied to
-the two silicates. A CEM I has a dormant period; Parrot–Killoh does not.
+the two silicates. A CEM I has a dormant period; Parrott–Killoh does not.
 
 The numbers are round on purpose. The calibration returns 5.6 h and 3.56 on one
 record and then shows `τ` correlated with `k₁_C3S` at 0.994, so the data barely
@@ -4579,7 +4925,7 @@ Two things follow for MFH, and the second is not optional.
    all — the coupling lives only in its docs environment.
 2. **MFH keeps its own copy of the ionic setup**, in
    `scripts/common/ionic_hydration.jl`, with its own `IONIC_CALIBRATION` and its
-   own `parrot_killoh_avrami` call. The dormant period has to be added there, and
+   own `parrott_killoh_avrami` call. The dormant period has to be added there, and
    in `scripts/common/stoichiometric_hydration.jl` for the stoichiometric route — on the
    clinker silicates only, since the silica fume there already goes through
    `waller`, whose sigmoid carries its own onset delay.
@@ -4643,7 +4989,7 @@ Nothing in `src/` is affected and no exported name changes. `Lavergne2018` and
 every citation in prose stay: that is where the attribution belongs.
 
 The names of *models* stay too, and the distinction is deliberate.
-`parrot_killoh`, `parrot_killoh_avrami` and `waller` are how the literature
+`parrott_killoh`, `parrott_killoh_avrami` and `waller` are how the literature
 designates those rate laws, in the same way it says Arrhenius, Avrami, Jander,
 Powers, Langavant or Blaine — they are technical terms, not credits, and they are
 part of the public API. What has been removed is the name attached to a *source of
@@ -4969,7 +5315,7 @@ active set.
 **The in-run speciation.** `respeciate!` still uses the interior-point solver, so
 the compositions *inside* the integration are not certified; only the replay is.
 Measured, that makes no difference here, because `bₑ` is integrated from the
-rates alone and a Parrot–Killoh or Waller law reads only its own degree of
+rates alone and a Parrott–Killoh or Waller law reads only its own degree of
 reaction. A rate law reading log-activities — a saturation ratio, or a
 pH-dependent dissolution law — would feed the speciation back into the
 trajectory, and would need this closed first.
@@ -5068,7 +5414,7 @@ evaluations alarmed about something that does not affect the answer.
 `integrate` now reports the worst on the **accepted steps** first, and the
 all-evaluations figure second. It also states when the distinction matters:
 `bₑ` is integrated from the rates alone, so a rate law reading only its own
-degree of reaction (Parrot–Killoh, Waller) gives a trajectory independent of the
+degree of reaction (Parrott–Killoh, Waller) gives a trajectory independent of the
 speciation, while a law reading log-activities feeds it back in.
 
 ### The warning now gives moles
@@ -5402,25 +5748,25 @@ arbitrary time.
 - **`degrees_of_hydration`** and **`mean_degree_of_hydration`**, replacing the
   `phase_alpha` closure copy-pasted into three shipped scripts.
 
-### Parrot & Killoh, canonical formulation
+### Parrott & Killoh, canonical formulation
 
-The shipped `parrot_killoh` implements a smoothed variant whose parameters are
+The shipped `parrott_killoh` implements a smoothed variant whose parameters are
 not those of the 1984 paper — its diffusion branch uses the same `K₃` and `N₃`
 for all four clinker phases. It is unchanged, and now documented as one of two
 variants.
 
-- **`parrot_killoh_avrami`** with **`PK84_PARAMS_C3S/C2S/C3A/C4AF`** — the
+- **`parrott_killoh_avrami`** with **`PK84_PARAMS_C3S/C2S/C3A/C4AF`** — the
   canonical Avrami / Jander / power-law form, `α̇ = min(α̇₁, α̇₂, α̇₃)`. With these
   parameters C₂S has no nucleation–growth stage and C₃S no diffusion-controlled
   stage, which is a sharp check on a transcription.
 - **`waller`** with **`WALLER_PARAMS_FLY_ASH/SILICA_FUME/SLAG`** — supplementary
-  cementitious materials do not follow Parrot & Killoh; `blended_cement_kinetics.jl`
+  cementitious materials do not follow Parrott & Killoh; `blended_cement_kinetics.jl`
   had to invent PK parameters for slag and metakaolin for want of this.
 - **`blaine_factor`**, **`humidity_factor`**, **`powers_alpha_max`** — the three
   rate corrections, previously either absent or retyped inline in every script.
 
 The Avrami branch vanishes at `α = 0`, so `α ≡ 0` solves the ODE and hydration
-never starts. Parrot & Killoh's own discrete scheme escapes this by integrating
+never starts. Parrott & Killoh's own discrete scheme escapes this by integrating
 over the first time step; a continuous solver cannot, so the argument is floored
 at `PK_AVRAMI_SEED`.
 
@@ -5431,7 +5777,7 @@ at `PK_AVRAMI_SEED`.
   (`Rodas5P`, `Rodas4`, `Rosenbrock23`, …) need a *time* gradient, which they take
   by calling the residual with a dual `t` and a plain `u`. Any rate depending on
   `t` then failed with "First call to automatic differentiation for time gradient
-  failed". `parrot_killoh` ignores `t`, so nothing exposed it until `waller`. The
+  failed". `parrott_killoh` ignores `t`, so nothing exposed it until `waller`. The
   type is now promoted with `typeof(t)`.
 - **Non-kinetic amounts were frozen inside the residual** — see the section above,
   which is the substance of this release.
@@ -5450,7 +5796,7 @@ catalog record. Three defects were corrected:
   different Lothenbach & Nonat (2015) paper and `Lothenbach2019` for Cemdata18.
   The entry is now keyed `Lothenbach2019`, and the real
   Lothenbach & Nonat (2015), *CCR* **78**, 57–70, is added.
-- The author of `ParrotKilloh1984` is **Parrott**, with two t's. The citation key
+- The author of `ParrottKilloh1984` is **Parrott**, with two t's. The citation key
   is unchanged, being referenced throughout the sources and documentation.
 
 ## v0.4.0 — Equilibrium actually coupled to kinetics, and dual numbers everywhere
@@ -5662,7 +6008,7 @@ promotion of `T`, `P` **and the amounts**. The dimensionless diagnostics follow
 
 - `KineticReaction` — couples a reaction to a rate law; supports
   `transition_state`, `first_order_rate`, and the empirical
-  Parrot–Killoh (1984) model for cement clinker hydration
+  Parrott–Killoh (1984) model for cement clinker hydration
 - `KineticsProblem` / `KineticsSolver` — ODE problem formulation
   following the SciML `(u, p, t)` convention; integrated via
   `KineticsOrdinaryDiffEqExt` (weakdep, activated by `using OrdinaryDiffEq`)
@@ -5673,7 +6019,7 @@ promotion of `T`, `P` **and the amounts**. The dimensionless diagnostics follow
   ODE hot path (no per-step allocation)
 - `RateMechanism`, `RateModelCatalyst`, `BETSurfaceArea`,
   `FixedSurfaceArea` — building blocks for custom rate closures
-- `parrot_killoh(params, mineral_name)` factory with built-in
+- `parrott_killoh(params, mineral_name)` factory with built-in
   Schindler & Follliard (2005) Arrhenius correction and default
   parameters for C₃S, C₂S, C₃A, C₄AF
 - ForwardDiff-compatible throughout; `KineticFunc` and `transition_state`

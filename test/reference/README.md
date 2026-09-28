@@ -45,19 +45,26 @@ appears above rather than a bare `pip install`.
 |:--|:--|:--|:--|
 | Reaktoro 2.13 | `reaktoro-env` | aqueous speciation; **ion exchange in both conventions** (`ActivityModelIonExchangeGainesThomas`, `…Vanselow`); reactive-area models, including a power law matching `ShrinkingCoreArea` | working |
 | PHREEQC (IPhreeqc, via phreeqpython) | `mpcm-oracles` | **surface complexation**: `SURFACE` with and without a diffuse layer, `EXCHANGE`, and the Dzombak & Morel HFO parameters shipped in `phreeqc.dat` | working |
-| GEMS3K | `mpcm-oracles` | Gibbs minimization with multi-site sorption phases, and CEMDATA18 — the cementitious case | **loads, cannot run**: see below |
+| GEMS3K (xgems) | `mpcm-oracles` | CEMDATA18 cements — the activity model of a pore solution first (`xgems_cement.py`) | **runs** on the system exports the xGEMS repository publishes; see below |
 
-## What is not measurable today, and why it is said rather than worked around
+## GEMS3K runs on published exports
 
-The plan wanted a tolerance floor from running the *same* ClaySor model in
-PHREEQC and in GEMS, since the deposit ships both. Half of that works: the
-deposit's `PHREEQC/claysor23_v0.7.dat` is a database IPhreeqc loads. The other
-half does not, because `xgems.ChemicalEngine` needs a GEMS3K **system export**
-(`*-dat.lst`) and the deposit ships a GEM-Selektor **database**. Producing the
-export needs GEM-Selektor itself, a graphical application.
+`xgems.ChemicalEngine` runs a GEMS3K **system export** (`*-dat.lst` and the
+files beside it), which GEM-Selektor writes. GEM-Selektor is not needed to have
+one: the xGEMS repository (LGPL-3.0) publishes several, among them a CEMDATA18
+cement paste (`demos/resources/CemGEMS-keyvalue/CemHyds`). `xgems_cement.py`
+downloads that export at a pinned commit into a cache outside this repository —
+the export files are never committed here — runs it, and writes
+`xgems_cement.json`. Its budget, temperature, species bounds and even the
+standard Gibbs energies of its species can be set through the API
+(`equilibrate(T, P, b)`, `setSpeciesUpperLimit`, `setStandardMolarGibbsEnergy`),
+so the same system answers questions other than its own recipe.
 
-So that floor is open, and no substitute number is invented for it. See
-`gems_bench.py`, which states the blocker and what unblocks it.
+What stays out of reach is a system no export carries: the ClaySor 2023 deposit
+(doi:10.5281/zenodo.15095062, CC-BY-4.0) ships a GEM-Selektor **database**, not
+an export, so the plan to run the same ClaySor model in PHREEQC and in GEMS still
+has only its PHREEQC half (`phreeqc_claysor.py`). `gems_bench.py` states that
+case.
 
 ## The fixtures are JSON, and why
 

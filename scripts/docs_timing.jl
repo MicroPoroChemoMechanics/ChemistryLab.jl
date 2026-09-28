@@ -16,6 +16,12 @@
 #  current directory, or to the path in `CHEMLAB_TIMING_CSV`, and a summary
 #  sorted by cost is printed at the end.
 #
+#  With `CHEMLAB_CAPTURE_DIR` set, what each block shows is written there as
+#  well, one file per block (`<page>/block<k>.txt`): its printed output, the
+#  value it ends on as Documenter displays it, and every warning it logged. Two
+#  captures, before and after an edit, are compared with `diff -r`, which is how
+#  a number quoted in a page's prose is checked against what the page computes.
+#
 #  What is not reproduced: rendering, the VitePress build and the doctests.
 #  What is measured is the executed blocks, where nearly all of the build goes.
 #  It is one heavy process, like the build itself, and is not to be run beside
@@ -79,20 +85,48 @@ function time_page(rel, io)
     modules = Dict{String, Module}()
     total = 0.0
     dir = mktempdir()
+    capture = get(ENV, "CHEMLAB_CAPTURE_DIR", "")
     for (k, (name, code)) in enumerate(blocks)
         mod = name === nothing ? sandbox(gensym("ex")) :
             get!(() -> sandbox(Symbol("ex_", name)), modules, name)
         err = ""
+        out = IOBuffer()
+        logs = IOBuffer()
+        value = nothing
         t = @elapsed try
             cd(dir) do
-                redirect_stdout(devnull) do
-                    Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-                        Base.include_string(mod, code, "$rel:block$k")
+                if isempty(capture)
+                    redirect_stdout(devnull) do
+                        Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+                            Base.include_string(mod, code, "$rel:block$k")
+                        end
+                    end
+                else
+                    value = mktemp() do path, fh
+                        v = redirect_stdout(fh) do
+                            Base.CoreLogging.with_logger(Base.CoreLogging.SimpleLogger(logs, Base.CoreLogging.Warn)) do
+                                Base.include_string(mod, code, "$rel:block$k")
+                            end
+                        end
+                        close(fh)
+                        write(out, read(path))
+                        v
                     end
                 end
             end
         catch e
             err = replace(first(split(sprint(showerror, e), '\n')), "," => ";")
+        end
+        if !isempty(capture)
+            d = joinpath(capture, replace(rel, r"\.md$" => ""))
+            mkpath(d)
+            open(joinpath(d, "block$k.txt"), "w") do f
+                print(f, String(take!(out)))
+                value === nothing || (show(f, MIME"text/plain"(), value); println(f))
+                w = String(take!(logs))
+                isempty(w) || print(f, "── warnings ──\n", w)
+                isempty(err) || print(f, "── error ──\n", err, "\n")
+            end
         end
         total += t
         @printf(io, "%s,%d,%s,%.3f,%s\n", rel, k, something(name, ""), t, err)

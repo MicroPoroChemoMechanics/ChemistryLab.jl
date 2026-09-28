@@ -1,11 +1,11 @@
-# Cement clinker hydration kinetics
+# [Hydration kinetics of a CEM I 52.5 R clinker](@id sec-clinker-kinetics)
 
 !!! info "Before this page"
     The tutorial [Chemical Kinetics](@ref sec-kinetics).
 
 This example demonstrates the full kinetics workflow: from database loading to
 ODE integration and calorimetric post-processing. It models the hydration of an
-OPC (CEM I 52.5 R) clinker using the Parrot--Killoh [ParrotKilloh1984](@cite)
+OPC (CEM I 52.5 R) clinker using the Parrott--Killoh [ParrottKilloh1984](@cite)
 rate model with Arrhenius temperature correction
 [SchindlerFolliard2005](@cite), coupled to a semi-adiabatic calorimeter
 [Lavergne2018](@cite).
@@ -56,26 +56,26 @@ set_quantity!(state0, "H2O@", WC * u"kg")
 nothing # hide
 ```
 
-## 3. Parrot--Killoh kinetic models
+## 3. Parrott--Killoh kinetic models
 
 Maximum degree of hydration from the [Powers1948](@cite) law:
 ``\alpha_{\max} \leq w/c \,/\, 0.42``, and the fineness correction of
 [Lavergne2018](@cite), the rate scaling as ``B / 385\;\text{m}^2/\text{kg}``.
 
-This uses [`parrot_killoh_avrami`](@ref) with `PK84_PARAMS_*`, the canonical
-formulation. The smoothed [`parrot_killoh`](@ref) variant this page used until
+This uses [`parrott_killoh_avrami`](@ref) with `PK84_PARAMS_*`, the canonical
+formulation. The smoothed [`parrott_killoh`](@ref) variant this page used until
 v0.14.0 is deprecated: it is diffusion-limited from a few percent of hydration
 on, which held the mean degree at seven days to 0.234 and the heat released to
-115 kJ/kg — see [Two Parrot–Killoh variants](@ref pk-variants).
+115 kJ/kg — see [Two Parrott–Killoh variants](@ref pk-variants).
 
 ```@example clinker
 const α_max = powers_alpha_max(WC)      # 0.952 at w/c = 0.40
 const BLAINE = 380.0u"m^2/kg"           # ordinary CEM I fineness
 
-pk_C3S  = parrot_killoh_avrami(PK84_PARAMS_C3S,  "C3S";  α_max, blaine = BLAINE)
-pk_C2S  = parrot_killoh_avrami(PK84_PARAMS_C2S,  "C2S";  α_max, blaine = BLAINE)
-pk_C3A  = parrot_killoh_avrami(PK84_PARAMS_C3A,  "C3A";  α_max, blaine = BLAINE)
-pk_C4AF = parrot_killoh_avrami(PK84_PARAMS_C4AF, "C4AF"; α_max, blaine = BLAINE)
+pk_C3S  = parrott_killoh_avrami(PK84_PARAMS_C3S,  "C3S";  α_max, blaine = BLAINE)
+pk_C2S  = parrott_killoh_avrami(PK84_PARAMS_C2S,  "C2S";  α_max, blaine = BLAINE)
+pk_C3A  = parrott_killoh_avrami(PK84_PARAMS_C3A,  "C3A";  α_max, blaine = BLAINE)
+pk_C4AF = parrott_killoh_avrami(PK84_PARAMS_C4AF, "C4AF"; α_max, blaine = BLAINE)
 nothing # hide
 ```
 
@@ -165,7 +165,7 @@ disappear.
 ### How the two halves are joined
 
 Species split into a **kinetic partition** — the clinker phases, carrying
-Parrot–Killoh rates — and an **equilibrium partition**: the pore solution and
+Parrott–Killoh rates — and an **equilibrium partition**: the pore solution and
 every hydrate free to precipitate. The ODE advances
 
 ```math
@@ -220,7 +220,7 @@ sol_eq = integrate(kp_eq, KineticsSolver(; ode_solver = Rodas5P(),
 
 Two things are worth watching in that run.
 
-**The clinker curves do not move.** `parrot_killoh` ignores its `lna` argument
+**The clinker curves do not move.** `parrott_killoh` ignores its `lna` argument
 and `heat_rate` uses only the reaction enthalpies, so `α(t)`, the temperature
 and the cumulative heat are the same to solver tolerance. Re-speciation cannot
 change them, and a comparison that reported otherwise would be reporting a bug.
@@ -240,7 +240,7 @@ supplementary cementitious material, a carbonating cover, a leached surface.
 
 !!! warning "What `equilibrium_solver = nothing` costs here, and what it does not"
     It costs nothing on `α(t)` or on the calorimetry: the
-    [ParrotKilloh1984](@cite) rate closure ignores its `lna` argument and
+    [ParrottKilloh1984](@cite) rate closure ignores its `lna` argument and
     `heat_rate` uses only the reaction enthalpies, so re-speciation cannot move
     either curve.
 
@@ -353,7 +353,7 @@ p3 = plot(t_Q ./ 3600, Q_kJ;
     title="Cumulative heat", label="Q(t)", lw=2, color=:purple)
 
 plot(p1, p2, p3; layout=(1,3), top_margin = 7Plots.mm, left_margin = 8Plots.mm, bottom_margin = 8Plots.mm, size=(1400, 420),
-    plot_title="CEM I w/c=$WC — Parrot–Killoh + semi-adiabatic calorimeter")
+    plot_title="CEM I w/c=$WC — Parrott–Killoh + semi-adiabatic calorimeter")
 ```
 
 ### The same two curves on a logarithmic time axis
@@ -421,7 +421,7 @@ Two things in that table are worth naming, because both come straight from the
 parameter sets rather than from the figure:
 
 - **`C₃S` and `C₃A` track each other** to within a few thousandths at every one
-  of those instants. That is a property of Parrot & Killoh's calibration, not a
+  of those instants. That is a property of Parrott & Killoh's calibration, not a
   general fact about cement: the two minerals are given nearly the same
   diffusion-branch constant, `k₂` = 0.05 d⁻¹ for `C₃S` against 0.04 d⁻¹ for
   `C₃A`, and it is `k₂` that governs once the shell has formed.
@@ -441,5 +441,5 @@ a great deal of hydration ahead of it when the run stops at seven days.
 ## Where to go next
 
 The hydrate assemblage is imposed by the stoichiometry on this page;
-[The hydrating paste, end to end](@ref sec-coupled-hydration) computes it by
+[The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration) computes it by
 Gibbs minimization at every step instead.

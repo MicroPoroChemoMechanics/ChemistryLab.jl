@@ -64,6 +64,7 @@ end
     include("formulas.jl")
     include("stoich_matrices.jl")
     include("databases.jl")
+    include("databases_remote.jl")
     include("literature.jl")
     include("zeolites.jl")
     include("cshq_chloride.jl")
@@ -123,6 +124,7 @@ end
     include("equilibrium_constraints.jl")
     include("capillary.jl")
     include("pitzer.jl")
+    include("recipes.jl")
 end
 
 @testsection "Utils tests" begin

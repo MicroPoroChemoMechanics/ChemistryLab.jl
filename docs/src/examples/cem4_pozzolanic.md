@@ -1,7 +1,7 @@
-# [A pozzolanic binder, and the C-S-H that has to carry the aluminum](@id ex-cem4-pozzolanic)
+# [CEM IV/A (V) and CEM IV/B (V): a pozzolanic binder, and the C-S-H that has to carry the aluminum](@id ex-cem4-pozzolanic)
 
 !!! info "Before this page"
-    [A blastfurnace cement](@ref ex-cem3-slag), whose skeleton this page
+    [CEM III/A, a blastfurnace cement](@ref ex-cem3-slag), whose skeleton this page
     follows, and [Solid solutions](@ref sec-theory-solid-solutions).
 
 A CEM IV replaces 11 % to 55 % of the clinker with a pozzolana — siliceous fly
@@ -16,7 +16,8 @@ Two things follow for the calculation, and this page is about both.
    brings almost as much Al as Si. In a real paste most of that aluminum ends up
    *inside* the calcium silicate hydrate, as C-A-S-H. `CSHQ`, the C-S-H model
    the CEM I pages use, has **no aluminum end-member at all**, so a calculation
-   that keeps it forces every atom of aluminum into the AFm and AFt phases.
+   that keeps it forces every atom of aluminum into the other aluminum-bearing
+   phases: the hydrogarnets, AFt and AFm.
    `CNASH_ss` is the model that can take it.
 2. **Portlandite becomes the limiting reagent.** Past a certain replacement it
    runs out, and what the paste can do afterwards changes.
@@ -104,8 +105,8 @@ FLYASH = OrderedDict("SiO2" => 0.53, "Al2O3" => 0.26, "Fe2O3" => 0.07,
 ALKALIS = OrderedDict("K2O" => 0.008, "Na2O" => 0.002)
 
 # ASSUMED: the midpoint of the EN 197-1 range for a CEM IV/A, which is 65-89 %
-# clinker and 11-35 % pozzolana. Section 7 goes to a CEM IV/B, and shows what
-# has to be added to the phase list before that is a question with an answer.
+# clinker and 11-35 % pozzolana. Section 7 goes to a CEM IV/B, and asks whether
+# its full-reaction limit needs phases this list does not declare.
 ASH_FRACTION = 0.23
 ASH_FRACTION_B = 0.45
 # The gypsum of the same cement, 4.6 % of the binder.
@@ -206,21 +207,25 @@ FEAL = ["C3AFS0.84H4.32", "C3FS0.84H4.32"]
 function system(gel_name, gel_members)
     sp = speciation(substances, vcat(pure, gel_members, FEAL, aqueous);
                     aggregate_state = [AS_AQUEOUS])
-    ss = [SolidSolutionPhase(gel_name, [byname[m] for m in gel_members]),
+    # CNASH_ss mixes on the sites of Myers et al. (2014), as it ships in
+    # data/solid_solutions.toml; CSHQ and the hydrogarnet mix their end-members.
+    members = [byname[m] for m in gel_members]
+    mixing = gel_name == "CNASH_ss" ? sublattice_model("Myers2014:cnash", members) : IdealSolidSolutionModel()
+    ss = [SolidSolutionPhase(gel_name, members; model = mixing),
           SolidSolutionPhase("C3(AF)S0.84H", [byname[m] for m in FEAL])]
     return ChemicalSystem(sp, CEMDATA_PRIMARIES; solid_solutions = ss)
 end
 
 cs_q = system("CSHQ", CSHQ)
 cs_n = system("CNASH_ss", CNASH)
-# Debye-Hückel limiting law with a B-dot term, as GEM-Selektor runs CEMDATA18.
-# The B-dot is identified from the activity coefficients GEMS printed on a
-# Portland paste (test/reference/gems_cemdata18_portland.json), about 0.0976.
-using JSON
-gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
-lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
-Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
-model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
+# The activity model Cemdata18 prescribes (its Eq. C.1): extended Debye-Hückel,
+# with the common ion size and B-dot the paper gives for KOH solutions (it also
+# gives them for NaOH). The alkalis of the clinker, and those of the fly ash in a similar ratio, are
+# mostly potassium.
+model = cemdata18_activity_model(:KOH)
+# The molar K/Na ratio of its alkalis, which is why the KOH set applies.
+Mox(ox) = ustrip(us"g/mol", Species(ox)[:M])
+println("molar K/Na of the alkalis: ", round((2 * ALKALIS["K2O"] / Mox("K2O")) / (2 * ALKALIS["Na2O"] / Mox("Na2O")); digits = 1))
 
 @printf("CSHQ system     : %d species\n", length(cs_q.species))
 @printf("CNASH_ss system : %d species\n", length(cs_n.species))
@@ -328,17 +333,23 @@ for (label, cs, eq) in (("CSHQ", cs_q, eq_q), ("CNASH_ss", cs_n, eq_n))
     for (name, amount) in assemblage(cs, eq)
         @printf("  %-18s %9.5f mol\n", name, amount)
     end
-    println()
+    # The gel as one phase: its atomic ratios, from the amounts of its members.
+    el = solid_solution_totals(eq, label).elements
+    @printf("  gel Ca/Si = %.2f, Al/Si = %.2f\n\n", el[:Ca] / el[:Si], get(el, :Al, 0.0) / el[:Si])
 end
 ```
 
-!!! note "Read the C-A-S-H as a total, not as eight numbers"
-    The eight `CNASH_ss` end-members span a space of rank 5: Myers' model carries
-    site-occupancy constraints that an ideal eight-component mixture does not
-    reproduce [Myers2014](@cite). The feasible set stays bounded and the solve is
-    well posed, but the individual end-member amounts are not determined by the
-    element balance alone — only their combinations are. The total, the Ca/Si and
-    the Al/Si are the quantities to read.
+!!! note "Read the C-A-S-H as a total, and its ratios"
+    The eight `CNASH_ss` end-members span a space of rank 5 in their elements, so
+    the element balance fixes only five combinations of their amounts. The mixing
+    on the sites of Myers et al. [Myers2014](@cite) fixes the rest: its energy is
+    strictly convex (the occupancy has rank 8), so the eight amounts are
+    determined. They are still a description of one gel, and the total, the
+    Ca/Si and the Al/Si are what compare with a measurement.
+
+    Here the two gels differ most in their Ca/Si, 1.60 against 1.17: `CNASH_ss`
+    takes less calcium, and its paste keeps more portlandite, 0.380 mol against
+    0.237.
 
 ## 6. Portlandite is the limiting reagent
 
@@ -354,16 +365,15 @@ i_ch = findfirst(s -> symbol(s) == "Portlandite", cs_n.species)
 for α in (ALPHA_ASH, 1.0)
     ch, phs, ok = Float64[], Float64[], Bool[]
     prev = nothing
-    refused = false          # set once this branch has run out; see below
     for f in fractions
         st, b = budget(cs_n; ash = f, α_ash = α)
         # CONTINUATION along the sweep: each point starts from its neighbor's
         # answer rather than from a fresh paste.
         #
         # That is safe here for a reason that is CHECKED rather than assumed.
-        # Both solid solutions above are declared with the default ideal mixing
-        # model, and `SolidSolutionPhase` refuses a model whose mixing energy has
-        # a spinodal -- so the Gibbs function is convex, its minimum is unique,
+        # CNASH_ss mixes on its sites and the hydrogarnet ideally, both convex
+        # (`mixing_convexity`), and `SolidSolutionPhase` refuses a model whose
+        # mixing energy is concave -- so the Gibbs function is convex, its minimum is unique,
         # and a continuation cannot change WHAT is found, only whether the search
         # finds it, which on a 109-species cement is the whole difficulty. Waive
         # that refusal with `check_convexity = false` and none of it holds: inside
@@ -371,31 +381,13 @@ for α in (ALPHA_ASH, 1.0)
         # sufficiency that rests on convexity, and the start would then decide
         # which branch you land on. The certificate still decides every point
         # here, and a start is reused only once it has been certified.
-        # The cascade is declined only AFTER this branch has already refused
-        # once, and that condition is exact rather than cautious.
         #
-        # Measured with ChemistryLab 0.22.0 and OptimaSolver 0.6.0: this block
-        # cost 654 s, of which about 600 were the two
-        # points of the α = 1 branch that refuse — a refusal pays every back
-        # end, then the ideal pre-solve, then the homotopy, before returning the
-        # same verdict. Past the composition where a branch first runs out, the
-        # cascade has been shown on this very branch not to change the verdict,
-        # so paying it again buys nothing.
-        #
-        # Declining it from the START of the branch was tried and REJECTED: the
-        # two points of that branch that do certify (0 % and 10 % ash) stop
-        # certifying without it, their balances going from 1e-15 and 7e-13 to
-        # 1.8e-02 and 3.9e-07. That trades two proved answers for two hollow
-        # markers of the page's own making, which is a downgrade dressed as a
-        # saving.
         # The certificate is printed below; the warning of a refusal would
         # only repeat it.
         eq, c = with_logger(NullLogger()) do
-            equilibrate_certified(
-                something(prev, st); model = model, b = b, autostart = !refused,
-            )
+            equilibrate_certified(something(prev, st); model = model, b = b)
         end
-        c.optimal ? (prev = eq) : (refused = true)
+        c.optimal && (prev = eq)
         n = ustrip.(us"mol", eq.n)
         push!(ch, n[i_ch])
         push!(phs, pH(eq, model))
@@ -440,31 +432,33 @@ savefig(fig, "cem4-sweep.svg"); nothing # hide
 
 ![](cem4-sweep.svg)
 
-Three things are visible, and they are worth separating — plus one honest gap,
-marked hollow wherever the certificate refused a point. A refused point is not a
-result: its portlandite and its pH are whatever the iteration stopped at, and
-nothing in them can be quoted. They are drawn rather than dropped, because
-dropping them would put a smooth curve where the evidence has a hole.
+Every point of both branches certifies. A point the certificate refused would be
+drawn hollow and black, and would not be a result: its portlandite and its pH
+would be whatever the iteration stopped at. It would be drawn rather than
+dropped, because dropping it would put a smooth curve where the evidence has a
+hole.
 
 The **portlandite falls** because the ash's silica turns it into more C-S-H —
 that is the pozzolanic reaction, and it is the property the family is specified
 for. **How far it falls is entirely a matter of how much ash has reacted**: in
-the limit a CEM IV/A exhausts its portlandite inside the EN 197-1 range — and the
-last points of that branch stop certifying as it goes, which is what the hollow
-markers are — while at 28 days the same binder still has about half of it. Reporting the first as though it
-described a specimen is the single easiest mistake to make with an equilibrium
-code, and it is not a small one — portlandite is what buffers the pH and what
-protects the reinforcement.
+the limit a CEM IV/A exhausts its portlandite inside the EN 197-1 range, at 30 %
+ash, while at 28 days the same binder still has about half of it. Reporting the
+first as though it described a specimen is the single easiest mistake to make
+with an equilibrium code, and it is not a small one — portlandite is what buffers
+the pH and what protects the reinforcement.
 
 The **pH moves much less** than the portlandite, because in a cement paste it is
 the alkalis that set it, not the calcium hydroxide; portlandite only fixes a
-floor around 12.5 at 25 °C. A pozzolanic binder lowers the pH mainly by **binding
-alkalis into the C-A-S-H**, and each model expresses a different part of it:
-`CSHQ` holds potassium and sodium through its `KSiOH` and `NaSiOH` end-members
-but no aluminum, `CNASH_ss` holds sodium and aluminum but no potassium. Neither
-holds all three, which is one more reason to compute both rather than trust one.
+floor around 12.5 at 25 °C. At 28 days it falls by 0.17 unit across the sweep. In
+the limit it *rises*, by 0.14, because the dissolved ash brings its own alkalis,
+mostly potassium, and `CNASH_ss`, the gel of this sweep, has no potassium member
+to take them. Each model expresses a different part of what a pozzolana does to
+the alkalis: `CSHQ` holds potassium and sodium through its `KSiOH` and `NaSiOH`
+end-members but no aluminum, `CNASH_ss` holds sodium and aluminum but no
+potassium. Neither holds all three, which is one more reason to compute both
+rather than trust one.
 
-## 7. A CEM IV/B, and the limit where the phase list runs out
+## 7. A CEM IV/B, and its full-reaction limit
 
 Everything so far was a CEM IV/**A**, 23 % ash. Take it to a CEM IV/**B** — the
 midpoint of 36–55 % — and ask the same question twice: once at the reacted
@@ -489,21 +483,10 @@ has dissolved.
 ```@example cem4
 eq_b, c_b = nothing, nothing          # the full-reaction case, kept below
 
-# CONTINUATION, not a cold start, at the 28-day fraction.
-#
-# A 45 % ash binder is a hard landing. Started from a fresh paste, `CSHQ` stops
-# with the element balance off by 7.8e-02 -- 0.078 mol of matter that does not
-# conserve -- while its supersaturation is only +5.3e-02. By the table above that
-# is a failed solve, not a missing phase, and an earlier version of this page
-# read it as chemistry. Walking the ash fraction up to 45 % instead certifies
-# every point, `CSHQ` included.
-ramp = collect(range(0.15, ASH_FRACTION_B; length = 5))
-
+# The 28-day fraction, each model started from its own fresh paste.
 for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
-    budgets = [budget(cs; ash = f, α_ash = ALPHA_ASH)[2] for f in ramp]
-    st0, _ = budget(cs; ash = first(ramp), α_ash = ALPHA_ASH)
-    states, certs = equilibrate_path(st0, budgets; model = model)
-    eq, c = states[end], certs[end]
+    st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = ALPHA_ASH)
+    eq, c = equilibrate_certified(st; model = model, b = b)
     @printf("%2.0f %% ash reacted %3.0f %%  %-10s optimal=%-5s balance=%.1e  pH=%.3f\n",
             100ASH_FRACTION_B, 100ALPHA_ASH, label, c.optimal, c.balance, pH(eq, model))
 end
@@ -514,59 +497,46 @@ and is now a comparison of **two proved answers** rather than of a success
 against a failure.
 
 ```@example cem4
-# The full-reaction limit. The cascade is declined because nothing helps here:
-# the continuation above was run on this branch too and refuses as well, so the
-# verdict is the same and the cascade spends about nine minutes reaching it.
+# The full-reaction limit, every ash sphere dissolved. The certificate carries
+# the ionic strength it was reached at, and whether that lies within the range
+# the activity model is stated for.
 for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
     st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = 1.0)
-    # The certificate is printed below; the warning of a refusal would only repeat it.
-    eq, c = with_logger(NullLogger()) do
-        equilibrate_certified(st; model = model, b = b, autostart = false)
-    end
+    eq, c = equilibrate_certified(st; model = model, b = b)
     (label == "CNASH_ss") && (global eq_b, c_b = eq, c)
-    @printf("%2.0f %% ash reacted 100 %%  %-10s optimal=%-5s balance=%.1e\n",
-            100ASH_FRACTION_B, label, c.optimal, c.balance)
+    @printf("%2.0f %% ash reacted 100 %%  %-10s optimal=%-5s balance=%.1e  pH=%.3f  I=%.2f mol/kg  within range: %s\n",
+            100ASH_FRACTION_B, label, c.optimal, c.balance, pH(eq, model),
+            c.ionic_strength, c.within_activity_range)
 end
+@printf("range Cemdata18 states for its model: I up to about %.1f mol/kg\n",
+        activity_model_range(model))
 ```
 
 At 28 days a CEM IV/B is an ordinary calculation for **both** models: what the
 ash has released by then fits in the phases the paste can form, and both answers
-certify. They differ by about 0.15 unit of pH, and that difference — not a
+certify. They differ by about 0.2 unit of pH, and that difference — not a
 refusal — is what says the aluminum matters.
 
-**In the limit neither certifies**, and it is worth being precise about why,
-because the obvious reading is wrong.
+**In the limit both certify as well**, a whole unit of pH apart. With `CSHQ` the
+pH is 12.10, below the floor of about 12.5 that portlandite holds, so the
+portlandite is gone and the alkalis have the `KSiOH` and `NaSiOH` members to go
+to; with `CNASH_ss` it is 13.20, since that gel has no potassium member.
 
-The block above declines the cascade, so its balances are whatever the single
-solve stopped at — tenths of a mole, which is not a number to interpret at
-all. The diagnosis below comes from the **continuation**, the best route
-available on this branch, and that is what makes it a diagnosis rather than a
-symptom:
+Until this version the page ran the limiting law, `å = 0`, the configuration of
+one GEM-Selektor run that the tests reproduce, and in the limit neither model
+certified: the solve stopped with element balances of 0.26 and 0.35 mol. The
+activity model Cemdata18 prescribes certifies both from the first solve, and for
+`CSHQ` nothing else changed. What did not close at the limit was the limiting
+law, not the minimization and not the phase list.
 
-| model, walked up by continuation | element balance | worst supersaturation | reading |
-|:--|--:|--:|:--|
-| `CSHQ` | 3.2e-14 | **−2.5e-01** | matter conserves, and **nothing is missing** — the negative sign says every absent phase is undersaturated. What fails is stationarity alone. |
-| `CNASH_ss` | **4.3e-01** | +1.9e-01 | matter does not conserve: this is not an answer to read. |
-
-The continuation is not run in the page because it costs about nine minutes to
-reach the same verdict, and the verdict is what the section needs. The numbers
-above are measured, not asserted; the route that produced them is named so that
-they can be reproduced.
-
-So the limit is a **hard point**, not a demonstration that the phase list is
-too short. An earlier version of this page said the opposite — that "the
-minimization is looking for an assemblage the declared phase list cannot form" —
-and a supersaturation of −0.25 refutes it: if a phase were missing, that number
-would be positive.
-
-Whose hard point it is can be measured by changing one thing. The activity model
-of this page is the Debye–Hückel limiting law with a B-dot term, `å = 0`: it is
-kept because it is what GEM-Selektor runs, so that the answers compare, and
-[the solving manual](@ref sec-activity-models) says that it has no validity at
-an ionic strength of 0.2 mol/kg, that of the Portland paste GEM-Selektor
-computed (0.21). Give every ion its own size, which is what `HKFActivityModel()`
-does with its default parameters, and leave the budget, the phase list and the
-solver as they are:
+Read the `CNASH_ss` limit for what it is. Its ionic strength, 1.09 mol/kg, is
+past the range Cemdata18 states for its model, about 1 mol/kg, and the
+certificate says so (`within_activity_range` is `false`): it is a composition
+consistent with an extrapolated activity model, certified as such and no more.
+How much the extrapolation weighs is measured by changing the activity model
+alone. Give every ion its own size, which is what `HKFActivityModel()` does with
+its default parameters, and leave the budget, the phase list and the solver as
+they are:
 
 ```@example cem4
 perion = HKFActivityModel()
@@ -580,25 +550,17 @@ end
         activity_model_range(perion))
 ```
 
-Both limits certify. What does not close at the limit is
-the **limiting law**, not the minimization and not the phase list. The answer it
-gives in exchange has to be read for what it is: the `CNASH_ss` limit sits at an
-ionic strength just past the range the manual states even for this model, so it
-is a composition consistent with an extrapolated activity model, certified as
-such and no more.
+For either gel the pH moves by 0.02 unit (12.10 to 12.12, 13.20 to 13.18): at
+these ionic strengths the answer hardly depends on the ion sizes, and what sets
+the two limits apart is the gel, not the activity model.
 
-What remains true, and is the reason the next section exists, is that the limit
-is where a real alkaline aluminosilicate forms phases this species list does not
-contain. That is a claim about chemistry, and the way to test it is to add the
-phases and see whether the calculation then closes — not to read a refusal as
-evidence for it.
-
-That limit is not an idle question. It is where a pozzolanic binder is heading
-over years, and it is the regime an alkali-activated system is in from the start.
-A real alkaline aluminosilicate does have an answer there, because it
-precipitates **zeolites** — and CEMDATA18 carries five, none of the families this
-binder needs. That is exactly what [the zeolite extension](@ref sec-zeolites) was
-built for.
+Whether the limit needs phases this species list does not contain is a claim
+about chemistry, and the way to test it is to add the phases and let the
+certificate decide. The limit is not an idle question: it is where a pozzolanic
+binder is heading over years, and the regime an alkali-activated system is in
+from the start. An alkaline aluminosilicate can precipitate **zeolites**, and
+CEMDATA18 carries five, none of the families this binder could form. That is
+what [the zeolite extension](@ref sec-zeolites) was built for.
 
 ```@example cem4
 zeo_db = build_species(datapath("cemdata18-zeolites.json"); verbose = false)
@@ -627,34 +589,20 @@ end
 pure_z = vcat(String.(pure), zeolites)
 sp_z = speciation(zeo_db, vcat(pure_z, CNASH, FEAL, aqueous);
                   aggregate_state = [AS_AQUEOUS])
-ss_z = [SolidSolutionPhase("CNASH_ss", [zeo_byname[m] for m in CNASH]),
+ss_z = [SolidSolutionPhase("CNASH_ss", [zeo_byname[m] for m in CNASH];
+                           model = sublattice_model("Myers2014:cnash", [zeo_byname[m] for m in CNASH])),
         SolidSolutionPhase("C3(AF)S0.84H", [zeo_byname[m] for m in FEAL])]
 cs_z = ChemicalSystem(sp_z, CEMDATA_PRIMARIES; solid_solutions = ss_z)
 
-st_z = ChemicalState(cs_z)
-for (phase, frac) in CLINKER
-    set_quantity!(st_z, phase,
-        BINDER_G * (1 - ASH_FRACTION_B - GYPSUM) * frac / molar_mass(phase) * u"mol")
-end
-set_quantity!(st_z, "Gp", BINDER_G * GYPSUM / molar_mass("Gp") * u"mol")
-set_quantity!(st_z, "H2O@", BINDER_G * WB / molar_mass("H2O@") * u"mol")
-b_z = Float64.(cs_z.SM.A) * ustrip.(us"mol", st_z.n)
-# The full-reaction limit, so that this is the same question `c_b` failed.
-b_z .+= oxide_budget(FLYASH, cs_z.SM.primaries;
-                     mass = BINDER_G * ASH_FRACTION_B * 1.0 * u"g")
+# The full-reaction limit, through the same `budget` as `c_b`, so that the two
+# answers are to one question and differ only in the phases declared.
+st_z, b_z = budget(cs_z; ash = ASH_FRACTION_B, α_ash = 1.0)
 
 eq_z, c_z = equilibrate_certified(st_z; model = model, b = b_z)
 @printf("with zeolites: optimal=%-5s  worst SI=%+.2e  pH=%.3f\n",
         c_z.optimal, c_z.worst_supersaturation, pH(eq_z, model))
-# WITHOUT the zeolites, nothing certifies -- so nothing from that point is
-# quotable. Its pH is whatever the iteration stopped at, and its
-# supersaturation is read at a composition that does not conserve matter. The
-# comparison here is between an answer and no answer, which is the strongest
-# form it can take; an earlier version of this page quoted `+3.12e+02` from that
-# point as if it measured how supersaturated the paste was, and it measured
-# nothing.
-@printf("without      : optimal=%-5s  (no residual from this point is a result)\n",
-        c_b.optimal)
+@printf("without      : optimal=%-5s  worst SI=%+.2e  pH=%.3f\n",
+        c_b.optimal, c_b.worst_supersaturation, pH(eq_b, model))
 
 nz = ustrip.(us"mol", eq_z.n)
 formed = sort([(symbol(cs_z.species[i]), nz[i])
@@ -671,27 +619,17 @@ else
 end
 ```
 
-Whichever way that comes out, the calculation is now **able to answer the
-question**, and before the extension it was not: a phase absent from the species
-list is not reported as undersaturated, it is not reported at all.
+With the zeolites declared the limit certifies again, at the same pH, and every
+zeolite is undersaturated: **no zeolite is stable in this paste**. That is a
+result because the certificate tests every declared phase, so it proves the
+absence. Without the extension the calculation could say nothing about a
+zeolite: a phase absent from the species list is not reported as undersaturated,
+it is not reported at all.
 
-That is the shape of the evidence, and it is worth naming because it is the
-honest one available. **With** the zeolites the equilibrium certifies — the
-supersaturation is at tolerance, the balance at 1e-10, the pH is a result.
-**Without** them, under this page's activity model, no route certifies, so that
-side contributes no number at all:
-not its pH, not its supersaturation. An argument built on comparing the two
-*numbers* would be built on one number that does not exist. An argument built on
-"one side answers and the other does not" is built on what was actually
-measured.
-
-And it was measured **twice, by two different routes**, which is the check worth
-making on any answer that matters. The block above starts cold; walking the ash
-fraction up by continuation instead gives `optimal = true` with an element
-balance of 4.3e-14 and a pH of **12.104**, against **12.086** cold — eighteen
-thousandths apart. A result that does not move when the route changes is a
-result. On the other side neither route certifies, so there is nothing there to
-compare against: not a number that differs, a number that does not exist.
+An earlier version of this page reported FAU-Y-K here. It answered a different
+question: its budget for this block left out the alkalis of the clinker, and its
+gel and its activity model were not those Cemdata18 publishes. The block now
+takes its budget from the same `budget` as `c_b`.
 
 !!! danger "An equilibrium at 45 % replacement is not a 28-day paste"
     Everything above is the state the paste *tends to*, with the whole ash taken
@@ -704,4 +642,4 @@ compare against: not a number that differs, a number that does not exist.
 ## Where to go next
 
 The composite binder, which carries a slag and a pozzolana at once, is
-[A composite binder: two glasses at once](@ref ex-cem5-composite).
+[CEM V/A (S-V): a composite binder, two glasses at once](@ref ex-cem5-composite).

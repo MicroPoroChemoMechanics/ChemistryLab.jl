@@ -50,6 +50,9 @@ function _debye_huckel_AB(model::DaviesActivityModel, T_K, P_Pa)
     return (A = A, B = zero(A))
 end
 _debye_huckel_AB(::DiluteSolutionModel, T_K, P_Pa) = (A = 0.0, B = 0.0)
+_debye_huckel_AB(model::TruesdellJonesActivityModel, T_K, P_Pa) =
+    model.temperature_dependent ? hkf_debye_huckel_params(T_K, P_Pa) :
+    (A = model.A, B = model.B)
 
 # The effective radius actually used for each species, by the same lookup the
 # closure uses. Zero for models that have no radius.
@@ -452,14 +455,8 @@ function activity_coefficients(
     out = OrderedDict{String, Float64}()
     for i in cs.idx_solutes
         z = Int(charge(cs.species[i]))
-        log10γ = if iszero(z)
-            # Same per-species Setschenow coefficient the closure uses.
-            model isa HKFActivityModel ?
-                _log10γ_neutral(model, I, _setschenow(cs.species[i], model)) :
-                _log10γ_neutral(model, I)
-        else
-            _log10γ_ion(model, z, åv[i], I, sqrtI, AB.A, AB.B)
-        end
+        # The per-species formula the closure uses, dispatched on the model.
+        log10γ = _log10γ_species(model, cs.species[i], z, åv[i], I, sqrtI, AB.A, AB.B)
         out[symbol(cs.species[i])] = 10.0^_primal(log10γ)
     end
 

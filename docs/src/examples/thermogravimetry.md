@@ -1,7 +1,7 @@
-# [Bound water, and the thermogram it integrates to](@id sec-example-tga)
+# [Bound water of CEM I 52.5 N and slag pastes, and the thermogram it integrates to](@id sec-example-tga)
 
 !!! info "Before this page"
-    [An isothermal calorimeter, read off the states](@ref sec-example-isothermal),
+    [CEM I 52.5 N and slag in an isothermal calorimeter, read off the states](@ref sec-example-isothermal),
     which builds the same pastes.
 
 A thermobalance weighs a dried sample while heating it. Between the drying
@@ -235,7 +235,7 @@ trading-off pair happened to be listed second.
 
 ## See also
 
-  - [An isothermal calorimeter, read off the states](@ref sec-example-isothermal),
+  - [CEM I 52.5 N and slag in an isothermal calorimeter, read off the states](@ref sec-example-isothermal),
     the heat of the same pastes.
   - [The water budget of a hydrating paste](@ref sec-theory-water-budget), what
     bound water is and why the pore solution is not it.

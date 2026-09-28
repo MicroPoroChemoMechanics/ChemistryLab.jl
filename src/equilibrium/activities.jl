@@ -597,11 +597,14 @@ HKFActivityModel()
 # One common ion size for every ion: that of NaCl.
 HKFActivityModel(å = literature_value("Helgeson1981", "nacl_distance_of_closest_approach"))
 
-# The Debye-Hückel limiting law with the B-dot a GEM-Selektor CEMDATA18 run of a
-# Portland cement implies, Ḃ_gems ≈ 0.0976 (test/aqueous_properties.jl recovers
-# it from GEMS' printed coefficients, test/reference/gems_cemdata18_portland.json):
-# CEMDATA18 carries no ion-size parameter, so GEMS starts from å = 0, and the
-# B-dot term is not applied to neutral species.
+# The model Cemdata18 prescribes, its Eq. (C.1): one ion size and one B-dot for
+# every ion, the same B-dot for the neutral species.
+cemdata18_activity_model(:KOH)
+
+# The Debye-Hückel limiting law with the B-dot that one particular GEM-Selektor
+# run of a Portland cement was configured with, Ḃ_gems ≈ 0.0976, recovered from
+# the coefficients it printed (test/reference/gems_cemdata18_portland.json). That
+# run is not the configuration Cemdata18 prescribes.
 HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
 ```
 """
@@ -622,6 +625,64 @@ function HKFActivityModel(;
     vals = promote(A, B, Ḃ, Kₙ, å_default, å)
     T = eltype(vals)
     return HKFActivityModel{T}(vals[1:5]..., vals[6], temperature_dependent)
+end
+
+"""
+    cemdata18_activity_model(electrolyte = :KOH; temperature_dependent = true)
+        -> HKFActivityModel
+
+The extended Debye–Hückel model with which Cemdata18 was derived and which it
+prescribes ([Lothenbach2019](@cite), Appendix C, Eq. C.1):
+
+```math
+\\log_{10}\\gamma_i = -\\frac{A\\,z_i^2\\sqrt{I}}{1 + B\\,a\\,\\sqrt{I}} + b_\\gamma I ,
+\\qquad
+\\log_{10}\\gamma_{\\text{neutral}} = b_\\gamma I ,
+```
+
+with one ion-size parameter `a` and one `b_γ` common to every ion, set by the
+electrolyte that dominates the pore solution:
+
+| `electrolyte` | `a` (Å) | `b_γ` at 25 °C (kg/mol) |
+|:--|--:|--:|
+| `:KOH` | 3.67 | 0.123 |
+| `:NaOH` | 3.31 | 0.098 |
+
+The values are read from `data/literature/Lothenbach2019.json`. In terms of
+[`HKFActivityModel`](@ref) this is `å = a`, `Ḃ = Kₙ = b_γ`.
+
+  - `A` and `B` depend on temperature and pressure, as the paper states; with
+    `temperature_dependent = true` they are computed from the water properties
+    at every call. The paper gives `b_γ` at 25 °C only, and it is kept at that
+    value.
+  - The paper states the correction applicable up to about 1 mol/kg of ionic
+    strength, which [`activity_model_range`](@ref) returns and the certificate
+    of [`equilibrate_certified`](@ref) compares with the ionic strength of the
+    answer.
+  - A certified answer computed with it is `:self_consistent`, not a
+    `:global_minimum`. The term `b_γ I` gives every ion `i` the contribution
+    `b_γ ∂I/∂n_j ∝ b_γ z_j²` to the derivative of its log activity with respect
+    to the amount of `j`, and for two ions of different charges that is not
+    symmetric in `i` and `j`, so no Gibbs energy has these activities as its
+    gradient.
+
+Choose the electrolyte from the pore solution: in a Portland cement potassium
+usually dominates.
+
+# Examples
+
+```julia
+model = cemdata18_activity_model(:KOH)
+activity_model_range(model)      # 1.0 mol/kg
+```
+"""
+function cemdata18_activity_model(electrolyte::Symbol = :KOH; temperature_dependent::Bool = true)
+    electrolyte in (:KOH, :NaOH) || throw(
+        ArgumentError("electrolyte must be :KOH or :NaOH, the two Cemdata18 gives parameters for; got :$electrolyte"),
+    )
+    a = literature_value("Lothenbach2019", "edh_ion_size_$electrolyte")
+    b = ustrip(us"kg/mol", literature_value("Lothenbach2019", "edh_b_gamma_$(electrolyte)_25C"))
+    return HKFActivityModel(; å = a, Ḃ = b, Kₙ = b, temperature_dependent)
 end
 
 """
@@ -1075,6 +1136,162 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
     return lna
 end
 
+# ── TruesdellJonesActivityModel ───────────────────────────────────────────────
+
+"""
+    struct TruesdellJonesActivityModel{T<:Real} <: AbstractActivityModel
+
+The activity model of a PHREEQC database: the WATEQ equation of Truesdell and
+Jones (1974) for every species its `-gamma` option gives parameters to, and
+PHREEQC's defaults for the others ([ParkhurstAppelo2013](@cite), description of
+`SOLUTION_SPECIES`).
+
+# Formulas
+
+For a species with parameters `(å, b)`:
+
+```math
+\\log_{10}\\gamma_i = -\\frac{A\\,z_i^2\\sqrt{I}}{1 + B\\,\\mathring{a}_i\\sqrt{I}} + b_i\\,I ,
+```
+
+which for an uncharged species is `b_i I`. For a species without parameters, the
+Davies equation for an ion and `0.1 I` for a neutral species, the two defaults
+PHREEQC applies:
+
+```math
+\\log_{10}\\gamma_i = -A z_i^2\\left(\\frac{\\sqrt{I}}{1+\\sqrt{I}} - 0.3\\,I\\right) ,
+\\qquad
+\\log_{10}\\gamma_i = 0.1\\,I .
+```
+
+The solvent follows Raoult's law, `ln a_w = ln x_w`, as with
+[`DaviesActivityModel`](@ref), whose warning on Gibbs–Duhem applies here too.
+
+# Fields
+
+  - `A`, `B`: the Debye–Hückel constants, at 25 °C unless
+    `temperature_dependent`, in which case they are computed from the water
+    properties at every call.
+  - `parameters`: species symbol ⇒ `(å, b)`, as [`phreeqc_gamma_parameters`](@ref)
+    reads them from a database file.
+
+# Example
+
+```julia
+params = phreeqc_gamma_parameters(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+model = TruesdellJonesActivityModel(; parameters = params)
+```
+"""
+struct TruesdellJonesActivityModel{T <: Real} <: AbstractActivityModel
+    A::T
+    B::T
+    parameters::Dict{String, Tuple{T, T}}
+    temperature_dependent::Bool
+end
+
+# The two defaults of PHREEQC for a species without `-gamma`: the constant of
+# the Davies equation for an ion, the salting-out coefficient for a neutral
+# species ([ParkhurstAppelo2013](@cite), SOLUTION_SPECIES, line 5). They are part
+# of the published equations, not parameters of this implementation.
+const _PHREEQC_DAVIES_B = 0.3
+const _PHREEQC_NEUTRAL_B = 0.1
+
+"""
+    TruesdellJonesActivityModel(; parameters, A=$(_DH_A_25C), B=$(_DH_B_25C), temperature_dependent=false)
+
+Construct a [`TruesdellJonesActivityModel`](@ref) from a dictionary of species
+parameters, typically [`phreeqc_gamma_parameters`](@ref)`(path)`.
+"""
+function TruesdellJonesActivityModel(;
+        parameters::AbstractDict, A::Real = _DH_A_25C, B::Real = _DH_B_25C,
+        temperature_dependent::Bool = false,
+    )
+    T = promote_type(typeof(A), typeof(B), (promote_type(map(typeof, v)...) for v in values(parameters))...)
+    T = float(T)
+    p = Dict{String, Tuple{T, T}}(String(k) => (T(v[1]), T(v[2])) for (k, v) in parameters)
+    return TruesdellJonesActivityModel{T}(T(A), T(B), p, temperature_dependent)
+end
+
+concentration_scale(::TruesdellJonesActivityModel) = :molality
+
+# One species's log₁₀ γ, dispatched on the model: the per-species hook that the
+# solver's closure and `activity_coefficients` share. The HKF and Davies models
+# go through their charge-class kernels; Truesdell–Jones reads the species's own
+# parameters.
+@inline function _log10γ_species(model::AbstractActivityModel, sp, z, å, I, sqrtI, A, B)
+    return iszero(z) ? _log10γ_neutral(model, I) : _log10γ_ion(model, z, å, I, sqrtI, A, B)
+end
+@inline function _log10γ_species(model::HKFActivityModel, sp, z, å, I, sqrtI, A, B)
+    return iszero(z) ? _log10γ_neutral(model, I, _setschenow(sp, model)) :
+        _log10γ_ion(model, z, å, I, sqrtI, A, B)
+end
+@inline function _log10γ_species(model::TruesdellJonesActivityModel, sp, z, å, I, sqrtI, A, B)
+    return _truesdell_jones(get(model.parameters, symbol(sp), nothing), z, I, sqrtI, A, B)
+end
+
+@inline _truesdell_jones(::Nothing, z, I, sqrtI, A, B) = iszero(z) ? _PHREEQC_NEUTRAL_B * I :
+    -A * z^2 * (sqrtI / (1 + sqrtI) - _PHREEQC_DAVIES_B * I)
+@inline function _truesdell_jones((å, b)::Tuple, z, I, sqrtI, A, B)
+    return iszero(z) ? b * I : -A * z^2 * sqrtI / (1 + B * å * sqrtI) + b * I
+end
+
+"""
+    activity_model(cs::ChemicalSystem, model::TruesdellJonesActivityModel) -> Function
+
+Return a closure `lna(n, p) -> Vector` computing log-activities for the
+Truesdell–Jones model of a PHREEQC database. The parameters of each species are
+resolved once, at construction.
+
+AD-compatible: all closure computations accept `ForwardDiff.Dual` inputs.
+"""
+function activity_model(cs::ChemicalSystem, model::TruesdellJonesActivityModel)
+    idx_solvent = only(cs.idx_solvent)
+    idx_solutes = cs.idx_solutes
+    idx_gas = cs.idx_gas
+    has_gas = !isempty(idx_gas)
+    mix = _MixingTerms(cs)
+    M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
+    zv = Int8[charge(sp) for sp in cs.species]
+    n_sp = lastindex(zv)
+    # Resolved once: `nothing` for PHREEQC's defaults, the pair otherwise.
+    parv = [get(model.parameters, symbol(sp), nothing) for sp in cs.species]
+    ln10 = log(10.0)
+
+    function lna(n::AbstractVector, p)
+        ϵ = p.ϵ
+        _n = max.(n, ϵ)
+        A, B = if model.temperature_dependent && hasproperty(p, :T) && hasproperty(p, :P)
+            AB = hkf_debye_huckel_params(p.T, p.P)
+            (AB.A, AB.B)
+        else
+            (model.A, model.B)
+        end
+        out = zeros(eltype(_n), n_sp)
+        n_w = _n[idx_solvent]
+        denom_mol = n_w * M_w
+        I = zero(eltype(_n))
+        @inbounds for i in idx_solutes
+            I += (_n[i] / denom_mol) * zv[i]^2
+        end
+        I /= 2
+        sqrtI = sqrt(I + ϵ)
+        @inbounds for i in idx_solutes
+            out[i] = ln10 * _truesdell_jones(parv[i], zv[i], I, sqrtI, A, B) + log(_n[i] / denom_mol)
+        end
+        n_aqueous = n_w + sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
+        out[idx_solvent] = log(n_w / n_aqueous)
+        if has_gas
+            n_gas = sum((_n[i] for i in idx_gas); init = zero(eltype(_n)))
+            @inbounds for i in idx_gas
+                out[i] = log(_n[i] / n_gas)
+            end
+        end
+        _mixing_lna!(out, _n, mix, p, ϵ)
+        return out
+    end
+    return lna
+end
+
 # ── Solid solution activity helpers ───────────────────────────────────────────
 
 """
@@ -1151,6 +1368,15 @@ function excess_ln_gamma_expression(model::AbstractSolidSolutionModel, k::Int, n
     x = [Symbolics.variable(:x, i) for i in 1:n]
     T = Symbolics.variable(:T)
     return _excess_ln_gamma(model, k, x, T)
+end
+
+# The fictive activity coefficient λₖ = aₖ/xₖ of the sublattice papers: what the
+# site mixing adds to ideal end-member mixing. Only the symbolic form and the
+# tests read it; activities go through `_ss_log_activities!`.
+function _excess_ln_gamma(m::SublatticeModel, k::Int, x::AbstractVector, T::Real)
+    y = site_fractions(m, x)
+    acc = sum(m.multiplicity[s] * log(y[s][m.occupancy[s, k]]) for s in eachindex(m.multiplicity))
+    return acc - log(x[k])
 end
 
 function _excess_ln_gamma(m::RedlichKisterModel, k::Int, x::AbstractVector, T::Real)
@@ -1279,9 +1505,37 @@ function _solid_solution_lna!(
         @inbounds for (j, i) in enumerate(grp)
             x[j] = _n[i] / n_total
         end
-        @inbounds for (k, i) in enumerate(grp)
-            out[i] = log(x[k] + ϵ) + _excess_ln_gamma(mdl, k, x, T)
+        _ss_log_activities!(out, grp, x, mdl, T, ϵ)
+    end
+    return out
+end
+
+"""
+    _ss_log_activities!(out, grp, x, model, T, ϵ) -> out
+
+Write `ln aₖ` into `out[grp[k]]` for the members of one solid solution at the
+mole fractions `x`. The default is `ln xₖ + ln γₖ`, with `ln γₖ` from
+[`_excess_ln_gamma`](@ref); a model whose activities are not naturally written
+that way adds a method here rather than a special case in the loop above.
+"""
+function _ss_log_activities!(out, grp, x, mdl::AbstractSolidSolutionModel, T, ϵ)
+    @inbounds for (k, i) in enumerate(grp)
+        out[i] = log(x[k] + ϵ) + _excess_ln_gamma(mdl, k, x, T)
+    end
+    return out
+end
+
+# The product of the member's own site fractions, the site fractions computed
+# once for the whole phase.
+function _ss_log_activities!(out, grp, x, mdl::SublatticeModel, T, ϵ)
+    y = site_fractions(mdl, x)
+    m = mdl.multiplicity
+    @inbounds for (k, i) in enumerate(grp)
+        acc = zero(promote_type(eltype(x), eltype(m)))
+        for s in eachindex(m)
+            acc += m[s] * log(y[s][mdl.occupancy[s, k]] + ϵ)
         end
+        out[i] = acc
     end
     return out
 end

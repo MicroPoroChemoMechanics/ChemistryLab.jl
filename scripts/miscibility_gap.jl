@@ -104,15 +104,12 @@ CSHQ = ["CSHQ-JenD", "CSHQ-JenH", "CSHQ-TobD", "CSHQ-TobH", "KSiOH", "NaSiOH"]
 AFM = ["C4AH13", "monosulphate12"]
 aqueous = ["SO4-2", "CO2@"]
 
-# Debye-Hückel limiting law with a B-dot term, as GEM-Selektor runs CEMDATA18.
-using JSON
-# The B-dot is GEM-Selektor's, identified from the activity coefficients it
-# printed on a CEMDATA18 Portland paste (test/reference/gems_cemdata18_portland.json):
-# the two lowest charge classes fix the limiting-law slope and the B-dot, about 0.0976.
-gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
-lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
-Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
-model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
+# The activity model Cemdata18 prescribes (its Eq. C.1): extended Debye-Hückel,
+# with the common ion size and B-dot the paper gives for KOH solutions (it also
+# gives them for NaOH). This paste carries no alkali, so neither set describes
+# its calcium hydroxide and sulfate solution more closely; the KOH set is used,
+# as on the other cement pages.
+model = cemdata18_activity_model(:KOH)
 
 """
 One system, differing only in how the AFm binary is declared.
@@ -269,7 +266,7 @@ p1 = bar(
 p2 = bar(
     labels, phs; legend = false, ylabel = "pH", title = "Pore solution pH",
     color = [o ? :seagreen : :firebrick for o in ok],
-    ylims = (12.5, 13.5)
+    ylims = (12.0, 13.5)
 )
 fig3 = plot(
     p1, p2; layout = (1, 2), size = (900, 420),

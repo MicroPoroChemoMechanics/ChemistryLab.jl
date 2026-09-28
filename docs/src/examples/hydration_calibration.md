@@ -1,13 +1,13 @@
-# [Calibrating hydration kinetics on measured calorimetry](@id ex-hydration-calibration)
+# [Calibrating the hydration kinetics of a CEM I on measured calorimetry](@id ex-hydration-calibration)
 
 !!! info "Before this page"
-    [The full Portland cement, through its pore solution](@ref ex-ionic-opc),
+    [A complete CEM I 52.5 N, through its pore solution](@ref ex-ionic-opc),
     and [Where the numbers come from](@ref sec-manual-numbers) for the
     provenance of a fitted parameter.
 
-[The full Portland cement, through its pore solution](@ref ex-ionic-opc) runs a
+[A complete CEM I 52.5 N, through its pore solution](@ref ex-ionic-opc) runs a
 complete CEM I forward and reads its calorimetry off a certified replay, with the
-kinetic parameters [Parrott and Killoh published in 1984](@cite ParrotKilloh1984).
+kinetic parameters [Parrott and Killoh published in 1984](@cite ParrottKilloh1984).
 Its `IONIC_CALIBRATION` dictionary is an explicit, deliberately unused hook: *"the
 entry exists so that a study which needs the degrees of hydration to follow a
 reference curve can scale them without touching the rate laws"*.
@@ -339,7 +339,7 @@ fields, never both.
 
 **`k₂_C3S` is excluded, but not for the reason usually given.** Parrott and
 Killoh reported no diffusion-controlled stage for C₃S, and
-[`parrot_killoh_avrami`](@ref)'s docstring repeats it
+[`parrott_killoh_avrami`](@ref)'s docstring repeats it
 [Lothenbach2008](@cite) — so the expected sensitivity is zero. Measuring it says
 otherwise:
 
@@ -824,6 +824,6 @@ and it is blocked only by data, not by the code.
 ## Where to go next
 
 The correlations calorimetry leaves unresolved call for a second measurement,
-the bound water of [Bound water, and the thermogram it integrates to](@ref sec-example-tga).
+the bound water of [Bound water of CEM I 52.5 N and slag pastes, and the thermogram it integrates to](@ref sec-example-tga).
 The rate laws and the provenance of their parameters are discussed in
 [Rate laws, and every parameter in them](@ref sec-theory-kinetics).

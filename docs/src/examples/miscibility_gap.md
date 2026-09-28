@@ -1,4 +1,4 @@
-# [A miscibility gap, and the three answers a formulation can give](@id ex-miscibility-gap)
+# [A miscibility gap in the AFm of a CEM I 52.5 N, and the three answers a formulation can give](@id ex-miscibility-gap)
 
 !!! info "Before this page"
     [Solid solutions](@ref sec-theory-solid-solutions) §6 and [Solid solution
@@ -132,15 +132,12 @@ CSHQ = ["CSHQ-JenD", "CSHQ-JenH", "CSHQ-TobD", "CSHQ-TobH", "KSiOH", "NaSiOH"]
 AFM = ["C4AH13", "monosulphate12"]
 aqueous = ["SO4-2", "CO2@"]
 
-# Debye-Hückel limiting law with a B-dot term, as GEM-Selektor runs CEMDATA18.
-using JSON
-# The B-dot is GEM-Selektor's, identified from the activity coefficients it
-# printed on a CEMDATA18 Portland paste (test/reference/gems_cemdata18_portland.json):
-# the two lowest charge classes fix the limiting-law slope and the B-dot, about 0.0976.
-gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
-lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
-Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
-model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
+# The activity model Cemdata18 prescribes (its Eq. C.1): extended Debye-Hückel,
+# with the common ion size and B-dot the paper gives for KOH solutions (it also
+# gives them for NaOH). This paste carries no alkali, so neither set describes
+# its calcium hydroxide and sulfate solution more closely; the KOH set is used,
+# as on the other cement pages.
+model = cemdata18_activity_model(:KOH)
 
 """
 One system, differing only in how the AFm binary is declared.
@@ -243,8 +240,9 @@ end
 ```
 
 Read that output carefully, because it does **not** show a common-tangent pair.
-The two instances come out at the **same** composition, with the amount split
-lopsidedly between them, and the certificate still refuses.
+The two instances come out at the **same** composition, with the amount divided
+between them, and the certificate still refuses; the element balance printed
+beside it says that the search did not settle.
 
 That is an honest result, and the page states it rather than dressing it up.
 
@@ -317,21 +315,22 @@ end
 
 `Δg` is the distance from the curve down to the common tangent: it says, in
 joules per mole of binary, **how much a single-composition answer overstates the
-Gibbs energy**. The third line is the AFm of this paste, at the composition case
-2 returns: it sits inside the pair, so the figure is not academic.
+Gibbs energy**. The third line is the AFm at the composition case 2 returns, just
+outside the pair, where the lever rule leaves it homogeneous. That composition is
+the last iterate of a refused search, not an equilibrium, so it does not tell
+where the AFm of this paste lies; the two lines inside the pair show what a split
+looks like and what it is worth.
 
 ### The one thing the minimization does not deliver
 
 Everything above costs microseconds and needs no solver. What a minimization over
 two declared instances does not deliver is ``\bar{x}`` **itself**, computed inside
-a gap with the aqueous solution iterated along with it. Seeding the two instances
-at ``x_\alpha`` and ``x_\beta`` and solving with `autostart = false` so the seed
-survives: the second instance empties and the solve stalls at a stationarity of
-1.8e-04 where the ideal case reaches 1.1e-15. It is not the starting point —
-three were tried, including the exact pair — and it is not the iteration budget:
-between 200 and 5000 iterations the element balance **degrades** from 1.5e-01 to
-4.5e+00. Two instances of one substance put a nearly null direction into the
-problem, and more iterations walk further along it.
+a gap with the aqueous solution iterated along with it. Case 3 is that attempt,
+and its element balance shows it stalling. When this page was written, seeding the
+two instances at ``x_\alpha`` and ``x_\beta`` did not help: the second instance
+emptied, and raising the iteration budget made the element balance **worse**
+rather than better. Two instances of one substance put a nearly null direction
+into the problem, and more iterations walk further along it.
 
 That is also where PHREEQC draws the line: its binary solid-solution calculation
 is a dedicated construction, not a job handed to the global minimization.
@@ -378,7 +377,7 @@ p1 = bar(labels, vols; legend = false, ylabel = "total volume (cm³)",
          color = [o ? :seagreen : :firebrick for o in ok], title = "Volume")
 p2 = bar(labels, phs; legend = false, ylabel = "pH", title = "Pore solution pH",
          color = [o ? :seagreen : :firebrick for o in ok],
-         ylims = (12.5, 13.5))
+         ylims = (12.0, 13.5))
 fig3 = plot(p1, p2; layout = (1, 2), size = (900, 420),
             bottom_margin = 16Plots.mm, left_margin = 8Plots.mm)
 savefig(fig3, "gap-summary.svg"); nothing # hide
@@ -388,9 +387,11 @@ savefig(fig3, "gap-summary.svg"); nothing # hide
 
 Green is a proof and red is its absence — not a claim that a red bar is far from
 the truth, which nothing here establishes. The point of the middle case is
-precisely that it *looks* like the others: same pH to four figures, element
-balance at 2e-14, a perfectly ordinary-looking assemblage. Only the certificate
-tells it apart, and only since it learned to test a phase that is **present**.
+precisely that it *looks* like the others: the same pH as case 1 to four figures,
+and an ordinary-looking assemblage. What gives it away is the certificate, and the
+element balance printed beside it, which a caller who reads only the pH never
+looks at; the certificate has told it apart only since it learned to test a phase
+that is **present**.
 
 !!! danger "What this does and does not settle"
     `optimal = true` in case 3 is a proof of a **KKT point at which no present

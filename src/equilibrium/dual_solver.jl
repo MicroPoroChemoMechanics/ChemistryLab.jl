@@ -145,7 +145,7 @@ Package the chemistry as the convex program `OptimaSolver` solves. Built per
 solve because the reference potentials `Δ_a G⁰/RT` depend on temperature and
 pressure.
 """
-function _dual_phases(des::DualEquilibriumSolver, n0)
+function _dual_phases(des::DualEquilibriumSolver, n0, p = nothing)
     # One mixing phase for the aqueous solution — always present, the solvent as
     # its reference — and one more per declared solid solution, whose presence
     # the tangent-plane test decides.
@@ -160,26 +160,30 @@ function _dual_phases(des::DualEquilibriumSolver, n0)
     # happens to be minor sends that unknown towards −∞ and the Jacobian with it.
     # So the reference is chosen by magnitude, from the composition the caller
     # supplied, which is what the solvent already is for the aqueous phase.
-    # `split_starts` is empty here and carried all the same: the vector's element
-    # type is fixed by its FIRST entry, so an aqueous phase without the field
-    # would make every solid solution that has one unpushable. And the aqueous
-    # phase cannot unmix anyway -- there is one solvent.
-    phases = [
+    # Every entry carries every field, `split_starts` empty here (the aqueous
+    # phase cannot unmix: there is one solvent). The vector is `Any` because
+    # the entries differ in the type of `local_h`, nothing or a closure.
+    phases = Any[
         (
             members = des.idx_aq, j_ref = des.j_solvent,
             always_present = true, mole_fraction = false,
             split_starts = Vector{Vector{Float64}}(),
+            newton = false, bounded_members = Int[], local_h = nothing,
         ),
     ]
     models = _ss_models(des)
     for (k, grp) in pairs(des.ss_groups)
         j_ref = argmax(@view n0[grp])
+        mdl = get(models, k, nothing)
         push!(
             phases,
             (
                 members = grp, j_ref = j_ref,
                 always_present = false, mole_fraction = true,
-                split_starts = _split_starts(get(models, k, nothing), length(grp)),
+                split_starts = _split_starts(mdl, length(grp)),
+                newton = _needs_newton_inversion(mdl),
+                bounded_members = _bounded_members(mdl),
+                local_h = _needs_newton_inversion(mdl) ? _local_log_activities(mdl, p) : nothing,
             ),
         )
     end
@@ -206,11 +210,41 @@ function _dual_phases(des::DualEquilibriumSolver, n0)
                 members = grp, j_ref = 1,
                 always_present = true, mole_fraction = true,
                 split_starts = Vector{Vector{Float64}}(),
+                newton = false, bounded_members = Int[], local_h = nothing,
             ),
         )
     end
     return phases
 end
+
+# How the solver recovers the composition of a solid solution. The successive
+# substitution is exact in one sweep for ideal mixing and contracts under a weak
+# excess term; on a sublattice model it diverges (the gel of Myers et al. within
+# six sweeps, at the potentials of a CEM I paste), so that phase is inverted by
+# Newton's method instead. Every other model keeps the substitution, and its
+# results bit for bit.
+_needs_newton_inversion(::Any) = false
+_needs_newton_inversion(::SublatticeModel) = true
+
+# The log activities of a solid solution's members from their own amounts, as
+# `_solid_solution_lna!` computes them inside the activity closure (same ϵ, same
+# temperature), for the Newton inversion to differentiate instead of the whole
+# closure: eight variables instead of a hundred on a cement.
+function _local_log_activities(mdl, p)
+    ϵ = (p !== nothing && hasproperty(p, :ϵ)) ? p.ϵ : 1.0e-16
+    T = (p !== nothing && hasproperty(p, :T)) ? p.T : 298.15
+    return function (nm)
+        tot = sum(nm) + ϵ
+        x = nm ./ tot
+        return _ss_log_activities!(similar(x), eachindex(x), x, mdl, T, ϵ)
+    end
+end
+
+# The members of a sublattice phase that own no species on any site: their
+# activity stays finite as they vanish, so the phase can be present without them
+# and their condition is then an inequality (`SublatticeModel`).
+_bounded_members(::Any) = Int[]
+_bounded_members(m::SublatticeModel) = findall(iszero, m.exponents)
 
 """
     _ss_models(des) -> Dict{Int, Any}
@@ -294,7 +328,7 @@ function _split_starts(model, nmembers::Int)
 end
 
 function _dual_problem(des::DualEquilibriumSolver, p, n0, blocks = nothing)
-    phases = _dual_phases(des, n0)
+    phases = _dual_phases(des, n0, p)
     bl = blocks === nothing ?
         _constraint_blocks(FixedTP(), des, nothing, p, n0) : blocks
     return _optima_dual_problem(
@@ -374,7 +408,8 @@ end
     optimality_certificate(des, state; b = nothing, ϵ = 1e-16, floor = 1e-25)
         -> (; stationarity, balance, worst_supersaturation, n_interior,
              n_absent_component, param_residual, worst_violation_split,
-             split_phases, split_trials, optimal, scope, scope_reasons)
+             split_phases, split_trials, optimal, scope, scope_reasons,
+             ionic_strength, activity_range, within_activity_range)
 
 Check the KKT conditions at a composition, independently of how it was obtained.
 
@@ -400,6 +435,13 @@ wants to unmix — `split_phases` then names them and `split_trials` carries, pe
 phase, the composition it wants to split into. That composition is what
 [`equilibrate_split`](@ref) seeds a second instance with; it exists nowhere else,
 being a property of the full system and not of the mixing model alone.
+
+`ionic_strength` is the effective ionic strength of the composition (NaN without
+an aqueous phase), `activity_range` the ionic strength up to which the activity
+model is stated valid ([`activity_model_range`](@ref), `nothing` when no range is
+stated), and `within_activity_range` whether the first lies within the second
+(`nothing` when either is unknown). An answer can certify outside the range of
+its model: the certificate says so, and the caller decides.
 """
 function optimality_certificate(
         des::DualEquilibriumSolver, state::ChemicalState;
@@ -454,6 +496,7 @@ function optimality_certificate(
         des.opts.tol, des.opts.si_tol, qv,
     )
     scope, scope_reasons = _certificate_scope(des, p, n, constraint)
+    I, I_max, within = _activity_range_report(des.model, state)
     return (;
         stationarity = c.stationarity, balance = c.feasibility,
         # The unscaled stationarity, in RT units. `stationarity` is divided by the
@@ -481,7 +524,26 @@ function optimality_certificate(
         optimal = c.optimal,
         # What `optimal = true` proves for this problem; see `_certificate_scope`.
         scope, scope_reasons,
+        # Whether the answer lies where its activity model is stated valid. The
+        # ionic strength is that of the free ions, the one the model itself
+        # uses; `within_activity_range` is `nothing` when the model states no
+        # range or there is no aqueous phase.
+        ionic_strength = I, activity_range = I_max, within_activity_range = within,
     )
+end
+
+"""
+    _activity_range_report(model, state) -> (I, I_max, within)
+
+The effective ionic strength of `state` (NaN without an aqueous phase), the range
+[`activity_model_range`](@ref) states for `model`, and whether the first lies
+within the second (`nothing` when either is unknown).
+"""
+function _activity_range_report(model::AbstractActivityModel, state::ChemicalState)
+    I_max = activity_model_range(model)
+    I = isempty(state.system.idx_solvent) ? NaN : ionic_strength(state)
+    within = (I_max === nothing || !isfinite(I)) ? nothing : I <= I_max
+    return (I, I_max, within)
 end
 
 # Above this relative asymmetry of the Jacobian of the log activities, the
@@ -568,13 +630,17 @@ function _certificate_scope(des::DualEquilibriumSolver, p, n, constraint)
     if ss !== nothing
         T = p.T
         for ph in ss
-            spinodal_interval(ph.model, length(ph.end_members); T = T) === nothing && continue
+            c = mixing_convexity(ph.model, length(ph.end_members); T = T)
+            c.verdict === :convex && continue
             level = min(level, 2)
             push!(
                 reasons,
-                "the mixing energy of $(name(ph)) is concave on part of its range, so " *
+                c.verdict === :nonconvex ?
+                    "the mixing energy of $(name(ph)) is concave on part of its range, so " *
                     "the present phases are tested against splitting but the minimum " *
-                    "is not proved global",
+                    "is not proved global" :
+                    "the convexity of the mixing energy of $(name(ph)) could not be " *
+                    "decided ($(c.how)), so the minimum is not proved global",
             )
         end
     end
@@ -735,14 +801,15 @@ end
 # ── hooks filled in by the OptimaSolver extension ────────────────────────────
 #
 # The algorithm is `OptimaSolver`'s, and that package is a weak dependency here,
-# so the three entry points are indirected through functions the extension
+# so the four entry points are indirected through functions the extension
 # overrides. Called without it loaded, they say what is missing.
 
 _optima_dual_problem(args...) = _need_optima()
 _optima_dual_solve(args...) = _need_optima()
 _optima_kkt_certificate(args...) = _need_optima()
+_optima_lp(args...) = _need_optima()
 
 _need_optima() = error(
-    "DualEquilibriumSolver needs OptimaSolver ≥ 0.3: the KKT solver and its " *
+    "DualEquilibriumSolver needs OptimaSolver ≥ 0.7: the KKT solver and its " *
         "certificate live there. Add `using OptimaSolver`."
 )

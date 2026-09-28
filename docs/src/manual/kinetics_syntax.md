@@ -403,9 +403,9 @@ k_acid(; T = 310.0)     # → higher value at elevated T
 ForwardDiff.derivative(T -> k_acid(; T = T), 298.15)  # AD-compatible
 ```
 
-## Cement clinker hydration: [ParrotKilloh1984](@cite) model
+## Cement clinker hydration: [ParrottKilloh1984](@cite) model
 
-[`parrot_killoh_avrami`](@ref) is the factory for the [ParrotKilloh1984](@cite)
+[`parrott_killoh_avrami`](@ref) is the factory for the [ParrottKilloh1984](@cite)
 kinetic model. It returns a [`KineticFunc`](@ref) that uses the `StateView`-based
 calling convention and is fully AD-compatible.
 
@@ -416,29 +416,29 @@ using ChemistryLab, DynamicQuantities
 #   PK84_PARAMS_C3S, PK84_PARAMS_C2S, PK84_PARAMS_C3A, PK84_PARAMS_C4AF
 # Each has keys: k₁, n₁, k₂, k₃, n₃, Ea, T_ref (with units)
 
-pk_C3S = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S")    # → KineticFunc
+pk_C3S = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S")    # → KineticFunc
 
 # Water availability limit of [Powers1948](@cite) for w/c = 0.40
 WC    = 0.40
 α_max = powers_alpha_max(WC)          # 0.952 at w/c = 0.40
-pk_C3S_wc = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max = α_max)
+pk_C3S_wc = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max = α_max)
 
 # Fineness correction — the rate scales as B / 385 m²/kg
-pk_C3S_fine = parrot_killoh_avrami(
+pk_C3S_fine = parrott_killoh_avrami(
     PK84_PARAMS_C3S, "C3S"; α_max = α_max, blaine = 380u"m^2/kg",
 )
 ```
 
-!!! warning "`parrot_killoh` is deprecated — use `parrot_killoh_avrami`"
-    ChemistryLab also exports [`parrot_killoh`](@ref), a smoothed variant with its
+!!! warning "`parrott_killoh` is deprecated — use `parrott_killoh_avrami`"
+    ChemistryLab also exports [`parrott_killoh`](@ref), a smoothed variant with its
     own parameter sets `PK_PARAMS_*`. Its formulas are **not** those of
-    [ParrotKilloh1984](@cite) and its parameters match no published set, so the
+    [ParrottKilloh1984](@cite) and its parameters match no published set, so the
     attribution has been withdrawn. With `PK_PARAMS_*` the diffusion branch takes
     over within the first few percent of hydration, and C₃S, C₂S and C₃A then all
     land on α(7 d) = 0.2386 whatever their `K₁` — against the ≈ 0.61 the
     literature reports for a CEM I at w/c = 0.40. See
-    [Two Parrot–Killoh variants](@ref pk-variants). Supplementary cementitious
-    materials do not follow Parrot–Killoh at all: use [`waller`](@ref).
+    [Two Parrott–Killoh variants](@ref pk-variants). Supplementary cementitious
+    materials do not follow Parrott–Killoh at all: use [`waller`](@ref).
 
 Rate evaluation:
 
@@ -482,7 +482,7 @@ tst = transition_state(
     surface,
 )
 
-# tst is a KineticFunc — same calling convention as parrot_killoh
+# tst is a KineticFunc — same calling convention as parrott_killoh
 kr = KineticReaction(cs, cs.dict_reactions["calcite dissolution"], tst)
 ```
 
@@ -503,7 +503,7 @@ convenience wrapper.
 [`KineticReaction`](@ref) associates a [`Reaction`](@ref) with a `KineticFunc`:
 
 ```julia
-pk = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S")
+pk = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S")
 
 # Convenience: look up "C3S" in cs by symbol/formula, build minimal dissolution Reaction
 kr = KineticReaction(cs, "C3S", pk)
@@ -513,7 +513,7 @@ rxn = cs.dict_reactions["calcite dissolution"]
 kr  = KineticReaction(cs, rxn, tst_calcite)
 
 # Reaction-centric (kinetics stored in rxn.properties)
-rxn[:rate] = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S")
+rxn[:rate] = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S")
 kr = KineticReaction(cs, rxn)
 ```
 
@@ -538,7 +538,7 @@ using ChemistryLab, OrdinaryDiffEq, DynamicQuantities
 
 sp(name) = cs[name]
 
-pk_C3S = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max = powers_alpha_max(WC))
+pk_C3S = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max = powers_alpha_max(WC))
 
 rxn_C3S = Reaction(
     OrderedDict(sp("C3S") => 1.0, sp("H2O@") => 3.33),
@@ -558,9 +558,9 @@ All constructors support DynamicQuantities `Quantity` values.  Plain `Real` → 
 | :-- | :-- | :-- | :-- |
 | `arrhenius_rate_constant` | `k₀` | mol/(m²·s) | `0.5u"mmol/(m^2*s)"` |
 | `arrhenius_rate_constant` | `Ea` | J/mol | `62.0u"kJ/mol"` |
-| `parrot_killoh_avrami` params | `k₁, k₂, k₃` | s⁻¹ | `1.5u"1/d"` |
-| `parrot_killoh_avrami` params | `Ea` | J/mol | `42.0u"kJ/mol"` |
-| `parrot_killoh_avrami` params | `T_ref` | K | `293.15u"K"` |
+| `parrott_killoh_avrami` params | `k₁, k₂, k₃` | s⁻¹ | `1.5u"1/d"` |
+| `parrott_killoh_avrami` params | `Ea` | J/mol | `42.0u"kJ/mol"` |
+| `parrott_killoh_avrami` params | `T_ref` | K | `293.15u"K"` |
 | `FixedSurfaceArea` | `A` | m² | `500.0u"cm^2"` |
 | `BETSurfaceArea` | `A_specific` | m²/kg | `0.09u"m^2/g"` |
 | `Reaction` | `:ΔᵣH⁰` (custom species) | J/mol | `NumericFunc((T,) -> -36100.0, (:T,), u"J/mol")` |
@@ -692,7 +692,7 @@ The ODE state contains **one entry per unique mineral**; contributions accumulat
 in `du[j]`.
 
 ```julia
-pk_c3a = parrot_killoh_avrami(PK84_PARAMS_C3A, "C3A"; α_max)
+pk_c3a = parrott_killoh_avrami(PK84_PARAMS_C3A, "C3A"; α_max)
 
 kr_C3A_ett  = KineticReaction(cs, rxn_C3A_ettringite,   pk_c3a)
 kr_C3A_mono = KineticReaction(cs, rxn_C3A_monosulphate, pk_c3a)
@@ -719,7 +719,7 @@ casts in the evaluation path, branch guards through `_primal`, and
 ```julia
 using ForwardDiff
 
-pk(Ea) = parrot_killoh_avrami(merge(PK84_PARAMS_C3S, (Ea = Ea,)), "C3S")
+pk(Ea) = parrott_killoh_avrami(merge(PK84_PARAMS_C3S, (Ea = Ea,)), "C3S")
 idx = Dict("C3S" => 1)
 f(Ea) = pk(Ea)(300.0, 1.0e5, 3600.0, StateView([0.9], idx), StateView([0.0], idx),
     StateView([1.0], idx))
@@ -760,13 +760,13 @@ ForwardDiff.derivative(f, 42_000.0)
     for `ForwardDiff.Dual` inputs, so `∂n*/∂θ` through a Gibbs minimization is
     exact.
 
-## [Two Parrot–Killoh variants](@id pk-variants)
+## [Two Parrott–Killoh variants](@id pk-variants)
 
-ChemistryLab ships **two** implementations of the Parrot & Killoh clinker
+ChemistryLab ships **two** implementations of the Parrott & Killoh clinker
 hydration model. They are not interchangeable, and their parameter sets are not
 transferable between them.
 
-| | [`parrot_killoh`](@ref) (deprecated) | [`parrot_killoh_avrami`](@ref) |
+| | [`parrott_killoh`](@ref) (deprecated) | [`parrott_killoh_avrami`](@ref) |
 |:--|:--|:--|
 | Nucleation–growth | `(K₁/N₁)(1-ξ)^N₁ / (1 + B·ξ^N₃)` | `(k₁/n₁)(1-ξ)(-ln(1-ξ))^(1-n₁)` (Avrami) |
 | Second mechanism | `K₂(1-ξ)^N₂` | `k₂(1-ξ)^(2/3) / (1-(1-ξ)^(1/3))` (Jander) |
@@ -775,13 +775,13 @@ transferable between them.
 | Parameters | `PK_PARAMS_C3S` …, provenance unestablished | [`PK84_PARAMS_C3S`](@ref) … |
 | Status | deprecated, warns once | **use this one** |
 
-`parrot_killoh_avrami` is the **canonical 1984 formulation**, with the parameters
-of [ParrotKilloh1984](@cite) as reported by [LothenbachWinnefeld2006](@cite) and
+`parrott_killoh_avrami` is the **canonical 1984 formulation**, with the parameters
+of [ParrottKilloh1984](@cite) as reported by [LothenbachWinnefeld2006](@cite) and
 used by [Lavergne2018](@cite). Use it when you want the α(t) curves of the cement
 literature. A useful signature of a correct transcription: with those parameters
 C₂S has no nucleation–growth stage and C₃S no diffusion-controlled stage.
 
-`parrot_killoh` is kept only so that existing scripts keep running. Its
+`parrott_killoh` is kept only so that existing scripts keep running. Its
 nucleation–growth term carries no Avrami logarithm, `K₃` sits where the canonical
 form has `k₂`, `N₁ = 3.3` is the canonical `n₃`, and `k₃ = 1.1` has no counterpart
 at all — so the two are different models, not two parameterizations of one. The
@@ -797,7 +797,7 @@ temperature rise from 2.0 to 14.2 °C, and the heat released at seven days from
 115 to 308 kJ/kg of cement.
 
 ```julia
-pk = parrot_killoh_avrami(
+pk = parrott_killoh_avrami(
     PK84_PARAMS_C3S, "C3S";
     α_max    = powers_alpha_max(0.5),      # Powers water availability limit
     blaine   = 380u"m^2/kg",               # rate ∝ B/385 m²/kg
@@ -809,7 +809,7 @@ The three corrections are exported separately — [`powers_alpha_max`](@ref),
 [`blaine_factor`](@ref) and [`humidity_factor`](@ref) — and multiply the rate.
 `humidity` also accepts a callable `t -> h(t)` for a drying history.
 
-Supplementary cementitious materials do not follow Parrot & Killoh at all. Their
+Supplementary cementitious materials do not follow Parrott & Killoh at all. Their
 pozzolanic or latent-hydraulic reaction follows [`waller`](@ref), a sigmoid in
 log-time, with [`WALLER_PARAMS_FLY_ASH`](@ref), [`WALLER_PARAMS_SILICA_FUME`](@ref)
 or [`WALLER_PARAMS_SLAG`](@ref).
@@ -849,6 +849,6 @@ the residual, which a stiff solver will either step over or grind against; the
 The rate laws and the provenance of their parameters are discussed in
 [Rate laws, and every parameter in them](@ref sec-theory-kinetics), and the
 coupling with equilibrium in [Coupling kinetics and equilibrium](@ref sec-coupling).
-The application pages [Cement clinker hydration kinetics](@ref) and
-[The full Portland cement, through its pore solution](@ref ex-ionic-opc) use
+The application pages [Hydration kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics) and
+[A complete CEM I 52.5 N, through its pore solution](@ref ex-ionic-opc) use
 these objects on complete cements.

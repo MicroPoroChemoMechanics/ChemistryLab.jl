@@ -39,7 +39,7 @@ that consume the same mineral are accumulated.
 **From a species name** (convenience, builds a minimal dissolution Reaction):
 
 ```julia
-pk = parrot_killoh(PK_PARAMS_C3S, "C3S")
+pk = parrott_killoh(PK_PARAMS_C3S, "C3S")
 kr = KineticReaction(cs, "C3S", pk)
 kr = KineticReaction(cs, "C3S", pk; heat_per_mol = 114_634.0)
 ```
@@ -47,7 +47,7 @@ kr = KineticReaction(cs, "C3S", pk; heat_per_mol = 114_634.0)
 **From an explicit Reaction** (multi-pathway):
 
 ```julia
-pk_c3a = parrot_killoh(PK_PARAMS_C3A, "C3A")
+pk_c3a = parrott_killoh(PK_PARAMS_C3A, "C3A")
 kr_ett  = KineticReaction(cs, rxn_C3A_ettringite,   pk_c3a)
 kr_mono = KineticReaction(cs, rxn_C3A_monosulphate, pk_c3a)
 ```
@@ -55,7 +55,7 @@ kr_mono = KineticReaction(cs, rxn_C3A_monosulphate, pk_c3a)
 **Reaction-centric** (rate stored in `rxn.properties[:rate]`):
 
 ```julia
-rxn[:rate] = parrot_killoh(PK_PARAMS_C3S, "C3S")
+rxn[:rate] = parrott_killoh(PK_PARAMS_C3S, "C3S")
 kr = KineticReaction(cs, rxn)
 ```
 """
@@ -153,7 +153,7 @@ of the **first solid (AS_CRYSTAL) reactant** found in `rxn.reactants` that is pr
 This constructor is the recommended entry point for multi-pathway kinetics:
 
 ```julia
-pk_c3a = parrot_killoh(PK_PARAMS_C3A, "C3A")
+pk_c3a = parrott_killoh(PK_PARAMS_C3A, "C3A")
 kr_ett  = KineticReaction(cs, cs.dict_reactions["C3A_ettringite"],   pk_c3a)
 kr_mono = KineticReaction(cs, cs.dict_reactions["C3A_monosulphate"], pk_c3a)
 kp = KineticsProblem(cs, [kr_C3S, kr_ett, kr_mono], state0, tspan)
@@ -195,7 +195,7 @@ Optional property:
 # Examples
 
 ```julia
-pk = parrot_killoh(PK_PARAMS_C3S, "C3S")
+pk = parrott_killoh(PK_PARAMS_C3S, "C3S")
 rxn[:rate]         = pk
 rxn[:heat_per_mol] = 114_634.0
 kr = KineticReaction(cs, rxn)
@@ -208,7 +208,7 @@ function KineticReaction(cs::ChemicalSystem, rxn::AbstractReaction)
     haskey(properties(rxn), :rate) || throw(
         ArgumentError(
             "Reaction \"$(rxn.symbol)\" must have a :rate entry in its properties. " *
-                "Attach a KineticFunc via rxn[:rate] = parrot_killoh(...).",
+                "Attach a KineticFunc via rxn[:rate] = parrott_killoh(...).",
         ),
     )
 

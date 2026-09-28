@@ -53,7 +53,7 @@ nothing # hide
 ```
 
 The clinker and the reactions are those of
-[Cement clinker hydration kinetics](@ref); the only difference
+[Hydration kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics); the only difference
 is the `humidity` keyword.
 
 ```@example sdk
@@ -88,7 +88,7 @@ function build(wc; humidity)
     for (nm, pk, reac, prod) in specs
         rx = Reaction(reac, prod; symbol = nm)
         # α_max = 1.0: NO Powers cap. Whatever arrest appears is the humidity's.
-        rx[:rate] = parrot_killoh_avrami(
+        rx[:rate] = parrott_killoh_avrami(
             pk, nm; α_max = 1.0, blaine = 380.0u"m^2/kg", humidity = h
         )
         push!(rxns, rx)
@@ -179,12 +179,12 @@ first successful step.
 Every block above runs when this page is built. See also
 [Self-desiccation](@ref sec-self-desiccation) for the static budget,
 [`PoreHumidity`](@ref), [`humidity_factor`](@ref),
-[`parrot_killoh_avrami`](@ref) and [`VanGenuchten`](@ref).
+[`parrott_killoh_avrami`](@ref) and [`VanGenuchten`](@ref).
 
 ## Where to go next
 
 The kinetics of complete cements are run in the applications, from
-[Cement clinker hydration kinetics](@ref) to
-[The full Portland cement, through its pore solution](@ref ex-ionic-opc), and the
+[Hydration kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics) to
+[A complete CEM I 52.5 N, through its pore solution](@ref ex-ionic-opc), and the
 limits of a zero-dimensional description of a drying paste are argued in
 [The water budget of a hydrating paste](@ref sec-theory-water-budget).

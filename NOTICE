@@ -25,9 +25,9 @@ LGPL-2.1-or-later. The portions concerned are:
   `src/kinetics/kinetics_reactions.jl`.
 
 The remainder of the package — including the `StateView`, `KineticFunc`,
-`KineticsProblem`, `KineticsSolver` abstractions, the Parrot-Killoh
+`KineticsProblem`, `KineticsSolver` abstractions, the Parrott-Killoh
 cement hydration model, the calorimetry model, the Gibbs
-energy minimisation equilibrium layer, the chemical formula / species /
+energy minimization equilibrium layer, the chemical formula / species /
 stoichiometric-matrix infrastructure, and the database readers — is
 original work.
 

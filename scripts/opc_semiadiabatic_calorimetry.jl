@@ -4,8 +4,8 @@
 # Simulation of the heat release of a CEM I paste in a semi-adiabatic
 # calorimeter using the method of Lavergne et al. (2018).
 #
-# Hydration kinetics: Parrot & Killoh (1984) model
-#   via ChemistryLab.parrot_killoh_avrami (KineticFunc), canonical formulation,
+# Hydration kinetics: Parrott & Killoh (1984) model
+#   via ChemistryLab.parrott_killoh_avrami (KineticFunc), canonical formulation,
 #   temperature: Arrhenius correction per phase,
 #   available water: maximum hydration limit α_max (Powers 1948).
 #
@@ -20,7 +20,7 @@
 #   Cem. Concr. Res. 104, 37-60.
 #   https://doi.org/10.1016/j.cemconres.2017.10.018
 #
-#   Parrot L.J. & Killoh D.C. (1984).
+#   Parrott L.J. & Killoh D.C. (1984).
 #   Prediction of cement hydration.
 #   Br. Ceram. Proc. 35, 41-53.
 #
@@ -75,25 +75,25 @@ for (name, frac) in pairs(PHASE_MASS_FRAC)
 end
 set_quantity!(state0, "H2O@", WC * u"kg")
 
-# ── 3. Parrot & Killoh kinetic models ────────────────────────────────────────
+# ── 3. Parrott & Killoh kinetic models ────────────────────────────────────────
 #
-# The canonical formulation, `parrot_killoh_avrami` with `PK84_PARAMS_*`, whose
+# The canonical formulation, `parrott_killoh_avrami` with `PK84_PARAMS_*`, whose
 # provenance is traceable through Table 3 of Lavergne et al. (2018) quoting
 # Parrott & Killoh (1984) as reported by Lothenbach et al. (2008); activation
 # energies from their Table 4.
 #
 # This script used to carry a byte-for-byte local copy of `PK_PARAMS_*` under
-# the name `PK_SMOOTHED_*` and feed it to the now-deprecated `parrot_killoh`.
+# the name `PK_SMOOTHED_*` and feed it to the now-deprecated `parrott_killoh`.
 # That path is diffusion-limited from a few percent of hydration on and gave a
 # mean degree of 0.234 at seven days against the 0.61 the literature reports —
-# see the deprecation note on `parrot_killoh`.
+# see the deprecation note on `parrott_killoh`.
 
 const BLAINE = 380.0u"m^2/kg"   # ordinary CEM I fineness
 
-pk_C3S = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max = ALPHA_MAX, blaine = BLAINE)
-pk_C2S = parrot_killoh_avrami(PK84_PARAMS_C2S, "C2S"; α_max = ALPHA_MAX, blaine = BLAINE)
-pk_C3A = parrot_killoh_avrami(PK84_PARAMS_C3A, "C3A"; α_max = ALPHA_MAX, blaine = BLAINE)
-pk_C4AF = parrot_killoh_avrami(PK84_PARAMS_C4AF, "C4AF"; α_max = ALPHA_MAX, blaine = BLAINE)
+pk_C3S = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max = ALPHA_MAX, blaine = BLAINE)
+pk_C2S = parrott_killoh_avrami(PK84_PARAMS_C2S, "C2S"; α_max = ALPHA_MAX, blaine = BLAINE)
+pk_C3A = parrott_killoh_avrami(PK84_PARAMS_C3A, "C3A"; α_max = ALPHA_MAX, blaine = BLAINE)
+pk_C4AF = parrott_killoh_avrami(PK84_PARAMS_C4AF, "C4AF"; α_max = ALPHA_MAX, blaine = BLAINE)
 
 # ── 4. Kinetic reaction list ─────────────────────────────────────────────────
 #
@@ -256,7 +256,7 @@ hline!(p1, [T0_K - 273.15]; linestyle = :dash, color = :gray, label = "T₀ = T_
 p2 = plot(
     t_h, [α_C3S_vec α_C2S_vec α_C3A_vec α_C4AF_vec α_mean];
     xlabel = "Time [h]", ylabel = "Degree of hydration α",
-    title = "Clinker phase hydration (Parrot-Killoh model)",
+    title = "Clinker phase hydration (Parrott-Killoh model)",
     label = ["C₃S" "C₂S" "C₃A" "C₄AF" "ᾱ mean"],
     lw = 2, ls = [:solid :dash :dot :dashdot :solid],
 )

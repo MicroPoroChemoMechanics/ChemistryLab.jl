@@ -165,7 +165,13 @@ using LinearAlgebra
                 )
         )
         inp = split("C3A Gp H2O@ ettringite monosulphate12 Portlandite")
-        spc = speciation(collect(values(CEM)), inp; aggregate_state = [AS_AQUEOUS])
+        # S-2 is left out of this paste, which holds no reductant: its sulfur
+        # stays sulfate, and the sulfide species sit at the floor with or
+        # without it (the equilibrium is the same, measured). It joined
+        # Cemdata18 in the release ChemistryLab reads, and with it present the
+        # implicit step does not converge; that fragility is recorded below, as
+        # broken, rather than hidden.
+        spc = speciation(collect(values(CEM)), inp; aggregate_state = [AS_AQUEOUS], exclude_species = ["S-2"])
         cs2 = ChemicalSystem(spc, CEMDATA_PRIMARIES)
         S(x) = cs2[x]
         r_aft = Reaction(
@@ -196,6 +202,29 @@ using LinearAlgebra
         # `Δξ = Δt·M·r`, and with two pathways `M` is not the identity: the
         # measured extents are exactly that product, cross terms included.
         @test q[] ≈ Δt * (kss.M * [k1, k2]) rtol = 1.0e-8
+
+        # KNOWN FRAGILITY. The same step with S-2 in the species list, at the
+        # floor like the other sulfide species: the dual Newton of the augmented
+        # problem does not converge, and the extents come out a factor 500
+        # short. The outcome depends on the standard Gibbs energy of S-2 in a way
+        # no chemistry explains (it certifies with 90 kJ/mol, not with 12, 60 or
+        # the published 120), which marks it as numerical.
+        spc_s = speciation(collect(values(CEM)), inp; aggregate_state = [AS_AQUEOUS])
+        cs_s = ChemicalSystem(spc_s, CEMDATA_PRIMARIES)
+        Ss(x) = cs_s[x]
+        krs_s = [
+            KineticReaction(cs_s, Reaction(OrderedDict(Ss("C3A") => 1.0, Ss("Gp") => 3.0, Ss("H2O@") => 26.0), OrderedDict(Ss("ettringite") => 1.0); symbol = "C3A -> AFt"), f(k1)),
+            KineticReaction(cs_s, Reaction(OrderedDict(Ss("C3A") => 1.0, Ss("Gp") => 1.0, Ss("H2O@") => 10.0), OrderedDict(Ss("monosulphate12") => 1.0); symbol = "C3A -> AFm"), f(k2)),
+        ]
+        st_s = ChemicalState(cs_s)
+        set_quantity!(st_s, "C3A", 1.0e-2u"mol")
+        set_quantity!(st_s, "Gp", 3.0e-2u"mol")
+        set_quantity!(st_s, "H2O@", 1.0u"kg")
+        q_s = Ref(Float64[])
+        Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+            kinetic_step(KineticStepSolver(cs_s, DiluteSolutionModel(), krs_s), st_s, Δt; parameters = q_s)
+        end
+        @test_broken q_s[] ≈ Δt * (kss.M * [k1, k2]) rtol = 1.0e-8
     end
 
     @testsection "what is refused, and why" begin
@@ -527,10 +556,12 @@ end
                 datapath("cemdata18-thermofun.json")
             )
     )
+    # S-2 left out, for the reason and with the record given in "several
+    # reactions may share a mineral".
     spc = speciation(
         collect(values(CEM)),
         split("C3A Gp H2O@ ettringite monosulphate12 Portlandite");
-        aggregate_state = [AS_AQUEOUS],
+        aggregate_state = [AS_AQUEOUS], exclude_species = ["S-2"],
     )
     cs4 = ChemicalSystem(spc, CEMDATA_PRIMARIES)
     S(x) = cs4[x]

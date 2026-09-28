@@ -345,7 +345,7 @@ nini = StateView([1.0], idx)
 
 function pk_curve(q)
     pr = merge(PK84_PARAMS_C3S, (k₃ = q[1] * u"1/d", n₃ = q[2]))
-    law = parrot_killoh_avrami(
+    law = parrott_killoh_avrami(
         pr, "C3S";
         blaine = ShrinkingCoreArea(BlaineSurfaceArea(PK_BLAINE_REF); exponent = q[3]),
     )

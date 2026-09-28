@@ -81,15 +81,16 @@ Let's imagine we want to study the equilibrium of calcite in water.
 
 $\text{CaCO}_3 \rightleftharpoons \text{Ca}^{2+} + {\text{CO}_3}^{2-}$
 
-To do this, we can create a list of chemical species, retrieve the thermodynamic properties of these species from one of the databases integrated into ChemistryLab. We can then deduce the chemical species likely to appear in the reaction and calculate the associated stoichiometric matrix.
+To do this, we can create a list of chemical species, retrieve the thermodynamic properties of these species from one of the databases ChemistryLab reads. We can then deduce the chemical species likely to appear in the reaction and calculate the associated stoichiometric matrix.
 
-In this example, the database is [cemdata](https://www.empa.ch/web/s308/thermodynamic-data). The `.json` file is included in ChemistryLab but is a copy of a file which can be found in [ThermoHub]("https://github.com/thermohub").
+In this example, the database is [Cemdata18](https://www.empa.ch/web/s308/thermodynamic-data), in the ThermoFun format that [ThermoHub](https://github.com/thermohub/thermohub) publishes. ChemistryLab downloads it from ThermoHub the first time it is needed, checks it against the version it was validated with, and keeps it in its cache; the manual page *Database Interoperability* explains how, and how to work offline.
 
 ```julia
 using ChemistryLab
 using DynamicQuantities
 
-# `datapath` names a bundled database independently of the working directory
+# `datapath` names a database independently of the working directory,
+# and obtains it on first use
 all_species = build_species(datapath("cemdata18-thermofun.json"))
 ```
 
@@ -306,7 +307,7 @@ from the [Reaktoro](https://github.com/reaktoro/reaktoro) C++ library
 
 The remainder of the package — chemical formula / species /
 stoichiometric-matrix infrastructure, equilibrium solver layer, database
-readers, `KineticsProblem` / `KineticsSolver` architecture, Parrot-Killoh
+readers, `KineticsProblem` / `KineticsSolver` architecture, Parrott-Killoh
 cement hydration model, calorimetry — is original work copyright
 © Jean-François Barthélémy and Anthony Soive (Cerema, UMR MCD).
 

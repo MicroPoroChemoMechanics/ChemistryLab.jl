@@ -78,7 +78,7 @@ julia> n_sv  = StateView([1.0], idx);
 
 julia> lna_sv = StateView([0.0], idx);
 
-julia> pk = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S");
+julia> pk = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S");
 
 julia> pk(293.15, 1e5, 0.0, n_sv, lna_sv, n_sv) > 0
 true
@@ -426,16 +426,16 @@ function RateMechanism(k::AbstractFunc, p::Real, q::Real)
     return RateMechanism{typeof(k), T}(k, T(p), T(q), RateModelCatalyst{T}[])
 end
 
-# ── parrot_killoh factory ──────────────────────────────────────────────────────
+# ── parrott_killoh factory ──────────────────────────────────────────────────────
 
 """
-    parrot_killoh(params::NamedTuple, mineral_name::AbstractString; α_max=1.0) -> KineticFunc
+    parrott_killoh(params::NamedTuple, mineral_name::AbstractString; α_max=1.0) -> KineticFunc
 
 Build a smoothed three-mechanism clinker hydration rate as a
 [`KineticFunc`](@ref).
 
 !!! danger "Deprecated, and no longer attributed to Parrott & Killoh"
-    Use [`parrot_killoh_avrami`](@ref) with [`PK84_PARAMS_C3S`](@ref) and
+    Use [`parrott_killoh_avrami`](@ref) with [`PK84_PARAMS_C3S`](@ref) and
     siblings instead. This function is kept so that existing scripts keep
     running, and it warns once per session.
 
@@ -474,7 +474,7 @@ Build a smoothed three-mechanism clinker hydration rate as a
 `mineral_name` is the PHREEQC formula string (e.g. `"C3S"`) used to look up the
 mineral moles in the `n` and `n_initial` [`StateView`](@ref)s.
 
-Three competing mechanisms determine the rate (Parrot & Killoh 1984):
+Three competing mechanisms determine the rate (Parrott & Killoh 1984):
 
 | Mechanism | Formula |
 |-----------|---------|
@@ -505,7 +505,7 @@ the branch oracle in `test/kinetics/test_rate_models.jl`, which asserts that
 of hydration and that C4AF is limited by its own nucleation branch.
 
 ```julia
-pk = parrot_killoh(PK_PARAMS_C3S, "C3S")
+pk = parrott_killoh(PK_PARAMS_C3S, "C3S")
 idx = Dict("C3S" => 1)
 n0 = StateView([1.0], idx)
 lna = StateView([0.0], idx)
@@ -515,7 +515,7 @@ pk(293.15, 1e5, 0.0, n0, lna, n0) > 0      # true
 See also: [`PK_PARAMS_C3S`](@ref), [`PK_PARAMS_C2S`](@ref),
 [`PK_PARAMS_C3A`](@ref), [`PK_PARAMS_C4AF`](@ref).
 """
-function parrot_killoh(params::NamedTuple, mineral_name::AbstractString; α_max::Real = 1.0)
+function parrott_killoh(params::NamedTuple, mineral_name::AbstractString; α_max::Real = 1.0)
     K₁ = safe_ustrip(us"1/s", params.K₁)
     N₁ = float(params.N₁)
     K₂ = safe_ustrip(us"1/s", params.K₂)
@@ -525,12 +525,12 @@ function parrot_killoh(params::NamedTuple, mineral_name::AbstractString; α_max:
     B = float(params.B)
     Ea = safe_ustrip(us"J/mol", params.Ea)
     T_ref = safe_ustrip(us"K", params.T_ref)
-    @warn """`parrot_killoh` is deprecated: its formulas and parameters are not those of \
+    @warn """`parrott_killoh` is deprecated: its formulas and parameters are not those of \
     Parrott & Killoh. With `PK_PARAMS_*` the diffusion branch takes over within the first \
     few percent of hydration (α ≈ 0.003 for C2S, 0.013 for C3S, 0.057 for C3A), so those \
     three phases reach α(7 d) = 0.2386 whatever their K₁; C4AF is limited by its own \
     nucleation branch instead and reaches only 0.193. A CEM I at w/c = 0.40 is reported \
-    near 0.61. Use `parrot_killoh_avrami` with `PK84_PARAMS_*`.""" maxlog = 1
+    near 0.61. Use `parrott_killoh_avrami` with `PK84_PARAMS_*`.""" maxlog = 1
 
     α_max_f = float(α_max)
 
@@ -559,36 +559,36 @@ end
 
 # ── Parameters of the deprecated smoothed variant ────────────────────────────
 #
-# Read from `data/literature/ParrotKilloh1984.json`, table `smoothed_variant`,
+# Read from `data/literature/ParrottKilloh1984.json`, table `smoothed_variant`,
 # where their provenance is recorded as unstated: neither the rate constants nor
 # the activation energies (attributed to Schindler & Folliard, 2005) could be
 # traced to a source.
 
 function _pk_smoothed_params(phase::AbstractString)
-    t = literature_table("ParrotKilloh1984", "smoothed_variant")
+    t = literature_table("ParrottKilloh1984", "smoothed_variant")
     i = findfirst(==(phase), t.phase)
     return (
         K₁ = t.K1[i], N₁ = t.N1[i], K₂ = t.K2[i], N₂ = t.N2[i],
         K₃ = t.K3[i], N₃ = t.N3[i], B = t.B[i], Ea = t.Ea[i],
-        T_ref = literature_value("ParrotKilloh1984", "T_ref"),
+        T_ref = literature_value("ParrottKilloh1984", "T_ref"),
     )
 end
 
 """
     PK_PARAMS_C3S :: NamedTuple
 
-Parameters of the deprecated smoothed variant [`parrot_killoh`](@ref) for alite
+Parameters of the deprecated smoothed variant [`parrott_killoh`](@ref) for alite
 (C₃S = Ca₃SiO₅), with keys `K₁`, `N₁`, `K₂`, `N₂`, `K₃`, `N₃`, `B`, `Ea`,
 `T_ref`.
 
 Their provenance is unestablished. They are read from the table
-`smoothed_variant` of `data/literature/ParrotKilloh1984.json`, which records
+`smoothed_variant` of `data/literature/ParrottKilloh1984.json`, which records
 them as such.
 
 ```julia
-pk = parrot_killoh(PK_PARAMS_C3S, "C3S")
+pk = parrott_killoh(PK_PARAMS_C3S, "C3S")
 # or with the water availability cap of Powers (1948):
-pk = parrot_killoh(PK_PARAMS_C3S, "C3S"; α_max = powers_alpha_max(w_c))
+pk = parrott_killoh(PK_PARAMS_C3S, "C3S"; α_max = powers_alpha_max(w_c))
 ```
 """
 const PK_PARAMS_C3S = _pk_smoothed_params("C3S")
@@ -618,15 +618,15 @@ Parameters of the deprecated smoothed variant for tetracalcium aluminoferrite
 """
 const PK_PARAMS_C4AF = _pk_smoothed_params("C4AF")
 
-# ── parrot_killoh_avrami — the canonical 1984 formulation ────────────────────
+# ── parrott_killoh_avrami — the canonical 1984 formulation ────────────────────
 
 """
     PK_AVRAMI_SEED
 
 Lower bound imposed on the normalized degree of hydration inside the Avrami
-branch of [`parrot_killoh_avrami`](@ref), so that the rate is strictly positive
+branch of [`parrott_killoh_avrami`](@ref), so that the rate is strictly positive
 at `α = 0` and the ODE leaves its degenerate initial point. See the discussion
-in [`parrot_killoh_avrami`](@ref).
+in [`parrott_killoh_avrami`](@ref).
 
 One visible consequence: a phase whose rate is governed by the Avrami branch
 near `α = 0` (C₃S, C₃A, C₄AF) starts more slowly than one governed by the power
@@ -636,10 +636,10 @@ falls inside the induction period, which this model does not describe anyway.
 const PK_AVRAMI_SEED = 1.0e-6
 
 """
-    parrot_killoh_avrami(params::NamedTuple, mineral_name::AbstractString;
+    parrott_killoh_avrami(params::NamedTuple, mineral_name::AbstractString;
                          α_max = 1.0, blaine = nothing, humidity = nothing) -> KineticFunc
 
-Build the Parrot & Killoh (1984) clinker hydration rate in its **canonical
+Build the Parrott & Killoh (1984) clinker hydration rate in its **canonical
 formulation**, as reported by Lothenbach et al. (2008) and used by Lavergne
 et al. (2018).
 
@@ -662,12 +662,12 @@ fineness factor ([`blaine_factor`](@ref)) and `β_h` the relative-humidity
 reduction ([`humidity_factor`](@ref)). Both default to 1 when their keyword is
 `nothing`.
 
-!!! note "Two Parrot–Killoh variants ship with ChemistryLab"
-    [`parrot_killoh`](@ref) implements a *different*, smoothed variant
+!!! note "Two Parrott–Killoh variants ship with ChemistryLab"
+    [`parrott_killoh`](@ref) implements a *different*, smoothed variant
     (`min(max(r_NG, r_I), r_D)` with a `B`-damped nucleation term) together with
     the parameter set of [`PK_PARAMS_C3S`](@ref) and siblings. The two are not
     interchangeable: their parameters are **not** transferable, and only
-    `parrot_killoh_avrami` with [`PK84_PARAMS_C3S`](@ref) reproduces the α(t)
+    `parrott_killoh_avrami` with [`PK84_PARAMS_C3S`](@ref) reproduces the α(t)
     curves published in the cement literature cited above.
 
 With the canonical parameters, C₂S has no nucleation–growth stage and C₃S has no
@@ -687,7 +687,7 @@ against.
     callable `t -> h(t)`. `nothing` (default) means no correction.
 
 !!! warning "An evolving fineness is not a free improvement"
-    The Parrot & Killoh constants were fitted with `β_B` **constant**, so
+    The Parrott & Killoh constants were fitted with `β_B` **constant**, so
     passing a [`ShrinkingCoreArea`](@ref) leaves this law outside the
     calibration it came with and it has to be recalibrated — the machinery is
     `scripts/hydration_calibration.jl`.
@@ -711,7 +711,7 @@ AD-compatible (ForwardDiff-safe): no `Float64` casts in the evaluation path.
 # Examples
 
 ```jldoctest
-julia> pk = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; blaine = 380u"m^2/kg");
+julia> pk = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; blaine = 380u"m^2/kg");
 
 julia> idx = Dict("C3S" => 1);
 
@@ -726,7 +726,7 @@ true
 See also: [`PK84_PARAMS_C3S`](@ref), [`waller`](@ref), [`blaine_factor`](@ref),
 [`humidity_factor`](@ref), [`powers_alpha_max`](@ref).
 """
-function parrot_killoh_avrami(
+function parrott_killoh_avrami(
         params::NamedTuple, mineral_name::AbstractString;
         α_max::Real = 1.0, blaine = nothing, humidity = nothing
     )
@@ -751,7 +751,7 @@ function parrot_killoh_avrami(
         one_m_ξ = max(one(ξ) - ξ, oftype(ξ, 1.0e-12))
         # α̇₁ — Avrami nucleation and growth. For n₁ < 1 the (-ln(1-ξ))^(1-n₁)
         # factor VANISHES at ξ = 0, so α̇ = 0 and α ≡ 0 solves the ODE: hydration
-        # would never start. Parrot & Killoh's own discrete scheme escapes this by
+        # would never start. Parrott & Killoh's own discrete scheme escapes this by
         # evaluating the integrated Avrami law over the first finite time step;
         # a continuous solver cannot, so the argument is floored at ξ_seed. The
         # seed only sets how fast the solution leaves the degenerate point — by
@@ -778,7 +778,7 @@ end
 @inline _humidity_at(h, t, _n) = h(t)
 # The `PoreHumidity` method is further down, where that type is defined.
 
-# ── Canonical Parrot & Killoh (1984) parameters ──────────────────────────────
+# ── Canonical Parrott & Killoh (1984) parameters ──────────────────────────────
 #
 # Table 3 of Lavergne et al. (2018), themselves quoting Parrott & Killoh (1984)
 # as reported by Lothenbach et al. (2008); activation energies from Table 4
@@ -788,7 +788,7 @@ end
 # `data/literature/Lavergne2018.json`.
 
 function _pk84_params(phase::AbstractString)
-    t = literature_table("Lavergne2018", "parrot_killoh_1984")
+    t = literature_table("Lavergne2018", "parrott_killoh_1984")
     e = literature_table("Lavergne2018", "activation_energies")
     i = findfirst(==(phase), t.phase)
     j = findfirst(==(phase), e.phase)
@@ -809,7 +809,7 @@ The rate constants and exponents are those of Table 3 of Lavergne et al. (2018),
 the activation energy that of their Table 4, both read from
 `data/literature/Lavergne2018.json`.
 
-Pass to [`parrot_killoh_avrami`](@ref), **not** to [`parrot_killoh`](@ref) —
+Pass to [`parrott_killoh_avrami`](@ref), **not** to [`parrott_killoh`](@ref) —
 the two use different functional forms and their parameters are not transferable.
 """
 const PK84_PARAMS_C3S = _pk84_params("C3S")
@@ -879,12 +879,12 @@ interchangeable.
 
 # Keyword arguments
 
-Identical to [`parrot_killoh_avrami`](@ref). The Blaine correction is taken
+Identical to [`parrott_killoh_avrami`](@ref). The Blaine correction is taken
 relative to `params.blaine_ref`, the fineness of the fly ash the kinetics were
 adjusted to, not to the clinker reference of [`PK_BLAINE_REF`](@ref).
 
 !!! note "Here an evolving area is a real degree of freedom"
-    The degeneracy warned about on [`parrot_killoh_avrami`](@ref) does **not**
+    The degeneracy warned about on [`parrott_killoh_avrami`](@ref) does **not**
     carry over in the same form. The sigmoid rate is
     `(n/τ)(1-ξ)^{1+1/n} ξ^{1-1/n}`, and `n` sets both exponents at once, in
     opposite directions; a [`ShrinkingCoreArea`](@ref) exponent `p` shifts only
@@ -908,7 +908,7 @@ true
 ```
 
 See also: [`WALLER_PARAMS_FLY_ASH`](@ref), [`WALLER_PARAMS_SILICA_FUME`](@ref),
-[`WALLER_PARAMS_SLAG`](@ref), [`parrot_killoh_avrami`](@ref).
+[`WALLER_PARAMS_SLAG`](@ref), [`parrott_killoh_avrami`](@ref).
 """
 function waller(
         params::NamedTuple, mineral_name::AbstractString;
@@ -1011,7 +1011,7 @@ The Blaine fineness the Parrott & Killoh constants were calibrated at, B₀ of
 Lavergne et al. (2018, p. 39), read from `data/literature/Lavergne2018.json`.
 
 It is the default reference of [`blaine_factor`](@ref) and the one
-[`parrot_killoh_avrami`](@ref) applies, written once so the two cannot drift
+[`parrott_killoh_avrami`](@ref) applies, written once so the two cannot drift
 apart — a rate constant and the fineness it was measured against are one datum
 in two places.
 """
@@ -1059,7 +1059,7 @@ computes exactly the number it computed before this existed.
 """
     blaine_factor(blaine; blaine_ref = PK_BLAINE_REF) -> Real
 
-Fineness correction of the hydration rate: the Parrot & Killoh parameters were
+Fineness correction of the hydration rate: the Parrott & Killoh parameters were
 adjusted for a cement of Blaine fineness `blaine_ref`, and the rate scales as
 `blaine / blaine_ref`.
 
@@ -1093,7 +1093,7 @@ end
     humidity_factor(h) -> Real
 
 Reduction coefficient `β_h` applied to the hydration rate at internal relative
-humidity `h ∈ [0, 1]` (Parrot et al., as used by van Breugel):
+humidity `h ∈ [0, 1]` (Parrott et al., as used by van Breugel):
 
 ```math
 β_h = \\left(\\frac{h - 0.55}{0.45}\\right)^4 \\ \\text{if } h > 0.80,
@@ -1129,7 +1129,7 @@ end
 The internal relative humidity of a sealed paste, computed from the composition
 it currently has.
 
-Pass it as the `humidity` keyword of [`parrot_killoh_avrami`](@ref) or
+Pass it as the `humidity` keyword of [`parrott_killoh_avrami`](@ref) or
 [`waller`](@ref) and the rate law stops reading a humidity imposed from outside
 and starts reading the one the material makes for itself. That is what closes the
 loop: hydration consumes water, the pore space empties, the humidity falls, and
@@ -1161,7 +1161,7 @@ convention: the volume the reactions destroy stays inside as empty porosity.
 
 ```julia
 h = PoreHumidity(retention, cs; reference = fresh)
-rxn[:rate] = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; humidity = h)
+rxn[:rate] = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; humidity = h)
 ```
 
 See also: [`humidity_factor`](@ref), [`WaterRetention`](@ref),
@@ -1302,8 +1302,8 @@ supplying it — the bound is 1 and this function stops doing anything, which is
 the correct answer rather than a degenerate case: nothing about water is then
 limiting the reaction.
 
-Pass the result as the `α_max` keyword of [`parrot_killoh`](@ref),
-[`parrot_killoh_avrami`](@ref) or [`waller`](@ref).
+Pass the result as the `α_max` keyword of [`parrott_killoh`](@ref),
+[`parrott_killoh_avrami`](@ref) or [`waller`](@ref).
 
 !!! note "It is a ceiling, not a schedule"
     `α_max` says how far the reaction can go, never how far it has got. At an
@@ -1337,3 +1337,8 @@ function powers_alpha_max(w_c::Real; curing::Symbol = :sealed)
     end
     return min(one(w_c), w_c / oftype(w_c, k))
 end
+
+# The author of the 1984 model is L. J. Parrott; the functions were first
+# exported under a misspelling of the name, which keeps working.
+@deprecate parrot_killoh(args...; kwargs...) parrott_killoh(args...; kwargs...)
+@deprecate parrot_killoh_avrami(args...; kwargs...) parrott_killoh_avrami(args...; kwargs...)

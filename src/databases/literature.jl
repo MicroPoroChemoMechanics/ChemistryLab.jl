@@ -96,6 +96,19 @@ literature_path(key::AbstractString) =
 const _LITERATURE_CACHE = Dict{String, LiteratureRecord}()
 const _LITERATURE_LOCK = ReentrantLock()
 
+# Keys and table names that were renamed, with the name they now have. The old
+# spelling of Parrott's name is kept working, with a deprecation warning.
+const _RENAMED_LITERATURE = Dict("ParrotKilloh1984" => "ParrottKilloh1984")
+const _RENAMED_TABLES = Dict(("Lavergne2018", "parrot_killoh_1984") => "parrott_killoh_1984")
+
+function _current_literature_key(key)
+    k = String(key)
+    new = get(_RENAMED_LITERATURE, k, nothing)
+    new === nothing && return k
+    Base.depwarn("the literature key \"$k\" is now \"$new\"", :literature)
+    return new
+end
+
 """
     literature(key) -> LiteratureRecord
 
@@ -143,7 +156,7 @@ See also: [`literature_value`](@ref), [`literature_table`](@ref),
 [`literature_row`](@ref), [`Traced`](@ref).
 """
 function literature(key::AbstractString)
-    k = String(key)
+    k = _current_literature_key(key)
     return lock(_LITERATURE_LOCK) do
         get!(_LITERATURE_CACHE, k) do
             path = literature_path(k)
@@ -202,6 +215,11 @@ nothing.
 """
 function literature_table(key::AbstractString, name::AbstractString; where...)
     r = literature(key)
+    renamed = get(_RENAMED_TABLES, (r.key, String(name)), nothing)
+    if renamed !== nothing
+        Base.depwarn("the table \"$name\" of $(r.key) is now \"$renamed\"", :literature_table)
+        name = renamed
+    end
     haskey(r.tables, name) || throw(
         KeyError(
             "$(r.key) has no table \"$name\"; it has: " * join(keys(r.tables), ", ")

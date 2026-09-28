@@ -124,6 +124,9 @@ pages = [
             # Then the map: which binder is which, what each constituent brings,
             # and which of the package's models a given family needs.
             "manual/binder_families.md",
+            # From materials to a budget: extents, the unreacted residue, and the
+            # processes built on the certified equilibrium.
+            "manual/recipes.md",
         ],
         "Appendices" => [
             "manual/advanced.md",

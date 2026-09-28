@@ -46,12 +46,12 @@ function _oxide_fraction(ph, ox)
 end
 
 """
-    bogue(material) -> (; clinker, gypsum, calcite)
+    gruyaert_bogue(material) -> (; clinker, gypsum, calcite)
 
 Mass fractions of the four clinker phases, of gypsum and of calcite in the cement
 `material` of Table 1, from its oxides.
 """
-function bogue(material)
+function gruyaert_bogue(material)
     r = gruyaert_oxides(material)
     x(ox) = ustrip(getproperty(r, Symbol(ox))) / 100
     gypsum = x("SO3") * _molar("Gp") / _oxide_molar("SO3")
@@ -113,8 +113,22 @@ that of the anhydrous reactants. The slag enters `b` through its oxides and has
 no species, since a glass has no formula and no enthalpy in any database.
 """
 function gruyaert_paste(cs; slag, alpha_cement, alpha_slag, batch = "CAL", binder = 100.0)
+    st, b = gruyaert_budget(cs; slag, alpha_cement, alpha_slag, batch, binder)
+    model = HKFActivityModel(å = 0.0, Ḃ = G10_BDOT, Kₙ = 0.0)
+    eq, cert = equilibrate_certified(st; model, b)
+    return (; initial = st, b, eq, certificate = cert)
+end
+
+"""
+    gruyaert_budget(cs; slag, alpha_cement, alpha_slag, batch = "CAL", binder = 100.0)
+        -> (state, b)
+
+The reactants and the element budget of [`gruyaert_paste`](@ref), before the
+solve.
+"""
+function gruyaert_budget(cs; slag, alpha_cement, alpha_slag, batch = "CAL", binder = 100.0)
     wb = ustrip(literature_value("Gruyaert2010", "water_binder_ratio"))
-    c = bogue("OPC-" * batch)
+    c = gruyaert_bogue("OPC-" * batch)
     m_cement = binder * (1 - slag)
     st = ChemicalState(cs; T = 293.15u"K")
     for (ph, f) in c.clinker
@@ -129,9 +143,7 @@ function gruyaert_paste(cs; slag, alpha_cement, alpha_slag, batch = "CAL", binde
         ox = Dict(o => ustrip(getproperty(r, Symbol(o))) / 100 for o in ("CaO", "SiO2", "Al2O3", "Fe2O3", "MgO", "SO3"))
         b .+= oxide_budget(ox, cs.SM.primaries; mass = alpha_slag * slag * binder * u"g")
     end
-    model = HKFActivityModel(å = 0.0, Ḃ = G10_BDOT, Kₙ = 0.0)
-    eq, cert = equilibrate_certified(st; model, b)
-    return (; initial = st, b, eq, certificate = cert)
+    return st, b
 end
 
 # The B-dot of the cement pages, identified from the activity coefficients a

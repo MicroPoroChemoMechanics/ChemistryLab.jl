@@ -5,8 +5,8 @@
 # and alkali-activated materials", Cem. Concr. Res. 115 (2019) 472-506,
 # https://doi.org/10.1016/j.cemconres.2018.04.018
 #
-# `data/cemdata18-thermofun.json` is a vendored copy of a file maintained
-# elsewhere. Nothing in the rest of the suite would notice if one Gibbs energy
+# `cemdata18-thermofun.json` is a file maintained elsewhere, obtained from its
+# publisher. Nothing in the rest of the suite would notice if one Gibbs energy
 # in it drifted by a few kJ/mol: every equilibrium would still converge, every
 # figure would still be drawn, and the numbers would simply be wrong. The paper
 # publishes BOTH the standard formation properties (Table 1, Table 3, Appendix
@@ -38,7 +38,7 @@ using JSON
     #
     # Coefficients are the paper's, phase by phase, in its own order, as
     # transcribed in data/literature/Lothenbach2019.json. Its rows with no
-    # package symbol are the four phases the vendored file does not carry.
+    # package symbol are the two phases the database does not carry.
     solubility = literature_table("Lothenbach2019", "solubility_products")
     products_of(phase) = let r = literature_table(
             "Lothenbach2019", "dissolution_products"; phase
@@ -70,17 +70,17 @@ using JSON
 
     RTln10 = R_GAS * 298.15 * log(10)
     # The TABULATED ΔfG°, read from the file, not `ΔₐG⁰(T = 298.15)`. The two
-    # are the same number for 220 of the 228 substances and the testset after
+    # are the same number for 230 of the 238 substances and the testset after
     # this one pins which eight they are not; using the tabulated value here
-    # keeps this check on the question it is asking — does the vendored file
+    # keeps this check on the question it is asking — does the database file
     # agree with the paper — instead of mixing it with how the package rebuilds
     # a Gibbs energy.
     Gf(k) = Float64(rec[k]["sm_gibbs_energy"]["values"][1])
     nel(k, e) = Float64(get(atoms_charge(sp[k]), e, 0))
 
     @testset "Table 2/3: log Ks0 closes against ΔfG° (298.15 K, 1 bar)" begin
-        # 48 rows of Table 2 plus the 4 of Table 3.
-        @test length(table2) == 52
+        # 50 rows of Table 2 plus the 4 of Table 3.
+        @test length(table2) == 54
 
         worst_ordinary = 0.0
         worst_row = ""
@@ -114,10 +114,10 @@ using JSON
         # mode a comparison page cannot afford.
         @test worst_ordinary ≈ 0.0406 atol = 5.0e-4
         @test worst_row == "M8A-OH-LDH"
-        # 48 of the 50 are an order of magnitude better again, and the two that
+        # 50 of the 52 are an order of magnitude better again, and the two that
         # are not are the two layered double hydroxides whose published values
         # are quoted to one decimal.
-        @test count(<(0.005), ordinary) == 48
+        @test count(<(0.005), ordinary) == 50
         @test sort(ordinary)[end - 1] ≈ 0.0204 atol = 5.0e-4
     end
 
@@ -126,7 +126,7 @@ using JSON
     # `ΔₐG⁰(T)` is the apparent Gibbs energy of formation, and the package forms
     # it from ΔfH° and S° rather than reading ΔfG° off the file. At the
     # reference point T = 298.15 K the two must therefore agree — and they do,
-    # to the last bit, for 220 of the 228 substances. For eight they do not.
+    # to the last bit, for 230 of the 238 substances. For eight they do not.
     #
     # The eight are not a random selection, and they are not the ones missing a
     # heat-capacity block: six of them have one. What they share is that
@@ -162,10 +162,10 @@ using JSON
             @test gap ≈ get(rebuilt, k, NaN) atol = 1.0
         end
         @test sort(found) == sort(collect(keys(rebuilt)))
-        # "220 of the 228" on the page is this subtraction, so the 228 is pinned
+        # "230 of the 238" on the page is this subtraction, so the 238 is pinned
         # here rather than recalled: a database update that adds a substance
         # changes the sentence, and this is what says so.
-        @test count(k -> haskey(rec[k], "sm_gibbs_energy"), keys(rec)) == 228
+        @test count(k -> haskey(rec[k], "sm_gibbs_energy"), keys(rec)) == 238
         # The entropy the gap implies, which is the column the page prints and
         # nothing asserted. `ΔfG° = ΔfH° − T S°`, so a gap on `ΔfG°` at the
         # reference temperature is `−T` times an inconsistency in `S°`.
@@ -300,23 +300,23 @@ using JSON
         end
     end
 
-    # ── What the shipped file does not carry ─────────────────────────────────
+    # ── What the database does not carry ────────────────────────────────────
     #
     # Two rows of Table 2 cannot be checked, and the reason is worth recording
     # where it will be seen: the phases are in the printed table but not in the
-    # vendored file. Asserting their absence keeps this note honest — if a later
-    # database update adds them, this test fails and the note gets updated along
-    # with the coverage.
-    @testset "Table 2 rows the vendored file does not cover" begin
+    # database. Asserting their absence keeps this note honest — if a later
+    # release adds them, this test fails and the note gets updated along with
+    # the coverage. (Amorphous and microcrystalline Fe(OH)3, absent from earlier
+    # exports of the database, are in the release ChemistryLab reads, and are
+    # checked with the other rows above.)
+    @testset "Table 2 rows the database does not cover" begin
         # Nitrite-AFm: the solid is present, but NO2⁻ is not, so its dissolution
         # reaction cannot be written over the file's own primaries.
         @test haskey(sp, "mononitrite")
         @test !haskey(sp, "NO2-")
 
-        # Fe-Friedel's salt (C4FCl2H10, log Ks0 = -28.62) is absent altogether,
-        # as are amorphous and microcrystalline Fe(OH)3.
+        # Fe-Friedel's salt (C4FCl2H10, log Ks0 = -28.62) is absent altogether.
         @test !any(startswith(k, "C4FCl") for k in keys(sp))
-        @test !haskey(sp, "FeOHam")
-        @test !haskey(sp, "FeOHmic")
+        @test haskey(sp, "Fe(OH)3(am)") && haskey(sp, "Fe(OH)3(mic)")
     end
 end

@@ -1,11 +1,11 @@
-# [The hydrating paste, end to end](@id sec-coupled-hydration)
+# [The silicates of a CEM I clinker, hydrating end to end](@id sec-coupled-hydration)
 
 !!! info "Before this page"
-    [Coupling kinetics and equilibrium](@ref sec-coupling) and [Cement clinker
-    hydration kinetics](@ref).
+    [Coupling kinetics and equilibrium](@ref sec-coupling) and [Hydration
+    kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics).
 
 A worked application of [Coupling kinetics and equilibrium](@ref sec-coupling): alite and
-belite dissolve according to [ParrotKilloh1984](@cite), and the hydrate
+belite dissolve according to [ParrottKilloh1984](@cite), and the hydrate
 assemblage that forms is **computed** by Gibbs minimization rather than imposed
 from a stoichiometric recipe.
 
@@ -82,7 +82,7 @@ primaries = ["Ca+2", "SiO2@", "H2O@", "H+"]
 reactions = ChemistryLab.Reaction[]
 for (phase, pk) in (("C3S", PK84_PARAMS_C3S), ("C2S", PK84_PARAMS_C2S))
     rxn = Reaction([cs[phase]], [cs[p] for p in primaries]; symbol = "$phase dissolution")
-    rxn[:rate] = parrot_killoh_avrami(pk, phase; α_max = 1.0, blaine = 380.0u"m^2/kg")
+    rxn[:rate] = parrott_killoh_avrami(pk, phase; α_max = 1.0, blaine = 380.0u"m^2/kg")
     push!(reactions, rxn)
     println("  ", rxn)
 end
@@ -225,7 +225,7 @@ end
     **certifies** the result. The problem is convex, so stationarity of the
     interior species, the component balance, and undersaturation of every absent
     phase together prove global optimality.
-  - **A Parrot–Killoh rate reads only its own degree of reaction**, so the
+  - **A Parrott–Killoh rate reads only its own degree of reaction**, so the
     trajectory here does not depend on the speciation at all; the speciation is
     what you read out of it. A rate law reading log-activities would feed the
     speciation back into the trajectory, and would need the balance above to be
@@ -257,4 +257,4 @@ cert = optimality_certificate(des, sub_state; b = be)
 ## Where to go next
 
 The same route applied to a complete CEM I, aluminate and ferrite included, is
-[The full Portland cement, through its pore solution](@ref ex-ionic-opc).
+[A complete CEM I 52.5 N, through its pore solution](@ref ex-ionic-opc).

@@ -21,8 +21,8 @@
 #   Kulik2011 : Kulik, Cement and Concrete Research 41 (2011) 477-495 -- CSHQ; the
 #               database also attributes the ECSH families to it
 #   Myers2014 : Myers, Bernal & Provis, Cement and Concrete Research 66 (2014) 27-47
-#   the alkali end-members `KSiOH` and `NaSiOH` of CSHQ, and `CSHQ-Cl` of
-#   data/cemdata18-chloride.json, are listed with the model they extend
+#   the alkali end-members `KSiOH` and `NaSiOH` of CSHQ, and `CSHQ-Cl` of the
+#   database cemdata18-chloride.json, are listed with the model they extend
 
 [[gel_model]]
 gel         = "C-S-H"
@@ -37,6 +37,12 @@ model       = "CNASH_ss"
 end_members = ["T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
                "5CA", "5CNA", "INFCA", "INFCN", "INFCNA"]
 source      = "Myers2014"
+
+[[gel_model]]
+gel         = "C-S-H"
+model       = "CSH3T"
+end_members = ["CSH3T-TobH", "CSH3T-T5C", "CSH3T-T2C"]
+source      = "Kulik2011"
 
 [[gel_model]]
 gel         = "C-S-H"

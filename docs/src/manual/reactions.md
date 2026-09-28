@@ -126,7 +126,7 @@ Each property is a `SymbolicFunc` callable with a keyword argument `T` (temperat
 using ChemistryLab
 
 # Load reactions from a database-built stoichiometric matrix
-all_species = build_species(datapath("cemdata18-merged.json"); verbose = false)
+all_species = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
 species = speciation(all_species, split("Cal H2O@");
               aggregate_state=[AS_AQUEOUS], exclude_species=split("H2@ O2@ CH4@"))
 dict_species = Dict(symbol(s) => s for s in species)

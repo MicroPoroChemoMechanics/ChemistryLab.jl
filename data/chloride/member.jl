@@ -111,6 +111,9 @@ function member_entry(c::Candidate, db, byname, δ; provenance = nothing)
     base["Tst"] == T_REF || error("NaSiOH is no longer referred to $T_REF K; the end member must be redone.")
     JSON = ChemistryLab.JSON
     e = JSON.parse(JSON.json(base))
+    # NaSiOH's molar mass does not belong to the new member; ChemistryLab computes
+    # molar masses from formulas, so the field is dropped.
+    haskey(e, "mass_per_mole") && delete!(e, "mass_per_mole")
     p = standard_properties(c, byname, δ)
     e["name"] = member_name(c)
     e["symbol"] = member_symbol(c)

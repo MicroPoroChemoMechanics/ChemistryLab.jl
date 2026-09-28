@@ -1,12 +1,16 @@
 # The zeolite extension of CEMDATA18
 
-`data/cemdata18-zeolites.json` is CEMDATA18 with 28 zeolites appended. It is
-**generated**, and `regenerate.jl` in this directory is what generates it:
+`cemdata18-zeolites.json` is CEMDATA18 with 28 zeolites appended. ChemistryLab
+builds it the first time it is asked for, `datapath("cemdata18-zeolites.json")`,
+from the Cemdata18 file it obtains from its publisher and from the published
+values in `data/literature/`; the build is cached and redone whenever either
+changes. `regenerate.jl` in this directory runs the same build and prints its
+checks:
 
     julia --project=docs data/zeolites/regenerate.jl
 
-Run it to reproduce the shipped file. It is deterministic, and it refuses to
-write anything if any of its three checks fails.
+The build is deterministic, and it refuses to produce anything if any of its
+three checks fails.
 
 ## Why a separate database, and why these phases
 
@@ -51,7 +55,7 @@ every phase they share:
 - **SLOP16** carries literal placeholders (`G = 1000 J/mol`) for chabazite and
   natrolite. Rejected.
 - **PSI/Nagra** agrees exactly (median |Δ| = 0.000 kJ/mol over 108 shared phases)
-  but adds nothing here: of its 578 entries absent from the shipped file, 570 are
+  but adds nothing here: of its 578 entries absent from CEMDATA18, 570 are
   radionuclides.
 
 ## What the generator refuses to do
@@ -72,12 +76,12 @@ every phase they share:
    to within 0.026.
 
 That third check is the reason this merge can be offered at all, and it runs at
-every regeneration rather than being asserted in a comment.
+every build rather than being asserted in a comment.
 
 ## A second, independent consistency check
 
 On the phases both CEMDATA18 and the papers carry, the papers' `S⁰`, `Cp⁰` and
-`V⁰` reproduce the shipped values to rounding — natrolite: 360 against
+`V⁰` reproduce the CEMDATA18 values to rounding — natrolite: 360 against
 359.73 J/(mol·K), 359 against 359.23, 169.36 against 169.2 cm³/mol. Only `ΔfG⁰`
 differs, and deliberately: it is a revision from new solubility measurements
 (−5305.15 against −5325.70 kJ/mol). Nothing is overwritten, so both values remain

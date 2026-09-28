@@ -52,7 +52,7 @@ CemSpecies(Species("CaCO3"; name = "Calcite", aggregate_state = AS_CRYSTAL, clas
 
 # Thermofun input
 println("LOADING DATABASES...")
-df_elements, df_substances, df_reactions = read_thermofun_database(datapath("cemdata18-merged.json"))
+df_elements, df_substances, df_reactions = read_thermofun_database(datapath("cemdata18-thermofun.json"))
 species_vec = build_species(df_substances)
 dict_species = Dict(symbol(s) => s for s in species_vec)
 dict_reactions = Dict(symbol(r) => r for r in build_reactions(df_reactions, species_vec))

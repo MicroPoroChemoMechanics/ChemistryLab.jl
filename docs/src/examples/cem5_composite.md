@@ -1,8 +1,8 @@
-# [A composite binder: two glasses at once](@id ex-cem5-composite)
+# [CEM V/A (S-V): a composite binder, two glasses at once](@id ex-cem5-composite)
 
 !!! info "Before this page"
-    [A blastfurnace cement](@ref ex-cem3-slag) and [A pozzolanic binder](@ref
-    ex-cem4-pozzolanic), whose difficulties this page combines.
+    [CEM III/A, a blastfurnace cement](@ref ex-cem3-slag) and [CEM IV, a pozzolanic
+    binder](@ref ex-cem4-pozzolanic), whose difficulties this page combines.
 
 A CEM V carries **both** a blastfurnace slag and a pozzolana, each between 18 %
 and 30 % for a CEM V/A, leaving 40 % to 64 % clinker. It is the binder in which
@@ -66,12 +66,12 @@ using Printf
 using Plots
 default(framestyle = :box, grid = false)
 
-# The ZEOLITE-EXTENDED database, and that is not a detail of convenience.
-# [The CEM IV page](@ref ex-cem4-pozzolanic) establishes why: past roughly a
-# third replacement the aluminum and the alkalis the pozzolana brings exceed what
-# the C-A-S-H and the aluminate hydrates can hold. Without a phase to receive
-# them, the alkalis stay in the pore solution and the pH comes out too high. A
-# CEM V/A at the midpoint of its range is 48 % replaced, well inside that regime.
+# The ZEOLITE-EXTENDED database, so that a zeolite can form wherever one is
+# stable. A CEM V/A at the midpoint of its range is 48 % replaced, the kind of
+# binder that might need one, and a phase the species list does not declare is
+# not reported at all: declaring them is the only way to know. [The CEM IV
+# page](@ref ex-cem4-pozzolanic) finds none stable even in its full-reaction
+# limit, and none forms in the assemblage of section 4.
 substances = build_species(datapath("cemdata18-zeolites.json"); verbose = false)
 byname = Dict(symbol(s) => s for s in substances)
 molar_mass(n) = ustrip(us"g/mol", byname[n][:M])
@@ -233,17 +233,20 @@ redox_species = ["HS-", "H2S@", "SO4-2", "SO3-2", "S2O3-2", "O2@", "H2@", "CO2@"
 
 species = speciation(substances, vcat(pure, gel, feal, redox_species);
                      aggregate_state = [AS_AQUEOUS])
-ss = [SolidSolutionPhase("CNASH_ss", [byname[m] for m in gel]),
+# CNASH_ss mixes on the sites of Myers et al. (2014), as it ships in
+# data/solid_solutions.toml.
+ss = [SolidSolutionPhase("CNASH_ss", [byname[m] for m in gel];
+                         model = sublattice_model("Myers2014:cnash", [byname[m] for m in gel])),
       SolidSolutionPhase("C3(AF)S0.84H", [byname[m] for m in feal])]
 cs = ChemicalSystem(species, CEMDATA_PRIMARIES; solid_solutions = ss)
-# Debye-Hückel limiting law with a B-dot term, as GEM-Selektor runs CEMDATA18.
-# The B-dot is identified from the activity coefficients GEMS printed on a
-# Portland paste (test/reference/gems_cemdata18_portland.json), about 0.0976.
-using JSON
-gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
-lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
-Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
-model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
+# The activity model Cemdata18 prescribes (its Eq. C.1): extended Debye-Hückel,
+# with the common ion size and B-dot the paper gives for KOH solutions (it also
+# gives them for NaOH). The alkalis of the clinker, and those of the fly ash in a similar ratio, are
+# mostly potassium.
+model = cemdata18_activity_model(:KOH)
+# The molar K/Na ratio of its alkalis, which is why the KOH set applies.
+Mox(ox) = ustrip(us"g/mol", Species(ox)[:M])
+println("molar K/Na of the alkalis: ", round((2 * ALKALIS["K2O"] / Mox("K2O")) / (2 * ALKALIS["Na2O"] / Mox("Na2O")); digits = 1))
 
 components = String.(symbol.(cs.SM.primaries))
 @printf("%d species, %d components: %s\n",
@@ -310,9 +313,10 @@ reacted fraction itself: a younger paste has released less of everything, so it
 is a smaller perturbation of pure water, and its answer is a good start for an
 older one.
 
-That is safe here for a reason that is **checked rather than assumed**. Both
-solid solutions of section 2 carry the default ideal mixing model, and
-`SolidSolutionPhase` refuses a model whose mixing energy has a spinodal — so the
+That is safe here for a reason that is **checked rather than assumed**. The two
+solid solutions of section 2 mix convexly (CNASH_ss on its sites, the
+hydrogarnet ideally; see [`mixing_convexity`](@ref)), and `SolidSolutionPhase`
+refuses a model whose mixing energy is concave — so the
 Gibbs function is convex, its minimum is unique, and a continuation **cannot
 change what is found**, only whether the search finds it.
 
@@ -476,9 +480,9 @@ worth knowing about: the Waller sigmoid shipped for a slag and a fly ash gives
 are fits to particular materials, and "a slag" is not a substance — [the rate law
 chapter](@ref sec-theory-kinetics) sets the two side by side.
 
-Read the columns against each other. The **portlandite** falls by nearly 40 %
+Read the columns against each other. The **portlandite** falls by a quarter
 across the three ages — that is the pozzolanic reaction, and the reason the
-family exists. The **pH** moves the other way and by almost nothing, six
+family exists. The **pH** moves the other way and by little, thirteen
 hundredths of a unit, because it is the alkalis that set it and the glasses
 release them only slowly; the calcium hydroxide is a floor beneath, not a lever.
 And every one of the three **certifies**, with the element balances the table
@@ -492,26 +496,25 @@ who disagrees with the fractions assumed here can move them and keep the
 qualitative reading, while a reader who wants the amounts must supply a measured
 degree of reaction for their own materials.
 
-!!! warning "Where this stops being true"
+!!! warning "The fully reacted limit"
     Push the fractions to 1 — every grain of slag and every ash sphere fully
-    dissolved — and the calculation with this page's activity model stops
-    certifying: the iteration ends with an element balance off by 3·10⁻¹ and a
-    pH of 14.4, neither of which is a result. An earlier version of this page
-    read that as the formulation being asked an unphysical question, with no
-    assemblage able to hold the alkalis and the aluminum. The measurement below
-    refutes it. The limiting law (`å = 0`) this page runs, to stay comparable
-    with GEM-Selektor, has no validity at an ionic strength of 0.2 mol/kg
-    ([Activity models](@ref sec-activity-models)); with an ion size per ion,
-    the same fully reacted paste certifies. What the section says about the
-    reacted fraction stands: a 48 %-replaced binder never dissolves its glasses
-    entirely, and the fraction, not the limit, describes a specimen.
+    dissolved — and the paste still certifies, below, but at an ionic strength
+    past the range Cemdata18 states for its activity model, about 1 mol/kg. The
+    certificate reports it (`within_activity_range`), and the answer is then a
+    composition consistent with an extrapolated activity model, certified as
+    such and no more. Until this version the page ran the limiting law
+    (`å = 0`), under which the same paste did not certify: the iteration ended
+    with an element balance off by 3·10⁻¹ mol and a pH of 14.4. What the section
+    says about the reacted fraction stands: a 48 %-replaced binder never
+    dissolves its glasses entirely, and the fraction, not the limit, describes a
+    specimen.
 
 ```@example cem5
-perion = HKFActivityModel()
 full = paste(1.0, 1.0)
-eq_full, cert_full = equilibrate_certified(full.state; model = perion, b = full.total)
-@printf("fully reacted, ion size per ion: optimal=%s  balance=%.1e  pH=%.3f  I=%.2f mol/kg\n",
-        cert_full.optimal, cert_full.balance, pH(eq_full, perion), ionic_strength(eq_full))
+eq_full, cert_full = equilibrate_certified(full.state; model = model, b = full.total)
+@printf("fully reacted: optimal=%s  balance=%.1e  pH=%.3f  I=%.2f mol/kg  within range: %s\n",
+        cert_full.optimal, cert_full.balance, pH(eq_full, model),
+        cert_full.ionic_strength, cert_full.within_activity_range)
 ```
 
 ## 7. Where a CEM V sits among the others
@@ -581,6 +584,6 @@ them where the calorimeter does not.
 
 The pages of this group compute where a binder ends; how it gets there is the
 subject of the applications in time, beginning with
-[Cement clinker hydration kinetics](@ref), and of
-[The full Portland cement, through its pore solution](@ref ex-ionic-opc) for the
+[Hydration kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics), and of
+[A complete CEM I 52.5 N, through its pore solution](@ref ex-ionic-opc) for the
 coupled route.

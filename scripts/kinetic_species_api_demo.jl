@@ -39,7 +39,7 @@ input_species = split(
 
 species = speciation(substances, input_species; aggregate_state = [AS_AQUEOUS])
 
-# ── 2. Parrot & Killoh kinetic models ────────────────────────────────────────
+# ── 2. Parrott & Killoh kinetic models ────────────────────────────────────────
 
 const WC = 0.4
 const α_max = min(1.0, WC / 0.42)
@@ -48,10 +48,10 @@ const α_max = min(1.0, WC / 0.42)
 # `blaine_factor`. 380 m²/kg is an ordinary CEM I.
 const BLAINE = 380.0u"m^2/kg"
 
-pk_C3S = parrot_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max, blaine = BLAINE)
-pk_C2S = parrot_killoh_avrami(PK84_PARAMS_C2S, "C2S"; α_max, blaine = BLAINE)
-pk_C3A = parrot_killoh_avrami(PK84_PARAMS_C3A, "C3A"; α_max, blaine = BLAINE)
-pk_C4AF = parrot_killoh_avrami(PK84_PARAMS_C4AF, "C4AF"; α_max, blaine = BLAINE)
+pk_C3S = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max, blaine = BLAINE)
+pk_C2S = parrott_killoh_avrami(PK84_PARAMS_C2S, "C2S"; α_max, blaine = BLAINE)
+pk_C3A = parrott_killoh_avrami(PK84_PARAMS_C3A, "C3A"; α_max, blaine = BLAINE)
+pk_C4AF = parrott_killoh_avrami(PK84_PARAMS_C4AF, "C4AF"; α_max, blaine = BLAINE)
 
 # ── 3. ChemicalSystem with kinetic_species ───────────────────────────────────
 

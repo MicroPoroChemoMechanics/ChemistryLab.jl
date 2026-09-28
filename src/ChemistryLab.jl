@@ -115,6 +115,7 @@ module ChemistryLab
     include("chemical_structs/formulas.jl")
     include("chemical_structs/species.jl")
     include("chemical_structs/solid_solutions.jl")
+    include("chemical_structs/sublattice.jl")
     include("chemical_structs/oxide_budget.jl")
     include("chemical_structs/reactions.jl")
     include("chemical_structs/speciation.jl")
@@ -136,6 +137,7 @@ module ChemistryLab
     include("surfaces/host_coupling.jl")
 
     include("databases/paths.jl")
+    include("databases/remote.jl")
     include("databases/phreeqc_dat.jl")
     include("databases/thermofun_json.jl")
     include("databases/pitzer_toml.jl")
@@ -143,6 +145,7 @@ module ChemistryLab
     include("databases/phreeqc_sorption.jl")
     include("surfaces/site_family_reactions.jl")
     include("databases/merge_dat_json.jl")
+    include("databases/derived.jl")
 
     include("equilibrium/activities.jl")
     include("equilibrium/pitzer.jl")
@@ -169,6 +172,22 @@ module ChemistryLab
     include("kinetics/calorimetry.jl")
     include("kinetics/kinetics_postprocessing.jl")
     include("kinetics/implicit_step.jl")
+
+    include("recipes/extents.jl")
+    include("recipes/materials.jl")
+    include("recipes/recipes.jl")
+    include("recipes/processes.jl")
+    include("recipes/templates.jl")
+
+    # Recipes: materials, extents, budgets and processes.
+    export AbstractExtent, ConstantExtent, TabulatedExtent, LogisticExtent,
+        ParrottKillohExtent, CappedExtent, extent,
+        AbstractConstituent, MineralConstituent, OxideConstituent, Material,
+        effective_extent, oxide_content, literature_oxides, oxide_material,
+        bogue, decompose, reactive_part,
+        Recipe, budget, RecipeState, residual_mass, phase_masses, bound_water,
+        pore_solution, ProcessResult, hydrate, blend, titrate, carbonate, add_salt,
+        leach, process_table, material_template, material_templates, with_extents
 
     export SymbolicFunc,
         ThermoFactory,
@@ -310,9 +329,13 @@ module ChemistryLab
         IdealSolidSolutionModel,
         RedlichKisterModel,
         RegularSolutionModel,
+        SublatticeModel,
+        site_fractions,
+        sublattice_model,
         AbstractSolidSolutionPhase,
         SolidSolutionPhase,
         spinodal_interval,
+        mixing_convexity,
         common_tangent,
         excess_ln_gamma_expression,
         log10_gamma_expression,
@@ -407,6 +430,11 @@ module ChemistryLab
     export extract_primary_species
 
     export datapath,
+        database_path,
+        database_info,
+        fetch_databases,
+        install_database,
+        DatabaseUnavailable,
         read_thermofun_database,
         build_species,
         build_reactions,
@@ -435,6 +463,9 @@ module ChemistryLab
         build_pitzer_parameters,
         pitzer_origin,
         HKFActivityModel,
+        cemdata18_activity_model,
+        TruesdellJonesActivityModel,
+        phreeqc_gamma_parameters,
         DaviesActivityModel,
         SITActivityModel,
         SITParameters,
@@ -482,12 +513,12 @@ module ChemistryLab
         saturation_ratio,
         RateModelCatalyst,
         RateMechanism,
-        parrot_killoh,
+        parrott_killoh,
         PK_PARAMS_C3S,
         PK_PARAMS_C2S,
         PK_PARAMS_C3A,
         PK_PARAMS_C4AF,
-        parrot_killoh_avrami,
+        parrott_killoh_avrami,
         PK84_PARAMS_C3S,
         PK84_PARAMS_C2S,
         PK84_PARAMS_C3A,

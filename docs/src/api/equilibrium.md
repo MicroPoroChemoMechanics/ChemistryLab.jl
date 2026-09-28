@@ -59,7 +59,7 @@ Pages = ["equilibrium/aqueous_properties.jl"]
 
 ```@autodocs
 Modules = [ChemistryLab]
-Pages = ["chemical_structs/solid_solutions.jl"]
+Pages = ["chemical_structs/solid_solutions.jl", "chemical_structs/sublattice.jl"]
 ```
 
 ## Certified equilibrium

@@ -226,6 +226,31 @@ end
     @test γ_Na < 1.0
 end
 
+@testsection "Truesdell-Jones: parameters where given, PHREEQC's defaults elsewhere" begin
+    cs, h2o, na, cl = _nacl_system()
+    # Na+ with WATEQ parameters, Cl- without: the Davies equation for it.
+    model = TruesdellJonesActivityModel(; parameters = Dict("Na+" => (4.08, 0.082)))
+    lna = activity_model(cs, model)
+    m = 0.5
+    n_w = 1.0 / M_W
+    p = (ΔₐG⁰overRT = zeros(3), T = 298.15, P = 1.0e5, ϵ = 1.0e-30)
+    out = lna(_moles_from_molality(m, n_w), p)
+    A, B = model.A, model.B
+    sqI = sqrt(m)
+    γ_na = -A * sqI / (1 + B * 4.08 * sqI) + 0.082 * m
+    γ_cl = -A * (sqI / (1 + sqI) - 0.3 * m)
+    @test out[2] ≈ log(10) * γ_na + log(m) rtol = 1.0e-10
+    @test out[3] ≈ log(10) * γ_cl + log(m) rtol = 1.0e-10
+    # The per-species hook `activity_coefficients` calls gives the same values.
+    @test ChemistryLab._log10γ_species(model, na, 1, 0.0, m, sqI, A, B) ≈ γ_na rtol = 1.0e-12
+    @test ChemistryLab._log10γ_species(model, cl, -1, 0.0, m, sqI, A, B) ≈ γ_cl rtol = 1.0e-12
+    @test concentration_scale(model) === :molality
+    @test activity_model_range(model) === nothing
+    # Differentiable, as the other kernels are.
+    g = ForwardDiff.gradient(n -> lna(n, p)[2], _moles_from_molality(m, n_w))
+    @test all(isfinite, g)
+end
+
 # ── HKF: neutral species salting-out ─────────────────────────────────────────
 
 @testsection "HKF: neutral CO2 salting-out" begin
@@ -617,4 +642,28 @@ end
     @test gap(HKFActivityModel(; å = å_NaCl), 1, å_NaCl, 2, å_NaCl) > 1.0e-3
     # And so does an ion-specific size, with no extended term at all.
     @test gap(HKFActivityModel(; Ḃ = 0.0), 1, 3.0, 1, 5.0) > 1.0e-3
+end
+
+@testsection "Truesdell-Jones in a system with a gas, A and B from T" begin
+    sp = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+    cs = ChemicalSystem([sp[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal CO2")], ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"])
+    st = ChemicalState(cs)
+    set_quantity!(st, "H2O@", 1.0u"kg")
+    for s in ("H+", "OH-", "CO2@", "HCO3-", "CO3-2", "Ca+2")
+        set_quantity!(st, s, 1.0e-3u"mol")
+    end
+    set_quantity!(st, "CO2", 0.02u"mol")
+    p = ChemistryLab._build_params(st)
+    γp = phreeqc_gamma_parameters(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+    fixed = ChemistryLab.activity_model(cs, TruesdellJonesActivityModel(; parameters = γp, temperature_dependent = false))
+    moving = ChemistryLab.activity_model(cs, TruesdellJonesActivityModel(; parameters = γp, temperature_dependent = true))
+    n = ustrip.(us"mol", st.n)
+    ig = findfirst(==("CO2"), [symbol(s) for s in cs.species])
+    # A lone gas is a pure gas phase: its activity is its mole fraction, one.
+    @test fixed(n, p)[ig] ≈ 0.0 atol = 1.0e-12
+    # At 25 °C and 1 bar the two agree; away from it the Debye-Huckel
+    # coefficients move with the temperature.
+    @test moving(n, p) ≈ fixed(n, p) rtol = 1.0e-3
+    p50 = merge(p, (; T = 323.15))
+    @test moving(n, p50) != fixed(n, p50)
 end

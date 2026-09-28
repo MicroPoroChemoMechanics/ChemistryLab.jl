@@ -4,29 +4,39 @@
 """
     datapath(parts::AbstractString...) -> String
 
-Absolute path to a file shipped in ChemistryLab's `data/` directory. Called
-without argument, returns the directory itself.
+Absolute path to a data file of ChemistryLab. Called without argument, returns
+the package's `data/` directory.
 
-This is the recommended way to name a bundled database, because it does not
-depend on the working directory: a script written this way runs identically from
-the package root, from an editor whose REPL started elsewhere, and inside a
-documentation build.
+A thermodynamic database is named by its file name alone,
+`datapath("cemdata18-thermofun.json")`, and resolved by
+[`database_path`](@ref): from `ENV["CHEMISTRYLAB_DATABASE_DIR"]` if it is set
+and holds the file, else from the package's cache, else downloaded from its
+publisher on first use, or built from it for a derived database. Any other name
+is a file under `data/`: the solid-solution and gel models, the published values
+of `data/literature/`, the experimental datasets.
+
+This is the recommended way to name a database, because it depends neither on
+the working directory nor on where the file happens to be stored: a script
+written this way runs identically from the package root, from an editor whose
+REPL started elsewhere, inside a documentation build and on a machine that has
+never used ChemistryLab before.
 
 # Examples
 
 ```julia
 substances = build_species(datapath("cemdata18-thermofun.json"))
 ss_phases  = build_solid_solutions(datapath("solid_solutions.toml"), dict)
-readdir(datapath())                       # every bundled data file
-datapath("experimental", "README.md")     # subdirectories work too
+datapath("experimental", "README.md")     # subdirectories of data/ work too
 ```
 
-See also [`read_thermofun_database`](@ref), [`build_species`](@ref).
+See also [`database_info`](@ref), [`fetch_databases`](@ref),
+[`read_thermofun_database`](@ref), [`build_species`](@ref).
 """
 function datapath(parts::AbstractString...)
+    length(parts) == 1 && is_database_name(only(parts)) && return database_path(only(parts))
     root = pkgdir(@__MODULE__)
     root === nothing && error(
-        "cannot locate the ChemistryLab package directory, so the bundled " *
+        "cannot locate the ChemistryLab package directory, so its " *
             "`data/` files cannot be resolved. Pass an explicit path instead.",
     )
     return joinpath(root, "data", parts...)
@@ -38,18 +48,22 @@ end
 Resolve `path` to an existing file, trying in order:
 
  1. `path` as given — relative to the working directory, or absolute;
- 2. `datapath(path)` — the same relative path under the bundled `data/`;
- 3. `datapath(basename(path))` — a bundled data file of that name, whatever
-    directory prefix the caller wrote;
+ 2. `datapath(path)` — the same relative path under `data/`;
+ 3. `datapath(basename(path))` — a data file or a database of that name,
+    whatever directory prefix the caller wrote (a database is obtained as
+    [`datapath`](@ref) describes);
  4. `joinpath(pkgdir(ChemistryLab), path)` — relative to the package root.
 
 The working directory comes first, so a call that already resolves keeps
 resolving to exactly the same file: the fallbacks can only turn a failure into a
 success, never change an existing answer. And steps 2–3 can only succeed for a
-name that *is* one of the bundled data files, so a mistyped path to a file of
-one's own still fails loudly instead of silently loading something else.
+name that *is* one of the package's data files or databases, so a mistyped path
+to a file of one's own still fails loudly instead of silently loading something
+else.
 
-Throws `ArgumentError` listing the bundled files when nothing matches.
+Throws `ArgumentError` listing the data files and databases when nothing
+matches, and [`DatabaseUnavailable`](@ref) when the name is a database that
+cannot be obtained.
 """
 function resolve_data_path(path::AbstractString)
     isfile(path) && return String(path)
@@ -64,18 +78,19 @@ function resolve_data_path(path::AbstractString)
         isfile(candidate) && return candidate
     end
 
-    bundled = try
+    files = try
         sort!(readdir(datapath()))
     catch
         String[]
     end
+    databases = sort!(vcat(collect(keys(THIRD_PARTY_DATABASES)), collect(keys(DERIVED_DATABASES))))
     throw(
         ArgumentError(
             "no such data file: \"$path\". It was looked for relative to the " *
-                "working directory ($(pwd())), then among the data files shipped " *
-                "with ChemistryLab ($(datapath())). Bundled files: " *
-                "$(join(bundled, ", ")). Use `datapath(\"<name>\")` to name a " *
-                "bundled file from anywhere.",
+                "working directory ($(pwd())), then among ChemistryLab's data " *
+                "files ($(datapath())) and databases. Data files: " *
+                "$(join(files, ", ")). Databases: $(join(databases, ", ")). " *
+                "Use `datapath(\"<name>\")` to name either from anywhere.",
         ),
     )
 end
@@ -86,8 +101,10 @@ end
 Short, machine-independent label for `path`, meant for the banner a reader sees
 rather than for opening a file.
 
-A file inside the package is shown relative to the package root
-(`data/cemdata18-thermofun.json`); anything else is shown unchanged. This
+A database is shown by its file name (`cemdata18-thermofun.json`), wherever the
+cache or the user's directory put it; another file inside the package is shown
+relative to the package root (`data/solid_solutions.toml`); anything else is
+shown unchanged. This
 matters because these banners are captured verbatim into the documentation:
 printing the absolute path would bake the build machine's directories
 (`/home/runner/work/...`) into every page that loads a database.
@@ -102,6 +119,10 @@ so a file plainly outside the package could come back rewritten. The prefix test
 has no such case.
 """
 function display_data_path(path::AbstractString)
+    # A database obtained from its publisher lives in the cache or in the user's
+    # own directory, both machine-specific: it is shown by its name.
+    name = basename(path)
+    is_database_name(name) && !startswith(abspath(path), abspath(pwd())) && return name
     root = pkgdir(@__MODULE__)
     if root !== nothing
         absolute = abspath(path)

@@ -1,7 +1,7 @@
-# [A blastfurnace cement, and the oxidation state it needs](@id ex-cem3-slag)
+# [CEM III/A: a blastfurnace cement, and the oxidation state it needs](@id ex-cem3-slag)
 
 !!! info "Before this page"
-    [Two CEM II](@ref ex-cem2-blended), whose skeleton this page follows, and
+    [CEM II/A-LL and CEM II/B-S](@ref ex-cem2-blended), whose skeleton this page follows, and
     [Oxidation state, and the potential conjugate to it](@ref theory-redox).
 
 A CEM III is between a third and four fifths blastfurnace slag. That single fact
@@ -252,14 +252,13 @@ end
 ## 4. The equilibrium
 
 ```@example cem3
-# Debye-Hückel limiting law with a B-dot term, as GEM-Selektor runs CEMDATA18.
-# The B-dot is identified from the activity coefficients GEMS printed on a
-# Portland paste (test/reference/gems_cemdata18_portland.json), about 0.0976.
-using JSON
-gems = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "gems_cemdata18_portland.json"))
-lg1, lg2 = log10(gems["gamma"]["z1"]), log10(gems["gamma"]["z2"])
-Ḃ_gems = (lg1 + (lg1 - lg2) / 3) / gems["ionic_strength_mol_per_kg"]
-model = HKFActivityModel(å = 0.0, Ḃ = Ḃ_gems, Kₙ = 0.0)
+# The activity model Cemdata18 prescribes (its Eq. C.1): extended Debye-Hückel,
+# with the common ion size and B-dot the paper gives for KOH solutions (it also
+# gives them for NaOH). The clinker's alkalis are mostly potassium.
+model = cemdata18_activity_model(:KOH)
+# The molar K/Na ratio of its alkalis, which is why the KOH set applies.
+Mox(ox) = ustrip(us"g/mol", Species(ox)[:M])
+println("molar K/Na of the alkalis: ", round((2 * ALKALIS["K2O"] / Mox("K2O")) / (2 * ALKALIS["Na2O"] / Mox("Na2O")); digits = 1))
 eq, cert = equilibrate_certified(state; model = model, b = b)
 
 @printf("certificate: optimal=%s  worst SI=%.2e  element balance=%.1e\n",
@@ -365,12 +364,12 @@ end
 ```
 
 Read the two right-hand columns against each other. A **factor of three** on the
-alkali content moves the pH by **0.40 unit** and the portlandite by under **5 %**.
+alkali content moves the pH by **0.43 unit** and the portlandite by under **5 %**.
 That separation is the whole point: the calcium is held by portlandite and cannot
 follow, so in a cement paste the alkalis *are* the pH and the calcium hydroxide
 is only a floor beneath them.
 
-The middle row is the page's own case, and it returns the 13.041 of section 4 —
+The middle row is the page's own case, and it returns the 13.054 of section 4 —
 which is worth checking rather than assuming, since a sweep that did not
 reproduce its own nominal point would be measuring something else.
 
@@ -424,4 +423,4 @@ reaction for the slag that this deposit does not report either.
 ## Where to go next
 
 The pozzolanic binder, in which the C-S-H has to carry the aluminum, is
-[A pozzolanic binder](@ref ex-cem4-pozzolanic).
+[CEM IV, a pozzolanic binder](@ref ex-cem4-pozzolanic).

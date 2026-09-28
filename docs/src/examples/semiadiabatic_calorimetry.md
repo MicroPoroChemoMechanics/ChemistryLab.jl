@@ -1,12 +1,12 @@
-# [A semi-adiabatic calorimeter, inside the kinetics](@id ex-semiadiabatic)
+# [A CEM I 52.5 N mortar in a semi-adiabatic calorimeter, inside the kinetics](@id ex-semiadiabatic)
 
 !!! info "Before this page"
-    [The full Portland cement, through its pore solution](@ref ex-ionic-opc),
+    [A complete CEM I 52.5 N, through its pore solution](@ref ex-ionic-opc),
     whose model this page puts in a calorimeter.
 
 An isothermal calorimeter holds the sample at one temperature, and what it
 records can be read off a calculated trajectory afterwards, as the enthalpy the
-states lose ([An isothermal calorimeter, read off the states](@ref sec-example-isothermal)). A
+states lose ([CEM I 52.5 N and slag in an isothermal calorimeter, read off the states](@ref sec-example-isothermal)). A
 semi-adiabatic calorimeter cannot be read that way. It lets the heat of
 hydration raise the temperature of the sample against the losses of the vessel,
 and the temperature raises the rates of the reactions in turn. The temperature
@@ -145,10 +145,10 @@ as much as of the heat, and it cannot be read off an isothermal calculation.
 
 ## See also
 
-  - [The full Portland cement, through its pore solution](@ref ex-ionic-opc), the
+  - [A complete CEM I 52.5 N, through its pore solution](@ref ex-ionic-opc), the
     model and its assumptions.
-  - [Cement clinker hydration kinetics](@ref), the same kind of cell on the
+  - [Hydration kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics), the same kind of cell on the
     stoichiometric formulation.
-  - [An isothermal calorimeter, read off the states](@ref sec-example-isothermal)
-    and [Bound water, and the thermogram it integrates to](@ref sec-example-tga),
+  - [CEM I 52.5 N and slag in an isothermal calorimeter, read off the states](@ref sec-example-isothermal)
+    and [Bound water of CEM I 52.5 N and slag pastes, and the thermogram it integrates to](@ref sec-example-tga),
     the measurements that are outputs of a calculation rather than part of it.

@@ -200,9 +200,21 @@ end
 Populate thermodynamic reference values and build thermodynamic functions on `species`
 from a ThermoFun substance DataFrame `row`. Mutates `species.properties` in place.
 """
+# ThermoFun's standard reference state is 298.15 K and 1 bar, and a record that
+# omits it is referred to that state: one substance of the slop98 organic
+# database, `Eth@`, carries no `Tst`. Read as missing, it made the whole database
+# unreadable.
+const _THERMOFUN_TST = 298.15
+const _THERMOFUN_PST = 1.0e5
+_reference_value(row, key, default) = (
+    v = hasproperty(row, key) ? getproperty(row, key) : missing;
+    (ismissing(v) || v === nothing) ? default : v
+)
+
 function complete_species_with_thermo_model!(species, row; verbose = false)
-    Tref = row.Tst * u"K"
-    Pref = row.Pst * u"Pa"
+    Tst = _reference_value(row, :Tst, _THERMOFUN_TST)
+    Tref = Tst * u"K"
+    Pref = _reference_value(row, :Pst, _THERMOFUN_PST) * u"Pa"
     species.Tref = Tref
     species.Pref = Pref
     values0 = [
@@ -216,10 +228,19 @@ function complete_species_with_thermo_model!(species, row; verbose = false)
             extract_value(row, :sm_gibbs_energy; verbose = verbose, default_unit = u"J/mol"),
         :V⁰ => correct_volume_unit(extract_value(row, :sm_volume; verbose = verbose, default_unit = u"J/bar")),
     ]
+    # A solid whose molar volume is recorded as exactly zero has none defined:
+    # Cemdata18 prints "not defined" for the amorphous and microcrystalline
+    # Fe(OH)3, and its ThermoFun file writes 0. Kept, the zero would make a
+    # precipitated hydroxide occupy no volume; left out, the species is reported
+    # by `missing_molar_volumes` instead.
+    v⁰ = last(values0[end])
+    if aggregate_state(species) == AS_CRYSTAL && v⁰ isa Union{Number, DynamicQuantities.AbstractQuantity} && iszero(ustrip(v⁰))
+        values0 = values0[1:(end - 1)]
+    end
     species[:thermo_params] = [values0; :T => Tref; :P => Pref]
     TPMethods = row.TPMethods
     if !ismissing(TPMethods)
-        cp_interval = _reference_cp_interval(TPMethods, row.Tst)
+        cp_interval = _reference_cp_interval(TPMethods, Tst)
         for method in TPMethods
             method_type = only(values(method.method))
             if method_type == "cp_ft_equation" && method === cp_interval
@@ -316,8 +337,8 @@ Populate thermodynamic reference values and build thermodynamic functions on `re
 from a ThermoFun reaction DataFrame `row`. Mutates `reaction.properties` in place.
 """
 function complete_reaction_with_thermo_model!(reaction, row; verbose = false)
-    Tref = row.Tst * u"K"
-    Pref = row.Pst * u"Pa"
+    Tref = _reference_value(row, :Tst, _THERMOFUN_TST) * u"K"
+    Pref = _reference_value(row, :Pst, _THERMOFUN_PST) * u"Pa"
     reaction.Tref = Tref
     reaction.Pref = Pref
     values0 = [
@@ -491,7 +512,7 @@ Each end-member species is automatically requalified to `SC_SSENDMEMBER` via
 [[solid_solution]]
 name        = "CSHQ"
 end_members = ["CSHQ-TobD", "CSHQ-TobH", "CSHQ-JenH", "CSHQ-JenD", "KSiOH", "NaSiOH"]
-model       = "ideal"          # or "redlich_kister", "regular"
+model       = "ideal"          # or "redlich_kister", "regular", "sublattice"
 ```
 
 A Redlich-Kister entry gives its parameters in J/mol as `a0`, `a1`, `a2`, or
@@ -512,11 +533,24 @@ guggenheim  = "Lothenbach2019:AFm SO4/OH"
 instances   = 2
 ```
 
+A sublattice entry names the published model it follows with
+`sublattice = "<literature key>:<model>"`, read by [`sublattice_model`](@ref),
+which also checks each end-member's formula against the one the source prints:
+
+```toml
+[[solid_solution]]
+name        = "CNASH_ss"
+end_members = ["T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
+               "5CA", "5CNA", "INFCA", "INFCN", "INFCNA"]
+model       = "sublattice"
+sublattice  = "Myers2014:cnash"
+```
+
 An entry whose end members exist in one database only names it with
 `database = "<file>"`. Where they are absent, that database was not loaded,
 which is expected rather than an anomaly: the entry is skipped without a warning,
-whatever `skip_missing` says. `CSHQ_Cl`, whose chloride end member ships in
-`data/cemdata18-chloride.json` alone, is declared so.
+whatever `skip_missing` says. `CSHQ_Cl`, whose chloride end member is in the
+database `cemdata18-chloride.json` alone, is declared so.
 
 # Example
 
@@ -582,6 +616,12 @@ function build_solid_solutions(
                 w = float(get(entry, "w", 0.0))
                 RegularSolutionModel([0.0 w; w 0.0])
             end
+        elseif model_str == "sublattice"
+            haskey(entry, "sublattice") || error(
+                "build_solid_solutions: \"$ss_name\" is a sublattice model and names no " *
+                    "`sublattice = \"<literature key>:<model>\"` to read it from."
+            )
+            sublattice_model(entry["sublattice"], em_species)
         elseif model_str == "ideal"
             IdealSolidSolutionModel()
         else
@@ -591,7 +631,11 @@ function build_solid_solutions(
         end
 
         instances = Int(get(entry, "instances", 1))
-        push!(phases, SolidSolutionPhase(ss_name, em_species; model = mixing_model, instances))
+        acknowledge_degenerate = Bool(get(entry, "acknowledge_degenerate", false))
+        push!(
+            phases,
+            SolidSolutionPhase(ss_name, em_species; model = mixing_model, instances, acknowledge_degenerate),
+        )
     end
     return phases
 end

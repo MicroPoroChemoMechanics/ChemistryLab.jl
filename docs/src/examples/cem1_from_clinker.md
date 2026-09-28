@@ -74,7 +74,7 @@ println("$(length(cs.species)) species in the system")
 
 ## 3. The reactions, and the rate law each one carries
 
-Four hydration reactions, each with a Parrot-Killoh rate in its Avrami form.
+Four hydration reactions, each with a Parrott-Killoh rate in its Avrami form.
 The water ceiling is computed rather than assumed — [`powers_alpha_max`](@ref)
 returns exactly 1 at `w/c = 0.45`, because above 0.42 there is enough water for
 complete hydration and nothing about water is limiting. Below it the same call
@@ -112,7 +112,7 @@ function build(compo; humidity = true, tend = 90 * 86400.0)
     rxns = AbstractReaction[]
     for (nm, pk, reac, prod) in specs
         rx = Reaction(reac, prod; symbol = nm)
-        rx[:rate] = parrot_killoh_avrami(
+        rx[:rate] = parrott_killoh_avrami(
             pk, nm; α_max = powers_alpha_max(WC), blaine = 380.0u"m^2/kg",
             humidity = h
         )
@@ -254,7 +254,7 @@ C3A + 3 Gp + 26 H2O → ettringite          # do not do this with a PK rate
 ```
 
 and it is wrong for a reason worth showing rather than asserting. A
-Parrot-Killoh rate depends on the degree of reaction of **its own clinker
+Parrott-Killoh rate depends on the degree of reaction of **its own clinker
 phase** and on nothing else. It does not watch the gypsum. Running exactly that
 reaction on this cement — as a variant, not on this page, since it is the thing
 to avoid — gives:
@@ -278,14 +278,14 @@ So a fixed-stoichiometry kinetic reaction is only safe when its co-reactants
 cannot run out. Two ways round it, and this page takes the first:
 
   - **write the reaction without the limiting co-reactant**, as here and as
-    [Cement clinker hydration kinetics](@ref) does. The aluminate then goes to
+    [Hydration kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics) does. The aluminate then goes to
     hydrogarnet, the sulfate stays untouched, and the page does not pretend to
     model the AFt/AFm sequence;
   - **let the assemblage be a result**: attach an equilibrium solver, so the
     kinetics supplies element budgets and the products are whatever minimizes
     the Gibbs energy at each step, ettringite while sulfate lasts and monosulfate
     afterwards. That is
-    [The hydrating paste, end to end](@ref sec-coupled-hydration), and it is the
+    [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration), and it is the
     honest route to a sulfate-bearing aluminate.
 
 ## 9. What this page assumed
@@ -293,9 +293,9 @@ cannot run out. Two ways round it, and this page takes the first:
   - **a closed species list** — the hydrates admitted in §2 and no others;
   - **stoichiometric reactions written by hand**, one per clinker phase, rather
     than an equilibrium assemblage.
-    [The hydrating paste, end to end](@ref sec-coupled-hydration) attaches an
+    [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration) attaches an
     equilibrium solver instead, and then which hydrates appear becomes a result;
-  - **Parrot-Killoh parameters** as published, with a Blaine correction and no
+  - **Parrott-Killoh parameters** as published, with a Blaine correction and no
     fitting to any measurement on this page;
   - **two constructed clinkers**, which exist to isolate one variable and are
     not cements anyone has made.
@@ -305,8 +305,8 @@ cannot run out. Two ways round it, and this page takes the first:
 The phase list of this page is revisited in
 [A CEM I at equilibrium, with every solid solution declared](@ref), where every
 solid solution the database defines is declared. The same machinery on one
-composition with calorimetry is [Cement clinker hydration kinetics](@ref), the
+composition with calorimetry is [Hydration kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics), the
 equilibrium view of the water content is [the w/c example](@ref sec-wc-ratio), and
 what the arrest is and is not is discussed in
 [the water budget](@ref sec-theory-water-budget). The blended binders begin with
-[Two CEM II](@ref ex-cem2-blended).
+[CEM II/A-LL and CEM II/B-S](@ref ex-cem2-blended).

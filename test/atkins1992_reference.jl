@@ -43,8 +43,8 @@ include("reference_species.jl")
     )
     idx = Dict(symbol(s) => i for (i, s) in enumerate(cs.species))
 
-    # CEMDATA18 carries no ion-size parameter, so a GEM-Selektor run of it
-    # starts from å = 0; this is the same model the CEM I cross-check uses.
+    # The limiting law with the B-dot of the GEM-Selektor run of the CEM I
+    # cross-check (å = 0): the model that run was configured with.
     model = HKFActivityModel(å = 0.0, Ḃ = gems_bdot(), Kₙ = 0.0)
 
     # Atkins' Table 2, from data/literature/Atkins1992.json: the analyzed

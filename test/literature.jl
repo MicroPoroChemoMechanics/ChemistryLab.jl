@@ -139,7 +139,7 @@ using JSON
     end
 
     @testset "the rate-law constants are the ones their sources give" begin
-        t = literature_table("Lavergne2018", "parrot_killoh_1984")
+        t = literature_table("Lavergne2018", "parrott_killoh_1984")
         e = literature_table("Lavergne2018", "activation_energies")
         T_ref = literature_value("Lavergne2018", "T_ref")
         for (phase, pk) in (
@@ -157,7 +157,7 @@ using JSON
         # columns agree on R to that rounding, which catches a transposed row.
         @test all(isapprox.(ustrip.(e.Ea) ./ ustrip.(e.Ea_over_R), R_GAS; rtol = 0.02))
 
-        s = literature_table("ParrotKilloh1984", "smoothed_variant")
+        s = literature_table("ParrottKilloh1984", "smoothed_variant")
         for (phase, pk) in (
                 ("C3S", PK_PARAMS_C3S), ("C2S", PK_PARAMS_C2S),
                 ("C3A", PK_PARAMS_C3A), ("C4AF", PK_PARAMS_C4AF),
@@ -180,7 +180,7 @@ using JSON
         @test literature("Lavergne2018").transcription["checked_against_source"] === true
         @test provenance(literature("Waller1999")["tau_slag"]) == PROV_UNSTATED
         @test all(
-            provenance(q) == PROV_UNSTATED for q in values(literature("ParrotKilloh1984").quantities)
+            provenance(q) == PROV_UNSTATED for q in values(literature("ParrottKilloh1984").quantities)
         )
     end
 
@@ -259,4 +259,15 @@ using JSON
         @test uncertainty(q) ≈ 0.5u"J/mol"
         @test provenance(q) == PROV_FITTED
     end
+end
+
+@testset "a renamed key or table still reads, with a deprecation" begin
+    # Parrott, not Parrot: the old names are kept for the code written with them.
+    @test literature("ParrotKilloh1984").key == "ParrottKilloh1984"
+    old = literature_table("Lavergne2018", "parrot_killoh_1984")
+    new = literature_table("Lavergne2018", "parrott_killoh_1984")
+    @test old.phase == new.phase && old.k1 == new.k1
+    # The renaming table sits before the docstring of `literature`, not between
+    # it and the function, where it would take the docstring for itself.
+    @test occursin("The values taken from the published source", string(@doc(literature)))
 end

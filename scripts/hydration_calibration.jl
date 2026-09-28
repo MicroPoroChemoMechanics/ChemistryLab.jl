@@ -291,7 +291,7 @@ sharpness `m`.
 
 # Why this is needed at all
 
-`parrot_killoh_avrami` has **no induction period**. Its Avrami branch is floored
+`parrott_killoh_avrami` has **no induction period**. Its Avrami branch is floored
 at `PK_AVRAMI_SEED` precisely so that the ODE leaves `ξ = 0` at all, which means
 hydration starts the instant the water does. Real cement does not: it has a
 dormant hour or several. Measured against the record used here, the unmodified
@@ -417,7 +417,7 @@ that, and for anyone whose data support more.
     Use `IONIC_CALIBRATION` **or** the rate-law fields, never both.
   - **`k₂` (Jander diffusion) for alite**, but *not* for the reason usually given.
     Parrott & Killoh reported no diffusion-controlled stage for C₃S, and
-    [`parrot_killoh_avrami`](@ref)'s docstring repeats it — so the expected
+    [`parrott_killoh_avrami`](@ref)'s docstring repeats it — so the expected
     sensitivity is zero. Measured, it is not: `α̇₂ = k₂(1-ξ)^{2/3}/(1-(1-ξ)^{1/3})`
     falls as ξ grows, so past a high degree of hydration the Jander branch does
     become the minimum, and `k₂` moves the released heat by up to about an eighth
@@ -748,7 +748,7 @@ function stoichiometric_run(
     s(name) = cs[name]
     rates = Dict(
         ph => damped_rate(
-            parrot_killoh_avrami(pk[ph], ph; α_max, blaine = blaine * u"m^2/kg"),
+            parrott_killoh_avrami(pk[ph], ph; α_max, blaine = blaine * u"m^2/kg"),
             ph in INDUCTION_PHASES ? induction : nothing,
         ) for ph in ("C3S", "C2S", "C3A", "C4AF")
     )

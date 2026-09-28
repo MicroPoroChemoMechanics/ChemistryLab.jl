@@ -60,9 +60,10 @@ G = \underbrace{\sum_k x_k\mu_k^\circ}_{\text{mechanical mixture}}
 ```
 
 and then ``\ln a_k = \ln x_k + \ln\gamma_k``. This is exactly what the code
-does: `_solid_solution_lna!` writes `log(x[k] + ϵ) + _excess_ln_gamma(model, k, x, T)`
-into the log-activity vector, so the two terms are visibly separate and a model
-supplies only the second.
+does: for these models `_ss_log_activities!` writes
+`log(x[k] + ϵ) + _excess_ln_gamma(model, k, x, T)` into the log-activity vector,
+so the two terms are visibly separate and a model supplies only the second. The
+model of section 7 is written differently, and has its own method.
 
 ## 3. `RegularSolutionModel` — one interaction energy per pair
 
@@ -342,7 +343,171 @@ The executed counterpart of this section is
 [the miscibility-gap page](@ref ex-miscibility-gap), which runs one cement three
 ways and reports the certificate each time.
 
-## 7. How a solid solution is declared
+## 7. Mixing on several sites: `SublatticeModel`
+
+Sections 1 to 4 mix **end-members**. In a C-S-H the entities that actually mix
+are smaller: a few structural positions of the silicate chain and of the
+interlayer, each held by one species or another. An end-member is then one
+particular filling of those positions, and mixing is random on each position
+separately. That is the model of Kulik (2011) for CSH3T and of Myers et al.
+(2014) for the CNASH gel, and it is what [`SublatticeModel`](@ref) implements.
+
+**The model.** A formula unit has sites ``s``, site ``s`` counted ``m_s`` times,
+and end-member ``k`` puts the species ``\sigma_s(k)`` on site ``s``. The fraction
+of site ``s`` held by species ``i`` is the total mole fraction of the end-members
+that put it there, ``y_{s,i} = \sum_k [\sigma_s(k) = i]\,x_k``, and the
+configurational Gibbs energy is the ideal one of each site:
+
+```math
+\frac{G^{\text{mix}}}{RT} = \sum_s m_s \sum_i y_{s,i}\ln y_{s,i}
+\qquad\Longrightarrow\qquad
+\boxed{\;\ln a_k = \sum_s m_s \ln y_{s,\sigma_s(k)}\;}
+```
+
+The implication is ``\partial(n\,G^{\text{mix}}/RT)/\partial n_k``, exact because
+every end-member fills every site once. One site counted once is section 1 again.
+The papers write the same model as a *fictive activity coefficient*
+``\lambda_k = a_k/x_k``, which is what [`excess_ln_gamma_expression`](@ref)
+returns for this model.
+
+**CSH3T.** Two bridging-tetrahedral sites hold either Si or Ca. TobH puts Si on
+both, T2C puts Ca on both, and the ordered T5C puts Ca on the first and Si on the
+second (Kulik 2011, Eq. 19). The Cemdata18 records are half Kulik's formula
+units, so on them each site counts one half:
+
+```@example sublattice
+using ChemistryLab
+subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+csh3t = sublattice_model("Kulik2011:csh3t", [subs[n] for n in ("CSH3T-TobH", "CSH3T-T5C", "CSH3T-T2C")])
+csh3t.multiplicity
+```
+
+`sublattice_model` finds that factor itself, by comparing each record's formula
+with the one the paper prints, and refuses a record that is not such a multiple.
+At ``x = (0.2, 0.5, 0.3)`` the first site holds Si only through TobH, the second
+through TobH and T5C:
+
+```@example sublattice
+site_fractions(csh3t, [0.2, 0.5, 0.3])
+```
+
+and the fictive activity coefficient of T5C is Kulik's Eq. (20), halved:
+
+```math
+\ln\lambda_{\mathrm{T5C}} = \tfrac12\ln(x_{\mathrm{TobH}} + x_{\mathrm{T5C}})
+  + \tfrac12\ln(x_{\mathrm{T2C}} + x_{\mathrm{T5C}}) - \ln x_{\mathrm{T5C}}
+```
+
+The block below builds that expression from the model and subtracts the formula
+above; the difference simplifies to zero:
+
+```@example sublattice
+using Symbolics
+x = [Symbolics.variable(:x, i) for i in 1:3]   # x₁ = TobH, x₂ = T5C, x₃ = T2C
+λ = excess_ln_gamma_expression(csh3t, 2, 3)
+simplify(expand(λ - (0.5log(x[1] + x[2]) + 0.5log(x[3] + x[2]) - log(x[2]))))
+```
+
+**Two properties the solver relies on.**
+
+  - *Convexity.* ``G^{\text{mix}}`` is a sum of convex functions of the site
+    fractions, which are linear in ``x``, so it is convex, and strictly so when
+    the occupancy matrix (one row per site and species, one column per
+    end-member) has full column rank, stored as `rank`. The activities are the
+    gradient of that energy, so a certificate keeps its `:global_minimum` scope.
+  - *The dilute limit.* As ``x_k \to 0`` only the site fractions of the species
+    ``k`` alone carries vanish with it: ``\ln a_k \simeq e_k \ln x_k``, with
+    ``e_k`` the multiplicity of those sites, stored as `exponents`. T5C owns no
+    species of its own, ``e_k = 0``: its activity stays finite as it disappears,
+    and it can be absent from a CSH3T that is present.
+
+```@example sublattice
+csh3t.exponents
+```
+
+**What the solver does with it.** The composition of a mixing phase is found by
+successive substitution, and on a sublattice model that iteration diverges: its
+rate is set by the sum of the multiplicities, nine for the CNASH gel. Such a phase
+is therefore inverted by Newton's method, and the members with ``e_k = 0`` are
+declared to the certificate as able to leave the phase, which then tests them by
+the inequality a pure phase obeys (OptimaSolver's `SolutionPhase`, keywords
+`newton` and `bounded_members`). A system with a sublattice phase is first solved
+with that phase mixing its end-members ideally, and the answer is the start of
+the sublattice solve.
+
+`data/solid_solutions.toml` ships `CNASH_ss` as Myers' model and `CSH3T` as
+Cemdata18 ships it, ideal between end-members; `sublattice_model("Kulik2011:csh3t",
+members)` gives the site form.
+
+## 8. More than two end-members
+
+### Convexity with more than two end-members
+
+A one-dimensional scan decides a binary. With ``n`` end-members the question is
+whether the Hessian of ``g/RT`` is positive on the tangent space of the simplex,
+``\{d : \sum_i d_i = 0\}``, at every composition, and
+[`mixing_convexity`](@ref) answers it by model.
+
+For a regular model, ``g/RT = \sum_i x_i \ln x_i + \sum_{i<j} w_{ij} x_i x_j`` with
+``w = W/RT``, and the Hessian is ``\operatorname{diag}(1/x) + w``. The first term
+is at least 2 on the tangent space: for a unit ``d`` with ``\sum_i d_i = 0``, the
+Cauchy–Schwarz inequality gives
+``\sum_i d_i^2/x_i \ge (\sum_i |d_i|)^2 / \sum_i x_i = (\sum_i |d_i|)^2``, and the
+ℓ1 norm of such a ``d`` is at least ``\sqrt 2`` (its positive and negative parts
+have equal sums). Hence
+
+```math
+\lambda_{\min}\!\left(Q^\mathsf{T} w\, Q\right) \ge -2
+\quad\Longrightarrow\quad \text{convex},
+```
+
+``Q`` an orthonormal basis of the tangent space. For two end-members this is
+``W \le 2RT``, the threshold of section 3; for more it is a sufficient
+condition. In the other direction, a pair with ``W_{ij} > 2RT`` is a witness:
+at the middle of that edge the second derivative along it is ``4 - 2w_{ij} < 0``.
+Between the two, the smallest eigenvalue of the projected Hessian is searched on
+a lattice of compositions, and a negative one is a witness too; finding none
+proves nothing, and the verdict is then `:undecided`.
+
+```@example ss_convexity
+using ChemistryLab, DynamicQuantities, Printf
+RT = ChemistryLab.R_GAS * 298.15
+W(a, b, c) = [0.0 a b; a 0.0 c; b c 0.0] .* RT
+[mixing_convexity(RegularSolutionModel(W(1.9, 1.9, 1.9)), 3).verdict,
+ mixing_convexity(RegularSolutionModel(W(3.0, 0.0, 0.0)), 3).verdict]
+```
+
+A phase whose verdict is `:nonconvex` is refused at construction, as a concave
+binary is, and admitted with two instances. The certificate of an answer scopes
+itself `:kkt_point` unless every mixing phase is proved convex.
+
+### A member that is a mixture of two others
+
+Two different things can make one end-member the mixture of two others in
+composition. In an **ordered** member the difference of Gibbs energy is the point:
+the pentameric T5C of CSH3T is the average of TobH and T2C less an ordering
+energy (Kulik 2011, Eq. 18), and the siliceous hydrogarnet
+C3AS0.41H5.18 lies between C3AH6 and C3AS0.84H4.32. When the Gibbs energy is
+the average as well, the phase holds one substance twice, once as a member and
+once as a mixture of two, and ideal mixing counts its configurations twice.
+[`SolidSolutionPhase`](@ref) warns when that holds within ``0.1\,RT``; the
+MgAl-OH-LDH ternary of Cemdata18 is the case, its M6A member the average of M4A
+and M8A:
+
+```@example ss_convexity
+subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+g(s) = ustrip(us"kJ/mol", subs[s][:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+@printf("MgAl-OH-LDH  M6A - (M4A + M8A)/2  = %+.4f kJ/mol\n",
+        g("M6A-OH-LDH") - (g("M4A-OH-LDH") + g("M8A-OH-LDH")) / 2)
+@printf("CSH3T        T5C - (TobH + T2C)/2 = %+.2f kJ/mol\n",
+        g("CSH3T-T5C") - (g("CSH3T-TobH") + g("CSH3T-T2C")) / 2)
+```
+
+The LDH difference, 0.3 J/mol, is about 10⁻⁴ RT, where the −4.35 kJ/mol of T5C
+is an ordering energy. The shipped LDH entry keeps the published model with
+`acknowledge_degenerate = true`.
+
+## 9. How a solid solution is declared
 
 A [`SolidSolutionPhase`](@ref) names its end-members and carries a model:
 

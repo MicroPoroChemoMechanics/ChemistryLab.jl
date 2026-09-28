@@ -13,7 +13,7 @@ import ChemistryLab:
     _solution_transform,
     _update_derived!
 using OptimaSolver: OptimaOptimizer, DualNewtonProblem, DualNewtonOptions,
-    SolutionPhase, dual_newton_solve, kkt_certificate
+    SolutionPhase, dual_newton_solve, kkt_certificate, lp_start
 using SciMLBase
 using LinearAlgebra: dot, mul!
 using DynamicQuantities
@@ -174,29 +174,19 @@ _default_optima_solver() = OptimaOptimizer(;
 # `ChemistryLab.DualEquilibriumSolver` supplies the chemistry — the conservation
 # matrix, the reference potentials, the activity model, and which species are
 # strictly positive, which may vanish, and which is the solvent. The algorithm
-# is `OptimaSolver`'s, and these three methods are the join.
+# is `OptimaSolver`'s, and these four methods are the join.
 
-# `split_starts` reached `SolutionPhase` in OptimaSolver 0.6.0. This package's
-# `[compat]` admits 0.5 as well, where the field does not exist and passing it is
-# a `MethodError` — so the extension asks the type it was compiled against rather
-# than assuming. Straddling is deliberate: the extra starts make a metastable
-# mixing phase detectable, and everything else works without them.
-const _HAS_SPLIT_STARTS = hasfield(SolutionPhase, :split_starts)
-
+# A phase whose composition the substitution cannot recover (a sublattice
+# model) is inverted by Newton's method, and the members it may lack entirely
+# are declared: see `SolutionPhase` in OptimaSolver.
 function _solution_phase(ph)
-    starts = get(ph, :split_starts, ())
-    return if _HAS_SPLIT_STARTS
-        SolutionPhase(
-            ph.members, ph.j_ref;
-            always_present = ph.always_present, mole_fraction = ph.mole_fraction,
-            split_starts = starts,
-        )
-    else
-        SolutionPhase(
-            ph.members, ph.j_ref;
-            always_present = ph.always_present, mole_fraction = ph.mole_fraction,
-        )
-    end
+    return SolutionPhase(
+        ph.members, ph.j_ref;
+        always_present = ph.always_present, mole_fraction = ph.mole_fraction,
+        split_starts = get(ph, :split_starts, ()), newton = get(ph, :newton, false),
+        bounded_members = get(ph, :bounded_members, Int[]),
+        local_h = get(ph, :local_h, nothing),
+    )
 end
 
 function ChemistryLab._optima_dual_problem(
@@ -228,6 +218,8 @@ _dual_newton_options(o) = DualNewtonOptions(;
 function ChemistryLab._optima_dual_solve(prob, b, x0, o)
     return dual_newton_solve(prob, b, x0; opts = _dual_newton_options(o))
 end
+
+ChemistryLab._optima_lp(prob, b) = lp_start(prob, b)
 
 function ChemistryLab._optima_kkt_certificate(
         prob, x, b, floor, tol, si_tol, q = nothing,

@@ -894,3 +894,327 @@ end
         ],
     )
 end
+
+@testsection "ideal mixing on sublattices" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    byname = Dict(symbol(s) => s for s in substances)
+    CNASH = [
+        "T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
+        "5CA", "5CNA", "INFCA", "INFCN", "INFCNA",
+    ]
+    CSH3T = ["CSH3T-TobH", "CSH3T-T5C", "CSH3T-T2C"]
+    cnash = sublattice_model("Myers2014:cnash", [byname[n] for n in CNASH])
+    csh3t = sublattice_model("Kulik2011:csh3t", [byname[n] for n in CSH3T])
+
+    # ln a of every member at the mole fractions x, through the activity path.
+    lna(m, x; ϵ = 0.0) = ChemistryLab._ss_log_activities!(zeros(eltype(x), length(x)), eachindex(x), x, m, 298.15, ϵ)
+    # A deterministic composition inside the simplex.
+    point(K, j) = (v = [1.0 + ((7 * k + 3 * j) % 11) for k in 1:K]; v ./ sum(v))
+
+    @testset "the published models, read for the database records" begin
+        @test cnash.multiplicity == [2, 2, 2, 1, 1, 1]
+        @test cnash.rank == 8
+        # T5C* and 5CA own no species on any site; INFCN owns five of the
+        # nine site positions.
+        @test cnash.exponents == [4, 0, 1, 0, 2, 1, 5, 4]
+        # The Cemdata18 records of CSH3T are half Kulik's formula units.
+        @test csh3t.multiplicity == [0.5, 0.5]
+        @test csh3t.exponents == [0.5, 0.0, 0.5]
+        @test csh3t.rank == 3
+    end
+
+    # One transcription against another: the occupancy (Table 1, Eq. 19) and the
+    # activities the papers write out term by term (Appendix B, Eq. 19).
+    function written_lna(key, prefix, members, x; scale = 1)
+        printed = Dict(
+            zip(
+                literature_table(key, "$(prefix)_end_members").printed,
+                literature_table(key, "$(prefix)_end_members").end_member,
+            )
+        )
+        t = literature_table(key, "$(prefix)_site_mixing_terms")
+        out = zeros(length(members))
+        for (who, c, sum_of) in zip(t.printed, t.coefficient, t.sum_of_mole_fractions)
+            k = findfirst(==(printed[who]), members)
+            idx = [findfirst(==(printed[strip(p)]), members) for p in split(sum_of, "+")]
+            out[k] += scale * ustrip(c) * log(sum(x[idx]))
+        end
+        return out
+    end
+    @testset "Myers Appendix B and Table 1 give the same activities" begin
+        for j in 1:5
+            x = point(8, j)
+            @test lna(cnash, x) ≈ written_lna("Myers2014", "cnash", CNASH, x) rtol = 1.0e-13
+            # The fictive activity coefficient, as the paper defines it.
+            @test [ChemistryLab._excess_ln_gamma(cnash, k, x, 298.15) for k in 1:8] ≈
+                written_lna("Myers2014", "cnash", CNASH, x) .- log.(x) rtol = 1.0e-12
+        end
+    end
+    @testset "Kulik Eq. (19) and the occupancy give the same activities" begin
+        for j in 1:5
+            x = point(3, j)
+            @test lna(csh3t, x) ≈ written_lna("Kulik2011", "csh3t", CSH3T, x; scale = 0.5) rtol = 1.0e-13
+        end
+    end
+
+    @testset "each formula is the sum of its sites" begin
+        for (key, prefix, members) in (("Myers2014", "cnash", CNASH), ("Kulik2011", "csh3t", CSH3T))
+            sp = Dict(
+                zip(
+                    literature_table(key, "$(prefix)_species").species,
+                    literature_table(key, "$(prefix)_species").formula,
+                )
+            )
+            shared = literature_table(key, "$(prefix)_shared_sites")
+            sites = literature_table(key, "$(prefix)_sites")
+            occ = literature_table(key, "$(prefix)_occupancy")
+            published = literature_table(key, "$(prefix)_end_members")
+            for (em, f) in zip(published.end_member, published.formula)
+                total = Dict{Symbol, Float64}()
+                # A vacancy is written as an empty formula.
+                add!(formula, n) = isempty(formula) || for (el, v) in composition(Formula(formula))
+                    total[el] = get(total, el, 0.0) + n * Float64(v)
+                end
+                for (s, n) in zip(shared.species, shared.multiplicity)
+                    add!(s, ustrip(n))
+                end
+                for (who, site, species) in zip(occ.end_member, occ.site, occ.species)
+                    who == em || continue
+                    add!(sp[species], ustrip(sites.multiplicity[findfirst(==(site), sites.site)]))
+                end
+                expected = composition(Formula(f))
+                @test Set(keys(total)) == Set(k for (k, v) in expected if !iszero(v))
+                @test all(isapprox(total[k], Float64(v); atol = 1.0e-12) for (k, v) in expected)
+            end
+        end
+    end
+
+    @testset "one site counted once is ideal mixing, bit for bit" begin
+        m = SublatticeModel([1], ["A" "B" "C"])
+        for j in 1:3
+            x = point(3, j)
+            @test lna(m, x; ϵ = 1.0e-30) == lna(IdealSolidSolutionModel(), x; ϵ = 1.0e-30)
+        end
+    end
+
+    @testset "a site counted twice is the halved pair, per unit" begin
+        # (A,B)₂X on its own unit is the pair AX₀.₅/BX₀.₅ with every energy
+        # doubled: the activities are the squares.
+        x = point(2, 1)
+        @test lna(SublatticeModel([2], ["A" "B"]), x) ≈ 2 .* lna(IdealSolidSolutionModel(), x)
+        @test lna(SublatticeModel([1, 1], ["A" "B"; "A" "B"]), x) ≈ 2 .* lna(IdealSolidSolutionModel(), x)
+    end
+
+    # The Gibbs energy of mixing, coded apart from the model, per amounts n.
+    function nG_mix(m, n)
+        tot = sum(n)
+        g = zero(eltype(n))
+        for s in eachindex(m.multiplicity)
+            for i in eachindex(m.species[s])
+                N = sum(n[k] for k in eachindex(n) if m.occupancy[s, k] == i; init = zero(eltype(n)))
+                N > 0 && (g += m.multiplicity[s] * N * log(N / tot))
+            end
+        end
+        return g
+    end
+    lna_n(m, n) = lna(m, n ./ sum(n))
+
+    @testset "the activities are the gradient of the mixing energy" begin
+        for (m, K) in ((cnash, 8), (csh3t, 3)), j in 1:3
+            n = 2.5 .* point(K, j)
+            @test ForwardDiff.gradient(v -> nG_mix(m, v), n) ≈ lna_n(m, n) rtol = 1.0e-12
+            J = ForwardDiff.jacobian(v -> lna_n(m, v), n)
+            @test maximum(abs, J - transpose(J)) < 1.0e-12
+            # Gibbs-Duhem, and Euler's relation for a homogeneous energy.
+            @test maximum(abs, transpose(J) * n) < 1.0e-12
+            @test dot(n, lna_n(m, n)) ≈ nG_mix(m, n) rtol = 1.0e-12
+        end
+    end
+
+    @testset "a pure member has unit activity, and the dilute slope is e_k" begin
+        for m in (cnash, csh3t), k in 1:length(m.exponents)
+            x = zeros(length(m.exponents)); x[k] = 1.0
+            @test lna(m, x)[k] == 0.0
+            base = point(length(m.exponents), 2)
+            at(t) = (v = copy(base); v[k] = t; v ./ sum(v))
+            slope = (lna(m, at(1.0e-9))[k] - lna(m, at(1.0e-8))[k]) / log(at(1.0e-9)[k] / at(1.0e-8)[k])
+            @test slope ≈ m.exponents[k] atol = 1.0e-6
+        end
+    end
+
+    @testset "dual and symbolic numbers go through" begin
+        d = ForwardDiff.Dual{Nothing}.(point(8, 1), 1.0)
+        @test lna(cnash, d) isa Vector{<:ForwardDiff.Dual}
+        # The symbolic form writes Myers' Eq. (B1) for 5CA.
+        k = findfirst(==("5CA"), CNASH)
+        expr = excess_ln_gamma_expression(cnash, k, 8)
+        f = Symbolics.build_function(
+            Symbolics.Num(expr), [Symbolics.variable(:x, i) for i in 1:8]...; expression = Val(false),
+        )
+        x = point(8, 4)
+        @test f(x...) ≈ written_lna("Myers2014", "cnash", CNASH, x)[k] - log(x[k]) rtol = 1.0e-12
+    end
+
+    @testset "the shipped phase is the published model" begin
+        ss = build_solid_solutions(datapath("solid_solutions.toml"), byname)
+        ph = ss[findfirst(p -> ChemistryLab.name(p) == "CNASH_ss", ss)]
+        @test model(ph) isa SublatticeModel
+        @test model(ph).occupancy == cnash.occupancy
+        for nm in ("CSH3T", "ECSH1", "ECSH2")
+            p = ss[findfirst(q -> ChemistryLab.name(q) == nm, ss)]
+            @test model(p) isa IdealSolidSolutionModel
+        end
+    end
+
+    @testset "what does not describe the phase is refused" begin
+        @test_throws ArgumentError SublatticeModel([1, 1], ["A" "A"; "B" "B"])     # two members alike
+        @test_throws ArgumentError SublatticeModel([0, 1], ["A" "B"; "A" "B"])     # an empty site
+        @test_throws ErrorException SolidSolutionPhase("CSH3T", [byname[n] for n in CSH3T[1:2]]; model = csh3t)
+        # A record whose formula is not a multiple of the published one.
+        wrong = Species(Formula("(CaO)1.5(SiO2)1(H2O)2.5"); symbol = "CSH3T-TobH", aggregate_state = AS_CRYSTAL)
+        err = try
+            sublattice_model("Kulik2011:csh3t", [wrong, byname["CSH3T-T5C"], byname["CSH3T-T2C"]])
+            nothing
+        catch e
+            sprint(showerror, e)
+        end
+        @test err !== nothing && occursin("not a multiple", err)
+        @test_throws ErrorException sublattice_model("Kulik2011:csh3t", [byname["CSHQ-TobH"]])
+    end
+end
+
+# A mixing model with no convexity argument of its own: `mixing_convexity`
+# samples it, and a sample proves nothing. Defined at the top level, a struct
+# cannot be declared inside a test set.
+struct _UnprovedMixing <: ChemistryLab.AbstractSolidSolutionModel end
+ChemistryLab._excess_ln_gamma(::_UnprovedMixing, k::Int, x::AbstractVector, T::Real) = zero(eltype(x))
+
+@testsection "convexity beyond two end-members" begin
+    RT = ChemistryLab.R_GAS * 298.15
+    W3(a, b, c) = [0.0 a b; a 0.0 c; b c 0.0] .* RT
+
+    @testset "the verdicts, and the bound that proves them" begin
+        @test mixing_convexity(IdealSolidSolutionModel(), 4).verdict === :convex
+        # λmin(QᵀwQ) ≥ −2 on the tangent space proves a regular model convex:
+        # a symmetric repulsive ternary up to 2 RT per pair.
+        @test mixing_convexity(RegularSolutionModel(W3(1.0, 1.0, 1.0)), 3).verdict === :convex
+        @test mixing_convexity(RegularSolutionModel(W3(1.9, 1.9, 1.9)), 3).verdict === :convex
+        # One pair past 2 RT: concave at the middle of that edge.
+        c = mixing_convexity(RegularSolutionModel(W3(3.0, 0.0, 0.0)), 3)
+        @test c.verdict === :nonconvex
+        @test c.witness == [0.5, 0.5, 0.0]
+        # On two members the bound is the classical threshold W = 2RT.
+        for (w, v) in ((1.99, :convex), (2.01, :nonconvex))
+            @test mixing_convexity(RegularSolutionModel([0.0 w * RT; w * RT 0.0]), 2).verdict === v
+        end
+        # A sublattice model is convex by construction.
+        @test mixing_convexity(SublatticeModel([2, 1], ["A" "B" "B"; "A" "A" "B"]), 3).verdict === :convex
+        # A model with no argument is sampled.
+        @test mixing_convexity(_UnprovedMixing(), 3).verdict === :undecided
+    end
+
+    sp = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+    members = [sp["Cal"], sp["Mgs"], sp["Str"]]
+
+    @testset "a ternary with a witness is refused, and admitted with two instances" begin
+        # REGRESSION: on 0.25.2 only a binary was checked, so this was accepted.
+        err = try
+            SolidSolutionPhase("carbonate", members; model = RegularSolutionModel(W3(3.0, 0.0, 0.0)))
+            nothing
+        catch e
+            sprint(showerror, e)
+        end
+        @test err !== nothing && occursin("CONCAVE", err)
+        @test SolidSolutionPhase(
+            "carbonate", members; model = RegularSolutionModel(W3(3.0, 0.0, 0.0)), instances = 2,
+        ) isa SolidSolutionPhase
+        # Two instances of a convex ternary are degenerate, and refused.
+        @test_throws ErrorException SolidSolutionPhase(
+            "carbonate", members; model = RegularSolutionModel(W3(1.0, 1.0, 1.0)), instances = 2,
+        )
+    end
+
+    @testset "the scope of a certificate follows the verdict" begin
+        # REGRESSION: on 0.25.2 a concave ternary was scoped `:global_minimum`.
+        names = split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Mg+2 Sr+2 Cal Mgs Str")
+        comps = ["H2O@", "H+", "Ca+2", "Mg+2", "Sr+2", "CO3-2", "Zz"]
+        exact = HKFActivityModel(å = 4.0, Ḃ = 0.0, Kₙ = 0.0)   # symmetric by construction
+        function scope(m)
+            ss = [SolidSolutionPhase("carbonate", members; model = m, check_convexity = false)]
+            cs = ChemicalSystem([sp[s] for s in names], comps; solid_solutions = ss)
+            st = ChemicalState(cs)
+            set_quantity!(st, "H2O@", 1.0u"kg")
+            for s in ("Cal", "Mgs", "Str")
+                set_quantity!(st, s, 0.01u"mol")
+            end
+            for s in ("H+", "OH-", "Ca+2", "Mg+2", "Sr+2", "CO3-2", "HCO3-", "CO2@")
+                set_quantity!(st, s, 1.0e-6u"mol")
+            end
+            des = DualEquilibriumSolver(cs, exact)
+            return ChemistryLab._certificate_scope(
+                des, ChemistryLab._build_params(st), ustrip.(us"mol", st.n), FixedTP(),
+            )
+        end
+        @test first(scope(RegularSolutionModel(W3(1.0, 1.0, 1.0)))) === :global_minimum
+        s, why = scope(RegularSolutionModel(W3(3.0, 0.0, 0.0)))
+        @test s === :kkt_point && occursin("concave", only(why))
+        s, why = scope(_UnprovedMixing())
+        @test s === :kkt_point && occursin("could not be decided", only(why))
+    end
+end
+
+@testsection "a member that is a mixture of two others is reported" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    by = Dict(symbol(s) => s for s in substances)
+    ldh = [by[n] for n in ("M4A-OH-LDH", "M6A-OH-LDH", "M8A-OH-LDH")]
+    # M6A is the average of M4A and M8A, in composition and to 0.3 J/mol in
+    # Gibbs energy: the published ternary of Cemdata18 is degenerate.
+    @test_logs (:warn, r"M6A-OH-LDH.*is 0.5 ×.*M4A-OH-LDH") SolidSolutionPhase("MgAl_OH_LDH", ldh)
+    @test_logs SolidSolutionPhase("MgAl_OH_LDH", ldh; acknowledge_degenerate = true)
+    # An ordering energy the model means is not a degeneracy: T5C of CSH3T
+    # (−4.35 kJ/mol) and the siliceous hydrogarnet (−10.4 kJ/mol).
+    @test_logs SolidSolutionPhase("CSH3T", [by[n] for n in ("CSH3T-TobH", "CSH3T-T5C", "CSH3T-T2C")])
+    @test_logs SolidSolutionPhase("Hydrogarnet_Si", [by[n] for n in ("C3AH6", "C3AS0.41H5.18", "C3AS0.84H4.32")])
+    # And no shipped phase warns.
+    ss = @test_logs min_level = Base.CoreLogging.Warn build_solid_solutions(datapath("solid_solutions.toml"), by)
+    @test "MgAl_OH_LDH" in [ChemistryLab.name(p) for p in ss]
+end
+
+@testsection "convexity found on the lattice, and flat sublattice directions" begin
+    RT = ChemistryLab.R_GAS * 298.15
+    # No pair past 2 RT, and not proved convex either: the witness is found on
+    # the lattice of compositions.
+    w = [0.0 1.95 1.95; 1.95 0.0 -3.0; 1.95 -3.0 0.0]
+    Q = ChemistryLab._tangent_basis(3)
+    @test minimum(eigvals(Symmetric(transpose(Q) * w * Q))) < -2
+    c = mixing_convexity(RegularSolutionModel(w .* RT), 3)
+    @test c.verdict === :nonconvex && occursin("sampled", c.how)
+
+    sp = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+    # A reciprocal set of four members on two sites has rank 3: one direction
+    # changes no site fraction. With four different carbonates its Gibbs energy
+    # moves, and the phase is accepted.
+    recip = SublatticeModel([1, 1], ["A" "A" "B" "B"; "A" "B" "A" "B"])
+    @test recip.rank == 3
+    @test SolidSolutionPhase("reciprocal", [sp["Cal"], sp["Mgs"], sp["Str"], sp["Arg"]]; model = recip) isa SolidSolutionPhase
+    # With the same two substances at the ends of that direction, it is flat,
+    # and refused: the minimization would have no unique answer.
+    err = try
+        SolidSolutionPhase("flat", [sp["Cal"], sp["Arg"], sp["Cal"], sp["Arg"]]; model = recip)
+        nothing
+    catch e
+        sprint(showerror, e)
+    end
+    @test err !== nothing && occursin("no unique answer", err)
+
+    # Records that are not one multiple of the published units.
+    db = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+    whole = Species(Formula("(CaO)2(SiO2)3(H2O)5"); symbol = "CSH3T-TobH", aggregate_state = AS_CRYSTAL)
+    err = try
+        sublattice_model("Kulik2011:csh3t", [whole, db["CSH3T-T5C"], db["CSH3T-T2C"]])
+        nothing
+    catch e
+        sprint(showerror, e)
+    end
+    @test err !== nothing && occursin("not one multiple", err)
+end

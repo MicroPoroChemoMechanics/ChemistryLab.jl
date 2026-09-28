@@ -192,4 +192,4 @@ The chapter continues with
 [Chemistry that happens on a surface](@ref sec-theory-surface), which adds a
 second conserved quantity that is not an element. The binder for which the
 oxidation state cannot be ignored is computed in
-[A blastfurnace cement, and the oxidation state it needs](@ref ex-cem3-slag).
+[CEM III/A: a blastfurnace cement, and the oxidation state it needs](@ref ex-cem3-slag).
