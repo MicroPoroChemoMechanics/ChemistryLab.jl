@@ -1,0 +1,32 @@
+# Phase lists of cement pastes, for `phase_list_system(name, substances)`.
+#
+# A list names the phases a paste may form, database symbols only: the pure
+# phases, the solid solutions of data/solid_solutions.toml, and the aqueous
+# species left out. It holds no number. A list is written after the assemblage of
+# the paper it names, and a calculation that departs from it says so with the
+# `add` and `remove` keywords of `phase_list_system`.
+#
+# Sources
+#   LothenbachWinnefeld2006 : the phases of their Portland cement paste, Section 4
+
+# A Portland cement paste, and the same blended with limestone or a siliceous fly
+# ash: neither adds a hydrate to the list. The reactants are the clinker phases,
+# the calcium sulfates, calcite and the alkali sulfates of the cement; the
+# products are the assemblage of the paper, with the C-S-H as CSHQ and its alkali
+# end-members, and the AFm sulfate and hydroxide as their Guggenheim binary,
+# declared with one composition and allowed a second (`instances = "auto"`). The
+# siliceous hydrogarnet of later Cemdata versions is left out, as the paper
+# predates it: the iron goes to microcrystalline FeOOH. No redox reaction is
+# followed, so the dissolved gases H2, O2 and CH4 are left out.
+[[phase_list]]
+name            = "Portland paste (Lothenbach and Winnefeld 2006)"
+database        = "cemdata18-thermofun.json"
+reactants       = ["C3S", "C2S", "C3A", "C4AF", "Gp", "Anh", "hemihydrate", "Cal",
+                   "K2SO4", "Na2SO4"]
+products        = ["Portlandite", "syngenite", "ettringite", "monocarbonate",
+                   "hemicarbonate", "C3AH6", "C3FH6", "hydrotalcite", "Brc",
+                   "FeOOHmic", "AlOHmic", "straetlingite", "Amor-Sl"]
+solid_solutions = ["CSHQ", "AFm_SO4_OH"]
+instances       = { AFm_SO4_OH = "auto" }
+exclude_aqueous = ["H2@", "O2@", "CH4@"]
+source          = "LothenbachWinnefeld2006"

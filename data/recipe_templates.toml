@@ -92,3 +92,37 @@ phases    = "DeWeerdt2011:mineral_composition:limestone"
 analysis  = "DeWeerdt2011:chemical_composition:limestone"
 remainder = true
 source    = "DeWeerdt2011"
+
+#   Shi2016        : the white Portland cement, limestone and metakaolin of Shi
+#                    et al. (2016), Table 1 and Section 2.1 (XRF, 29Si NMR)
+
+# The white Portland cement (CEM I 52.5 N): alite and belite by NMR, the
+# aluminate by mass balance, gypsum, calcite and free lime, and no ferrite (its
+# iron sits in the other phases). Counted with their pure formulas, those phases
+# leave 1.3 % of the cement for a magnesia, alkalis and sulfate the analysis
+# gives at 3.9 %; the minor oxides are kept as analyzed and the phases scaled
+# down to make room, which also brings their lime to that of the analysis.
+[[material]]
+name      = "white Portland cement (Shi 2016)"
+kind      = "cement"
+phases    = "Shi2016:phase_composition:wPc"
+analysis  = "Shi2016:chemical_composition:wPc"
+remainder = "analysis"
+source    = "Shi2016"
+
+# The limestone, a chalk: its calcite, and what its analysis holds beyond it.
+[[material]]
+name      = "limestone (Shi 2016)"
+kind      = "scm"
+phases    = "Shi2016:phase_composition:LS"
+analysis  = "Shi2016:chemical_composition:LS"
+remainder = true
+source    = "Shi2016"
+
+# The metakaolin, by its analysis alone.
+[[material]]
+name     = "metakaolin (Shi 2016)"
+kind     = "scm"
+analysis = "Shi2016:chemical_composition:MK"
+route    = "oxides"
+source   = "Shi2016"

@@ -75,5 +75,5 @@ Materials, their extents, recipes and the processes built on them; see
 ```@autodocs
 Modules = [ChemistryLab]
 Pages   = ["recipes/extents.jl", "recipes/materials.jl", "recipes/recipes.jl",
-           "recipes/processes.jl", "recipes/templates.jl"]
+           "recipes/processes.jl", "recipes/templates.jl", "recipes/phase_lists.jl"]
 ```

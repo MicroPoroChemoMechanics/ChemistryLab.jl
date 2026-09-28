@@ -346,6 +346,37 @@ computed from it cannot pass for complete.
 """
 enthalpy(rs::RecipeState) = _in_unit(us"J", enthalpy(rs.state)) + _residual_sum(rs, :enthalpy).value
 
+"""
+    heat_release(rs1::RecipeState, rs2::RecipeState) -> Float64
+
+The heat (J) a paste releases from the state `rs1` to the state `rs2` of the
+same recipe, at the same temperature and pressure: the fall of its enthalpy,
+`-(H₂ - H₁)`. The residue counts by what changed between the two. A constituent
+set aside with the same mass in both (an inert crystal, an oxide the system has
+no primary for) adds nothing, whether or not its enthalpy is sourced. One whose
+unreacted mass changed needs a sourced enthalpy of formation, and the heat is
+`NaN` without it.
+"""
+function heat_release(a::RecipeState, b::RecipeState)
+    (a.state.T[1] == b.state.T[1] && a.state.P[1] == b.state.P[1]) || throw(
+        ArgumentError("heat_release: the two states are at different temperatures or pressures; the heat is that of an isothermal, isobaric change."),
+    )
+    q = -(_in_unit(us"J", enthalpy(b.state)) - _in_unit(us"J", enthalpy(a.state)))
+    ra = Dict(x.constituent => x for x in a.residual)
+    rb = Dict(x.constituent => x for x in b.residual)
+    for k in union(keys(ra), keys(rb))
+        xa, xb = get(ra, k, nothing), get(rb, k, nothing)
+        ma = xa === nothing ? 0.0 : xa.mass
+        mb = xb === nothing ? 0.0 : xb.mass
+        ma == mb && continue
+        Ha = xa === nothing ? 0.0 : xa.enthalpy
+        Hb = xb === nothing ? 0.0 : xb.enthalpy
+        (Ha === nothing || Hb === nothing) && return NaN
+        q -= Hb - Ha
+    end
+    return q
+end
+
 function Base.show(io::IO, rs::RecipeState)
     return print(
         io, "RecipeState(t = ", rs.t, ", certified ", rs.certificate.optimal, ", ",

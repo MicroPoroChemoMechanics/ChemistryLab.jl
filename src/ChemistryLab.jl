@@ -178,6 +178,7 @@ module ChemistryLab
     include("recipes/recipes.jl")
     include("recipes/processes.jl")
     include("recipes/templates.jl")
+    include("recipes/phase_lists.jl")
 
     # Recipes: materials, extents, budgets and processes.
     export AbstractExtent, ConstantExtent, TabulatedExtent, LogisticExtent,
@@ -187,7 +188,8 @@ module ChemistryLab
         bogue, decompose, reactive_part,
         Recipe, budget, RecipeState, residual_mass, phase_masses, bound_water,
         pore_solution, ProcessResult, hydrate, blend, titrate, carbonate, add_salt,
-        leach, process_table, material_template, material_templates, with_extents
+        leach, process_table, material_template, material_templates, with_extents,
+        phase_list, phase_lists, phase_list_system
 
     export SymbolicFunc,
         ThermoFactory,

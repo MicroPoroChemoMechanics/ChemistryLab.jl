@@ -275,10 +275,13 @@ function _ideal_start(
     )
     model isa DiluteSolutionModel && return nothing
     return try
-        eq0, cert0 = equilibrate_certified(
-            state; model = DiluteSolutionModel(), b = bfix, ϵ = ϵ,
-            constraint = constraint, verbose = false, autostart = true, kwargs...,
-        )
+        # A start for a search in this system, so never in an enlarged one.
+        eq0, cert0 = with(_AUTO_SPLIT => false) do
+            equilibrate_certified(
+                state; model = DiluteSolutionModel(), b = bfix, ϵ = ϵ,
+                constraint = constraint, verbose = false, autostart = true, kwargs...,
+            )
+        end
         cert0.optimal ? eq0 : nothing
     catch err
         verbose && @info "the ideal pre-solve did not run" err
@@ -433,7 +436,7 @@ function _ideal_mixing_start(
     # A starting point, not a result: the strict flag is for the answer the
     # caller receives, and a refusal here only means no start.
     st = ChemicalState(cs; T = state.T[1], P = state.P[1], n = state.n)
-    eq0, cert0 = with(_STRICT_OVERRIDE => false) do
+    eq0, cert0 = with(_STRICT_OVERRIDE => false, _AUTO_SPLIT => false) do
         equilibrate_certified(
             st; model = model, b = bfix, ϵ = ϵ, constraint = constraint,
             verbose = false, autostart = true, kwargs...,
@@ -912,7 +915,7 @@ cert.worst_supersaturation   # negative: every absent phase undersaturated
 ```
 """
 function equilibrate_certified(state::ChemicalState; kwargs...)
-    _has_auto_instances(state.system) || return _certified_with_fallback(state; kwargs...)
+    (_AUTO_SPLIT[] && _has_auto_instances(state.system)) || return _certified_with_fallback(state; kwargs...)
     # A phase declared `instances = :auto` may be solved first with one
     # composition inside its gap, which cannot certify. The search stops as soon
     # as a phase asks to split (see `solve_certified`), without the restarts that
@@ -1161,7 +1164,7 @@ function _equilibrate_certified(
     # one composition from any start, so the search stops there and the answer
     # goes to `equilibrate_certified`, which gives the phase its second instance.
     wants_split(c) = !c.optimal && _wants_auto_split(state.system, c)
-    stop = split_early && _has_auto_instances(state.system) ? wants_split : nothing
+    stop = split_early && _AUTO_SPLIT[] && _has_auto_instances(state.system) ? wants_split : nothing
     search(starts) = _exploring_starts() do
         solve_certified(
             des, starts; b = bfix, ϵ = ϵ,

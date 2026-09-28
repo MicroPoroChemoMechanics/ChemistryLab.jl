@@ -1478,6 +1478,17 @@ end
         ss = only(build_solid_solutions(path, sp))
         @test ss.instances == 1 && ss.max_instances == 2
     end
+
+    # A starting point stays in the system it is for. The ideal pre-solve of a
+    # budget held inside the gap must not give the phase its second instance:
+    # its answer is handed to a search in the one-instance system, and a state
+    # with two more species made the dual solve index past the end of the
+    # conservation matrix.
+    cs_gap = system(:auto)
+    st_gap, b_gap = paste(cs_gap, 0.025, 0.025)
+    ideal = ChemistryLab._ideal_start(st_gap, HKFActivityModel(), b_gap, 1.0e-16, FixedTP(), false)
+    @test ideal === nothing || length(ideal.system.species) == length(cs_gap.species)
+    @test ChemistryLab._AUTO_SPLIT[]
 end
 
 @testsection "the certificate says what it proves" begin

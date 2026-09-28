@@ -41,6 +41,11 @@ cs = ChemicalSystem(species, CEMDATA_PRIMARIES;
 material_templates()
 ```
 
+This list is written out by hand. The phases a paste may form are a modeling
+choice, and `data/phase_lists.toml` records that choice for published pastes,
+each list after the paper it names. [`phase_list_system`](@ref) builds a system
+from one, and [the processes page](@ref ex-cement-processes) uses it.
+
 The Portland cement of the RILEM round robin by Bogue's calculation on its
 oxide analysis ([`bogue`](@ref)): four clinker phases and gypsum, and the oxides
 no phase takes as one oxide constituent.
@@ -131,6 +136,44 @@ elements, in mol per kg of water.
 
 ```@example recipes
 bound_water(rs), pore_solution(rs).pH
+```
+
+## Bound water and heat
+
+[`bound_water`](@ref) is the water the solids would lose on ignition
+([`ignition_loss`](@ref)), with that of an unreacted mineral such as gypsum,
+over the binder mass. It is the whole of what a thermogram integrates to. A
+thermogravimetric reading taken between 105 °C and 550 °C, a common choice,
+leaves part of it out, so the two are compared only over the same temperature
+window; [the thermogram page](@ref sec-example-tga) computes one from
+decomposition windows.
+
+At constant temperature and pressure, the heat a paste releases between two
+states is the fall of its enthalpy:
+
+```math
+Q = -\left[H_2 - H_1\right] .
+```
+
+[`heat_release`](@ref), given two states of one paste, computes it. The residue
+counts by what changed. The unreacted part of a clinker phase has the enthalpy
+of formation of its database record, so its change is counted. An oxide the
+system cannot hold, such as the titanium of this cement, keeps the same mass in
+both states and adds nothing, although no enthalpy is known for it. Where the
+unreacted part of a constituent without a sourced enthalpy changes, the heat is
+`NaN` rather than a number that leaves it out. The slag glass of this recipe is
+such a constituent, and [`enthalpy`](@ref) of the whole paste is `NaN` for the
+same reason.
+
+Below, the cement alone at two sets of extents, both chosen for the
+illustration, gives the heat released from the first to the second, in joules
+per gram of cement:
+
+```@example recipes
+early = with_extents(pc, Dict("C3S" => 0.40, "C2S" => 0.10, "C3A" => 0.50, "C4AF" => 0.30))
+rs1, _ = equilibrate_certified(Recipe(early => 1.0; w_b = 0.45), cs; model)
+rs2, _ = equilibrate_certified(Recipe(pc => 1.0; w_b = 0.45), cs; model)
+(slag_paste = enthalpy(rs), heat = heat_release(rs1, rs2) / 100)
 ```
 
 ## Processes

@@ -23,6 +23,7 @@ Base.length(p::ProcessResult) = length(p.states)
 Base.getindex(p::ProcessResult, i) = p.states[i]
 Base.firstindex(p::ProcessResult) = firstindex(p.states)
 Base.lastindex(p::ProcessResult) = lastindex(p.states)
+Base.keys(p::ProcessResult) = keys(p.states)
 Base.iterate(p::ProcessResult, s...) = iterate(p.states, s...)
 
 """
@@ -75,17 +76,17 @@ end
 """
     titrate(rs, species, amounts; kwargs...) -> ProcessResult
 
-The paste `rs` with each of `amounts` (mol, or `Quantity`s) of `species` (a
-symbol of the system) added to its element budget, the residue unchanged, each
-equilibrium started from the previous one: the gas of a carbonation, the salt of
-a chloride ingress. [`carbonate`](@ref) and [`add_salt`](@ref) are this with a
-chosen species.
+The paste `rs` with each of `amounts` (mol, or `Quantity`s) of `species` added to
+its element budget, the residue unchanged, each equilibrium started from the
+previous one: the gas of a carbonation, the salt of a chloride ingress. `species`
+is a symbol of the system, or a formula (`"NaCl"`) whose elements its primaries
+hold, which need not be a species of it. [`carbonate`](@ref) and
+[`add_salt`](@ref) are this with a chosen species.
 """
 function titrate(rs::RecipeState, species::AbstractString, amounts; kwargs...)
     cs = rs.state.system
     j = findfirst(==(species), [symbol(s) for s in cs.species])
-    j === nothing && throw(ArgumentError("titrate: $species is not a species of the system."))
-    col = Float64.(cs.SM.A[:, j])
+    col = j === nothing ? _formula_column(cs, species) : Float64.(cs.SM.A[:, j])
     states = RecipeState[]
     prev = rs.state
     for a in amounts
@@ -99,6 +100,16 @@ function titrate(rs::RecipeState, species::AbstractString, amounts; kwargs...)
     return ProcessResult(Symbol(species), collect(Any, amounts), states)
 end
 
+# A formula that is not a species of the system, in its primaries.
+function _formula_column(cs, formula)
+    sp = try
+        Species(formula)
+    catch
+        throw(ArgumentError("titrate: $formula is neither a species of the system nor a formula."))
+    end
+    return primary_decomposition(sp, cs.SM.primaries)
+end
+
 """
     carbonate(rs, amounts; kwargs...) -> ProcessResult
 
@@ -109,8 +120,9 @@ carbonate(rs::RecipeState, amounts; kwargs...) = titrate(rs, "CO2@", amounts; kw
 """
     add_salt(rs, salt, amounts; kwargs...) -> ProcessResult
 
-[`titrate`](@ref) with the species `salt` (a solid salt of the system, such as
-`"NaCl(s)"`, or its dissolved ions one at a time).
+[`titrate`](@ref) with the salt `salt`: its formula (`"NaCl"`, `"CaCl2"`), or a
+solid salt the system declares. A salt enters as a whole, since one ion alone
+would make the budget charged.
 """
 add_salt(rs::RecipeState, salt::AbstractString, amounts; kwargs...) = titrate(rs, salt, amounts; kwargs...)
 
@@ -124,26 +136,32 @@ remains. The residue is unchanged. Each budget depends on the previous answer,
 which is what makes this a sequence rather than a sweep.
 """
 function leach(rs::RecipeState, steps::Integer; renewal = nothing, kwargs...)
-    cs = rs.state.system
     w = renewal === nothing ? rs.recipe.water_binder * rs.recipe.binder_mass : _in_unit(us"g", renewal)
-    iw = findfirst(==("H2O@"), [symbol(s) for s in cs.species])
-    Mw = ustrip(us"g/mol", cs.species[iw][:M])
-    A = Float64.(cs.SM.A)
     states = RecipeState[]
     prev = rs.state
     for _ in 1:steps
-        n = ustrip.(us"mol", prev.n)
-        for i in cs.idx_aqueous
-            n[i] = 0.0
-        end
-        n[iw] = w / Mw
-        b = A * n
-        start = ChemicalState(cs; T = prev.T[1], P = prev.P[1], n = n .* u"mol")
+        start, b = _renewal(prev, w)
         eq, cert = equilibrate_certified(start; model = rs.model, b, kwargs...)
         push!(states, RecipeState(eq, cert, rs.recipe, rs.t, rs.initial, b, rs.residual, rs.model))
         prev = eq
     end
     return ProcessResult(:step, collect(Any, 1:steps), states)
+end
+
+# The state `prev` with its aqueous phase replaced by `w` grams of pure water, and
+# its budget. Read in the system of `prev`, which holds a second instance of a
+# phase declared `instances = :auto` once an earlier step has split it.
+function _renewal(prev::ChemicalState, w)
+    cs = prev.system
+    iw = findfirst(==("H2O@"), [symbol(s) for s in cs.species])
+    Mw = ustrip(us"g/mol", cs.species[iw][:M])
+    n = ustrip.(us"mol", prev.n)
+    for i in cs.idx_aqueous
+        n[i] = 0.0
+    end
+    n[iw] = w / Mw
+    start = ChemicalState(cs; T = prev.T[1], P = prev.P[1], n = n .* u"mol")
+    return start, Float64.(cs.SM.A) * n
 end
 
 """

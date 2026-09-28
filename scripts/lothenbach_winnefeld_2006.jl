@@ -26,40 +26,19 @@ const LW06_DB = Dict(symbol(s) => s for s in LW06_SUBSTANCES)
 lw06_value(name) = ustrip(literature_value(LW06, name))
 lw06_table(name) = literature_table(LW06, name)
 
-# The phases the paste may form. The clinker phases and the calcium sulfates are
-# the reactants; the hydrates are those of the paper's assemblage, with the C-S-H
-# as the CSHQ model of Cemdata18 and its alkali end-members. The siliceous
-# hydrogarnet of later Cemdata versions is left out: the paper predates it, and
-# the GEMS3K export the replay runs on does not carry it. The iron then goes to
-# microcrystalline FeOOH.
-const LW06_PURE = split(
-    "C3S C2S C3A C4AF Gp Anh hemihydrate Cal Portlandite K2SO4 Na2SO4 syngenite " *
-        "ettringite monocarbonate hemicarbonate C3AH6 C3FH6 " *
-        "hydrotalcite Brc FeOOHmic AlOHmic straetlingite Amor-Sl"
-)
-const LW06_CSH = ["CSHQ-JenD", "CSHQ-JenH", "CSHQ-TobD", "CSHQ-TobH", "KSiOH", "NaSiOH"]
+# The phases the paste may form: the phase list written after the paper's
+# assemblage (data/phase_lists.toml), where the reasons for each choice are.
+const LW06_PHASES = "Portland paste (Lothenbach and Winnefeld 2006)"
 
 """
-The chemical system: the phases above, the C-S-H as `CSHQ`, and the AFm sulfate
-and hydroxide as the Guggenheim binary Cemdata18 publishes (the GEMS3K export the
-replay runs declares it so), with `instances = :auto`: one composition, and a
-second only if the certificate finds the phase wanting to split.
+The chemical system of the phase list: the clinker phases, calcium sulfates and
+alkali sulfates as reactants; the assemblage of the paper as products, with the
+C-S-H as `CSHQ` and the AFm sulfate and hydroxide as the Guggenheim binary
+Cemdata18 publishes (the GEMS3K export the replay runs declares it so), one
+composition and a second only if the certificate finds the phase wanting to
+split.
 """
-function lw06_system()
-    afm = [LW06_DB["C4AH13"], LW06_DB["monosulphate12"]]
-    published = only(p for p in build_solid_solutions(datapath("solid_solutions.toml"), LW06_DB) if name(p) == "AFm_SO4_OH")
-    sp = speciation(
-        LW06_SUBSTANCES, vcat(LW06_PURE, LW06_CSH, ["C4AH13", "monosulphate12"]);
-        aggregate_state = [AS_AQUEOUS], exclude_species = split("H2@ O2@ CH4@"),
-    )
-    return ChemicalSystem(
-        sp, CEMDATA_PRIMARIES;
-        solid_solutions = [
-            SolidSolutionPhase("CSHQ", [LW06_DB[m] for m in LW06_CSH]),
-            SolidSolutionPhase("SO4_OH_AFm", afm; model = ChemistryLab.model(published), instances = :auto),
-        ],
-    )
-end
+lw06_system() = phase_list_system(LW06_PHASES, LW06_SUBSTANCES)
 
 # The clinker phases as the paper names them, with their database records.
 const LW06_CLINKER = OrderedDict("alite" => "C3S", "belite" => "C2S", "aluminate" => "C3A", "ferrite" => "C4AF")

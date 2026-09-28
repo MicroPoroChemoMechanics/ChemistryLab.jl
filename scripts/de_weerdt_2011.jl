@@ -32,38 +32,20 @@ const DW11_MIXES = ["OPC", "OPC-L", "OPC-FA", "OPC-FA-L"]
 """The ages of Table 8, in days."""
 dw11_days() = sort(unique(ustrip.(dw11_table("pore_solution").time_d)))
 
-# The phases the pastes may form: those of the Lothenbach and Winnefeld page,
-# the fly ash and the limestone adding no new hydrate to the list. The C-S-H is
-# the CSHQ model of Cemdata18; the authors used a C-S-H with an Al/Si of 0.13 in
-# the fly ash cements, which CSHQ, having no aluminum end-member, cannot take.
-const DW11_PURE = split(
-    "C3S C2S C3A C4AF Gp Anh hemihydrate Cal Portlandite K2SO4 Na2SO4 syngenite " *
-        "ettringite monocarbonate hemicarbonate C3AH6 C3FH6 " *
-        "hydrotalcite Brc FeOOHmic AlOHmic straetlingite Amor-Sl"
-)
-const DW11_CSH = ["CSHQ-JenD", "CSHQ-JenH", "CSHQ-TobD", "CSHQ-TobH", "KSiOH", "NaSiOH"]
+# The phases the pastes may form: the phase list of the Lothenbach and Winnefeld
+# page (data/phase_lists.toml), the fly ash and the limestone adding no new
+# hydrate to it. The C-S-H is the CSHQ model of Cemdata18; the authors used a
+# C-S-H with an Al/Si of 0.13 in the fly ash cements, which CSHQ, having no
+# aluminum end-member, cannot take.
+const DW11_PHASES = "Portland paste (Lothenbach and Winnefeld 2006)"
 
 """
-The chemical system: the phases above, the C-S-H as `CSHQ`, and the AFm sulfate
-and hydroxide as the Guggenheim binary Cemdata18 publishes (the GEMS3K export the
-replay runs declares it so), with `instances = :auto`: one composition, and a
-second only if the certificate finds the phase wanting to split.
+The chemical system of the phase list, the AFm sulfate and hydroxide declared as
+the Guggenheim binary Cemdata18 publishes (the GEMS3K export the replay runs
+declares it so), one composition and a second only if the certificate finds the
+phase wanting to split.
 """
-function dw11_system()
-    afm = [DW11_DB["C4AH13"], DW11_DB["monosulphate12"]]
-    published = only(p for p in build_solid_solutions(datapath("solid_solutions.toml"), DW11_DB) if name(p) == "AFm_SO4_OH")
-    sp = speciation(
-        DW11_SUBSTANCES, vcat(DW11_PURE, DW11_CSH, ["C4AH13", "monosulphate12"]);
-        aggregate_state = [AS_AQUEOUS], exclude_species = split("H2@ O2@ CH4@"),
-    )
-    return ChemicalSystem(
-        sp, CEMDATA_PRIMARIES;
-        solid_solutions = [
-            SolidSolutionPhase("CSHQ", [DW11_DB[m] for m in DW11_CSH]),
-            SolidSolutionPhase("SO4_OH_AFm", afm; model = ChemistryLab.model(published), instances = :auto),
-        ],
-    )
-end
+dw11_system() = phase_list_system(DW11_PHASES, DW11_SUBSTANCES)
 
 """
     dw11_clinker(mix) -> Material

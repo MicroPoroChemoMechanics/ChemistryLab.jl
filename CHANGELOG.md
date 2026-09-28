@@ -50,15 +50,61 @@ the Ca/Si of 1.58 that portlandite imposes, where the paper measures 1.4 and an
 Al/Si of 0.13 that `CSHQ` cannot take. `test/validation_deweerdt2011.jl` checks
 the transcription, the budgets and eight equilibria against GEMS3K.
 
+The carbonation page is rewritten on the four mortars of Shi et al. (2016): a
+white CEM I 52.5 N alone, with limestone, with metakaolin and with both, hydrated
+91 days, then carbonated in steps up to 50 g of CO2 per 100 g of binder, their
+materials and degrees of hydration transcribed in `data/literature/Shi2016.json`.
+It replaces a page that carbonated an assumed composition with an uncertified
+solver and static figures. The portlandite of the cement alone is within 1 % of
+the thermogravimetric measurement, and the CO2 binding capacity within 2 % of the
+authors' calculation in three pastes and 7 % below it in the metakaolin paste,
+whose gel is richer in calcium. The pH holds above 13 while portlandite
+carbonates, then falls to the plateau near 9.7 the authors computed, and the CO2
+taken up when it passes 9.7 orders the pastes as theirs does. GEMS3K on the 44
+carbonated budgets agrees to 0.011 in pH and 7 % on every dissolved element above
+0.01 mmol/kg. `test/validation_shi2016.jl` checks the transcription of Table 5,
+the budgets, and twelve steps of the four walks against GEMS3K.
+
+### Added: phase lists
+
+`data/phase_lists.toml` names the phases a paste may form, after the paper it is
+written for, and `phase_list_system(name, substances; add, remove)` builds the
+chemical system from it: its pure phases, its solid solutions as
+`data/solid_solutions.toml` declares them, and the aqueous species their elements
+allow. A calculation that departs from the list says so with `add` and `remove`.
+The first list is the Portland paste of Lothenbach and Winnefeld (2006), which
+the two validation pages now build their systems from instead of each writing
+the same list; `phase_list(name)` and `phase_lists()` read the file.
+`build_solid_solutions` takes `instances`, a `Dict` from a phase name to the
+`instances` to declare it with in place of the file's, which is how the list
+declares the AFm binary with `:auto`.
+
 ### Added
 
-- A `ProcessResult` is indexed with `begin` and `end`, as `result[end]`.
+- A `ProcessResult` is indexed with `begin` and `end`, as `result[end]`, and has
+  `keys`, so that `findfirst(predicate, result)` gives the step.
+- `titrate` and `add_salt` take a formula that is not a species of the system,
+  `add_salt(rs, "NaCl", amounts)`, entered through its primaries. A salt the
+  database has no solid for could before be added only one ion at a time, which
+  leaves the budget charged.
+- `heat_release(rs1, rs2)` gives the heat a paste releases between two states of
+  one recipe. The residue counts by what changed between the two, so an oxide the
+  system cannot hold, set aside with the same mass in both, no longer makes the
+  heat `NaN` because its enthalpy is unknown.
 - Three material templates, the clinker, the siliceous fly ash and the limestone
   of De Weerdt et al. (2011), transcribed in `data/literature/DeWeerdt2011.json`.
   A template given by its phases can take `remainder = true`: what its analysis
   holds beyond the phases (the free lime, alkalis and magnesia of a clinker)
   becomes one oxide constituent, `"minor oxides"`. Hematite is among the Rietveld
   phases a template knows.
+- Three material templates, the white Portland cement (CEM I 52.5 N), the
+  limestone and the metakaolin of Shi et al. (2016), transcribed in
+  `data/literature/Shi2016.json`. `remainder = "analysis"` keeps the oxides no
+  phase holds at the amounts of the analysis, and scales the phases down when
+  they leave less room than those oxides take. The phases of that cement, counted
+  with their pure formulas, leave 1.3 % of it for the 3.9 % of magnesia, alkalis
+  and sulfate its analysis gives, and `remainder = true` would have cut its
+  potassium to a third. Free lime is among the phases a template knows.
 
 ### Changed: a phase with an excess term is inverted by Newton's method
 
@@ -79,6 +125,27 @@ wanted to split, a verdict read off a search that had not converged.
 
 ### Fixed
 
+- A paste declaring phases of an element its budget lacks could fall from the
+  linear-programming start of the certified search to a search of minutes, and
+  come back with a phase split it did not need. On a carbonated CEM I declaring
+  Friedel's and Kuzel's salts without chlorine, one step took 121 s and gave the
+  AFm a second instance, where the same paste without the two salts certified
+  in 1.1 s with one. The cause was in the test that finds the components a
+  budget forces to zero: the electron row, whose entries of one sign sit on
+  perchlorate, was left free when chlorine was absent, and the dual solve
+  stagnated on its multiplier. OptimaSolver 0.7.1 reads each row over the species
+  still free, and ChemistryLab now requires it (`OptimaSolver = "0.7.1"`); the
+  step takes 1.1 s, with one instance, as without the salts.
+- A solve that builds a starting point (the ideal pre-solve, and the pre-solve
+  with ideal mixing) could give a phase declared `instances = :auto` its second
+  instance, and hand a state of the enlarged system to a search in the system it
+  was meant for; the dual solve then indexed past the end of its conservation
+  matrix. Met on a carbonated metakaolin blend. Those solves no longer split a
+  phase: their answer stays in the system of the search.
+- `leach` read every step in the system of the paste it started from, so once a
+  step had given a phase declared `instances = :auto` its second instance, the
+  next step failed on a size mismatch. Each step now reads the system of the
+  answer before it.
 - A glass or a remainder found by difference could not be built when two
   analyses of one material disagree: the limestone of De Weerdt et al. is 81 %
   CaCO3 by TGA, which holds more lime than its XRF analysis gives, and the oxides
@@ -104,6 +171,16 @@ wanted to split, a verdict read off a search that had not converged.
   transcribed into `data/literature/Myers2014.json`.
 - The theory chapter and the miscibility-gap page no longer say that no code
   splits a phase by itself.
+- A new page, *A CEM I paste replaced by fly ash, carbonated, salted and
+  leached*, runs the four processes of the recipe layer on the CEM I of De Weerdt
+  et al. (2011) at 90 days, its phases from a phase list: the pozzolanic
+  consumption of portlandite as fly ash replaces the cement, the pH held by the
+  alkalis while portlandite carbonates and then falling with the Ca/Si of the
+  gel, chloride bound as Kuzel's salt and then Friedel's salt, the ionic
+  strength leaving the range of the activity model, and a paste leached by
+  renewals of its pore water.
+- `manual/recipes.md` has a section on the bound water and the heat of a paste,
+  and points to the phase lists.
 
 ## v0.26.0 — Cement modeling: databases from their publishers, the activity model of Cemdata18, sublattice mixing, a linear-programming start and recipes
 

@@ -4,8 +4,8 @@
 #   julia --project=docs test/reference/xgems_<name>.jl        # the budgets first
 #   conda run -n mpcm-oracles python test/reference/xgems_replay.py <name>
 #
-# with <name> one of `lw2006` (Lothenbach & Winnefeld 2006) and `deweerdt2011`
-# (De Weerdt et al. 2011). The Julia half writes, for each paste and age, the
+# with <name> one of `lw2006` (Lothenbach & Winnefeld 2006), `deweerdt2011`
+# (De Weerdt et al. 2011) and `shi2016` (Shi et al. 2016). The Julia half writes, for each paste and age, the
 # element budget the recipe puts into the equilibrium and the species of
 # ChemistryLab's system. This half runs the CEMDATA18 cement export of xGEMS (the
 # one `xgems_cement.py` fetches, at the same pinned commit, into a cache outside
@@ -96,7 +96,7 @@ def main():
         mmol["OH-"] = 1000 * float(n[species.index("OH-")]) / kg
         rows.append(
             {
-                **{k: row[k] for k in ("mix", "time_h", "time_d") if k in row},
+                **{k: v for k, v in row.items() if k != "elements"},
                 "elements": row["elements"],
                 "converged": bool(e.converged()),
                 "code": int(code),
@@ -105,7 +105,7 @@ def main():
                 "mmol_per_kg_water": mmol,
             }
         )
-        where = " ".join(str(row[k]) for k in ("mix", "time_h", "time_d") if k in row)
+        where = " ".join(str(v) for k, v in row.items() if k != "elements")
         print(f"{where}  converged={e.converged()} ({start} start)  pH={e.pH():.4f}")
 
     out = {

@@ -33,7 +33,7 @@ printed to, which is half of its last digit.
 
 ## What has been checked
 
-Eleven sources, more than thirteen hundred assertions, and the coverage is uneven on purpose:
+Twelve sources, more than thirteen hundred assertions, and the coverage is uneven on purpose:
 the database is checked exhaustively because it is cheap to check exhaustively,
 while the equilibrium cases are checked one composition at a time because each
 one costs seconds to minutes.
@@ -55,6 +55,7 @@ one costs seconds to minutes.
 | **alkali uptake by C-S-H**, 4 Ca/Si × 6 concentrations × Na and K | [HongGlasser1999](@cite) Tables 1-2 | pH to `0.072` from 15 to 100 mM below Ca/Si 1.8 | alkali over-bound at 46 of 48 points; the end members were fitted to these data |
 | **a measured paste through its first year**, a CEM I 42.5 N | [LothenbachWinnefeld2006](@cite) Tables 1-4, and GEMS3K on the same budgets | GEMS3K to `0.001` in pH and `1.6 %` on every element; the potassium and sulfate of the first day | sodium a tenth of the measurement at a year, the C-S-H holding 96 % of it: [the page](@ref ex-validation) |
 | **four blended pastes**, CEM I to CEM II/B-M (V-LL) | [DeWeerdt2011](@cite) Tables 1-4, 7-8 and Fig. 7, and GEMS3K on the same budgets | GEMS3K to `0.001` and `1.6 %`; portlandite without fly ash within `1.5 wt.%` from 7 days | with fly ash, portlandite 4.5 against 12.5 wt.% at 90 days, `CSHQ` taking no aluminum: [the page](@ref ex-validation-blended) |
+| **four carbonated mortars**, a CEM I 52.5 N with limestone and metakaolin | [Shi2016](@cite) Tables 1-3 and 5, and GEMS3K on the same carbonated budgets | portlandite within `5 %` of the TGA without metakaolin; CO₂ binding capacity within `2 %` of the authors' calculation in three pastes; GEMS3K to `0.011` in pH and `7 %` | the metakaolin paste M: a gel richer in calcium (Ca/Si 1.46 against 1.29) and a capacity `7 %` low: [the page](@ref sec-cement-carbonation) |
 
 Two things this chapter deliberately does **not** do. It does not check the
 kinetics — [Validation against Reaktoro](@ref) covers the coupling, and the two

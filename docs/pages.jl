@@ -222,6 +222,8 @@ pages = [
             "examples/simplified_clinker_dissolution.md",
             "examples/cement_wc_ratio.md",
             "examples/cement_carbonation.md",
+            # The four processes of the recipe layer on one measured paste.
+            "examples/cement_processes.md",
         ],
         # Beyond the Portland cement. One page per EN 197-1 family, in order of
         # how much of the clinker is replaced and of what the replacement asks

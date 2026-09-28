@@ -45,7 +45,7 @@ appears above rather than a bare `pip install`.
 |:--|:--|:--|:--|
 | Reaktoro 2.13 | `reaktoro-env` | aqueous speciation; **ion exchange in both conventions** (`ActivityModelIonExchangeGainesThomas`, `…Vanselow`); reactive-area models, including a power law matching `ShrinkingCoreArea` | working |
 | PHREEQC (IPhreeqc, via phreeqpython) | `mpcm-oracles` | **surface complexation**: `SURFACE` with and without a diffuse layer, `EXCHANGE`, and the Dzombak & Morel HFO parameters shipped in `phreeqc.dat` | working |
-| GEMS3K (xgems) | `mpcm-oracles` | CEMDATA18 cements — the activity model of a pore solution (`xgems_cement.py`), and the pastes of Lothenbach & Winnefeld (2006) and of De Weerdt et al. (2011), on the budgets and phases of ChemistryLab (`xgems_<name>.jl`, then `xgems_replay.py <name>`) | **runs** on the system exports the xGEMS repository publishes; see below |
+| GEMS3K (xgems) | `mpcm-oracles` | CEMDATA18 cements — the activity model of a pore solution (`xgems_cement.py`), and the pastes of Lothenbach & Winnefeld (2006), of De Weerdt et al. (2011) and of Shi et al. (2016), carbonated, on the budgets and phases of ChemistryLab (`xgems_<name>.jl`, then `xgems_replay.py <name>`) | **runs** on the system exports the xGEMS repository publishes; see below |
 
 ## GEMS3K runs on published exports
 

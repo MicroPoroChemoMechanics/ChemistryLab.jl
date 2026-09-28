@@ -489,7 +489,7 @@ function get_compatible_species(
 end
 
 """
-    build_solid_solutions(toml_file, dict_species; skip_missing=true) -> Vector{SolidSolutionPhase}
+    build_solid_solutions(toml_file, dict_species; skip_missing=true, instances=Dict()) -> Vector{SolidSolutionPhase}
 
 Load solid solution phase definitions from a TOML file and assemble
 [`SolidSolutionPhase`](@ref) objects from an existing species dictionary.
@@ -524,7 +524,8 @@ order of `end_members`. A model that unmixes needs `instances = 2`, the number o
 coexisting compositions [`SolidSolutionPhase`](@ref) may give the phase, or
 `instances = "auto"`, which gives it the second only when a solve finds it
 wanting to split; without either the phase is refused at construction, which is
-what makes a gap visible.
+what makes a gap visible. The keyword `instances`, a `Dict` from a phase name to
+a number or `:auto`, replaces what the file declares for the phases it names.
 
 ```toml
 [[solid_solution]]
@@ -570,6 +571,7 @@ function build_solid_solutions(
         toml_file::AbstractString,
         dict_species::AbstractDict;
         skip_missing::Bool = true,
+        instances::AbstractDict = Dict{String, Any}(),
     )
     data = TOML.parsefile(resolve_data_path(toml_file))
     entries = get(data, "solid_solution", [])
@@ -632,12 +634,12 @@ function build_solid_solutions(
             IdealSolidSolutionModel()
         end
 
-        declared_instances = get(entry, "instances", 1)
-        instances = declared_instances == "auto" ? :auto : Int(declared_instances)
+        declared_instances = get(instances, ss_name, get(entry, "instances", 1))
+        n_instances = declared_instances in ("auto", :auto) ? :auto : Int(declared_instances)
         acknowledge_degenerate = Bool(get(entry, "acknowledge_degenerate", false))
         push!(
             phases,
-            SolidSolutionPhase(ss_name, em_species; model = mixing_model, instances, acknowledge_degenerate),
+            SolidSolutionPhase(ss_name, em_species; model = mixing_model, instances = n_instances, acknowledge_degenerate),
         )
     end
     return phases
