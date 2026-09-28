@@ -279,14 +279,17 @@ is not zero. The chemical potential of a member acquires an electrical term,
 \mu_j = \mu_j^\circ + RT\ln a_j + z_j F \Psi
 ```
 
-with `Ψ` the potential of the surface plane and `z_j` the species' formal
-charge. What relates `Ψ` to the charge the surface carries is a **closure**, and
-the simplest is a capacitor: ``\sigma = C\,\Psi``.
+with ``\Psi`` the electrostatic potential of the surface plane (V), ``z_j`` the
+charge number of the species, ``F`` the Faraday constant, ``R`` the gas constant
+and ``T`` the temperature. What relates ``\Psi`` to the charge the surface
+carries, ``\sigma`` per unit area (C/m²), is a **closure**, and the simplest is a
+capacitor: ``\sigma = C\,\Psi``, with ``C`` the capacitance per unit area
+(F/m²).
 
 ### The elimination, and what it buys
 
 The literature presents an electrostatic surface model as one extra unknown per
-surface with one extra equation. For the diffuse layer that is unavoidable: `Ψ`
+surface with one extra equation. For the diffuse layer that is unavoidable: ``\Psi``
 there depends on the ionic strength through a relation with no closed inverse.
 For a **constant capacitance** it is not. The closure inverts, so
 
@@ -295,6 +298,9 @@ For a **constant capacitance** it is not. The closure inverts, so
  = \frac{F^2}{C\,\mathcal{A}\,RT}\sum_k z_k n_k
 ```
 
+where ``\mathcal{A}`` is the area of the surface (m²), ``n_k`` the amount of the
+surface species ``k`` (mol) and ``z_k`` its charge number, so that
+``F\sum_k z_k n_k = \sigma\mathcal{A}`` is the charge of the whole surface. This
 is an explicit function of the composition — and a composition-dependent term in
 a chemical potential is exactly what an activity coefficient is. So the model
 belongs with the mixing, and the solver needs no new machinery at all.
@@ -302,7 +308,8 @@ belongs with the mixing, and the solver needs no new machinery at all.
 ### The certificate survives it, and that is a proof
 
 The electrical work of charging the surface is ``\int_0^\sigma \Psi\,ds``
-over the area, which with ``\Psi = \sigma/C`` integrates to
+per unit area, ``s`` running over the charge density from zero to ``\sigma``.
+Over the area ``\mathcal{A}``, and with ``\Psi = \sigma/C``, it integrates to
 
 ```math
 G_{\mathrm{el}}(n) = \frac{F^2}{2\,C\,\mathcal{A}}\left(\sum_k z_k n_k\right)^2

@@ -1,5 +1,231 @@
 # Changelog
 
+## v0.27.0 — Validated against measured pastes: phase lists, processes, a second instance on demand, and a nomenclature
+
+Three published sets of pastes are computed from their papers' data and set
+against their measurements and against GEMS3K run on the same budgets: a CEM I
+42.5 N through its first year, four ternary cements with fly ash and limestone,
+and four mortars of a CEM I 52.5 N with limestone and metakaolin, carbonated. The
+two codes agree to 0.001 in pH before carbonation and 0.011 along it. A phase
+declared `instances = :auto` is given its second composition only when the
+certificate finds it wanting to split. The phases of a paste can be taken from a
+phase list written after a paper, and the processes of the recipe layer run on
+it. A nomenclature lists the symbols of the formulas, and hovering an equation
+shows those it holds.
+
+### Breaking changes
+
+- Below 1.0 a minor release is a breaking one for Julia's resolver: a package
+  bounding `ChemistryLab = "0.26"` does not accept 0.27.0 and must widen its
+  bound.
+- ChemistryLab requires **OptimaSolver 0.7.1** (`OptimaSolver = "0.7.1"`, which
+  0.7.0 does not meet). Its test of the components a budget forces to zero is a
+  fixed point; without it, a paste declaring phases of an element its budget
+  lacks could lose the linear-programming start and take minutes.
+- A solid solution with a Redlich-Kister or regular excess term is inverted by
+  Newton's method instead of by successive substitution. A certified answer is
+  the same to the tolerance of its certificate, but the route to it, the time it
+  takes, and whether an answer certifies from a given start can change; the
+  miscibility-gap page changed its conclusion with it.
+
+### Added: a second instance when a phase wants it, `instances = :auto`
+
+`SolidSolutionPhase(...; instances = :auto)`, or `instances = "auto"` in a
+solid-solution file, declares one composition and allows a second. The phase is
+solved with one, and when the certificate of `equilibrate_certified` finds it
+wanting to split, on an answer that has otherwise reached the solution (stationary
+and balanced to 1e-8, the split its worst violation), the system is rebuilt with a
+second instance, the answer carried over, and the passes of `equilibrate_split`
+look for the pair. A split read on an answer still far from the solution would
+give a phase a second instance it does not need: on a slag cement paste, the AFt
+of a first answer with an element balance of 0.17. The answer of the passes is
+kept when its KKT error is smaller, and the certificate then names the phase in
+`instances_added`. A caller whose composition stays outside the gap never pays for
+the second copy, and one who did not know the phase would unmix no longer has to
+declare two instances in advance. On a calcite–magnesite binary held inside its
+gap by the budget, the pair found is the common tangent of the model to 1e-3, and
+the answer of `instances = 2` to 1e-6. A phase whose composition stays outside
+its gap keeps its single instance, as the AFm of the miscibility-gap page does.
+`with_instances(cs, name => k)` rebuilds a system with `k` instances of a phase,
+the primaries unchanged, and `with_instances(state, cs)` carries a state across.
+
+### Added: validations against measured pastes, and against GEMS3K
+
+The CEM I 42.5 N of Lothenbach and Winnefeld (2006) is computed from their
+published data (composition, minor elements of the clinker phases, the rate law of
+Parrott and Killoh with their water/cement factor) through its first year, and
+its pore solution compared with the one they measured (their Table 3, transcribed
+into `data/literature/LothenbachWinnefeld2006.json`, the values given only as
+detection limits marked as such). The same budgets were run through GEMS3K, on
+the Cemdata18 cement export of xGEMS with the same phases: the two codes agree to
+0.001 in pH and 1.6 % on every element, so the differences with the paste belong
+to the model. The largest is the alkalis: the `CSHQ` model of Cemdata18 holds
+96 % of the sodium and 68 % of the potassium at 317 days, and the model's sodium
+is a tenth of the measured one. The page is *Validation against a measured
+paste*; `test/validation_lw2006.jl` holds the recipe to the budgets of the replay
+and the certified equilibria to GEMS3K, with the fixture written by
+`test/reference/xgems_replay.py`.
+
+The ternary cements of De Weerdt et al. (2011) follow on *Validation against
+measured blended pastes*: a CEM I, the same with 5 % limestone, a CEM II/B-V with
+35 % siliceous fly ash and a CEM II/B-M (V-LL) with 30 % fly ash and 5 %
+limestone, their clinker dissolving as their XRD measured it and their fly ash at
+the rate their Fig. 7 prints, transcribed in `data/literature/DeWeerdt2011.json`.
+GEMS3K on the twenty budgets agrees with ChemistryLab to 0.001 in pH and 1.6 % on
+every element, the AFm sulfate and hydroxide declared in both as the Guggenheim
+binary of Cemdata18. Against the pastes, the portlandite without fly ash is
+within 1.5 wt.% from the seventh day; with fly ash the model consumes it far
+faster (4.5 against 12.5 wt.% at 90 days in the CEM II/B-V), its C-S-H staying at
+the Ca/Si of 1.58 that portlandite imposes, where the paper measures 1.4 and an
+Al/Si of 0.13 that `CSHQ` cannot take. `test/validation_deweerdt2011.jl` checks
+the transcription, the budgets and eight equilibria against GEMS3K.
+
+The carbonation page is rewritten on the four mortars of Shi et al. (2016): a
+white CEM I 52.5 N alone, with limestone, with metakaolin and with both, hydrated
+91 days, then carbonated in steps up to 50 g of CO2 per 100 g of binder, their
+materials and degrees of hydration transcribed in `data/literature/Shi2016.json`.
+It replaces a page that carbonated an assumed composition with an uncertified
+solver and static figures. The portlandite of the cement alone is within 1 % of
+the thermogravimetric measurement, and the CO2 binding capacity within 2 % of the
+authors' calculation in three pastes and 7 % below it in the metakaolin paste,
+whose gel is richer in calcium. The pH holds above 13 while portlandite
+carbonates, then falls to the plateau near 9.7 the authors computed, and the CO2
+taken up when it passes 9.7 orders the pastes as theirs does. GEMS3K on the 44
+carbonated budgets agrees to 0.011 in pH and 7 % on every dissolved element above
+0.01 mmol/kg. `test/validation_shi2016.jl` checks the transcription of Table 5,
+the budgets, and twelve steps of the four walks against GEMS3K.
+
+### Added: phase lists
+
+`data/phase_lists.toml` names the phases a paste may form, after the paper it is
+written for, and `phase_list_system(name, substances; add, remove)` builds the
+chemical system from it: its pure phases, its solid solutions as
+`data/solid_solutions.toml` declares them, and the aqueous species their elements
+allow. A calculation that departs from the list says so with `add` and `remove`.
+The first list is the Portland paste of Lothenbach and Winnefeld (2006), which
+the two validation pages now build their systems from instead of each writing
+the same list; `phase_list(name)` and `phase_lists()` read the file.
+`build_solid_solutions` takes `instances`, a `Dict` from a phase name to the
+`instances` to declare it with in place of the file's, which is how the list
+declares the AFm binary with `:auto`.
+
+### Added
+
+- A `ProcessResult` is indexed with `begin` and `end`, as `result[end]`, and has
+  `keys`, so that `findfirst(predicate, result)` gives the step.
+- `titrate` and `add_salt` take a formula that is not a species of the system,
+  `add_salt(rs, "NaCl", amounts)`, entered through its primaries. A salt the
+  database has no solid for could before be added only one ion at a time, which
+  leaves the budget charged.
+- `heat_release(rs1, rs2)` gives the heat a paste releases between two states of
+  one recipe. The residue counts by what changed between the two, so an oxide the
+  system cannot hold, set aside with the same mass in both, no longer makes the
+  heat `NaN` because its enthalpy is unknown.
+- Three material templates, the clinker, the siliceous fly ash and the limestone
+  of De Weerdt et al. (2011), transcribed in `data/literature/DeWeerdt2011.json`.
+  A template given by its phases can take `remainder = true`: what its analysis
+  holds beyond the phases (the free lime, alkalis and magnesia of a clinker)
+  becomes one oxide constituent, `"minor oxides"`. Hematite is among the Rietveld
+  phases a template knows.
+- Three material templates, the white Portland cement (CEM I 52.5 N), the
+  limestone and the metakaolin of Shi et al. (2016), transcribed in
+  `data/literature/Shi2016.json`. `remainder = "analysis"` keeps the oxides no
+  phase holds at the amounts of the analysis, and scales the phases down when
+  they leave less room than those oxides take. The phases of that cement, counted
+  with their pure formulas, leave 1.3 % of it for the 3.9 % of magnesia, alkalis
+  and sulfate its analysis gives, and `remainder = true` would have cut its
+  potassium to a third. Free lime is among the phases a template knows.
+
+### Changed: a phase with an excess term is inverted by Newton's method
+
+The composition of a solid solution with a Redlich-Kister or regular excess term
+is now recovered by Newton's method, as that of a sublattice phase already was,
+instead of by successive substitution. On a CEM I paste declaring the published
+AFm SO4/OH binary of Cemdata18 as one composition, the substitution held the
+search for minutes and never certified; Newton certifies it in one route. With
+the binary declared as the GEMS3K export of Cemdata18 declares it, the twenty
+budgets of De Weerdt et al. (2011) give the same pore solution in both codes, to
+0.001 in pH and 1.6 % on every element. Ideal mixing keeps the substitution, and
+its results bit for bit.
+
+The miscibility-gap page changes with it. Its paste's AFm lies outside the gap,
+at a C4AH13 fraction of 0.28, and the published parameters with one composition
+now certify; the page said that the certificate refused them because the phase
+wanted to split, a verdict read off a search that had not converged.
+
+### Fixed
+
+- A paste declaring phases of an element its budget lacks could fall from the
+  linear-programming start of the certified search to a search of minutes, and
+  come back with a phase split it did not need. On a carbonated CEM I declaring
+  Friedel's and Kuzel's salts without chlorine, one step took 121 s and gave the
+  AFm a second instance, where the same paste without the two salts certified
+  in 1.1 s with one. The cause was in the test that finds the components a
+  budget forces to zero: the electron row, whose entries of one sign sit on
+  perchlorate, was left free when chlorine was absent, and the dual solve
+  stagnated on its multiplier. OptimaSolver 0.7.1 reads each row over the species
+  still free, and ChemistryLab now requires it (`OptimaSolver = "0.7.1"`); the
+  step takes 1.1 s, with one instance, as without the salts.
+- A solve that builds a starting point (the ideal pre-solve, and the pre-solve
+  with ideal mixing) could give a phase declared `instances = :auto` its second
+  instance, and hand a state of the enlarged system to a search in the system it
+  was meant for; the dual solve then indexed past the end of its conservation
+  matrix. Met on a carbonated metakaolin blend. Those solves no longer split a
+  phase: their answer stays in the system of the search.
+- `leach` read every step in the system of the paste it started from, so once a
+  step had given a phase declared `instances = :auto` its second instance, the
+  next step failed on a size mismatch. Each step now reads the system of the
+  answer before it.
+- A glass or a remainder found by difference could not be built when two
+  analyses of one material disagree: the limestone of De Weerdt et al. is 81 %
+  CaCO3 by TGA, which holds more lime than its XRF analysis gives, and the oxides
+  left then summed to more than their share, which `OxideConstituent` refuses.
+  They are now taken as the whole of that share; a material whose analyses agree
+  is built as before.
+
+### Documentation
+
+- `cemdata18_activity_model` keeps `b_γ` at its 25 °C value, and its docstring
+  now says why beyond the paper giving no other: Helgeson et al. (1981) tabulate
+  `b_γ` against temperature for six chlorides (their Table 26), not for KOH or
+  NaOH.
+- `manual/databases.md` has a table of the five models of the C-S-H gel the
+  package ships, read from the files: members, mixing, source, and the elements
+  the members hold besides calcium and silicon.
+- The comparison of activity models has a fourth column, the B-dot model with
+  the parameters Cemdata18 prescribes.
+- A new page, *Mixing on sites: the CSH3T and CNASH gels*, solves CSH3T in
+  water mixed by end-members and by sites (the silicon in solution differs by up
+  to half), and reads the minimum chain length of Eq. (11) of Myers et al.
+  (2014) from a C-(N-)A-S-H gel, the bridging-site vacancies of their Table 1
+  transcribed into `data/literature/Myers2014.json`.
+- The theory chapter and the miscibility-gap page no longer say that no code
+  splits a phase by itself.
+- A new page, *A CEM I paste replaced by fly ash, carbonated, salted and
+  leached*, runs the four processes of the recipe layer on the CEM I of De Weerdt
+  et al. (2011) at 90 days, its phases from a phase list: the pozzolanic
+  consumption of portlandite as fly ash replaces the cement, the pH held by the
+  alkalis while portlandite carbonates and then falling with the Ca/Si of the
+  gel, chloride bound as Kuzel's salt and then Friedel's salt, the ionic
+  strength leaving the range of the activity model, and a paste leached by
+  renewals of its pore water.
+- `manual/recipes.md` has a section on the bound water and the heat of a paste,
+  and points to the phase lists.
+- A **Nomenclature** page lists the symbols of the formulas, grouped by subject,
+  with their units, the pages where a meaning holds when a symbol means
+  different things in different chapters (A the conservation matrix or the
+  Debye–Hückel parameter, φ the osmotic coefficient, a heat loss or the
+  equilibrium map), and the value the package computes with for a physical
+  constant, read from the library. **Hovering an equation** now shows the symbols
+  it holds, with their meaning on that page: the symbols are found in the TeX
+  source when the formula is typeset (`docs/src/.vitepress/nomenclature-match.mjs`),
+  from `docs/nomenclature.toml`, the one file the page and the hints are built
+  from. The home page and the theory chapter point to it.
+- Section 8 of the surface-complexation theory defines each symbol where it is
+  used (Ψ, σ, C, 𝒜, F, R, T). Formulas written as code on four pages are
+  typeset, one of them a raw `\sqrt` shown as text; the heat-capacity polynomial
+  of `:cp_ft_equation` has eleven terms, not ten, and its last is ln T.
+
 ## v0.26.0 — Cement modeling: databases from their publishers, the activity model of Cemdata18, sublattice mixing, a linear-programming start and recipes
 
 The thermodynamic databases are no longer shipped: they are obtained from their

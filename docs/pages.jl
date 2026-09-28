@@ -153,6 +153,12 @@ pages = [
         "Validation" => [
             "tutorials/reaktoro_comparison.md",
             "tutorials/published_data_validation.md",
+            # A measured paste through its first year, and the same budgets
+            # through GEMS3K: the model against the paste, the code against the code.
+            "tutorials/validation_measured_pastes.md",
+            # Four blended pastes, their degrees of reaction from the measurement,
+            # the chemistry against the measurement and against GEMS3K.
+            "tutorials/validation_blended_pastes.md",
         ],
     ],
     "Applications" => [
@@ -171,6 +177,9 @@ pages = [
             # The case a non-ideal model is written for and a single-composition
             # formulation cannot hold: the published AFm binary, run three ways.
             "examples/miscibility_gap.md",
+            # Two gels mixed on their sites: CSH3T both ways, and the chain
+            # length of the CNASH gel.
+            "examples/sublattice_csh.md",
             "examples/pitzer_model.md",
         ],
         # The smallest complete surface calculation, against the closed form it
@@ -213,6 +222,8 @@ pages = [
             "examples/simplified_clinker_dissolution.md",
             "examples/cement_wc_ratio.md",
             "examples/cement_carbonation.md",
+            # The four processes of the recipe layer on one measured paste.
+            "examples/cement_processes.md",
         ],
         # Beyond the Portland cement. One page per EN 197-1 family, in order of
         # how much of the clinker is replaced and of what the replacement asks
@@ -272,5 +283,6 @@ pages = [
             "Utilities" => "api/utils.md",
         ],
     ],
+    "Nomenclature" => "nomenclature.md",
     "References" => "references.md",
 ]

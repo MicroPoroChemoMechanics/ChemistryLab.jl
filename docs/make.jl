@@ -13,6 +13,13 @@ using PrettyTables
 
 include("pages.jl")
 
+# The nomenclature, as the JSON that the plugin typesetting the formulas and the
+# hints of the theme read: the entries of `nomenclature.toml`, the values of the
+# physical constants taken from the library. Written before any page is built,
+# and not versioned (see `.gitignore`).
+include("nomenclature.jl")
+write_nomenclature_json(joinpath(@__DIR__, "src", ".vitepress", "nomenclature.json"))
+
 # Every database the pages read is obtained, or built, before the first page
 # runs: the download message of a first use then never lands in a page, and a
 # page never waits on the network.

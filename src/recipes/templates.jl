@@ -15,9 +15,11 @@ const RIETVELD_PHASES = Dict{String, Union{String, Tuple{Symbol, String}}}(
     "Calcite" => "Cal", "Anhydrite" => "Anh", "Gypsum" => "Gp",
     "Arcanite" => "K2SO4", "Quartz" => "Qtz", "Portlandite" => "Portlandite",
     "Periclase" => (:oxides, "MgO"),
+    "Hematite" => (:oxides, "Fe2O3"),
     "Mullite" => (:oxides, "Al6Si2O13"),
     "Dolomite" => (:oxides, "CaMgC2O6"),
     "CaO + Ca(OH)2" => (:oxides, "CaO"),
+    "Free lime" => (:oxides, "CaO"),
 )
 
 # The oxide fractions of a formula, per the cation of each oxide.
@@ -55,7 +57,13 @@ An entry is built one of four ways:
     phase a [`MineralConstituent`](@ref) or, when the database has no record of
     it, an [`OxideConstituent`](@ref) (see `ChemistryLab.RIETVELD_PHASES`); the
     `Amorphous` entry, when given, is the glass by difference from `analysis`
-    ([`reactive_part`](@ref));
+    ([`reactive_part`](@ref)); with `remainder = true` and no `Amorphous` entry,
+    what the analysis holds beyond the phases is one oxide constituent,
+    `"minor oxides"` (the free lime, alkalis and magnesia of a clinker), in the
+    mass the phases leave; with `remainder = "analysis"` it keeps the amounts
+    of the analysis, and the phases are scaled down to make room when the two
+    disagree (a clinker whose phases, counted with their pure formulas, leave
+    less than its magnesia, alkalis and sulfate);
   - `analysis = …` and `route = "bogue"`: Bogue's calculation on the oxide
     analysis ([`bogue`](@ref)), the sulfate carried by `sulfate` (gypsum by
     default), with the oxides no phase takes as one oxide constituent unless
@@ -83,6 +91,15 @@ function _material_from_entry(e::AbstractDict, species)
             haskey(e, "analysis") || error("template \"$name\": an amorphous part needs `analysis` to be found by difference")
             glass = _glass(e["analysis"], crystals, species)
             push!(cons, OxideConstituent("glass", glass.oxides; mass_fraction = glass.mass_fraction))
+        elseif get(e, "remainder", false) == "analysis"
+            haskey(e, "analysis") || error("template \"$name\": a remainder needs `analysis` to be found by difference")
+            rest = _remainder_as_analyzed(e["analysis"], crystals, species)
+            cons = AbstractConstituent[_rietveld_constituent(p, w * rest.scale, species) for (p, w) in crystals]
+            push!(cons, OxideConstituent("minor oxides", rest.oxides; mass_fraction = rest.mass_fraction))
+        elseif get(e, "remainder", false) === true
+            haskey(e, "analysis") || error("template \"$name\": a remainder needs `analysis` to be found by difference")
+            rest = _glass(e["analysis"], crystals, species)
+            push!(cons, OxideConstituent("minor oxides", rest.oxides; mass_fraction = rest.mass_fraction))
         end
         return Material(name, kind; constituents = cons, source = src)
     elseif get(e, "route", "") == "bogue"
@@ -138,11 +155,11 @@ function _rietveld_constituent(phase, w, species; extent = 1.0)
     return OxideConstituent(phase, _formula_oxides(last(target)); mass_fraction = w, extent)
 end
 
-function _glass(analysis, crystals, species)
-    ox = literature_oxides(_split3(analysis)...)
-    # Mass balance on the oxides the analysis gives, the crystals entered through
-    # the same map as their constituents.
-    rest = copy(ox)
+# The oxides of an analysis left once `crystals` (phase => mass fraction) are
+# taken out, each entered through the same map as its constituent: negative
+# where the crystals hold more of an oxide than the analysis gives.
+function _leftover(analysis, crystals, species)
+    rest = literature_oxides(_split3(analysis)...)
     for (ph, w) in crystals
         t = RIETVELD_PHASES[ph]
         c = t isa String ? oxide_content(species[t], keys(rest)) :
@@ -151,8 +168,40 @@ function _glass(analysis, crystals, species)
             rest[k] -= w * c[k]
         end
     end
+    return rest
+end
+
+function _glass(analysis, crystals, species)
+    rest = _leftover(analysis, crystals, species)
     frac = 1 - sum(values(crystals); init = 0.0)
-    return (; oxides = OrderedDict(k => max(v, 0.0) / frac for (k, v) in rest), mass_fraction = frac)
+    # The oxides left are fractions of what the crystals leave. When two analyses
+    # disagree (a calcite content by TGA above what the XRF lime allows), they
+    # can hold more than that mass; they are then taken as the whole of it.
+    left = sum(max(v, 0.0) for v in values(rest); init = 0.0)
+    return (; oxides = OrderedDict(k => max(v, 0.0) / max(frac, left) for (k, v) in rest), mass_fraction = frac)
+end
+
+# The oxides an analysis holds beyond the phases, kept as analyzed. When they
+# take more mass than the phases leave (a clinker whose phases are counted with
+# their pure formulas, the magnesia, alkalis and sulfate of its analysis held by
+# none of them), the phases are scaled by the factor `s` at which the scaled
+# phases and what they leave add up to the whole. The sum grows with `s`, since
+# the phases hold no more oxide than their own mass, so the factor is unique.
+function _remainder_as_analyzed(analysis, crystals, species)
+    frac = 1 - sum(values(crystals); init = 0.0)
+    held(s) = _leftover(analysis, OrderedDict(p => s * w for (p, w) in crystals), species)
+    total(s) = s * (1 - frac) + sum(max(v, 0.0) for v in values(held(s)); init = 0.0)
+    s = 1.0
+    if total(1.0) > 1
+        lo, hi = 0.0, 1.0
+        for _ in 1:60
+            mid = (lo + hi) / 2
+            total(mid) > 1 ? (hi = mid) : (lo = mid)
+        end
+        s = lo
+    end
+    m = 1 - s * (1 - frac)
+    return (; oxides = OrderedDict(k => max(v, 0.0) / m for (k, v) in held(s)), mass_fraction = m, scale = s)
 end
 
 function _literature_phases(ref)

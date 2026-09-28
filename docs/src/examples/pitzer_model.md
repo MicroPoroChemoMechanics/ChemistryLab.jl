@@ -47,7 +47,7 @@ for (c, a) in (("Na+", "Cl-"), ("Ca+2", "SO4-2"), ("Ca+2", "OH-"),
 end
 ```
 
-A `β²` appears only where the pair needs a third ionic-strength dependence —
+A ``\beta^{(2)}`` appears only where the pair needs a third ionic-strength dependence —
 2-2 electrolytes, and Ca–OH, which Harvie et al. treat the same way.
 
 ## 2. Against measurement, over four decades of molality
@@ -129,7 +129,7 @@ reproduces a measured curve over four decades.
 ## 3. The dilute limit, exactly
 
 A model that expands around ideality has no freedom as the solution empties:
-`log₁₀ γ± → −A|z₊z₋|√I`, and this is the check a mistyped coefficient cannot
+``\log_{10}\gamma_\pm \to -A\,|z_+ z_-|\sqrt{I}``, and this is the check a mistyped coefficient cannot
 survive either.
 
 ```@example pz

@@ -1,0 +1,844 @@
+# The symbols of the documentation's formulas: the page `nomenclature.md` lists
+# them, and hovering an equation shows those it holds.
+#
+# One entry per meaning of a symbol.
+#
+#   tex       the symbol as the formulas write it, matched in their TeX source
+#             (inside \ce{…}, \text{…} and \mathrm{…} nothing is matched);
+#   label     how the page and the hint print it (HTML: <sub>, <sup>);
+#   name      what it is;
+#   unit      its unit ("1" for a number without one, "" when it varies);
+#   constant  the name of a physical constant of ChemistryLab, whose value and
+#             unit the page and the hint read from the library (see
+#             docs/nomenclature.jl), never typed here;
+#   pages     where this meaning holds: paths under docs/src, a folder ending
+#             in "/" for all of its pages. An entry without `pages` holds on
+#             every page where no entry of the same `tex` is scoped;
+#   script    true for a subscript or superscript, matched only there;
+#   group     the section of the page.
+#
+# A symbol with several meanings has at most one unscoped entry (a subscript and
+# a symbol written alike count as two); the test test/docs_nomenclature.jl
+# checks that, and that every page named exists.
+
+# ── Physical constants ──────────────────────────────────────────────────────
+
+[[symbol]]
+group = "Physical constants"
+tex = "R"
+label = "R"
+name = "molar gas constant"
+constant = "R"
+
+[[symbol]]
+group = "Physical constants"
+tex = "F"
+label = "F"
+name = "Faraday constant"
+constant = "F"
+
+[[symbol]]
+group = "Physical constants"
+tex = "N_A"
+label = "N<sub>A</sub>"
+name = "Avogadro constant"
+constant = "N_A"
+
+[[symbol]]
+group = "Physical constants"
+tex = "k_B"
+label = "k<sub>B</sub>"
+name = "Boltzmann constant"
+constant = "k_B"
+
+[[symbol]]
+group = "Physical constants"
+tex = "e"
+label = "e"
+name = "elementary charge"
+constant = "e"
+pages = ["theory/activity_models.md"]
+
+[[symbol]]
+group = "Physical constants"
+tex = "\\varepsilon_0"
+label = "ε<sub>0</sub>"
+name = "vacuum permittivity"
+constant = "epsilon_0"
+
+# ── State and thermodynamic functions ────────────────────────────────────────
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "T"
+label = "T"
+name = "temperature"
+unit = "K"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "P"
+label = "P"
+name = "pressure"
+unit = "Pa (bar in the tables)"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "T_r"
+label = "T<sub>r</sub>"
+name = "reference temperature of the standard properties, 298.15 K"
+unit = "K"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "P_r"
+label = "P<sub>r</sub>"
+name = "reference pressure of the standard properties, 1 bar"
+unit = "Pa"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "G"
+label = "G"
+name = "Gibbs energy"
+unit = "J"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "H"
+label = "H"
+name = "enthalpy"
+unit = "J"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "H"
+label = "H"
+name = "Hessian of the Gibbs energy at the solution, ∇²G"
+unit = ""
+pages = ["manual/solving.md", "tutorials/reaktoro_comparison.md"]
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "S"
+label = "S"
+name = "entropy"
+unit = "J/K"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "U"
+label = "U"
+name = "internal energy"
+unit = "J"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "V"
+label = "V"
+name = "volume"
+unit = "m³"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "C_p"
+label = "C<sub>p</sub>"
+name = "heat capacity at constant pressure"
+unit = "J/K (J/(mol K) for a species)"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "C_P"
+label = "C<sub>P</sub>"
+name = "heat capacity at constant pressure"
+unit = "J/K (J/(mol K) for a species)"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "\\mu"
+label = "μ"
+name = "chemical potential"
+unit = "J/mol"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "K"
+label = "K"
+name = "equilibrium constant of a reaction, ln K = −Δ<sub>r</sub>G°/RT"
+unit = "1"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "\\Delta"
+label = "Δ"
+name = "change of a quantity: between two states, or by a reaction (Δ<sub>r</sub>) or a formation (Δ<sub>f</sub>)"
+unit = ""
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "K"
+label = "K"
+name = "stoichiometry of the kinetic reactions, restricted to their non-aqueous participants"
+unit = "1"
+pages = ["manual/kinetics_syntax.md"]
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "Q"
+label = "Q"
+name = "reaction quotient, the product of the activities raised to their coefficients"
+unit = "1"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "Q"
+label = "Q"
+name = "heat released by a paste or recorded by a calorimeter"
+unit = "J"
+pages = ["manual/recipes.md", "examples/isothermal_calorimetry.md", "theory/energies_and_potentials.md"]
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "Q"
+label = "Q"
+name = "reaction quotient, the product of the activities raised to their coefficients"
+unit = "1"
+pages = ["theory/energies_and_potentials.md"]
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "Q"
+label = "Q"
+name = "orthonormal basis of the tangent space of the phase's composition"
+unit = ""
+pages = ["theory/solid_solutions.md"]
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "\\mathcal{A}"
+label = "𝒜"
+name = "affinity of a reaction, −Δ<sub>r</sub>G"
+unit = "J/mol"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "\\Omega"
+label = "Ω"
+name = "saturation ratio of a phase, the ion activity product over K"
+unit = "1"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "q"
+label = "q"
+name = "heat received by the system, or released by the reactions"
+unit = "J"
+pages = ["theory/energies_and_potentials.md", "examples/semiadiabatic_calorimetry.md"]
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "w"
+label = "w"
+name = "work received by the system"
+unit = "J"
+pages = ["theory/energies_and_potentials.md"]
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "\\lambda"
+label = "λ"
+name = "factor multiplying every amount (the Gibbs energy is homogeneous of degree one)"
+unit = "1"
+pages = ["theory/energies_and_potentials.md"]
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "\\circ"
+label = "°"
+name = "standard state (superscript)"
+unit = ""
+script = true
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "f"
+label = "f"
+name = "of formation from the elements (subscript, as in Δ<sub>f</sub>G°)"
+unit = ""
+script = true
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "r"
+label = "r"
+name = "of reaction (subscript, as in Δ<sub>r</sub>G°), or of reference (T<sub>r</sub>, P<sub>r</sub>)"
+unit = ""
+script = true
+
+# ── Amounts and composition ──────────────────────────────────────────────────
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "n"
+label = "n"
+name = "amount of a species (n<sub>i</sub>), or the vector of the amounts"
+unit = "mol"
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "b"
+label = "b"
+name = "budget of the components: the amounts the conservation matrix must return"
+unit = "mol"
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "A"
+label = "A"
+name = "conservation matrix: one row per component, one column per species"
+unit = "1"
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "\\mathbf{A}"
+label = "<b>A</b>"
+name = "conservation matrix: one row per component, one column per species"
+unit = "1"
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "\\nu"
+label = "ν"
+name = "stoichiometric coefficient, positive for a product"
+unit = "1"
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "x"
+label = "x"
+name = "mole fraction"
+unit = "1"
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "m"
+label = "m"
+name = "molality of a solute"
+unit = "mol/kg of water"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "m"
+label = "m"
+name = "exponent of the van Genuchten retention curve, m = 1/b"
+unit = "1"
+pages = ["tutorials/self_desiccation.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "a"
+label = "a"
+name = "pressure parameter of the van Genuchten retention curve"
+unit = "MPa"
+pages = ["tutorials/self_desiccation.md"]
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "M"
+label = "M"
+name = "molar mass"
+unit = "kg/mol"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "M"
+label = "M"
+name = "the matrix Kᵀ K of the kinetic stoichiometry"
+unit = "1"
+pages = ["manual/kinetics_syntax.md"]
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "N"
+label = "N"
+name = "total amount of the sites of a site family"
+unit = "mol"
+pages = ["theory/surface_complexation.md", "theory/standard_states.md", "manual/surfaces.md", "examples/surface_langmuir.md"]
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "N"
+label = "N"
+name = "total amount of a phase, the sum of its members' amounts"
+unit = "mol"
+pages = ["theory/equilibrium.md", "theory/solid_solutions.md"]
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "w/c"
+label = "w/c"
+name = "water/cement ratio, by mass"
+unit = "g/g"
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "w"
+label = "w"
+name = "bound water per gram of binder"
+unit = "g/g"
+pages = ["examples/thermogravimetry.md"]
+
+# ── Aqueous solutions ────────────────────────────────────────────────────────
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "a"
+label = "a"
+name = "activity"
+unit = "1"
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "a_w"
+label = "a<sub>w</sub>"
+name = "activity of water"
+unit = "1"
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "\\gamma"
+label = "γ"
+name = "activity coefficient"
+unit = "1"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\gamma"
+label = "γ"
+name = "surface tension of water"
+unit = "N/m"
+pages = ["tutorials/self_desiccation.md"]
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "I"
+label = "I"
+name = "ionic strength, ½ Σ m<sub>i</sub> z<sub>i</sub>²"
+unit = "mol/kg"
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "z"
+label = "z"
+name = "charge number of a species"
+unit = "1"
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "\\mathring{a}"
+label = "å"
+name = "ion size of the extended Debye–Hückel model"
+unit = "Å"
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "A"
+label = "A"
+name = "Debye–Hückel parameter, a property of water"
+unit = "(kg/mol)<sup>½</sup>"
+pages = ["theory/activity_models.md", "examples/activity_models_compared.md", "examples/pitzer_model.md"]
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "B"
+label = "B"
+name = "Debye–Hückel parameter, a property of water"
+unit = "Å<sup>−1</sup> (kg/mol)<sup>½</sup>"
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "\\dot{B}"
+label = "Ḃ"
+name = "linear term of the B-dot model"
+unit = "kg/mol"
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "\\varphi"
+label = "φ"
+name = "osmotic coefficient"
+unit = "1"
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "\\kappa"
+label = "κ"
+name = "inverse Debye length of the solution"
+unit = "1/m"
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "\\varepsilon"
+label = "ε"
+name = "relative permittivity of water"
+unit = "1"
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "\\varepsilon"
+label = "ε"
+name = "relative permittivity of water, or an SIT interaction coefficient ε(i, k)"
+unit = "1 (kg/mol for the SIT coefficient)"
+pages = ["theory/activity_models.md"]
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "r"
+label = "r"
+name = "distance from the central ion"
+unit = "m"
+pages = ["theory/activity_models.md"]
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "b"
+label = "b"
+name = "constant of the activity model (Davies, SIT, Pitzer), or the linear term of B-dot"
+unit = "kg/mol"
+pages = ["theory/activity_models.md", "examples/activity_models_compared.md"]
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "\\rho"
+label = "ρ"
+name = "density (of water, unless stated)"
+unit = "kg/m³"
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "\\rho"
+label = "ρ"
+name = "mean charge density around an ion (Poisson's equation)"
+unit = "C/m³"
+pages = ["theory/activity_models.md"]
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "\\psi"
+label = "ψ"
+name = "mean electrostatic potential around an ion (Poisson's equation)"
+unit = "V"
+pages = ["theory/activity_models.md"]
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "\\beta"
+label = "β"
+name = "Pitzer interaction parameters of a pair of ions"
+unit = "kg/mol"
+pages = ["theory/activity_models.md", "examples/pitzer_model.md"]
+
+[[symbol]]
+group = "Aqueous solutions"
+tex = "w"
+label = "w"
+name = "water (subscript)"
+unit = ""
+script = true
+
+# ── Surfaces ─────────────────────────────────────────────────────────────────
+
+[[symbol]]
+group = "Surfaces"
+tex = "\\sigma"
+label = "σ"
+name = "charge density of the surface"
+unit = "C/m²"
+
+[[symbol]]
+group = "Surfaces"
+tex = "\\Psi"
+label = "Ψ"
+name = "electrostatic potential of the surface plane"
+unit = "V"
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "\\Psi"
+label = "Ψ"
+name = "pressure parameter of the HKF equations of state, 2600 bar"
+unit = "bar"
+pages = ["theory/thermodynamics.md"]
+
+[[symbol]]
+group = "State and thermodynamic functions"
+tex = "\\omega"
+label = "ω"
+name = "Born coefficient of an aqueous species (HKF)"
+unit = "J/mol"
+pages = ["theory/thermodynamics.md"]
+
+[[symbol]]
+group = "Surfaces"
+tex = "C"
+label = "C"
+name = "capacitance of the surface (constant-capacitance model)"
+unit = "F/m²"
+pages = ["theory/surface_complexation.md", "manual/surfaces.md"]
+
+[[symbol]]
+group = "Surfaces"
+tex = "\\mathcal{A}"
+label = "𝒜"
+name = "area of the surface"
+unit = "m²"
+pages = ["theory/surface_complexation.md", "manual/surfaces.md"]
+
+[[symbol]]
+group = "Surfaces"
+tex = "\\kappa"
+label = "κ"
+name = "Gouy–Chapman prefactor, √(8 ε<sub>r</sub> ε<sub>0</sub> RT ρ)"
+unit = "C m<sup>−2</sup> (kg/mol)<sup>½</sup>"
+pages = ["theory/surface_complexation.md", "examples/hfo_diffuse_layer.md"]
+
+[[symbol]]
+group = "Surfaces"
+tex = "\\nu"
+label = "ν"
+name = "sites per host formula unit"
+unit = "1"
+pages = ["theory/surface_complexation.md", "theory/standard_states.md"]
+
+[[symbol]]
+group = "Surfaces"
+tex = "\\beta"
+label = "β"
+name = "drive of an occupied state of a site, from the proton activity"
+unit = "1"
+pages = ["examples/surface_langmuir.md"]
+
+# ── Solid solutions ──────────────────────────────────────────────────────────
+
+[[symbol]]
+group = "Solid solutions"
+tex = "W"
+label = "W"
+name = "interaction parameter of a regular solution"
+unit = "J/mol"
+
+[[symbol]]
+group = "Solid solutions"
+tex = "a_0"
+label = "a<sub>0</sub>, a<sub>1</sub>, …"
+name = "Redlich–Kister (Guggenheim) coefficients of the excess Gibbs energy"
+unit = "J/mol"
+pages = ["theory/solid_solutions.md", "examples/solid_solution_models.md", "examples/miscibility_gap.md"]
+
+[[symbol]]
+group = "Solid solutions"
+tex = "y"
+label = "y"
+name = "site fraction of a moiety on a sublattice"
+unit = "1"
+pages = ["theory/solid_solutions.md", "examples/sublattice_csh.md"]
+
+[[symbol]]
+group = "Solid solutions"
+tex = "\\lambda"
+label = "λ"
+name = "fictive activity coefficient of an end-member of a sublattice model"
+unit = "1"
+pages = ["theory/solid_solutions.md", "examples/sublattice_csh.md"]
+
+[[symbol]]
+group = "Solid solutions"
+tex = "g"
+label = "g"
+name = "molar Gibbs energy of mixing of a binary"
+unit = "J/mol"
+pages = ["examples/miscibility_gap.md"]
+
+[[symbol]]
+group = "Solid solutions"
+tex = "\\nu"
+label = "ν"
+name = "fraction of vacant bridging sites of an end-member"
+unit = "1"
+pages = ["examples/sublattice_csh.md"]
+
+# ── Equilibrium and the solver ───────────────────────────────────────────────
+
+[[symbol]]
+group = "Equilibrium and the solver"
+tex = "y"
+label = "y"
+name = "multipliers of the conservation rows: the potentials of the primary species, in RT units"
+unit = "1"
+pages = ["theory/equilibrium.md", "manual/solving.md"]
+
+[[symbol]]
+group = "Equilibrium and the solver"
+tex = "\\varphi"
+label = "φ"
+name = "equilibrium map: the equilibrium amounts n<sub>e</sub> of a budget b<sub>e</sub>"
+unit = ""
+pages = ["tutorials/coupling.md", "tutorials/kinetics.md", "tutorials/reaktoro_comparison.md", "examples/coupled_hydration.md"]
+
+[[symbol]]
+group = "Equilibrium and the solver"
+tex = "m"
+label = "m"
+name = "number of element potentials, the unknowns of the outer Newton iteration"
+unit = "1"
+pages = ["theory/equilibrium.md"]
+
+# ── Kinetics and hydration ───────────────────────────────────────────────────
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "t"
+label = "t"
+name = "time"
+unit = "s (days in the cement pages)"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\alpha"
+label = "α"
+name = "degree of reaction (of hydration, for a clinker phase)"
+unit = "1"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\alpha_{\\max}"
+label = "α<sub>max</sub>"
+name = "degree of hydration at which hydration stops (Powers)"
+unit = "1"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "r"
+label = "r"
+name = "rate of a kinetic reaction"
+unit = "mol/s"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "E_a"
+label = "E<sub>a</sub>"
+name = "activation energy"
+unit = "J/mol"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "B"
+label = "B"
+name = "specific surface (Blaine fineness) of the material"
+unit = "m²/kg"
+pages = ["theory/kinetics.md", "examples/cement_clinker_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\varphi"
+label = "φ"
+name = "heat loss of the calorimeter against the temperature difference"
+unit = "W"
+pages = ["manual/kinetics_syntax.md", "examples/semiadiabatic_calorimetry.md", "examples/cement_clinker_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "a"
+label = "a, b"
+name = "linear and quadratic coefficients of the heat loss of the calorimeter, φ = aΔT + bΔT²"
+unit = "W/K, W/K²"
+pages = ["manual/kinetics_syntax.md", "examples/semiadiabatic_calorimetry.md", "examples/cement_clinker_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "b"
+label = "a, b"
+name = "linear and quadratic coefficients of the heat loss of the calorimeter, φ = aΔT + bΔT²"
+unit = "W/K, W/K²"
+pages = ["manual/kinetics_syntax.md", "examples/semiadiabatic_calorimetry.md", "examples/cement_clinker_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\xi"
+label = "ξ"
+name = "normalized degree of hydration, α/α<sub>max</sub>"
+unit = "1"
+pages = ["theory/kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\tau"
+label = "τ"
+name = "time at which the material is half reacted"
+unit = "d"
+pages = ["theory/kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "C"
+label = "C"
+name = "heat capacity of the calorimeter and its content"
+unit = "J/K"
+pages = ["examples/semiadiabatic_calorimetry.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "b"
+label = "b"
+name = "bound water per unit degree of hydration"
+unit = "g/g"
+pages = ["theory/cement_water_budget.md", "tutorials/self_desiccation.md", "tutorials/self_desiccation_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "s"
+label = "s"
+name = "chemical shrinkage per unit degree of hydration"
+unit = "cm³/g"
+pages = ["theory/cement_water_budget.md", "tutorials/self_desiccation.md", "tutorials/self_desiccation_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "k"
+label = "k"
+name = "Powers coefficient, b + s S*/(1 − S*)"
+unit = "g/g"
+pages = ["theory/cement_water_budget.md", "tutorials/self_desiccation.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "S"
+label = "S"
+name = "degree of saturation of the pores"
+unit = "1"
+pages = ["tutorials/self_desiccation.md", "tutorials/self_desiccation_kinetics.md", "theory/cement_water_budget.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "S^\\ast"
+label = "S*"
+name = "degree of saturation at which hydration stops"
+unit = "1"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\phi"
+label = "ϕ"
+name = "porosity, referred to the initial volume"
+unit = "1"
+pages = ["manual/recipes.md"]
+
+# ── Cement chemist notation ──────────────────────────────────────────────────
+
+[[symbol]]
+group = "Cement chemist notation"
+tex = "C"
+label = "C"
+name = "CaO, in cement chemist notation"
+unit = ""
+pages = ["manual/cement_notation.md", "examples/bogue_calculation.md", "examples/cem2_blended.md", "examples/cem4_pozzolanic.md"]

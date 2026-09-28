@@ -333,11 +333,35 @@ ideal case ``\gamma = 1``) and in `phase_split_measure`'s log-sum-exp of
 *"a generalization of the saturation index"* and notes that it derives from the
 KKT conditions [Kulik2013](@cite).
 
-So the criterion is one object, arrived at independently. What differs is only
-the declaration: CEMDATA18 ships the AFm and AFt binaries under two names each,
-so a GEMS user represents a gap by declaring the binary twice in the database;
-`instances = 2` asks for the same thing with a keyword. **Neither code splits a
-phase by itself.**
+So the criterion is one object, arrived at independently. What differs is the
+declaration. CEMDATA18 ships the AFm and AFt binaries under two names each, so a
+GEMS user represents a gap by declaring the binary twice in the database;
+`instances = 2` asks for the same thing with a keyword. `instances = :auto` asks
+for less: the phase is solved with one composition, and a second instance is added
+only when the certificate finds it wanting to split. On a binary whose overall
+composition the element budget holds inside the gap, calcite and magnesite in
+equal amounts, that finds the common-tangent pair:
+
+```@example split
+using ChemistryLab, DynamicQuantities, Printf
+sp = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+gap = RedlichKisterModel(a0 = 14_000.0)
+carbonate = SolidSolutionPhase("carbonate", [sp["Cal"], sp["Mgs"]]; model = gap, instances = :auto)
+cs = ChemicalSystem([sp[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Mg+2 Cal Mgs")],
+                    ["H2O@", "H+", "Ca+2", "Mg+2", "CO3-2", "Zz"]; solid_solutions = [carbonate])
+st = ChemicalState(cs)
+set_quantity!(st, "H2O@", 1.0u"kg"); set_quantity!(st, "Cal", 0.025u"mol"); set_quantity!(st, "Mgs", 0.025u"mol")
+eq, cert = equilibrate_certified(st; b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n))
+n = ustrip.(us"mol", eq.n)
+@printf("certified %s, instances added to %s\n", cert.optimal, cert.instances_added)
+for (g, ph) in zip(eq.system.ss_groups, eq.system.solid_solutions)
+    @printf("  %-12s %.5f mol, x(calcite) = %.4f\n", name(ph), sum(n[g]), n[g[1]] / sum(n[g]))
+end
+@printf("common tangent of the model: %.4f and %.4f\n", common_tangent(gap)...)
+```
+
+It does not make a nonconvex problem easy: the certificate names a phase to split
+only once the one-composition solve has converged.
 
 The executed counterpart of this section is
 [the miscibility-gap page](@ref ex-miscibility-gap), which runs one cement three

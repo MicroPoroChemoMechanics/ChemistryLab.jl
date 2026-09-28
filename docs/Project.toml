@@ -24,6 +24,7 @@ SymbolicNumericIntegration = "78aadeae-fbc0-11eb-17b6-c7ec0477ba9e"
 SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
+Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
 # The documentation workflow runs `Pkg.develop(path = pwd())` before `make.jl`,
 # so CI built the package from the checkout whether or not this section existed.
@@ -80,7 +81,7 @@ LiveServer = "1"
 # nor `nullspace_step`, so every equilibrium `@example` block failed with a
 # MethodError while the package's own tests passed. Keep this in step with the
 # bound in the root `Project.toml`.
-OptimaSolver = "0.7"
+OptimaSolver = "0.7.1"
 Optimization = "5"
 OptimizationIpopt = "1.1.1"
 OptimizationOptimJL = "0.4"
@@ -89,6 +90,7 @@ OrdinaryDiffEq = "6, 7"
 PeriodicTable = "1"
 Plots = "1"
 PrettyTables = "3"
+Markdown = "1"
 Printf = "1"
 SciMLBase = "2, 3"
 Statistics = "1"

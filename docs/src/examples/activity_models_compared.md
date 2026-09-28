@@ -9,6 +9,11 @@ because the answer is not the one a reader would guess: the models disagree
 mildly about the *value* of the water activity and enormously about its
 *derivative*, and equilibrium is set by the derivative.
 
+A fourth column, `Cemdata18`, is the B-dot model again, with the parameters
+Cemdata18 prescribes for the pore solution of a cement
+([`cemdata18_activity_model`](@ref)): one ion size, 3.67 Å, for every ion, and the
+same linear coefficient on the ions and on the neutral species.
+
 Everything below is evaluated on an imposed NaCl composition. Nothing is solved,
 so the whole page costs a few milliseconds — which is also the point: comparing
 models does not require a converged equilibrium.
@@ -35,9 +40,13 @@ function nacl(m)                       # m mol NaCl per kg of water, imposed
     return st
 end
 
+# The fourth is the B-dot model again, with the parameters Cemdata18 prescribes for
+# a KOH pore solution: one ion size for every ion, and the same b on the neutral
+# species (Lothenbach et al. 2019, Eq. C.1).
 models = ["dilute" => DiluteSolutionModel(),
           "Davies" => DaviesActivityModel(),
-          "B-dot" => HKFActivityModel()]
+          "B-dot" => HKFActivityModel(),
+          "Cemdata18" => cemdata18_activity_model(:KOH)]
 nothing # hide
 ```
 
@@ -71,7 +80,8 @@ than ``T`` rises: hot water screens worse, so the same ionic strength costs more
 
 ## 2. The screening length, in nanometers
 
-``\kappa^{-1} = 1/(B\sqrt{I})`` in ångström, when ``B`` is in Å⁻¹(kg/mol)^½:
+``\kappa^{-1} = 1/(B\sqrt{I})`` is in ångström when ``B`` is in
+``\text{Å}^{-1}\,(\text{kg/mol})^{1/2}``; the table gives it in nanometers:
 
 ```@example am
 B25 = hkf_debye_huckel_params(298.15, 1.0e5).B
@@ -92,13 +102,13 @@ theory of confined water.
 ## 3. The activity coefficients, and the water activity
 
 ```@example am
-println("               γ(Na⁺)                        a_w")
-println("  m      dilute   Davies    B-dot      dilute   Davies    B-dot")
+println("                    γ(Na⁺)                                a_w")
+println("  m      dilute   Davies    B-dot  Cemdata18    dilute   Davies    B-dot  Cemdata18")
 for m in (0.001, 0.01, 0.1, 0.5, 1.0, 3.0)
     st = nacl(m)
     γ = [activity_coefficients(st, mod)["Na+"] for (_, mod) in models]
     aw = [exp(log_activities(st, mod)[sym_w]) for (_, mod) in models]
-    @printf("%6.3f  %7.4f  %7.4f  %7.4f    %7.5f  %7.5f  %7.5f\n", m, γ..., aw...)
+    @printf("%6.3f  %7.4f  %7.4f  %7.4f  %7.4f      %7.5f  %7.5f  %7.5f  %7.5f\n", m, γ..., aw...)
 end
 ```
 
@@ -109,9 +119,15 @@ company above it — 8 % apart at 0.5 mol/kg — and by 3 mol/kg Davies has
 returned ``\gamma > 1`` while the B-dot model is still below 1: the ``bI`` term
 has taken over, which is the ceiling of the B-dot construction arriving.
 
+The `Cemdata18` column is the same formula with other constants, and it stays
+within 2 % of the B-dot column up to a tenth molal. Above, its larger linear term
+takes over sooner: 0.78 against 0.65 at 1 mol/kg, and above 1 at 3 mol/kg, past
+the ionic strength of about 1 mol/kg up to which Cemdata18 states it.
+
 Now the ``a_w`` columns, and here the surprise: **they barely separate at all.**
 The Raoult and osmotic routes differ by less than one percent even at
-3 mol/kg. It would be easy to conclude that the water-activity route is a
+3 mol/kg; only the Cemdata18 constants move the water activity further, to 0.868
+at 3 mol/kg. It would be easy to conclude that the water-activity route is a
 detail.
 
 Seen as curves rather than as a table, the separation is a matter of where each
@@ -126,8 +142,8 @@ aw(mod, m) = exp(log_activities(nacl(m), mod)[sym_w])
 A25 = hkf_debye_huckel_params(298.15, 1.0e5).A
 
 p1 = plot(; xscale = :log10, xlabel = "molality m (mol/kg)", ylabel = "γ(Na⁺)",
-    title = "Three models, one electrolyte", legend = :bottomleft)
-for ((name, mod), col) in zip(models, (:gray, :firebrick, :steelblue))
+    title = "Four models, one electrolyte", legend = :bottomleft)
+for ((name, mod), col) in zip(models, (:gray, :firebrick, :steelblue, :darkorange))
     plot!(p1, ms, [γ(mod, m) for m in ms]; label = name, linewidth = 2, color = col)
 end
 plot!(p1, ms, [exp(-A25 * sqrt(m) * log(10)) for m in ms];
@@ -138,7 +154,7 @@ plot(p1; size = (720, 430), left_margin = 8Plots.mm, bottom_margin = 8Plots.mm)
 ```@example am
 p2 = plot(; xscale = :log10, xlabel = "molality m (mol/kg)", ylabel = "water activity a_w",
     title = "The water activity barely separates", legend = :bottomleft)
-for ((name, mod), col) in zip(models, (:gray, :firebrick, :steelblue))
+for ((name, mod), col) in zip(models, (:gray, :firebrick, :steelblue, :darkorange))
     plot!(p2, ms, [aw(mod, m) for m in ms]; label = name, linewidth = 2, color = col,
         linestyle = name == "Davies" ? :dash : :solid)
 end
@@ -146,7 +162,8 @@ plot(p2; size = (720, 430), left_margin = 10Plots.mm, bottom_margin = 8Plots.mm)
 ```
 
 The ideal and Davies curves lie on top of each other in the second figure —
-both are Raoult — and the B-dot curve is a fraction of a percent away. A reader
+both are Raoult — and the B-dot curve is a fraction of a percent away; the
+Cemdata18 one leaves them above 1 mol/kg. A reader
 stopping here would conclude that the water-activity route is a detail. The next
 section is why that conclusion is wrong.
 
@@ -176,10 +193,10 @@ for (name, dn) in ("dissolution   dn = (0, +1, +1)" => [0.0, 1.0, 1.0],
                    "ion exchange  dn = (0, +1, -1)" => [0.0, 1.0, -1.0],
                    "water removal dn = (-1, 0, 0)" => [-1.0, 0.0, 0.0])
     println("\n── ", name)
-    println("   m         dilute       Davies        B-dot")
+    println("   m         dilute       Davies        B-dot    Cemdata18")
     for m in (0.1, 0.3, 1.0, 3.0)
         r = [gd_residual(mod, m, dn) for (_, mod) in models]
-        @printf("%6.2f    %10.3e   %10.3e   %10.3e\n", m, r...)
+        @printf("%6.2f    %10.3e   %10.3e   %10.3e   %10.3e\n", m, r...)
     end
 end
 ```
@@ -206,6 +223,10 @@ in size.
 **Along water removal** — the direction a drying paste takes — the ordering is
 the same as for dissolution, and the gap widens as the solution concentrates.
 
+The `Cemdata18` column follows the B-dot one to the printed digits along the
+first two directions, and along the third both stay below 2·10⁻⁹: the
+same formula with other constants is consistent in the same way.
+
 So the water-activity route is not a refinement on a number that hardly moves.
 It decides whether the model is one thermodynamic system or two halves that
 disagree, and only the derivatives show it.
@@ -215,7 +236,7 @@ p3 = plot(; xscale = :log10, yscale = :log10, xlabel = "molality m (mol/kg)",
     ylabel = "Gibbs-Duhem residual", legend = :topleft,
     title = "…and the derivatives separate by orders of magnitude")
 mm = [0.03, 0.1, 0.3, 1.0, 3.0]
-for ((name, mod), col) in zip(models, (:gray, :firebrick, :steelblue))
+for ((name, mod), col) in zip(models, (:gray, :firebrick, :steelblue, :darkorange))
     μ = build_potentials(cs3, mod)
     r = [max(gd_residual(mod, m, [0.0, 1.0, 1.0]), 1.0e-16) for m in mm]
     plot!(p3, mm, r; label = name, linewidth = 2, color = col, marker = :circle)
@@ -233,8 +254,11 @@ difference.
     [`DiluteSolutionModel`](@ref) is the best-conditioned objective;
   - between there and about a molal, use [`HKFActivityModel`](@ref) — and use it
     rather than [`DaviesActivityModel`](@ref) whenever the water activity enters
-    the question, which in a hydrating paste it always does;
-  - above a few molal, none of the three is defensible, and no warning is issued
+    the question, which in a hydrating paste it always does. For the pore
+    solution of a cement, [`cemdata18_activity_model`](@ref) gives it the
+    parameters Cemdata18 prescribes, which the paper states valid to about
+    1 mol/kg, and a certified answer reports its ionic strength against that;
+  - above a few molal, none of these is defensible, and no warning is issued
     because none of them knows. [`solvent_fraction`](@ref) is the guard that
     does.
 

@@ -60,3 +60,69 @@ kind        = "scm"
 analysis    = "Durdzinski2017:chemical_composition:SFA"
 crystalline = "Durdzinski2017:phase_composition:SFA"
 source      = "Durdzinski2017"
+
+#   DeWeerdt2011   : the clinker, fly ash and limestone of De Weerdt et al.
+#                    (2011), Tables 1 to 3 (XRF, XRD-Rietveld, TGA)
+
+# The clinker by its Rietveld phases, what its analysis holds beyond them (free
+# lime, alkalis, magnesia, sulfate) as its minor oxides.
+[[material]]
+name      = "clinker (De Weerdt 2011)"
+kind      = "cement"
+phases    = "DeWeerdt2011:mineral_composition:clinker"
+analysis  = "DeWeerdt2011:chemical_composition:clinker"
+remainder = true
+source    = "DeWeerdt2011"
+
+# The class F siliceous fly ash: quartz, mullite, hematite, calcite and
+# anhydrite, inert, and its glass by difference from the XRF analysis.
+[[material]]
+name        = "siliceous fly ash (De Weerdt 2011)"
+kind        = "scm"
+analysis    = "DeWeerdt2011:chemical_composition:fly ash"
+crystalline = "DeWeerdt2011:mineral_composition:fly ash"
+source      = "DeWeerdt2011"
+
+# The limestone powder: its calcite (by TGA), and what its analysis holds beyond
+# it, which a mix leaves unreacted.
+[[material]]
+name      = "limestone (De Weerdt 2011)"
+kind      = "scm"
+phases    = "DeWeerdt2011:mineral_composition:limestone"
+analysis  = "DeWeerdt2011:chemical_composition:limestone"
+remainder = true
+source    = "DeWeerdt2011"
+
+#   Shi2016        : the white Portland cement, limestone and metakaolin of Shi
+#                    et al. (2016), Table 1 and Section 2.1 (XRF, 29Si NMR)
+
+# The white Portland cement (CEM I 52.5 N): alite and belite by NMR, the
+# aluminate by mass balance, gypsum, calcite and free lime, and no ferrite (its
+# iron sits in the other phases). Counted with their pure formulas, those phases
+# leave 1.3 % of the cement for a magnesia, alkalis and sulfate the analysis
+# gives at 3.9 %; the minor oxides are kept as analyzed and the phases scaled
+# down to make room, which also brings their lime to that of the analysis.
+[[material]]
+name      = "white Portland cement (Shi 2016)"
+kind      = "cement"
+phases    = "Shi2016:phase_composition:wPc"
+analysis  = "Shi2016:chemical_composition:wPc"
+remainder = "analysis"
+source    = "Shi2016"
+
+# The limestone, a chalk: its calcite, and what its analysis holds beyond it.
+[[material]]
+name      = "limestone (Shi 2016)"
+kind      = "scm"
+phases    = "Shi2016:phase_composition:LS"
+analysis  = "Shi2016:chemical_composition:LS"
+remainder = true
+source    = "Shi2016"
+
+# The metakaolin, by its analysis alone.
+[[material]]
+name     = "metakaolin (Shi 2016)"
+kind     = "scm"
+analysis = "Shi2016:chemical_composition:MK"
+route    = "oxides"
+source   = "Shi2016"

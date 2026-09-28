@@ -33,7 +33,7 @@ printed to, which is half of its last digit.
 
 ## What has been checked
 
-Nine sources, more than eight hundred assertions, and the coverage is uneven on purpose:
+Twelve sources, more than thirteen hundred assertions, and the coverage is uneven on purpose:
 the database is checked exhaustively because it is cheap to check exhaustively,
 while the equilibrium cases are checked one composition at a time because each
 one costs seconds to minutes.
@@ -53,10 +53,15 @@ one costs seconds to minutes.
 | **the formation energies of the same solids** | [Lothenbach2008](@cite) Table 4 | 21 solids and water the same to `0.01 kJ/mol` | 7 revised by up to `10 kJ/mol`; another hydration state costs the water's energy, within 3 % |
 | **an aged pore solution** against portlandite and ettringite | [Lothenbach2010](@cite) Table 2 | within a quarter of a log unit of saturation | which side depends on the activity model at `I ≈ 0.5 mol/kg` |
 | **alkali uptake by C-S-H**, 4 Ca/Si × 6 concentrations × Na and K | [HongGlasser1999](@cite) Tables 1-2 | pH to `0.072` from 15 to 100 mM below Ca/Si 1.8 | alkali over-bound at 46 of 48 points; the end members were fitted to these data |
+| **a measured paste through its first year**, a CEM I 42.5 N | [LothenbachWinnefeld2006](@cite) Tables 1-4, and GEMS3K on the same budgets | GEMS3K to `0.001` in pH and `1.6 %` on every element; the potassium and sulfate of the first day | sodium a tenth of the measurement at a year, the C-S-H holding 96 % of it: [the page](@ref ex-validation) |
+| **four blended pastes**, CEM I to CEM II/B-M (V-LL) | [DeWeerdt2011](@cite) Tables 1-4, 7-8 and Fig. 7, and GEMS3K on the same budgets | GEMS3K to `0.001` and `1.6 %`; portlandite without fly ash within `1.5 wt.%` from 7 days | with fly ash, portlandite 4.5 against 12.5 wt.% at 90 days, `CSHQ` taking no aluminum: [the page](@ref ex-validation-blended) |
+| **four carbonated mortars**, a CEM I 52.5 N with limestone and metakaolin | [Shi2016](@cite) Tables 1-3 and 5, and GEMS3K on the same carbonated budgets | portlandite within `5 %` of the TGA without metakaolin; CO₂ binding capacity within `2 %` of the authors' calculation in three pastes; GEMS3K to `0.011` in pH and `7 %` | the metakaolin paste M: a gel richer in calcium (Ca/Si 1.46 against 1.29) and a capacity `7 %` low: [the page](@ref sec-cement-carbonation) |
 
 Two things this chapter deliberately does **not** do. It does not check the
-kinetics — [Validation against Reaktoro](@ref) covers the coupling, and no
-published hydration curve is reproduced here. And it does not check anything
+kinetics — [Validation against Reaktoro](@ref) covers the coupling, and the two
+pastes followed in time take their degrees of reaction from their papers (the
+measured ones, or the paper's own rate law), so that what they check is the
+chemistry. And it does not check anything
 above about `1 mol/kg` ionic strength, because `HKFActivityModel`'s B-dot term
 was not fitted there.
 
@@ -72,12 +77,13 @@ of concrete: the solver takes it back out of the pore solution, the pore volume
 falls from 146 mL to 84, and every concentration is wrong by nearly a factor of
 two. See [Chloride binding](@ref).
 
-**Walk a sweep downhill.** A warm start survives only while the phase
-*assemblage* holds; at a point where a phase appears or vanishes the certificate
-refuses it and the full multi-start cascade runs again. Starting from the
-composition-rich end and walking toward the simple one put one limestone sweep
-from 152 s to 52 s — and removing a single intermediate rung, so that one step
-crossed the boundary in a jump, put it back to two and a half minutes. See
+**A cold start is cheap.** The certified search starts from the linear program
+over the pure phases, whatever state it is given, so a cold solve of the
+limestone system of the next section costs half a second. A warm start, from a
+neighboring answer, is no faster, and the direction of a sweep matters little:
+measured on 2026-09-28, the limestone sweep takes 26 s walked up and 40 s walked
+down. Before the linear program, the cascade of starts made the warm start the
+only fast one, and the same sweep cost 125 s at one step walked up. See
 [Blending a CEM I with limestone](@ref).
 
 **Suppress gibbsite below 60 °C.** Cemdata18 §2.1 says so, and it is not a
@@ -391,17 +397,16 @@ more than 40 % — the mechanism the whole figure is about. By one gram the
 hemicarbonate is spent and calcite begins to survive undissolved; past that the
 limestone is a filler.
 
-!!! tip "Walk the sweep downhill"
-    A cold solve of this system costs about 26 s; a warm one, started from a
-    neighboring answer, 0.2-0.7 s. But a warm start only helps while the phase
-    *assemblage* holds: where a phase appears or vanishes the certificate
-    refuses the warm answer and the full multi-start cascade runs again.
+!!! tip "A cold solve is as good as a warm one"
+    The certified search begins with the linear program over the pure phases,
+    whatever start it is given. A cold solve of this system costs half a second,
+    and one started from a neighboring answer is no faster (4 s from 1.0 g to
+    0.8 g of limestone). Measured on 2026-09-28, the sweep takes **26 s walked
+    up** from 0 g and **40 s walked down** from 4 g, every point certified.
 
-    Ascending from 0 g, the monosulfate-to-carboaluminate switch at 0.5 g cost
-    **125 s on its own**. Descending from 4 g, where the assemblage is simple and
-    stable, the same sweep costs **52 s in total**. Same answers, three times
-    faster — and dropping a single intermediate rung, so that one step crosses
-    the boundary in one jump, puts it back to two and a half minutes.
+    Before the linear program, a cold solve cost about 26 s and the warm start
+    was the only fast one, until a phase appeared or vanished: walked up, the
+    monosulfate-to-carboaluminate switch at 0.5 g then cost 125 s on its own.
 
 ## Chloride binding
 

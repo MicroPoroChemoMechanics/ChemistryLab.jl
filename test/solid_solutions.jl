@@ -957,6 +957,19 @@ end
         end
     end
 
+    @testset "the bridging vacancies of Myers' Table 1 cover the eight end-members" begin
+        nu = literature_table("Myers2014", "cnash_bridging_vacancies")
+        @test nu.end_member == literature_table("Myers2014", "cnash_end_members").end_member
+        @test nu.printed == literature_table("Myers2014", "cnash_end_members").printed
+        ν = ustrip.(nu.bridging_vacancies)
+        @test all(v -> 0 <= v <= 1, ν)
+        # Eq. (11) on a pure end-member: T2C has every bridging site vacant, a gel
+        # of dimers; T5C one in two, pentamers.
+        chain(v) = 3 / v - 1
+        @test chain(ν[findfirst(==("T2C*"), nu.printed)]) == 2
+        @test chain(ν[findfirst(==("T5C*"), nu.printed)]) == 5
+    end
+
     @testset "each formula is the sum of its sites" begin
         for (key, prefix, members) in (("Myers2014", "cnash", CNASH), ("Kulik2011", "csh3t", CSH3T))
             sp = Dict(

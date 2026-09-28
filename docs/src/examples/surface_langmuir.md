@@ -224,8 +224,9 @@ visible:
     pulled slightly by the third, to 0.494 rather than 0.500. A two-state model
     would put them exactly at the `pK`, and that small difference is the shared
     denominator doing its work;
-  - the free fraction peaks at `pH = (log K₁ − log K₂)/2 = 8.11`, where the two
-    drives are equal. Its height, `1/(1 + 2\sqrt{K_1 K_2}) = 0.768`, is not one:
+  - the free fraction peaks at ``\mathrm{pH} = (\log K_1 - \log K_2)/2 = 8.11``,
+    where the two drives are equal. Its height, ``1/(1 + 2\sqrt{K_1 K_2}) = 0.768``,
+    is not one:
     even at its most neutral the surface is a quarter occupied, because both
     reactions still run;
   - that same pH, where the positive and negative states are equally populated,

@@ -407,6 +407,19 @@ behind, because there is nothing to restore.
 const _STRICT_OVERRIDE = ScopedValue{Union{Nothing, Bool}}(nothing)
 
 """
+    _AUTO_SPLIT
+
+Whether a phase declared `instances = :auto` may be given its second instance
+during the solves of this task: `true`, except inside a solve that builds a
+starting point. Such a solve (the ideal pre-solve, the ideal-mixing pre-solve)
+hands its answer to a search in the system it was given, so its answer must stay
+in that system. Given the second instance, it returned a state with two more
+species than the search it was meant for, and the dual solve built from both
+indexed past the end of the conservation matrix.
+"""
+const _AUTO_SPLIT = ScopedValue(true)
+
+"""
     _strict_convergence() -> Bool
 
 The effective strict-convergence setting: the innermost

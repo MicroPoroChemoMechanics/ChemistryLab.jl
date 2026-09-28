@@ -228,8 +228,8 @@ calcite[:ΔₐG⁰](T = 500.0u"K", unit = true)   # Gibbs energy at 227 °C with
 ```
 
 !!! note "Cp polynomial"
-    The built-in `:cp_ft_equation` model uses a 10-term polynomial:
-    $\text{Cp}°(T) = a_0 + a_1 T + a_2 T^{-2} + a_3 T^{-0.5} + \ldots + a_{10} \log T$
+    The built-in `:cp_ft_equation` model uses an 11-term polynomial:
+    ``C_p^\circ(T) = a_0 + a_1 T + a_2 T^{-2} + a_3 T^{-0.5} + \ldots + a_{10} \ln T``
     Unused coefficients should be set to `0.0` with appropriate units. Only non-zero terms affect the result. See the [Thermodynamic Functions](@ref sec-thermodynamics) tutorial for the full list of models and parameters.
 
 !!! danger "Reference temperature"

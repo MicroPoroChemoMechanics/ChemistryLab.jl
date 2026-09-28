@@ -96,6 +96,47 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
         cfa = material_template("calcareous fly ash (Durdzinski 2017)", db)
         @test only(c for c in cfa.constituents if c.name == "glass").mass_fraction ≈ 0.897
         @test sum(c.mass_fraction for c in cfa.constituents) ≈ 1 rtol = 1.0e-9
+        # A clinker by its phases and the rest of its analysis; a fly ash with a
+        # hematite; a limestone whose calcite (by TGA) holds more lime than its
+        # analysis (by XRF) does, the oxides left still fractions of their mass.
+        clinker = material_template("clinker (De Weerdt 2011)", db)
+        @test [c.name for c in clinker.constituents] == ["C2S", "C3S", "C3A", "C4AF", "minor oxides"]
+        @test only(c for c in clinker.constituents if c.name == "minor oxides").mass_fraction ≈ 0.08
+        ash = material_template("siliceous fly ash (De Weerdt 2011)", db)
+        @test "Hematite" in [c.name for c in ash.constituents]
+        @test only(c for c in ash.constituents if c.name == "glass").mass_fraction ≈ 0.68
+        rest = only(c for c in material_template("limestone (De Weerdt 2011)", db).constituents if c.name == "minor oxides")
+        @test sum(values(rest.oxides)) ≈ 1 && rest.mass_fraction ≈ 0.19
+        @test_throws ErrorException ChemistryLab._material_from_entry(
+            Dict("name" => "x", "phases" => "DeWeerdt2011:mineral_composition:clinker", "remainder" => true), db,
+        )
+        # A clinker whose phases, counted with their pure formulas, leave less mass
+        # than its minor oxides: `remainder = "analysis"` keeps the oxides no phase
+        # holds at the amounts of the analysis, the phases scaled to make room.
+        # The white cement of Shi et al. (2016) leaves 1.3 % for 3.9 %.
+        wpc = material_template("white Portland cement (Shi 2016)", db)
+        @test sum(c.mass_fraction for c in wpc.constituents) ≈ 1 rtol = 1.0e-12
+        minor = only(c for c in wpc.constituents if c.name == "minor oxides")
+        xrf = literature_oxides("Shi2016", "chemical_composition", "wPc")
+        for ox in ("K2O", "Na2O", "MgO", "TiO2")
+            @test minor.mass_fraction * minor.oxides[ox] ≈ xrf[ox] rtol = 1.0e-12
+        end
+        @test sum(values(minor.oxides)) ≈ 1 rtol = 1.0e-12
+        c3s = only(c for c in wpc.constituents if c.name == "C3S").mass_fraction
+        @test 0.95 * 0.649 < c3s < 0.649
+        # With `remainder = true` the same oxides are squeezed into what the phases
+        # leave, and the potassium falls to a third of the analysis.
+        crystals = ChemistryLab._literature_phases("Shi2016:phase_composition:wPc")
+        squeezed = ChemistryLab._glass("Shi2016:chemical_composition:wPc", crystals, db)
+        @test squeezed.mass_fraction * squeezed.oxides["K2O"] < 0.4 * xrf["K2O"]
+        # Where the phases leave room (the clinker of De Weerdt et al.), the two
+        # rules give the same material.
+        dw = ChemistryLab._material_from_entry(
+            merge(ChemistryLab._template_entry("clinker (De Weerdt 2011)"), Dict("remainder" => "analysis")), db,
+        )
+        @test [(c.name, c.mass_fraction) for c in dw.constituents] == [(c.name, c.mass_fraction) for c in clinker.constituents]
+        dwm = only(c for c in dw.constituents if c.name == "minor oxides")
+        @test all(dwm.oxides[k] ≈ v for (k, v) in only(c for c in clinker.constituents if c.name == "minor oxides").oxides)
     end
 
     @testset "the non-negative least squares meets its optimality conditions" begin
@@ -220,6 +261,28 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
         # The residue has no sourced enthalpy (the glass): the heat is not complete.
         @test isnan(enthalpy(rs))
         @test isnan(volume(rs).residual) && "S1 slag (Durdzinski 2017)" in volume(rs).missing
+
+        # The heat between two states of one paste counts the residue by what
+        # changed. The cement alone: its titanium is set aside, unsourced, with
+        # the same mass in both states, so it cancels; the unreacted clinker
+        # changes, with the enthalpy of its records, and counts.
+        early = with_extents(pc, Dict("C3S" => 0.4, "C2S" => 0.1, "C3A" => 0.5, "C4AF" => 0.3))
+        rs1, _ = equilibrate_certified(Recipe(early => 1.0; w_b = 0.45), cs; model)
+        rs2, _ = equilibrate_certified(Recipe(pc => 1.0; w_b = 0.45), cs; model)
+        @test isnan(enthalpy(rs1)) && any(x -> x.enthalpy === nothing && x.reason === :not_in_system, rs1.residual)
+        q = heat_release(rs1, rs2)
+        sourced(r) = sum(x.enthalpy for x in r.residual if x.enthalpy !== nothing)
+        H(r) = ustrip(us"J", enthalpy(r.state))
+        @test q ≈ -((H(rs2) + sourced(rs2)) - (H(rs1) + sourced(rs1))) rtol = 1.0e-12
+        @test 0 < q / 100 < 600   # J per g of cement: a heat of hydration's order
+        @test heat_release(rs2, rs2) == 0
+        # With the slag glass reacting further between the two, its unreacted
+        # mass changes without an enthalpy: no heat can be given.
+        slag6 = with_extents(slag, Dict{String, Any}(); material_extent = 0.6)
+        rs6, _ = equilibrate_certified(Recipe(pc => 0.7, slag6 => 0.3; w_b = 0.45), cs; model)
+        @test isnan(heat_release(rs, rs6))
+        hot, _ = equilibrate_certified(Recipe(pc => 1.0; w_b = 0.45, T = 313.15u"K"), cs; model)
+        @test_throws ArgumentError heat_release(rs2, hot)
     end
 
     @testset "processes" begin
@@ -234,6 +297,8 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
         @test issorted(ch)
         tbl = process_table(h; phases = ["Portlandite", "ettringite"])
         @test size(tbl, 1) == 3 && tbl.Portlandite == ch
+        @test h[end] === h[3] && h[begin] === h[1]
+        @test findfirst(rs -> phase_masses(rs)["Portlandite"] > ch[1], h) == 2
 
         bl = blend(r, slag, [0.0, 0.3], cs; model)
         @test all(rs -> rs.certificate.optimal, bl)
@@ -247,8 +312,79 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
             @test A * ustrip.(us"mol", s.state.n) ≈ s.b rtol = 1.0e-10 atol = 1.0e-12
         end
 
+        # A salt enters by its formula, which need not be a species of the system:
+        # calcium carbonate as the column of calcite. One the primaries cannot
+        # express (no chlorine here), or no formula at all, is refused.
+        ical = findfirst(s -> symbol(s) == "Cal", cs.species)
+        sa = add_salt(rs, "CaCO3", [0.05])
+        @test only(sa.states).certificate.optimal
+        @test only(sa.states).b ≈ rs.b .+ 0.05 .* A[:, ical] rtol = 1.0e-14
+        @test_throws ArgumentError add_salt(rs, "NaCl", [0.1])
+        @test_throws ArgumentError titrate(rs, "not a formula", [0.1])
+
         le = leach(rs, 2)
         @test all(s -> s.certificate.optimal, le)
         @test pore_solution(le[2]).elements[:K] < pore_solution(rs).elements[:K]
+    end
+
+    @testset "phase lists" begin
+        # Every symbol a list names is a record of the database it is written for,
+        # and every solid solution a phase of data/solid_solutions.toml.
+        declared = [e["name"] for e in ChemistryLab.TOML.parsefile(datapath("solid_solutions.toml"))["solid_solution"]]
+        for list in phase_lists()
+            pl = phase_list(list)
+            names = Set(symbol.(build_species(datapath(pl.database); verbose = false)))
+            @test isempty(setdiff(vcat(pl.reactants, pl.products, pl.exclude_aqueous), names))
+            @test isempty(setdiff(pl.solid_solutions, declared))
+            @test isempty(setdiff(keys(pl.instances), pl.solid_solutions))
+        end
+        @test_throws KeyError phase_list("no such paste")
+
+        list = "Portland paste (Lothenbach and Winnefeld 2006)"
+        pl = phase_list(list)
+        pcs = phase_list_system(list, substances)
+        syms = String.(symbol.(pcs.species))
+        @test issubset(vcat(pl.reactants, pl.products), syms)
+        @test isempty(intersect(pl.exclude_aqueous, syms))
+        # The list declares the AFm binary with one composition and room for a
+        # second, where data/solid_solutions.toml declares two.
+        afm = only(p for p in pcs.solid_solutions if name(p) == "AFm_SO4_OH")
+        @test afm.instances == 1 && afm.max_instances == 2
+        filed = only(p for p in build_solid_solutions(datapath("solid_solutions.toml"), db) if name(p) == "AFm_SO4_OH")
+        @test filed.instances == 2
+        @test issubset(String.(symbol.(end_members(afm))), syms)
+        @test Set(name.(pcs.solid_solutions)) == Set(pl.solid_solutions)
+
+        # Departures from the list are named: a phase added, a phase removed, and
+        # a removal of what the list does not hold refused.
+        friedel = phase_list_system(list, substances; add = ["C4AClH10"], remove = ["hemicarbonate"])
+        fsyms = String.(symbol.(friedel.species))
+        @test "C4AClH10" in fsyms && "Cl-" in fsyms && !("hemicarbonate" in fsyms)
+        @test_throws ArgumentError phase_list_system(list, substances; remove = ["C4AClH10"])
+        @test_throws ArgumentError phase_list_system(list, substances; add = ["no such phase"])
+        # A database without a member of the list's solid solutions is refused,
+        # after the warning of `build_solid_solutions` that names the phase.
+        err = @test_logs (:warn, r"CSHQ") match_mode = :any try
+            phase_list_system(list, [s for s in substances if symbol(s) != "KSiOH"])
+        catch e
+            e
+        end
+        @test err isa ArgumentError && occursin("CSHQ", sprint(showerror, err))
+
+        # A leaching step reads the system of the last answer. Once a step has
+        # given the AFm its second instance, that system has two more species than
+        # the paste's, and the renewal is built in it.
+        big = with_instances(pcs, "AFm_SO4_OH" => 2; T = 293.15)
+        st0 = ChemicalState(pcs; T = 293.15u"K", n = fill(1.0e-3, length(pcs.species)) .* u"mol")
+        stbig = with_instances(st0, big)
+        @test length(big.species) == length(pcs.species) + 2
+        st1, bren = ChemistryLab._renewal(stbig, 50.0)
+        @test length(st1.n) == length(big.species)
+        # The budget is the solids of the last answer and 50 g of pure water.
+        nexp = ustrip.(us"mol", stbig.n)
+        iw = findfirst(s -> symbol(s) == "H2O@", big.species)
+        nexp[big.idx_aqueous] .= 0.0
+        nexp[iw] = 50.0 / ustrip(us"g/mol", big.species[iw][:M])
+        @test bren ≈ Float64.(big.SM.A) * nexp rtol = 1.0e-14
     end
 end

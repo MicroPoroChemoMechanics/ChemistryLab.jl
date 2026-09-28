@@ -45,7 +45,7 @@ appears above rather than a bare `pip install`.
 |:--|:--|:--|:--|
 | Reaktoro 2.13 | `reaktoro-env` | aqueous speciation; **ion exchange in both conventions** (`ActivityModelIonExchangeGainesThomas`, `…Vanselow`); reactive-area models, including a power law matching `ShrinkingCoreArea` | working |
 | PHREEQC (IPhreeqc, via phreeqpython) | `mpcm-oracles` | **surface complexation**: `SURFACE` with and without a diffuse layer, `EXCHANGE`, and the Dzombak & Morel HFO parameters shipped in `phreeqc.dat` | working |
-| GEMS3K (xgems) | `mpcm-oracles` | CEMDATA18 cements — the activity model of a pore solution first (`xgems_cement.py`) | **runs** on the system exports the xGEMS repository publishes; see below |
+| GEMS3K (xgems) | `mpcm-oracles` | CEMDATA18 cements — the activity model of a pore solution (`xgems_cement.py`), and the pastes of Lothenbach & Winnefeld (2006), of De Weerdt et al. (2011) and of Shi et al. (2016), carbonated, on the budgets and phases of ChemistryLab (`xgems_<name>.jl`, then `xgems_replay.py <name>`) | **runs** on the system exports the xGEMS repository publishes; see below |
 
 ## GEMS3K runs on published exports
 
@@ -59,6 +59,15 @@ the export files are never committed here — runs it, and writes
 standard Gibbs energies of its species can be set through the API
 (`equilibrate(T, P, b)`, `setSpeciesUpperLimit`, `setStandardMolarGibbsEnergy`),
 so the same system answers questions other than its own recipe.
+
+`xgems_replay.py` uses that to replay a ChemistryLab calculation. Its Julia
+half, `xgems_<name>.jl`, writes the element budget of each paste and age and the
+species of the system into the oracle cache; the Python half runs the export on
+those budgets and removes every solid and gas the system does not declare by
+raising its standard Gibbs energy by 1e6 J/mol. An upper bound of zero on those
+species was tried first, and GEMS3K then stops without converging (code 4). One
+age of the Lothenbach & Winnefeld paste, 6 h, does not converge from a cold or a
+warm start either, and the fixture says so.
 
 What stays out of reach is a system no export carries: the ClaySor 2023 deposit
 (doi:10.5281/zenodo.15095062, CC-BY-4.0) ships a GEM-Selektor **database**, not

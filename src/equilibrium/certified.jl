@@ -275,10 +275,13 @@ function _ideal_start(
     )
     model isa DiluteSolutionModel && return nothing
     return try
-        eq0, cert0 = equilibrate_certified(
-            state; model = DiluteSolutionModel(), b = bfix, ϵ = ϵ,
-            constraint = constraint, verbose = false, autostart = true, kwargs...,
-        )
+        # A start for a search in this system, so never in an enlarged one.
+        eq0, cert0 = with(_AUTO_SPLIT => false) do
+            equilibrate_certified(
+                state; model = DiluteSolutionModel(), b = bfix, ϵ = ϵ,
+                constraint = constraint, verbose = false, autostart = true, kwargs...,
+            )
+        end
         cert0.optimal ? eq0 : nothing
     catch err
         verbose && @info "the ideal pre-solve did not run" err
@@ -400,7 +403,8 @@ function _ideal_mixing_system(cs::ChemicalSystem)
     ideal = [
         model(ph) isa SublatticeModel ?
             SolidSolutionPhase{eltype(ph.end_members), IdealSolidSolutionModel}(
-                ph.name, ph.end_members, IdealSolidSolutionModel(), ph.instances, ph.declared,
+                ph.name, ph.end_members, IdealSolidSolutionModel(), ph.instances,
+                ph.max_instances, ph.declared,
             ) : ph
             for ph in ss
     ]
@@ -432,7 +436,7 @@ function _ideal_mixing_start(
     # A starting point, not a result: the strict flag is for the answer the
     # caller receives, and a refusal here only means no start.
     st = ChemicalState(cs; T = state.T[1], P = state.P[1], n = state.n)
-    eq0, cert0 = with(_STRICT_OVERRIDE => false) do
+    eq0, cert0 = with(_STRICT_OVERRIDE => false, _AUTO_SPLIT => false) do
         equilibrate_certified(
             st; model = model, b = bfix, ϵ = ϵ, constraint = constraint,
             verbose = false, autostart = true, kwargs...,
@@ -775,6 +779,25 @@ function equilibrate_path(
 end
 
 """
+    with_instances(state, cs) -> ChemicalState
+
+`state` carried over to `cs`, a system [`with_instances`](@ref) built from its
+own: every species keeps its amount, and the copies it did not have start at
+zero, so the element budget is unchanged. Temperature and pressure are kept.
+"""
+function with_instances(state::ChemicalState, cs::ChemicalSystem)
+    have = Dict(symbol(sp) => x for (sp, x) in zip(state.system.species, state.n))
+    unit = first(state.n) * 0
+    n = [get(have, symbol(sp), unit) for sp in cs.species]
+    for (sp, x) in have
+        haskey(cs.dict_species, sp) || throw(
+            ArgumentError("with_instances: the species \"$sp\" of the state is not in the new system."),
+        )
+    end
+    return ChemicalState(cs, n; T = temperature(state), P = pressure(state))
+end
+
+"""
     equilibrate_certified(state; model, ϵ, b, verbose, autostart, lp_start, dual,
                           fallback_model, fallback_on) -> (state, certificate)
 
@@ -870,6 +893,17 @@ eq, cert = equilibrate_certified(state; model = cemdata18_activity_model(),
                                  fallback_on = :out_of_range)
 ```
 
+# A phase that may unmix: `instances = :auto`
+
+A solid solution declared `SolidSolutionPhase(...; instances = :auto)` is solved
+with one composition. When the certificate finds it wanting to split, the system
+is rebuilt with a second instance ([`with_instances`](@ref)), the answer is
+carried over, and the passes of [`equilibrate_split`](@ref) look for the pair.
+Their answer is kept when its KKT error is smaller: it is then a state of the
+enlarged system, and the certificate names the phases in `instances_added`.
+Under [`STRICT_CONVERGENCE`](@ref) the first solve is a search and the final
+answer is judged.
+
 # Example
 
 ```julia
@@ -880,7 +914,105 @@ cert.balance          # element balance residual
 cert.worst_supersaturation   # negative: every absent phase undersaturated
 ```
 """
-function equilibrate_certified(
+function equilibrate_certified(state::ChemicalState; kwargs...)
+    (_AUTO_SPLIT[] && _has_auto_instances(state.system)) || return _certified_with_fallback(state; kwargs...)
+    # A phase declared `instances = :auto` may be solved first with one
+    # composition inside its gap, which cannot certify. The search stops as soon
+    # as a phase asks to split (see `solve_certified`), without the restarts that
+    # would only confirm the refusal, and the second instance is tried here; the
+    # answer is judged once that is done.
+    eq, cert = _relaxed_convergence() do
+        _after_first_search(state, _certified_with_fallback(state; kwargs...)...; kwargs...)
+    end
+    if cert !== nothing && !cert.optimal && _strict_convergence()
+        error(
+            "equilibrate_certified: no certifiable equilibrium, a second instance of the " *
+                "`instances = :auto` phases included: stationarity $(cert.stationarity), " *
+                "element balance $(cert.balance). `ChemistryLab.STRICT_CONVERGENCE[]` is set, " *
+                "so this raises rather than returning an answer that is not an equilibrium.",
+        )
+    end
+    return eq, cert
+end
+
+# What follows the first search of a system with an `instances = :auto` phase:
+# its answer when it certified or no such phase asks to split; otherwise the
+# second instance, and when that does not help either, the ordinary search that
+# the early stop cut short, so that `:auto` is never worse than one instance.
+function _after_first_search(state, first_eq, first_cert; kwargs...)
+    (first_cert === nothing || first_cert.optimal) && return first_eq, first_cert
+    _wants_auto_split(state.system, first_cert) || return first_eq, first_cert
+    quiet(f) = Base.CoreLogging.with_logger(f, Base.CoreLogging.NullLogger())
+    split_eq, split_cert = quiet(() -> _auto_split(first_eq, first_cert; kwargs...))
+    hasproperty(split_cert, :instances_added) && return split_eq, split_cert
+    return _certified_with_fallback(state; kwargs..., split_early = false)
+end
+
+_has_auto_instances(cs) = cs.solid_solutions !== nothing &&
+    any(ss -> _max_instances(ss) > _instances(ss), cs.solid_solutions)
+
+_max_instances(ss) = hasproperty(ss, :max_instances) ? Int(getproperty(ss, :max_instances)) : _instances(ss)
+
+# The declarations of `cs` that `cert` finds wanting to split and that were
+# declared `instances = :auto`, by name.
+function _auto_phases_to_split(cs, cert)
+    grow = String[]
+    phases = cs.solid_solutions
+    trials = get(cert, :split_trials, nothing)
+    (phases === nothing || trials === nothing) && return grow
+    for (_, t) in trials
+        k = findfirst(g -> first(t.members) in g, cs.ss_groups)
+        k === nothing && continue
+        d = only(ss for ss in phases if name(ss) == _declared(phases[k]))
+        _max_instances(d) > _instances(d) && !(name(d) in grow) && push!(grow, name(d))
+    end
+    return grow
+end
+
+# The split test says something only about an answer that has otherwise reached
+# the solution: on one that has not, a phase can look unstable for no other
+# reason. So a phase is given its second instance only when the answer is
+# stationary and balanced, and the split is its worst violation. Read on every
+# certificate that failed, as it first was, the rule split the AFt of a slag
+# cement paste on a first answer with an element balance of 0.17, and the search
+# on the enlarged system then failed where one composition certifies.
+function _converged_but_unstable(cert)
+    all(k -> hasproperty(cert, k), (:stationarity, :balance, :worst_violation_split, :worst_supersaturation)) ||
+        return false
+    return cert.stationarity <= 1.0e-8 && cert.balance <= 1.0e-8 &&
+        cert.worst_violation_split >= cert.worst_supersaturation
+end
+
+_wants_auto_split(cs, cert) = _converged_but_unstable(cert) && !isempty(_auto_phases_to_split(cs, cert))
+
+"""
+    _auto_split(eq, cert; model, b, kwargs...) -> (state, certificate)
+
+What `instances = :auto` asks for. When the certificate finds a phase declared
+`:auto` wanting to split, the system is rebuilt with a second instance of it
+([`with_instances`](@ref)), the answer is carried over with the copies at zero,
+and the passes of [`equilibrate_split`](@ref) run on the enlarged system, seeded
+from the composition the stability test gives. Their answer is kept only when its
+KKT error is smaller, so the result is never worse than the first answer; it then
+carries `instances_added`, the phases that were given a second instance.
+"""
+function _auto_split(
+        eq, cert; model::AbstractActivityModel = DiluteSolutionModel(), b = nothing,
+        maxpasses::Int = 3, share::Float64 = 0.5, kwargs...,
+    )
+    (cert === nothing || cert.optimal) && return eq, cert
+    cs = eq.system
+    grow = _auto_phases_to_split(cs, cert)
+    isempty(grow) && return eq, cert
+    declaration(n) = only(ss for ss in cs.solid_solutions if name(ss) == n)
+    T = ustrip(us"K", temperature(eq))
+    enlarged = with_instances(cs, (n => _max_instances(declaration(n)) for n in grow)...; T = T)
+    eq2, cert2 = _split_passes(with_instances(eq, enlarged), model, b, maxpasses, share; kwargs...)
+    (cert2 !== nothing && _kkt_error(cert2) < _kkt_error(cert)) || return eq, cert
+    return eq2, merge(cert2, (; instances_added = grow))
+end
+
+function _certified_with_fallback(
         state::ChemicalState;
         model::AbstractActivityModel = DiluteSolutionModel(),
         fallback_model::Union{Nothing, AbstractActivityModel} = nothing,
@@ -939,6 +1071,7 @@ function _equilibrate_certified(
         autostart::Bool = true,
         lp_start::Bool = true,
         dual::NamedTuple = NamedTuple(),
+        split_early::Bool = true,
         kwargs...,
     )
     _refuse_state_keywords(kwargs, "equilibrate_certified")
@@ -1041,10 +1174,15 @@ function _equilibrate_certified(
     # same answer bit for bit, since `des`, `bfix`, `ϵ` and `constraint` are
     # fixed for the whole call. See `solve_certified`.
     memo = IdDict{Any, Any}()
+    # A phase declared `instances = :auto` that asks to split cannot certify with
+    # one composition from any start, so the search stops there and the answer
+    # goes to `equilibrate_certified`, which gives the phase its second instance.
+    wants_split(c) = !c.optimal && _wants_auto_split(state.system, c)
+    stop = split_early && _AUTO_SPLIT[] && _has_auto_instances(state.system) ? wants_split : nothing
     search(starts) = _exploring_starts() do
         solve_certified(
             des, starts; b = bfix, ϵ = ϵ,
-            constraint = constraint, parameters = parameters, memo = memo,
+            constraint = constraint, parameters = parameters, memo = memo, stop = stop,
         )
     end
 
@@ -1072,6 +1210,7 @@ function _equilibrate_certified(
     end
 
     eq, cert = search(starts)
+    split_next = stop !== nothing && stop(cert)
 
     # The ideal model as a stepping stone.
     #
@@ -1095,7 +1234,7 @@ function _equilibrate_certified(
     #
     # Only when nothing else certified, so the ordinary case pays nothing, and
     # guarded against recursion: the inner call is already ideal.
-    if autostart && !cert.optimal && !(model isa DiluteSolutionModel)
+    if autostart && !cert.optimal && !split_next && !(model isa DiluteSolutionModel)
         ideal = _ideal_start(state, model, bfix, ϵ, constraint, verbose; dual = dual, kwargs...)
         if ideal !== nothing
             eq, cert = _keep_better(
@@ -1120,7 +1259,7 @@ function _equilibrate_certified(
     # know is whether the continuation ran at all and whether it helped — and
     # asking for that should not require a second run with `verbose = true`.
     note = autostart ? "not reached (the first route certified)" : "declined (autostart = false)"
-    if autostart && !cert.optimal
+    if autostart && !cert.optimal && !split_next
         # Walked under the IDEAL model, deliberately, whatever `model` is: the
         # non-ideal ones do not walk (the a = 0 Debye-Huckel runs away to
         # I = 18 mol/kg, its coefficients falling with I raising solubility
@@ -1189,7 +1328,7 @@ function _equilibrate_certified(
         end
     end
 
-    if !cert.optimal
+    if !cert.optimal && !split_next
         # `STRICT_CONVERGENCE[]` is honored here, not only on the interior-point
         # retcode. A caller who sets it is asking that a non-converged solve
         # never pass as a result, and an uncertified answer from this route is

@@ -221,10 +221,14 @@ end
 # substitution is exact in one sweep for ideal mixing and contracts under a weak
 # excess term; on a sublattice model it diverges (the gel of Myers et al. within
 # six sweeps, at the potentials of a CEM I paste), so that phase is inverted by
-# Newton's method instead. Every other model keeps the substitution, and its
-# results bit for bit.
+# Newton's method instead. So is a phase with an excess term: the published AFm
+# SO4/OH binary of Cemdata18, whose energy is concave on part of its range, held
+# the search of a CEM I paste for minutes with the substitution and never
+# certified, while Newton certifies it in one route, at the composition GEMS3K
+# gives. Ideal mixing keeps the substitution, and its results bit for bit.
 _needs_newton_inversion(::Any) = false
 _needs_newton_inversion(::SublatticeModel) = true
+_needs_newton_inversion(::Union{RedlichKisterModel, RegularSolutionModel}) = true
 
 # The log activities of a solid solution's members from their own amounts, as
 # `_solid_solution_lna!` computes them inside the activity closure (same ϵ, same
@@ -743,6 +747,7 @@ function solve_certified(
         constraint::EquilibriumConstraint = FixedTP(),
         parameters::Union{Nothing, Base.RefValue} = nothing,
         memo::Union{Nothing, IdDict} = nothing,
+        stop::Union{Nothing, Function} = nothing,
     )
     best = nothing
     best_cert = nothing
@@ -777,6 +782,13 @@ function solve_certified(
             qref = Ref(q)
         end
         if cert.optimal
+            parameters === nothing || (parameters[] = qref[])
+            return (eq, cert)
+        end
+        # A caller may know that an uncertified answer is already what it needs:
+        # a phase declared `instances = :auto` asking to split, which no other
+        # start can make certify with one composition.
+        if stop !== nothing && stop(cert)
             parameters === nothing || (parameters[] = qref[])
             return (eq, cert)
         end

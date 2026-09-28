@@ -785,11 +785,68 @@
           "T2C* + T5C* + TobH*"
         ]
       ]
+    },
+    "cnash_bridging_vacancies": {
+      "columns": [
+        "end_member",
+        "printed",
+        "bridging_vacancies"
+      ],
+      "units": [
+        null,
+        null,
+        "1"
+      ],
+      "kind": "published",
+      "location": "Table 1, column ν (the fraction of bridging-site vacancies per dreierketten unit), read on the rendered page and checked against the text layer; used in Eq. (11), p. 31",
+      "rows": [
+        [
+          "5CA",
+          "5CA",
+          0.5
+        ],
+        [
+          "INFCA",
+          "INFCA",
+          0
+        ],
+        [
+          "5CNA",
+          "5CNA",
+          0.5
+        ],
+        [
+          "INFCNA",
+          "INFCNA",
+          0
+        ],
+        [
+          "INFCN",
+          "INFCN",
+          0
+        ],
+        [
+          "T2C-CNASHss",
+          "T2C*",
+          1
+        ],
+        [
+          "T5C-CNASHss",
+          "T5C*",
+          0.5
+        ],
+        [
+          "TobH-CNASHss",
+          "TobH*",
+          0
+        ]
+      ]
     }
   },
   "notes": [
     "The two sites every end-member shares, [(CaSiO3.5)-]1 and [H2O]1, carry one species each and do not enter the configurational entropy.",
     "cnash_site_mixing_terms is Appendix B transcribed on its own, independently of cnash_occupancy: each row is one term coefficient x ln(sum of the listed mole fractions) of ln(lambda_k) + ln(x_k), the logarithm of the activity of the end-member the equation is written for, in the paper's notation (5CA = 0, INFCA = 1, 5CNA = 2, INFCNA = 3, INFCN = 4, T2C* = 5, T5C* = 6, TobH* = 7). The test suite requires the two transcriptions to give the same activities.",
-    "cnash_end_members gives the chemical formula Table 1 prints for each end-member; cnash_shared_sites the two sites of the sublattice formula every end-member shares. The formula of an end-member is the sum of its shared sites and of its six variable sites weighted by their coefficients, which the test suite checks against both columns."
+    "cnash_end_members gives the chemical formula Table 1 prints for each end-member; cnash_shared_sites the two sites of the sublattice formula every end-member shares. The formula of an end-member is the sum of its shared sites and of its six variable sites weighted by their coefficients, which the test suite checks against both columns.",
+    "cnash_bridging_vacancies gives the ν of each end-member, which Eq. (11) turns into the minimum chain length of the gel, CL = 3/Σk(χk νk) − 1, the chains taken as not crosslinked, so a lower bound on the mean chain length, as the paper states."
   ]
 }

@@ -32,3 +32,7 @@ docs/*.svg
 # Written by xgems wherever it is imported; the oracle bench in
 # test/reference/ runs from the repository root.
 xGEMS.log
+
+# Python bytecode caches, written whenever a script under .github/scripts or
+# test/reference runs
+__pycache__/

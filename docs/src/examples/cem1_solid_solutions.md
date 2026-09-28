@@ -185,7 +185,7 @@ stating because it is a difference of formulation and not of chemistry.
     Here the composition vector has one entry per species, so a species belongs
     to exactly one phase, and a gap is expressed by declaring the phase with
     `instances = 2`, which gives it a second copy of each end member (see
-    [A miscibility gap in the AFm of a CEM I 52.5 N, and the three answers a formulation can give](@ref ex-miscibility-gap)). The mixing models
+    [The AFm of a CEM I 52.5 N and its miscibility gap](@ref ex-miscibility-gap)). The mixing models
     of this page are ideal and open no gap, so the eight distinct phases are the
     whole of the chemistry.
 

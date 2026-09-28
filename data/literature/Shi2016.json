@@ -1,0 +1,854 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Shi2016",
+    "doi": "10.1016/j.cemconres.2016.06.006",
+    "citation": "Shi, Z., Lothenbach, B., Geiker, M. R., Kaufmann, J., Leemann, A., Ferreiro, S., Skibsted, J. (2016). Experimental studies and thermodynamic modeling of the carbonation of Portland cement, metakaolin and limestone mortars. Cement and Concrete Research 88, 60-72.",
+    "location": "Sections 2 and 4, Tables 1, 2, 3 and 5"
+  },
+  "transcription": {
+    "from": "the published article (PDF): the text layer, with Tables 1, 3 and 5 checked against the rendered pages",
+    "checked_against_source": true,
+    "note": "Table 5 gives, for each mortar, the CaO of the hydrates computed by the authors and the CaCO3 and Ca(OH)2 measured by TGA, in mol CaO per 100 g of ignited mortar. Its total CO2 binding capacity is the sum of the Ca(OH)2, C-S-H, monocarbonate, strätlingite and ettringite rows, and its effective capacity the total less the decalcified C-S-H row, both to the rounding of the table, which the test suite checks."
+  },
+  "quantities": {
+    "water_binder_ratio": {
+      "value": 0.5,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2"
+    },
+    "sand_binder_ratio": {
+      "value": 3.0,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, binder-to-sand ratio 1/3 by weight"
+    },
+    "curing_temperature": {
+      "value": 293.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, 20 degrees C"
+    },
+    "hydration_time": {
+      "value": 91.0,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.3: the mortars were hydrated 91 days before the CO2 exposure"
+    },
+    "co2_exposure_percent": {
+      "value": 1.0,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.3, 1 % (v/v) CO2"
+    },
+    "relative_humidity_percent": {
+      "value": 57.0,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": 1.0,
+      "location": "Section 2.3, 57 +/- 1 % RH"
+    },
+    "modeled_co2_max": {
+      "value": 50.0,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.4.5",
+      "description": "grams of CO2 per 100 g of binder, the upper end of the authors' calculations"
+    },
+    "model_pH_initial_P_L": {
+      "value": 13.4,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.2",
+      "description": "the pH the authors computed for the P and L mortars before carbonation, with GEMS 3.3 and CEMDATA07"
+    },
+    "model_pH_initial_M_ML": {
+      "value": 12.8,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.2",
+      "description": "the pH the authors computed for the M and ML mortars before carbonation"
+    },
+    "model_pH_high_ca_csh_carbonated": {
+      "value": 9.7,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.2 ('pH approximately 9.7'); Section 5 gives 9.6",
+      "description": "the pH the authors computed once the high-Ca C-S-H is carbonated to a decalcified C-S-H and calcium carbonate"
+    },
+    "model_pH_fully_carbonated": {
+      "value": 7.4,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.2",
+      "description": "the pH the authors computed once the decalcified C-S-H is carbonated too, in contact with 1 % CO2"
+    },
+    "model_csh_ca_si_initial_P_L": {
+      "value": 1.63,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 3.3.3 and Fig. 12",
+      "description": "the Ca/Si of the C-S-H the authors computed for the P and L mortars before carbonation"
+    },
+    "model_csh_ca_si_initial_M_ML": {
+      "value": 1.29,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 3.3.3 and Fig. 12",
+      "description": "the Ca/Si of the C-S-H the authors computed for the M and ML mortars before carbonation"
+    },
+    "model_csh_ca_si_decalcified": {
+      "value": 0.67,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 3.3.3 and Fig. 12",
+      "description": "the Ca/Si the computed C-S-H falls to, that of TobH, before it decomposes to silica"
+    }
+  },
+  "tables": {
+    "chemical_composition": {
+      "columns": [
+        "material",
+        "oxide",
+        "percent"
+      ],
+      "units": [
+        null,
+        null,
+        "1"
+      ],
+      "kind": "measured",
+      "location": "Table 1, XRF, wt.%; wPc is the white Portland cement, LS the limestone, MK the metakaolin",
+      "rows": [
+        [
+          "wPc",
+          "SiO2",
+          21.81
+        ],
+        [
+          "wPc",
+          "Al2O3",
+          3.56
+        ],
+        [
+          "wPc",
+          "Fe2O3",
+          0.24
+        ],
+        [
+          "wPc",
+          "CaO",
+          66.13
+        ],
+        [
+          "wPc",
+          "MgO",
+          1.1
+        ],
+        [
+          "wPc",
+          "K2O",
+          0.43
+        ],
+        [
+          "wPc",
+          "Na2O",
+          0.04
+        ],
+        [
+          "wPc",
+          "SO3",
+          3.37
+        ],
+        [
+          "wPc",
+          "TiO2",
+          0.21
+        ],
+        [
+          "wPc",
+          "P2O5",
+          0.04
+        ],
+        [
+          "wPc",
+          "LOI",
+          2.57
+        ],
+        [
+          "LS",
+          "SiO2",
+          3.92
+        ],
+        [
+          "LS",
+          "Al2O3",
+          0.33
+        ],
+        [
+          "LS",
+          "Fe2O3",
+          0.14
+        ],
+        [
+          "LS",
+          "CaO",
+          53.73
+        ],
+        [
+          "LS",
+          "MgO",
+          0.35
+        ],
+        [
+          "LS",
+          "K2O",
+          0.05
+        ],
+        [
+          "LS",
+          "Na2O",
+          0.08
+        ],
+        [
+          "LS",
+          "SO3",
+          0.05
+        ],
+        [
+          "LS",
+          "TiO2",
+          0.02
+        ],
+        [
+          "LS",
+          "P2O5",
+          0.1
+        ],
+        [
+          "LS",
+          "LOI",
+          41.8
+        ],
+        [
+          "MK",
+          "SiO2",
+          52.84
+        ],
+        [
+          "MK",
+          "Al2O3",
+          39.49
+        ],
+        [
+          "MK",
+          "Fe2O3",
+          1.42
+        ],
+        [
+          "MK",
+          "CaO",
+          0.22
+        ],
+        [
+          "MK",
+          "MgO",
+          0.48
+        ],
+        [
+          "MK",
+          "K2O",
+          1.0
+        ],
+        [
+          "MK",
+          "Na2O",
+          0.05
+        ],
+        [
+          "MK",
+          "SO3",
+          0.06
+        ],
+        [
+          "MK",
+          "TiO2",
+          0.88
+        ],
+        [
+          "MK",
+          "P2O5",
+          0.11
+        ],
+        [
+          "MK",
+          "LOI",
+          3.55
+        ]
+      ]
+    },
+    "properties": {
+      "columns": [
+        "material",
+        "density",
+        "blaine"
+      ],
+      "units": [
+        null,
+        "kg/m^3",
+        "m^2/kg"
+      ],
+      "kind": "measured",
+      "location": "Table 1",
+      "rows": [
+        [
+          "wPc",
+          3080,
+          387
+        ],
+        [
+          "LS",
+          2700,
+          1211
+        ],
+        [
+          "MK",
+          2530,
+          1891
+        ]
+      ]
+    },
+    "phase_composition": {
+      "columns": [
+        "material",
+        "phase",
+        "percent"
+      ],
+      "units": [
+        null,
+        null,
+        "1"
+      ],
+      "kind": "measured",
+      "location": "Section 2.1 and Table 1: the alite and belite of the wPc by 29Si MAS NMR, its C3A by mass balance, its gypsum, limestone and free lime as Section 2.1 gives them; its CaCO3 and that of the limestone from Table 1. The wPc has no ferrite phase, its iron taken as guest ions in the other phases (Section 2.1)",
+      "rows": [
+        [
+          "wPc",
+          "C3S",
+          64.9
+        ],
+        [
+          "wPc",
+          "C2S",
+          16.9
+        ],
+        [
+          "wPc",
+          "C3A",
+          7.8
+        ],
+        [
+          "wPc",
+          "Gypsum",
+          4.1
+        ],
+        [
+          "wPc",
+          "Calcite",
+          3.1
+        ],
+        [
+          "wPc",
+          "Free lime",
+          1.9
+        ],
+        [
+          "LS",
+          "Calcite",
+          93.8
+        ]
+      ]
+    },
+    "mixes": {
+      "columns": [
+        "mix",
+        "wpc",
+        "mk",
+        "ls"
+      ],
+      "units": [
+        null,
+        "1",
+        "1",
+        "1"
+      ],
+      "kind": "published",
+      "location": "Table 2, wt.% of the binder",
+      "rows": [
+        [
+          "P",
+          100,
+          0,
+          0
+        ],
+        [
+          "L",
+          68.1,
+          0,
+          31.9
+        ],
+        [
+          "ML",
+          68.1,
+          25.5,
+          6.4
+        ],
+        [
+          "M",
+          68.1,
+          31.9,
+          0
+        ]
+      ]
+    },
+    "degree_of_hydration": {
+      "columns": [
+        "mix",
+        "phase",
+        "time_d",
+        "percent"
+      ],
+      "units": [
+        null,
+        null,
+        "1",
+        "1"
+      ],
+      "kind": "measured",
+      "location": "Table 3, 29Si MAS NMR on pastes of the same blends",
+      "rows": [
+        [
+          "P",
+          "alite",
+          28,
+          81
+        ],
+        [
+          "P",
+          "alite",
+          180,
+          95
+        ],
+        [
+          "P",
+          "belite",
+          28,
+          25
+        ],
+        [
+          "P",
+          "belite",
+          180,
+          63
+        ],
+        [
+          "L",
+          "alite",
+          28,
+          90
+        ],
+        [
+          "L",
+          "alite",
+          180,
+          97
+        ],
+        [
+          "L",
+          "belite",
+          28,
+          57
+        ],
+        [
+          "L",
+          "belite",
+          180,
+          82
+        ],
+        [
+          "ML",
+          "alite",
+          28,
+          83
+        ],
+        [
+          "ML",
+          "alite",
+          180,
+          86
+        ],
+        [
+          "ML",
+          "belite",
+          28,
+          34
+        ],
+        [
+          "ML",
+          "belite",
+          180,
+          36
+        ],
+        [
+          "ML",
+          "MK",
+          28,
+          48
+        ],
+        [
+          "ML",
+          "MK",
+          180,
+          54
+        ],
+        [
+          "M",
+          "alite",
+          28,
+          86
+        ],
+        [
+          "M",
+          "alite",
+          180,
+          86
+        ],
+        [
+          "M",
+          "belite",
+          28,
+          34
+        ],
+        [
+          "M",
+          "belite",
+          180,
+          34
+        ],
+        [
+          "M",
+          "MK",
+          28,
+          38
+        ],
+        [
+          "M",
+          "MK",
+          180,
+          50
+        ]
+      ]
+    },
+    "cao_computed": {
+      "columns": [
+        "mix",
+        "phase",
+        "cao"
+      ],
+      "units": [
+        null,
+        null,
+        "1"
+      ],
+      "kind": "published",
+      "location": "Table 5, 'Calculated by GEMS': the CaO of each hydrate after 91 days of hydration, computed by the authors with GEMS 3.3 and CEMDATA07, in mol CaO per 100 g of ignited mortar; effective and total are the table's effective and total CO2 binding capacities",
+      "rows": [
+        [
+          "P",
+          "portlandite",
+          0.106
+        ],
+        [
+          "L",
+          "portlandite",
+          0.067
+        ],
+        [
+          "ML",
+          "portlandite",
+          0.0
+        ],
+        [
+          "M",
+          "portlandite",
+          0.0
+        ],
+        [
+          "P",
+          "C-S-H",
+          0.138
+        ],
+        [
+          "L",
+          "C-S-H",
+          0.113
+        ],
+        [
+          "ML",
+          "C-S-H",
+          0.12
+        ],
+        [
+          "M",
+          "C-S-H",
+          0.123
+        ],
+        [
+          "P",
+          "decalcified C-S-H",
+          0.049
+        ],
+        [
+          "L",
+          "decalcified C-S-H",
+          0.039
+        ],
+        [
+          "ML",
+          "decalcified C-S-H",
+          0.049
+        ],
+        [
+          "M",
+          "decalcified C-S-H",
+          0.051
+        ],
+        [
+          "P",
+          "monocarbonate",
+          0.004
+        ],
+        [
+          "L",
+          "monocarbonate",
+          0.002
+        ],
+        [
+          "ML",
+          "monocarbonate",
+          0.04
+        ],
+        [
+          "M",
+          "monocarbonate",
+          0.02
+        ],
+        [
+          "P",
+          "straetlingite",
+          0.0
+        ],
+        [
+          "L",
+          "straetlingite",
+          0.0
+        ],
+        [
+          "ML",
+          "straetlingite",
+          0.0
+        ],
+        [
+          "M",
+          "straetlingite",
+          0.016
+        ],
+        [
+          "P",
+          "ettringite",
+          0.021
+        ],
+        [
+          "L",
+          "ettringite",
+          0.015
+        ],
+        [
+          "ML",
+          "ettringite",
+          0.017
+        ],
+        [
+          "M",
+          "ettringite",
+          0.013
+        ],
+        [
+          "P",
+          "effective",
+          0.22
+        ],
+        [
+          "L",
+          "effective",
+          0.158
+        ],
+        [
+          "ML",
+          "effective",
+          0.129
+        ],
+        [
+          "M",
+          "effective",
+          0.123
+        ],
+        [
+          "P",
+          "total",
+          0.269
+        ],
+        [
+          "L",
+          "total",
+          0.197
+        ],
+        [
+          "ML",
+          "total",
+          0.178
+        ],
+        [
+          "M",
+          "total",
+          0.174
+        ]
+      ]
+    },
+    "cao_measured": {
+      "columns": [
+        "mix",
+        "quantity",
+        "cao"
+      ],
+      "units": [
+        null,
+        null,
+        "1"
+      ],
+      "kind": "measured",
+      "location": "Table 5, 'Measured by TGA' after 91 days of carbonation, in mol CaO per 100 g of ignited mortar: the CaCO3 formed near the surface (its limestone subtracted, Section 2.4.4), and the Ca(OH)2 near the surface and in the non-carbonated core",
+      "rows": [
+        [
+          "P",
+          "surface CaCO3",
+          0.13
+        ],
+        [
+          "L",
+          "surface CaCO3",
+          0.12
+        ],
+        [
+          "ML",
+          "surface CaCO3",
+          0.13
+        ],
+        [
+          "M",
+          "surface CaCO3",
+          0.13
+        ],
+        [
+          "P",
+          "surface portlandite",
+          0.02
+        ],
+        [
+          "L",
+          "surface portlandite",
+          0.0
+        ],
+        [
+          "ML",
+          "surface portlandite",
+          0.0
+        ],
+        [
+          "M",
+          "surface portlandite",
+          0.0
+        ],
+        [
+          "P",
+          "core portlandite",
+          0.1
+        ],
+        [
+          "L",
+          "core portlandite",
+          0.07
+        ],
+        [
+          "ML",
+          "core portlandite",
+          0.008
+        ],
+        [
+          "M",
+          "core portlandite",
+          0.004
+        ]
+      ]
+    },
+    "authors_model": {
+      "columns": [
+        "item",
+        "value"
+      ],
+      "units": [
+        null,
+        null
+      ],
+      "kind": "published",
+      "location": "Section 2.4.5",
+      "rows": [
+        [
+          "program",
+          "GEMS 3.3"
+        ],
+        [
+          "database",
+          "CEMDATA07"
+        ],
+        [
+          "C-S-H",
+          "CSHQ (Kulik), with the alkali end-members of Kulik et al."
+        ],
+        [
+          "CO2",
+          "added as air with 1 % (v/v) CO2, 0 to 50 g of CO2 per 100 g of binder"
+        ]
+      ]
+    }
+  },
+  "notes": [
+    "The mortars' compressive strengths (Table 3), carbonation depths (Table 4) and porosities (Figs. 4 to 6, 11) are not transcribed.",
+    "Section 2.1 gives the limestone of the wPc as 3.1 wt% LS, and Table 1 its CaCO3 as 3.1 %; the CaCO3 is transcribed.",
+    "Table 3 gives the degrees of hydration at 28 and 180 days only; the mortars were carbonated after 91 days."
+  ]
+}

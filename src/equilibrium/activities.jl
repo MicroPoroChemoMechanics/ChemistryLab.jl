@@ -654,7 +654,9 @@ The values are read from `data/literature/Lothenbach2019.json`. In terms of
   - `A` and `B` depend on temperature and pressure, as the paper states; with
     `temperature_dependent = true` they are computed from the water properties
     at every call. The paper gives `b_γ` at 25 °C only, and it is kept at that
-    value.
+    value: [Helgeson1981](@cite) tabulate `b_γ` against temperature for HCl,
+    LiCl, NaCl, KCl, MgCl₂ and CaCl₂ (Table 26, p. 1457), and not for KOH or
+    NaOH, the two electrolytes the paper gives parameters for.
   - The paper states the correction applicable up to about 1 mol/kg of ionic
     strength, which [`activity_model_range`](@ref) returns and the certificate
     of [`equilibrate_certified`](@ref) compares with the ionic strength of the
