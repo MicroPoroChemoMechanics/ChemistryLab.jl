@@ -1,11 +1,11 @@
 [deps]
-JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 ChemistryLab = "f346e401-14f9-407c-a0e2-c4f64a3e574a"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterCitations = "daee34ce-89f3-4625-b898-19384cb65244"
 DocumenterVitepress = "4710194d-e776-4893-9690-8d956a29c365"
 DynamicQuantities = "06fc5a27-2a28-4c7c-a15d-362465fb6821"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LiveServer = "16fef848-5104-11e9-1b77-fb7a48bbb589"
 OptimaSolver = "24efeca9-a785-406e-adb3-83609348bee7"
@@ -25,62 +25,20 @@ SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 
-# The documentation workflow runs `Pkg.develop(path = pwd())` before `make.jl`,
-# so CI built the package from the checkout whether or not this section existed.
-# It is declared all the same, so that `julia --project=docs` outside CI builds
-# the working tree rather than silently pulling the last released ChemistryLab
-# from the registry and documenting that instead.  Relative, never absolute:
-# `Pkg.develop` writes the path of the machine it ran on.
-[sources]
-ChemistryLab = {path = ".."}
+[sources.ChemistryLab]
+path = ".."
 
 [compat]
-JSON = "1"
-# The package itself is built from `..`, so this bound is never used to pick a
-# version — it exists only so CompatHelper stops opening a pull request asking
-# for one.  It is deliberately open across the whole 0.x series: pinning the
-# current minor (`"0.14"`) would make this environment fail to resolve the day
-# the package is bumped to 0.15, with "empty intersection between
-# ChemistryLab@0.15.0 and project compatibility 0.14".  Widen to `"0, 1"` when
-# 1.0 is released.
 ChemistryLab = "0"
 Documenter = "1.17"
-# Bounded on the major only, deliberately: the 1.x ceiling belongs to
-# DocumenterVitepress and is already declared there.
-#
-# Its registry entry carries a weak dependency `DocumenterCitations = "1 - 1.4"`
-# for every version from 0.0.21 on, so 1.5 and 0.3.x cannot be resolved together
-# — Pkg puts it as "restricted by compatibility requirements with
-# DocumenterVitepress to versions 1.0.0 - 1.4.1". Writing `"1.4"` here would
-# repeat that ceiling and then need an edit the day DocumenterVitepress raises
-# it. `"1"` lets the resolver take the newest version both packages accept: 1.4.1
-# today, 1.5 and beyond by itself later, with no change to this file. The
-# `CitationSiteNode` override in `make.jl` is guarded so it starts applying on the
-# same day.
-#
-# For the record, since nothing in this repository caused the breakage: the docs
-# environment is resolved afresh on every CI run, so the release of
-# DocumenterCitations 1.5.0 broke a job that had passed the day before.
 DocumenterCitations = "1"
 DocumenterVitepress = "0.3"
 DynamicQuantities = "1"
-# Declared because the Pitzer application page differentiates the chemical
-# potentials through the model closure inside an executed `@example` block, and
-# such a block resolves its imports against this environment alone.  Being a
-# transitive dependency of the package is not enough: the block fails with
-# "Package ForwardDiff not found in current path", and every later block in the
-# same named example fails after it because the first one never defined its
-# variables.  The floor is set by the bound in the root `Project.toml`, which
-# applies here since the package itself is taken from `..`.
 ForwardDiff = "1"
+JSON = "1"
 LinearAlgebra = "1"
 LiveServer = "1"
-# The docs environment declares OptimaSolver directly, and without a bound here
-# it resolved to 0.2.1 — whose `OptimaOptimizer` has neither `use_fd_hessian`
-# nor `nullspace_step`, so every equilibrium `@example` block failed with a
-# MethodError while the package's own tests passed. Keep this in step with the
-# bound in the root `Project.toml`.
-OptimaSolver = "0.6.2"
+OptimaSolver = "0.7"
 Optimization = "5"
 OptimizationIpopt = "1.1.1"
 OptimizationOptimJL = "0.4"
@@ -93,14 +51,6 @@ Printf = "1"
 SciMLBase = "2, 3"
 Statistics = "1"
 SymbolicNumericIntegration = "1.10.0"
-# SymbolicUtils is not used directly here; it is declared so that a bound can be
-# put on it if it needs one again.  It needed one from 4.46.0, which made
-# `Symbolics.renamed_metadata` reach a latent bug -- `Base.ImmutableDict(dict,
-# key, value)`, a three-positional-argument call Base does not provide -- and so
-# broke the precompilation of ModelingToolkitBase, hence of DataDrivenDiffEq and
-# SymbolicNumericIntegration, hence the `add_thermo_model` examples in
-# `man/thermodynamics.md`.  The bound was `"~4.45"`.  It is lifted here because
-# upstream has shipped the fix: the documentation job passed on 4.46.2.
 SymbolicUtils = "4"
 Symbolics = "7"
 TOML = "1"
