@@ -77,12 +77,13 @@ of concrete: the solver takes it back out of the pore solution, the pore volume
 falls from 146 mL to 84, and every concentration is wrong by nearly a factor of
 two. See [Chloride binding](@ref).
 
-**Walk a sweep downhill.** A warm start survives only while the phase
-*assemblage* holds; at a point where a phase appears or vanishes the certificate
-refuses it and the full multi-start cascade runs again. Starting from the
-composition-rich end and walking toward the simple one put one limestone sweep
-from 152 s to 52 s — and removing a single intermediate rung, so that one step
-crossed the boundary in a jump, put it back to two and a half minutes. See
+**A cold start is cheap.** The certified search starts from the linear program
+over the pure phases, whatever state it is given, so a cold solve of the
+limestone system of the next section costs half a second. A warm start, from a
+neighboring answer, is no faster, and the direction of a sweep matters little:
+measured on 2026-09-28, the limestone sweep takes 26 s walked up and 40 s walked
+down. Before the linear program, the cascade of starts made the warm start the
+only fast one, and the same sweep cost 125 s at one step walked up. See
 [Blending a CEM I with limestone](@ref).
 
 **Suppress gibbsite below 60 °C.** Cemdata18 §2.1 says so, and it is not a
@@ -396,17 +397,16 @@ more than 40 % — the mechanism the whole figure is about. By one gram the
 hemicarbonate is spent and calcite begins to survive undissolved; past that the
 limestone is a filler.
 
-!!! tip "Walk the sweep downhill"
-    A cold solve of this system costs about 26 s; a warm one, started from a
-    neighboring answer, 0.2-0.7 s. But a warm start only helps while the phase
-    *assemblage* holds: where a phase appears or vanishes the certificate
-    refuses the warm answer and the full multi-start cascade runs again.
+!!! tip "A cold solve is as good as a warm one"
+    The certified search begins with the linear program over the pure phases,
+    whatever start it is given. A cold solve of this system costs half a second,
+    and one started from a neighboring answer is no faster (4 s from 1.0 g to
+    0.8 g of limestone). Measured on 2026-09-28, the sweep takes **26 s walked
+    up** from 0 g and **40 s walked down** from 4 g, every point certified.
 
-    Ascending from 0 g, the monosulfate-to-carboaluminate switch at 0.5 g cost
-    **125 s on its own**. Descending from 4 g, where the assemblage is simple and
-    stable, the same sweep costs **52 s in total**. Same answers, three times
-    faster — and dropping a single intermediate rung, so that one step crosses
-    the boundary in one jump, puts it back to two and a half minutes.
+    Before the linear program, a cold solve cost about 26 s and the warm start
+    was the only fast one, until a phase appeared or vanished: walked up, the
+    monosulfate-to-carboaluminate switch at 0.5 g then cost 125 s on its own.
 
 ## Chloride binding
 

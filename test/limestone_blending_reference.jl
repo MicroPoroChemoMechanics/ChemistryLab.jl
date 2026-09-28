@@ -114,23 +114,14 @@ include("reference_species.jl")
         )
     end
 
-    # ONE path, walked DOWNHILL, and the order is not cosmetic.
-    #
-    # A cold solve of this system costs about 26 s; a warm one, started from a
-    # neighboring answer, 0.2-0.7 s. But a warm start only helps while the phase
-    # ASSEMBLAGE holds: at a point where a phase appears or vanishes the
-    # certificate refuses the warm answer and `equilibrate_certified` falls back
-    # to its full multi-start cascade.
-    #
-    # Ascending from 0 g, the monosulfate-to-carboaluminate switch at 0.5 g cost
-    # 125 s on its own. Descending from 4 g — where the assemblage is simple and
-    # stable — the same sweep costs 52 s in total, with only the first point and
-    # the carbonate-free end paying a cascade. Same answers, three times faster.
-    #
-    # The intermediate rungs at 0.8, 0.6 and 0.3 g are there to keep each step
-    # inside one assemblage; they cost 0.2-0.7 s each and are not optional.
-    # Dropping the 0.3 g rung alone — so that the last step crosses the
-    # monosulfate boundary in one jump — put the run back up to 2.5 minutes.
+    # ONE path, walked down from 4 g. The order no longer buys time: the
+    # certified search begins with the linear program over the pure phases,
+    # whatever start it is given, and a cold solve of this system costs half a
+    # second. Measured on 2026-09-28, the ordinary clinker's sweep takes 40 s
+    # walked down and 26 s walked up, every point certified. (Before the linear
+    # program, a cold solve cost about 26 s, and walking down was what made the
+    # sweep affordable.) The rungs at 0.8, 0.6 and 0.3 g resolve the carboaluminate
+    # sequence the testsets below read.
     ladder = [
         (4.0, 4.49), (0.0, 4.49),                        # the ferriferous clinker
         (4.0, 2.5), (2.0, 2.5), (1.0, 2.5),              # then the ordinary one,
