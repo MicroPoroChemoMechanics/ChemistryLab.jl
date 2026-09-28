@@ -1,0 +1,62 @@
+{
+ "schema": "chemistrylab-literature/1",
+ "source": {
+  "key": "Miron2022b",
+  "doi": "10.1617/s11527-022-02045-0",
+  "citation": "Miron, G. D., Kulik, D. A., & Lothenbach, B. (2022). Porewater compositions of Portland cement with and without silica fume calculated using the fine-tuned CASH+NK solid solution model. Materials and Structures 55, 212.",
+  "location": "Table 5 (p. 7); Section 3 (p. 6)"
+ },
+ "transcription": {
+  "from": "the published article (PDF), Table 5 read on the rendered page (it is printed rotated) and compared with the text layer",
+  "checked_against_source": true,
+  "note": "The fine-tuned CASH+NK model: the Gibbs energies of the two calcium alkali end-members TCNh and TCKh raised by 5.0 and 7.0 kJ/mol from those of Miron2022a, which improves the Na and K of calculated cement pore solutions; the other end-members and the interaction parameters are unchanged (Table 5, footnote)."
+ },
+ "tables": {
+  "fine_tuned_end_members": {
+   "columns": [
+    "end_member",
+    "dG",
+    "G",
+    "H",
+    "S",
+    "Cp",
+    "V"
+   ],
+   "units": [
+    null,
+    "kJ/mol",
+    "kJ/mol",
+    "kJ/mol",
+    "J/(mol*K)",
+    "J/(mol*K)",
+    "cm^3/mol"
+   ],
+   "kind": "published",
+   "location": "Table 5 (p. 7)",
+   "rows": [
+    [
+     "TCNh",
+     5.0,
+     -4873.07,
+     -5297.14,
+     377,
+     356,
+     142
+    ],
+    [
+     "TCKh",
+     7.0,
+     -4891.65,
+     -5314.94,
+     393,
+     370,
+     148
+    ]
+   ]
+  }
+ },
+ "quantities": {},
+ "notes": [
+  "Table 5 also lists fine-tuned TCLih, TCRbh and TCCsh, which the CASH+NK model does not need; they are not transcribed."
+ ]
+}

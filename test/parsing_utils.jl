@@ -174,6 +174,13 @@ using Test
         @test stoich_coef_round(2.0) == 2
         @test stoich_coef_round(1 / 2) == 1 // 2
         @test stoich_coef_round(0.3333333) ≈ 1 // 3
+        # A coefficient that is not zero stays so, however small, and the element
+        # stays in the formula.
+        @test stoich_coef_round(0.0004) == 0.0004
+        @test stoich_coef_round(3.0e-7) == 3.0e-7
+        @test composition(Formula("Ca2.0993Si2.9298Na0.0004O11.0585H6.1988"))[:Na] == 0.0004
+        # Near a simple fraction it is that fraction, as the databases mean it.
+        @test composition(Formula("((CaO)1.25(SiO2)1(H2O)2.75)0.6667"))[:Ca] == 5 // 6
 
         # calculate_molar_mass
         atoms = Dict(:H => 2, :O => 1)

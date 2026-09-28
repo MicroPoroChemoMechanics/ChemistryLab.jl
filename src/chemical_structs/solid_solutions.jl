@@ -357,7 +357,7 @@ function SolidSolutionPhase(
                 "got $(length(end_members))",
         )
     end
-    if model isa SublatticeModel
+    if model isa Union{SublatticeModel, CompoundEnergyModel}
         _n_members(model) == length(end_members) || error(
             "SolidSolutionPhase \"$name\": the sublattice model describes " *
                 "$(_n_members(model)) end-members, and $(length(end_members)) are given.",
@@ -584,6 +584,10 @@ function mixing_convexity(model::AbstractSolidSolutionModel, n::Int; T::Real = 2
         return (; verdict = :convex, witness = nothing, how = "ideal mixing is strictly convex")
     model isa SublatticeModel &&
         return (; verdict = :convex, witness = nothing, how = "ideal mixing on each site, in site fractions linear in x")
+    model isa CompoundEnergyModel && return (;
+        verdict = :undecided, witness = nothing,
+        how = "the reference surface of the compound energy formalism depends on the energies of the end-members",
+    )
     if n == 2 && _rk_coefficients(model, T) !== nothing
         gap = spinodal_interval(model, 2; T = T)
         gap === nothing &&
@@ -670,6 +674,10 @@ direction along which no site fraction changes and the Gibbs energy does not
 either is refused, since the minimization then has no unique answer.
 """
 function _warn_degenerate_end_members(name, end_members, model)
+    # In the compound energy formalism the Gibbs energy depends on the site
+    # fractions alone, so every direction along which they do not change is flat
+    # by construction; the solver takes any split of the same site fractions.
+    model isa CompoundEnergyModel && return nothing
     G = [_g298(sp) for sp in end_members]
     any(isnothing, G) && return nothing
     RT = R_GAS * 298.15

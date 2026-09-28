@@ -1471,7 +1471,8 @@ an adiabatic temperature does, through `p.ψ_site`.
 """
 function _mixing_lna!(out, _n, mix::_MixingTerms, p, ϵ)
     T_val = hasproperty(p, :T) ? p.T : 298.15
-    mix.has_ss && _solid_solution_lna!(out, _n, mix.ss_groups, mix.ss_models, T_val, ϵ)
+    g = hasproperty(p, :ΔₐG⁰overRT) ? p.ΔₐG⁰overRT : nothing
+    mix.has_ss && _solid_solution_lna!(out, _n, mix.ss_groups, mix.ss_models, T_val, ϵ, g)
     if mix.has_sites
         I_site = mix.site_needs_I ?
             _aqueous_ionic_strength(_n, mix.site_ions, mix.site_ion_z, mix.site_solvent, mix.site_Mw) :
@@ -1486,19 +1487,22 @@ function _mixing_lna!(out, _n, mix::_MixingTerms, p, ϵ)
 end
 
 """
-    _solid_solution_lna!(out, _n, ss_groups, ss_models, T, ϵ)
+    _solid_solution_lna!(out, _n, ss_groups, ss_models, T, ϵ, g = nothing)
 
 Fill `out[i]` with `ln aᵢ = ln xᵢ + ln γᵢ` for all solid-solution end-members.
 
 `ss_groups[k]` and `ss_models[k]` describe the k-th solid-solution phase.
 `T` is the temperature in K (only relevant for non-ideal models).
 `ϵ` is a regularization floor to avoid `log(0)`.
+`g` is the vector of `ΔₐG⁰/RT` of every species, which only a model whose
+activities depend on the energies of its members reads
+([`CompoundEnergyModel`](@ref)).
 
 ForwardDiff-compatible.
 """
 function _solid_solution_lna!(
         out::AbstractVector, _n::AbstractVector{ET},
-        ss_groups::Vector{Vector{Int}}, ss_models, T, ϵ
+        ss_groups::Vector{Vector{Int}}, ss_models, T, ϵ, g = nothing
     ) where {ET}
     for (grp, mdl) in zip(ss_groups, ss_models)
         n_total = sum(_n[i] for i in grp) + ϵ
@@ -1507,7 +1511,7 @@ function _solid_solution_lna!(
         @inbounds for (j, i) in enumerate(grp)
             x[j] = _n[i] / n_total
         end
-        _ss_log_activities!(out, grp, x, mdl, T, ϵ)
+        _ss_log_activities!(out, grp, x, mdl, T, ϵ, g === nothing ? nothing : view(g, grp))
     end
     return out
 end
@@ -1527,6 +1531,11 @@ function _ss_log_activities!(out, grp, x, mdl::AbstractSolidSolutionModel, T, ϵ
     return out
 end
 
+# `g` holds the `ΔₐG⁰/RT` of the phase's members; the models whose activities do
+# not depend on them ignore it.
+_ss_log_activities!(out, grp, x, mdl::AbstractSolidSolutionModel, T, ϵ, g) =
+    _ss_log_activities!(out, grp, x, mdl, T, ϵ)
+
 # The product of the member's own site fractions, the site fractions computed
 # once for the whole phase.
 function _ss_log_activities!(out, grp, x, mdl::SublatticeModel, T, ϵ)
@@ -1541,6 +1550,62 @@ function _ss_log_activities!(out, grp, x, mdl::SublatticeModel, T, ϵ)
     end
     return out
 end
+
+# The compound energy formalism (`CompoundEnergyModel`): the site-mixing term of
+# the lattice, the reference surface, and the site interactions, as its
+# docstring derives them. Every sum runs over the few sites and compounds of one
+# phase, so the loops are written out.
+function _ss_log_activities!(out, grp, x, mdl::CompoundEnergyModel, T, ϵ, g)
+    g === nothing && error(
+        "CompoundEnergyModel: the activities depend on the standard Gibbs energies of " *
+            "the end-members, and none were passed."
+    )
+    lat = mdl.lattice
+    o = lat.occupancy
+    m = lat.multiplicity
+    y = site_fractions(lat, x)
+    nsite = length(m)
+    E = promote_type(eltype(x), eltype(g), typeof(T), eltype(m))
+    gref = zero(E)
+    dref = [zeros(E, length(ys)) for ys in y]
+    @inbounds for j in axes(o, 2)
+        gref += g[j] * prod(y[s][o[s, j]] for s in 1:nsite)
+        for s in 1:nsite
+            q = one(E)
+            for t in 1:nsite
+                t == s || (q *= y[t][o[t, j]])
+            end
+            dref[s][o[s, j]] += g[j] * q
+        end
+    end
+    RT = R_GAS * T
+    dex = [zeros(E, length(ys)) for ys in y]
+    gex = zeros(E, nsite)
+    @inbounds for (s, i, l, W) in mdl.interactions
+        w = W / RT
+        dex[s][i] += w * y[s][l]
+        dex[s][l] += w * y[s][i]
+        gex[s] += w * y[s][i] * y[s][l]
+    end
+    @inbounds for (k, i) in enumerate(grp)
+        acc = zero(E)
+        for s in 1:nsite
+            sp = o[s, k]
+            acc += m[s] * log(y[s][sp] + ϵ) + dref[s][sp] + dex[s][sp] - gex[s]
+        end
+        out[i] = acc - (nsite - 1) * gref - g[k]
+    end
+    return out
+end
+
+_ss_log_activities!(out, grp, x, mdl::CompoundEnergyModel, T, ϵ) =
+    _ss_log_activities!(out, grp, x, mdl, T, ϵ, nothing)
+
+_excess_ln_gamma(::CompoundEnergyModel, k::Int, x::AbstractVector, T::Real) = error(
+    "CompoundEnergyModel: the activity coefficients depend on the standard Gibbs " *
+        "energies of the end-members; they are computed with the amounts of the phase " *
+        "during a solve, not from the mole fractions alone."
+)
 
 """
     _site_excess_ln_gamma(model, k, x, T) -> Real

@@ -1,0 +1,500 @@
+{
+ "schema": "chemistrylab-literature/1",
+ "source": {
+  "key": "Kulik2022",
+  "doi": "10.1016/j.cemconres.2021.106585",
+  "citation": "Kulik, D. A., Miron, G. D., & Lothenbach, B. (2022). A structurally-consistent CASH+ sublattice solid solution model for fully hydrated C-S-H phases: Thermodynamic basis, methods, and Ca-Si-H2O core sub-model. Cement and Concrete Research 151, 106585.",
+  "location": "Section 2.3, Tables 2, 4, 8 and 9, Section 3.3 (p. 10); Supplementary Material, Appendix A1 (Eqs. 1-27)"
+ },
+ "transcription": {
+  "from": "the published article (PDF) and its Supplementary Material (Appendix A1), every table read on the rendered page and compared with the text layer",
+  "checked_against_source": true,
+  "note": "The core CASH+ model of C-S-H in the Ca-Si-H2O system. Its formula unit has four sites: DU, a fixed dreierketten unit T = Ca2Si2O5(OH)2; BT, the bridging tetrahedron, holding a silicate S = SiO2OH-, a vacancy v = OH- or a calcium C = CaOOH-; IC, the interlayer cation, holding a vacancy v = H+ or a calcium C = CaH(OH)2+; IW, a fixed interlayer water h = H2O. Each site has coefficient 1, and each end-member puts one moiety on each site, so the six end-members are named T, the BT moiety, the IC moiety and h. The G and H of the end-members are those of Table 8, final step 5; their S and Cp are the VBT estimates of Table 4, their V the volumes of Table 4 (from the densities of Section 3.4)."
+ },
+ "tables": {
+  "cashplus_sites": {
+   "columns": [
+    "site",
+    "multiplicity"
+   ],
+   "units": [
+    null,
+    "1"
+   ],
+   "kind": "published",
+   "location": "Sections 2.2 and 2.3, Table 2 (p. 4)",
+   "rows": [
+    [
+     "BT",
+     1
+    ],
+    [
+     "IC",
+     1
+    ]
+   ]
+  },
+  "cashplus_shared_sites": {
+   "columns": [
+    "site",
+    "species",
+    "formula",
+    "multiplicity"
+   ],
+   "units": [
+    null,
+    null,
+    null,
+    "1"
+   ],
+   "kind": "published",
+   "location": "Sections 2.2 and 2.3, Table 2 (p. 4)",
+   "rows": [
+    [
+     "DU",
+     "T",
+     "Ca2Si2O5(OH)2",
+     1
+    ],
+    [
+     "IW",
+     "h",
+     "H2O",
+     1
+    ]
+   ]
+  },
+  "cashplus_species": {
+   "columns": [
+    "site",
+    "species",
+    "formula",
+    "charge"
+   ],
+   "units": [
+    null,
+    null,
+    null,
+    "1"
+   ],
+   "kind": "published",
+   "location": "Sections 2.2 and 2.3, Table 2 (p. 4)",
+   "rows": [
+    [
+     "BT",
+     "S",
+     "SiO2OH",
+     -1
+    ],
+    [
+     "BT",
+     "v",
+     "OH",
+     -1
+    ],
+    [
+     "BT",
+     "C",
+     "CaOOH",
+     -1
+    ],
+    [
+     "IC",
+     "v",
+     "H",
+     1
+    ],
+    [
+     "IC",
+     "C",
+     "CaH(OH)2",
+     1
+    ]
+   ]
+  },
+  "cashplus_occupancy": {
+   "columns": [
+    "end_member",
+    "printed",
+    "site",
+    "species"
+   ],
+   "units": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "kind": "published",
+   "location": "Table 2 (p. 4)",
+   "rows": [
+    [
+     "TSvh",
+     "TSvh",
+     "BT",
+     "S"
+    ],
+    [
+     "TSvh",
+     "TSvh",
+     "IC",
+     "v"
+    ],
+    [
+     "TSCh",
+     "TSCh",
+     "BT",
+     "S"
+    ],
+    [
+     "TSCh",
+     "TSCh",
+     "IC",
+     "C"
+    ],
+    [
+     "Tvvh",
+     "Tvvh",
+     "BT",
+     "v"
+    ],
+    [
+     "Tvvh",
+     "Tvvh",
+     "IC",
+     "v"
+    ],
+    [
+     "TCvh",
+     "TCvh",
+     "BT",
+     "C"
+    ],
+    [
+     "TCvh",
+     "TCvh",
+     "IC",
+     "v"
+    ],
+    [
+     "TvCh",
+     "TvCh",
+     "BT",
+     "v"
+    ],
+    [
+     "TvCh",
+     "TvCh",
+     "IC",
+     "C"
+    ],
+    [
+     "TCCh",
+     "TCCh",
+     "BT",
+     "C"
+    ],
+    [
+     "TCCh",
+     "TCCh",
+     "IC",
+     "C"
+    ]
+   ]
+  },
+  "cashplus_end_members": {
+   "columns": [
+    "end_member",
+    "printed",
+    "formula"
+   ],
+   "units": [
+    null,
+    null,
+    null
+   ],
+   "kind": "published",
+   "location": "Table 10 (p. 14), bulk formulas; Table 2 gives the same compositions as moieties",
+   "rows": [
+    [
+     "TSvh",
+     "TSvh",
+     "Ca2Si3O11H6"
+    ],
+    [
+     "TSCh",
+     "TSCh",
+     "Ca3Si3O13H8"
+    ],
+    [
+     "Tvvh",
+     "Tvvh",
+     "Ca2Si2O9H6"
+    ],
+    [
+     "TCvh",
+     "TCvh",
+     "Ca3Si2O10H6"
+    ],
+    [
+     "TvCh",
+     "TvCh",
+     "Ca3Si2O11H8"
+    ],
+    [
+     "TCCh",
+     "TCCh",
+     "Ca4Si2O12H8"
+    ]
+   ]
+  },
+  "cashplus_standard_properties": {
+   "columns": [
+    "end_member",
+    "G",
+    "H",
+    "S",
+    "Cp",
+    "V",
+    "density"
+   ],
+   "units": [
+    null,
+    "kJ/mol",
+    "kJ/mol",
+    "J/(mol*K)",
+    "J/(mol*K)",
+    "cm^3/mol",
+    "g/cm^3"
+   ],
+   "kind": "published",
+   "location": "G and H: Table 8 (final step 5), p. 11; S, Cp (VBT estimates) and V: Table 4, p. 6; density: Section 3.4, p. 10",
+   "rows": [
+    [
+     "TSvh",
+     -4647.54,
+     -5032.03,
+     369.4,
+     348.1,
+     138.6,
+     2.5
+    ],
+    [
+     "TSCh",
+     -5561.94,
+     -6045.81,
+     414.4,
+     389.9,
+     155.8,
+     2.7
+    ],
+    [
+     "Tvvh",
+     -3777.08,
+     -4120.51,
+     284.1,
+     269.0,
+     106.1,
+     2.7
+    ],
+    [
+     "TCvh",
+     -4450.98,
+     -4821.14,
+     338.6,
+     319.6,
+     126.8,
+     2.7
+    ],
+    [
+     "TvCh",
+     -4684.56,
+     -5119.05,
+     356.1,
+     335.8,
+     133.5,
+     2.7
+    ],
+    [
+     "TCCh",
+     -5347.54,
+     -5808.79,
+     410.5,
+     386.3,
+     154.3,
+     2.7
+    ]
+   ]
+  },
+  "cashplus_interactions": {
+   "columns": [
+    "printed",
+    "site",
+    "species_1",
+    "species_2",
+    "W"
+   ],
+   "units": [
+    null,
+    null,
+    null,
+    null,
+    "kJ/mol"
+   ],
+   "kind": "published",
+   "location": "Table 8 (final step 5), p. 11; the symmetric Berman site-interaction model of Section 2.6 and Appendix A1, Eqs. (13)-(17)",
+   "rows": [
+    [
+     "ICW_Cv",
+     "IC",
+     "C",
+     "v",
+     -17.12
+    ],
+    [
+     "BTW_Sv",
+     "BT",
+     "S",
+     "v",
+     -19.07
+    ],
+    [
+     "BTW_CS",
+     "BT",
+     "C",
+     "S",
+     -8.56
+    ],
+    [
+     "BTW_Cv",
+     "BT",
+     "C",
+     "v",
+     -7.87
+    ]
+   ]
+  },
+  "portlandite_saturated_site_fractions": {
+   "columns": [
+    "site",
+    "species",
+    "fraction"
+   ],
+   "units": [
+    null,
+    null,
+    "1"
+   ],
+   "kind": "published",
+   "location": "Section 3.3, p. 10 (text; Fig. 5 D)",
+   "rows": [
+    [
+     "BT",
+     "C",
+     0.77
+    ],
+    [
+     "BT",
+     "v",
+     0.2
+    ],
+    [
+     "BT",
+     "S",
+     0.03
+    ],
+    [
+     "IC",
+     "C",
+     0.55
+    ],
+    [
+     "IC",
+     "v",
+     0.45
+    ]
+   ]
+  }
+ },
+ "quantities": {
+  "CaSiO3_aq_G": {
+   "value": -1514.14,
+   "unit": "kJ/mol",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section 3.3 (p. 9) and Table 9 (p. 13), accepted variant",
+   "description": "Standard Gibbs energy of formation of the aqueous complex CaSiO3@ at 25 C, refitted with the core model (log K = 4.0 for Ca+2 + SiO3-2 = CaSiO3@)."
+  },
+  "CaSiO3_aq_H": {
+   "value": -1638.8,
+   "unit": "kJ/mol",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Table 9 (p. 13), accepted variant",
+   "description": "Standard enthalpy of formation of CaSiO3@ at 25 C."
+  },
+  "CaSiO3_aq_S": {
+   "value": -50,
+   "unit": "J/(mol*K)",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Table 9 (p. 13), accepted variant (boldface)",
+   "description": "Standard entropy of CaSiO3@ at 25 C, constrained on the C-S-H solubility at 50 and 85-90 C."
+  },
+  "CaSiO3_aq_Cp": {
+   "value": 206.9,
+   "unit": "J/(mol*K)",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Table 9 (p. 13), accepted variant (boldface)",
+   "description": "Standard heat capacity of CaSiO3@ at 25 C, taken as constant."
+  },
+  "CaSiO3_aq_V": {
+   "value": 40.0,
+   "unit": "cm^3/mol",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Table 9 (p. 13), accepted variant",
+   "description": "Standard molar volume of CaSiO3@."
+  },
+  "silica_saturation_Ca_Si": {
+   "value": 0.72,
+   "unit": "1",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section 3.3, p. 10",
+   "description": "Bulk Ca/Si below which amorphous silica is stable beside C-S-H in the Ca-Si-H2O system at 25 C."
+  },
+  "portlandite_saturation_Ca_Si": {
+   "value": 1.64,
+   "unit": "1",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section 3.3, p. 10 ('Above C/S = 1.64'); the fit constrained the Ca/Si of C-S-H beside portlandite close to 1.65 (p. 9)",
+   "description": "Ca/Si of C-S-H at portlandite saturation in the Ca-Si-H2O system at 25 C."
+  },
+  "edh_ion_size": {
+   "value": 3.67,
+   "unit": "1",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section 2.7, Eq. (13), p. 7",
+   "description": "Common ion-size parameter of the extended Debye-Hueckel equation used for the fit, in Angstrom (KOH as major electrolyte)."
+  },
+  "edh_b_gamma": {
+   "value": 0.123,
+   "unit": "1",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section 2.7, Eq. (13), p. 7",
+   "description": "Extended-term parameter b_gamma of the extended Debye-Hueckel equation used for the fit (KOH as major electrolyte)."
+  }
+ },
+ "notes": [
+  "Table 10 repeats the end-member data with its G and H columns out of step with the rows: the G printed on the TSvh row (-5347.54) is the G of TCCh in Table 8, and so on down the table, and the column header says J/mol where the values are in kJ/mol. The formulas and volumes of Table 10 are in step with its rows; the G and H transcribed here are those of Table 8, the table the footnote of Table 10 names as their source.",
+  "With the element entropies of CODATA, G = H - T (S - sum of the element entropies) holds to 0.01 kJ/mol for five end-members and for CaSiO3@. It holds to 0.28 kJ/mol for TSvh, whose printed H (-5032.03) would give it exactly as -5032.31: the printed H is most probably a transposition of digits. The printed values are kept; G is the fitted quantity and is what fixes the equilibria at 25 C.",
+  "The G of CaSiO3@ is 3.42 kJ/mol above that of Cemdata18 (-1517.5569 kJ/mol): the core model is fitted together with this value, and a database running the model carries it.",
+  "Portlandite and amorphous silica are those of PSI-Nagra 12/07 and Cemdata18 (Table 10, footnote); both databases give them the same G at 25 C.",
+  "The site fractions at portlandite saturation are printed as rounded percentages."
+ ]
+}

@@ -21,6 +21,8 @@
 #   Kulik2011 : Kulik, Cement and Concrete Research 41 (2011) 477-495 -- CSHQ; the
 #               database also attributes the ECSH families to it
 #   Myers2014 : Myers, Bernal & Provis, Cement and Concrete Research 66 (2014) 27-47
+#   Kulik2022 : Kulik, Miron & Lothenbach, Cement and Concrete Research 151 (2022) 106585;
+#               the CASH+ and CASH+NK phases (Miron et al. 2022) are one model
 #   the alkali end-members `KSiOH` and `NaSiOH` of CSHQ, and `CSHQ-Cl` of the
 #   database cemdata18-chloride.json, are listed with the model they extend
 
@@ -56,3 +58,10 @@ model       = "ECSH2"
 end_members = ["ECSH2-TobCa", "ECSH2-JenCa", "ECSH2-KSH", "ECSH2-NaSH",
                "ECSH2-SrSH", "ECSH2-SrSH(ACW)"]
 source      = "Kulik2011"
+
+[[gel_model]]
+gel         = "C-S-H"
+model       = "CASH+"
+end_members = ["TSvh", "TSCh", "Tvvh", "TCvh", "TvCh", "TCCh",
+               "TSNh", "TvNh", "TCNh", "TSKh", "TvKh", "TCKh"]
+source      = "Kulik2022"

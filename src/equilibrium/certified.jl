@@ -399,9 +399,10 @@ when `cs` has no sublattice phase.
 """
 function _ideal_mixing_system(cs::ChemicalSystem)
     ss = cs.solid_solutions
-    (ss === nothing || !any(ph -> model(ph) isa SublatticeModel, ss)) && return nothing
+    site_model(ph) = model(ph) isa Union{SublatticeModel, CompoundEnergyModel}
+    (ss === nothing || !any(site_model, ss)) && return nothing
     ideal = [
-        model(ph) isa SublatticeModel ?
+        site_model(ph) ?
             SolidSolutionPhase{eltype(ph.end_members), IdealSolidSolutionModel}(
                 ph.name, ph.end_members, IdealSolidSolutionModel(), ph.instances,
                 ph.max_instances, ph.declared,

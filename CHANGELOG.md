@@ -1,5 +1,78 @@
 # Changelog
 
+## Unreleased — The CASH+ model of C-S-H
+
+The C-S-H of a cement paste can now be described by the CASH+ model of Kulik,
+Miron & Lothenbach (2022), with the sodium and potassium of Miron et al. (2022a,
+b). The model is written in the compound energy formalism: the site mixing of a
+sublattice model, plus the energy of the reciprocal reactions between its
+end-members and regular interactions on each site. Until now ChemistryLab could
+only mix ideally on the sites. Two checks against the papers:
+
+- In the Ca-Si-H2O system at 25 °C, the model gives back the paper's invariant
+  points to the digits it prints. Beside portlandite, the C-S-H has Ca/Si 1.640.
+  Its bridging-tetrahedron sites are 77.2 % calcium, 20.3 % vacancy and 2.6 %
+  silicate, and its interlayer sites 55.0 % calcium and 45.0 % vacancy. Beside
+  amorphous silica, the C-S-H has Ca/Si 0.723.
+- The 110 pseudocompounds of the discretized CASH+NK model that Miron et al.
+  (2022a) publish are C-S-H compositions whose Gibbs energy the authors computed
+  with their own implementation. Our model gives each of them to within
+  0.1 kJ/mol, which is the effect of their formulas being printed to four
+  decimals.
+
+### Added
+
+- `CompoundEnergyModel(lattice; interactions)` and
+  `compound_energy_model("<key>:<model>", end_members)`. The first builds a
+  model from a sublattice model and its site interactions. The second reads the
+  same from `data/literature/<key>.json`.
+  - The end-members must be every compound of the sites, each once; the
+    constructor refuses any other set.
+  - Their amounts are not unique, since the Gibbs energy depends on the site
+    fractions alone. So every member may vanish inside a present phase, and the
+    solver treats them as bounded.
+  - The activities depend on the standard Gibbs energies of the members. The
+    solver passes those at the temperature of the solve, and the result is
+    unchanged when each energy is shifted by that of its elements.
+  - The convexity of such a model is reported as undecided, so a certified answer
+    is scoped `:kkt_point` or weaker, never `:global_minimum`.
+- The derived database `cemdata18-cashplus.json`: Cemdata18 plus the twelve
+  end-members of CASH+NK.
+  - For the core end-members, G° and H° come from Table 8 of Kulik et al., and
+    S°, Cp° and V° from Table 4. The H° of TSvh is the one Miron et al. (2022a)
+    reprint.
+  - It also carries the CaSiO3@ complex the model was fitted with (Table 9,
+    accepted variant): its G° is −1514.14 kJ/mol, 3.42 kJ/mol above the value in
+    Cemdata18.
+  - It is the only base entry that is replaced, and the database records this.
+- The `CASH+` (six end-members) and `CASH+NK` (twelve) phases in
+  `data/solid_solutions.toml`, with `model = "compound_energy"`, and in
+  `data/gel_models.toml` as one more model of the C-S-H gel. They are therefore
+  refused beside CSHQ, CNASH_ss or the ECSH families.
+- `data/literature/Miron2022a.json` and `Miron2022b.json`. They hold the six
+  alkali end-members and the interaction parameters of the interlayer site
+  (Tables A1 and A3), the discretized model, and the TCNh and TCKh fine-tuned
+  for cement pore solutions (Table 5 of the second paper), which the database
+  carries.
+- `data/literature/Kulik2022.json`, with its notes. The end-members' G and H are
+  those of Table 8, because the G° and H° columns of Table 10 are shifted by
+  one row against its names. The printed H° of TSvh is off by 0.28 kJ/mol from
+  its G° and S°, most probably through two transposed digits. The printed
+  values are kept.
+
+### Fixed
+
+- A formula coefficient smaller than 1e-3 was read as zero, so the element it
+  counts left the formula: in `Ca2.0993Si2.9298Na0.0004O11.0585H6.1988` the
+  sodium disappeared. A coefficient that is not zero now stays so. Measured on
+  the 3391 species of the eight databases: none of their compositions changes.
+
+### Changed
+
+- `_solid_solution_lna!` and `_ss_log_activities!` take the `ΔₐG⁰/RT` of the
+  species as an optional last argument. Every existing model ignores it, so their
+  results are unchanged bit for bit.
+
 ## v0.27.0 — Validated against measured pastes: phase lists, processes, a second instance on demand, and a nomenclature
 
 Three published sets of pastes are computed from their papers' data and set

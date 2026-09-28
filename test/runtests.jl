@@ -100,6 +100,7 @@ end
     include("aqueous_properties.jl")
     include("redox.jl")
     include("solid_solutions.jl")
+    include("cashplus.jl")
     include("surface_complexation.jl")
     include("ion_exchange.jl")
     include("diffuse_layer.jl")

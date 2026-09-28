@@ -5,7 +5,7 @@ using OrderedCollections
 using Unicode
 
 """
-    stoich_coef_round(x::T; tol=1e-4) where {T<:Real} -> Union{Int, Rational, Float64}
+    stoich_coef_round(x::T; tol=1e-3) where {T<:Real} -> Union{Int, Rational, Float64}
     stoich_coef_round(x) -> Any
 
 Round stoichiometric coefficients to integer, rational, or float representation.
@@ -13,12 +13,20 @@ Round stoichiometric coefficients to integer, rational, or float representation.
 # Arguments
 
   - `x`: numeric value to round.
-  - `tol`: tolerance for rounding decisions (default 1e-4).
+  - `tol`: tolerance for rounding decisions (default 1e-3).
 
 # Returns
 
   - Integer if close to a whole number, Rational if a simple fraction (denominator < 10),
     or Float64 rounded to 5 digits otherwise. Non-numeric inputs are returned unchanged.
+  - A coefficient that is not zero is never rounded to zero: the element it
+    counts would leave the formula. The sodium of `Ca2.0993Si2.9298Na0.0004O11.0585H6.1988`,
+    a C-S-H of Miron et al. (2022a), was read as absent.
+
+A coefficient within `tol` of a simple fraction is read as that fraction, which is
+what the formulas of the databases mean: `((CaO)1.25(SiO2)1(H2O)2.75)0.6667` is
+CSHQ-TobD with 5/6 Ca. A composition computed and printed to a few decimals is not
+such a formula, and is read by its digits rather than through `Formula`.
 
 # Examples
 
@@ -31,11 +39,14 @@ julia> stoich_coef_round(0.3333)
 
 julia> stoich_coef_round(3.14159)
 3.14159
+
+julia> stoich_coef_round(0.0004)
+0.0004
 ```
 """
 function stoich_coef_round(x::T; tol = 1.0e-3) where {T <: Real}
     try
-        if isapprox(x, round(x); atol = tol)
+        if isapprox(x, round(x); atol = tol) && !(iszero(round(x)) && !iszero(x))
             return Int(round(x))
         end
 
@@ -46,7 +57,8 @@ function stoich_coef_round(x::T; tol = 1.0e-3) where {T <: Real}
             end
         end
 
-        return round(x; digits = 5)
+        r = round(x; digits = 5)
+        return iszero(r) ? x : r
     catch e
         return x
     end

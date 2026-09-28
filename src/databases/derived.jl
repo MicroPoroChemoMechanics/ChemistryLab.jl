@@ -293,11 +293,116 @@ function _build_chloride(base_path, out_path)
     return _write_json_atomically(out_path, db)
 end
 
+# ── the CASH+ core model of C-S-H ────────────────────────────────────────────
+
+"""
+    cashplus_entries() -> Vector{Dict}
+
+The ThermoFun records of the twelve end-members of the CASH+NK model of C-S-H,
+the heat capacity taken as constant:
+
+  - the six of the core model, from `data/literature/Kulik2022.json`: G° and H°
+    of its Table 8, S°, Cp° and V° of its Table 4, except the H° of TSvh, which
+    is the one Miron et al. (2022a) reprint (Table 8 transposes two digits);
+  - the six with sodium or potassium, from `data/literature/Miron2022a.json`
+    (Table A1), with the G° and H° of TCNh and TCKh fine-tuned by Miron et al.
+    (2022b, Table 5) for cement pore solutions.
+"""
+function cashplus_entries()
+    core = literature_table("Kulik2022", "cashplus_standard_properties")
+    alkali = literature_table("Miron2022a", "alkali_standard_properties")
+    tuned = literature_table("Miron2022b", "fine_tuned_end_members")
+    formulas = literature_table("Miron2022a", "cashplus_nk_end_members")
+    doi(key) = literature(key).source["doi"]
+    rows = Dict{String, Any}[]
+    function record(name, G, H, S, Cp, V, sources)
+        k = findfirst(==(name), formulas.end_member)
+        return Dict{String, Any}(
+            "name" => "CASH+ end-member $name",
+            "symbol" => name,
+            "formula" => formulas.formula[k],
+            "formula_charge" => 0,
+            "aggregate_state" => Dict("3" => "AS_CRYSTAL"),
+            "class_" => Dict("0" => "SC_COMPONENT"),
+            "Tst" => 298.15,
+            "Pst" => 100000,
+            "sm_gibbs_energy" => Dict("values" => [ustrip(us"J/mol", G)]),
+            "sm_enthalpy" => Dict("values" => [ustrip(us"J/mol", H)]),
+            "sm_entropy_abs" => Dict("values" => [ustrip(us"J/(mol*K)", S)]),
+            "sm_heat_capacity_p" => Dict("values" => [ustrip(us"J/(mol*K)", Cp)]),
+            "sm_volume" => Dict("values" => [ustrip(us"cm^3/mol", V) * _CM3_PER_MOL_TO_J_PER_BAR]),
+            "datasources" => doi.(sources),
+        )
+    end
+    for r in eachindex(core.end_member)
+        name = core.end_member[r]
+        H, src = name == "TSvh" ? (literature_value("Miron2022a", "TSvh_H"), ["Kulik2022", "Miron2022a"]) :
+            (core.H[r], ["Kulik2022"])
+        push!(rows, record(name, core.G[r], H, core.S[r], core.Cp[r], core.V[r], src))
+    end
+    for r in eachindex(alkali.end_member)
+        name = alkali.end_member[r]
+        t = findfirst(==(name), tuned.end_member)
+        G, H, src = t === nothing ? (alkali.G[r], alkali.H[r], ["Miron2022a"]) :
+            (tuned.G[t], tuned.H[t], ["Miron2022a", "Miron2022b"])
+        push!(rows, record(name, G, H, alkali.S[r], alkali.Cp[r], alkali.V[r], src))
+    end
+    return rows
+end
+
+# The aqueous complex CaSiO3@ refitted together with the core model (Kulik et al.
+# 2022, Table 9, accepted variant): the model and this complex set the Si of a
+# C-S-H solution together, and neither holds with the other's Cemdata18 value.
+function _cashplus_casio3!(entry)
+    q(name, unit) = ustrip(unit, literature_value("Kulik2022", name))
+    entry["sm_gibbs_energy"]["values"] = [q("CaSiO3_aq_G", us"J/mol")]
+    entry["sm_enthalpy"]["values"] = [q("CaSiO3_aq_H", us"J/mol")]
+    entry["sm_entropy_abs"]["values"] = [q("CaSiO3_aq_S", us"J/(mol*K)")]
+    Cp = q("CaSiO3_aq_Cp", us"J/(mol*K)")
+    entry["sm_heat_capacity_p"]["values"] = [Cp]
+    entry["sm_volume"]["values"] = [q("CaSiO3_aq_V", us"cm^3/mol") * _CM3_PER_MOL_TO_J_PER_BAR]
+    for m in entry["TPMethods"]
+        haskey(m, "m_heat_capacity_ft_coeffs") || continue
+        c = m["m_heat_capacity_ft_coeffs"]["values"]
+        all(iszero, c[2:end]) || error("CaSiO3@ no longer has a constant heat capacity in the base; nothing built.")
+        c[1] = Cp
+    end
+    entry["datasources"] = [literature("Kulik2022").source["doi"]]
+    return entry
+end
+
+function _build_cashplus(base_path, out_path)
+    db = JSON.parsefile(base_path; dicttype = Dict{String, Any})
+    added = cashplus_entries()
+    for e in added
+        any(s -> s["symbol"] == e["symbol"], db["substances"]) &&
+            error("$(e["symbol"]) would overwrite a Cemdata18 substance; nothing built.")
+    end
+    _cashplus_casio3!(only(s for s in db["substances"] if s["symbol"] == "CaSiO3@"))
+    append!(db["substances"], added)
+    db["thermodataset"] = "cemdata18-cashplus"
+    db["cashplus_extension"] = Dict(
+        "base" => "cemdata18 (Lothenbach et al. 2019, doi:10.1016/j.cemconres.2018.04.018)",
+        "added_substances" => [e["symbol"] for e in added],
+        "replaced_substances" => ["CaSiO3@"],
+        "sources" => [
+            "Kulik, Miron & Lothenbach (2022), doi:$(literature("Kulik2022").source["doi"])",
+            "Miron, Kulik, Yan, Tits & Lothenbach (2022), doi:$(literature("Miron2022a").source["doi"])",
+            "Miron, Kulik & Lothenbach (2022), doi:$(literature("Miron2022b").source["doi"])",
+        ],
+        "solid_solutions" => "CASH+ and CASH+NK in data/solid_solutions.toml",
+        "note" => "The base entries are copied unchanged except CaSiO3@, whose standard " *
+            "properties are those the core model was fitted with (Table 9, accepted variant).",
+    )
+    return _write_json_atomically(out_path, db)
+end
+
 """
     DERIVED_DATABASES
 
 The databases ChemistryLab builds from a published one, by file name: the
-Cemdata18 zeolite extension and the Cemdata18 chloride extension.
+Cemdata18 zeolite extension, the Cemdata18 chloride extension, and Cemdata18 with
+the CASH+NK model of C-S-H.
 """
 const DERIVED_DATABASES = Dict(
     d.name => d for d in (
@@ -312,6 +417,12 @@ const DERIVED_DATABASES = Dict(
                 "the chloride end member of CSHQ fitted on Hirao et al. (2005)",
                 ["chloride/cshq_cl.json"],
                 _build_chloride,
+            ),
+            DerivedDatabase(
+                "cemdata18-cashplus.json", "cemdata18-thermofun.json",
+                "the CASH+NK model of C-S-H of Kulik et al. (2022) and Miron et al. (2022a, b)",
+                ["literature/Kulik2022.json", "literature/Miron2022a.json", "literature/Miron2022b.json"],
+                _build_cashplus,
             ),
         )
 )

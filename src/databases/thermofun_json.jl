@@ -512,7 +512,7 @@ Each end-member species is automatically requalified to `SC_SSENDMEMBER` via
 [[solid_solution]]
 name        = "CSHQ"
 end_members = ["CSHQ-TobD", "CSHQ-TobH", "CSHQ-JenH", "CSHQ-JenD", "KSiOH", "NaSiOH"]
-model       = "ideal"          # or "redlich_kister", "regular", "sublattice"
+model       = "ideal"          # or "redlich_kister", "regular", "sublattice", "compound_energy"
 ```
 
 A Redlich-Kister entry gives its parameters in J/mol as `a0`, `a1`, `a2`, or
@@ -626,6 +626,12 @@ function build_solid_solutions(
                     "`sublattice = \"<literature key>:<model>\"` to read it from."
             )
             sublattice_model(entry["sublattice"], em_species)
+        elseif model_str == "compound_energy"
+            haskey(entry, "sublattice") || error(
+                "build_solid_solutions: \"$ss_name\" is a compound-energy model and names no " *
+                    "`sublattice = \"<literature key>:<model>\"` to read it from."
+            )
+            compound_energy_model(entry["sublattice"], em_species)
         elseif model_str == "ideal"
             IdealSolidSolutionModel()
         else

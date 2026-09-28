@@ -183,7 +183,7 @@ function _dual_phases(des::DualEquilibriumSolver, n0, p = nothing)
                 split_starts = _split_starts(mdl, length(grp)),
                 newton = _needs_newton_inversion(mdl),
                 bounded_members = _bounded_members(mdl),
-                local_h = _needs_newton_inversion(mdl) ? _local_log_activities(mdl, p) : nothing,
+                local_h = _needs_newton_inversion(mdl) ? _local_log_activities(mdl, p, grp) : nothing,
             ),
         )
     end
@@ -227,20 +227,23 @@ end
 # certified, while Newton certifies it in one route, at the composition GEMS3K
 # gives. Ideal mixing keeps the substitution, and its results bit for bit.
 _needs_newton_inversion(::Any) = false
-_needs_newton_inversion(::SublatticeModel) = true
+_needs_newton_inversion(::Union{SublatticeModel, CompoundEnergyModel}) = true
 _needs_newton_inversion(::Union{RedlichKisterModel, RegularSolutionModel}) = true
 
 # The log activities of a solid solution's members from their own amounts, as
 # `_solid_solution_lna!` computes them inside the activity closure (same ϵ, same
 # temperature), for the Newton inversion to differentiate instead of the whole
 # closure: eight variables instead of a hundred on a cement.
-function _local_log_activities(mdl, p)
+# The members' `ΔₐG⁰/RT` are those of the solve, read once, for a model whose
+# activities depend on them (`CompoundEnergyModel`).
+function _local_log_activities(mdl, p, grp)
     ϵ = (p !== nothing && hasproperty(p, :ϵ)) ? p.ϵ : 1.0e-16
     T = (p !== nothing && hasproperty(p, :T)) ? p.T : 298.15
+    g = (p !== nothing && hasproperty(p, :ΔₐG⁰overRT)) ? collect(p.ΔₐG⁰overRT[grp]) : nothing
     return function (nm)
         tot = sum(nm) + ϵ
         x = nm ./ tot
-        return _ss_log_activities!(similar(x), eachindex(x), x, mdl, T, ϵ)
+        return _ss_log_activities!(similar(x), eachindex(x), x, mdl, T, ϵ, g)
     end
 end
 
@@ -249,6 +252,7 @@ end
 # and their condition is then an inequality (`SublatticeModel`).
 _bounded_members(::Any) = Int[]
 _bounded_members(m::SublatticeModel) = findall(iszero, m.exponents)
+_bounded_members(m::CompoundEnergyModel) = _bounded_members(m.lattice)
 
 """
     _ss_models(des) -> Dict{Int, Any}

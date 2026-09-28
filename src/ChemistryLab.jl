@@ -334,6 +334,8 @@ module ChemistryLab
         SublatticeModel,
         site_fractions,
         sublattice_model,
+        CompoundEnergyModel,
+        compound_energy_model,
         AbstractSolidSolutionPhase,
         SolidSolutionPhase,
         spinodal_interval,
