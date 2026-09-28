@@ -7,8 +7,12 @@
 `SolidSolutionPhase(...; instances = :auto)`, or `instances = "auto"` in a
 solid-solution file, declares one composition and allows a second. The phase is
 solved with one, and when the certificate of `equilibrate_certified` finds it
-wanting to split, the system is rebuilt with a second instance, the answer carried
-over, and the passes of `equilibrate_split` look for the pair; their answer is
+wanting to split, on an answer that has otherwise reached the solution (stationary
+and balanced to 1e-8, the split its worst violation), the system is rebuilt with a
+second instance, the answer carried over, and the passes of `equilibrate_split`
+look for the pair. A split read on an answer still far from the solution would
+give a phase a second instance it does not need: on a slag cement paste, the AFt
+of a first answer with an element balance of 0.17. The answer of the passes is
 kept when its KKT error is smaller, and the certificate then names the phase in
 `instances_added`. A caller whose composition stays outside the gap never pays for
 the second copy, and one who did not know the phase would unmix no longer has to
@@ -181,6 +185,20 @@ wanted to split, a verdict read off a search that had not converged.
   renewals of its pore water.
 - `manual/recipes.md` has a section on the bound water and the heat of a paste,
   and points to the phase lists.
+- A **Nomenclature** page lists the symbols of the formulas, grouped by subject,
+  with their units, the pages where a meaning holds when a symbol means
+  different things in different chapters (A the conservation matrix or the
+  Debye–Hückel parameter, φ the osmotic coefficient, a heat loss or the
+  equilibrium map), and the value the package computes with for a physical
+  constant, read from the library. **Hovering an equation** now shows the symbols
+  it holds, with their meaning on that page: the symbols are found in the TeX
+  source when the formula is typeset (`docs/src/.vitepress/nomenclature-match.mjs`),
+  from `docs/nomenclature.toml`, the one file the page and the hints are built
+  from. The home page and the theory chapter point to it.
+- Section 8 of the surface-complexation theory defines each symbol where it is
+  used (Ψ, σ, C, 𝒜, F, R, T). Formulas written as code on four pages are
+  typeset, one of them a raw `\sqrt` shown as text; the heat-capacity polynomial
+  of `:cp_ft_equation` has eleven terms, not ten, and its last is ln T.
 
 ## v0.26.0 — Cement modeling: databases from their publishers, the activity model of Cemdata18, sublattice mixing, a linear-programming start and recipes
 

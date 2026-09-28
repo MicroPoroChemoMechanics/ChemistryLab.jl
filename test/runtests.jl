@@ -133,6 +133,7 @@ end
 @testsection "Utils tests" begin
     include("utils.jl")
     include("scripts.jl")
+    include("docs_nomenclature.jl")
 end
 
 @testsection "Kinetics tests" begin

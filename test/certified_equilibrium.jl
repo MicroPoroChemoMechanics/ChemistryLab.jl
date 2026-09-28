@@ -1489,6 +1489,15 @@ end
     ideal = ChemistryLab._ideal_start(st_gap, HKFActivityModel(), b_gap, 1.0e-16, FixedTP(), false)
     @test ideal === nothing || length(ideal.system.species) == length(cs_gap.species)
     @test ChemistryLab._AUTO_SPLIT[]
+
+    # The split test is read only on an answer that has reached the solution. The
+    # first answer inside the gap is stationary and balanced, and asks to split;
+    # the same certificate with an element balance of 0.17 is a search that has
+    # not arrived, and asks nothing.
+    _, first_cert = ChemistryLab._equilibrate_certified(st_gap; b = b_gap, split_early = true)
+    @test ChemistryLab._wants_auto_split(cs_gap, first_cert)
+    @test !ChemistryLab._wants_auto_split(cs_gap, merge(first_cert, (; balance = 0.17)))
+    @test !ChemistryLab._wants_auto_split(cs_gap, merge(first_cert, (; stationarity = 1.0e-4)))
 end
 
 @testsection "the certificate says what it proves" begin

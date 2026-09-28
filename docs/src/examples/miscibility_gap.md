@@ -74,7 +74,7 @@ end
 ```
 
 The last two are the classical check: a symmetric regular solution unmixes above
-`W = 2RT` exactly, because `d²g/dx²` at `x = ½` is `4 − 2W/RT`. The two published
+``W = 2RT`` exactly, because ``d^2 g/dx^2`` at ``x = 1/2`` is ``4 - 2W/RT``. The two published
 cement sets are well past it.
 
 The curve itself makes the shape of the problem visible. A convex energy has one
@@ -316,7 +316,7 @@ for x̄ in (0.20, 0.40, x̄_paste, 0.80, 0.96)
 end
 ```
 
-`Δg` is the distance from the curve down to the common tangent: it says, in
+``\Delta g`` is the distance from the curve down to the common tangent: it says, in
 joules per mole of binary, **how much a single-composition answer overstates the
 Gibbs energy**. The third line is the AFm of this paste, at the composition case
 2 certifies: outside the pair, and homogeneous, which is what the certificate

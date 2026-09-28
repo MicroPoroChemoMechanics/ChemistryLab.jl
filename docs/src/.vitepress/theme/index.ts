@@ -3,6 +3,8 @@ import { h } from 'vue'
 import DefaultTheme from 'vitepress/theme'
 import type { Theme as ThemeConfig } from 'vitepress'
 import 'virtual:mathjax-styles.css';
+// Hovering an equation lists its symbols, with their meaning on the page.
+import { installSymbolHints } from './symbol-hints'
 
 import { 
   NolebaseEnhancedReadabilitiesMenu, 
@@ -124,7 +126,10 @@ export const Theme: ThemeConfig = {
   },
   enhanceApp({ app, router, siteData }) {
     enhanceAppWithTabs(app);
-    if (typeof window !== "undefined") installCitationHints(siteData.value.base)
+    if (typeof window !== "undefined") {
+      installCitationHints(siteData.value.base)
+      installSymbolHints()
+    }
     app.component('VersionPicker', VersionPicker);
     app.component('AuthorBadge', AuthorBadge)
     app.component('Authors', Authors)

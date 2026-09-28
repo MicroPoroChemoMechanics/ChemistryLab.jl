@@ -16,6 +16,12 @@ they come from, and where they stop being true.
     claim made here is measured there or asserted in the test suite. The
     division exists so that there is one place to look for each kind of thing.
 
+!!! tip "The symbols"
+    Every symbol of these pages is in the [Nomenclature](@ref nomenclature), with
+    its unit, and with the value the package computes with for a physical
+    constant. Hovering an equation shows the symbols it holds, with their meaning
+    on the page.
+
 ## The three layers, and what each one assumes
 
 ChemistryLab computes in three layers, and almost every surprise comes from a

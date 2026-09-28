@@ -969,7 +969,21 @@ function _auto_phases_to_split(cs, cert)
     return grow
 end
 
-_wants_auto_split(cs, cert) = !isempty(_auto_phases_to_split(cs, cert))
+# The split test says something only about an answer that has otherwise reached
+# the solution: on one that has not, a phase can look unstable for no other
+# reason. So a phase is given its second instance only when the answer is
+# stationary and balanced, and the split is its worst violation. Read on every
+# certificate that failed, as it first was, the rule split the AFt of a slag
+# cement paste on a first answer with an element balance of 0.17, and the search
+# on the enlarged system then failed where one composition certifies.
+function _converged_but_unstable(cert)
+    all(k -> hasproperty(cert, k), (:stationarity, :balance, :worst_violation_split, :worst_supersaturation)) ||
+        return false
+    return cert.stationarity <= 1.0e-8 && cert.balance <= 1.0e-8 &&
+        cert.worst_violation_split >= cert.worst_supersaturation
+end
+
+_wants_auto_split(cs, cert) = _converged_but_unstable(cert) && !isempty(_auto_phases_to_split(cs, cert))
 
 """
     _auto_split(eq, cert; model, b, kwargs...) -> (state, certificate)

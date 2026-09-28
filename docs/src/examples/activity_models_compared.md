@@ -80,7 +80,8 @@ than ``T`` rises: hot water screens worse, so the same ionic strength costs more
 
 ## 2. The screening length, in nanometers
 
-``\kappa^{-1} = 1/(B\sqrt{I})`` in ångström, when ``B`` is in Å⁻¹(kg/mol)^½:
+``\kappa^{-1} = 1/(B\sqrt{I})`` is in ångström when ``B`` is in
+``\text{Å}^{-1}\,(\text{kg/mol})^{1/2}``; the table gives it in nanometers:
 
 ```@example am
 B25 = hkf_debye_huckel_params(298.15, 1.0e5).B

@@ -283,5 +283,6 @@ pages = [
             "Utilities" => "api/utils.md",
         ],
     ],
+    "Nomenclature" => "nomenclature.md",
     "References" => "references.md",
 ]

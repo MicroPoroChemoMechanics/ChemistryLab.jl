@@ -139,6 +139,11 @@ are then worked in increasing order of difficulty, from
 cements, and [The binders, and what distinguishes them](@ref man-binder-families)
 says which of the package's models each family requires.
 
+**The symbols.** Every symbol of the formulas is listed in the
+[Nomenclature](@ref nomenclature), with its unit and, for a physical constant, the
+value the package computes with. Hovering an equation on any page shows the
+symbols it holds, with their meaning on that page.
+
 ## Where this comes from
 
 This package would not exist without two bodies of work that came before it, and
