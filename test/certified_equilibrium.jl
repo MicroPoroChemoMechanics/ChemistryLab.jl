@@ -743,6 +743,45 @@ end
     @test ustrip.(us"mol", eq.n) ≈ ustrip.(us"mol", eq0.n) rtol = 1.0e-8
 end
 
+@testsection "the start from the linear program puts each species in its phase" begin
+    # A tenth of a kilogram of water and a millimole of calcite, beside
+    # portlandite. The vertex holds the water and the calcite. A solute it leaves
+    # out starts at the molality its multipliers give it, per kilogram of that
+    # water, and portlandite, a pure phase outside the vertex, starts absent.
+    # Until 0.28.0 every species outside the vertex started at its activity in
+    # moles, portlandite included, which on a cement put the start tens of moles
+    # off the budget and cost the search seconds from which nothing certified.
+    sp = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+    cs = ChemicalSystem(
+        [sp[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 CaOH+ Cal Portlandite")],
+        ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"],
+    )
+    st = ChemicalState(cs)
+    set_quantity!(st, "H2O@", 0.1u"kg")
+    set_quantity!(st, "Cal", 1.0e-3u"mol")
+    b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    des = ChemistryLab.DualEquilibriumSolver(cs, DiluteSolutionModel())
+    lp = ChemistryLab._linear_program(des, st, b)
+    @test lp.start.status === :optimal
+    lifted = ustrip.(us"mol", ChemistryLab._lp_lifted_state(des, st, lp).n)
+    x = lp.start.x
+    j(name) = findfirst(s -> symbol(s) == name, cs.species)
+    @test lifted[j("H2O@")] == x[j("H2O@")] > 0 && lifted[j("Cal")] == x[j("Cal")] > 0
+    @test x[j("Portlandite")] == 0 && lifted[j("Portlandite")] == 0
+    kg = x[j("H2O@")] * ustrip(us"kg/mol", sp["H2O@"][:M])
+    u = -(transpose(lp.prob.A) * lp.start.y)
+    outside = [s for s in ("H+", "OH-", "CO2@", "HCO3-", "CO3-2", "Ca+2", "CaOH+") if x[j(s)] == 0]
+    @test !isempty(outside)
+    for s in outside
+        @test lifted[j(s)] ≈ exp(min(u[j(s)] - lp.prob.g[j(s)], 0.0)) * kg rtol = 1.0e-12
+    end
+    # The search from it gives the answer the search without it gives.
+    eq, cert = equilibrate_certified(st)
+    eq0, cert0 = equilibrate_certified(st; lp_start = false)
+    @test cert.optimal && cert0.optimal
+    @test ustrip.(us"mol", eq.n) ≈ ustrip.(us"mol", eq0.n) rtol = 1.0e-8
+end
+
 # The three routes that make a complete phase list usable: refusing an answer
 # outside the model's domain, the ideal model as a starting point, and offering a
 # solid solution back by its own criterion. Their own fixtures, since each needs a

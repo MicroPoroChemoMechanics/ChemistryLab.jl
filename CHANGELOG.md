@@ -20,6 +20,20 @@ only mix ideally on the sites. Two checks against the papers:
   0.1 kJ/mol, which is the effect of their formulas being printed to four
   decimals.
 
+### Breaking changes
+
+- Below 1.0 a minor release is a breaking one for Julia's resolver: a package
+  bounding `ChemistryLab = "0.27"` does not accept 0.28.0 and must widen its
+  bound.
+- A coefficient smaller than 1e-3 in a formula or a reaction is now kept, where
+  it was read as zero (see Fixed). A formula or an equation that relied on it
+  being dropped now carries that element or species.
+- The certified search takes one candidate from the start the linear program
+  gives, where it took three, and places each species of that start in its
+  phase (see Fixed). A certified answer is the same to the tolerance of its
+  certificate, but the start it comes from (`route`), `n_dual_solves` and the
+  time can change.
+
 ### Added
 
 - `CompoundEnergyModel(lattice; interactions)` and
@@ -124,6 +138,31 @@ only mix ideally on the sites. Two checks against the papers:
     fraction, as the database formulas need (`((CaO)1.25(SiO2)1(H2O)2.75)0.6667`
     has 5/6 Ca).
   - Measured on the 3391 species of the eight databases: no composition changes.
+- The start the linear program gives the certified search (0.26.0) had made
+  some cement calculations 2 to 3.5 times slower. Two causes:
+  - Every species outside the vertex of the program started at its activity in
+    moles, up to one mole, whatever its phase: pure phases the program found
+    undersaturated were in it, and dozens of species near a mole. On four cement
+    pastes the start was 11 to 66 mol off a budget of about 4 mol, and on two of
+    them nothing certified from it. Each species now starts in its own phase. A
+    solute starts at the molality the multipliers give it, per kilogram of the
+    water at the vertex, and a member of a solid solution present at the vertex
+    at its fraction of that phase. A pure phase, or a solid solution absent from
+    the vertex, starts at zero. The start is then 1.3 to 1.8 mol off, and all
+    four pastes certify from it at the first attempt.
+  - Three candidates were drawn from that start: the answer of each back end
+    from it, and the start itself. Measured on seven solves of five cements,
+    only the default back end's answer ever paid. The interior point from the
+    start never certified, and cost 1.5 to 10 s each time. The start itself
+    certified only where a start from the state as given had already certified.
+    The search now takes that one candidate and goes on to the state as given.
+  - Four calculations of blended-cement pastes that took 230 s with 0.25.2, and
+    470 s with the start as 0.26.0 and 0.27.0 have it, take 144 s. From the cast state of
+    cement107 and of a CEM I with the CNASH gel, the search takes 0.17 s and
+    0.08 s, against 8.4 s and 12.9 s with `lp_start = false`, to the same
+    composition (5e-13). A paste on which nothing certifies before the
+    continuation pays one failed candidate more than with `lp_start = false`:
+    3 s of 45 s on the one measured.
 
 ### Changed
 

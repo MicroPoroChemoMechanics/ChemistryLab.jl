@@ -217,7 +217,7 @@ each time would more than undo the gain.
 
 Iterating yields each back end's answer in registration order, skipping any that
 threw, and finally `tail` — the caller's own state, which is the only start left
-if every back end failed.
+if every back end failed — unless `offer_tail` is false.
 """
 struct _LazyStarts{F, S}
     solve_one::F                     # factory -> a state, or `nothing` if it threw
@@ -225,6 +225,7 @@ struct _LazyStarts{F, S}
     tail::S                          # the caller's own state, offered last
     cache::Vector{S}
     tried::Base.RefValue{Int}
+    offer_tail::Bool
 end
 
 Base.IteratorSize(::Type{<:_LazyStarts}) = Base.SizeUnknown()
@@ -238,7 +239,7 @@ function Base.iterate(s::_LazyStarts, i::Int = 1)
         r === nothing || push!(s.cache, r)
     end
     i <= length(s.cache) && return (s.cache[i], i + 1)
-    i == length(s.cache) + 1 && return (s.tail, i + 1)
+    i == length(s.cache) + 1 && s.offer_tail && return (s.tail, i + 1)
     return nothing
 end
 
@@ -322,30 +323,57 @@ function _linear_program(des::DualEquilibriumSolver, state::ChemicalState, bfix)
 end
 
 """
-    _lp_lifted_state(state, lp) -> ChemicalState
+    _lp_lifted_state(des, state, lp) -> ChemicalState
 
-The start the linear program gives: its vertex for the species it holds, and
-for every other one the amount `exp(uⱼ − gⱼ)` its multipliers assign, `u = −Aᵀy`,
-capped at one mole. A species the vertex leaves at zero would sit at the floor
-of a logarithmic method, the worst place to start one from; at the multipliers'
-amount it starts where an ideal dilute species would be. A dead species (one
-whose component the budget lacks) stays at zero.
+The start the linear program gives: its vertex for the species it holds, and for
+the others the amount the multipliers `y` of the program give them in their own
+phase. With `u = −Aᵀy`, a species absent from the vertex has the activity
+`aⱼ = exp(uⱼ − gⱼ)`, which is at most one, and its amount follows from what
+the activity of its phase is:
 
-It does not meet the budget exactly (a species at the multipliers' amount is
-added, not balanced), which the search does not need: `b` is fixed for the whole
-call, and a start is only where the first solve begins. Measured on two cold
-cements, the certified route from this state took 0.37 s and 0.26 s against
-4.8 s and 4.3 s from the recipe, to the same composition (1e-12 relative, pH to
-1e-13).
+  - a solute: a molality, so `aⱼ` mol/kg of the water at the vertex;
+  - a member of a solid solution present at the vertex: a mole fraction, so `aⱼ`
+    times the amount of the phase there;
+  - a pure phase, or a member of a solid solution absent from the vertex: zero.
+    The phase is not part of the assemblage, and the solve decides whether it
+    enters.
+
+A dead species (one whose component the budget lacks) stays at zero.
+
+The amounts are those of an ideal phase at the potentials of the program, which
+is what the dual solve needs to start from; they do not meet the budget exactly,
+which it does not need either, `b` being fixed for the whole call.
+
+The first form gave every absent species `aⱼ` mol whatever its phase, capped at
+one mole. On a cement that is dozens of species near a mole, and pure phases the
+program found undersaturated among them. Measured from the cast state of four
+cements, the start was then 11 to 66 mol off a 4-mol budget, and on two of them
+nothing certified from it, so the search lost 9 and 15 s before the state as
+given certified. Placed in its phase, the start is 1.3 to 1.8 mol off, and all
+four certify from it at the first attempt, in 0.1 to 0.2 s.
 """
-function _lp_lifted_state(state::ChemicalState, lp)
+function _lp_lifted_state(des::DualEquilibriumSolver, state::ChemicalState, lp)
     s, prob = lp.start, lp.prob
     u = -(transpose(prob.A) * s.y)
-    n = [
-        s.x[j] > 0 ? s.x[j] :
-            isnan(s.reduced_costs[j]) ? 0.0 : exp(clamp(u[j] - prob.g[j], -700.0, 0.0))
-            for j in eachindex(prob.g)
-    ]
+    activity(j) = isnan(s.reduced_costs[j]) ? 0.0 : exp(clamp(u[j] - prob.g[j], -700.0, 0.0))
+    n = [s.x[j] > 0 ? s.x[j] : 0.0 for j in eachindex(prob.g)]
+    # The solutes, per kilogram of the water the vertex holds.
+    if des.j_solvent > 0
+        jw = des.idx_aq[des.j_solvent]
+        kg = n[jw] * ustrip(us"kg/mol", state.system.species[jw][:M])
+        for j in des.idx_aq
+            j == jw || n[j] > 0 || (n[j] = activity(j) * kg)
+        end
+    end
+    # The members of each solid solution, as fractions of the phase; none if the
+    # vertex holds none of it.
+    for grp in des.ss_groups
+        N = sum(n[j] for j in grp)
+        N > 0 || continue
+        for j in grp
+            n[j] > 0 || (n[j] = activity(j) * N)
+        end
+    end
     return ChemicalState(state.system; T = state.T[1], P = state.P[1], n = n .* u"mol")
 end
 
@@ -819,9 +847,9 @@ With every activity set to one, the equilibrium is a linear program:
     `route = :infeasible` and `unplaceable`, the reason in words; nothing is
     searched, and `STRICT_CONVERGENCE` raises.
   - **It gives the first start.** Its vertex, with every species it leaves out
-    raised to the amount its multipliers give it, is where the search begins: on
-    two cold cements, 0.21 s and 0.09 s against 4.6 s and 4.2 s without it, to the
-    same composition.
+    given the amount its multipliers give it in its own phase, is where the
+    search begins: on two cold cements, 0.17 s and 0.08 s against 8.4 s and
+    12.9 s without it, to the same composition.
 
 `lp_start = false` skips it, and so does `autostart = false`. The certificate
 reports `budget_feasible`, the start the answer came from as `route`
@@ -1143,7 +1171,10 @@ function _equilibrate_certified(
     # returned 1.8e-14. The result is still judged strictly, at the end of this
     # function, which is where the flag belongs.
     route_of = IdDict{Any, Symbol}()
-    function starts_from(from::ChemicalState, what::AbstractString, route::Symbol)
+    function starts_from(
+            from::ChemicalState, what::AbstractString, route::Symbol;
+            factories::Vector{Function} = copy(_SOLVER_FACTORIES), offer_tail::Bool = true,
+        )
         route_of[from] = route
         solve_one = function (f)
             r = _relaxed_convergence() do
@@ -1160,9 +1191,7 @@ function _equilibrate_certified(
             r === nothing || (route_of[r] = route)
             return r
         end
-        return _LazyStarts(
-            solve_one, copy(_SOLVER_FACTORIES), from, typeof(from)[], Ref(0),
-        )
+        return _LazyStarts(solve_one, factories, from, typeof(from)[], Ref(0), offer_tail)
     end
 
     # Every candidate the search tries is a candidate, and a candidate that does
@@ -1189,15 +1218,33 @@ function _equilibrate_certified(
 
     starts = starts_from(state, "start", :state)
 
-    # The vertex of the linear program, with the species it leaves out raised to
-    # the amounts its multipliers give them, comes first. Measured on two cements
-    # (cement107, and a CEM I with the CNASH gel), against the same calls with
-    # `lp_start = false`: cold 0.05 and 0.02 times the time, warm (from the
-    # answer) 1.00 and 0.06, a neighbor (1 % more water, from the answer) 1.05
-    # and 0.04, every composition the same to 2e-8. See `_lp_lifted_state`.
-    if lp !== nothing && lp.start.status === :optimal
-        lifted = _lp_lifted_state(state, lp)
-        starts = Iterators.flatten((starts_from(lifted, "start from the linear program", :lp_start), starts))
+    # The vertex of the linear program, with the species it leaves out given the
+    # amounts its multipliers give them in their phases, comes first: the answer
+    # of the default back end from it, and nothing else. See `_lp_lifted_state`,
+    # whose docstring records the slowdown the first form of the lifting caused.
+    #
+    # Only that one candidate, because it is the one that pays. Measured on seven
+    # solves of five cements, it certified at once on the cold ones, where
+    # nothing from the state as given does. The other two candidates the point
+    # would give never certified before a start from the state did. The
+    # interior point from it never certified at all, and cost 1.5 to 10 s. The
+    # point itself certified twice, both times after a start from the state had.
+    # On a warm start from a neighboring answer, those two cost 10 s the state
+    # did not need, and on a paste nothing certifies from, 10 s before the
+    # continuation.
+    #
+    # Against the same calls with `lp_start = false`, on two cements
+    # (cement107, and a CEM I with the CNASH gel): cold 0.02 and 0.01 times the
+    # time, warm (from the answer) 0.99 and 0.06, a neighbor (1 % more water,
+    # from the answer) 1.02 and 0.11, every composition the same to 6e-13.
+    default = _DEFAULT_SOLVER_FACTORY[]
+    if lp !== nothing && lp.start.status === :optimal && default !== nothing
+        lifted = _lp_lifted_state(des, state, lp)
+        first_start = starts_from(
+            lifted, "start from the linear program", :lp_start;
+            factories = Function[default], offer_tail = false,
+        )
+        starts = Iterators.flatten((first_start, starts))
     end
 
     # Ideal mixing as a stepping stone for a sublattice phase: see
