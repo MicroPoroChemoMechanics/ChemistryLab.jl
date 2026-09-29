@@ -159,6 +159,9 @@ pages = [
             # Four blended pastes, their degrees of reaction from the measurement,
             # the chemistry against the measurement and against GEMS3K.
             "tutorials/validation_blended_pastes.md",
+            # Forty-eight pore solutions of the first six hours, speciated at
+            # their measured pH: the aqueous model against the paper's indices.
+            "tutorials/validation_early_pore_solutions.md",
         ],
     ],
     "Applications" => [

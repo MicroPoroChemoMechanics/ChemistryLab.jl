@@ -12,10 +12,12 @@ of the silicate chain and of the interlayer. It also adds two terms: the energy
 of the reciprocal reactions between its end-members, and interactions between
 the species of one site. ChemistryLab writes it as a [`CompoundEnergyModel`](@ref).
 
-This page does three things. It computes the gel in water, from the Ca/Si at
+This page does four things. It computes the gel in water, from the Ca/Si at
 which amorphous silica stops forming to the one at which portlandite starts, and
-compares both ends with the paper. It then adds sodium and potassium. Finally it
-checks the model against the authors' own calculation of 110 gel compositions.
+compares both ends with the paper. It then adds sodium and potassium. It checks
+the model against the authors' own calculation of 110 gel compositions. Finally
+it computes the pore solution of a hydrating Portland cement with CASH+NK and with
+CSHQ, against its analysis.
 
 The model has two mixing sites. The **bridging tetrahedron** (BT) of the silicate
 chain holds a silicate `S`, a vacancy `v` or a calcium `C`. The **interlayer
@@ -154,6 +156,38 @@ vacancies. The silicon in solution falls by more than two orders of magnitude,
 from 4.18 to 0.0097 mmol/kg, and the calcium rises to 20.4 mmol/kg, that of the
 solution in equilibrium with portlandite.
 
+### The same gel at 50 and 90 °C
+
+Kulik et al. fitted the model at 25 °C and gave its end-members and the CaSiO₃⁰
+complex heat capacities for use up to 100 °C (their Section 3.5). They describe
+what the model then predicts: the calcium and silicon in solution change
+little with temperature, the pH falls by 2 to 2.5 units over a hundred degrees,
+and beside portlandite the silicon rises a little. The pastes of Ca/Si 1.2 and
+2.4 above, at three temperatures:
+
+```@example cashplus
+function paste_at(cs, ca_si, T)
+    st = ChemicalState(cs; T = T)
+    set_quantity!(st, "H2O@", 1.0u"kg")
+    set_quantity!(st, "Amor-Sl", 0.05u"mol")
+    set_quantity!(st, "Portlandite", ca_si * 0.05u"mol")
+    b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    return equilibrate_certified(st; model, b)
+end
+println(" Ca/Si    T (°C)   certified   Ca (mmol/kg)   Si (mmol/kg)     pH")
+for r in (1.2, 2.4), Tc in (25, 50, 90)
+    eq, cert = paste_at(cs, r, (Tc + 273.15)u"K")
+    @printf("%5.1f    %5d      %-9s  %10.3f     %10.4f     %6.3f\n", r, Tc, cert.optimal,
+            1000in_solution(eq, :Ca), 1000in_solution(eq, :Si), pH(eq, model))
+end
+```
+
+Every paste certifies. From 25 to 90 °C the pH falls by 1.8 units at a Ca/Si of
+1.2 and by 1.8 beside portlandite, about 2.8 units per hundred degrees, somewhat
+more than the 2 to 2.5 the paper states. Beside portlandite the silicon rises, from
+0.0097 to 0.0137 mmol/kg, as the paper states, while the calcium falls from 20.4 to
+12.7 mmol/kg, with the solubility of portlandite.
+
 ## 2. Sodium and potassium: CASH+NK
 
 `CASH+NK` puts sodium and potassium in the interlayer, as NaHOH⁺ and KHOH⁺. With
@@ -205,13 +239,6 @@ of 1.6 and nearly the same solution it holds four times less sodium and nine
 times less potassium, 0.015 and 0.026 per Si: the calcium that fills the
 interlayer leaves the alkalis little room, the suppression of alkali uptake at
 high Ca/Si that Miron et al. describe.
-
-!!! note "Both alkalis, or the core model"
-    Declared in a system whose budget holds no potassium, or no sodium, the
-    twelve-member phase keeps members of an element that cannot be there. Measured
-    on these pastes with sodium alone, the search then stops at an element balance
-    of about 2e-8 and does not certify at the lowest sodium. A system without
-    alkalis takes `CASH+`, as in section 1; a cement paste holds both.
 
 ## 3. Against the authors' own calculation
 
@@ -276,6 +303,86 @@ The two implementations agree on every gel to within 0.064 kJ/mol, with a median
 difference of 0.003 kJ/mol. That is the rounding of the formulas, which are
 printed to four decimals; the energies of mixing and of the reciprocal reactions
 are some ten kilojoules per mole.
+
+## 4. A Portland cement with 4 % limestone
+
+Miron et al. [Miron2022b](@cite) tuned the calcium alkali end-members of CASH+NK
+on the pore solutions of hydrated cements, among them the Portland cement with
+4 % limestone (PC4) of Lothenbach et al. [LothenbachLeSaout2008](@cite), whose
+pore solution was analyzed from one day to 400 days. The same paste is computed
+here twice, with its C-S-H as `CSHQ` and as `CASH+NK`, everything else equal:
+
+- **the cement** is the normative composition of the paper (its Table 1): the four
+  clinker phases, periclase, free lime, calcite, gypsum and the readily soluble
+  alkali sulfates;
+- **the clinker phases hydrate** by the law of Parrott and Killoh with the
+  constants of the paper (its Table 3), including the two it adapts for belite
+  and the critical degree of hydration of each phase;
+- **the minor oxides of the clinker** (0.052 g of K₂O, 0.31 g of Na₂O, 0.87 g of
+  MgO and 0.11 g of SO₃ per 100 g) are released with the phases that hold them.
+  The paper gives their totals, not how they are shared among the phases. This
+  page assumes the sharing of Lothenbach and Winnefeld (2006), after Taylor, as a
+  content per gram of each phase;
+- **the phases that may form** are those of the Portland paste of
+  [the validation page](@ref ex-validation), a paste of the same
+  laboratory and the same modeling.
+
+The recipe and both systems are written once, in `scripts/lothenbach_2008.jl`,
+which the test of this page includes too.
+
+```@example cashplus
+include(joinpath(pkgdir(ChemistryLab), "scripts", "lothenbach_2008.jl"))
+days = l08_days()
+runs = Dict(gel => hydrate(l08_recipe("PC4"), l08_system(gel), days; model) for gel in (:CSHQ, :CASHNK))
+for gel in (:CSHQ, :CASHNK)
+    @printf("%-7s certified at %s of %d ages\n", gel, count(rs -> rs.certificate.optimal, runs[gel].states), length(days))
+end
+```
+
+The table sets the two calculations against the analysis, at each age. The
+model gives millimoles per kilogram of water and the analysis millimoles per liter
+of solution; they differ by a few percent at these concentrations.
+
+```@example cashplus
+elements = ["Na", "K", "Ca", "Si", "S"]
+println("  age   element   measured    CSHQ   CASH+NK")
+for (k, d) in enumerate(days)
+    with = Dict(gel => pore_solution_mmol(runs[gel].states[k].state) for gel in (:CSHQ, :CASHNK))
+    for e in elements
+        @printf("%5.0f d  %-7s  %9.3g  %8.3g  %8.3g\n", d, e, l08_measured("PC4", d, e), with[:CSHQ][e], with[:CASHNK][e])
+    end
+    @printf("%5.0f d  %-7s  %9.3g  %8.3g  %8.3g\n", d, "pH", l08_measured("PC4", d, "pH"),
+            (pH(runs[gel].states[k].state, model) for gel in (:CSHQ, :CASHNK))...)
+end
+```
+
+```@example cashplus
+panels = map(("Na", "K")) do e
+    p = plot(; xscale = :log10, title = e, xlabel = "time (days)", ylabel = "mmol/kg or mmol/L",
+             legend = e == "Na" ? :topleft : false)
+    for (gel, color) in ((:CSHQ, :darkorange), (:CASHNK, :steelblue))
+        plot!(p, days, [pore_solution_mmol(rs.state)[e] for rs in runs[gel].states];
+              label = gel === :CSHQ ? "CSHQ" : "CASH+NK", color, linewidth = 2, marker = :circle)
+    end
+    scatter!(p, days, [l08_measured("PC4", d, e) for d in days]; label = "measured", color = :black)
+    p
+end
+fig = plot(panels...; layout = (1, 2), size = (900, 380), left_margin = 6Plots.mm, bottom_margin = 7Plots.mm)
+savefig(fig, "cashplus-pc4.svg"); nothing # hide
+```
+
+![](cashplus-pc4.svg)
+
+Both models certify the paste at every age. From 7 days on, CASH+NK leaves more
+sodium and potassium in solution than CSHQ, and closer to the analysis: at 28
+days 160 and 338 mmol/kg against 172 and 532 measured, where CSHQ gives 105 and
+290. That is the improvement Miron et al. report. Neither model follows the rise
+of both alkalis after 28 days, to 331 and 563 mmol/L at 400 days: CASH+NK stays
+near 164 and 334, CSHQ near 108 and 281. The pH follows the same order, 13.7 with
+CASH+NK, 13.6 with CSHQ and 13.7 to 13.8 measured. The sulfate is the largest
+difference of the two models alike: measured, it falls to 1.9 mmol/L at one day
+and climbs to 34 to 41 after six months; computed, it stays in solution at one
+day (53 and 85 mmol/kg) and between 2.7 and 6.2 afterwards.
 
 ## Where to go next
 

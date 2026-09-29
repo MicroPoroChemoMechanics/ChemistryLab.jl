@@ -33,19 +33,22 @@ only mix ideally on the sites. Two checks against the papers:
     product of the site fractions. To get it, the energy it minimizes adds `RT D`,
     where `D` is the divergence of the amounts from that product. `D` is never
     negative and vanishes, with its gradient, at the product, so the equilibrium
-    and the chemical potentials are those of the model. Without it, the twelve
-    members of CASH+NK failed to certify beside 0.3 mol/kg of potassium hydroxide
-    and at a Ca/Si of 1.6. With it, a gel in a solution of both hydroxides
-    certifies in under a second at Ca/Si 1 and 1.6.
-  - Known limit: a CASH+NK phase declared in a budget without potassium, or
-    without sodium, keeps members that cannot be there. Its search then stops at
-    an element balance of about 2e-8 at the lowest alkali contents. A system
-    without alkalis takes `CASH+`.
+    and the chemical potentials are those of the model. Measured on twelve pastes
+    of CASH+NK (Ca/Si 1 and 1.6; sodium, potassium or both), the equilibria
+    certify with or without `D`, in under a second after compilation. What `D`
+    adds is an answer whose member amounts do not depend on where the search
+    started.
   - The activities depend on the standard Gibbs energies of the members. The
     solver passes those at the temperature of the solve, and the result is
     unchanged when each energy is shifted by that of its elements.
-  - The convexity of such a model is reported as undecided, so a certified answer
-    is scoped `:kkt_point` or weaker, never `:global_minimum`.
+  - The convexity of such a model is decided in its site fractions, from the
+    energies of its members at the temperature of the solve (`mixing_convexity(model,
+    n; T, g)`, which the certificate calls). With two sites a bound proves it: each
+    site's curvature against the coupling the reference surface puts between them.
+    The CASH+ core is convex by that bound. CASH+NK is not decided by it, and no
+    concave point is found on a lattice of site fractions, so its certificates are
+    scoped `:kkt_point`. The verdict is kept, since it depends only on the model,
+    the energies and the temperature.
 - The derived database `cemdata18-cashplus.json`: Cemdata18 plus the twelve
   end-members of CASH+NK.
   - For the core end-members, G° and H° come from Table 8 of Kulik et al., and
@@ -64,6 +67,36 @@ only mix ideally on the sites. Two checks against the papers:
   (Tables A1 and A3), the discretized model, and the TCNh and TCKh fine-tuned
   for cement pore solutions (Table 5 of the second paper), which the database
   carries.
+- A validation of CASH+NK on a hydrating cement: the Portland cement with 4 %
+  limestone of Lothenbach, Le Saout, Gallucci & Scrivener (2008), from one day
+  to 400 days, computed with CSHQ and with CASH+NK. It is on the CASH+ page, with
+  its data in `data/literature/LothenbachLeSaout2008.json` and its recipe in
+  `scripts/lothenbach_2008.jl`, and `test/validation_lothenbach2008.jl` checks it.
+  - The paste certifies at every age with both models.
+  - Miron et al. (2022b) reprint the cement and the kinetic constants. The test
+    requires the two transcriptions to be the same numbers.
+- A validation of the aqueous model on the 48 early pore solutions of Schöler et
+  al. (2017): a CEM I 52.5 R alone and blended with slag, fly ash, limestone or
+  quartz, analyzed during the first six hours. Each solution is speciated at its
+  measured pH and its saturation indices set against the authors' (Table 7).
+  - Portlandite and gypsum agree within 0.08, the Ca-rich C-S-H within 0.21.
+  - Ettringite and monosulfate differ by up to 0.9. The differences obey
+    `ΔE − ΔMs = 2 ΔGp` to 0.02, so what varies is a factor on aluminum, up to
+    0.28 log units at 1.5–4.5 µmol/L of it. The page reports this as found.
+  - Data in `data/literature/Scholer2017.json`, the calculation in
+    `scripts/scholer_2017.jl`, the page `tutorials/validation_early_pore_solutions.md`,
+    and the test `test/validation_scholer2017.jl`.
+- The CASH+ page computes the gel at 50 and 90 °C. The pH falls by 1.8 units from
+  25 to 90 °C, somewhat more than Kulik et al. state, and beside portlandite the
+  silicon rises, as they state.
+- `ParrottKillohExtent` takes `parameters`, constants of the law that replace
+  those of Parrott and Killoh (1984), and `H`, the critical degree of hydration
+  of its w/c factor, as Lothenbach et al. (2008) fit one per clinker phase. The
+  rate constants are per day, as the papers print them, unless given with a
+  unit. Left out, both give the law as before, bit for bit.
+- `phase_list_system` takes `replace`, which declares another solid solution in
+  place of one of the list's (another model of the same gel), and
+  `exclude_aqueous`, which leaves out more aqueous species.
 - `data/literature/Kulik2022.json`, with its notes. The end-members' G and H are
   those of Table 8, because the G° and H° columns of Table 10 are shifted by
   one row against its names. The printed H° of TSvh is off by 0.28 kJ/mol from
@@ -76,10 +109,21 @@ only mix ideally on the sites. Two checks against the papers:
   `C m<sup>−2</sup> (kg/mol)<sup>½</sup>` for the Gouy–Chapman prefactor. It
   affected three entries of the nomenclature. The unit is now rendered like the
   name, and a test allows only `<sub>`, `<sup>` and `<b>` in these fields.
-- A formula coefficient smaller than 1e-3 was read as zero, so the element it
-  counts left the formula: in `Ca2.0993Si2.9298Na0.0004O11.0585H6.1988` the
-  sodium disappeared. A coefficient that is not zero now stays so. Measured on
-  the 3391 species of the eight databases: none of their compositions changes.
+- A coefficient smaller than 1e-3 in a formula or a reaction was read as zero,
+  so its element or species was dropped. In `Ca2.0993Si2.9298Na0.0004O11.0585H6.1988`
+  the sodium disappeared, and in a reaction `0.0004Na+` went with it. Such a
+  coefficient now stays, wherever a coefficient of a species is read, written or
+  given: in formulas, in equations, in `Reaction` and in their printed forms.
+  - Only a value at the level of round-off, 1e-12 and below, is still cleaned to
+    zero.
+  - `stoich_coef_round` itself is unchanged. It cleans the coefficients a
+    computation produces, and a conservation matrix relies on it: a first version
+    of this fix changed it, left entries of 1e-17 in the matrices, and made
+    `reactions(cs.SM)` overflow the stack of the symbolic simplification.
+  - A coefficient within 1e-3 of a simple fraction is still read as that
+    fraction, as the database formulas need (`((CaO)1.25(SiO2)1(H2O)2.75)0.6667`
+    has 5/6 Ca).
+  - Measured on the 3391 species of the eight databases: no composition changes.
 
 ### Changed
 
