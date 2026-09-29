@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.28.0 — The CASH+ model of C-S-H
+## v0.28.0 — The CASH+ model of C-S-H, three pore-solution validations, and the linear-programming start without its slowdown
 
 The C-S-H of a cement paste can now be described by the CASH+ model of Kulik,
 Miron & Lothenbach (2022), with the sodium and potassium of Miron et al. (2022a,
@@ -20,6 +20,16 @@ only mix ideally on the sites. Two checks against the papers:
   0.1 kJ/mol, which is the effect of their formulas being printed to four
   decimals.
 
+The model is also extended to Li, Rb, Cs, Mg, Sr, Ba and Ra (CASH+ext). Three
+validations set the package against published pore solutions: a limestone
+Portland cement from one day to 400 days, with CSHQ and with CASH+NK (Lothenbach
+et al. 2008); 48 solutions of the first six hours (Schöler et al. 2017); and 55
+solutions of fly-ash blends over 550 days (Deschner et al. 2012). The start the
+linear program gives the certified search, which had made some cement
+calculations 2 to 3.5 times slower since 0.26.0, now keeps its gain on cold
+cements without that cost, and the activity models floor an amount at 1e-30 mol
+instead of 1e-16, which a pore solution at pH 14 in a few grams of water needs.
+
 ### Breaking changes
 
 - Below 1.0 a minor release is a breaking one for Julia's resolver: a package
@@ -33,6 +43,18 @@ only mix ideally on the sites. Two checks against the papers:
   phase (see Fixed). A certified answer is the same to the tolerance of its
   certificate, but the start it comes from (`route`), `n_dual_solves` and the
   time can change.
+- ChemistryLab requires **OptimaSolver 0.7.3** (`OptimaSolver = "0.7.3"`,
+  which 0.7.1 and 0.7.2 do not meet). Its certificate holds a member of a present
+  phase below the floor, whose potential the answer determines, to the inequality
+  it had skipped, so an answer that certified with a solute left far below its
+  equilibrium amount is refused (see Fixed).
+- The activity models floor an amount at **1e-30 mol** (`_ACTIVITY_FLOOR`), where
+  they floored it at `ϵ = 1e-16`. A species between the two now has the activity
+  of its own amount, so trace amounts and a pH read at the old floor change. `ϵ`
+  keeps its other roles (the bound of the interior-point back ends, the amount of
+  an absent product in a cold state, the regularizations), and the dual solve and
+  the implicit kinetic step now start with no amount below it, as the
+  interior-point back ends did (see Fixed).
 
 ### Added
 
@@ -175,22 +197,63 @@ only mix ideally on the sites. Two checks against the papers:
     them nothing certified from it. Each species now starts in its own phase. A
     solute starts at the molality the multipliers give it, per kilogram of the
     water at the vertex, and a member of a solid solution present at the vertex
-    at its fraction of that phase. A pure phase, or a solid solution absent from
-    the vertex, starts at zero. The start is then 1.3 to 1.8 mol off, and all
-    four pastes certify from it at the first attempt.
+    at its fraction of that phase, and neither below `ϵ`, the floor of the
+    search. A pure phase, or a solid solution absent from the vertex, starts at
+    zero. The start is then 1.3 to 1.8 mol off, and all four pastes certify from
+    it at the first attempt.
   - Three candidates were drawn from that start: the answer of each back end
     from it, and the start itself. Measured on seven solves of five cements,
     only the default back end's answer ever paid. The interior point from the
     start never certified, and cost 1.5 to 10 s each time. The start itself
     certified only where a start from the state as given had already certified.
     The search now takes that one candidate and goes on to the state as given.
-  - Four calculations of blended-cement pastes that took 230 s with 0.25.2, and
-    470 s with the start as 0.26.0 and 0.27.0 have it, take 144 s. From the cast state of
-    cement107 and of a CEM I with the CNASH gel, the search takes 0.17 s and
-    0.08 s, against 8.4 s and 12.9 s with `lp_start = false`, to the same
-    composition (5e-13). A paste on which nothing certifies before the
-    continuation pays one failed candidate more than with `lp_start = false`:
-    3 s of 45 s on the one measured.
+  - Thirty-two calculations of blended-cement pastes that took 3335 s with
+    0.27.0 take 1277 s, with the activity floor below (see the next entry), to
+    the same answers at the printed digits; one of them now certifies under the
+    activity model it asks for first, where it fell back on another. Four of them
+    had taken 230 s with 0.25.2 and 470 s with the start of 0.26.0. From the cast
+    state of cement107 and of a CEM I with the CNASH gel, the search takes 0.05 s
+    and 0.26 s, against 11.3 s and 10.1 s with `lp_start = false`, to the same
+    composition (3e-10). A paste on which nothing certifies before the
+    continuation pays one failed candidate more than with `lp_start = false`: 3 s
+    of 45 s on the one measured.
+- A certified answer could hold a solute far below its equilibrium amount, and
+  the cause was the floor of the activities. Found on one of 32 cement
+  calculations run to check the change of start above: H+ at 3e-100 mol in a
+  paste whose potentials give it 1.2e-16, certified, and `pH(eq, model)`, which
+  reads the amount, 0.09 high; every other quantity of the answer was right.
+  - With a few grams of water per 100 g of binder, H+ at pH 13.5 to 14 is about
+    1e-16 mol, the floor `ϵ` the activity models read an amount at. Below it the
+    activity no longer follows the amount, and the dual solve, which recovers a
+    solute from its own stationarity assuming it does, raised it by a fraction
+    of a log unit per sweep and left it there.
+  - The floor is now 1e-30 mol (`_ACTIVITY_FLOOR`). Leal, Kulik, Smith and Saar
+    (2017) recall the recommendation of Leal, Kulik and Kosakowski (2016) that an
+    unstable species hold less than one molecule (1.66e-24 mol) in a system of
+    one mole. GEMS3K eliminates a solution species below 1e-30 mol, and PHREEQC a
+    molality below 1e-30 mol/kg. Reaktoro bounds every amount by 1e-16 mol, a
+    bound of its solver as `ϵ` is here.
+  - A solute still found below the floor at a converged answer, where the
+    potentials give it more, is given that amount (`floor·exp(r)`, the exact
+    solution of the floored model).
+  - The old floor had also been standing in for a start. From a state with
+    species at exactly zero, the dual solve started them at `exp(−700)`, and only
+    the flat activity below 1e-16 had kept an implicit kinetic step on calcite
+    converging; at the new floor it did not (its extent came out at 2/3 of the
+    rate times the step, uncertified). The dual solve and the kinetic step now
+    start every amount at `ϵ` at least, the budget being that of the state, and
+    the same step certifies with the element balance at 1e-13 where it was 2e-11.
+    A step the suite recorded as a known fragility, C3A and gypsum with S-2 among
+    the species, whose extents came out a factor 500 short, now certifies with the
+    right ones.
+  - The certificate missed it: it left a member of a present phase below its own
+    floor (1e-25 mol) out of every test. OptimaSolver 0.7.3 holds such a member,
+    where the answer determines its potential, to the one-sided form of the
+    stationarity, reported as `stationarity_floored`.
+- The small amounts the package works with are defined once, with the reason for
+  each value, in `src/utils/numerical_floors.jl` (`_AMOUNT_FLOOR`,
+  `_ACTIVITY_FLOOR`, `_CERTIFICATE_FLOOR`, `_LOG_UNDERFLOW`). They were literals
+  in some forty signatures and formulas.
 
 ### Changed
 

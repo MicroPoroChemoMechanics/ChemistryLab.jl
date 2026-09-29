@@ -310,7 +310,7 @@ function activity_model(cs::ChemicalSystem, model::SITActivityModel)
 
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
-        _n = max.(n, ϵ)
+        _n = max.(n, _activity_floor(p))
 
         A = if temp_dep && hasproperty(p, :T) && hasproperty(p, :P)
             hkf_debye_huckel_params(p.T, p.P).A

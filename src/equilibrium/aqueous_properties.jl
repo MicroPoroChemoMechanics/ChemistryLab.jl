@@ -133,7 +133,7 @@ sum(values(m))               # total solute molality
 See also: [`ionic_strength`](@ref), [`activity_coefficients`](@ref),
 [`concentration_scale`](@ref).
 """
-function molalities(state::ChemicalState; ϵ::Float64 = 1.0e-16)
+function molalities(state::ChemicalState; ϵ::Float64 = _AMOUNT_FLOOR)
     cs = state.system
     i_w = _require_aqueous(cs, "molalities")
     n = ustrip.(us"mol", state.n)
@@ -193,7 +193,7 @@ ionic_strength(eq; kind = :stoichiometric)  # 0.2136 — fully dissociated
 See also: [`molalities`](@ref), [`activity_coefficients`](@ref).
 """
 function ionic_strength(
-        state::ChemicalState; kind::Symbol = :effective, ϵ::Float64 = 1.0e-16
+        state::ChemicalState; kind::Symbol = :effective, ϵ::Float64 = _AMOUNT_FLOOR
     )
     cs = state.system
     _require_aqueous(cs, "ionic_strength")
@@ -326,7 +326,7 @@ See also: [`activities`](@ref), [`activity_coefficients`](@ref),
 """
 function log_activities(
         state::ChemicalState, model::AbstractActivityModel;
-        ϵ::Float64 = 1.0e-16, kelvin_shift::Real = 0.0,
+        ϵ::Float64 = _AMOUNT_FLOOR, kelvin_shift::Real = 0.0,
     )
     cs = state.system
     lna_fun = activity_model(cs, model)
@@ -379,7 +379,7 @@ See also: [`log_activities`](@ref), [`CapillaryWater`](@ref),
 """
 function water_activity(
         state::ChemicalState, model::AbstractActivityModel;
-        ϵ::Float64 = 1.0e-16, kelvin_shift::Real = 0.0,
+        ϵ::Float64 = _AMOUNT_FLOOR, kelvin_shift::Real = 0.0,
     )
     cs = state.system
     i_w = _require_aqueous(cs, "water_activity")
@@ -401,7 +401,7 @@ a["H2O@"]                    # water activity, e.g. 0.9937
 ```
 """
 function activities(
-        state::ChemicalState, model::AbstractActivityModel; ϵ::Float64 = 1.0e-16
+        state::ChemicalState, model::AbstractActivityModel; ϵ::Float64 = _AMOUNT_FLOOR
     )
     lna = log_activities(state, model; ϵ = ϵ)
     return OrderedDict{String, Float64}(k => exp(v) for (k, v) in lna)
@@ -439,7 +439,7 @@ See also: [`ionic_strength`](@ref), [`concentration_scale`](@ref),
 [`activities`](@ref).
 """
 function activity_coefficients(
-        state::ChemicalState, model::AbstractActivityModel; ϵ::Float64 = 1.0e-16
+        state::ChemicalState, model::AbstractActivityModel; ϵ::Float64 = _AMOUNT_FLOOR
     )
     cs = state.system
     i_w = _require_aqueous(cs, "activity_coefficients")
@@ -496,7 +496,7 @@ pH(eq, model)                # 13.099 — activity convention, comparable to GEM
 See also: [`pOH`](@ref), [`activity_coefficients`](@ref), [`FixedpH`](@ref).
 """
 function pH(
-        state::ChemicalState, model::AbstractActivityModel; ϵ::Float64 = 1.0e-16
+        state::ChemicalState, model::AbstractActivityModel; ϵ::Float64 = _AMOUNT_FLOOR
     )
     return _p_activity(state, model, "H+"; ϵ = ϵ)
 end
@@ -511,14 +511,14 @@ See [`pH`](@ref) for why this differs from the one-argument [`pOH`](@ref).
 Returns `NaN` if the system carries no `OH-`.
 """
 function pOH(
-        state::ChemicalState, model::AbstractActivityModel; ϵ::Float64 = 1.0e-16
+        state::ChemicalState, model::AbstractActivityModel; ϵ::Float64 = _AMOUNT_FLOOR
     )
     return _p_activity(state, model, "OH-"; ϵ = ϵ)
 end
 
 function _p_activity(
         state::ChemicalState, model::AbstractActivityModel, sym::AbstractString;
-        ϵ::Float64 = 1.0e-16,
+        ϵ::Float64 = _AMOUNT_FLOOR,
     )
     cs = state.system
     _require_aqueous(cs, "pH(state, model)")
@@ -668,7 +668,7 @@ See also: [`Eh`](@ref), [`half_reaction`](@ref), [`FixedpE`](@ref).
 function pe(
         state::ChemicalState, model::AbstractActivityModel;
         couple::Pair{<:AbstractString, <:AbstractString} = "SO4-2" => "HS-",
-        ϵ::Float64 = 1.0e-16,
+        ϵ::Float64 = _AMOUNT_FLOOR,
     )
     cs = state.system
     _require_aqueous(cs, "pe(state, model)")
@@ -753,7 +753,7 @@ single `Eh`.
 function Eh(
         state::ChemicalState, model::AbstractActivityModel;
         couple::Pair{<:AbstractString, <:AbstractString} = "SO4-2" => "HS-",
-        ϵ::Float64 = 1.0e-16,
+        ϵ::Float64 = _AMOUNT_FLOOR,
     )
     T = ustrip(us"K", temperature(state))
     return RT_over_F(T) * log(10) * pe(state, model; couple = couple, ϵ = ϵ)
@@ -956,7 +956,7 @@ See also: [`optimality_certificate`](@ref), [`saturation_ratio`](@ref),
 """
 function saturation_indices(
         state::ChemicalState, model::AbstractActivityModel = DiluteSolutionModel();
-        ϵ::Float64 = 1.0e-16,
+        ϵ::Float64 = _AMOUNT_FLOOR,
     )
     cs = state.system
     lna = log_activities(state, model; ϵ = ϵ)
@@ -1058,7 +1058,7 @@ function homotopy_initial_state(
         state::ChemicalState;
         model::AbstractActivityModel = DiluteSolutionModel(),
         steps = (0.01, 0.02, 0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1.0),
-        ϵ::Float64 = 1.0e-16,
+        ϵ::Float64 = _AMOUNT_FLOOR,
         max_bisections::Int = 6,
         balance_atol::Float64 = 1.0e-5,
         balance_rtol::Float64 = 1.0e-3,

@@ -136,12 +136,14 @@ Units are stripped — compatible with ForwardDiff dual numbers.
   - `T`: temperature in K (plain number, Dual-safe).
   - `P`: pressure in Pa (plain number, Dual-safe).
   - `ϵ`: regularization floor (default `1e-16`).
+  - `ϵa`: the floor of the activities, `min(ϵ, _ACTIVITY_FLOOR)`; see
+    [`_ACTIVITY_FLOOR`](@ref).
 
 `T` and `P` are included so that temperature-dependent activity models
 (e.g. [`HKFActivityModel`](@ref) with `temperature_dependent=true`) can
 recompute their parameters inside the potential closure.
 """
-function _build_params(state::ChemicalState; ϵ::Float64 = 1.0e-16)
+function _build_params(state::ChemicalState; ϵ::Float64 = _AMOUNT_FLOOR)
     T = temperature(state)
     P = pressure(state)
     R = Constants.R
@@ -156,7 +158,7 @@ function _build_params(state::ChemicalState; ϵ::Float64 = 1.0e-16)
     T_K = ustrip(us"K", T)   # Quantity{Dual} → Dual, Float64 → Float64
     P_Pa = ustrip(us"Pa", P)
 
-    return (ΔₐG⁰overRT = ΔₐG⁰overRT, T = T_K, P = P_Pa, ϵ = ϵ)
+    return (ΔₐG⁰overRT = ΔₐG⁰overRT, T = T_K, P = P_Pa, ϵ = ϵ, ϵa = min(ϵ, _ACTIVITY_FLOOR))
 end
 
 """
@@ -725,7 +727,7 @@ function equilibrate(
         solver;
         model::AbstractActivityModel = DiluteSolutionModel(),
         variable_space::Val = Val(:linear),
-        ϵ::Float64 = 1.0e-16,
+        ϵ::Float64 = _AMOUNT_FLOOR,
         kwargs...,
     )
     _refuse_state_keywords(kwargs, "equilibrate")

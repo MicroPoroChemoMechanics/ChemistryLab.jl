@@ -323,7 +323,7 @@ function _linear_program(des::DualEquilibriumSolver, state::ChemicalState, bfix)
 end
 
 """
-    _lp_lifted_state(des, state, lp) -> ChemicalState
+    _lp_lifted_state(des, state, lp, ϵ) -> ChemicalState
 
 The start the linear program gives: its vertex for the species it holds, and for
 the others the amount the multipliers `y` of the program give them in their own
@@ -340,6 +340,12 @@ the activity of its phase is:
 
 A dead species (one whose component the budget lacks) stays at zero.
 
+No member of a phase starts below `ϵ`, the floor of the search, as none does in
+a state as given. The potentials of the program know nothing of a trace
+species: at the pH of a cement they give H⁺ an activity near 1e-100, far below
+anything the search resolves, and a logarithmic iteration climbs back from such
+an amount slowly if at all.
+
 The amounts are those of an ideal phase at the potentials of the program, which
 is what the dual solve needs to start from; they do not meet the budget exactly,
 which it does not need either, `b` being fixed for the whole call.
@@ -352,17 +358,18 @@ nothing certified from it, so the search lost 9 and 15 s before the state as
 given certified. Placed in its phase, the start is 1.3 to 1.8 mol off, and all
 four certify from it at the first attempt, in 0.1 to 0.2 s.
 """
-function _lp_lifted_state(des::DualEquilibriumSolver, state::ChemicalState, lp)
+function _lp_lifted_state(des::DualEquilibriumSolver, state::ChemicalState, lp, ϵ::Real)
     s, prob = lp.start, lp.prob
     u = -(transpose(prob.A) * s.y)
-    activity(j) = isnan(s.reduced_costs[j]) ? 0.0 : exp(clamp(u[j] - prob.g[j], -700.0, 0.0))
+    dead(j) = isnan(s.reduced_costs[j])
+    activity(j) = dead(j) ? 0.0 : exp(clamp(u[j] - prob.g[j], _LOG_UNDERFLOW, 0.0))
     n = [s.x[j] > 0 ? s.x[j] : 0.0 for j in eachindex(prob.g)]
     # The solutes, per kilogram of the water the vertex holds.
     if des.j_solvent > 0
         jw = des.idx_aq[des.j_solvent]
         kg = n[jw] * ustrip(us"kg/mol", state.system.species[jw][:M])
         for j in des.idx_aq
-            j == jw || n[j] > 0 || (n[j] = activity(j) * kg)
+            j == jw || n[j] > 0 || dead(j) || (n[j] = max(activity(j) * kg, ϵ))
         end
     end
     # The members of each solid solution, as fractions of the phase; none if the
@@ -371,7 +378,7 @@ function _lp_lifted_state(des::DualEquilibriumSolver, state::ChemicalState, lp)
         N = sum(n[j] for j in grp)
         N > 0 || continue
         for j in grp
-            n[j] > 0 || (n[j] = activity(j) * N)
+            n[j] > 0 || dead(j) || (n[j] = max(activity(j) * N, ϵ))
         end
     end
     return ChemicalState(state.system; T = state.T[1], P = state.P[1], n = n .* u"mol")
@@ -848,8 +855,8 @@ With every activity set to one, the equilibrium is a linear program:
     searched, and `STRICT_CONVERGENCE` raises.
   - **It gives the first start.** Its vertex, with every species it leaves out
     given the amount its multipliers give it in its own phase, is where the
-    search begins: on two cold cements, 0.17 s and 0.08 s against 8.4 s and
-    12.9 s without it, to the same composition.
+    search begins: on two cold cements, 0.05 s and 0.26 s against 11.3 s and
+    10.1 s without it, to the same composition.
 
 `lp_start = false` skips it, and so does `autostart = false`. The certificate
 reports `budget_feasible`, the start the answer came from as `route`
@@ -1093,7 +1100,7 @@ function _equilibrate_certified(
         state::ChemicalState;
         model::AbstractActivityModel = DiluteSolutionModel(),
         b = nothing,
-        ϵ::Float64 = 1.0e-16,
+        ϵ::Float64 = _AMOUNT_FLOOR,
         verbose::Bool = false,
         constraint::EquilibriumConstraint = FixedTP(),
         parameters::Union{Nothing, Base.RefValue} = nothing,
@@ -1234,12 +1241,12 @@ function _equilibrate_certified(
     # continuation.
     #
     # Against the same calls with `lp_start = false`, on two cements
-    # (cement107, and a CEM I with the CNASH gel): cold 0.02 and 0.01 times the
-    # time, warm (from the answer) 0.99 and 0.06, a neighbor (1 % more water,
-    # from the answer) 1.02 and 0.11, every composition the same to 6e-13.
+    # (cement107, and a CEM I with the CNASH gel): cold 0.005 and 0.03 times the
+    # time, warm (from the answer) 0.33 and 0.18, a neighbor (1 % more water,
+    # from the answer) 0.32 and 0.02, every composition the same to 3e-10.
     default = _DEFAULT_SOLVER_FACTORY[]
     if lp !== nothing && lp.start.status === :optimal && default !== nothing
-        lifted = _lp_lifted_state(des, state, lp)
+        lifted = _lp_lifted_state(des, state, lp, ϵ)
         first_start = starts_from(
             lifted, "start from the linear program", :lp_start;
             factories = Function[default], offer_tail = false,

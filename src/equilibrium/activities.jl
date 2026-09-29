@@ -162,7 +162,7 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
 
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
-        _n = max.(n, ϵ)     # ϵ::Float64 — promotion vers Dual automatique si n est Dual
+        _n = max.(n, _activity_floor(p))
 
         out = zeros(eltype(_n), length(_n))
 
@@ -742,7 +742,7 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
 
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
-        _n = max.(n, ϵ)
+        _n = max.(n, _activity_floor(p))
 
         # ── A and B (fixed or T,P-dependent) ──────────────────────────────
         if temp_dep && hasproperty(p, :T) && hasproperty(p, :P)
@@ -1080,7 +1080,7 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
 
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
-        _n = max.(n, ϵ)
+        _n = max.(n, _activity_floor(p))
 
         A = if temp_dep && hasproperty(p, :T) && hasproperty(p, :P)
             hkf_debye_huckel_params(p.T, p.P).A
@@ -1261,7 +1261,7 @@ function activity_model(cs::ChemicalSystem, model::TruesdellJonesActivityModel)
 
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
-        _n = max.(n, ϵ)
+        _n = max.(n, _activity_floor(p))
         A, B = if model.temperature_dependent && hasproperty(p, :T) && hasproperty(p, :P)
             AB = hkf_debye_huckel_params(p.T, p.P)
             (AB.A, AB.B)

@@ -288,7 +288,7 @@ function transition_state(
         cs::ChemicalSystem,
         rxn::AbstractReaction,
         surface::Union{SurfaceSupport, AbstractSurfaceModel};
-        ϵ::Real = 1.0e-16,
+        ϵ::Real = _AMOUNT_FLOOR,
     )
     mineral_name, M, area_model = _surface_context(cs, rxn, surface)
     stoich_species = _stoich_named(cs, rxn)   # Vector of (name, ν, ΔG°_fn)
@@ -358,7 +358,7 @@ function first_order_rate(
         surface::Union{SurfaceSupport, AbstractSurfaceModel};
         p::Real = 1.0,
         q::Real = 1.0,
-        ϵ::Real = 1.0e-16,
+        ϵ::Real = _AMOUNT_FLOOR,
     )
     T_p = typeof(promote(p, q)[1])
     mech = RateMechanism{typeof(k), T_p}(k, T_p(p), T_p(q), RateModelCatalyst{T_p}[])

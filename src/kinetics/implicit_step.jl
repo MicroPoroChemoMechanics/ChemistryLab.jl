@@ -229,7 +229,7 @@ makes the step implicit and stable on a stiff system. `Δt` is the caller's choi
 """
 function kinetic_step(
         kss::KineticStepSolver, state::ChemicalState, Δt;
-        t = 0.0, ϵ::Float64 = 1.0e-16,
+        t = 0.0, ϵ::Float64 = _AMOUNT_FLOOR,
         warm_start::Bool = true,
         pin_minerals = :auto,
         parameters::Union{Nothing, Base.RefValue} = nothing,
@@ -394,6 +394,9 @@ function kinetic_step(
     else
         n0
     end
+    # The cold start, which `_warm_x0` also falls back to, with no amount below
+    # `ϵ`, as in the equilibrium solve; `b_aug` keeps the state's own.
+    x0 === n0 && (x0 = max.(n0, ϵ))
 
     # Seed the pinned species at the amount the EXPLICIT step predicts, not at
     # the floor. A solid product that starts absent would otherwise enter the
@@ -427,7 +430,7 @@ function kinetic_step(
     if certificate !== nothing
         certificate[] = _normalize_certificate(
             _optima_kkt_certificate(
-                prob, res.x, b_aug, 1.0e-25, des.opts.tol, des.opts.si_tol, res.q,
+                prob, res.x, b_aug, _CERTIFICATE_FLOOR, des.opts.tol, des.opts.si_tol, res.q,
             ),
         )
     end
@@ -642,7 +645,7 @@ step-size control and its choice of stiff solvers.
 function kinetic_step_adaptive(
         kss::KineticStepSolver, state::ChemicalState, Δt;
         t = 0.0, reltol::Float64 = 1.0e-4, abstol::Float64 = 1.0e-14,
-        max_halvings::Int = 12, ϵ::Float64 = 1.0e-16,
+        max_halvings::Int = 12, ϵ::Float64 = _AMOUNT_FLOOR,
         warm_start::Bool = true, pin_minerals = :auto,
         parameters::Union{Nothing, Base.RefValue} = nothing,
         error_estimate::Union{Nothing, Base.RefValue} = nothing,
@@ -760,7 +763,7 @@ composition the step produces.
 """
 function _kinetic_step_eliminated(
         kss::KineticStepSolver, state::ChemicalState, Δt_s::Float64;
-        t = 0.0, ϵ::Float64 = 1.0e-16,
+        t = 0.0, ϵ::Float64 = _AMOUNT_FLOOR,
         parameters::Union{Nothing, Base.RefValue} = nothing,
         certificate::Union{Nothing, Base.RefValue} = nothing,
         maxit::Int = 50,
