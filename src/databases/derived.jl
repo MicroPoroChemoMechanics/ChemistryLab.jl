@@ -31,7 +31,7 @@ end
 
 # Bumped whenever a builder changes what it writes, so that cached builds are
 # redone.
-const _DERIVED_VERSION = "1"
+const _DERIVED_VERSION = "2"
 
 function _derived_key(d::DerivedDatabase, base_path)
     parts = [_DERIVED_VERSION, d.name, _digest(base_path)]
@@ -298,21 +298,23 @@ end
 """
     cashplus_entries() -> Vector{Dict}
 
-The ThermoFun records of the twelve end-members of the CASH+NK model of C-S-H,
-the heat capacity taken as constant:
+The ThermoFun records of the thirty-three end-members of the CASH+ model of C-S-H
+with its extension to the alkali and alkaline-earth metals, the heat capacity
+taken as constant:
 
   - the six of the core model, from `data/literature/Kulik2022.json`: G° and H°
     of its Table 8, S°, Cp° and V° of its Table 4, except the H° of TSvh, which
     is the one Miron et al. (2022a) reprint (Table 8 transposes two digits);
   - the six with sodium or potassium, from `data/literature/Miron2022a.json`
     (Table A1), with the G° and H° of TCNh and TCKh fine-tuned by Miron et al.
-    (2022b, Table 5) for cement pore solutions.
+    (2022b, Table 5) for cement pore solutions;
+  - the twenty-one with Li, Rb, Cs, Mg, Sr, Ba or Ra, from the same Table A1.
 """
 function cashplus_entries()
     core = literature_table("Kulik2022", "cashplus_standard_properties")
     alkali = literature_table("Miron2022a", "alkali_standard_properties")
     tuned = literature_table("Miron2022b", "fine_tuned_end_members")
-    formulas = literature_table("Miron2022a", "cashplus_nk_end_members")
+    formulas = literature_table("Miron2022a", "cashplus_full_end_members")
     doi(key) = literature(key).source["doi"]
     rows = Dict{String, Any}[]
     function record(name, G, H, S, Cp, V, sources)
@@ -347,7 +349,50 @@ function cashplus_entries()
             (tuned.G[t], tuned.H[t], ["Miron2022a", "Miron2022b"])
         push!(rows, record(name, G, H, alkali.S[r], alkali.Cp[r], alkali.V[r], src))
     end
+    ext = literature_table("Miron2022a", "extension_standard_properties")
+    for r in eachindex(ext.end_member)
+        push!(rows, record(ext.end_member[r], ext.G[r], ext.H[r], ext.S[r], ext.Cp[r], ext.V[r], ["Miron2022a"]))
+    end
     return rows
+end
+
+# The aqueous species the CASH+ extension needs and Cemdata18 lacks, with the
+# standard properties Miron et al. (2022a) give them (their Table A1): the
+# cations of lithium, rubidium, cesium, barium and radium, and the Ca(OH)2@
+# complex they derived and kept when fitting the extension. Built on the pattern
+# of CaSiO3@, a solute of constant heat capacity.
+const _CASHPLUS_IONS = ("Li+" => "Li+", "Rb+" => "Rb+", "Cs+" => "Cs+", "Ba2+" => "Ba+2", "Ra2+" => "Ra+2")
+
+function _cashplus_aqueous_entries(db)
+    template = only(s for s in db["substances"] if s["symbol"] == "CaSiO3@")
+    doi = literature("Miron2022a").source["doi"]
+    function entry(symbol, formula, charge, G, H, S, Cp, V)
+        e = JSON.parse(JSON.json(template))
+        haskey(e, "mass_per_mole") && delete!(e, "mass_per_mole")
+        e["name"], e["symbol"], e["formula"], e["formula_charge"] = symbol, symbol, formula, charge
+        e["sm_gibbs_energy"]["values"] = [ustrip(us"J/mol", G)]
+        e["sm_enthalpy"]["values"] = [ustrip(us"J/mol", H)]
+        e["sm_entropy_abs"]["values"] = [ustrip(us"J/(mol*K)", S)]
+        e["sm_heat_capacity_p"]["values"] = [ustrip(us"J/(mol*K)", Cp)]
+        e["sm_volume"]["values"] = [ustrip(us"cm^3/mol", V) * _CM3_PER_MOL_TO_J_PER_BAR]
+        for m in e["TPMethods"]
+            haskey(m, "m_heat_capacity_ft_coeffs") || continue
+            m["m_heat_capacity_ft_coeffs"]["values"] = vcat(ustrip(us"J/(mol*K)", Cp), zeros(length(m["m_heat_capacity_ft_coeffs"]["values"]) - 1))
+        end
+        e["datasources"] = [doi]
+        return e
+    end
+    ms = literature_table("Miron2022a", "master_species")
+    aq = literature_table("Miron2022a", "aqueous_species")
+    out = Dict{String, Any}[]
+    for (printed, symbol) in _CASHPLUS_IONS
+        i = findfirst(==(printed), ms.species)
+        push!(out, entry(symbol, symbol, occursin("2", printed) ? 2 : 1, ms.G[i], ms.H[i], ms.S[i], ms.Cp[i], ms.V[i]))
+    end
+    for i in eachindex(aq.species)
+        push!(out, entry(aq.species[i], aq.formula[i] * "@", 0, aq.G[i], aq.H[i], aq.S[i], aq.Cp[i], aq.V[i]))
+    end
+    return out
 end
 
 # The aqueous complex CaSiO3@ refitted together with the core model (Kulik et al.
@@ -379,6 +424,12 @@ function _build_cashplus(base_path, out_path)
             error("$(e["symbol"]) would overwrite a Cemdata18 substance; nothing built.")
     end
     _cashplus_casio3!(only(s for s in db["substances"] if s["symbol"] == "CaSiO3@"))
+    aqueous = _cashplus_aqueous_entries(db)
+    for e in aqueous
+        any(s -> s["symbol"] == e["symbol"], db["substances"]) &&
+            error("$(e["symbol"]) would overwrite a Cemdata18 substance; nothing built.")
+    end
+    append!(added, aqueous)
     append!(db["substances"], added)
     db["thermodataset"] = "cemdata18-cashplus"
     db["cashplus_extension"] = Dict(
@@ -390,9 +441,11 @@ function _build_cashplus(base_path, out_path)
             "Miron, Kulik, Yan, Tits & Lothenbach (2022), doi:$(literature("Miron2022a").source["doi"])",
             "Miron, Kulik & Lothenbach (2022), doi:$(literature("Miron2022b").source["doi"])",
         ],
-        "solid_solutions" => "CASH+ and CASH+NK in data/solid_solutions.toml",
+        "solid_solutions" => "CASH+, CASH+NK and CASH+ext in data/solid_solutions.toml",
         "note" => "The base entries are copied unchanged except CaSiO3@, whose standard " *
-            "properties are those the core model was fitted with (Table 9, accepted variant).",
+            "properties are those the core model was fitted with (Table 9, accepted variant). " *
+            "The aqueous species added (Li+, Rb+, Cs+, Ba+2, Ra+2, Ca(OH)2@) carry the " *
+            "properties of Miron et al. (2022a, Table A1), with a constant heat capacity.",
     )
     return _write_json_atomically(out_path, db)
 end
@@ -402,7 +455,8 @@ end
 
 The databases ChemistryLab builds from a published one, by file name: the
 Cemdata18 zeolite extension, the Cemdata18 chloride extension, and Cemdata18 with
-the CASH+NK model of C-S-H.
+the CASH+ model of C-S-H and its extension to the alkali and alkaline-earth
+metals.
 """
 const DERIVED_DATABASES = Dict(
     d.name => d for d in (
@@ -420,7 +474,7 @@ const DERIVED_DATABASES = Dict(
             ),
             DerivedDatabase(
                 "cemdata18-cashplus.json", "cemdata18-thermofun.json",
-                "the CASH+NK model of C-S-H of Kulik et al. (2022) and Miron et al. (2022a, b)",
+                "the CASH+ model of C-S-H of Kulik et al. (2022), with the alkali and alkaline-earth end-members of Miron et al. (2022a, b)",
                 ["literature/Kulik2022.json", "literature/Miron2022a.json", "literature/Miron2022b.json"],
                 _build_cashplus,
             ),

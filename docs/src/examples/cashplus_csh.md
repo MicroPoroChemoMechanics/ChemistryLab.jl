@@ -12,12 +12,13 @@ of the silicate chain and of the interlayer. It also adds two terms: the energy
 of the reciprocal reactions between its end-members, and interactions between
 the species of one site. ChemistryLab writes it as a [`CompoundEnergyModel`](@ref).
 
-This page does four things. It computes the gel in water, from the Ca/Si at
+This page does five things. It computes the gel in water, from the Ca/Si at
 which amorphous silica stops forming to the one at which portlandite starts, and
 compares both ends with the paper. It then adds sodium and potassium. It checks
-the model against the authors' own calculation of 110 gel compositions. Finally
-it computes the pore solution of a hydrating Portland cement with CASH+NK and with
-CSHQ, against its analysis.
+the model against the authors' own calculation of 110 gel compositions. It computes
+the pore solution of a hydrating Portland cement with CASH+NK and with CSHQ,
+against its analysis. Finally it extends the interlayer to the other alkali and
+alkaline-earth metals.
 
 The model has two mixing sites. The **bridging tetrahedron** (BT) of the silicate
 chain holds a silicate `S`, a vacancy `v` or a calcium `C`. The **interlayer
@@ -34,8 +35,9 @@ using Printf
 using Plots
 default(framestyle = :box, grid = false)
 
-# Cemdata18 with the twelve end-members of CASH+NK, and the CaSiO3@ complex the
-# model was fitted with (built on first use).
+# Cemdata18 with the thirty-three end-members of CASH+ and its extensions, the
+# CaSiO3@ complex the model was fitted with, and the aqueous species the
+# extensions add (built on first use).
 substances = build_species(datapath("cemdata18-cashplus.json"); verbose = false)
 byname = Dict(symbol(s) => s for s in substances)
 phases = Dict(ChemistryLab.name(p) => p for p in build_solid_solutions(datapath("solid_solutions.toml"), byname))
@@ -47,10 +49,13 @@ model = cemdata18_activity_model(:KOH)
 # The gel and the aqueous species of its elements, with portlandite and
 # amorphous silica, which may form beside it. The neutral complexes of the
 # alkalis (NaOH@, KOH@ ...) are left out, as Miron et al. left them out when they
-# fitted the alkali end-members.
+# fitted the alkali end-members; the Ca(OH)2@ complex they derived for that fit
+# is kept with the alkali model and left out of the core model, which Kulik et
+# al. fitted without it.
 function gel_system(gel)
     members = symbol.(phases[gel].end_members)
-    sp = speciation(substances, vcat(["Portlandite", "Amor-Sl"], members); aggregate_state = [AS_AQUEOUS])
+    sp = speciation(substances, vcat(["Portlandite", "Amor-Sl"], members); aggregate_state = [AS_AQUEOUS],
+                    exclude_species = gel == "CASH+" ? ["Ca(OH)2@"] : String[])
     alkali_complex(s) = charge(s) == 0 && any(el -> haskey(atoms(s), el), (:Na, :K)) &&
         aggregate_state(s) == AS_AQUEOUS
     return ChemicalSystem(filter(!alkali_complex, sp), CEMDATA_PRIMARIES; solid_solutions = [phases[gel]])
@@ -234,9 +239,9 @@ savefig(fig, "cashplus-alkali.svg"); nothing # hide
 
 Every paste certifies. The gel takes up both alkalis, a little more potassium
 than their ratio in solution: at a Ca/Si of 1, with 96.8 mmol/kg of sodium and
-288.8 of potassium in solution, it holds 0.065 Na and 0.227 K per Si. At a Ca/Si
-of 1.6 and nearly the same solution it holds four times less sodium and nine
-times less potassium, 0.015 and 0.026 per Si: the calcium that fills the
+288.8 of potassium in solution, it holds 0.065 Na and 0.228 K per Si. At a Ca/Si
+of 1.6 and nearly the same solution it holds four times less sodium and eight
+times less potassium, 0.016 and 0.027 per Si: the calcium that fills the
 interlayer leaves the alkalis little room, the suppression of alkali uptake at
 high Ca/Si that Miron et al. describe.
 
@@ -379,10 +384,73 @@ days 160 and 338 mmol/kg against 172 and 532 measured, where CSHQ gives 105 and
 290. That is the improvement Miron et al. report. Neither model follows the rise
 of both alkalis after 28 days, to 331 and 563 mmol/L at 400 days: CASH+NK stays
 near 164 and 334, CSHQ near 108 and 281. The pH follows the same order, 13.7 with
-CASH+NK, 13.6 with CSHQ and 13.7 to 13.8 measured. The sulfate is the largest
+CASH+NK, 13.6 with CSHQ and 13.7 to 13.8 measured. After the first day the
+calcium is 1.1 mmol/kg with CASH+NK and 1.0 with CSHQ, against 1.6 to 1.0
+measured; with CASH+NK it is carried in part by the Ca(OH)₂⁰ complex of the
+alkali fit. The sulfate is the largest
 difference of the two models alike: measured, it falls to 1.9 mmol/L at one day
 and climbs to 34 to 41 after six months; computed, it stays in solution at one
 day (53 and 85 mmol/kg) and between 2.7 and 6.2 afterwards.
+
+## 5. The other cations: lithium to radium
+
+Miron et al. extended the interlayer site further, to lithium, rubidium and
+cesium and to magnesium, strontium, barium and radium, and fitted each on uptake
+experiments [Miron2022a](@cite). `CASH+ext` is that model: 33 end-members, with
+the interaction parameters of their Table A3. Their Table A2 gives the equilibrium
+constant of the dissolution of each end-member into Ca²⁺, SiO₂⁰, water and its
+interlayer cation, computed from their own energies; the database gives them back:
+
+```@example cashplus
+ext = phases["CASH+ext"]
+printed = literature_table("Miron2022a", "dissolution_log_K")
+cation = Dict("N" => "Na+", "K" => "K+", "Li" => "Li+", "Rb" => "Rb+", "Cs" => "Cs+",
+              "Mg" => "Mg+2", "Sr" => "Sr+2", "Ba" => "Ba+2", "Ra" => "Ra+2")
+# The energies `Gm` of section 3: the first paper's for the alkali members, whose
+# TCNh and TCKh the database carries as the second paper fine-tunes them.
+worst = maximum(ext.end_members) do m
+    n = symbol(m)
+    c = atoms(m)
+    x = get(cation, n[3:(end - 1)], nothing)
+    hplus = 2c[:Ca] + (x === nothing ? 0 : charge(byname[x]))
+    products = c[:Ca] * G25("Ca+2") + c[:Si] * G25("SiO2@") + (c[:H] + hplus) / 2 * G25("H2O@") + (x === nothing ? 0.0 : G25(x))
+    abs(-(products - Gm(n)) / (RT * log(10)) - printed.log_K[findfirst(==(n), printed.species)])
+end
+@printf("%d end-members: largest difference from Table A2, %.3f in log K\n", length(ext.end_members), worst)
+```
+
+With strontium and cesium at a millimole per kilogram beside the sodium and
+potassium of section 2, at a Ca/Si of 1.2, the gel takes up both:
+
+```@example cashplus
+sp = speciation(substances, vcat(["Portlandite", "Amor-Sl"], symbol.(ext.end_members)); aggregate_state = [AS_AQUEOUS])
+complexes(s) = charge(s) == 0 && any(el -> haskey(atoms(s), el), (:Na, :K, :Li, :Rb, :Cs)) && aggregate_state(s) == AS_AQUEOUS
+# Cemdata18 has no component for the five cations the extension adds.
+primaries = vcat(CEMDATA_PRIMARIES, ["Li+", "Rb+", "Cs+", "Ba+2", "Ra+2"])
+cs_ext = ChemicalSystem(filter(!complexes, sp), primaries; solid_solutions = [ext])
+st = ChemicalState(cs_ext)
+set_quantity!(st, "H2O@", 1.0u"kg")
+set_quantity!(st, "Amor-Sl", 0.05u"mol")
+set_quantity!(st, "Portlandite", 0.06u"mol")
+for (s, x) in ("Na+" => 0.02, "K+" => 0.06, "Sr+2" => 0.001, "Cs+" => 0.001)
+    set_quantity!(st, s, x * u"mol")
+end
+set_quantity!(st, "OH-", 0.083u"mol")
+eq, cert = equilibrate_certified(st; model)
+gel = solid_solution_totals(eq, "CASH+ext").elements
+n = ustrip.(us"mol", eq.n)
+held(el) = gel[el] / sum(get(atoms(s), el, 0) * x for (s, x) in zip(cs_ext.species, n))
+@printf("certified: %s; the gel holds %.0f %% of the Sr, %.0f %% of the Cs, %.0f %% of the Na and %.0f %% of the K\n",
+        cert.optimal, 100held(:Sr), 100held(:Cs), 100held(:Na), 100held(:K))
+```
+
+The database gives back Table A2 for the 33 end-members, to 0.006 in log K. In
+that solution the gel certifies, and holds 78 % of the strontium but 4 % of the
+cesium, 2 % of the sodium and 2 % of the potassium. Strontium takes the place of
+the interlayer calcium one for one (TSSrh is TSCh with Sr for one Ca), where a
+monovalent cation takes it with one hydroxide less (TSNh). The
+uptake experiments on which Miron et al. fitted each cation are not reproduced
+here.
 
 ## Where to go next
 

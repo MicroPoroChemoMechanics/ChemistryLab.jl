@@ -34,9 +34,9 @@ const L08_PHASES = "Portland paste (Lothenbach and Winnefeld 2006)"
 
 The chemical system of the paste with its C-S-H as `CSHQ` (on Cemdata18, the
 database it was fitted with) or as `CASH+NK` (on `cemdata18-cashplus.json`, with
-the CaSiO3@ it was fitted with). For CASH+NK the neutral complexes NaOH@ and
-KOH@ are left out, as Miron et al. (2022a) left them out when they fitted the
-alkali end-members.
+the CaSiO3@ and Ca(OH)2@ complexes it was fitted with). For CASH+NK the neutral
+complexes NaOH@ and KOH@ are left out, as Miron et al. (2022a) left them out when
+they fitted the alkali end-members.
 """
 function l08_system(gel::Symbol = :CSHQ)
     if gel === :CSHQ

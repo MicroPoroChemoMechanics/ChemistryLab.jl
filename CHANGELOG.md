@@ -76,6 +76,20 @@ only mix ideally on the sites. Two checks against the papers:
   `data/solid_solutions.toml`, with `model = "compound_energy"`, and in
   `data/gel_models.toml` as one more model of the C-S-H gel. They are therefore
   refused beside CSHQ, CNASH_ss or the ECSH families.
+- The `CASH+ext` phase: the model with the interlayer extended to Li, Rb, Cs,
+  Mg, Sr, Ba and Ra (Miron et al. 2022a).
+  - It has 33 end-members and the 55 interaction parameters of the interlayer
+    site (Table A3).
+  - Its energies give back the log K of the authors' Table A2 to 0.01, for every
+    end-member.
+  - The database adds the cations Cemdata18 lacks (Li+, Rb+, Cs+, Ba+2, Ra+2),
+    with the properties the paper tabulates.
+  - It also adds the Ca(OH)2@ complex the authors derived and kept when they
+    fitted the alkali extension. The alkali systems of the CASH+ page and of the
+    PC4 paste keep it, as the authors did. The core model leaves it out, as Kulik
+    et al. fitted it.
+  - The CASH+ page computes the gel with strontium and cesium beside sodium and
+    potassium: at Ca/Si 1.2 it holds 78 % of the strontium and 4 % of the cesium.
 - `data/literature/Miron2022a.json` and `Miron2022b.json`. They hold the six
   alkali end-members and the interaction parameters of the interlayer site
   (Tables A1 and A3), the discretized model, and the TCNh and TCKh fine-tuned
@@ -169,6 +183,9 @@ only mix ideally on the sites. Two checks against the papers:
 - `_solid_solution_lna!` and `_ss_log_activities!` take the `ΔₐG⁰/RT` of the
   species as an optional last argument. Every existing model ignores it, so their
   results are unchanged bit for bit.
+- The databases ChemistryLab derives from Cemdata18 (zeolites, chloride,
+  CASH+) are built again on first use after the update, since the builder of
+  one of them changed.
 
 ## v0.27.0 — Validated against measured pastes: phase lists, processes, a second instance on demand, and a nomenclature
 

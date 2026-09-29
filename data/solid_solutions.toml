@@ -341,3 +341,19 @@ model       = "compound_energy"
 sublattice  = "Miron2022a:cashplus_nk"
 database    = "cemdata18-cashplus.json"
 source      = "Miron2022a"
+
+# The same model extended to lithium, rubidium, cesium, magnesium, strontium,
+# barium and radium on the interlayer site (Miron2022a): 33 end-members, every
+# compound of the two sites, with the 55 interaction parameters of Table A3.
+[[solid_solution]]
+name        = "CASH+ext"
+end_members = ["TSvh", "Tvvh", "TCvh", "TSCh", "TvCh", "TCCh",
+               "TSNh", "TvNh", "TCNh", "TSKh", "TvKh", "TCKh",
+               "TSLih", "TvLih", "TCLih", "TSRbh", "TvRbh", "TCRbh", "TSCsh", "TvCsh", "TCCsh",
+               "TSMgh", "TvMgh", "TCMgh", "TSSrh", "TvSrh", "TCSrh", "TSBah", "TvBah", "TCBah",
+               "TSRah", "TvRah", "TCRah"]
+model       = "compound_energy"
+sublattice  = "Miron2022a:cashplus_full"
+database    = "cemdata18-cashplus.json"
+source      = "Miron2022a"
+

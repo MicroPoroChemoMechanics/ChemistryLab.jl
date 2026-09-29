@@ -169,11 +169,14 @@ end
     db = JSON.parsefile(datapath("cemdata18-cashplus.json"); dicttype = Dict{String, Any})
     bysym(d) = Dict(s["symbol"] => s for s in d["substances"])
     b, c = bysym(base), bysym(db)
-    # The base is copied through, CaSiO3@ excepted, and the twelve end-members of
-    # CASH+NK added.
+    # The base is copied through, CaSiO3@ excepted, and the thirty-three
+    # end-members of the model added, with the five cations and the Ca(OH)2@
+    # complex of its extension.
     nk = literature_table("Miron2022a", "cashplus_nk_end_members").end_member
-    @test sort(collect(setdiff(keys(c), keys(b)))) == sort(nk)
-    @test CASHPLUS ⊆ nk
+    full = literature_table("Miron2022a", "cashplus_full_end_members").end_member
+    @test sort(collect(setdiff(keys(c), keys(b)))) ==
+        sort(vcat(full, ["Li+", "Rb+", "Cs+", "Ba+2", "Ra+2", "Ca(OH)2@"]))
+    @test CASHPLUS ⊆ nk ⊆ full
     @test all(c[k] == b[k] for k in keys(b) if k != "CaSiO3@")
     @test c["CaSiO3@"]["sm_gibbs_energy"]["values"][1] ≈ -1514140 rtol = 1.0e-12
     @test b["CaSiO3@"]["sm_gibbs_energy"]["values"][1] ≈ -1517556.9 rtol = 1.0e-12
@@ -209,7 +212,9 @@ end
     subs = build_species(datapath("cemdata18-cashplus.json"); verbose = false)
     byname = Dict(symbol(s) => s for s in subs)
     cash = only(filter(p -> ChemistryLab.name(p) == "CASH+", build_solid_solutions(datapath("solid_solutions.toml"), byname)))
-    species = speciation(subs, vcat(["Portlandite", "Amor-Sl"], CASHPLUS); aggregate_state = [AS_AQUEOUS])
+    # The aqueous species of the core model: Ca(OH)2@, which Miron et al. (2022a)
+    # derived for the extension, is not one of them.
+    species = speciation(subs, vcat(["Portlandite", "Amor-Sl"], CASHPLUS); aggregate_state = [AS_AQUEOUS], exclude_species = ["Ca(OH)2@"])
     cs = ChemicalSystem(species, CEMDATA_PRIMARIES; solid_solutions = [cash])
     # The activity model the paper fits with (its Eq. 13): Cemdata18's, for KOH.
     model = cemdata18_activity_model(:KOH)
@@ -366,4 +371,61 @@ end
     x = [ustrip(us"mol", eq.n[findfirst(s -> symbol(s) == m, cs.species)]) for m in names.end_member]
     x ./= sum(x)
     @test x ≈ _product_split(ChemistryLab.model(nk), site_fractions(ChemistryLab.model(nk), x)) rtol = 1.0e-6
+end
+
+@testsection "CASH+ext: the extension to Li, Rb, Cs, Mg, Sr, Ba and Ra (Miron et al. 2022a)" begin
+    names = literature_table("Miron2022a", "cashplus_full_end_members")
+    @test length(names.end_member) == 33
+    @test length(literature_table("Miron2022a", "cashplus_full_interactions").W) == 3 + 55
+    subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-cashplus.json"); verbose = false))
+    @test all(haskey(subs, n) for n in names.end_member)
+    @test all(haskey(subs, n) for n in ("Li+", "Rb+", "Cs+", "Ba+2", "Ra+2", "Ca(OH)2@"))
+    # The log K of Table A2, the dissolution of each end-member into Ca+2, SiO2@,
+    # H2O and its interlayer cation, from the energies of the database (those of
+    # Miron2022a for TCNh and TCKh, which the database fine-tunes after
+    # Miron2022b), to the two decimals the table prints.
+    RT = ChemistryLab.R_GAS * 298.15
+    G(s) = ustrip(us"J/mol", subs[s][:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+    alkali = literature_table("Miron2022a", "alkali_standard_properties")
+    Gm(n) = n in ("TCNh", "TCKh") ? ustrip(us"J/mol", alkali.G[findfirst(==(n), alkali.end_member)]) : G(n)
+    cation = Dict(
+        "N" => "Na+", "K" => "K+", "Li" => "Li+", "Rb" => "Rb+", "Cs" => "Cs+",
+        "Mg" => "Mg+2", "Sr" => "Sr+2", "Ba" => "Ba+2", "Ra" => "Ra+2"
+    )
+    printed = literature_table("Miron2022a", "dissolution_log_K")
+    for (n, f) in zip(names.end_member, names.formula)
+        c = composition(Formula(f))
+        ic = n[3:(end - 1)]
+        x = get(cation, ic, nothing)
+        z = x === nothing ? 0 : charge(subs[x])
+        hplus = 2 * c[:Ca] + z                     # the protons the dissolution takes
+        water = (c[:H] + hplus) / 2
+        products = c[:Ca] * G("Ca+2") + c[:Si] * G("SiO2@") + water * G("H2O@") + (x === nothing ? 0.0 : G(x))
+        logK = -(products - Gm(n)) / (RT * log(10))
+        @test logK ≈ printed.log_K[findfirst(==(n), printed.species)] atol = 0.02
+    end
+    @test -(G("Ca+2") + 2G("H2O@") - G("Ca(OH)2@")) / (RT * log(10)) ≈ printed.log_K[findfirst(==("Ca(OH)2@"), printed.species)] atol = 0.02
+
+    # The gel with strontium and cesium beside sodium and potassium: every member
+    # of an element the budget lacks stays out, and the paste certifies.
+    shipped = build_solid_solutions(datapath("solid_solutions.toml"), subs)
+    ext = only(filter(p -> ChemistryLab.name(p) == "CASH+ext", shipped))
+    @test length(ChemistryLab.model(ext).interactions) == 58
+    sp = speciation(collect(values(subs)), vcat(["Portlandite", "Amor-Sl"], names.end_member); aggregate_state = [AS_AQUEOUS])
+    complexes(s) = charge(s) == 0 && any(el -> haskey(atoms(s), el), (:Na, :K, :Li, :Cs, :Rb)) && aggregate_state(s) == AS_AQUEOUS
+    # Cemdata18 has no component for the five cations the extension adds.
+    primaries = vcat(CEMDATA_PRIMARIES, ["Li+", "Rb+", "Cs+", "Ba+2", "Ra+2"])
+    cs = ChemicalSystem(filter(!complexes, sp), primaries; solid_solutions = [ext])
+    st = ChemicalState(cs)
+    set_quantity!(st, "H2O@", (1000 / ustrip(us"g/mol", subs["H2O@"][:M]))u"mol")
+    set_quantity!(st, "Amor-Sl", 0.05u"mol")
+    set_quantity!(st, "Portlandite", 0.06u"mol")
+    for (sp, x) in ("Na+" => 0.02, "K+" => 0.06, "Sr+2" => 0.001, "Cs+" => 0.001)
+        set_quantity!(st, sp, x * u"mol")
+    end
+    set_quantity!(st, "OH-", (0.02 + 0.06 + 0.002 + 0.001)u"mol")
+    eq, cert = equilibrate_certified(st; model = cemdata18_activity_model(:KOH))
+    @test cert.optimal
+    gel = solid_solution_totals(eq, "CASH+ext").elements
+    @test gel[:Sr] > 0 && gel[:Cs] > 0
 end
