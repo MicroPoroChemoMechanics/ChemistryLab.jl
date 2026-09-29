@@ -2608,7 +2608,7 @@
     "1"
    ],
    "kind": "published",
-   "location": "Table 3 (p. 1397): log10(IAP/Ks0) divided by the number of ions of the dissolution reaction (Section 3.4.3), computed by the authors from the pore solutions of Figs. 13-16. CH portlandite, Ettr ettringite, Strätl strätlingite, MS monosulfate, HC hemicarbonate, MC monocarbonate; a value printed '–' is left out",
+   "location": "Table 3 (p. 1397): log10(IAP/Ks0) divided by the number of ions of the dissolution reaction (Section 3.4.3), computed by the authors from the pore solutions of Figs. 13-16. CH portlandite, Ettr ettringite, Strätl strätlingite, MS monosulfate. The indices of hemicarbonate and monocarbonate (OPC-F1-L only) are not transcribed: they need the carbonate of the solution, which was not analyzed, and are not compared here",
    "rows": [
     [
      "OPC",
@@ -3962,18 +3962,6 @@
     ],
     [
      "OPC-F1-L",
-     1,
-     "HC",
-     -0.08
-    ],
-    [
-     "OPC-F1-L",
-     1,
-     "MC",
-     -0.04
-    ],
-    [
-     "OPC-F1-L",
      4,
      "CH",
      0.07
@@ -4001,18 +3989,6 @@
      4,
      "MS",
      0.09
-    ],
-    [
-     "OPC-F1-L",
-     4,
-     "HC",
-     -0.1
-    ],
-    [
-     "OPC-F1-L",
-     4,
-     "MC",
-     -0.05
     ],
     [
      "OPC-F1-L",
@@ -4046,18 +4022,6 @@
     ],
     [
      "OPC-F1-L",
-     8,
-     "HC",
-     0.09
-    ],
-    [
-     "OPC-F1-L",
-     8,
-     "MC",
-     0.15
-    ],
-    [
-     "OPC-F1-L",
      16,
      "CH",
      0.11
@@ -4085,18 +4049,6 @@
      16,
      "MS",
      0.15
-    ],
-    [
-     "OPC-F1-L",
-     16,
-     "HC",
-     0.0
-    ],
-    [
-     "OPC-F1-L",
-     16,
-     "MC",
-     0.05
     ],
     [
      "OPC-F1-L",
@@ -4130,18 +4082,6 @@
     ],
     [
      "OPC-F1-L",
-     24,
-     "HC",
-     0.05
-    ],
-    [
-     "OPC-F1-L",
-     24,
-     "MC",
-     0.1
-    ],
-    [
-     "OPC-F1-L",
      48,
      "CH",
      0.17
@@ -4169,18 +4109,6 @@
      48,
      "MS",
      0.08
-    ],
-    [
-     "OPC-F1-L",
-     48,
-     "HC",
-     0.12
-    ],
-    [
-     "OPC-F1-L",
-     48,
-     "MC",
-     0.17
     ],
     [
      "OPC-F1-L",
@@ -4214,18 +4142,6 @@
     ],
     [
      "OPC-F1-L",
-     168,
-     "HC",
-     0.07
-    ],
-    [
-     "OPC-F1-L",
-     168,
-     "MC",
-     0.12
-    ],
-    [
-     "OPC-F1-L",
      672,
      "CH",
      -0.02
@@ -4253,18 +4169,6 @@
      672,
      "MS",
      0.08
-    ],
-    [
-     "OPC-F1-L",
-     672,
-     "HC",
-     0.09
-    ],
-    [
-     "OPC-F1-L",
-     672,
-     "MC",
-     0.17
     ],
     [
      "OPC-F1-L",
@@ -4298,18 +4202,6 @@
     ],
     [
      "OPC-F1-L",
-     2160,
-     "HC",
-     0.11
-    ],
-    [
-     "OPC-F1-L",
-     2160,
-     "MC",
-     0.2
-    ],
-    [
-     "OPC-F1-L",
      6000,
      "CH",
      -0.24
@@ -4340,18 +4232,6 @@
     ],
     [
      "OPC-F1-L",
-     6000,
-     "HC",
-     0.03
-    ],
-    [
-     "OPC-F1-L",
-     6000,
-     "MC",
-     0.13
-    ],
-    [
-     "OPC-F1-L",
      13200,
      "CH",
      -0.2
@@ -4379,18 +4259,6 @@
      13200,
      "MS",
      0.12
-    ],
-    [
-     "OPC-F1-L",
-     13200,
-     "HC",
-     0.07
-    ],
-    [
-     "OPC-F1-L",
-     13200,
-     "MC",
-     0.16
     ]
    ]
   },

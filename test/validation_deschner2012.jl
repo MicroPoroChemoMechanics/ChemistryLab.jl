@@ -18,7 +18,7 @@ include(joinpath(pkgdir(ChemistryLab), "scripts", "deschner_2012.jl"))
     # aluminum below 0.01 mmol/L at the first ages, and some points at 550 days.
     @test length(ps.system) == 366
     @test all(>(0), ustrip.(us"mol/m^3", ps.concentration))
-    @test length(t3.system) == 4 * 55 + 77   # hemi- and monocarbonate for OPC-F1-L alone
+    @test length(t3.system) == 5 * 55           # five solids, eleven ages, five pastes
     @test length(unique(zip(ps.system, ps.age, ps.analyte))) == length(ps.system)
     # The mixes are complete binders.
     mixes = d12_table("mixes")
