@@ -114,6 +114,20 @@ only mix ideally on the sites. Two checks against the papers:
   - Data in `data/literature/Scholer2017.json`, the calculation in
     `scripts/scholer_2017.jl`, the page `tutorials/validation_early_pore_solutions.md`,
     and the test `test/validation_scholer2017.jl`.
+- A validation of the aqueous model on the pore solutions of Deschner et al.
+  (2012), over 550 days: a CEM I 42.5 N alone and blended with 50 % of two
+  siliceous fly ashes, of quartz, or of fly ash and limestone. Each of the 55
+  solutions is speciated at its measured hydroxide, and its effective saturation
+  indices set against the authors' (Table 3).
+  - Ettringite and strätlingite agree within 0.03, monosulfate within 0.05,
+    gypsum within 0.07 and portlandite within 0.10, the mean differences about
+    0.01.
+  - The paper prints the analyses only as plots. They are read from the vector
+    drawing of its figures, marker by marker, through the major ticks of each
+    panel, which adds less than 0.2 % to the values plotted.
+  - Data in `data/literature/Deschner2012.json`, the calculation in
+    `scripts/deschner_2012.jl`, the page `tutorials/validation_fly_ash_pore_solutions.md`,
+    and the test `test/validation_deschner2012.jl`.
 - The CASH+ page computes the gel at 50 and 90 °C. The pH falls by 1.8 units from
   25 to 90 °C, somewhat more than Kulik et al. state, and beside portlandite the
   silicon rises, as they state.

@@ -114,5 +114,7 @@ with aluminum, and the difference is reported here as found.
 
 ## Where to go next
 
+[Validation on pore solutions over 550 days](@ref ex-validation-fly-ash) does the
+same for a CEM I and its fly-ash blends over eighteen months.
 [Validation against a measured paste](@ref ex-validation) follows a Portland
 paste through its first year, where the solids are equilibrated too.

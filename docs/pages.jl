@@ -162,6 +162,7 @@ pages = [
             # Forty-eight pore solutions of the first six hours, speciated at
             # their measured pH: the aqueous model against the paper's indices.
             "tutorials/validation_early_pore_solutions.md",
+            "tutorials/validation_fly_ash_pore_solutions.md",
         ],
     ],
     "Applications" => [

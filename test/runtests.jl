@@ -131,6 +131,7 @@ end
     include("validation_shi2016.jl")
     include("validation_lothenbach2008.jl")
     include("validation_scholer2017.jl")
+    include("validation_deschner2012.jl")
 end
 
 @testsection "Utils tests" begin
