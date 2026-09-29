@@ -434,9 +434,11 @@ that product, where the added energy is zero and so is its gradient, ``\\ln x_k 
 potentials of the members are those of the model; the member amounts are the
 product of the site fractions. With the null directions gone, the activity of
 each member goes as its mole fraction when it vanishes, and the phase is
-inverted as a mixture of end-members is. Without it, the solver was left to
-choose among the splits: the twelve members of CASH+NK failed to certify beside
-potassium or at a Ca/Si of 1.6.
+inverted as a mixture of end-members is. Without it, the answer is one of the
+equivalent splits, which one depending on where the search started; measured on
+twelve pastes of CASH+NK (Ca/Si 1 and 1.6, sodium, potassium or both), the two
+forms certify the same equilibria at the same cost, and only this one returns the
+same member amounts whatever the start.
 
 # Example
 
@@ -541,4 +543,98 @@ function compound_energy_model(ref::AbstractString, end_members::AbstractVector)
     return CompoundEnergyModel(
         lattice; interactions = [(t.site[r], t.species_1[r], t.species_2[r], W[r]) for r in eachindex(W)],
     )
+end
+
+# The convexity of a compound-energy model in its site fractions: the bound of
+# the docstring of `mixing_convexity` for two sites, a sampled Hessian otherwise.
+# The certificate asks at every solve; the verdict depends only on the model, the
+# energies and the temperature, and is kept.
+const _CEF_CONVEXITY = Dict{UInt, Any}()
+const _CEF_CONVEXITY_LOCK = ReentrantLock()
+function _cef_convexity(m::CompoundEnergyModel, T::Real, g)
+    g === nothing && return (;
+        verdict = :undecided, witness = nothing,
+        how = "the reference surface depends on the energies of the end-members, which were not given",
+    )
+    key = hash((m.lattice.multiplicity, m.lattice.occupancy, m.interactions, Float64.(g), Float64(T)))
+    return lock(_CEF_CONVEXITY_LOCK) do
+        get!(() -> _cef_convexity_uncached(m, T, g), _CEF_CONVEXITY, key)
+    end
+end
+function _cef_convexity_uncached(m::CompoundEnergyModel, T::Real, g)
+    lat = m.lattice
+    o = lat.occupancy
+    ks = length.(lat.species)
+    nsite = length(ks)
+    RT = R_GAS * T
+    Wm = [zeros(k, k) for k in ks]
+    for (s, i, l, W) in m.interactions
+        Wm[s][i, l] = Wm[s][l, i] = W / RT
+    end
+    Qs = [_tangent_basis(k) for k in ks]
+    λ = [2 * lat.multiplicity[s] + (ks[s] > 1 ? minimum(eigvals(Symmetric(transpose(Qs[s]) * Wm[s] * Qs[s]))) : Inf) for s in 1:nsite]
+    if nsite == 1 && λ[1] > 0
+        return (; verdict = :convex, witness = nothing, how = "one site: the configurational term outweighs the interactions")
+    elseif nsite == 2 && all(>(0), λ)
+        C = zeros(ks[1], ks[2])
+        for j in axes(o, 2)
+            C[o[1, j], o[2, j]] = g[j]
+        end
+        σ = opnorm(transpose(Qs[1]) * C * Qs[2])
+        λ[1] * λ[2] > σ^2 && return (;
+            verdict = :convex, witness = nothing,
+            how = "two sites: the site curvatures $(round.(λ; sigdigits = 3)) bound the coupling of the reference surface, $(round(σ; sigdigits = 3))",
+        )
+    end
+    # The Hessian of G/RT in the stacked site fractions, projected on the tangent
+    # spaces of the site simplices, on a lattice of interior points.
+    offsets = cumsum(vcat(0, ks))
+    function gy(v)
+        y = [v[(offsets[s] + 1):offsets[s + 1]] for s in 1:nsite]
+        G = sum(g[j] * prod(y[s][o[s, j]] for s in 1:nsite) for j in axes(o, 2))
+        G += sum(lat.multiplicity[s] * sum(t * log(t) for t in y[s]) for s in 1:nsite)
+        for (s, i, l, W) in m.interactions
+            G += W / RT * y[s][i] * y[s][l]
+        end
+        return G
+    end
+    Q = zeros(sum(ks), sum(ks .- 1))
+    col = 0
+    for s in 1:nsite
+        Q[(offsets[s] + 1):offsets[s + 1], (col + 1):(col + ks[s] - 1)] = Qs[s]
+        col += ks[s] - 1
+    end
+    grids = [_interior_lattice(k, 8) for k in ks]
+    for pt in Iterators.product(grids...)
+        v = reduce(vcat, pt)
+        H = ForwardDiff.hessian(gy, v)
+        if minimum(eigvals(Symmetric(transpose(Q) * H * Q))) < -1.0e-9
+            y = collect(pt)
+            x = [prod(y[s][o[s, j]] for s in 1:nsite) for j in axes(o, 2)]
+            return (; verdict = :nonconvex, witness = x, how = "a negative curvature at the site fractions $(map(t -> round.(t; digits = 3), y))")
+        end
+    end
+    return (;
+        verdict = :undecided, witness = nothing,
+        how = "the bound on the reference surface does not decide, and no concave point was found on a lattice of site fractions",
+    )
+end
+
+# The interior points of the simplex of dimension k - 1 with coordinates in
+# multiples of 1/n, every coordinate at least 1/n.
+function _interior_lattice(k::Int, n::Int)
+    k == 1 && return [[1.0]]
+    pts = Vector{Vector{Float64}}()
+    for head in 1:(n - k + 1), rest in _interior_lattice_counts(k - 1, n - head)
+        push!(pts, vcat(head, rest) ./ n)
+    end
+    return pts
+end
+function _interior_lattice_counts(k::Int, n::Int)
+    k == 1 && return n >= 1 ? [[n]] : Vector{Int}[]
+    out = Vector{Vector{Int}}()
+    for head in 1:(n - k + 1), rest in _interior_lattice_counts(k - 1, n - head)
+        push!(out, vcat(head, rest))
+    end
+    return out
 end

@@ -527,9 +527,9 @@ solve.
 
   - *The amounts are not unique.* Every split of the same site fractions between
     the members has the same ``G`` and the same element content: six members for
-    four independent site fractions in CASH+. Left to choose, the solver failed on
-    the twelve members of CASH+NK. It is therefore given one split, the product of
-    the site fractions, ``x_j = \prod_s y_{s,j_s}``, by adding to the energy it
+    four independent site fractions in CASH+. Left to choose, the solver returns one
+    of them, which one depending on where the search started. It is therefore given
+    one split, the product of the site fractions, ``x_j = \prod_s y_{s,j_s}``, by adding to the energy it
     minimizes ``RT\,D(x)``, with
 
     ```math
@@ -541,10 +541,21 @@ solve.
     ``\ln x_k - \sum_s \ln y_{s,k_s}`` vanishes too. The minimum over the splits
     of one set of site fractions is therefore the product, with the energy and
     the chemical potentials of the model. The activity of a vanishing member now
-    goes as its mole fraction, as in a mixture of end-members.
-  - *Convexity is not given.* The reference surface is multilinear, and a
-    reciprocal energy can make ``G`` concave somewhere. The model states no
-    convexity, and a certificate keeps the scope `:kkt_point` or a weaker one.
+    goes as its mole fraction, as in a mixture of end-members. Measured on twelve
+    pastes of CASH+NK, the equilibria certify with or without ``D``, at the same
+    cost; what ``D`` adds is an answer that does not depend on the start.
+  - *Convexity must be decided.* The reference surface is multilinear, and a
+    reciprocal energy can make ``G`` concave somewhere. In the site fractions, each
+    site contributes a curvature of at least ``2m_s + \mu_s``, the configurational
+    bound of section 9 plus the smallest tangent eigenvalue ``\mu_s`` of its
+    interactions ``W/RT``, and with two sites the reference surface couples them
+    through a constant matrix ``C``, the ``G^\circ_j/RT`` of the compounds projected
+    on the two tangent spaces. So ``G`` is convex when
+    ``(2m_1 + \mu_1)(2m_2 + \mu_2) > \lVert C \rVert^2``. That proves the CASH+
+    core convex (34.3 against 13.2 at 25 °C), and a certificate on it keeps its
+    `:global_minimum` scope as far as the gel goes; the bound does not decide
+    CASH+NK, whose sampled Hessian shows no concave point, and its scope stays
+    `:kkt_point` ([`mixing_convexity`](@ref)).
   - *Euler's relation holds.* ``\sum_k x_k\,\mu_k = G`` for any amounts with the
     site fractions ``y``, as it must for a Gibbs energy.
 

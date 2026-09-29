@@ -4,7 +4,7 @@
 using DynamicQuantities
 using ForwardDiff
 using OrderedCollections
-using LinearAlgebra: I, Symmetric, eigvals, nullspace, qr
+using LinearAlgebra: I, Symmetric, eigvals, nullspace, opnorm, qr
 
 # ── Solid solution activity models ────────────────────────────────────────────
 
@@ -575,19 +575,29 @@ for a binary, and this answers it for any number of end-members.
     along it is ``4 - 2w_{ij} < 0``. Between the two, the smallest eigenvalue of
     the projected Hessian is searched on a lattice of compositions: a negative one
     is a witness, and none found leaves the question `:undecided`.
+  - **A compound-energy model** ([`CompoundEnergyModel`](@ref)) is judged in its
+    site fractions, where its Gibbs energy lives, and needs `g`, the ``G^\\circ/RT``
+    of its end-members at `T` (`:undecided` without them). On each site the
+    configurational term gives a tangent curvature of at least ``2m_s`` (the bound
+    above) and the site interactions add the smallest tangent eigenvalue
+    ``\\mu_s`` of their matrix ``W/RT``; the reference surface adds only a coupling
+    between two sites, constant when there are two: the matrix ``C`` of the
+    ``G^\\circ_j/RT`` of the compounds projected on the two tangent spaces. With
+    two sites the energy is therefore **convex when
+    ``(2m_1 + \\mu_1)(2m_2 + \\mu_2) > \\lVert C \\rVert^2``**, both factors positive.
+    Otherwise the Hessian is sampled on a lattice of site fractions: a negative
+    eigenvalue is a witness, none found leaves `:undecided`. The CASH+ core model
+    is convex by that bound; CASH+NK is not decided by it.
   - **Any other model** is sampled the same way, through `ForwardDiff` of its
     ``g/RT``: a witness or `:undecided`, never a proof of convexity.
 """
-function mixing_convexity(model::AbstractSolidSolutionModel, n::Int; T::Real = 298.15)
+function mixing_convexity(model::AbstractSolidSolutionModel, n::Int; T::Real = 298.15, g = nothing)
     n >= 2 || return (; verdict = :convex, witness = nothing, how = "a single end-member")
     model isa IdealSolidSolutionModel &&
         return (; verdict = :convex, witness = nothing, how = "ideal mixing is strictly convex")
     model isa SublatticeModel &&
         return (; verdict = :convex, witness = nothing, how = "ideal mixing on each site, in site fractions linear in x")
-    model isa CompoundEnergyModel && return (;
-        verdict = :undecided, witness = nothing,
-        how = "the reference surface of the compound energy formalism depends on the energies of the end-members",
-    )
+    model isa CompoundEnergyModel && return _cef_convexity(model, T, g)
     if n == 2 && _rk_coefficients(model, T) !== nothing
         gap = spinodal_interval(model, 2; T = T)
         gap === nothing &&

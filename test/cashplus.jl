@@ -101,6 +101,14 @@ _cef_lna(mdl, x, g; T = 298.15, ϵ = 0.0) =
     # Its activities cannot be had from the mole fractions alone.
     @test_throws ErrorException ChemistryLab._ss_log_activities!(zeros(6), 1:6, x, mdl, T, 0.0)
     @test mixing_convexity(mdl, 6).verdict === :undecided
+    # Given the energies, convexity is decided in the site fractions. A reciprocal
+    # energy of 30 RT on two sites of two species each makes the energy concave at
+    # the center, which the lattice finds; the same sites with none are convex by
+    # the bound.
+    sq = SublatticeModel([1.0, 1.0], ["A" "A" "B" "B"; "X" "Y" "X" "Y"]; sites = ["s1", "s2"])
+    concave = mixing_convexity(CompoundEnergyModel(sq), 4; g = [0.0, 0.0, 0.0, 30.0])
+    @test concave.verdict === :nonconvex && sum(concave.witness) ≈ 1
+    @test mixing_convexity(CompoundEnergyModel(sq), 4; g = [0.0, 1.0, 2.0, 3.0]).verdict === :convex
     @test isempty(ChemistryLab._bounded_members(mdl))
 end
 
@@ -165,6 +173,14 @@ end
     @test b["CaSiO3@"]["sm_gibbs_energy"]["values"][1] ≈ -1517556.9 rtol = 1.0e-12
     subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-cashplus.json"); verbose = false))
     at25(sp, key, unit) = ustrip(unit, subs[sp][key](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+    # The CaSiO3@ complex holds the reaction properties of Table 9 against the
+    # Ca+2 and SiO3-2 of the database, which is what sets its temperature trend,
+    # each within the precision the table prints: its H to 0.1 kJ/mol, its S and
+    # the reaction heat capacity to the unit.
+    Δr(key, unit) = at25("CaSiO3@", key, unit) - at25("Ca+2", key, unit) - at25("SiO3-2", key, unit)
+    @test Δr(:ΔₐH⁰, us"kJ/mol") ≈ ustrip(us"kJ/mol", literature_value("Kulik2022", "CaSiO3_aq_dH_reaction")) atol = 0.05
+    @test Δr(:S⁰, us"J/(mol*K)") ≈ ustrip(us"J/(mol*K)", literature_value("Kulik2022", "CaSiO3_aq_dS_reaction")) atol = 0.5
+    @test Δr(:Cp⁰, us"J/(mol*K)") ≈ ustrip(us"J/(mol*K)", literature_value("Kulik2022", "CaSiO3_aq_dCp_reaction")) atol = 0.5
     props = literature_table("Kulik2022", "cashplus_standard_properties")
     for (k, em) in enumerate(CASHPLUS)
         @test at25(em, :ΔₐG⁰, us"kJ/mol") ≈ ustrip(us"kJ/mol", props.G[k]) rtol = 1.0e-12
@@ -177,6 +193,10 @@ end
     @test m isa CompoundEnergyModel
     @test m.lattice.species == [["S", "v", "C"], ["v", "C"]]
     @test length(m.interactions) == 4
+    # The core model is convex, by the bound on its reference surface.
+    g25 = [at25(n, :ΔₐG⁰, us"J/mol") / (ChemistryLab.R_GAS * 298.15) for n in CASHPLUS]
+    c = mixing_convexity(m, 6; T = 298.15, g = g25)
+    @test c.verdict === :convex && occursin("two sites", c.how)
 end
 
 @testsection "CASH+: the Ca-Si-H2O system of Kulik et al. (2022)" begin
@@ -263,6 +283,9 @@ end
     shipped = build_solid_solutions(datapath("solid_solutions.toml"), subs)
     nk = only(filter(p -> ChemistryLab.name(p) == "CASH+NK", shipped))
     @test ChemistryLab.model(nk).lattice.species == [["S", "v", "C"], ["v", "C", "N", "K"]]
+    # CASH+NK is not decided: the bound fails and no concave point is found.
+    gnk = [at25(n, :ΔₐG⁰, us"J/mol") / (ChemistryLab.R_GAS * 298.15) for n in names.end_member]
+    @test mixing_convexity(ChemistryLab.model(nk), 12; T = 298.15, g = gnk).verdict === :undecided
 
     # The discretized model of Miron2022a: 110 pseudocompounds, each a C-S-H of
     # fixed composition whose Gibbs energy the authors computed with their
@@ -317,9 +340,7 @@ end
 
     # The gel in a solution of both hydroxides, three times as much potassium as
     # sodium, as in a cement pore solution: it certifies at the Ca/Si of a gel
-    # beside portlandite and takes up both alkalis. (With one alkali alone the
-    # members of the other cannot be there, and the search stops at a balance of
-    # about 2e-8: measured, and said on the CASH+ page.)
+    # beside portlandite and takes up both alkalis.
     sp = speciation(collect(values(subs)), vcat(["Portlandite", "Amor-Sl"], names.end_member); aggregate_state = [AS_AQUEOUS])
     complexes(s) = charge(s) == 0 && any(el -> haskey(atoms(s), el), (:Na, :K)) && aggregate_state(s) == AS_AQUEOUS
     cs = ChemicalSystem(filter(!complexes, sp), CEMDATA_PRIMARIES; solid_solutions = [nk])

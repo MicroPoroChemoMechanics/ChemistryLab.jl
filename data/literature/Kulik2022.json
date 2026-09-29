@@ -488,6 +488,30 @@
    "uncertainty": null,
    "location": "Section 2.7, Eq. (13), p. 7",
    "description": "Extended-term parameter b_gamma of the extended Debye-Hueckel equation used for the fit (KOH as major electrolyte)."
+  },
+  "CaSiO3_aq_dH_reaction": {
+   "value": 2.988,
+   "unit": "kJ/mol",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Table 9 (p. 13), accepted variant",
+   "description": "Standard enthalpy of the reaction Ca+2 + SiO3-2 = CaSiO3@ at 25 C."
+  },
+  "CaSiO3_aq_dS_reaction": {
+   "value": 86.6,
+   "unit": "J/(mol*K)",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Table 9 (p. 13), accepted variant (boldface)",
+   "description": "Standard entropy of the reaction Ca+2 + SiO3-2 = CaSiO3@ at 25 C."
+  },
+  "CaSiO3_aq_dCp_reaction": {
+   "value": 118,
+   "unit": "J/(mol*K)",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Table 9 (p. 13), accepted variant (boldface)",
+   "description": "Standard heat capacity of the reaction Ca+2 + SiO3-2 = CaSiO3@, taken as constant."
   }
  },
  "notes": [
