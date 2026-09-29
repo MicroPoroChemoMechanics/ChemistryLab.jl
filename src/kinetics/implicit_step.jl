@@ -591,11 +591,9 @@ end
 
 # ── adaptive stepping ────────────────────────────────────────────────────────
 #
-# What Reaktoro does not have. Its kinetics adds a single field to the
-# equilibrium options — an initial step — and the step itself is the caller's,
-# with no estimate of what taking it cost. The scheme is backward Euler, so the
-# error is first order in `Δt`, and a step ten times too large returns an answer
-# ten times less accurate with nothing to say so.
+# The step of `kinetic_step` is the caller's. The scheme is backward Euler, so
+# the error is first order in `Δt`, and a step ten times too large returns an
+# answer ten times less accurate with nothing to say so; this estimates it.
 #
 # The estimate is Richardson's, on the extents: one step of `Δt` against two of
 # `Δt/2`. For a first-order method the difference IS the error of the coarse step

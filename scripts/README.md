@@ -62,7 +62,6 @@ directory activates `scripts/` itself.
 |---|---|
 | `cement_clinker_kinetics.jl` | Parrott–Killoh dissolution of the four clinker phases |
 | `self_desiccation_powers.jl` | Powers' 0.42 taken apart into a water budget, each term from an independent source |
-| `blended_cement_kinetics.jl` | clinker plus supplementary cementitious materials |
 | `opc_semiadiabatic_calorimetry.jl` | aggregated solid → solid reactions under a semi-adiabatic calorimeter |
 | `ionic_hydration.jl` | hydration driven by the pore solution: no sequencing rule, the assemblage is a result |
 | `hydration_calibration.jl` | fitting rate parameters against measured calorimetry |

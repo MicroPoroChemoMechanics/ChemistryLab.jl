@@ -259,6 +259,58 @@ using JSON
         @test uncertainty(q) ≈ 0.5u"J/mol"
         @test provenance(q) == PROV_FITTED
     end
+
+    @testset "values read off a figure say so, and how well" begin
+        # The three forms of the reading error: relative, absolute, not quantified.
+        ds = literature_table_info("Deschner2012", "pore_solution")
+        @test ds.kind == PROV_MEASURED
+        @test ds.digitization.method == "vector drawing"
+        @test ds.digitization.relative === true && ds.digitization.uncertainty == 0.002
+        lv = literature_table_info("Lavergne2018", "semi_adiabatic_C100_wb050_temperature").digitization
+        @test lv.method == "raster image"
+        @test lv.relative === false && lv.uncertainty ≈ 0.2u"K"
+        @test literature_table_info("Hirao2005", "binding_csh").digitization.uncertainty === nothing
+        # A table printed as numbers carries none.
+        @test literature_table_info("Deschner2012", "effective_saturation_indices").digitization === nothing
+        @test_throws KeyError literature_table_info("Deschner2012", "no_such_table")
+
+        # Every table whose location says it was read off a figure records the
+        # reading: a later transcription cannot forget it.
+        read_off = r"vector drawing|raster image|read off|read from (the )?fig"i
+        for key in available_literature(), (name, info) in literature(key).table_info
+            info.location !== nothing && occursin(read_off, info.location) || continue
+            @test info.digitization !== nothing
+        end
+
+        # A malformed reading is refused, with the file and the field.
+        dir = mktempdir()
+        d = JSON.parsefile(literature_path("Powers1948"); dicttype = Dict{String, Any})
+        table(dig) = Dict(
+            "t" => Dict(
+                "columns" => ["x"], "units" => ["1"], "kind" => "measured",
+                "location" => "Fig. 1", "digitization" => dig, "rows" => [[1.0]]
+            )
+        )
+        write_with(dig) = (d["tables"] = table(dig); p = joinpath(dir, "Powers1948.json"); write(p, JSON.json(d)); p)
+        ok = Dict("method" => "vector drawing", "tool" => "t", "uncertainty" => Dict("relative" => 0.01))
+        @test ChemistryLab.read_literature(write_with(ok)).table_info["t"].digitization.uncertainty == 0.01
+        absolute = ChemistryLab.read_literature(
+            write_with(merge(ok, Dict("uncertainty" => Dict("value" => 0.2, "unit" => "K"))))
+        ).table_info["t"].digitization
+        @test absolute.relative === false && absolute.uncertainty ≈ 0.2u"K"
+        for bad in (
+                merge(ok, Dict("method" => "by eye")),
+                Dict("method" => "vector drawing", "uncertainty" => nothing),                   # no tool
+                merge(ok, Dict("tool" => 3)),
+                merge(ok, Dict("uncertainty" => Dict("relative" => 0.01, "value" => 1.0, "unit" => "K"))),
+                merge(ok, Dict("uncertainty" => Dict("relative" => -0.01))),
+                merge(ok, Dict("uncertainty" => Dict("value" => 0.2))),                          # no unit
+                merge(ok, Dict("uncertainty" => 0.01)),
+                "vector drawing",
+            )
+            @test_throws ArgumentError ChemistryLab.read_literature(write_with(bad))
+        end
+    end
 end
 
 @testset "a renamed key or table still reads, with a deprecation" begin

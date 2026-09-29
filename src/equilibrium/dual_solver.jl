@@ -731,6 +731,12 @@ route, which builds its own.
 
 `worst_supersaturation` is clamped at zero because a negative value is not an
 error: it means every absent phase is undersaturated, as optimality requires.
+
+The residuals are not in one unit: the balance is in moles, the others are
+log-activities. That is deliberate, and harmless where this is used: it ranks
+candidates of **one** problem, whose budget is the same for all of them, so a
+change of the system's size scales the balance of every candidate alike. It is
+not a measure to compare two problems with.
 """
 _kkt_error(cert) = max(
     cert.stationarity, cert.balance, max(cert.worst_supersaturation, 0.0),

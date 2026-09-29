@@ -134,11 +134,12 @@ constant that was fitted.
 
 # Validity, stated because it is narrower than the equation looks
 
-SIT is meant for ionic strengths up to roughly 3 to 4 mol/kg, and it is a
-*truncation*: the pairwise term is the first order of a virial expansion, so
-above that range the terms it drops stop being small. It also says nothing about
-ion pairs that are better described as species — where a complex forms, SIT
-expects it in the speciation and not in `ε`.
+SIT is a *truncation*: the pairwise term is the first order of a virial
+expansion, so at high ionic strength the terms it drops stop being small. No
+source transcribed in this package states the ionic strength where that happens,
+so [`activity_model_range`](@ref) returns `nothing` for it rather than a number
+of its own. It also says nothing about ion pairs that are better described as
+species — where a complex forms, SIT expects it in the speciation and not in `ε`.
 
 # Fields
 

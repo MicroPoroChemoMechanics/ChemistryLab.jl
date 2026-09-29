@@ -183,7 +183,10 @@ record["w_c_sealed"], literature_value("Powers1948", "w_c_sealed")
 Each quantity comes back as a [`Traced`](@ref) value, so its source and its kind
 travel with it, and [`literature_value`](@ref) drops them at the point where the
 number enters a calculation. [`literature_table`](@ref) returns a whole table as
-columns carrying their units. The files follow the format described by
+columns carrying their units, and [`literature_table_info`](@ref) what the file
+says about it: its kind, its location in the source and, for values read off a
+figure rather than printed as numbers, how they were read and the relative error
+the reading adds. The files follow the format described by
 [`literature`](@ref), which checks them as it reads them; the test suite also
 checks that every key is an entry of the bibliography and repeats its DOI.
 

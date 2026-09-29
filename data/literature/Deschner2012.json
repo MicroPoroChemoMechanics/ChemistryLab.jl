@@ -29,6 +29,14 @@
    ],
    "kind": "measured",
    "location": "Figs. 13 (OPC), 14a and 14b (OPC-Qz, OPC-F1), 15 (OPC-F2) and 16 (OPC-F1-L), pp. 1396-1397: the concentrations in mmol per liter, read from the vector drawing (1 mmol/L = 1 mol/m^3)",
+   "digitization": {
+    "method": "vector drawing",
+    "tool": "PyMuPDF get_drawings",
+    "uncertainty": {
+     "relative": 0.002
+    },
+    "note": "The center of each marker, mapped through the major ticks of its panel; the ticks lie on a straight line to within 5e-4 decades, so the reading adds less than 0.2 % to a plotted value. The analyses carry their own standard deviation of 5 to 10 %."
+   },
    "rows": [
     [
      "OPC",

@@ -1,5 +1,51 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `literature_table_info(key, table)`: what a file of `data/literature` says
+  about a table besides its values, its provenance kind, its location in the
+  source and, for values read off a figure rather than printed as numbers, a
+  `digitization` record: the method (a vector drawing or a raster image), the
+  tool, and the error the reading adds, relative, absolute with its unit, or
+  unquantified. The format accepts the field and checks it; the five tables read
+  off figures (Deschner et al. 2012, Hirao et al. 2005 twice, Gruyaert et al.
+  2010, Lavergne et al. 2018) carry it, and a test requires it of any table whose
+  location says it was read off a figure. A validation that compares with such
+  values can now add the reading to the uncertainty of the source.
+- A warning when a pure solid declared in a system repeats, up to a factor, an
+  end-member of a declared non-ideal solid solution with the same Gibbs energy
+  within 0.1 RT: ettringite declared pure beside `AFt_SO4_CO3`, whose SO4
+  end-member is ettringite divided by three. It is the case already warned for
+  two solid solutions, with one of them pure, and the same flat direction that
+  can keep the certified search from concluding. Twelve such pairs exist in
+  Cemdata18 among the four non-ideal AFm and AFt binaries.
+
+### Removed
+
+- `scripts/blended_cement_kinetics.jl`. It represented a slag by the formula of
+  anorthite and a metakaolin by a formula of its own, both with a placeholder
+  Gibbs energy and assumed heats, and let the pozzolanic reaction consume
+  portlandite without limit. None of it came from a source. The kinetics of
+  blended cements return on published data.
+
+### Fixed
+
+- `data/NOTICE.md` did not list `cemdata18-cashplus.json`, and said the derived
+  databases copy the Cemdata18 entries unchanged, while that one replaces
+  `CaSiO3@`.
+- Statements in the documentation that were not true:
+  - the route table of the kinetics manual said the ODE route imposes the
+    assemblage, which holds only without an equilibrium solver;
+  - the docstring of `KineticsSolver` said the partition is re-speciated at each
+    evaluation of the right-hand side, where it is once per accepted step;
+  - the slag page announced a coupled slag calculation that does not exist;
+  - the SIT docstring and the theory page gave an ionic strength of validity, 3
+    to 4 mol/kg, that no source of this package states.
+- Two comparisons with Reaktoro that nothing here had checked were removed: a
+  comment on its kinetics, and a sentence of the kinetics manual.
+
 ## v0.28.0 — The CASH+ model of C-S-H, three pore-solution validations, and the linear-programming start without its slowdown
 
 The C-S-H of a cement paste can now be described by the CASH+ model of Kulik,

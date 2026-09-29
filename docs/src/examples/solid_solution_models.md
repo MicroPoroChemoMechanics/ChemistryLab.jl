@@ -149,7 +149,10 @@ it will take up a trace component.
 ## Where to go next
 
 The case these expressions are written for, a phase that unmixes, is computed on
-a published cement binary in [A miscibility gap](@ref ex-miscibility-gap). The
+a published cement binary in [A miscibility gap](@ref ex-miscibility-gap). Mixing
+on several sites, and whether a phase of more than two end-members is convex, are
+evaluated in sections 7 to 9 of [Solid solutions](@ref sec-theory-solid-solutions)
+and on the C-S-H gels in [Mixing on sites](@ref ex-sublattice-csh). The
 derivations are in [Solid solutions](@ref sec-theory-solid-solutions), and the same
 exercise on the aqueous side is
 [What the choice of activity model costs](@ref sec-app-activity-models).

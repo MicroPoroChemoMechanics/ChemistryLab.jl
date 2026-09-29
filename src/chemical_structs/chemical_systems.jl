@@ -557,6 +557,49 @@ function _warn_one_substance_two_phases(solid_solutions)
     return nothing
 end
 
+"""
+    _warn_pure_phase_beside_nonideal(species, solid_solutions, idx_members)
+
+Warn when a pure solid declared in the system repeats, up to a factor, an
+end-member of a declared non-ideal solid solution, with Gibbs energies that agree
+to that factor within `0.1 RT` per formula unit at 25 °C: `ettringite` declared
+pure beside `AFt_SO4_CO3`, whose SO4 end-member `ettringite03_ss` is ettringite
+divided by three. It is the case of [`_warn_one_substance_two_phases`](@ref
+ChemistryLab._warn_one_substance_two_phases) with one of the two phases pure,
+and the same flat direction: moving the substance between the pure phase and the
+mixing phase changes the Gibbs energy by next to nothing.
+
+`idx_members` are the indices, in `species`, of the end-members of the declared
+solid solutions; every other crystalline species is a pure phase.
+"""
+function _warn_pure_phase_beside_nonideal(species, solid_solutions, idx_members)
+    members = Set(idx_members)
+    pure = [s for (i, s) in enumerate(species) if aggregate_state(s) == AS_CRYSTAL && !(i in members)]
+    isempty(pure) && return nothing
+    RT = R_GAS * 298.15
+    for P in solid_solutions
+        model(P) isa IdealSolidSolutionModel && continue
+        for a in end_members(P), b in pure
+            symbol(a) == symbol(b) && continue
+            k = _composition_ratio(a, b)
+            k === nothing && continue
+            ga, gb = _g298(a), _g298(b)
+            (ga === nothing || gb === nothing) && continue
+            gap = abs(gb - k * ga) / max(k, 1.0)
+            gap < _ONE_SUBSTANCE_RT * RT || continue
+            @warn "the pure phase \"$(symbol(b))\" and the solid solution \"$(name(P))\" " *
+                "hold one substance twice: \"$(symbol(b))\" is \"$(symbol(a))\" times " *
+                "$(round(k; sigdigits = 4)), and their Gibbs energies agree to that factor " *
+                "within $(round(gap; sigdigits = 2)) J/mol per formula unit. With " *
+                "\"$(name(P))\" non-ideal, moving the substance from one phase to the " *
+                "other changes the Gibbs energy by next to nothing, and the certified " *
+                "search can stop short of the solution. Declare it once: keep the phase " *
+                "whose mixing the problem needs, and drop the other description."
+        end
+    end
+    return nothing
+end
+
 const _GEL_MODELS_LOCK = ReentrantLock()
 const _GEL_MODELS = Ref{Union{Nothing, Dict{String, NamedTuple{(:gel, :model), Tuple{String, String}}}}}(nothing)
 
@@ -842,6 +885,7 @@ function ChemicalSystem(
         idx_ssendmembers = isempty(ss_groups) ? Int[] : vcat(ss_groups...)
         _refuse_overlapping_solid_solutions(solid_solutions)
         _warn_one_substance_two_phases(solid_solutions)
+        _warn_pure_phase_beside_nonideal(species, solid_solutions, idx_ssendmembers)
         _refuse_sites_on_mixing_hosts(sf, solid_solutions)
         ss = collect(solid_solutions)
 

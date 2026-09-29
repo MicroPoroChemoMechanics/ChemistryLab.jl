@@ -138,6 +138,7 @@
       "units": [null, "1", "d", "1"],
       "kind": "measured",
       "location": "Fig. 7, p. 948: bound water in g per 100 g of binder against age; batch a or b as the legend labels the series (the materials TG/a and TG/b of Table 1)",
+      "digitization": {"method": "vector drawing", "tool": "marker coordinates in the PDF page", "uncertainty": null, "note": "Each marker located by its coordinates and mapped through the tick marks of the axes; the figure reads to the size of a marker, and its ages come out at the nominal ages to three digits."},
       "rows": [
         ["a", 0.0, 0.75, 8.76],
         ["a", 0.0, 0.875, 9.01],

@@ -379,8 +379,8 @@ A one-parameter deviation term cannot do that and match the dilute end too,
 which is why the range is the test rather than a single point.
 
 The model is a **truncation**: the pairwise term is the first order of the same
-virial expansion §6 carries to second order, so above roughly 3 to 4 mol/kg the
-terms it drops stop being small. It also expects genuine ion pairs to appear in
+virial expansion §6 carries to second order, so at high ionic strength the terms
+it drops stop being small; no source transcribed here states where. It also expects genuine ion pairs to appear in
 the *speciation* and not inside ``\varepsilon``.
 
 ### Why it matters here, beyond being one more option
