@@ -144,20 +144,37 @@ end
 
     # The replayed partition must satisfy the element balance the ODE carried.
     # The FIRST instant is the loose one — it has no previous speciation to start
-    # from, only the cast composition — and every one after it, warm-started,
-    # lands at machine precision. Asking for an early first instant is therefore
-    # not a detail of taste.
+    # from, only the cast composition — and every one after it, warm-started, is
+    # certified. Asking for an early first instant is therefore not a detail of
+    # taste.
+    #
+    # What "certified" guarantees is the certifying Newton's own stopping rule:
+    # every balance row below `tol = 1e-10` mol. How far below depends on the last
+    # step, and it is not asserted. The charge row of the second instant has a zero
+    # budget and a flux of 5e-4 mol, and was balanced to 9e-16 mol, then to 3.5e-11
+    # mol after an update of the ODE packages moved the trajectory in its last
+    # digits (OrdinaryDiffEqRosenbrock 2.7.5, SciMLBase 3.57): the same certified
+    # answer, 7e-8 relative to that flux instead of 2e-12. A test on the relative
+    # figure failed on the second without anything having regressed.
     p = sol.prob.p
-    res = map(enumerate(times)) do (i, t)
+    sub = ChemistryLab._equilibrium_subsystem(kp.system, kp.idx_equilibrium)
+    des = DualEquilibriumSolver(sub, model)
+    replay = map(enumerate(times)) do (i, t)
         be = collect(sol(t)[1:(p.n_be)])
         ne = Float64[ustrip(us"mol", moles(states[i], symbol(cs.species[j]))) for j in kp.idx_equilibrium]
-        ChemistryLab._row_residual(p.Ae, ne, be)
+        st = ChemicalState(sub, ne .* u"mol"; T = 298.15u"K", P = 1.0e5u"Pa")
+        (;
+            relative = ChemistryLab._row_residual(p.Ae, ne, be),
+            absolute = ChemistryLab._abs_residual(p.Ae, ne, be),
+            optimal = optimality_certificate(des, st; b = be).optimal,
+        )
     end
-    # Reported as a number, not as an `all`: when this fails, what matters is by
+    # Reported as numbers, not as an `all`: when this fails, what matters is by
     # how much, and a bare `all` hides it.
-    @test res[1] < 1.0e-2
-    worst_replay = maximum(res[2:end])
-    @test worst_replay < 1.0e-10
+    @test replay[1].relative < 1.0e-2
+    @test all(r -> r.optimal, replay[2:end])
+    worst_replay = maximum(r -> r.absolute, replay[2:end])
+    @test worst_replay <= 1.0e-10
 
     # The kinetic species come from the ODE state, not from the equilibrium solve
     for (i, t) in enumerate(times)
