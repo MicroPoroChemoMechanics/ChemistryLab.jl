@@ -304,7 +304,7 @@ difference of 0.003 kJ/mol. That is the rounding of the formulas, which are
 printed to four decimals; the energies of mixing and of the reciprocal reactions
 are some ten kilojoules per mole.
 
-## 4. A Portland cement with 4 % limestone
+## 4. A Portland cement with limestone (PC4)
 
 Miron et al. [Miron2022b](@cite) tuned the calcium alkali end-members of CASH+NK
 on the pore solutions of hydrated cements, among them the Portland cement with

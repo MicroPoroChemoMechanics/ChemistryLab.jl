@@ -109,6 +109,12 @@ _cef_lna(mdl, x, g; T = 298.15, ϵ = 0.0) =
     concave = mixing_convexity(CompoundEnergyModel(sq), 4; g = [0.0, 0.0, 0.0, 30.0])
     @test concave.verdict === :nonconvex && sum(concave.witness) ≈ 1
     @test mixing_convexity(CompoundEnergyModel(sq), 4; g = [0.0, 1.0, 2.0, 3.0]).verdict === :convex
+    # One site: its configurational term against its interactions. A weak one
+    # leaves the energy convex, which the bound proves; one above 2 RT makes it
+    # concave between the two species it couples, which the lattice finds.
+    one = SublatticeModel([1.0], reshape(["A", "B", "C"], 1, 3); sites = ["s1"])
+    @test mixing_convexity(CompoundEnergyModel(one; interactions = [("s1", "A", "B", 1000.0)]), 3; g = zeros(3)).verdict === :convex
+    @test mixing_convexity(CompoundEnergyModel(one; interactions = [("s1", "A", "B", 10000.0)]), 3; g = zeros(3)).verdict === :nonconvex
     @test isempty(ChemistryLab._bounded_members(mdl))
 end
 
