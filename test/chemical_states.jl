@@ -97,6 +97,21 @@ using JSON
         end
     end
 
+    @testsection "pKw read from the species is the reaction's" begin
+        # The direct sum of the standard Gibbs energies and the reaction
+        # H2O@ = H+ + OH- give one value, over the temperatures of a cement.
+        subs = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+        cs_w = ChemicalSystem(speciation(subs, ["Portlandite"]; aggregate_state = [AS_AQUEOUS]), CEMDATA_PRIMARIES)
+        w, h, o = (only(s for s in cs_w.species if symbol(s) == x) for x in ("H2O@", "H+", "OH-"))
+        for T in (278.15, 298.15, 363.15)
+            ref = -(w → h + o).logK⁰(T = T * u"K", P = 1.0e5u"Pa")
+            @test ChemistryLab._compute_pKw(cs_w, T * u"K", 1.0e5u"Pa") ≈ ref rtol = 1.0e-14
+        end
+        @test ChemistryLab._compute_pKw(cs_w, 298.15u"K", 1.0e5u"Pa") ≈ 14.0 atol = 0.01
+        # A system missing one of the three has none.
+        @test ChemistryLab._compute_pKw(ChemicalSystem([h2o]), 298.15u"K", 1.0e5u"Pa") === nothing
+    end
+
     @testsection "pH returns nothing without H+ or OH-" begin
         cs_no_ions = ChemicalSystem([h2o])
         state = ChemicalState(cs_no_ions, [55.5u"mol"])

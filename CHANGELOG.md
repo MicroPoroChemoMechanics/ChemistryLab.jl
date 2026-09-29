@@ -22,6 +22,40 @@
   can keep the certified search from concluding. Twelve such pairs exist in
   Cemdata18 among the four non-ideal AFm and AFt binaries.
 
+### Changed: an equilibrium costs two to four times less
+
+The certified equilibrium of a cement paste is the step a kinetic run repeats
+thousands of times, so its cost was measured, on one machine, before and after,
+in one process each, answers compared species by species:
+
+| solve | 0.28.0 | now |
+|:--|--:|--:|
+| cement of the CEM IV page (107 species), cold | 0.065 s | 0.058 s |
+| CEM I with the CNASH gel mixing ideally, cold | 0.179 s | 0.077 s |
+| the same with the CNASH gel on its sites, cold | 0.433 s | 0.098 s |
+| the same, ten warm restarts on neighboring budgets | 4.53 s | 1.35 s |
+
+Every answer is certified and the same to 6e-11 in relative amount (bit for bit
+where the route did not change). Three causes, each measured with a profiler:
+
+- The coefficients `A` and `B` of the Debye–Hückel term depend on the
+  temperature and the pressure only, through the water equation of state, and
+  were recomputed at every evaluation of the activities: 55 % of the second
+  solve. The last value computed from plain numbers is now kept, in an atomic
+  field so that threads can share it; dual numbers, for derivatives in `T` or
+  `P`, are computed each time.
+- For a phase mixing on sites, the same problem under ideal mixing was solved
+  first, as a starting point, even where the start of the linear program
+  certifies at once: 47 % of the warm restarts. It is now solved only if the
+  search reaches it, after that start and before the state as given.
+- `pKw`, needed for the pH of every state a solver returns, was obtained by
+  building the reaction H2O@ = H+ + OH- and combining its functions
+  symbolically: 1.3 ms a call. It is now summed from the standard Gibbs energies
+  of the three species, 10 µs, the same to 1.8e-15.
+
+A certified answer whose route changed reports `route = :lp_start` where it
+reported `:ideal_mixing`.
+
 ### Removed
 
 - `scripts/blended_cement_kinetics.jl`. It represented a slag by the formula of

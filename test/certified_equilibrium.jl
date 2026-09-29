@@ -1041,9 +1041,29 @@ end
             eqs, certs = quiet(() -> equilibrate_certified(st_sl; model = c18, b = b))
             @test certs.optimal
             @test certs.balance < 1.0e-10
+            # The start of the linear program certifies it at once, so the
+            # ideal-mixing solve that precedes the state as given is never made.
+            @test certs.route === :lp_start
+            # Without the linear program the search reaches it, and it is the
+            # start that certifies: the same answer.
+            eqm, certm = quiet(() -> equilibrate_certified(st_sl; model = c18, b = b, lp_start = false))
+            @test certm.optimal
+            @test certm.route === :ideal_mixing
+            @test ustrip.(us"mol", eqm.n) ≈ ustrip.(us"mol", eqs.n) rtol = 1.0e-8 atol = 1.0e-14
         finally
             ChemistryLab.STRICT_CONVERGENCE[] = strict
         end
+    end
+
+    @testset "a deferred start is made once, and only when reached" begin
+        made = Ref(0)
+        d = ChemistryLab._DeferredStarts(() -> (made[] += 1; [10, 20]))
+        @test made[] == 0                       # nothing until iterated
+        @test first(Iterators.flatten(([1], d))) == 1 && made[] == 0
+        @test collect(Iterators.flatten(([1], d))) == [1, 10, 20] && made[] == 1
+        @test collect(d) == [10, 20] && made[] == 1   # the second pass reads what the first made
+        none = ChemistryLab._DeferredStarts(() -> nothing)
+        @test isempty(collect(none))
     end
 
     @testset "a vanished aqueous phase is reported, and raised under the strict flag" begin
