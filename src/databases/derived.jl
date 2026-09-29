@@ -39,23 +39,27 @@ function _derived_key(d::DerivedDatabase, base_path)
     return bytes2hex(sha256(join(parts, "\n")))
 end
 
+# Under the lock of `remote.jl`: two threads asking for the same derived
+# database build it once, not twice into the same file.
 function _derived_path(d::DerivedDatabase; download::Bool = true)
-    base = database_path(d.base; download)
-    key = _derived_key(d, base)
-    dir = joinpath(database_cache(), "derived")
-    out = joinpath(dir, d.name)
-    keyfile = out * ".key"
-    isfile(out) && isfile(keyfile) && strip(read(keyfile, String)) == key && return out
-    mkpath(dir)
-    tmp = out * ".part"
-    try
-        d.build(base, tmp)
-        mv(tmp, out; force = true)
-    finally
-        rm(tmp; force = true)
+    return lock(_DATABASE_LOCK) do
+        base = database_path(d.base; download)
+        key = _derived_key(d, base)
+        dir = joinpath(database_cache(), "derived")
+        out = joinpath(dir, d.name)
+        keyfile = out * ".key"
+        isfile(out) && isfile(keyfile) && strip(read(keyfile, String)) == key && return out
+        mkpath(dir)
+        tmp = _partial_path(out)
+        try
+            d.build(base, tmp)
+            mv(tmp, out; force = true)
+        finally
+            rm(tmp; force = true)
+        end
+        write(keyfile, key)
+        out
     end
-    write(keyfile, key)
-    return out
 end
 
 function _write_json_atomically(path, db)

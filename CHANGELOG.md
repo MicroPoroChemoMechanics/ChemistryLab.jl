@@ -254,6 +254,19 @@ instead of 1e-16, which a pore solution at pH 14 in a few grams of water needs.
   each value, in `src/utils/numerical_floors.jl` (`_AMOUNT_FLOOR`,
   `_ACTIVITY_FLOOR`, `_CERTIFICATE_FLOOR`, `_LOG_UNDERFLOW`). They were literals
   in some forty signatures and formulas.
+- Building species on several threads at once could crash Julia. Every
+  thermodynamic factory memoizes the functions it compiles, the factories are
+  shared, and the memo was a `Dict` without a lock, so independent calculations
+  building their species on threads inserted into it concurrently. On four
+  threads, 200 new parameter sets lost an entry in 2 runs out of 20, and a
+  documentation build computing six coupled trajectories at once ended in a
+  segmentation fault. The memo is now locked; after the first call for a set of
+  parameters the lock guards a lookup only.
+- Obtaining a database from several threads, or from two processes sharing a
+  depot, is serialized. The checksum memo and the set of announced versions were
+  unguarded, and two builds of the same derived database wrote the same `.part`
+  file, one deleting it under the other. Each download or build now writes a
+  temporary file of its own, moved into place when complete.
 
 ### Changed
 

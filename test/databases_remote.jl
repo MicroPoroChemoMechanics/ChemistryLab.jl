@@ -192,6 +192,38 @@ using JSON
         end
     end
 
+    @testset "concurrent requests build a derived database once" begin
+        # Independent calculations run as tasks, each asking for its database.
+        # The builder below yields while it writes, as a real one does in its I/O,
+        # so four tasks overlap even on one thread: unserialized, each found no
+        # file and built it, all four into the same `.part` file.
+        base = datapath("cemdata18-thermofun.json")
+        mktempdir() do dir
+            mine = joinpath(dir, "mine")
+            mkpath(mine)
+            cp(base, joinpath(mine, "cemdata18-thermofun.json"))
+            builds = Threads.Atomic{Int}(0)
+            d = CL.DerivedDatabase(
+                "fake-derived.json", "cemdata18-thermofun.json", "a fake derived database", String[],
+                (b, out) -> (Threads.atomic_add!(builds, 1); sleep(0.05); write(out, "{\"substances\": []}")),
+            )
+            saved = CL._CACHE_OVERRIDE[]
+            try
+                CL._CACHE_OVERRIDE[] = joinpath(dir, "cache")
+                withenv("CHEMISTRYLAB_DATABASE_DIR" => mine) do
+                    paths = fetch.([Threads.@spawn CL._derived_path(d) for _ in 1:4])
+                    @test builds[] == 1
+                    @test allequal(paths)
+                    @test JSON.parsefile(first(paths)) == Dict("substances" => Any[])
+                    # No temporary file is left beside it.
+                    @test !any(endswith(".part"), readdir(dirname(first(paths))))
+                end
+            finally
+                CL._CACHE_OVERRIDE[] = saved
+            end
+        end
+    end
+
     @testset "the real Cemdata18 file resolves to the validated version" begin
         path = datapath("cemdata18-thermofun.json")
         @test isfile(path)
