@@ -99,6 +99,7 @@ module ChemistryLab
     RuntimeGeneratedFunctions.init(@__MODULE__)
 
     include("utils/constants.jl")
+    include("utils/numerical_floors.jl")
     include("utils/provenance.jl")
     include("databases/literature.jl")
     include("utils/identifiability.jl")
@@ -334,6 +335,8 @@ module ChemistryLab
         SublatticeModel,
         site_fractions,
         sublattice_model,
+        CompoundEnergyModel,
+        compound_energy_model,
         AbstractSolidSolutionPhase,
         SolidSolutionPhase,
         spinodal_interval,

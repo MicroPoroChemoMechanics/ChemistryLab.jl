@@ -343,7 +343,7 @@ function saturation_ratio(
         stoich::AbstractVector,
         lna::AbstractVector,
         ΔₐG⁰overRT::AbstractVector;
-        ϵ::Real = 1.0e-16,
+        ϵ::Real = _AMOUNT_FLOOR,
     )
     # ln IAP = Σᵢ νᵢ ln aᵢ
     ln_iap = sum(stoich[i] * lna[i] for i in eachindex(stoich))

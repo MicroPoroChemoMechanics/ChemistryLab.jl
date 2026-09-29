@@ -306,7 +306,7 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
 
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
-        _n = max.(n, ϵ)
+        _n = max.(n, _activity_floor(p))
         TT = eltype(_n)
         out = zeros(TT, n_sp)
 

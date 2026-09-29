@@ -1,0 +1,201 @@
+{
+ "schema": "chemistrylab-literature/1",
+ "source": {
+  "key": "Miron2022b",
+  "doi": "10.1617/s11527-022-02045-0",
+  "citation": "Miron, G. D., Kulik, D. A., & Lothenbach, B. (2022). Porewater compositions of Portland cement with and without silica fume calculated using the fine-tuned CASH+NK solid solution model. Materials and Structures 55, 212.",
+  "location": "Table 5 (p. 7); Section 3 (p. 6)"
+ },
+ "transcription": {
+  "from": "the published article (PDF), Table 5 read on the rendered page (it is printed rotated) and compared with the text layer",
+  "checked_against_source": true,
+  "note": "The fine-tuned CASH+NK model: the Gibbs energies of the two calcium alkali end-members TCNh and TCKh raised by 5.0 and 7.0 kJ/mol from those of Miron2022a, which improves the Na and K of calculated cement pore solutions; the other end-members and the interaction parameters are unchanged (Table 5, footnote). Tables 3 and 4 are read in the text layer: they reprint the PC4 cement and the Parrott-Killoh constants of Lothenbach et al. (2008), transcribed independently in LothenbachLeSaout2008.json, and a test requires the two transcriptions to agree."
+ },
+ "tables": {
+  "fine_tuned_end_members": {
+   "columns": [
+    "end_member",
+    "dG",
+    "G",
+    "H",
+    "S",
+    "Cp",
+    "V"
+   ],
+   "units": [
+    null,
+    "kJ/mol",
+    "kJ/mol",
+    "kJ/mol",
+    "J/(mol*K)",
+    "J/(mol*K)",
+    "cm^3/mol"
+   ],
+   "kind": "published",
+   "location": "Table 5 (p. 7)",
+   "rows": [
+    [
+     "TCNh",
+     5.0,
+     -4873.07,
+     -5297.14,
+     377,
+     356,
+     142
+    ],
+    [
+     "TCKh",
+     7.0,
+     -4891.65,
+     -5314.94,
+     393,
+     370,
+     148
+    ]
+   ]
+  },
+  "pc4_normative_phases": {
+   "columns": [
+    "phase",
+    "PC4"
+   ],
+   "units": [
+    null,
+    "1"
+   ],
+   "kind": "published",
+   "location": "Table 3 (p. 4), PC4 column, g/100 g, reprinted from Lothenbach et al. (2008); the last four rows are present as solid solution in the clinker phases",
+   "rows": [
+    [
+     "alite",
+     64.6
+    ],
+    [
+     "belite",
+     9.3
+    ],
+    [
+     "aluminate",
+     7.4
+    ],
+    [
+     "ferrite",
+     7.8
+    ],
+    [
+     "MgO",
+     0.9
+    ],
+    [
+     "CaO",
+     0.89
+    ],
+    [
+     "CaCO3",
+     4.6
+    ],
+    [
+     "gypsum",
+     3.0
+    ],
+    [
+     "K2SO4",
+     1.3
+    ],
+    [
+     "Na2SO4",
+     0.2
+    ],
+    [
+     "K2O in the clinker",
+     0.052
+    ],
+    [
+     "Na2O in the clinker",
+     0.31
+    ],
+    [
+     "MgO in the clinker",
+     0.87
+    ],
+    [
+     "SO3 in the clinker",
+     0.11
+    ]
+   ]
+  },
+  "parrott_killoh": {
+   "columns": [
+    "phase",
+    "K1",
+    "N1",
+    "K2",
+    "K3",
+    "N3",
+    "H"
+   ],
+   "units": [
+    null,
+    "1",
+    "1",
+    "1",
+    "1",
+    "1",
+    "1"
+   ],
+   "kind": "published",
+   "location": "Table 4 (p. 4), from Lothenbach et al. (2014)",
+   "rows": [
+    [
+     "alite",
+     1.5,
+     0.7,
+     0.05,
+     1.1,
+     3.3,
+     1.8
+    ],
+    [
+     "belite",
+     0.5,
+     1.0,
+     0.02,
+     0.7,
+     5.0,
+     1.35
+    ],
+    [
+     "aluminate",
+     1.0,
+     0.85,
+     0.04,
+     1.0,
+     3.2,
+     1.6
+    ],
+    [
+     "ferrite",
+     0.37,
+     0.7,
+     0.015,
+     0.4,
+     3.7,
+     1.45
+    ]
+   ]
+  }
+ },
+ "quantities": {
+  "blaine_PC4": {
+   "value": 429,
+   "unit": "m^2/kg",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Table 3 (p. 4)",
+   "description": "Blaine surface area of the PC4 cement, reprinted from Lothenbach et al. (2008)."
+  }
+ },
+ "notes": [
+  "Table 5 also lists fine-tuned TCLih, TCRbh and TCCsh, which the CASH+NK model does not need; they are not transcribed."
+ ]
+}

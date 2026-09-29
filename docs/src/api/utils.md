@@ -24,6 +24,18 @@ Modules = [ChemistryLab]
 Pages = ["utils/constants.jl"]
 ```
 
+## Numerical floors
+
+The small amounts the solvers and the activity models work with, each defined
+once with the reason for its value: the default `ϵ` of the solvers, the floor of
+the activities, the floor of the certificate and the exponent below which an
+amount is taken as zero.
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages = ["utils/numerical_floors.jl"]
+```
+
 ## Miscellaneous helpers
 
 ```@autodocs

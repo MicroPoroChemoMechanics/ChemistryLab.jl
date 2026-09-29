@@ -86,6 +86,24 @@ using JSON
         @test tf(; T = 10.0) ≈ 25.0   # 2*10 + 5
     end
 
+    @testsection "ThermoFactory called from several tasks at once" begin
+        # Independent calculations build their species on threads, and every
+        # species compiles its functions through the same global factories: the
+        # memo of each factory then receives new keys from several threads at
+        # once. Unguarded, those concurrent insertions corrupted the `Dict` and
+        # crashed a documentation build. On one thread this checks that the
+        # calls neither deadlock nor disagree with the serial ones; on several it
+        # is the race itself.
+        factory = ThermoFactory(:(a * T^2 + b * T + c), [:T])
+        keys_ = [(a = 1.0e-3 * i, b = 0.5 * i, c = -2.0 * i) for i in 1:48]
+        concurrent = fetch.(
+            [Threads.@spawn [factory(; k...)(; T = 300.0) for k in keys_[j:6:end]] for j in 1:6]
+        )
+        serial = [[k.a * 300.0^2 + k.b * 300.0 + k.c for k in keys_[j:6:end]] for j in 1:6]
+        @test concurrent ≈ serial
+        @test length(factory.cache) == length(keys_)
+    end
+
     if Base.get_extension(ChemistryLab, :SymbolicNumericIntegrationExt) !== nothing
         @testsection "add_thermo_model" begin
             model_name = :test_linear_model

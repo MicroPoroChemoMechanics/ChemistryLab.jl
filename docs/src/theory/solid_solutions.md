@@ -463,7 +463,140 @@ the sublattice solve.
 Cemdata18 ships it, ideal between end-members; `sublattice_model("Kulik2011:csh3t",
 members)` gives the site form.
 
-## 8. More than two end-members
+## 8. Sites with the energies of the compounds: `CompoundEnergyModel`
+
+Section 7 mixes ideally on the sites and keeps the end-members' own standard
+energies, ``\sum_k x_k G^\circ_k``. That is exact only when the end-members are
+independent in the site fractions. The CASH+ model of C-S-H [Kulik2022](@cite)
+has two mixing sites: the bridging tetrahedron holds a silicate, a vacancy or a
+calcium (S, v, C), and the interlayer a vacancy or a calcium (v, C). Its six
+end-members are the six ways of filling them, TSvh to TCCh, but three site
+fractions fix the composition, and the six members are not independent. The
+reciprocal reaction
+
+```math
+\mathrm{TSvh} + \mathrm{TCCh} = \mathrm{TSCh} + \mathrm{TCvh}
+```
+
+leaves every site fraction unchanged, yet its standard Gibbs energy is not zero.
+The compound energy formalism, in which Kulik et al. write the model, gives such
+a reaction its energy. [`CompoundEnergyModel`](@ref) implements it.
+
+**The Gibbs energy.** The end-members must be every *compound* of the sites, each
+once. Compound ``j`` puts species ``j_s`` on site ``s`` (the ``\sigma_s(j)`` of
+section 7). Per formula unit,
+
+```math
+G = \underbrace{\sum_j G^\circ_j \prod_s y_{s,j_s}}_{G_\text{ref}}
+  + RT \sum_s m_s \sum_i y_{s,i}\ln y_{s,i}
+  + \sum_s \sum_{i<l} W_{s,il}\, y_{s,i}\, y_{s,l} .
+```
+
+The first term, the *reference surface*, equals ``G^\circ_j`` at compound ``j``
+and is linear in the fractions of each site, so a reaction between compounds that
+changes no site fraction keeps its energy. The last term is a regular interaction
+between two species of one site (Berman's symmetric form, with the parameters
+``W`` of the paper). ``G`` depends on the site fractions alone.
+
+**The activities.** With ``y_{s,i} = n_{s,i}/n``, the chemical potential of
+member ``k`` is ``\mu_k = \partial(nG)/\partial n_k``. For a function of the site
+fractions, ``\partial y_{s,i}/\partial n_k = ([k_s = i] - y_{s,i})/n``, so
+
+```math
+\mu_k = G + \sum_s\Big(\frac{\partial G}{\partial y_{s,k_s}} - \sum_i y_{s,i}\frac{\partial G}{\partial y_{s,i}}\Big).
+```
+
+On the reference surface ``\sum_i y_{s,i}\,\partial G_\text{ref}/\partial y_{s,i} = G_\text{ref}``
+for every site, because ``G_\text{ref}`` is linear in each site's fractions. With
+``n_\text{site}`` mixing sites, and writing ``\ln a_k = (\mu_k - G^\circ_k)/RT``,
+
+```math
+\ln a_k = \sum_s m_s \ln y_{s,k_s}
+  + \frac{1}{RT}\Big(\sum_s \frac{\partial G_\text{ref}}{\partial y_{s,k_s}} - (n_\text{site}-1)\,G_\text{ref} - G^\circ_k\Big)
+  + \frac{1}{RT}\sum_s\Big(\sum_l W_{s,k_s l}\, y_{s,l} - \sum_{i<l} W_{s,il}\, y_{s,i}\, y_{s,l}\Big).
+```
+
+The middle term vanishes at every compound. It also does not change when each
+``G^\circ_j`` is shifted by the energies of its elements, since those are a sum
+over the sites of the species' shares, which the reference surface interpolates
+exactly. So the convention of the database does not matter, but the energies of
+the members do: the solver hands them to the model at the temperature of the
+solve.
+
+**Three consequences.**
+
+  - *The amounts are not unique.* Every split of the same site fractions between
+    the members has the same ``G`` and the same element content: six members for
+    four independent site fractions in CASH+. Left to choose, the solver returns one
+    of them, which one depending on where the search started. It is therefore given
+    one split, the product of the site fractions, ``x_j = \prod_s y_{s,j_s}``, by adding to the energy it
+    minimizes ``RT\,D(x)``, with
+
+    ```math
+    D(x) = \sum_j x_j \ln x_j - \sum_s \sum_i y_{s,i}\ln y_{s,i} .
+    ```
+
+    ``D`` is the divergence of ``x`` from the product of its own site fractions:
+    it is never negative, and it vanishes only at that product, where its gradient
+    ``\ln x_k - \sum_s \ln y_{s,k_s}`` vanishes too. The minimum over the splits
+    of one set of site fractions is therefore the product, with the energy and
+    the chemical potentials of the model. The activity of a vanishing member now
+    goes as its mole fraction, as in a mixture of end-members. Measured on twelve
+    pastes of CASH+NK, the equilibria certify with or without ``D``, at the same
+    cost; what ``D`` adds is an answer that does not depend on the start.
+  - *Convexity must be decided.* The reference surface is multilinear, and a
+    reciprocal energy can make ``G`` concave somewhere. In the site fractions, each
+    site contributes a curvature of at least ``2m_s + \mu_s``, the configurational
+    bound of section 9 plus the smallest tangent eigenvalue ``\mu_s`` of its
+    interactions ``W/RT``, and with two sites the reference surface couples them
+    through a constant matrix ``C``, the ``G^\circ_j/RT`` of the compounds projected
+    on the two tangent spaces. So ``G`` is convex when
+    ``(2m_1 + \mu_1)(2m_2 + \mu_2) > \lVert C \rVert^2``. That proves the CASH+
+    core convex (34.3 against 13.2 at 25 °C), and a certificate on it keeps its
+    `:global_minimum` scope as far as the gel goes; the bound does not decide
+    CASH+NK, whose sampled Hessian shows no concave point, and its scope stays
+    `:kkt_point` ([`mixing_convexity`](@ref)).
+  - *Euler's relation holds.* ``\sum_k x_k\,\mu_k = G`` for any amounts with the
+    site fractions ``y``, as it must for a Gibbs energy.
+
+The block below checks the gradient and the last point on the core model, at a
+composition of the six members. The activities are compared with the gradient of
+``n(G/RT + D)`` coded from the formulas above and differentiated by ForwardDiff;
+at the product split, ``D`` and its gradient vanish:
+
+```@example cef
+using ChemistryLab, DynamicQuantities, ForwardDiff, LinearAlgebra
+subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-cashplus.json"); verbose = false))
+members = ["TSvh", "TSCh", "Tvvh", "TCvh", "TvCh", "TCCh"]
+cash = compound_energy_model("Kulik2022:cashplus", [subs[m] for m in members])
+T = 298.15
+g = [ustrip(us"J/mol", subs[m][:ΔₐG⁰](T = T * u"K", P = 1.0e5u"Pa"; unit = true)) for m in members] ./ (ChemistryLab.R_GAS * T)
+o = cash.lattice.occupancy
+function nG(n; split = true)
+    x = n ./ sum(n)
+    y = site_fractions(cash, x)
+    G = sum(g[j] * y[1][o[1, j]] * y[2][o[2, j]] for j in 1:6) + sum(v * log(v) for ys in y for v in ys)
+    G += sum(W / (ChemistryLab.R_GAS * T) * y[s][i] * y[s][l] for (s, i, l, W) in cash.interactions)
+    split && (G += sum(v * log(v) for v in x) - sum(v * log(v) for ys in y for v in ys))   # D(x)
+    return sum(n) * G
+end
+n = [0.10, 0.25, 0.05, 0.20, 0.15, 0.25]
+lna = ChemistryLab._ss_log_activities!(zeros(6), 1:6, n ./ sum(n), cash, T, 0.0, g)
+μ = ForwardDiff.gradient(nG, n)
+y = site_fractions(cash, n ./ sum(n))
+xp = [y[1][o[1, j]] * y[2][o[2, j]] for j in 1:6]          # the product split
+(gradient = maximum(abs, lna .+ g .- μ), euler = dot(n, μ) - nG(n),
+ D_at_product = nG(xp) - nG(xp; split = false))
+```
+
+All three are at the rounding of the arithmetic. The model and its data are
+in `data/literature/Kulik2022.json`, the sodium and potassium of Miron et al.
+[Miron2022a, Miron2022b](@cite) in `Miron2022a.json` and `Miron2022b.json`, and the
+twelve end-members in the database `cemdata18-cashplus.json`.
+[The CASH+ page](@ref ex-cashplus-csh) computes the C-S-H in water and in alkali
+solutions with it.
+
+## 9. More than two end-members
 
 ### Convexity with more than two end-members
 
@@ -531,7 +664,7 @@ The LDH difference, 0.3 J/mol, is about 10⁻⁴ RT, where the −4.35 kJ/mol of
 is an ordering energy. The shipped LDH entry keeps the published model with
 `acknowledge_degenerate = true`.
 
-## 9. How a solid solution is declared
+## 10. How a solid solution is declared
 
 A [`SolidSolutionPhase`](@ref) names its end-members and carries a model:
 

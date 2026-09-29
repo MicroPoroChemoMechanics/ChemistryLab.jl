@@ -1,5 +1,282 @@
 # Changelog
 
+## v0.28.0 — The CASH+ model of C-S-H, three pore-solution validations, and the linear-programming start without its slowdown
+
+The C-S-H of a cement paste can now be described by the CASH+ model of Kulik,
+Miron & Lothenbach (2022), with the sodium and potassium of Miron et al. (2022a,
+b). The model is written in the compound energy formalism: the site mixing of a
+sublattice model, plus the energy of the reciprocal reactions between its
+end-members and regular interactions on each site. Until now ChemistryLab could
+only mix ideally on the sites. Two checks against the papers:
+
+- In the Ca-Si-H2O system at 25 °C, the model gives back the paper's invariant
+  points to the digits it prints. Beside portlandite, the C-S-H has Ca/Si 1.640.
+  Its bridging-tetrahedron sites are 77.2 % calcium, 20.3 % vacancy and 2.6 %
+  silicate, and its interlayer sites 55.0 % calcium and 45.0 % vacancy. Beside
+  amorphous silica, the C-S-H has Ca/Si 0.723.
+- The 110 pseudocompounds of the discretized CASH+NK model that Miron et al.
+  (2022a) publish are C-S-H compositions whose Gibbs energy the authors computed
+  with their own implementation. Our model gives each of them to within
+  0.1 kJ/mol, which is the effect of their formulas being printed to four
+  decimals.
+
+The model is also extended to Li, Rb, Cs, Mg, Sr, Ba and Ra (CASH+ext). Three
+validations set the package against published pore solutions: a limestone
+Portland cement from one day to 400 days, with CSHQ and with CASH+NK (Lothenbach
+et al. 2008); 48 solutions of the first six hours (Schöler et al. 2017); and 55
+solutions of fly-ash blends over 550 days (Deschner et al. 2012). The start the
+linear program gives the certified search, which had made some cement
+calculations 2 to 3.5 times slower since 0.26.0, now keeps its gain on cold
+cements without that cost, and the activity models floor an amount at 1e-30 mol
+instead of 1e-16, which a pore solution at pH 14 in a few grams of water needs.
+
+### Breaking changes
+
+- Below 1.0 a minor release is a breaking one for Julia's resolver: a package
+  bounding `ChemistryLab = "0.27"` does not accept 0.28.0 and must widen its
+  bound.
+- A coefficient smaller than 1e-3 in a formula or a reaction is now kept, where
+  it was read as zero (see Fixed). A formula or an equation that relied on it
+  being dropped now carries that element or species.
+- The certified search takes one candidate from the start the linear program
+  gives, where it took three, and places each species of that start in its
+  phase (see Fixed). A certified answer is the same to the tolerance of its
+  certificate, but the start it comes from (`route`), `n_dual_solves` and the
+  time can change.
+- ChemistryLab requires **OptimaSolver 0.7.3** (`OptimaSolver = "0.7.3"`,
+  which 0.7.1 and 0.7.2 do not meet). Its certificate holds a member of a present
+  phase below the floor, whose potential the answer determines, to the inequality
+  it had skipped, so an answer that certified with a solute left far below its
+  equilibrium amount is refused (see Fixed).
+- The activity models floor an amount at **1e-30 mol** (`_ACTIVITY_FLOOR`), where
+  they floored it at `ϵ = 1e-16`. A species between the two now has the activity
+  of its own amount, so trace amounts and a pH read at the old floor change. `ϵ`
+  keeps its other roles (the bound of the interior-point back ends, the amount of
+  an absent product in a cold state, the regularizations), and the dual solve and
+  the implicit kinetic step now start with no amount below it, as the
+  interior-point back ends did (see Fixed).
+
+### Added
+
+- `CompoundEnergyModel(lattice; interactions)` and
+  `compound_energy_model("<key>:<model>", end_members)`. The first builds a
+  model from a sublattice model and its site interactions. The second reads the
+  same from `data/literature/<key>.json`.
+  - The end-members must be every compound of the sites, each once; the
+    constructor refuses any other set.
+  - Their amounts are not unique, since the Gibbs energy depends on the site
+    fractions alone. The solver is given the split in which the amounts are the
+    product of the site fractions. To get it, the energy it minimizes adds `RT D`,
+    where `D` is the divergence of the amounts from that product. `D` is never
+    negative and vanishes, with its gradient, at the product, so the equilibrium
+    and the chemical potentials are those of the model. Measured on twelve pastes
+    of CASH+NK (Ca/Si 1 and 1.6; sodium, potassium or both), the equilibria
+    certify with or without `D`, in under a second after compilation. What `D`
+    adds is an answer whose member amounts do not depend on where the search
+    started.
+  - The activities depend on the standard Gibbs energies of the members. The
+    solver passes those at the temperature of the solve, and the result is
+    unchanged when each energy is shifted by that of its elements.
+  - The convexity of such a model is decided in its site fractions, from the
+    energies of its members at the temperature of the solve (`mixing_convexity(model,
+    n; T, g)`, which the certificate calls). With two sites a bound proves it: each
+    site's curvature against the coupling the reference surface puts between them.
+    The CASH+ core is convex by that bound. CASH+NK is not decided by it, and no
+    concave point is found on a lattice of site fractions, so its certificates are
+    scoped `:kkt_point`. The verdict is kept, since it depends only on the model,
+    the energies and the temperature.
+- The derived database `cemdata18-cashplus.json`: Cemdata18 plus the twelve
+  end-members of CASH+NK.
+  - For the core end-members, G° and H° come from Table 8 of Kulik et al., and
+    S°, Cp° and V° from Table 4. The H° of TSvh is the one Miron et al. (2022a)
+    reprint.
+  - It also carries the CaSiO3@ complex the model was fitted with (Table 9,
+    accepted variant): its G° is −1514.14 kJ/mol, 3.42 kJ/mol above the value in
+    Cemdata18.
+  - It is the only base entry that is replaced, and the database records this.
+- The `CASH+` (six end-members) and `CASH+NK` (twelve) phases in
+  `data/solid_solutions.toml`, with `model = "compound_energy"`, and in
+  `data/gel_models.toml` as one more model of the C-S-H gel. They are therefore
+  refused beside CSHQ, CNASH_ss or the ECSH families.
+- The `CASH+ext` phase: the model with the interlayer extended to Li, Rb, Cs,
+  Mg, Sr, Ba and Ra (Miron et al. 2022a).
+  - It has 33 end-members and the 55 interaction parameters of the interlayer
+    site (Table A3).
+  - Its energies give back the log K of the authors' Table A2 to 0.01, for every
+    end-member.
+  - The database adds the cations Cemdata18 lacks (Li+, Rb+, Cs+, Ba+2, Ra+2),
+    with the properties the paper tabulates.
+  - It also adds the Ca(OH)2@ complex the authors derived and kept when they
+    fitted the alkali extension. The alkali systems of the CASH+ page and of the
+    PC4 paste keep it, as the authors did. The core model leaves it out, as Kulik
+    et al. fitted it.
+  - The CASH+ page computes the gel with strontium and cesium beside sodium and
+    potassium: at Ca/Si 1.2 it holds 78 % of the strontium and 4 % of the cesium.
+- `data/literature/Miron2022a.json` and `Miron2022b.json`. They hold the six
+  alkali end-members and the interaction parameters of the interlayer site
+  (Tables A1 and A3), the discretized model, and the TCNh and TCKh fine-tuned
+  for cement pore solutions (Table 5 of the second paper), which the database
+  carries.
+- A validation of CASH+NK on a hydrating cement: the Portland cement with 4 %
+  limestone of Lothenbach, Le Saout, Gallucci & Scrivener (2008), from one day
+  to 400 days, computed with CSHQ and with CASH+NK. It is on the CASH+ page, with
+  its data in `data/literature/LothenbachLeSaout2008.json` and its recipe in
+  `scripts/lothenbach_2008.jl`, and `test/validation_lothenbach2008.jl` checks it.
+  - The paste certifies at every age with both models.
+  - Miron et al. (2022b) reprint the cement and the kinetic constants. The test
+    requires the two transcriptions to be the same numbers.
+- A validation of the aqueous model on the 48 early pore solutions of Schöler et
+  al. (2017): a CEM I 52.5 R alone and blended with slag, fly ash, limestone or
+  quartz, analyzed during the first six hours. Each solution is speciated at its
+  measured pH and its saturation indices set against the authors' (Table 7).
+  - Portlandite and gypsum agree within 0.08, the Ca-rich C-S-H within 0.21.
+  - Ettringite and monosulfate differ by up to 0.9. The differences obey
+    `ΔE − ΔMs = 2 ΔGp` to 0.02, so what varies is a factor on aluminum, up to
+    0.28 log units at 1.5–4.5 µmol/L of it. The page reports this as found.
+  - Data in `data/literature/Scholer2017.json`, the calculation in
+    `scripts/scholer_2017.jl`, the page `tutorials/validation_early_pore_solutions.md`,
+    and the test `test/validation_scholer2017.jl`.
+- A validation of the aqueous model on the pore solutions of Deschner et al.
+  (2012), over 550 days: a CEM I 42.5 N alone and blended with 50 % of two
+  siliceous fly ashes, of quartz, or of fly ash and limestone. Each of the 55
+  solutions is speciated at its measured hydroxide, and its effective saturation
+  indices set against the authors' (Table 3).
+  - Ettringite and strätlingite agree within 0.03, monosulfate within 0.05,
+    gypsum within 0.07 and portlandite within 0.10, the mean differences about
+    0.01.
+  - The paper prints the analyses only as plots. They are read from the vector
+    drawing of its figures, marker by marker, through the major ticks of each
+    panel, which adds less than 0.2 % to the values plotted.
+  - Data in `data/literature/Deschner2012.json`, the calculation in
+    `scripts/deschner_2012.jl`, the page `tutorials/validation_fly_ash_pore_solutions.md`,
+    and the test `test/validation_deschner2012.jl`.
+- The CASH+ page computes the gel at 50 and 90 °C. The pH falls by 1.8 units from
+  25 to 90 °C, somewhat more than Kulik et al. state, and beside portlandite the
+  silicon rises, as they state.
+- `ParrottKillohExtent` takes `parameters`, constants of the law that replace
+  those of Parrott and Killoh (1984), and `H`, the critical degree of hydration
+  of its w/c factor, as Lothenbach et al. (2008) fit one per clinker phase. The
+  rate constants are per day, as the papers print them, unless given with a
+  unit. Left out, both give the law as before, bit for bit.
+- `phase_list_system` takes `replace`, which declares another solid solution in
+  place of one of the list's (another model of the same gel), and
+  `exclude_aqueous`, which leaves out more aqueous species.
+- `data/literature/Kulik2022.json`, with its notes. The end-members' G and H are
+  those of Table 8, because the G° and H° columns of Table 10 are shifted by
+  one row against its names. The printed H° of TSvh is off by 0.28 kJ/mol from
+  its G° and S°, most probably through two transposed digits. The printed
+  values are kept.
+
+### Fixed
+
+- The hint shown over an equation printed the HTML of a unit as text, as in
+  `C m<sup>−2</sup> (kg/mol)<sup>½</sup>` for the Gouy–Chapman prefactor. It
+  affected three entries of the nomenclature. The unit is now rendered like the
+  name, and a test allows only `<sub>`, `<sup>` and `<b>` in these fields.
+- A coefficient smaller than 1e-3 in a formula or a reaction was read as zero,
+  so its element or species was dropped. In `Ca2.0993Si2.9298Na0.0004O11.0585H6.1988`
+  the sodium disappeared, and in a reaction `0.0004Na+` went with it. Such a
+  coefficient now stays, wherever a coefficient of a species is read, written or
+  given: in formulas, in equations, in `Reaction` and in their printed forms.
+  - Only a value at the level of round-off, 1e-12 and below, is still cleaned to
+    zero.
+  - `stoich_coef_round` itself is unchanged. It cleans the coefficients a
+    computation produces, and a conservation matrix relies on it: a first version
+    of this fix changed it, left entries of 1e-17 in the matrices, and made
+    `reactions(cs.SM)` overflow the stack of the symbolic simplification.
+  - A coefficient within 1e-3 of a simple fraction is still read as that
+    fraction, as the database formulas need (`((CaO)1.25(SiO2)1(H2O)2.75)0.6667`
+    has 5/6 Ca).
+  - Measured on the 3391 species of the eight databases: no composition changes.
+- The start the linear program gives the certified search (0.26.0) had made
+  some cement calculations 2 to 3.5 times slower. Two causes:
+  - Every species outside the vertex of the program started at its activity in
+    moles, up to one mole, whatever its phase: pure phases the program found
+    undersaturated were in it, and dozens of species near a mole. On four cement
+    pastes the start was 11 to 66 mol off a budget of about 4 mol, and on two of
+    them nothing certified from it. Each species now starts in its own phase. A
+    solute starts at the molality the multipliers give it, per kilogram of the
+    water at the vertex, and a member of a solid solution present at the vertex
+    at its fraction of that phase, and neither below `ϵ`, the floor of the
+    search. A pure phase, or a solid solution absent from the vertex, starts at
+    zero. The start is then 1.3 to 1.8 mol off, and all four pastes certify from
+    it at the first attempt.
+  - Three candidates were drawn from that start: the answer of each back end
+    from it, and the start itself. Measured on seven solves of five cements,
+    only the default back end's answer ever paid. The interior point from the
+    start never certified, and cost 1.5 to 10 s each time. The start itself
+    certified only where a start from the state as given had already certified.
+    The search now takes that one candidate and goes on to the state as given.
+  - Thirty-two calculations of blended-cement pastes that took 3335 s with
+    0.27.0 take 1277 s, with the activity floor below (see the next entry), to
+    the same answers at the printed digits; one of them now certifies under the
+    activity model it asks for first, where it fell back on another. Four of them
+    had taken 230 s with 0.25.2 and 470 s with the start of 0.26.0. From the cast
+    state of cement107 and of a CEM I with the CNASH gel, the search takes 0.05 s
+    and 0.26 s, against 11.3 s and 10.1 s with `lp_start = false`, to the same
+    composition (3e-10). A paste on which nothing certifies before the
+    continuation pays one failed candidate more than with `lp_start = false`: 3 s
+    of 45 s on the one measured.
+- A certified answer could hold a solute far below its equilibrium amount, and
+  the cause was the floor of the activities. Found on one of 32 cement
+  calculations run to check the change of start above: H+ at 3e-100 mol in a
+  paste whose potentials give it 1.2e-16, certified, and `pH(eq, model)`, which
+  reads the amount, 0.09 high; every other quantity of the answer was right.
+  - With a few grams of water per 100 g of binder, H+ at pH 13.5 to 14 is about
+    1e-16 mol, the floor `ϵ` the activity models read an amount at. Below it the
+    activity no longer follows the amount, and the dual solve, which recovers a
+    solute from its own stationarity assuming it does, raised it by a fraction
+    of a log unit per sweep and left it there.
+  - The floor is now 1e-30 mol (`_ACTIVITY_FLOOR`). Leal, Kulik, Smith and Saar
+    (2017) recall the recommendation of Leal, Kulik and Kosakowski (2016) that an
+    unstable species hold less than one molecule (1.66e-24 mol) in a system of
+    one mole. GEMS3K eliminates a solution species below 1e-30 mol, and PHREEQC a
+    molality below 1e-30 mol/kg. Reaktoro bounds every amount by 1e-16 mol, a
+    bound of its solver as `ϵ` is here.
+  - A solute still found below the floor at a converged answer, where the
+    potentials give it more, is given that amount (`floor·exp(r)`, the exact
+    solution of the floored model).
+  - The old floor had also been standing in for a start. From a state with
+    species at exactly zero, the dual solve started them at `exp(−700)`, and only
+    the flat activity below 1e-16 had kept an implicit kinetic step on calcite
+    converging; at the new floor it did not (its extent came out at 2/3 of the
+    rate times the step, uncertified). The dual solve and the kinetic step now
+    start every amount at `ϵ` at least, the budget being that of the state, and
+    the same step certifies with the element balance at 1e-13 where it was 2e-11.
+    A step the suite recorded as a known fragility, C3A and gypsum with S-2 among
+    the species, whose extents came out a factor 500 short, now certifies with the
+    right ones.
+  - The certificate missed it: it left a member of a present phase below its own
+    floor (1e-25 mol) out of every test. OptimaSolver 0.7.3 holds such a member,
+    where the answer determines its potential, to the one-sided form of the
+    stationarity, reported as `stationarity_floored`.
+- The small amounts the package works with are defined once, with the reason for
+  each value, in `src/utils/numerical_floors.jl` (`_AMOUNT_FLOOR`,
+  `_ACTIVITY_FLOOR`, `_CERTIFICATE_FLOOR`, `_LOG_UNDERFLOW`). They were literals
+  in some forty signatures and formulas.
+- Building species on several threads at once could crash Julia. Every
+  thermodynamic factory memoizes the functions it compiles, the factories are
+  shared, and the memo was a `Dict` without a lock, so independent calculations
+  building their species on threads inserted into it concurrently. On four
+  threads, 200 new parameter sets lost an entry in 2 runs out of 20, and a
+  documentation build computing six coupled trajectories at once ended in a
+  segmentation fault. The memo is now locked; after the first call for a set of
+  parameters the lock guards a lookup only.
+- Obtaining a database from several threads, or from two processes sharing a
+  depot, is serialized. The checksum memo and the set of announced versions were
+  unguarded, and two builds of the same derived database wrote the same `.part`
+  file, one deleting it under the other. Each download or build now writes a
+  temporary file of its own, moved into place when complete.
+
+### Changed
+
+- `_solid_solution_lna!` and `_ss_log_activities!` take the `ΔₐG⁰/RT` of the
+  species as an optional last argument. Every existing model ignores it, so their
+  results are unchanged bit for bit.
+- The databases ChemistryLab derives from Cemdata18 (zeolites, chloride,
+  CASH+) are built again on first use after the update, since the builder of
+  one of them changed.
+
 ## v0.27.0 — Validated against measured pastes: phase lists, processes, a second instance on demand, and a nomenclature
 
 Three published sets of pastes are computed from their papers' data and set

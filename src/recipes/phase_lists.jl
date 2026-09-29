@@ -33,6 +33,7 @@ phase_lists() = [e["name"] for e in _phase_list_entries()]
 
 """
     phase_list_system(name, substances; add = String[], remove = String[],
+                      replace = Dict(), exclude_aqueous = String[],
                       primaries = CEMDATA_PRIMARIES) -> ChemicalSystem
 
 The chemical system of the phase list `name` ([`phase_list`](@ref)): its
@@ -43,7 +44,10 @@ and the aqueous species of `substances` its elements allow, those of
 database, `build_species(datapath(phase_list(name).database))`.
 
 A calculation that departs from the list says so: `add` names pure phases to
-declare beside the list's, `remove` pure phases of the list to leave out.
+declare beside the list's, `remove` pure phases of the list to leave out,
+`replace` maps a solid solution of the list to another one of
+`data/solid_solutions.toml` (another model of the same gel, say), and
+`exclude_aqueous` names aqueous species to leave out besides the list's.
 
 ```julia
 substances = build_species(datapath("cemdata18-thermofun.json"))
@@ -53,19 +57,26 @@ cs = phase_list_system("Portland paste (Lothenbach and Winnefeld 2006)", substan
 """
 function phase_list_system(
         list::AbstractString, substances; add = String[], remove = String[],
+        replace = Dict{String, String}(), exclude_aqueous = String[],
         primaries = CEMDATA_PRIMARIES,
     )
     pl = phase_list(list)
+    unlisted = setdiff(keys(replace), pl.solid_solutions)
+    isempty(unlisted) || throw(
+        ArgumentError("phase_list_system: \"$list\" declares no solid solution $(join(unlisted, ", ")) to replace.")
+    )
+    wanted = [get(replace, n, n) for n in pl.solid_solutions]
+    instances = Dict{String, Any}(get(replace, k, k) => v for (k, v) in pl.instances)
     listed = vcat(pl.reactants, pl.products)
     stray = setdiff(remove, listed)
     isempty(stray) || throw(ArgumentError("phase_list_system: \"$list\" lists no pure phase $(join(stray, ", ")) to remove."))
     pure = vcat(setdiff(listed, remove), setdiff(add, listed))
     db = Dict(symbol(s) => s for s in substances)
     ss = [
-        p for p in build_solid_solutions(datapath("solid_solutions.toml"), db; instances = pl.instances)
-            if name(p) in pl.solid_solutions
+        p for p in build_solid_solutions(datapath("solid_solutions.toml"), db; instances)
+            if name(p) in wanted
     ]
-    absent = setdiff(pl.solid_solutions, name.(ss))
+    absent = setdiff(wanted, name.(ss))
     isempty(absent) || throw(
         ArgumentError(
             "phase_list_system: the solid solutions $(join(absent, ", ")) of \"$list\" could not be built " *
@@ -82,7 +93,7 @@ function phase_list_system(
     )
     sp = speciation(
         substances, vcat(pure, members);
-        aggregate_state = [AS_AQUEOUS], exclude_species = pl.exclude_aqueous,
+        aggregate_state = [AS_AQUEOUS], exclude_species = unique(vcat(pl.exclude_aqueous, exclude_aqueous)),
     )
     return ChemicalSystem(sp, primaries; solid_solutions = ss)
 end

@@ -203,12 +203,12 @@ using LinearAlgebra
         # measured extents are exactly that product, cross terms included.
         @test q[] ≈ Δt * (kss.M * [k1, k2]) rtol = 1.0e-8
 
-        # KNOWN FRAGILITY. The same step with S-2 in the species list, at the
-        # floor like the other sulfide species: the dual Newton of the augmented
-        # problem does not converge, and the extents come out a factor 500
-        # short. The outcome depends on the standard Gibbs energy of S-2 in a way
-        # no chemistry explains (it certifies with 90 kJ/mol, not with 12, 60 or
-        # the published 120), which marks it as numerical.
+        # The same step with S-2 in the species list, at the floor like the
+        # other sulfide species. Until 0.28.0 the dual Newton of the augmented
+        # problem did not converge and the extents came out a factor 500 short,
+        # depending on the standard Gibbs energy of S-2 in a way no chemistry
+        # explains: numerical, as found. The solve started every species the
+        # state holds none of at `exp(−700)`; started at `ϵ`, it certifies.
         spc_s = speciation(collect(values(CEM)), inp; aggregate_state = [AS_AQUEOUS])
         cs_s = ChemicalSystem(spc_s, CEMDATA_PRIMARIES)
         Ss(x) = cs_s[x]
@@ -224,7 +224,7 @@ using LinearAlgebra
         Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
             kinetic_step(KineticStepSolver(cs_s, DiluteSolutionModel(), krs_s), st_s, Δt; parameters = q_s)
         end
-        @test_broken q_s[] ≈ Δt * (kss.M * [k1, k2]) rtol = 1.0e-8
+        @test q_s[] ≈ Δt * (kss.M * [k1, k2]) rtol = 1.0e-8
     end
 
     @testsection "what is refused, and why" begin

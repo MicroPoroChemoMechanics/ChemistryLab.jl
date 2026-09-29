@@ -409,30 +409,36 @@ em = with_class(dict["CSHQ-TobD"], SC_SSENDMEMBER)
 
 ### [The models of the C-S-H gel](@id sec-csh-models)
 
-The calcium silicate hydrate of a cement paste is one gel, and the file ships five
+The calcium silicate hydrate of a cement paste is one gel, and the file ships six
 models of it. They differ in what their end-members can hold, and that decides
 what a calculation can say: a model with no aluminum member puts every atom of
 aluminum in another phase, and one with no potassium member leaves the potassium
-in solution. `data/gel_models.toml` lists the five as models of one gel, so that a
-system declaring two of them is refused. The table is read from the two files:
+in solution. `data/gel_models.toml` lists the six as models of one gel, so that a
+system declaring two of them is refused. The table is read from the two files,
+and the formulas from the database that carries every end-member, Cemdata18 with
+those of CASH+:
 
 ```@example gels
 using ChemistryLab, Printf, TOML
-subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-cashplus.json"); verbose = false))
 entries = TOML.parsefile(datapath("solid_solutions.toml"))["solid_solution"]
-@printf("%-9s %-8s %-11s %-15s %s\n", "model", "members", "mixing", "source", "elements besides Ca, Si, O, H")
+@printf("%-9s %-8s %-16s %-15s %s\n", "model", "members", "mixing", "source", "elements besides Ca, Si, O, H")
 for gel in TOML.parsefile(datapath("gel_models.toml"))["gel_model"]
     entry = only(e for e in entries if e["name"] == gel["model"])
     members = entry["end_members"]
     others = sort(unique(String(el) for m in members for el in keys(atoms(subs[m]))
                          if !(el in (:Ca, :Si, :O, :H))))
-    @printf("%-9s %-8d %-11s %-15s %s\n", gel["model"], length(members), entry["model"],
+    @printf("%-9s %-8d %-16s %-15s %s\n", gel["model"], length(members), entry["model"],
             entry["source"], isempty(others) ? "none" : join(others, ", "))
 end
 ```
 
-`CNASH_ss` is the only one that mixes on the sites of its formula unit, as its
-authors define it [Myers2014](@cite); the other four mix their end-members
+`CNASH_ss` mixes on the sites of its formula unit, as its authors define it
+[Myers2014](@cite). `CASH+` does too, and adds the energies of the reciprocal
+reactions between its end-members and interactions on each site
+[Kulik2022](@cite); its twelve-member form `CASH+NK`, with sodium and potassium
+[Miron2022a](@cite), is in the same file and is the one a cement paste needs (see
+[the CASH+ page](@ref ex-cashplus-csh)). The other four mix their end-members
 ideally, which is how Cemdata18 ships them, and `sublattice_model("Kulik2011:csh3t",
 members)` gives the site form of `CSH3T` (see [Solid solutions](@ref
 sec-theory-solid-solutions)). [The CEM IV page](@ref ex-cem4-pozzolanic) computes

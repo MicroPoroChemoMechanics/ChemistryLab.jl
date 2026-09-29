@@ -662,17 +662,23 @@ end
     set_quantity!(st, "H+", 1.0e-7u"mol")
     set_quantity!(st, "OH-", 1.0e-7u"mol")
     set_quantity!(st, "Ca+2", 0.0u"mol")          # the one at the floor
-    ϵ = 1.0e-16
+    # The floor of the activities is `_ACTIVITY_FLOOR` (1e-30 mol), below the
+    # `ϵ = 1e-16` the solvers are bounded by, and a smaller `ϵ` lowers it too.
+    ϵ = ChemistryLab._AMOUNT_FLOOR
+    floor = min(ϵ, ChemistryLab._ACTIVITY_FLOOR)
+    @test floor == 1.0e-30
     kgw = ustrip(us"mol", st.n[1]) * ustrip(us"kg/mol", dict["H2O@"][:M])
 
     for model in (HKFActivityModel(), DaviesActivityModel())
         lna = log_activities(st, model; ϵ = ϵ)
         γ = activity_coefficients(st, model; ϵ = ϵ)["Ca+2"]
-        @test lna["Ca+2"] ≈ log(γ * ϵ / kgw) atol = 1.0e-9
-        # And the discriminating half: `log(2ϵ)` is 0.69 away, so the assertion
-        # above has three hundred million times the margin it needs, while this
-        # one names the value it is not.
-        @test !isapprox(lna["Ca+2"], log(γ * 2ϵ / kgw); atol = 0.1)
+        @test lna["Ca+2"] ≈ log(γ * floor / kgw) atol = 1.0e-9
+        # And the discriminating half: `log(2 floor)` is 0.69 away, so the
+        # assertion above has three hundred million times the margin it needs,
+        # while this one names the value it is not. Until 0.28.0 the floor was
+        # `ϵ` itself, 32 log units higher.
+        @test !isapprox(lna["Ca+2"], log(γ * 2floor / kgw); atol = 0.1)
+        @test !isapprox(lna["Ca+2"], log(γ * ϵ / kgw); atol = 1.0)
     end
 
     # Pitzer carries the same two regularizations and no `activity_coefficients`

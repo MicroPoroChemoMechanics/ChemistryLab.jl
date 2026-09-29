@@ -174,6 +174,32 @@ let
     )
 end
 
+# ── Guard: no heading may contain a percent sign ─────────────────────────────
+#
+# A heading's anchor is its text, so `## A cement with 4 % limestone` gets the
+# anchor `A-cement-with-4-%-limestone`. VitePress passes every link destination
+# through `decodeURI`, a `%` that does not open an escape makes it throw, and
+# the site build stops with "URI malformed" -- after every example on the site
+# has run, and at the very last stage. It happened once, on
+# `examples/cashplus_csh.md`. Write "percent" or leave the number out of the
+# heading; the prose keeps its `%`.
+let
+    srcdir = joinpath(@__DIR__, "src")
+    offenders = String[]
+    for (root, _, files) in walkdir(srcdir), f in filter(endswith(".md"), files)
+        path = joinpath(root, f)
+        prose = replace(read(path, String), r"^```.*?^```"ms => "")
+        for m in eachmatch(r"^#+\s+(.+?)\s*$"m, prose)
+            occursin('%', m.captures[1]) &&
+                push!(offenders, "  " * relpath(path, srcdir) * ": " * strip(m.match))
+        end
+    end
+    isempty(offenders) || error(
+        "a heading contains `%`, which ends up in its anchor and makes VitePress " *
+            "stop on \"URI malformed\" at the end of the build:\n" * join(offenders, "\n")
+    )
+end
+
 # Shared with the `Doctests` job of `.github/workflows/Documentation.yml`, which
 # runs the same blocks without ever loading this file. See the header there.
 include("doctest_setup.jl")

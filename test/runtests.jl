@@ -100,6 +100,7 @@ end
     include("aqueous_properties.jl")
     include("redox.jl")
     include("solid_solutions.jl")
+    include("cashplus.jl")
     include("surface_complexation.jl")
     include("ion_exchange.jl")
     include("diffuse_layer.jl")
@@ -128,6 +129,9 @@ end
     include("validation_lw2006.jl")
     include("validation_deweerdt2011.jl")
     include("validation_shi2016.jl")
+    include("validation_lothenbach2008.jl")
+    include("validation_scholer2017.jl")
+    include("validation_deschner2012.jl")
 end
 
 @testsection "Utils tests" begin

@@ -174,6 +174,25 @@ using Test
         @test stoich_coef_round(2.0) == 2
         @test stoich_coef_round(1 / 2) == 1 // 2
         @test stoich_coef_round(0.3333333) ≈ 1 // 3
+        # A computed round-off is cleaned to zero (the conservation matrices
+        # rely on it) ...
+        @test stoich_coef_round(1.4e-17) == 0
+        # ... but a coefficient a formula prints is never read as zero, however
+        # small, and the element stays in the formula.
+        @test composition(Formula("Ca2.0993Si2.9298Na0.0004O11.0585H6.1988"))[:Na] == 0.0004
+        # Near a simple fraction it is that fraction, as the databases mean it.
+        @test composition(Formula("((CaO)1.25(SiO2)1(H2O)2.75)0.6667"))[:Ca] == 5 // 6
+        # The same holds in an equation, in a formula written from a composition,
+        # and in the Unicode form of a formula; round-off is still cleaned there.
+        reac, prod, _ = parse_equation("CaNa0.0004 + 0.0004H+ = 0.0004Na+ + Ca")
+        @test reac["H+"] == 0.0004 && prod["Na+"] == 0.0004
+        @test expr(Formula(OrderedDict(:Ca => 2, :Na => 0.0004))) == "Ca2Na0.0004"
+        @test expr(Formula(OrderedDict(:Ca => 1, :Si => 1.4e-17))) == "Ca"
+        @test occursin('₄', phreeqc_to_unicode("Na0.0004"))
+        @test ChemistryLab._printed_coefficient(0.0004) == 0.0004
+        @test ChemistryLab._printed_coefficient(1 // 10000) == 1 // 10000
+        @test ChemistryLab._printed_coefficient(1.4e-17) == 0
+        @test ChemistryLab._printed_coefficient(0.5) == 1 // 2
 
         # calculate_molar_mass
         atoms = Dict(:H => 2, :O => 1)

@@ -5,7 +5,7 @@ using OrderedCollections
 using Unicode
 
 """
-    stoich_coef_round(x::T; tol=1e-4) where {T<:Real} -> Union{Int, Rational, Float64}
+    stoich_coef_round(x::T; tol=1e-3) where {T<:Real} -> Union{Int, Rational, Float64}
     stoich_coef_round(x) -> Any
 
 Round stoichiometric coefficients to integer, rational, or float representation.
@@ -13,7 +13,7 @@ Round stoichiometric coefficients to integer, rational, or float representation.
 # Arguments
 
   - `x`: numeric value to round.
-  - `tol`: tolerance for rounding decisions (default 1e-4).
+  - `tol`: tolerance for rounding decisions (default 1e-3).
 
 # Returns
 
@@ -53,6 +53,25 @@ function stoich_coef_round(x::T; tol = 1.0e-3) where {T <: Real}
 end
 
 stoich_coef_round(x) = x
+
+# Below this a coefficient is the round-off of a computation, not a quantity.
+const _ROUND_OFF = 1.0e-12
+
+# The coefficient of a species in a formula or a reaction, as read, written or
+# given: `stoich_coef_round`, except that a coefficient that is not zero is
+# never rounded to zero, since the species or element would leave the formula
+# (the Na0.0004 of a C-S-H of Miron et al. 2022a was read as absent, and a
+# 0.0004Na+ dropped from a reaction). Only a value at the level of round-off,
+# 1e-12 and below, is still cleaned to zero, which is what `stoich_coef_round`
+# does for the coefficients a computation produces (a conservation matrix holds
+# 1e-17 where it holds 0).
+function _printed_coefficient(x)
+    c = stoich_coef_round(x)
+    if c isa Integer && iszero(c) && x isa Union{AbstractFloat, Rational} && abs(x) > _ROUND_OFF
+        return x
+    end
+    return c
+end
 
 """
     phreeqc_to_unicode(s::AbstractString) -> String
@@ -97,7 +116,7 @@ function phreeqc_to_unicode(s::AbstractString)
 
     s = join(chars)
 
-    s = replace(s, r"-?\d+\.?\d*" => x -> string(stoich_coef_round(parse(Float64, x))))
+    s = replace(s, r"-?\d+\.?\d*" => x -> string(_printed_coefficient(parse(Float64, x))))
 
     matches = collect(eachmatch(r"(\d+)\/\/(\d+)", s))
     for m in reverse(matches)
@@ -371,7 +390,7 @@ function parse_formula(formula::AbstractString)
                 elseif occursin("//", countstr)
                     parse(Rational{Int}, countstr)
                 else
-                    stoich_coef_round(parse(Float64, countstr))
+                    _printed_coefficient(parse(Float64, countstr))
                 end
 
                 if cnt isa Rational && denominator(cnt) == 1
@@ -389,8 +408,9 @@ function parse_formula(formula::AbstractString)
         end
     end
 
-    return OrderedDict(k => stoich_coef_round(v) for (k, v) in counts)
+    return OrderedDict(k => _printed_coefficient(v) for (k, v) in counts)
 end
+
 
 """
     extract_charge(formula::AbstractString) -> Int
@@ -564,7 +584,7 @@ function parse_equation(equation::AbstractString)
             end
         end
 
-        return OrderedDict(k => stoich_coef_round(v) for (k, v) in result)
+        return OrderedDict(k => _printed_coefficient(v) for (k, v) in result)
     end
 
     reactants = if left_side == "∅" || left_side == ""

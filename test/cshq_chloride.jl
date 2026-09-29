@@ -78,7 +78,14 @@ include(joinpath(pkgdir(ChemistryLab), "data", "chloride", "member.jl"))
         # started from it.
         @info "Hirao test, as computed here" Ca_Si = r.r bound = r.bound held = r.held
         @test all(temperature(st) == 293.15u"K" for st in r.states)
-        @test r.bound ≈ prov["bound_model_mmol_per_g"] atol = 1.0e-8
+        # The recorded fit, to 1e-7 mmol/g. The bound chloride is read from the
+        # depletion of the solution, (c0 - c) V/m, which turns a change of the
+        # chloride left in solution into 10 mmol/g per mol/L (V/m = 10 mL/g). Two
+        # certified answers from different starts differ by 3e-9 mol/L at
+        # 0.5 mol/L, 6e-9 relative, within what a certificate resolves, and so
+        # by 3e-8 mmol/g here: measured when the first start of the search
+        # changed in 0.28.0, the other two points unchanged to 1e-11.
+        @test r.bound ≈ prov["bound_model_mmol_per_g"] atol = 1.0e-7
         ssr(x) = sum(abs2, f(x).bound .- pts.bound)
         s0 = ssr(δ)
         @test ssr(δ - 100) > s0 && ssr(δ + 100) > s0

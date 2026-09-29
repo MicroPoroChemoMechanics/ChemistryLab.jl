@@ -355,3 +355,286 @@ function _formula_ratio(a::AbstractDict, b::AbstractDict)
     end
     return f
 end
+
+# ── Compound energy formalism ─────────────────────────────────────────────────
+
+"""
+    struct CompoundEnergyModel{T<:Real} <: AbstractSolidSolutionModel
+
+Mixing on sublattices with the two terms of the compound energy formalism that
+ideal site mixing ([`SublatticeModel`](@ref)) leaves out: the **reference
+surface**, on which the Gibbs energies of the end-members are interpolated in the
+site fractions, and **regular interactions** between the species of one site. It
+is the model of the CASH+ C-S-H of Kulik et al. (2022).
+
+    CompoundEnergyModel(lattice::SublatticeModel; interactions = ())
+
+`interactions` lists `(site, species_1, species_2, W)`, the site and its two
+species named as `lattice.sites` and `lattice.species` name them, and `W` in
+J/mol of formula units.
+
+# The Gibbs energy
+
+Per formula unit, with ``y_{s,i}`` the fraction of site ``s`` held by species
+``i`` and ``G^\\circ_j`` the standard Gibbs energy of end-member ``j``, which puts
+species ``j_s`` on site ``s``:
+
+```math
+G = \\sum_j G^\\circ_j \\prod_s y_{s,j_s}
+  + RT \\sum_s m_s \\sum_i y_{s,i} \\ln y_{s,i}
+  + \\sum_s \\sum_{i<l} W_{s,il}\\, y_{s,i} y_{s,l}.
+```
+
+It depends on the site fractions alone. The first term is the reference surface:
+it equals ``G^\\circ_j`` at the composition of end-member ``j`` and is linear in
+the fractions of each site, so it differs from the mechanical mixture
+``\\sum_j x_j G^\\circ_j`` only where the end-members are not independent in the
+site fractions. That difference is the energy of the **reciprocal reactions**,
+such as TSvh + TCCh = TSCh + TCvh in CASH+, whose Gibbs energy is not zero.
+
+# Activities
+
+The chemical potential of end-member ``k`` is ``∂(nG)/∂n_k``. With ``G_\\text{ref}``
+the reference surface and ``n_\\text{site}`` the number of sites,
+
+```math
+\\ln a_k = \\sum_s m_s \\ln y_{s,k_s}
+  + \\frac{1}{RT}\\Big(\\sum_s \\frac{∂G_\\text{ref}}{∂y_{s,k_s}} - (n_\\text{site}-1)\\,G_\\text{ref} - G^\\circ_k\\Big)
+  + \\frac{1}{RT}\\sum_s\\Big(\\sum_l W_{s,k_s l}\\, y_{s,l} - \\sum_{i<l} W_{s,il}\\, y_{s,i} y_{s,l}\\Big).
+```
+
+The second term vanishes at each end-member and is unchanged when every
+``G^\\circ_j`` is shifted by the energies of its elements, so the convention of
+the database does not matter. It needs those energies: the solver hands them to
+the model with the amounts, at the temperature of the solve.
+
+# The end-members must be every compound
+
+The reference surface is spanned by the compounds, one per choice of a species
+on every site. The model requires the end-members to be exactly those compounds,
+each once; the constructor refuses any other set. The Gibbs energy and the
+element balance then depend on the site fractions alone, and the end-member
+amounts are not unique: six end-members for four independent site fractions in
+CASH+, twelve for six in CASH+NK. Every split of the same site fractions between
+the end-members is the same equilibrium.
+
+# The split the solver is given
+
+To make the split unique, the energy the solver minimizes adds
+``RT\\,D(x)``, with
+
+```math
+D(x) = \\sum_j x_j \\ln x_j - \\sum_s \\sum_i y_{s,i} \\ln y_{s,i} \\;\\ge\\; 0 ,
+```
+
+the divergence of ``x`` from the product of its site fractions: it vanishes when
+``x_j = \\prod_s y_{s,j_s}``, and only then. At fixed site fractions the minimum is
+that product, where the added energy is zero and so is its gradient, ``\\ln x_k -
+\\sum_s \\ln y_{s,k_s}``. The equilibrium, its site fractions and the chemical
+potentials of the members are those of the model; the member amounts are the
+product of the site fractions. With the null directions gone, the activity of
+each member goes as its mole fraction when it vanishes, and the phase is
+inverted as a mixture of end-members is. Without it, the answer is one of the
+equivalent splits, which one depending on where the search started; measured on
+twelve pastes of CASH+NK (Ca/Si 1 and 1.6, sodium, potassium or both), the two
+forms certify the same equilibria at the same cost, and only this one returns the
+same member amounts whatever the start.
+
+# Example
+
+```jldoctest
+julia> lat = SublatticeModel([1.0, 1.0], [\"A\" \"A\" \"B\" \"B\"; \"X\" \"Y\" \"X\" \"Y\"]; sites = [\"s1\", \"s2\"]);
+
+julia> m = CompoundEnergyModel(lat; interactions = [(\"s1\", \"A\", \"B\", -5000.0)]);
+
+julia> length(m.interactions)
+1
+```
+
+See also: [`compound_energy_model`](@ref), [`site_fractions`](@ref).
+"""
+struct CompoundEnergyModel{T <: Real} <: AbstractSolidSolutionModel
+    lattice::SublatticeModel{T}
+    interactions::Vector{Tuple{Int, Int, Int, T}}   # (site, species, species, W in J/mol)
+
+    function CompoundEnergyModel{T}(lattice::SublatticeModel{T}, interactions) where {T <: Real}
+        o = lattice.occupancy
+        ncomp = prod(length, lattice.species)
+        ncomp == size(o, 2) && allunique(eachcol(o)) || error(
+            "CompoundEnergyModel: the end-members must be every compound of the sites, " *
+                "each once ($(ncomp) for species counts $(length.(lattice.species))); " *
+                "$(size(o, 2)) end-members are given" *
+                (allunique(eachcol(o)) ? "." : ", two of them with the same occupancy.")
+        )
+        seen = Set{Tuple{Int, Int, Int}}()
+        for (s, i, l, _) in interactions
+            1 <= s <= length(lattice.species) && 1 <= i <= length(lattice.species[s]) &&
+                1 <= l <= length(lattice.species[s]) || error(
+                "CompoundEnergyModel: interaction ($s, $i, $l) names no species of a site."
+            )
+            i == l && error("CompoundEnergyModel: an interaction joins two different species of a site.")
+            key = (s, min(i, l), max(i, l))
+            key in seen && error(
+                "CompoundEnergyModel: the interaction between $(lattice.species[s][i]) and " *
+                    "$(lattice.species[s][l]) on $(lattice.sites[s]) is given twice."
+            )
+            push!(seen, key)
+        end
+        return new{T}(lattice, collect(Tuple{Int, Int, Int, T}, interactions))
+    end
+end
+
+function CompoundEnergyModel(lattice::SublatticeModel{T}; interactions = ()) where {T}
+    idx = map(interactions) do (site, a, b, W)
+        s = findfirst(==(String(site)), lattice.sites)
+        s === nothing && error(
+            "CompoundEnergyModel: no site $site; the sites are $(join(lattice.sites, ", "))."
+        )
+        function find(sp)
+            i = findfirst(==(String(sp)), lattice.species[s])
+            i === nothing && error(
+                "CompoundEnergyModel: site $site holds no species $sp; it holds " *
+                    "$(join(lattice.species[s], ", "))."
+            )
+            return i
+        end
+        (s, find(a), find(b), W)
+    end
+    E = promote_type(T, (typeof(float(t[4])) for t in idx)...)
+    lat = E === T ? lattice : SublatticeModel(E.(lattice.multiplicity), _occupancy_labels(lattice); sites = lattice.sites)
+    return CompoundEnergyModel{E}(lat, [(s, i, l, E(W)) for (s, i, l, W) in idx])
+end
+
+# The occupancy of a model as the species names it was built from.
+_occupancy_labels(m::SublatticeModel) =
+    [m.species[s][m.occupancy[s, k]] for s in axes(m.occupancy, 1), k in axes(m.occupancy, 2)]
+
+_n_members(m::CompoundEnergyModel) = _n_members(m.lattice)
+site_fractions(m::CompoundEnergyModel, x::AbstractVector) = site_fractions(m.lattice, x)
+
+function Base.show(io::IO, m::CompoundEnergyModel)
+    print(
+        io, "CompoundEnergyModel(", _n_members(m), " end-members on ", length(m.lattice.sites),
+        " sites, ", length(m.interactions), " site interactions)"
+    )
+    return nothing
+end
+
+"""
+    compound_energy_model(ref, end_members) -> CompoundEnergyModel
+
+The compound-energy model a published source gives for a phase, read from
+`data/literature/<key>.json`: the sites and occupancy as
+[`sublattice_model`](@ref) reads them, and the site interactions from the table
+`<model>_interactions` (columns `site`, `species_1`, `species_2`, `W`).
+
+# Example
+
+```julia
+subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-cashplus-thermofun.json")))
+m = compound_energy_model("Kulik2022:cashplus", [subs[n] for n in ("TSvh", "TSCh", "Tvvh", "TCvh", "TvCh", "TCCh")])
+```
+"""
+function compound_energy_model(ref::AbstractString, end_members::AbstractVector)
+    lattice = sublattice_model(ref, end_members)
+    key, prefix = _split_sublattice_ref(ref)
+    t = literature_table(key, "$(prefix)_interactions")
+    W = ustrip.(us"J/mol", t.W)
+    return CompoundEnergyModel(
+        lattice; interactions = [(t.site[r], t.species_1[r], t.species_2[r], W[r]) for r in eachindex(W)],
+    )
+end
+
+# The convexity of a compound-energy model in its site fractions: the bound of
+# the docstring of `mixing_convexity` for two sites, a sampled Hessian otherwise.
+# The certificate asks at every solve; the verdict depends only on the model, the
+# energies and the temperature, and is kept.
+const _CEF_CONVEXITY = Dict{UInt, Any}()
+const _CEF_CONVEXITY_LOCK = ReentrantLock()
+function _cef_convexity(m::CompoundEnergyModel, T::Real, g)
+    g === nothing && return (;
+        verdict = :undecided, witness = nothing,
+        how = "the reference surface depends on the energies of the end-members, which were not given",
+    )
+    key = hash((m.lattice.multiplicity, m.lattice.occupancy, m.interactions, Float64.(g), Float64(T)))
+    return lock(_CEF_CONVEXITY_LOCK) do
+        get!(() -> _cef_convexity_uncached(m, T, g), _CEF_CONVEXITY, key)
+    end
+end
+function _cef_convexity_uncached(m::CompoundEnergyModel, T::Real, g)
+    lat = m.lattice
+    o = lat.occupancy
+    ks = length.(lat.species)
+    nsite = length(ks)
+    RT = R_GAS * T
+    Wm = [zeros(k, k) for k in ks]
+    for (s, i, l, W) in m.interactions
+        Wm[s][i, l] = Wm[s][l, i] = W / RT
+    end
+    Qs = [_tangent_basis(k) for k in ks]
+    λ = [2 * lat.multiplicity[s] + (ks[s] > 1 ? minimum(eigvals(Symmetric(transpose(Qs[s]) * Wm[s] * Qs[s]))) : Inf) for s in 1:nsite]
+    if nsite == 1 && λ[1] > 0
+        return (; verdict = :convex, witness = nothing, how = "one site: the configurational term outweighs the interactions")
+    elseif nsite == 2 && all(>(0), λ)
+        C = zeros(ks[1], ks[2])
+        for j in axes(o, 2)
+            C[o[1, j], o[2, j]] = g[j]
+        end
+        σ = opnorm(transpose(Qs[1]) * C * Qs[2])
+        λ[1] * λ[2] > σ^2 && return (;
+            verdict = :convex, witness = nothing,
+            how = "two sites: the site curvatures $(round.(λ; sigdigits = 3)) bound the coupling of the reference surface, $(round(σ; sigdigits = 3))",
+        )
+    end
+    # The Hessian of G/RT in the stacked site fractions, projected on the tangent
+    # spaces of the site simplices, on a lattice of interior points.
+    offsets = cumsum(vcat(0, ks))
+    function gy(v)
+        y = [v[(offsets[s] + 1):offsets[s + 1]] for s in 1:nsite]
+        G = sum(g[j] * prod(y[s][o[s, j]] for s in 1:nsite) for j in axes(o, 2))
+        G += sum(lat.multiplicity[s] * sum(t * log(t) for t in y[s]) for s in 1:nsite)
+        for (s, i, l, W) in m.interactions
+            G += W / RT * y[s][i] * y[s][l]
+        end
+        return G
+    end
+    Q = zeros(sum(ks), sum(ks .- 1))
+    col = 0
+    for s in 1:nsite
+        Q[(offsets[s] + 1):offsets[s + 1], (col + 1):(col + ks[s] - 1)] = Qs[s]
+        col += ks[s] - 1
+    end
+    grids = [_interior_lattice(k, 8) for k in ks]
+    for pt in Iterators.product(grids...)
+        v = reduce(vcat, pt)
+        H = ForwardDiff.hessian(gy, v)
+        if minimum(eigvals(Symmetric(transpose(Q) * H * Q))) < -1.0e-9
+            y = collect(pt)
+            x = [prod(y[s][o[s, j]] for s in 1:nsite) for j in axes(o, 2)]
+            return (; verdict = :nonconvex, witness = x, how = "a negative curvature at the site fractions $(map(t -> round.(t; digits = 3), y))")
+        end
+    end
+    return (;
+        verdict = :undecided, witness = nothing,
+        how = "the bound on the reference surface does not decide, and no concave point was found on a lattice of site fractions",
+    )
+end
+
+# The interior points of the simplex of dimension k - 1 with coordinates in
+# multiples of 1/n, every coordinate at least 1/n.
+function _interior_lattice(k::Int, n::Int)
+    k == 1 && return [[1.0]]
+    pts = Vector{Vector{Float64}}()
+    for head in 1:(n - k + 1), rest in _interior_lattice_counts(k - 1, n - head)
+        push!(pts, vcat(head, rest) ./ n)
+    end
+    return pts
+end
+function _interior_lattice_counts(k::Int, n::Int)
+    k == 1 && return n >= 1 ? [[n]] : Vector{Int}[]
+    out = Vector{Vector{Int}}()
+    for head in 1:(n - k + 1), rest in _interior_lattice_counts(k - 1, n - head)
+        push!(out, vcat(head, rest))
+    end
+    return out
+end

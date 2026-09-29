@@ -119,18 +119,33 @@ the files are obtained again when next needed.
 """
 database_cache() = something(_CACHE_OVERRIDE[], get_scratch!(@__MODULE__, "databases"))
 
+# Obtaining a database is serialized. Independent calculations run on threads
+# (the documentation computes six coupled trajectories at once), and each asks
+# for its database: the memo and the announcement set below are a `Dict` and a
+# `Set`, which concurrent insertions corrupt, and two threads building the same
+# derived database would write the same file. The lock is reentrant because a
+# derived database obtains its base through the same path.
+const _DATABASE_LOCK = ReentrantLock()
+
 # SHA-256 of a file, memoized on (path, size, mtime): the databases are read
 # hundreds of times in a session and hashed once.
 const _DIGESTS = Dict{Tuple{String, Int, Float64}, String}()
 function _digest(path)
     st = stat(path)
-    return get!(_DIGESTS, (abspath(path), Int(st.size), st.mtime)) do
-        bytes2hex(open(sha256, path))
+    return lock(_DATABASE_LOCK) do
+        get!(_DIGESTS, (abspath(path), Int(st.size), st.mtime)) do
+            bytes2hex(open(sha256, path))
+        end
     end
 end
 
 # Names whose foreign version has been announced once already this session.
 const _ANNOUNCED = Set{String}()
+
+# A temporary file beside `target`, so that moving it into place is atomic, and
+# with a name of its own, so that two processes sharing a depot never write the
+# same one.
+_partial_path(target) = tempname(dirname(target); cleanup = false) * ".part"
 
 function _local_candidates(dir, name)
     isdir(dir) || return String[]
@@ -186,7 +201,7 @@ function _download!(db::ThirdPartyDatabase, cache)
     target = joinpath(cache, db.name)
     attempts = String[]
     for url in db.urls
-        tmp = target * ".part"
+        tmp = _partial_path(target)
         try
             Downloads.download(url, tmp; timeout = 120)
             digest = bytes2hex(open(sha256, tmp))
@@ -258,24 +273,25 @@ With `download = false` nothing is downloaded, and a file absent from the local
 directory and the cache throws [`DatabaseUnavailable`](@ref).
 """
 function database_path(name::AbstractString; download::Bool = true)
-    haskey(DERIVED_DATABASES, name) && return _derived_path(DERIVED_DATABASES[name]; download)
-    db = get(THIRD_PARTY_DATABASES, name, nothing)
-    db === nothing && throw(
+    haskey(DERIVED_DATABASES, name) || haskey(THIRD_PARTY_DATABASES, name) || throw(
         ArgumentError(
             "`$name` is not a database ChemistryLab obtains. Known databases: " *
                 join(sort!(vcat(collect(keys(THIRD_PARTY_DATABASES)), collect(keys(DERIVED_DATABASES)))), ", "),
         ),
     )
-    return _obtain(db, get(ENV, DATABASE_DIR_VARIABLE, nothing), database_cache(); download)
+    haskey(DERIVED_DATABASES, name) && return _derived_path(DERIVED_DATABASES[name]; download)
+    return _obtain(THIRD_PARTY_DATABASES[name], get(ENV, DATABASE_DIR_VARIABLE, nothing), database_cache(); download)
 end
 
 function _obtain(db::ThirdPartyDatabase, dir, cache; download::Bool = true)
-    local_copy = _from_local_dir(db, dir)
-    local_copy === nothing || return local_copy
-    cached = _cached(db, cache)
-    cached === nothing || return cached
-    (download && !isempty(db.urls)) || throw(DatabaseUnavailable(db, String[], cache))
-    return _download!(db, cache)
+    return lock(_DATABASE_LOCK) do
+        local_copy = _from_local_dir(db, dir)
+        local_copy === nothing || return local_copy
+        cached = _cached(db, cache)
+        cached === nothing || return cached
+        (download && !isempty(db.urls)) || throw(DatabaseUnavailable(db, String[], cache))
+        _download!(db, cache)
+    end
 end
 
 is_database_name(name::AbstractString) =
@@ -314,19 +330,27 @@ function install_database(path::AbstractString; name::AbstractString = basename(
             ),
         )
     end
-    cache = database_cache()
-    mkpath(cache)
-    target = joinpath(cache, name)
-    cp(path, target; force = true)
-    accepted = _accepted_path(target)
-    if digest == db.sha256
-        rm(accepted; force = true)
-    else
-        write(accepted, digest)
-        @warn "`$name` installed in a version ChemistryLab was not validated with; results may " *
-            "differ from the documented ones." found = digest expected = db.sha256
+    return lock(_DATABASE_LOCK) do
+        cache = database_cache()
+        mkpath(cache)
+        target = joinpath(cache, name)
+        tmp = _partial_path(target)
+        try
+            cp(path, tmp; force = true)
+            mv(tmp, target; force = true)
+        finally
+            rm(tmp; force = true)
+        end
+        accepted = _accepted_path(target)
+        if digest == db.sha256
+            rm(accepted; force = true)
+        else
+            write(accepted, digest)
+            @warn "`$name` installed in a version ChemistryLab was not validated with; results may " *
+                "differ from the documented ones." found = digest expected = db.sha256
+        end
+        target
     end
-    return target
 end
 
 """
@@ -375,12 +399,14 @@ function database_info(io::IO = stdout)
     rows = NamedTuple{(:name, :status, :path, :source, :license), Tuple{String, Symbol, Union{Nothing, String}, String, String}}[]
     for name in sort!(collect(keys(THIRD_PARTY_DATABASES)))
         db = THIRD_PARTY_DATABASES[name]
-        local_copy = try
-            _from_local_dir(db, dir)
-        catch
-            nothing
+        local_copy, cached = lock(_DATABASE_LOCK) do
+            local_copy = try
+                _from_local_dir(db, dir)
+            catch
+                nothing
+            end
+            local_copy, (local_copy === nothing ? _cached(db, cache) : nothing)
         end
-        cached = local_copy === nothing ? _cached(db, cache) : nothing
         status, path = if local_copy !== nothing
             (:local, local_copy)
         elseif cached !== nothing

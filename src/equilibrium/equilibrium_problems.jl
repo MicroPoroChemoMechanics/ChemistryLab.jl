@@ -96,10 +96,10 @@ function EquilibriumProblem(
         u0::AbstractVector{Tu};
         b::AbstractVector = A * u0,
         p = nothing,
-        lb::AbstractVector = fill(Tu(1.0e-16), length(u0)),
+        lb::AbstractVector = fill(Tu(_AMOUNT_FLOOR), length(u0)),
         ub::AbstractVector = maximum(abs.(A)) / minimum(abs.(A[.!iszero.(A)])) * sum(u0) * one.(u0),
     ) where {Tu <: Number, TA <: Number, F <: Function}
-    ϵ = 1.0e-16
+    ϵ = _AMOUNT_FLOOR
     lb = max.(lb, ϵ)
     ub = max.(ub, ϵ)
     # Ensure u0 has no zeros or negative values

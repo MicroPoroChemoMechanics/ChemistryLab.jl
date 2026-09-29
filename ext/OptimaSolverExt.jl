@@ -5,6 +5,8 @@ module OptimaSolverExt
 
 using ChemistryLab
 import ChemistryLab:
+    _AMOUNT_FLOOR,
+    _LOG_UNDERFLOW,
     EquilibriumProblem,
     EquilibriumSolver,
     ChemicalState,
@@ -14,6 +16,8 @@ import ChemistryLab:
     _update_derived!
 using OptimaSolver: OptimaOptimizer, DualNewtonProblem, DualNewtonOptions,
     SolutionPhase, dual_newton_solve, kkt_certificate, lp_start
+# Read at a dual answer exactly as the certificate reads it.
+using OptimaSolver: current_g, current_h, _degenerate_conservation_rows
 using SciMLBase
 using LinearAlgebra: dot, mul!
 using DynamicQuantities
@@ -119,7 +123,7 @@ Loaded automatically when `using OptimaSolver` is active.
 function SciMLBase.solve(
         esolver::EquilibriumSolver{<:Function, <:OptimaOptimizer},
         state::ChemicalState;
-        ϵ::Float64 = 1.0e-16,
+        ϵ::Float64 = _AMOUNT_FLOOR,
         b = nothing,
     )
     # A composition carrying dual numbers takes the implicit-function route:
@@ -220,6 +224,24 @@ function ChemistryLab._optima_dual_solve(prob, b, x0, o)
 end
 
 ChemistryLab._optima_lp(prob, b) = lp_start(prob, b)
+
+# The solutes of `solutes`, each below the activity floor `ϵ`, at the amount the
+# potentials of `res` give them: `ϵ·exp(r)` where `r = uᵢ − ∇fᵢ > 0`, the rest
+# unchanged. `u = −Aᵀy` with the multipliers of the solve, and `∇f` read at the
+# answer, as the certificate reads both. A species a vanished component forces to
+# zero is left alone. See `ChemistryLab._complete_floored_solutes`.
+function ChemistryLab._optima_complete_floored(prob, res, solutes, ϵ)
+    x = copy(res.x)
+    u = -(transpose(prob.A) * res.y)
+    ∇f = current_g(prob, res.q) .+ current_h(prob, x, res.q)
+    rows = _degenerate_conservation_rows(prob, prob.A * x)
+    for i in solutes
+        any(abs(prob.A[k, i]) > 0 for k in rows) && continue
+        r = u[i] - ∇f[i]
+        r > 0 && (x[i] = ϵ * exp(min(r, -_LOG_UNDERFLOW)))
+    end
+    return x
+end
 
 function ChemistryLab._optima_kkt_certificate(
         prob, x, b, floor, tol, si_tol, q = nothing,

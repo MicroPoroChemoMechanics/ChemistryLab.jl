@@ -35,6 +35,21 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
         @test extent(pk3, 0.5) == extent(pk, 0.5)
         @test extent(pk3, 3650) < extent(pk, 3650)
         @test extent(pk3, 3650) <= (1 + 4.444 * 0.3) / 3.333
+        # The constants and the critical degree a paper fits. Given the default
+        # constants, the law is the default one, to the last bit; a larger
+        # critical degree lets the phase hydrate further at the same w/c; a faster
+        # diffusion stage of belite (Lothenbach et al. 2008) hydrates it further.
+        same = ParrottKillohExtent("C3S"; parameters = (k₁ = 1.5, n₁ = 0.7, k₂ = 0.05, k₃ = 1.1, n₃ = 3.3))
+        @test [extent(same, t) for t in (1, 28, 365)] ≈ [extent(pk, t) for t in (1, 28, 365)] rtol = 1.0e-12
+        # The rate constants are per day, as printed (read as per second they
+        # hydrated the phase within the first day).
+        @test extent(same, 1) < 0.5
+        @test extent(ParrottKillohExtent("C3S"; parameters = (k₁ = 1.5u"1/d",)), 1) ≈ extent(pk, 1) rtol = 1.0e-12
+        @test extent(ParrottKillohExtent("C3S"; w_c = 0.3, H = 1.8), 3650) > extent(pk3, 3650)
+        @test extent(ParrottKillohExtent("C3S"; w_c = 0.3, H = 1.8), 0.5) == extent(pk, 0.5)
+        c2s = ParrottKillohExtent("C2S")
+        @test extent(c2s, 365) < extent(ParrottKillohExtent("C2S"; parameters = (k₂ = 0.02, k₃ = 0.7)), 365) < 1
+        @test_throws ArgumentError ParrottKillohExtent("C3S"; parameters = (k4 = 1.0,))
     end
 
     @testset "oxides of a phase, Bogue, and decompositions" begin
@@ -370,6 +385,14 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
             e
         end
         @test err isa ArgumentError && occursin("CSHQ", sprint(showerror, err))
+        # Another model of the gel in place of the list's, and aqueous species left
+        # out besides the list's.
+        cashdb = build_species(datapath("cemdata18-cashplus.json"); verbose = false)
+        swapped = phase_list_system(list, cashdb; replace = Dict("CSHQ" => "CASH+NK"), exclude_aqueous = ["NaOH@", "KOH@"])
+        @test Set(name.(swapped.solid_solutions)) == Set(["CASH+NK", "AFm_SO4_OH"])
+        ssyms = String.(symbol.(swapped.species))
+        @test "TCNh" in ssyms && !("KSiOH" in ssyms) && !("NaOH@" in ssyms) && !("KOH@" in ssyms)
+        @test_throws ArgumentError phase_list_system(list, cashdb; replace = Dict("CNASH_ss" => "CASH+NK"))
 
         # A leaching step reads the system of the last answer. Once a step has
         # given the AFm its second instance, that system has two more species than

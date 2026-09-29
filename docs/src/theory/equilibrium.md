@@ -98,6 +98,7 @@ and whatever produced it. Writing ``u = -A^\top y`` for the element potentials:
 | ``\mu_i + (A^\top y)_i = 0`` | interior (`n > floor`) | stationarity |
 | ``An = b`` | — | conservation of matter |
 | ``u_i \le g_i`` | a **pure** phase at its bound | that phase undersaturated |
+| ``\mu_i + (A^\top y)_i \ge 0`` | a member of a **present** phase below the floor, whose potential the interior determines | it holds no less than its potentials give it |
 | ``\ln \sum_i \exp(u_i - g_i - \ln\gamma_i) \le 0`` | a **mixing** phase held entirely absent | that solution cannot form |
 
 The last row is Michelsen's tangent-plane measure, and it is a separate test
@@ -112,7 +113,11 @@ Two subtleties decide whether the check is meaningful.
 A species **at its bound** obeys the inequality, not the equality. Imposing the
 equality on an amount held at `1e-16` whose mass-action value is `e⁻³⁰⁰`
 misstates its log-activity by 263 `RT` units, and the check then reports a
-residual of 74 for a composition solved to `5e-12`.
+residual of 74 for a composition solved to `5e-12`. A member of a present phase
+below the floor is read the same way, as the truncation of a smaller exact
+amount: it may hold more than that amount, not less. Excluded from every test
+until 0.28.0, such a member left behind by the search passed, as H⁺ at 3e-100 mol
+did in a cement paste whose potentials gave it 1.2e-16.
 
 A species carrying a **vanished component** is absent by the *constraint*, not by
 thermodynamics, and its saturation index is meaningless — the element potential

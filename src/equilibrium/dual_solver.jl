@@ -183,7 +183,7 @@ function _dual_phases(des::DualEquilibriumSolver, n0, p = nothing)
                 split_starts = _split_starts(mdl, length(grp)),
                 newton = _needs_newton_inversion(mdl),
                 bounded_members = _bounded_members(mdl),
-                local_h = _needs_newton_inversion(mdl) ? _local_log_activities(mdl, p) : nothing,
+                local_h = _needs_newton_inversion(mdl) ? _local_log_activities(mdl, p, grp) : nothing,
             ),
         )
     end
@@ -227,20 +227,23 @@ end
 # certified, while Newton certifies it in one route, at the composition GEMS3K
 # gives. Ideal mixing keeps the substitution, and its results bit for bit.
 _needs_newton_inversion(::Any) = false
-_needs_newton_inversion(::SublatticeModel) = true
+_needs_newton_inversion(::Union{SublatticeModel, CompoundEnergyModel}) = true
 _needs_newton_inversion(::Union{RedlichKisterModel, RegularSolutionModel}) = true
 
 # The log activities of a solid solution's members from their own amounts, as
 # `_solid_solution_lna!` computes them inside the activity closure (same ϵ, same
 # temperature), for the Newton inversion to differentiate instead of the whole
 # closure: eight variables instead of a hundred on a cement.
-function _local_log_activities(mdl, p)
-    ϵ = (p !== nothing && hasproperty(p, :ϵ)) ? p.ϵ : 1.0e-16
+# The members' `ΔₐG⁰/RT` are those of the solve, read once, for a model whose
+# activities depend on them (`CompoundEnergyModel`).
+function _local_log_activities(mdl, p, grp)
+    ϵ = (p !== nothing && hasproperty(p, :ϵ)) ? p.ϵ : _AMOUNT_FLOOR
     T = (p !== nothing && hasproperty(p, :T)) ? p.T : 298.15
+    g = (p !== nothing && hasproperty(p, :ΔₐG⁰overRT)) ? collect(p.ΔₐG⁰overRT[grp]) : nothing
     return function (nm)
         tot = sum(nm) + ϵ
         x = nm ./ tot
-        return _ss_log_activities!(similar(x), eachindex(x), x, mdl, T, ϵ)
+        return _ss_log_activities!(similar(x), eachindex(x), x, mdl, T, ϵ, g)
     end
 end
 
@@ -249,6 +252,10 @@ end
 # and their condition is then an inequality (`SublatticeModel`).
 _bounded_members(::Any) = Int[]
 _bounded_members(m::SublatticeModel) = findall(iszero, m.exponents)
+# A compound-energy phase selects the split of its members in which each
+# member's activity goes as its mole fraction (`CompoundEnergyModel`): none is
+# bounded.
+_bounded_members(m::CompoundEnergyModel) = Int[]
 
 """
     _ss_models(des) -> Dict{Int, Any}
@@ -359,7 +366,7 @@ function SciMLBase.solve(
         des::DualEquilibriumSolver,
         state::ChemicalState;
         b = nothing,
-        ϵ::Float64 = 1.0e-16,
+        ϵ::Float64 = _AMOUNT_FLOOR,
         constraint::EquilibriumConstraint = FixedTP(),
         parameters::Union{Nothing, Base.RefValue} = nothing,
         surface_potential::Symbol = :auto,
@@ -385,7 +392,11 @@ function SciMLBase.solve(
         )
         blocks = _compose_blocks(blocks, surf)
     end
-    res = _optima_dual_solve(_dual_problem(des, p, n0, blocks), bv, n0, des.opts)
+    prob = _dual_problem(des, p, n0, blocks)
+    # The solve starts with no amount below `ϵ`, the amount of an absent species
+    # in a cold state: an exact zero would start it at `exp(−700)`, from which a
+    # solute climbs thirty log units a sweep. The budget stays that of the state.
+    res = _optima_dual_solve(prob, bv, max.(n0, ϵ), des.opts)
 
     res.converged || begin
         Threads.atomic_add!(NONCONVERGED, 1)
@@ -402,15 +413,46 @@ function SciMLBase.solve(
     parameters === nothing || (parameters[] = copy(res.q))
 
     T_out, P_out = blocks.apply(temperature(state), pressure(state), res.q)
+    x = res.converged ? _complete_floored_solutes(des, prob, res, _activity_floor(p)) : res.x
     return ChemicalState(
-        des.system, [nᵢ * u"mol" for nᵢ in res.x];
+        des.system, [nᵢ * u"mol" for nᵢ in x];
         T = T_out, P = P_out,
     )
 end
 
 """
+    _complete_floored_solutes(des, prob, res, floor) -> Vector{Float64}
+
+The amounts of `res`, with each solute below the activity floor given the amount
+the potentials of the answer give it.
+
+The activity models read a solute through `max(n, floor)` (see
+[`_ACTIVITY_FLOOR`](@ref)), so below the floor its log activity does not depend on
+its amount. The dual solve recovers a solute from its own stationarity, `w ← w + r`
+with `r = uᵢ − ∇fᵢ`, a step that assumes the log activity follows `ln n`: below
+the floor it gains `r` per sweep, whatever the distance to its answer, and it can
+be left there. The equation of the model is then solved exactly by
+`n = floor·exp(r)` when `r > 0`; when `r ≤ 0` any amount below the floor
+satisfies it, and the one computed is kept. The element balance moves by the
+amounts added, of the order of the floor.
+
+Measured with the floor at 1e-16, where it stood until 0.28.0, on a cement paste
+at pH 14 in 7.8 g of water, whose equilibrium holds 1.2e-16 mol of H⁺: a solve
+left it at 3e-100 mol, and `pH(eq, model)`, which reads the amount, came out 0.09
+high. With the floor at 1e-30 such a solute is far above it, and this is the net
+for one that is not.
+"""
+function _complete_floored_solutes(des::DualEquilibriumSolver, prob, res, floor::Real)
+    des.j_solvent > 0 || return res.x
+    jw = des.idx_aq[des.j_solvent]
+    solutes = [i for i in des.idx_aq if i != jw && res.x[i] < floor]
+    isempty(solutes) && return res.x
+    return _optima_complete_floored(prob, res, solutes, floor)
+end
+
+"""
     optimality_certificate(des, state; b = nothing, ϵ = 1e-16, floor = 1e-25)
-        -> (; stationarity, balance, worst_supersaturation, n_interior,
+        -> (; stationarity, stationarity_floored, balance, worst_supersaturation, n_interior,
              n_absent_component, param_residual, worst_violation_split,
              split_phases, split_trials, optimal, scope, scope_reasons,
              ionic_strength, activity_range, within_activity_range)
@@ -429,7 +471,10 @@ a cement equilibrium and cannot say whether the point it returns is the answer.
 
 The three quantities are the stationarity of the interior species, the component
 balance, and the worst saturation index among absent phases (negative when every
-one of them is undersaturated, as optimality requires).
+one of them is undersaturated, as optimality requires). `stationarity_floored` is
+the first, one-sided, on the members of a present phase held below `floor`: such
+a member may hold more than its exact amount, by truncation, but not less, and it
+fails when the search left it far below what the multipliers give it.
 
 `worst_violation_split` extends that last test to the phases that are **present**:
 Michelsen's tangent-plane distance, which asks whether a mixing phase would lower
@@ -449,7 +494,7 @@ its model: the certificate says so, and the caller decides.
 """
 function optimality_certificate(
         des::DualEquilibriumSolver, state::ChemicalState;
-        b = nothing, ϵ::Float64 = 1.0e-16, floor::Float64 = 1.0e-25,
+        b = nothing, ϵ::Float64 = _AMOUNT_FLOOR, floor::Float64 = _CERTIFICATE_FLOOR,
         constraint::EquilibriumConstraint = FixedTP(),
         q = nothing,
     )
@@ -508,6 +553,11 @@ function optimality_certificate(
         # an absolute threshold on their residual would ask for thirteen digits of
         # cancellation — and this is the raw figure for reporting.
         stationarity_abs = c.stationarity_abs,
+        # The same condition on the members of a present phase held below the
+        # floor, one-sided: such a member may hold less than its multipliers
+        # give it only by truncation, never by being left behind. Read through
+        # `hasproperty` for a certificate from a back end that does not run it.
+        stationarity_floored = hasproperty(c, :stationarity_floored) ? c.stationarity_floored : 0.0,
         worst_supersaturation = c.worst_violation, n_interior = c.n_interior,
         n_absent_component = c.n_forced_zero,
         # Zero on the unconstrained route, so it costs nothing there and is the
@@ -634,7 +684,12 @@ function _certificate_scope(des::DualEquilibriumSolver, p, n, constraint)
     if ss !== nothing
         T = p.T
         for ph in ss
-            c = mixing_convexity(ph.model, length(ph.end_members); T = T)
+            # A compound-energy model is judged with the energies of its members
+            # at the temperature of the solve.
+            g = ph.model isa CompoundEnergyModel ?
+                [Float64(ForwardDiff.value(p.ΔₐG⁰overRT[findfirst(s -> symbol(s) == symbol(m), cs.species)])) for m in ph.end_members] :
+                nothing
+            c = mixing_convexity(ph.model, length(ph.end_members); T = ForwardDiff.value(T), g)
             c.verdict === :convex && continue
             level = min(level, 2)
             push!(
@@ -657,7 +712,8 @@ end
 How far a composition is from satisfying the KKT conditions: the worst of the
 three residuals the certificate reports, in one number.
 
-All of them, and not the stationarity alone. A composition can be stationary to
+All of them, and not the stationarity alone (with its one-sided form on the
+members of a present phase below the floor). A composition can be stationary to
 1e-3 while violating mass conservation by **moles** — measured, an answer with
 stationarity 2.4e-3, an element balance off by 6.7 mol and a phase supersaturated
 by 45 — and that is not a near-answer, it is not an answer to this problem at
@@ -679,6 +735,7 @@ error: it means every absent phase is undersaturated, as optimality requires.
 _kkt_error(cert) = max(
     cert.stationarity, cert.balance, max(cert.worst_supersaturation, 0.0),
     hasproperty(cert, :param_residual) ? cert.param_residual : 0.0,
+    hasproperty(cert, :stationarity_floored) ? cert.stationarity_floored : 0.0,
 )
 
 """
@@ -743,7 +800,7 @@ call were repeats of earlier ones.
 """
 function solve_certified(
         des::DualEquilibriumSolver, starts;
-        b = nothing, ϵ::Float64 = 1.0e-16, floor::Float64 = 1.0e-25,
+        b = nothing, ϵ::Float64 = _AMOUNT_FLOOR, floor::Float64 = _CERTIFICATE_FLOOR,
         constraint::EquilibriumConstraint = FixedTP(),
         parameters::Union{Nothing, Base.RefValue} = nothing,
         memo::Union{Nothing, IdDict} = nothing,
@@ -820,6 +877,7 @@ _optima_dual_problem(args...) = _need_optima()
 _optima_dual_solve(args...) = _need_optima()
 _optima_kkt_certificate(args...) = _need_optima()
 _optima_lp(args...) = _need_optima()
+_optima_complete_floored(args...) = _need_optima()
 
 _need_optima() = error(
     "DualEquilibriumSolver needs OptimaSolver ≥ 0.7: the KKT solver and its " *

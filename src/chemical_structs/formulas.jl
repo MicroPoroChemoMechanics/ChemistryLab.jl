@@ -283,7 +283,7 @@ function Formula(
     uni_parts = String[]
     col_expr_parts = String[]
     for k in sorted_keys
-        v = stoich_coef_round(composition[k])
+        v = _printed_coefficient(composition[k])
         if !iszero(v)
             strv0 = get(dict_frac_unicode, v, string(v))
             strv = replace(strv0, " " => "", "*" => "")

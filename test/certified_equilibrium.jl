@@ -743,6 +743,85 @@ end
     @test ustrip.(us"mol", eq.n) ≈ ustrip.(us"mol", eq0.n) rtol = 1.0e-8
 end
 
+@testsection "the start from the linear program puts each species in its phase" begin
+    # A tenth of a kilogram of water and a millimole of calcite, beside
+    # portlandite. The vertex holds the water and the calcite. A solute it leaves
+    # out starts at the molality its multipliers give it, per kilogram of that
+    # water, and portlandite, a pure phase outside the vertex, starts absent.
+    # Until 0.28.0 every species outside the vertex started at its activity in
+    # moles, portlandite included, which on a cement put the start tens of moles
+    # off the budget and cost the search seconds from which nothing certified.
+    sp = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+    cs = ChemicalSystem(
+        [sp[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 CaOH+ Cal Portlandite")],
+        ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"],
+    )
+    st = ChemicalState(cs)
+    set_quantity!(st, "H2O@", 0.1u"kg")
+    set_quantity!(st, "Cal", 1.0e-3u"mol")
+    b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    des = ChemistryLab.DualEquilibriumSolver(cs, DiluteSolutionModel())
+    lp = ChemistryLab._linear_program(des, st, b)
+    @test lp.start.status === :optimal
+    ϵ = ChemistryLab._AMOUNT_FLOOR
+    lifted = ustrip.(us"mol", ChemistryLab._lp_lifted_state(des, st, lp, ϵ).n)
+    x = lp.start.x
+    j(name) = findfirst(s -> symbol(s) == name, cs.species)
+    @test lifted[j("H2O@")] == x[j("H2O@")] > 0 && lifted[j("Cal")] == x[j("Cal")] > 0
+    @test x[j("Portlandite")] == 0 && lifted[j("Portlandite")] == 0
+    kg = x[j("H2O@")] * ustrip(us"kg/mol", sp["H2O@"][:M])
+    u = -(transpose(lp.prob.A) * lp.start.y)
+    outside = [s for s in ("H+", "OH-", "CO2@", "HCO3-", "CO3-2", "Ca+2", "CaOH+") if x[j(s)] == 0]
+    @test !isempty(outside)
+    for s in outside
+        @test lifted[j(s)] ≈ max(exp(min(u[j(s)] - lp.prob.g[j(s)], 0.0)) * kg, ϵ) rtol = 1.0e-12
+    end
+    # And no solute starts below the floor of the search, whatever the
+    # multipliers give it: at the pH of a cement they give H+ about 1e-100, far
+    # below anything the search resolves. A floor of a millimole makes the rule
+    # visible on every solute outside the vertex; the vertex itself and the
+    # absent pure phase are untouched.
+    high = ustrip.(us"mol", ChemistryLab._lp_lifted_state(des, st, lp, 1.0e-3).n)
+    @test all(high[j(s)] >= 1.0e-3 for s in outside)
+    @test high[j("H2O@")] == x[j("H2O@")] && high[j("Cal")] == x[j("Cal")] && high[j("Portlandite")] == 0
+    # The search from it gives the answer the search without it gives.
+    eq, cert = equilibrate_certified(st)
+    eq0, cert0 = equilibrate_certified(st; lp_start = false)
+    @test cert.optimal && cert0.optimal
+    @test ustrip.(us"mol", eq.n) ≈ ustrip.(us"mol", eq0.n) rtol = 1.0e-8
+
+    # A solute held far below the amount the potentials give it is not certified.
+    # The certificate leaves a member below its floor (1e-25 mol) out of the
+    # equality, as the truncation of a smaller exact amount, and until
+    # OptimaSolver 0.7.2 it held it to nothing: this answer with its H+ at
+    # 1e-100 mol certified, and a cement answer did, its pH read 0.09 high.
+    @test cert.stationarity_floored < 1.0e-10
+    n = ustrip.(us"mol", eq.n)
+    n[j("H+")] = 1.0e-100
+    left = ChemistryLab.optimality_certificate(des, ChemicalState(cs; T = eq.T[1], P = eq.P[1], n = n .* u"mol"); b)
+    @test !left.optimal
+    @test left.stationarity_floored > 1.0e-6
+    @test left.balance < 1.0e-10         # the 1e-11 mol of H+ taken out
+
+    # A solute left below the activity floor at a converged answer is given the
+    # amount the potentials of the answer give it, `floor·exp(r)`: the exact
+    # solution of the floored model, here the H+ of the equilibrium itself.
+    p = ChemistryLab._build_params(st)
+    n0 = ustrip.(us"mol", st.n)
+    blocks = ChemistryLab._constraint_blocks(FixedTP(), des, st, p, n0)
+    prob = ChemistryLab._dual_problem(des, p, n0, blocks)
+    res = ChemistryLab._optima_dual_solve(prob, b, max.(n0, p.ϵ), des.opts)
+    @test res.converged
+    floor = ChemistryLab._activity_floor(p)
+    h = j("H+")
+    stuck = merge(res, (; x = [i == h ? 1.0e-100 : v for (i, v) in enumerate(res.x)]))
+    completed = ChemistryLab._complete_floored_solutes(des, prob, stuck, floor)
+    @test completed[h] ≈ res.x[h] rtol = 1.0e-6
+    @test completed[[i for i in eachindex(res.x) if i != h]] == res.x[[i for i in eachindex(res.x) if i != h]]
+    # Nothing to complete on the answer itself.
+    @test ChemistryLab._complete_floored_solutes(des, prob, res, floor) == res.x
+end
+
 # The three routes that make a complete phase list usable: refusing an answer
 # outside the model's domain, the ideal model as a starting point, and offering a
 # solid solution back by its own criterion. Their own fixtures, since each needs a

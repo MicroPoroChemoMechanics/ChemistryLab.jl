@@ -104,8 +104,12 @@ measured rather than assumed. The two coupled 28-day runs of
 | together | 593.2 s (x1.84) |
 
 and both vectors came back **identical bit for bit** to the serial ones, maximum
-deviation exactly 0. The only globals the solve path mutates are a warning gate
-and a warning counter, neither of which enters the numerics.
+deviation exactly 0. The globals the solve path mutates are a warning gate, a
+warning counter, and the memo of compiled functions each thermodynamic factory
+keeps (every trajectory builds its species, and the factories are shared). That
+memo is locked: unguarded, the concurrent insertions of the first trajectories
+corrupted it, and a build of this page on four threads ended in a segmentation
+fault.
 
 With one thread the call is an ordinary `map`, so a default session behaves
 exactly as it did before.

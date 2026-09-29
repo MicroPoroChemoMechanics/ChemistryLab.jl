@@ -197,4 +197,6 @@ The derivation of the site model, its convexity and what the solver does with
 it are in [Solid solutions](@ref sec-theory-solid-solutions).
 [The CEM IV page](@ref ex-cem4-pozzolanic) uses the CNASH gel in a cement paste,
 beside the `CSHQ` model of the same gel, and [The models of the C-S-H gel](@ref
-sec-csh-models) lists the five models the package ships.
+sec-csh-models) lists the six models the package ships. [The CASH+ page](@ref
+ex-cashplus-csh) adds to site mixing the energies of the compounds, in the model of
+Kulik et al.

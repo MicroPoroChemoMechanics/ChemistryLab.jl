@@ -10,6 +10,16 @@ using Test
         @test r.equal_sign == '='
     end
 
+    @testsection "a small coefficient stays in the reaction" begin
+        # A coefficient below 1e-3 was rounded to zero and its species dropped.
+        # (One within 1e-3 of a simple fraction is still read as that fraction,
+        # as the formulas of the databases mean it: 4.0004 is 4.)
+        r = Reaction("Ca2Si3Na0.0004O11H6 + 4.199H+ = 0.0004Na+ + 2Ca+2 + 3SiO2 + 5.0993H2O")
+        @test products(r)[Species("Na+")] == 0.0004
+        @test reactants(r)[Species("H+")] == 4.199
+        @test occursin("0.0004", string(r))
+    end
+
     @testsection "Arrow variants" begin
         # Forward arrow
         r_fwd = Reaction("H2O → H+ + OH-")

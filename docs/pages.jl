@@ -159,6 +159,10 @@ pages = [
             # Four blended pastes, their degrees of reaction from the measurement,
             # the chemistry against the measurement and against GEMS3K.
             "tutorials/validation_blended_pastes.md",
+            # Forty-eight pore solutions of the first six hours, speciated at
+            # their measured pH: the aqueous model against the paper's indices.
+            "tutorials/validation_early_pore_solutions.md",
+            "tutorials/validation_fly_ash_pore_solutions.md",
         ],
     ],
     "Applications" => [
@@ -180,6 +184,9 @@ pages = [
             # Two gels mixed on their sites: CSH3T both ways, and the chain
             # length of the CNASH gel.
             "examples/sublattice_csh.md",
+            # The CASH+ gel in the compound energy formalism: the invariant points
+            # of the paper, the alkalis, and the authors' 110 gel compositions.
+            "examples/cashplus_csh.md",
             "examples/pitzer_model.md",
         ],
         # The smallest complete surface calculation, against the closed form it

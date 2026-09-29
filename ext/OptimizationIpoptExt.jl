@@ -5,6 +5,7 @@ module OptimizationIpoptExt
 
 using ChemistryLab
 import ChemistryLab:
+    _AMOUNT_FLOOR,
     EquilibriumProblem,
     EquilibriumSolver,
     ChemicalState,
@@ -146,7 +147,7 @@ the gradient in `log n` of such a species is of order `ϵ`.
 function SciMLBase.solve(
         esolver::EquilibriumSolver,
         state::ChemicalState;
-        ϵ::Float64 = 1.0e-16,
+        ϵ::Float64 = _AMOUNT_FLOOR,
         b = nothing,
     )
     # A composition carrying dual numbers takes the implicit-function route:

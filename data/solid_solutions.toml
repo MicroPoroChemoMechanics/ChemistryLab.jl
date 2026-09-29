@@ -295,3 +295,65 @@ end_members = ["T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss",
 model       = "sublattice"
 sublattice  = "Myers2014:cnash"
 source      = "Myers2014"
+
+# ── CASH+ model of C-S-H — 6 or 12 end-members, compound energy formalism ────
+#
+# Sources
+#   Kulik2022 : Kulik, Miron & Lothenbach, "A structurally-consistent CASH+
+#               sublattice solid solution model for fully hydrated C-S-H
+#               phases: Thermodynamic basis, methods, and Ca-Si-H2O core
+#               sub-model", Cement and Concrete Research 151 (2022) 106585,
+#               doi:10.1016/j.cemconres.2021.106585
+#   Miron2022a: Miron, Kulik, Yan, Tits & Lothenbach, "Extensions of CASH+
+#               thermodynamic solid solution model for the uptake of alkali
+#               metals and alkaline earth metals in C-S-H", Cement and Concrete
+#               Research 152 (2022) 106667, doi:10.1016/j.cemconres.2021.106667
+#   Miron2022b: Miron, Kulik & Lothenbach, "Porewater compositions of Portland
+#               cement with and without silica fume calculated using the
+#               fine-tuned CASH+NK solid solution model", Materials and
+#               Structures 55 (2022) 212, doi:10.1617/s11527-022-02045-0
+#
+# The C-S-H of the Ca-Si-H2O system on two mixing sites: the bridging tetrahedron
+# (a silicate, a vacancy or a calcium) and the interlayer cation (a vacancy or a
+# calcium), with the reference surface and the site interactions of the compound
+# energy formalism. The six end-members are every compound of the two sites; the
+# Gibbs energy depends on the site fractions alone, so their amounts are not
+# unique and only the site fractions are. `CASH+` is the core model, for a system
+# without alkalis; `CASH+NK` adds sodium and potassium on the interlayer site,
+# twelve end-members, with the TCNh and TCKh of Miron2022b fine-tuned for cement
+# pore solutions. The end-members are in the database cemdata18-cashplus.json
+# alone, which also carries the CaSiO3@ complex the model was fitted with. A
+# model of the C-S-H gel: declare one of the two, without CSHQ, CNASH_ss or the
+# ECSH families (data/gel_models.toml).
+[[solid_solution]]
+name        = "CASH+"
+end_members = ["TSvh", "TSCh", "Tvvh", "TCvh", "TvCh", "TCCh"]
+model       = "compound_energy"
+sublattice  = "Kulik2022:cashplus"
+database    = "cemdata18-cashplus.json"
+source      = "Kulik2022"
+
+[[solid_solution]]
+name        = "CASH+NK"
+end_members = ["TSvh", "TSCh", "Tvvh", "TCvh", "TvCh", "TCCh",
+               "TSNh", "TvNh", "TCNh", "TSKh", "TvKh", "TCKh"]
+model       = "compound_energy"
+sublattice  = "Miron2022a:cashplus_nk"
+database    = "cemdata18-cashplus.json"
+source      = "Miron2022a"
+
+# The same model extended to lithium, rubidium, cesium, magnesium, strontium,
+# barium and radium on the interlayer site (Miron2022a): 33 end-members, every
+# compound of the two sites, with the 55 interaction parameters of Table A3.
+[[solid_solution]]
+name        = "CASH+ext"
+end_members = ["TSvh", "Tvvh", "TCvh", "TSCh", "TvCh", "TCCh",
+               "TSNh", "TvNh", "TCNh", "TSKh", "TvKh", "TCKh",
+               "TSLih", "TvLih", "TCLih", "TSRbh", "TvRbh", "TCRbh", "TSCsh", "TvCsh", "TCCsh",
+               "TSMgh", "TvMgh", "TCMgh", "TSSrh", "TvSrh", "TCSrh", "TSBah", "TvBah", "TCBah",
+               "TSRah", "TvRah", "TCRah"]
+model       = "compound_energy"
+sublattice  = "Miron2022a:cashplus_full"
+database    = "cemdata18-cashplus.json"
+source      = "Miron2022a"
+

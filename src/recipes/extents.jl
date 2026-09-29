@@ -120,7 +120,8 @@ end
 extent(e::CappedExtent, t) = min(extent(e.inner, t), e.cap)
 
 """
-    ParrottKillohExtent(phase; T = 293.15u"K", α_max = 1.0, blaine = nothing, w_c = nothing)
+    ParrottKillohExtent(phase; T = 293.15u"K", α_max = 1.0, blaine = nothing, w_c = nothing,
+                        parameters = nothing, H = nothing)
 
 The degree of hydration of the clinker phase `phase` ("C3S", "C2S", "C3A" or
 "C4AF") under the rate law of Parrott and Killoh (1984) in the form and with the
@@ -139,6 +140,15 @@ f = \\begin{cases} 1 & \\alpha \\le 1.333\\, w/c \\\\
 
 which is continuous at ``\\alpha = 1.333\\, w/c`` and stops the hydration at
 ``\\alpha = (1 + 4.444\\, w/c)/3.333``.
+
+`H` replaces the critical degree 1.333 of that factor by a value of the phase's
+own, as Lothenbach et al. (2008, Section 3.2) fit one per clinker phase:
+``f = (1 + 3.333\\,(H\\, w/c - \\alpha))^4`` for ``\\alpha > H\\, w/c``.
+`parameters` replaces some of the constants of the law, a `NamedTuple` with any of
+`k₁`, `n₁`, `k₂`, `k₃` and `n₃` (the same paper adapts `k₂` and `k₃` of belite);
+the rate constants are per day, as the papers print them, unless given with a
+unit.
+Left out, both give the law above unchanged.
 """
 struct ParrottKillohExtent <: AbstractExtent
     phase::String
@@ -147,14 +157,31 @@ struct ParrottKillohExtent <: AbstractExtent
 end
 function ParrottKillohExtent(
         phase::AbstractString; T = 293.15u"K", α_max::Real = 1.0, blaine = nothing,
-        w_c = nothing, horizon_days::Real = 3650.0,
+        w_c = nothing, horizon_days::Real = 3650.0, parameters = nothing, H = nothing,
     )
-    rate = parrott_killoh_avrami(_pk84_params(String(phase)), String(phase); α_max = α_max, blaine = blaine)
+    base = _pk84_params(String(phase))
+    if parameters !== nothing
+        unknown = setdiff(keys(parameters), (:k₁, :n₁, :k₂, :k₃, :n₃))
+        isempty(unknown) || throw(
+            ArgumentError("ParrottKillohExtent: no parameter $(join(unknown, ", ")); the law has k₁, n₁, k₂, k₃ and n₃.")
+        )
+        # The rate constants as the papers print them, per day, unless given with
+        # a unit; the exponents are numbers.
+        rate_constant(k, v) = k in (:k₁, :k₂, :k₃) ? (v isa DynamicQuantities.AbstractQuantity ? v : v * u"1/d") : Float64(v)
+        base = merge(base, NamedTuple{keys(parameters)}(map(rate_constant, keys(parameters), values(parameters))))
+    end
+    rate = parrott_killoh_avrami(base, String(phase); α_max = α_max, blaine = blaine)
     TK = _days_free_temperature(T)
     # dα/dt, in 1/s, from the rate on one mole of the phase (n = 1 − α); the
     # positional call of a `KineticFunc` takes and returns bare SI numbers.
     ph = String(phase)
-    fwc(α) = (w_c === nothing || α <= 1.333 * w_c) ? 1.0 : max(1 + 4.444 * w_c - 3.333 * α, 0.0)^4
+    fwc(α) = if w_c === nothing
+        1.0
+    elseif H === nothing
+        α <= 1.333 * w_c ? 1.0 : max(1 + 4.444 * w_c - 3.333 * α, 0.0)^4
+    else
+        α <= H * w_c ? 1.0 : max(1 + 3.333 * (H * w_c - α), 0.0)^4
+    end
     dα(α) = rate(TK, 1.0e5, 0.0, Dict(ph => 1 - α), nothing, Dict(ph => 1.0)) * fwc(α)
     grid = exp.(range(log(1.0e-4), log(horizon_days); length = 4001))   # days
     α = 0.0

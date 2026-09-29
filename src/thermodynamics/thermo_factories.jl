@@ -451,10 +451,21 @@ function get_unit(factory::ThermoFactory, sym::Symbol)
     return get(factory.units, sym, u"1")
 end
 
+# The compiled functions of every factory are memoized in its `cache`, and the
+# factories are global (`THERMO_FACTORIES`): independent calculations running on
+# threads, each building its species, insert into the same `Dict` at once.
+# Concurrent insertions corrupt a `Dict`, and the documentation build, computing
+# six coupled trajectories on four threads, crashed on it with a segmentation
+# fault. The lock covers the lookup as well, since a read that races a resize is
+# no safer; the compilation inside it runs once per key, so after the first call
+# the lock guards a lookup only.
+const _THERMO_FACTORY_LOCK = ReentrantLock()
+
 """
     (factory::ThermoFactory)(; kwargs...)
 
-Create a `SymbolicFunc` with caching for optimal performance.
+Create a `SymbolicFunc` with caching for optimal performance. Safe to call from
+several threads at once.
 """
 function (factory::ThermoFactory)(; kwargs...)
     param_vals = Dict{Symbol, Any}(p => get(kwargs, p, 0.0) for p in keys(factory.params))
@@ -467,15 +478,17 @@ function (factory::ThermoFactory)(; kwargs...)
     cache_key = hash(tuple(sort(collect(pairs(param_vals)); by = x -> x.first)...))
     unit = get_unit(factory)
 
-    simplified, compiled = get!(factory.cache, cache_key) do
-        substitutions = Dict(
-            v => safe_ustrip(get_unit(factory, p), param_vals[p]) for
-                (p, v) in factory.params
-        )
-        substituted = Symbolics.substitute(factory.symbolic, substitutions)
-        simplified = Symbolics.simplify(Symbolics.expand(substituted))
-        compiled = compile_symbolic(simplified, collect(keys(factory.vars)))
-        (simplified, compiled)
+    simplified, compiled = lock(_THERMO_FACTORY_LOCK) do
+        get!(factory.cache, cache_key) do
+            substitutions = Dict(
+                v => safe_ustrip(get_unit(factory, p), param_vals[p]) for
+                    (p, v) in factory.params
+            )
+            substituted = Symbolics.substitute(factory.symbolic, substitutions)
+            simplified = Symbolics.simplify(Symbolics.expand(substituted))
+            compiled = compile_symbolic(simplified, collect(keys(factory.vars)))
+            (simplified, compiled)
+        end
     end
 
     return SymbolicFunc(simplified, Tuple(keys(factory.vars)), refs, compiled, unit)
