@@ -19,14 +19,6 @@ Round stoichiometric coefficients to integer, rational, or float representation.
 
   - Integer if close to a whole number, Rational if a simple fraction (denominator < 10),
     or Float64 rounded to 5 digits otherwise. Non-numeric inputs are returned unchanged.
-  - A coefficient that is not zero is never rounded to zero: the element it
-    counts would leave the formula. The sodium of `Ca2.0993Si2.9298Na0.0004O11.0585H6.1988`,
-    a C-S-H of Miron et al. (2022a), was read as absent.
-
-A coefficient within `tol` of a simple fraction is read as that fraction, which is
-what the formulas of the databases mean: `((CaO)1.25(SiO2)1(H2O)2.75)0.6667` is
-CSHQ-TobD with 5/6 Ca. A composition computed and printed to a few decimals is not
-such a formula, and is read by its digits rather than through `Formula`.
 
 # Examples
 
@@ -39,14 +31,11 @@ julia> stoich_coef_round(0.3333)
 
 julia> stoich_coef_round(3.14159)
 3.14159
-
-julia> stoich_coef_round(0.0004)
-0.0004
 ```
 """
 function stoich_coef_round(x::T; tol = 1.0e-3) where {T <: Real}
     try
-        if isapprox(x, round(x); atol = tol) && !(iszero(round(x)) && !iszero(x))
+        if isapprox(x, round(x); atol = tol)
             return Int(round(x))
         end
 
@@ -57,14 +46,32 @@ function stoich_coef_round(x::T; tol = 1.0e-3) where {T <: Real}
             end
         end
 
-        r = round(x; digits = 5)
-        return iszero(r) ? x : r
+        return round(x; digits = 5)
     catch e
         return x
     end
 end
 
 stoich_coef_round(x) = x
+
+# Below this a coefficient is the round-off of a computation, not a quantity.
+const _ROUND_OFF = 1.0e-12
+
+# The coefficient of a species in a formula or a reaction, as read, written or
+# given: `stoich_coef_round`, except that a coefficient that is not zero is
+# never rounded to zero, since the species or element would leave the formula
+# (the Na0.0004 of a C-S-H of Miron et al. 2022a was read as absent, and a
+# 0.0004Na+ dropped from a reaction). Only a value at the level of round-off,
+# 1e-12 and below, is still cleaned to zero, which is what `stoich_coef_round`
+# does for the coefficients a computation produces (a conservation matrix holds
+# 1e-17 where it holds 0).
+function _printed_coefficient(x)
+    c = stoich_coef_round(x)
+    if c isa Integer && iszero(c) && x isa Union{AbstractFloat, Rational} && abs(x) > _ROUND_OFF
+        return x
+    end
+    return c
+end
 
 """
     phreeqc_to_unicode(s::AbstractString) -> String
@@ -109,7 +116,7 @@ function phreeqc_to_unicode(s::AbstractString)
 
     s = join(chars)
 
-    s = replace(s, r"-?\d+\.?\d*" => x -> string(stoich_coef_round(parse(Float64, x))))
+    s = replace(s, r"-?\d+\.?\d*" => x -> string(_printed_coefficient(parse(Float64, x))))
 
     matches = collect(eachmatch(r"(\d+)\/\/(\d+)", s))
     for m in reverse(matches)
@@ -383,7 +390,7 @@ function parse_formula(formula::AbstractString)
                 elseif occursin("//", countstr)
                     parse(Rational{Int}, countstr)
                 else
-                    stoich_coef_round(parse(Float64, countstr))
+                    _printed_coefficient(parse(Float64, countstr))
                 end
 
                 if cnt isa Rational && denominator(cnt) == 1
@@ -401,8 +408,9 @@ function parse_formula(formula::AbstractString)
         end
     end
 
-    return OrderedDict(k => stoich_coef_round(v) for (k, v) in counts)
+    return OrderedDict(k => _printed_coefficient(v) for (k, v) in counts)
 end
+
 
 """
     extract_charge(formula::AbstractString) -> Int
@@ -576,7 +584,7 @@ function parse_equation(equation::AbstractString)
             end
         end
 
-        return OrderedDict(k => stoich_coef_round(v) for (k, v) in result)
+        return OrderedDict(k => _printed_coefficient(v) for (k, v) in result)
     end
 
     reactants = if left_side == "∅" || left_side == ""

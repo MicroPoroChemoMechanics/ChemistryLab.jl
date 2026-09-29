@@ -532,7 +532,7 @@ function Reaction(
     end
     reacdict = ordered_dict_with_default(
         (
-            find_species(k, species_list, S) => stoich_coef_round(v) for
+            find_species(k, species_list, S) => _printed_coefficient(v) for
                 (k, v) in reactants if !iszero(v) && !startswith(k, "Zz") && !startswith(k, "e")
         ),
         S,
@@ -540,7 +540,7 @@ function Reaction(
     )
     proddict = ordered_dict_with_default(
         (
-            find_species(k, species_list, S) => stoich_coef_round(v) for
+            find_species(k, species_list, S) => _printed_coefficient(v) for
                 (k, v) in products if !iszero(v) && !startswith(k, "Zz") && !startswith(k, "e")
         ),
         S,
@@ -627,9 +627,9 @@ function split_species_by_stoich(
                 catch
                     false
                 end
-                reactants[species] = -stoich_coef_round(coef)
+                reactants[species] = -_printed_coefficient(coef)
             else
-                products[species] = stoich_coef_round(coef)
+                products[species] = _printed_coefficient(coef)
             end
         end
     end
@@ -648,10 +648,10 @@ function merge_species_by_stoich(
     return merge(
         +,
         ordered_dict_with_default(
-            (species => -stoich_coef_round(coef) for (species, coef) in reactants), SR, TR
+            (species => -_printed_coefficient(coef) for (species, coef) in reactants), SR, TR
         ),
         ordered_dict_with_default(
-            (species => stoich_coef_round(coef) for (species, coef) in products), SP, TP
+            (species => _printed_coefficient(coef) for (species, coef) in products), SP, TP
         ),
     )
 end
@@ -676,7 +676,7 @@ function format_side(side::AbstractDict{S, T}) where {S <: AbstractSpecies, T <:
     Zz = root_type(S)("Zz")
     for (species, coef) in side
         if !iszero(coef) && species != Zz
-            coeff_str = isone(coef) ? "" : string(stoich_coef_round(coef))
+            coeff_str = isone(coef) ? "" : string(_printed_coefficient(coef))
             coeff_str = add_parentheses_if_needed(coeff_str)
             coeff_str = replace(coeff_str, " " => "", "*" => "")
             push!(equation, coeff_str * unicode(species))
