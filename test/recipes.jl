@@ -270,7 +270,34 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
         @test 0 < p.total < 1 && p.void >= 0
         @test volume(rs_d).residual ≈ sum(x.mass for x in rs_d.residual if x.constituent == "S1 with a density") / 2.9 +
             sum(x.volume for x in rs_d.residual if x.constituent != "S1 with a density" && x.volume !== nothing) rtol = 1.0e-12
+        # The fractions of the paste: relative to its initial volume, residue
+        # included, and closed by the void of `porosity`.
+        vf = volume_fractions(rs_d)
+        @test sum(values(vf)) ≈ 1 rtol = 1.0e-12
+        @test vf["void"] ≈ p.void rtol = 1.0e-10 atol = 1.0e-14
+        V0 = volume(rs_d.initial).total
+        @test sum(v for (k, v) in vf if startswith(k, "unreacted ")) ≈ volume(rs_d).residual / (ChemistryLab._in_unit(us"cm^3", V0) + volume(rs_d).residual) rtol = 1.0e-12
+        @test vf["Portlandite"] > 0
+        @test_throws ArgumentError volume_fractions(rs)
         @test 0 < bound_water(rs) < 0.4
+        # Over a temperature window, from decomposition windows (test values,
+        # not published ones): sharp steps, so a range holding every midpoint
+        # recovers the whole, and one holding some of them recovers theirs.
+        held = vcat(
+            [p.first => ChemistryLab._in_unit(us"g", p.second) for p in bound_water_per_phase(rs.state)],
+            ChemistryLab._unreacted_water(rs),
+        )
+        mids = Dict(ph => 400.0 + 10k for (k, (ph, _)) in enumerate(held))
+        steps = [DecompositionWindow(ph, T, 1.0e-3) for (ph, T) in mids]
+        @test bound_water(rs; window = (300.0, 2000.0), windows = steps) ≈ bound_water(rs) rtol = 1.0e-12
+        cut = 400.0 + 10 * (length(held) ÷ 2) + 5
+        @test bound_water(rs; window = (300.0u"K", cut * u"K"), windows = steps) ≈
+            sum(g for (ph, g) in held if mids[ph] < cut) / rs.recipe.binder_mass rtol = 1.0e-12
+        big = first(held).first
+        @test_throws ArgumentError bound_water(rs; window = (300.0, 2000.0), windows = filter(w -> w.phase != big, steps))
+        @test_throws ArgumentError bound_water(rs; window = (300.0, 2000.0))
+        @test_throws ArgumentError bound_water(rs; windows = steps)
+        @test_throws ArgumentError bound_water(rs; window = (500.0, 400.0), windows = steps)
         ps = pore_solution(rs)
         @test ps.pH > 12 && ps.elements[:K] > 0
         # The residue has no sourced enthalpy (the glass): the heat is not complete.

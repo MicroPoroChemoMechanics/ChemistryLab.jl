@@ -277,6 +277,45 @@ function porosity(rs::RecipeState)
 end
 
 """
+    volume_fractions(rs::RecipeState; void_key = "void") -> OrderedDict{String, Float64}
+
+The volume fraction of every species of the equilibrium and of every unreacted
+constituent (under `"unreacted <name>"`), relative to the initial volume of the
+paste: the reactants, the water and the residue, the reference of
+[`porosity`](@ref). The chemical-shrinkage void closes the sum under `void_key`,
+so the fractions add up to one and `void` is `porosity(rs).void`.
+
+A constituent whose residue has no sourced density leaves every fraction
+undefined, and is refused by name rather than counted as nothing.
+[`volume_fractions(state, groups)`](@ref) groups the species of the state alone.
+"""
+function volume_fractions(rs::RecipeState; void_key::AbstractString = "void")
+    res = _residual_sum(rs, :volume)
+    isempty(res.missing) || throw(
+        ArgumentError(
+            "volume_fractions: no sourced density for the unreacted part of " *
+                join(res.missing, ", ") * ", so its volume, and every fraction, is unknown."
+        )
+    )
+    V_initial = _in_unit(us"cm^3", volume(rs.initial).total)
+    V0 = V_initial + res.value
+    out = OrderedDict{String, Float64}()
+    for (k, f) in volume_fractions(rs.state; reference = rs.initial, void_key)
+        k == void_key && continue
+        out[k] = f * V_initial / V0
+    end
+    for x in rs.residual
+        key = "unreacted " * x.constituent
+        out[key] = get(out, key, 0.0) + x.volume / V0
+    end
+    void = 1.0 - sum(values(out))
+    void < -1.0e-10 && @warn "volume expanded beyond the initial volume; " *
+        "the sealed-volume convention does not apply" excess = -void
+    out[void_key] = max(void, 0.0)
+    return out
+end
+
+"""
     phase_masses(rs::RecipeState; min_mass = 1e-6) -> OrderedDict{String, Float64}
 
 The mass (g, for the recipe's binder mass, so g per 100 g of binder by default)
@@ -297,22 +336,76 @@ function phase_masses(rs::RecipeState; min_mass::Real = 1.0e-6)
 end
 
 """
-    bound_water(rs::RecipeState) -> Float64
+    bound_water(rs::RecipeState; window = nothing, windows = nothing, min_mass = 1e-6)
+        -> Float64
 
 The bound water per gram of binder (g/g): the water the solids of the equilibrium
 would lose on ignition ([`ignition_loss`](@ref)), plus that of an unreacted
 mineral which holds some, over the binder mass.
+
+With `window = (T₁, T₂)` (kelvin, as plain numbers or as quantities) and the
+decomposition `windows` of the solids ([`DecompositionWindow`](@ref)), it is
+instead the water released between the two temperatures, which is what a
+thermogravimetric reading over that range weighs: a source that reports bound
+water between 105 °C and 550 °C is compared with the same range. Every solid
+holding more than `min_mass` grams of water, an unreacted mineral included,
+needs a window releasing water; one without is refused by name, since its water
+cannot be placed inside or outside the range.
 """
-function bound_water(rs::RecipeState)
-    w = _in_unit(us"g", ignition_loss(rs.state).water)
+function bound_water(rs::RecipeState; window = nothing, windows = nothing, min_mass::Real = 1.0e-6)
+    if window === nothing
+        windows === nothing || throw(ArgumentError("bound_water: `windows` are read only with a temperature `window`."))
+        w = _in_unit(us"g", ignition_loss(rs.state).water)
+        for (_, g) in _unreacted_water(rs)
+            w += g
+        end
+        return w / rs.recipe.binder_mass
+    end
+    held = vcat(
+        Pair{String, Float64}[p.first => _in_unit(us"g", p.second) for p in bound_water_per_phase(rs.state)],
+        _unreacted_water(rs),
+    )
+    windows === nothing && throw(
+        ArgumentError("bound_water: a temperature window needs the decomposition `windows` of the solids.")
+    )
+    T1, T2 = _kelvin(first(window)), _kelvin(last(window))
+    T1 < T2 || throw(ArgumentError("bound_water: the window ($T1 K, $T2 K) is empty."))
+    _check_fractions(windows)
+    water_windows = [w for w in windows if w.releases === :water]
+    released = 0.0
+    unplaced = String[]
+    for (phase, g) in held
+        ws = [w for w in water_windows if w.phase == phase]
+        if isempty(ws)
+            g > min_mass && push!(unplaced, phase)
+            continue
+        end
+        released += g * sum(w.fraction * (released_fraction(w, T2) - released_fraction(w, T1)) for w in ws)
+    end
+    isempty(unplaced) || throw(
+        ArgumentError(
+            "bound_water: no decomposition window releasing water for " * join(unique(unplaced), ", ") *
+                ", which hold water; give one per solid (see `DecompositionWindow`)."
+        )
+    )
+    return released / rs.recipe.binder_mass
+end
+
+_kelvin(T::Real) = float(T)
+_kelvin(T::DynamicQuantities.AbstractQuantity) = ustrip(us"K", T)
+
+# The water (g) of each unreacted mineral that holds some, by species symbol.
+function _unreacted_water(rs::RecipeState)
+    out = Pair{String, Float64}[]
     Mw = ustrip(us"g/mol", Species("H2O")[:M])
     for (m, mass) in _material_masses(rs.recipe), c in m.constituents
         c isa MineralConstituent || continue
         α = effective_extent(m, c, rs.t)
         h = Float64(get(atoms(c.species), :H, 0))
-        w += (1 - α) * mass * c.mass_fraction / ustrip(us"g/mol", c.species[:M]) * h / 2 * Mw
+        w = (1 - α) * mass * c.mass_fraction / ustrip(us"g/mol", c.species[:M]) * h / 2 * Mw
+        w > 0 && push!(out, symbol(c.species) => w)
     end
-    return w / rs.recipe.binder_mass
+    return out
 end
 
 """

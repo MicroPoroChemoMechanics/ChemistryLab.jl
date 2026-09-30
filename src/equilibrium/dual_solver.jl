@@ -27,7 +27,8 @@ using LinearAlgebra
 
 """
     DualEquilibriumSolver(system, model; tol, maxit, max_active_updates, si_tol,
-                          inner_tol, inner_maxit, verbose)
+                          inner_tol, inner_maxit, inner_fall_bound,
+                          lenient_line_search, verbose)
 
 Equilibrium by Newton on the KKT system, in element-potential space.
 
@@ -49,6 +50,10 @@ The keywords are OptimaSolver's `DualNewtonOptions`: `maxit` and
 `inner_tol` and `inner_maxit` the inner fixed point that recovers the phase
 compositions. `tol` and `si_tol` are also the thresholds of the certificate this
 solver issues, so loosening them loosens the proof, not only the search.
+`inner_fall_bound` (30) and `lenient_line_search` (`false`) change the path of
+the search and not the conditions of its answer; the steps of a kinetic run set
+them to `Inf` and `true`, which is where they pay (see OptimaSolver's
+`DualNewtonOptions`).
 
 See also: [`optimality_certificate`](@ref), [`speciated_states`](@ref).
 """
@@ -83,6 +88,8 @@ function DualEquilibriumSolver(
         si_tol::Float64 = 1.0e-8,
         inner_tol::Float64 = 1.0e-10,
         inner_maxit::Int = 200,
+        inner_fall_bound::Float64 = 30.0,
+        lenient_line_search::Bool = false,
         verbose::Bool = false,
     )
     idx_aq = [i for (i, s) in enumerate(system.species) if aggregate_state(s) == AS_AQUEOUS]
@@ -132,7 +139,7 @@ function DualEquilibriumSolver(
     return DualEquilibriumSolver(
         system, activity_model(system, model), model,
         idx_aq, idx_pure, jw, ss_groups, site_groups, A_elem, size(A_elem, 1),
-        (; tol, maxit, max_active_updates, si_tol, inner_tol, inner_maxit, verbose),
+        (; tol, maxit, max_active_updates, si_tol, inner_tol, inner_maxit, inner_fall_bound, lenient_line_search, verbose),
     )
 end
 

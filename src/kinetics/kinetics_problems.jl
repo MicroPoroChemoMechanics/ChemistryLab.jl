@@ -450,10 +450,20 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
         # an error, reported rather than replaced by the interior point. It is
         # built with the model of the user's solver, as the interior point is
         # above: the problem's own model defaults to the dilute one.
+        #
+        # Its search is the one for warm-started sequences: a solute may fall to
+        # its potential in one sweep, and the line search does not ask a
+        # candidate for a converged inner solve the current point lacks. Each
+        # step starts from the previous one, where the defaults spent most of the
+        # run: 176 s against 10 s for three hours of a CEM I paste, on the same
+        # trajectory to the last bit. The certificate is unchanged.
         eq_dual = (
                 isnothing(kp.equilibrium_solver) || !_DUAL_AVAILABLE[] ||
                 !_dual_applicable(eq_sys)
-            ) ? nothing : DualEquilibriumSolver(eq_sys, activity_model(kp.equilibrium_solver)),
+            ) ? nothing : DualEquilibriumSolver(
+                eq_sys, activity_model(kp.equilibrium_solver);
+                inner_fall_bound = Inf, lenient_line_search = true,
+            ),
         n_eq_init = n_eq_init,
         n_eq_buf = similar(n_eq_init),
         n_eq_buf2 = similar(n_eq_init),

@@ -130,7 +130,9 @@ water and the residue:
 
 the void being the chemical shrinkage the reactions did not refill. With a slag
 glass of unknown density, the residue's volume is missing and the porosity
-cannot be computed: `NaN`, which is the honest answer. [`bound_water`](@ref) is
+cannot be computed: `NaN`, which is the honest answer. [`volume_fractions`](@ref)
+of a recipe state divides the same initial volume among the phases, the
+unreacted parts and the void, and is refused for the same reason. [`bound_water`](@ref) is
 per gram of binder and [`pore_solution`](@ref) gives the pH and the dissolved
 elements, in mol per kg of water.
 
@@ -145,8 +147,10 @@ bound_water(rs), pore_solution(rs).pH
 over the binder mass. It is the whole of what a thermogram integrates to. A
 thermogravimetric reading taken between 105 °C and 550 °C, a common choice,
 leaves part of it out, so the two are compared only over the same temperature
-window; [the thermogram page](@ref sec-example-tga) computes one from
-decomposition windows.
+window: `bound_water(rs; window = (T₁, T₂), windows)` counts what the solids
+release between the two temperatures, from a [`DecompositionWindow`](@ref) for
+each solid that holds water, and refuses a solid without one. [The thermogram
+page](@ref sec-example-tga) shows where such windows come from.
 
 At constant temperature and pressure, the heat a paste releases between two
 states is the fall of its enthalpy:
