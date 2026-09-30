@@ -71,6 +71,11 @@ struct LiteratureRecord
     notes::Vector{String}
 end
 
+# The constructor of 0.28.0, from before `table_info`: a record built that way
+# says nothing about its tables beyond their values.
+LiteratureRecord(key, path, source, transcription, quantities, tables, notes::AbstractVector) =
+    LiteratureRecord(key, path, source, transcription, quantities, tables, OrderedDict{String, NamedTuple}(), notes)
+
 function Base.getindex(r::LiteratureRecord, name::AbstractString)
     haskey(r.quantities, name) || throw(
         KeyError(

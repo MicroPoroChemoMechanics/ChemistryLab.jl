@@ -273,6 +273,10 @@ using JSON
         # A table printed as numbers carries none.
         @test literature_table_info("Deschner2012", "effective_saturation_indices").digitization === nothing
         @test_throws KeyError literature_table_info("Deschner2012", "no_such_table")
+        # A record built with the constructor of 0.28.0, without `table_info`.
+        r0 = literature("Deschner2012")
+        old = LiteratureRecord(r0.key, r0.path, r0.source, r0.transcription, r0.quantities, r0.tables, r0.notes)
+        @test old.tables == r0.tables && isempty(old.table_info)
 
         # Every table whose location says it was read off a figure records the
         # reading: a later transcription cannot forget it.
