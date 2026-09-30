@@ -36,7 +36,10 @@ in one process each, answers compared species by species:
 | the same, ten warm restarts on neighboring budgets | 4.53 s | 1.35 s |
 
 Every answer is certified and the same to 6e-11 in relative amount (bit for bit
-where the route did not change). Three causes, each measured with a profiler:
+where the route did not change). Where the time goes to continuations and
+restarts rather than to the solves themselves the gain is small: 2 % over 32
+blended-cement calculations, every printed result unchanged. Three causes, each
+measured with a profiler:
 
 - The coefficients `A` and `B` of the Debye–Hückel term depend on the
   temperature and the pressure only, through the water equation of state, and
