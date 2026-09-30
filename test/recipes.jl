@@ -376,6 +376,51 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
         @test pore_solution(le[2]).elements[:K] < pore_solution(rs).elements[:K]
     end
 
+    @testset "a recipe as a kinetic problem" begin
+        # The clinker silicates given their rates, everything else as the recipe
+        # has it at the start: C3S and C2S whole, the other constituents reacted
+        # as `budget` takes them, the oxides of the cement as the primaries that
+        # carry them.
+        rates = Dict("C3S" => parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"), "C2S" => parrott_killoh_avrami(PK84_PARAMS_C2S, "C2S"))
+        r = Recipe(pc => 1.0; w_b = 0.45)
+        kp = KineticsProblem(r, cs, rates, (0.0, 86400.0))
+        whole = with_extents(pc, Dict("C3S" => 1.0, "C2S" => 1.0))
+        n0 = ustrip.(us"mol", kp.initial_state.n)
+        @test A * n0 ≈ budget(Recipe(whole => 1.0; w_b = 0.45), cs).b rtol = 1.0e-12 atol = 1.0e-12
+        @test all(>=(0), n0)
+        c3s = only(c for c in pc.constituents if c.name == "C3S")
+        @test ustrip(us"mol", moles(kp.initial_state, "C3S")) ≈
+            r.binder_mass * c3s.mass_fraction / ustrip(us"g/mol", c3s.species[:M]) rtol = 1.0e-12
+        # One dissolution per rate, each conserving the elements.
+        @test length(kp.kinetic_reactions) == 2
+        @test maximum(abs, A * transpose(kp.ν)) < 1.0e-12
+        # The kinetics alone (no equilibrium solver): the silicates dissolve.
+        sol = integrate(kp, KineticsSolver())
+        ic3s = findfirst(s -> symbol(s) == "C3S", cs.species)
+        k3 = findfirst(==(ic3s), kp.idx_kinetic)
+        @test sol.u[end][k3] < sol.u[1][k3]
+        # The reacted oxides enter as the primaries: a basic oxide's protons as
+        # hydroxide, an acidic oxide's water taken from the mixing water, and
+        # anything else refused.
+        st = deepcopy(kp.initial_state)
+        ox(f) = ChemistryLab.oxide_budget(OrderedDict(f => 1.0), cs.SM.primaries; mass = 1.0u"g")
+        oh0, w0 = moles(st, "OH-"), moles(st, "H2O@")
+        ChemistryLab._add_primaries!(st, ox("K2O"))
+        @test moles(st, "OH-") > oh0 && moles(st, "H2O@") < w0
+        w1 = moles(st, "H2O@")
+        ChemistryLab._add_primaries!(st, ox("SO3"))
+        @test moles(st, "H2O@") < w1
+        @test A * ustrip.(us"mol", st.n) ≈ A * n0 .+ ox("K2O") .+ ox("SO3") rtol = 1.0e-12 atol = 1.0e-14
+        neg = zeros(length(cs.SM.primaries)); neg[findfirst(p -> symbol(p) == "Ca+2", cs.SM.primaries)] = -1.0
+        @test_throws ArgumentError ChemistryLab._add_primaries!(deepcopy(kp.initial_state), neg)
+        dry = zeros(length(cs.SM.primaries)); dry[findfirst(p -> symbol(p) == "H2O@", cs.SM.primaries)] = -1.0e6
+        @test_throws ArgumentError ChemistryLab._add_primaries!(deepcopy(kp.initial_state), dry)
+        # What cannot be given a rate is refused by name.
+        @test_throws ArgumentError KineticsProblem(r, cs, Dict("no such" => rates["C3S"]), (0.0, 1.0))
+        glass = first(c.name for c in slag.constituents if c isa ChemistryLab.OxideConstituent)
+        @test_throws ArgumentError KineticsProblem(Recipe(pc => 0.7, slag => 0.3; w_b = 0.45), cs, Dict(glass => rates["C3S"]), (0.0, 1.0))
+    end
+
     @testset "phase lists" begin
         # Every symbol a list names is a record of the database it is written for,
         # and every solid solution a phase of data/solid_solutions.toml.

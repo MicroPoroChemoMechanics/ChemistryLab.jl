@@ -178,6 +178,7 @@ module ChemistryLab
     include("recipes/materials.jl")
     include("recipes/recipes.jl")
     include("recipes/processes.jl")
+    include("recipes/recipe_kinetics.jl")
     include("recipes/templates.jl")
     include("recipes/phase_lists.jl")
 

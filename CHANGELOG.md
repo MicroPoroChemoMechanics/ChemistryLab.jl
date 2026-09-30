@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **A recipe as a kinetic problem:** `KineticsProblem(recipe, system, rates, tspan)`.
+  `rates` maps the name of a mineral constituent to its rate law. That
+  constituent enters whole and unreacted, and dissolves into the primaries of
+  the system by the reaction its column of the conservation matrix gives. Every
+  other constituent is taken as `budget` takes it at the start of the run.
+  The reacted part of an oxide constituent, such as the alkalis of a clinker,
+  enters as the primaries that carry its elements: the protons a basic oxide
+  consumes as hydroxide, the water an acidic one takes (SO₃) from the mixing
+  water. The same recipe drives `hydrate`, where the extents are
+  imposed, and `integrate`, where rate laws decide them. Until now a kinetic run
+  was assembled by hand, species by species. A glass, known by its oxides only,
+  has no formula to dissolve and is refused a rate.
+
 ## v0.28.2 — Kinetic steps seventeen times cheaper, and the volume fractions and windowed bound water of a recipe
 
 ### Changed: a step of a coupled kinetic run costs seventeen times less
