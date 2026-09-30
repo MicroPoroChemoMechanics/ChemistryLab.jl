@@ -106,7 +106,7 @@ hence `∂²G/∂nᵢ² = 0` exactly. The step degenerates. The nullspace method
 instead: with `Z` a basis of `null(A)`,
 
 ```math
-(Z^{\mathsf T} H Z)\, \delta z = -Z^{\mathsf T}(e_x + H\, \delta n_p),
+(\mathbf{Z}^\mathsf{T} \mathbf{H} \mathbf{Z})\, \delta\mathbf{z} = -\mathbf{Z}^\mathsf{T}(\mathbf{e}_x + \mathbf{H}\, \delta\mathbf{n}_p),
 ```
 
 in which `H` appears only as a product. This is what the C++ Optima does by
@@ -179,12 +179,12 @@ kinetic half of Leal's system is analytic —
 ```math
 n_{\text{Cal}}(t) = n_{\text{Cal}}(0) - k t,
 \qquad
-b_e(t) = b_e(0) + k t \, (\text{one CaCO}_3)
+\mathbf{b}_e(t) = \mathbf{b}_e(0) + k t \, (\text{one CaCO}_3)
 ```
 
 — which removes every difference of rate-law convention between the codes and
 leaves only the question that matters: does the equilibrium partition follow
-``n_e(t) = \varphi(b_e(t))``? The oracle then needs no kinetics integrator at
+``\mathbf{n}_e(t) = \varphi(\mathbf{b}_e(t))``? The oracle then needs no kinetics integrator at
 all, just one equilibrium solve per sample time.
 
 | t (s) | worst relative deviation | on |

@@ -174,16 +174,16 @@ The ODE state is `(bₑ, nₖ)`: the element amounts held by the equilibrium
 partition, and the moles of the kinetic minerals. It advances as
 
 ```math
-\frac{\mathrm{d} n_k}{\mathrm{d} t} = \nu_k^{\mathsf T} r,
+\frac{\mathrm{d} \mathbf{n}_k}{\mathrm{d} t} = \boldsymbol{\nu}_k^\mathsf{T} \mathbf{r},
 \qquad
-\frac{\mathrm{d} b_e}{\mathrm{d} t} = A_e \, \nu_e^{\mathsf T} r ,
+\frac{\mathrm{d} \mathbf{b}_e}{\mathrm{d} t} = \mathbf{A}_e \, \boldsymbol{\nu}_e^\mathsf{T} \mathbf{r} ,
 ```
 
 and the composition of the equilibrium partition is recovered at each step by
 
 ```math
-n_e = \varphi(b_e) \;=\; \arg\min_{n} \; G(n)
-\quad \text{s.t.} \quad A_e\, n = b_e , \; n \ge 0 .
+\mathbf{n}_e = \varphi(\mathbf{b}_e) \;=\; \arg\min_{\mathbf{n}} \; G(\mathbf{n})
+\quad \text{s.t.} \quad \mathbf{A}_e\, \mathbf{n} = \mathbf{b}_e , \; \mathbf{n} \ge 0 .
 ```
 
 Three points are worth stating, because each is a way the coupling can be got

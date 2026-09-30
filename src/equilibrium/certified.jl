@@ -244,6 +244,36 @@ function Base.iterate(s::_LazyStarts, i::Int = 1)
 end
 
 """
+    _DeferredStarts(make)
+
+Starts computed only when the search reaches them, and once: `make()` returns an
+iterable of starting states, or `nothing`, and is called the first time the
+iterator is iterated; the search offers its starts again after a continuation or
+a repair, and the second pass reads what the first made. For a start that is a
+solve in its own right, such as [`_ideal_mixing_start`](@ref
+ChemistryLab._ideal_mixing_start), which a search that certifies from an earlier
+start never needs.
+"""
+mutable struct _DeferredStarts{F}
+    make::F
+    made::Any
+end
+_DeferredStarts(make) = _DeferredStarts(make, nothing)
+
+Base.IteratorSize(::Type{<:_DeferredStarts}) = Base.SizeUnknown()
+
+function Base.iterate(d::_DeferredStarts, st = nothing)
+    if st === nothing
+        d.made === nothing && (d.made = something(d.make(), ()))
+        r = iterate(d.made)
+    else
+        r = iterate(d.made, only(st))
+    end
+    r === nothing && return nothing
+    return (r[1], (r[2],))
+end
+
+"""
     _ideal_start(state, model, bfix, ϵ, constraint, verbose; kwargs...)
         -> Union{ChemicalState, Nothing}
 
@@ -432,10 +462,14 @@ end
 end-members, the species, their order and every other phase unchanged; `nothing`
 when `cs` has no sublattice phase.
 """
+_mixes_on_sites(ph) = model(ph) isa Union{SublatticeModel, CompoundEnergyModel}
+_has_site_mixing(cs::ChemicalSystem) =
+    cs.solid_solutions !== nothing && any(_mixes_on_sites, cs.solid_solutions)
+
 function _ideal_mixing_system(cs::ChemicalSystem)
     ss = cs.solid_solutions
-    site_model(ph) = model(ph) isa Union{SublatticeModel, CompoundEnergyModel}
-    (ss === nothing || !any(site_model, ss)) && return nothing
+    site_model = _mixes_on_sites
+    _has_site_mixing(cs) || return nothing
     ideal = [
         site_model(ph) ?
             SolidSolutionPhase{eltype(ph.end_members), IdealSolidSolutionModel}(
@@ -1224,6 +1258,9 @@ function _equilibrate_certified(
     end
 
     starts = starts_from(state, "start", :state)
+    state_starts = starts
+    lp_first = false
+    first_start = nothing
 
     # The vertex of the linear program, with the species it leaves out given the
     # amounts its multipliers give them in their phases, comes first: the answer
@@ -1252,16 +1289,23 @@ function _equilibrate_certified(
             factories = Function[default], offer_tail = false,
         )
         starts = Iterators.flatten((first_start, starts))
+        lp_first = true
     end
 
     # Ideal mixing as a stepping stone for a sublattice phase: see
-    # `_ideal_mixing_start`. First, because it is cheap and the cold search is
-    # not.
-    mixed = autostart ?
-        _ideal_mixing_start(state, model, bfix, ϵ, constraint, verbose; dual = dual, kwargs...) :
-        nothing
-    if mixed !== nothing
-        starts = Iterators.flatten((starts_from(mixed, "start from ideal mixing", :ideal_mixing), starts))
+    # `_ideal_mixing_start`. After the start of the linear program and before the
+    # state as given, and solved only if the search reaches it: it is a whole
+    # certified solve of its own, and from a neighboring answer, or wherever the
+    # start of the linear program certifies, it is not needed. Measured on a CEM I
+    # paste with the CNASH gel on its sites, ten warm restarts on neighboring
+    # budgets: computed first, it was 47 % of their time.
+    if autostart && _has_site_mixing(state.system)
+        mixed = _DeferredStarts() do
+            m = _ideal_mixing_start(state, model, bfix, ϵ, constraint, verbose; dual = dual, kwargs...)
+            m === nothing ? nothing : starts_from(m, "start from ideal mixing", :ideal_mixing)
+        end
+        starts = lp_first ? Iterators.flatten((first_start, mixed, state_starts)) :
+            Iterators.flatten((mixed, state_starts))
     end
 
     eq, cert = search(starts)

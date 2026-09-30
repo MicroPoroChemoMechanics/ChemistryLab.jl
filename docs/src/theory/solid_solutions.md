@@ -147,7 +147,7 @@ agree to the last digit.
 [`SolidSolutionPhase`](@ref) refuses the combination at construction rather than
 letting a ternary reach an expression written for a binary. For three or more
 end-members the choices are the ideal model or `RegularSolutionModel` with a
-full ``W`` matrix.
+full ``\mathbf{W}`` matrix.
 
 ## 5. What the three models do to an activity
 
@@ -408,7 +408,7 @@ csh3t.multiplicity
 
 `sublattice_model` finds that factor itself, by comparing each record's formula
 with the one the paper prints, and refuses a record that is not such a multiple.
-At ``x = (0.2, 0.5, 0.3)`` the first site holds Si only through TobH, the second
+At ``\mathbf{x} = (0.2, 0.5, 0.3)`` the first site holds Si only through TobH, the second
 through TobH and T5C:
 
 ```@example sublattice
@@ -435,7 +435,7 @@ simplify(expand(λ - (0.5log(x[1] + x[2]) + 0.5log(x[3] + x[2]) - log(x[2]))))
 **Two properties the solver relies on.**
 
   - *Convexity.* ``G^{\text{mix}}`` is a sum of convex functions of the site
-    fractions, which are linear in ``x``, so it is convex, and strictly so when
+    fractions, which are linear in ``\mathbf{x}``, so it is convex, and strictly so when
     the occupancy matrix (one row per site and species, one column per
     end-member) has full column rank, stored as `rank`. The activities are the
     gradient of that energy, so a certificate keeps its `:global_minimum` scope.
@@ -530,13 +530,13 @@ solve.
     four independent site fractions in CASH+. Left to choose, the solver returns one
     of them, which one depending on where the search started. It is therefore given
     one split, the product of the site fractions, ``x_j = \prod_s y_{s,j_s}``, by adding to the energy it
-    minimizes ``RT\,D(x)``, with
+    minimizes ``RT\,D(\mathbf{x})``, with
 
     ```math
-    D(x) = \sum_j x_j \ln x_j - \sum_s \sum_i y_{s,i}\ln y_{s,i} .
+    D(\mathbf{x}) = \sum_j x_j \ln x_j - \sum_s \sum_i y_{s,i}\ln y_{s,i} .
     ```
 
-    ``D`` is the divergence of ``x`` from the product of its own site fractions:
+    ``D`` is the divergence of ``\mathbf{x}`` from the product of its own site fractions:
     it is never negative, and it vanishes only at that product, where its gradient
     ``\ln x_k - \sum_s \ln y_{s,k_s}`` vanishes too. The minimum over the splits
     of one set of site fractions is therefore the product, with the energy and
@@ -548,16 +548,16 @@ solve.
     reciprocal energy can make ``G`` concave somewhere. In the site fractions, each
     site contributes a curvature of at least ``2m_s + \mu_s``, the configurational
     bound of section 9 plus the smallest tangent eigenvalue ``\mu_s`` of its
-    interactions ``W/RT``, and with two sites the reference surface couples them
-    through a constant matrix ``C``, the ``G^\circ_j/RT`` of the compounds projected
+    interactions ``\mathbf{W}/RT``, and with two sites the reference surface couples them
+    through a constant matrix ``\mathbf{C}``, the ``G^\circ_j/RT`` of the compounds projected
     on the two tangent spaces. So ``G`` is convex when
-    ``(2m_1 + \mu_1)(2m_2 + \mu_2) > \lVert C \rVert^2``. That proves the CASH+
+    ``(2m_1 + \mu_1)(2m_2 + \mu_2) > \lVert \mathbf{C} \rVert^2``. That proves the CASH+
     core convex (34.3 against 13.2 at 25 °C), and a certificate on it keeps its
     `:global_minimum` scope as far as the gel goes; the bound does not decide
     CASH+NK, whose sampled Hessian shows no concave point, and its scope stays
     `:kkt_point` ([`mixing_convexity`](@ref)).
   - *Euler's relation holds.* ``\sum_k x_k\,\mu_k = G`` for any amounts with the
-    site fractions ``y``, as it must for a Gibbs energy.
+    site fractions ``\mathbf{y}``, as it must for a Gibbs energy.
 
 The block below checks the gradient and the last point on the core model, at a
 composition of the six members. The activities are compared with the gradient of
@@ -602,23 +602,23 @@ solutions with it.
 
 A one-dimensional scan decides a binary. With ``n`` end-members the question is
 whether the Hessian of ``g/RT`` is positive on the tangent space of the simplex,
-``\{d : \sum_i d_i = 0\}``, at every composition, and
+``\{\mathbf{d} : \sum_i d_i = 0\}``, at every composition, and
 [`mixing_convexity`](@ref) answers it by model.
 
 For a regular model, ``g/RT = \sum_i x_i \ln x_i + \sum_{i<j} w_{ij} x_i x_j`` with
-``w = W/RT``, and the Hessian is ``\operatorname{diag}(1/x) + w``. The first term
-is at least 2 on the tangent space: for a unit ``d`` with ``\sum_i d_i = 0``, the
+``w_{ij} = W_{ij}/RT``, and the Hessian is ``\operatorname{diag}(1/\mathbf{x}) + \mathbf{W}/RT``. The first term
+is at least 2 on the tangent space: for a unit ``\mathbf{d}`` with ``\sum_i d_i = 0``, the
 Cauchy–Schwarz inequality gives
 ``\sum_i d_i^2/x_i \ge (\sum_i |d_i|)^2 / \sum_i x_i = (\sum_i |d_i|)^2``, and the
-ℓ1 norm of such a ``d`` is at least ``\sqrt 2`` (its positive and negative parts
+ℓ1 norm of such a ``\mathbf{d}`` is at least ``\sqrt 2`` (its positive and negative parts
 have equal sums). Hence
 
 ```math
-\lambda_{\min}\!\left(Q^\mathsf{T} w\, Q\right) \ge -2
+\lambda_{\min}\!\left(\mathbf{Q}^\mathsf{T}\,\frac{\mathbf{W}}{RT}\,\mathbf{Q}\right) \ge -2
 \quad\Longrightarrow\quad \text{convex},
 ```
 
-``Q`` an orthonormal basis of the tangent space. For two end-members this is
+``\mathbf{Q}`` an orthonormal basis of the tangent space. For two end-members this is
 ``W \le 2RT``, the threshold of section 3; for more it is a sufficient
 condition. In the other direction, a pair with ``W_{ij} > 2RT`` is a witness:
 at the middle of that edge the second derivative along it is ``4 - 2w_{ij} < 0``.

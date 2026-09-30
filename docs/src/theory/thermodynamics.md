@@ -77,14 +77,14 @@ reads.
 
 Minerals and gases carry a heat-capacity polynomial, the model `:cp_ft_equation`,
 of up to eleven terms in powers of ``T``, ``\sqrt{T}`` and ``\ln T``.
-`THERMO_MODELS` (`src/thermodynamics/thermo_models.jl`) stores ``C_P(T)``
+`THERMO_MODELS` (`src/thermodynamics/thermo_models.jl`) stores ``C_p(T)``
 together with the analytic antiderivatives of the same coefficients for ``S``,
 ``H`` and ``G``, so that the relations
 
 ```math
-C_P = \left(\frac{\partial H}{\partial T}\right)_P ,
+C_p = \left(\frac{\partial H}{\partial T}\right)_P ,
 \qquad
-S(T) = S(T_r) + \int_{T_r}^{T}\frac{C_P}{T'}\,\mathrm{d}T' ,
+S(T) = S(T_r) + \int_{T_r}^{T}\frac{C_p}{T'}\,\mathrm{d}T' ,
 \qquad
 G = H - TS
 ```
@@ -112,20 +112,20 @@ pressure entering through ``P - P_r`` and ``\ln[(\Psi + P)/(\Psi + P_r)]`` with
 dielectric continuum, given by the Born equation
 
 ```math
-\Delta G_{\text{s}} = \omega\left(\frac{1}{\varepsilon} - 1\right) ,
+\Delta G_{\text{s}} = \omega\left(\frac{1}{\varepsilon_r} - 1\right) ,
 ```
 
-where ``\varepsilon`` is the relative permittivity of water at ``T`` and ``P`` and
+where ``\varepsilon_r`` is the relative permittivity of water at ``T`` and ``P`` and
 ``\omega`` the Born coefficient of the species, itself a function of ``T`` and
 ``P`` for an ion. The code evaluates it through the Born function
-``Z = -1/\varepsilon`` as ``-\omega(Z+1)``, measured from its value at the
+``Z = -1/\varepsilon_r`` as ``-\omega(Z+1)``, measured from its value at the
 reference conditions, a term that follows the permittivity of water, which falls
 from about 78 at 25 °C to about 55 at 100 °C; the same model of water supplies the
 parameters of the activity models. The standard state of a solute is thus taken
 at the pressure of the system, and the parameters of an ion are conventional,
 those of H⁺ being zero at every temperature and pressure.
 
-For the Maier-Kelley heat capacity, ``C_P^\circ = a_0 + a_1 T + a_2 T^{-2}``,
+For the Maier-Kelley heat capacity, ``C_p^\circ = a_0 + a_1 T + a_2 T^{-2}``,
 both temperature integrals are elementary, and the closed form can be set
 against the function the package builds from the same data. With the parameters
 of calcite used in [Thermodynamic Functions](@ref sec-thermodynamics), at 500 K:
@@ -175,31 +175,35 @@ subject to the matter available, which is a linear constraint, since the
 elements and the charge are conserved whatever the reactions:
 
 ```math
-\min_{n \ge 0} \; \sum_i n_i\, g_i(n)
+\min_{\mathbf{n} \ge 0} \; \sum_i n_i\, g_i(\mathbf{n})
 \qquad\text{subject to}\qquad
-\mathbf{A}\,n = b ,
+\mathbf{A}\,\mathbf{n} = \mathbf{b} ,
 ```
 
 where ``\mathbf{A}`` is the conservation matrix `cs.SM.A`, with one row per
-component and one column per species, and ``b`` the budget of the components.
+component and one column per species, and ``\mathbf{b}`` the budget of the components.
 The components are the primary species of the system, or the elements with the
 charge, and the two choices express the same constraints
 ([Formation from primary species](@ref sec-theory-primaries)). This is the
 formulation of [Leal2017](@cite), in which no list of reactions is needed: the
-reactions are the moves of ``n`` within the null space of ``\mathbf{A}``.
+reactions are the moves of ``\mathbf{n}`` within the null space of ``\mathbf{A}``.
 
 The Lagrange multipliers of the equality constraints are the useful output.
-Writing ``y_c`` for the multiplier of row ``c``, the first-order conditions are
+Writing ``y_c`` for the multiplier of row ``c``, and
+``u_s = -\sum_c A_{cs}\, y_c`` for the potential they give species ``s`` (the
+components of ``\mathbf{u} = -\mathbf{A}^\mathsf{T}\mathbf{y}``), the first-order
+conditions are
 
 ```math
-g_s \;=\; \sum_c A_{cs}\, y_c \quad\text{for every species present},
+g_s \;=\; u_s \quad\text{for every species present},
 \qquad
-g_s \;\ge\; \sum_c A_{cs}\, y_c \quad\text{for every species absent.}
+g_s \;\ge\; u_s \quad\text{for every species absent.}
 ```
 
-The ``y_c`` are the component potentials, or element potentials when the
+The ``-y_c`` are the component potentials, or element potentials when the
 components are elements: one number per component, from which the chemical
-potential of any species follows as a scalar product. The two lines above are
+potential of any species follows as a scalar product,
+``\mathbf{u} = -\mathbf{A}^\mathsf{T}\mathbf{y}``. The two lines above are
 the complementarity conditions of the Karush-Kuhn-Tucker (KKT) system, and they
 are what [`optimality_certificate`](@ref) checks; the certificate itself, and the
 conditions under which it proves a global minimum, are the subject of
@@ -208,10 +212,10 @@ conditions under which it proves a global minimum, are the subject of
 ## 5. The saturation index
 
 The column of ``\mathbf{A}`` for a species ``s`` is its reaction of formation
-from the primary species, ``\sum_c A_{cs}\,B_c \rightarrow s``, whose Gibbs
-energy is ``\Delta_r G = \Delta_r G^\circ + RT\ln Q`` and vanishes at equilibrium
+from the primary species, ``\sum_c A_{cs}\,\mathrm{B}_c \rightarrow s``, whose Gibbs
+energy is ``\Delta_r G = \Delta_r G^\circ + RT\ln Q_r`` and vanishes at equilibrium
 ([Reactions and equilibrium constants](@ref sec-theory-reactions)). For a solid, the
-reverse reaction is its dissolution into the primaries, ``Q`` of that dissolution
+reverse reaction is its dissolution into the primaries, ``Q_r`` of that dissolution
 is the ion activity product IAP, ``K`` the solubility product, and the logarithm
 of their ratio the saturation index. Since the rows of ``\mathbf{A}`` are
 labeled by primary species, a component potential is the potential ``g`` of
@@ -219,7 +223,7 @@ the corresponding primary, and the index becomes a difference of potentials,
 with no equilibrium constant to look up,
 
 ```math
-\mathrm{LogSI}_s \;=\; \frac{1}{\ln 10}\left(\sum_c A_{cs}\, y_c \;-\; g_s\right)
+\mathrm{LogSI}_s \;=\; \frac{u_s - g_s}{\ln 10}
 \;=\; \log_{10}\frac{\mathrm{IAP}}{K_{sp}}
 \;=\; -\frac{\Delta_r G}{RT\ln 10} ,
 ```
@@ -268,7 +272,7 @@ constructed when that list is not empty.
 | one well-mixed phase per aggregate state | a list of reactions, a reaction path, a sequence |
 | ideal molar volumes, no excess volume | ideal activities, which are the business of the activity model |
 | the domain of validity of the activity model | the phases present, which are a result |
-| that ``\mathbf{A}n = b`` is the whole of the conservation | that a point satisfying the optimality conditions is the minimum |
+| that ``\mathbf{A}\mathbf{n} = \mathbf{b}`` is the whole of the conservation | that a point satisfying the optimality conditions is the minimum |
 
 The last cell rests on the certificate. The optimality conditions prove a global
 minimum when the potentials derive from one convex Gibbs energy, which holds for

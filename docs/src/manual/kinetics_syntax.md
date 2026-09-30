@@ -21,8 +21,8 @@ rate laws.
 | | implicit step — [`kinetic_step`](@ref) | ODE integration — [`integrate`](@ref) |
 |:--|:--|:--|
 | what advances | one Gibbs minimization per step, extents included | `dn/dt = ν' r(n)`, handed to SciML |
-| kinetics–equilibrium coupling | **strong**: the aqueous phase is at equilibrium *at the end of the step* | the aqueous phase is re-speciated between evaluations |
-| the hydrate assemblage | **thermodynamic** — whatever minimizes `G` | **imposed** by the stoichiometry you wrote |
+| kinetics–equilibrium coupling | **strong**: the aqueous phase is at equilibrium *at the end of the step* | with an equilibrium solver, the equilibrium partition is re-speciated once per accepted step and held within it; without one, none |
+| the hydrate assemblage | **thermodynamic** — whatever minimizes `G` | **thermodynamic** for the species of the equilibrium partition (with an equilibrium solver); otherwise **imposed** by the stoichiometry you wrote |
 | time stepping | `Δt` is yours | adaptive, with a choice of stiff solvers |
 | overshooting saturation | impossible, at any `Δt` | controlled by the integrator's tolerances |
 | several reactions per mineral | yes | yes |
@@ -43,7 +43,7 @@ may share a mineral, and the integrator chooses the step.
 
 ### Prescribed products AND strong coupling: `coupling = :species`
 
-The third combination, which neither Reaktoro nor the ODE route offers: a
+The third combination, which the ODE route does not offer: a
 solid-to-solid scheme whose **products are imposed by the stoichiometry**, solved
 inside the same Gibbs minimization as the aqueous equilibrium.
 
@@ -111,12 +111,12 @@ st1 = kinetic_step(kss, st0, 100.0u"s"; parameters = Δξ)
 What the step solves is one problem, not two:
 
 ```math
-\min_n G(n) \quad\text{s.t.}\quad
+\min_{\mathbf{n}} G(\mathbf{n}) \quad\text{s.t.}\quad
 \begin{cases}
-A n = b_0 \\
-K^{\mathsf T} n - \Delta\xi = \xi_0 \\
-\Delta\xi - \Delta t\, M\, r(n) = 0, \quad M = K^{\mathsf T}K \\
-n \ge 0
+\mathbf{A} \mathbf{n} = \mathbf{b}_0 \\
+\mathbf{K}^\mathsf{T} \mathbf{n} - \Delta\boldsymbol{\xi} = \boldsymbol{\xi}_0 \\
+\Delta\boldsymbol{\xi} - \Delta t\, \mathbf{M}\, \mathbf{r}(\mathbf{n}) = 0, \quad \mathbf{M} = \mathbf{K}^\mathsf{T}\mathbf{K} \\
+\mathbf{n} \ge 0
 \end{cases}
 ```
 

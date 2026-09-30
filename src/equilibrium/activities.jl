@@ -359,6 +359,32 @@ function hkf_debye_huckel_params(T_K, P_Pa)
     return (A = A, B = B)
 end
 
+# The last `(T, P, A, B)` computed from plain numbers. An activity model with
+# temperature-dependent coefficients asks for them at every evaluation, and an
+# equilibrium solve evaluates it thousands of times at one temperature and one
+# pressure: measured on a CEM I paste, the water equation of state behind `A`
+# and `B` was 55 % of the solve. One entry, not a table, because a solve holds T
+# and P fixed while a semi-adiabatic run visits a new temperature at every step;
+# `@atomic`, because calculations running on threads share it. Dual numbers, and
+# anything else that is not a `Float64`, are computed each time.
+mutable struct _LastDebyeHuckel
+    @atomic entry::NTuple{4, Float64}
+end
+const _DEBYE_HUCKEL_LAST = _LastDebyeHuckel((NaN, NaN, NaN, NaN))
+
+function hkf_debye_huckel_params(T_K::Float64, P_Pa::Float64)
+    e = @atomic _DEBYE_HUCKEL_LAST.entry
+    (e[1] === T_K && e[2] === P_Pa) && return (A = e[3], B = e[4])
+    wtp = water_thermo_props(T_K, P_Pa)
+    wep = water_electro_props_jn(T_K, P_Pa, wtp)
+    ρ_gcm3 = wtp.D / 1000
+    εT = wep.epsilon * T_K
+    A = 1.824829238e6 * sqrt(ρ_gcm3) / εT^(3 // 2)
+    B = 50.29158649 * sqrt(ρ_gcm3) / sqrt(εT)
+    @atomic _DEBYE_HUCKEL_LAST.entry = (T_K, P_Pa, A, B)
+    return (A = A, B = B)
+end
+
 # Internal: Setschenow (salting-out) coefficient lookup for a neutral aqueous
 # species. `model.Kₙ` is one coefficient for every neutral species, which is what
 # the B-dot literature assumes; a per-species value is what actually varies —

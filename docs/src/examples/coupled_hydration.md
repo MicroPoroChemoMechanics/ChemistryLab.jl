@@ -10,7 +10,7 @@ assemblage that forms is **computed** by Gibbs minimization rather than imposed
 from a stoichiometric recipe.
 
 Read the theory page first if you have not — this one assumes the partition
-``(b_e, n_k)`` and the map ``n_e = \varphi(b_e)``.
+``(\mathbf{b}_e, \mathbf{n}_k)`` and the map ``\mathbf{n}_e = \varphi(\mathbf{b}_e)``.
 
 ## What is different from a stoichiometric model
 
@@ -96,7 +96,7 @@ above records.
 
 The reaction list is a **positional** argument, and `equilibrium_solver` belongs
 on the problem. Without it the run is a pure kinetics integration and the
-aqueous phase never re-speciates; with it, `respeciate!` solves ``\varphi(b_e)``
+aqueous phase never re-speciates; with it, `respeciate!` solves ``\varphi(\mathbf{b}_e)``
 once per accepted step.
 
 The activity model matters. A cement pore solution sits at an ionic strength of
@@ -132,9 +132,9 @@ print(String(take!(diagnostics))) # hide
 ## 5. Reading the result
 
 The composition at a given time is **not** `state_at`: that returns the purely
-kinetic reconstruction ``n(0) + \nu^{\mathsf T}\xi``, and the redistribution
+kinetic reconstruction ``\mathbf{n}(0) + \boldsymbol{\nu}^\mathsf{T}\boldsymbol{\xi}``, and the redistribution
 performed by the equilibrium solve cannot be recovered from the stoichiometry.
-Use [`speciated_states`](@ref), which re-solves ``\varphi(b_e)`` from the element
+Use [`speciated_states`](@ref), which re-solves ``\varphi(\mathbf{b}_e)`` from the element
 totals the run carried, walking the instants in order.
 
 ```@example coupled

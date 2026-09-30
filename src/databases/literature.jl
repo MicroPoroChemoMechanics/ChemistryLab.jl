@@ -52,6 +52,9 @@ The content of one `data/literature/<key>.json` file, as returned by
   - `quantities`: named scalars, each a [`Traced`](@ref) value carrying its
     provenance kind, its source and, when the source gives one, its uncertainty.
   - `tables`: named tables, each a `NamedTuple` of column vectors.
+  - `table_info`: for each table, its provenance `kind`, its `location` in the
+    source and, for values read off a figure, its `digitization`; see
+    [`literature_table_info`](@ref).
   - `notes`: free remarks recorded with the data.
 
 `record[name]` returns the quantity `name`; [`literature_value`](@ref) and
@@ -64,8 +67,14 @@ struct LiteratureRecord
     transcription::Dict{String, Any}
     quantities::OrderedDict{String, Traced}
     tables::OrderedDict{String, NamedTuple}
+    table_info::OrderedDict{String, NamedTuple}
     notes::Vector{String}
 end
+
+# The constructor of 0.28.0, from before `table_info`: a record built that way
+# says nothing about its tables beyond their values.
+LiteratureRecord(key, path, source, transcription, quantities, tables, notes::AbstractVector) =
+    LiteratureRecord(key, path, source, transcription, quantities, tables, OrderedDict{String, NamedTuple}(), notes)
 
 function Base.getindex(r::LiteratureRecord, name::AbstractString)
     haskey(r.quantities, name) || throw(
@@ -144,6 +153,14 @@ names the file and the field, never a silently different number.
     DOI, when it has one, `source.doi` repeats.
   - `kind` is one of `published`, `measured`, `fitted`, `estimated`,
     `placeholder`, `unstated`, the names of [`ProvenanceKind`](@ref).
+  - A table whose values were read off a figure, not printed as numbers, says
+    so in `"digitization"`: `{"method": "vector drawing" | "raster image",
+    "tool": "…", "uncertainty": …, "note": "…"}`. `uncertainty` is the error the
+    reading adds, on top of the source's own: `{"relative": 0.002}`,
+    `{"value": 0.2, "unit": "K"}`, or `null` when the reading was not quantified
+    (the note then says what bounds it). Its `kind` stays what the values are (a
+    measurement read off a plot is still `measured`); the field records how they
+    reached the file.
   - `unit` is unit arithmetic read by `DynamicQuantities` (`"J/mol"`,
     `"m^2/g"`); `"1"` returns a plain number. A column whose unit is `null`
     holds text (a phase name, a label) and is returned as such.
@@ -261,6 +278,29 @@ function literature_row(key::AbstractString, table::AbstractString, label::Abstr
     return map(col -> col[i], t)
 end
 
+"""
+    literature_table_info(key, name) -> NamedTuple
+
+What the file says about the table `name` of the source `key` beyond its
+values: `kind` (a [`ProvenanceKind`](@ref)), `location` in the source, and
+`digitization`, `nothing` for values printed as numbers and otherwise
+`(; method, tool, uncertainty, relative, note)` for values read off a figure.
+`uncertainty` is the error the reading adds, relative (`relative = true`) or
+absolute with its unit (`relative = false`); both are `nothing` when the reading
+was not quantified.
+
+```julia
+literature_table_info("Deschner2012", "pore_solution").digitization.uncertainty
+```
+"""
+function literature_table_info(key::AbstractString, name::AbstractString)
+    r = literature(key)
+    haskey(r.table_info, name) || throw(
+        KeyError("$(r.key) has no table \"$name\"; it has: " * join(keys(r.tables), ", "))
+    )
+    return r.table_info[name]
+end
+
 # ── reading and checking one file ────────────────────────────────────────────
 
 _literature_error(path, msg) = throw(ArgumentError("$(basename(path)): $msg"))
@@ -331,6 +371,43 @@ function _literature_kind(k, path, where)
     return _LITERATURE_KINDS[k]
 end
 
+const _DIGITIZATION_METHODS = ("vector drawing", "raster image")
+
+_literature_digitization(::Nothing, path, where) = nothing
+function _literature_digitization(d::AbstractDict, path, where)
+    w = "$where, \"digitization\""
+    method = _literature_field(d, "method", path, w)
+    method in _DIGITIZATION_METHODS || _literature_error(
+        path, "$w: method \"$method\" is not one of " * join(_DIGITIZATION_METHODS, ", ")
+    )
+    tool = _literature_field(d, "tool", path, w)
+    tool isa AbstractString || _literature_error(path, "$w: \"tool\" must be text")
+    u, relative = _digitization_uncertainty(_literature_field(d, "uncertainty", path, w), path, w)
+    return (;
+        method = String(method), tool = String(tool), uncertainty = u, relative,
+        note = string(get(d, "note", "")),
+    )
+end
+
+# `(nothing, nothing)` when the reading was not quantified, `(v, true)` for a
+# relative error, `(q, false)` for an absolute one carrying its unit.
+_digitization_uncertainty(::Nothing, path, where) = (nothing, nothing)
+function _digitization_uncertainty(u::AbstractDict, path, where)
+    rel, abs_ = haskey(u, "relative"), haskey(u, "value")
+    rel != abs_ || _literature_error(
+        path, "$where: \"uncertainty\" must hold either \"relative\", or \"value\" and \"unit\""
+    )
+    v = _literature_number(rel ? u["relative"] : u["value"], path, where)
+    v >= 0 || _literature_error(path, "$where: the uncertainty must be non-negative, got $v")
+    rel && return (v, true)
+    unit = _literature_unit(_literature_field(u, "unit", path, "$where, \"uncertainty\""), path, where)
+    return (_with_unit(v, unit), false)
+end
+_digitization_uncertainty(u, path, where) =
+    _literature_error(path, "$where: \"uncertainty\" must be null or an object, got $(repr(u))")
+_literature_digitization(x, path, where) =
+    _literature_error(path, "$where: \"digitization\" must be an object, got $(repr(x))")
+
 _literature_number(x, path, where) =
     x isa Real ? Float64(x) : _literature_error(path, "$where: expected a number, got $(repr(x))")
 
@@ -370,13 +447,19 @@ function read_literature(path::AbstractString)
     end
 
     tables = OrderedDict{String, NamedTuple}()
+    table_info = OrderedDict{String, NamedTuple}()
     for (name, t) in sort!(collect(get(d, "tables", Dict{String, Any}())); by = first)
         where = "table \"$name\""
         cols = String.(_literature_field(t, "columns", path, where))
         units = _literature_field(t, "units", path, where)
         length(units) == length(cols) ||
             _literature_error(path, "$where: $(length(cols)) columns but $(length(units)) units")
-        _literature_kind(_literature_field(t, "kind", path, where), path, where)
+        kind = _literature_kind(_literature_field(t, "kind", path, where), path, where)
+        loc = get(t, "location", nothing)
+        table_info[name] = (;
+            kind, location = loc === nothing ? nothing : string(loc),
+            digitization = _literature_digitization(get(t, "digitization", nothing), path, where),
+        )
         rows = _literature_field(t, "rows", path, where)
         for (i, row) in enumerate(rows)
             length(row) == length(cols) ||
@@ -394,5 +477,5 @@ function read_literature(path::AbstractString)
     end
 
     notes = String[string(n) for n in get(d, "notes", String[])]
-    return LiteratureRecord(key, String(path), source, transcription, quantities, tables, notes)
+    return LiteratureRecord(key, String(path), source, transcription, quantities, tables, table_info, notes)
 end

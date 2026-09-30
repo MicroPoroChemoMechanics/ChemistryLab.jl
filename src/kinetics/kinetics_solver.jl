@@ -40,8 +40,9 @@ Construct once, reuse across multiple [`KineticsProblem`](@ref) instances.
     change nothing while removing a reproducible choice. Use `nothing` before
     `OrdinaryDiffEq` is loaded; an error will be raised at solve time.
   - `equilibrium_solver`: optional [`EquilibriumSolver`](@ref) to re-equilibrate
-    aqueous speciation at each ODE evaluation. When `nothing`, the kinetic minerals
-    evolve without re-speciation (faster, less accurate).
+    the equilibrium partition once per accepted step of the integrator (a
+    discrete callback; the speciation is held within a step). When `nothing`,
+    the kinetic minerals evolve without re-speciation (faster, less accurate).
   - `kwargs`: keyword arguments forwarded to `DifferentialEquations.solve`
     (e.g. `reltol`, `abstol`, `saveat`, `maxiters`).
 

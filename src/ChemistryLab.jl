@@ -457,6 +457,7 @@ module ChemistryLab
         literature_value,
         literature_table,
         literature_row,
+        literature_table_info,
         available_literature,
         literature_path,
         LiteratureRecord,

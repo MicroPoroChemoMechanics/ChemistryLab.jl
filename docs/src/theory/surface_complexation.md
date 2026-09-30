@@ -58,7 +58,7 @@ Every calculation in this package rests on conservation: whatever redistributes,
 the atoms are still there. That is the matrix equation
 
 ```math
-A\,n = b
+\mathbf{A}\,\mathbf{n} = \mathbf{b}
 ```
 
 with one row per component and one column per species. Sites obey a law of
@@ -312,10 +312,10 @@ per unit area, ``s`` running over the charge density from zero to ``\sigma``.
 Over the area ``\mathcal{A}``, and with ``\Psi = \sigma/C``, it integrates to
 
 ```math
-G_{\mathrm{el}}(n) = \frac{F^2}{2\,C\,\mathcal{A}}\left(\sum_k z_k n_k\right)^2
+G_{\mathrm{el}}(\mathbf{n}) = \frac{F^2}{2\,C\,\mathcal{A}}\left(\sum_k z_k n_k\right)^2
 ```
 
-a quadratic form whose Hessian ``(F^2/C\mathcal{A})\,z z^{\mathsf T}`` is
+a quadratic form whose Hessian ``(F^2/C\mathcal{A})\,\mathbf{z} \mathbf{z}^\mathsf{T}`` is
 positive semi-definite for any positive capacitance. Convex term, convex mixing,
 linear constraint: the certificate of §6 covers the sum unchanged. Its gradient
 is ``z_j F \Psi``, which is how one knows the energy is the right one.
@@ -397,7 +397,7 @@ minimizing *something*. Symmetry of the activity Jacobian,
 the statement that such a something exists.
 
 A constant capacitance passes it — its charging work
-``F^2(z\cdot n)^2/(2C\mathcal{A})`` is a genuine potential — and fails the
+``F^2(\mathbf{z}\cdot\mathbf{n})^2/(2C\mathcal{A})`` is a genuine potential — and fails the
 second column, because that expression is homogeneous of degree two in the
 amounts while a Gibbs energy is homogeneous of degree one. That failure is not a
 defect. The area is a *parameter* of the problem, fixed from outside like a
@@ -522,7 +522,7 @@ database formula contains. A solid such as ``\mathrm{Fe(OH)_3}`` is described
 by one formula and one energy, measured on real grains whose surface exposes
 the hydroxyls that the sites are made of: the free sites are part of the host,
 and counting them on top of it would count their atoms twice. The constraint
-matrix ``A`` therefore loses, in the host's column, ``\nu`` times the column of
+matrix ``\mathbf{A}`` therefore loses, in the host's column, ``\nu`` times the column of
 the free site,
 
 ```math

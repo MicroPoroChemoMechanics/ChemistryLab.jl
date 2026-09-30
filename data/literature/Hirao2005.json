@@ -83,6 +83,7 @@
       "units": ["mol/L", "mmol/g"],
       "kind": "measured",
       "location": "Fig. 5, p. 80: chloride in solution after the test, and chloride bound per gram of hydrated alite (portlandite included), read from the vector drawing",
+      "digitization": {"method": "vector drawing", "tool": "marker coordinates in the PDF page", "uncertainty": null, "note": "The center of each filled square, mapped through the axis frame, whose corners carry the tick labels to within 0.04 pt; the reading was not converted into an error on the values."},
       "rows": [
         [0.0, 0.0],
         [0.0975, 0.0355],
@@ -97,6 +98,7 @@
       "units": ["mol/L", "mmol/g"],
       "kind": "measured",
       "location": "Fig. 7, p. 80: the same tests, per gram of C-S-H, read from the vector drawing",
+      "digitization": {"method": "vector drawing", "tool": "marker coordinates in the PDF page", "uncertainty": null, "note": "The center of each filled square, mapped through the axis frame, whose corners carry the tick labels to within 0.04 pt; the reading was not converted into an error on the values."},
       "rows": [
         [0.0018, 0.0],
         [0.0985, 0.047],

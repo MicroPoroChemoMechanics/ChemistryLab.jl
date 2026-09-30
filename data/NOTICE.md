@@ -34,11 +34,15 @@ message it can print.
 
 ## Databases ChemistryLab builds
 
-These two are assembled on first use from the downloaded Cemdata18 file, whose
-entries are copied through unchanged, and from ChemistryLab's own data in this
-directory. They come under the license of the Cemdata18 file they extend.
+These three are assembled on first use from the downloaded Cemdata18 file and
+from ChemistryLab's own data in this directory. The entries of the Cemdata18
+file are copied through unchanged, except `CaSiO3@` in `cemdata18-cashplus.json`,
+whose standard properties are those refitted with the CASH+ model; the file lists
+it under `replaced_substances`. They come under the license of the Cemdata18 file
+they extend.
 
 | file | what is added | from |
 |:--|:--|:--|
 | `cemdata18-zeolites.json` | 28 zeolites | Ma & Lothenbach (2020), doi:10.1016/j.cemconres.2020.106111; Ma & Lothenbach (2021), doi:10.1016/j.cemconres.2021.106537 |
 | `cemdata18-chloride.json` | the chloride end member of CSHQ | fitted on Hirao et al. (2005), doi:10.3151/jact.3.77 |
+| `cemdata18-cashplus.json` | the end members of the CASH+ and CASH+NK C-S-H, the aqueous species of the extended model, and `CaSiO3@` refitted | Kulik, Miron & Lothenbach (2022), doi:10.1016/j.cemconres.2021.106585; Miron, Kulik, Yan, Tits & Lothenbach (2022), doi:10.1016/j.cemconres.2021.106667; Miron, Kulik & Lothenbach (2022), doi:10.1617/s11527-022-02045-0 |

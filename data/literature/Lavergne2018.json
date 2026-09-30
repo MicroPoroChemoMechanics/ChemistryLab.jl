@@ -207,6 +207,7 @@
       "units": ["d", "1"],
       "kind": "measured",
       "location": "Fig. 15(a), p. 56: temperature of the C100 mortar at w/b = 0.5 in the semi-adiabatic calorimeter (thick blue line), from its maximum to 3.5 days",
+      "digitization": {"method": "raster image", "tool": "the line located column by column by its color and width, mapped through the vector frame of the panel", "uncertainty": {"value": 0.2, "unit": "K"}, "note": "One pixel is 0.03 K and 0.008 d; the width of the line makes the reading good to about 0.2 K."},
       "rows": [
         [0.61, 51.17],
         [0.647, 51.83],

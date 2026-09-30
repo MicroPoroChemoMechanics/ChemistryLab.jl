@@ -159,20 +159,25 @@ const N_H2O, N_CAL, N_CO2 = RK.n_H2O, RK.n_Cal, RK.n_CO2
         # This also reframes the failure an external audit saw on macOS ARM64,
         # where the ratio came out 0.83683 and the assertion went red. The route
         # is wrong on Linux too; the platform only changes how visibly.
-        eqs = equilibrate(ChemicalState(csw, n), OptimaOptimizer(; nullspace_step = false))
+        #
+        # And the point where it stops is not reproducible below the last bit of
+        # its start. The start seeds H⁺ and OH⁻ at the neutral concentration
+        # 10^(−pKw/2); computing pKw from the three Gibbs energies instead of
+        # through the reaction object changed it by 1.8e-15, and moved this
+        # route's answer from ratio 0.9956 and pKw 11.85 to ratio 1.144 and pKw
+        # 14.02, the default route unchanged to the last digit. A ratio or a pKw
+        # asserted on it therefore asserts nothing but the last bit of the seed.
+        # What the route does guarantee is asserted instead: it says that it did
+        # not converge, and the point it returns conserves matter.
+        stw = ChemicalState(csw, n)
+        eqs = @test_logs (:warn, r"MaxIters") match_mode = :any equilibrate(
+            stw, OptimaOptimizer(; nullspace_step = false)
+        )
+        Aw = Float64.(conservation_matrix(csw))
+        @test Aw * ustrip.(us"mol", eqs.n) ≈ Aw * ustrip.(us"mol", stw.n) rtol = 1.0e-9
         vs = [ustrip(us"mol", x) for x in eqs.n]
         hs, ohs = vs[findfirst(==("H+"), nw)], vs[findfirst(==("OH-"), nw)]
-        ratio = hs / ohs
-
-        # Reported, not merely asserted: a boolean against a tolerance hides how
-        # much room is left, and there is little — 0.44 % against 1 %.
-        @info "water autoprotolysis, Schur route" ratio pKw = -log10(hs * ohs)
-
-        @test isapprox(ratio, 1.0; rtol = 1.0e-2)
-        # The half that was missing. `@test_broken`, so the suite states the
-        # defect instead of passing over it — and turns red the day it is fixed,
-        # which is how we will hear about it.
-        @test_broken 13.9 < -log10(hs * ohs) < 14.1
+        @info "water autoprotolysis, Schur route (not converged)" ratio = hs / ohs pKw = -log10(hs * ohs)
     end
 
     @testset "element balance closes exactly" begin

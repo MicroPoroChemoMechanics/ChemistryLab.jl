@@ -1,5 +1,100 @@
 # Changelog
 
+## v0.28.1 — Equilibria two to four times cheaper, data read off figures that say so, and one notation throughout the documentation
+
+### Added
+
+- `literature_table_info(key, table)`: what a file of `data/literature` says
+  about a table besides its values, its provenance kind, its location in the
+  source and, for values read off a figure rather than printed as numbers, a
+  `digitization` record: the method (a vector drawing or a raster image), the
+  tool, and the error the reading adds, relative, absolute with its unit, or
+  unquantified. The format accepts the field and checks it; the five tables read
+  off figures (Deschner et al. 2012, Hirao et al. 2005 twice, Gruyaert et al.
+  2010, Lavergne et al. 2018) carry it, and a test requires it of any table whose
+  location says it was read off a figure. A validation that compares with such
+  values can now add the reading to the uncertainty of the source.
+  `LiteratureRecord` holds it in a new field, `table_info`; a record built with
+  the constructor of 0.28.0, without it, is still accepted.
+- A warning when a pure solid declared in a system repeats, up to a factor, an
+  end-member of a declared non-ideal solid solution with the same Gibbs energy
+  within 0.1 RT: ettringite declared pure beside `AFt_SO4_CO3`, whose SO4
+  end-member is ettringite divided by three. It is the case already warned for
+  two solid solutions, with one of them pure, and the same flat direction that
+  can keep the certified search from concluding. Twelve such pairs exist in
+  Cemdata18 among the four non-ideal AFm and AFt binaries.
+
+### Changed: an equilibrium costs two to four times less
+
+The certified equilibrium of a cement paste is the step a kinetic run repeats
+thousands of times, so its cost was measured, on one machine, before and after,
+in one process each, answers compared species by species:
+
+| solve | 0.28.0 | now |
+|:--|--:|--:|
+| cement of the CEM IV page (107 species), cold | 0.065 s | 0.058 s |
+| CEM I with the CNASH gel mixing ideally, cold | 0.179 s | 0.077 s |
+| the same with the CNASH gel on its sites, cold | 0.433 s | 0.098 s |
+| the same, ten warm restarts on neighboring budgets | 4.53 s | 1.35 s |
+
+Every answer is certified and the same to 6e-11 in relative amount (bit for bit
+where the route did not change). Where the time goes to continuations and
+restarts rather than to the solves themselves the gain is small: 2 % over 32
+blended-cement calculations, every printed result unchanged. Three causes, each
+measured with a profiler:
+
+- The coefficients `A` and `B` of the Debye–Hückel term depend on the
+  temperature and the pressure only, through the water equation of state, and
+  were recomputed at every evaluation of the activities: 55 % of the second
+  solve. The last value computed from plain numbers is now kept, in an atomic
+  field so that threads can share it; dual numbers, for derivatives in `T` or
+  `P`, are computed each time.
+- For a phase mixing on sites, the same problem under ideal mixing was solved
+  first, as a starting point, even where the start of the linear program
+  certifies at once: 47 % of the warm restarts. It is now solved only if the
+  search reaches it, after that start and before the state as given.
+- `pKw`, needed for the pH of every state a solver returns, was obtained by
+  building the reaction H2O@ = H+ + OH- and combining its functions
+  symbolically: 1.3 ms a call. It is now summed from the standard Gibbs energies
+  of the three species, 10 µs, the same to 1.8e-15.
+
+A certified answer whose route changed reports `route = :lp_start` where it
+reported `:ideal_mixing`.
+
+### Removed
+
+- `scripts/blended_cement_kinetics.jl`. It represented a slag by the formula of
+  anorthite and a metakaolin by a formula of its own, both with a placeholder
+  Gibbs energy and assumed heats, and let the pozzolanic reaction consume
+  portlandite without limit. None of it came from a source. The kinetics of
+  blended cements return on published data.
+
+### Fixed
+
+- `data/NOTICE.md` did not list `cemdata18-cashplus.json`, and said the derived
+  databases copy the Cemdata18 entries unchanged, while that one replaces
+  `CaSiO3@`.
+- Statements in the documentation that were not true:
+  - the route table of the kinetics manual said the ODE route imposes the
+    assemblage, which holds only without an equilibrium solver;
+  - the docstring of `KineticsSolver` said the partition is re-speciated at each
+    evaluation of the right-hand side, where it is once per accepted step;
+  - the slag page announced a coupled slag calculation that does not exist;
+  - the SIT docstring and the theory page gave an ionic strength of validity, 3
+    to 4 mol/kg, that no source of this package states.
+- Two comparisons with Reaktoro that nothing here had checked were removed: a
+  comment on its kinetics, and a sentence of the kinetics manual.
+- The notation of the documentation. The same quantity was written two ways
+  (``C_p`` and ``C_P``; the conservation matrix as an italic ``A`` and a bold
+  ``\mathbf{A}``), the hint over ``\varepsilon_r`` read it as a SIT coefficient
+  of a reaction, and the multipliers ``y`` had opposite signs on two theory
+  pages. A vector is now set in bold lower case, a matrix in bold capitals and
+  their components in italic, the transpose as ``^\mathsf{T}``, and the
+  multipliers keep the solver's sign throughout (``\mathbf{u} =
+  -\mathbf{A}^\mathsf{T}\mathbf{y}``). The convention is stated at the top of
+  the nomenclature, every symbol has one entry, and `test/docs_nomenclature.jl`
+  refuses a duplicated name and the forms of a second convention.
+
 ## v0.28.0 — The CASH+ model of C-S-H, three pore-solution validations, and the linear-programming start without its slowdown
 
 The C-S-H of a cement paste can now be described by the CASH+ model of Kulik,

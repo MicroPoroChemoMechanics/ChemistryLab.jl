@@ -895,6 +895,29 @@ end
     )
 end
 
+@testsection "a pure phase repeating a non-ideal member is said" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    byname = Dict(symbol(s) => s for s in substances)
+    sp = speciation(
+        substances, ["ettringite", "tricarboalu03", "ettringite03_ss"]; aggregate_state = [AS_AQUEOUS],
+    )
+    aft = [byname["tricarboalu03"], byname["ettringite03_ss"]]
+    p = literature_row("Lothenbach2019", "guggenheim_parameters", "AFt SO4/CO3")
+    RT = R_GAS * 298.15
+    published = RedlichKisterModel(a0 = p.alpha0 * RT, a1 = p.alpha1 * RT)
+
+    # Ettringite declared pure beside the binary: harmless with ideal mixing...
+    @test_logs min_level = Base.CoreLogging.Warn ChemicalSystem(
+        sp, CEMDATA_PRIMARIES; solid_solutions = [SolidSolutionPhase("AFt_SO4_CO3", aft)],
+    )
+    # ...and said with the published model, naming the pure phase, the phase and
+    # the member it repeats three times over.
+    @test_logs (:warn, r"the pure phase \"ettringite\" and the solid solution \"AFt_SO4_CO3\" hold one substance twice: \"ettringite\" is \"ettringite03_ss\" times 3") ChemicalSystem(
+        sp, CEMDATA_PRIMARIES;
+        solid_solutions = [SolidSolutionPhase("AFt_SO4_CO3", aft; model = published, check_convexity = false)],
+    )
+end
+
 @testsection "ideal mixing on sublattices" begin
     substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
     byname = Dict(symbol(s) => s for s in substances)

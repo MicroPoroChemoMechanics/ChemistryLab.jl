@@ -79,12 +79,12 @@ I = \tfrac{1}{2}\sum_j m_j z_j^2 .
 ### ``A`` and ``B`` are properties of water, not fitting constants
 
 Collecting the constants of step 3 gives, with ``\rho_w`` in g/cm³ and
-``\varepsilon`` the dielectric constant of water,
+``\varepsilon_r`` the relative permittivity of water,
 
 ```math
-A = 1.824829238\times10^{6}\,\frac{\sqrt{\rho_w}}{(\varepsilon T)^{3/2}} ,
+A = 1.824829238\times10^{6}\,\frac{\sqrt{\rho_w}}{(\varepsilon_r T)^{3/2}} ,
 \qquad
-B = 50.29158649\,\frac{\sqrt{\rho_w}}{\sqrt{\varepsilon T}} ,
+B = 50.29158649\,\frac{\sqrt{\rho_w}}{\sqrt{\varepsilon_r T}} ,
 ```
 
 which is what [`hkf_debye_huckel_params`](@ref) evaluates from this package's own
@@ -242,7 +242,7 @@ size of the salt, and appears only in a solution whose ions differ in size.
 §5 measures a Gibbs-Duhem residual **along one path**. A small residual there is
 necessary and not sufficient: a model can cancel along a dissolution and fail
 badly in another direction. The question underneath is whether the activities are
-the gradient of *any* function of ``n``, and that has an exact test.
+the gradient of *any* function of ``\mathbf{n}``, and that has an exact test.
 
 If ``\mu_i = \partial G/\partial n_i`` for some ``G``, then second derivatives
 commute, so
@@ -379,8 +379,8 @@ A one-parameter deviation term cannot do that and match the dilute end too,
 which is why the range is the test rather than a single point.
 
 The model is a **truncation**: the pairwise term is the first order of the same
-virial expansion §6 carries to second order, so above roughly 3 to 4 mol/kg the
-terms it drops stop being small. It also expects genuine ion pairs to appear in
+virial expansion §6 carries to second order, so at high ionic strength the terms
+it drops stop being small; no source transcribed here states where. It also expects genuine ion pairs to appear in
 the *speciation* and not inside ``\varepsilon``.
 
 ### Why it matters here, beyond being one more option

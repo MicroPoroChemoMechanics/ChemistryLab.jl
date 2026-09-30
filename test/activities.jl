@@ -74,6 +74,20 @@ end
     # AD smoke-test: gradient of B with respect to T
     dB_dT = ForwardDiff.derivative(T -> hkf_debye_huckel_params(T, 1.0e5).B, 298.15)
     @test isfinite(dB_dT)
+
+    # The last value computed from plain numbers is kept and returned again, and
+    # a new temperature or pressure recomputes: alternating between states, each
+    # answer is that of its first call, bit for bit, and agrees with the general
+    # method (dual numbers, whose water iteration ends a few ulps elsewhere).
+    first_ab = Dict{Tuple{Float64, Float64}, Any}()
+    for (T, P) in ((298.15, 1.0e5), (363.15, 1.0e5), (298.15, 1.0e5), (298.15, 2.0e7), (363.15, 1.0e5))
+        ab = hkf_debye_huckel_params(T, P)
+        @test hkf_debye_huckel_params(T, P) === ab                  # the kept value
+        @test get!(first_ab, (T, P), ab) === ab                     # recomputed alike
+        d = hkf_debye_huckel_params(ForwardDiff.Dual(T, 1.0), ForwardDiff.Dual(P, 0.0))
+        @test ab.A ≈ ForwardDiff.value(d.A) rtol = 1.0e-11
+        @test ab.B ≈ ForwardDiff.value(d.B) rtol = 1.0e-11
+    end
 end
 
 # ── REJ_HKF table ─────────────────────────────────────────────────────────────

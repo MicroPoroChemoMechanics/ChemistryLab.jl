@@ -415,10 +415,10 @@ property a CEM III is specified for — a massive pour that would crack under th
 thermal gradient of a CEM I.
 
 What the calculation above does **not** do is predict that curve. It is an
-equilibrium: it says what the paste tends to, not how fast. Coupling it to the
-Waller kinetics that ship for slag is the subject of
-[the coupled runs](@ref ex-ionic-opc), and doing it on a blend needs a degree of
-reaction for the slag that this deposit does not report either.
+equilibrium: it says what the paste tends to, not how fast. The
+[coupled runs](@ref ex-ionic-opc) do that for the clinker of a Portland cement;
+on a blend it also needs a rate law for the slag, and a measured degree of
+reaction to check it against, which this deposit does not report.
 
 ## Where to go next
 
