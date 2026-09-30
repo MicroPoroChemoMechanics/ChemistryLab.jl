@@ -33,6 +33,28 @@ using TOML
             @test count("<$t>", text) == count("</$t>", text)
         end
     end
+    # One definition per concept: two entries never carry the same name, so a
+    # quantity is written one way throughout (C_p, not C_p here and C_P there).
+    names = [lowercase(strip(e["name"])) for e in entries]
+    @test allunique(names)
+
+    # The typography of the formulas (the note at the top of nomenclature.md):
+    # a vector or a matrix in bold upright, its components in italic, and the
+    # transpose written ^\mathsf{T}. What would bring back a second convention
+    # is refused: an underlined vector, `\top` or `^{\mathsf T}` for the
+    # transpose, and the heat capacity written C_P.
+    src = joinpath(docs, "src")
+    pages = [joinpath(r, f) for (r, _, fs) in walkdir(src) for f in fs if endswith(f, ".md") && !occursin("/.", r)]
+    formulas(text) = vcat(
+        [m.captures[1] for m in eachmatch(r"```math\n(.*?)```"s, text)],
+        [m.captures[1] for m in eachmatch(r"``([^`]+)``", replace(text, r"```.*?```"s => " "))],
+    )
+    for p in pages, f in formulas(read(p, String))
+        bad = [x for x in (r"\\underline", r"\\top\b", r"\^\{\\mathsf ?T\}", r"C_P\b") if occursin(x, f)]
+        isempty(bad) || @error "a formula of $(relpath(p, src)) breaks the notation" f bad
+        @test isempty(bad)
+    end
+
     # The constants docs/nomenclature.jl maps to the library's values.
     @test issubset(Set(e["constant"] for e in entries if haskey(e, "constant")), Set(["R", "F", "N_A", "k_B", "e", "epsilon_0"]))
 end

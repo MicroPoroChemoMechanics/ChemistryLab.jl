@@ -111,12 +111,12 @@ st1 = kinetic_step(kss, st0, 100.0u"s"; parameters = Δξ)
 What the step solves is one problem, not two:
 
 ```math
-\min_n G(n) \quad\text{s.t.}\quad
+\min_{\mathbf{n}} G(\mathbf{n}) \quad\text{s.t.}\quad
 \begin{cases}
-A n = b_0 \\
-K^{\mathsf T} n - \Delta\xi = \xi_0 \\
-\Delta\xi - \Delta t\, M\, r(n) = 0, \quad M = K^{\mathsf T}K \\
-n \ge 0
+\mathbf{A} \mathbf{n} = \mathbf{b}_0 \\
+\mathbf{K}^\mathsf{T} \mathbf{n} - \Delta\boldsymbol{\xi} = \boldsymbol{\xi}_0 \\
+\Delta\boldsymbol{\xi} - \Delta t\, \mathbf{M}\, \mathbf{r}(\mathbf{n}) = 0, \quad \mathbf{M} = \mathbf{K}^\mathsf{T}\mathbf{K} \\
+\mathbf{n} \ge 0
 \end{cases}
 ```
 

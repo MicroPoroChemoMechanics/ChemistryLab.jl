@@ -561,15 +561,15 @@ for a binary, and this answers it for any number of end-members.
 
   - **Ideal mixing** and **ideal mixing on sublattices** ([`SublatticeModel`](@ref))
     are convex by construction: ``x\\ln x`` is convex, and a sum of such terms in
-    site fractions linear in ``x`` is too.
+    site fractions linear in ``\\mathbf{x}`` is too.
   - **A binary** with a Redlich-Kister form is decided by the scan of
     [`spinodal_interval`](@ref).
-  - **A regular model** ([`RegularSolutionModel`](@ref)), with ``w = W/RT``: on
-    the tangent space of the simplex, ``d^\\mathsf{T}\\operatorname{diag}(1/x)\\,d \\ge 2``
-    for every unit ``d`` with ``\\sum_i d_i = 0`` (the ℓ1 norm of such a ``d`` is at
+  - **A regular model** ([`RegularSolutionModel`](@ref)), with ``w_{ij} = W_{ij}/RT``: on
+    the tangent space of the simplex, ``\\mathbf{d}^\\mathsf{T}\\operatorname{diag}(1/\\mathbf{x})\\,\\mathbf{d} \\ge 2``
+    for every unit ``\\mathbf{d}`` with ``\\sum_i d_i = 0`` (the ℓ1 norm of such a ``\\mathbf{d}`` is at
     least ``\\sqrt2``, and ``\\sum_i x_i = 1``), so the Hessian of ``g/RT`` is at
-    least ``2 + \\lambda_{\\min}(Q^\\mathsf{T} w Q)`` there, ``Q`` an orthonormal basis
-    of the tangent space. Hence **convex when ``\\lambda_{\\min}(Q^\\mathsf{T} w Q) \\ge -2``**,
+    least ``2 + \\lambda_{\\min}(\\mathbf{Q}^\\mathsf{T} \\mathbf{W} \\mathbf{Q})/RT`` there, ``\\mathbf{Q}`` an orthonormal basis
+    of the tangent space. Hence **convex when ``\\lambda_{\\min}(\\mathbf{Q}^\\mathsf{T} \\mathbf{W} \\mathbf{Q})/RT \\ge -2``**,
     which for two end-members is the classical ``W \\le 2RT``. **Not convex when
     some ``W_{ij} > 2RT``**: at the midpoint of that edge the second derivative
     along it is ``4 - 2w_{ij} < 0``. Between the two, the smallest eigenvalue of
@@ -580,11 +580,11 @@ for a binary, and this answers it for any number of end-members.
     of its end-members at `T` (`:undecided` without them). On each site the
     configurational term gives a tangent curvature of at least ``2m_s`` (the bound
     above) and the site interactions add the smallest tangent eigenvalue
-    ``\\mu_s`` of their matrix ``W/RT``; the reference surface adds only a coupling
-    between two sites, constant when there are two: the matrix ``C`` of the
+    ``\\mu_s`` of their matrix ``\\mathbf{W}/RT``; the reference surface adds only a coupling
+    between two sites, constant when there are two: the matrix ``\\mathbf{C}`` of the
     ``G^\\circ_j/RT`` of the compounds projected on the two tangent spaces. With
     two sites the energy is therefore **convex when
-    ``(2m_1 + \\mu_1)(2m_2 + \\mu_2) > \\lVert C \\rVert^2``**, both factors positive.
+    ``(2m_1 + \\mu_1)(2m_2 + \\mu_2) > \\lVert \\mathbf{C} \\rVert^2``**, both factors positive.
     Otherwise the Hessian is sampled on a lattice of site fractions: a negative
     eigenvalue is a witness, none found leaves `:undecided`. The CASH+ core model
     is convex by that bound; CASH+NK is not decided by it.

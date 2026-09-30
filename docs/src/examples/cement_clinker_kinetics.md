@@ -169,17 +169,17 @@ Parrott–Killoh rates — and an **equilibrium partition**: the pore solution a
 every hydrate free to precipitate. The ODE advances
 
 ```math
-\frac{\mathrm{d} n_k}{\mathrm{d} t} = \nu_k^{\mathsf T} r ,
+\frac{\mathrm{d} \mathbf{n}_k}{\mathrm{d} t} = \boldsymbol{\nu}_k^\mathsf{T} \mathbf{r} ,
 \qquad
-\frac{\mathrm{d} b_e}{\mathrm{d} t} = A_e\,\nu_e^{\mathsf T} r ,
+\frac{\mathrm{d} \mathbf{b}_e}{\mathrm{d} t} = \mathbf{A}_e\,\boldsymbol{\nu}_e^\mathsf{T} \mathbf{r} ,
 ```
 
 carrying the **element amounts** of the equilibrium partition, and the pore
 solution and hydrates are recovered at each accepted step by
 
 ```math
-n_e = \varphi(b_e) = \arg\min_n G(n)
-\quad\text{s.t.}\quad A_e n = b_e,\; n \ge 0 .
+\mathbf{n}_e = \varphi(\mathbf{b}_e) = \arg\min_{\mathbf{n}} G(\mathbf{n})
+\quad\text{s.t.}\quad \mathbf{A}_e \mathbf{n} = \mathbf{b}_e,\; \mathbf{n} \ge 0 .
 ```
 
 Integrating `bₑ` rather than `nₑ` is what makes this robust: during hydration an

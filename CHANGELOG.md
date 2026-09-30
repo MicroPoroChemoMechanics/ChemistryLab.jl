@@ -82,6 +82,16 @@ reported `:ideal_mixing`.
     to 4 mol/kg, that no source of this package states.
 - Two comparisons with Reaktoro that nothing here had checked were removed: a
   comment on its kinetics, and a sentence of the kinetics manual.
+- The notation of the documentation. The same quantity was written two ways
+  (``C_p`` and ``C_P``; the conservation matrix as an italic ``A`` and a bold
+  ``\mathbf{A}``), the hint over ``\varepsilon_r`` read it as a SIT coefficient
+  of a reaction, and the multipliers ``y`` had opposite signs on two theory
+  pages. A vector is now set in bold lower case, a matrix in bold capitals and
+  their components in italic, the transpose as ``^\mathsf{T}``, and the
+  multipliers keep the solver's sign throughout (``\mathbf{u} =
+  -\mathbf{A}^\mathsf{T}\mathbf{y}``). The convention is stated at the top of
+  the nomenclature, every symbol has one entry, and `test/docs_nomenclature.jl`
+  refuses a duplicated name and the forms of a second convention.
 
 ## v0.28.0 — The CASH+ model of C-S-H, three pore-solution validations, and the linear-programming start without its slowdown
 

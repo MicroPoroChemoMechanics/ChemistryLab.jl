@@ -48,13 +48,13 @@ The heat capacity at constant pressure measures how the enthalpy grows with
 temperature at fixed composition,
 
 ```math
-C_P = \left(\frac{\partial H}{\partial T}\right)_{P,n} ,
+C_p = \left(\frac{\partial H}{\partial T}\right)_{P,n} ,
 ```
 
 and it governs the other kind of calorimeter. In a vessel that exchanges no
 heat, the enthalpy of the contents is constant, so that the enthalpy released by
 the reaction at the initial temperature is found again as the heating of the
-contents after the reaction, ``\Delta H(T_0) + \int_{T_0}^{T} C_P\,\mathrm{d}T' = 0``. A
+contents after the reaction, ``\Delta H(T_0) + \int_{T_0}^{T} C_p\,\mathrm{d}T' = 0``. A
 semi-adiabatic vessel adds the heat it loses to this balance, and it is the
 subject of [A CEM I 52.5 N mortar in a semi-adiabatic calorimeter, inside the kinetics](@ref ex-semiadiabatic).
 
@@ -183,7 +183,7 @@ evaluated by [`enthalpy`](@ref), and with it the heat of the calorimeters, is
 At equilibrium, the minimum of ``G`` under the conservation of the elements
 implies two conditions, independent of the path by which the system reached
 it (§14.2): a constituent present in two phases has the same chemical potential in
-both, and for any reaction ``\sum_i \nu_i A_i = 0`` among the constituents,
+both, and for any reaction ``\sum_i \nu_i\,\mathrm{A}_i = 0`` among the constituents,
 counted positive for the products,
 
 ```math
@@ -200,14 +200,14 @@ Inserting ``\mu_i = \mu_i^\circ + RT\ln a_i`` into ``\Delta_r G`` separates the
 part of the standard states from that of the composition,
 
 ```math
-\Delta_r G = \Delta_r G^\circ + RT\ln Q ,
+\Delta_r G = \Delta_r G^\circ + RT\ln Q_r ,
 \qquad
 \Delta_r G^\circ = \sum_i \nu_i\,\mu_i^\circ ,
 \qquad
-Q = \prod_i a_i^{\nu_i} ,
+Q_r = \prod_i a_i^{\nu_i} ,
 ```
 
-and the condition of equilibrium ``\Delta_r G = 0`` fixes the value ``Q`` takes
+and the condition of equilibrium ``\Delta_r G = 0`` fixes the value ``Q_r`` takes
 there, the equilibrium constant [AndersonCrerar1993](@cite) (§13.1),
 
 ```math
@@ -243,8 +243,8 @@ makes use.
 
 ### Balanced reactions
 
-Let species ``A_i`` contain ``\alpha_{ei}`` atoms of element ``e`` and carry the
-charge ``z_i``. The reaction ``\sum_i \nu_i A_i = 0`` is balanced when it
+Let species ``\mathrm{A}_i`` contain ``\alpha_{ei}`` atoms of element ``e`` and carry the
+charge ``z_i``. The reaction ``\sum_i \nu_i\,\mathrm{A}_i = 0`` is balanced when it
 conserves every element and the charge,
 
 ```math
@@ -253,16 +253,16 @@ conserves every element and the charge,
 \sum_i \nu_i\,z_i = 0 .
 ```
 
-The vector ``\underline{\nu}`` of the stoichiometric coefficients thus belongs to
+The vector ``\boldsymbol{\nu}`` of the stoichiometric coefficients thus belongs to
 the null space of the matrix whose rows hold the ``\alpha_{ei}`` of each element
 and the charges ``z_i``, which the package builds as the canonical stoichiometric
 matrix, the charge being its row `Zz` ([Stoichiometric Matrix](@ref sec-stoich-matrices)).
-The slaking of lime, CaO + H₂O → Ca(OH)₂, has ``\underline{\nu} = (-1, -1, 1)``
+The slaking of lime, CaO + H₂O → Ca(OH)₂, has ``\boldsymbol{\nu} = (-1, -1, 1)``
 and conserves one calcium, two hydrogens and two oxygens.
 
 ### Formation from the elements
 
-The reaction of formation of ``A_i`` takes ``\alpha_{ei}`` atoms of each element in
+The reaction of formation of ``\mathrm{A}_i`` takes ``\alpha_{ei}`` atoms of each element in
 its reference form, half a mole of O₂ gas for each atom of oxygen for instance.
 An ion cannot be formed that way without a counter-charge, and the convention is
 to complete its formation with ``z_i`` hydrogen ions turned into hydrogen gas
@@ -310,12 +310,12 @@ The entropy escapes the indeterminacy of the energies, because the third law
 fixes its zero: the entropy of a pure substance in a perfect crystalline form
 tends to zero as the temperature tends to 0 K [AndersonCrerar1993](@cite)
 (§6.5). The entropy at any other temperature then follows from the second law,
-``\mathrm{d}S = \delta q_{\rm rev}/T = C_P\,\mathrm{d}T/T`` at constant pressure,
+``\mathrm{d}S = \delta q_{\rm rev}/T = C_p\,\mathrm{d}T/T`` at constant pressure,
 integrated from 0 K, with the entropy of each phase transition met on the way,
 the ratio of its enthalpy to the temperature at which it occurs,
 
 ```math
-S^\circ(T) = \int_0^{T} \frac{C_P^\circ(T')}{T'}\,\mathrm{d}T'
+S^\circ(T) = \int_0^{T} \frac{C_p^\circ(T')}{T'}\,\mathrm{d}T'
   + \sum_k \frac{\Delta_{\rm trs} H_k}{T_k} .
 ```
 
@@ -401,32 +401,32 @@ species of the system, called primary, whose columns of ``\alpha_{ec}`` and
 Each species then decomposes in a unique way on the primaries,
 
 ```math
-\alpha_{ei} = \sum_c \beta_{ci}\,\alpha_{ec} \quad\text{for every element } e ,
+\alpha_{ei} = \sum_c A_{ci}\,\alpha_{ec} \quad\text{for every element } e ,
 \qquad
-z_i = \sum_c \beta_{ci}\,z_c ,
+z_i = \sum_c A_{ci}\,z_c ,
 ```
 
-which is the balanced reaction ``\sum_c \beta_{ci} B_c \rightarrow A_i`` forming
-``A_i`` from the primaries, with ``\beta_{ci} = 1`` if ``A_i`` is the primary
-``B_c`` and zero otherwise. The matrix of the ``\beta_{ci}`` is the
-stoichiometric matrix `SM.A` of the package, whose rows are labeled by the
+which is the balanced reaction ``\sum_c A_{ci}\,\mathrm{B}_c \rightarrow \mathrm{A}_i`` forming
+``\mathrm{A}_i`` from the primaries, with ``A_{ci} = 1`` if ``\mathrm{A}_i`` is the primary
+``\mathrm{B}_c`` and zero otherwise. The matrix of the ``A_{ci}`` is the
+conservation matrix ``\mathbf{A}``, `SM.A` in the package, whose rows are labeled by the
 primaries. Substituting this decomposition in the balance of the elements and of
 the charge shows that a reaction conserves them if and only if it conserves the
 primaries,
 
 ```math
-\sum_i \nu_i\,\beta_{ci} = 0 \quad\text{for every primary } c ,
+\sum_i \nu_i\,A_{ci} = 0 \quad\text{for every primary } c ,
 ```
 
 the converse resting on the independence of the columns of the primaries. The
-reaction forming ``A_i`` from the primaries being balanced, its standard Gibbs
+reaction forming ``\mathrm{A}_i`` from the primaries being balanced, its standard Gibbs
 energy follows from the Gibbs energies of formation by the result above, and it
 defines
 the equilibrium constant ``K_i`` of that reaction,
 
 ```math
-\Delta_r G_i^\circ = \mu_i^\circ - \sum_c \beta_{ci}\,\mu_c^\circ
-  = \Delta_f G_i^\circ - \sum_c \beta_{ci}\,\Delta_f G_c^\circ
+\Delta_r G_i^\circ = \mu_i^\circ - \sum_c A_{ci}\,\mu_c^\circ
+  = \Delta_f G_i^\circ - \sum_c A_{ci}\,\Delta_f G_c^\circ
   = -RT\ln K_i .
 ```
 
@@ -498,7 +498,7 @@ integrals gives [AndersonCrerar1993](@cite) (§7.4, §7.6)
 ```
 
 the heat capacity being taken at ``P_r``. The enthalpy follows in the same way
-from ``\mathrm{d}H = C_P\,\mathrm{d}T + [V - T(\partial V/\partial T)_P]\,\mathrm{d}P``,
+from ``\mathrm{d}H = C_p\,\mathrm{d}T + [V - T(\partial V/\partial T)_P]\,\mathrm{d}P``,
 
 ```math
 H_i^\circ(T,P) - H_i^\circ(T_r,P_r) =
@@ -582,7 +582,7 @@ only the multipliers of the constraints, the component potentials of
 [Thermochemistry](@ref sec-theory-thermo) §4, are shifted, by
 ``G_e^\circ(T_r,P_r)/RT`` for element ``e`` and by the bracket divided by ``RT``
 for the charge. With primary species as components, the omitted terms are a
-combination of the ``\beta_{ci}`` by the decomposition of §5, and the conclusion
+combination of the ``A_{ci}`` by the decomposition of §5, and the conclusion
 is the same.
 
 The enthalpy is treated likewise. In a closed system without net charge, the
@@ -630,8 +630,8 @@ yields the van 't Hoff relation
 
 by which an exothermic reaction is displaced towards its reactants on heating.
 The enthalpy of reaction varies with temperature in turn through the heat
-capacities, ``\mathrm{d}\Delta_r H^\circ/\mathrm{d}T = \Delta_r C_P^\circ``
-(Kirchhoff's relation), and a database that stores ``C_P^\circ(T)`` for every
+capacities, ``\mathrm{d}\Delta_r H^\circ/\mathrm{d}T = \Delta_r C_p^\circ``
+(Kirchhoff's relation), and a database that stores ``C_p^\circ(T)`` for every
 species therefore determines ``K(T)`` completely (§13.3). The pressure acts
 through the volume of reaction: differentiating ``\ln K = -\Delta_r G^\circ/RT``
 at fixed temperature, with ``(\partial\mu_i^\circ/\partial P)_T = V_i^\circ``,

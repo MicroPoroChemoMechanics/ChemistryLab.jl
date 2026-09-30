@@ -112,8 +112,8 @@ unit = "J"
 
 [[symbol]]
 group = "State and thermodynamic functions"
-tex = "H"
-label = "H"
+tex = "\\mathbf{H}"
+label = "<b>H</b>"
 name = "Hessian of the Gibbs energy at the solution, ∇²G"
 unit = ""
 pages = ["manual/solving.md", "tutorials/reaktoro_comparison.md"]
@@ -148,13 +148,6 @@ unit = "J/K (J/(mol K) for a species)"
 
 [[symbol]]
 group = "State and thermodynamic functions"
-tex = "C_P"
-label = "C<sub>P</sub>"
-name = "heat capacity at constant pressure"
-unit = "J/K (J/(mol K) for a species)"
-
-[[symbol]]
-group = "State and thermodynamic functions"
 tex = "\\mu"
 label = "μ"
 name = "chemical potential"
@@ -176,16 +169,16 @@ unit = ""
 
 [[symbol]]
 group = "State and thermodynamic functions"
-tex = "K"
-label = "K"
+tex = "\\mathbf{K}"
+label = "<b>K</b>"
 name = "stoichiometry of the kinetic reactions, restricted to their non-aqueous participants"
 unit = "1"
 pages = ["manual/kinetics_syntax.md"]
 
 [[symbol]]
 group = "State and thermodynamic functions"
-tex = "Q"
-label = "Q"
+tex = "Q_r"
+label = "Q<sub>r</sub>"
 name = "reaction quotient, the product of the activities raised to their coefficients"
 unit = "1"
 
@@ -195,20 +188,11 @@ tex = "Q"
 label = "Q"
 name = "heat released by a paste or recorded by a calorimeter"
 unit = "J"
-pages = ["manual/recipes.md", "examples/isothermal_calorimetry.md", "theory/energies_and_potentials.md"]
 
 [[symbol]]
 group = "State and thermodynamic functions"
-tex = "Q"
-label = "Q"
-name = "reaction quotient, the product of the activities raised to their coefficients"
-unit = "1"
-pages = ["theory/energies_and_potentials.md"]
-
-[[symbol]]
-group = "State and thermodynamic functions"
-tex = "Q"
-label = "Q"
+tex = "\\mathbf{Q}"
+label = "<b>Q</b>"
 name = "orthonormal basis of the tangent space of the phase's composition"
 unit = ""
 pages = ["theory/solid_solutions.md"]
@@ -271,7 +255,7 @@ script = true
 group = "State and thermodynamic functions"
 tex = "r"
 label = "r"
-name = "of reaction (subscript, as in Δ<sub>r</sub>G°), or of reference (T<sub>r</sub>, P<sub>r</sub>)"
+name = "of reaction (subscript, as in Δ<sub>r</sub>G°)"
 unit = ""
 script = true
 
@@ -281,22 +265,51 @@ script = true
 group = "Amounts and composition"
 tex = "n"
 label = "n"
-name = "amount of a species (n<sub>i</sub>), or the vector of the amounts"
+name = "amount of a species"
 unit = "mol"
 
 [[symbol]]
 group = "Amounts and composition"
-tex = "b"
-label = "b"
+tex = "\\mathbf{n}"
+label = "<b>n</b>"
+name = "amounts of the species, one per species"
+unit = "mol"
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "\\boldsymbol{\\nu}"
+label = "<b>ν</b>"
+name = "stoichiometric coefficients: those of one reaction as a vector, one row per reaction as a matrix"
+unit = "1"
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "\\mathbf{x}"
+label = "<b>x</b>"
+name = "mole fractions of the members of a phase"
+unit = "1"
+pages = ["theory/solid_solutions.md"]
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "\\mathbf{z}"
+label = "<b>z</b>"
+name = "charge numbers of the species"
+unit = "1"
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "\\mathbf{1}"
+label = "<b>1</b>"
+name = "vector of ones"
+unit = "1"
+
+[[symbol]]
+group = "Amounts and composition"
+tex = "\\mathbf{b}"
+label = "<b>b</b>"
 name = "budget of the components: the amounts the conservation matrix must return"
 unit = "mol"
-
-[[symbol]]
-group = "Amounts and composition"
-tex = "A"
-label = "A"
-name = "conservation matrix: one row per component, one column per species"
-unit = "1"
 
 [[symbol]]
 group = "Amounts and composition"
@@ -351,9 +364,9 @@ unit = "kg/mol"
 
 [[symbol]]
 group = "Kinetics and hydration"
-tex = "M"
-label = "M"
-name = "the matrix Kᵀ K of the kinetic stoichiometry"
+tex = "\\mathbf{M}"
+label = "<b>M</b>"
+name = "the matrix <b>K</b>ᵀ<b>K</b> of the kinetic stoichiometry"
 unit = "1"
 pages = ["manual/kinetics_syntax.md"]
 
@@ -444,7 +457,7 @@ unit = "Å"
 group = "Aqueous solutions"
 tex = "A"
 label = "A"
-name = "Debye–Hückel parameter, a property of water"
+name = "Debye–Hückel limiting slope, a property of water"
 unit = "(kg/mol)<sup>½</sup>"
 pages = ["theory/activity_models.md", "examples/activity_models_compared.md", "examples/pitzer_model.md"]
 
@@ -452,7 +465,7 @@ pages = ["theory/activity_models.md", "examples/activity_models_compared.md", "e
 group = "Aqueous solutions"
 tex = "B"
 label = "B"
-name = "Debye–Hückel parameter, a property of water"
+name = "Debye–Hückel coefficient of the ion size, a property of water"
 unit = "Å<sup>−1</sup> (kg/mol)<sup>½</sup>"
 
 [[symbol]]
@@ -478,8 +491,8 @@ unit = "1/m"
 
 [[symbol]]
 group = "Aqueous solutions"
-tex = "\\varepsilon"
-label = "ε"
+tex = "\\varepsilon_r"
+label = "ε<sub>r</sub>"
 name = "relative permittivity of water"
 unit = "1"
 
@@ -487,8 +500,8 @@ unit = "1"
 group = "Aqueous solutions"
 tex = "\\varepsilon"
 label = "ε"
-name = "relative permittivity of water, or an SIT interaction coefficient ε(i, k)"
-unit = "1 (kg/mol for the SIT coefficient)"
+name = "SIT interaction coefficient ε(i, k) of two ions"
+unit = "kg/mol"
 pages = ["theory/activity_models.md"]
 
 [[symbol]]
@@ -629,6 +642,30 @@ unit = "J/mol"
 
 [[symbol]]
 group = "Solid solutions"
+tex = "\\mathbf{W}"
+label = "<b>W</b>"
+name = "matrix of the interaction parameters of a regular solution, or of those of one site"
+unit = "J/mol"
+pages = ["theory/solid_solutions.md"]
+
+[[symbol]]
+group = "Solid solutions"
+tex = "\\mathbf{C}"
+label = "<b>C</b>"
+name = "coupling of two sites by the reference surface: the G°/RT of the compounds projected on their tangent spaces"
+unit = "1"
+pages = ["theory/solid_solutions.md"]
+
+[[symbol]]
+group = "Solid solutions"
+tex = "\\mathbf{d}"
+label = "<b>d</b>"
+name = "a direction of change of the composition, in the tangent space of the simplex"
+unit = "1"
+pages = ["theory/solid_solutions.md"]
+
+[[symbol]]
+group = "Solid solutions"
 tex = "a_0"
 label = "a<sub>0</sub>, a<sub>1</sub>, …"
 name = "Redlich–Kister (Guggenheim) coefficients of the excess Gibbs energy"
@@ -640,6 +677,14 @@ group = "Solid solutions"
 tex = "y"
 label = "y"
 name = "site fraction of a moiety on a sublattice"
+unit = "1"
+pages = ["theory/solid_solutions.md", "examples/sublattice_csh.md", "examples/cashplus_csh.md"]
+
+[[symbol]]
+group = "Solid solutions"
+tex = "\\mathbf{y}"
+label = "<b>y</b>"
+name = "site fractions of the moieties on the sublattices"
 unit = "1"
 pages = ["theory/solid_solutions.md", "examples/sublattice_csh.md", "examples/cashplus_csh.md"]
 
@@ -697,15 +742,55 @@ pages = ["theory/solid_solutions.md"]
 group = "Equilibrium and the solver"
 tex = "y"
 label = "y"
-name = "multipliers of the conservation rows: the potentials of the primary species, in RT units"
+name = "multiplier of a conservation row, minus the potential of its primary species in RT units"
 unit = "1"
-pages = ["theory/equilibrium.md", "manual/solving.md"]
+pages = ["theory/equilibrium.md", "theory/thermodynamics.md", "manual/solving.md"]
+
+[[symbol]]
+group = "Equilibrium and the solver"
+tex = "\\mathbf{y}"
+label = "<b>y</b>"
+name = "multipliers of the conservation rows"
+unit = "1"
+pages = ["theory/equilibrium.md", "theory/thermodynamics.md", "manual/solving.md"]
+
+[[symbol]]
+group = "Equilibrium and the solver"
+tex = "\\mathbf{u}"
+label = "<b>u</b>"
+name = "potentials the multipliers give the species, <b>u</b> = −<b>A</b>ᵀ<b>y</b>, in RT units"
+unit = "1"
+pages = ["theory/equilibrium.md", "theory/thermodynamics.md"]
+
+[[symbol]]
+group = "Equilibrium and the solver"
+tex = "u"
+label = "u"
+name = "potential the multipliers give a species, a component of <b>u</b>"
+unit = "1"
+pages = ["theory/equilibrium.md", "theory/thermodynamics.md"]
+
+[[symbol]]
+group = "Equilibrium and the solver"
+tex = "\\mathbf{v}"
+label = "<b>v</b>"
+name = "any change of the amounts"
+unit = "mol"
+pages = ["theory/equilibrium.md"]
+
+[[symbol]]
+group = "Equilibrium and the solver"
+tex = "\\mathbf{Z}"
+label = "<b>Z</b>"
+name = "basis of the null space of the conservation matrix"
+unit = "1"
+pages = ["tutorials/reaktoro_comparison.md"]
 
 [[symbol]]
 group = "Equilibrium and the solver"
 tex = "\\varphi"
 label = "φ"
-name = "equilibrium map: the equilibrium amounts n<sub>e</sub> of a budget b<sub>e</sub>"
+name = "equilibrium map: the equilibrium amounts <b>n</b><sub>e</sub> of a budget <b>b</b><sub>e</sub>"
 unit = ""
 pages = ["tutorials/coupling.md", "tutorials/kinetics.md", "tutorials/reaktoro_comparison.md", "examples/coupled_hydration.md"]
 
@@ -749,6 +834,48 @@ unit = "mol/s"
 
 [[symbol]]
 group = "Kinetics and hydration"
+tex = "\\mathbf{r}"
+label = "<b>r</b>"
+name = "rates of the kinetic reactions"
+unit = "mol/s"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\boldsymbol{\\xi}"
+label = "<b>ξ</b>"
+name = "extents of the kinetic reactions"
+unit = "mol"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\mathbf{n}_e"
+label = "<b>n</b><sub>e</sub>"
+name = "amounts of the species of the equilibrium partition"
+unit = "mol"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\mathbf{n}_k"
+label = "<b>n</b><sub>k</sub>"
+name = "amounts of the kinetic species"
+unit = "mol"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\mathbf{b}_e"
+label = "<b>b</b><sub>e</sub>"
+name = "budget of the components held by the equilibrium partition"
+unit = "mol"
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\mathbf{A}_e"
+label = "<b>A</b><sub>e</sub>"
+name = "conservation matrix restricted to the equilibrium partition"
+unit = "1"
+
+[[symbol]]
+group = "Kinetics and hydration"
 tex = "E_a"
 label = "E<sub>a</sub>"
 name = "activation energy"
@@ -773,17 +900,17 @@ pages = ["manual/kinetics_syntax.md", "examples/semiadiabatic_calorimetry.md", "
 [[symbol]]
 group = "Kinetics and hydration"
 tex = "a"
-label = "a, b"
-name = "linear and quadratic coefficients of the heat loss of the calorimeter, φ = aΔT + bΔT²"
-unit = "W/K, W/K²"
+label = "a"
+name = "linear coefficient of the heat loss of the calorimeter, φ = aΔT + bΔT²"
+unit = "W/K"
 pages = ["manual/kinetics_syntax.md", "examples/semiadiabatic_calorimetry.md", "examples/cement_clinker_kinetics.md"]
 
 [[symbol]]
 group = "Kinetics and hydration"
 tex = "b"
-label = "a, b"
-name = "linear and quadratic coefficients of the heat loss of the calorimeter, φ = aΔT + bΔT²"
-unit = "W/K, W/K²"
+label = "b"
+name = "quadratic coefficient of the heat loss of the calorimeter, φ = aΔT + bΔT²"
+unit = "W/K²"
 pages = ["manual/kinetics_syntax.md", "examples/semiadiabatic_calorimetry.md", "examples/cement_clinker_kinetics.md"]
 
 [[symbol]]

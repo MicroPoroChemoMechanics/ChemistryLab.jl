@@ -236,11 +236,11 @@ once at the primal values, and the sensitivities come from the optimality
 conditions, the implicit-function-theorem route:
 
 ```math
-\begin{bmatrix} H & A^{\mathsf T} \\ A & 0 \end{bmatrix}
-\begin{bmatrix} \dot n \\ \dot y \end{bmatrix}
+\begin{bmatrix} \mathbf{H} & \mathbf{A}^\mathsf{T} \\ \mathbf{A} & \mathbf{0} \end{bmatrix}
+\begin{bmatrix} \dot{\mathbf{n}} \\ \dot{\mathbf{y}} \end{bmatrix}
 =
-\begin{bmatrix} -\partial_\theta \nabla G \\ \dot b \end{bmatrix},
-\qquad H = \nabla^2 G(n^\star),
+\begin{bmatrix} -\partial_\theta \nabla G \\ \dot{\mathbf{b}} \end{bmatrix},
+\qquad \mathbf{H} = \nabla^2 G(\mathbf{n}^\star),
 ```
 
 restricted to the species actually present. One factorization serves every

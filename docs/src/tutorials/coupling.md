@@ -21,13 +21,13 @@ it to work.
 
 Split the species into two sets:
 
-- the **kinetic partition** ``n_k`` — phases whose transformation is rate-limited
+- the **kinetic partition** ``\mathbf{n}_k`` — phases whose transformation is rate-limited
   (clinker, most minerals);
-- the **equilibrium partition** ``n_e`` — everything assumed instantaneously
+- the **equilibrium partition** ``\mathbf{n}_e`` — everything assumed instantaneously
   equilibrated (the aqueous species, and any phase you accept as equilibrated).
 
 Each kinetic reaction ``j`` has a stoichiometric row that touches both, so the
-full stoichiometric matrix splits column-wise as ``\nu = [\nu_e \;\; \nu_k]``.
+full stoichiometric matrix splits column-wise as ``\boldsymbol{\nu} = [\boldsymbol{\nu}_e \;\; \boldsymbol{\nu}_k]``.
 
 !!! note "Surface sites are on the equilibrium side, and not by choice"
     A species occupying a [surface site](@ref sec-theory-surface) is not
@@ -41,12 +41,12 @@ full stoichiometric matrix splits column-wise as ``\nu = [\nu_e \;\; \nu_k]``.
     rate law of its own is a different model, and it takes an explicit
     `kinetic_species` list rather than happening by accident.
 
-## Why the state is ``(b_e, n_k)`` and not ``(n_e, n_k)``
+## Why the state is ``(\mathbf{b}_e, \mathbf{n}_k)`` and not ``(\mathbf{n}_e, \mathbf{n}_k)``
 
 The obvious choice — integrate every species — does not work, and the reason is
 worth stating because it explains the whole construction.
 
-Take ``\dot n_e = \nu_e^{\mathsf T} r``: this advances the equilibrium species
+Take ``\dot{\mathbf{n}}_e = \boldsymbol{\nu}_e^\mathsf{T} \mathbf{r}``: this advances the equilibrium species
 along the kinetic reactions *without re-equilibrating them*. After one step the
 aqueous phase is no longer at equilibrium, so the assumption that justified the
 partition has been abandoned.
@@ -63,10 +63,10 @@ redistributes those elements over a feasible composition.
 So the state carries the element amounts of the equilibrium partition,
 
 ```math
-b_e = A_e \, n_e ,
+\mathbf{b}_e = \mathbf{A}_e \, \mathbf{n}_e ,
 ```
 
-where ``A_e`` is the conservation matrix restricted to that partition. These are
+where ``\mathbf{A}_e`` is the conservation matrix restricted to that partition. These are
 conserved by every fast reaction by construction, and only the kinetic reactions
 move them.
 
@@ -83,19 +83,19 @@ move them.
 With that state, the coupled problem is ([Leal2017](@cite), Eqs. 54–65):
 
 ```math
-\frac{\mathrm{d} n_k}{\mathrm{d} t} = \nu_k^{\mathsf T} r(n, T, t),
+\frac{\mathrm{d} \mathbf{n}_k}{\mathrm{d} t} = \boldsymbol{\nu}_k^\mathsf{T} \mathbf{r}(\mathbf{n}, T, t),
 \qquad
-\frac{\mathrm{d} b_e}{\mathrm{d} t} = A_e \, \nu_e^{\mathsf T} r(n, T, t),
+\frac{\mathrm{d} \mathbf{b}_e}{\mathrm{d} t} = \mathbf{A}_e \, \boldsymbol{\nu}_e^\mathsf{T} \mathbf{r}(\mathbf{n}, T, t),
 ```
 
 closed by the equilibrium map
 
 ```math
-n_e = \varphi(b_e) \;=\; \arg\min_{n} \; G(n)
-\quad \text{subject to} \quad A_e n = b_e, \;\; n \ge 0 .
+\mathbf{n}_e = \varphi(\mathbf{b}_e) \;=\; \arg\min_{\mathbf{n}} \; G(\mathbf{n})
+\quad \text{subject to} \quad \mathbf{A}_e \mathbf{n} = \mathbf{b}_e, \;\; \mathbf{n} \ge 0 .
 ```
 
-Two ODEs and one constrained minimization. The rates ``r`` depend on the full
+Two ODEs and one constrained minimization. The rates ``\mathbf{r}`` depend on the full
 composition — a dissolution rate needs the saturation index, hence the aqueous
 activities — so ``\varphi`` feeds back into the right-hand side.
 
