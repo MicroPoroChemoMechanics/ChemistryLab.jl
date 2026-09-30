@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.28.2 — Kinetic steps seventeen times cheaper, and the volume fractions and windowed bound water of a recipe
 
 ### Changed: a step of a coupled kinetic run costs seventeen times less
 
@@ -20,9 +20,14 @@ unchanged.
 | time | 176.1 s | 10.3 s |
 | Newton iterations | 17 877 | 1 453 |
 
-The trajectory is the same to the last bit. `DualEquilibriumSolver` takes the
-two options as keywords, `inner_fall_bound` and `lenient_line_search`, with the
-defaults of before.
+Where the rate laws read only degrees of reaction, as here, the trajectory is
+the same to the last bit. Where the speciation feeds back, it moves within the
+solver's tolerance: the semi-adiabatic run of its example page, whose
+temperature follows the enthalpy of the speciation, takes 182 steps instead of
+184 and its reference paste peaks at 40.3 °C at 1.02 d, as the page says, where
+0.28.1 printed 1.04 d. The pages `coupled_hydration` and
+`semiadiabatic_calorimetry` run in 269 s instead of 944 s. `DualEquilibriumSolver` takes the two options as keywords,
+`inner_fall_bound` and `lenient_line_search`, with the defaults of before.
 
 ### Added
 

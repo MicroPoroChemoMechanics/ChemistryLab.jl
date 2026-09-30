@@ -298,6 +298,13 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
         @test_throws ArgumentError bound_water(rs; window = (300.0, 2000.0))
         @test_throws ArgumentError bound_water(rs; windows = steps)
         @test_throws ArgumentError bound_water(rs; window = (500.0, 400.0), windows = steps)
+        # An unreacted mineral that holds water counts with it: gypsum half
+        # reacted (a test extent), whose unreacted half keeps its two waters.
+        gypsum = Material("gypsum", :other; constituents = [MineralConstituent(db["Gp"]; mass_fraction = 1.0, extent = 0.5)])
+        rg, _ = equilibrate_certified(Recipe(pc => 0.95, gypsum => 0.05; w_b = 0.45), cs; model)
+        Mw = ustrip(us"g/mol", Species("H2O")[:M])
+        unreacted = 0.5 * 0.05 * rg.recipe.binder_mass / ustrip(us"g/mol", db["Gp"][:M]) * 2 * Mw
+        @test bound_water(rg) ≈ (ChemistryLab._in_unit(us"g", ignition_loss(rg.state).water) + unreacted) / rg.recipe.binder_mass rtol = 1.0e-12
         ps = pore_solution(rs)
         @test ps.pH > 12 && ps.elements[:K] > 0
         # The residue has no sourced enthalpy (the glass): the heat is not complete.
