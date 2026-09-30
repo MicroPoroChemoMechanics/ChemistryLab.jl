@@ -1,5 +1,52 @@
 # Changelog
 
+## v0.28.2 — Kinetic steps seventeen times cheaper, and the volume fractions and windowed bound water of a recipe
+
+### Changed: a step of a coupled kinetic run costs seventeen times less
+
+The partial equilibrium of each step is solved from the previous one, and most
+of its cost was spent where the inner fixed point of the dual Newton could not
+converge. A solute on its way down moved by exactly 30 in log-amount per sweep,
+the stall rule stopped the sweeps before it arrived, and the line search then
+refused forty candidates per iteration for want of a converged inner solve that
+the current point lacked as well. The solver of the steps now lets a solute fall
+to its potential at once and asks a candidate only for what the current point
+has. The options are OptimaSolver's (0.7.4), and nothing else uses them: static
+equilibria, the certified replay of `speciated_states` and every certificate are
+unchanged.
+
+| three hours of a CEM I paste (82 steps) | before | now |
+|:--|--:|--:|
+| time | 176.1 s | 10.3 s |
+| Newton iterations | 17 877 | 1 453 |
+
+Where the rate laws read only degrees of reaction, as here, the trajectory is
+the same to the last bit. Where the speciation feeds back, it moves within the
+solver's tolerance: the semi-adiabatic run of its example page, whose
+temperature follows the enthalpy of the speciation, takes 182 steps instead of
+184 and its reference paste peaks at 40.3 °C at 1.02 d, as the page says, where
+0.28.1 printed 1.04 d. The pages `coupled_hydration` and
+`semiadiabatic_calorimetry` run in 269 s instead of 944 s. `DualEquilibriumSolver` takes the two options as keywords,
+`inner_fall_bound` and `lenient_line_search`, with the defaults of before.
+
+### Added
+
+- `volume_fractions(rs::RecipeState)`: the share of the initial volume of a
+  paste (reactants, water and residue, the reference of `porosity`) held by each
+  species of the equilibrium and each unreacted constituent, closed by the void
+  of chemical shrinkage, so the fractions sum to one and `void` is
+  `porosity(rs).void`. A residue without a sourced density is refused by name,
+  since its volume, and with it every fraction, is unknown. This is what a
+  homogenization scheme reads off a recipe; until now it had to be assembled from
+  `volume(rs)` by hand, and the residue was easy to forget.
+- `bound_water(rs; window = (T₁, T₂), windows)`: the water the solids release
+  between two temperatures, from a `DecompositionWindow` per solid holding water,
+  unreacted minerals included. A source that reports bound water between 105 °C
+  and 550 °C is compared over that range and not with the whole of the ignition
+  water, which a thermogravimetric reading over a narrower range cannot weigh. A
+  solid holding water without a window is refused by name. Without a window the
+  function returns what it returned before.
+
 ## v0.28.1 — Equilibria two to four times cheaper, data read off figures that say so, and one notation throughout the documentation
 
 ### Added
