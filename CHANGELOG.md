@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.28.1 — Equilibria two to four times cheaper, data read off figures that say so, and one notation throughout the documentation
 
 ### Added
 
@@ -14,6 +14,8 @@
   2010, Lavergne et al. 2018) carry it, and a test requires it of any table whose
   location says it was read off a figure. A validation that compares with such
   values can now add the reading to the uncertainty of the source.
+  `LiteratureRecord` holds it in a new field, `table_info`; a record built with
+  the constructor of 0.28.0, without it, is still accepted.
 - A warning when a pure solid declared in a system repeats, up to a factor, an
   end-member of a declared non-ideal solid solution with the same Gibbs energy
   within 0.1 RT: ettringite declared pure beside `AFt_SO4_CO3`, whose SO4
