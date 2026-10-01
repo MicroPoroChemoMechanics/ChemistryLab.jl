@@ -29,10 +29,9 @@ flattened.
   `as_traced` can then mark another set of parameters as placeholders. Its
   `stderr` are larger by `√(n/(n − p))`, the noise level now being estimated on
   the degrees of freedom the parameters leave, and `Identifiability` has a
-  `noise` field. The
-  correlation matrix is formed from the singular value decomposition, which
-  changes its sign at an exact degeneracy, where the inversion of `JᵀJ` had none
-  to give.
+  `noise` field. The correlation matrix is formed from the singular value
+  decomposition, which changes its sign at an exact degeneracy, where the
+  inversion of `JᵀJ` had none to give.
 
 ### Changed: derivatives through a certified equilibrium are exact at every level
 
