@@ -370,7 +370,7 @@ published constants it never becomes the minimum of the three branches, so the
 released heat does not depend on `k₂` at all, as Parrott and Killoh reported. A
 ten times smaller `k₂` makes the branch bind, and the sensitivity then sees it.
 
-Until 0.28.3 this page printed about an eighth of `k₁`'s influence instead. The
+Until 0.28.2 this page printed about an eighth of `k₁`'s influence instead. The
 sensitivity was then a central difference with a 5 % step, which crosses the kink
 of the minimum wherever the Jander branch comes within 5 % of binding: it measured
 the step, not the model. The exact derivative settles it.
@@ -642,7 +642,7 @@ Matching the operators — differencing the measurement the same way — changed
 nothing, because that differencing is a **linear map on the same numbers**: a
 residual on the differenced curve is a linear combination of the residuals on
 `Q`, so it re-weights information instead of adding any. The option was removed
-from the script in 0.28.3.
+from the script in 0.29.0.
 
 The second explanation was the grid. Using the instrument's own `q̇` on 300 points,
 where the spacing near the peak is 0.24 h, changed nothing either.

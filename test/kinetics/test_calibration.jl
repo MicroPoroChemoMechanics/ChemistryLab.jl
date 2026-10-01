@@ -170,7 +170,7 @@ end
     # Parrott & Killoh reported no diffusion-controlled stage for C₃S, and
     # `parrott_killoh_avrami`'s docstring repeats it. The exact sensitivity
     # agrees: at the published k₂, `∂Q/∂log k₂` is zero over the whole record,
-    # the Jander branch never being the minimum of the three. Until 0.28.3 this
+    # the Jander branch never being the minimum of the three. Until 0.28.2 this
     # test pinned a "modest influence" of k₂ measured by central differences:
     # their 5 % step crossed the kink of the minimum where the branch came within
     # 5 % of it. Ten times smaller, the branch binds, and the derivative sees it.

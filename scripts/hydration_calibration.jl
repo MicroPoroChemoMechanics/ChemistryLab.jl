@@ -419,7 +419,7 @@ that, and for anyone whose data support more.
     Parrott & Killoh reported no diffusion-controlled stage for C₃S, and
     [`parrott_killoh_avrami`](@ref)'s docstring repeats it. The exact sensitivity
     agrees: at the published constants the Jander branch never becomes the
-    minimum, and `∂Q/∂log k₂` is zero over the whole record. Until 0.28.3 a
+    minimum, and `∂Q/∂log k₂` is zero over the whole record. Until 0.28.2 a
     central difference with a 5 % step, crossing the kink of the minimum where
     the branch comes within 5 % of binding, reported about an eighth of `k₁`'s
     influence. The documentation page measures it.
@@ -866,7 +866,7 @@ Released heat [J/g] **and** heat flow [W/g] at `data.t`, from one forward solve.
     log-spaced over two and a half decades and so coarse near the peak; it is now
     the exact rate of the certified states. Neither the matched differencing of
     model and measurement that was tried then (it re-weights the residuals on `Q`
-    rather than adding information, and was removed in 0.28.3) nor the
+    rather than adding information, and was removed in 0.29.0) nor the
     *instrument's* `q̇` at 77 s sampling on a grid four times finer near the peak
     (0.24 h against 0.91 h) changed the outcome: 27.8 J/g and 0.994.
 

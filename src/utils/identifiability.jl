@@ -35,12 +35,12 @@ rounding of the computation, not as a condition number of a few hundred.
 The logarithm is undefined at zero, and so is this: rescale or shift a
 parameter that can vanish first.
 
-`relstep` set the difference step until 0.28.2. It is accepted and ignored.
+`relstep` set the difference step until 0.28.2. It is deprecated, accepted and ignored.
 """
 function log_sensitivity(forward, θ; relstep = nothing)
     relstep === nothing || Base.depwarn(
-        "`relstep` is ignored: `log_sensitivity` differentiates exactly, by " *
-            "forward mode, since ChemistryLab 0.28.3.",
+        "`relstep` is deprecated and ignored: `log_sensitivity` differentiates " *
+            "exactly, by forward mode, since ChemistryLab 0.29.0.",
         :log_sensitivity,
     )
     p = collect(float.(θ))

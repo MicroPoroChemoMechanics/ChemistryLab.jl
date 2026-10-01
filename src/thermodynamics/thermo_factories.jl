@@ -585,7 +585,11 @@ Create a constant `SymbolicFunc` from a quantity.
 """
 function SymbolicFunc(x::Quantity)
     x = uexpand(x)
-    factory = ThermoFactory(:c; units = [:c => oneunit(x)], output_unit = oneunit(x))
+    # The unit in plain numbers, whatever the number type of the value: a
+    # constant being differentiated (a fitted log K) is a dual quantity, and its
+    # `oneunit` would be one too.
+    u = Quantity(1.0, dimension(x))
+    factory = ThermoFactory(:c; units = [:c => u], output_unit = u)
     return factory(; c = x)
 end
 
