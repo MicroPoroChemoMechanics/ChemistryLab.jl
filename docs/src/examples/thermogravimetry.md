@@ -177,7 +177,7 @@ forward(θ) = thermogram(
 function identify(θ0; iterations = 40)
     θ = copy(θ0)
     for _ in 1:iterations
-        J = log_sensitivity(forward, θ; relstep = 1.0e-3)
+        J = log_sensitivity(forward, θ)
         θ = θ .* exp.(clamp.(-(J \ (forward(θ) .- target)), -0.3, 0.3))
     end
     return θ
@@ -199,8 +199,12 @@ id
 ```
 
 Six parameters, six directions constrained — because the three peaks are well
-separated, and the spectrum falls off by factors of two and three with no drop
-anywhere. That is not the usual case.
+separated and the curve is fitted exactly, so that the standard error of every
+direction is at the rounding of the arithmetic. That is not the usual case. The
+spectrum does fall by a factor of 5.8 between its third and fourth values: a
+log-sensitivity carries the size of its parameter, some hundreds of kelvin for a
+midpoint and some tens for a width. Read off that gap alone, without the
+residual, the rank would have been three.
 
 ### Where it stops, and why that is the useful part
 
@@ -215,8 +219,8 @@ identifiability(fwd2, θ2; names = names2)
 Two phases releasing 5 K apart, and the rank comes out at most **two of
 four**, which is what the curve looks like: **one** peak, with a position and a
 width, rather than two with four parameters between them. The spectrum above
-says the same, with two drops of about ten between its entries. A fit would still
-return four numbers.
+says the same, with drops of 10.6 and 8.7 between its first entries. A fit would
+still return four numbers.
 
 This is the ordinary case in a cement paste — C-S-H, AFt and AFm all release
 below 200 °C — which is why running [`identifiability`](@ref) on the windows is

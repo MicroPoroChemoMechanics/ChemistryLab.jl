@@ -376,8 +376,8 @@ end
     @test maximum(abs, H .- H[1]) < 1.0e-3 * released
 
     # The heat the partition takes up as it shifts with temperature, from the
-    # Gibbs–Helmholtz right-hand side, against certified equilibria of the last
-    # proved partition half a kelvin either side of it.
+    # Gibbs–Helmholtz right-hand side, against the certified equilibrium of the
+    # last proved partition differentiated with respect to its temperature.
     p = sol.prob.p
     Tr = p.heat_T[]
     C_shift = ChemistryLab._equilibrium_shift_capacity(p, Tr)
@@ -388,13 +388,13 @@ end
         @test cert.optimal
         return ustrip.(us"mol", eq.n)
     end
-    C_fd = h' * (n_at(Tr + 0.5) .- n_at(Tr - 0.5))
-    @info "shift of the partition with temperature" C_shift C_fd
+    C_eq = h' * ForwardDiff.derivative(n_at, Tr)
+    @info "shift of the partition with temperature" C_shift C_eq
     @test C_shift > 0
-    # Measured: 1.6140 J/K against 1.6138. The Gibbs–Helmholtz form leaves out
-    # the temperature dependence of the activity coefficients, which the
-    # certified equilibria carry, with the truncation of the difference quotient.
-    @test C_shift ≈ C_fd rtol = 1.0e-3
+    # Measured: 1.61400 J/K against 1.61386, 8e-5 apart. The Gibbs–Helmholtz
+    # form leaves out the temperature dependence of the activity coefficients,
+    # which the certified equilibrium carries.
+    @test C_shift ≈ C_eq rtol = 1.0e-3
 
     # A partition whose audit raises proves nothing, and the heat reference stays.
     @test ChemistryLab._proved_partition(p, p.heat_n[], p.heat_b[][1:(end - 1)]) === nothing

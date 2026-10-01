@@ -182,22 +182,25 @@ route.
     `certificate` and read `optimal` before trusting a step much larger than
     `1/k`.
 
-    Which root a Newton finds there is a property of the build. Measured on the
-    case above: `10⁴ s` and `10⁶ s` converge to the right root on Julia 1.12 and
-    to the other one on 1.13.0-rc4, reported uncertified either way. That is the
-    reason the adaptive route exists — it refuses an uncertified step and halves
-    until one certifies, and reaches the equilibrium values to eight digits in
-    seven steps on both builds.
+    Which root a Newton finds there depends on its path. Measured on the case
+    above with the outer Jacobian of OptimaSolver 0.7.4, formed by differences:
+    `10⁴ s` and `10⁶ s` converged to the right root on Julia 1.12 and to the other
+    one on 1.13, reported uncertified either way. With the exact outer Jacobian
+    of the current OptimaSolver, `10⁴`, `10⁵` and `10⁶ s` all reach the
+    equilibrium root and certify. The adaptive route is the guarantee either
+    way: it refuses an uncertified step and halves until one certifies.
 
 A step is accepted on the estimate **and** on the certificate, never on the
 estimate alone. Richardson's difference measures the disagreement between two
 resolutions, so it is blind to an error the two share: measured on calcite over
-`10⁵ s`, the coarse step and both half-steps each dissolve the entire mineral,
-their extents agree to `5×10⁻¹¹`, and the estimator reports `9×10⁻⁶` — a step it
-should have refused, graded excellent. The certificate is not fooled, because a
-composition that dissolved everything violates `Δξ − Δt·M·r(n) = 0` by the whole
-extent. With both conditions the same march refuses `10⁵ s`, comes down to
-`1.6×10³ s`, and grows back to `5×10⁴ s` over seven steps.
+`10⁵ s` with OptimaSolver 0.7.4, the coarse step and both half-steps each
+dissolved the entire mineral, their extents agreed to `5×10⁻¹¹`, and the
+estimator reported `9×10⁻⁶` — a step it should have refused, graded excellent.
+The certificate is not fooled, because a composition that dissolved everything
+violates `Δξ − Δt·M·r(n) = 0` by the whole extent; with both conditions that
+march refused `10⁵ s` and came back in seven steps. With the current
+OptimaSolver the three steps find the equilibrium root, agree to `4×10⁻⁶` of
+the extent, certify, and the march takes the `10⁵ s` in one step.
 
 The tolerance is relative to the amount each reaction acts on, not to the extent.
 Scaling by `Δξ` is the obvious thing to write and does not work: `Δξ ∝ Δt`, so
@@ -221,10 +224,12 @@ neither answer works on both kinds of problem:
   - `warm_start` (default `true`) equilibrates the starting **guess** when the
     system carries solid solutions, leaving the component totals untouched. A
     mixing phase is admitted by a tangent-plane test, and from a composition where
-    the phase is absent that admission fails: a cold start left one end-member at
-    `2.7×10⁻⁹` with a stationarity residual of 6.5. The failure belongs to the
-    cold start and not to the kinetics — a plain equilibrium from the same guess
-    fails identically.
+    the phase is absent the step does not certify: a cold start left one
+    end-member at `2.7×10⁻⁹` with a stationarity residual of 6.5 under
+    OptimaSolver 0.7.4, and admits every end-member but stops at a KKT error of
+    1.75 since its outer Jacobian is exact. The failure belongs to the cold start
+    and not to the kinetics — a plain equilibrium from the same guess fails
+    identically.
   - `pin_minerals` (default `:auto`) says whether the kinetic minerals are held in
     the active set. Measured: on two C₃A pathways, **not** pinning is certified at
     `1.8×10⁻¹²` while pinning gives 7.9 and no certificate; on C₃S into a C-S-H
@@ -726,39 +731,45 @@ f(Ea) = pk(Ea)(300.0, 1.0e5, 3600.0, StateView([0.9], idx), StateView([0.0], idx
 ForwardDiff.derivative(f, 42_000.0)
 ```
 
-!!! warning "Differentiating *through* `integrate` with respect to parameters does not work"
-    The ODE right-hand side is AD-clean in the state `u` and in the time `t` —
-    deliberately, because `Rodas5P` evaluates it with a dual `t` for the time
-    gradient. It is **not** AD-clean in the parameters, and a dual number baked
-    into a rate closure cannot reach the integrator:
+### Differentiating a run
 
-      - `build_u0` returns a `Vector{Float64}`, so `∂/∂n₀` and `∂/∂T₀` die at the
-        initial condition;
-      - `build_kinetics_params` casts `T`, `P`, the initial amounts, the
-        stoichiometric matrices and the calorimeter's `Cp` and `T_env` to
-        `Float64`;
-      - the outer constructors of [`FixedSurfaceArea`](@ref) and
-        [`BETSurfaceArea`](@ref) cast to `Float64` although the structs are
-        declared `{T<:Real}`, so `∂/∂A` is blocked;
-      - `_strip_heat_per_mol` casts an explicit `heat_per_mol` to `Float64`, so
-        `∂/∂ΔᵣH` is blocked;
-      - `system_enthalpy` accumulates into a `0.0`;
-      - and under partial equilibrium `respeciate!` writes into a `Float64` buffer
-        by construction, so the coupled branch is `Float64`-only end to end.
+A run whose rate laws, initial amounts, temperature, calorimeter or explicit
+`heat_per_mol` carry `ForwardDiff` dual numbers is integrated on them. The state
+and every buffer of the right-hand side take the number type of what the problem
+is given, the parameters a rate closure captures included, and under partial
+equilibrium the partition is the certified equilibrium of each step, lifted to
+the duals by the implicit-function theorem at its answer. Nested
+differentiations are taken one level at a time, so second derivatives are exact
+as well.
 
-    An earlier version of this section claimed the opposite and showed a
-    derivative through `integrate`. There was no test for it, and the lines above
-    are why. Until that changes, a parameter study needs a derivative-free or
-    finite-difference outer loop —
-    [`Optimization.jl`](https://docs.sciml.ai/Optimization/stable/) with
-    `AutoFiniteDiff()` and `NelderMead()`, as
-    [the calibration example](@ref ex-hydration-calibration) does — or finite
-    differences by hand.
+```julia
+using ChemistryLab, DynamicQuantities, ForwardDiff, OrdinaryDiffEq
 
-    What *does* differentiate is the equilibrium map on its own:
-    `EquilibriumSolver` implements the implicit function theorem on the KKT system
-    for `ForwardDiff.Dual` inputs, so `∂n*/∂θ` through a Gibbs minimization is
-    exact.
+subs = build_species(datapath("cemdata18-thermofun.json"))
+cs = ChemicalSystem(speciation(subs, ["Cal", "Portlandite"]; aggregate_state = [AS_AQUEOUS]), CEMDATA_PRIMARIES)
+
+# First-order dissolution of calcite, `n(t) = n₀ e^{−kt}`: the derivative with
+# respect to `k` is `−t n₀ e^{−kt}`.
+function calcite_left(k)
+    st = ChemicalState(cs, [zero(k) * u"mol" for _ in cs.species])
+    set_quantity!(st, "H2O@", 1.0u"kg")
+    set_quantity!(st, "Cal", 0.5u"mol")
+    rxn = Reaction([cs["Cal"]], [cs[p] for p in ("Ca+2", "CO3-2")]; symbol = "dissolution")
+    rxn[:rate] = KineticFunc(
+        (T, P, t, n, lna, n0) -> k * n["Cal"], (T = 298.15u"K", P = 1.0e5u"Pa"), u"mol/s",
+    )
+    kp = KineticsProblem(cs, [rxn], st, (0.0, 1.0e4); equilibrium_solver = nothing)
+    return integrate(kp, KineticsSolver(; reltol = 1.0e-12, abstol = 1.0e-14)).u[end][1]
+end
+ForwardDiff.derivative(calcite_left, 1.0e-4)     # −1e4 × 0.5 × e⁻¹ = −1839.4
+```
+
+The derivative is that of the numerical solution, the steps of the integrator
+included: it departs from the sensitivity of the exact trajectory by the
+integrator's tolerance, which is the tolerance to give a run that is
+differentiated. The observables read off it are exact derivatives of that
+solution: [`heat_flow`](@ref) from the derivative of the interpolant,
+[`heat_release`](@ref) from `−dH/dt` at each certified state.
 
 ## [Two Parrott–Killoh variants](@id pk-variants)
 

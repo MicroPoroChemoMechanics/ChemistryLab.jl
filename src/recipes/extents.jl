@@ -150,10 +150,10 @@ the rate constants are per day, as the papers print them, unless given with a
 unit.
 Left out, both give the law above unchanged.
 """
-struct ParrottKillohExtent <: AbstractExtent
+struct ParrottKillohExtent{V <: Real} <: AbstractExtent
     phase::String
     days::Vector{Float64}
-    values::Vector{Float64}
+    values::Vector{V}
 end
 function ParrottKillohExtent(
         phase::AbstractString; T = 293.15u"K", α_max::Real = 1.0, blaine = nothing,
@@ -167,7 +167,7 @@ function ParrottKillohExtent(
         )
         # The rate constants as the papers print them, per day, unless given with
         # a unit; the exponents are numbers.
-        rate_constant(k, v) = k in (:k₁, :k₂, :k₃) ? (v isa DynamicQuantities.AbstractQuantity ? v : v * u"1/d") : Float64(v)
+        rate_constant(k, v) = k in (:k₁, :k₂, :k₃) ? (v isa DynamicQuantities.AbstractQuantity ? v : v * u"1/d") : float(v)
         base = merge(base, NamedTuple{keys(parameters)}(map(rate_constant, keys(parameters), values(parameters))))
     end
     rate = parrott_killoh_avrami(base, String(phase); α_max = α_max, blaine = blaine)
@@ -185,7 +185,9 @@ function ParrottKillohExtent(
     dα(α) = rate(TK, 1.0e5, 0.0, Dict(ph => 1 - α), nothing, Dict(ph => 1.0)) * fwc(α)
     grid = exp.(range(log(1.0e-4), log(horizon_days); length = 4001))   # days
     α = 0.0
-    vals = zeros(length(grid))
+    # In the number type of the law, its temperature, w/c and ceiling: a
+    # parameter being differentiated carries its derivative into the extent.
+    vals = Any[]
     tprev = 0.0
     for (k, d) in enumerate(grid)
         h = (d - tprev) * 86400.0
@@ -196,10 +198,10 @@ function ParrottKillohExtent(
         k3 = dα(min(α + h * k2 / 2, α_max - 1.0e-12))
         k4 = dα(min(α + h * k3, α_max - 1.0e-12))
         α = clamp(α + h * (k1 + 2k2 + 2k3 + k4) / 6, 0.0, α_max)
-        vals[k] = α
+        push!(vals, α)
         tprev = d
     end
-    return ParrottKillohExtent(String(phase), grid, vals)
+    return ParrottKillohExtent(String(phase), collect(grid), _promoted(vals))
 end
 _days_free_temperature(T::Real) = float(T)
 _days_free_temperature(T::DynamicQuantities.AbstractQuantity) = ustrip(us"K", T)

@@ -164,27 +164,25 @@ end
     @test_throws ArgumentError forward_Q(θ0, d; mode = :nonsense)
 end
 
-@testset "the Jander branch does bind on alite, late" begin
+@testset "the Jander branch does not bind on alite at the published constants" begin
     d = resample_log(CEM_I_TARGET, 40)
 
     # Parrott & Killoh reported no diffusion-controlled stage for C₃S, and
-    # `parrott_killoh_avrami`'s docstring repeats it. Numerically that is not quite
-    # what this implementation does: `α̇₂ = k₂(1-ξ)^(2/3)/(1-(1-ξ)^(1/3))` falls as
-    # ξ grows, so at high degrees of hydration the Jander branch can become the
-    # minimum and k₂ acquires a real, if modest, influence. Pinning the numbers
-    # here so the claim in the documentation stays honest.
-    spec_k2 = [CalibParameter(:k₂_C3S, "C3S", :k₂, 0.05, 0.005, 0.5, true)]
-    J2 = sensitivity_matrix([0.05], d; mode = :surrogate, spec = spec_k2)
+    # `parrott_killoh_avrami`'s docstring repeats it. The exact sensitivity
+    # agrees: at the published k₂, `∂Q/∂log k₂` is zero over the whole record,
+    # the Jander branch never being the minimum of the three. Until 0.28.3 this
+    # test pinned a "modest influence" of k₂ measured by central differences:
+    # their 5 % step crossed the kink of the minimum where the branch came within
+    # 5 % of it. Ten times smaller, the branch binds, and the derivative sees it.
+    spec_k2(k) = [CalibParameter(:k₂_C3S, "C3S", :k₂, k, 0.0001, 0.5, true)]
+    J2 = sensitivity_matrix([0.05], d; mode = :surrogate, spec = spec_k2(0.05))
+    @test all(iszero, J2)
+    J2_small = sensitivity_matrix([0.005], d; mode = :surrogate, spec = spec_k2(0.005))
+    @test maximum(abs, J2_small) > 1.0      # measured 61 J/g
+
     spec_k1 = [CalibParameter(:k₁_C3S, "C3S", :k₁, 1.5, 0.375, 6.0, true)]
     J1 = sensitivity_matrix([1.5], d; mode = :surrogate, spec = spec_k1)
-
     @test maximum(abs, J1) > 1.0            # k₁ certainly limits
-    @test maximum(abs, J2) > 0.0            # so does k₂, contrary to the docstring
-    @test maximum(abs, J2) < maximum(abs, J1) / 4   # but it is the minor effect
-
-    # And it is confined to the late part of the record: nothing at early ages.
-    early = findall(<=(6 * 3600), d.t)
-    @test all(iszero, J2[early, 1])
 end
 
 @testset "parameter recovery on synthetic data" begin

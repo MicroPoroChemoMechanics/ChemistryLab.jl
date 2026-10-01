@@ -22,13 +22,13 @@ material that takes the remainder; its given fraction is then ignored.
 See [`budget`](@ref) for what enters the equilibrium, and
 [`equilibrate_certified`](@ref), given the recipe and a system, to solve it.
 """
-struct Recipe
-    binder::Vector{Pair{Material, Float64}}
-    additions::Vector{Pair{Material, Float64}}
-    water_binder::Float64
-    binder_mass::Float64
-    T::Float64
-    P::Float64
+struct Recipe{R <: Real}
+    binder::Vector{Pair{Material, R}}
+    additions::Vector{Pair{Material, R}}
+    water_binder::R
+    binder_mass::R
+    T::R
+    P::R
 end
 function Recipe(
         binder::Pair{Material, <:Real}...; w_b::Real,
@@ -54,7 +54,17 @@ function Recipe(
     all(p -> last(p) >= 0, b) || throw(ArgumentError("Recipe: a negative mass fraction."))
     w_b >= 0 || throw(ArgumentError("Recipe: a negative water/binder ratio."))
     adds = [m => _in_unit(us"g", x) for (m, x) in additions]
-    return Recipe(b, adds, float(w_b), _in_unit(us"g", binder_mass), _in_unit(us"K", T), _in_unit(us"Pa", P))
+    # In the number type of what it is given: a water/binder ratio or a mass
+    # being differentiated makes the whole recipe dual.
+    mb, TK, PPa = _in_unit(us"g", binder_mass), _in_unit(us"K", T), _in_unit(us"Pa", P)
+    R = promote_type(
+        Float64, typeof(float(w_b)), typeof(mb), typeof(TK), typeof(PPa),
+        (typeof(last(p)) for p in b)..., (typeof(last(p)) for p in adds)...,
+    )
+    return Recipe{R}(
+        Pair{Material, R}[first(p) => R(last(p)) for p in b], Pair{Material, R}[first(p) => R(last(p)) for p in adds],
+        R(w_b), R(mb), R(TK), R(PPa),
+    )
 end
 
 # Every material of a recipe with its mass in grams.
@@ -85,15 +95,21 @@ constituent that reacts must be a species of `system`; one that does not need
 not be.
 """
 function budget(r::Recipe, cs::ChemicalSystem; t = nothing)
-    st = ChemicalState(cs; T = r.T * u"K", P = r.P * u"Pa")
     haskey(cs.dict_species, "H2O@") || throw(ArgumentError("budget: the system has no H2O@ for the water of the recipe."))
     water = r.water_binder * r.binder_mass
-    oxides = Pair{OrderedDict{String, Float64}, Float64}[]
+    # The masses and extents first, so that the state is built in the number
+    # type of all of them: a recipe or an extent being differentiated makes the
+    # amounts dual, and a state of plain amounts could not hold them.
+    parts = [
+        (m, c, mass * c.mass_fraction, effective_extent(m, c, t))
+            for (m, mass) in _material_masses(r) for c in m.constituents
+    ]
+    R = promote_type(typeof(water), (typeof(x[3] * x[4]) for x in parts)...)
+    st = ChemicalState(cs, [zero(R) * u"mol" for _ in cs.species]; T = r.T * u"K", P = r.P * u"Pa")
+    oxides = Pair[]
     residual = NamedTuple[]
-    for (m, mass) in _material_masses(r), c in m.constituents
-        mc = mass * c.mass_fraction
-        α = effective_extent(m, c, t)
-        (0 <= α <= 1) || throw(ArgumentError("budget: the extent of $(c.name) in $(m.name) is $α at t = $t."))
+    for (m, c, mc, α) in parts
+        (0 <= α <= 1) || throw(ArgumentError("budget: the extent of $(c.name) in $(m.name) is $(_plain(α)) at t = $t."))
         _add_reacted!(st, oxides, c, α * mc, m)
         (1 - α) * mc > 0 && push!(residual, _residue(c, m, (1 - α) * mc, r))
         _set_aside!(residual, c, m, α * mc, cs)
@@ -197,13 +213,13 @@ Read it with [`volume`](@ref), [`porosity`](@ref), [`phase_masses`](@ref),
 [`bound_water`](@ref), [`pore_solution`](@ref) and [`enthalpy`](@ref), which all
 count the residue where it belongs.
 """
-struct RecipeState{S <: ChemicalState, C, M}
+struct RecipeState{S <: ChemicalState, C, M, B <: AbstractVector, I <: ChemicalState}
     state::S
     certificate::C
     recipe::Recipe
     t::Any
-    initial::S
-    b::Vector{Float64}
+    initial::I
+    b::B
     residual::Vector{NamedTuple}
     model::M
 end
@@ -299,7 +315,7 @@ function volume_fractions(rs::RecipeState; void_key::AbstractString = "void")
     )
     V_initial = _in_unit(us"cm^3", volume(rs.initial).total)
     V0 = V_initial + res.value
-    out = OrderedDict{String, Float64}()
+    out = OrderedDict{String, promote_type(_realtype(eltype(rs.state.n)), typeof(V0))}()
     for (k, f) in volume_fractions(rs.state; reference = rs.initial, void_key)
         k == void_key && continue
         out[k] = f * V_initial / V0
@@ -324,8 +340,9 @@ unreacted constituent, under `"unreacted <name>"`.
 """
 function phase_masses(rs::RecipeState; min_mass::Real = 1.0e-6)
     cs = rs.state.system
-    out = OrderedDict{String, Float64}()
     solids = [(symbol(cs.species[i]), _in_unit(us"g", mass(rs.state, cs.species[i]))) for i in cs.idx_crystal]
+    R = promote_type(_realtype(eltype(rs.state.n)), (typeof(x.mass) for x in rs.residual)...)
+    out = OrderedDict{String, R}()
     for (s, m) in sort(solids; by = last, rev = true)
         m > min_mass && (out[s] = m)
     end
@@ -362,7 +379,7 @@ function bound_water(rs::RecipeState; window = nothing, windows = nothing, min_m
         return w / rs.recipe.binder_mass
     end
     held = vcat(
-        Pair{String, Float64}[p.first => _in_unit(us"g", p.second) for p in bound_water_per_phase(rs.state)],
+        Pair{String, Any}[p.first => _in_unit(us"g", p.second) for p in bound_water_per_phase(rs.state)],
         _unreacted_water(rs),
     )
     windows === nothing && throw(
@@ -396,12 +413,12 @@ _kelvin(T::DynamicQuantities.AbstractQuantity) = ustrip(us"K", T)
 
 # The water (g) of each unreacted mineral that holds some, by species symbol.
 function _unreacted_water(rs::RecipeState)
-    out = Pair{String, Float64}[]
+    out = Pair{String, Any}[]
     Mw = ustrip(us"g/mol", Species("H2O")[:M])
     for (m, mass) in _material_masses(rs.recipe), c in m.constituents
         c isa MineralConstituent || continue
         α = effective_extent(m, c, rs.t)
-        h = Float64(get(atoms(c.species), :H, 0))
+        h = float(get(atoms(c.species), :H, 0))
         w = (1 - α) * mass * c.mass_fraction / ustrip(us"g/mol", c.species[:M]) * h / 2 * Mw
         w > 0 && push!(out, symbol(c.species) => w)
     end
@@ -419,7 +436,7 @@ function pore_solution(rs::RecipeState)
     cs = rs.state.system
     iw = findfirst(==("H2O@"), [symbol(s) for s in cs.species])
     kgw = _in_unit(us"kg", mass(rs.state, cs.species[iw]))
-    el = OrderedDict{Symbol, Float64}()
+    el = OrderedDict{Symbol, promote_type(_realtype(eltype(rs.state.n)), typeof(kgw))}()
     for i in cs.idx_solutes
         n = ustrip(us"mol", rs.state.n[i])
         for (e, k) in atoms(cs.species[i])

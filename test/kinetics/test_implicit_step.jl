@@ -329,13 +329,15 @@ end
     # Ten times the step, ten times the C-S-H.
     @test totals[2] / totals[1] ≈ 10 rtol = 1.0e-2
 
-    # Without the warm start the mixing phase is never admitted: the tangent-plane
-    # test is made at a composition where the phase is absent, and it fails. This
-    # is a property of the cold start, not of the kinetics — a plain equilibrium
-    # from the same guess fails identically.
-    cold = kinetic_step(kss, fresh2(), 1.0e3; warm_start = false)
-    n_cold = Float64[ustrip(us"mol", x) for x in cold.n]
-    @test count(>(1.0e-6), [n_cold[findfirst(==(nm), names2)] for nm in members]) < 4
+    # Without the warm start the step does not reach its answer: the tangent-plane
+    # test is made at a composition where the phase is absent. This is a property
+    # of the cold start, not of the kinetics — a plain equilibrium from the same
+    # guess fails identically. Measured: OptimaSolver 0.7.4 left the phase out
+    # (KKT error 0.0095); since its outer Jacobian is exact it admits all four
+    # end-members, and still stops uncertified (1.75).
+    cold_cert = Ref{Any}(nothing)
+    kinetic_step(kss, fresh2(), 1.0e3; warm_start = false, certificate = cold_cert)
+    @test !cold_cert[].optimal
 
 end
 
@@ -432,7 +434,12 @@ end
     # A tighter tolerance takes more steps and lands closer.
     @test length(steps4) > length(steps3)
     @test abs(v4 - ref) < abs(one_step - ref)
-    @test abs(v4 - ref) < 1.0e-10        # measured at 2.5e-13
+    # The reference is 256 certified steps, each exact to the rounding of its
+    # own solve, and that rounding accumulates: two builds of the solver gave
+    # references 3.5e-10 mol apart (OptimaSolver 0.7.4 and its exact outer
+    # Jacobian), and 512 steps differ from 256 by 8e-11. No comparison with it
+    # can ask for less. Measured: 4.8e-13 with 0.7.4, 1.9e-10 since.
+    @test abs(v4 - ref) < 1.0e-9
 
     # And the step size is chosen, not fixed: it varies over two orders of
     # magnitude within one march.
@@ -516,11 +523,14 @@ end
     Ca_eq = ustrip(us"mol", eq.n[i_Ca])
     Cal_eq = ustrip(us"mol", eq.n[i_Cal])
 
-    # One step of the whole interval is wrong — and reports it.
+    # One step of the whole interval, a hundred relaxation times long. The step
+    # has a second root, every calcite dissolved, which OptimaSolver 0.7.4 found
+    # and reported uncertified. Since its outer Jacobian is exact the step finds
+    # the equilibrium root and certifies it, at 1e4, 1e5 and 1e6 s alike.
     cert = Ref{Any}(nothing)
     one = kinetic_step(kss3, big(), 1.0e5; certificate = cert)
-    @test !cert[].optimal
-    @test ustrip(us"mol", one.n[i_Cal]) < 0.5 * Cal_eq      # it dissolved everything
+    @test cert[].optimal
+    @test ustrip(us"mol", one.n[i_Cal]) ≈ Cal_eq rtol = 1.0e-6
 
     # The adaptive march gets there, choosing its own steps.
     TEND = 1.0e5
@@ -531,10 +541,14 @@ end
         t += used
         push!(taken, used)
     end
+    # Measured: one step, the whole interval, certified, its Richardson estimate
+    # 4e-6 of the extent. With OptimaSolver 0.7.4 the coarse step fell on the
+    # other root, was refused, and the march crept back in seven steps. The
+    # answer is asked for to the tolerance the march was given.
     @test sum(taken) ≈ TEND rtol = 1.0e-9
-    @test length(taken) < 30                                # measured at 7
-    @test ustrip(us"mol", st.n[i_Ca]) ≈ Ca_eq rtol = 1.0e-6
-    @test ustrip(us"mol", st.n[i_Cal]) ≈ Cal_eq rtol = 1.0e-8
+    @test length(taken) < 30
+    @test ustrip(us"mol", st.n[i_Ca]) ≈ Ca_eq rtol = 1.0e-4
+    @test ustrip(us"mol", st.n[i_Cal]) ≈ Cal_eq rtol = 1.0e-4
 
 end
 

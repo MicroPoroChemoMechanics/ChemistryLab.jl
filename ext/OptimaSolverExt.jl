@@ -15,7 +15,7 @@ import ChemistryLab:
     _solution_transform,
     _update_derived!
 using OptimaSolver: OptimaOptimizer, DualNewtonProblem, DualNewtonOptions,
-    SolutionPhase, dual_newton_solve, kkt_certificate, lp_start
+    SolutionPhase, dual_newton_solve, dual_newton_tangent, kkt_certificate, lp_start
 # Read at a dual answer exactly as the certificate reads it.
 using OptimaSolver: current_g, current_h, _degenerate_conservation_rows
 using SciMLBase
@@ -126,15 +126,13 @@ function SciMLBase.solve(
         ϵ::Float64 = _AMOUNT_FLOOR,
         b = nothing,
     )
-    # A composition carrying dual numbers takes the implicit-function route:
-    # primal solve, then sensitivities from the optimality conditions. No solver
-    # is asked to iterate on dual numbers.
-    if eltype(state.n) <: DynamicQuantities.AbstractQuantity{<:ForwardDiff.Dual}
-        return ChemistryLab._solve_dual(esolver, state, ϵ; b = b)
-    end
-
+    # A problem carrying dual numbers, in its state, its budget, its data or its
+    # activity model, takes the implicit-function route: primal solve, then the
+    # derivatives at the answer. No solver is asked to iterate on dual numbers.
     n0 = max.(_build_n0(state), ϵ)
     p = _build_params(state; ϵ = ϵ)
+    ChemistryLab._has_dual_inputs(n0, b, p, esolver.model) &&
+        return ChemistryLab._solve_dual(esolver, state, ϵ; b = b)
 
     # `b` given explicitly is Leal's φ(b): minimize G subject to A n = b, with
     # `state` supplying only the starting guess and the T, P conditions. The
@@ -243,6 +241,12 @@ function ChemistryLab._optima_complete_floored(prob, res, solutes, ϵ)
     end
     return x
 end
+
+# The answer `x` of `prob` on the values of its data, lifted to the dual numbers
+# `b` or the data carry: the implicit-function theorem at the answer, with the
+# active set frozen. See `ChemistryLab._lift_equilibrium`.
+ChemistryLab._optima_tangent(prob, b, x; q = nothing, floor = 1.0e-25, primal = nothing) =
+    dual_newton_tangent(prob, b, x; q = q, floor = floor, primal = primal)
 
 function ChemistryLab._optima_kkt_certificate(
         prob, x, b, floor, tol, si_tol, q = nothing,

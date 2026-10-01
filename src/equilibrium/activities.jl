@@ -159,12 +159,17 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
     has_gas = !isempty(idx_gas)
     # The solid solutions and the site families, prepared once; see `_MixingTerms`.
     mix = _MixingTerms(cs)
+    # The output is of the number type of everything it is computed from: the
+    # amounts, the parameters of the state (`p.T`, the potentials, a surface
+    # potential) and those of the mixing models. Typed by the amounts alone, it
+    # refused the derivative with respect to any of the others.
+    MT = _captured_number_type(mix)
 
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
         _n = max.(n, _activity_floor(p))
 
-        out = zeros(eltype(_n), length(_n))
+        out = zeros(promote_type(eltype(_n), _number_type_of(p), MT), length(_n))
 
         if has_aqueous
             # n_aqueous ≥ ϵ > 0 always (because _n[i] ≥ ϵ), so no iszero guard needed
@@ -231,7 +236,7 @@ true
 function build_potentials(cs::ChemicalSystem, model::AbstractActivityModel)
 
     # Build the activity closure once — captures precomputed indices and constants
-    lna = activity_model(cs, model)
+    lna = _scoped_lna(activity_model(cs, model))
 
     function μ(n::AbstractVector, p)
         return p.ΔₐG⁰overRT .+ lna(n, p)       # μ_i/RT = ΔₐG⁰_i/RT + ln(a_i)
@@ -748,21 +753,27 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
     B_fixed = model.B
     temp_dep = model.temperature_dependent
 
-    # Per-species data (Float64 — not differentiated).
+    # Per-species data, in the number type they are given in: a radius being
+    # differentiated is a dual.
     zv = Int8[charge(sp) for sp in cs.species]
-    åv = Float64[
-        iszero(zv[i]) ? 0.0 : _hkf_lookup_å(cs.species[i], model)
-            for i in eachindex(zv)
-    ]
+    åv = _promoted(
+        [
+            iszero(zv[i]) ? 0.0 : _hkf_lookup_å(cs.species[i], model)
+                for i in eachindex(zv)
+        ]
+    )
     n_sp = lastindex(zv)
 
     idx_ions = [i for i in idx_solutes if !iszero(zv[i])]
     idx_neutrals = [i for i in idx_solutes if  iszero(zv[i])]
     # Setschenow coefficient per neutral species, resolved once (see
     # `_setschenow`): `sp[:Kₙ]` when set, the model's global value otherwise.
-    Kₙv = Float64[
-        iszero(zv[i]) ? _setschenow(cs.species[i], model) : 0.0 for i in eachindex(zv)
-    ]
+    Kₙv = _promoted(
+        [
+            iszero(zv[i]) ? _setschenow(cs.species[i], model) : 0.0 for i in eachindex(zv)
+        ]
+    )
+    MT = promote_type(_captured_number_type(mix), _captured_number_type(model), eltype(åv), eltype(Kₙv))
 
     ln10 = log(10.0)
 
@@ -778,7 +789,7 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
             A, B = A_fixed, B_fixed
         end
 
-        out = zeros(eltype(_n), n_sp)
+        out = zeros(promote_type(eltype(_n), _number_type_of(p), MT, typeof(A), typeof(B)), n_sp)
 
         # ── Molality: mᵢ = nᵢ / (n_w × M_w) [mol/kg] ─────────────────────
         n_w = _n[idx_solvent]
@@ -1091,6 +1102,7 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
     has_gas = !isempty(idx_gas)
     # The solid solutions and the site families, prepared once; see `_MixingTerms`.
     mix = _MixingTerms(cs)
+    MT = promote_type(_captured_number_type(mix), _captured_number_type(model))
 
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
 
@@ -1114,7 +1126,7 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
             A_fixed
         end
 
-        out = zeros(eltype(_n), n_sp)
+        out = zeros(promote_type(eltype(_n), _number_type_of(p), MT, typeof(A)), n_sp)
 
         n_w = _n[idx_solvent]
         denom_mol = n_w * M_w
@@ -1283,6 +1295,7 @@ function activity_model(cs::ChemicalSystem, model::TruesdellJonesActivityModel)
     n_sp = lastindex(zv)
     # Resolved once: `nothing` for PHREEQC's defaults, the pair otherwise.
     parv = [get(model.parameters, symbol(sp), nothing) for sp in cs.species]
+    MT = promote_type(_captured_number_type(mix), _captured_number_type(model), _captured_number_type(parv))
     ln10 = log(10.0)
 
     function lna(n::AbstractVector, p)
@@ -1294,7 +1307,7 @@ function activity_model(cs::ChemicalSystem, model::TruesdellJonesActivityModel)
         else
             (model.A, model.B)
         end
-        out = zeros(eltype(_n), n_sp)
+        out = zeros(promote_type(eltype(_n), _number_type_of(p), MT, typeof(A), typeof(B)), n_sp)
         n_w = _n[idx_solvent]
         denom_mol = n_w * M_w
         I = zero(eltype(_n))

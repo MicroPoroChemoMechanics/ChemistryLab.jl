@@ -57,7 +57,7 @@ them to `Inf` and `true`, which is where they pay (see OptimaSolver's
 
 See also: [`optimality_certificate`](@ref), [`speciated_states`](@ref).
 """
-struct DualEquilibriumSolver{L, M <: AbstractActivityModel}
+struct DualEquilibriumSolver{L, M <: AbstractActivityModel, AT <: AbstractMatrix}
     system::ChemicalSystem
     lna::L
     model::M
@@ -74,9 +74,13 @@ struct DualEquilibriumSolver{L, M <: AbstractActivityModel}
     # right-hand side of zero by construction and entries of both signs, and
     # asking a question meant for an element balance of it gets the wrong
     # answer.
-    A::Matrix{Float64}
+    A::AT
     n_element_rows::Int
     opts::NamedTuple
+    # The number type the activity and mixing models carry: `Float64`, or the
+    # dual numbers of a differentiation with respect to their parameters. Found
+    # once here rather than at every solve.
+    captured::Type
 end
 
 function DualEquilibriumSolver(
@@ -136,10 +140,16 @@ function DualEquilibriumSolver(
     # entry when something does. The site row then states the coupling instead
     # of a fixed budget, which is what makes the budget follow the host at all.
     A_elem = conservation_matrix(system)
+    # A site density being differentiated makes the matrix dual, as a model's
+    # parameters make its activities.
+    captured = promote_type(
+        _captured_number_type(model), _captured_number_type(_MixingTerms(system)), _captured_number_type(A_elem),
+    )
     return DualEquilibriumSolver(
-        system, activity_model(system, model), model,
+        system, _scoped_lna(activity_model(system, model)), model,
         idx_aq, idx_pure, jw, ss_groups, site_groups, A_elem, size(A_elem, 1),
         (; tol, maxit, max_active_updates, si_tol, inner_tol, inner_maxit, inner_fall_bound, lenient_line_search, verbose),
+        captured,
     )
 end
 
@@ -349,8 +359,10 @@ function _dual_problem(des::DualEquilibriumSolver, p, n0, blocks = nothing)
     phases = _dual_phases(des, n0, p)
     bl = blocks === nothing ?
         _constraint_blocks(FixedTP(), des, nothing, p, n0) : blocks
+    # `float`, not `Float64`: the potentials of a state carrying dual numbers
+    # (a temperature being differentiated) keep them.
     return _optima_dual_problem(
-        des.A, Float64.(p.ΔₐG⁰overRT), des.lna, phases, des.idx_pure, p,
+        des.A, float.(p.ΔₐG⁰overRT), des.lna, phases, des.idx_pure, p,
         bl.gq, bl.hq, bl.cq, bl.q0, bl.qscale, bl.Aq, Int[],
         1:des.n_element_rows,
     )
@@ -384,6 +396,26 @@ function SciMLBase.solve(
                 "got :$surface_potential"
         ),
     )
+    # A state or a budget carrying dual numbers: solved on their values, one
+    # level of duals down, and the answer lifted to the caller's duals.
+    D = _input_number_type(state, b; constraint = constraint, captured = des.captured)
+    if D <: ForwardDiff.Dual
+        Tg = ForwardDiff.tagtype(D)
+        qv = Ref{Any}(Float64[])
+        eq = with(_STRIP_TAGS => (_STRIP_TAGS[]..., Tg)) do
+            SciMLBase.solve(
+                _rebuilt(des), _strip_state(state, Tg); b = b === nothing ? nothing : _strip_tag(collect(b), Tg),
+                ϵ = ϵ, constraint = constraint, parameters = qv, surface_potential = surface_potential,
+            )
+        end
+        bd = b === nothing ? des.A * _build_n0(state) : collect(b)
+        eq_d, q_d = _lift_equilibrium(
+            des, state, eq, bd; ϵ = ϵ, constraint = constraint, q = qv[],
+            surface_potential = surface_potential, strip_tag = Tg,
+        )
+        parameters === nothing || (parameters[] = q_d)
+        return eq_d
+    end
     p = _build_params(state; ϵ = ϵ)
     n0 = Float64[ustrip(us"mol", x) for x in state.n]
     bv = b === nothing ? des.A * n0 : Float64.(collect(b))
@@ -399,6 +431,7 @@ function SciMLBase.solve(
         )
         blocks = _compose_blocks(blocks, surf)
     end
+    blocks = _scoped_blocks(blocks)
     prob = _dual_problem(des, p, n0, blocks)
     # The solve starts with no amount below `ϵ`, the amount of an absent species
     # in a cold state: an exact zero would start it at `exp(−700)`, from which a
@@ -425,6 +458,58 @@ function SciMLBase.solve(
         des.system, [nᵢ * u"mol" for nᵢ in x];
         T = T_out, P = P_out,
     )
+end
+
+# ── differentiating through the certified solve ──────────────────────────────
+
+_carries_duals(b) = b !== nothing && any(x -> x isa ForwardDiff.Dual, b)
+
+# The same solver, built again in the current scope: inside `_STRIP_TAGS` its
+# activity closure returns values.
+_rebuilt(des::DualEquilibriumSolver) = DualEquilibriumSolver(des.system, des.model; des.opts...)
+
+"""
+    _lift_equilibrium(des, state, eq, b; ϵ, constraint, q, surface_potential, strip_tag,
+                      floor = _CERTIFICATE_FLOOR) -> (ChemicalState, q)
+
+The equilibrium `eq`, found on the values of the data, carrying the derivatives
+the dual numbers of `state` (its temperature and pressure) and of the budget `b`
+imply. The problem is the one `solve` poses, constraint and surface unknowns
+included, built at the caller's duals; its answer is lifted by the
+implicit-function theorem at `eq` with the active set frozen (OptimaSolver's
+`dual_newton_tangent`), so the derivatives are those of the solution, not of the
+iteration that found it, and each level of a nested differentiation is taken in
+turn. `q` is what the solve found for the constraint's unknowns, returned with
+its derivatives. A pure phase holding `floor` or less is absent: the floor of the
+certificate for a certified answer, the solver's lower bound for an
+interior-point one, which leaves an absent phase there.
+"""
+function _lift_equilibrium(
+        des::DualEquilibriumSolver, state::ChemicalState, eq::ChemicalState, b;
+        ϵ::Float64 = _AMOUNT_FLOOR, constraint::EquilibriumConstraint = FixedTP(),
+        q = nothing, surface_potential::Symbol = :auto, strip_tag = nothing,
+        floor::Real = _CERTIFICATE_FLOOR,
+    )
+    n = [ustrip(us"mol", x) for x in eq.n]
+    function problem(st)
+        p = _build_params(st; ϵ = ϵ)
+        d = _STRIP_TAGS[] == () ? des : _rebuilt(des)
+        blocks = _constraint_blocks(constraint, d, st, p, n)
+        if surface_potential !== :eliminated
+            surf = _surface_potential_blocks(d, st, p, n)
+            surf === nothing || (blocks = _compose_blocks(blocks, surf))
+        end
+        return _dual_problem(d, p, n, _scoped_blocks(blocks)), blocks
+    end
+    prob, blocks = problem(state)
+    # The same problem on the values, for the Jacobian of the tangent: the duals
+    # of the data, of the model or of the constraint live in closures the solver
+    # cannot strip by itself.
+    primal = strip_tag === nothing ? nothing :
+        first(with(() -> problem(_strip_state(state, strip_tag)), _STRIP_TAGS => (_STRIP_TAGS[]..., strip_tag)))
+    t = _optima_tangent(prob, b, n; q = (q === nothing || isempty(q)) ? nothing : q, primal = primal, floor = floor)
+    T_out, P_out = blocks.apply(temperature(state), pressure(state), t.q)
+    return ChemicalState(des.system, t.x .* u"mol"; T = T_out, P = P_out), t.q
 end
 
 """
@@ -545,10 +630,10 @@ function optimality_certificate(
         blocks = _compose_blocks(blocks, surf)
     end
     qv = blocks.nq == 0 ? nothing :
-        (q === nothing ? Float64.(collect(blocks.q0)) : Float64.(collect(q)))
+        (q === nothing ? Float64[_plain(x) for x in blocks.q0] : Float64[_plain(x) for x in q])
 
     c = _optima_kkt_certificate(
-        _dual_problem(des, p, n, blocks), n, bv, floor,
+        _dual_problem(des, p, n, _scoped_blocks(blocks)), n, bv, floor,
         des.opts.tol, des.opts.si_tol, qv,
     )
     scope, scope_reasons = _certificate_scope(des, p, n, constraint)
@@ -819,6 +904,34 @@ function solve_certified(
         memo::Union{Nothing, IdDict} = nothing,
         stop::Union{Nothing, Function} = nothing,
     )
+    # A budget carrying dual numbers, or starts whose temperature, pressure or
+    # amounts do: the search runs on the values, one level of duals down, and
+    # only the answer it keeps is lifted to the caller's duals, at the
+    # conditions the starts carry. A lazy sequence of starts is never inspected
+    # here (the certified route lifts its own duals before calling this).
+    explicit = starts isa Union{Tuple, AbstractVector} && !isempty(starts)
+    D = explicit ?
+        _input_number_type(first(starts), b; constraint = constraint, captured = des.captured) :
+        promote_type(Float64, _carries_duals(b) ? mapreduce(typeof, promote_type, (x for x in b if x isa ForwardDiff.Dual)) : Float64)
+    if D <: ForwardDiff.Dual
+        Tg = ForwardDiff.tagtype(D)
+        s1 = explicit ? first(starts) : nothing
+        qv = Ref{Any}(Float64[])
+        eq, cert = with(_STRIP_TAGS => (_STRIP_TAGS[]..., Tg)) do
+            solve_certified(
+                _rebuilt(des), explicit ? map(s -> _strip_state(s, Tg), starts) : starts;
+                b = b === nothing ? nothing : _strip_tag(collect(b), Tg), ϵ = ϵ, floor = floor,
+                constraint = constraint, parameters = qv, memo = memo, stop = stop,
+            )
+        end
+        eq === nothing && return (eq, cert)
+        bd = b !== nothing ? collect(b) : des.A * _build_n0(s1)
+        at = explicit ?
+            ChemicalState(des.system, eq.n; T = temperature(s1), P = pressure(s1)) : eq
+        eq_d, q_d = _lift_equilibrium(des, at, eq, bd; ϵ = ϵ, constraint = constraint, q = qv[], strip_tag = Tg)
+        parameters === nothing || (parameters[] = q_d)
+        return (eq_d, cert)
+    end
     best = nothing
     best_cert = nothing
     best_err = Inf
@@ -891,6 +1004,7 @@ _optima_dual_solve(args...) = _need_optima()
 _optima_kkt_certificate(args...) = _need_optima()
 _optima_lp(args...) = _need_optima()
 _optima_complete_floored(args...) = _need_optima()
+_optima_tangent(args...; kwargs...) = _need_optima()
 
 _need_optima() = error(
     "DualEquilibriumSolver needs OptimaSolver ≥ 0.7: the KKT solver and its " *

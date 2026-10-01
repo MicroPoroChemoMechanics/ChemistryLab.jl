@@ -2,6 +2,128 @@
 
 ## Unreleased
 
+This release takes every derivative of the package by forward-mode
+differentiation, and lets one flow through everything a forward model is built
+from: an equilibrium, a kinetic run, a recipe, a surface. It is what an inversion
+needs whose forward model is an equilibrium or a hydration, differentiated with
+`ForwardDiff` and differentiated again for its Hessian. It also showed that the
+difference quotients had been producing results of their own: a degeneracy half
+hidden, a rate constant credited with an influence it does not have, a spectrum
+flattened.
+
+### Changed: derivatives through a certified equilibrium are exact at every level
+
+- **The derivative of a certified equilibrium is that of the problem solved.**
+  An equilibrium whose amounts, temperature, pressure or budget carry
+  `ForwardDiff` dual numbers is solved on their values and lifted by the
+  implicit-function theorem at the certified answer (OptimaSolver's
+  `dual_newton_tangent`), on the problem `solve` poses: the constraint's
+  unknowns and the surface potentials included. The derivative of the titrant
+  a prescribed pH needs, or of the temperature an adiabatic solve reaches, is
+  now returned with the answer. Until 0.28.2 the derivative came from the
+  optimality conditions of the unconstrained problem, whatever the constraint.
+- **Nested differentiations are exact.** Each level of duals is stripped in
+  turn, so a derivative taken inside another is solved on the outer one's
+  duals. Stripping every level at once, as 0.28.2 did, gave a second derivative
+  of exactly zero. This is what an inversion needs whose forward model is an
+  equilibrium: a gradient-based fit differentiated again for its Hessian, or a
+  sensitivity of a fitted parameter.
+- `SciMLBase.solve(::DualEquilibriumSolver, state; b)` and `solve_certified`
+  accept a state or a budget carrying dual numbers, by the same route.
+- **The implicit kinetic step has no difference quotient left.** Its Newton over
+  the reaction extents (`coupling = :species`) took its Jacobian by differences,
+  one certified equilibrium per extent. It now takes the residual and its
+  Jacobian from one evaluation on dual numbers, through the certified
+  equilibrium of the free species. The rate closures of the `:reactions` route
+  return the number type of the composition, which OptimaSolver's exact outer
+  Jacobian differentiates through.
+- **What is differentiated is no longer only the amounts.** The standard
+  potentials of a species whose property functions capture dual numbers (a
+  `NumericFunc` shifting a `ΔₐG⁰`, a parameter of a thermodynamic model), the
+  parameters of an activity model, and the target of a constraint all carry
+  their derivatives through the solve, checked against identities exact at
+  every equilibrium: the derivative of a mass-action residual is `1/RT` with
+  respect to a shift of one potential and zero with respect to anything else.
+- **`equilibrate(state, solver)` lifts its answer the same way.** The back end
+  chosen solves on the values; the answer is lifted at the point it returned,
+  every level of a nested differentiation in turn, with whatever carries the
+  duals: the state, the budget, the data or the model. Until 0.28.2 only the
+  amounts of the state were seen, one level deep, through a sensitivity solved in
+  `Float64`; a dual budget reached Ipopt and raised. Without OptimaSolver, that
+  older sensitivity remains, and anything it cannot lift is refused by name.
+
+### Changed: a kinetic run, a recipe and a surface differentiate
+
+- **A kinetic run is differentiated with respect to its parameters.** The state
+  and every buffer of the right-hand side take the number type of what the
+  problem is given (a rate constant a closure captures, an initial amount, the
+  temperature, the calorimeter, an explicit `heat_per_mol`); under partial
+  equilibrium the partition of each step is the certified equilibrium lifted to
+  those duals. The sensitivity of the partition that the heat balance uses, and
+  its shift with temperature, come from the same tangent; until 0.28.2 they were
+  a singular value decomposition in `Float64` with absent phases pinned by a
+  threshold of its own. A differentiated run takes the plain run's route to the
+  values of each partition (the interior point, escalated where its balance is
+  poor) and only then lifts them, keeping, as the plain run does, the better
+  balanced of the two answers: started cold, the certified solve on the duals
+  did not always converge where the plain run did, and an accepted step of a
+  differentiated hydration was left 3.4e9 mol out of balance.
+- **The observables are exact derivatives of the solution.** `heat_flow` is the
+  derivative of the interpolant, and the heat rate of `heat_release` is `−dH/dt`
+  at each certified state, from the rates of the kinetic amounts and of the
+  temperature with the partition's own sensitivity.
+- **A recipe differentiates.** `Recipe`, its materials and constituents, the
+  extents (a Parrott–Killoh extent tabulated in the number type of its rate
+  constants, its temperature and its ceiling), `budget` and the readers of a
+  `RecipeState` take the number type of what they are given: a water/binder
+  ratio, a mass fraction, an oxide analysis or a rate constant carries its
+  derivative into the equilibrium of the paste. Checked against closed forms: the
+  water and the reacted mineral enter the budget by their columns, and scaling
+  the rate constants of a Parrott–Killoh law scales its time.
+- **A surface differentiates.** A site density reaches the budget of its family,
+  and, when the sites follow their host, the conservation matrix and the
+  equilibrium through it; the thickness of a Donnan layer reaches its potential
+  and its contents, through the fixed point of `equilibrate_donnan`; and a
+  `log K` given to `site_family` reaches the energy of its complex.
+
+### Changed: identifiability, without differences
+
+- `log_sensitivity` and `identifiability` differentiate exactly, by forward
+  mode: one evaluation of the forward model on dual numbers per chunk of up to
+  twelve parameters, where central differences cost two per parameter.
+  `relstep` is accepted and ignored, with a deprecation warning. The 5 % step of
+  the differences moved an exponent by 0.165 and gave a condition number of
+  about eighty to an exact degeneracy, now 1e10; it crossed the kink of the
+  Parrott–Killoh minimum and credited `k₂` with an eighth of `k₁`'s influence on
+  a heat curve, where it has none; and a 20 K secant across a 15 K peak flattened
+  the spectrum of a thermogram.
+- **The rank is read off the standard errors when there is a residual.** With
+  an observation, `identifiable_rank` counts the directions whose standard error
+  in `log θ`, the residual over the singular value, is below `tol` (default 1,
+  a factor e); without one, the gap rule stands. On exact spectra the gap had
+  answered five directions for the six rate parameters of a heat curve, of which
+  three are determined and the others known to within a factor of 55 at best, and
+  three for the six parameters of a thermogram fitted exactly, all determined.
+- The covariance is formed from the singular value decomposition rather than by
+  inverting `JᵀJ`, which squares the condition number: at an exact degeneracy
+  that inverse had no sign left, and gave a trade-off a correlation of +1.
+- The analyses stored in `scripts/hydration_calibration.jl` are regenerated with
+  exact derivatives, and `main()` recomputes the stored ones on the same six
+  parameters and thirty instants. The residual at the published parameters is
+  25.94 J/g, where the stored analysis said 26.08: the stored value was older
+  than 0.28.2, which gives 25.94 as well.
+
+### Fixed
+
+- The explicit `heat_per_mol` of a kinetic reaction was converted to `Float64`,
+  which stopped its derivative.
+- Warnings and refusals that rounded a dual number for their message
+  (`round(x; sigdigits)` on a `Dual` overflows the stack) print its value, and
+  the hint that names the range of an activity model is no longer lost when the
+  ionic strength is a dual number.
+- The split seed of an automatic instance empties its receiver first: a
+  rounding left from an earlier split had made one fail.
+
 ### Added
 
 - **A recipe as a kinetic problem:** `KineticsProblem(recipe, system, rates, tspan)`.

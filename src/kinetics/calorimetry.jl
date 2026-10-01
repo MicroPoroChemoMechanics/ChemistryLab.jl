@@ -285,17 +285,14 @@ end
 """
     heat_flow(sol, cal::IsothermalCalorimeter) -> (t, qdot)
 
-Instantaneous heat-generation rate `q̇(t)` [W], by differencing
-[`cumulative_heat`](@ref).
+Instantaneous heat-generation rate `q̇(t)` [W]: the time derivative of the
+accumulated heat the solution carries, read from the solver's own interpolant
+(`sol(t, Val{1})`) at the instants it saved. Until 0.28.2 it was a backward
+difference of [`cumulative_heat`](@ref), whose first instant was set to zero.
 """
 function heat_flow(sol, cal::IsothermalCalorimeter)
-    t, Q = cumulative_heat(sol, cal)
-    qdot = similar(Q)
-    qdot[1] = zero(eltype(Q))
-    for i in 2:lastindex(t)
-        dt = t[i] - t[i - 1]
-        qdot[i] = dt > 0 ? (Q[i] - Q[i - 1]) / dt : zero(eltype(Q))
-    end
+    t = sol.t
+    qdot = [sol(ti, Val{1})[end] for ti in t]
     return t, qdot
 end
 
@@ -303,24 +300,21 @@ end
     heat_flow(sol, cal::SemiAdiabaticCalorimeter) -> (t, qdot)
 
 Reconstruct q̇(t) [W] from the temperature ODE via the energy balance
-`q̇ ≈ Cp × dT/dt + φ(T − T_env)`.
+`q̇ = Cp × dT/dt + φ(T − T_env)`, `dT/dt` the time derivative of the solver's
+own interpolant (`sol(t, Val{1})`) at the instants it saved. Until 0.28.2 it was
+a backward difference, whose first instant was set to zero.
 
 Note: uses the fixed `cal.Cp` (not the variable Cp_total) for this
 post-processing reconstruction.
 """
 function heat_flow(sol, cal::SemiAdiabaticCalorimeter)
     t = sol.t
-    Cp_f = Float64(safe_ustrip(us"J/K", cal.Cp))
-    T_env_f = Float64(safe_ustrip(us"K", cal.T_env))
+    Cp_f = safe_ustrip(us"J/K", cal.Cp)
+    T_env_f = safe_ustrip(us"K", cal.T_env)
     n_kin = length(sol.u[1]) - n_extra_states(cal)
-    T_vec = [u[n_kin + 1] for u in sol.u]
-    qdot = similar(T_vec)
-    qdot[1] = zero(eltype(T_vec))
-    for i in 2:lastindex(t)
-        dt = t[i] - t[i - 1]
-        dTdt = dt > 0 ? (T_vec[i] - T_vec[i - 1]) / dt : zero(eltype(T_vec))
-        ΔT = T_vec[i] - T_env_f
-        qdot[i] = Cp_f * dTdt + cal.heat_loss(ΔT)
+    qdot = map(eachindex(t)) do i
+        T_i = sol.u[i][n_kin + 1]
+        Cp_f * sol(t[i], Val{1})[n_kin + 1] + cal.heat_loss(T_i - T_env_f)
     end
     return t, qdot
 end

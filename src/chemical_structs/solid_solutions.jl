@@ -505,9 +505,10 @@ For a binary with the package's Redlich-Kister convention,
 \\qquad A_k = a_k/RT ,
 ```
 
-and the second derivative is evaluated on a grid rather than in closed form, so
-that the same routine covers `a₂` and the symmetric
-[`RegularSolutionModel`](@ref) without a separate derivation. The classical
+and the second derivative is taken by forward-mode differentiation on a grid of
+compositions rather than in closed form, so that the same routine covers `a₂`
+and the symmetric [`RegularSolutionModel`](@ref) without a separate derivation.
+The interval returned is the span of the grid points where it is negative. The classical
 symmetric result is recovered as a check: `d²g/dx²` at `x = 1/2` is `4 − 2A₀`, so
 a regular solution unmixes above `W = 2RT`.
 
@@ -533,10 +534,10 @@ function spinodal_interval(
     gx = _mixing_energy(A0, A1, A2)
 
     xs = range(1.0e-3, 1 - 1.0e-3; length = 2001)
-    h = step(xs)
+    d2gx(x) = ForwardDiff.derivative(y -> ForwardDiff.derivative(gx, y), x)
     lo, hi = Inf, -Inf
     for i in 2:(length(xs) - 1)
-        d2 = (gx(xs[i + 1]) - 2gx(xs[i]) + gx(xs[i - 1])) / h^2
+        d2 = d2gx(xs[i])
         if d2 < 0
             lo = min(lo, xs[i])
             hi = max(hi, xs[i])

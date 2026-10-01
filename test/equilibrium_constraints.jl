@@ -191,6 +191,33 @@ end
         push!(dissolved, 1.0e-2 - n[i_Cal])
     end
 
+    # The unknown of the constraint is differentiated with the composition: the
+    # acid a prescribed pH needs, against the calcite it has to dissolve,
+    # through the whole constrained system at the answer. At pH 6 the calcite
+    # dissolves entirely, so more of it takes more acid; at a pH where calcite
+    # remains, the acid would not depend on how much is left.
+    function acid_for(c)
+        st = ChemicalState(cs, [zero(c) * u"mol" for _ in cs.species])
+        set_quantity!(st, "Cal", c * u"mol")
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "H+", 1.0e-7u"mol")
+        set_quantity!(st, "OH-", 1.0e-7u"mol")
+        q = Ref{Any}(Float64[])
+        eq = SciMLBase.solve(des, st; constraint = FixedpH(6.0), parameters = q)
+        return vcat(q[][1], [ustrip(us"mol", x) for x in eq.n])
+    end
+    d = ForwardDiff.derivative(acid_for, 1.0e-2)
+    da, dn = d[1], d[2:end]
+    @test da > 0
+    # Exact at every answer, and between the two unknowns of the derivative:
+    # the titrant brings the charge the solution gains, and every mole of
+    # calcite added dissolves, its calcium and its carbon with it.
+    z = [charge(s) for s in cs.species]
+    @test sum(z .* dn) ≈ da rtol = 1.0e-9
+    ic = [findfirst(s -> symbol(s) == x, cs.species) for x in ("CO2@", "HCO3-", "CO3-2")]
+    @test dn[findfirst(s -> symbol(s) == "Ca+2", cs.species)] ≈ 1 rtol = 1.0e-9
+    @test sum(dn[ic]) ≈ 1 rtol = 1.0e-9
+
     # Acid has to be ADDED to bring a basic solution down, and more of it the
     # lower the target. Both are physics, not tolerances.
     @test all(>(0), amounts)

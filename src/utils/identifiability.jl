@@ -2,71 +2,59 @@
 # Copyright © 2025-2026 Jean-François Barthélémy and Anthony Soive (Cerema, UMR MCD)
 
 using LinearAlgebra
+using ForwardDiff
 
 # ── Which parameters a measurement can actually determine ────────────────────
 #
 # Fitting six numbers to a curve and reporting six numbers are different acts.
 # `scripts/hydration_calibration.jl` worked this out for calorimetry and stated
-# the result plainly: over six candidates the singular values of `∂Q/∂log θ` came
-# out at `[420, 100, 60, 6.3, 1.4, 0.20]`, a factor of nine between the third and
-# the fourth, so the measurement determined three COMBINATIONS and not six
-# numbers. What is here is that reasoning taken out of one script and made to
-# work on any forward model.
+# the result plainly: over six candidates, the standard errors of the singular
+# directions of `∂Q/∂log θ` say that the measurement determines three
+# COMBINATIONS and not six numbers. What is here is that reasoning taken out of
+# one script and made to work on any forward model.
 
 """
-    log_sensitivity(forward, θ; relstep = 0.05) -> Matrix
+    log_sensitivity(forward, θ) -> Matrix
 
-`∂y/∂log θⱼ` by central differences, with `y = forward(θ)`.
+`∂y/∂log θⱼ = θⱼ ∂y/∂θⱼ`, with `y = forward(θ)`, exact, by forward-mode
+differentiation.
 
 Differentiating with respect to the **logarithm** is what makes the columns
 comparable: a rate constant and a dimensionless exponent have no common unit,
 and a matrix mixing `∂y/∂k` with `∂y/∂n` has a singular spectrum that says more
 about the units than about the data.
 
-Central differences rather than automatic differentiation, because a forward
-model is often a solver whose parameters do not carry duals — `hydration_calibration.jl`
-names exactly why for its own: the integrator casts to `Float64` on the way in.
-`forward` is free to be AD-clean; this does not require it, and costs exactly
-`2n` evaluations: the output is sized from the first perturbed call rather than
-from an extra unperturbed one. On a forward model that is a solver, that saved
-call is a whole solve.
+`forward` must accept `ForwardDiff` dual numbers and return a vector. Every
+forward model of this package does, a kinetic run included: an equilibrium
+inside it is differentiated by the implicit-function theorem at its certified
+answer. The cost is one evaluation of `forward` on dual numbers per chunk of
+parameters (up to twelve at a time), and the derivatives carry no step: an
+exact degeneracy between two parameters shows as a singular value at the
+rounding of the computation, not as a condition number of a few hundred.
 
-`relstep` is a **relative** step, so a parameter near zero needs rescaling before
-it is passed here — which is the same condition as the logarithm being defined.
+The logarithm is undefined at zero, and so is this: rescale or shift a
+parameter that can vanish first.
 
-!!! warning "A coarse step can hide an exact degeneracy"
-    The default 5 % is chosen so a noisy forward model still gives a usable
-    derivative, and it is coarse. On a rate law that goes as `(1-ξ)^{n₃}`, a 5 %
-    step moves `n₃ = 3.3` by 0.165 in the exponent, which is far enough that the
-    second-order error differs between two parameters that are **exactly**
-    collinear — and the collinearity then shows up as a condition number of 80
-    rather than of 3 × 10⁵. Measured on that case, the third singular value goes
-    from 2.0e-7 at `relstep = 0.05` to 5.1e-11 at 0.01 and is unchanged below.
-
-    So a condition number of a few hundred is not evidence that a model is well
-    posed. **Refine `relstep` and see whether the answer moves**; if it does, the
-    coarse one was measuring the differencing and not the model.
+`relstep` set the difference step until 0.28.2. It is accepted and ignored.
 """
-function log_sensitivity(forward, θ; relstep::Real = 0.05)
+function log_sensitivity(forward, θ; relstep = nothing)
+    relstep === nothing || Base.depwarn(
+        "`relstep` is ignored: `log_sensitivity` differentiates exactly, by " *
+            "forward mode, since ChemistryLab 0.28.3.",
+        :log_sensitivity,
+    )
     p = collect(float.(θ))
     any(iszero, p) && throw(
         ArgumentError(
-            "a relative step is undefined at zero, and so is the logarithm this " *
-                "differentiates against. Rescale or shift the parameter first."
+            "the logarithm this differentiates against is undefined at zero. " *
+                "Rescale or shift the parameter first."
         ),
     )
-    # Sized from the first column rather than from an extra unperturbed call. A
-    # forward model here is often a solver, so that call is a whole solve, and
-    # the first perturbation already says how long the output is.
-    J = nothing
-    for j in eachindex(p)
-        up = copy(p); up[j] *= (1 + relstep)
-        dn = copy(p); dn[j] *= (1 - relstep)
-        col = (forward(up) .- forward(dn)) ./ (2 * relstep)
-        J === nothing && (J = Matrix{Float64}(undef, length(col), length(p)))
-        J[:, j] = col
-    end
-    return J === nothing ? Matrix{Float64}(undef, 0, 0) : J
+    # `ForwardDiff.jacobian` tags its duals with the function it differentiates,
+    # so a forward model that differentiates internally, or a caller who
+    # differentiates this, keeps its own perturbations apart.
+    J = ForwardDiff.jacobian(q -> collect(forward(q)), p)
+    return J .* transpose(p)
 end
 
 """
@@ -82,11 +70,12 @@ point.
     combination the k-th singular value belongs to.
   - `condition`: `S[1]/S[end]`, or `Inf` when the problem is exactly
     rank-deficient — see below.
-  - `rank`: how many **directions** the data constrain, by the largest gap in
-    the spectrum that exceeds `gap` — see [`identifiable_rank`](@ref). It is a
-    count of directions
-    and not of parameters; [`null_participation`](@ref) is what says which
-    parameters those directions leave undetermined.
+  - `rank`: how many **directions** the data constrain — see
+    [`identifiable_rank`](@ref): with an observation, those whose standard error
+    in `log θ` is below `tol`; without one, those before the largest gap in the
+    spectrum that exceeds `gap`. It is a count of directions and not of
+    parameters; [`null_participation`](@ref) is what says which parameters those
+    directions leave undetermined.
   - `correlation`: the parameter correlation matrix from `(JᵀJ)⁻¹`.
   - `stderr`: approximate **relative** standard errors, `σ√diag((JᵀJ)⁻¹)`, or
     `nothing` when no observation was given to get `σ` from.
@@ -136,14 +125,17 @@ under-determined fit report a shorter answer than it was asked about.
 nparameters(id::Identifiability) = size(id.V, 1)
 
 """
-    identifiability(forward, θ; observed = nothing, relstep = 0.05,
-                    names = nothing, gap = 5.0) -> Identifiability
+    identifiability(forward, θ; observed = nothing,
+                    names = nothing, gap = 5.0, tol = 1.0) -> Identifiability
 
 How much of `θ` the output of `forward` determines.
 
 `observed` turns the linearized errors into numbers: without it there is no
 residual to scale them by, and `stderr` comes back `nothing` rather than
-pretending.
+pretending. It also decides how the rank is read: by the standard error of each
+direction (`tol`) when there is a residual, by the gap in the spectrum (`gap`)
+when there is not ([`identifiable_rank`](@ref)). The sensitivity is
+[`log_sensitivity`](@ref)'s, exact; `relstep` is accepted and ignored, as there.
 
 # Reading it
 
@@ -153,7 +145,7 @@ magnitude means the data determine a **combination** of parameters, and
 trade off against each other.
 
 `correlation` is the sharper instrument when two parameters are collinear:
-`hydration_calibration.jl` found `k₁` and `n₁` correlated at −0.985, which says
+`hydration_calibration.jl` found `k₁` and `n₁` correlated at −0.96, which says
 the data see a product and not its factors, and therefore that only one of the
 two can be fitted. **Which one to keep is a modeling judgement, not a
 statistical one** — there the rate constant was kept and the shape exponent
@@ -163,10 +155,10 @@ changes.
 See also: [`identifiable_rank`](@ref), [`as_traced`](@ref).
 """
 function identifiability(
-        forward, θ; observed = nothing, relstep::Real = 0.05,
-        names = nothing, gap::Real = 5.0,
+        forward, θ; observed = nothing, relstep = nothing,
+        names = nothing, gap::Real = 5.0, tol::Real = 1.0,
     )
-    J = log_sensitivity(forward, θ; relstep)
+    J = Matrix{Float64}(log_sensitivity(forward, θ; relstep))
     # `full` only when the thin `V` would be SHORT OF COLUMNS. With fewer
     # observations than parameters the thin factorization returns a `V` of size
     # `n_par × n_obs`, which silently omits the `n_par - n_obs` directions the
@@ -174,12 +166,15 @@ function identifiability(
     # complete factorization then costs nothing extra, because the `U` that grows
     # with it is `n_obs × n_obs` and `n_obs` is the small dimension in that case.
     F = svd(J; full = size(J, 1) < size(J, 2))
-    JtJ = J' * J
-    C = try
-        inv(JtJ)
-    catch
-        pinv(JtJ)
-    end
+    # The covariance `(JᵀJ)⁻¹` from the factorization, not by inverting `JᵀJ`,
+    # which squares the condition number: an exact degeneracy, which exact
+    # derivatives give as one, has `cond(J)` near 1e10, `JᵀJ` beyond the
+    # arithmetic, and an inverse whose correlations then have no sign. A
+    # direction the spectrum does not carry (fewer observations than parameters)
+    # or carries at an exact zero is left out, as the pseudo-inverse would.
+    keep = [k for k in eachindex(F.S) if F.S[k] > 0]
+    Vk = F.V[:, keep]
+    C = Vk * Diagonal(inv.(F.S[keep] .^ 2)) * transpose(Vk)
     d = sqrt.(abs.(diag(C)))
     correlation = C ./ (d * d')
     rmse = if observed === nothing
@@ -197,48 +192,71 @@ function identifiability(
         # `S[1] / S[end]` over the singular values that EXIST would report a
         # finite one — the structurally missing directions are the worst ones.
         size(F.V, 2) > length(F.S) ? Inf : F.S[1] / max(F.S[end], eps()),
-        identifiable_rank(F.S; gap),
+        identifiable_rank(F.S; gap, rmse, tol, floor = _rank_floor(J, F.S)),
         correlation, stderr, rmse,
         names === nothing ? ["θ$i" for i in eachindex(θ)] : collect(names),
     )
 end
 
 """
-    identifiable_rank(S; gap = 5.0) -> Int
+    identifiable_rank(S; gap = 5.0, rmse = nothing, tol = 1.0, floor = 0.0) -> Int
 
-How many directions a singular spectrum constrains: the number of singular
-values before the first **ratio** larger than `gap`.
+How many directions a singular spectrum `S` of `∂y/∂log θ` constrains.
 
-A rank is read off a gap rather than a threshold because a threshold has units
-and a gap does not.
+With the residual `rmse` of a fit, a direction is constrained when the data fix
+it to better than a factor `exp(tol)`: its standard error in `log θ`,
+`rmse / S[k]`, is below `tol`. That is a ratio of two quantities in the units of
+`y`, so it has none. A singular value at or below `floor`, the rounding of the
+factorization, is no direction at all, whatever the residual.
 
-# Where the default comes from
+Without a residual, the noise is not known, and the rank is read off the
+spectrum alone: the number of singular values before its largest **ratio**
+exceeding `gap`. A threshold would have units; a gap does not.
 
-From the one case in this repository where the answer is known independently.
-`scripts/hydration_calibration.jl` measured `[420, 100, 60, 6.3, 1.4, 0.20]` and
-concluded, on the correlation structure, that the data determine three
-combinations — and the largest ratio in that spectrum is **9.5**, between the
-third singular value and the fourth. A default of 10 would have returned 6 on
-the very case the rule exists for, which is how this default came to be 5 rather
-than a round number chosen for looking careful.
+# Why the residual decides when there is one
+
+A gap separates singular values, not what the data see from what they do not:
+whether a direction is seen depends on the noise, which the spectrum does not
+carry. Two cases of this repository part the two rules:
+
+  - `scripts/hydration_calibration.jl`, six rate parameters against one heat
+    curve. The spectrum is `[424, 108, 63.6, 6.46, 1.98, 0.152]` and the residual
+    26 J/g. The standard errors of the six directions are then 0.06, 0.24, 0.41,
+    4.0, 13 and 170 in `log θ`: three combinations are determined, and the other
+    three are known to within factors of 55 and more. The largest ratio, 13, is
+    between the fifth singular value and the sixth, so the gap answers five.
+  - Three separated peaks of a synthetic thermogram (`test/thermogram.jl`), a
+    midpoint of 400 to 950 K and a width of 12 to 20 K each, fitted exactly.
+    Every direction is determined. A log-sensitivity carries the size of its
+    parameter, so the three midpoints come out 15 to 33 times above the three
+    widths, and the largest ratio, 5.8, falls between the two groups: the gap
+    answers three.
+
+The default `gap` of 5 was set on the first spectrum when it was measured by
+central differences, `[420, 100, 60, 6.3, 1.4, 0.20]`, whose largest ratio, 9.5,
+was between the third and the fourth. Exact derivatives moved the smallest
+singular value by a quarter, enough to move the largest ratio, and the rule with
+it.
 
 # Which gap, when there are several
 
-The cut is at the **largest** qualifying ratio, not the first one. That
-distinction has a case behind it. Measuring a rate law against its own
-shrinking-core exponent gives `[1.62e-5, 2.71e-6, 5.1e-11]`: a ratio of 6.0 and
-then one of fifty thousand. The first rule cut at 6.0 and answered **one**
-determined direction, which says the amplitude alone is visible; the truth is
-that the amplitude and one exponent combination are both determined and only
-their split is not, which is **two**. A factor of six is ordinary conditioning.
-A factor of fifty thousand is a structure.
+Without a residual, the cut is at the **largest** qualifying ratio, not the
+first one. A rate law measured against its own shrinking-core exponent has a
+ratio of 6 between its first two singular values and a third at the rounding of
+the arithmetic: only the sum of two exponents is visible. Cutting at the first
+ratio would say that the amplitude alone is determined, when the amplitude and
+the sum are, which is **two**. A factor of six is ordinary conditioning; a
+singular value at the rounding is a structure.
 
 Returns `length(S)` when no ratio exceeds `gap`, which is the honest answer for
 a flat spectrum: everything is constrained, or nothing distinguishes what is
 not.
 """
-function identifiable_rank(S::AbstractVector; gap::Real = 5.0)
+function identifiable_rank(
+        S::AbstractVector; gap::Real = 5.0, rmse = nothing, tol::Real = 1.0, floor::Real = 0.0,
+    )
     isempty(S) && return 0
+    rmse === nothing || return count(s -> s > floor && rmse < tol * s, S)
     best, cut = zero(float(gap)), 0
     for k in 1:(length(S) - 1)
         # A singular value at or below zero is a direction that does not exist,
@@ -252,8 +270,12 @@ function identifiable_rank(S::AbstractVector; gap::Real = 5.0)
     return cut == 0 ? length(S) : cut
 end
 
-identifiable_rank(id::Identifiability; gap::Real = 5.0) =
-    identifiable_rank(id.S; gap)
+identifiable_rank(id::Identifiability; gap::Real = 5.0, tol::Real = 1.0) =
+    identifiable_rank(id.S; gap, rmse = id.rmse, tol, floor = _rank_floor(id.J, id.S))
+
+# The rounding of a singular value decomposition of `J`: the tolerance of
+# `LinearAlgebra.rank`.
+_rank_floor(J, S) = maximum(size(J)) * eps(isempty(S) ? 0.0 : float(S[1]))
 
 """
     null_participation(id::Identifiability) -> Vector{Float64}

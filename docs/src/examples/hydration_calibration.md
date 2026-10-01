@@ -337,11 +337,10 @@ multiplier alongside the rate-law fields would make the problem rank-deficient b
 construction rather than by accident. Use `IONIC_CALIBRATION` **or** the rate-law
 fields, never both.
 
-**`k₂_C3S` is excluded, but not for the reason usually given.** Parrott and
+**`k₂_C3S` is excluded, because the data cannot see it.** Parrott and
 Killoh reported no diffusion-controlled stage for C₃S, and
 [`parrott_killoh_avrami`](@ref)'s docstring repeats it
-[Lothenbach2008](@cite) — so the expected sensitivity is zero. Measuring it says
-otherwise:
+[Lothenbach2008](@cite) — so the expected sensitivity is zero. Measuring it:
 
 Checked on the surrogate, and legitimately so: whether a mechanism limits the rate
 is a property of the rate law, not of the hydrate assemblage.
@@ -365,15 +364,16 @@ for (p, col) in zip(spec_k2, eachcol(J_k2))
 end
 ```
 
-Not zero: about an eighth of `k₁`'s influence, and exactly zero only before the
-first day. The Jander term is `α̇₂ = k₂(1-ξ)^{2/3}/(1-(1-ξ)^{1/3})`, which *falls*
-as ξ grows, so past a high degree of hydration it does become the minimum of the
-three branches. The published statement describes the 1984 fit's intent; this
-implementation of it has a diffusion-limited tail.
+Zero, over the whole record. The Jander term is
+`α̇₂ = k₂(1-ξ)^{2/3}/(1-(1-ξ)^{1/3})`, which *falls* as ξ grows, but at the
+published constants it never becomes the minimum of the three branches, so the
+released heat does not depend on `k₂` at all, as Parrott and Killoh reported. A
+ten times smaller `k₂` makes the branch bind, and the sensitivity then sees it.
 
-So `k₂_C3S` is left out because it is a minor effect competing for a place in a
-three-dimensional identifiable space — a defensible reason, and a different one
-from the reason that was expected. Worth the two lines it took to find out.
+Until 0.28.3 this page printed about an eighth of `k₁`'s influence instead. The
+sensitivity was then a central difference with a 5 % step, which crosses the kink
+of the minimum wherever the Jander branch comes within 5 % of binding: it measured
+the step, not the model. The exact derivative settles it.
 
 **Gypsum and calcite dissolution are excluded** because
 `ionic_reactions` deliberately makes them fast, so that sulfate reaches
@@ -384,15 +384,17 @@ limit cannot be calibrated.
 
 Before fitting anything it is worth asking what six numbers a single heat curve
 can carry. The answer is a property of the model, so it has to be computed on the
-coupled model — and that costs `2n + 1` forward solves, thirteen here, a quarter of
-an hour. **This page does not spend it.** The call is one line, `main()` in the
-script makes it, and what follows renders its stored output:
+coupled model — and that costs two coupled runs, one on dual numbers for the
+sensitivities and one for the residual, several minutes. **This page does not
+spend them.** The call is one line, `main()` in the script makes it, and what
+follows renders its stored output:
 
 ```julia
+spec6 = [only(filter(cp -> cp.name == nm, CALIB_SPEC_FULL)) for nm in MEASURED_IDENTIFIABILITY.candidates.names]
 id = local_identifiability(
-    prior_vector(CALIB_SPEC_FULL), target; mode = :coupled, spec = CALIB_SPEC_FULL,
+    prior_vector(spec6), resample_log(CEM_I_TARGET, 30); mode = :coupled, spec = spec6,
 )
-report_identifiability(id, CALIB_SPEC_FULL)
+report_identifiability(id, spec6)
 ```
 
 ```@example calib
@@ -427,16 +429,18 @@ for (i, n) in enumerate(id.names)
 end
 ```
 
-The singular values span orders of magnitude, with the decisive gap after the
-third. That is not a defect of the optimizer: it is the physics of the
-measurement. A single scalar observable, integrated over time, cannot separate six
-mechanisms that all act on the same curve. What the data determine is **three
-combinations**, and the "leading-3 weight" column says where those three live.
+The singular values span three and a half orders of magnitude. Divided into the
+residual, they give the standard error of each direction in `log θ`: 0.06, 0.24
+and 0.41 for the first three, then 4.0, 13 and 170, so that the last three are
+known to within a factor of 55 at best ([`identifiable_rank`](@ref)). That is not
+a defect of the optimizer: it is the physics of the measurement. A single scalar
+observable, integrated over time, cannot separate six mechanisms that all act on
+the same curve. What the data determine is **three combinations**, and the
+"leading-3 weight" column says where those three live.
 
-The correlation matrix says *which* combinations, and on this record it is
-unusually clean. Two pairs are almost perfectly collinear — `k₁_C3S` with
-`n₁_C3S`, and `k₃_C3S` with `n₃_C3S`, the latter pair being essentially the whole
-leading singular direction. Within a pair the measurement sees a combination and
+The correlation matrix says *which* combinations. Two pairs are close to
+collinear — `k₁_C3S` with `n₁_C3S` (−0.96), and `k₃_C3S` with `n₃_C3S` (−0.985),
+the latter pair being essentially the whole leading singular direction. Within a pair the measurement sees a combination and
 not its members, so one per pair is all that can be fitted. Belite sits at a
 weight of 0.001: over eleven days it is invisible, which is a number rather than
 an impression.
@@ -481,17 +485,13 @@ script runs it; its result is stored as `CALIBRATED_THETA` and the run that
 produced it — grid, budget, residual reached — is recorded in `CHANGELOG.md` under
 v0.12.0. Reproducing it is one call to `main()`.
 
-!!! note "Why the search is derivative-free"
-    `Optimization.jl` would accept `AutoForwardDiff()` here and it would not work.
-    The kinetics core is AD-clean in the ODE state and in time — deliberately,
-    because `Rodas5P` needs the time gradient — but not in the parameters:
-    `build_u0` returns a `Vector{Float64}`, `build_kinetics_params` casts the
-    temperature, the initial amounts, the stoichiometry and the calorimeter
-    constants to `Float64`, and under partial equilibrium `respeciate!` is
-    `Float64`-only by construction. A dual number baked into a rate closure cannot
-    reach the integrator. `AutoFiniteDiff()` is the honest backend until that
-    changes, and a finite-difference gradient costs one solve per parameter plus
-    one — which is why `NelderMead` is the default for the expensive mode.
+!!! note "Gradients"
+    The objective is differentiable by forward mode, `AutoForwardDiff()`: a run is
+    differentiable with respect to the parameters its rate laws capture, the
+    equilibrium partition of each step through the implicit-function theorem at
+    its certified answer. A gradient-based optimizer can be passed. `NelderMead`
+    remains the default because it is the method `CALIBRATED_THETA` was produced
+    with, and `main()` reproduces it.
 
 ```@example calib
 θ̂ = CALIBRATED_THETA
@@ -578,7 +578,7 @@ miss, it is the honest outcome of a five-parameter fit to one scalar curve, and 
 predicted it. At the optimum `k₁_C3S` and `τ_ind` are correlated at **0.994**: a
 longer dormant period followed by a faster rate produces very nearly the same
 heat curve, so the pair is one direction and not two numbers. The approximate
-relative standard errors are 981 %, 25 %, 123 %, 389 % and 196 % — only `k₃_C3S`
+relative standard errors are 1023 %, 25 %, 122 %, 400 % and 206 % — only `k₃_C3S`
 is determined to better than a factor of a few. What the search found is one or
 two genuine combinations plus a residual specific to this cement, and it is the
 cement-specific part that fails to generalize.
@@ -629,13 +629,20 @@ the first two explanations were wrong.
 | `Q` + **instrument** `q̇` | 300 pts | 27.8 | 0.9942 | 5.2 h |
 | `Q` + instrument `q̇`, w = 3 | 300 pts | 28.5 | 0.9936 | 5.4 h |
 
-The first explanation was discretization: `heat_release` returns `q̇` as a centered
-finite difference of `Q` over the output grid, which near the 10-hour peak is spaced
-0.91 h apart, so the model's `q̇` is a smeared version of what the instrument
-resolves at 77 s. Matching the operators — differencing the measurement the same
-way, `grid_slope` — changed nothing, because `grid_slope` is a **linear map
-on the same numbers**: a residual on the differenced curve is a linear combination
-of the residuals on `Q`, so it re-weights information instead of adding any.
+The correlations of this table were computed in 0.28.2, from the central
+differences the sensitivities then were. At the stored optimum, exact
+derivatives move the same correlation from 0.9937 to 0.9941: differences of that
+size do not change what the table says.
+
+The first explanation was discretization: until 0.28.2 `heat_release` returned `q̇`
+as a centered difference of `Q` over the output grid, which near the 10-hour peak
+is spaced 0.91 h apart, so the model's `q̇` was a smeared version of what the
+instrument resolves at 77 s (it is now the exact rate of the certified states).
+Matching the operators — differencing the measurement the same way — changed
+nothing, because that differencing is a **linear map on the same numbers**: a
+residual on the differenced curve is a linear combination of the residuals on
+`Q`, so it re-weights information instead of adding any. The option was removed
+from the script in 0.28.3.
 
 The second explanation was the grid. Using the instrument's own `q̇` on 300 points,
 where the spacing near the peak is 0.24 h, changed nothing either.
@@ -792,13 +799,11 @@ and it is blocked only by data, not by the code.
   products of a rate and a phase fraction are identifiable. §8 measures the cost.
 - **The activation energies are not fitted**, because one temperature cannot
   determine a temperature sensitivity. They stay at published values.
-- **There is no parameter-space automatic differentiation**, because the kinetics
-  core casts to `Float64` in `build_u0`
-  ([`kinetics_problems.jl`](https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl/blob/main/src/kinetics/kinetics_problems.jl)),
-  in `build_kinetics_params`, in the surface-area constructors of
-  `kinetics_reactions.jl`, and in `system_enthalpy`; and `respeciate!` is
-  `Float64`-only by construction. The outer loop is derivative-free or
-  finite-difference in consequence, not by preference.
+- **The outer loop is derivative-free by choice, not by necessity.** The run is
+  differentiable with respect to its parameters (`log_sensitivity` and
+  `identifiability` take their derivatives through it, by forward mode), and a
+  gradient-based fit is available; the stored calibration keeps the method it was
+  produced with.
 - **The errors are linearized at one point.** `local_identifiability` reports
   `σ√diag((JᵀJ)⁻¹)` at the optimum, which says which numbers deserve to be quoted
   — not a confidence interval. A profile likelihood would, at a hundred times the

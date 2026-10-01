@@ -44,7 +44,7 @@ function reaction_extents(sol, kp::KineticsProblem; times = sol.t)
     M = p.n_rxn_state
     off = p.n_be + p.n_nk
     ts = collect(float.(times))
-    ξ = zeros(Float64, length(ts), M)
+    ξ = zeros(eltype(sol.u[1]), length(ts), M)
     for (i, t) in enumerate(ts)
         u = sol(t)
         for j in 1:M
@@ -157,7 +157,7 @@ See also: [`mean_degree_of_hydration`](@ref), [`state_at`](@ref).
 """
 function degrees_of_hydration(sol, kp::KineticsProblem; times = sol.t)
     p = sol.prob.p
-    out = OrderedDict{String, Vector{Float64}}()
+    out = OrderedDict{String, Vector{promote_type(eltype(sol.u[1]), eltype(p.n_initial_full))}}()
     us = [sol(t) for t in times]
     for (j, idx) in enumerate(kp.idx_kinetic)
         n0 = p.n_initial_full[idx]
@@ -189,7 +189,7 @@ function mean_degree_of_hydration(
         throw(ArgumentError("weights must be :mass or :mole, got :$weights"))
     p = sol.prob.p
     α = degrees_of_hydration(sol, kp; times = times)
-    w = Float64[]
+    w = eltype(p.n_initial_full)[]
     for idx in kp.idx_kinetic
         n0 = p.n_initial_full[idx]
         n0 > 0 || continue
@@ -207,7 +207,7 @@ function mean_degree_of_hydration(
         end
     end
     total = sum(w)
-    out = zeros(Float64, length(times))
+    out = zeros(promote_type(eltype(w), eltype(first(values(α)))), length(times))
     for (k, αᵢ) in enumerate(values(α))
         @. out += w[k] * αᵢ
     end
@@ -314,6 +314,21 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
     guess = Float64[max(x, _EQ_GUESS_FLOOR) for x in p.n_eq_init]
     n_sp = length(kp.system.species)
 
+    # A run differentiated with respect to its parameters carries dual numbers
+    # in its state. The replay below is run on the values, unchanged; each
+    # composition it settles on is then lifted to the duals of its instant's
+    # budget and temperature by the implicit-function theorem at the answer
+    # (`_lift_equilibrium`). The pressure of the solves is a value as well.
+    dual_run = eltype(sol.u[1]) <: ForwardDiff.Dual
+    dual_run && des === nothing && throw(
+        ArgumentError(
+            "differentiating a replay needs the certified solver of the partition: " *
+                "OptimaSolver loaded, an aqueous phase and `H2O@` in it.",
+        ),
+    )
+    Pv = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
+    plain_T(T) = _plain(ustrip(us"K", T)) * u"K"
+
     certified = nothing            # last composition that carried a certificate
     t_prev = nothing               # the time that composition belongs to
     uncertified = Float64[]        # instants that could not be proved optimal
@@ -336,12 +351,12 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
         for tc in (float(first(sol.t)), t1 / 100, t1 / 30, t1 / 10, t1 / 3)
             tc < float(first(sol.t)) && continue
             try
-                be0 = collect(@view sol(tc)[1:(p.n_be)])
+                be0 = _plain.(collect(@view sol(tc)[1:(p.n_be)]))
                 seed = Float64[max(x, _EQ_GUESS_FLOOR) for x in p.n_eq_init]
                 _budget_clip!(seed, p.Ae, be0)
                 _restore_feasibility!(seed, p.Ae, be0; maxit = 100_000)
                 st0 = SciMLBase.solve(
-                    des, ChemicalState(sub, seed .* u"mol"; T = _replay_temperature(sol, kp, tc), P = p.P_q[]);
+                    des, ChemicalState(sub, seed .* u"mol"; T = plain_T(_replay_temperature(sol, kp, tc)), P = Pv);
                     b = be0,
                 )
                 if optimality_certificate(des, st0; b = be0).optimal
@@ -376,11 +391,11 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
         for tc in (t0, t1 / 100, t1 / 30, t1 / 10, t1 / 3)
             (tc < t0 || tc >= t1) && continue
             try
-                be0 = collect(@view sol(tc)[1:(p.n_be)])
+                be0 = _plain.(collect(@view sol(tc)[1:(p.n_be)]))
                 _budget_clip!(guess, p.Ae, be0)
                 _restore_feasibility!(guess, p.Ae, be0; maxit = 100_000)
                 eq0 = SciMLBase.solve(
-                    es, ChemicalState(sub, guess .* u"mol"; T = _replay_temperature(sol, kp, tc), P = p.P_q[]);
+                    es, ChemicalState(sub, guess .* u"mol"; T = plain_T(_replay_temperature(sol, kp, tc)), P = Pv);
                     b = be0,
                 )
                 guess = Float64[
@@ -396,15 +411,17 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
     out = ChemicalState[]
     for t in times
         u = sol(t)
-        be = collect(@view u[1:(p.n_be)])
-        Tt = _replay_temperature(sol, kp, t)
+        be_d = collect(@view u[1:(p.n_be)])
+        be = _plain.(be_d)
+        Tt_d = _replay_temperature(sol, kp, t)
+        Tt = plain_T(Tt_d)
 
         _budget_clip!(guess, p.Ae, be)
         _restore_feasibility!(guess, p.Ae, be; maxit = 100_000)
 
         eq = SciMLBase.solve(
             es,
-            ChemicalState(sub, guess .* u"mol"; T = Tt, P = p.P_q[]);
+            ChemicalState(sub, guess .* u"mol"; T = Tt, P = Pv);
             b = be,
         )
         n_eq = Float64[ustrip(us"mol", x) for x in eq.n]
@@ -431,7 +448,7 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
                 try
                     st_dual = SciMLBase.solve(
                         des,
-                        ChemicalState(sub, guess0 .* u"mol"; T = Tt, P = p.P_q[]);
+                        ChemicalState(sub, guess0 .* u"mol"; T = Tt, P = Pv);
                         b = be,
                     )
                     if optimality_certificate(des, st_dual; b = be).optimal
@@ -475,12 +492,12 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
                     tm <= anchor && break
                     stepped = false
                     try
-                        be_m = collect(@view sol(tm)[1:(p.n_be)])
+                        be_m = _plain.(collect(@view sol(tm)[1:(p.n_be)]))
                         gm = copy(certified)
                         _budget_clip!(gm, p.Ae, be_m)
                         _restore_feasibility!(gm, p.Ae, be_m; maxit = 100_000)
                         st_m = SciMLBase.solve(
-                            des, ChemicalState(sub, gm .* u"mol"; T = _replay_temperature(sol, kp, tm), P = p.P_q[]);
+                            des, ChemicalState(sub, gm .* u"mol"; T = plain_T(_replay_temperature(sol, kp, tm)), P = Pv);
                             b = be_m,
                         )
                         if optimality_certificate(des, st_m; b = be_m).optimal
@@ -490,7 +507,7 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
 
                             st_t = SciMLBase.solve(
                                 des,
-                                ChemicalState(sub, certified .* u"mol"; T = Tt, P = p.P_q[]);
+                                ChemicalState(sub, certified .* u"mol"; T = Tt, P = Pv);
                                 b = be,
                             )
                             if optimality_certificate(des, st_t; b = be).optimal
@@ -518,9 +535,16 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
 
         guess = Float64[max(x, _EQ_GUESS_FLOOR) for x in n_eq]
 
-        n = zeros(Float64, n_sp)
+        n_out = if dual_run
+            at = ChemicalState(sub, n_eq .* u"mol"; T = Tt_d, P = p.P_q[])
+            eq_d, _ = _lift_equilibrium(des, at, ChemicalState(sub, n_eq .* u"mol"; T = Tt, P = Pv), be_d)
+            [ustrip(us"mol", x) for x in eq_d.n]
+        else
+            n_eq
+        end
+        n = zeros(promote_type(eltype(n_out), eltype(u)), n_sp)
         for (j, idx) in enumerate(kp.idx_equilibrium)
-            n[idx] = n_eq[j]
+            n[idx] = n_out[j]
         end
         for (j, idx) in enumerate(kp.idx_kinetic)
             n[idx] = max(u[p.n_be + j], 0.0)
@@ -567,6 +591,57 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
 end
 
 # ── calorimetry from certified states ────────────────────────────────────────
+
+"""
+    _heat_rate_of_states(sol, kp, states, times) -> Vector
+
+`q̇ = −dH/dt` [W] at each of `states`, the composition of the run at `times`:
+`dH/dt = Σᵢ ΔₐH⁰ᵢ dnᵢ/dt + Σᵢ nᵢ Cp⁰ᵢ dT/dt`, with the rates of the kinetic
+amounts, of the extents and of the temperature read from the solver's
+interpolant (`sol(t, Val{1})`), and the equilibrium partition moving as its
+budget does, `dnₑ/dt = S dbₑ/dt` with `S = ∂nₑ/∂bₑ` from the implicit-function
+theorem at the certified state (`_partition_sensitivity`). Until 0.28.2 the rate
+was a difference of `Q` over `times`.
+"""
+function _heat_rate_of_states(sol, kp, states, times)
+    p = build_kinetics_params(kp)
+    n_be, n_nk = p.n_be, p.n_nk
+    out = map(eachindex(times)) do i
+        st = states[i]
+        T = ustrip(us"K", temperature(st))
+        n = [ustrip(us"mol", x) for x in st.n]
+        u = sol(times[i])
+        du = sol(times[i], Val{1})
+        dn = zeros(promote_type(eltype(n), eltype(du)), length(n))
+        if n_be == 0
+            # Every amount follows the extents: `n = n₀ + νᵀξ`.
+            dξ = @view du[(n_nk + 1):(n_nk + p.n_rxn_state)]
+            dn .= transpose(kp.ν) * dξ
+        else
+            idx_e = p.idx_equilibrium
+            p.T_q[] = T * u"K"
+            S, dndT = _partition_sensitivity(p, n[idx_e], u[1:n_be], T)
+            dn[idx_e] .= S * du[1:n_be]
+            p.has_T && (dn[idx_e] .+= dndT .* du[end])
+            for (j, i_k) in enumerate(p.idx_kinetic)
+                dn[i_k] = du[n_be + j]
+            end
+        end
+        q = zero(eltype(dn))
+        for (k, h_fn) in enumerate(p.h_fns)
+            isnothing(h_fn) && continue
+            q -= h_fn(; T = T, unit = false) * dn[k]
+        end
+        if p.has_T
+            for (k, cp_fn) in enumerate(p.cp_fns)
+                isnothing(cp_fn) && continue
+                q -= n[k] * cp_fn(; T = T, unit = false) * du[end]
+            end
+        end
+        q
+    end
+    return out
+end
 
 """
     heat_release(sol, kp; times = sol.t, reference = nothing, states = nothing)
@@ -626,16 +701,6 @@ function heat_release(
     H = [ustrip(us"J", enthalpy(st)) for st in states]
     H0 = reference === nothing ? H[1] : ustrip(us"J", enthalpy(reference))
     Q = H0 .- H
-    q̇ = similar(Q)
-    if length(Q) < 2
-        fill!(q̇, zero(eltype(Q)))
-    else
-        # centered differences inside, one-sided at the ends
-        q̇[1] = (Q[2] - Q[1]) / (times[2] - times[1])
-        q̇[end] = (Q[end] - Q[end - 1]) / (times[end] - times[end - 1])
-        for i in 2:(length(Q) - 1)
-            q̇[i] = (Q[i + 1] - Q[i - 1]) / (times[i + 1] - times[i - 1])
-        end
-    end
+    q̇ = _heat_rate_of_states(sol, kp, states, times)
     return collect(times), Q, q̇
 end

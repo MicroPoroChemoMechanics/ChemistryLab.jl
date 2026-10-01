@@ -234,7 +234,7 @@ include("reference_species.jl")
         # whether a parameter is determined is the machinery that determines it.
         θ = copy(θ0)
         for _ in 1:40
-            J = log_sensitivity(forward, θ; relstep = 1.0e-3)
+            J = log_sensitivity(forward, θ)
             r = forward(θ) .- target
             δ = -(J \ r)
             θ = θ .* exp.(clamp.(δ, -0.3, 0.3))
@@ -269,10 +269,10 @@ include("reference_species.jl")
         ).dtg
         θ, names = window_parameters(overlapped)
         id = identifiability(forward, θ; names = names)
-        # Two of four, and not pinned to exactly two on purpose: the two
-        # qualifying ratios are 10.1 and 11.2, close enough that a different
-        # machine could swap which is the larger and answer one instead. What is
-        # structural is that a single peak's worth of parameters is visible.
+        # At most two of four, and not pinned to one on purpose: the rank is one
+        # because the first ratio of the spectrum, 10.6, exceeds the second,
+        # 8.7, which is a matter of degree. What is structural is that two
+        # overlapping peaks show no more than one peak's worth of parameters.
         @test id.rank <= 2                       # not four independent numbers
         @test id.condition > 20
         @info "overlapping windows" rank = id.rank condition = id.condition

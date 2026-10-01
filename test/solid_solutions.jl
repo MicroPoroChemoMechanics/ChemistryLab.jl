@@ -255,15 +255,13 @@ end
     p = (ΔₐG⁰overRT = zeros(2), T = 298.15, P = 1.0e5, ϵ = 1.0e-30)
 
     n0 = [0.7, 0.3]
-    # Perturbation: shift n₁ ↑ ε, n₂ ↓ ε (internal composition change, total constant)
-    ξ = 1.0e-6
-    n⁺ = [0.7 + ξ, 0.3 - ξ]
-    n⁻ = [0.7 - ξ, 0.3 + ξ]
-    dμ = (lna(n⁺, p) - lna(n⁻, p)) / (2 * ξ)   # finite difference
+    # A shift of composition at constant total, n₁ up and n₂ down, differentiated
+    # exactly.
+    dμ = ForwardDiff.derivative(ξ -> lna([0.7 + ξ, 0.3 - ξ], p), 0.0)
 
-    # Gibbs-Duhem: Σ nᵢ dμᵢ/dξ ≈ 0 (exact for ideal SS)
+    # Gibbs-Duhem: Σ nᵢ dμᵢ/dξ = 0, exact for an ideal solution.
     residual = abs(sum(n0 .* dμ)) / max(norm(n0 .* abs.(dμ)), 1.0)
-    @test residual < 1.0e-6
+    @test residual < 1.0e-14
 end
 
 @testsection "ForwardDiff gradient (SS + aqueous)" begin

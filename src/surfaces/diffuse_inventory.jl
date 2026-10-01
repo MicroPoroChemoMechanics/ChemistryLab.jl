@@ -51,11 +51,12 @@ the free solution: positive for a counter-ion, negative for a co-ion.
 a layer thicker than the pores it lines is not a physical statement, and the
 fixed point of [`equilibrate_donnan`](@ref) stops converging well before it.
 """
-struct DonnanLayer
-    thickness::Float64
+struct DonnanLayer{T <: Real}
+    thickness::T
     function DonnanLayer(thickness::Real)
         thickness > 0 || throw(ArgumentError("thickness must be positive; got $thickness m."))
-        return new(Float64(thickness))
+        t = float(thickness)
+        return new{typeof(t)}(t)
     end
 end
 DonnanLayer(; thickness = 1.0e-8u"m") =
@@ -80,7 +81,7 @@ water, so the layers' water is not in the solvent of `state`.
 """
 function diffuse_layer_contents(state::ChemicalState, layer::DonnanLayer)
     cs = state.system
-    n = Float64[ustrip(us"mol", x) for x in state.n]
+    n = [ustrip(us"mol", x) for x in state.n]
     iw = only(cs.idx_solvent)
     W = n[iw] * ustrip(us"kg/mol", cs.species[iw][:M])
     W > 0 || throw(ArgumentError("diffuse_layer_contents: the state has no solvent."))
@@ -89,12 +90,20 @@ function diffuse_layer_contents(state::ChemicalState, layer::DonnanLayer)
     m = n[solutes] ./ W
     idx = Dict(symbol(sp) => k for (k, sp) in enumerate(cs.species))
 
-    amounts = zeros(length(n))
-    excess = zeros(length(n))
-    potential = Dict{String, Float64}()
-    charges = Dict{String, Float64}()
-    water = 0.0
-    for (support, families) in _diffuse_layer_groups(cs)
+    # In the number type of the state, of the layer and of the areas: a
+    # thickness, an area or an amount being differentiated carries its
+    # derivative into what the layers hold.
+    groups = _diffuse_layer_groups(cs)
+    R = promote_type(
+        Float64, eltype(n), typeof(layer.thickness),
+        (typeof(float(f.model.area)) for fs in values(groups) for f in fs)...,
+    )
+    amounts = zeros(R, length(n))
+    excess = zeros(R, length(n))
+    potential = Dict{String, R}()
+    charges = Dict{String, R}()
+    water = zero(R)
+    for (support, families) in groups
         area = only(unique(f.model.area for f in families))
         σ = sum(
             charge(sp) * n[idx[symbol(sp)]] for f in families for sp in vcat([f.free_site], f.complexes)
@@ -134,8 +143,12 @@ end
 # The average potential ψ̃ whose layer balances σ moles of surface charge:
 # σ + W Σ z_i m_i exp(-z_i ψ̃) = 0, decreasing in ψ̃, by Newton from the
 # symmetric-electrolyte root, steps capped at one unit as PHREEQC caps them.
+#
+# On dual numbers the derivative is exact: once the residual vanishes, the next
+# Newton step carries the implicit-function derivative `−f_θ/f_ψ`, and the loop
+# stops on a step below the tolerance, one step after the residual vanished.
 function _donnan_potential(σ::Real, z::AbstractVector, m::AbstractVector, W::Real)
-    iszero(σ) && return 0.0
+    iszero(σ) && return zero(promote_type(typeof(σ), eltype(m), typeof(W)))
     I = 0.5 * sum(z[k]^2 * m[k] for k in eachindex(z))
     ψ = asinh(σ / (2 * W * max(I, eps())))
     for _ in 1:100
@@ -147,7 +160,7 @@ function _donnan_potential(σ::Real, z::AbstractVector, m::AbstractVector, W::Re
     end
     throw(
         ErrorException(
-            "the Donnan potential did not converge for a surface charge of $σ mol; " *
+            "the Donnan potential did not converge for a surface charge of $(_plain(σ)) mol; " *
                 "the layer's solution cannot balance it."
         )
     )
@@ -199,10 +212,13 @@ function equilibrate_donnan(
     )
     cs = state.system
     _diffuse_layer_groups(cs)
-    A = Float64.(conservation_matrix(cs))
-    b_total = b === nothing ? A * Float64[ustrip(us"mol", x) for x in state.n] : Float64.(collect(b))
+    # In the number type of the data: a budget, a state or a layer being
+    # differentiated is carried through the fixed point, whose derivative is
+    # that of the iterations reaching it.
+    A = conservation_matrix(cs)
+    b_total = b === nothing ? A * [ustrip(us"mol", x) for x in state.n] : collect(b)
     iw = only(cs.idx_solvent)
-    held = zeros(length(cs.species))
+    held = zeros(promote_type(Float64, eltype(b_total), typeof(layer.thickness)), length(cs.species))
     current = state
     last = Inf
     for it in 1:maxiter
@@ -210,13 +226,15 @@ function equilibrate_donnan(
         contents = diffuse_layer_contents(eq, layer)
         target = copy(contents.amounts)
         water === :added && (target[iw] = 0.0)
+        # The model or the temperature may carry duals the budget does not.
+        held = convert(Vector{promote_type(eltype(held), eltype(target))}, held)
         change = maximum(abs, target - held)
         last = change / max(maximum(abs, target), eps())
         last <= rtol &&
             return (; state = eq, certificate = cert, layer = contents, iterations = it)
         # What the layers hold of each species against what the free solution
         # holds: the factor a plain substitution would oscillate with.
-        free = Float64[ustrip(us"mol", x) for x in eq.n]
+        free = [ustrip(us"mol", x) for x in eq.n]
         for i in eachindex(held)
             r = free[i] > 0 ? target[i] / free[i] : 0.0
             held[i] += (target[i] - held[i]) / (1 + r)
@@ -226,7 +244,7 @@ function equilibrate_donnan(
     throw(
         ErrorException(
             "equilibrate_donnan: the diffuse layer did not settle in $maxiter steps " *
-                "(last relative change $(round(last; sigdigits = 3)), rtol $rtol); a layer " *
+                "(last relative change $(round(_plain(last); sigdigits = 3)), rtol $rtol); a layer " *
                 "holding a large share of the water may have no fixed point."
         )
     )
