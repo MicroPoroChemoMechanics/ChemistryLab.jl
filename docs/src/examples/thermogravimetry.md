@@ -216,11 +216,12 @@ fwd2(θ) = thermogram(state, with_window_parameters(overlapped, θ; kind = PROV_
 identifiability(fwd2, θ2; names = names2)
 ```
 
-Two phases releasing 5 K apart, and the rank comes out at most **two of
-four**, which is what the curve looks like: **one** peak, with a position and a
-width, rather than two with four parameters between them. The spectrum above
-says the same, with drops of 10.6 and 8.7 between its first entries. A fit would
-still return four numbers.
+Two phases releasing 5 K apart, and the rank comes out at **one of four**: the
+position of what the curve shows as one peak, the spectrum falling by 10.6 after
+its first value and by 8.7 after its second. The two midpoints are correlated at
+−0.995, so that position is a combination of both, and two peaks with four
+parameters between them are not there to be seen. A fit would still return four
+numbers.
 
 This is the ordinary case in a cement paste — C-S-H, AFt and AFm all release
 below 200 °C — which is why running [`identifiability`](@ref) on the windows is
