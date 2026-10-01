@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.28.3 — Derivatives through every forward model, and no difference quotient left
 
 This release takes every derivative of the package by forward-mode
 differentiation, and lets one flow through everything a forward model is built
@@ -112,6 +112,12 @@ flattened.
   parameters and thirty instants. The residual at the published parameters is
   25.94 J/g, where the stored analysis said 26.08: the stored value was older
   than 0.28.2, which gives 25.94 as well.
+
+### Changed: requirements
+
+- ChemistryLab requires **OptimaSolver 0.7.5** (`OptimaSolver = "0.7.5"`), whose
+  `dual_newton_tangent` lifts every answer above, and whose exact outer Jacobian
+  the kinetic steps and the certified search now run on.
 
 ### Fixed
 
