@@ -199,12 +199,13 @@ id
 ```
 
 Six parameters, six directions constrained — because the three peaks are well
-separated and the curve is fitted exactly, so that the standard error of every
-direction is at the rounding of the arithmetic. That is not the usual case. The
-spectrum does fall by a factor of 5.8 between its third and fourth values: a
-log-sensitivity carries the size of its parameter, some hundreds of kelvin for a
-midpoint and some tens for a width. Read off that gap alone, without the
-residual, the rank would have been three.
+separated and the curve is fitted exactly, so that the noise level takes its
+floor, `√eps` times the root-mean-square of the curve, and the standard error of
+every direction is far below one. That is not the usual case. The spectrum does
+fall by a factor of 5.8 between its third and fourth values: a log-sensitivity
+carries the size of its parameter, some hundreds of kelvin for a midpoint and
+some tens for a width. Read off that gap alone, without a noise level, the rank
+would have been three.
 
 ### Where it stops, and why that is the useful part
 

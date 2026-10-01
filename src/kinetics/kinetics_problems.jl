@@ -1249,16 +1249,20 @@ function _one_speciation(p, guess, be)
         # the values found is not taken. Those values are then lifted where they
         # are, as `speciated_states` lifts an instant it could not certify, so
         # that the run on dual numbers follows the plain one.
-        if ok && !cert.optimal && !(abs_c < abs_v)
-            at = ChemicalState(p.eq_system, n_v .* u"mol"; T = p.T_q[], P = p.P_q[])
-            eq_d, _ = _lift_equilibrium(
-                p.eq_dual, at, ChemicalState(p.eq_system, n_v .* u"mol"; T = T_v, P = P_v), be; ϵ = p.ϵ,
-            )
-            return true, [ustrip(us"mol", x) for x in eq_d.n], abs_v
-        end
+        ok && !cert.optimal && !(abs_c < abs_v) && return true, _lifted_partition(p, n_v, T_v, P_v, be), abs_v
         return true, n_c, abs_c
     end
     return _value_speciation(p, guess, be, p.T_q[], p.P_q[])
+end
+
+# The partition `n_v`, found on the values of the budget `be` at `T_v` and `P_v`,
+# lifted to the duals of `be` and of the temperature of the run where it stands.
+function _lifted_partition(p, n_v, T_v, P_v, be)
+    at = ChemicalState(p.eq_system, n_v .* u"mol"; T = p.T_q[], P = p.P_q[])
+    eq_d, _ = _lift_equilibrium(
+        p.eq_dual, at, ChemicalState(p.eq_system, n_v .* u"mol"; T = T_v, P = P_v), be; ϵ = p.ϵ,
+    )
+    return [ustrip(us"mol", x) for x in eq_d.n]
 end
 
 # `_one_speciation` on plain numbers, at the temperature `T` and pressure `P`.

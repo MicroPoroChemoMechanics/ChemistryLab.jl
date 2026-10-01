@@ -281,12 +281,16 @@ id
 
 Three things are worth reading there.
 
-**The spectrum falls off a cliff.** With an observation,
+**The spectrum falls off a cliff.** With a noise level `σ`,
 [`identifiable_rank`](@ref) counts a direction as determined when its standard
-error in `log θ`, the residual over its singular value, is below one: here the
-fit is exact, and only the direction at the rounding of the arithmetic is not.
-Without one, it reads the rank off the largest *ratio* between consecutive
-singular values: a threshold would have units, and a gap has none.
+error in `log θ`, `σ` over its singular value, is below one. `σ` is the
+instrument's when it is given (`noise`), and otherwise the residual standard
+deviation of the fit on its `n − p` degrees of freedom. Here the fit is exact,
+the residual is zero, and `σ` takes its floor, `√eps` times the
+root-mean-square of the curve: only the direction at the rounding of the
+arithmetic is left out. Without a noise level, the rank is read off the largest
+*ratio* between consecutive singular values: a threshold would have units, and
+a gap has none.
 
 **The empty direction names the trade-off.**
 

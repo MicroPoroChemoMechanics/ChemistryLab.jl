@@ -491,7 +491,11 @@ function _lift_equilibrium(
         floor::Real = _CERTIFICATE_FLOOR,
     )
     n = [ustrip(us"mol", x) for x in eq.n]
+    # `local`: a closure shares the locals of the function it is defined in, and
+    # the second call below, on the values, would otherwise replace the blocks
+    # of the problem on duals that `apply` reads at the end.
     function problem(st)
+        local blocks
         p = _build_params(st; ϵ = ϵ)
         d = _STRIP_TAGS[] == () ? des : _rebuilt(des)
         blocks = _constraint_blocks(constraint, d, st, p, n)

@@ -820,6 +820,11 @@ function _kinetic_step_eliminated(
     end
     # The residual and its Jacobian from one evaluation on dual numbers, under
     # a tag of this function's own.
+    #
+    # Returned without being named. A closure shares the locals of the function
+    # it is defined in, so `F = …` in here rebound the Newton's own `F` below: the
+    # test of a step then compared its residual with itself, refused every one,
+    # and a rate that reads the composition was integrated by explicit Euler.
     tag = ForwardDiff.Tag(compose, Float64)
     function residual_and_jacobian(q)
         qd = [
@@ -827,9 +832,8 @@ function _kinetic_step_eliminated(
                 for j in 1:nr
         ]
         Fd, nd = compose(qd)
-        F = ForwardDiff.value.(Fd)
-        J = [ForwardDiff.partials(Fd[r], j) for r in 1:nr, j in 1:nr]
-        return F, J, ForwardDiff.value.(nd)
+        return ForwardDiff.value.(Fd), [ForwardDiff.partials(Fd[r], j) for r in 1:nr, j in 1:nr],
+            ForwardDiff.value.(nd)
     end
 
     # Newton on `nr` unknowns, from the explicit prediction.

@@ -21,9 +21,16 @@ using Test
 
         # Two directions carried, one empty — the spectrum falls off a cliff.
         @test id.rank == 2
+        @test identifiable_rank(id) == id.rank
         @test id.S[1] / id.S[2] < 10
         @test id.S[3] / id.S[2] < 1.0e-10
         @test id.condition > 1.0e10
+        # The fit is exact and leaves a residual of zero, which is no noise
+        # level: σ is the floor, √eps times the root-mean-square of the curve,
+        # and the direction at the rounding stays out.
+        y = _decay(_θ)
+        @test id.rmse == 0
+        @test id.noise ≈ sqrt(eps()) * sqrt(sum(abs2, y) / length(y))
 
         # And the empty direction is the a-versus-c trade-off, which is the
         # answer put in: equal and opposite in `a` and `c`, nothing in `b`.
@@ -52,29 +59,59 @@ using Test
         @test id.rmse === nothing
     end
 
+    @testset "the noise level is the instrument's, or the fit's on n − p" begin
+        f(q) = @. q[1] * exp(-q[2] * _t)
+        θ = [2.0, 0.7]
+        y = f(θ)
+        # A residual of known size, on 40 − 2 degrees of freedom.
+        r = 1.0e-3 .* cos.(3 .* _t)
+        id = identifiability(f, θ; observed = y .- r)
+        @test id.rmse ≈ sqrt(sum(abs2, r) / 40) rtol = 1.0e-12
+        @test id.noise ≈ sqrt(sum(abs2, r) / 38) rtol = 1.0e-12
+        @test id.stderr ≈ id.noise .* sqrt.(diag(inv(transpose(id.J) * id.J))) rtol = 1.0e-8
+        # Given, it takes precedence over the residual and decides the rank: a
+        # noise level above every singular value leaves nothing determined.
+        loud = identifiability(f, θ; observed = y .- r, noise = 2 * id.S[1])
+        @test loud.noise == 2 * id.S[1]
+        @test loud.rank == 0
+        @test loud.stderr ≈ (loud.noise / id.noise) .* id.stderr
+        @test occursin("noise level σ", sprint(show, MIME"text/plain"(), loud))
+        # Without an observation or a noise level, the gap, and the report says so.
+        bare = identifiability(f, θ)
+        @test bare.noise === nothing
+        @test occursin("by the gap", sprint(show, MIME"text/plain"(), bare))
+        # A noise level without an observation still gives the errors.
+        quiet = identifiability(f, θ; noise = 1.0e-3)
+        @test quiet.rmse === nothing
+        @test quiet.stderr ≈ (1.0e-3 / id.noise) .* id.stderr
+    end
+
     @testset "a rank is read off the standard errors, or else a gap" begin
         # The spectrum `hydration_calibration.jl` measures over six candidates,
-        # with the residual of that fit (J/g). The standard errors of the six
-        # directions are 0.06, 0.24, 0.41, 4.0, 13 and 170 in log θ: three
-        # combinations are determined, the others to within factors of 55 and
-        # more.
+        # with the noise level of that fit (J/g): the residual of 25.94 J/g over
+        # thirty instants, on the 24 degrees of freedom six parameters leave. The
+        # standard errors of the six directions are 0.07, 0.27, 0.46, 4.5, 15 and
+        # 190 in log θ: three combinations are determined, the others to within
+        # factors of 89 and more.
         S = [424.41, 107.88, 63.619, 6.4596, 1.9803, 0.15242]
-        @test identifiable_rank(S; rmse = 25.935) == 3
+        σ = 25.9354 * sqrt(30 / 24)
+        @test identifiable_rank(S; noise = σ) == 3
         # The spectrum alone does not say where the noise is, and its largest
         # ratio is between the fifth and the sixth.
         @test identifiable_rank(S) == 5
         @test identifiable_rank(S; gap = 20.0) == 6     # no gap that large
         # The tolerance is a factor in θ: at e⁵ the fourth direction is in.
-        @test identifiable_rank(S; rmse = 25.935, tol = 5.0) == 4
-        # An exact fit determines every direction, but not one at the rounding.
-        @test identifiable_rank(S; rmse = 0.0) == 6
-        @test identifiable_rank([1.0, 0.5, 1.0e-17]; rmse = 0.0, floor = 1.0e-15) == 2
+        @test identifiable_rank(S; noise = σ, tol = 5.0) == 4
+        # A noise level is a standard deviation, and a zero one is no
+        # measurement: an exact fit gets its floor from `identifiability`.
+        @test_throws ArgumentError identifiable_rank(S; noise = 0.0)
+        @test_throws ArgumentError identifiability(x -> x, [1.0]; noise = -1.0)
         # A flat spectrum constrains everything, and saying `length` is the
         # honest answer rather than a smaller number chosen to look careful.
         @test identifiable_rank([1.0, 0.9, 0.8]; gap = 10.0) == 3
         @test identifiable_rank([1.0, 0.0]; gap = 10.0) == 1
         @test identifiable_rank(Float64[]) == 0
-        @test identifiable_rank(Float64[]; rmse = 1.0) == 0
+        @test identifiable_rank(Float64[]; noise = 1.0) == 0
 
         # THE LARGEST QUALIFYING GAP, NOT THE FIRST. Measured spectrum of a rate
         # law against its own shrinking-core exponent (the manual page "Where

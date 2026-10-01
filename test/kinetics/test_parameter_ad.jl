@@ -99,5 +99,50 @@
         kc = 1.0e-8
         @test ca_by_run(kc) ≈ ca_by_equilibrium(kc) rtol = 1.0e-5
         @test ForwardDiff.derivative(ca_by_run, kc) ≈ ForwardDiff.derivative(ca_by_equilibrium, kc) rtol = 1.0e-6
+        # The certified replay of the run on dual numbers lifts each instant.
+        function ca_by_replay(k)
+            kp, sol = run_at(k)
+            st = only(speciated_states(sol, kp; times = [tend]))
+            return ustrip(us"mol", st.n[i_ca])
+        end
+        @test ForwardDiff.derivative(ca_by_replay, kc) ≈ ForwardDiff.derivative(ca_by_equilibrium, kc) rtol = 1.0e-6
+
+        # What a run reaches only when a certified solve fails. The continuation
+        # of the replay, from the composition certified at one instant, reaches
+        # the answer the replay certifies at the next; it says so when it cannot,
+        # whether the target budget has no equilibrium or the solver no step.
+        kp1, sol1 = run_at(kc)
+        p1 = sol1.prob.p
+        t1, t2 = tend / 2, tend
+        s1, s2 = speciated_states(sol1, kp1; times = [t1, t2])
+        idx = kp1.idx_equilibrium
+        n1 = [ustrip(us"mol", s1.n[i]) for i in idx]
+        n2 = [ustrip(us"mol", s2.n[i]) for i in idx]
+        sub = ChemistryLab._equilibrium_subsystem(kp1.system, kp1.idx_equilibrium)
+        des = DualEquilibriumSolver(sub, model)
+        Tv = ustrip(us"K", temperature(s2)) * u"K"
+        Pv = ustrip(us"Pa", pressure(s2)) * u"Pa"
+        be2 = collect(sol1(t2)[1:(p1.n_be)])
+        cont(d, be) = ChemistryLab._replay_continuation(sol1, kp1, p1, d, sub, copy(n1), n1, s1, t1, t2, Tv, Pv, be)
+        proved, n_c, _, _ = cont(des, be2)
+        @test proved
+        @test n_c ≈ n2 rtol = 1.0e-8
+        @test !first(cont(des, -be2))
+        stuck = DualEquilibriumSolver(sub, model; maxit = 0)
+        quiet = Base.CoreLogging.NullLogger()
+        @test !first(Base.CoreLogging.with_logger(() -> cont(stuck, be2), quiet))
+        # An intermediate that raises is a failed intermediate, not an error: a
+        # guess of the wrong length fails every one, and the step shrinks to none.
+        @test !first(ChemistryLab._replay_continuation(sol1, kp1, p1, des, sub, n1[1:(end - 1)], n1, s1, t1, t2, Tv, Pv, be2))
+        # The values a differentiated step keeps when its certified solve fails
+        # are lifted where they stand: at a certified answer, the derivative of
+        # the certified solve.
+        e = zeros(length(be2)); e[1] = 1.0e-3
+        lifted = ForwardDiff.derivative(x -> ChemistryLab._lifted_partition(p1, n2, Tv, Pv, be2 .+ x .* e), 0.0)
+        st2 = ChemicalState(p1.eq_system, n2 .* u"mol"; T = Tv, P = Pv)
+        direct = ForwardDiff.derivative(
+            x -> [ustrip(us"mol", v) for v in first(solve_certified(p1.eq_dual, (st2,); b = be2 .+ x .* e)).n], 0.0,
+        )
+        @test lifted ≈ direct rtol = 1.0e-8 atol = 1.0e-14
     end
 end

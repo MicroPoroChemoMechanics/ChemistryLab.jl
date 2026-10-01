@@ -708,7 +708,6 @@ _has_dual_inputs(n0, b, p, model) =
     eltype(n0) <: ForwardDiff.Dual || _carries_duals(b) || eltype(p.ΔₐG⁰overRT) <: ForwardDiff.Dual ||
     _type_strip(_captured_number_type(model), _STRIP_TAGS[]) <: ForwardDiff.Dual
 
-_carries_nested(b) = b !== nothing && any(x -> x isa ForwardDiff.Dual && ForwardDiff.value(x) isa ForwardDiff.Dual, b)
 
 """
     _attach_sensitivity(state, nstar, μ, ϵ; b = nothing) -> ChemicalState

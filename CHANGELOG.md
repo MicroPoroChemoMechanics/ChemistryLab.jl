@@ -26,7 +26,10 @@ flattened.
 - **`identifiability` reads its rank differently with an observation**: from the
   standard errors of the singular directions rather than from the largest gap
   of the spectrum (see below). The same inputs can return another `rank`, and
-  `as_traced` can then mark another set of parameters as placeholders. The
+  `as_traced` can then mark another set of parameters as placeholders. Its
+  `stderr` are larger by `√(n/(n − p))`, the noise level now being estimated on
+  the degrees of freedom the parameters leave, and `Identifiability` has a
+  `noise` field. The
   correlation matrix is formed from the singular value decomposition, which
   changes its sign at an exact degeneracy, where the inversion of `JᵀJ` had none
   to give.
@@ -117,13 +120,21 @@ flattened.
   Parrott–Killoh minimum and credited `k₂` with an eighth of `k₁`'s influence on
   a heat curve, where it has none; and a 20 K secant across a 15 K peak flattened
   the spectrum of a thermogram.
-- **The rank is read off the standard errors when there is a residual.** With
-  an observation, `identifiable_rank` counts the directions whose standard error
-  in `log θ`, the residual over the singular value, is below `tol` (default 1,
-  a factor e); without one, the gap rule stands. On exact spectra the gap had
+- **The rank is read off the standard errors when there is a noise level.**
+  `identifiable_rank` counts the directions whose standard error in `log θ`, the
+  noise level `σ` over the singular value, is below `tol` (default 1, a factor
+  e); without a noise level, the gap rule stands. On exact spectra the gap had
   answered five directions for the six rate parameters of a heat curve, of which
-  three are determined and the others known to within a factor of 55 at best, and
+  three are determined and the others known to within a factor of 89 at best, and
   three for the six parameters of a thermogram fitted exactly, all determined.
+- **The noise level is given or estimated.** `identifiability(...; noise)` takes
+  the standard deviation of the instrument; without it, `σ` is the residual
+  standard deviation on the `n − p` degrees of freedom the parameters leave,
+  never below `√eps` times the root-mean-square of the curve, so that an exact
+  synthetic fit does not count a direction at the rounding. The residual RMSE
+  over `n` that 0.28.2 scaled the standard errors by understated them by
+  `√((n − p)/n)`: by 11 % for six parameters on thirty instants. `Identifiability`
+  carries the level as `noise`.
 - The covariance is formed from the singular value decomposition rather than by
   inverting `JᵀJ`, which squares the condition number: at an exact degeneracy
   that inverse had no sign left, and gave a trade-off a correlation of +1.
@@ -135,9 +146,14 @@ flattened.
 
 ### Changed: requirements
 
-- ChemistryLab requires **OptimaSolver 0.7.5** (`OptimaSolver = "0.7.5"`), whose
+- ChemistryLab requires **OptimaSolver 0.7.6** (`OptimaSolver = "0.7.6"`), whose
   `dual_newton_tangent` lifts every answer above, and whose exact outer Jacobian
-  the kinetic steps and the certified search now run on.
+  the kinetic steps and the certified search now run on. 0.7.5 is not enough:
+  on cement pastes carrying a trace component (a trace of carbon nine orders of
+  magnitude below the major elements), its interior point could lose the trace
+  and its dual Newton could not bring it back, so `equilibrate_certified`
+  returned answers the certificate refused, the balance of that component
+  wrong by its whole budget, where 0.28.2 with OptimaSolver 0.7.3 certified.
 
 ### Fixed
 

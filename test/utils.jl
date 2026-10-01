@@ -79,3 +79,10 @@ end
     # literature works in, and a check on the formula rather than on its sign.
     @test 1.0e-9 < r_bare < 1.0e-8
 end
+
+@testsection "the number type a quantity carries" begin
+    d = ForwardDiff.Dual(2.0, 1.0)
+    @test ChemistryLab._number_type_of(d * u"m") === typeof(d)
+    @test ChemistryLab._number_type_of((a = 1.0u"m", b = d * u"s")) === typeof(d)
+    @test ChemistryLab._number_type_of(1.0u"m") === Float64
+end

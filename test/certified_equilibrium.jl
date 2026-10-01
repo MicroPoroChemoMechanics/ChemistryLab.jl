@@ -334,6 +334,18 @@ end
     d21 = ForwardDiff.derivative(x -> ForwardDiff.derivative(pH_one_backend, x), x0)
     @test ad1 ≈ ad rtol = 1.0e-7
     @test d21 ≈ d2 rtol = 1.0e-7
+    # Without the certified solver, the single back end lifts the amounts of the
+    # state, one level, by the optimality conditions of the unconstrained
+    # problem, and refuses a nested differentiation rather than return its
+    # inner derivatives as zero.
+    avail = ChemistryLab._DUAL_AVAILABLE[]
+    try
+        ChemistryLab._DUAL_AVAILABLE[] = false
+        @test ForwardDiff.derivative(pH_one_backend, x0) ≈ ad rtol = 1.0e-4
+        @test_throws ArgumentError ForwardDiff.derivative(x -> ForwardDiff.derivative(pH_one_backend, x), x0)
+    finally
+        ChemistryLab._DUAL_AVAILABLE[] = avail
+    end
 
     # With respect to the thermodynamic data, the parameters of the activity
     # model and the target of a constraint, checked against identities that hold

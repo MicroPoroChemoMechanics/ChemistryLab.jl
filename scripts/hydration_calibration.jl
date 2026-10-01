@@ -442,16 +442,18 @@ const CALIB_SPEC_FULL = [
 """
     CALIB_SPEC :: Vector{CalibParameter}
 
-The parameters actually fitted: the three of [`CALIB_SPEC_FULL`](@ref) that a
-single isothermal heat curve can carry.
+The parameters actually fitted: the three rate-law parameters of
+[`CALIB_SPEC_FULL`](@ref) that a single isothermal heat curve can carry, plus the
+two of the dormant period, `τ_ind` and `m_ind`.
 
-Three, not six, and the reason is measured rather than assumed. Over the six
+Three rate-law parameters, not six, and the reason is measured rather than
+assumed. Over the six
 candidates the singular values of `∂Q/∂log θ` come out at
-`[424, 108, 63.6, 6.46, 1.98, 0.152]` on this record, against a residual of
-26 J/g. The standard errors of the six directions in `log θ` are then 0.06, 0.24
-and 0.41 for the first three, and 4.0, 13 and 170 for the others, which are known
-to within a factor of 55 at best: the measurement determines three
-*combinations* of the six, not six numbers.
+`[424, 108, 63.6, 6.46, 1.98, 0.152]` on this record, against a residual standard
+deviation of 29 J/g. The standard errors of the six directions in `log θ` are
+then 0.07, 0.27 and 0.46 for the first three, and 4.5, 15 and 190 for the others,
+which are known to within a factor of 89 at best: the measurement determines
+three *combinations* of the six, not six numbers.
 
 Which three is decided by the correlation matrix. Two pairs are close to
 collinear:
@@ -1277,7 +1279,7 @@ end
 
 """
     local_identifiability(θ, data; mode, spec, relstep)
-        -> (; J, U, S, V, cond, rank, correlation, stderr, rmse)
+        -> (; J, U, S, V, cond, rank, correlation, stderr, rmse, noise)
 
 Local identifiability of `θ` from `data`, by `ChemistryLab.identifiability`.
 
@@ -1286,15 +1288,16 @@ means every direction is constrained; several orders of magnitude means the data
 determine a *combination* of parameters and not the parameters, and `V[:, end]`
 names which combination. `correlation` is the parameter correlation matrix from
 `(JᵀJ)⁻¹`, and `stderr` the approximate relative standard errors
-`σ√diag((JᵀJ)⁻¹)` with `σ` the residual RMSE.
+`σ√diag((JᵀJ)⁻¹)`, with `σ` (`noise`) the residual standard deviation on the
+`n − p` degrees of freedom the parameters leave.
 
 These are the *linearized* errors at one point. They are reported to say which numbers in a
 fit deserve to be quoted, not as confidence intervals.
 
 `rank` comes from the package and is the number of directions the measurement
-constrains, read off the largest gap in the spectrum. On the six candidates here
-it answers three, which is the conclusion this script reached by hand before the
-rule existed.
+constrains, those whose standard error in `log θ` is below one
+(`identifiable_rank`). On the six candidates here it answers three, which is the
+conclusion this script reached by hand before the rule existed.
 """
 function local_identifiability(θ, data; mode::Symbol = :surrogate, spec = CALIB_SPEC)
     # Delegated: `ChemistryLab.identifiability` IS this calculation, lifted out
@@ -1306,7 +1309,7 @@ function local_identifiability(θ, data; mode::Symbol = :surrogate, spec = CALIB
     )
     return (;
         id.J, id.U, id.S, id.V, cond = id.condition, id.rank,
-        id.correlation, id.stderr, id.rmse,
+        id.correlation, id.stderr, id.rmse, id.noise,
     )
 end
 
@@ -1376,7 +1379,7 @@ did not choose any of these numbers.
     That is not a surprise once the identifiability is read. At the optimum
     `k₁_C3S` and `τ_ind` are correlated at **0.994** — a longer dormant period
     followed by a faster rate makes very nearly the same curve — and the
-    approximate relative standard errors are 1023 %, 25 %, 122 %, 400 % and 206 %.
+    approximate relative standard errors are 1181 %, 29 %, 140 %, 461 % and 238 %.
     Only `k₃_C3S` is determined to better than a factor of a few. What the fit
     found is one or two combinations plus a target-specific residual, and the
     target-specific part is precisely what does not generalize.
@@ -1411,8 +1414,11 @@ is only its output.
     the fit does not transfer.
 
 `S` are the singular values of `∂Q/∂log θ`, `V` its right singular vectors as rows
-per parameter, `correlation` the parameter correlation matrix from `(JᵀJ)⁻¹`, and
-`stderr` the approximate **relative** standard errors.
+per parameter, `correlation` the parameter correlation matrix from `(JᵀJ)⁻¹`,
+`noise` the residual standard deviation on the `n − p` degrees of freedom, and
+`stderr` the approximate **relative** standard errors it gives. Those two were
+scaled from the stored RMSE by `√(n/(n − p))` when 0.29.0 moved the noise level
+to that estimate, which is what `local_identifiability` now returns.
 """
 const MEASURED_IDENTIFIABILITY = (
     candidates = (
@@ -1423,10 +1429,10 @@ const MEASURED_IDENTIFIABILITY = (
         # error rather than as the desynchronization it was. Stored numbers must
         # carry their own labels.
         names = [:k₁_C3S, :n₁_C3S, :k₃_C3S, :n₃_C3S, :k₁_C3A, :k₃_C2S],
-        rmse = 25.9354, cond = 2784.4,
+        rmse = 25.9354, noise = 28.9967, cond = 2784.4,
         S = [424.41, 107.88, 63.619, 6.4596, 1.9803, 0.15242],
         column_norms = [49.11, 96.26, 209.1, 373.0, 33.93, 12.83],
-        stderr = [12.9271, 8.384, 3.0613, 4.9364, 4.0976, 169.862],
+        stderr = [14.4529, 9.3736, 3.4226, 5.5191, 4.5813, 189.912],
         V = [
             -0.0475 -0.3658 -0.3312 -0.0756 -0.8644 -0.0366
             -0.1601 -0.5399 -0.5562 -0.3747 0.4818 0.0312
@@ -1446,9 +1452,9 @@ const MEASURED_IDENTIFIABILITY = (
     ),
     optimum = (
         names = [:k₁_C3S, :k₃_C3S, :k₁_C3A, :τ_ind, :m_ind],
-        rmse = 13.1018, cond = 101.0,
+        rmse = 13.1018, noise = 15.1287, cond = 101.0,
         S = [120.15, 64.481, 13.779, 6.5067, 1.1896],
-        stderr = [10.2253, 0.2498, 1.2154, 3.9959, 2.0613],
+        stderr = [11.8072, 0.2884, 1.4034, 4.6141, 2.3802],
         V = [
             -0.3115 0.0648 -0.1685 -0.0946 0.9281
             -0.2422 -0.963 0.1161 0.0188 0.009
@@ -1474,11 +1480,11 @@ Print a stored [`MEASURED_IDENTIFIABILITY`](@ref) entry in the same shape
 """
 function report_stored_identifiability(m, label)
     @printf(
-        "%s — %d parameters, residual RMSE %.2f J/g, condition number %.4g\n",
-        label, length(m.names), m.rmse, m.cond
+        "%s — %d parameters, residual RMSE %.2f J/g (σ = %.2f J/g), condition number %.4g\n",
+        label, length(m.names), m.rmse, m.noise, m.cond
     )
     println("singular values: ", join((@sprintf("%.4g", v) for v in m.S), "  "))
-    _report_directions(m.S, m.rmse)
+    _report_directions(m.S, m.noise)
     println("approximate relative standard errors:")
     for (n, e) in zip(m.names, m.stderr)
         @printf("   %-10s %8.0f %%\n", n, 100e)
@@ -1486,12 +1492,12 @@ function report_stored_identifiability(m, label)
     return nothing
 end
 
-# The standard error of each singular direction in `log θ`, the residual over its
-# singular value, and how many are known to better than a factor e
+# The standard error of each singular direction in `log θ`, the noise level over
+# its singular value, and how many are known to better than a factor e
 # (`identifiable_rank`).
-function _report_directions(S, rmse)
-    println("standard error of each direction, in log θ: ", join((@sprintf("%.2g", rmse / v) for v in S), "  "))
-    @printf("directions determined to better than a factor e: %d of %d\n", identifiable_rank(S; rmse), length(S))
+function _report_directions(S, σ)
+    println("standard error of each direction, in log θ: ", join((@sprintf("%.2g", σ / v) for v in S), "  "))
+    @printf("directions determined to better than a factor e: %d of %d\n", identifiable_rank(S; noise = σ), length(S))
     return nothing
 end
 
@@ -1533,10 +1539,11 @@ the approximate relative standard errors.
 """
 function report_identifiability(id, spec = CALIB_SPEC)
     @printf(
-        "residual RMSE %.2f J/g;  condition number of ∂Q/∂log θ = %.3g\n", id.rmse, id.cond
+        "residual RMSE %.2f J/g (σ = %.2f J/g);  condition number of ∂Q/∂log θ = %.3g\n",
+        id.rmse, id.noise, id.cond
     )
     println("singular values: ", join((@sprintf("%.3g", v) for v in id.S), "  "))
-    _report_directions(id.S, id.rmse)
+    _report_directions(id.S, id.noise)
     println("least-constrained direction (right singular vector of the smallest value):")
     for (p, c) in zip(spec, id.V[:, end])
         @printf("   %-10s %+7.3f\n", p.name, c)

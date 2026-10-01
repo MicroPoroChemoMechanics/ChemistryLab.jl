@@ -375,6 +375,25 @@ end
     @info "adiabatic cell under partial equilibrium" ΔT = Tt[end] - Tt[1] drift = H .- H[1] released
     @test maximum(abs, H .- H[1]) < 1.0e-3 * released
 
+    # The cell is closed to heat, so the heat the paste releases is what warms
+    # the vessel: −dH/dt = C_vessel dT/dt, the heat capacity of the paste
+    # entering both sides.
+    tq = [6 * 3600.0, 86400.0]
+    _, _, qdot = heat_release(sol, kp; times = tq)
+    dTdt = [sol(x, Val{1})[end] for x in tq]
+    @test qdot ≈ C_vessel .* dTdt rtol = 1.0e-2
+    # And the enthalpy of the paste at fixed composition changes with its
+    # temperature by its heat capacity, Σ nᵢ Cpᵢ.
+    pp = sol.prob.p
+    u_end = sol.u[end]
+    T_end = u_end[end]
+    nk(i) = (j = findfirst(==(i), pp.idx_kinetic); j === nothing ? pp.n_full[i] : max(u_end[pp.n_be + j], pp.ϵ))
+    Cp_paste = sum(
+        nk(i) * pp.cp_fns[i](; T = T_end, unit = false)
+            for i in 1:length(pp.h_fns) if pp.h_fns[i] !== nothing && pp.cp_fns[i] !== nothing
+    )
+    @test ForwardDiff.derivative(T -> system_enthalpy(pp, u_end, T), T_end) ≈ Cp_paste rtol = 1.0e-10
+
     # The heat the partition takes up as it shifts with temperature, from the
     # Gibbs–Helmholtz right-hand side, against the certified equilibrium of the
     # last proved partition differentiated with respect to its temperature.

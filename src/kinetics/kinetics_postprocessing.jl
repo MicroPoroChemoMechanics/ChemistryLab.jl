@@ -483,51 +483,7 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
             # where the answer has 25, while simply requesting four extra instants
             # before it — which is what a forward walk does by itself — brought the
             # active set back to 25 and the balance to 3e-14.
-            if !proved && t_prev !== nothing
-                anchor = t_prev
-                h = float(t) - anchor
-                for _ in 1:(_CONTINUATION_STEPS)
-                    h <= eps(float(t)) * max(one(h), abs(float(t))) && break
-                    tm = min(anchor + h, float(t))
-                    tm <= anchor && break
-                    stepped = false
-                    try
-                        be_m = _plain.(collect(@view sol(tm)[1:(p.n_be)]))
-                        gm = copy(certified)
-                        _budget_clip!(gm, p.Ae, be_m)
-                        _restore_feasibility!(gm, p.Ae, be_m; maxit = 100_000)
-                        st_m = SciMLBase.solve(
-                            des, ChemicalState(sub, gm .* u"mol"; T = plain_T(_replay_temperature(sol, kp, tm)), P = Pv);
-                            b = be_m,
-                        )
-                        if optimality_certificate(des, st_m; b = be_m).optimal
-                            certified = Float64[ustrip(us"mol", x) for x in st_m.n]
-                            anchor = tm
-                            stepped = true
-
-                            st_t = SciMLBase.solve(
-                                des,
-                                ChemicalState(sub, certified .* u"mol"; T = Tt, P = Pv);
-                                b = be,
-                            )
-                            if optimality_certificate(des, st_t; b = be).optimal
-                                n_eq = Float64[ustrip(us"mol", x) for x in st_t.n]
-                                eq = st_t
-                                certified = copy(n_eq)
-                                proved = true
-                                break
-                            end
-                        end
-                    catch
-                        # A failed intermediate is not an error: shorten the step.
-                    end
-                    if stepped
-                        h = float(t) - anchor      # aim at the target again
-                    else
-                        h *= 0.5
-                    end
-                end
-            end
+            !proved && t_prev !== nothing && ((proved, n_eq, eq, certified) = _replay_continuation(sol, kp, p, des, sub, certified, n_eq, eq, t_prev, t, Tt, Pv, be))
 
             proved && (t_prev = float(t))
             proved || push!(uncertified, float(t))
@@ -588,6 +544,61 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
     end
 
     return out
+end
+
+"""
+    _replay_continuation(sol, kp, p, des, sub, certified, n_eq, eq, t_prev, t, Tt, Pv, be)
+        -> (proved, n_eq, eq, certified)
+
+The continuation of [`speciated_states`](@ref) from the composition `certified`,
+proved at `t_prev`, to the instant `t`, whose budget is `be` and temperature
+`Tt`: a homotopy in the component totals, walked forward by an adaptive step.
+Returns whether `t` was proved, its composition and state (`n_eq`, `eq` as given
+when it was not), and the last composition certified on the way.
+"""
+function _replay_continuation(sol, kp, p, des, sub, certified, n_eq, eq, t_prev, t, Tt, Pv, be)
+    plain_T(T) = _plain(ustrip(us"K", T)) * u"K"
+    anchor = t_prev
+    h = float(t) - anchor
+    for _ in 1:(_CONTINUATION_STEPS)
+        h <= eps(float(t)) * max(one(h), abs(float(t))) && break
+        tm = min(anchor + h, float(t))
+        tm <= anchor && break
+        stepped = false
+        try
+            be_m = _plain.(collect(@view sol(tm)[1:(p.n_be)]))
+            gm = copy(certified)
+            _budget_clip!(gm, p.Ae, be_m)
+            _restore_feasibility!(gm, p.Ae, be_m; maxit = 100_000)
+            st_m = SciMLBase.solve(
+                des, ChemicalState(sub, gm .* u"mol"; T = plain_T(_replay_temperature(sol, kp, tm)), P = Pv);
+                b = be_m,
+            )
+            if optimality_certificate(des, st_m; b = be_m).optimal
+                certified = Float64[ustrip(us"mol", x) for x in st_m.n]
+                anchor = tm
+                stepped = true
+
+                st_t = SciMLBase.solve(
+                    des,
+                    ChemicalState(sub, certified .* u"mol"; T = Tt, P = Pv);
+                    b = be,
+                )
+                if optimality_certificate(des, st_t; b = be).optimal
+                    n_t = Float64[ustrip(us"mol", x) for x in st_t.n]
+                    return true, n_t, st_t, copy(n_t)
+                end
+            end
+        catch
+            # A failed intermediate is not an error: shorten the step.
+        end
+        if stepped
+            h = float(t) - anchor      # aim at the target again
+        else
+            h *= 0.5
+        end
+    end
+    return false, n_eq, eq, certified
 end
 
 # ── calorimetry from certified states ────────────────────────────────────────

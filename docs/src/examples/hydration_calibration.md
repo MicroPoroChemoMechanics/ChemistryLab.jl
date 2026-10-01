@@ -430,9 +430,11 @@ end
 ```
 
 The singular values span three and a half orders of magnitude. Divided into the
-residual, they give the standard error of each direction in `log θ`: 0.06, 0.24
-and 0.41 for the first three, then 4.0, 13 and 170, so that the last three are
-known to within a factor of 55 at best ([`identifiable_rank`](@ref)). That is not
+noise level `σ`, the residual standard deviation on the 24 degrees of freedom the
+six parameters leave to thirty instants, they give the standard error of each
+direction in `log θ`: 0.07, 0.27 and 0.46 for the first three, then 4.5, 15 and
+190, so that the last three are known to within a factor of 89 at best
+([`identifiable_rank`](@ref)). That is not
 a defect of the optimizer: it is the physics of the measurement. A single scalar
 observable, integrated over time, cannot separate six mechanisms that all act on
 the same curve. What the data determine is **three combinations**, and the
@@ -578,7 +580,7 @@ miss, it is the honest outcome of a five-parameter fit to one scalar curve, and 
 predicted it. At the optimum `k₁_C3S` and `τ_ind` are correlated at **0.994**: a
 longer dormant period followed by a faster rate produces very nearly the same
 heat curve, so the pair is one direction and not two numbers. The approximate
-relative standard errors are 1023 %, 25 %, 122 %, 400 % and 206 % — only `k₃_C3S`
+relative standard errors are 1181 %, 29 %, 140 %, 461 % and 238 % — only `k₃_C3S`
 is determined to better than a factor of a few. What the search found is one or
 two genuine combinations plus a residual specific to this cement, and it is the
 cement-specific part that fails to generalize.
