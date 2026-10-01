@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.28.3 — Derivatives through every forward model, and no difference quotient left
+## v0.29.0 — Derivatives through every forward model, and no difference quotient left
 
 This release takes every derivative of the package by forward-mode
 differentiation, and lets one flow through everything a forward model is built
@@ -10,6 +10,26 @@ needs whose forward model is an equilibrium or a hydration, differentiated with
 difference quotients had been producing results of their own: a degeneracy half
 hidden, a rate constant credited with an influence it does not have, a spectrum
 flattened.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.28"` does not accept 0.29 and
+  has to widen its bound.
+- **Six exported types gained a type parameter**, so that they can hold dual
+  numbers: `Recipe{R}`, `RecipeState{S, C, M, B, I}`,
+  `MineralConstituent{S, E, F}`, `OxideConstituent{E, F}`,
+  `ParrottKillohExtent{V}` and `DonnanLayer{T}`. Their constructors are
+  unchanged; code that names their type parameters (an inner constructor called
+  as `MineralConstituent{S, E}(…)`, a method signature listing them all) has to
+  be updated.
+- **`identifiability` reads its rank differently with an observation**: from the
+  standard errors of the singular directions rather than from the largest gap
+  of the spectrum (see below). The same inputs can return another `rank`, and
+  `as_traced` can then mark another set of parameters as placeholders. The
+  correlation matrix is formed from the singular value decomposition, which
+  changes its sign at an exact degeneracy, where the inversion of `JᵀJ` had none
+  to give.
 
 ### Changed: derivatives through a certified equilibrium are exact at every level
 

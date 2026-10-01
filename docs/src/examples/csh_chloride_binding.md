@@ -221,12 +221,12 @@ debye_length(I) = sqrt(water_relative_permittivity(298.15, 1.0e5) * VACUUM_PERMI
 println(" NaCl  thickness  layer water  Cl excess  surface  Kuzel  Friedel   bound  (no layer)")
 for c in (0.4, 0.2, 0.1)
     k = findfirst(==(c), NACL)
-    t = debye_length(ionic_strength(states[k]))
-    res = equilibrate_donnan(states[k], DonnanLayer(thickness = t); model, water = :taken)
+    λ = debye_length(ionic_strength(states[k]))
+    res = equilibrate_donnan(states[k], DonnanLayer(thickness = λ); model, water = :taken)
     r = partition(res.state)
     ex = res.layer.excess[idx["Cl-"]]
     @printf("%5.2f  %6.2f nm  %8.3f kg  %9.4f  %7.4f  %6.4f  %7.4f  %6.4f  (%6.4f)\n",
-            c, 1.0e9t, res.layer.water, ex, r.surface, r.kuzel, r.friedel, r.bound + ex,
+            c, 1.0e9λ, res.layer.water, ex, r.surface, r.kuzel, r.friedel, r.bound + ex,
             rows[k].bound)
 end
 ```
