@@ -36,13 +36,16 @@ a solver have to be driven from code rather than from a dialog box.
 - **Chemical formula handling**: Create, convert, and display formulas with charge management and Unicode/Phreeqc notation.
 - **Chemical species management**: `Species` and `CemSpecies` types to represent solution and solid phase species; `with_class` to requalify a species without modifying the original.
 - **Stoichiometric matrices**: Automatic construction of matrices for reaction and equilibrium analysis.
-- **Database interoperability**: Import and merge ThermoFun (.json) and Cemdata (.dat) data; load solid solution definitions from a TOML file with `build_solid_solutions`.
+- **Database interoperability**: Import and merge ThermoFun (.json) and Cemdata (.dat) data. `datapath` obtains a ThermoFun database from ThermoHub on first use and checks it against a SHA-256; `install_database` takes a PHREEQC file downloaded by hand, and `fetch_databases` prepares a machine for offline work. Solid solution definitions are loaded from a TOML file with `build_solid_solutions`.
 - **Parsing tools**: Convert chemical notations, extract charges, calculate molar mass, and more.
-- **Solid solutions**: Define ideal (`IdealSolidSolutionModel`) or non-ideal binary (`RedlichKisterModel`) mineral mixing phases via `SolidSolutionPhase`; end-members are automatically requalified at construction time.
-- **Activity models**: Built-in aqueous activity models for equilibrium: `DiluteSolutionModel` (ideal), `HKFActivityModel` (extended Debye-Hückel B-dot), `DaviesActivityModel` and `PitzerActivityModel`.
-- **Chemical equilibrium**: Compute thermodynamic equilibrium compositions from initial states using Gibbs energy minimization (`equilibrate`, `ChemicalSystem`, `ChemicalState`), with `equilibrate_certified` returning a KKT certificate — a proof of the global minimum, not a report that an iteration stopped.
+- **Solid solutions**: Define ideal (`IdealSolidSolutionModel`), Redlich-Kister (`RedlichKisterModel`), regular (`RegularSolutionModel`), sublattice (`SublatticeModel`, as in C-(N-)A-S-H) or compound-energy (`CompoundEnergyModel`, as in CASH+) mineral mixing phases via `SolidSolutionPhase`; end-members are automatically requalified at construction time, and a miscibility gap is detected, refused when spurious and located when real.
+- **Activity models**: Built-in aqueous activity models for equilibrium: `DiluteSolutionModel` (ideal), `HKFActivityModel` (extended Debye-Hückel B-dot), `DaviesActivityModel`, `TruesdellJonesActivityModel`, `SITActivityModel` and `PitzerActivityModel`, and `cemdata18_activity_model`, the extended Debye-Hückel setting Cemdata18 prescribes.
+- **Chemical equilibrium**: Compute thermodynamic equilibrium compositions from initial states using Gibbs energy minimization (`equilibrate`, `ChemicalSystem`, `ChemicalState`), with `equilibrate_certified` returning a KKT certificate that states what it proves — a global minimum, a KKT point, or a speciation consistent with its own activities (`scope`) — rather than a report that an iteration stopped.
 - **Oxidation state**: Charge is kept as a conservation law of its own wherever an element appears at several valences, with `pe`, `Eh`, `half_reaction` and the `FixedpE` / `FixedEh` constraints — which is what a slag-blended binder needs, its sulfur arriving as S(-II) into a pore solution carrying S(+VI).
 - **Cementitious binders, CEM I to CEM V**: A glass with no formula enters through `oxide_budget` from its oxide analysis; how far each constituent has reacted is stated rather than assumed complete, bounded by `powers_alpha_max` for the water and space available, under either curing convention; `CapillaryWater` and `SaturatedCuring` are the two boundary conditions a specimen can be cured under.
+- **Surfaces**: Surface complexation on site families (`SiteFamily`), with constant-capacitance (`ConstantCapacitance`) or diffuse-layer (`DiffuseLayer`) electrostatics, cation exchange in the Vanselow or Gaines-Thomas convention, and the diffuse-layer inventory of a Donnan layer (`DonnanLayer`).
+- **Recipes, kinetics and calorimetry**: A binder blended, hydrated, carbonated or leached as a `Recipe`; mineral dissolution and precipitation as a `KineticsProblem` with the Parrott-Killoh and Waller rate laws; isothermal and semi-adiabatic calorimetry.
+- **Derivatives and provenance**: Exact forward-mode derivatives (ForwardDiff) through equilibria, kinetic runs and recipes; published values read with `literature` carry their source, and `identifiability` says how much of a set of fitted parameters the data determine.
 
 ## Installation
 
@@ -64,13 +67,17 @@ Pkg.add("ChemistryLab")
 ### Optimization backend for equilibrium
 
 Solving a thermodynamic equilibrium (`equilibrate`) requires an optimization
-backend, loaded on demand through a package extension. Load **one** of:
+backend, loaded on demand through a package extension:
 
 ```julia
-using Optimization, OptimizationIpopt   # default backend (Ipopt), works out of the box
-# or
-using OptimaSolver                       # optional Julia-native interior-point backend
+using OptimaSolver                       # default backend, Julia-native, and the certificate
+using Optimization, OptimizationIpopt   # optional: Ipopt, a further starting point
 ```
+
+OptimaSolver is the default backend whenever it is loaded, whatever the load
+order, and it carries the KKT solver that certifies an equilibrium. Ipopt alone
+also solves, along a single uncertified path; with both loaded, the certified
+search starts from each of them.
 
 All backends are optional (`[weakdeps]`); parsing, species/system/state handling,
 databases and thermodynamic data work without any of them.
@@ -270,7 +277,13 @@ chosen = [p for p in ss_phases if name(p) in ("CSHQ", "C3(AF)S0.84H", "Ettringit
 cs = ChemicalSystem(species_list, primaries; solid_solutions = chosen)
 ```
 
-A pre-built `data/solid_solutions.toml` is shipped with ChemistryLab for use with the cemdata18 database: `CSHQ`, `CSHQ_Cl`, `CNASH_ss`, `C3(AF)S0.84H`, `Hydrogarnet`, `Ettringite_ss`, `AFm_SO4_OH`, `AFt_SO4_CO3`, `Hydrotalcite`, `Hydrotalcite_AlFe`, `Straetlingite_ss` and `MSH`. It holds alternatives, so a system takes its phases by name rather than the whole file: `CSHQ` and `CNASH_ss` are two models of one C-S-H gel and are refused together, and `Ettringite_ss` and `AFt_SO4_CO3` describe the same aluminate sulfate.
+A pre-built `data/solid_solutions.toml` is shipped with ChemistryLab for use with the cemdata18 database and its derived files. It defines 21 phases:
+
+- the C-S-H gel, in several models: `CSHQ` (with `CSHQ_Cl`, its chloride end member), `CNASH_ss`, `CSH3T`, `ECSH1`, `ECSH2`, and `CASH+`, `CASH+NK` and `CASH+ext` (database `cemdata18-cashplus.json`);
+- the aluminate and ferrite hydrates: `C3(AF)S0.84H`, `Hydrogarnet`, `Ettringite_ss`, `AFt_SO4_CO3`, `AFt_AlFe`, `AFm_SO4_OH`, `AFm_AlFe` and `Straetlingite_ss`;
+- the magnesium phases: `Hydrotalcite`, `Hydrotalcite_AlFe`, `MgAl_OH_LDH` and `MSH`.
+
+It holds alternatives, so a system takes its phases by name rather than the whole file. The C-S-H models are models of one gel, of which a system may declare only one (`data/gel_models.toml` lists them, and `ChemicalSystem` refuses two together), and `Ettringite_ss`, `AFt_SO4_CO3` and `AFt_AlFe` describe the same aluminate sulfate.
 
 #### Scaling and normalization
 
@@ -352,7 +365,7 @@ theirs, and so is much of the vocabulary: the phase stability index this package
 computes as `Ω` is the same quantity as their `Λ_k`, arrived at from the same KKT
 conditions. **CEMDATA18**, the thermodynamic database that makes every cement
 calculation in this manual possible, is the work of Lothenbach, Kulik, Matschei,
-Balonis, Baquerizo, Dilnesa, Miron and Myers, and it is shipped here unchanged.
+Balonis, Baquerizo, Dilnesa, Miron and Myers, and it is read here unchanged, as ThermoHub publishes it.
 The zeolite extension is transcribed from two further papers by Ma and
 Lothenbach. Nothing in this package would produce a number without that data.
 
@@ -365,8 +378,8 @@ us.
 
 Both are mature, carefully built and widely used, and both solve a wider range of
 problems than this package attempts. What ChemistryLab tries to add is narrower:
-a Julia-native formulation in which an equilibrium comes with a **proof** of its
-optimality, differentiable end to end, with the cementitious special cases —
+a Julia-native formulation in which an equilibrium comes with a certificate stating
+what it proves, differentiable end to end, with the cementitious special cases —
 cement chemist notation, Bogue, the oxide-budget entry route for a glass —
 first-class rather than bolted on. That is a contribution on top of their work,
 not a replacement for it.

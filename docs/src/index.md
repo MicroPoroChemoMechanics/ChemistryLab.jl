@@ -155,7 +155,7 @@ and much of the vocabulary with it — the phase stability index this package
 computes as ``\Omega`` is the same quantity as their ``\Lambda_k``, reached from
 the same KKT conditions. **CEMDATA18** [Lothenbach2019](@cite), the thermodynamic
 database behind every cement calculation in this manual, is their laboratory's
-work and ships here unchanged; the zeolite extension is transcribed from two
+work and is read here unchanged; the zeolite extension is transcribed from two
 further papers by the same group. Nothing here would produce a number without it.
 
 **Reaktoro** [Leal2017](@cite), by Allan Leal and contributors, is both an

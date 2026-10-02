@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Documentation
+
+- The README described the state of 0.18. It called Ipopt the default backend
+  and OptimaSolver optional, when OptimaSolver takes over whenever it is loaded
+  and is what certifies; it called the certificate a proof of the global
+  minimum, when the certificate states its scope; it said Cemdata18 was shipped
+  with the package, when `datapath` obtains it on first use; and it listed 12 of
+  the 21 phases of `data/solid_solutions.toml`. The feature list now names the
+  activity models, solid-solution models, surfaces, recipes and derivatives that
+  came since.
+- The home page and Getting started repeated that the database is distributed
+  with the package, and *Database Interoperability* counted two built databases
+  where there are three, `cemdata18-cashplus.json` included.
+- `CITATION.cff` and `.zenodo.json` carry the same abstract again, brought up to
+  date, with the keyword "surface complexation".
+
 ## v0.30.0 — A trace held to its own amount, and SIT and Pitzer solved by Newton's method
 
 The certified equilibrium judged its element balance in moles, against `1e-10`:

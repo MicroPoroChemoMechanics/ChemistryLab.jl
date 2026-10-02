@@ -2,7 +2,7 @@
 
 This page takes a first calculation from installation to a solved equilibrium in
 three steps: the thermodynamic data of a few species are read from a database
-distributed with the package, the reaction between them is written and its
+obtained on first use, the reaction between them is written and its
 equilibrium constant evaluated, and the equilibrium of calcite with water is
 finally computed. No knowledge of chemical thermodynamics is assumed. Each
 quantity is defined in the chapter [Theory](@ref sec-theory), to which the text
@@ -49,8 +49,9 @@ distinction, and the reason for it, are the subject of
 [Apparent and formation Gibbs energies](@ref sec-theory-apparent).
 
 The species are read from CEMDATA18 [Lothenbach2019](@cite), a database for
-cement systems whose file is distributed with the package as a copy of the one
-maintained on [ThermoHub](https://github.com/thermohub). `build_species` reads
+cement systems whose file `datapath` downloads, the first time it is needed, from
+[ThermoHub](https://github.com/thermohub), which maintains it
+([Where the databases come from](@ref sec-datapath)). `build_species` reads
 the file and returns a vector of species whose thermodynamic functions are
 already compiled; `speciation` then keeps the species whose elements are all
 found among those of a few seed species, here calcium, carbon, hydrogen and

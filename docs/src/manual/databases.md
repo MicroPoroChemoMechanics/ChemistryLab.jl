@@ -63,10 +63,14 @@ different file is never used without your knowing it. The first download of
 each file prints one message naming its source, the license its publisher
 states and the reference to cite. Later calls read the cache and print nothing.
 
-Two databases are **built** by ChemistryLab on first use rather than downloaded:
-`cemdata18-zeolites.json` ([below](@ref sec-zeolites)) and
-`cemdata18-chloride.json`. Each is the downloaded Cemdata18 file, copied through
-unchanged, with ChemistryLab's own additions appended. The build takes a few
+Three databases are **built** by ChemistryLab on first use rather than downloaded:
+`cemdata18-zeolites.json` ([below](@ref sec-zeolites)),
+`cemdata18-chloride.json` ([below](@ref sec-chloride-extension)) and
+`cemdata18-cashplus.json` ([the models of the C-S-H gel](@ref sec-csh-models)).
+Each is the downloaded Cemdata18 file, copied through unchanged, with
+ChemistryLab's own additions appended; the CASH+ build also replaces the aqueous
+complex `CaSiO3@` by the value refitted together with that model
+[Kulik2022](@cite), since neither holds with the other's Cemdata18 value. The build takes a few
 seconds once. It is cached, and it is redone automatically whenever Cemdata18 or
 the added data change.
 
