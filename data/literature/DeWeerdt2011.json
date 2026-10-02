@@ -1675,6 +1675,30 @@
           13.3
         ]
       ]
+    },
+    "tga_intervals": {
+      "columns": [
+        "phase",
+        "releases",
+        "lower",
+        "upper"
+      ],
+      "units": [
+        null,
+        null,
+        "K",
+        "K"
+      ],
+      "kind": "published",
+      "location": "p. 281: 'calcium hydroxide was consumed (16% decrease in weight loss between 350 and 500 °C)'",
+      "rows": [
+        [
+          "calcium hydroxide",
+          "water",
+          623.15,
+          773.15
+        ]
+      ]
     }
   },
   "notes": [

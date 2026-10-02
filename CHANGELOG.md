@@ -71,8 +71,36 @@ measurement.
   converged too, to the same compositions; the inversion is exact where they
   were not guaranteed to be.
 
+### Added: thermograms as the cement literature reports them
+
+- **A decomposition window given as a temperature interval**,
+  `DecompositionWindow(phase; between = (T₁, T₂))`: the phase releases all of its
+  water or carbon dioxide between the two temperatures and none outside, along a
+  smooth step whose rate vanishes at both ends. That is how the papers attribute a
+  loss to a phase (portlandite between 350 and 500 °C, De Weerdt et al. 2011;
+  the carbonate from about 300 to 850 °C, Shi et al. 2016; the water of ettringite
+  between 30 and 150 °C, Möschner et al. 2009), and the loss between the two ends
+  is then exactly the phase's content, where a logistic window loses part of it
+  outside. Both forms mix in one set, fit to a curve (`window_parameters` gives an
+  interval's ends) and serve `bound_water` over a range. `window_interval`
+  returns an interval's ends, or the 1 % and 99 % points of a logistic.
+- **`thermogram(...; relative_to)`** returns the curve in percent of a reference
+  mass, `mass_percent` and `loss_percent` (the loss counted from the first
+  temperature of the grid), with `reference_mass`. The reference is the sample at
+  the start (`:initial`, the default), at a temperature (a dry mass: 500 °C for
+  Schöler et al. 2015, 800 °C for Shi et al. 2016), or ignited (`:ignited`; Shi &
+  Lothenbach 2020 give bound water in percent of the sample ignited at 980 °C),
+  computed at its own temperature. The thermogravimetry page sets these
+  conventions out, each with its source.
+- The intervals and reference temperatures are transcribed in `data/literature`
+  (`DeWeerdt2011`, `Shi2016`, and the new `Moschner2009`, `Scholer2015`,
+  `LHopital2016`, `ShiLothenbach2020`), with the page and the sentence they come
+  from.
+
 ### Fixed
 
+- The bibliography gave the first authors of Nied et al. (2016) as "David" Nied
+  and "Eléonore" L'Hôpital; Crossref and the article give Dominik and Emilie.
 - `SITActivityModel` declares its `concentration_scale`, molality, which the
   interface asks of every activity model and which it alone lacked.
 - The last method redefinitions of the test suite are gone:

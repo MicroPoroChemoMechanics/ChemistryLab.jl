@@ -1,0 +1,24 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Scholer2015",
+    "doi": "10.1016/j.cemconcomp.2014.10.001",
+    "citation": "Schöler, A., Lothenbach, B., Winnefeld, F., Zajac, M. (2015). Hydration of quaternary Portland cement blends containing blast-furnace slag, siliceous fly ash and limestone powder. Cement and Concrete Composites 55, 374-382.",
+    "location": "p. 376, Eqs. (3) and (4)"
+  },
+  "transcription": {
+    "from": "the published article (PDF): the text layer, read on the rendered page",
+    "checked_against_source": true,
+    "note": "Bound water and portlandite are given as a percentage of the dry sample weight at 500 °C: 'mdry solids = mass of dry paste corresponding to sample weight at 500 °C'; the portlandite from the weight loss of its dehydroxylation by the tangent method."
+  },
+  "quantities": {
+    "tga_dry_solids_temperature": {
+      "value": 773.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 376, Eqs. (3) and (4), 500 degrees C",
+      "description": "The temperature whose sample weight is the dry mass that bound water and portlandite are expressed against."
+    }
+  }
+}

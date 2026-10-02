@@ -362,6 +362,7 @@ module ChemistryLab
         ignition_loss,
         bound_water_per_phase,
         DecompositionWindow,
+        window_interval,
         thermogram,
         released_fraction,
         released_rate,

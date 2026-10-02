@@ -117,6 +117,14 @@
       "uncertainty": null,
       "location": "Section 3.3.3 and Fig. 12",
       "description": "the Ca/Si the computed C-S-H falls to, that of TobH, before it decomposes to silica"
+    },
+    "tga_dry_weight_temperature": {
+      "value": 1073.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 66: 'the amounts are normalized to the dry weight (TGA temperature at 800 °C)'",
+      "description": "The temperature whose sample weight is the dry weight Ca(OH)2 and CaCO3 are normalized to."
     }
   },
   "tables": {
@@ -842,6 +850,30 @@
         [
           "CO2",
           "added as air with 1 % (v/v) CO2, 0 to 50 g of CO2 per 100 g of binder"
+        ]
+      ]
+    },
+    "tga_intervals": {
+      "columns": [
+        "phase",
+        "releases",
+        "lower",
+        "upper"
+      ],
+      "units": [
+        null,
+        null,
+        "K",
+        "K"
+      ],
+      "kind": "published",
+      "location": "p. 66: 'The amount of CaCO3 is quantified from the DTG curves from about 300 to 850 °C'",
+      "rows": [
+        [
+          "CaCO3",
+          "carbon_dioxide",
+          573.15,
+          1123.15
         ]
       ]
     }

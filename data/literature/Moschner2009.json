@@ -1,0 +1,40 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Moschner2009",
+    "doi": "10.1016/j.cemconres.2009.03.001",
+    "citation": "Möschner, G., Lothenbach, B., Winnefeld, F., Ulrich, A., Figi, R., Kretzschmar, R. (2009). Solid solution between Al-ettringite and Fe-ettringite (Ca6[Al1-xFex(OH)6]2(SO4)3·26H2O). Cement and Concrete Research 39, 482-489.",
+    "location": "p. 485"
+  },
+  "transcription": {
+    "from": "the published article (PDF): the text layer, read on the rendered page",
+    "checked_against_source": true,
+    "note": "The temperature range over which the synthesized ettringites lose their water, as the thermogravimetric results state it ('the ettringite phases lost their water molecules between 30 and 150 °C'). Heated under N2 from 30 to 980 °C at 20 °C/min (p. 483)."
+  },
+  "tables": {
+    "tga_intervals": {
+      "columns": [
+        "phase",
+        "releases",
+        "lower",
+        "upper"
+      ],
+      "units": [
+        null,
+        null,
+        "K",
+        "K"
+      ],
+      "kind": "measured",
+      "location": "p. 485: 'the ettringite phases lost their water molecules between 30 and 150 °C'",
+      "rows": [
+        [
+          "ettringite",
+          "water",
+          303.15,
+          423.15
+        ]
+      ]
+    }
+  }
+}
