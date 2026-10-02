@@ -208,6 +208,21 @@ active phases. Parameterizing the solutes by ``\ln n_i`` makes their positivity
 automatic, which is what removes the fraction-to-boundary limit that caps the
 interior-point step at every iteration.
 
+For the Debye–Hückel, Davies and Truesdell–Jones models the inner level is one
+equation. Their activity coefficients depend on the composition through the
+ionic strength alone, so at a given ``I`` every solute is explicit,
+``\ln m_i = u_i - g_i - \ln\gamma_i(I)``, and ``I`` solves
+``I = \tfrac12\sum_i z_i^2 m_i(I)``, which is how PHREEQC carries the ionic
+strength, as an unknown of its own [ParkhurstAppelo2013](@cite). The root taken is
+the first one above the dilute limit, the branch connected to it. The limiting
+law past its range can have none there: the equation dips toward zero without
+reaching it and crosses again only through the ``\dot B I`` term, at thousands
+of mol/kg. The inversion then says that the potentials hold no composition
+instead of iterating on them, and the outer level moves on the sweeps until
+they hold one again. Recovering the
+solutes one by one instead, as the inner level does for Pitzer and SIT, cycles
+where multivalent ions couple strongly through ``I``.
+
 The solvent is deliberately **not** inverted through its own mass-action law: its
 activity is a mole fraction, so ``\ln a_w \le 0`` always, and an arbitrary `y` can
 demand more, for which no finite composition exists. It belongs to the outer

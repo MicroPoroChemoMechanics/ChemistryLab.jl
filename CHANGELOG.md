@@ -9,7 +9,10 @@ needs whose forward model is an equilibrium or a hydration, differentiated with
 `ForwardDiff` and differentiated again for its Hessian. It also showed that the
 difference quotients had been producing results of their own: a degeneracy half
 hidden, a rate constant credited with an influence it does not have, a spectrum
-flattened.
+flattened. And the certified solver now recovers the aqueous solutes through
+the ionic strength, as one equation, where it had swept them one by one without
+converging: the same answers, several times faster, and a model with no solution
+at given potentials recognized as such.
 
 ### Breaking changes
 
@@ -32,6 +35,38 @@ flattened.
   `noise` field. The correlation matrix is formed from the singular value
   decomposition, which changes its sign at an exact degeneracy, where the
   inversion of `JᵀJ` had none to give.
+
+### Changed: the aqueous solutes are solved through the ionic strength
+
+- **One equation where the solver swept.** For the Debye–Hückel (`HKFActivityModel`,
+  with or without an ion size), Davies, Truesdell–Jones and dilute models, the
+  inner level of the certified solver recovers the solutes from their potentials
+  through the ionic strength: every solute is explicit at a given `I`, and `I`
+  solves one equation, as PHREEQC carries it, an unknown of its own. OptimaSolver
+  had recovered them one by one, which cycles where multivalent ions couple
+  through `I`: on cement pastes most inversions had ended unconverged, and every
+  one under the limiting law past its range. The root taken is the first above
+  the dilute limit, the branch connected to it, so that the answer does not
+  depend on the path; a dip of the equation below zero narrower than a step is
+  found from the sign change of its derivative. A dip that stays above zero ends
+  the dilute branch, and so does 1e4 mol/kg: under the limiting law the root past
+  such a dip lay at 6500 mol/kg for a paste loaded with sodium chloride, and a
+  solve that started from it never recovered. No root says that the potentials
+  hold no composition: a trial step from an iterate that held one is then
+  passed over, and an iterate that holds none is recovered by the sweeps, as are
+  its trials, until its potentials hold one (OptimaSolver 0.7.8). Pitzer and SIT
+  keep the sweeps.
+- Measured with the same answers. The 32 cement pastes of a thesis, solved
+  with the certified search and every printed value unchanged, take 349 s
+  instead of 1238 s with OptimaSolver 0.7.3; the attempt under a limiting law
+  past its range, before the fall to an ion size per ion, takes seconds where it
+  took minutes. The three-hour hydration of `scripts/ionic_hydration.jl` takes
+  5.8 s instead of 7.8 s, on a trajectory identical to the last digit, and its
+  28-day certified replay (`speciated_states`) 2.5 s instead of 10.3 s.
+- A constraint whose `hq` changes the parameters of the activity model (the
+  temperature of an adiabatic solve, the pressure of a fixed-volume one) declares
+  them with `pq`, so that the inversion sees what the model sees; one that does
+  not declare it keeps the sweeps.
 
 ### Changed: derivatives through a certified equilibrium are exact at every level
 
@@ -145,14 +180,19 @@ flattened.
 
 ### Changed: requirements
 
-- ChemistryLab requires **OptimaSolver 0.7.6** (`OptimaSolver = "0.7.6"`), whose
-  `dual_newton_tangent` lifts every answer above, and whose exact outer Jacobian
-  the kinetic steps and the certified search now run on. 0.7.5 is not enough:
-  on cement pastes carrying a trace component (a trace of carbon nine orders of
-  magnitude below the major elements), its interior point could lose the trace
-  and its dual Newton could not bring it back, so `equilibrate_certified`
-  returned answers the certificate refused, the balance of that component
-  wrong by its whole budget, where 0.28.2 with OptimaSolver 0.7.3 certified.
+- ChemistryLab requires **OptimaSolver 0.7.8** (`OptimaSolver = "0.7.8"`). Its
+  `SolutionPhase(…; invert)` carries the inversion of the aqueous phase above;
+  its `dual_newton_tangent` lifts every answer above; and its exact outer
+  Jacobian is what the kinetic steps and the certified search run on. Earlier
+  releases are not enough: 0.7.7 passes over every trial step without a
+  composition, even from an iterate that has none, and so stops a solve at its
+  first iterate where the start holds none, which the chloride binding of
+  `test/chloride_binding_reference.jl` meets; 0.7.6 has no `invert`; and on
+  cement pastes carrying a trace component (a trace of carbon nine orders of
+  magnitude below the major elements) 0.7.5 could lose the trace and not bring
+  it back, so that `equilibrate_certified` returned answers the certificate
+  refused, the balance of that component wrong by its whole budget, where
+  0.28.2 with OptimaSolver 0.7.3 certified.
 
 ### Fixed
 

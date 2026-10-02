@@ -162,7 +162,7 @@ Package the chemistry as the convex program `OptimaSolver` solves. Built per
 solve because the reference potentials `Δ_a G⁰/RT` depend on temperature and
 pressure.
 """
-function _dual_phases(des::DualEquilibriumSolver, n0, p = nothing)
+function _dual_phases(des::DualEquilibriumSolver, n0, p = nothing; invert = _aqueous_inverter(des))
     # One mixing phase for the aqueous solution — always present, the solvent as
     # its reference — and one more per declared solid solution, whose presence
     # the tangent-plane test decides.
@@ -180,12 +180,15 @@ function _dual_phases(des::DualEquilibriumSolver, n0, p = nothing)
     # Every entry carries every field, `split_starts` empty here (the aqueous
     # phase cannot unmix: there is one solvent). The vector is `Any` because
     # the entries differ in the type of `local_h`, nothing or a closure.
+    #
+    # The aqueous phase carries `invert`, its solutes recovered at once through
+    # the ionic strength (`_aqueous_inverter`), when the activity model allows it.
     phases = Any[
         (
             members = des.idx_aq, j_ref = des.j_solvent,
             always_present = true, mole_fraction = false,
             split_starts = Vector{Vector{Float64}}(),
-            newton = false, bounded_members = Int[], local_h = nothing,
+            newton = false, bounded_members = Int[], local_h = nothing, invert = invert,
         ),
     ]
     models = _ss_models(des)
@@ -356,9 +359,15 @@ function _split_starts(model, nmembers::Int)
 end
 
 function _dual_problem(des::DualEquilibriumSolver, p, n0, blocks = nothing)
-    phases = _dual_phases(des, n0, p)
     bl = blocks === nothing ?
         _constraint_blocks(FixedTP(), des, nothing, p, n0) : blocks
+    # The inversion of the aqueous phase has to see the parameters the activity
+    # model sees. A constraint whose `hq` changes them (the temperature of an
+    # adiabatic solve) says how with `pq`; one that does not say is left to the
+    # sweeps, whatever it changes.
+    pq = get(bl, :pq, nothing)
+    invert = (bl.hq === nothing || pq !== nothing) ? _aqueous_inverter(des, pq) : nothing
+    phases = _dual_phases(des, n0, p; invert)
     # `float`, not `Float64`: the potentials of a state carrying dual numbers
     # (a temperature being differentiated) keep them.
     return _optima_dual_problem(

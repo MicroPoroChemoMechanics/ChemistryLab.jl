@@ -144,8 +144,8 @@ function _surface_potential_blocks(des, state, p, n0)
     nq = length(supports)
 
     # The activity model, evaluated at the potential the solve currently holds.
-    hq = (x, q, params) ->
-    des.lna(x, merge(params, (ψ_site = _scatter(cs, supports, q),)))
+    pq = (q, params) -> merge(params, (ψ_site = _scatter(cs, supports, q),))
+    hq = (x, q, params) -> des.lna(x, pq(q, params))
 
     cq = function (x, q, params)
         T = hasproperty(params, :T) ? params.T : 298.15
@@ -158,7 +158,7 @@ function _surface_potential_blocks(des, state, p, n0)
     end
 
     return (;
-        nq = nq, gq = nothing, hq = hq, cq = cq,
+        nq = nq, gq = nothing, hq = hq, pq = pq, cq = cq,
         Aq = zeros(Float64, size(des.A, 1), nq),
         q0 = zeros(Float64, nq), qscale = ones(Float64, nq),
         apply = (T, P, q) -> (T, P),
@@ -222,6 +222,11 @@ function _compose_blocks(a, b)
         hq = a.hq !== nothing ? (x, q, params) -> a.hq(x, q[1:na], params) :
             b.hq === nothing ? nothing :
             (x, q, params) -> b.hq(x, q[(na + 1):end], params),
+        # The parameter map of whichever block has an `hq`, on its own unknowns;
+        # absent when that block declares none.
+        pq = a.hq !== nothing ? (get(a, :pq, nothing) === nothing ? nothing : (q, params) -> a.pq(q[1:na], params)) :
+            b.hq === nothing ? nothing :
+            (get(b, :pq, nothing) === nothing ? nothing : (q, params) -> b.pq(q[(na + 1):end], params)),
         cq = (x, q, params) -> vcat(
             a.cq === nothing ? Float64[] : a.cq(x, q[1:na], params),
             b.cq(x, q[(na + 1):end], params),

@@ -187,7 +187,7 @@ function _solution_phase(ph)
         always_present = ph.always_present, mole_fraction = ph.mole_fraction,
         split_starts = get(ph, :split_starts, ()), newton = get(ph, :newton, false),
         bounded_members = get(ph, :bounded_members, Int[]),
-        local_h = get(ph, :local_h, nothing),
+        local_h = get(ph, :local_h, nothing), invert = get(ph, :invert, nothing),
     )
 end
 

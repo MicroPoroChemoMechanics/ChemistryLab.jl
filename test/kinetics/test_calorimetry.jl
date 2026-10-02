@@ -376,14 +376,19 @@ end
     @test maximum(abs, H .- H[1]) < 1.0e-3 * released
 
     # The cell is closed to heat, so the heat the paste releases is what warms
-    # the vessel: −dH/dt = C_vessel dT/dt, the heat capacity of the paste
-    # entering both sides.
+    # the vessel: −dH/dt = C_vessel dT/dt, the paste's own heat capacity on
+    # neither side. Without the `−Σ nᵢ Cpᵢ dT/dt` of the rate the left side would
+    # be (C_vessel + Cp_paste) dT/dt, forty times larger here. The rate is that
+    # of the certified states and the temperature that of the run, so the two
+    # differ as the in-run partition does from the certified one: measured, 1.6 %
+    # at the peak (6 h) and 0.03 % at one day.
     tq = [6 * 3600.0, 86400.0]
     _, _, qdot = heat_release(sol, kp; times = tq)
     dTdt = [sol(x, Val{1})[end] for x in tq]
-    @test qdot ≈ C_vessel .* dTdt rtol = 1.0e-2
+    @test qdot ≈ C_vessel .* dTdt rtol = 5.0e-2
     # And the enthalpy of the paste at fixed composition changes with its
-    # temperature by its heat capacity, Σ nᵢ Cpᵢ.
+    # temperature by its heat capacity, Σ nᵢ Cpᵢ, to the consistency of the
+    # database's own functions for H and Cp: measured, 2e-6.
     pp = sol.prob.p
     u_end = sol.u[end]
     T_end = u_end[end]
@@ -392,7 +397,7 @@ end
         nk(i) * pp.cp_fns[i](; T = T_end, unit = false)
             for i in 1:length(pp.h_fns) if pp.h_fns[i] !== nothing && pp.cp_fns[i] !== nothing
     )
-    @test ForwardDiff.derivative(T -> system_enthalpy(pp, u_end, T), T_end) ≈ Cp_paste rtol = 1.0e-10
+    @test ForwardDiff.derivative(T -> system_enthalpy(pp, u_end, T), T_end) ≈ Cp_paste rtol = 1.0e-5
 
     # The heat the partition takes up as it shifts with temperature, from the
     # Gibbs–Helmholtz right-hand side, against the certified equilibrium of the

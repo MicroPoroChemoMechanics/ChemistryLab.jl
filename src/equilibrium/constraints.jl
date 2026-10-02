@@ -153,7 +153,10 @@ function _temperature_blocks(des, state, p, target_H)
         ) / (ustrip(us"J/(mol*K)", Constants.R) * q[1])
             for s in system.species
     ]
-    hq = (x, q, params) -> des.lna(x, merge(params, (T = q[1],)))
+    # `pq`: the parameters the activity model sees, for whatever has to see the
+    # same (the inversion of the aqueous phase, `_aqueous_inverter`).
+    pq = (q, params) -> merge(params, (T = q[1],))
+    hq = (x, q, params) -> des.lna(x, pq(q, params))
     # The residual is scaled by RT so it is dimensionless and comparable with the
     # stationarity rows, which are in RT units. Unscaled it is 10⁵ J and swamps
     # every other row of the Newton system.
@@ -162,7 +165,7 @@ function _temperature_blocks(des, state, p, target_H)
             (ustrip(us"J/(mol*K)", Constants.R) * q[1] * max(sum(x), 1.0)),
     ]
     return (;
-        nq = 1, gq = gq, hq = hq, cq = cq,
+        nq = 1, gq = gq, hq = hq, pq = pq, cq = cq,
         Aq = zeros(Float64, size(des.A, 1), 1),
         q0 = [p.T], qscale = [p.T],
         apply = (T, Pv, q) -> (q[1] * u"K", Pv),
@@ -229,13 +232,14 @@ function _pressure_blocks(des, state, p, target_V)
         ) / (ustrip(us"J/(mol*K)", Constants.R) * T)
             for s in system.species
     ]
-    hq = (x, q, params) -> des.lna(x, merge(params, (P = q[1],)))
+    pq = (q, params) -> merge(params, (P = q[1],))
+    hq = (x, q, params) -> des.lna(x, pq(q, params))
     # Scaled by the target volume: the residual is then a relative volume error.
     cq = (x, q, params) -> [
         (_total_volume(system, x, T, q[1]) - target_V) / max(abs(target_V), 1.0e-12),
     ]
     return (;
-        nq = 1, gq = gq, hq = hq, cq = cq,
+        nq = 1, gq = gq, hq = hq, pq = pq, cq = cq,
         Aq = zeros(Float64, size(des.A, 1), 1),
         q0 = [p.P], qscale = [max(p.P, 1.0e5)],
         apply = (Tv, P, q) -> (Tv, q[1] * u"Pa"),
@@ -821,6 +825,8 @@ function _constraint_blocks(c::CapillaryWater, des, state, p, n0)
             v[j_w] += q[1]
             v
         end,
+        # The shift is the solvent's alone: the solutes see `params`.
+        pq = (q, params) -> params,
         cq = (x, q, params) -> [q[1] - ln_a_of(x)],
         Aq = zeros(size(des.A, 1), 1),
         q0 = [0.0],
