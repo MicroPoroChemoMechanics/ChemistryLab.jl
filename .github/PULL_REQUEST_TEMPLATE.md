@@ -19,8 +19,4 @@ reference results, conservation residuals, and justified tolerances. -->
 - [ ] Compatibility changes and scientific limitations are described above.
 - [ ] Required checks pass; any baseline failures are explicitly identified.
 
-- [ ] Review category: routine / scientific / major (keep the applicable category).
-
-<!-- Routine changes need one maintainer approval. Request @jfbarthelemy for
-scientific or major changes, including changes outside CODEOWNERS paths.
-Authors cannot approve their own PRs. Coding agents do not merge. -->
+<!-- Coding agents do not merge. -->
