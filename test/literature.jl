@@ -319,8 +319,8 @@ end
 
 @testset "a renamed key or table still reads, with a deprecation" begin
     # Parrott, not Parrot: the old names are kept for the code written with them.
-    @test literature("ParrotKilloh1984").key == "ParrottKilloh1984"
-    old = literature_table("Lavergne2018", "parrot_killoh_1984")
+    @test (@test_deprecated r"is now" literature("ParrotKilloh1984")).key == "ParrottKilloh1984"
+    old = @test_deprecated r"is now" literature_table("Lavergne2018", "parrot_killoh_1984")
     new = literature_table("Lavergne2018", "parrott_killoh_1984")
     @test old.phase == new.phase && old.k1 == new.k1
     # The renaming table sits before the docstring of `literature`, not between

@@ -11,7 +11,9 @@ using LinearAlgebra
 _surf(sym) = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
 _aq(sym, cl = SC_AQSOLUTE) = Species(sym; aggregate_state = AS_AQUEOUS, class = cl)
 
-function _hfo_system()
+# Not `_hfo_system`: `surface_complexation.jl` has its own, with both families,
+# and whichever of the two files runs second replaced the other's definition.
+function _one_family_hfo_system()
     free, prot, depr = _surf("XsOH"), _surf("XsOH2+"), _surf("XsO-")
     species = [
         _aq("H2O@", SC_AQSOLVENT), _aq("H+"), _aq("OH-"), _aq("Ca+2"),
@@ -84,7 +86,7 @@ end
     end
 
     @testset "capacities" begin
-        @test site_capacity(_hfo_system()[2]) isa TotalSiteAmount
+        @test site_capacity(_one_family_hfo_system()[2]) isa TotalSiteAmount
         @test TotalSiteAmount(5.0e-6u"mol").N ≈ 5.0e-6 rtol = 1.0e-12
         @test MassSiteDensity(2.0u"mol/kg").q ≈ 2.0 rtol = 1.0e-12
         @test AreaSiteDensity(3.84e-6u"mol/m^2").Γ_C ≈ 3.84e-6 rtol = 1.0e-12
@@ -105,7 +107,7 @@ end
     end
 
     @testset "a family, and what it refuses" begin
-        _, family = _hfo_system()
+        _, family = _one_family_hfo_system()
         @test name(family) == "Hfo_s"
         @test family.site === :Xs
         @test symbol.(site_members(family)) == ["XsOH", "XsOH2+", "XsO-"]
@@ -146,7 +148,7 @@ end
     end
 
     @testset "the site balance is a row of the conservation matrix" begin
-        cs, _ = _hfo_system()
+        cs, _ = _one_family_hfo_system()
         @test symbol.(cs.SM.primaries) == ["H2O@", "H+", "Ca+2", "XsOH"]
         @test cs.idx_surface == [5, 6, 7]
         @test cs.site_groups == [[5, 6, 7]]
@@ -210,7 +212,7 @@ end
     end
 
     @testset "surface matter is counted with the solid" begin
-        cs, _ = _hfo_system()
+        cs, _ = _one_family_hfo_system()
         n = fill(1.0e-8u"mol", length(cs.species))
         n[1] = 55.5u"mol"
         state = ChemicalState(cs, n)
@@ -295,7 +297,7 @@ end
 
     @testset "the ordinary declaration still builds" begin
         # The guard must not cost anything to a system declared properly.
-        cs, _ = _hfo_system()
+        cs, _ = _one_family_hfo_system()
         @test cs isa ChemicalSystem
         @test length(cs.site_groups) == 1
         @test !isempty(cs.idx_surface)
