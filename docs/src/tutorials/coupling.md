@@ -17,6 +17,15 @@ The way out is [Leal2017](@cite)'s partition, which is also what Reaktoro
 implements. This page derives it; [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration) puts
 it to work.
 
+The equilibria in this partition are conditional on the kinetic amounts at
+each instant. They do not represent jumps over activation barriers or imply
+that the whole paste has reached its stable equilibrium. A changing
+temperature affects both rate laws and the equilibrium map; its history comes
+from a thermal balance, not from the equilibrium minimum alone.
+[Energy and entropy balances](@ref sec-theory-energy-entropy) explains this
+distinction, and [What the package counts as heat](@ref sec-theory-heat-output)
+states which enthalpy contributions the package includes.
+
 ## The partition
 
 Split the species into two sets:

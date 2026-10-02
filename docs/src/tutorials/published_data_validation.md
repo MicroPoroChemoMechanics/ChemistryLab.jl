@@ -11,6 +11,16 @@ standard properties they were derived from, so the two can be required to agree;
 then a set of measured solution compositions ([Atkins1992](@cite)), which can
 disagree with the database and does.
 
+!!! info "Thermodynamic quantities behind these comparisons"
+    [Energy and entropy balances](@ref sec-theory-energy-entropy) distinguishes
+    heat transfer, enthalpy differences and kinetic heat rates.
+    [Absolute entropy and entropy of formation](@ref sec-theory-absolute-entropy)
+    explains why tabulated species entropy is not formation entropy, while
+    [Apparent and formation Gibbs energies](@ref sec-theory-apparent) fixes the
+    reference convention used when rebuilding the database potentials.
+    Agreement in a solubility product at one temperature does not validate a
+    heat-capacity model or a heat-of-hydration trajectory.
+
 Every number below is pinned by an assertion in `test/cemdata18_reference.jl`,
 `test/lothenbach2010_reference.jl`, `test/lothenbach2008_reference.jl`,
 `test/atkins1992_reference.jl`,

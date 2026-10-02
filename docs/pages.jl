@@ -42,6 +42,9 @@ pages = [
             # the solver minimizes and the chemical potential between them, for
             # a reader who meets them here for the first time.
             "theory/energies_and_potentials.md",
+            # The same two laws written as balances on a chosen boundary: what an
+            # adiabatic cell, entropy production and a kinetic path add to them.
+            "theory/energy_entropy.md",
             "theory/thermodynamics.md",
             # What an activity is measured from. Before the certificate, because
             # every potential the certificate compares rests on these conventions.

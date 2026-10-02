@@ -30,7 +30,7 @@ layer's assumptions being carried into a regime it was not built for.
 | layer | what it computes | what it assumes |
 |:--|:--|:--|
 | **chemical description** | formulas, species, reactions, the conservation matrix | nothing physical — this is bookkeeping, and it is exact |
-| **equilibrium** | the composition minimizing the Gibbs energy under a conservation budget | one well-mixed phase per aggregate state, ideal molar volumes, and an **activity model** |
+| **equilibrium** | a composition satisfying mass-action and phase conditions; a global Gibbs minimum for a consistent convex potential | prescribed temperature and pressure by default, well-mixed declared phases, ideal molar volumes, and an **activity model** |
 | **kinetics** | a trajectory in time, optionally re-equilibrating the solution at every step | a rate law per reaction, and that the rate law's arguments are available |
 
 The activity model is where the second layer stops being ideal, so it is the
@@ -43,7 +43,11 @@ first thing to read and the first thing to suspect:
 written for a reader new to thermodynamics: it rebuilds from the two laws the
 enthalpy a calorimeter measures, the Gibbs energy the solver minimizes, the
 chemical potential that joins them, and the formation quantities a database
-tabulates, with their dependence on temperature and pressure. [Thermochemistry](@ref sec-theory-thermo) follows, since it fixes the
+tabulates, with their dependence on temperature and pressure.
+[Energy and entropy balances](@ref sec-theory-energy-entropy) writes the same
+two laws as balances on a chosen boundary: what changes for an adiabatic cell,
+where entropy is produced, and why a kinetic history is not a state function.
+[Thermochemistry](@ref sec-theory-thermo) follows, since it fixes the
 notation of the whole chapter, which is that of the code, and
 [Standard states](@ref sec-theory-standard-states) completes it by stating what
 each activity is measured from. [Proving that an answer is the answer](@ref sec-theory-certificate)
