@@ -15,7 +15,13 @@
     # actually meant -- it is the same program -- and a real divergence still
     # fails.
     root = dirname(@__DIR__)
-    include(joinpath(root, "scripts", "_page_to_script.jl"))
+    # In a module of its own: its `main` would replace the `main` of the other
+    # scripts the suite includes, and `Pkg.test` warns about every redefinition.
+    extractor = Module(:PageToScript)
+    Base.include(extractor, joinpath(root, "scripts", "_page_to_script.jl"))
+    PAGES = Base.invokelatest(getglobal, extractor, :PAGES)
+    _script_text(page, rel) = Base.invokelatest(getglobal(extractor, :_script_text), page, rel)
+    _page_blocks(page) = Base.invokelatest(getglobal(extractor, :_page_blocks), page)
 
     # Two normalizations, and both are needed rather than defensive.
     #
