@@ -26,6 +26,9 @@ measurement.
   species at the floor at `ln 2` above it; HKF, Davies and Pitzer had lost that
   offset in 0.28. The log-activities of floored species under SIT move by `ln 2`,
   and nothing else does.
+- **`DecompositionWindow` has a new field, `shape`** (`:logistic` or
+  `:interval`); code calling its positional inner constructor has to pass it.
+  Its keyword constructors are unchanged.
 - **`scripts/ionic_hydration.jl`** runs its report as `report_ionic_hydration()`,
   no longer `main()`: `scripts/hydration_calibration.jl` includes that file and
   has a `main` of its own, which replaced it.
