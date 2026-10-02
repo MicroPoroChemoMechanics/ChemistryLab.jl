@@ -80,12 +80,13 @@ The `invert` of OptimaSolver's `SolutionPhase` for the aqueous phase of `des`:
 `(c, ref, w, q, params) -> log-amounts`, or `nothing` from the call when no ionic
 strength solves the system. `pq(q, params)` gives the parameters the activity
 model sees when a constraint makes them unknowns (the temperature of an
-adiabatic solve); without it they are `params`. Returns `nothing` itself for a
-model it does not cover.
+adiabatic solve); without it they are `params`. For SIT and Pitzer, whose
+coefficients depend on more than the ionic strength, it is Newton's method on the
+solutes (`_newton_inverter`). Returns `nothing` itself for a model neither covers.
 """
 function _aqueous_inverter(des::DualEquilibriumSolver, pq = nothing)
     form = _aqueous_form(des.model, des.system, des.idx_aq)
-    form === nothing && return nothing
+    form === nothing && return _newton_inverter(des, pq)
     jref = des.j_solvent
     # Built inside a scope that solves on values (`_STRIP_TAGS`), it returns
     # values, as the activity closure it stands for does (`_scoped_lna`).
@@ -265,4 +266,214 @@ function _bracketed_root(F, dF, a, b)
         s = sn
     end
     return sn
+end
+
+# ── models of more than the ionic strength: Newton on the solutes ─────────────
+#
+# SIT adds to the Debye–Hückel term of an ion a sum over its counter-ions,
+# `Σₖ ε(i,k) mₖ`, and Pitzer adds pair and triplet terms: their coefficients
+# depend on the composition through more than `I`, and no single equation gives
+# the solutes back. Their potentials are met by Newton's method on the
+# log-amounts, `hᵢ(w) = cᵢ`, with the model's own Jacobian, exact by forward mode:
+# the identity, plus the rank-one Debye–Hückel term, plus the interactions, where
+# OptimaSolver's sweeps assume the identity alone. The start is the better of the
+# composition the solve holds and the one the model's Debye–Hückel part gives
+# through the ionic strength (`_invert_aqueous`). The globalization is that of
+# OptimaSolver's Newton on a mixing phase: a step of at most 30 in any
+# log-amount, halved until the squared residual falls.
+#
+# A solute whose amount lies below the activity floor has an activity that no
+# longer moves with it, so no Newton step can place it. It is held out of the
+# iteration and placed afterwards from its activity coefficient at the
+# composition found, which its own vanishing amount does not change.
+
+"""
+    _newton_predictor_form(model, cs, members) -> Union{Nothing, NamedTuple}
+
+The Debye–Hückel part of a model the Newton inversion covers, as an
+`_aqueous_form`, which gives that inversion its start; `nothing` for a model it
+does not cover.
+"""
+_newton_predictor_form(model, cs, members) = nothing
+
+function _newton_predictor_form(model::SITActivityModel, cs::ChemicalSystem, members)
+    b = model.b
+    log10γ = (t, z, I, sqrtI, A, B) -> iszero(z) ? zero(sqrtI) : -z^2 * A * sqrtI / (1 + b * sqrtI)
+    AB = p -> (model.temperature_dependent && hasproperty(p, :T) && hasproperty(p, :P)) ?
+        (hkf_debye_huckel_params(p.T, p.P).A, 0.0) : (model.A, 0.0)
+    return _ionic_form(cs, members, log10γ, AB)
+end
+
+function _newton_predictor_form(model::PitzerActivityModel, cs::ChemicalSystem, members)
+    bp = model.parameters.b
+    # `ln γᵢ = zᵢ² f^γ`, with `f^γ` on the osmotic basis `A_φ = A ln 10 / 3`.
+    fγ(A, sqrtI) = -(A / 3) * (sqrtI / (1 + bp * sqrtI) + 2 / bp * log1p(bp * sqrtI))
+    log10γ = (t, z, I, sqrtI, A, B) -> z^2 * fγ(A, sqrtI)
+    AB = p -> (model.temperature_dependent && hasproperty(p, :T) && hasproperty(p, :P)) ?
+        (hkf_debye_huckel_params(p.T, p.P).A, 0.0) : (_DH_A_25C, 0.0)
+    return _ionic_form(cs, members, log10γ, AB)
+end
+
+"""
+    _newton_inverter(des, pq = nothing) -> Union{Nothing, Function}
+
+The `invert` of the aqueous phase for SIT and Pitzer: the solutes recovered from
+their potentials by Newton's method on their log-amounts, with the model's exact
+Jacobian. `nothing` from the call when the iteration finds no composition, which
+OptimaSolver reads as it reads the inversion through the ionic strength: an
+iterate is then swept, and a trial of its line search passed over. Returns
+`nothing` itself for a model it does not cover.
+"""
+function _newton_inverter(des::DualEquilibriumSolver, pq = nothing)
+    pred = _newton_predictor_form(des.model, des.system, des.idx_aq)
+    pred === nothing && return nothing
+    aq, jref, lna = des.idx_aq, des.j_solvent, des.lna
+    ns = length(des.system.species)
+    tags = _STRIP_TAGS[]
+    return function (c, ref, w, q, params)
+        p = pq === nothing ? params : pq(q, params)
+        out = _invert_aqueous_newton(lna, pred, ns, aq, jref, c, ref, w, p)
+        return (out === nothing || isempty(tags)) ? out : _strip_tags(out, tags)
+    end
+end
+
+# The log-amount below which a solute is placed rather than solved for: a
+# hundred thousand times the activity floor, in moles.
+const _NEWTON_TRACE_LOG = log(1.0e-25)
+
+function _invert_aqueous_newton(lna, pred, ns, aq, jref, c, ref, w, p; maxit::Int = 50)
+    cv = Float64[_plain(x) for x in c]
+    wv = Float64[clamp(_plain(x), -700.0, 20.0) for x in w]
+    live = [t for t in eachindex(cv) if t != jref && isfinite(cv[t])]
+    lndenom = log(_plain(ref) * pred.M_w)
+
+    # The amounts of the phase at log-amounts `z` of the members `idx` (positions
+    # in `live`), every other live member at `held`: the species outside the
+    # phase do not enter its activities, and a dead member is held at zero.
+    function amounts(z, idx, held)
+        T = promote_type(eltype(z), eltype(held), typeof(ref))
+        x = ones(T, ns)
+        for (t, i) in enumerate(aq)
+            x[i] = t == jref ? ref : zero(T)
+        end
+        for (k, t) in enumerate(live)
+            x[aq[t]] = exp(held[k])
+        end
+        for (k, j) in enumerate(idx)
+            x[aq[live[j]]] = exp(z[k])
+        end
+        return x
+    end
+    function residual(z, idx, held)
+        h = lna(amounts(z, idx, held), p)
+        return [h[aq[live[j]]] - c[live[j]] for j in idx]
+    end
+
+    # Two starts: the composition the solve holds, and the Debye–Hückel part's.
+    z = wv[live]
+    all_idx = collect(eachindex(live))
+    worst(zz) = maximum(abs, Float64[_plain(r) for r in residual(zz[all_idx], all_idx, zz)]; init = 0.0)
+    wp = _invert_aqueous(pred, cv, _plain(ref), wv, p, jref)
+    if wp !== nothing
+        zp = Float64[clamp(_plain(wp[t]), -700.0, 20.0) for t in live]
+        worst(zp) < worst(z) && (z = zp)
+    end
+
+    tol = 1.0e-12 * max(1.0, maximum(abs, view(cv, live); init = 0.0))
+    for _ in 1:3
+        sig = [k for k in eachindex(live) if z[k] > _NEWTON_TRACE_LOG]
+        zs = z[sig]
+        F(zz) = Float64[_plain(r) for r in residual(zz, sig, z)]
+        J(zz) = _plain.(ForwardDiff.jacobian(zz -> residual(zz, sig, z), zz))
+        Fz = F(zs)
+        φ = sum(abs2, Fz)
+        converged = isempty(sig) || maximum(abs, Fz) <= tol
+        it = 0
+        while !converged && it < maxit
+            it += 1
+            δ = qr(J(zs), ColumnNorm()) \ (-Fz)
+            all(isfinite, δ) || return nothing
+            α = min(1.0, 30.0 / max(maximum(abs, δ), eps()))
+            accepted = false
+            for _ in 1:30
+                zt = clamp.(zs .+ α .* δ, -700.0, 20.0)
+                Ft = F(zt)
+                φt = sum(abs2, Ft)
+                if isfinite(φt) && φt <= (1 - 1.0e-4 * α) * φ
+                    zs, Fz, φ, accepted = zt, Ft, φt, true
+                    break
+                end
+                α /= 2
+            end
+            converged = maximum(abs, Fz) <= tol
+            if !accepted
+                # A residual at the rounding of the potentials stops the
+                # halving before it stops the iteration.
+                converged = maximum(abs, Fz) <= 100 * tol
+                break
+            end
+        end
+        converged || return nothing
+        z[sig] = zs
+        # The traces, from their activity coefficient at that composition: the
+        # model's log-activity at a test amount above the floor, minus the log
+        # of that molality.
+        traces = [k for k in eachindex(live) if !(k in sig)]
+        isempty(traces) && break
+        probe = copy(z)
+        for k in traces
+            probe[k] = log(1.0e-20)
+        end
+        h = lna(amounts(Float64[], Int[], probe), p)
+        moved = false
+        for k in traces
+            lnγ = _plain(h[aq[live[k]]]) - (log(1.0e-20) - lndenom)
+            z[k] = clamp(cv[live[k]] - lnγ + lndenom, -700.0, 20.0)
+            z[k] > _NEWTON_TRACE_LOG && (moved = true)
+        end
+        moved || break
+    end
+
+    # Found on the values. Whatever carries dual numbers (the potentials, the
+    # temperature, a parameter of the model) shows in the type of the residual;
+    # a Newton step in that type, with the Jacobian on the values, gives the
+    # composition its first derivatives, by the implicit-function theorem. That
+    # is what OptimaSolver differentiates through an inversion (the Jacobian of
+    # its outer residual where an inversion has not converged); a nested
+    # derivative of an equilibrium is lifted by its tangent at the answer, which
+    # does not go through the inversion. A Jacobian taken in the dual type, which
+    # a nested lift would need, nests its tag inside the caller's and ForwardDiff
+    # cannot order the two.
+    sig = [k for k in eachindex(live) if z[k] > _NEWTON_TRACE_LOG]
+    R0 = residual(z[sig], sig, z)
+    T = promote_type(eltype(R0), eltype(w), typeof(ref))
+    zd = Vector{T}(z)
+    if !(T <: AbstractFloat) && !isempty(sig)
+        Jv = _plain.(ForwardDiff.jacobian(zz -> residual(zz, sig, z), z[sig]))
+        zs = zd[sig]
+        for _ in 1:2
+            zs = zs - Jv \ residual(zs, sig, zd)
+        end
+        zd[sig] = zs
+        traces = [k for k in eachindex(live) if !(k in sig)]
+        if !isempty(traces)
+            probe = copy(zd)
+            for k in traces
+                probe[k] = log(1.0e-20)
+            end
+            h = lna(amounts(T[], Int[], probe), p)
+            for k in traces
+                lnγ = h[aq[live[k]]] - (log(1.0e-20) - log(ref * pred.M_w))
+                zd[k] = c[live[k]] - lnγ + log(ref * pred.M_w)
+            end
+        end
+    end
+    out = Vector{T}(undef, length(c))
+    for t in eachindex(c)
+        out[t] = w[t]
+    end
+    for (k, t) in enumerate(live)
+        out[t] = zd[k]
+    end
+    return out
 end
