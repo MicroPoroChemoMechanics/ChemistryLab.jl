@@ -71,7 +71,7 @@ proves a composition optimal. See
 
 ```@autodocs
 Modules = [ChemistryLab]
-Pages = ["equilibrium/dual_solver.jl", "equilibrium/certified.jl"]
+Pages = ["equilibrium/dual_solver.jl", "equilibrium/aqueous_inversion.jl", "equilibrium/certified.jl"]
 ```
 
 ## Constraints
