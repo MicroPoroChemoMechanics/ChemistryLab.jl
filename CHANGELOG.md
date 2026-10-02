@@ -1,5 +1,92 @@
 # Changelog
 
+## v0.30.0 — A trace held to its own amount, and SIT and Pitzer solved by Newton's method
+
+The certified equilibrium judged its element balance in moles, against `1e-10`:
+a component of a nanomole could be 10 % wrong and certified. Each balance row is
+now judged against what it holds, as PHREEQC and GEMS judge a mass balance
+against its element total (OptimaSolver 0.8). And the aqueous solutes under SIT
+and Pitzer, recovered one by one until now, are solved by Newton's method on the
+model's own Jacobian; the first equilibria computed with these models are in the
+test suite, the solubility of halite under Pitzer within 0.27 % of its
+measurement.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.29"` does not accept 0.30 and
+  has to widen its bound.
+- **A certificate is stricter.** `optimal` asks each balance row that has a
+  budget to be met relative to what it holds, below one mole, and in moles above
+  it as before. An answer 0.29 certified with a trace off by more than `1e-10` of
+  itself is now solved further, or refused. `balance` stays in moles;
+  `balance_relative` is new.
+- **SIT at the activity floor.** The SIT closure took the logarithm of a molality
+  regularized twice, `log(mᵢ + ϵ)` on amounts already floored, which put a
+  species at the floor at `ln 2` above it; HKF, Davies and Pitzer had lost that
+  offset in 0.28. The log-activities of floored species under SIT move by `ln 2`,
+  and nothing else does.
+- **`scripts/ionic_hydration.jl`** runs its report as `report_ionic_hydration()`,
+  no longer `main()`: `scripts/hydration_calibration.jl` includes that file and
+  has a `main` of its own, which replaced it.
+
+### Changed: the balance judged against what each row holds
+
+- `optimality_certificate` reports the balance twice: `balance`, the worst row in
+  moles, and `balance_relative`, the worst row with a budget relative to what it
+  holds. `optimal` follows OptimaSolver's `kkt_certificate`, which judges the
+  larger of the two below one mole. A row whose budget is zero within rounding,
+  such as the electron row of a redox pair, and a component nobody supplies (a
+  budget below `1e-12` of the largest) are judged in moles.
+- The ranking of candidates (`_kkt_error`), that of a kinetic step, and the rule
+  that offers a phase its second instance read the balance as the certificate
+  judges it, and the refusal messages print both figures.
+- Measured on the same machine as 0.29.0, with OptimaSolver 0.8.0: the 32 cement
+  pastes of a thesis in 388 s instead of 349 s, every printed value unchanged and
+  their balance residuals down from `1e-11` to `1e-15`, the time added on the one
+  paste whose nanomole of carbon was left `8e-6` of itself off. The three-hour
+  hydration of `scripts/ionic_hydration.jl` takes 5.1 s instead of 5.8 s, on an
+  identical trajectory, and its 28-day certified replay 2.6 s instead of 2.5 s.
+
+### Changed: SIT and Pitzer, solved by Newton's method
+
+- **The aqueous solutes under SIT and Pitzer are recovered by Newton's method**
+  on their log-amounts, with the Jacobian of the model, exact by forward
+  differentiation: the specific ion interaction terms `ε(i,k) mₖ` and the Pitzer
+  pair and triplet sums depend on the molalities themselves, and no single
+  equation gives the solutes back as it does for the Debye–Hückel family. The
+  iteration starts from the better of the composition the solve holds and the
+  one the model's Debye–Hückel part gives through the ionic strength, and its
+  steps are capped at 30 in any log-amount and halved until the squared residual
+  falls. A solute below the activity floor is placed from its activity
+  coefficient at the composition found. No composition found is reported as
+  such, which OptimaSolver handles as it handles the limiting law past its range.
+- **The first equilibria with these models.** Until now no test, page or script
+  solved one; their closures had only been evaluated at given compositions. The
+  suite certifies a sodium chloride brine at 3 mol/kg under SIT, and halite in
+  water under Pitzer: the saturated molality comes out at 6.1605 mol/kg against
+  the 6.144 Hamer & Wu (1972) measured, from the standard Gibbs energy of
+  halite in slop98 and the Na–Cl parameters of the Reardon set, neither fitted to
+  it. The Pitzer page shows that equilibrium. On these systems the sweeps
+  converged too, to the same compositions; the inversion is exact where they
+  were not guaranteed to be.
+
+### Fixed
+
+- `SITActivityModel` has a `concentration_scale` (molality): without one, the
+  aqueous accessors (`activity_coefficients`, `log_activities`) could not be used
+  with it.
+- The last method redefinitions of the test suite are gone:
+  `scripts/validation_common.jl`, included by four validation scripts, defines
+  its helpers once per session, and the page extractor is included by its test in
+  a module of its own. With `--warn-overwrite=yes`, as `Pkg.test` runs, 0.29.0
+  still printed eight.
+
+### Changed: requirements
+
+- ChemistryLab requires **OptimaSolver 0.8** (`OptimaSolver = "0.8"`), whose
+  certificate and dual Newton judge each balance row against what it holds.
+
 ## v0.29.0 — Derivatives through every forward model, and no difference quotient left
 
 This release takes every derivative of the package by forward-mode
