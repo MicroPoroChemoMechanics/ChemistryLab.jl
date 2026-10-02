@@ -2,6 +2,7 @@
 # Copyright © 2025-2026 Jean-François Barthélémy and Anthony Soive (Cerema, UMR MCD)
 
 using DynamicQuantities
+using ForwardDiff
 using OrderedCollections
 using Symbolics
 
@@ -461,6 +462,11 @@ end
 # the lock guards a lookup only.
 const _THERMO_FACTORY_LOCK = ReentrantLock()
 
+# The cache entry of the expression compiled with its parameters as arguments.
+const _GENERIC_CACHE_KEY = hash(:compiled_with_parameters_as_arguments)
+
+_has_dual_value(x) = (v = x isa AbstractQuantity ? ustrip(x) : x; v isa ForwardDiff.Dual)
+
 """
     (factory::ThermoFactory)(; kwargs...)
 
@@ -475,8 +481,29 @@ function (factory::ThermoFactory)(; kwargs...)
                 v in keys(factory.vars) if haskey(kwargs, v)
         ]
     )
-    cache_key = hash(tuple(sort(collect(pairs(param_vals)); by = x -> x.first)...))
     unit = get_unit(factory)
+
+    # Parameters carrying dual numbers (thermodynamic data being differentiated)
+    # are not substituted: the compiled function would be keyed on their
+    # values, a dual hashing as its value, and the one compiled for the plain
+    # data returned with every derivative zero. Nor would a new compilation per
+    # value do, the cache growing by one function at every iteration of a fit.
+    # The expression is compiled once with the parameters as arguments, and
+    # evaluated at them.
+    if any(_has_dual_value, values(param_vals))
+        generic = lock(_THERMO_FACTORY_LOCK) do
+            last(
+                get!(factory.cache, _GENERIC_CACHE_KEY) do
+                    args = vcat(collect(values(factory.vars)), collect(values(factory.params)))
+                    (factory.symbolic, compile_symbolic(factory.symbolic, args))
+                end,
+            )
+        end
+        pv = Tuple(safe_ustrip(get_unit(factory, p), param_vals[p]) for p in keys(factory.params))
+        return NumericFunc((args...) -> generic(args..., pv...), Tuple(keys(factory.vars)), refs, unit)
+    end
+
+    cache_key = hash(tuple(sort(collect(pairs(param_vals)); by = x -> x.first)...))
 
     simplified, compiled = lock(_THERMO_FACTORY_LOCK) do
         get!(factory.cache, cache_key) do
@@ -558,7 +585,11 @@ Create a constant `SymbolicFunc` from a quantity.
 """
 function SymbolicFunc(x::Quantity)
     x = uexpand(x)
-    factory = ThermoFactory(:c; units = [:c => oneunit(x)], output_unit = oneunit(x))
+    # The unit in plain numbers, whatever the number type of the value: a
+    # constant being differentiated (a fitted log K) is a dual quantity, and its
+    # `oneunit` would be one too.
+    u = Quantity(1.0, dimension(x))
+    factory = ThermoFactory(:c; units = [:c => u], output_unit = u)
     return factory(; c = x)
 end
 

@@ -241,11 +241,12 @@ for (grp, ph) in zip(cs3.ss_groups, cs3.solid_solutions)
 end
 ```
 
-With a second instance offered, the paste does not use it: the second instance
-empties, and the first holds the AFm at the composition of case 2. But two
-instances of a phase outside its gap are degenerate, the empty one free to take
-any composition at no cost, and this search does not close the certificate on
-them (element balance 1.3e-08). That is why `instances = :auto` exists: it gives a
+With a second instance offered, the paste splits nothing: both instances hold
+the composition of case 2, at the same pH, and the answer is certified. How the
+AFm is shared between them is not a result. Two instances of a phase outside its
+gap are degenerate: any division of one composition between them has the same
+Gibbs energy, so only their sum is determined, and the division printed is
+wherever the search stopped. That is why `instances = :auto` exists: it gives a
 phase its second instance only when the certificate of the one-composition answer
 asks for it.
 

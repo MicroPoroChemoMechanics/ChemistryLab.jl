@@ -45,7 +45,10 @@ using Test
         # The call PoroMechanics.jl makes per cell: a state seeded with the dual
         # element type, the element amounts as dual numbers, one certified solve.
         # Calcite in water with CO2 present at trace level, differentiated with
-        # respect to the calcium of the budget, against a centered difference.
+        # respect to the calcium of the budget. The references are exact at
+        # every equilibrium: the budget moves as it was moved, and the mass
+        # action of each species on the primaries, the solubility of calcite
+        # among them, holds whatever the budget.
         db = Dict(
             symbol(s) => s for s in build_species(
                     datapath("slop98-inorganic-thermofun.json"); verbose = false
@@ -65,11 +68,19 @@ using Test
             b = b0 .+ x .* e
             seed = [ustrip(us"mol", v) + zero(x) for v in st.n]
             eq, _ = equilibrate_certified(ChemicalState(cs, seed .* u"mol"); b)
-            return ustrip(us"mol", eq.n[ical])
+            la = log_activities(eq, DiluteSolutionModel())
+            laws = [
+                la["OH-"] + la["H+"] - la["H2O@"],
+                la["HCO3-"] - la["CO3-2"] - la["H+"],
+                la["CO2@"] - la["CO3-2"] - 2la["H+"] + la["H2O@"],
+                la["Ca+2"] + la["CO3-2"],                      # calcite is present
+            ]
+            return vcat([ustrip(us"mol", v) for v in eq.n], laws)
         end
-        d_ad = ForwardDiff.derivative(calcite, 0.0)
-        h = 1.0e-7
-        d_fd = (calcite(h) - calcite(-h)) / 2h
-        @test d_ad ≈ d_fd rtol = 1.0e-5
+        d = ForwardDiff.derivative(calcite, 0.0)
+        ns = length(cs.species)
+        @test A * d[1:ns] ≈ e atol = 1.0e-10
+        @test maximum(abs, d[(ns + 1):end]) < 1.0e-8
+        @test d[ical] > 0                  # calcium added precipitates calcite
     end
 end

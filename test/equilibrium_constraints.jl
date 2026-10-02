@@ -126,6 +126,51 @@
             ChemistryLab._total_volume(cs, n0, 298.15, 1.0e7) rtol = 1.0e-3
     end
 
+    @testsection "a volume constraint with a compressible member solves for its pressure" begin
+        # No member of the shipped databases has a volume that depends on
+        # pressure, a gas included: its `V⁰` is that of its standard state. An
+        # ideal gas given `V = RT/P` here makes one. Neutralizing the base changes
+        # the volume of the liquid, and the gas takes the change up. The activity
+        # model is recomputed at the pressure solved for, and the inversion of the
+        # aqueous phase has to see that pressure as well (`pq`).
+        ar = deepcopy(sp["Ar"])
+        R = ustrip(us"J/(mol*K)", Constants.R)
+        ar[:V⁰] = NumericFunc((T, P) -> R * T / P, (:T, :P), u"m^3/mol")
+        cs = ChemicalSystem([sp["H2O@"], sp["H+"], sp["OH-"], ar], ["H2O@", "H+", "Zz", "Ar"])
+        des = DualEquilibriumSolver(cs, HKFActivityModel(temperature_dependent = true))
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "H+", 0.25u"mol")
+        set_quantity!(st, "OH-", 0.25u"mol")
+        set_quantity!(st, "Ar", 0.04u"mol")
+        n0 = Float64[ustrip(us"mol", x) for x in st.n]
+        V0 = ChemistryLab._total_volume(cs, n0, 298.15, 1.0e5)
+
+        # The block hands the activity model, and through `pq` the inversion, the
+        # pressure it solves for: at 500 bar the inversion undoes the model there.
+        p = ChemistryLab._build_params(st; ϵ = 1.0e-16)
+        bl = ChemistryLab._constraint_blocks(SealedVolume(), des, st, p, n0)
+        q = [5.0e7]
+        @test bl.pq(q, p).P == q[1]
+        @test bl.hq(n0, q, p) == des.lna(n0, merge(p, (P = q[1],)))
+        @test bl.hq(n0, q, p) != des.lna(n0, p)
+        aq = des.idx_aq
+        invert = ChemistryLab._aqueous_inverter(des, bl.pq)
+        w = invert(bl.hq(n0, q, p)[aq], n0[aq[des.j_solvent]], log.(n0[aq]), q, p)
+        @test all(abs(w[t] - log(n0[aq[t]])) < 1.0e-10 for t in eachindex(aq) if t != des.j_solvent)
+
+        eq = SciMLBase.solve(des, deepcopy(st); constraint = SealedVolume())
+        P = ustrip(us"Pa", pressure(eq))
+        n = Float64[ustrip(us"mol", x) for x in eq.n]
+        @test ChemistryLab._total_volume(cs, n, 298.15, P) ≈ V0 rtol = 1.0e-10
+        @test P > 1.001e5                        # measured at 1.0058e5 Pa
+        # And it is the equilibrium an ordinary solve finds at that pressure.
+        at_P = deepcopy(st)
+        set_pressure!(at_P, P * u"Pa")
+        nf = Float64[ustrip(us"mol", x) for x in SciMLBase.solve(des, at_P).n]
+        @test nf ≈ n rtol = 1.0e-10
+    end
+
     @testsection "a constraint needs the dual route, and says so" begin
         solid_only = ChemicalSystem(
             [Species("NaCl"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)],
@@ -190,6 +235,33 @@ end
         push!(amounts, q[][1])
         push!(dissolved, 1.0e-2 - n[i_Cal])
     end
+
+    # The unknown of the constraint is differentiated with the composition: the
+    # acid a prescribed pH needs, against the calcite it has to dissolve,
+    # through the whole constrained system at the answer. At pH 6 the calcite
+    # dissolves entirely, so more of it takes more acid; at a pH where calcite
+    # remains, the acid would not depend on how much is left.
+    function acid_for(c)
+        st = ChemicalState(cs, [zero(c) * u"mol" for _ in cs.species])
+        set_quantity!(st, "Cal", c * u"mol")
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "H+", 1.0e-7u"mol")
+        set_quantity!(st, "OH-", 1.0e-7u"mol")
+        q = Ref{Any}(Float64[])
+        eq = SciMLBase.solve(des, st; constraint = FixedpH(6.0), parameters = q)
+        return vcat(q[][1], [ustrip(us"mol", x) for x in eq.n])
+    end
+    d = ForwardDiff.derivative(acid_for, 1.0e-2)
+    da, dn = d[1], d[2:end]
+    @test da > 0
+    # Exact at every answer, and between the two unknowns of the derivative:
+    # the titrant brings the charge the solution gains, and every mole of
+    # calcite added dissolves, its calcium and its carbon with it.
+    z = [charge(s) for s in cs.species]
+    @test sum(z .* dn) ≈ da rtol = 1.0e-9
+    ic = [findfirst(s -> symbol(s) == x, cs.species) for x in ("CO2@", "HCO3-", "CO3-2")]
+    @test dn[findfirst(s -> symbol(s) == "Ca+2", cs.species)] ≈ 1 rtol = 1.0e-9
+    @test sum(dn[ic]) ≈ 1 rtol = 1.0e-9
 
     # Acid has to be ADDED to bring a basic solution down, and more of it the
     # lower the target. Both are physics, not tolerances.

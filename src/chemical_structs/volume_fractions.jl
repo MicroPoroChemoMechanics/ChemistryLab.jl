@@ -118,8 +118,11 @@ function volume_fractions(
     _primal(ustrip(us"m^3", V_ref)) > 0 ||
         throw(ArgumentError("reference volume is zero: no fractions can be defined"))
 
-    out = OrderedDict{String, Float64}()
-    V_sum = 0.0
+    # In the number type of the states, as every output a caller may
+    # differentiate: a volume fraction is what a homogenization scheme reads.
+    R = promote_type(_realtype(eltype(state.n)), reference === nothing ? Float64 : _realtype(eltype(reference.n)))
+    out = OrderedDict{String, R}()
+    V_sum = zero(R)
     for (i, sp) in enumerate(state.system.species)
         _has_molar_volume(sp) || continue
         # Filter on the AMOUNT, not on the sign of the contribution: aqueous
@@ -129,19 +132,19 @@ function volume_fractions(
         # fractions summing to slightly more than one.
         iszero(_primal(ustrip(us"mol", state.n[i]))) && continue
         Vᵢ = state.n[i] * _molar_volume(sp)(T = T, P = P; unit = true)
-        fᵢ = _primal(ustrip(Vᵢ / V_ref))
+        fᵢ = ustrip(Vᵢ / V_ref)
         out[symbol(sp)] = fᵢ
         V_sum += fᵢ
     end
 
     if reference !== nothing
-        void = 1.0 - V_sum
+        void = one(R) - V_sum
         # A negative deficit means the reactions EXPANDED the solid+liquid beyond
         # the reference volume — physically possible (e.g. delayed ettringite) but
         # not representable as a void. Report it rather than clamp it silently.
         void < -1.0e-10 && @warn "volume expanded beyond the reference state; " *
-            "the sealed-volume convention does not apply" excess = -void
-        out[void_key] = max(void, 0.0)
+            "the sealed-volume convention does not apply" excess = _plain(-void)
+        out[void_key] = max(void, zero(void))
     end
     return out
 end
@@ -204,11 +207,12 @@ function volume_fractions(
         end
     end
 
-    out = OrderedDict{String, Float64}()
+    R = valtype(per_species)
+    out = OrderedDict{String, R}()
     for (gname, _) in groups
-        out[String(gname)] = 0.0
+        out[String(gname)] = zero(R)
     end
-    leftover = 0.0
+    leftover = zero(R)
     for (sym, f) in per_species
         if reference !== nothing && sym == void_key
             continue                       # appended last, keeps its own key

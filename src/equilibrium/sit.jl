@@ -308,6 +308,7 @@ function activity_model(cs::ChemicalSystem, model::SITActivityModel)
     # `missing_epsilon_pairs` is how a caller finds out which those are.
     E = _sit_epsilon_matrix(cs, model)
     ln10 = log(10.0)
+    MT = promote_type(_captured_number_type(mix), _captured_number_type(model))
 
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
@@ -324,7 +325,7 @@ function activity_model(cs::ChemicalSystem, model::SITActivityModel)
         # `Dual` while `n` stays a `Float64`, and an output vector typed on `n`
         # alone would refuse to hold the result — the trap that lets every piece
         # pass its own test and the chain break.
-        ET = promote_type(eltype(_n), eltype(E), typeof(A))
+        ET = promote_type(eltype(_n), eltype(E), typeof(A), _number_type_of(p), MT)
         out = zeros(ET, n_sp)
 
         n_w = _n[idx_solvent]

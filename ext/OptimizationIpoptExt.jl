@@ -150,15 +150,13 @@ function SciMLBase.solve(
         ϵ::Float64 = _AMOUNT_FLOOR,
         b = nothing,
     )
-    # A composition carrying dual numbers takes the implicit-function route:
-    # primal solve, then sensitivities from the optimality conditions. No solver
-    # is asked to iterate on dual numbers.
-    if eltype(state.n) <: DynamicQuantities.AbstractQuantity{<:ForwardDiff.Dual}
-        return ChemistryLab._solve_dual(esolver, state, ϵ; b = b)
-    end
-
+    # A problem carrying dual numbers, in its state, its budget, its data or its
+    # activity model, takes the implicit-function route: primal solve, then the
+    # derivatives at the answer. No solver is asked to iterate on dual numbers.
     n0 = max.(_build_n0(state), ϵ)
     p = _build_params(state; ϵ = ϵ)
+    ChemistryLab._has_dual_inputs(n0, b, p, esolver.model) &&
+        return ChemistryLab._solve_dual(esolver, state, ϵ; b = b)
 
     # `b` given explicitly is Leal's φ(b): minimize G subject to A n = b, with
     # `state` supplying only the starting guess and the T, P conditions. The

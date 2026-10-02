@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright © 2025-2026 Jean-François Barthélémy and Anthony Soive (Cerema, UMR MCD)
 
+using ForwardDiff
 using OrderedCollections
 using Unicode
 
@@ -53,6 +54,9 @@ function stoich_coef_round(x::T; tol = 1.0e-3) where {T <: Real}
 end
 
 stoich_coef_round(x) = x
+# A coefficient carrying a dual number is a parameter being differentiated, and
+# rounding it would drop its derivative (`round` of a dual is its value).
+stoich_coef_round(x::ForwardDiff.Dual; tol = 1.0e-3) = x
 
 # Below this a coefficient is the round-off of a computation, not a quantity.
 const _ROUND_OFF = 1.0e-12

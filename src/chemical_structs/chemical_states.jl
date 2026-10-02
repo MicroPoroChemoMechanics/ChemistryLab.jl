@@ -896,13 +896,15 @@ function porosity(state::ChemicalState, reference::ChemicalState)
     _primal(ustrip(us"m^3", V_ref)) > 0 ||
         throw(ArgumentError("the reference volume is zero: no porosity can be defined"))
     V = volume(state)
-    liquid = _primal(ustrip((V.liquid + V.gas) / V_ref))
-    void = _primal(ustrip((V_ref - V.total) / V_ref))
+    # In the number type of the states: a porosity is an output a caller may
+    # differentiate (with respect to the water/binder ratio, say).
+    liquid = ustrip((V.liquid + V.gas) / V_ref)
+    void = ustrip((V_ref - V.total) / V_ref)
     # A negative deficit means the reactions expanded past the reference volume.
     # Report it rather than hide it: the sealed convention no longer applies.
     void < -1.0e-10 && @warn "the reactions expanded beyond the reference volume; " *
-        "the sealed-curing convention does not apply" excess = -void
-    void = max(void, 0.0)
+        "the sealed-curing convention does not apply" excess = _plain(-void)
+    void = max(void, zero(void))
     return (; liquid = liquid, void = void, total = liquid + void)
 end
 

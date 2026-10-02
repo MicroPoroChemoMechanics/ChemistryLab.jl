@@ -369,7 +369,7 @@ end
 
 # Convert heat_per_mol to Float64 SI [J/mol], or return nothing.
 _strip_heat_per_mol(::Nothing) = nothing
-_strip_heat_per_mol(h) = Float64(safe_ustrip(us"J/mol", h))
+_strip_heat_per_mol(h) = float(safe_ustrip(us"J/mol", h))
 
 # Find the index in cs.species of the first solid (AS_CRYSTAL) reactant of rxn.
 # Falls back to the first reactant present in cs if no crystal phase is found.

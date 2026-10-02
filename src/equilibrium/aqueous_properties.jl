@@ -57,9 +57,11 @@ _debye_huckel_AB(model::TruesdellJonesActivityModel, T_K, P_Pa) =
 # The effective radius actually used for each species, by the same lookup the
 # closure uses. Zero for models that have no radius.
 function _ion_sizes(cs::ChemicalSystem, model::HKFActivityModel)
-    return Float64[
-        iszero(charge(sp)) ? 0.0 : _hkf_lookup_å(sp, model) for sp in cs.species
-    ]
+    return _promoted(
+        [
+            iszero(charge(sp)) ? 0.0 : _hkf_lookup_å(sp, model) for sp in cs.species
+        ]
+    )
 end
 _ion_sizes(cs::ChemicalSystem, ::AbstractActivityModel) = zeros(Float64, length(cs.species))
 
@@ -138,10 +140,12 @@ function molalities(state::ChemicalState; ϵ::Float64 = _AMOUNT_FLOOR)
     i_w = _require_aqueous(cs, "molalities")
     n = ustrip.(us"mol", state.n)
     M_w = ustrip(us"kg/mol", cs.species[i_w][:M])
-    kg_solvent = max(_primal(n[i_w]), ϵ) * M_w
-    out = OrderedDict{String, Float64}()
+    # In the number type of the amounts: a molality is an output a caller may
+    # differentiate, and so is everything built on it.
+    kg_solvent = max(n[i_w], ϵ) * M_w
+    out = OrderedDict{String, typeof(kg_solvent)}()
     for i in cs.idx_solutes
-        out[symbol(cs.species[i])] = max(_primal(n[i]), ϵ) / kg_solvent
+        out[symbol(cs.species[i])] = max(n[i], ϵ) / kg_solvent
     end
     return out
 end
@@ -200,7 +204,7 @@ function ionic_strength(
     m = molalities(state; ϵ = ϵ)
 
     if kind === :effective
-        I = 0.0
+        I = zero(valtype(m))
         for i in cs.idx_solutes
             z = Int(charge(cs.species[i]))
             iszero(z) && continue
@@ -215,7 +219,7 @@ function ionic_strength(
             (p, Int(charge(prim[p]))^2) for p in eachindex(prim)
                 if symbol(prim[p]) != "Zz" && !iszero(charge(prim[p]))
         ]
-        I = 0.0
+        I = zero(valtype(m))
         for i in cs.idx_solutes
             mi = m[symbol(cs.species[i])]
             iszero(mi) && continue
@@ -333,13 +337,13 @@ function log_activities(
     p = _build_params(state; ϵ = ϵ)
     n = ustrip.(us"mol", state.n)
     lna = lna_fun(n, p)
-    out = OrderedDict{String, Float64}()
+    out = OrderedDict{String, promote_type(eltype(lna), typeof(float(kelvin_shift)))}()
     for (i, sp) in enumerate(cs.species)
-        out[symbol(sp)] = _primal(lna[i])
+        out[symbol(sp)] = lna[i]
     end
     if !iszero(kelvin_shift)
         i_w = only(cs.idx_solvent)
-        out[symbol(cs.species[i_w])] += _primal(kelvin_shift)
+        out[symbol(cs.species[i_w])] += kelvin_shift
     end
     return out
 end
@@ -404,7 +408,7 @@ function activities(
         state::ChemicalState, model::AbstractActivityModel; ϵ::Float64 = _AMOUNT_FLOOR
     )
     lna = log_activities(state, model; ϵ = ϵ)
-    return OrderedDict{String, Float64}(k => exp(v) for (k, v) in lna)
+    return OrderedDict{String, valtype(lna)}(k => exp(v) for (k, v) in lna)
 end
 
 """
@@ -452,23 +456,28 @@ function activity_coefficients(
     AB = _debye_huckel_AB(model, T_K, P_Pa)
     åv = _ion_sizes(cs, model)
 
-    out = OrderedDict{String, Float64}()
+    keys_ = String[]
+    vals = Any[]
     for i in cs.idx_solutes
         z = Int(charge(cs.species[i]))
         # The per-species formula the closure uses, dispatched on the model.
         log10γ = _log10γ_species(model, cs.species[i], z, åv[i], I, sqrtI, AB.A, AB.B)
-        out[symbol(cs.species[i])] = 10.0^_primal(log10γ)
+        push!(keys_, symbol(cs.species[i]))
+        push!(vals, 10.0^log10γ)
     end
 
     # The solvent has no formula of that shape: its activity comes from the
     # osmotic coefficient (HKF) or from Raoult (the other two), so report the
     # coefficient that the mole-fraction convention implies.
-    n_aq = sum(max(_primal(n[i]), ϵ) for i in cs.idx_aqueous)
-    x_w = max(_primal(n[i_w]), ϵ) / n_aq
-    a_w = exp(_primal(log_activities(state, model; ϵ = ϵ)[symbol(cs.species[i_w])]))
-    out[symbol(cs.species[i_w])] = a_w / x_w
+    n_aq = sum(max(n[i], ϵ) for i in cs.idx_aqueous)
+    x_w = max(n[i_w], ϵ) / n_aq
+    a_w = exp(log_activities(state, model; ϵ = ϵ)[symbol(cs.species[i_w])])
+    push!(keys_, symbol(cs.species[i_w]))
+    push!(vals, a_w / x_w)
 
-    return out
+    # In the number type the coefficients come out in, which is that of the
+    # state and of the model: differentiable like the activities they make.
+    return OrderedDict(zip(keys_, _promoted(vals)))
 end
 
 """

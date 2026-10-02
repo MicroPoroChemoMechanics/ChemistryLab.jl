@@ -415,16 +415,14 @@ that, and for anyone whose data support more.
     scaling the phase is *exactly* scaling `k₁` and `k₃` together. Fitting both
     would make the problem rank-deficient by construction rather than by accident.
     Use `IONIC_CALIBRATION` **or** the rate-law fields, never both.
-  - **`k₂` (Jander diffusion) for alite**, but *not* for the reason usually given.
+  - **`k₂` (Jander diffusion) for alite**, because the data cannot see it.
     Parrott & Killoh reported no diffusion-controlled stage for C₃S, and
-    [`parrott_killoh_avrami`](@ref)'s docstring repeats it — so the expected
-    sensitivity is zero. Measured, it is not: `α̇₂ = k₂(1-ξ)^{2/3}/(1-(1-ξ)^{1/3})`
-    falls as ξ grows, so past a high degree of hydration the Jander branch does
-    become the minimum, and `k₂` moves the released heat by up to about an eighth
-    of what `k₁` does, entirely after the first day. It is left out because that is
-    a minor effect competing for a place in a three-dimensional identifiable space,
-    not because it is absent. The documentation page measures it rather than
-    asserting either version.
+    [`parrott_killoh_avrami`](@ref)'s docstring repeats it. The exact sensitivity
+    agrees: at the published constants the Jander branch never becomes the
+    minimum, and `∂Q/∂log k₂` is zero over the whole record. Until 0.28.2 a
+    central difference with a 5 % step, crossing the kink of the minimum where
+    the branch comes within 5 % of binding, reported about an eighth of `k₁`'s
+    influence. The documentation page measures it.
   - **Gypsum and calcite dissolution.** [`ionic_reactions`](@ref) deliberately
     makes them fast so sulfate is available to the minimization from the start
     rather than rate-limiting it. A step that does not limit cannot be calibrated.
@@ -444,21 +442,25 @@ const CALIB_SPEC_FULL = [
 """
     CALIB_SPEC :: Vector{CalibParameter}
 
-The parameters actually fitted: the three of [`CALIB_SPEC_FULL`](@ref) that a
-single isothermal heat curve can carry.
+The parameters actually fitted: the three rate-law parameters of
+[`CALIB_SPEC_FULL`](@ref) that a single isothermal heat curve can carry, plus the
+two of the dormant period, `τ_ind` and `m_ind`.
 
-Three, not six, and the reason is measured rather than assumed. Over the six
-candidates the singular values of `∂Q/∂log θ` come out at roughly
-`[420, 100, 60, 6.3, 1.4, 0.20]` on this record — a factor of nine between the
-third and the fourth — so the measurement determines three *combinations* of the
-six, not six numbers.
+Three rate-law parameters, not six, and the reason is measured rather than
+assumed. Over the six
+candidates the singular values of `∂Q/∂log θ` come out at
+`[424, 108, 63.6, 6.46, 1.98, 0.152]` on this record, against a residual standard
+deviation of 29 J/g. The standard errors of the six directions in `log θ` are
+then 0.07, 0.27 and 0.46 for the first three, and 4.5, 15 and 190 for the others,
+which are known to within a factor of 89 at best: the measurement determines
+three *combinations* of the six, not six numbers.
 
-Which three is decided by the correlation matrix, and it is unusually clean. Two
-pairs are almost perfectly collinear:
+Which three is decided by the correlation matrix. Two pairs are close to
+collinear:
 
-  - `k₁_C3S` with `n₁_C3S`, correlation −0.985;
-  - `k₃_C3S` with `n₃_C3S`, correlation −0.977 — between them they are essentially
-    the whole leading singular direction.
+  - `k₁_C3S` with `n₁_C3S`, correlation −0.96;
+  - `k₃_C3S` with `n₃_C3S`, correlation −0.985 — between them they are
+    essentially the whole leading singular direction.
 
 Within each pair the data see a combination and not its members, so one per pair
 is all that can be fitted. The **rate constant** is the one kept in each: an
@@ -832,7 +834,12 @@ function forward_Q(
             throw(ArgumentError("mode must be :surrogate or :coupled, got :$mode"))
         end
     catch err
-        err isa ArgumentError && rethrow()
+        # A parameter point the physics cannot follow (an equilibrium that does
+        # not converge, a logarithm of a negative amount) is an infeasible point
+        # of the search and scores `NaN`. Anything else is a defect and is
+        # raised: caught here, a failure of the forward model on dual numbers
+        # came back as `NaN` with zero partials, a silently null gradient.
+        err isa Union{ErrorException, DomainError} || rethrow()
         return fill(NaN, length(data.t))
     end
 
@@ -857,23 +864,13 @@ Released heat [J/g] **and** heat flow [W/g] at `data.t`, from one forward solve.
     Fitting `Q + q̇` rather than `Q` alone took the residual on `Q` from 24.4 to
     27.6 J/g and the `τ_ind`–`k₁_C3S` correlation from 0.982 to **0.994**.
 
-    The cause is a property of `q̇` here: it is a **centered finite difference of
-    `Q` over the output grid**, and that grid is log-spaced over two and a half
-    decades, so its spacing near the peak is coarse. What the loss gained was a
-    smeared, low-information version of the heat flow — noise rather than signal.
-
-    **Repaired, and it still does not help — because the cause was elsewhere.**
-    `calorimetry_loss(...; w_flow > 0)` now differences model and measurement with
-    the same operator on the same grid ([`grid_slope`](@ref)), so the discretization
-    cancels instead of being fitted. Measured: 27.6 J/g and a correlation of 0.994,
-    unchanged.
-
-    Two further experiments settle why. First, `grid_slope(Q, t)` is a **linear map
-    on the same numbers**, so a residual on the differenced curve is a linear
-    combination of the residuals on `Q` — it re-weights information rather than
-    adding any. Second, the genuinely independent quantity, the *instrument's* `q̇`
-    at 77 s sampling compared on a grid four times finer near the peak (0.24 h
-    against 0.91 h), behaves identically: 27.8 J/g and 0.994.
+    Until 0.28.2 `q̇` here was a centered difference of `Q` over the output grid,
+    log-spaced over two and a half decades and so coarse near the peak; it is now
+    the exact rate of the certified states. Neither the matched differencing of
+    model and measurement that was tried then (it re-weights the residuals on `Q`
+    rather than adding information, and was removed in 0.29.0) nor the
+    *instrument's* `q̇` at 77 s sampling on a grid four times finer near the peak
+    (0.24 h against 0.91 h) changed the outcome: 27.8 J/g and 0.994.
 
     So the `τ_ind`–`k₁_C3S` degeneracy is **structural in the rate law**, not an
     artifact of the observable or its discretization. Both parameters act on the
@@ -883,8 +880,8 @@ Released heat [J/g] **and** heat flow [W/g] at `data.t`, from one forward solve.
     What the flow residual *does* buy is the dormancy timescale in absolute terms:
     every flow-informed fit puts `τ` at 5.2-5.4 h against the 3.1 h of a `Q`-only
     surrogate fit, and the coupled `Q`-only fit independently gives 5.6 h. Three
-    routes agreeing, at the price of the `Q` residual. That is why `w_flow` defaults
-    to 0 for fitting, and why the flow is worth carrying anyway.
+    routes agreeing, at the price of the `Q` residual. That is why the fit is on `Q`
+    alone, and why the flow is worth carrying anyway.
 
 Returns `(NaN…, NaN…)` on a failed solve, which [`calorimetry_loss`](@ref) turns
 into a penalty.
@@ -919,52 +916,13 @@ function forward_curves(
             throw(ArgumentError("mode must be :surrogate or :coupled, got :$mode"))
         end
     catch err
-        err isa ArgumentError && rethrow()
+        # As in `forward_Q`: only a point the physics cannot follow scores `NaN`.
+        err isa Union{ErrorException, DomainError} || rethrow()
         return (nan, nan)
     end
     SciMLBase.successful_retcode(run.sol) || return (nan, nan)
     _, Q, qdot = heat_release(run.sol, run.kp; times = data.t)
     return (Q ./ 1000, qdot ./ 1000)
-end
-
-"""
-    grid_slope(y, t) -> Vector{Float64}
-
-Centered difference `dy/dt` at the interior points of `t`, with one-sided
-differences at the ends. Length `length(t)`.
-
-# Why the loss differences the measurement too
-
-The first attempt at a heat-flow residual compared the model's `q̇` — which
-[`heat_release`](@ref) produces by centered-differencing `Q` over the **output
-grid** — against `data.qdot`, the instrument's own reading sampled every 77 s. On a
-log grid spanning two and a half decades, consecutive points near the 10-hour peak
-are *hours* apart, so the model's `q̇` there is a smeared average of a feature only
-a few hours wide, while the measurement resolves it. The residual between the two
-was then dominated by the grid spacing rather than by the parameters, and the
-optimizer chased discretization error: the fit on `Q` got worse (24.4 → 27.6 J/g)
-and the `τ_ind`–`k₁_C3S` correlation tightened (0.982 → 0.994).
-
-Making the model's grid dense enough to resolve the peak would fix it and multiply
-the coupled cost by the refinement factor, which is not affordable. Applying the
-**same operator to both sides** fixes it for nothing: difference the measured `Q` on
-the same grid, and the leading discretization error cancels. What is left is a
-genuine constraint on local slope — which is the timing information the cumulative
-heat integrates away — expressed in a quantity both sides possess exactly.
-
-This is the observation-operator principle: push the model through whatever the
-comparison does to it, rather than trying to undo it on the data.
-"""
-function grid_slope(y, t)
-    n = length(t)
-    s = similar(float.(y))
-    n < 2 && return fill!(s, zero(eltype(s)))
-    s[1] = (y[2] - y[1]) / (t[2] - t[1])
-    s[n] = (y[n] - y[n - 1]) / (t[n] - t[n - 1])
-    for i in 2:(n - 1)
-        s[i] = (y[i + 1] - y[i - 1]) / (t[i + 1] - t[i - 1])
-    end
-    return s
 end
 
 """
@@ -1037,23 +995,7 @@ starting point for the coupled search.
 """
 function calorimetry_loss(
         θ, data; mode::Symbol = :surrogate, spec = CALIB_SPEC, shape::Bool = false,
-        w_flow::Real = 0.0,
     )
-    if w_flow > 0
-        Qm = forward_Q(θ, data; mode, spec)
-        (any(isnan, Qm) || iszero(Qm[end])) && return LOSS_PENALTY
-        rQ = mean(abs2, Qm .- data.Q)
-        # The slope block compares like with like: the SAME centered difference is
-        # applied to the model and to the measurement, on the SAME grid. See
-        # `grid_slope` for why that matters and why comparing against `data.qdot`
-        # instead is the trap.
-        sm = grid_slope(Qm, data.t)
-        sd = grid_slope(data.Q, data.t)
-        scale = maximum(abs, sd)
-        iszero(scale) && return sqrt(rQ)
-        rq = mean(abs2, (sm .- sd) ./ scale) * mean(abs2, data.Q)
-        return sqrt((rQ + w_flow * rq) / (1 + w_flow))
-    end
     Qm = forward_Q(θ, data; mode, spec)
     any(isnan, Qm) && return LOSS_PENALTY
     iszero(Qm[end]) && return LOSS_PENALTY
@@ -1112,18 +1054,14 @@ The search is **unconstrained** in the squashed coordinates of
 [`to_native`](@ref), so a derivative-free method needs no box support and cannot
 leave the admissible region either way.
 
-# Why not a gradient
+# Gradients
 
-`Optimization.jl` would happily take `AutoForwardDiff()` here and it would not
-work: the kinetics core is AD-clean in the ODE state and in time — deliberately,
-because `Rodas5P` needs the time gradient — but not in the parameters.
-`build_u0` returns a `Vector{Float64}`; `build_kinetics_params` casts the
-temperature, the initial amounts, the stoichiometry and the calorimeter constants
-to `Float64`; and under partial equilibrium `respeciate!` is `Float64`-only by
-construction. So a dual number baked into a rate closure cannot reach the
-integrator. `AutoFiniteDiff()` is the honest backend until that changes, and with
-six parameters it costs seven forward solves per gradient — which is why
-`NelderMead` is the default for the expensive mode.
+The objective is differentiated by forward mode (`AutoForwardDiff()`): a run is
+differentiable with respect to the parameters its rate laws capture, the
+equilibrium partition of each step through the implicit-function theorem at its
+certified answer. A gradient-based `optimizer` may therefore be passed. The
+default stays `NelderMead`, the method the stored calibration
+(`CALIBRATED_THETA`) was produced with, so that `main()` reproduces it.
 """
 function calibrate(
         data;
@@ -1133,26 +1071,25 @@ function calibrate(
         optimizer = NelderMead(),
         maxiters = 400,
         shape::Bool = false,
-        w_flow::Real = 0.0,
     )
     trace = Float64[]
     z0 = to_search(θ0, spec)
-    loss0 = calorimetry_loss(θ0, data; mode, spec, shape, w_flow)
+    loss0 = calorimetry_loss(θ0, data; mode, spec, shape)
 
     objective = function (z, _p)
-        L = calorimetry_loss(to_native(z, spec), data; mode, spec, shape, w_flow)
+        L = calorimetry_loss(to_native(z, spec), data; mode, spec, shape)
         push!(trace, L)
         return L
     end
 
     t0 = time()
-    f = OptimizationFunction(objective, AutoFiniteDiff())
+    f = OptimizationFunction(objective, AutoForwardDiff())
     sol = solve(OptimizationProblem(f, z0, nothing), optimizer; maxiters)
     seconds = time() - t0
 
     θ̂ = to_native(sol.u, spec)
     return CalibrationResult(
-        θ̂, calorimetry_loss(θ̂, data; mode, spec, shape, w_flow), loss0,
+        θ̂, calorimetry_loss(θ̂, data; mode, spec, shape), loss0,
         trace, box_position(θ̂, spec), length(trace), seconds, mode, collect(spec),
     )
 end
@@ -1265,7 +1202,7 @@ function calibrate_multirecord(
         return L
     end
     t0 = time()
-    f = OptimizationFunction(objective, AutoFiniteDiff())
+    f = OptimizationFunction(objective, AutoForwardDiff())
     sol = solve(OptimizationProblem(f, z0, nothing), optimizer; maxiters)
     seconds = time() - t0
     θ̂ = to_native(sol.u, spec)
@@ -1324,30 +1261,25 @@ end
 # ── identifiability ───────────────────────────────────────────────────────────
 
 """
-    sensitivity_matrix(θ, data; mode, spec, relstep) -> Matrix{Float64}
+    sensitivity_matrix(θ, data; mode, spec) -> Matrix
 
-`∂Q/∂log θⱼ` at each instant of `data`, by central differences — the columns are
-in units of J/g per *relative* change in the parameter, so they are comparable
-across a rate and an exponent.
+`∂Q/∂log θⱼ` at each instant of `data`, exact, by forward-mode differentiation
+through the run (`ChemistryLab.log_sensitivity`): the columns are in units of
+J/g per *relative* change in the parameter, so they are comparable across a rate
+and an exponent.
 
-Costs `2n` forward solves. `spec` may be **wider** than the one that was fitted,
-provided `θ` is extended to match — that is how a parameter's sensitivity is
-shown to be negligible without spending an optimization on it.
+Costs one forward run on dual numbers. `spec` may be **wider** than the one that
+was fitted, provided `θ` is extended to match — that is how a parameter's
+sensitivity is shown to be negligible without spending an optimization on it.
+Until 0.28.2 this was central differences, `2n` forward solves.
 """
-function sensitivity_matrix(θ, data; mode::Symbol = :surrogate, spec = CALIB_SPEC, relstep = 0.05)
-    # Central differences against the logarithm, which is what
-    # `ChemistryLab.log_sensitivity` is: this script is where that calculation
-    # was written, and keeping a second copy of it here is how the two would
-    # come to disagree. The cost is identical — `2n` forward solves, the output
-    # sized from the first column on both sides.
-    return ChemistryLab.log_sensitivity(
-        q -> forward_Q(q, data; mode, spec), θ; relstep = relstep,
-    )
+function sensitivity_matrix(θ, data; mode::Symbol = :surrogate, spec = CALIB_SPEC)
+    return ChemistryLab.log_sensitivity(q -> forward_Q(q, data; mode, spec), θ)
 end
 
 """
     local_identifiability(θ, data; mode, spec, relstep)
-        -> (; J, U, S, V, cond, rank, correlation, stderr, rmse)
+        -> (; J, U, S, V, cond, rank, correlation, stderr, rmse, noise)
 
 Local identifiability of `θ` from `data`, by `ChemistryLab.identifiability`.
 
@@ -1356,33 +1288,28 @@ means every direction is constrained; several orders of magnitude means the data
 determine a *combination* of parameters and not the parameters, and `V[:, end]`
 names which combination. `correlation` is the parameter correlation matrix from
 `(JᵀJ)⁻¹`, and `stderr` the approximate relative standard errors
-`σ√diag((JᵀJ)⁻¹)` with `σ` the residual RMSE.
+`σ√diag((JᵀJ)⁻¹)`, with `σ` (`noise`) the residual standard deviation on the
+`n − p` degrees of freedom the parameters leave.
 
-These are the *linearized* errors at one point, which is all six parameters and a
-few hundred forward solves can buy. They are reported to say which numbers in a
+These are the *linearized* errors at one point. They are reported to say which numbers in a
 fit deserve to be quoted, not as confidence intervals.
 
 `rank` comes from the package and is the number of directions the measurement
-constrains, read off the largest gap in the spectrum. On the six candidates here
-it answers three, which is the conclusion this script reached by hand before the
-rule existed.
+constrains, those whose standard error in `log θ` is below one
+(`identifiable_rank`). On the six candidates here it answers three, which is the
+conclusion this script reached by hand before the rule existed.
 """
-function local_identifiability(
-        θ, data; mode::Symbol = :surrogate, spec = CALIB_SPEC, relstep = 0.05,
-    )
-    # Delegated for the same reason as `sensitivity_matrix` above:
-    # `ChemistryLab.identifiability` IS this calculation, lifted out of this
-    # script and generalized. The cost is unchanged at `2n + 1` solves, the
-    # returned shape is exactly what the reporting below expects — `cond`
-    # included — and `rank` is what comes free.
+function local_identifiability(θ, data; mode::Symbol = :surrogate, spec = CALIB_SPEC)
+    # Delegated: `ChemistryLab.identifiability` IS this calculation, lifted out
+    # of this script and generalized. It costs one run on dual numbers and one
+    # on plain ones for the residual.
     id = ChemistryLab.identifiability(
         q -> forward_Q(q, data; mode, spec), θ;
-        observed = data.Q, relstep = relstep,
-        names = [string(cp.name) for cp in spec],
+        observed = data.Q, names = [string(cp.name) for cp in spec],
     )
     return (;
         id.J, id.U, id.S, id.V, cond = id.condition, id.rank,
-        id.correlation, id.stderr, id.rmse,
+        id.correlation, id.stderr, id.rmse, id.noise,
     )
 end
 
@@ -1452,7 +1379,7 @@ did not choose any of these numbers.
     That is not a surprise once the identifiability is read. At the optimum
     `k₁_C3S` and `τ_ind` are correlated at **0.994** — a longer dormant period
     followed by a faster rate makes very nearly the same curve — and the
-    approximate relative standard errors are 981 %, 25 %, 123 %, 389 % and 196 %.
+    approximate relative standard errors are 1181 %, 29 %, 140 %, 461 % and 238 %.
     Only `k₃_C3S` is determined to better than a factor of a few. What the fit
     found is one or two combinations plus a target-specific residual, and the
     target-specific part is precisely what does not generalize.
@@ -1473,22 +1400,25 @@ const CALIBRATED_THETA = [
 The two identifiability analyses of the documentation page, stored rather than
 recomputed.
 
-Each costs `2n + 1` coupled forward solves — thirteen for the six candidates,
-eleven at the optimum — and at tens of seconds apiece that is a quarter of an hour
-that has no business inside a documentation build. `main()` recomputes both, and
+Each costs two coupled runs, one on dual numbers for the sensitivity and one for
+the residual: five and a half minutes for the candidates and nearly three at the
+optimum, which have no business inside a documentation build. `main()` recomputes both, and
 [`local_identifiability`](@ref) is the one function involved; what is stored here
 is only its output.
 
-  - `candidates` — at the published parameters, over all six of
-    [`CALIB_SPEC_FULL`](@ref), on 30 log-spaced instants. This is the analysis that
-    decided how many parameters to fit.
+  - `candidates` — at the published parameters, over the six rate-law parameters
+    of [`CALIB_SPEC_FULL`](@ref) named in `names`, on 30 log-spaced instants. This
+    is the analysis that decided how many parameters to fit.
   - `optimum` — at [`CALIBRATED_THETA`](@ref), over the five of
     [`CALIB_SPEC`](@ref), on 20 instants. This is the analysis that explains why
     the fit does not transfer.
 
 `S` are the singular values of `∂Q/∂log θ`, `V` its right singular vectors as rows
-per parameter, `correlation` the parameter correlation matrix from `(JᵀJ)⁻¹`, and
-`stderr` the approximate **relative** standard errors.
+per parameter, `correlation` the parameter correlation matrix from `(JᵀJ)⁻¹`,
+`noise` the residual standard deviation on the `n − p` degrees of freedom, and
+`stderr` the approximate **relative** standard errors it gives. Those two were
+scaled from the stored RMSE by `√(n/(n − p))` when 0.29.0 moved the noise level
+to that estimate, which is what `local_identifiability` now returns.
 """
 const MEASURED_IDENTIFIABILITY = (
     candidates = (
@@ -1499,45 +1429,45 @@ const MEASURED_IDENTIFIABILITY = (
         # error rather than as the desynchronization it was. Stored numbers must
         # carry their own labels.
         names = [:k₁_C3S, :n₁_C3S, :k₃_C3S, :n₃_C3S, :k₁_C3A, :k₃_C2S],
-        rmse = 26.081, cond = 2101.0,
-        S = [421.8, 101.0, 60.1, 6.342, 1.438, 0.2008],
-        column_norms = [48.49, 99.92, 207.0, 368.3, 28.89, 12.64],
-        stderr = [17.538, 11.706, 3.069, 3.932, 4.394, 129.361],
+        rmse = 25.9354, noise = 28.9967, cond = 2784.4,
+        S = [424.41, 107.88, 63.619, 6.4596, 1.9803, 0.15242],
+        column_norms = [49.11, 96.26, 209.1, 373.0, 33.93, 12.83],
+        stderr = [14.4529, 9.3736, 3.4226, 5.5191, 4.5813, 189.912],
         V = [
-            -0.058  0.335 -0.41 -0.077 -0.84 -0.067
-            -0.193  0.436 -0.628 -0.325  0.519  0.053
-            0.45  0.765  0.456 -0.034  0.053  0.022
-            -0.869  0.271  0.412  0.025 -0.033 -0.03
-            -0.032  0.198 -0.245  0.941  0.114  0.0
-            0.03  0.01 -0.008 -0.013  0.086 -0.996
+            -0.0475 -0.3658 -0.3312 -0.0756 -0.8644 -0.0366
+            -0.1601 -0.5399 -0.5562 -0.3747 0.4818 0.0312
+            0.4539 -0.6693 0.5848 -0.0477 0.0377 0.0176
+            -0.8747 -0.2273 0.4245 0.0419 -0.0208 -0.0289
+            -0.0055 -0.2738 -0.2423 0.9219 0.1282 0.003
+            0.0301 -0.0095 -0.0079 -0.0082 0.0484 -0.9983
         ],
         correlation = [
-            1.0 -0.985 -0.738  0.619 -0.433  0.484
-            -0.985  1.0  0.806 -0.701  0.288 -0.573
-            -0.738  0.806  1.0 -0.977  0.12 -0.941
-            0.619 -0.701 -0.977  1.0 -0.063  0.985
-            -0.433  0.288  0.12 -0.063  1.0 -0.009
-            0.484 -0.573 -0.941  0.985 -0.009  1.0
+            1.0 -0.9595 -0.6128 0.5279 -0.4394 0.4788
+            -0.9595 1.0 0.7515 -0.6793 0.2256 -0.6299
+            -0.6128 0.7515 1.0 -0.9854 0.1299 -0.9798
+            0.5279 -0.6793 -0.9854 1.0 -0.116 0.9969
+            -0.4394 0.2256 0.1299 -0.116 1.0 -0.1224
+            0.4788 -0.6299 -0.9798 0.9969 -0.1224 1.0
         ],
     ),
     optimum = (
         names = [:k₁_C3S, :k₃_C3S, :k₁_C3A, :τ_ind, :m_ind],
-        rmse = 13.0376, cond = 97.346,
-        S = [120.08, 64.597, 13.531, 6.5475, 1.2335],
-        stderr = [9.8053, 0.2476, 1.2279, 3.8862, 1.9604],
+        rmse = 13.1018, noise = 15.1287, cond = 101.0,
+        S = [120.15, 64.481, 13.779, 6.5067, 1.1896],
+        stderr = [11.8072, 0.2884, 1.4034, 4.6141, 2.3802],
         V = [
-            -0.3135  0.0665 -0.1765  0.0775 -0.9274
-            -0.2454 -0.9626  0.1133 -0.0188 -0.0092
-            -0.3494  0.1961  0.848 -0.342 -0.0578
-            0.8433 -0.1694  0.3547 -0.0174 -0.3661
-            0.0909 -0.0437 -0.3332 -0.9362 -0.0487
+            -0.3115 0.0648 -0.1685 -0.0946 0.9281
+            -0.2422 -0.963 0.1161 0.0188 0.009
+            -0.3548 0.1986 0.8484 0.3345 0.0552
+            0.8427 -0.1646 0.3634 0.0105 0.3613
+            0.0906 -0.0432 -0.3261 0.9374 0.0697
         ],
         correlation = [
-            1.0 0.3839 0.4773 0.9937 0.2504
-            0.3839 1.0 0.5516 0.4376 0.178
-            0.4773 0.5516 1.0 0.5579 0.5487
-            0.9937 0.4376 0.5579 1.0 0.2557
-            0.2504 0.178 0.5487 0.2557 1.0
+            1.0 0.3857 0.4795 0.9941 0.3578
+            0.3857 1.0 0.553 0.4377 0.2228
+            0.4795 0.553 1.0 0.5575 0.5938
+            0.9941 0.4377 0.5575 1.0 0.3631
+            0.3578 0.2228 0.5938 0.3631 1.0
         ],
     ),
 )
@@ -1550,14 +1480,24 @@ Print a stored [`MEASURED_IDENTIFIABILITY`](@ref) entry in the same shape
 """
 function report_stored_identifiability(m, label)
     @printf(
-        "%s — %d parameters, residual RMSE %.2f J/g, condition number %.4g\n",
-        label, length(m.names), m.rmse, m.cond
+        "%s — %d parameters, residual RMSE %.2f J/g (σ = %.2f J/g), condition number %.4g\n",
+        label, length(m.names), m.rmse, m.noise, m.cond
     )
     println("singular values: ", join((@sprintf("%.4g", v) for v in m.S), "  "))
+    _report_directions(m.S, m.noise)
     println("approximate relative standard errors:")
     for (n, e) in zip(m.names, m.stderr)
         @printf("   %-10s %8.0f %%\n", n, 100e)
     end
+    return nothing
+end
+
+# The standard error of each singular direction in `log θ`, the noise level over
+# its singular value, and how many are known to better than a factor e
+# (`identifiable_rank`).
+function _report_directions(S, σ)
+    println("standard error of each direction, in log θ: ", join((@sprintf("%.2g", σ / v) for v in S), "  "))
+    @printf("directions determined to better than a factor e: %d of %d\n", identifiable_rank(S; noise = σ), length(S))
     return nothing
 end
 
@@ -1599,9 +1539,11 @@ the approximate relative standard errors.
 """
 function report_identifiability(id, spec = CALIB_SPEC)
     @printf(
-        "residual RMSE %.2f J/g;  condition number of ∂Q/∂log θ = %.3g\n", id.rmse, id.cond
+        "residual RMSE %.2f J/g (σ = %.2f J/g);  condition number of ∂Q/∂log θ = %.3g\n",
+        id.rmse, id.noise, id.cond
     )
     println("singular values: ", join((@sprintf("%.3g", v) for v in id.S), "  "))
+    _report_directions(id.S, id.noise)
     println("least-constrained direction (right singular vector of the smallest value):")
     for (p, c) in zip(spec, id.V[:, end])
         @printf("   %-10s %+7.3f\n", p.name, c)
@@ -1694,16 +1636,17 @@ function main()
     report_fit(rS, target_fine; label = "surrogate, shape only, six parameters")
 
     rule("what the measurement can constrain")
-    @printf(
-        "%d coupled solves for the six-parameter sensitivity — the expensive diagnostic\n",
-        2 * length(CALIB_SPEC_FULL)
-    )
+    # The six rate-law candidates of `MEASURED_IDENTIFIABILITY.candidates`, on its
+    # thirty instants, so that what is printed here is what is stored there.
+    spec6 = [only(filter(cp -> cp.name == nm, CALIB_SPEC_FULL)) for nm in MEASURED_IDENTIFIABILITY.candidates.names]
+    println("two coupled runs for the six-parameter sensitivity, one on dual numbers")
+    println("and one for the residual — the expensive diagnostic")
     idF = local_identifiability(
-        prior_vector(CALIB_SPEC_FULL), target; mode = :coupled, spec = CALIB_SPEC_FULL,
+        prior_vector(spec6), resample_log(CEM_I_TARGET, 30); mode = :coupled, spec = spec6,
     )
-    report_identifiability(idF, CALIB_SPEC_FULL)
+    report_identifiability(idF, spec6)
     println("\n   parameter   ‖∂Q/∂log θ‖ (J/g)   weight in the leading 3 directions")
-    for (i, p) in enumerate(CALIB_SPEC_FULL)
+    for (i, p) in enumerate(spec6)
         @printf("   %-10s %14.4g %25.2f\n", p.name, norm(idF.J[:, i]), sum(abs2, idF.V[i, 1:3]))
     end
     println("\nfitted: ", join(string.(getfield.(CALIB_SPEC, :name)), ", "))

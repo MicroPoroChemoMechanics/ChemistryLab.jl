@@ -188,9 +188,14 @@ function thermogram(
     co2 = _co2_per_phase(state)
 
     T = collect(float.(temperatures))
+    # The number type of everything the curves are computed from: the
+    # temperatures, the state (a composition being differentiated), and the
+    # midpoints, widths and fractions of the windows (fitted to a curve).
     ET = promote_type(
-        eltype(T), Float64,
+        eltype(T), Float64, _realtype(eltype(state.n)),
         (typeof(value(w.midpoint)) for w in windows)...,
+        (typeof(value(w.width)) for w in windows)...,
+        (typeof(float(w.fraction)) for w in windows)...,
     )
     # The sample mass is the SOLID mass, residue included — a thermogram plots
     # what is on the pan, not only the part that will leave it.
@@ -230,10 +235,12 @@ here rather than at construction because a window does not know what it will be
 used with.
 """
 function _check_fractions(windows::AbstractVector{<:DecompositionWindow})
+    # A check, so on the values: a fraction being differentiated is still a
+    # fraction, and the derivatives of a sum that must be one say nothing here.
     sums = Dict{Tuple{String, Symbol}, Float64}()
     for w in windows
         k = (w.phase, w.releases)
-        sums[k] = get(sums, k, 0.0) + float(w.fraction)
+        sums[k] = get(sums, k, 0.0) + _plain(float(w.fraction))
     end
     for (k, total) in sums
         isapprox(total, 1.0; atol = 1.0e-8) && continue
@@ -338,13 +345,14 @@ The two are returned together because a parameter vector whose entries are not
 named is a parameter vector nobody can report.
 """
 function window_parameters(windows::AbstractVector{<:DecompositionWindow})
-    θ = Float64[]
+    θ = Any[]
     names = String[]
     for w in windows
         push!(θ, value(w.midpoint)); push!(names, "T½($(w.phase))")
         push!(θ, value(w.width)); push!(names, "w($(w.phase))")
     end
-    return θ, names
+    # In the number type of the windows, which a nested fit makes dual.
+    return _promoted(θ), names
 end
 
 """

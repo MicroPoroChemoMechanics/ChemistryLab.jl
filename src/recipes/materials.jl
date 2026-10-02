@@ -23,10 +23,10 @@ equilibrium as that species; what does not keeps its mass, its molar volume and
 its enthalpy of formation in the residue. `extent` is a number, a function of
 time or an [`AbstractExtent`](@ref).
 """
-struct MineralConstituent{S <: AbstractSpecies, E <: AbstractExtent} <: AbstractConstituent
+struct MineralConstituent{S <: AbstractSpecies, E <: AbstractExtent, F <: Real} <: AbstractConstituent
     name::String
     species::S
-    mass_fraction::Float64
+    mass_fraction::F
     extent::E
 end
 function MineralConstituent(
@@ -38,7 +38,8 @@ function MineralConstituent(
         ArgumentError("MineralConstituent $name: $(symbol(species)) is not a crystalline species.")
     )
     e = _as_extent(extent)
-    return MineralConstituent{typeof(species), typeof(e)}(String(name), species, float(mass_fraction), e)
+    mf = float(mass_fraction)
+    return MineralConstituent{typeof(species), typeof(e), typeof(mf)}(String(name), species, mf, e)
 end
 
 """
@@ -58,13 +59,13 @@ formation (J/g) its residue needs are given by the caller, with their `source`,
 or left `nothing`: a volume or a heat that needs them is then reported missing,
 never estimated.
 """
-struct OxideConstituent{E <: AbstractExtent} <: AbstractConstituent
+struct OxideConstituent{E <: AbstractExtent, F <: Real} <: AbstractConstituent
     name::String
-    oxides::OrderedDict{String, Float64}
-    mass_fraction::Float64
+    oxides::OrderedDict{String, F}
+    mass_fraction::F
     extent::E
-    density::Union{Nothing, Float64}
-    enthalpy::Union{Nothing, Float64}
+    density::Union{Nothing, F}
+    enthalpy::Union{Nothing, F}
     source::Union{Nothing, String}
 end
 function OxideConstituent(
@@ -72,7 +73,15 @@ function OxideConstituent(
         density = nothing, enthalpy = nothing, source = nothing,
     )
     0 <= mass_fraction <= 1 || throw(ArgumentError("OxideConstituent $name: a mass fraction is in [0, 1]; got $mass_fraction."))
-    ox = OrderedDict{String, Float64}(String(k) => float(v) for (k, v) in oxides)
+    d = density === nothing ? nothing : _in_unit(us"g/cm^3", density)
+    h = enthalpy === nothing ? nothing : _in_unit(us"J/g", enthalpy)
+    # In the number type of what it is given: an analysis or a density being
+    # differentiated is dual.
+    F = promote_type(
+        typeof(float(mass_fraction)), (typeof(float(v)) for v in values(oxides))...,
+        d === nothing ? Float64 : typeof(d), h === nothing ? Float64 : typeof(h),
+    )
+    ox = OrderedDict{String, F}(String(k) => float(v) for (k, v) in oxides)
     all(>=(0), values(ox)) || throw(ArgumentError("OxideConstituent $name: an oxide fraction is negative."))
     # An X-ray fluorescence analysis closes within a percent or so of 100 %, on
     # either side, and is kept as published; a sum far above one is percent
@@ -86,11 +95,10 @@ function OxideConstituent(
     for k in keys(ox)
         _oxide_cation(k)   # refuses what is not an oxide of one element
     end
-    d = density === nothing ? nothing : _in_unit(us"g/cm^3", density)
-    h = enthalpy === nothing ? nothing : _in_unit(us"J/g", enthalpy)
     e = _as_extent(extent)
-    return OxideConstituent{typeof(e)}(
-        String(name), ox, float(mass_fraction), e, d, h, source === nothing ? nothing : String(source),
+    return OxideConstituent{typeof(e), F}(
+        String(name), ox, F(mass_fraction), e, d === nothing ? nothing : F(d), h === nothing ? nothing : F(h),
+        source === nothing ? nothing : String(source),
     )
 end
 
@@ -139,7 +147,7 @@ function Material(
 end
 
 """
-    effective_extent(material, constituent, t) -> Float64
+    effective_extent(material, constituent, t) -> Real
 
 The degree of reaction of `constituent` in `material` at time `t`: the extent of
 the material times the extent of the constituent.
@@ -263,7 +271,6 @@ function bogue(oxides::AbstractDict, species; sulfate::AbstractString = "Gp")
     get(atoms(sp(sulfate)), :S, 0) == 1 && get(atoms(sp(sulfate)), :Ca, 0) == 1 || throw(
         ArgumentError("bogue: the sulfate carrier $sulfate is not a calcium sulfate with one sulfur.")
     )
-    phases = OrderedDict{String, Float64}()
     gyp = x("SO3") * ustrip(us"g/mol", sp(sulfate)[:M]) / _oxide_molar_mass("SO3")
     cal = x("CO2") * ustrip(us"g/mol", sp("Cal")[:M]) / _oxide_molar_mass("CO2")
     cao = x("CaO") - x("SO3") * _oxide_molar_mass("CaO") / _oxide_molar_mass("SO3") -
@@ -272,6 +279,9 @@ function bogue(oxides::AbstractDict, species; sulfate::AbstractString = "Gp")
     main = ("CaO", "SiO2", "Al2O3", "Fe2O3")
     Mx = [oxide_content(sp(ph), main)[ox] for ox in main, ph in clinker]
     y = Mx \ [cao, x("SiO2"), x("Al2O3"), x("Fe2O3")]
+    # In the number type of the analysis: a composition being differentiated
+    # carries its derivatives into the phases.
+    phases = OrderedDict{String, promote_type(eltype(y), typeof(gyp), typeof(cal))}()
     for (ph, v) in zip(clinker, y)
         phases[ph] = v
     end
@@ -322,7 +332,8 @@ an oxide the crystals take more of than the analysis holds is clipped at zero an
 listed in `clipped`.
 """
 function reactive_part(oxides::AbstractDict, crystalline::AbstractDict, species)
-    rest = OrderedDict{String, Float64}(String(k) => float(v) for (k, v) in oxides)
+    F = promote_type(Float64, (typeof(float(v)) for v in values(oxides))..., (typeof(float(w)) for w in values(crystalline))...)
+    rest = OrderedDict{String, F}(String(k) => float(v) for (k, v) in oxides)
     for (ph, w) in crystalline
         c = oxide_content(species[String(ph)], keys(rest))
         for k in keys(rest)
@@ -340,17 +351,21 @@ end
 # 23), for the few columns a decomposition has.
 function _nnls(A::AbstractMatrix, b::AbstractVector; tol = 1.0e-12, maxit = 30 * size(A, 2))
     n = size(A, 2)
-    x = zeros(n)
+    # In the number type of the data; the active set is chosen on the values,
+    # and the answer is then the least-squares solution on it, derivatives and
+    # all.
+    T = promote_type(Float64, eltype(A), eltype(b))
+    x = zeros(T, n)
     P = falses(n)
     w = transpose(A) * (b .- A * x)
     it = 0
     while any(.!P .& (w .> tol)) && it < maxit
         it += 1
-        j = argmax([P[i] ? -Inf : w[i] for i in 1:n])
+        j = argmax([P[i] ? -Inf : _plain(w[i]) for i in 1:n])
         P[j] = true
         while true
             idx = findall(P)
-            z = zeros(n)
+            z = zeros(T, n)
             z[idx] = A[:, idx] \ b
             if all(z[idx] .> tol)
                 x = z

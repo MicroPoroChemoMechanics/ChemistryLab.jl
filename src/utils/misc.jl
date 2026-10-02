@@ -224,3 +224,50 @@ re-attach the unit of `qout`. Unlike `safe_uconvert`, this always returns
 a quantity with the units of `qout`, even when the input is dimensionless.
 """
 force_uconvert(qout::UnionAbstractQuantity, q) = safe_ustrip(qout, q) * qout
+
+# A vector in the common number type of its entries: a function returning a
+# constant beside one returning a dual number leaves neither a `Vector{Real}`
+# nor a failed conversion to `Float64`.
+_promoted(v) = convert(Vector{mapreduce(typeof, promote_type, v; init = Float64)}, v)
+
+# ── the number type a value carries ──────────────────────────────────────────
+#
+# What an output must be typed by to keep a derivative: every input it is
+# computed from, the parameters a closure captures included. Anything narrower
+# either raises (a dual stored into a `Float64` container) or drops the
+# derivative.
+
+const _CAPTURE_DEPTH = 8
+
+# The dual number type a value carries anywhere inside it (`Float64` when none):
+# its fields, the variables a closure captures, the entries of a container.
+_captured_number_type(x) = _captured_number_type(x, 0)
+function _captured_number_type(x, depth::Int)
+    depth > _CAPTURE_DEPTH && return Float64
+    x isa ForwardDiff.Dual && return typeof(x)
+    x isa Union{Number, AbstractString, Symbol, Module, Type, Nothing, Missing, Char, Function} &&
+        !(x isa Function && nfields(x) > 0) && return Float64
+    x isa DynamicQuantities.AbstractQuantity && return _captured_number_type(ustrip(x), depth + 1)
+    if x isa AbstractArray
+        E = eltype(x)
+        E <: ForwardDiff.Dual && return E
+        (E <: Number && isconcretetype(E)) && return Float64
+        return mapreduce(e -> _captured_number_type(e, depth + 1), promote_type, x; init = Float64)
+    end
+    x isa AbstractDict && return mapreduce(e -> _captured_number_type(e, depth + 1), promote_type, values(x); init = Float64)
+    x isa Union{Tuple, NamedTuple} && return mapreduce(e -> _captured_number_type(e, depth + 1), promote_type, values(x); init = Float64)
+    T = Float64
+    for k in 1:nfields(x)
+        isdefined(x, k) || continue
+        T = promote_type(T, _captured_number_type(getfield(x, k), depth + 1))
+    end
+    return T
+end
+
+# The same question asked of a parameter tuple at the level of TYPES, so that it
+# costs nothing where it is asked at every evaluation of an activity model.
+_number_type_of(x::ForwardDiff.Dual) = typeof(x)
+_number_type_of(x::DynamicQuantities.AbstractQuantity) = _number_type_of(ustrip(x))
+_number_type_of(::AbstractArray{T}) where {T <: ForwardDiff.Dual} = T
+_number_type_of(x::Union{Tuple, NamedTuple}) = promote_type(Float64, map(_number_type_of, values(x))...)
+_number_type_of(x) = Float64

@@ -232,8 +232,9 @@ speciation, and `pH`, `pOH`, `porosity` and `saturation` come back as duals too.
 
 Crossing the **solve** works as well, and without asking any solver to iterate on
 dual numbers — Ipopt is a C library and never could. The equilibrium is solved
-once at the primal values, and the sensitivities come from the optimality
-conditions, the implicit-function-theorem route:
+once at the primal values, by the back end chosen, and the sensitivities come
+from the optimality conditions at the answer, the implicit-function-theorem
+route:
 
 ```math
 \begin{bmatrix} \mathbf{H} & \mathbf{A}^\mathsf{T} \\ \mathbf{A} & \mathbf{0} \end{bmatrix}
@@ -258,6 +259,21 @@ end
 
 ForwardDiff.derivative(f, 0.01)     # → 0.15193
 ```
+
+The certified route, `equilibrate(state)` or `equilibrate_certified`, lifts its
+answer the same way, at the certified answer, with the active set frozen and the
+constraint's unknowns included, so the titrant a prescribed pH needs or the
+temperature an adiabatic solve reaches comes back with its derivative too. Both
+routes lift one level of duals at a time, so that a derivative nested in another
+(a gradient differentiated again for a Hessian, as an inversion needs) is exact
+at every level, and both lift whatever carries the duals: the amounts, the
+temperature, the budget, the standard potentials of the species or the
+parameters of the activity model. The derivative is that at the answer the back
+end returned, which is the equilibrium as far as it converged; the certified
+route is the one whose answer is proved. Without OptimaSolver, a single back end
+falls back to a sensitivity solved in `Float64`, for the amounts of the state
+only and one level deep, and refuses the rest rather than return derivatives
+that are not there.
 
 !!! note "Why the complementarity conditions cannot be skipped"
     The stationarity conditions are `∇G − Aᵀy − z = 0`, `A n = b`, `nᵢzᵢ = 0`,

@@ -150,15 +150,23 @@ function _build_params(state::ChemicalState; ϵ::Float64 = _AMOUNT_FLOOR)
     RT = R * T                  # keeps units — division below strips them
 
     # ustrip without forced Float64 conversion — preserves Dual if T is Dual
-    ΔₐG⁰overRT = [
-        ustrip(s[:ΔₐG⁰](T = T, P = P; unit = true) / RT)
-            for s in state.system.species
-    ]
+    # In the common number type of the potentials: one species whose data are
+    # being differentiated makes the whole vector dual, not a `Vector{Real}`.
+    ΔₐG⁰overRT = _promoted(
+        [
+            ustrip(s[:ΔₐG⁰](T = T, P = P; unit = true) / RT)
+                for s in state.system.species
+        ]
+    )
 
     T_K = ustrip(us"K", T)   # Quantity{Dual} → Dual, Float64 → Float64
     P_Pa = ustrip(us"Pa", P)
 
-    return (ΔₐG⁰overRT = ΔₐG⁰overRT, T = T_K, P = P_Pa, ϵ = ϵ, ϵa = min(ϵ, _ACTIVITY_FLOOR))
+    # Inside a search run on the values (`_STRIP_TAGS`), the data are values too.
+    return (
+        ΔₐG⁰overRT = _unscoped(ΔₐG⁰overRT), T = _unscoped(T_K), P = _unscoped(P_Pa),
+        ϵ = ϵ, ϵa = min(ϵ, _ACTIVITY_FLOOR),
+    )
 end
 
 """
@@ -422,6 +430,60 @@ indexed past the end of the conservation matrix.
 const _AUTO_SPLIT = ScopedValue(true)
 
 """
+    _STRIP_TAGS
+
+The tags of the dual numbers a certified search is run without, outermost first.
+
+A derivative is taken by solving on the values and lifting the answer by the
+implicit-function theorem (`_lift_equilibrium`). The values have to be those of
+every input the duals of the differentiation reach: the state and the budget,
+which are stripped before the search, but also the thermodynamic data, the
+parameters of the activity and mixing models, and the targets of a constraint,
+which live in the species and in closures the search builds as it goes. While a
+search runs in this scope, `_build_params`, the activity closures and the blocks
+of a constraint return their values without these tags. A tuple and not one tag,
+because a differentiation nested in another strips its own level on top of the
+outer one's.
+"""
+const _STRIP_TAGS = ScopedValue{Tuple}(())
+
+# A tag is whatever ForwardDiff was given: a `Tag` type, or any other value.
+_strip_tag(x, tg) = x
+# At every level: a dual of another tag may carry duals of `tg` inside, as the
+# Jacobian a solver takes of an activity closure whose model is differentiated.
+function _strip_tag(x::ForwardDiff.Dual{T}, tg) where {T}
+    T === tg && return ForwardDiff.value(x)
+    v = _strip_tag(ForwardDiff.value(x), tg)
+    ps = map(d -> _strip_tag(d, tg), ForwardDiff.partials(x).values)
+    return ForwardDiff.Dual{T}(v, ps...)
+end
+_strip_tag(x::AbstractArray, tg) =
+    eltype(x) <: ForwardDiff.Dual && ForwardDiff.tagtype(eltype(x)) === tg ? ForwardDiff.value.(x) :
+    (eltype(x) <: Number && isconcretetype(eltype(x)) && !(eltype(x) <: ForwardDiff.Dual)) ? x :
+    _promoted(map(v -> _strip_tag(v, tg), x))
+_strip_tags(x, tags::Tuple) = foldl((v, tg) -> _strip_tag(v, tg), tags; init = x)
+_unscoped(x) = _strip_tags(x, _STRIP_TAGS[])
+
+# The state without the duals of tag `Tg`.
+function _strip_state(state::ChemicalState, Tg)
+    n = [_strip_tag(ustrip(us"mol", nᵢ), Tg) * u"mol" for nᵢ in state.n]
+    T = _strip_tag(ustrip(us"K", temperature(state)), Tg) * u"K"
+    P = _strip_tag(ustrip(us"Pa", pressure(state)), Tg) * u"Pa"
+    return ChemicalState(state.system, n; T = T, P = P)
+end
+
+# An activity closure that, built inside the scope, returns its values.
+_scoped_lna(lna) = (tags = _STRIP_TAGS[]; isempty(tags) ? lna : (n, p) -> _strip_tags(lna(n, p), tags))
+
+# The blocks of a constraint, inside the scope, returning their values.
+function _scoped_blocks(bl)
+    tags = _STRIP_TAGS[]
+    isempty(tags) && return bl
+    s(f) = f === nothing ? nothing : (args...) -> _strip_tags(f(args...), tags)
+    return merge(bl, (gq = s(bl.gq), hq = s(bl.hq), cq = s(bl.cq), q0 = _strip_tags(bl.q0, tags)))
+end
+
+"""
     _strict_convergence() -> Bool
 
 The effective strict-convergence setting: the innermost
@@ -578,31 +640,74 @@ function _check_converged(sol, what::AbstractString)
 end
 
 """
-    _solve_dual(esolver, state, ϵ) -> ChemicalState
+    _solve_dual(esolver, state, ϵ; b = nothing) -> ChemicalState
 
-Equilibrium of a composition carrying dual numbers.
+Equilibrium of a problem carrying dual numbers: in the state (its amounts, its
+temperature, its pressure), in the budget `b`, in the standard potentials of its
+species or in the parameters of its activity model.
 
 No optimization solver is asked to iterate on dual numbers — most cannot, and
-Ipopt never will, being a C library. The equilibrium is solved once at the
-primal values and the sensitivities come from `_equilibrium_sensitivity`, the
-implicit-function-theorem route on the optimality conditions.
+Ipopt never will, being a C library. The equilibrium is solved by `esolver` on
+the values of the outermost level of duals, and the answer is lifted by the
+implicit-function theorem at it, as the certified route lifts its own
+(`_lift_equilibrium`): exact at every level of a nested differentiation, with
+the active set read off the answer. A pure phase at the solver's lower bound,
+`10ϵ` or less, is absent.
+
+Without the certified solver of the system (OptimaSolver not loaded, or no
+aqueous phase), only the amounts of the state may carry duals, one level, and the
+derivative is that of the optimality conditions of the unconstrained problem
+(`_attach_sensitivity`).
 
 Called from the back-end `solve` methods, which dispatch on the solver type;
 making this a method of `solve` dispatching on the *state* would be ambiguous
 with them.
 """
-function _solve_dual(
-        esolver::EquilibriumSolver,
-        state::ChemicalState{C, S, Q, R},
-        ϵ::Float64;
-        b = nothing,
-    ) where {C, S, Q, R <: ForwardDiff.Dual}
-
+function _solve_dual(esolver::EquilibriumSolver, state::ChemicalState, ϵ::Float64; b = nothing)
+    D = _input_number_type(state, b; model = esolver.model)
+    D <: ForwardDiff.Dual || throw(ArgumentError("_solve_dual: nothing to differentiate."))
+    if _DUAL_AVAILABLE[] && _dual_applicable(state.system)
+        Tg = ForwardDiff.tagtype(D)
+        eq_v = with(_STRIP_TAGS => (_STRIP_TAGS[]..., Tg)) do
+            # Rebuilt in the scope, so that its potentials return values.
+            es = EquilibriumSolver(
+                state.system, esolver.model, esolver.solver;
+                variable_space = esolver.variable_space, esolver.kwargs...,
+            )
+            SciMLBase.solve(
+                es, _strip_state(state, Tg); ϵ = ϵ, b = b === nothing ? nothing : _strip_tag(collect(b), Tg),
+            )
+        end
+        des = DualEquilibriumSolver(state.system, esolver.model)
+        bd = b === nothing ? des.A * _build_n0(state) : collect(b)
+        eq_d, _ = _lift_equilibrium(
+            des, state, eq_v, bd; ϵ = ϵ, strip_tag = Tg, floor = max(_CERTIFICATE_FLOOR, 10ϵ),
+        )
+        return eq_d
+    end
+    R = _amount_number_type(state)
+    (R <: ForwardDiff.Dual && !(ForwardDiff.valtype(R) <: ForwardDiff.Dual) && !_carries_duals(b)) || throw(
+        ArgumentError(
+            "differentiating `equilibrate(state, solver)` with respect to anything but " *
+                "the amounts of the state, or more than once, needs the certified solver " *
+                "of the system: load OptimaSolver, and give the system an aqueous phase " *
+                "with `H2O@`. Without it, only one level of duals in the state is lifted.",
+        ),
+    )
     state_v = _primal(state)
-    eq_v = SciMLBase.solve(esolver, state_v; ϵ = ϵ, b = isnothing(b) ? nothing : _plain.(b))
+    eq_v = SciMLBase.solve(esolver, state_v; ϵ = ϵ, b = b === nothing ? nothing : _plain.(b))
     nstar = Float64[ustrip(us"mol", nᵢ) for nᵢ in eq_v.n]
-    return _attach_sensitivity(state, nstar, esolver.μ, ϵ; b = b)
+    # A budget given in values does not move: its derivative is zero.
+    return _attach_sensitivity(state, nstar, esolver.μ, ϵ; b = b === nothing ? nothing : R.(collect(b)))
 end
+
+# Whether a back end's solve carries dual numbers it cannot iterate on: in the
+# amounts or the temperature (`n0`), the budget, the data (`p`) or the activity
+# model, less the levels a solve on values has stripped (`_STRIP_TAGS`).
+_has_dual_inputs(n0, b, p, model) =
+    eltype(n0) <: ForwardDiff.Dual || _carries_duals(b) || eltype(p.ΔₐG⁰overRT) <: ForwardDiff.Dual ||
+    _type_strip(_captured_number_type(model), _STRIP_TAGS[]) <: ForwardDiff.Dual
+
 
 """
     _attach_sensitivity(state, nstar, μ, ϵ; b = nothing) -> ChemicalState

@@ -197,3 +197,31 @@ table:
 co = carbonate(rs, [0.0, 0.2, 0.5])
 process_table(co; phases = ["Portlandite", "Cal"])
 ```
+
+## From a recipe to a kinetic run
+
+[`hydrate`](@ref) imposes the extents. Rate laws can decide them instead: a
+[`KineticsProblem`](@ref) built from the recipe takes each constituent named in
+`rates` whole and unreacted, as a kinetic species that dissolves into the
+primaries of the system, and every other constituent as the recipe has it at
+the start of the run. The same recipe then drives both.
+
+```@example recipes
+rates = Dict(
+    "C3S" => parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"),
+    "C2S" => parrott_killoh_avrami(PK84_PARAMS_C2S, "C2S"),
+)
+kp = KineticsProblem(Recipe(pc => 1.0; w_b = 0.45), cs, rates, (0.0, 28 * 86400.0))
+for kr in kp.kinetic_reactions
+    println(kr.reaction)
+end
+```
+
+The dissolutions are those the conservation matrix of the system gives, so they
+conserve every element by construction. The reacted part of a constituent known
+by its oxides (the alkalis and the minor oxides of a clinker) enters as the
+primaries that carry its elements; its heat of dissolution is not part of the
+heat of the run. A glass has no formula to dissolve and cannot be given a rate.
+[`integrate`](@ref) then runs the problem, with an equilibrium solver for the
+partial equilibrium of the products, as in the [kinetics tutorial](@ref
+sec-kinetics).

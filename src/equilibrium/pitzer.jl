@@ -303,11 +303,14 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
     bp = par.b
     A_fixed = _DH_A_25C                  # log10-basis Debye-Hückel A at 25 °C
     temp_dep = model.temperature_dependent
+    MT = promote_type(_captured_number_type(mix), _captured_number_type(model))
 
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
         _n = max.(n, _activity_floor(p))
-        TT = eltype(_n)
+        # The number type of everything the output is computed from: the
+        # amounts, the state's parameters and the model's coefficients.
+        TT = promote_type(eltype(_n), _number_type_of(p), MT)
         out = zeros(TT, n_sp)
 
         A_log10 = if temp_dep && hasproperty(p, :T) && hasproperty(p, :P)

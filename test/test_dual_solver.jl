@@ -260,26 +260,25 @@ end
     # is a different — and worse — problem.
     #
     # Four pure phases of nearly the same composition compete, and the free energy
-    # awards everything to the winner: 1.0 mol in a single end-member and zero in
-    # the other three, because nothing in that model pays for mixing. The optimum
-    # is a corner of the feasible set, and the solver does not reach it exactly —
-    # the answer comes back with a stationarity residual of order 1 and is
-    # correctly refused by the certificate. The solution model is not a
-    # presentational choice: it is what makes the problem solvable.
+    # awards everything to the winner, because nothing in that model pays for
+    # mixing. The optimum is a corner of the feasible set. Whether this route
+    # reaches it exactly, and is certified there, is a property of its path, not
+    # of the thermodynamics: measured, the same solve was refused by the
+    # certificate on one machine and certified on another, whose arithmetic
+    # differs in the last digits. What is asserted is what holds either way.
     cs_pure = ChemicalSystem(sp, CEMDATA_PRIMARIES)
-    d_pure, cert_pure, _ = solve_cs(cs_pure)
+    d_pure, _, _ = solve_cs(cs_pure)
     npure = [ustrip(us"mol", d_pure.n[findfirst(==(nm), symbol.(cs_pure.species))]) for nm in members]
-    @test !cert_pure.optimal
     # Strictly fewer end-members than the solution model occupies, and the count
     # is not asserted exactly: nothing in that model pays for mixing, so which
     # corner of the feasible set it settles in is a property of the solver's path,
     # not of the thermodynamics. What IS a property of the thermodynamics is that
     # it settles in a corner at all, while the solution spreads over all four.
     @test count(>(1.0e-3), npure) < count(>(1.0e-3), amounts)
-    # No mass-balance assertion on this answer: it is NOT an equilibrium — the
-    # certificate says so — and its element balance does not close. Asserting a
-    # conservation law on a composition that fails the constraints would be
-    # asserting a property of a non-solution.
+    # No mass-balance assertion on this answer when it is not certified: its
+    # element balance need not close, and a conservation law asserted on a
+    # composition that fails the constraints would be a property of a
+    # non-solution.
     @test pH(d_pure) ≈ pH(d_ss) rtol = 1.0e-2      # the pore solution is still right
 
 end

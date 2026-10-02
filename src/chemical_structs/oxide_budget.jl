@@ -183,7 +183,8 @@ function oxide_budget(
     )
     m_g = ustrip(us"g", mass)
     prim = collect(primaries)
-    b = zeros(length(prim))
+    # In the number type of the mass and of the analysis.
+    b = zeros(promote_type(Float64, typeof(m_g), (typeof(float(v)) for v in values(oxides))...), length(prim))
     for (formula, frac) in oxides
         frac == 0 && continue
         frac < 0 && throw(

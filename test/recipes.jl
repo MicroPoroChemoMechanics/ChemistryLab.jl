@@ -3,7 +3,7 @@
 # checked against an identity (the oxides a decomposition reproduces, the mass a
 # budget conserves) or against the hand-built recipe of `scripts/gruyaert2010.jl`.
 
-using ChemistryLab, DynamicQuantities, OrderedCollections, Test
+using ChemistryLab, DynamicQuantities, ForwardDiff, OrderedCollections, Test
 
 @testsection "Recipes and processes" begin
     substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
@@ -25,8 +25,8 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
         # The tabulated curve is the integral of the law: its slope is the rate,
         # to the linear interpolation between grid points 0.4 % apart in time.
         rate = ChemistryLab.parrott_killoh_avrami(ChemistryLab._pk84_params("C3S"), "C3S")
-        t, h = 7.0, 1.0e-3
-        slope = (extent(pk, t + h) - extent(pk, t - h)) / (2h) / 86400
+        t = 7.0
+        slope = ForwardDiff.derivative(τ -> extent(pk, τ), t) / 86400
         α = extent(pk, t)
         @test slope ≈ rate(293.15, 1.0e5, 0.0, Dict("C3S" => 1 - α), nothing, Dict("C3S" => 1.0)) rtol = 1.0e-2
         # The w/c factor of Parrott and Killoh: no effect below 1.333 w/c, and a
@@ -374,6 +374,116 @@ using ChemistryLab, DynamicQuantities, OrderedCollections, Test
         le = leach(rs, 2)
         @test all(s -> s.certificate.optimal, le)
         @test pore_solution(le[2]).elements[:K] < pore_solution(rs).elements[:K]
+    end
+
+    @testset "derivatives through a recipe are exact" begin
+        iw = findfirst(s -> symbol(s) == "H2O@", cs.species)
+        Mw = ustrip(us"g/mol", cs.species[iw][:M])
+        # Water enters the budget as water, with the H⁺ and OH⁻ of neutral pH a
+        # state seeds in proportion to it; the reacted part of a mineral as that
+        # mineral, and its unreacted part leaves the residue as it reacts.
+        bw(w) = budget(Recipe(pc => 0.7, slag => 0.3; w_b = w), cs).b
+        st45 = budget(Recipe(pc => 0.7, slag => 0.3; w_b = 0.45), cs).state
+        iH, iOH = (findfirst(s -> symbol(s) == x, cs.species) for x in ("H+", "OH-"))
+        seed = ustrip(us"mol", moles(st45, "H+")) / ustrip(us"mol", moles(st45, "H2O@"))
+        @test seed > 0 && moles(st45, "OH-") == moles(st45, "H+")
+        dbw = ForwardDiff.derivative(bw, 0.45)
+        @test dbw ≈ (A[:, iw] .+ seed .* (A[:, iH] .+ A[:, iOH])) * 100 / Mw rtol = 1.0e-12
+        ic = findfirst(s -> symbol(s) == "C3S", cs.species)
+        f = only(c.mass_fraction for c in pc.constituents if c.name == "C3S")
+        Mc = ustrip(us"g/mol", cs.species[ic][:M])
+        at(α) = budget(Recipe(with_extents(pc, Dict("C3S" => α)) => 1.0; w_b = 0.45), cs)
+        @test ForwardDiff.derivative(α -> at(α).b, 0.8) ≈ A[:, ic] * 100 * f / Mc rtol = 1.0e-12
+        @test ForwardDiff.derivative(α -> sum(x.mass for x in at(α).residual if x.constituent == "C3S"), 0.8) ≈ -100 * f rtol = 1.0e-12
+
+        # The law of an extent: with every rate constant scaled by λ, the law is
+        # the same in a time scaled by λ, and so is it at a temperature `T` in
+        # the time scaled by its Arrhenius factor. At λ = 1 and T = T_ref the
+        # derivatives are the time times the rate, to the tabulation.
+        p0 = ChemistryLab._pk84_params("C3S")
+        t = 7.0
+        α = extent(ParrottKillohExtent("C3S"), t)
+        rate = ChemistryLab.parrott_killoh_avrami(p0, "C3S")
+        α̇(T, a) = rate(T, 1.0e5, 0.0, Dict("C3S" => 1 - a), nothing, Dict("C3S" => 1.0))
+        scaled(λ) = extent(ParrottKillohExtent("C3S"; parameters = (k₁ = λ * p0.k₁, k₂ = λ * p0.k₂, k₃ = λ * p0.k₃)), t)
+        @test ForwardDiff.derivative(scaled, 1.0) ≈ t * 86400 * α̇(293.15, α) rtol = 1.0e-3
+        Tr = ChemistryLab.safe_ustrip(us"K", p0.T_ref)
+        Ea = ChemistryLab.safe_ustrip(us"J/mol", p0.Ea)
+        αr = extent(ParrottKillohExtent("C3S"; T = Tr), t)
+        dT = ForwardDiff.derivative(T -> extent(ParrottKillohExtent("C3S"; T), t), Tr)
+        @test dT ≈ t * 86400 * Ea / (ChemistryLab.R_GAS * Tr^2) * α̇(Tr, αr) rtol = 1.0e-3
+
+        # Through the equilibrium: the answer keeps the mass balance in its
+        # derivatives, and is the derivative of the same equilibrium in its
+        # budget, by the chain rule. The readers carry the derivatives along.
+        r(w) = Recipe(pc => 0.7, slag => 0.3; w_b = w)
+        rs0, _ = equilibrate_certified(r(0.45), cs; model)
+        ich = findfirst(s -> symbol(s) == "Portlandite", cs.species)
+        Mch = ustrip(us"g/mol", cs.species[ich][:M])
+        read_off(rs) = vcat(
+            ustrip.(us"mol", rs.state.n), phase_masses(rs)["Portlandite"], bound_water(rs),
+            pore_solution(rs).elements[:K], residual_mass(rs),
+        )
+        out = w -> read_off(first(equilibrate_certified(r(w), cs; model)))
+        Tg = typeof(ForwardDiff.Tag(out, Float64))
+        lifted = out(ForwardDiff.Dual{Tg}(0.45, 1.0))
+        # The values are those of the plain recipe: the solve ran on them.
+        @test ForwardDiff.value.(lifted) ≈ read_off(rs0) rtol = 1.0e-12
+        d = ForwardDiff.partials.(lifted, 1)
+        ns = length(cs.species)
+        dn = d[1:ns]
+        @test A * dn ≈ dbw rtol = 1.0e-8 atol = 1.0e-12
+        dn_b = ForwardDiff.derivative(
+            s -> ustrip.(us"mol", first(equilibrate_certified(rs0.initial; model, b = rs0.b .+ s .* dbw)).n), 0.0,
+        )
+        @test dn ≈ dn_b rtol = 1.0e-10 atol = 1.0e-14
+        @test d[ns + 1] ≈ dn[ich] * Mch rtol = 1.0e-12
+        @test d[ns + 4] == 0   # the residue does not depend on the water
+    end
+
+    @testset "a recipe as a kinetic problem" begin
+        # The clinker silicates given their rates, everything else as the recipe
+        # has it at the start: C3S and C2S whole, the other constituents reacted
+        # as `budget` takes them, the oxides of the cement as the primaries that
+        # carry them.
+        rates = Dict("C3S" => parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"), "C2S" => parrott_killoh_avrami(PK84_PARAMS_C2S, "C2S"))
+        r = Recipe(pc => 1.0; w_b = 0.45)
+        kp = KineticsProblem(r, cs, rates, (0.0, 86400.0))
+        whole = with_extents(pc, Dict("C3S" => 1.0, "C2S" => 1.0))
+        n0 = ustrip.(us"mol", kp.initial_state.n)
+        @test A * n0 ≈ budget(Recipe(whole => 1.0; w_b = 0.45), cs).b rtol = 1.0e-12 atol = 1.0e-12
+        @test all(>=(0), n0)
+        c3s = only(c for c in pc.constituents if c.name == "C3S")
+        @test ustrip(us"mol", moles(kp.initial_state, "C3S")) ≈
+            r.binder_mass * c3s.mass_fraction / ustrip(us"g/mol", c3s.species[:M]) rtol = 1.0e-12
+        # One dissolution per rate, each conserving the elements.
+        @test length(kp.kinetic_reactions) == 2
+        @test maximum(abs, A * transpose(kp.ν)) < 1.0e-12
+        # The kinetics alone (no equilibrium solver): the silicates dissolve.
+        sol = integrate(kp, KineticsSolver())
+        ic3s = findfirst(s -> symbol(s) == "C3S", cs.species)
+        k3 = findfirst(==(ic3s), kp.idx_kinetic)
+        @test sol.u[end][k3] < sol.u[1][k3]
+        # The reacted oxides enter as the primaries: a basic oxide's protons as
+        # hydroxide, an acidic oxide's water taken from the mixing water, and
+        # anything else refused.
+        st = deepcopy(kp.initial_state)
+        ox(f) = ChemistryLab.oxide_budget(OrderedDict(f => 1.0), cs.SM.primaries; mass = 1.0u"g")
+        oh0, w0 = moles(st, "OH-"), moles(st, "H2O@")
+        ChemistryLab._add_primaries!(st, ox("K2O"))
+        @test moles(st, "OH-") > oh0 && moles(st, "H2O@") < w0
+        w1 = moles(st, "H2O@")
+        ChemistryLab._add_primaries!(st, ox("SO3"))
+        @test moles(st, "H2O@") < w1
+        @test A * ustrip.(us"mol", st.n) ≈ A * n0 .+ ox("K2O") .+ ox("SO3") rtol = 1.0e-12 atol = 1.0e-14
+        neg = zeros(length(cs.SM.primaries)); neg[findfirst(p -> symbol(p) == "Ca+2", cs.SM.primaries)] = -1.0
+        @test_throws ArgumentError ChemistryLab._add_primaries!(deepcopy(kp.initial_state), neg)
+        dry = zeros(length(cs.SM.primaries)); dry[findfirst(p -> symbol(p) == "H2O@", cs.SM.primaries)] = -1.0e6
+        @test_throws ArgumentError ChemistryLab._add_primaries!(deepcopy(kp.initial_state), dry)
+        # What cannot be given a rate is refused by name.
+        @test_throws ArgumentError KineticsProblem(r, cs, Dict("no such" => rates["C3S"]), (0.0, 1.0))
+        glass = first(c.name for c in slag.constituents if c isa ChemistryLab.OxideConstituent)
+        @test_throws ArgumentError KineticsProblem(Recipe(pc => 0.7, slag => 0.3; w_b = 0.45), cs, Dict(glass => rates["C3S"]), (0.0, 1.0))
     end
 
     @testset "phase lists" begin

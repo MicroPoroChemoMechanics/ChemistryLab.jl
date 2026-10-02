@@ -142,10 +142,14 @@ end
 
 # ── parrott_killoh ─────────────────────────────────────────────────────────────
 
+# Deprecated, and every call below says so: the warning is asserted, not printed.
+_pk_deprecated(args...; kwargs...) =
+    @test_logs (:warn, r"`parrott_killoh` is deprecated") parrott_killoh(args...; kwargs...)
+
 @testset "parrott_killoh" begin
 
     # ── Construction ─────────────────────────────────────────────────────────
-    pk = parrott_killoh(PK_PARAMS_C3S, "C3S")
+    pk = _pk_deprecated(PK_PARAMS_C3S, "C3S")
     @test pk isa KineticFunc
 
     # ── Positivity and monotonicity ───────────────────────────────────────────
@@ -179,7 +183,7 @@ end
     @test r_high_T > r_low_T
 
     # ── α_max limit ───────────────────────────────────────────────────────────
-    pk_max = parrott_killoh(PK_PARAMS_C3S, "C3S"; α_max = 0.85)
+    pk_max = _pk_deprecated(PK_PARAMS_C3S, "C3S"; α_max = 0.85)
     # At n ≈ 0 (α ≈ 1.0 > α_max = 0.85), rate should be very small
     n_sv_zero = StateView([1.0e-15], index)
     r_at_zero = pk_max(T_K, 1.0e5, 0.0, n_sv_zero, lna_sv, n0_sv)
@@ -192,7 +196,7 @@ end
             (PK_PARAMS_C3A, "C3A"),
             (PK_PARAMS_C4AF, "C4AF"),
         )
-        pk_k = parrott_killoh(params, name)
+        pk_k = _pk_deprecated(params, name)
         idx = Dict(name => 1)
         n_k = StateView([0.5], idx)
         n0_k = StateView([1.0], idx)
@@ -256,7 +260,7 @@ end
     cs = ChemicalSystem([calcite, h2o, ca2p, co3])
     n_sp = length(cs.species)
 
-    pk = parrott_killoh(PK_PARAMS_C3S, "Calcite")
+    pk = _pk_deprecated(PK_PARAMS_C3S, "Calcite")
 
     # ── Constructor finds species by phreeqc formula ───────────────────────────
     kr = KineticReaction(cs, "Calcite", pk)
@@ -336,7 +340,7 @@ end
     @test_throws ArgumentError KineticReaction(cs, rxn)
 
     # ── Attach a KineticFunc via :rate ────────────────────────────────────────
-    pk = parrott_killoh(PK_PARAMS_C3S, "Calcite")
+    pk = _pk_deprecated(PK_PARAMS_C3S, "Calcite")
     rxn[:rate] = pk
     kr = KineticReaction(cs, rxn)
     @test kr isa KineticReaction
@@ -591,7 +595,7 @@ end
     @test isfinite(dT) && dT > 0
 
     # ── The two variants are distinct objects with non-transferable parameters ─
-    @test parrott_killoh(PK_PARAMS_C3S, "C3S")(T_ref, 1.0e5, 3600.0, StateView([0.6], index), lna_sv, n0_sv) !=
+    @test _pk_deprecated(PK_PARAMS_C3S, "C3S")(T_ref, 1.0e5, 3600.0, StateView([0.6], index), lna_sv, n0_sv) !=
         at(pk, 0.4)
 
 end

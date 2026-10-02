@@ -281,9 +281,16 @@ id
 
 Three things are worth reading there.
 
-**The spectrum falls off a cliff.** [`identifiable_rank`](@ref) reads the rank
-off the largest *ratio* between consecutive singular values, not off a
-threshold — a threshold has units and a gap does not.
+**The spectrum falls off a cliff.** With a noise level `σ`,
+[`identifiable_rank`](@ref) counts a direction as determined when its standard
+error in `log θ`, `σ` over its singular value, is below one. `σ` is the
+instrument's when it is given (`noise`), and otherwise the residual standard
+deviation of the fit on its `n − p` degrees of freedom. Here the fit is exact,
+the residual is zero, and `σ` takes its floor, `√eps` times the
+root-mean-square of the curve: only the direction at the rounding of the
+arithmetic is left out. Without a noise level, the rank is read off the largest
+*ratio* between consecutive singular values: a threshold would have units, and
+a gap has none.
 
 **The empty direction names the trade-off.**
 
@@ -294,7 +301,7 @@ round.(id.V[:, end]; digits = 3)     # equal and opposite in a and c, nothing in
 **And the correlation says it more directly**, which is why it is the instrument
 to reach for when two parameters trade off rather than one being invisible.
 `scripts/hydration_calibration.jl` found a rate constant and an Avrami exponent
-correlated at −0.985 — the data see a product, not its factors — and therefore
+correlated at −0.96 — the data see a product, not its factors — and therefore
 fitted one of the two. *Which* one is a modeling judgement and not a statistical
 one: it kept the rate constant, because that is the quantity a different clinker
 plausibly changes.
@@ -362,46 +369,27 @@ identifiability(pk_curve, θpk; names = ["k₃", "n₃", "p"])
 Two of three directions, and the pair named is `n₃` / `p` — the degeneracy the
 algebra predicted, found from the model rather than asserted about it.
 
-#### But look at the condition number, and then refine the step
+#### The condition number of an exact degeneracy
 
-It comes out around eighty, which for a model with an **exact** degeneracy in it
-is far too small. The reason is the differencing, not the model:
+The sensitivities are exact, by forward-mode differentiation, so an exact
+degeneracy shows as one: the smallest singular value is ten orders of magnitude
+below the largest, and the correlation of the pair is −1 to the digits printed.
 
 ```@example numbers
-# Wrapped in a function on purpose: `id` is already a global on this page, and
-# assigning it inside a top-level loop is the soft-scope ambiguity Julia warns
-# about. A function body has no such question.
-function step_sweep()
-    for rs in (0.05, 0.01, 0.002)
-        s = identifiability(pk_curve, θpk; names = ["k₃", "n₃", "p"], relstep = rs)
-        println("relstep = ", rs,
-                "   condition = ", round(s.condition; sigdigits = 4),
-                "   r(n₃, p) = ", round(s.correlation[2, 3]; digits = 6))
-    end
-end
-step_sweep()
+idpk = identifiability(pk_curve, θpk; names = ["k₃", "n₃", "p"])
+(condition = idpk.condition, r_n3_p = idpk.correlation[2, 3])
 ```
 
-The default 5 % step moves `n₃ = 3.3` by 0.165 **in an exponent**, which is far
-enough that the second-order differencing error differs between two parameters
-that are exactly collinear — and the degeneracy is partly hidden.
+Until 0.28.2 these sensitivities were central differences. Their default 5 %
+step moved `n₃ = 3.3` by 0.165 **in an exponent**, far enough for the
+second-order error of the differences to differ between two parameters that are
+exactly collinear, and the same model came out with a condition number of about
+eighty where it is 1e10: a degeneracy partly hidden by the method that was meant
+to find it.
 
-At 1 % the correlation reaches −1.000 and **stays there** while the condition
-number keeps climbing. That pair of behaviors is the numerical signature of an
-*exact* degeneracy: the smallest singular value is converging to zero, so its
-ratio to the largest diverges and no refinement gives a finite answer, while the
-direction it belongs to has already settled. A merely ill-conditioned model
-behaves the other way — both numbers settle.
-
-!!! tip "The habit this asks for"
-    A condition number of a few hundred is not evidence that a model is well
-    posed. Refine `relstep` and see whether the answer moves. If it does, the
-    coarse one was measuring the differencing and not the model.
-
-#### What it says, once the step is fine enough
+#### What it says
 
 ```@example numbers
-idpk = identifiability(pk_curve, θpk; names = ["k₃", "n₃", "p"], relstep = 0.01)
 round.(idpk.V[:, end]; digits = 4)     # the direction the data cannot see
 ```
 

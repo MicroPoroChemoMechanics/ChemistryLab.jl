@@ -153,7 +153,10 @@ function _temperature_blocks(des, state, p, target_H)
         ) / (ustrip(us"J/(mol*K)", Constants.R) * q[1])
             for s in system.species
     ]
-    hq = (x, q, params) -> des.lna(x, merge(params, (T = q[1],)))
+    # `pq`: the parameters the activity model sees, for whatever has to see the
+    # same (the inversion of the aqueous phase, `_aqueous_inverter`).
+    pq = (q, params) -> merge(params, (T = q[1],))
+    hq = (x, q, params) -> des.lna(x, pq(q, params))
     # The residual is scaled by RT so it is dimensionless and comparable with the
     # stationarity rows, which are in RT units. Unscaled it is 10⁵ J and swamps
     # every other row of the Newton system.
@@ -162,7 +165,7 @@ function _temperature_blocks(des, state, p, target_H)
             (ustrip(us"J/(mol*K)", Constants.R) * q[1] * max(sum(x), 1.0)),
     ]
     return (;
-        nq = 1, gq = gq, hq = hq, cq = cq,
+        nq = 1, gq = gq, hq = hq, pq = pq, cq = cq,
         Aq = zeros(Float64, size(des.A, 1), 1),
         q0 = [p.T], qscale = [p.T],
         apply = (T, Pv, q) -> (q[1] * u"K", Pv),
@@ -172,8 +175,8 @@ end
 """
     _pressure_lever(system, n, T, P) -> Real
 
-Relative sensitivity of the system's volume to pressure, `(∂V/∂P)·P/V`, by a
-central difference over one percent of `P`.
+Relative sensitivity of the system's volume to pressure, `(∂V/∂P)·P/V`, by
+forward-mode differentiation.
 
 A volume constraint prescribes `V` and solves for `P`, so it needs this to be
 non-negligible. It usually is not for a condensed system: in the databases
@@ -190,12 +193,11 @@ condensed system is fixed by its composition, and pressure has no purchase on it
 A gas phase gives it one.
 """
 function _pressure_lever(system::ChemicalSystem, n, T, P)
-    δ = 0.01 * P
-    Vp = _total_volume(system, n, T, P + δ)
-    Vm = _total_volume(system, n, T, P - δ)
     V = _total_volume(system, n, T, P)
     V == 0 && return 0.0
-    return abs((Vp - Vm) / (2δ)) * P / abs(V)
+    # `∂V/∂P` exactly, by forward mode.
+    dVdP = ForwardDiff.derivative(Pv -> _total_volume(system, n, T, Pv), P)
+    return abs(dVdP) * P / abs(V)
 end
 
 # Pressure unknown: `q[1]` is P in pascals.
@@ -203,8 +205,8 @@ function _pressure_blocks(des, state, p, target_V)
     system = state.system
     T = p.T
 
-    n_now = Float64[ustrip(us"mol", x) for x in state.n]
-    lever = _pressure_lever(system, n_now, T, p.P)
+    n_now = Float64[_plain(ustrip(us"mol", x)) for x in state.n]
+    lever = _pressure_lever(system, n_now, _plain(T), _plain(p.P))
     if lever < 1.0e-4
         throw(
             ArgumentError(
@@ -230,13 +232,14 @@ function _pressure_blocks(des, state, p, target_V)
         ) / (ustrip(us"J/(mol*K)", Constants.R) * T)
             for s in system.species
     ]
-    hq = (x, q, params) -> des.lna(x, merge(params, (P = q[1],)))
+    pq = (q, params) -> merge(params, (P = q[1],))
+    hq = (x, q, params) -> des.lna(x, pq(q, params))
     # Scaled by the target volume: the residual is then a relative volume error.
     cq = (x, q, params) -> [
         (_total_volume(system, x, T, q[1]) - target_V) / max(abs(target_V), 1.0e-12),
     ]
     return (;
-        nq = 1, gq = gq, hq = hq, cq = cq,
+        nq = 1, gq = gq, hq = hq, pq = pq, cq = cq,
         Aq = zeros(Float64, size(des.A, 1), 1),
         q0 = [p.P], qscale = [max(p.P, 1.0e5)],
         apply = (Tv, P, q) -> (Tv, q[1] * u"Pa"),
@@ -344,9 +347,8 @@ function _titrant_blocks(
     # `−A[:, titrant]`: the titrant ADDS to the budget, and the rows are written
     # as `A x + Aq q − b = 0`.
     Aq = reshape(-des.A[:, i_titrant], size(des.A, 1), 1)
-    # A mole scale for the difference step, taken from the system's own size so
-    # it is neither absurdly large nor below the resolution of the balance.
-    scale = max(sum(Float64[ustrip(us"mol", x) for x in state.n]), 1.0) * 1.0e-6
+    # A mole scale for the unknown, from the system's own size.
+    scale = max(sum(_plain(ustrip(us"mol", x)) for x in state.n), 1.0) * 1.0e-6
     idxs = [first(t) for t in terms]
     coef = [Float64(last(t)) for t in terms]
     cq = function (x, q, params)
@@ -599,7 +601,7 @@ CapillaryWater(f, V_ref) = CapillaryWater(FunctionRetention(f), V_ref)
 CapillaryWater(f; reference) = CapillaryWater(FunctionRetention(f); reference = reference)
 
 """
-    _molar_volumes(system, T, P) -> Vector{Float64}
+    _molar_volumes(system, T, P) -> Vector
 
 Standard molar volume of every species at `T`, `P`, in m³/mol, and zero for a
 species that has none.
@@ -610,10 +612,14 @@ balance, silently, and the saturation the whole coupling rests on would be wrong
 with nothing to show for it.
 """
 function _molar_volumes(system, T, P)
-    return Float64[
-        _has_molar_volume(sp) ? ustrip(us"m^3/mol", sp[:V⁰](T = T, P = P; unit = true)) : 0.0
-            for sp in system.species
-    ]
+    # In the number type of `T` and `P`, which a derivative with respect to
+    # them carries through.
+    return _promoted(
+        [
+            _has_molar_volume(sp) ? ustrip(us"m^3/mol", sp[:V⁰](T = T, P = P; unit = true)) : 0.0
+                for sp in system.species
+        ]
+    )
 end
 
 """
@@ -720,7 +726,7 @@ function _constraint_blocks(c::SaturatedCuring, des, state, p, n0)
 
     # The titrant ADDS to the budget, and the rows read `A x + Aq q − b = 0`.
     Aq = reshape(-des.A[:, i_t], size(des.A, 1), 1)
-    scale = max(sum(Float64[ustrip(us"mol", x) for x in state.n]), 1.0) * 1.0e-6
+    scale = max(sum(_plain(ustrip(us"mol", x)) for x in state.n), 1.0) * 1.0e-6
 
     # Scaled by the reference, so the residual is a relative volume error --
     # the same convention `_pressure_blocks` uses.
@@ -819,6 +825,8 @@ function _constraint_blocks(c::CapillaryWater, des, state, p, n0)
             v[j_w] += q[1]
             v
         end,
+        # The shift is the solvent's alone: the solutes see `params`.
+        pq = (q, params) -> params,
         cq = (x, q, params) -> [q[1] - ln_a_of(x)],
         Aq = zeros(size(des.A, 1), 1),
         q0 = [0.0],

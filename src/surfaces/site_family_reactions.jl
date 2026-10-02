@@ -117,8 +117,10 @@ function site_family(
     return SiteFamily(name, f, complexes; capacity, support, model)
 end
 
-_equation_and_logk(r::SorptionReaction) = (r.equation, Float64(value(r.log_K)))
-_equation_and_logk(r::Pair) = (String(first(r)), Float64(last(r)))
+# A constant in the number type it is given: a log K being fitted carries its
+# derivative into the energy of its complex.
+_equation_and_logk(r::SorptionReaction) = (r.equation, float(value(r.log_K)))
+_equation_and_logk(r::Pair) = (String(first(r)), float(last(r)))
 
 function _reaction_species(lookup, sym, name)
     haskey(lookup, sym) && return lookup[sym]

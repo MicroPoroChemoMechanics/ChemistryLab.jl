@@ -143,8 +143,8 @@ function with_extents(m::Material, extents::AbstractDict; material_extent = noth
     isempty(unknown) || throw(ArgumentError("with_extents: $(m.name) has no constituent $(join(unknown, ", "))."))
     return Material(m.name, m.kind, cons, material_extent === nothing ? m.extent : _as_extent(material_extent), m.source)
 end
-_with_extent(c::MineralConstituent, e) = MineralConstituent{typeof(c.species), typeof(e)}(c.name, c.species, c.mass_fraction, e)
-_with_extent(c::OxideConstituent, e) = OxideConstituent{typeof(e)}(c.name, c.oxides, c.mass_fraction, e, c.density, c.enthalpy, c.source)
+_with_extent(c::MineralConstituent, e) = MineralConstituent{typeof(c.species), typeof(e), typeof(c.mass_fraction)}(c.name, c.species, c.mass_fraction, e)
+_with_extent(c::OxideConstituent{<:Any, F}, e) where {F} = OxideConstituent{typeof(e), F}(c.name, c.oxides, c.mass_fraction, e, c.density, c.enthalpy, c.source)
 
 function _rietveld_constituent(phase, w, species; extent = 1.0)
     target = get(RIETVELD_PHASES, phase, nothing)

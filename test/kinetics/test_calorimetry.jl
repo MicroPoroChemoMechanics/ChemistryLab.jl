@@ -375,9 +375,33 @@ end
     @info "adiabatic cell under partial equilibrium" ΔT = Tt[end] - Tt[1] drift = H .- H[1] released
     @test maximum(abs, H .- H[1]) < 1.0e-3 * released
 
+    # The cell is closed to heat, so the heat the paste releases is what warms
+    # the vessel: −dH/dt = C_vessel dT/dt, the paste's own heat capacity on
+    # neither side. Without the `−Σ nᵢ Cpᵢ dT/dt` of the rate the left side would
+    # be (C_vessel + Cp_paste) dT/dt, forty times larger here. The rate is that
+    # of the certified states and the temperature that of the run, so the two
+    # differ as the in-run partition does from the certified one: measured, 1.6 %
+    # at the peak (6 h) and 0.03 % at one day.
+    tq = [6 * 3600.0, 86400.0]
+    _, _, qdot = heat_release(sol, kp; times = tq)
+    dTdt = [sol(x, Val{1})[end] for x in tq]
+    @test qdot ≈ C_vessel .* dTdt rtol = 5.0e-2
+    # And the enthalpy of the paste at fixed composition changes with its
+    # temperature by its heat capacity, Σ nᵢ Cpᵢ, to the consistency of the
+    # database's own functions for H and Cp: measured, 2e-6.
+    pp = sol.prob.p
+    u_end = sol.u[end]
+    T_end = u_end[end]
+    nk(i) = (j = findfirst(==(i), pp.idx_kinetic); j === nothing ? pp.n_full[i] : max(u_end[pp.n_be + j], pp.ϵ))
+    Cp_paste = sum(
+        nk(i) * pp.cp_fns[i](; T = T_end, unit = false)
+            for i in 1:length(pp.h_fns) if pp.h_fns[i] !== nothing && pp.cp_fns[i] !== nothing
+    )
+    @test ForwardDiff.derivative(T -> system_enthalpy(pp, u_end, T), T_end) ≈ Cp_paste rtol = 1.0e-5
+
     # The heat the partition takes up as it shifts with temperature, from the
-    # Gibbs–Helmholtz right-hand side, against certified equilibria of the last
-    # proved partition half a kelvin either side of it.
+    # Gibbs–Helmholtz right-hand side, against the certified equilibrium of the
+    # last proved partition differentiated with respect to its temperature.
     p = sol.prob.p
     Tr = p.heat_T[]
     C_shift = ChemistryLab._equilibrium_shift_capacity(p, Tr)
@@ -388,13 +412,13 @@ end
         @test cert.optimal
         return ustrip.(us"mol", eq.n)
     end
-    C_fd = h' * (n_at(Tr + 0.5) .- n_at(Tr - 0.5))
-    @info "shift of the partition with temperature" C_shift C_fd
+    C_eq = h' * ForwardDiff.derivative(n_at, Tr)
+    @info "shift of the partition with temperature" C_shift C_eq
     @test C_shift > 0
-    # Measured: 1.6140 J/K against 1.6138. The Gibbs–Helmholtz form leaves out
-    # the temperature dependence of the activity coefficients, which the
-    # certified equilibria carry, with the truncation of the difference quotient.
-    @test C_shift ≈ C_fd rtol = 1.0e-3
+    # Measured: 1.61400 J/K against 1.61386, 8e-5 apart. The Gibbs–Helmholtz
+    # form leaves out the temperature dependence of the activity coefficients,
+    # which the certified equilibrium carries.
+    @test C_shift ≈ C_eq rtol = 1.0e-3
 
     # A partition whose audit raises proves nothing, and the heat reference stays.
     @test ChemistryLab._proved_partition(p, p.heat_n[], p.heat_b[][1:(end - 1)]) === nothing

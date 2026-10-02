@@ -1,5 +1,225 @@
 # Changelog
 
+## v0.29.0 — Derivatives through every forward model, and no difference quotient left
+
+This release takes every derivative of the package by forward-mode
+differentiation, and lets one flow through everything a forward model is built
+from: an equilibrium, a kinetic run, a recipe, a surface. It is what an inversion
+needs whose forward model is an equilibrium or a hydration, differentiated with
+`ForwardDiff` and differentiated again for its Hessian. It also showed that the
+difference quotients had been producing results of their own: a degeneracy half
+hidden, a rate constant credited with an influence it does not have, a spectrum
+flattened. And the certified solver now recovers the aqueous solutes through
+the ionic strength, as one equation, where it had swept them one by one without
+converging: the same answers, several times faster, and a model with no solution
+at given potentials recognized as such.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.28"` does not accept 0.29 and
+  has to widen its bound.
+- **Six exported types gained a type parameter**, so that they can hold dual
+  numbers: `Recipe{R}`, `RecipeState{S, C, M, B, I}`,
+  `MineralConstituent{S, E, F}`, `OxideConstituent{E, F}`,
+  `ParrottKillohExtent{V}` and `DonnanLayer{T}`. Their constructors are
+  unchanged; code that names their type parameters (an inner constructor called
+  as `MineralConstituent{S, E}(…)`, a method signature listing them all) has to
+  be updated.
+- **`identifiability` reads its rank differently with an observation**: from the
+  standard errors of the singular directions rather than from the largest gap
+  of the spectrum (see below). The same inputs can return another `rank`, and
+  `as_traced` can then mark another set of parameters as placeholders. Its
+  `stderr` are larger by `√(n/(n − p))`, the noise level now being estimated on
+  the degrees of freedom the parameters leave, and `Identifiability` has a
+  `noise` field. The correlation matrix is formed from the singular value
+  decomposition, which changes its sign at an exact degeneracy, where the
+  inversion of `JᵀJ` had none to give.
+
+### Changed: the aqueous solutes are solved through the ionic strength
+
+- **One equation where the solver swept.** For the Debye–Hückel (`HKFActivityModel`,
+  with or without an ion size), Davies, Truesdell–Jones and dilute models, the
+  inner level of the certified solver recovers the solutes from their potentials
+  through the ionic strength: every solute is explicit at a given `I`, and `I`
+  solves one equation, as PHREEQC carries it, an unknown of its own. OptimaSolver
+  had recovered them one by one, which cycles where multivalent ions couple
+  through `I`: on cement pastes most inversions had ended unconverged, and every
+  one under the limiting law past its range. The root taken is the first above
+  the dilute limit, the branch connected to it, so that the answer does not
+  depend on the path; a dip of the equation below zero narrower than a step is
+  found from the sign change of its derivative. A dip that stays above zero ends
+  the dilute branch, and so does 1e4 mol/kg: under the limiting law the root past
+  such a dip lay at 6500 mol/kg for a paste loaded with sodium chloride, and a
+  solve that started from it never recovered. No root says that the potentials
+  hold no composition: a trial step from an iterate that held one is then
+  passed over, and an iterate that holds none is recovered by the sweeps, as are
+  its trials, until its potentials hold one (OptimaSolver 0.7.8). Pitzer and SIT
+  keep the sweeps.
+- Measured with the same answers. The 32 cement pastes of a thesis, solved
+  with the certified search and every printed value unchanged, take 349 s
+  instead of 1238 s with OptimaSolver 0.7.3; the attempt under a limiting law
+  past its range, before the fall to an ion size per ion, takes seconds where it
+  took minutes. The three-hour hydration of `scripts/ionic_hydration.jl` takes
+  5.8 s instead of 7.8 s, on a trajectory identical to the last digit, and its
+  28-day certified replay (`speciated_states`) 2.5 s instead of 10.3 s.
+- A constraint whose `hq` changes the parameters of the activity model (the
+  temperature of an adiabatic solve, the pressure of a fixed-volume one) declares
+  them with `pq`, so that the inversion sees what the model sees; one that does
+  not declare it keeps the sweeps.
+
+### Changed: derivatives through a certified equilibrium are exact at every level
+
+- **The derivative of a certified equilibrium is that of the problem solved.**
+  An equilibrium whose amounts, temperature, pressure or budget carry
+  `ForwardDiff` dual numbers is solved on their values and lifted by the
+  implicit-function theorem at the certified answer (OptimaSolver's
+  `dual_newton_tangent`), on the problem `solve` poses: the constraint's
+  unknowns and the surface potentials included. The derivative of the titrant
+  a prescribed pH needs, or of the temperature an adiabatic solve reaches, is
+  now returned with the answer. Until 0.28.2 the derivative came from the
+  optimality conditions of the unconstrained problem, whatever the constraint.
+- **Nested differentiations are exact.** Each level of duals is stripped in
+  turn, so a derivative taken inside another is solved on the outer one's
+  duals. Stripping every level at once, as 0.28.2 did, gave a second derivative
+  of exactly zero. This is what an inversion needs whose forward model is an
+  equilibrium: a gradient-based fit differentiated again for its Hessian, or a
+  sensitivity of a fitted parameter.
+- `SciMLBase.solve(::DualEquilibriumSolver, state; b)` and `solve_certified`
+  accept a state or a budget carrying dual numbers, by the same route.
+- **The implicit kinetic step has no difference quotient left.** Its Newton over
+  the reaction extents (`coupling = :species`) took its Jacobian by differences,
+  one certified equilibrium per extent. It now takes the residual and its
+  Jacobian from one evaluation on dual numbers, through the certified
+  equilibrium of the free species. The rate closures of the `:reactions` route
+  return the number type of the composition, which OptimaSolver's exact outer
+  Jacobian differentiates through.
+- **What is differentiated is no longer only the amounts.** The standard
+  potentials of a species whose property functions capture dual numbers (a
+  `NumericFunc` shifting a `ΔₐG⁰`, a parameter of a thermodynamic model), the
+  parameters of an activity model, and the target of a constraint all carry
+  their derivatives through the solve, checked against identities exact at
+  every equilibrium: the derivative of a mass-action residual is `1/RT` with
+  respect to a shift of one potential and zero with respect to anything else.
+- **`equilibrate(state, solver)` lifts its answer the same way.** The back end
+  chosen solves on the values; the answer is lifted at the point it returned,
+  every level of a nested differentiation in turn, with whatever carries the
+  duals: the state, the budget, the data or the model. Until 0.28.2 only the
+  amounts of the state were seen, one level deep, through a sensitivity solved in
+  `Float64`; a dual budget reached Ipopt and raised. Without OptimaSolver, that
+  older sensitivity remains, and anything it cannot lift is refused by name.
+
+### Changed: a kinetic run, a recipe and a surface differentiate
+
+- **A kinetic run is differentiated with respect to its parameters.** The state
+  and every buffer of the right-hand side take the number type of what the
+  problem is given (a rate constant a closure captures, an initial amount, the
+  temperature, the calorimeter, an explicit `heat_per_mol`); under partial
+  equilibrium the partition of each step is the certified equilibrium lifted to
+  those duals. The sensitivity of the partition that the heat balance uses, and
+  its shift with temperature, come from the same tangent; until 0.28.2 they were
+  a singular value decomposition in `Float64` with absent phases pinned by a
+  threshold of its own. A differentiated run takes the plain run's route to the
+  values of each partition (the interior point, escalated where its balance is
+  poor) and only then lifts them, keeping, as the plain run does, the better
+  balanced of the two answers: started cold, the certified solve on the duals
+  did not always converge where the plain run did, and an accepted step of a
+  differentiated hydration was left 3.4e9 mol out of balance.
+- **The observables are exact derivatives of the solution.** `heat_flow` is the
+  derivative of the interpolant, and the heat rate of `heat_release` is `−dH/dt`
+  at each certified state, from the rates of the kinetic amounts and of the
+  temperature with the partition's own sensitivity.
+- **A recipe differentiates.** `Recipe`, its materials and constituents, the
+  extents (a Parrott–Killoh extent tabulated in the number type of its rate
+  constants, its temperature and its ceiling), `budget` and the readers of a
+  `RecipeState` take the number type of what they are given: a water/binder
+  ratio, a mass fraction, an oxide analysis or a rate constant carries its
+  derivative into the equilibrium of the paste. Checked against closed forms: the
+  water and the reacted mineral enter the budget by their columns, and scaling
+  the rate constants of a Parrott–Killoh law scales its time.
+- **A surface differentiates.** A site density reaches the budget of its family,
+  and, when the sites follow their host, the conservation matrix and the
+  equilibrium through it; the thickness of a Donnan layer reaches its potential
+  and its contents, through the fixed point of `equilibrate_donnan`; and a
+  `log K` given to `site_family` reaches the energy of its complex.
+
+### Changed: identifiability, without differences
+
+- `log_sensitivity` and `identifiability` differentiate exactly, by forward
+  mode: one evaluation of the forward model on dual numbers per chunk of up to
+  twelve parameters, where central differences cost two per parameter.
+  `relstep` is accepted and ignored, with a deprecation warning. The 5 % step of
+  the differences moved an exponent by 0.165 and gave a condition number of
+  about eighty to an exact degeneracy, now 1e10; it crossed the kink of the
+  Parrott–Killoh minimum and credited `k₂` with an eighth of `k₁`'s influence on
+  a heat curve, where it has none; and a 20 K secant across a 15 K peak flattened
+  the spectrum of a thermogram.
+- **The rank is read off the standard errors when there is a noise level.**
+  `identifiable_rank` counts the directions whose standard error in `log θ`, the
+  noise level `σ` over the singular value, is below `tol` (default 1, a factor
+  e); without a noise level, the gap rule stands. On exact spectra the gap had
+  answered five directions for the six rate parameters of a heat curve, of which
+  three are determined and the others known to within a factor of 89 at best, and
+  three for the six parameters of a thermogram fitted exactly, all determined.
+- **The noise level is given or estimated.** `identifiability(...; noise)` takes
+  the standard deviation of the instrument; without it, `σ` is the residual
+  standard deviation on the `n − p` degrees of freedom the parameters leave,
+  never below `√eps` times the root-mean-square of the curve, so that an exact
+  synthetic fit does not count a direction at the rounding. The residual RMSE
+  over `n` that 0.28.2 scaled the standard errors by understated them by
+  `√((n − p)/n)`: by 11 % for six parameters on thirty instants. `Identifiability`
+  carries the level as `noise`.
+- The covariance is formed from the singular value decomposition rather than by
+  inverting `JᵀJ`, which squares the condition number: at an exact degeneracy
+  that inverse had no sign left, and gave a trade-off a correlation of +1.
+- The analyses stored in `scripts/hydration_calibration.jl` are regenerated with
+  exact derivatives, and `main()` recomputes the stored ones on the same six
+  parameters and thirty instants. The residual at the published parameters is
+  25.94 J/g, where the stored analysis said 26.08: the stored value was older
+  than 0.28.2, which gives 25.94 as well.
+
+### Changed: requirements
+
+- ChemistryLab requires **OptimaSolver 0.7.8** (`OptimaSolver = "0.7.8"`). Its
+  `SolutionPhase(…; invert)` carries the inversion of the aqueous phase above;
+  its `dual_newton_tangent` lifts every answer above; and its exact outer
+  Jacobian is what the kinetic steps and the certified search run on. Earlier
+  releases are not enough: 0.7.7 passes over every trial step without a
+  composition, even from an iterate that has none, and so stops a solve at its
+  first iterate where the start holds none, which the chloride binding of
+  `test/chloride_binding_reference.jl` meets; 0.7.6 has no `invert`; and on
+  cement pastes carrying a trace component (a trace of carbon nine orders of
+  magnitude below the major elements) 0.7.5 could lose the trace and not bring
+  it back, so that `equilibrate_certified` returned answers the certificate
+  refused, the balance of that component wrong by its whole budget, where
+  0.28.2 with OptimaSolver 0.7.3 certified.
+
+### Fixed
+
+- The explicit `heat_per_mol` of a kinetic reaction was converted to `Float64`,
+  which stopped its derivative.
+- Warnings and refusals that rounded a dual number for their message
+  (`round(x; sigdigits)` on a `Dual` overflows the stack) print its value, and
+  the hint that names the range of an activity model is no longer lost when the
+  ionic strength is a dual number.
+- The split seed of an automatic instance empties its receiver first: a
+  rounding left from an earlier split had made one fail.
+
+### Added
+
+- **A recipe as a kinetic problem:** `KineticsProblem(recipe, system, rates, tspan)`.
+  `rates` maps the name of a mineral constituent to its rate law. That
+  constituent enters whole and unreacted, and dissolves into the primaries of
+  the system by the reaction its column of the conservation matrix gives. Every
+  other constituent is taken as `budget` takes it at the start of the run.
+  The reacted part of an oxide constituent, such as the alkalis of a clinker,
+  enters as the primaries that carry its elements: the protons a basic oxide
+  consumes as hydroxide, the water an acidic one takes (SO₃) from the mixing
+  water. The same recipe drives `hydrate`, where the extents are
+  imposed, and `integrate`, where rate laws decide them. Until now a kinetic run
+  was assembled by hand, species by species. A glass, known by its oxides only,
+  has no formula to dissolve and is refused a rate.
+
 ## v0.28.2 — Kinetic steps seventeen times cheaper, and the volume fractions and windowed bound water of a recipe
 
 ### Changed: a step of a coupled kinetic run costs seventeen times less

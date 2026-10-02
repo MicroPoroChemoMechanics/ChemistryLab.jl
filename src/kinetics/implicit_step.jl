@@ -202,8 +202,10 @@ One implicit kinetic step of duration `Δt` from `state`.
 `warm_start` equilibrates the starting GUESS when the system carries solid
 solutions, leaving the component totals untouched. Keep it on: a mixing phase is
 admitted by a tangent-plane test, and from a composition where the phase is
-absent that admission fails — measured, a cold start on C₃S dissolving into a
-C-S-H solution left one end-member at 2.7e-9 with a stationarity residual of 6.5.
+absent the step does not reach its answer. Measured on C₃S dissolving into a
+C-S-H solution, a cold start did not certify: with OptimaSolver 0.7.4 it left one
+end-member at 2.7e-9 with a stationarity residual of 6.5, and with the exact outer
+Jacobian since it admits every end-member and stops at a KKT error of 1.75.
 
 The rate laws are evaluated at the **end-of-step** composition, which is what
 makes the step implicit and stable on a stiff system. `Δt` is the caller's choice;
@@ -217,15 +219,17 @@ makes the step implicit and stable on a stiff system. `Δt` is the caller's choi
     refuses it — pass `certificate` and check `optimal` before trusting a step
     much larger than `1/k`.
 
-    Which root the Newton finds is a property of the build, not of the chemistry.
-    Measured on calcite under `r = k(1 − Ω)` with `k = 10⁻⁵ mol/s`: steps of
-    `10⁴ s` and `10⁶ s` converge to the right root on Julia 1.12 and to the other
-    one on 1.13.0-rc4, reported uncertified in both readings. Steps well inside
-    the relaxation time certify on either.
+    Which root the Newton finds depends on its path, not on the chemistry.
+    Measured on calcite under `r = k(1 − Ω)` with `k = 10⁻⁵ mol/s`: with the
+    outer Jacobian of OptimaSolver 0.7.4, formed by differences, steps of `10⁴ s`
+    and `10⁶ s` converged to the right root on Julia 1.12 and to the other one on
+    1.13, and so did `10⁵ s` on 1.13.1. With the exact outer Jacobian all three
+    reach the equilibrium root and certify, on 1.13.1. Steps well inside the
+    relaxation time certify on either, and the certificate stays the arbiter.
 
-    [`kinetic_step_adaptive`](@ref) is the remedy and is build-independent: it
-    refuses an uncertified step and halves until one certifies, reaching the
-    equilibrium values to eight digits in seven steps on the same case.
+    [`kinetic_step_adaptive`](@ref) is the guarantee whatever the path: it
+    refuses an uncertified step and halves until one certifies. With 0.7.4 it
+    came back in seven steps on the same case; now it takes the interval in one.
 """
 function kinetic_step(
         kss::KineticStepSolver, state::ChemicalState, Δt;
@@ -347,9 +351,9 @@ function kinetic_step(
         (x, q, params) -> q .- Δt_s .* (M * rates(x, params)) :
         (x, q, params) -> q .- Δt_s .* rates(x, params)
 
-    # The difference step is scaled to the extent the explicit rate predicts,
-    # which is the only scale available before the step is taken. Below a floor
-    # so a reaction starting at zero rate still has a usable step.
+    # The scale of each extent is the one the explicit rate predicts, the only
+    # one available before the step is taken, floored so that a reaction starting
+    # at zero rate still has one.
     r0 = rates(n0, p)
     qscale = [
         max(abs(Δt_s * (use_M ? sum(M[j, :] .* r0) : r0[j])), 1.0e-12) for j in 1:nr
@@ -420,6 +424,14 @@ function kinetic_step(
     end
     parameters === nothing || (parameters[] = copy(res.q))
 
+    # A solute left below the activity floor while its potentials ask for more
+    # is given the amount they give it, as the equilibrium solve does
+    # (`_complete_floored_solutes`). Without it, measured on two C3A pathways with
+    # gypsum, eight such solutes failed the one-sided test of the certificate by
+    # 1.1e-4 once the outer Jacobian was exact and the solve took fewer
+    # iterations to converge than the solutes took to climb.
+    x = res.converged ? _complete_floored_solutes(des, prob, res, _activity_floor(p)) : res.x
+
     # The certificate must be taken on the AUGMENTED problem, not on the
     # unconstrained equilibrium. A kinetically held mineral is supersaturated by
     # construction — that is what "held back" means — so testing it against the
@@ -430,13 +442,13 @@ function kinetic_step(
     if certificate !== nothing
         certificate[] = _normalize_certificate(
             _optima_kkt_certificate(
-                prob, res.x, b_aug, _CERTIFICATE_FLOOR, des.opts.tol, des.opts.si_tol, res.q,
+                prob, x, b_aug, _CERTIFICATE_FLOOR, des.opts.tol, des.opts.si_tol, res.q,
             ),
         )
     end
 
     return ChemicalState(
-        des.system, [nᵢ * u"mol" for nᵢ in res.x];
+        des.system, [nᵢ * u"mol" for nᵢ in x];
         T = temperature(state), P = pressure(state),
     )
 end
@@ -573,8 +585,8 @@ end
 The reaction rates at composition `x`, in mol/s, one per declared reaction.
 
 Built once per step so the `StateView`s and the initial amounts are not rebuilt
-at every residual evaluation — the residual is called once per Newton iteration
-and once per column of the difference quotient, so `nr + m + …` times per step.
+at every residual evaluation — the residual and its Jacobian are evaluated once
+per Newton iteration, on dual numbers.
 """
 function _step_rate_closure(kss::KineticStepSolver, des, T, P, t, n0)
     index = Dict(symbol(s) => i for (i, s) in enumerate(des.system.species))
@@ -583,11 +595,12 @@ function _step_rate_closure(kss::KineticStepSolver, des, T, P, t, n0)
         xv = collect(x)
         n_sv = StateView(xv, index)
         lna_sv = StateView(collect(des.lna(xv, params)), index)
-        return Float64[
-            kr.rate_fn(T, P, t, n_sv, lna_sv, n0_sv) for kr in kss.reactions
-        ]
+        # In the number type of the composition: the Jacobian of the step is
+        # taken by forward mode through these rates.
+        return _promoted([kr.rate_fn(T, P, t, n_sv, lna_sv, n0_sv) for kr in kss.reactions])
     end
 end
+
 
 # ── adaptive stepping ────────────────────────────────────────────────────────
 #
@@ -780,12 +793,17 @@ function _kinetic_step_eliminated(
     n_full = copy(n0)
     last_cert = nothing
 
-    # The composition at a given set of extents, and the residual it leaves.
-    function compose!(q)
-        for (r, i) in enumerate(pinned)
-            n_full[i] = max(n0[i] + sum(K[i, j] * q[j] for j in 1:nr), 0.0)
+    # The composition at a given set of extents, and the residual it leaves, in
+    # the number type of the extents: evaluated on dual numbers, the certified
+    # equilibrium of the free species carries its derivative with respect to its
+    # budget (`solve_certified`), and the residual its Jacobian.
+    function compose(q)
+        T = eltype(q)
+        nf = Vector{T}(n0)
+        for i in pinned
+            nf[i] = max(n0[i] + sum(K[i, j] * q[j] for j in 1:nr), 0.0)
         end
-        b_free = b0 .- A[:, pinned] * n_full[pinned]
+        b_free = b0 .- A[:, pinned] * nf[pinned]
         st_free = ChemicalState(
             kss.dual_free.system, n0[free] .* u"mol";
             T = temperature(state), P = pressure(state),
@@ -793,14 +811,29 @@ function _kinetic_step_eliminated(
         eq, cert = solve_certified(kss.dual_free, (st_free,); b = b_free, ϵ = ϵ)
         last_cert = cert
         for (r, i) in enumerate(free)
-            n_full[i] = ustrip(us"mol", eq.n[r])
+            nf[i] = ustrip(us"mol", eq.n[r])
         end
-        lna_sv = StateView(collect(des.lna(n_full, p)), index)
-        n_sv = StateView(n_full, index)
-        rates = Float64[
-            kr.rate_fn(p.T, p.P, t, n_sv, lna_sv, n0_sv) for kr in kss.reactions
+        lna_sv = StateView(collect(des.lna(nf, p)), index)
+        n_sv = StateView(nf, index)
+        rates = _promoted([kr.rate_fn(p.T, p.P, t, n_sv, lna_sv, n0_sv) for kr in kss.reactions])
+        return (q .- Δt_s .* rates), nf
+    end
+    # The residual and its Jacobian from one evaluation on dual numbers, under
+    # a tag of this function's own.
+    #
+    # Returned without being named. A closure shares the locals of the function
+    # it is defined in, so `F = …` in here rebound the Newton's own `F` below: the
+    # test of a step then compared its residual with itself, refused every one,
+    # and a rate that reads the composition was integrated by explicit Euler.
+    tag = ForwardDiff.Tag(compose, Float64)
+    function residual_and_jacobian(q)
+        qd = [
+            ForwardDiff.Dual{typeof(tag)}(q[j], ForwardDiff.Partials(ntuple(k -> Float64(k == j), nr)))
+                for j in 1:nr
         ]
-        return q .- Δt_s .* rates
+        Fd, nd = compose(qd)
+        return ForwardDiff.value.(Fd), [ForwardDiff.partials(Fd[r], j) for r in 1:nr, j in 1:nr],
+            ForwardDiff.value.(nd)
     end
 
     # Newton on `nr` unknowns, from the explicit prediction.
@@ -810,15 +843,9 @@ function _kinetic_step_eliminated(
             StateView(collect(des.lna(n0, p)), index), n0_sv,
         ) for j in 1:nr
     ]
-    F = compose!(q)
+    F, J, n_full = residual_and_jacobian(q)
     for _ in 1:maxit
         maximum(abs, F) <= 1.0e-14 * max(1.0, maximum(abs, q)) && break
-        J = zeros(nr, nr)
-        for j in 1:nr
-            h = 1.0e-7 * max(abs(q[j]), 1.0e-12)
-            qp = copy(q); qp[j] += h
-            J[:, j] .= (compose!(qp) .- F) ./ h
-        end
         δ = try
             J \ (-F)
         catch
@@ -826,11 +853,12 @@ function _kinetic_step_eliminated(
         end
         all(isfinite, δ) || break
         qn = q .+ δ
-        Fn = compose!(qn)
-        maximum(abs, Fn) < maximum(abs, F) || (compose!(q); break)
-        q, F = qn, Fn
+        Fn, Jn, nn = residual_and_jacobian(qn)
+        maximum(abs, Fn) < maximum(abs, F) || break
+        q, F, J, n_full = qn, Fn, Jn, nn
     end
-    compose!(q)
+    # The certificate of the step returned, not of the last trial.
+    _, n_full = compose(q)
 
     parameters === nothing || (parameters[] = copy(q))
     certificate === nothing || (certificate[] = last_cert)

@@ -177,6 +177,10 @@ using Test
         # A computed round-off is cleaned to zero (the conservation matrices
         # rely on it) ...
         @test stoich_coef_round(1.4e-17) == 0
+        # A coefficient being differentiated is not rounded: its derivative
+        # would be lost.
+        d = ChemistryLab.ForwardDiff.Dual(0.5, 1.0)
+        @test stoich_coef_round(d) === d
         # ... but a coefficient a formula prints is never read as zero, however
         # small, and the element stays in the formula.
         @test composition(Formula("Ca2.0993Si2.9298Na0.0004O11.0585H6.1988"))[:Na] == 0.0004

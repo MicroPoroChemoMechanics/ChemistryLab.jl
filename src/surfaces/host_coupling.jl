@@ -45,7 +45,7 @@ function Base.showerror(io::IO, e::InconsistentSiteBudget)
 end
 
 """
-    declared_site_moles(state::ChemicalState, family::SiteFamily) -> Float64
+    declared_site_moles(state::ChemicalState, family::SiteFamily) -> Real
 
 The moles of sites `family` declares, evaluated on `state` — that is,
 [`site_moles`](@ref) supplied with the host amount and molar mass the state
@@ -62,7 +62,7 @@ function declared_site_moles(state::ChemicalState, family::SiteFamily)
     support = surface_support(family)
     # A capacity stores a bare `Real` in SI — `_area_si` strips the unit at
     # construction — so there is nothing to unwrap here.
-    cap isa TotalSiteAmount && return Float64(site_moles(family, 0.0, 0.0, 0.0))
+    cap isa TotalSiteAmount && return float(site_moles(family, 0.0, 0.0, 0.0))
 
     host = support.host
     host === nothing && throw(
@@ -82,13 +82,15 @@ function declared_site_moles(state::ChemicalState, family::SiteFamily)
         )
     )
     i = findfirst(s -> symbol(s) == host, cs.species)
-    n_host = Float64(ustrip(us"mol", state.n[i]))
+    # In the number type of the capacity and of the state: a site density or a
+    # host amount being differentiated carries its derivative into the budget.
+    n_host = ustrip(us"mol", state.n[i])
     M = _molar_mass_si(sp)
-    return Float64(site_moles(family, n_host, n_host, M))
+    return float(site_moles(family, n_host, n_host, M))
 end
 
 """
-    present_site_moles(state::ChemicalState, family::SiteFamily) -> Float64
+    present_site_moles(state::ChemicalState, family::SiteFamily) -> Real
 
 The moles of sites the state actually carries for `family`: `Σ dᵢ nᵢ` over its
 members, with `dᵢ` the denticity read from each member's formula.
@@ -99,17 +101,17 @@ solver will conserve.
 """
 function present_site_moles(state::ChemicalState, family::SiteFamily)
     cs = state.system
-    total = 0.0
+    total = zero(_realtype(eltype(state.n)))
     for sp in site_members(family)
         i = findfirst(s -> symbol(s) == symbol(sp), cs.species)
         i === nothing && continue
-        total += denticity(family, sp) * Float64(ustrip(us"mol", state.n[i]))
+        total += denticity(family, sp) * ustrip(us"mol", state.n[i])
     end
     return total
 end
 
 """
-    site_budget_residual(state::ChemicalState) -> OrderedDict{String, Float64}
+    site_budget_residual(state::ChemicalState) -> OrderedDict{String, <:Real}
 
 Per declared family, `present − declared` in mol.
 
@@ -123,13 +125,10 @@ on anything.
 See also: [`host_consistent_state`](@ref), [`InconsistentSiteBudget`](@ref).
 """
 function site_budget_residual(state::ChemicalState)
-    out = OrderedDict{String, Float64}()
     fams = state.system.site_families
-    fams === nothing && return out
-    for f in fams
-        out[name(f)] = present_site_moles(state, f) - declared_site_moles(state, f)
-    end
-    return out
+    fams === nothing && return OrderedDict{String, Float64}()
+    r = [name(f) => present_site_moles(state, f) - declared_site_moles(state, f) for f in fams]
+    return OrderedDict{String, mapreduce(typeof ∘ last, promote_type, r; init = Float64)}(r)
 end
 
 """
@@ -166,7 +165,7 @@ function check_site_budget(state::ChemicalState; rtol::Real = 1.0e-6)
         iszero(scale) && continue
         r = present - declared
         abs(r) <= rtol * scale ||
-            throw(InconsistentSiteBudget(name(f), r, declared, present))
+            throw(InconsistentSiteBudget(name(f), _plain(r), _plain(declared), _plain(present)))
     end
     return nothing
 end
@@ -202,24 +201,29 @@ function host_consistent_state(state::ChemicalState)
     n = copy(state.n)
     for f in fams
         declared = declared_site_moles(state, f)
-        occupied = 0.0
+        occupied = zero(_realtype(eltype(n)))
         for sp in f.complexes
             i = findfirst(s -> symbol(s) == symbol(sp), cs.species)
             i === nothing && continue
-            occupied += denticity(f, sp) * Float64(ustrip(us"mol", n[i]))
+            occupied += denticity(f, sp) * ustrip(us"mol", n[i])
         end
         free = declared - occupied
         free >= 0 || throw(
             ArgumentError(
-                "SiteFamily \"$(name(f))\" declares $declared mol of sites, but its " *
-                    "complexes already occupy $occupied mol. There is no free-site " *
+                "SiteFamily \"$(name(f))\" declares $(_plain(declared)) mol of sites, but its " *
+                    "complexes already occupy $(_plain(occupied)) mol. There is no free-site " *
                     "amount that makes the two agree: raise the capacity or lower the " *
                     "occupied amounts. Scaling the complexes down to fit would invent " *
                     "a composition, and move the sorbates' elements with it.",
             )
         )
         j = findfirst(s -> symbol(s) == symbol(reference_member(f)), cs.species)
-        j === nothing || (n[j] = free * u"mol")
+        if j !== nothing
+            # A capacity being differentiated makes the free site, and so the
+            # state, dual: the amounts are promoted to hold it.
+            n = collect(promote_type(eltype(n), typeof(free * u"mol")), n)
+            n[j] = free * u"mol"
+        end
     end
     return ChemicalState(cs, n; T = state.T[1], P = state.P[1])
 end
@@ -333,7 +337,7 @@ end
 # ── ν, the moles of sites one mole of host carries ───────────────────────────
 
 """
-    sites_per_host(family::SiteFamily, M_host) -> Float64
+    sites_per_host(family::SiteFamily, M_host) -> Real
 
 `ν`, the moles of sites one mole of the host carries, for a family whose
 support is `SITES_FOLLOW_HOST`.
@@ -372,11 +376,13 @@ declaration to correct.
 function sites_per_host(family::SiteFamily, M_host::Real)
     cap = site_capacity(family)
     support = surface_support(family)
-    ν = Float64(site_moles(cap, support, 1.0, 1.0, M_host))
+    # In the number type of the capacity: a site density being differentiated
+    # carries its derivative into the conservation matrix.
+    ν = float(site_moles(cap, support, 1.0, 1.0, M_host))
 
     ν > 0 || throw(
         ArgumentError(
-            "SiteFamily \"$(name(family))\" evaluates to $ν mol of sites per mole of " *
+            "SiteFamily \"$(name(family))\" evaluates to $(_plain(ν)) mol of sites per mole of " *
                 "host. A coupled family with no sites is a declaration to correct: " *
                 "check the capacity, and the host's molar mass if the capacity is " *
                 "measured per unit mass or area.",
@@ -384,13 +390,13 @@ function sites_per_host(family::SiteFamily, M_host::Real)
     )
 
     for λ in (0.37, 2.9)
-        got = Float64(site_moles(cap, support, λ, 1.0, M_host))
-        isapprox(got, λ * ν; rtol = 1.0e-10) || throw(
+        got = _plain(site_moles(cap, support, λ, 1.0, M_host))
+        isapprox(got, λ * _plain(ν); rtol = 1.0e-10) || throw(
             ArgumentError(
                 "SiteFamily \"$(name(family))\" is declared SITES_FOLLOW_HOST, but its " *
                     "$(nameof(typeof(cap))) is not proportional to the host's amount: " *
                     "scaling that amount by $λ changes the site budget by " *
-                    "$(round(got / ν; sigdigits = 4)) instead. Measured, not assumed.\n" *
+                    "$(round(got / _plain(ν); sigdigits = 4)) instead. Measured, not assumed.\n" *
                     "A budget that follows the host has to be a coefficient times its " *
                     "amount, or the site row stops being linear and the problem stops " *
                     "being a polyhedron. Use a capacity measured per unit mass or per " *
@@ -404,7 +410,7 @@ end
 # ── The coupling: the host's formula includes its sites ──────────────────────
 
 """
-    site_coupling_rows(cs::ChemicalSystem) -> (Matrix{Float64}, Vector{String})
+    site_coupling_rows(cs::ChemicalSystem) -> (Matrix, Vector{String})
 
 One row per family whose support is `SITES_FOLLOW_HOST`, stating that the sites
 in use equal `ν` times the host's amount:
@@ -429,9 +435,7 @@ function site_coupling_rows(cs::ChemicalSystem)
     coupled = [f for f in fams if surface_support(f).coupling === SITES_FOLLOW_HOST]
     isempty(coupled) && return empty_rows, String[]
 
-    out = zeros(Float64, length(coupled), length(cs.species))
-    labels = String[]
-    for (r, f) in enumerate(coupled)
+    hosts = map(coupled) do f
         host = surface_support(f).host
         j = findfirst(s -> symbol(s) == host, cs.species)
         j === nothing && throw(
@@ -441,7 +445,13 @@ function site_coupling_rows(cs::ChemicalSystem)
                     "amount its sites track.",
             )
         )
-        ν = sites_per_host(f, _molar_mass_si(cs.species[j]))
+        (j, sites_per_host(f, _molar_mass_si(cs.species[j])))
+    end
+    # In the number type of the capacities.
+    out = zeros(mapreduce(typeof ∘ last, promote_type, hosts; init = Float64), length(coupled), length(cs.species))
+    labels = String[]
+    for (r, f) in enumerate(coupled)
+        j, ν = hosts[r]
         for sp in site_members(f)
             i = findfirst(s -> symbol(s) == symbol(sp), cs.species)
             i === nothing && continue
@@ -538,10 +548,12 @@ function _refuse_unidentifiable_site(
     # The decision is the identifiable rank of the matrix the solve will be
     # constrained with, NOT the presence of a charge component. See the
     # docstring for the five systems this was calibrated on.
-    σ = svdvals(A)
+    # On its values: a verdict, whatever the matrix carries.
+    Av = _plain.(A)
+    σ = svdvals(Av)
     identifiable_rank(σ; gap = _SITE_RANK_GAP) == size(A, 1) && return nothing
 
-    site_row, charge_row = A[r, :], A[zz, :]
+    site_row, charge_row = Av[r, :], Av[zz, :]
     nn = norm(site_row) * norm(charge_row)
     cosine = iszero(nn) ? 1.0 : abs(dot(site_row, charge_row)) / nn
     jf = findfirst(s -> symbol(s) == symbol(reference_member(family)), cs.species)
@@ -600,7 +612,7 @@ The energies are read at 298.15 K, where the surface constants are given.
 See also: [`sites_per_host`](@ref), [`conservation_matrix`](@ref).
 """
 function host_coupling_bias(cs::ChemicalSystem)
-    out = OrderedDict{String, Float64}()
+    out = OrderedDict{String, Real}()
     fams = cs.site_families
     fams === nothing && return out
     RT = R_GAS * 298.15
@@ -614,7 +626,7 @@ function host_coupling_bias(cs::ChemicalSystem)
         ν = sites_per_host(f, _molar_mass_si(cs.species[jh]))
         out[name(f)] = ν * abs(g) / (RT * log(10))
     end
-    return out
+    return OrderedDict{String, mapreduce(typeof, promote_type, values(out); init = Float64)}(out)
 end
 
 """
@@ -648,7 +660,7 @@ function _refuse_biased_coupling(cs::ChemicalSystem, family::SiteFamily)
             "SiteFamily \"$(name(family))\" follows its host, and its free site " *
                 "\"$(symbol(cs.species[jf]))\" has ΔₐG⁰ = $(round(g / 1000; digits = 1)) " *
                 "kJ/mol, which moves the host's own saturation index by " *
-                "$(round(bias; sigdigits = 3)) log units.\n" *
+                "$(round(_plain(bias); sigdigits = 3)) log units.\n" *
                 "The coupling counts the free sites as part of the host, so an intact " *
                 "sorbent has the database energy of the host only when the free site's " *
                 "energy is zero. Set ΔₐG⁰ of the free site to 0 and write every complex " *
@@ -692,12 +704,12 @@ function _refuse_host_short_of_site_matter(
     ah, af = atoms(host), atoms(free)
     for (e, k) in af
         (e === family.site || e === :Zz) && continue
-        left = Float64(get(ah, e, 0)) - ν * Float64(k)
+        left = Float64(get(ah, e, 0)) - _plain(ν) * Float64(k)
         left ≥ -1.0e-12 && continue
         throw(
             ArgumentError(
                 "SiteFamily \"$(name(family))\" follows host \"$(symbol(host))\" with " *
-                    "ν = $(round(ν; sigdigits = 4)) sites per mole, but its free site " *
+                    "ν = $(round(_plain(ν); sigdigits = 4)) sites per mole, but its free site " *
                     "\"$(symbol(free))\" carries $k $e per site and the host's formula " *
                     "holds only $(get(ah, e, 0)). The coupling counts the free sites " *
                     "as part of the host, so their atoms have to be among the host's " *
@@ -709,7 +721,7 @@ function _refuse_host_short_of_site_matter(
 end
 
 """
-    conservation_matrix(cs::ChemicalSystem) -> Matrix{Float64}
+    conservation_matrix(cs::ChemicalSystem) -> Matrix
 
 The matrix the equilibrium is constrained with: `SM.A` when no family follows
 its host, and otherwise `SM.A` with, for each coupled family, `ν` times the
@@ -740,6 +752,15 @@ function conservation_matrix(cs::ChemicalSystem)
     A = Float64.(cs.SM.A)
     fams = cs.site_families
     fams === nothing && return A
+    # In the number type of the capacities: a site density being differentiated
+    # makes the host column dual. Under a solve on values (`_STRIP_TAGS`), on its
+    # values.
+    R = mapreduce(promote_type, fams; init = Float64) do f
+        surface_support(f).coupling === SITES_FOLLOW_HOST || return Float64
+        j = findfirst(s -> symbol(s) == surface_support(f).host, cs.species)
+        j === nothing ? Float64 : typeof(_unscoped(sites_per_host(f, _molar_mass_si(cs.species[j]))))
+    end
+    A = Matrix{R}(A)
     A0 = copy(A)
     for f in fams
         surface_support(f).coupling === SITES_FOLLOW_HOST || continue
@@ -767,7 +788,7 @@ function conservation_matrix(cs::ChemicalSystem)
             )
         )
         _refuse_charged_free_site(f, cs.species[jf])
-        ν = sites_per_host(f, _molar_mass_si(cs.species[j]))
+        ν = _unscoped(sites_per_host(f, _molar_mass_si(cs.species[j])))
         _refuse_host_short_of_site_matter(f, cs.species[j], cs.species[jf], ν)
         @views A[:, j] .-= ν .* A0[:, jf]
         # The bare basis is the one whose site row can coincide with the charge

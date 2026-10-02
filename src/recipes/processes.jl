@@ -155,7 +155,9 @@ function _renewal(prev::ChemicalState, w)
     cs = prev.system
     iw = findfirst(==("H2O@"), [symbol(s) for s in cs.species])
     Mw = ustrip(us"g/mol", cs.species[iw][:M])
-    n = ustrip.(us"mol", prev.n)
+    n0 = ustrip.(us"mol", prev.n)
+    # In the number type of the previous answer and of the renewal.
+    n = collect(promote_type(eltype(n0), typeof(w / Mw)), n0)
     for i in cs.idx_aqueous
         n[i] = 0.0
     end

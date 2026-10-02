@@ -211,16 +211,16 @@ function _warn_if_unphysical(sol, p, kp)
     for j in 1:nk
         v = u[nb + j]
         name = symbol(kp.system.species[kp.idx_kinetic[j]])
-        v < -1.0e-8 && push!(bad, "$name = $(round(v, sigdigits = 4)) mol, negative")
+        v < -1.0e-8 && push!(bad, "$name = $(round(ChemistryLab._plain(v), sigdigits = 4)) mol, negative")
         v > ceiling && push!(
             bad,
-            "$name = $(round(v, sigdigits = 4)) mol against a total budget of " *
-                "$(round(total0, sigdigits = 4))",
+            "$name = $(round(ChemistryLab._plain(v), sigdigits = 4)) mol against a total budget of " *
+                "$(round(ChemistryLab._plain(total0), sigdigits = 4))",
         )
     end
     for j in 1:nr
         ξ = u[nb + nk + j]
-        abs(ξ) > ceiling && push!(bad, "extent $j = $(round(ξ, sigdigits = 4)) mol")
+        abs(ξ) > ceiling && push!(bad, "extent $j = $(round(ChemistryLab._plain(ξ), sigdigits = 4)) mol")
     end
     isempty(bad) && return nothing
     @warn """the trajectory ends on amounts no chemistry can produce, and the     integrator reported success: $(join(bad, ", ")). A stiff method here needs a     Jacobian that the re-speciation in the residual does not supply, so its error     control is built on the wrong derivative. Use `kinetic_step_adaptive`, whose     step is chosen from a local error estimate on the extents and which is exact on     this class of problem, or an explicit method if the system allows it.""" maxlog = 1

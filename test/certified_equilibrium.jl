@@ -256,13 +256,23 @@ end
 
     x0 = 0.01
     ad = ForwardDiff.derivative(pH_of, x0)
-    h = 1.0e-6
-    fd = (pH_of(x0 + h) - pH_of(x0 - h)) / (2h)
 
     @test isfinite(ad)
     @test ad != 0                       # the partials are not dropped
-    @test ad ≈ fd rtol = 1.0e-5         # measured at 4.3e-9
     @test ad < 0                        # more CO2, lower pH
+    # Mass action on `HCO₃⁻ = CO₃²⁻ + H⁺` holds at every equilibrium, so its
+    # residual has a derivative of zero, to first order and to second, while
+    # each of its terms moves.
+    function mass_action_of(x)
+        n = Any[fill(0.0 * oneunit(x) * u"mol", length(cs.species))...]
+        n[idx["H2O@"]] = 55.5 * oneunit(x) * u"mol"
+        n[idx["Cal"]] = 0.05 * oneunit(x) * u"mol"
+        n[idx["CO2@"]] = x * u"mol"
+        la = log_activities(equilibrate(ChemicalState(cs, n)), DiluteSolutionModel())
+        return [la["HCO3-"] - la["CO3-2"] - la["H+"], la["H+"]]
+    end
+    dma = ForwardDiff.derivative(mass_action_of, x0)
+    @test abs(dma[1]) < 1.0e-9 * abs(dma[2]) && dma[2] != 0
 
     # And the primal value is the certified one, not something the dual path
     # computed separately.
@@ -278,6 +288,97 @@ end
             )
         )
     ) atol = 1.0e-12
+
+    # Nested differentiations are each exact: the answer of the inner one is
+    # solved on the outer one's duals and lifted from there, one level at a
+    # time. Stripping every level at once, as this did until 0.28.2, gave a
+    # second derivative of exactly zero.
+    d1(x) = ForwardDiff.derivative(pH_of, x)
+    d2 = ForwardDiff.derivative(d1, x0)
+    @test isfinite(d2) && d2 != 0
+    d2ma = ForwardDiff.derivative(x -> ForwardDiff.derivative(mass_action_of, x), x0)
+    @test abs(d2ma[1]) < 1.0e-9 * abs(d2ma[2]) && d2ma[2] != 0
+
+    # The temperature is differentiated through the standard potentials and
+    # the activity model, which the problem now carries as duals.
+    # Mass action then reads `(g(CO₃²⁻) + g(H⁺) − g(HCO₃⁻))/RT` at the
+    # temperature, whose derivative comes from the data alone.
+    function at_T(T)
+        n = Any[fill(0.0 * oneunit(T) * u"mol", length(cs.species))...]
+        n[idx["H2O@"]] = 55.5 * oneunit(T) * u"mol"
+        n[idx["Cal"]] = 0.05 * oneunit(T) * u"mol"
+        n[idx["CO2@"]] = x0 * oneunit(T) * u"mol"
+        eq = equilibrate(ChemicalState(cs, n; T = T * u"K"))
+        la = log_activities(eq, DiluteSolutionModel())
+        return [la["HCO3-"] - la["CO3-2"] - la["H+"], pH(eq)]
+    end
+    g(s, T) = sp[s][:ΔₐG⁰](T = T, P = 1.0e5; unit = false)
+    Δg_RT(T) = (g("CO3-2", T) + g("H+", T) - g("HCO3-", T)) / (ChemistryLab.R_GAS * T)
+    dT = ForwardDiff.derivative(at_T, 310.0)
+    @test dT[1] ≈ ForwardDiff.derivative(Δg_RT, 310.0) rtol = 1.0e-9
+    @test dT[2] < 0
+
+    # A single back end, uncertified: its answer is lifted where it stopped, by
+    # the same tangent, every level in turn. It is the derivative at that answer,
+    # which is the equilibrium only as far as the back end converged.
+    function pH_one_backend(x)
+        n = Any[fill(0.0 * oneunit(x) * u"mol", length(cs.species))...]
+        n[idx["H2O@"]] = 55.5 * oneunit(x) * u"mol"
+        n[idx["Cal"]] = 0.05 * oneunit(x) * u"mol"
+        n[idx["CO2@"]] = x * u"mol"
+        return pH(equilibrate(ChemicalState(cs, n), OptimaOptimizer()))
+    end
+    # Measured 7e-10 and 1.5e-9 from the certified route's, to first and second
+    # order: the back end converged here.
+    ad1 = ForwardDiff.derivative(pH_one_backend, x0)
+    d21 = ForwardDiff.derivative(x -> ForwardDiff.derivative(pH_one_backend, x), x0)
+    @test ad1 ≈ ad rtol = 1.0e-7
+    @test d21 ≈ d2 rtol = 1.0e-7
+    # Without the certified solver, the single back end lifts the amounts of the
+    # state, one level, by the optimality conditions of the unconstrained
+    # problem, and refuses a nested differentiation rather than return its
+    # inner derivatives as zero.
+    avail = ChemistryLab._DUAL_AVAILABLE[]
+    try
+        ChemistryLab._DUAL_AVAILABLE[] = false
+        @test ForwardDiff.derivative(pH_one_backend, x0) ≈ ad rtol = 1.0e-4
+        @test_throws ArgumentError ForwardDiff.derivative(x -> ForwardDiff.derivative(pH_one_backend, x), x0)
+    finally
+        ChemistryLab._DUAL_AVAILABLE[] = avail
+    end
+
+    # With respect to the thermodynamic data, the parameters of the activity
+    # model and the target of a constraint, checked against identities that hold
+    # exactly at every equilibrium. Mass action on `HCO₃⁻ = CO₃²⁻ + H⁺` makes
+    # `ln a(HCO₃⁻) − ln a(CO₃²⁻) − ln a(H⁺)` equal to `(g(CO₃²⁻) + g(H⁺) − g(HCO₃⁻))/RT`:
+    # its derivative with respect to a shift of `ΔₐG⁰(CO₃²⁻)` is `1/RT`, and with
+    # respect to anything else, zero.
+    function calcite_system(δ)
+        sps = [deepcopy(sp[s]) for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal")]
+        g0 = sp["CO3-2"][:ΔₐG⁰]
+        sps[6][:ΔₐG⁰] = NumericFunc((T, P) -> g0(T = T, P = P) + δ, (:T, :P), u"J/mol")
+        return ChemicalSystem(sps, ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"])
+    end
+    function mass_action(δ; model = DiluteSolutionModel(), constraint = FixedTP())
+        c = calcite_system(δ)
+        st = ChemicalState(c)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "Cal", 0.01u"mol")
+        eq, cert = equilibrate_certified(st; model, constraint)
+        la = log_activities(eq, model)
+        return (la["HCO3-"] - la["CO3-2"] - la["H+"], -la["H+"] / log(10), eq, c)
+    end
+    RT = ChemistryLab.R_GAS * 298.15
+    @test ForwardDiff.derivative(δ -> first(mass_action(δ)), 0.0) ≈ 1 / RT rtol = 1.0e-9
+    davies(A) = DaviesActivityModel(A = A)
+    dA = ForwardDiff.derivative(A -> first(mass_action(0.0; model = davies(A))), 0.5)
+    @test abs(dA) < 1.0e-10
+    # The budget is fixed, so the composition moves inside it.
+    dn = ForwardDiff.derivative(A -> [ustrip(us"mol", x) for x in mass_action(0.0; model = davies(A))[3].n], 0.5)
+    c0 = calcite_system(0.0)
+    @test maximum(abs, Float64.(c0.SM.A) * dn) < 1.0e-12
+    # A prescribed pH is held exactly, whatever its value.
+    @test ForwardDiff.derivative(t -> mass_action(0.0; constraint = FixedpH(t))[2], 8.0) ≈ 1 rtol = 1.0e-9
 
 end
 

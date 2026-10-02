@@ -160,6 +160,7 @@ module ChemistryLab
     include("surfaces/surface_potential.jl")
     include("equilibrium/equilibrium_solver.jl")
     include("equilibrium/dual_solver.jl")
+    include("equilibrium/aqueous_inversion.jl")
     include("equilibrium/certified.jl")
     include("equilibrium/aqueous_properties.jl")
     # After the certified solve it iterates, and the site families whose charge
@@ -178,6 +179,7 @@ module ChemistryLab
     include("recipes/materials.jl")
     include("recipes/recipes.jl")
     include("recipes/processes.jl")
+    include("recipes/recipe_kinetics.jl")
     include("recipes/templates.jl")
     include("recipes/phase_lists.jl")
 

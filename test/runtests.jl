@@ -121,6 +121,7 @@ end
     include("hong_glasser1999_reference.jl")
     include("test_dual_solver.jl")
     include("certified_equilibrium.jl")
+    include("aqueous_inversion.jl")
     include("trace_sensitivity.jl")
     include("equilibrium_constraints.jl")
     include("capillary.jl")
@@ -149,6 +150,7 @@ end
     include("kinetics/test_implicit_step.jl")
     include("kinetics/test_pore_humidity.jl")
     include("kinetics/test_surface_coupling.jl")
+    include("kinetics/test_parameter_ad.jl")
     include("coupling_reference.jl")
 end
 

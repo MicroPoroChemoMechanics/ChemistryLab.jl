@@ -734,6 +734,17 @@ name. The material is typically all in one of the two, and moving a share of an
 instance holding 1.5e-4 mol while its twin holds 5.1e-2 is a perturbation of
 three parts in a thousand — a seed that cannot move the answer is
 indistinguishable from no seed at all.
+
+# The receiver is emptied first
+
+The two instances are copies of the same end-members, so moving the receiver's
+whole content back into the donor leaves the budget as it was, and the receiver
+then holds the trial composition alone. Without it the trial material mixes with
+what the receiver already holds. Measured on two instances of a carbonate
+binary that both sat at x = 0.117: the receiver came out at 0.209 instead of the
+0.973 asked for, no pass reached the pair, and which instance was the donor was
+decided by the rounding of two equal amounts. With the receiver emptied, the
+seed is the same whichever instance gives, and the first pass certifies.
 """
 function _seed_split!(
         n::AbstractVector{Float64}, trials, twin::Dict{Int, Int},
@@ -761,6 +772,13 @@ function _seed_split!(
         total = max(n_base, n_other)
         total > 0 || continue
         from, to = n_base >= n_other ? (base, other) : (other, base)
+        # The receiver is emptied into the donor first, so that it holds the
+        # trial composition alone once the transfer is made.
+        for (j, i) in enumerate(to)
+            n[from[j]] += n[i]
+            n[i] = 0.0
+        end
+        total = sum(n[i] for i in from)
 
         move = share * total
         for (j, i) in enumerate(from)
@@ -1171,7 +1189,7 @@ function _equilibrate_certified(
     # Duals take the implicit-function route, dispatched on the state's element
     # type rather than tested for. See `_certified_primal_then_derivative`.
     dual_route = _certified_dual_route(
-        _amount_number_type(state), state, model, b, ϵ, verbose, constraint,
+        _input_number_type(state, b; model, constraint), state, model, b, ϵ, verbose, constraint,
         parameters, (; dual = dual, kwargs...),
     )
     dual_route === nothing || return dual_route
@@ -1481,7 +1499,7 @@ function _activity_range_hint(eq::ChemicalState, model::AbstractActivityModel)
     # No aqueous phase, or an answer whose solvent is gone: nothing to say here,
     # and `_check_solvent` speaks for the second.
     I = try
-        Float64(ionic_strength(eq))
+        _plain(ionic_strength(eq))
     catch
         return ""
     end
@@ -1556,8 +1574,11 @@ end
 """
     _certified_dual_route(state, model, b, ϵ, verbose, constraint, parameters, kwargs)
 
-`nothing` for a real-valued composition; the certified answer with its derivative
-attached for one carrying `ForwardDiff.Dual` amounts.
+`nothing` for real-valued data; the certified answer with its derivative attached
+when the amounts, the temperature, the pressure or the budget `b` carry
+`ForwardDiff.Dual` numbers. The derivative is that of the answer the search
+certified, lifted one level of duals at a time (`_lift_equilibrium`), so nested
+differentiations are each exact and kept apart by their tags.
 
 Dispatched on the element type, positionally, so the choice is the type system's
 and neither path pays for the other. Two paths are needed for a mathematical
@@ -1571,6 +1592,34 @@ solution with the active set frozen. That is how `OptimaSolver` computes its own
 `Sensitivity`, and how Optima does upstream.
 """
 _amount_number_type(state::ChemicalState) = _number_type(eltype(state.n))
+# The number type of a solve's inputs: the state, the budget, the activity model,
+# the constraint, the thermodynamic data and the mixing models of the system.
+# Inside a search run on the values (`_STRIP_TAGS`) the tags of the scope are
+# not counted: the data and the models still carry them, but every output the
+# search reads has them removed.
+function _input_number_type(
+        state::ChemicalState, b; model = nothing, constraint = nothing, captured = nothing,
+    )
+    D = promote_type(Float64, _amount_number_type(state))
+    _carries_duals(b) && (D = promote_type(D, mapreduce(typeof, promote_type, (x for x in b if x isa ForwardDiff.Dual))))
+    D = promote_type(
+        D, captured !== nothing ? captured :
+            promote_type(
+                model === nothing ? Float64 : _captured_number_type(model),
+                _captured_number_type(_MixingTerms(state.system)),
+                # The capacities of the site families, which the conservation
+                # matrix carries when sites follow their host.
+                _captured_number_type(state.system.site_families),
+            ),
+    )
+    constraint === nothing || (D = promote_type(D, _captured_number_type(constraint)))
+    D = promote_type(D, eltype(_build_params(state).ΔₐG⁰overRT))
+    return _type_strip(D, _STRIP_TAGS[])
+end
+
+_type_strip(::Type{T}, ::Tuple) where {T} = T
+_type_strip(::Type{ForwardDiff.Dual{Tg, V, N}}, tags::Tuple) where {Tg, V, N} =
+    Tg in tags ? _type_strip(V, tags) : ForwardDiff.Dual{Tg, _type_strip(V, tags), N}
 _number_type(::Type{<:DynamicQuantities.AbstractQuantity{T}}) where {T} = T
 _number_type(::Type{T}) where {T <: Real} = T
 
@@ -1578,15 +1627,27 @@ _certified_dual_route(::Type{<:Real}, state, model, b, ϵ, verbose, constraint, 
     nothing
 
 function _certified_dual_route(
-        ::Type{<:ForwardDiff.Dual}, state, model, b, ϵ, verbose, constraint,
+        ::Type{D}, state, model, b, ϵ, verbose, constraint,
         parameters, kwargs,
-    )
-    eq_v, cert = equilibrate_certified(
-        _primal(state); model = model, ϵ = ϵ, verbose = verbose,
-        constraint = constraint, parameters = parameters,
-        b = b === nothing ? nothing : _plain.(b), kwargs...,
-    )
-    nstar = Float64[ustrip(us"mol", x) for x in eq_v.n]
-    μ = build_potentials(state.system, model)
-    return (_attach_sensitivity(state, nstar, μ, ϵ; b = b), cert)
+    ) where {D <: ForwardDiff.Dual}
+    # The search runs on the values of the outermost level of duals (`Tg`), the
+    # state and budget stripped here and every other input inside the scope, so
+    # that a differentiation nested in another is solved on the outer one's
+    # duals and lifted from there: `_plain` would strip every level and lose the
+    # inner derivatives.
+    Tg = ForwardDiff.tagtype(D)
+    qv = Ref{Any}(Float64[])
+    eq_v, cert = with(_STRIP_TAGS => (_STRIP_TAGS[]..., Tg)) do
+        _equilibrate_certified(
+            _strip_state(state, Tg); model = model, ϵ = ϵ, verbose = verbose,
+            constraint = constraint, parameters = qv,
+            b = b === nothing ? nothing : _strip_tag(collect(b), Tg), kwargs...,
+        )
+    end
+    cert === nothing && return (eq_v, cert)
+    des = DualEquilibriumSolver(state.system, model; verbose = verbose, get(kwargs, :dual, NamedTuple())...)
+    bd = b === nothing ? des.A * _build_n0(state) : collect(b)
+    eq_d, q_d = _lift_equilibrium(des, state, eq_v, bd; ϵ = ϵ, constraint = constraint, q = qv[], strip_tag = Tg)
+    parameters === nothing || (parameters[] = q_d)
+    return (eq_d, cert)
 end

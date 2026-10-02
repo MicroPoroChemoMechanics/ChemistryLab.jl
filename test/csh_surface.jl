@@ -352,4 +352,41 @@ const PHREEQC_CSH_DONNAN = reference_oracle("phreeqc_csh_donnan")
     @test worst.sigma < 2.0e-2
     @test worst.layer < 5.0e-3
     @test by_element[:Cl] < 1.0e-3
+
+    @testset "the layer differentiates, through its potential and its fixed point" begin
+        pt = first(f.points)
+        n0 = Any[fill(1.0e-14u"mol", length(cs.species))...]
+        n0[idx["H2O@"]] = moles_of_water() * u"mol"
+        n0[idx["Na+"]] = (pt.naoh + pt.nacl) * u"mol"
+        n0[idx["OH-"]] = pt.naoh * u"mol"
+        n0[idx["Ca+2"]] = pt.cacl2 * u"mol"
+        n0[idx["Cl-"]] = (2 * pt.cacl2 + pt.nacl) * u"mol"
+        n0[idx["XwOH"]] = f.n_sites * u"mol"
+        eq = equilibrate_donnan(ChemicalState(cs, n0), layer; model).state
+        # The potential solves σ + W Σ zᵢmᵢ e^{−zᵢψ} = 0 with W = 1000 A t, so
+        # dψ/dt = 1000 A σ / (W² g′(ψ)), g′(ψ) = −Σ zᵢ²mᵢ e^{−zᵢψ}.
+        t0 = layer.thickness
+        c0 = diffuse_layer_contents(eq, layer)
+        ψ = c0.potential["C-S-H"]
+        n = [ustrip(us"mol", x) for x in eq.n]
+        iw = only(cs.idx_solvent)
+        Ww = n[iw] * ustrip(us"kg/mol", cs.species[iw][:M])
+        zs = [charge(cs.species[i]) for i in cs.idx_solutes]
+        ms = n[cs.idx_solutes] ./ Ww
+        σ = sum(charge(sp) * n[idx[symbol(sp)]] for sp in members)
+        W = 1000 * f.area_m2 * t0
+        g′ = -sum(zs .^ 2 .* ms .* exp.(-zs .* ψ))
+        dψ = ForwardDiff.derivative(t -> diffuse_layer_contents(eq, DonnanLayer(t)).potential["C-S-H"], t0)
+        @test dψ ≈ 1000 * f.area_m2 * σ / (W^2 * g′) rtol = 1.0e-10
+        # Through the fixed point: the layer's water is 1000 A t whatever the
+        # solution, and the free solution stays neutral as the layer thickens.
+        st = ChemicalState(cs, n0)
+        d = ForwardDiff.derivative(t0) do t
+            r = equilibrate_donnan(st, DonnanLayer(t); model)
+            m = [ustrip(us"mol", x) for x in r.state.n]
+            [r.layer.water, sum(m[i] * charge(cs.species[i]) for i in cs.idx_aqueous)]
+        end
+        @test d[1] ≈ 1000 * f.area_m2 rtol = 1.0e-12
+        @test abs(d[2]) < 1.0e-6 * 1000 * f.area_m2 * maximum(ms)
+    end
 end

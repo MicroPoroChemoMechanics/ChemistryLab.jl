@@ -705,6 +705,36 @@ end
             [moles_of_water() * u"mol", 1.0e-12u"mol", 1.0e-12u"mol", 2n_host * u"mol", 1.0e-12u"mol"],
         )
         @test declared_site_moles(st4, fam3) ≈ 2 * declared_site_moles(st3, fam3)
+
+        # Differentiated with respect to the density q: the budget, the sites per
+        # mole of host and the host's column of the conservation matrix carry
+        # the derivative, the free site of a consistent state with them.
+        oh = reference_species("OH-")
+        cs_q(q) = ChemicalSystem(
+            [h2o, hp, oh, ca2, host, free3], [h2o, hp, ca2, free3];
+            site_families = [
+                SiteFamily(
+                    "Xs", free3, AbstractSpecies[]; capacity = MassSiteDensity(q),
+                    support = SurfaceSupport("sorbent", "Portlandite", FixedSurfaceArea(1.0); coupling = SITES_FOLLOW_HOST),
+                ),
+            ],
+        )
+        n_q = [moles_of_water() * u"mol", 1.0e-12u"mol", 1.0e-12u"mol", 1.0e-12u"mol", n_host * u"mol", 1.0e-12u"mol"]
+        on(q) = ChemicalState(cs_q(q), n_q)
+        @test ForwardDiff.derivative(q -> declared_site_moles(on(q), only(cs_q(q).site_families)), 2.0) ≈ M * n_host rtol = 1.0e-12
+        @test ForwardDiff.derivative(q -> sites_per_host(only(cs_q(q).site_families), M), 2.0) ≈ M rtol = 1.0e-12
+        A0 = Float64.(cs_q(2.0).SM.A)
+        @test ForwardDiff.derivative(q -> conservation_matrix(cs_q(q))[:, 5], 2.0) ≈ -M .* A0[:, 6] rtol = 1.0e-12
+        @test ForwardDiff.derivative(q -> ustrip(us"mol", host_consistent_state(on(q)).n[6]), 2.0) ≈ M * n_host rtol = 1.0e-12
+        # Through the equilibrium. The free site has no energy and is alone on
+        # its sites, so the host dissolves as it would without them, and the
+        # sites follow it: ∂n_X/∂q = M n_host at equilibrium, and nothing else
+        # moves.
+        eq0, c0 = equilibrate_certified(host_consistent_state(on(2.0)))
+        @test c0.optimal
+        d = ForwardDiff.derivative(q -> ustrip.(us"mol", first(equilibrate_certified(host_consistent_state(on(q)))).n), 2.0)
+        @test d[6] ≈ M * ustrip(us"mol", eq0.n[5]) rtol = 1.0e-8
+        @test maximum(abs, d[1:5]) < 1.0e-10
     end
 
     @testset "a capacity that needs a host, without one, is refused" begin
@@ -1071,7 +1101,7 @@ end
         @test abs(sum(z .* n) - sum(z .* n0)) < 1.0e-9
         @test maximum(abs, A * n .- A * n0) < 1.0e-9
 
-        # d(sites)/d(HCl) = ν d(host)/d(HCl), through `_attach_sensitivity`.
+        # d(sites)/d(HCl) = ν d(host)/d(HCl), the answer of the back end lifted.
         function host_and_sites(x)
             nx = n0 .+ zero(x)
             nx[iH] += x
@@ -1122,6 +1152,9 @@ end
     pairs = ["Hfo_wOH + H+ = Hfo_wOH2+" => 7.29, "Hfo_wOH = Hfo_wO- + H+" => -8.93]
     fam = site_family("w", pairs, aqueous; master = "Hfo_w", site = "Xw", capacity, support)
     @test G(fam.complexes[1]) ≈ -ChemistryLab.R_GAS * 298.15 * log(10) * 7.29
+    # A log K being fitted carries its derivative into the energy.
+    G_lk(lk) = G(site_family("w", [first(pairs[1]) => lk, pairs[2]], aqueous; master = "Hfo_w", site = "Xw", capacity, support).complexes[1])
+    @test ForwardDiff.derivative(G_lk, 7.29) ≈ -ChemistryLab.R_GAS * 298.15 * log(10) rtol = 1.0e-12
     refused(r; kw...) = site_family(
         "w", r, aqueous; master = "Hfo_w", site = "Xw", capacity, support, kw...,
     )

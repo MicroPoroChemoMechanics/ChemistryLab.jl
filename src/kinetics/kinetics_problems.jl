@@ -250,15 +250,41 @@ rather than quadrature-limited.
 The calorimeter's slot stays last and is addressed from the end of the vector,
 so it is unaffected by the presence of `ξ`.
 """
-function build_u0(kp::KineticsProblem)
-    n_mol = Float64[
+# ── the number type of a run ─────────────────────────────────────────────────
+#
+# A run is differentiated with respect to whatever carries dual numbers: the
+# amounts, temperature or pressure of the initial state, the constants of a
+# calorimeter, the time span, and the parameters a rate law captures (a rate
+# constant handed in as a dual by the function being differentiated). The state
+# of the integrator and every buffer the run writes into its result are of the
+# number type that covers them all. Anything narrower either raises or, worse,
+# drops the derivative: the ODE interface promotes the state only when it finds
+# the duals in the parameter object, and those of a rate law live in closures it
+# does not look into.
+
+"""
+    _kinetics_number_type(kp) -> Type
+
+The number type of a run of `kp`: `Float64`, or the dual type covering the
+initial state, the time span, the calorimeter and every rate law.
+"""
+function _kinetics_number_type(kp::KineticsProblem)
+    R = promote_type(Float64, _amount_number_type(kp.initial_state), typeof(float(kp.tspan[1])))
+    for kr in kp.kinetic_reactions
+        R = promote_type(R, _captured_number_type(kr.rate_fn), _captured_number_type(kr.heat_per_mol))
+    end
+    return promote_type(R, _captured_number_type(kp.calorimeter))
+end
+
+function build_u0(kp::KineticsProblem; R::Type = _kinetics_number_type(kp))
+    n_mol = R[
         ustrip(us"mol", kp.initial_state.n[i])
             for i in eachindex(kp.system.species)
     ]
     # Kinetic species moles
     nk0 = n_mol[kp.idx_kinetic]
     # Extents of reaction, zero by definition at t = tspan[1]
-    ξ0 = zeros(Float64, length(kp.kinetic_reactions))
+    ξ0 = zeros(R, length(kp.kinetic_reactions))
 
     u0 = if isnothing(kp.equilibrium_solver)
         vcat(nk0, ξ0)
@@ -273,9 +299,9 @@ function build_u0(kp::KineticsProblem)
     # semi-adiabatic device, the accumulated heat for the isothermal one. Both are
     # `u[end]`, and `p.has_T` / `p.has_Q` say which.
     if kp.calorimeter isa SemiAdiabaticCalorimeter
-        push!(u0, Float64(safe_ustrip(us"K", kp.calorimeter.T0)))
+        push!(u0, R(safe_ustrip(us"K", kp.calorimeter.T0)))
     elseif kp.calorimeter isa IsothermalCalorimeter
-        push!(u0, 0.0)
+        push!(u0, zero(R))
     end
 
     return u0
@@ -308,10 +334,15 @@ Key fields: `T`, `P`, `ϵ`, `lna_fn`, `kin_rxns`, `species_index`,
 `n_initial_full`, `n_full`, `cp_fns`, `rates_buf`, index ranges
 `n_be`, `n_nk`, `idx_kinetic`, `idx_equilibrium`, `νe`, `νk`, `Ae`.
 """
-function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
+function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Type = _kinetics_number_type(kp))
     state = kp.initial_state
-    T_K = Float64(ustrip(us"K", temperature(state)))
-    P_Pa = Float64(ustrip(us"Pa", pressure(state)))
+    # Every value the run writes into its result is of the number type `R` of
+    # the run (`_kinetics_number_type`). The starting guesses of the
+    # re-speciation are the exception, and stay `Float64` on purpose: a starting
+    # point carries no derivative, the derivative of the partition coming from
+    # the implicit-function theorem at the certified answer.
+    T_K = R(ustrip(us"K", temperature(state)))
+    P_Pa = R(ustrip(us"Pa", pressure(state)))
 
     lna_fn = activity_model(kp.system, kp.activity_model)
 
@@ -324,14 +355,14 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
     end
 
     n_sp = length(kp.system.species)
-    n_initial_full = Float64[ustrip(us"mol", state.n[i]) for i in 1:n_sp]
+    n_initial_full = R[ustrip(us"mol", state.n[i]) for i in 1:n_sp]
     n_full = copy(n_initial_full)
 
     cp_fns = _Heterogeneous([haskey(sp, :Cp⁰) ? sp[:Cp⁰] : nothing for sp in kp.system.species])
     h_fns = _Heterogeneous([haskey(sp, :ΔₐH⁰) ? sp[:ΔₐH⁰] : nothing for sp in kp.system.species])
 
     kin_rxns = _Heterogeneous(kp.kinetic_reactions)
-    rates_buf = zeros(Float64, length(kin_rxns))
+    rates_buf = zeros(R, length(kin_rxns))
 
     eq_sys, eq_sub, n_eq_init = if isnothing(kp.equilibrium_solver)
         nothing, nothing, Float64[]
@@ -359,7 +390,7 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
                 sys_e, es_model, es.solver;
                 variable_space = es.variable_space, es.kwargs...
             ),
-            Float64[n_initial_full[i] for i in kp.idx_equilibrium],
+            Float64[_plain(n_initial_full[i]) for i in kp.idx_equilibrium],
         )
     end
 
@@ -380,8 +411,8 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
 
     # Calorimeter parameters (semi-adiabatic)
     cal = kp.calorimeter
-    Cp_calo = cal isa SemiAdiabaticCalorimeter ? Float64(safe_ustrip(us"J/K", cal.Cp)) : 0.0
-    T_env = cal isa SemiAdiabaticCalorimeter ? Float64(safe_ustrip(us"K", cal.T_env)) : T_K
+    Cp_calo = cal isa SemiAdiabaticCalorimeter ? R(safe_ustrip(us"J/K", cal.Cp)) : zero(R)
+    T_env = cal isa SemiAdiabaticCalorimeter ? R(safe_ustrip(us"K", cal.T_env)) : T_K
     heat_loss_fn = cal isa SemiAdiabaticCalorimeter ? cal.heat_loss : identity
 
     return (
@@ -415,16 +446,16 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
         # The sensitivity `∂nₑ/∂bₑ` of the equilibrium partition, refreshed by
         # `respeciate!`.
         heat_eq = heat_eq,
-        heat_S = Ref(zeros(Float64, n_eq, n_be)),
+        heat_S = Ref(zeros(R, n_eq, n_be)),
         heat_ready = Ref(false),
         # The partition and the element amounts the sensitivity was taken at, and
         # the heat of the part of the last re-speciation it did not predict.
-        heat_n = Ref(zeros(Float64, n_eq)),
-        heat_b = Ref(zeros(Float64, n_be)),
-        heat_jump = Ref(0.0),
+        heat_n = Ref(zeros(R, n_eq)),
+        heat_b = Ref(zeros(R, n_be)),
+        heat_jump = Ref(zero(R)),
         # In a semi-adiabatic cell, the shift of the partition with temperature,
         # `∂nₑ/∂T`, and the temperature it was taken at.
-        heat_dndT = Ref(zeros(Float64, n_eq)),
+        heat_dndT = Ref(zeros(R, n_eq)),
         heat_T = Ref(T_K),
         # Equilibrium — Leal et al. (2017) §5. The re-speciation φ(bₑ) is a
         # minimization over the EQUILIBRIUM PARTITION ONLY, at frozen kinetic
@@ -467,13 +498,8 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30)
         n_eq_init = n_eq_init,
         n_eq_buf = similar(n_eq_init),
         n_eq_buf2 = similar(n_eq_init),
-        xi_buf = zeros(Float64, length(kp.idx_kinetic)),
-        T_q = Ref(temperature(state)),
-        P_q = Ref(pressure(state)),
-        # Pseudo-inverse of Aₑ, to project the previous speciation back onto the
-        # element amounts the ODE carries. Built once — it is a fixed matrix.
-        Ae_pinv = isnothing(kp.equilibrium_solver) ?
-            zeros(Float64, 0, 0) : pinv(Float64.(kp.Ae)),
+        T_q = Ref(T_K * u"K"),
+        P_q = Ref(P_Pa * u"Pa"),
         state_ref = Ref{ChemicalState}(state),
         eq_failures = Ref(0),
         # Worst |Aₑ n − bₑ|∞ over the run. This, not the optimizer's retcode, is
@@ -694,7 +720,7 @@ function system_enthalpy(p, u, T)
     # the trajectory at all: the recorded heat came out NON-MONOTONE, 936 J/g at
     # one day and 631 J/g at two, which no calorimeter has ever measured.
     kin = p.idx_kinetic
-    H = 0.0
+    H = zero(promote_type(eltype(u), typeof(T), eltype(p.n_full)))
     @inbounds for (i, h_fn) in enumerate(p.h_fns)
         isnothing(h_fn) && continue
         j = findfirst(==(i), kin)
@@ -786,8 +812,8 @@ function _heat_sensitivity!(p, n_e, be)
     T = ustrip(us"K", p.T_q[])
     if p.heat_ready[]
         S, n0, b0 = p.heat_S[], p.heat_n[], p.heat_b[]
-        ΔT = p.has_T ? T - p.heat_T[] : 0.0
-        jump = 0.0
+        ΔT = p.has_T ? T - p.heat_T[] : zero(T)
+        jump = zero(eltype(p.heat_n[]))
         for (j, idx) in enumerate(p.idx_equilibrium)
             predicted = n0[j] + p.heat_dndT[][j] * ΔT
             for k in eachindex(b0)
@@ -803,42 +829,13 @@ function _heat_sensitivity!(p, n_e, be)
     p.heat_n[] .= n_e
     p.heat_b[] .= be
     p.heat_T[] = T
-    st = ChemicalState(p.eq_system, n_e .* u"mol"; T = p.T_q[], P = p.P_q[])
-    pv = _build_params(st; ϵ = p.ϵ)
-    μ = p.eq_solver.μ
-    Hμ = ForwardDiff.jacobian(n -> μ(n, pv), n_e)
-    S = p.heat_S[]
-    nb = size(S, 2)
-    zero_g = zeros(length(n_e))
-    e = zeros(nb)
-    # The absent phases, pinned before the first pass: a pure phase has no
-    # curvature, and one left free at a negligible amount keeps its row of the
-    # optimality conditions, as if it coexisted with the rest. The system is
-    # then near-singular, and its answer noise of either sign: on the C100
-    # mortar, shift capacities of -53 kJ/K between two of +60 J/K.
-    scale = maximum(n_e)
-    absent = [n_e[i] < 1.0e-6 * scale && Hμ[i, i] * n_e[i] < 1.0e-3 for i in eachindex(n_e)]
-    pure = falses(length(n_e))
-    pure[_pure_phase_indices(p.eq_system)] .= true
-    # A sensitivity that fails its own checks is replaced by none: the whole
-    # change of the partition is then carried by the jump at the next accepted
-    # step, which keeps the heat exact at the cost of lumping it.
-    sens(g, bdot) = try
-        _equilibrium_sensitivity(
-            p.Ae, Hμ, g, bdot, n_e; pinned = absent, pinnable = pure, maxpin = length(n_e),
-        )
-    catch err
-        err isa ErrorException || rethrow()
-        zeros(length(n_e))
-    end
-    for k in 1:nb
-        fill!(e, 0.0)
-        e[k] = 1.0
-        S[:, k] .= sens(zero_g, e)
-    end
+    # `S = ∂nₑ/∂bₑ` and the shift with temperature, from OptimaSolver's tangent
+    # at the proved partition (`_partition_sensitivity`), in the number type of
+    # the run: a run differentiated with respect to its parameters carries the
+    # derivative of `S` as well.
+    S, dndT = _partition_sensitivity(p, n_e, be, T)
+    p.heat_S[] .= S
     if p.has_T
-        gT = [-p.h_fns[idx](; T = T, unit = false) / (R_GAS * T^2) for idx in p.idx_equilibrium]
-        dndT = sens(gT, zeros(nb))
         # The capacity it implies is a quadratic form, positive when the
         # optimality conditions are well posed. When it is not, the shift is not
         # followed at all, in the prediction as in the heat capacity, and the
@@ -849,6 +846,60 @@ function _heat_sensitivity!(p, n_e, be)
     end
     p.heat_ready[] = true
     return nothing
+end
+
+"""
+    _partition_sensitivity(p, n_e, be, T) -> (S, dndT)
+
+`S = ∂nₑ/∂bₑ` at the proved partition `n_e` for the budget `be`, and, in a
+semi-adiabatic cell, `∂nₑ/∂T` along the Gibbs–Helmholtz direction
+`∂(μᵢ⁰/RT)/∂T = −ΔₐH⁰ᵢ/RT²` (`nothing` otherwise), both from the
+implicit-function theorem at the answer with its active set frozen
+(OptimaSolver's `dual_newton_tangent`). The direction of the temperature is that
+of the standard potentials alone, over the enthalpies the heat is counted with:
+the activity coefficients are held, as the heat is.
+
+The active set is read at the certificate's floor: an interior-point partition
+leaves an absent pure phase at a negligible amount rather than at zero, and a
+pure phase left free there keeps its row of the optimality conditions, as if it
+coexisted with the rest. Until 0.28.2 this was a saddle-point system solved by a
+truncated singular value decomposition, in `Float64`, with absent phases pinned
+by a threshold of its own.
+"""
+function _partition_sensitivity(p, n_e, be, T)
+    des = p.eq_dual
+    des === nothing && throw(
+        ArgumentError(
+            "the heat of a partial equilibrium needs the certified solver of the " *
+                "partition: OptimaSolver loaded, an aqueous phase and `H2O@` in it.",
+        ),
+    )
+    st = ChemicalState(p.eq_system, n_e .* u"mol"; T = p.T_q[], P = p.P_q[])
+    pv = _build_params(st; ϵ = p.ϵ)
+    nb = length(be)
+    np = p.has_T ? nb + 1 : nb
+    V = promote_type(eltype(n_e), eltype(be), typeof(T), eltype(pv.ΔₐG⁰overRT))
+    Tg = typeof(ForwardDiff.Tag(_partition_sensitivity, V))
+    D = ForwardDiff.Dual{Tg, V, np}
+    unit(k) = ForwardDiff.Partials{np, V}(ntuple(i -> V(i == k), np))
+    bd = D[D(V(be[k]), unit(k)) for k in 1:nb]
+    g = if p.has_T
+        gT = [-p.h_fns[idx](; T = T, unit = false) / (R_GAS * T^2) for idx in p.idx_equilibrium]
+        D[
+            D(V(pv.ΔₐG⁰overRT[j]), ForwardDiff.Partials{np, V}(ntuple(i -> i == np ? V(gT[j]) : zero(V), np)))
+                for j in eachindex(gT)
+        ]
+    else
+        pv.ΔₐG⁰overRT
+    end
+    pd = merge(pv, (ΔₐG⁰overRT = g,))
+    blocks = _constraint_blocks(FixedTP(), des, st, pd, n_e)
+    prob = _dual_problem(des, pd, n_e, blocks)
+    t = _optima_tangent(prob, bd, n_e; floor = _CERTIFICATE_FLOOR)
+    ne = length(n_e)
+    S = [ForwardDiff.partials(t.x[j], k) for j in 1:ne, k in 1:nb]
+    dndT = p.has_T ? [ForwardDiff.partials(t.x[j], np) for j in 1:ne] : nothing
+    return S, dndT
 end
 
 """
@@ -870,7 +921,7 @@ function _equilibrium_shift_capacity(p, T)
 end
 
 """
-    _proved_partition(p, n_e, be) -> Union{Vector{Float64}, Nothing}
+    _proved_partition(p, n_e, be) -> Union{Vector, Nothing}
 
 `n_e` if the certificate proves it the equilibrium for `be`, else the certified
 solve started from it if that proves one, else `nothing`. Without a certifying
@@ -882,7 +933,7 @@ function _proved_partition(p, n_e, be)
     try
         optimality_certificate(p.eq_dual, st; b = be).optimal && return n_e
         eq_c, cert = solve_certified(p.eq_dual, (st,); b = be, ϵ = p.ϵ)
-        cert.optimal && return Float64[ustrip(us"mol", x) for x in eq_c.n]
+        cert.optimal && return [ustrip(us"mol", x) for x in eq_c.n]
     catch
         # An audit or a solve that raises proves nothing, and nothing moves.
     end
@@ -938,7 +989,7 @@ temperature step to a semi-adiabatic one. Returns whether `u` changed.
 function _apply_heat_jump!(p, u)
     p.heat_eq || return false
     q = p.heat_jump[]
-    p.heat_jump[] = 0.0
+    p.heat_jump[] = zero(q)
     iszero(q) && return false
     if p.has_Q
         u[end] += q
@@ -1010,24 +1061,20 @@ function respeciate!(p, u)
     # precipitated, and the pore solution came out at pH 6 instead of 12.6.
     if p.eq_warm[]
         for (j, idx) in enumerate(p.idx_equilibrium)
-            n_eq[j] = max(p.n_full[idx], _EQ_GUESS_FLOOR)
+            n_eq[j] = max(_plain(p.n_full[idx]), _EQ_GUESS_FLOOR)
         end
         # The previous speciation was an equilibrium for the PREVIOUS `bₑ`. When
         # an element has since been spent — the sulfate of an OPC once the gypsum
         # is gone — that guess demands more of it than now exists, and the solve
         # starts outside the feasible set. Clipping costs nothing when the guess
         # is already feasible, which is the ordinary case.
-        _budget_clip!(n_eq, p.Ae, be)
-        _restore_feasibility!(n_eq, p.Ae, be; maxit = RESTORE_MAXIT[])
+        _budget_clip!(n_eq, p.Ae, _plain.(be))
+        _restore_feasibility!(n_eq, p.Ae, _plain.(be); maxit = RESTORE_MAXIT[])
         _respeciate_solve!(p, n_eq, be) && return true
         # Infeasible or stalled: fall through to the cold reconstruction rather
         # than carry the bad point into the next step.
     end
 
-    ξ = p.xi_buf
-    for (j, idx) in enumerate(p.idx_kinetic)
-        ξ[j] = p.n_initial_full[idx] - nk[j]
-    end
     for j in eachindex(n_eq)
         # Start from the composition the specimen was cast with — for a paste,
         # the mixing water and nothing precipitated — and let
@@ -1049,8 +1096,8 @@ function respeciate!(p, u)
         # reason alone.
         n_eq[j] = max(p.n_eq_init[j], _EQ_GUESS_FLOOR)
     end
-    _budget_clip!(n_eq, p.Ae, be)
-    _restore_feasibility!(n_eq, p.Ae, be; maxit = RESTORE_MAXIT[])
+    _budget_clip!(n_eq, p.Ae, _plain.(be))
+    _restore_feasibility!(n_eq, p.Ae, _plain.(be); maxit = RESTORE_MAXIT[])
 
     return _respeciate_solve!(p, n_eq, be; is_reconstruction = true)
 end
@@ -1066,8 +1113,8 @@ function _reconstruction_guess!(buf, p, be)
     @inbounds for j in eachindex(buf)
         buf[j] = max(p.n_eq_init[j], _EQ_GUESS_FLOOR)
     end
-    _budget_clip!(buf, p.Ae, be)
-    _restore_feasibility!(buf, p.Ae, be; maxit = RESTORE_MAXIT[])
+    _budget_clip!(buf, p.Ae, _plain.(be))
+    _restore_feasibility!(buf, p.Ae, _plain.(be); maxit = RESTORE_MAXIT[])
     return buf
 end
 
@@ -1143,7 +1190,7 @@ function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
     p.heat_eq && _heat_sensitivity!(p, n_e, be)
 
     res = _row_residual(p.Ae, n_e, be)
-    abs_res > p.eq_worst_abs[] && (p.eq_worst_abs[] = abs_res)
+    abs_res > p.eq_worst_abs[] && (p.eq_worst_abs[] = _plain(abs_res))
 
     # Separate the trajectory from the probes. The right-hand side is evaluated
     # far more often than the solution advances — Jacobian finite differences and
@@ -1152,14 +1199,14 @@ function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
     # something that does not affect the answer: on a full OPC that figure was
     # 1.13 mol while the worst over the 201 accepted steps was 4.3e-4, with a
     # median of 4.8e-9.
-    p.on_accepted[] && abs_res > p.eq_worst_abs_acc[] && (p.eq_worst_abs_acc[] = abs_res)
+    p.on_accepted[] && abs_res > p.eq_worst_abs_acc[] && (p.eq_worst_abs_acc[] = _plain(abs_res))
 
     # Warm-starting from an INFEASIBLE point locks the error in: the next step
     # starts where this one ended, so a single bad solve poisons every solve
     # after it. Only hand over a speciation that actually satisfies the element
     # balance; otherwise leave `eq_warm` as it was and let the caller retry.
     res <= EQ_RESIDUAL_TOL && (p.eq_warm[] = true)
-    res > p.eq_worst_residual[] && (p.eq_worst_residual[] = res)
+    res > p.eq_worst_residual[] && (p.eq_worst_residual[] = _plain(res))
     return res <= EQ_RESIDUAL_TOL
 end
 
@@ -1171,7 +1218,56 @@ solve threw; a solve that returns a poor composition still returns `true`, with
 its element-balance violation in moles, so the caller can compare attempts.
 """
 function _one_speciation(p, guess, be)
-    state_eq = ChemicalState(p.eq_system, guess .* u"mol"; T = p.T_q[], P = p.P_q[])
+    # A run differentiated with respect to its parameters carries dual numbers
+    # in its budget, and possibly in its temperature. The partition is then the
+    # certified answer, lifted to those duals by the implicit-function theorem
+    # (`solve_certified`): the interior point returns no exact zero for an
+    # absent phase, so no active set to differentiate at.
+    #
+    # The values are found first, by the route of a plain run: the interior
+    # point, escalated to the certified solve where its balance is poor. The
+    # certified solve on the duals then starts from that answer. Started from
+    # the guess itself, it is the cold path, which a plain run never takes, and
+    # it did not always converge where the plain run did: an accepted step of a
+    # differentiated hydration left 3.4e9 mol unaccounted for.
+    if eltype(be) <: ForwardDiff.Dual || p.T_q[] isa DynamicQuantities.AbstractQuantity{<:ForwardDiff.Dual}
+        p.eq_dual === nothing && throw(
+            ArgumentError(
+                "differentiating a run under partial equilibrium needs the certified " *
+                    "solver of the partition: OptimaSolver loaded, an aqueous phase " *
+                    "and `H2O@` in it.",
+            ),
+        )
+        T_v = _plain(ustrip(us"K", p.T_q[])) * u"K"
+        P_v = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
+        ok, n_v, abs_v = _value_speciation(p, guess, _plain.(be), T_v, P_v)
+        st0 = ChemicalState(p.eq_system, (ok ? n_v : guess) .* u"mol"; T = p.T_q[], P = p.P_q[])
+        eq_c, cert = solve_certified(p.eq_dual, (st0,); b = be, ϵ = p.ϵ)
+        n_c = [ustrip(us"mol", x) for x in eq_c.n]
+        abs_c = _abs_residual(p.Ae, n_c, be)
+        # The rule of a plain run: an uncertified answer that balances worse than
+        # the values found is not taken. Those values are then lifted where they
+        # are, as `speciated_states` lifts an instant it could not certify, so
+        # that the run on dual numbers follows the plain one.
+        ok && !cert.optimal && !(abs_c < abs_v) && return true, _lifted_partition(p, n_v, T_v, P_v, be), abs_v
+        return true, n_c, abs_c
+    end
+    return _value_speciation(p, guess, be, p.T_q[], p.P_q[])
+end
+
+# The partition `n_v`, found on the values of the budget `be` at `T_v` and `P_v`,
+# lifted to the duals of `be` and of the temperature of the run where it stands.
+function _lifted_partition(p, n_v, T_v, P_v, be)
+    at = ChemicalState(p.eq_system, n_v .* u"mol"; T = p.T_q[], P = p.P_q[])
+    eq_d, _ = _lift_equilibrium(
+        p.eq_dual, at, ChemicalState(p.eq_system, n_v .* u"mol"; T = T_v, P = P_v), be; ϵ = p.ϵ,
+    )
+    return [ustrip(us"mol", x) for x in eq_d.n]
+end
+
+# `_one_speciation` on plain numbers, at the temperature `T` and pressure `P`.
+function _value_speciation(p, guess, be, T, P)
+    state_eq = ChemicalState(p.eq_system, guess .* u"mol"; T = T, P = P)
 
     # `p.eq_solver` is a prebuilt `EquilibriumSolver` over the partition — a
     # solver *object*, not a SciML algorithm — so `solve`, not `equilibrate`.
@@ -1239,6 +1335,9 @@ budget. Unlike a single global scale it cannot hide a small element behind a
 large one, which is what let a 0.465 mol sulfur violation report as 1.4e-2.
 """
 function _row_residual(Ae, n_e, be)
+    # A measure, so on the values: it decides whether a partition is kept, and
+    # carries no derivative.
+    n_e, be = _plain.(n_e), _plain.(be)
     r = Ae * n_e .- be
     # An element whose total is a millionth of the largest is not tracked
     # meaningfully, and judging it against its own vanishing budget turns a
@@ -1264,7 +1363,7 @@ Largest element-balance violation in moles. Reported alongside the relative
 measure because it is the one a chemist can judge: 1e-10 mol is machine
 precision whatever the system, and 7e-2 mol is not.
 """
-_abs_residual(Ae, n_e, be) = maximum(abs, Ae * n_e .- be; init = 0.0)
+_abs_residual(Ae, n_e, be) = maximum(abs, Ae * _plain.(n_e) .- _plain.(be); init = 0.0)
 
 """
     _budget_clip!(n_eq, Ae, be)
@@ -1372,18 +1471,14 @@ function build_kinetics_ode(kp::KineticsProblem)
         # `Vector{Float64}`, and the solve fails with "First call to automatic
         # differentiation for time gradient failed". Rate laws that ignore `t`,
         # like `parrott_killoh`, never exposed this.
-        T_elt = promote_type(eltype(u), typeof(t))
+        T_elt = promote_type(eltype(u), typeof(t), eltype(p.n_full))
 
         # ── 1. Extract state components ──────────────────────────────────
         nk = @view u[(p.n_be + 1):(p.n_be + p.n_nk)]
         T_curr = p.has_T ? u[end] : p.T
 
         # ── 2. Reconstruct full mole vector ──────────────────────────────
-        if T_elt === Float64
-            n_full = p.n_full
-        else
-            n_full = T_elt.(p.n_full)
-        end
+        n_full = T_elt === eltype(p.n_full) ? p.n_full : T_elt.(p.n_full)
 
         # 2a. Kinetic species from nₖ
         for (j, idx) in enumerate(p.idx_kinetic)
@@ -1445,7 +1540,7 @@ function build_kinetics_ode(kp::KineticsProblem)
         rates = Vector{T_elt}(undef, n_rxn)
         for (i, kr) in enumerate(p.kin_rxns)
             rates[i] = kr.rate_fn(T_curr, p.P, t, n_sv, lna_sv, n0_sv)
-            if T_elt === Float64
+            if T_elt === eltype(p.rates_buf)
                 p.rates_buf[i] = rates[i]
             end
         end
