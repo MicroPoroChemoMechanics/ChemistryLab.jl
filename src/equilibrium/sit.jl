@@ -189,6 +189,10 @@ function SITActivityModel(;
     )
 end
 
+# Molalities, as every Debye–Hückel form; the accessors (`activity_coefficients`,
+# `log_activities`) ask for the scale rather than infer it.
+concentration_scale(::SITActivityModel) = :molality
+
 function Base.show(io::IO, m::SITActivityModel)
     return print(
         io, "SITActivityModel(A = ", m.A, ", b = ", m.b, ", ", m.parameters, ")",
@@ -347,7 +351,11 @@ function activity_model(cs::ChemicalSystem, model::SITActivityModel)
                 pair += e * (_n[k] / denom_mol)
             end
             mᵢ = _n[i] / denom_mol
-            out[i] = ln10 * (-zv[i]^2 * D + pair) + log(mᵢ + ϵ)
+            # `log(mᵢ)` and not `log(mᵢ + ϵ)`: `mᵢ` is built from the floored
+            # amounts already, and a second regularization stacks, putting a
+            # species at the floor at `log(2ϵ)`, as HKF, Davies and Pitzer did
+            # until they lost it (`activities.jl`, the ion coefficients).
+            out[i] = ln10 * (-zv[i]^2 * D + pair) + log(mᵢ)
         end
 
         # A neutral solute has no Debye-Hückel term — no `z²` to carry one — and
@@ -363,7 +371,7 @@ function activity_model(cs::ChemicalSystem, model::SITActivityModel)
                 pair += e * (_n[k] / denom_mol)
             end
             mᵢ = _n[i] / denom_mol
-            out[i] = ln10 * pair + log(mᵢ + ϵ)
+            out[i] = ln10 * pair + log(mᵢ)
         end
 
         n_aqueous = n_w + sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))

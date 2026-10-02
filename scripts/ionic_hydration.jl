@@ -624,7 +624,9 @@ end
 
 # ── driver ────────────────────────────────────────────────────────────────────
 
-function main()
+# Not `main`: `hydration_calibration.jl` includes this file and has a `main` of
+# its own, which would replace this one.
+function report_ionic_hydration()
     clinker = IONIC_CEMENT.clinker
     tend = 28 * 86400.0
     times = 10 .^ range(log10(0.05 * 86400), log10(tend); length = 40)
@@ -700,5 +702,5 @@ function main()
 end
 
 if abspath(PROGRAM_FILE) == (@__FILE__)
-    main()
+    report_ionic_hydration()
 end

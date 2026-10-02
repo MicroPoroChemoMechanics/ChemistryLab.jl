@@ -132,13 +132,13 @@ plot!(ti ./ 86400, T_off .- 273.15; lw = 2, ls = :dash, label = "computed, witho
 scatter!(tm, Tm; ms = 3, label = "measured (Lavergne et al. 2018)")
 ```
 
-The coupled calculation reaches 56.4 °C at 0.82 day, where the measurement
+The coupled calculation reaches 56.4 °C at 0.81 day, where the measurement
 peaks at 52.1 °C at 0.75 day, and it stays 2.8 to 5.4 K above the measured
 curve through the cooling that follows. Nothing has been adjusted on this curve: the
 kinetic parameters are those of the preceding page, the cell and its losses those
 [Lavergne2018](@cite) calibrated. The run without feedback, the heat flow of the
 paste held at 20 °C integrated afterwards through the same cell, peaks at 40.1 °C
-only, and later, at 1.02 day. The difference, 16 K out of a rise of 36 K, is the
+only, and later, at 1.01 day. The difference, 16 K out of a rise of 36 K, is the
 acceleration of the reactions by the temperature they raise, through their
 activation energies; a semi-adiabatic test is therefore a test of those energies
 as much as of the heat, and it cannot be read off an isothermal calculation.

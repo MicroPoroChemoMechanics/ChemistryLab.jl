@@ -1,5 +1,122 @@
 # Changelog
 
+## v0.30.0 — A trace held to its own amount, and SIT and Pitzer solved by Newton's method
+
+The certified equilibrium judged its element balance in moles, against `1e-10`:
+a component of a nanomole could be 10 % wrong and certified. Each balance row is
+now judged against what it holds, as PHREEQC and GEMS judge a mass balance
+against its element total (OptimaSolver 0.8). And the aqueous solutes under SIT
+and Pitzer, recovered one by one until now, are solved by Newton's method on the
+model's own Jacobian; the first equilibria computed with these models are in the
+test suite, the solubility of halite under Pitzer within 0.27 % of its
+measurement.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.29"` does not accept 0.30 and
+  has to widen its bound.
+- **A certificate is stricter.** `optimal` asks each balance row that has a
+  budget to be met relative to what it holds, below one mole, and in moles above
+  it as before. An answer 0.29 certified with a trace off by more than `1e-10` of
+  itself is now solved further, or refused. `balance` stays in moles;
+  `balance_relative` is new.
+- **SIT at the activity floor.** The SIT closure took the logarithm of a molality
+  regularized twice, `log(mᵢ + ϵ)` on amounts already floored, which put a
+  species at the floor at `ln 2` above it; HKF, Davies and Pitzer had lost that
+  offset in 0.28. The log-activities of floored species under SIT move by `ln 2`,
+  and nothing else does.
+- **`DecompositionWindow` has a new field, `shape`** (`:logistic` or
+  `:interval`); code calling its positional inner constructor has to pass it.
+  Its keyword constructors are unchanged.
+- **`scripts/ionic_hydration.jl`** runs its report as `report_ionic_hydration()`,
+  no longer `main()`: `scripts/hydration_calibration.jl` includes that file and
+  has a `main` of its own, which replaced it.
+
+### Changed: the balance judged against what each row holds
+
+- `optimality_certificate` reports the balance twice: `balance`, the worst row in
+  moles, and `balance_relative`, the worst row with a budget relative to what it
+  holds. `optimal` follows OptimaSolver's `kkt_certificate`, which judges the
+  larger of the two below one mole. A row whose budget is zero within rounding,
+  such as the electron row of a redox pair, and a component nobody supplies (a
+  budget below `1e-12` of the largest) are judged in moles.
+- The ranking of candidates (`_kkt_error`), that of a kinetic step, and the rule
+  that offers a phase its second instance read the balance as the certificate
+  judges it, and the refusal messages print both figures.
+- Measured on the same machine as 0.29.0, with OptimaSolver 0.8.0: the 32 cement
+  pastes of a thesis in 388 s instead of 349 s, every printed value unchanged and
+  their balance residuals down from `1e-11` to `1e-15`, the time added on the one
+  paste whose nanomole of carbon was left `8e-6` of itself off. The three-hour
+  hydration of `scripts/ionic_hydration.jl` takes 5.1 s instead of 5.8 s, on an
+  identical trajectory, and its 28-day certified replay 2.6 s instead of 2.5 s.
+
+### Changed: SIT and Pitzer, solved by Newton's method
+
+- **The aqueous solutes under SIT and Pitzer are recovered by Newton's method**
+  on their log-amounts, with the Jacobian of the model, exact by forward
+  differentiation: the specific ion interaction terms `ε(i,k) mₖ` and the Pitzer
+  pair and triplet sums depend on the molalities themselves, and no single
+  equation gives the solutes back as it does for the Debye–Hückel family. The
+  iteration starts from the better of the composition the solve holds and the
+  one the model's Debye–Hückel part gives through the ionic strength, and its
+  steps are capped at 30 in any log-amount and halved until the squared residual
+  falls. A solute below the activity floor is placed from its activity
+  coefficient at the composition found. No composition found is reported as
+  such, which OptimaSolver handles as it handles the limiting law past its range.
+- **The first equilibria with these models.** Until now no test, page or script
+  solved one; their closures had only been evaluated at given compositions. The
+  suite certifies a sodium chloride brine at 3 mol/kg under SIT, and halite in
+  water under Pitzer: the saturated molality comes out at 6.1605 mol/kg against
+  the 6.144 Hamer & Wu (1972) measured, from the standard Gibbs energy of
+  halite in slop98 and the Na–Cl parameters of the Reardon set, neither fitted to
+  it. The Pitzer page shows that equilibrium. On these systems the sweeps
+  converged too, to the same compositions; the inversion is exact where they
+  were not guaranteed to be.
+
+### Added: thermograms as the cement literature reports them
+
+- **A decomposition window given as a temperature interval**,
+  `DecompositionWindow(phase; between = (T₁, T₂))`: the phase releases all of its
+  water or carbon dioxide between the two temperatures and none outside, along a
+  smooth step whose rate vanishes at both ends. That is how the papers attribute a
+  loss to a phase (portlandite between 350 and 500 °C, De Weerdt et al. 2011;
+  the carbonate from about 300 to 850 °C, Shi et al. 2016; the water of ettringite
+  between 30 and 150 °C, Möschner et al. 2009), and the loss between the two ends
+  is then exactly the phase's content, where a logistic window loses part of it
+  outside. Both forms mix in one set, fit to a curve (`window_parameters` gives an
+  interval's ends) and serve `bound_water` over a range. `window_interval`
+  returns an interval's ends, or the 1 % and 99 % points of a logistic.
+- **`thermogram(...; relative_to)`** returns the curve in percent of a reference
+  mass, `mass_percent` and `loss_percent` (the loss counted from the first
+  temperature of the grid), with `reference_mass`. The reference is the sample at
+  the start (`:initial`, the default), at a temperature (a dry mass: 500 °C for
+  Schöler et al. 2015, 800 °C for Shi et al. 2016), or ignited (`:ignited`; Shi &
+  Lothenbach 2020 give bound water in percent of the sample ignited at 980 °C),
+  computed at its own temperature. The thermogravimetry page sets these
+  conventions out, each with its source.
+- The intervals and reference temperatures are transcribed in `data/literature`
+  (`DeWeerdt2011`, `Shi2016`, and the new `Moschner2009`, `Scholer2015`,
+  `LHopital2016`, `ShiLothenbach2020`), with the page and the sentence they come
+  from.
+
+### Fixed
+
+- The bibliography gave the first authors of Nied et al. (2016) as "David" Nied
+  and "Eléonore" L'Hôpital; Crossref and the article give Dominik and Emilie.
+- `SITActivityModel` declares its `concentration_scale`, molality, which the
+  interface asks of every activity model and which it alone lacked.
+- The last method redefinitions of the test suite are gone:
+  `scripts/validation_common.jl`, included by four validation scripts, defines
+  its helpers once per session, and the page extractor is included by its test in
+  a module of its own. With `--warn-overwrite=yes`, as `Pkg.test` runs, 0.29.0
+  still printed eight.
+
+### Changed: requirements
+
+- ChemistryLab requires **OptimaSolver 0.8** (`OptimaSolver = "0.8"`), whose
+  certificate and dual Newton judge each balance row against what it holds.
+
 ## v0.29.0 — Derivatives through every forward model, and no difference quotient left
 
 This release takes every derivative of the package by forward-mode

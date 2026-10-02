@@ -255,6 +255,32 @@ is right is a question for measurement, not for a docstring — but only one of
 the two is thermodynamically consistent with its own water activity, and §3 says
 which.
 
+## 7. An equilibrium: the solubility of halite
+
+Everything above evaluates the model at a given composition. An equilibrium asks
+the reverse: the composition at which halite, the solid NaCl, stops dissolving.
+The certified solver recovers the dissolved ions from their potentials by
+Newton's method on the model's own Jacobian ([the inner level](@ref sec-theory-certificate)),
+and [HamerWu1972](@cite) give the molality of the saturated solution at 25 °C.
+
+```@example pz
+sat = ChemicalSystem([dict[s] for s in split("H2O@ Na+ Cl- Hl")], ["H2O@", "Na+", "Cl-"])
+st = ChemicalState(sat)
+set_quantity!(st, "H2O@", 1.0u"kg")
+set_quantity!(st, "Hl", 8.0u"mol")          # more halite than water can take
+eq, cert = equilibrate_certified(st; model)
+n = Dict(symbol(s) => ustrip(us"mol", x) for (s, x) in zip(sat.species, eq.n))
+m_sat = n["Na+"] / (n["H2O@"] * M_w)
+measured = ustrip(us"mol/kg", literature_value("HamerWu1972", "nacl_saturated_molality"))
+@printf("certified: %s   saturated molality %.4f mol/kg, measured %.3f (%+.2f %%)\n",
+        cert.optimal, m_sat, measured, 100 * (m_sat - measured) / measured)
+```
+
+The two agree to a quarter of a percent, from the standard Gibbs energy of
+halite in slop98 and the Na–Cl parameters of the set, neither of them fitted to
+this number, at a molality six times the 1 mol/kg up to which the Debye–Hückel
+forms are stated valid.
+
 ## Where to go next
 
 The derivation is in [Activity models](@ref sec-theory-activity), and the API

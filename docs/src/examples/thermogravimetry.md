@@ -239,6 +239,77 @@ parameter's position relative to the rank: the rank counts directions, the
 position is the packing order, and confusing them flags whichever of a
 trading-off pair happened to be listed second.
 
+## What a thermogram is plotted against, and windows given as intervals
+
+A thermobalance records the mass of the sample as it is heated
+[Lever2014](@cite). What the cement literature reports is the mass **lost**, in
+percent of a reference mass, and the papers co-authored by Lothenbach, whose
+method is set out in [LothenbachDurdzinskiDeWeerdt2016](@cite), do not all take
+the same reference. Three are in use, and the data files of this package carry
+each with its source:
+
+| reference mass | used by | `relative_to` |
+|:--|:--|:--|
+| the sample at the start of the run | the thermograms of [Deschner2012](@cite) | `:initial` (default) |
+| the dry sample at a temperature | 500 °C, [Scholer2015](@cite); 800 °C, [Shi2016](@cite) | that temperature |
+| the sample ignited at 980 °C | [ShiLothenbach2020](@cite) | `980 + 273.15`, or `:ignited` |
+
+`thermogram` returns the mass and the loss in kilograms, and both again in
+percent of the reference `relative_to` names (`mass_percent`, `loss_percent`,
+the loss counted from the first temperature of the grid). The reference mass is
+computed at its own temperature, not read off the nearest point of the grid.
+
+```@example tgawin
+dry = literature_value("Scholer2015", "tga_dry_solids_temperature")   # 500 °C
+for (label, ref) in ((":initial", :initial), ("dry at 500 °C", dry), (":ignited", :ignited))
+    t = thermogram(state, windows; temperatures = grid, relative_to = ref)
+    @printf("%-14s reference %7.3f g   loss at the end %6.2f %%\n",
+            label, ustrip(uconvert(us"g", t.reference_mass * us"kg")), t.loss_percent[end])
+end
+```
+
+The same loss is a larger percentage of a smaller reference: which convention a
+measured curve follows has to be read in its paper before it is compared with
+one computed here.
+
+**The papers also attribute a loss to a phase by a temperature interval**:
+portlandite between 350 and 500 °C [DeWeerdt2011](@cite), the carbonate from
+about 300 to 850 °C [Shi2016](@cite), the water of ettringite between 30 and
+150 °C [Moschner2009](@cite), the total bound water between 30 and 550 °C
+[LHopital2016](@cite). A window can be given that way, `between = (T₁, T₂)`:
+the phase then releases everything inside the interval and nothing outside it,
+along a smooth step whose rate vanishes at both ends.
+
+```@example tgawin
+ch = literature_table("DeWeerdt2011", "tga_intervals")
+cc = literature_table("Shi2016", "tga_intervals")
+from_papers = [
+    windows[1],      # gypsum: no interval in these papers, the placeholder kept
+    DecompositionWindow("Portlandite"; between = (only(ch.lower), only(ch.upper)),
+                        kind = PROV_PUBLISHED, source = "DeWeerdt2011"),
+    DecompositionWindow("Cal"; between = (only(cc.lower), only(cc.upper)),
+                        releases = :carbon_dioxide, kind = PROV_PUBLISHED, source = "Shi2016"),
+]
+T1, T2 = window_interval(from_papers[2])
+t = thermogram(state, from_papers; temperatures = [T1, T2], relative_to = dry)
+inside(phase) = t.by_phase[phase][2] - t.by_phase[phase][1]
+@printf("lost between %.0f and %.0f °C: %.3f g of portlandite water, %.3f g of calcite CO2\n",
+        T1 - 273.15, T2 - 273.15, 1000 * inside("Portlandite"), 1000 * inside("Cal"))
+@printf("portlandite holds %.3f g of water\n",
+        ustrip(uconvert(us"g", Dict(bound_water_per_phase(state))["Portlandite"])))
+```
+
+The interval gives the portlandite all its water and nothing else. The loss read
+over that interval holds more: the carbonate's interval overlaps it, and part of
+the calcite's carbon dioxide leaves between 350 and 500 °C as well, which is the
+loss a reading has to separate ([LHopital2016](@cite) quantify portlandite from
+the loss around 450 °C by the tangent method). A logistic window spread over the same interval, 1 % released at one end and 99 %
+at the other ([`window_interval`](@ref)), would put 2 % of the portlandite's
+water outside it. Both forms can be mixed in one set, fitted to a curve
+([`window_parameters`](@ref) gives an interval's two ends), and read by
+[`bound_water`](@ref) over a temperature range, as a recipe's bound water is
+compared with a measurement.
+
 ## See also
 
   - [CEM I 52.5 N and slag in an isothermal calorimeter, read off the states](@ref sec-example-isothermal),

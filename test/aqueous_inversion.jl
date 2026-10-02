@@ -10,6 +10,8 @@ using ForwardDiff
 using LinearAlgebra
 using Test
 
+include("reference_species.jl")
+
 @testsection "the aqueous solutes, recovered through the ionic strength" begin
     CEM = Dict(symbol(x) => x for x in build_species(datapath("cemdata18-thermofun.json")))
     spc = speciation(
@@ -138,8 +140,11 @@ using Test
         @test ChemistryLab._ionic_strength_root(far, dL, 25.0) === nothing
     end
 
-    @testset "a model of more than the ionic strength is left to the sweeps" begin
-        @test ChemistryLab._aqueous_inverter(DualEquilibriumSolver(cs, SITActivityModel())) === nothing
+    @testset "a model of more than the ionic strength has an inversion of its own" begin
+        # SIT and Pitzer by Newton's method (the testsection below); a model
+        # neither inversion covers is left to the sweeps.
+        @test ChemistryLab._aqueous_inverter(DualEquilibriumSolver(cs, SITActivityModel())) !== nothing
+        @test ChemistryLab._newton_predictor_form(DiluteSolutionModel(), cs, Int[]) === nothing
     end
 
     @testset "neutral solutes alone: no ionic strength to solve for" begin
@@ -149,5 +154,148 @@ using Test
         w = ChemistryLab._invert_aqueous(form, c, 55.5, [1.0, 7.0, 7.0], (; ϵ = 1.0e-16), 1)
         @test w[1] == 1.0
         @test w[2:3] ≈ [c[t] - log(10.0) * 0.1 * t + log(55.5 * 0.018015) for t in 2:3]
+    end
+end
+
+@testsection "SIT and Pitzer: the solutes recovered by Newton's method" begin
+    slop = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+    # The three ε the PHREEQC comparison of `test/sit.jl` carries, and the
+    # Reardon set of the Pitzer page.
+    fixture = reference_oracle("phreeqc_sit")
+    sit = SITActivityModel(; parameters = SITParameters([(e.a, e.b) => e.value for e in fixture.epsilon]))
+    pitzer = PitzerActivityModel(; parameters = build_pitzer_parameters(datapath("pitzer-reardon1990.toml")))
+    # Sodium chloride with the dissociation of water under SIT; without H+ and
+    # OH- under Pitzer, whose set has no pair for them, as on the Pitzer page.
+    sit_cs = ChemicalSystem([slop[s] for s in split("H2O@ H+ OH- Na+ Cl-")], ["H2O@", "H+", "Na+", "Cl-", "Zz"])
+    pz_cs = ChemicalSystem([slop[s] for s in split("H2O@ Na+ Cl- Hl")], ["H2O@", "Na+", "Cl-"])
+    function brine(cs, m)
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "Na+", m * u"mol")
+        set_quantity!(st, "Cl-", m * u"mol")
+        if haskey(cs.dict_species, "H+")
+            set_quantity!(st, "H+", 1.0e-7u"mol")
+            set_quantity!(st, "OH-", 1.0e-7u"mol")
+        end
+        return st
+    end
+    amounts(st) = [ustrip(us"mol", v) for v in st.n]
+
+    @testset "it undoes the model, for $(nameof(typeof(model))) at $m mol/kg" for (model, cs, m) in
+        ((sit, sit_cs, 3.0), (pitzer, pz_cs, 6.0))
+        des = DualEquilibriumSolver(cs, model)
+        invert = ChemistryLab._aqueous_inverter(des)
+        @test invert !== nothing
+        st = brine(cs, m)
+        x = amounts(st)
+        p = ChemistryLab._build_params(st; ϵ = 1.0e-16)
+        aq = des.idx_aq
+        c = des.lna(x, p)[aq]
+        w = invert(c, x[aq[des.j_solvent]], log.(x[aq]) .+ 0.7, Float64[], p)
+        for (t, i) in enumerate(aq)
+            t == des.j_solvent && continue
+            @test w[t] ≈ log(x[i]) atol = 1.0e-10
+        end
+    end
+
+    @testset "its derivative inverts the model's" begin
+        des = DualEquilibriumSolver(sit_cs, sit)
+        aq = des.idx_aq
+        st = brine(sit_cs, 3.0)
+        x = amounts(st)
+        p = ChemistryLab._build_params(st; ϵ = 1.0e-16)
+        sol = [t for t in eachindex(aq) if t != des.j_solvent]
+        c = des.lna(x, p)[aq]
+        ref = x[aq[des.j_solvent]]
+        w0 = log.(x[aq])
+        invert = ChemistryLab._aqueous_inverter(des)
+        dwdc = ForwardDiff.jacobian(cc -> invert(cc, ref, w0, Float64[], p)[sol], c)[:, sol]
+        hw(wv) = begin
+            xx = Vector{eltype(wv)}(x)
+            for (k, t) in enumerate(sol)
+                xx[aq[t]] = exp(wv[k])
+            end
+            des.lna(xx, p)[aq[sol]]
+        end
+        dhdw = ForwardDiff.jacobian(hw, log.(x[aq[sol]]))
+        @test dhdw * dwdc ≈ I(length(sol)) atol = 1.0e-9
+    end
+
+    @testset "a solute below the reach of a Newton step is placed" begin
+        # Hydroxide at 1e-28 mol, near the 1e-30 floor of the activities, where
+        # its activity barely moves with it: it is placed from its activity
+        # coefficient at the composition found, and its derivative follows.
+        des = DualEquilibriumSolver(sit_cs, sit)
+        aq = des.idx_aq
+        st = brine(sit_cs, 3.0)
+        set_quantity!(st, "OH-", 1.0e-28u"mol")
+        x = amounts(st)
+        p = ChemistryLab._build_params(st; ϵ = 1.0e-16)
+        c = des.lna(x, p)[aq]
+        ref = x[aq[des.j_solvent]]
+        sol = [t for t in eachindex(aq) if t != des.j_solvent]
+        invert = ChemistryLab._aqueous_inverter(des)
+        w = invert(c, ref, log.(x[aq]) .+ 0.7, Float64[], p)
+        for t in sol
+            @test w[t] ≈ log(x[aq[t]]) atol = 1.0e-8
+        end
+        dwdc = ForwardDiff.jacobian(cc -> invert(cc, ref, log.(x[aq]), Float64[], p)[sol], c)[:, sol]
+        k = findfirst(t -> symbol(sit_cs.species[aq[t]]) == "OH-", sol)
+        @test dwdc[k, k] ≈ 1 atol = 1.0e-6
+        @test all(j == k || abs(dwdc[j, k]) < 1.0e-12 for j in eachindex(sol))
+
+        # A tolerance below the rounding of the potentials ends the halving of
+        # the step, and the inversion never answers with a wrong composition.
+        pred = ChemistryLab._newton_predictor_form(sit, sit_cs, aq)
+        out = ChemistryLab._invert_aqueous_newton(
+            des.lna, pred, length(sit_cs.species), aq, des.j_solvent, c, ref,
+            log.(x[aq]) .+ 0.7, p; tol = 1.0e-300,
+        )
+        @test out === nothing || all(abs(out[t] - log(x[aq[t]])) < 1.0e-8 for t in sol)
+
+        # A solute started as a trace that is none: placed above the reach, it
+        # rejoins the iteration. The start holds hydroxide at e⁻¹⁰⁰ and the
+        # Debye–Hückel part is made to find no root, so that start is the one.
+        st2 = brine(sit_cs, 3.0)
+        x2 = amounts(st2)
+        c2 = des.lna(x2, p)[aq]
+        w2 = log.(x2[aq]) .+ 0.7
+        j = findfirst(t -> symbol(sit_cs.species[aq[t]]) == "OH-", eachindex(aq))
+        w2[j] = -100.0
+        rootless = merge(pred, (; log10γ = (t, z, I, sqrtI, A, B) -> -1.0e6 * z^2))
+        out2 = ChemistryLab._invert_aqueous_newton(
+            des.lna, rootless, length(sit_cs.species), aq, des.j_solvent, c2,
+            x2[aq[des.j_solvent]], w2, p,
+        )
+        @test out2 !== nothing
+        for t in sol
+            @test out2[t] ≈ log(x2[aq[t]]) atol = 1.0e-8
+        end
+    end
+
+    @testset "a brine under SIT, certified" begin
+        eq, cert = equilibrate_certified(brine(sit_cs, 3.0); model = sit)
+        @test cert.optimal
+        @test cert.balance_relative < 1.0e-10
+    end
+
+    @testset "halite in water under Pitzer, against its measured solubility" begin
+        st = ChemicalState(pz_cs)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "Hl", 8.0u"mol")
+        eq, cert = equilibrate_certified(st; model = pitzer)
+        @test cert.optimal
+        n = amounts(eq)
+        idx = Dict(symbol(s) => i for (i, s) in enumerate(pz_cs.species))
+        kg = n[idx["H2O@"]] * ustrip(us"kg/mol", pz_cs.species[idx["H2O@"]][:M])
+        m = n[idx["Na+"]] / kg
+        measured = ustrip(us"mol/kg", literature_value("HamerWu1972", "nacl_saturated_molality"))
+        @info "halite under Pitzer: the saturated molality" computed = m measured
+        @test n[idx["Hl"]] > 0
+        # 6.1605 mol/kg against the 6.144 Hamer & Wu measured: 0.27 %, from the
+        # halite of slop98 and the Na–Cl parameters of the Reardon set, neither
+        # fitted here. Pinned at its own value, and against the measurement.
+        @test m ≈ 6.1605 rtol = 1.0e-4
+        @test m ≈ measured rtol = 5.0e-3
     end
 end

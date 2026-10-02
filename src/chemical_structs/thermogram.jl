@@ -19,36 +19,58 @@ using DynamicQuantities
 """
     struct DecompositionWindow{T<:Real}
 
-When a phase releases what it releases, as a logistic step in temperature.
+When a phase releases what it releases, as a step in temperature, in one of two
+forms.
+
+**A logistic step**, the form a peak fitted to a thermogram takes:
 
 ```math
 f(T) = \\frac{1}{1 + \\exp\\!\\left(-\\dfrac{T - T_{1/2}}{w}\\right)}
 ```
 
-`f` is the **fraction already released** at temperature `T`, so the phase's
-contribution to a thermogram is `m_i f(T)` and to its derivative `m_i f'(T)`.
 A logistic rather than a step because a decomposition is not instantaneous, and
 rather than something with more shape parameters because two — a midpoint and a
 width — are already at the edge of what one peak in a thermogram determines.
 
+**A temperature interval**, the form a thermogravimetric reading takes when it
+attributes the mass lost between two temperatures to one phase ("the weight
+loss between 350 and 500 °C" for portlandite): the whole release happens between
+`T₁` and `T₂`, and none outside,
+
+```math
+f(T) = 3t^2 - 2t^3, \\qquad t = \\operatorname{clamp}\\!\\left(\\frac{T - T_1}{T_2 - T_1},\\ 0,\\ 1\\right),
+```
+
+a smooth step whose rate vanishes at both ends, so that the curve and its
+derivative are continuous and the loss between `T₁` and `T₂` is exactly the
+phase's content. The logistic has tails: a phase centered in an interval loses
+part of its release outside it.
+
+In either form `f` is the **fraction already released** at temperature `T`, so
+the phase's contribution to a thermogram is `m_i f(T)` and to its derivative
+`m_i f'(T)`.
+
 # Fields
 
   - `phase`: the species symbol the window belongs to, as the system spells it.
-  - `midpoint`: `T₁/₂` in **kelvin**, where half of the release has happened.
-  - `width`: `w` in kelvin. The release runs from roughly `T₁/₂ − 3w` to
-    `T₁/₂ + 3w`, so a peak 100 K wide has `w ≈ 17 K`.
+  - `midpoint`: `T₁/₂` in **kelvin**, where half of the release has happened
+    (for an interval, its center).
+  - `width`: `w` in kelvin. The logistic release runs from roughly `T₁/₂ − 3w`
+    to `T₁/₂ + 3w`, so a peak 100 K wide has `w ≈ 17 K`; for an interval, its
+    half-span, `(T₂ − T₁)/2`.
   - `releases`: `:water` or `:carbon_dioxide`.
   - `fraction`: how much of that phase's release this window accounts for, `1`
     by default. **A phase can go in stages** — gypsum loses its two waters in
     two steps, `CaSO₄·2H₂O → CaSO₄·½H₂O → CaSO₄` — and one window per stage with
     fractions summing to one is how that is written. The sum is checked, in
     [`thermogram`](@ref), against each phase and product it is given for.
+  - `shape`: `:logistic` or `:interval`.
 
 Both temperature parameters are [`Traced`](@ref), which is the point rather than a
 decoration: a window read from a paper and a window guessed to get a picture on
 the screen are the same two numbers and are not the same claim.
 
-See also: [`thermogram`](@ref), [`window_parameters`](@ref).
+See also: [`thermogram`](@ref), [`window_parameters`](@ref), [`window_interval`](@ref).
 """
 struct DecompositionWindow{T <: Real}
     phase::String
@@ -56,32 +78,67 @@ struct DecompositionWindow{T <: Real}
     width::Traced{T}
     releases::Symbol
     fraction::T
+    shape::Symbol
 end
 
 """
     DecompositionWindow(phase, midpoint, width; releases = :water, fraction = 1,
                         kind = PROV_UNSTATED, source = "") -> DecompositionWindow
+    DecompositionWindow(phase; between = (T₁, T₂), releases = :water, fraction = 1,
+                        kind = PROV_UNSTATED, source = "") -> DecompositionWindow
 
-Build a window. `midpoint` and `width` are in kelvin, as plain numbers or as
-[`Traced`](@ref) values that keep their own provenance.
+Build a window: a logistic step from its `midpoint` and `width`, or a
+temperature interval from its two ends `between`. Temperatures are in kelvin, as
+plain numbers, as quantities, or as [`Traced`](@ref) values that keep their own
+provenance (an interval read with [`literature_table`](@ref) carries its
+source).
 
 Passing bare numbers with no `kind` leaves them `PROV_UNSTATED`, which is the
 weakest claim there is — deliberately, so a window nobody sourced never
 strengthens a result.
 """
 function DecompositionWindow(
+        phase::AbstractString; between,
+        releases::Symbol = :water, fraction::Real = 1,
+        kind::ProvenanceKind = PROV_UNSTATED, source::AbstractString = "",
+    )
+    length(between) == 2 || throw(
+        ArgumentError("`between` takes the two ends of the interval, (T₁, T₂); got $(length(between)) values."),
+    )
+    lo, hi = (_traced_kelvin(t, kind, source) for t in between)
+    value(lo) < value(hi) || throw(
+        ArgumentError("an interval needs T₁ < T₂; got ($(value(lo)) K, $(value(hi)) K)."),
+    )
+    # The center and the half-span, with the weaker of the two ends' standing.
+    prov = weakest(lo, hi)
+    src = lo.source == hi.source ? lo.source : join(filter(!isempty, [lo.source, hi.source]), "; ")
+    mid = Traced((value(lo) + value(hi)) / 2, prov, src)
+    half = Traced((value(hi) - value(lo)) / 2, prov, src)
+    return _decomposition_window(phase, mid, half, releases, fraction, :interval)
+end
+
+# A temperature as a `Traced` value in kelvin: a number is kelvin, a quantity is
+# converted, a `Traced` keeps its standing.
+_traced_kelvin(t::Traced, kind, source) = Traced(float(_kelvin(value(t))), provenance(t), t.source)
+_traced_kelvin(t, kind, source) = Traced(float(_kelvin(t)), kind, source)
+
+function DecompositionWindow(
         phase::AbstractString, midpoint, width;
         releases::Symbol = :water, fraction::Real = 1,
         kind::ProvenanceKind = PROV_UNSTATED, source::AbstractString = "",
     )
+    m = midpoint isa Traced ? midpoint : Traced(float(midpoint), kind, source)
+    w = width isa Traced ? width : Traced(float(width), kind, source)
+    return _decomposition_window(phase, m, w, releases, fraction, :logistic)
+end
+
+function _decomposition_window(phase, m, w, releases, fraction, shape)
     releases in (:water, :carbon_dioxide) || throw(
         ArgumentError(
             "a window releases :water or :carbon_dioxide; got :$releases. " *
                 "Those are the two `ignition_loss` accounts for."
         ),
     )
-    m = midpoint isa Traced ? midpoint : Traced(float(midpoint), kind, source)
-    w = width isa Traced ? width : Traced(float(width), kind, source)
     value(w) > 0 || throw(
         ArgumentError("a window's width must be positive; got $(value(w)) K."),
     )
@@ -101,14 +158,32 @@ function DecompositionWindow(
         Traced(convert(eltype(v), value(w)), provenance(w), w.source),
         releases,
         convert(eltype(v), fraction),
+        shape,
     )
 end
 
+"""
+    window_interval(w::DecompositionWindow) -> (T₁, T₂)
+
+The two ends, in kelvin, of an interval window; for a logistic one, the
+temperatures at which 1 % and 99 % of its release have happened.
+"""
+function window_interval(w::DecompositionWindow)
+    m, h = value(w.midpoint), value(w.width)
+    w.shape === :interval && return (m - h, m + h)
+    return (m - h * log(99), m + h * log(99))
+end
+
 function Base.show(io::IO, w::DecompositionWindow)
-    print(
-        io, "DecompositionWindow(", w.phase, ", ", value(w.midpoint), " K ± ",
-        value(w.width), " K, ", w.releases,
-    )
+    if w.shape === :interval
+        T1, T2 = window_interval(w)
+        print(io, "DecompositionWindow(", w.phase, ", between ", T1, " K and ", T2, " K, ", w.releases)
+    else
+        print(
+            io, "DecompositionWindow(", w.phase, ", ", value(w.midpoint), " K ± ",
+            value(w.width), " K, ", w.releases,
+        )
+    end
     isone(w.fraction) || print(io, ", ", round(100 * w.fraction; digits = 1), " %")
     return print(io, ", ", _prov_label(weakest(w.midpoint, w.width)), ")")
 end
@@ -118,8 +193,14 @@ end
 
 The fraction of `w`'s phase already released at temperature `T` in kelvin.
 """
-released_fraction(w::DecompositionWindow, T) =
-    1 / (1 + exp(-(T - value(w.midpoint)) / value(w.width)))
+function released_fraction(w::DecompositionWindow, T)
+    w.shape === :interval || return 1 / (1 + exp(-(T - value(w.midpoint)) / value(w.width)))
+    t = _interval_position(w, T)
+    return t * t * (3 - 2t)
+end
+
+# Where `T` lies in an interval window, from 0 at `T₁` to 1 at `T₂`.
+_interval_position(w, T) = clamp((T - value(w.midpoint)) / (2 * value(w.width)) + 1 // 2, 0, 1)
 
 """
     released_rate(w::DecompositionWindow, T) -> Real
@@ -127,15 +208,19 @@ released_fraction(w::DecompositionWindow, T) =
 `df/dT` — the shape one peak of a DTG curve has, per kelvin.
 """
 function released_rate(w::DecompositionWindow, T)
+    if w.shape === :interval
+        t = _interval_position(w, T)
+        return 6 * t * (1 - t) / (2 * value(w.width))
+    end
     f = released_fraction(w, T)
     return f * (1 - f) / value(w.width)
 end
 
 """
-    thermogram(state, windows; temperatures) -> NamedTuple
+    thermogram(state, windows; temperatures, relative_to = :initial) -> NamedTuple
 
 A thermogravimetric curve for `state` under `windows`, as
-`(; temperature, mass, loss, dtg, by_phase)`:
+`(; temperature, mass, loss, dtg, by_phase, reference_mass, mass_percent, loss_percent)`:
 
   - `temperature`: the grid, in kelvin, as given.
   - `mass`: the sample mass remaining, in kilograms — the **solid** mass of
@@ -147,6 +232,16 @@ A thermogravimetric curve for `state` under `windows`, as
   - `dtg`: `-dm/dT` in kilograms per kelvin, which is the curve a
     thermogravimetric analysis actually resolves peaks in.
   - `by_phase`: the same loss, per phase, so a peak can be attributed.
+  - `reference_mass`, `mass_percent`, `loss_percent`: the curve as published
+    thermograms give it, the mass and the mass lost since the first temperature
+    of the grid, in percent of a reference mass, which `relative_to` names:
+      - `:initial`, the sample at the first temperature of the grid;
+      - a temperature (kelvin, or a quantity), the sample at that temperature: a
+        dry mass ([Scholer2015](@cite) take the weight at 500 °C,
+        [Shi2016](@cite) at 800 °C) or an ignited one ([ShiLothenbach2020](@cite)
+        give bound water in percent of the sample ignited at 980 °C);
+      - `:ignited`, the sample once every window has released.
+    See [the thermogravimetry page](@ref sec-example-tga) for the conventions.
 
 A window whose phase `state` has nothing to release from contributes nothing and
 raises nothing — [`windows_without_phases`](@ref) is how a typo in a phase name
@@ -179,7 +274,7 @@ before its parameters meant anything.
 """
 function thermogram(
         state::ChemicalState, windows::AbstractVector{<:DecompositionWindow};
-        temperatures,
+        temperatures, relative_to = :initial,
     )
     _check_fractions(windows)          # fail before doing any of the work
 
@@ -204,21 +299,43 @@ function thermogram(
     by_phase = Dict{String, Vector{ET}}()
     loss = zeros(ET, length(T))
     dtg = zeros(ET, length(T))
+    released = Tuple{DecompositionWindow, ET}[]        # each window and its mass
     for w in windows
         pool = w.releases === :water ? water : co2
         haskey(pool, w.phase) || continue
         m = ustrip(us"kg", pool[w.phase]) * w.fraction
+        push!(released, (w, m))
         curve = [m * released_fraction(w, t) for t in T]
         by_phase[w.phase] = get(by_phase, w.phase, zeros(ET, length(T))) .+ curve
         loss .+= curve
         dtg .+= [m * released_rate(w, t) for t in T]
     end
+    mass_curve = m0 .- loss
+    # The reference mass, exactly at its temperature rather than read off the grid.
+    ref = if relative_to === :initial
+        isempty(T) ? m0 : mass_curve[1]
+    elseif relative_to === :ignited
+        m0 - sum((m for (_, m) in released); init = zero(ET))
+    elseif relative_to isa Union{Real, DynamicQuantities.AbstractQuantity}
+        Tr = _kelvin(relative_to)
+        m0 - sum((m * released_fraction(w, Tr) for (w, m) in released); init = zero(ET))
+    else
+        throw(
+            ArgumentError(
+                "`relative_to` is :initial, :ignited or a temperature; got $(repr(relative_to))."
+            ),
+        )
+    end
+    start = isempty(T) ? m0 : mass_curve[1]
     return (;
         temperature = T,
-        mass = m0 .- loss,
+        mass = mass_curve,
         loss = loss,
         dtg = dtg,
         by_phase = by_phase,
+        reference_mass = ref,
+        mass_percent = 100 .* mass_curve ./ ref,
+        loss_percent = 100 .* (start .- mass_curve) ./ ref,
     )
 end
 
@@ -338,8 +455,9 @@ end
 """
     window_parameters(windows) -> (θ, names)
 
-The windows' parameters as one vector, `[T₁/₂, w]` per window, with names —
-what an optimizer and [`identifiability`](@ref) take.
+The windows' parameters as one vector, `[T₁/₂, w]` per logistic window and
+`[T₁, T₂]` per interval, with names — what an optimizer and
+[`identifiability`](@ref) take.
 
 The two are returned together because a parameter vector whose entries are not
 named is a parameter vector nobody can report.
@@ -348,8 +466,14 @@ function window_parameters(windows::AbstractVector{<:DecompositionWindow})
     θ = Any[]
     names = String[]
     for w in windows
-        push!(θ, value(w.midpoint)); push!(names, "T½($(w.phase))")
-        push!(θ, value(w.width)); push!(names, "w($(w.phase))")
+        if w.shape === :interval
+            T1, T2 = window_interval(w)
+            push!(θ, T1); push!(names, "T₁($(w.phase))")
+            push!(θ, T2); push!(names, "T₂($(w.phase))")
+        else
+            push!(θ, value(w.midpoint)); push!(names, "T½($(w.phase))")
+            push!(θ, value(w.width)); push!(names, "w($(w.phase))")
+        end
     end
     # In the number type of the windows, which a nested fit makes dual.
     return _promoted(θ), names
@@ -373,14 +497,19 @@ function with_window_parameters(
     length(θ) == 2 * length(windows) || throw(
         ArgumentError(
             "expected $(2 * length(windows)) parameters for $(length(windows)) " *
-                "windows (a midpoint and a width each); got $(length(θ))."
+                "windows (two each); got $(length(θ))."
         ),
     )
     return [
-        DecompositionWindow(
-            w.phase, θ[2i - 1], θ[2i];
-            releases = w.releases, fraction = w.fraction,
-            kind = kind, source = source,
-        ) for (i, w) in enumerate(windows)
+        w.shape === :interval ?
+            DecompositionWindow(
+                w.phase; between = (θ[2i - 1], θ[2i]),
+                releases = w.releases, fraction = w.fraction, kind = kind, source = source,
+            ) :
+            DecompositionWindow(
+                w.phase, θ[2i - 1], θ[2i];
+                releases = w.releases, fraction = w.fraction,
+                kind = kind, source = source,
+            ) for (i, w) in enumerate(windows)
     ]
 end

@@ -557,7 +557,8 @@ end
 
 """
     optimality_certificate(des, state; b = nothing, ϵ = 1e-16, floor = 1e-25)
-        -> (; stationarity, stationarity_floored, balance, worst_supersaturation, n_interior,
+        -> (; stationarity, stationarity_floored, balance, balance_relative,
+             worst_supersaturation, n_interior,
              n_absent_component, param_residual, worst_violation_split,
              split_phases, split_trials, optimal, scope, scope_reasons,
              ionic_strength, activity_range, within_activity_range)
@@ -576,7 +577,14 @@ a cement equilibrium and cannot say whether the point it returns is the answer.
 
 The three quantities are the stationarity of the interior species, the component
 balance, and the worst saturation index among absent phases (negative when every
-one of them is undersaturated, as optimality requires). `stationarity_floored` is
+one of them is undersaturated, as optimality requires). The balance is reported
+twice: `balance`, the worst row in moles, and `balance_relative`, the worst row
+relative to what it holds. Each row is judged on the larger of the two below one
+mole and in moles above it, so that a trace is held to its own amount, as
+PHREEQC and GEMS hold a mass balance to its element total; judged in moles alone,
+as until 0.29, a trace of 1e-9 mol could be 10 % wrong and certified. A component
+whose budget is below 1e-12 of the largest is one nobody supplies, its carriers
+held at the floor, and its row is judged in moles. `stationarity_floored` is
 the first, one-sided, on the members of a present phase held below `floor`: such
 a member may hold more than its exact amount, by truncation, but not less, and it
 fails when the search left it far below what the multipliers give it.
@@ -652,7 +660,10 @@ function optimality_certificate(
     scope, scope_reasons = _certificate_scope(des, p, n, constraint)
     I, I_max, within = _activity_range_report(des.model, state)
     return (;
-        stationarity = c.stationarity, balance = c.feasibility,
+        # In moles, and relative to what each row holds; `optimal` judges the
+        # larger of the two below one mole (OptimaSolver's `kkt_certificate`).
+        stationarity = c.stationarity, balance = c.feasibility_abs,
+        balance_relative = c.feasibility_rel,
         # The unscaled stationarity, in RT units. `stationarity` is divided by the
         # size of the potentials it is built from — they are of order 10²-10³, so
         # an absolute threshold on their residual would ask for thirteen digits of
@@ -812,6 +823,21 @@ function _certificate_scope(des::DualEquilibriumSolver, p, n, constraint)
 end
 
 """
+    _judged_balance(cert) -> Float64
+
+The balance as the certificate judges it: the larger of `balance` (moles) and
+`balance_relative` (relative to what each row holds), which is the worst row on
+`min(scale, 1)`. A certificate without the relative figure gives `balance`.
+"""
+_judged_balance(cert) = hasproperty(cert, :balance_relative) ?
+    max(cert.balance, cert.balance_relative) : cert.balance
+
+# The balance in words, for a message: both figures.
+_balance_text(cert) = hasproperty(cert, :balance_relative) ?
+    "element balance $(cert.balance) mol ($(cert.balance_relative) of the row that holds it)" :
+    "element balance $(cert.balance)"
+
+"""
     _kkt_error(cert) -> Float64
 
 How far a composition is from satisfying the KKT conditions: the worst of the
@@ -837,14 +863,13 @@ route, which builds its own.
 `worst_supersaturation` is clamped at zero because a negative value is not an
 error: it means every absent phase is undersaturated, as optimality requires.
 
-The residuals are not in one unit: the balance is in moles, the others are
-log-activities. That is deliberate, and harmless where this is used: it ranks
-candidates of **one** problem, whose budget is the same for all of them, so a
-change of the system's size scales the balance of every candidate alike. It is
-not a measure to compare two problems with.
+The balance enters as the certificate judges it (`_judged_balance`): relative to
+what each row holds below one mole, in moles above it, so that a candidate that
+lost a trace ranks below one that kept it. The others are log-activities. It ranks
+candidates of **one** problem; it is not a measure to compare two problems with.
 """
 _kkt_error(cert) = max(
-    cert.stationarity, cert.balance, max(cert.worst_supersaturation, 0.0),
+    cert.stationarity, _judged_balance(cert), max(cert.worst_supersaturation, 0.0),
     hasproperty(cert, :param_residual) ? cert.param_residual : 0.0,
     hasproperty(cert, :stationarity_floored) ? cert.stationarity_floored : 0.0,
 )

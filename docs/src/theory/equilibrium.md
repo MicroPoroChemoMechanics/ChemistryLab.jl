@@ -250,9 +250,17 @@ law past its range can have none there: the equation dips toward zero without
 reaching it and crosses again only through the ``\dot B I`` term, at thousands
 of mol/kg. The inversion then says that the potentials hold no composition
 instead of iterating on them, and the outer level moves on the sweeps until
-they hold one again. Recovering the
-solutes one by one instead, as the inner level does for Pitzer and SIT, cycles
-where multivalent ions couple strongly through ``I``.
+they hold one again. Recovering the solutes one by one instead cycles where
+multivalent ions couple strongly through ``I``.
+
+SIT and Pitzer add terms in the molalities themselves, the ``\varepsilon(i,k)\,m_k``
+of the specific ion interaction and the pair and triplet sums of Pitzer, and no
+single equation gives the solutes back. Their inner level is Newton's method on
+the log-amounts of the solutes, ``h_i(\ln n) = u_i - g_i``, with the Jacobian of
+the model itself, exact by forward differentiation. It starts from the better of
+the composition the solve holds and the one the model's Debye–Hückel part gives
+through the ionic strength, and steps at most 30 in any log-amount, halving the
+step until the squared residual falls.
 
 The solvent is deliberately **not** inverted through its own mass-action law: its
 activity is a mole fraction, so ``\ln a_w \le 0`` always, and an arbitrary `y` can

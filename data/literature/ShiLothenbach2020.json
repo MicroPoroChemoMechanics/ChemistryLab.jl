@@ -1,0 +1,24 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "ShiLothenbach2020",
+    "doi": "10.1016/j.cemconres.2019.105914",
+    "citation": "Shi, Z., Lothenbach, B. (2020). The combined effect of potassium, sodium and calcium on the formation of alkali-silica reaction products. Cement and Concrete Research 127, 105914.",
+    "location": "p. 3"
+  },
+  "transcription": {
+    "from": "the published article (PDF): the text layer, read on the rendered page",
+    "checked_against_source": true,
+    "note": "The bound water of the solids is given in 'wt% of sample ignited at 980 °C', measured by thermogravimetric analysis."
+  },
+  "quantities": {
+    "tga_ignition_temperature": {
+      "value": 1253.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 3, 980 degrees C",
+      "description": "The temperature whose sample mass, the ignited sample, bound water is expressed against."
+    }
+  }
+}

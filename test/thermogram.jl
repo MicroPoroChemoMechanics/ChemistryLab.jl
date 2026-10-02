@@ -4,6 +4,7 @@
 using ChemistryLab
 using ChemistryLab: value
 using DynamicQuantities
+using ForwardDiff
 using LinearAlgebra
 using Test
 
@@ -276,5 +277,94 @@ include("reference_species.jl")
         @test id.rank <= 2                       # not four independent numbers
         @test id.condition > 20
         @info "overlapping windows" rank = id.rank condition = id.condition
+    end
+
+    @testset "a window given as a temperature interval, as published" begin
+        # The intervals of two papers co-authored by Lothenbach, from their data
+        # files: portlandite between 350 and 500 °C (De Weerdt et al. 2011) and
+        # calcium carbonate from about 300 to 850 °C (Shi et al. 2016).
+        ch = literature_table("DeWeerdt2011", "tga_intervals")
+        cc = literature_table("Shi2016", "tga_intervals")
+        wch = DecompositionWindow(
+            "Portlandite"; between = (ch.lower[1], ch.upper[1]),
+            kind = PROV_PUBLISHED, source = "DeWeerdt2011",
+        )
+        wcc = DecompositionWindow(
+            "Cal"; between = (cc.lower[1], cc.upper[1]), releases = :carbon_dioxide,
+            kind = PROV_PUBLISHED, source = "Shi2016",
+        )
+        T1, T2 = window_interval(wch)
+        @test T1 ≈ 623.15 && T2 ≈ 773.15
+        @test wch.shape === :interval
+        @test provenance(wch.midpoint) === PROV_PUBLISHED
+        @test occursin("between", sprint(show, wch))
+
+        # Nothing outside the interval, all of it inside, half at its center, and
+        # a rate that starts and ends at zero and integrates to one.
+        @test released_fraction(wch, T1 - 50) == 0 && released_fraction(wch, T1) == 0
+        @test released_fraction(wch, T2) == 1 && released_fraction(wch, T2 + 50) == 1
+        @test released_fraction(wch, (T1 + T2) / 2) ≈ 0.5
+        @test released_rate(wch, T1) == 0 && released_rate(wch, T2) == 0
+        @test released_rate(wch, T1 - 50) == 0
+        fine = range(T1 - 10, T2 + 10; length = 4001)
+        @test sum(released_rate(wch, t) for t in fine) * step(fine) ≈ 1 atol = 1.0e-6
+
+        # So the loss between the two ends is the phase's water, exactly, which
+        # is what a reading over that interval attributes to it. A logistic
+        # window centered on the same interval would lose part of it outside.
+        ws = [windows[1], wch, wcc]
+        tg = thermogram(st, ws; temperatures = [T1, T2])
+        water = Dict(bound_water_per_phase(st))
+        @test tg.by_phase["Portlandite"][2] - tg.by_phase["Portlandite"][1] ≈
+            ustrip(us"kg", water["Portlandite"]) rtol = 1.0e-12
+        lg = window_interval(windows[2])
+        @test released_fraction(windows[2], lg[1]) ≈ 0.01 && released_fraction(windows[2], lg[2]) ≈ 0.99
+
+        # Both forms in one set; the parameters of an interval are its ends.
+        θ, names = window_parameters(ws)
+        @test names[3:4] == ["T₁(Portlandite)", "T₂(Portlandite)"]
+        @test θ[3] ≈ T1 && θ[4] ≈ T2
+        back = with_window_parameters(ws, θ)
+        @test back[2].shape === :interval && all(window_interval(back[2]) .≈ (T1, T2))
+        @test back[1].shape === :logistic
+
+        # The ends as quantities, or as traced values that keep their standing.
+        @test window_interval(DecompositionWindow("Gp"; between = (400.0u"K", 450.0u"K"))) == (400.0, 450.0)
+        tr = DecompositionWindow(
+            "Gp"; between = (Traced(400.0, PROV_MEASURED, "a"), Traced(450.0, PROV_PUBLISHED, "b")),
+        )
+        @test provenance(tr.midpoint) === PROV_PUBLISHED
+        @test tr.midpoint.source == "a; b"
+        @test_throws ArgumentError DecompositionWindow("Gp"; between = (500.0, 400.0))
+        @test_throws ArgumentError DecompositionWindow("Gp"; between = (400.0,))
+
+        # Differentiable in its ends, as a fit to a curve needs: releasing later,
+        # less is lost at a given temperature.
+        lost(T2v) = thermogram(
+            st, [windows[1], DecompositionWindow("Portlandite"; between = (T1, T2v)), wcc];
+            temperatures = [700.0],
+        ).loss[1]
+        @test ForwardDiff.derivative(lost, T2) < 0
+    end
+
+    @testset "the curve, relative to the reference mass a source names" begin
+        tg = thermogram(st, windows; temperatures = grid)
+        @test tg.reference_mass == tg.mass[1]
+        @test tg.mass_percent[1] ≈ 100 && tg.loss_percent[1] == 0
+        @test tg.loss_percent ≈ 100 .- tg.mass_percent
+
+        # The dry mass at 500 °C of Schöler et al. (2015), at its exact
+        # temperature rather than at the nearest point of the grid.
+        dry = literature_value("Scholer2015", "tga_dry_solids_temperature")
+        t5 = thermogram(st, windows; temperatures = grid, relative_to = dry)
+        @test t5.reference_mass ≈ only(thermogram(st, windows; temperatures = [ustrip(us"K", dry)]).mass)
+        @test t5.loss_percent ≈ 100 .* (tg.mass[1] .- tg.mass) ./ t5.reference_mass
+        @test thermogram(st, windows; temperatures = grid, relative_to = ustrip(us"K", dry)).reference_mass ≈
+            t5.reference_mass
+
+        # Ignited: once every window has released, the solid less its ignition loss.
+        ign = thermogram(st, windows; temperatures = grid, relative_to = :ignited)
+        @test ign.reference_mass ≈ ustrip(us"kg", mass(st).solid) - ustrip(us"kg", ignition_loss(st).total) rtol = 1.0e-12
+        @test_throws ArgumentError thermogram(st, windows; temperatures = grid, relative_to = :dry)
     end
 end

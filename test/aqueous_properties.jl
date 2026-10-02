@@ -45,6 +45,7 @@ end
     @test concentration_scale(DiluteSolutionModel()) === :molarity
     @test concentration_scale(HKFActivityModel()) === :molality
     @test concentration_scale(DaviesActivityModel()) === :molality
+    @test concentration_scale(SITActivityModel()) === :molality
 end
 
 @testsection "aqueous properties: molalities and ionic strength" begin
@@ -681,7 +682,7 @@ end
         @test !isapprox(lna["Ca+2"], log(γ * ϵ / kgw); atol = 1.0)
     end
 
-    # Pitzer carries the same two regularizations and no `activity_coefficients`
+    # Pitzer carried the same two regularizations and has no `activity_coefficients`
     # accessor, so it is pinned by a ratio instead — which needs no formula and
     # no coefficient. Doubling an amount that is ABOVE the floor must double the
     # activity. With `ϵ` added a second time it does not: `log(2ϵ + ϵ)` against
@@ -689,7 +690,8 @@ end
     pitzer = PitzerActivityModel(;
         parameters = build_pitzer_parameters(datapath("pitzer-reardon1990.toml")),
     )
-    for model in (HKFActivityModel(), DaviesActivityModel(), pitzer)
+    # SIT carried the same `log(mᵢ + ϵ)` until 0.30, and this read 0.51 for it.
+    for model in (HKFActivityModel(), DaviesActivityModel(), pitzer, SITActivityModel())
         two, four = ChemicalState(cs), ChemicalState(cs)
         for (target, amount) in ((two, 2ϵ), (four, 4ϵ))
             set_quantity!(target, "H2O@", 1.0u"kg")
