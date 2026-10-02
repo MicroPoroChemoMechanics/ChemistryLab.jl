@@ -10,7 +10,8 @@ Whether the point it returns is the minimum is then an open question. This page
 is why the question has an answer at all, what a certificate checks, and how a
 solver can aim at the optimality conditions directly instead of at the objective.
 
-The formulation being certified is the one set out in
+For a consistent Gibbs potential, the formulation being certified is the one
+set out in
 [Thermochemistry](@ref sec-theory-thermo) §4: minimize ``\sum_i n_i\, g_i(\mathbf{n})``
 subject to ``\mathbf{A}\mathbf{n} = \mathbf{b}`` and ``\mathbf{n} \ge 0``.
 
@@ -21,7 +22,8 @@ time and when, after a small disturbance that is later removed, it returns to th
 same state [AndersonCrerar1993](@cite) (§3.3). The definition is operational,
 and it is met by states that are not the minimum of the Gibbs energy: aragonite
 kept at room temperature, or a mixture of hydrogen and oxygen, persists
-indefinitely although calcite and water lie lower. Such a state is metastable,
+on the observation timescale although calcite and water lie lower. Such a state
+is metastable,
 separated from the stable one by an energy barrier that the conditions do not
 allow the system to cross, whereas the stable equilibrium is the lowest state
 compatible with the constraints.
@@ -58,9 +60,11 @@ is zero-dimensional and describes one such region, transport between regions
 being outside its scope ([The water budget of a hydrating paste](@ref sec-theory-water-budget)
 argues what this excludes for a paste).
 
-The certificate below proves that a composition is the stable equilibrium of the
-posed system. Whether the posed system, with its species list and its fixed
-amounts, is the right one is a modeling question on which it has nothing to say.
+The certificate below checks stationarity, conservation and phase conditions
+for the posed system. These prove a stable global equilibrium when the model
+defines a convex Gibbs potential, as qualified below. Whether the species list,
+fixed amounts and boundary conditions describe the experiment is a separate
+modeling question.
 
 ## Why the question has an answer
 
@@ -78,15 +82,42 @@ and for any ``\mathbf{v}``
 ```
 
 by Cauchy–Schwarz applied to ``v_i = (v_i/\sqrt{n_i})\sqrt{n_i}``. A pure phase
-has unit activity, so it contributes a term **linear** in its amount. Hence `G`
-is convex, the feasible set ``\{\mathbf{A}\mathbf{n}=\mathbf{b},\ \mathbf{n}\ge 0\}`` is a polyhedron, and — the
+has unit activity, so it contributes a term **linear** in its amount. For this
+ideal formulation, `G` is convex, the feasible set
+``\{\mathbf{A}\mathbf{n}=\mathbf{b},\ \mathbf{n}\ge 0\}`` is a polyhedron, and — the
 constraints being affine, so that the linearity constraint qualification holds
 everywhere — the KKT conditions are **necessary and sufficient**.
 
-Two consequences follow. The minimizer is unique, so a solver returning different
-answers from different starting points is not finding local minima but stopping
-short of stationarity. And optimality can be *checked*: a composition satisfying
-the KKT conditions is proved globally optimal.
+Optimality can then be *checked*: a composition satisfying the KKT conditions
+is globally optimal. Convexity alone does not imply a unique composition: the
+ideal Hessian has a scaling null direction, and pure-phase terms are linear.
+Uniqueness requires strict convexity on the feasible directions or additional
+conditions excluding degeneracy. Different starting points in a convex problem
+can reveal incomplete convergence or degenerate global minima; they cannot
+produce distinct isolated local minima of different energies.
+
+### [What changes with a non-ideal model](@id sec-theory-convexity)
+
+Two requirements must be checked separately. First, the supplied potentials
+must be the gradient of one ``G``; the Maxwell and Gibbs-Duhem checks in
+[Activity models](@ref sec-theory-potential) show why extended Debye-Hückel
+formulas do not guarantee this. If no such potential exists, the certificate
+checks equilibrium residuals and phase inequalities, not a minimum of a Gibbs
+energy. Second, when a potential does exist, its **total** mixing energy must
+be convex on the feasible set. Non-ideal solid solutions can violate this,
+requiring phase-stability tests and phase separation
+([Solid solutions](@ref sec-theory-solid-solutions)). A KKT point of a
+non-convex potential alone need not be a minimum. The composition-dependent
+water shift of [`CapillaryWater`](@ref) likewise lies outside the ideal proof.
+
+These mathematical issues differ from kinetic metastability. An activation
+barrier is a feature of a molecular or nucleation pathway, not a second minimum
+that must appear in the bulk composition objective. A thermodynamic solve does
+not model barrier crossing. Suppressing a phase or holding kinetic amounts
+fixed changes the feasible set, and a constrained minimum can be globally
+optimal on that set while remaining metastable relative to an excluded
+transformation. Waiting longer changes the constraints through kinetics; it
+does not ask the equilibrium optimizer to climb an activation barrier.
 
 ## The certificate
 
@@ -189,9 +220,9 @@ sources, whereas a minimization requires standard potentials consistent across
 all species; conversely, a mass-action solver decides the presence of each
 declared phase by a procedure added to its Newton iteration, whereas a
 minimization decides the assemblage from the same conditions that define the
-answer. The
-convexity established above is a property of the minimization problem, and it is
-what makes a certificate of global optimality possible at all.
+answer. When the model defines a convex Gibbs potential, the stationarity and
+phase conditions also certify global optimality. Equality of mass-action
+residuals alone does not establish the existence or convexity of that potential.
 
 ## The certifying solver
 

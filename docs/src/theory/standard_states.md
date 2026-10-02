@@ -89,6 +89,11 @@ m_i = \frac{n_i}{n_w M_w} ,
 ```
 
 ``n_w`` being the amount of water and ``M_w`` its molar mass.
+Here ``M_w`` is expressed in kg/mol, so ``m_i`` is in mol/kg of **solvent**,
+not mol/g or mol/kg of solution. Molarity instead uses solution volume, in
+mol/L. At fixed composition, thermal expansion changes molarity but not
+molality; reaction or water exchange can change either.
+
 [`HKFActivityModel`](@ref), [`DaviesActivityModel`](@ref) and the Pitzer model
 compute ``\gamma_i`` from the composition of the solution
 ([Activity models](@ref sec-theory-activity)). The dilute model takes
@@ -112,6 +117,11 @@ the aqueous phase. The other models obtain it from the osmotic coefficient
 which is the form imposed by the Gibbs-Duhem relation once the activity
 coefficients of the solutes are given, as argued in
 [Activity models](@ref sec-theory-activity) §3.
+
+This is a consistency requirement for a thermodynamic model. Integrating a
+chosen path does not by itself prove that arbitrary solute activity laws come
+from one potential; the integrability checks in
+[Activity models](@ref sec-theory-potential) establish the limits of that claim.
 
 ### Pure solids
 
