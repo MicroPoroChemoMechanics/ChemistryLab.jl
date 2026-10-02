@@ -45,6 +45,7 @@ end
     @test concentration_scale(DiluteSolutionModel()) === :molarity
     @test concentration_scale(HKFActivityModel()) === :molality
     @test concentration_scale(DaviesActivityModel()) === :molality
+    @test concentration_scale(SITActivityModel()) === :molality
 end
 
 @testsection "aqueous properties: molalities and ionic strength" begin

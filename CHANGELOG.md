@@ -73,9 +73,8 @@ measurement.
 
 ### Fixed
 
-- `SITActivityModel` has a `concentration_scale` (molality): without one, the
-  aqueous accessors (`activity_coefficients`, `log_activities`) could not be used
-  with it.
+- `SITActivityModel` declares its `concentration_scale`, molality, which the
+  interface asks of every activity model and which it alone lacked.
 - The last method redefinitions of the test suite are gone:
   `scripts/validation_common.jl`, included by four validation scripts, defines
   its helpers once per session, and the page extractor is included by its test in

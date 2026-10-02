@@ -341,7 +341,7 @@ end
 # hundred thousand times the activity floor, in moles.
 const _NEWTON_TRACE_LOG = log(1.0e-25)
 
-function _invert_aqueous_newton(lna, pred, ns, aq, jref, c, ref, w, p; maxit::Int = 50)
+function _invert_aqueous_newton(lna, pred, ns, aq, jref, c, ref, w, p; maxit::Int = 50, tol = nothing)
     cv = Float64[_plain(x) for x in c]
     wv = Float64[clamp(_plain(x), -700.0, 20.0) for x in w]
     live = [t for t in eachindex(cv) if t != jref && isfinite(cv[t])]
@@ -379,7 +379,8 @@ function _invert_aqueous_newton(lna, pred, ns, aq, jref, c, ref, w, p; maxit::In
         worst(zp) < worst(z) && (z = zp)
     end
 
-    tol = 1.0e-12 * max(1.0, maximum(abs, view(cv, live); init = 0.0))
+    # At the rounding of the potentials, which are tens to hundreds.
+    tol = something(tol, 1.0e-12 * max(1.0, maximum(abs, view(cv, live); init = 0.0)))
     for _ in 1:3
         sig = [k for k in eachindex(live) if z[k] > _NEWTON_TRACE_LOG]
         zs = z[sig]

@@ -221,6 +221,58 @@ end
         @test dhdw * dwdc ≈ I(length(sol)) atol = 1.0e-9
     end
 
+    @testset "a solute below the reach of a Newton step is placed" begin
+        # Hydroxide at 1e-28 mol, near the 1e-30 floor of the activities, where
+        # its activity barely moves with it: it is placed from its activity
+        # coefficient at the composition found, and its derivative follows.
+        des = DualEquilibriumSolver(sit_cs, sit)
+        aq = des.idx_aq
+        st = brine(sit_cs, 3.0)
+        set_quantity!(st, "OH-", 1.0e-28u"mol")
+        x = amounts(st)
+        p = ChemistryLab._build_params(st; ϵ = 1.0e-16)
+        c = des.lna(x, p)[aq]
+        ref = x[aq[des.j_solvent]]
+        sol = [t for t in eachindex(aq) if t != des.j_solvent]
+        invert = ChemistryLab._aqueous_inverter(des)
+        w = invert(c, ref, log.(x[aq]) .+ 0.7, Float64[], p)
+        for t in sol
+            @test w[t] ≈ log(x[aq[t]]) atol = 1.0e-8
+        end
+        dwdc = ForwardDiff.jacobian(cc -> invert(cc, ref, log.(x[aq]), Float64[], p)[sol], c)[:, sol]
+        k = findfirst(t -> symbol(sit_cs.species[aq[t]]) == "OH-", sol)
+        @test dwdc[k, k] ≈ 1 atol = 1.0e-6
+        @test all(j == k || abs(dwdc[j, k]) < 1.0e-12 for j in eachindex(sol))
+
+        # A tolerance below the rounding of the potentials ends the halving of
+        # the step, and the inversion never answers with a wrong composition.
+        pred = ChemistryLab._newton_predictor_form(sit, sit_cs, aq)
+        out = ChemistryLab._invert_aqueous_newton(
+            des.lna, pred, length(sit_cs.species), aq, des.j_solvent, c, ref,
+            log.(x[aq]) .+ 0.7, p; tol = 1.0e-300,
+        )
+        @test out === nothing || all(abs(out[t] - log(x[aq[t]])) < 1.0e-8 for t in sol)
+
+        # A solute started as a trace that is none: placed above the reach, it
+        # rejoins the iteration. The start holds hydroxide at e⁻¹⁰⁰ and the
+        # Debye–Hückel part is made to find no root, so that start is the one.
+        st2 = brine(sit_cs, 3.0)
+        x2 = amounts(st2)
+        c2 = des.lna(x2, p)[aq]
+        w2 = log.(x2[aq]) .+ 0.7
+        j = findfirst(t -> symbol(sit_cs.species[aq[t]]) == "OH-", eachindex(aq))
+        w2[j] = -100.0
+        rootless = merge(pred, (; log10γ = (t, z, I, sqrtI, A, B) -> -1.0e6 * z^2))
+        out2 = ChemistryLab._invert_aqueous_newton(
+            des.lna, rootless, length(sit_cs.species), aq, des.j_solvent, c2,
+            x2[aq[des.j_solvent]], w2, p,
+        )
+        @test out2 !== nothing
+        for t in sol
+            @test out2[t] ≈ log(x2[aq[t]]) atol = 1.0e-8
+        end
+    end
+
     @testset "a brine under SIT, certified" begin
         eq, cert = equilibrate_certified(brine(sit_cs, 3.0); model = sit)
         @test cert.optimal

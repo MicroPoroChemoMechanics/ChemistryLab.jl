@@ -59,8 +59,8 @@ surface site. Three properties are required rather than nice to have:
   - it must build `_MixingTerms(cs)` once and call `_mixing_lna!`, or the
     members of a solid solution, or of a surface site family, silently get
     `ln a = 0` — unit activity, which is a plausible number and a wrong one;
-  - `concentration_scale` has no fallback: without it the aqueous accessors
-    raise a `MethodError` rather than guessing a convention.
+  - `concentration_scale` has no fallback: a model declares which scale its
+    solute standard state uses, and nothing guesses it.
 
 One discipline is worth knowing before adding a model: the scalar formula lives
 in `_log10γ_ion` and `_log10γ_neutral`, which the closure calls *and*
