@@ -885,7 +885,8 @@ names `optimality_certificate` uses.
 function _normalize_certificate(c)
     hasproperty(c, :balance) && return c
     return (;
-        stationarity = c.stationarity, balance = c.feasibility,
+        stationarity = c.stationarity, balance = c.feasibility_abs,
+        balance_relative = c.feasibility_rel,
         stationarity_abs = hasproperty(c, :stationarity_abs) ?
             c.stationarity_abs : c.stationarity,
         worst_supersaturation = c.worst_violation,
@@ -912,7 +913,7 @@ function _certificate_error(c)
     c === nothing && return Inf
     e = max(
         Float64(c.stationarity),
-        Float64(c.balance),
+        Float64(_judged_balance(c)),
         max(Float64(c.worst_supersaturation), 0.0),
     )
     hasproperty(c, :param_residual) && (e = max(e, Float64(c.param_residual)))

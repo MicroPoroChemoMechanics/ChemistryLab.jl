@@ -639,8 +639,8 @@ function equilibrate_split(
     if best_cert !== nothing && !best_cert.optimal && _strict_convergence()
         error(
             "equilibrate_split: no pass produced a certifiable equilibrium: " *
-                "stationarity $(best_cert.stationarity), element balance " *
-                "$(best_cert.balance), worst supersaturation " *
+                "stationarity $(best_cert.stationarity), " *
+                "$(_balance_text(best_cert)), worst supersaturation " *
                 "$(best_cert.worst_supersaturation). " *
                 "`ChemistryLab.STRICT_CONVERGENCE[]` is set, so this raises rather " *
                 "than returning an answer that is not an equilibrium.",
@@ -998,7 +998,8 @@ answer is judged.
 using ChemistryLab, OptimaSolver
 eq, cert = equilibrate_certified(state)
 cert.optimal          # true — proved globally optimal
-cert.balance          # element balance residual
+cert.balance          # element balance residual, in mol
+cert.balance_relative # the same, relative to what each row holds
 cert.worst_supersaturation   # negative: every absent phase undersaturated
 ```
 """
@@ -1016,7 +1017,7 @@ function equilibrate_certified(state::ChemicalState; kwargs...)
         error(
             "equilibrate_certified: no certifiable equilibrium, a second instance of the " *
                 "`instances = :auto` phases included: stationarity $(cert.stationarity), " *
-                "element balance $(cert.balance). `ChemistryLab.STRICT_CONVERGENCE[]` is set, " *
+                "$(_balance_text(cert)). `ChemistryLab.STRICT_CONVERGENCE[]` is set, " *
                 "so this raises rather than returning an answer that is not an equilibrium.",
         )
     end
@@ -1067,7 +1068,7 @@ end
 function _converged_but_unstable(cert)
     all(k -> hasproperty(cert, k), (:stationarity, :balance, :worst_violation_split, :worst_supersaturation)) ||
         return false
-    return cert.stationarity <= 1.0e-8 && cert.balance <= 1.0e-8 &&
+    return cert.stationarity <= 1.0e-8 && _judged_balance(cert) <= 1.0e-8 &&
         cert.worst_violation_split >= cert.worst_supersaturation
 end
 
@@ -1132,7 +1133,7 @@ function _certified_with_fallback(
         quiet(() -> _equilibrate_certified(start; model = fallback_model, kwargs...))
     end
     why = reason === :refusal ?
-        "it did not certify (stationarity $(cert.stationarity), element balance $(cert.balance))" :
+        "it did not certify (stationarity $(cert.stationarity), $(_balance_text(cert)))" :
         "its answer lies at an ionic strength of $(round(cert.ionic_strength; sigdigits = 3)) mol/kg, " *
         "past the $(cert.activity_range) mol/kg the model is stated valid for"
     if cert2 !== nothing && cert2.optimal
@@ -1456,7 +1457,7 @@ function _equilibrate_certified(
         # (the answer is still the best one found, and `optimality_certificate`
         # audits it), but under the strict flag it must raise.
         msg = "no route produced a certifiable equilibrium: stationarity " *
-            "$(cert.stationarity), element balance $(cert.balance), worst " *
+            "$(cert.stationarity), $(_balance_text(cert)), worst " *
             "supersaturation $(cert.worst_supersaturation). Automatic initial " *
             "approximation: $note" * _activity_range_hint(eq, model)
         _strict_convergence() && error(

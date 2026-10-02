@@ -130,6 +130,40 @@ include("reference_species.jl")
         @test c1.worst_supersaturation < 0 || c1.worst_supersaturation == -Inf
     end
 
+    @testsection "a trace is held to its own amount" begin
+        # A nanomole of sodium chloride in a kilogram of water. A composition
+        # holding 95 % of its chloride is 5e-11 mol short, below the 1e-10 mol a
+        # balance judged in moles allows, and was certified until 0.29. Each row
+        # is now judged against what it holds, in moles above one mole, as
+        # PHREEQC and GEMS judge a mass balance against its element total.
+        tcs = ChemicalSystem([sp[s] for s in split("H2O@ H+ OH- Na+ Cl-")], ["H2O@", "H+", "Na+", "Cl-", "Zz"])
+        st = ChemicalState(tcs)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "Na+", 1.0e-9u"mol")
+        set_quantity!(st, "Cl-", 1.0e-9u"mol")
+        eq, cert = equilibrate_certified(st)
+        @test cert.optimal
+        @test cert.balance_relative < 1.0e-10
+        # The chloride potential absorbs the change of its own amount, so only
+        # the balance can refuse this composition.
+        des = DualEquilibriumSolver(tcs, DiluteSolutionModel())
+        b = Matrix{Float64}(tcs.SM.A) * [ustrip(us"mol", x) for x in st.n]
+        i = findfirst(s -> symbol(s) == "Cl-", tcs.species)
+        short = deepcopy(eq)
+        set_quantity!(short, "Cl-", 0.95 * ustrip(us"mol", eq.n[i]) * u"mol")
+        c = optimality_certificate(des, short; b)
+        @test c.stationarity < 1.0e-10
+        @test c.balance < 1.0e-10
+        @test c.balance_relative ≈ 0.05 / 0.95 rtol = 1.0e-6
+        @test !c.optimal
+        # And a large row keeps the tolerance in moles it had: water 1e-9 mol
+        # off is refused, though that is 2e-11 of it.
+        wet = deepcopy(eq)
+        j = findfirst(s -> symbol(s) == "H2O@", tcs.species)
+        set_quantity!(wet, "H2O@", (ustrip(us"mol", eq.n[j]) + 1.0e-9) * u"mol")
+        @test !optimality_certificate(des, wet; b).optimal
+    end
+
     @testsection "the interior point alone is wrong on this case" begin
         # Not a target value: the point is that the certified route is two orders
         # of magnitude better on a balance the old default reported as fine.
