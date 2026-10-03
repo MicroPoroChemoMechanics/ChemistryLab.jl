@@ -92,9 +92,12 @@ G = H - TS
 hold by construction rather than numerically. The model has no pressure term of
 its own; a record that declares a constant molar volume adds ``V^\circ (P - P_r)``
 to its Gibbs energy and enthalpy, as [Standard states](@ref sec-theory-standard-states)
-§1 explains. A heat capacity given on several
-temperature intervals separated by phase transitions is taken on the interval that contains
-``T_r``, and the transitions above it are not followed. An entry that gives a
+§1 explains. A heat capacity given on several temperature intervals separated by
+phase transitions is followed into each of them: the functions are anchored on
+the interval that contains ``T_r``, carried continuously to the next, and a
+transition the record places at a boundary adds its enthalpy ``\Delta H_t`` and
+its entropy ``\Delta S_t``, the Gibbs energy staying continuous; the molar
+volume stays the record's at ``T_r``. An entry that gives a
 single heat capacity at ``T_r`` is extrapolated with the same model reduced to its
 constant term; in CEMDATA18, the solvent, the zeolites and the magnesium silicate
 hydrates are among them. An entry that gives none, but gives the entropy, is

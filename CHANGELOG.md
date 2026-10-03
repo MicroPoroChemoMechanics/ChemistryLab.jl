@@ -106,6 +106,60 @@
   or a flat direction. The certificate reports its smallest eigenvalue as
   `reduced_curvature`, and documents `stationarity_abs`.
 
+### Changed: a rate law that reads the speciation
+
+- **The ODE route returned an impossible trajectory as a success.** With the
+  equilibrium partition frozen within a step, a rate law reading it (a
+  saturation ratio, an activity) is constant over the step, so the stiff method
+  integrated the extent explicitly: on calcite under `r = k(1 − Ω)`, `Rodas5P`
+  stepped past the second or so over which `Ω` relaxes, `Ω` then exceeded one by
+  orders of magnitude, and the run ended on hundreds of moles of calcite from
+  0.05 with `retcode = Success` and a warning. With the partition solved in the
+  right-hand side, the same run takes 82 steps and ends at the equilibrium.
+  The source said in one place that a missing Jacobian was the cause and in
+  another that it was not.
+- `integrate` now reads the rate laws (`_rates_read_speciation`): when one reads
+  the partition, the right-hand side solves it at the state it is evaluated at,
+  by the certified solver warm-started from the last accepted step, and lifts its
+  derivative with respect to `bₑ` into the Jacobian by the implicit-function
+  theorem; the calcite case reaches the equilibrium. A law that reads only the
+  kinetic amounts keeps the split route, which is exact for it and unchanged.
+  `integrate(…; speciation = :rhs | :frozen)` forces either.
+- **Feasibility is checked on the whole trajectory**, against the element totals
+  of the system, each kinetic amount at its own scale, rather than on the final
+  state against twice the total amount of matter, which the water dominated. In
+  `:rhs` mode a step leaving those bounds is rejected; in any mode a trajectory
+  that reaches them is returned with `retcode = Unstable`, or raises under
+  `STRICT_CONVERGENCE`.
+- The step callback declares the integrator's derivative information stale
+  whenever the re-speciation changes what the right-hand side reads (the heat of
+  a calorimeter, a law run frozen), where it said nothing had changed.
+
+### Added: the rest of the Pitzer model, and heat capacities past a transition
+
+- **The higher-order electrostatic terms of Pitzer (1975)** for two ions of like
+  sign and unlike charge, Na⁺ with Ca²⁺, Cl⁻ with SO₄²⁻, which the model left out
+  and its docstring said so. `J(x)` is evaluated by the Chebyshev approximation
+  of Harvie that PHREEQC uses, checked against the values Reaktoro tabulates
+  independently (4e-8); the terms enter `γ` and the osmotic coefficient from one
+  excess energy, so the model keeps satisfying the Gibbs–Duhem relation exactly.
+  `PitzerActivityModel(…; etheta = false)` leaves them out, for a set fitted
+  without them. A single salt is unchanged to the last bit; a mixture of unlike
+  charges moves.
+- **Temperature terms of the Pitzer coefficients**, in PHREEQC's six-term form,
+  used under `temperature_dependent = true`, zero at 298.15 K exactly;
+  `PitzerParameters(…; temperature)` and the TOML reader take them.
+- **A reader of the `PITZER` block of a PHREEQC database**,
+  `build_pitzer_parameters(path; format = :phreeqc)`, for the file the caller
+  has: none is shipped. Neutral species take the `@` this package names them
+  with; the identifiers the model has no counterpart for are skipped and named.
+- **A heat capacity given on several intervals is followed past the first.**
+  ThermoFun records give one polynomial per interval and the transitions between
+  them; only the interval holding the reference temperature was kept, so that
+  hematite past its transition at 950 K extrapolated the wrong polynomial. Each
+  interval is now anchored on the one before, the transition adding its
+  enthalpy and entropy; inside the reference interval nothing moves.
+
 ### Changed: pressure enters the gases and the condensed phases
 
 - **A gas's activity ignored the pressure.** Every activity model gave a gas

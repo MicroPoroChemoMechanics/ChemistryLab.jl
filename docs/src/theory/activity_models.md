@@ -476,15 +476,22 @@ completeness is checked against the species list rather than against the set
 alone — every cation-anion pair present must have a ``\beta^{(0)}``, and the
 error names those that do not.
 
-Two limitations belong here rather than in a footnote:
+Two further terms belong to the model, and both are carried:
 
-  - the **higher-order electrostatic terms** ``{}^E\theta(I)``,
-    ``{}^E\theta'(I)`` are not implemented. They vanish identically for a
-    symmetrical pair, so a single 1-1 or 2-2 electrolyte is unaffected; in a
-    mixture of Na⁺ with Ca²⁺ — a cement pore solution — they are a real
-    omission;
-  - a published set is fitted **at one temperature**, and nothing here
-    extrapolates the interaction parameters away from it.
+  - the **higher-order electrostatic terms** ``{}^E\theta(I)`` and
+    ``{}^E\theta'(I)`` of [Pitzer1975](@citet), for two ions of like sign and
+    unlike charge, Na⁺ with Ca²⁺ in a cement pore solution. They vanish for a
+    symmetrical pair, enter ``\gamma`` and the osmotic coefficient from the same
+    excess energy, and use Pitzer's function ``J(x)`` by the Chebyshev
+    approximation PHREEQC uses [Plummer1988](@cite). A set whose ``\theta`` were
+    fitted without them is used with `etheta = false`;
+  - **temperature terms** of the coefficients, in the form PHREEQC's databases
+    give them, used when the model is built with `temperature_dependent = true`.
+    A published set fitted at one temperature, as the shipped one is, carries
+    none, and is used at its own values whatever the temperature.
+
+A set in PHREEQC's format is read by [`build_pitzer_parameters`](@ref) with
+`format = :phreeqc`, from the file the caller has.
 
 ### The speciation a set assumes is part of the set
 

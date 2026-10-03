@@ -285,3 +285,40 @@ using JSON
         @test isfinite(d_div)
     end
 end
+
+@testsection "a heat capacity followed across its intervals" begin
+    # Hematite in slop98: three heat-capacity intervals, a transition at the top
+    # of the first (950 K) with its enthalpy and entropy, none at the top of the
+    # second. Only the first interval used to be read.
+    raw = JSON.parsefile(datapath("slop98-inorganic-thermofun.json"); dicttype = Dict{String, Any})
+    rec = only(r for r in raw["substances"] if r["symbol"] == "Hem")
+    hem = only(s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false) if symbol(s) == "Hem")
+    G(T) = hem[:ΔₐG⁰](T = T)
+    H(T) = hem[:ΔₐH⁰](T = T)
+    S(T) = hem[:S⁰](T = T)
+    Cp(T) = hem[:Cp⁰](T = T)
+    tr = only(m["m_phase_trans_props"] for m in rec["TPMethods"] if haskey(m, "m_phase_trans_props") && m["m_phase_trans_props"]["values"][1] < 951)
+    Tt, dS, dH = tr["values"][1], tr["values"][2], tr["values"][3]
+    @test dH > 0 && dS > 0
+    # The tabulated value at the reference temperature.
+    @test G(Float64(rec["Tst"])) ≈ Float64(rec["sm_gibbs_energy"]["values"][1]) atol = 1.0e-6
+    # In each interval, the functions are those of one heat capacity.
+    for T in (500.0, 1000.0, 1300.0)
+        @test -ForwardDiff.derivative(G, T) ≈ S(T) rtol = 1.0e-12
+        @test ForwardDiff.derivative(H, T) ≈ Cp(T) rtol = 1.0e-12
+    end
+    # G − H + T S does not depend on T, across the intervals and the transition.
+    c(T) = G(T) - H(T) + T * S(T)
+    @test c(1000.0) ≈ c(500.0) rtol = 1.0e-12
+    @test c(1300.0) ≈ c(500.0) rtol = 1.0e-12
+    # The transition adds its enthalpy and its entropy, the Gibbs energy stays.
+    δ = 1.0e-7
+    @test H(Tt + δ) - H(Tt - δ) ≈ dH atol = 1.0e-3
+    @test S(Tt + δ) - S(Tt - δ) ≈ dS atol = 1.0e-6
+    @test abs(G(Tt + δ) - G(Tt - δ)) < 1.0e-3 + abs(dH - Tt * dS)
+    # The top of the second interval carries no transition: H continuous.
+    T2 = 1049.9999755859
+    @test H(T2 + δ) - H(T2 - δ) ≈ 0 atol = 1.0e-3
+    # Past 950 K the heat capacity is the second interval's polynomial.
+    @test Cp(1000.0) ≈ 150.62399291992 rtol = 1.0e-9
+end

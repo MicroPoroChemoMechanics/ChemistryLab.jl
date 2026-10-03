@@ -1694,10 +1694,74 @@ function complete_thermo_functions!(s::AbstractSpecies)
                 end
             end
         end
+        haskey(properties(s), :cp_intervals) && _follow_cp_intervals!(s, dict_params)
         constant_volume && _add_pressure_term!(s, dict_params[:V⁰])
         delete!(s.properties, :thermo_params)
     end
     return s
+end
+
+"""
+    _follow_cp_intervals!(s, dict_params)
+
+Replace the functions of a species whose heat capacity is given on several
+temperature intervals, built on the interval that holds `Tref`, by functions
+that follow it into every interval.
+
+Each interval is anchored at its boundary with the one before it, nearer
+`Tref`: ``H``, ``S`` and ``G`` are carried across continuously, and a phase
+transition the record places at the boundary adds its ``ΔH`` and ``ΔS``, with
+``ΔG = ΔH − T ΔS``, which a recorded transition makes zero to the precision of
+its data. Inside the interval of `Tref` the functions are the ones built there,
+called as they are, so their values do not move by a bit. The molar volume is
+the record's at `Tref` throughout: a transition's ``ΔV`` is not carried.
+"""
+function _follow_cp_intervals!(s::AbstractSpecies, dict_params)
+    iv = s[:cp_intervals]()
+    delete!(s.properties, :cp_intervals)
+    haskey(properties(s), :ΔₐG⁰) && s[:ΔₐG⁰] isa AbstractFunc || return s
+    Tref = ustrip(us"K", s.Tref)
+    n = length(iv)
+    iref = something(findfirst(x -> x.lower <= Tref <= x.upper, iv), 1)
+    F = Vector{Any}(undef, n)
+    F[iref] = Dict(k => s[k] for k in (:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰))
+    function piece(k, b, from, sign)
+        H = from[:ΔₐH⁰](T = b)
+        S = from[:S⁰](T = b)
+        G = from[:ΔₐG⁰](T = b)
+        tr = sign > 0 ? iv[k - 1].transition : iv[k].transition
+        if tr !== nothing && isapprox(tr.T, b; rtol = 1.0e-6)
+            H += sign * tr.dH
+            S += sign * tr.dS
+            G += sign * (tr.dH - b * tr.dS)
+        end
+        params = [
+            iv[k].coeffs; :S⁰ => S * u"J/(mol*K)"; :ΔₐH⁰ => H * u"J/mol";
+            :ΔₐG⁰ => G * u"J/mol"; :T => b * u"K"
+        ]
+        return build_thermo_functions(:cp_ft_equation, params)
+    end
+    for k in (iref + 1):n
+        F[k] = piece(k, iv[k].lower, F[k - 1], +1)
+    end
+    for k in (iref - 1):-1:1
+        F[k] = piece(k, iv[k].upper, F[k + 1], -1)
+    end
+    bounds = [iv[k].upper for k in 1:(n - 1)]
+    for prop in (:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰)
+        fs = Tuple(F[k][prop] for k in 1:n)
+        unit = fs[iref].unit
+        f(T) = _piecewise_call(fs, bounds, T)
+        s[prop] = NumericFunc(f, (:T,), (T = s.Tref,), unit)
+    end
+    return s
+end
+
+# The function of the interval holding `T`: the first below the first bound,
+# the last above the last one.
+function _piecewise_call(fs, bounds, T)
+    k = searchsortedlast(bounds, _plain(T)) + 1
+    return fs[k](T = T)
 end
 
 """

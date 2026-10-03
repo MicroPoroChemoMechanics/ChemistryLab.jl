@@ -11,6 +11,8 @@
 
 using LinearAlgebra: norm
 
+include("reference_species.jl")
+
 const PITZER_TOML = datapath("pitzer-reardon1990.toml")
 
 _pz_params() = build_pitzer_parameters(PITZER_TOML)
@@ -346,4 +348,123 @@ end
     asymmetry, _ = ChemistryLab._jacobian_asymmetry(J)
     # below the threshold under which the certificate reports a global minimum
     @test asymmetry < ChemistryLab._SCOPE_ASYMMETRY
+end
+
+# ── the higher-order electrostatic terms ─────────────────────────────────────
+
+@testsection "Pitzer: J(x) and the higher-order electrostatic terms" begin
+    # Harvie's Chebyshev series against the values Reaktoro tabulates for J(x),
+    # computed independently (ActivityModelPitzer.cpp, `J0region1` to `3`):
+    # they agree to 4e-8 absolute over three decades of x, which is what says
+    # the 42 coefficients were transcribed right.
+    ref = reference_oracle("reaktoro_pitzer_j0")
+    for (x, j) in zip(ref.x, ref.J)
+        @test ChemistryLab._pitzer_J(x)[1] ≈ j atol = 1.0e-7
+    end
+    # x J′(x) is the derivative of the approximation itself, exactly.
+    for x in (0.02, 0.7, 1.0, 1.3, 8.0, 60.0)
+        @test x * ForwardDiff.derivative(y -> ChemistryLab._pitzer_J(y)[1], x) ≈
+            ChemistryLab._pitzer_J(x)[2] rtol = 1.0e-12
+    end
+    # Eθ vanishes for ions of one charge, and Eθ′ is its derivative in I.
+    Aφ, I = 0.392, 0.7
+    E, Ep = ChemistryLab._etheta_pairs([1, 1, 2], Aφ, sqrt(I), I)
+    @test E[1, 2] == 0 && Ep[1, 2] == 0
+    @test E[1, 3] != 0 && E[1, 3] == E[3, 1]
+    dE = ForwardDiff.derivative(i -> ChemistryLab._etheta_pairs([1, 2], Aφ, sqrt(i), i)[1][1, 2], I)
+    @test Ep[1, 3] ≈ dE rtol = 1.0e-12
+end
+
+@testsection "Pitzer: Eθ keeps the model one energy, and leaves a single salt alone" begin
+    subs = build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false)
+    d = Dict(symbol(s) => s for s in subs)
+    cs = ChemicalSystem([d[s] for s in ("H2O@", "Na+", "Ca+2", "Cl-", "SO4-2")], ["H2O@", "Na+", "Ca+2", "Cl-", "SO4-2"])
+    n = [1 / _PZ_M_W, 0.5, 0.2, 0.7, 0.1]
+    p = _pz_p(length(n))
+    J = ForwardDiff.jacobian(nn -> activity_model(cs, PitzerActivityModel(; parameters = _pz_params()))(nn, p), n)
+    @test ChemistryLab._jacobian_asymmetry(J)[1] < 1.0e-12
+    @test ChemistryLab._gibbs_duhem_defect(J, n)[1] < 1.0e-12
+    # Na⁺ with Ca²⁺ and Cl⁻ with SO₄²⁻: the terms move every coefficient.
+    with = activity_model(cs, PitzerActivityModel(; parameters = _pz_params()))(n, p)
+    without = activity_model(cs, PitzerActivityModel(; parameters = _pz_params(), etheta = false))(n, p)
+    @test all(abs.(with[2:5] .- without[2:5]) .> 1.0e-4)
+    # Sodium chloride alone has no unlike pair: identical to the last bit.
+    nacl = _pz_system()
+    m = [1 / _PZ_M_W, 2.0, 2.0]
+    @test activity_model(nacl, PitzerActivityModel(; parameters = _pz_params()))(m, _pz_p(3)) ==
+        activity_model(nacl, PitzerActivityModel(; parameters = _pz_params(), etheta = false))(m, _pz_p(3))
+end
+
+# ── temperature terms and the PHREEQC reader ────────────────────────────────
+
+# The shipped set written out in PHREEQC's format, with the temperature terms
+# given, so that the reader is checked against the TOML one on the same numbers
+# rather than against a transcription.
+function _pz_write_phreeqc(io, par; terms = Dict())
+    println(io, "SOLUTION_MASTER_SPECIES\n# nothing here is read\nPITZER")
+    strip_at(s) = endswith(s, "@") ? s[1:(end - 1)] : s
+    line(names, v, key) = println(io, "    ", join(names, "  "), "  ", repr(v), join((" " * repr(t) for t in get(terms, key, ())), ""))
+    for (id, kind) in (("-B0", :beta0), ("-B1", :beta1), ("-B2", :beta2), ("-C0", :Cphi))
+        println(io, "-", id[2:end])
+        for (k, v) in getfield(par, kind)
+            line(k, v, (kind, k))
+        end
+    end
+    println(io, "-THETA")
+    for (k, v) in par.theta
+        line(k, v, (:theta, k))
+    end
+    println(io, "-LAMDA")
+    for (k, v) in par.lambda
+        line((strip_at(k[1]), k[2]), v, (:lambda, k))
+    end
+    println(io, "-PSI")
+    for (k, v) in par.psi
+        line(k, v, (:psi, k))
+    end
+    println(io, "-ZETA\n    CO2  Na+  Cl-  0.0")
+    println(io, "EXCHANGE_MASTER_SPECIES")
+    return nothing
+end
+
+@testsection "Pitzer: the PHREEQC reader reads what the TOML one does" begin
+    par = _pz_params()
+    terms = Dict((:beta0, ("Na+", "Cl-")) => (1.0, 2.0e-2, 3.0e-3, 4.0e-6, 5.0))
+    path = joinpath(mktempdir(), "pitzer-test.dat")
+    open(io -> _pz_write_phreeqc(io, par; terms), path, "w")
+    got = @test_logs (:warn, r"-zeta") match_mode = :any build_pitzer_parameters(path)
+    for kind in (:beta0, :beta1, :beta2, :Cphi, :theta, :psi, :lambda)
+        @test getfield(got, kind) == getfield(par, kind)
+    end
+    @test got.temperature[:beta0][("Na+", "Cl-")] == (1.0, 2.0e-2, 3.0e-3, 4.0e-6, 5.0)
+    @test startswith(pitzer_origin(got, "Na+", "Cl-"), "pitzer-test.dat sha256 ")
+    @test build_pitzer_parameters(PITZER_TOML; format = :toml).beta0 == par.beta0
+    @test_throws ArgumentError build_pitzer_parameters(path; format = :xml)
+    nopitzer = joinpath(mktempdir(), "empty.dat")
+    write(nopitzer, "SOLUTION_MASTER_SPECIES\n")
+    @test_throws ArgumentError build_pitzer_parameters(nopitzer)
+end
+
+@testsection "Pitzer: temperature terms, exact at Tr and exactly differentiated" begin
+    A = (1.0, 2.0e-2, 3.0e-3, 4.0e-6, 5.0)
+    Tr = 298.15
+    at(T) = ChemistryLab._pitzer_tables_at(T, (fill(0.0765, 1, 1),), (fill(A, 1, 1),))[1][1, 1]
+    @test at(Tr) === 0.0765
+    T = 320.0
+    @test ForwardDiff.derivative(at, T) ≈ -A[1] / T^2 + A[2] / T + A[3] + 2 * A[4] * T - 2 * A[5] / T^3 rtol = 1.0e-13
+    # In a model, at Tr the terms change nothing; away from it they do.
+    par = _pz_params()
+    pt = PitzerParameters(;
+        beta0 = par.beta0, beta1 = par.beta1, beta2 = par.beta2, Cphi = par.Cphi,
+        theta = par.theta, psi = par.psi, lambda = par.lambda, origin = par.origin,
+        temperature = Dict(:beta0 => Dict(("Na+", "Cl-") => A)),
+    )
+    cs = _pz_system()
+    n = [1 / _PZ_M_W, 1.0, 1.0]
+    lna(parameters, T) = activity_model(cs, PitzerActivityModel(; parameters, temperature_dependent = true))(n, (ΔₐG⁰overRT = zeros(3), T = T, P = 1.0e5, ϵ = 1.0e-30))
+    @test lna(pt, Tr) == lna(par, Tr)
+    @test lna(pt, 320.0) != lna(par, 320.0)
+    # Without `temperature_dependent`, the set is used at its own values.
+    @test activity_model(cs, PitzerActivityModel(; parameters = pt))(n, _pz_p(3)) ==
+        activity_model(cs, PitzerActivityModel(; parameters = par))(n, _pz_p(3))
 end

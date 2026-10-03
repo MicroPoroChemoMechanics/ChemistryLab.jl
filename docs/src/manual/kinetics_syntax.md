@@ -140,39 +140,41 @@ the extents, and accepts the finer pair when the difference is within tolerance 
 Richardson's estimate, which for a first-order method IS the error of the coarse
 step. Three implicit solves per accepted step is the price.
 
-Reaktoro has nothing equivalent: its kinetics adds a single initial step to the
-equilibrium options, the step is the caller's, and backward Euler being first
-order, one ten times too large is ten times less accurate with nothing to say so.
+In Reaktoro's kinetics the step is the caller's, a single step added to the
+equilibrium options; backward Euler being first order, a step ten times too large
+is ten times less accurate, and the estimate above is what reports it here.
 
 Measured on calcite dissolving under `r = k(1 − Ω)` with `k = 10⁻⁴ mol/s` over
 `10⁵ s`, against the equilibrium the trajectory converges to:
 
 | route | steps | result |
 |:--|--:|:--|
-| `Rodas5P`, and `OrdinaryDiffEq`'s default polyalgorithm | 6 | **extent −457 mol**, `retcode = Success` |
-| `Tsit5`, explicit | 85 626 | correct, in 519 s |
-| one `kinetic_step` of `10⁵ s` | 1 | wrong — and its certificate says so |
-| `kinetic_step_adaptive` | **7** | correct to eight digits |
+| `Rodas5P`, the partition frozen within a step (`speciation = :frozen`) | 9 | **2 244 mol of calcite from 0.05**, returned with `retcode = Unstable` |
+| `Rodas5P`, the partition solved in the right-hand side (the default for this law) | 82 | the equilibrium, to `10⁻⁶`, in 0.7 s |
+| `Tsit5`, explicit, frozen | 85 626 | correct, in 519 s |
+| one `kinetic_step` of `10⁵ s` | 1 | the equilibrium, certified |
+| `kinetic_step_adaptive` | 1 | the equilibrium, certified |
 
-The first row is the one to know about, and the natural explanation is the wrong
-one. It is **not** a missing Jacobian term: the ODE route's residual reads the
-speciation frozen at the last accepted step, so `∂(du)/∂bₑ = 0` is exact for the
-system being integrated. What goes wrong is that the frozen speciation makes the
-right-hand side inconsistent with the state *within* a step — an implicit method
-steps past the point where `Ω` crosses one, the rate changes sign, and the run
-enters a branch it never leaves.
+The first row is the one to know about. With the partition frozen within a
+step, a rate law that reads it is constant over the step, so the stiff method
+integrates the extent explicitly however implicit it is. `Ω` relaxes to one in
+about a second here, and a step longer than that overshoots the equilibrium:
+`Ω` then exceeds one by orders of magnitude, the rate reverses and the run
+precipitates calcite from nothing. Bounding `dtmax` to `10³ s`, still a thousand
+relaxation times, returned the same wrong value; removing the re-speciation,
+which computes the partition from the extents inside the right-hand side,
+returned a sane one.
 
-Three measurements settle it. Bounding `dtmax` to `10³ s`, which takes 103 steps
-instead of 6, returns the **identical** wrong value to seven digits, so the error
-is not in the time discretization. Removing the re-speciation returns a sane
-answer. And routing the re-speciation through the certified route moves −457 to
-−383, so the quality of the partition is not the cause either.
-
-So the fix is not to freeze the speciation, which is exactly what the implicit
-step does. The extension warns when a trajectory ends on amounts no chemistry can
-produce — 457 mol of calcite from a budget of 55.6 — and that is what the ODE
-route can offer: a rate law that reads the solution belongs on the implicit
-route.
+So `integrate` looks at the rate laws first. A law that reads the partition, an
+activity or an amount of an equilibrium species, makes the right-hand side a
+function of the speciation, and the partition is then solved at every
+evaluation (`speciation = :rhs`), by the certified solver warm-started from the
+last accepted step, with its derivative with respect to `bₑ` lifted into the
+Jacobian by the implicit-function theorem. A law that reads only the kinetic
+amounts keeps the cheaper split route, re-speciating once per accepted step,
+which is exact for it. `speciation = :frozen` or `:rhs` forces either, and any
+trajectory that reaches amounts the system cannot hold is returned with
+`retcode = Unstable` rather than `Success`.
 
 !!! warning "A single step far beyond the relaxation time can find the other root"
     For a rate law that vanishes at equilibrium the step has two solutions, and
