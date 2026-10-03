@@ -148,30 +148,32 @@ carbonation.
 ## 3. The water activity, and why it cannot be assumed separately
 
 The solvent is not a solute and its activity is not obtained by the same
-formula. Two routes exist in this package.
-
-**Raoult** — ``a_w = x_w``, the mole fraction — is what
-[`DiluteSolutionModel`](@ref) and [`DaviesActivityModel`](@ref) use. It counts
-molecules and knows nothing about what they are.
-
-**The osmotic coefficient** ``\varphi`` is what [`HKFActivityModel`](@ref) uses:
-
-```math
-\ln a_w = -M_w \varphi \sum_j m_j ,
-```
-
-with ``\varphi`` obtained by integrating the Gibbs-Duhem relation over the same
-``A``, ``B`` and ``\dot{B}`` that produced the ``\gamma_i``. That is the whole
-point of it. At constant ``T`` and ``P``,
+formula. At constant ``T`` and ``P``,
 
 ```math
 \sum_i n_i \,\mathrm{d}\mu_i = 0 ,
 ```
 
 which is not an optional refinement: it is the statement that the solvent and
-the solutes are parts of one thermodynamic system. A model that corrects its
-solutes and leaves its solvent ideal violates it by construction, and §5
-measures by how much.
+the solutes are parts of one thermodynamic system. Once the activities of the
+solutes are chosen, it leaves the solvent none to choose. Integrating it over
+the solutes' terms gives the osmotic coefficient ``\varphi``,
+
+```math
+\ln a_w = -M_w \varphi \sum_j m_j ,
+```
+
+and that is how the solvent row of the ideal model and of the two extended
+Debye-Hückel models is built. The ideal model has ``\varphi = 1``, the exact
+partner of ``\ln m_i``. Davies, whose ions all carry one function of ``I``
+times ``z_i^2``, has a closed form for ``\varphi`` (see
+[`DaviesActivityModel`](@ref)). [`HKFActivityModel`](@ref) integrates its
+``A``, ``B`` and ``\dot{B}``. Raoult's mole fraction ``x_w`` agrees with the
+ideal ``-M_w \sum_j m_j`` to first order, the two differing by
+``(M_w \sum_j m_j)^2/2``, but breaks the relation by ``1 - x_w``; a model that
+corrected its solutes and left its solvent at ``x_w`` would set the two halves of
+one model against each other. [`TruesdellJonesActivityModel`](@ref) and
+[`SITActivityModel`](@ref) (§6a) keep it.
 
 The one approximation in the B-dot route is that ``\varphi`` uses a single
 charge-weighted mean radius,
@@ -189,13 +191,13 @@ that lets you choose.
 |:--|:--|:--|:--|:--|:--|
 | solute scale | molarity | molality | molality | molality | molality |
 | ``\gamma_i`` | ``\equiv 1`` | Davies | extended D-H + ``\dot{B} I`` | D-H + ``\sum_k \varepsilon_{ik} m_k`` | virial expansion |
-| ``a_w`` | Raoult | Raoult | osmotic coefficient | Raoult (§6a) | osmotic coefficient |
+| ``a_w`` | ``-M_w \sum m`` | osmotic coefficient, closed form | osmotic coefficient | Raoult (§6a) | osmotic coefficient |
 | per-species data | none | none | ion radii ``\mathring{a}_i`` (tabulated, overridable) | **one parameter per ion pair — caller input** | **a parameter per ion pair and per triplet — caller input** |
 | scalar inputs | none | ``A``, ``b``, ``b_n`` | ``A``, ``B``, ``\dot{B}``, ``K_n``, ``\mathring{a}_{\text{default}}`` | ``A`` and the convention ``b = 1.5`` | the shape constants ``\alpha_1``, ``\alpha_2``, ``b`` |
 | ``T``, ``P`` dependence | none | ``A(T,P)`` on request | ``A(T,P)``, ``B(T,P)`` on request | ``A(T,P)`` on request; the ``\varepsilon`` set is fitted at one temperature | ``A_\varphi(T,P)`` only; the ``\beta`` set is fitted at one temperature |
 | returns | ``\ln a_i`` for every species | same | same | same | same |
 | ``\gamma`` useful to | ``I \lesssim 0.01`` | ``I \lesssim 0.5`` | ``I \lesssim 1`` | ``I \lesssim 3`` to ``4`` | the range its set was fitted over, a few mol/kg |
-| Gibbs-Duhem consistent | approximately | **no** (§5) | to ``10^{-5}`` (§5) | see §6a | **exactly, by construction** (§6) |
+| Gibbs-Duhem consistent | **exactly** | **exactly** on ions; not for a neutral with ``b_n \neq 0`` (§5b) | to ``10^{-5}`` (§5) | see §6a | **exactly, by construction** (§6) |
 
 All of them return the same object — a vector of ``\ln a_i`` indexed like
 `cs.species`, covering solutes, solvent, pure crystals (``0``), gases and
@@ -218,20 +220,14 @@ not a safe default that degrades gracefully; it is exact only in a limit.
 That is the ``bI`` term of §2 taking over from the screening term — the ceiling
 of a deviation function arriving, visible in the numbers.
 
-**The values of ``a_w`` barely separate at all** — Raoult and the osmotic route
-differ by less than one percent even at 3 mol/kg — while their
-**derivatives** differ by orders of magnitude. Measured as the Gibbs-Duhem
-residual ``\lvert\sum_i n_i\,\mathrm{d}\mu_i\rvert`` along a dissolution at
-1 mol/kg: ``1.9\times10^{-1}`` for Davies and ``2.9\times10^{-2}`` for the
-ideal model, while the B-dot model sits at ``4\times10^{-7}``, the truncation
-error of the finite difference that measures it.
-
-The third result follows from §3: **Davies is less thermodynamically consistent
-than assuming ideality.** Correcting the
-solutes while leaving the solvent at ``a_w = x_w`` sets the two halves of one
-model against each other, and a model can be *more* wrong for being *partly*
-corrected. Since equilibrium is set by derivatives and not by values, a
-disagreement invisible in ``a_w`` is decisive in ``\mu_w``.
+**The values of ``a_w`` barely separate below a molal**, and in a single salt
+the Gibbs-Duhem relation holds for every model to rounding: each builds its
+solvent row from its own solutes' terms, and two ions of one charge and one size
+leave nothing to break it. What breaks it shows in a mixed solution, through the
+symmetry measured in §5b: ions of different sizes or charges under a linear
+term, and neutral species carrying a salting-out coefficient the ions'
+coefficients do not return. Since equilibrium is set by derivatives and not by
+values, a disagreement invisible in ``a_w`` is decisive in ``\mu_w``.
 
 The B-dot model's own approximation — a single charge-weighted mean ion size in
 its osmotic coefficient — costs nothing in NaCl, whose two ions carry the ion
@@ -272,6 +268,8 @@ relative asymmetry over pairs, ion/ion and solvent/ion separated:
 | model | ion/ion | solvent/ion |
 |:--|--:|--:|
 | Pitzer (on NaCl) | ``1.3\times10^{-15}`` | ``1.3\times10^{-15}`` |
+| ideal dilute | ``< 10^{-12}`` | ``< 10^{-12}`` |
+| Davies (no neutral species) | ``< 10^{-12}`` | ``< 10^{-10}`` |
 | B-dot, ``\mathring{a}`` per ion, ``\dot{B}\neq0`` (default) | ``1.8\times10^{-1}`` | ``2.9\times10^{-2}`` |
 | B-dot, common ``\mathring{a}``, ``\dot{B}\neq0`` | ``1.2\times10^{-1}`` | ``2.6\times10^{-2}`` |
 | B-dot, ``\mathring{a}`` per ion, ``\dot{B}=0`` | ``2.4\times10^{-1}`` | ``6.0\times10^{-2}`` |
@@ -468,22 +466,32 @@ B-dot model's residual is not small.
 
 ### What it costs
 
-The parameters are **caller input**, and there is no way around it: no
-thermodynamic database ships them, and this package refuses to invent them. A
+The parameters are **caller input**. The ThermoFun databases read by this
+package carry none; PHREEQC distributes a set in its `pitzer.dat`, and the
+package ships the cement set of [Reardon1990](@citet) in
+`data/pitzer-reardon1990.toml`, read by [`build_pitzer_parameters`](@ref). What
+the package refuses is to invent a missing one. A
 [`PitzerParameters`](@ref) takes every table as a keyword without a default, and
 completeness is checked against the species list rather than against the set
 alone — every cation-anion pair present must have a ``\beta^{(0)}``, and the
 error names those that do not.
 
-Two limitations belong here rather than in a footnote:
+Two further terms belong to the model, and both are carried:
 
-  - the **higher-order electrostatic terms** ``{}^E\theta(I)``,
-    ``{}^E\theta'(I)`` are not implemented. They vanish identically for a
-    symmetrical pair, so a single 1-1 or 2-2 electrolyte is unaffected; in a
-    mixture of Na⁺ with Ca²⁺ — a cement pore solution — they are a real
-    omission;
-  - a published set is fitted **at one temperature**, and nothing here
-    extrapolates the interaction parameters away from it.
+  - the **higher-order electrostatic terms** ``{}^E\theta(I)`` and
+    ``{}^E\theta'(I)`` of [Pitzer1975](@citet), for two ions of like sign and
+    unlike charge, Na⁺ with Ca²⁺ in a cement pore solution. They vanish for a
+    symmetrical pair, enter ``\gamma`` and the osmotic coefficient from the same
+    excess energy, and use Pitzer's function ``J(x)`` by the Chebyshev
+    approximation PHREEQC uses [Plummer1988](@cite). A set whose ``\theta`` were
+    fitted without them is used with `etheta = false`;
+  - **temperature terms** of the coefficients, in the form PHREEQC's databases
+    give them, used when the model is built with `temperature_dependent = true`.
+    A published set fitted at one temperature, as the shipped one is, carries
+    none, and is used at its own values whatever the temperature.
+
+A set in PHREEQC's format is read by [`build_pitzer_parameters`](@ref) with
+`format = :phreeqc`, from the file the caller has.
 
 ### The speciation a set assumes is part of the set
 

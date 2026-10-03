@@ -1,6 +1,57 @@
 # Changelog
 
-## Unreleased
+## v0.31.0 — One equilibrium whatever the back end, a scope that says what is proved, and kinetics that read the speciation
+
+An external audit of 0.29.0 reported seven defects, and the code confirmed
+each: back ends that computed another composition than the equilibrium, and
+derivatives of a map they did not return; a saddle certified a global minimum;
+an ODE trajectory that created matter and reported success; a gas whose state
+could not be built; pressure absent from the gases and from the condensed
+phases; and a validation page that read a reference temperature as an
+inconsistent entropy. This release corrects them, makes the ideal model and
+Davies derive from one Gibbs energy, and completes the Pitzer model and the
+heat capacities the audit listed as limits.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.30"` does not accept 0.31 and
+  has to widen its bound.
+- **A back end's answer is polished.** `equilibrate(state, solver)`,
+  `equilibrate(state; certify = false)` and `solve(::EquilibriumSolver, state)`
+  return the composition the dual Newton certifies from the back end's answer
+  when OptimaSolver is loaded and the system has an aqueous phase with `H2O@`.
+  Where that answer was not at the equilibrium, the numbers move to it.
+- **Without OptimaSolver, a back end minimizing `n⋅μ(n)` refuses** an activity
+  model that breaks the Gibbs–Duhem relation (the B-dot model, Davies with a
+  neutral solute and `bₙ ≠ 0`, Truesdell–Jones, SIT), with an `ArgumentError`.
+- **`certify` defaults to `nothing`**, which behaves as `true` did; an explicit
+  `certify = true` now raises where the certified search does not apply.
+- **The solvent rows of `DiluteSolutionModel` and `DaviesActivityModel`** are
+  the Gibbs–Duhem partners of their solutes' terms: `ln a_w` moves at second
+  order for the first, and by the osmotic correction for the second.
+- **Scopes.** `:local_minimum` is a new value of `certificate.scope`, and
+  `:global_minimum` needs a convexity proved over the whole domain: an ideal
+  answer now has it, a Pitzer or SIT answer never does, and one under the
+  B-dot or Davies model only with one ion size, no linear or salting-out term,
+  and under the Debye–Hückel bound. The certificate has a field
+  `reduced_curvature`.
+- **Pressure.** A gas's activity carries `ln(P/P°)` and its molar volume is
+  `RT/P`; a species declared at constant volume carries `V⁰ (P − P°)` in its
+  `ΔₐG⁰` and `ΔₐH⁰`, which are then `NumericFunc`s of `T` and `P`. Nothing moves
+  at 1 bar.
+- **Heat capacity on several intervals.** The functions of such a species are
+  piecewise `NumericFunc`s; they do not move inside the interval of the
+  reference temperature.
+- **Pitzer.** The higher-order electrostatic terms are on by default
+  (`etheta = false` restores the previous model); a mixture of unlike charges
+  moves. `PitzerParameters` has a field `temperature` and
+  `PitzerActivityModel` a field `etheta`; code calling their positional inner
+  constructors has to pass them.
+- **Kinetics.** A rate law that reads the speciation is integrated with the
+  partition solved in the right-hand side; its trajectory changes, to the right
+  one. A trajectory that reaches kinetic amounts the system cannot hold is
+  returned with `retcode = Unstable` instead of `Success`.
 
 ### Documentation
 
@@ -17,6 +68,189 @@
   where there are three, `cemdata18-cashplus.json` included.
 - `CITATION.cff` and `.zenodo.json` carry the same abstract again, brought up to
   date, with the keyword "surface complexation".
+- The Pitzer pages said that no thermodynamic database ships Pitzer parameters.
+  PHREEQC distributes a set in its `pitzer.dat`, and the package itself ships
+  the cement set of Reardon (1990); what the ThermoFun databases lack is said
+  of them alone.
+- A recipe constituent known by its oxides and given a rate is refused, as
+  before; the message now names the way round it, a pseudo-species built by
+  `glass_species` and declared as a mineral constituent.
+- **The published-data page blamed an estimated entropy for what is a reference
+  temperature.** Eight CEMDATA18 records, the alkali C-S-H and M-S-H end
+  members, are tabulated at 293.15 K, and `ΔₐG⁰` is anchored at that
+  temperature, as GEMS anchors them. The page and its test compared their 20 °C
+  tabulated energy with the package's 25 °C one and read the 5 K step as an
+  inconsistency in `S°`, and the solubility-product check put the same 20 °C
+  energy into a 25 °C constant, which doubled the M-S-H offsets. Each record is
+  now compared at its own temperature; the M-S-H end members miss Table 2 by
+  `0.244` and `0.205` rather than `0.48` and `0.40`. The genuine data check,
+  `ΔfG° = ΔfH° − Tst (S° − Σ S°el)`, is added: the alkali C-S-H records satisfy
+  it exactly at 293.15 K, the M-S-H records at neither temperature. The page's
+  counts (220 of 228, 52 phases) were those of an older file, and its test now
+  checks the numbers the page prints.
+- The derivative example of *Solving an equilibrium* printed `0.15193` for a
+  system the page did not define. The system is written out, and the value is
+  the one it gives, `0.163095`, through an explicit back end and the certified
+  route alike. The explicit row of the calcite table of *Writing a kinetic
+  model* was measured again (84 586 steps, 250 s).
+- The w/c page said an Ipopt answer comes without a certificate and leaves the
+  absent phases at its lower bound; with OptimaSolver loaded it is polished and
+  certified, and the page says so.
+
+### Changed: one equilibrium, whatever the back end
+
+- **Ipopt computed another composition than the equilibrium.** It minimizes
+  `n⋅μ(n)`, whose gradient is `μ + Jᵀn`, and `Jᵀn = 0` is the Gibbs–Duhem
+  relation, which the B-dot model, Davies with a neutral solute and SIT do not
+  satisfy: the minimum of `n⋅μ(n)` is then not where `μ(n) = −Aᵀy`, the
+  conditions the dual Newton solves and the certificate audits. On calcite and
+  carbon dioxide in a sodium chloride solution under Davies, Ipopt's dissolved
+  calcium was 7e-4 away from the equilibrium's, against 2e-6 under the ideal
+  model, while the element balance held to 1e-15 mol either way. The
+  logarithmic route of OptimaSolver differentiated the same scalar.
+- **Every back end's answer is now polished by the dual Newton** when
+  OptimaSolver is loaded and the system has an aqueous phase with `H2O@`: the
+  dual Newton is started from it, and the composition it certifies is returned,
+  by `equilibrate(state, solver)`, by `equilibrate(state; certify = false)` and by
+  `solve(::EquilibriumSolver, state)` alike. The logarithmic route of
+  OptimaSolver is handed the gradient `n ∘ μ`, as the linear one is handed `μ`.
+  Where a back end only supplies a start, to the certified search, the homotopy,
+  a kinetic run or its replay, its answer is not polished twice.
+- **The derivatives through a back end were those of another map.** They were
+  lifted with the conditions of the dual Newton at an answer that did not
+  satisfy them; they are now lifted at the polished answer, which does, and equal
+  those of the certified route.
+- **Without OptimaSolver**, nothing can polish, and a back end that minimizes
+  `n⋅μ(n)` refuses an activity model that breaks the Gibbs–Duhem relation, with
+  an error that names the species where it fails.
+- **`certify` has three values.** `nothing`, the default, certifies where the
+  certified search applies and takes the single back end elsewhere, as `true`
+  did; an explicit `true` now refuses a system where it does not apply rather
+  than return an answer that was never certified; `false` takes the single back
+  end, polished. `equilibrate(…; certificate = Ref{Any}())` receives the
+  certificate of the answer returned, or `nothing` when none was computed.
+
+### Changed: Gibbs–Duhem exact for the ideal model and for Davies
+
+- **The ideal model broke the Gibbs–Duhem relation on its solvent.** Its solutes
+  are `ln mᵢ`, and their partner is `ln a_w = −M_w Σ m`, where it took Raoult's
+  mole fraction `ln x_w`, off by `1 − x_w`: its activities were not the
+  gradient of a Gibbs energy, the certificate of an ideal equilibrium was
+  `:self_consistent`, and Ipopt alone minimized another function than the
+  energy. The solvent row is now `−M_w Σ m`; `ln a_w` moves by `(M_w Σ m)²/2`,
+  2e-8 on the calcite reference, where the comparison with Reaktoro is unchanged.
+- **So did Davies.** Its ions carry one function of `I` times `zᵢ²`, whose
+  Gibbs–Duhem partner for the solvent has a closed form, now used in place of
+  Raoult's: with ions alone, or with `bₙ = 0`, Davies derives from one Gibbs
+  energy. A neutral species with `bₙ ≠ 0` still breaks the symmetry, and says
+  so. The page comparing the activity models measured the Gibbs–Duhem residual
+  by finite differences and concluded that Davies was less consistent than the
+  ideal model; it is measured by automatic differentiation, and in a single
+  salt every model now satisfies the relation to rounding.
+
+### Changed: what a certificate proves
+
+- **A saddle could be certified a global minimum.** The scope rested on the
+  symmetry of the Jacobian alone, which says that an energy exists, not that it
+  is convex: a synthetic Pitzer set with `β⁽⁰⁾ = −1`, under which dissolving
+  halite into a sodium chloride solution lowers the Gibbs energy, was scoped
+  `:global_minimum`, and so was HKF with an ion size of 1 Å.
+- `:global_minimum` now rests on a convexity proved over the whole domain: ideal
+  mixing, convex solid solutions, ideal site mixing, the ideal dilute model, and
+  a Debye–Hückel form with one function of `I` under the bound
+  `ln(10)·A·z_max²/(8·B·å) ≤ 1` (0.45 for divalent ions of 4 Å at 25 °C), whose
+  derivation is on the page of the certificate. Elsewhere the Hessian of the
+  energy over the directions that conserve matter decides: positive definite, the
+  new scope `:local_minimum`; otherwise `:kkt_point`, with the reason, a saddle
+  or a flat direction. The certificate reports its smallest eigenvalue as
+  `reduced_curvature`, and documents `stationarity_abs`.
+
+### Changed: a rate law that reads the speciation
+
+- **The ODE route returned an impossible trajectory as a success.** With the
+  equilibrium partition frozen within a step, a rate law reading it (a
+  saturation ratio, an activity) is constant over the step, so the stiff method
+  integrated the extent explicitly: on calcite under `r = k(1 − Ω)`, `Rodas5P`
+  stepped past the second or so over which `Ω` relaxes, `Ω` then exceeded one by
+  orders of magnitude, and the run ended on hundreds of moles of calcite from
+  0.05 with `retcode = Success` and a warning. With the partition solved in the
+  right-hand side, the same run takes 82 steps and ends at the equilibrium.
+  The source said in one place that a missing Jacobian was the cause and in
+  another that it was not.
+- `integrate` now reads the rate laws (`_rates_read_speciation`): when one reads
+  the partition, the right-hand side solves it at the state it is evaluated at,
+  by the certified solver warm-started from the last accepted step, and lifts its
+  derivative with respect to `bₑ` into the Jacobian by the implicit-function
+  theorem; the calcite case reaches the equilibrium. A law that reads only the
+  kinetic amounts keeps the split route, which is exact for it and unchanged.
+  `integrate(…; speciation = :rhs | :frozen)` forces either.
+- **Feasibility is checked on the whole trajectory**, against the element totals
+  of the system, each kinetic amount at its own scale, rather than on the final
+  state against twice the total amount of matter, which the water dominated. In
+  `:rhs` mode a step leaving those bounds is rejected; in any mode a trajectory
+  that reaches them is returned with `retcode = Unstable`, or raises under
+  `STRICT_CONVERGENCE`.
+- The step callback declares the integrator's derivative information stale
+  whenever the re-speciation changes what the right-hand side reads (the heat of
+  a calorimeter, a law run frozen), where it said nothing had changed.
+
+### Added: the rest of the Pitzer model, and heat capacities past a transition
+
+- **The higher-order electrostatic terms of Pitzer (1975)** for two ions of like
+  sign and unlike charge, Na⁺ with Ca²⁺, Cl⁻ with SO₄²⁻, which the model left out
+  and its docstring said so. `J(x)` is evaluated by the Chebyshev approximation
+  of Harvie that PHREEQC uses, checked against the values Reaktoro tabulates
+  independently (4e-8); the terms enter `γ` and the osmotic coefficient from one
+  excess energy, so the model keeps satisfying the Gibbs–Duhem relation exactly.
+  `PitzerActivityModel(…; etheta = false)` leaves them out, for a set fitted
+  without them. A single salt is unchanged to the last bit; a mixture of unlike
+  charges moves.
+- **Temperature terms of the Pitzer coefficients**, in PHREEQC's six-term form,
+  used under `temperature_dependent = true`, zero at 298.15 K exactly;
+  `PitzerParameters(…; temperature)` and the TOML reader take them.
+- **A reader of the `PITZER` block of a PHREEQC database**,
+  `build_pitzer_parameters(path; format = :phreeqc)`, for the file the caller
+  has: none is shipped. Neutral species take the `@` this package names them
+  with; the identifiers the model has no counterpart for are skipped and named.
+- **A heat capacity given on several intervals is followed past the first.**
+  ThermoFun records give one polynomial per interval and the transitions between
+  them; only the interval holding the reference temperature was kept, so that
+  hematite past its transition at 950 K extrapolated the wrong polynomial. Each
+  interval is now anchored on the one before, the transition adding its
+  enthalpy and entropy; inside the reference interval nothing moves.
+
+### Changed: pressure enters the gases and the condensed phases
+
+- **A gas's activity ignored the pressure.** Every activity model gave a gas
+  `ln a = ln xᵢ`, the mole fraction, which is its activity at 1 bar only: a gas
+  over water dissolved the same amount at 1 and at 10 bar, and its chemical
+  potential did not grow with pressure. It is now `ln xᵢ + ln(P/P°)`, its
+  fugacity over the standard pressure, in Dilute, HKF, Davies, Truesdell–Jones,
+  SIT and Pitzer alike, so that `∂μᵢ/∂P = RT/P`. `P_STANDARD` and
+  `P_STANDARD_Q` (1 bar) are exported.
+- **A gas has the ideal gas's volume, `RT/P`.** The databases' gases carried a
+  constant 24.79 L/mol, their volume at 298.15 K and 1 bar, at every
+  temperature and pressure; their records declare the ideal gas (`mv_pvnrt`),
+  and that is what they now get. With `ln(P/P°)` in the activity, a gas's
+  chemical potential and its volume satisfy the Maxwell relation, which a
+  volume constraint (`FixedVolume`, `SealedVolume`) needs.
+- **A condensed species declared at constant volume had no pressure in its
+  standard energy.** A record declaring `mv_constant` (the solids, the solutes
+  outside HKF) now carries `V⁰ (P − P°)` in its `ΔₐG⁰` and `ΔₐH⁰`, so that
+  `∂G⁰/∂P = V⁰`; so does the solvent, whose equation of state is not
+  implemented, with its compressibility neglected. Three crystals CEMDATA18
+  marks as ideal gases (`CA`, `CA2`, `C12A7`) are treated as the crystals they
+  are. At 1 bar nothing changes: the term is an exact zero there. Calcite
+  under pressure is the visible case: its reaction volume, ions minus crystal,
+  is now about −56 cm³/mol between 15 and 70 MPa at 301 K, and its `log K` at
+  70 MPa agrees with Duan et al. (2016) to 0.01, where it was 0.44 short.
+
+### Fixed
+
+- **A gas built without a molar volume made its state impossible to build.**
+  The ideal-gas fallback converted to `u"m^3"`, which DynamicQuantities refuses
+  as a target, so `ChemicalState` threw for any system holding such a gas. A gas
+  without `V⁰` now takes `RT/P` wherever a volume is read.
 
 ## v0.30.0 — A trace held to its own amount, and SIT and Pitzer solved by Newton's method
 

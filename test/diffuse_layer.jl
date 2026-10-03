@@ -400,8 +400,9 @@ end
     # the ionic strength is proportional to σ, so at a surface carrying no net
     # charge it vanishes identically and every model looks consistent. The first
     # version of this test evaluated at the starting composition — all sites
-    # free, σ = 0 — and reported the same 3.6e-3 for all three models, which is
-    # the solvent/solute asymmetry `DiluteSolutionModel` has on its own.
+    # free, σ = 0 — and reported the same figure for all three models, which was
+    # then the solvent/solute asymmetry of `DiluteSolutionModel`, whose solvent
+    # was Raoult's mole fraction.
     #
     # The per-pair relative measure, not the whole-Jacobian one: normalizing by
     # the largest entry hides a real inconsistency behind the 1/n self-terms of
@@ -431,11 +432,12 @@ end
     # area has. What the certificate needs is that a potential exist at all, and
     # that is the first line, where the capacitance changes nothing.
     #
-    # Neither baseline is zero: `DiluteSolutionModel` has a solvent/solute
-    # asymmetry of its own, 3.6e-3, independent of any surface.
-    @test ideal.worst < 1.0e-2
-    @test ideal.gd < 1.0e-2
-    @test cc.worst ≈ ideal.worst rtol = 1.0e-10     # still a gradient
+    # The baseline is exact: `DiluteSolutionModel` derives from one energy, its
+    # solvent row being the partner of the solutes' `ln m`, and ideal site
+    # mixing adds a convex one.
+    @test ideal.worst < 1.0e-10
+    @test ideal.gd < 1.0e-10
+    @test cc.worst < 1.0e-10                        # still a gradient
     @test cc.gd > 0.5                               # but not an extensive one
     @info "constant capacitance: gradient kept, extensivity not" cc.worst cc.gd
 

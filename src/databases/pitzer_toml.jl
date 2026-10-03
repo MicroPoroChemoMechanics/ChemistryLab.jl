@@ -2,11 +2,14 @@
 # Copyright © 2025-2026 Jean-François Barthélémy and Anthony Soive (Cerema, UMR MCD)
 
 using TOML
+using SHA
 
 """
-    build_pitzer_parameters(toml_file) -> PitzerParameters
+    build_pitzer_parameters(path; format = :auto) -> PitzerParameters
 
-Read a Pitzer interaction-parameter set from a TOML file.
+Read a Pitzer interaction-parameter set from a TOML file (`format = :toml`) or
+from the `PITZER` block of a PHREEQC-format database (`format = :phreeqc`);
+`:auto` takes the TOML reader for a `.toml` file and the PHREEQC one otherwise.
 
 Nothing about this is automatic: the file has to be named, which is the whole
 point. `data/pitzer-reardon1990.toml` ships with the package and is reached as
@@ -50,6 +53,11 @@ value = 0.1
 origin = "fitted"
 ```
 
+Temperature terms (see [`PitzerParameters`](@ref)) are given as
+`temperature = { beta0 = [A₁, A₂, A₃, A₄, A₅], Cphi = […] }` in a `[[binary]]`
+entry and as `temperature = [A₁, …]` in a `[[theta]]`, `[[psi]]` or `[[lambda]]`
+one, fewer than five meaning the rest are zero.
+
 `beta1`, `beta2` and `Cphi` default to zero within a `[[binary]]` entry;
 `beta0` does not, because an entry without it describes nothing. The shape
 constants `alpha1`, `alpha1_22`, `alpha2` and `b` may be given under `[meta]`
@@ -64,10 +72,45 @@ stopping. Species names are **not** checked against any database here: whether
 the set covers the system is decided when the model is attached to it, which is
 where the error can name the pairs that are missing.
 
+# The PHREEQC format
+
+```
+PITZER
+-B0
+    Na+    Cl-    0.0765   A₁  A₂  A₃  A₄  A₅
+-C0
+    ...
+-THETA
+    Ca+2   Na+    0.07
+-LAMDA
+    CO2    Na+    0.1
+-PSI
+    Ca+2   Na+    Cl-     -0.007
+```
+
+`-B0`, `-B1`, `-B2` and `-C0` (`Cφ`) take a cation and an anion in either
+order, `-THETA` two ions of like sign, `-LAMDA` a neutral species and an ion,
+`-PSI` a triplet, each followed by `A₀` and up to five temperature coefficients
+[ParkhurstAppelo2013](@cite). Species are named as PHREEQC writes them, with `@`
+appended to a neutral species, which is how this package names them. The
+identifiers this model has no counterpart for (`-ZETA`, `-ETA`, `-MU`, `-ALPHAS`,
+`-APHI`, which the water model provides) are skipped, and a warning names them;
+`-use_etheta` is the model's own keyword, `etheta`. **No PHREEQC database ships
+with this package**: this reads the file the caller has, and every `origin`
+records its name and a truncated SHA-256 of its contents.
+
 See also: [`PitzerParameters`](@ref), [`PitzerActivityModel`](@ref),
 [`pitzer_origin`](@ref).
 """
-function build_pitzer_parameters(toml_file::AbstractString)
+function build_pitzer_parameters(path::AbstractString; format::Symbol = :auto)
+    format in (:auto, :toml, :phreeqc) || throw(
+        ArgumentError("format must be :auto, :toml or :phreeqc; got :$format"),
+    )
+    fmt = format === :auto ? (lowercase(splitext(path)[2]) == ".toml" ? :toml : :phreeqc) : format
+    return fmt === :toml ? _pitzer_from_toml(path) : _pitzer_from_phreeqc(path)
+end
+
+function _pitzer_from_toml(toml_file::AbstractString)
     path = resolve_data_path(toml_file)
     raw = TOML.parsefile(path)
     meta = get(raw, "meta", Dict{String, Any}())
@@ -77,6 +120,8 @@ function build_pitzer_parameters(toml_file::AbstractString)
     beta2 = Dict{Tuple{String, String}, Float64}()
     Cphi = Dict{Tuple{String, String}, Float64}()
     origin = Dict{Tuple{String, String}, String}()
+    temperature = Dict{Symbol, Dict{Any, Vector{Float64}}}()
+    tterm!(kind, key, v) = (get!(temperature, kind, Dict{Any, Vector{Float64}}())[key] = Float64.(v))
 
     for (i, e) in enumerate(get(raw, "binary", Any[]))
         for key in ("cation", "anion", "beta0")
@@ -93,6 +138,9 @@ function build_pitzer_parameters(toml_file::AbstractString)
         beta2[k] = float(get(e, "beta2", 0.0))
         Cphi[k] = float(get(e, "Cphi", 0.0))
         origin[k] = String(get(e, "origin", "unrecorded"))
+        for (name, v) in get(e, "temperature", Dict{String, Any}())
+            tterm!(Symbol(name), k, v)
+        end
     end
 
     theta = Dict{Tuple{String, String}, Float64}()
@@ -101,6 +149,7 @@ function build_pitzer_parameters(toml_file::AbstractString)
             "build_pitzer_parameters: [[theta]] entry $i in $path needs i, j and value."
         )
         theta[(String(e["i"]), String(e["j"]))] = float(e["value"])
+        haskey(e, "temperature") && tterm!(:theta, (String(e["i"]), String(e["j"])), e["temperature"])
     end
 
     psi = Dict{Tuple{String, String, String}, Float64}()
@@ -109,6 +158,7 @@ function build_pitzer_parameters(toml_file::AbstractString)
             "build_pitzer_parameters: [[psi]] entry $i in $path needs i, j, k and value."
         )
         psi[(String(e["i"]), String(e["j"]), String(e["k"]))] = float(e["value"])
+        haskey(e, "temperature") && tterm!(:psi, (String(e["i"]), String(e["j"]), String(e["k"])), e["temperature"])
     end
 
     lambda = Dict{Tuple{String, String}, Float64}()
@@ -120,6 +170,7 @@ function build_pitzer_parameters(toml_file::AbstractString)
         k = (String(e["neutral"]), String(e["ion"]))
         lambda[k] = float(e["value"])
         haskey(e, "origin") && (origin[k] = String(e["origin"]))
+        haskey(e, "temperature") && tterm!(:lambda, k, e["temperature"])
     end
 
     return PitzerParameters(;
@@ -130,5 +181,92 @@ function build_pitzer_parameters(toml_file::AbstractString)
         alpha2 = float(get(meta, "alpha2", 12.0)),
         b = float(get(meta, "b", 1.2)),
         origin = origin,
+        temperature = temperature,
+    )
+end
+
+# The charge a PHREEQC species name ends with: `Ca+2` is 2, `Cl-` is −1, a name
+# with neither sign is neutral.
+function _phreeqc_charge(name::AbstractString)
+    m = match(r"([+-])(\d*)$", name)
+    m === nothing && return 0
+    z = isempty(m.captures[2]) ? 1 : parse(Int, m.captures[2])
+    return m.captures[1] == "+" ? z : -z
+end
+
+# A PHREEQC name is turned into this package's by `_phreeqc_symbol`
+# (`phreeqc_dat.jl`), which puts `@` on a neutral species.
+
+function _pitzer_from_phreeqc(path::AbstractString)
+    isfile(path) || throw(ArgumentError("no such database: $path"))
+    text = read(path, String)
+    src = "$(basename(path)) sha256 $(first(bytes2hex(sha256(text)), 12))"
+
+    tables = Dict(k => Dict{Any, Float64}() for k in (:beta0, :beta1, :beta2, :Cphi, :theta, :psi, :lambda))
+    temperature = Dict{Symbol, Dict{Any, Vector{Float64}}}()
+    skipped = Set{String}()
+    pairs_seen = Set{Tuple{String, String}}()
+    current = nothing
+    in_block = false
+    found = false
+    for raw in split(text, '\n')
+        body = first(split(raw, '#'))
+        line = strip(body)
+        if !in_block
+            uppercase(line) == "PITZER" && (in_block = found = true)
+            continue
+        end
+        isempty(line) && continue
+        if startswith(line, '-')
+            id = lowercase(first(split(line)))
+            current = get(
+                Dict(
+                    "-b0" => :beta0, "-b1" => :beta1, "-b2" => :beta2, "-c0" => :Cphi,
+                    "-theta" => :theta, "-lamda" => :lambda, "-lambda" => :lambda, "-psi" => :psi,
+                ), id, nothing,
+            )
+            current === nothing && !(id in ("-use_etheta", "-macinnes", "-redox")) && push!(skipped, id)
+            continue
+        end
+        # A line that does not start indented is the next keyword: the block ends.
+        isspace(first(body)) || break
+        current === nothing && continue
+        fields = split(line)
+        nsp = current === :psi ? 3 : 2
+        length(fields) > nsp || throw(ArgumentError("$path: a $current line has no coefficient: \"$line\""))
+        names = String.(fields[1:nsp])
+        coeffs = parse.(Float64, fields[(nsp + 1):end])
+        length(coeffs) <= 6 || throw(ArgumentError("$path: more than six coefficients on \"$line\""))
+        key = if current in (:beta0, :beta1, :beta2, :Cphi)
+            z = _phreeqc_charge.(names)
+            z[1] * z[2] < 0 || throw(ArgumentError("$path: $current needs a cation and an anion: \"$line\""))
+            z[1] > 0 ? (names[1], names[2]) : (names[2], names[1])
+        elseif current === :lambda
+            z = _phreeqc_charge.(names)
+            count(iszero, z) >= 1 || throw(ArgumentError("$path: a lambda line needs a neutral species: \"$line\""))
+            iszero(z[1]) ? (_phreeqc_symbol(names[1]), names[2]) : (_phreeqc_symbol(names[2]), names[1])
+        else
+            Tuple(_phreeqc_symbol.(names))
+        end
+        tables[current][key] = coeffs[1]
+        current in (:beta0, :beta1, :beta2, :Cphi) && push!(pairs_seen, key)
+        length(coeffs) > 1 && (get!(temperature, current, Dict{Any, Vector{Float64}}())[key] = coeffs[2:end])
+    end
+    found || throw(ArgumentError("no PITZER block in $path."))
+    isempty(skipped) || @warn "build_pitzer_parameters: $(basename(path)) carries $(join(sort!(collect(skipped)), ", ")), which this model has no counterpart for; they are skipped." maxlog = 1
+
+    # A pair described by β¹, β² or Cφ without β⁰ has β⁰ = 0, as PHREEQC takes it.
+    for k in pairs_seen
+        haskey(tables[:beta0], k) || (tables[:beta0][k] = 0.0)
+    end
+    P2, P3 = Tuple{String, String}, Tuple{String, String, String}
+    conv2(d) = Dict{P2, Float64}(P2(k) => v for (k, v) in d)
+    return PitzerParameters(;
+        beta0 = conv2(tables[:beta0]), beta1 = conv2(tables[:beta1]), beta2 = conv2(tables[:beta2]),
+        Cphi = conv2(tables[:Cphi]), theta = conv2(tables[:theta]),
+        psi = Dict{P3, Float64}(P3(k) => v for (k, v) in tables[:psi]),
+        lambda = conv2(tables[:lambda]),
+        origin = Dict{P2, String}(k => src for k in keys(tables[:beta0])),
+        temperature = temperature,
     )
 end

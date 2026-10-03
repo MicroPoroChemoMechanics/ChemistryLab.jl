@@ -96,14 +96,19 @@ three conditions are, and how [`DualEquilibriumSolver`](@ref) aims at them
 directly, are in
 [Proving that an answer is the answer](@ref sec-theory-certificate).
 
-Driving it explicitly, when the two stages are wanted separately:
+A solver passed explicitly runs that one back end and hands its answer to the
+dual Newton, which polishes it; `certificate` receives the proof of what is
+returned. The dual Newton can also be driven on its own, from a composition
+obtained elsewhere:
 
 ```julia
+cert = Ref{Any}()
+eq   = equilibrate(state, OptimaOptimizer(); certificate = cert)
+cert[].optimal  # true: a proof, for a convex problem
+
 des  = DualEquilibriumSolver(cs, HKFActivityModel())
-ipm  = equilibrate(state, OptimaOptimizer())      # into the neighborhood 
-dual = solve(des, ipm; b = b)                     # to the KKT conditions
-cert = optimality_certificate(des, dual; b = b)
-cert.optimal    # true: a proof, for a convex problem
+dual = solve(des, start; b = b)                   # to the KKT conditions
+optimality_certificate(des, dual; b = b).optimal
 ```
 
 ## Inspecting the equilibrium state

@@ -420,7 +420,9 @@ Activity coefficient γᵢ of every aqueous species, from the model's formula.
 Solutes are evaluated as `γᵢ = 10^(log₁₀ γᵢ)` with the model's own expression —
 `−A zᵢ² √I/(1 + B åᵢ √I) + Ḃ I` for the ions of [`HKFActivityModel`](@ref), `Kₙ I`
 for its neutrals, and identically 1 for [`DiluteSolutionModel`](@ref), which is
-ideal *on its own* (molarity) scale. The solvent is reported as `γ_w = a_w / x_w`.
+ideal *on its own* (molarity) scale. The solvent is reported as `γ_w = a_w / x_w`,
+which for that model differs from 1 at second order in `M_w Σ m`, its water
+activity being `exp(−M_w Σ m)` rather than `x_w`.
 
 **Not** computed as a ratio of activity to concentration. That ratio agrees for
 an abundant solute — and the tests check that it does — but it diverges for a
@@ -466,9 +468,9 @@ function activity_coefficients(
         push!(vals, 10.0^log10γ)
     end
 
-    # The solvent has no formula of that shape: its activity comes from the
-    # osmotic coefficient (HKF) or from Raoult (the other two), so report the
-    # coefficient that the mole-fraction convention implies.
+    # The solvent has no formula of that shape: its activity is the model's
+    # own solvent row (an osmotic coefficient, or `−M_w Σ m` for the dilute
+    # model), so report the coefficient the mole-fraction convention implies.
     n_aq = sum(max(n[i], ϵ) for i in cs.idx_aqueous)
     x_w = max(n[i_w], ϵ) / n_aq
     a_w = exp(log_activities(state, model; ϵ = ϵ)[symbol(cs.species[i_w])])
@@ -1153,7 +1155,8 @@ function _homotopy_rung(cs, A, i_w, n0, model, λ, start, ϵ, verbose, atol, rto
         stepped = nothing
         try
             esolver = EquilibriumSolver(cs, model, f())
-            stepped = SciMLBase.solve(esolver, from; ϵ = ϵ, b = bλ)
+            # A rung is a start; the certified search that walks it polishes it.
+            stepped = _unpolished(() -> SciMLBase.solve(esolver, from; ϵ = ϵ, b = bλ))
         catch err
             verbose && @info "homotopy rung raised" λ = λ backend = f err
             continue

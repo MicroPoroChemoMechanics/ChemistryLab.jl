@@ -599,6 +599,67 @@ end
             if max(abs(J[i, j]), abs(J[j, i])) > 1.0e-30
     )
     @test pz_sym < 1.0e-12
+
+    # THE IDEAL MODEL IS EXACT, because its solvent row is the partner of the
+    # solutes' `ln mᵢ`, `−M_w Σm`; with Raoult's `ln x_w` it broke the relation
+    # by `1 − x_w`, 1.2e-2 on this solvent row.
+    dil = asymmetries(DiluteSolutionModel())
+    @test dil.ion < 1.0e-12
+    @test dil.solvent < 1.0e-12
+    @test dil.gd < 1.0e-12
+
+    # SO IS DAVIES ON IONS: one function of `I` times `zᵢ²`, and the solvent row
+    # its Gibbs–Duhem integral.
+    dav = asymmetries(DaviesActivityModel())
+    @test dav.ion < 1.0e-12
+    @test dav.solvent < 1.0e-10
+    @test dav.gd < 1.0e-10
+
+    # A neutral solute's salting-out term `bₙ I` has no partner in the ions'
+    # coefficients: present, it breaks the symmetry; switched off, it does not.
+    cs_n = ChemicalSystem(
+        [d[s] for s in ["H2O@", "Na+", "Cl-", "CO2@"]], ["H2O@", "Na+", "Cl-", "CO2@"],
+    )
+    nn0 = [get(Dict("H2O@" => 55.5, "Na+" => 0.1, "Cl-" => 0.1, "CO2@" => 0.01), s, 1.0e-10) for s in symbol.(cs_n.species)]
+    pn = ChemistryLab._build_params(ChemicalState(cs_n, [x * u"mol" for x in nn0]))
+    worst(model) = ChemistryLab._jacobian_asymmetry(
+        ForwardDiff.jacobian(nn -> activity_model(cs_n, model)(nn, pn), nn0)
+    )[1]
+    @test worst(DaviesActivityModel()) > 1.0e-2
+    @test worst(DaviesActivityModel(; bₙ = 0.0)) < 1.0e-12
+
+    # Where the activities are the gradient of one Gibbs energy `G`, homogeneous
+    # of degree one, Euler gives `G = n⋅μ` and its gradient is `μ` itself: the
+    # scalar Ipopt minimizes and the gradient OptimaSolver is given are then the
+    # same problem. This is what makes the back ends agree on these models.
+    pz = PitzerActivityModel(; parameters = build_pitzer_parameters(datapath("pitzer-reardon1990.toml")))
+    for (sys, nv, pv, model) in (
+            (cs, n0, p, DiluteSolutionModel()),
+            (cs, n0, p, DaviesActivityModel()),
+            (cs, n0, p, HKFActivityModel(; å = å_NaCl, Ḃ = 0.0)),
+            (cs_nacl, m0, p2, pz),
+            (cs_n, nn0, pn, DaviesActivityModel(; bₙ = 0.0)),
+        )
+        μ = build_potentials(sys, model)
+        grad = ForwardDiff.gradient(nn -> sum(nn .* μ(nn, pv)), nv)
+        @test all(isapprox.(grad, μ(nv, pv); rtol = 1.0e-12, atol = 1.0e-12))
+    end
+end
+
+@testsection "the ideal phases satisfy Gibbs–Duhem exactly" begin
+    # A gas mixture over the ideal dilute solution: every row, the solvent's and
+    # the gases' included, is homogeneous of degree zero.
+    h2o = Species("H2O"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
+    na = Species("Na+"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    cl = Species("Cl-"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    co2 = Species("CO2g"; aggregate_state = AS_GAS, class = SC_GASFLUID)
+    n2 = Species("N2g"; aggregate_state = AS_GAS, class = SC_GASFLUID)
+    cs = ChemicalSystem([h2o, na, cl, co2, n2])
+    n = [1.0 / M_W, 0.3, 0.3, 0.4, 0.6]
+    p = (ΔₐG⁰overRT = zeros(5), T = 298.15, P = 3.0e5, ϵ = 1.0e-30)
+    J = ForwardDiff.jacobian(nn -> activity_model(cs, DiluteSolutionModel())(nn, p), n)
+    @test maximum(abs, J' * n) < 1.0e-12
+    @test ChemistryLab._jacobian_asymmetry(J)[1] < 1.0e-12
 end
 
 @testsection "the written activity kernel and the compiled one are the same kernel" begin

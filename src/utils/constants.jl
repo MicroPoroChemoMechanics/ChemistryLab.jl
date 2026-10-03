@@ -104,3 +104,22 @@ The electric constant as a plain `Float64` in `F/m`, derived from
 surface charge density and the potential it raises, in [`DiffuseLayer`](@ref).
 """
 const VACUUM_PERMITTIVITY = ustrip(us"F/m", VACUUM_PERMITTIVITY_Q)
+
+"""
+    P_STANDARD_Q
+
+The standard-state pressure with its dimensions, `1 bar`: the pressure at which
+the standard properties of the databases read by this package are tabulated, and
+the `P°` of an ideal gas's activity `xᵢ P/P°`. It is a convention, IUPAC's since
+1982, and not a measured constant, which is why it does not come from
+`DynamicQuantities.Constants`.
+"""
+const P_STANDARD_Q = 1.0u"bar"
+
+"""
+    P_STANDARD
+
+The standard-state pressure as a plain `Float64` in pascals, derived from
+[`P_STANDARD_Q`](@ref): `1.0e5`.
+"""
+const P_STANDARD = ustrip(us"Pa", P_STANDARD_Q)

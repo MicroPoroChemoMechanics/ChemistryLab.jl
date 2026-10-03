@@ -28,7 +28,9 @@ heat of the run.
 
 A constituent given a rate must be a mineral constituent of the recipe whose
 species is in `system`; a glass, known by its oxides only, has no formula to
-dissolve and is refused.
+dissolve and is refused. To give a glass a rate, build its pseudo-species from
+the same analysis with [`glass_species`](@ref), add it to `system`, and declare
+it in the material as `MineralConstituent(glass_species(oxides; symbol); mass_fraction)`.
 """
 function KineticsProblem(
         recipe::Recipe, cs::ChemicalSystem, rates::AbstractDict, tspan::Tuple; kwargs...,
@@ -40,7 +42,9 @@ function KineticsProblem(
         c isa MineralConstituent || throw(
             ArgumentError(
                 "KineticsProblem: $(c.name) of $(m.name) is known by its oxides only; it has no " *
-                    "formula to dissolve, so it cannot be given a rate."
+                    "formula to dissolve, so it cannot be given a rate. Build its pseudo-species " *
+                    "with `glass_species(oxides; symbol)`, add it to the system and declare it as a " *
+                    "`MineralConstituent` of the material."
             )
         )
         haskey(kinetic, c.name) && throw(

@@ -1196,7 +1196,7 @@ function PoreHumidity(
     )
     P = pressure(reference)
     V̄ = Float64[
-        _has_molar_volume(sp) ? ustrip(us"m^3/mol", sp[:V⁰](T = T, P = P; unit = true)) : 0.0
+        _has_molar_volume(sp) ? ustrip(us"m^3/mol", _molar_volume(sp)(T = T, P = P; unit = true)) : 0.0
             for sp in system.species
     ]
     V_ref = ustrip(us"m^3", volume(reference).total)

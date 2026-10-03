@@ -219,7 +219,7 @@ end
   - **The interior-point optimizer rarely reports convergence** on a cement
     equilibrium, and its return code is not the thing to read. `integrate` reports
     the worst element balance instead, separating the accepted steps — the
-    trajectory — from the Jacobian probes that never enter it. The compositions
+    trajectory — from the other solves, which never enter it. The compositions
     above do not rest on that solver: [`speciated_states`](@ref) passes each
     instant to [`DualEquilibriumSolver`](@ref), which solves the KKT system and
     **certifies** the result. The problem is convex, so stationarity of the
@@ -227,9 +227,10 @@ end
     phase together prove global optimality.
   - **A Parrott–Killoh rate reads only its own degree of reaction**, so the
     trajectory here does not depend on the speciation at all; the speciation is
-    what you read out of it. A rate law reading log-activities would feed the
-    speciation back into the trajectory, and would need the balance above to be
-    tight at every step, not just at the instants you ask for.
+    what you read out of it. A rate law reading log-activities feeds the
+    speciation back into the trajectory: `integrate` then solves the partition at
+    every evaluation of the right-hand side, by the certified route, and the
+    balance is tight at every step, not just at the instants you ask for.
 
 ## 7. The certificate
 

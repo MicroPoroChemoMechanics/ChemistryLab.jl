@@ -124,6 +124,7 @@ end
     include("aqueous_inversion.jl")
     include("trace_sensitivity.jl")
     include("equilibrium_constraints.jl")
+    include("pressure.jl")
     include("capillary.jl")
     include("pitzer.jl")
     include("recipes.jl")
@@ -151,6 +152,7 @@ end
     include("kinetics/test_pore_humidity.jl")
     include("kinetics/test_surface_coupling.jl")
     include("kinetics/test_parameter_ad.jl")
+    include("kinetics/test_rhs_speciation.jl")
     include("coupling_reference.jl")
 end
 

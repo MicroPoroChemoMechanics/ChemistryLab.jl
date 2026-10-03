@@ -168,7 +168,7 @@ include("reference_species.jl")
         # Not a target value: the point is that the certified route is two orders
         # of magnitude better on a balance the old default reported as fine.
         st = calcite()
-        eq_bar = equilibrate(calcite(), OptimaOptimizer())
+        eq_bar = ChemistryLab._unpolished(() -> equilibrate(calcite(), OptimaOptimizer()))
         eq_cert, cert = equilibrate_certified(calcite())
         @test balance_rel(st, eq_bar) > 1.0e-3      # measured at 3.0e-2
         @test balance_rel(st, eq_cert) < 1.0e-8
@@ -186,7 +186,7 @@ include("reference_species.jl")
         st = calcite()
         b0 = A * [ustrip(us"mol", x) for x in st.n]
         des = DualEquilibriumSolver(cs, DiluteSolutionModel())
-        bar = equilibrate(calcite(), OptimaOptimizer())
+        bar = ChemistryLab._unpolished(() -> equilibrate(calcite(), OptimaOptimizer()))
         from_raw = SciMLBase.solve(des, calcite(); b = b0)
         from_bar = SciMLBase.solve(des, bar; b = b0)
         # With the same b both routes must land on the same minimum.
@@ -199,8 +199,43 @@ include("reference_species.jl")
 
     @testsection "equilibrate certifies by default, and can be told not to" begin
         st = calcite()
-        @test balance_rel(st, equilibrate(calcite())) < 1.0e-8
-        @test balance_rel(st, equilibrate(calcite(); certify = false)) > 1.0e-3
+        cref = Ref{Any}()
+        @test balance_rel(st, equilibrate(calcite(); certificate = cref)) < 1.0e-8
+        @test cref[].optimal
+        # The single back end, polished by the dual Newton: the same conditions
+        # of equilibrium as the certified search, without the search.
+        @test balance_rel(st, equilibrate(calcite(); certify = false, certificate = cref)) < 1.0e-8
+        @test cref[].optimal
+        # Its raw answer is the one the polish corrects.
+        raw = ChemistryLab._unpolished(() -> equilibrate(calcite(); certify = false))
+        @test balance_rel(st, raw) > 1.0e-3
+        @test equilibrate(calcite(); certify = true) isa ChemicalState
+    end
+
+    @testsection "a polish that cannot certify says so" begin
+        # A budget of negative amounts: no composition meets it, so the dual
+        # Newton started from the back end's answer cannot certify one. The
+        # better of the two answers is returned, the solve is counted as not
+        # converged, and it says so: a warning, or an error under
+        # `STRICT_CONVERGENCE`.
+        st = calcite()
+        es = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer())
+        quiet(f) = Base.CoreLogging.with_logger(f, Base.CoreLogging.NullLogger())
+        raw = quiet(() -> ChemistryLab._unpolished(() -> SciMLBase.solve(es, calcite())))
+        b = -(A * [ustrip(us"mol", x) for x in st.n])
+        cref = Ref{Any}()
+        before = ChemistryLab.NONCONVERGED[]
+        out = quiet(() -> ChemistryLab._finish_backend_solve(es, st, raw; b = b, certificate = cref))
+        @test out isa ChemicalState
+        @test !cref[].optimal
+        @test ChemistryLab.NONCONVERGED[] > before
+        strict = ChemistryLab.STRICT_CONVERGENCE[]
+        try
+            ChemistryLab.STRICT_CONVERGENCE[] = true
+            @test_throws ErrorException ChemistryLab._finish_backend_solve(es, st, raw; b = b)
+        finally
+            ChemistryLab.STRICT_CONVERGENCE[] = strict
+        end
     end
 
     @testsection "the dual route needs an aqueous phase and H2O@" begin
@@ -219,6 +254,19 @@ include("reference_species.jl")
         # Aqueous, but the solvent is not called `H2O@`.
         no_solvent = ChemicalSystem([sp["Ca+2"], sp["CO3-2"]], ["Ca+2", "CO3-2"])
         @test !ChemistryLab._dual_applicable(no_solvent)
+
+        # Asked for explicitly, a certificate that cannot be given is refused
+        # rather than replaced by an answer that was never certified; left at
+        # its default, `certify` takes the single back end, and says no
+        # certificate was computed.
+        calcite_only = ChemicalSystem([sp["Cal"]], ["Cal"])
+        st_solid = ChemicalState(calcite_only, [0.1u"mol"])
+        @test !ChemistryLab._dual_applicable(calcite_only)
+        @test_throws ArgumentError equilibrate(st_solid; certify = true)
+        cref = Ref{Any}(:unset)
+        eq_solid = equilibrate(st_solid; certificate = cref)
+        @test cref[] === nothing
+        @test ustrip(us"mol", eq_solid.n[1]) ≈ 0.1 rtol = 1.0e-10
     end
 
 
@@ -1761,23 +1809,78 @@ end
         return equilibrate_certified(st; model, b)
     end
 
+    # One ion size of 4 Å and divalent ions: the convexity bound is 0.45.
     _, c = certified(exact)
     @test c.optimal
     @test c.scope === :global_minimum
     @test isempty(c.scope_reasons)
+    @test c.reduced_curvature > 0
 
-    # Davies carries a salting-out term on the neutral species and a
-    # mole-fraction water activity: its activities are not one gradient.
+    # The ideal model derives from a convex energy whatever the composition.
+    _, c = certified(DiluteSolutionModel())
+    @test c.optimal
+    @test c.scope === :global_minimum
+
+    # Davies carries a salting-out term on the neutral species, which has no
+    # partner in the ions' coefficients: its activities are not one gradient.
     _, c = certified(DaviesActivityModel())
     @test c.optimal
     @test c.scope === :self_consistent
     @test occursin("not the gradient", only(c.scope_reasons))
+    @test isnan(c.reduced_curvature)
 
-    # A concave mixing energy, even with exact activities: a KKT point, stable
-    # against splitting, not a proved global minimum.
+    # One ion size of 1 Å: the same exact activities, a convexity bound of 1.79,
+    # so no global proof, and the answer is a strict local minimum.
+    _, c = certified(HKFActivityModel(å = 1.0, Ḃ = 0.0, Kₙ = 0.0))
+    @test c.optimal
+    @test c.scope === :local_minimum
+    @test any(r -> occursin("convexity bound", r), c.scope_reasons)
+    @test c.reduced_curvature > 0
+
+    # A concave mixing energy, even with exact activities: not a proved global
+    # minimum, and each instance of the split phase sits where it is stable, so
+    # the answer is a strict local minimum.
     _, c = certified(exact; gap = true)
     @test c.optimal
-    @test c.scope === :kkt_point
-    # One reason per instance of the phase.
-    @test !isempty(c.scope_reasons) && all(r -> occursin("concave", r), c.scope_reasons)
+    @test c.scope === :local_minimum
+    @test c.reduced_curvature > 0
+    # One reason per instance of the phase, and the curvature.
+    @test count(r -> occursin("concave", r), c.scope_reasons) >= 1
+    @test any(r -> occursin("strict local minimum", r), c.scope_reasons)
+end
+
+@testsection "a Pitzer saddle is not a global minimum" begin
+    # The external audit of 2026-10-02: a synthetic `β⁽⁰⁾ = −1` makes the
+    # activity of sodium chloride fall with its molality above half a mole per
+    # kilogram, so that dissolving halite into such a solution LOWERS the Gibbs
+    # energy. Pitzer's activities are the gradient of one energy, which is what
+    # the scope used to rest on alone, and it called such a point a global
+    # minimum.
+    sp = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+    cs = ChemicalSystem([sp["H2O@"], sp["Na+"], sp["Cl-"], sp["Hl"]], ["H2O@", "Na+", "Cl-"])
+    P2 = Tuple{String, String}
+    pz = PitzerParameters(;
+        beta0 = Dict{P2, Float64}(("Na+", "Cl-") => -1.0), beta1 = Dict{P2, Float64}(("Na+", "Cl-") => 0.0),
+        beta2 = Dict{P2, Float64}(), Cphi = Dict{P2, Float64}(("Na+", "Cl-") => 0.0),
+        theta = Dict{P2, Float64}(), psi = Dict{Tuple{String, String, String}, Float64}(),
+        lambda = Dict{P2, Float64}(),
+    )
+    model = PitzerActivityModel(; parameters = pz)
+    des = DualEquilibriumSolver(cs, model)
+    # At 2 mol/kg with halite present, the one direction that conserves matter
+    # dissolves halite, and it is downhill.
+    st = ChemicalState(cs)
+    set_quantity!(st, "H2O@", 1.0u"kg")
+    set_quantity!(st, "Na+", 2.0u"mol")
+    set_quantity!(st, "Cl-", 2.0u"mol")
+    set_quantity!(st, "Hl", 1.0u"mol")
+    s, why, λ = ChemistryLab._certificate_scope(des, ChemistryLab._build_params(st), ustrip.(us"mol", st.n), FixedTP())
+    @test s === :kkt_point
+    @test λ < 0
+    @test any(r -> occursin("saddle", r), why)
+    @test any(r -> occursin("PitzerActivityModel", r), why)
+    # Whatever answer the certified search finds on this system, it is never
+    # given the global scope.
+    _, c = equilibrate_certified(st; model)
+    @test c.scope !== :global_minimum
 end

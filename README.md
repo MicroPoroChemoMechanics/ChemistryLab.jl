@@ -39,7 +39,7 @@ a solver have to be driven from code rather than from a dialog box.
 - **Database interoperability**: Import and merge ThermoFun (.json) and Cemdata (.dat) data. `datapath` obtains a ThermoFun database from ThermoHub on first use and checks it against a SHA-256; `install_database` takes a PHREEQC file downloaded by hand, and `fetch_databases` prepares a machine for offline work. Solid solution definitions are loaded from a TOML file with `build_solid_solutions`.
 - **Parsing tools**: Convert chemical notations, extract charges, calculate molar mass, and more.
 - **Solid solutions**: Define ideal (`IdealSolidSolutionModel`), Redlich-Kister (`RedlichKisterModel`), regular (`RegularSolutionModel`), sublattice (`SublatticeModel`, as in C-(N-)A-S-H) or compound-energy (`CompoundEnergyModel`, as in CASH+) mineral mixing phases via `SolidSolutionPhase`; end-members are automatically requalified at construction time, and a miscibility gap is detected, refused when spurious and located when real.
-- **Activity models**: Built-in aqueous activity models for equilibrium: `DiluteSolutionModel` (ideal), `HKFActivityModel` (extended Debye-Hückel B-dot), `DaviesActivityModel`, `TruesdellJonesActivityModel`, `SITActivityModel` and `PitzerActivityModel`, and `cemdata18_activity_model`, the extended Debye-Hückel setting Cemdata18 prescribes.
+- **Activity models**: Built-in aqueous activity models for equilibrium: `DiluteSolutionModel` (ideal), `HKFActivityModel` (extended Debye-Hückel B-dot), `DaviesActivityModel`, `TruesdellJonesActivityModel`, `SITActivityModel` and `PitzerActivityModel` (with the higher-order electrostatic terms, temperature terms, and a reader of PHREEQC's `PITZER` block), and `cemdata18_activity_model`, the extended Debye-Hückel setting Cemdata18 prescribes.
 - **Chemical equilibrium**: Compute thermodynamic equilibrium compositions from initial states using Gibbs energy minimization (`equilibrate`, `ChemicalSystem`, `ChemicalState`), with `equilibrate_certified` returning a KKT certificate that states what it proves — a global minimum, a KKT point, or a speciation consistent with its own activities (`scope`) — rather than a report that an iteration stopped.
 - **Oxidation state**: Charge is kept as a conservation law of its own wherever an element appears at several valences, with `pe`, `Eh`, `half_reaction` and the `FixedpE` / `FixedEh` constraints — which is what a slag-blended binder needs, its sulfur arriving as S(-II) into a pore solution carrying S(+VI).
 - **Cementitious binders, CEM I to CEM V**: A glass with no formula enters through `oxide_budget` from its oxide analysis; how far each constituent has reacted is stated rather than assumed complete, bounded by `powers_alpha_max` for the water and space available, under either curing convention; `CapillaryWater` and `SaturatedCuring` are the two boundary conditions a specimen can be cured under.
@@ -75,9 +75,12 @@ using Optimization, OptimizationIpopt   # optional: Ipopt, a further starting po
 ```
 
 OptimaSolver is the default backend whenever it is loaded, whatever the load
-order, and it carries the KKT solver that certifies an equilibrium. Ipopt alone
-also solves, along a single uncertified path; with both loaded, the certified
-search starts from each of them.
+order, and it carries the KKT solver that certifies an equilibrium. With both
+loaded, the certified search starts from each of them, and the answer of either,
+asked for alone, is polished by that KKT solver into the same equilibrium. Ipopt
+alone minimizes `n⋅μ(n)`, which is the Gibbs energy only for an activity model
+satisfying the Gibbs–Duhem relation (the ideal model, Pitzer, Davies on ions);
+it refuses the others rather than return another composition.
 
 All backends are optional (`[weakdeps]`); parsing, species/system/state handling,
 databases and thermodynamic data work without any of them.
@@ -246,7 +249,7 @@ moles(state_eq)       # mole amounts by phase (liquid / solid / gas / total)
 moles(state_eq, "Ca+2")  # moles of a specific species
 ```
 
-With OptimaSolver loaded and an aqueous phase holding `H2O@`, `equilibrate` solves from every available back end and returns the answer its optimality certificate accepts (`equilibrate_certified` returns the certificate too); `certify = false`, or a solver passed explicitly, uses a single back end. The `model` keyword sets the aqueous activity model:
+With OptimaSolver loaded and an aqueous phase holding `H2O@`, `equilibrate` solves from every available back end and returns the answer its optimality certificate accepts (`equilibrate_certified` returns the certificate too); `certify = false`, or a solver passed explicitly, uses a single back end, whose answer is polished into the same equilibrium, and `certify = true` refuses a system the certified search does not apply to. The `model` keyword sets the aqueous activity model:
 
 ```julia
 state_eq = equilibrate(state0; model = HKFActivityModel())   # extended Debye-Hückel

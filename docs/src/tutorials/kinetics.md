@@ -206,18 +206,19 @@ normalized so its controlling mineral carries `ν = −1`: a positive rate is a
 dissolution. A reaction generated from the nullspace comes out with an arbitrary
 orientation, and taken as-is the ODE grows the clinker instead of consuming it.
 
-!!! note "How the two are coupled in time — operator splitting"
-    The equilibrium is **not** solved inside the ODE right-hand side. The ODE
-    advances the kinetic minerals with the speciation held frozen, and
-    `respeciate!` re-equilibrates the equilibrium partition once per accepted
-    step, wired as a `DiscreteCallback`.
+!!! note "How the two are coupled in time"
+    With the rate laws of this page, which read only the amounts of the kinetic
+    minerals, the equilibrium is **not** solved inside the ODE right-hand side:
+    the ODE advances the kinetic minerals, and `respeciate!` re-equilibrates the
+    equilibrium partition once per accepted step, wired as a `DiscreteCallback`.
+    The rates do not depend on the partition, so this splitting is exact.
 
-    This is deliberate. A stiff solver evaluates the right-hand side many times
-    per step and differentiates it to build its Jacobian; a Gibbs minimization in
-    there makes the cost per step unpredictable and leaves the Jacobian
-    describing a different model from the one being integrated. Splitting the two
-    is first-order accurate in the step size — the standard arrangement in
-    reactive transport — and keeps residual and Jacobian consistent.
+    A rate law that reads the partition (an activity, a saturation ratio) makes
+    the right-hand side depend on it, and the partition is then solved at every
+    evaluation, with its derivative in the Jacobian: frozen within a step, such
+    a rate is constant over it and the step overshoots the equilibrium.
+    `integrate` decides between the two from the rate laws (`speciation =
+    :auto`).
 
     The element amounts `bₑ` carried by the ODE state are handed to the solver
     as the constraint of the sub-problem, not derived from a starting

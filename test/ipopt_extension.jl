@@ -64,13 +64,10 @@ end
     @test optimality_certificate(des, ref; b = b).optimal
     for eq in (eq_lin, eq_log)
         n = amounts(eq)
-        # Matter is conserved to Ipopt's constraint tolerance, relative to the water.
+        # Polished by the dual Newton, Ipopt's answer is the certified one, traces
+        # included, and conserves matter as it does.
         @test maximum(abs.(A * n .- b)) < 1.0e-10 * maximum(b)
-        # Species by species, above a micromole, the interior point stops within
-        # a fraction of a percent of the certified answer (2e-3 at most when this
-        # was written); traces are not compared.
-        major = amounts(ref) .> 1.0e-6
-        @test all(abs.(n[major] ./ amounts(ref)[major] .- 1) .< 1.0e-2)
+        @test all(isapprox.(n, amounts(ref); rtol = 1.0e-8, atol = 1.0e-14))
     end
 
     # A composition carrying dual numbers is solved in real arithmetic and
@@ -87,10 +84,126 @@ end
     dn_ref = ForwardDiff.derivative(x -> composition(x, via_certificate), 0.0)
     # The perturbation of the budget is carried exactly ...
     @test maximum(abs.(A * dn .- e)) < 1.0e-8
-    # ... and the derivative, taken at Ipopt's answer, is that of the certified one
-    # to within the distance between the two answers.
-    icl = findfirst(==("Cal"), symbol.(cs.species))
-    @test dn[icl] ≈ dn_ref[icl] rtol = 1.0e-2
+    # ... and the derivative, taken at Ipopt's polished answer, is that of the
+    # certified one, species by species.
+    @test all(isapprox.(dn, dn_ref; rtol = 1.0e-8, atol = 1.0e-12))
+end
+
+# The case of the external audit of 2026-10-02: Davies activities, whose neutral
+# solutes carry a salting-out term with no partner in the ions' coefficients, so
+# that they are not the gradient of a Gibbs energy. `n⋅μ(n)` then has the
+# gradient `μ + Jᵀn`, not `μ`, and its minimum is not the equilibrium.
+function _audit_davies_case()
+    db = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+    syms = ["H2O@", "H+", "OH-", "Na+", "Cl-", "CO2@", "HCO3-", "CO3-2", "Ca+2", "CaOH+", "Ca(CO3)@", "Ca(HCO3)+", "Cal"]
+    cs = ChemicalSystem([db[s] for s in syms], ["H2O@", "H+", "Ca+2", "CO3-2", "Na+", "Cl-", "Zz"])
+    st = ChemicalState(cs)
+    set_quantity!(st, "H2O@", 1.0u"kg")
+    set_quantity!(st, "Na+", 0.1u"mol")
+    set_quantity!(st, "Cl-", 0.1u"mol")
+    set_quantity!(st, "Cal", 0.05u"mol")
+    set_quantity!(st, "CO2@", 0.01u"mol")
+    return cs, st
+end
+
+@testset "every back end returns the equilibrium, not the minimum of n⋅μ(n)" begin
+    cs, st = _audit_davies_case()
+    model = DaviesActivityModel()
+    amounts(s) = [ustrip(us"mol", x) for x in s.n]
+    des = DualEquilibriumSolver(cs, model)
+    b = des.A * amounts(st)
+    ref, cert_ref = equilibrate_certified(st; model)
+    @test cert_ref.optimal
+    # Not the gradient of a Gibbs energy, and Gibbs–Duhem fails with it.
+    J = ForwardDiff.jacobian(n -> des.lna(n, ChemistryLab._build_params(ref)), amounts(ref))
+    @test ChemistryLab._gibbs_duhem_defect(J, amounts(ref))[1] > 1.0e-6
+
+    ipopt = IPOPT_EXT._default_ipopt_solver()
+    # Ipopt's own answer: matter conserved, the conditions of equilibrium not.
+    raw = ChemistryLab._unpolished(() -> ChemistryLab.SciMLBase.solve(EquilibriumSolver(cs, model, ipopt), st))
+    c_raw = optimality_certificate(des, raw; b = b)
+    @test c_raw.balance < 1.0e-10
+    @test c_raw.stationarity_abs > 1.0e-3
+    @test !c_raw.optimal
+
+    for (solver, space) in ((ipopt, Val(:linear)), (ipopt, Val(:log)), (OptimaOptimizer(), Val(:linear)), (OptimaOptimizer(), Val(:log)))
+        cref = Ref{Any}()
+        start = space === Val(:log) ? ref : st      # the log space refines a solved state
+        eq = ChemistryLab.SciMLBase.solve(EquilibriumSolver(cs, model, solver; variable_space = space), start; b = b, certificate = cref)
+        @test cref[].optimal
+        @test optimality_certificate(des, eq; b = b).stationarity_abs < 1.0e-9
+        @test all(isapprox.(amounts(eq), amounts(ref); rtol = 1.0e-8, atol = 1.0e-14))
+    end
+end
+
+@testset "the derivative is that of the composition returned" begin
+    cs, st = _audit_davies_case()
+    model = DaviesActivityModel()
+    ipopt = IPOPT_EXT._default_ipopt_solver()
+    des = DualEquilibriumSolver(cs, model)
+    A = des.A
+    b = A * [ustrip(us"mol", x) for x in st.n]
+    # Carbon dioxide added: the budget of its components moves by its column.
+    e = A[:, findfirst(==("CO2@"), symbol.(cs.species))]
+    function composition(x, solve)
+        seed = ChemicalState(cs, [ustrip(us"mol", v) + zero(x) for v in st.n] .* u"mol")
+        return [ustrip(us"mol", v) for v in solve(seed, b .+ x .* e).n]
+    end
+    via_ipopt(seed, bb) = ChemistryLab.SciMLBase.solve(EquilibriumSolver(cs, model, ipopt), seed; b = bb)
+    via_certificate(seed, bb) = first(equilibrate_certified(seed; model, b = bb))
+    n = composition(0.0, via_ipopt)
+    dn = ForwardDiff.derivative(x -> composition(x, via_ipopt), 0.0)
+    dn_ref = ForwardDiff.derivative(x -> composition(x, via_certificate), 0.0)
+    # The balance carried exactly, `A ṅ = ḃ`.
+    @test maximum(abs.(A * dn .- e)) < 1.0e-10
+    # The linearized stationarity of the species present, `J ṅ + Aᵀẏ = 0` for
+    # some ẏ: the tangent of the conditions the answer satisfies.
+    p = ChemistryLab._build_params(ChemicalState(cs, n .* u"mol"))
+    F = findall(>(ChemistryLab._CERTIFICATE_FLOOR), n)
+    J = ForwardDiff.jacobian(nn -> des.lna(nn, p), n)
+    r = J[F, :] * dn
+    ẏ = A[:, F]' \ (-r)
+    @test maximum(abs.(r .+ A[:, F]' * ẏ)) < 1.0e-8 * max(maximum(abs, r), 1.0)
+    # And the derivative of the certified route, species by species.
+    @test all(isapprox.(dn, dn_ref; rtol = 1.0e-8, atol = 1.0e-12))
+end
+
+@testset "without OptimaSolver, Ipopt refuses a model that breaks Gibbs–Duhem" begin
+    cs, st = _audit_davies_case()
+    ipopt = IPOPT_EXT._default_ipopt_solver()
+    amounts(s) = [ustrip(us"mol", x) for x in s.n]
+    ref_dil, _ = equilibrate_certified(st)
+    ref_hkf, _ = equilibrate_certified(st; model = HKFActivityModel(; å = 4.0, Ḃ = 0.0, Kₙ = 0.0))
+    saved = ChemistryLab._DUAL_AVAILABLE[]
+    try
+        ChemistryLab._DUAL_AVAILABLE[] = false
+        @test_throws ArgumentError ChemistryLab.SciMLBase.solve(EquilibriumSolver(cs, DaviesActivityModel(), ipopt), st)
+        err = try
+            ChemistryLab.SciMLBase.solve(EquilibriumSolver(cs, HKFActivityModel(), ipopt), st)
+        catch ex
+            ex
+        end
+        @test err isa ArgumentError && occursin("Gibbs–Duhem", sprint(showerror, err))
+        # The ideal model and a Debye–Hückel form with one ion size and no linear
+        # term derive from one Gibbs energy: Ipopt alone minimizes it, and lands
+        # on the equilibrium the dual Newton certifies, on every species above a
+        # millimole to 2e-6 when this was written. The traces are left to the
+        # interior point's absolute tolerance, whatever the model.
+        for (model, ref) in ((DiluteSolutionModel(), ref_dil), (HKFActivityModel(; å = 4.0, Ḃ = 0.0, Kₙ = 0.0), ref_hkf))
+            eq = ChemistryLab.SciMLBase.solve(EquilibriumSolver(cs, model, ipopt), st)
+            major = amounts(ref) .> 1.0e-3
+            @test all(isapprox.(amounts(eq)[major], amounts(ref)[major]; rtol = 1.0e-5))
+        end
+    finally
+        ChemistryLab._DUAL_AVAILABLE[] = saved
+    end
+    # Under Davies, whose neutral solute breaks the relation, the minimum of
+    # n⋅μ(n) is elsewhere: the same majors, unpolished, are hundreds of times
+    # further off (7e-4 on the dissolved calcium when this was written).
+    ref_dav, _ = equilibrate_certified(st; model = DaviesActivityModel())
+    raw = ChemistryLab._unpolished(() -> ChemistryLab.SciMLBase.solve(EquilibriumSolver(cs, DaviesActivityModel(), ipopt), st))
+    ica = findfirst(==("Ca+2"), symbol.(cs.species))
+    @test abs(amounts(raw)[ica] / amounts(ref_dav)[ica] - 1) > 1.0e-4
 end
 
 @testset "Ipopt keeps a site budget with its host" begin

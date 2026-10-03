@@ -391,6 +391,8 @@ module ChemistryLab
         null_participation,
         VACUUM_PERMITTIVITY_Q,
         FARADAY_Q,
+        P_STANDARD,
+        P_STANDARD_Q,
         with_symbol
 
     export ChemicalSystem,

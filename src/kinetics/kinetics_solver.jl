@@ -41,8 +41,10 @@ Construct once, reuse across multiple [`KineticsProblem`](@ref) instances.
     `OrdinaryDiffEq` is loaded; an error will be raised at solve time.
   - `equilibrium_solver`: optional [`EquilibriumSolver`](@ref) to re-equilibrate
     the equilibrium partition once per accepted step of the integrator (a
-    discrete callback; the speciation is held within a step). When `nothing`,
-    the kinetic minerals evolve without re-speciation (faster, less accurate).
+    discrete callback), and, when a rate law reads the partition, at every
+    evaluation of the right-hand side (see the `speciation` keyword of
+    [`integrate`](@ref)). When `nothing`, the kinetic minerals evolve without
+    re-speciation (faster, less accurate).
   - `kwargs`: keyword arguments forwarded to `DifferentialEquations.solve`
     (e.g. `reltol`, `abstol`, `saveat`, `maxiters`).
 
@@ -50,9 +52,9 @@ Construct once, reuse across multiple [`KineticsProblem`](@ref) instances.
 
 ```julia
 using OrdinaryDiffEq          # activates KineticsOrdinaryDiffEqExt
-using Optimization, OptimizationIpopt   # needed for equilibrium_solver
+using OptimaSolver            # the equilibrium back end and its certified solver
 
-es = EquilibriumSolver(cs, HKFActivityModel(), IpoptOptimizer())
+es = EquilibriumSolver(cs, HKFActivityModel(), OptimaOptimizer())
 ks = KineticsSolver(; ode_solver=Rodas5P(), equilibrium_solver=es,
                      reltol=1e-8, abstol=1e-10)
 sol = integrate(kp, ks)
@@ -94,6 +96,13 @@ using OrdinaryDiffEq
 sol = integrate(kp)              # uses Rodas5P() by default
 sol = integrate(kp; reltol=1e-6) # forward kwargs to the ODE solver
 ```
+
+`speciation = :auto` (the default), `:rhs` or `:frozen` says where the right-hand
+side reads the equilibrium partition: solved at every evaluation, with its
+derivative in the Jacobian, when a rate law reads it (`:rhs`, which `:auto` takes
+then), or as the last accepted step left it (`:frozen`, exact for laws that read
+only the kinetic amounts). A trajectory that reaches kinetic amounts the system
+cannot hold is returned with `retcode = Unstable`.
 """
 function integrate(kp::KineticsProblem; kwargs...)
     factory = _DEFAULT_KINETICS_SOLVER_FACTORY[]

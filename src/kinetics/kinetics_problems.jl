@@ -409,6 +409,13 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
     heat_eq && _refuse_missing_enthalpy(kp.system, h_fns)
     n_eq = length(kp.idx_equilibrium)
 
+    # The element content of every species, and the totals the system was given:
+    # no amount of a kinetic species can hold more of an element than there is.
+    # See `_kinetic_state_infeasible`.
+    elements = sort!(collect(setdiff(union((keys(atoms_charge(sp)) for sp in kp.system.species)...), (:Zz,))))
+    E_all = [Float64(get(atoms_charge(sp), el, 0)) for el in elements, sp in kp.system.species]
+    B_el = E_all * Float64[_plain(x) for x in n_initial_full]
+
     # Calorimeter parameters (semi-adiabatic)
     cal = kp.calorimeter
     Cp_calo = cal isa SemiAdiabaticCalorimeter ? R(safe_ustrip(us"J/K", cal.Cp)) : zero(R)
@@ -468,11 +475,10 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         #
         # Re-speciation used to go through the interior point alone, and that is
         # the unreliable path: on calcite under `r = k(1 − Ω)` it returned a
-        # partition violating the element balance by 467 mol, the rate law read
-        # the resulting activities, and the trajectory ran to a reaction extent of
-        # −457 mol with the integrator reporting success. Bounding the time step
-        # changed nothing — 6, 14 and 103 steps gave the identical wrong number to
-        # seven digits — because the error was never in the time discretization.
+        # partition violating the element balance by 467 mol. (The trajectory of
+        # that run, a reaction extent of −457 mol, had another cause, the
+        # speciation frozen within a step under a rate law that reads it: see
+        # `build_kinetics_ode`.)
         #
         # With the certified route the certificate DECIDES, so a partition that
         # does not conserve matter is not accepted in the first place. The
@@ -511,6 +517,20 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         on_accepted = Ref(false),
         # Set once a speciation exists, so `respeciate!` can warm-start from it.
         eq_warm = Ref(false),
+        # Where the right-hand side reads the equilibrium partition: `:frozen`,
+        # as the last accepted step left it, or `:rhs`, at the state it is
+        # evaluated at (see `build_kinetics_ode`). `integrate` sets it, from
+        # whether a rate law reads the partition (`_rates_read_speciation`).
+        rhs_mode = Ref(:frozen),
+        rates_read_speciation = Ref(false),
+        # The last partition solved in `:rhs` mode, keyed by the values of `bₑ`
+        # and of the temperature it was solved at.
+        rhs_cache = Ref{Any}(nothing),
+        n_rhs = similar(n_full),
+        # Feasibility of a kinetic state: the element content of the kinetic
+        # species and the element totals of the system.
+        E_kin = E_all[:, kp.idx_kinetic],
+        B_el = B_el,
         # Whether the LAST respeciation had to fall back on the reconstruction
         # because the warm start was in the wrong basin. An assemblage switch is
         # not a single-step event -- a phase takes several steps to exhaust --
@@ -683,7 +703,7 @@ const _CONTINUATION_STEPS = 8
 Alternating-projection sweeps allowed when restoring the feasibility of an
 in-run guess. Exposed because the right value is a trade: the projection
 converges linearly and a cement can need tens of thousands of sweeps, while this
-runs at every right-hand-side evaluation.
+runs at every re-speciation of a run.
 """
 const RESTORE_MAXIT = Ref(200)
 
@@ -1026,6 +1046,10 @@ function respeciate!(p, u)
     # partition is an equilibrium at THAT temperature, not at the initial one.
     p.has_T && (p.T_q[] = u[end] * us"K")
 
+    # The right-hand side solves the partition itself: the accepted one is the
+    # same solve, kept as the warm start of the next and for the heat.
+    p.rhs_mode[] === :rhs && _respeciate_rhs!(p, u) && return true
+
     # φ(bₑ), Leal et al. (2017) Eq. 54: the element amounts carried by the ODE
     # state ARE the constraint of the minimization, and they are handed to the
     # solver as `b`.
@@ -1192,13 +1216,13 @@ function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
     res = _row_residual(p.Ae, n_e, be)
     abs_res > p.eq_worst_abs[] && (p.eq_worst_abs[] = _plain(abs_res))
 
-    # Separate the trajectory from the probes. The right-hand side is evaluated
-    # far more often than the solution advances — Jacobian finite differences and
-    # rejected steps included — and a poor speciation on a PERTURBED `bₑ` never
-    # enters the result. Reporting the worst over all evaluations alarmed about
-    # something that does not affect the answer: on a full OPC that figure was
-    # 1.13 mol while the worst over the 201 accepted steps was 4.3e-4, with a
-    # median of 4.8e-9.
+    # Separate the trajectory from the other solves, which never enter the
+    # result: the first speciation, and, when the right-hand side solves the
+    # partition itself (`:rhs`), its stages and rejected steps. Reporting the
+    # worst over all of them alarmed about something that does not affect the
+    # answer: measured when every evaluation solved the partition, on a full
+    # OPC that figure was 1.13 mol while the worst over the 201 accepted steps
+    # was 4.3e-4, with a median of 4.8e-9.
     p.on_accepted[] && abs_res > p.eq_worst_abs_acc[] && (p.eq_worst_abs_acc[] = _plain(abs_res))
 
     # Warm-starting from an INFEASIBLE point locks the error in: the next step
@@ -1256,9 +1280,10 @@ function _one_speciation(p, guess, be)
 end
 
 # The partition `n_v`, found on the values of the budget `be` at `T_v` and `P_v`,
-# lifted to the duals of `be` and of the temperature of the run where it stands.
-function _lifted_partition(p, n_v, T_v, P_v, be)
-    at = ChemicalState(p.eq_system, n_v .* u"mol"; T = p.T_q[], P = p.P_q[])
+# lifted to the duals of `be` and of the temperature `T`, by default that of the
+# run.
+function _lifted_partition(p, n_v, T_v, P_v, be; T = p.T_q[])
+    at = ChemicalState(p.eq_system, n_v .* u"mol"; T = T, P = p.P_q[])
     eq_d, _ = _lift_equilibrium(
         p.eq_dual, at, ChemicalState(p.eq_system, n_v .* u"mol"; T = T_v, P = P_v), be; ϵ = p.ϵ,
     )
@@ -1273,7 +1298,9 @@ function _value_speciation(p, guess, be, T, P)
     # solver *object*, not a SciML algorithm — so `solve`, not `equilibrate`.
     local eq_result
     try
-        eq_result = SciMLBase.solve(p.eq_solver, state_eq; ϵ = p.ϵ, b = be)
+        # Polished, if at all, by the certified escalation below: the run keeps
+        # its own rule, and its trajectories, for the interior-point partition.
+        eq_result = _unpolished(() -> SciMLBase.solve(p.eq_solver, state_eq; ϵ = p.ϵ, b = be))
     catch err
         p.eq_failures[] += 1
         if p.eq_failures[] == 1
@@ -1414,8 +1441,8 @@ can be small: at the six-hour instant of an ordinary Portland cement — where t
 iron row carries 0.013 mol across thirteen species — 200 sweeps left a residual
 of 8.4e-1, 2000 left 6.7e-2, and 20 000 were needed to reach 6.7e-9.
 
-The default is small on purpose, and measured: inside the ODE right-hand side
-this runs at every evaluation, and on a full OPC the worst in-run balance is
+The default is small on purpose, and measured: it runs at every re-speciation of
+a run, and on a full OPC the worst in-run balance is
 1.1 mol at 200 sweeps against 8.5 at 2000 and 41 at 100 000. A better guess
 producing a worse answer is the back-end's own unpredictability; until that is
 understood the in-run budget stays where it measures best. Note that the ranking
@@ -1435,6 +1462,161 @@ function _restore_feasibility!(n_eq, Ae, be; maxit::Int = 200, tol::Float64 = 1.
     end
     @. n_eq = max(n_eq, _EQ_GUESS_FLOOR)
     return n_eq
+end
+
+# ── a right-hand side that reads the partition ──────────────────────────────
+
+"""
+    _ReadRecorder(data)
+
+A vector that records which of its entries are read, for
+[`_rates_read_speciation`](@ref).
+"""
+struct _ReadRecorder{T} <: AbstractVector{T}
+    data::Vector{T}
+    read::BitVector
+end
+_ReadRecorder(data::AbstractVector) = _ReadRecorder(collect(data), falses(length(data)))
+Base.size(r::_ReadRecorder) = size(r.data)
+Base.IndexStyle(::Type{<:_ReadRecorder}) = IndexLinear()
+Base.getindex(r::_ReadRecorder, i::Int) = (r.read[i] = true; r.data[i])
+
+"""
+    _rates_read_speciation(p) -> Bool
+
+Whether a rate law of the run reads the equilibrium partition: an amount or a log
+activity of an equilibrium species, or anything the activity model derives from
+them. Two probes, on the composition the run starts from: the entries of `n` and
+`ln a` each law reads, recorded, and, for a run on plain numbers, the derivative
+of each law along the amounts of the partition, through the activity model.
+
+A law that reads the partition makes the right-hand side a function of the
+speciation, which `build_kinetics_ode` then solves at every evaluation; one that
+does not, a Parrott–Killoh or Avrami law on its own degree of reaction, leaves
+it to the step's re-speciation, which is then exact.
+"""
+function _rates_read_speciation(p)
+    p.n_be > 0 || return false
+    eq = p.idx_equilibrium
+    n = p.n_full
+    lna = p.lna_fn(n, p)
+    rn, rl = _ReadRecorder(n), _ReadRecorder(lna)
+    n0 = StateView(p.n_initial_full, p.species_index)
+    t0 = zero(_plain(p.T))
+    for kr in p.kin_rxns
+        kr.rate_fn(p.T, p.P, t0, StateView(rn, p.species_index), StateView(rl, p.species_index), n0)
+    end
+    any(i -> rn.read[i] || rl.read[i], eq) && return true
+    # Through the activity model: a law reading the activity of a kinetic
+    # aqueous species reads the partition through the ionic strength.
+    eltype(n) === Float64 && p.T isa Float64 || return false
+    D = ForwardDiff.Dual{typeof(ForwardDiff.Tag(_rates_read_speciation, Float64)), Float64, 1}
+    eqset = Set(eq)
+    nd = [D(n[i], ForwardDiff.Partials((i in eqset ? 1.0 : 0.0,))) for i in eachindex(n)]
+    ld = p.lna_fn(nd, p)
+    for kr in p.kin_rxns
+        r = kr.rate_fn(p.T, p.P, t0, StateView(nd, p.species_index), StateView(ld, p.species_index), n0)
+        r isa ForwardDiff.Dual && !iszero(ForwardDiff.partials(r)[1]) && return true
+    end
+    return false
+end
+
+"""
+    _rhs_values(p, bv, Tv) -> Union{Nothing, Vector{Float64}}
+
+The partition at the element amounts `bv` and the temperature `Tv`, on plain
+numbers, by the certified solve warm-started from the last accepted partition,
+then from the cast composition carried onto `bv`; `nothing` when neither
+certifies and the better one leaves more than `_RETRY_ABS_TOL` of matter
+unaccounted for. The last answer is cached, so that the evaluations of one
+point by the integrator and by the step's re-speciation solve it once.
+"""
+function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
+    c = p.rhs_cache[]
+    c !== nothing && c.T == Tv && c.b == bv && return c.n
+    P = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
+    state(n) = ChemicalState(p.eq_system, n .* u"mol"; T = Tv * u"K", P = P)
+    warm = Float64[max(_plain(p.n_full[i]), _EQ_GUESS_FLOOR) for i in p.idx_equilibrium]
+    eq, cert = _exploring_starts(() -> solve_certified(p.eq_dual, (state(warm),); b = bv, ϵ = p.ϵ))
+    if eq === nothing || !cert.optimal
+        guess = _reconstruction_guess!(similar(warm), p, bv)
+        eq2, cert2 = _exploring_starts(() -> solve_certified(p.eq_dual, (state(guess),); b = bv, ϵ = p.ϵ))
+        eq, cert = eq === nothing ? (eq2, cert2) :
+            eq2 === nothing ? (eq, cert) : _keep_better(eq, cert, eq2, cert2)
+    end
+    eq === nothing && return nothing
+    n = Float64[ustrip(us"mol", x) for x in eq.n]
+    abs_res = _abs_residual(p.Ae, n, bv)
+    abs_res > p.eq_worst_abs[] && (p.eq_worst_abs[] = abs_res)
+    cert.optimal || abs_res <= _RETRY_ABS_TOL || return nothing
+    p.rhs_cache[] = (b = copy(bv), T = Tv, n = n)
+    return n
+end
+
+"""
+    _rhs_partition(p, be, T) -> Union{Nothing, Vector}
+
+The partition at the element amounts `be` and the temperature `T` of a state the
+right-hand side is evaluated at, carrying their dual numbers when they carry
+some: the Jacobian of a stiff method, a derivative with respect to the
+parameters of the run. Solved on the values ([`_rhs_values`](@ref)) and lifted by
+the implicit-function theorem at the answer, so that the Jacobian of the
+right-hand side holds `∂r/∂nₑ ⋅ ∂nₑ/∂bₑ` exactly.
+"""
+function _rhs_partition(p, be, T)
+    bv = Float64[_plain(x) for x in be]
+    Tv = Float64(_plain(T))
+    n = _rhs_values(p, bv, Tv)
+    n === nothing && return nothing
+    (eltype(be) <: ForwardDiff.Dual || T isa ForwardDiff.Dual) || return n
+    P = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
+    return _lifted_partition(p, n, Tv * u"K", P, collect(be); T = T * u"K")
+end
+
+# The step's re-speciation when the right-hand side solves the partition: the
+# same solve at the accepted state, written where the next one starts from.
+function _respeciate_rhs!(p, u)
+    be = @view u[1:(p.n_be)]
+    Tv = Float64(_plain(ustrip(us"K", p.T_q[])))
+    n = _rhs_values(p, Float64[_plain(x) for x in be], Tv)
+    n === nothing && return false
+    for (j, idx) in enumerate(p.idx_equilibrium)
+        p.n_full[idx] = n[j]
+    end
+    p.eq_warm[] = true
+    abs_res = _abs_residual(p.Ae, n, be)
+    p.on_accepted[] && abs_res > p.eq_worst_abs_acc[] && (p.eq_worst_abs_acc[] = _plain(abs_res))
+    p.heat_eq && _heat_sensitivity!(p, n, collect(be))
+    return true
+end
+
+# Above this fraction of what the system holds of an element, an amount is
+# outside what the chemistry can produce.
+const _FEASIBILITY_RTOL = 1.0e-8
+
+"""
+    _kinetic_state_infeasible(p, u) -> Bool
+
+Whether the kinetic amounts of the state `u` are outside what the system can
+hold: one of them negative beyond rounding, or the kinetic species together
+holding more of an element than the system was given. Each amount is judged
+against the most of it the element totals allow, so that a trace mineral is held
+to its own scale.
+"""
+function _kinetic_state_infeasible(p, u)
+    nk = @view u[(p.n_be + 1):(p.n_be + p.n_nk)]
+    E = p.E_kin
+    for j in eachindex(nk)
+        v = _plain(nk[j])
+        isfinite(v) || return true
+        cap = minimum((p.B_el[e] / E[e, j] for e in axes(E, 1) if E[e, j] > 0); init = Inf)
+        v < -_FEASIBILITY_RTOL * (isfinite(cap) ? cap : 1.0) - 1.0e-14 && return true
+    end
+    for e in axes(E, 1)
+        tot = sum((E[e, j] * _plain(nk[j]) for j in eachindex(nk)); init = 0.0)
+        tot > p.B_el[e] * (1 + _FEASIBILITY_RTOL) + 1.0e-14 && return true
+    end
+    return false
 end
 
 # ── build_kinetics_ode ───────────────────────────────────────────────────────
@@ -1478,7 +1660,14 @@ function build_kinetics_ode(kp::KineticsProblem)
         T_curr = p.has_T ? u[end] : p.T
 
         # ── 2. Reconstruct full mole vector ──────────────────────────────
-        n_full = T_elt === eltype(p.n_full) ? p.n_full : T_elt.(p.n_full)
+        #
+        # When the right-hand side solves the partition (`:rhs`), it works on a
+        # buffer of its own: `p.n_full` holds the last accepted partition, the
+        # warm start of every solve, and a stage or a rejected step must not
+        # move it.
+        rhs = p.rhs_mode[] === :rhs && p.n_be > 0
+        n_full = T_elt === eltype(p.n_full) ?
+            (rhs ? copyto!(p.n_rhs, p.n_full) : p.n_full) : T_elt.(p.n_full)
 
         # 2a. Kinetic species from nₖ
         for (j, idx) in enumerate(p.idx_kinetic)
@@ -1509,23 +1698,34 @@ function build_kinetics_ode(kp::KineticsProblem)
             end
         end
 
-        # 2b. Equilibrium species: read the *frozen* speciation.
+        # 2b. Equilibrium species: the partition.
         #
-        # The equilibrium sub-problem is NOT solved here. It is solved once per
-        # accepted step, by `respeciate!` below, in an operator-splitting step.
-        # Two reasons, and both matter:
+        # When no rate law reads it (`:frozen`), the partition is the one the
+        # last accepted step left in `p.n_full`, re-speciated once per step by
+        # `respeciate!`: the rates, hence the trajectory, do not depend on it,
+        # and splitting is exact.
         #
-        #  * the right-hand side of a stiff solver is evaluated many times per
-        #    step and differentiated for the Jacobian; solving an optimization
-        #    problem inside it makes the cost unpredictable, and — as long as
-        #    `ChemicalState` stores `Float64` moles — a `Dual` cannot even be
-        #    written into the state, so the solve would be skipped exactly on
-        #    the evaluations that build the Jacobian;
-        #  * with the solve outside, the same speciation is seen by the residual
-        #    and by its Jacobian, whatever the number type of `u`.
-        #
-        # `p.n_full` already carries the equilibrium partition as left by the
-        # last `respeciate!`, so nothing has to be copied here.
+        # When one does (`:rhs`), the partition is solved here, at the `bₑ` and
+        # the temperature of the state evaluated, and its derivative with
+        # respect to them is lifted into the dual numbers of a Jacobian. Frozen
+        # under such a law, the rate is constant within a step, so the method
+        # integrates the extent explicitly however implicit it is: on calcite
+        # under `r = k(1 − Ω)`, a step longer than the second or so over which
+        # `Ω` relaxes overshoots the equilibrium, `Ω` then exceeds one by orders
+        # of magnitude, the rate reverses, and the run reached a reaction extent
+        # of −457 mol with `Rodas5P` reporting success. A partition that cannot
+        # be solved at a trial state makes the right-hand side `NaN`, which
+        # rejects the step.
+        if rhs
+            n_e = _rhs_partition(p, (@view u[1:(p.n_be)]), T_curr)
+            if n_e === nothing
+                fill!(du, T_elt(NaN))
+                return nothing
+            end
+            for (j, idx) in enumerate(p.idx_equilibrium)
+                n_full[idx] = n_e[j]
+            end
+        end
 
         # ── 3. Compute log-activities ────────────────────────────────────
         lna = p.lna_fn(n_full, p)

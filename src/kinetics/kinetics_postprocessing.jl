@@ -394,10 +394,12 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
                 be0 = _plain.(collect(@view sol(tc)[1:(p.n_be)]))
                 _budget_clip!(guess, p.Ae, be0)
                 _restore_feasibility!(guess, p.Ae, be0; maxit = 100_000)
-                eq0 = SciMLBase.solve(
-                    es, ChemicalState(sub, guess .* u"mol"; T = plain_T(_replay_temperature(sol, kp, tc)), P = Pv);
-                    b = be0,
-                )
+                eq0 = _unpolished() do
+                    SciMLBase.solve(
+                        es, ChemicalState(sub, guess .* u"mol"; T = plain_T(_replay_temperature(sol, kp, tc)), P = Pv);
+                        b = be0,
+                    )
+                end
                 guess = Float64[
                     max(ustrip(us"mol", x), _EQ_GUESS_FLOOR) for x in eq0.n
                 ]
@@ -419,11 +421,14 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
         _budget_clip!(guess, p.Ae, be)
         _restore_feasibility!(guess, p.Ae, be; maxit = 100_000)
 
-        eq = SciMLBase.solve(
-            es,
-            ChemicalState(sub, guess .* u"mol"; T = Tt, P = Pv);
-            b = be,
-        )
+        # A start for the certification below, which polishes it.
+        eq = _unpolished() do
+            SciMLBase.solve(
+                es,
+                ChemicalState(sub, guess .* u"mol"; T = Tt, P = Pv);
+                b = be,
+            )
+        end
         n_eq = Float64[ustrip(us"mol", x) for x in eq.n]
 
         # CERTIFY. The interior-point solve reaches a neighborhood;
