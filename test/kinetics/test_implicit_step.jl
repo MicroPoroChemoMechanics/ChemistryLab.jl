@@ -458,20 +458,12 @@ end
 
 @testsection "the adaptive step survives a case the stiff ODE route gets wrong" begin
 
-    # Measured, and the reason the tutorial recommends the implicit route for a
-    # rate law that reads the solution. On calcite dissolving under `r = k(1 − Ω)`
-    # over 1e5 s with k = 1e-4:
-    #
-    #   Rodas5P and the default polyalgorithm : extent = −457 mol, retcode Success
-    #   Tsit5, explicit                       : correct, 85 626 steps, 519 s
-    #   one implicit step of 1e5 s            : wrong, and its certificate says so
-    #   kinetic_step_adaptive                 : correct to eight digits, 7 steps
-    #
-    # A stiff method needs a Jacobian, the residual carries a re-speciation the
-    # Jacobian does not see, and the error control built on it reports success on
-    # nonsense. Only the last two rows are asserted here; the ODE route's failure
-    # is guarded by a warning in the extension rather than pinned by a test, since
-    # the answer it returns is not a number worth encoding.
+    # On calcite dissolving under `r = k(1 − Ω)` over 1e5 s with k = 1e-4, with
+    # the partition frozen within a step the ODE route ended on an extent of
+    # −457 mol and reported success: the rate, constant over a step, overshot the
+    # equilibrium. It now solves the partition in the right-hand side for such a
+    # law, and test_rhs_speciation.jl checks it on this case; the implicit route
+    # is checked here, one step of the whole interval and the adaptive march.
     sp = Dict(
         symbol(x) => x for x in build_species(
                 datapath("slop98-inorganic-thermofun.json")
