@@ -63,14 +63,32 @@ function collapseGroups(node: any): any {
   return node
 }
 
+// DocumenterVitepress links a chapter's landing page as `/theory/index`, but
+// VitePress strips `index` only before `.md` or `.html`: it reduces the page
+// `theory/index.md` to `/theory/` and leaves the link as written, so the two
+// never match. The page is then absent from its own sidebar -- nothing is
+// highlighted, its collapsed group stays shut -- and the pager, finding no
+// current entry, offers the first link of the sidebar, Home, as "Next" and
+// nothing as "Previous". Writing these links as directories makes them match.
+function directoryIndexLinks(node: any): any {
+  if (Array.isArray(node)) return node.map(directoryIndexLinks)
+  if (node && typeof node === 'object') {
+    const out: any = { ...node }
+    if (typeof out.link === 'string') out.link = out.link.replace(/(^|\/)index$/, '$1') || '/'
+    if (Array.isArray(out.items)) out.items = out.items.map(directoryIndexLinks)
+    return out
+  }
+  return node
+}
+
 const nav = [
-  ...curateNav(navTemp.nav as unknown as any[]),
+  ...curateNav(directoryIndexLinks(navTemp.nav as unknown as any[])),
   {
     component: 'VersionPicker'
   }
 ]
 
-const sidebar = collapseGroups(sidebarTemp.sidebar as unknown as any)
+const sidebar = collapseGroups(directoryIndexLinks(sidebarTemp.sidebar as unknown as any))
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
