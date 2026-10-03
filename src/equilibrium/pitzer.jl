@@ -5,8 +5,10 @@
 # `activities.jl`, this one is not a per-species formula: the excess Gibbs energy
 # is a virial expansion, so a coefficient belongs to a *pair* of ions and another
 # to a *triplet*, and the sums run over the whole solution. That is why it needs
-# its own closure rather than a method of `_log10γ_ion`, and why its parameters
-# are caller input: no thermodynamic database ships them.
+# its own closure rather than a method of `_log10γ_ion`. Its parameters are
+# caller input: the ThermoFun databases this package reads carry none, PHREEQC
+# distributes a set in its `pitzer.dat`, and `data/pitzer-reardon1990.toml` ships
+# the cement set of Reardon (1990).
 
 using DynamicQuantities
 

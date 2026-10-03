@@ -483,7 +483,14 @@ using ChemistryLab, DynamicQuantities, ForwardDiff, OrderedCollections, Test
         # What cannot be given a rate is refused by name.
         @test_throws ArgumentError KineticsProblem(r, cs, Dict("no such" => rates["C3S"]), (0.0, 1.0))
         glass = first(c.name for c in slag.constituents if c isa ChemistryLab.OxideConstituent)
-        @test_throws ArgumentError KineticsProblem(Recipe(pc => 0.7, slag => 0.3; w_b = 0.45), cs, Dict(glass => rates["C3S"]), (0.0, 1.0))
+        err = try
+            KineticsProblem(Recipe(pc => 0.7, slag => 0.3; w_b = 0.45), cs, Dict(glass => rates["C3S"]), (0.0, 1.0))
+        catch e
+            e
+        end
+        @test err isa ArgumentError
+        # The refusal names the way round it.
+        @test occursin("glass_species", sprint(showerror, err))
     end
 
     @testset "phase lists" begin

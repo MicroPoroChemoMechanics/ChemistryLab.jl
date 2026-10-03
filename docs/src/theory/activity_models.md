@@ -468,8 +468,11 @@ B-dot model's residual is not small.
 
 ### What it costs
 
-The parameters are **caller input**, and there is no way around it: no
-thermodynamic database ships them, and this package refuses to invent them. A
+The parameters are **caller input**. The ThermoFun databases read by this
+package carry none; PHREEQC distributes a set in its `pitzer.dat`, and the
+package ships the cement set of [Reardon1990](@citet) in
+`data/pitzer-reardon1990.toml`, read by [`build_pitzer_parameters`](@ref). What
+the package refuses is to invent a missing one. A
 [`PitzerParameters`](@ref) takes every table as a keyword without a default, and
 completeness is checked against the species list rather than against the set
 alone — every cation-anion pair present must have a ``\beta^{(0)}``, and the

@@ -17,6 +17,13 @@
   where there are three, `cemdata18-cashplus.json` included.
 - `CITATION.cff` and `.zenodo.json` carry the same abstract again, brought up to
   date, with the keyword "surface complexation".
+- The Pitzer pages said that no thermodynamic database ships Pitzer parameters.
+  PHREEQC distributes a set in its `pitzer.dat`, and the package itself ships
+  the cement set of Reardon (1990); what the ThermoFun databases lack is said
+  of them alone.
+- A recipe constituent known by its oxides and given a rate is refused, as
+  before; the message now names the way round it, a pseudo-species built by
+  `glass_species` and declared as a mineral constituent.
 
 ## v0.30.0 — A trace held to its own amount, and SIT and Pitzer solved by Newton's method
 
