@@ -37,7 +37,8 @@ end
     b = A * [ustrip(us"mol", x) for x in st.n]
 
     des = DualEquilibriumSolver(cs, DiluteSolutionModel())
-    ipm = equilibrate(st, OptimaOptimizer())
+    # The interior point's own answer, which `equilibrate` would polish.
+    ipm = ChemistryLab._unpolished(() -> equilibrate(st, OptimaOptimizer()))
     dual = SciMLBase.solve(des, ipm; b = b)
 
     cert = optimality_certificate(des, dual; b = b)
@@ -57,6 +58,14 @@ end
     # fixed threshold would be asserting the scale, not the disagreement.
     @test cert_ipm.stationarity_abs > 1.0e-3
     @test cert_ipm.stationarity > cert_ipm.balance
+
+    # Polished, as `equilibrate` returns it, the same back end's answer is the
+    # certified one, and the certificate it hands back is that answer's.
+    cref = Ref{Any}()
+    polished = equilibrate(st, OptimaOptimizer(); certificate = cref)
+    @test cref[].optimal
+    @test optimality_certificate(des, polished; b = b).optimal
+    @test all(isapprox.(ustrip.(us"mol", polished.n), ustrip.(us"mol", dual.n); rtol = 1.0e-8, atol = 1.0e-14))
 
 end
 

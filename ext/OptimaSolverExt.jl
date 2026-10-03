@@ -87,8 +87,14 @@ end
 
 function _build_optima_opt_prob(ep::EquilibriumProblem, μ, ::Val{:log})
     f_gibbs(x, q) = (n = exp.(x); dot(n, μ(n, q)))
+    # In `x = ln n` the gradient of G is `n ∘ μ`, by the chain rule on the one of
+    # the linear route above, and it is handed over for the same reason: the
+    # derivative of `dot(n, μ(n))` carries the term `Jᵀn`, which is zero only
+    # where the model satisfies the Gibbs–Duhem relation, and steering on it
+    # settled on another composition than the equilibrium.
+    g_gibbs!(g, x, q) = (n = exp.(x); g .= n .* μ(n, q))
     cons!(res, x, _) = (n = exp.(x); mul!(res, ep.A, n); res .-= ep.b)
-    optf = SciMLBase.OptimizationFunction{true}(f_gibbs; cons = cons!)
+    optf = SciMLBase.OptimizationFunction{true}(f_gibbs; grad = g_gibbs!, cons = cons!)
     return SciMLBase.OptimizationProblem(
         optf, log.(ep.u0), ep.p;
         lb = log.(ep.lb), ub = log.(ep.ub),
@@ -125,6 +131,7 @@ function SciMLBase.solve(
         state::ChemicalState;
         ϵ::Float64 = _AMOUNT_FLOOR,
         b = nothing,
+        certificate = nothing,
     )
     # A problem carrying dual numbers, in its state, its budget, its data or its
     # activity model, takes the implicit-function route: primal solve, then the
@@ -144,10 +151,15 @@ function SciMLBase.solve(
         EquilibriumProblem(A, esolver.μ, n0; b = collect(b), p = p)
     opt_prob = _build_optima_opt_prob(prob, esolver.μ, esolver.variable_space)
 
-    sol = ChemistryLab._check_converged(
+    # The polish decides on the answer, so the interior point's own return code
+    # is not a reason to raise under `STRICT_CONVERGENCE` when there is one.
+    polish = ChemistryLab._POLISH[] && ChemistryLab._DUAL_AVAILABLE[] &&
+        ChemistryLab._dual_applicable(state.system)
+    run() = ChemistryLab._check_converged(
         SciMLBase.solve(opt_prob, esolver.solver; esolver.kwargs...),
         "equilibrium solve",
     )
+    sol = polish ? ChemistryLab._relaxed_convergence(run) : run()
     transform = _solution_transform(esolver.variable_space)
 
     state_eq = copy(state)
@@ -156,7 +168,7 @@ function SciMLBase.solve(
     end
     _update_derived!(state_eq)
 
-    return state_eq
+    return ChemistryLab._finish_backend_solve(esolver, state, state_eq; ϵ = ϵ, b = b, certificate = certificate)
 end
 
 # ── __init__: register default solver (high priority — always overrides) ──────

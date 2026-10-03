@@ -554,8 +554,9 @@ solve.
     ``(2m_1 + \mu_1)(2m_2 + \mu_2) > \lVert \mathbf{C} \rVert^2``. That proves the CASH+
     core convex (34.3 against 13.2 at 25 °C), and a certificate on it keeps its
     `:global_minimum` scope as far as the gel goes; the bound does not decide
-    CASH+NK, whose sampled Hessian shows no concave point, and its scope stays
-    `:kkt_point` ([`mixing_convexity`](@ref)).
+    CASH+NK, whose sampled Hessian shows no concave point, and its scope is then
+    `:local_minimum` or `:kkt_point`, according to the curvature at the answer
+    ([`mixing_convexity`](@ref)).
   - *Euler's relation holds.* ``\sum_k x_k\,\mu_k = G`` for any amounts with the
     site fractions ``\mathbf{y}``, as it must for a Gibbs energy.
 
@@ -635,8 +636,10 @@ W(a, b, c) = [0.0 a b; a 0.0 c; b c 0.0] .* RT
 ```
 
 A phase whose verdict is `:nonconvex` is refused at construction, as a concave
-binary is, and admitted with two instances. The certificate of an answer scopes
-itself `:kkt_point` unless every mixing phase is proved convex.
+binary is, and admitted with two instances. The certificate of an answer is not
+scoped `:global_minimum` unless every mixing phase is proved convex; it is then
+`:local_minimum` where the Hessian over the directions that conserve matter is
+positive definite at the answer, and `:kkt_point` otherwise.
 
 ### A member that is a mixture of two others
 

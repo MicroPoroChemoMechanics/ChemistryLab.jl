@@ -108,7 +108,7 @@ function DualEquilibriumSolver(
     jw == 0 && throw(
         ArgumentError(
             "DualEquilibriumSolver needs `H2O@` among the species: the solvent's " *
-                "activity is a mole fraction, hence bounded above, so its stationarity " *
+                "log activity is bounded above, by zero, so its stationarity " *
                 "cannot be inverted and is carried by the outer system instead."
         )
     )
@@ -561,17 +561,22 @@ end
              worst_supersaturation, n_interior,
              n_absent_component, param_residual, worst_violation_split,
              split_phases, split_trials, optimal, scope, scope_reasons,
+             reduced_curvature, stationarity_abs,
              ionic_strength, activity_range, within_activity_range)
 
 Check the KKT conditions at a composition, independently of how it was obtained.
 
 For a convex problem these conditions are sufficient, so `optimal = true` is a
 proof of **global** optimality. Whether the problem is one is not always the case,
-and `scope` says what the proof covers here: `:global_minimum`, `:kkt_point` or
-`:self_consistent`, with `scope_reasons` naming the property that decided. The
-extended activity models in general use (B-dot, Davies) are not the gradient of
-one Gibbs energy, and a certified equilibrium computed with them is a composition
-consistent with its own activities rather than the minimum of an energy. Use it to audit any solver — including
+and `scope` says what the proof covers here: `:global_minimum`, `:local_minimum`,
+`:kkt_point` or `:self_consistent`, with `scope_reasons` naming the property that
+decided and `reduced_curvature` the smallest eigenvalue of the Hessian over the
+directions that conserve matter (see `_certificate_scope`). The extended activity
+models in general use (B-dot, Davies with neutral species) are not the gradient
+of one Gibbs energy, and a certified equilibrium computed with them is a
+composition consistent with its own activities rather than the minimum of an
+energy. `stationarity_abs` is the stationarity residual in `RT` units, before
+the scaling `stationarity` applies. Use it to audit any solver — including
 [`EquilibriumSolver`](@ref), whose interior-point iteration reports `MaxIters` on
 a cement equilibrium and cannot say whether the point it returns is the answer.
 
@@ -657,7 +662,9 @@ function optimality_certificate(
         _dual_problem(des, p, n, _scoped_blocks(blocks)), n, bv, floor,
         des.opts.tol, des.opts.si_tol, qv,
     )
-    scope, scope_reasons = _certificate_scope(des, p, n, constraint)
+    scope, scope_reasons, reduced_curvature = _certificate_scope(
+        des, p, n, constraint; Aq = blocks.Aq, floor = floor,
+    )
     I, I_max, within = _activity_range_report(des.model, state)
     return (;
         # In moles, and relative to what each row holds; `optimal` judges the
@@ -693,7 +700,7 @@ function optimality_certificate(
             Dict{Int, NamedTuple{(:members, :x), Tuple{Vector{Int}, Vector{Float64}}}}(),
         optimal = c.optimal,
         # What `optimal = true` proves for this problem; see `_certificate_scope`.
-        scope, scope_reasons,
+        scope, scope_reasons, reduced_curvature,
         # Whether the answer lies where its activity model is stated valid. The
         # ionic strength is that of the free ions, the one the model itself
         # uses; `within_activity_range` is `nothing` when the model states no
@@ -718,12 +725,13 @@ end
 
 # Above this relative asymmetry of the Jacobian of the log activities, the
 # activities are not the gradient of one Gibbs energy. The two populations sit
-# far apart: an exact model measures 2e-16 (the Debye-Hückel form with a common
-# ion size and no linear term), and the published extended forms measure 1.2e-2
-# for the ideal dilute model on its solvent row, 0.30 for the GEMS setting of
-# the B-dot model and 1.0 for its default and for Davies, whose neutral species
-# carry a salting-out term; the threshold sits eight decades above the first and
-# six below the smallest of the others.
+# far apart: an exact model measures 2e-16 (the ideal dilute model, Davies on
+# ions, the Debye-Hückel form with a common ion size and no linear term), and
+# the published extended forms measure 1.2e-2 for a solvent row taken as Raoult's
+# mole fraction against molality solutes, 0.30 for the GEMS setting of the B-dot
+# model and 1.0 for its default and for Davies with neutral species, which carry
+# a salting-out term; the threshold sits eight decades above the first and six
+# below the smallest of the others.
 const _SCOPE_ASYMMETRY = 1.0e-8
 
 """
@@ -742,32 +750,148 @@ _is_variational(::Adiabatic) = false
 _is_variational(::FixedVolume) = false
 _is_variational(::SealedVolume) = false
 
+# Below this smallest eigenvalue of the reduced Hessian, scaled so that an ideal
+# solute contributes one, a point is not called a strict local minimum.
+const _REDUCED_CURVATURE_TOL = 1.0e-8
+
 """
-    _certificate_scope(des, p, n, constraint) -> (scope, reasons)
+    _aqueous_convexity(model, system, p) -> (proved, reason)
+
+Whether the Gibbs energy of the aqueous phase under `model` is proved convex over
+its whole domain, every composition of the declared solutes at the temperature and
+pressure of `p`, and if not, why. It is a sufficient condition, and it is what a
+`:global_minimum` scope rests on; Gibbs–Duhem consistency, which the symmetry of
+the Jacobian measures, is checked before and is not repeated here.
+
+  - The ideal dilute model: its energy, `Σₛ nₛ (ln(nₛ/(n_w M_w)) − 1)` plus a
+    linear term, has the Hessian `Σₛ nₛ (vₛ/nₛ − v_w/n_w)²`, positive.
+  - A Debye–Hückel form with one function of `I` times `zᵢ²` on every ion, with
+    the solvent row that integrates it: the HKF model with one ion size, `Ḃ = 0`
+    and no salting-out, and Davies with neutral species carrying none. Its excess
+    energy adds a term of rank one to the ideal Hessian, which the Cauchy–Schwarz
+    inequality bounds by it as long as
+    `ln(10)·A·z_max²·√I / (2(1 + κ√I)²) ≤ 1`, `κ = B å` (one for Davies, whose
+    `b I` term only adds convexity), and the supremum over `I`, at `√I = 1/κ`,
+    gives `ln(10)·A·z_max²/(8κ) ≤ 1`. See [What the certificate proves, and when](@ref sec-theory-certificate-scope)
+    for the derivation.
+  - Any other model: not proved, whether or not it is convex.
+"""
+_aqueous_convexity(model::AbstractActivityModel, system, p) =
+    (false, "no convexity proof is available for $(nameof(typeof(model)))")
+_aqueous_convexity(::DiluteSolutionModel, system, p) = (true, "")
+
+function _ions_and_neutrals(system)
+    ions = [i for i in system.idx_solutes if !iszero(charge(system.species[i]))]
+    neutrals = [i for i in system.idx_solutes if iszero(charge(system.species[i]))]
+    return ions, neutrals
+end
+
+# The bound of the rank-one Debye–Hückel term against the ideal Hessian.
+function _debye_huckel_bound(A, κ, ions, system)
+    isempty(ions) && return (true, "")
+    κ > 0 || return (false, "without an ion size the Debye–Hückel term is not bounded by the ideal one")
+    zmax = maximum(i -> abs(charge(system.species[i])), ions)
+    bound = log(10.0) * A * zmax^2 / (8 * κ)
+    bound <= 1 && return (true, "")
+    return (
+        false, "the convexity bound ln(10)·A·z²/(8κ) is $(round(bound; sigdigits = 3)) for " *
+            "the charge $(zmax), above one",
+    )
+end
+
+function _aqueous_convexity(model::HKFActivityModel, system, p)
+    iszero(model.Ḃ) || return (false, "the linear term Ḃ I of the B-dot model has no convexity proof")
+    ions, neutrals = _ions_and_neutrals(system)
+    any(i -> !iszero(_setschenow(system.species[i], model)), neutrals) &&
+        return (false, "the salting-out term of the neutral species has no convexity proof")
+    å = unique(_hkf_lookup_å(system.species[i], model) for i in ions)
+    length(å) <= 1 || return (false, "the ions do not share one ion size")
+    AB = model.temperature_dependent ? hkf_debye_huckel_params(_plain(p.T), _plain(p.P)) : (A = model.A, B = model.B)
+    return _debye_huckel_bound(_plain(AB.A), isempty(å) ? 1.0 : _plain(AB.B) * only(å), ions, system)
+end
+
+function _aqueous_convexity(model::DaviesActivityModel, system, p)
+    model.b >= 0 || return (false, "a negative b of the Davies equation has no convexity proof")
+    ions, neutrals = _ions_and_neutrals(system)
+    !isempty(neutrals) && !iszero(model.bₙ) &&
+        return (false, "the salting-out term of the neutral species has no convexity proof")
+    A = model.temperature_dependent ? hkf_debye_huckel_params(_plain(p.T), _plain(p.P)).A : model.A
+    return _debye_huckel_bound(_plain(A), 1.0, ions, system)
+end
+
+# Whether a site family's mixing energy is convex: ideal mixing on the sites,
+# with a constant capacitance or without, whose charging energy is a convex
+# quadratic of the surface charge.
+_site_mixing_convex(::IdealSiteMixing) = true
+_site_mixing_convex(m::ConstantCapacitance) = _site_mixing_convex(m.base)
+_site_mixing_convex(::AbstractSiteMixingModel) = false
+
+"""
+    _reduced_curvature(J, A, n, Aq, floor) -> Float64
+
+The smallest eigenvalue of the Hessian of the Gibbs energy over the directions
+that conserve matter and move only the species present, `J` being the Jacobian of
+the log activities at `n` (the Hessian of `G/RT`, symmetric where this is called).
+
+The species present are those above `floor`; the directions are the null space of
+their columns of the conservation matrix, with the columns `Aq` of a constraint's
+titrant, along which the energy is linear. The coordinates are scaled by `√nᵢ`, so
+that an ideal solute contributes exactly one whatever its amount, and the figure is
+dimensionless. Positive, the point is a strict local minimum on its active set;
+negative, a direction lowers the energy and the point is a saddle. `Inf` when no
+direction is free.
+"""
+function _reduced_curvature(J, A, n, Aq, floor)
+    F = findall(>(floor), n)
+    isempty(F) && return Inf
+    d = sqrt.(n[F])
+    H = d .* ((J[F, F] .+ transpose(J[F, F])) ./ 2) .* transpose(d)
+    C = A[:, F] .* transpose(d)
+    nq = Aq === nothing ? 0 : size(Aq, 2)
+    if nq > 0
+        C = hcat(C, Aq)
+        H = [H zeros(length(F), nq); zeros(nq, length(F) + nq)]
+    end
+    Z = nullspace(C)
+    size(Z, 2) == 0 && return Inf
+    return eigmin(Symmetric(transpose(Z) * H * Z))
+end
+
+"""
+    _certificate_scope(des, p, n, constraint; Aq = nothing, floor = _CERTIFICATE_FLOOR)
+        -> (scope, reasons, curvature)
 
 What `optimal = true` proves for the problem at the composition `n`:
 
   - `:global_minimum` when the log activities are the gradient of one Gibbs
-    energy, every mixing energy is convex and the constraint is variational, so
-    that the optimality conditions are sufficient;
-  - `:kkt_point` when the activities are such a gradient but a mixing energy is
-    concave somewhere (a miscibility gap, where present phases are tested
-    against splitting in addition) or the constraint is not variational;
+    energy, that energy is proved convex over the whole domain — the ideal
+    phases, the aqueous models of [`_aqueous_convexity`](@ref), convex solid
+    solutions and ideal site mixing — and the constraint is variational, so that
+    the optimality conditions are sufficient;
+  - `:local_minimum` when the activities are such a gradient and the constraint
+    variational, convexity is not proved, and the Hessian of the energy over the
+    directions that conserve matter is positive definite at the answer: a strict
+    local minimum, which a non-convex model can hold beside others;
+  - `:kkt_point` when that Hessian is not positive definite — a saddle if a
+    direction lowers the energy, a minimum that is not strict if one leaves it
+    flat — or when the constraint is not variational;
   - `:self_consistent` when the activities are not the gradient of one energy,
     which is the case of the extended activity models in general use and of a
     diffuse layer: the conditions then state a composition consistent with its
     own activities, not the minimum of an energy.
 
-`reasons` says which property decided, in words.
+`reasons` says which property decided, in words, and `curvature` is the smallest
+eigenvalue of [`_reduced_curvature`](@ref) (`NaN` where it is not computed: no
+energy, or a constraint that is not variational).
 """
-function _certificate_scope(des::DualEquilibriumSolver, p, n, constraint)
+function _certificate_scope(des::DualEquilibriumSolver, p, n, constraint; Aq = nothing, floor::Real = _CERTIFICATE_FLOOR)
     reasons = String[]
-    level = 3
+    gradient = true
     cs = des.system
     J = ForwardDiff.jacobian(x -> des.lna(x, p), n)
     asym, (i, j) = _jacobian_asymmetry(J)
     if asym > _SCOPE_ASYMMETRY
-        level = 1
+        gradient = false
         push!(
             reasons,
             "the log activities are not the gradient of one Gibbs energy: their " *
@@ -775,26 +899,36 @@ function _certificate_scope(des::DualEquilibriumSolver, p, n, constraint)
                 "$(symbol(cs.species[i])) and $(symbol(cs.species[j]))",
         )
     end
+    convex = true
     fams = cs.site_families
     if fams !== nothing
         for f in fams
-            is_gradient_consistent(f.model) && continue
-            level = 1
-            push!(
-                reasons,
-                "the site family $(name(f)) carries a diffuse layer, whose potential " *
-                    "depends on the ionic strength of a solution that does not depend " *
-                    "on the surface in return",
-            )
+            if !is_gradient_consistent(f.model)
+                gradient = false
+                push!(
+                    reasons,
+                    "the site family $(name(f)) carries a diffuse layer, whose potential " *
+                        "depends on the ionic strength of a solution that does not depend " *
+                        "on the surface in return",
+                )
+            elseif !_site_mixing_convex(f.model)
+                convex = false
+                push!(reasons, "the mixing energy of the site family $(name(f)) has no convexity proof")
+            end
         end
     end
+    gradient || return (:self_consistent, reasons, NaN)
     if !_is_variational(constraint)
-        level = min(level, 2)
         push!(
             reasons,
             "the constraint $(nameof(typeof(constraint))) leaves a system of " *
                 "optimality conditions whose sufficiency is not established",
         )
+        return (:kkt_point, reasons, NaN)
+    end
+    if !isempty(cs.idx_solvent)
+        ok, why = _aqueous_convexity(des.model, cs, p)
+        ok || (convex = false; push!(reasons, "the aqueous phase: " * why))
     end
     ss = cs.solid_solutions
     if ss !== nothing
@@ -807,7 +941,7 @@ function _certificate_scope(des::DualEquilibriumSolver, p, n, constraint)
                 nothing
             c = mixing_convexity(ph.model, length(ph.end_members); T = ForwardDiff.value(T), g)
             c.verdict === :convex && continue
-            level = min(level, 2)
+            convex = false
             push!(
                 reasons,
                 c.verdict === :nonconvex ?
@@ -819,7 +953,26 @@ function _certificate_scope(des::DualEquilibriumSolver, p, n, constraint)
             )
         end
     end
-    return (:self_consistent, :kkt_point, :global_minimum)[level], reasons
+    λ = _reduced_curvature(J, des.A, n, Aq, floor)
+    convex && return (:global_minimum, reasons, λ)
+    if λ > _REDUCED_CURVATURE_TOL
+        push!(
+            reasons,
+            "the Hessian of the energy over the directions that conserve matter is " *
+                "positive definite (smallest eigenvalue $(round(λ; sigdigits = 3))): a strict " *
+                "local minimum",
+        )
+        return (:local_minimum, reasons, λ)
+    end
+    push!(
+        reasons,
+        λ < -_REDUCED_CURVATURE_TOL ?
+            "a direction that conserves matter lowers the energy (curvature " *
+            "$(round(λ; sigdigits = 3))): the point is a saddle, not a minimum" :
+            "the energy is flat along a direction that conserves matter: the minimum " *
+            "is not strict",
+    )
+    return (:kkt_point, reasons, λ)
 end
 
 """

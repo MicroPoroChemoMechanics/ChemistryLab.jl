@@ -115,9 +115,8 @@ adopts.
 
 Water is referred to the pure liquid at the temperature of the system, with
 Raoult's law as the ideal limit, so that ``a_w \to 1`` as the solution tends to
-pure water. The dilute model takes ``a_w = x_w``, the mole fraction of water in
-the aqueous phase. The other models obtain it from the osmotic coefficient
-``\varphi``,
+pure water. The models obtain it from the osmotic coefficient ``\varphi``, which
+is one for the ideal dilute model,
 
 ```math
 \ln a_w = -M_w\,\varphi \sum_j m_j ,

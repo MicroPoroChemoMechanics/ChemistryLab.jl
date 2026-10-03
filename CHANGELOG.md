@@ -38,6 +38,74 @@
   counts (220 of 228, 52 phases) were those of an older file, and its test now
   checks the numbers the page prints.
 
+### Changed: one equilibrium, whatever the back end
+
+- **Ipopt computed another composition than the equilibrium.** It minimizes
+  `n⋅μ(n)`, whose gradient is `μ + Jᵀn`, and `Jᵀn = 0` is the Gibbs–Duhem
+  relation, which the B-dot model, Davies with a neutral solute and SIT do not
+  satisfy: the minimum of `n⋅μ(n)` is then not where `μ(n) = −Aᵀy`, the
+  conditions the dual Newton solves and the certificate audits. On calcite and
+  carbon dioxide in a sodium chloride solution under Davies, Ipopt's dissolved
+  calcium was 7e-4 away from the equilibrium's, against 2e-6 under the ideal
+  model, while the element balance held to 1e-15 mol either way. The
+  logarithmic route of OptimaSolver differentiated the same scalar.
+- **Every back end's answer is now polished by the dual Newton** when
+  OptimaSolver is loaded and the system has an aqueous phase with `H2O@`: the
+  dual Newton is started from it, and the composition it certifies is returned,
+  by `equilibrate(state, solver)`, by `equilibrate(state; certify = false)` and by
+  `solve(::EquilibriumSolver, state)` alike. The logarithmic route of
+  OptimaSolver is handed the gradient `n ∘ μ`, as the linear one is handed `μ`.
+  Where a back end only supplies a start, to the certified search, the homotopy,
+  a kinetic run or its replay, its answer is not polished twice.
+- **The derivatives through a back end were those of another map.** They were
+  lifted with the conditions of the dual Newton at an answer that did not
+  satisfy them; they are now lifted at the polished answer, which does, and equal
+  those of the certified route.
+- **Without OptimaSolver**, nothing can polish, and a back end that minimizes
+  `n⋅μ(n)` refuses an activity model that breaks the Gibbs–Duhem relation, with
+  an error that names the species where it fails.
+- **`certify` has three values.** `nothing`, the default, certifies where the
+  certified search applies and takes the single back end elsewhere, as `true`
+  did; an explicit `true` now refuses a system where it does not apply rather
+  than return an answer that was never certified; `false` takes the single back
+  end, polished. `equilibrate(…; certificate = Ref{Any}())` receives the
+  certificate of the answer returned, or `nothing` when none was computed.
+
+### Changed: Gibbs–Duhem exact for the ideal model and for Davies
+
+- **The ideal model broke the Gibbs–Duhem relation on its solvent.** Its solutes
+  are `ln mᵢ`, and their partner is `ln a_w = −M_w Σ m`, where it took Raoult's
+  mole fraction `ln x_w`, off by `1 − x_w`: its activities were not the
+  gradient of a Gibbs energy, the certificate of an ideal equilibrium was
+  `:self_consistent`, and Ipopt alone minimized another function than the
+  energy. The solvent row is now `−M_w Σ m`; `ln a_w` moves by `(M_w Σ m)²/2`,
+  2e-8 on the calcite reference, where the comparison with Reaktoro is unchanged.
+- **So did Davies.** Its ions carry one function of `I` times `zᵢ²`, whose
+  Gibbs–Duhem partner for the solvent has a closed form, now used in place of
+  Raoult's: with ions alone, or with `bₙ = 0`, Davies derives from one Gibbs
+  energy. A neutral species with `bₙ ≠ 0` still breaks the symmetry, and says
+  so. The page comparing the activity models measured the Gibbs–Duhem residual
+  by finite differences and concluded that Davies was less consistent than the
+  ideal model; it is measured by automatic differentiation, and in a single
+  salt every model now satisfies the relation to rounding.
+
+### Changed: what a certificate proves
+
+- **A saddle could be certified a global minimum.** The scope rested on the
+  symmetry of the Jacobian alone, which says that an energy exists, not that it
+  is convex: a synthetic Pitzer set with `β⁽⁰⁾ = −1`, under which dissolving
+  halite into a sodium chloride solution lowers the Gibbs energy, was scoped
+  `:global_minimum`, and so was HKF with an ion size of 1 Å.
+- `:global_minimum` now rests on a convexity proved over the whole domain: ideal
+  mixing, convex solid solutions, ideal site mixing, the ideal dilute model, and
+  a Debye–Hückel form with one function of `I` under the bound
+  `ln(10)·A·z_max²/(8·B·å) ≤ 1` (0.45 for divalent ions of 4 Å at 25 °C), whose
+  derivation is on the page of the certificate. Elsewhere the Hessian of the
+  energy over the directions that conserve matter decides: positive definite, the
+  new scope `:local_minimum`; otherwise `:kkt_point`, with the reason, a saddle
+  or a flat direction. The certificate reports its smallest eigenvalue as
+  `reduced_curvature`, and documents `stationarity_abs`.
+
 ### Changed: pressure enters the gases and the condensed phases
 
 - **A gas's activity ignored the pressure.** Every activity model gave a gas

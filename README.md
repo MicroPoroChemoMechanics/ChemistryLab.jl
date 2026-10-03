@@ -75,9 +75,12 @@ using Optimization, OptimizationIpopt   # optional: Ipopt, a further starting po
 ```
 
 OptimaSolver is the default backend whenever it is loaded, whatever the load
-order, and it carries the KKT solver that certifies an equilibrium. Ipopt alone
-also solves, along a single uncertified path; with both loaded, the certified
-search starts from each of them.
+order, and it carries the KKT solver that certifies an equilibrium. With both
+loaded, the certified search starts from each of them, and the answer of either,
+asked for alone, is polished by that KKT solver into the same equilibrium. Ipopt
+alone minimizes `n⋅μ(n)`, which is the Gibbs energy only for an activity model
+satisfying the Gibbs–Duhem relation (the ideal model, Pitzer, Davies on ions);
+it refuses the others rather than return another composition.
 
 All backends are optional (`[weakdeps]`); parsing, species/system/state handling,
 databases and thermodynamic data work without any of them.
@@ -246,7 +249,7 @@ moles(state_eq)       # mole amounts by phase (liquid / solid / gas / total)
 moles(state_eq, "Ca+2")  # moles of a specific species
 ```
 
-With OptimaSolver loaded and an aqueous phase holding `H2O@`, `equilibrate` solves from every available back end and returns the answer its optimality certificate accepts (`equilibrate_certified` returns the certificate too); `certify = false`, or a solver passed explicitly, uses a single back end. The `model` keyword sets the aqueous activity model:
+With OptimaSolver loaded and an aqueous phase holding `H2O@`, `equilibrate` solves from every available back end and returns the answer its optimality certificate accepts (`equilibrate_certified` returns the certificate too); `certify = false`, or a solver passed explicitly, uses a single back end, whose answer is polished into the same equilibrium, and `certify = true` refuses a system the certified search does not apply to. The `model` keyword sets the aqueous activity model:
 
 ```julia
 state_eq = equilibrate(state0; model = HKFActivityModel())   # extended Debye-Hückel

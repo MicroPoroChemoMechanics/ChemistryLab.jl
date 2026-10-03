@@ -4,10 +4,11 @@
     [Activity models](@ref sec-theory-activity).
 
 [Activity models](@ref sec-theory-activity) sets out what the three built-in
-models are and where each comes from. This page puts numbers on the difference,
-because the answer is not the one a reader would guess: the models disagree
-mildly about the *value* of the water activity and enormously about its
-*derivative*, and equilibrium is set by the derivative.
+models are and where each comes from. This page puts numbers on the difference:
+the models disagree about the activity coefficients from a tenth molal, barely
+about the water activity below a molal, and, in a single electrolyte, not at all
+about whether the solvent and the solutes form one thermodynamic system; that
+last question is decided in a mixed solution with a neutral species.
 
 A fourth column, `Cemdata18`, is the B-dot model again, with the parameters
 Cemdata18 prescribes for the pore solution of a cement
@@ -23,6 +24,7 @@ using ChemistryLab
 using DynamicQuantities
 using Printf
 using LinearAlgebra
+using ForwardDiff
 
 substances = build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false)
 dict = Dict(symbol(s) => s for s in substances)
@@ -124,11 +126,13 @@ within 2 % of the B-dot column up to a tenth molal. Above, its larger linear ter
 takes over sooner: 0.78 against 0.65 at 1 mol/kg, and above 1 at 3 mol/kg, past
 the ionic strength of about 1 mol/kg up to which Cemdata18 states it.
 
-Now the ``a_w`` columns, and here the surprise: **they barely separate at all.**
-The Raoult and osmotic routes differ by less than one percent even at
-3 mol/kg; only the Cemdata18 constants move the water activity further, to 0.868
-at 3 mol/kg. It would be easy to conclude that the water-activity route is a
-detail.
+Now the ``a_w`` columns: **they barely separate below a molal**, within 0.4 %
+of one another at 1 mol/kg. At 3 mol/kg the ideal 0.898 and the B-dot 0.895
+still sit together, while Davies and the Cemdata18 constants, whose linear terms
+weigh more, take the water activity to 0.860 and 0.868. Each of these is the
+solvent row the Gibbs-Duhem relation pairs with the model's own activity
+coefficients, so a difference in ``a_w`` is a difference in ``\gamma`` seen from
+the solvent.
 
 Seen as curves rather than as a table, the separation is a matter of where each
 model leaves the limiting law:
@@ -161,19 +165,16 @@ end
 plot(p2; size = (720, 430), left_margin = 10Plots.mm, bottom_margin = 8Plots.mm)
 ```
 
-The ideal and Davies curves lie on top of each other in the second figure —
-both are Raoult — and the B-dot curve is a fraction of a percent away; the
-Cemdata18 one leaves them above 1 mol/kg. A reader
-stopping here would conclude that the water-activity route is a detail. The next
-section is why that conclusion is wrong.
+The four curves lie together up to a molal, and the two with the larger linear
+term leave the others above it.
 
-## 4. Gibbs-Duhem: the values agree, the derivatives do not
+## 4. Gibbs-Duhem: one system, or two halves
 
 Equilibrium is set by chemical potentials, that is by derivatives of the
-activities with respect to composition — not by their values. So the test that
-matters is whether ``\sum_i n_i\,\mathrm{d}\mu_i = 0`` holds along a composition
-change, and it is measured here along three directions, because each exposes a
-different defect.
+activities with respect to composition. So the test that matters is whether
+``\sum_i n_i\,\mathrm{d}\mu_i = 0`` holds along a composition change, measured
+here along three directions, with the derivative taken by automatic
+differentiation so that nothing but the algebra is measured.
 
 ```@example am
 cs3 = ChemicalSystem([dict[s] for s in split("H2O@ Na+ Cl-")], ["H2O@", "Na+", "Cl-"])
@@ -184,8 +185,7 @@ function gd_residual(mod, m, dn)
     μ = build_potentials(cs3, mod)
     p = (ΔₐG⁰overRT = zeros(3), T = 298.15, P = 1.0e5, ϵ = 1.0e-30)
     n0 = [n_w, m, m]
-    δ = 1.0e-6
-    dμ = (μ(n0 + δ * dn, p) - μ(n0, p)) / δ
+    dμ = ForwardDiff.jacobian(n -> μ(n, p), n0) * dn
     return abs(sum(n0 .* dμ)) / max(norm(n0 .* abs.(dμ)), 1.0)
 end
 
@@ -201,60 +201,51 @@ for (name, dn) in ("dissolution   dn = (0, +1, +1)" => [0.0, 1.0, 1.0],
 end
 ```
 
-Three readings, and they are why this page exists.
-
-**Along a true dissolution**, the B-dot model is consistent to the precision of
-the finite difference that measures it: its residual, a few ``10^{-7}``, is the
-truncation error of the ``10^{-6}`` step, the level every model shows along the
-ion exchange below. Davies is off by ``10^{-2}`` to ``10^{-1}``. And Davies is **worse than assuming ideality** — not a
-paradox but the direct consequence of its construction: correcting the solutes
-while leaving the solvent at ``a_w = x_w`` makes the two halves of one model
-contradict each other, whereas the ideal model at least contradicts itself less.
-A model can be *more* wrong for being *partly* corrected.
-
-**Along an ion exchange** at constant ``I`` and constant ``\sum m``, the three
-models are indistinguishable — their coefficients depend on ``I`` alone, which
-does not move — and what is left is the truncation error of the finite
-difference. The B-dot model's one approximation, a single charge-weighted mean
-ion size in its osmotic coefficient, costs nothing here: in NaCl both ions
-carry the ion size of the salt. It would show in a solution whose ions differ
-in size.
-
-**Along water removal** — the direction a drying paste takes — the ordering is
-the same as for dissolution, and the gap widens as the solution concentrates.
-
-The `Cemdata18` column follows the B-dot one to the printed digits along the
-first two directions, and along the third both stay below 2·10⁻⁹: the
-same formula with other constants is consistent in the same way.
-
-So the water-activity route is not a refinement on a number that hardly moves.
-It decides whether the model is one thermodynamic system or two halves that
-disagree, and only the derivatives show it.
+In sodium chloride every model is consistent to rounding, along every
+direction: each builds its solvent row from its own solutes' terms, the ideal
+model as ``-M_w \sum m``, Davies by a closed form, the B-dot model by integrating
+its ``A``, ``B`` and ``\dot{B}``, and with two ions of one charge and one size
+nothing is left to break the relation. What breaks it is what a single salt
+cannot show: ions of different sizes or charges under a linear term, and neutral
+species carrying a salting-out coefficient that the ions' coefficients do not
+return. A mixed solution, sodium and calcium chlorides and sulfates with
+dissolved carbon dioxide, shows it, through the symmetry of the Jacobian of the
+log activities and the Gibbs-Duhem relation over all its columns:
 
 ```@example am
-p3 = plot(; xscale = :log10, yscale = :log10, xlabel = "molality m (mol/kg)",
-    ylabel = "Gibbs-Duhem residual", legend = :topleft,
-    title = "…and the derivatives separate by orders of magnitude")
-mm = [0.03, 0.1, 0.3, 1.0, 3.0]
-for ((name, mod), col) in zip(models, (:gray, :firebrick, :steelblue, :darkorange))
-    μ = build_potentials(cs3, mod)
-    r = [max(gd_residual(mod, m, [0.0, 1.0, 1.0]), 1.0e-16) for m in mm]
-    plot!(p3, mm, r; label = name, linewidth = 2, color = col, marker = :circle)
+csm = ChemicalSystem([dict[s] for s in split("H2O@ Na+ Ca+2 Cl- SO4-2 CO2@")],
+                     ["H2O@", "Na+", "Ca+2", "Cl-", "SO4-2", "CO2@"])
+amt = Dict("H2O@" => n_w, "Na+" => 0.2, "Ca+2" => 0.02, "Cl-" => 0.2,
+           "SO4-2" => 0.02, "CO2@" => 0.01)
+nm = [amt[symbol(s)] for s in csm.species]
+pm = ChemistryLab._build_params(ChemicalState(csm, nm .* u"mol"))
+println("             symmetry   Gibbs-Duhem")
+for (name, mod) in models
+    J = ForwardDiff.jacobian(n -> activity_model(csm, mod)(n, pm), nm)
+    sym = ChemistryLab._jacobian_asymmetry(J)[1]
+    gd = ChemistryLab._gibbs_duhem_defect(J, nm)[1]
+    @printf("%-10s  %10.3e  %10.3e\n", name, sym, gd)
 end
-plot(p3; size = (720, 430), left_margin = 10Plots.mm, bottom_margin = 8Plots.mm)
 ```
 
-Along a dissolution, on a logarithmic axis: Davies sits above the ideal model at
-every molality, and the B-dot model below both, at the noise of the finite
-difference.
+The ideal model stays exact. The other three are not the gradient of a Gibbs
+energy here: Davies through the salting-out term of the dissolved carbon dioxide
+alone (with `bₙ = 0` it is exact), the B-dot model through its ion sizes, its
+linear term and that same salting-out, and the Cemdata18 constants, which give
+the neutral species the ions' linear coefficient, most of all. Their certified
+equilibria are then compositions consistent with their own activities rather
+than minima of an energy, which is what their certificate's `scope` says, and an
+optimizer minimizing ``\mathbf{n}\cdot\boldsymbol{\mu}(\mathbf{n})`` would not find
+them: see [One equilibrium, whatever the back end](@ref).
 
 ## What to take from this
 
   - below ``I \approx 0.01`` mol/kg the choice hardly matters, and
     [`DiluteSolutionModel`](@ref) is the best-conditioned objective;
-  - between there and about a molal, use [`HKFActivityModel`](@ref) — and use it
-    rather than [`DaviesActivityModel`](@ref) whenever the water activity enters
-    the question, which in a hydrating paste it always does. For the pore
+  - between there and about a molal, use [`HKFActivityModel`](@ref), whose ion
+    sizes distinguish the ions Davies treats alike, and which follows the
+    measured coefficients further than Davies once their linear terms take
+    over. For the pore
     solution of a cement, [`cemdata18_activity_model`](@ref) gives it the
     parameters Cemdata18 prescribes, which the paper states valid to about
     1 mol/kg, and a certified answer reports its ionic strength against that;

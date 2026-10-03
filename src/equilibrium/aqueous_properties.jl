@@ -1153,7 +1153,8 @@ function _homotopy_rung(cs, A, i_w, n0, model, λ, start, ϵ, verbose, atol, rto
         stepped = nothing
         try
             esolver = EquilibriumSolver(cs, model, f())
-            stepped = SciMLBase.solve(esolver, from; ϵ = ϵ, b = bλ)
+            # A rung is a start; the certified search that walks it polishes it.
+            stepped = _unpolished(() -> SciMLBase.solve(esolver, from; ϵ = ϵ, b = bλ))
         catch err
             verbose && @info "homotopy rung raised" λ = λ backend = f err
             continue

@@ -62,13 +62,40 @@ at 15 % of a correction the next iteration re-poses — traced over twenty-three
 iterations with the residual frozen at 3.0e-6 and `‖dn‖` decaying at `1 − α`.
 
 ```julia
-state_eq = equilibrate(state)                   # certified (the default)
-state_eq = equilibrate(state; certify = false)  # one back end, as before
+state_eq = equilibrate(state)                   # certified where it can be (the default)
+state_eq = equilibrate(state; certify = false)  # one back end, polished
+state_eq = equilibrate(state; certify = true)   # certified, or an error
 eq, cert = equilibrate_certified(state)         # when the proof itself is wanted
 ```
 
 Pass a solver explicitly — `equilibrate(state, OptimaOptimizer())` — to use that
-one back end and nothing else.
+one back end without the search. Its answer is still polished, as described
+next, and `certificate = Ref{Any}()` receives the certificate of what is
+returned, `nothing` when none could be computed.
+
+### One equilibrium, whatever the back end
+
+The back ends do not all solve the same equations. Ipopt minimizes the scalar
+`n⋅μ(n)`, the interior point of OptimaSolver steers on the gradient `μ`, and the
+dual Newton solves the conditions of equilibrium themselves, `μ(n) = −Aᵀy` on the
+species present. The gradient of `n⋅μ(n)` is `μ + Jᵀn`, where `J = ∂μ/∂n`, and
+`Jᵀn = 0` is the Gibbs–Duhem relation: where the activity model satisfies it,
+`n⋅μ(n)` is the Gibbs energy and the three agree; where it does not, the minimum
+of `n⋅μ(n)` is another composition. The ideal model, Pitzer, Davies on ions and
+the Debye–Hückel form with one ion size satisfy it; the B-dot model with its ion
+sizes and linear terms, Davies with a neutral solute and SIT do not. On calcite
+and carbon dioxide in a sodium chloride solution, Ipopt's answer meets the
+element balance to 1e-15 mol under every model; its dissolved calcium is the
+equilibrium's to 2e-6 under the ideal model, and 7e-4 off under Davies, whose
+dissolved carbon dioxide carries a salting-out term with no partner.
+
+So every back end's answer is **polished**: the dual Newton is started from it,
+and the composition it certifies is the one returned. The route then decides how
+fast the answer is reached, not which answer it is, and a derivative taken through
+it is that of the composition returned. Without OptimaSolver nothing can polish,
+and a back end that minimizes `n⋅μ(n)` refuses a model that breaks the
+Gibbs–Duhem relation, with an error that names it, rather than return a
+composition that is not the equilibrium.
 
 ### What the certified route does first
 
@@ -232,16 +259,16 @@ speciation, and `pH`, `pOH`, `porosity` and `saturation` come back as duals too.
 
 Crossing the **solve** works as well, and without asking any solver to iterate on
 dual numbers — Ipopt is a C library and never could. The equilibrium is solved
-once at the primal values, by the back end chosen, and the sensitivities come
-from the optimality conditions at the answer, the implicit-function-theorem
-route:
+once at the primal values, by the back end chosen and polished, and the
+sensitivities come from the conditions of equilibrium at the answer, the
+implicit-function-theorem route:
 
 ```math
 \begin{bmatrix} \mathbf{H} & \mathbf{A}^\mathsf{T} \\ \mathbf{A} & \mathbf{0} \end{bmatrix}
 \begin{bmatrix} \dot{\mathbf{n}} \\ \dot{\mathbf{y}} \end{bmatrix}
 =
-\begin{bmatrix} -\partial_\theta \nabla G \\ \dot{\mathbf{b}} \end{bmatrix},
-\qquad \mathbf{H} = \nabla^2 G(\mathbf{n}^\star),
+\begin{bmatrix} -\partial_\theta \boldsymbol{\mu} \\ \dot{\mathbf{b}} \end{bmatrix},
+\qquad \mathbf{H} = \frac{\partial \boldsymbol{\mu}}{\partial \mathbf{n}}(\mathbf{n}^\star),
 ```
 
 restricted to the species actually present. One factorization serves every
@@ -268,12 +295,12 @@ routes lift one level of duals at a time, so that a derivative nested in another
 (a gradient differentiated again for a Hessian, as an inversion needs) is exact
 at every level, and both lift whatever carries the duals: the amounts, the
 temperature, the budget, the standard potentials of the species or the
-parameters of the activity model. The derivative is that at the answer the back
-end returned, which is the equilibrium as far as it converged; the certified
-route is the one whose answer is proved. Without OptimaSolver, a single back end
-falls back to a sensitivity solved in `Float64`, for the amounts of the state
-only and one level deep, and refuses the rest rather than return derivatives
-that are not there.
+parameters of the activity model. The conditions lifted are those the polished
+answer satisfies, so the derivative is that of the map the solve returns, which
+is what a derivative by finite differences of that map would approach. Without
+OptimaSolver, a single back end falls back to a sensitivity solved in
+`Float64`, for the amounts of the state only and one level deep, and refuses the
+rest rather than return derivatives that are not there.
 
 !!! note "Why the complementarity conditions cannot be skipped"
     The stationarity conditions are `∇G − Aᵀy − z = 0`, `A n = b`, `nᵢzᵢ = 0`,

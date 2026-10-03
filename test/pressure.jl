@@ -130,4 +130,27 @@ using JSON
         @test lnr[2] - lnr[1] ≈ log(10) - (g_aq[2] - g_aq[1]) + (g_gas[2] - g_gas[1]) atol = 1.0e-8
         @test g_gas[2] == g_gas[1]
     end
+
+    # Two gases: each meets its solute at its own fugacity xᵢ P. The dual solver
+    # files a gas among the pure phases, which holds because a present gas is
+    # solved on its own stationarity with the activity of the mixture.
+    @testset "a gas mixture: each gas at its fugacity" begin
+        cs = ChemicalSystem([cem["H2O@"], cem["CO2@"], cem["CO2"], cem["N2"]], ["H2O@", "CO2@", "N2"])
+        model = DiluteSolutionModel()
+        μ = build_potentials(cs, model)
+        P = 2.0e5
+        st = ChemicalState(cs; P = P * u"Pa")
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "CO2", 0.5u"mol")
+        set_quantity!(st, "N2", 0.5u"mol")
+        eq, cert = equilibrate_certified(st; model)
+        @test cert.optimal
+        n = ustrip.(us"mol", eq.n)
+        p = ChemistryLab._build_params(eq)
+        mu = μ(n, p)
+        x = n[3] / (n[3] + n[4])
+        @test mu[3] ≈ p.ΔₐG⁰overRT[3] + log(x) + log(P / P_STANDARD) atol = 1.0e-12
+        @test mu[2] ≈ mu[3] atol = 1.0e-8
+        @test n[4] ≈ 0.5 rtol = 1.0e-12
+    end
 end

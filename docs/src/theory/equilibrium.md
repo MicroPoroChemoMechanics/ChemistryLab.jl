@@ -162,25 +162,109 @@ acid–base system and returns pH 7.000 with the calcite undissolved.
 ### [What the certificate proves, and when](@id sec-theory-certificate-scope)
 
 The three conditions are sufficient for a global minimum only when the chemical
-potentials are the gradient of one Gibbs energy and that energy is convex. The
-second property belongs to the declarations: a solid solution declared inside a
-miscibility gap has a concave mixing energy, and a constraint that shifts the
-activity of water through a retention law, or that makes the temperature an
-unknown, leaves optimality conditions whose sufficiency is not established. The
-first property can be measured at the audited composition, since the second
-derivatives of one energy commute: the Jacobian of the log activities has to be
-symmetric. It is for the Debye-Hückel form with a common ion size and no linear
-term, and for Pitzer's equations; it is not for the ideal dilute model, whose
-water activity is a mole fraction, nor for the extended forms in general use,
-B-dot and Davies, whose linear and salting-out terms break the symmetry, nor for
+potentials are the gradient of one Gibbs energy and that energy is convex over
+the feasible set. The first property can be measured at the audited composition,
+since the second derivatives of one energy commute: the Jacobian of the log
+activities has to be symmetric. It is for the ideal dilute model, whose solvent
+row is the partner of the solutes' ``\ln m_i``, for Davies on ions, for the
+Debye-Hückel form with a common ion size and no linear term, and for Pitzer's
+equations; it is not for the extended forms in general use, B-dot with its ion
+sizes and its linear term and Davies with a neutral solute, nor for SIT, nor for
 a diffuse layer. With these, a certified equilibrium is a composition consistent
 with its own activities rather than the minimum of an energy.
 
-The certificate reports which case applies as `scope`: `:global_minimum`,
-`:kkt_point` when the conditions hold without being known to be sufficient, as
-in the two cases of the second property, or `:self_consistent` when the
-activities fail the first, with the reasons in `scope_reasons`. `optimal` keeps its meaning in all three,
-the conditions being met to tolerance.
+The second property is not a property of the point: a Hessian positive at the
+answer proves a minimum there and nothing elsewhere. A global scope therefore
+rests on a convexity established for every composition, phase by phase, the
+Gibbs energy being the sum of the energies of the phases. A pure phase
+contributes linearly; an ideal mixture (a gas, an ideal solid solution, ideal
+site mixing, a constant capacitance, whose charging energy is a convex quadratic
+of the charge) a convex function; a non-ideal solid solution what
+[`mixing_convexity`](@ref) decides; and the aqueous phase what follows.
+
+#### A convexity bound for the Debye-Hückel form
+
+Let every ion carry ``\ln\gamma_i = -A' z_i^2 f(I)``, ``A' = \ln 10\,A``, with
+one function ``f`` for all of them, ``f(I) = \sqrt{I}/(1+\kappa\sqrt{I})`` and
+``\kappa = B\mathring{a}`` for the Debye-Hückel form with a common ion size, and
+let the neutral solutes carry none. With ``w = n_w M_w`` the mass of solvent and
+``I = \sum_s z_s^2 n_s/(2w)``, the sums over ``s`` running over the solutes,
+these coefficients and the solvent row the Gibbs-Duhem relation pairs with them
+derive from
+
+```math
+\frac{G}{RT} = \sum_i n_i \frac{\mu_i^\circ}{RT}
+  + \sum_s n_s\Big(\ln\frac{n_s}{w} - 1\Big) + w\,h(I) ,
+\qquad h' = -2A' f .
+```
+
+The ideal part has the quadratic form
+
+```math
+Q(\mathbf{v}) = \sum_s n_s\, u_s^2 ,
+\qquad u_s = \frac{v_s}{n_s} - \frac{v_w}{n_w} ,
+```
+
+which is positive. The excess part ``E = w\,h(I)`` has the differential
+``\mathrm{d}E = h M_w\,\mathrm{d}n_w + h'\,\mathbf{c}\cdot\mathrm{d}\mathbf{n}``,
+with ``c_s = z_s^2/2`` and ``c_w = -I M_w``, so that
+``w\,\mathrm{d}I = \mathbf{c}\cdot\mathrm{d}\mathbf{n}``. Differentiating once more,
+the two terms in ``\mathrm{d}n_w\,\mathrm{d}I`` cancel and
+
+```math
+\mathrm{d}^2 E = \frac{h''}{w}\,(\mathbf{c}\cdot\mathbf{v})^2 ,
+```
+
+a term of rank one, negative wherever ``f`` increases. Substituting
+``v_s = n_s(u_s + v_w/n_w)``, the solvent terms cancel,
+``\mathbf{c}\cdot\mathbf{v} = \sum_s \tfrac{1}{2} z_s^2 n_s u_s``, and the
+Cauchy-Schwarz inequality bounds it by the ideal part,
+
+```math
+(\mathbf{c}\cdot\mathbf{v})^2
+\le Q(\mathbf{v}) \sum_s \frac{z_s^4 n_s}{4}
+\le Q(\mathbf{v})\,\frac{z_{\max}^2}{2}\, w I .
+```
+
+The Hessian is therefore positive as soon as ``-h''(I)\,z_{\max}^2 I/2 \le 1``,
+that is ``A' z_{\max}^2\, I f'(I) \le 1``. For the Debye-Hückel form,
+``I f'(I) = \sqrt{I}/\big(2(1+\kappa\sqrt{I})^2\big)``, whose supremum, reached
+at ``\sqrt{I} = 1/\kappa``, is ``1/(8\kappa)``, so that the condition
+
+```math
+\frac{\ln 10\; A\, z_{\max}^2}{8\, B\mathring{a}} \le 1
+```
+
+proves the aqueous phase convex whatever its composition. At 25 °C, with
+``A = 0.5114`` and ``B = 0.3288``, it is 0.45 for divalent ions and an ion size
+of 4 Å, and 1.01 for trivalent ones, which are therefore not proved; the limiting
+law, without an ion size, never is. Davies' form has ``\kappa = 1`` and adds
+``A' b\, z_i^2 I`` to ``\ln\gamma_i``, the derivative of
+``w A' b I^2 = A' b\,(\sum_s z_s^2 n_s)^2/(4w)``, a convex function (a square
+over a positive linear one), so that the same argument proves it convex when
+``\ln 10\,A z_{\max}^2/8 \le 1``: 0.59 for divalent ions.
+
+#### Where convexity is not proved
+
+The certificate then asks what the answer is. The Hessian of ``G/RT`` is the
+Jacobian of the log activities, symmetric here; restricted to the species
+present, to the directions ``\mathbf{v}`` that conserve matter,
+``\mathbf{A}\mathbf{v} = 0``, and scaled by ``\sqrt{n_i}`` so that an ideal solute
+contributes exactly one whatever its amount, its smallest eigenvalue is reported
+as `reduced_curvature`. Positive, the answer is a strict local minimum on its
+active set, which a non-convex model may hold beside others. Negative, a
+direction that conserves matter lowers the energy and the answer is a saddle: a
+Pitzer set whose ``\beta^{(0)}`` is made strongly negative places a sodium chloride
+solution saturated with halite there. Zero, the minimum is not strict.
+
+The certificate reports which case applies as `scope`, with the reasons in
+`scope_reasons`: `:global_minimum` when both properties hold and the constraint
+is variational; `:local_minimum` when the energy exists, its convexity is not
+proved and the reduced curvature is positive; `:kkt_point` when that curvature
+is not positive, or when the constraint is not variational (a retention law that
+shifts the activity of water, a temperature or a pressure made an unknown); and
+`:self_consistent` when the activities are not a gradient. `optimal` keeps its
+meaning in all four, the conditions being met to tolerance.
 
 ## [Mass action or minimization](@id sec-theory-mass-action)
 
