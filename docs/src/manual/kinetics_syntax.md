@@ -151,7 +151,7 @@ Measured on calcite dissolving under `r = k(1 − Ω)` with `k = 10⁻⁴ mol/s`
 |:--|--:|:--|
 | `Rodas5P`, the partition frozen within a step (`speciation = :frozen`) | 9 | **2 244 mol of calcite from 0.05**, returned with `retcode = Unstable` |
 | `Rodas5P`, the partition solved in the right-hand side (the default for this law) | 82 | the equilibrium, to `10⁻⁶`, in 0.7 s |
-| `Tsit5`, explicit, frozen | 85 626 | correct, in 519 s |
+| `Tsit5`, explicit, frozen | 84 586 | correct, in 250 s |
 | one `kinetic_step` of `10⁵ s` | 1 | the equilibrium, certified |
 | `kinetic_step_adaptive` | 1 | the equilibrium, certified |
 

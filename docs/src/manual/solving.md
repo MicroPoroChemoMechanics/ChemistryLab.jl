@@ -277,6 +277,12 @@ partial derivative, and the result is exact — no step size to choose.
 ```julia
 using ChemistryLab, DynamicQuantities, ForwardDiff, OptimaSolver
 
+db = Dict(symbol(s) => s for s in
+          build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+cs = ChemicalSystem([db[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal")])
+i_h2o, i_cal, i_co2, i_ca =
+    (findfirst(s -> symbol(s) == x, cs.species) for x in ("H2O@", "Cal", "CO2@", "Ca+2"))
+
 f(x) = begin
     n = Any[fill(0.0u"mol", length(cs.species))...]
     n[i_h2o] = 55.5u"mol";  n[i_cal] = 0.05u"mol";  n[i_co2] = x * u"mol"
@@ -284,11 +290,13 @@ f(x) = begin
     ustrip(us"mol", eq.n[i_ca])
 end
 
-ForwardDiff.derivative(f, 0.01)     # → 0.15193
+ForwardDiff.derivative(f, 0.01)     # → 0.163095
 ```
 
-The certified route, `equilibrate(state)` or `equilibrate_certified`, lifts its
-answer the same way, at the certified answer, with the active set frozen and the
+Each mole of carbon dioxide added dissolves 0.16 mol of calcite at this point,
+where 3.7 mmol are dissolved. The certified route, `equilibrate(state)` or
+`equilibrate_certified`, returns the same derivative to fifteen digits: it
+lifts its answer the same way, with the active set frozen and the
 constraint's unknowns included, so the titrant a prescribed pH needs or the
 temperature an adiabatic solve reaches comes back with its derivative too. Both
 routes lift one level of duals at a time, so that a derivative nested in another
