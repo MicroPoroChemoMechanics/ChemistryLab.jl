@@ -55,9 +55,9 @@ one costs seconds to minutes.
 
 | what | against | how closely | where it stops |
 |:--|:--|:--|:--|
-| **every solubility product** in the shipped CEMDATA18 — 52 phases | [Lothenbach2019](@citet) Tables 2-3 | 50 close to `0.041`, 48 to `0.005` | two M-S-H end members are `0.48` and `0.40` out; the source disagrees with itself |
+| **every solubility product** in the shipped CEMDATA18 — 54 phases | [Lothenbach2019](@citet) Tables 2-3 | 52 close to `0.040`, 50 to `0.005` | two M-S-H end members are `0.24` and `0.20` out at 25 °C; the source disagrees with itself |
 | **standard properties and HKF coefficients**, 19 aqueous species and 7 gases | [Lothenbach2019](@citet) Tables D.1-D.2 | exact, all seven coefficients each | nitrite-AFm and Fe-Friedel's salt are not in the file |
-| **`ΔₐG⁰` rebuilt from `ΔfH°` and `S°`** | the file's own `ΔfG°` | exact for 220 of 228 substances | the eight exceptions are all phases whose `S°` Cemdata18 estimated |
+| **each record's `ΔfG°`, `ΔfH°` and `S°`** against one another | the file's own element entropies | 78 of 143 crystalline records to `1 J/mol`, 126 to `100 J/mol` | the two M-S-H end members miss by kilojoules at either temperature |
 | **HKF away from 298.15 K, 1 bar** | [Duan2016](@citet) Table 4, HKF column | `0.03 %` at the reference point; `0.3 %` across a factor 2.9 in pressure | their two constants in one row sit at two different pressures |
 | **calcite `log Ksp`** at 25 °C | the accepted value, [PlummerBusenberg1982](@cite) | `−8.480` against `−8.48` | diverges from Duan's non-HKF method by 1.4 log units at 478 K |
 | **a measured solution** over a two-phase assemblage | [Atkins1992](@citet) Table 2 | Al and pH agree, robustly | Si is `×5` and Ca has a floor the model cannot leave; 9 of their 10 mixtures are not usable at all |
@@ -150,12 +150,11 @@ at zero for the host to keep its database energy, and
 [`host_coupling_bias`](@ref) reports how far a declaration is from it. See
 [The surface half of Guo](@ref).
 
-**A rebuilt Gibbs energy is not always the tabulated one.** `ΔₐG⁰(T)` is formed
-from `ΔfH°` and `S°`, so at 298.15 K it must reproduce `ΔfG°` — and does, for
-220 of the 228 substances. The eight that do not are exactly those whose entropy
-and heat capacity Cemdata18 estimated rather than measured. If a result turns on
-one of them, check which number you are standing on. See
-[The same two phases disagree with themselves](@ref).
+**A record has its own reference temperature.** `ΔₐG⁰(T)` is anchored to the
+tabulated `ΔfG°` at the temperature `Tst` the record states, which is 293.15 K
+for eight CEMDATA18 records, the alkali C-S-H and M-S-H end members. A 25 °C
+comparison with one of them goes through `ΔₐG⁰(T = 298.15)`, never through the
+tabulated number, which is a 20 °C number. See [Eight records at 20 °C](@ref).
 
 ## Cemdata18 Tables 2 and 3: the solubility products
 
@@ -175,59 +174,69 @@ silently absorb the first.
 
 So only the **non-water** products are transcribed, and the water is recovered
 from the hydrogen balance. Oxygen and charge then become free checks — they can
-only close if the transcribed products are right. They close to `10⁻⁹` on all 52
+only close if the transcribed products are right. They close to `10⁻⁹` on all 54
 rows.
 
 ### Result
 
-**50 of the 52 rows close.** The largest disagreement among them is `0.041` on
-`M8A-OH-LDH`, whose published value is quoted to one decimal; 48 are inside
+Each energy enters at 25 °C, the temperature of Table 2, as `ΔₐG⁰(T = 298.15)`.
+**52 of the 54 rows close.** The largest disagreement among them is `0.040` on
+`M8A-OH-LDH`, whose published value is quoted to one decimal; 50 are inside
 `0.005`.
 
 Two do not:
 
-| phase | from tabulated `ΔfG°` | published `log Ks0` | Δ | in energy |
+| phase | from the file at 25 °C | published `log Ks0` | Δ | in energy |
 |:--|--:|--:|--:|--:|
-| `M075SH` (M₁.₅S₂H₂.₅) | −28.317 | −28.80 | **+0.483** | 2.76 kJ/mol |
-| `M15SH` (M₁.₅SH₂.₅) | −23.175 | −23.57 | **+0.395** | 2.26 kJ/mol |
+| `M075SH` (M₁.₅S₂H₂.₅) | −28.556 | −28.80 | **+0.244** | 1.39 kJ/mol |
+| `M15SH` (M₁.₅SH₂.₅) | −23.365 | −23.57 | **+0.205** | 1.17 kJ/mol |
 
 Both are M-S-H end members. With every other phase in the table closing to
-better than `0.05`, this is a property of the source and not of the
+better than `0.04`, this is a property of the source and not of the
 transcription.
 
-### The same two phases disagree with themselves
+### Eight records at 20 °C
 
-`ΔₐG⁰(T)` is formed from `ΔfH°` and `S°` rather than read off the file, so at
-`T = 298.15 K` it must reproduce the tabulated `ΔfG°`. For **220 of the 228**
-substances it does, to the last bit. For eight it does not:
+Each record of the file states the temperature `Tst` at which its `ΔfG°`,
+`ΔfH°` and `S°` are given, and `ΔₐG⁰(T)` is anchored there: at `T = Tst` it
+returns the tabulated `ΔfG°`, to rounding for the condensed phases and gases
+and to `0.3 J/mol` for the aqueous species, whose HKF equations of state are
+evaluated at that point. For 230 of the 238 records, `Tst` is 298.15 K. For eight it is
+293.15 K: the six alkali C-S-H end members (`KSiOH`, `NaSiOH`, `ECSH1-KSH`,
+`ECSH2-KSH`, `ECSH1-NaSH`, `ECSH2-NaSH`) and the two M-S-H end members. Their
+energies at 25 °C differ from the tabulated numbers by the 5 K step, close to
+`−S° × 5 K`: `−208.6 J/mol` for `KSiOH`, `−1364.8 J/mol` for `M075SH`. GEMS
+anchors these records in the same way.
 
-| substances | gap on `ΔfG°` | implied inconsistency in `S°` |
-|:--|--:|--:|
-| `ECSH1-KSH`, `ECSH2-KSH` | −243.7 J/mol | 0.82 J/K/mol |
-| `ECSH1-NaSH`, `ECSH2-NaSH` | −207.6 J/mol | 0.70 J/K/mol |
-| `KSiOH`, `NaSiOH` | −208.6 J/mol | 0.70 J/K/mol |
-| `M15SH` | −1088.6 J/mol | 3.65 J/K/mol |
-| `M075SH` | −1364.8 J/mol | 4.58 J/K/mol |
+The three formation properties of a record are related by
 
-The eight are not a random selection, and — this was the first guess and it is
-wrong — they are **not** the ones missing a heat-capacity block: six of them
-have one. What they share is that Cemdata18 says their entropy and heat capacity
-were **estimated rather than measured**: the six alkali C-S-H end members by the
-linear Ca/Si relations of Table 4 (the paper's Eqs 2a and 2b), the two M-S-H
-end members from talc, chrysotile and water (Table 1, footnote r, after
-[Nied2016](@cite)).
+```math
+\Delta_f G^\circ = \Delta_f H^\circ - T_{st}\,\Big(S^\circ - \sum_k \nu_k S_k^\circ\Big),
+```
 
-An estimated `S°` that was never reconciled with the tabulated `ΔfG°` leaves the
-triplet `(ΔfG°, ΔfH°, S°)` inconsistent, and rebuilding the third from the other
-two is what makes it visible. The control is the five zeolites: they carry no
-heat-capacity block at all and still land on their tabulated value exactly. So
-this is the data, not the code path.
+where ``\nu_k`` is the number of atoms of element ``k`` in the formula and
+``S_k^\circ`` the element entropy the file itself carries. The package does not
+use this relation, since it forms `ΔₐG⁰` from `ΔfG°`; what it measures is
+therefore the data, not the code. Over the 143 crystalline records it holds to
+`1 J/mol` for 78 and to `100 J/mol` for 126. The six alkali C-S-H end members
+satisfy it exactly at 293.15 K and miss it by about `0.8 kJ/mol` at 298.15 K,
+which identifies their numbers as 20 °C numbers. The two M-S-H end members
+satisfy it at neither temperature:
 
-For `M075SH` that makes **three** mutually inconsistent numbers for one phase in
-one paper — the tabulated `ΔfG°`, the value its own `ΔfH°` and `S°` imply, and
-the value its published `log Ks0` implies — spread over 2.8 kJ/mol. Nothing in a
-calculation announces this; the phase simply sits half a log unit off wherever
-M-S-H matters.
+| phase | residual at 293.15 K | at 298.15 K | Table 2 offset at 25 °C |
+|:--|--:|--:|--:|
+| `M075SH` | −6.61 kJ/mol | −1.79 kJ/mol | +0.244 |
+| `M15SH` | −5.70 kJ/mol | −1.73 kJ/mol | +0.205 |
+
+Cemdata18 estimated their entropy and heat capacity from those of talc,
+chrysotile and water (Table 1, footnote r, after [Nied2016](@cite)), and for
+`M075SH` the tabulated `ΔfG°`, the value its `ΔfH°` and `S°` imply and the value
+its published `log Ks0` implies are three different numbers, spread over
+`1.4 kJ/mol` at 25 °C. Nothing in a calculation announces this; the phase simply
+sits a quarter of a log unit off wherever M-S-H matters. After these two, the
+largest residuals belong to five anhydrous aluminate phases of clinker and of
+calcium aluminate cement, `C4AF`, `C3A`, `CA2`, `C12A7` and `CA`, from `1.6` to
+`2.5 kJ/mol`.
 
 ## Appendix D: what the solubility products cannot test
 

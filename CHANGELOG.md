@@ -24,6 +24,19 @@
 - A recipe constituent known by its oxides and given a rate is refused, as
   before; the message now names the way round it, a pseudo-species built by
   `glass_species` and declared as a mineral constituent.
+- **The published-data page blamed an estimated entropy for what is a reference
+  temperature.** Eight CEMDATA18 records, the alkali C-S-H and M-S-H end
+  members, are tabulated at 293.15 K, and `ΔₐG⁰` is anchored at that
+  temperature, as GEMS anchors them. The page and its test compared their 20 °C
+  tabulated energy with the package's 25 °C one and read the 5 K step as an
+  inconsistency in `S°`, and the solubility-product check put the same 20 °C
+  energy into a 25 °C constant, which doubled the M-S-H offsets. Each record is
+  now compared at its own temperature; the M-S-H end members miss Table 2 by
+  `0.244` and `0.205` rather than `0.48` and `0.40`. The genuine data check,
+  `ΔfG° = ΔfH° − Tst (S° − Σ S°el)`, is added: the alkali C-S-H records satisfy
+  it exactly at 293.15 K, the M-S-H records at neither temperature. The page's
+  counts (220 of 228, 52 phases) were those of an older file, and its test now
+  checks the numbers the page prints.
 
 ## v0.30.0 — A trace held to its own amount, and SIT and Pitzer solved by Newton's method
 
