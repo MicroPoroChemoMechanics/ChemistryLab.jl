@@ -24,9 +24,10 @@ A model has to answer two questions, not one:
    and which in a cement paste short of mixing water is the quantity that
    decides how far the reaction can go.
 
-The three built-in models — [`DiluteSolutionModel`](@ref),
-[`DaviesActivityModel`](@ref), [`HKFActivityModel`](@ref) — differ in both, and
-§5 measures by how much.
+The five built-in models — [`DiluteSolutionModel`](@ref),
+[`DaviesActivityModel`](@ref), [`HKFActivityModel`](@ref),
+[`SITActivityModel`](@ref) and [`PitzerActivityModel`](@ref) — differ in both;
+§5 measures by how much for the first three, and §6a and §6 treat the other two.
 
 ## 1. Where the ``\sqrt{I}`` comes from
 
@@ -107,7 +108,7 @@ The Debye length is ``\kappa^{-1} = 1/(B\sqrt{I})`` in ångström when ``B`` is 
 ``I = 0.3`` mol/kg** — the values are tabulated in
 [What the choice of activity model costs](@ref sec-app-activity-models).
 
-A cement pore solution sits around ``I \approx 0.1``–``0.5 mol/kg``, so its
+A cement pore solution sits around ``I \approx 0.1``–``0.5`` mol/kg, so its
 screening length is a **few ångström** — the thickness of two or three water
 molecules. That is the same scale as the water films in the gel pores of C-S-H,
 and both assumptions of step 1 and step 2 above are strained there: a continuum
@@ -138,6 +139,20 @@ from the Born equation and a residual short-range term.
 That is why this model has a *ceiling* rather than an asymptote, and why the
 ceiling is quoted vaguely as "about a molal": the term is not wrong so much as
 it is standing in for physics it does not contain.
+
+The Davies equation [Davies1962](@cite) makes the same move with one more
+simplification. It drops the ion size, replacing ``1 + B\mathring{a}_i\sqrt{I}``
+by ``1 + \sqrt{I}``, and fixes the linear term once for every ion:
+
+```math
+\log_{10}\gamma_i = -A z_i^2\left(\frac{\sqrt{I}}{1 + \sqrt{I}} - b\,I\right) ,
+\qquad b = 0.3 .
+```
+
+No per-species datum is needed, and every ion of a given charge has the same
+activity coefficient. The ``bI`` term plays the part of ``\dot{B} I``, with a
+weight proportional to ``z_i^2``, and its status is the same: a correction
+fitted to data, not derived from screening.
 
 Neutral species get the **Setschenow** form, ``\log_{10}\gamma_i = K_n I``:
 water engaged in the solvation shells of ions is water unavailable to solvate a
@@ -229,9 +244,13 @@ error of the finite difference that measures it.
 The third result follows from §3: **Davies is less thermodynamically consistent
 than assuming ideality.** Correcting the
 solutes while leaving the solvent at ``a_w = x_w`` sets the two halves of one
-model against each other, and a model can be *more* wrong for being *partly*
-corrected. Since equilibrium is set by derivatives and not by values, a
-disagreement invisible in ``a_w`` is decisive in ``\mu_w``.
+model against each other, and a model can be *more* inconsistent for being
+*partly* corrected. The cost is not a large error in ``\mu_w``: an equilibrium
+is set by the values of the potentials, and two water activities within one
+percent of each other shift ``\mu_w`` by less than ``0.01\,RT``. The cost is
+that the solvent and the solutes no longer draw their potentials from one Gibbs
+energy, so there is no longer a function whose minimum the equilibrium is.
+§5b tests this exactly, and the certificate depends on it.
 
 The B-dot model's own approximation — a single charge-weighted mean ion size in
 its osmotic coefficient — costs nothing in NaCl, whose two ions carry the ion
@@ -277,7 +296,7 @@ relative asymmetry over pairs, ion/ion and solvent/ion separated:
 | B-dot, ``\mathring{a}`` per ion, ``\dot{B}=0`` | ``2.4\times10^{-1}`` | ``6.0\times10^{-2}`` |
 | **B-dot, common ``\mathring{a}`` and ``\dot{B}=0``** | ``0`` | ``1.8\times10^{-14}`` |
 | **Debye-Hückel limiting law** (``\mathring{a}=0``, ``\dot{B}=0``) | ``0`` | ``3.4\times10^{-13}`` |
-| ``\mathring{a}=0``, ``\dot{B}=0.0976`` (the GEMS setting) | ``1.2\times10^{-1}`` | ``3.6\times10^{-1}`` |
+| ``\mathring{a}=0``, ``\dot{B}=0.0976`` (one GEM-Selektor run, not the Cemdata18 prescription) | ``1.2\times10^{-1}`` | ``3.6\times10^{-1}`` |
 
 Two readings, and the second is the one that was not expected.
 
@@ -290,12 +309,12 @@ asymmetry *worse*.
 
 ### Why, in two lines
 
-Every ``\gamma_i`` of §1 depends on composition only through ``I``, and
-``\partial I/\partial n_j = z_j^2/(2\,\text{kg})``. So
+Every ``\gamma_i`` of §1 depends on composition only through ``I``, and, at a
+fixed amount of water, ``\partial I/\partial n_j = z_j^2/(2\,n_w M_w)``. So
 
 ```math
 \frac{\partial \ln\gamma_i}{\partial n_j}
-   = \ln 10 \; f'(I;z_i,\mathring{a}_i)\; \frac{z_j^2}{2\,\text{kg}} ,
+   = \ln 10 \; f'(I;z_i,\mathring{a}_i)\; \frac{z_j^2}{2\,n_w M_w} ,
 ```
 
 and Maxwell demands that ``f'(I;z_i,\mathring{a}_i)/z_i^2`` not depend on ``i``.
@@ -380,7 +399,9 @@ which is why the range is the test rather than a single point.
 
 The model is a **truncation**: the pairwise term is the first order of the same
 virial expansion §6 carries to second order, so at high ionic strength the terms
-it drops stop being small; no source transcribed here states where. It also expects genuine ion pairs to appear in
+it drops stop being small. The range usually quoted, ``I \lesssim 3``–``4``
+mol/kg (the table of §4), is a rule of thumb from practice, not a bound derived
+from the model. It also expects genuine ion pairs to appear in
 the *speciation* and not inside ``\varepsilon``.
 
 ### Why it matters here, beyond being one more option
@@ -422,7 +443,7 @@ Hence the shape of the parameter set: one coefficient per **ion pair**, one per
 **triplet**, and no per-species radius at all.
 
 ```math
-\frac{G^{\text{ex}}}{RT n_w} =
+\frac{G^{\text{ex}}}{RT\, w_w} =
   f(I)
   + \sum_{c}\sum_{a} m_c m_a\, B_{ca}(I)
   + \sum_{c<c'} m_c m_{c'}\,\theta_{cc'}
@@ -430,6 +451,9 @@ Hence the shape of the parameter set: one coefficient per **ion pair**, one per
   + \text{triplets } (\psi)
   + \text{neutrals } (\lambda)
 ```
+
+where ``w_w = n_w M_w`` is the mass of water in kilograms, the basis of the
+molalities.
 
 The long-range term keeps the Debye-Hückel physics — it must, since the limiting
 law is exact — in the form
@@ -478,10 +502,11 @@ error names those that do not.
 Two limitations belong here rather than in a footnote:
 
   - the **higher-order electrostatic terms** ``{}^E\theta(I)``,
-    ``{}^E\theta'(I)`` are not implemented. They vanish identically for a
-    symmetrical pair, so a single 1-1 or 2-2 electrolyte is unaffected; in a
-    mixture of Na⁺ with Ca²⁺ — a cement pore solution — they are a real
-    omission;
+    ``{}^E\theta'(I)`` are not implemented. They enter only the mixing of two
+    ions of the same sign and different charges, so any single electrolyte,
+    CaCl₂ included, is unaffected, and so is a mixture such as Na⁺ with K⁺; in
+    a mixture of Na⁺ with Ca²⁺, or of Cl⁻ with SO₄²⁻ — a cement pore solution —
+    they are a real omission;
   - a published set is fitted **at one temperature**, and nothing here
     extrapolates the interaction parameters away from it.
 

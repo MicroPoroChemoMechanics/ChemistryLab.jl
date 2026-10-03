@@ -116,10 +116,13 @@ that widens as ``W`` grows. The threshold is evaluated, and the sign of the
 second derivative tabulated on either side of it, in
 [Solid solution models, in numbers](@ref sec-app-solid-solutions).
 
-This matters in practice because **nothing detects it**. A solid solution is
-entered as one phase, the activity expression goes on returning values past the
-threshold, and those values describe a metastable single phase. Checking
-``W/RT`` against 2 is the caller's job.
+This matters in practice because **nothing in the activity expression detects
+it**. Past the threshold it goes on returning values, and those values describe
+a single phase that should have split. The check is therefore made at
+construction: [`SolidSolutionPhase`](@ref) evaluates the second derivative and
+refuses a model that unmixes at the temperature given, naming the interval,
+unless the phase is declared with two instances (section 6) or the check is
+switched off with `check_convexity = false`.
 
 ## 4. `RedlichKisterModel` — a binary that need not be symmetric
 
@@ -526,8 +529,8 @@ solve.
 **Three consequences.**
 
   - *The amounts are not unique.* Every split of the same site fractions between
-    the members has the same ``G`` and the same element content: six members for
-    four independent site fractions in CASH+. Left to choose, the solver returns one
+    the members has the same ``G`` and the same element content: in CASH+, six
+    amounts for three independent site fractions and one total. Left to choose, the solver returns one
     of them, which one depending on where the search started. It is therefore given
     one split, the product of the site fractions, ``x_j = \prod_s y_{s,j_s}``, by adding to the energy it
     minimizes ``RT\,D(\mathbf{x})``, with

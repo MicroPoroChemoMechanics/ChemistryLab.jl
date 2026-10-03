@@ -121,8 +121,9 @@ does not ask the equilibrium optimizer to climb an activation barrier.
 
 ## The certificate
 
-[`optimality_certificate`](@ref) checks the three conditions, on any composition
-and whatever produced it. Writing ``\mathbf{u} = -\mathbf{A}^\mathsf{T}\mathbf{y}`` for the potentials the element potentials give each species:
+[`optimality_certificate`](@ref) checks the conditions below, on any composition
+and whatever produced it: stationarity, conservation, and a phase condition for
+each kind of absent or vanishing species. Writing ``\mathbf{u} = -\mathbf{A}^\mathsf{T}\mathbf{y}`` for the potentials the element potentials give each species:
 
 | condition | on which species | meaning |
 |:--|:--|:--|
@@ -161,7 +162,7 @@ acid–base system and returns pH 7.000 with the calcite undissolved.
 
 ### [What the certificate proves, and when](@id sec-theory-certificate-scope)
 
-The three conditions are sufficient for a global minimum only when the chemical
+These conditions are sufficient for a global minimum only when the chemical
 potentials are the gradient of one Gibbs energy and that energy is convex. The
 second property belongs to the declarations: a solid solution declared inside a
 miscibility gap has a concave mixing energy, and a constraint that shifts the
@@ -202,8 +203,8 @@ the formulation of GEM-Selektor [Kulik2013](@cite), of Reaktoro
 From the same data, both families compute the same state whenever both
 converge, which follows from
 the stationarity conditions of [Thermochemistry](@ref sec-theory-thermo) §4.
-Taking as basis the primary species, whose potentials are the multipliers
-``y_c``, the condition written for a present species ``s`` reads
+Taking as basis the primary species, whose potentials are the negated
+multipliers ``-y_c``, the condition written for a present species ``s`` reads
 
 ```math
 \ln a_s - \sum_c A_{cs}\ln a_c
