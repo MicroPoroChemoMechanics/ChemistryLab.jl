@@ -265,8 +265,9 @@ carries cm³/mol: Ca²⁺ is listed at −18.44, and −18.44 J/bar would be
 −184.4 cm³/mol. The file stores −1.8439 J/bar, which is the same −18.44 cm³/mol.
 
 Table D.2's gas column, under the same header, really is J/bar — 2479 J/bar is
-24.79 L/mol, the ideal-gas molar volume at 298.15 K and 1 bar. The two tables
-share a header and not a unit.
+24.79 L/mol, the ideal-gas molar volume at 298.15 K and 1 bar, which is what the
+package's `RT/P` gives a gas there. The two tables share a header and not a
+unit.
 
 ## What the shipped file does not carry
 

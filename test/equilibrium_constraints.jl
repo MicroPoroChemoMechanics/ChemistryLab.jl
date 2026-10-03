@@ -127,15 +127,14 @@
     end
 
     @testsection "a volume constraint with a compressible member solves for its pressure" begin
-        # No member of the shipped databases has a volume that depends on
-        # pressure, a gas included: its `V⁰` is that of its standard state. An
-        # ideal gas given `V = RT/P` here makes one. Neutralizing the base changes
-        # the volume of the liquid, and the gas takes the change up. The activity
-        # model is recomputed at the pressure solved for, and the inversion of the
-        # aqueous phase has to see that pressure as well (`pq`).
-        ar = deepcopy(sp["Ar"])
-        R = ustrip(us"J/(mol*K)", Constants.R)
-        ar[:V⁰] = NumericFunc((T, P) -> R * T / P, (:T, :P), u"m^3/mol")
+        # A gas of the database has the ideal gas's volume, `V = RT/P` (its
+        # record declares `mv_pvnrt`), which makes the system compressible.
+        # Neutralizing the base changes the volume of the liquid, and the gas
+        # takes the change up. The activity model is recomputed at the pressure
+        # solved for, and the inversion of the aqueous phase has to see that
+        # pressure as well (`pq`).
+        ar = sp["Ar"]
+        @test ar[:V⁰](T = 298.15, P = 2.0e5) ≈ R_GAS * 298.15 / 2.0e5 rtol = 1.0e-15
         cs = ChemicalSystem([sp["H2O@"], sp["H+"], sp["OH-"], ar], ["H2O@", "H+", "Zz", "Ar"])
         des = DualEquilibriumSolver(cs, HKFActivityModel(temperature_dependent = true))
         st = ChemicalState(cs)

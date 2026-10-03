@@ -150,10 +150,15 @@ The molar mass is automatically calculated and stored in the species `properties
 | Key | Type | Description |
 | :-- | :-- | :-- |
 | `:Cp⁰` | `SymbolicFunc(T)` | Standard heat capacity (J mol⁻¹ K⁻¹) |
-| `:ΔₐH⁰` | `SymbolicFunc(T)` | Standard enthalpy of formation (J mol⁻¹) |
+| `:ΔₐH⁰` | `SymbolicFunc(T)` or `NumericFunc(T, P)` | Standard enthalpy of formation (J mol⁻¹) |
 | `:S⁰` | `SymbolicFunc(T)` | Standard entropy (J mol⁻¹ K⁻¹) |
-| `:ΔₐG⁰` | `SymbolicFunc(T)` | Standard Gibbs free energy of formation (J mol⁻¹) |
+| `:ΔₐG⁰` | `SymbolicFunc(T)` or `NumericFunc(T, P)` | Standard Gibbs free energy of formation (J mol⁻¹) |
 | `:V⁰` | `Quantity` or `Function` | Molar volume (m³ mol⁻¹) |
+
+A database record that declares a constant molar volume has the pressure term
+`V⁰ (P − P°)` in its `ΔₐH⁰` and `ΔₐG⁰`, which are then functions of `T` and `P`;
+an aqueous solute of the HKF model depends on both as well. A gas's `V⁰` is
+`RT/P`, and one built without a `V⁰` is given that volume.
 
 Properties are accessed and mutated via `[]`:
 

@@ -122,17 +122,23 @@ end
 """
     _has_molar_volume(s::AbstractSpecies) -> Bool
 
-Return `true` if species `s` has a standard molar volume `V⁰` available.
+Return `true` if species `s` has a standard molar volume: its own `V⁰`, or, for a
+gas built without one, the ideal gas's.
 """
-_has_molar_volume(s::AbstractSpecies) = haskey(s, :V⁰)
+_has_molar_volume(s::AbstractSpecies) = haskey(s, :V⁰) || aggregate_state(s) == AS_GAS
 
 """
-    _molar_volume(s::AbstractSpecies) -> SymbolicFunc
+    _molar_volume(s::AbstractSpecies) -> AbstractFunc
 
-Return the standard molar volume SymbolicFunc of species `s`.
-Must be called as `_molar_volume(s)(T=T, P=P; unit=true)` to get a quantity.
+The standard molar volume of species `s` as a function of `T` and `P`, to be
+called as `_molar_volume(s)(T = T, P = P; unit = true)`. A gas built without a
+`V⁰` has the ideal gas's, `RT/P`, so that every consumer of a volume sees the
+same one.
 """
-_molar_volume(s::AbstractSpecies) = s[:V⁰]
+_molar_volume(s::AbstractSpecies) =
+    (!haskey(s, :V⁰) && aggregate_state(s) == AS_GAS) ? _IDEAL_GAS_V⁰ : s[:V⁰]
+
+const _IDEAL_GAS_V⁰ = _ideal_gas_molar_volume()
 
 """
     _solid_indices(system) -> Vector{Int}
@@ -186,8 +192,8 @@ end
 """
     _compute_V_phases(system, n, T, P) -> NamedTuple
 
-Compute volume per phase from `n`, `T`, `P` and standard molar volumes `V⁰`.
-Gas phase falls back to ideal gas law if `V⁰` is not available for all gas species.
+Compute volume per phase from `n`, `T`, `P` and standard molar volumes `V⁰`; a
+gas without a `V⁰` takes the ideal gas's, `RT/P` (see [`_molar_volume`](@ref)).
 """
 function _compute_V_phases(system::ChemicalSystem, n::AbstractVector, T, P)
     # Sum n × V⁰(T,P) over indices where V⁰ is available
@@ -199,16 +205,7 @@ function _compute_V_phases(system::ChemicalSystem, n::AbstractVector, T, P)
 
     V_liquid = _phase(system.idx_aqueous)
     V_solid = _phase(_solid_indices(system))
-
-    if isempty(system.idx_gas)
-        V_gas = 0.0u"m^3"
-    elseif all(_has_molar_volume(system.species[i]) for i in system.idx_gas)
-        V_gas = _phase(system.idx_gas)          # use database values if all available
-    else
-        R = Constants.R                     # ideal gas constant
-        n_gas = sum(n[i] for i in system.idx_gas; init = 0.0u"mol")
-        V_gas = uconvert(u"m^3", n_gas * R * T / P)    # ideal gas fallback
-    end
+    V_gas = _phase(system.idx_gas)
 
     V_total = V_liquid + V_solid + V_gas
     return (liquid = V_liquid, solid = V_solid, gas = V_gas, total = V_total)

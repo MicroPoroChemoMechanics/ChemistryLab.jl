@@ -124,6 +124,7 @@ end
     include("aqueous_inversion.jl")
     include("trace_sensitivity.jl")
     include("equilibrium_constraints.jl")
+    include("pressure.jl")
     include("capillary.jl")
     include("pitzer.jl")
     include("recipes.jl")

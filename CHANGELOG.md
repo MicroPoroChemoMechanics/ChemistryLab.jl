@@ -38,6 +38,36 @@
   counts (220 of 228, 52 phases) were those of an older file, and its test now
   checks the numbers the page prints.
 
+### Changed: pressure enters the gases and the condensed phases
+
+- **A gas's activity ignored the pressure.** Every activity model gave a gas
+  `ln a = ln xᵢ`, the mole fraction, which is its activity at 1 bar only: a gas
+  over water dissolved the same amount at 1 and at 10 bar, and its chemical
+  potential did not grow with pressure. It is now `ln xᵢ + ln(P/P°)`, its
+  fugacity over the standard pressure, in Dilute, HKF, Davies, Truesdell–Jones,
+  SIT and Pitzer alike, so that `∂μᵢ/∂P = RT/P`. `P_STANDARD` and
+  `P_STANDARD_Q` (1 bar) are exported.
+- **A gas has the ideal gas's volume, `RT/P`.** The databases' gases carried a
+  constant 24.79 L/mol, their volume at 298.15 K and 1 bar, at every
+  temperature and pressure; their records declare the ideal gas (`mv_pvnrt`),
+  and that is what they now get. With `ln(P/P°)` in the activity, a gas's
+  chemical potential and its volume satisfy the Maxwell relation, which a
+  volume constraint (`FixedVolume`, `SealedVolume`) needs.
+- **A condensed species declared at constant volume had no pressure in its
+  standard energy.** A record declaring `mv_constant` (the solids, the solutes
+  outside HKF) now carries `V⁰ (P − P°)` in its `ΔₐG⁰` and `ΔₐH⁰`, so that
+  `∂G⁰/∂P = V⁰`; so does the solvent, whose equation of state is not
+  implemented, with its compressibility neglected. Three crystals CEMDATA18
+  marks as ideal gases (`CA`, `CA2`, `C12A7`) are treated as the crystals they
+  are. At 1 bar nothing changes: the term is an exact zero there.
+
+### Fixed
+
+- **A gas built without a molar volume made its state impossible to build.**
+  The ideal-gas fallback converted to `u"m^3"`, which DynamicQuantities refuses
+  as a target, so `ChemicalState` threw for any system holding such a gas. A gas
+  without `V⁰` now takes `RT/P` wherever a volume is read.
+
 ## v0.30.0 — A trace held to its own amount, and SIT and Pitzer solved by Newton's method
 
 The certified equilibrium judged its element balance in moles, against `1e-10`:

@@ -75,6 +75,36 @@ See also: [`DiluteSolutionModel`](@ref), [`HKFActivityModel`](@ref),
 """
 abstract type AbstractActivityModel end
 
+# ── The gas phase, common to every model ─────────────────────────────────────
+
+"""
+    _ln_pressure_ratio(p) -> Real
+
+`ln(P/P°)` for the parameters `p` an activity closure is called with, `P` in
+pascals and `P°` = [`P_STANDARD`](@ref). Parameters built without a pressure, as
+a few internal probes build them, are at `P°`.
+"""
+_ln_pressure_ratio(p) = hasproperty(p, :P) ? log(p.P / P_STANDARD) : zero(P_STANDARD)
+
+"""
+    _gas_lna!(out, n, idx_gas, p) -> out
+
+The log activities of an ideal gas mixture, `ln aᵢ = ln xᵢ + ln(P/P°)`: the
+fugacity `xᵢ P` over the standard-state pressure. Every activity model calls
+this one for its gas species, so that the pressure enters each of them in the
+same way, and it is what gives a gas `∂μᵢ/∂P = RT/P`, the molar volume of
+an ideal gas.
+"""
+function _gas_lna!(out, _n, idx_gas, p)
+    isempty(idx_gas) && return out
+    n_gas = sum((_n[i] for i in idx_gas); init = zero(eltype(_n)))
+    lnP = _ln_pressure_ratio(p)
+    @inbounds for i in idx_gas
+        out[i] = log(_n[i] / n_gas) + lnP
+    end
+    return out
+end
+
 # ── Concrete models ───────────────────────────────────────────────────────────
 
 """
@@ -94,7 +124,7 @@ a_w = x_w
 | solvent | Raoult | `ln a = ln x_w`, the **mole fraction** |
 | aqueous solutes | Henry | `ln a = ln(cᵢ/c°)`, `c° = 1 mol/L` |
 | pure crystals | — | `ln a = 0` |
-| gas | ideal mixture | `ln a = ln xᵢ` |
+| gas | ideal mixture | `ln a = ln xᵢ + ln(P/P°)` |
 | solid-solution end-members | ideal mixing | `ln a = ln xᵢ` within the phase |
 
 ## The physics, and where it runs out
@@ -180,12 +210,7 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
             end
         end
 
-        if has_gas
-            n_gas = sum((_n[i] for i in idx_gas); init = zero(eltype(_n)))
-            @inbounds for i in idx_gas
-                out[i] = log(_n[i] / n_gas)
-            end
-        end
+        has_gas && _gas_lna!(out, _n, idx_gas, p)
 
         # Solid solutions and surface sites mix on budgets of their own; leaving
         # either out would give its members unit activity, silently.
@@ -729,7 +754,7 @@ Inside `lna`:
 - Solutes: molality convention, B-dot formula for ions, salting-out for neutrals.
 - Solvent: osmotic coefficient from Gibbs-Duhem (σ-function).
 - Crystals: `ln a = 0` (pure solid).
-- Gas: ideal mixture `ln a = ln(xᵢ)`.
+- Gas: ideal mixture `ln a = ln(xᵢ) + ln(P/P°)`.
 
 If `model.temperature_dependent=true`, `p` must contain `T` (K) and `P` (Pa)
 — both are provided automatically by `_build_params`.
@@ -852,12 +877,7 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
         out[idx_solvent] = -M_w * sum_m * φ
 
         # ── Gas: ideal mixture ─────────────────────────────────────────────
-        if has_gas
-            n_gas = sum((_n[i] for i in idx_gas); init = zero(eltype(_n)))
-            @inbounds for i in idx_gas
-                out[i] = log(_n[i] / n_gas)
-            end
-        end
+        has_gas && _gas_lna!(out, _n, idx_gas, p)
 
         # ── Solid solutions ────────────────────────────────────────────────
         # Solid solutions and surface sites mix on budgets of their own; leaving
@@ -1158,12 +1178,7 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
         out[idx_solvent] = log(n_w / n_aqueous)
 
         # Gas: ideal mixture
-        if has_gas
-            n_gas = sum((_n[i] for i in idx_gas); init = zero(eltype(_n)))
-            @inbounds for i in idx_gas
-                out[i] = log(_n[i] / n_gas)
-            end
-        end
+        has_gas && _gas_lna!(out, _n, idx_gas, p)
 
         # Solid solutions
         # Solid solutions and surface sites mix on budgets of their own; leaving
@@ -1320,12 +1335,7 @@ function activity_model(cs::ChemicalSystem, model::TruesdellJonesActivityModel)
         end
         n_aqueous = n_w + sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
         out[idx_solvent] = log(n_w / n_aqueous)
-        if has_gas
-            n_gas = sum((_n[i] for i in idx_gas); init = zero(eltype(_n)))
-            @inbounds for i in idx_gas
-                out[i] = log(_n[i] / n_gas)
-            end
-        end
+        has_gas && _gas_lna!(out, _n, idx_gas, p)
         _mixing_lna!(out, _n, mix, p, ϵ)
         return out
     end

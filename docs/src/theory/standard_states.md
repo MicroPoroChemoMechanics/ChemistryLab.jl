@@ -53,16 +53,25 @@ rather than as a number.
 
 Pressure is treated according to the model attached to the species. The
 Helgeson-Kirkham-Flowers equation of state of aqueous solutes depends on ``P``,
-so that the standard state of a solute is at the pressure of the system. The
-heat-capacity polynomial used for solids, gases and the solvent carries no
-pressure term, and their standard state is at ``P_r = 1`` bar whatever the
-pressure of the state.
-This is exact at 1 bar. Above it, a condensed phase misses the contribution
-``\int_{P_r}^{P} V_i^\circ\,\mathrm{d}P \simeq V_i^\circ (P - P_r)`` and an ideal
-gas the contribution ``RT\ln(P/P_r)``. For portlandite, with ``V^\circ \simeq
-33\ \mathrm{cm^3/mol}``, the first amounts to ``0.012\,RT`` at 10 bar and to
-``1.3\,RT`` at 1 kbar: negligible for a laboratory sample or a structure, not
-for a deep reservoir.
+so that the standard state of a solute is at the pressure of the system. A
+record that declares a molar volume independent of temperature and pressure
+(`mv_constant` in the ThermoFun databases: the solids, the solutes described by
+a heat-capacity polynomial, and the solvent, whose equation of state is not
+implemented) has its standard state at the pressure of the system as well, its
+standard Gibbs energy and enthalpy carrying
+
+```math
+\int_{P_r}^{P} V_i^\circ\,\mathrm{d}P = V_i^\circ\,(P - P_r) ,
+```
+
+which vanishes at ``P_r = 1`` bar ([`P_STANDARD`](@ref)). For portlandite, with
+``V^\circ \simeq 33\ \mathrm{cm^3/mol}``, it amounts to ``0.012\,RT`` at 10 bar
+and to ``1.3\,RT`` at 1 kbar: negligible for a laboratory sample or a
+structure, not for a deep reservoir. The compressibility of the solvent is
+neglected in this term, which misses about 0.7 % of it at 300 bar. A gas is
+referred to the pure ideal gas at ``P_r``, and the pressure enters its activity
+(§2). A species built by hand keeps the functions it is given: a heat-capacity
+polynomial alone carries no pressure term.
 
 ## 2. The conventions in use, class by class
 
@@ -135,9 +144,17 @@ component potentials its formula implies ([Thermochemistry](@ref sec-theory-ther
 ### Gases
 
 A gas is referred to the pure ideal gas at ``P_r = 1`` bar, and its activity in
-an ideal mixture is then ``a_i = x_i P/P_r``. The package retains the mole
-fraction ``x_i`` alone, which coincides with it at 1 bar, and the remark on
-pressure made in §1 applies.
+an ideal mixture is the ratio of its fugacity ``x_i P`` to that pressure,
+
+```math
+a_i = x_i\,\frac{P}{P_r} ,
+```
+
+so that its chemical potential grows with pressure as ``(\partial\mu_i/\partial
+P)_T = RT/P``, the molar volume of an ideal gas. That is also the volume the
+package gives a gas, whether its record declares the ideal gas (`mv_pvnrt`) or it
+is built without a molar volume, so that the two are consistent at every
+pressure.
 
 ### End-members of a solid solution
 

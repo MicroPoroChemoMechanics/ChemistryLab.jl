@@ -151,7 +151,7 @@ function _temperature_blocks(des, state, p, target_H)
         ustrip(
             us"J/mol",
             s[:ΔₐG⁰](T = q[1] * u"K", P = P * u"Pa"; unit = true),
-        ) / (ustrip(us"J/(mol*K)", Constants.R) * q[1])
+        ) / (R_GAS * q[1])
             for s in system.species
     ]
     # `pq`: the parameters the activity model sees, for whatever has to see the
@@ -163,7 +163,7 @@ function _temperature_blocks(des, state, p, target_H)
     # every other row of the Newton system.
     cq = (x, q, params) -> [
         (_total_enthalpy(system, x, q[1], P) - target_H) /
-            (ustrip(us"J/(mol*K)", Constants.R) * q[1] * max(sum(x), 1.0)),
+            (R_GAS * q[1] * max(sum(x), 1.0)),
     ]
     return (;
         nq = 1, gq = gq, hq = hq, pq = pq, cq = cq,
@@ -230,7 +230,7 @@ function _pressure_blocks(des, state, p, target_V)
         ustrip(
             us"J/mol",
             s[:ΔₐG⁰](T = T * u"K", P = q[1] * u"Pa"; unit = true),
-        ) / (ustrip(us"J/(mol*K)", Constants.R) * T)
+        ) / (R_GAS * T)
             for s in system.species
     ]
     pq = (q, params) -> merge(params, (P = q[1],))
@@ -617,7 +617,7 @@ function _molar_volumes(system, T, P)
     # them carries through.
     return _promoted(
         [
-            _has_molar_volume(sp) ? ustrip(us"m^3/mol", sp[:V⁰](T = T, P = P; unit = true)) : 0.0
+            _has_molar_volume(sp) ? ustrip(us"m^3/mol", _molar_volume(sp)(T = T, P = P; unit = true)) : 0.0
                 for sp in system.species
         ]
     )

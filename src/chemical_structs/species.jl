@@ -1661,8 +1661,21 @@ function complete_thermo_functions!(s::AbstractSpecies)
                 end
             end
         end
+        # The volume method the record declares. `mv_pvnrt` is the ideal gas,
+        # `V = RT/P`, whose pressure dependence is carried by the activity
+        # `xᵢ P/P°` rather than by the standard energy. `mv_constant` is a
+        # volume independent of T and P, whose standard energy then moves with
+        # pressure by `V⁰ (P − P°)`. The aggregate state decides between the two:
+        # CEMDATA18 marks three crystals of calcium aluminate cement, `CA`, `CA2`
+        # and `C12A7`, as `mv_pvnrt` while giving them a solid's volume.
+        constant_volume = false
         if haskey(properties(s), :V_method)
-            s[:V⁰] = SymbolicFunc(dict_params[:V⁰])
+            if s[:V_method] == "mv_pvnrt" && aggregate_state(s) == AS_GAS
+                s[:V⁰] = _ideal_gas_molar_volume(s.Tref, s.Pref)
+            elseif haskey(dict_params, :V⁰) && !ismissing(dict_params[:V⁰])
+                s[:V⁰] = SymbolicFunc(dict_params[:V⁰])
+                constant_volume = true
+            end
             delete!(s.properties, :V_method)
         else
             for k in [:V⁰]
@@ -1681,7 +1694,42 @@ function complete_thermo_functions!(s::AbstractSpecies)
                 end
             end
         end
+        constant_volume && _add_pressure_term!(s, dict_params[:V⁰])
         delete!(s.properties, :thermo_params)
+    end
+    return s
+end
+
+"""
+    _ideal_gas_molar_volume(Tref = 298.15u"K", Pref = P_STANDARD_Q) -> NumericFunc
+
+The molar volume of an ideal gas, `V = RT/P`, as a function of `T` and `P` in
+m³/mol, referred to `(Tref, Pref)` when called without them. It is the volume of
+a gas whose record declares `mv_pvnrt`, and of a gas built without a molar
+volume.
+"""
+_ideal_gas_molar_volume(Tref = 298.15u"K", Pref = P_STANDARD_Q) =
+    NumericFunc((T, P) -> R_GAS * T / P, (:T, :P), (T = Tref, P = Pref), u"m^3/mol")
+
+"""
+    _add_pressure_term!(s, V⁰)
+
+Add `V⁰ (P − Pref)` to the standard Gibbs energy and enthalpy of a species whose
+molar volume `V⁰` is independent of temperature and pressure.
+
+The standard state of a condensed species is the pure substance at the
+temperature and the pressure of the system, so `∂G⁰/∂P = V⁰` and
+`∂H⁰/∂P = V⁰ − T ∂V⁰/∂T = V⁰`; the entropy and the heat capacity do not move.
+The term is added as a function of `P` alone, through the mixed addition, so that
+at `P = Pref` it is an exact zero and the standard energy keeps its value to the
+last bit.
+"""
+function _add_pressure_term!(s::AbstractSpecies, V⁰)
+    V = ustrip(us"m^3/mol", V⁰)
+    Pr = ustrip(us"Pa", s.Pref)
+    term = NumericFunc(P -> V * (P - Pr), (:P,), (P = s.Pref,), u"J/mol")
+    for k in (:ΔₐG⁰, :ΔₐH⁰)
+        haskey(properties(s), k) && (s[k] = s[k] + term)
     end
     return s
 end

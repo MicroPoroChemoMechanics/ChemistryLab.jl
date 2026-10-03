@@ -267,7 +267,13 @@ function complete_species_with_thermo_model!(species, row; verbose = false)
                 push!(hkf_params, :z => z)
                 species[:thermo_params] = [hkf_params; species[:thermo_params]]
 
-            elseif method_type == "mv_constant"
+            elseif method_type in ("mv_constant", "mv_pvnrt")
+                species[:V_method] = method_type
+            elseif startswith(method_type, "water_eos")
+                # The solvent's equation of state is not implemented: its
+                # standard energy follows its heat capacity in T, and its
+                # tabulated volume in P, compressibility neglected (about 1.4 %
+                # of the volume at 300 bar).
                 species[:V_method] = "mv_constant"
             end
         end

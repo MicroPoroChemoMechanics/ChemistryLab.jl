@@ -455,12 +455,7 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
         φ = 1 + 2 * acc / (Σm + ϵ)
         out[idx_solvent] = -M_w * Σm * φ
 
-        if has_gas
-            n_gas = sum((_n[i] for i in idx_gas); init = zero(TT))
-            @inbounds for i in idx_gas
-                out[i] = log(_n[i] / n_gas)
-            end
-        end
+        has_gas && _gas_lna!(out, _n, idx_gas, p)
         # Solid solutions and surface sites mix on budgets of their own; leaving
         # either out would give its members unit activity, silently.
         _mixing_lna!(out, _n, mix, p, ϵ)
