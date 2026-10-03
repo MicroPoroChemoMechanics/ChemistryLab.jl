@@ -117,6 +117,23 @@ using OrderedCollections
         @test any(u -> ChemistryLab._kinetic_state_infeasible(sol.prob.p, u), sol.u)
     end
 
+    @testset "a state with no partition makes the right-hand side NaN" begin
+        # Negative element totals: no partition meets them, from the last one
+        # or from a reconstruction, and the right-hand side is NaN, which the
+        # integrator rejects as a step.
+        f! = build_kinetics_ode(kp)
+        p = build_kinetics_params(kp)
+        u = build_u0(kp)
+        ChemistryLab.respeciate!(p, u)
+        p.rhs_mode[] = :rhs
+        u[1:(p.n_be)] .*= -1
+        quiet(f) = Base.CoreLogging.with_logger(f, Base.CoreLogging.NullLogger())
+        @test quiet(() -> ChemistryLab._rhs_partition(p, u[1:(p.n_be)], 298.15)) === nothing
+        du = similar(u)
+        quiet(() -> f!(du, u, p, 0.0))
+        @test all(isnan, du)
+    end
+
     @testset "the modes are checked" begin
         @test_throws ArgumentError integrate(kp, ks; speciation = :sometimes)
         saved = ChemistryLab._DUAL_AVAILABLE[]

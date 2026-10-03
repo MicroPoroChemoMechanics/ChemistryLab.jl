@@ -445,6 +445,34 @@ end
     @test_throws ArgumentError build_pitzer_parameters(nopitzer)
 end
 
+@testsection "Pitzer: the TOML reader takes temperature terms" begin
+    # A [[binary]] entry gives them per coefficient, a [[theta]], [[psi]] or
+    # [[lambda]] entry as one list; fewer than five are padded with zeros.
+    path = joinpath(mktempdir(), "pitzer-t.toml")
+    write(
+        path, """
+        [[binary]]
+        cation = "Na+"
+        anion = "Cl-"
+        beta0 = 0.0765
+        beta1 = 0.2664
+        Cphi = 0.00127
+        temperature = { beta0 = [1.0, 2.0e-2, 3.0e-3, 4.0e-6, 5.0], Cphi = [0.5] }
+
+        [[theta]]
+        i = "Na+"
+        j = "K+"
+        value = -0.012
+        temperature = [1.0, 0.25]
+        """,
+    )
+    got = build_pitzer_parameters(path)
+    @test got.beta0[("Na+", "Cl-")] == 0.0765
+    @test got.temperature[:beta0][("Na+", "Cl-")] == (1.0, 2.0e-2, 3.0e-3, 4.0e-6, 5.0)
+    @test got.temperature[:Cphi][("Na+", "Cl-")] == (0.5, 0.0, 0.0, 0.0, 0.0)
+    @test got.temperature[:theta][("Na+", "K+")] == (1.0, 0.25, 0.0, 0.0, 0.0)
+end
+
 @testsection "Pitzer: temperature terms, exact at Tr and exactly differentiated" begin
     A = (1.0, 2.0e-2, 3.0e-3, 4.0e-6, 5.0)
     Tr = 298.15

@@ -321,4 +321,26 @@ end
     @test H(T2 + δ) - H(T2 - δ) ≈ 0 atol = 1.0e-3
     # Past 950 K the heat capacity is the second interval's polynomial.
     @test Cp(1000.0) ≈ 150.62399291992 rtol = 1.0e-9
+
+    # Below the reference interval. No shipped record has an interval there,
+    # so hematite is given one: a copy of its reference interval under 280 K,
+    # with the transition of 950 K moved to its top. Going down across it takes
+    # the transition's enthalpy and entropy away and changes nothing else:
+    # H₂ = H − ΔH, S₂ = S − ΔS and G₂ = G − ΔH + T ΔS below 280 K, and the
+    # reference interval is untouched.
+    low = deepcopy(rec["TPMethods"][1])
+    low["limitsTP"]["lowerT"], low["limitsTP"]["upperT"] = 200.0, 280.0
+    low["m_phase_trans_props"]["values"][1] = 280.0
+    rec2 = deepcopy(rec)
+    rec2["TPMethods"][1]["limitsTP"]["lowerT"] = 280.0
+    pushfirst!(rec2["TPMethods"], low)
+    path = joinpath(mktempdir(), "hematite-below.json")
+    write(path, JSON.json(merge(raw, Dict("substances" => [rec2], "reactions" => Any[]))))
+    hem2 = only(build_species(path; verbose = false))
+    for T in (250.0, 220.0)
+        @test hem2[:ΔₐH⁰](T = T) ≈ H(T) - dH rtol = 1.0e-12
+        @test hem2[:S⁰](T = T) ≈ S(T) - dS rtol = 1.0e-12
+        @test hem2[:ΔₐG⁰](T = T) ≈ G(T) - dH + T * dS rtol = 1.0e-12
+    end
+    @test hem2[:ΔₐG⁰](T = 500.0) == G(500.0)
 end

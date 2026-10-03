@@ -212,6 +212,32 @@ include("reference_species.jl")
         @test equilibrate(calcite(); certify = true) isa ChemicalState
     end
 
+    @testsection "a polish that cannot certify says so" begin
+        # A budget of negative amounts: no composition meets it, so the dual
+        # Newton started from the back end's answer cannot certify one. The
+        # better of the two answers is returned, the solve is counted as not
+        # converged, and it says so: a warning, or an error under
+        # `STRICT_CONVERGENCE`.
+        st = calcite()
+        es = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer())
+        quiet(f) = Base.CoreLogging.with_logger(f, Base.CoreLogging.NullLogger())
+        raw = quiet(() -> ChemistryLab._unpolished(() -> SciMLBase.solve(es, calcite())))
+        b = -(A * [ustrip(us"mol", x) for x in st.n])
+        cref = Ref{Any}()
+        before = ChemistryLab.NONCONVERGED[]
+        out = quiet(() -> ChemistryLab._finish_backend_solve(es, st, raw; b = b, certificate = cref))
+        @test out isa ChemicalState
+        @test !cref[].optimal
+        @test ChemistryLab.NONCONVERGED[] > before
+        strict = ChemistryLab.STRICT_CONVERGENCE[]
+        try
+            ChemistryLab.STRICT_CONVERGENCE[] = true
+            @test_throws ErrorException ChemistryLab._finish_backend_solve(es, st, raw; b = b)
+        finally
+            ChemistryLab.STRICT_CONVERGENCE[] = strict
+        end
+    end
+
     @testsection "the dual route needs an aqueous phase and H2O@" begin
         # It parameterizes the interior variables by the solvent's potential, so
         # both conditions are structural. `equilibrate_certified` returns

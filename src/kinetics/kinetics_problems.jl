@@ -1541,11 +1541,8 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
     if eq === nothing || !cert.optimal
         guess = _reconstruction_guess!(similar(warm), p, bv)
         eq2, cert2 = _exploring_starts(() -> solve_certified(p.eq_dual, (state(guess),); b = bv, ϵ = p.ϵ))
-        if eq === nothing
-            eq, cert = eq2, cert2
-        elseif eq2 !== nothing
-            eq, cert = _keep_better(eq, cert, eq2, cert2)
-        end
+        eq, cert = eq === nothing ? (eq2, cert2) :
+            eq2 === nothing ? (eq, cert) : _keep_better(eq, cert, eq2, cert2)
     end
     eq === nothing && return nothing
     n = Float64[ustrip(us"mol", x) for x in eq.n]
