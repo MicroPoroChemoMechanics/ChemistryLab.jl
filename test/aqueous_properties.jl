@@ -186,10 +186,19 @@ end
         @test a["Ca+2"] ≈ γ["Ca+2"] * m["Ca+2"] rtol = 1.0e-9
     end
 
-    # ── the dilute model is ideal on its OWN scale: γ ≡ 1 everywhere.
+    # ── the dilute model is ideal on its OWN scale: γ ≡ 1 for every solute.
     γ_id = activity_coefficients(st, DiluteSolutionModel())
     lna_id = log_activities(st, DiluteSolutionModel())
-    @test all(≈(1.0; rtol = 1.0e-14), values(γ_id))
+    @test all(≈(1.0; rtol = 1.0e-14), (v for (k, v) in γ_id if k != "H2O@"))
+    # Its water is the Gibbs–Duhem partner of `ln mᵢ`, `ln a_w = −M_w Σ m`, so
+    # on the mole-fraction scale `γ_w = a_w / x_w` departs from 1 at second
+    # order in `M_w Σ m`, and by exactly what the two scales differ by.
+    n = ustrip.(us"mol", st.n)
+    iw = only(cs.idx_solvent)
+    n_sol = sum(n[i] for i in cs.idx_solutes)
+    n_aq = sum(n[i] for i in cs.idx_aqueous)
+    @test log(γ_id["H2O@"]) ≈ -n_sol / n[iw] - log(n[iw] / n_aq) atol = 1.0e-12
+    @test 0 < 1 - γ_id["H2O@"] < (n_sol / n[iw])^2
 
     # Its activities are numerically equal to the molalities, because it takes
     # c° = 1 mol/L and ρ = 1 kg/L, so molarity and molality coincide as numbers

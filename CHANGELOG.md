@@ -189,7 +189,10 @@
   `∂G⁰/∂P = V⁰`; so does the solvent, whose equation of state is not
   implemented, with its compressibility neglected. Three crystals CEMDATA18
   marks as ideal gases (`CA`, `CA2`, `C12A7`) are treated as the crystals they
-  are. At 1 bar nothing changes: the term is an exact zero there.
+  are. At 1 bar nothing changes: the term is an exact zero there. Calcite
+  under pressure is the visible case: its reaction volume, ions minus crystal,
+  is now about −56 cm³/mol between 15 and 70 MPa at 301 K, and its `log K` at
+  70 MPa agrees with Duan et al. (2016) to 0.01, where it was 0.44 short.
 
 ### Fixed
 

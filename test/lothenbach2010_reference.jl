@@ -190,7 +190,8 @@ include("reference_species.jl")
         # saturation for portlandite and ettringite. At
         # I ≈ 0.5 mol/kg that is a statement about the activity model. With
         # Davies it holds: effective indices of +0.14 to +0.16 and +0.18 to
-        # +0.23. With the B-dot model identified from GEMS (å = 0) the same
+        # +0.23, the second through the osmotic water activity Davies has had
+        # since 0.31, ettringite carrying 26 waters. With the B-dot model identified from GEMS (å = 0) the same
         # analyses come out just UNDERsaturated, -0.10 to -0.11 and -0.15 to
         # -0.18. Either way within a quarter of a log unit of equilibrium.
         g = [x for x in sat if x.model == :gems]
@@ -198,7 +199,7 @@ include("reference_species.jl")
         @test all(abs(a - b) < 5.0e-4 for (a, b) in zip(extrema(x.CH for x in g), (-0.113, -0.098)))
         @test all(abs(a - b) < 5.0e-4 for (a, b) in zip(extrema(x.AFt for x in g), (-0.176, -0.153)))
         @test all(abs(a - b) < 5.0e-4 for (a, b) in zip(extrema(x.CH for x in d), (0.135, 0.163)))
-        @test all(abs(a - b) < 5.0e-4 for (a, b) in zip(extrema(x.AFt for x in d), (0.181, 0.227)))
+        @test all(abs(a - b) < 5.0e-4 for (a, b) in zip(extrema(x.AFt for x in d), (0.182, 0.228)))
         # The free hydroxide the analysis reports comes back within 6 % from the
         # charge balance of the totals, with the GEMS model.
         @test maximum(abs(x.free_OH / x.OH - 1) for x in g) < 0.06

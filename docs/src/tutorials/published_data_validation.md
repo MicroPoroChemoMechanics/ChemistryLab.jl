@@ -59,7 +59,7 @@ one costs seconds to minutes.
 | **standard properties and HKF coefficients**, 19 aqueous species and 7 gases | [Lothenbach2019](@citet) Tables D.1-D.2 | exact, all seven coefficients each | nitrite-AFm and Fe-Friedel's salt are not in the file |
 | **each record's `ΔfG°`, `ΔfH°` and `S°`** against one another | the file's own element entropies | 78 of 143 crystalline records to `1 J/mol`, 126 to `100 J/mol` | the two M-S-H end members miss by kilojoules at either temperature |
 | **HKF away from 298.15 K, 1 bar** | [Duan2016](@citet) Table 4, HKF column | `0.03 %` at the reference point; `0.3 %` across a factor 2.9 in pressure | their two constants in one row sit at two different pressures |
-| **calcite `log Ksp`** at 25 °C | the accepted value, [PlummerBusenberg1982](@cite) | `−8.480` against `−8.48` | diverges from Duan's non-HKF method by 1.4 log units at 478 K |
+| **calcite `log Ksp`** at 25 °C | the accepted value, [PlummerBusenberg1982](@cite) | `−8.480` against `−8.48` | diverges from Duan's non-HKF method by 1.3 log units at 478 K |
 | **a measured solution** over a two-phase assemblage | [Atkins1992](@citet) Table 2 | Al and pH agree, robustly | Si is `×5` and Ca has a floor the model cannot leave; 9 of their 10 mixtures are not usable at all |
 | **the carboaluminate sequence** under limestone | [Kulik2021](@citet) Fig. 7A, [Lothenbach2019](@cite) Figs. 13-14 | order and thresholds reproduce; iron partition exact | only appears when Al exceeds Fe — see below |
 | **chloride binding** and the AFm → Friedel transition | [Guo2018](@citet) Fig. 1(b) | plateau to `1 %`, both conservation laws close | pH not reproducible (their alkalis are unpublished); above 2 % NaCl the activity model is out of range |
@@ -698,18 +698,26 @@ here. Duan print −8.53.
 | T (K) | P (MPa) | ChemistryLab | Duan | Δ |
 |--:|--:|--:|--:|--:|
 | 298.15 | 0.1 | **−8.480** | −8.53 | +0.05 |
-| 301.15 | 15 | −8.440 | −8.53 | +0.09 |
-| 301.15 | 70 | −8.261 | −7.82 | −0.44 |
-| 343.15 | 15 | −8.855 | −8.69 | −0.17 |
-| 418.15 | 40 | −9.827 | −9.06 | −0.77 |
-| 478.15 | 15 | −11.055 | −9.69 | −1.37 |
+| 301.15 | 15 | −8.344 | −8.53 | +0.19 |
+| 301.15 | 50 | −7.999 | −8.03 | +0.03 |
+| 301.15 | 70 | −7.813 | −7.82 | +0.01 |
+| 343.15 | 15 | −8.772 | −8.69 | −0.08 |
+| 418.15 | 40 | −9.643 | −9.06 | −0.58 |
+| 478.15 | 15 | −10.995 | −9.69 | −1.30 |
 
 Both agree on the two signs a burial calculation turns on — heating dissolves
-less, compressing dissolves more — and diverge steadily with temperature, this
-package giving the lower solubility. The divergence is worth recording because
-Duan's own Table 4 puts their method within 3 % of HKF on `K₃` and `K₄`, which
-is 0.01 log units; 1.4 log units on calcite is far outside what they claim for
-it. Their estimated carbonate data are the likeliest reason — the ferrocalcite
+less, compressing dissolves more — and on how much compressing dissolves: at
+301 K the two methods are within 0.03 at 50 and 70 MPa. That agreement needs the
+volume of the crystal, 36.9 cm³/mol, in its standard energy; before 0.31 it was
+left out, compression acted through the ions alone, and 70 MPa was 0.44 short.
+Duan's 15 MPa row is the exception, and their own table disagrees with it: it
+repeats their 0.1 MPa value, where their 50 and 70 MPa rows rise by 0.21 over
+20 MPa.
+
+With temperature the two diverge steadily, this package giving the lower
+solubility. The divergence is worth recording because Duan's own Table 4 puts
+their method within 3 % of HKF on `K₃` and `K₄`, which is 0.01 log units;
+1.3 log units on calcite is far outside what they claim for it. Their estimated carbonate data are the likeliest reason — the ferrocalcite
 row of their Table 3 carries a heat-capacity coefficient of `+2.09×10⁶` where
 every other carbonate in the table has zero or a large negative.
 

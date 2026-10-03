@@ -99,24 +99,32 @@
         squeezed = logK(("Ca+2", "CO3-2"), ("Cal",), 301.15, 7.0e7)
         @test squeezed > cold + 0.1                             # Duan: -7.82 vs -8.53
 
-        # How far apart the two methods run. At 301 K they are within 0.1 log
-        # unit; by 478 K they are 1.4 apart, this package giving the lower
-        # solubility. Worth recording because Duan's own Table 4 puts their
-        # method within 3 % of HKF on K3 and K4 -- 0.01 log units -- so a
-        # disagreement of 1.4 on calcite is far outside what they claim for it,
-        # and the estimated carbonate data of their Table 3 are the likeliest
-        # reason. Their ferrocalcite row carries a heat-capacity coefficient of
-        # +2.09e6 where every other carbonate in the table has zero or a large
-        # negative.
+        # How far apart the two methods run. At 301 K and 50 to 70 MPa they are
+        # within 0.03 log unit, now that the crystal's own volume is in its
+        # standard energy: without it, compression acted through the ions alone
+        # and 70 MPa was 0.44 short. By 478 K they are 1.3 apart, this package
+        # giving the lower solubility. Worth recording because Duan's own
+        # Table 4 puts their method within 3 % of HKF on K3 and K4 -- 0.01 log
+        # units -- so a disagreement of 1.3 on calcite is far outside what they
+        # claim for it, and the estimated carbonate data of their Table 3 are
+        # the likeliest reason. Their ferrocalcite row carries a heat-capacity
+        # coefficient of +2.09e6 where every other carbonate in the table has
+        # zero or a large negative.
         # The page's table, this package's column pinned at its three decimals.
         for (T, P, ours) in (
-                (298.15, 0.1, -8.48), (301.15, 15.0, -8.44), (301.15, 70.0, -8.261),
-                (343.15, 15.0, -8.855), (418.15, 40.0, -9.827), (478.15, 15.0, -11.055),
+                (298.15, 0.1, -8.48), (301.15, 15.0, -8.344), (301.15, 50.0, -7.999),
+                (301.15, 70.0, -7.813), (343.15, 15.0, -8.772), (418.15, 40.0, -9.643),
+                (478.15, 15.0, -10.995),
             )
             @test logK(("Ca+2", "CO3-2"), ("Cal",), T, P * 1.0e6) ≈ ours atol = 5.0e-4
             @test !isnan(calcite_row(T, P))
         end
-        @test abs(cold - calcite_row(301.15, 15.0)) < 0.15
+        @test abs(squeezed - calcite_row(301.15, 70.0)) < 0.02
+        @test abs(logK(("Ca+2", "CO3-2"), ("Cal",), 301.15, 5.0e7) - calcite_row(301.15, 50.0)) < 0.05
+        # Their 15 MPa row repeats their 0.1 MPa value, 3 K cooler, where their
+        # own 50 and 70 MPa rows rise by 0.21 over 20 MPa: that row, not the
+        # volume of calcite, is what disagrees at 15 MPa.
+        @test calcite_row(301.15, 15.0) == calcite_row(298.15, 0.1)
         @test hot - calcite_row(478.15, 15.0) < -1.0
     end
 end
