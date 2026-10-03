@@ -244,15 +244,15 @@ trading-off pair happened to be listed second.
 A thermobalance records the mass of the sample as it is heated
 [Lever2014](@cite). What the cement literature reports is the mass **lost**, in
 percent of a reference mass, and the papers co-authored by Lothenbach, whose
-method is set out in [LothenbachDurdzinskiDeWeerdt2016](@cite), do not all take
+method is set out in [LothenbachDurdzinskiDeWeerdt2016](@citet), do not all take
 the same reference. Three are in use, and the data files of this package carry
 each with its source:
 
 | reference mass | used by | `relative_to` |
 |:--|:--|:--|
-| the sample at the start of the run | the thermograms of [Deschner2012](@cite) | `:initial` (default) |
+| the sample at the start of the run | the thermograms of [Deschner2012](@citet) | `:initial` (default) |
 | the dry sample at a temperature | 500 °C, [Scholer2015](@cite); 800 °C, [Shi2016](@cite) | that temperature |
-| the sample ignited at 980 °C | [ShiLothenbach2020](@cite) | `980 + 273.15`, or `:ignited` |
+| the sample ignited at 980 °C | [ShiLothenbach2020](@citet) | `980 + 273.15`, or `:ignited` |
 
 `thermogram` returns the mass and the loss in kilograms, and both again in
 percent of the reference `relative_to` names (`mass_percent`, `loss_percent`,
@@ -302,7 +302,7 @@ inside(phase) = t.by_phase[phase][2] - t.by_phase[phase][1]
 The interval gives the portlandite all its water and nothing else. The loss read
 over that interval holds more: the carbonate's interval overlaps it, and part of
 the calcite's carbon dioxide leaves between 350 and 500 °C as well, which is the
-loss a reading has to separate ([LHopital2016](@cite) quantify portlandite from
+loss a reading has to separate ([LHopital2016](@citet) quantify portlandite from
 the loss around 450 °C by the tangent method). A logistic window spread over the same interval, 1 % released at one end and 99 %
 at the other ([`window_interval`](@ref)), would put 2 % of the portlandite's
 water outside it. Both forms can be mixed in one set, fitted to a curve

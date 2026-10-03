@@ -46,8 +46,9 @@ async function activateScripts(container: Element): Promise<void> {
 }
 
 // ── Citation hints ──────────────────────────────────────────────────────────
-// A numeric citation reads as `[42]`, which tells the reader nothing without a
-// trip to the References page. Hovering one pops the full entry instead.
+// An author-year citation, `(Anderson and Crerar, 1993)`, names the work but not
+// where it appeared; that needs a trip to the References page. Hovering one pops
+// the full entry instead.
 //
 // The entries are read from the References page itself, fetched once on the
 // first hover and indexed by the anchor DocumenterCitations puts on each item,

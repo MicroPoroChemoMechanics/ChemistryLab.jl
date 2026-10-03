@@ -98,7 +98,7 @@ C-S-H has no fixed formula. Its lime-to-silica ratio, its aluminum uptake and it
 water content all vary with the cement and with age, so a matrix that describes a
 hydrated paste has to carry those as **parameters** rather than numbers.
 
-This is the decomposition of [Chen2007a](@cite) and [Chen2007b](@cite), who write
+This is the decomposition of [Chen2007a](@citet) and [Chen2007b](@citet), who write
 a blended-cement paste over its oxides with a parameterized C-S-H. Take
 ``\ce{C_â S A_b̂ H_ĝ}`` alongside five hydrates of fixed composition:
 

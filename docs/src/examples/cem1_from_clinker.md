@@ -20,7 +20,7 @@ starting from its clinker.
 
 ## 1. Three clinkers, one controlled difference
 
-The reference composition is the CEM I of [BaroghelBouny1999](@cite), Table 2.
+The reference composition is the CEM I of [BaroghelBouny1999](@citet), Table 2.
 The other two are **constructed** from it rather than measured: they trade alite
 for belite at constant total silicate, which isolates the one effect this page
 is about. They are not three commercial cements, and nothing here should be read

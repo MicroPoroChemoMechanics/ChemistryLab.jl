@@ -13,7 +13,7 @@ kinetic parameters nobody measures for the fast reactions and would force the
 integrator down to their timescale. Equilibrating everything would dissolve the
 clinker instantly.
 
-The way out is [Leal2017](@cite)'s partition, which is also what Reaktoro
+The way out is the partition of [Leal2017](@citet), which is also what Reaktoro
 implements. This page derives it; [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration) puts
 it to work.
 
@@ -89,7 +89,7 @@ move them.
 
 ## The system
 
-With that state, the coupled problem is ([Leal2017](@cite), Eqs. 54–65):
+With that state, the coupled problem is [Leal2017; Eqs. 54–65](@cite):
 
 ```math
 \frac{\mathrm{d} \mathbf{n}_k}{\mathrm{d} t} = \boldsymbol{\nu}_k^\mathsf{T} \mathbf{r}(\mathbf{n}, T, t),

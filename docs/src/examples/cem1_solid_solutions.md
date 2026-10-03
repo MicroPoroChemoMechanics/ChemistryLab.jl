@@ -459,7 +459,7 @@ Green is a certified answer, red is not.
 ## 6. A second opinion
 
 [Reaktoro](https://reaktoro.org) solves the same problem from the same
-literature ([Leal2017](@cite)) and reads the same ThermoFun file this package
+literature [Leal2017](@cite) and reads the same ThermoFun file this package
 ships, which makes it a useful independent check — see
 [Validation against Reaktoro](@ref) for the small case where every knob is
 matched and the agreement is quantified species by species.
@@ -505,7 +505,7 @@ problem rather than of either code:
 
 **The mixing is ideal, and that is an assumption.** All eight phases are
 declared with ideal mixing here. CEMDATA18 publishes non-ideal parameters for the
-AFm and AFt binaries (Table 1 of [Lothenbach2019](@cite), in
+AFm and AFt binaries (Table 1 of [Lothenbach2019](@citet), in
 `data/literature/Lothenbach2019.json`), and they are not used on this page. A
 non-ideal phase changes ``\Omega`` — the criterion of §4 becomes a fixed point,
 ``x_i = 10^{\mathrm{SI}_i} / \gamma_i(x)`` — and those parameters open a

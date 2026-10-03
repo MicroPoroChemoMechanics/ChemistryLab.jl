@@ -526,7 +526,7 @@ end
     _equilibrium_subsystem(system, idx_equilibrium) -> ChemicalSystem
 
 The chemical system restricted to the equilibrium partition, as the partitioned
-formulation of [Leal2017](@cite) requires.
+formulation of [Leal2017](@citet) requires.
 
 Its formula matrix is exactly `system.CSM.A[:, idx_equilibrium]`, in the same
 species order, so the element amounts `bₑ` carried by the ODE state are handed

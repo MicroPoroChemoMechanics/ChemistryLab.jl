@@ -477,7 +477,7 @@ participant of a declared reaction**. That covers both styles of model:
     so `K = [−1]`, `M = KᵀK = 1`, `Δξ = Δt·r`, and the released matter speciates
     freely under element conservation.
   - **solid to solid** — `C₃S + H₂O → C-S-H + CH`, the form
-    [Lavergne2018](@cite) uses. Every solid product is kinetic too, so the
+    [Lavergne2018](@citet) use. Every solid product is kinetic too, so the
     assemblage is **imposed by the stoichiometry** rather than found by
     minimizing `G`. That is a different model, deliberately, and it is the one to
     write when the hydrate assemblage is part of what you are prescribing.

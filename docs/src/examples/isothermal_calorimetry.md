@@ -13,11 +13,11 @@ Q(t) \;=\; H(t_0) - H(t), \qquad H = \sum_i n_i\,\Delta_f H_i(T) ,
 ```
 
 with the reactants, the ions and the hydrates each counted once and no reaction
-to write down (Eqs. 17–21 of [Lavergne2018](@cite)). It is an output: once the
+to write down (Eqs. 17–21 of [Lavergne2018](@citet)). It is an output: once the
 states are computed, the heat is read off them. Along a kinetic trajectory that
 is [`heat_release`](@ref), compared with measured curves on
 [the calibration page](@ref ex-hydration-calibration); this page reads it at
-measured degrees of hydration instead, on the pastes of [Gruyaert2010](@cite).
+measured degrees of hydration instead, on the pastes of [Gruyaert2010](@citet).
 
 ## The pastes
 
@@ -73,7 +73,7 @@ At 2 days the computed heat is 7 % above the measured one; at 28 months it is
 one heat per unit degree of hydration, fixed by the enthalpies of the phases,
 and it comes out at 488 and 480 J/g at the two ages. The measurements carry 457
 at 2 days and 585 at infinite time, and the two cannot hold together with the
-degrees of hydration of the image analysis: [Gruyaert2010](@cite) note it
+degrees of hydration of the image analysis: [Gruyaert2010](@citet) note it
 themselves, their reaction degree at 2 days being low against the degree of
 hydration once the ultimate degree of 74 % is accounted for. The calculation,
 which has no parameter to adjust, falls between them.

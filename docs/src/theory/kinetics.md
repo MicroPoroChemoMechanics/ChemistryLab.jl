@@ -107,14 +107,14 @@ k(T) = k_0 \exp\!\left[-\frac{E_a}{R}\left(\frac 1T - \frac 1{T_{\text{ref}}}\ri
 
 so that `k₀` is the measured constant *at* `T_ref` and carries its own unit,
 instead of being an extrapolation to infinite temperature. The shipped parameter
-sets for this family come from [PalandriKharaka2004](@cite).
+sets for this family come from [PalandriKharaka2004](@citet).
 
 ## 2. Clinker hydration: Parrott & Killoh
 
 A clinker phase does not dissolve into a solution at a rate set by its own
 undersaturation — it is consumed behind a growing layer of hydrate, and the
 controlling step changes as the layer thickens. The 1984 description, as reported
-by [Lothenbach2008](@cite) and used by [Lavergne2018](@cite), writes three
+by [Lothenbach2008](@citet) and used by [Lavergne2018](@citet), writes three
 competing mechanisms in the **degree of hydration** and lets the slowest one
 limit:
 
@@ -231,7 +231,7 @@ one, and it is a prediction of the parameter and not an extra rule.
 
 Silica fume carries the same τ and n as fly ash: its much higher reactivity is
 represented **through the fineness**, at an effective Blaine of 2000 m²/kg
-recommended by [Lavergne2018](@cite). Its BET surface, about 20 000 m²/kg, is a
+recommended by [Lavergne2018](@citet). Its BET surface, about 20 000 m²/kg, is a
 different measurement of a different thing and must not be substituted — a factor
 of ten on the rate.
 
@@ -357,12 +357,12 @@ refilled from the bath in one case and not in the other.
 
 | quantity | where it comes from |
 |:--|:--|
-| `PK84_PARAMS_*` | Parrott & Killoh (1984) as reported by [Lothenbach2008](@cite), [Lavergne2018](@cite) |
-| `WALLER_PARAMS_*` | Waller (1999), as used by [Lavergne2018](@cite) |
-| the dissolution rate constants and their exponents | [PalandriKharaka2004](@cite) |
+| `PK84_PARAMS_*` | Parrott & Killoh (1984) as reported by [Lothenbach2008, Lavergne2018](@citet) |
+| `WALLER_PARAMS_*` | Waller (1999), as used by [Lavergne2018](@citet) |
+| the dissolution rate constants and their exponents | [PalandriKharaka2004](@citet) |
 | `blaine_ref` 385 / 400 m²/kg | the finenesses those fits were made at |
 | the 0.80 humidity cut and its exponent | Parrott et al., as used by van Breugel |
-| `powers_alpha_max` 0.42 / 0.36 | [Powers1948](@cite) |
+| `powers_alpha_max` 0.42 / 0.36 | [Powers1948](@citet) |
 | `CALIBRATED_THETA` | **fitted here**, on one record — [the calibration page](@ref ex-hydration-calibration) |
 | an SCM's reacted fraction at a given age | **an input**, measured or assumed — never a constant of the code |
 

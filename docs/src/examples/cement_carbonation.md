@@ -16,7 +16,7 @@ then that of the C-S-H and of the aluminate hydrates. The pore solution loses
 its alkalinity with them, and below a pH of about 9 the steel of a reinforced
 concrete is no longer protected.
 
-Shi et al. [Shi2016](@cite) carbonated four mortars of one white Portland cement
+[Shi2016](@citet) carbonated four mortars of one white Portland cement
 (CEM I 52.5 N) after 91 days of hydration, in air with 1 % CO₂:
 
 | mortar | binder |

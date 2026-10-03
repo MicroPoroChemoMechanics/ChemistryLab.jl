@@ -4,7 +4,7 @@
     [Validation on early pore solutions](@ref ex-validation-early), which does the
     same for the first six hours.
 
-Deschner et al. [Deschner2012](@cite) followed the pore solution of a CEM I 42.5 N
+[Deschner2012](@citet) followed the pore solution of a CEM I 42.5 N
 from one hour to 550 days, alone and with half of it replaced by one of two
 siliceous fly ashes (F1, F2), by an inert quartz powder, or by fly ash and 5 %
 limestone. The pastes, at a water-to-binder ratio of 0.5, were stored sealed at

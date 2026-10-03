@@ -91,9 +91,9 @@ which is what [`hkf_debye_huckel_params`](@ref) evaluates from this package's ow
 equation of state for water. So the ``A = 0.5114`` and ``B = 0.3288`` that the
 models carry as defaults at 25 °C are **derived** as well as tabulated: they
 agree to 0.01 % with the values of the LLNL aqueous model that
-[ParkhurstAppelo2013](@cite) tabulate, from 0 to 100 °C — compared at three
+[ParkhurstAppelo2013](@citet) tabulate, from 0 to 100 °C — compared at three
 temperatures in [What the choice of activity model costs](@ref sec-app-activity-models).
-[Helgeson1981](@cite), Table 1, computed from the water properties of the time,
+[Helgeson1981](@citet), Table 1, computed from the water properties of the time,
 gives 0.5091 and 0.3283 at 25 °C.
 
 Both rise with temperature, because water's dielectric constant falls faster than
@@ -126,7 +126,7 @@ no screening argument produces. The B-dot model adds a linear term for it,
                     + \dot{B} I .
 ```
 
-Its status is that of an empirical correlation. [AndersonCrerar1993](@cite) (§17.7.1,
+Its status is that of an empirical correlation. [AndersonCrerar1993](@citet) (§17.7.1,
 pp. 445–446) record that Helgeson defined ``\dot{B}`` as a **deviation
 function**: the difference between the *observed* activity coefficient of an
 electrolyte — NaCl — and what the extended Debye-Hückel expression predicts for

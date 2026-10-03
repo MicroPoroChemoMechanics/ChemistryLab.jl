@@ -5,7 +5,7 @@
     kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics).
 
 A worked application of [Coupling kinetics and equilibrium](@ref sec-coupling): alite and
-belite dissolve according to [ParrottKilloh1984](@cite), and the hydrate
+belite dissolve according to [ParrottKilloh1984](@citet), and the hydrate
 assemblage that forms is **computed** by Gibbs minimization rather than imposed
 from a stoichiometric recipe.
 

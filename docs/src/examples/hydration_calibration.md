@@ -104,7 +104,7 @@ describes — model and record are both referred to the first sample, and the
 energy is a temperature sensitivity; at a single temperature it is not
 identifiable, and a fit that reported one would be reporting a number the data
 cannot contain. Every `Ea` therefore stays at its published value. A reader who
-wants a fitted `Ea` needs a second temperature: [Jaegle2025](@cite) is a
+wants a fitted `Ea` needs a second temperature: [Jaegle2025](@citet) is a
 CC-BY-4.0 route to one, at 20 °C and 35 °C on CEM I 42.5 R and 52.5 R, at the cost
 of a 341 MB download covering only the first 24 hours.
 
@@ -114,7 +114,7 @@ measures what that costs.
 
 ## 2. The published parameters, untouched
 
-The formulation is the CEM I 52.5 N of [Lavergne2018](@cite) Table 9, the same one
+The formulation is the CEM I 52.5 N of [Lavergne2018](@citet) Table 9, the same one
 [the pore-solution page](@ref ex-ionic-opc) runs: C₃S 65 / C₂S 11 / C₃A 11 /
 C₄AF 8 by mass of clinker, 4.6 % gypsum, 3.5 % limestone. It was chosen because
 the target record's w/b of 0.50 and Blaine of 397 m²/kg are within a few percent
@@ -596,7 +596,7 @@ Two remedies, neither of them a better optimizer:
    peak — an independent, near-direct observation of when the dormant period ends —
    and fit `k₁_C3S` against it rather than with it. That breaks the 0.994.
 2. **Measure something else.** Bound water by thermogravimetry, or phase amounts
-   by QXRD as in [Jansen2012](@cite), constrains the assemblage where a single
+   by QXRD as in [Jansen2012](@citet), constrains the assemblage where a single
    integrated heat cannot. §10.
 
 !!! warning "And the holdout has a defect of its own"
@@ -822,7 +822,7 @@ and it is blocked only by data, not by the code.
   fitted alongside a rate they are collinear with. If a fit is wanted
   that determines parameters individually rather than in combination, the answer is
   a second observable — bound water by thermogravimetry, phase amounts by QXRD as
-  in [Jansen2012](@cite) — not a larger `CALIB_SPEC`.
+  in [Jansen2012](@citet) — not a larger `CALIB_SPEC`.
 - **The page costs several minutes to build.** Six coupled forward solves for the
   sensitivity in §5, one each for the prior and the fit, two for the holdout and
   two for the composition sensitivity, at tens of seconds apiece. That is the price

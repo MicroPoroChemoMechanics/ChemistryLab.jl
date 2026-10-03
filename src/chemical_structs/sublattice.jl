@@ -117,7 +117,7 @@ See also: [`site_fractions`](@ref), [`sublattice_model`](@ref),
 
 # References
 
-  - [Kulik2011](@cite), Section 4.2 (CSH3T).
+  - [Kulik2011](@citet), Section 4.2 (CSH3T).
   - [Myers2014](@cite), Eqs. (15) and (18) (CNASH_ss).
 """
 struct SublatticeModel{T <: Real} <: AbstractSolidSolutionModel

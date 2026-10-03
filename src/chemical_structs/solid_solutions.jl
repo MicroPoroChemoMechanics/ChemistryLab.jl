@@ -894,7 +894,7 @@ which is mass balance and nothing more: ``f_\\alpha x_\\alpha + f_\\beta x_\\bet
 so it measures, in J/mol of binary, how much a single-composition answer
 overstates the Gibbs energy — that is, how wrong it is.
 
-This is the construction of [GlynnReardon1990](@cite), the one PHREEQC uses for a
+This is the construction of [GlynnReardon1990](@citet), the one PHREEQC uses for a
 binary solid solution.
 
 # What this does and does not settle

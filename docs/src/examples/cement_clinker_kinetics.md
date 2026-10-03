@@ -157,7 +157,7 @@ nothing # hide
 
 Everything above imposes the hydrate assemblage: four reactions, written by
 hand, each with fixed coefficients. The alternative is the partitioned coupling
-of [Leal2017](@cite) — the one Reaktoro implements — in which thermodynamics
+of [Leal2017](@citet) — the one Reaktoro implements — in which thermodynamics
 decides the products. It needs *less* input, not more: the `kinetic_species` API
 derives the dissolution reactions itself, so the four `Reaction` blocks
 disappear.

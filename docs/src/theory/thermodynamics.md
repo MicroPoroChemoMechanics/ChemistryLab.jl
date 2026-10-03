@@ -185,7 +185,7 @@ component and one column per species, and ``\mathbf{b}`` the budget of the compo
 The components are the primary species of the system, or the elements with the
 charge, and the two choices express the same constraints
 ([Formation from primary species](@ref sec-theory-primaries)). This is the
-formulation of [Leal2017](@cite), in which no list of reactions is needed: the
+formulation of [Leal2017](@citet), in which no list of reactions is needed: the
 reactions are the moves of ``\mathbf{n}`` within the null space of ``\mathbf{A}``.
 
 The Lagrange multipliers of the equality constraints are the useful output.

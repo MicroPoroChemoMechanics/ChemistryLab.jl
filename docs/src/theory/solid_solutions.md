@@ -591,7 +591,7 @@ xp = [y[1][o[1, j]] * y[2][o[2, j]] for j in 1:6]          # the product split
 
 All three are at the rounding of the arithmetic. The model and its data are
 in `data/literature/Kulik2022.json`, the sodium and potassium of Miron et al.
-[Miron2022a, Miron2022b](@cite) in `Miron2022a.json` and `Miron2022b.json`, and the
+[Miron2022a, Miron2022b](@citet) in `Miron2022a.json` and `Miron2022b.json`, and the
 twelve end-members in the database `cemdata18-cashplus.json`.
 [The CASH+ page](@ref ex-cashplus-csh) computes the C-S-H in water and in alkali
 solutions with it.

@@ -106,7 +106,7 @@ levels, so those are assumed at the midpoint of the EN 197-1 range and labeled:
 
 ```@example cem5
 # ASSUMED: a Bogue composition representative of a CEM I clinker, here
-# the Bogue composition of the CEM I 52.5 N of [Lavergne2018](@cite), Table 9.
+# the Bogue composition of the CEM I 52.5 N of [Lavergne2018](@citet), Table 9.
 bogue = literature_table("Lavergne2018", "cement_bogue")
 CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))
 
@@ -166,7 +166,7 @@ ALPHA_WATER = powers_alpha_max(WB; curing = CURING)
 # ASSUMED from that table: the mean of the four slag values, and the fly ash's
 # one. [Section 6](@ref cem5-dor) sweeps both.
 # Degrees of reaction measured by SEM image analysis on sealed pastes, in
-# percent: [Durdzinski2017](@cite), Table 5, from data/literature/Durdzinski2017.json.
+# percent: [Durdzinski2017](@citet), Table 5, from data/literature/Durdzinski2017.json.
 sem(material, age) = literature_table("Durdzinski2017", "degree_of_reaction";
     technique = "SEM-IA", material, curing = "sealed", age_days = age).degree_percent
 mean_percent(x) = sum(x) / length(x)

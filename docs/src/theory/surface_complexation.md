@@ -161,7 +161,7 @@ Read the denominator, because it carries the physics:
 
 The literature often writes the same physics with the free site **eliminated**,
 carrying only the occupied species. That formulation then needs a correction
-factor to reproduce what the free site was doing, and [Kulik2006](@cite) derives
+factor to reproduce what the free site was doing, and [Kulik2006](@citet) derives
 it: for monodentate species on one family,
 
 ```math
@@ -508,7 +508,7 @@ becomes
 \sum_k d_k n_k - \nu\, n_{\text{host}} = 0 .
 ```
 
-That is equation (30) of [Kulik2002](@cite) read as a coefficient. Whether a
+That is equation (30) of [Kulik2002](@citet) read as a coefficient. Whether a
 capacity really is homogeneous of degree one is **measured** rather than
 assumed: [`sites_per_host`](@ref) evaluates it at two scaled host amounts and
 requires the budget to scale with them — with ``n_0`` held fixed, since scaling
@@ -529,7 +529,7 @@ the free site,
 A'_{:,\,\text{host}} = A_{:,\,\text{host}} - \nu\, A_{:,\,\text{free}} ,
 ```
 
-which is the bookkeeping of [Kulik2002](@cite) for surface groups that belong to
+which is the bookkeeping of [Kulik2002](@citet) for surface groups that belong to
 their sorbent. On the site row it reads ``\sum_k d_k n_k - \nu n_{\text{host}} =
 0``; on the element rows it removes from the host the atoms carried by its free
 sites, so that every atom is counted once; and since the free site is neutral,
@@ -556,7 +556,7 @@ linear, so the feasible set is a polyhedron and the objective is unchanged.
 
 ### Measured
 
-On hydrous ferric oxide at the weak-site density of [DzombakMorel1990](@cite),
+On hydrous ferric oxide at the weak-site density of [DzombakMorel1990](@citet),
 ``\nu = 0.2``, titrated by hydrochloric acid until half of it has dissolved,
 every point certifies, the charge of the system is conserved to ``10^{-12}``
 mol, and the site total is ``\nu`` times the host amount to ``10^{-8}``; the free

@@ -4,7 +4,7 @@
     [Recipes: materials, extents and what has not reacted](@ref man-recipes).
 
 A calculation is worth what it predicts about a paste that was measured.
-Lothenbach and Winnefeld [LothenbachWinnefeld2006](@cite) hydrated a CEM I 42.5 N
+[LothenbachWinnefeld2006](@citet) hydrated a CEM I 42.5 N
 at a water/cement ratio of 0.5 and 20 °C, extracted its pore solution from the
 first minute to 317 days, analyzed it (their Table 3), and modeled the paste with
 a thermodynamic code fed by the dissolution rates of the clinker phases. This
@@ -184,8 +184,8 @@ tenth of it. The hydroxide, which balances the alkalis, is a third low. Both
 come from the C-S-H: `CSHQ` takes the alkalis up through its `KSiOH` and `NaSiOH`
 end-members, and at 317 days it holds 68 % of the potassium and 96 % of the
 sodium. The authors modeled that uptake differently, as a distribution ratio of
-0.42 mL per gram of C-S-H for both alkalis, the mean Hong and Glasser
-[HongGlasser1999](@cite) measured at a C/S of 1.8. This is where the
+0.42 mL per gram of C-S-H for both alkalis, the mean
+[HongGlasser1999](@citet) measured at a C/S of 1.8. This is where the
 calculation, run with the C-S-H model Cemdata18 ships, departs from theirs, and
 from the paste.
 

@@ -4,7 +4,7 @@
     [Validation against a measured paste: a CEM I 42.5 N through its first year](@ref ex-validation),
     whose method this page follows.
 
-De Weerdt et al. [DeWeerdt2011](@cite) blended one clinker, interground with
+[DeWeerdt2011](@citet) blended one clinker, interground with
 gypsum, with a siliceous fly ash and a limestone powder, in four pastes at a
 water/binder ratio of 0.5 and 20 °C:
 

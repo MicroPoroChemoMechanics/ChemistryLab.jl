@@ -166,4 +166,9 @@ species = speciation(all_species, split("Cal H2O@");
               aggregate_state=[AS_AQUEOUS], exclude_species=split("H2@ O2@ CH4@"))
 ```
 
-To go further and compute the actual **equilibrium state** (species amounts, pH, saturation index), build a `ChemicalSystem` from the species and call `equilibrate`. See the [Chemical Equilibrium](@ref sec-equilibrium) tutorial for the complete workflow.
+## Where to go next
+
+The equilibrium state of the same system, with its species amounts, its pH and
+the saturation index of calcite, follows from a `ChemicalSystem` built on these
+species and passed to `equilibrate`; the tutorial
+[Chemical Equilibrium](@ref sec-equilibrium) takes that workflow from end to end.
