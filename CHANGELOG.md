@@ -37,6 +37,14 @@
   it exactly at 293.15 K, the M-S-H records at neither temperature. The page's
   counts (220 of 228, 52 phases) were those of an older file, and its test now
   checks the numbers the page prints.
+- The derivative example of *Solving an equilibrium* printed `0.15193` for a
+  system the page did not define. The system is written out, and the value is
+  the one it gives, `0.163095`, through an explicit back end and the certified
+  route alike. The explicit row of the calcite table of *Writing a kinetic
+  model* was measured again (84 586 steps, 250 s).
+- The w/c page said an Ipopt answer comes without a certificate and leaves the
+  absent phases at its lower bound; with OptimaSolver loaded it is polished and
+  certified, and the page says so.
 
 ### Changed: one equilibrium, whatever the back end
 
