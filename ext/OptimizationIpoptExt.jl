@@ -181,11 +181,16 @@ function SciMLBase.solve(
         EquilibriumProblem(A, esolver.μ, n0; p = p) :
         EquilibriumProblem(A, esolver.μ, n0; b = collect(b), p = p)
     # The polish decides on the answer, so the back end's own return code is not
-    # a reason to raise under `STRICT_CONVERGENCE` when there is one.
+    # checked when there is one: it is neither a warning nor, under
+    # `STRICT_CONVERGENCE`, an error, and a polish that fails says so itself. The
+    # problem is solved here rather than by `solve(::EquilibriumProblem, …)`,
+    # which checks it, and not under `_relaxed_convergence`, whose scoped value
+    # around the solve costs seconds of compilation (see `OptimaSolverExt`).
     polish = ChemistryLab._POLISH[] && ChemistryLab._DUAL_AVAILABLE[] &&
         ChemistryLab._dual_applicable(state.system)
-    run() = SciMLBase.solve(prob, esolver.solver; variable_space = esolver.variable_space, esolver.kwargs...)
-    sol = polish ? ChemistryLab._relaxed_convergence(run) : run()
+    raw = SciMLBase.solve(SciMLBase.OptimizationProblem(prob, esolver.variable_space), esolver.solver; esolver.kwargs...)
+    sol = polish ? raw : ChemistryLab._check_converged(raw, "equilibrium solve")
+    sol.u .= _solution_transform(esolver.variable_space).(sol.u)
 
     state_eq = copy(state)
     for (i, nᵢ) in enumerate(sol.u)

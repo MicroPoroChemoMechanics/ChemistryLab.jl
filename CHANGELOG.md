@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **The first equilibrium of a session compiled 13 s longer than with 0.30.**
+  0.31.0 ran an explicit back end whose answer was to be polished under a
+  scoped value that suspended the strict convergence check, and inferring the
+  solve through it cost 13 s of compilation on the first certified equilibrium
+  of a CEM I paste: 125 s against 112 s, where 0.30.0 took 110 s. The check is
+  now simply not made when the polish decides on the answer.
+- With it goes a warning that misled: a back end stopping short, at `MaxIters`
+  for instance, was reported as not converged and counted in `NONCONVERGED`,
+  although the answer returned was the one the polish then certified. A polish
+  that fails is reported, as before.
+
 ## v0.31.0 — One equilibrium whatever the back end, a scope that says what is proved, and kinetics that read the speciation
 
 An external audit of 0.29.0 reported seven defects, and the code confirmed
