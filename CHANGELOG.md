@@ -1,6 +1,57 @@
 # Changelog
 
-## Unreleased
+## v0.31.0 — One equilibrium whatever the back end, a scope that says what is proved, and kinetics that read the speciation
+
+An external audit of 0.29.0 reported seven defects, and the code confirmed
+each: back ends that computed another composition than the equilibrium, and
+derivatives of a map they did not return; a saddle certified a global minimum;
+an ODE trajectory that created matter and reported success; a gas whose state
+could not be built; pressure absent from the gases and from the condensed
+phases; and a validation page that read a reference temperature as an
+inconsistent entropy. This release corrects them, makes the ideal model and
+Davies derive from one Gibbs energy, and completes the Pitzer model and the
+heat capacities the audit listed as limits.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.30"` does not accept 0.31 and
+  has to widen its bound.
+- **A back end's answer is polished.** `equilibrate(state, solver)`,
+  `equilibrate(state; certify = false)` and `solve(::EquilibriumSolver, state)`
+  return the composition the dual Newton certifies from the back end's answer
+  when OptimaSolver is loaded and the system has an aqueous phase with `H2O@`.
+  Where that answer was not at the equilibrium, the numbers move to it.
+- **Without OptimaSolver, a back end minimizing `n⋅μ(n)` refuses** an activity
+  model that breaks the Gibbs–Duhem relation (the B-dot model, Davies with a
+  neutral solute and `bₙ ≠ 0`, Truesdell–Jones, SIT), with an `ArgumentError`.
+- **`certify` defaults to `nothing`**, which behaves as `true` did; an explicit
+  `certify = true` now raises where the certified search does not apply.
+- **The solvent rows of `DiluteSolutionModel` and `DaviesActivityModel`** are
+  the Gibbs–Duhem partners of their solutes' terms: `ln a_w` moves at second
+  order for the first, and by the osmotic correction for the second.
+- **Scopes.** `:local_minimum` is a new value of `certificate.scope`, and
+  `:global_minimum` needs a convexity proved over the whole domain: an ideal
+  answer now has it, a Pitzer or SIT answer never does, and one under the
+  B-dot or Davies model only with one ion size, no linear or salting-out term,
+  and under the Debye–Hückel bound. The certificate has a field
+  `reduced_curvature`.
+- **Pressure.** A gas's activity carries `ln(P/P°)` and its molar volume is
+  `RT/P`; a species declared at constant volume carries `V⁰ (P − P°)` in its
+  `ΔₐG⁰` and `ΔₐH⁰`, which are then `NumericFunc`s of `T` and `P`. Nothing moves
+  at 1 bar.
+- **Heat capacity on several intervals.** The functions of such a species are
+  piecewise `NumericFunc`s; they do not move inside the interval of the
+  reference temperature.
+- **Pitzer.** The higher-order electrostatic terms are on by default
+  (`etheta = false` restores the previous model); a mixture of unlike charges
+  moves. `PitzerParameters` has a field `temperature` and
+  `PitzerActivityModel` a field `etheta`; code calling their positional inner
+  constructors has to pass them.
+- **Kinetics.** A rate law that reads the speciation is integrated with the
+  partition solved in the right-hand side; its trajectory changes, to the right
+  one. A trajectory that reaches kinetic amounts the system cannot hold is
+  returned with `retcode = Unstable` instead of `Success`.
 
 ### Documentation
 
