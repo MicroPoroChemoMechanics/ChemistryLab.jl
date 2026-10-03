@@ -5,7 +5,7 @@
     kinetics and equilibrium](@ref sec-coupling) for the last section.
 
 [Reaktoro](https://reaktoro.org) solves the same problem this package does, from
-the same literature ([Leal2017](@cite)), and is mature and widely used. It makes
+the same literature [Leal2017](@cite), and is mature and widely used. It makes
 a good oracle — provided the comparison is set up so that a disagreement means
 something.
 

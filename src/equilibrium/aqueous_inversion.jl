@@ -18,7 +18,7 @@
 #     ln mᵢ(I) = cᵢ − ln γᵢ(I),
 #
 # and `I = ½ Σ zᵢ² mᵢ(I)` is one equation in one unknown. That is how PHREEQC
-# treats the ionic strength, as an unknown of its own ([ParkhurstAppelo2013](@cite)).
+# treats the ionic strength, as an unknown of its own [ParkhurstAppelo2013](@cite).
 # It is solved here exactly, on `s = ln I`, or found to have no root, which is the
 # runaway of a model past its range said in so many words. Measured on the same
 # inversions, the root reproduces `hᵢ = cᵢ` to 1e-12 where the sweeps did not

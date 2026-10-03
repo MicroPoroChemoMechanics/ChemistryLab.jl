@@ -9,8 +9,8 @@ two ways of mixing them. The simpler one mixes the **end-members** themselves,
 as if each were a molecule placed at random. The other mixes what actually
 changes from one end-member to the next: the few **structural sites** of the
 silicate chain and of the interlayer, each held by one species or another. The
-second is how Kulik [Kulik2011](@cite) defines the CSH3T gel and Myers et al.
-[Myers2014](@cite) the C-(N-)A-S-H gel, and it is what
+second is how [Kulik2011](@citet) defines the CSH3T gel and
+[Myers2014](@citet) the C-(N-)A-S-H gel, and it is what
 [`SublatticeModel`](@ref) implements.
 
 This page does two things. It solves the same CSH3T gel in water both ways and

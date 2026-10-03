@@ -413,8 +413,8 @@ state_eq = equilibrate(state)   # DiluteSolutionModel is the default
 
 ### `HKFActivityModel` (extended Debye-Hückel B-dot)
 
-Implements the extended Debye-Hückel model of Helgeson [Helgeson1969](@cite)
-and Helgeson, Kirkham & Flowers [Helgeson1981](@cite), identical to the model
+Implements the extended Debye-Hückel model of [Helgeson1969](@citet)
+and [Helgeson1981](@citet), identical to the model
 used by PHREEQC [ParkhurstAppelo2013](@cite) and EQ3/6.
 
 **Ion activity coefficient:**
@@ -469,8 +469,7 @@ model = HKFActivityModel(å = 0.0)
 
 Cemdata18 was derived with, and prescribes, an extended Debye–Hückel equation
 with **one** ion-size parameter and **one** B-dot common to every ion, set by the
-dominant electrolyte of the solution ([Lothenbach2019](@cite), Appendix C,
-Eq. C.1): 3.67 Å and 0.123 kg/mol for KOH, 3.31 Å and 0.098 for NaOH, with the
+dominant electrolyte of the solution [Lothenbach2019; Appendix C, Eq. C.1](@cite): 3.67 Å and 0.123 kg/mol for KOH, 3.31 Å and 0.098 for NaOH, with the
 same B-dot on the neutral species. It is [`cemdata18_activity_model`](@ref):
 
 ```julia
@@ -628,8 +627,8 @@ pre-built `data/solid_solutions.toml` file shipped with ChemistryLab.
     Two of its entries reproduce CEMDATA18 [Lothenbach2019](@cite) phases of the
     same name. `CSHQ` is the six-end-member C-S-H of Kulik's downscaled solid
     solution model [Kulik2011](@cite); its `KSiOH` and `NaSiOH` members carry the
-    uptake of potassium and sodium, whose records name Robie & Hemingway
-    [RobieHemingway1995](@cite) among their sources, and they are what fixes the
+    uptake of potassium and sodium, whose records name
+    [RobieHemingway1995](@citet) among their sources, and they are what fixes the
     pore-solution pH of a Portland cement — leaving them out strands the alkalis
     in solution. `C3(AF)S0.84H` is the Fe-siliceous hydrogarnet.
 

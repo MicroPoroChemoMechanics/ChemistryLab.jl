@@ -220,12 +220,12 @@ sites are then counted as part of the host, whose database formula already
 contains the surface groups they are made of, so that a grain whose sites are all
 free has the composition of that formula; it has the database energy only if the
 free site carries no energy of its own. The reference is therefore fixed at
-zero, following [Kulik2002](@cite), and it is no longer a convention: any other
+zero, following [Kulik2002](@citet), and it is no longer a convention: any other
 value moves the host's solubility by ``\nu\,|\Delta_a G^\circ_{\text{free}}|/(RT
 \ln 10)``, which [`host_coupling_bias`](@ref) evaluates. Giving the free site
 `XsOH` the energy of the oxygen and hydrogen it holds, ``\mu^\circ(\mathrm{H_2O})
 - \mu^\circ(\mathrm{H^+}) = -237.2`` kJ/mol, would count that energy twice, and
-at the weak-site density of [DzombakMorel1990](@cite), ``\nu = 0.2``, it is worth
+at the weak-site density of [DzombakMorel1990](@citet), ``\nu = 0.2``, it is worth
 8.3 log units; a coupled family whose free site is more than 0.05 log units away
 from zero is refused at construction.
 

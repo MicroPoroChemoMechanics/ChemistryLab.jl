@@ -12,17 +12,17 @@ and alkalis but no chloride. This page salts the CEM III/A paste of the
 C-S-H its share, then a CEM III/B paste without portlandite, along the one route
 that applies there.
 
-  - **Route A** keeps the surface model of the C-S-H that [Guo2018](@cite) use:
+  - **Route A** keeps the surface model of the C-S-H that [Guo2018](@citet) use:
     silanol sites that bind calcium, alkalis and chloride. It puts them on a
     C-S-H whose amount and composition a first equilibrium with CSHQ has
     decided, and which [`freeze_solid_solution`](@ref) then sets aside.
   - **Route B** adds an end member to CSHQ, `CSHQ-Cl` = (CaCl₂)₀.₅, whose Gibbs
-    energy was fitted on the sorption tests of [Hirao2005](@cite). It ships in
+    energy was fitted on the sorption tests of [Hirao2005](@citet). It ships in
     `cemdata18-chloride.json`, and the phase is `CSHQ_Cl`.
 
 !!! warning "What these calculations are, and what they are not"
       - Neither route says where the chloride sits in the gel.
-        [Plusquellec2016](@cite) found that chloride does not adsorb
+        [Plusquellec2016](@citet) found that chloride does not adsorb
         specifically on C-S-H. What a depletion measurement counts as bound accompanies the
         calcium the surface adsorbs, in the diffuse layer that screens it. The
         surface complex of route A and the end member of route B are both
@@ -35,7 +35,7 @@ that applies there.
         portlandite saturation. The fit is within 0.05 mmol/g at 0.5 and
         1 mol/L, and four times too high at 0.1 mol/L. Its dependence on the
         Ca/Si is the model's: the end member was chosen to follow the trend
-        measured by [Zibara2008](@cite), not fitted to it
+        measured by [Zibara2008](@citet), not fitted to it
         (`data/chloride/README.md`).
       - The B-dot activity model of the CEMDATA18 pages holds up to an ionic
         strength of about 1 mol/kg. No solution below exceeds 0.7.

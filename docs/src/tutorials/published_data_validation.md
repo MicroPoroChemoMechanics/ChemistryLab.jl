@@ -1,14 +1,19 @@
 # Validation against published data
 
+!!! info "Before this page"
+    [Validation against Reaktoro](@ref), whose comparison this page completes, and
+    [Standard states](@ref sec-theory-standard-states), since the checks below
+    compare standard properties with the solubility products derived from them.
+
 [Validation against Reaktoro](@ref) compares this package against another code
 reading the same database. That comparison cannot see an error in the database
 itself: both codes would make it together, agree perfectly, and be wrong.
 
 This page is the other half. It checks the **vendored data and the package
 against the papers the data came from** — first the Cemdata18 article
-([Lothenbach2019](@cite)), which publishes its solubility products *and* the
+[Lothenbach2019](@cite), which publishes its solubility products *and* the
 standard properties they were derived from, so the two can be required to agree;
-then a set of measured solution compositions ([Atkins1992](@cite)), which can
+then a set of measured solution compositions [Atkins1992](@cite), which can
 disagree with the database and does.
 
 !!! info "Thermodynamic quantities behind these comparisons"
@@ -50,22 +55,22 @@ one costs seconds to minutes.
 
 | what | against | how closely | where it stops |
 |:--|:--|:--|:--|
-| **every solubility product** in the shipped CEMDATA18 — 52 phases | [Lothenbach2019](@cite) Tables 2-3 | 50 close to `0.041`, 48 to `0.005` | two M-S-H end members are `0.48` and `0.40` out; the source disagrees with itself |
-| **standard properties and HKF coefficients**, 19 aqueous species and 7 gases | [Lothenbach2019](@cite) Tables D.1-D.2 | exact, all seven coefficients each | nitrite-AFm and Fe-Friedel's salt are not in the file |
+| **every solubility product** in the shipped CEMDATA18 — 52 phases | [Lothenbach2019](@citet) Tables 2-3 | 50 close to `0.041`, 48 to `0.005` | two M-S-H end members are `0.48` and `0.40` out; the source disagrees with itself |
+| **standard properties and HKF coefficients**, 19 aqueous species and 7 gases | [Lothenbach2019](@citet) Tables D.1-D.2 | exact, all seven coefficients each | nitrite-AFm and Fe-Friedel's salt are not in the file |
 | **`ΔₐG⁰` rebuilt from `ΔfH°` and `S°`** | the file's own `ΔfG°` | exact for 220 of 228 substances | the eight exceptions are all phases whose `S°` Cemdata18 estimated |
-| **HKF away from 298.15 K, 1 bar** | [Duan2016](@cite) Table 4, HKF column | `0.03 %` at the reference point; `0.3 %` across a factor 2.9 in pressure | their two constants in one row sit at two different pressures |
+| **HKF away from 298.15 K, 1 bar** | [Duan2016](@citet) Table 4, HKF column | `0.03 %` at the reference point; `0.3 %` across a factor 2.9 in pressure | their two constants in one row sit at two different pressures |
 | **calcite `log Ksp`** at 25 °C | the accepted value, [PlummerBusenberg1982](@cite) | `−8.480` against `−8.48` | diverges from Duan's non-HKF method by 1.4 log units at 478 K |
-| **a measured solution** over a two-phase assemblage | [Atkins1992](@cite) Table 2 | Al and pH agree, robustly | Si is `×5` and Ca has a floor the model cannot leave; 9 of their 10 mixtures are not usable at all |
-| **the carboaluminate sequence** under limestone | [Kulik2021](@cite) Fig. 7A, [Lothenbach2019](@cite) Figs. 13-14 | order and thresholds reproduce; iron partition exact | only appears when Al exceeds Fe — see below |
-| **chloride binding** and the AFm → Friedel transition | [Guo2018](@cite) Fig. 1(b) | plateau to `1 %`, both conservation laws close | pH not reproducible (their alkalis are unpublished); above 2 % NaCl the activity model is out of range |
-| **the previous generation**, Cemdata07's 29 solubility products | [Lothenbach2010](@cite) Table 1 | 11 unchanged to the printed digit, from the package's own energies | 9 revised, by up to 1.6 log units; 9 have no CEMDATA18 solid of the same composition |
-| **the molar volumes of 28 solids** | [Lothenbach2008](@cite) Table 4, cemdata2007 | 24 within half the printed digit | the other 4 by up to `1.7 cm³/mol`, three of them iron phases |
-| **the formation energies of the same solids** | [Lothenbach2008](@cite) Table 4 | 21 solids and water the same to `0.01 kJ/mol` | 7 revised by up to `10 kJ/mol`; another hydration state costs the water's energy, within 3 % |
-| **an aged pore solution** against portlandite and ettringite | [Lothenbach2010](@cite) Table 2 | within a quarter of a log unit of saturation | which side depends on the activity model at `I ≈ 0.5 mol/kg` |
-| **alkali uptake by C-S-H**, 4 Ca/Si × 6 concentrations × Na and K | [HongGlasser1999](@cite) Tables 1-2 | pH to `0.072` from 15 to 100 mM below Ca/Si 1.8 | alkali over-bound at 46 of 48 points; the end members were fitted to these data |
-| **a measured paste through its first year**, a CEM I 42.5 N | [LothenbachWinnefeld2006](@cite) Tables 1-4, and GEMS3K on the same budgets | GEMS3K to `0.001` in pH and `1.6 %` on every element; the potassium and sulfate of the first day | sodium a tenth of the measurement at a year, the C-S-H holding 96 % of it: [the page](@ref ex-validation) |
-| **four blended pastes**, CEM I to CEM II/B-M (V-LL) | [DeWeerdt2011](@cite) Tables 1-4, 7-8 and Fig. 7, and GEMS3K on the same budgets | GEMS3K to `0.001` and `1.6 %`; portlandite without fly ash within `1.5 wt.%` from 7 days | with fly ash, portlandite 4.5 against 12.5 wt.% at 90 days, `CSHQ` taking no aluminum: [the page](@ref ex-validation-blended) |
-| **four carbonated mortars**, a CEM I 52.5 N with limestone and metakaolin | [Shi2016](@cite) Tables 1-3 and 5, and GEMS3K on the same carbonated budgets | portlandite within `5 %` of the TGA without metakaolin; CO₂ binding capacity within `2 %` of the authors' calculation in three pastes; GEMS3K to `0.011` in pH and `7 %` | the metakaolin paste M: a gel richer in calcium (Ca/Si 1.46 against 1.29) and a capacity `7 %` low: [the page](@ref sec-cement-carbonation) |
+| **a measured solution** over a two-phase assemblage | [Atkins1992](@citet) Table 2 | Al and pH agree, robustly | Si is `×5` and Ca has a floor the model cannot leave; 9 of their 10 mixtures are not usable at all |
+| **the carboaluminate sequence** under limestone | [Kulik2021](@citet) Fig. 7A, [Lothenbach2019](@cite) Figs. 13-14 | order and thresholds reproduce; iron partition exact | only appears when Al exceeds Fe — see below |
+| **chloride binding** and the AFm → Friedel transition | [Guo2018](@citet) Fig. 1(b) | plateau to `1 %`, both conservation laws close | pH not reproducible (their alkalis are unpublished); above 2 % NaCl the activity model is out of range |
+| **the previous generation**, Cemdata07's 29 solubility products | [Lothenbach2010](@citet) Table 1 | 11 unchanged to the printed digit, from the package's own energies | 9 revised, by up to 1.6 log units; 9 have no CEMDATA18 solid of the same composition |
+| **the molar volumes of 28 solids** | [Lothenbach2008](@citet) Table 4, cemdata2007 | 24 within half the printed digit | the other 4 by up to `1.7 cm³/mol`, three of them iron phases |
+| **the formation energies of the same solids** | [Lothenbach2008](@citet) Table 4 | 21 solids and water the same to `0.01 kJ/mol` | 7 revised by up to `10 kJ/mol`; another hydration state costs the water's energy, within 3 % |
+| **an aged pore solution** against portlandite and ettringite | [Lothenbach2010](@citet) Table 2 | within a quarter of a log unit of saturation | which side depends on the activity model at `I ≈ 0.5 mol/kg` |
+| **alkali uptake by C-S-H**, 4 Ca/Si × 6 concentrations × Na and K | [HongGlasser1999](@citet) Tables 1-2 | pH to `0.072` from 15 to 100 mM below Ca/Si 1.8 | alkali over-bound at 46 of 48 points; the end members were fitted to these data |
+| **a measured paste through its first year**, a CEM I 42.5 N | [LothenbachWinnefeld2006](@citet) Tables 1-4, and GEMS3K on the same budgets | GEMS3K to `0.001` in pH and `1.6 %` on every element; the potassium and sulfate of the first day | sodium a tenth of the measurement at a year, the C-S-H holding 96 % of it: [the page](@ref ex-validation) |
+| **four blended pastes**, CEM I to CEM II/B-M (V-LL) | [DeWeerdt2011](@citet) Tables 1-4, 7-8 and Fig. 7, and GEMS3K on the same budgets | GEMS3K to `0.001` and `1.6 %`; portlandite without fly ash within `1.5 wt.%` from 7 days | with fly ash, portlandite 4.5 against 12.5 wt.% at 90 days, `CSHQ` taking no aluminum: [the page](@ref ex-validation-blended) |
+| **four carbonated mortars**, a CEM I 52.5 N with limestone and metakaolin | [Shi2016](@citet) Tables 1-3 and 5, and GEMS3K on the same carbonated budgets | portlandite within `5 %` of the TGA without metakaolin; CO₂ binding capacity within `2 %` of the authors' calculation in three pastes; GEMS3K to `0.011` in pH and `7 %` | the metakaolin paste M: a gel richer in calcium (Ca/Si 1.46 against 1.29) and a capacity `7 %` low: [the page](@ref sec-cement-carbonation) |
 
 Two things this chapter deliberately does **not** do. It does not check the
 kinetics — [Validation against Reaktoro](@ref) covers the coupling, and the two
@@ -82,7 +87,7 @@ beyond the case that established it.
 
 **A solid entered as oxides loses its water.** Feeding a C-S-H as lime and
 silica gives the solver its calcium and its silicon and none of the 2.1 H₂O per
-formula unit it carries. On [Guo2018](@cite)'s inventory that is 44.5 g per liter
+formula unit it carries. On the inventory of [Guo2018](@citet) that is 44.5 g per liter
 of concrete: the solver takes it back out of the pore solution, the pore volume
 falls from 146 mL to 84, and every concentration is wrong by nearly a factor of
 two. See [Chloride binding](@ref).
@@ -344,7 +349,7 @@ and belongs with the CEM I/II examples.
 
 ## Blending a CEM I with limestone
 
-[Kulik2021](@cite) Fig. 7A and [Lothenbach2019](@cite) Figs. 13-14 report the
+[Kulik2021](@citet) Fig. 7A and [Lothenbach2019](@citet) Figs. 13-14 report the
 same thing: what happens to the aluminate phases as limestone replaces clinker.
 CemGEMS is the closest oracle this package has — same CEMDATA18, same
 Gibbs-energy minimization, and the paper states that it and GEM-Selektor agree
@@ -420,14 +425,14 @@ limestone is a filler.
 
 ## Chloride binding
 
-[Guo2018](@cite) Fig. 1(b) is unusually easy to reproduce, because the paper
+[Guo2018](@citet) Fig. 1(b) is unusually easy to reproduce, because the paper
 states its inventory outright instead of leaving it to be reconstructed: per
 liter of concrete, C-S-H 225 g, CH 90 g, AFm 9 g, AFt 22.5 g, porosity 14.6 %.
 
 **Their constants are not CEMDATA18's.** Their §2 says so — *"Cemdata2007 gives
 `Kp` and `Δ_r G_T^0` for nearly all phases in cement hydrate"* — and the note
 under their dissolution table points at Lothenbach, Matschei, Möschner and
-Glasser (2008), which is Cemdata07. The Cemdata07 table of [Lothenbach2010](@cite)
+Glasser (2008), which is Cemdata07. The Cemdata07 table of [Lothenbach2010](@citet)
 confirms it: its ettringite, monosulfate and jennite-type C-S-H are the `−44.9`,
 `−29.26` and `−13.17` that Guo print as `−44.9085`, `−29.2628` and `−13.1659`
 (see [Cemdata07, and an aged pore solution](@ref)). So this is a comparison
@@ -532,7 +537,7 @@ theirs.
 
 ## The surface half of Guo
 
-[Guo2018](@cite) closes their chloride model with a `≡SiOH` surface on the
+[Guo2018](@citet) closes their chloride model with a `≡SiOH` surface on the
 C-S-H — 500 m²/g, 4·10⁻³ mol of sites per gram, a diffuse layer, and five
 reactions in their Table 1. Four of the five rows can be entered as printed; one
 cannot.
@@ -545,7 +550,7 @@ cannot.
 | 4 | `≡SiOH + Na⁺ → ≡SiONa + H⁺` | `−13.6` | usable |
 | 5 | `≡SiOH + K⁺ → ≡SiOK + H⁺` | `−13.6` | usable |
 
-The table is [Elakneswaran2010](@cite)'s: its Eq. (11) is row 1 with the same
+The table is that of [Elakneswaran2010](@citet): its Eq. (11) is row 1 with the same
 `−12.7`, its Eq. (13) row 3 with the same `−0.35`, and its Eqs. (15) and (16)
 rows 4 and 5. So row 1 is not a slip of Guo's; the source writes it that way.
 
@@ -636,7 +641,7 @@ shipped file. Nothing there pins what the model *does* with them once the
 temperature and pressure leave the reference point — and that is the half that
 carries a burial, an autoclave or a steam-cured calculation.
 
-[Duan2016](@cite) is a weak source in most respects: their carbonate data for
+[Duan2016](@citet) is a weak source in most respects: their carbonate data for
 ferrocalcite and ankerite are estimated rather than measured, their tables
 disagree with their own text about which is which, and their conclusion prints
 "−2.24 mmol·L⁻¹mmol·L⁻¹". But their Table 4 carries one column this package can
@@ -700,7 +705,7 @@ every other carbonate in the table has zero or a large negative.
 
 ## Cemdata07, and an aged pore solution
 
-[Lothenbach2010](@cite) reviews what equilibrium calculations do for cements,
+[Lothenbach2010](@citet) reviews what equilibrium calculations do for cements,
 and its Table 1 lists the solubility products it computed with: those of
 Cemdata07, the generation before the one this package ships, for 29 solids. It
 prints no Gibbs energy and no molar volume, only the constant and its reaction.
@@ -723,9 +728,9 @@ preferred and the constant scaled when only a half exists.
 
 ### Cemdata07's energies and molar volumes
 
-The same generation is printed in full by [Lothenbach2008](@cite), Table 4:
+The same generation is printed in full by [Lothenbach2008](@citet), Table 4:
 the Gibbs energy, enthalpy, entropy and molar volume of 37 solids and water,
-with the solubility products of [Lothenbach2010](@cite) phase for phase. Its
+with the solubility products of [Lothenbach2010](@citet) phase for phase. Its
 energies can be set against the package's without any reaction in between, and
 its volumes, most of them calculated from unit cells or densities, have no
 reason to move with a revision of the solubility products.
@@ -776,14 +781,14 @@ the paper reports comes back within 6 % from the charge balance of the totals.
 
 ## Alkali uptake by C-S-H
 
-[HongGlasser1999](@cite) equilibrated synthetic C-S-H of Ca/Si 0.85, 1.2, 1.5 and
+[HongGlasser1999](@citet) equilibrated synthetic C-S-H of Ca/Si 0.85, 1.2, 1.5 and
 1.8 with NaOH and KOH solutions of 1 to 300 mM, 0.6 g of gel in 9 mL at 20 °C,
 and analyzed 48 solutions for alkali, calcium, hydroxide and pH. Nothing else
 enters: no clinker, no kinetics, no unpublished input.
 
 !!! warning "The alkali was fitted to these data"
     The Cemdata18 authors fine-tuned the Gibbs energies of their Na and K C-S-H
-    end members on these isotherms ([Lothenbach2019](@cite), §2.7 and Fig. 10).
+    end members on these isotherms [Lothenbach2019; §2.7 and Fig. 10](@cite).
     Agreement on the alkali checks that the model is applied as it was fitted.
     The calcium and the pH were not fitted, and they are where it can disagree.
 
@@ -819,7 +824,7 @@ Over the 48 points:
   - **The calcium** is low at Ca/Si 1.2 and 1.5 and high at 1.8. At 1.8 the CSHQ
     model cannot hold all the calcium of the gel, and portlandite precipitates,
     3.7 to 6.8 % of the solid, where the preparation carried 0.2 %.
-  - Aluminum is outside the model: [HongGlasser2002](@cite) replaced 6 to 7 % of
+  - Aluminum is outside the model: [HongGlasser2002](@citet) replaced 6 to 7 % of
     the silicon by aluminum and found a markedly higher Rd, and the CSHQ solid
     solution carries no aluminum.
 
@@ -842,3 +847,11 @@ julia --project=. -e 'using Pkg; Pkg.test()'
 The Cemdata18 checks are pure arithmetic over the shipped file and need no
 solver. The Atkins case runs one `equilibrate_certified` and takes about a
 second once compiled.
+
+## Where to go next
+
+The data are then put to work on measured pastes rather than on single
+reactions:
+[Validation against a measured paste: a CEM I 42.5 N through its first year](@ref ex-validation)
+compares the calculation with the pore solution and the phase assemblage of one
+cement over its first year.

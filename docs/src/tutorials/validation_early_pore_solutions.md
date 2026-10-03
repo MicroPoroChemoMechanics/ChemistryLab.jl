@@ -4,7 +4,7 @@
     [Activity models](@ref sec-activity-models), and
     [What the choice of activity model costs](@ref sec-app-activity-models).
 
-Schöler et al. [Scholer2017](@cite) extracted the pore solution of a CEM I 52.5 R,
+[Scholer2017](@citet) extracted the pore solution of a CEM I 52.5 R,
 alone and with half of it replaced by slag, fly ash, limestone or quartz, six
 times during the first six hours of hydration. They analyzed the solutions
 (their Table 6) and computed from them how saturated each solution was with

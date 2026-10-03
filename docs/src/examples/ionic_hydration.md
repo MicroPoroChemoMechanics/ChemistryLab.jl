@@ -64,7 +64,7 @@ mole, which is what drives the pore solution to pH 12.5 and above.
 
 ## 2. Running the coupling
 
-The formulation is the CEM I 52.5 N of [Lavergne2018](@cite), Table 9: Bogue
+The formulation is the CEM I 52.5 N of [Lavergne2018](@citet), Table 9: Bogue
 composition C₃S 65 / C₂S 11 / C₃A 11 / C₄AF 8, gypsum 4.6 %, calcite 3.5 %,
 Blaine 380 m²/kg, w/b = 0.50, one kilogram of binder so every extensive result is
 per kilogram.

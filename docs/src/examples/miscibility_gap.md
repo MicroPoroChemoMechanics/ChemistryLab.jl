@@ -117,7 +117,7 @@ A CEM I paste, with the AFm binary as the only phase whose model changes between
 the three runs:
 
 ```@example gap
-# The Bogue composition of the CEM I 52.5 N of [Lavergne2018](@cite), Table 9,
+# The Bogue composition of the CEM I 52.5 N of [Lavergne2018](@citet), Table 9,
 # and its gypsum.
 bogue = literature_table("Lavergne2018", "cement_bogue")
 CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))

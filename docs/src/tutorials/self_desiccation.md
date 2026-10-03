@@ -104,7 +104,7 @@ Two things follow, and the first is a warning about what this page can prove.
 
 The cement is the one whose isotherm this page uses further down — taking the
 isotherm from one paper and the clinker from another would compare two materials.
-[BaroghelBouny1999](@cite) give its mineral composition in their Table 2.
+[BaroghelBouny1999](@citet) give its mineral composition in their Table 2.
 
 ```@example sd
 using ChemistryLab
@@ -138,7 +138,7 @@ An equilibrium calculation has no notion of a reaction that has not happened, so
 the degree of hydration is **imposed**: a fraction ``\alpha`` of the cement is
 made available to react with *all* of the mixing water, and the unreacted
 remainder is added back afterwards for the volume balance. This is the
-construction of [LothenbachWinnefeld2006](@cite), and it is the same one the
+construction of [LothenbachWinnefeld2006](@citet), and it is the same one the
 [w/c example](@ref sec-wc-ratio) uses below its stoichiometric water demand.
 
 ```@example sd
@@ -216,7 +216,7 @@ The retention curve is not chemistry. It says how tightly a particular material
 holds the water still in it, it is measured, and it is the one thing on this page
 that cannot come out of a thermodynamic database.
 
-[BaroghelBouny1999](@cite) measured water-vapor desorption isotherms on two
+[BaroghelBouny1999](@citet) measured water-vapor desorption isotherms on two
 pastes and two concretes and fitted each with
 
 ```math
@@ -528,12 +528,12 @@ explicitly and says so.
 
 | input | value | source | is that source about Powers? |
 |:--|:--|:--|:--|
-| clinker composition | Table 2 | [BaroghelBouny1999](@cite) | no |
-| thermodynamic data | Cemdata18 | [Lothenbach2019](@cite) | no |
+| clinker composition | Table 2 | [BaroghelBouny1999](@citet) | no |
+| thermodynamic data | Cemdata18 | [Lothenbach2019](@citet) | no |
 | ``b``, ``s`` | 0.3095 g/g, 0.0639 cm³/g | computed here, certified | no |
-| retention curve | mix CO | [BaroghelBouny1999](@cite) Table 5 | no |
-| ``\gamma``, ``V_m``, ``T`` | 0.0720 N/m, 1.807e-5 m³/mol, 298.15 K | water at 25 °C: [IAPWS2014](@cite), and the HGK equation of state | no |
-| ``w_n`` = 0.23 | Powers' own split of his 0.42 | [Powers1948](@cite) | **yes** |
+| retention curve | mix CO | [BaroghelBouny1999](@citet) Table 5 | no |
+| ``\gamma``, ``V_m``, ``T`` | 0.0720 N/m, 1.807e-5 m³/mol, 298.15 K | water at 25 °C: [IAPWS2014](@citet), and the HGK equation of state | no |
+| ``w_n`` = 0.23 | Powers' own split of his 0.42 | [Powers1948](@citet) | **yes** |
 
 **output**: the arrest humidity, 77.5 %.
 

@@ -83,7 +83,7 @@ nothing # hide
 
 ```@example cem4
 # ASSUMED: a Bogue composition representative of a CEM I clinker, here
-# the Bogue composition of the CEM I 52.5 N of [Lavergne2018](@cite), Table 9.
+# the Bogue composition of the CEM I 52.5 N of [Lavergne2018](@citet), Table 9.
 bogue = literature_table("Lavergne2018", "cement_bogue")
 CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))
 
@@ -135,7 +135,7 @@ ALPHA_WATER = powers_alpha_max(WB)              # 1.0 at w/b = 0.50
 #
 # ASSUMED from that table. Section 7 drives it to 1 and shows what changes.
 # Degrees of reaction measured by SEM image analysis on sealed pastes, in
-# percent: [Durdzinski2017](@cite), Table 5, from data/literature/Durdzinski2017.json.
+# percent: [Durdzinski2017](@citet), Table 5, from data/literature/Durdzinski2017.json.
 sem(material, age) = literature_table("Durdzinski2017", "degree_of_reaction";
     technique = "SEM-IA", material, curing = "sealed", age_days = age).degree_percent
 mean_percent(x) = sum(x) / length(x)
@@ -342,7 +342,7 @@ end
 !!! note "Read the C-A-S-H as a total, and its ratios"
     The eight `CNASH_ss` end-members span a space of rank 5 in their elements, so
     the element balance fixes only five combinations of their amounts. The mixing
-    on the sites of Myers et al. [Myers2014](@cite) fixes the rest: its energy is
+    on the sites of [Myers2014](@citet) fixes the rest: its energy is
     strictly convex (the occupancy has rank 8), so the eight amounts are
     determined. They are still a description of one gel, and the total, the
     Ca/Si and the Al/Si are what compare with a measurement.

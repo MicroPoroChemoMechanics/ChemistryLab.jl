@@ -53,7 +53,7 @@ the amount of sites together.
 
 Hydrous ferric oxide — amorphous `Fe(OH)₃`, the rust-colored precipitate that
 forms wherever dissolved iron meets oxygen — is the reference sorbent of the
-field. [DzombakMorel1990](@cite) measured its site densities and its binding
+field. [DzombakMorel1990](@citet) measured its site densities and its binding
 constants, and those are the numbers PHREEQC ships to this day.
 
 Two numbers define the surface:
@@ -413,7 +413,7 @@ expected to differ on how much of the phase dissolves.
   - **Electrostatics.** The surface here has a charge and no potential; see
     [A charged surface, screened](@ref sec-example-diffuse-layer).
   - **The energy of the host's surface.** Counting the free sites as part of the
-    host, at zero energy, follows [Kulik2002](@cite), for whom the surface groups
+    host, at zero energy, follows [Kulik2002](@citet), for whom the surface groups
     of a sorbent belong to it. It assumes that the database energy of the solid
     is that of its uncomplexed surface, which the measurements behind a database
     do not state.

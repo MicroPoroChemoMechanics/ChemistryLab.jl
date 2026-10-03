@@ -53,7 +53,7 @@ A ``\beta^{(2)}`` appears only where the pair needs a third ionic-strength depen
 ## 2. Against measurement, over four decades of molality
 
 Internal consistency cannot tell a correct parameter set from a self-consistent
-wrong one. [HamerWu1972](@cite) can: their Table 16 is a critical compilation of
+wrong one. [HamerWu1972](@citet) can: their Table 16 is a critical compilation of
 the osmotic and mean activity coefficients of NaCl at 25 °C, and it gives both,
 so each half of the model is checked separately.
 
@@ -261,7 +261,7 @@ Everything above evaluates the model at a given composition. An equilibrium asks
 the reverse: the composition at which halite, the solid NaCl, stops dissolving.
 The certified solver recovers the dissolved ions from their potentials by
 Newton's method on the model's own Jacobian ([the inner level](@ref sec-theory-certificate)),
-and [HamerWu1972](@cite) give the molality of the saturated solution at 25 °C.
+and [HamerWu1972](@citet) give the molality of the saturated solution at 25 °C.
 
 ```@example pz
 sat = ChemicalSystem([dict[s] for s in split("H2O@ Na+ Cl- Hl")], ["H2O@", "Na+", "Cl-"])

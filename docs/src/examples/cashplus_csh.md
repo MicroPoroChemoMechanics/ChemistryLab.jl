@@ -4,8 +4,8 @@
     [Solid solutions](@ref sec-theory-solid-solutions), sections 7 and 8, where
     the site model and the compound energy formalism are derived.
 
-CASH+ is a model of the C-S-H gel by Kulik, Miron and Lothenbach
-[Kulik2022](@cite), which Miron et al. extended to sodium and potassium
+CASH+ is a model of the C-S-H gel by
+[Kulik2022](@citet), which Miron et al. extended to sodium and potassium
 [Miron2022a, Miron2022b](@cite). Like the CNASH gel of
 [the site-mixing page](@ref ex-sublattice-csh), it mixes on the structural sites
 of the silicate chain and of the interlayer. It also adds two terms: the energy
@@ -311,9 +311,9 @@ are some ten kilojoules per mole.
 
 ## 4. A Portland cement with limestone (PC4)
 
-Miron et al. [Miron2022b](@cite) tuned the calcium alkali end-members of CASH+NK
+[Miron2022b](@citet) tuned the calcium alkali end-members of CASH+NK
 on the pore solutions of hydrated cements, among them the Portland cement with
-4 % limestone (PC4) of Lothenbach et al. [LothenbachLeSaout2008](@cite), whose
+4 % limestone (PC4) of [LothenbachLeSaout2008](@citet), whose
 pore solution was analyzed from one day to 400 days. The same paste is computed
 here twice, with its C-S-H as `CSHQ` and as `CASH+NK`, everything else equal:
 

@@ -188,7 +188,7 @@ among them.
 
 The data are transcribed, number by number, from two open-access papers by the
 laboratory that produced CEMDATA18 itself: the Na series from
-[MaLothenbach2020](@cite) and the K series from [MaLothenbach2021](@cite).
+[MaLothenbach2020](@cite) and the K series from [MaLothenbach2021](@citet).
 
 ```@example datapath
 using ChemistryLab

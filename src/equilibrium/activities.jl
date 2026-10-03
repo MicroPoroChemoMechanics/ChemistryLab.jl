@@ -271,7 +271,7 @@ end
 
 Fallback effective electrostatic radii r_e,j [Å] indexed by formal charge, for
 species absent from Table 3 of Helgeson et al. (1981): Table H.1-1 of the
-TOUGHREACT V2 user's guide ([Xu2012](@cite)), read from
+TOUGHREACT V2 user's guide [Xu2012](@cite), read from
 `data/literature/Xu2012.json`.
 
 Turned into an ion size by [`HKFActivityModel`](@ref) exactly as the radii of
@@ -406,7 +406,7 @@ end
     _hkf_ion_size(r_e, z) -> Real
 
 The ion-size parameter of an ion of effective electrostatic radius `r_e` [Å] and
-charge `z` in a NaCl-dominated solution: Eq. (125) of [Helgeson1981](@cite),
+charge `z` in a NaCl-dominated solution: Eq. (125) of [Helgeson1981](@citet),
 `å_k = 2 Σⱼ νⱼ,ₖ r_e,j / νₖ`, for the electrolyte the ion forms with the counter-ion
 of the background, Cl⁻ for a cation and Na⁺ for an anion,
 
@@ -414,7 +414,7 @@ of the background, Cl⁻ for a cation and Na⁺ for an anion,
 å = 2 (r_e + r_e,c |z|) / (1 + |z|),
 ```
 
-which is how TOUGHREACT forms it ([Xu2012](@cite), Eqs. H.4–H.5). A radius is
+which is how TOUGHREACT forms it [Xu2012; Eqs. H.4–H.5](@cite). A radius is
 not an ion size: Na⁺ has `r_e = 1.91 Å`, and NaCl `å = 3.72 Å`, the value
 Helgeson et al. tabulate (Table 2).
 """
@@ -450,7 +450,7 @@ end
 
 The extended Debye-Hückel model with a B-dot term — the workhorse of aqueous
 geochemistry, and the model PHREEQC and EQ3/6 use
-([Helgeson1969](@cite), [Helgeson1981](@cite), [ParkhurstAppelo2013](@cite)).
+[Helgeson1969, Helgeson1981, ParkhurstAppelo2013](@cite).
 
 # Formulas
 
@@ -499,7 +499,7 @@ Helgeson et al. 1981 Eqs. 132–137).
     extends a law valid at millimolal to roughly `1 mol/kg`.
   - **`+ Ḃ I`** — empirical, linear, positive, and the reason `γ` turns back
     upwards at high ionic strength. It is not a physical term that was derived
-    and then measured: [AndersonCrerar1993](@cite) (§17.7.1, pp. 445-446)
+    and then measured: [AndersonCrerar1993](@citet) (§17.7.1, pp. 445-446)
     describe it as a **deviation function**, defined by Helgeson as the
     difference between the observed activity coefficient of an electrolyte —
     NaCl — and what the Debye-Hückel expression predicts for it. So it carries
@@ -515,16 +515,16 @@ Helgeson et al. 1981 Eqs. 132–137).
 
 | field | default | unit | provenance |
 |:--|:--|:--|:--|
-| `A` | $(_DH_A_25C) | (kg/mol)^½ | the LLNL aqueous model at 25 °C as [ParkhurstAppelo2013](@cite) tabulate it (p. 118) — **and** reproduced to `1e-3` by [`hkf_debye_huckel_params`](@ref) from this package's own water model, which is the check in `test/activities.jl`. [Helgeson1981](@cite), Table 1, gives 0.5091 at 25 °C from the water properties of their time |
+| `A` | $(_DH_A_25C) | (kg/mol)^½ | the LLNL aqueous model at 25 °C as [ParkhurstAppelo2013](@citet) tabulate it (p. 118) — **and** reproduced to `1e-3` by [`hkf_debye_huckel_params`](@ref) from this package's own water model, which is the check in `test/activities.jl`. [Helgeson1981](@citet), Table 1, gives 0.5091 at 25 °C from the water properties of their time |
 | `B` | $(_DH_B_25C) | Å⁻¹(kg/mol)^½ | the same table; Helgeson et al. give 0.3283 |
-| `Ḃ` | $(_BDOT_25C) | kg/mol | the same table: the B-dot of the LLNL model at 25 °C. What the term *is* is set out in [AndersonCrerar1993](@cite) §17.7.1 |
-| `Kₙ` | $(_UNCHARGED_B) | kg/mol | the coefficient `b` of `log γ = b I` that PHREEQC gives an uncharged species with no parameters of its own ([ParkhurstAppelo2013](@cite), p. 201); overridden per species by `sp[:Kₙ]`, which is how `CO₂(aq)` gets its own |
+| `Ḃ` | $(_BDOT_25C) | kg/mol | the same table: the B-dot of the LLNL model at 25 °C. What the term *is* is set out in [AndersonCrerar1993](@citet) §17.7.1 |
+| `Kₙ` | $(_UNCHARGED_B) | kg/mol | the coefficient `b` of `log γ = b I` that PHREEQC gives an uncharged species with no parameters of its own [ParkhurstAppelo2013; p. 201](@cite); overridden per species by `sp[:Kₙ]`, which is how `CO₂(aq)` gets its own |
 | `å_default` | $(_NACL_ION_SIZE) | Å | the distance of closest approach of NaCl, [Helgeson1981](@cite) Table 2; a last resort, reached only for a charge no table covers (`|z| ≥ 5`) |
 | `å` | `nothing` | Å | one common ion size for every ion, overriding the tables. `å = 0` collapses the denominator and gives the limiting law plus `Ḃ I` |
 | `temperature_dependent` | `false` | — | recompute `A` and `B` from `p.T`, `p.P` at every call (needs `T` and `P` in `p`) |
 
-Per-ion radii come from [`REJ_HKF`](@ref) ([Helgeson1981](@cite) Table 3) and,
-failing that, from [`REJ_CHARGE_DEFAULT`](@ref) ([Xu2012](@cite), Table H.1-1);
+Per-ion radii come from [`REJ_HKF`](@ref) [Helgeson1981; Table 3](@cite) and,
+failing that, from [`REJ_CHARGE_DEFAULT`](@ref) [Xu2012; Table H.1-1](@cite);
 each is turned into an ion size as set out under *Ion-size lookup* below.
 
 !!! note "Every default has a source, and a source is not a fit"
@@ -559,7 +559,7 @@ The ion-size parameter `åᵢ` is resolved in order:
    al. 1981, Table 3, keyed by PHREEQC formula), turned into an ion size by their
    Eq. (125) for the electrolyte the ion forms with the NaCl background —
    `åᵢ = 2 (r_e,i + r_e,c |zᵢ|) / (1 + |zᵢ|)`, `r_e,c` that of Cl⁻ for a cation
-   and of Na⁺ for an anion, as TOUGHREACT does ([Xu2012](@cite), Eqs. H.4–H.5).
+   and of Na⁺ for an anion, as TOUGHREACT does [Xu2012; Eqs. H.4–H.5](@cite).
    It reproduces their Table 2: 3.72 Å for NaCl, 4.32 for CaCl₂, 4.65 for
    Na₂SO₄.
 4. [`REJ_CHARGE_DEFAULT`](@ref) — a radius by formal charge, turned into an ion
@@ -663,7 +663,7 @@ end
         -> HKFActivityModel
 
 The extended Debye–Hückel model with which Cemdata18 was derived and which it
-prescribes ([Lothenbach2019](@cite), Appendix C, Eq. C.1):
+prescribes [Lothenbach2019; Appendix C, Eq. C.1](@cite):
 
 ```math
 \\log_{10}\\gamma_i = -\\frac{A\\,z_i^2\\sqrt{I}}{1 + B\\,a\\,\\sqrt{I}} + b_\\gamma I ,
@@ -685,7 +685,7 @@ The values are read from `data/literature/Lothenbach2019.json`. In terms of
   - `A` and `B` depend on temperature and pressure, as the paper states; with
     `temperature_dependent = true` they are computed from the water properties
     at every call. The paper gives `b_γ` at 25 °C only, and it is kept at that
-    value: [Helgeson1981](@cite) tabulate `b_γ` against temperature for HCl,
+    value: [Helgeson1981](@citet) tabulate `b_γ` against temperature for HCl,
     LiCl, NaCl, KCl, MgCl₂ and CaCl₂ (Table 26, p. 1457), and not for KOH or
     NaOH, the two electrolytes the paper gives parameters for.
   - The paper states the correction applicable up to about 1 mol/kg of ionic
@@ -875,7 +875,7 @@ end
 """
     struct DaviesActivityModel{T<:Real} <: AbstractActivityModel
 
-The Davies equation ([Davies1962](@cite)): Debye-Hückel with the ion size taken
+The Davies equation [Davies1962](@cite): Debye-Hückel with the ion size taken
 out, so that nothing per-species has to be known.
 
 # Formulas
@@ -914,9 +914,9 @@ distinguish Na⁺ from K⁺ at all.
 
 | field | default | unit | provenance |
 |:--|:--|:--|:--|
-| `A` | $(_DH_A_25C) | (kg/mol)^½ | the LLNL aqueous model at 25 °C ([ParkhurstAppelo2013](@cite), p. 118), and reproduced by [`hkf_debye_huckel_params`](@ref) from this package's water model |
+| `A` | $(_DH_A_25C) | (kg/mol)^½ | the LLNL aqueous model at 25 °C [ParkhurstAppelo2013; p. 118](@cite), and reproduced by [`hkf_debye_huckel_params`](@ref) from this package's water model |
 | `b` | 0.3 | kg/mol | **part of the published equation** — Davies fixed it, it is not a free parameter of this implementation |
-| `bₙ` | $(_UNCHARGED_B) | kg/mol | PHREEQC's coefficient for an uncharged species, `log γ = b I` ([ParkhurstAppelo2013](@cite), p. 201) |
+| `bₙ` | $(_UNCHARGED_B) | kg/mol | PHREEQC's coefficient for an uncharged species, `log γ = b I` [ParkhurstAppelo2013; p. 201](@cite) |
 | `temperature_dependent` | `false` | — | recompute `A` from `p.T`, `p.P` at every call |
 
 # Valid range
@@ -1183,8 +1183,7 @@ end
 
 The activity model of a PHREEQC database: the WATEQ equation of Truesdell and
 Jones (1974) for every species its `-gamma` option gives parameters to, and
-PHREEQC's defaults for the others ([ParkhurstAppelo2013](@cite), description of
-`SOLUTION_SPECIES`).
+PHREEQC's defaults for the others [ParkhurstAppelo2013; description of `SOLUTION_SPECIES`](@cite).
 
 # Formulas
 

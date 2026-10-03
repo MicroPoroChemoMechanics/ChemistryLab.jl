@@ -57,7 +57,7 @@ density and the dielectric constant of water, and
 [`hkf_debye_huckel_params`](@ref) evaluates them from this package's own equation
 of state. The defaults the models carry, ``A = 0.5114`` and ``B = 0.3288`` at
 25 °C, are therefore *derived* — and they agree with the values the LLNL aqueous
-model tabulates ([ParkhurstAppelo2013](@cite), p. 118), printed beside them:
+model tabulates [ParkhurstAppelo2013; p. 118](@cite), printed beside them:
 
 ```@example am
 llnl = literature_table("ParkhurstAppelo2013", "llnl_debye_huckel")
@@ -72,7 +72,7 @@ for θ in (25.0, 60.0, 100.0)
 end
 ```
 
-[Helgeson1981](@cite), Table 1, computed from the water properties of the time,
+[Helgeson1981](@citet), Table 1, computed from the water properties of the time,
 gives slightly lower values, 0.5091 and 0.3283 at 25 °C.
 
 Both rise with temperature, because water's dielectric constant falls faster

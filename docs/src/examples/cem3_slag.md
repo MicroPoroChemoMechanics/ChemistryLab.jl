@@ -72,7 +72,7 @@ totals, and the two contributions are simply added.
 ## 1. What is measured, and what is assumed
 
 This page is built around a **measured** record: CEM III/A 42.5 N from Hranice,
-in the CC-BY-4.0 deposit of [Smilauer2025data](@cite). What that record gives,
+in the CC-BY-4.0 deposit of [Smilauer2025data](@citet). What that record gives,
 and what it does not, decides how the rest must be written.
 
 ```@example cem3
@@ -94,7 +94,7 @@ CLINKER_FRACTION = 0.50
 SLAG_FRACTION = 0.50
 
 # ASSUMED: a Bogue composition representative of a CEM I clinker, here
-# the Bogue composition of the CEM I 52.5 N of [Lavergne2018](@cite), Table 9.
+# the Bogue composition of the CEM I 52.5 N of [Lavergne2018](@citet), Table 9.
 # The deposit does not report one for this cement.
 bogue = literature_table("Lavergne2018", "cement_bogue")
 CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))
@@ -144,7 +144,7 @@ ALPHA_WATER = powers_alpha_max(WB)                 # sealed, ASSUMED
 # ASSUMED at the mean of those four, 45 %. [The CEM V page](@ref cem5-dor)
 # sweeps the same quantity across the round robin's 7-, 28- and 90-day columns.
 # Degrees of reaction measured by SEM image analysis on sealed pastes, in
-# percent: [Durdzinski2017](@cite), Table 5, from data/literature/Durdzinski2017.json.
+# percent: [Durdzinski2017](@citet), Table 5, from data/literature/Durdzinski2017.json.
 sem(material, age) = literature_table("Durdzinski2017", "degree_of_reaction";
     technique = "SEM-IA", material, curing = "sealed", age_days = age).degree_percent
 mean_percent(x) = sum(x) / length(x)

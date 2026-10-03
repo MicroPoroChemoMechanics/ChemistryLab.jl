@@ -24,13 +24,13 @@ equilibrium the heat is the rate at which the enthalpy of the whole composition
 falls, the hydrates precipitated by the minimization included (see
 [`cumulative_heat`](@ref)).
 
-This page reproduces the test of [Lavergne2018](@cite) on the plain-cement mortar
+This page reproduces the test of [Lavergne2018](@citet) on the plain-cement mortar
 `C100` at w/b = 0.5, in their calorimeter, with the model of
 [the preceding page](@ref ex-ionic-opc) and nothing adjusted.
 
 ## The cell
 
-The cell is NF EN 196-9's, as [Lavergne2018](@cite) calibrated it:
+The cell is NF EN 196-9's, as [Lavergne2018](@citet) calibrated it:
 their Eq. (23) for the losses, their Table 11 for the mix. The sand keeps the
 temperature moderate and takes no part in the chemistry; it enters with the
 vessel and the water it absorbs as a fixed heat capacity, while the paste's own
@@ -84,7 +84,7 @@ j = argmax(T)
 
 ## Against the measurement
 
-The measured temperature is read from Fig. 15(a) of [Lavergne2018](@cite), from
+The measured temperature is read from Fig. 15(a) of [Lavergne2018](@citet), from
 its maximum to 3.5 days; before, the figure draws it as crosses that overlap
 those of the other mixes, and it is not transcribed
 (`data/literature/Lavergne2018.json`).
@@ -136,7 +136,7 @@ The coupled calculation reaches 56.4 °C at 0.81 day, where the measurement
 peaks at 52.1 °C at 0.75 day, and it stays 2.8 to 5.4 K above the measured
 curve through the cooling that follows. Nothing has been adjusted on this curve: the
 kinetic parameters are those of the preceding page, the cell and its losses those
-[Lavergne2018](@cite) calibrated. The run without feedback, the heat flow of the
+[Lavergne2018](@citet) calibrated. The run without feedback, the heat flow of the
 paste held at 20 °C integrated afterwards through the same cell, peaks at 40.1 °C
 only, and later, at 1.01 day. The difference, 16 K out of a rise of 36 K, is the
 acceleration of the reactions by the temperature they raise, through their

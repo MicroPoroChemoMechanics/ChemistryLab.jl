@@ -173,3 +173,11 @@ certified assemblage out, measured calorimetry beside it:
 The CEM IV page is the one without a measured specimen behind it — the deposit
 carries no record of that family — and it says so at its head rather than in a
 footnote.
+
+## Where to go next
+
+The materials of a binder, their masses and the extent to which each has reacted
+are written once, for every family, in
+[Recipes: materials, extents and what has not reacted](@ref man-recipes). The
+families themselves are worked in the order of the table above, beginning with
+[CEM II/A-LL and CEM II/B-S](@ref ex-cem2-blended).

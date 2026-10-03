@@ -258,7 +258,7 @@ end
 
 Sensitivity of an equilibrium composition, from the optimality conditions.
 
-Equilibrium is the Gibbs minimization of [Leal2017](@cite), the problem Reaktoro
+Equilibrium is the Gibbs minimization of [Leal2017](@citet), the problem Reaktoro
 solves: `min G(n)` subject to `A n = b`, `n >= 0`, whose first-order conditions
 are `grad G(n) - A' y - z = 0`, `A n = b`, `n_i z_i = 0`, with `y` the element
 potentials and `z >= 0` the stability multipliers.

@@ -29,14 +29,14 @@ rate laws.
 
 **Use the implicit step** when the products should be decided by thermodynamics —
 a mineral dissolving into a solution, carbonation, an assemblage you do not want
-to prescribe. This is the algorithm of [Leal2017](@cite), the one Reaktoro
+to prescribe. This is the algorithm of [Leal2017](@citet), the one Reaktoro
 implements, and it is unconditionally stable: with a rate law `r = k(1 − Ω)` on
 calcite, a step of `10⁶ s` at `k = 10⁻⁵ mol/s` would dissolve 10 mol explicitly —
 a thousand times the calcite present — and the implicit step lands at `Ω =
 0.999989`, approaching saturation from below and never crossing it.
 
 **Use the ODE route** when the reactions themselves are the model — a
-stoichiometric hydration scheme in the form of [Lavergne2018](@cite), where
+stoichiometric hydration scheme in the form of [Lavergne2018](@citet), where
 `C₃S + H₂O → C-S-H + CH` is written out and the products are prescribed, not
 proposed. Every product then follows the coefficients you gave, several pathways
 may share a mineral, and the integrator chooses the step.
@@ -300,7 +300,7 @@ KineticFunc(
 
 ### A reaction that waits for another species to run out
 
-This is the pattern [Lavergne2018](@cite) uses for the aluminate sequence, and it
+This is the pattern [Lavergne2018](@citet) use for the aluminate sequence, and it
 needs nothing special: read the species you are waiting on and multiply by a gate.
 
 In that model C₃A takes three successive routes, and which one runs depends on
@@ -397,8 +397,7 @@ Rate constants are built as [`NumericFunc`](@ref) objects using the Arrhenius fa
 ```julia
 using ChemistryLab, ForwardDiff
 
-# Arrhenius rate constant for calcite acid dissolution ([PalandriKharaka2004](@cite),
-# Table 33): log k at 25 °C and the activation energy, read from the data file
+# Arrhenius rate constant for calcite acid dissolution [PalandriKharaka2004; Table 33](@cite): log k at 25 °C and the activation energy, read from the data file
 calcite = literature_row("PalandriKharaka2004", "carbonate_rates", "calcite")
 k_acid = arrhenius_rate_constant(10.0^calcite.acid_log_k, calcite.acid_E)
 
@@ -408,7 +407,7 @@ k_acid(; T = 310.0)     # → higher value at elevated T
 ForwardDiff.derivative(T -> k_acid(; T = T), 298.15)  # AD-compatible
 ```
 
-## Cement clinker hydration: [ParrottKilloh1984](@cite) model
+## Cement clinker hydration: [ParrottKilloh1984](@citet) model
 
 [`parrott_killoh_avrami`](@ref) is the factory for the [ParrottKilloh1984](@cite)
 kinetic model. It returns a [`KineticFunc`](@ref) that uses the `StateView`-based
@@ -423,7 +422,7 @@ using ChemistryLab, DynamicQuantities
 
 pk_C3S = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S")    # → KineticFunc
 
-# Water availability limit of [Powers1948](@cite) for w/c = 0.40
+# Water availability limit of [Powers1948](@citet) for w/c = 0.40
 WC    = 0.40
 α_max = powers_alpha_max(WC)          # 0.952 at w/c = 0.40
 pk_C3S_wc = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; α_max = α_max)
@@ -658,7 +657,7 @@ The semi-adiabatic calorimeter solves:
 
 The denominator uses the **variable total heat capacity** `Cp_total = Cp + Σᵢ nᵢ Cp°ᵢ(T)`,
 where `Cp°ᵢ(T)` are the molar heat capacities from the thermodynamic database
-([Lavergne2018](@cite)).
+[Lavergne2018](@cite).
 
 [`SemiAdiabaticCalorimeter`](@ref) bundles hardware parameters and initial temperature:
 
@@ -690,7 +689,7 @@ t, Q         = cumulative_heat(sol, cal)       # Q(t) [J]
 
 ## Multiple kinetic reactions per mineral
 
-Following [Leal2017](@cite), **reactions** — not species — carry kinetics.
+Following [Leal2017](@citet), **reactions** — not species — carry kinetics.
 A single mineral can appear in multiple `KineticReaction` objects
 (e.g. C₃A via an early ettringite pathway and a late monosulphate pathway).
 The ODE state contains **one entry per unique mineral**; contributions accumulate
@@ -787,8 +786,8 @@ transferable between them.
 | Status | deprecated, warns once | **use this one** |
 
 `parrott_killoh_avrami` is the **canonical 1984 formulation**, with the parameters
-of [ParrottKilloh1984](@cite) as reported by [LothenbachWinnefeld2006](@cite) and
-used by [Lavergne2018](@cite). Use it when you want the α(t) curves of the cement
+of [ParrottKilloh1984](@citet) as reported by [LothenbachWinnefeld2006](@citet) and
+used by [Lavergne2018](@citet). Use it when you want the α(t) curves of the cement
 literature. A useful signature of a correct transcription: with those parameters
 C₂S has no nucleation–growth stage and C₃S no diffusion-controlled stage.
 

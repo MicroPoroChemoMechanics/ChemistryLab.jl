@@ -10,12 +10,12 @@ salt; the C-S-H adsorbs it on its silanol sites. The two compete for the same
 chloride and neither can be read off the other, so a calculation that keeps only
 the salts assigns all of the bound chloride to them.
 
-The surface model is that of [Elakneswaran2010](@cite), as [Guo2018](@cite) use
+The surface model is that of [Elakneswaran2010](@citet), as [Guo2018](@citet) use
 it: silanol sites `≡SiOH` on the C-S-H, which deprotonate and bind calcium,
 sodium and chloride, with the potential set by a diffuse layer. The proton,
 calcium and chloride constants were fitted to zeta potentials by
 [Elakneswaran2009](@cite), and the first two lie close to the values
-[Pointeau2006](@cite) obtained by titration, −12.0 and −9.2 against −12.7 and
+[Pointeau2006](@citet) obtained by titration, −12.0 and −9.2 against −12.7 and
 −9.4.
 
 !!! warning "What this calculation is, and what it is not"
@@ -202,7 +202,7 @@ next section counts it.
 ## The chloride of the diffuse layer
 
 A [`DonnanLayer`](@ref) makes that layer explicit, as PHREEQC's `SURFACE -Donnan`
-does, after [AppeloWersin2007](@cite): a layer of water of fixed thickness on the
+does, after [AppeloWersin2007](@citet): a layer of water of fixed thickness on the
 surface, holding each solute at
 the average Boltzmann enrichment whose charge balances the surface's, while the
 surface keeps its Gouy-Chapman potential. [`equilibrate_donnan`](@ref) withdraws

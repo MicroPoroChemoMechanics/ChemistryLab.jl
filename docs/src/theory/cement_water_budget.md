@@ -164,7 +164,7 @@ keep returning numbers; they have simply left the picture they were derived in.
 Three routes, and they differ in what has to be assumed.
 
 **Impose ``\alpha``.** Give the minimization a degree of hydration and let it
-compute the assemblage — the construction of [LothenbachWinnefeld2006](@cite),
+compute the assemblage — the construction of [LothenbachWinnefeld2006](@citet),
 used by the [w/c example](@ref sec-wc-ratio) below its stoichiometric bound and
 by the self-desiccation page throughout. Honest, and ``\alpha`` is an input:
 either measured, or taken from `powers_alpha_max`. This is also what GEM-Selektor

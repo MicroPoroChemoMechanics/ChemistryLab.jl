@@ -237,7 +237,7 @@ package.
 
 # Published parameters, and the two conventions
 
-[BaroghelBouny1999](@cite) fit exactly this expression to measured water-vapor
+[BaroghelBouny1999](@citet) fit exactly this expression to measured water-vapor
 desorption isotherms, and write it with `b = 1/m`:
 
 ```

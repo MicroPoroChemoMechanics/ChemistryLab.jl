@@ -280,7 +280,7 @@ const _SITE_RANK_GAP = 5.0
                               free_site_side = :reactant) -> Float64
 
 An intrinsic adsorption constant moved from the total site density it was
-fitted at to a reference one — equation (21) of [Kulik2002](@cite):
+fitted at to a reference one — equation (21) of [Kulik2002](@citet):
 
 ```math
 \\log K^\\circ = \\log K^{C} + \\log_{10}\\!\\frac{\\Gamma_C}{\\Gamma^\\circ}
@@ -738,7 +738,7 @@ the subtraction reads `Σ dₖ nₖ − ν n_host = 0`, the statement of
 [`site_coupling_rows`](@ref); on the element rows it removes from the host the
 atoms the free sites carry, so that every atom is counted once; and, the free
 site being neutral, it leaves the charge conserved while the host dissolves or
-grows. This is the bookkeeping of [Kulik2002](@cite) for a sorbent whose surface
+grows. This is the bookkeeping of [Kulik2002](@citet) for a sorbent whose surface
 groups belong to it, and it holds in any basis of primaries: the free site may be
 the primary of the site row, or a bare site component (`Species("Xs+")`) may be
 declared in its place.

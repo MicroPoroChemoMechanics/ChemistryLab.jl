@@ -9,7 +9,7 @@
 This tutorial runs a complete kinetic calculation, the hydration of a Portland
 clinker, in which the dissolution and precipitation of minerals are governed by
 rate laws while the aqueous speciation, much faster, is kept at equilibrium,
-following the methodology of [Leal2017](@cite).
+following the methodology of [Leal2017](@citet).
 
 ## Background
 
@@ -68,7 +68,7 @@ for (name, frac) in pairs(COMPOSITION)
 end
 set_quantity!(state0, "H2O@", WC * u"kg")
 
-# ── 3. [ParrottKilloh1984](@cite) rate functions with Powers α_max ───────────────────────
+# ── 3. [ParrottKilloh1984](@citet) rate functions with Powers α_max ───────────────────────
 α_max   = powers_alpha_max(WC)
 BLAINE  = 380.0u"m^2/kg"
 pk_C3S  = parrott_killoh_avrami(PK84_PARAMS_C3S,  "C3S";  α_max, blaine = BLAINE)
@@ -77,7 +77,7 @@ pk_C3A  = parrott_killoh_avrami(PK84_PARAMS_C3A,  "C3A";  α_max, blaine = BLAIN
 pk_C4AF = parrott_killoh_avrami(PK84_PARAMS_C4AF, "C4AF"; α_max, blaine = BLAINE)
 
 # ── 4. Kinetic reactions (reaction-centric) ─────────────────────────────────
-# Reactions follow [LothenbachWinnefeld2006](@cite) — Jennite = Ca₉Si₆O₁₈(OH)₆·8H₂O
+# Reactions follow [LothenbachWinnefeld2006](@citet) — Jennite = Ca₉Si₆O₁₈(OH)₆·8H₂O
 # Balanced hydration reactions — ΔᵣH⁰ computed from species ΔₐH⁰.
 sp(name) = cs[name]
 
@@ -164,7 +164,7 @@ end
 
 ## The equilibrium–kinetics coupling
 
-The coupling is the partitioned formulation of [Leal2017](@cite), the one
+The coupling is the partitioned formulation of [Leal2017](@citet), the one
 Reaktoro implements. Species are split into a **kinetic partition** — the
 minerals carrying a rate law — and an **equilibrium partition**, everything
 else: the aqueous phase and any mineral free to precipitate or dissolve

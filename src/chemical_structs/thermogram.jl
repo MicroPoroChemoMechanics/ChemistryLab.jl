@@ -237,8 +237,8 @@ A thermogravimetric curve for `state` under `windows`, as
     of the grid, in percent of a reference mass, which `relative_to` names:
       - `:initial`, the sample at the first temperature of the grid;
       - a temperature (kelvin, or a quantity), the sample at that temperature: a
-        dry mass ([Scholer2015](@cite) take the weight at 500 °C,
-        [Shi2016](@cite) at 800 °C) or an ignited one ([ShiLothenbach2020](@cite)
+        dry mass ([Scholer2015](@citet) take the weight at 500 °C,
+        [Shi2016](@citet) at 800 °C) or an ignited one ([ShiLothenbach2020](@citet)
         give bound water in percent of the sample ignited at 980 °C);
       - `:ignited`, the sample once every window has released.
     See [the thermogravimetry page](@ref sec-example-tga) for the conventions.

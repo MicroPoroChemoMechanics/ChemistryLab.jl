@@ -12,7 +12,7 @@ equilibrium starts from the answer before it, which is faster than starting cold
 and keeps the sequence on one branch. This page runs the four processes of the
 recipe layer on one paste.
 
-The paste is the CEM I of De Weerdt et al. [DeWeerdt2011](@cite), a clinker
+The paste is the CEM I of [DeWeerdt2011](@citet), a clinker
 interground with 3.7 % gypsum and hydrated at a water/binder ratio of 0.5 and
 20 °C, at 90 days. Its clinker phases have reacted as the paper measured them by
 XRD.

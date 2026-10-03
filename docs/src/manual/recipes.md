@@ -225,3 +225,11 @@ heat of the run. A glass has no formula to dissolve and cannot be given a rate.
 [`integrate`](@ref) then runs the problem, with an equilibrium solver for the
 partial equilibrium of the products, as in the [kinetics tutorial](@ref
 sec-kinetics).
+
+## Where to go next
+
+The rate laws a recipe attaches to its constituents are written as described in
+[Writing a kinetic model](@ref sec-kinetics-syntax), and the run itself is the one
+of the tutorial [Chemical Kinetics](@ref sec-kinetics). The blended binders use
+recipes throughout, from [CEM II/A-LL and CEM II/B-S](@ref ex-cem2-blended)
+onwards.
