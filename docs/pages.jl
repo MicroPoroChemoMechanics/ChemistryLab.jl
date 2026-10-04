@@ -272,6 +272,7 @@ pages = [
             # Four materials, ten blends, two glasses under their own laws and
             # the limestone at equilibrium, against the thermogravimetry.
             "examples/quaternary_kinetics.md",
+            "examples/ternary_kinetics.md",
         ],
         # What a laboratory measures on a paste, read off computed states: the
         # heat an isothermal calorimeter records and the mass a thermobalance

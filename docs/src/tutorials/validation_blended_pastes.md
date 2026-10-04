@@ -74,7 +74,9 @@ end
 ```@example blended
 cs = dw11_system()
 days = dw11_days()
-pastes = Dict(mix => hydrate(dw11_recipe(mix), cs, days; model) for mix in DW11_MIXES)
+# `Any`: the type of a state is long enough that a dictionary specialized on it
+# takes minutes to compile.
+pastes = Dict{String, Any}(mix => hydrate(dw11_recipe(mix), cs, days; model) for mix in DW11_MIXES)
 for mix in DW11_MIXES
     @printf("%-9s %d ages, %d certified\n", mix, length(pastes[mix]), count(rs -> rs.certificate.optimal, pastes[mix]))
 end

@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **The ternary cements of De Weerdt et al. (2011) integrated in time**
+  (`scripts/deweerdt2011_kinetics.jl`, the page *CEM II/B-V and CEM II/B-M
+  (V-LL), with their CEM I, integrated in time*): a clinker and gypsum with
+  limestone powder, siliceous fly ash or both, the four clinker phases under
+  Parrott–Killoh, the fly-ash glass at the degree of reaction the authors
+  measured (their fit, written on the state as the Waller law is), against the
+  clinker phases, portlandite and ettringite of their Table 7 over six months.
+  The clinker as a whole reacts at about the measured rate, but the published
+  parameters dissolve the alite too slowly and the belite too fast; the
+  portlandite of the pastes without fly ash is within two points of the
+  measurement; with fly ash the glass consumes it, and without limestone the
+  ettringite is lost, CSHQ taking no aluminum. The fineness of Table 1 is
+  transcribed.
+
+### Documentation
+
+- Two more pages built a dictionary of states by a comprehension, which Julia
+  specializes on the type of a state: the validation page of De Weerdt et al.
+  (2011) and the carbonation page.
+
 ## v0.32.0 — The calorimeter's energy balance inside the ODE, and blended cements in time
 
 The semi-adiabatic calorimeter under partial equilibrium now integrates as Leal
