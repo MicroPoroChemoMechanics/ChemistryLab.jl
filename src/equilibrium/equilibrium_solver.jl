@@ -553,15 +553,19 @@ minimum of `n⋅μ(n)` is another composition than the equilibrium. Polished, ev
 route returns the composition its certificate describes, and the derivatives
 lifted at it are those of the map it returns.
 
-Suspended for one task by [`_unpolished`](@ref), where a back end is asked only
-for a starting point that a certified search polishes itself.
+It is the default of the `polish` keyword of a back end's `solve`. The searches
+of this package, which ask a back end only for a starting point they polish
+themselves, pass `polish = false` rather than run the solve under
+[`_unpolished`](@ref): a scoped value around a solve is inferred through, and on
+the first cement equilibrium of a session that cost seconds of compilation.
 """
 const _POLISH = ScopedValue(true)
 
 """
     _unpolished(f)
 
-Run `f` with [`_POLISH`](@ref) off, for this task only.
+Run `f` with [`_POLISH`](@ref) off, for this task only: every back-end solve
+inside it returns its own answer. For one solve, pass `polish = false` instead.
 """
 _unpolished(f) = with(f, _POLISH => false)
 
@@ -697,7 +701,10 @@ Called from the back-end `solve` methods, which dispatch on the solver type;
 making this a method of `solve` dispatching on the *state* would be ambiguous
 with them.
 """
-function _solve_dual(esolver::EquilibriumSolver, state::ChemicalState, ϵ::Float64; b = nothing)
+function _solve_dual(
+        esolver::EquilibriumSolver, state::ChemicalState, ϵ::Float64; b = nothing,
+        polish::Bool = _POLISH[],
+    )
     D = _input_number_type(state, b; model = esolver.model)
     D <: ForwardDiff.Dual || throw(ArgumentError("_solve_dual: nothing to differentiate."))
     if _DUAL_AVAILABLE[] && _dual_applicable(state.system)
@@ -710,11 +717,12 @@ function _solve_dual(esolver::EquilibriumSolver, state::ChemicalState, ϵ::Float
             )
             SciMLBase.solve(
                 es, _strip_state(state, Tg); ϵ = ϵ, b = b === nothing ? nothing : _strip_tag(collect(b), Tg),
+                polish = polish,
             )
         end
         des = DualEquilibriumSolver(state.system, esolver.model)
         bd = b === nothing ? des.A * _build_n0(state) : collect(b)
-        floor = _POLISH[] ? _CERTIFICATE_FLOOR : max(_CERTIFICATE_FLOOR, 10ϵ)
+        floor = polish ? _CERTIFICATE_FLOOR : max(_CERTIFICATE_FLOOR, 10ϵ)
         eq_d, _ = _lift_equilibrium(des, state, eq_v, bd; ϵ = ϵ, strip_tag = Tg, floor = floor)
         return eq_d
     end
@@ -807,12 +815,12 @@ function _attach_sensitivity(
 end
 
 """
-    _finish_backend_solve(esolver, state, eq; ϵ, b = nothing, certificate = nothing)
-        -> ChemicalState
+    _finish_backend_solve(esolver, state, eq; ϵ, b = nothing, certificate = nothing,
+                          polish = _POLISH[]) -> ChemicalState
 
 The answer `eq` a back end returned from `state`, polished by the dual Newton
-(see [`_POLISH`](@ref)) when OptimaSolver is loaded and the system has an aqueous
-phase with `H2O@`, and returned as it is otherwise. `certificate`, a `Ref`,
+when `polish` holds (its default is [`_POLISH`](@ref)), OptimaSolver is loaded
+and the system has an aqueous phase with `H2O@`, and returned as it is otherwise. `certificate`, a `Ref`,
 receives the certificate of the answer returned, or `nothing` when none was
 computed.
 
@@ -823,9 +831,10 @@ warning, or an error under [`STRICT_CONVERGENCE`](@ref).
 function _finish_backend_solve(
         esolver::EquilibriumSolver, state::ChemicalState, eq::ChemicalState;
         ϵ::Float64 = _AMOUNT_FLOOR, b = nothing, certificate = nothing,
+        polish::Bool = _POLISH[],
     )
     certificate === nothing || (certificate[] = nothing)
-    (_POLISH[] && _DUAL_AVAILABLE[] && _dual_applicable(state.system)) || return eq
+    (polish && _DUAL_AVAILABLE[] && _dual_applicable(state.system)) || return eq
     des = DualEquilibriumSolver(state.system, esolver.model)
     bv = b === nothing ? des.A * _build_n0(state) : collect(b)
     eqp, cert = _exploring_starts(() -> solve_certified(des, (eq,); b = bv, ϵ = ϵ))
