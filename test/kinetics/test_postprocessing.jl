@@ -562,3 +562,42 @@ end
         @test t_replay < 0.5     # the cheap path, as expected here
     end
 end
+
+# ── The replay's last resort, on its own ──────────────────────────────────────
+#
+# `speciated_states` ends on the full certified search for an instant its starts
+# and the continuation could not prove. Which instants need it depends on the
+# path of the solver, and so on the machine: the slag paste of Gruyaert et al.
+# (2010) needs it at 2 days on one machine and not on another. Its three
+# outcomes are therefore asserted here, on a budget whose answer is known.
+@testset "the replay's last resort: the full certified search" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    sp = speciation(
+        substances, ["Cal", "Portlandite", "H2O@"];
+        aggregate_state = [AS_AQUEOUS], exclude_species = split("H2@ O2@ CH4@"),
+    )
+    cs = ChemicalSystem(sp, CEMDATA_PRIMARIES)
+    st = ChemicalState(cs; T = 298.15u"K")
+    set_quantity!(st, "H2O@", 1.0u"kg")
+    set_quantity!(st, "Cal", 0.01u"mol")
+    n0 = Float64[ustrip(us"mol", x) for x in st.n]
+    A = Float64.(cs.SM.A)
+    b = A * n0
+    start = max.(n0, 1.0e-10)
+    T, P, model = 298.15u"K", 1.0e5u"Pa", DiluteSolutionModel()
+
+    # An instant already proved is handed back as it came.
+    r = ChemistryLab._replay_full_search(true, n0, st, n0, cs, start, T, P, model, b)
+    @test r[1] && r[2] === n0 && r[3] === st && r[4] === n0
+    # An unproved instant is certified, on its own budget: the composition it
+    # returns is also the new certified anchor of the replay.
+    r = ChemistryLab._replay_full_search(false, n0, st, n0, cs, start, T, P, model, b)
+    @test r[1]
+    @test A * r[2] ≈ b rtol = 1.0e-10 atol = 1.0e-14
+    @test r[4] == r[2] && r[4] !== r[2]
+    @test Float64[ustrip(us"mol", x) for x in r[3].n] == r[2]
+    # A budget no composition meets: the search fails silently, and the instant
+    # stays unproved with what it had.
+    r = ChemistryLab._replay_full_search(false, n0, st, n0, cs, start, T, P, model, -b)
+    @test !r[1] && r[2] === n0 && r[3] === st
+end

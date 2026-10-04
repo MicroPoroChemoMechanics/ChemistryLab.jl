@@ -496,36 +496,10 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
             # active set back to 25 and the balance to 3e-14.
             !proved && t_prev !== nothing && ((proved, n_eq, eq, certified) = _replay_continuation(sol, kp, p, des, sub, certified, n_eq, eq, t_prev, t, Tt, Pv, be))
 
-            # THE FULL SEARCH, last: the start from the linear program, the ideal
-            # starts and the restarts of `equilibrate_certified`, on this
-            # instant's budget. The first instant has no certified neighbor to
-            # walk from, and on a slag paste (Gruyaert et al. 2010, at 2 and 7
-            # days) neither start above certified: the interior-point composition
-            # the replay then fell back to had a pH of 15.3, where the full search
-            # certifies 12.82 at once from the linear program. Silent and never
-            # raising, as the fallback of `equilibrate_certified` runs it: the
-            # replay says below which instants stay unproved.
-            if !proved
-                quiet(f) = Base.CoreLogging.with_logger(f, Base.CoreLogging.NullLogger())
-                full = try
-                    with(_STRICT_OVERRIDE => false) do
-                        quiet(
-                            () -> _equilibrate_certified(
-                                ChemicalState(sub, cold_start .* u"mol"; T = Tt, P = Pv);
-                                model = activity_model(p.eq_solver), b = be,
-                            )
-                        )
-                    end
-                catch
-                    (nothing, nothing)
-                end
-                if full[2] !== nothing && full[2].optimal
-                    eq = full[1]
-                    n_eq = Float64[ustrip(us"mol", x) for x in eq.n]
-                    certified = copy(n_eq)
-                    proved = true
-                end
-            end
+            # The full search, last (`_replay_full_search`).
+            (proved, n_eq, eq, certified) = _replay_full_search(
+                proved, n_eq, eq, certified, sub, cold_start, Tt, Pv, activity_model(p.eq_solver), be,
+            )
 
             proved && (t_prev = float(t))
             proved || push!(uncertified, float(t))
@@ -586,6 +560,38 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
     end
 
     return out
+end
+
+"""
+    _replay_full_search(proved, n_eq, eq, certified, sub, start, T, P, model, b)
+        -> (proved, n_eq, eq, certified)
+
+The last resort of [`speciated_states`](@ref) for an instant neither its starts
+nor the continuation proved: the full certified search of
+`equilibrate_certified`, its start from the linear program, its ideal starts and
+its restarts, on the instant's budget `b`, from `start` in the partition system
+`sub`. The first instant has no certified neighbor to walk from, and on a slag
+paste (Gruyaert et al. 2010, at 2 and 7 days) neither start certified it: the
+interior-point composition the replay then fell back to had a pH of 15.3, where
+the full search certifies 12.82 at once from the linear program.
+
+Silent and never raising, as the fallback of `equilibrate_certified` runs it:
+the replay says which instants stay unproved. Returns its arguments unchanged
+when the instant is already proved or the search does not certify it.
+"""
+function _replay_full_search(proved, n_eq, eq, certified, sub, start, T, P, model, b)
+    proved && return proved, n_eq, eq, certified
+    quiet(f) = Base.CoreLogging.with_logger(f, Base.CoreLogging.NullLogger())
+    full = try
+        with(_STRICT_OVERRIDE => false) do
+            quiet(() -> _equilibrate_certified(ChemicalState(sub, start .* u"mol"; T, P); model, b))
+        end
+    catch
+        (nothing, nothing)
+    end
+    (full[2] !== nothing && full[2].optimal) || return proved, n_eq, eq, certified
+    n_full = Float64[ustrip(us"mol", x) for x in full[1].n]
+    return true, n_full, full[1], copy(n_full)
 end
 
 """
