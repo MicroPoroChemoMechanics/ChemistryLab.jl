@@ -107,20 +107,53 @@ function dw11k_fly_ash_law(share)
     return KineticFunc(f, (T = dw11_value("curing_temperature") * u"K", P = 1.0e5u"Pa"), u"mol/s")
 end
 
+# The names Lothenbach et al. (2008) give the clinker phases in their Table 3.
+const DW11_PHASE_NAMES_2008 = Dict("C3S" => "alite", "C2S" => "belite", "C3A" => "aluminate", "C4AF" => "ferrite")
+
 """
-    dw11k_rates(setup, mix) -> Dict
+    dw11k_clinker_law(phase; blaine, w_c, pk = :lavergne2018) -> KineticFunc
+
+The Parrott–Killoh law of a clinker phase, with one of two published parameter
+sets:
+
+  - `:lavergne2018`, the constants Lavergne et al. (2018) tabulate
+    (`PK84_PARAMS_*`, those of Lothenbach and Winnefeld 2006), and the
+    water/cement factor that slows every phase past `1.333 w/c`;
+  - `:lothenbach2008`, the constants of Lothenbach et al. (2008, Table 3), whose
+    belite has larger `K₂` and `K₃`, and the critical degree `H` of each phase
+    in the same factor (`pk_wc_factor`), which lets the alite past `0.9` at
+    w/c = 0.5 where the other set stops it at `0.67`.
+
+The activation energies are those of `PK84_PARAMS_*` in both; at 20 °C, the
+temperature of these pastes, they do not act.
+"""
+function dw11k_clinker_law(phase; blaine, w_c, pk = :lavergne2018)
+    pk === :lavergne2018 && return parrott_killoh_avrami(DW11_PK[phase], phase; blaine, w_c)
+    pk === :lothenbach2008 || throw(ArgumentError("pk is :lavergne2018 or :lothenbach2008; got :$pk"))
+    r = literature_row("LothenbachLeSaout2008", "parrott_killoh", DW11_PHASE_NAMES_2008[phase])
+    per_day(x) = ustrip(x) * u"1/d"
+    params = merge(
+        DW11_PK[phase],
+        (k₁ = per_day(r.K1), n₁ = ustrip(r.N1), k₂ = per_day(r.K2), k₃ = per_day(r.K3), n₃ = ustrip(r.N3)),
+    )
+    return parrott_killoh_avrami(params, phase; blaine, w_c, H = ustrip(r.H))
+end
+
+"""
+    dw11k_rates(setup, mix; pk = :lavergne2018) -> Dict
 
 Parrott–Killoh for the four clinker phases at the fineness of the OPC (Table 1)
-and the water/clinker ratio of the paste, `w/b` over the OPC's share; the law
-of the fly-ash glass in the pastes that hold it.
+and the water/clinker ratio of the paste, `w/b` over the OPC's share, with the
+parameter set `pk` (`dw11k_clinker_law`); the law of the fly-ash glass in the
+pastes that hold it.
 """
-function dw11k_rates(setup, mix)
+function dw11k_rates(setup, mix; pk = :lavergne2018)
     m = dw11_table("mixes")
     i = findfirst(==(mix), m.mix)
     opc, fa = ustrip(m.opc[i]) / 100, ustrip(m.fly_ash[i]) / 100
     blaine = literature_value(DW11, "blaine_opc")
     w_c = dw11_value("water_binder_ratio") / opc
-    rates = Dict{String, Any}(p => parrott_killoh_avrami(DW11_PK[p], p; blaine, w_c) for p in DW11_CLINKER)
+    rates = Dict{String, Any}(p => dw11k_clinker_law(p; blaine, w_c, pk) for p in DW11_CLINKER)
     if fa > 0
         # `with_species` names the constituent after its species.
         share = only(c.mass_fraction for c in setup.fly_ash.constituents if c.name == "FA")
@@ -130,17 +163,18 @@ function dw11k_rates(setup, mix)
 end
 
 """
-    dw11k_run(setup, mix; days = 180) -> (; kp, sol, recipe)
+    dw11k_run(setup, mix; days = 180, pk = :lavergne2018) -> (; kp, sol, recipe)
 
 The paste `mix` integrated over `days` at 20 °C, in the activity model of the
-page at measured extents, Cemdata18's for a KOH solution.
+page at measured extents, Cemdata18's for a KOH solution, the clinker under the
+parameter set `pk` (`dw11k_clinker_law`).
 """
-function dw11k_run(setup, mix; days = 180)
+function dw11k_run(setup, mix; days = 180, pk = :lavergne2018)
     cs = dw11k_system(setup, mix)
     recipe = dw11k_recipe(setup, mix)
     model = cemdata18_activity_model(:KOH)
     kp = KineticsProblem(
-        recipe, cs, dw11k_rates(setup, mix), (0.0, days * 86400.0);
+        recipe, cs, dw11k_rates(setup, mix; pk), (0.0, days * 86400.0);
         activity_model = model,
         equilibrium_solver = EquilibriumSolver(cs, model, OptimaOptimizer()),
     )
