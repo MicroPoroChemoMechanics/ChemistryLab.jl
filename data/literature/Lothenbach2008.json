@@ -4,12 +4,102 @@
     "key": "Lothenbach2008",
     "doi": "10.1016/j.cemconres.2007.08.017",
     "citation": "Lothenbach, B., Matschei, T., Möschner, G., Glasser, F. P. (2008). Thermodynamic modelling of the effect of temperature on the hydration and porosity of Portland cement. Cement and Concrete Research 38, 1-18.",
-    "location": "Table 4, p. 4"
+    "location": "Section 2, Tables 1 to 4 (pp. 2-4), Sections 3.1 and 4.1-4.3, Figs. 5 and 6 (p. 8)"
   },
   "transcription": {
-    "from": "the published article (PDF), Table 4, parsed from the page text and checked on the page image, signs and footnote marks included",
+    "from": "the published article (PDF): Tables 1 to 4 parsed from the page text and checked on the page image, signs and footnote marks included; Figs. 5 and 6, raster images, digitized",
     "checked_against_source": true,
-    "note": "Table 4 is cemdata2007, the thermodynamic data for cements at 25 C. Transcribed: log Ks0, the standard Gibbs energy and enthalpy of formation, the entropy and the molar volume; the heat capacity coefficients a0 to a3 are not, since nothing here uses them. The formula column writes the cement notation of each row as a chemical formula (C = CaO, A = Al2O3, F = Fe2O3, S = SiO2, S-bar = SO3, C-bar = CO2, M = MgO, H = H2O); it is not printed in the table."
+    "note": "Table 4 is cemdata2007, the thermodynamic data for cements at 25 C. Transcribed: log Ks0, the standard Gibbs energy and enthalpy of formation, the entropy and the molar volume; the heat capacity coefficients a0 to a3 are not, since nothing here uses them. The formula column writes the cement notation of each row as a chemical formula (C = CaO, A = Al2O3, F = Fe2O3, S = SiO2, S-bar = SO3, C-bar = CO2, M = MgO, H = H2O); it is not printed in the table. Tables 1 to 3 and the figures were added on 2026-10-04: of Table 1 only the columns of SRPC and PLC, the two cements Figs. 5 and 6 compute, are transcribed; of Table 3 only the activation energies printed in bold, the ones the article uses."
+  },
+  "quantities": {
+    "water_cement_ratio_srpc": {
+      "value": 0.4,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2, p. 2",
+      "description": "Water/cement ratio of the SRPC pastes, cured isothermally at 5, 20 and 50 C, whose hydrates Fig. 5 computes."
+    },
+    "water_cement_ratio_mortar": {
+      "value": 0.58,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2, p. 2",
+      "description": "Water/cement ratio of the mortars of PLC, PLC2, PLC3, PLC4 and OPC (3 kg of quartz aggregate per kg of cement); Section 4.3 gives the higher w/c of PLC as the reason it has less unhydrated clinker than SRPC in Fig. 6."
+    },
+    "blaine_srpc": {
+      "value": 354,
+      "unit": "m^2/kg",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Table 1",
+      "description": "Blaine surface area of SRPC (CEM I 52.5 N HTS)."
+    },
+    "blaine_plc": {
+      "value": 438,
+      "unit": "m^2/kg",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Table 1",
+      "description": "Blaine surface area of PLC (CEM II/A-L 42.5 R)."
+    },
+    "reference_temperature": {
+      "value": 293,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 3.1, Eq. (5)",
+      "description": "Temperature T0 at which the rates of Parrott and Killoh are taken, printed '293 K (20 C)'."
+    },
+    "hydration_time_figs": {
+      "value": 150,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Sections 4.2 and 4.3, p. 7-8",
+      "description": "Hydration time whose degree of hydration Figs. 5 and 6 assume, the same at every temperature."
+    },
+    "overall_degree_srpc": {
+      "value": 80,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.2, p. 7",
+      "description": "Overall degree of hydration of SRPC after 150 days, percent, printed as approximately 80 %."
+    },
+    "overall_degree_plc": {
+      "value": 85,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.3, p. 8",
+      "description": "Overall degree of hydration of PLC after 150 days, percent, printed as approximately 85 %."
+    },
+    "transition_temperature": {
+      "value": 48,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Sections 4.1.1 and 4.2, pp. 6-8",
+      "description": "Temperature, in degrees Celsius, above which the calculation finds monosulfate more stable than ettringite and monocarbonate, printed as approximately 48 C, within about 1 C."
+    },
+    "transition_temperature_low": {
+      "value": 42,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1.1, p. 6",
+      "description": "Lower end, degrees Celsius, of the range of the transition when the solubility products are taken uncertain by 0.1 log units."
+    },
+    "transition_temperature_high": {
+      "value": 54,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1.1, p. 6",
+      "description": "Upper end, degrees Celsius, of the same range."
+    }
   },
   "tables": {
     "thermodynamic_data": {
@@ -99,11 +189,116 @@
         ["Fe(OH)3(mic)", -4.6, 2],
         ["Fe2O3", -14.08, 2]
       ]
+    },
+    "chemical_analysis": {
+      "columns": ["oxide", "SRPC", "PLC"],
+      "units": [null, "1", "1"],
+      "kind": "measured",
+      "location": "Table 1, chemical analysis by XRF corrected for ignition loss, g/100 g; SRPC prints no ignition loss, the cell is null",
+      "rows": [
+        ["CaO", 65.7, 59.5],
+        ["SiO2", 22.3, 16.6],
+        ["Al2O3", 2.7, 4.4],
+        ["Fe2O3", 1.9, 2.4],
+        ["CaO (free)", 0.45, 1.7],
+        ["MgO", 0.85, 1.8],
+        ["K2O", 0.22, 0.83],
+        ["Na2O", 0.13, 0.28],
+        ["CO2", 1.6, 7.1],
+        ["SO3", 2.2, 2.5],
+        ["Ignition loss", null, 8.2]
+      ]
+    },
+    "normative_phases": {
+      "columns": ["phase", "SRPC", "PLC"],
+      "units": [null, "1", "1"],
+      "kind": "published",
+      "location": "Table 1, normative phase composition calculated from the chemical analysis, g/100 g; K2SO4 and Na2SO4 are the readily soluble alkalis (SRPC: measured after 5 min at w/c 10; PLC: estimated after Taylor 1987); the K2O, Na2O, MgO and SO3 rows are present as solid solution in the major clinker phases",
+      "rows": [
+        ["alite", 61, 35],
+        ["belite", 18, 21],
+        ["aluminate", 3.9, 7.6],
+        ["ferrite", 5.8, 7.3],
+        ["CaO (free)", 0.45, 1.7],
+        ["CaCO3", 3.7, 16],
+        ["CaSO4", 3.6, 3.0],
+        ["K2SO4", 0.14, 1.1],
+        ["Na2SO4", 0.09, 0.23],
+        ["K2O", 0.14, 0.25],
+        ["Na2O", 0.09, 0.18],
+        ["MgO", 0.85, 1.8],
+        ["SO3", 0.01, 0.08]
+      ]
+    },
+    "parrott_killoh": {
+      "columns": ["phase", "K1", "N1", "K2", "K3", "N3"],
+      "units": [null, "1", "1", "1", "1", "1"],
+      "kind": "published",
+      "location": "Table 2, p. 3: the constants of Parrott and Killoh (1984) for OPC, per day",
+      "rows": [
+        ["alite", 1.5, 0.7, 0.05, 1.1, 3.3],
+        ["belite", 0.5, 1.0, 0.006, 0.2, 5.0],
+        ["aluminate", 1.0, 0.85, 0.04, 1.0, 3.2],
+        ["ferrite", 0.37, 0.7, 0.015, 0.4, 3.7]
+      ]
+    },
+    "activation_energies": {
+      "columns": ["phase", "Ea"],
+      "units": [null, "kJ/mol"],
+      "kind": "published",
+      "location": "Table 3, p. 3: the activation energies printed in bold, those the article uses (from its refs. 13 and 21)",
+      "rows": [
+        ["alite", 42],
+        ["belite", 21],
+        ["aluminate", 54],
+        ["ferrite", 34]
+      ]
+    },
+    "hydrate_volumes": {
+      "columns": ["cement", "temperature_C", "phase", "volume"],
+      "units": [null, "1", null, "cm^3"],
+      "kind": "published",
+      "location": "Figs. 5 (SRPC) and 6 (PLC), p. 8: the volumes the authors calculate per 100 g of cement after 150 days, the same degree of hydration at every temperature, read at 5 C and at 58 C, on either side of the transition; the phases are named as the figures label them, monosulfate spelled the US way, and each is the solid solution of its Al and Fe analogues (footnote 1, p. 6)",
+      "digitization": {
+        "method": "raster image",
+        "tool": "the boundaries between the layers located column by column as rows dark across 31 pixels, their centers weighted by darkness, mapped through the six tick marks of the volume axis; each volume is the difference of two boundaries",
+        "uncertainty": {
+          "value": 0.2,
+          "unit": "cm^3"
+        },
+        "note": "One pixel is 0.11 cm3; the boundaries are lines two pixels thick. At 58 C the boundary between the ettringite left on SRPC and its monosulfate is a double line, 49.11 and 48.88, read at 49.0. The grid lines inside the monosulfate and the hydrotalcite patterns are not boundaries and were set aside by the order of the layers the figures label."
+      },
+      "rows": [
+        ["SRPC", 5, "ettringite", 6.47],
+        ["SRPC", 5, "monocarbonate", 4.51],
+        ["SRPC", 5, "calcite", 0.73],
+        ["SRPC", 5, "portlandite", 11.27],
+        ["SRPC", 5, "hydrotalcite", 1.07],
+        ["SRPC", 5, "C-S-H", 21.58],
+        ["SRPC", 5, "unhydrated clinker", 6.12],
+        ["SRPC", 58, "ettringite", 0.96],
+        ["SRPC", 58, "monosulfate", 7.5],
+        ["SRPC", 58, "calcite", 1.29],
+        ["SRPC", 58, "portlandite", 11.78],
+        ["SRPC", 58, "hydrotalcite", 0.9],
+        ["SRPC", 58, "C-S-H", 21.41],
+        ["SRPC", 58, "unhydrated clinker", 6.12],
+        ["PLC", 5, "ettringite", 7.8],
+        ["PLC", 5, "monocarbonate", 8.41],
+        ["PLC", 5, "calcite", 4.86],
+        ["PLC", 5, "portlandite", 8.36],
+        ["PLC", 5, "hydrotalcite", 2.26],
+        ["PLC", 5, "C-S-H", 17.44],
+        ["PLC", 5, "unhydrated clinker", 3.83],
+        ["PLC", 58, "monosulfate", 9.44],
+        ["PLC", 58, "monocarbonate", 3.04],
+        ["PLC", 58, "calcite", 5.54],
+        ["PLC", 58, "portlandite", 8.91],
+        ["PLC", 58, "hydrotalcite", 1.99],
+        ["PLC", 58, "C-S-H", 17.33],
+        ["PLC", 58, "unhydrated clinker", 3.83]
+      ]
     }
   },
-  "notes": [
-    "Footnote a: all solubility products refer to Al(OH)4-, Fe(OH)4-, SiO(OH)3-, OH-, H2O, Ca2+, Mg2+, CO3 2- or SO4 2-. Footnote d: the molar volumes are calculated from unit cells or densities given by Taylor, for most of the hydrates.",
-    "The jennite- and tobermorite-type C-S-H are printed C1.67SH2.1 and C0.83SH1.3, abbreviations of the 5/3 and 5/6 stoichiometry the same data carry elsewhere (Lothenbach 2010, Table 1).",
-    "The Fe-monocarbonate is printed C4FC-barH12, one water more than the formula Lothenbach (2010) writes for it."
-  ]
+  "notes": ["Footnote a: all solubility products refer to Al(OH)4-, Fe(OH)4-, SiO(OH)3-, OH-, H2O, Ca2+, Mg2+, CO3 2- or SO4 2-. Footnote d: the molar volumes are calculated from unit cells or densities given by Taylor, for most of the hydrates.", "The jennite- and tobermorite-type C-S-H are printed C1.67SH2.1 and C0.83SH1.3, abbreviations of the 5/3 and 5/6 stoichiometry the same data carry elsewhere (Lothenbach 2010, Table 1).", "The Fe-monocarbonate is printed C4FC-barH12, one water more than the formula Lothenbach (2010) writes for it."]
 }

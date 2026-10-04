@@ -243,6 +243,9 @@ pages = [
             "examples/cement_carbonation.md",
             # The four processes of the recipe layer on one measured paste.
             "examples/cement_processes.md",
+            # The hydrates of two cements from 0 to 60 °C, against the same
+            # calculation on cemdata2007.
+            "examples/hydrates_temperature.md",
         ],
         # Beyond the Portland cement. One page per EN 197-1 family, in order of
         # how much of the clinker is replaced and of what the replacement asks

@@ -41,6 +41,17 @@
   On the two slags of the RILEM round robin (Durdziński et al. 2017), at an
   assumed 20 °C, the same constants hold within 7.2 points in three series of
   four. They are fitted on one slag and are not shipped.
+- **The hydrates of two cements from 0 to 60 °C** (`scripts/lothenbach2008_temperature.jl`,
+  the page *CEM I 52.5 N HTS and CEM II/A-L 42.5 R from 0 to 60 °C*), against
+  the calculation of Lothenbach et al. (2008) with cemdata2007, whose Tables 1
+  to 3 are now transcribed and whose Figs. 5 and 6 are read at 5 and 58 °C
+  (`data/literature/Lothenbach2008.json`). With Cemdata18 and the package's
+  Portland phase list, ettringite and monocarbonate give way to monosulfate at
+  53.1 °C in the CEM I and 52.6 °C in the CEM II, where the article finds about
+  48 °C and allows 42 to 54 °C for an uncertainty of 0.1 log units on its
+  solubility products. Portlandite and calcite agree within 1.1 cm³ per 100 g of
+  cement; the monocarbonate is a third to a half of the article's, whose AFm
+  and AFt phases hold the iron that this list puts in an iron hydroxide.
 
 ### Documentation
 

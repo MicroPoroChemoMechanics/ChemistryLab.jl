@@ -132,6 +132,7 @@ end
     include("validation_deweerdt2011.jl")
     include("validation_shi2016.jl")
     include("validation_lothenbach2008.jl")
+    include("validation_lothenbach2008_temperature.jl")
     include("validation_scholer2017.jl")
     include("validation_deschner2012.jl")
     include("validation_deschner2013.jl")
