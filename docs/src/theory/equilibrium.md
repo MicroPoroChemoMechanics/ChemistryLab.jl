@@ -112,7 +112,9 @@ water shift of [`CapillaryWater`](@ref) likewise lies outside the ideal proof.
 
 These mathematical issues differ from kinetic metastability. An activation
 barrier is a feature of a molecular or nucleation pathway, not a second minimum
-that must appear in the bulk composition objective. A thermodynamic solve does
+that must appear in the bulk composition objective
+([Metastable does not mean a local minimum of G](@ref sec-theory-metastable)
+draws the two side by side). A thermodynamic solve does
 not model barrier crossing. Suppressing a phase or holding kinetic amounts
 fixed changes the feasible set, and a constrained minimum can be globally
 optimal on that set while remaining metastable relative to an excluded

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="550" viewBox="0 0 900 550" role="img" aria-labelledby="title desc">
+  <title id="title">From chemical description to a trajectory</title>
+  <desc id="desc">Chemical formulas define conservation budgets. Equilibrium uses these budgets, temperature, pressure and an activity model to determine a composition. Kinetics adds rate laws to determine its evolution in time.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8Z" fill="#64748b"/></marker>
+  </defs>
+  <rect width="900" height="550" rx="18" fill="#f8fafc"/>
+  <g font-family="Arial, Helvetica, sans-serif" fill="#172b42">
+    <text x="36" y="43" font-size="15" font-weight="700" letter-spacing="2" fill="#52667d">THE CALCULATION AT A GLANCE</text>
+    <rect x="36" y="72" width="828" height="112" rx="12" fill="#e8effa" stroke="#bdcee7"/>
+    <rect x="36" y="72" width="7" height="112" rx="3" fill="#3664a0"/>
+    <text x="62" y="107" font-size="23" font-weight="700">Chemical description</text>
+    <text x="62" y="139" font-size="19">Formulas · species · reactions</text>
+    <text x="62" y="166" font-size="17" fill="#52667d">Exact bookkeeping of declared components</text>
+    <text x="607" y="123" font-size="25" font-style="italic">A n = b</text>
+    <text x="607" y="153" font-size="17">Conservation budgets</text>
+    <path d="M450 188V222" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="36" y="233" width="828" height="112" rx="12" fill="#e5f3ef" stroke="#b2d8cd"/>
+    <rect x="36" y="233" width="7" height="112" rx="3" fill="#177567"/>
+    <text x="62" y="268" font-size="23" font-weight="700">Equilibrium</text>
+    <text x="62" y="300" font-size="19">Temperature · pressure · activity model</text>
+    <text x="62" y="327" font-size="17" fill="#52667d">Mass action and phase conditions</text>
+    <text x="607" y="284" font-size="25" font-style="italic">n*</text>
+    <text x="607" y="314" font-size="17">Equilibrium composition</text>
+    <path d="M450 349V383" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="36" y="394" width="828" height="112" rx="12" fill="#fff1df" stroke="#e8cca5"/>
+    <rect x="36" y="394" width="7" height="112" rx="3" fill="#996019"/>
+    <text x="62" y="429" font-size="23" font-weight="700">Kinetics</text>
+    <text x="62" y="461" font-size="19">Rate laws · initial state</text>
+    <text x="62" y="488" font-size="17" fill="#52667d">Optional re-equilibration along the trajectory</text>
+    <text x="607" y="445" font-size="25" font-style="italic">n(t)</text>
+    <text x="607" y="475" font-size="17">Evolution in time</text>
+    <text x="36" y="533" font-size="15" fill="#52667d">Conceptual organization; the assumptions of each layer determine its scope.</text>
+  </g>
+</svg>

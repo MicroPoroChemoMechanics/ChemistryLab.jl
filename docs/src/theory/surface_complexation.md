@@ -79,6 +79,13 @@ n_{\equiv\mathrm{XOH}} + n_{\equiv\mathrm{XOH_2^{+}}} + n_{\equiv\mathrm{XO^{-}}
 with `N` the family's site budget in moles. Nothing was added to the matrix
 machinery to obtain it.
 
+![Protonated, neutral and deprotonated oxide groups each count as one site; their amounts sum to the site budget N.](../assets/theory/surface_site_balance.svg)
+
+*Three states of the same site family, drawn schematically. Protonation changes
+the charge and hydrogen inventory of a surface group, while each state still
+counts once in the site balance. The fixed ``N`` shown here assumes a fixed
+support capacity; §10 treats a capacity that follows the host mineral.*
+
 !!! note "Where `N` comes from"
     Three ways, because published data comes in three shapes and converting
     between them needs a number nobody measured: a site density per unit area

@@ -33,6 +33,12 @@ layer's assumptions being carried into a regime it was not built for.
 | **equilibrium** | a composition satisfying mass-action and phase conditions; a global Gibbs minimum for a consistent convex potential | prescribed temperature and pressure by default, well-mixed declared phases, ideal molar volumes, and an **activity model** |
 | **kinetics** | a trajectory in time, optionally re-equilibrating the solution at every step | a rate law per reaction, and that the rate law's arguments are available |
 
+![Chemical description supplies conservation budgets; equilibrium determines a composition; kinetics adds its evolution in time.](../assets/theory/calculation_layers.svg)
+
+*The three layers organize the calculation. Each layer adds assumptions to the
+chemical bookkeeping; kinetic calculations can optionally re-equilibrate the
+solution as the reaction progresses.*
+
 The activity model is where the second layer stops being ideal, so it is the
 first thing to read and the first thing to suspect:
 [Activity models](@ref sec-theory-activity).

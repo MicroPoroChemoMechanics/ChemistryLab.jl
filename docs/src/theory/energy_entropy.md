@@ -26,6 +26,13 @@ closed and adiabatic, but can do expansion work. A sealed, insulated, rigid
 vessel with no other work exchange is isolated. A sealed sample can also be
 isothermal if a thermostat removes the heat of reaction.
 
+![Allowed matter, heat and work transfers for open, closed, closed adiabatic and isolated systems.](../assets/theory/system_boundaries.svg)
+
+*Arrows mark transfers that the boundary allows, in either direction. Closing
+the system blocks matter transfer; adding insulation blocks heat transfer.
+Work can still cross a closed adiabatic boundary, for example through a moving
+piston.*
+
 In a **closed reacting system**, the species amounts change even though no
 matter crosses the boundary. For example,
 

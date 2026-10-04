@@ -615,6 +615,14 @@ unit = "m²"
 pages = ["theory/surface_complexation.md", "manual/surfaces.md"]
 
 [[symbol]]
+group = "Kinetics and hydration"
+tex = "A_s"
+label = "A<sub>s</sub>"
+name = "reactive surface area of a dissolving mineral"
+unit = "m²"
+pages = ["theory/kinetics.md"]
+
+[[symbol]]
 group = "Surfaces"
 tex = "\\kappa"
 label = "κ"

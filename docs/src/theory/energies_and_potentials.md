@@ -74,39 +74,77 @@ the equality holding for a reversible transformation only. Unlike ``U`` and
 §5 defines it, together with the entropy of formation it must not be confused
 with.
 
-At constant temperature and pressure, with no work other than that of the
-pressure, ``\delta q = \mathrm{d}H`` and the inequality becomes
-``\mathrm{d}H - T\,\mathrm{d}S \le 0``. It is thus the function
+At constant pressure, with no work other than that of the pressure, the heat
+received is the change of enthalpy, ``\delta q = \mathrm{d}H`` (§1), and the
+inequality becomes ``\mathrm{d}H - T\,\mathrm{d}S \le 0``. At constant
+temperature the left-hand side is the differential of one function,
+``\mathrm{d}(H - TS) = \mathrm{d}H - T\,\mathrm{d}S - S\,\mathrm{d}T
+= \mathrm{d}H - T\,\mathrm{d}S``. It is thus the function
 
 ```math
 G = H - TS ,
 ```
 
 the Gibbs energy, that can only decrease in a spontaneous transformation at fixed
-``T`` and ``P``, and reaches its minimum at equilibrium. This is the principle
-the solver of this package implements. The two terms of ``G`` weigh two
-tendencies against each other: a change releasing heat lowers ``H``, a change
-creating disorder raises ``S``, and a reaction that absorbs heat can still
-proceed when the entropy it creates outweighs it, as the dissolution of many
-salts does. The Gibbs energy is also the Legendre transform of the internal
-energy whose natural variables are ``T`` and ``P`` (§5.4), so that for a closed
-system of fixed composition
+``T`` and ``P``, ``\mathrm{d}G \le 0``, and reaches its minimum at equilibrium.
+This is the principle the solver of this package implements.
+
+What ``G`` measures is a capacity for work. In a reversible change at fixed
+``T`` and ``P``, a system can deliver work other than that of its expansion, the
+electrical work of a battery for instance, and the most it can deliver is
+``-\Delta G``; a change that delivers none, as a reaction in a beaker does,
+dissipates that capacity as heat instead
+([What the Gibbs energy tells us](@ref sec-theory-gibbs-criterion)). The two
+terms of ``G`` weigh two tendencies against each other: a change releasing heat
+lowers ``H``, a change creating disorder raises ``S``, and a reaction that
+absorbs heat can still proceed when the entropy it creates outweighs it, as the
+dissolution of many salts does.
+
+!!! warning "``\Delta H`` and ``T\Delta S`` are not two flows of heat"
+    The two terms are easily read as two heats, one chemical and one thermal.
+    They are not. In a process at fixed ``T`` and ``P`` with no work other than
+    that of the pressure, the heat actually exchanged is ``\Delta H``, all of
+    it. ``T\Delta S`` is the heat a *reversible* version of the same change
+    would exchange, one that delivered ``-\Delta G`` as useful work. The two
+    describe different processes between the same states, which
+    [What the Gibbs energy tells us](@ref sec-theory-gibbs-criterion), in the
+    page on energy and entropy balances, sets side by side.
+
+For a closed system of fixed composition, the first law with only the work of
+the pressure, written for a reversible change, reads
+``\mathrm{d}U = T\,\mathrm{d}S - P\,\mathrm{d}V``. Differentiating
+``G = U + PV - TS`` and inserting it,
 
 ```math
-\mathrm{d}G = -S\,\mathrm{d}T + V\,\mathrm{d}P ,
+\mathrm{d}G = \mathrm{d}U + P\,\mathrm{d}V + V\,\mathrm{d}P - T\,\mathrm{d}S - S\,\mathrm{d}T
+  = -S\,\mathrm{d}T + V\,\mathrm{d}P ,
 \qquad
 \left(\frac{\partial G}{\partial T}\right)_P = -S .
 ```
 
-Combining the second relation with ``G = H - TS`` eliminates the entropy and
-yields the Gibbs-Helmholtz relation,
+The terms in ``\mathrm{d}S`` and ``\mathrm{d}V`` cancel: subtracting ``TS`` and
+adding ``PV`` exchanges the variables ``S`` and ``V``, which no experiment
+controls, for ``T`` and ``P``, which a laboratory sets. This exchange is called
+a Legendre transform (§5.4), and it is why ``G`` is the natural potential of a
+system held at fixed temperature and pressure. Since ``G``, ``S`` and ``V`` are
+state functions, the result holds for any change between two states, reversible
+or not.
+
+The temperature derivative of ``G/T`` follows by the rule for a quotient, and
+eliminates the entropy:
 
 ```math
-\left(\frac{\partial (G/T)}{\partial T}\right)_P = -\frac{H}{T^2} ,
+\left(\frac{\partial (G/T)}{\partial T}\right)_P
+  = \frac{1}{T}\left(\frac{\partial G}{\partial T}\right)_P - \frac{G}{T^2}
+  = -\frac{TS + G}{T^2}
+  = -\frac{H}{T^2} .
 ```
 
-by which the enthalpy, the quantity calorimetry measures, is read on the
-temperature dependence of the Gibbs energy, the quantity equilibrium depends on.
+This is the Gibbs-Helmholtz relation, by which the enthalpy, the quantity
+calorimetry measures, is read on the temperature dependence of the Gibbs energy,
+the quantity equilibrium depends on. Applied to a reaction it becomes the van 't
+Hoff relation of §6: measuring how an equilibrium constant changes with
+temperature gives the heat of the reaction without a calorimeter.
 
 ## 3. Open systems: the chemical potential
 
@@ -136,10 +174,30 @@ This is the link between the two families of quantities: the chemical potential
 carries the Gibbs energy of a constituent, its temperature dependence carries
 the enthalpy.
 
-At fixed temperature and pressure, multiplying every amount by ``\lambda``
-multiplies ``G`` and ``H`` by ``\lambda``. Euler's theorem on functions
-homogeneous of degree one then expresses each of them as the sum of the amounts
-weighted by the partial molar quantities (§9.2),
+### [Euler's theorem: the Gibbs energy is the sum of the potentials](@id sec-theory-euler)
+
+The Gibbs energy is extensive. Take a phase at fixed temperature and pressure,
+and a second phase identical to it in every respect but ``\lambda`` times larger,
+every amount multiplied by ``\lambda``: it has ``\lambda`` times the Gibbs energy,
+
+```math
+G(T, P, \lambda n_1, \dots, \lambda n_N) = \lambda\, G(T, P, n_1, \dots, n_N)
+\qquad \text{for every } \lambda > 0 .
+```
+
+A function with this property is said to be homogeneous of degree one in the
+amounts. Differentiating both sides with respect to ``\lambda``, the left-hand
+side through each of its arguments ``\lambda n_i`` by the chain rule, gives
+
+```math
+\sum_i n_i\,\frac{\partial G}{\partial n_i}(T, P, \lambda n_1, \dots, \lambda n_N)
+  = G(T, P, n_1, \dots, n_N) ,
+```
+
+and at ``\lambda = 1`` the derivatives are the chemical potentials. This is
+Euler's theorem on homogeneous functions, and it gives the Gibbs energy of the
+phase as the sum of the amounts weighted by their potentials
+[AndersonCrerar1993](@cite) (§9.2),
 
 ```math
 G = \sum_i n_i\,\mu_i ,
@@ -147,21 +205,74 @@ G = \sum_i n_i\,\mu_i ,
 H = \sum_i n_i\,h_i ,
 ```
 
-so that the enthalpy of a system, and hence the heat of a change at constant
-pressure, is obtained by weighting the partial molar enthalpies by the amounts.
-Differentiating the first expression and subtracting ``\mathrm{d}G = \sum_i
-\mu_i\,\mathrm{d}n_i``, valid at fixed ``T`` and ``P``, leaves the Gibbs-Duhem
-relation, which holds within each phase,
+the second following in the same way, since ``H`` is extensive too.
+
+The result is less obvious than it looks, because ``\mu_i`` depends on the
+composition: adding a constituent changes the potentials of all the others.
+A construction shows why the sum is nevertheless exact. Build the phase from
+nothing by adding all its constituents at once, in their final proportions,
+``\mathrm{d}n_i = n_i\,\mathrm{d}\lambda`` with ``\lambda`` running from 0 to 1.
+The composition is the same at every stage, so every potential keeps its final
+value throughout, and the Gibbs energy accumulates as
+``\sum_i \mu_i\,\mathrm{d}n_i = \left(\sum_i \mu_i n_i\right)\mathrm{d}\lambda``,
+whose integral from 0 to 1 is ``\sum_i n_i\,\mu_i``. Since ``G`` is a state
+function, any other way of building the same phase leads to the same value.
+
+Two consequences are used throughout the chapter. The enthalpy of a system, and
+hence the heat of a change at constant pressure, is obtained by weighting the
+partial molar enthalpies by the amounts. And the function a Gibbs minimization
+works on, ``\sum_i n_i\,\mu_i(\mathbf{n})`` in
+[Thermochemistry](@ref sec-theory-thermo) §4, is the Gibbs energy itself, not
+an approximation of it. A system of several phases is the sum of its phases,
+each obeying the theorem for its own amounts.
+
+### [Gibbs-Duhem: the potentials of one phase are not independent](@id sec-theory-gibbs-duhem)
+
+Differentiating Euler's expression gives
+``\mathrm{d}G = \sum_i \mu_i\,\mathrm{d}n_i + \sum_i n_i\,\mathrm{d}\mu_i``. At
+fixed ``T`` and ``P``, the differential of ``G`` written at the start of this
+section is ``\mathrm{d}G = \sum_i \mu_i\,\mathrm{d}n_i`` alone, so the second sum
+must vanish. This is the Gibbs-Duhem relation, which holds within each phase,
 
 ```math
 \sum_i n_i\,\mathrm{d}\mu_i = 0 \qquad (T,\ P \text{ fixed}) .
 ```
 
-The chemical potentials of the constituents of one phase are thus bound
-together, and a model cannot prescribe the activity of the solvent
+Its content is a count. The potentials of a phase depend on its composition
+only, not on its size, and ``N`` constituents have ``N - 1`` independent
+proportions. The ``N`` potentials therefore cannot vary independently: once
+``N - 1`` of them are given, the relation fixes the change of the last. At
+variable temperature and pressure it reads
+``S\,\mathrm{d}T - V\,\mathrm{d}P + \sum_i n_i\,\mathrm{d}\mu_i = 0``.
+
+Take water and one solute. The amount of solute is measured by its molality
+``m = n_s/(n_w M_w)``, in moles per kilogram of *water*, ``M_w`` being the molar
+mass of water in kg/mol; it is the concentration scale of aqueous chemistry
+because a mass of water does not change with temperature or pressure, whereas a
+volume of solution, on which a molarity in mol/L is built, does. For this
+mixture the relation gives ``n_w\,\mathrm{d}\mu_w = -n_s\,\mathrm{d}\mu_s``,
+and with ``n_s/n_w = M_w m``,
+
+```math
+\mathrm{d}\mu_w = -M_w\, m\;\mathrm{d}\mu_s .
+```
+
+Adding solute raises its potential and lowers that of the water, in a ratio set
+by the composition. If the solute is ideal, its potential is
+``\mu_s = \mu_s^\circ + RT\ln m``, a form written in general just below,
+and ``\mathrm{d}\mu_s = RT\,\mathrm{d}m/m``, so that
+``\mathrm{d}\ln a_w = -M_w\,\mathrm{d}m``, and integrating from pure water gives
+``\ln a_w = -M_w\, m``. The water activity is then not a separate choice: it is
+fixed by the solute's activity.
+
+This is the general point. A model cannot prescribe the activity of the solvent
 independently of the activity coefficients it assigns to the solutes; it is by
 this relation that
-[Activity models](@ref sec-theory-activity) §3 obtains the activity of water.
+[Activity models](@ref sec-theory-activity) §3 obtains the activity of water,
+and a model that does otherwise no longer derives from one Gibbs energy
+([Does a model come from one excess Gibbs energy at all?](@ref sec-theory-potential)).
+
+### Activity, and the enthalpy of a mixture
 
 The chemical potential of a constituent of a mixture is written as a standard
 part, the potential ``\mu_i^\circ(T,P)`` of a reference state, plus a
@@ -172,7 +283,8 @@ contribution of the composition through the activity ``a_i``,
 ```
 
 the reference state being the subject of [Standard states](@ref sec-theory-standard-states).
-Inserted in the relation above, the logarithm of an ideal activity does not
+Inserted in the temperature derivative of ``\mu_i/T`` given at the start of
+this section, the logarithm of an ideal activity does not
 depend on temperature at fixed composition and drops out, so that the partial
 molar enthalpy of a constituent of an ideal mixture is its standard enthalpy
 ``h_i^\circ``; a non-ideal mixture adds an excess enthalpy, carried by the
@@ -215,6 +327,14 @@ has decreased all the way. The same distinction holds for every quantity of
 reaction: ``\Delta_r H = \sum_i \nu_i h_i`` is the heat per mole of extent at
 the current composition, and the heat of a finite change is its integral over
 the extent ([Energy and entropy balances](@ref sec-theory-adiabatic) §3).
+
+![A convex Gibbs energy curve has a negative local slope before an interior equilibrium minimum; the finite energy change is the vertical difference between the states.](../assets/theory/gibbs_reaction_slope.svg)
+
+*Qualitative sketch at fixed temperature and pressure. The tangent gives
+``\Delta_r G`` in J/mol; the vertical change gives ``\Delta G`` in J. The
+horizontal coordinate is reaction extent, not time. The horizontal tangent
+illustrates an interior equilibrium; a minimum at a feasibility bound instead
+obeys the one-sided conditions described in [The certificate](@ref sec-theory-certificate).*
 
 At equilibrium, the minimum of ``G`` under the conservation of the elements
 implies two conditions, independent of the path by which the system reached
@@ -278,6 +398,44 @@ The package itself writes no reaction to find an equilibrium: it minimizes
 ``G`` over all the constituents at once, and the conditions ``\Delta_r G = 0`` of
 every reaction that can be written among them follow from the optimality
 conditions of the minimization ([Proving that an answer is the answer](@ref sec-theory-certificate)).
+
+### [Metastable does not mean a local minimum of ``G``](@id sec-theory-metastable)
+
+A reaction with a negative ``\Delta_r G`` may still not happen. Diamond is less
+stable than graphite at room conditions, and a hydrating cement paste keeps
+unreacted clinker for years although its hydration lowers ``G``. It is tempting to picture such a
+state as sitting in a local minimum of ``G``, a hollow from which it has not
+yet escaped. That picture mixes up two different graphs.
+
+![Left: energy along a molecular pathway, with a metastable well separated from a lower one by a barrier. Right: G as a convex function of composition, with one minimum; holding part of the composition back gives the minimum on a smaller set.](../assets/theory/metastability_two_axes.svg)
+
+*Qualitative sketch. The two horizontal axes are different quantities: a
+coordinate along one molecular pathway on the left, the composition of the
+whole system on the right.*
+
+The barrier that keeps a state from changing lies on the left-hand graph. It
+is the energy that atoms must borrow to rearrange: breaking bonds before others
+form, or building the first nucleus of a new phase. That graph describes one
+molecular pathway, and its height decides *how fast* the change happens,
+through the rate laws of [Rate laws](@ref sec-theory-kinetics). The Gibbs
+energy the solver minimizes is the right-hand graph, a function of the amounts
+of the constituents, and for an ideal mixture it is convex: it has one minimum
+and no hollow in which to stop
+([Proving that an answer is the answer](@ref sec-theory-certificate)). A barrier is
+not visible on that graph at all.
+
+A metastable state is therefore described another way: as the minimum of ``G``
+over a smaller set of compositions, the set left once the transformations that
+cannot proceed are excluded. Leaving diamond's conversion out of the
+calculation, or holding the unreacted clinker at the amount the kinetics has
+reached, is what gives the metastable state as an answer. This is how the
+package treats a hydrating paste: the slow dissolution is integrated in time,
+and at every instant the rest is the minimum of ``G`` given what has dissolved
+so far, an equilibrium called partial
+([Coupling kinetics and equilibrium](@ref sec-coupling)). The only genuine
+non-convexity in composition is that of a solid solution with a miscibility
+gap, and it is a different phenomenon: two coexisting compositions of one
+phase ([Solid solutions](@ref sec-theory-solid-solutions)).
 
 ## 5. Energies known up to a constant, and the reactions of formation
 

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="490" viewBox="0 0 900 490" role="img" aria-labelledby="title desc">
+  <title id="title">Three chemical states, one conserved site family</title>
+  <desc id="desc">An oxide site can be protonated as XOH2+, neutral as XOH, or deprotonated as XO-. Each state remains attached to the mineral support and counts as one site. At fixed support capacity their amounts sum to the same site budget N, while protonation changes the surface charge.</desc>
+  <rect width="900" height="490" rx="18" fill="#f8fafc"/>
+  <g font-family="Arial, Helvetica, sans-serif" fill="#172b42">
+    <text x="36" y="43" font-size="15" font-weight="700" letter-spacing="2" fill="#52667d">THE SITE STAYS; ITS CHEMICAL STATE CHANGES</text>
+    <text x="36" y="77" font-size="18">One amphoteric oxide site family, at fixed support capacity</text>
+    <rect x="36" y="104" width="264" height="241" rx="12" fill="#fff1df" stroke="#e8cca5"/>
+    <rect x="318" y="104" width="264" height="241" rx="12" fill="#e5f3ef" stroke="#b2d8cd"/>
+    <rect x="600" y="104" width="264" height="241" rx="12" fill="#e8effa" stroke="#bdcee7"/>
+    <g text-anchor="middle">
+      <text x="168" y="141" font-size="22" font-weight="700" fill="#996019">Protonated</text>
+      <text x="450" y="141" font-size="22" font-weight="700" fill="#177567">Neutral</text>
+      <text x="732" y="141" font-size="22" font-weight="700" fill="#3664a0">Deprotonated</text>
+      <text x="168" y="188" font-size="29">≡XOH₂⁺</text>
+      <text x="450" y="188" font-size="29">≡XOH</text>
+      <text x="732" y="188" font-size="29">≡XO⁻</text>
+      <g stroke="#52667d" stroke-width="3"><path d="M168 212V268M450 212V268M732 212V268"/></g>
+      <g fill="#52667d"><circle cx="168" cy="212" r="6"/><circle cx="450" cy="212" r="6"/><circle cx="732" cy="212" r="6"/></g>
+      <g fill="#d4dde6" stroke="#a8b8c8"><rect x="59" y="268" width="218" height="33" rx="4"/><rect x="341" y="268" width="218" height="33" rx="4"/><rect x="623" y="268" width="218" height="33" rx="4"/></g>
+      <text x="168" y="291" font-size="17">Mineral support</text>
+      <text x="450" y="291" font-size="17">Mineral support</text>
+      <text x="732" y="291" font-size="17">Mineral support</text>
+      <text x="168" y="329" font-size="18">One site · positive charge</text>
+      <text x="450" y="329" font-size="18">One site · no charge</text>
+      <text x="732" y="329" font-size="18">One site · negative charge</text>
+    </g>
+    <path d="M168 354V370H732V354M450 370V388" fill="none" stroke="#52667d" stroke-width="2"/>
+    <rect x="156" y="390" width="588" height="48" rx="10" fill="white" stroke="#cad5e2"/>
+    <text x="450" y="421" text-anchor="middle" font-size="23">n(≡XOH₂⁺) + n(≡XOH) + n(≡XO⁻) = N</text>
+    <text x="36" y="467" font-size="16" fill="#52667d">Schematic chemical states, not molecular geometry or a spatial distribution of surface species.</text>
+  </g>
+</svg>
