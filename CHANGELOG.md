@@ -52,6 +52,22 @@
   solubility products. Portlandite and calcite agree within 1.1 cm³ per 100 g of
   cement; the monocarbonate is a third to a half of the article's, whose AFm
   and AFt phases hold the iron that this list puts in an iron hydroxide.
+- **The slag-limestone cement of Snellings et al. (2022) integrated in time at
+  5, 20 and 40 °C** (`scripts/snellings2022_pastes.jl`, the page *CEM I 52.5 R
+  with slag and limestone, integrated in time at 5, 20 and 40 °C*): its three
+  materials as templates built from Table 1, the clinker under Parrott–Killoh,
+  the slag glass under the Waller law fitted on its degree of reaction, the
+  rest at equilibrium, against the bound water and portlandite of Fig. 8 and
+  the hydrates of Fig. 10, digitized for w/b 0.5. The bound water is within two
+  points from 28 days on and the portlandite within 1.8 at every age, though
+  its fall with the temperature at six months is not reproduced. The ettringite
+  is bounded by the sulfate of the cement, 9.9 g per 100 g of binder, where the
+  diffraction finds 12 at 20 °C and 14 at 5 °C; the carboaluminate is the
+  stable monocarbonate where the paste holds hemicarbonate; the hydrotalcite
+  forms at once from magnesia released at the mixing.
+- The XRD-Rietveld names of a material template now include `Alite`, `Belite`,
+  `C3A ortho` and `Aphthitalite` (by its oxides), as Table 1 of Snellings et al.
+  (2022) prints them.
 
 ### Documentation
 

@@ -187,3 +187,34 @@ kind     = "scm"
 analysis = "Scholer2015:oxides:LS"
 route    = "oxides"
 source   = "Scholer2015"
+
+#   Snellings2022  : the Portland cement, slag and limestone of the ternary
+#                    cement PC50S40L10 of Snellings et al. (2022), Table 1 (XRF,
+#                    XRD-Rietveld)
+
+# The CEM I 52.5 R by its Rietveld phases, the magnesia, alkalis and sulfate of
+# its analysis that the phases do not hold kept as analyzed, the phases scaled
+# down to make room.
+[[material]]
+name      = "PC (Snellings 2022)"
+kind      = "cement"
+phases    = "Snellings2022:phase_composition:PC"
+analysis  = "Snellings2022:chemical_composition:PC"
+remainder = "analysis"
+source    = "Snellings2022"
+
+# The slag: its calcite and quartz, and its glass, 95.5 % by Rietveld, by
+# difference from the XRF analysis.
+[[material]]
+name     = "slag (Snellings 2022)"
+kind     = "scm"
+phases   = "Snellings2022:phase_composition:GGBFS"
+analysis = "Snellings2022:chemical_composition:GGBFS"
+source   = "Snellings2022"
+
+# The limestone by its Rietveld phases: calcite, quartz and dolomite.
+[[material]]
+name   = "limestone (Snellings 2022)"
+kind   = "scm"
+phases = "Snellings2022:phase_composition:limestone"
+source = "Snellings2022"

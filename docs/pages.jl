@@ -279,6 +279,7 @@ pages = [
             # The clinker and the slag laws at 5, 20 and 40 °C, against the
             # degrees of reaction measured at each temperature.
             "examples/slag_temperature.md",
+            "examples/slag_temperature_pastes.md",
         ],
         # What a laboratory measures on a paste, read off computed states: the
         # heat an isothermal calorimeter records and the mass a thermobalance
