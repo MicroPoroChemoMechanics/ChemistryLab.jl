@@ -148,8 +148,10 @@ equilibrium with portlandite, where the authors measured a gel poorer in calcium
 holding aluminum. Without limestone, the aluminum of the glass then goes to the
 AFm phases and to hydrogarnet, and the ettringite is gone from 28 days, where
 the paste keeps 7 wt.%; with limestone it goes to monocarbonate, and the
-ettringite stays. A C-S-H that takes aluminum is the next thing to try on these
-pastes.
+ettringite stays. The two other gels the package ships do not fix it: at
+measured extents `CASH+NK` behaves as `CSHQ`, and `CNASH_ss` takes the aluminum
+at a calcium-to-silicon ratio a Portland cement's gel does not have
+([the validation page](@ref sec-validation-blended-gels)).
 
 ## Where to go next
 

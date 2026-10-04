@@ -180,7 +180,51 @@ for (e, w) in sort(collect(worst))
 end
 ```
 
-## 7. What the comparison says
+## [7. A C-S-H that takes aluminum](@id sec-validation-blended-gels)
+
+The package ships two other models of the gel: `CNASH_ss`
+[Myers2014](@cite), mixed on the sublattices of its authors, which takes
+aluminum and the alkalis, and `CASH+NK` [Miron2022a](@cite), whose end members
+carry the alkalis but no aluminum. The same budgets, with each in place of
+`CSHQ`, the rest of the phase list unchanged:
+
+```@example blended
+cashplus = build_species(datapath("cemdata18-cashplus.json"); verbose = false)
+gel_systems = (
+    "CNASH_ss" => phase_list_system(DW11_PHASES, DW11_SUBSTANCES; replace = Dict("CSHQ" => "CNASH_ss")),
+    "CASH+NK" => phase_list_system(DW11_PHASES, cashplus; replace = Dict("CSHQ" => "CASH+NK")),
+)
+other = Dict{String, Any}("CSHQ" => pastes)
+for (gel, cs_g) in gel_systems
+    other[gel] = Dict{String, Any}(mix => hydrate(dw11_recipe(mix), cs_g, days; model) for mix in DW11_MIXES)
+end
+k90 = findfirst(==(90.0), days)
+ettringite(rs) = (m = phase_masses(rs); 100 * get(m, "ettringite", 0.0) / sum(values(m)))
+println("at 90 days      portlandite, wt.%         ettringite, wt.%        gel at 140 days, Ca/Si and Al/Si")
+for mix in DW11_MIXES
+    println(mix, ", measured: portlandite ", dw11_measured_portlandite(mix, 90), ", ettringite ", something(dw11_phase_content(mix, 90, "ettringite"), NaN))
+    for gel in ("CSHQ", "CNASH_ss", "CASH+NK")
+        rs = other[gel][mix]
+        e = solid_solution_totals(rs[end].state, gel).elements
+        @printf("  %-9s %16.1f %24.1f %22.2f %6.3f\n", gel, dw11_portlandite(rs[k90]), ettringite(rs[k90]),
+                e[:Ca] / e[:Si], get(e, :Al, 0.0) / e[:Si])
+    end
+end
+```
+
+Neither reproduces the four pastes. `CASH+NK` changes nothing that matters
+here: it takes no aluminum, and its gel and its portlandite are those of `CSHQ`
+within 1.5 points. `CNASH_ss` takes aluminum, an Al/Si of 0.10 to 0.11 against
+the 0.13 measured, but its gel sits at a Ca/Si of 1.16 in every paste, the plain
+cement included; its end members reach 1.5 at most (`T2C-CNASHss`), where the
+paper measures 1.8 without fly ash. The calcium the gel does not take goes to
+portlandite: 31.7 against 21.8 wt.% at 90 days in the CEM I. With fly ash the
+same excess brings the portlandite near the measurement, 14.7 against 12.5 and
+15.7 against 12.2, and the ettringite of the CEM II/B-V is still lost, 0.7
+against 6.6 wt.%.
+
+
+## 8. What the comparison says
 
 **The two codes agree.** On the twenty budgets the pore solutions differ by less
 than 0.001 in pH and by at most 1.6 % on an element. What separates the model from
@@ -214,11 +258,14 @@ releasing it. The aluminum the gel does not take stays in solution, 1.07 against
 measurement (0.042 against 2.6); silicon is 4 to 10 times low throughout.
 
 For a user, the line falls here. On the pastes without fly ash the model gives
-the portlandite and the pH; with a siliceous fly ash, a model built on `CSHQ`
-overstates the pozzolanic consumption of portlandite and cannot place the
-aluminum, and a C-S-H that takes aluminum (the `CNASH_ss` gel of
-[the CEM IV page](@ref ex-cem4-pozzolanic)) is the next thing to try, which this
-page does not do.
+the portlandite and the pH, with `CSHQ` or `CASH+NK`. With a siliceous fly ash,
+`CSHQ` overstates the pozzolanic consumption of portlandite and cannot place the
+aluminum, and `CNASH_ss`, which takes the aluminum, does so at a Ca/Si a
+Portland cement's gel does not have ([Section 7](@ref sec-validation-blended-gels)):
+the two bracket the measured portlandite, from below and from above, and
+neither keeps the ettringite of the paste without limestone. What the pastes
+need is a gel that takes aluminum at the Ca/Si of a Portland cement, which none
+of the three is.
 
 ## Where to go next
 

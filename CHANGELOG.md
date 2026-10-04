@@ -20,6 +20,15 @@
 
 ### Documentation
 
+- **Which C-S-H for a fly-ash blend**, on the validation page of De Weerdt et
+  al. (2011): the four pastes at measured extents with each of the three gels
+  the package ships. `CASH+NK` behaves as `CSHQ` (no aluminum); `CNASH_ss` takes
+  aluminum (Al/Si 0.11 against 0.13 measured) but at a Ca/Si of 1.16 in every
+  paste, its end members reaching 1.5 at most where a Portland cement's gel is
+  at 1.8, so that it puts the calcium in portlandite (31.7 against 21.8 wt.% in
+  the CEM I). With fly ash, `CSHQ` and `CNASH_ss` bracket the measured
+  portlandite, and neither keeps the ettringite of the paste without limestone:
+  what is missing is a gel that takes aluminum at a Portland cement's Ca/Si.
 - Two more pages built a dictionary of states by a comprehension, which Julia
   specializes on the type of a state: the validation page of De Weerdt et al.
   (2011) and the carbonation page.

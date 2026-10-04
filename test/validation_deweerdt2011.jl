@@ -49,4 +49,23 @@ include(joinpath(pkgdir(ChemistryLab), "scripts", "de_weerdt_2011.jl"))
             @test ours[el] ≈ x rtol = 0.03
         end
     end
+
+    # The two other gels the package ships, on the paste with fly ash at 90 days,
+    # as Section 7 of the page reports them: CNASH_ss takes aluminum at a Ca/Si
+    # of 1.16 and leaves the calcium to portlandite; CASH+NK takes no aluminum.
+    cashplus = build_species(datapath("cemdata18-cashplus.json"); verbose = false)
+    for (gel, subs) in (("CNASH_ss", DW11_SUBSTANCES), ("CASH+NK", cashplus))
+        cs_g = phase_list_system(DW11_PHASES, subs; replace = Dict("CSHQ" => gel))
+        rs = only(hydrate(dw11_recipe("OPC-FA"), cs_g, [90.0]; model))
+        @test rs.certificate.optimal
+        e = solid_solution_totals(rs.state, gel).elements
+        if gel == "CNASH_ss"
+            @test e[:Ca] / e[:Si] ≈ 1.16 atol = 0.005
+            @test e[:Al] / e[:Si] ≈ 0.107 atol = 0.001
+            @test dw11_portlandite(rs) ≈ 14.7 atol = 0.05
+        else
+            @test get(e, :Al, 0.0) == 0
+            @test dw11_portlandite(rs) ≈ 5.0 atol = 0.05
+        end
+    end
 end
