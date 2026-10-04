@@ -4,7 +4,7 @@
     "key": "Gruyaert2010",
     "doi": "10.1007/s10973-010-0841-6",
     "citation": "Gruyaert, E., Robeyst, N., De Belie, N. (2010). Study of the hydration of Portland cement blended with blast-furnace slag by calorimetry and thermogravimetry. Journal of Thermal Analysis and Calorimetry 102(3), 941-951.",
-    "location": "Tables 1, 2, 5 and 6, Fig. 7 and the bound water at infinite time in the text of p. 948, pp. 943-950; methods pp. 942-944"
+    "location": "Tables 1, 2, 5 and 6, Eqs. 2 and 3 (p. 946), Fig. 7 and the bound water at infinite time in the text of p. 948, pp. 943-950; methods pp. 942-944"
   },
   "transcription": {
     "from": "the published article (PDF): the tables from the page text, checked on the page images; Fig. 7 from its vector drawing, each marker located by its coordinates and mapped through the tick marks of the axes (a logarithmic age axis from 0.1 to 10000 days, bound water from 0 to 30), the seven series told apart by the marker the legend gives them",
@@ -51,6 +51,38 @@
       "uncertainty": null,
       "location": "p. 944",
       "description": "Temperature around which the mass loss of decarbonation, subtracted from the bound water, occurs (650 C), in kelvin."
+    },
+    "activation_energy_cement_slope": {
+      "value": -8.72,
+      "unit": "kJ/mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Eq. 2, p. 946",
+      "description": "Apparent activation energy of the cement in the blended pastes, E_P = -8.72 (c/b) + 39.416 kJ/mol, c/b the cement-to-binder ratio, by non-linear regression of isothermal calorimetry at 283, 293 and 308 K; this is the slope, its sign read on the rendered page."
+    },
+    "activation_energy_cement_intercept": {
+      "value": 39.416,
+      "unit": "kJ/mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Eq. 2, p. 946",
+      "description": "The intercept of Eq. 2."
+    },
+    "activation_energy_slag_slope": {
+      "value": 26.38,
+      "unit": "kJ/mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Eq. 3, p. 946",
+      "description": "Apparent activation energy of the slag, E_S = 26.38 (c/b) + 32.506 kJ/mol, from the same regression; this is the slope."
+    },
+    "activation_energy_slag_intercept": {
+      "value": 32.506,
+      "unit": "kJ/mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Eq. 3, p. 946",
+      "description": "The intercept of Eq. 3."
     }
   },
   "tables": {
