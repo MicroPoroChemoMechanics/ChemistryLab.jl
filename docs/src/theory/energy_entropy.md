@@ -179,11 +179,14 @@ isolated rigid system maximizes ``S`` at fixed ``U``, ``V`` and budget, and an
 adiabatic constant-pressure system with only pressure-volume work maximizes
 ``S`` at fixed ``H``, ``P`` and budget.
 
-``G`` at equilibrium need not be zero. Its first variation vanishes for allowed
-reaction directions that can proceed both ways; at a boundary, such as an
-absent pure phase, only the feasible direction is tested and an inequality
-replaces that equality. A finite difference between an initial state and an
-equilibrium state need not vanish either.
+What vanishes at equilibrium is a slope, not a difference
+([The Gibbs energy of a reaction is a slope](@ref sec-theory-reaction-gibbs)).
+The Gibbs energy of every reaction that can proceed both ways,
+``\Delta_r G = (\partial G/\partial\xi)_{T,P}``, is zero there; at a boundary,
+such as an absent pure phase, only the feasible direction is tested and an
+inequality replaces that equality. The difference ``\Delta G`` between an
+initial state and the equilibrium state is negative, and ``G`` itself has no
+reason to take any particular value.
 
 ### Why ``\Delta H`` and ``T\Delta S`` are not two heat sources
 

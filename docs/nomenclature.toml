@@ -184,6 +184,13 @@ unit = "1"
 
 [[symbol]]
 group = "State and thermodynamic functions"
+tex = "\\xi"
+label = "ξ"
+name = "extent of a reaction, dn<sub>i</sub> = ν<sub>i</sub> dξ"
+unit = "mol"
+
+[[symbol]]
+group = "State and thermodynamic functions"
 tex = "Q"
 label = "Q"
 name = "heat released by a paste or recorded by a calorimeter"

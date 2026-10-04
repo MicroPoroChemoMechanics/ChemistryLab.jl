@@ -180,14 +180,50 @@ temperature dependence of the activity coefficients. The enthalpy of a state
 evaluated by [`enthalpy`](@ref), and with it the heat of the calorimeters, is
 ``\sum_i n_i h_i^\circ``, which leaves the excess enthalpies out.
 
-At equilibrium, the minimum of ``G`` under the conservation of the elements
-implies two conditions, independent of the path by which the system reached
-it (§14.2): a constituent present in two phases has the same chemical potential in
-both, and for any reaction ``\sum_i \nu_i\,\mathrm{A}_i = 0`` among the constituents,
-counted positive for the products,
+### [The Gibbs energy of a reaction is a slope, not a difference](@id sec-theory-reaction-gibbs)
+
+Let one reaction ``\sum_i \nu_i\,\mathrm{A}_i = 0`` proceed in a closed system,
+the coefficients ``\nu_i`` being counted positive for the products. Its progress
+is measured by the extent of reaction ``\xi``, in moles, defined by
+``\mathrm{d}n_i = \nu_i\,\mathrm{d}\xi`` for every constituent, so that one mole
+of extent consumes ``|\nu_i|`` moles of each reactant and produces ``\nu_i``
+moles of each product. At fixed temperature and pressure the differential of
+``G`` written above becomes ``\mathrm{d}G = \sum_i \nu_i\,\mu_i\,\mathrm{d}\xi``,
+and the Gibbs energy of reaction is the derivative
 
 ```math
-\Delta_r G \;\equiv\; \sum_i \nu_i\,\mu_i = 0 .
+\Delta_r G \;\equiv\; \left(\frac{\partial G}{\partial \xi}\right)_{T,P}
+  = \sum_i \nu_i\,\mu_i .
+```
+
+Despite its ``\Delta``, ``\Delta_r G`` is not a difference between two states.
+It is the slope of ``G`` along the reaction at the current composition, in
+J/mol, and it changes as the reaction proceeds, since the potentials depend on
+the amounts. The change of the Gibbs energy between two states joined by that
+reaction is the integral of the slope,
+
+```math
+\Delta G = G(\xi_2) - G(\xi_1) = \int_{\xi_1}^{\xi_2} \Delta_r G\;\mathrm{d}\xi ,
+```
+
+in joules, and the two are not interchangeable. A negative ``\Delta_r G`` says
+that the reaction lowers ``G`` by proceeding forward from the present
+composition; ``\Delta G`` says by how much ``G`` has fallen between two given
+compositions. At equilibrium the slope vanishes, whereas the ``\Delta G``
+between an initial state and the equilibrium state is negative, since ``G``
+has decreased all the way. The same distinction holds for every quantity of
+reaction: ``\Delta_r H = \sum_i \nu_i h_i`` is the heat per mole of extent at
+the current composition, and the heat of a finite change is its integral over
+the extent ([Energy and entropy balances](@ref sec-theory-adiabatic) §3).
+
+At equilibrium, the minimum of ``G`` under the conservation of the elements
+implies two conditions, independent of the path by which the system reached
+it [AndersonCrerar1993](@cite) (§14.2): a constituent present in two phases has
+the same chemical potential in both, and every reaction among the constituents
+has a vanishing slope,
+
+```math
+\Delta_r G = \sum_i \nu_i\,\mu_i = 0 .
 ```
 
 Away from equilibrium, ``\mathcal{A} = -\Delta_r G`` is the affinity of the
@@ -213,6 +249,23 @@ there, the equilibrium constant [AndersonCrerar1993](@cite) (§13.1),
 ```math
 \ln K = -\frac{\Delta_r G^\circ}{RT} .
 ```
+
+The two terms of ``\Delta_r G`` have different origins. ``\Delta_r G^\circ`` is
+the slope the reaction would have if every constituent were in its standard
+state, and it depends on ``T`` and ``P`` only. It carries what changes when
+atoms are rearranged from the reactants into the products: the energy of the
+bonds broken and formed, the energy and entropy of the thermal motion of the
+substances at that temperature, and,
+for a solute, its interaction with the surrounding water. ``RT\ln Q_r`` carries
+the composition: how far the actual activities lie from those of the standard
+states. The first term is not, however, a property of the substances alone. A
+standard state is a convention, and for a solute it is a hypothetical solution
+at one mole per kilogram: changing the convention moves ``\mu_i^\circ``, by
+9.96 kJ/mol at 25 °C between the mole-fraction and molality scales, and moves
+``RT\ln a_i`` by the opposite amount, leaving ``\mu_i`` unchanged
+([Standard states](@ref sec-theory-standard-states) §3). A value of
+``\Delta_r G^\circ`` is therefore meaningful only together with the standard
+states it refers to.
 
 The standard Gibbs energy of reaction decides which side a reaction favors
 between reactants and products in their standard states, and the equilibrium
@@ -279,9 +332,15 @@ where ``G_e^\circ`` is the standard molar Gibbs energy of element ``e`` in its
 reference form, counted per atom, and ``G_Z^\circ`` the Gibbs energy of formation
 of the hydrogen ion from hydrogen gas, ``G_{\mathrm{H}}^\circ`` being half the
 potential of H₂. Neither is known, and neither needs to be.
-The definition makes the energy of formation of an element in its reference form
-zero, and that of H⁺ zero as well, which is the convention on ions: the energies
-of formation of all other ions follow from it. Inserted in ``\Delta_r G^\circ =
+No value is assigned to them: the zeros follow from the definition itself.
+For an element in its reference form, ``\mu_i^\circ`` is ``G_e^\circ`` times
+its number of atoms, and the formula gives zero; for H⁺, one atom of hydrogen and
+one charge give ``\mu_{\mathrm{H^+}}^\circ - G_{\mathrm{H}}^\circ - G_Z^\circ = 0``,
+whatever the values of ``G_{\mathrm{H}}^\circ`` and ``G_Z^\circ``. That the
+energy of formation of H⁺ is zero is the convention on ions, and it is built
+into the reaction of formation chosen for an ion rather than into a value
+given to an unknown: the energies of formation of all other ions follow from
+it. Inserted in ``\Delta_r G^\circ =
 \sum_i \nu_i\,\mu_i^\circ``, the energies of formation give
 
 ```math
@@ -326,6 +385,28 @@ substance that is not a perfect crystal at 0 K, a glass or a crystal whose
 disorder freezes in on cooling, retains there a residual entropy, which adds to
 the integral (§6.5.3); the glass of a blast-furnace slag is of this kind.
 
+The residual entropy escapes the calorimetry from 0 K, which starts from the
+glass as it already is, disorder included. It is obtained by closing a cycle
+with the crystal of the same composition. Both are heated to the melting
+temperature ``T_m``: the crystal melts there, while the glass has turned into a
+supercooled liquid and then into the same liquid, so the two paths end in one
+state. Equating the entropies of that liquid gives
+
+```math
+S_{\rm res} = \int_0^{T_m} \frac{C_{p,\text{crystal}}}{T}\,\mathrm{d}T
+  + \frac{\Delta_{\rm fus} H}{T_m}
+  - \int_0^{T_m} \frac{C_{p,\text{glass}}}{T}\,\mathrm{d}T ,
+```
+
+the last heat capacity being that of the glass and, above its glass
+transition, of the supercooled liquid. None of this enters a calculation of
+this package. No database carries the Gibbs energy of a slag glass: the glass
+enters the budget through its oxides, and its reaction is prescribed, by a rate
+law or by an imposed degree of reaction, rather than decided by its energy.
+What can be read off a measurement is its enthalpy, which
+[CEM I 52.5 N and slag in an isothermal calorimeter, read off the states](@ref sec-example-isothermal)
+derives from the heat the pastes release.
+
 The entropy of formation is of another nature: it is the change of entropy in
 the reaction of formation,
 
@@ -358,6 +439,36 @@ determine (§17.3). A conventional entropy can be negative, as that of Ca²⁺ i
 and the unknown term cancels from any reaction, whose charges balance,
 ``\sum_i \nu_i z_i = 0``. Heat capacities and volumes of ions are conventional in
 the same way.
+
+!!! note "How these numbers are measured"
+    No instrument reads a Gibbs energy. Every tabulated value combines a few
+    kinds of measurement [AndersonCrerar1993](@cite).
+
+      - **Enthalpies of formation** come from calorimetry. When a substance
+        burns cleanly from its elements, the heat of combustion gives its
+        enthalpy of formation directly; a bomb calorimeter works at constant
+        volume, so it measures ``\Delta U``, which the change of ``PV`` converts
+        to ``\Delta H`` ([Energy and entropy balances](@ref sec-theory-energy-entropy)
+        §2). Most substances cannot be formed that way, and their enthalpy is
+        obtained by Hess's law from reactions that can be measured, typically
+        the dissolution of the compound and of its oxides in the same acid: the
+        heats combine as the reactions do.
+      - **Absolute entropies** come from the heat capacity, measured from a few
+        kelvins upward and integrated as above.
+      - **Gibbs energies of formation** follow from the two, as
+        ``\Delta_f G^\circ = \Delta_f H^\circ - T\Delta_f S^\circ``, or from an
+        equilibrium measured directly. A solubility gives ``\ln K`` and hence
+        ``\Delta_r G^\circ = -RT\ln K``; the reversible voltage ``E^\circ`` of an
+        electrochemical cell gives ``\Delta_r G^\circ = -\nu_e F E^\circ``,
+        ``\nu_e`` being the number of electrons the reaction transfers. Either
+        fixes one unknown energy of formation once those of the other
+        participants are known.
+
+    The hydrates of a cement can be neither burned nor formed from their
+    elements, and most of the Gibbs energies CEMDATA18 gives them are derived
+    from measured solubilities [Lothenbach2019](@cite). A solubility measured at
+    several temperatures yields the enthalpy of reaction as well, through the
+    van 't Hoff relation of §6.
 
 The values of CEMDATA18 at ``T_r`` show each of these quantities, the element
 entropies being read from the same file; the identity between the three
@@ -486,8 +597,25 @@ keeps the first term only and receives the pressure through its activity
 ([Standard states](@ref sec-theory-standard-states)). The relation is integrated
 from ``(T_r, P_r)`` in temperature at ``P_r``, where
 ``S_i^\circ(T') = S_i^\circ(T_r) + \int_{T_r}^{T'} C_{P,i}^\circ\,\mathrm{d}T''/T''``,
-and then in pressure at ``T``. Exchanging the order of the two temperature
-integrals gives [AndersonCrerar1993](@cite) (§7.4, §7.6)
+and then in pressure at ``T``. The temperature step is a double integral,
+
+```math
+-\int_{T_r}^{T} S_i^\circ(T')\,\mathrm{d}T'
+  = -S_i^\circ(T_r)\,(T - T_r)
+  - \int_{T_r}^{T}\!\!\int_{T_r}^{T'} \frac{C_{P,i}^\circ(T'')}{T''}\,\mathrm{d}T''\,\mathrm{d}T' ,
+```
+
+and exchanging the order of its two integrations, ``T''`` running from ``T_r``
+to ``T`` and ``T'`` from ``T''`` to ``T``, turns the last term into a single
+integral,
+
+```math
+\int_{T_r}^{T} \frac{C_{P,i}^\circ(T'')}{T''}\,(T - T'')\,\mathrm{d}T''
+  = T\int_{T_r}^{T} \frac{C_{P,i}^\circ}{T''}\,\mathrm{d}T''
+  - \int_{T_r}^{T} C_{P,i}^\circ\,\mathrm{d}T'' .
+```
+
+With the pressure step added, this gives [AndersonCrerar1993](@cite) (§7.4, §7.6)
 
 ```math
 \mu_i^\circ(T,P) - \mu_i^\circ(T_r,P_r) =
