@@ -1,9 +1,22 @@
 # Changelog
 
-## Unreleased
+## v0.32.0 — The calorimeter's energy balance inside the ODE, and blended cements in time
+
+The semi-adiabatic calorimeter under partial equilibrium now integrates as Leal
+et al. (2015) write the amounts: the right-hand side is a function of the
+state, the temperature is the root of the cell's energy balance solved with
+the partition at every evaluation, and the Jacobian is exact, so any
+integrator applies. Blended cements are integrated in time for the first time,
+slag (Gruyaert et al. 2010) and slag, fly ash and limestone together (Schöler
+et al. 2015), and pore solutions are checked from 7 to 80 °C (Deschner et al.
+2013). On the 32 cement pastes of a thesis the answers are those of 0.31.1, in
+three quarters of the time.
 
 ### Breaking changes
 
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.31"` does not accept 0.32 and
+  has to widen its bound.
 - **Under partial equilibrium, the last entry of the state of a calorimeter's run
   is the change of the enthalpy of the cell**, not the temperature of a
   semi-adiabatic cell nor the heat of an isothermal one. Read the temperature
