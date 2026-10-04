@@ -126,8 +126,8 @@ slowly at first, 25 wt.% of the solids of the plain cement at one day where 15
 are left, and then lets it stall, at 6.7 wt.% at six months where the
 measurement finds 1.4; and it dissolves the belite from the first day, 8.9
 against 17.1 wt.% at seven days, where the pastes leave it barely touched for a
-month. The parameters are not this clinker's: fitting them on the plain paste
-and testing them on the three others is the next step.
+month. The parameters are not this clinker's: Section 6 fits those of the
+alite on the plain paste and tests them on the three others.
 
 **Without fly ash the portlandite is the measured one.** In the plain and in the
 limestone cement it is within two points of the measurement at every age, the
@@ -152,6 +152,77 @@ ettringite stays. The two other gels the package ships do not fix it: at
 measured extents `CASH+NK` behaves as `CSHQ`, and `CNASH_ss` takes the aluminum
 at a calcium-to-silicon ratio a Portland cement's gel does not have
 ([the validation page](@ref sec-validation-blended-gels)).
+
+## 6. The alite calibrated on the plain cement
+
+Which constants of the law the measured alite determines is first a question of
+the law: its rate is the least of three terms, nucleation, interaction and
+diffusion, and only the least acts at a given degree. The law of the alite
+alone is fitted on the five contents of the plain cement, its interaction and
+diffusion constants and the critical degree of its water/cement factor free
+(`dw11k_alite_fit`), and [`identifiability`](@ref) reads the singular values
+of the exact sensitivity at the fit, for a measurement good to ±1 wt.%:
+
+```@example ternary
+fit = with_logger(ConsoleLogger(diagnostics)) do # hide
+fit = dw11k_alite_fit(runs["OPC"])
+end # hide
+occursin("could not be certified", String(take!(diagnostics))) && error("an instant was not certified") # hide
+println("constant   published     fitted")
+for k in keys(fit.θ)
+    @printf("%-6s %12.4g %12.4g\n", k, fit.published[k], fit.θ[k])
+end
+@printf("misfit over the five ages: %.2f wt.%% published, %.2f fitted\n", fit.rms_published, fit.rms)
+println("singular values at the fit: ", round.(fit.identifiability.S; sigdigits = 3))
+```
+
+The four pastes again, the alite under the fitted constants, the rest as
+before: the plain cement is the paste the constants were fitted on, the three
+others test them.
+
+```@example ternary
+calibrated = with_logger(ConsoleLogger(diagnostics)) do # hide
+calibrated = Dict{String, Any}(mix => dw11k_run(setup, mix; alite = fit.θ) for mix in DW11_MIXES)
+end # hide
+occursin("re-speciation failed", String(take!(diagnostics))) && error("a re-speciation failed") # hide
+recalc = with_logger(ConsoleLogger(diagnostics)) do # hide
+recalc = Dict(mix => dw11k_contents(calibrated[mix], dw11k_replay(calibrated[mix], days)) for mix in DW11_MIXES)
+end # hide
+occursin("could not be certified", String(take!(diagnostics))) && error("an instant was not certified") # hide
+measured(mix, d, q) = something(dw11_phase_content(mix, d, q), NaN)
+for mix in DW11_MIXES
+    println(mix, ", wt.% published/calibrated/measured")
+    println("  days         C3S                 OPC reacted            portlandite")
+    for (k, d) in enumerate(days)
+        @printf("%6d   %5.1f/%5.1f/%5.1f    %5.1f/%5.1f/%5.1f    %5.1f/%5.1f/%5.1f\n", d,
+                contents[mix][k]["C3S"], recalc[mix][k]["C3S"], measured(mix, d, "C3S"),
+                contents[mix][k]["opc_reacted"], recalc[mix][k]["opc_reacted"], measured(mix, d, "opc_reacted"),
+                contents[mix][k]["portlandite"], recalc[mix][k]["portlandite"], measured(mix, d, "portlandite"))
+    end
+end
+```
+
+The fit determines two combinations of the four constants, those of the
+diffusion term. The interaction constant and the critical degree come out
+where they no longer act, the two zero singular values: the data say only that
+they are larger than the published ones, which cap the alite of this clinker
+where it does not slow down. With a diffusion constant seven times the
+published one, the alite of the plain cement is the measured one within half a
+point at every age.
+
+The limestone cement, which nothing was fitted on, follows: its alite is within
+1.2 points of the measurement at every age. With fly ash the measured alite is
+faster still, 2.4 and 1.8 wt.% at seven days against 4.4 computed: the filler
+effect of the fly ash, which the authors find, and which a law written for each
+phase of the cement alone does not carry.
+
+The clinker reacted is now overestimated, by 3 to 11 points, because the
+belite still reacts as the published law makes it, too fast for this clinker,
+and nothing compensates it any more. Under this law the rate of the belite is
+always its diffusion term, greatest at the mixing and decreasing from there,
+where the belite of these pastes waits a month: no value of the constants
+holds it. The portlandite of the pastes without fly ash follows the alite,
+within two points from seven days and two to three too high at one day.
 
 ## Where to go next
 

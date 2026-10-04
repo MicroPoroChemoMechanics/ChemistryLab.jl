@@ -54,4 +54,15 @@ isdefined(@__MODULE__, :dw11k_run) || include(joinpath(pkgdir(ChemistryLab), "sc
     for (q, v) in (("portlandite", 17.1), ("C3S", 10.7), ("C2S", 8.4), ("ettringite", 12.0), ("opc_reacted", 71.6))
         @test c7[q] ≈ v atol = 0.1
     end
+
+    # The alite calibrated on the plain cement, as Section 6 of the page reports
+    # it: the misfit over the five ages of Table 7, two directions determined,
+    # the interaction constant and the critical degree inactive at the fit.
+    opc = dw11k_run(setup, "OPC")
+    fit = dw11k_alite_fit(opc)
+    @test fit.rms_published ≈ 6.4 atol = 0.01
+    @test fit.rms ≈ 0.43 atol = 0.01
+    @test fit.θ.k₃ ≈ 7.381 rtol = 1.0e-3
+    @test fit.identifiability.S[1:2] ≈ [25.1, 1.97] rtol = 1.0e-2
+    @test all(<(1.0e-8), fit.identifiability.S[3:end])
 end

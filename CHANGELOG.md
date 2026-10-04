@@ -16,7 +16,14 @@
   portlandite of the pastes without fly ash is within two points of the
   measurement; with fly ash the glass consumes it, and without limestone the
   ettringite is lost, CSHQ taking no aluminum. The fineness of Table 1 is
-  transcribed.
+  transcribed. The page then fits the law of the alite on the plain cement,
+  with the identifiability of its constants (exact sensitivity): two
+  combinations are determined, those of the diffusion term (seven times the
+  published constant); the interaction constant and the critical degree are
+  only bounded from below. The limestone cement, not fitted on, follows within
+  1.2 points; with fly ash the measured alite is faster still, the filler effect
+  the law does not carry; and the belite, whose rate under this law is greatest
+  at the mixing, cannot be held by any value of its constants.
 
 ### Documentation
 
