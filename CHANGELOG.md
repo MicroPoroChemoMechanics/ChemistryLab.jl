@@ -80,6 +80,13 @@
   the CEM I). With fly ash, `CSHQ` and `CNASH_ss` bracket the measured
   portlandite, and neither keeps the ettringite of the paste without limestone:
   what is missing is a gel that takes aluminum at a Portland cement's Ca/Si.
+- **The Guggenheim parameters and the temperature**, in the theory of solid
+  solutions: the dimensionless parameters Cemdata18 prints for its AFt and AFm
+  binaries become interaction energies in J/mol at 298.15 K and are held there
+  at every temperature, which the source does not specify. Said, and what it
+  does shown: the gap of the AFm SO₄/OH binary narrows from 0.48–0.98 at 5 °C to
+  0.57–0.94 at 80 °C, where holding the dimensionless parameters would keep it
+  at the printed 0.50–0.97.
 - Two more pages built a dictionary of states by a comprehension, which Julia
   specializes on the type of a state: the validation page of De Weerdt et al.
   (2011) and the carbonation page.
