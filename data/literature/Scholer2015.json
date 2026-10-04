@@ -4,12 +4,12 @@
     "key": "Scholer2015",
     "doi": "10.1016/j.cemconcomp.2014.10.001",
     "citation": "Schöler, A., Lothenbach, B., Winnefeld, F., Zajac, M. (2015). Hydration of quaternary Portland cement blends containing blast-furnace slag, siliceous fly ash and limestone powder. Cement and Concrete Composites 55, 374-382.",
-    "location": "p. 376, Eqs. (3) and (4)"
+    "location": "Tables 1 to 4 (pp. 375-376), Section 2 and Eqs. (3) and (4) (p. 376), Table 8 (p. 380)"
   },
   "transcription": {
-    "from": "the published article (PDF): the text layer, read on the rendered page",
+    "from": "the published article (PDF): the text layer, every table checked on the rendered page",
     "checked_against_source": true,
-    "note": "Bound water and portlandite are given as a percentage of the dry sample weight at 500 °C: 'mdry solids = mass of dry paste corresponding to sample weight at 500 °C'; the portlandite from the weight loss of its dehydroxylation by the tangent method."
+    "note": "Bound water and portlandite are given as a percentage of the dry sample weight at 500 °C: 'mdry solids = mass of dry paste corresponding to sample weight at 500 °C'; the portlandite from the weight loss of its dehydroxylation by the tangent method. In Table 1 'n.d.' (not determined) and the water-soluble Na2O of the slag, printed '<0.01', are null; the LOI is at 950 °C for OPC and BFS and at 1050 °C for FA and LS, and the 0.62 % of the slag is a gain on ignition, from the oxidation of its sulfide. Table 2 lists the phases of the four materials in two blocks; each row here names its material. The glass compositions of Table 3 are the authors' estimate, the water-soluble alkalis and the crystalline phases subtracted from the analysis."
   },
   "quantities": {
     "tga_dry_solids_temperature": {
@@ -19,6 +19,215 @@
       "uncertainty": null,
       "location": "p. 376, Eqs. (3) and (4), 500 degrees C",
       "description": "The temperature whose sample weight is the dry mass that bound water and portlandite are expressed against."
+    },
+    "water_binder_ratio": {
+      "value": 0.45,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.3.1, p. 376",
+      "description": "Water/binder ratio of the pastes."
+    },
+    "curing_temperature": {
+      "value": 293.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.3.1, p. 376",
+      "description": "The pastes were stored at 20 °C in sealed vessels."
+    },
+    "so3_of_the_binder": {
+      "value": 3.0,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 376",
+      "description": "The SO3 of every cement adjusted to 3 wt.% with anhydrite."
+    },
+    "assumed_reaction_slag_glass": {
+      "value": 71.1,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 376",
+      "description": "The long-term degree of reaction the authors assume for the amorphous part of the slag in their thermodynamic calculations, from 70 wt.% of the whole slag after one year in the literature they cite; an assumption of the paper, not a measurement of these pastes."
+    },
+    "assumed_reaction_age": {
+      "value": 1,
+      "unit": "yr",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 376, and Section 3.1, p. 377",
+      "description": "The age the assumed long-term degrees of reaction of the slag and the fly ash refer to: 'investigations of blast-furnace slag and fly ash blended Portland cements after one year of hydration'."
+    },
+    "assumed_reaction_fly_ash_glass": {
+      "value": 43.6,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 376",
+      "description": "The same for the amorphous part of the fly ash, from 30 wt.% of the whole fly ash."
     }
-  }
+  },
+  "tables": {
+    "oxides": {
+      "columns": ["material", "SiO2", "Al2O3", "TiO2", "MnO", "Fe2O3", "CaO", "MgO", "K2O", "Na2O", "SO3", "P2O5", "LOI", "total", "CO2", "K2O_water_soluble", "Na2O_water_soluble", "blaine", "density"],
+      "units": [null, "1", "1", "1", "1", "1", "1", "1", "1", "1", "1", "1", "1", "1", "1", "1", "1", "cm^2/g", "g/cm^3"],
+      "kind": "measured",
+      "location": "Table 1, p. 375: chemical composition by XRF in mass percent, LOI, total, CO2 from TGA, water-soluble alkalis, Blaine fineness and density",
+      "rows": [
+        ["OPC", 19.86, 4.64, 0.26, 0.1, 3.52, 63.67, 1.11, 0.63, 0.14, 2.89, 0.14, 2.13, 99.09, 0.7, 0.43, 0.06, 5180, 3.13],
+        ["BFS", 41.25, 7.57, 0.3, 0.71, 0.38, 36.43, 9.67, 0.62, 0.37, 1.51, 0.02, 0.62, 98.83, 0.0, 0.01, null, 4200, 2.91],
+        ["FA", 56.77, 26.03, 1.37, 0.03, 5.07, 3.19, 1.34, 2.53, 0.31, 0.06, 0.4, 2.12, 99.22, 1.16, 0.04, 0.03, 3360, 2.22],
+        ["LS", 2.35, 0.78, 0.04, 0.01, 0.28, 53.18, 0.33, 0.18, null, null, 0.02, 42.33, 99.5, 42.2, null, null, 4650, 2.72]
+      ]
+    },
+    "phases": {
+      "columns": ["material", "phase", "percent"],
+      "units": [null, null, "1"],
+      "kind": "measured",
+      "location": "Table 2, p. 375: phase composition by XRD-Rietveld, mass percent",
+      "rows": [
+        ["OPC", "C3S", 62.9],
+        ["OPC", "alpha' C2S", 5.5],
+        ["OPC", "beta C2S", 3.2],
+        ["OPC", "C3A cubic", 1.4],
+        ["OPC", "C3A orthorhombic", 4.2],
+        ["OPC", "C4AF", 12.7],
+        ["OPC", "Calcite", 1.5],
+        ["OPC", "Arcanite", 0.7],
+        ["OPC", "Periclase", 0.2],
+        ["OPC", "Portlandite", 1.7],
+        ["OPC", "Bassanite", 3.2],
+        ["OPC", "Gypsum", 1.2],
+        ["OPC", "Syngenite", 1.4],
+        ["OPC", "Quartz", 0.2],
+        ["BFS", "Quartz", 0.2],
+        ["BFS", "Calcite", 0.4],
+        ["BFS", "Akermanite", 0.2],
+        ["BFS", "Merwinite", 0.4],
+        ["BFS", "Gypsum", 0.3],
+        ["BFS", "Amorphous", 98.5],
+        ["FA", "Mullite", 19.2],
+        ["FA", "Free lime", 0.2],
+        ["FA", "Maghemite", 0.9],
+        ["FA", "Quartz", 10.2],
+        ["FA", "Calcite", 0.4],
+        ["FA", "Anhydrite", 0.4],
+        ["FA", "Amorphous", 68.8],
+        ["LS", "Quartz", 0.5],
+        ["LS", "Calcite", 99.1],
+        ["LS", "Illite", 0.4]
+      ]
+    },
+    "glass_composition": {
+      "columns": ["material", "SiO2", "Al2O3", "Fe2O3", "CaO", "MgO", "K2O", "Na2O", "TiO2", "P2O5"],
+      "units": [null, "1", "1", "1", "1", "1", "1", "1", "1", "1"],
+      "kind": "estimated",
+      "location": "Table 3, p. 376: composition of the glass of the slag and the fly ash in mass percent, estimated by the authors",
+      "rows": [
+        ["BFS", 42.7, 7.9, 0.4, 37.5, 10.0, 0.6, 0.4, 0.3, null],
+        ["FA", 62.2, 18.5, 6.3, 3.9, 2.0, 3.8, 0.5, 2.1, 0.6]
+      ]
+    },
+    "mixes": {
+      "columns": ["mix", "OPC", "BFS", "FA", "LS"],
+      "units": [null, "1", "1", "1", "1"],
+      "kind": "published",
+      "location": "Table 4, p. 376: the quaternary cements, mass percent; the mix is named BFS-FA-LS",
+      "rows": [
+        ["20-30-0", 50, 20, 30, 0],
+        ["20-25-5", 50, 20, 25, 5],
+        ["20-20-10", 50, 20, 20, 10],
+        ["20-15-15", 50, 20, 15, 15],
+        ["20-10-20", 50, 20, 10, 20],
+        ["30-20-0", 50, 30, 20, 0],
+        ["30-15-5", 50, 30, 15, 5],
+        ["30-10-10", 50, 30, 10, 10],
+        ["30-5-15", 50, 30, 5, 15],
+        ["30-0-20", 50, 30, 0, 20]
+      ]
+    },
+    "modeled_long_term": {
+      "columns": ["mix", "bound_water", "csh", "portlandite"],
+      "units": [null, "1", "1", "1"],
+      "kind": "published",
+      "location": "Table 7, p. 377: calculated by the authors (GEMS, Section 2.2) at the long-term degrees of reaction they assume (OPC 100 %, glass of the slag 71.1 %, glass of the fly ash 43.6 %), percent of the weight of the dry hydrates; the columns of the table are 30 and 20 % of slag with 20 and 30 % of fly ash, without limestone",
+      "rows": [
+        ["30-20-0", 26.2, 66.7, 1.0],
+        ["20-30-0", 25.0, 62.1, 0.0]
+      ]
+    },
+    "tga": {
+      "columns": ["mix", "age_days", "bound_water", "portlandite"],
+      "units": [null, "d", "1", "1"],
+      "kind": "measured",
+      "location": "Table 8, p. 380: bound water excluding portlandite and portlandite from TGA, percent of the dry sample weight at 500 °C",
+      "rows": [
+        ["20-10-20", 1, 10.4, 9.3],
+        ["20-10-20", 2, 14.9, 11.6],
+        ["20-10-20", 7, 18.0, 11.6],
+        ["20-10-20", 28, 18.1, 12.0],
+        ["20-10-20", 91, 22.1, 12.2],
+        ["20-10-20", 182, 20.9, 12.0],
+        ["20-15-15", 1, 10.8, 9.1],
+        ["20-15-15", 2, 14.4, 10.7],
+        ["20-15-15", 7, 17.3, 11.0],
+        ["20-15-15", 28, 18.2, 12.0],
+        ["20-15-15", 91, 22.2, 11.6],
+        ["20-15-15", 182, 21.6, 11.5],
+        ["20-20-10", 1, 10.6, 8.7],
+        ["20-20-10", 2, 14.5, 11.1],
+        ["20-20-10", 7, 18.0, 11.6],
+        ["20-20-10", 28, 18.7, 11.6],
+        ["20-20-10", 91, 22.9, 11.2],
+        ["20-20-10", 182, 22.0, 11.7],
+        ["20-25-5", 1, 10.5, 8.9],
+        ["20-25-5", 2, 14.3, 10.9],
+        ["20-25-5", 7, 18.2, 11.5],
+        ["20-25-5", 28, 19.0, 11.4],
+        ["20-25-5", 91, 22.8, 11.0],
+        ["20-25-5", 182, 21.7, 10.6],
+        ["20-30-0", 1, 10.2, 8.6],
+        ["20-30-0", 2, 14.8, 10.8],
+        ["20-30-0", 7, 18.0, 11.4],
+        ["20-30-0", 28, 18.6, 11.5],
+        ["20-30-0", 91, 23.7, 11.9],
+        ["20-30-0", 182, 21.8, 11.0],
+        ["30-0-20", 1, 10.4, 9.4],
+        ["30-0-20", 2, 15.0, 11.7],
+        ["30-0-20", 7, 18.1, 12.6],
+        ["30-0-20", 28, 21.6, 12.8],
+        ["30-0-20", 91, 24.7, 13.5],
+        ["30-0-20", 182, 24.5, 13.2],
+        ["30-5-15", 1, 10.5, 9.1],
+        ["30-5-15", 2, 14.7, 11.1],
+        ["30-5-15", 7, 18.5, 12.6],
+        ["30-5-15", 28, 21.8, 12.6],
+        ["30-5-15", 91, 22.8, 12.8],
+        ["30-5-15", 182, 23.7, 12.5],
+        ["30-10-10", 1, 10.7, 9.2],
+        ["30-10-10", 2, 14.5, 11.3],
+        ["30-10-10", 7, 18.4, 12.1],
+        ["30-10-10", 28, 22.0, 12.2],
+        ["30-10-10", 91, 25.0, 12.4],
+        ["30-10-10", 182, 25.0, 12.0],
+        ["30-15-5", 1, 10.5, 9.3],
+        ["30-15-5", 2, 14.7, 11.0],
+        ["30-15-5", 7, 19.3, 12.3],
+        ["30-15-5", 28, 21.8, 11.9],
+        ["30-15-5", 91, 25.1, 12.2],
+        ["30-15-5", 182, 23.1, 11.5],
+        ["30-20-0", 1, 10.5, 8.6],
+        ["30-20-0", 2, 14.6, 10.9],
+        ["30-20-0", 7, 18.1, 11.6],
+        ["30-20-0", 28, 20.8, 11.8],
+        ["30-20-0", 91, 21.6, 11.7],
+        ["30-20-0", 182, 23.4, 11.2]
+      ]
+    }
+  },
+  "notes": [
+    "modeled_long_term: Table 7 is referred to the weight of the dry hydrates and Table 8 to the dry sample weight at 500 °C; the table does not say whether its bound water excludes that of portlandite, as Table 8's does, which at 1 % of portlandite is a quarter of a percent of water at most."
+  ]
 }

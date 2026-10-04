@@ -266,8 +266,24 @@ end
 
 # The same question asked of a parameter tuple at the level of TYPES, so that it
 # costs nothing where it is asked at every evaluation of an activity model.
-_number_type_of(x::ForwardDiff.Dual) = typeof(x)
-_number_type_of(x::DynamicQuantities.AbstractQuantity) = _number_type_of(ustrip(x))
-_number_type_of(::AbstractArray{T}) where {T <: ForwardDiff.Dual} = T
-_number_type_of(x::Union{Tuple, NamedTuple}) = promote_type(Float64, map(_number_type_of, values(x))...)
-_number_type_of(x) = Float64
+#
+# It used to map over the VALUES of the tuple. An equilibrium hands a model a
+# handful of parameters, but a kinetic run hands it the run's own parameters,
+# some fifty fields, and a `map` over a tuple that long is not unrolled: each
+# field was dispatched at run time, at every evaluation. Measured on the
+# pore-humidity test, 44 % of the integration went there. The answer depends on
+# the types alone, so it is computed from them, and `:foldable` lets the
+# compiler fold it into a constant.
+_number_type_of(x) = _number_type_t(typeof(x))
+
+_number_type_t(::Type{T}) where {T <: ForwardDiff.Dual} = T
+_number_type_t(::Type{<:DynamicQuantities.AbstractQuantity{T}}) where {T} = _number_type_t(T)
+_number_type_t(::Type{<:AbstractArray{T}}) where {T <: ForwardDiff.Dual} = T
+_number_type_t(::Type) = Float64
+Base.@assume_effects :foldable function _number_type_t(::Type{T}) where {T <: Union{Tuple, NamedTuple}}
+    R = Float64
+    for F in fieldtypes(T)
+        R = promote_type(R, _number_type_t(F))
+    end
+    return R
+end

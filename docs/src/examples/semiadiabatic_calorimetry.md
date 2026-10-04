@@ -10,19 +10,21 @@ states lose ([CEM I 52.5 N and slag in an isothermal calorimeter, read off the s
 semi-adiabatic calorimeter cannot be read that way. It lets the heat of
 hydration raise the temperature of the sample against the losses of the vessel,
 and the temperature raises the rates of the reactions in turn. The temperature
-is then an unknown of the kinetic problem, integrated with the amounts:
+is then an unknown of the kinetic problem. The enthalpy of the cell, that of the
+paste over its whole composition, the hydrates precipitated by the minimization
+included, plus that of the vessel of heat capacity ``C``, changes only by what
+leaves through the walls, so that at every instant
 
 ```math
-C_{\rm tot}\,\frac{\mathrm{d}T}{\mathrm{d}t} \;=\; \dot q \;-\; \varphi(T-T_{\rm env}),
+H\bigl(\mathbf{n}(t), T\bigr) - H_0 + C\,(T - T_0)
+\;=\; -\int_0^t \varphi\bigl(T(\tau)-T_{\rm env}\bigr)\,\mathrm{d}\tau ,
 \qquad
-\varphi(\Delta T) \;=\; a\,\Delta T + b\,\Delta T^2 ,
+\varphi(\Delta T) \;=\; a\,\Delta T + b\,\Delta T^2 .
 ```
 
-with `q̇` the heat the reactions release at the current temperature and `C_tot`
-the heat capacity of the vessel and of everything in it. Under partial
-equilibrium the heat is the rate at which the enthalpy of the whole composition
-falls, the hydrates precipitated by the minimization included (see
-[`cumulative_heat`](@ref)).
+The kinetic run carries the right-hand side, the heat lost, and the temperature
+is the root of this balance, the equilibrium of the paste being solved at that
+temperature at every evaluation ([Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics)).
 
 This page reproduces the test of [Lavergne2018](@citet) on the plain-cement mortar
 `C100` at w/b = 0.5, in their calorimeter, with the model of
@@ -62,8 +64,9 @@ where the measured curve starts and where the kinetic parameters are referred.
 ## The run
 
 The mortar's binder, 371 g, is integrated with the cell in the state: the
-dissolution of the four clinker phases, the Gibbs minimization of everything
-else at every accepted step, and the temperature.
+dissolution of the four clinker phases, the heat lost through the walls, and,
+inside every evaluation, the Gibbs minimization of everything else and the
+temperature it is in balance with.
 
 ```@example semiad
 binder = mix.binder
@@ -93,7 +96,7 @@ those of the other mixes, and it is not transcribed
 meas = literature_table("Lavergne2018", "semi_adiabatic_C100_wb050_temperature")
 tm = ustrip.(u"d", meas.time)
 Tm = meas.temperature_C
-Tc = [semi.sol(x * 86400)[end] - 273.15 for x in tm]
+Tc = last(temperature_profile(semi.sol, cell; times = tm .* 86400)) .- 273.15
 k = argmax(Tm)
 @printf("maximum: measured %.1f °C at %.2f d, computed %.1f °C at %.2f d\n",
         Tm[k], tm[k], T[j] - 273.15, t[j] / 86400)
@@ -132,13 +135,13 @@ plot!(ti ./ 86400, T_off .- 273.15; lw = 2, ls = :dash, label = "computed, witho
 scatter!(tm, Tm; ms = 3, label = "measured (Lavergne et al. 2018)")
 ```
 
-The coupled calculation reaches 56.4 °C at 0.81 day, where the measurement
+The coupled calculation reaches 56.4 °C at 0.82 day, where the measurement
 peaks at 52.1 °C at 0.75 day, and it stays 2.8 to 5.4 K above the measured
 curve through the cooling that follows. Nothing has been adjusted on this curve: the
 kinetic parameters are those of the preceding page, the cell and its losses those
 [Lavergne2018](@citet) calibrated. The run without feedback, the heat flow of the
 paste held at 20 °C integrated afterwards through the same cell, peaks at 40.1 °C
-only, and later, at 1.01 day. The difference, 16 K out of a rise of 36 K, is the
+only, and later, at 1.02 day. The difference, 16 K out of a rise of 36 K, is the
 acceleration of the reactions by the temperature they raise, through their
 activation energies; a semi-adiabatic test is therefore a test of those energies
 as much as of the heat, and it cannot be read off an isothermal calculation.

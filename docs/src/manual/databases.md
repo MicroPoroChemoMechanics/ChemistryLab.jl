@@ -236,13 +236,22 @@ end
 
 ## [The chloride extension of CEMDATA18](@id sec-chloride-extension)
 
-`cemdata18-chloride.json` is CEMDATA18 unchanged, with one end member appended:
-`CSHQ-Cl` = (CaCl₂)₀.₅. The phase `CSHQ_Cl` of `data/solid_solutions.toml` is
-CSHQ with it, and is built from this file only. Its Gibbs energy is fitted, not
-measured: on the chloride bound by C-S-H in the sorption tests of
-[Hirao2005](@cite), by `data/chloride/regenerate.jl`. The fitted value and its
-provenance are kept in `data/chloride/cshq_cl.json`, from which the end member is
-built, and carried on the end member itself.
+`cemdata18-chloride.json` is CEMDATA18 unchanged, with two substances appended.
+
+The first is an end member of C-S-H, `CSHQ-Cl` = (CaCl₂)₀.₅. The phase `CSHQ_Cl`
+of `data/solid_solutions.toml` is CSHQ with it, and is built from this file only.
+Its Gibbs energy is fitted, not measured: on the chloride bound by C-S-H in the
+sorption tests of [Hirao2005](@cite), by `data/chloride/regenerate.jl`. The
+fitted value and its provenance are kept in `data/chloride/cshq_cl.json`, from
+which the end member is built, and carried on the end member itself.
+
+The second is Fe-Friedel's salt, `C4FCl2H10` = Ca₄Fe₂Cl₂(OH)₁₂·4H₂O, which the
+Cemdata18 paper tabulates [Lothenbach2019; Tables 1 and 2](@cite) and its
+ThermoFun export lacks. Its record is the row of Table 1, transcribed in
+`data/literature/Lothenbach2019.json`, and the build refuses to write it unless
+its `log Ks0` recomputed through the aqueous species of Cemdata18 is the one of
+Table 2 within 0.05 (it is within 0.011). With Friedel's salt it forms the ideal
+solid solution `Friedel_AlFe` of `data/solid_solutions.toml`, note k of Table 1.
 
 ```@example datapath
 ext_cl = build_species(datapath("cemdata18-chloride.json"); verbose = false)

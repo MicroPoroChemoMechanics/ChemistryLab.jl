@@ -134,6 +134,7 @@ end
     include("validation_lothenbach2008.jl")
     include("validation_scholer2017.jl")
     include("validation_deschner2012.jl")
+    include("validation_deschner2013.jl")
 end
 
 @testsection "Utils tests" begin
@@ -153,6 +154,9 @@ end
     include("kinetics/test_surface_coupling.jl")
     include("kinetics/test_parameter_ad.jl")
     include("kinetics/test_rhs_speciation.jl")
+    include("kinetics/test_blended_kinetics.jl")
+    include("kinetics/test_quaternary_kinetics.jl")
+    include("kinetics/test_palandri_kharaka.jl")
     include("coupling_reference.jl")
 end
 

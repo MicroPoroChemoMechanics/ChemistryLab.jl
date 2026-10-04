@@ -132,6 +132,7 @@ function SciMLBase.solve(
         ϵ::Float64 = _AMOUNT_FLOOR,
         b = nothing,
         certificate = nothing,
+        polish::Bool = ChemistryLab._POLISH[],
     )
     # A problem carrying dual numbers, in its state, its budget, its data or its
     # activity model, takes the implicit-function route: primal solve, then the
@@ -139,7 +140,7 @@ function SciMLBase.solve(
     n0 = max.(_build_n0(state), ϵ)
     p = _build_params(state; ϵ = ϵ)
     ChemistryLab._has_dual_inputs(n0, b, p, esolver.model) &&
-        return ChemistryLab._solve_dual(esolver, state, ϵ; b = b)
+        return ChemistryLab._solve_dual(esolver, state, ϵ; b = b, polish = polish)
 
     # `b` given explicitly is Leal's φ(b): minimize G subject to A n = b, with
     # `state` supplying only the starting guess and the T, P conditions. The
@@ -157,7 +158,7 @@ function SciMLBase.solve(
     # Not by running the solve under `_relaxed_convergence`: a scoped value
     # around it cost 13 s of compilation on the first cement equilibrium of a
     # session (measured on a CEM I paste: 125 s against 112 s).
-    polish = ChemistryLab._POLISH[] && ChemistryLab._DUAL_AVAILABLE[] &&
+    polish = polish && ChemistryLab._DUAL_AVAILABLE[] &&
         ChemistryLab._dual_applicable(state.system)
     raw = SciMLBase.solve(opt_prob, esolver.solver; esolver.kwargs...)
     sol = polish ? raw : ChemistryLab._check_converged(raw, "equilibrium solve")
@@ -169,7 +170,9 @@ function SciMLBase.solve(
     end
     _update_derived!(state_eq)
 
-    return ChemistryLab._finish_backend_solve(esolver, state, state_eq; ϵ = ϵ, b = b, certificate = certificate)
+    return ChemistryLab._finish_backend_solve(
+        esolver, state, state_eq; ϵ = ϵ, b = b, certificate = certificate, polish = polish,
+    )
 end
 
 # ── __init__: register default solver (high priority — always overrides) ──────

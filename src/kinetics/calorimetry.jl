@@ -12,8 +12,12 @@ using LinearAlgebra
 Base type for calorimeter models that can be coupled to a kinetics simulation.
 
 Concrete subtypes:
-- [`IsothermalCalorimeter`](@ref): T = constant, tracks Q(t) = ∫q̇dt.
+- [`IsothermalCalorimeter`](@ref): T = constant, the heat Q(t) released to the bath.
 - [`SemiAdiabaticCalorimeter`](@ref): variable-T cell (Lavergne et al. 2018).
+
+Under partial equilibrium both balance the enthalpy of the whole composition,
+the state carrying the change of the enthalpy of the cell; see the theory page
+*Kinetics under partial equilibrium*.
 """
 abstract type AbstractCalorimeter end
 
@@ -104,10 +108,12 @@ end
 """
     struct IsothermalCalorimeter{T} <: AbstractCalorimeter
 
-Isothermal calorimeter: temperature held constant at `T` [K]; cumulative heat
-`Q(t) = ∫₀ᵗ q̇(τ) dτ` [J] integrated as the trailing ODE state. `q̇` is the heat of
-the kinetic reactions when they produce the hydrates, and under partial
-equilibrium `−dH/dt` over the whole composition — see [`cumulative_heat`](@ref).
+Isothermal calorimeter: temperature held constant at `T` [K]; the heat `Q(t)` [J]
+the paste releases to the bath. When the kinetic reactions produce the
+hydrates, `Q = ∫₀ᵗ q̇ dτ` with `q̇` their heat, integrated as the trailing ODE
+state. Under partial equilibrium the trailing state is the change of the
+enthalpy of the cell, zero, and `Q = H₀ − H` is the enthalpy the whole
+composition has lost — see [`cumulative_heat`](@ref).
 
 # Examples
 
@@ -152,7 +158,8 @@ end
 """
     struct SemiAdiabaticCalorimeter{C, T, F} <: AbstractCalorimeter
 
-Semi-adiabatic calorimeter following the Lavergne et al. (2018) energy balance:
+Semi-adiabatic calorimeter following the Lavergne et al. (2018) energy balance.
+When the kinetic reactions produce the hydrates, the temperature is integrated,
 
 ```math
 \\frac{dT}{dt} = \\frac{\\dot{q}(t) - \\varphi(T - T_{\\rm env})}{C_p + \\sum_i n_i C^\\circ_{p,i}(T)}
@@ -164,6 +171,13 @@ where:
 - `Cp` [J/K] is the fixed calorimeter heat capacity,
 - `Σᵢ nᵢ Cp°ᵢ(T)` is the temperature- and mole-dependent sample heat capacity
   (computed from `p.cp_fns` at every ODE step when available).
+
+Under partial equilibrium the same balance is written on the enthalpy of the
+cell: the state carries its change `ΔH`, `dΔH/dt = −φ(T − T_env)`, and the
+temperature is the root of `H(φ(bₑ, T), nₖ, T) − H₀ + Cp (T − T₀) = ΔH`, the
+enthalpy `H` of the paste taken over its whole composition at the partition
+solved at that temperature (see the theory page *Kinetics under partial
+equilibrium*). [`temperature_profile`](@ref) returns it.
 
 # Fields
 
@@ -281,36 +295,77 @@ function extend_ode!(du, u, p, n_kin::Int, cal::SemiAdiabaticCalorimeter)
 end
 
 # ── Result extraction ─────────────────────────────────────────────────────────
+#
+# Under partial equilibrium the state of a calorimeter's run carries the change
+# of the enthalpy of the cell, and the temperature and the heat are functions of
+# the state (`_cell_temperature`): they are computed here at the instants the
+# solution saved, each warm-started from the one before. In the stoichiometric
+# formulation they are read from the state, as integrated.
+
+# Whether the run of `sol` carries a calorimeter under partial equilibrium.
+_cell_run(sol) = sol.prob.p.heat_eq
+
+# The temperature of the cell and the enthalpy of the paste at each instant the
+# solution saved, for a run under partial equilibrium.
+function _cell_points(sol)
+    p = sol.prob.p
+    return _with_saved_warm_start(p) do
+        pts = [_cell_point(p, u) for u in sol.u]
+        (first.(pts), last.(pts))
+    end
+end
 
 """
     heat_flow(sol, cal::IsothermalCalorimeter) -> (t, qdot)
 
-Instantaneous heat-generation rate `q̇(t)` [W]: the time derivative of the
-accumulated heat the solution carries, read from the solver's own interpolant
-(`sol(t, Val{1})`) at the instants it saved. Until 0.28.2 it was a backward
-difference of [`cumulative_heat`](@ref), whose first instant was set to zero.
+Instantaneous heat-generation rate `q̇(t)` [W] at the instants the solution saved.
+In the stoichiometric formulation it is the time derivative of the accumulated
+heat the solution carries, read from the solver's own interpolant
+(`sol(t, Val{1})`). Under partial equilibrium it is `−dH/dt` of the paste at the
+temperature of the bath, the partition lifted by the implicit-function theorem
+in the direction the run moves its element amounts.
 """
 function heat_flow(sol, cal::IsothermalCalorimeter)
     t = sol.t
-    qdot = [sol(ti, Val{1})[end] for ti in t]
+    _cell_run(sol) || return t, [sol(ti, Val{1})[end] for ti in t]
+    p = sol.prob.p
+    qdot = _with_saved_warm_start(p) do
+        map(eachindex(t)) do i
+            u = Float64[_plain(x) for x in sol.u[i]]
+            T, _ = _cell_point(p, u)
+            n_e = Float64[_plain(p.n_full[k]) for k in p.idx_equilibrium]
+            _paste_heat_rate(p, n_e, u, Float64[_plain(x) for x in sol(t[i], Val{1})], T)
+        end
+    end
     return t, qdot
 end
 
 """
     heat_flow(sol, cal::SemiAdiabaticCalorimeter) -> (t, qdot)
 
-Reconstruct q̇(t) [W] from the temperature ODE via the energy balance
-`q̇ = Cp × dT/dt + φ(T − T_env)`, `dT/dt` the time derivative of the solver's
-own interpolant (`sol(t, Val{1})`) at the instants it saved. Until 0.28.2 it was
-a backward difference, whose first instant was set to zero.
-
-Note: uses the fixed `cal.Cp` (not the variable Cp_total) for this
-post-processing reconstruction.
+The heat the paste releases, `q̇ = −dH/dt` [W], at the instants the solution
+saved: what warms the vessel and what leaves through its walls,
+`q̇ = C_v dT/dt + φ(T − T_env)`, `C_v` the heat capacity of the vessel (`cal.Cp`).
+`dT/dt` is the time derivative of the solver's interpolant in the stoichiometric
+formulation, and under partial equilibrium the derivative of the root of the
+cell's energy balance along the rate of the state.
 """
 function heat_flow(sol, cal::SemiAdiabaticCalorimeter)
     t = sol.t
     Cp_f = safe_ustrip(us"J/K", cal.Cp)
     T_env_f = safe_ustrip(us"K", cal.T_env)
+    if _cell_run(sol)
+        p = sol.prob.p
+        T, _ = _cell_points(sol)
+        dTdt = _with_saved_warm_start(p) do
+            map(eachindex(t)) do i
+                u = Float64[_plain(x) for x in sol.u[i]]
+                p.T_q[] = T[i] * u"K"
+                _cell_temperature_rate(p, u, Float64[_plain(x) for x in sol(t[i], Val{1})])
+            end
+        end
+        return t, Cp_f .* dTdt .+ cal.heat_loss.(T .- T_env_f)
+    end
     n_kin = length(sol.u[1]) - n_extra_states(cal)
     qdot = map(eachindex(t)) do i
         T_i = sol.u[i][n_kin + 1]
@@ -322,23 +377,26 @@ end
 """
     cumulative_heat(sol, cal::IsothermalCalorimeter) -> (t, Q)
 
-Cumulative heat `Q(t) = ∫₀ᵗ q̇(τ) dτ` [J], read off the ODE state the isothermal
-calorimeter adds.
+Cumulative heat `Q(t)` [J] the paste has released to the bath, at the instants
+the solution saved.
 
-In the stoichiometric formulation `q̇` is [`heat_rate`](@ref), `Σᵢ rᵢ(−ΔᵣH⁰ᵢ)`
-over the kinetic reactions, which produce the hydrates. Under **partial
-equilibrium** those reactions only dissolve the anhydrous phases into ions and
-the hydrates are precipitated by the Gibbs minimization, so `q̇` is instead
-`−dH/dt` at fixed temperature over the whole composition, `H = Σᵢ nᵢ ΔₐH⁰ᵢ(T)`:
-the kinetic amounts as the integrator moves them and the equilibrium partition
-through its sensitivity to the element amounts, `dnₑ/dt = (∂nₑ/∂bₑ) dbₑ/dt`,
-taken from the optimality conditions of the partition at each accepted step.
+In the stoichiometric formulation `Q = ∫₀ᵗ q̇ dτ` is the trailing ODE state, `q̇`
+being [`heat_rate`](@ref), `Σᵢ rᵢ(−ΔᵣH⁰ᵢ)` over the kinetic reactions, which
+produce the hydrates. Under **partial equilibrium** those reactions only
+dissolve the anhydrous phases into ions and the hydrates are precipitated by the
+Gibbs minimization, so the heat is the enthalpy the paste has lost,
+`Q = H₀ − H`, `H = Σᵢ nᵢ ΔₐH⁰ᵢ(T)` over the whole composition, its partition
+solved at the state of each instant and `H₀` that of the first equilibrium.
 Every species then needs an enthalpy of formation, and a system where one lacks
-it is refused. The integral is the enthalpy difference [`heat_release`](@ref)
-computes from certified speciations, to within the accuracy of the in-run
-partition; `heat_release` remains the reference.
+it is refused. [`heat_release`](@ref) computes the same difference from
+certified speciations.
 """
 function cumulative_heat(sol, cal::IsothermalCalorimeter)
+    if _cell_run(sol)
+        _, H = _cell_points(sol)
+        H0 = _plain(sol.prob.p.H0[])
+        return sol.t, [H0 - H[i] + _plain(sol.u[i][end]) for i in eachindex(H)]
+    end
     n_kin = length(sol.u[1]) - n_extra_states(cal)
     Q = [u[n_kin + 1] for u in sol.u]
     return sol.t, Q
@@ -347,9 +405,19 @@ end
 """
     cumulative_heat(sol, cal::SemiAdiabaticCalorimeter) -> (t, Q)
 
-Integrate the reconstructed heat-flow rate to obtain Q(t) [J].
+The heat the paste has released [J] at the instants the solution saved. Under
+partial equilibrium it is the enthalpy it has lost, which went to warm the
+vessel or out through its walls, `Q = C_v (T − T₀) − ΔH`, exactly, `ΔH` the
+change of the enthalpy of the cell the state carries. In the stoichiometric
+formulation, the integral of [`heat_flow`](@ref) by the rectangle rule.
 """
 function cumulative_heat(sol, cal::SemiAdiabaticCalorimeter)
+    if _cell_run(sol)
+        p = sol.prob.p
+        T, _ = _cell_points(sol)
+        Cv, T0 = _plain(p.Cp_calo), _plain(p.T0_cell)
+        return sol.t, [Cv * (T[i] - T0) - _plain(sol.u[i][end]) for i in eachindex(T)]
+    end
     t, qdot = heat_flow(sol, cal)
     Q = similar(qdot)
     Q[1] = zero(eltype(qdot))
@@ -361,12 +429,22 @@ function cumulative_heat(sol, cal::SemiAdiabaticCalorimeter)
 end
 
 """
-    temperature_profile(sol, cal::SemiAdiabaticCalorimeter) -> (t, T)
+    temperature_profile(sol, cal::SemiAdiabaticCalorimeter; times = sol.t) -> (t, T)
 
-Extract the temperature profile T(t) [K].
+The temperature of the cell [K] at `times`, by default the instants the solution
+saved, the state at another instant read from the solver's interpolant: the
+state's last entry in the stoichiometric formulation, and under partial
+equilibrium the root of the cell's energy balance at that state, each instant
+warm-started from the one before.
 """
-function temperature_profile(sol, ::SemiAdiabaticCalorimeter)
-    n_kin = length(sol.u[1]) - 1
-    T_vec = [u[n_kin + 1] for u in sol.u]
-    return sol.t, T_vec
+function temperature_profile(sol, ::SemiAdiabaticCalorimeter; times = sol.t)
+    us = times === sol.t ? sol.u : [sol(t) for t in times]
+    if _cell_run(sol)
+        p = sol.prob.p
+        T = _with_saved_warm_start(p) do
+            [first(_cell_point(p, u)) for u in us]
+        end
+        return collect(times), T
+    end
+    return collect(times), [u[end] for u in us]
 end

@@ -89,7 +89,8 @@ move them.
 
 ## The system
 
-With that state, the coupled problem is [Leal2017; Eqs. 54–65](@cite):
+With that state, the coupled problem is [Leal2017; Eqs. 54–65](@cite) and
+[Leal2015; Eqs. 2.25–2.30](@cite):
 
 ```math
 \frac{\mathrm{d} \mathbf{n}_k}{\mathrm{d} t} = \boldsymbol{\nu}_k^\mathsf{T} \mathbf{r}(\mathbf{n}, T, t),
@@ -138,7 +139,11 @@ stiff method integrates the extent explicitly, and a step longer than the time
 over which the rate relaxes overshoots the equilibrium: on calcite under
 ``r = k(1-\Omega)``, `Rodas5P` reached a reaction extent of −457 mol. `integrate`
 tells the two cases apart from the rate laws themselves (`speciation = :auto`),
-and `speciation = :frozen` or `:rhs` forces either.
+and `speciation = :frozen` or `:rhs` forces either. A semi-adiabatic calorimeter
+takes the second route whatever its laws read: its temperature is solved with
+the partition, from the enthalpy of the cell the state carries.
+[Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics) writes the
+right-hand side, its Jacobian and that energy balance in full.
 
 The initial state is equilibrated before the first step, so the trajectory
 starts on the constraint manifold rather than drifting onto it.

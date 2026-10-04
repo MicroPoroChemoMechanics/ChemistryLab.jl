@@ -165,8 +165,9 @@ using JSON
                     z = database_path("cemdata18-zeolites.json")
                     @test startswith(z, joinpath(dir, "cache", "derived"))
                     @test length(JSON.parsefile(z)["substances"]) == n_base + length(CL.zeolite_records())
+                    # The chloride end member of CSHQ and Fe-Friedel's salt.
                     c = database_path("cemdata18-chloride.json")
-                    @test length(JSON.parsefile(c)["substances"]) == n_base + 1
+                    @test length(JSON.parsefile(c)["substances"]) == n_base + 2
                     # Built once: the second call reads the cache.
                     t = mtime(z)
                     @test database_path("cemdata18-zeolites.json") == z && mtime(z) == t

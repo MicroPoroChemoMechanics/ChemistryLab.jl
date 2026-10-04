@@ -27,10 +27,12 @@ protons an oxide consumes written as hydroxide taken from the mixing water
 heat of the run.
 
 A constituent given a rate must be a mineral constituent of the recipe whose
-species is in `system`; a glass, known by its oxides only, has no formula to
-dissolve and is refused. To give a glass a rate, build its pseudo-species from
-the same analysis with [`glass_species`](@ref), add it to `system`, and declare
-it in the material as `MineralConstituent(glass_species(oxides; symbol); mass_fraction)`.
+species is in `system`, and no two of them may share a species, which would be
+dissolved twice. A glass, known by its oxides only, has no formula to dissolve
+and is refused: its pseudo-species is built from the constituent itself by
+[`glass_species`](@ref), put in its place by [`with_species`](@ref), and added
+to `system` ([What a recipe puts into the equilibrium](@ref sec-theory-recipes),
+Section 6).
 """
 function KineticsProblem(
         recipe::Recipe, cs::ChemicalSystem, rates::AbstractDict, tspan::Tuple; kwargs...,
@@ -43,8 +45,8 @@ function KineticsProblem(
             ArgumentError(
                 "KineticsProblem: $(c.name) of $(m.name) is known by its oxides only; it has no " *
                     "formula to dissolve, so it cannot be given a rate. Build its pseudo-species " *
-                    "with `glass_species(oxides; symbol)`, add it to the system and declare it as a " *
-                    "`MineralConstituent` of the material."
+                    "with `glass_species(constituent, system; symbol)`, put it in the material with " *
+                    "`with_species` and add it to the system."
             )
         )
         haskey(kinetic, c.name) && throw(
@@ -52,6 +54,13 @@ function KineticsProblem(
         )
         haskey(cs.dict_species, symbol(c.species)) || throw(
             ArgumentError("KineticsProblem: $(symbol(c.species)), the species of $(c.name), is not in the system.")
+        )
+        other = findfirst(((_, d),) -> symbol(d.species) == symbol(c.species), collect(values(kinetic)))
+        other === nothing || throw(
+            ArgumentError(
+                "KineticsProblem: $(c.name) and $(collect(keys(kinetic))[other]) are both $(symbol(c.species)); " *
+                    "a species dissolved by two rate laws would be dissolved twice. Give it one constituent."
+            )
         )
         kinetic[c.name] = (m, c)
     end
@@ -85,6 +94,25 @@ function KineticsProblem(
         push!(reactions, KineticReaction(cs, rxn))
     end
     return KineticsProblem(cs, reactions, state, tspan; kwargs...)
+end
+
+"""
+    glass_species(c::OxideConstituent, system; symbol, M = 100.0u"g/mol", name = symbol)
+        -> Species
+
+The pseudo-species of a constituent known by its oxides, for a rate law to
+dissolve: [`glass_species`](@ref) of the oxides of `c` whose element `system`
+has a primary for. An oxide the system cannot hold (the TiO₂ or the P₂O₅ of a
+fly ash) stays out of the formula and in the mass `M` of material a formula
+unit stands for, as the part of it the formula does not model
+(`modeled_mass_fraction`), which is how [`budget`](@ref) keeps it aside on the
+route of imposed extents. The two routes then put the same elements into the
+equilibrium at the same degree of reaction.
+"""
+function glass_species(c::OxideConstituent, system::ChemicalSystem; kwargs...)
+    prim = system.SM.primaries
+    held = OrderedDict(k => v for (k, v) in c.oxides if _representable(k, prim))
+    return glass_species(held; kwargs...)
 end
 
 # The element budget `b` (over the primaries of the system) added to `state` as

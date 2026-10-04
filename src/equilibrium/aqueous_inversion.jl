@@ -115,13 +115,16 @@ function _invert_aqueous(form, c, ref, w, p, jref)
     # `ln I` of the composition the potentials give at an ionic strength `exp(s)`,
     # minus `s`: its root is the self-consistent ionic strength. One pass, a
     # running log-sum-exp, and nothing allocated: it is evaluated some twenty
-    # times per inversion, an inversion per trial step of the outer Newton.
+    # times per inversion, an inversion per trial step of the outer Newton. Its
+    # ionic strength has a name of its own: written `I`, it was the `I` this
+    # function assigns below, which Julia then boxed, and every evaluation
+    # allocated and dispatched on it.
     F(s) = begin
-        I = exp(s)
-        M = a0[1] - lnγ(ions[1], I)
+        Is = exp(s)
+        M = a0[1] - lnγ(ions[1], Is)
         acc = one(M)
         @inbounds for k in 2:length(ions)
-            x = a0[k] - lnγ(ions[k], I)
+            x = a0[k] - lnγ(ions[k], Is)
             if x > M
                 acc = acc * exp(M - x) + 1
                 M = x
@@ -351,10 +354,10 @@ function _invert_aqueous_newton(lna, pred, ns, aq, jref, c, ref, w, p; maxit::In
     # in `live`), every other live member at `held`: the species outside the
     # phase do not enter its activities, and a dead member is held at zero.
     function amounts(z, idx, held)
-        T = promote_type(eltype(z), eltype(held), typeof(ref))
-        x = ones(T, ns)
+        Tx = promote_type(eltype(z), eltype(held), typeof(ref))
+        x = ones(Tx, ns)
         for (t, i) in enumerate(aq)
-            x[i] = t == jref ? ref : zero(T)
+            x[i] = t == jref ? ref : zero(Tx)
         end
         for (k, t) in enumerate(live)
             x[aq[t]] = exp(held[k])
@@ -365,18 +368,19 @@ function _invert_aqueous_newton(lna, pred, ns, aq, jref, c, ref, w, p; maxit::In
         return x
     end
     function residual(z, idx, held)
-        h = lna(amounts(z, idx, held), p)
-        return [h[aq[live[j]]] - c[live[j]] for j in idx]
+        hx = lna(amounts(z, idx, held), p)
+        return [hx[aq[live[j]]] - c[live[j]] for j in idx]
     end
 
     # Two starts: the composition the solve holds, and the Debye–Hückel part's.
-    z = wv[live]
+    # Bound once: the closures below capture `z`, and a binding assigned twice
+    # is boxed, which made every evaluation allocate and dispatch.
     all_idx = collect(eachindex(live))
     worst(zz) = maximum(abs, Float64[_plain(r) for r in residual(zz[all_idx], all_idx, zz)]; init = 0.0)
     wp = _invert_aqueous(pred, cv, _plain(ref), wv, p, jref)
-    if wp !== nothing
-        zp = Float64[clamp(_plain(wp[t]), -700.0, 20.0) for t in live]
-        worst(zp) < worst(z) && (z = zp)
+    z = let z0 = wv[live]
+        wp === nothing ? z0 :
+            (zp = Float64[clamp(_plain(wp[t]), -700.0, 20.0) for t in live]; worst(zp) < worst(z0) ? zp : z0)
     end
 
     # At the rounding of the potentials, which are tens to hundreds.
@@ -445,18 +449,18 @@ function _invert_aqueous_newton(lna, pred, ns, aq, jref, c, ref, w, p; maxit::In
     # does not go through the inversion. A Jacobian taken in the dual type, which
     # a nested lift would need, nests its tag inside the caller's and ForwardDiff
     # cannot order the two.
-    sig = [k for k in eachindex(live) if z[k] > _NEWTON_TRACE_LOG]
-    R0 = residual(z[sig], sig, z)
+    sigf = [k for k in eachindex(live) if z[k] > _NEWTON_TRACE_LOG]
+    R0 = residual(z[sigf], sigf, z)
     T = promote_type(eltype(R0), eltype(w), typeof(ref))
     zd = Vector{T}(z)
-    if !(T <: AbstractFloat) && !isempty(sig)
-        Jv = _plain.(ForwardDiff.jacobian(zz -> residual(zz, sig, z), z[sig]))
-        zs = zd[sig]
+    if !(T <: AbstractFloat) && !isempty(sigf)
+        Jv = _plain.(ForwardDiff.jacobian(zz -> residual(zz, sigf, z), z[sigf]))
+        zs = zd[sigf]
         for _ in 1:2
-            zs = zs - Jv \ residual(zs, sig, zd)
+            zs = zs - Jv \ residual(zs, sigf, zd)
         end
-        zd[sig] = zs
-        traces = [k for k in eachindex(live) if !(k in sig)]
+        zd[sigf] = zs
+        traces = [k for k in eachindex(live) if !(k in sigf)]
         if !isempty(traces)
             probe = copy(zd)
             for k in traces

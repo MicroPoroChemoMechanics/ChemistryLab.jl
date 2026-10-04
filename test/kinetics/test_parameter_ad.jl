@@ -86,7 +86,7 @@
             p = ChemistryLab.build_kinetics_params(kp)
             be = kp.Ae * Float64[ustrip(us"mol", x) for x in kp.initial_state.n[idx]] .+
                 (kp.Ae * transpose(kp.νe)) * [k * tend]
-            st = ChemicalState(p.eq_system, Float64[ustrip(us"mol", x) for x in kp.initial_state.n[idx]] .* u"mol")
+            st = ChemicalState(p.eq_system[], Float64[ustrip(us"mol", x) for x in kp.initial_state.n[idx]] .* u"mol")
             eq, cert = solve_certified(p.eq_dual, (st,); b = be)
             @test cert.optimal
             return ustrip(us"mol", eq.n[findfirst(==(i_ca), idx)])
@@ -139,7 +139,7 @@
         # the certified solve.
         e = zeros(length(be2)); e[1] = 1.0e-3
         lifted = ForwardDiff.derivative(x -> ChemistryLab._lifted_partition(p1, n2, Tv, Pv, be2 .+ x .* e), 0.0)
-        st2 = ChemicalState(p1.eq_system, n2 .* u"mol"; T = Tv, P = Pv)
+        st2 = ChemicalState(p1.eq_system[], n2 .* u"mol"; T = Tv, P = Pv)
         direct = ForwardDiff.derivative(
             x -> [ustrip(us"mol", v) for v in first(solve_certified(p1.eq_dual, (st2,); b = be2 .+ x .* e)).n], 0.0,
         )

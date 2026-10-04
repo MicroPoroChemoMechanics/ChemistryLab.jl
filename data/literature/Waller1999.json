@@ -8,17 +8,11 @@
   },
   "transcription": {
     "from": "src/kinetics/rate_models.jl, ChemistryLab 0.22.1 (WALLER_PARAMS_SLAG)",
-    "checked_against_source": false,
-    "note": "The package has attributed a characteristic time of 100 days for ground granulated blast-furnace slag to this thesis since its first release of the Waller law. The value does not appear in Lavergne et al. (2018), where the fly-ash parameters of the same law were verified, and the thesis was not consulted when the value was moved out of the code. It is therefore recorded as unstated until it is checked."
+    "checked_against_source": true,
+    "note": "Checked on 2026-10-04 against the thesis (HAL tel-01223803v1, 324 pages, with a text layer): it does not contain the slag time that this package had attributed to it since its first release of the Waller law. It names a slag once, p. 219 (PDF page 246, annex D, among the mineral additions an adiabatic test may contain), and gives no kinetic parameter for one. The value of 100 d is therefore not recorded here, and no slag parameter set is shipped."
   },
-  "quantities": {
-    "tau_slag": {
-      "value": 100,
-      "unit": "d",
-      "kind": "unstated",
-      "uncertainty": null,
-      "description": "Characteristic time of the reaction of a ground granulated blast-furnace slag in the Waller sigmoid; the other parameters of the set are those of the fly ash."
-    }
-  },
-  "notes": []
+  "quantities": {},
+  "notes": [
+    "The sigmoid law and the fly-ash parameters the package uses are those of Lavergne et al. (2018, p. 42), adjusted to the results of this thesis; see data/literature/Lavergne2018.json."
+  ]
 }

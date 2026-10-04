@@ -97,7 +97,9 @@ paper counts in moles per 100 g of **ignited mortar**, the mortar heated to
 and the helper below converts the model's amounts to the paper's unit.
 
 ```@example carbonation
-pastes = Dict(mix => first(equilibrate_certified(shi16_recipe(mix), cs; t, model)) for mix in SHI16_MIXES)
+# `Any`: the type of a state is long enough that a dictionary specialized on it
+# takes minutes to compile.
+pastes = Dict{Any, Any}(mix => first(equilibrate_certified(shi16_recipe(mix), cs; t, model)) for mix in SHI16_MIXES)
 per_mortar(x, mix) = 100 * x / shi16_ignited_mortar(mix)
 portlandite(rs) = ustrip(us"mol", rs.state.n[findfirst(s -> symbol(s) == "Portlandite", cs.species)])
 function csh_ca_si(rs)

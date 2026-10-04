@@ -56,7 +56,7 @@ one costs seconds to minutes.
 | what | against | how closely | where it stops |
 |:--|:--|:--|:--|
 | **every solubility product** in the shipped CEMDATA18 — 54 phases | [Lothenbach2019](@citet) Tables 2-3 | 52 close to `0.040`, 50 to `0.005` | two M-S-H end members are `0.24` and `0.20` out at 25 °C; the source disagrees with itself |
-| **standard properties and HKF coefficients**, 19 aqueous species and 7 gases | [Lothenbach2019](@citet) Tables D.1-D.2 | exact, all seven coefficients each | nitrite-AFm and Fe-Friedel's salt are not in the file |
+| **standard properties and HKF coefficients**, 19 aqueous species and 7 gases | [Lothenbach2019](@citet) Tables D.1-D.2 | exact, all seven coefficients each | nitrite-AFm needs the `NO2-` of another file, and Fe-Friedel's salt is in ChemistryLab's chloride extension only; [both close there](@ref sec-cemdata18-missing-rows) |
 | **each record's `ΔfG°`, `ΔfH°` and `S°`** against one another | the file's own element entropies | 78 of 143 crystalline records to `1 J/mol`, 126 to `100 J/mol` | the two M-S-H end members miss by kilojoules at either temperature |
 | **HKF away from 298.15 K, 1 bar** | [Duan2016](@citet) Table 4, HKF column | `0.03 %` at the reference point; `0.3 %` across a factor 2.9 in pressure | their two constants in one row sit at two different pressures |
 | **calcite `log Ksp`** at 25 °C | the accepted value, [PlummerBusenberg1982](@cite) | `−8.480` against `−8.48` | diverges from Duan's non-HKF method by 1.3 log units at 478 K |
@@ -269,16 +269,23 @@ Table D.2's gas column, under the same header, really is J/bar — 2479 J/bar is
 package's `RT/P` gives a gas there. The two tables share a header and not a
 unit.
 
-## What the shipped file does not carry
+## [What the shipped file does not carry](@id sec-cemdata18-missing-rows)
 
-Two rows of Table 2 cannot be checked, because the phase is in the printed table
-and not in the vendored file. The test asserts their absence, so that a database
-update which adds them turns this note red rather than leaving it stale.
+Two rows of Table 2 cannot be checked on the shipped file alone. The test asserts
+what is missing, so that a database update which adds it turns this note red
+rather than leaving it stale, and checks each row where it can be.
 
-| row | why not |
-|:--|:--|
-| nitrite-AFm | the solid `mononitrite` is present; `NO2-` is not, so the reaction cannot be written over the file's own primaries |
-| Fe-Friedel's salt (`C4FCl2H10`, `log Ks0 = −28.62`) | absent altogether, as are amorphous and microcrystalline `Fe(OH)₃` |
+| row | what the shipped file lacks | where it is checked | recomputed − printed |
+|:--|:--|:--|--:|
+| nitrite-AFm, `log Ks0 = −26.24` | `NO2-`: the solid `mononitrite` is present | with the `NO2-` of `slop98-inorganic-thermofun.json`, whose `Ca+2`, `NO3-` and water are the same records as Cemdata18's (its `OH-` is 27 J/mol off, and Cemdata18's is used) | `0.000` |
+| Fe-Friedel's salt, `log Ks0 = −28.62` | the phase | in `cemdata18-chloride.json`, where ChemistryLab writes it from Table 1 ([the chloride extension](@ref sec-chloride-extension)) | `0.011` |
+
+The record of Fe-Friedel's salt is the row of Table 1, its heat capacity the
+printed polynomial with its `T^{-1/2}` term, and its enthalpy the one that note l
+of the table says was recalculated from its Gibbs energy and entropy: with the
+entropies of the elements that the Cemdata18 file carries, `ΔfH° − T ΔfS° − ΔfG°`
+closes to `−0.02 kJ/mol`. Its partner in the ideal solid solution of note k,
+Friedel's salt, is the phase `Friedel_AlFe` of `data/solid_solutions.toml`.
 
 ## Atkins et al. (1992): a measurement, not a calculation
 

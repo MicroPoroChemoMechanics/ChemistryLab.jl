@@ -2,8 +2,11 @@
 
 `cemdata18-chloride.json` is CEMDATA18 with one end member appended,
 `CSHQ-Cl` = (CaCl2)0.5, and `CSHQ_Cl` in `data/solid_solutions.toml` is CSHQ
-with that end member. Only what ChemistryLab adds lives in this directory: the
-fitted parameter and its provenance, in `cshq_cl.json`. The database is built
+with that end member. (The same build also appends Fe-Friedel's salt, from
+Table 1 of the Cemdata18 paper, `data/literature/Lothenbach2019.json`; nothing
+of it is fitted, and this directory does not concern it.) Only what
+ChemistryLab adds for the end member lives in this directory: the fitted
+parameter and its provenance, in `cshq_cl.json`. The database is built
 from it the first time it is asked for, `datapath("cemdata18-chloride.json")`,
 on the Cemdata18 file obtained from its publisher. `regenerate.jl` redoes the
 fit and writes `cshq_cl.json`:

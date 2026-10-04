@@ -164,6 +164,9 @@ names the file and the field, never a silently different number.
   - `unit` is unit arithmetic read by `DynamicQuantities` (`"J/mol"`,
     `"m^2/g"`); `"1"` returns a plain number. A column whose unit is `null`
     holds text (a phase name, a label) and is returned as such.
+  - A cell the source leaves empty (printed "n.d.", "n.a." or a dash) is `null`,
+    and reads as `missing`: a wide table keeps its shape without a number the
+    source does not give. A table in long format leaves the row out instead.
 
 Records are read once and cached. Reading one while the package precompiles
 registers the file as a dependency, so that editing it recompiles the package
@@ -411,6 +414,11 @@ _literature_digitization(x, path, where) =
 _literature_number(x, path, where) =
     x isa Real ? Float64(x) : _literature_error(path, "$where: expected a number, got $(repr(x))")
 
+# A cell the source leaves empty ("n.d.", a dash) is null in the file and
+# `missing` in the table, never a number.
+_literature_cell(::Nothing, u, path, where) = missing
+_literature_cell(x, u, path, where) = _with_unit(_literature_number(x, path, where), u)
+
 _with_unit(x::Float64, ::Integer) = x
 _with_unit(x::Float64, u) = x * u
 
@@ -470,7 +478,7 @@ function read_literature(path::AbstractString)
                 String[string(row[j]) for row in rows]
             else
                 u = _literature_unit(units[j], path, "$where, column \"$(cols[j])\"")
-                [_with_unit(_literature_number(row[j], path, "$where, column \"$(cols[j])\""), u) for row in rows]
+                [_literature_cell(row[j], u, path, "$where, column \"$(cols[j])\"") for row in rows]
             end
         end
         tables[name] = NamedTuple{Tuple(Symbol.(cols))}(Tuple(columns))

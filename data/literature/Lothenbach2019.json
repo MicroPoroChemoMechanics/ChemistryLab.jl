@@ -291,7 +291,25 @@
         ["M6A-OH-LDH", "OH-", 10.0],
         ["M8A-OH-LDH", "Mg+2", 8.0],
         ["M8A-OH-LDH", "AlO2-", 2.0],
-        ["M8A-OH-LDH", "OH-", 14.0]
+        ["M8A-OH-LDH", "OH-", 14.0],
+        ["mononitrite", "Ca+2", 4.0],
+        ["mononitrite", "AlO2-", 2.0],
+        ["mononitrite", "NO2-", 2.0],
+        ["mononitrite", "OH-", 4.0],
+        ["C4FCl2H10", "Ca+2", 4.0],
+        ["C4FCl2H10", "FeO2-", 2.0],
+        ["C4FCl2H10", "Cl-", 2.0],
+        ["C4FCl2H10", "OH-", 4.0]
+      ]
+    },
+    "solid_standard_properties": {
+      "columns": ["phase", "printed", "dfG", "dfH", "S", "a0", "a1", "a2", "a3", "V", "references"],
+      "units": [null, null, "kJ/mol", "kJ/mol", "J/(mol*K)", "J/(mol*K)", "J/(mol*K^2)", "J*K/mol", "J/(mol*K^0.5)", "cm^3/mol", null],
+      "kind": "published",
+      "location": "Table 1, lines 170 and 177 of the accepted manuscript, read on the rendered page; Cp = a0 + a1 T + a2 T^-2 + a3 T^-0.5",
+      "rows": [
+        ["mononitrite", "C4A(NO2)2H10", -6606.8, -7493.1, 799.0, 565.0, 0.99, -2240000.0, 703.0, 275.0, "[34-36]"],
+        ["C4FCl2H10", "C4FCl2H10", -5900.1, -6528.0, 1286.0, 481.0, 0.961, -16100.0, 1503.0, 278.0, "[37]"]
       ]
     },
     "aqueous_species": {
@@ -360,7 +378,8 @@
   "notes": [
     "alpha0 and alpha1 are the dimensionless Guggenheim interaction parameters, a0 = alpha0 R T and a1 = alpha1 R T in the Redlich-Kister form. The gap columns are the miscibility gap the parameters reproduce, as the article prints it: X(SO4) in the solid for the AFt pair, X(OH) for the AFm pair. The sign of alpha1 depends on which end-member comes first; with C4AH13 first, as in the miscibility_gap example, the spinodal the parameters give, X(OH) from 0.63 to 0.91, lies inside the printed gap.",
     "For the AFt pair the article notes that the parameters are downscaled to a 1 CO2 : 1 SO3 replacement, instead of the 3 CO2 : 3 SO3 of its refs. [4, 7].",
-    "solubility_products: 'phase' is the package's symbol for the solid and is empty for the four rows of Table 2 the vendored database does not carry (nitrite-AFm, Fe-Friedel's salt, and amorphous and microcrystalline Fe(OH)3); 'printed' is the table's own name, without its footnote marks except in the Table 3 rows, where they tell two M4AH10 apart: * marks the tentative value recommended for Portland cement systems (the package's hydrotalcite), ** the tentative values recommended for alkali-activated materials (the MgAl-OH-LDH ideal solid solution).",
+    "solubility_products: 'phase' is the package's symbol for the solid and is empty for the two rows of Table 2 the vendored database cannot be checked on, nitrite-AFm (the solid ships as mononitrite, the aqueous NO2- does not) and Fe-Friedel's salt (absent); their dissolution products are under the symbols mononitrite and C4FCl2H10, and their Table 1 properties in solid_standard_properties. 'printed' is the table's own name, without its footnote marks except in the Table 3 rows, where they tell two M4AH10 apart: * marks the tentative value recommended for Portland cement systems (the package's hydrotalcite), ** the tentative values recommended for alkali-activated materials (the MgAl-OH-LDH ideal solid solution).",
+    "solid_standard_properties: the two Table 1 rows the shipped database is not checked on through Table 2. Both carry the four heat-capacity coefficients as printed. Fe-Friedel's salt carries note k (an ideal solid solution, here with Friedel's salt C4ACl2H10, which carries it too) and note l on its enthalpy and volume: 'typing error in [37], recalculated from Gf and S from [37]. Volume calculated from XRD data [37]', [37] being the thesis of B. Z. Dilnesa (EPFL, 2012). Its a2, printed -1.61x10^4 where the other AFm phases carry a few 10^6, is transcribed as printed; at 25 C it weighs 0.2 J/(mol K) in Cp. Its dfH is consistent with dfG and S at 298.15 K: with the entropies of the elements the Cemdata18 file carries, dfH - T (S - sum of the elements' S) - dfG = -0.02 kJ/mol, and dfG with Table 2: through the Cemdata18 aqueous Gibbs energies, log Ks0 = -28.61 against -28.62 printed. The nitrite-AFm row gives the same log Ks0 to 0.001 through the NO2- of the slop98 database.",
     "dissolution_products: Table 2 writes its reactions over Al(OH)4-, Fe(OH)4- and SiO(OH)3- (H3SiO4- for thaumasite); the CEMDATA18 primaries AlO2-, FeO2- and HSiO3- differ from those by 2, 2 and 1 H2O. The coefficients are the table's, the species are the primaries, and the water is left to the hydrogen balance.",
     "aqueous_species: Table D.1 heads its volume column V0 (J/bar), but the values are in cm3/mol (Ca+2 at -18.44; -18.44 J/bar would be -184.4 cm3/mol). The HKF columns are the printed numbers of the scaled columns, in the calorimetric units of the HKF papers: a1_e1 holds a1 x 10, a2_em2 a2 x 10^-2, a4_em4 a4 x 10^-4, c2_em4 c2 x 10^-4 and omega_em5 omega x 10^-5.",
     "gases: here the volume column is in J/bar (2479 J/bar = 24.79 L/mol, the ideal-gas molar volume at 298.15 K and 1 bar)."
