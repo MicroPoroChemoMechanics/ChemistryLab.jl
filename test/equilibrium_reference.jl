@@ -167,17 +167,30 @@ const N_H2O, N_CAL, N_CO2 = RK.n_H2O, RK.n_Cal, RK.n_CO2
         # route's answer from ratio 0.9956 and pKw 11.85 to ratio 1.144 and pKw
         # 14.02, the default route unchanged to the last digit. A ratio or a pKw
         # asserted on it therefore asserts nothing but the last bit of the seed.
-        # What the route does guarantee is asserted instead: it says that it did
-        # not converge, and the point it returns conserves matter.
+        # What the route does guarantee is asserted instead: on its own, it says
+        # that it did not converge, and the point it returns conserves matter.
         stw = ChemicalState(csw, n)
-        eqs = @test_logs (:warn, r"MaxIters") match_mode = :any equilibrate(
-            stw, OptimaOptimizer(; nullspace_step = false)
+        schur = OptimaOptimizer(; nullspace_step = false)
+        eqs = @test_logs (:warn, r"MaxIters") match_mode = :any ChemistryLab._unpolished(
+            () -> equilibrate(stw, schur)
         )
         Aw = Float64.(conservation_matrix(csw))
         @test Aw * ustrip.(us"mol", eqs.n) ≈ Aw * ustrip.(us"mol", stw.n) rtol = 1.0e-9
         vs = [ustrip(us"mol", x) for x in eqs.n]
         hs, ohs = vs[findfirst(==("H+"), nw)], vs[findfirst(==("OH-"), nw)]
         @info "water autoprotolysis, Schur route (not converged)" ratio = hs / ohs pKw = -log10(hs * ohs)
+
+        # Polished, as `equilibrate` with a solver returns it since 0.31, the
+        # route's stopping point is only a start: the dual Newton takes it to the
+        # equilibrium and certifies it, and the back end's own return code, which
+        # no longer decides on the answer, is not reported.
+        cref = Ref{Any}()
+        eqp = @test_logs min_level = Base.CoreLogging.Warn equilibrate(stw, schur; certificate = cref)
+        @test cref[].optimal
+        vp = [ustrip(us"mol", x) for x in eqp.n]
+        hp, ohp = vp[findfirst(==("H+"), nw)], vp[findfirst(==("OH-"), nw)]
+        @test hp ≈ ohp rtol = 1.0e-4
+        @test -log10(hp * ohp) ≈ -log10(h * oh) atol = 1.0e-6
     end
 
     @testset "element balance closes exactly" begin
