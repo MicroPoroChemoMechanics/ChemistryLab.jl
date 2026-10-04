@@ -296,9 +296,10 @@ end
 # the cell, `H(t) = Σᵢ nᵢ ΔₐH⁰ᵢ(T(t)) + C_vessel T(t)`, does not change; with a
 # heat loss it falls by exactly what left, `∫ φ(T − T_env) dt`. Isothermal, the
 # heat the calorimeter integrates is the enthalpy drop of the certified states.
-# Under partial equilibrium the heat is `−dH/dt` over the whole composition, the
-# equilibrium partition followed through `∂nₑ/∂bₑ`; before 0.24.0 it was the heat
-# of the kinetic dissolution alone, and these runs refused rather than warned.
+# Under partial equilibrium the state carries the change of the enthalpy of the
+# cell, and the temperature is the root of its energy balance, solved with the
+# partition at every evaluation: the right-hand side is a function of the state,
+# and its Jacobian is exact.
 
 const _CAL_SUBS = Dict(
     symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false)
@@ -339,22 +340,22 @@ end
     cal = IsothermalCalorimeter(293.15u"K")
     kp, sol = _partial_equilibrium_paste(cal)
     @test sol.retcode == ReturnCode.Success
+    # Nothing leaves an isothermal cell but the heat the bath takes: the change
+    # of its enthalpy, the state's last entry, stays zero.
+    @test all(iszero(u[end]) for u in sol.u)
     ts, Q_all = cumulative_heat(sol, cal)
-    @test Q_all == [u[end] for u in sol.u]
-    # At the accepted steps, where the partition has just been re-speciated and
-    # the heat of what the linearized partition did not predict has been added.
-    # Between them the heat is interpolated without it.
     ks = unique([findmin(abs.(ts .- x))[2] for x in (0.0, 3600.0, 6 * 3600.0, 86400.0, 2 * 86400.0)])
-    _, Q_ref, _ = heat_release(sol, kp; times = ts[ks])
-    @info "isothermal heat under partial equilibrium" Q = Q_all[ks] Q_ref
+    _, Q_ref, q_ref = heat_release(sol, kp; times = ts[ks])
     # The portlandite and the C-S-H precipitate, and their heat is counted.
     @test Q_ref[end] > 1000
-    # At an accepted step the heat IS the enthalpy the in-run partition lost; it
-    # differs from the certified replay only as that partition does, which is
-    # not certified. Measured: 10.5 J of 2165 near one hour, while the assemblage
-    # forms, and 2.5e-3 J at the end.
-    @test Q_all[ks[end]] ≈ Q_ref[end] rtol = 1.0e-5
-    @test maximum(abs.(Q_all[ks] .- Q_ref)) < 1.0e-2 * Q_ref[end]
+    # The heat is the enthalpy the paste has lost, `H₀ − H`, at the partition of
+    # each instant; the certified replay solves the same partition. Measured:
+    # equal to the third decimal of a joule over 2 kJ.
+    @test Q_all[ks] ≈ Q_ref rtol = 1.0e-7 atol = 1.0e-6
+    # And its rate, `−dH/dt` with the partition lifted along the run, is the one
+    # the certified states give.
+    _, qdot = heat_flow(sol, cal)
+    @test qdot[ks] ≈ q_ref rtol = 1.0e-8
 end
 
 @testset "an adiabatic cell under partial equilibrium conserves its enthalpy" begin
@@ -364,64 +365,101 @@ end
     )
     kp, sol = _partial_equilibrium_paste(cal)
     @test sol.retcode == ReturnCode.Success
+    p = sol.prob.p
     t, T = temperature_profile(sol, cal)
+    @test T[1] ≈ 293.15 atol = 1.0e-9
     @test T[end] > T[1] + 0.2
+    # The cell is closed to heat: its enthalpy, `H + C_vessel (T − T₀)`, is
+    # what it was at the start, at every instant, with the certified partition
+    # at the temperature the run solved. Measured: 3e-7 J against the 51 J the
+    # paste released.
     times = [0.0, 6 * 3600.0, 86400.0, 2 * 86400.0]
     states = speciated_states(sol, kp; times)
-    Tt = [sol(x)[end] for x in times]
+    _, Tt = temperature_profile(sol, cal; times)
     @test all(temperature(st) ≈ Ti * u"K" for (st, Ti) in zip(states, Tt))
-    H = [ustrip(us"J", enthalpy(st)) + C_vessel * Ti for (st, Ti) in zip(states, Tt)]
-    released = ustrip(us"J/K", heat_capacity(states[end])) * (Tt[end] - Tt[1])
-    @info "adiabatic cell under partial equilibrium" ΔT = Tt[end] - Tt[1] drift = H .- H[1] released
-    @test maximum(abs, H .- H[1]) < 1.0e-3 * released
+    H = [ustrip(us"J", enthalpy(st)) + C_vessel * (Ti - 293.15) for (st, Ti) in zip(states, Tt)]
+    released = C_vessel * (Tt[end] - Tt[1])
+    @test maximum(abs, H .- p.H0[]) < 1.0e-7 * released
+    # The heat the paste released is what warmed the vessel, exactly.
+    _, Q = cumulative_heat(sol, cal)
+    _, Q_ref, q_ref = heat_release(sol, kp; times)
+    @test Q[[1, end]] ≈ Q_ref[[1, end]] rtol = 1.0e-7 atol = 1.0e-6
+    # Its rate, `−dH/dt`, is `C_vessel dT/dt`, the paste's own heat capacity on
+    # neither side: the certified states against the root of the balance.
+    _, qdot = heat_flow(sol, cal)
+    @test qdot[end] ≈ q_ref[end] rtol = 1.0e-6
 
-    # The cell is closed to heat, so the heat the paste releases is what warms
-    # the vessel: −dH/dt = C_vessel dT/dt, the paste's own heat capacity on
-    # neither side. Without the `−Σ nᵢ Cpᵢ dT/dt` of the rate the left side would
-    # be (C_vessel + Cp_paste) dT/dt, forty times larger here. The rate is that
-    # of the certified states and the temperature that of the run, so the two
-    # differ as the in-run partition does from the certified one: measured, 1.6 %
-    # at the peak (6 h) and 0.03 % at one day.
-    tq = [6 * 3600.0, 86400.0]
-    _, _, qdot = heat_release(sol, kp; times = tq)
-    dTdt = [sol(x, Val{1})[end] for x in tq]
-    @test qdot ≈ C_vessel .* dTdt rtol = 5.0e-2
-    # And the enthalpy of the paste at fixed composition changes with its
-    # temperature by its heat capacity, Σ nᵢ Cpᵢ, to the consistency of the
-    # database's own functions for H and Cp: measured, 2e-6.
-    pp = sol.prob.p
-    u_end = sol.u[end]
-    T_end = u_end[end]
-    nk(i) = (j = findfirst(==(i), pp.idx_kinetic); j === nothing ? pp.n_full[i] : max(u_end[pp.n_be + j], pp.ϵ))
-    Cp_paste = sum(
-        nk(i) * pp.cp_fns[i](; T = T_end, unit = false)
-            for i in 1:length(pp.h_fns) if pp.h_fns[i] !== nothing && pp.cp_fns[i] !== nothing
-    )
-    @test ForwardDiff.derivative(T -> system_enthalpy(pp, u_end, T), T_end) ≈ Cp_paste rtol = 1.0e-5
-
-    # The heat the partition takes up as it shifts with temperature, from the
-    # Gibbs–Helmholtz right-hand side, against the certified equilibrium of the
-    # last proved partition differentiated with respect to its temperature.
-    p = sol.prob.p
-    Tr = p.heat_T[]
-    C_shift = ChemistryLab._equilibrium_shift_capacity(p, Tr)
-    h = [p.h_fns[i](; T = Tr, unit = false) for i in p.idx_equilibrium]
-    function n_at(T)
-        st = ChemicalState(p.eq_system, p.heat_n[] .* u"mol"; T = T * u"K", P = p.P_q[])
-        eq, cert = solve_certified(p.eq_dual, (st,); b = p.heat_b[], ϵ = p.ϵ)
+    # The derivatives of the temperature the Jacobian holds, against a route that
+    # shares nothing with them: the certified equilibrium differentiated with
+    # respect to its temperature and its element amounts.
+    u = Float64.(sol.u[end])
+    T_end = ChemistryLab._cell_temperature(p, u)
+    nb = p.n_be
+    be = u[1:nb]
+    h = [p.h_fns[i](; T = T_end, unit = false) for i in p.idx_equilibrium]
+    function n_at(T, b)
+        st = ChemicalState(p.eq_system[], p.n_full[p.idx_equilibrium] .* u"mol"; T = T * u"K", P = p.P_q[])
+        eq, cert = solve_certified(p.eq_dual, (st,); b, ϵ = p.ϵ)
         @test cert.optimal
         return ustrip.(us"mol", eq.n)
     end
-    C_eq = h' * ForwardDiff.derivative(n_at, Tr)
-    @info "shift of the partition with temperature" C_shift C_eq
-    @test C_shift > 0
-    # Measured: 1.61400 J/K against 1.61386, 8e-5 apart. The Gibbs–Helmholtz
-    # form leaves out the temperature dependence of the activity coefficients,
-    # which the certified equilibrium carries.
-    @test C_shift ≈ C_eq rtol = 1.0e-3
+    n_e = n_at(T_end, be)
+    nk = u[(nb + 1):(nb + p.n_nk)]
+    # The heat capacity at fixed composition as the derivative of the enthalpy
+    # the balance is written with: the database's own `Cp` agrees with it to
+    # 2e-6 only (see above).
+    cp(i, n) = n * ForwardDiff.derivative(x -> p.h_fns[i](; T = x, unit = false), T_end)
+    C_eq = C_vessel + sum(cp(i, n_e[j]) for (j, i) in enumerate(p.idx_equilibrium)) +
+        sum(cp(i, max(nk[j], p.ϵ)) for (j, i) in enumerate(p.idx_kinetic)) +
+        h' * ForwardDiff.derivative(x -> n_at(x, be), T_end)
+    # ∂T/∂ΔH = 1/C, the heat capacity of the cell at equilibrium.
+    dT_dH = ForwardDiff.derivative(x -> ChemistryLab._cell_temperature(p, vcat(u[1:(end - 1)], x)), u[end])
+    @info "heat capacity of the cell at equilibrium" C_eq inverse_dTdH = 1 / dT_dH
+    @test 1 / dT_dH ≈ C_eq rtol = 1.0e-8
+    # ∂T/∂bₑ = −(Σₑ hₑ ∂nₑ/∂bₑ)/C: the heat a change of the budget releases.
+    dT_db = ForwardDiff.gradient(x -> ChemistryLab._cell_temperature(p, vcat(x, u[(nb + 1):end])), be)
+    dn_db = ForwardDiff.jacobian(x -> n_at(T_end, x), be)
+    @test dT_db ≈ -(h' * dn_db)' ./ C_eq rtol = 1.0e-5 atol = 1.0e-9 * maximum(abs, dT_db)
 
-    # A partition whose audit raises proves nothing, and the heat reference stays.
-    @test ChemistryLab._proved_partition(p, p.heat_n[], p.heat_b[][1:(end - 1)]) === nothing
+    # A state whose partition cannot be solved, a negative budget, has no
+    # temperature: the right-hand side is NaN there, and an integrator rejects
+    # the step rather than take a temperature the balance does not have.
+    f! = build_kinetics_ode(kp)
+    bad = copy(u)
+    bad[1:nb] .*= -1
+    du = similar(bad)
+    quiet(f) = Base.CoreLogging.with_logger(f, Base.CoreLogging.NullLogger())
+    quiet(() -> f!(du, bad, p, sol.t[end]))
+    @test all(isnan, du)
+    @test quiet(() -> ChemistryLab._cell_temperature_value(p, bad[1:nb], nk, bad[end])) === nothing
+
+    # The temperature is solved with the partition at every evaluation, which a
+    # frozen partition cannot do.
+    @test_throws ArgumentError integrate(kp, KineticsSolver(; ode_solver = Rodas5P()); speciation = :frozen)
+end
+
+@testset "a cell with losses: any integrator, the same energy balance" begin
+    cal = SemiAdiabaticCalorimeter(;
+        Cp = 50.0u"J/K", T_env = 293.15u"K", L = 0.05u"W/K", T0 = 293.15u"K",
+    )
+    run_with(solver) = integrate(kp, KineticsSolver(; ode_solver = solver, reltol = 1.0e-8, abstol = 1.0e-12))
+    kp, sol = _partial_equilibrium_paste(cal)
+    # What left through the walls is the change of the enthalpy of the cell the
+    # state carries, integrated on the dense output.
+    ts = range(0.0, 2 * 86400.0; length = 4001)
+    _, Tts = temperature_profile(sol, cal; times = ts)
+    lost = sum((0.05 * (Tts[i] - 293.15) + 0.05 * (Tts[i + 1] - 293.15)) / 2 * (ts[i + 1] - ts[i]) for i in 1:(length(ts) - 1))
+    @test -sol.u[end][end] ≈ lost rtol = 1.0e-5
+    # The right-hand side is a function of the state and its Jacobian is exact:
+    # a stiff Rosenbrock method, a BDF method and an explicit Runge–Kutta method
+    # integrate the same trajectory. Measured: 1e-6 K apart at two days.
+    tq = [0.25, 0.5, 1.0, 2.0] .* 86400.0
+    T_ref = last(temperature_profile(sol, cal; times = tq))
+    for solver in (FBDF(), Tsit5())
+        s2 = run_with(solver)
+        @test SciMLBase.successful_retcode(s2)
+        @test last(temperature_profile(s2, cal; times = tq)) ≈ T_ref atol = 1.0e-5
+    end
 end
 
 @testset "a stoichiometric cell loses exactly what leaves it" begin
@@ -462,6 +500,12 @@ end
     tQ, Q = cumulative_heat(sol, cal)
     @test length(q) == length(tq) == length(Q) == length(t)
     @test Q[end] ≈ C_vessel * (T[end] - T[1]) + lost rtol = 0.05
+    # The heat rate of the paste, `−dH/dt` with the temperature term of a cell
+    # that warms, is what the vessel takes and what leaves it:
+    # `C_vessel dT/dt + L (T − T_env)`, on the same interpolant.
+    idx = [findmin(abs.(sol.t .- x))[2] for x in (3600.0, 86400.0, 2 * 86400.0)]
+    _, _, q_paste = heat_release(sol, kp; times = sol.t[idx])
+    @test q_paste ≈ q[idx] rtol = 1.0e-4
 end
 
 @testset "a species without an enthalpy is refused under partial equilibrium" begin

@@ -641,9 +641,10 @@ The package computes heat without writing a reaction either. The enthalpy of a
 state being ``\sum_i n_i h_i^\circ``, the heat released between two states at the
 same temperature is the difference of their enthalpies, which is how
 [`heat_release`](@ref) and the calorimeters compute it. The heat of the
-calorimeters under partial equilibrium, the temperature shift of an equilibrium
-in a semi-adiabatic cell and the sensitivities of the minimization all rest on
-the two remarks made above on the omitted terms.
+calorimeters under partial equilibrium, the heat capacity of a semi-adiabatic
+cell at equilibrium and the sensitivities of the minimization all rest on the
+two remarks made above on the omitted terms
+([Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics)).
 
 ## Where to go next
 

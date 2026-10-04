@@ -47,8 +47,11 @@ import ChemistryLab:
 Integrate the kinetics ODE using `OrdinaryDiffEq` (Leal et al. 2017 formulation).
 
 The ODE function, initial state, and parameters are built from `kp`.
-Calorimetry (isothermal or semi-adiabatic) is integrated directly in the ODE
-right-hand-side — no separate `extend_ode!` step.
+Calorimetry (isothermal or semi-adiabatic) is integrated in the same ODE: under
+partial equilibrium the state carries the change of the enthalpy of the cell
+and the temperature is the root of its energy balance, solved with the
+partition at every evaluation of the right-hand side (see the theory page
+*Kinetics under partial equilibrium*).
 
 Default tolerances: `reltol = 1e-8`, `abstol = 1e-10`.
 
@@ -56,8 +59,9 @@ Default tolerances: `reltol = 1e-8`, `abstol = 1e-10`.
 `:frozen`, as the last accepted step left it, re-speciated once per step;
 `:rhs`, solved at every evaluation, with its derivative in the Jacobian; or
 `:auto`, the default, which takes `:rhs` when a rate law reads the partition (an
-activity or an amount of an equilibrium species, a saturation ratio) and
-`:frozen` otherwise, where splitting is exact. `:rhs` needs the certified solver
+activity or an amount of an equilibrium species, a saturation ratio) or a
+semi-adiabatic cell takes its temperature from it, and `:frozen` otherwise,
+where splitting is exact. `:rhs` needs the certified solver
 of the partition (OptimaSolver, an aqueous phase with `H2O@`); in that mode a
 step that leaves the kinetic amounts outside what the system holds is rejected.
 
@@ -125,18 +129,31 @@ function integrate(kp::KineticsProblem, ks::KineticsSolver; speciation::Symbol =
     prob = ODEProblem(f!, u0, kp.tspan, p)
 
     # The equilibrium partition is re-speciated once per accepted step by this
-    # callback, and, when a rate law reads it, solved at every evaluation of the
-    # right-hand side as well (`:rhs`, see `build_kinetics_ode`). The callback
-    # touches `u` only through the heat of a calorimeter, so
+    # callback, and, when a rate law or a semi-adiabatic cell reads it, solved
+    # at every evaluation of the right-hand side as well (`:rhs`, see
+    # `build_kinetics_ode`). The callback never touches `u`, so
     # `save_positions = (false, false)`.
     if p.n_be > 0
         # A non-converged solve is a warning, not an exception, and its result is
         # used anyway — so it never reached `eq_failures`. Count it over the run.
         nonconv0 = ChemistryLab.NONCONVERGED[]
         respeciate!(p, u0)          # start from an equilibrated state
+        # The reference of a calorimeter's energy balance, at the partition the
+        # right-hand side will solve: the first equilibrium releases nothing.
+        ChemistryLab._initialize_cell!(p, u0)
         reads = ChemistryLab._rates_read_speciation(p)
         p.rates_read_speciation[] = reads
-        mode = speciation === :auto ? (reads ? :rhs : :frozen) : speciation
+        # A semi-adiabatic cell under partial equilibrium takes its temperature
+        # from the partition at every evaluation, whatever the rate laws read.
+        cell = p.has_T && p.heat_eq
+        cell && speciation === :frozen && throw(
+            ArgumentError(
+                "a semi-adiabatic cell under partial equilibrium solves its temperature with " *
+                    "the partition at every evaluation, which `speciation = :frozen` excludes; " *
+                    "use `:auto` or `:rhs`.",
+            ),
+        )
+        mode = speciation === :auto ? (reads || cell ? :rhs : :frozen) : speciation
         mode === :rhs && p.eq_dual === nothing && throw(
             ArgumentError(
                 "speciation = :rhs solves the partition at every evaluation, with the " *
@@ -163,16 +180,13 @@ function integrate(kp::KineticsProblem, ks::KineticsSolver; speciation::Symbol =
                 q.on_accepted[] = true
                 changed = respeciate!(q, integrator.u)
                 q.on_accepted[] = false
-                # The heat of the part of that re-speciation the linearized
-                # partition did not predict goes into the calorimeter's state.
-                jump = ChemistryLab._apply_heat_jump!(q, integrator.u)
                 # The right-hand side reads what the re-speciation wrote into `p`
-                # when a calorimeter takes its heat and its heat capacity from the
-                # partition, or when a law that reads the partition is run
-                # frozen; the integrator then has to drop what it derived from
-                # the old values.
+                # only when a law that reads the partition is run frozen; the
+                # integrator then has to drop what it derived from the old
+                # values. Otherwise it is a function of the state alone, and the
+                # re-speciation is its warm start.
                 reads_frozen = q.rates_read_speciation[] && q.rhs_mode[] === :frozen
-                _mark_modified!(integrator, jump || (changed && (q.heat_eq || reads_frozen)))
+                _mark_modified!(integrator, changed && reads_frozen)
             end;
             save_positions = (false, false),
         )
