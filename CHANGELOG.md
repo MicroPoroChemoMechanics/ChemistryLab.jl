@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.31.1 — The first equilibrium of a session compiles as fast as with 0.30
+
+A patch release: the answers are those of 0.31.0, the same on the 32 cement
+pastes of a thesis, and the first certified equilibrium of a session compiles
+again within 2 s of the time 0.30 took. Measured on the same machine, the 32
+pastes take 396 s with 0.30.0, 421 s with 0.31.0 and 398 s with 0.31.1.
+
+### Fixed
+
+- **The first equilibrium of a session compiled 13 s longer than with 0.30.**
+  0.31.0 ran an explicit back end whose answer was to be polished under a
+  scoped value that suspended the strict convergence check, and inferring the
+  solve through it cost 13 s of compilation on the first certified equilibrium
+  of a CEM I paste: 125 s against 112 s, where 0.30.0 took 109 s. The check is
+  now simply not made when the polish decides on the answer.
+- With it goes a warning that misled: a back end stopping short, at `MaxIters`
+  for instance, was reported as not converged and counted in `NONCONVERGED`,
+  although the answer returned was the one the polish then certified. A polish
+  that fails is reported, as before.
+
 ## v0.31.0 — One equilibrium whatever the back end, a scope that says what is proved, and kinetics that read the speciation
 
 An external audit of 0.29.0 reported seven defects, and the code confirmed

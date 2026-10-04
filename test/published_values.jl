@@ -84,11 +84,11 @@
 
         eq10, eq30 = equilibrated(10.0), equilibrated(30.0)
 
-        # NOTE: one of these two solves reports `MaxIters` and still lands on the
-        # right answer — the ionic product below matches the database Kₛₚ to 0.01
-        # log units. The interior-point iteration stalls short of its own
-        # stationarity test rather than short of the solution, which is the same
-        # symptom the trace species showed in `equilibrium_reference.jl`. The
+        # NOTE: on its own, one of these two interior-point solves stops at
+        # `MaxIters`, short of its own stationarity test rather than short of the
+        # solution, which is the same symptom the trace species showed in
+        # `equilibrium_reference.jl`; since 0.31 its answer is polished by the
+        # dual Newton, and that return code is no longer reported. The
         # assertions here are on the composition, deliberately, so they measure
         # the answer and not the exit code.
 

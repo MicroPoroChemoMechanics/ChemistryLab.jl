@@ -238,6 +238,29 @@ include("reference_species.jl")
         end
     end
 
+    @testsection "a back end the polish corrects is not reported" begin
+        # The interior point stops short on this case: on its own, the solve is
+        # counted as not converged. Polished, its answer is certified and its
+        # return code is not checked, even under `STRICT_CONVERGENCE`.
+        es = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer())
+        quiet(f) = Base.CoreLogging.with_logger(f, Base.CoreLogging.NullLogger())
+        before = ChemistryLab.NONCONVERGED[]
+        quiet(() -> ChemistryLab._unpolished(() -> SciMLBase.solve(es, calcite())))
+        @test ChemistryLab.NONCONVERGED[] > before
+        strict = ChemistryLab.STRICT_CONVERGENCE[]
+        cref = Ref{Any}()
+        try
+            ChemistryLab.STRICT_CONVERGENCE[] = true
+            before = ChemistryLab.NONCONVERGED[]
+            eq = SciMLBase.solve(es, calcite(); certificate = cref)
+            @test cref[].optimal
+            @test ChemistryLab.NONCONVERGED[] == before
+            @test_throws ErrorException ChemistryLab._unpolished(() -> SciMLBase.solve(es, calcite()))
+        finally
+            ChemistryLab.STRICT_CONVERGENCE[] = strict
+        end
+    end
+
     @testsection "the dual route needs an aqueous phase and H2O@" begin
         # It parameterizes the interior variables by the solvent's potential, so
         # both conditions are structural. `equilibrate_certified` returns

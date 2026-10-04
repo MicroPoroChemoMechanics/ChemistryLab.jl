@@ -152,14 +152,15 @@ function SciMLBase.solve(
     opt_prob = _build_optima_opt_prob(prob, esolver.μ, esolver.variable_space)
 
     # The polish decides on the answer, so the interior point's own return code
-    # is not a reason to raise under `STRICT_CONVERGENCE` when there is one.
+    # is not checked when there is one: it is neither a warning nor, under
+    # `STRICT_CONVERGENCE`, an error, and a polish that fails says so itself.
+    # Not by running the solve under `_relaxed_convergence`: a scoped value
+    # around it cost 13 s of compilation on the first cement equilibrium of a
+    # session (measured on a CEM I paste: 125 s against 112 s).
     polish = ChemistryLab._POLISH[] && ChemistryLab._DUAL_AVAILABLE[] &&
         ChemistryLab._dual_applicable(state.system)
-    run() = ChemistryLab._check_converged(
-        SciMLBase.solve(opt_prob, esolver.solver; esolver.kwargs...),
-        "equilibrium solve",
-    )
-    sol = polish ? ChemistryLab._relaxed_convergence(run) : run()
+    raw = SciMLBase.solve(opt_prob, esolver.solver; esolver.kwargs...)
+    sol = polish ? raw : ChemistryLab._check_converged(raw, "equilibrium solve")
     transform = _solution_transform(esolver.variable_space)
 
     state_eq = copy(state)
