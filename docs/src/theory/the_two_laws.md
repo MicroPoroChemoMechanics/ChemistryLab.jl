@@ -1,18 +1,33 @@
-# [Energy and entropy balances](@id sec-theory-energy-entropy)
+# [The two laws, and what the Gibbs energy measures](@id sec-theory-laws)
 
-[Energies, enthalpies and the chemical potential](@ref sec-theory-basics)
-derives the first and second laws, the enthalpy a calorimeter measures and the
-Gibbs energy the solver minimizes. This page does not repeat those
-definitions. It writes the same two laws as **balances** on a chosen boundary,
-which is where the conditions behind ``q_P=\Delta H`` and behind the minimum of
-``G`` become explicit. It also explains why a reacting system can heat up while
-remaining closed, and why an equilibrium calculation alone cannot predict a
-calorimetric curve.
+The pages of this chapter use the enthalpy, the entropy and the Gibbs energy as
+familiar objects, although the relations between them are rarely obvious on a
+first reading: a calorimeter measures a change of enthalpy, whereas the solver
+minimizes a Gibbs energy. This page rebuilds both from the two laws of
+thermodynamics, mostly in the order in which [AndersonCrerar1993](@cite)
+introduce them, and writes the laws as **balances** on a chosen boundary, which
+is where the conditions behind ``q_P = \Delta H`` and behind the minimum of
+``G`` become explicit.
+[The chemical potential and reactions](@ref sec-theory-basics) then lets the
+composition change, and [Formation quantities and the database](@ref sec-theory-formation)
+explains the numbers a database stores.
 
-## 1. Choose the boundary before writing the balance
+!!! tip "Questions this page answers"
+      - Why does a calorimeter measure an enthalpy, and when does it not?
+      - Why can a closed, insulated reaction heat up, and what fixes its final
+        temperature?
+      - What does the Gibbs energy measure, and are ``\Delta H`` and
+        ``T\Delta S`` two flows of heat?
+      - If ``G`` is a state function, why does the path a reaction takes
+        matter?
 
-A system is the part of the experiment under consideration. Its boundary
-determines which transfers belong in its balance.
+## 1. The system and its boundary
+
+A system is the part of the world under consideration, and its state is fixed by a few
+variables, the temperature ``T``, the pressure ``P`` and the amounts ``n_i`` of
+its constituents. A state function is a quantity whose value depends on the
+state only, so that its change between two states does not depend on the way
+followed from one to the other. Its boundary determines which transfers belong in its balance.
 
 | description | matter crosses the boundary | heat crosses the boundary | work crosses the boundary |
 |:--|:--|:--|:--|
@@ -45,19 +60,40 @@ hydrogen, oxygen and charge. In the package's notation the fixed quantity is
 ``\mathbf{A}\mathbf{n}=\mathbf{b}``, not each ``n_i`` or the sum of the species
 amounts.
 
-This is classical chemical thermodynamics: nuclear transformations and the
-relativistic contribution of exchanged energy to a sample's mass are outside
-the model. Closure concerns material transfer; it does not require the energy
-of the sample to remain constant. In a relativistic description, exchanged
-energy contributes to the system's mass; classical element budgets and molar
-masses neglect that correction while retaining the chemical energy balance.
+This is classical chemical thermodynamics: nuclear transformations, and the
+contribution of exchanged energy to the mass of a sample, are outside the model.
 
-## 2. What the first law needs before ``q_P=\Delta H``
+## 2. Heat, work, and why a calorimeter measures an enthalpy
 
-The heat ``q`` and the work ``w`` are counted positive when received by the
-system, as in [Energies, enthalpies and the chemical potential](@ref sec-theory-basics) §1.
-Neglecting changes in bulk kinetic and gravitational potential energy, the
-first law for a closed system reads, in differential form,
+The internal energy ``U`` is a state function, whereas the heat ``q`` and the work ``w`` received by the system are not: the
+same change of state can be brought about with more work and less heat, or the
+reverse. The first law states that their sum is nevertheless fixed by the two
+end states [AndersonCrerar1993](@cite) (§4.6),
+
+```math
+\Delta U = q + w .
+```
+
+In a chemical system held at constant pressure, the only work exchanged is
+usually that of the pressure against the change of volume, ``w = -P\,\Delta V``,
+and the heat received is then ``q_P = \Delta U + P\,\Delta V``. It is therefore
+natural to introduce the enthalpy
+
+```math
+H = U + PV ,
+```
+
+another state function, whose change at constant pressure is exactly the heat
+received, ``q_P = \Delta H``. A reaction that gives off heat at constant pressure
+is one whose enthalpy decreases, and the heat recorded by an isothermal
+calorimeter, counted positive when released, is ``Q = -\Delta H``. The
+difference between ``\Delta H`` and ``\Delta U`` is the work ``P\,\Delta V``,
+small for condensed phases and considerable as soon as a gas is produced or
+consumed.
+
+The same balance written for an infinitesimal change makes its conditions
+explicit. Neglecting changes in bulk kinetic and gravitational potential
+energy, the first law for a closed system reads
 
 ```math
 \mathrm{d}U = \delta q - P_{\mathrm{ext}}\,\mathrm{d}V + \delta w_{\mathrm{other}}.
@@ -65,8 +101,7 @@ first law for a closed system reads, in differential form,
 
 Heat and work describe transfers along a process: neither is a stored property
 of the sample. This is why their infinitesimal transfers use ``\delta`` whereas
-a state function uses ``\mathrm{d}``. See
-[MIT's discussion of heat and work](https://www.ocw.mit.edu/ans7870/16/16.unified/thermoF03/chapter_3.htm).
+a state function uses ``\mathrm{d}``.
 
 The pressure in expansion work is the **external** pressure. Replacing it by
 the system's pressure requires mechanical equilibrium. Constant pressure alone
@@ -90,7 +125,16 @@ An enthalpy change is an energy difference, in joules. A heat rate is an energy
 transfer per unit time, in watts. Enthalpy changes can include reaction,
 heating, phase change and mixing; they are not restricted to bond energies.
 
-## [3. Why an adiabatic reaction can raise the temperature](@id sec-theory-adiabatic)
+## [3. Heat capacity, and why an adiabatic reaction can raise the temperature](@id sec-theory-adiabatic)
+
+The heat capacity at constant pressure measures how the enthalpy grows with
+temperature at fixed composition,
+
+```math
+C_p = \left(\frac{\partial H}{\partial T}\right)_{P,n} ,
+```
+
+and it governs the other kind of calorimeter, the one that exchanges no heat.
 
 For a closed adiabatic system at constant pressure, with only pressure-volume
 work, ``H`` remains constant. For a rigid closed adiabatic system with no work,
@@ -101,8 +145,7 @@ Consider the constant-pressure case. Let the initial state have composition
 ``\mathbf{n}_0`` at ``T_0`` and the final state composition ``\mathbf{n}_f`` at
 ``T_f``. Evaluating ``H(T_f,P,\mathbf{n}_f)-H(T_0,P,\mathbf{n}_0)=0`` through an
 imaginary path, first changing the composition at ``T_0`` and then heating the
-final composition, gives the balance already stated in
-[Energies, enthalpies and the chemical potential](@ref sec-theory-basics) §1,
+final composition, gives the balance
 
 ```math
 \underbrace{H(T_0,P,\mathbf{n}_f)-H(T_0,P,\mathbf{n}_0)}_{\Delta H_{\mathrm{composition}}(T_0)}
@@ -123,12 +166,27 @@ composition and temperature must be solved together. Phase transitions along
 the imaginary heating path require their enthalpy jumps as well. A vessel's
 heat capacity belongs in this balance if the vessel is part of the system.
 
-## 4. Entropy exchange and entropy production
+A semi-adiabatic vessel adds the heat it loses to this balance, and it is the
+subject of [A CEM I 52.5 N mortar in a semi-adiabatic calorimeter, inside the kinetics](@ref ex-semiadiabatic).
 
-The inequality of Clausius in
-[Energies, enthalpies and the chemical potential](@ref sec-theory-basics) §2
-becomes a balance once the entropy created inside the system is named. For a
-closed system exchanging heat at a boundary temperature ``T_b``,
+## 4. Entropy: the inequality of Clausius, and entropy production
+
+The first law says nothing about the direction of a change. The second law
+supplies it through a further state function, the entropy ``S``, which obeys, for
+any transformation of a closed system at temperature ``T``, the inequality of
+Clausius [AndersonCrerar1993](@cite) (§5.2, §5.8)
+
+```math
+\mathrm{d}S \;\ge\; \frac{\delta q}{T} ,
+```
+
+the equality holding for a reversible transformation only. Unlike ``U`` and
+``H``, the entropy can be given an absolute value, the third law fixing its zero;
+[Absolute entropy and entropy of formation](@ref sec-theory-absolute-entropy)
+defines it, together with the entropy of formation it must not be confused with.
+
+The inequality becomes a balance once the entropy created inside the system is
+named. For a closed system exchanging heat at a boundary temperature ``T_b``,
 
 ```math
 \mathrm{d}S = \frac{\delta q}{T_b} + \mathrm{d}S_{\mathrm{gen}},
@@ -163,16 +221,30 @@ alone does not establish a balance or the sign of a reaction entropy. The
 distinction between conservation and direction is developed in
 [AndersonCrerar1993](@cite), Chapter 5.
 
-## [5. What the Gibbs energy tells us](@id sec-theory-gibbs-criterion)
+## [5. The Gibbs energy, and what it measures](@id sec-theory-gibbs-criterion)
 
-``G=H-TS`` is defined at each thermodynamic state, and its existence does not
-require the temperature to remain constant along a process. The **minimum
-criterion** derived in
-[Energies, enthalpies and the chemical potential](@ref sec-theory-basics) §2
-does require specified constraints. For a closed system whose initial and final
-states share the temperature ``T`` of one heat reservoir and the same imposed
-pressure, with only pressure-volume work, the entropy balance of §4 applied to
-the system and the reservoir reads
+At constant pressure, with no work other than that of the pressure, the heat
+received is the change of enthalpy, ``\delta q = \mathrm{d}H`` (§2), and the
+inequality becomes ``\mathrm{d}H - T\,\mathrm{d}S \le 0``. At constant
+temperature the left-hand side is the differential of one function,
+``\mathrm{d}(H - TS) = \mathrm{d}H - T\,\mathrm{d}S - S\,\mathrm{d}T
+= \mathrm{d}H - T\,\mathrm{d}S``. It is thus the function
+
+```math
+G = H - TS ,
+```
+
+the Gibbs energy, that can only decrease in a spontaneous transformation at fixed
+``T`` and ``P``, ``\mathrm{d}G \le 0``, and reaches its minimum at equilibrium.
+This is the principle the solver of this package implements.
+
+The derivation holds under stated constraints, and the entropy balance of §4
+shows which. ``G = H - TS`` is defined at each state, and its existence does
+not require the temperature to remain constant along a process; the minimum
+criterion does. For a closed system whose initial and final states share the
+temperature ``T`` of one heat reservoir and the same imposed pressure, with
+only pressure-volume work, the entropy balance applied to the system and the
+reservoir reads
 
 ```math
 \Delta G=\Delta H-T\Delta S_{\mathrm{system}}
@@ -186,16 +258,29 @@ isolated rigid system maximizes ``S`` at fixed ``U``, ``V`` and budget, and an
 adiabatic constant-pressure system with only pressure-volume work maximizes
 ``S`` at fixed ``H``, ``P`` and budget.
 
-What vanishes at equilibrium is a slope, not a difference
-([The Gibbs energy of a reaction is a slope](@ref sec-theory-reaction-gibbs)).
-The Gibbs energy of every reaction that can proceed both ways,
+What vanishes at equilibrium is a slope, not a difference. The Gibbs energy of
+every reaction that can proceed both ways,
 ``\Delta_r G = (\partial G/\partial\xi)_{T,P}``, is zero there; at a boundary,
 such as an absent pure phase, only the feasible direction is tested and an
 inequality replaces that equality. The difference ``\Delta G`` between an
 initial state and the equilibrium state is negative, and ``G`` itself has no
-reason to take any particular value.
+reason to take any particular value. The distinction is drawn, with the extent
+of reaction ``\xi`` it requires, in
+[The Gibbs energy of a reaction is a slope, not a difference](@ref sec-theory-reaction-gibbs).
 
-### Why ``\Delta H`` and ``T\Delta S`` are not two heat sources
+What ``G`` measures is a capacity for work. In a reversible change at fixed
+``T`` and ``P``, a system can deliver work other than that of its expansion, the
+electrical work of a battery for instance, and the most it can deliver is
+``-\Delta G``; a change that delivers none, as a reaction in a beaker does,
+dissipates that capacity as heat instead. The two terms of ``G`` weigh two tendencies against each other: a change releasing heat
+lowers ``H``, a change creating disorder raises ``S``, and a reaction that
+absorbs heat can still proceed when the entropy it creates outweighs it, as the
+dissolution of many salts does.
+
+### Why ``\Delta H`` and ``T\Delta S`` are not two flows of heat
+
+The two terms are easily read as two heats, one chemical and one thermal. They
+are not.
 
 At fixed ``T`` and ``P``, a reversible process can deliver useful work in
 addition to expansion work. Then ``q_{\mathrm{rev}}=T\Delta S`` and the first
@@ -211,9 +296,44 @@ instead, and irreversibility accounts for the difference from
 ``T\Delta S``. These statements concern different processes between the same
 states. They do not split the actual heat into a "chemical" contribution
 ``\Delta H`` and a separate "thermal" contribution ``T\Delta S``.
-The conditions for the minimum criterion and for useful work extraction are
-also derived in [Oxford's chemical thermodynamics notes](https://manolopoulos.chem.ox.ac.uk/downloads/thermo2.pdf),
-Section A.
+
+### The natural variables of ``G``, and the Gibbs-Helmholtz relation
+
+For a closed system of fixed composition, the first law with only the work of
+the pressure, written for a reversible change, reads
+``\mathrm{d}U = T\,\mathrm{d}S - P\,\mathrm{d}V``. Differentiating
+``G = U + PV - TS`` and inserting it,
+
+```math
+\mathrm{d}G = \mathrm{d}U + P\,\mathrm{d}V + V\,\mathrm{d}P - T\,\mathrm{d}S - S\,\mathrm{d}T
+  = -S\,\mathrm{d}T + V\,\mathrm{d}P ,
+\qquad
+\left(\frac{\partial G}{\partial T}\right)_P = -S .
+```
+
+The terms in ``\mathrm{d}S`` and ``\mathrm{d}V`` cancel: subtracting ``TS`` and
+adding ``PV`` exchanges the variables ``S`` and ``V``, which no experiment
+controls, for ``T`` and ``P``, which a laboratory sets. This exchange is called
+a Legendre transform [AndersonCrerar1993](@cite) (§5.4), and it is why ``G`` is the natural potential of a
+system held at fixed temperature and pressure. Since ``G``, ``S`` and ``V`` are
+state functions, the result holds for any change between two states, reversible
+or not.
+
+The temperature derivative of ``G/T`` follows by the rule for a quotient, and
+eliminates the entropy:
+
+```math
+\left(\frac{\partial (G/T)}{\partial T}\right)_P
+  = \frac{1}{T}\left(\frac{\partial G}{\partial T}\right)_P - \frac{G}{T^2}
+  = -\frac{TS + G}{T^2}
+  = -\frac{H}{T^2} .
+```
+
+This is the Gibbs-Helmholtz relation, by which the enthalpy, the quantity
+calorimetry measures, is read on the temperature dependence of the Gibbs energy,
+the quantity equilibrium depends on. Applied to a reaction it becomes the van 't
+Hoff relation of [The heat of reaction](@ref sec-theory-heat-of-reaction):
+measuring how an equilibrium constant changes with temperature gives the heat of the reaction without a calorimeter.
 
 ## 6. State functions and kinetic paths
 
@@ -231,11 +351,15 @@ amounts and re-equilibrates the remaining budget. It computes successive
 Rate laws supply the time dependence, and a thermal balance supplies a changing
 temperature when that is modeled.
 
+A state held back by a slow transformation is often pictured as a local
+minimum of ``G``; [Metastable does not mean a local minimum of G](@ref sec-theory-metastable)
+explains why it is better described as the minimum of ``G`` on a smaller set
+of compositions.
+
 ### [What the package counts as heat](@id sec-theory-heat-output)
 
 For a closed isothermal constant-pressure sample with only pressure-volume
-work, the heat released up to time ``t``, counted positive as in
-[Energies, enthalpies and the chemical potential](@ref sec-theory-basics) §1, is
+work, the heat released up to time ``t``, counted positive as in §2, is
 
 ```math
 Q(t)=H(T,P,\mathbf{n}_0)-H(T,P,\mathbf{n}(t)),
@@ -251,7 +375,7 @@ temperature rise is not an outward heat transfer.
 The package evaluates ``H=\sum_i n_i\,\Delta_a H_i^\circ`` with
 [`enthalpy`](@ref): the standard enthalpies of the species, without the excess
 enthalpies of the aqueous or solid-solution activity models, as
-[Energies, enthalpies and the chemical potential](@ref sec-theory-basics) §3
+[Activity, and the enthalpy of a mixture](@ref sec-theory-mixture-enthalpy)
 explains. Using a non-ideal activity model for equilibrium therefore does not
 by itself add its heat of mixing to the reported calorimetry. For a
 concentration-based activity, the temperature derivative behind an excess
@@ -278,6 +402,10 @@ is developed in [Proving that an answer is the answer](@ref sec-theory-certifica
 
 ## Where to go next
 
-[Thermochemistry](@ref sec-theory-thermo) takes up these quantities in the
-notation of the code, with the potential the solver minimizes and the models by
-which ``\Delta_a G^\circ(T,P)`` is evaluated.
+[The chemical potential and reactions](@ref sec-theory-basics) is the next
+page: it lets the composition of the system change, which brings in the
+chemical potential, and arrives at the equilibrium constant of a reaction.
+
+  - [CEM I 52.5 N and slag in an isothermal calorimeter, read off the states](@ref sec-example-isothermal)
+    and [A CEM I 52.5 N mortar in a semi-adiabatic calorimeter, inside the kinetics](@ref ex-semiadiabatic),
+    the two calorimeters of §2 and §3 on a cement.

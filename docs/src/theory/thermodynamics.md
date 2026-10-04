@@ -1,6 +1,6 @@
 # [Thermochemistry: the quantities and how they connect](@id sec-theory-thermo)
 
-[Energies, enthalpies and the chemical potential](@ref sec-theory-basics) ends
+[Formation quantities and the database](@ref sec-theory-formation) ends
 with the chemical potential of a species written through the apparent Gibbs
 energy a database stores. This page follows that quantity into the code: the
 potential the solver minimizes, the models by which its standard part is

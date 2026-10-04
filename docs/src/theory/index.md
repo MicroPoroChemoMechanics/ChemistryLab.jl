@@ -45,23 +45,44 @@ first thing to read and the first thing to suspect:
 
 ## Reading order
 
-[Energies, enthalpies and the chemical potential](@ref sec-theory-basics) is
-written for a reader new to thermodynamics: it rebuilds from the two laws the
-enthalpy a calorimeter measures, the Gibbs energy the solver minimizes, the
-chemical potential that joins them, and the formation quantities a database
-tabulates, with their dependence on temperature and pressure.
-[Energy and entropy balances](@ref sec-theory-energy-entropy) writes the same
-two laws as balances on a chosen boundary: what changes for an adiabatic cell,
-where entropy is produced, and why a kinetic history is not a state function.
-[Thermochemistry](@ref sec-theory-thermo) follows, since it fixes the
-notation of the whole chapter, which is that of the code, and
+The chapter can be read in two ways, and the first is short.
+
+### A first reading
+
+These pages answer, in order, the questions a reader new to thermodynamics asks
+about what the package computes on a cement. Each opens with the questions it
+answers.
+
+1. [The two laws, and what the Gibbs energy measures](@ref sec-theory-laws)
+   rebuilds the enthalpy a calorimeter measures and the Gibbs energy the solver
+   minimizes, and says what each is not: ``\Delta H`` and ``T\Delta S`` are
+   not two flows of heat, and a kinetic history is not a state function.
+2. [The chemical potential and reactions](@ref sec-theory-basics) lets the
+   composition change: the chemical potential, why the activity of water is
+   tied to those of the solutes, the Gibbs energy of a reaction as a slope, the
+   equilibrium constant, and why a metastable state is not a local minimum of
+   ``G``.
+3. [Activity models](@ref sec-theory-activity), §1 to §3: where the activity of
+   an ion comes from, and why the water activity cannot be chosen separately.
+4. [The water budget of a hydrating paste](@ref sec-theory-water-budget): what
+   a Gibbs minimization predicts about a hydrating paste, and what it cannot.
+
+### For further reading, and for reference
+
+[Formation quantities and the database](@ref sec-theory-formation) completes
+the foundations with what a database stores: energies of formation, absolute
+and conventional entropies, how these are measured, and how a standard potential
+is carried to any temperature and pressure, up to the apparent Gibbs energy the
+package reads. [Thermochemistry](@ref sec-theory-thermo) follows, since it
+fixes the notation of the whole chapter, which is that of the code, and
 [Standard states](@ref sec-theory-standard-states) completes it by stating what
 each activity is measured from. [Proving that an answer is the answer](@ref sec-theory-certificate)
 then explains why an equilibrium computed here can be checked rather than
 trusted: the optimality conditions can be audited on any composition, they are
 sufficient for a global minimum when the activities derive from one convex
-energy, and the certificate says whether they do. The same page fixes the meaning of stable,
-metastable and partial equilibrium, on which the kinetic chapters rely.
+energy, and the certificate says whether they do. The same page fixes the
+meaning of stable, metastable and partial equilibrium, on which the kinetic
+chapters rely.
 
 The places where a mixture stops being ideal follow.
 [Activity models](@ref sec-theory-activity) treats the aqueous phase, on which

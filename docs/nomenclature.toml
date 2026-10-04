@@ -224,7 +224,7 @@ tex = "q"
 label = "q"
 name = "heat received by the system, or released by the reactions"
 unit = "J"
-pages = ["theory/energies_and_potentials.md", "examples/semiadiabatic_calorimetry.md"]
+pages = ["theory/the_two_laws.md", "examples/semiadiabatic_calorimetry.md"]
 
 [[symbol]]
 group = "State and thermodynamic functions"
@@ -232,7 +232,7 @@ tex = "w"
 label = "w"
 name = "work received by the system"
 unit = "J"
-pages = ["theory/energies_and_potentials.md"]
+pages = ["theory/the_two_laws.md"]
 
 [[symbol]]
 group = "State and thermodynamic functions"

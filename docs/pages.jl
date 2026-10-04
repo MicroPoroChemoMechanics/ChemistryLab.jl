@@ -38,13 +38,20 @@ pages = [
         # The definitions and identities the rest is written in. Read first: the
         # remaining pages use its notation, which is the code's.
         "Foundations" => [
-            # The two laws, the enthalpy a calorimeter measures, the Gibbs energy
-            # the solver minimizes and the chemical potential between them, for
-            # a reader who meets them here for the first time.
+            # Three pages in the order a first reader's questions arise. The two
+            # laws written as balances on a boundary: the enthalpy a calorimeter
+            # measures, the Gibbs energy the solver minimizes, and what each
+            # one is not.
+            "theory/the_two_laws.md",
+            # The composition allowed to change: the chemical potential, Euler and
+            # Gibbs-Duhem, the Gibbs energy of a reaction, the equilibrium
+            # constant, and why a metastable state is not a local minimum.
             "theory/energies_and_potentials.md",
-            # The same two laws written as balances on a chosen boundary: what an
-            # adiabatic cell, entropy production and a kinetic path add to them.
-            "theory/energy_entropy.md",
+            # What a database stores and how it is measured: formation
+            # quantities, entropies, primaries, temperature and pressure, the
+            # apparent convention. Reference material; a first reading can
+            # come back to it.
+            "theory/formation_quantities.md",
             "theory/thermodynamics.md",
             # What an activity is measured from. Before the certificate, because
             # every potential the certificate compares rests on these conventions.

@@ -22,7 +22,7 @@ each instant. They do not represent jumps over activation barriers or imply
 that the whole paste has reached its stable equilibrium. A changing
 temperature affects both rate laws and the equilibrium map; its history comes
 from a thermal balance, not from the equilibrium minimum alone.
-[Energy and entropy balances](@ref sec-theory-energy-entropy) explains this
+[The two laws, and what the Gibbs energy measures](@ref sec-theory-laws) explains this
 distinction, and [What the package counts as heat](@ref sec-theory-heat-output)
 states which enthalpy contributions the package includes.
 
