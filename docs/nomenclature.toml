@@ -752,7 +752,7 @@ tex = "\\mathbf{y}"
 label = "<b>y</b>"
 name = "multipliers of the conservation rows"
 unit = "1"
-pages = ["theory/equilibrium.md", "theory/thermodynamics.md", "manual/solving.md"]
+pages = ["theory/equilibrium.md", "theory/thermodynamics.md", "manual/solving.md", "theory/partial_equilibrium_kinetics.md"]
 
 [[symbol]]
 group = "Equilibrium and the solver"
@@ -792,7 +792,7 @@ tex = "\\varphi"
 label = "φ"
 name = "equilibrium map: the equilibrium amounts <b>n</b><sub>e</sub> of a budget <b>b</b><sub>e</sub>"
 unit = ""
-pages = ["tutorials/coupling.md", "tutorials/kinetics.md", "tutorials/reaktoro_comparison.md", "examples/coupled_hydration.md"]
+pages = ["tutorials/coupling.md", "tutorials/kinetics.md", "tutorials/reaktoro_comparison.md", "examples/coupled_hydration.md", "theory/partial_equilibrium_kinetics.md"]
 
 [[symbol]]
 group = "Equilibrium and the solver"
@@ -933,7 +933,7 @@ pages = ["theory/kinetics.md"]
 group = "Kinetics and hydration"
 tex = "C"
 label = "C"
-name = "heat capacity of the calorimeter and its content"
+name = "heat capacity of the calorimeter and of what it holds besides the paste"
 unit = "J/K"
 pages = ["examples/semiadiabatic_calorimetry.md"]
 
@@ -982,7 +982,127 @@ tex = "\\phi"
 label = "ϕ"
 name = "porosity, referred to the initial volume"
 unit = "1"
-pages = ["manual/recipes.md"]
+pages = ["manual/recipes.md", "theory/recipe_bookkeeping.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "m"
+label = "m"
+name = "mass in a recipe: of a constituent (m<sub>c</sub>), of the binder (m<sub>b</sub>), of the equilibrium (m<sub>eq</sub>)"
+unit = "g"
+pages = ["theory/recipe_bookkeeping.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "f"
+label = "f"
+name = "mass fraction of a material in the binder"
+unit = "1"
+pages = ["theory/recipe_bookkeeping.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "x"
+label = "x"
+name = "mass fraction of a constituent in its material"
+unit = "1"
+pages = ["theory/recipe_bookkeeping.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\omega"
+label = "ω"
+name = "mass fraction of an oxide in a constituent known by its analysis"
+unit = "1"
+pages = ["theory/recipe_bookkeeping.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\mathbf{d}"
+label = "<b>d</b>"
+name = "an oxide decomposed over the primaries of the system, per formula unit"
+unit = "1"
+pages = ["theory/recipe_bookkeeping.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "K"
+label = "K"
+name = "the oxides of a constituent whose element the system has a primary for"
+unit = ""
+pages = ["theory/recipe_bookkeeping.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\mathbf{u}"
+label = "<b>u</b>"
+name = "state of the differential system of a kinetic run"
+unit = ""
+pages = ["theory/partial_equilibrium_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\mathbf{f}"
+label = "<b>f</b>"
+name = "right-hand side of the differential system, a function of its state"
+unit = ""
+pages = ["theory/partial_equilibrium_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\mathbf{J}"
+label = "<b>J</b>"
+name = "Jacobian of the right-hand side with respect to the state"
+unit = ""
+pages = ["theory/partial_equilibrium_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\mathbf{F}"
+label = "<b>F</b>"
+name = "optimality conditions of the minimization, stationarity and conservation"
+unit = ""
+pages = ["theory/partial_equilibrium_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\mathcal{R}"
+label = "ℛ"
+name = "residual of the energy balance of a semi-adiabatic cell"
+unit = "J"
+pages = ["theory/partial_equilibrium_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\mathcal{L}"
+label = "ℒ"
+name = "heat lost through the walls of the cell, against the temperature difference"
+unit = "W"
+pages = ["theory/partial_equilibrium_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "C_v"
+label = "C<sub>v</sub>"
+name = "heat capacity of the vessel and of what it holds besides the paste"
+unit = "J/K"
+pages = ["theory/partial_equilibrium_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "C_{\\rm eq}"
+label = "C<sub>eq</sub>"
+name = "heat capacity of the cell at equilibrium, the shift of the partition included"
+unit = "J/K"
+pages = ["theory/partial_equilibrium_kinetics.md"]
+
+[[symbol]]
+group = "Kinetics and hydration"
+tex = "\\Delta H"
+label = "ΔH"
+name = "change of the enthalpy of a calorimeter cell since the start"
+unit = "J"
+pages = ["theory/partial_equilibrium_kinetics.md"]
 
 # ── Cement chemist notation ──────────────────────────────────────────────────
 

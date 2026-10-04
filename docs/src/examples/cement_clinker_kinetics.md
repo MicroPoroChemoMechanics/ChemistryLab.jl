@@ -195,7 +195,7 @@ decide, and it needs *less* input, not more — the `kinetic_species` API derive
 the dissolution reactions itself, so the four `Reaction` blocks disappear.
 
 ```julia
-using Optimization, OptimizationIpopt   # or: using OptimaSolver
+using OptimaSolver
 
 cs_eq = ChemicalSystem(
     species, CEMDATA_PRIMARIES;
@@ -210,7 +210,7 @@ for (name, frac) in pairs(COMPOSITION)
 end
 set_quantity!(state_eq, "H2O@", WC * u"kg")
 
-es = EquilibriumSolver(cs_eq, DiluteSolutionModel(), IpoptOptimizer())
+es = EquilibriumSolver(cs_eq, DiluteSolutionModel(), OptimaOptimizer())
 
 kp_eq = KineticsProblem(cs_eq, state_eq, (0.0, 7.0 * 86400.0);
                         calorimeter = cal, equilibrium_solver = es)
@@ -220,10 +220,13 @@ sol_eq = integrate(kp_eq, KineticsSolver(; ode_solver = Rodas5P(),
 
 Two things are worth watching in that run.
 
-**The clinker curves do not move.** `parrott_killoh` ignores its `lna` argument
-and `heat_rate` uses only the reaction enthalpies, so `α(t)`, the temperature
-and the cumulative heat are the same to solver tolerance. Re-speciation cannot
-change them, and a comparison that reported otherwise would be reporting a bug.
+**The clinker follows the same laws, at another temperature.** `parrott_killoh`
+reads only the amounts of clinker and the temperature, never an activity. The
+heat, however, is no longer that of the four reactions written by hand: it is
+the enthalpy the whole composition loses, the hydrates the minimization
+precipitates included, so the cell does not warm as it did, and `α(t)` moves
+through the temperature alone. Held at a fixed temperature, the degrees of
+hydration would not move.
 
 **The products do move, and that is the point.** With the reactions written by
 hand, the ratio of portlandite to C-S-H is whatever the coefficients say. With
@@ -234,16 +237,20 @@ the model usable outside the composition its stoichiometry was fitted for: a
 supplementary cementitious material, a carbonating cover, a leached surface.
 
 !!! note "Cost"
-    One equilibrium solve per accepted ODE step, not per right-hand-side
-    evaluation, since the Parrott–Killoh laws read no activity — see
-    [The equilibrium–kinetics coupling](@ref) in the kinetics manual. On this
-    system that is a few hundred solves over seven days of hydration.
+    In this semi-adiabatic cell, one equilibrium solve per evaluation of the
+    right-hand side: the temperature is the root of the cell's energy balance,
+    which the partition enters
+    ([Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics)). Held at
+    a fixed temperature, the Parrott–Killoh laws read no activity and one solve
+    per accepted step is enough.
 
 !!! warning "What `equilibrium_solver = nothing` costs here, and what it does not"
-    It costs nothing on `α(t)` or on the calorimetry: the
-    [ParrottKilloh1984](@cite) rate closure ignores its `lna` argument and
-    `heat_rate` uses only the reaction enthalpies, so re-speciation cannot move
-    either curve.
+    At a fixed temperature it costs nothing on `α(t)`: the
+    [ParrottKilloh1984](@cite) rate closure ignores its `lna` argument. The heat
+    is another matter: without the solver it is that of the four reactions
+    written below, `heat_rate`; with it, the enthalpy the whole composition
+    loses, which is what a calorimeter measures, and through the temperature of
+    a semi-adiabatic cell it reaches `α(t)` as well.
 
     What it does cost is the **product assemblage**. With the solver off, the
     hydrates are whatever the four reactions written above say they are —
@@ -259,8 +266,8 @@ supplementary cementitious material, a carbonating cover, a leached surface.
     To switch it on, build a solver over the same system and hand it over:
 
     ```julia
-    using Optimization, OptimizationIpopt   # or: using OptimaSolver
-    es = EquilibriumSolver(cs, DiluteSolutionModel(), IpoptOptimizer())
+    using OptimaSolver
+    es = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer())
     kp = KineticsProblem(cs, kinetic_reactions, state0, tspan;
                          calorimeter = cal, equilibrium_solver = es)
     ```
@@ -269,18 +276,9 @@ supplementary cementitious material, a carbonating cover, a leached surface.
     `kinetic_species` API generates the dissolution reactions on its own, and
     equilibrium decides the rest.
 
-    On the C₃S/C₂S sub-system, seven days at `w/c = 0.4`, that run gives
-
-    ```
-    α(C₃S) = 0.277   α(C₂S) = 0.279          (unchanged, as expected)
-    Jennite     1.02 mol      Portlandite  1.09 mol
-    H₂O        18.97 mol      (from 22.20 — consumed by hydration)
-    Ca²⁺        3.5 mmol      OH⁻           8.5 mmol
-    ‖Aₑnₑ − bₑ‖∞ = 8.7e-8     89 steps, no failed equilibrium
-    ```
-
-    Portlandite and C-S-H in comparable amounts, water consumed, an alkaline
-    pore solution at millimolar calcium — none of which was put in by hand.
+    The hydrates the run then forms, portlandite and C-S-H in comparable
+    amounts, the water they consume and an alkaline pore solution at millimolar
+    calcium, are none of them put in by hand.
 
 ## 6. Integration
 

@@ -75,12 +75,18 @@ pages = [
         # time, and a binder's engineering behavior is entirely about time.
         "Kinetics" => [
             "theory/kinetics.md",
+            # How a run under partial equilibrium is integrated: the right-hand
+            # side, its exact Jacobian, and the energy balance of a calorimeter.
+            "theory/partial_equilibrium_kinetics.md",
         ],
         # The material this package exists for. What a Gibbs minimization can
         # predict about a drying paste, and what is not a thermodynamic
         # quantity at all.
         "Cementitious media" => [
             "theory/cement_water_budget.md",
+            # From materials, masses and degrees of reaction to the budget the
+            # minimization conserves, and what is kept out of it.
+            "theory/recipe_bookkeeping.md",
         ],
     ],
     "Manual" => [
@@ -166,6 +172,9 @@ pages = [
             # their measured pH: the aqueous model against the paper's indices.
             "tutorials/validation_early_pore_solutions.md",
             "tutorials/validation_fly_ash_pore_solutions.md",
+            # The same pastes cured from 7 to 80 °C: the temperature dependence
+            # of the activity model and of the solubility products.
+            "tutorials/validation_temperature_pore_solutions.md",
         ],
     ],
     "Applications" => [
@@ -257,6 +266,12 @@ pages = [
             "examples/ionic_hydration.md",
             "examples/hydration_calibration.md",
             "examples/semiadiabatic_calorimetry.md",
+            # The first blended cement integrated in time: the slag pastes the
+            # two output pages read at measured degrees of hydration.
+            "examples/blended_slag_kinetics.md",
+            # Four materials, ten blends, two glasses under their own laws and
+            # the limestone at equilibrium, against the thermogravimetry.
+            "examples/quaternary_kinetics.md",
         ],
         # What a laboratory measures on a paste, read off computed states: the
         # heat an isothermal calorimeter records and the mass a thermobalance

@@ -292,6 +292,16 @@ function transition_state(
     )
     mineral_name, M, area_model = _surface_context(cs, rxn, surface)
     stoich_species = _stoich_named(cs, rxn)   # Vector of (name, ν, ΔG°_fn)
+    # A catalyst read from an activity the system does not hold would multiply
+    # the rate by one, as if its activity were one, without a word.
+    for mech in mechanisms, cat in mech.catalysts
+        haskey(cs.dict_species, cat.species) || throw(
+            ArgumentError(
+                "transition_state: the catalyst $(cat.species) is not a species of the system; " *
+                    "a mechanism read from its activity would take that activity as one."
+            )
+        )
+    end
 
     f = (T, _P, _t, n, lna, n_initial) -> begin
         n_m = max(n[mineral_name], oneunit(T) * 1.0e-30)

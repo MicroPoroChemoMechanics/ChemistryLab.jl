@@ -1247,7 +1247,7 @@ function _equilibrate_certified(
                     # dual Newton the search runs on it anyway, twice.
                     _exploring_starts() do
                         esolver = EquilibriumSolver(state.system, model, f(); kwargs...)
-                        _unpolished(() -> SciMLBase.solve(esolver, from; ϵ = ϵ, b = bfix))
+                        SciMLBase.solve(esolver, from; ϵ = ϵ, b = bfix, polish = false)
                     end
                 catch err
                     verbose && @info "$what rejected" backend = f err

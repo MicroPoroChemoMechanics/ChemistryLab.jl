@@ -2,7 +2,8 @@
 #
 # `cemdata18-chloride.json` is BUILT by ChemistryLab on first use
 # (src/databases/derived.jl): CEMDATA18 verbatim, with one end member,
-# CSHQ-Cl = (CaCl2)0.5, appended. Its Gibbs energy is fitted on the sorption
+# CSHQ-Cl = (CaCl2)0.5, appended, and Fe-Friedel's salt, which
+# cemdata18_reference.jl checks. Its Gibbs energy is fitted on the sorption
 # tests of Hirao et al. (2005) by data/chloride/regenerate.jl, which writes it to
 # data/chloride/cshq_cl.json, and that is the only fitted number;
 # data/chloride/member.jl writes the end member and models the tests, and this
@@ -27,14 +28,16 @@ include(joinpath(pkgdir(ChemistryLab), "data", "chloride", "member.jl"))
     prov = entry["chloride_provenance"]
     δ = prov["delta_J_per_mol"]
 
-    @testset "a strict superset, with one end member added" begin
+    @testset "a strict superset, with two substances added" begin
+        # The end member, and Fe-Friedel's salt of Table 1 of the Cemdata18 paper
+        # (checked in cemdata18_reference.jl).
         @test issubset(keys(B), keys(E))
-        @test setdiff(keys(E), keys(B)) == Set([member])
+        @test setdiff(keys(E), keys(B)) == Set([member, "C4FCl2H10"])
         gibbs(s) = get(get(s, "sm_gibbs_energy", Dict()), "values", nothing)
         @test all(gibbs(E[k]) == gibbs(B[k]) for k in keys(B))
         @test prov["kind"] == "fitted"
         @test prov["source"]["doi"] == literature("Hirao2005").source["doi"]
-        @test ext["chloride_extension"]["added_substances"] == [member]
+        @test ext["chloride_extension"]["added_substances"] == [member, "C4FCl2H10"]
     end
 
     subs = build_species(datapath("cemdata18-thermofun.json"); verbose = false)

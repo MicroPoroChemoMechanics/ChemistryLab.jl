@@ -196,6 +196,7 @@ using JSON
                 "| **+0.244** |", "| **+0.205** |", "For 230 of the 238 records",
                 "Over the 143 crystalline records", "`1 J/mol` for 78 and to `100 J/mol` for 126",
                 "| −6.61 kJ/mol | −1.79 kJ/mol |", "| −5.70 kJ/mol | −1.73 kJ/mol |",
+                "| `0.000` |", "| `0.011` |", "closes to `−0.02 kJ/mol`",
             )
             @test occursin(quoted, page)
         end
@@ -325,5 +326,63 @@ using JSON
         # Fe-Friedel's salt (C4FCl2H10, log Ks0 = -28.62) is absent altogether.
         @test !any(startswith(k, "C4FCl") for k in keys(sp))
         @test haskey(sp, "Fe(OH)3(am)") && haskey(sp, "Fe(OH)3(mic)")
+    end
+
+    # ── The same two rows, checked where they can be ────────────────────────
+    #
+    # Nitrite-AFm through the NO2⁻ of slop98, whose aqueous ions share the
+    # reference state of Cemdata18's: the Ca²⁺, NO3⁻ and water of the two files
+    # are the same records. Their OH⁻ are not, 27 J/mol apart, and the reaction
+    # takes Cemdata18's, with which the log Ks0 of Table 2 closes. Fe-Friedel's salt in the database cemdata18-chloride.json,
+    # which ChemistryLab builds from Table 1 of the paper (src/databases/derived.jl).
+    # Each log Ks0 is recomputed from the species at 25 °C, over the products
+    # transcribed with the rest of Table 2.
+    @testset "Table 2 rows checked outside the shipped file" begin
+        slop = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+        ext = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-chloride.json"); verbose = false))
+        @test all(isapprox(slop[k].ΔₐG⁰(T = 298.15), G25(k); rtol = 1.0e-12) for k in ("Ca+2", "NO3-", "H2O@"))
+        @test slop["OH-"].ΔₐG⁰(T = 298.15) - G25("OH-") ≈ -27.0 atol = 1.0e-6
+        # Pinned, as the rows above: docs/src/tutorials/published_data_validation.md
+        # quotes both offsets.
+        for (phase, printed, species, offset) in (
+                ("mononitrite", "Nitrite-AFm", merge(sp, Dict("NO2-" => slop["NO2-"])), 0.0),
+                ("C4FCl2H10", "Fe-Friedel's salt", ext, 0.011),
+            )
+            products = products_of(phase)
+            published = solubility.log_Ks0[only(findall(==(printed), solubility.printed))]
+            n(k, e) = Float64(get(atoms_charge(species[k]), e, 0))
+            nH2O = (n(phase, :H) - sum(ν * n(k, :H) for (k, ν) in products)) / 2
+            @test sum(ν * n(k, :O) for (k, ν) in products) + nH2O ≈ n(phase, :O) atol = 1.0e-9
+            @test sum(ν * n(k, :Zz) for (k, ν) in products) ≈ n(phase, :Zz) atol = 1.0e-9
+            g(k) = species[k].ΔₐG⁰(T = 298.15)
+            ΔrG = sum(ν * g(k) for (k, ν) in products) + nH2O * g("H2O@") - g(phase)
+            @test -ΔrG / RTln10 - published ≈ offset atol = 1.0e-3
+        end
+
+        # The record of Fe-Friedel's salt is the row of Table 1: its energies,
+        # entropy and volume at 298.15 K, and its heat capacity the printed
+        # polynomial at any temperature, a T^-1/2 term included.
+        r = literature_row("Lothenbach2019", "solid_standard_properties", "C4FCl2H10")
+        ff = ext["C4FCl2H10"]
+        @test ff[:ΔₐG⁰](T = 298.15) ≈ ustrip(us"J/mol", r.dfG) rtol = 1.0e-12
+        @test ff[:ΔₐH⁰](T = 298.15) ≈ ustrip(us"J/mol", r.dfH) rtol = 1.0e-12
+        @test ff[:S⁰](T = 298.15) ≈ ustrip(us"J/(mol*K)", r.S) rtol = 1.0e-12
+        @test ff[:V⁰](T = 298.15, P = 1.0e5) ≈ ustrip(us"m^3/mol", r.V) rtol = 1.0e-12
+        for T in (283.15, 298.15, 323.15)
+            @test ff[:Cp⁰](T = T) ≈ ustrip(r.a0) + ustrip(r.a1) * T + ustrip(r.a2) / T^2 + ustrip(r.a3) / sqrt(T) rtol = 1.0e-12
+        end
+        # Its enthalpy is the one note l of the table says was recalculated from
+        # its Gibbs energy and entropy: with the elements' entropies of the
+        # Cemdata18 file, ΔfH − T ΔfS − ΔfG closes to 0.02 kJ/mol.
+        S_el = Dict(Symbol(e["symbol"]) => Float64(e["entropy"]["values"][1]) for e in raw["elements"])
+        ΔfS = ustrip(us"J/(mol*K)", r.S) - sum(c * S_el[el] for (el, c) in atoms_charge(ff) if el !== :Zz)
+        @test ustrip(us"J/mol", r.dfH) - 298.15 * ΔfS - ustrip(us"J/mol", r.dfG) ≈ -24.4 atol = 0.5
+
+        # Friedel's salt and Fe-Friedel's salt form the ideal solid solution of
+        # note k, built from the database that has both.
+        fr = only(filter(p -> name(p) == "Friedel_AlFe", build_solid_solutions(datapath("solid_solutions.toml"), ext)))
+        @test model(fr) isa IdealSolidSolutionModel
+        @test symbol.(end_members(fr)) == ["C4AClH10", "C4FCl2H10"]
+        @test !any(p -> name(p) == "Friedel_AlFe", build_solid_solutions(datapath("solid_solutions.toml"), sp))
     end
 end

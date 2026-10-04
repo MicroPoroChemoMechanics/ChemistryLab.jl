@@ -7,9 +7,9 @@
     "location": null
   },
   "transcription": {
-    "from": "the published report (PDF from pubs.usgs.gov), Table 33, p. 42",
+    "from": "the published report (PDF from pubs.usgs.gov, OFR_2004_1068.pdf), Tables 4, 6, 26, 31, 32, 33 and 34, read on the rendered pages 14, 15, 37 and 40 to 43",
     "checked_against_source": true,
-    "note": "The calcite acid and neutral parameters were typed in docstring examples of src/kinetics/rate_models.jl and in docs/src/manual/kinetics_syntax.md, as 10^log k rounded to four digits; they agree with the table."
+    "note": "The calcite acid and neutral parameters were typed in docstring examples of src/kinetics/rate_models.jl and in docs/src/manual/kinetics_syntax.md, as 10^log k rounded to four digits; they agree with the table. A dash in the report (no mechanism, or no parameter) is null here."
   },
   "tables": {
     "carbonate_rates": {
@@ -23,10 +23,84 @@
         ["dolomite, hydrothermal", -3.76, 56.7, 0.5, -8.6, 95.3, -5.37, 45.7, 0.5],
         ["magnesite", -6.38, 14.4, 1.0, -9.34, 23.5, -5.22, 62.8, 1.0]
       ]
+    },
+    "silica_rates": {
+      "columns": ["mineral", "neutral_A", "neutral_log_k", "neutral_E", "base_A", "base_log_k", "base_E", "base_n_H"],
+      "units": [null, "mol/(m^2*s)", "1", "kJ/mol", "mol/(m^2*s)", "1", "kJ/mol", "1"],
+      "kind": "fitted",
+      "location": "Table 4, p. 14 (quartz) and Table 6, p. 15 (amorphous silica and cristobalite, dissolution)",
+      "rows": [
+        ["quartz, geometric surface area", 333, -13.4, 90.9, null, null, null, null],
+        ["quartz, geometric surface area (Tester et al. 1994)", 276, -13.34, 90.1, null, null, null, null],
+        ["quartz, BET surface area", 23.3, -13.99, 87.6, null, null, null, null],
+        ["quartz, BET surface area (Tester et al. 1994)", 24, -13.99, 87.7, null, null, null, null],
+        ["quartz, base mechanism (Knauss and Wolery 1988)", null, null, null, 10, -16.29, 108.366, -0.5],
+        ["amorphous silica (Icenhower and Dove 2000, reported)", 6.65, -12.23, 74.5, null, null, null, null],
+        ["amorphous silica (Icenhower and Dove 2000, regressed)", 10.1, -12.31, 76.0, null, null, null, null],
+        ["amorphous silica (Rimstidt and Barnes 1980)", 0.185, -12.77, 68.7, null, null, null, null],
+        ["alpha-cristobalite", 0.12, -12.31, 65.0, null, null, null, null],
+        ["beta-cristobalite", 0.076, -12.14, 62.9, null, null, null, null]
+      ]
+    },
+    "pyroxene_rates": {
+      "columns": ["mineral", "acid_log_k", "acid_E", "acid_n_H", "neutral_log_k", "neutral_E"],
+      "units": [null, "1", "kJ/mol", "1", "1", "kJ/mol"],
+      "kind": "fitted",
+      "location": "Table 26, p. 37",
+      "rows": [
+        ["augite", -6.82, 78.0, 0.7, -11.97, 78.0],
+        ["bronzite", -8.3, 47.2, 0.65, -11.7, 66.1],
+        ["diopside", -6.36, 96.1, 0.71, -11.11, 40.6],
+        ["enstatite", -9.02, 80.0, 0.6, -12.72, 80.0],
+        ["jadeite", -6.0, 132.2, 0.7, -9.5, 94.4],
+        ["spodumene", -4.6, 94.4, 0.7, -9.3, 66.1],
+        ["wollastonite", -5.37, 54.7, 0.4, -8.88, 54.7]
+      ]
+    },
+    "oxide_rates": {
+      "columns": ["mineral", "acid_log_k", "acid_E", "acid_n_H", "neutral_log_k", "neutral_E"],
+      "units": [null, "1", "kJ/mol", "1", "1", "kJ/mol"],
+      "kind": "fitted",
+      "location": "Table 31, p. 40",
+      "rows": [
+        ["goethite", null, null, null, -7.94, 86.5],
+        ["hematite", -9.39, 66.2, 1.0, -14.6, 66.2],
+        ["magnetite", -8.59, 18.6, 0.279, -10.78, 18.6],
+        ["ilmenite", -8.35, 37.9, 0.421, -11.16, 37.9],
+        ["uraninite", null, null, null, -7.98, 32.0]
+      ]
+    },
+    "hydroxide_rates": {
+      "columns": ["mineral", "acid_log_k", "acid_E", "acid_n_H", "neutral_log_k", "neutral_E", "base_log_k", "base_E", "base_n_H"],
+      "units": [null, "1", "kJ/mol", "1", "1", "kJ/mol", "1", "kJ/mol", "1"],
+      "kind": "fitted",
+      "location": "Table 32, p. 41",
+      "rows": [
+        ["brucite", -4.73, 59.0, 0.5, -8.24, 42.0, null, null, null],
+        ["gibbsite", -7.65, 47.5, 0.992, -11.5, 61.2, -16.65, 80.1, -0.784],
+        ["diaspore", null, null, null, -13.33, 47.5, -23.6, 47.5, -1.503]
+      ]
+    },
+    "sulfate_rates": {
+      "columns": ["mineral", "acid_log_k", "acid_E", "acid_n_H", "neutral_log_k", "neutral_E"],
+      "units": [null, "1", "kJ/mol", "1", "1", "kJ/mol"],
+      "kind": "fitted",
+      "location": "Table 34, p. 43",
+      "rows": [
+        ["anglesite", -5.58, 31.3, 0.298, -6.5, 31.3],
+        ["anhydrite", null, null, null, -3.19, 14.3],
+        ["gypsum", null, null, null, -2.79, null],
+        ["barite", -6.9, 30.8, 0.22, -7.9, 30.8],
+        ["celestite", -5.66, 23.8, 0.109, null, null]
+      ]
     }
   },
   "notes": [
-    "log k is the decimal logarithm of the rate constant in mol m^-2 s^-1 at 25 C (for the acid mechanism, at pH 0); E is the Arrhenius activation energy; n is the reaction order with respect to H+ (acid) or to P(CO2) (carbonate).",
-    "Dawsonite, for which the table gives only a neutral mechanism, is left out. The activation energies of magnesite are those of calcite, which the report assigns to it for want of data."
+    "log k is the decimal logarithm of the rate constant in mol m^-2 s^-1 at 25 C (for the acid mechanism, at pH 0); E is the Arrhenius activation energy; n is the reaction order with respect to H+ (acid and base) or to P(CO2) (carbonate). A base mechanism has a negative order in H+.",
+    "A is the Arrhenius pre-exponential factor of the report's equation (5), given in Tables 4 and 6 only; log k = log10 A - E/(ln(10) R 298.15 K) to the rounding of the tables.",
+    "Dawsonite, for which Table 33 gives only a neutral mechanism, is left out. The activation energies of magnesite are those of calcite, which the report assigns to it for want of data.",
+    "Table 4 prints the activation energy of the base mechanism of quartz as 108366 under a heading in kJ/mol; every other energy of the report is of order 10 to 100 kJ/mol, so the number is read as J/mol and stored as 108.366 kJ/mol. The log k of that row, -16.29, is what the pre-exponential factor of Knauss and Wolery (1988), 491, gives with that energy; with the factor the table prints, 10 (footnote i: adjusted from 491 to agree with Tester et al. 1994), it would be -17.98. Both are stored as printed, and the row is used through its log k.",
+    "Table 34 prints 0 for the activation energy of the neutral mechanism of gypsum, and the text above it (p. 42) says the data were insufficient to calculate it: stored as null, not as zero.",
+    "The quartz and amorphous silica rows differ in the surface area the rate is normalized by (geometric or BET, Table 4) or in the data set regressed (Table 6); the report does not single one out."
   ]
 }

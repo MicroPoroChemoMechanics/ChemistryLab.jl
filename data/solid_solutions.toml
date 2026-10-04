@@ -66,6 +66,19 @@ model       = "ideal"
 database    = "cemdata18-chloride.json"
 source      = "Hirao2005"
 
+# ── Friedel's salt, Al and Fe — binary ideal ─────────────────────────────────
+# Note k of Table 1 of Cemdata18 (Lothenbach2019): Friedel's salt and
+# Fe-Friedel's salt form an ideal solid solution. Fe-Friedel's salt, which the
+# ThermoFun export of Cemdata18 lacks, is built from that table into the database
+# cemdata18-chloride.json alone, so the phase is built from that database only.
+# Both members are written for two chlorides, Ca4(Al,Fe)2Cl2(OH)12(H2O)4.
+[[solid_solution]]
+name        = "Friedel_AlFe"
+end_members = ["C4AClH10", "C4FCl2H10"]
+model       = "ideal"
+database    = "cemdata18-chloride.json"
+source      = "Lothenbach2019"
+
 # ── Fe-siliceous hydrogarnet — binary ideal ──────────────────────────────────
 # The GEMS `C3(AF)S0.84H` phase: the Al and Fe end-members of the siliceous
 # hydrogarnet, which is where the iron of a CEM I ferrite phase ends up. It

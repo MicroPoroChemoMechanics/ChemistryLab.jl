@@ -426,6 +426,129 @@ function RateMechanism(k::AbstractFunc, p::Real, q::Real)
     return RateMechanism{typeof(k), T}(k, T(p), T(q), RateModelCatalyst{T}[])
 end
 
+# ── Palandri & Kharaka (2004): the mechanisms of a mineral ───────────────────
+
+# The tables of the report as transcribed, by mineral: those whose name ends in
+# `_rates` hold one row per mineral and one group of columns per mechanism.
+function _pk04_row(mineral::AbstractString)
+    key = "PalandriKharaka2004"
+    for t in sort!(collect(keys(literature(key).tables)))
+        endswith(t, "_rates") || continue
+        tb = literature_table(key, t)
+        k = findfirst(==(mineral), tb.mineral)
+        k === nothing || return literature_row(key, t, mineral)
+    end
+    throw(
+        ArgumentError(
+            "palandri_kharaka: no mineral \"$mineral\" in the transcribed tables; " *
+                "`palandri_kharaka_minerals()` lists them."
+        )
+    )
+end
+
+"""
+    palandri_kharaka_minerals() -> Vector{String}
+
+The minerals whose dissolution mechanisms [`palandri_kharaka`](@ref) builds: the
+rows of the tables of [PalandriKharaka2004](@citet) transcribed in
+`data/literature/PalandriKharaka2004.json`.
+"""
+function palandri_kharaka_minerals()
+    key = "PalandriKharaka2004"
+    tables = sort!([t for t in keys(literature(key).tables) if endswith(t, "_rates")])
+    return [String(m) for t in tables for m in literature_table(key, t).mineral]
+end
+
+const _PK04_MECHANISMS = (:acid, :neutral, :base, :carbonate)
+
+"""
+    palandri_kharaka(mineral; mechanisms = (:acid, :neutral, :base), pco2 = nothing,
+                     assume_Ea = nothing) -> Vector{RateMechanism}
+
+The dissolution mechanisms of `mineral` as [PalandriKharaka2004](@citet) tabulate
+them, ready for [`transition_state`](@ref): of the mechanisms named in
+`mechanisms`, each one the report gives a rate constant for, with its Arrhenius
+rate constant (`log k` at 25 °C and the activation energy, through
+[`arrhenius_rate_constant`](@ref)) and its catalyst.
+
+| mechanism | rate per unit area, far from equilibrium | catalyst |
+|:--|:--|:--|
+| `:acid` | ``k_\\text{acid}(T)\\,a_{\\text{H}^+}^{\\,n}`` | `"H+"`, `n > 0` |
+| `:neutral` | ``k_\\text{neutral}(T)`` | none |
+| `:base` | ``k_\\text{base}(T)\\,a_{\\text{H}^+}^{\\,n}`` | `"H+"`, `n < 0` |
+| `:carbonate` | ``k_\\text{carbonate}(T)\\,P_{\\text{CO}_2}^{\\,n}`` | the species `pco2` |
+
+The report writes the base mechanism as an order in `H⁺` that is negative, which
+is how it is applied here rather than converted to an order in `OH⁻`. Each
+mechanism takes the saturation term `1 − Ω` (`p = q = 1`): the report gives
+other exponents for a few minerals in its text, not in the tables.
+
+`mineral` is a row of the transcribed tables (`"calcite"`, `"quartz, BET surface
+area"`, `"gibbsite"`, `"anhydrite"`, …), listed by
+[`palandri_kharaka_minerals`](@ref). Where the report gives several sets for one
+mineral (quartz normalized by its geometric or by its BET area, amorphous
+silica from two data sets), the row says which: the rate per unit area has to be
+used with the area it was normalized by.
+
+The carbonate mechanism reads the partial pressure of CO₂, which a rate law sees
+as the activity of a gas species, `P/P°` ([`P_STANDARD`](@ref)): asking for
+`:carbonate` requires `pco2`, the symbol of that species in the system.
+
+An activation energy the report does not give (that of the neutral mechanism of
+gypsum, which its text says the data could not determine) is refused, unless
+`assume_Ea` supplies one; the rate constant is then that value's, an assumption
+of the caller, and exact at 25 °C whatever it is.
+
+# Examples
+
+```julia
+mech = palandri_kharaka("calcite")             # acid and neutral
+tst = transition_state(mech, cs, rxn, BETSurfaceArea(90.0))
+```
+
+See also: [`palandri_kharaka_minerals`](@ref), [`RateMechanism`](@ref).
+"""
+function palandri_kharaka(
+        mineral::AbstractString; mechanisms = (:acid, :neutral, :base),
+        pco2::Union{Nothing, AbstractString} = nothing, assume_Ea = nothing,
+    )
+    for m in mechanisms
+        m in _PK04_MECHANISMS || throw(ArgumentError("palandri_kharaka: no mechanism :$m; the report's are $(_PK04_MECHANISMS)."))
+    end
+    (:carbonate in mechanisms && pco2 === nothing) && throw(
+        ArgumentError("palandri_kharaka: the carbonate mechanism reads P(CO₂); name the gas species with `pco2`.")
+    )
+    row = _pk04_row(mineral)
+    out = RateMechanism[]
+    for m in mechanisms
+        # A mechanism the report gives no rate constant for, a dash in its
+        # table, is not one of this mineral's.
+        logk = get(row, Symbol(m, "_log_k"), missing)
+        ismissing(logk) && continue
+        E = get(row, Symbol(m, "_E"), missing)
+        if ismissing(E)
+            assume_Ea === nothing && throw(
+                ArgumentError(
+                    "palandri_kharaka: the report gives no activation energy for the $m mechanism of " *
+                        "$mineral; pass `assume_Ea` to use one of your own."
+                )
+            )
+            E = assume_Ea
+        end
+        k = arrhenius_rate_constant(10.0^ustrip(logk), E)
+        cat = if m === :acid || m === :base
+            [RateModelCatalyst("H+", float(ustrip(row[Symbol(m, "_n_H")])))]
+        elseif m === :carbonate
+            [RateModelCatalyst(String(pco2), float(ustrip(row.carbonate_n_PCO2)))]
+        else
+            RateModelCatalyst{Float64}[]
+        end
+        push!(out, RateMechanism(k, 1.0, 1.0, cat))
+    end
+    isempty(out) && throw(ArgumentError("palandri_kharaka: the report gives $mineral none of the mechanisms $(mechanisms)."))
+    return out
+end
+
 # ── parrott_killoh factory ──────────────────────────────────────────────────────
 
 """
@@ -637,7 +760,8 @@ const PK_AVRAMI_SEED = 1.0e-6
 
 """
     parrott_killoh_avrami(params::NamedTuple, mineral_name::AbstractString;
-                         α_max = 1.0, blaine = nothing, humidity = nothing) -> KineticFunc
+                         α_max = 1.0, blaine = nothing, humidity = nothing,
+                         w_c = nothing, H = nothing) -> KineticFunc
 
 Build the Parrott & Killoh (1984) clinker hydration rate in its **canonical
 formulation**, as reported by Lothenbach et al. (2008) and used by Lavergne
@@ -656,11 +780,11 @@ Three competing mechanisms limit the rate, and the **slowest one wins**:
 | Shell formation (power law) | `α̇₃ = k₃(1-ξ)^n₃` |
 
 so that `α̇ = min(α̇₁, α̇₂, α̇₃)`, with `ξ = α/α_max` the normalized degree of
-hydration. The returned rate [mol/s] is `n_initial × Aₜ × β_B × β_h × α̇`, where
-`Aₜ = exp(-Ea/R × (1/T - 1/T_ref))` is the Arrhenius factor, `β_B` the Blaine
-fineness factor ([`blaine_factor`](@ref)) and `β_h` the relative-humidity
-reduction ([`humidity_factor`](@ref)). Both default to 1 when their keyword is
-`nothing`.
+hydration. The returned rate [mol/s] is `n_initial × Aₜ × β_B × β_h × f × α̇`,
+where `Aₜ = exp(-Ea/R × (1/T - 1/T_ref))` is the Arrhenius factor, `β_B` the
+Blaine fineness factor ([`blaine_factor`](@ref)), `β_h` the relative-humidity
+reduction ([`humidity_factor`](@ref)) and `f` the water/cement factor
+([`pk_wc_factor`](@ref)). Each is 1 when its keyword is `nothing`.
 
 !!! note "Two Parrott–Killoh variants ship with ChemistryLab"
     [`parrott_killoh`](@ref) implements a *different*, smoothed variant
@@ -685,6 +809,10 @@ against.
     correction. See the warning below before using the last one.
   - `humidity`: internal relative humidity, either a constant in `[0, 1]` or a
     callable `t -> h(t)`. `nothing` (default) means no correction.
+  - `w_c`: the water/cement ratio, which slows the hydration once the degree
+    exceeds a critical fraction of it ([`pk_wc_factor`](@ref)); `H` the critical
+    degree of the phase in place of Parrott and Killoh's, as Lothenbach et al.
+    (2008) fit one per clinker phase. `nothing` (default) means no correction.
 
 !!! warning "An evolving fineness is not a free improvement"
     The Parrott & Killoh constants were fitted with `β_B` **constant**, so
@@ -728,7 +856,8 @@ See also: [`PK84_PARAMS_C3S`](@ref), [`waller`](@ref), [`blaine_factor`](@ref),
 """
 function parrott_killoh_avrami(
         params::NamedTuple, mineral_name::AbstractString;
-        α_max::Real = 1.0, blaine = nothing, humidity = nothing
+        α_max::Real = 1.0, blaine = nothing, humidity = nothing,
+        w_c = nothing, H = nothing,
     )
     k₁ = safe_ustrip(us"1/s", params.k₁)
     n₁ = float(params.n₁)
@@ -763,11 +892,56 @@ function parrott_killoh_avrami(
         r₂ = k₂ * one_m_ξ^(2 * one(ξ) / 3) / denom
         # α̇₃ — power law, thick shell around the unreacted grain.
         r₃ = k₃ * one_m_ξ^n₃
-        return n_init * Aₜ * β_B * β_h * min(r₁, r₂, r₃)
+        f_wc = w_c === nothing ? one(ξ) : pk_wc_factor(α, w_c; H)
+        return n_init * Aₜ * β_B * β_h * f_wc * min(r₁, r₂, r₃)
     end
 
     refs = (T = Float64(_primal(T_ref)) * u"K", P = 1.0e5u"Pa")
     return KineticFunc(f, refs, u"mol/s")
+end
+
+# The constants of the water/cement factor, read from the papers that print
+# them: Parrott and Killoh's form as Lothenbach and Winnefeld (2006, Section 4.1)
+# give it, and the slope of the form with a critical degree per phase as
+# Lothenbach et al. (2008, Section 3.2) write it.
+const _PK_WC = (
+    intercept = ustrip(literature_value("LothenbachWinnefeld2006", "pk_wc_intercept")),
+    slope = ustrip(literature_value("LothenbachWinnefeld2006", "pk_wc_slope")),
+    critical = ustrip(literature_value("LothenbachWinnefeld2006", "pk_wc_critical_degree")),
+    slope_H = ustrip(literature_value("LothenbachLeSaout2008", "pk_wc_slope")),
+)
+
+"""
+    pk_wc_factor(α, w_c; H = nothing) -> Real
+
+The water/cement factor of the Parrott and Killoh (1984) law: 1 while the degree
+of hydration `α` of the phase is below a critical fraction of `w_c`, and beyond it
+
+```math
+f = (1 + 4.444\\,w/c - 3.333\\,\\alpha)^4 \\quad (\\alpha > 1.333\\,w/c),
+```
+
+as Lothenbach and Winnefeld (2006, Section 4.1) state it, which stops the phase at
+``\\alpha = (1 + 4.444\\,w/c)/3.333``; the printed constants being rounded
+(``3.333 \\times 1.333 = 4.443``), it steps up by ``(1 + 0.0011\\,w/c)^4`` at the
+threshold. With `H`, the critical degree of the phase
+that Lothenbach et al. (2008, Section 3.2) fit for each clinker phase,
+
+```math
+f = (1 + 3.333\\,(H\\,w/c - \\alpha))^4 \\quad (\\alpha > H\\,w/c).
+```
+
+The constants are read from `data/literature/`. The water/cement ratio is a
+proxy for the room left to grow in, so the factor is the long-term ceiling of the
+law; [`powers_alpha_max`](@ref) is another statement of the same limit.
+"""
+function pk_wc_factor(α, w_c; H = nothing)
+    if H === nothing
+        α <= _PK_WC.critical * w_c && return one(α)
+        return max(1 + _PK_WC.intercept * w_c - _PK_WC.slope * α, zero(α))^4
+    end
+    α <= H * w_c && return one(α)
+    return max(1 + _PK_WC.slope_H * (H * w_c - α), zero(α))^4
 end
 
 # Internal: a humidity keyword is a constant, a function of TIME, or a
@@ -907,8 +1081,11 @@ julia> fa(293.15, 1e5, 86400.0, StateView([0.9], idx), lna, n0) > 0
 true
 ```
 
+No parameter set is shipped for a slag: give its characteristic time from a
+source of your own, `waller(merge(WALLER_PARAMS_FLY_ASH, (τ = τ_slag,)), "GGBS")`.
+
 See also: [`WALLER_PARAMS_FLY_ASH`](@ref), [`WALLER_PARAMS_SILICA_FUME`](@ref),
-[`WALLER_PARAMS_SLAG`](@ref), [`parrott_killoh_avrami`](@ref).
+[`parrott_killoh_avrami`](@ref).
 """
 function waller(
         params::NamedTuple, mineral_name::AbstractString;
@@ -950,9 +1127,9 @@ function waller(
 end
 
 # The fly-ash parameters are those of p. 42 of Lavergne et al. (2018), adjusted
-# to the results of Waller (1999); the slag time is the one this package has
-# attributed to Waller since the law was added, not yet checked against the
-# thesis. Both are read from `data/literature/`.
+# to the results of Waller (1999), read from `data/literature/`. No slag set:
+# the 100-day time this package attributed to the thesis is not in it (see
+# `data/literature/Waller1999.json`).
 
 _waller_params(τ) = (
     τ = τ, n = literature_value("Lavergne2018", "waller_n"),
@@ -985,22 +1162,6 @@ surface of silica fume is **not** a Blaine fineness and must not be used here.
 """
 const WALLER_PARAMS_SILICA_FUME = WALLER_PARAMS_FLY_ASH
 
-"""
-    WALLER_PARAMS_SLAG :: NamedTuple
-
-Waller (1999) parameters for ground granulated blast-furnace slag: those of
-[`WALLER_PARAMS_FLY_ASH`](@ref) with a longer characteristic time `τ`.
-
-Slag is latent-hydraulic rather than pozzolanic; the longer characteristic time
-reflects its slower long-term reaction. Combine with an `α_max` below 1 (0.9 is
-customary) to account for the unreactive crystalline fraction.
-
-!!! warning "Unverified"
-    The value of `τ` is read from `data/literature/Waller1999.json`, where its
-    provenance is recorded as unstated: it does not appear in Lavergne et al.
-    (2018), and the thesis it is attributed to has not been checked.
-"""
-const WALLER_PARAMS_SLAG = _waller_params(literature_value("Waller1999", "tau_slag"))
 
 # ── Correction factors ───────────────────────────────────────────────────────
 
