@@ -53,7 +53,9 @@ measured, so the charge that an analysis leaves unbalanced (a few percent) goes
 to it.
 
 ```@example early
-runs = Dict((s, a) => s17_solution(systems.aqueous, s, a; model) for s in s17_systems_listed(), a in s17_ages())
+# `Any`: the type of a state is long enough that a dictionary specialized on it
+# takes minutes to compile.
+runs = Dict{Any, Any}((s, a) => s17_solution(systems.aqueous, s, a; model) for s in s17_systems_listed(), a in s17_ages())
 @printf("%d solutions, certified: %d\n", length(runs), count(r -> r.certificate.optimal, values(runs)))
 ```
 

@@ -1,5 +1,206 @@
 # Changelog
 
+## Unreleased
+
+### Breaking changes
+
+- **Under partial equilibrium, the last entry of the state of a calorimeter's run
+  is the change of the enthalpy of the cell**, not the temperature of a
+  semi-adiabatic cell nor the heat of an isothermal one. Read the temperature
+  with `temperature_profile(sol, cal; times)` and the heat with
+  `cumulative_heat` or `heat_release`; `sol(t)[end]` no longer gives either. The
+  stoichiometric formulation, without an equilibrium solver, is unchanged.
+- **`WALLER_PARAMS_SLAG` is removed.** Its characteristic time of 100 days was
+  attributed to Waller (1999) since the law was added, and recorded as unstated
+  in 0.29. Read on 2026-10-04, the thesis does not contain it: it names a slag
+  once, p. 219, among the additions an adiabatic test may contain, and gives no
+  kinetic parameter for one. A slag's time is now the caller's, from a source of
+  their own: `waller(merge(WALLER_PARAMS_FLY_ASH, (τ = τ_slag,)), "GGBS")`.
+
+### Added
+
+- **The dissolution mechanisms of Palandri and Kharaka (2004) for 34 minerals**:
+  `palandri_kharaka(mineral; mechanisms, pco2, assume_Ea)` builds the acid,
+  neutral, base and carbonate mechanisms the report tabulates, ready for
+  `transition_state`, and `palandri_kharaka_minerals()` lists them. Tables 4,
+  6, 26, 31, 32 and 34 of the report (quartz and amorphous silica,
+  pyroxenoids, oxides, hydroxides, sulfates) are transcribed beside the
+  carbonates of Table 33, read from the USGS PDF. A mechanism the report does not
+  give is absent, and an activation energy it does not give (the neutral
+  mechanism of gypsum, printed 0 where its text says the data could not
+  determine it) is refused unless the caller states one. The report's base
+  mechanism of quartz prints a pre-exponential factor of 10 and a log k that
+  follows from the 491 it was adjusted from; both are stored as printed and the
+  note says which.
+- **A page of theory on recipes**, *What a recipe puts into the equilibrium*:
+  the budget, what is kept aside, the mass balance with what an analysis does not
+  report, the heat, and what a kinetic constituent changes in them.
+- `glass_species(constituent, system; symbol, M)` gives a glass known by its
+  oxides the formula a rate law can dissolve, from the oxides the system can
+  hold, and `with_species(material, Dict(name => species))` puts it in its place:
+  the glass of a template can now be integrated in time.
+- A cell left empty by a source (`n.d.`, a dash) is `null` in a literature file
+  and reads as `missing`.
+- **Fe-Friedel's salt**, Ca₄Fe₂Cl₂(OH)₁₂·4H₂O, in the chloride extension
+  `cemdata18-chloride.json`, with `Friedel_AlFe`, its ideal solid solution with
+  Friedel's salt: the Cemdata18 paper tabulates it (Tables 1 and 2), its
+  ThermoFun export does not carry it, and the iron of a slag or a fly ash could
+  not bind chloride. Its record is the row of Table 1, transcribed in
+  `data/literature/Lothenbach2019.json`, and the build refuses to write it unless
+  its log Ks0 recomputed through the aqueous species of Cemdata18 is the one of
+  Table 2 (it is within 0.011). The nitrite AFm, whose solid ships and whose
+  NO₂⁻ does not, is checked through the NO₂⁻ of slop98 (within 0.001): the two
+  rows of Table 2 the shipped file could not be checked on are checked now.
+- **A blended cement integrated in time**, for the first time in the package: the
+  CEM I 52.5 N and slag pastes of Gruyaert et al. (2010), from the mixing, the
+  clinker under Parrott–Killoh and the slag glass under the Waller law, through
+  `KineticsProblem(recipe, …)`, with the certified replay
+  (`scripts/gruyaert2010_kinetics.jl`, the page *CEM I 52.5 N and slag pastes,
+  integrated in time*). One number is fitted, the slag's characteristic time,
+  on one measurement. Unfitted, the heat of the plain paste at 2 days is the
+  measured one to 0.1 %, and the cement of the blends reaches the 94 % the image
+  analysis found, more than in the plain paste, through the water/cement factor
+  below. Two measurements are missed, and the page says what they need: the
+  slag of a paste that is 85 % slag, which the portlandite stops activating,
+  and the slow start of its cement.
+- **Quaternary cements integrated in time**: the ten pastes of Schöler et al.
+  (2015), a CEM I 52.5 R with blast-furnace slag, siliceous fly ash and
+  limestone, from the mixing to six months (`scripts/scholer2015_kinetics.jl`,
+  the page *CEM I 52.5 R with slag, fly ash and limestone, integrated in time*):
+  the clinker under Parrott–Killoh, each glass under the Waller law with its
+  time set on the degree the authors assume after a year, the limestone and the
+  sulfates at equilibrium, against their thermogravimetry (Table 8), which
+  nothing was fitted to. The bound water follows it within one to three points
+  of the dry mass. The portlandite does not: the glasses consume it at
+  equilibrium where the pastes keep 12 %, as in the authors' own calculation
+  (Table 7, transcribed with the rest of the paper).
+- The apparent activation energies of the cement and the slag that Gruyaert et
+  al. (2010) fit against the cement-to-binder ratio (Eqs. 2 and 3), in
+  `data/literature/Gruyaert2010.json`; the slag's rate of the page carries the
+  latter.
+- **The water/cement factor of Parrott and Killoh in the rate law**:
+  `parrott_killoh_avrami(…; w_c, H)` and `pk_wc_factor`, the slowdown of a
+  clinker phase once its degree passes `1.333 w/c`, or `H w/c` with the critical
+  degree per phase of Lothenbach et al. (2008). It existed only in
+  `ParrottKillohExtent`, an imposed extent, with its constants written in the
+  code; both now read them from the papers' records in `data/literature/`.
+
+### Fixed
+
+- **A species without a rate law and without a standard Gibbs energy was put in
+  the equilibrium partition**, where the minimization cannot price it: a glass
+  known only by its formula, in a mix that did not hold it, made every
+  re-speciation of the run fail, each step kept a frozen composition,
+  and the run ended `Success` with one warning. `KineticsProblem` now refuses
+  such a species by name when it is given an equilibrium solver.
+- **Every kinetic run under partial equilibrium printed a warning of SciMLBase**,
+  that parameters held in arrays of different types "can hurt performance": the
+  system of the partition, a vector of species, was among the parameters of the
+  ODE problem. It is held in a reference, read only to build states, and the
+  warning is gone from every page that integrates.
+- **`transition_state` read a catalyst the system did not hold as an activity of
+  one**, without a word: a mechanism catalyzed by a species absent from the
+  system ran at its rate constant. Such a catalyst is now refused at
+  construction, with its name.
+- **The templates of a Rietveld analysis gave two constituents to one species**
+  where the analysis tells polymorphs apart (α′ and β C₂S, cubic and
+  orthorhombic C₃A): two rate laws would have dissolved the species twice. They
+  are summed into one constituent named by the database symbol, and
+  `KineticsProblem` of a recipe refuses two kinetic constituents of one species.
+
+### Fixed: the energy balance of a calorimeter under partial equilibrium
+
+- **The temperature of a semi-adiabatic cell under partial equilibrium depended
+  on the history of the integration, not on its state.** Its rate followed the
+  equilibrium partition through derivatives taken at the last accepted step,
+  frozen until the next one, and the heat of what they had not predicted was
+  added to the temperature as a jump at each accepted step, outside the
+  integrator's error control; the heat capacity of the shift of the partition
+  was clamped at zero where it came out negative. The right-hand side is now a
+  function of the state, as Leal et al. (2015) write it for the amounts: the
+  state carries the change of the enthalpy of the cell, which only the losses
+  through its walls move, and the temperature is the root of the cell's energy
+  balance, solved with the partition at every evaluation. Its derivatives are
+  first derivatives of the minimization, which the implicit-function theorem
+  gives exactly, so the Jacobian is exact and any integrator applies: a
+  Rosenbrock method, a BDF method and an explicit Runge–Kutta method now give
+  the same temperature at two days to a few microkelvin. On the alite paste of the tests, the
+  enthalpy of an adiabatic cell is conserved to 6e-9 of the heat released
+  (1e-3 was allowed before), and the heat capacity the Jacobian implies equals
+  the one of the certified equilibrium differentiated in temperature to every
+  printed digit. The theory page *Kinetics under partial equilibrium* writes
+  the formulation.
+- **The heat of an isothermal cell under partial equilibrium** is the enthalpy
+  the paste has lost, `H₀ − H`, at the partition of each state, and no longer
+  the integral of a linearized rate corrected by jumps: it equals the heat of the
+  certified replay (`heat_release`) to the third decimal of a joule, where it was
+  10 J off out of 2 kJ near the first hour.
+- In a semi-adiabatic run, the log-activities the rate laws read were evaluated
+  at the initial temperature; they are now evaluated at the cell's.
+- **The partition solved in the right-hand side started from the last accepted
+  one lifted to 1e-10 mol**, the floor of the interior point, which moves the
+  potentials of the traces: on the C100 mortar at 1.6 h the dual Newton failed
+  from there and the run stopped, where the partition itself, floored at 1e-16
+  mol, certified at once. It now starts there, the lifted start second. With the
+  root of the energy balance kept for the passes of a Jacobian, the five days
+  of that mortar in its semi-adiabatic cell take 220 s.
+
+### Documentation
+
+- **Validation on pore solutions from 7 to 80 °C**, the pastes of Deschner et al.
+  (2013), a CEM I with half quartz powder or siliceous fly ash, cured at 7, 23,
+  40, 50 and 80 °C (`data/literature/Deschner2013.json`, Tables A.1, A.2 and
+  B.1): every solution speciated at its hydroxide and its temperature, the
+  effective saturation indices of portlandite, ettringite, monosulfate and
+  strätlingite against the authors'. From 7 to 50 °C they differ by 0.08 at
+  most; at 80 °C the fly-ash paste, the richest in sulfate, differs by up to
+  0.41, which the page states without settling the cause.
+- **Six pages compiled a dictionary for minutes.** A dictionary built by a
+  comprehension over states or runs is specialized on their types, long enough
+  that compiling it took 402 of the 413 s of a block that solved 54 pore
+  solutions. The pages build them with `Any` values and say why.
+
+### Changed: the inversion of the aqueous phase three times lighter
+
+- **The inversion of the aqueous phase allocated and dispatched at run time in
+  its innermost loop.** The function whose root is the ionic strength, evaluated
+  some twenty times per inversion and an inversion per trial step of the dual
+  Newton, assigned the ionic strength to a name the enclosing function also
+  assigned, and Julia boxed that variable: every evaluation went through a
+  `Core.Box`. Measured on the C100 mortar of Lavergne et al. (2018), from the
+  same start, a certified solve that needs many inversions took 150 ms and
+  328 MB and takes 54 ms and 99 MB; one that converges at once allocates 4.9 MB
+  instead of 12.8, in the same time. The answers are the same to the last bit.
+  The same defect is removed from the Newton inversion of the SIT and Pitzer
+  models, from the Donnan potential of a diffuse layer and from the implicit
+  kinetic step.
+
+### Changed: kinetic runs twice as fast
+
+- **Every evaluation of an activity model in a kinetic run computed a number
+  type by walking the run's parameters at run time.** The helper that decides
+  whether the parameters carry dual numbers was written to be resolved by the
+  compiler, but it mapped over the values of the tuple it was given; a kinetic
+  run hands the model its own parameters, some fifty fields, a `map` over a
+  tuple that long is not unrolled, and each field was dispatched at every
+  evaluation. On the pore-humidity test that was 44 % of the integration. The
+  type is now computed from the types alone, folded into a constant: that
+  integration takes 76 s instead of 148 s (130 s with 0.30.0), the trajectory
+  unchanged. Present since 0.29.0, in every activity model.
+- **The certified replay of a kinetic run returned compositions it had not
+  certified, on its first instant above all.** `speciated_states`, and
+  `heat_release` through it, certify each instant from three starts and, from
+  the second instant on, by a continuation from the last certified one; the
+  first has no neighbor to walk from. On a slag paste at 2 and 7 days (Gruyaert
+  et al. 2010) nothing certified, and the interior-point composition the
+  replay fell back to had a pH of 15.3. The full certified search, with its
+  start from the linear program, is now the last resort: it certifies those
+  instants at once, at pH 12.82.
+- The searches that ask a back end only for a start pass it `polish = false`,
+  a new keyword of `solve(::EquilibriumSolver, state)`, instead of running the
+  solve under a scoped value: another 1.4 s of compilation on the first
+  equilibrium of a session.
+
 ## v0.31.1 — The first equilibrium of a session compiles as fast as with 0.30
 
 A patch release: the answers are those of 0.31.0, the same on the 32 cement
