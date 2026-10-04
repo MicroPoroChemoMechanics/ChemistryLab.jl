@@ -83,6 +83,30 @@
       "uncertainty": null,
       "location": "Table 1, note b",
       "description": "g per 100 g of cement, of the CaSO4 of the normative composition"
+    },
+    "pk_wc_intercept": {
+      "value": 4.444,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 213",
+      "description": "Water/cement factor of the Parrott and Killoh (1984) law as the paper uses it: f(w/c) = (1 + 4.444 w/c - 3.333 alpha)^4 for alpha > 1.333 w/c; this is the 4.444."
+    },
+    "pk_wc_slope": {
+      "value": 3.333,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 213",
+      "description": "The 3.333 of the same factor, multiplying the degree of hydration."
+    },
+    "pk_wc_critical_degree": {
+      "value": 1.333,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 213",
+      "description": "The 1.333 of the same factor: it applies once the degree of hydration exceeds 1.333 w/c."
     }
   },
   "tables": {

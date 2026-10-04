@@ -196,8 +196,7 @@ clinker rate. ``\tau`` is the time at which the material is half reacted and
 ``n`` the sharpness of the transition.
 
 ```@example kin
-waller_sets = ["fly ash" => WALLER_PARAMS_FLY_ASH, "silica fume" => WALLER_PARAMS_SILICA_FUME,
-               "slag" => WALLER_PARAMS_SLAG]
+waller_sets = ["fly ash" => WALLER_PARAMS_FLY_ASH, "silica fume" => WALLER_PARAMS_SILICA_FUME]
 α_waller(p, t_days) = 1 / (1 + (ustrip(us"d", p.τ) / t_days)^p.n)
 
 @printf("%-12s %8s %6s %12s %10s %10s\n",
@@ -215,11 +214,14 @@ why a blended cement gains so much from a warm cure and loses so much in a cold
 one, and it is a prediction of the parameter and not an extra rule.
 
 !!! note "These are not the same numbers as a direct measurement of reacted glass"
-    The α(28 d) column above is ≈ 0.29 for slag and ≈ 0.32 for fly ash. The
-    RILEM TC 238-SCM round robin [Durdzinski2017](@cite), which measured the
-    *reacted glass* directly on its own materials rather than inferring it from
-    heat, reports 38–49 % for two slags and about 20 % for a siliceous fly ash
-    at the same age. The two disagree, and in opposite directions.
+    The α(28 d) column above is ≈ 0.32 for fly ash. The RILEM TC 238-SCM round
+    robin [Durdzinski2017](@cite), which measured the *reacted glass* directly
+    on its own materials rather than inferring it from heat, reports about 20 %
+    for a siliceous fly ash at the same age, and 38–49 % for two slags. No slag
+    set is shipped: the 100-day time this package once attributed to
+    [Waller1999](@citet) is not in the thesis, which names a slag only among the
+    additions an adiabatic test may contain. A slag's time is the caller's,
+    from a source, `merge(WALLER_PARAMS_FLY_ASH, (τ = τ_slag,))`.
 
     Neither is wrong. Waller's parameters are a fit to particular materials, and
     "a slag" is not a substance — its reactivity depends on its glass content,

@@ -659,9 +659,9 @@ end
     w_sf = waller(WALLER_PARAMS_SILICA_FUME, "FA"; blaine = 2000u"m^2/kg")
     @test at(w_sf, 0.3, 30day) ≈ 5 * at(w, 0.3, 30day) rtol = 1.0e-10
 
-    # ── Slag reacts more slowly and incompletely ──────────────────────────────
-    w_slag = waller(WALLER_PARAMS_SLAG, "FA"; α_max = 0.9)
-    @test at(w_slag, 0.3, 30day) < at(w, 0.3, 30day)
+    # ── A longer characteristic time reacts more slowly, and a cap stops it ───
+    w_slow = waller(merge(WALLER_PARAMS_FLY_ASH, (τ = 2 * WALLER_PARAMS_FLY_ASH.τ,)), "FA"; α_max = 0.9)
+    @test at(w_slow, 0.3, 30day) < at(w, 0.3, 30day)
 
     # ── AD ────────────────────────────────────────────────────────────────────
     @test isfinite(
@@ -850,4 +850,45 @@ end
     # …and accepted when it names exactly one.
     cs_one = ChemicalSystem([h2o, ca2p, co3, bare], [h2o, ca2p, co3])
     @test ChemistryLab._rate_lookup_key(cs_one, bare) == "CaCO3"
+end
+
+@testsection "the water/cement factor of Parrott and Killoh, in the rate law" begin
+    # The constants are those the papers print, read from data/literature/.
+    @test ChemistryLab._PK_WC.intercept == 4.444
+    @test ChemistryLab._PK_WC.slope == 3.333
+    @test ChemistryLab._PK_WC.critical == 1.333
+    @test ChemistryLab._PK_WC.slope_H == 3.333
+
+    w_c = 0.4
+    # One below the critical degree, and zero where the form stops the phase,
+    # (1 + 4.444 w/c)/3.333. The printed constants are rounded, 3.333 × 1.333 =
+    # 4.443 against 4.444, so the factor steps up by (1 + 0.0011 w/c)⁴ at the
+    # threshold rather than leaving it continuously: 0.18 % at w/c = 0.4.
+    @test pk_wc_factor(0.3, w_c) == 1
+    @test pk_wc_factor(1.333 * w_c, w_c) == 1
+    @test pk_wc_factor(nextfloat(1.333 * w_c), w_c) ≈ (1 + (4.444 - 3.333 * 1.333) * w_c)^4 rtol = 1.0e-12
+    @test pk_wc_factor((1 + 4.444 * w_c) / 3.333, w_c) ≈ 0 atol = 1.0e-24
+    @test pk_wc_factor(0.99, w_c) == 0
+    # With a critical degree of the phase.
+    H = 1.8
+    @test pk_wc_factor(H * w_c, w_c; H) == 1
+    @test pk_wc_factor(H * w_c + 0.1, w_c; H) ≈ (1 - 3.333 * 0.1)^4 rtol = 1.0e-14
+
+    # The rate law multiplies its rate by the factor and by nothing else.
+    idx = Dict("C3S" => 1)
+    n0, lna = StateView([1.0], idx), StateView([0.0], idx)
+    plain = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S")
+    slowed = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; w_c)
+    with_H = parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; w_c, H)
+    rate(f, α) = f(293.15, 1.0e5, 86400.0, StateView([1 - α], idx), lna, n0)
+    @test rate(slowed, 0.3) == rate(plain, 0.3)
+    @test rate(slowed, 0.6) ≈ rate(plain, 0.6) * pk_wc_factor(0.6, w_c) rtol = 1.0e-14
+    @test rate(with_H, 0.8) ≈ rate(plain, 0.8) * pk_wc_factor(0.8, w_c; H) rtol = 1.0e-14
+    # Differentiable in the water/cement ratio, by the chain rule on the factor.
+    d = ForwardDiff.derivative(
+        x -> parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; w_c = x)(
+            293.15, 1.0e5, 86400.0, StateView([0.4], idx), lna, n0,
+        ), w_c,
+    )
+    @test d ≈ rate(plain, 0.6) * ForwardDiff.derivative(x -> pk_wc_factor(0.6, x), w_c) rtol = 1.0e-12
 end

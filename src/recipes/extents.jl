@@ -138,8 +138,9 @@ f = \\begin{cases} 1 & \\alpha \\le 1.333\\, w/c \\\\
 (1 + 4.444\\, w/c - 3.333\\, \\alpha)^4 & \\alpha > 1.333\\, w/c \\end{cases}
 ```
 
-which is continuous at ``\\alpha = 1.333\\, w/c`` and stops the hydration at
-``\\alpha = (1 + 4.444\\, w/c)/3.333``.
+which stops the hydration at ``\\alpha = (1 + 4.444\\, w/c)/3.333``. The printed
+constants are rounded, ``3.333 \\times 1.333 = 4.443``, so the factor steps up by
+``(1 + 0.0011\\, w/c)^4`` at the threshold, 0.18 % at ``w/c = 0.4``.
 
 `H` replaces the critical degree 1.333 of that factor by a value of the phase's
 own, as Lothenbach et al. (2008, Section 3.2) fit one per clinker phase:
@@ -175,13 +176,7 @@ function ParrottKillohExtent(
     # dα/dt, in 1/s, from the rate on one mole of the phase (n = 1 − α); the
     # positional call of a `KineticFunc` takes and returns bare SI numbers.
     ph = String(phase)
-    fwc(α) = if w_c === nothing
-        1.0
-    elseif H === nothing
-        α <= 1.333 * w_c ? 1.0 : max(1 + 4.444 * w_c - 3.333 * α, 0.0)^4
-    else
-        α <= H * w_c ? 1.0 : max(1 + 3.333 * (H * w_c - α), 0.0)^4
-    end
+    fwc(α) = w_c === nothing ? 1.0 : pk_wc_factor(α, w_c; H)
     dα(α) = rate(TK, 1.0e5, 0.0, Dict(ph => 1 - α), nothing, Dict(ph => 1.0)) * fwc(α)
     grid = exp.(range(log(1.0e-4), log(horizon_days); length = 4001))   # days
     α = 0.0

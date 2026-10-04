@@ -14,8 +14,15 @@ const RIETVELD_PHASES = Dict{String, Union{String, Tuple{Symbol, String}}}(
     "C3S" => "C3S", "C2S" => "C2S", "C3A" => "C3A", "C4AF" => "C4AF",
     "Calcite" => "Cal", "Anhydrite" => "Anh", "Gypsum" => "Gp",
     "Arcanite" => "K2SO4", "Quartz" => "Qtz", "Portlandite" => "Portlandite",
+    # The polymorphs a Rietveld analysis tells apart are one phase of the database.
+    "alpha' C2S" => "C2S", "beta C2S" => "C2S",
+    "C3A cubic" => "C3A", "C3A orthorhombic" => "C3A",
+    "Bassanite" => "hemihydrate", "Syngenite" => "syngenite",
     "Periclase" => (:oxides, "MgO"),
     "Hematite" => (:oxides, "Fe2O3"),
+    "Maghemite" => (:oxides, "Fe2O3"),
+    "Akermanite" => (:oxides, "Ca2MgSi2O7"),
+    "Merwinite" => (:oxides, "Ca3MgSi2O8"),
     "Mullite" => (:oxides, "Al6Si2O13"),
     "Dolomite" => (:oxides, "CaMgC2O6"),
     "CaO + Ca(OH)2" => (:oxides, "CaO"),
@@ -75,7 +82,10 @@ An entry is built one of four ways:
 
 Every constituent of a template reacts completely unless the entry says
 otherwise; the extents of a real mix are the caller's, set with
-`with_extents`.
+`with_extents`. The polymorphs a Rietveld analysis tells apart and the database
+does not (the α′ and β C₂S, the cubic and orthorhombic C₃A) are one constituent,
+named by the database symbol (`"C2S"`, `"C3A"`): two constituents of one species
+would be dissolved twice by a rate law each.
 """
 material_template(name::AbstractString, species) = _material_from_entry(_template_entry(name), species)
 
@@ -86,7 +96,7 @@ function _material_from_entry(e::AbstractDict, species)
     if haskey(e, "phases")
         ph = _literature_phases(e["phases"])
         crystals = OrderedDict(k => v for (k, v) in ph if k != "Amorphous")
-        cons = AbstractConstituent[_rietveld_constituent(p, w, species) for (p, w) in crystals]
+        cons = _crystal_constituents(crystals, species)
         if haskey(ph, "Amorphous")
             haskey(e, "analysis") || error("template \"$name\": an amorphous part needs `analysis` to be found by difference")
             glass = _glass(e["analysis"], crystals, species)
@@ -94,7 +104,7 @@ function _material_from_entry(e::AbstractDict, species)
         elseif get(e, "remainder", false) == "analysis"
             haskey(e, "analysis") || error("template \"$name\": a remainder needs `analysis` to be found by difference")
             rest = _remainder_as_analyzed(e["analysis"], crystals, species)
-            cons = AbstractConstituent[_rietveld_constituent(p, w * rest.scale, species) for (p, w) in crystals]
+            cons = _crystal_constituents(crystals, species; scale = rest.scale)
             push!(cons, OxideConstituent("minor oxides", rest.oxides; mass_fraction = rest.mass_fraction))
         elseif get(e, "remainder", false) === true
             haskey(e, "analysis") || error("template \"$name\": a remainder needs `analysis` to be found by difference")
@@ -116,7 +126,7 @@ function _material_from_entry(e::AbstractDict, species)
     elseif haskey(e, "crystalline")
         crystals = _literature_phases(e["crystalline"])
         pop!(crystals, "Amorphous", nothing)
-        cons = AbstractConstituent[_rietveld_constituent(p, w, species; extent = 0.0) for (p, w) in crystals]
+        cons = _crystal_constituents(crystals, species; extent = 0.0)
         glass = _glass(e["analysis"], crystals, species)
         push!(cons, OxideConstituent("glass", glass.oxides; mass_fraction = glass.mass_fraction))
         return Material(name, kind; constituents = cons, source = src)
@@ -143,8 +153,51 @@ function with_extents(m::Material, extents::AbstractDict; material_extent = noth
     isempty(unknown) || throw(ArgumentError("with_extents: $(m.name) has no constituent $(join(unknown, ", "))."))
     return Material(m.name, m.kind, cons, material_extent === nothing ? m.extent : _as_extent(material_extent), m.source)
 end
+"""
+    with_species(material, species::AbstractDict) -> Material
+
+`material` with the constituents named by the keys of `species` described by
+those species: a constituent known by its oxides (a glass) becomes a
+[`MineralConstituent`](@ref) of its species, with its mass fraction and its
+extent, which a rate law can dissolve ([`KineticsProblem`](@ref) of a recipe).
+The constituent takes the symbol of the species as its name, the name a rate
+law reads its amount by. The species of a glass is built from the constituent
+itself by [`glass_species`](@ref).
+
+```julia
+glass = only(c for c in slag.constituents if c.name == "glass")
+sp = glass_species(glass, system; symbol = "BFS")
+slag = with_species(slag, Dict("glass" => sp))     # its constituent "BFS"
+```
+"""
+function with_species(m::Material, species::AbstractDict)
+    unknown = setdiff(String.(keys(species)), [c.name for c in m.constituents])
+    isempty(unknown) || throw(ArgumentError("with_species: $(m.name) has no constituent $(join(unknown, ", "))."))
+    cons = AbstractConstituent[]
+    for c in m.constituents
+        sp = get(species, c.name, nothing)
+        push!(cons, sp === nothing ? c : MineralConstituent(sp; mass_fraction = c.mass_fraction, extent = c.extent, name = symbol(sp)))
+    end
+    return Material(m.name, m.kind, cons, m.extent, m.source)
+end
+
 _with_extent(c::MineralConstituent, e) = MineralConstituent{typeof(c.species), typeof(e), typeof(c.mass_fraction)}(c.name, c.species, c.mass_fraction, e)
 _with_extent(c::OxideConstituent{<:Any, F}, e) where {F} = OxideConstituent{typeof(e), F}(c.name, c.oxides, c.mass_fraction, e, c.density, c.enthalpy, c.source)
+
+# The constituents of `crystals` (phase => mass fraction, scaled by `scale`), the
+# phases of one database species summed into one constituent named by its symbol.
+function _crystal_constituents(crystals, species; scale = 1.0, extent = 1.0)
+    groups = OrderedDict{String, Vector{String}}()
+    for p in keys(crystals)
+        t = get(RIETVELD_PHASES, p, nothing)
+        push!(get!(groups, t isa String ? t : p, String[]), p)
+    end
+    return AbstractConstituent[
+        length(ps) == 1 ? _rietveld_constituent(only(ps), scale * crystals[only(ps)], species; extent) :
+            MineralConstituent(species[key]; mass_fraction = scale * sum(crystals[p] for p in ps), extent, name = key)
+            for (key, ps) in groups
+    ]
+end
 
 function _rietveld_constituent(phase, w, species; extent = 1.0)
     target = get(RIETVELD_PHASES, phase, nothing)
