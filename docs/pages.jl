@@ -273,6 +273,9 @@ pages = [
             # the limestone at equilibrium, against the thermogravimetry.
             "examples/quaternary_kinetics.md",
             "examples/ternary_kinetics.md",
+            # The clinker and the slag laws at 5, 20 and 40 °C, against the
+            # degrees of reaction measured at each temperature.
+            "examples/slag_temperature.md",
         ],
         # What a laboratory measures on a paste, read off computed states: the
         # heat an isothermal calorimeter records and the mass a thermobalance

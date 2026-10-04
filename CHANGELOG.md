@@ -24,6 +24,23 @@
   1.2 points; with fly ash the measured alite is faster still, the filler effect
   the law does not carry; and the belite, whose rate under this law is greatest
   at the mixing, cannot be held by any value of its constants.
+- **The clinker and slag laws at 5, 20 and 40 °C** (`scripts/snellings2022_kinetics.jl`,
+  the page *CEM I 52.5 R with slag and limestone at 5, 20 and 40 °C*), against
+  the degrees of reaction Snellings et al. (2022) measured by X-ray diffraction
+  on a 50:40:10 cement, slag and limestone blend at w/b 0.4 to 0.6 for six
+  months (`data/literature/Snellings2022.json`: Tables 1 and 2 transcribed,
+  Fig. 6 digitized from its raster image to 0.3 point). With its published
+  constants and activation energies, Parrott–Killoh brings the clinker within
+  four points of the measurement at three and six months, but it is 20 points
+  short at one day at 20 and 40 °C. No Waller constant is published for a slag:
+  the fly-ash shape, which runs to complete reaction, misses the slag by 15 to
+  18 points, while one time, one exponent and one activation energy with a
+  ceiling that rises with the water describe the 54 degrees to 2.6 points, all
+  six constants determined. The activation energy, 67 kJ/mol, is the authors'
+  own (their Table 2, by another law), below the 83 kJ/mol of the fly-ash set.
+  On the two slags of the RILEM round robin (Durdziński et al. 2017), at an
+  assumed 20 °C, the same constants hold within 7.2 points in three series of
+  four. They are fitted on one slag and are not shipped.
 
 ### Documentation
 

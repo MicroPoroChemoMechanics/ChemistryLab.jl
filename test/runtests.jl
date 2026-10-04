@@ -157,6 +157,7 @@ end
     include("kinetics/test_blended_kinetics.jl")
     include("kinetics/test_quaternary_kinetics.jl")
     include("kinetics/test_ternary_kinetics.jl")
+    include("kinetics/test_slag_temperature.jl")
     include("kinetics/test_palandri_kharaka.jl")
     include("coupling_reference.jl")
 end
