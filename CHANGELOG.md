@@ -16,6 +16,22 @@
   measured) at a Ca/Si of 1.12 to 1.16 where the paste's gel falls from 1.7 to
   1.4, and leaves 1.7 to 3.9 points too much portlandite. `CSHQ` stays the gel
   of these pages, and the page says why.
+- **Alkali uptake by C-A-S-H against L'Hôpital et al. (2016)** (the page
+  *Alkali uptake by C-A-S-H*, `scripts/lhopital2016_alkali.jl`): their 49
+  batches of C-S-H and C-A-S-H, Ca/Si 0.6 to 1.6 in water or in KOH or NaOH
+  from 0.01 to 0.5 mol/L, transcribed whole from their Appendices A to C into
+  `data/literature/LHopital2016.json`, and computed with CSHQ and with CASH+NK.
+  The comparison is a prediction for CSHQ, whose alkali end members were fitted
+  on other isotherms (Hong and Glasser 1999), and a check for CASH+NK, which
+  was fitted on these. CSHQ takes up too little alkali where the gel is poor in
+  calcium, as little as an eighth to a third of what was measured at Ca/Si 0.6
+  to 1.0, reaching it only in 0.5 mol/L KOH: the opposite of what it does on
+  the isotherms it was fitted on. It also dissolves too much silicon at a high
+  pH, 2.5 to 3.6 times the measurement at the median, as the authors found with
+  the same model. CASH+NK reproduces its fitting data: the alkali of the gel at
+  0.62 to 1.55 times the measured one up to Ca/Si 1.2, the dissolved alkali and
+  silicon at the median within 4 % below Ca/Si 1.1. In a gel poor in calcium,
+  CASH+NK is the model whose alkali uptake was fitted there.
 
 ### Fixed
 

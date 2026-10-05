@@ -168,6 +168,9 @@ pages = [
             # A measured paste through its first year, and the same budgets
             # through GEMS3K: the model against the paste, the code against the code.
             "tutorials/validation_measured_pastes.md",
+            # Alkali uptake by C-A-S-H batches: CSHQ predicted on data it was not
+            # fitted on, CASH+NK checked on data it was.
+            "tutorials/validation_alkali_uptake.md",
             # Four blended pastes, their degrees of reaction from the measurement,
             # the chemistry against the measurement and against GEMS3K.
             "tutorials/validation_blended_pastes.md",
