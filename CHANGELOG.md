@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## v0.32.2 — The C-S-H models of a blend, in time and against syntheses
+
+The C-S-H models a blended cement may be computed with are compared where they
+part: in time, on the pastes of De Weerdt et al. (2011) and Schöler et al.
+(2015), and at equilibrium, against the syntheses of L'Hôpital et al. (2016a,
+b). CSHQ binds too little alkali in a gel poor in calcium, which CASH+NK, fitted
+there, reproduces; CNASH_ss takes up the aluminum as measured but stops at a
+Ca/Si of 1.2 and forms no strätlingite; in the fly-ash blends the measured
+portlandite lies between CSHQ and CNASH_ss, and CSHQ stays the gel of the
+pages. Two defects found on the way are fixed: a kinetic run with a
+compound-energy C-S-H stopped before its first step, and a barely unstable
+member of the sublattice gel left its answer uncertified, which OptimaSolver
+0.8.1, now required, corrects.
 
 ### Added
 
@@ -21,7 +33,7 @@
   portlandite of the paste richest in fly ash stays within 0.3 points of the
   measurement at one, two and 182 days, 3.0 points high at most between, where
   CSHQ and CASH+NK lose all of it, for a gel at Ca/Si 1.17.
-- **Alkali uptake by C-A-S-H against L'Hôpital et al. (2016)** (the page
+- **Alkali uptake by C-A-S-H against L'Hôpital et al. (2016b)** (the page
   *Alkali uptake by C-A-S-H*, `scripts/lhopital2016_alkali.jl`): their 49
   batches of C-S-H and C-A-S-H, Ca/Si 0.6 to 1.6 in water or in KOH or NaOH
   from 0.01 to 0.5 mol/L, transcribed whole from their Appendices A to C into
