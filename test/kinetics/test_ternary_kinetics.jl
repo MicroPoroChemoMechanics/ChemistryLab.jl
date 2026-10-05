@@ -66,3 +66,30 @@ isdefined(@__MODULE__, :dw11k_run) || include(joinpath(pkgdir(ChemistryLab), "sc
     @test fit.identifiability.S[1:2] ≈ [25.1, 1.97] rtol = 1.0e-2
     @test all(<(1.0e-8), fit.identifiability.S[3:end])
 end
+
+@testsection "the CEM II/B-V of De Weerdt et al. (2011) in time with the two other gels" begin
+    # Section 7 of the page: the paste with fly ash and no limestone, its C-S-H
+    # under CNASH_ss and under CASH+NK, whose compound-energy activities the
+    # run evaluates. Table 7 and the SEM-EDX analyses in the comments.
+    for (gel, ch, ett, early, late) in (
+            # portlandite at 28 and 180 days (13.7, 11.3), ettringite (7.5, 6.6),
+            # the gel's Ca/Si and Al/Si at 1 day (1.7, 0.06) and 140 days (1.4, 0.13)
+            ("CNASH_ss", (15.8, 13.8), (5.4, 1.8), (1.12, 0.09), (1.16, 0.107)),
+            ("CASH+NK", (7.9, 3.1), (0.0, 0.0), (1.58, 0.0), (1.56, 0.0)),
+        )
+        r = dw11k_run(dw11k_setup(; gel), "OPC-FA")
+        @test SciMLBase.successful_retcode(r.sol)
+        states = dw11k_replay(r, [1, 28, 140, 180])
+        c = dw11k_contents(r, states[[2, 4]])
+        # Each to the digit the page prints it to.
+        for k in 1:2
+            @test c[k]["portlandite"] ≈ ch[k] atol = 0.05
+            @test c[k]["ettringite"] ≈ ett[k] atol = 0.05
+        end
+        for (k, (ca_si, al_si)) in ((1, early), (3, late))
+            g = dw11k_gel(states[k], gel)
+            @test g.Ca_Si ≈ ca_si atol = 0.005
+            @test g.Al_Si ≈ al_si atol = 0.0005
+        end
+    end
+end

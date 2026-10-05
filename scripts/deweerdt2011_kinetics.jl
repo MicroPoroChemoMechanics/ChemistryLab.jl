@@ -24,16 +24,34 @@ const DW11_PK = Dict(
     "C3A" => PK84_PARAMS_C3A, "C4AF" => PK84_PARAMS_C4AF,
 )
 
+# The database of the CASH+ models, read the first time a run asks for it.
+const _DW11K_CASHPLUS = Ref{Any}(nothing)
+function _dw11k_cashplus()
+    _DW11K_CASHPLUS[] === nothing &&
+        (_DW11K_CASHPLUS[] = build_species(datapath("cemdata18-cashplus.json"); verbose = false))
+    return _DW11K_CASHPLUS[]
+end
+
 """
-    dw11k_setup() -> (; cs, fly_ash, glass)
+    dw11k_setup(; gel = "CSHQ") -> (; cs, fly_ash, glass)
 
 The system of the phase list of `dw11_system`, which holds the clinker phases,
 with the glass of the fly ash added as a species ([`glass_species`](@ref)), and
 the fly ash whose glass is that species ([`with_species`](@ref)), its crystals
-inert.
+inert. `gel` is the model of the C-S-H: `"CSHQ"`, or one of the two the
+validation page also computes these pastes with, `"CNASH_ss"` (on Cemdata18)
+and `"CASH+NK"` (on `cemdata18-cashplus.json`).
 """
-function dw11k_setup()
-    base = dw11_system()
+function dw11k_setup(; gel = "CSHQ")
+    base = if gel == "CSHQ"
+        dw11_system()
+    elseif gel == "CNASH_ss"
+        phase_list_system(DW11_PHASES, DW11_SUBSTANCES; replace = Dict("CSHQ" => "CNASH_ss"))
+    elseif gel == "CASH+NK"
+        phase_list_system(DW11_PHASES, _dw11k_cashplus(); replace = Dict("CSHQ" => "CASH+NK"))
+    else
+        throw(ArgumentError("dw11k_setup: the gel is \"CSHQ\", \"CNASH_ss\" or \"CASH+NK\"; got \"$gel\""))
+    end
     fa = material_template("siliceous fly ash (De Weerdt 2011)", DW11_DB)
     glass = glass_species(only(c for c in fa.constituents if c.name == "glass"), base; symbol = "FA")
     fa = with_extents(fa, Dict(c.name => 0.0 for c in fa.constituents if c.name != "glass"))
@@ -235,6 +253,17 @@ dw11k_amount(state, name) = sum(
     );
     init = 0.0,
 )
+
+"""
+    dw11k_gel(state, gel) -> (; Ca_Si, Al_Si)
+
+The calcium-to-silicon and aluminum-to-silicon ratios of the C-S-H `gel`, the
+name of its solid solution, in `state`.
+"""
+function dw11k_gel(state, gel)
+    e = solid_solution_totals(state, gel).elements
+    return (; Ca_Si = e[:Ca] / e[:Si], Al_Si = get(e, :Al, 0.0) / e[:Si])
+end
 
 # ── The alite calibrated on the plain cement ─────────────────────────────────
 

@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **The two other C-S-H models in a coupled blended run**
+  (`dw11k_setup(; gel)` in `scripts/deweerdt2011_kinetics.jl`, Section 7 of the
+  page *CEM II/B-V and CEM II/B-M (V-LL), with their CEM I, integrated in
+  time*): the fly-ash pastes of De Weerdt et al. (2011) integrated over six
+  months with `CNASH_ss` and with `CASH+NK` in place of `CSHQ`, against the
+  portlandite and ettringite of their Table 7 and the Ca/Si and Al/Si of their
+  SEM-EDX analyses. In time as at the measured extents, neither fixes the
+  pastes: `CASH+NK` gives the gel and the portlandite of `CSHQ` within a point,
+  with no aluminum; `CNASH_ss` takes aluminum (Al/Si 0.09 to 0.11, 0.06 to 0.13
+  measured) at a Ca/Si of 1.12 to 1.16 where the paste's gel falls from 1.7 to
+  1.4, and leaves 1.7 to 3.9 points too much portlandite. `CSHQ` stays the gel
+  of these pages, and the page says why.
+
+### Fixed
+
+- **A kinetic run whose partition holds a C-S-H under the compound energy
+  formalism stopped before its first step.** The activities of the members of a
+  `CompoundEnergyModel` phase, the CASH+ and CASH+NK gels of Kulik et al. (2022)
+  and Miron et al. (2022a, b), depend on their standard Gibbs energies, which the
+  equilibrium solvers hand to the activity model and the parameters of a kinetic
+  run did not carry: the first evaluation of the activities raised "none were
+  passed". The parameters of a run now hold those energies over RT when a phase
+  of the system reads them, at the temperature of the run, or at the cell's own
+  under a semi-adiabatic calorimeter. Runs on any other system are unchanged.
+
 ## v0.32.1 — Blended cements and their hydrates against temperature
 
 Blended cements are now checked against what was measured on them at their
