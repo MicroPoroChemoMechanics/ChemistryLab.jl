@@ -79,6 +79,13 @@ n_{\equiv\mathrm{XOH}} + n_{\equiv\mathrm{XOH_2^{+}}} + n_{\equiv\mathrm{XO^{-}}
 with `N` the family's site budget in moles. Nothing was added to the matrix
 machinery to obtain it.
 
+![Protonated, neutral and deprotonated oxide groups each count as one site; their amounts sum to the site budget N.](../assets/theory/surface_site_balance.svg)
+
+*Three states of the same site family, drawn schematically. Protonation changes
+the charge and hydrogen inventory of a surface group, while each state still
+counts once in the site balance. The fixed ``N`` shown here assumes a fixed
+support capacity; §10 treats a capacity that follows the host mineral.*
+
 !!! note "Where `N` comes from"
     Three ways, because published data comes in three shapes and converting
     between them needs a number nobody measured: a site density per unit area
@@ -207,13 +214,14 @@ surface adds a convex term under a linear constraint, and the certificate covers
 it unchanged.
 
 That is true of *this* model and is not a general statement about surfaces. Two
-extensions on the roadmap will need the question reopened rather than inherited:
-an attractive lateral-interaction term can make the mixing energy non-convex
-near half coverage, and an electrostatic term depends on the ionic strength,
-hence on the aqueous composition, so convexity at fixed ionic strength is not
-convexity in the composition. Where that fails, the honest outcome is a
-certificate that **refuses**, as it already does for a concave solid solution —
-not one that quietly means less.
+additions reopen the question rather than inherit the answer. An electrostatic
+term changes the energy: §8 shows that a constant capacitance keeps it convex,
+and §9 that a diffuse layer, whose potential depends on the ionic strength of
+the aqueous phase, leaves no Gibbs energy behind the activities at all. The
+certificate then reports a self-consistent speciation rather than a minimum,
+and says so in its `scope`. An attractive lateral-interaction term, which can
+make the mixing energy non-convex near half coverage, is not implemented
+(§11).
 
 ## 7. Cation exchange: the same machinery, counting charge
 
@@ -477,8 +485,9 @@ uncharged surface a solve without electrostatics would return.
 
 The elimination remains reachable, by `surface_potential = :eliminated`, and it
 is kept because it is what makes the statement above a measurement: over the
-same eighteen points, the eliminated route certifies three and the unknown
-certifies all eighteen.
+same eighteen points, the eliminated route meets the optimality conditions at
+three and the unknown at all eighteen — in the `:self_consistent` sense, as the
+next paragraph says.
 
 **None of this repairs the first price.** The model is still not the gradient of
 a Gibbs energy, whichever way the potential is obtained. An unknown makes the

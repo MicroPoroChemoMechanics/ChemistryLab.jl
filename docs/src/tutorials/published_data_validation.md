@@ -17,7 +17,7 @@ then a set of measured solution compositions [Atkins1992](@cite), which can
 disagree with the database and does.
 
 !!! info "Thermodynamic quantities behind these comparisons"
-    [Energy and entropy balances](@ref sec-theory-energy-entropy) distinguishes
+    [The two laws, and what the Gibbs energy measures](@ref sec-theory-laws) distinguishes
     heat transfer, enthalpy differences and kinetic heat rates.
     [Absolute entropy and entropy of formation](@ref sec-theory-absolute-entropy)
     explains why tabulated species entropy is not formation entropy, while

@@ -78,20 +78,49 @@ is equilibrium and the rate is exactly zero — which is the property that makes
 this form composable with an equilibrium solver rather than in competition with
 it.
 
-One mechanism ([`RateMechanism`](@ref)) contributes
+The saturation ratio is the Gibbs energy of the reaction in another form. For
+the dissolution written with the mineral as reactant, at unit activity, the
+reaction quotient is the ion activity product, and
+[Reactions and equilibrium constants](@ref sec-theory-reactions) gives
+
+```math
+\Delta_r G = \Delta_r G^\circ + RT\ln\mathrm{IAP} = RT\ln\Omega ,
+\qquad
+\Omega = \exp\!\left(\frac{\Delta_r G}{RT}\right) = \exp\!\left(-\frac{\mathcal{A}}{RT}\right) ,
+```
+
+``\mathcal{A} = -\Delta_r G`` being the affinity of the dissolution. The factor
+``1 - \Omega`` that drives the rate below is thus ``1 - e^{-\mathcal{A}/RT}``: it
+tends to one far from equilibrium, where the affinity is large, and to
+``\mathcal{A}/RT`` close to it, so that near equilibrium the rate is
+proportional to the affinity.
+
+One mechanism ([`RateMechanism`](@ref)) contributes, per unit of reactive
+surface,
 
 ```math
 r_{\text{mech}} = k(T)\;\Bigl[\prod_j a_j^{\,n_j}\Bigr]\;
-                  \operatorname{sign}(1-\Omega)\;\bigl|1-\Omega^{p}\bigr|^{q} ,
+                  \operatorname{sign}(1-\Omega^{p})\;\bigl|1-\Omega^{p}\bigr|^{q}
+                  \qquad [\text{mol m}^{-2}\,\text{s}^{-1}] ,
 ```
 
-and a mineral's total rate is the sum over its mechanisms — classically an acid
-one, a neutral one and a base one, which is why the products of activities are
-called **catalysts** ([`RateModelCatalyst`](@ref)): each contributes `a_j^{n_j}`,
-with `n_j = 0.5` on `H+` a typical acid mechanism.
+and a mineral's rate is the sum over its mechanisms, times its reactive area
+``A_s`` (m²),
+
+```math
+r = A_s(n, n_0)\sum_{\text{mech}} r_{\text{mech}} \qquad [\text{mol/s}] ,
+```
+
+the area being evaluated at every step from the current and initial amounts of
+the mineral by the surface model given to [`transition_state`](@ref). The
+mechanisms are classically an acid one, a neutral one and a base one, which is
+why the products of activities are called **catalysts**
+([`RateModelCatalyst`](@ref)): each contributes `a_j^{n_j}`, with `n_j = 0.5` on
+`H+` a typical acid mechanism.
 
 | symbol | meaning | unit |
 |:--|:--|:--|
+| ``A_s`` | reactive surface area of the mineral | m² |
 | ``k(T)`` | rate constant, usually [`arrhenius_rate_constant`](@ref) | mol m⁻² s⁻¹ |
 | ``a_j, n_j`` | catalyst activity and its exponent | — |
 | ``p`` | saturation exponent inside the bracket | — |

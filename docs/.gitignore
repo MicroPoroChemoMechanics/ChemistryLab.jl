@@ -9,6 +9,8 @@ build/
 src/.vitepress/cache/
 src/.vitepress/dist/
 
+/codex
+
 Manifest.toml
 
 # Written by make.jl from nomenclature.toml at every build.

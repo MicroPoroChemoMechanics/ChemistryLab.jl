@@ -121,8 +121,9 @@ and the sources of those published constants share a reference state.
 A single `pe` describes a system only if **every** couple in it is at mutual
 equilibrium. That is a strong assumption, and in a cement it is false.
 
-The demonstration costs nothing. On one solution carrying sulfate, sulfide and
-both irons at comparable amounts, the two couples report
+The demonstration costs nothing. On one solution of imposed composition, not
+equilibrated, carrying sulfate, sulfide and both irons at comparable amounts,
+the two couples report
 
 | couple | `pe` | ``E_h`` |
 |:--|--:|--:|
@@ -130,10 +131,13 @@ both irons at comparable amounts, the two couples report
 | ``\ce{SO4^2-}/\ce{HS-}`` | −3.7 | −0.22 V |
 
 almost a volt apart. Neither is wrong. They are the potentials **of those
-couples**, and they differ because the solution is not at redox equilibrium with
-itself: sulfate reduction is kinetically frozen on any time scale a cement cares
-about, so the sulfur couple retains whatever state the slag gave it while the
-iron couple relaxes.
+couples**, and they differ because that composition is not at redox
+equilibrium with itself. The numbers illustrate the arithmetic, not a pore
+solution: free Fe³⁺ at these amounts belongs to an acid solution, not to one at
+pH 13. A cement paste reaches the same situation by another route. Sulfate
+reduction is kinetically frozen on any time scale a cement cares about, so the
+sulfur couple retains whatever state the slag gave it, while faster couples
+relax, and the potentials read from different couples need not agree.
 
 This is why [`pe`](@ref) takes the couple as an argument and reports which one it
 used. Computing it from two couples and comparing them is a measurement of how

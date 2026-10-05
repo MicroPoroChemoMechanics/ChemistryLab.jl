@@ -76,7 +76,12 @@ Powers splits his coefficient himself: about **0.23 g/g** of non-evaporable wate
 about **0.19 g/g** of **gel water**, which is water *present in the paste and
 unusable by the reaction*.
 
-So the gap between the two thresholds,
+The two splits do not draw the line in the same place. Powers' 0.23 is
+operational: it is the water that survives D-drying. CEMDATA18 writes the
+interlayer water of C-S-H into the formula, where D-drying would have removed
+it, so the computed ``b = 0.31`` already contains about 0.08 g/g of what Powers
+counts as gel water ([Self-desiccation](@ref sec-self-desiccation) §4 sets the
+two side by side). So the gap between the two thresholds,
 
 ```math
 0.30 \;\;(\text{stoichiometric, predicted})
@@ -84,9 +89,10 @@ So the gap between the two thresholds,
 0.42 \;\;(\text{Powers, measured}) ,
 ```
 
-**is exactly the gel water**, and it is the whole of the question. A paste at
-``w/c = 0.35`` has enough hydrogen to consume all its clinker — the minimization
-says so, correctly — and does not do it.
+is the part of the gel water that no hydrate formula contains, about 0.12 g/g of
+Powers' 0.19, and it is the whole of the question. A paste at ``w/c = 0.35`` has
+enough hydrogen to consume all its clinker — the minimization says so,
+correctly — and does not do it.
 
 Written as a budget, the arrest condition is
 
@@ -173,9 +179,12 @@ and Reaktoro offer, since they are 0D equilibrium codes too.
 **Close the budget with a measured isotherm.** Take ``b`` and ``s`` from the
 minimization and ``S^\ast`` from a published desorption isotherm at an assumed
 arrest humidity. Then ``k`` is predicted up to that one empirical threshold — and
-inverting it is more informative than quoting it: with Powers' own
-``w_n = 0.23``, ``k = 0.42`` corresponds to an arrest at **77.5 % relative
-humidity**, the window sealed pastes are independently reported to stop in. The
+inverting it is more informative than quoting it. The inversion has to use one
+definition of bound water throughout. Powers' 0.42 was split with his D-dried
+``w_n = 0.23``, so it is that value, and not the formula water ``b`` of §1, that
+goes into ``k`` beside the computed ``s``: ``k = 0.42`` then corresponds to an
+arrest at **77.5 % relative humidity**, the window sealed pastes are
+independently reported to stop in. The
 [self-desiccation page](@ref sec-self-desiccation) does this, and shows why the
 *proportionality* ``\alpha_{\max}\propto w/c`` is structural and therefore no
 evidence at all.
@@ -233,10 +242,11 @@ known: the precision of determination is "rather low, at best ± 4-5 %".
     A Gibbs minimization reacts whatever budget it is handed, without comment. A
     page that hands it the whole binder has asked what the paste becomes after
     every grain has dissolved — a question about geological time — and will get a
-    confident, certified, completely unphysical answer: on a CEM V at 48 %
-    replacement, a pH of 14.4 and an element balance that cannot close because no
-    assemblage in the database will hold the alkalis and aluminum released. The
-    failure is in the question. [The CEM V page](@ref cem5-dor) shows both.
+    confident answer to it. On a CEM V at 48 % replacement, the fully reacted
+    paste certifies, but at an ionic strength beyond the range Cemdata18 states
+    for its activity model: the answer is a composition consistent with an
+    extrapolated model, and it describes no specimen. The failure is in the
+    question. [The CEM V page](@ref cem5-dor) shows both.
 
 ## 7. Curing is a boundary condition, and there are two of them
 
