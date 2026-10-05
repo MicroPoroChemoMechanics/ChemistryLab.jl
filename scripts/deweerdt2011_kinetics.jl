@@ -40,7 +40,8 @@ with the glass of the fly ash added as a species ([`glass_species`](@ref)), and
 the fly ash whose glass is that species ([`with_species`](@ref)), its crystals
 inert. `gel` is the model of the C-S-H: `"CSHQ"`, or one of the two the
 validation page also computes these pastes with, `"CNASH_ss"` (on Cemdata18)
-and `"CASH+NK"` (on `cemdata18-cashplus.json`).
+and `"CASH+NK"` (on `cemdata18-cashplus.json`, without the aqueous ion pairs
+its authors left out when fitting it, `DW11_CASHPLUS_EXCLUDED`).
 """
 function dw11k_setup(; gel = "CSHQ")
     base = if gel == "CSHQ"
@@ -48,7 +49,10 @@ function dw11k_setup(; gel = "CSHQ")
     elseif gel == "CNASH_ss"
         phase_list_system(DW11_PHASES, DW11_SUBSTANCES; replace = Dict("CSHQ" => "CNASH_ss"))
     elseif gel == "CASH+NK"
-        phase_list_system(DW11_PHASES, _dw11k_cashplus(); replace = Dict("CSHQ" => "CASH+NK"))
+        phase_list_system(
+            DW11_PHASES, _dw11k_cashplus();
+            replace = Dict("CSHQ" => "CASH+NK"), exclude_aqueous = DW11_CASHPLUS_EXCLUDED,
+        )
     else
         throw(ArgumentError("dw11k_setup: the gel is \"CSHQ\", \"CNASH_ss\" or \"CASH+NK\"; got \"$gel\""))
     end

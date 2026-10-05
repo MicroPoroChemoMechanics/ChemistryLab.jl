@@ -75,7 +75,7 @@ end
             # portlandite at 28 and 180 days (13.7, 11.3), ettringite (7.5, 6.6),
             # the gel's Ca/Si and Al/Si at 1 day (1.7, 0.06) and 140 days (1.4, 0.13)
             ("CNASH_ss", (15.8, 13.8), (5.4, 1.8), (1.12, 0.09), (1.16, 0.107)),
-            ("CASH+NK", (7.9, 3.1), (0.0, 0.0), (1.58, 0.0), (1.56, 0.0)),
+            ("CASH+NK", (8.0, 3.1), (0.0, 0.0), (1.57, 0.0), (1.55, 0.0)),
         )
         r = dw11k_run(dw11k_setup(; gel), "OPC-FA")
         @test SciMLBase.successful_retcode(r.sol)

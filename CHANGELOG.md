@@ -54,6 +54,13 @@
 
 ### Changed
 
+- **CASH+NK is computed without the aqueous ion pairs its authors left out**
+  when fitting it (NaOH⁰, KOH⁰, NaHSiO₃⁰ and KHSiO₃⁰, Miron et al. 2022a,
+  Sections 3.2 and 7.4), in the scripts and pages that run it: the De Weerdt
+  validation (Section 7) and kinetics (Section 7), Schöler (Section 6) and the
+  alkali uptake. Of these the databases hold NaOH⁰ and KOH⁰. The De Weerdt
+  numbers move in their last digit: the portlandite of the CEM I with CASH+NK
+  is now 1.6 points from that of CSHQ, where the page said 1.5.
 - **OptimaSolver 0.8.1 is required** (`[compat] OptimaSolver = "0.8.1"`). Its
   dual Newton left a member of a sublattice phase that owns no species on any
   site, and is barely unstable, at 1e-16 to 1e-28 mol instead of the floor, and

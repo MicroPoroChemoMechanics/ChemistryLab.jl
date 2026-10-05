@@ -229,7 +229,9 @@ within two points from seven days and two to three too high at one day.
 
 The two fly-ash pastes again, with `CNASH_ss` and then `CASH+NK` in place of
 `CSHQ`, the rest of the phase list and the laws unchanged, the alite under its
-published constants as in Sections 2 to 5. The members of `CASH+NK` are mixed
+published constants as in Sections 2 to 5; `CASH+NK` without the aqueous ion
+pairs its authors left out when fitting it, as on
+[the validation page](@ref sec-validation-blended-gels). The members of `CASH+NK` are mixed
 under the compound energy formalism, whose activities depend on the standard
 Gibbs energies of the members, which the run evaluates at its temperature.
 

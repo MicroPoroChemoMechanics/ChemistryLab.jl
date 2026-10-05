@@ -43,6 +43,9 @@ end
 const LH16_PURE = split("Lim Amor-Sl CA Portlandite C3AH6 C3AS0.84H4.32 straetlingite C4AH13 CAH10 AlOHmic")
 const LH16_CSHQ = ["CSHQ-JenD", "CSHQ-JenH", "CSHQ-TobD", "CSHQ-TobH"]
 const LH16_ALKALI = Dict("KOH" => ("K+", "KSiOH"), "NaOH" => ("Na+", "NaSiOH"))
+# The aqueous ion pairs Miron et al. (2022a) left out when fitting CASH+NK
+# (their Sections 3.2 and 7.4); of them the database holds NaOH@ and KOH@.
+const LH16_CASHPLUS_EXCLUDED = ["NaOH@", "KOH@", "NaHSiO3@", "KHSiO3@"]
 
 """
     lh16_system(gel, alkali) -> ChemicalSystem
@@ -51,9 +54,9 @@ The system of a batch in `alkali` (`"KOH"`, `"NaOH"` or `"none"`) with the gel
 `gel`: `"CSHQ"`, with the alkali end member of that hydroxide, or `"CASH+NK"`,
 on `cemdata18-cashplus.json`, whose twelve end members carry both alkalis.
 
-For `CASH+NK` the neutral aqueous complexes of the alkalis are left out, and
-`Ca(OH)2@` is kept, as Miron et al. (2022a) fitted the model (their Section
-3.2). For `CSHQ` a system holds the alkali of its batch only: a budget without
+For `CASH+NK` the aqueous ion pairs of the alkalis are left out
+(`LH16_CASHPLUS_EXCLUDED`), and `Ca(OH)2@` is kept, as Miron et al. (2022a)
+fitted the model (their Sections 3.2 and 7.4). For `CSHQ` a system holds the alkali of its batch only: a budget without
 potassium would leave `KSiOH` and the potassium species at the floor.
 """
 function lh16_system(gel, alkali)
@@ -72,10 +75,9 @@ function lh16_system(gel, alkali)
         members = [symbol(m) for m in nk.end_members]
         sp = speciation(
             collect(values(db)), vcat(LH16_PURE, members);
-            aggregate_state = [AS_AQUEOUS], exclude_species = split("H2@ O2@ CH4@"),
+            aggregate_state = [AS_AQUEOUS], exclude_species = vcat(split("H2@ O2@ CH4@"), LH16_CASHPLUS_EXCLUDED),
         )
-        complex(s) = charge(s) == 0 && aggregate_state(s) == AS_AQUEOUS && any(e -> haskey(atoms(s), e), (:Na, :K))
-        return ChemicalSystem(filter(!complex, sp), CEMDATA_PRIMARIES; solid_solutions = [nk])
+        return ChemicalSystem(sp, CEMDATA_PRIMARIES; solid_solutions = [nk])
     end
     throw(ArgumentError("lh16_system: the gel is \"CSHQ\" or \"CASH+NK\"; got \"$gel\""))
 end
