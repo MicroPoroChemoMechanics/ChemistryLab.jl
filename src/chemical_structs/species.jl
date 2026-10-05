@@ -1669,9 +1669,12 @@ function complete_thermo_functions!(s::AbstractSpecies)
         # CEMDATA18 marks three crystals of calcium aluminate cement, `CA`, `CA2`
         # and `C12A7`, as `mv_pvnrt` while giving them a solid's volume.
         constant_volume = false
+        solvent_volume = false
         if haskey(properties(s), :V_method)
             if s[:V_method] == "mv_pvnrt" && aggregate_state(s) == AS_GAS
                 s[:V⁰] = _ideal_gas_molar_volume(s.Tref, s.Pref)
+            elseif s[:V_method] == "water_eos" && haskey(dict_params, :V⁰) && !ismissing(dict_params[:V⁰])
+                solvent_volume = true
             elseif haskey(dict_params, :V⁰) && !ismissing(dict_params[:V⁰])
                 s[:V⁰] = SymbolicFunc(dict_params[:V⁰])
                 constant_volume = true
@@ -1696,6 +1699,7 @@ function complete_thermo_functions!(s::AbstractSpecies)
         end
         haskey(properties(s), :cp_intervals) && _follow_cp_intervals!(s, dict_params)
         constant_volume && _add_pressure_term!(s, dict_params[:V⁰])
+        solvent_volume && _add_solvent_pressure_term!(s, dict_params[:V⁰])
         delete!(s.properties, :thermo_params)
     end
     return s
@@ -1793,6 +1797,76 @@ function _add_pressure_term!(s::AbstractSpecies, V⁰)
     Pr = ustrip(us"Pa", s.Pref)
     term = NumericFunc(P -> V * (P - Pr), (:P,), (P = s.Pref,), u"J/mol")
     for k in (:ΔₐG⁰, :ΔₐH⁰)
+        haskey(properties(s), k) && (s[k] = s[k] + term)
+    end
+    return s
+end
+
+# The density of water at T and P by the equation of state of Haar, Gallagher
+# and Kell, found on the values and lifted into the dual numbers of T and P by
+# two Newton steps on P = ρ² ∂A/∂ρ: the value does not move, and the
+# derivatives are exact to second order, as the implicit-function theorem gives
+# them, where the iteration's own stopping test would leave them at its
+# tolerance.
+function _hgk_density(T, P)
+    ρ = water_density_hgk(_plain(T), _plain(P)) + zero(T) + zero(P)
+    for _ in 1:2
+        h = water_helmholtz_hgk(promote(T, ρ)...)
+        ρ -= (ρ^2 * h.AD - P) / (2ρ * h.AD + ρ^2 * h.ADD)
+    end
+    return ρ
+end
+
+# The specific Gibbs energy of water, A + P/ρ, in J/kg.
+function _hgk_specific_gibbs(T, P)
+    ρ = _hgk_density(T, P)
+    return water_helmholtz_hgk(promote(T, ρ)...).A + P / ρ
+end
+
+"""
+    _add_solvent_pressure_term!(s, V⁰)
+
+Move the standard state of the solvent with pressure as the equation of state
+of water of Haar, Gallagher and Kell has it, its volume at ``P^\\circ`` being
+the one its record tabulates.
+
+The molar volume is ``V(T, P) = V^\\circ \\rho(T, P^\\circ)/\\rho(T, P)``: the
+tabulated ``V^\\circ`` at the standard pressure, compressed in the ratio of the
+densities of the equation. The Gibbs energy gains its integral,
+``\\Delta g = V^\\circ \\rho(T, P^\\circ)\\,[g(T, P) - g(T, P^\\circ)]`` with
+``g = A + P/\\rho`` the specific Gibbs energy of the equation, since
+``\\partial g/\\partial P = 1/\\rho``; the enthalpy, the entropy and the heat
+capacity gain ``\\Delta g - T\\,\\partial\\Delta g/\\partial T``,
+``-\\partial\\Delta g/\\partial T`` and ``-T\\,\\partial^2\\Delta g/\\partial T^2``,
+so that the four functions stay those of one Gibbs energy. Every term is an
+exact zero at ``P^\\circ``, where the functions keep their values to the last
+bit. A constant volume, as before, neglected the compressibility of water:
+1.1 % of its volume at 250 bar, 10 J/mol on its Gibbs energy at 500 bar.
+"""
+function _add_solvent_pressure_term!(s::AbstractSpecies, V⁰)
+    V = ustrip(us"m^3/mol", V⁰)
+    Pr = ustrip(us"Pa", s.Pref)
+    # At the standard pressure the terms are exact zeros, in every derivative
+    # with respect to T, and the volume is the tabulated one: nothing to solve
+    # for, where the equation of state costs some 20 µs a call. A pressure being
+    # differentiated still goes through it, for ∂G/∂P = V there.
+    at_Pr(P) = !(P isa ForwardDiff.Dual) && P == Pr
+    function Δg(T, P)
+        at_Pr(P) && return zero(promote_type(typeof(T), typeof(P)))
+        return V * _hgk_density(T, Pr) * (_hgk_specific_gibbs(T, P) - _hgk_specific_gibbs(T, Pr))
+    end
+    ∂T(T, P) = ForwardDiff.derivative(t -> Δg(t, P), T)
+    ∂TT(T, P) = ForwardDiff.derivative(t -> ∂T(t, P), T)
+    refs = (T = s.Tref, P = s.Pref)
+    Vf(T, P) = at_Pr(P) ? V + zero(T) : V * _hgk_density(T, Pr) / _hgk_density(T, P)
+    s[:V⁰] = NumericFunc(Vf, (:T, :P), refs, u"m^3/mol")
+    terms = (
+        ΔₐG⁰ = NumericFunc(Δg, (:T, :P), refs, u"J/mol"),
+        ΔₐH⁰ = NumericFunc((T, P) -> Δg(T, P) - T * ∂T(T, P), (:T, :P), refs, u"J/mol"),
+        S⁰ = NumericFunc((T, P) -> -∂T(T, P), (:T, :P), refs, u"J/(mol*K)"),
+        Cp⁰ = NumericFunc((T, P) -> -T * ∂TT(T, P), (:T, :P), refs, u"J/(mol*K)"),
+    )
+    for (k, term) in pairs(terms)
         haskey(properties(s), k) && (s[k] = s[k] + term)
     end
     return s

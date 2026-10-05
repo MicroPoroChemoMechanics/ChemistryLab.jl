@@ -20,6 +20,18 @@
   which the paper prints five decimals: rounded, they would move the critical
   point of the equation by 0.01 in `Z`.
 
+### Changed
+
+- **The solvent is compressible.** The standard state of the solvent of the
+  ThermoFun databases now moves with pressure as the equation of state of water
+  of Haar, Gallagher and Kell has it, its volume at 1 bar staying the one its
+  record tabulates: `V(T, P) = V⁰ ρ(T, P°)/ρ(T, P)`, and the Gibbs energy, the
+  enthalpy, the entropy and the heat capacity gain the terms of that one
+  equation, by automatic differentiation. Its volume was held constant before,
+  which overstated it by 1.1 % at 250 bar and its Gibbs energy by 10 J/mol at
+  500 bar. Nothing moves at 1 bar, to the bit, nor in cost: there the terms are
+  not evaluated.
+
 ## v0.32.2 — The C-S-H models of a blend, in time and against syntheses
 
 The C-S-H models a blended cement may be computed with are compared where they

@@ -43,7 +43,7 @@ using JSON
     @testset "a condensed species: ∂G⁰/∂P = ∂H⁰/∂P = V⁰, S⁰ unmoved" begin
         # `CA` is marked `mv_pvnrt` in CEMDATA18 while carrying a solid's volume:
         # the aggregate state decides, and it is treated as the crystal it is.
-        for k in ("Cal", "Portlandite", "ettringite", "CA", "H2O@")
+        for k in ("Cal", "Portlandite", "ettringite", "CA")
             s = cem[k]
             V = s[:V⁰](T = 298.15, P = 3.0e6)
             @test V == s[:V⁰](T = 298.15, P = 1.0e5)
@@ -55,6 +55,48 @@ using JSON
             end
             @test s[:ΔₐG⁰](T = 310.0, P = 1.1e6) - s[:ΔₐG⁰](T = 310.0, P = 1.0e5) ≈ V * 1.0e6 rtol = 1.0e-9
         end
+    end
+
+    # The solvent follows the equation of state of water in pressure, its volume
+    # at P° being the tabulated one. Every relation below is one of a single
+    # Gibbs energy, by automatic differentiation.
+    @testset "the solvent: compressed as the equation of state of water says" begin
+        w = cem["H2O@"]
+        V⁰ = 1.8068397045136e-5                   # the record's, 1.8068397045136 J/bar
+        R = R_GAS
+        for T in (283.15, 298.15, 333.15)
+            # At P° nothing moves: the tabulated volume, and the energies to the bit.
+            @test w[:V⁰](T = T, P = P_STANDARD) == V⁰
+            for k in (:ΔₐG⁰, :ΔₐH⁰, :S⁰, :Cp⁰)
+                @test ForwardDiff.derivative(Tv -> w[k](T = Tv, P = P_STANDARD), T) ==
+                    ForwardDiff.derivative(Tv -> w[k](T = Tv), T)
+                @test w[k](T = T, P = P_STANDARD) === w[k](T = T)
+            end
+            for P in (1.0e6, 3.0e7, 5.0e7)
+                V = w[:V⁰](T = T, P = P)
+                # ∂G/∂P = V, ∂H/∂P = V − T ∂V/∂T, ∂S/∂P = −∂V/∂T.
+                dVdT = ForwardDiff.derivative(Tv -> w[:V⁰](T = Tv, P = P), T)
+                @test ForwardDiff.derivative(Pv -> w[:ΔₐG⁰](T = T, P = Pv), P) ≈ V rtol = 1.0e-10
+                @test ForwardDiff.derivative(Pv -> w[:ΔₐH⁰](T = T, P = Pv), P) ≈ V - T * dVdT rtol = 1.0e-9
+                @test ForwardDiff.derivative(Pv -> w[:S⁰](T = T, P = Pv), P) ≈ -dVdT rtol = 1.0e-8
+                # ΔG = ΔH − T ΔS for the changes from P° (the energies are of
+                # formation, the entropy absolute), and Cp = ∂H/∂T at the pressure.
+                δ(k) = w[k](T = T, P = P) - w[k](T = T, P = P_STANDARD)
+                @test δ(:ΔₐG⁰) ≈ δ(:ΔₐH⁰) - T * δ(:S⁰) rtol = 1.0e-10
+                @test ForwardDiff.derivative(Tv -> w[:ΔₐH⁰](T = Tv, P = P), T) ≈ w[:Cp⁰](T = T, P = P) rtol = 1.0e-9
+                # Compressed, by about 4.5e-10 per pascal near 25 °C.
+                @test V < V⁰
+            end
+            # The ratio of the densities of the equation, which `water_density_hgk`
+            # converges to 1e-6 of the pressure and the volume two Newton steps
+            # further.
+            @test w[:V⁰](T = T, P = 5.0e7) / V⁰ ≈
+                ChemistryLab.water_density_hgk(T, P_STANDARD) / ChemistryLab.water_density_hgk(T, 5.0e7) rtol = 1.0e-6
+        end
+        # Against the constant volume of before: 0.07 % at 10 bar, 10 J/mol at 500 bar.
+        Δ(P) = w[:ΔₐG⁰](T = 298.15, P = P) - w[:ΔₐG⁰](T = 298.15)
+        @test Δ(5.0e7) < V⁰ * (5.0e7 - P_STANDARD)
+        @test 5 < V⁰ * (5.0e7 - P_STANDARD) - Δ(5.0e7) < 15
     end
 
     @testset "the standard pressure leaves every standard energy where it was" begin
