@@ -1,6 +1,21 @@
 # Changelog
 
-## Unreleased
+## v0.32.1 — Blended cements and their hydrates against temperature
+
+Blended cements are now checked against what was measured on them at their
+curing temperature, and their hydrates against temperature. The clinker and
+slag laws meet the degrees of reaction of a slag-limestone cement cured at 5,
+20 and 40 °C (Snellings et al. 2022): the slag's Waller law needs a ceiling
+that rises with the water, and its activation energy, fitted, is the authors'
+67 kJ/mol; the same cement integrated at each temperature gives its bound water
+and portlandite within two points from four weeks on. The hydrates of two
+cements from 0 to 60 °C (Lothenbach et al. 2008), the chloride AFm phases from
+0 to 99 °C (Balonis 2019) and twelve equilibrium constants from 5 to 90 °C
+(against the fits PHREEQC ships) are compared with published calculations and
+measurements; the ternary cements of De Weerdt et al. (2011) are integrated in
+time and their alite calibrated. Nothing the package computed before changes:
+the release adds material templates, Rietveld phase names, published data and
+pages.
 
 ### Added
 
