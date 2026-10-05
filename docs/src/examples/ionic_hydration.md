@@ -318,40 +318,14 @@ Nothing in the code distinguishes the two cases. The free energy does.
 
 ### What is computed, and why it is not the heat of the reactions
 
-The heat comes from the **enthalpy of the whole system**, Eqs. (17)–(21) of
-[Lavergne2018](@cite): for a quasi-static isobaric process the released heat
-balances the change of enthalpy, and the enthalpy is a sum over species of molar
-enthalpies of formation,
-
-```math
--\delta Q \;=\; \mathrm{d}H
-\;=\; \Bigl(\sum_i n_i\,C^\circ_{p,i}(T)\Bigr)\mathrm{d}T
-\;+\; \sum_i \Delta_f H_i(P,T)\,\mathrm{d}n_i ,
-\qquad
-\Delta_f H_i(P,T) = \Delta_f H_i(P,T_0) + \int_{T_0}^{T}\!C^\circ_{p,i}\,\mathrm{d}\theta .
-```
-
-At fixed temperature this collapses to `Q(t) = H(t₀) − H(t)`. Enthalpy is a state
-function, so reactants, ions and hydrates are each counted once and **no reaction
-stoichiometry has to be written down** — which matters here, because the hydrates
-are not produced by any reaction the model declares.
-
-That is the whole difficulty of doing calorimetry on this model, and it is worth
-stating plainly. [`heat_rate`](@ref) sums `rᵢ(−Δ_r H⁰ᵢ)` over the *kinetic*
-reactions, which is right for a stoichiometric model whose reactions produce the
-hydrates directly. Here the kinetic reactions only dissolve the clinker into ions;
-the hydrates are precipitated by the Gibbs minimization, whose heat that sum
-cannot see. Driving a semi-adiabatic cell from it put the temperature rise at
-207 K. The calorimeters therefore take their heat from the enthalpy of the whole
-composition under partial equilibrium (see [`cumulative_heat`](@ref)).
-
-Nor can the enthalpy be read from the composition the integrator carries: under
-partial equilibrium that composition comes from an in-run, warm-started
-minimization which is **not certified**, and a single hydrate is worth hundreds of
-kilojoules. Read that way the curve came out at 12.7, 145, 1174, 936 and 631 J/g
-at 1 h, 6 h, 12 h, 1 d and 2 d — heat that rises and then falls, which no
-calorimeter has ever measured. [`heat_release`](@ref) therefore reads the
-**certified** speciations of §3.
+Under partial equilibrium the kinetic reactions only dissolve the clinker into
+ions and the hydrates are precipitated by the minimization, so the heat is the
+fall of the enthalpy of the whole composition, Eqs. (17)–(21) of
+[Lavergne2018](@cite), not the heat of the kinetic reactions
+([What the package counts as heat](@ref sec-theory-heat-output),
+[The calorimeters](@ref sec-theory-pe-calorimeters)). [`heat_release`](@ref)
+reads it on the **certified** speciations of §3, which also makes the curves
+monotone:
 
 ```@example ionicopc
 t_cal = heat_c.columns["time_s"]

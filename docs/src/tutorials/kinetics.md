@@ -13,18 +13,11 @@ following the methodology of [Leal2017](@citet).
 
 ## Background
 
-The kinetics algorithm solves:
-
-```math
-\frac{d n_k}{dt} = r_k(t), \quad k \in \text{kinetic minerals}
-```
-
-where ``r_k`` [mol/s] is the net rate of reaction ``k`` (positive = dissolution,
-negative stoichiometric coefficient for the mineral so `dn/dt < 0`).
-The aqueous speciation can be re-equilibrated once per accepted step, which
-provides the activity coefficients entering the saturation ratio
-``\Omega = \text{IAP}/K``; how this coupling is arranged is described in
-[The equilibrium–kinetics coupling](@ref) below.
+Each kinetic mineral advances along its reactions at the rates its laws give,
+written in [Rate laws, and every parameter in them](@ref sec-theory-kinetics);
+the aqueous speciation, re-equilibrated as the run advances, provides the
+activities and the saturation ratios those laws may read. The equations of the
+coupling are in [Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics).
 
 ## Two routes, and the one followed here
 
@@ -164,65 +157,23 @@ end
 
 ## The equilibrium–kinetics coupling
 
-The coupling is the partitioned formulation of [Leal2017](@citet), the one
-Reaktoro implements. Species are split into a **kinetic partition** — the
-minerals carrying a rate law — and an **equilibrium partition**, everything
-else: the aqueous phase and any mineral free to precipitate or dissolve
-instantaneously.
+With an `equilibrium_solver` on the problem, the species are split into a
+**kinetic partition**, the minerals carrying a rate law, and an **equilibrium
+partition**, everything else, which is re-equilibrated as the run advances. The
+ODE state is `(bₑ, nₖ)`: the element amounts of the equilibrium partition and
+the moles of the kinetic minerals. Why it carries element amounts, the
+equations it advances and when the partition may be frozen within a step are in
+[Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics); with the
+rate laws of this page, which read only the kinetic amounts, it is solved once
+per accepted step. The partition of a problem can be read off it:
 
-The ODE state is `(bₑ, nₖ)`: the element amounts held by the equilibrium
-partition, and the moles of the kinetic minerals. It advances as
-
-```math
-\frac{\mathrm{d} \mathbf{n}_k}{\mathrm{d} t} = \boldsymbol{\nu}_k^\mathsf{T} \mathbf{r},
-\qquad
-\frac{\mathrm{d} \mathbf{b}_e}{\mathrm{d} t} = \mathbf{A}_e \, \boldsymbol{\nu}_e^\mathsf{T} \mathbf{r} ,
+```julia
+[symbol(kp.system.species[i]) for i in kp.idx_kinetic]       # the kinetic minerals
+[symbol(kp.system.species[i]) for i in kp.idx_equilibrium]   # everything re-equilibrated
 ```
 
-and the composition of the equilibrium partition is recovered at each step by
-
-```math
-\mathbf{n}_e = \varphi(\mathbf{b}_e) \;=\; \arg\min_{\mathbf{n}} \; G(\mathbf{n})
-\quad \text{s.t.} \quad \mathbf{A}_e\, \mathbf{n} = \mathbf{b}_e , \; \mathbf{n} \ge 0 .
-```
-
-Three points are worth stating, because each is a way the coupling can be got
-wrong and look plausible:
-
-**The minimization runs over the equilibrium partition only.** Posing it on the
-whole system would equilibrate the kinetic minerals instantaneously, which is
-what a kinetic description exists to prevent. `KineticsProblem` therefore builds
-a sub-system restricted to the partition, sharing the parent's primary species
-so that `bₑ`, `dbₑ/dt` and the solve all live in one conservation basis.
-
-**`bₑ` is integrated, not `nₑ`.** Along the way an individual species may want
-to go negative — the generated dissolution reactions are written in `H⁺`, and a
-cement paste contains no acid — and it is the minimizer, not the caller, that
-redistributes the elements over a feasible set. Element amounts are what is
-conserved; species amounts are what is solved for.
-
-**The rate sign is fixed by the stoichiometry.** Each kinetic reaction is
-normalized so its controlling mineral carries `ν = −1`: a positive rate is a
-dissolution. A reaction generated from the nullspace comes out with an arbitrary
-orientation, and taken as-is the ODE grows the clinker instead of consuming it.
-
-!!! note "How the two are coupled in time"
-    With the rate laws of this page, which read only the amounts of the kinetic
-    minerals, the equilibrium is **not** solved inside the ODE right-hand side:
-    the ODE advances the kinetic minerals, and `respeciate!` re-equilibrates the
-    equilibrium partition once per accepted step, wired as a `DiscreteCallback`.
-    The rates do not depend on the partition, so this splitting is exact.
-
-    A rate law that reads the partition (an activity, a saturation ratio) makes
-    the right-hand side depend on it, and the partition is then solved at every
-    evaluation, with its derivative in the Jacobian: frozen within a step, such
-    a rate is constant over it and the step overshoots the equilibrium.
-    `integrate` decides between the two from the rate laws (`speciation =
-    :auto`).
-
-    The element amounts `bₑ` carried by the ODE state are handed to the solver
-    as the constraint of the sub-problem, not derived from a starting
-    composition. The composition passed alongside is a starting guess only.
+Each kinetic reaction is oriented so that its controlling mineral carries
+`ν = −1`: a positive rate is a dissolution.
 
 !!! warning "A failed re-speciation is reported, not hidden"
     If the equilibrium solve fails, that step keeps its frozen composition, the
@@ -231,11 +182,10 @@ orientation, and taken as-is the ODE grows the clinker instead of consuming it.
     look like a healthy one.
 
 !!! tip "Calorimetry and ΔᵣH⁰"
-    The calorimeter computes the heat generation rate as `q̇ = Σ rᵢ × (−ΔᵣH⁰ᵢ)`,
-    where `ΔᵣH⁰ᵢ(T)` is the reaction enthalpy (thermodynamic convention:
-    negative = exothermic). It is built automatically from species `ΔₐH⁰`
-    properties via `complete_thermo_functions!` — **reactions must be
-    mass-balanced** for this computation to be correct. For **custom species**
+    Without an equilibrium partition the heat is that of the kinetic reactions,
+    from their reaction enthalpies, which are built from the `ΔₐH⁰` of the species
+    — so **reactions must be mass-balanced**
+    ([The calorimeters](@ref sec-theory-pe-calorimeters)). For **custom species**
     that lack a `ΔₐH⁰` entry (GGBS, MK, …), set `:ΔᵣH⁰` directly on the
     reaction: `rxn[:ΔᵣH⁰] = NumericFunc((T,) -> -36_100.0, (:T,), u"J/mol")`.
 
