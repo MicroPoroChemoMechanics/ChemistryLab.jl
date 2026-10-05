@@ -322,6 +322,8 @@ end
     old = @test_deprecated r"is now" literature_table("Lavergne2018", "parrot_killoh_1984")
     new = literature_table("Lavergne2018", "parrott_killoh_1984")
     @test old.phase == new.phase && old.k1 == new.k1
+    # The alkali paper of L'Hôpital et al. (2016), the second of their two.
+    @test (@test_deprecated r"is now" literature("LHopital2016")).key == "LHopital2016b"
     # The renaming table sits before the docstring of `literature`, not between
     # it and the function, where it would take the docstring for itself.
     @test occursin("The values taken from the published source", string(@doc(literature)))

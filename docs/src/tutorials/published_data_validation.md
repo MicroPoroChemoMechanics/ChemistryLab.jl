@@ -853,7 +853,7 @@ Over the 48 points:
     the silicon by aluminum and found a markedly higher Rd, and the CSHQ solid
     solution carries no aluminum.
   - On data the end members were not fitted on, the C-A-S-H batches of
-    [LHopital2016](@citet), CSHQ binds too little alkali below a Ca/Si of 1.1,
+    [LHopital2016b](@citet), CSHQ binds too little alkali below a Ca/Si of 1.1,
     the opposite of what it does here
     ([Alkali uptake by C-A-S-H](@ref sec-validation-alkali-uptake)).
 

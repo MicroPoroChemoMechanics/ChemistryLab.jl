@@ -276,7 +276,7 @@ one computed here.
 portlandite between 350 and 500 °C [DeWeerdt2011](@cite), the carbonate from
 about 300 to 850 °C [Shi2016](@cite), the water of ettringite between 30 and
 150 °C [Moschner2009](@cite), the total bound water between 30 and 550 °C
-[LHopital2016](@cite). A window can be given that way, `between = (T₁, T₂)`:
+[LHopital2016b](@cite). A window can be given that way, `between = (T₁, T₂)`:
 the phase then releases everything inside the interval and nothing outside it,
 along a smooth step whose rate vanishes at both ends.
 
@@ -302,7 +302,7 @@ inside(phase) = t.by_phase[phase][2] - t.by_phase[phase][1]
 The interval gives the portlandite all its water and nothing else. The loss read
 over that interval holds more: the carbonate's interval overlaps it, and part of
 the calcite's carbon dioxide leaves between 350 and 500 °C as well, which is the
-loss a reading has to separate ([LHopital2016](@citet) quantify portlandite from
+loss a reading has to separate ([LHopital2016b](@citet) quantify portlandite from
 the loss around 450 °C by the tangent method). A logistic window spread over the same interval, 1 % released at one end and 99 %
 at the other ([`window_interval`](@ref)), would put 2 % of the portlandite's
 water outside it. Both forms can be mixed in one set, fitted to a curve

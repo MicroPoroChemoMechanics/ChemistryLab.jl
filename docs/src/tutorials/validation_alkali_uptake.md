@@ -5,7 +5,7 @@
     by C-S-H* compares the isotherms of [HongGlasser1999](@citet), on which the
     alkali end members of CSHQ were fitted.
 
-[LHopital2016](@citet) synthesized C-A-S-H, with an Al/Si of 0.05, at six Ca/Si
+[LHopital2016b](@citet) synthesized C-A-S-H, with an Al/Si of 0.05, at six Ca/Si
 from 0.6 to 1.6, and three C-S-H without aluminum: 2 g of lime, silica fume and
 monocalcium aluminate in 90 mL of water or of a KOH or NaOH solution, from 0.01
 to 0.5 mol/L, each sample equilibrated at 20 °C for 91, 182 or 364 days. They

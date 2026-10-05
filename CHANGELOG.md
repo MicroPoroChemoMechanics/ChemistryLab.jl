@@ -20,7 +20,8 @@
   *Alkali uptake by C-A-S-H*, `scripts/lhopital2016_alkali.jl`): their 49
   batches of C-S-H and C-A-S-H, Ca/Si 0.6 to 1.6 in water or in KOH or NaOH
   from 0.01 to 0.5 mol/L, transcribed whole from their Appendices A to C into
-  `data/literature/LHopital2016.json`, and computed with CSHQ and with CASH+NK.
+  `data/literature/LHopital2016b.json` (the key `LHopital2016` reads on, with a
+  deprecation), and computed with CSHQ and with CASH+NK.
   The comparison is a prediction for CSHQ, whose alkali end members were fitted
   on other isotherms (Hong and Glasser 1999), and a check for CASH+NK, which
   was fitted on these. CSHQ takes up too little alkali where the gel is poor in

@@ -23,7 +23,7 @@ using ChemistryLab
 using DynamicQuantities
 using OptimaSolver
 
-const LH16 = "LHopital2016"
+const LH16 = "LHopital2016b"
 lh16_value(name) = ustrip(literature_value(LH16, name))
 lh16_table(name; where...) = literature_table(LH16, name; where...)
 
