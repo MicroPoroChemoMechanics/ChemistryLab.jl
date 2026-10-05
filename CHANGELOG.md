@@ -1,5 +1,131 @@
 # Changelog
 
+## v0.32.1 — Blended cements and their hydrates against temperature
+
+Blended cements are now checked against what was measured on them at their
+curing temperature, and their hydrates against temperature. The clinker and
+slag laws meet the degrees of reaction of a slag-limestone cement cured at 5,
+20 and 40 °C (Snellings et al. 2022): the slag's Waller law needs a ceiling
+that rises with the water, and its activation energy, fitted, is the authors'
+67 kJ/mol; the same cement integrated at each temperature gives its bound water
+and portlandite within two points from four weeks on. The hydrates of two
+cements from 0 to 60 °C (Lothenbach et al. 2008), the chloride AFm phases from
+0 to 99 °C (Balonis 2019) and twelve equilibrium constants from 5 to 90 °C
+(against the fits PHREEQC ships) are compared with published calculations and
+measurements; the ternary cements of De Weerdt et al. (2011) are integrated in
+time and their alite calibrated. Nothing the package computed before changes:
+the release adds material templates, Rietveld phase names, published data and
+pages.
+
+### Added
+
+- **The ternary cements of De Weerdt et al. (2011) integrated in time**
+  (`scripts/deweerdt2011_kinetics.jl`, the page *CEM II/B-V and CEM II/B-M
+  (V-LL), with their CEM I, integrated in time*): a clinker and gypsum with
+  limestone powder, siliceous fly ash or both, the four clinker phases under
+  Parrott–Killoh, the fly-ash glass at the degree of reaction the authors
+  measured (their fit, written on the state as the Waller law is), against the
+  clinker phases, portlandite and ettringite of their Table 7 over six months.
+  The clinker as a whole reacts at about the measured rate, but the published
+  parameters dissolve the alite too slowly and the belite too fast; the
+  portlandite of the pastes without fly ash is within two points of the
+  measurement; with fly ash the glass consumes it, and without limestone the
+  ettringite is lost, CSHQ taking no aluminum. The fineness of Table 1 is
+  transcribed. The page then fits the law of the alite on the plain cement,
+  with the identifiability of its constants (exact sensitivity): two
+  combinations are determined, those of the diffusion term (seven times the
+  published constant); the interaction constant and the critical degree are
+  only bounded from below. The limestone cement, not fitted on, follows within
+  1.2 points; with fly ash the measured alite is faster still, the filler effect
+  the law does not carry; and the belite, whose rate under this law is greatest
+  at the mixing, cannot be held by any value of its constants.
+- **The clinker and slag laws at 5, 20 and 40 °C** (`scripts/snellings2022_kinetics.jl`,
+  the page *CEM I 52.5 R with slag and limestone at 5, 20 and 40 °C*), against
+  the degrees of reaction Snellings et al. (2022) measured by X-ray diffraction
+  on a 50:40:10 cement, slag and limestone blend at w/b 0.4 to 0.6 for six
+  months (`data/literature/Snellings2022.json`: Tables 1 and 2 transcribed,
+  Fig. 6 digitized from its raster image to 0.3 point). With its published
+  constants and activation energies, Parrott–Killoh brings the clinker within
+  four points of the measurement at three and six months, but it is 20 points
+  short at one day at 20 and 40 °C. No Waller constant is published for a slag:
+  the fly-ash shape, which runs to complete reaction, misses the slag by 15 to
+  18 points, while one time, one exponent and one activation energy with a
+  ceiling that rises with the water describe the 54 degrees to 2.6 points, all
+  six constants determined. The activation energy, 67 kJ/mol, is the authors'
+  own (their Table 2, by another law), below the 83 kJ/mol of the fly-ash set.
+  On the two slags of the RILEM round robin (Durdziński et al. 2017), at an
+  assumed 20 °C, the same constants hold within 7.2 points in three series of
+  four. They are fitted on one slag and are not shipped.
+- **The hydrates of two cements from 0 to 60 °C** (`scripts/lothenbach2008_temperature.jl`,
+  the page *CEM I 52.5 N HTS and CEM II/A-L 42.5 R from 0 to 60 °C*), against
+  the calculation of Lothenbach et al. (2008) with cemdata2007, whose Tables 1
+  to 3 are now transcribed and whose Figs. 5 and 6 are read at 5 and 58 °C
+  (`data/literature/Lothenbach2008.json`). With Cemdata18 and the package's
+  Portland phase list, ettringite and monocarbonate give way to monosulfate at
+  53.1 °C in the CEM I and 52.6 °C in the CEM II, where the article finds about
+  48 °C and allows 42 to 54 °C for an uncertainty of 0.1 log units on its
+  solubility products. Portlandite and calcite agree within 1.1 cm³ per 100 g of
+  cement; the monocarbonate is a third to a half of the article's, whose AFm
+  and AFt phases hold the iron that this list puts in an iron hydroxide.
+- **The slag-limestone cement of Snellings et al. (2022) integrated in time at
+  5, 20 and 40 °C** (`scripts/snellings2022_pastes.jl`, the page *CEM I 52.5 R
+  with slag and limestone, integrated in time at 5, 20 and 40 °C*): its three
+  materials as templates built from Table 1, the clinker under Parrott–Killoh,
+  the slag glass under the Waller law fitted on its degree of reaction, the
+  rest at equilibrium, against the bound water and portlandite of Fig. 8 and
+  the hydrates of Fig. 10, digitized for w/b 0.5. The bound water is within two
+  points from 28 days on and the portlandite within 1.8 at every age, though
+  its fall with the temperature at six months is not reproduced. The ettringite
+  is bounded by the sulfate of the cement, 9.9 g per 100 g of binder, where the
+  diffraction finds 12 at 20 °C and 14 at 5 °C; the carboaluminate is the
+  stable monocarbonate where the paste holds hemicarbonate; the hydrotalcite
+  forms at once from magnesia released at the mixing.
+- **Friedel's and Kuzel's salts from 0 to 99 °C** (`scripts/balonis2019_temperature.jl`,
+  the page *Friedel's and Kuzel's salts from 0 to 99 °C*), against the four
+  model mixtures of Balonis (2019): C3A, portlandite and water with sulfate,
+  chloride and calcite. Her two salts are the Cemdata18 records (her Table 1,
+  checked to the last digit). With chloride plentiful the calculation follows
+  hers: Friedel's salt goes between 90 and 95 °C (80 and about 90 °C), the
+  solids lose 22.8 and 26.0 % of their volume (23 and 25 %), monocarbonate
+  goes between 50 and 55 °C (about 50). With chloride scarce, Kuzel's salt
+  stays up to 99 °C where hers goes above 28 °C: of the same records, Kuzel's
+  salt is stable against half monosulfate and half Friedel's salt by 1.6 kJ/mol
+  at 25 °C and 0.3 at 99 °C, a margin her ideal solid solutions of Friedel's
+  salt, which the package does not declare, close.
+- **Equilibrium constants from 5 to 90 °C** (`scripts/logk_temperature_check.jl`,
+  the page *Equilibrium constants from 5 to 90 °C*): twelve reactions of
+  Cemdata18 (water, the carbonate system, bisulfate, CO2(g), calcite,
+  aragonite, dolomite, gypsum, anhydrite, quartz, amorphous silica) against
+  the analytical expressions of `phreeqc.dat`. Ten share their constant at
+  25 °C within 0.01 (anhydrite 0.08 apart, quartz 0.23); their temperature
+  dependences agree within 0.07 up to 50 °C, within 0.24 up to 90 °C, the
+  largest difference being calcite's.
+- The XRD-Rietveld names of a material template now include `Alite`, `Belite`,
+  `C3A ortho` and `Aphthitalite` (by its oxides), as Table 1 of Snellings et al.
+  (2022) prints them.
+
+### Documentation
+
+- **Which C-S-H for a fly-ash blend**, on the validation page of De Weerdt et
+  al. (2011): the four pastes at measured extents with each of the three gels
+  the package ships. `CASH+NK` behaves as `CSHQ` (no aluminum); `CNASH_ss` takes
+  aluminum (Al/Si 0.11 against 0.13 measured) but at a Ca/Si of 1.16 in every
+  paste, its end members reaching 1.5 at most where a Portland cement's gel is
+  at 1.8, so that it puts the calcium in portlandite (31.7 against 21.8 wt.% in
+  the CEM I). With fly ash, `CSHQ` and `CNASH_ss` bracket the measured
+  portlandite, and neither keeps the ettringite of the paste without limestone:
+  what is missing is a gel that takes aluminum at a Portland cement's Ca/Si.
+- **The Guggenheim parameters and the temperature**, in the theory of solid
+  solutions: the dimensionless parameters Cemdata18 prints for its AFt and AFm
+  binaries become interaction energies in J/mol at 298.15 K and are held there
+  at every temperature, which the source does not specify. Said, and what it
+  does shown: the gap of the AFm SO₄/OH binary narrows from 0.48–0.98 at 5 °C to
+  0.57–0.94 at 80 °C, where holding the dimensionless parameters would keep it
+  at the printed 0.50–0.97.
+- Two more pages built a dictionary of states by a comprehension, which Julia
+  specializes on the type of a state: the validation page of De Weerdt et al.
+  (2011) and the carbonation page.
+
 ## v0.32.0 — The calorimeter's energy balance inside the ODE, and blended cements in time
 
 The semi-adiabatic calorimeter under partial equilibrium now integrates as Leal

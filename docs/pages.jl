@@ -162,6 +162,9 @@ pages = [
         "Validation" => [
             "tutorials/reaktoro_comparison.md",
             "tutorials/published_data_validation.md",
+            # The temperature dependence of the database's constants, against
+            # the fits to measured constants that PHREEQC ships.
+            "tutorials/validation_logk_temperature.md",
             # A measured paste through its first year, and the same budgets
             # through GEMS3K: the model against the paste, the code against the code.
             "tutorials/validation_measured_pastes.md",
@@ -243,6 +246,10 @@ pages = [
             "examples/cement_carbonation.md",
             # The four processes of the recipe layer on one measured paste.
             "examples/cement_processes.md",
+            # The hydrates of two cements from 0 to 60 °C, against the same
+            # calculation on cemdata2007.
+            "examples/hydrates_temperature.md",
+            "examples/chloride_temperature.md",
         ],
         # Beyond the Portland cement. One page per EN 197-1 family, in order of
         # how much of the clinker is replaced and of what the replacement asks
@@ -272,6 +279,11 @@ pages = [
             # Four materials, ten blends, two glasses under their own laws and
             # the limestone at equilibrium, against the thermogravimetry.
             "examples/quaternary_kinetics.md",
+            "examples/ternary_kinetics.md",
+            # The clinker and the slag laws at 5, 20 and 40 °C, against the
+            # degrees of reaction measured at each temperature.
+            "examples/slag_temperature.md",
+            "examples/slag_temperature_pastes.md",
         ],
         # What a laboratory measures on a paste, read off computed states: the
         # heat an isothermal calorimeter records and the mass a thermobalance

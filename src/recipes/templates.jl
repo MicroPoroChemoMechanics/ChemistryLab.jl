@@ -14,9 +14,11 @@ const RIETVELD_PHASES = Dict{String, Union{String, Tuple{Symbol, String}}}(
     "C3S" => "C3S", "C2S" => "C2S", "C3A" => "C3A", "C4AF" => "C4AF",
     "Calcite" => "Cal", "Anhydrite" => "Anh", "Gypsum" => "Gp",
     "Arcanite" => "K2SO4", "Quartz" => "Qtz", "Portlandite" => "Portlandite",
+    # The mineral names of the clinker phases, which some tables print instead.
+    "Alite" => "C3S", "Belite" => "C2S",
     # The polymorphs a Rietveld analysis tells apart are one phase of the database.
     "alpha' C2S" => "C2S", "beta C2S" => "C2S",
-    "C3A cubic" => "C3A", "C3A orthorhombic" => "C3A",
+    "C3A cubic" => "C3A", "C3A orthorhombic" => "C3A", "C3A ortho" => "C3A",
     "Bassanite" => "hemihydrate", "Syngenite" => "syngenite",
     "Periclase" => (:oxides, "MgO"),
     "Hematite" => (:oxides, "Fe2O3"),
@@ -25,6 +27,7 @@ const RIETVELD_PHASES = Dict{String, Union{String, Tuple{Symbol, String}}}(
     "Merwinite" => (:oxides, "Ca3MgSi2O8"),
     "Mullite" => (:oxides, "Al6Si2O13"),
     "Dolomite" => (:oxides, "CaMgC2O6"),
+    "Aphthitalite" => (:oxides, "K3NaS2O8"),
     "CaO + Ca(OH)2" => (:oxides, "CaO"),
     "Free lime" => (:oxides, "CaO"),
 )

@@ -142,7 +142,7 @@ starts from the one before.
 ```@example carbonation
 M_CO2 = ustrip(us"g/mol", Species("CO2")[:M])
 grams = shi16_co2_grams()
-sweeps = Dict(mix => carbonate(pastes[mix], grams ./ M_CO2) for mix in SHI16_MIXES)
+sweeps = Dict{Any, Any}(mix => carbonate(pastes[mix], grams ./ M_CO2) for mix in SHI16_MIXES)
 for mix in SHI16_MIXES
     @printf("%-4s %d steps, %d certified\n", mix, length(sweeps[mix]), count(rs -> rs.certificate.optimal, sweeps[mix]))
 end
