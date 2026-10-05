@@ -1190,10 +1190,12 @@ ChemistryLab._excess_ln_gamma(::_UnprovedMixing, k::Int, x::AbstractVector, T::R
             )
         end
         @test first(scope(RegularSolutionModel(W3(1.0, 1.0, 1.0)))) === :global_minimum
+        # Not proved global: a local minimum or a KKT point according to the
+        # curvature at the composition audited, never the global scope.
         s, why = scope(RegularSolutionModel(W3(3.0, 0.0, 0.0)))
-        @test s === :kkt_point && occursin("concave", only(why))
+        @test s in (:local_minimum, :kkt_point) && any(r -> occursin("concave", r), why)
         s, why = scope(_UnprovedMixing())
-        @test s === :kkt_point && occursin("could not be decided", only(why))
+        @test s in (:local_minimum, :kkt_point) && any(r -> occursin("could not be decided", r), why)
     end
 end
 

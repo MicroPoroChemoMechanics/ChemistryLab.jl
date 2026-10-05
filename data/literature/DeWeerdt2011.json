@@ -118,6 +118,30 @@
       "uncertainty": null,
       "location": "Section 4.3.2, SEM-EDX of the C-S-H",
       "description": "OPC-FA and OPC-FA-L, to '≈ 0.13', the value the authors' model used"
+    },
+    "blaine_opc": {
+      "value": 450,
+      "unit": "m^2/kg",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Table 1, 'Blaine surface', clinker column with its asterisk: 'For OPC = clinker + gypsum'",
+      "description": "Blaine fineness of the OPC, the clinker interground with its gypsum"
+    },
+    "blaine_fly_ash": {
+      "value": 450,
+      "unit": "m^2/kg",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Table 1, 'Blaine surface', fly ash column",
+      "description": "Blaine fineness of the fly ash"
+    },
+    "blaine_limestone": {
+      "value": 810,
+      "unit": "m^2/kg",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Table 1, 'Blaine surface', limestone column",
+      "description": "Blaine fineness of the limestone powder"
     }
   },
   "tables": {

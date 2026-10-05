@@ -89,7 +89,8 @@ move them.
 
 ## The system
 
-With that state, the coupled problem is [Leal2017; Eqs. 54–65](@cite):
+With that state, the coupled problem is [Leal2017; Eqs. 54–65](@cite) and
+[Leal2015; Eqs. 2.25–2.30](@cite):
 
 ```math
 \frac{\mathrm{d} \mathbf{n}_k}{\mathrm{d} t} = \boldsymbol{\nu}_k^\mathsf{T} \mathbf{r}(\mathbf{n}, T, t),
@@ -122,20 +123,27 @@ survives into the partition only if **every** member is there. One split between
 the two sides is refused by name rather than dropped, because its members share
 a single budget and cannot be solved apart.
 
-## Solving it: operator splitting
+## Solving it: splitting where it is exact
 
-``\varphi`` is not evaluated inside the ODE right-hand side. It is applied once
-per **accepted** step, as a `DiscreteCallback`.
+When no rate law reads the partition, ``\varphi`` is applied once per
+**accepted** step, as a `DiscreteCallback`: the rates, hence the trajectory, do
+not depend on it, splitting is exact, and the cost is one solve per step.
 
-This is a deliberate choice, and both reasons matter:
-
-- a stiff integrator evaluates the right-hand side many times per step and
-  differentiates it to build a Jacobian. An optimization solve in there makes
-  the cost unpredictable, and the Jacobian would be taken through an
-  active-set-dependent map;
-- with the solve outside, the residual and its Jacobian see the *same*
-  speciation, so the Jacobian is consistent with the model actually being
-  integrated.
+When a rate law reads it (an activity, a saturation ratio, an amount of an
+equilibrium species), the right-hand side is a function of the speciation, and
+``\varphi`` is evaluated there, at the state the integrator asks about, with its
+derivative ``\partial\mathbf{n}_e/\partial\mathbf{b}_e`` lifted into the dual
+numbers of the Jacobian by the implicit-function theorem at the certified
+answer. Frozen within a step instead, such a rate is constant over it, so even a
+stiff method integrates the extent explicitly, and a step longer than the time
+over which the rate relaxes overshoots the equilibrium: on calcite under
+``r = k(1-\Omega)``, `Rodas5P` reached a reaction extent of −457 mol. `integrate`
+tells the two cases apart from the rate laws themselves (`speciation = :auto`),
+and `speciation = :frozen` or `:rhs` forces either. A semi-adiabatic calorimeter
+takes the second route whatever its laws read: its temperature is solved with
+the partition, from the enthalpy of the cell the state carries.
+[Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics) writes the
+right-hand side, its Jacobian and that energy balance in full.
 
 The initial state is equilibrated before the first step, so the trajectory
 starts on the constraint manifold rather than drifting onto it.

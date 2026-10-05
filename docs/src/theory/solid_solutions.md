@@ -152,6 +152,42 @@ letting a ternary reach an expression written for a binary. For three or more
 end-members the choices are the ideal model or `RegularSolutionModel` with a
 full ``\mathbf{W}`` matrix.
 
+### Published dimensionless parameters, and the temperature
+
+Cemdata18 gives its non-ideal AFt and AFm binaries dimensionless Guggenheim
+parameters ``\alpha_0`` and ``\alpha_1`` [Lothenbach2019](@cite) (its Table 1,
+notes a, b, g and h, in `data/literature/Lothenbach2019.json`), and no
+temperature dependence for them. The package turns them into
+``a_k = \alpha_k R T_0`` with ``T_0 = 298.15`` K and keeps ``a_k`` in J/mol at every
+temperature: the excess Gibbs energy is then all enthalpy, and the interaction
+it puts into ``\ln\gamma`` at another temperature is ``\alpha_k T_0/T``, 7 % larger at
+5 °C and 16 % smaller at 80 °C. Holding ``\alpha_k`` itself constant would make
+the excess all entropy and leave ``\ln\gamma`` the same at every temperature.
+Neither choice is in the source, and no data in the package decides between
+them; the edges of a gap measured at two temperatures would. What the choice
+does to the gap of the AFm SO₄/OH binary, monosulfate and C₄AH₁₃, whose
+printed edges are the 25 °C ones:
+
+```@example guggenheim
+using ChemistryLab, DynamicQuantities, Printf
+p = literature_row("Lothenbach2019", "guggenheim_parameters", "AFm SO4/OH")
+α0, α1 = ustrip(p.alpha0), ustrip(p.alpha1)
+rk(T) = RedlichKisterModel(a0 = α0 * R_GAS * T, a1 = α1 * R_GAS * T)
+@printf("printed gap: %.2f to %.2f\n", ustrip(p.gap_from), ustrip(p.gap_to))
+println(" °C   a in J/mol held (the package)   α held")
+for T_C in (5, 25, 50, 80)
+    T = T_C + 273.15
+    held_a = common_tangent(rk(298.15); T)
+    held_α = common_tangent(rk(T); T)
+    @printf("%3d       %.3f to %.3f            %.3f to %.3f\n", T_C, held_a..., held_α...)
+end
+```
+
+Both give the printed gap at 25 °C. The package's choice narrows it as the
+temperature rises, from 0.48–0.98 at 5 °C to 0.57–0.94 at 80 °C (the mole
+fraction of C₄AH₁₃, the OH end, as the edges are printed); the other keeps it
+where Cemdata18 prints it.
+
 ## 5. What the three models do to an activity
 
 Evaluated over the whole composition range in
@@ -557,8 +593,9 @@ solve.
     ``(2m_1 + \mu_1)(2m_2 + \mu_2) > \lVert \mathbf{C} \rVert^2``. That proves the CASH+
     core convex (34.3 against 13.2 at 25 °C), and a certificate on it keeps its
     `:global_minimum` scope as far as the gel goes; the bound does not decide
-    CASH+NK, whose sampled Hessian shows no concave point, and its scope stays
-    `:kkt_point` ([`mixing_convexity`](@ref)).
+    CASH+NK, whose sampled Hessian shows no concave point, and its scope is then
+    `:local_minimum` or `:kkt_point`, according to the curvature at the answer
+    ([`mixing_convexity`](@ref)).
   - *Euler's relation holds.* ``\sum_k x_k\,\mu_k = G`` for any amounts with the
     site fractions ``\mathbf{y}``, as it must for a Gibbs energy.
 
@@ -638,8 +675,10 @@ W(a, b, c) = [0.0 a b; a 0.0 c; b c 0.0] .* RT
 ```
 
 A phase whose verdict is `:nonconvex` is refused at construction, as a concave
-binary is, and admitted with two instances. The certificate of an answer scopes
-itself `:kkt_point` unless every mixing phase is proved convex.
+binary is, and admitted with two instances. The certificate of an answer is not
+scoped `:global_minimum` unless every mixing phase is proved convex; it is then
+`:local_minimum` where the Hessian over the directions that conserve matter is
+positive definite at the answer, and `:kkt_point` otherwise.
 
 ### A member that is a mixture of two others
 

@@ -124,6 +124,7 @@ end
     include("aqueous_inversion.jl")
     include("trace_sensitivity.jl")
     include("equilibrium_constraints.jl")
+    include("pressure.jl")
     include("capillary.jl")
     include("pitzer.jl")
     include("recipes.jl")
@@ -131,8 +132,12 @@ end
     include("validation_deweerdt2011.jl")
     include("validation_shi2016.jl")
     include("validation_lothenbach2008.jl")
+    include("validation_lothenbach2008_temperature.jl")
+    include("validation_chloride_temperature.jl")
+    include("validation_logk_temperature.jl")
     include("validation_scholer2017.jl")
     include("validation_deschner2012.jl")
+    include("validation_deschner2013.jl")
 end
 
 @testsection "Utils tests" begin
@@ -151,6 +156,13 @@ end
     include("kinetics/test_pore_humidity.jl")
     include("kinetics/test_surface_coupling.jl")
     include("kinetics/test_parameter_ad.jl")
+    include("kinetics/test_rhs_speciation.jl")
+    include("kinetics/test_blended_kinetics.jl")
+    include("kinetics/test_quaternary_kinetics.jl")
+    include("kinetics/test_ternary_kinetics.jl")
+    include("kinetics/test_slag_temperature.jl")
+    include("kinetics/test_slag_temperature_pastes.jl")
+    include("kinetics/test_palandri_kharaka.jl")
     include("coupling_reference.jl")
 end
 

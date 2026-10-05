@@ -152,8 +152,17 @@ function _donnan_potential(σ::Real, z::AbstractVector, m::AbstractVector, W::Re
     I = 0.5 * sum(z[k]^2 * m[k] for k in eachindex(z))
     ψ = asinh(σ / (2 * W * max(I, eps())))
     for _ in 1:100
-        f = σ + W * sum(z[k] * m[k] * exp(-z[k] * ψ) for k in eachindex(z))
-        df = -W * sum(z[k]^2 * m[k] * exp(-z[k] * ψ) for k in eachindex(z))
+        # The two sums in one loop: a generator here captured `ψ`, which the
+        # iteration reassigns, and Julia boxed it.
+        sf = zero(promote_type(typeof(ψ), eltype(m), eltype(z)))
+        sdf = sf
+        for k in eachindex(z)
+            e = m[k] * exp(-z[k] * ψ)
+            sf += z[k] * e
+            sdf += z[k]^2 * e
+        end
+        f = σ + W * sf
+        df = -W * sdf
         step = clamp(-f / df, -1.0, 1.0)
         ψ += step
         abs(step) < 1.0e-14 * max(1.0, abs(ψ)) && return ψ

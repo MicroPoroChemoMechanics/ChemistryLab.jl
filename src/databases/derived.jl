@@ -5,14 +5,16 @@ using SHA: sha256
 
 # ── Databases built by ChemistryLab from a published one ─────────────────────
 #
-# Two databases extend Cemdata18 with phases it does not carry: 28 zeolites
-# (Ma & Lothenbach 2020, 2021) and a chloride end member of CSHQ fitted on the
-# sorption tests of Hirao et al. (2005). Only what ChemistryLab adds lives in the
-# package — the published zeolite data in `data/literature/`, the fitted
-# parameter in `data/chloride/cshq_cl.json`. The database itself is assembled on
-# first use from the downloaded Cemdata18 file, whose entries are copied through
-# unchanged, and cached under a key made of the SHA-256 of everything it was
-# built from, so a new release of either side rebuilds it.
+# Three databases extend Cemdata18 with phases it does not carry: 28 zeolites
+# (Ma & Lothenbach 2020, 2021); a chloride end member of CSHQ fitted on the
+# sorption tests of Hirao et al. (2005), with the Fe-Friedel's salt that the
+# Cemdata18 paper tabulates and its ThermoFun export lacks; and the CASH+ model of
+# C-S-H. Only what ChemistryLab adds lives in the package — the published data in
+# `data/literature/`, the fitted parameter in `data/chloride/cshq_cl.json`. The
+# database itself is assembled on first use from the downloaded Cemdata18 file,
+# whose entries are copied through unchanged, and cached under a key made of the
+# SHA-256 of everything it was built from, so a new release of either side
+# rebuilds it.
 
 """
     DerivedDatabase
@@ -31,7 +33,7 @@ end
 
 # Bumped whenever a builder changes what it writes, so that cached builds are
 # redone.
-const _DERIVED_VERSION = "2"
+const _DERIVED_VERSION = "3"
 
 function _derived_key(d::DerivedDatabase, base_path)
     parts = [_DERIVED_VERSION, d.name, _digest(base_path)]
@@ -281,18 +283,111 @@ end
 
 _chloride_extension() = JSON.parsefile(datapath("chloride", "cshq_cl.json"); dicttype = Dict{String, Any})
 
+# ── Fe-Friedel's salt ────────────────────────────────────────────────────────
+#
+# Table 1 of Cemdata18 lists Fe-Friedel's salt and Table 2 its solubility, but
+# the ThermoFun export of the database does not carry it. Its record is written
+# from the table, on the pattern of Friedel's salt, and the log Ks0 of Table 2 is
+# recomputed through the base's aqueous Gibbs energies before it is added: the
+# same check as for the zeolites, with the same tolerance.
+
+const _FE_FRIEDEL = "C4FCl2H10"
+const _FE_FRIEDEL_FORMULA = "Ca4Fe|3|2Cl2(OH)12(H2O)4"
+
+"""
+    fe_friedel_entry(db) -> Dict
+
+The ThermoFun record of Fe-Friedel's salt, Ca₄Fe₂Cl₂(OH)₁₂·4H₂O, from Table 1 of
+[Lothenbach2019](@cite) as transcribed in `data/literature/Lothenbach2019.json`
+(table `solid_standard_properties`), on the pattern of the `C4AClH10` record of
+`db`, a parsed Cemdata18 database: ΔfG⁰, ΔfH⁰, S⁰ and V⁰ at 298.15 K and 1 bar,
+and the heat capacity `Cp = a₀ + a₁T + a₂T⁻² + a₃T^(-1/2)`.
+"""
+function fe_friedel_entry(db)
+    r = literature_row("Lothenbach2019", "solid_standard_properties", _FE_FRIEDEL)
+    template = only(s for s in db["substances"] if s["symbol"] == "C4AClH10")
+    template["Tst"] == 298.15 || error("C4AClH10 is no longer referred to 298.15 K; Fe-Friedel's salt must be redone.")
+    # The four coefficients are in SI units already: their values are the table's.
+    a = Float64[ustrip(r.a0), ustrip(r.a1), ustrip(r.a2), ustrip(r.a3)]
+    T = 298.15
+    e = JSON.parse(JSON.json(template))
+    # As for the chloride end member, the package computes molar masses from
+    # formulas, and the template's is Friedel's salt's.
+    haskey(e, "mass_per_mole") && delete!(e, "mass_per_mole")
+    e["name"] = "C4FCl2H10 Fe-Friedel's salt"
+    e["symbol"] = _FE_FRIEDEL
+    e["formula"] = _FE_FRIEDEL_FORMULA
+    e["sm_gibbs_energy"]["values"] = [ustrip(us"J/mol", r.dfG)]
+    e["sm_enthalpy"]["values"] = [ustrip(us"J/mol", r.dfH)]
+    e["sm_entropy_abs"]["values"] = [ustrip(us"J/(mol*K)", r.S)]
+    e["sm_heat_capacity_p"]["values"] = [a[1] + a[2] * T + a[3] / T^2 + a[4] / sqrt(T)]
+    e["sm_volume"]["values"] = [ustrip(us"cm^3/mol", r.V) * _CM3_PER_MOL_TO_J_PER_BAR]
+    for m in e["TPMethods"]
+        haskey(m, "m_heat_capacity_ft_coeffs") || continue
+        c = m["m_heat_capacity_ft_coeffs"]["values"]
+        c .= 0
+        c[1:4] .= a
+    end
+    e["datasources"] = ["Lothenbach2019: Table 1, after Dilnesa (2012)"]
+    e["literature_provenance"] = Dict(
+        "doi" => literature("Lothenbach2019").source["doi"],
+        "table" => "Table 1, row C4FCl2H10; log Ks0 of Table 2",
+        "transcribed_from" => "data/literature/Lothenbach2019.json, table solid_standard_properties",
+    )
+    return e
+end
+
+"""
+    fe_friedel_logK_check(base_path) -> NamedTuple
+
+The log Ks0 of Fe-Friedel's salt at 25 °C printed in Table 2 of
+[Lothenbach2019](@cite) and the one recomputed from its ΔfG⁰ of Table 1 through
+the aqueous Gibbs energies of the base database, over the products of
+`data/literature/Lothenbach2019.json` (table `dissolution_products`), the water
+recovered from the hydrogen balance.
+"""
+function fe_friedel_logK_check(base_path)
+    db = JSON.parsefile(base_path; dicttype = Dict{String, Any})
+    G = Dict(String(s["symbol"]) => Float64(s["sm_gibbs_energy"]["values"][1]) for s in db["substances"])
+    products = literature_table("Lothenbach2019", "dissolution_products"; phase = _FE_FRIEDEL)
+    ν = Dict(zip(products.species, products.coefficient))
+    # Of the products, only OH⁻ carries hydrogen.
+    ν["H2O@"] = (parse_formula(_FE_FRIEDEL_FORMULA)[:H] - ν["OH-"]) / 2
+    t2 = literature_table("Lothenbach2019", "solubility_products")
+    published = t2.log_Ks0[only(findall(==("Fe-Friedel's salt"), t2.printed))]
+    ΔfG = ustrip(us"J/mol", literature_row("Lothenbach2019", "solid_standard_properties", _FE_FRIEDEL).dfG)
+    recomputed = -(sum(n * G[sp] for (sp, n) in ν) - ΔfG) / (R_GAS * 298.15 * log(10))
+    return (; published, recomputed, difference = recomputed - published)
+end
+
 function _build_chloride(base_path, out_path)
     db = JSON.parsefile(base_path; dicttype = Dict{String, Any})
     ext = _chloride_extension()
     sym = ext["symbol"]
-    any(s -> s["symbol"] == sym, db["substances"]) && error("$sym would overwrite a Cemdata18 substance; nothing built.")
+    for s in (sym, _FE_FRIEDEL)
+        any(x -> x["symbol"] == s, db["substances"]) && error("$s would overwrite a Cemdata18 substance; nothing built.")
+    end
+    check = fe_friedel_logK_check(base_path)
+    abs(check.difference) > _ZEOLITE_LOGK_TOLERANCE && error(
+        "the log Ks0 of Fe-Friedel's salt recomputed through the base database differs from the " *
+            "published one by $(round(check.difference; digits = 3)) log units (tolerance " *
+            "$(_ZEOLITE_LOGK_TOLERANCE)): a value was mistranscribed. Nothing built.",
+    )
     push!(db["substances"], cshq_chloride_entry(db, Float64(ext["delta_J_per_mol"]); provenance = ext["provenance"]))
+    push!(db["substances"], fe_friedel_entry(db))
     db["thermodataset"] = "cemdata18-chloride"
     db["chloride_extension"] = Dict(
         "base" => "cemdata18 (Lothenbach et al. 2019, doi:10.1016/j.cemconres.2018.04.018)",
-        "added_substances" => [sym],
-        "solid_solution" => "CSHQ_Cl in data/solid_solutions.toml",
-        "note" => "The base entries are copied unchanged; nothing is overwritten. The added end member is fitted, not measured: see its chloride_provenance.",
+        "added_substances" => [sym, _FE_FRIEDEL],
+        "solid_solution" => "CSHQ_Cl and Friedel_AlFe in data/solid_solutions.toml",
+        "verification" => Dict(
+            "method" => "log Ks0 of Fe-Friedel's salt recomputed from the aqueous Gibbs energies of the base",
+            "tolerance_log_units" => _ZEOLITE_LOGK_TOLERANCE,
+            "discrepancy_log_units" => check.difference,
+        ),
+        "note" => "The base entries are copied unchanged; nothing is overwritten. The CSHQ " *
+            "end member is fitted, not measured: see its chloride_provenance. Fe-Friedel's " *
+            "salt is the one of Table 1 of the Cemdata18 paper, which its ThermoFun export lacks.",
     )
     return _write_json_atomically(out_path, db)
 end
@@ -472,8 +567,8 @@ const DERIVED_DATABASES = Dict(
             ),
             DerivedDatabase(
                 "cemdata18-chloride.json", "cemdata18-thermofun.json",
-                "the chloride end member of CSHQ fitted on Hirao et al. (2005)",
-                ["chloride/cshq_cl.json"],
+                "the chloride end member of CSHQ fitted on Hirao et al. (2005), and Fe-Friedel's salt of the Cemdata18 paper",
+                ["chloride/cshq_cl.json", "literature/Lothenbach2019.json"],
                 _build_chloride,
             ),
             DerivedDatabase(

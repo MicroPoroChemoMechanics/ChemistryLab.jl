@@ -126,7 +126,7 @@ function state_at(sol, kp::KineticsProblem, t::Real; ξ = nothing)
     n_new = p.n_initial_full .+ kp.ν' * ξ_t
     @. n_new = max(n_new, 0.0)
 
-    T_new = kp.calorimeter isa SemiAdiabaticCalorimeter ? sol(t)[end] : p.T
+    T_new = _run_temperature(sol, kp, t)
     return ChemicalState(
         kp.system;
         T = T_new * u"K",
@@ -216,11 +216,21 @@ end
 
 # ── speciated_states ─────────────────────────────────────────────────────────
 
-# The temperature of instant `t`: the cell's, when a semi-adiabatic calorimeter
-# carries it in the state, the problem's otherwise. Not `p.T_q[]`, which the run
+# The temperature of instant `t` of a run, in kelvin: with a semi-adiabatic
+# calorimeter, the cell's, read from the state in the stoichiometric formulation
+# and solved from the cell's enthalpy under partial equilibrium
+# (`_cell_temperature`); the problem's otherwise. Not `p.T_q[]`, which the run
 # moves with the cell and leaves at its last value.
-_replay_temperature(sol, kp, t) =
-    (kp.calorimeter isa SemiAdiabaticCalorimeter ? sol(t)[end] : sol.prob.p.T) * u"K"
+function _run_temperature(sol, kp, t)
+    p = sol.prob.p
+    kp.calorimeter isa SemiAdiabaticCalorimeter || return _plain(p.T)
+    p.heat_eq || return _plain(sol(t)[end])
+    u = Float64[_plain(x) for x in sol(t)]
+    T = _with_saved_warm_start(() -> _cell_temperature(p, u), p)
+    T === nothing && throw(ErrorException("the temperature of the cell cannot be solved at t = $t s."))
+    return T
+end
+_replay_temperature(sol, kp, t) = _run_temperature(sol, kp, t) * u"K"
 
 """
     speciated_states(sol, kp::KineticsProblem; times = sol.t) -> Vector{ChemicalState}
@@ -396,7 +406,7 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
                 _restore_feasibility!(guess, p.Ae, be0; maxit = 100_000)
                 eq0 = SciMLBase.solve(
                     es, ChemicalState(sub, guess .* u"mol"; T = plain_T(_replay_temperature(sol, kp, tc)), P = Pv);
-                    b = be0,
+                    b = be0, polish = false,
                 )
                 guess = Float64[
                     max(ustrip(us"mol", x), _EQ_GUESS_FLOOR) for x in eq0.n
@@ -419,10 +429,11 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
         _budget_clip!(guess, p.Ae, be)
         _restore_feasibility!(guess, p.Ae, be; maxit = 100_000)
 
+        # A start for the certification below, which polishes it.
         eq = SciMLBase.solve(
             es,
             ChemicalState(sub, guess .* u"mol"; T = Tt, P = Pv);
-            b = be,
+            b = be, polish = false,
         )
         n_eq = Float64[ustrip(us"mol", x) for x in eq.n]
 
@@ -484,6 +495,11 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
             # before it — which is what a forward walk does by itself — brought the
             # active set back to 25 and the balance to 3e-14.
             !proved && t_prev !== nothing && ((proved, n_eq, eq, certified) = _replay_continuation(sol, kp, p, des, sub, certified, n_eq, eq, t_prev, t, Tt, Pv, be))
+
+            # The full search, last (`_replay_full_search`).
+            (proved, n_eq, eq, certified) = _replay_full_search(
+                proved, n_eq, eq, certified, sub, cold_start, Tt, Pv, activity_model(p.eq_solver), be,
+            )
 
             proved && (t_prev = float(t))
             proved || push!(uncertified, float(t))
@@ -547,6 +563,38 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
 end
 
 """
+    _replay_full_search(proved, n_eq, eq, certified, sub, start, T, P, model, b)
+        -> (proved, n_eq, eq, certified)
+
+The last resort of [`speciated_states`](@ref) for an instant neither its starts
+nor the continuation proved: the full certified search of
+`equilibrate_certified`, its start from the linear program, its ideal starts and
+its restarts, on the instant's budget `b`, from `start` in the partition system
+`sub`. The first instant has no certified neighbor to walk from, and on a slag
+paste (Gruyaert et al. 2010, at 2 and 7 days) neither start certified it: the
+interior-point composition the replay then fell back to had a pH of 15.3, where
+the full search certifies 12.82 at once from the linear program.
+
+Silent and never raising, as the fallback of `equilibrate_certified` runs it:
+the replay says which instants stay unproved. Returns its arguments unchanged
+when the instant is already proved or the search does not certify it.
+"""
+function _replay_full_search(proved, n_eq, eq, certified, sub, start, T, P, model, b)
+    proved && return proved, n_eq, eq, certified
+    quiet(f) = Base.CoreLogging.with_logger(f, Base.CoreLogging.NullLogger())
+    full = try
+        with(_STRICT_OVERRIDE => false) do
+            quiet(() -> _equilibrate_certified(ChemicalState(sub, start .* u"mol"; T, P); model, b))
+        end
+    catch
+        (nothing, nothing)
+    end
+    (full[2] !== nothing && full[2].optimal) || return proved, n_eq, eq, certified
+    n_full = Float64[ustrip(us"mol", x) for x in full[1].n]
+    return true, n_full, full[1], copy(n_full)
+end
+
+"""
     _replay_continuation(sol, kp, p, des, sub, certified, n_eq, eq, t_prev, t, Tt, Pv, be)
         -> (proved, n_eq, eq, certified)
 
@@ -606,52 +654,85 @@ end
 """
     _heat_rate_of_states(sol, kp, states, times) -> Vector
 
-`q̇ = −dH/dt` [W] at each of `states`, the composition of the run at `times`:
-`dH/dt = Σᵢ ΔₐH⁰ᵢ dnᵢ/dt + Σᵢ nᵢ Cp⁰ᵢ dT/dt`, with the rates of the kinetic
-amounts, of the extents and of the temperature read from the solver's
-interpolant (`sol(t, Val{1})`), and the equilibrium partition moving as its
-budget does, `dnₑ/dt = S dbₑ/dt` with `S = ∂nₑ/∂bₑ` from the implicit-function
-theorem at the certified state (`_partition_sensitivity`). Until 0.28.2 the rate
-was a difference of `Q` over `times`.
+`q̇ = −dH/dt` [W] at each of `states`, the composition of the run at `times`,
+`H = Σᵢ nᵢ ΔₐH⁰ᵢ(T)` differentiated along the trajectory: the kinetic amounts,
+the extents and, in a stoichiometric semi-adiabatic cell, the temperature move
+at the rates of the solver's interpolant (`sol(t, Val{1})`). Under partial
+equilibrium the partition is lifted from the certified state by the
+implicit-function theorem in the direction the run moves its element amounts
+and, in a semi-adiabatic cell, its temperature, whose rate is that of the root
+of the cell's balance (`_cell_temperature`): an exact derivative, at the
+certified partition rather than the in-run one.
 """
 function _heat_rate_of_states(sol, kp, states, times)
-    p = build_kinetics_params(kp)
+    p = sol.prob.p
     n_be, n_nk = p.n_be, p.n_nk
-    out = map(eachindex(times)) do i
-        st = states[i]
-        T = ustrip(us"K", temperature(st))
-        n = [ustrip(us"mol", x) for x in st.n]
-        u = sol(times[i])
-        du = sol(times[i], Val{1})
-        dn = zeros(promote_type(eltype(n), eltype(du)), length(n))
-        if n_be == 0
-            # Every amount follows the extents: `n = n₀ + νᵀξ`.
-            dξ = @view du[(n_nk + 1):(n_nk + p.n_rxn_state)]
-            dn .= transpose(kp.ν) * dξ
-        else
-            idx_e = p.idx_equilibrium
+    return _with_saved_warm_start(p) do
+        map(eachindex(times)) do i
+            st = states[i]
+            T = Float64(_plain(ustrip(us"K", temperature(st))))
+            n = Float64[_plain(ustrip(us"mol", x)) for x in st.n]
+            u = Float64[_plain(x) for x in sol(times[i])]
+            du = Float64[_plain(x) for x in sol(times[i], Val{1})]
+            if n_be == 0
+                # Every amount follows the extents, `n = n₀ + νᵀξ`, and a
+                # semi-adiabatic cell carries its temperature in the state.
+                dξ = @view du[(n_nk + 1):(n_nk + p.n_rxn_state)]
+                dn = transpose(kp.ν) * dξ
+                q = 0.0
+                for (k, h_fn) in enumerate(p.h_fns)
+                    isnothing(h_fn) && continue
+                    q -= h_fn(; T = T, unit = false) * dn[k]
+                end
+                if p.has_T
+                    for (k, cp_fn) in enumerate(p.cp_fns)
+                        isnothing(cp_fn) && continue
+                        q -= n[k] * cp_fn(; T = T, unit = false) * du[end]
+                    end
+                end
+                return q
+            end
             p.T_q[] = T * u"K"
-            S, dndT = _partition_sensitivity(p, n[idx_e], u[1:n_be], T)
-            dn[idx_e] .= S * du[1:n_be]
-            p.has_T && (dn[idx_e] .+= dndT .* du[end])
-            for (j, i_k) in enumerate(p.idx_kinetic)
-                dn[i_k] = du[n_be + j]
-            end
+            return _paste_heat_rate(p, n[p.idx_equilibrium], u, du, T)
         end
-        q = zero(eltype(dn))
-        for (k, h_fn) in enumerate(p.h_fns)
-            isnothing(h_fn) && continue
-            q -= h_fn(; T = T, unit = false) * dn[k]
-        end
-        if p.has_T
-            for (k, cp_fn) in enumerate(p.cp_fns)
-                isnothing(cp_fn) && continue
-                q -= n[k] * cp_fn(; T = T, unit = false) * du[end]
-            end
-        end
-        q
     end
-    return out
+end
+
+"""
+    _paste_heat_rate(p, n_e, u, du, T) -> Float64
+
+`q̇ = −dH/dt` [W] of the paste at the plain state `u` moving at `du`, its
+partition `n_e` at that state and the temperature `T`: one derivative along the
+move, the partition lifted from `n_e` by the implicit-function theorem in the
+direction of the element amounts and, in a semi-adiabatic cell under partial
+equilibrium, of the temperature, at the rate of the root of the cell's balance.
+"""
+function _paste_heat_rate(p, n_e, u, du, T)
+    nb, nn = p.n_be, p.n_nk
+    Ṫ = p.has_T && p.heat_eq ? _cell_temperature_rate(p, u, du) : 0.0
+    P = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
+    kin = (nb + 1):(nb + nn)
+    dH = ForwardDiff.derivative(0.0) do s
+        Ts = T + s * Ṫ
+        ne = _lifted_partition(p, n_e, T * u"K", P, u[1:nb] .+ s .* du[1:nb]; T = Ts * u"K")
+        _paste_enthalpy(p, ne, u[kin] .+ s .* du[kin], Ts)
+    end
+    return -Float64(_plain(dH))
+end
+
+"""
+    _cell_temperature_rate(p, u, du) -> Float64
+
+`dT/dt` of a semi-adiabatic cell under partial equilibrium at the state `u`
+moving at `du`: the derivative of the root of its energy balance along `du`,
+from the implicit-function theorem (`_cell_temperature`).
+"""
+function _cell_temperature_rate(p, u, du)
+    return ForwardDiff.derivative(0.0) do s
+        T = _cell_temperature(p, u .+ s .* du)
+        T === nothing && throw(ErrorException("the temperature of the cell cannot be solved at this state."))
+        T
+    end
 end
 
 """

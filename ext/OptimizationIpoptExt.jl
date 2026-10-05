@@ -143,12 +143,21 @@ state_eq = solve(solver, state0)
 The logarithmic variable space (`variable_space = Val(:log)`) refines a solved
 state; started from amounts held at the floor `ϵ`, it returns the start, since
 the gradient in `log n` of such a species is of order `ϵ`.
+
+This back end minimizes `n⋅μ(n)`, whose minimum is the equilibrium only where the
+activities satisfy the Gibbs–Duhem relation. With OptimaSolver loaded and an
+aqueous system, its answer is polished by the dual Newton, which solves the
+conditions of equilibrium themselves, and `certificate` (a `Ref`) receives the
+certificate of the answer returned. Without it, a model that breaks the relation
+is refused: see `ChemistryLab._require_gibbs_duhem`.
 """
 function SciMLBase.solve(
         esolver::EquilibriumSolver,
         state::ChemicalState;
         ϵ::Float64 = _AMOUNT_FLOOR,
         b = nothing,
+        certificate = nothing,
+        polish::Bool = ChemistryLab._POLISH[],
     )
     # A problem carrying dual numbers, in its state, its budget, its data or its
     # activity model, takes the implicit-function route: primal solve, then the
@@ -156,7 +165,13 @@ function SciMLBase.solve(
     n0 = max.(_build_n0(state), ϵ)
     p = _build_params(state; ϵ = ϵ)
     ChemistryLab._has_dual_inputs(n0, b, p, esolver.model) &&
-        return ChemistryLab._solve_dual(esolver, state, ϵ; b = b)
+        return ChemistryLab._solve_dual(esolver, state, ϵ; b = b, polish = polish)
+
+    # Nothing to polish the answer with: the scalar minimized must then be the
+    # Gibbs energy, which needs the Gibbs–Duhem relation. Checked whatever
+    # `_POLISH` says, since a start asked of this back end is no better for it.
+    ChemistryLab._DUAL_AVAILABLE[] && ChemistryLab._dual_applicable(state.system) ||
+        ChemistryLab._require_gibbs_duhem(esolver, state.system, p)
 
     # `b` given explicitly is Leal's φ(b): minimize G subject to A n = b, with
     # `state` supplying only the starting guess and the T, P conditions. The
@@ -166,7 +181,17 @@ function SciMLBase.solve(
     prob = isnothing(b) ?
         EquilibriumProblem(A, esolver.μ, n0; p = p) :
         EquilibriumProblem(A, esolver.μ, n0; b = collect(b), p = p)
-    sol = SciMLBase.solve(prob, esolver.solver; variable_space = esolver.variable_space, esolver.kwargs...)
+    # The polish decides on the answer, so the back end's own return code is not
+    # checked when there is one: it is neither a warning nor, under
+    # `STRICT_CONVERGENCE`, an error, and a polish that fails says so itself. The
+    # problem is solved here rather than by `solve(::EquilibriumProblem, …)`,
+    # which checks it, and not under `_relaxed_convergence`, whose scoped value
+    # around the solve costs seconds of compilation (see `OptimaSolverExt`).
+    polish = polish && ChemistryLab._DUAL_AVAILABLE[] &&
+        ChemistryLab._dual_applicable(state.system)
+    raw = SciMLBase.solve(SciMLBase.OptimizationProblem(prob, esolver.variable_space), esolver.solver; esolver.kwargs...)
+    sol = polish ? raw : ChemistryLab._check_converged(raw, "equilibrium solve")
+    sol.u .= _solution_transform(esolver.variable_space).(sol.u)
 
     state_eq = copy(state)
     for (i, nᵢ) in enumerate(sol.u)
@@ -174,7 +199,9 @@ function SciMLBase.solve(
     end
     _update_derived!(state_eq)
 
-    return state_eq
+    return ChemistryLab._finish_backend_solve(
+        esolver, state, state_eq; ϵ = ϵ, b = b, certificate = certificate, polish = polish,
+    )
 end
 
 # ── Default Ipopt solver factory ──────────────────────────────────────────────

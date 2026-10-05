@@ -1,0 +1,185 @@
+# [CEM I 52.5 R with slag, fly ash and limestone, integrated in time](@id ex-quaternary-kinetics)
+
+!!! info "Before this page"
+    [CEM I 52.5 N and slag pastes, integrated in time](@ref ex-blended-slag-kinetics),
+    the first blended cement on the kinetic path, and
+    [Recipes](@ref man-recipes) for the materials and their templates.
+
+[Scholer2015](@citet) replaced half of a CEM I 52.5 R by blast-furnace slag,
+siliceous fly ash and limestone powder in ten proportions (their Table 4), the
+SO₃ of every mix brought to 3 % with anhydrite, and followed the pastes at 20 °C
+by thermogravimetry from one day to six months: the bound water and the
+portlandite of their Table 8. Their own calculations take the slag and the fly
+ash at the degrees of reaction reported after a year in the literature they
+cite, as long-term states. Here the ten pastes are integrated from the mixing,
+the four clinker phases under the Parrott–Killoh law, the glass of each addition
+under the Waller law, the limestone and everything else at equilibrium, and
+compared with Table 8, which nothing below was fitted to.
+
+## 1. The materials
+
+The four materials come from their templates (`data/recipe_templates.toml`),
+built from the analyses and the Rietveld phases of Tables 1 and 2: the cement by
+its phases, the polymorphs of C₂S and of C₃A each summed into one constituent;
+the slag and the fly ash as their crystals and their glass, found by difference;
+the limestone by its analysis. As in the authors' calculations, only the glass of
+the two additions reacts, and [`glass_species`](@ref) gives each a formula, which
+[`with_species`](@ref) puts in its place.
+
+```@example quaternary
+using ChemistryLab, DynamicQuantities, OptimaSolver, Printf
+using Logging # hide
+include(joinpath(pkgdir(ChemistryLab), "scripts", "scholer2015_kinetics.jl"))
+
+setup = s15_setup()
+cs, mats = setup.cs, setup.mats
+for m in (mats.opc, mats.bfs, mats.fa)
+    println(m.name, ": ", join((@sprintf("%s %.3f", c.name, c.mass_fraction) for c in m.constituents), ", "))
+end
+```
+
+## 2. The time of each glass
+
+No parameter set of the Waller law is published for these materials. Its
+exponent is the one [Lavergne2018](@citet) fitted for a fly ash, assumed for
+both glasses, and the characteristic time of each is calibrated on the degree
+the article assumes for it after a year, 71.1 % of the slag glass and 43.6 % of
+the fly-ash glass; Table 8 stops at six months.
+
+```@example quaternary
+for (which, key) in ((:bfs, "assumed_reaction_slag_glass"), (:fa, "assumed_reaction_fly_ash_glass"))
+    @printf("%s glass: τ = %.0f days, %.1f %% after one year\n", which,
+            ustrip(us"d", s15_glass_time(which)), literature_value("Scholer2015", key))
+end
+```
+
+## 3. The ten pastes
+
+Each paste is integrated over the six months of Table 8, at 20 °C, in the
+activity model the authors used. Neither law reads the equilibrium partition, so
+the trajectory does not depend on it: the run solves it at each accepted step
+only to report it, with the interior point, and everything below is computed on
+the certified replay of each run ([`speciated_states`](@ref)).
+
+```@example quaternary
+day = 86400.0
+mixes = literature_table("Scholer2015", "mixes").mix
+diagnostics = IOBuffer() # hide
+runs = with_logger(ConsoleLogger(diagnostics)) do # hide
+# `Any`: the type of a run is long enough that a dictionary specialized on it
+# takes minutes to compile.
+runs = Dict{String, Any}(name => s15_run(cs, mats, name) for name in mixes)
+end # hide
+occursin("re-speciation failed", String(take!(diagnostics))) && error("a re-speciation failed") # hide
+for name in mixes
+    r = runs[name]
+    @printf("%-9s %s, %3d steps, anhydrite %.2f g\n", name, r.sol.retcode, length(r.sol.t), s15_anhydrite(r.mix))
+end
+```
+
+## 4. Bound water and portlandite, against Table 8
+
+What the thermobalance weighs is computed on the replayed states: the water of
+every hydrate but portlandite, and the portlandite, in percent of the sample
+dried at 500 °C, every hydrate taken to have lost all its water there
+(`s15_tga`).
+
+```@example quaternary
+tga = with_logger(ConsoleLogger(diagnostics)) do # hide
+tga = Dict(name => s15_tga(runs[name], s15_measured(name).days) for name in mixes)
+end # hide
+occursin("could not be certified", String(take!(diagnostics))) && error("an instant was not certified") # hide
+ages = s15_measured(first(mixes)).days
+mean(x) = sum(x) / length(x)
+println(" days   bound water: computed  measured   portlandite: computed  measured   (mean over the ten pastes)")
+for (k, d) in enumerate(ages)
+    bw = [tga[n][k].bound_water for n in mixes]
+    bwm = [s15_measured(n).bound_water[k] for n in mixes]
+    ch = [tga[n][k].portlandite for n in mixes]
+    chm = [s15_measured(n).portlandite[k] for n in mixes]
+    @printf("%5.0f   %20.1f %9.1f   %22.1f %9.1f\n", d, mean(bw), mean(bwm), mean(ch), mean(chm))
+end
+```
+
+Paste by paste, the two extremes of the substitution of fly ash by limestone at
+each level of slag:
+
+```@example quaternary
+for name in ("20-30-0", "20-10-20", "30-20-0", "30-0-20")
+    m = s15_measured(name)
+    println(name, "   days  BW computed / measured   CH computed / measured")
+    for (k, d) in enumerate(m.days)
+        @printf("          %4.0f   %7.1f / %4.1f          %7.1f / %4.1f\n", d,
+                tga[name][k].bound_water, m.bound_water[k], tga[name][k].portlandite, m.portlandite[k])
+    end
+end
+```
+
+The authors computed the two pastes without limestone at the degrees of
+reaction they assume for the long term (their Table 7, in percent of the dry
+hydrates rather than of the dry sample):
+
+```@example quaternary
+t7 = literature_table("Scholer2015", "modeled_long_term")
+println("paste     portlandite: this page, 182 days   the authors' calculation   measured, 182 days")
+for (k, name) in enumerate(t7.mix)
+    @printf("%-9s %30.1f %26.1f %20.1f\n", name, tga[name][end].portlandite, t7.portlandite[k],
+            s15_measured(name).portlandite[end])
+end
+```
+
+And where the aluminum goes, in the paste richest in limestone after six months
+(mol per 100 g of binder):
+
+```@example quaternary
+r = runs["20-10-20"]
+st = with_logger(ConsoleLogger(diagnostics)) do # hide
+st = only(speciated_states(r.sol, r.kp; times = [182day]))
+end # hide
+for s in ("Cal", "ettringite", "monocarbonate", "hemicarbonate", "monosulphate12", "C3AFS0.84H4.32", "C3FS0.84H4.32")
+    i = findfirst(x -> symbol(x) == s, r.kp.system.species)
+    @printf("%-16s %.4f\n", s, ustrip(us"mol", st.n[i]))
+end
+```
+
+## 5. What the comparison says
+
+**The bound water follows the measurements.** Its mean over the ten pastes is
+within one point of the measured one at one day, 28 days and 91 days, about two
+points low at two and seven days, and three points high at six months, where the
+computed water keeps rising with the glasses and the measured one stops. Nothing
+was fitted to it: the clinker law has its published parameters, and the time of
+each glass is set on the degree the authors assume after a year. The direction
+of the gap at six months is the one the preparation of the samples gives: the
+thermobalance weighs a sample dried at 40 °C after a solvent exchange, which has
+already lost part of the water of the C–S–H and of the AFm phases, and the
+computation counts all of it.
+
+**The portlandite is where the computation and the measurement part.** Computed,
+it is below the measurement from the first day, and its mean over the pastes
+reaches its maximum at seven days and then declines, consumed by the pozzolanic reaction of the two glasses,
+the more so the more fly ash the paste holds: the paste 20-30-0 has none left
+at six months, and 30-0-20, without fly ash, keeps the most. Measured, it stays
+near 12 % from two days on. The authors' own calculation, at their long-term
+degrees, leaves as little in the two pastes without limestone. The gap is
+therefore that of the equilibrium model, with these degrees of reaction, rather
+than that of the kinetics: an equilibrium in which the C–S–H the glasses form
+takes its calcium from portlandite cannot keep the portlandite, and neither
+calculation describes what keeps it in these pastes.
+
+**The limestone stays calcite.** In Cemdata18, used here, the aluminum the
+clinker and the glasses release goes to ettringite and to the siliceous
+hydrogarnet C₃(A,F)S₀.₈₄H₄.₃₂, and little of it to monocarbonate: in the paste
+richest in limestone, a twentieth of the amount of hydrogarnet after six
+months, and no hemicarbonate. The authors calculated hemicarbonate and
+monocarbonate in the presence of limestone, with the database of the time (their
+Fig. 2), and found both by X-ray diffraction after six months (their Fig. 4).
+The difference is in which phases the equilibrium may form, which this page
+leaves as Cemdata18 does.
+
+## Where to go next
+
+[Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics) writes the
+formulation these runs integrate, and
+[CEM I 52.5 N and slag pastes, integrated in time](@ref ex-blended-slag-kinetics)
+the same path on a slag cement, with its heat.

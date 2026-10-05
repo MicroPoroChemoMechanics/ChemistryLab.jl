@@ -97,7 +97,9 @@ paper counts in moles per 100 g of **ignited mortar**, the mortar heated to
 and the helper below converts the model's amounts to the paper's unit.
 
 ```@example carbonation
-pastes = Dict(mix => first(equilibrate_certified(shi16_recipe(mix), cs; t, model)) for mix in SHI16_MIXES)
+# `Any`: the type of a state is long enough that a dictionary specialized on it
+# takes minutes to compile.
+pastes = Dict{Any, Any}(mix => first(equilibrate_certified(shi16_recipe(mix), cs; t, model)) for mix in SHI16_MIXES)
 per_mortar(x, mix) = 100 * x / shi16_ignited_mortar(mix)
 portlandite(rs) = ustrip(us"mol", rs.state.n[findfirst(s -> symbol(s) == "Portlandite", cs.species)])
 function csh_ca_si(rs)
@@ -140,7 +142,7 @@ starts from the one before.
 ```@example carbonation
 M_CO2 = ustrip(us"g/mol", Species("CO2")[:M])
 grams = shi16_co2_grams()
-sweeps = Dict(mix => carbonate(pastes[mix], grams ./ M_CO2) for mix in SHI16_MIXES)
+sweeps = Dict{Any, Any}(mix => carbonate(pastes[mix], grams ./ M_CO2) for mix in SHI16_MIXES)
 for mix in SHI16_MIXES
     @printf("%-4s %d steps, %d certified\n", mix, length(sweeps[mix]), count(rs -> rs.certificate.optimal, sweeps[mix]))
 end

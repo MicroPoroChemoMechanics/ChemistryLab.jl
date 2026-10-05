@@ -23,6 +23,12 @@ LGPL-2.1-or-later. The portions concerned are:
   implementing the Palandri-Kharaka / transition-state theory model
   of mineral dissolution-precipitation kinetics in
   `src/kinetics/kinetics_reactions.jl`.
+- The 42 coefficients of Harvie's Chebyshev approximation to Pitzer's
+  function J(x), in `src/equilibrium/pitzer.jl`, as Reaktoro carries
+  them in `ActivityModelPitzer.cpp` (`computeJ0J1PHREEQC`), where they
+  reproduce those of PHREEQC (Plummer et al. 1988, U.S. Geological
+  Survey Water-Resources Investigations Report 88-4153). The recurrence
+  that evaluates them is written here.
 
 The remainder of the package — including the `StateView`, `KineticFunc`,
 `KineticsProblem`, `KineticsSolver` abstractions, the Parrott-Killoh

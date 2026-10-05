@@ -221,12 +221,19 @@ The dissolutions are those the conservation matrix of the system gives, so they
 conserve every element by construction. The reacted part of a constituent known
 by its oxides (the alkalis and the minor oxides of a clinker) enters as the
 primaries that carry its elements; its heat of dissolution is not part of the
-heat of the run. A glass has no formula to dissolve and cannot be given a rate.
+heat of the run. A glass has no formula to dissolve: [`glass_species`](@ref)
+gives it one from its own oxides, and [`with_species`](@ref) puts that species
+in its place, after which it can be given a rate
+([What a recipe puts into the equilibrium](@ref sec-theory-recipes), Section 6).
 [`integrate`](@ref) then runs the problem, with an equilibrium solver for the
 partial equilibrium of the products, as in the [kinetics tutorial](@ref
 sec-kinetics).
 
 ## Where to go next
+
+The equations behind this page, the budget, the mass balance and what a kinetic
+constituent changes in them, are written in
+[What a recipe puts into the equilibrium](@ref sec-theory-recipes).
 
 The rate laws a recipe attaches to its constituents are written as described in
 [Writing a kinetic model](@ref sec-kinetics-syntax), and the run itself is the one

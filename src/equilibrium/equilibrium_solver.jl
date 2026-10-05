@@ -537,6 +537,39 @@ safe, and so is overlapping with another task's search.
 _exploring_starts(f) = with(f, _EXPLORING_STARTS => true)
 
 """
+    _POLISH
+
+Whether the answer of a back end (Ipopt, the interior point of OptimaSolver, any
+optimizer behind an [`EquilibriumSolver`](@ref)) is polished by the dual Newton
+of the system before it is returned: `true` unless suspended.
+
+A back end minimizes a scalar, `n⋅μ(n)`, or steers on a gradient, and the dual
+Newton solves the conditions of equilibrium themselves, `μ(n) = −Aᵀy` on the
+species present, with the activities of the model whatever they derive from.
+The two coincide when the activities are the gradient of one Gibbs energy,
+homogeneous of degree one: then `n⋅μ(n)` is that energy and its gradient is `μ`.
+For the extended Debye–Hückel models in general use they are not, and the
+minimum of `n⋅μ(n)` is another composition than the equilibrium. Polished, every
+route returns the composition its certificate describes, and the derivatives
+lifted at it are those of the map it returns.
+
+It is the default of the `polish` keyword of a back end's `solve`. The searches
+of this package, which ask a back end only for a starting point they polish
+themselves, pass `polish = false` rather than run the solve under
+[`_unpolished`](@ref): a scoped value around a solve is inferred through, and on
+the first cement equilibrium of a session that cost seconds of compilation.
+"""
+const _POLISH = ScopedValue(true)
+
+"""
+    _unpolished(f)
+
+Run `f` with [`_POLISH`](@ref) off, for this task only: every back-end solve
+inside it returns its own answer. For one solve, pass `polish = false` instead.
+"""
+_unpolished(f) = with(f, _POLISH => false)
+
+"""
     NONCONVERGED :: Threads.Atomic{Int}
 
 Running count of equilibrium solves that returned a non-success retcode.
@@ -648,11 +681,16 @@ species or in the parameters of its activity model.
 
 No optimization solver is asked to iterate on dual numbers — most cannot, and
 Ipopt never will, being a C library. The equilibrium is solved by `esolver` on
-the values of the outermost level of duals, and the answer is lifted by the
-implicit-function theorem at it, as the certified route lifts its own
-(`_lift_equilibrium`): exact at every level of a nested differentiation, with
-the active set read off the answer. A pure phase at the solver's lower bound,
-`10ϵ` or less, is absent.
+the values of the outermost level of duals, polished by the dual Newton (see
+[`_POLISH`](@ref)), and the answer is lifted by the implicit-function theorem at
+it, as the certified route lifts its own (`_lift_equilibrium`): exact at every
+level of a nested differentiation, with the active set read off the answer. The
+conditions lifted are those of the dual Newton, `μ(n) = −Aᵀy` on the species
+present, and the polish is what makes them the conditions the returned answer
+satisfies; lifted at an unpolished answer of a back end that minimized
+`n⋅μ(n)`, they described another map than the one it returned. A pure phase
+holding no more than the certificate's floor is absent (`10ϵ` at an answer the
+polish was suspended for).
 
 Without the certified solver of the system (OptimaSolver not loaded, or no
 aqueous phase), only the amounts of the state may carry duals, one level, and the
@@ -663,7 +701,10 @@ Called from the back-end `solve` methods, which dispatch on the solver type;
 making this a method of `solve` dispatching on the *state* would be ambiguous
 with them.
 """
-function _solve_dual(esolver::EquilibriumSolver, state::ChemicalState, ϵ::Float64; b = nothing)
+function _solve_dual(
+        esolver::EquilibriumSolver, state::ChemicalState, ϵ::Float64; b = nothing,
+        polish::Bool = _POLISH[],
+    )
     D = _input_number_type(state, b; model = esolver.model)
     D <: ForwardDiff.Dual || throw(ArgumentError("_solve_dual: nothing to differentiate."))
     if _DUAL_AVAILABLE[] && _dual_applicable(state.system)
@@ -676,13 +717,13 @@ function _solve_dual(esolver::EquilibriumSolver, state::ChemicalState, ϵ::Float
             )
             SciMLBase.solve(
                 es, _strip_state(state, Tg); ϵ = ϵ, b = b === nothing ? nothing : _strip_tag(collect(b), Tg),
+                polish = polish,
             )
         end
         des = DualEquilibriumSolver(state.system, esolver.model)
         bd = b === nothing ? des.A * _build_n0(state) : collect(b)
-        eq_d, _ = _lift_equilibrium(
-            des, state, eq_v, bd; ϵ = ϵ, strip_tag = Tg, floor = max(_CERTIFICATE_FLOOR, 10ϵ),
-        )
+        floor = polish ? _CERTIFICATE_FLOOR : max(_CERTIFICATE_FLOOR, 10ϵ)
+        eq_d, _ = _lift_equilibrium(des, state, eq_v, bd; ϵ = ϵ, strip_tag = Tg, floor = floor)
         return eq_d
     end
     R = _amount_number_type(state)
@@ -773,6 +814,89 @@ function _attach_sensitivity(
     )
 end
 
+"""
+    _finish_backend_solve(esolver, state, eq; ϵ, b = nothing, certificate = nothing,
+                          polish = _POLISH[]) -> ChemicalState
+
+The answer `eq` a back end returned from `state`, polished by the dual Newton
+when `polish` holds (its default is [`_POLISH`](@ref)), OptimaSolver is loaded
+and the system has an aqueous phase with `H2O@`, and returned as it is otherwise. `certificate`, a `Ref`,
+receives the certificate of the answer returned, or `nothing` when none was
+computed.
+
+A polish that does not certify keeps the better of the two answers, ranked as
+the certified search ranks them, and says so as a non-converged solve does: a
+warning, or an error under [`STRICT_CONVERGENCE`](@ref).
+"""
+function _finish_backend_solve(
+        esolver::EquilibriumSolver, state::ChemicalState, eq::ChemicalState;
+        ϵ::Float64 = _AMOUNT_FLOOR, b = nothing, certificate = nothing,
+        polish::Bool = _POLISH[],
+    )
+    certificate === nothing || (certificate[] = nothing)
+    (polish && _DUAL_AVAILABLE[] && _dual_applicable(state.system)) || return eq
+    des = DualEquilibriumSolver(state.system, esolver.model)
+    bv = b === nothing ? des.A * _build_n0(state) : collect(b)
+    eqp, cert = _exploring_starts(() -> solve_certified(des, (eq,); b = bv, ϵ = ϵ))
+    if eqp === nothing || !cert.optimal
+        raw = optimality_certificate(des, eq; b = bv, ϵ = ϵ)
+        eqp, cert = eqp === nothing ? (eq, raw) : _keep_better(eqp, cert, eq, raw)
+        Threads.atomic_add!(NONCONVERGED, 1)
+        _strict_convergence() && throw(
+            ErrorException(
+                "the answer of the back end could not be polished into a " *
+                    "certified equilibrium: stationarity $(cert.stationarity), " *
+                    "balance $(cert.balance) mol."
+            ),
+        )
+        _EXPLORING_STARTS[] || @warn """the answer of the back end could not be \
+        polished into a certified equilibrium; the better of the two is \
+        returned. Audit it with `optimality_certificate`.""" maxlog = 1
+    end
+    certificate === nothing || (certificate[] = cert)
+    return eqp
+end
+
+"""
+    _require_gibbs_duhem(esolver, system, p)
+
+Refuse a back end that minimizes `n⋅μ(n)` on a model whose activities do not
+satisfy the Gibbs–Duhem relation, when no dual Newton is there to polish its
+answer.
+
+The gradient of `n⋅μ(n)` is `μ + Jᵀn`, with `J = ∂μ/∂n`, and `Jᵀn = 0` is the
+Gibbs–Duhem relation, `Σᵢ nᵢ ∂μᵢ/∂nⱼ = 0`. Where it holds, the minimum of
+`n⋅μ(n)` is the equilibrium; where it fails, it is another composition, which
+nothing would then correct. It is checked at a composition holding every
+species, a kilogram of solvent with a tenth of a mole of each solute and one
+mole of everything else, where the terms that break it are all present.
+"""
+function _require_gibbs_duhem(esolver::EquilibriumSolver, system::ChemicalSystem, p)
+    n = ones(length(system))
+    if !isempty(system.idx_solvent)
+        jw = only(system.idx_solvent)
+        n[jw] = 1 / ustrip(us"kg/mol", system.species[jw][:M])
+        n[system.idx_solutes] .= 0.1
+    end
+    J = ForwardDiff.jacobian(x -> esolver.μ(x, p), n)
+    defect, column = _gibbs_duhem_defect(J, n)
+    defect <= _SCOPE_ASYMMETRY && return nothing
+    throw(
+        ArgumentError(
+            "$(typeof(esolver.model).name.name) does not satisfy the Gibbs–Duhem " *
+                "relation on this system (a relative defect of " *
+                "$(round(defect, sigdigits = 2)) on the column of " *
+                "$(symbol(system.species[column]))), so the minimum of n⋅μ(n) that this " *
+                "back end computes is not the equilibrium. Load OptimaSolver, whose dual " *
+                "Newton solves the conditions of equilibrium themselves and polishes the " *
+                "answer, or choose a model derived from one Gibbs energy: " *
+                "DiluteSolutionModel, PitzerActivityModel, HKFActivityModel with a common " *
+                "ion size and Ḃ = Kₙ = 0, DaviesActivityModel without neutral solutes or " *
+                "with bₙ = 0."
+        ),
+    )
+end
+
 # ── equilibrate ──────────────────────────────────────────────────────────────
 
 """
@@ -796,8 +920,10 @@ state_eq = equilibrate(state, OptimaOptimizer())
 global minimum, a KKT point, or a self-consistent speciation):
 
 ```julia
-state_eq = equilibrate(state)                  # certified
-state_eq = equilibrate(state; certify = false) # single back end, as before
+state_eq = equilibrate(state)                  # certified where it can be
+state_eq = equilibrate(state; certify = false) # single back end, polished
+cert = Ref{Any}()
+state_eq = equilibrate(state; certificate = cert)   # cert[] === nothing if none
 ```
 
 The certified route is the default because a single back end is not reliable
@@ -808,10 +934,22 @@ dual Newton gets that case to 1e-12 but fails to admit a supersaturated phase on
 a low-water cement. Offering both and keeping a proved answer certifies all ten
 cases of the reference battery; either alone certifies at most nine.
 
-Use [`equilibrate_certified`](@ref) when the certificate itself is wanted, and
-`certify = false` for the old single-back-end behavior. `certify = true` has no
-effect on a system without an aqueous phase or without `H2O@`, where the dual
-route does not apply.
+Use [`equilibrate_certified`](@ref) when the certificate itself is wanted, or
+pass a `Ref` as `certificate`, which receives it, or `nothing` when no
+certificate was computed. `certify` has three values:
+
+  - `nothing` (the default): the certified search where it applies — OptimaSolver
+    loaded, an aqueous phase with `H2O@` — and the single back end otherwise;
+  - `true`: the certified search, and an `ArgumentError` where it does not apply,
+    rather than an answer that was never certified;
+  - `false`: the single back end, its answer polished by the dual Newton where
+    the certified search would apply.
+
+Every back end's answer is polished in that way, the two-argument form's
+included, so that all routes return a composition satisfying the same conditions
+of equilibrium (see `ChemistryLab._POLISH`). Without OptimaSolver, a back end
+that minimizes `n⋅μ(n)`, such as Ipopt, refuses an activity model that breaks the
+Gibbs–Duhem relation, since its minimum is then not the equilibrium.
 
 When both extensions are loaded, `OptimaSolverExt` provides the default single
 back end.
@@ -823,6 +961,8 @@ back end.
   - `model`: activity model (default: `DiluteSolutionModel()`).
   - `variable_space`: `Val(:linear)` (default) or `Val(:log)`.
   - `ϵ`: regularization floor for mole amounts (default: `1e-16`).
+  - `certificate`: a `Ref` that receives the certificate of the answer returned,
+    or `nothing` when none was computed.
   - `kwargs...`: forwarded to the underlying solver. The temperature and the
     pressure are not among them: they are the state's, and a `T` or a `P` given
     here is refused rather than passed on and ignored.
@@ -833,6 +973,7 @@ function equilibrate(
         model::AbstractActivityModel = DiluteSolutionModel(),
         variable_space::Val = Val(:linear),
         ϵ::Float64 = _AMOUNT_FLOOR,
+        certificate::Union{Nothing, Base.RefValue} = nothing,
         kwargs...,
     )
     _refuse_state_keywords(kwargs, "equilibrate")
@@ -841,14 +982,15 @@ function equilibrate(
         variable_space = variable_space,
         kwargs...,
     )
-    return SciMLBase.solve(esolver, state; ϵ = ϵ)
+    return SciMLBase.solve(esolver, state; ϵ = ϵ, certificate = certificate)
 end
 
 function equilibrate(
         state::ChemicalState;
-        certify::Bool = true,
+        certify::Union{Nothing, Bool} = nothing,
         model::AbstractActivityModel = DiluteSolutionModel(),
         constraint::EquilibriumConstraint = FixedTP(),
+        certificate::Union{Nothing, Base.RefValue} = nothing,
         kwargs...,
     )
     _refuse_state_keywords(kwargs, "equilibrate")
@@ -860,13 +1002,21 @@ function equilibrate(
                 "or call `equilibrate(state, solver; ...)` explicitly.",
         )
     end
-    if (certify || !(constraint isa FixedTP)) &&
-            _DUAL_AVAILABLE[] && _dual_applicable(state.system)
-        return first(
-            equilibrate_certified(
-                state; model = model, constraint = constraint, kwargs...,
-            ),
+    applicable = _DUAL_AVAILABLE[] && _dual_applicable(state.system)
+    certify === true && !applicable && throw(
+        ArgumentError(
+            "certify = true asks for a certified equilibrium, and the certified " *
+                "search needs OptimaSolver loaded" * (_DUAL_AVAILABLE[] ? "" : " — it is not") *
+                " and a system with an aqueous phase and `H2O@`. Leave `certify` " *
+                "at its default to take the single back end where it does not apply.",
         )
+    )
+    if (certify !== false || !(constraint isa FixedTP)) && applicable
+        eq, cert = equilibrate_certified(
+            state; model = model, constraint = constraint, kwargs...,
+        )
+        certificate === nothing || (certificate[] = cert)
+        return eq
     end
     constraint isa FixedTP || throw(
         ArgumentError(
@@ -876,5 +1026,5 @@ function equilibrate(
                 " and a system with an aqueous phase and `H2O@`.",
         )
     )
-    return equilibrate(state, f(); model = model, kwargs...)
+    return equilibrate(state, f(); model = model, certificate = certificate, kwargs...)
 end

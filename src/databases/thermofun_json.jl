@@ -177,8 +177,9 @@ A substance whose heat capacity changes form at a phase transition, such as
 quartz or hematite, lists one `cp_ft_equation` per temperature interval. The
 thermodynamic functions are anchored at `Tref`, so the interval containing it is
 the one retained; a method without temperature limits applies everywhere, and
-when no interval contains `Tref` the first one listed is kept. The transitions
-above that interval are not followed.
+when no interval contains `Tref` the first one listed is kept. The functions are
+anchored there and followed into the other intervals by
+`complete_thermo_functions!` (see `_cp_intervals`).
 """
 function _reference_cp_interval(methods, Tref::Real)
     cps = [
@@ -192,6 +193,42 @@ function _reference_cp_interval(methods, Tref::Real)
         get(lim, :lowerT, -Inf) <= Tref <= get(lim, :upperT, Inf)
     end
     return cps[something(i, 1)]
+end
+
+"""
+    _cp_intervals(methods) -> Vector{NamedTuple}
+
+The heat-capacity intervals of a ThermoFun substance, sorted by temperature:
+`lower` and `upper` (K), `coeffs` (the `aᵢ` with their units, as
+`cp_ft_equation` takes them) and `transition`, `nothing` or the `(T, dS, dH)` of
+the phase transition the record places at the top of the interval
+(`m_phase_trans_props`). A method without temperature limits makes the list
+empty: it applies everywhere.
+"""
+function _cp_intervals(methods)
+    out = NamedTuple[]
+    for m in methods
+        only(values(m.method)) == "cp_ft_equation" || continue
+        haskey(m, :m_heat_capacity_ft_coeffs) || continue
+        lim = get(m, :limitsTP, nothing)
+        lim === nothing && return NamedTuple[]
+        coeffs = m.m_heat_capacity_ft_coeffs
+        units = extract_unit.(coeffs.units)
+        params = [
+            Symbol("a", subscriptnumber(i - 1)) => float(coeffs.values[i] * units[i])
+                for i in 1:min(length(coeffs.values), length(units))
+        ]
+        tr = nothing
+        if haskey(m, :m_phase_trans_props)
+            names = String.(m.m_phase_trans_props.names)
+            v = Float64.(m.m_phase_trans_props.values)
+            get_(n) = (k = findfirst(==(n), names); k === nothing ? 0.0 : v[k])
+            tr = (T = get_("Temperature"), dS = get_("dS"), dH = get_("dH"))
+        end
+        push!(out, (lower = Float64(get(lim, :lowerT, -Inf)), upper = Float64(get(lim, :upperT, Inf)), coeffs = params, transition = tr))
+    end
+    sort!(out; by = x -> x.lower)
+    return out
 end
 
 """
@@ -241,6 +278,13 @@ function complete_species_with_thermo_model!(species, row; verbose = false)
     TPMethods = row.TPMethods
     if !ismissing(TPMethods)
         cp_interval = _reference_cp_interval(TPMethods, Tst)
+        # Every heat-capacity interval, with the transition at its top when the
+        # record gives one, so that the functions follow T past the interval
+        # that holds Tref (`complete_thermo_functions!`).
+        intervals = _cp_intervals(TPMethods)
+        # Held as a function returning the list, a property being a number, a
+        # function, a string or a vector of numbers or of pairs.
+        length(intervals) > 1 && (species[:cp_intervals] = () -> intervals)
         for method in TPMethods
             method_type = only(values(method.method))
             if method_type == "cp_ft_equation" && method === cp_interval
@@ -267,7 +311,13 @@ function complete_species_with_thermo_model!(species, row; verbose = false)
                 push!(hkf_params, :z => z)
                 species[:thermo_params] = [hkf_params; species[:thermo_params]]
 
-            elseif method_type == "mv_constant"
+            elseif method_type in ("mv_constant", "mv_pvnrt")
+                species[:V_method] = method_type
+            elseif startswith(method_type, "water_eos")
+                # The solvent's equation of state is not implemented: its
+                # standard energy follows its heat capacity in T, and its
+                # tabulated volume in P, compressibility neglected (about 1.4 %
+                # of the volume at 300 bar).
                 species[:V_method] = "mv_constant"
             end
         end

@@ -139,6 +139,35 @@ using ChemistryLab, DynamicQuantities, ForwardDiff, OrderedCollections, Test
         @test sum(values(minor.oxides)) ≈ 1 rtol = 1.0e-12
         c3s = only(c for c in wpc.constituents if c.name == "C3S").mass_fraction
         @test 0.95 * 0.649 < c3s < 0.649
+        # The materials of Schöler et al. (2015). The glass of the slag, found by
+        # difference, is the authors' own estimate of it (their Table 3) to within
+        # a percent of each major oxide, once both are brought to 100 %: the
+        # authors normalize theirs, and the template does not, so as not to
+        # invent the part of the analysis it does not report.
+        bfs = material_template("blast-furnace slag (Schöler 2015)", db)
+        g15 = only(c for c in bfs.constituents if c.name == "glass")
+        @test g15.mass_fraction ≈ 0.985 rtol = 1.0e-12
+        t3 = literature_row("Scholer2015", "glass_composition", "BFS")
+        total = sum(values(g15.oxides))
+        @test 0.95 < total < 1
+        for ox in ("SiO2", "CaO", "Al2O3", "MgO")
+            @test g15.oxides[ox] / total ≈ ustrip(getproperty(t3, Symbol(ox))) / 100 atol = 0.01
+        end
+        opc15 = material_template("OPC (Schöler 2015)", db)
+        @test sum(c.mass_fraction for c in opc15.constituents) ≈ 1 rtol = 1.0e-12
+        # The two polymorphs of C2S and of C3A of the Rietveld analysis are one
+        # constituent each, named by the database symbol.
+        names15 = [c.name for c in opc15.constituents]
+        @test issubset(["C3S", "C2S", "C3A", "C4AF", "Bassanite", "Syngenite"], names15)
+        @test allunique(names15) && !any(n -> occursin("C2S", n) && n != "C2S", names15)
+        p15 = ChemistryLab._literature_phases("Scholer2015:phases:OPC")
+        c2s = only(c for c in opc15.constituents if c.name == "C2S").mass_fraction
+        c3s = only(c for c in opc15.constituents if c.name == "C3S").mass_fraction
+        @test c2s / c3s ≈ (p15["alpha' C2S"] + p15["beta C2S"]) / p15["C3S"] rtol = 1.0e-12
+        fa15 = material_template("siliceous fly ash (Schöler 2015)", db)
+        @test only(c for c in fa15.constituents if c.name == "glass").mass_fraction ≈ 0.687 rtol = 1.0e-12
+        @test material_template("limestone (Schöler 2015)", db).constituents[1] isa ChemistryLab.OxideConstituent
+        @test material_template("CEM I 52.5 N (Gruyaert 2010), Bogue", db).kind === :cement
         # With `remainder = true` the same oxides are squeezed into what the phases
         # leave, and the potassium falls to a third of the analysis.
         crystals = ChemistryLab._literature_phases("Shi2016:phase_composition:wPc")
@@ -483,7 +512,14 @@ using ChemistryLab, DynamicQuantities, ForwardDiff, OrderedCollections, Test
         # What cannot be given a rate is refused by name.
         @test_throws ArgumentError KineticsProblem(r, cs, Dict("no such" => rates["C3S"]), (0.0, 1.0))
         glass = first(c.name for c in slag.constituents if c isa ChemistryLab.OxideConstituent)
-        @test_throws ArgumentError KineticsProblem(Recipe(pc => 0.7, slag => 0.3; w_b = 0.45), cs, Dict(glass => rates["C3S"]), (0.0, 1.0))
+        err = try
+            KineticsProblem(Recipe(pc => 0.7, slag => 0.3; w_b = 0.45), cs, Dict(glass => rates["C3S"]), (0.0, 1.0))
+        catch e
+            e
+        end
+        @test err isa ArgumentError
+        # The refusal names the way round it.
+        @test occursin("glass_species", sprint(showerror, err))
     end
 
     @testset "phase lists" begin

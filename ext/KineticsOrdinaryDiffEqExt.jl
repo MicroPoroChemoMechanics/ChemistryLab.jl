@@ -47,10 +47,27 @@ import ChemistryLab:
 Integrate the kinetics ODE using `OrdinaryDiffEq` (Leal et al. 2017 formulation).
 
 The ODE function, initial state, and parameters are built from `kp`.
-Calorimetry (isothermal or semi-adiabatic) is integrated directly in the ODE
-right-hand-side — no separate `extend_ode!` step.
+Calorimetry (isothermal or semi-adiabatic) is integrated in the same ODE: under
+partial equilibrium the state carries the change of the enthalpy of the cell
+and the temperature is the root of its energy balance, solved with the
+partition at every evaluation of the right-hand side (see the theory page
+*Kinetics under partial equilibrium*).
 
 Default tolerances: `reltol = 1e-8`, `abstol = 1e-10`.
+
+`speciation` says where the right-hand side reads the equilibrium partition:
+`:frozen`, as the last accepted step left it, re-speciated once per step;
+`:rhs`, solved at every evaluation, with its derivative in the Jacobian; or
+`:auto`, the default, which takes `:rhs` when a rate law reads the partition (an
+activity or an amount of an equilibrium species, a saturation ratio) or a
+semi-adiabatic cell takes its temperature from it, and `:frozen` otherwise,
+where splitting is exact. `:rhs` needs the certified solver
+of the partition (OptimaSolver, an aqueous phase with `H2O@`); in that mode a
+step that leaves the kinetic amounts outside what the system holds is rejected.
+
+A trajectory that reaches such amounts in any mode is returned with the retcode
+`Unstable` and a warning, or an error under `STRICT_CONVERGENCE`, never with
+`Success`.
 
 # Examples
 
@@ -67,7 +84,10 @@ sol = integrate(kp, ks)
 const _mark_modified! = isdefined(SciMLBase, :derivative_discontinuity!) ?
     SciMLBase.derivative_discontinuity! : SciMLBase.u_modified!
 
-function integrate(kp::KineticsProblem, ks::KineticsSolver; kwargs...)
+function integrate(kp::KineticsProblem, ks::KineticsSolver; speciation::Symbol = :auto, kwargs...)
+    speciation in (:auto, :rhs, :frozen) || throw(
+        ArgumentError("speciation must be :auto, :rhs or :frozen; got :$speciation"),
+    )
     # `KineticsSolver` also carries an equilibrium solver, and its docstring
     # advertises passing one there. Honor it: without this the field is dead
     # and re-speciation silently never happens.
@@ -108,26 +128,65 @@ function integrate(kp::KineticsProblem, ks::KineticsSolver; kwargs...)
 
     prob = ODEProblem(f!, u0, kp.tspan, p)
 
-    # Operator splitting: the ODE advances the kinetic minerals with the
-    # speciation frozen, and this callback re-equilibrates once per accepted
-    # step. Nothing in `u` is touched, so `save_positions = (false, false)`.
+    # The equilibrium partition is re-speciated once per accepted step by this
+    # callback, and, when a rate law or a semi-adiabatic cell reads it, solved
+    # at every evaluation of the right-hand side as well (`:rhs`, see
+    # `build_kinetics_ode`). The callback never touches `u`, so
+    # `save_positions = (false, false)`.
     if p.n_be > 0
         # A non-converged solve is a warning, not an exception, and its result is
         # used anyway — so it never reached `eq_failures`. Count it over the run.
         nonconv0 = ChemistryLab.NONCONVERGED[]
         respeciate!(p, u0)          # start from an equilibrated state
+        # The reference of a calorimeter's energy balance, at the partition the
+        # right-hand side will solve: the first equilibrium releases nothing.
+        ChemistryLab._initialize_cell!(p, u0)
+        reads = ChemistryLab._rates_read_speciation(p)
+        p.rates_read_speciation[] = reads
+        # A semi-adiabatic cell under partial equilibrium takes its temperature
+        # from the partition at every evaluation, whatever the rate laws read.
+        cell = p.has_T && p.heat_eq
+        cell && speciation === :frozen && throw(
+            ArgumentError(
+                "a semi-adiabatic cell under partial equilibrium solves its temperature with " *
+                    "the partition at every evaluation, which `speciation = :frozen` excludes; " *
+                    "use `:auto` or `:rhs`.",
+            ),
+        )
+        mode = speciation === :auto ? (reads || cell ? :rhs : :frozen) : speciation
+        mode === :rhs && p.eq_dual === nothing && throw(
+            ArgumentError(
+                "speciation = :rhs solves the partition at every evaluation, with the " *
+                    "certified solver: it needs OptimaSolver loaded and an aqueous phase " *
+                    "with `H2O@` in the partition. Otherwise integrate by implicit steps, " *
+                    "`kinetic_step_adaptive`, or force `speciation = :frozen`.",
+            ),
+        )
+        p.rhs_mode[] = mode
+        if mode === :rhs
+            # A step leaving the kinetic amounts outside what the system holds is
+            # rejected, and the user's own test kept.
+            own = get(merged, :isoutofdomain, nothing)
+            domain = own === nothing ? ((u, q, t) -> ChemistryLab._kinetic_state_infeasible(q, u)) :
+                ((u, q, t) -> ChemistryLab._kinetic_state_infeasible(q, u) || own(u, q, t))
+            merged = merge(merged, (isoutofdomain = domain,))
+        end
         cb = DiscreteCallback(
             (u, t, integrator) -> true,
             integrator -> begin
+                q = integrator.p
                 # Flag the trajectory: only speciations computed here belong to
                 # the solution. Everything else is a probe.
-                integrator.p.on_accepted[] = true
-                respeciate!(integrator.p, integrator.u)
-                integrator.p.on_accepted[] = false
-                # The heat of the part of that re-speciation the linearized
-                # partition did not predict goes into the calorimeter's state.
-                modified = ChemistryLab._apply_heat_jump!(integrator.p, integrator.u)
-                _mark_modified!(integrator, modified)
+                q.on_accepted[] = true
+                changed = respeciate!(q, integrator.u)
+                q.on_accepted[] = false
+                # The right-hand side reads what the re-speciation wrote into `p`
+                # only when a law that reads the partition is run frozen; the
+                # integrator then has to drop what it derived from the old
+                # values. Otherwise it is a function of the state alone, and the
+                # re-speciation is its warm start.
+                reads_frozen = q.rates_read_speciation[] && q.rhs_mode[] === :frozen
+                _mark_modified!(integrator, changed && reads_frozen)
             end;
             save_positions = (false, false),
         )
@@ -164,67 +223,46 @@ function integrate(kp::KineticsProblem, ks::KineticsSolver; kwargs...)
     else
         sol = auto_solver ? solve(prob; merged...) : solve(prob, solver; merged...)
     end
-    _warn_if_unphysical(sol, p, kp)
-    return sol
+    return _flag_infeasible(sol, p, kp)
 end
 
 """
-    _warn_if_unphysical(sol, p, kp)
+    _flag_infeasible(sol, p, kp) -> ODESolution
 
-Warn when the trajectory ends on amounts no chemistry can produce.
+`sol`, with the retcode `Unstable` when a saved state holds kinetic amounts
+outside what the system can produce (`ChemistryLab._kinetic_state_infeasible`):
+an amount negative beyond rounding, or the kinetic species holding more of an
+element than the system was given. A warning names the first such state, or,
+under `STRICT_CONVERGENCE`, an error is raised.
 
-This is not tidying. Measured on calcite dissolving under `r = k(1 − Ω)` over
-`10⁵ s`, `Rodas5P` — and `OrdinaryDiffEq`'s default polyalgorithm, which picks a
-stiff method here — return a reaction extent of **−457 mol** and
-`retcode = Success`, while the explicit `Tsit5` gets the right answer
-(`1.104e-4`) in 85 626 steps.
-
-The cause is NOT a missing Jacobian term, and it is worth saying so because that
-is the natural guess. The residual reads the speciation **frozen** at the last
-accepted step, so `∂(du)/∂bₑ = 0` is exact for the system actually being
-integrated. What goes wrong is that the frozen speciation makes the right-hand
-side inconsistent with the state *within* a step: an implicit method steps clean
-past the point where `Ω` crosses one, the rate changes sign, and the run enters a
-branch it never leaves. Three measurements pin it down — bounding `dtmax` to
-`10³ s`, thirteen times more steps, returns the identical wrong value to seven
-digits; removing the re-speciation returns a sane one; and routing the
-re-speciation through the certified route moves −457 to −383, so the quality of
-the partition is not the cause either.
-
-The fix is not to freeze, which is what `kinetic_step` does: it is exact on the
-same case at `Δt = 10³ s` and, at `10⁵ s`, wrong but **reporting** it through its
-certificate, while `kinetic_step_adaptive` reaches the equilibrium values to eight
-digits in seven steps. So this check is what the ODE route can offer, and a rate
-law that reads the solution belongs on the implicit one.
+A trajectory of that kind used to come back with `Success` and a warning on its
+final state alone, judged against twice the total amount of matter, which the
+water dominates. Measured on calcite dissolving under `r = k(1 − Ω)` over `10⁵ s`
+with the partition frozen within a step, `Rodas5P` ended on 487 mol of calcite
+from 0.05: frozen, the rate is constant within a step, and a step longer than the
+relaxation of `Ω` overshoots the equilibrium and reverses it. Such a law now has
+its partition solved in the right-hand side (`speciation = :rhs`), where this
+state is not reached; the check stands for every run.
 """
-function _warn_if_unphysical(sol, p, kp)
-    u = sol.u[end]
-    nb, nk, nr = p.n_be, p.n_nk, p.n_rxn_state
-    # The test is CREATION OF MATTER, not the sign of an extent. A negative
-    # extent is legitimate — that is precipitation — and on the measured failure
-    # the extent came out at −457 mol, so a threshold on it would have to be
-    # arbitrary. What cannot happen is an amount exceeding what the system was
-    # given: `Rodas5P` returned 457 mol of calcite from a budget of 55.6.
-    total0 = sum(p.n_initial_full)
-    ceiling = 2 * total0 + 1
-    bad = String[]
-    for j in 1:nk
-        v = u[nb + j]
-        name = symbol(kp.system.species[kp.idx_kinetic[j]])
-        v < -1.0e-8 && push!(bad, "$name = $(round(ChemistryLab._plain(v), sigdigits = 4)) mol, negative")
-        v > ceiling && push!(
-            bad,
-            "$name = $(round(ChemistryLab._plain(v), sigdigits = 4)) mol against a total budget of " *
-                "$(round(ChemistryLab._plain(total0), sigdigits = 4))",
-        )
-    end
-    for j in 1:nr
-        ξ = u[nb + nk + j]
-        abs(ξ) > ceiling && push!(bad, "extent $j = $(round(ChemistryLab._plain(ξ), sigdigits = 4)) mol")
-    end
-    isempty(bad) && return nothing
-    @warn """the trajectory ends on amounts no chemistry can produce, and the     integrator reported success: $(join(bad, ", ")). A stiff method here needs a     Jacobian that the re-speciation in the residual does not supply, so its error     control is built on the wrong derivative. Use `kinetic_step_adaptive`, whose     step is chosen from a local error estimate on the extents and which is exact on     this class of problem, or an explicit method if the system allows it.""" maxlog = 1
-    return nothing
+function _flag_infeasible(sol, p, kp)
+    k = findfirst(u -> ChemistryLab._kinetic_state_infeasible(p, u), sol.u)
+    k === nothing && return sol
+    u = sol.u[k]
+    nb = p.n_be
+    amounts = join(
+        (
+            "$(symbol(kp.system.species[kp.idx_kinetic[j]])) = " *
+                "$(round(ChemistryLab._plain(u[nb + j]); sigdigits = 4)) mol"
+                for j in 1:(p.n_nk)
+        ), ", ",
+    )
+    msg = "the trajectory reaches kinetic amounts no chemistry can produce from what " *
+        "the system holds, at t = $(round(ChemistryLab._plain(sol.t[k]); sigdigits = 4)) s: " *
+        "$amounts. The run is returned with the retcode `Unstable`."
+    ChemistryLab._strict_convergence() && throw(ErrorException(msg))
+    @warn msg maxlog = 1
+    return SciMLBase.successful_retcode(sol) ?
+        SciMLBase.solution_new_retcode(sol, SciMLBase.ReturnCode.Unstable) : sol
 end
 
 # ── __init__: register default solver ────────────────────────────────────────

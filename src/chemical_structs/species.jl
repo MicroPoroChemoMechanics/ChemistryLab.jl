@@ -1661,8 +1661,21 @@ function complete_thermo_functions!(s::AbstractSpecies)
                 end
             end
         end
+        # The volume method the record declares. `mv_pvnrt` is the ideal gas,
+        # `V = RT/P`, whose pressure dependence is carried by the activity
+        # `xᵢ P/P°` rather than by the standard energy. `mv_constant` is a
+        # volume independent of T and P, whose standard energy then moves with
+        # pressure by `V⁰ (P − P°)`. The aggregate state decides between the two:
+        # CEMDATA18 marks three crystals of calcium aluminate cement, `CA`, `CA2`
+        # and `C12A7`, as `mv_pvnrt` while giving them a solid's volume.
+        constant_volume = false
         if haskey(properties(s), :V_method)
-            s[:V⁰] = SymbolicFunc(dict_params[:V⁰])
+            if s[:V_method] == "mv_pvnrt" && aggregate_state(s) == AS_GAS
+                s[:V⁰] = _ideal_gas_molar_volume(s.Tref, s.Pref)
+            elseif haskey(dict_params, :V⁰) && !ismissing(dict_params[:V⁰])
+                s[:V⁰] = SymbolicFunc(dict_params[:V⁰])
+                constant_volume = true
+            end
             delete!(s.properties, :V_method)
         else
             for k in [:V⁰]
@@ -1681,7 +1694,106 @@ function complete_thermo_functions!(s::AbstractSpecies)
                 end
             end
         end
+        haskey(properties(s), :cp_intervals) && _follow_cp_intervals!(s, dict_params)
+        constant_volume && _add_pressure_term!(s, dict_params[:V⁰])
         delete!(s.properties, :thermo_params)
+    end
+    return s
+end
+
+"""
+    _follow_cp_intervals!(s, dict_params)
+
+Replace the functions of a species whose heat capacity is given on several
+temperature intervals, built on the interval that holds `Tref`, by functions
+that follow it into every interval.
+
+Each interval is anchored at its boundary with the one before it, nearer
+`Tref`: ``H``, ``S`` and ``G`` are carried across continuously, and a phase
+transition the record places at the boundary adds its ``ΔH`` and ``ΔS``, with
+``ΔG = ΔH − T ΔS``, which a recorded transition makes zero to the precision of
+its data. Inside the interval of `Tref` the functions are the ones built there,
+called as they are, so their values do not move by a bit. The molar volume is
+the record's at `Tref` throughout: a transition's ``ΔV`` is not carried.
+"""
+function _follow_cp_intervals!(s::AbstractSpecies, dict_params)
+    iv = s[:cp_intervals]()
+    delete!(s.properties, :cp_intervals)
+    haskey(properties(s), :ΔₐG⁰) && s[:ΔₐG⁰] isa AbstractFunc || return s
+    Tref = ustrip(us"K", s.Tref)
+    n = length(iv)
+    iref = something(findfirst(x -> x.lower <= Tref <= x.upper, iv), 1)
+    F = Vector{Any}(undef, n)
+    F[iref] = Dict(k => s[k] for k in (:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰))
+    function piece(k, b, from, sign)
+        H = from[:ΔₐH⁰](T = b)
+        S = from[:S⁰](T = b)
+        G = from[:ΔₐG⁰](T = b)
+        tr = sign > 0 ? iv[k - 1].transition : iv[k].transition
+        if tr !== nothing && isapprox(tr.T, b; rtol = 1.0e-6)
+            H += sign * tr.dH
+            S += sign * tr.dS
+            G += sign * (tr.dH - b * tr.dS)
+        end
+        params = [
+            iv[k].coeffs; :S⁰ => S * u"J/(mol*K)"; :ΔₐH⁰ => H * u"J/mol";
+            :ΔₐG⁰ => G * u"J/mol"; :T => b * u"K"
+        ]
+        return build_thermo_functions(:cp_ft_equation, params)
+    end
+    for k in (iref + 1):n
+        F[k] = piece(k, iv[k].lower, F[k - 1], +1)
+    end
+    for k in (iref - 1):-1:1
+        F[k] = piece(k, iv[k].upper, F[k + 1], -1)
+    end
+    bounds = [iv[k].upper for k in 1:(n - 1)]
+    for prop in (:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰)
+        fs = Tuple(F[k][prop] for k in 1:n)
+        unit = fs[iref].unit
+        f(T) = _piecewise_call(fs, bounds, T)
+        s[prop] = NumericFunc(f, (:T,), (T = s.Tref,), unit)
+    end
+    return s
+end
+
+# The function of the interval holding `T`: the first below the first bound,
+# the last above the last one.
+function _piecewise_call(fs, bounds, T)
+    k = searchsortedlast(bounds, _plain(T)) + 1
+    return fs[k](T = T)
+end
+
+"""
+    _ideal_gas_molar_volume(Tref = 298.15u"K", Pref = P_STANDARD_Q) -> NumericFunc
+
+The molar volume of an ideal gas, `V = RT/P`, as a function of `T` and `P` in
+m³/mol, referred to `(Tref, Pref)` when called without them. It is the volume of
+a gas whose record declares `mv_pvnrt`, and of a gas built without a molar
+volume.
+"""
+_ideal_gas_molar_volume(Tref = 298.15u"K", Pref = P_STANDARD_Q) =
+    NumericFunc((T, P) -> R_GAS * T / P, (:T, :P), (T = Tref, P = Pref), u"m^3/mol")
+
+"""
+    _add_pressure_term!(s, V⁰)
+
+Add `V⁰ (P − Pref)` to the standard Gibbs energy and enthalpy of a species whose
+molar volume `V⁰` is independent of temperature and pressure.
+
+The standard state of a condensed species is the pure substance at the
+temperature and the pressure of the system, so `∂G⁰/∂P = V⁰` and
+`∂H⁰/∂P = V⁰ − T ∂V⁰/∂T = V⁰`; the entropy and the heat capacity do not move.
+The term is added as a function of `P` alone, through the mixed addition, so that
+at `P = Pref` it is an exact zero and the standard energy keeps its value to the
+last bit.
+"""
+function _add_pressure_term!(s::AbstractSpecies, V⁰)
+    V = ustrip(us"m^3/mol", V⁰)
+    Pr = ustrip(us"Pa", s.Pref)
+    term = NumericFunc(P -> V * (P - Pr), (:P,), (P = s.Pref,), u"J/mol")
+    for k in (:ΔₐG⁰, :ΔₐH⁰)
+        haskey(properties(s), k) && (s[k] = s[k] + term)
     end
     return s
 end

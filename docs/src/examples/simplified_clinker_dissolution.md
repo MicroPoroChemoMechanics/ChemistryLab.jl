@@ -199,7 +199,7 @@ uses the first, which implements:
 | Solvent (H₂O) | Raoult | `ln a = ln xₛ` |
 | Aqueous solutes | Henry | `ln a = ln(cᵢ / c°)`, `c° = 1 mol/L` |
 | Crystals | Pure solid | `ln a = 0` |
-| Gas | Ideal mixture | `ln a = ln xᵢ` |
+| Gas | Ideal mixture | `ln a = ln xᵢ + ln(P/P°)` |
 
 To implement a custom activity model, define a new subtype and extend `activity_model`:
 

@@ -75,26 +75,56 @@ See also: [`DiluteSolutionModel`](@ref), [`HKFActivityModel`](@ref),
 """
 abstract type AbstractActivityModel end
 
+# ── The gas phase, common to every model ─────────────────────────────────────
+
+"""
+    _ln_pressure_ratio(p) -> Real
+
+`ln(P/P°)` for the parameters `p` an activity closure is called with, `P` in
+pascals and `P°` = [`P_STANDARD`](@ref). Parameters built without a pressure, as
+a few internal probes build them, are at `P°`.
+"""
+_ln_pressure_ratio(p) = hasproperty(p, :P) ? log(p.P / P_STANDARD) : zero(P_STANDARD)
+
+"""
+    _gas_lna!(out, n, idx_gas, p) -> out
+
+The log activities of an ideal gas mixture, `ln aᵢ = ln xᵢ + ln(P/P°)`: the
+fugacity `xᵢ P` over the standard-state pressure. Every activity model calls
+this one for its gas species, so that the pressure enters each of them in the
+same way, and it is what gives a gas `∂μᵢ/∂P = RT/P`, the molar volume of
+an ideal gas.
+"""
+function _gas_lna!(out, _n, idx_gas, p)
+    isempty(idx_gas) && return out
+    n_gas = sum((_n[i] for i in idx_gas); init = zero(eltype(_n)))
+    lnP = _ln_pressure_ratio(p)
+    @inbounds for i in idx_gas
+        out[i] = log(_n[i] / n_gas) + lnP
+    end
+    return out
+end
+
 # ── Concrete models ───────────────────────────────────────────────────────────
 
 """
     struct DiluteSolutionModel <: AbstractActivityModel
 
-The ideal dilute solution: every activity coefficient is exactly 1, and an
-activity is a concentration.
+The ideal dilute solution: every activity coefficient is exactly 1, an activity
+is a concentration, and the water's activity is the one the solutes' imply.
 
 ```math
 \\gamma_i \\equiv 1 , \\qquad
 a_i = \\frac{c_i}{c^\\circ}\\ (c^\\circ = 1\\ \\mathrm{mol/L}) , \\qquad
-a_w = x_w
+\\ln a_w = -M_w \\sum_i m_i
 ```
 
 | phase | law | expression |
 |:--|:--|:--|
-| solvent | Raoult | `ln a = ln x_w`, the **mole fraction** |
+| solvent | ideal dilute | `ln a = −M_w Σ mᵢ`, the partner of `ln mᵢ` by Gibbs–Duhem |
 | aqueous solutes | Henry | `ln a = ln(cᵢ/c°)`, `c° = 1 mol/L` |
 | pure crystals | — | `ln a = 0` |
-| gas | ideal mixture | `ln a = ln xᵢ` |
+| gas | ideal mixture | `ln a = ln xᵢ + ln(P/P°)` |
 | solid-solution end-members | ideal mixing | `ln a = ln xᵢ` within the phase |
 
 ## The physics, and where it runs out
@@ -105,9 +135,17 @@ has a measurable effect on its energy — that is, from a few millimolal upwards
 for a charged species. Take `I ≲ 0.01 mol/kg` as the range in which the answer
 is the answer, and treat anything above as a screening calculation.
 
-!!! warning "Its water activity is a mole fraction, and that is the real limit"
-    `a_w = x_w` is Raoult's law, which counts molecules and knows nothing about
-    what they are. A cement pore solution at `x_w = 0.99` gets `a_w = 0.99`
+The water's activity is not a separate choice. With the solutes at `ln mᵢ`,
+the Gibbs–Duhem relation `Σⱼ nⱼ ∂ln aⱼ/∂nᵢ = 0` leaves the solvent exactly one
+partner, `ln a_w = −M_w Σ mᵢ = −Σ nᵢ/n_w`, so that the chemical potentials are
+the gradient of one Gibbs energy, homogeneous and convex, and every back end
+minimizing it solves the same equations. Raoult's mole fraction `x_w` agrees
+with it to first order, the two differing by `(M_w Σm)²/2`, but breaks that
+relation by `1 − x_w`.
+
+!!! warning "Its water activity counts solute molecules, and that is the real limit"
+    `ln a_w = −M_w Σ m` counts the solutes and knows nothing about what they
+    are. A cement pore solution at `Σm = 0.5 mol/kg` gets `a_w = 0.991`
     whatever it holds in solution, and a paste short of mixing water gets an
     `a_w` that follows the *amount* of water and not its state. If the water
     activity matters for what is being computed — and in a hydrating paste it
@@ -116,9 +154,9 @@ is the answer, and treat anything above as a screening calculation.
 
 It is nonetheless the **default**, for two reasons that are about the solve and
 not about the chemistry: it is exact in the dilute limit, and it makes the
-log-activity linear in `ln n`, which is the best-conditioned objective the
-minimizer will ever see. Start here, then change the model and see whether the
-answer moves.
+solutes' log-activities linear in `ln n`, which is the best-conditioned
+objective the minimizer will ever see. Start here, then change the model and see
+whether the answer moves.
 
 See also: [`HKFActivityModel`](@ref), [`DaviesActivityModel`](@ref),
 [Activity models](@ref sec-activity-models).
@@ -172,20 +210,16 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
         out = zeros(promote_type(eltype(_n), _number_type_of(p), MT), length(_n))
 
         if has_aqueous
-            # n_aqueous ≥ ϵ > 0 always (because _n[i] ≥ ϵ), so no iszero guard needed
-            n_aqueous = _n[idx_solvent] + sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
-            out[idx_solvent] = log(_n[idx_solvent] / n_aqueous)
+            # The solvent's partner of `ln mᵢ` by Gibbs–Duhem: −M_w Σ mᵢ = −Σ nᵢ/n_w.
+            # `_n[idx_solvent] ≥ ϵ > 0` always, so no iszero guard is needed.
+            n_w = _n[idx_solvent]
+            out[idx_solvent] = -sum((_n[i] for i in idx_solutes); init = zero(eltype(_n))) / n_w
             @inbounds for i in idx_solutes
                 out[i] = log(_n[i] / _n[idx_solvent]) + ln_c_solvent
             end
         end
 
-        if has_gas
-            n_gas = sum((_n[i] for i in idx_gas); init = zero(eltype(_n)))
-            @inbounds for i in idx_gas
-                out[i] = log(_n[i] / n_gas)
-            end
-        end
+        has_gas && _gas_lna!(out, _n, idx_gas, p)
 
         # Solid solutions and surface sites mix on budgets of their own; leaving
         # either out would give its members unit activity, silently.
@@ -729,7 +763,7 @@ Inside `lna`:
 - Solutes: molality convention, B-dot formula for ions, salting-out for neutrals.
 - Solvent: osmotic coefficient from Gibbs-Duhem (σ-function).
 - Crystals: `ln a = 0` (pure solid).
-- Gas: ideal mixture `ln a = ln(xᵢ)`.
+- Gas: ideal mixture `ln a = ln(xᵢ) + ln(P/P°)`.
 
 If `model.temperature_dependent=true`, `p` must contain `T` (K) and `P` (Pa)
 — both are provided automatically by `_build_params`.
@@ -852,12 +886,7 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
         out[idx_solvent] = -M_w * sum_m * φ
 
         # ── Gas: ideal mixture ─────────────────────────────────────────────
-        if has_gas
-            n_gas = sum((_n[i] for i in idx_gas); init = zero(eltype(_n)))
-            @inbounds for i in idx_gas
-                out[i] = log(_n[i] / n_gas)
-            end
-        end
+        has_gas && _gas_lna!(out, _n, idx_gas, p)
 
         # ── Solid solutions ────────────────────────────────────────────────
         # Solid solutions and surface sites mix on budgets of their own; leaving
@@ -887,7 +916,16 @@ out, so that nothing per-species has to be known.
 ```
 
 `\\ln a_i = \\ln 10 \\cdot \\log_{10}\\gamma_i + \\ln m_i` on the molality scale, and
-for the solvent **Raoult's law**, `\\ln a_w = \\ln x_w`.
+for the solvent the partner of these by the Gibbs–Duhem relation,
+
+```math
+\\ln a_w = -M_w \\sum_i m_i + M_w\\, W(I) ,
+\\qquad
+W(I) = 2\\ln 10\\, A\\Big[\\frac{I\\sqrt{I}}{1+\\sqrt{I}} - I + 2\\sqrt{I}
+       - 2\\ln\\big(1+\\sqrt{I}\\big) - \\frac{b}{2} I^2\\Big] ,
+```
+
+the integral of `I f'(I)` for the ionic term `f(I) = √I/(1+√I) − b I`.
 
 # The physics, and the one thing to know before using it
 
@@ -898,17 +936,15 @@ to reach for when a species list contains ions no radius table covers. The loss
 is that every ion of the same charge is now identical, so the model cannot
 distinguish Na⁺ from K⁺ at all.
 
-!!! warning "Its water activity does not come from its own activity coefficients"
-    The solutes are non-ideal and the solvent is treated as ideal:
-    `a_w = x_w` counts molecules. So this model does **not** satisfy the
-    Gibbs-Duhem relation between its own `γᵢ` and its `a_w` — the two halves are
-    not derived from one excess Gibbs energy. In a dilute solution the error is
-    negligible, because both are near their ideal values anyway. In a hydrating
-    cement paste, where the water activity is what decides how far the reaction
-    goes, the two halves disagree and the answer inherits the disagreement.
-
-    Use [`HKFActivityModel`](@ref), whose `a_w` comes from an osmotic
-    coefficient, whenever the water activity is part of the question.
+!!! note "Its water activity comes from its own activity coefficients"
+    Every ion carries the same function of `I`, times `zᵢ²`, so the water
+    activity that the Gibbs–Duhem relation pairs with it has the closed form
+    above, and with it the ions and the solvent derive from one excess Gibbs
+    energy. The neutral solutes are the exception: their salting-out term
+    `bₙ I` has no partner in the coefficients of the ions, so with neutral
+    species present and `bₙ ≠ 0` the model is not the gradient of a Gibbs
+    energy, and its certificate says so (`:self_consistent`). With `bₙ = 0`, or
+    without neutral solutes, it is.
 
 # Inputs, their defaults, and where each default comes from
 
@@ -922,8 +958,8 @@ distinguish Na⁺ from K⁺ at all.
 # Valid range
 
 `I ≲ 0.5 mol/kg` for the activity coefficients — Davies is usually quoted as
-useful to 0.1 and tolerable to 0.5 — and `I ≲ 0.1 mol/kg` for anything that
-depends on the water activity.
+useful to 0.1 and tolerable to 0.5 — and for the water activity, which follows
+from them.
 
 # Examples
 ```julia
@@ -1152,18 +1188,13 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
             out[i] = ln10 * _log10γ_neutral(model, I) + log(mᵢ)
         end
 
-        # Water activity — Raoult (mole fraction) approximation
-        # n_aqueous ≥ ϵ > 0 always (because _n[i] ≥ ϵ), so no iszero guard needed
-        n_aqueous = n_w + sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
-        out[idx_solvent] = log(n_w / n_aqueous)
+        # Water activity: the Gibbs–Duhem partner of the solutes' terms, the
+        # ideal `−M_w Σm` and the integral `M_w W(I)` of the ionic term.
+        Σm = sum((_n[i] for i in idx_solutes); init = zero(eltype(_n))) / denom_mol
+        out[idx_solvent] = M_w * (_davies_osmotic_W(A, model.b, I, ϵ) - Σm)
 
         # Gas: ideal mixture
-        if has_gas
-            n_gas = sum((_n[i] for i in idx_gas); init = zero(eltype(_n)))
-            @inbounds for i in idx_gas
-                out[i] = log(_n[i] / n_gas)
-            end
-        end
+        has_gas && _gas_lna!(out, _n, idx_gas, p)
 
         # Solid solutions
         # Solid solutions and surface sites mix on budgets of their own; leaving
@@ -1174,6 +1205,28 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
     end
 
     return lna
+end
+
+"""
+    _davies_osmotic_W(A, b, I, ϵ) -> Real
+
+The excess part of the Davies solvent row, `ln a_w = −M_w Σm + M_w W(I)`, with
+
+```math
+W(I) = 2\\ln 10\\, A \\int_0^I t\\, f'(t)\\,\\mathrm{d}t
+     = 2\\ln 10\\, A \\Big[I f(I) - \\int_0^I f(t)\\,\\mathrm{d}t\\Big] ,
+\\qquad f(I) = \\frac{s}{1+s} - b I ,\\quad s = \\sqrt{I + ϵ},
+```
+
+`f` being the ionic term of the solutes, regularized as they regularize it, so
+that the Gibbs–Duhem relation between the solutes and the solvent holds to
+rounding. The antiderivative of `s/(1+s)` in `u = t + ϵ` is
+`u − 2√u + 2 ln(1 + √u)`.
+"""
+function _davies_osmotic_W(A, b, I, ϵ)
+    F(u) = u - 2 * sqrt(u) + 2 * log1p(sqrt(u))
+    s = sqrt(I + ϵ)
+    return 2 * log(10.0) * A * (I * (s / (1 + s) - b * I) - (F(I + ϵ) - F(ϵ)) + b * I^2 / 2)
 end
 
 # ── TruesdellJonesActivityModel ───────────────────────────────────────────────
@@ -1203,8 +1256,10 @@ PHREEQC applies:
 \\log_{10}\\gamma_i = 0.1\\,I .
 ```
 
-The solvent follows Raoult's law, `ln a_w = ln x_w`, as with
-[`DaviesActivityModel`](@ref), whose warning on Gibbs–Duhem applies here too.
+The solvent follows Raoult's law, `ln a_w = ln x_w`. Its per-species parameters
+leave the Gibbs–Duhem relation no closed-form partner for the solvent, so the
+model is not the gradient of one Gibbs energy, and a certificate says so
+(`:self_consistent`).
 
 # Fields
 
@@ -1320,12 +1375,7 @@ function activity_model(cs::ChemicalSystem, model::TruesdellJonesActivityModel)
         end
         n_aqueous = n_w + sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
         out[idx_solvent] = log(n_w / n_aqueous)
-        if has_gas
-            n_gas = sum((_n[i] for i in idx_gas); init = zero(eltype(_n)))
-            @inbounds for i in idx_gas
-                out[i] = log(_n[i] / n_gas)
-            end
-        end
+        has_gas && _gas_lna!(out, _n, idx_gas, p)
         _mixing_lna!(out, _n, mix, p, ϵ)
         return out
     end
@@ -2042,14 +2092,26 @@ function site_gradient_asymmetry(
     J = ForwardDiff.jacobian(x -> lna(x, (; ϵ = ϵ, T = T)), n0)
     worst, (i, j) = _jacobian_asymmetry(J)
     pair = iszero(i) ? ("", "") : (symbol(cs.species[i]), symbol(cs.species[j]))
+    gd, _ = _gibbs_duhem_defect(J, n0)
+    return (; worst, pair, gd)
+end
 
-    gd = 0.0
-    for j in eachindex(n0)
-        terms = (n0[i] * J[i, j] for i in eachindex(n0))
+"""
+    _gibbs_duhem_defect(J, n) -> (defect, column)
+
+The worst relative violation of the Gibbs–Duhem relation `Σᵢ nᵢ Jᵢⱼ = 0` over the
+columns of a Jacobian `J` of log activities (or of chemical potentials) at `n`,
+each column measured against `Σᵢ |nᵢ Jᵢⱼ|`, and the column where it is worst
+(`0` when every column vanishes).
+"""
+function _gibbs_duhem_defect(J::AbstractMatrix, n::AbstractVector)
+    gd, at = 0.0, 0
+    for j in axes(J, 2)
+        terms = (n[i] * J[i, j] for i in eachindex(n))
         tot = sum(abs, terms)
         tot > 1.0e-30 || continue
-        gd = max(gd, abs(sum(terms)) / tot)
+        r = abs(sum(terms)) / tot
+        r > gd && ((gd, at) = (r, j))
     end
-
-    return (; worst, pair, gd)
+    return (gd, at)
 end

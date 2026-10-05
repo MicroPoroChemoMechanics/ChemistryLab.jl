@@ -85,4 +85,14 @@ end
     @test ChemistryLab._number_type_of(d * u"m") === typeof(d)
     @test ChemistryLab._number_type_of((a = 1.0u"m", b = d * u"s")) === typeof(d)
     @test ChemistryLab._number_type_of(1.0u"m") === Float64
+    # A tuple as long as the parameters of a kinetic run, with a dual number in
+    # a nested field: the answer is found, and costs nothing, the compiler
+    # folding it into a constant.
+    long = (; (Symbol("f", k) => (k == 40 ? (x = [d], y = 1.0) : k % 3 == 0 ? [1.0, 2.0] : k % 3 == 1 ? Ref(1) : sin) for k in 1:60)...)
+    @test ChemistryLab._number_type_of(long) === typeof(d)
+    @test ChemistryLab._number_type_of(Base.structdiff(long, NamedTuple{(:f40,)})) === Float64
+    @test (@inferred ChemistryLab._number_type_of(long)) === typeof(d)
+    allocs(x) = @allocated ChemistryLab._number_type_of(x)
+    allocs(long)
+    @test allocs(long) == 0
 end

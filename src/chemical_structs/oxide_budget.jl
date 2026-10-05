@@ -94,7 +94,8 @@ slag = Dict("CaO" => 0.41, "SiO2" => 0.36, "Al2O3" => 0.11,
             "MgO" => 0.08, "SO3" => 0.02)
 sp = glass_species(slag; symbol = "GGBS", M = 95.0u"g/mol")
 atoms(sp)                        # Ca, Si, Al, Mg, S and O, in the reported ratio
-rate = waller(WALLER_PARAMS_SLAG, "GGBS"; α_max = 0.9)
+τ_slag = 100.0u"d"     # ASSUMED for the example: give the value of a source
+rate = waller(merge(WALLER_PARAMS_FLY_ASH, (τ = τ_slag,)), "GGBS"; α_max = 0.9)
 ```
 
 See also: [`oxide_budget`](@ref), [`waller`](@ref).

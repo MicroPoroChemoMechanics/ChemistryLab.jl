@@ -191,7 +191,7 @@ module ChemistryLab
         bogue, decompose, reactive_part,
         Recipe, budget, RecipeState, residual_mass, phase_masses, bound_water,
         pore_solution, ProcessResult, hydrate, blend, titrate, carbonate, add_salt,
-        leach, process_table, material_template, material_templates, with_extents,
+        leach, process_table, material_template, material_templates, with_extents, with_species,
         phase_list, phase_lists, phase_list_system
 
     export SymbolicFunc,
@@ -391,6 +391,8 @@ module ChemistryLab
         null_participation,
         VACUUM_PERMITTIVITY_Q,
         FARADAY_Q,
+        P_STANDARD,
+        P_STANDARD_Q,
         with_symbol
 
     export ChemicalSystem,
@@ -523,12 +525,15 @@ module ChemistryLab
         saturation_ratio,
         RateModelCatalyst,
         RateMechanism,
+        palandri_kharaka,
+        palandri_kharaka_minerals,
         parrott_killoh,
         PK_PARAMS_C3S,
         PK_PARAMS_C2S,
         PK_PARAMS_C3A,
         PK_PARAMS_C4AF,
         parrott_killoh_avrami,
+        pk_wc_factor,
         PK84_PARAMS_C3S,
         PK84_PARAMS_C2S,
         PK84_PARAMS_C3A,
@@ -536,7 +541,6 @@ module ChemistryLab
         waller,
         WALLER_PARAMS_FLY_ASH,
         WALLER_PARAMS_SILICA_FUME,
-        WALLER_PARAMS_SLAG,
         blaine_factor,
         PK_BLAINE_REF,
         humidity_factor,

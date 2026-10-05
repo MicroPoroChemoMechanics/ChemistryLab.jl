@@ -1,0 +1,114 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Balonis2019",
+    "doi": "10.1016/j.cemconres.2019.03.011",
+    "citation": "Balonis, M. (2019). Thermodynamic modelling of temperature effects on the mineralogy of Portland cement systems containing chloride. Cement and Concrete Research 120, 66-76.",
+    "location": "Section 2 and Table 1 (p. 67), Section 3 and the captions of Figs. 5, 6, 11 and 12 (pp. 69-74)"
+  },
+  "transcription": {
+    "from": "the published article (PDF): Table 1 from the text layer, checked against the rendered page; the compositions from the figure captions; the transition temperatures and the shrinkages as the text of Section 3 prints them",
+    "checked_against_source": true,
+    "note": "The article computes with GEMS-PSI, alkali- and CO2-free, the cement hydrates from its refs. 7, 10 and 30, Friedel's and Kuzel's salts from Table 1, ideal solid solutions of Friedel's salt with the hydroxy-AFm and with monocarbonate, and the SO4/OH-AFm and SO4/CO3-AFt solid solutions of its refs. 11, 23, 30 and 31; the activity coefficients by the Truesdell-Jones equation with b = 0.064 and Kielland's ion sizes (Eq. 5). The transition temperatures are calculated results the text states, most of them approximately ('around', '~'); they are transcribed as printed, with the wording."
+  },
+  "quantities": {
+    "c3a": {
+      "value": 0.01,
+      "unit": "mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "captions of Figs. 1-12",
+      "description": "Tricalcium aluminate of the model mixture."
+    },
+    "portlandite": {
+      "value": 0.015,
+      "unit": "mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "captions of Figs. 1-12",
+      "description": "Portlandite of the model mixture, present at every temperature."
+    },
+    "water": {
+      "value": 60,
+      "unit": "cm^3",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "captions of Figs. 1-12",
+      "description": "Water of the model mixture, 60 ml."
+    },
+    "so3_al2o3": {
+      "value": 1,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 3 and the captions",
+      "description": "Molar SO3/Al2O3 ratio of every mixture, the sulfate as CaSO4."
+    },
+    "calcite_with_carbonate": {
+      "value": 0.0075,
+      "unit": "mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "captions of Figs. 7-12",
+      "description": "Calcite of the carbonate-bearing mixtures, CO2/Al2O3 = 0.75."
+    }
+  },
+  "tables": {
+    "chloride_afm_thermodynamics": {
+      "columns": ["phase", "log_Ks0", "dfG", "dfH", "S", "a0", "a1", "a2", "a3", "Cp", "density"],
+      "units": [null, "1", "kJ/mol", "kJ/mol", "J/(mol*K)", "J/(mol*K)", "J/(mol*K^2)", "J*K/mol", "J/(mol*K^0.5)", "J/(mol*K)", "kg/m^3"],
+      "kind": "published",
+      "location": "Table 1, p. 67: Friedel's salt C4ACl2H10 and Kuzel's salt C4As0.5ClH12 at 298 K",
+      "rows": [
+        ["C4ACl2H10", -27.27, -6810.9, -7604, 731, 498, 0.89, -2030000.0, 1503, 829, 2064],
+        ["C4As0.5ClH12", -28.53, -7533.3, -8472, 820, 557, 1.14, -1010000.0, 751.5, 929, 2114]
+      ]
+    },
+    "temperature_scans": {
+      "columns": ["figure", "cl2_al2o3", "co2_al2o3"],
+      "units": [null, "1", "1"],
+      "kind": "published",
+      "location": "Section 3 and the captions of Figs. 5, 6, 11 and 12: the fixed compositions computed from 0 to 99 C, 0.01 mol C3A, 0.015 mol portlandite and 60 ml water, SO3/Al2O3 = 1; the chloride as CaCl2, its ratio written 2Cl/Al2O3 (1 for Friedel's salt), the carbonate as calcite",
+      "rows": [
+        ["Fig. 5", 0.5, 0.0],
+        ["Fig. 6", 1.0, 0.0],
+        ["Fig. 11", 0.5, 0.75],
+        ["Fig. 12", 1.0, 0.75]
+      ]
+    },
+    "transitions": {
+      "columns": ["figure", "phase", "event", "temperature_C", "wording"],
+      "units": [null, null, null, "1", null],
+      "kind": "published",
+      "location": "Section 3, pp. 69-74",
+      "rows": [
+        ["Fig. 5", "Kuzel's salt", "last", 28, "Kuzel's salt forms but is predicted to be stable only up to 28 C"],
+        ["Fig. 5", "monosulfate", "first", 28, "SO4-AFmss starts to appear at around 28 C"],
+        ["Fig. 5", "Friedel's salt", "last", 70, "Friedel's salt persists below 70 C"],
+        ["Fig. 6", "monosulfate", "first", 60, "SO4-AFm only appears at > 60 C"],
+        ["Fig. 6", "Friedel's salt", "last", 80, "Friedel's salt persists up to 80 C, above which it decomposes"],
+        ["Fig. 11", "monocarbonate", "last", 50, "CO3-AFm substituted with chloride is stable up to ~50 C"],
+        ["Fig. 11", "Friedel's salt", "last", 70, "Friedel's salt (Cl-AFm) persists up to 70 C"],
+        ["Fig. 12", "Friedel's salt", "last", 90, "Friedel's salt and ettringite persist up to ~90 C"],
+        ["Fig. 12", "ettringite", "last", 90, "Friedel's salt and ettringite persist up to ~90 C"]
+      ]
+    },
+    "shrinkage": {
+      "columns": ["figure", "percent", "wording"],
+      "units": [null, "1", null],
+      "kind": "published",
+      "location": "Section 3, pp. 70-74",
+      "rows": [
+        [
+          "Fig. 5",
+          15,
+          "above this temperature [70 C] volumetric shrinkage ... is estimated at around 15%"
+        ],
+        ["Fig. 6", 23, "the associated shrinkage is estimated at the level of 23%"],
+        ["Fig. 11", 30, "at 90 C system shrunk by around 30% as compared to 0 C"],
+        ["Fig. 12", 25, "above 90 C shrinkage ... is estimated at 25% as compared to 0 C"]
+      ]
+    }
+  },
+  "notes": ["The figures (total volume of the solids against temperature) are not digitized; the comparison uses the transitions and shrinkages the text states.", "Friedel's salt is written C4ACl2H10 in Table 1 and C4AClH10 in Cemdata18, the same formula, Ca4Al2Cl2(OH)12(H2O)4."]
+}

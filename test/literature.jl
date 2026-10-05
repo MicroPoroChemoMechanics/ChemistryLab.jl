@@ -171,14 +171,13 @@ using JSON
         @test WALLER_PARAMS_FLY_ASH.τ === literature_value("Lavergne2018", "waller_tau_fly_ash")
         @test WALLER_PARAMS_FLY_ASH.Ea === literature_value("Lavergne2018", "waller_Ea")
         @test WALLER_PARAMS_SILICA_FUME === WALLER_PARAMS_FLY_ASH
-        # Slag differs from fly ash by its characteristic time and nothing else.
-        @test WALLER_PARAMS_SLAG.τ === literature_value("Waller1999", "tau_slag")
-        @test Base.structdiff(WALLER_PARAMS_SLAG, (τ = 0,)) ===
-            Base.structdiff(WALLER_PARAMS_FLY_ASH, (τ = 0,))
+        # No slag set: the time once attributed to the thesis is not in it.
+        @test !isdefined(ChemistryLab, :WALLER_PARAMS_SLAG)
+        @test isempty(literature("Waller1999").quantities)
+        @test literature("Waller1999").transcription["checked_against_source"] === true
 
         # What was checked against its source says so, and what was not says that.
         @test literature("Lavergne2018").transcription["checked_against_source"] === true
-        @test provenance(literature("Waller1999")["tau_slag"]) == PROV_UNSTATED
         @test all(
             provenance(q) == PROV_UNSTATED for q in values(literature("ParrottKilloh1984").quantities)
         )

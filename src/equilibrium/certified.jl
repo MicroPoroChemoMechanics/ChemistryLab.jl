@@ -941,15 +941,19 @@ starts: `variable_space` sets their formulation, Ipopt takes the common
 arguments of Optimization.jl (`maxiters`, `reltol`, `maxtime`, `verbose`), which
 OptimizationIpopt maps to its options, and `OptimaOptimizer` ignores the rest.
 
-`certificate.optimal == true` is a **proof** of a global minimum when the Gibbs
-minimization is convex — ideal mixing and any activity model whose excess Gibbs
-energy is convex in the amounts — and the log activities are the gradient of that
-energy. `certificate.scope` says which case holds: `:global_minimum`;
-`:kkt_point` when a mixing phase is concave on part of its range (declared with
-two instances, or with the convexity check waived) or a constraint leaves the
-sufficiency unestablished; `:self_consistent` when the activities are not the
-gradient of one energy, as with the B-dot and Davies models at their default
-settings, and the answer is a speciation consistent with its own activities.
+`certificate.optimal == true` is a **proof** of a global minimum when the log
+activities are the gradient of one Gibbs energy and that energy is proved convex
+over the whole domain: ideal mixing, convex solid solutions, and the aqueous
+models of a convexity bound (the ideal dilute model, Debye–Hückel with one ion
+size and Davies on ions of charge two at most). `certificate.scope` says which
+case holds: `:global_minimum`; `:local_minimum` when convexity is not proved
+(a concave mixing phase, Pitzer, a convexity bound above one) and the Hessian
+over the directions that conserve matter is positive definite at the answer, its
+smallest eigenvalue being `reduced_curvature`; `:kkt_point` when that curvature
+is not positive, or a constraint leaves the sufficiency unestablished;
+`:self_consistent` when the activities are not the gradient of one energy, as
+with the B-dot and Davies models at their default settings, and the answer is a
+speciation consistent with its own activities.
 
 When no route yields a proof, the answer with the smallest KKT error is returned,
 its certificate says so, and a warning names the residual. That is the honest
@@ -1239,9 +1243,11 @@ function _equilibrate_certified(
         solve_one = function (f)
             r = _relaxed_convergence() do
                 try
+                    # A candidate is a start: polishing it here would run the
+                    # dual Newton the search runs on it anyway, twice.
                     _exploring_starts() do
                         esolver = EquilibriumSolver(state.system, model, f(); kwargs...)
-                        SciMLBase.solve(esolver, from; ϵ = ϵ, b = bfix)
+                        SciMLBase.solve(esolver, from; ϵ = ϵ, b = bfix, polish = false)
                     end
                 catch err
                     verbose && @info "$what rejected" backend = f err

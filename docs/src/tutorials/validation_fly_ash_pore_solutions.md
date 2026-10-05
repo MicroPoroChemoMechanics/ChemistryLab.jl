@@ -61,7 +61,9 @@ activity, so the activity held is the measured molality times the activity
 coefficient, repeated until the coefficient no longer changes.
 
 ```@example flyash
-runs = Dict((s, a) => d12_solution(systems.aqueous, s, a; model) for s in d12_systems_listed(), a in d12_ages())
+# `Any`: the type of a state is long enough that a dictionary specialized on it
+# takes minutes to compile.
+runs = Dict{Any, Any}((s, a) => d12_solution(systems.aqueous, s, a; model) for s in d12_systems_listed(), a in d12_ages())
 @printf("%d solutions, certified: %d\n", length(runs), count(r -> r.certificate.optimal, values(runs)))
 ```
 

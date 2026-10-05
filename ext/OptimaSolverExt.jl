@@ -87,8 +87,14 @@ end
 
 function _build_optima_opt_prob(ep::EquilibriumProblem, μ, ::Val{:log})
     f_gibbs(x, q) = (n = exp.(x); dot(n, μ(n, q)))
+    # In `x = ln n` the gradient of G is `n ∘ μ`, by the chain rule on the one of
+    # the linear route above, and it is handed over for the same reason: the
+    # derivative of `dot(n, μ(n))` carries the term `Jᵀn`, which is zero only
+    # where the model satisfies the Gibbs–Duhem relation, and steering on it
+    # settled on another composition than the equilibrium.
+    g_gibbs!(g, x, q) = (n = exp.(x); g .= n .* μ(n, q))
     cons!(res, x, _) = (n = exp.(x); mul!(res, ep.A, n); res .-= ep.b)
-    optf = SciMLBase.OptimizationFunction{true}(f_gibbs; cons = cons!)
+    optf = SciMLBase.OptimizationFunction{true}(f_gibbs; grad = g_gibbs!, cons = cons!)
     return SciMLBase.OptimizationProblem(
         optf, log.(ep.u0), ep.p;
         lb = log.(ep.lb), ub = log.(ep.ub),
@@ -125,6 +131,8 @@ function SciMLBase.solve(
         state::ChemicalState;
         ϵ::Float64 = _AMOUNT_FLOOR,
         b = nothing,
+        certificate = nothing,
+        polish::Bool = ChemistryLab._POLISH[],
     )
     # A problem carrying dual numbers, in its state, its budget, its data or its
     # activity model, takes the implicit-function route: primal solve, then the
@@ -132,7 +140,7 @@ function SciMLBase.solve(
     n0 = max.(_build_n0(state), ϵ)
     p = _build_params(state; ϵ = ϵ)
     ChemistryLab._has_dual_inputs(n0, b, p, esolver.model) &&
-        return ChemistryLab._solve_dual(esolver, state, ϵ; b = b)
+        return ChemistryLab._solve_dual(esolver, state, ϵ; b = b, polish = polish)
 
     # `b` given explicitly is Leal's φ(b): minimize G subject to A n = b, with
     # `state` supplying only the starting guess and the T, P conditions. The
@@ -144,10 +152,16 @@ function SciMLBase.solve(
         EquilibriumProblem(A, esolver.μ, n0; b = collect(b), p = p)
     opt_prob = _build_optima_opt_prob(prob, esolver.μ, esolver.variable_space)
 
-    sol = ChemistryLab._check_converged(
-        SciMLBase.solve(opt_prob, esolver.solver; esolver.kwargs...),
-        "equilibrium solve",
-    )
+    # The polish decides on the answer, so the interior point's own return code
+    # is not checked when there is one: it is neither a warning nor, under
+    # `STRICT_CONVERGENCE`, an error, and a polish that fails says so itself.
+    # Not by running the solve under `_relaxed_convergence`: a scoped value
+    # around it cost 13 s of compilation on the first cement equilibrium of a
+    # session (measured on a CEM I paste: 125 s against 112 s).
+    polish = polish && ChemistryLab._DUAL_AVAILABLE[] &&
+        ChemistryLab._dual_applicable(state.system)
+    raw = SciMLBase.solve(opt_prob, esolver.solver; esolver.kwargs...)
+    sol = polish ? raw : ChemistryLab._check_converged(raw, "equilibrium solve")
     transform = _solution_transform(esolver.variable_space)
 
     state_eq = copy(state)
@@ -156,7 +170,9 @@ function SciMLBase.solve(
     end
     _update_derived!(state_eq)
 
-    return state_eq
+    return ChemistryLab._finish_backend_solve(
+        esolver, state, state_eq; ϵ = ϵ, b = b, certificate = certificate, polish = polish,
+    )
 end
 
 # ── __init__: register default solver (high priority — always overrides) ──────

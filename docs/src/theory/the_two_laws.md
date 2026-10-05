@@ -388,11 +388,12 @@ hydrates as well as the dissolution of the clinker. In a kinetic run, the heat
 of [`cumulative_heat`](@ref) depends on the formulation. When the kinetic
 reactions themselves produce the hydrates, it is [`heat_rate`](@ref), summed
 over those reactions. Under **partial equilibrium** the kinetic reactions only
-release ions, so the run instead follows ``-\mathrm{d}H/\mathrm{d}t`` over the
-whole composition, the equilibrium part included, and refuses a system in
-which a species has no enthalpy of formation; [`missing_enthalpy`](@ref) lists
-such species. Its integral then matches [`heat_release`](@ref) to within the
-accuracy of the in-run partition.
+release ions, so the run instead balances ``H`` over the whole composition, the
+equilibrium part included, its state carrying the change of the enthalpy of the
+cell ([Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics)), and
+refuses a system in which a species has no enthalpy of formation;
+[`missing_enthalpy`](@ref) lists such species. Its heat is then the one
+[`heat_release`](@ref) computes from the certified replay.
 
 Waiting longer does not by itself guarantee a unique observed assemblage.
 Accessibility of transformations, boundary conditions, the species list and

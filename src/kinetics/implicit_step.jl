@@ -791,7 +791,9 @@ function _kinetic_step_eliminated(
     index = Dict(symbol(sp) => i for (i, sp) in enumerate(system.species))
     n0_sv = StateView(n0, index)
     n_full = copy(n0)
-    last_cert = nothing
+    # The certificate of the last composition, written by `compose` below: a
+    # reference rather than a binding the closure reassigns, which Julia boxes.
+    last_cert = Ref{Any}(nothing)
 
     # The composition at a given set of extents, and the residual it leaves, in
     # the number type of the extents: evaluated on dual numbers, the certified
@@ -809,7 +811,7 @@ function _kinetic_step_eliminated(
             T = temperature(state), P = pressure(state),
         )
         eq, cert = solve_certified(kss.dual_free, (st_free,); b = b_free, ϵ = ϵ)
-        last_cert = cert
+        last_cert[] = cert
         for (r, i) in enumerate(free)
             nf[i] = ustrip(us"mol", eq.n[r])
         end
@@ -861,7 +863,7 @@ function _kinetic_step_eliminated(
     _, n_full = compose(q)
 
     parameters === nothing || (parameters[] = copy(q))
-    certificate === nothing || (certificate[] = last_cert)
+    certificate === nothing || (certificate[] = last_cert[])
 
     return ChemicalState(
         system, [nᵢ * u"mol" for nᵢ in n_full];

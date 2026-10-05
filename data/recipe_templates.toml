@@ -126,3 +126,95 @@ kind     = "scm"
 analysis = "Shi2016:chemical_composition:MK"
 route    = "oxides"
 source   = "Shi2016"
+
+#   Gruyaert2010   : the CEM I 52.5 N and the blast-furnace slag of Gruyaert et
+#                    al. (2010), Table 1 (XRF and Blaine), the batch of the
+#                    calorimetry
+
+# The cement by Bogue's calculation on its analysis: the article reports no
+# phase composition and no alkali.
+[[material]]
+name     = "CEM I 52.5 N (Gruyaert 2010), Bogue"
+kind     = "cement"
+analysis = "Gruyaert2010:oxides:OPC-CAL"
+route    = "bogue"
+source   = "Gruyaert2010"
+
+[[material]]
+name     = "blast-furnace slag (Gruyaert 2010)"
+kind     = "scm"
+analysis = "Gruyaert2010:oxides:BFS-CAL"
+route    = "oxides"
+source   = "Gruyaert2010"
+
+#   Scholer2015    : the OPC, blast-furnace slag, siliceous fly ash and limestone
+#                    of Schöler et al. (2015), Tables 1 and 2 (XRF, XRD-Rietveld)
+
+# The OPC by its Rietveld phases, the magnesia, alkalis and sulfate of its
+# analysis that the phases do not hold kept as analyzed, the phases scaled down
+# to make room.
+[[material]]
+name      = "OPC (Schöler 2015)"
+kind      = "cement"
+phases    = "Scholer2015:phases:OPC"
+analysis  = "Scholer2015:oxides:OPC"
+remainder = "analysis"
+source    = "Scholer2015"
+
+# The slag: its few crystals, and its glass by difference from the XRF analysis,
+# which the authors estimate the same way (their Table 3).
+[[material]]
+name     = "blast-furnace slag (Schöler 2015)"
+kind     = "scm"
+phases   = "Scholer2015:phases:BFS"
+analysis = "Scholer2015:oxides:BFS"
+source   = "Scholer2015"
+
+# The siliceous fly ash: mullite, quartz, maghemite and the rest of its crystals,
+# inert, and its glass by difference.
+[[material]]
+name        = "siliceous fly ash (Schöler 2015)"
+kind        = "scm"
+analysis    = "Scholer2015:oxides:FA"
+crystalline = "Scholer2015:phases:FA"
+source      = "Scholer2015"
+
+# The limestone by its analysis alone: 99.1 % calcite, which the minimization
+# forms again, and an illite, whose composition is not a fixed formula.
+[[material]]
+name     = "limestone (Schöler 2015)"
+kind     = "scm"
+analysis = "Scholer2015:oxides:LS"
+route    = "oxides"
+source   = "Scholer2015"
+
+#   Snellings2022  : the Portland cement, slag and limestone of the ternary
+#                    cement PC50S40L10 of Snellings et al. (2022), Table 1 (XRF,
+#                    XRD-Rietveld)
+
+# The CEM I 52.5 R by its Rietveld phases, the magnesia, alkalis and sulfate of
+# its analysis that the phases do not hold kept as analyzed, the phases scaled
+# down to make room.
+[[material]]
+name      = "PC (Snellings 2022)"
+kind      = "cement"
+phases    = "Snellings2022:phase_composition:PC"
+analysis  = "Snellings2022:chemical_composition:PC"
+remainder = "analysis"
+source    = "Snellings2022"
+
+# The slag: its calcite and quartz, and its glass, 95.5 % by Rietveld, by
+# difference from the XRF analysis.
+[[material]]
+name     = "slag (Snellings 2022)"
+kind     = "scm"
+phases   = "Snellings2022:phase_composition:GGBFS"
+analysis = "Snellings2022:chemical_composition:GGBFS"
+source   = "Snellings2022"
+
+# The limestone by its Rietveld phases: calcite, quartz and dolomite.
+[[material]]
+name   = "limestone (Snellings 2022)"
+kind   = "scm"
+phases = "Snellings2022:phase_composition:limestone"
+source = "Snellings2022"

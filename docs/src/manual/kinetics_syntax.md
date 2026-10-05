@@ -140,39 +140,43 @@ the extents, and accepts the finer pair when the difference is within tolerance 
 Richardson's estimate, which for a first-order method IS the error of the coarse
 step. Three implicit solves per accepted step is the price.
 
-Reaktoro has nothing equivalent: its kinetics adds a single initial step to the
-equilibrium options, the step is the caller's, and backward Euler being first
-order, one ten times too large is ten times less accurate with nothing to say so.
+In Reaktoro's kinetics the step is the caller's, a single step added to the
+equilibrium options; backward Euler being first order, a step ten times too large
+is ten times less accurate, and the estimate above is what reports it here.
 
 Measured on calcite dissolving under `r = k(1 − Ω)` with `k = 10⁻⁴ mol/s` over
 `10⁵ s`, against the equilibrium the trajectory converges to:
 
 | route | steps | result |
 |:--|--:|:--|
-| `Rodas5P`, and `OrdinaryDiffEq`'s default polyalgorithm | 6 | **extent −457 mol**, `retcode = Success` |
-| `Tsit5`, explicit | 85 626 | correct, in 519 s |
-| one `kinetic_step` of `10⁵ s` | 1 | wrong — and its certificate says so |
-| `kinetic_step_adaptive` | **7** | correct to eight digits |
+| `Rodas5P`, the partition frozen within a step (`speciation = :frozen`) | 9 | **2 244 mol of calcite from 0.05**, returned with `retcode = Unstable` |
+| `Rodas5P`, the partition solved in the right-hand side (the default for this law) | 82 | the equilibrium, to `10⁻⁶`, in 0.7 s |
+| `Tsit5`, explicit, frozen | 84 586 | correct, in 250 s |
+| one `kinetic_step` of `10⁵ s` | 1 | the equilibrium, certified |
+| `kinetic_step_adaptive` | 1 | the equilibrium, certified |
 
-The first row is the one to know about, and the natural explanation is the wrong
-one. It is **not** a missing Jacobian term: the ODE route's residual reads the
-speciation frozen at the last accepted step, so `∂(du)/∂bₑ = 0` is exact for the
-system being integrated. What goes wrong is that the frozen speciation makes the
-right-hand side inconsistent with the state *within* a step — an implicit method
-steps past the point where `Ω` crosses one, the rate changes sign, and the run
-enters a branch it never leaves.
+The first row is the one to know about. With the partition frozen within a
+step, a rate law that reads it is constant over the step, so the stiff method
+integrates the extent explicitly however implicit it is. `Ω` relaxes to one in
+about a second here, and a step longer than that overshoots the equilibrium:
+`Ω` then exceeds one by orders of magnitude, the rate reverses and the run
+precipitates calcite from nothing. Bounding `dtmax` to `10³ s`, still a thousand
+relaxation times, returned the same wrong value; removing the re-speciation,
+which computes the partition from the extents inside the right-hand side,
+returned a sane one.
 
-Three measurements settle it. Bounding `dtmax` to `10³ s`, which takes 103 steps
-instead of 6, returns the **identical** wrong value to seven digits, so the error
-is not in the time discretization. Removing the re-speciation returns a sane
-answer. And routing the re-speciation through the certified route moves −457 to
-−383, so the quality of the partition is not the cause either.
-
-So the fix is not to freeze the speciation, which is exactly what the implicit
-step does. The extension warns when a trajectory ends on amounts no chemistry can
-produce — 457 mol of calcite from a budget of 55.6 — and that is what the ODE
-route can offer: a rate law that reads the solution belongs on the implicit
-route.
+So `integrate` looks at the rate laws first. A law that reads the partition, an
+activity or an amount of an equilibrium species, makes the right-hand side a
+function of the speciation, and the partition is then solved at every
+evaluation (`speciation = :rhs`), by the certified solver warm-started from the
+last accepted step, with its derivative with respect to `bₑ` lifted into the
+Jacobian by the implicit-function theorem. A semi-adiabatic cell under partial
+equilibrium takes the same route whatever its laws read, since its temperature
+is solved with the partition. A law that reads only the kinetic amounts keeps
+the cheaper split route, re-speciating once per accepted step, which is exact
+for it. `speciation = :frozen` or `:rhs` forces either, and any
+trajectory that reaches amounts the system cannot hold is returned with
+`retcode = Unstable` rather than `Success`.
 
 !!! warning "A single step far beyond the relaxation time can find the other root"
     For a rate law that vanishes at equilibrium the step has two solutions, and
@@ -502,6 +506,30 @@ when the temperature changes (semi-adiabatic calorimetry).
 For a single mechanism without catalysts, use [`first_order_rate`](@ref) as a
 convenience wrapper.
 
+### The mechanisms of a mineral, from Palandri and Kharaka
+
+[`palandri_kharaka`](@ref) builds the list above from the tables of
+[PalandriKharaka2004](@citet) transcribed in
+`data/literature/PalandriKharaka2004.json`: each mechanism the report gives the
+mineral a rate constant for, with its activation energy and its order in `H⁺`,
+negative for the base mechanism. [`palandri_kharaka_minerals`](@ref) lists the
+minerals, among which quartz and amorphous silica, the hydroxides (brucite,
+gibbsite), the sulfates (gypsum, anhydrite), hematite and wollastonite.
+
+```julia
+mech = palandri_kharaka("gibbsite")              # acid, neutral and base
+tst = transition_state(mech, cs, rxn_gibbsite, BETSurfaceArea(10.0))
+
+# Quartz is tabulated against its geometric and its BET area: the row says which
+qtz = palandri_kharaka("quartz, BET surface area")
+```
+
+A mechanism the report does not give is simply absent, and a rate constant
+without an activation energy (the neutral mechanism of gypsum) is refused unless
+`assume_Ea` supplies one. The carbonate mechanism reads the partial pressure of
+CO₂ and is built only when asked for, with the gas species that carries it:
+`palandri_kharaka("calcite"; mechanisms = (:acid, :neutral, :carbonate), pco2 = "CO2")`.
+
 ## Defining kinetic reactions
 
 [`KineticReaction`](@ref) associates a [`Reaction`](@ref) with a `KineticFunc`:
@@ -603,29 +631,22 @@ t, qdot = heat_flow(sol, cal)         # q̇(t) [W]
 With an `equilibrium_solver` attached, the kinetic reactions only dissolve the
 anhydrous phases into ions, and the hydrates are precipitated by the Gibbs
 minimization: the heat of the kinetic reactions, [`heat_rate`](@ref), would leave
-the precipitation out. Both calorimeters therefore take their heat from the
-enthalpy of the whole composition. Enthalpy is a state function, so the heat
-released at fixed temperature is its decrease, with reactants, ions and hydrates
-each counted once and no reaction stoichiometry to write down — Eqs. (17)–(21) of
-[Lavergne2018](@cite):
+the precipitation out. Both calorimeters therefore balance the enthalpy of the
+whole composition, `H = Σᵢ nᵢ ΔₐH⁰ᵢ(T)`, its partition being the one the
+minimization gives at the element amounts and the temperature of the state.
+Enthalpy is a state function, so the heat released is its decrease, with
+reactants, ions and hydrates each counted once and no reaction stoichiometry to
+write down — Eqs. (17)–(21) of [Lavergne2018](@cite).
 
-```math
--\delta Q \;=\; \mathrm{d}H
-\;=\; \Bigl(\sum_i n_i C^\circ_{p,i}(T)\Bigr)\mathrm{d}T
-\;+\; \sum_i \Delta_f H_i(P,T)\,\mathrm{d}n_i .
-```
-
-Between two accepted steps the equilibrium partition is followed through its
-sensitivity to the element amounts, taken from the optimality conditions of the
-last proved equilibrium. In a semi-adiabatic cell it is followed in temperature
-too, and the heat it takes up as it shifts joins the heat capacity of the cell:
-with the Gibbs–Helmholtz relation for the temperature derivative of the
-potentials, that capacity is a quadratic form in the enthalpies, positive as the
-stability of an equilibrium requires. At each accepted step, the part of the
-re-speciation these sensitivities did not predict, a phase appearing for
-instance, is added to the calorimeter's state, so that the heat follows the
-enthalpy of proved partitions. Every species needs an enthalpy of formation, and
-a system where one lacks it is refused.
+The last entry of the state is then the change `ΔH` of the enthalpy of the cell,
+which only the losses through its walls move: it stays zero in an isothermal
+cell, whose heat is the enthalpy the paste has lost, and in a semi-adiabatic
+cell the temperature is the root of the energy balance, solved with the
+partition at every evaluation of the right-hand side. The right-hand side is a
+function of the state, its Jacobian is exact, and any integrator applies;
+[Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics) writes the
+equations. Every species needs an enthalpy of formation, and a system where one
+lacks it is refused.
 
 ```julia
 kp  = KineticsProblem(cs, reactions, state0, tspan;
@@ -633,14 +654,12 @@ kp  = KineticsProblem(cs, reactions, state0, tspan;
                       equilibrium_solver = EquilibriumSolver(cs, model, OptimaOptimizer()))
 sol = integrate(kp, ks)
 
-t, Q = cumulative_heat(sol, kp.calorimeter)           # J, carried by the ODE
+t, Q = cumulative_heat(sol, kp.calorimeter)           # J, H₀ − H at each saved state
 t, Q, q̇ = heat_release(sol, kp; times = my_times)     # J and W, from certified states
 ```
 
-[`heat_release`](@ref) remains the reference: it replays each instant through the
-certifying solver, where the running composition is only as good as the in-run
-minimization. The two agree at the accepted steps to within the difference
-between the in-run partition and the proved one.
+[`heat_release`](@ref) replays each instant through the certifying solver and
+gives the same heat as the run: both solve the same partition.
 
 [`enthalpy`](@ref) and [`heat_capacity`](@ref) give the same sums for a single
 state, and [`missing_enthalpy`](@ref) lists the species that carry no `ΔₐH⁰` and
@@ -649,15 +668,18 @@ missing one hydrate is not visibly wrong.
 
 ## Semi-adiabatic calorimetry [Lavergne2018](@cite)
 
-The semi-adiabatic calorimeter solves:
+Without an equilibrium partition, the semi-adiabatic calorimeter integrates the
+temperature,
 
 ```math
-\frac{dT}{dt} = \frac{\dot{q}(t) - \varphi(T(t) - T_{\rm env})}{C_p + \sum_i n_i C^\circ_{p,i}(T)}
+\frac{dT}{dt} = \frac{\dot{q}(t) - \varphi(T(t) - T_{\rm env})}{C_p + \sum_i n_i C^\circ_{p,i}(T)} ,
 ```
 
-The denominator uses the **variable total heat capacity** `Cp_total = Cp + Σᵢ nᵢ Cp°ᵢ(T)`,
-where `Cp°ᵢ(T)` are the molar heat capacities from the thermodynamic database
-[Lavergne2018](@cite).
+`q̇` being the heat of the kinetic reactions and the denominator the **variable
+total heat capacity** `Cp_total = Cp + Σᵢ nᵢ Cp°ᵢ(T)`, `Cp°ᵢ(T)` the molar heat
+capacities of the database [Lavergne2018](@cite). Under partial equilibrium the
+same balance is written on the enthalpy of the cell, as the section above says,
+and the temperature is solved rather than integrated.
 
 [`SemiAdiabaticCalorimeter`](@ref) bundles hardware parameters and initial temperature:
 
@@ -817,12 +839,19 @@ pk = parrott_killoh_avrami(
 
 The three corrections are exported separately — [`powers_alpha_max`](@ref),
 [`blaine_factor`](@ref) and [`humidity_factor`](@ref) — and multiply the rate.
-`humidity` also accepts a callable `t -> h(t)` for a drying history.
+`humidity` also accepts a callable `t -> h(t)` for a drying history. A fourth,
+`w_c`, is Parrott and Killoh's own water/cement factor, [`pk_wc_factor`](@ref):
+it slows a phase once its degree passes `1.333 w/c`, or `H w/c` with the critical
+degree `H` that Lothenbach et al. (2008) fit for each clinker phase, passed as
+`H`. In a blend, `w/c` is the water over the cement alone, so the factor is what
+lets the clinker of a slag cement hydrate further than that of the plain one.
 
 Supplementary cementitious materials do not follow Parrott & Killoh at all. Their
 pozzolanic or latent-hydraulic reaction follows [`waller`](@ref), a sigmoid in
-log-time, with [`WALLER_PARAMS_FLY_ASH`](@ref), [`WALLER_PARAMS_SILICA_FUME`](@ref)
-or [`WALLER_PARAMS_SLAG`](@ref).
+log-time, with [`WALLER_PARAMS_FLY_ASH`](@ref) or [`WALLER_PARAMS_SILICA_FUME`](@ref).
+No set is shipped for a slag: the 100-day time this package attributed to Waller
+(1999) is not in the thesis, so a slag's characteristic time is the caller's, with
+its source, `merge(WALLER_PARAMS_FLY_ASH, (τ = τ_slag,))`.
 
 ## [Rate laws that depend on a consumed reactant](@id kinetics-frozen-species)
 

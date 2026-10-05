@@ -50,35 +50,29 @@ using JSON
             if !isempty(s)
     ]
 
-    # The two M-S-H end-members do not close. Their tabulated ΔfG° and their
-    # published log Ks0 disagree by 2.76 and 2.26 kJ/mol when read through
-    # CEMDATA18's own aqueous energies — about half a log unit. Every other
-    # phase in the table closes to better than 0.04, so this is a property of
-    # the source and not of the transcription.
-    #
-    # It is one of two disagreements these two phases carry, and the second is
-    # in the testset below: their (ΔfG°, ΔfH°, S°) triplet is not self
-    # consistent either. Cemdata18's Table 1 footnote r says why — S° and Cp°
-    # for M-S-H were "estimated from Cp and S of talc, chrysotile and H2O"
-    # rather than measured ([Nied2016]) — and an estimated entropy that was
-    # never reconciled with the tabulated Gibbs energy is exactly what this
-    # looks like.
+    # The two M-S-H end-members do not close. Brought to 25 °C, the temperature
+    # of Table 2, their tabulated energies and their published log Ks0 disagree
+    # by 0.244 and 0.205: 1.39 and 1.17 kJ/mol. Every other phase in the table
+    # closes to better than 0.04, so this is a property of the source and not of
+    # the transcription. GEMS, run on the CemGEMS export of the database, does
+    # not close them either (0.17 and 0.09, from energies of its own).
     #
     # Pinned at the observed offset rather than hidden behind a loose tolerance,
     # so that a corrected upstream file shows up as a failing test, not silence.
-    msh_offset = Dict("M075SH" => 0.4828, "M15SH" => 0.3951)
+    msh_offset = Dict("M075SH" => 0.2438, "M15SH" => 0.2045)
 
     RTln10 = R_GAS * 298.15 * log(10)
-    # The TABULATED ΔfG°, read from the file, not `ΔₐG⁰(T = 298.15)`. The two
-    # are the same number for 230 of the 238 substances and the testset after
-    # this one pins which eight they are not; using the tabulated value here
-    # keeps this check on the question it is asking — does the database file
-    # agree with the paper — instead of mixing it with how the package rebuilds
-    # a Gibbs energy.
-    Gf(k) = Float64(rec[k]["sm_gibbs_energy"]["values"][1])
+    # Each energy at 25 °C, as the package forms it from the file. A record is
+    # tabulated at its own reference temperature `Tst`, which is 298.15 K for 230
+    # of the 238 and 293.15 K for eight of them, two of which are the M-S-H end
+    # members of this table: reading their tabulated ΔfG° as a 25 °C value, as
+    # this test once did, put a 20 °C energy into a 25 °C constant and doubled
+    # their offset (0.48 and 0.40). The testset after this one pins that
+    # `ΔₐG⁰(Tst)` is the tabulated value for every record.
+    G25(k) = sp[k].ΔₐG⁰(T = 298.15)
     nel(k, e) = Float64(get(atoms_charge(sp[k]), e, 0))
 
-    @testset "Table 2/3: log Ks0 closes against ΔfG° (298.15 K, 1 bar)" begin
+    @testset "Table 2/3: log Ks0 closes against the energies at 298.15 K, 1 bar" begin
         # 50 rows of Table 2 plus the 4 of Table 3.
         @test length(table2) == 54
 
@@ -93,7 +87,7 @@ using JSON
             @test sum(ν * nel(k, :O) for (k, ν) in products) + nH2O ≈ nel(s, :O) atol = 1.0e-9
             @test sum(ν * nel(k, :Zz) for (k, ν) in products) ≈ nel(s, :Zz) atol = 1.0e-9
 
-            ΔrG = sum(ν * Gf(k) for (k, ν) in products) + nH2O * Gf("H2O@") - Gf(s)
+            ΔrG = sum(ν * G25(k) for (k, ν) in products) + nH2O * G25("H2O@") - G25(s)
             logK = -ΔrG / RTln10
 
             if haskey(msh_offset, s)
@@ -107,90 +101,104 @@ using JSON
         end
 
         # PINNED, NOT BOUNDED. `worst_ordinary < 0.05` is what this asserted
-        # first, and the page quotes the number it displays — 0.041 — from a run
+        # first, and the page quotes the number it displays — 0.040 — from a run
         # rather than from the assertion. A threshold BOUNDS a disagreement; it
         # does not PIN it. If the worst row drifted to 0.047 the suite would stay
-        # green while the page printed a stale 0.041, which is the one failure
+        # green while the page printed a stale 0.040, which is the one failure
         # mode a comparison page cannot afford.
-        @test worst_ordinary ≈ 0.0406 atol = 5.0e-4
+        @test worst_ordinary ≈ 0.04 atol = 5.0e-4
         @test worst_row == "M8A-OH-LDH"
         # 50 of the 52 are an order of magnitude better again, and the two that
         # are not are the two layered double hydroxides whose published values
         # are quoted to one decimal.
         @test count(<(0.005), ordinary) == 50
-        @test sort(ordinary)[end - 1] ≈ 0.0204 atol = 5.0e-4
+        @test sort(ordinary)[end - 1] ≈ 0.0199 atol = 5.0e-4
     end
 
-    # ── Where the rebuilt Gibbs energy meets the tabulated one ───────────────
+    # ── Each record at its own reference temperature ─────────────────────────
     #
-    # `ΔₐG⁰(T)` is the apparent Gibbs energy of formation, and the package forms
-    # it from ΔfH° and S° rather than reading ΔfG° off the file. At the
-    # reference point T = 298.15 K the two must therefore agree — and they do,
-    # to the last bit, for 230 of the 238 substances. For eight they do not.
-    #
-    # The eight are not a random selection, and they are not the ones missing a
-    # heat-capacity block: six of them have one. What they share is that
-    # Cemdata18 says their entropy and heat capacity were ESTIMATED rather than
-    # measured — the six alkali C-S-H end members by the linear Ca/Si relations
-    # of Table 4 (the paper's Eqs 2a and 2b), the two M-S-H end members from
-    # talc, chrysotile and water (Table 1, footnote r, after [Nied2016]). An
-    # estimated S° that was never reconciled with the tabulated ΔfG° leaves the
-    # triplet (ΔfG°, ΔfH°, S°) inconsistent, and rebuilding the third from the
-    # other two is what makes that visible: 0.70 J/K/mol of entropy for the
-    # alkali members, 4.6 for M075SH.
-    #
-    # The control is the five zeolites, which carry no heat-capacity block at
-    # all and still land on their tabulated value exactly. So this is the data,
-    # not the code path.
-    #
-    # Asserted as an exhaustive list. A ninth substance joining it is a change
-    # worth being told about.
-    @testset "ΔₐG⁰(298.15 K) is the tabulated ΔfG°, with eight exceptions" begin
-        rebuilt = Dict(                                      # J/mol
-            "ECSH1-KSH" => -243.7, "ECSH2-KSH" => -243.7,
-            "ECSH1-NaSH" => -207.6, "ECSH2-NaSH" => -207.6,
-            "KSiOH" => -208.6, "NaSiOH" => -208.6,
-            "M075SH" => -1364.8, "M15SH" => -1088.6,
+    # `ΔₐG⁰(T)` is anchored to the tabulated ΔfG° at the record's own `Tst`, so at
+    # `Tst` the two agree by construction, for every record. That is a check of
+    # the code path, not of the data. Eight records are tabulated at 293.15 K
+    # rather than 298.15 K: the six alkali C-S-H end members and the two M-S-H
+    # end members. GEMS anchors them the same way (its standard energy of KSiOH
+    # at 293.15 K is the tabulated −440800 J/mol), so their energies at 25 °C
+    # differ from the tabulated numbers by the temperature step alone, about
+    # `−S° × 5 K`. Comparing their tabulated ΔfG° with `ΔₐG⁰(298.15)`, as an
+    # earlier version of this test did, measured that step and attributed it to
+    # an inconsistent estimated entropy.
+    @testset "ΔₐG⁰ at each record's Tst is the tabulated ΔfG°" begin
+        Tst(k) = Float64(get(rec[k], "Tst", 298.15))
+        tabulated(k) = Float64(rec[k]["sm_gibbs_energy"]["values"][1])
+        withG = [k for k in keys(rec) if haskey(rec[k], "sm_gibbs_energy")]
+        # "238" on the page is this count.
+        @test length(withG) == 238
+        @test sort([k for k in withG if Tst(k) != 298.15]) == sort(
+            [
+                "ECSH1-KSH", "ECSH2-KSH", "ECSH1-NaSH", "ECSH2-NaSH",
+                "KSiOH", "NaSiOH", "M075SH", "M15SH",
+            ]
         )
-        found = String[]
-        for (k, entry) in rec
-            haskey(entry, "sm_gibbs_energy") || continue
-            gap = sp[k].ΔₐG⁰(T = 298.15) - Float64(entry["sm_gibbs_energy"]["values"][1])
-            abs(gap) > 1.0 || continue
-            push!(found, k)
-            @test haskey(rebuilt, k)
-            @test gap ≈ get(rebuilt, k, NaN) atol = 1.0
-        end
-        @test sort(found) == sort(collect(keys(rebuilt)))
-        # "230 of the 238" on the page is this subtraction, so the 238 is pinned
-        # here rather than recalled: a database update that adds a substance
-        # changes the sentence, and this is what says so.
-        @test count(k -> haskey(rec[k], "sm_gibbs_energy"), keys(rec)) == 238
-        # The entropy the gap implies, which is the column the page prints and
-        # nothing asserted. `ΔfG° = ΔfH° − T S°`, so a gap on `ΔfG°` at the
-        # reference temperature is `−T` times an inconsistency in `S°`.
-        # The page prints this column to two decimals, so that is the precision
-        # it is pinned at — half the last displayed digit. Writing more digits
-        # here than the page shows would assert something the page does not say.
-        implied = Dict(
-            "ECSH1-KSH" => 0.82, "ECSH2-KSH" => 0.82,
-            "ECSH1-NaSH" => 0.7, "ECSH2-NaSH" => 0.7,
-            "KSiOH" => 0.7, "NaSiOH" => 0.7,
-            "M075SH" => 4.58, "M15SH" => 3.65,
-        )
-        for (k, gap) in rebuilt
-            @test -gap / 298.15 ≈ implied[k] atol = 5.0e-3
-        end
+        @test all(k -> Tst(k) == 293.15 || Tst(k) == 298.15, withG)
+        # To 0.3 J/mol: the evaluation of the HKF equations of state at their
+        # reference point rounds at that level; the other records agree to 1e-9.
+        @test maximum(k -> abs(sp[k].ΔₐG⁰(T = Tst(k)) - tabulated(k)), withG) < 0.5
+    end
 
-        # Six of the eight carry a heat-capacity block, so a missing one is not
-        # the explanation.
-        @test count(k -> haskey(rec[k], "TPMethods"), keys(rebuilt)) == 6
+    # ── Whether a record's three formation properties agree ──────────────────
+    #
+    # ΔfG°, ΔfH° and S° are related by ΔfG° = ΔfH° − Tst (S° − Σ S°(elements)),
+    # with the element entropies the file itself carries. The package forms
+    # ΔₐG⁰ from ΔfG°, so this relation is never used; it is the data's own
+    # consistency that it measures. The six alkali C-S-H end members close it
+    # exactly at their 293.15 K, and not at 298.15 K, which is what says their
+    # numbers are 20 °C numbers. The two M-S-H end members close it at neither,
+    # by kilojoules: that disagreement belongs to the source.
+    @testset "the triplet (ΔfG°, ΔfH°, S°) of each record" begin
+        Sel = Dict(String(e["symbol"]) => Float64(e["entropy"]["values"][1]) for e in raw["elements"])
+        Tst(k) = Float64(get(rec[k], "Tst", 298.15))
+        prop1(k, key) = Float64(rec[k][key]["values"][1])
+        function residual(k, T)
+            ΣS = sum(Float64(ν) * Sel[String(e)] for (e, ν) in atoms_charge(sp[k]))
+            return prop1(k, "sm_enthalpy") - T * (prop1(k, "sm_entropy_abs") - ΣS) - prop1(k, "sm_gibbs_energy")
+        end
+        for k in ("KSiOH", "NaSiOH", "ECSH1-KSH", "ECSH2-KSH", "ECSH1-NaSH", "ECSH2-NaSH")
+            @test abs(residual(k, 293.15)) < 0.1
+            @test residual(k, 298.15) > 790
+        end
+        # Printed on the page to the joule per mole.
+        @test residual("M075SH", 293.15) ≈ -6611.3 atol = 0.5
+        @test residual("M075SH", 298.15) ≈ -1793.2 atol = 0.5
+        @test residual("M15SH", 293.15) ≈ -5698.2 atol = 0.5
+        @test residual("M15SH", 298.15) ≈ -1726.5 atol = 0.5
+        # The relation holds for a phase measured at 298.15 K.
+        @test abs(residual("C3AH6", 298.15)) < 0.1
+        # Over the crystalline records, the counts the page quotes.
+        crystals = [
+            k for k in keys(rec) if haskey(rec[k], "sm_gibbs_energy") &&
+                haskey(rec[k], "sm_enthalpy") && haskey(rec[k], "sm_entropy_abs") &&
+                aggregate_state(sp[k]) == AS_CRYSTAL
+        ]
+        r = Dict(k => abs(residual(k, Tst(k))) for k in crystals)
+        @test length(crystals) == 143
+        @test count(<(1), values(r)) == 78
+        @test count(<(100), values(r)) == 126
+        worst = first.(sort(collect(r); by = last, rev = true)[1:7])
+        @test worst == ["M075SH", "M15SH", "C4AF", "C3A", "CA2", "C12A7", "CA"]
+    end
 
-        # And the control.
-        for k in ("chabazite", "natrolite", "zeoliteP_Ca", "zeoliteX", "zeoliteY")
-            @test !haskey(rec[k], "TPMethods")
-            @test sp[k].ΔₐG⁰(T = 298.15) ≈
-                Float64(rec[k]["sm_gibbs_energy"]["values"][1]) atol = 1.0
+    # The page states these numbers in prose; each one is asserted above, and
+    # this says the page states the asserted ones.
+    @testset "the validation page quotes the pinned numbers" begin
+        page = read(joinpath(pkgdir(ChemistryLab), "docs", "src", "tutorials", "published_data_validation.md"), String)
+        for quoted in (
+                "**52 of the 54 rows close.**", "`0.040` on\n`M8A-OH-LDH`", "50 are inside\n`0.005`",
+                "| **+0.244** |", "| **+0.205** |", "For 230 of the 238 records",
+                "Over the 143 crystalline records", "`1 J/mol` for 78 and to `100 J/mol` for 126",
+                "| −6.61 kJ/mol | −1.79 kJ/mol |", "| −5.70 kJ/mol | −1.73 kJ/mol |",
+                "| `0.000` |", "| `0.011` |", "closes to `−0.02 kJ/mol`",
+            )
+            @test occursin(quoted, page)
         end
     end
 
@@ -318,5 +326,63 @@ using JSON
         # Fe-Friedel's salt (C4FCl2H10, log Ks0 = -28.62) is absent altogether.
         @test !any(startswith(k, "C4FCl") for k in keys(sp))
         @test haskey(sp, "Fe(OH)3(am)") && haskey(sp, "Fe(OH)3(mic)")
+    end
+
+    # ── The same two rows, checked where they can be ────────────────────────
+    #
+    # Nitrite-AFm through the NO2⁻ of slop98, whose aqueous ions share the
+    # reference state of Cemdata18's: the Ca²⁺, NO3⁻ and water of the two files
+    # are the same records. Their OH⁻ are not, 27 J/mol apart, and the reaction
+    # takes Cemdata18's, with which the log Ks0 of Table 2 closes. Fe-Friedel's salt in the database cemdata18-chloride.json,
+    # which ChemistryLab builds from Table 1 of the paper (src/databases/derived.jl).
+    # Each log Ks0 is recomputed from the species at 25 °C, over the products
+    # transcribed with the rest of Table 2.
+    @testset "Table 2 rows checked outside the shipped file" begin
+        slop = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+        ext = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-chloride.json"); verbose = false))
+        @test all(isapprox(slop[k].ΔₐG⁰(T = 298.15), G25(k); rtol = 1.0e-12) for k in ("Ca+2", "NO3-", "H2O@"))
+        @test slop["OH-"].ΔₐG⁰(T = 298.15) - G25("OH-") ≈ -27.0 atol = 1.0e-6
+        # Pinned, as the rows above: docs/src/tutorials/published_data_validation.md
+        # quotes both offsets.
+        for (phase, printed, species, offset) in (
+                ("mononitrite", "Nitrite-AFm", merge(sp, Dict("NO2-" => slop["NO2-"])), 0.0),
+                ("C4FCl2H10", "Fe-Friedel's salt", ext, 0.011),
+            )
+            products = products_of(phase)
+            published = solubility.log_Ks0[only(findall(==(printed), solubility.printed))]
+            n(k, e) = Float64(get(atoms_charge(species[k]), e, 0))
+            nH2O = (n(phase, :H) - sum(ν * n(k, :H) for (k, ν) in products)) / 2
+            @test sum(ν * n(k, :O) for (k, ν) in products) + nH2O ≈ n(phase, :O) atol = 1.0e-9
+            @test sum(ν * n(k, :Zz) for (k, ν) in products) ≈ n(phase, :Zz) atol = 1.0e-9
+            g(k) = species[k].ΔₐG⁰(T = 298.15)
+            ΔrG = sum(ν * g(k) for (k, ν) in products) + nH2O * g("H2O@") - g(phase)
+            @test -ΔrG / RTln10 - published ≈ offset atol = 1.0e-3
+        end
+
+        # The record of Fe-Friedel's salt is the row of Table 1: its energies,
+        # entropy and volume at 298.15 K, and its heat capacity the printed
+        # polynomial at any temperature, a T^-1/2 term included.
+        r = literature_row("Lothenbach2019", "solid_standard_properties", "C4FCl2H10")
+        ff = ext["C4FCl2H10"]
+        @test ff[:ΔₐG⁰](T = 298.15) ≈ ustrip(us"J/mol", r.dfG) rtol = 1.0e-12
+        @test ff[:ΔₐH⁰](T = 298.15) ≈ ustrip(us"J/mol", r.dfH) rtol = 1.0e-12
+        @test ff[:S⁰](T = 298.15) ≈ ustrip(us"J/(mol*K)", r.S) rtol = 1.0e-12
+        @test ff[:V⁰](T = 298.15, P = 1.0e5) ≈ ustrip(us"m^3/mol", r.V) rtol = 1.0e-12
+        for T in (283.15, 298.15, 323.15)
+            @test ff[:Cp⁰](T = T) ≈ ustrip(r.a0) + ustrip(r.a1) * T + ustrip(r.a2) / T^2 + ustrip(r.a3) / sqrt(T) rtol = 1.0e-12
+        end
+        # Its enthalpy is the one note l of the table says was recalculated from
+        # its Gibbs energy and entropy: with the elements' entropies of the
+        # Cemdata18 file, ΔfH − T ΔfS − ΔfG closes to 0.02 kJ/mol.
+        S_el = Dict(Symbol(e["symbol"]) => Float64(e["entropy"]["values"][1]) for e in raw["elements"])
+        ΔfS = ustrip(us"J/(mol*K)", r.S) - sum(c * S_el[el] for (el, c) in atoms_charge(ff) if el !== :Zz)
+        @test ustrip(us"J/mol", r.dfH) - 298.15 * ΔfS - ustrip(us"J/mol", r.dfG) ≈ -24.4 atol = 0.5
+
+        # Friedel's salt and Fe-Friedel's salt form the ideal solid solution of
+        # note k, built from the database that has both.
+        fr = only(filter(p -> name(p) == "Friedel_AlFe", build_solid_solutions(datapath("solid_solutions.toml"), ext)))
+        @test model(fr) isa IdealSolidSolutionModel
+        @test symbol.(end_members(fr)) == ["C4AClH10", "C4FCl2H10"]
+        @test !any(p -> name(p) == "Friedel_AlFe", build_solid_solutions(datapath("solid_solutions.toml"), sp))
     end
 end
