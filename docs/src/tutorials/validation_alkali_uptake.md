@@ -169,6 +169,8 @@ CASH+NK is the model whose alkali uptake was fitted there.
 
 ## Where to go next
 
+[Aluminum uptake by C-S-H](@ref sec-validation-aluminum-uptake) compares the
+companion syntheses without alkali, the aluminum taken by the gel.
 [The models of the C-S-H gel](@ref sec-csh-models) lists the gels of the
 package and the databases they come from, and
 [CEM II/B-V and CEM II/B-M (V-LL), with their CEM I, integrated in time](@ref ex-ternary-kinetics)

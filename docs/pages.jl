@@ -171,6 +171,9 @@ pages = [
             # Alkali uptake by C-A-S-H batches: CSHQ predicted on data it was not
             # fitted on, CASH+NK checked on data it was.
             "tutorials/validation_alkali_uptake.md",
+            # And by C-S-H of the aluminum, the companion syntheses: CNASH_ss, the
+            # gel that takes it, against CSHQ, which does not.
+            "tutorials/validation_aluminum_uptake.md",
             # Four blended pastes, their degrees of reaction from the measurement,
             # the chemistry against the measurement and against GEMS3K.
             "tutorials/validation_blended_pastes.md",

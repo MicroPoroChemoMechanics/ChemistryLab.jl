@@ -33,6 +33,28 @@
   0.62 to 1.55 times the measured one up to Ca/Si 1.2, the dissolved alkali and
   silicon at the median within 4 % below Ca/Si 1.1. In a gel poor in calcium,
   CASH+NK is the model whose alkali uptake was fitted there.
+- **Aluminum uptake by C-S-H against L'Hôpital et al. (2016a)** (the page
+  *Aluminum uptake by C-S-H*, `scripts/lhopital2016_aluminum.jl`): their 34
+  syntheses without alkali, Ca/Si 0.6 to 1.6 and Al/Si 0 to 0.33, transcribed
+  from their Appendices A, B and D into `data/literature/LHopital2016a.json`,
+  and computed with CNASH_ss, the gel that takes aluminum, and with CSHQ.
+  CNASH_ss reproduces the uptake: all the aluminum up to Al/Si 0.05, then an
+  Al/Si held between 0.10 and 0.12 whatever the Ca/Si, the paper's finding
+  (0.15 ± 0.05). It forms no strätlingite, where the syntheses hold 3 to 13 wt.%
+  of it, putting the rest in gibbsite below Ca/Si 1.2 and in katoite above, and
+  its gel stops at a Ca/Si of 1.19, the calcium it does not take precipitating
+  as portlandite. CSHQ holds the calcium of the gel within 0.052 and puts all the
+  aluminum in the hydrates from the smallest Al/Si. All 34 certify with both
+  models; with CNASH_ss they need OptimaSolver 0.8.1.
+
+### Changed
+
+- **OptimaSolver 0.8.1 is required** (`[compat] OptimaSolver = "0.8.1"`). Its
+  dual Newton left a member of a sublattice phase that owns no species on any
+  site, and is barely unstable, at 1e-16 to 1e-28 mol instead of the floor, and
+  the certificate then refused the answer: 14 of the 34 syntheses above did not
+  certify with CNASH_ss, whose member 5CA is such a member. 0.8.1 holds it at
+  the floor; every answer that certified before is the same.
 
 ### Fixed
 
