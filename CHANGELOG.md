@@ -49,6 +49,26 @@
   500 bar. Nothing moves at 1 bar, to the bit, nor in cost: there the terms are
   not evaluated.
 
+### Documentation
+
+- **Every reference is a link.** The pages and the docstrings named some
+  authors in plain text, Dzombak and Morel on the page of the diffuse layer of
+  hydrous ferric oxide among them; each mention of a publication is now a
+  citation into the bibliography, in some 150 places. Four references the
+  docstrings named and the bibliography lacked were added after checking them on
+  Crossref (Shock et al. 1992, Johnson and Norton 1991, Leal, Kulik and
+  Kosakowski 2016, Guggenheim 1937), and the steam tables of Haar, Gallagher and
+  Kell (1984) against library catalogs. The humidity factor attributed to
+  "Parrott et al., as used by van Breugel" stays without a link: neither source
+  is identified precisely enough to cite.
+- **Kinetics under partial equilibrium starts from the stoichiometric matrix**,
+  after Leal et al.: the formula matrix over the elements and its rank, the
+  primary species as a basis of its columns and the change of basis to the
+  conservation matrix, the reactions as its null space, then the partition
+  that exchanges elements between the kinetic and the equilibrium species, with
+  two diagrams and small executed examples on the carbonate system and on
+  calcite.
+
 ## v0.32.2 — The C-S-H models of a blend, in time and against syntheses
 
 The C-S-H models a blended cement may be computed with are compared where they
