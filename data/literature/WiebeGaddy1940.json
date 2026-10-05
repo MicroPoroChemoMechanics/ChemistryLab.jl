@@ -1,0 +1,71 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "WiebeGaddy1940",
+    "doi": "10.1021/ja01861a033",
+    "citation": "Wiebe, R., Gaddy, V. L. (1940). The solubility of carbon dioxide in water at various temperatures from 12 to 40 C and at pressures to 500 atmospheres. Critical phenomena. Journal of the American Chemical Society 62(4), 815-817.",
+    "location": null
+  },
+  "transcription": {
+    "from": "the published article (PDF from the publisher, a scan whose text layer is an OCR): Table I, p. 815, read on the page rendered at 500 dpi",
+    "checked_against_source": true,
+    "note": "Every value read on the image agrees with the OCR of the text layer up to its punctuation; the OCR has the entry at 125 atm and 40 C garbled, which the image gives as 28.71. The solubility is the volume of gas, reduced to 0 C and 1 atm (S. T. P.), dissolved per gram of water. Converted with the molar volume of the ideal gas at 0 C and 1 atm, 22414 cm3/mol, it gives the mole fractions Spycher et al. (2003, Appendix A) tabulate for these data, 1.127 % at 31.04 C and 25 atm and 3.014 % at 500 atm."
+  },
+  "quantities": {},
+  "tables": {
+    "co2_solubility": {
+      "columns": ["temperature_C", "pressure", "solubility"],
+      "units": ["1", "101325*Pa", "cm^3/g"],
+      "kind": "measured",
+      "location": "Table I, p. 815",
+      "rows": [
+        [12.0, 50.0, 35.54],
+        [12.0, 75.0, 36.33],
+        [12.0, 100.0, 36.77],
+        [12.0, 150.0, 38.39],
+        [12.0, 200.0, 39.77],
+        [12.0, 300.0, 41.07],
+        [18.0, 25.0, 19.51],
+        [18.0, 50.0, 32.03],
+        [18.0, 75.0, 33.85],
+        [18.0, 100.0, 33.98],
+        [18.0, 150.0, 35.75],
+        [18.0, 200.0, 37.17],
+        [18.0, 300.0, 39.31],
+        [25.0, 50.0, 27.23],
+        [25.0, 75.0, 31.17],
+        [25.0, 100.0, 31.75],
+        [25.0, 400.0, 38.62],
+        [31.04, 25.0, 14.18],
+        [31.04, 50.0, 24.15],
+        [31.04, 75.0, 29.33],
+        [31.04, 100.0, 30.17],
+        [31.04, 150.0, 31.59],
+        [31.04, 200.0, 32.78],
+        [31.04, 400.0, 36.78],
+        [31.04, 500.0, 38.67],
+        [35.0, 25.0, 12.95],
+        [35.0, 50.0, 22.21],
+        [35.0, 75.0, 27.84],
+        [35.0, 100.0, 29.13],
+        [35.0, 150.0, 30.52],
+        [35.0, 200.0, 31.83],
+        [35.0, 400.0, 35.73],
+        [35.0, 500.0, 37.99],
+        [40.0, 25.0, 11.62],
+        [40.0, 50.0, 20.35],
+        [40.0, 75.0, 25.81],
+        [40.0, 100.0, 27.81],
+        [40.0, 125.0, 28.71],
+        [40.0, 150.0, 29.39],
+        [40.0, 200.0, 31.74],
+        [40.0, 400.0, 34.87],
+        [40.0, 500.0, 36.73]
+      ]
+    }
+  },
+  "notes": [
+    "Temperature in degrees Celsius; pressure in atmospheres, the total pressure over the solution; solubility in cubic centimeters of carbon dioxide at 0 C and 1 atm (S. T. P.) per gram of water.",
+    "The table has no value at 12 C and 25 atm, at 25 C and 25, 125, 150, 200, 300 and 500 atm, nor wherever else it is left blank; at 10 C and above 50 atm, and at 12 C above 300 atm, the authors report the formation of a solid hydrate."
+  ]
+}

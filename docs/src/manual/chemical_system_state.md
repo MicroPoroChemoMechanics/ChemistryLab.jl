@@ -268,6 +268,35 @@ set_pressure!(state,    2e5u"Pa")
 ustrip(state.T[])
 ```
 
+### [Gases under pressure](@id sec-manual-real-gases)
+
+A gas is ideal unless its species carries critical constants, which
+[`peng_robinson`](@ref) attaches: those `phreeqc.dat` ships for the gas of the
+same symbol, or `T_c`, `P_c` and `ω` given explicitly, with binary interaction
+parameters `kij` for a mixture. Its activity then gains the fugacity
+coefficient of the equation of state, and its phase the compressibility factor,
+which [`fugacity_coefficients`](@ref) and [`compressibility_factor`](@ref) read
+on a state ([Real gases and pressure](@ref sec-theory-real-gases)).
+
+```@example cst_gas
+using ChemistryLab, DynamicQuantities
+
+db = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+co2 = peng_robinson(db["CO2"])
+n2 = peng_robinson(db["N2"]; kij = [:CO2 => 0.1])
+cs = ChemicalSystem([co2, n2], ["CO2", "N2"])
+state = ChemicalState(cs; T = 313.15u"K", P = 100.0u"bar", n = [0.8u"mol", 0.2u"mol"])
+fugacity_coefficients(state)
+```
+
+```@example cst_gas
+compressibility_factor(state), volume(state).gas
+```
+
+Every gas of a phase carries constants or none does; a system that mixes the
+two is refused. A gas built with [`peng_robinson`](@ref) is a copy of the
+database species: the original stays ideal.
+
 ### Derived quantities
 
 All derived quantities are **recomputed automatically** after any `set_*!` call:

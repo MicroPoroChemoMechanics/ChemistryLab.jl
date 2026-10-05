@@ -55,10 +55,9 @@ Pressure is treated according to the model attached to the species. The
 Helgeson-Kirkham-Flowers equation of state of aqueous solutes depends on ``P``,
 so that the standard state of a solute is at the pressure of the system. A
 record that declares a molar volume independent of temperature and pressure
-(`mv_constant` in the ThermoFun databases: the solids, the solutes described by
-a heat-capacity polynomial, and the solvent, whose equation of state is not
-implemented) has its standard state at the pressure of the system as well, its
-standard Gibbs energy and enthalpy carrying
+(`mv_constant` in the ThermoFun databases: the solids and the solutes described
+by a heat-capacity polynomial) has its standard state at the pressure of the
+system as well, its standard Gibbs energy and enthalpy carrying
 
 ```math
 \int_{P_r}^{P} V_i^\circ\,\mathrm{d}P = V_i^\circ\,(P - P_r) ,
@@ -67,10 +66,11 @@ standard Gibbs energy and enthalpy carrying
 which vanishes at ``P_r = 1`` bar ([`P_STANDARD`](@ref)). For portlandite, with
 ``V^\circ \simeq 33\ \mathrm{cm^3/mol}``, it amounts to ``0.012\,RT`` at 10 bar
 and to ``1.3\,RT`` at 1 kbar: negligible for a laboratory sample or a
-structure, not for a deep reservoir. The compressibility of the solvent is
-neglected in this term, which misses about 0.7 % of it at 300 bar. A gas is
-referred to the pure ideal gas at ``P_r``, and the pressure enters its activity
-(§2). A species built by hand keeps the functions it is given: a heat-capacity
+structure, not for a deep reservoir. The solvent is compressed as the equation
+of state of water has it, its volume at ``P_r`` being the tabulated one
+([Real gases and pressure](@ref sec-theory-real-gases) §6). A gas is referred to
+the pure ideal gas at ``P_r``, and the pressure enters its activity (§2). A
+species built by hand keeps the functions it is given: a heat-capacity
 polynomial alone carries no pressure term.
 
 ## 2. The conventions in use, class by class
@@ -153,7 +153,9 @@ so that its chemical potential grows with pressure as ``(\partial\mu_i/\partial
 P)_T = RT/P``, the molar volume of an ideal gas. That is also the volume the
 package gives a gas, whether its record declares the ideal gas (`mv_pvnrt`) or it
 is built without a molar volume, so that the two are consistent at every
-pressure.
+pressure. A real gas keeps this standard state and gains a fugacity coefficient
+in its activity, ``a_i = \varphi_i x_i P/P_r``, from an equation of state
+([Real gases and pressure](@ref sec-theory-real-gases)).
 
 ### End-members of a solid solution
 

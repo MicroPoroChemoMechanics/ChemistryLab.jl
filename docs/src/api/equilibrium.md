@@ -11,6 +11,17 @@ Modules = [ChemistryLab]
 Pages = ["equilibrium/activities.jl"]
 ```
 
+## Real gases
+
+The equation of state of Peng and Robinson for a gas phase: the critical
+constants a gas carries, its fugacity coefficients and the compressibility factor
+of its phase. See [Real gases and pressure](@ref sec-theory-real-gases).
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages = ["equilibrium/real_gases.jl"]
+```
+
 ## Specific ion Interaction Theory (SIT)
 
 Debye-Hückel with a deviation term that is a sum over ion **pairs** rather than

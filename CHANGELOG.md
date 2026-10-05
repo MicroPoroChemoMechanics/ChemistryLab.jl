@@ -19,6 +19,23 @@
   constants `Ω_a` and `Ω_b` are the exact roots of the critical conditions, of
   which the paper prints five decimals: rounded, they would move the critical
   point of the equation by 0.01 in `Z`.
+- **Carbon dioxide in water under pressure, against Wiebe and Gaddy (1940)**
+  (the page *Carbon dioxide in water under pressure*,
+  `scripts/wiebe_gaddy1940_co2.jl`): their 42 solubilities from 12 to 40 °C
+  and 25 to 500 atm, transcribed from Table I read on the scan and checked
+  point by point against the mole fractions Spycher et al. (2003) derive from
+  them. With nothing fitted, the real gas reproduces them to 3.0 % on average,
+  7.3 % at worst, through the jump to liquid carbon dioxide below 31 °C; the
+  ideal gas dissolves from 12 % too much to 5.6 times the measurement. The page
+  separates the four terms of the logarithm of the molality, the Henry
+  constant, the pressure, the fugacity coefficient and the partial molar volume
+  of the solute, and says where the remaining few percent lie.
+- **The theory of real gases and of pressure** (the page *Real gases and
+  pressure*): the fugacity coefficient and its identities, the equation of
+  Peng and Robinson with its exact critical constants, the choice of the root,
+  the mixing rules, what the equilibrium solver sees of a real gas, and the
+  pressure terms of the condensed species and of the solvent; the syntax in the
+  manual (*Gases under pressure*).
 
 ### Changed
 

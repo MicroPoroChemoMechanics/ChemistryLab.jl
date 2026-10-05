@@ -58,11 +58,14 @@ pages = [
             "theory/standard_states.md",
             "theory/equilibrium.md",
         ],
-        # The two places a mixture stops being ideal, and the only two where a
-        # standard state has to be argued about rather than looked up.
+        # The places a mixture stops being ideal: the solution and the solids,
+        # where a standard state has to be argued about rather than looked up,
+        # and the gas under pressure, which keeps its standard state and gains a
+        # fugacity coefficient.
         "Non-ideal mixtures" => [
             "theory/activity_models.md",
             "theory/solid_solutions.md",
+            "theory/real_gases.md",
         ],
         # The conservation law that is not an element, and the potential
         # conjugate to it. Needed by any binder whose sulfur is not all
@@ -174,6 +177,9 @@ pages = [
             # The temperature dependence of the database's constants, against
             # the fits to measured constants that PHREEQC ships.
             "tutorials/validation_logk_temperature.md",
+            # The pressure: carbon dioxide dissolved up to 500 atm, the gas
+            # ideal and following an equation of state.
+            "tutorials/validation_co2_solubility.md",
             # A measured paste through its first year, and the same budgets
             # through GEMS3K: the model against the paste, the code against the code.
             "tutorials/validation_measured_pastes.md",

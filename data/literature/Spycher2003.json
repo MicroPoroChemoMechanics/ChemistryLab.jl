@@ -7,7 +7,7 @@
     "location": null
   },
   "transcription": {
-    "from": "the published article (PDF from the publisher), Section 2.1, p. 3016, read on its text layer",
+    "from": "the published article (PDF from the publisher): Section 2.1, p. 3016, and Appendix A, pp. 3028-3029, read on its text layer",
     "checked_against_source": true,
     "note": "The values are those the authors quote for pure carbon dioxide, from Span and Wagner (1996) and Angus et al. (1976), and for the three-phase coexistence of the CO2-H2O system, from Wendland et al. (1999); they are reference points of the pure fluid, not measurements of the article."
   },
@@ -45,6 +45,59 @@
       "description": "Pressure of the three-phase coexistence (water-rich liquid, carbon dioxide-rich liquid, vapor) of the CO2-H2O system at 298.15 K, from Wendland et al. (1999)."
     }
   },
-  "tables": {},
-  "notes": []
+  "tables": {
+    "appendix_a_wiebe_gaddy1940": {
+      "columns": ["temperature_C", "pressure", "x_CO2_percent"],
+      "units": ["1", "bar", "1"],
+      "kind": "published",
+      "location": "Appendix A, pp. 3028-3029: the rows whose liquid reference is (3), Wiebe and Gaddy (1940), read on the text layer by the positions of the words",
+      "rows": [
+        [12.0, 50.7, 2.777],
+        [12.0, 76.0, 2.837],
+        [12.0, 101.3, 2.871],
+        [12.0, 152.0, 2.993],
+        [12.0, 202.7, 3.098],
+        [12.0, 304.0, 3.196],
+        [18.0, 25.3, 1.544],
+        [18.0, 50.7, 2.51],
+        [18.0, 76.0, 2.649],
+        [18.0, 101.3, 2.659],
+        [18.0, 152.0, 2.793],
+        [18.0, 202.7, 2.901],
+        [18.0, 304.0, 3.063],
+        [25.0, 50.7, 2.142],
+        [25.0, 76.0, 2.444],
+        [25.0, 101.3, 2.488],
+        [25.0, 405.3, 3.011],
+        [31.04, 25.3, 1.127],
+        [31.04, 50.7, 1.904],
+        [31.04, 76.0, 2.303],
+        [31.04, 101.3, 2.368],
+        [31.04, 152.0, 2.476],
+        [31.04, 202.7, 2.567],
+        [31.04, 405.3, 2.871],
+        [31.04, 506.6, 3.014],
+        [35.0, 25.3, 1.03],
+        [35.0, 50.7, 1.754],
+        [35.0, 76.0, 2.189],
+        [35.0, 101.3, 2.288],
+        [35.0, 152.0, 2.394],
+        [35.0, 202.7, 2.495],
+        [35.0, 405.3, 2.792],
+        [35.0, 506.6, 2.963],
+        [40.0, 25.3, 0.9253],
+        [40.0, 50.7, 1.609],
+        [40.0, 76.0, 2.032],
+        [40.0, 101.3, 2.186],
+        [40.0, 126.7, 2.256],
+        [40.0, 152.0, 2.308],
+        [40.0, 202.7, 2.488],
+        [40.0, 405.3, 2.726],
+        [40.0, 506.6, 2.868]
+      ]
+    }
+  },
+  "notes": [
+    "Temperature in degrees Celsius; the mole fraction of dissolved carbon dioxide in the aqueous phase in percent. The table lists the 42 solubilities of Wiebe and Gaddy (1940, Table I) as the authors converted them, the pressures from atmospheres to bar."
+  ]
 }
