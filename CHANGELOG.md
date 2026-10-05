@@ -1,6 +1,30 @@
 # Changelog
 
-## Unreleased
+## v0.33.0 — Real gases and pressure
+
+A gas may now follow the equation of state of Peng and Robinson (1976): its
+activity gains the fugacity coefficient, its phase occupies `Z N R T/P`, and a
+mixture mixes by the van der Waals rules. The solvent of the ThermoFun databases
+is compressible, as the equation of state of water says. Carbon dioxide
+dissolved in water from 12 to 40 °C and 25 to 500 atm (Wiebe and Gaddy 1940) is
+reproduced to 3.0 % on average with nothing fitted, where the ideal gas
+dissolved up to 5.6 times the measurement. Nothing moves at 1 bar: the 32
+cement pastes of a thesis print the same numbers as 0.32.2, in the same time.
+Every reference of the documentation is now a link, and the theory of kinetics
+under partial equilibrium starts from the stoichiometric matrix.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.32"` does not accept 0.33 and
+  has to widen its bound.
+- **Results at a pressure other than 1 bar move.** The standard state of the
+  solvent of the ThermoFun databases follows the equation of state of water
+  instead of a constant volume: its Gibbs energy at 500 bar and 25 °C is 10 J/mol
+  lower than before, and its volume 2.2 % smaller. Nothing changes at 1 bar.
+- **Three names are exported**: `peng_robinson`, `fugacity_coefficients` and
+  `compressibility_factor`. A package defining the same names alongside
+  `using ChemistryLab` now sees a conflict.
 
 ### Added
 
