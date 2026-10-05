@@ -95,12 +95,33 @@ this one for its gas species, so that the pressure enters each of them in the
 same way, and it is what gives a gas `∂μᵢ/∂P = RT/P`, the molar volume of
 an ideal gas.
 """
-function _gas_lna!(out, _n, idx_gas, p)
+function _gas_lna!(out, _n, idx_gas, p, ::Nothing = nothing)
     isempty(idx_gas) && return out
     n_gas = sum((_n[i] for i in idx_gas); init = zero(eltype(_n)))
     lnP = _ln_pressure_ratio(p)
     @inbounds for i in idx_gas
         out[i] = log(_n[i] / n_gas) + lnP
+    end
+    return out
+end
+
+# A real gas phase adds the fugacity coefficients of its equation of state, at
+# the temperature and the pressure of `p` ([`peng_robinson`](@ref)).
+function _gas_lna!(out, _n, idx_gas, p, mix::_PengRobinsonMixing)
+    isempty(idx_gas) && return out
+    # A gas alone is the whole phase whatever its amount; the members of a
+    # mixture are floored as the other mixing phases are, so that an empty phase
+    # still has a composition the equation of state can be evaluated at.
+    ϵ = hasproperty(p, :ϵ) ? p.ϵ : _AMOUNT_FLOOR
+    m = length(idx_gas)
+    n_gas = sum((_n[i] + ϵ for i in idx_gas); init = zero(eltype(_n)))
+    y = m == 1 ? [one(eltype(_n))] : [(_n[i] + ϵ) / n_gas for i in idx_gas]
+    T = hasproperty(p, :T) ? p.T : 298.15
+    P = hasproperty(p, :P) ? p.P : P_STANDARD
+    lnφ, _ = _pr_ln_phi(mix, y, T, P)
+    lnP = _ln_pressure_ratio(p)
+    @inbounds for (k, i) in enumerate(idx_gas)
+        out[i] = log(y[k]) + lnφ[k] + lnP
     end
     return out
 end
@@ -195,6 +216,8 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
     end
 
     has_gas = !isempty(idx_gas)
+    # The mixing model of the gas phase: ideal, or an equation of state.
+    gas_mix = _gas_mixing(cs)
     # The solid solutions and the site families, prepared once; see `_MixingTerms`.
     mix = _MixingTerms(cs)
     # The output is of the number type of everything it is computed from: the
@@ -219,7 +242,7 @@ function activity_model(cs::ChemicalSystem, ::DiluteSolutionModel)
             end
         end
 
-        has_gas && _gas_lna!(out, _n, idx_gas, p)
+        has_gas && _gas_lna!(out, _n, idx_gas, p, gas_mix)
 
         # Solid solutions and surface sites mix on budgets of their own; leaving
         # either out would give its members unit activity, silently.
@@ -778,6 +801,8 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
     idx_gas = cs.idx_gas
 
     has_gas = !isempty(idx_gas)
+    # The mixing model of the gas phase: ideal, or an equation of state.
+    gas_mix = _gas_mixing(cs)
     # The solid solutions and the site families, prepared once; see `_MixingTerms`.
     mix = _MixingTerms(cs)
 
@@ -886,7 +911,7 @@ function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
         out[idx_solvent] = -M_w * sum_m * φ
 
         # ── Gas: ideal mixture ─────────────────────────────────────────────
-        has_gas && _gas_lna!(out, _n, idx_gas, p)
+        has_gas && _gas_lna!(out, _n, idx_gas, p, gas_mix)
 
         # ── Solid solutions ────────────────────────────────────────────────
         # Solid solutions and surface sites mix on budgets of their own; leaving
@@ -1136,6 +1161,8 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
     idx_gas = cs.idx_gas
 
     has_gas = !isempty(idx_gas)
+    # The mixing model of the gas phase: ideal, or an equation of state.
+    gas_mix = _gas_mixing(cs)
     # The solid solutions and the site families, prepared once; see `_MixingTerms`.
     mix = _MixingTerms(cs)
     MT = promote_type(_captured_number_type(mix), _captured_number_type(model))
@@ -1194,7 +1221,7 @@ function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
         out[idx_solvent] = M_w * (_davies_osmotic_W(A, model.b, I, ϵ) - Σm)
 
         # Gas: ideal mixture
-        has_gas && _gas_lna!(out, _n, idx_gas, p)
+        has_gas && _gas_lna!(out, _n, idx_gas, p, gas_mix)
 
         # Solid solutions
         # Solid solutions and surface sites mix on budgets of their own; leaving
@@ -1343,6 +1370,8 @@ function activity_model(cs::ChemicalSystem, model::TruesdellJonesActivityModel)
     idx_solutes = cs.idx_solutes
     idx_gas = cs.idx_gas
     has_gas = !isempty(idx_gas)
+    # The mixing model of the gas phase: ideal, or an equation of state.
+    gas_mix = _gas_mixing(cs)
     mix = _MixingTerms(cs)
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
     zv = Int8[charge(sp) for sp in cs.species]
@@ -1375,7 +1404,7 @@ function activity_model(cs::ChemicalSystem, model::TruesdellJonesActivityModel)
         end
         n_aqueous = n_w + sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
         out[idx_solvent] = log(n_w / n_aqueous)
-        has_gas && _gas_lna!(out, _n, idx_gas, p)
+        has_gas && _gas_lna!(out, _n, idx_gas, p, gas_mix)
         _mixing_lna!(out, _n, mix, p, ϵ)
         return out
     end

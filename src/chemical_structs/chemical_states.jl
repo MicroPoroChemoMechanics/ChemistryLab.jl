@@ -205,7 +205,12 @@ function _compute_V_phases(system::ChemicalSystem, n::AbstractVector, T, P)
 
     V_liquid = _phase(system.idx_aqueous)
     V_solid = _phase(_solid_indices(system))
-    V_gas = _phase(system.idx_gas)
+    # A real gas phase occupies Z times the volume of the ideal gas (`peng_robinson`).
+    gas_mix = _gas_mixing(system)
+    V_gas = gas_mix === nothing ? _phase(system.idx_gas) :
+        _pr_phase_volume(
+            gas_mix, [ustrip(us"mol", n[i]) for i in system.idx_gas], ustrip(us"K", T), ustrip(us"Pa", P),
+        ) * u"m^3"
 
     V_total = V_liquid + V_solid + V_gas
     return (liquid = V_liquid, solid = V_solid, gas = V_gas, total = V_total)

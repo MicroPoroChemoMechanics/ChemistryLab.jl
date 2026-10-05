@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Real gases** (`peng_robinson`): a gas given its critical temperature,
+  critical pressure and acentric factor, or those PHREEQC ships in
+  `phreeqc.dat` (now transcribed in `data/literature/ParkhurstAppelo2013.json`),
+  follows the equation of state of Peng and Robinson (1976). Its activity gains
+  the fugacity coefficient, `ln aᵢ = ln yᵢ + ln φᵢ + ln(P/P°)`, in every
+  activity model; a mixture mixes by the van der Waals rules with binary
+  parameters `kij`; the gas phase occupies `Z N R T/P`, in the state and under a
+  prescribed volume. Until now every gas was ideal, so a gas at 50 bar and 25 °C
+  dissolved 1.35 times too much carbon dioxide (`φ = 0.74`): the new tests show
+  the dissolved amount moving by exactly `φ`. A gas alone keeps the proof of a
+  global minimum, its energy being linear in its amount; a mixture of real gases
+  is certified as a local minimum, since it can split into two fluids. The
+  constants `Ω_a` and `Ω_b` are the exact roots of the critical conditions, of
+  which the paper prints five decimals: rounded, they would move the critical
+  point of the equation by 0.01 in `Z`.
+
 ## v0.32.2 — The C-S-H models of a blend, in time and against syntheses
 
 The C-S-H models a blended cement may be computed with are compared where they

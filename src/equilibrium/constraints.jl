@@ -109,16 +109,20 @@ end
     _total_volume(system, n, T, P)
 
 `Σᵢ nᵢ V⁰ᵢ(T, P)` in cubic meters, as a bare number, over the species that carry
-a molar volume.
+a molar volume; a real gas phase counts for `Z N R T / P` instead
+([`peng_robinson`](@ref)).
 """
 function _total_volume(system::ChemicalSystem, n, T, P)
     tot = zero(promote_type(eltype(n), typeof(T), typeof(P)))
+    gas_mix = _gas_mixing(system)
     for (i, s) in enumerate(system.species)
         _has_molar_volume(s) || continue
+        gas_mix === nothing || aggregate_state(s) != AS_GAS || continue
         tot += n[i] * ustrip(
             us"m^3/mol", _molar_volume(s)(T = T * u"K", P = P * u"Pa"; unit = true),
         )
     end
+    gas_mix === nothing || (tot += _pr_phase_volume(gas_mix, [n[i] for i in system.idx_gas], T, P))
     return tot
 end
 
@@ -613,6 +617,14 @@ balance, silently, and the saturation the whole coupling rests on would be wrong
 with nothing to show for it.
 """
 function _molar_volumes(system, T, P)
+    # A volume linear in the amounts has no place for a real gas, whose phase
+    # occupies Z N R T / P with Z depending on the composition.
+    _gas_mixing(system) === nothing || throw(
+        ArgumentError(
+            "this constraint counts the volume as Σ nᵢ V⁰ᵢ, which a gas phase following the " *
+                "equation of state of Peng and Robinson does not obey; leave the gases ideal."
+        )
+    )
     # In the number type of `T` and `P`, which a derivative with respect to
     # them carries through.
     return _promoted(

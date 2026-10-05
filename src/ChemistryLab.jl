@@ -148,6 +148,7 @@ module ChemistryLab
     include("databases/merge_dat_json.jl")
     include("databases/derived.jl")
 
+    include("equilibrium/real_gases.jl")
     include("equilibrium/activities.jl")
     include("equilibrium/pitzer.jl")
     include("equilibrium/sit.jl")
@@ -469,6 +470,9 @@ module ChemistryLab
         LITERATURE_SCHEMA
 
     export AbstractActivityModel,
+        peng_robinson,
+        fugacity_coefficients,
+        compressibility_factor,
         DiluteSolutionModel,
         PitzerActivityModel,
         PitzerParameters,

@@ -293,6 +293,8 @@ function activity_model(cs::ChemicalSystem, model::SITActivityModel)
     idx_gas = cs.idx_gas
 
     has_gas = !isempty(idx_gas)
+    # The mixing model of the gas phase: ideal, or an equation of state.
+    gas_mix = _gas_mixing(cs)
     # The solid solutions and the site families, prepared once; see `_MixingTerms`.
     mix = _MixingTerms(cs)
 
@@ -377,7 +379,7 @@ function activity_model(cs::ChemicalSystem, model::SITActivityModel)
         n_aqueous = n_w + sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
         out[idx_solvent] = log(n_w / n_aqueous)
 
-        has_gas && _gas_lna!(out, _n, idx_gas, p)
+        has_gas && _gas_lna!(out, _n, idx_gas, p, gas_mix)
 
         # Solid solutions and surface sites mix on budgets of their own; leaving
         # either out would give its members unit activity, silently.

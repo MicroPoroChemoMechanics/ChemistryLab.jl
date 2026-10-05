@@ -1,0 +1,50 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Spycher2003",
+    "doi": "10.1016/s0016-7037(03)00273-4",
+    "citation": "Spycher, N., Pruess, K., Ennis-King, J. (2003). CO2-H2O mixtures in the geological sequestration of CO2. I. Assessment and calculation of mutual solubilities from 12 to 100 C and up to 600 bar. Geochimica et Cosmochimica Acta 67(16), 3015-3031.",
+    "location": null
+  },
+  "transcription": {
+    "from": "the published article (PDF from the publisher), Section 2.1, p. 3016, read on its text layer",
+    "checked_against_source": true,
+    "note": "The values are those the authors quote for pure carbon dioxide, from Span and Wagner (1996) and Angus et al. (1976), and for the three-phase coexistence of the CO2-H2O system, from Wendland et al. (1999); they are reference points of the pure fluid, not measurements of the article."
+  },
+  "quantities": {
+    "co2_critical_temperature_C": {
+      "value": 30.978,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": 0.015,
+      "location": "p. 3016",
+      "description": "Critical temperature of pure carbon dioxide in degrees Celsius, from Span and Wagner (1996)."
+    },
+    "co2_critical_pressure": {
+      "value": 73.773,
+      "unit": "bar",
+      "kind": "published",
+      "uncertainty": 0.003,
+      "location": "p. 3016",
+      "description": "Critical pressure of pure carbon dioxide, from Span and Wagner (1996)."
+    },
+    "co2_vapor_pressure_25C": {
+      "value": 64.35,
+      "unit": "bar",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 3016",
+      "description": "Vapor pressure of pure carbon dioxide at 298.15 K, from Span and Wagner (1996); the article gives 64.32 bar from the data of Angus et al. (1976) beside it."
+    },
+    "three_phase_pressure_25C": {
+      "value": 64.03,
+      "unit": "bar",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 3016",
+      "description": "Pressure of the three-phase coexistence (water-rich liquid, carbon dioxide-rich liquid, vapor) of the CO2-H2O system at 298.15 K, from Wendland et al. (1999)."
+    }
+  },
+  "tables": {},
+  "notes": []
+}
