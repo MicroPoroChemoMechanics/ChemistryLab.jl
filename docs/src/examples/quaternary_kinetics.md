@@ -165,7 +165,8 @@ degrees, leaves as little in the two pastes without limestone. The gap is
 therefore that of the equilibrium model, with these degrees of reaction, rather
 than that of the kinetics: an equilibrium in which the C–S–H the glasses form
 takes its calcium from portlandite cannot keep the portlandite, and neither
-calculation describes what keeps it in these pastes.
+calculation describes what keeps it in these pastes. Section 6 runs the two
+other gels the package ships.
 
 **The limestone stays calcite.** In Cemdata18, used here, the aluminum the
 clinker and the glasses release goes to ettringite and to the siliceous
@@ -176,6 +177,57 @@ monocarbonate in the presence of limestone, with the database of the time (their
 Fig. 2), and found both by X-ray diffraction after six months (their Fig. 4).
 The difference is in which phases the equilibrium may form, which this page
 leaves as Cemdata18 does.
+
+## 6. The two other gels
+
+The paste with the most fly ash and the one without, with `CNASH_ss`
+[Myers2014](@cite) and then `CASH+NK` [Miron2022a](@cite) in place of `CSHQ`,
+everything else as in Section 3 (`s15_setup(; gel)`):
+
+```@example quaternary
+gel_runs = Dict{Tuple{String, String}, Any}()
+cshq_last = Dict{String, Any}()
+with_logger(ConsoleLogger(diagnostics)) do # hide
+for name in ("20-30-0", "30-0-20")
+    cshq_last[name] = only(speciated_states(runs[name].sol, runs[name].kp; times = [ages[end] * 86400.0]))
+end
+for gel in ("CNASH_ss", "CASH+NK")
+    s = s15_setup(; gel)
+    for name in ("20-30-0", "30-0-20")
+        r = s15_run(s.cs, s.mats, name)
+        gel_runs[(gel, name)] = (; tga = s15_tga(r, ages), last = only(speciated_states(r.sol, r.kp; times = [ages[end] * 86400.0])))
+    end
+end
+end # hide
+gel_log = String(take!(diagnostics)) # hide
+occursin("re-speciation failed", gel_log) && error("a re-speciation failed") # hide
+occursin("could not be certified", gel_log) && error("an instant was not certified") # hide
+for name in ("20-30-0", "30-0-20")
+    println(name, ", portlandite, % of the dry sample")
+    println("  days      CSHQ  CNASH_ss  CASH+NK  measured")
+    for (k, d) in enumerate(ages)
+        @printf("%6.0f  %8.1f %8.1f %8.1f %9.1f\n", d, tga[name][k].portlandite,
+                gel_runs[("CNASH_ss", name)].tga[k].portlandite, gel_runs[("CASH+NK", name)].tga[k].portlandite,
+                s15_measured(name).portlandite[k])
+    end
+    ratio(st, gel) = (e = solid_solution_totals(st, gel).elements; @sprintf("Ca/Si %.2f, Al/Si %.3f", e[:Ca] / e[:Si], get(e, :Al, 0.0) / e[:Si]))
+    println("  the gel at ", Int(ages[end]), " days: CSHQ ", ratio(cshq_last[name], "CSHQ"), "; CNASH_ss ",
+            ratio(gel_runs[("CNASH_ss", name)].last, "CNASH_ss"), "; CASH+NK ", ratio(gel_runs[("CASH+NK", name)].last, "CASH+NK"))
+end
+```
+
+`CNASH_ss` keeps the portlandite near the measurement in the paste with the
+most fly ash: within 0.3 points at one, two and 182 days, 1.2 to 3.0 points high
+between. Without fly ash it is 1.4 and 1.6 points low at one and two days, then
+0.6 to 3.0 points high from seven. It does so with a gel at a Ca/Si of 1.17
+holding aluminum, an Al/Si of 0.085 and 0.099, poorer in calcium than a gel
+beside portlandite: the calcium it does not take is the portlandite that stays.
+`CASH+NK` gives the portlandite of `CSHQ` within 0.3 points. The measurement
+lies between the two models, as in the fly-ash pastes of
+[De Weerdt et al.](@ref ex-ternary-kinetics), whose gel was measured at a Ca/Si
+of 1.4: neither gel reproduces the gel and the portlandite together, `CNASH_ss`
+is the closer on the portlandite of these blends for a gel too poor in calcium,
+and `CSHQ` stays the gel of this page.
 
 ## Where to go next
 

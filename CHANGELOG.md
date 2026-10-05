@@ -15,7 +15,12 @@
   with no aluminum; `CNASH_ss` takes aluminum (Al/Si 0.09 to 0.11, 0.06 to 0.13
   measured) at a Ca/Si of 1.12 to 1.16 where the paste's gel falls from 1.7 to
   1.4, and leaves 1.7 to 3.9 points too much portlandite. `CSHQ` stays the gel
-  of these pages, and the page says why.
+  of these pages, and the page says why. The same on the quaternary pastes of
+  Schöler et al. (2015) (`s15_setup(; gel)`, Section 6 of the page *CEM I 52.5
+  R with slag, fly ash and limestone, integrated in time*): with CNASH_ss the
+  portlandite of the paste richest in fly ash stays within 0.3 points of the
+  measurement at one, two and 182 days, 3.0 points high at most between, where
+  CSHQ and CASH+NK lose all of it, for a gel at Ca/Si 1.17.
 - **Alkali uptake by C-A-S-H against L'Hôpital et al. (2016)** (the page
   *Alkali uptake by C-A-S-H*, `scripts/lhopital2016_alkali.jl`): their 49
   batches of C-S-H and C-A-S-H, Ca/Si 0.6 to 1.6 in water or in KOH or NaOH
