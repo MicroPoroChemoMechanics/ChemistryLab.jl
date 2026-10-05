@@ -157,6 +157,7 @@ end
     include("kinetics/test_surface_coupling.jl")
     include("kinetics/test_parameter_ad.jl")
     include("kinetics/test_rhs_speciation.jl")
+    include("kinetics/test_compound_energy_kinetics.jl")
     include("kinetics/test_blended_kinetics.jl")
     include("kinetics/test_quaternary_kinetics.jl")
     include("kinetics/test_ternary_kinetics.jl")
