@@ -469,8 +469,7 @@ log₁₀ γᵢ = Kₙ I
 1. `model.å` — one common radius for every ion, when given. Short-circuits the
    rest of the chain.
 2. `sp[:å]` — explicit value set in species properties.
-3. [`REJ_HKF`](@ref) — Helgeson et al. (1981) Table 3 (27 common ions)
-   [Helgeson1981](@cite).
+3. [`REJ_HKF`](@ref) — Table 3 of [Helgeson1981](@citet) (27 common ions).
 4. [`REJ_CHARGE_DEFAULT`](@ref) — fallback by formal charge, [Xu2012](@cite) Table H.1-1.
 5. `model.å_default` (default: the ion size of NaCl, 3.72 Å, [Helgeson1981](@cite) Table 2).
 
@@ -693,7 +692,7 @@ cs = ChemicalSystem(
 | [`IdealSolidSolutionModel`](@ref) | `ln aᵢ = ln xᵢ` | Default, any number of end-members |
 | [`RedlichKisterModel`](@ref) | `ln aᵢ = ln xᵢ + ln γᵢ` (Margules) | Binary only (2 end-members), parameters in J/mol |
 | [`RegularSolutionModel`](@ref) | `ln γᵢ` from one `Wᵢⱼ` per pair | Any number of end-members; convexity from [`mixing_convexity`](@ref) |
-| [`SublatticeModel`](@ref) | `ln aᵢ = Σₛ mₛ ln y_{s,σₛ(i)}` | Ideal mixing on sites; CNASH_ss of Myers et al., CSH3T of Kulik |
+| [`SublatticeModel`](@ref) | `ln aᵢ = Σₛ mₛ ln y_{s,σₛ(i)}` | Ideal mixing on sites; CNASH_ss of [Myers2014](@citet), CSH3T of [Kulik2011](@citet) |
 
 The solid-solution activity is computed **inside** the aqueous activity closure — no
 separate activity model is needed. The existing `equilibrate(state)` call handles

@@ -158,7 +158,7 @@ value. Two systematic patterns remain, and one point:
 
   - **Below the critical temperature, above saturation**, at 12 °C, the
     calculation is 2 to 4 % high: the solubility follows the fugacity of liquid
-    carbon dioxide, which the equation of Peng and Robinson, built for the
+    carbon dioxide, which the equation of [PengRobinson1976](@citet), built for the
     vapor pressures of hydrocarbons, describes less closely than the gas.
   - **Above 31 °C, from 50 atm up**, it is 3 to 7 % low. The gas phase is
     taken as pure carbon dioxide, whereas it holds a few parts per thousand of

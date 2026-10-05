@@ -8,7 +8,7 @@ the reason it is canonical is a single modeling idea: a real oxide does not
 offer one kind of site but two, and they differ in the two ways that matter
 most.
 
-Dzombak & Morel's ferrihydrite [DzombakMorel1990](@cite) has
+The ferrihydrite of [DzombakMorel1990](@citet) has
 
   - **strong** sites, 0.005 mol per mole of iron, and
   - **weak** sites, 0.2 mol per mole of iron — forty times more of them —
@@ -24,7 +24,7 @@ PHREEQC computing the same thing from its own database.
 
 !!! note "What this is not, yet"
     This runs **without an electric double layer**, `-no_edl` on both sides. The
-    published Dzombak & Morel calibration assumes a diffuse layer, so these
+    published calibration of [DzombakMorel1990](@citet) assumes a diffuse layer, so these
     constants are being used outside the model they were fitted in. That is
     legitimate as a cross-code check — the two codes are doing the same thing —
     and it is **not** a reproduction of the published titration. The layer is
@@ -207,7 +207,7 @@ activity coefficient enters at all, and the surface chemistry is compared alone.
 
 ## The same edge, with the double layer
 
-Everything above ran `-no_edl`. Dzombak & Morel's constants were fitted **with**
+Everything above ran `-no_edl`. The constants of [DzombakMorel1990](@citet) were fitted **with**
 a diffuse layer, so this is the comparison that is actually a reproduction of
 the published model rather than a cross-code check on a truncated one.
 

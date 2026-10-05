@@ -95,7 +95,7 @@ the same occupancy on every site are refused: the model cannot tell them apart.
 
 # Example
 
-The CSH3T model of Kulik (2011), Eq. (19), on its own formula unit: two sites
+The CSH3T model of [Kulik2011; Eq. 19](@citet), on its own formula unit: two sites
 holding Si or Ca, and the pentameric end-member T5C carrying Ca on the first
 and Si on the second.
 
@@ -255,7 +255,7 @@ end-member in its first column).
 # Formula units
 
 A database may store an end-member on another formula unit than the source's:
-the Cemdata18 records of CSH3T are half the units of Kulik (2011). The site
+the Cemdata18 records of CSH3T are half the units of [Kulik2011](@citet). The site
 coefficients belong to the source's unit, and a model applied to records `f`
 times as large has coefficients `f` times as large, because the configurational
 entropy is extensive. When `end_members` are species, their formulas are
@@ -365,7 +365,7 @@ Mixing on sublattices with the two terms of the compound energy formalism that
 ideal site mixing ([`SublatticeModel`](@ref)) leaves out: the **reference
 surface**, on which the Gibbs energies of the end-members are interpolated in the
 site fractions, and **regular interactions** between the species of one site. It
-is the model of the CASH+ C-S-H of Kulik et al. (2022).
+is the model of the CASH+ C-S-H of [Kulik2022](@citet).
 
     CompoundEnergyModel(lattice::SublatticeModel; interactions = ())
 

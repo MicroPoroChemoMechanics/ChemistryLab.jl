@@ -169,12 +169,12 @@ every age, and the first one as laboratory E measured it within 7.2. The two
 laboratories differ by up to 13 points on the same paste, and the round robin
 puts the precision of any technique at ±5 points at best. Laboratory E finds
 the second slag faster, by 11 points at seven days and 16 at ninety, beyond the
-ceiling of 0.54 the law takes from the pastes of Snellings et al. at that w/b.
+ceiling of 0.54 the law takes from the pastes of [Snellings2022](@citet) at that w/b.
 
 ## 5. What the comparison says
 
 **The clinker law has the temperature right only late.** With its published
-constants, the law of Parrott and Killoh brings the clinker of this cement to
+constants, the law of [ParrottKilloh1984](@citet) brings the clinker of this cement to
 within four points of the measured degree at three and six months, at the
 three temperatures, but it is too slow at 20 and 40 °C from the first day, and
 at 5 °C after it.

@@ -253,7 +253,7 @@ asks for it.
 ## 3. The pair itself is computable, from the model alone
 
 The two compositions are not unknown. They follow from the mixing model alone,
-by the construction Glynn and Reardon set out [GlynnReardon1990](@cite) and that
+by the construction [GlynnReardon1990](@citet) set out and that
 PHREEQC uses for a binary solid solution: the pair at which a single straight
 line is tangent to ``g`` twice, equivalently at which both end-members have equal
 chemical potentials in the two phases.

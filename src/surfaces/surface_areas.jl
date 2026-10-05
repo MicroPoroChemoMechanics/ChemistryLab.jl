@@ -202,7 +202,7 @@ measurement.
 A = A_specific × n × M        [m²]
 ```
 
-the standard route in reactive-transport modeling (Palandri & Kharaka 2004).
+the standard route in reactive-transport modeling [PalandriKharaka2004](@cite).
 Using it presumes the area accessible to the dissolving solute is the one the
 adsorbed gas saw, which is an assumption about the pore structure, not a
 measurement of it.

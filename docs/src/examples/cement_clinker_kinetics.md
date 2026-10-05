@@ -404,7 +404,8 @@ Two things in that table are worth naming, because both come straight from the
 parameter sets rather than from the figure:
 
 - **`C₃S` and `C₃A` track each other** to within a few thousandths at every one
-  of those instants. That is a property of Parrott & Killoh's calibration, not a
+  of those instants. That is a property of the calibration of
+  [ParrottKilloh1984](@citet), not a
   general fact about cement: the two minerals are given nearly the same
   diffusion-branch constant, `k₂` = 0.05 d⁻¹ for `C₃S` against 0.04 d⁻¹ for
   `C₃A`, and it is `k₂` that governs once the shell has formed.

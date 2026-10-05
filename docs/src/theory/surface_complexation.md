@@ -421,7 +421,7 @@ is the Hessian of nothing.
 This is a property of the model, not of any implementation of it. Treating the
 bulk as a reservoir whose ionic strength is a parameter is precisely the
 approximation that lets a diffuse layer be written without carrying its own
-inventory of counter-ions — the approximation Dzombak and Morel make, and the
+inventory of counter-ions — the approximation [DzombakMorel1990](@citet) make, and the
 one PHREEQC's default `SURFACE` block makes. What comes back from such a solve
 is a **self-consistent speciation**, mass action and conservation satisfied
 together. It is not a certified minimum, and this package says which it is

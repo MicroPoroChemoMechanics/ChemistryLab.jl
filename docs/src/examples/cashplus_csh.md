@@ -5,8 +5,8 @@
     the site model and the compound energy formalism are derived.
 
 CASH+ is a model of the C-S-H gel by
-[Kulik2022](@citet), which Miron et al. extended to sodium and potassium
-[Miron2022a, Miron2022b](@cite). Like the CNASH gel of
+[Kulik2022](@citet), which [Miron2022a, Miron2022b](@citet) extended to sodium and
+potassium. Like the CNASH gel of
 [the site-mixing page](@ref ex-sublattice-csh), it mixes on the structural sites
 of the silicate chain and of the interlayer. It also adds two terms: the energy
 of the reciprocal reactions between its end-members, and interactions between
@@ -163,7 +163,7 @@ solution in equilibrium with portlandite.
 
 ### The same gel at 50 and 90 °C
 
-Kulik et al. fitted the model at 25 °C and gave its end-members and the CaSiO₃⁰
+[Kulik2022](@citet) fitted the model at 25 °C and gave its end-members and the CaSiO₃⁰
 complex heat capacities for use up to 100 °C (their Section 3.5). They describe
 what the model then predicts: the calcium and silicon in solution change
 little with temperature, the pH falls by 2 to 2.5 units over a hundred degrees,
@@ -243,11 +243,11 @@ than their ratio in solution: at a Ca/Si of 1, with 96.8 mmol/kg of sodium and
 of 1.6 and nearly the same solution it holds four times less sodium and eight
 times less potassium, 0.016 and 0.027 per Si: the calcium that fills the
 interlayer leaves the alkalis little room, the suppression of alkali uptake at
-high Ca/Si that Miron et al. describe.
+high Ca/Si that [Miron2022a](@citet) describe.
 
 ## 3. Against the authors' own calculation
 
-Miron et al. also publish the model *discretized*: 110 gels of fixed composition,
+[Miron2022a](@citet) also publish the model *discretized*: 110 gels of fixed composition,
 each with the Gibbs energy their implementation computes for it, given as the
 equilibrium constant of its dissolution. The formula of each fixes the site
 fractions, so the Gibbs energy of our model at that composition can be set
@@ -320,13 +320,13 @@ here twice, with its C-S-H as `CSHQ` and as `CASH+NK`, everything else equal:
 - **the cement** is the normative composition of the paper (its Table 1): the four
   clinker phases, periclase, free lime, calcite, gypsum and the readily soluble
   alkali sulfates;
-- **the clinker phases hydrate** by the law of Parrott and Killoh with the
+- **the clinker phases hydrate** by the law of [ParrottKilloh1984](@citet) with the
   constants of the paper (its Table 3), including the two it adapts for belite
   and the critical degree of hydration of each phase;
 - **the minor oxides of the clinker** (0.052 g of K₂O, 0.31 g of Na₂O, 0.87 g of
   MgO and 0.11 g of SO₃ per 100 g) are released with the phases that hold them.
   The paper gives their totals, not how they are shared among the phases. This
-  page assumes the sharing of Lothenbach and Winnefeld (2006), after Taylor, as a
+  page assumes the sharing of [LothenbachWinnefeld2006](@citet), after Taylor, as a
   content per gram of each phase;
 - **the phases that may form** are those of the Portland paste of
   [the validation page](@ref ex-validation), a paste of the same
@@ -381,7 +381,7 @@ savefig(fig, "cashplus-pc4.svg"); nothing # hide
 Both models certify the paste at every age. From 7 days on, CASH+NK leaves more
 sodium and potassium in solution than CSHQ, and closer to the analysis: at 28
 days 160 and 338 mmol/kg against 172 and 532 measured, where CSHQ gives 105 and
-290. That is the improvement Miron et al. report. Neither model follows the rise
+290. That is the improvement [Miron2022b](@citet) report. Neither model follows the rise
 of both alkalis after 28 days, to 331 and 563 mmol/L at 400 days: CASH+NK stays
 near 164 and 334, CSHQ near 108 and 281. The pH follows the same order, 13.7 with
 CASH+NK, 13.6 with CSHQ and 13.7 to 13.8 measured. After the first day the
@@ -394,7 +394,7 @@ day (53 and 85 mmol/kg) and between 2.7 and 6.2 afterwards.
 
 ## 5. The other cations: lithium to radium
 
-Miron et al. extended the interlayer site further, to lithium, rubidium and
+[Miron2022a](@citet) extended the interlayer site further, to lithium, rubidium and
 cesium and to magnesium, strontium, barium and radium, and fitted each on uptake
 experiments [Miron2022a](@cite). `CASH+ext` is that model: 33 end-members, with
 the interaction parameters of their Table A3. Their Table A2 gives the equilibrium
@@ -449,7 +449,7 @@ that solution the gel certifies, and holds 78 % of the strontium but 4 % of the
 cesium, 2 % of the sodium and 2 % of the potassium. Strontium takes the place of
 the interlayer calcium one for one (TSSrh is TSCh with Sr for one Ca), where a
 monovalent cation takes it with one hydroxide less (TSNh). The
-uptake experiments on which Miron et al. fitted each cation are not reproduced
+uptake experiments on which [Miron2022a](@citet) fitted each cation are not reproduced
 here.
 
 ## Where to go next

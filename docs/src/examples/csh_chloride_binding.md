@@ -23,7 +23,7 @@ calcium and chloride constants were fitted to zeta potentials by
         neither dissolves nor precipitates, and it is not the CSHQ solid
         solution of the cement pages. Putting the sites on CSHQ would count its
         calcium and its alkalis twice, once in the solid and once on the surface.
-      - The diffuse layer sets the potential, following Dzombak and Morel as
+      - The diffuse layer sets the potential, following [DzombakMorel1990](@citet) as
         PHREEQC does by default. The ions it holds are counted only in
         [the last section](@ref "The chloride of the diffuse layer"), and there
         with a thickness that nothing published fixes for this paste.
@@ -146,7 +146,7 @@ end
 
 The same paste is computed by PHREEQC on the same model: the same reactions
 and constants, the hydrates with the log K the package gives them, the Davies
-equation on both sides and Dzombak and Morel's diffuse layer. The generator,
+equation on both sides and the diffuse layer of [DzombakMorel1990](@citet). The generator,
 `test/reference/phreeqc_csh_surface.py`, asks the package for every energy and
 molar mass it uses, so the comparison is of the two solvers and of nothing else.
 

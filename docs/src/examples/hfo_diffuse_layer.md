@@ -5,7 +5,7 @@
     [Chemistry that happens on a surface](@ref sec-theory-surface) §8 and §9.
 
 [The zinc edge](@ref sec-example-hfo) ran with the electrostatics switched off,
-and said in a box that the published Dzombak & Morel constants were therefore
+and said in a box that the published constants of [DzombakMorel1990](@citet) were therefore
 being used outside the model they were fitted in. This page closes that gap for
 the acid-base half of the problem, and is equally explicit about the half it
 does not close.
@@ -18,7 +18,7 @@ electrolyte**, and that dependence is the whole content of the model.
 
 ## The experiment
 
-Ferrihydrite's weak sites at Dzombak & Morel's own density — 2.0 × 10⁻⁴ mol of
+Ferrihydrite's weak sites at the density of [DzombakMorel1990](@citet) — 2.0 × 10⁻⁴ mol of
 sites on 53.4 m², which is 2.25 sites per square nanometer — titrated from pH 4
 to pH 9 in sodium chloride, at three concentrations two decades apart.
 
@@ -255,7 +255,7 @@ plot(p1, p2; layout = (1, 2), size = (1000, 420), dpi = 130,
     and carrying the potential as an unknown does not change that.
     [The theory page](@ref sec-theory-surface) measures it, and separates it
     carefully from the constant capacitance, which is a gradient.
-  - The **published Dzombak & Morel metal calibration** is now within reach: the
+  - The **published metal calibration of [DzombakMorel1990](@citet)** is now within reach: the
     acid-base half is reproduced at circumneutral pH, which is where the
     elimination used to stop. The metal half needs the zinc of
     [the sorption edge](@ref sec-example-hfo) run with the layer on, and that is

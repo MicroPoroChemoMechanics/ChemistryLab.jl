@@ -20,8 +20,8 @@ exposed on the grain takes a proton in acid and gives one up in base:
 ```
 
 so the surface is positive in acid, negative in base, and neutral in between.
-The constants below are Dzombak & Morel's for the weak sites of hydrous ferric
-oxide [DzombakMorel1990](@cite), `log K = 7.29` and `log K = −8.93`, the values
+The constants below are those of [DzombakMorel1990](@citet) for the weak sites of
+hydrous ferric oxide, `log K = 7.29` and `log K = −8.93`, the values
 PHREEQC ships.
 
 ## The species
@@ -234,8 +234,9 @@ visible:
 
 ## And against another code
 
-The same calculation is checked against PHREEQC, running Dzombak & Morel's model
-from its own database, in `test/surface_complexation.jl`. The comparison is made
+The same calculation is checked against PHREEQC, running the model of
+[DzombakMorel1990](@citet) from its own database, in
+`test/surface_complexation.jl`. The comparison is made
 at matched proton activity — which both codes prescribe exactly — so the aqueous
 activity models, which differ, do not enter. With no metal in the system there
 is nothing else they could enter through.

@@ -15,7 +15,7 @@ using DynamicQuantities
 
 Associates a chemical [`Reaction`](@ref) with a compiled [`KineticFunc`](@ref).
 
-Following Leal et al. (2017), **reactions** — not individual species — carry kinetics.
+Following [Leal2017](@citet), **reactions** — not individual species — carry kinetics.
 A single mineral can therefore appear as a reactant in multiple `KineticReaction` objects
 (e.g. C₃A → ettringite and C₃A → monosulphate for multi-pathway cement hydration).
 The ODE state is indexed by unique mineral species, and contributions from all reactions
@@ -280,8 +280,8 @@ AD-compatible: all operations use generic Julia arithmetic; no `Float64` casts.
 
 # References
 
-  - Palandri, J.L. & Kharaka, Y.K. (2004). USGS Open-File Report 2004-1068.
-  - Leal, A.M.M. et al. (2017). Pure Appl. Chem. 89, 597–643.
+  - [PalandriKharaka2004](@citet).
+  - [Leal2017](@citet).
 """
 function transition_state(
         mechanisms::AbstractVector{<:RateMechanism},

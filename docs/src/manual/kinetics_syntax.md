@@ -668,8 +668,8 @@ solution: [`heat_flow`](@ref) from the derivative of the interpolant,
 
 ## [Two Parrott–Killoh variants](@id pk-variants)
 
-ChemistryLab ships **two** implementations of the Parrott & Killoh clinker
-hydration model. They are not interchangeable, and their parameter sets are not
+ChemistryLab ships **two** implementations of the clinker hydration model of
+[ParrottKilloh1984](@citet). They are not interchangeable, and their parameter sets are not
 transferable between them.
 
 | | [`parrott_killoh`](@ref) (deprecated) | [`parrott_killoh_avrami`](@ref) |
@@ -714,13 +714,14 @@ pk = parrott_killoh_avrami(
 The three corrections are exported separately — [`powers_alpha_max`](@ref),
 [`blaine_factor`](@ref) and [`humidity_factor`](@ref) — and multiply the rate.
 `humidity` also accepts a callable `t -> h(t)` for a drying history. A fourth,
-`w_c`, is Parrott and Killoh's own water/cement factor, [`pk_wc_factor`](@ref):
+`w_c`, is the water/cement factor of [ParrottKilloh1984](@citet), [`pk_wc_factor`](@ref):
 it slows a phase once its degree passes `1.333 w/c`, or `H w/c` with the critical
-degree `H` that Lothenbach et al. (2008) fit for each clinker phase, passed as
+degree `H` that [Lothenbach2008](@citet) fit for each clinker phase, passed as
 `H`. In a blend, `w/c` is the water over the cement alone, so the factor is what
 lets the clinker of a slag cement hydrate further than that of the plain one.
 
-Supplementary cementitious materials do not follow Parrott & Killoh at all. Their
+Supplementary cementitious materials do not follow the law of
+[ParrottKilloh1984](@citet) at all. Their
 pozzolanic or latent-hydraulic reaction follows [`waller`](@ref), a sigmoid in
 log-time, with [`WALLER_PARAMS_FLY_ASH`](@ref) or [`WALLER_PARAMS_SILICA_FUME`](@ref).
 No set is shipped for a slag: the 100-day time this package attributed to Waller

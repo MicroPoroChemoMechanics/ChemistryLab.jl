@@ -337,11 +337,11 @@ The sweep holds the lime and varies the silica, and every row is pinned to the
 digits above. Calculated calcium is flat between Ca/Si 0.9 and 1.0 and rises
 below it, the direction incongruent dissolution would take it; it never
 approaches 1.95. The floor is a property of the CSHQ model, not of the mixture:
-Atkins' own 1992 model, on the same nominal C-S-H, gave 2.04.
+The model of [Atkins1992](@citet), on the same nominal C-S-H, gave 2.04.
 
 Sulfate lands close, but it is the one number here that moves freely with the
 Ca/Si — 0.76 at 1.0, 2.51 at 0.75 — so the agreement is not evidence of much.
-Atkins' own 1992 model gave 0.597; Cemdata18 is nearer, and that is the whole
+The model of [Atkins1992](@citet) gave 0.597; Cemdata18 is nearer, and that is the whole
 claim.
 
 !!! note "Gibbsite has to be suppressed, and it changes the answer"
@@ -640,12 +640,12 @@ for this system: the C-S-H is a reaction product, so its amount moves and the
 sites should move with it. `SITES_FOLLOW_HOST` expresses that, and at Guo's
 density, `4·10⁻³ mol/g` on a `(CaO)₁.₆₆₇(SiO₂)(H₂O)₂.₁` of `191.4 g/mol`, the
 coupling ratio is `ν = 0.766` mol of sites per mol of host, nearly four times
-Dzombak and Morel's `ν = 0.2` for hydrous ferric oxide. What prevents it here
-is not the size of `ν` but the calcium: Guo's sites bind calcium, and a C-S-H
+the `ν = 0.2` of [DzombakMorel1990](@citet) for hydrous ferric oxide. What prevents it here
+is not the size of `ν` but the calcium: the sites of [Guo2018](@citet) bind calcium, and a C-S-H
 whose composition already includes the calcium of its surface cannot also carry
 it on the sites. The construction of the system refuses a family that binds
 calcium on the CSHQ solid solution for that reason, and the fixed budget used
-above is the published model as Guo et al. write it.
+above is the published model as [Guo2018](@citet) write it.
 
 For a surface case that *is* checked against an external oracle, see
 `test/surface_complexation.jl`, which runs against PHREEQC at matched proton

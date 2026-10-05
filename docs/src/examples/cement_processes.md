@@ -126,7 +126,7 @@ its calcium from the C-S-H. The Ca/Si of the gel falls from 1.58 to 0.67 by
 calcium-poor end member, and the pH holds at that value while it is carbonated in
 turn. At 1.0 mol no C-S-H is left, and the pH is 7.99. The
 [carbonation page](@ref sec-cement-carbonation) compares this sequence with the
-calculation and the measurements of Shi et al. on four mortars.
+calculation and the measurements of [Shi2016](@citet) on four mortars.
 
 ```@example processes
 names = ["Portlandite", "Cal", "ettringite", "monocarbonate", "Gp", "Amor-Sl"]

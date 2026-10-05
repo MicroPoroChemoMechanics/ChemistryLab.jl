@@ -286,7 +286,7 @@ m², and `ε_r` the relative permittivity of the solvent. Like
 [`ConstantCapacitance`](@ref) it **decorates** another mixing model: the site
 fractions stay whatever `base` says, and this adds the electrical work.
 
-This is the model behind the calibration of Dzombak and Morel (1990) and the
+This is the model behind the calibration of [DzombakMorel1990](@citet) and the
 default of PHREEQC's `SURFACE` block — which is what makes it checkable against
 another code rather than only against itself.
 
@@ -425,7 +425,7 @@ supports_multidentate(m::DiffuseLayer) = supports_multidentate(m.base)
     water_relative_permittivity(T_K, P_Pa = 1.0e5) -> Real
 
 The relative permittivity (dielectric constant) of liquid water at `T_K` kelvin
-and `P_Pa` pascal, from the Johnson-Norton (1991) model this package already
+and `P_Pa` pascal, from the model of [JohnsonNorton1991](@citet) this package already
 carries for the HKF activity model.
 
 It is `78.245` at 25 °C and 1 bar, and falls to `66.68` at 60 °C — which is why
@@ -893,7 +893,7 @@ For each site family of `cs`, the indices of **every** family sharing its
 support — itself included — identified by the support's name.
 
 A surface carries one potential, not one per family. Ferrihydrite is the case
-that makes this concrete: Dzombak and Morel's strong and weak sites are two
+that makes this concrete: the strong and weak sites of [DzombakMorel1990](@citet) are two
 families on one oxide, so a proton bound to a weak site charges the same
 surface a proton bound to a strong site does, and both feel the same `Ψ`.
 Computing a potential from one family's members alone would make the two sites

@@ -367,7 +367,7 @@ end
 Zero, over the whole record. The Jander term is
 `α̇₂ = k₂(1-ξ)^{2/3}/(1-(1-ξ)^{1/3})`, which *falls* as ξ grows, but at the
 published constants it never becomes the minimum of the three branches, so the
-released heat does not depend on `k₂` at all, as Parrott and Killoh reported. A
+released heat does not depend on `k₂` at all, as [ParrottKilloh1984](@citet) reported. A
 ten times smaller `k₂` makes the branch bind, and the sensitivity then sees it.
 
 Until 0.28.2 this page printed about an eighth of `k₁`'s influence instead. The

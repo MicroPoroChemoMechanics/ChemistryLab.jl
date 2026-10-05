@@ -311,7 +311,7 @@ end
 
 The fugacity coefficient ``\\varphi_i`` of every gas of `state`, at its
 temperature, pressure and gas composition: 1 in an ideal gas phase, the value
-of the equation of state of Peng and Robinson when the gases carry critical
+of the equation of state of [PengRobinson1976](@citet) when the gases carry critical
 constants ([`peng_robinson`](@ref)). The fugacity of a gas is
 ``\\varphi_i y_i P``.
 
@@ -332,7 +332,7 @@ end
     compressibility_factor(state::ChemicalState) -> Float64
 
 The compressibility factor ``Z = PV/(NRT)`` of the gas phase of `state`: 1 for
-an ideal gas phase, the root of the cubic of Peng and Robinson of least Gibbs
+an ideal gas phase, the root of the cubic of [PengRobinson1976](@citet) of least Gibbs
 energy when the gases carry critical constants ([`peng_robinson`](@ref)). The
 gas phase occupies ``Z N R T/P``.
 

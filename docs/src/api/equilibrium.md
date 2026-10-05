@@ -13,7 +13,7 @@ Pages = ["equilibrium/activities.jl"]
 
 ## Real gases
 
-The equation of state of Peng and Robinson for a gas phase: the critical
+The equation of state of [PengRobinson1976](@citet) for a gas phase: the critical
 constants a gas carries, its fugacity coefficients and the compressibility factor
 of its phase. See [Real gases and pressure](@ref sec-theory-real-gases).
 

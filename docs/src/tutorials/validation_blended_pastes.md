@@ -249,9 +249,10 @@ one that takes less calcium per silicon. `CSHQ` has no aluminum end-member, and
 the model's gel holds none.
 
 **The pore solution follows from both.** The pH is within 0.3 unit at every age.
-In the CEM I the alkalis are low, as on the page of Lothenbach and Winnefeld
-(sodium 114 against 302 mmol at 140 days, potassium 318 against 565), `CSHQ`
-holding them. In the fly ash pastes the measured pH falls after 28 days, 13.6 to
+In the CEM I the alkalis are low (sodium 114 against 302 mmol at 140 days,
+potassium 318 against 565), `CSHQ` holding them, as for the paste of
+[LothenbachWinnefeld2006](@citet) on [its page](@ref ex-validation). In the fly
+ash pastes the measured pH falls after 28 days, 13.6 to
 13.4 and 13.5 to 13.3, while the model's rises, 13.55 to 13.58 and 13.57 to 13.60:
 the pastes lose potassium after 28 days (271 to 227 mmol in the CEM II/B-V) and
 the model gains it (242 to 268) from the clinker and the glass that go on

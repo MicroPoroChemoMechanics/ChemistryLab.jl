@@ -10,9 +10,9 @@ using ForwardDiff
     water_properties.jl
 
 Water thermodynamic and electrostatic properties using:
-- HGK (Haar-Gallagher-Kell 1984) equation of state for density and derivatives
-- Johnson-Norton (1991) dielectric constant model and Born functions
-- Shock et al. (1992) g-function for electrostatic corrections
+- the HGK equation of state of [Haar1984](@citet) for density and derivatives
+- the dielectric constant model of [JohnsonNorton1991](@citet) and Born functions
+- the g-function of [Shock1992](@citet) for electrostatic corrections
 
 All functions are AD-compatible (ForwardDiff.Dual-safe).
 """
@@ -40,7 +40,7 @@ end
     WaterElectroProps{T<:Real}
 
 Dielectric constant `ε` of water and Born functions `Z, Y, Q, X, U, N`,
-from Johnson and Norton (1991).
+from [JohnsonNorton1991](@citet).
 """
 struct WaterElectroProps{T <: Real}
     epsilon::T
@@ -55,7 +55,7 @@ end
 """
     HKFGState{T<:Real}
 
-Shock et al. (1992) g-function and its first- and second-order partial derivatives
+The g-function of [Shock1992](@citet) and its first- and second-order partial derivatives
 w.r.t. T and P.
 """
 struct HKFGState{T <: Real}
@@ -71,7 +71,7 @@ end
     SpeciesElectroPropsHKF{T<:Real}
 
 Born coefficient `ω` for an aqueous species and its partial derivatives,
-from the HKF model of Helgeson et al. (1981) extended by Shock et al. (1992).
+from the HKF model of [Helgeson1981](@citet) extended by [Shock1992](@citet).
 """
 struct SpeciesElectroPropsHKF{T <: Real}
     w::T
@@ -622,7 +622,7 @@ end
     water_electro_props_jn(T_K, P_Pa, wtp::WaterThermoProps) -> WaterElectroProps
 
 Compute dielectric constant and Born functions Z, Y, Q, X, U, N for water using the
-Johnson-Norton (1991) model.
+model of [JohnsonNorton1991](@citet).
 
 AD-compatible (ForwardDiff-safe).
 """
@@ -708,7 +708,7 @@ water_electro_props_jn(T_K::Real, P_Pa::Real, wtp::WaterThermoProps) =
 """
     hkf_g_function(T_K, P_Pa, wtp::WaterThermoProps) -> HKFGState
 
-Compute the Shock et al. (1992) g-function and its derivatives for the HKF model.
+Compute the g-function of [Shock1992](@citet) and its derivatives for the HKF model.
 Returns zero state if water density is outside [350, 1000] kg/m³.
 
 AD-compatible (ForwardDiff-safe).
@@ -811,7 +811,7 @@ hkf_g_function(T_K::Real, P_Pa::Real, wtp::WaterThermoProps) =
 Compute the Born coefficient `ω` and its derivatives for an aqueous species with
 charge `z` and reference Born coefficient `wref` (J/mol).
 
-Uses the model of Helgeson, Kirkham & Flowers (1981), extended by Shock et al. (1992).
+Uses the model of [Helgeson1981](@citet), extended by [Shock1992](@citet).
 AD-compatible (ForwardDiff-safe).
 """
 function species_electro_props_hkf(gstate::HKFGState{T}, z::Real, wref::Real) where {T <: Real}

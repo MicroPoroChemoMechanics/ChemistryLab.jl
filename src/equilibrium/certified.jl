@@ -494,7 +494,7 @@ certify.
 
 The two problems differ by the site-mixing term alone, and the one without it is
 the solve the package has always done. Measured on a CEM I paste with the CNASH
-gel of Myers et al. (CEMDATA18, its eq. C.1 activity model): certified in 20.5 s
+gel of [Myers2014](@citet) (CEMDATA18, its eq. C.1 activity model): certified in 20.5 s
 from the state as given, in 0.67 s from this start, which costs 0.25 s itself.
 """
 function _ideal_mixing_start(

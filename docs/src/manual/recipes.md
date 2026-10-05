@@ -60,7 +60,7 @@ pc = material_template("PC (Durdzinski 2017), Bogue", cs)
 An extent is a number between 0 and 1, a function of time, or one of
 [`ConstantExtent`](@ref), [`TabulatedExtent`](@ref) (measured degrees of
 reaction, interpolated), [`LogisticExtent`](@ref), [`ParrottKillohExtent`](@ref)
-(the rate law of Parrott and Killoh integrated) and [`CappedExtent`](@ref)
+(the rate law of [ParrottKilloh1984](@citet) integrated) and [`CappedExtent`](@ref)
 (any of them under Powers' water limit). [`with_extents`](@ref) sets them by
 constituent, and `material_extent` sets one for the material as a whole; the
 effective extent of a constituent is the product of the two

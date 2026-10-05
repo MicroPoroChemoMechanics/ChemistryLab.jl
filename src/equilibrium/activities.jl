@@ -308,12 +308,12 @@ end
     REJ_HKF::Dict{String,Float64}
 
 Effective electrostatic radii r_e,j [Å] of aqueous ions from
-Helgeson, Kirkham & Flowers (1981), *Am. J. Sci.* **281**, Table 3, read from
+[Helgeson1981; Table 3](@citet), read from
 `data/literature/Helgeson1981.json`.
 
 Keys are PHREEQC-format formula strings (e.g. `"Na+"`, `"Ca+2"`, `"SO4-2"`).
 A radius is not an ion size: [`HKFActivityModel`](@ref) turns it into one with
-Eq. (125) of Helgeson et al., for the electrolyte the ion forms with the NaCl
+Eq. (125) of [Helgeson1981](@citet), for the electrolyte the ion forms with the NaCl
 background (see its docstring), at priority 3 of its lookup:
 `model.å` > `sp[:å]` > `REJ_HKF` > [`REJ_CHARGE_DEFAULT`](@ref) > `model.å_default`.
 
@@ -327,7 +327,7 @@ end
     REJ_CHARGE_DEFAULT::Dict{Int,Float64}
 
 Fallback effective electrostatic radii r_e,j [Å] indexed by formal charge, for
-species absent from Table 3 of Helgeson et al. (1981): Table H.1-1 of the
+species absent from Table 3 of [Helgeson1981](@citet): Table H.1-1 of the
 TOUGHREACT V2 user's guide [Xu2012](@cite), read from
 `data/literature/Xu2012.json`.
 
@@ -361,7 +361,7 @@ const _NACL_ION_SIZE = literature_value("Helgeson1981", "nacl_distance_of_closes
     _hkf_sigma(x) -> Real
 
 Compute the σ function used in the osmotic coefficient formula
-(Helgeson et al. 1981, Eq. 132–137):
+[Helgeson1981; Eqs. 132–137](@cite):
 
 ```
 σ(x) = (3/x³)(x − 2 ln(1+x) − 1/(1+x) + 1)
@@ -387,7 +387,7 @@ end
 Compute the Debye-Hückel A and B parameters from the water density ρ [g/cm³]
 and dielectric constant εᵣ at temperature `T_K` (K) and pressure `P_Pa` (Pa).
 
-Formulas (Helgeson et al. 1981):
+Formulas [Helgeson1981](@cite):
 ```
 A(T,P) = 1.824829238×10⁶ × √ρ / (εᵣ T)^(3/2)    [(kg/mol)^(1/2)]
 B(T,P) = 50.29158649      × √ρ / √(εᵣ T)          [Å⁻¹ (kg/mol)^(1/2)]
@@ -473,7 +473,7 @@ of the background, Cl⁻ for a cation and Na⁺ for an anion,
 
 which is how TOUGHREACT forms it [Xu2012; Eqs. H.4–H.5](@cite). A radius is
 not an ion size: Na⁺ has `r_e = 1.91 Å`, and NaCl `å = 3.72 Å`, the value
-Helgeson et al. tabulate (Table 2).
+[Helgeson1981; Table 2](@citet) tabulate.
 """
 function _hkf_ion_size(r_e, z)
     zabs = abs(z)
@@ -541,7 +541,7 @@ consistent with the same parameters rather than being a separate assumption:
 ```
 
 with `σ(x) = (3/x³)(x − 2\\ln(1+x) − 1/(1+x) + 1)` ([`_hkf_sigma`](@ref),
-Helgeson et al. 1981 Eqs. 132–137).
+[Helgeson1981; Eqs. 132–137](@citet)).
 
 # The physics each term carries
 
@@ -573,7 +573,7 @@ Helgeson et al. 1981 Eqs. 132–137).
 | field | default | unit | provenance |
 |:--|:--|:--|:--|
 | `A` | $(_DH_A_25C) | (kg/mol)^½ | the LLNL aqueous model at 25 °C as [ParkhurstAppelo2013](@citet) tabulate it (p. 118) — **and** reproduced to `1e-3` by [`hkf_debye_huckel_params`](@ref) from this package's own water model, which is the check in `test/activities.jl`. [Helgeson1981](@citet), Table 1, gives 0.5091 at 25 °C from the water properties of their time |
-| `B` | $(_DH_B_25C) | Å⁻¹(kg/mol)^½ | the same table; Helgeson et al. give 0.3283 |
+| `B` | $(_DH_B_25C) | Å⁻¹(kg/mol)^½ | the same table; [Helgeson1981](@citet) give 0.3283 |
 | `Ḃ` | $(_BDOT_25C) | kg/mol | the same table: the B-dot of the LLNL model at 25 °C. What the term *is* is set out in [AndersonCrerar1993](@citet) §17.7.1 |
 | `Kₙ` | $(_UNCHARGED_B) | kg/mol | the coefficient `b` of `log γ = b I` that PHREEQC gives an uncharged species with no parameters of its own [ParkhurstAppelo2013; p. 201](@cite); overridden per species by `sp[:Kₙ]`, which is how `CO₂(aq)` gets its own |
 | `å_default` | $(_NACL_ION_SIZE) | Å | the distance of closest approach of NaCl, [Helgeson1981](@cite) Table 2; a last resort, reached only for a charge no table covers (`|z| ≥ 5`) |
@@ -779,7 +779,7 @@ end
     activity_model(cs::ChemicalSystem, model::HKFActivityModel) -> Function
 
 Return a closure `lna(n, p) -> Vector` computing log-activities for the
-extended Debye-Hückel (B-dot) model of Helgeson (1969).
+extended Debye-Hückel (B-dot) model of [Helgeson1969](@citet).
 
 The closure captures all species indices and ionic radii at construction time.
 Inside `lna`:
@@ -1150,7 +1150,7 @@ end
     activity_model(cs::ChemicalSystem, model::DaviesActivityModel) -> Function
 
 Return a closure `lna(n, p) -> Vector` computing log-activities for the
-Davies (1962) model. No species-specific ionic radii are required.
+model of [Davies1962](@citet). No species-specific ionic radii are required.
 
 AD-compatible: all closure computations accept `ForwardDiff.Dual` inputs.
 """

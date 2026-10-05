@@ -15,7 +15,7 @@ second is how [Kulik2011](@citet) defines the CSH3T gel and
 
 This page does two things. It solves the same CSH3T gel in water both ways and
 shows how much the pore solution depends on the choice. Then it computes a
-C-(N-)A-S-H gel with the model of Myers et al. and reads from it the minimum chain
+C-(N-)A-S-H gel with the model of [Myers2014](@citet) and reads from it the minimum chain
 length of their Eq. (11).
 
 ```@example sublattice
@@ -116,7 +116,7 @@ settled here; what the table settles is how much the choice weighs.
 
 ## 2. The C-(N-)A-S-H gel and its chain length
 
-The CNASH gel of Myers et al. has eight end-members on six sites. Its formula
+The CNASH gel of [Myers2014](@citet) has eight end-members on six sites. Its formula
 unit counts the silicate chain in *dreierketten* units, three tetrahedra each:
 two paired ones, and a bridging one that can be vacant. Their Table 1 gives, for
 each end-member, the fraction ``\nu`` of bridging sites that are vacant, and
@@ -189,7 +189,7 @@ take the aluminum have fewer vacant bridging sites than T2C. The gel also takes
 sodium, about 0.18 per silicon. At this Ca/Si it holds no more aluminum than
 0.125 per silicon: of the 0.15 added, the rest precipitates as gibbsite (`Gbs`).
 Every paste certifies. The chain length is a lower bound, since Eq. (11) counts
-the chains as not crosslinked, as Myers et al. state.
+the chains as not crosslinked, as [Myers2014](@citet) state.
 
 ## Where to go next
 
@@ -199,4 +199,4 @@ it are in [Solid solutions](@ref sec-theory-solid-solutions).
 beside the `CSHQ` model of the same gel, and [The models of the C-S-H gel](@ref
 sec-csh-models) lists the six models the package ships. [The CASH+ page](@ref
 ex-cashplus-csh) adds to site mixing the energies of the compounds, in the model of
-Kulik et al.
+[Kulik2022](@citet).

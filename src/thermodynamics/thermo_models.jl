@@ -190,8 +190,8 @@ const _HKF_Ψ = 2.6e+8   # Ψ constant (Pa)
 """
     _build_hkf_thermo_functions(params) -> OrderedDict
 
-Internal builder for the HKF (Helgeson-Kirkham-Flowers 1981/1988) standard thermodynamic
-model for aqueous solutes.
+Internal builder for the HKF (Helgeson-Kirkham-Flowers) standard thermodynamic
+model for aqueous solutes [Helgeson1981, TangerHelgeson1988](@cite).
 
 `params` must contain (all in SI units):
   - `:a1`, `:a2`, `:a3`, `:a4`  — equation-of-state coefficients (J·mol⁻¹·Pa⁻¹, etc.)
