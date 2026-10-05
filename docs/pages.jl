@@ -162,6 +162,9 @@ pages = [
         "Validation" => [
             "tutorials/reaktoro_comparison.md",
             "tutorials/published_data_validation.md",
+            # The temperature dependence of the database's constants, against
+            # the fits to measured constants that PHREEQC ships.
+            "tutorials/validation_logk_temperature.md",
             # A measured paste through its first year, and the same budgets
             # through GEMS3K: the model against the paste, the code against the code.
             "tutorials/validation_measured_pastes.md",
@@ -246,6 +249,7 @@ pages = [
             # The hydrates of two cements from 0 to 60 °C, against the same
             # calculation on cemdata2007.
             "examples/hydrates_temperature.md",
+            "examples/chloride_temperature.md",
         ],
         # Beyond the Portland cement. One page per EN 197-1 family, in order of
         # how much of the clinker is replaced and of what the replacement asks

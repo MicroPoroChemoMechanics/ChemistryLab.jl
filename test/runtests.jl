@@ -133,6 +133,8 @@ end
     include("validation_shi2016.jl")
     include("validation_lothenbach2008.jl")
     include("validation_lothenbach2008_temperature.jl")
+    include("validation_chloride_temperature.jl")
+    include("validation_logk_temperature.jl")
     include("validation_scholer2017.jl")
     include("validation_deschner2012.jl")
     include("validation_deschner2013.jl")

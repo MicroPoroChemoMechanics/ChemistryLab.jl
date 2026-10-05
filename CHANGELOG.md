@@ -65,6 +65,26 @@
   diffraction finds 12 at 20 °C and 14 at 5 °C; the carboaluminate is the
   stable monocarbonate where the paste holds hemicarbonate; the hydrotalcite
   forms at once from magnesia released at the mixing.
+- **Friedel's and Kuzel's salts from 0 to 99 °C** (`scripts/balonis2019_temperature.jl`,
+  the page *Friedel's and Kuzel's salts from 0 to 99 °C*), against the four
+  model mixtures of Balonis (2019): C3A, portlandite and water with sulfate,
+  chloride and calcite. Her two salts are the Cemdata18 records (her Table 1,
+  checked to the last digit). With chloride plentiful the calculation follows
+  hers: Friedel's salt goes between 90 and 95 °C (80 and about 90 °C), the
+  solids lose 22.8 and 26.0 % of their volume (23 and 25 %), monocarbonate
+  goes between 50 and 55 °C (about 50). With chloride scarce, Kuzel's salt
+  stays up to 99 °C where hers goes above 28 °C: of the same records, Kuzel's
+  salt is stable against half monosulfate and half Friedel's salt by 1.6 kJ/mol
+  at 25 °C and 0.3 at 99 °C, a margin her ideal solid solutions of Friedel's
+  salt, which the package does not declare, close.
+- **Equilibrium constants from 5 to 90 °C** (`scripts/logk_temperature_check.jl`,
+  the page *Equilibrium constants from 5 to 90 °C*): twelve reactions of
+  Cemdata18 (water, the carbonate system, bisulfate, CO2(g), calcite,
+  aragonite, dolomite, gypsum, anhydrite, quartz, amorphous silica) against
+  the analytical expressions of `phreeqc.dat`. Ten share their constant at
+  25 °C within 0.01 (anhydrite 0.08 apart, quartz 0.23); their temperature
+  dependences agree within 0.07 up to 50 °C, within 0.24 up to 90 °C, the
+  largest difference being calcite's.
 - The XRD-Rietveld names of a material template now include `Alite`, `Belite`,
   `C3A ortho` and `Aphthitalite` (by its oxides), as Table 1 of Snellings et al.
   (2022) prints them.
