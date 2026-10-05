@@ -82,8 +82,10 @@ pages = [
         # time, and a binder's engineering behavior is entirely about time.
         "Kinetics" => [
             "theory/kinetics.md",
-            # How a run under partial equilibrium is integrated: the right-hand
-            # side, its exact Jacobian, and the energy balance of a calorimeter.
+            # How a run under partial equilibrium is integrated: the partition and
+            # why the state carries element amounts, the right-hand side and its
+            # exact Jacobian, the implicit step, and the energy balance of a
+            # calorimeter. The tutorials and applications run it and point here.
             "theory/partial_equilibrium_kinetics.md",
         ],
         # The material this package exists for. What a Gibbs minimization can

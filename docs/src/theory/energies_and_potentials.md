@@ -306,7 +306,7 @@ reached, is what gives the metastable state as an answer. This is how the
 package treats a hydrating paste: the slow dissolution is integrated in time,
 and at every instant the rest is the minimum of ``G`` given what has dissolved
 so far, an equilibrium called partial
-([Coupling kinetics and equilibrium](@ref sec-coupling)). The only genuine
+([Kinetics under partial equilibrium](@ref sec-theory-pe-partition)). The only genuine
 non-convexity in composition is that of a solid solution with a miscibility
 gap, and it is a different phenomenon: two coexisting compositions of one
 phase ([Solid solutions](@ref sec-theory-solid-solutions)).

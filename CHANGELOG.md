@@ -12,7 +12,8 @@ portlandite lies between CSHQ and CNASH_ss, and CSHQ stays the gel of the
 pages. Two defects found on the way are fixed: a kinetic run with a
 compound-energy C-S-H stopped before its first step, and a barely unstable
 member of the sublattice gel left its answer uncertified, which OptimaSolver
-0.8.1, now required, corrects.
+0.8.1, now required, corrects. The foundations of the theory are rewritten, and
+the theory of the coupling, which four pages repeated, is gathered in one.
 
 ### Added
 
@@ -63,6 +64,26 @@ member of the sublattice gel left its answer uncertified, which OptimaSolver
   as portlandite. CSHQ holds the calcium of the gel within 0.052 and puts all the
   aluminum in the hydrates from the smallest Al/Si. All 34 certify with both
   models; with CNASH_ss they need OptimaSolver 0.8.1.
+
+### Documentation
+
+- **The foundations of the theory rewritten** (PR #92, Anthony Soive): three
+  pages in the order a first reader's questions arise, *The two laws, and what
+  the Gibbs energy measures* (the balances on a boundary, the enthalpy a
+  calorimeter measures, the heat the package counts), *The chemical potential
+  and reactions* and *Formation quantities and the database*, with five
+  figures; errors corrected and pages that contradicted each other reconciled.
+- **The theory of the coupling in one place.** The partition, why the state
+  carries element amounts, when the partition may be frozen within a step and
+  the implicit step of Leal et al. (2017) were written out in the coupling
+  tutorial, the kinetics tutorial, the manual and two applications, while the
+  theory page sent its reader to the tutorial for them. *Kinetics under partial
+  equilibrium* now holds them all (the partition, the right-hand side, the
+  Jacobian, the implicit step, the calorimeters, what is checked, the limits);
+  the manual keeps the syntax and the choices, the tutorials and applications
+  their code, and point to it. *Coupling kinetics and equilibrium* is now an
+  executed tutorial: calcite under `r = k(1 − Ω)` advanced by the three routes,
+  with their trajectories against the certified equilibrium.
 
 ### Changed
 
