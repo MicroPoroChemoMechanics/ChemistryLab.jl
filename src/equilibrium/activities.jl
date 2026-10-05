@@ -1624,6 +1624,14 @@ end
 _ss_log_activities!(out, grp, x, mdl::AbstractSolidSolutionModel, T, ϵ, g) =
     _ss_log_activities!(out, grp, x, mdl, T, ϵ)
 
+# Whether the activities under a model read that `g`, and so whether a caller
+# whose parameters do not hold `ΔₐG⁰overRT` must compute it before asking for
+# them; for a system, whether one of its solid solutions does.
+_reads_standard_g(::AbstractSolidSolutionModel) = false
+_reads_standard_g(::CompoundEnergyModel) = true
+_reads_standard_g(cs::ChemicalSystem) =
+    !isempty(cs.ss_groups) && any(ss -> _reads_standard_g(ss.model), cs.solid_solutions)
+
 # The product of the member's own site fractions, the site fractions computed
 # once for the whole phase.
 function _ss_log_activities!(out, grp, x, mdl::SublatticeModel, T, ϵ)

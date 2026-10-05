@@ -48,7 +48,7 @@ The latter is a partial equilibrium, in which only a subset of the possible
 transformations has reached its balance while the others proceed at their own
 pace. It is the whole principle of
 the coupling between kinetics and equilibrium
-([Coupling kinetics and equilibrium](@ref sec-coupling)), where the aqueous
+([Kinetics under partial equilibrium](@ref sec-theory-pe-partition)), where the aqueous
 speciation and the precipitation of hydrates are taken as instantaneous while
 the dissolution of the clinker phases follows rate laws. Each instant of such a
 trajectory is then the stable equilibrium of a smaller system, the one left once

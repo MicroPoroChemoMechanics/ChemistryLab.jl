@@ -378,6 +378,13 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
 
     cp_fns = _Heterogeneous([haskey(sp, :Cp⁰) ? sp[:Cp⁰] : nothing for sp in kp.system.species])
     h_fns = _Heterogeneous([haskey(sp, :ΔₐH⁰) ? sp[:ΔₐH⁰] : nothing for sp in kp.system.species])
+    # The standard Gibbs energies, when the activities of a phase of the system
+    # depend on them (`CompoundEnergyModel`), and their values over RT at the
+    # temperature of the run; `nothing` otherwise. See `_lna_params`. A species
+    # with none, the glass of a slag, is not a member of such a phase.
+    g_fns = _reads_standard_g(kp.system) ?
+        _Heterogeneous([haskey(sp, :ΔₐG⁰) ? sp[:ΔₐG⁰] : nothing for sp in kp.system.species]) : nothing
+    g_RT = isnothing(g_fns) ? nothing : _standard_g_over_RT(g_fns, T_K, P_Pa)
 
     kin_rxns = _Heterogeneous(kp.kinetic_reactions)
     rates_buf = zeros(R, length(kin_rxns))
@@ -454,6 +461,8 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         n_full = n_full,
         cp_fns = cp_fns,
         h_fns = h_fns,
+        g_fns = g_fns,
+        g_RT = g_RT,
         rates_buf = rates_buf,
         # Index layout
         n_be = n_be,
@@ -1459,6 +1468,30 @@ function _restore_feasibility!(n_eq, Ae, be; maxit::Int = 200, tol::Float64 = 1.
     return n_eq
 end
 
+# ── the parameters of the activity model ────────────────────────────────────
+
+"""
+    _lna_params(p, T) -> NamedTuple
+
+The parameters the activity model of a run is called with at the temperature
+`T` of the cell: `p`, at that temperature when the cell has one of its own, and
+with the standard Gibbs energies over RT at that temperature when a phase of the
+system reads them, as the activities of a phase under the compound energy
+formalism do ([`CompoundEnergyModel`](@ref)). Without them that model refuses to
+compute, since no default would be right.
+"""
+function _lna_params(p, T)
+    q = p.has_T ? merge(p, (T = T,)) : p
+    isnothing(p.g_fns) && return q
+    g = p.has_T ? _standard_g_over_RT(p.g_fns, T, p.P) : p.g_RT
+    return merge(q, (ΔₐG⁰overRT = g,))
+end
+
+# `NaN` for a species without a standard Gibbs energy, so that nothing reads it
+# unnoticed.
+_standard_g_over_RT(g_fns, T, P) =
+    _promoted([isnothing(g) ? NaN : g(; T = T, P = P, unit = false) / (R_GAS * T) for g in g_fns])
+
 # ── a right-hand side that reads the partition ──────────────────────────────
 
 """
@@ -1494,7 +1527,7 @@ function _rates_read_speciation(p)
     p.n_be > 0 || return false
     eq = p.idx_equilibrium
     n = p.n_full
-    lna = p.lna_fn(n, p)
+    lna = p.lna_fn(n, _lna_params(p, p.T))
     rn, rl = _ReadRecorder(n), _ReadRecorder(lna)
     n0 = StateView(p.n_initial_full, p.species_index)
     t0 = zero(_plain(p.T))
@@ -1508,7 +1541,7 @@ function _rates_read_speciation(p)
     D = ForwardDiff.Dual{typeof(ForwardDiff.Tag(_rates_read_speciation, Float64)), Float64, 1}
     eqset = Set(eq)
     nd = [D(n[i], ForwardDiff.Partials((i in eqset ? 1.0 : 0.0,))) for i in eachindex(n)]
-    ld = p.lna_fn(nd, p)
+    ld = p.lna_fn(nd, _lna_params(p, p.T))
     for kr in p.kin_rxns
         r = kr.rate_fn(p.T, p.P, t0, StateView(nd, p.species_index), StateView(ld, p.species_index), n0)
         r isa ForwardDiff.Dual && !iszero(ForwardDiff.partials(r)[1]) && return true
@@ -1757,7 +1790,7 @@ function build_kinetics_ode(kp::KineticsProblem)
         #
         # At the temperature of the cell: an activity model reads `p.T`, which
         # is the initial temperature.
-        lna = p.lna_fn(n_full, p.has_T ? merge(p, (T = T_curr,)) : p)
+        lna = p.lna_fn(n_full, _lna_params(p, T_curr))
 
         # ── 4. Build StateViews (O(1) named access) ─────────────────────
         n_sv = StateView(n_full, p.species_index)

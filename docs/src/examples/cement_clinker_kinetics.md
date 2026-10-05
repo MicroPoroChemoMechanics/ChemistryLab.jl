@@ -122,13 +122,13 @@ nothing # hide
 
 ## 5. Kinetics problem and calorimeter
 
-The semi-adiabatic calorimeter [Lavergne2018](@cite) solves
-```math
-\frac{dT}{dt} = \frac{\dot{q}(t) - \varphi(\Delta T)}{C_p^{\text{total}}}
-```
-where ``\varphi(\Delta T) = a \, \Delta T + b \, \Delta T^2`` models quadratic
-heat losses and ``C_p^{\text{total}} = C_p + \sum_i n_i C_{p,i}^0(T)``. The
-coefficients ``a`` and ``b`` below are illustrative: the device of
+The semi-adiabatic calorimeter [Lavergne2018](@cite) integrates the temperature
+of the cell from the heat of the kinetic reactions, its losses through the walls
+and the heat capacity of the paste and the vessel
+([The calorimeters](@ref sec-theory-pe-calorimeters), the case without an
+equilibrium partition). The losses are quadratic in the temperature difference,
+``a\,\Delta T + b\,\Delta T^2``; the coefficients ``a`` and ``b`` below are
+illustrative: the device of
 [Lavergne2018](@cite), calibrated to NF EN 196-9, has ``a = 75`` J/(h·K) and
 ``b = 0.26`` J/(h·K²), which [the pore-solution page](@ref ex-ionic-opc) uses.
 
@@ -164,28 +164,12 @@ disappear.
 
 ### How the two halves are joined
 
-Species split into a **kinetic partition** — the clinker phases, carrying
-Parrott–Killoh rates — and an **equilibrium partition**: the pore solution and
-every hydrate free to precipitate. The ODE advances
-
-```math
-\frac{\mathrm{d} \mathbf{n}_k}{\mathrm{d} t} = \boldsymbol{\nu}_k^\mathsf{T} \mathbf{r} ,
-\qquad
-\frac{\mathrm{d} \mathbf{b}_e}{\mathrm{d} t} = \mathbf{A}_e\,\boldsymbol{\nu}_e^\mathsf{T} \mathbf{r} ,
-```
-
-carrying the **element amounts** of the equilibrium partition, and the pore
-solution and hydrates are recovered at each accepted step by
-
-```math
-\mathbf{n}_e = \varphi(\mathbf{b}_e) = \arg\min_{\mathbf{n}} G(\mathbf{n})
-\quad\text{s.t.}\quad \mathbf{A}_e \mathbf{n} = \mathbf{b}_e,\; \mathbf{n} \ge 0 .
-```
-
-Integrating `bₑ` rather than `nₑ` is what makes this robust: during hydration an
-individual species may want to go negative — the generated dissolution reactions
-are written in H⁺, and a cement paste contains no acid — and it is the minimizer,
-not the caller, that redistributes the elements over a feasible set.
+Species split into a **kinetic partition**, the clinker phases carrying the
+Parrott–Killoh rates, and an **equilibrium partition**, the pore solution and
+every hydrate free to precipitate; the ODE carries the element amounts of the
+second, re-equilibrated as the run advances. The equations, and why the state
+holds element amounts rather than species amounts, are in
+[Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics).
 
 ### Running it
 

@@ -39,8 +39,20 @@ const S15_SS = [
 ]
 const S15_CLINKER = ("C3S", "C2S", "C3A", "C4AF")
 
+# The database of the CASH+ models, read the first time a setup asks for it.
+const _S15_CASHPLUS = Ref{Any}(nothing)
+function _s15_cashplus()
+    _S15_CASHPLUS[] === nothing &&
+        (_S15_CASHPLUS[] = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-cashplus.json"); verbose = false)))
+    return _S15_CASHPLUS[]
+end
+
+# The aqueous ion pairs Miron et al. (2022a) left out when fitting CASH+NK
+# (their Sections 3.2 and 7.4), left out with it.
+const S15_CASHPLUS_EXCLUDED = ["NaOH@", "KOH@", "NaHSiO3@", "KHSiO3@"]
+
 """
-    s15_setup() -> (; cs, mats)
+    s15_setup(; gel = "CSHQ") -> (; cs, mats)
 
 The system and the materials, built together because each needs the other: the
 glass of a material becomes a species only once the primaries of the system are
@@ -64,14 +76,27 @@ far as the phases competing for the aluminum leave it any.
 ASSUMED: the sulfur of the slag, sulfide in the glass, is taken as the sulfate
 the analysis reports it as; the oxides of the glasses the system has no element
 for (TiO₂, MnO, P₂O₅) stay in their mass and out of their formula.
+
+`gel` is the model of the C-S-H: `"CSHQ"`, or `"CNASH_ss"` (Myers et al. 2014)
+or `"CASH+NK"` (Miron et al. 2022a, on `cemdata18-cashplus.json`, without the
+aqueous ion pairs its authors left out when fitting it), in the form
+`data/solid_solutions.toml` ships them.
 """
-function s15_setup()
-    members = reduce(vcat, last.(S15_SS))
+function s15_setup(; gel = "CSHQ")
+    gel in ("CSHQ", "CNASH_ss", "CASH+NK") ||
+        throw(ArgumentError("s15_setup: the gel is \"CSHQ\", \"CNASH_ss\" or \"CASH+NK\"; got \"$gel\""))
+    db = gel == "CASH+NK" ? _s15_cashplus() : S15_DB
+    ss = [SolidSolutionPhase(n, [db[m] for m in ms]) for (n, ms) in S15_SS]
+    if gel != "CSHQ"
+        shipped = only(p for p in build_solid_solutions(datapath("solid_solutions.toml"), db) if name(p) == gel)
+        ss = [shipped; ss[2:end]]
+    end
+    members = [symbol(m) for p in ss for m in p.end_members]
+    excluded = vcat(split("H2@ O2@ CH4@"), gel == "CASH+NK" ? S15_CASHPLUS_EXCLUDED : String[])
     sp = speciation(
-        collect(values(S15_DB)), vcat(S15_PURE, collect(S15_CLINKER), members);
-        aggregate_state = [AS_AQUEOUS], exclude_species = split("H2@ O2@ CH4@"),
+        collect(values(db)), vcat(S15_PURE, collect(S15_CLINKER), members);
+        aggregate_state = [AS_AQUEOUS], exclude_species = excluded,
     )
-    ss = [SolidSolutionPhase(n, [S15_DB[m] for m in ms]) for (n, ms) in S15_SS]
     base = ChemicalSystem(sp, CEMDATA_PRIMARIES; solid_solutions = ss)
 
     inert(m) = with_extents(m, Dict(c.name => 0.0 for c in m.constituents if c.name != "glass"))

@@ -345,7 +345,7 @@ so can be its state-function differences.
 
 At an observation time, a hydrating paste retains slowly reacting clinker and
 may contain phases whose formation or conversion is inhibited. The coupling
-in [Coupling kinetics and equilibrium](@ref sec-coupling) integrates the slow
+of [Kinetics under partial equilibrium](@ref sec-theory-pe-partition) integrates the slow
 amounts and re-equilibrates the remaining budget. It computes successive
 **partial equilibria**, not thermal jumps over molecular activation barriers.
 Rate laws supply the time dependence, and a thermal balance supplies a changing

@@ -105,9 +105,11 @@ literature_path(key::AbstractString) =
 const _LITERATURE_CACHE = Dict{String, LiteratureRecord}()
 const _LITERATURE_LOCK = ReentrantLock()
 
-# Keys and table names that were renamed, with the name they now have. The old
-# spelling of Parrott's name is kept working, with a deprecation warning.
-const _RENAMED_LITERATURE = Dict("ParrotKilloh1984" => "ParrottKilloh1984")
+# Keys and table names that were renamed, with the name they now have, kept
+# working with a deprecation warning: the old spelling of Parrott's name, and
+# the alkali paper of L'Hôpital et al. (2016), which became the second of their
+# two papers of that volume.
+const _RENAMED_LITERATURE = Dict("ParrotKilloh1984" => "ParrottKilloh1984", "LHopital2016" => "LHopital2016b")
 const _RENAMED_TABLES = Dict(("Lavergne2018", "parrot_killoh_1984") => "parrott_killoh_1984")
 
 function _current_literature_key(key)

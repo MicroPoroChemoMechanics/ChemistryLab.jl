@@ -10,21 +10,13 @@ states lose ([CEM I 52.5 N and slag in an isothermal calorimeter, read off the s
 semi-adiabatic calorimeter cannot be read that way. It lets the heat of
 hydration raise the temperature of the sample against the losses of the vessel,
 and the temperature raises the rates of the reactions in turn. The temperature
-is then an unknown of the kinetic problem. The enthalpy of the cell, that of the
-paste over its whole composition, the hydrates precipitated by the minimization
-included, plus that of the vessel of heat capacity ``C``, changes only by what
-leaves through the walls, so that at every instant
-
-```math
-H\bigl(\mathbf{n}(t), T\bigr) - H_0 + C\,(T - T_0)
-\;=\; -\int_0^t \varphi\bigl(T(\tau)-T_{\rm env}\bigr)\,\mathrm{d}\tau ,
-\qquad
-\varphi(\Delta T) \;=\; a\,\Delta T + b\,\Delta T^2 .
-```
-
-The kinetic run carries the right-hand side, the heat lost, and the temperature
-is the root of this balance, the equilibrium of the paste being solved at that
-temperature at every evaluation ([Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics)).
+is then an unknown of the kinetic problem: the enthalpy of the cell, the paste
+over its whole composition and the vessel, changes only by what leaves through
+the walls, and the temperature is the root of that balance, solved with the
+equilibrium of the paste at every evaluation
+([The semi-adiabatic cell](@ref sec-theory-pe-calorimeters)). The losses of the
+vessel are quadratic in the temperature difference,
+``\mathcal{L}(\Delta T) = a\,\Delta T + b\,\Delta T^2``.
 
 This page reproduces the test of [Lavergne2018](@citet) on the plain-cement mortar
 `C100` at w/b = 0.5, in their calorimeter, with the model of

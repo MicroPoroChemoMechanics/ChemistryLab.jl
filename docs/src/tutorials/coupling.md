@@ -1,201 +1,154 @@
 # [Coupling kinetics and equilibrium](@id sec-coupling)
 
 !!! info "Before this page"
-    The tutorial [Chemical Kinetics](@ref sec-kinetics), and [Proving that an
-    answer is the answer](@ref sec-theory-certificate) for the meaning of
-    partial equilibrium.
+    The tutorial [Chemical Kinetics](@ref sec-kinetics). The equations this page
+    runs are in [Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics):
+    the partition, the right-hand side and its Jacobian, and the implicit step.
 
-Some reactions are fast enough to be treated as instantaneous, others are not.
-A hydrating cement paste has both: aqueous speciation — protonation,
-complexation, water autoprotolysis — reaches equilibrium in microseconds, while
-alite dissolves over days. Integrating everything with rate laws would demand
-kinetic parameters nobody measures for the fast reactions and would force the
-integrator down to their timescale. Equilibrating everything would dissolve the
-clinker instantly.
+One mineral, three ways of advancing it. Calcite dissolves into water under the
+law ``r = k(1 - \Omega)``, which reads the saturation ratio of the solution and
+therefore the equilibrium partition. The page integrates it with the partition
+solved in the right-hand side of the ODE, with the implicit step, and with the
+partition frozen within each ODE step, and plots the three trajectories against
+the equilibrium they should reach.
 
-The way out is the partition of [Leal2017](@citet), which is also what Reaktoro
-implements. This page derives it; [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration) puts
-it to work.
+## 1. The system and the law
 
-The equilibria in this partition are conditional on the kinetic amounts at
-each instant. They do not represent jumps over activation barriers or imply
-that the whole paste has reached its stable equilibrium. A changing
-temperature affects both rate laws and the equilibrium map; its history comes
-from a thermal balance, not from the equilibrium minimum alone.
-[The two laws, and what the Gibbs energy measures](@ref sec-theory-laws) explains this
-distinction, and [What the package counts as heat](@ref sec-theory-heat-output)
-states which enthalpy contributions the package includes.
+```@example coupling
+using ChemistryLab, DynamicQuantities, OptimaSolver, OrderedCollections, OrdinaryDiffEq, Printf, Plots
+using Logging # hide
 
-## The partition
+sp = Dict(symbol(x) => x for x in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+cs = ChemicalSystem([sp[x] for x in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal")],
+                    ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"])
+model = DiluteSolutionModel()
 
-Split the species into two sets:
+function initial_state()
+    st = ChemicalState(cs)
+    set_quantity!(st, "Cal", 0.05u"mol")
+    set_quantity!(st, "H2O@", 1.0u"kg")
+    set_quantity!(st, "H+", 1.0e-7u"mol")
+    set_quantity!(st, "OH-", 1.0e-7u"mol")
+    return st
+end
+calcite() = Reaction(OrderedDict(cs["Cal"] => 1.0), OrderedDict(cs["Ca+2"] => 1.0, cs["CO3-2"] => 1.0);
+                     symbol = "calcite")
 
-- the **kinetic partition** ``\mathbf{n}_k`` — phases whose transformation is rate-limited
-  (clinker, most minerals);
-- the **equilibrium partition** ``\mathbf{n}_e`` — everything assumed instantaneously
-  equilibrated (the aqueous species, and any phase you accept as equilibrated).
+# The saturation ratio of the reaction, from the log activities the law is
+# handed and the standard Gibbs energies at 25 °C.
+g = [ustrip(us"J/mol", x[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true)) / (R_GAS * 298.15) for x in cs.species]
+ν = Float64.(KineticReaction(cs, calcite(), KineticFunc((T, P, t, n, lna, n0) -> 0.0, NamedTuple(), u"mol/s")).stoich)
+k = 1.0e-4                                       # mol/s
+law = KineticFunc((T, P, t, n, lna, n0) -> k * (1 - saturation_ratio(ν, [lna[symbol(x)] for x in cs.species], g)),
+                  NamedTuple(), u"mol/s")
+dissolution = calcite()
+dissolution[:rate] = law
 
-Each kinetic reaction ``j`` has a stoichiometric row that touches both, so the
-full stoichiometric matrix splits column-wise as ``\boldsymbol{\nu} = [\boldsymbol{\nu}_e \;\; \boldsymbol{\nu}_k]``.
-
-!!! note "Surface sites are on the equilibrium side, and not by choice"
-    A species occupying a [surface site](@ref sec-theory-surface) is not
-    aqueous, so the automatic partition would sweep it in with the minerals. It
-    does not, deliberately: a site family's budget is a **conservation row** of
-    the equilibrium problem, and moving one member across would take that row
-    with it, leaving the equilibrium a surface with no sites.
-
-    The states of a site redistribute as fast as the aqueous speciation does,
-    which is the assumption this release makes. Adsorption slow enough to need a
-    rate law of its own is a different model, and it takes an explicit
-    `kinetic_species` list rather than happening by accident.
-
-## Why the state is ``(\mathbf{b}_e, \mathbf{n}_k)`` and not ``(\mathbf{n}_e, \mathbf{n}_k)``
-
-The obvious choice — integrate every species — does not work, and the reason is
-worth stating because it explains the whole construction.
-
-Take ``\dot{\mathbf{n}}_e = \boldsymbol{\nu}_e^\mathsf{T} \mathbf{r}``: this advances the equilibrium species
-along the kinetic reactions *without re-equilibrating them*. After one step the
-aqueous phase is no longer at equilibrium, so the assumption that justified the
-partition has been abandoned.
-
-Re-equilibrating after each step does not rescue it either, because the natural
-constraint for the equilibrium problem is not a composition — it is a set of
-**element totals**. Along the way an individual species genuinely wants to go
-negative: the dissolution reactions generated from the nullspace are written in
-``\mathrm{H^+}``, and a cement paste contains no acid. What has physical meaning
-is not "how much ``\mathrm{H^+}`` was consumed" but "how much hydrogen is in the
-equilibrium partition", and it is the minimizer, not the caller, that
-redistributes those elements over a feasible composition.
-
-So the state carries the element amounts of the equilibrium partition,
-
-```math
-\mathbf{b}_e = \mathbf{A}_e \, \mathbf{n}_e ,
+# The equilibrium the dissolution must reach: calcite in water, certified.
+eq, cert = equilibrate_certified(initial_state(); model)
+cal_eq = ustrip(us"mol", moles(eq, "Cal"))
+@printf("at equilibrium: %.6e mol of calcite left of 0.05, certified: %s\n", cal_eq, cert.optimal)
 ```
 
-where ``\mathbf{A}_e`` is the conservation matrix restricted to that partition. These are
-conserved by every fast reaction by construction, and only the kinetic reactions
-move them.
+## 2. The partition
 
-!!! warning "`Aₑ` must be the matrix the solve is posed on"
-    The formula matrix over the *canonical elements* and the matrix over the
-    system's *primary species* are different matrices. Building `Aₑ` from one
-    while the minimization is posed on the other makes every equilibrium solve
-    infeasible — in one intermediate version of this package, 89 failures out of
-    89 steps. `Aₑ` is taken from the equilibrium sub-system, which inherits the
-    parent system's primaries.
-
-## The system
-
-With that state, the coupled problem is [Leal2017; Eqs. 54–65](@cite) and
-[Leal2015; Eqs. 2.25–2.30](@cite):
-
-```math
-\frac{\mathrm{d} \mathbf{n}_k}{\mathrm{d} t} = \boldsymbol{\nu}_k^\mathsf{T} \mathbf{r}(\mathbf{n}, T, t),
-\qquad
-\frac{\mathrm{d} \mathbf{b}_e}{\mathrm{d} t} = \mathbf{A}_e \, \boldsymbol{\nu}_e^\mathsf{T} \mathbf{r}(\mathbf{n}, T, t),
+```@example coupling
+kp = KineticsProblem(cs, [dissolution], initial_state(), (0.0, 1.0e5);
+                     activity_model = model, equilibrium_solver = EquilibriumSolver(cs, model, OptimaOptimizer()))
+println("kinetic:     ", [symbol(kp.system.species[i]) for i in kp.idx_kinetic])
+println("equilibrium: ", [symbol(kp.system.species[i]) for i in kp.idx_equilibrium])
 ```
 
-closed by the equilibrium map
+The state the integrator advances holds the element amounts of the second set
+and the amount of calcite, for the reason
+[The partition](@ref sec-theory-pe-partition) gives.
 
-```math
-\mathbf{n}_e = \varphi(\mathbf{b}_e) \;=\; \arg\min_{\mathbf{n}} \; G(\mathbf{n})
-\quad \text{subject to} \quad \mathbf{A}_e \mathbf{n} = \mathbf{b}_e, \;\; \mathbf{n} \ge 0 .
+## 3. Three routes
+
+The ODE with the partition solved where the right-hand side is evaluated, which
+`integrate` chooses by itself for a law that reads it
+([When the partition may be frozen within a step](@ref sec-theory-pe-splitting)):
+
+```@example coupling
+ks = KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-8, abstol = 1.0e-12)
+diagnostics = IOBuffer() # hide
+rhs = with_logger(ConsoleLogger(diagnostics)) do # hide
+rhs = integrate(kp, ks)
+end # hide
+occursin("re-speciation failed", String(take!(diagnostics))) && error("a re-speciation failed") # hide
+cal_rhs = 0.05 .- vec(reaction_extents(rhs, kp))
+@printf("%s in %d steps; calcite at 10⁵ s: %.6e mol\n", rhs.retcode, length(rhs.t), cal_rhs[end])
 ```
 
-Two ODEs and one constrained minimization. The rates ``\mathbf{r}`` depend on the full
-composition — a dissolution rate needs the saturation index, hence the aqueous
-activities — so ``\varphi`` feeds back into the right-hand side.
+The implicit step ([The implicit step](@ref sec-theory-implicit-step)), marched
+by its adaptive controller from one second on:
 
-### What travels with the partition, and what used to not
-
-The equilibrium is solved on a **rebuilt** system containing only the
-equilibrium partition, and that rebuild takes its phase declarations by keyword.
-Anything not passed is dropped silently — which is what happened to solid
-solutions until 0.8.2: a run could declare CSHQ and the solve would treat its
-end-members as separate pure phases, the mixing entropy never entering the Gibbs
-energy.
-
-Site families travel the same way now, on the same all-or-nothing rule: a family
-survives into the partition only if **every** member is there. One split between
-the two sides is refused by name rather than dropped, because its members share
-a single budget and cannot be solved apart.
-
-## Solving it: splitting where it is exact
-
-When no rate law reads the partition, ``\varphi`` is applied once per
-**accepted** step, as a `DiscreteCallback`: the rates, hence the trajectory, do
-not depend on it, splitting is exact, and the cost is one solve per step.
-
-When a rate law reads it (an activity, a saturation ratio, an amount of an
-equilibrium species), the right-hand side is a function of the speciation, and
-``\varphi`` is evaluated there, at the state the integrator asks about, with its
-derivative ``\partial\mathbf{n}_e/\partial\mathbf{b}_e`` lifted into the dual
-numbers of the Jacobian by the implicit-function theorem at the certified
-answer. Frozen within a step instead, such a rate is constant over it, so even a
-stiff method integrates the extent explicitly, and a step longer than the time
-over which the rate relaxes overshoots the equilibrium: on calcite under
-``r = k(1-\Omega)``, `Rodas5P` reached a reaction extent of −457 mol. `integrate`
-tells the two cases apart from the rate laws themselves (`speciation = :auto`),
-and `speciation = :frozen` or `:rhs` forces either. A semi-adiabatic calorimeter
-takes the second route whatever its laws read: its temperature is solved with
-the partition, from the enthalpy of the cell the state carries.
-[Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics) writes the
-right-hand side, its Jacobian and that energy balance in full.
-
-The initial state is equilibrated before the first step, so the trajectory
-starts on the constraint manifold rather than drifting onto it.
-
-```
-    u = (bₑ, nₖ)  ──▶  ODE step  ──▶  accepted?  ──▶  respeciate!  ──▶  u
-                          ▲                              │
-                          └───── frozen nₑ ◀─────────────┘
+```@example coupling
+kss = KineticStepSolver(cs, model, [KineticReaction(cs, dissolution, law)])
+st, t, dt = initial_state(), 0.0, 1.0          # the step lengths are in seconds
+t_imp, cal_imp = [0.0], [0.05]
+with_logger(ConsoleLogger(diagnostics)) do # hide
+while t < 1.0e5
+    global st, t, dt
+    st, used, dt = kinetic_step_adaptive(kss, st, min(dt, 1.0e5 - t) * u"s")
+    t += used
+    push!(t_imp, t); push!(cal_imp, ustrip(us"mol", moles(st, "Cal")))
+end
+end # hide
+@printf("%d accepted steps; calcite at 10⁵ s: %.6e mol\n", length(t_imp) - 1, cal_imp[end])
 ```
 
-## What to check when it runs
+And the ODE with the partition frozen within each step, forced:
 
-Two diagnostics tell you whether the coupling is doing its job:
+```@example coupling
+frozen = with_logger(NullLogger()) do # hide
+frozen = integrate(kp, ks; speciation = :frozen)
+end # hide
+cal_frozen = 0.05 .- vec(reaction_extents(frozen, kp))
+@printf("%s in %d steps; calcite reached %.3g mol, from 0.05\n", frozen.retcode, length(frozen.t), maximum(cal_frozen))
+```
 
-| check | meaning | healthy value |
-|:--|:--|:--|
-| `‖Aₑ nₑ − bₑ‖∞` | the speciation carries the integrated element totals | `~10⁻⁸` mol |
-| re-speciation failure count | steps that kept a frozen composition | 0 |
+## 4. The trajectories
 
-The second is reported automatically at the end of `integrate`. It exists
-because an earlier version of this package swallowed solve failures in a bare
-`catch`: a run in which re-speciation **never once succeeded** looked exactly
-like a healthy one. Silence is not success — if the count is nonzero, the
-trajectory is not the one the equations describe.
+```@example coupling
+# The saturation index along the right-hand-side route, on the certified replay;
+# the start, in pure water, is left out of the logarithmic time axis.
+replay = with_logger(ConsoleLogger(diagnostics)) do # hide
+replay = speciated_states(rhs, kp)
+end # hide
+occursin("could not be certified", String(take!(diagnostics))) && error("an instant was not certified") # hide
+logΩ = [saturation_indices(s, model)["Cal"] for s in replay]
+on = rhs.t .> 0
+p1 = plot(rhs.t[on], cal_rhs[on]; xscale = :log10, label = "ODE, partition in the right-hand side",
+          xlabel = "time, s", ylabel = "calcite, mol", lw = 2)
+plot!(p1, t_imp[2:end], cal_imp[2:end]; label = "implicit step", marker = :circle, ms = 3, lw = 1)
+hline!(p1, [cal_eq]; label = "certified equilibrium", ls = :dash, color = :black)
+p2 = plot(rhs.t[on], max.(-logΩ[on], 1.0e-16); xscale = :log10, yscale = :log10, label = false,
+          xlabel = "time, s", ylabel = "−log₁₀ Ω of calcite", lw = 2)
+fig = plot(p1, p2; layout = (1, 2), size = (900, 330), left_margin = 5Plots.mm, bottom_margin = 6Plots.mm)
+savefig(fig, "coupling-calcite.svg"); nothing # hide
+```
 
-!!! note "Validation status"
-    Both halves are checked against Reaktoro: the **equilibrium** species by
-    species, and the **coupling** along a constant-rate dissolution trajectory,
-    where the two agree to 4.3 % or better — see
-    [Validation against Reaktoro](@ref).
+![](coupling-calcite.svg)
 
-## A worked coupling with a surface
+```@example coupling
+@printf("calcite at 10⁵ s, mol:  right-hand side %.6e   implicit %.6e   equilibrium %.6e\n",
+        cal_rhs[end], cal_imp[end], cal_eq)
+@printf("worst log Ω on the replay after 10³ s: %.1e\n", maximum(abs, logΩ[rhs.t .> 1.0e3]))
+```
 
-`test/kinetics/test_surface_coupling.jl` runs the smallest case that exercises
-all of it: a solid releasing calcium at a **constant** rate — so the kinetic half
-is exactly integrable and anything that disagrees is the equilibrium map — onto
-an inert sorbent that binds some of it.
-
-What it checks is what this page describes:
-
-  - the site budget holds at every reported instant, not only at the end;
-  - the released calcium is exactly ``k\,t``, and all of it is somewhere — in
-    solution or on the sorbent, nothing lost between the partitions;
-  - the law of mass action of the binding reaction holds on the **integrated**
-    state, which is the independent check that the coupling reached the
-    equilibrium it was supposed to rather than merely conserving matter;
-  - tightening the integrator by two decades moves the answer by less than
-    ``10^{-5}``, so the trajectory is converged in the time step rather than
-    reproducible at one setting.
+The two routes that treat the partition consistently reach the certified
+equilibrium, the saturation index falling to the tolerance of the minimization,
+about ``10^{-10}``, where it stays. The frozen one is the route
+[When the partition may be frozen within a step](@ref sec-theory-pe-splitting)
+explains: with the partition held over a step, the rate is constant over it, the
+step overshoots saturation, and the run is returned as a failure rather than a
+success.
 
 ## See also
 
-- [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration) — a worked example
-- [Validation against Reaktoro](@ref) — what agrees and what does not
-- [Chemical Kinetics](@ref sec-kinetics) — rate laws and the `KineticFunc` interface
+- [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration),
+  the partition on a clinker, with a law that reads only the kinetic amounts.
+- [Validation against Reaktoro](@ref), the equilibrium and the coupling against a
+  second code.
+- [Writing a kinetic model](@ref sec-kinetics-syntax), the syntax of the routes.

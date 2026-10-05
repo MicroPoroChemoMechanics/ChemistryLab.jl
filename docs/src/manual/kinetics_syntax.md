@@ -29,11 +29,10 @@ rate laws.
 
 **Use the implicit step** when the products should be decided by thermodynamics —
 a mineral dissolving into a solution, carbonation, an assemblage you do not want
-to prescribe. This is the algorithm of [Leal2017](@citet), the one Reaktoro
-implements, and it is unconditionally stable: with a rate law `r = k(1 − Ω)` on
-calcite, a step of `10⁶ s` at `k = 10⁻⁵ mol/s` would dissolve 10 mol explicitly —
-a thousand times the calcite present — and the implicit step lands at `Ω =
-0.999989`, approaching saturation from below and never crossing it.
+to prescribe. It is the step of [Leal2017](@citet), the one Reaktoro implements,
+and it is unconditionally stable ([The implicit step](@ref sec-theory-implicit-step));
+[Coupling kinetics and equilibrium](@ref sec-coupling) runs it against the ODE
+route on calcite.
 
 **Use the ODE route** when the reactions themselves are the model — a
 stoichiometric hydration scheme in the form of [Lavergne2018](@citet), where
@@ -67,24 +66,8 @@ seconds, constant rates — against what the stoichiometry demands:
 | element balance | `2×10⁻¹¹` mol | `2×10⁻¹⁴` mol |
 | certificate | proved optimal | proved optimal |
 
-!!! note "How `:species` is solved, and why it is not a constraint"
-    The pinned species are **eliminated**, not constrained. Their amounts are an
-    explicit affine function of the extents, `nᵢ = nᵢ(0) + Σⱼ νᵢⱼ Δξⱼ`, so they
-    need not be unknowns at all: they are removed from the system, their element
-    content is subtracted from the budget, and a plain equilibrium is solved over
-    what remains, with a Newton on the `nr` extents around it.
-
-    Holding them by a linear row instead — which is the obvious implementation —
-    was tried and stalls. The species' stationarity row stays in the system,
-    satisfied by a multiplier that must reach the mineral's own chemical
-    potential, of order 10²–10³ in `RT` units, and the Newton sits at a fixed
-    point its line search cannot leave: an element balance of `6.1×10⁻⁷` mol
-    whatever `maxit`, `tol` or the number of active-set updates, against
-    `2×10⁻¹⁴` after elimination.
-
-    The Newton on the extents is an outer loop, deliberately. It is the price of
-    imposing an assemblage, and `nr` is a handful where the composition is dozens;
-    each of its evaluations is one exact, well-conditioned equilibrium solve.
+The pinned species are eliminated rather than constrained, which
+[The implicit step](@ref sec-theory-implicit-step) explains.
 
 Use `:reactions` when the assemblage should come from thermodynamics, the ODE
 route when no aqueous coupling is needed, and `:species` when you want a
@@ -108,111 +91,40 @@ st1 = kinetic_step(kss, st0, 100.0u"s"; parameters = Δξ)
 Δξ[]        # the reaction extents the step found, in mol
 ```
 
-What the step solves is one problem, not two:
+The step is one minimization with the extents among its unknowns and the rate
+evaluated at the end of the step, written in
+[The implicit step](@ref sec-theory-implicit-step). On calcite its reactivity
+matrix is `K = [−1]`, so that `Δξ = Δt·r`: the calcite left after 1000 s at
+1 µmol/s is `n₀ − kΔt`.
 
-```math
-\min_{\mathbf{n}} G(\mathbf{n}) \quad\text{s.t.}\quad
-\begin{cases}
-\mathbf{A} \mathbf{n} = \mathbf{b}_0 \\
-\mathbf{K}^\mathsf{T} \mathbf{n} - \Delta\boldsymbol{\xi} = \boldsymbol{\xi}_0 \\
-\Delta\boldsymbol{\xi} - \Delta t\, \mathbf{M}\, \mathbf{r}(\mathbf{n}) = 0, \quad \mathbf{M} = \mathbf{K}^\mathsf{T}\mathbf{K} \\
-\mathbf{n} \ge 0
-\end{cases}
+### Choosing the step length
+
+[`kinetic_step_adaptive`](@ref) takes one step of `Δt` and two of `Δt/2`,
+compares the extents, and accepts the step when their difference is within
+`reltol` of the amount each reaction acts on **and** the step is certified; it
+halves the step otherwise, and returns the step taken and a suggestion for the
+next. Three implicit solves per accepted step is the price.
+
+```julia
+cert = Ref{Any}(nothing)
+st1 = kinetic_step(kss, st0, 1.0e5u"s"; certificate = cert)
+cert[].optimal                     # read it before trusting a step much longer than 1/k
+st2, Δt_used, Δt_next = kinetic_step_adaptive(kss, st0, 1.0e5u"s")   # one accepted step
 ```
 
-The extents are unknowns beside the amounts and the element potentials, and the
-rate is evaluated at the **end-of-step** composition — backward Euler. Two things
-follow. There is no frozen speciation in a right-hand side, so no lag between the
-kinetic and the equilibrium species. And the reactivity constraint is *linear*, so
-it joins the conservation block: the algebraic cost of kinetics is the number of
-**reactions**, not of species.
+A single step far beyond the relaxation time of a law that vanishes at
+equilibrium can land on a second root, the mineral wholly dissolved, which the
+certificate refuses and the adaptive march never accepts
+([The implicit step](@ref sec-theory-implicit-step)).
 
-`K` carries each reaction's stoichiometry restricted to the **non-aqueous**
-participants, since an aqueous product re-speciates and pinning it would stop
-pinning the mineral. On calcite that leaves `K = [−1]`, hence `M = 1` and
-`Δξ = Δt·r`: measured, the calcite left after 1000 s at 1 µmol/s is
-`n₀ − kΔt` to the last bit, with the element balance at `10⁻¹⁴`.
-
-### Choosing the step length, and a case where the stiff ODE route is wrong
-
-[`kinetic_step_adaptive`](@ref) takes one step of `Δt` and two of `Δt/2`, compares
-the extents, and accepts the finer pair when the difference is within tolerance —
-Richardson's estimate, which for a first-order method IS the error of the coarse
-step. Three implicit solves per accepted step is the price.
-
-In Reaktoro's kinetics the step is the caller's, a single step added to the
-equilibrium options; backward Euler being first order, a step ten times too large
-is ten times less accurate, and the estimate above is what reports it here.
-
-Measured on calcite dissolving under `r = k(1 − Ω)` with `k = 10⁻⁴ mol/s` over
-`10⁵ s`, against the equilibrium the trajectory converges to:
-
-| route | steps | result |
-|:--|--:|:--|
-| `Rodas5P`, the partition frozen within a step (`speciation = :frozen`) | 9 | **2 244 mol of calcite from 0.05**, returned with `retcode = Unstable` |
-| `Rodas5P`, the partition solved in the right-hand side (the default for this law) | 82 | the equilibrium, to `10⁻⁶`, in 0.7 s |
-| `Tsit5`, explicit, frozen | 84 586 | correct, in 250 s |
-| one `kinetic_step` of `10⁵ s` | 1 | the equilibrium, certified |
-| `kinetic_step_adaptive` | 1 | the equilibrium, certified |
-
-The first row is the one to know about. With the partition frozen within a
-step, a rate law that reads it is constant over the step, so the stiff method
-integrates the extent explicitly however implicit it is. `Ω` relaxes to one in
-about a second here, and a step longer than that overshoots the equilibrium:
-`Ω` then exceeds one by orders of magnitude, the rate reverses and the run
-precipitates calcite from nothing. Bounding `dtmax` to `10³ s`, still a thousand
-relaxation times, returned the same wrong value; removing the re-speciation,
-which computes the partition from the extents inside the right-hand side,
-returned a sane one.
-
-So `integrate` looks at the rate laws first. A law that reads the partition, an
-activity or an amount of an equilibrium species, makes the right-hand side a
-function of the speciation, and the partition is then solved at every
-evaluation (`speciation = :rhs`), by the certified solver warm-started from the
-last accepted step, with its derivative with respect to `bₑ` lifted into the
-Jacobian by the implicit-function theorem. A semi-adiabatic cell under partial
-equilibrium takes the same route whatever its laws read, since its temperature
-is solved with the partition. A law that reads only the kinetic amounts keeps
-the cheaper split route, re-speciating once per accepted step, which is exact
-for it. `speciation = :frozen` or `:rhs` forces either, and any
-trajectory that reaches amounts the system cannot hold is returned with
-`retcode = Unstable` rather than `Success`.
-
-!!! warning "A single step far beyond the relaxation time can find the other root"
-    For a rate law that vanishes at equilibrium the step has two solutions, and
-    the second is the composition with the mineral wholly dissolved: it satisfies
-    the element balance and the reactivity row while violating
-    `Δξ − Δt·M·r(n) = 0` by the whole extent. The certificate refuses it, so pass
-    `certificate` and read `optimal` before trusting a step much larger than
-    `1/k`.
-
-    Which root a Newton finds there depends on its path. Measured on the case
-    above with the outer Jacobian of OptimaSolver 0.7.4, formed by differences:
-    `10⁴ s` and `10⁶ s` converged to the right root on Julia 1.12 and to the other
-    one on 1.13, reported uncertified either way. With the exact outer Jacobian
-    of the current OptimaSolver, `10⁴`, `10⁵` and `10⁶ s` all reach the
-    equilibrium root and certify. The adaptive route is the guarantee either
-    way: it refuses an uncertified step and halves until one certifies.
-
-A step is accepted on the estimate **and** on the certificate, never on the
-estimate alone. Richardson's difference measures the disagreement between two
-resolutions, so it is blind to an error the two share: measured on calcite over
-`10⁵ s` with OptimaSolver 0.7.4, the coarse step and both half-steps each
-dissolved the entire mineral, their extents agreed to `5×10⁻¹¹`, and the
-estimator reported `9×10⁻⁶` — a step it should have refused, graded excellent.
-The certificate is not fooled, because a composition that dissolved everything
-violates `Δξ − Δt·M·r(n) = 0` by the whole extent; with both conditions that
-march refused `10⁵ s` and came back in seven steps. With the current
-OptimaSolver the three steps find the equilibrium root, agree to `4×10⁻⁶` of
-the extent, certify, and the march takes the `10⁵ s` in one step.
-
-The tolerance is relative to the amount each reaction acts on, not to the extent.
-Scaling by `Δξ` is the obvious thing to write and does not work: `Δξ ∝ Δt`, so
-that tolerance vanishes with the step while the equilibrium solve's own noise does
-not, the measured error behaves as `noise/(reltol·Δt)` and **grows** as the step
-shrinks. Measured, the controller then halved to the floor without advancing, and
-the final answer got worse as the tolerance was tightened. An ODE integrator's
-`reltol` multiplies the solution for exactly this reason.
+`integrate` decides by itself whether the partition must be solved inside the
+right-hand side (`speciation = :auto`); `speciation = :frozen` or `:rhs` forces
+either, and a trajectory that reaches amounts the system cannot hold is returned
+with `retcode = Unstable`. Why freezing the partition under a law that reads it
+overshoots the equilibrium is in
+[When the partition may be frozen within a step](@ref sec-theory-pe-splitting);
+[Coupling kinetics and equilibrium](@ref sec-coupling) shows the three routes on
+one mineral.
 
 ### Solid solutions in the step, and the two settings the certificate decides
 
@@ -222,34 +134,18 @@ step. On C₃S dissolving at 20 µmol/s into a four-member CSHQ solution, the st
 comes out certified at a stationarity of `2×10⁻¹³`, with `Δξ = Δt·r` exactly, all
 four end-members present, and ten times the step giving ten times the C-S-H.
 
-Two settings are decided by the certificate rather than by the caller, because
-neither answer works on both kinds of problem:
+Two settings are decided by the certificate rather than by the caller, for the
+reasons [The implicit step](@ref sec-theory-implicit-step) gives:
 
-  - `warm_start` (default `true`) equilibrates the starting **guess** when the
-    system carries solid solutions, leaving the component totals untouched. A
-    mixing phase is admitted by a tangent-plane test, and from a composition where
-    the phase is absent the step does not certify: a cold start left one
-    end-member at `2.7×10⁻⁹` with a stationarity residual of 6.5 under
-    OptimaSolver 0.7.4, and admits every end-member but stops at a KKT error of
-    1.75 since its outer Jacobian is exact. The failure belongs to the cold start
-    and not to the kinetics — a plain equilibrium from the same guess fails
-    identically.
-  - `pin_minerals` (default `:auto`) says whether the kinetic minerals are held in
-    the active set. Measured: on two C₃A pathways, **not** pinning is certified at
-    `1.8×10⁻¹²` while pinning gives 7.9 and no certificate; on C₃S into a C-S-H
-    solution, not pinning runs the step all the way to equilibrium — `C3S = 0`,
-    `Δξ` twenty-five times too large, because the mineral is exhausted at
-    equilibrium and the drop rule removes it, after which nothing enforces its
-    reactivity row. `:auto` tries both and keeps the answer the certificate
-    **proves**, which is exact rather than heuristic: the problem is convex, so
-    its KKT conditions decide.
+  - `warm_start` (default `true`) equilibrates the starting **guess** of a
+    system with solid solutions before the step, leaving the component totals
+    untouched;
+  - `pin_minerals` (default `:auto`) tries the step with and without the kinetic
+    minerals held in the active set and keeps the answer the certificate proves.
 
 Pass `certificate = Ref{Any}(nothing)` to see the proof. It is taken on the
-augmented problem, whose reactivity rows carry the multipliers that make a
-kinetically held mineral's stationarity satisfiable — the same composition tested
-against the *unconstrained* equilibrium reports a residual of 7 `RT`, because a
-mineral held back by a rate law is supersaturated by construction. That is what
-being held back means.
+augmented problem, so a kinetically held mineral is not reported as
+supersaturated.
 
 ## Rate functions: KineticFunc and StateView
 
@@ -628,25 +524,11 @@ t, qdot = heat_flow(sol, cal)         # q̇(t) [W]
 
 ## Calorimetry under partial equilibrium
 
-With an `equilibrium_solver` attached, the kinetic reactions only dissolve the
-anhydrous phases into ions, and the hydrates are precipitated by the Gibbs
-minimization: the heat of the kinetic reactions, [`heat_rate`](@ref), would leave
-the precipitation out. Both calorimeters therefore balance the enthalpy of the
-whole composition, `H = Σᵢ nᵢ ΔₐH⁰ᵢ(T)`, its partition being the one the
-minimization gives at the element amounts and the temperature of the state.
-Enthalpy is a state function, so the heat released is its decrease, with
-reactants, ions and hydrates each counted once and no reaction stoichiometry to
-write down — Eqs. (17)–(21) of [Lavergne2018](@cite).
-
-The last entry of the state is then the change `ΔH` of the enthalpy of the cell,
-which only the losses through its walls move: it stays zero in an isothermal
-cell, whose heat is the enthalpy the paste has lost, and in a semi-adiabatic
-cell the temperature is the root of the energy balance, solved with the
-partition at every evaluation of the right-hand side. The right-hand side is a
-function of the state, its Jacobian is exact, and any integrator applies;
-[Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics) writes the
-equations. Every species needs an enthalpy of formation, and a system where one
-lacks it is refused.
+With an `equilibrium_solver` attached, both calorimeters balance the enthalpy of
+the whole composition, the partition included, and a semi-adiabatic cell solves
+its temperature with the partition at every evaluation
+([The calorimeters](@ref sec-theory-pe-calorimeters)). Every species then needs
+an enthalpy of formation, and a system where one lacks it is refused.
 
 ```julia
 kp  = KineticsProblem(cs, reactions, state0, tspan;
@@ -668,18 +550,10 @@ missing one hydrate is not visibly wrong.
 
 ## Semi-adiabatic calorimetry [Lavergne2018](@cite)
 
-Without an equilibrium partition, the semi-adiabatic calorimeter integrates the
-temperature,
-
-```math
-\frac{dT}{dt} = \frac{\dot{q}(t) - \varphi(T(t) - T_{\rm env})}{C_p + \sum_i n_i C^\circ_{p,i}(T)} ,
-```
-
-`q̇` being the heat of the kinetic reactions and the denominator the **variable
-total heat capacity** `Cp_total = Cp + Σᵢ nᵢ Cp°ᵢ(T)`, `Cp°ᵢ(T)` the molar heat
-capacities of the database [Lavergne2018](@cite). Under partial equilibrium the
-same balance is written on the enthalpy of the cell, as the section above says,
-and the temperature is solved rather than integrated.
+Without an equilibrium partition the cell integrates its temperature from the
+heat of the kinetic reactions and the total heat capacity of the paste and the
+vessel; under partial equilibrium it solves it from the enthalpy of the cell
+([The calorimeters](@ref sec-theory-pe-calorimeters)).
 
 [`SemiAdiabaticCalorimeter`](@ref) bundles hardware parameters and initial temperature:
 

@@ -39,6 +39,10 @@ dw11_days() = sort(unique(ustrip.(dw11_table("pore_solution").time_d)))
 # aluminum end-member, cannot take.
 const DW11_PHASES = "Portland paste (Lothenbach and Winnefeld 2006)"
 
+# The aqueous ion pairs Miron et al. (2022a) left out when fitting CASH+NK
+# (their Sections 3.2 and 7.4), left out of a system that declares it.
+const DW11_CASHPLUS_EXCLUDED = ["NaOH@", "KOH@", "NaHSiO3@", "KHSiO3@"]
+
 """
 The chemical system of the phase list, the AFm sulfate and hydroxide declared as
 the Guggenheim binary Cemdata18 publishes (the GEMS3K export the replay runs

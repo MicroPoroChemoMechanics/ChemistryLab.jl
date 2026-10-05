@@ -82,8 +82,10 @@ pages = [
         # time, and a binder's engineering behavior is entirely about time.
         "Kinetics" => [
             "theory/kinetics.md",
-            # How a run under partial equilibrium is integrated: the right-hand
-            # side, its exact Jacobian, and the energy balance of a calorimeter.
+            # How a run under partial equilibrium is integrated: the partition and
+            # why the state carries element amounts, the right-hand side and its
+            # exact Jacobian, the implicit step, and the energy balance of a
+            # calorimeter. The tutorials and applications run it and point here.
             "theory/partial_equilibrium_kinetics.md",
         ],
         # The material this package exists for. What a Gibbs minimization can
@@ -175,6 +177,12 @@ pages = [
             # A measured paste through its first year, and the same budgets
             # through GEMS3K: the model against the paste, the code against the code.
             "tutorials/validation_measured_pastes.md",
+            # Alkali uptake by C-A-S-H batches: CSHQ predicted on data it was not
+            # fitted on, CASH+NK checked on data it was.
+            "tutorials/validation_alkali_uptake.md",
+            # And by C-S-H of the aluminum, the companion syntheses: CNASH_ss, the
+            # gel that takes it, against CSHQ, which does not.
+            "tutorials/validation_aluminum_uptake.md",
             # Four blended pastes, their degrees of reaction from the measurement,
             # the chemistry against the measurement and against GEMS3K.
             "tutorials/validation_blended_pastes.md",

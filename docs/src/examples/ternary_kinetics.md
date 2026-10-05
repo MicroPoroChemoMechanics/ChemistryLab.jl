@@ -151,7 +151,8 @@ the paste keeps 7 wt.%; with limestone it goes to monocarbonate, and the
 ettringite stays. The two other gels the package ships do not fix it: at
 measured extents `CASH+NK` behaves as `CSHQ`, and `CNASH_ss` takes the aluminum
 at a calcium-to-silicon ratio a Portland cement's gel does not have
-([the validation page](@ref sec-validation-blended-gels)).
+([the validation page](@ref sec-validation-blended-gels)). Section 7 finds the
+same in time.
 
 ## 6. The alite calibrated on the plain cement
 
@@ -223,6 +224,70 @@ always its diffusion term, greatest at the mixing and decreasing from there,
 where the belite of these pastes waits a month: no value of the constants
 holds it. The portlandite of the pastes without fly ash follows the alite,
 within two points from seven days and two to three too high at one day.
+
+## 7. The two other gels, in time
+
+The two fly-ash pastes again, with `CNASH_ss` and then `CASH+NK` in place of
+`CSHQ`, the rest of the phase list and the laws unchanged, the alite under its
+published constants as in Sections 2 to 5; `CASH+NK` without the aqueous ion
+pairs its authors left out when fitting it, as on
+[the validation page](@ref sec-validation-blended-gels). The members of `CASH+NK` are mixed
+under the compound energy formalism, whose activities depend on the standard
+Gibbs energies of the members, which the run evaluates at its temperature.
+
+```@example ternary
+gels = ("CSHQ", "CNASH_ss", "CASH+NK")
+fa_mixes = ("OPC-FA", "OPC-FA-L")
+gel_days = [1, 7, 28, 90, 140, 180]
+gel_states = Dict{Tuple{String, String}, Any}()
+gel_contents = Dict{Tuple{String, String}, Any}()
+with_logger(ConsoleLogger(diagnostics)) do # hide
+for gel in gels, mix in fa_mixes
+    r = gel == "CSHQ" ? runs[mix] : dw11k_run(dw11k_setup(; gel), mix)
+    gel_states[(gel, mix)] = dw11k_replay(r, gel_days)
+    gel_contents[(gel, mix)] = dw11k_contents(r, gel_states[(gel, mix)][[1, 2, 3, 4, 6]])
+end
+end # hide
+gel_log = String(take!(diagnostics)) # hide
+occursin("re-speciation failed", gel_log) && error("a re-speciation failed") # hide
+occursin("could not be certified", gel_log) && error("an instant was not certified") # hide
+for mix in fa_mixes
+    println(mix, ", wt.%            portlandite                       ettringite")
+    println("  days      CSHQ  CNASH_ss  CASH+NK  measured      CSHQ  CNASH_ss  CASH+NK  measured")
+    for (k, d) in enumerate(days)
+        @printf("%6d  %8.1f %8.1f %8.1f %8.1f   %8.1f %8.1f %8.1f %8.1f\n", d,
+                (gel_contents[(g, mix)][k]["portlandite"] for g in gels)..., measured(mix, d, "portlandite"),
+                (gel_contents[(g, mix)][k]["ettringite"] for g in gels)..., measured(mix, d, "ettringite"))
+    end
+end
+```
+
+The C-S-H of each, against the SEM-EDX analyses of the paper, at one day and
+at 140 days:
+
+```@example ternary
+println("                     Ca/Si, 1 d and 140 d     Al/Si, 1 d and 140 d")
+@printf("measured             %8.2f %8.2f      %8.2f %8.2f\n",
+        dw11_value("csh_ca_si_fly_ash_1d"), dw11_value("csh_ca_si_fly_ash_140d"),
+        dw11_value("csh_al_si_fly_ash_1d"), dw11_value("csh_al_si_fly_ash_140d"))
+for mix in fa_mixes, gel in gels
+    early, late = dw11k_gel(gel_states[(gel, mix)][1], gel), dw11k_gel(gel_states[(gel, mix)][5], gel)
+    @printf("%-9s %-9s  %8.2f %8.2f      %8.3f %8.3f\n", mix, gel, early.Ca_Si, late.Ca_Si, early.Al_Si, late.Al_Si)
+end
+```
+
+In time as at the measured extents, neither gel reproduces the pastes. The gel
+of `CASH+NK` is that of `CSHQ`, a Ca/Si between 1.55 and 1.58 at one day and at
+140 days, with no aluminum, and the portlandite with it, within a point. `CNASH_ss` takes
+aluminum, an Al/Si rising from 0.09 to 0.10 or 0.11 where the paper measures
+0.06 rising to 0.13, but at a Ca/Si of 1.12 to 1.16 from the first day, where the
+paper measures 1.7 falling to 1.4. The calcium its gel does not take stays in
+portlandite, above the measurement by 1.7 to 3.9 points from seven days, and
+without limestone the ettringite goes more slowly, 1.8 wt.% left at six months
+against none with `CSHQ` and 6.6 measured. What the measurement asks of the
+model is a gel whose Ca/Si falls with time as it takes aluminum, beside
+portlandite: none of the three does both, and `CSHQ` stays the gel of these
+pages.
 
 ## Where to go next
 

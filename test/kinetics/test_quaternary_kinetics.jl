@@ -95,3 +95,25 @@ isdefined(@__MODULE__, :s15_run) || include(joinpath(pkgdir(ChemistryLab), "scri
     @test 0 < tga[1].bound_water < tga[2].bound_water
     @test tga[2].portlandite > 0
 end
+
+@testsection "the quaternary paste richest in fly ash with the two other gels" begin
+    # Section 6 of the page: 20-30-0 over six months with CNASH_ss, which keeps
+    # the portlandite near the 11.5 and 11.0 % measured at 28 and 182 days for a
+    # gel at Ca/Si 1.17, and with CASH+NK, which loses it as CSHQ does.
+    @test_throws ArgumentError s15_setup(; gel = "C-S-H")
+    for (gel, ch, ca_si, al_si) in (("CNASH_ss", (14.5, 11.3), 1.17, 0.099), ("CASH+NK", (7.5, 0.3), 1.59, 0.0))
+        s = s15_setup(; gel)
+        @test any(p -> name(p) == gel, s.cs.solid_solutions)
+        gel == "CASH+NK" && @test !any(x -> symbol(x) in S15_CASHPLUS_EXCLUDED, s.cs.species)
+        r = s15_run(s.cs, s.mats, "20-30-0")
+        @test SciMLBase.successful_retcode(r.sol)
+        tga = s15_tga(r, [28, 182])
+        for k in 1:2
+            @test tga[k].portlandite ≈ ch[k] atol = 0.05
+        end
+        st = only(speciated_states(r.sol, r.kp; times = [182 * 86400.0]))
+        e = solid_solution_totals(st, gel).elements
+        @test e[:Ca] / e[:Si] ≈ ca_si atol = 0.005
+        @test get(e, :Al, 0.0) / e[:Si] ≈ al_si atol = 5.0e-4
+    end
+end

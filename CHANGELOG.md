@@ -1,5 +1,118 @@
 # Changelog
 
+## v0.32.2 — The C-S-H models of a blend, in time and against syntheses
+
+The C-S-H models a blended cement may be computed with are compared where they
+part: in time, on the pastes of De Weerdt et al. (2011) and Schöler et al.
+(2015), and at equilibrium, against the syntheses of L'Hôpital et al. (2016a,
+b). CSHQ binds too little alkali in a gel poor in calcium, which CASH+NK, fitted
+there, reproduces; CNASH_ss takes up the aluminum as measured but stops at a
+Ca/Si of 1.2 and forms no strätlingite; in the fly-ash blends the measured
+portlandite lies between CSHQ and CNASH_ss, and CSHQ stays the gel of the
+pages. Two defects found on the way are fixed: a kinetic run with a
+compound-energy C-S-H stopped before its first step, and a barely unstable
+member of the sublattice gel left its answer uncertified, which OptimaSolver
+0.8.1, now required, corrects. The foundations of the theory are rewritten, and
+the theory of the coupling, which four pages repeated, is gathered in one.
+
+### Added
+
+- **The two other C-S-H models in a coupled blended run**
+  (`dw11k_setup(; gel)` in `scripts/deweerdt2011_kinetics.jl`, Section 7 of the
+  page *CEM II/B-V and CEM II/B-M (V-LL), with their CEM I, integrated in
+  time*): the fly-ash pastes of De Weerdt et al. (2011) integrated over six
+  months with `CNASH_ss` and with `CASH+NK` in place of `CSHQ`, against the
+  portlandite and ettringite of their Table 7 and the Ca/Si and Al/Si of their
+  SEM-EDX analyses. In time as at the measured extents, neither fixes the
+  pastes: `CASH+NK` gives the gel and the portlandite of `CSHQ` within a point,
+  with no aluminum; `CNASH_ss` takes aluminum (Al/Si 0.09 to 0.11, 0.06 to 0.13
+  measured) at a Ca/Si of 1.12 to 1.16 where the paste's gel falls from 1.7 to
+  1.4, and leaves 1.7 to 3.9 points too much portlandite. `CSHQ` stays the gel
+  of these pages, and the page says why. The same on the quaternary pastes of
+  Schöler et al. (2015) (`s15_setup(; gel)`, Section 6 of the page *CEM I 52.5
+  R with slag, fly ash and limestone, integrated in time*): with CNASH_ss the
+  portlandite of the paste richest in fly ash stays within 0.3 points of the
+  measurement at one, two and 182 days, 3.0 points high at most between, where
+  CSHQ and CASH+NK lose all of it, for a gel at Ca/Si 1.17.
+- **Alkali uptake by C-A-S-H against L'Hôpital et al. (2016b)** (the page
+  *Alkali uptake by C-A-S-H*, `scripts/lhopital2016_alkali.jl`): their 49
+  batches of C-S-H and C-A-S-H, Ca/Si 0.6 to 1.6 in water or in KOH or NaOH
+  from 0.01 to 0.5 mol/L, transcribed whole from their Appendices A to C into
+  `data/literature/LHopital2016b.json` (the key `LHopital2016` reads on, with a
+  deprecation), and computed with CSHQ and with CASH+NK.
+  The comparison is a prediction for CSHQ, whose alkali end members were fitted
+  on other isotherms (Hong and Glasser 1999), and a check for CASH+NK, which
+  was fitted on these. CSHQ takes up too little alkali where the gel is poor in
+  calcium, as little as an eighth to a third of what was measured at Ca/Si 0.6
+  to 1.0, reaching it only in 0.5 mol/L KOH: the opposite of what it does on
+  the isotherms it was fitted on. It also dissolves too much silicon at a high
+  pH, 2.5 to 3.6 times the measurement at the median, as the authors found with
+  the same model. CASH+NK reproduces its fitting data: the alkali of the gel at
+  0.62 to 1.55 times the measured one up to Ca/Si 1.2, the dissolved alkali and
+  silicon at the median within 4 % below Ca/Si 1.1. In a gel poor in calcium,
+  CASH+NK is the model whose alkali uptake was fitted there.
+- **Aluminum uptake by C-S-H against L'Hôpital et al. (2016a)** (the page
+  *Aluminum uptake by C-S-H*, `scripts/lhopital2016_aluminum.jl`): their 34
+  syntheses without alkali, Ca/Si 0.6 to 1.6 and Al/Si 0 to 0.33, transcribed
+  from their Appendices A, B and D into `data/literature/LHopital2016a.json`,
+  and computed with CNASH_ss, the gel that takes aluminum, and with CSHQ.
+  CNASH_ss reproduces the uptake: all the aluminum up to Al/Si 0.05, then an
+  Al/Si held between 0.10 and 0.12 whatever the Ca/Si, the paper's finding
+  (0.15 ± 0.05). It forms no strätlingite, where the syntheses hold 3 to 13 wt.%
+  of it, putting the rest in gibbsite below Ca/Si 1.2 and in katoite above, and
+  its gel stops at a Ca/Si of 1.19, the calcium it does not take precipitating
+  as portlandite. CSHQ holds the calcium of the gel within 0.052 and puts all the
+  aluminum in the hydrates from the smallest Al/Si. All 34 certify with both
+  models; with CNASH_ss they need OptimaSolver 0.8.1.
+
+### Documentation
+
+- **The foundations of the theory rewritten** (PR #92, Anthony Soive): three
+  pages in the order a first reader's questions arise, *The two laws, and what
+  the Gibbs energy measures* (the balances on a boundary, the enthalpy a
+  calorimeter measures, the heat the package counts), *The chemical potential
+  and reactions* and *Formation quantities and the database*, with five
+  figures; errors corrected and pages that contradicted each other reconciled.
+- **The theory of the coupling in one place.** The partition, why the state
+  carries element amounts, when the partition may be frozen within a step and
+  the implicit step of Leal et al. (2017) were written out in the coupling
+  tutorial, the kinetics tutorial, the manual and two applications, while the
+  theory page sent its reader to the tutorial for them. *Kinetics under partial
+  equilibrium* now holds them all (the partition, the right-hand side, the
+  Jacobian, the implicit step, the calorimeters, what is checked, the limits);
+  the manual keeps the syntax and the choices, the tutorials and applications
+  their code, and point to it. *Coupling kinetics and equilibrium* is now an
+  executed tutorial: calcite under `r = k(1 − Ω)` advanced by the three routes,
+  with their trajectories against the certified equilibrium.
+
+### Changed
+
+- **CASH+NK is computed without the aqueous ion pairs its authors left out**
+  when fitting it (NaOH⁰, KOH⁰, NaHSiO₃⁰ and KHSiO₃⁰, Miron et al. 2022a,
+  Sections 3.2 and 7.4), in the scripts and pages that run it: the De Weerdt
+  validation (Section 7) and kinetics (Section 7), Schöler (Section 6) and the
+  alkali uptake. Of these the databases hold NaOH⁰ and KOH⁰. The De Weerdt
+  numbers move in their last digit: the portlandite of the CEM I with CASH+NK
+  is now 1.6 points from that of CSHQ, where the page said 1.5.
+- **OptimaSolver 0.8.1 is required** (`[compat] OptimaSolver = "0.8.1"`). Its
+  dual Newton left a member of a sublattice phase that owns no species on any
+  site, and is barely unstable, at 1e-16 to 1e-28 mol instead of the floor, and
+  the certificate then refused the answer: 14 of the 34 syntheses above did not
+  certify with CNASH_ss, whose member 5CA is such a member. 0.8.1 holds it at
+  the floor; every answer that certified before is the same.
+
+### Fixed
+
+- **A kinetic run whose partition holds a C-S-H under the compound energy
+  formalism stopped before its first step.** The activities of the members of a
+  `CompoundEnergyModel` phase, the CASH+ and CASH+NK gels of Kulik et al. (2022)
+  and Miron et al. (2022a, b), depend on their standard Gibbs energies, which the
+  equilibrium solvers hand to the activity model and the parameters of a kinetic
+  run did not carry: the first evaluation of the activities raised "none were
+  passed". The parameters of a run now hold those energies over RT when a phase
+  of the system reads them, at the temperature of the run, or at the cell's own
+  under a semi-adiabatic calorimeter. Runs on any other system are unchanged.
+
 ## v0.32.1 — Blended cements and their hydrates against temperature
 
 Blended cements are now checked against what was measured on them at their

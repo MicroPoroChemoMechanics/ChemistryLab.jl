@@ -95,7 +95,10 @@ binder containing slag can do without, and
 preceding ideas, a site balance being written like the charge row and site
 mixing like a solid solution. [Rate laws](@ref sec-theory-kinetics) leaves
 equilibrium for time and gives the provenance of every parameter entering a
-rate.
+rate, and [Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics)
+joins the two: the partition between the slow reactions and the fast ones, the
+differential system with its exact Jacobian, the implicit step, and the energy
+balance of a calorimeter.
 
 [The water budget of a hydrating paste](@ref sec-theory-water-budget) is the
 cement-specific chapter, and the one to read if the question is why a

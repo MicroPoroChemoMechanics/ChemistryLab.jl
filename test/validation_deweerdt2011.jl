@@ -55,7 +55,10 @@ include(joinpath(pkgdir(ChemistryLab), "scripts", "de_weerdt_2011.jl"))
     # of 1.16 and leaves the calcium to portlandite; CASH+NK takes no aluminum.
     cashplus = build_species(datapath("cemdata18-cashplus.json"); verbose = false)
     for (gel, subs) in (("CNASH_ss", DW11_SUBSTANCES), ("CASH+NK", cashplus))
-        cs_g = phase_list_system(DW11_PHASES, subs; replace = Dict("CSHQ" => gel))
+        cs_g = phase_list_system(
+            DW11_PHASES, subs;
+            replace = Dict("CSHQ" => gel), exclude_aqueous = gel == "CASH+NK" ? DW11_CASHPLUS_EXCLUDED : String[],
+        )
         rs = only(hydrate(dw11_recipe("OPC-FA"), cs_g, [90.0]; model))
         @test rs.certificate.optimal
         e = solid_solution_totals(rs.state, gel).elements

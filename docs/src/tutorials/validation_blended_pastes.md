@@ -186,13 +186,15 @@ The package ships two other models of the gel: `CNASH_ss`
 [Myers2014](@cite), mixed on the sublattices of its authors, which takes
 aluminum and the alkalis, and `CASH+NK` [Miron2022a](@cite), whose end members
 carry the alkalis but no aluminum. The same budgets, with each in place of
-`CSHQ`, the rest of the phase list unchanged:
+`CSHQ`, the rest of the phase list unchanged, and for `CASH+NK` without the four
+aqueous ion pairs its authors left out when fitting it, NaOH⁰, KOH⁰, NaHSiO₃⁰
+and KHSiO₃⁰ [Miron2022a; Section 3.2](@cite):
 
 ```@example blended
 cashplus = build_species(datapath("cemdata18-cashplus.json"); verbose = false)
 gel_systems = (
     "CNASH_ss" => phase_list_system(DW11_PHASES, DW11_SUBSTANCES; replace = Dict("CSHQ" => "CNASH_ss")),
-    "CASH+NK" => phase_list_system(DW11_PHASES, cashplus; replace = Dict("CSHQ" => "CASH+NK")),
+    "CASH+NK" => phase_list_system(DW11_PHASES, cashplus; replace = Dict("CSHQ" => "CASH+NK"), exclude_aqueous = DW11_CASHPLUS_EXCLUDED),
 )
 other = Dict{String, Any}("CSHQ" => pastes)
 for (gel, cs_g) in gel_systems
@@ -213,8 +215,8 @@ end
 ```
 
 Neither reproduces the four pastes. `CASH+NK` changes nothing that matters
-here: it takes no aluminum, and its gel and its portlandite are those of `CSHQ`
-within 1.5 points. `CNASH_ss` takes aluminum, an Al/Si of 0.10 to 0.11 against
+here: it takes no aluminum, its gel is within 0.04 of the Ca/Si of that of
+`CSHQ`, and its portlandite within 1.6 points. `CNASH_ss` takes aluminum, an Al/Si of 0.10 to 0.11 against
 the 0.13 measured, but its gel sits at a Ca/Si of 1.16 in every paste, the plain
 cement included; its end members reach 1.5 at most (`T2C-CNASHss`), where the
 paper measures 1.8 without fly ash. The calcium the gel does not take goes to
