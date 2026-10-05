@@ -1,6 +1,6 @@
 # [Thermochemistry: the quantities and how they connect](@id sec-theory-thermo)
 
-[Energies, enthalpies and the chemical potential](@ref sec-theory-basics) ends
+[Formation quantities and the database](@ref sec-theory-formation) ends
 with the chemical potential of a species written through the apparent Gibbs
 energy a database stores. This page follows that quantity into the code: the
 potential the solver minimizes, the models by which its standard part is
@@ -273,7 +273,7 @@ constructed when that list is not empty.
 
 | assumed | not assumed |
 |:--|:--|
-| one well-mixed phase per aggregate state | a list of reactions, a reaction path, a sequence |
+| well-mixed declared phases, each with one composition per instance | a list of reactions, a reaction path, a sequence |
 | ideal molar volumes, no excess volume | ideal activities, which are the business of the activity model |
 | the domain of validity of the activity model | the phases present, which are a result |
 | that ``\mathbf{A}\mathbf{n} = \mathbf{b}`` is the whole of the conservation | that a point satisfying the optimality conditions is the minimum |

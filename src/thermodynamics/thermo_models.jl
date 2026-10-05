@@ -205,7 +205,7 @@ model for aqueous solutes.
 At (Tr, Pr) the apparent and the traditional quantities of formation coincide,
 which is why either key is accepted; away from it the functions returned are the
 apparent ones, the elements being held at (Tr, Pr) (Benson-Helgeson convention).
-See the theory page *Energies, enthalpies and the chemical potential*, section
+See the theory page *Formation quantities and the database*, section
 *Apparent and formation Gibbs energies*.
 """
 function _build_hkf_thermo_functions(params)

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
+  <title id="title">A reaction Gibbs energy is a local slope</title>
+  <desc id="desc">A qualitative convex Gibbs energy curve at fixed temperature and pressure decreases toward an interior equilibrium minimum, then increases. The tangent at an initial composition has negative slope, whereas the equilibrium tangent is horizontal. The finite Gibbs energy change is the vertical difference between the initial and equilibrium states.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8Z" fill="#52667d"/></marker>
+    <marker id="change" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7Z" fill="#996019"/></marker>
+  </defs>
+  <rect width="900" height="560" rx="18" fill="#f8fafc"/>
+  <g font-family="Arial, Helvetica, sans-serif" fill="#172b42">
+    <text x="36" y="43" font-size="15" font-weight="700" letter-spacing="2" fill="#52667d">LOCAL SLOPE AND FINITE CHANGE</text>
+    <text x="36" y="74" font-size="18">Fixed temperature and pressure · one reaction direction</text>
+    <path d="M100 421V103M100 421H813" fill="none" stroke="#52667d" stroke-width="2" marker-end="url(#arrow)"/>
+    <path d="M100 150V103" stroke="#52667d" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="67" y="114" font-size="24" font-style="italic">G</text>
+    <text x="540" y="465" font-size="20">Reaction extent ξ</text>
+    <path d="M160 137Q520 569 780 257" fill="none" stroke="#3664a0" stroke-width="4"/>
+    <!-- This Bezier has its minimum at (544.35, 387.84). It is schematic, not data. -->
+    <path d="M160 137H832M544.35 387.84H832" stroke="#b9c6d5" stroke-width="1.5" stroke-dasharray="6 5"/>
+    <path d="M826 144V378" stroke="#996019" stroke-width="2.5" marker-end="url(#change)"/>
+    <text x="806" y="179" text-anchor="end" font-size="22" fill="#996019">ΔG &lt; 0</text>
+    <text x="806" y="205" text-anchor="end" font-size="17" fill="#996019">finite change (J)</text>
+    <path d="M133 105L298 303" stroke="#996019" stroke-width="2.5"/>
+    <circle cx="160" cy="137" r="6" fill="#996019"/>
+    <text x="190" y="126" font-size="18" fill="#996019">Initial state</text>
+    <text x="300" y="248" font-size="22" fill="#996019">ΔᵣG = dG/dξ &lt; 0</text>
+    <text x="300" y="276" font-size="17" fill="#996019">local slope (J/mol)</text>
+    <path d="M455 387.84H623" stroke="#177567" stroke-width="3"/>
+    <path d="M544.35 387.84V421" stroke="#177567" stroke-width="1.5" stroke-dasharray="4 4"/>
+    <circle cx="544.35" cy="387.84" r="6" fill="#177567"/>
+    <text x="475" y="329" font-size="22" fill="#177567">ΔᵣG = 0</text>
+    <text x="475" y="355" font-size="17" fill="#177567">Interior equilibrium</text>
+    <text x="544.35" y="446" text-anchor="middle" font-size="18" fill="#177567">ξ*</text>
+    <rect x="36" y="491" width="828" height="43" rx="8" fill="#e8effa"/>
+    <text x="56" y="518" font-size="17">Qualitative sketch: an interior minimum of a convex G; no numerical scale or kinetic path.</text>
+  </g>
+</svg>
