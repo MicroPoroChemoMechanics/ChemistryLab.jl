@@ -48,6 +48,9 @@
     # A system with no such phase is handed its parameters as they were.
     plain = ChemicalSystem(speciation(subs, ["Portlandite", "Amor-Sl"]; aggregate_state = [AS_AQUEOUS], exclude_species = ["Ca(OH)2@"]), CEMDATA_PRIMARIES)
     @test !ChemistryLab._reads_standard_g(plain) && ChemistryLab._reads_standard_g(cs)
+    # Nor one whose solid solution mixes otherwise.
+    ideal = ChemicalSystem(species, CEMDATA_PRIMARIES; solid_solutions = [SolidSolutionPhase("two members", [byname[m] for m in members[1:2]])])
+    @test !ChemistryLab._reads_standard_g(ideal)
 
     # And a run goes through, the gel forming as a silica glass dissolves into
     # the partition. The glass has no standard Gibbs energy, as a glass has
