@@ -75,12 +75,19 @@ const SA_MODEL = cemdata18_activity_model(:KOH)
 
 The fully hydrated paste, certified.
 """
+# The pastes already computed, by binder, w/b, temperature and phase set: the
+# batches of one binder share theirs.
+const _SA_PASTES = Dict{Tuple{Float64, Float64, Float64, Bool}, Any}()
+
 function sa_paste(; limestone = 0.0, w_b, T, thaumasite = true)
+    return get!(() -> _sa_paste(limestone, w_b, T, thaumasite), _SA_PASTES, (Float64(limestone), Float64(w_b), Float64(T), thaumasite))
+end
+
+function _sa_paste(limestone, w_b, T, thaumasite)
     cs = sa_system(; thaumasite)
     # At another temperature than 20 °C, from the answer at 20 °C: a cold start
     # on a cement does not always find its way.
-    start = T == 293.15 ? nothing :
-        first(equilibrate_certified(sa_recipe(; limestone, w_b, T = 293.15), cs; model = SA_MODEL)).state
+    start = T == 293.15 ? nothing : sa_paste(; limestone, w_b, T = 293.15, thaumasite).state
     rs, cert = equilibrate_certified(sa_recipe(; limestone, w_b, T), cs; model = SA_MODEL, start)
     cert.optimal || error("sa_paste: the paste did not certify.")
     return rs
