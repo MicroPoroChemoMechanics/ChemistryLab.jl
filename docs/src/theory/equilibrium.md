@@ -352,13 +352,23 @@ ionic strength alone, so at a given ``I`` every solute is explicit,
 ``\ln m_i = u_i - g_i - \ln\gamma_i(I)``, and ``I`` solves
 ``I = \tfrac12\sum_i z_i^2 m_i(I)``, which is how PHREEQC carries the ionic
 strength, as an unknown of its own [ParkhurstAppelo2013](@cite). The root taken is
-the first one above the dilute limit, the branch connected to it. The limiting
-law past its range can have none there: the equation dips toward zero without
-reaching it and crosses again only through the ``\dot B I`` term, at thousands
-of mol/kg. The inversion then says that the potentials hold no composition
-instead of iterating on them, and the outer level moves on the sweeps until
-they hold one again. Recovering the solutes one by one instead cycles where
-multivalent ions couple strongly through ``I``.
+the first one above the dilute limit, the branch connected to it, unless the
+composition the solve holds lies above it on another branch. An ion of high
+valence makes the equation cross zero three times: its activity coefficient
+falls so fast with ``I`` that its amount, and ``I`` with it, outgrow ``I``. Under
+the balances the equilibrium can then sit on the middle root, where an open
+solution would be unstable — silica in a potassium hydroxide solution at 80 °C,
+with the tetramer ``\mathrm{Si_4O_{10}^{4-}}`` carrying most of the dissolved
+silicon, sits at 1.38 mol/kg between roots at 0.45 and 4.3 — and the first root
+alone never gives it. The inversion therefore takes the root nearest the ionic
+strength of the iterate when that lies above the first one, up to four times
+the range the model states; with one root, that is the first one. The limiting
+law keeps the first root: past its range it can have none there, the equation
+dipping toward zero without reaching it and crossing again only through the
+``\dot B I`` term, at thousands of mol/kg. The inversion then says that the
+potentials hold no composition instead of iterating on them, and the outer
+level moves on the sweeps until they hold one again. Recovering the solutes one
+by one instead cycles where multivalent ions couple strongly through ``I``.
 
 SIT and Pitzer add terms in the molalities themselves, the ``\varepsilon(i,k)\,m_k``
 of the specific ion interaction and the pair and triplet sums of Pitzer, and no

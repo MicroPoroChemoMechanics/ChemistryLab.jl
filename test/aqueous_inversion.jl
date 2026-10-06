@@ -140,6 +140,31 @@ include("reference_species.jl")
         @test ChemistryLab._ionic_strength_root(far, dL, 25.0) === nothing
     end
 
+    @testset "the root of the branch the iterate is on" begin
+        # Three roots, at 0, 1 and 2 in ln I: F > 0 below the first, < 0 between
+        # the first two, > 0 between the last two, < 0 above.
+        F(s) = -s * (s - 1) * (s - 2)
+        @test ChemistryLab._branch_of_iterate(F, 0.0, 0.9, 5.0) ≈ 1.0 atol = 1.0e-12
+        @test ChemistryLab._branch_of_iterate(F, 0.0, 1.7, 5.0) ≈ 2.0 atol = 1.0e-12
+        # Nearest the first root, below it, or above the ceiling: the first root,
+        # the very value given.
+        @test ChemistryLab._branch_of_iterate(F, 0.0, 0.2, 5.0) === 0.0
+        @test ChemistryLab._branch_of_iterate(F, 0.0, -1.0, 5.0) === 0.0
+        @test ChemistryLab._branch_of_iterate(F, 0.0, 6.0, 5.0) === 0.0
+        @test ChemistryLab._branch_of_iterate(F, 0.0, 1.7, 1.5) === 0.0
+        # One root: from anywhere above it, the first root, to the bit.
+        G(s) = 0.3 - s
+        @test ChemistryLab._branch_of_iterate(G, 0.3, 2.5, 5.0) === 0.3
+        # Only a model that states a range follows a branch, and the limiting law
+        # (no ion size) never does.
+        des(m) = DualEquilibriumSolver(cs, m)
+        form(m) = ChemistryLab._aqueous_form(m, cs, des(m).idx_aq)
+        @test form(HKFActivityModel()).ceiling == 4.0
+        @test form(DaviesActivityModel()).ceiling == 2.0
+        @test form(limiting).ceiling === nothing
+        @test form(tj).ceiling === nothing
+    end
+
     @testset "a model of more than the ionic strength has an inversion of its own" begin
         # SIT and Pitzer by Newton's method (the testsection below); a model
         # neither inversion covers is left to the sweeps.
@@ -298,4 +323,36 @@ end
         @test m ≈ 6.1605 rtol = 1.0e-4
         @test m ≈ measured rtol = 5.0e-3
     end
+end
+
+@testsection "a solution whose equilibrium lies on a middle root of the ionic strength" begin
+    # Shi and Lothenbach (2019), sample SKC0: 4 g of amorphous silica, KOH at
+    # K/Si = 0.5, 60 g of water, 80 °C, Cemdata18 with its extended Debye-Hückel
+    # for a KOH solution. The tetramer Si4O10-4 carries most of the dissolved
+    # silicon, and at the potentials of the equilibrium the ionic-strength
+    # equation has three roots; the equilibrium is on the middle one. Taking the
+    # first root, the solve left the potassium unbalanced by half its budget.
+    DB = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+    model = cemdata18_activity_model(:KOH)
+    aq = speciation(collect(values(DB)), [:K, :Si, :H, :O, :Zz]; aggregate_state = [AS_AQUEOUS], exclude_species = split("H2@ O2@ CH4@"))
+    cs = ChemicalSystem(vcat(collect(aq), [DB["Amor-Sl"]]), CEMDATA_PRIMARIES)
+    st = ChemicalState(cs; T = 353.15u"K")
+    nSi = 4.0 / ustrip(us"g/mol", DB["Amor-Sl"][:M])
+    set_quantity!(st, "H2O@", 60.0u"g")
+    set_quantity!(st, "Amor-Sl", nSi * u"mol")
+    set_quantity!(st, "K+", 0.5nSi * u"mol")
+    set_quantity!(st, "OH-", 0.5nSi * u"mol")
+    eq, cert = equilibrate_certified(st; model)
+    @test cert.optimal
+    @test cert.balance < 1.0e-12
+    n = Dict(symbol(s) => ustrip(us"mol", x) for (s, x) in zip(cs.species, eq.n))
+    # Half of the silica dissolved, nearly all of it as the tetramer, which the
+    # potassium balances: four K+ per Si4O10-4, the rest of it paired as KOH@.
+    @test n["Si4O10-4"] > 0.9 * (nSi - n["Amor-Sl"]) / 4
+    @test n["K+"] + n["KOH@"] ≈ 0.5nSi rtol = 1.0e-12
+    @test n["K+"] > 0.999 * 0.5nSi
+    # The ionic strength is that of the middle root, past the stated range of
+    # the model, which the certificate says.
+    @test 1.3 < ionic_strength(eq) < 1.45
+    @test !cert.within_activity_range
 end

@@ -40,12 +40,19 @@ function _aqueous_form(::DiluteSolutionModel, cs::ChemicalSystem, members)
     return (; kind = :dilute, ln_c_solvent = log(1.0 / M_w))
 end
 
-function _ionic_form(cs, members, log10γ, AB)
+function _ionic_form(cs, members, log10γ, AB; ceiling = nothing)
     jw = only(cs.idx_solvent)
     M_w = ustrip(us"kg/mol", cs.species[jw][:M])
     z = [Int(charge(cs.species[i])) for i in members]
-    return (; kind = :ionic, z, M_w, log10γ, AB)
+    return (; kind = :ionic, z, M_w, log10γ, AB, ceiling)
 end
+
+# How far above its stated range a model's ionic strength may be followed on the
+# branch of the iterate (`_branch_of_iterate`): a few times the range, far below
+# the thousands of mol/kg where the limiting law past its range has its third
+# root. `nothing`, no branch but the first, for a model that states no range.
+const _BRANCH_CEILING_FACTOR = 4.0
+_branch_ceiling(model) = (r = activity_model_range(model); r === nothing ? nothing : _BRANCH_CEILING_FACTOR * r)
 
 function _aqueous_form(model::HKFActivityModel, cs::ChemicalSystem, members)
     å = _promoted([iszero(charge(cs.species[i])) ? 0.0 : _hkf_lookup_å(cs.species[i], model) for i in members])
@@ -54,7 +61,10 @@ function _aqueous_form(model::HKFActivityModel, cs::ChemicalSystem, members)
         _log10γ_ion(model, z, å[t], I, sqrtI, A, B)
     AB = p -> (model.temperature_dependent && hasproperty(p, :T) && hasproperty(p, :P)) ?
         (ab = hkf_debye_huckel_params(p.T, p.P); (ab.A, ab.B)) : (model.A, model.B)
-    return _ionic_form(cs, members, log10γ, AB)
+    # The limiting law (no ion size) keeps the first root: past its range it is
+    # the runaway that root guards against, not a second branch.
+    limiting = all(iszero(å[t]) for t in eachindex(members) if !iszero(charge(cs.species[members[t]])))
+    return _ionic_form(cs, members, log10γ, AB; ceiling = limiting ? nothing : _branch_ceiling(model))
 end
 
 function _aqueous_form(model::DaviesActivityModel, cs::ChemicalSystem, members)
@@ -62,7 +72,7 @@ function _aqueous_form(model::DaviesActivityModel, cs::ChemicalSystem, members)
         _log10γ_ion(model, z, 0.0, I, sqrtI, A, 0.0)
     AB = p -> (model.temperature_dependent && hasproperty(p, :T) && hasproperty(p, :P)) ?
         (hkf_debye_huckel_params(p.T, p.P).A, 0.0) : (model.A, 0.0)
-    return _ionic_form(cs, members, log10γ, AB)
+    return _ionic_form(cs, members, log10γ, AB; ceiling = _branch_ceiling(model))
 end
 
 function _aqueous_form(model::TruesdellJonesActivityModel, cs::ChemicalSystem, members)
@@ -147,6 +157,12 @@ function _invert_aqueous(form, c, ref, w, p, jref)
         s_start = max(log(1.0e-30), Fv(log(1.0e-30)) + log(1.0e-30) - 1.0)
         sv = _ionic_strength_root(Fv, dFv, s_start)
         sv === nothing && return nothing
+        # The root of the branch the iterate is on, when it sits above the first
+        # one (`_branch_of_iterate`); the first one otherwise, to the bit.
+        if form.ceiling !== nothing
+            Iw = sum(abs(z[t])^2 / 2 * exp(_plain(w[t])) for t in ions) / (_plain(ref) * form.M_w)
+            sv = _branch_of_iterate(Fv, sv, log(Iw), log(form.ceiling))
+        end
         # Found on the values. Whatever carries dual numbers (the potentials, the
         # temperature through A and B, a parameter of the model) shows in the
         # type of `F`; two Newton steps in that type then give the root its
@@ -225,6 +241,78 @@ function _ionic_strength_root(F, dF, s_start; smax = log(1.0e4), hmax = 4.0)
         a, Fa, da = b, Fb, db
     end
     return nothing
+end
+
+"""
+    _branch_of_iterate(F, s1, s_w, s_ceil; h0 = 0.05) -> Float64
+
+The root of `F(s) = ln S(eˢ) − s` nearest `s_w`, the log ionic strength of the
+composition the solve holds, when `s_w` lies above the first root `s1` and below
+`s_ceil`; `s1` itself otherwise, and whenever no other root lies nearer.
+
+A charged species of high valence makes `F` turn back up above its first root:
+its activity coefficient falls so fast with `I` that its amount, and `I` with
+it, grow faster than `I`, and `F` crosses zero three times. Under the balances
+the equilibrium can sit on the middle root, where the open solution would be
+unstable: a solution of amorphous silica in KOH at 80 °C, Cemdata18's extended
+Debye–Hückel and the tetramer `Si4O10-4` (z = −4) carrying most of the dissolved
+silicon, has its root at 1.38 mol/kg between two others at 0.45 and 4.3. The
+first root alone never gives that composition, and the solve then never closes
+its balances; following the branch of the iterate does. Where `F` has one root,
+the search finds `s1` and returns it unchanged.
+
+The search widens a window about `s_w`, doubling it from `h0`, inside
+`[s1, s_ceil]`, until `F` changes sign on one side, and returns the root there,
+bracketed. `s_ceil` keeps it below the stated range of the model times a factor
+(`_BRANCH_CEILING_FACTOR`).
+"""
+function _branch_of_iterate(F, s1, s_w, s_ceil; h0 = 0.05)
+    (isfinite(s_w) && s1 + h0 < s_w <= s_ceil) || return s1
+    fw = F(s_w)
+    isfinite(fw) || return s1
+    fw == 0 && return s_w
+    h = h0
+    lo, hi = s_w, s_w
+    while lo > s1 || hi < s_ceil
+        lo_new, hi_new = max(s_w - h, s1), min(s_w + h, s_ceil)
+        if lo_new < lo
+            if lo_new == s1
+                # Down to the first root without a change of sign: it is the
+                # nearest below.
+                below = s1
+            else
+                flo = F(lo_new)
+                below = (isfinite(flo) && sign(flo) != sign(fw)) ? _bracketed_sign_change(F, lo_new, lo, flo) : nothing
+            end
+            below === nothing || return abs(below - s1) <= 1.0e-10 * max(1.0, abs(s1)) ? s1 : below
+            lo = lo_new
+        end
+        if hi_new > hi
+            fhi = F(hi_new)
+            if isfinite(fhi) && sign(fhi) != sign(fw)
+                return _bracketed_sign_change(F, hi, hi_new, F(hi))
+            end
+            hi = hi_new
+        end
+        h *= 2
+    end
+    return s1
+end
+
+# The root of `F` in `[a, b]`, across which it changes sign, `fa = F(a)`: by
+# bisection, then two Newton steps are left to the caller's dual pass.
+function _bracketed_sign_change(F, a, b, fa)
+    for _ in 1:100
+        m = (a + b) / 2
+        (m == a || m == b) && break
+        fm = F(m)
+        if sign(fm) == sign(fa)
+            a, fa = m, fm
+        else
+            b = m
+        end
+    end
+    return (a + b) / 2
 end
 
 # A zero of `f` in `[a, b]`, `fa < 0 < fb`, by the Illinois variant of regula

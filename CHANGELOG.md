@@ -51,6 +51,19 @@
   saturation ratio without the mineral's energy, wrong by
   `exp(ΔₐG⁰/RT)` of the mineral, without a word. The energies are now built on
   demand, as everywhere else in the package.
+- **An equilibrium on the middle root of the ionic strength was out of reach.**
+  The aqueous solutes are recovered from their potentials through the ionic
+  strength, of which the solve took the first root. An ion of high valence makes
+  that equation cross zero three times, and under the balances the equilibrium
+  can sit on the middle root: silica in KOH at 80 °C with Cemdata18, where the
+  tetramer Si4O10-4 carries most of the dissolved silicon, has its equilibrium at
+  1.38 mol/kg between roots at 0.45 and 4.3. Taking the first root, the solve
+  never closed the potassium balance and nothing certified; the syntheses of the
+  products of the alkali-silica reaction of Shi and Lothenbach (2019) at 80 °C
+  certified in 4 cases of 17. The inversion now takes the root of the branch the
+  iterate is on when it lies above the first one, up to four times the range of
+  the model, and the first root otherwise, unchanged to the bit; the limiting law
+  keeps the first root. The same syntheses certify in 16 cases of 17.
 - **Documentation that said less than the code does.** The docstring of
   `miscibility_split` still said that a minimization over two declared instances
   does not deliver the composition inside a gap, which `equilibrate_split` and
