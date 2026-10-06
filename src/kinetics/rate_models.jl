@@ -380,6 +380,46 @@ struct RateModelCatalyst{T <: Real}
     n::T
 end
 
+# ── RateModelInhibitor ────────────────────────────────────────────────────────
+
+"""
+    RateModelInhibitor(species, K; m = 1)
+
+A species that slows a mechanism down: the mechanism's rate is multiplied by
+
+```math
+\\left(1 + K\\,a_i\\right)^{-m},
+```
+
+``a_i`` the activity of `species`. The factor is one where the species is
+absent, and falls as ``a_i^{-m}`` where ``K a_i \\gg 1``: unlike a catalyst
+with a negative order, ``a_i^{n}`` with ``n < 0``, which grows without bound as
+the species vanishes, it leaves the rate measured without the species unchanged.
+
+# Fields
+
+  - `species`: the species, by its symbol in the system.
+  - `K`: the inverse of the activity at which the factor is ``2^{-m}``.
+  - `m`: the order where ``K a_i \\gg 1``.
+
+# Examples
+
+```julia
+inh = RateModelInhibitor("Ca+2", 2000.0)       # halves the rate at a(Ca²⁺) = 5e-4
+```
+"""
+struct RateModelInhibitor{T <: Real}
+    species::String
+    K::T
+    m::T
+end
+function RateModelInhibitor(species::AbstractString, K::Real; m::Real = 1)
+    K >= 0 || throw(ArgumentError("RateModelInhibitor($species): K must not be negative; got $K."))
+    m >= 0 || throw(ArgumentError("RateModelInhibitor($species): m must not be negative; got $m."))
+    Kp, mp = promote(float(K), float(m))
+    return RateModelInhibitor{typeof(Kp)}(String(species), Kp, mp)
+end
+
 # ── RateMechanism ─────────────────────────────────────────────────────────────
 
 """
@@ -390,7 +430,7 @@ mineral dissolution or precipitation rate.
 
 The mechanism rate is:
 ```
-r_mech = k(T) × [Π_catalysts aᵢ^nᵢ] × sign(1 - Ω) × |1 - Ω^p|^q
+r_mech = k(T) × [Π_catalysts aᵢ^nᵢ] × [Π_inhibitors (1 + Kⱼ aⱼ)^(-mⱼ)] × sign(1 - Ω) × |1 - Ω^p|^q
 ```
 
 # Fields
@@ -400,6 +440,8 @@ r_mech = k(T) × [Π_catalysts aᵢ^nᵢ] × sign(1 - Ω) × |1 - Ω^p|^q
   - `p`: saturation exponent `p` in `(1 - Ω^p)^q`. Default 1.0.
   - `q`: outer exponent `q`. Default 1.0.
   - `catalysts`: vector of [`RateModelCatalyst`](@ref) (may be empty).
+  - `inhibitors`: vector of [`RateModelInhibitor`](@ref) (may be empty, which
+    it is unless given).
 
 # Examples
 
@@ -414,7 +456,10 @@ struct RateMechanism{F <: AbstractFunc, T <: Real}
     p::T
     q::T
     catalysts::Vector{RateModelCatalyst{T}}
+    inhibitors::Vector{RateModelInhibitor{T}}
 end
+RateMechanism{F, T}(k::F, p, q, catalysts) where {F <: AbstractFunc, T <: Real} =
+    RateMechanism{F, T}(k, T(p), T(q), catalysts, RateModelInhibitor{T}[])
 
 """
     RateMechanism(k::AbstractFunc, p::Real, q::Real) -> RateMechanism
@@ -424,6 +469,27 @@ Construct a [`RateMechanism`](@ref) with no catalyst contributions.
 function RateMechanism(k::AbstractFunc, p::Real, q::Real)
     T = typeof(promote(p, q)[1])
     return RateMechanism{typeof(k), T}(k, T(p), T(q), RateModelCatalyst{T}[])
+end
+
+"""
+    RateMechanism(k::AbstractFunc, p::Real, q::Real, catalysts,
+                  inhibitors = RateModelInhibitor[]) -> RateMechanism
+
+Construct a [`RateMechanism`](@ref) with catalysts and, optionally, inhibitors,
+their numbers promoted to one type.
+"""
+function RateMechanism(
+        k::AbstractFunc, p::Real, q::Real, catalysts::AbstractVector{<:RateModelCatalyst},
+        inhibitors::AbstractVector{<:RateModelInhibitor} = RateModelInhibitor{Float64}[],
+    )
+    T = promote_type(
+        typeof(float(p)), typeof(float(q)), (typeof(c.n) for c in catalysts)...,
+        (typeof(i.K) for i in inhibitors)...,
+    )
+    return RateMechanism{typeof(k), T}(
+        k, T(p), T(q), [RateModelCatalyst{T}(c.species, T(c.n)) for c in catalysts],
+        [RateModelInhibitor{T}(i.species, T(i.K), T(i.m)) for i in inhibitors],
+    )
 end
 
 # ── Palandri & Kharaka (2004): the mechanisms of a mineral ───────────────────

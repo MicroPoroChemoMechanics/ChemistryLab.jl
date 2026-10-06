@@ -529,6 +529,7 @@ module ChemistryLab
         arrhenius_rate_constant,
         saturation_ratio,
         RateModelCatalyst,
+        RateModelInhibitor,
         RateMechanism,
         palandri_kharaka,
         palandri_kharaka_minerals,

@@ -100,6 +100,7 @@ surface,
 
 ```math
 r_{\text{mech}} = k(T)\;\Bigl[\prod_j a_j^{\,n_j}\Bigr]\;
+                  \Bigl[\prod_l \left(1 + K_l\,a_l\right)^{-m_l}\Bigr]\;
                   \operatorname{sign}(1-\Omega^{p})\;\bigl|1-\Omega^{p}\bigr|^{q}
                   \qquad [\text{mol m}^{-2}\,\text{s}^{-1}] ,
 ```
@@ -116,13 +117,17 @@ the mineral by the surface model given to [`transition_state`](@ref). The
 mechanisms are classically an acid one, a neutral one and a base one, which is
 why the products of activities are called **catalysts**
 ([`RateModelCatalyst`](@ref)): each contributes `a_j^{n_j}`, with `n_j = 0.5` on
-`H+` a typical acid mechanism.
+`H+` a typical acid mechanism. A species that slows a mechanism down is an
+**inhibitor** ([`RateModelInhibitor`](@ref)): its factor ``(1 + K_l a_l)^{-m_l}``
+is one where the species is absent, which a catalyst of negative order, whose
+factor grows without bound as the species vanishes, is not.
 
 | symbol | meaning | unit |
 |:--|:--|:--|
 | ``A_s`` | reactive surface area of the mineral | m² |
 | ``k(T)`` | rate constant, usually [`arrhenius_rate_constant`](@ref) | mol m⁻² s⁻¹ |
 | ``a_j, n_j`` | catalyst activity and its exponent | — |
+| ``a_l, K_l, m_l`` | inhibitor activity, the inverse of the activity at which its factor is ``2^{-m_l}``, and its order | —, —, — |
 | ``p`` | saturation exponent inside the bracket | — |
 | ``q`` | outer exponent | — |
 | ``\Omega`` | saturation ratio | — |

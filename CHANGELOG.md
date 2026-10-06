@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Inhibitors of a dissolution mechanism**, `RateModelInhibitor(species, K;
+  m = 1)`: a mechanism of `transition_state` is divided by `(1 + K a)^m`, `a`
+  the activity of the species. Unlike a catalyst of negative order, whose
+  factor grows without bound as the species vanishes, it leaves the rate
+  measured without the species unchanged, which is how the dissolution of the
+  glasses of supplementary materials responds to dissolved calcium and
+  aluminum.
+- **The dissolution rates of Snellings (2013)**, transcribed in
+  `data/literature/Snellings2013.json`: six calcium aluminosilicate glasses from
+  slag to silica fume, 51 initial rates at 20 °C and pH 13 with Al, Ca or Si
+  added, and the regression of the rate on the glass composition read from the
+  vector figure. The abscissa of that figure counts aluminum twice, which the
+  file records with the check that shows it.
+
+### Fixed
+
+- **A rate law built on a fresh system had a wrong saturation ratio.**
+  `transition_state` looked for the standard Gibbs energy of each species of
+  the reaction in its property dictionary, where it appears only once the
+  species has been asked for it. Built before anything had asked, the law kept
+  none of the species, and its first evaluation failed; built after the
+  aqueous species had been asked but not the mineral, it computed the
+  saturation ratio without the mineral's energy, wrong by
+  `exp(ΔₐG⁰/RT)` of the mineral, without a word. The energies are now built on
+  demand, as everywhere else in the package.
+
 ## v0.34.0 — Water to 1000 °C, surfaces of three charge planes, durability in zero dimensions
 
 The solvent follows the equation of state of water at every temperature and

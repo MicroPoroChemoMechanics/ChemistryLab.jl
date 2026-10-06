@@ -177,6 +177,7 @@ end
     include("kinetics/test_slag_temperature.jl")
     include("kinetics/test_slag_temperature_pastes.jl")
     include("kinetics/test_palandri_kharaka.jl")
+    include("kinetics/test_glass_dissolution.jl")
     include("coupling_reference.jl")
 end
 
