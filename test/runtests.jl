@@ -144,6 +144,7 @@ end
     include("validation_shi2016.jl")
     include("validation_lothenbach2008.jl")
     include("validation_lothenbach2008_temperature.jl")
+    include("validation_lothenbach2014.jl")
     include("validation_chloride_temperature.jl")
     include("validation_logk_temperature.jl")
     include("validation_lhopital2016_alkali.jl")

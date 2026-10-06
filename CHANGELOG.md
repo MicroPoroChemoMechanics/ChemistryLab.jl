@@ -63,6 +63,18 @@
   syntheses say before any model: their solutions are undersaturated with
   respect to the strätlingite and katoite they hold, so the Al/Si of the gel
   beside these phases is not an equilibrium datum.
+- **A Portland cement with 40 % silica fume, the ESDRED shotcrete paste of
+  Lothenbach et al. (2014)** (`tutorials/validation_silica_fume_paste.md`,
+  `scripts/esdred_2014.jl`, the paper transcribed in
+  `data/literature/Lothenbach2014.json`), computed at the degrees of reaction
+  its NMR measured, with CSHQ and CASH+NK, against its pore solutions over 3.5
+  years. CASH+NK follows the late alkalis and CSHQ does not, as Miron et al.
+  (2022b) report; neither follows the calcium and the pH, which the formate of
+  the set accelerator governs: it is the main anion of the measured solution.
+  The paste is computed without it, as Miron et al. did, and with all of it in
+  solution, formate of the SUPCRT organic database kept from oxidation, two
+  bounds the measurement lies between. Miron et al. give the binder as 40 % CEM
+  I and 60 % silica fume; the source gives 60 and 40, which is used.
 - **The C-A-S-H syntheses of L'Hôpital et al. (2015) and of Yan et al. (2022)**,
   transcribed in `data/literature/LHopital2015.json` (the gel, the other solids
   and the solutions at a Ca/Si of 1.0, without alkali and in 0.5 M KOH) and
