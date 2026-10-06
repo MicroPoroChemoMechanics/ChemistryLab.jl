@@ -1,6 +1,38 @@
 # Changelog
 
-## Unreleased
+## v0.34.0 — Water to 1000 °C, surfaces of three charge planes, durability in zero dimensions
+
+The solvent follows the equation of state of water at every temperature and
+pressure, anchored on its record at 25 °C and 1 bar, and the density of water
+no longer stops on a spurious root: against the ThermoFun library on 652 states
+to 1000 °C and 5 kbar the standard states agree once the anchoring is
+recomposed, and the ionization constant of water and the solubility of quartz
+follow fits to the measurements to 400 °C. A surface may carry its charge in
+three planes, the basic Stern, triple-layer and charge distribution models in
+one, and agrees with PHREEQC's CD-MUSIC on goethite. Six pages compute what the
+surroundings do to a hydrated paste, as sequences of equilibria against
+measurements: leaching, sulfate attack and thaumasite, seawater, delayed
+ettringite formation, hemicarbonate, chloride in the AFm phases.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.33"` does not accept 0.34
+  and has to widen its bound.
+- **Results away from 25 °C move.** The volume of the solvent follows the
+  thermal expansion of water instead of keeping its 25 °C value at 1 bar
+  (0.12 % at 20 °C, 2.6 % at 80 °C), which moves the concentrations computed at
+  20 °C by about 0.1 %; the Gibbs energy of water moves by 0.2 J/mol at most
+  from 0 to 100 °C at 1 bar, by 0.5 kJ/mol at 300 °C and 1 kbar. The corrected
+  density of water moves the HKF energies of the solutes at high pressure by up
+  to 60 J/mol. Nothing moves at 25 °C and 1 bar.
+- **HKF refuses water less dense than 350 kg/m³** with a `DomainError`, where
+  it returned a value.
+- **The chloride end member of CSHQ is refitted**, from −4907 to −4897 J/mol, and
+  the databases ChemistryLab derives are rebuilt on first use.
+- **Four names are exported**: `ChargePlanes`, `with_plane_charges`,
+  `charge_planes_potentials` and `temperature_range`. A package defining the
+  same names alongside `using ChemistryLab` now sees a conflict.
 
 ### Added
 
