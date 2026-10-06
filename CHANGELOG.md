@@ -70,6 +70,16 @@
   Ca/Si of 1.0 in NaOH and KOH up to 1 M), each value checked against the
   rendered page. The chemical formulas of Yan et al.'s Table A4 count Na2O and
   Al2O3 twice against its own ratio columns; the file keeps both and says so.
+- **The products of the alkali-silica reaction synthesized at 80 °C**
+  (`examples/asr_products.md`, `scripts/asr_products.jl`, and the syntheses of
+  Shi and Lothenbach (2019) transcribed in
+  `data/literature/ShiLothenbach2019.json`). The 17 syntheses certify with the
+  shlykovites of `cemdata18-asr.json` and with the three products of Shi and
+  Lothenbach at 80 °C. The two sets of constants come from the same solutions
+  with two treatments of the pH, and each reproduces one half of the potassium
+  series: K-shlykovite at a low Ca/Si with the first, ASR-P1 from a Ca/Si of 0.3
+  with the second. The solution of silica in KOH without lime sits on the middle
+  root of its ionic strength, drawn on the page.
 
 ### Fixed
 

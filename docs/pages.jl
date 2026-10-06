@@ -291,6 +291,10 @@ pages = [
             "examples/delayed_ettringite.md",
             "examples/hemicarbonate.md",
             "examples/chloride_afm.md",
+            # The products of the alkali-silica reaction synthesized at 80 °C:
+            # two sets of constants for them, and an equilibrium on the middle
+            # root of the ionic strength.
+            "examples/asr_products.md",
         ],
         # Beyond the Portland cement. One page per EN 197-1 family, in order of
         # how much of the clinker is replaced and of what the replacement asks

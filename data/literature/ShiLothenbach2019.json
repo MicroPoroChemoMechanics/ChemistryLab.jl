@@ -1,0 +1,245 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "ShiLothenbach2019",
+    "doi": "10.1016/j.cemconres.2019.105898",
+    "citation": "Shi, Z., Lothenbach, B. (2019). The role of calcium on the formation of alkali-silica reaction products. Cement and Concrete Research 126, 105898.",
+    "location": "Tables 1-6 (pp. 3-6), Sections 2.1, 2.2.2 and 3.2 (pp. 2-7)"
+  },
+  "transcription": {
+    "from": "the published article (PDF): every table from the text layer, checked cell by cell against the page rendered at 150 dpi; the italic log Ks0 values of Table 6 identified from the font of the text layer (the italic face) and on the rendered page",
+    "checked_against_source": true,
+    "note": "Concentrations in mM as printed (mmol/L). The pH at 80 C is the authors' own correction, the value measured at 23 C minus 1.47 (Table 4 and 6, footnote); it is not a measurement at 80 C. A detection limit printed as '< 0.01' is transcribed as 0.01 with the column name listed in 'upper_limits'. The GEMS results of the paper (Figs. 7 and 10) are given only as figures and are not transcribed. The thermodynamic data of the three ASR products are solubility products at 80 C only: the paper gives no dfG, dfH, S, Cp or V for them."
+  },
+  "quantities": {
+    "temperature": {
+      "value": 353.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 2",
+      "description": "Synthesis, equilibration and solubility-product temperature, 80 C."
+    },
+    "equilibration_time": {
+      "value": 90,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 2",
+      "description": "Equilibration time of the syntheses (precipitation experiments)."
+    },
+    "ph_measurement_temperature": {
+      "value": 296.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2.1, p. 3",
+      "description": "Temperature at which the pH was measured, about 23 C."
+    },
+    "ph_temperature_correction": {
+      "value": 1.47,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 4 and Table 6, footnote b / a",
+      "description": "pH units subtracted from the pH measured at 23 C to give the tabulated pH at 80 C."
+    },
+    "dissolution_solid_mass": {
+      "value": 0.6,
+      "unit": "g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 3.2, p. 6",
+      "description": "Dried synthesized solid re-dispersed in the dissolution (under-saturation) experiments."
+    },
+    "dissolution_water_mass": {
+      "value": 10,
+      "unit": "g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 3.2, p. 6",
+      "description": "Water of the dissolution experiments, at 80 C."
+    },
+    "dissolution_time_months": {
+      "value": 1,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 3.2, p. 6 and Table 4 caption",
+      "description": "Equilibration time of the dissolution experiments, in months as printed ('1 month'); not converted to days because the paper gives no day count."
+    },
+    "koh_assay_minimum": {
+      "value": 0.85,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 2",
+      "description": "Mass fraction: KOH pellets, '>= 85% KOH basis' (a lower bound, not the actual content); Shi and Lothenbach 2020 give 92 +/- 3 % from IC for the KOH they used."
+    },
+    "naoh_assay_minimum": {
+      "value": 0.999,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 2",
+      "description": "Mass fraction: NaOH pellets, '>= 99.9% NaOH basis'."
+    },
+    "silica_specific_surface": {
+      "value": 200,
+      "unit": "m^2/g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 2",
+      "description": "Amorphous (hydrophilic) silica, EVONIK."
+    },
+    "cao_burning_temperature": {
+      "value": 1273.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 2",
+      "description": "CaO obtained by burning calcium carbonate 12 h at 1000 C."
+    },
+    "edh_ion_size_KOH": {
+      "value": 3.67,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2.2, p. 4",
+      "description": "In angstrom (the unit of Lothenbach2019.json): common ion-size parameter of the extended Debye-Hueckel equation for KOH solutions."
+    },
+    "edh_ion_size_NaOH": {
+      "value": 3.31,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2.2, p. 4",
+      "description": "In angstrom (the unit of Lothenbach2019.json): common ion-size parameter of the extended Debye-Hueckel equation for NaOH solutions."
+    },
+    "edh_b_gamma_KOH_25C": {
+      "value": 0.123,
+      "unit": "kg/mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2.2, p. 4",
+      "description": "Semi-empirical third parameter b_y for KOH electrolyte at 25 C ('~0.123')."
+    },
+    "edh_b_gamma_NaOH_25C": {
+      "value": 0.098,
+      "unit": "kg/mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2.2, p. 4",
+      "description": "Semi-empirical third parameter b_y for NaOH electrolyte at 25 C ('~0.098')."
+    },
+    "ca_impurity_SNC0": {
+      "value": 0.036,
+      "unit": "mmol/L",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 3.4, p. 8",
+      "description": "Ca measured in SNC0, to which no CaO was added (impurities of the starting materials); Table 6 prints it rounded, 0.04."
+    }
+  },
+  "tables": {
+    "asr_product_solubility": {
+      "columns": ["phase", "formula", "reaction", "log_Ks0", "log_Ks0_uncertainty", "T", "uncertainty_basis"],
+      "units": [null, null, null, "1", "1", "K", null],
+      "kind": "fitted",
+      "location": "Table 5, p. 5 (also Section 2.2.2, p. 4, for the formulas and the Ks0 expressions); the reaction column writes the printed Ks0 expression as a dissolution, with the Cemdata18 symbols of the species ({SiO2^0} = SiO2@)",
+      "rows": [
+        ["Na-shlykovite", "NaCaSi4O8(OH)3(H2O)2.3", "NaCaSi4O8(OH)3(H2O)2.3 = Na+ + Ca+2 + 4 SiO2@ + 3 OH- + 2.3 H2O@", -26.5, 2.0, 353.15, "roughly estimated (Table 5, footnote a); from the dissolution experiment only"],
+        ["ASR-P1", "K0.52Ca1.16Si4O8(OH)2.84(H2O)1.5", "K0.52Ca1.16Si4O8(OH)2.84(H2O)1.5 = 0.52 K+ + 1.16 Ca+2 + 4 SiO2@ + 2.84 OH- + 1.5 H2O@", -27.1, 1.1, 353.15, "Student's t, 95 % confidence (Table 5, footnote a); mean of the dissolution experiments and of the precipitation experiments with Si < 100 mM"],
+        ["K-shlykovite", "KCaSi4O8(OH)3(H2O)2", "KCaSi4O8(OH)3(H2O)2 = K+ + Ca+2 + 4 SiO2@ + 3 OH- + 2 H2O@", -25.8, 2.0, 353.15, "roughly estimated (Table 5, footnote a); from the dissolution experiment only"]
+      ]
+    },
+    "cnksh_end_members": {
+      "columns": ["end_member", "printed_formula", "oxide_formula", "log_Ks0", "dfG", "dfH", "S", "Cp", "V", "T", "ref"],
+      "units": [null, null, null, "1", "kJ/mol", "kJ/mol", "J/(mol*K)", "J/(mol*K)", "cm^3/mol", "K", null],
+      "kind": "published",
+      "location": "Table 2, p. 3: standard properties at 25 C and 1 atm of the C-(N-)K-S-H solid solution; log Ks0 with respect to SiO(OH)3-, OH-, H2O, Ca2+, K+, Na+ (footnote a). INFCK is the paper's own end-member ('This study'); the others are cited from Myers et al. 2014 (ref. [34])",
+      "rows": [
+        ["T2C*", "C3/2S1H5/2", "(CaO)1.5(SiO2)1(H2O)2.5", -11.6, -2465.4, -2720.7, 167, 237, 80.6, 298.15, "[34] Myers et al. 2014"],
+        ["T5C*", "C5/4S5/4H5/2", "(CaO)1.25(SiO2)1.25(H2O)2.5", -10.5, -2516.9, -2780.3, 159.9, 234.1, 79.3, 298.15, "[34] Myers et al. 2014"],
+        ["TobH*", "C1S3/2H5/2", "(CaO)1(SiO2)1.5(H2O)2.5", -7.9, -2560, -2831.4, 152.8, 231.2, 85, 298.15, "[34] Myers et al. 2014"],
+        ["INFCN", "C1N5/16S3/2H19/16", "(CaO)1(SiO2)1.5(Na2O)0.3125(H2O)1.1875", -10.7, -2452.5, -2642.5, 185.6, 183.7, 71.1, 298.15, "[34] Myers et al. 2014"],
+        ["INFCK", "C1K5/16S3/2H19/16", "(CaO)1(SiO2)1.5(K2O)0.3125(H2O)1.1875", -11.2, -2468.2, -2652.2, 212.2, 165.1, 77.5, 298.15, "This study"]
+      ]
+    },
+    "asr_product_compositions": {
+      "columns": ["sample", "asr_product", "gems_Ca_Si", "gems_alkali_Si", "gems_H2O_Si", "edx_Ca_Si", "edx_Ca_Si_err", "edx_K_Si", "edx_K_Si_err", "edx_Na_Si", "edx_Na_Si_err", "mb_Ca_Si", "mb_K_Si", "mb_Na_Si", "tga_H2O_Si"],
+      "units": [null, null, "1", "1", "1", "1", "1", "1", "1", "1", "1", "1", "1", "1", "1"],
+      "kind": "measured",
+      "location": "Table 3, p. 4: molar ratios; 'gems_' = values selected for GEMS, 'edx_' = SEM/EDX, 'mb_' = mass balance, 'tga_' = TGA (from the authors' ref. [8]); null where the table prints a dash. The K-shlykovite GEMS selection is that of natural shlykovite (Pekov et al. 2010, footnote b), applied also to Na-shlykovite",
+      "rows": [
+        ["SNC", "Na-shlykovite", 0.25, 0.25, 0.95, null, null, null, null, null, null, 0.29, null, 0.35, 0.95],
+        ["SK0.35N0.15C", "ASR-P1", 0.29, 0.13, 0.73, 0.29, 0.01, 0.13, 0.02, 0.01, 0.01, 0.32, 0.29, 0.1, 0.73],
+        ["SKC", "K-shlykovite", 0.25, 0.25, 0.875, 0.23, 0.01, 0.22, 0.03, null, null, 0.3, 0.41, null, 0.78]
+      ]
+    },
+    "solubility_experiments": {
+      "columns": ["sample", "experiment", "Si", "Na", "K", "Ca", "pH_23C", "pH_80C", "phases", "log_Ks0_Na_shlykovite", "log_Ks0_ASR_P1", "log_Ks0_K_shlykovite"],
+      "units": [null, null, "mmol/L", "mmol/L", "mmol/L", "mmol/L", "1", "1", null, "1", "1", "1"],
+      "kind": "measured",
+      "location": "Table 4, p. 4: precipitation (over-saturation, direct synthesis, 3 months, from the authors' ref. [8]) and dissolution (under-saturation, re-dispersed solids, 1 month) experiments at 80 C; null where the table prints a dash or nothing; pH_80C = pH_23C - 1.47; the log Ks0 are calculated (GEMS activities from the measured concentrations)",
+      "rows": [
+        ["SNC", "precipitation", 302, 402, null, 0.025, 12.6, 11.2, "Na-shlykovite", -28.3, null, null],
+        ["SK0.35N0.15C", "precipitation", 450, 146, 243, 0.029, 11.9, 10.4, "ASR-P1", null, -27.6, null],
+        ["SKC", "precipitation", 315, null, 303, 0.012, 12.1, 10.7, "K-shlykovite, ASR-P1", null, -28.1, -28.0],
+        ["SNC", "dissolution", 38.5, 50.2, 0.07, 0.06, 11.7, 10.2, "Na-shlykovite, C-S-H", -26.5, null, null],
+        ["SK0.35N0.15C", "dissolution", 69, 32.8, 44, 0.02, 11.5, 10.1, "ASR-P1", null, -26.5, null],
+        ["SKC#", "dissolution", 39.5, 0.7, 50.8, 0.06, 11.0, 9.5, "K-shlykovite, ASR-P1", null, -25.2, -25.8]
+      ]
+    },
+    "mixes": {
+      "columns": ["sample", "series", "SiO2_am", "CaO", "KOH", "NaOH", "H2O", "water_solid", "Ca_Si", "alkali_Si", "Ca_alkali"],
+      "units": [null, null, "g", "g", "g", "g", "g", "g/g", "1", "1", "1"],
+      "kind": "published",
+      "location": "Table 1, p. 3: starting materials; the K series was made twice, with the high water content and with the low one printed in parentheses, here split into two rows ('K-high', 'K-low'); SKC0 has no low-water sample; the KOH and NaOH masses are the pellets as weighed (purity: quantities koh_assay_minimum, naoh_assay_minimum); Ca_Si, alkali_Si and Ca_alkali are the nominal molar ratios",
+      "rows": [
+        ["SKC0", "K-high", 4, 0, 1.87, null, 60, 10.2, 0, 0.5, 0],
+        ["SKC0.1", "K-high", 4, 0.373, 1.87, null, 60, 9.6, 0.1, 0.5, 0.2],
+        ["SKC0.2", "K-high", 4, 0.747, 1.87, null, 60, 9.1, 0.2, 0.5, 0.4],
+        ["SKC0.3", "K-high", 4, 1.12, 1.87, null, 60, 8.6, 0.3, 0.5, 0.6],
+        ["SKC0.4", "K-high", 4, 1.49, 1.87, null, 80, 10.9, 0.4, 0.5, 0.8],
+        ["SKC0.5", "K-high", 4, 1.867, 1.87, null, 100, 12.9, 0.5, 0.5, 1],
+        ["SKC0.1", "K-low", 4, 0.373, 1.87, null, 30, 4.8, 0.1, 0.5, 0.2],
+        ["SKC0.2", "K-low", 4, 0.747, 1.87, null, 30, 4.5, 0.2, 0.5, 0.4],
+        ["SKC0.3", "K-low", 4, 1.12, 1.87, null, 30, 4.3, 0.3, 0.5, 0.6],
+        ["SKC0.4", "K-low", 4, 1.49, 1.87, null, 40, 5.4, 0.4, 0.5, 0.8],
+        ["SKC0.5", "K-low", 4, 1.867, 1.87, null, 50, 6.5, 0.5, 0.5, 1],
+        ["SNC0", "Na-high", 4, 0, null, 1.33, 60, 11.3, 0, 0.5, 0],
+        ["SNC0.1", "Na-high", 4, 0.373, null, 1.33, 60, 10.5, 0.1, 0.5, 0.2],
+        ["SNC0.2", "Na-high", 4, 0.747, null, 1.33, 60, 9.9, 0.2, 0.5, 0.4],
+        ["SNC0.3", "Na-high", 4, 1.12, null, 1.33, 60, 9.3, 0.3, 0.5, 0.6],
+        ["SNC0.4", "Na-high", 4, 1.49, null, 1.33, 100, 14.7, 0.4, 0.5, 0.8],
+        ["SNC0.5", "Na-high", 4, 1.867, null, 1.33, 100, 13.9, 0.5, 0.5, 1]
+      ]
+    },
+    "solutions": {
+      "columns": ["sample", "series", "Si", "K", "Na", "Ca", "upper_limits", "pH_23C", "pH_80C", "phases_xrd", "solid_Ca_Si", "solid_Ca_Si_err", "solid_alkali_Si", "solid_alkali_Si_err", "log_Ks0_K_shlykovite", "log_Ks0_ASR_P1", "log_Ks0_Na_shlykovite", "italic_log_Ks0"],
+      "units": [null, null, "mmol/L", "mmol/L", "mmol/L", "mmol/L", null, "1", "1", null, "1", "1", "1", "1", "1", "1", "1", null],
+      "kind": "measured",
+      "location": "Table 6, p. 6: solutions after 90 days at 80 C, phases from XRD, bulk solid composition from mass balance (solid_alkali_Si is K/Si for the K series, Na/Si for the Na series: the table prints the Na-series values in its K/Si column), and log Ks0 at 80 C; null where the table prints a dash or nothing; 'upper_limits' names the columns printed as '< value'; pH_80C = pH_23C - 1.47. The log Ks0 printed in italics (footnote c: very high Si, for comparison only, not used in the selected values) are listed in 'italic_log_Ks0'. SKC0.1 with high water: bottle broken, no data (Fig. 4 caption)",
+      "rows": [
+        ["SKC0", "K-high", 902, 496, null, 0.01, "Ca", 11.3, 9.8, "SiO2 (am)", 0, null, 0.19, 0.53, null, null, null, ""],
+        ["SKC0.2", "K-high", 401, 351, null, 0.01, "Ca", 11.6, 10.2, "ASR-P1, K-shlykovite", 0.31, 0.02, 0.26, 0.07, -27.5, -27.5, null, "K-shlykovite, ASR-P1"],
+        ["SKC0.3", "K-high", 135, 228, null, 0.96, "", 12.2, 10.7, "ASR-P1", 0.34, 0.01, 0.31, 0.03, null, -26.0, null, "ASR-P1"],
+        ["SKC0.4", "K-high", 12.4, 134, null, 2.82, "", 12.7, 11.2, "ASR-P1", 0.4, 0.01, 0.33, 0.01, null, -27.3, null, ""],
+        ["SKC0.5", "K-high", 9.8, 168, null, 1.24, "", 12.9, 11.4, "ASR-P1, C-S-H", 0.51, 0.01, 0.23, 0.03, null, -28.0, null, ""],
+        ["SKC0.1", "K-low", 1381, 744, null, 0.01, "", 11.2, 9.7, "K-shlykovite", 0.25, 0.05, 0.39, 0.16, -26.6, null, null, "K-shlykovite"],
+        ["SKC0.2", "K-low", 702, 510, null, 0.01, "", 11.6, 10.1, "K-shlykovite", 0.29, 0.01, 0.37, 0.05, -27.3, null, null, "K-shlykovite"],
+        ["SKC0.3", "K-low", 399, 421, null, 0.1, "", 12.4, 10.9, "ASR-P1", 0.36, 0.01, 0.36, 0.03, null, -27.5, null, "ASR-P1"],
+        ["SKC0.4", "K-low", 125, 255, null, 0.11, "", 12.9, 11.4, "ASR-P1", 0.43, 0.01, 0.34, 0.02, null, -28.2, null, "ASR-P1"],
+        ["SKC0.5", "K-low", 91.6, 252, null, 0.15, "", 13, 11.5, "ASR-P1, C-S-H", 0.54, 0.01, 0.3, 0.02, null, -28.3, null, ""],
+        ["SNC0", "Na-high", 904, null, 543, 0.04, "", 11.2, 9.7, "SiO2 (am)", 0, null, 0.09, 0.47, null, null, null, ""],
+        ["SNC0.1", "Na-high", 750, null, 478, 0.02, "", 11.2, 9.7, "Na-shlykovite", 0.31, 0.06, 0.23, 0.21, null, null, -26.8, ""],
+        ["SNC0.2", "Na-high", 458, null, 374, 0.02, "", 11.5, 10.1, "Na-shlykovite", 0.34, 0.02, 0.27, 0.1, null, null, -27.3, ""],
+        ["SNC0.3", "Na-high", 442, null, 382, 0.07, "", 11.7, 10.2, "Na-shlykovite", 0.5, 0.03, 0.27, 0.07, null, null, -26.8, ""],
+        ["SNC0.4", "Na-high", 152, null, 171, 0.05, "", 11.9, 10.5, "Na-shlykovite, C-S-H", 0.52, 0.01, 0.32, 0.04, null, null, -27.1, ""],
+        ["SNC0.5", "Na-high", 145, null, 183, 0.05, "", 12.2, 10.8, "C-S-H", 0.64, 0.02, 0.29, 0.05, null, null, null, ""]
+      ]
+    }
+  },
+  "notes": ["The solubility products are equilibrium constants at 80 C (353.15 K) of the dissolution reactions written in asr_product_solubility, the species as printed: K+, Na+, Ca2+, SiO2^0 (Cemdata18 SiO2@), OH-, H2O. No standard property at 25 C is published for K-shlykovite, Na-shlykovite or ASR-P1, so a ThermoFun record needs an assumption for the temperature dependence; at 80 C itself any record that reproduces log Ks0(353.15 K) is equivalent.", "The selected ASR-P1 value -27.1 is the mean of the five values the text names (Section 3.2 and Table 5): the two dissolution experiments of Table 4 (-26.5, -25.2) and the three precipitation experiments of Table 6 with Si < 100 mM (SKC0.4 high water -27.3, SKC0.5 high water -28.0, SKC0.5 low water -28.3); their mean is -27.06.", "The C-S-H model is CNASH_ss of Myers et al. (2014) plus the K end-member INFCK, 'with a stability 0.5 log units lower than the Na-endmember' (Section 2.2.2). How INFCK enters the sublattice mixing of CNASH_ss is not stated.", "The INFCN row of Table 2 agrees with the Cemdata18 ThermoFun record of INFCN to the printed digits except dfH: -2642.5 kJ/mol here, -2641.96 kJ/mol in the Cemdata18 file.", "Table 2 refers the C-(N-)K-S-H solubility products to SiO(OH)3-; the companion paper (Shi and Lothenbach 2020, Table 2 footnote b) refers the same numbers to SiO2^0, and Shi et al. 2021 (Table A1 footnote a) to SiO2^0 and Al(OH)4-. The 2019 footnote is the one consistent with the Cemdata18 convention for CNASH_ss.", "Samples SKC0.3 (high and low water) and SNC0.3 are the same mixes as SCK0.5 and SCN0.5 of Shi and Lothenbach 2020 (Ca/Si 0.3, alkali/Si 0.5, 60 or 30 g water) and repeat the same solution analyses, with small differences: Ca of SKC0.3 high water is 0.96 mM here and 0.33 mM there, and its ASR-P1 log Ks0 -26.0 (italic) here, -26.5 there; SKC0.3 low water -27.5 here, -27.3 there; SNC0.3 bulk Ca/Si 0.50 +/- 0.03 here, 0.49 +/- 0.04 there."]
+}
