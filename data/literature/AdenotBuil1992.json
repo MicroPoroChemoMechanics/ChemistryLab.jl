@@ -1,0 +1,256 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "AdenotBuil1992",
+    "doi": "10.1016/0008-8846(92)90092-a",
+    "citation": "Adenot, F. and Buil, M. (1992). Modelling of the corrosion of the cement paste by deionized water. Cement and Concrete Research 22(2-3), 489-496.",
+    "location": "Sections 2 and 3 (pp. 490-492), Figs. 1-4"
+  },
+  "transcription": {
+    "from": "the published article (PDF, a scan with an OCR text layer): the conditions and the zoning from the text, checked on the rendered pages; the leached-ion ratios from the text and the inset of Fig. 3, and the minor ones read on the raster figure",
+    "checked_against_source": true,
+    "note": "The paper is short and almost entirely qualitative. It gives no cement composition (only 'OPC paste'), no water/cement ratio, no specimen dimensions, no depth of any dissolution front, no measured Ca/Si profile (only 'a progressive decrease' from semi-quantitative EDS), and no table of the Ca concentrations at which the phases dissolve. Its Fig. 4 (C/S of C-S-H against the Ca of the solution) plots the literature points compiled by Berner (Radiochimica Acta 44-45, 387-393, 1988, its ref. 2) with a dashed curve whose equation is not given; those points are the compilation tabulated in Berner1992 (Tables 8-13) and were not digitized again. Figs. 1 and 2 (weight loss and added acid, linear against the square root of time) were not digitized: without the exposed surface they give no flux per unit area, and their time axes are labeled in seconds (up to sqrt(t) = 80 and 50, Fig. 3 up to t = 2000) although the text states a three-month experiment, so the printed unit cannot be taken at face value. Fig. 3 is a raster image: the Si, K, S and Na ratios were read from the scan by locating the horizontal lines and the decade ticks of the logarithmic axis (about 165 pixels per decade at 300 dpi), precision about +/-10 %; on the same reading the Ca/H+ line sits at about 0.43, while the text states 0.5, which is what is transcribed."
+  },
+  "quantities": {
+    "leaching_temperature": {
+      "value": 293.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 490",
+      "description": "Temperature of the leaching water, 20 C (converted to K)."
+    },
+    "leachate_pH": {
+      "value": 7,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 491",
+      "description": "pH at which the leaching water is kept in the second experiment, by small additions of nitric acid; the solution is frequently renewed and analyzed. The first experiment keeps the water deionized by recirculation on a mixed bed of strong ion-exchange resins, without pH control."
+    },
+    "ca_to_added_acid": {
+      "value": 0.5,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 3.1, p. 491, and Fig. 3",
+      "description": "Leached calcium per mole of added acid (H+), constant in time: 'a line parallel to the time axis at 0.5'; the OH- leached equals the acid added (ratio 1), so Ca leaves as Ca(OH)2, two OH- per Ca."
+    },
+    "al_to_added_acid_max": {
+      "value": 0.001,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Fig. 3 (inset), p. 491",
+      "description": "Upper bound of leached Al per mole of added acid (Al/H+ < 0.001)."
+    },
+    "fe_to_added_acid_max": {
+      "value": 0.001,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Fig. 3 (inset), p. 491",
+      "description": "Upper bound of leached Fe per mole of added acid (Fe/H+ < 0.001)."
+    }
+  },
+  "tables": {
+    "experiments": {
+      "columns": [
+        "experiment",
+        "medium",
+        "pH_control",
+        "renewal",
+        "duration",
+        "measured",
+        "location"
+      ],
+      "units": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "kind": "published",
+      "location": "Sections 2.1-2.2, pp. 490-491",
+      "rows": [
+        [
+          "hydrostatic weighing",
+          "water kept deionized by recirculation on a mixed bed of strong ion-exchange resins, 20 C",
+          "none",
+          "continuous recirculation through the resins",
+          "not stated",
+          "weight of the cylinder against time (Fig. 1, linear in the square root of time)",
+          "Section 2.1, p. 490"
+        ],
+        [
+          "acid additions",
+          "water at 20 C, nitric acid added",
+          "kept at pH 7 by HNO3 additions",
+          "solution frequently renewed and analyzed",
+          "interrupted after three months",
+          "acid added against time (Fig. 2, linear in the square root of time), leached ions (Fig. 3), weight loss superimposed on that of the first experiment; then the solid by optical microscopy, SEM-EDS and X-ray diffraction",
+          "Section 2.2, p. 491"
+        ]
+      ]
+    },
+    "specimen": {
+      "columns": [
+        "item",
+        "value",
+        "location"
+      ],
+      "units": [
+        null,
+        null,
+        null
+      ],
+      "kind": "published",
+      "location": "Section 2.1, p. 490, and Section 3.2, p. 492",
+      "rows": [
+        [
+          "binder",
+          "OPC paste (no composition, no w/c given)",
+          "Section 2.1, p. 490"
+        ],
+        [
+          "curing",
+          "three months in saturated Ca(OH)2 solution",
+          "Section 2.1, p. 490"
+        ],
+        [
+          "geometry",
+          "cylinder, length and diameter much larger than the corroded thickness: one-dimensional attack, uncorroded core persists (semi-infinite medium); dimensions not given",
+          "Sections 2.1 and 3.2"
+        ],
+        [
+          "minor components",
+          "alkalis, iron and magnesium neglected in the analysis, for their low initial content or their leaching during the curing",
+          "Section 3.2, p. 493"
+        ]
+      ]
+    },
+    "zoning": {
+      "columns": [
+        "order_from_core",
+        "zone",
+        "phases",
+        "evidence",
+        "location"
+      ],
+      "units": [
+        "1",
+        null,
+        null,
+        null,
+        null
+      ],
+      "kind": "measured",
+      "location": "Section 3.2, p. 492, after three months of leaching: a central core and three concentric zones (optical microscopy, XRD, SEM); the phases of zones 2 and 3 follow from the order of the fronts the text gives",
+      "rows": [
+        [
+          0,
+          "uncorroded core",
+          "the phase composition of an unleached paste: portlandite, ettringite, monosulfoaluminate, C-S-H",
+          "XRD",
+          "p. 492"
+        ],
+        [
+          1,
+          "first zone (bounded inward by the portlandite dissolution front)",
+          "no portlandite left",
+          "XRD and SEM",
+          "p. 492"
+        ],
+        [
+          2,
+          "second zone (beyond the monosulfoaluminate dissolution front)",
+          "no portlandite, no monosulfoaluminate",
+          "'the next two zones are delimited by dissolution fronts of the monosulfoaluminate and ettringite'",
+          "p. 492"
+        ],
+        [
+          3,
+          "third zone, at the surface (beyond the ettringite dissolution front)",
+          "no portlandite, no monosulfoaluminate, no ettringite",
+          "same sentence",
+          "p. 492"
+        ]
+      ]
+    },
+    "leached_ion_ratios": {
+      "columns": [
+        "ion",
+        "ratio_to_added_acid",
+        "qualifier",
+        "how_obtained"
+      ],
+      "units": [
+        null,
+        "1",
+        null,
+        null
+      ],
+      "kind": "measured",
+      "location": "Fig. 3, p. 491: quantity of leached ion over quantity of added acid (H+), constant over the experiment; logarithmic axis from 0.001 to 1",
+      "rows": [
+        [
+          "OH-",
+          1.0,
+          "=",
+          "line labeled OH-/H+ at the top of the axis (1)"
+        ],
+        [
+          "Ca",
+          0.5,
+          "=",
+          "text, Section 3.1"
+        ],
+        [
+          "Si",
+          0.014,
+          "~",
+          "read on the raster figure, +/-10 %"
+        ],
+        [
+          "K",
+          0.013,
+          "~",
+          "read on the raster figure, +/-10 %"
+        ],
+        [
+          "S",
+          0.0065,
+          "~",
+          "read on the raster figure, +/-10 %"
+        ],
+        [
+          "Na",
+          0.0014,
+          "~",
+          "read on the raster figure, +/-10 %"
+        ],
+        [
+          "Al",
+          0.001,
+          "<",
+          "printed in the inset"
+        ],
+        [
+          "Fe",
+          0.001,
+          "<",
+          "printed in the inset"
+        ]
+      ]
+    }
+  },
+  "notes": [
+    "The C/S of the C-S-H decreases progressively from the uncorroded core to the surface (semi-quantitative EDS), which the authors explain by local equilibrium between the C-S-H and the pore solution, following the curve of their Fig. 4 (Berner's compilation); no value of the profile is printed.",
+    "Local equilibrium and the phase rule are the argument for sharp fronts: the core holds as many solids (portlandite, ettringite, monosulfoaluminate, C-S-H) as independent aqueous components (Ca+2, SO4-2, Al(OH)4-, H2SiO4-2), so any change of concentration removes a phase; in each corroded zone at most n - 1 = 3 solids coexist.",
+    "Apart from hydroxide, calcium is in practice the only ion leached (Section 3.1); the leaching kinetics are governed by diffusion (weight loss and acid added are linear in the square root of time).",
+    "The model of Section 4 (diffusion with local equilibrium, Boltzmann variable x/sqrt(t), Rankine-Hugoniot conditions at the fronts) is given only as equations; no computed profile or parameter value is printed."
+  ]
+}

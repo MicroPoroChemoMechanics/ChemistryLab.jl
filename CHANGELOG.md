@@ -30,6 +30,15 @@
   from 25 to 400 °C, against the 0.16 standard deviation of their fit, and
   departs above, by 1.4 at 1000 °C; the solubility of quartz to 0.022 in log m
   up to 400 °C and 0.12 at 800 °C and 5 kbar.
+- **Durability in zero dimensions: leaching** (the page *Leaching: the C-S-H and
+  a CEM I paste in renewed water*, `scripts/berner1992_leaching.jl`). The C-S-H
+  of Cemdata18 against the six sets of solubility data Berner (1992) compiled,
+  264 rows transcribed: the calcium within a factor of 2 at 164 of the 176
+  points in the range of the gel, the measurements 1.23 times higher at the
+  median; the silicon 2.3 times too high at the median. A CEM I paste leached by
+  renewals of its solution loses its portlandite, then its AFm, then its
+  ettringite, the order of the zones Adenot and Buil (1992) observed, the gel
+  falling from a Ca/Si of 1.63 to 0.70.
 - **`temperature_range`**: the temperatures over which a record of a ThermoFun
   database declares its heat capacity. Cemdata18 declares its AFm phases to
   50 °C, its ettringites to 60 °C and its clinker phases from 25 °C; nothing

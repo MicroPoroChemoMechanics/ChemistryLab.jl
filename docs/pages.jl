@@ -275,6 +275,12 @@ pages = [
             "examples/hydrates_temperature.md",
             "examples/chloride_temperature.md",
         ],
+        # What the surroundings do to a hydrated paste, at equilibrium and in
+        # zero dimensions: a sequence of equilibria in which what enters or
+        # leaves the paste is the parameter, each against measurements.
+        "Durability in zero dimensions" => [
+            "examples/leaching.md",
+        ],
         # Beyond the Portland cement. One page per EN 197-1 family, in order of
         # how much of the clinker is replaced and of what the replacement asks
         # of the models: a carbonate and a first slag (CEM II), then the slag
