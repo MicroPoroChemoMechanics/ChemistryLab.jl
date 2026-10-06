@@ -71,4 +71,46 @@ using JSON
         q = literature("Jin2023")[name]
         @test abs(logK(353.15) - ustrip(literature_value("Jin2023", name))) <= ustrip(ChemistryLab.uncertainty(q))
     end
+
+    # The builder itself, into a scratch directory: the file `datapath` returns
+    # may come from a cache, in which case the build above was not run here.
+    base_path = datapath("cemdata18-thermofun.json")
+    mktempdir() do dir
+        built = JSON.parsefile(ChemistryLab._build_asr(base_path, joinpath(dir, "asr.json")); dicttype = Dict{String, Any})
+        Bt = by_symbol(built)
+        @test setdiff(keys(Bt), keys(B)) == Set(t.symbol)
+        @test all(gibbs(Bt[s]) == gibbs(E[s]) for s in t.symbol)
+        ext_info = built["asr_extension"]
+        @test ext_info["added_substances"] == length(t.symbol)
+        @test ext_info["base_substances"] == length(base["substances"])
+        @test ext_info["verification"]["worst_discrepancy_log_units"] < 0.05
+
+        # It refuses a base that already holds one of the products, and a base
+        # whose aqueous energies no longer give back the published log Ksp.
+        function refused(edit!)
+            db = JSON.parsefile(base_path; dicttype = Dict{String, Any})
+            edit!(db)
+            p = joinpath(dir, "base.json")
+            open(io -> JSON.print(io, db), p, "w")
+            return try
+                ChemistryLab._build_asr(p, joinpath(dir, "refused.json"))
+                ""
+            catch err
+                sprint(showerror, err)
+            end
+        end
+        clash = refused() do db
+            s = deepcopy(only(x for x in db["substances"] if x["symbol"] == "Amor-Sl"))
+            s["symbol"] = first(t.symbol)
+            push!(db["substances"], s)
+        end
+        @test occursin("would overwrite a Cemdata18 substance", clash)
+        # 5 kJ/mol on SiO2@, four of which dissolve per formula unit: 3.5 log units.
+        shifted = refused() do db
+            s = only(x for x in db["substances"] if x["symbol"] == "SiO2@")
+            s["sm_gibbs_energy"]["values"][1] += 5000.0
+        end
+        @test occursin("differs from the published one", shifted)
+        @test !isfile(joinpath(dir, "refused.json"))
+    end
 end

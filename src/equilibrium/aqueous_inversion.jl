@@ -273,20 +273,16 @@ function _branch_of_iterate(F, s1, s_w, s_ceil; h0 = 0.05)
     fw == 0 && return s_w
     h = h0
     lo, hi = s_w, s_w
-    while lo > s1 || hi < s_ceil
+    while true
         lo_new, hi_new = max(s_w - h, s1), min(s_w + h, s_ceil)
-        if lo_new < lo
-            if lo_new == s1
-                # Down to the first root without a change of sign: it is the
-                # nearest below.
-                below = s1
-            else
-                flo = F(lo_new)
-                below = (isfinite(flo) && sign(flo) != sign(fw)) ? _bracketed_sign_change(F, lo_new, lo, flo) : nothing
-            end
-            below === nothing || return abs(below - s1) <= 1.0e-10 * max(1.0, abs(s1)) ? s1 : below
-            lo = lo_new
+        # Down to the first root without a change of sign: it is the nearest below.
+        lo_new == s1 && break
+        flo = F(lo_new)
+        if isfinite(flo) && sign(flo) != sign(fw)
+            below = _bracketed_sign_change(F, lo_new, lo, flo)
+            return abs(below - s1) <= 1.0e-10 * max(1.0, abs(s1)) ? s1 : below
         end
+        lo = lo_new
         if hi_new > hi
             fhi = F(hi_new)
             if isfinite(fhi) && sign(fhi) != sign(fw)
