@@ -1,0 +1,463 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Schmidt2008",
+    "doi": "10.1016/j.cemconres.2007.11.003",
+    "citation": "Schmidt, T., Lothenbach, B., Romer, M., Scrivener, K., Rentsch, D., Figi, R. (2008). A thermodynamic and experimental study of the conditions of thaumasite formation. Cement and Concrete Research 38(3), 337-349.",
+    "location": "Section 2 and Table 1 (p. 338), Table 2 and Section 3 (pp. 340-341), Tables 3-5 (pp. 343, 346, 347), Fig. 6 (p. 345)"
+  },
+  "transcription": {
+    "from": "the published article (PDF): Tables 1-5 from the text layer, every cell checked on the page images rendered at 200-220 dpi, the blank cells of Table 2 located on the image; the experimental conditions and the thaumasite data stated in the text from the text layer; Fig. 6 (a raster image) read from its embedded bitmap",
+    "checked_against_source": true,
+    "note": "The experiment is the 'progressive equilibrium approach': crushed hydrated paste (0.5-2 mm) immersed in closed containers of Na2SO4 solution at five sulfate levels, at 8 and 20 C, for 3 and 9 months. The paper prints a measured solution composition (Tables 3 and 5) for the two highest sulfate levels only, after 9 months; the measured solutions of the lower levels and at 3 months are plotted only in Fig. 10 (log scale, raster) and are not transcribed. The calculated phase volumes of Figs. 3, 4, 7 and 8 are not digitized; the phases the authors identified and modeled are the text columns of Tables 3 and 5. Fig. 6 gives the thaumasite quantified by 29Si NMR (OPC-based cements only: the iron of HS prevents the measurement) and, as printed numbers under the bars, the maximum the authors calculate."
+  },
+  "quantities": {
+    "w_b": {
+      "value": 0.35,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 338",
+      "description": "Water-to-binder ratio of the pastes."
+    },
+    "early_cure_time": {
+      "value": 1,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 338",
+      "description": "Storage in the molds at 20 C and 90 % relative humidity (24 h)."
+    },
+    "limewater_cure_time": {
+      "value": 56,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 338",
+      "description": "Curing in saturated limewater at 20 C after demolding, before crushing."
+    },
+    "cure_temperature": {
+      "value": 293.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 338",
+      "description": "Curing temperature, 20 C."
+    },
+    "grain_size_min": {
+      "value": 0.5,
+      "unit": "mm",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 338",
+      "description": "Lower bound of the crushed paste fraction used."
+    },
+    "grain_size_max": {
+      "value": 2,
+      "unit": "mm",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 338",
+      "description": "Upper bound of the crushed paste fraction used."
+    },
+    "paste_mass": {
+      "value": 10,
+      "unit": "g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 338",
+      "description": "Crushed paste per container, dried at 40 C for 2 days."
+    },
+    "solution_volume": {
+      "value": 70,
+      "unit": "cm^3",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 338",
+      "description": "Na2SO4 solution per container (70 ml)."
+    },
+    "liquid_solid_ratio": {
+      "value": 7,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 338",
+      "description": "Liquid/solid ratio of the closed subsystems (70 ml per 10 g)."
+    },
+    "temperature_low": {
+      "value": 281.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 338",
+      "description": "Storage temperature of one set of subsystems, 8 C."
+    },
+    "temperature_high": {
+      "value": 293.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 338",
+      "description": "Storage temperature of the other set, 20 C."
+    },
+    "reaction_time_short": {
+      "value": 0.25,
+      "unit": "yr",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 338",
+      "description": "First sampling, 3 months."
+    },
+    "reaction_time_long": {
+      "value": 0.75,
+      "unit": "yr",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 338",
+      "description": "Second sampling, 9 months."
+    },
+    "leaching_paste_mass": {
+      "value": 70,
+      "unit": "g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 338",
+      "description": "Crushed paste leached per container."
+    },
+    "leaching_water_volume": {
+      "value": 20,
+      "unit": "L",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 338",
+      "description": "Deionized water per leaching container, at 20 C for 4 months."
+    },
+    "csh_alkali_rd": {
+      "value": 0.42,
+      "unit": "cm^3/g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 3.1, p. 340",
+      "description": "Distribution ratio Rd of Na and K between C-S-H and the solution used in the model (0.42 ml/g)."
+    },
+    "thaumasite_log_ks0": {
+      "value": -49.4,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": 1,
+      "location": "Section 3.3, p. 341",
+      "description": "Tentative solubility product of thaumasite at 25 C, from the concentrations measured by Macphee and Barnett (2004) over a thaumasite-ettringite mixture, for (CaSiO3)2(CaSO4)2(CaCO3)2(H2O)30 = 6 Ca+2 + 2 H3SiO4- + 2 SO4-2 + 2 CO3-2 + 2 OH- + 26 H2O ('10^-49.4+/-1')."
+    },
+    "thaumasite_entropy": {
+      "value": 1883,
+      "unit": "J/(mol*K)",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "Section 3.3, p. 341",
+      "description": "Entropy of thaumasite at 25 C, estimated from the reference reaction ettringite + 2 calcite + 2 SiO2(am) - 0.5 gypsum - 0.5 anhydrite - Al2O3 - portlandite = thaumasite."
+    },
+    "thaumasite_cp": {
+      "value": 2118,
+      "unit": "J/(mol*K)",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "Section 3.3, p. 341",
+      "description": "Heat capacity of thaumasite at 25 C, from the same reference reaction."
+    },
+    "thaumasite_stability_limit": {
+      "value": 318.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.3, p. 345",
+      "description": "Temperature up to which the calculation lets thaumasite persist under the experimental conditions ('approximately 45 C'); the text adds that this limit depends strongly on pH."
+    },
+    "si_al_detection_limit": {
+      "value": 0.1,
+      "unit": "mmol/L",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "footnote ii of Tables 3 and 5",
+      "description": "Detection limit of Si and Al in the solutions; all measured Si and Al were below it."
+    },
+    "nmr_detection_limit": {
+      "value": 0.2,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Fig. 6, p. 345",
+      "description": "Detection limit of thaumasite by 29Si NMR, wt.% ('<= 0.2 wt%')."
+    },
+    "nmr_relative_accuracy": {
+      "value": 15,
+      "unit": "1",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "Section 2.3, p. 339",
+      "description": "Accuracy believed for the NMR quantification of thaumasite, +/- percent of the value."
+    }
+  },
+  "tables": {
+    "chemical_composition": {
+      "columns": ["material", "oxide", "percent", "change_percent"],
+      "units": [null, null, "1", "1"],
+      "kind": "measured",
+      "location": "Table 1, p. 338: XRF composition in wt.% of the laboratory cements HS (sulfate-resisting, low C3A) and OPC, of the limestone filler, and of the HS and OPC pastes after leaching; the leached compositions are normalized to the SiO2 content, change_percent is the printed difference in percent to the initial content (null for the unleached materials). A blank cell has no row",
+      "rows": [
+        ["HS", "SiO2", 19.2, null],
+        ["HS", "Al2O3", 4.7, null],
+        ["HS", "Fe2O3", 7.2, null],
+        ["HS", "CaO", 62.2, null],
+        ["HS", "MgO", 1.5, null],
+        ["HS", "K2O", 1.1, null],
+        ["HS", "Na2O", 0.13, null],
+        ["HS", "SO3", 1.9, null],
+        ["HS", "CO2", 0.1, null],
+        ["HS", "CaO_free", 0.6, null],
+        ["HS", "LOI", 0.7, null],
+        ["HS", "Total", 99.3, null],
+        ["OPC", "SiO2", 20.1, null],
+        ["OPC", "Al2O3", 4.4, null],
+        ["OPC", "Fe2O3", 2.7, null],
+        ["OPC", "CaO", 63.7, null],
+        ["OPC", "MgO", 1.6, null],
+        ["OPC", "K2O", 0.9, null],
+        ["OPC", "Na2O", 0.15, null],
+        ["OPC", "SO3", 2.9, null],
+        ["OPC", "CO2", 0.2, null],
+        ["OPC", "CaO_free", 0.9, null],
+        ["OPC", "LOI", 1.2, null],
+        ["OPC", "Total", 98.8, null],
+        ["limestone", "SiO2", 0.05, null],
+        ["limestone", "Al2O3", 0.1, null],
+        ["limestone", "Fe2O3", 0.02, null],
+        ["limestone", "CaO", 55.9, null],
+        ["limestone", "MgO", 0.16, null],
+        ["limestone", "K2O", 0.01, null],
+        ["limestone", "Na2O", 0.01, null],
+        ["limestone", "SO3", 0.01, null],
+        ["limestone", "CO2", 43.7, null],
+        ["limestone", "Total", 99.9, null],
+        ["HS leached", "SiO2", 19.2, 0],
+        ["HS leached", "Al2O3", 4.7, 0],
+        ["HS leached", "Fe2O3", 7.0, -3],
+        ["HS leached", "CaO", 34.6, -44],
+        ["HS leached", "MgO", 1.5, 0],
+        ["HS leached", "K2O", 0.01, -99],
+        ["HS leached", "Na2O", 0.01, -92],
+        ["HS leached", "SO3", 1.7, -11],
+        ["HS leached", "CO2", 0.4, 300],
+        ["OPC leached", "SiO2", 20.1, 0],
+        ["OPC leached", "Al2O3", 4.4, 0],
+        ["OPC leached", "Fe2O3", 2.6, -3],
+        ["OPC leached", "CaO", 38.2, -40],
+        ["OPC leached", "MgO", 1.5, -6],
+        ["OPC leached", "K2O", 0.02, -98],
+        ["OPC leached", "Na2O", 0.01, -93],
+        ["OPC leached", "SO3", 2.7, -7],
+        ["OPC leached", "CO2", 0.5, 150]
+      ]
+    },
+    "surface_area": {
+      "columns": ["material", "surface_area"],
+      "units": [null, "cm^2/g"],
+      "kind": "measured",
+      "location": "Table 1, p. 338, row 'Surface area [cm2/g]': the two numbers stand in the HS and limestone columns; the OPC cell is blank",
+      "rows": [
+        ["HS", 3500],
+        ["limestone", 5800]
+      ]
+    },
+    "bogue_composition": {
+      "columns": ["material", "phase", "percent"],
+      "units": [null, null, "1"],
+      "kind": "published",
+      "location": "Table 1, p. 338: mineralogical composition in wt.% by Bogue calculation",
+      "rows": [
+        ["HS", "C3S", 62],
+        ["HS", "C2S", 9],
+        ["HS", "C3A", 0.4],
+        ["HS", "C4AF", 22],
+        ["OPC", "C3S", 66],
+        ["OPC", "C2S", 10],
+        ["OPC", "C3A", 7],
+        ["OPC", "C4AF", 8]
+      ]
+    },
+    "binders": {
+      "columns": ["binder", "cement", "limestone_percent"],
+      "units": [null, null, "1"],
+      "kind": "published",
+      "location": "Section 2.1, p. 338: limestone replacing that weight percent of the cement (clinker and gypsum); the gypsum set the SO3 of HS at 1.9 wt.% and of OPC at 2.9 wt.%",
+      "rows": [
+        ["H0", "HS", 0],
+        ["H5", "HS", 5],
+        ["P0", "OPC", 0],
+        ["P5", "OPC", 5],
+        ["P25", "OPC", 25]
+      ]
+    },
+    "subsystems": {
+      "columns": ["subsystem", "so4_added", "so4_concentration"],
+      "units": [null, "1", "mol/L"],
+      "kind": "published",
+      "location": "Section 2.2, p. 338, and Fig. 1: sulfate added as Na2SO4, wt.% SO4 by mass of cement paste, and the corresponding sulfate concentration of the solution; BL, CL and DL are the leached pastes with the sulfate of B, C and D",
+      "rows": [
+        ["A", 20, 0.3],
+        ["B", 10, 0.15],
+        ["C", 5, 0.07],
+        ["D", 2.5, 0.04],
+        ["E", 0, 0],
+        ["BL", 10, 0.15],
+        ["CL", 5, 0.07],
+        ["DL", 2.5, 0.04]
+      ]
+    },
+    "thermodynamic_data": {
+      "columns": ["phase", "log_Ks0", "dfG", "dfH", "S", "a0", "a1", "a2", "a3", "V"],
+      "units": [null, "1", "kJ/mol", "kJ/mol", "J/(mol*K)", "J/(mol*K)", "J/(mol*K^2)", "J*K/mol", "J/(mol*K^0.5)", "cm^3/mol"],
+      "kind": "published",
+      "location": "Table 2, p. 340: standard properties of the solids at 25 C, from Lothenbach et al. 2008 (cemdata2007) except thaumasite (this paper, its volume from the unit cell of Jacobsen et al. 2003); Cp = a0 + a1 T + a2 T^-2 + a3 T^-0.5; a blank cell is null; phases named as printed, s and c standing for the barred S (SO3) and C (CO2) of the cement notation",
+      "rows": [
+        ["Ettringite", -44.9, -15205.94, -17535, 1900, 1939, 0.789, null, null, 707],
+        ["Thaumasite", -49.4, -15128.46, -17373, 1883, 1860, 0.703, -3940000.0, 1600, 663],
+        ["C3AH6", -20.84, -5010.09, -5540, 419, 292, 0.561, null, null, 150],
+        ["C4AH13", -25.4, -7326.55, -8302, 700, 711, 1.047, null, -1600, 274],
+        ["C2AH8", -13.56, -4812.75, -5432, 440, 392, 0.714, null, -800, 184],
+        ["C4AsH12", -29.26, -7778.5, -8750, 821, 594, 1.168, null, null, 309],
+        ["C4AcH11", -31.47, -7337.46, -8250, 657, 618, 0.982, -2590000.0, null, 262],
+        ["C4Ac0.5H12", 29.13, -7335.97, -8270, 713, 664, 1.168, -1300000.0, -800, 285],
+        ["C2ASH8", -19.7, -5705.15, -6360, 546, 438, 0.749, -1130000.0, -800, 216],
+        ["M4AH10", -56.02, -6394.56, -7196, 549, -364, 4.21, 3750000.0, 629, 220],
+        ["Brucite", -11.16, -832.23, -923, 63, 101, 0.017, -2560000.0, null, 25],
+        ["C1.67SH2.1(jen.)", -13.17, -2480.81, -2723, 140, 210, 0.12, -3070000.0, null, 78],
+        ["C0.83SH1.3(tob.)", -8.0, -1744.36, -1916, 80, 85, 0.16, null, null, 59],
+        ["Portlandite", -5.2, -897.01, -985, 83, 187, -0.022, 0, -1600, 33],
+        ["SiO2,am", 1.476, -848.9, -903, 41, 47, 0.034, -1130000.0, null, 29],
+        ["Gypsum", -4.58, -1797.76, -2023, 194, 91, 0.318, null, null, 75],
+        ["Anhydrite", -4.36, -1322.12, -1435, 107, 70, 0.099, null, null, 46],
+        ["Calcite", -8.48, -1129.18, -1207, 93, 105, 0.022, -2590000.0, null, 37],
+        ["Fe(OH)3", -4.6, -711.61, -844, 88, 28, 0.052, null, null, 34],
+        ["Al2O3", 1.64, -1586.26, -1662, 51, 115, 0.012, -3510000.0, null, 26]
+      ]
+    },
+    "solutions_9_months": {
+      "columns": ["temperature_C", "binder", "subsystem", "S", "C", "Ca", "K", "Na", "pH", "SI_thaumasite", "identified", "modeled"],
+      "units": ["1", null, null, "mmol/L", "mmol/L", "mmol/L", "mmol/L", "mmol/L", "1", "1", null, null],
+      "kind": "measured",
+      "location": "Table 3, p. 343: solution after 9 months, S = sulfate, C = inorganic carbon, pH by electrode calibrated with 0.1-1.0 M KOH, SI = log(IAP/Ks0) of thaumasite from the measured solution; A = 20 wt.% SO4, B = 10 wt.% SO4 by mass of paste; phases by XRD (identified) and by GEMS (modeled; the table's column 'Modelled'), as printed: Cc calcite, Ett ettringite, G gypsum, Mc monocarbonate, Ms monosulfate, Th thaumasite, (x) traces, a down arrow decreasing between 3 and 9 months; portlandite, C-S-H and some clinker are present in every sample",
+      "rows": [
+        [8, "H0", "A", 79, 0.3, 4.91, 15.35, 435, 13.1, 4.1, "G Ett (Ms)", "Ett (Th)"],
+        [8, "H0", "B", 33, 0.3, 6.61, 14.84, 204, 13.0, 5.0, "(G) Ett Ms", "Ett (Th)"],
+        [8, "H5", "A", 76, 0.4, 4.57, 14.07, 422, 13.0, 4.1, "G↓ Ett Th (Mc) Cc", "Ett Th"],
+        [8, "H5", "B", 30, 0.2, 6.61, 13.56, 200, 12.9, 5.0, "(G) Ett Mc Cc", "Ett Th Cc"],
+        [8, "P0", "A", 78, 0.1, 4.66, 11.77, 435, 13.1, 2.8, "G Ett (Ms)", "Ett (Th)"],
+        [8, "P0", "B", 33, 0.3, 5.86, 11.76, 200, 13.0, 4.9, "(G) Ett Ms", "Ett (Th)"],
+        [8, "P5", "A", 76, 0.2, 4.57, 10.49, 426, 13.0, 3.3, "G↓ Ett Th (Mc) Cc", "Ett Th"],
+        [8, "P5", "B", 27, 0.2, 5.24, 10.23, 183, 13.0, 4.4, "(G) Ett Th Mc Cc", "Ett Th Cc"],
+        [8, "P25", "A", 53, 0.2, 3.49, 6.91, 335, 13.0, 3.1, "G↓ Ett Th (Mc) Cc", "Ett Th Cc"],
+        [8, "P25", "B", 23, 0.2, 4.49, 7.16, 152, 12.9, 4.3, "(G) Ett Th Mc Cc", "Ett Th Cc"],
+        [20, "H0", "A", 79, 0.5, 4.91, 14.84, 435, 13.0, 4.3, "G↓ Ett (Ms)", "Ett (Th)"],
+        [20, "H0", "B", 34, 0.3, 5.86, 15.61, 209, 12.9, 4.2, "(G) Ett Ms", "Ett (Th)"],
+        [20, "H5", "A", 79, 0.4, 4.91, 13.56, 435, 13.0, 4.3, "G↓ Ett (Mc) Cc", "Ett Th"],
+        [20, "H5", "B", 31, 0.4, 5.74, 13.81, 191, 12.9, 4.7, "(G) Ett Mc Cc", "Ett Th Cc"],
+        [20, "P0", "A", 79, 0.3, 4.57, 12.26, 435, 13.0, 3.3, "G↓ Ett (Ms)", "Ett (Th)"],
+        [20, "P0", "B", 31, 0.4, 5.11, 12.28, 204, 13.0, 4.4, "(G) Ett Ms", "Ett (Th)"],
+        [20, "P5", "A", 78, 0.3, 4.32, 10.47, 426, 13.0, 3.3, "G↓ Ett Th (Mc) Cc", "Ett Th"],
+        [20, "P5", "B", 28, 0.2, 5.11, 10.49, 335, 13.0, 3.0, "(G) Ett Th Mc Cc", "Ett Th Cc"],
+        [20, "P25", "A", 56, 0.2, 3.91, 6.91, 344, 13.0, 3.0, "G↓ Ett Th (Mc) Cc", "Ett Th Cc"],
+        [20, "P25", "B", 25, 0.2, 4.49, 7.16, 152, 13.0, 4.1, "(G) Ett Th Mc Cc", "Ett Th Cc"]
+      ]
+    },
+    "solutions_leached_9_months": {
+      "columns": ["temperature_C", "binder", "subsystem", "S", "C", "Ca", "K", "Na", "pH", "SI_thaumasite", "identified", "modeled"],
+      "units": ["1", null, null, "mmol/L", "mmol/L", "mmol/L", "mmol/L", "mmol/L", "1", "1", null, null],
+      "kind": "measured",
+      "location": "Table 5, p. 347: as Table 3, for the leached pastes with 10 wt.% SO4 (BL); an up arrow marks calcite increasing after leaching; portlandite and C-S-H are present in every sample",
+      "rows": [
+        [8, "H0", "BL", 33, 0.8, 0.87, 0.16, 169, 12.5, 4.1, "G Ett Ms (Cc)", "Ett (Th)"],
+        [8, "H5", "BL", 33, 1.2, 0.5, 0.21, 157, 12.4, 3.3, "G Ett Mc Cc↑", "Ett Th Cc"],
+        [8, "P0", "BL", 33, 1.0, 0.55, 0.25, 169, 12.7, 3.2, "G Ett Ms (Cc)", "Ett (Th)"],
+        [8, "P5", "BL", 29, 1.0, 0.52, 0.28, 157, 12.7, 3.1, "G Ett Th Mc Cc↑", "Ett Th Cc"],
+        [8, "P25", "BL", 29, 1.4, 0.4, 0.1, 122, 12.5, 3.1, "G Ett Th Mc Cc↑", "Ett Th Cc"],
+        [20, "H0", "BL", 31, 0.8, 0.72, 0.2, 169, 12.6, 3.0, "G Ett Ms (Cc)", "Ett (Th)"],
+        [20, "H5", "BL", 33, 1.0, 0.42, 0.25, 161, 12.7, 2.0, "G Ett Ms Cc↑", "Ett Th Cc"],
+        [20, "P0", "BL", 33, 0.8, 0.62, 0.33, 174, 12.7, 2.5, "G Ett Ms (Cc)", "Ett (Th)"],
+        [20, "P5", "BL", 29, 0.8, 0.62, 0.38, 165, 12.8, 2.6, "G Ett (Th) Cc↑", "Ett Th Cc"],
+        [20, "P25", "BL", 27, 1.0, 0.5, 0.12, 122, 12.6, 2.8, "G Ett (Th) Mc Cc↑", "Ett Th Cc"]
+      ]
+    },
+    "portlandite_porosity": {
+      "columns": ["binder", "state", "portlandite", "total_porosity"],
+      "units": [null, null, "1", "1"],
+      "kind": "measured",
+      "location": "Table 4, p. 346: Ca(OH)2 content in wt.% by TGA (weight loss 420-500 C) and total porosity by mercury intrusion (the unit is not printed) of the pastes before and after leaching",
+      "rows": [
+        ["H0", "initial", 15, 18],
+        ["H5", "initial", 14, 17],
+        ["P0", "initial", 15, 15],
+        ["P5", "initial", 14, 14],
+        ["P25", "initial", 12, 20],
+        ["H0", "leached", 2, 36],
+        ["H5", "leached", 2, 35],
+        ["P0", "leached", 3, 28],
+        ["P5", "leached", 3, 27],
+        ["P25", "leached", 1, 39]
+      ]
+    },
+    "thaumasite_nmr": {
+      "columns": ["temperature_C", "binder", "subsystem", "treatment", "reaction_time", "thaumasite", "below_detection"],
+      "units": ["1", null, null, null, "yr", "1", null],
+      "kind": "measured",
+      "location": "Fig. 6, p. 345: thaumasite by 29Si CP/MAS NMR, wt.%, in the OPC-based pastes; treatment S is sulfate interaction, L+S leaching then sulfate interaction; below_detection marks the samples the figure flags '*) below the detection limit <= 0.2 wt%' (thaumasite null); at 20 C the mark stands between the B and BL columns of each binder and no bar is drawn in either, so it is read as covering both; no 3-month bar is drawn at 20 C",
+      "digitization": {
+        "method": "raster image",
+        "tool": "the embedded bitmap (946 x 553 pixels) of Fig. 6; the top of each bar located as the first row where the bar fill (gray and black bars) or its upper outline (white bars) spans the bar, away from the error bar at its center, and mapped through the seven horizontal grid lines 0, 0.5, ..., 3 wt.% (fit residuals below 0.005 wt.%)",
+        "uncertainty": {
+          "value": 0.02,
+          "unit": "1"
+        },
+        "note": "One pixel is 0.0074 wt.%; the outlines are two pixels thick. Every reading falls within 0.01 wt.% of a multiple of 0.1, as if the plotted values had one decimal. The error bars are not transcribed; Section 2.3 gives +/- 15 % for the NMR quantification."
+      },
+      "rows": [
+        [8, "P5", "A", "S", 0.25, 0.4, false],
+        [8, "P5", "A", "S", 0.75, 1.21, false],
+        [8, "P5", "B", "S", 0.25, 0.3, false],
+        [8, "P5", "B", "S", 0.75, 1.41, false],
+        [8, "P5", "BL", "L+S", 0.75, 0.4, false],
+        [8, "P25", "A", "S", 0.25, 0.8, false],
+        [8, "P25", "A", "S", 0.75, 2.01, false],
+        [8, "P25", "B", "S", 0.25, 0.7, false],
+        [8, "P25", "B", "S", 0.75, 1.9, false],
+        [8, "P25", "BL", "L+S", 0.75, 0.7, false],
+        [20, "P5", "A", "S", 0.75, 0.31, false],
+        [20, "P5", "B", "S", 0.75, null, true],
+        [20, "P5", "BL", "L+S", 0.75, null, true],
+        [20, "P25", "A", "S", 0.75, 0.5, false],
+        [20, "P25", "B", "S", 0.75, null, true],
+        [20, "P25", "BL", "L+S", 0.75, null, true]
+      ]
+    },
+    "thaumasite_calculated_maximum": {
+      "columns": ["temperature_C", "binder", "subsystem", "thaumasite"],
+      "units": ["1", null, null, "1"],
+      "kind": "published",
+      "location": "Fig. 6, p. 345: the row 'calculated maximum [wt%]' printed under the bars, the thaumasite the authors' GEMS model predicts for the same samples (BL: leached paste with 10 wt.% SO4)",
+      "rows": [
+        [8, "P5", "A", 26],
+        [8, "P5", "B", 25],
+        [8, "P5", "BL", 19],
+        [8, "P25", "A", 68],
+        [8, "P25", "B", 38],
+        [8, "P25", "BL", 28],
+        [20, "P5", "A", 25],
+        [20, "P5", "B", 21],
+        [20, "P5", "BL", 9],
+        [20, "P25", "A", 59],
+        [20, "P25", "B", 34],
+        [20, "P25", "BL", 18]
+      ]
+    }
+  },
+  "notes": ["Table 2 prints log Ks0 = 29.13 for C4Ac0.5H12 (hemicarbonate), without the minus sign; it is transcribed as printed. The same phase has -29.13 in Lothenbach2010sulfate (Table 2) and in Lothenbach2008.json. M4AH10 carries footnote d: its Cp has the extra terms -0.00424 T^2 + 2.11e-6 T^3.", "Table 3 prints Na = 335 mmol/L for P5/B at 20 C, against 183 for P5/B at 8 C and 152-209 for every other B subsystem; it is transcribed as printed.", "Si and Al were below the 0.1 mmol/L detection limit in every solution; the paper does not say which silicate activity entered the saturation indices of thaumasite.", "The thaumasite formula of Table 2 and of the dissolution reaction is (CaSiO3)2(CaSO4)2(CaCO3)2(H2O)30 (six Ca); Cemdata18 writes thaumasite with three Ca, (CaSiO3)(CaSO4)(CaCO3)(H2O)15.", "The model (Section 3) assumes complete hydration of the cements of Table 1, C-S-H as an ideal solid solution of jennite C1.67SH2.1 and tobermorite C0.83SH1.3, iron as Fe(OH)3, hydrotalcite as M4AH10, the PSI database with the cemdata2007 solids, and T-corrections by Eq. 1 with the Cp of Table 2. Thaumasite is calculated to form only above 5 wt.% SO4 by mass of paste, once SO3/Al2O3 > 3 (molar).", "The OPC of this paper has the composition of the cement of Lothenbach2010sulfate (Table 1 there: Blaine 350 m2/kg); here the surface-area cell of OPC is blank."]
+}

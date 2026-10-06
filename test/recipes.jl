@@ -280,6 +280,12 @@ using ChemistryLab, DynamicQuantities, ForwardDiff, OrderedCollections, Test
         pm = phase_masses(rs)
         @test pm["Portlandite"] > 0
         @test any(startswith("unreacted "), keys(pm))
+        # Started from that answer, the same paste at 5 °C is solved at 5 °C:
+        # a start carries its amounts, not its temperature.
+        cold = Recipe(pc => 0.7, slag => 0.3; w_b = 0.45, T = 278.15u"K")
+        rs5, cert5 = equilibrate_certified(cold, cs; model, start = rs.state)
+        @test cert5.optimal
+        @test temperature(rs5.state) == 278.15u"K"
         # The slag glass has no sourced density: the volume of its residue, and
         # with it the porosity, are missing rather than estimated.
         @test isnan(porosity(rs).total)

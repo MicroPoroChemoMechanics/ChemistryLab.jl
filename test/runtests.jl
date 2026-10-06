@@ -129,6 +129,7 @@ end
     include("water_eos_reference.jl")
     include("validation_high_temperature.jl")
     include("leaching.jl")
+    include("sulfate_attack.jl")
     include("real_gases.jl")
     include("capillary.jl")
     include("pitzer.jl")

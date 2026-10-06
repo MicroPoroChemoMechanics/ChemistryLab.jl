@@ -1,0 +1,352 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Lothenbach2010sulfate",
+    "doi": "10.1016/j.cemconres.2010.04.004",
+    "citation": "Lothenbach, B., Bary, B., Le Bescop, P., Schmidt, T., Leterrier, N. (2010). Sulfate ingress in Portland cement. Cement and Concrete Research 40(8), 1211-1225.",
+    "location": "Section 2 and Table 1 (p. 1212), Sections 4.2 and 4.3 (pp. 1214-1217), Fig. 3 (p. 1215)"
+  },
+  "transcription": {
+    "from": "the published article (PDF): Table 1 from the text layer, checked on the page image rendered at 220 dpi; the experimental conditions and the numbers stated in the text from the text layer; Fig. 3 (a raster image, no vector drawing) digitized from its embedded bitmap, each marker found by its color and shape and mapped through the tick marks of the axes",
+    "checked_against_source": true,
+    "note": "The paper is about Na2SO4 only: no MgSO4 exposure, no brucite, no M-S-H, and thaumasite is mentioned only as a literature observation (p. 1215). Its measurements are the expansion and mass change of Fig. 2 (not transcribed: not an equilibrium quantity) and the SEM/EDS SO3 and CaO profiles of Fig. 3, read from the experiments of its refs. [3] and [35] (Schmidt et al. 2009 and Schmidt's 2007 EPFL thesis). Every other figure is a calculation: Figs. 1 and 4-7 by GEMS ('pure' thermodynamic modeling, the phase assemblage against the volume of Na2SO4 solution added per cm3 of hydrated mortar), Figs. 8-14 by the reactive-transport code ALLIANCES. The calculated figures are not digitized; the calculated values the text states are transcribed as quantities of kind 'published'. Table 2 (cemdata2007: log Ks0, standard Gibbs energy and molar volume of the solids) is not transcribed: it is the dataset of Lothenbach2008.json (Table 4 there), plus syngenite."
+  },
+  "quantities": {
+    "w_c": {
+      "value": 0.5,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2, p. 1212",
+      "description": "Water-to-cement ratio of the mortar prisms, prepared according to EN 196-1."
+    },
+    "gypsum_addition": {
+      "value": 4.7,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2, p. 1212",
+      "description": "Gypsum (CaSO4.2H2O, Fluka purum p.a.) homogenized with the laboratory-ground clinker, weight percent."
+    },
+    "blaine": {
+      "value": 350,
+      "unit": "m^2/kg",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Table 1, p. 1212",
+      "description": "Blaine surface area of the cement."
+    },
+    "curing_time": {
+      "value": 28,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2, p. 1212",
+      "description": "Curing of the mortar prisms in saturated limewater before exposure."
+    },
+    "curing_temperature": {
+      "value": 293.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2, p. 1212",
+      "description": "Curing temperature, 20 C."
+    },
+    "exposure_temperature": {
+      "value": 293.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2, p. 1212",
+      "description": "Temperature of the exposure to the Na2SO4 solutions and to limewater, 20 C."
+    },
+    "na2so4_low": {
+      "value": 4,
+      "unit": "g/L",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2, p. 1212",
+      "description": "Na2SO4 concentration of the low-sulfate exposure solution."
+    },
+    "na2so4_high": {
+      "value": 44,
+      "unit": "g/L",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2, p. 1212",
+      "description": "Na2SO4 concentration of the high-sulfate exposure solution."
+    },
+    "liquid_solid_volume_ratio": {
+      "value": 4,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2, p. 1212",
+      "description": "Volume ratio of the exposure solution to the mortar specimens ('4 to 1')."
+    },
+    "specimen_volume": {
+      "value": 64,
+      "unit": "cm^3",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 3.3.2, p. 1214",
+      "description": "Volume of one exposed mortar prism, 1 x 4 x 16 cm."
+    },
+    "exposed_surface": {
+      "value": 160,
+      "unit": "cm^2",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "Section 3.3.2, p. 1214",
+      "description": "Exposed surface of one prism assumed by the authors for the transport model, all lateral faces but the ends: 2 x (1 + 4) x 16 cm2."
+    },
+    "initial_paste_volume": {
+      "value": 82,
+      "unit": "cm^3/(100*g)",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.3.1.1, p. 1215",
+      "description": "Calculated initial volume of the paste per 100 g of cement, water included; the calculated volume of the solids never exceeds it."
+    },
+    "core_solution_ratio": {
+      "value": 0.001,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.3, p. 1215",
+      "description": "Volume of Na2SO4 solution per volume of mortar (mL/cm3) that represents the unaffected core in the GEMS calculations of Figs. 4-7."
+    },
+    "so3_max_44": {
+      "value": 20,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 4.2, p. 1214",
+      "description": "Maximal SO3 content of the paste by SEM/EDS after exposure to 44 g/L Na2SO4, wt.% ('around 20 wt.%')."
+    },
+    "so3_max_4": {
+      "value": 10,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 4.2, p. 1214",
+      "description": "Maximal SO3 content of the paste by SEM/EDS after exposure to 4 g/L Na2SO4, wt.% ('around 10 wt.%')."
+    },
+    "cao_before": {
+      "value": 60,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 4.2, p. 1214",
+      "description": "CaO content of the paste by SEM/EDS before exposure, wt.% ('approximately 60 wt.%')."
+    },
+    "cao_4_270d": {
+      "value": 45,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 4.2, p. 1214",
+      "description": "CaO content near the surface after 9 months in 4 g/L Na2SO4, wt.%."
+    },
+    "core_oh_calculated": {
+      "value": 400,
+      "unit": "mmol/L",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.3.3, p. 1218",
+      "description": "Hydroxide concentration calculated by GEMS in the pore solution of the unaffected core ('approx. 400 mmol/L (pH 13.8)')."
+    },
+    "core_ph_calculated": {
+      "value": 13.8,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.3.3, p. 1218",
+      "description": "pH calculated by GEMS in the unaffected core."
+    },
+    "core_minor_calculated": {
+      "value": 1,
+      "unit": "mmol/L",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.3.3, p. 1217",
+      "description": "Sulfate, calcium and aluminium concentrations calculated by GEMS in the unaffected core ('approx. 1 mmol/l')."
+    },
+    "capillary_porosity_core_calculated": {
+      "value": 12,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.3.1.1, p. 1215",
+      "description": "Capillary porosity calculated by GEMS in the core, vol.%; it falls to less than 1 vol.% where ettringite precipitates (4 g/L) and to about zero with 44 g/L."
+    },
+    "total_porosity_gypsum_calculated": {
+      "value": 5,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.3.1.1, p. 1215",
+      "description": "Total porosity calculated by GEMS where the most gypsum precipitates with 44 g/L Na2SO4, percent ('approx. 5%')."
+    }
+  },
+  "tables": {
+    "chemical_analysis": {
+      "columns": ["oxide", "percent"],
+      "units": [null, "1"],
+      "kind": "measured",
+      "location": "Table 1, p. 1212, left column: chemical analysis of the laboratory Portland cement (comparable to CEM I 42.5 N), g/100 g, by XRF, sulfur and carbonate by LECO C/S analyzer, free lime after Franke; K2O_soluble and Na2O_soluble are the readily soluble alkalis, from the alkalis dissolved after 5 min of agitation at w/c 10",
+      "rows": [
+        ["CaO", 63.7],
+        ["SiO2", 20.1],
+        ["Al2O3", 4.4],
+        ["Fe2O3", 2.7],
+        ["CaO_free", 0.85],
+        ["MgO", 1.6],
+        ["K2O", 0.86],
+        ["Na2O", 0.15],
+        ["CO2", 0.2],
+        ["SO3", 2.9],
+        ["K2O_soluble", 0.72],
+        ["Na2O_soluble", 0.06],
+        ["ignition_loss", 1.2]
+      ]
+    },
+    "normative_phases": {
+      "columns": ["phase", "percent"],
+      "units": [null, "1"],
+      "kind": "published",
+      "location": "Table 1, p. 1212, right column: normative phase composition, g/100 g; K2SO4 and Na2SO4 are the readily soluble alkalis present as alkali sulfates; the MgO, K2O, Na2O and SO3 rows are in solid solution in the clinker phases",
+      "rows": [
+        ["alite", 62.5],
+        ["belite", 10.5],
+        ["aluminate", 7.1],
+        ["ferrite", 8.2],
+        ["CaO_free", 0.85],
+        ["CaCO3", 0.45],
+        ["CaSO4.2H2O", 4.7],
+        ["K2SO4", 1.3],
+        ["Na2SO4", 0.14],
+        ["MgO", 1.6],
+        ["K2O", 0.14],
+        ["Na2O", 0.09],
+        ["SO3", 0.03]
+      ]
+    },
+    "solution_renewals": {
+      "columns": ["day"],
+      "units": ["d"],
+      "kind": "published",
+      "location": "Section 2, p. 1212: days of exposure at which the sulfate solutions were changed",
+      "rows": [
+        [7],
+        [14],
+        [28],
+        [56],
+        [91],
+        [180],
+        [270],
+        [365]
+      ]
+    },
+    "so3_cao_profiles": {
+      "columns": ["na2so4", "exposure", "depth", "oxide", "percent", "partially_hidden"],
+      "units": ["g/L", "d", "mm", null, "1", null],
+      "kind": "measured",
+      "location": "Fig. 3, p. 1215: SO3 and CaO by SEM/EDS area scans (100 x 100 um) on polished sections, wt.% of the cement paste, against the depth from the exposed surface; na2so4 null and exposure 0 for the series 'before sulfate ingression'; the series '4 g/L, 56 d', '4 g/L, 270 d' and '44 g/L, 56 d' as the legend labels them",
+      "digitization": {
+        "method": "raster image",
+        "tool": "the embedded bitmap (637 x 922 pixels) of Fig. 3; yellow squares found by color, gray triangles by gray level after a one-pixel erosion, black triangles by darkness after a two-pixel erosion, open circles as enclosed white regions twelve pixels across; each marker located by the centroid of its pixels and mapped through the eleven depth ticks and the six (SO3) or seven (CaO) value ticks of the axes, the residuals of the axis fits below 0.5 pixel; the readings plotted back on the image and checked by eye",
+        "uncertainty": null,
+        "note": "One pixel is 0.0094 mm of depth, 0.097 wt.% SO3 and 0.24 wt.% CaO. A fully visible marker reads to about 3 pixels, so about 0.3 wt.% SO3 and 0.7 wt.% CaO; the triangle centroid lies a sixth of the marker height below the middle of its bounding box (about 0.2 wt.% SO3, 0.5 wt.% CaO). Rows flagged partially_hidden come from markers partly covered by another marker or by the axis, and their centroid can be off by up to half a marker (0.6 wt.% SO3, 1.5 wt.% CaO). Markers hidden for the most part are not transcribed: most of the gray series (4 g/L, 56 d), the 'before' markers at 5 mm and several of the 'before' CaO markers; the error bars are not transcribed. The depths come out at the nominal sampling depths 5, 4, 3, 2.8, 2.4, 2.2, 2, 1.8, 1.4, 1.2, 1, 0.8, 0.5, 0.2 and 0.1 mm to within 0.02 mm, which is the check on the depth axis."
+      },
+      "rows": [
+        [null, 0, 4.01, "SO3", 3.1, true],
+        [null, 0, 3.0, "SO3", 3.5, true],
+        [null, 0, 2.8, "SO3", 3.6, false],
+        [null, 0, 2.41, "SO3", 4.3, true],
+        [null, 0, 2.21, "SO3", 3.3, false],
+        [null, 0, 2.01, "SO3", 4.2, false],
+        [null, 0, 1.8, "SO3", 4.3, false],
+        [null, 0, 1.4, "SO3", 3.7, false],
+        [null, 0, 1.2, "SO3", 3.6, false],
+        [null, 0, 1.0, "SO3", 4.1, false],
+        [null, 0, 0.81, "SO3", 3.4, false],
+        [null, 0, 0.51, "SO3", 3.1, false],
+        [null, 0, 0.2, "SO3", 3.4, false],
+        [null, 0, 0.08, "SO3", 3.1, true],
+        [4, 56, 1.4, "SO3", 7.9, false],
+        [4, 56, 0.99, "SO3", 8.3, true],
+        [4, 56, 0.81, "SO3", 7.9, false],
+        [4, 56, 0.5, "SO3", 9.1, true],
+        [4, 56, 0.2, "SO3", 8.7, true],
+        [4, 56, 0.1, "SO3", 7.6, false],
+        [4, 270, 5.0, "SO3", 2.8, true],
+        [4, 270, 2.8, "SO3", 7.6, false],
+        [4, 270, 2.4, "SO3", 7.5, false],
+        [4, 270, 2.2, "SO3", 8.0, false],
+        [4, 270, 2.0, "SO3", 8.4, false],
+        [4, 270, 1.8, "SO3", 8.7, false],
+        [4, 270, 1.4, "SO3", 9.3, false],
+        [4, 270, 1.19, "SO3", 9.4, false],
+        [4, 270, 1.0, "SO3", 10.6, false],
+        [4, 270, 0.8, "SO3", 10.6, false],
+        [4, 270, 0.5, "SO3", 10.0, false],
+        [4, 270, 0.2, "SO3", 9.7, false],
+        [44, 56, 5.0, "SO3", 3.8, false],
+        [44, 56, 4.01, "SO3", 4.5, false],
+        [44, 56, 3.0, "SO3", 4.6, false],
+        [44, 56, 2.8, "SO3", 5.5, false],
+        [44, 56, 2.41, "SO3", 5.2, false],
+        [44, 56, 2.21, "SO3", 6.2, false],
+        [44, 56, 2.01, "SO3", 6.3, false],
+        [44, 56, 1.81, "SO3", 6.5, false],
+        [44, 56, 1.4, "SO3", 6.8, false],
+        [44, 56, 1.2, "SO3", 8.2, false],
+        [44, 56, 1.0, "SO3", 9.3, false],
+        [44, 56, 0.81, "SO3", 13.3, false],
+        [44, 56, 0.51, "SO3", 20.4, false],
+        [44, 56, 0.21, "SO3", 10.9, false],
+        [44, 56, 0.11, "SO3", 9.4, false],
+        [null, 0, 4.01, "CaO", 59.6, true],
+        [null, 0, 3.01, "CaO", 60.0, true],
+        [null, 0, 2.8, "CaO", 54.7, true],
+        [null, 0, 2.21, "CaO", 59.6, false],
+        [null, 0, 2.0, "CaO", 59.5, true],
+        [null, 0, 0.8, "CaO", 55.8, true],
+        [null, 0, 0.5, "CaO", 53.2, false],
+        [null, 0, 0.25, "CaO", 55.2, true],
+        [null, 0, 0.15, "CaO", 55.3, true],
+        [null, 0, 0.1, "CaO", 57.4, false],
+        [4, 56, 0.5, "CaO", 56.8, false],
+        [4, 56, 0.1, "CaO", 51.4, false],
+        [4, 270, 4.01, "CaO", 54.6, true],
+        [4, 270, 3.0, "CaO", 53.5, false],
+        [4, 270, 2.4, "CaO", 51.8, false],
+        [4, 270, 2.0, "CaO", 47.8, false],
+        [4, 270, 1.8, "CaO", 48.1, false],
+        [4, 270, 1.4, "CaO", 46.7, false],
+        [4, 270, 1.2, "CaO", 48.1, false],
+        [4, 270, 1.0, "CaO", 47.0, false],
+        [4, 270, 0.8, "CaO", 46.2, false],
+        [4, 270, 0.5, "CaO", 44.0, false],
+        [4, 270, 0.2, "CaO", 46.2, false],
+        [44, 56, 5.01, "CaO", 58.2, false],
+        [44, 56, 4.01, "CaO", 56.9, false],
+        [44, 56, 3.01, "CaO", 57.4, false],
+        [44, 56, 2.81, "CaO", 57.7, false],
+        [44, 56, 2.4, "CaO", 58.5, false],
+        [44, 56, 2.2, "CaO", 55.4, false],
+        [44, 56, 2.0, "CaO", 57.2, false],
+        [44, 56, 1.8, "CaO", 57.7, false],
+        [44, 56, 1.4, "CaO", 56.4, false],
+        [44, 56, 1.2, "CaO", 55.4, false],
+        [44, 56, 1.0, "CaO", 52.8, false],
+        [44, 56, 0.8, "CaO", 52.8, false],
+        [44, 56, 0.5, "CaO", 47.6, false],
+        [44, 56, 0.2, "CaO", 52.3, false],
+        [44, 56, 0.1, "CaO", 47.4, false]
+      ]
+    }
+  },
+  "notes": ["Mortar: EN 196-1 with w/c 0.5; the paper does not print the sand content. The calculated figures express the solution added per cm3 of hydrated mortar and the volumes per 100 g of cement.", "Exposure: prisms 1 x 4 x 16 cm cut from 4 x 16 x 23 cm prisms after 28 days of curing; the control samples in limewater. The EDS bars at the bottom of Fig. 3 (gypsum, ettringite, portlandite, monosulfate) are qualitative and not transcribed; the text says: in the unaffected core portlandite, C-S-H, ettringite and monosulfate; nearer the surface no monosulfate and more ettringite; in the outermost 0-1 mm only C-S-H and ettringite with 4 g/L; gypsum only with 44 g/L (Section 4.2, p. 1214).", "Model inputs (Section 3): GEMS with the PSI-GEMS database and cemdata2007 (Lothenbach2008); the degree of hydration at 28 days from an empirical clinker-dissolution model (refs. [25, 27]); the activity of ALLIANCES by the modified Davies equation. The ALLIANCES results (degradation depths at 56 and 270 days, the composition of the renewed solution) belong to the transport model and are not transcribed.", "The 44 g/L solution is 310 mmol/L sulfate (the text: 'decreased in the Na2SO4 solution from about 310 to a value of 273 mmol/L at 7 days', ALLIANCES, p. 1222)."]
+}

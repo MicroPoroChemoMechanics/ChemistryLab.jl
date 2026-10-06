@@ -130,3 +130,8 @@ savefig(f3, "leaching-paste.svg"); nothing # hide
 ```
 
 ![](leaching-paste.svg)
+
+## Where to go next
+
+[Sulfate attack and thaumasite](@ref ex-sulfate-attack) follows what the water
+brings into the paste instead of what it takes.

@@ -280,6 +280,7 @@ pages = [
         # leaves the paste is the parameter, each against measurements.
         "Durability in zero dimensions" => [
             "examples/leaching.md",
+            "examples/sulfate_attack.md",
         ],
         # Beyond the Portland cement. One page per EN 197-1 family, in order of
         # how much of the clinker is replaced and of what the replacement asks
