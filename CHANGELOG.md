@@ -39,6 +39,16 @@
   renewals of its solution loses its portlandite, then its AFm, then its
   ettringite, the order of the zones Adenot and Buil (1992) observed, the gel
   falling from a Ca/Si of 1.63 to 0.70.
+- **Durability in zero dimensions: sulfate attack and thaumasite** (the page
+  *Sulfate attack and thaumasite: a CEM I in sodium sulfate*,
+  `scripts/sulfate_attack.jl`). The laboratory CEM I of Lothenbach et al.
+  (2010) titrated by 4 and 44 g/L of Na2SO4: gypsum forms in 44 g/L only, as
+  their SEM-EDS found it, and the SO3/CaO of the solids reaches 0.27 and 0.57
+  where the measured profiles reach 0.22 and 0.44 after months. The batches of
+  Schmidt et al. (2008) with 5 and 25 % of limestone at 8 and 20 °C: at
+  equilibrium Cemdata18 gives the thaumasite their own calculation gave, within
+  6 % of the solids, more at 8 °C where the C-S-H limits it; the measured
+  thaumasite is 0.3 to 2 %, a reaction far from its end.
 - **`temperature_range`**: the temperatures over which a record of a ThermoFun
   database declares its heat capacity. Cemdata18 declares its AFm phases to
   50 °C, its ettringites to 60 °C and its clinker phases from 25 °C; nothing
@@ -75,6 +85,12 @@
 
 ### Fixed
 
+- **A recipe solved from a start state took that state's temperature.**
+  `equilibrate_certified(recipe, system; start)` solved at the temperature and
+  pressure of `start` rather than those of the recipe, so that a sequence in
+  temperature started from its previous answer stayed at its first
+  temperature. No page of the documentation did so; the start now carries its
+  amounts only.
 - **The density of water** stopped where the product of the residual and its
   derivative was small, which accepts a stationary point that is not a root: at
   0 °C and 5 kbar it returned 150.8 kg/m³ for 1152.6, at 350 °C and 1 bar the
