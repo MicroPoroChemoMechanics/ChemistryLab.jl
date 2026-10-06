@@ -118,3 +118,7 @@ experiments gypsum precipitated while monosulfate or monocarbonate persisted,
 an assemblage the equilibrium does not hold, and sodium left the solution,
 which the C-S-H of the calculation, with its sodium end member, does not take
 up.
+
+## Where to go next
+
+[Seawater](@ref ex-seawater) brings sulfate, chloride and magnesium at once.

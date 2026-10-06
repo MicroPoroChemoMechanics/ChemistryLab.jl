@@ -1,0 +1,2954 @@
+{
+ "schema": "chemistrylab-literature/1",
+ "source": {
+  "key": "DeWeerdt2014",
+  "doi": "10.1016/j.cemconcomp.2013.09.015",
+  "citation": "De Weerdt, K., Justnes, H., Geiker, M. R. (2014). Changes in the phase assemblage of concrete exposed to sea water. Cement and Concrete Composites 47, 53-63.",
+  "location": "Section 2 and Tables 1-3 (p. 54), Sections 2-3.3 (pp. 55-60), Figs. 4-6 and 8 (pp. 56-57), Figs. 20-21 (p. 60), Section 3.4 and Fig. 22 (pp. 60-61)"
+ },
+ "transcription": {
+  "from": "the published article (PDF): Tables 1-3 from the text layer, checked against the rendered page; Figs. 4, 5, 6 and 8 from the vector drawing of the PDF (marker centers mapped through the tick marks); Fig. 20, a raster image, by a column-wise scan of the gray levels; the rest from the text",
+  "checked_against_source": true,
+  "note": "Figs. 4, 5, 6 and 8 are vector figures: each marker center was mapped linearly (Figs. 4, 5, 8) or logarithmically (Fig. 6) through the tick marks of its axes; the center of a triangle or pentagon marker was corrected by its offset from its legend label (0.7 pt for a triangle), which the cross-check between Fig. 4 (ICP-MS), Fig. 5 (Cl/Ca) and Fig. 6 (Cl and Ca) confirms to within 3 %. Reading precision: 0.005 mass % in Fig. 4, 0.0005 in Fig. 5, 0.03 % in Fig. 8, 1 % relative in Fig. 6 (log axis), 0.1 mm in depth; the values are plotted against the mid-depth of the ground section (1 mm for 0-2 mm, and so on). Fig. 20 is a raster image (940 x 868 px, 11.6 px per cm3, 199.5 px per decade): the boundaries between the gray-filled areas were read at chosen abscissae as the centers of the black boundary lines, precision about 0.15 cm3; an area thinner than about 0.4 cm3 cannot be told from its boundary lines and is missed. Fig. 21 (NaCl solution) is not transcribed."
+ },
+ "quantities": {
+  "cement_blaine": {
+   "value": 362,
+   "unit": "m^2/kg",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Section 2, p. 54",
+   "description": "Blaine fineness of the CEM I 42.5 R"
+  },
+  "exposure_duration": {
+   "value": 10,
+   "unit": "yr",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Abstract and Section 2: 'nearly 10 years'; cast November 2001, placed in the tidal zone 3 days after casting, cored July 2011",
+   "description": "Duration of the tidal-zone exposure in the Trondheim fjord, alternating full submersion and atmospheric exposure"
+  },
+  "age_at_exposure": {
+   "value": 3,
+   "unit": "d",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section 2",
+   "description": "Age of the wall element when it was placed in the tidal zone"
+  },
+  "core_diameter": {
+   "value": 100,
+   "unit": "mm",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section 2",
+   "description": "Diameter of the core; its depth is 'approx. 100 mm'"
+  },
+  "storage_temperature": {
+   "value": 278.15,
+   "unit": "K",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section 2, 5 degrees C",
+   "description": "Storage of the sealed core before testing"
+  },
+  "chloride_penetration_min": {
+   "value": 68,
+   "unit": "mm",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Section 3.1, colorimetric (AgNO3 0.1 M) test, 9 points",
+   "description": "Smallest chloride penetration depth"
+  },
+  "chloride_penetration_max": {
+   "value": 75,
+   "unit": "mm",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Section 3.1",
+   "description": "Largest chloride penetration depth"
+  },
+  "chloride_penetration_mean": {
+   "value": 71,
+   "unit": "mm",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Section 3.1",
+   "description": "Average chloride penetration depth"
+  },
+  "colorimetric_threshold_cl": {
+   "value": 0.1,
+   "unit": "1",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Section 3.4",
+   "description": "Chloride content, in % of the concrete mass, as low as which the colorimetric test gave a visible white precipitate"
+  },
+  "mg_layer_thickness_min": {
+   "value": 0.01,
+   "unit": "mm",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Abstract, Section 3.2 and Fig. 17 (SEM-EDS maps): '10-20 um'",
+   "description": "Lower bound of the thickness of the dense Mg-enriched, slightly Si-depleted surface layer"
+  },
+  "mg_layer_thickness_max": {
+   "value": 0.02,
+   "unit": "mm",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Abstract, Section 3.2 and Fig. 17",
+   "description": "Upper bound of that thickness"
+  },
+  "sulfate_chloride_enrichment_depth": {
+   "value": 0.1,
+   "unit": "mm",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Section 3.2, EDS maps: 'At about 100 um from the exposed surface an enrichment in sulphates and chlorides can be seen'",
+   "description": "Depth of the S and Cl enrichment seen on the EDS maps"
+  },
+  "csh_al_ca_as_printed_min": {
+   "value": 0.5,
+   "unit": "1",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Section 3.2, Fig. 11: 'The Al/Ca ratio of the C-S-H can be estimated to be about 0.5-0.6'",
+   "description": "As printed. Fig. 11 places the C-S-H cloud at Si/Ca about 0.45-0.6 and Al/Ca below about 0.15, so the printed 'Al/Ca' is probably the Si/Ca; transcribed as printed"
+  },
+  "csh_al_ca_as_printed_max": {
+   "value": 0.6,
+   "unit": "1",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Section 3.2",
+   "description": "Upper bound of the same printed range"
+  },
+  "thaumasite_like_si_ca": {
+   "value": 0.4,
+   "unit": "1",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Fig. 15 caption, EDS of a thaumasite-like phase in an air void 0.2 mm from the surface",
+   "description": "Molar Si/Ca"
+  },
+  "thaumasite_like_s_ca": {
+   "value": 0.65,
+   "unit": "1",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Fig. 15 caption",
+   "description": "Molar S/Ca"
+  },
+  "thaumasite_like_al_ca": {
+   "value": 0.04,
+   "unit": "1",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Fig. 15 caption",
+   "description": "Molar Al/Ca"
+  },
+  "unaffected_cl_ca": {
+   "value": 0.006,
+   "unit": "1",
+   "kind": "measured",
+   "uncertainty": null,
+   "location": "Section 3.2, EDS of an 800 x 650 um area of concrete unaffected by chloride ingress",
+   "description": "Average Cl/Ca ratio, the background due to the chloride-bearing epoxy"
+  },
+  "model_cement": {
+   "value": 89,
+   "unit": "g",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section 3.3",
+   "description": "CEM I 42.5 R in the GEMS model of the paste of the concrete"
+  },
+  "model_limestone": {
+   "value": 11,
+   "unit": "g",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section 3.3",
+   "description": "Limestone in the GEMS model"
+  },
+  "model_water": {
+   "value": 42,
+   "unit": "g",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section 3.3",
+   "description": "Water in the GEMS model"
+  },
+  "model_opc_reacted": {
+   "value": 70,
+   "unit": "1",
+   "kind": "estimated",
+   "uncertainty": null,
+   "location": "Section 3.3",
+   "description": "Percentage of the OPC reacted, assumed uniform"
+  },
+  "model_nacl_solution": {
+   "value": 165,
+   "unit": "g/L",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section 2 and Fig. 21 caption",
+   "description": "NaCl concentration of the solution of the comparison calculation (Fig. 21)"
+  }
+ },
+ "tables": {
+  "seawater": {
+   "columns": [
+    "element",
+    "concentration"
+   ],
+   "units": [
+    null,
+    "g/L"
+   ],
+   "kind": "measured",
+   "location": "Table 1, p. 54: main elements of the Trondheim fjord sea water",
+   "rows": [
+    [
+     "Ca",
+     0.43
+    ],
+    [
+     "Mg",
+     1.33
+    ],
+    [
+     "Na",
+     10.99
+    ],
+    [
+     "K",
+     0.38
+    ],
+    [
+     "S",
+     0.99
+    ],
+    [
+     "Cl",
+     21.1
+    ],
+    [
+     "C",
+     0.02
+    ]
+   ]
+  },
+  "seawater_vs_pore_solution": {
+   "columns": [
+    "element",
+    "sea_water",
+    "mature_opc_pore_solution"
+   ],
+   "units": [
+    null,
+    "mmol/L",
+    "mmol/L"
+   ],
+   "kind": "published",
+   "location": "Section 3.2, p. 56: the sea water compared with the pore solution of a mature ordinary Portland cement paste from the paper's ref. [21] (De Weerdt et al. 2011); S is the sulfate",
+   "rows": [
+    [
+     "Na",
+     450,
+     300
+    ],
+    [
+     "S",
+     28,
+     13
+    ],
+    [
+     "Mg",
+     56,
+     0
+    ],
+    [
+     "K",
+     10,
+     500
+    ]
+   ]
+  },
+  "concrete_mix": {
+   "columns": [
+    "constituent",
+    "content"
+   ],
+   "units": [
+    null,
+    "kg/m^3"
+   ],
+   "kind": "published",
+   "location": "Table 2, p. 54 (from the paper's ref. [25])",
+   "rows": [
+    [
+     "CEM I 42.5 R",
+     366
+    ],
+    [
+     "limestone filler",
+     44
+    ],
+    [
+     "0-2 mm Bjorkmyr sand",
+     210
+    ],
+    [
+     "0-8 mm Ardal sand",
+     843
+    ],
+    [
+     "8-11 mm Ardal aggregate",
+     344
+    ],
+    [
+     "11-16 mm Ardal aggregate",
+     344
+    ],
+    [
+     "water",
+     171
+    ],
+    [
+     "air entrainer",
+     0.17
+    ],
+    [
+     "superplasticizer",
+     2.2
+    ]
+   ]
+  },
+  "cement_oxides": {
+   "columns": [
+    "oxide",
+    "percent"
+   ],
+   "units": [
+    null,
+    "1"
+   ],
+   "kind": "measured",
+   "location": "Table 3, p. 54: XRF of the CEM I 42.5 R, wt.%",
+   "rows": [
+    [
+     "SiO2",
+     19.8
+    ],
+    [
+     "Al2O3",
+     4.73
+    ],
+    [
+     "Fe2O3",
+     3.25
+    ],
+    [
+     "CaO",
+     62.0
+    ],
+    [
+     "K2O",
+     1.03
+    ],
+    [
+     "MgO",
+     2.37
+    ],
+    [
+     "Na2O",
+     0.3
+    ],
+    [
+     "SO3",
+     3.0
+    ],
+    [
+     "LOI",
+     2.81
+    ]
+   ]
+  },
+  "chloride_profile": {
+   "columns": [
+    "method",
+    "depth_mm",
+    "section_mm",
+    "cl_percent"
+   ],
+   "units": [
+    null,
+    "mm",
+    null,
+    "1"
+   ],
+   "kind": "measured",
+   "location": "Fig. 4, p. 56 (vector): chloride in % of the dry concrete mass (105 C), by ICP-MS and by the mercury(II) thiocyanate spectrophotometric method, after dissolution of 5 g of powder in hot 1:10 HNO3; depth is the plotted mid-depth; the 71 mm point is plotted beyond the last ground section (54-62 mm) and its depth range is not stated",
+   "rows": [
+    [
+     "ICP-MS",
+     1.0,
+     "0-2",
+     0.861
+    ],
+    [
+     "ICP-MS",
+     4.0,
+     "2-6",
+     0.87
+    ],
+    [
+     "ICP-MS",
+     8.0,
+     "6-10",
+     0.671
+    ],
+    [
+     "ICP-MS",
+     12.0,
+     "10-14",
+     0.561
+    ],
+    [
+     "ICP-MS",
+     24.0,
+     "22-26",
+     0.43
+    ],
+    [
+     "ICP-MS",
+     36.0,
+     "34-38",
+     0.29
+    ],
+    [
+     "ICP-MS",
+     58.0,
+     "54-62",
+     0.15
+    ],
+    [
+     "spectrophotometry",
+     1.0,
+     "0-2",
+     0.961
+    ],
+    [
+     "spectrophotometry",
+     4.0,
+     "2-6",
+     0.924
+    ],
+    [
+     "spectrophotometry",
+     8.0,
+     "6-10",
+     0.695
+    ],
+    [
+     "spectrophotometry",
+     12.0,
+     "10-14",
+     0.599
+    ],
+    [
+     "spectrophotometry",
+     16.0,
+     "14-18",
+     0.515
+    ],
+    [
+     "spectrophotometry",
+     20.0,
+     "18-22",
+     0.481
+    ],
+    [
+     "spectrophotometry",
+     24.0,
+     "22-26",
+     0.476
+    ],
+    [
+     "spectrophotometry",
+     28.0,
+     "26-30",
+     0.385
+    ],
+    [
+     "spectrophotometry",
+     32.0,
+     "30-34",
+     0.37
+    ],
+    [
+     "spectrophotometry",
+     36.0,
+     "34-38",
+     0.321
+    ],
+    [
+     "spectrophotometry",
+     42.0,
+     "38-46",
+     0.289
+    ],
+    [
+     "spectrophotometry",
+     50.0,
+     "46-54",
+     0.233
+    ],
+    [
+     "spectrophotometry",
+     58.0,
+     "54-62",
+     0.17
+    ],
+    [
+     "spectrophotometry",
+     71.0,
+     null,
+     0.026
+    ]
+   ]
+  },
+  "cl_ca_profile": {
+   "columns": [
+    "depth_mm",
+    "section_mm",
+    "cl_ca_mass_ratio"
+   ],
+   "units": [
+    "mm",
+    null,
+    "1"
+   ],
+   "kind": "measured",
+   "location": "Fig. 5, p. 56 (vector): Cl/Ca mass ratio from ICP-MS; it has a point at 71 mm that Figs. 4 and 6 do not show for ICP-MS",
+   "rows": [
+    [
+     1.0,
+     "0-2",
+     0.0865
+    ],
+    [
+     4.0,
+     "2-6",
+     0.1166
+    ],
+    [
+     8.0,
+     "6-10",
+     0.1037
+    ],
+    [
+     12.0,
+     "10-14",
+     0.0933
+    ],
+    [
+     24.0,
+     "22-26",
+     0.0643
+    ],
+    [
+     36.0,
+     "34-38",
+     0.0456
+    ],
+    [
+     58.0,
+     "54-62",
+     0.0218
+    ],
+    [
+     71.0,
+     null,
+     0.0036
+    ]
+   ]
+  },
+  "element_profiles": {
+   "columns": [
+    "element",
+    "depth_mm",
+    "section_mm",
+    "percent"
+   ],
+   "units": [
+    null,
+    "mm",
+    null,
+    "1"
+   ],
+   "kind": "measured",
+   "location": "Fig. 6, p. 56 (vector, logarithmic axis): ICP-MS, in % of the dry concrete mass (aggregates included), seven sections",
+   "rows": [
+    [
+     "Ca",
+     1.0,
+     "0-2",
+     9.93
+    ],
+    [
+     "Ca",
+     4.0,
+     "2-6",
+     7.45
+    ],
+    [
+     "Ca",
+     8.0,
+     "6-10",
+     6.46
+    ],
+    [
+     "Ca",
+     12.0,
+     "10-14",
+     6.04
+    ],
+    [
+     "Ca",
+     24.0,
+     "22-26",
+     6.72
+    ],
+    [
+     "Ca",
+     36.0,
+     "34-38",
+     6.37
+    ],
+    [
+     "Ca",
+     58.0,
+     "54-62",
+     6.72
+    ],
+    [
+     "Si",
+     1.0,
+     "0-2",
+     1.91
+    ],
+    [
+     "Si",
+     4.0,
+     "2-6",
+     1.52
+    ],
+    [
+     "Si",
+     8.0,
+     "6-10",
+     1.34
+    ],
+    [
+     "Si",
+     12.0,
+     "10-14",
+     1.25
+    ],
+    [
+     "Si",
+     24.0,
+     "22-26",
+     1.28
+    ],
+    [
+     "Si",
+     36.0,
+     "34-38",
+     1.25
+    ],
+    [
+     "Si",
+     58.0,
+     "54-62",
+     1.28
+    ],
+    [
+     "Fe",
+     1.0,
+     "0-2",
+     0.691
+    ],
+    [
+     "Fe",
+     4.0,
+     "2-6",
+     0.672
+    ],
+    [
+     "Fe",
+     8.0,
+     "6-10",
+     0.681
+    ],
+    [
+     "Fe",
+     12.0,
+     "10-14",
+     0.72
+    ],
+    [
+     "Fe",
+     24.0,
+     "22-26",
+     0.71
+    ],
+    [
+     "Fe",
+     36.0,
+     "34-38",
+     0.681
+    ],
+    [
+     "Fe",
+     58.0,
+     "54-62",
+     0.592
+    ],
+    [
+     "Al",
+     1.0,
+     "0-2",
+     0.71
+    ],
+    [
+     "Al",
+     4.0,
+     "2-6",
+     0.651
+    ],
+    [
+     "Al",
+     8.0,
+     "6-10",
+     0.592
+    ],
+    [
+     "Al",
+     12.0,
+     "10-14",
+     0.561
+    ],
+    [
+     "Al",
+     24.0,
+     "22-26",
+     0.561
+    ],
+    [
+     "Al",
+     36.0,
+     "34-38",
+     0.541
+    ],
+    [
+     "Al",
+     58.0,
+     "54-62",
+     0.541
+    ],
+    [
+     "Cl",
+     1.0,
+     "0-2",
+     0.863
+    ],
+    [
+     "Cl",
+     4.0,
+     "2-6",
+     0.872
+    ],
+    [
+     "Cl",
+     8.0,
+     "6-10",
+     0.672
+    ],
+    [
+     "Cl",
+     12.0,
+     "10-14",
+     0.561
+    ],
+    [
+     "Cl",
+     24.0,
+     "22-26",
+     0.431
+    ],
+    [
+     "Cl",
+     36.0,
+     "34-38",
+     0.291
+    ],
+    [
+     "Cl",
+     58.0,
+     "54-62",
+     0.151
+    ],
+    [
+     "K",
+     1.0,
+     "0-2",
+     0.2
+    ],
+    [
+     "K",
+     4.0,
+     "2-6",
+     0.271
+    ],
+    [
+     "K",
+     8.0,
+     "6-10",
+     0.3
+    ],
+    [
+     "K",
+     12.0,
+     "10-14",
+     0.3
+    ],
+    [
+     "K",
+     24.0,
+     "22-26",
+     0.291
+    ],
+    [
+     "K",
+     36.0,
+     "34-38",
+     0.3
+    ],
+    [
+     "K",
+     58.0,
+     "54-62",
+     0.291
+    ],
+    [
+     "Mg",
+     1.0,
+     "0-2",
+     0.642
+    ],
+    [
+     "Mg",
+     4.0,
+     "2-6",
+     0.311
+    ],
+    [
+     "Mg",
+     8.0,
+     "6-10",
+     0.271
+    ],
+    [
+     "Mg",
+     12.0,
+     "10-14",
+     0.241
+    ],
+    [
+     "Mg",
+     24.0,
+     "22-26",
+     0.241
+    ],
+    [
+     "Mg",
+     36.0,
+     "34-38",
+     0.221
+    ],
+    [
+     "Mg",
+     58.0,
+     "54-62",
+     0.231
+    ],
+    [
+     "S",
+     1.0,
+     "0-2",
+     0.431
+    ],
+    [
+     "S",
+     4.0,
+     "2-6",
+     0.221
+    ],
+    [
+     "S",
+     8.0,
+     "6-10",
+     0.161
+    ],
+    [
+     "S",
+     12.0,
+     "10-14",
+     0.15
+    ],
+    [
+     "S",
+     24.0,
+     "22-26",
+     0.161
+    ],
+    [
+     "S",
+     36.0,
+     "34-38",
+     0.161
+    ],
+    [
+     "S",
+     58.0,
+     "54-62",
+     0.161
+    ],
+    [
+     "Na",
+     1.0,
+     "0-2",
+     0.18
+    ],
+    [
+     "Na",
+     4.0,
+     "2-6",
+     0.12
+    ],
+    [
+     "Na",
+     8.0,
+     "6-10",
+     0.12
+    ],
+    [
+     "Na",
+     12.0,
+     "10-14",
+     0.14
+    ],
+    [
+     "Na",
+     24.0,
+     "22-26",
+     0.14
+    ],
+    [
+     "Na",
+     36.0,
+     "34-38",
+     0.12
+    ],
+    [
+     "Na",
+     58.0,
+     "54-62",
+     0.1
+    ]
+   ]
+  },
+  "tga_profiles": {
+   "columns": [
+    "quantity",
+    "depth_mm",
+    "section_mm",
+    "percent"
+   ],
+   "units": [
+    null,
+    "mm",
+    null,
+    "1"
+   ],
+   "kind": "measured",
+   "location": "Fig. 8, p. 57 (vector): TGA weight losses in % of the dry mass of concrete powder: water 40-105 C, water 105-450 C, Ca(OH)2 (450-550 C loss x 74/18), CO2 (550-800 C)",
+   "rows": [
+    [
+     "H2O_40_105C",
+     1.0,
+     "0-2",
+     1.8
+    ],
+    [
+     "H2O_40_105C",
+     4.0,
+     "2-6",
+     1.53
+    ],
+    [
+     "H2O_40_105C",
+     8.0,
+     "6-10",
+     1.39
+    ],
+    [
+     "H2O_40_105C",
+     12.0,
+     "10-14",
+     1.24
+    ],
+    [
+     "H2O_40_105C",
+     16.0,
+     "14-18",
+     1.36
+    ],
+    [
+     "H2O_40_105C",
+     20.0,
+     "18-22",
+     1.56
+    ],
+    [
+     "H2O_40_105C",
+     24.0,
+     "22-26",
+     1.55
+    ],
+    [
+     "H2O_40_105C",
+     28.0,
+     "26-30",
+     1.35
+    ],
+    [
+     "H2O_40_105C",
+     32.0,
+     "30-34",
+     1.6
+    ],
+    [
+     "H2O_40_105C",
+     36.0,
+     "34-38",
+     1.44
+    ],
+    [
+     "H2O_40_105C",
+     42.0,
+     "38-46",
+     1.64
+    ],
+    [
+     "H2O_40_105C",
+     50.0,
+     "46-54",
+     1.58
+    ],
+    [
+     "H2O_40_105C",
+     58.0,
+     "54-62",
+     1.6
+    ],
+    [
+     "H2O_105_450C",
+     1.0,
+     "0-2",
+     5.2
+    ],
+    [
+     "H2O_105_450C",
+     4.0,
+     "2-6",
+     2.97
+    ],
+    [
+     "H2O_105_450C",
+     8.0,
+     "6-10",
+     2.42
+    ],
+    [
+     "H2O_105_450C",
+     12.0,
+     "10-14",
+     2.16
+    ],
+    [
+     "H2O_105_450C",
+     16.0,
+     "14-18",
+     2.37
+    ],
+    [
+     "H2O_105_450C",
+     20.0,
+     "18-22",
+     2.69
+    ],
+    [
+     "H2O_105_450C",
+     24.0,
+     "22-26",
+     2.76
+    ],
+    [
+     "H2O_105_450C",
+     28.0,
+     "26-30",
+     2.22
+    ],
+    [
+     "H2O_105_450C",
+     32.0,
+     "30-34",
+     2.57
+    ],
+    [
+     "H2O_105_450C",
+     36.0,
+     "34-38",
+     2.46
+    ],
+    [
+     "H2O_105_450C",
+     42.0,
+     "38-46",
+     2.8
+    ],
+    [
+     "H2O_105_450C",
+     50.0,
+     "46-54",
+     2.84
+    ],
+    [
+     "H2O_105_450C",
+     58.0,
+     "54-62",
+     2.9
+    ],
+    [
+     "CaOH2",
+     1.0,
+     "0-2",
+     0.0
+    ],
+    [
+     "CaOH2",
+     4.0,
+     "2-6",
+     1.53
+    ],
+    [
+     "CaOH2",
+     8.0,
+     "6-10",
+     2.22
+    ],
+    [
+     "CaOH2",
+     12.0,
+     "10-14",
+     2.13
+    ],
+    [
+     "CaOH2",
+     16.0,
+     "14-18",
+     2.51
+    ],
+    [
+     "CaOH2",
+     20.0,
+     "18-22",
+     3.07
+    ],
+    [
+     "CaOH2",
+     24.0,
+     "22-26",
+     2.91
+    ],
+    [
+     "CaOH2",
+     28.0,
+     "26-30",
+     3.05
+    ],
+    [
+     "CaOH2",
+     32.0,
+     "30-34",
+     3.14
+    ],
+    [
+     "CaOH2",
+     36.0,
+     "34-38",
+     2.98
+    ],
+    [
+     "CaOH2",
+     42.0,
+     "38-46",
+     3.31
+    ],
+    [
+     "CaOH2",
+     50.0,
+     "46-54",
+     3.33
+    ],
+    [
+     "CaOH2",
+     58.0,
+     "54-62",
+     3.28
+    ],
+    [
+     "CO2",
+     1.0,
+     "0-2",
+     6.87
+    ],
+    [
+     "CO2",
+     4.0,
+     "2-6",
+     2.11
+    ],
+    [
+     "CO2",
+     8.0,
+     "6-10",
+     1.67
+    ],
+    [
+     "CO2",
+     12.0,
+     "10-14",
+     1.56
+    ],
+    [
+     "CO2",
+     16.0,
+     "14-18",
+     1.9
+    ],
+    [
+     "CO2",
+     20.0,
+     "18-22",
+     1.99
+    ],
+    [
+     "CO2",
+     24.0,
+     "22-26",
+     2.22
+    ],
+    [
+     "CO2",
+     28.0,
+     "26-30",
+     1.73
+    ],
+    [
+     "CO2",
+     32.0,
+     "30-34",
+     1.77
+    ],
+    [
+     "CO2",
+     36.0,
+     "34-38",
+     1.82
+    ],
+    [
+     "CO2",
+     42.0,
+     "38-46",
+     1.96
+    ],
+    [
+     "CO2",
+     50.0,
+     "46-54",
+     1.92
+    ],
+    [
+     "CO2",
+     58.0,
+     "54-62",
+     2.0
+    ]
+   ]
+  },
+  "phase_observations": {
+   "columns": [
+    "zone",
+    "phase",
+    "method",
+    "observation"
+   ],
+   "units": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "kind": "measured",
+   "location": "Sections 3.2 and 3.4, Figs. 7, 9-19 and 22, and the Conclusions",
+   "rows": [
+    [
+     "surface, 10-20 um",
+     "Mg-rich phase",
+     "SEM-EDS maps",
+     "present: dense Mg-enriched, slightly Si-depleted layer of the original concrete, not a deposit"
+    ],
+    [
+     "cracks from the surface",
+     "brucite",
+     "SEM-EDS maps",
+     "Mg-rich crack filling, 'most likely brucite'"
+    ],
+    [
+     "0-2 mm",
+     "brucite",
+     "XRD (38.0 deg 2theta) and TGA (350-450 C)",
+     "not detected"
+    ],
+    [
+     "all sections",
+     "magnesite",
+     "XRD (32.6 deg 2theta)",
+     "not detected"
+    ],
+    [
+     "all sections",
+     "aragonite",
+     "XRD (26.2 deg 2theta)",
+     "not detected"
+    ],
+    [
+     "0-2 mm",
+     "calcite",
+     "XRD and TGA",
+     "increased; the only carbonated section; calcite peak decreasing inwards"
+    ],
+    [
+     "0-2 mm",
+     "portlandite",
+     "XRD and TGA",
+     "absent"
+    ],
+    [
+     "0-20 mm",
+     "portlandite",
+     "TGA",
+     "partly depleted"
+    ],
+    [
+     "0-2 mm",
+     "ettringite and thaumasite",
+     "SEM-EDS (Fig. 12), BSE (Fig. 15)",
+     "enriched; thaumasite in an air void at 0.2 mm; XRD cannot tell them apart and shows a weaker 9 deg peak in 0-2 mm, read as poor crystallinity"
+    ],
+    [
+     "from 4-5 mm inwards",
+     "AFm",
+     "XRD (Fig. 9)",
+     "more AFm; hemicarbonate or Kuzel's salt, peaks too close to decide"
+    ],
+    [
+     "all sections",
+     "Friedel's salt",
+     "XRD (11.2 deg 2theta)",
+     "not detected"
+    ],
+    [
+     "near surface and at 70 mm",
+     "Cl-AFm (Friedel's and Kuzel's salts with CO3-AFm)",
+     "SEM-EDS (Figs. 13, 14)",
+     "present; Kuzel's salt identified by EDS"
+    ],
+    [
+     "near surface",
+     "Cl in C-S-H",
+     "SEM-EDS (Figs. 13, 14)",
+     "many points at Al/Ca 0-0.1 and Cl/Ca 0.1-0.2; much less Cl in the C-S-H of the bulk sample at about 70 mm"
+    ],
+    [
+     "first 20 mm",
+     "Mg, S, Na",
+     "ICP-MS (Fig. 6)",
+     "enriched"
+    ],
+    [
+     "first 20 mm",
+     "K",
+     "ICP-MS (Fig. 6)",
+     "depleted"
+    ]
+   ]
+  },
+  "zones": {
+   "columns": [
+    "zone",
+    "process",
+    "extent_as_stated"
+   ],
+   "units": [
+    null,
+    null,
+    null
+   ],
+   "kind": "measured",
+   "location": "Fig. 22 caption, p. 61, with the extents the text and the Conclusions state (Fig. 22 itself is a schematic image and is not read)",
+   "rows": [
+    [
+     "1",
+     "Mg enrichment",
+     "10-20 um surface layer; Mg-rich phase in cracks"
+    ],
+    [
+     "2",
+     "sulfate attack with ettringite and thaumasite formation, and carbonation",
+     "outer 0-2 mm"
+    ],
+    [
+     "2 and 3",
+     "calcium hydroxide leaching",
+     "complete in 0-2 mm, partial up to 20 mm"
+    ],
+    [
+     "2 to 4",
+     "chloride ingress",
+     "to about 70 mm; Cl/Ca maximum at 2-4 mm (Section 3.1)"
+    ],
+    [
+     "5",
+     "unaffected concrete",
+     "beyond"
+    ]
+   ]
+  },
+  "gems_seawater": {
+   "columns": [
+    "seawater_per_100g",
+    "phase",
+    "cumulative_bottom",
+    "cumulative_top",
+    "volume",
+    "note"
+   ],
+   "units": [
+    "mL",
+    null,
+    "cm^3",
+    "cm^3",
+    "cm^3",
+    null
+   ],
+   "kind": "published",
+   "location": "Fig. 20, p. 60 (raster): GEMS-calculated volumes of the phases of 100 g of cement (89 g CEM I 42.5 R + 11 g limestone, with 42 g water, 70 % of the OPC reacted) in contact with increasing volumes of sea water, per 100 g of cement; stacked areas read at each abscissa from the bottom (OPC = unreacted clinker, limestone = calcite, CH = portlandite, Friedel = Friedel's salt); 'unlabeled' is a thin area between OPC and limestone that the figure does not name; the 1 mL column is read at 1.05 mL, the right edge of the plot",
+   "rows": [
+    [
+     1,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     1,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     1,
+     "limestone",
+     9.0,
+     12.2,
+     3.2,
+     null
+    ],
+    [
+     1,
+     "C-S-H",
+     12.2,
+     28.9,
+     16.6,
+     null
+    ],
+    [
+     1,
+     "CH",
+     28.9,
+     37.8,
+     8.9,
+     null
+    ],
+    [
+     1,
+     "ettringite",
+     37.8,
+     43.4,
+     5.6,
+     null
+    ],
+    [
+     1,
+     "monocarbonate",
+     43.4,
+     49.4,
+     6.0,
+     null
+    ],
+    [
+     10,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     10,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     10,
+     "limestone",
+     9.0,
+     12.3,
+     3.3,
+     null
+    ],
+    [
+     10,
+     "C-S-H",
+     12.3,
+     28.9,
+     16.6,
+     null
+    ],
+    [
+     10,
+     "CH",
+     28.9,
+     37.8,
+     8.8,
+     null
+    ],
+    [
+     10,
+     "ettringite",
+     37.8,
+     43.5,
+     5.7,
+     null
+    ],
+    [
+     10,
+     "monocarbonate",
+     43.5,
+     49.0,
+     5.6,
+     null
+    ],
+    [
+     20,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     20,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     20,
+     "limestone",
+     9.0,
+     12.3,
+     3.3,
+     null
+    ],
+    [
+     20,
+     "C-S-H",
+     12.3,
+     28.9,
+     16.6,
+     null
+    ],
+    [
+     20,
+     "CH",
+     28.9,
+     37.8,
+     8.8,
+     null
+    ],
+    [
+     20,
+     "ettringite",
+     37.8,
+     43.6,
+     5.9,
+     null
+    ],
+    [
+     20,
+     "monocarbonate",
+     43.6,
+     48.9,
+     5.3,
+     null
+    ],
+    [
+     30,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     30,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     30,
+     "limestone",
+     9.0,
+     12.3,
+     3.3,
+     null
+    ],
+    [
+     30,
+     "C-S-H",
+     12.3,
+     28.9,
+     16.6,
+     null
+    ],
+    [
+     30,
+     "CH",
+     28.9,
+     37.8,
+     8.8,
+     null
+    ],
+    [
+     30,
+     "ettringite",
+     37.8,
+     43.6,
+     5.9,
+     null
+    ],
+    [
+     30,
+     "monocarbonate",
+     43.6,
+     48.6,
+     5.0,
+     null
+    ],
+    [
+     30,
+     "Friedel",
+     48.6,
+     49.3,
+     0.7,
+     null
+    ],
+    [
+     50,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     50,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     50,
+     "limestone",
+     9.0,
+     12.5,
+     3.5,
+     null
+    ],
+    [
+     50,
+     "C-S-H",
+     12.5,
+     28.9,
+     16.5,
+     null
+    ],
+    [
+     50,
+     "CH",
+     28.9,
+     37.8,
+     8.8,
+     null
+    ],
+    [
+     50,
+     "ettringite",
+     37.8,
+     43.7,
+     6.0,
+     null
+    ],
+    [
+     50,
+     "monocarbonate",
+     43.7,
+     48.4,
+     4.7,
+     null
+    ],
+    [
+     50,
+     "Friedel",
+     48.4,
+     49.4,
+     1.0,
+     null
+    ],
+    [
+     100,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     100,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     100,
+     "limestone",
+     9.0,
+     12.5,
+     3.5,
+     null
+    ],
+    [
+     100,
+     "C-S-H",
+     12.5,
+     29.1,
+     16.6,
+     null
+    ],
+    [
+     100,
+     "CH",
+     29.1,
+     37.8,
+     8.6,
+     null
+    ],
+    [
+     100,
+     "ettringite",
+     37.8,
+     44.0,
+     6.3,
+     null
+    ],
+    [
+     100,
+     "monocarbonate",
+     44.0,
+     48.1,
+     4.1,
+     null
+    ],
+    [
+     100,
+     "Friedel",
+     48.1,
+     49.5,
+     1.4,
+     null
+    ],
+    [
+     200,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     200,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     200,
+     "limestone",
+     9.0,
+     12.7,
+     3.7,
+     null
+    ],
+    [
+     200,
+     "C-S-H",
+     12.7,
+     29.2,
+     16.5,
+     null
+    ],
+    [
+     200,
+     "CH",
+     29.2,
+     37.8,
+     8.5,
+     null
+    ],
+    [
+     200,
+     "ettringite",
+     37.8,
+     44.5,
+     6.8,
+     null
+    ],
+    [
+     200,
+     "monocarbonate",
+     44.5,
+     47.6,
+     3.1,
+     null
+    ],
+    [
+     200,
+     "Friedel",
+     47.6,
+     50.0,
+     2.4,
+     null
+    ],
+    [
+     300,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     300,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     300,
+     "limestone",
+     9.0,
+     12.8,
+     3.8,
+     null
+    ],
+    [
+     300,
+     "C-S-H",
+     12.8,
+     29.4,
+     16.6,
+     null
+    ],
+    [
+     300,
+     "CH",
+     29.4,
+     37.5,
+     8.2,
+     null
+    ],
+    [
+     300,
+     "ettringite",
+     37.5,
+     45.0,
+     7.5,
+     null
+    ],
+    [
+     300,
+     "monocarbonate",
+     45.0,
+     47.5,
+     2.5,
+     null
+    ],
+    [
+     300,
+     "Friedel",
+     47.5,
+     50.5,
+     3.0,
+     null
+    ],
+    [
+     500,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     500,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     500,
+     "limestone",
+     9.0,
+     12.9,
+     3.9,
+     null
+    ],
+    [
+     500,
+     "C-S-H",
+     12.9,
+     29.6,
+     16.6,
+     null
+    ],
+    [
+     500,
+     "CH",
+     29.6,
+     37.2,
+     7.6,
+     null
+    ],
+    [
+     500,
+     "ettringite",
+     37.2,
+     45.9,
+     8.7,
+     null
+    ],
+    [
+     500,
+     "monocarbonate",
+     45.9,
+     47.5,
+     1.6,
+     null
+    ],
+    [
+     500,
+     "Friedel",
+     47.5,
+     50.8,
+     3.3,
+     null
+    ],
+    [
+     500,
+     "brucite",
+     50.8,
+     51.3,
+     0.5,
+     "thin top band, gray level mixed with the boundary line; uncertain"
+    ],
+    [
+     700,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     700,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     700,
+     "limestone",
+     9.0,
+     13.0,
+     4.0,
+     null
+    ],
+    [
+     700,
+     "C-S-H",
+     13.0,
+     29.6,
+     16.6,
+     null
+    ],
+    [
+     700,
+     "CH",
+     29.6,
+     36.8,
+     7.3,
+     null
+    ],
+    [
+     700,
+     "ettringite",
+     36.8,
+     46.6,
+     9.8,
+     null
+    ],
+    [
+     700,
+     "monocarbonate",
+     46.6,
+     47.9,
+     1.3,
+     null
+    ],
+    [
+     700,
+     "Friedel",
+     47.9,
+     51.0,
+     3.1,
+     null
+    ],
+    [
+     700,
+     "brucite",
+     51.0,
+     51.9,
+     0.8,
+     null
+    ],
+    [
+     1000,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     1000,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     1000,
+     "limestone",
+     9.0,
+     13.0,
+     4.0,
+     null
+    ],
+    [
+     1000,
+     "C-S-H",
+     13.0,
+     29.6,
+     16.6,
+     null
+    ],
+    [
+     1000,
+     "CH",
+     29.6,
+     36.2,
+     6.5,
+     null
+    ],
+    [
+     1000,
+     "ettringite",
+     36.2,
+     47.5,
+     11.3,
+     null
+    ],
+    [
+     1000,
+     "monocarbonate",
+     47.5,
+     48.6,
+     1.1,
+     null
+    ],
+    [
+     1000,
+     "Friedel",
+     48.6,
+     51.4,
+     2.8,
+     null
+    ],
+    [
+     1000,
+     "brucite",
+     51.4,
+     52.5,
+     1.1,
+     null
+    ],
+    [
+     1500,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     1500,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     1500,
+     "limestone",
+     9.0,
+     13.1,
+     4.1,
+     null
+    ],
+    [
+     1500,
+     "C-S-H",
+     13.1,
+     29.6,
+     16.5,
+     null
+    ],
+    [
+     1500,
+     "CH",
+     29.6,
+     34.9,
+     5.3,
+     null
+    ],
+    [
+     1500,
+     "ettringite",
+     34.9,
+     49.3,
+     14.3,
+     null
+    ],
+    [
+     1500,
+     "monocarbonate",
+     49.3,
+     49.9,
+     0.6,
+     "thin band, gray level mixed with the boundary lines"
+    ],
+    [
+     1500,
+     "Friedel",
+     49.9,
+     51.9,
+     2.0,
+     null
+    ],
+    [
+     1500,
+     "brucite",
+     51.9,
+     54.0,
+     2.1,
+     null
+    ],
+    [
+     2000,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     2000,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     2000,
+     "limestone",
+     9.0,
+     13.1,
+     4.1,
+     null
+    ],
+    [
+     2000,
+     "C-S-H",
+     13.1,
+     29.8,
+     16.7,
+     null
+    ],
+    [
+     2000,
+     "CH",
+     29.8,
+     33.8,
+     4.0,
+     null
+    ],
+    [
+     2000,
+     "ettringite",
+     33.8,
+     51.2,
+     17.4,
+     null
+    ],
+    [
+     2000,
+     "Friedel",
+     51.2,
+     52.5,
+     1.4,
+     null
+    ],
+    [
+     2000,
+     "brucite",
+     52.5,
+     54.7,
+     2.1,
+     null
+    ],
+    [
+     2500,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     2500,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     2500,
+     "limestone",
+     9.0,
+     13.1,
+     4.1,
+     null
+    ],
+    [
+     2500,
+     "C-S-H",
+     13.1,
+     29.6,
+     16.5,
+     null
+    ],
+    [
+     2500,
+     "CH",
+     29.6,
+     32.4,
+     2.8,
+     null
+    ],
+    [
+     2500,
+     "ettringite",
+     32.4,
+     52.2,
+     19.8,
+     null
+    ],
+    [
+     2500,
+     "Friedel",
+     52.2,
+     52.9,
+     0.6,
+     null
+    ],
+    [
+     2500,
+     "brucite",
+     52.9,
+     55.4,
+     2.5,
+     null
+    ],
+    [
+     3000,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     3000,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     3000,
+     "limestone",
+     9.0,
+     13.0,
+     4.0,
+     null
+    ],
+    [
+     3000,
+     "C-S-H",
+     13.0,
+     29.1,
+     16.1,
+     null
+    ],
+    [
+     3000,
+     "CH",
+     29.1,
+     30.9,
+     1.8,
+     null
+    ],
+    [
+     3000,
+     "ettringite",
+     30.9,
+     52.2,
+     21.3,
+     null
+    ],
+    [
+     3000,
+     "brucite",
+     52.2,
+     55.4,
+     3.2,
+     null
+    ],
+    [
+     3000,
+     "thaumasite",
+     55.4,
+     57.4,
+     1.9,
+     null
+    ],
+    [
+     3500,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     3500,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     3500,
+     "limestone",
+     9.0,
+     12.6,
+     3.6,
+     null
+    ],
+    [
+     3500,
+     "C-S-H",
+     12.6,
+     28.0,
+     15.4,
+     null
+    ],
+    [
+     3500,
+     "CH",
+     28.0,
+     28.7,
+     0.7,
+     "thin band, gray level mixed with the boundary lines"
+    ],
+    [
+     3500,
+     "ettringite",
+     28.7,
+     50.3,
+     21.5,
+     null
+    ],
+    [
+     3500,
+     "brucite",
+     50.3,
+     54.1,
+     3.8,
+     null
+    ],
+    [
+     3500,
+     "thaumasite",
+     54.1,
+     58.9,
+     4.8,
+     null
+    ],
+    [
+     4000,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     4000,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     4000,
+     "limestone",
+     9.0,
+     12.2,
+     3.2,
+     null
+    ],
+    [
+     4000,
+     "C-S-H",
+     12.2,
+     26.6,
+     14.4,
+     null
+    ],
+    [
+     4000,
+     "ettringite",
+     26.6,
+     48.2,
+     21.6,
+     null
+    ],
+    [
+     4000,
+     "brucite",
+     48.2,
+     52.4,
+     4.2,
+     null
+    ],
+    [
+     4000,
+     "thaumasite",
+     52.4,
+     61.8,
+     9.5,
+     null
+    ],
+    [
+     5000,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     5000,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     5000,
+     "limestone",
+     9.0,
+     11.4,
+     2.4,
+     null
+    ],
+    [
+     5000,
+     "C-S-H",
+     11.4,
+     23.4,
+     12.0,
+     null
+    ],
+    [
+     5000,
+     "ettringite",
+     23.4,
+     45.0,
+     21.6,
+     null
+    ],
+    [
+     5000,
+     "brucite",
+     45.0,
+     50.1,
+     5.1,
+     null
+    ],
+    [
+     5000,
+     "thaumasite",
+     50.1,
+     65.0,
+     14.9,
+     "reaches the top of the plot (65 cm3); the volume is a lower bound"
+    ],
+    [
+     6000,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     6000,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.5,
+     null
+    ],
+    [
+     6000,
+     "limestone",
+     9.0,
+     10.0,
+     1.0,
+     null
+    ],
+    [
+     6000,
+     "C-S-H",
+     10.0,
+     18.8,
+     8.8,
+     null
+    ],
+    [
+     6000,
+     "ettringite",
+     18.8,
+     37.4,
+     18.6,
+     null
+    ],
+    [
+     6000,
+     "brucite",
+     37.4,
+     43.8,
+     6.4,
+     null
+    ],
+    [
+     6000,
+     "thaumasite",
+     43.8,
+     65.0,
+     21.2,
+     "reaches the top of the plot (65 cm3); the volume is a lower bound"
+    ],
+    [
+     7000,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     7000,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.4,
+     null
+    ],
+    [
+     7000,
+     "C-S-H",
+     9.0,
+     15.1,
+     6.1,
+     null
+    ],
+    [
+     7000,
+     "ettringite",
+     15.1,
+     29.1,
+     14.0,
+     "a 1.5 cm3 sliver between ettringite and brucite (29.1 to 30.6) could not be assigned (steep boundary)"
+    ],
+    [
+     7000,
+     "brucite",
+     30.6,
+     37.1,
+     6.5,
+     "a 1.5 cm3 sliver between ettringite and brucite (29.1 to 30.6) could not be assigned (steep boundary)"
+    ],
+    [
+     7000,
+     "thaumasite",
+     37.1,
+     65.0,
+     27.9,
+     "reaches the top of the plot (65 cm3); the volume is a lower bound"
+    ],
+    [
+     8000,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     8000,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.4,
+     null
+    ],
+    [
+     8000,
+     "C-S-H",
+     9.0,
+     15.5,
+     6.5,
+     null
+    ],
+    [
+     8000,
+     "ettringite",
+     15.5,
+     23.6,
+     8.1,
+     null
+    ],
+    [
+     8000,
+     "brucite",
+     23.6,
+     30.8,
+     7.2,
+     null
+    ],
+    [
+     8000,
+     "thaumasite",
+     30.8,
+     65.0,
+     34.2,
+     "reaches the top of the plot (65 cm3); the volume is a lower bound"
+    ],
+    [
+     9000,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     9000,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.4,
+     null
+    ],
+    [
+     9000,
+     "C-S-H",
+     9.0,
+     15.7,
+     6.7,
+     null
+    ],
+    [
+     9000,
+     "ettringite",
+     15.7,
+     19.1,
+     3.4,
+     null
+    ],
+    [
+     9000,
+     "brucite",
+     19.1,
+     25.9,
+     6.8,
+     null
+    ],
+    [
+     9000,
+     "thaumasite",
+     25.9,
+     59.1,
+     33.2,
+     null
+    ],
+    [
+     10000,
+     "OPC",
+     0.0,
+     8.5,
+     8.5,
+     null
+    ],
+    [
+     10000,
+     "unlabeled",
+     8.5,
+     9.0,
+     0.4,
+     null
+    ],
+    [
+     10000,
+     "C-S-H",
+     9.0,
+     15.5,
+     6.6,
+     null
+    ],
+    [
+     10000,
+     "ettringite",
+     15.5,
+     17.4,
+     1.9,
+     null
+    ],
+    [
+     10000,
+     "brucite",
+     17.4,
+     23.9,
+     6.6,
+     null
+    ],
+    [
+     10000,
+     "thaumasite",
+     23.9,
+     57.0,
+     33.0,
+     null
+    ]
+   ]
+  },
+  "gems_seawater_transitions": {
+   "columns": [
+    "phase",
+    "event",
+    "seawater_low",
+    "seawater_high",
+    "note"
+   ],
+   "units": [
+    null,
+    null,
+    "mL",
+    "mL",
+    null
+   ],
+   "kind": "published",
+   "location": "Fig. 20, p. 60 (raster), read column by column (one column = 1.16 % of the abscissa): the event lies between the two abscissae, per 100 g of cement; an area thinner than about 0.4 cm3 is not detected, so 'first' and 'last' are where the area reaches that thickness",
+   "rows": [
+    [
+     "Friedel's salt",
+     "first",
+     21,
+     22,
+     "tapers in from smaller amounts; detection threshold"
+    ],
+    [
+     "brucite",
+     "first",
+     690,
+     790,
+     "a thinner band (below 0.4 cm3) extends to smaller amounts of sea water"
+    ],
+    [
+     "monocarbonate",
+     "last",
+     1580,
+     1650,
+     "decreases gradually from 6.0 cm3 at 1 mL"
+    ],
+    [
+     "Friedel's salt",
+     "last",
+     2620,
+     2680,
+     "vanishes abruptly where thaumasite appears"
+    ],
+    [
+     "thaumasite",
+     "first",
+     2620,
+     2680,
+     "1.0 cm3 at 2680 mL"
+    ],
+    [
+     "portlandite",
+     "last",
+     3380,
+     3460,
+     "vanishes abruptly from about 1 cm3"
+    ],
+    [
+     "calcite",
+     "last",
+     6300,
+     6450,
+     "the 'limestone' area, grows from 3.2 to 4.1 cm3 up to about 2500 mL, then vanishes"
+    ],
+    [
+     "ettringite",
+     "maximum",
+     3500,
+     5000,
+     "about 21.6 cm3"
+    ]
+   ]
+  }
+ },
+ "notes": [
+  "The GEMS calculation (Section 2, Section 3.3): GEM-Selektor with the PSI-GEMS (Nagra/PSI 01/01) database supplemented with the cement data of the paper's refs. [15-19] (Lothenbach and Winnefeld 2006; Matschei et al. 2007; Lothenbach et al. 2008; Balonis et al. 2010; Dilnesa et al. 2011), the Cemdata07 generation with the chloride AFm of Balonis 2010 and the iron AFm of Dilnesa 2011. C-S-H is a jennite-tobermorite solid solution of constant composition: no uptake of Al, sulfate or chloride, and no Mg for Ca substitution. The sea-water composition used in the calculation is not printed; Table 1 is the composition the paper gives. The model follows Loser et al. 2010 (ref. [20]) with 165 g/L NaCl.",
+  "The authors read the sea-water axis as a depth axis: low amounts of sea water correspond to the unexposed interior, high amounts to the exposed surface; the model has no transport and is 'not time nor space related' (Section 2).",
+  "The authors' own comparison (Section 3.4): the model predicts brucite together with thaumasite and ettringite, not separately at the surface as observed, which they attribute to an overestimated Mg mobility; it does not predict a CaCO3 layer but a small gradual increase of calcite towards the surface; it predicts the portlandite depletion and an ettringite- and thaumasite-rich zone, as observed; Friedel's salt is predicted deeper in sea water than in the NaCl solution because ettringite is more stable than Friedel's salt in the Mg and sulfate zones.",
+  "Cross-checks the test suite can run: Fig. 5 Cl/Ca equals the ratio of Cl to Ca in Fig. 6 at the same depth to within 3 %; the ICP-MS series of Fig. 4 equals the Cl series of Fig. 6 to within 0.5 %; the GEMS cumulative_top of a phase equals the cumulative_bottom of the next phase at the same abscissa, except at 7000 mL where 1.5 cm3 is unassigned.",
+  "Binder: a commercial CEM I 42.5 R (Blaine 362 m2/kg, SO3 3.00 %) with 44 kg/m3 limestone filler, cast in 2001. It is not the binder of DeWeerdt2011 (laboratory OPC = clinker interground with 3.7 % gypsum, Blaine 450 m2/kg) nor that of DeWeerdtJustnes2015 (CEM I 42.5 R, Blaine 552 m2/kg, SO3 3.81 %).",
+  "Fig. 21 (the same paste with a 165 g/L NaCl solution) is not transcribed. Figs. 11-14 (EDS dot plots, several hundred points) are not transcribed; their reading by the authors is in phase_observations. Fig. 7 (TG/DTG curves) is not transcribed; Fig. 8 quantifies it.",
+  "Section 2 lists the TGA intervals as 40-105, 105-450, 450-550 and 550-800 C for bound water (H), Ca(OH)2 and CO2; Fig. 8 plots the 40-105 C loss as a separate series."
+ ]
+}

@@ -49,6 +49,14 @@
   equilibrium Cemdata18 gives the thaumasite their own calculation gave, within
   6 % of the solids, more at 8 °C where the C-S-H limits it; the measured
   thaumasite is 0.3 to 2 %, a reaction far from its end.
+- **Durability in zero dimensions: seawater** (the page *Seawater: a CEM I
+  42.5 R with limestone, titrated by the sea*, `scripts/seawater.jl`). The
+  paste of De Weerdt et al. (2014) in contact with up to 10 L of their seawater
+  per 100 g of cement: the sequence of their own calculation, Friedel's salt,
+  then thaumasite in its place, brucite, portlandite gone, in the order of the
+  zones of their sixteen-year core read from the surface inward; Cemdata18,
+  with hydrotalcite allowed, moves the middle of it to four to sixteen times
+  smaller volumes.
 - **`temperature_range`**: the temperatures over which a record of a ThermoFun
   database declares its heat capacity. Cemdata18 declares its AFm phases to
   50 °C, its ettringites to 60 °C and its clinker phases from 25 °C; nothing
