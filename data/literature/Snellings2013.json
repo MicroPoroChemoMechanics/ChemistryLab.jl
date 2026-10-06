@@ -1,0 +1,766 @@
+{
+ "schema": "chemistrylab-literature/1",
+ "source": {
+  "key": "Snellings2013",
+  "doi": "10.1111/jace.12480",
+  "citation": "Snellings, R. (2013). Solution-controlled dissolution of supplementary cementitious material glasses at pH 13: the effect of solution composition on glass dissolution rates. Journal of the American Ceramic Society 96(8), 2467-2475.",
+  "location": "Section II (pp. 2468-2469), Table I (p. 2468), Eq. (1) (p. 2469), Section III(2) (pp. 2469-2470), Table II (p. 2471), Fig. 8 (p. 2472), Section IV(2) (p. 2473)"
+ },
+ "transcription": {
+  "from": "the published article (publisher's PDF): Tables I and II from the text layer, checked line by line against the pages rendered at 200-220 dpi; Fig. 8 read from its vector drawing",
+  "checked_against_source": true,
+  "note": "The text layer codes the minus sign as a control character; every value of Table II was compared with the rendered page, signs included. A dash of Table II is transcribed as null. As a check of the transcription, the area-to-volume ratio of Table II is ten times the BET specific surface of Table I for all six glasses, which is what the water-to-glass mass ratio of 1000 of Section II(3) gives (1 g of glass in 1000 cm3)."
+ },
+ "quantities": {
+  "temperature_C": {
+   "value": 20.0,
+   "unit": "1",
+   "kind": "published",
+   "uncertainty": 1.0,
+   "location": "Section II(3), p. 2468",
+   "description": "Temperature of the dissolution experiments, in degrees Celsius (a temperature-controlled room at 20 +/- 1 C)."
+  },
+  "pH": {
+   "value": 13.0,
+   "unit": "1",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section II(3), p. 2468",
+   "description": "pH of the NaOH solutions at the start; the pH measured at the end of each experiment deviated from it by no more than 0.05."
+  },
+  "water_to_glass_mass_ratio": {
+   "value": 1000.0,
+   "unit": "1",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section II(3), p. 2468",
+   "description": "Water-to-glass mass ratio of the batch reactors, chosen to measure initial rates far from equilibrium and to prevent the precipitation of hydration products."
+  },
+  "log_rate_uncertainty": {
+   "value": 0.15,
+   "unit": "1",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section III(2), p. 2470",
+   "description": "Propagated error of the tabulated dissolution rates, in log10 units ('about 25 % or less than 0.15 log units'), from about 10 % on the solution concentrations and 20 % on the BET surface area."
+  },
+  "calcium_effect_log_2p5mM": {
+   "value": -0.75,
+   "unit": "1",
+   "kind": "published",
+   "uncertainty": 0.23,
+   "location": "Section III(2), p. 2470",
+   "description": "Average change, in log10 units, of the initial dissolution rate of the glasses when the initial Ca concentration of the solution is raised to 2.5 mM ('0.75 +/- 0.23 log units on average')."
+  },
+  "fig8_slope": {
+   "value": 2.74,
+   "unit": "1",
+   "kind": "fitted",
+   "uncertainty": null,
+   "location": "Fig. 8, p. 2472",
+   "description": "Slope of the regression printed on Fig. 8, log10 r+ (mol/m2/s) against the abscissa of the figure, over the six glasses in NaOH alone (R2 = 0.99). See the notes for the abscissa."
+  },
+  "fig8_intercept": {
+   "value": -8.47,
+   "unit": "1",
+   "kind": "fitted",
+   "uncertainty": null,
+   "location": "Fig. 8, p. 2472",
+   "description": "Intercept of the regression printed on Fig. 8, log10 r+ in mol/m2/s at a zero abscissa."
+  },
+  "fig8_r_squared": {
+   "value": 0.99,
+   "unit": "1",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Fig. 8, p. 2472",
+   "description": "Coefficient of determination printed on Fig. 8."
+  },
+  "affinity_over_RT_min": {
+   "value": 15.0,
+   "unit": "1",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Section IV(2), p. 2473",
+   "description": "The experiments were 'systematically performed at conditions of A/RT > 15', A the chemical affinity of the glass dissolution, and showed no consistent relationship between the rates and the affinity (Fig. 12)."
+  }
+ },
+ "tables": {
+  "glasses": {
+   "columns": [
+    "glass",
+    "type",
+    "CaO_percent",
+    "Al2O3_percent",
+    "SiO2_percent",
+    "bet",
+    "d50"
+   ],
+   "units": [
+    null,
+    null,
+    "1",
+    "1",
+    "1",
+    "m^2/g",
+    "um"
+   ],
+   "kind": "published",
+   "location": "Table I, p. 2468: chemical composition (wt%), BET specific surface and median grain size of the synthetic glasses",
+   "rows": [
+    [
+     "G1",
+     "BFS",
+     43.0,
+     19.0,
+     38.0,
+     0.0091,
+     114.7
+    ],
+    [
+     "G2",
+     "BFS",
+     36.0,
+     16.0,
+     48.0,
+     0.0151,
+     107.2
+    ],
+    [
+     "G3",
+     "FA",
+     20.0,
+     37.0,
+     43.0,
+     0.1004,
+     116.0
+    ],
+    [
+     "G4",
+     "FA",
+     15.0,
+     27.0,
+     58.0,
+     0.044,
+     113.2
+    ],
+    [
+     "G5",
+     "NP",
+     6.5,
+     11.5,
+     82.0,
+     0.0548,
+     115.2
+    ],
+    [
+     "G6",
+     "SF",
+     0.0,
+     0.0,
+     100.0,
+     0.0501,
+     107.1
+    ]
+   ]
+  },
+  "initial_rates": {
+   "columns": [
+    "glass",
+    "area_per_volume",
+    "Al_initial",
+    "Ca_initial",
+    "Si_initial",
+    "Al_Si",
+    "Ca_Si",
+    "log_rate"
+   ],
+   "units": [
+    null,
+    "1/cm",
+    "mmol/L",
+    "mmol/L",
+    "mmol/L",
+    "1",
+    "1",
+    "1"
+   ],
+   "kind": "measured",
+   "location": "Table II, p. 2471: initial dissolution rates at 20 C and pH 13, by glass and initial concentration of Al, Ca or Si in the NaOH solution; log_rate is log10 of r+ in mol/m2/s",
+   "rows": [
+    [
+     "G1",
+     0.091,
+     0.0,
+     0.0,
+     0.0,
+     0.96,
+     0.87,
+     -6.87
+    ],
+    [
+     "G2",
+     0.151,
+     0.0,
+     0.0,
+     0.0,
+     0.97,
+     1.0,
+     -7.33
+    ],
+    [
+     "G3",
+     1.004,
+     0.0,
+     0.0,
+     0.0,
+     0.84,
+     1.26,
+     -7.97
+    ],
+    [
+     "G4",
+     0.44,
+     0.0,
+     0.0,
+     0.0,
+     0.88,
+     1.47,
+     -8.11
+    ],
+    [
+     "G5",
+     0.548,
+     0.0,
+     0.0,
+     0.0,
+     0.94,
+     4.04,
+     -8.31
+    ],
+    [
+     "G6",
+     0.501,
+     0.0,
+     0.0,
+     0.0,
+     null,
+     null,
+     -8.45
+    ],
+    [
+     "G1",
+     0.091,
+     0.25,
+     0.0,
+     0.0,
+     null,
+     1.03,
+     -7.19
+    ],
+    [
+     "G2",
+     0.151,
+     0.25,
+     0.0,
+     0.0,
+     null,
+     0.93,
+     -7.59
+    ],
+    [
+     "G3",
+     1.004,
+     0.25,
+     0.0,
+     0.0,
+     null,
+     1.41,
+     -8.39
+    ],
+    [
+     "G4",
+     0.44,
+     0.25,
+     0.0,
+     0.0,
+     null,
+     1.28,
+     -8.2
+    ],
+    [
+     "G5",
+     0.548,
+     0.25,
+     0.0,
+     0.0,
+     null,
+     2.37,
+     -8.42
+    ],
+    [
+     "G6",
+     0.501,
+     0.25,
+     0.0,
+     0.0,
+     null,
+     null,
+     -8.86
+    ],
+    [
+     "G1",
+     0.091,
+     1.0,
+     0.0,
+     0.0,
+     null,
+     0.9,
+     -7.13
+    ],
+    [
+     "G2",
+     0.151,
+     1.0,
+     0.0,
+     0.0,
+     null,
+     1.15,
+     -7.59
+    ],
+    [
+     "G3",
+     1.004,
+     1.0,
+     0.0,
+     0.0,
+     null,
+     0.71,
+     -8.45
+    ],
+    [
+     "G4",
+     0.44,
+     1.0,
+     0.0,
+     0.0,
+     null,
+     1.04,
+     -8.33
+    ],
+    [
+     "G5",
+     0.548,
+     1.0,
+     0.0,
+     0.0,
+     null,
+     2.51,
+     -8.72
+    ],
+    [
+     "G6",
+     0.501,
+     1.0,
+     0.0,
+     0.0,
+     null,
+     null,
+     -9.07
+    ],
+    [
+     "G1",
+     0.091,
+     5.0,
+     0.0,
+     0.0,
+     null,
+     0.78,
+     -7.27
+    ],
+    [
+     "G2",
+     0.151,
+     5.0,
+     0.0,
+     0.0,
+     null,
+     0.69,
+     -7.65
+    ],
+    [
+     "G3",
+     1.004,
+     5.0,
+     0.0,
+     0.0,
+     null,
+     0.61,
+     -8.39
+    ],
+    [
+     "G4",
+     0.44,
+     5.0,
+     0.0,
+     0.0,
+     null,
+     0.5,
+     -8.52
+    ],
+    [
+     "G5",
+     0.548,
+     5.0,
+     0.0,
+     0.0,
+     null,
+     2.0,
+     -9.04
+    ],
+    [
+     "G6",
+     0.501,
+     5.0,
+     0.0,
+     0.0,
+     null,
+     null,
+     -9.56
+    ],
+    [
+     "G1",
+     0.091,
+     0.0,
+     0.25,
+     0.0,
+     1.2,
+     null,
+     -6.95
+    ],
+    [
+     "G2",
+     0.151,
+     0.0,
+     0.25,
+     0.0,
+     0.9,
+     null,
+     -7.61
+    ],
+    [
+     "G3",
+     1.004,
+     0.0,
+     0.25,
+     0.0,
+     0.8,
+     null,
+     -8.39
+    ],
+    [
+     "G4",
+     0.44,
+     0.0,
+     0.25,
+     0.0,
+     0.9,
+     null,
+     -8.5
+    ],
+    [
+     "G5",
+     0.548,
+     0.0,
+     0.25,
+     0.0,
+     0.8,
+     null,
+     -8.62
+    ],
+    [
+     "G6",
+     0.501,
+     0.0,
+     0.25,
+     0.0,
+     null,
+     null,
+     -8.87
+    ],
+    [
+     "G1",
+     0.091,
+     0.0,
+     2.5,
+     0.0,
+     null,
+     null,
+     -7.55
+    ],
+    [
+     "G2",
+     0.151,
+     0.0,
+     2.5,
+     0.0,
+     null,
+     null,
+     -8.11
+    ],
+    [
+     "G3",
+     1.004,
+     0.0,
+     2.5,
+     0.0,
+     null,
+     null,
+     -8.8
+    ],
+    [
+     "G4",
+     0.44,
+     0.0,
+     2.5,
+     0.0,
+     null,
+     null,
+     -8.8
+    ],
+    [
+     "G5",
+     0.548,
+     0.0,
+     2.5,
+     0.0,
+     null,
+     null,
+     -9.01
+    ],
+    [
+     "G6",
+     0.501,
+     0.0,
+     2.5,
+     0.0,
+     null,
+     null,
+     -9.26
+    ],
+    [
+     "G1",
+     0.091,
+     0.0,
+     0.0,
+     0.12,
+     null,
+     null,
+     -6.67
+    ],
+    [
+     "G2",
+     0.151,
+     0.0,
+     0.0,
+     0.12,
+     null,
+     null,
+     -7.15
+    ],
+    [
+     "G3",
+     1.004,
+     0.0,
+     0.0,
+     0.12,
+     null,
+     null,
+     -8.07
+    ],
+    [
+     "G4",
+     0.44,
+     0.0,
+     0.0,
+     0.12,
+     null,
+     null,
+     -7.87
+    ],
+    [
+     "G5",
+     0.548,
+     0.0,
+     0.0,
+     0.12,
+     null,
+     null,
+     -8.19
+    ],
+    [
+     "G1",
+     0.091,
+     0.0,
+     0.0,
+     1.15,
+     null,
+     null,
+     -6.64
+    ],
+    [
+     "G2",
+     0.151,
+     0.0,
+     0.0,
+     1.15,
+     null,
+     null,
+     -7.23
+    ],
+    [
+     "G3",
+     1.004,
+     0.0,
+     0.0,
+     1.15,
+     null,
+     null,
+     -8.01
+    ],
+    [
+     "G4",
+     0.44,
+     0.0,
+     0.0,
+     1.15,
+     null,
+     null,
+     -7.87
+    ],
+    [
+     "G5",
+     0.548,
+     0.0,
+     0.0,
+     1.15,
+     null,
+     null,
+     -8.42
+    ],
+    [
+     "G1",
+     0.091,
+     0.0,
+     0.0,
+     11.4,
+     null,
+     null,
+     -6.6
+    ],
+    [
+     "G2",
+     0.151,
+     0.0,
+     0.0,
+     11.4,
+     null,
+     null,
+     -7.2
+    ],
+    [
+     "G3",
+     1.004,
+     0.0,
+     0.0,
+     11.4,
+     null,
+     null,
+     -8.08
+    ],
+    [
+     "G4",
+     0.44,
+     0.0,
+     0.0,
+     11.4,
+     null,
+     null,
+     -7.93
+    ],
+    [
+     "G5",
+     0.548,
+     0.0,
+     0.0,
+     11.4,
+     null,
+     null,
+     -8.41
+    ]
+   ]
+  },
+  "fig8_markers": {
+   "columns": [
+    "glass",
+    "abscissa",
+    "log_rate"
+   ],
+   "units": [
+    null,
+    "1",
+    "1"
+   ],
+   "kind": "published",
+   "location": "Fig. 8, p. 2472: log10 r+ (mol/m2/s) of the six glasses in NaOH alone against the abscissa labeled 'Ca/(Al+Si)'",
+   "rows": [
+    [
+     "G1",
+     0.5564,
+     -6.87
+    ],
+    [
+     "G2",
+     0.45,
+     -7.332
+    ],
+    [
+     "G3",
+     0.1644,
+     -7.973
+    ],
+    [
+     "G4",
+     0.1322,
+     -8.107
+    ],
+    [
+     "G5",
+     0.0636,
+     -8.315
+    ],
+    [
+     "G6",
+     0.0,
+     -8.455
+    ]
+   ],
+   "digitization": {
+    "method": "vector drawing",
+    "tool": "the centers of the six circular markers taken from the vector paths of the PDF page, the frame mapped through the tick labels 0, 0.2, 0.4, 0.6 of the abscissa and -9.0 to -6.5 of the ordinate",
+    "uncertainty": {
+     "value": 0.001,
+     "unit": "1"
+    },
+    "note": "The ordinates read are those of Table II for the same experiments to 0.005 (-6.87, -7.33, -7.97, -8.11, -8.31, -8.45). The regression line drawn runs from (0.0002, -8.466) to (0.5566, -6.941), a slope of 2.740, as printed."
+   }
+  }
+ },
+ "notes": [
+  "Table I gives the compositions of the glasses in wt %. Section II(1) describes glasses melted at 1600 C from reagent-grade Al2O3, CaCO3 and SiO2 weighed for 100 g of glass, G6 being a commercial silica glass; the article reports no chemical analysis of the glasses after melting.",
+  "Eq. (1), p. 2469, is printed r+,X = [d(X)/Dt] nu_X/(m S V_soln), with nu_X 'the molar cation fraction of X in the glass', m the mass of the sample, S the initial specific surface area and V_soln the solution volume. As printed it does not have the dimension of the tabulated rates (mol/m2/s); a rate in that unit has V_soln in the numerator and nu_X in the denominator. The tabulated values are transcribed as given, in the unit of the table heading.",
+  "Footnote of Table II: the rates are calculated from the release of Si, except in the experiments with a set initial Si concentration, where they are calculated from the release of Al. The asterisks on the Al/Si and Ca/Si headings have no footnote in the table; Section III(2), p. 2470, compares 'Ca/Si release rates to the Ca/Si glass ratios' with them. They are transcribed as printed.",
+  "The abscissa of Fig. 8 is labeled 'Ca/(Al+Si)' and called the 'Ca/(Al + Si) molar ratio of the glasses' in the text (p. 2470). The abscissas read on the figure are, to the third decimal, n_Ca/(2 n_Al + n_Si) computed from the compositions of Table I (0.556, 0.450, 0.164, 0.132, 0.064, 0), and not n_Ca/(n_Al + n_Si) (0.763, 0.577, 0.247, 0.179, 0.073, 0). A least-squares line through the six rates of Table II in NaOH alone gives the printed regression with the abscissa of the figure (slope 2.736, intercept -8.463), and a slope of 2.045 (intercept -8.467) with n_Ca/(n_Al + n_Si): the printed regression holds with the abscissa of the figure.",
+  "Section III(2): the rates decrease with the initial Al concentration, most clearly for G5 and G6 and above 0.25 mM, little or within the error for the Ca-rich G1 and G2; they decrease with the initial Ca concentration for all glasses; an initial Si concentration up to 11 mM does not change them significantly. Section IV(2): no hydration product precipitated, by calculation or by SEM, and no consistent relationship with the chemical affinity was found (Fig. 12)."
+ ]
+}
