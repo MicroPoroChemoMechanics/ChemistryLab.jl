@@ -282,7 +282,7 @@ cs = ChemicalSystem(species_list, primaries; solid_solutions = chosen)
 
 A pre-built `data/solid_solutions.toml` is shipped with ChemistryLab for use with the cemdata18 database and its derived files. It defines 21 phases:
 
-- the C-S-H gel, in several models: `CSHQ` (with `CSHQ_Cl`, its chloride end member), `CNASH_ss`, `CSH3T`, `ECSH1`, `ECSH2`, and `CASH+`, `CASH+NK` and `CASH+ext` (database `cemdata18-cashplus.json`);
+- the C-S-H gel, in several models: `CSHQ` (and `CSHQ_Cl`, CSHQ with a chloride end member that is not part of CEMDATA18: ChemistryLab fitted its Gibbs energy itself, on three sorption tests of one gel, and ships it in `cemdata18-chloride.json`; see `data/chloride/README.md`), `CNASH_ss`, `CSH3T`, `ECSH1`, `ECSH2`, and `CASH+`, `CASH+NK` and `CASH+ext` (database `cemdata18-cashplus.json`);
 - the aluminate and ferrite hydrates: `C3(AF)S0.84H`, `Hydrogarnet`, `Ettringite_ss`, `AFt_SO4_CO3`, `AFt_AlFe`, `AFm_SO4_OH`, `AFm_AlFe` and `Straetlingite_ss`;
 - the magnesium phases: `Hydrotalcite`, `Hydrotalcite_AlFe`, `MgAl_OH_LDH` and `MSH`.
 

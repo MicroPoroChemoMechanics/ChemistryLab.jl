@@ -246,6 +246,25 @@ sorption tests of [Hirao2005](@cite), by `data/chloride/regenerate.jl`. The
 fitted value and its provenance are kept in `data/chloride/cshq_cl.json`, from
 which the end member is built, and carried on the end member itself.
 
+!!! warning "An end member fitted by ChemistryLab, not a published one"
+    `CSHQ-Cl` is not part of CEMDATA18, and no paper gives it. One number is
+    fitted, its Gibbs energy of formation from ½ Ca²⁺ + Cl⁻, on three points of
+    one gel: C-S-H formed by alite with its portlandite, in NaCl solutions at
+    20 °C, up to 1 mol/L. The fit is within 0.05 mmol/g at 0.5 and 1 mol/L and
+    four times the measurement at 0.1 mol/L. Its dependence on the Ca/Si of the
+    gel is not fitted, the tests holding one gel at portlandite saturation: it
+    is what ideal mixing gives, the formula having been chosen so that the gel
+    binds more chloride at a higher Ca/Si, as [Zibara2008](@citet) measured.
+    Fitted on NaCl solutions alone, it does not reproduce the effect of the
+    cation: in the CEM II concrete of [Tran2018](@citet), a CaCl₂ solution binds
+    two to three times as much chloride as a NaCl one at the same free
+    chloride, through the calcium the C-S-H adsorbs.
+    It is an effective description: chloride does not adsorb specifically on
+    C-S-H [Plusquellec2016](@cite), and the end member lumps the chloride that
+    accompanies the calcium the surface adsorbs, saying nothing of where it sits.
+    The entropy, volume and heat capacity of the end member are estimates, which
+    enter only between 20 °C and the temperature of a calculation.
+
 The second is Fe-Friedel's salt, `C4FCl2H10` = Ca₄Fe₂Cl₂(OH)₁₂·4H₂O, which the
 Cemdata18 paper tabulates [Lothenbach2019; Tables 1 and 2](@cite) and its
 ThermoFun export lacks. Its record is the row of Table 1, transcribed in

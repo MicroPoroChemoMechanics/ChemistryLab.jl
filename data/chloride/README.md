@@ -99,7 +99,9 @@ binds more at the higher Ca/Si. Both fits, and the trend of each, are recorded
 by the generator; the trend is a criterion the end member was chosen on, not a
 validation.
 
-What neither the fit nor the choice saw: at equal chloride, a CaCl2 solution
-makes the gel bind twice as much as a NaCl one, the ordering Tran et al. (2018,
-[10.1016/j.conbuildmat.2018.10.058](https://doi.org/10.1016/j.conbuildmat.2018.10.058))
-report.
+What neither the fit nor the choice saw is the cation of the salt: in a CEM II
+concrete, a CaCl2 solution binds two to three times as much chloride as a NaCl
+one at the same free chloride (Tran et al. 2018, Fig. 1,
+[10.1016/j.conbuildmat.2018.10.058](https://doi.org/10.1016/j.conbuildmat.2018.10.058),
+on measurements they take from Song et al.), which the authors trace to the
+calcium the C-S-H adsorbs.

@@ -39,6 +39,16 @@
   pH 13. Calcium follows one factor `(1 + K a)⁻¹` within the error of the
   measurements; aluminum does not, one glass slowed at once and no further,
   another more and more, and the page shows both.
+- **A tutorial on solid solutions in a calculation**
+  (`tutorials/solid_solutions.md`): a C-S-H gel declared among other solids,
+  which phases the equilibrium keeps and with which composition, why the gel is
+  absent and then present (the saturation ratios of its end-members as pure
+  phases add up to one before any of them would precipitate alone), what the
+  user chooses (the end-members, one model of the gel, a second instance where a
+  phase unmixes), and how to read the certificate. The theory pages on solid
+  solutions and on the certifying solver gain four figures of principle: the
+  tangent and the plane of the potentials, the miscibility gap and its two
+  instances, a round of the solver, and the three roots of the ionic strength.
 
 ### Fixed
 
@@ -73,6 +83,16 @@
   under which it is present; the table of solid-solution models of the manual
   lacked `CompoundEnergyModel`; and Michelsen's tangent-plane distance is now
   cited where it is used (Michelsen 1982).
+- **The chloride end member of CSHQ was offered without saying it is fitted.**
+  The README listed `CSHQ_Cl` among the models of the C-S-H gel as "its
+  chloride end member", as if Cemdata18 carried it. It is ChemistryLab's own,
+  fitted on three sorption tests of one gel at portlandite saturation in NaCl
+  solutions; the README, the manual of the databases and the page that uses it
+  now say so, with what the fit does not cover: the dependence on the Ca/Si,
+  not fitted, and the effect of the cation, a CaCl2 solution binding two to
+  three times as much chloride at the same free chloride. That last statement
+  was also wrong in `data/chloride/README.md`, which attributed a factor of two
+  to the gel where Tran et al. (2018) report it for a CEM II concrete.
 
 ## v0.34.0 — Water to 1000 °C, surfaces of three charge planes, durability in zero dimensions
 
