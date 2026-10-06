@@ -314,10 +314,10 @@ function complete_species_with_thermo_model!(species, row; verbose = false)
             elseif method_type in ("mv_constant", "mv_pvnrt")
                 species[:V_method] = method_type
             elseif startswith(method_type, "water_eos")
-                # The solvent's standard energy follows its heat capacity in T,
-                # and in P the equation of state of Haar, Gallagher and Kell:
-                # its tabulated volume at P°, compressed as the equation says
-                # (`_add_solvent_pressure_term!`).
+                # The solvent's standard state is that of liquid water by the
+                # equation of state of Haar, Gallagher and Kell, at any T and P,
+                # anchored on the record at its reference
+                # (`_solvent_from_water_eos!`).
                 species[:V_method] = "water_eos"
             end
         end

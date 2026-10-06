@@ -143,7 +143,7 @@ fitted on, where it binds more than the gel did at 46 of 48 points
 on one dataset, cannot follow both. The alkali it leaves in solution, at the
 median a third more than was measured below Ca/Si 1.1, raises the pH, by up to
 0.6 in 0.05 mol/L KOH at Ca/Si 0.6. Above Ca/Si 1.1 the gel takes up little and
-CSHQ follows the dissolved alkali within 13 %. The largest difference of pH,
+CSHQ follows the dissolved alkali within 14 %. The largest difference of pH,
 0.97, is the batch without alkali at Ca/Si 0.8, measured at 10.27, which CASH+NK
 misses by 0.55 as well.
 
@@ -157,7 +157,7 @@ C-S-H, has to be extended to high pH.
 0.62 to 1.55 times the measured one at every Ca/Si up to 1.2, within the error
 the authors give the indirect method at high concentration, up to 100 %; the
 dissolved alkali is at the median the measured one, and the silicon within 4 %
-of it below Ca/Si 1.1 and 38 % above. The calcium is where both models differ
+of it below Ca/Si 1.1 and 39 % above. The calcium is where both models differ
 most from the measurement, high below Ca/Si 1.1, by a factor of 2.4 at the
 median with CSHQ and 1.7 with CASH+NK, and low above.
 

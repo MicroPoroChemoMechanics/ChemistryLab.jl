@@ -1,0 +1,35 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Manning1994",
+    "doi": "10.1016/0016-7037(94)90214-3",
+    "citation": "Manning, C. E. (1994). The solubility of quartz in H2O in the lower crust and upper mantle. Geochimica et Cosmochimica Acta 58(22), 4831-4839.",
+    "location": null
+  },
+  "transcription": {
+    "from": "the published article (PDF from the publisher): the equation of the abstract, p. 4831, read on the page image",
+    "checked_against_source": true,
+    "note": "log K = log m(SiO2,aq) of quartz = SiO2(aq) as a function of temperature T (K) and the density of water (g/cm3): a + b/T + c/T^2 + d/T^3 + (e + f/T + g/T^2) log rho. The author derives it from his measurements (500-900 C, 5-20 kbar) and earlier ones at lower pressure, and states that it reproduces measured quartz solubilities from 25 C and 1 bar to his conditions."
+  },
+  "quantities": {},
+  "tables": {
+    "log_k_coefficients": {
+      "columns": ["coefficient", "value"],
+      "units": [null, "1"],
+      "kind": "published",
+      "location": "abstract, p. 4831",
+      "rows": [
+        ["a", 4.262],
+        ["b", -5764.2],
+        ["c", 1751300.0],
+        ["d", -228690000.0],
+        ["e", 2.8454],
+        ["f", -1006.9],
+        ["g", 356890.0]
+      ]
+    }
+  },
+  "notes": [
+    "b, c, d and f, g carry the powers of the temperature in kelvin they divide; the density is in g/cm3."
+  ]
+}

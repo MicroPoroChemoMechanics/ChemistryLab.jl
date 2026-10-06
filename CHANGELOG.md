@@ -1,5 +1,51 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **The solvent follows water at every temperature and pressure.** The standard
+  state of the solvent of the ThermoFun databases is now the equation of state
+  of water of Haar, Gallagher and Kell as SUPCRT92 applies it (Johnson et al.
+  1992), its Gibbs energy, enthalpy and entropy anchored on the values its
+  record tabulates at 25 °C and 1 bar, so that nothing moves there. The
+  equation's own triple-point constants put the enthalpy 48.6 J/mol away from
+  the record and break the relation of the file's element entropies by 45
+  J/mol; the solubility products of Cemdata18 close against the tabulated water
+  to 1e-4 in log K, against the equation's to 0.007 only. Before, the
+  heat capacity of 25 °C was extrapolated and the volume held constant at
+  1 bar: from 0 to 100 °C the Gibbs energy of water moves by 0.2 J/mol at most,
+  the volume by its thermal expansion, 0.12 % at 20 °C and 2.6 % at 80 °C, and
+  at 300 °C and 1 kbar the Gibbs energy by 0.53 kJ/mol. Against the ThermoFun
+  library on 652 states from 0 to 1000 °C and 1 to 5000 bar, the solvent, the
+  aqueous species by HKF, the minerals and a gas agree once the anchoring, the
+  molar mass of water and a constant the library writes with 273.15 K for the
+  triple point are recomposed (`test/water_eos_reference.jl`).
+- **Results at 20 °C move slightly**, through the volume of the solution: the
+  alkali isotherms of Hong and Glasser by 0.1 % in the concentrations, the
+  C-A-S-H batches of L'Hôpital et al. by as much, and the chloride end member of
+  CSHQ, refitted on the tests of Hirao et al., from −4907 to −4897 J/mol, a
+  thirtieth of its uncertainty.
+- **The HKF equations are refused where they do not hold**, in water less dense
+  than 350 kg/m³, the limit of SUPCRT92, with a `DomainError` rather than a
+  value.
+
+### Fixed
+
+- **The density of water** stopped where the product of the residual and its
+  derivative was small, which accepts a stationary point that is not a root: at
+  0 °C and 5 kbar it returned 150.8 kg/m³ for 1152.6, at 350 °C and 1 bar the
+  spinodal of the liquid, and at high pressure a density good to 1e-4 only,
+  which put the HKF energies of the solutes 1 to 60 J/mol off. The liquid root
+  is now found from above, the vapor or supercritical root otherwise, to 1e-12.
+  The log Ks0 of calcite at 28 °C and 70 MPa moves from −7.813 to −7.814.
+- **The derivatives of the solvent** are the equation's own, with no derivative
+  nested in another: dual numbers without a tag, which a caller differentiating
+  by hand passes, no longer fail.
+- **`data/chloride/regenerate.jl`** ran again: the uncertainty of the fit
+  differentiates through the forward model since 0.29.0, and the end member,
+  built from a record, did not take a dual Gibbs energy.
+
 ## v0.33.0 — Real gases and pressure
 
 A gas may now follow the equation of state of Peng and Robinson (1976): its

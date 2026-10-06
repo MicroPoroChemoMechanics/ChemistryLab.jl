@@ -125,6 +125,7 @@ end
     include("trace_sensitivity.jl")
     include("equilibrium_constraints.jl")
     include("pressure.jl")
+    include("water_eos_reference.jl")
     include("real_gases.jl")
     include("capillary.jl")
     include("pitzer.jl")

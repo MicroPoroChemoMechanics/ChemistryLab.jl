@@ -60,18 +60,13 @@ using JSON
     # The solvent follows the equation of state of water in pressure, its volume
     # at P° being the tabulated one. Every relation below is one of a single
     # Gibbs energy, by automatic differentiation.
+    # The solvent follows the equation of state of water in temperature and in
+    # pressure (test/water_eos_reference.jl for the equation itself); here, what
+    # the pressure does to it.
     @testset "the solvent: compressed as the equation of state of water says" begin
         w = cem["H2O@"]
-        V⁰ = 1.8068397045136e-5                   # the record's, 1.8068397045136 J/bar
-        R = R_GAS
         for T in (283.15, 298.15, 333.15)
-            # At P° nothing moves: the tabulated volume, and the energies to the bit.
-            @test w[:V⁰](T = T, P = P_STANDARD) == V⁰
-            for k in (:ΔₐG⁰, :ΔₐH⁰, :S⁰, :Cp⁰)
-                @test ForwardDiff.derivative(Tv -> w[k](T = Tv, P = P_STANDARD), T) ==
-                    ForwardDiff.derivative(Tv -> w[k](T = Tv), T)
-                @test w[k](T = T, P = P_STANDARD) === w[k](T = T)
-            end
+            V° = w[:V⁰](T = T, P = P_STANDARD)
             for P in (1.0e6, 3.0e7, 5.0e7)
                 V = w[:V⁰](T = T, P = P)
                 # ∂G/∂P = V, ∂H/∂P = V − T ∂V/∂T, ∂S/∂P = −∂V/∂T.
@@ -85,18 +80,14 @@ using JSON
                 @test δ(:ΔₐG⁰) ≈ δ(:ΔₐH⁰) - T * δ(:S⁰) rtol = 1.0e-10
                 @test ForwardDiff.derivative(Tv -> w[:ΔₐH⁰](T = Tv, P = P), T) ≈ w[:Cp⁰](T = T, P = P) rtol = 1.0e-9
                 # Compressed, by about 4.5e-10 per pascal near 25 °C.
-                @test V < V⁰
+                @test V < V°
             end
-            # The ratio of the densities of the equation, which `water_density_hgk`
-            # converges to 1e-6 of the pressure and the volume two Newton steps
-            # further.
-            @test w[:V⁰](T = T, P = 5.0e7) / V⁰ ≈
-                ChemistryLab.water_density_hgk(T, P_STANDARD) / ChemistryLab.water_density_hgk(T, 5.0e7) rtol = 1.0e-6
         end
-        # Against the constant volume of before: 0.07 % at 10 bar, 10 J/mol at 500 bar.
+        # Against a constant volume: 10 J/mol at 500 bar.
+        V° = w[:V⁰](T = 298.15, P = P_STANDARD)
         Δ(P) = w[:ΔₐG⁰](T = 298.15, P = P) - w[:ΔₐG⁰](T = 298.15)
-        @test Δ(5.0e7) < V⁰ * (5.0e7 - P_STANDARD)
-        @test 5 < V⁰ * (5.0e7 - P_STANDARD) - Δ(5.0e7) < 15
+        @test Δ(5.0e7) < V° * (5.0e7 - P_STANDARD)
+        @test 5 < V° * (5.0e7 - P_STANDARD) - Δ(5.0e7) < 15
     end
 
     @testset "the standard pressure leaves every standard energy where it was" begin

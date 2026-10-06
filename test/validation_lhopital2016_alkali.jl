@@ -50,13 +50,13 @@ isdefined(@__MODULE__, :lh16_compute) || include(joinpath(pkgdir(ChemistryLab), 
     q, n = lh16_solution_ratios(results["CSHQ"]; low = true), lh16_solution_ratios(results["CASH+NK"]; low = true)
     # Each to the digit the page prints it to.
     near(x, y) = all(isapprox.(x, y; atol = 0.005))
-    @test near([med(q.alkali), med(q.Si), med(q.Ca)], [1.34, 2.52, 2.4])
+    @test near([med(q.alkali), med(q.Si), med(q.Ca)], [1.34, 2.52, 2.41])
     @test near([med(n.alkali), med(n.Si), med(n.Ca)], [1.04, 0.96, 1.67])
-    @test maximum(q.Si) ≈ 26.34 atol = 0.005
+    @test maximum(q.Si) ≈ 26.37 atol = 0.005
     Q, N = lh16_solution_ratios(results["CSHQ"]; low = false), lh16_solution_ratios(results["CASH+NK"]; low = false)
-    @test all(isapprox.(ext(Q.alkali), (0.87, 1.13); atol = 0.005))
-    @test near([med(Q.Si), med(N.alkali), med(N.Si), med(Q.Ca), med(N.Ca)], [3.61, 1.0, 1.38, 0.65, 0.79])
-    @test maximum(Q.Si) ≈ 29.74 atol = 0.005
+    @test all(isapprox.(ext(Q.alkali), (0.88, 1.14); atol = 0.005))
+    @test near([med(Q.Si), med(N.alkali), med(N.Si), med(Q.Ca), med(N.Ca)], [3.61, 1.0, 1.39, 0.65, 0.79])
+    @test maximum(Q.Si) ≈ 29.78 atol = 0.005
     # Section 5: the pH, where CSHQ leaves too much alkali, and the batch
     # without alkali neither model reaches.
     at(gel, b) = results[gel][b]

@@ -1,17 +1,14 @@
 {
-  "schema": "chemistrylab-extension/1",
-  "description": "The chloride end member of CSHQ fitted by ChemistryLab on the sorption tests of Hirao et al. (2005). Only the fitted parameter and its provenance are stored; the thermodynamic record is built from the downloaded Cemdata18 database (src/databases/derived.jl).",
   "base": "cemdata18-thermofun.json",
-  "symbol": "CSHQ-Cl",
-  "name": "(CaCl2)0.5, chloride end member of CSHQ fitted by ChemistryLab",
-  "formula": "(CaCl2)0.5",
   "composition": {
     "Ca+2": 0.5,
     "Cl-": 1.0
   },
-  "template": "NaSiOH",
-  "reference_temperature_K": 293.15,
-  "delta_J_per_mol": -4906.927848302528,
+  "delta_J_per_mol": -4896.855746733094,
+  "description": "The chloride end member of CSHQ fitted by ChemistryLab on the sorption tests of Hirao et al. (2005). Only the fitted parameter and its provenance are stored; the thermodynamic record is built from the downloaded Cemdata18 database (src/databases/derived.jl).",
+  "formula": "(CaCl2)0.5",
+  "generator": "data/chloride/regenerate.jl",
+  "name": "(CaCl2)0.5, chloride end member of CSHQ fitted by ChemistryLab",
   "provenance": {
     "activity_model": "Debye-Hueckel limiting law with B-dot, a = 0, B-dot identified from test/reference/gems_cemdata18_portland.json",
     "bound_measured_mmol_per_g": [
@@ -20,17 +17,17 @@
       0.3399
     ],
     "bound_model_mmol_per_g": [
-      0.1384425036089769,
-      0.32497926064461613,
-      0.29271051715672347
+      0.13782722780569467,
+      0.3234009631684831,
+      0.29107379394794464
     ],
     "calcium_trend_Ca_Si": [
-      0.9942632460894985,
-      1.382862587527323
+      0.9942425379683706,
+      1.3828202016021054
     ],
     "calcium_trend_held_per_Si": [
-      0.03252145250919489,
-      0.0500462389331579
+      0.03243919412872936,
+      0.049904157757543866
     ],
     "chloride_mol_per_L": [
       0.0975,
@@ -38,10 +35,10 @@
       0.9734
     ],
     "data": "Fig. 5, bound chloride per gram of hydrated alite, the points up to 1 mol/L (data/literature/Hirao2005.json)",
-    "delta_J_per_mol": -4906.927848302528,
-    "delta_uncertainty_J_per_mol": 307.52238334262853,
-    "delta_uncertainty_from_gel_water": 124.03190309210731,
-    "delta_uncertainty_from_residuals": 281.4002545700353,
+    "delta_J_per_mol": -4896.855746733094,
+    "delta_uncertainty_J_per_mol": 352.79991986432026,
+    "delta_uncertainty_from_gel_water": 71.174477378534,
+    "delta_uncertainty_from_residuals": 345.5459118932871,
     "estimated": "S and V: those of the ions it is made of (no entropy or volume of dissolution); heat capacity zero; H from G and S",
     "gel_water_fraction": 0.18,
     "generator": "data/chloride/regenerate.jl",
@@ -49,28 +46,31 @@
     "parameter": "delta_J_per_mol: the Gibbs energy of forming CSHQ-Cl from 1//2 Ca+2 + 1 Cl- at 293.15 K and 1 bar",
     "rejected_candidate": {
       "calcium_trend_Ca_Si": [
-        1.0012901510311816,
-        1.3898344143835357
+        1.0012901509394114,
+        1.3898344145276769
       ],
       "calcium_trend_held_per_Si": [
-        0.11480622421118754,
-        0.09181155776087326
+        0.11480622426658849,
+        0.09181155794524552
       ],
       "delta_J_per_mol": -9849.406095147406,
       "formula": "((CaCl2)1.25SiO2H2O)0.4",
       "reason": "binds less chloride at the higher Ca/Si, against the measured trend; the silica it carries is favored by the silica activity of a low-Ca/Si gel",
-      "rmse_mmol_per_g": 0.07201051451723843
+      "rmse_mmol_per_g": 0.07191823745462113
     },
     "residuals_mmol_per_g": [
-      0.10294250360897689,
-      0.023779260644616107,
-      -0.04718948284327651
+      0.10232722780569467,
+      0.02220096316848308,
+      -0.04882620605205534
     ],
-    "rmse_mmol_per_g": 0.06680683492254541,
+    "rmse_mmol_per_g": 0.06670268038953317,
     "source": {
       "doi": "10.3151/jact.3.77",
       "key": "Hirao2005"
     }
   },
-  "generator": "data/chloride/regenerate.jl"
+  "reference_temperature_K": 293.15,
+  "schema": "chemistrylab-extension/1",
+  "symbol": "CSHQ-Cl",
+  "template": "NaSiOH"
 }

@@ -172,23 +172,83 @@ Gibbs energy moves with pressure by
 ```
 
 For a solute, the HKF equation of state gives ``V_i^\circ(T, P)``; for a solid of
-constant molar volume, the integral is ``V_i^\circ (P - P^\circ)``. The solvent
-of the ThermoFun databases follows the equation of state of water of
-[Haar1984](@citet), its volume at ``P^\circ`` being the one its record tabulates:
+constant molar volume, the integral is ``V_i^\circ (P - P^\circ)``.
+
+### The solvent, from 0 to 1000 °C and up to 5000 bar
+
+The solvent of the ThermoFun databases follows the equation of state of water of
+[Haar1984](@citet) at every temperature and pressure. Written in the steam-table
+convention, where the entropy and the internal energy of liquid water vanish at
+its triple point, the equation gives a specific enthalpy ``h(T, P)`` and entropy
+``s(T, P)``, which SUPCRT92 refers to the properties of liquid water at the
+triple point [Johnson1992](@cite):
 
 ```math
-V_w(T, P) = V_w^\circ\,\frac{\rho(T, P^\circ)}{\rho(T, P)}, \qquad
-\mu_w^\circ(T, P) - \mu_w^\circ(T, P^\circ) = V_w^\circ\,\rho(T, P^\circ)\,\left[g(T, P) - g(T, P^\circ)\right],
+S^\star = S_{tr} + M_w\,s, \qquad
+H^\star = H_{tr} + M_w\,h, \qquad
+G^\star = M_w\,h - T\,S^\star + T_{tr}\,S_{tr} + G_{tr} .
 ```
 
-with ``\rho`` the density and ``g = f + P/\rho`` the specific Gibbs energy of the
-equation, ``f`` its specific Helmholtz energy; the second follows from the first
-since ``\partial g/\partial P = 1/\rho``. The enthalpy, the entropy and the heat
-capacity gain the derivatives of the same term, so that the four functions remain
-those of one Gibbs energy. Against a constant volume, the compressibility of
-water, about ``4.5 \times 10^{-10}`` per pascal near 25 °C, takes 1.1 % from the
-volume at 250 bar and 10 J/mol from the Gibbs energy at 500 bar. Every term
-vanishes at ``P^\circ``, where nothing changes.
+Those constants, which SUPCRT92 takes from Helgeson and Kirkham (1974), are not
+those of the other records of a database. At 25 °C and 1 bar they put the Gibbs
+energy 1.35 J/mol and the enthalpy 48.6 J/mol above the values the solvent's
+record tabulates; and ``G - H + TS``, which the element entropies of the file fix
+at ``T_r \sum S_{\mathrm{el}}`` for every species so that the enthalpy of a
+reaction is the one its Gibbs energy implies, comes out 45 J/mol off, where the
+tabulated values come within 2.4. The solubility products of Cemdata18, from
+which the energies of its hydrates were derived, close to ``10^{-4}`` in
+``\log K`` against the tabulated water and only to 0.007 against the equation's
+(ettringite, whose dissolution releases thirty waters). The solvent is
+therefore built as every other record is, from its tabulated values at
+``(T_r, P_r)`` and increments from there, the increments being the equation's:
+
+```math
+S_w^\circ = S^\star + \delta S, \qquad
+\Delta_a H_w^\circ = H^\star + \delta H, \qquad
+\Delta_a G_w^\circ = G^\star + \delta G - \delta S\,(T - T_r),
+```
+
+the three constants ``\delta`` making the three functions equal to the record's at
+the reference. The heat capacity is ``\partial H/\partial T`` and the volume
+``M_w/\rho(T, P)``, so that the five functions are those of one Gibbs energy. At
+25 °C and 1 bar the solvent is the record; elsewhere it follows water, where
+0.33.0 extrapolated the heat capacity of 25 °C and held the volume at 1 bar
+constant: the Gibbs energy moves by 0.2 J/mol at most from 0 to 100 °C at 1 bar,
+the volume by the thermal expansion of water, 0.12 % at 20 °C and 2.6 % at
+80 °C, and the Gibbs energy by 0.53 kJ/mol at 300 °C and 1 kbar.
+
+The ThermoFun library uses the equation's functions without the shift, and
+writes 273.15 K for ``T_{tr}`` in the constant ``T_{tr} S_{tr}``, which takes
+0.633 J/mol from its Gibbs energy of water. Its values and this package's differ
+by these constants and by the molar mass of water, 18.015268 g/mol in the
+library, 18.015 g/mol from the atomic masses here; with the three recomposed,
+the two agree to ``10^{-10}`` at 652 states from 0 to 1000 °C and from 1 to 5000
+bar (`test/water_eos_reference.jl`).
+
+The density is the root of ``P(\rho, T) = P`` that the state calls for: the
+liquid where it exists, the largest root, which a Newton iteration reaches by
+descending from a density above any the equation attains, the vapor or the
+supercritical fluid otherwise. The iteration stops on the pressure, to
+``10^{-12}`` of its scale, never on the step alone, which a stationary point of
+the isotherm would satisfy as well. The derivatives of the density with respect
+to ``T`` and ``P`` are those of the implicit-function theorem, carried by
+automatic differentiation.
+
+### Where the HKF equations hold
+
+The HKF equations describe a solute in water dense enough to solvate it. The
+solvent function ``g``, which corrects the Born coefficients of the charged
+species for the compressibility of water, was retrieved by [Shock1992](@citet)
+from dissociation constants of NaCl measured down to a density of 0.35 g/cm³,
+and SUPCRT92 restricts its calculations to that density [Johnson1992](@cite). A
+solute's standard properties are computed down to 350 kg/m³ and refused below,
+with a `DomainError`, rather than extrapolated: at 350 °C and 1 bar water is a
+vapor. SUPCRT92 also
+withholds the properties of charged species between 350 and 400 °C below 500
+bar, close to the critical point, where their uncertainties grow large; the
+package computes them there, and the comparison with the ThermoFun library above
+leaves out the states above 360 °C and below 600 bar. The solvent and the minerals are computed at every
+state.
 
 ## Where to go next
 

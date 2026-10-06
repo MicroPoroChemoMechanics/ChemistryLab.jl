@@ -1,0 +1,50 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Johnson1992",
+    "doi": "10.1016/0098-3004(92)90029-q",
+    "citation": "Johnson, J. W., Oelkers, E. H., Helgeson, H. C. (1992). SUPCRT92: A software package for calculating the standard molal thermodynamic properties of minerals, gases, aqueous species, and reactions from 1 to 5000 bar and 0 to 1000 C. Computers & Geosciences 18(7), 899-947.",
+    "location": null
+  },
+  "transcription": {
+    "from": "the published article (PDF from the publisher), the paragraph following Eqs. (5)-(7), p. 901, read on its text layer",
+    "checked_against_source": true,
+    "note": "The properties of liquid water at its triple point to which the steam-table convention of the equations of state of water (zero entropy and energy there) is referred, after Helgeson and Kirkham (1974a). The calorie is the thermochemical calorie, 4.184 J by definition, which the units write out."
+  },
+  "quantities": {
+    "water_triple_point_temperature": {
+      "value": 273.16,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 901",
+      "description": "Temperature of the triple point of water, T_tr."
+    },
+    "water_triple_point_entropy": {
+      "value": 15.132,
+      "unit": "4.184*J/(mol*K)",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 901",
+      "description": "Molal entropy of liquid water at its triple point, S_tr, in cal/(mol K)."
+    },
+    "water_triple_point_enthalpy": {
+      "value": -68767,
+      "unit": "4.184*J/mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 901",
+      "description": "Apparent molal enthalpy of formation of liquid water at its triple point, H_tr, in cal/mol."
+    },
+    "water_triple_point_gibbs_energy": {
+      "value": -56290,
+      "unit": "4.184*J/mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 901",
+      "description": "Apparent molal Gibbs energy of formation of liquid water at its triple point, G_tr, in cal/mol."
+    }
+  },
+  "tables": {},
+  "notes": []
+}

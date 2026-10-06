@@ -487,52 +487,108 @@ water_helmholtz_hgk(T_K::Real, D_kgm3::Real) =
 # ============================================================
 
 """
-    water_density_hgk(T_K, P_Pa; D0=1000.0) -> density (kg/m³)
+    water_density_hgk(T_K, P_Pa; D0 = 1000.0) -> density (kg/m³)
 
-Find liquid-water density at temperature `T_K` (K) and pressure `P_Pa` (Pa)
-via Newton-Raphson iteration on the HGK equation of state.
+The density of water at the temperature `T_K` (K) and the pressure `P_Pa` (Pa)
+by the HGK equation of state: the liquid where a liquid root exists, otherwise
+the only root, that of the vapor or of the supercritical fluid.
 
-AD-compatible: convergence test uses `abs(ForwardDiff.value(F))` so Dual values
-propagate correctly through the iterations.
+The root of ``P_{HGK}(T, \\rho) = P`` is found on plain numbers, to ``10^{-12}`` in
+the density: by Newton's method from `D0`, and, when that does not land on the
+liquid, from a density no liquid reaches, where the pressure of the equation is
+increasing and convex in the density so that the iteration descends onto the
+largest root without overshooting it; failing a liquid root, from the side of the
+dilute gas. It is then lifted into the dual numbers of `T_K` and `P_Pa` by two
+Newton steps: the value does not move, and the derivatives are exact to second
+order, as the implicit-function theorem gives them.
+
+Before 0.34.0 the iteration also stopped where the product of the residual and
+its derivative fell below its tolerance, which accepted a stationary point of the
+squared residual that is not a root: at 0 °C and 5 kbar it returned 150.8 kg/m³
+for 1152.6, at 350 °C and 1 bar the spinodal density of the liquid, and at high
+pressure a density good to ``10^{-4}`` only.
 """
-function water_density_hgk(T_K::T, P_Pa::T; D0::Real = 1000.0) where {T <: Real}
-    max_iters = 100
-    tolerance = 1.0e-6
-
-    D = T(D0)
-
-    for _ in 1:max_iters
-        h = water_helmholtz_hgk(T_K, D)
-
-        AD = h.AD
-        ADD = h.ADD
-        ADDD = h.ADDD
-
-        F = D * D * AD / P_Pa - 1
-        FD = (2 * D * AD + D * D * ADD) / P_Pa
-        FDD = (2 * AD + 4 * D * ADD + D * D * ADDD) / P_Pa
-
-        g = F * FD
-        H = FD * FD + F * FDD
-
-        if abs(_primal(F)) < tolerance || abs(_primal(g)) < tolerance
-            return D
-        end
-
-        if _primal(D) > _primal(g / H)
-            D -= g / H
-        elseif _primal(D) > _primal(F / FD)
-            D -= F / FD
-        else
-            D *= T(0.1)
-        end
+function water_density_hgk(T_K::Real, P_Pa::Real; D0::Real = 1000.0)
+    ρ = _hgk_density_root(_hgk_value(T_K), _hgk_value(P_Pa), Float64(D0)) + zero(T_K) + zero(P_Pa)
+    for _ in 1:2
+        h = water_helmholtz_hgk(promote(T_K, ρ)...)
+        ρ -= (ρ^2 * h.AD - P_Pa) / (2ρ * h.AD + ρ^2 * h.ADD)
     end
-
-    error("water_density_hgk: Newton iteration did not converge at T=$T_K K, P=$P_Pa Pa")
+    return ρ
 end
 
-water_density_hgk(T_K::Real, P_Pa::Real; kwargs...) =
-    water_density_hgk(promote(T_K, P_Pa)...; kwargs...)
+# The value of a number, through every level of dual numbers.
+_hgk_value(x::ForwardDiff.Dual) = _hgk_value(ForwardDiff.value(x))
+_hgk_value(x::Real) = Float64(x)
+
+# The pressure of the equation of state at (T, ρ) and its derivative in ρ, or
+# NaN beyond the density at which its repulsive term diverges (a logarithm of a
+# negative number there).
+function _hgk_pressure(T::Float64, ρ::Float64)
+    h = try
+        water_helmholtz_hgk(T, ρ)
+    catch e
+        e isa DomainError || rethrow()
+        return NaN, NaN
+    end
+    return ρ^2 * h.AD, 2ρ * h.AD + ρ^2 * h.ADD
+end
+
+# Newton's method on P_HGK(T, ρ) = P from ρ₀, while the pressure increases with
+# the density: the root and the slope there, or NaN where the iteration leaves
+# the branch it started on or does not converge. A step beyond the domain of the
+# equation is halved until it falls inside.
+function _hgk_newton(T::Float64, P::Float64, ρ₀::Float64)
+    ρ = ρ₀
+    p, dp = _hgk_pressure(T, ρ)
+    isfinite(p) || return NaN, 0.0
+    for _ in 1:200
+        # Converged when the density is good to 1e-12: the residual against the
+        # bulk modulus ρ ∂P/∂ρ, which is what the rounding of a liquid's pressure,
+        # a small difference of large terms, scales with.
+        abs(p - P) <= 1.0e-12 * (abs(P) + ρ * abs(dp)) && return ρ, dp
+        dp > 0 || return NaN, dp
+        ρ_new = ρ - (p - P) / dp
+        ρ_new > 0 || (ρ_new = ρ / 2)
+        p_new, dp_new = _hgk_pressure(T, ρ_new)
+        for _ in 1:60
+            isfinite(p_new) && break
+            ρ_new = (ρ + ρ_new) / 2
+            p_new, dp_new = _hgk_pressure(T, ρ_new)
+        end
+        isfinite(p_new) || return NaN, 0.0
+        ρ, p, dp = ρ_new, p_new, dp_new
+    end
+    return NaN, 0.0
+end
+
+# The density no liquid water reaches on the range of the equation, from which
+# the descent onto the liquid root starts, and the density above which a root is
+# that of the liquid or of the supercritical fluid (twice the critical density,
+# a vapor root never exceeding the critical density).
+const _HGK_DENSITY_CEILING = 1500.0
+const _HGK_LIQUID_DENSITY = 600.0
+
+function _hgk_density_root(T::Float64, P::Float64, D0::Float64)
+    ρ, dp = _hgk_newton(T, P, D0)
+    isfinite(ρ) && dp > 0 && ρ >= _HGK_LIQUID_DENSITY && return ρ
+    # From above: the highest density below the ceiling at which the equation is
+    # defined, its pressure growing without bound towards its divergence.
+    ρ_top = _HGK_DENSITY_CEILING
+    while !isfinite(first(_hgk_pressure(T, ρ_top))) && ρ_top > _HGK_LIQUID_DENSITY
+        ρ_top *= 0.99
+    end
+    ρ_liquid, dp_liquid = _hgk_newton(T, P, ρ_top)
+    isfinite(ρ_liquid) && dp_liquid > 0 && return ρ_liquid
+    isfinite(ρ) && dp > 0 && return ρ
+    # The dilute side: the gas constant of water read off the equation itself,
+    # P → ρ R T as ρ → 0, gives the ideal-gas density to start from.
+    ρ_dilute = 1.0e-8
+    R = water_helmholtz_hgk(T, ρ_dilute).AD * ρ_dilute / T
+    ρ_gas, dp_gas = _hgk_newton(T, P, P / (R * T))
+    isfinite(ρ_gas) && dp_gas > 0 && return ρ_gas
+    throw(DomainError((T, P), "water_density_hgk: no density of the equation of state of water at $T K and $P Pa."))
+end
 
 # ============================================================
 #  WaterThermoProps from T and P
