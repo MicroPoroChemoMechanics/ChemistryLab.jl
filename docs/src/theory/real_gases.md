@@ -243,14 +243,17 @@ from dissociation constants of NaCl measured down to a density of 0.35 g/cm³,
 and SUPCRT92 restricts its calculations to that density [Johnson1992](@cite). A
 solute's standard properties are computed down to 350 kg/m³ and refused below,
 with a `DomainError`, rather than extrapolated: at 350 °C and 1 bar water is a
-vapor. SUPCRT92 also
-withholds the properties of charged species between 350 and 400 °C below 500
-bar, close to the critical point, where their uncertainties grow large; the
-package computes them there, and the comparison with the ThermoFun library above
-leaves out the states above 360 °C and below 600 bar. The solvent and the minerals are computed at every
-state.
+vapor. SUPCRT92 also withholds the properties of charged species between 350
+and 400 °C below 500 bar, close to the critical point, where their
+uncertainties grow large; the package computes them there, and the comparison
+with the ThermoFun library above leaves out the states above 360 °C and below
+600 bar. The solvent and the minerals are computed at every state.
 
 ## Where to go next
+
+[Water and quartz from 0 to 1000 °C](@ref sec-validation-high-temperature)
+compares the ionization constant of water and the solubility of quartz computed
+this way with formulations fitted to the measurements over the whole range.
 
 [Carbon dioxide in water under pressure](@ref sec-validation-co2-solubility)
 computes the measured solubility of carbon dioxide from 25 to 500 atm with the

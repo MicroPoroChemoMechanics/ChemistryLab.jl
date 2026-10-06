@@ -180,6 +180,9 @@ pages = [
             # The pressure: carbon dioxide dissolved up to 500 atm, the gas
             # ideal and following an equation of state.
             "tutorials/validation_co2_solubility.md",
+            # The range: the ionization constant of water and the solubility of
+            # quartz to 1000 °C and 5 kbar, against fits to the measurements.
+            "tutorials/validation_high_temperature.md",
             # A measured paste through its first year, and the same budgets
             # through GEMS3K: the model against the paste, the code against the code.
             "tutorials/validation_measured_pastes.md",

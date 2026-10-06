@@ -21,6 +21,15 @@
   family whose plane charges and formula charges differ by different amounts
   for different members is refused: a reaction between them would not conserve
   charge in both counts.
+- **Water and quartz from 0 to 1000 °C** (the page *Water and quartz from 0 to
+  1000 °C*, `scripts/water_high_temperature.jl`): the ionization constant of
+  water against the formulation Bandura and Lvov (2006) fitted to the
+  measurements, at the 175 states of their table where water is dense enough
+  for HKF, and the solubility of quartz against the equation of Manning (1994),
+  from the standard states of slop98 with nothing fitted. pKw agrees to 0.20
+  from 25 to 400 °C, against the 0.16 standard deviation of their fit, and
+  departs above, by 1.4 at 1000 °C; the solubility of quartz to 0.022 in log m
+  up to 400 °C and 0.12 at 800 °C and 5 kbar.
 - **`temperature_range`**: the temperatures over which a record of a ThermoFun
   database declares its heat capacity. Cemdata18 declares its AFm phases to
   50 °C, its ettringites to 60 °C and its clinker phases from 25 °C; nothing

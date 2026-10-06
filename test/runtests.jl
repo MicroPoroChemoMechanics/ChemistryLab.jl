@@ -127,6 +127,7 @@ end
     include("equilibrium_constraints.jl")
     include("pressure.jl")
     include("water_eos_reference.jl")
+    include("validation_high_temperature.jl")
     include("real_gases.jl")
     include("capillary.jl")
     include("pitzer.jl")
