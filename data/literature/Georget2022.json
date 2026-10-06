@@ -1,0 +1,764 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Georget2022",
+    "doi": "10.1016/j.cemconres.2021.106692",
+    "citation": "Georget, F., Lothenbach, B., Wilson, W., Zunino, F., Scrivener, K. L. (2022). Stability of hemicarbonate under cement paste-like conditions. Cement and Concrete Research 153, 106692.",
+    "location": "Sections 2.1-2.8 (pp. 2-4), Tables 3-9 (pp. 4-12), Sections 4.1, 5.2 and 6.2"
+  },
+  "transcription": {
+    "from": "the published article (PDF, open access CC BY-NC-ND 4.0): Tables 3 to 9 read in the text layer and checked on the rendered pages; the sample preparation from Section 2",
+    "checked_against_source": true,
+    "note": "All samples are synthetic C3A-based slurries cured 28 days at 20 C; nothing in the paper varies time or temperature, and there is no carbonation by CO2: the 'carbonate series' replaces portlandite by calcite in the starting mix (zeta_CO3 = n_CaCO3/(n_CaCO3 + n_Ca(OH)2), Fig. 4 axis), which is equivalent to a CO2 uptake at fixed Ca/Al. The superscript N of the tables marks the nominal composition. The authors' model curves (Figs. 4a, 7a, 11a) are raster images and are not digitized: their numbers are in the authors' dataset, transcribed in Georget2021data.json. Table 1 (reference crystal structures) and Table 2 (basal spacings) are not transcribed."
+  },
+  "quantities": {
+    "c3a_per_sample": {
+      "value": 10,
+      "unit": "g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 3",
+      "description": "Synthesized cubic C3A per sample; the other reactants are added in the stoichiometric molar ratios of the target AFm phase."
+    },
+    "c3a_purity": {
+      "value": 97,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 2",
+      "description": "C3A content of the synthesized powder, percent, by XRD-Rietveld assuming no amorphous content; the remaining 3 % is free lime."
+    },
+    "free_lime_in_c3a": {
+      "value": 3,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 2.1, p. 2",
+      "description": "Free lime in the synthesized C3A powder, percent."
+    },
+    "extra_portlandite": {
+      "value": 0.5,
+      "unit": "g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 3",
+      "description": "Portlandite added beyond stoichiometry to every sample ('0.5 g for 10 g of C3A'), to keep portlandite present."
+    },
+    "rutile": {
+      "value": 2.5,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 3",
+      "description": "Rutile added as XRD internal standard, 'around 2.5 wt%'."
+    },
+    "water_solid_mixing": {
+      "value": 2.0,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 3",
+      "description": "Water/solid mass ratio at mixing (boiled deionized water, 1600 rpm for 2 min)."
+    },
+    "extra_water": {
+      "value": 10,
+      "unit": "mL",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 3",
+      "description": "Boiled deionized water added after 1 hour in the glove box."
+    },
+    "water_solid_total": {
+      "value": 2.7,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 3",
+      "description": "Total water/solid ratio after the extra water, printed 'around 2.7'."
+    },
+    "curing_time": {
+      "value": 28,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 3",
+      "description": "Curing time, sealed PE pots under N2 at about 99 % relative humidity."
+    },
+    "curing_temperature": {
+      "value": 20,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": 2,
+      "location": "Section 2.2, p. 3",
+      "description": "Curing temperature, degrees Celsius, +-2 C."
+    },
+    "cacl2_excess": {
+      "value": 0.3,
+      "unit": "mol/L",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2, p. 3",
+      "description": "Excess CaCl2 added to the chloride samples to compensate the chloride left in solution, as predicted by preliminary GEMS modeling."
+    },
+    "na_in_calcium_carbonate": {
+      "value": 0.2,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 4.2, p. 8",
+      "description": "Upper bound of the Na impurity of the calcium carbonate used, percent ('Na content up to 0.2%'); alkalis were not measured in solution."
+    },
+    "model_pH_carbonate_series": {
+      "value": 12.7,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 5",
+      "description": "pH the default Cemdata18 calculation gives along the carbonate series, set by the alkalis of the raw materials."
+    },
+    "model_Ca_carbonate_series": {
+      "value": 16.3,
+      "unit": "mmol/kg",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 5",
+      "description": "Total Ca the default Cemdata18 calculation gives, set by portlandite, printed '16.3 mmol/kg'."
+    },
+    "model_zeta_katoite_limit": {
+      "value": 0.45,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 5",
+      "description": "Below this zeta_CO3 the default Cemdata18 calculation gives katoite, portlandite and hemicarbonate."
+    },
+    "model_zeta_hc_dominant_low": {
+      "value": 0.2,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 5",
+      "description": "Lower end of the zeta_CO3 range (0.2 to 0.65) where hemicarbonate is the dominant phase in the default calculation."
+    },
+    "model_zeta_hc_dominant_high": {
+      "value": 0.65,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 5",
+      "description": "Upper end of that range; above it monocarbonate replaces hemicarbonate."
+    },
+    "edx_S_Ca_hc_3pct_gypsum": {
+      "value": 0.025,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 5.2, pp. 8-10, Fig. 10",
+      "description": "S/Ca of the hemicarbonate at 3 % gypsum, 'approximately equal to 0.025', about 10 % of the interlayer positions taken by sulfate."
+    },
+    "edx_S_Ca_ms_10pct_gypsum": {
+      "value": 0.175,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 5.2, p. 10, Fig. 10",
+      "description": "S/Ca of the high-S cluster at 10 % gypsum, attributed to monosulfate ('around 0.175')."
+    },
+    "edx_S_Ca_hc_10pct_gypsum": {
+      "value": 0.075,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 5.2, p. 10, Fig. 10",
+      "description": "S/Ca of the low-S cluster at 10 % gypsum, attributed to hemicarbonate ('~0.075', about 33 % of the carbonate positions), which the authors take as the maximum substitution."
+    }
+  },
+  "tables": {
+    "carbonate_series": {
+      "columns": [
+        "zeta_CO3_nominal",
+        "pH",
+        "Ca",
+        "identified_phases"
+      ],
+      "units": [
+        "1",
+        "1",
+        "mmol/L",
+        null
+      ],
+      "kind": "measured",
+      "location": "Table 7, p. 8: supernatant after 28 days at 20 C, pH by electrode, Ca by ICP-OES; phases by XRD (wet and dried) and Raman. Hc hemicarbonate, Mc monocarbonate, CH portlandite, CC calcite. Two samples at 0.5",
+      "rows": [
+        [
+          0.25,
+          12.71,
+          15.05,
+          "Hc, katoite, CH"
+        ],
+        [
+          0.5,
+          12.76,
+          15.32,
+          "Hc, Mc, CH"
+        ],
+        [
+          0.5,
+          12.75,
+          15.12,
+          "Hc, Mc, CH"
+        ],
+        [
+          0.75,
+          12.76,
+          14.27,
+          "Mc, Hc, CH, CC"
+        ],
+        [
+          1,
+          12.76,
+          16.12,
+          "Mc, CH, CC"
+        ]
+      ]
+    },
+    "sulfate_series": {
+      "columns": [
+        "gypsum_addition",
+        "pH",
+        "Ca",
+        "SO4",
+        "identified_phases"
+      ],
+      "units": [
+        "1",
+        "1",
+        "mmol/L",
+        "mmol/L",
+        null
+      ],
+      "kind": "measured",
+      "location": "Table 8, p. 10: gypsum added (percent) to the hemicarbonate mix (zeta_CO3 = 0.5); SO4 by ion chromatography, printed N/A (null) without gypsum; Ms monosulfate. No ettringite was found by XRD in any sample",
+      "rows": [
+        [
+          0,
+          12.76,
+          15.32,
+          null,
+          "Hc, Mc, CH"
+        ],
+        [
+          3,
+          12.76,
+          14.92,
+          0.028,
+          "Hc, CH"
+        ],
+        [
+          10,
+          12.79,
+          15.57,
+          0.033,
+          "Hc, Ms, CH"
+        ]
+      ]
+    },
+    "chloride_series": {
+      "columns": [
+        "chi_2Cl_nominal",
+        "pH",
+        "Ca",
+        "Cl",
+        "identified_phases"
+      ],
+      "units": [
+        "1",
+        "1",
+        "mmol/L",
+        "mmol/L",
+        null
+      ],
+      "kind": "measured",
+      "location": "Table 9, p. 12: carbonate of the hemicarbonate replaced by chloride (chi_2Cl = 1 is Friedel's salt); Cl by ion chromatography, printed N/A (null) at 0; Fssol the Friedel's salt-hemicarbonate solid solution, Fs Friedel's salt",
+      "rows": [
+        [
+          0,
+          12.76,
+          15.3,
+          null,
+          "Hc, Mc, CH"
+        ],
+        [
+          0.25,
+          12.75,
+          16.4,
+          1.7,
+          "Fssol, CH"
+        ],
+        [
+          0.5,
+          12.71,
+          18.1,
+          6.3,
+          "Fssol, CH"
+        ],
+        [
+          0.75,
+          12.6,
+          32.8,
+          50.6,
+          "Fssol, CH"
+        ],
+        [
+          1.0,
+          12.35,
+          162.0,
+          369.1,
+          "Fs, CH"
+        ]
+      ]
+    },
+    "c3a_hydration_degree": {
+      "columns": [
+        "chi_2Cl_nominal",
+        "percent"
+      ],
+      "units": [
+        "1",
+        "1"
+      ],
+      "kind": "estimated",
+      "location": "Section 6.2, p. 14: degree of C3A hydration estimated by comparing Table 9 with the authors' solid-solution model",
+      "rows": [
+        [
+          0.25,
+          96
+        ],
+        [
+          0.5,
+          96
+        ],
+        [
+          0.75,
+          97
+        ],
+        [
+          1.0,
+          92
+        ]
+      ]
+    },
+    "afm_thermodynamic_data": {
+      "columns": [
+        "phase",
+        "dfG",
+        "dfH",
+        "S",
+        "V",
+        "most_common_state",
+        "references"
+      ],
+      "units": [
+        null,
+        "kJ/mol",
+        "kJ/mol",
+        "J/(mol*K)",
+        "cm^3/mol",
+        null,
+        null
+      ],
+      "kind": "published",
+      "location": "Table 3, p. 4: AFm phases at 25 C and 1 atm; the number in parentheses is the hydration state (water molecules); most_common_state is the table's bold; references are the paper's reference numbers ([36] is Cemdata18)",
+      "rows": [
+        [
+          "Stratlingite (8)",
+          -5705.15,
+          -6360,
+          546,
+          216,
+          true,
+          "[37,36]"
+        ],
+        [
+          "Stratlingite (7)",
+          -5464,
+          -6066.8,
+          487.6,
+          215,
+          false,
+          "[28,36]"
+        ],
+        [
+          "Stratlingite (5.5)",
+          -5095.2,
+          -5603.4,
+          454.8,
+          213,
+          false,
+          "[28,36]"
+        ],
+        [
+          "OH-AFm (19)",
+          -8749.9,
+          -10017.9,
+          1120,
+          369,
+          false,
+          "[28,36,38]"
+        ],
+        [
+          "Monosulfate (16)",
+          -8726.8,
+          -9330.5,
+          975,
+          351,
+          false,
+          "[28,36]"
+        ],
+        [
+          "Monosulfate (14)",
+          -8252.9,
+          -9321.8,
+          960.9,
+          332,
+          false,
+          "[28,36]"
+        ],
+        [
+          "Monosulfate (12)",
+          -7778.4,
+          -8758.6,
+          791.6,
+          310,
+          true,
+          "[28,36]"
+        ],
+        [
+          "Kuzel's salt",
+          -7533.4,
+          -8472,
+          820,
+          289,
+          false,
+          "[7,36]"
+        ],
+        [
+          "Hemicarbonate (12)",
+          -7335.97,
+          -8270,
+          713,
+          285,
+          true,
+          "[36,37,39]"
+        ],
+        [
+          "Monosulfate (10.5)",
+          -7414.9,
+          -8311.9,
+          721,
+          282,
+          false,
+          "[28,36,40]"
+        ],
+        [
+          "Monosulfate (9)",
+          -7047.6,
+          -7845.5,
+          703.6,
+          275,
+          false,
+          "[28,36,40]"
+        ],
+        [
+          "OH-AFm (13)",
+          -7325.7,
+          -8262.4,
+          831.5,
+          274,
+          false,
+          "[28,36]"
+        ],
+        [
+          "Friedel's salt",
+          -6820.9,
+          -7604,
+          731,
+          272,
+          true,
+          "[7,36]"
+        ],
+        [
+          "Hemicarbonate (10.5)",
+          -6970.3,
+          -7813.3,
+          668.3,
+          261,
+          false,
+          "[28,36]"
+        ],
+        [
+          "Monocarbonate (11)",
+          -7337.46,
+          -8250,
+          657,
+          262,
+          true,
+          "[36,37,39]"
+        ],
+        [
+          "OH-AFm (11)",
+          -6841.4,
+          -7656.6,
+          772.7,
+          257,
+          false,
+          "[28,36]"
+        ],
+        [
+          "Monocarbonate (9)",
+          -6840.3,
+          -7618.6,
+          640.6,
+          234,
+          false,
+          "[28,36]"
+        ],
+        [
+          "Hemicarbonate (9)",
+          -6597.4,
+          -7394.7,
+          622.5,
+          249,
+          false,
+          "[28,36]"
+        ]
+      ]
+    },
+    "afm_solubility_products": {
+      "columns": [
+        "phase",
+        "log_Ks0"
+      ],
+      "units": [
+        null,
+        "1"
+      ],
+      "kind": "published",
+      "location": "Table 4, p. 5: log Ks0 at 25 C and 1 atm, calculated from Table 3, for dissolution into Ca+2, AlO2-, HO- (OH-), the interlayer anion (SO4-2, CO3-2, Cl-, HSiO3- for stratlingite) and water, the CEMDATA18/GEMS primary species",
+      "rows": [
+        [
+          "Stratlingite (8)",
+          -19.7
+        ],
+        [
+          "Stratlingite (7)",
+          -19.0
+        ],
+        [
+          "Stratlingite (5.5)",
+          -16.73
+        ],
+        [
+          "OH-AFm (19)",
+          -25.45
+        ],
+        [
+          "Monosulfate (16)",
+          -29.17
+        ],
+        [
+          "Monosulfate (14)",
+          -29.26
+        ],
+        [
+          "Monosulfate (12)",
+          -29.23
+        ],
+        [
+          "Kuzel's salt",
+          -28.53
+        ],
+        [
+          "Hemicarbonate (12)",
+          -29.13
+        ],
+        [
+          "Monosulfate (10.5)",
+          -27.89
+        ],
+        [
+          "Monosulfate (9)",
+          -25.87
+        ],
+        [
+          "OH-AFm (13)",
+          -25.25
+        ],
+        [
+          "Friedel's salt",
+          -27.27
+        ],
+        [
+          "Hemicarbonate (10.5)",
+          -27.4
+        ],
+        [
+          "Monocarbonate (11)",
+          -31.47
+        ],
+        [
+          "OH-AFm (11)",
+          -23.51
+        ],
+        [
+          "Monocarbonate (9)",
+          -27.47
+        ],
+        [
+          "Hemicarbonate (9)",
+          -24.4
+        ]
+      ]
+    },
+    "hemicarbonate_sulfate_solid_solution": {
+      "columns": [
+        "end_member",
+        "anion_site",
+        "water_site_H2O",
+        "water_site_vacancy",
+        "log_Ks0",
+        "dfG"
+      ],
+      "units": [
+        null,
+        null,
+        "1",
+        "1",
+        "1",
+        "kJ/mol"
+      ],
+      "kind": "published",
+      "location": "Table 5, p. 5: the CO3-SO4-OH hemicarbonate sublattice solid solution of Section 7.1 (the caption, a misprint, names it the Cl-CO3-AFm model); ideal mixing (Section 7.1). The water site is printed e.g. '{H2O}5.50.5', read as 5.5 water and 0.5 vacancy on a site of 6 (the sum is 6 in every row of Tables 5 and 6)",
+      "rows": [
+        [
+          "Hemicarbonate (12)",
+          "{(CO3)0.5}{HO}",
+          5.5,
+          0.5,
+          -29.13,
+          -7336.32
+        ],
+        [
+          "Monocarbonate (11)",
+          "{(CO3)0.5}2",
+          5,
+          1,
+          -30.47,
+          -7331.75
+        ],
+        [
+          "Monosulfate (10.5)",
+          "{(SO4)0.5}2",
+          4.5,
+          1.5,
+          -27.89,
+          -7414.9
+        ],
+        [
+          "OH-AFm (13)",
+          "{HO}2",
+          6,
+          0,
+          -25.25,
+          -7325.7
+        ]
+      ]
+    },
+    "chloride_carbonate_solid_solution": {
+      "columns": [
+        "end_member",
+        "anion_site",
+        "water_site_H2O",
+        "water_site_vacancy",
+        "log_Ks0",
+        "dfG"
+      ],
+      "units": [
+        null,
+        null,
+        "1",
+        "1",
+        "1",
+        "kJ/mol"
+      ],
+      "kind": "fitted",
+      "location": "Table 6, p. 5: the Cl-CO3-OH AFm regular sublattice solid solution of Section 7.2, fitted by hand on Hobbs (2001)",
+      "rows": [
+        [
+          "Monocarbonate (11)",
+          "{(CO3)0.5}2",
+          5,
+          1,
+          -31.27,
+          -7335.97
+        ],
+        [
+          "Friedel's salt",
+          "{Cl}2",
+          4,
+          2,
+          -27.27,
+          -6820.9
+        ],
+        [
+          "OH-AFm (13)",
+          "{HO}2",
+          6,
+          0,
+          -25.25,
+          -7325.7
+        ]
+      ]
+    },
+    "chloride_carbonate_interactions": {
+      "columns": [
+        "phase_1",
+        "phase_2",
+        "W"
+      ],
+      "units": [
+        null,
+        null,
+        "J/mol"
+      ],
+      "kind": "fitted",
+      "location": "Table 6, p. 5: symmetric interaction parameters",
+      "rows": [
+        [
+          "OH-AFm (13)",
+          "Monocarbonate (11)",
+          -10000
+        ],
+        [
+          "Friedel's salt",
+          "Monocarbonate (11)",
+          -10000
+        ],
+        [
+          "OH-AFm (13)",
+          "Friedel's salt",
+          -2000
+        ]
+      ]
+    }
+  },
+  "notes": [
+    "Default model (Section 2.8): GEMS 3.7 with TSolMod, the PSI/Nagra database and Cemdata18; in Cemdata18 the hemicarbonate, monocarbonate and Friedel's salt are separate pure phases, with the OH/SO4-AFm solid solution only. That is the model ChemistryLab's Cemdata18 reproduces.",
+    "Measured against default model (carbonate series, Fig. 4b and Table 7): katoite at 0.25 and its absence above, hemicarbonate at 0.25 to 0.75, monocarbonate from 0.5, all as predicted; calcite at 0.75 is not predicted (the figure marks it red), which the authors put down to unreacted C3A or to carbonation during preparation or drying.",
+    "Measured against default model (sulfate series, Section 5): the default Cemdata18 predicts ettringite with monocarbonate; no ettringite was found, but sulfate in hemicarbonate at 3 % gypsum and monosulfate at 10 %.",
+    "Table 4 misprints, transcribed values unaffected: the Friedel's salt equation is printed with (HO)2 in place of Cl2, and the two monocarbonate equations release 0.5 CO3-2 where the formula has one CO3.",
+    "Tables 5 and 6 appear to swap two Gibbs energies. The monocarbonate of Table 6, with log Ks0 = -31.27 (0.2 above the -31.47 of Table 4), should have dfG = -7337.46 + 0.2 x 5.708 = -7336.32 kJ/mol, the value Table 5 prints for hemicarbonate; and the hemicarbonate of Table 5, whose log Ks0 (-29.13) is unchanged from Table 4, should keep the -7335.97 kJ/mol of Table 3, the value Table 6 prints for monocarbonate. The monocarbonate of Table 5 (-30.47, one unit above Table 4) checks: -7337.46 + 5.708 = -7331.75. Both values are transcribed as printed.",
+    "The proof-of-concept solid solutions (Tables 5 and 6) are presented by the authors as tentative ('should only be used with caution'); Table 5 lowers the monocarbonate stability by one log unit following Nedyalkova et al. (2020).",
+    "The authors' dataset (ref. [41], Zenodo, doi 10.5281/zenodo.5115540, CC BY 4.0) holds the raw XRD, TGA, Raman, SEM-EDX data, the GEMS project and the calculated phase assemblages; its model curves and the recipes its scripts state are in Georget2021data.json."
+  ]
+}

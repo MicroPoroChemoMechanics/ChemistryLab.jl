@@ -65,6 +65,13 @@
   times lower, and the alkalis are low. At 80 °C a third of the ettringite
   gives way to monosulfate and comes back whole at 20 °C, ettringite being
   declared to 60 °C only.
+- **Durability in zero dimensions: hemicarbonate and monocarbonate** (the page
+  *Hemicarbonate and monocarbonate: the carbonate of the AFm phases*,
+  `scripts/georget2022_hemicarbonate.jl`). The carbonate series of Georget et
+  al. (2022), C3A with portlandite replaced by calcite in 101 steps, against
+  the calculation published in their data set: the phases agree to 0.03 g of
+  20 at every step, katoite gone at ζ = 0.452 and hemicarbonate at 0.857, and
+  the phases of their samples are reproduced but for a calcite not yet formed.
 - **`temperature_range`**: the temperatures over which a record of a ThermoFun
   database declares its heat capacity. Cemdata18 declares its AFm phases to
   50 °C, its ettringites to 60 °C and its clinker phases from 25 °C; nothing

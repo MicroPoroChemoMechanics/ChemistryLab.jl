@@ -132,6 +132,7 @@ end
     include("sulfate_attack.jl")
     include("seawater.jl")
     include("delayed_ettringite.jl")
+    include("hemicarbonate.jl")
     include("real_gases.jl")
     include("capillary.jl")
     include("pitzer.jl")
