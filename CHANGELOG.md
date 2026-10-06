@@ -104,7 +104,9 @@
   certified in 4 cases of 17. The inversion now takes the root of the branch the
   iterate is on when it lies above the first one, up to four times the range of
   the model, and the first root otherwise, unchanged to the bit; the limiting law
-  keeps the first root. The same syntheses certify in 16 cases of 17.
+  keeps the first root. The same syntheses certify in 16 cases of 17 (the lime
+  entered as portlandite, as before), and in all 17 computed as
+  `examples/asr_products.md` computes them, the lime as weighed.
 - **Documentation that said less than the code does.** The docstring of
   `miscibility_split` still said that a minimization over two declared instances
   does not deliver the composition inside a gap, which `equilibrate_split` and
