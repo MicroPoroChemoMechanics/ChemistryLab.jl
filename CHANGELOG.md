@@ -107,6 +107,22 @@
   keeps the first root. The same syntheses certify in 16 cases of 17 (the lime
   entered as portlandite, as before), and in all 17 computed as
   `examples/asr_products.md` computes them, the lime as weighed.
+- **An oxide below the valence of its primary entered a budget with the wrong
+  charge.** `primary_decomposition`, behind `oxide_budget` and the oxide
+  constituents of a recipe, wrote a species over the primaries by its elements
+  alone. An element at the valence of its primary (Ca in CaO) gives the right
+  charge that way; one below it does not: CO, carbon (II), came out as carbonate
+  with two protons too many and no electron, so that a system following the
+  oxidation state could never form the formate it stands for and solved, and
+  certified, a pore solution carrying a net charge. When the system has two
+  primaries for one element at two valences, the elements alone did not even
+  decide the decomposition, and an oxide like Na2O came out with a share of
+  each. The charge is now a row of the decomposition whenever the elements leave
+  it unbalanced: the difference goes to the unit charge `Zz`, or chooses between
+  the two primaries; without either, the oxide is refused with the reason,
+  instead of being given the charge of the higher valence. Every oxide at the
+  valence of its primary decomposes as before, to the bit, and none of the
+  shipped materials holds another.
 - **Documentation that said less than the code does.** The docstring of
   `miscibility_split` still said that a minimization over two declared instances
   does not deliver the composition inside a gap, which `equilibrate_split` and
