@@ -154,10 +154,30 @@ using JSON
             @test ρ[2] ≈ ρ[1] rtol = 1.0e-11
             @test ρ[3] ≈ ρ[1] rtol = 1.0e-11
         end
+        # The descent onto the liquid starts inside the domain of the equation
+        # over the whole range, its pressure there above any of the range.
+        @test all(T -> CL._hgk_pressure(T, CL._HGK_DENSITY_CEILING)[1] > 5.0e8, 273.15:25.0:1273.15)
+        # An iteration that has not converged is no root, and a pressure no
+        # density reaches is refused.
+        @test isnan(first(CL._hgk_newton(298.15, 1.0e5, 1200.0; maxiter = 1)))
+        @test_throws DomainError CL.water_density_hgk(300.0, -1.0e9)
         # The lift: dρ/dP = 1/(∂P/∂ρ), the implicit-function theorem.
         ρ = CL.water_density_hgk(298.15, 1.0e7)
         @test ForwardDiff.derivative(p -> CL.water_density_hgk(298.15, p), 1.0e7) ≈
             1 / CL._hgk_pressure(298.15, ρ)[2] rtol = 1.0e-10
+    end
+
+    @testset "the temperatures a record declares its heat capacity for" begin
+        # Read from the intervals of its heat-capacity functions; none for a
+        # solute described by HKF or for the solvent, whose domain is a density.
+        @test temperature_range(cem["ettringite"]) == (273.15, 333.15)
+        @test temperature_range(cem["C3S"]) == (298.15, 1800.15)
+        @test temperature_range(cem["Ca+2"]) == (-Inf, Inf)
+        @test temperature_range(cem["H2O@"]) == (-Inf, Inf)
+        qtz = only(s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false) if symbol(s) == "Qtz")
+        lo, hi = temperature_range(qtz)
+        @test lo == 273.15
+        @test hi ≈ 2000.0 atol = 0.01
     end
 
     @testset "HKF refuses water too dilute for its equations" begin

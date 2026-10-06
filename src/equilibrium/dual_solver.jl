@@ -435,7 +435,7 @@ function SciMLBase.solve(
         surface_potential === :unknown && surf === nothing && throw(
             ArgumentError(
                 "surface_potential = :unknown was asked for, and no site family of " *
-                    "this system needs one. Only a `DiffuseLayer` does."
+                    "this system needs one. Only a `DiffuseLayer` or `ChargePlanes` does."
             ),
         )
         blocks = _compose_blocks(blocks, surf)

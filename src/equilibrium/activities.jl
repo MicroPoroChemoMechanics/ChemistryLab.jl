@@ -1553,7 +1553,7 @@ function _MixingTerms(cs::ChemicalSystem)
         [Int[denticity(f, sp) for sp in site_members(f)] for f in cs.site_families] :
         nothing
     site_charges = has_sites ?
-        [Float64[charge(sp) for sp in site_members(f)] for f in cs.site_families] :
+        [_member_charges(f.model, site_members(f)) for f in cs.site_families] :
         nothing
 
     # A diffuse layer is screened by the ions in solution, so it needs the ionic
@@ -1805,7 +1805,8 @@ in units of `RT`, given the members' formal charges `z` and amounts `n`, the
 ionic strength `I` of the bulk solution, and the temperature `T`.
 
 Zero for a model that does not describe a surface potential, which is every one
-of them but [`ConstantCapacitance`](@ref) and [`DiffuseLayer`](@ref). Both
+of them but [`ConstantCapacitance`](@ref), [`DiffuseLayer`](@ref) and
+[`ChargePlanes`](@ref), whose work is a sum over its planes. The first two
 write it as `z_k ψ̃` with `ψ̃ = FΨ/RT`; they differ only in the closure that
 gives `Ψ` from the surface charge density `σ = F Σ_j z_j n_j / 𝒜`.
 
@@ -1857,6 +1858,16 @@ function _electrostatic_ln_a(
     # and a Newton step that has the coupling in its Jacobian.
     ψ_given === nothing || return m.scale * z_k * ψ_given
     return m.scale * z_k * diffuse_layer_potential(m, z, n, I, T)
+end
+
+# On a ChargePlanes surface the work is the member's charge on each plane times
+# that plane's potential, told by the solve or computed from the composition.
+function _electrostatic_ln_a(
+        m::ChargePlanes, c_k::Tuple, c::AbstractVector, n::AbstractVector,
+        I::Real, T::Real, ψ_given
+    )
+    ψ = ψ_given === nothing ? charge_planes_potentials(m, c, n, I, T) : ψ_given
+    return c_k[1] * ψ[1] + c_k[2] * ψ[2] + c_k[3] * ψ[3]
 end
 
 """

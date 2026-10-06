@@ -536,13 +536,13 @@ end
 
 # Newton's method on P_HGK(T, ρ) = P from ρ₀, while the pressure increases with
 # the density: the root and the slope there, or NaN where the iteration leaves
-# the branch it started on or does not converge. A step beyond the domain of the
-# equation is halved until it falls inside.
-function _hgk_newton(T::Float64, P::Float64, ρ₀::Float64)
+# the branch it started on or does not converge in `maxiter` steps. A step beyond
+# the domain of the equation is halved until it falls inside.
+function _hgk_newton(T::Float64, P::Float64, ρ₀::Float64; maxiter::Int = 200)
     ρ = ρ₀
     p, dp = _hgk_pressure(T, ρ)
     isfinite(p) || return NaN, 0.0
-    for _ in 1:200
+    for _ in 1:maxiter
         # Converged when the density is good to 1e-12: the residual against the
         # bulk modulus ρ ∂P/∂ρ, which is what the rounding of a liquid's pressure,
         # a small difference of large terms, scales with.
@@ -563,22 +563,18 @@ function _hgk_newton(T::Float64, P::Float64, ρ₀::Float64)
 end
 
 # The density no liquid water reaches on the range of the equation, from which
-# the descent onto the liquid root starts, and the density above which a root is
-# that of the liquid or of the supercritical fluid (twice the critical density,
-# a vapor root never exceeding the critical density).
+# the descent onto the liquid root starts, below the divergence of its repulsive
+# term from 0 to 1000 °C; and the density above which a root is that of the
+# liquid or of the supercritical fluid (twice the critical density, a vapor root
+# never exceeding the critical density).
 const _HGK_DENSITY_CEILING = 1500.0
 const _HGK_LIQUID_DENSITY = 600.0
 
 function _hgk_density_root(T::Float64, P::Float64, D0::Float64)
     ρ, dp = _hgk_newton(T, P, D0)
     isfinite(ρ) && dp > 0 && ρ >= _HGK_LIQUID_DENSITY && return ρ
-    # From above: the highest density below the ceiling at which the equation is
-    # defined, its pressure growing without bound towards its divergence.
-    ρ_top = _HGK_DENSITY_CEILING
-    while !isfinite(first(_hgk_pressure(T, ρ_top))) && ρ_top > _HGK_LIQUID_DENSITY
-        ρ_top *= 0.99
-    end
-    ρ_liquid, dp_liquid = _hgk_newton(T, P, ρ_top)
+    # From above, where the pressure grows without bound towards the divergence.
+    ρ_liquid, dp_liquid = _hgk_newton(T, P, _HGK_DENSITY_CEILING)
     isfinite(ρ_liquid) && dp_liquid > 0 && return ρ_liquid
     isfinite(ρ) && dp > 0 && return ρ
     # The dilute side: the gas constant of water read off the equation itself,

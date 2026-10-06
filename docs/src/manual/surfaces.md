@@ -356,6 +356,57 @@ without straddling two surface groups. A surface complex that genuinely
 straddles two sites is a combinatorial problem this release does not solve.
 
 
+## A charged surface of three planes
+
+[`ChargePlanes`](@ref) describes a surface whose charge sits in up to three
+planes: the surface, the head of the Stern layer and the start of the diffuse
+layer ([Chemistry that happens on a surface](@ref sec-theory-surface) §11). It is
+declared with the area, in m², and the capacitances between the planes, in F/m²;
+`C2 = Inf`, the default, merges the outer two, which is the basic Stern model:
+
+```@example planes
+using ChemistryLab
+
+stern = ChargePlanes(; area = 105.0, C1 = 0.9)
+triple = ChargePlanes(; area = 105.0, C1 = 1.4, C2 = 0.2)
+(stern.C2, triple.ε_r)
+```
+
+Each member of a family states the charge it puts on each plane with
+[`with_plane_charges`](@ref); a member that does not puts its formal charge on
+plane 0. On goethite a singly coordinated group carries −1/2, which its free
+form puts on plane 0, and an ion pair of chloride with the protonated group puts
++1/2 there and −1 on plane 2, where the basic Stern model places the ion pairs:
+
+```@example planes
+sp(sym) = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+free = with_plane_charges(sp("XsOH"), -0.5)
+prot = with_plane_charges(sp("XsOH2+"), 0.5)
+pair = with_plane_charges(sp("XsOH2Cl"), 0.5, 0, -1)
+nothing # hide
+```
+
+The formula keeps whole charges, for the conservation of charge. What the
+planes carry may differ from it by the charge of the group, the same for every
+member of a family; [`SiteFamily`](@ref) refuses a member that differs by
+another amount, since a reaction between members would then move charge in one
+count and not in the other.
+
+The three potentials, in units of ``RT/F``, of a surface carrying given amounts
+of members in a solution of given ionic strength:
+
+```@example planes
+c = [(-0.5, 0.0, 0.0), (0.5, 0.0, 0.0), (0.5, 0.0, -1.0)]   # free, protonated, pair
+n = [2.0e-4, 3.4e-4, 4.0e-5]                                 # mol
+ψ = charge_planes_potentials(stern, c, n, 0.01, 298.15)
+ψ .* (R_GAS * 298.15 / FARADAY)                              # in volts
+```
+
+The families of one surface share its planes: they name the same support and
+must declare the same area, capacitances and permittivity. A solve carries the
+three potentials as unknowns, and its certificate reports a self-consistent
+speciation, the diffuse layer not being the gradient of an energy.
+
 ## When the support dissolves or precipitates
 
 Everything above poses the site budget once. A sorbent that dissolves, or one

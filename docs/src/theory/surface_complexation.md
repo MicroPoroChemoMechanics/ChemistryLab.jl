@@ -221,7 +221,7 @@ the aqueous phase, leaves no Gibbs energy behind the activities at all. The
 certificate then reports a self-consistent speciation rather than a minimum,
 and says so in its `scope`. An attractive lateral-interaction term, which can
 make the mixing energy non-convex near half coverage, is not implemented
-(§11).
+(§12).
 
 ## 7. Cation exchange: the same machinery, counting charge
 
@@ -574,7 +574,96 @@ site and a bare site component as primaries give the same host amount to
 `EQUILIBRIUM_PHASES` mineral, the site total is the declared coefficient times
 the phase amount to ``2\times 10^{-10}`` over five partially dissolved states.
 
-## 11. What this page does not cover
+## 11. Three planes of charge
+
+A capacitor and a diffuse layer describe a surface whose charge sits in one
+plane. On an oxide it does not. The protons and the inner-sphere complexes sit
+on the surface itself; the ions of the background electrolyte that pair with the
+charged groups keep part of their water of hydration and sit farther out; an
+oxyanion bound to the surface by one oxygen keeps its other oxygens, and most of
+its charge, on the side of the solution. [Davis1978](@citet) placed the ion pairs
+in a plane between the surface and the diffuse layer, the triple-layer model;
+[Westall1980](@citet) compared it with the basic Stern model, in which the ion
+pairs sit where the diffuse layer begins; [Hiemstra1996](@citet) shared the
+charge of a complex between two planes, the charge distribution model.
+
+[`ChargePlanes`](@ref) holds the three. A surface has three planes: plane 0, the
+surface; plane 1, the head of the Stern layer; plane 2, where the diffuse layer
+begins. Each member ``k`` of a family puts a charge ``c_{p,k}`` on each plane
+``p``, and the charge densities, summed over every family on the surface,
+
+```math
+\sigma_p = \frac{F}{\mathcal{A}} \sum_k c_{p,k}\, n_k, \qquad p = 0, 1, 2,
+```
+
+raise three potentials. Gauss's law across each capacitor gives the field
+between two planes from the charge inside them, and the diffuse layer balances
+the whole:
+
+```math
+\tilde\psi_0 - \tilde\psi_1 = \frac{F\sigma_0}{C_1 RT}, \qquad
+\tilde\psi_1 - \tilde\psi_2 = \frac{F(\sigma_0 + \sigma_1)}{C_2 RT}, \qquad
+\tilde\psi_2 = 2\operatorname{asinh}\frac{\sigma_0 + \sigma_1 + \sigma_2}{\kappa\sqrt{I}},
+```
+
+with ``\tilde\psi_p = F\Psi_p/RT``, ``C_1`` and ``C_2`` the capacitances of the
+inner and outer Stern layers, and ``\kappa`` as in §9. The electrical work of
+member ``k`` is the sum over the planes of its charge times their potential,
+
+```math
+\ln a_k = \ln x_k + \sum_{p} c_{p,k}\,\tilde\psi_p ,
+```
+
+which for a reaction between members is the ``\sum_p \Delta z_p \tilde\psi_p`` of
+[Hiemstra1996](@citet). The models of the literature differ by where the charges
+are put and by the capacitances:
+
+| model | ``C_1`` | ``C_2`` | ion pairs | inner-sphere complex |
+|:--|:--|:--|:--|:--|
+| basic Stern [Westall1980](@cite) | ``C`` | ``\infty`` | plane 2 (= 1) | plane 0 |
+| triple layer [Davis1978](@cite) | ``C_1`` | ``C_2`` | plane 1 | plane 0 |
+| charge distribution [Hiemstra1996](@cite) | ``C_1`` | ``C_2`` | plane 2 | shared between 0 and 1 |
+
+``C_2 = \infty`` merges planes 1 and 2. The surface with one plane and no
+diffuse layer is [`ConstantCapacitance`](@ref) (§8), and the one with a diffuse
+layer alone is [`DiffuseLayer`](@ref) (§9), which `ChargePlanes` reproduces when
+both capacitances are infinite and every charge is on plane 0.
+
+### The charge of a group, and the charge it is counted with
+
+The surface groups of a mineral carry fractional charges. On goethite a singly
+coordinated group ``\mathrm{FeOH}^{-1/2}`` and a triply coordinated one
+``\mathrm{Fe_3O}^{-1/2}`` each carry half a unit, the share of the bonds of their
+oxygen that the iron atoms do not satisfy [Hiemstra1996](@cite). That half unit
+raises the potential and belongs on plane 0. A formula, which counts the
+conservation of charge, carries whole numbers. A member therefore has two charges:
+``z_k``, its formula's, and ``\sum_p c_{p,k}``, its planes'. Their difference is
+the intrinsic charge of the group, the same for every member of a family, so that
+a reaction between members moves the same charge in both counts; the
+construction of a family refuses members that do not agree on it. The two
+conservation statements, ``\sum_k z_k n_k`` and ``\sum_k \sum_p c_{p,k} n_k``,
+then differ by the intrinsic charge times the number of sites, which the site
+balance holds constant.
+
+### The potentials are unknowns
+
+As for the diffuse layer (§9), the three potentials are carried as unknowns of
+the solve, one per plane and per surface, closed by the three equations above;
+the families of one surface share them, and must agree on its area, its
+capacitances and its permittivity. The two capacitors alone would be the
+gradient of a quadratic form, like the constant capacitance; the diffuse layer
+is not, for the reason §9 gives, so the certificate of a solve on such a surface
+reports a self-consistent speciation.
+
+Against PHREEQC's CD-MUSIC surface, with the activity coefficients set to one on
+both sides so that the surface models alone are compared, the goethite of
+[Hiemstra1996](@citet) in the three placements of the table, 56 points from pH
+4 to 11 and 0.001 to 0.1 mol/kg of NaCl, agrees to ``5\times10^{-5}`` in the
+site fractions and 0.05 mV in the potentials, except at 0.001 mol/kg in the
+basic Stern model, where the diffuse layer carries 0.18 V at pH 4 and the two
+codes part by ``7\times10^{-4}`` and 0.3 mV (`test/charge_planes.jl`).
+
+## 12. What this page does not cover
 
 Saying what is absent is part of describing what is present.
 
@@ -588,10 +677,9 @@ Saying what is absent is part of describing what is present.
     energies of the surface species are fixed at their 25 °C values, as the
     published constants are, so a surface computed at another temperature rests
     on that assumption.
-  - **No charge planes beyond one.** A Stern or triple-layer model puts
-    different surface species on different planes with a capacitance between
-    them; here there is one potential per family, and stacking two electrostatic
-    models is refused rather than summed.
+  - **No more than three charge planes**, and no plane-resolved surface
+    without a diffuse layer other than the constant capacitance; stacking two
+    electrostatic models is refused rather than summed (§11).
   - **No multidentate species**, per the note above.
   - **No lateral interactions.** Neighbors on a surface affect each other's
     binding energy, and the models that describe it — Frumkin's interaction

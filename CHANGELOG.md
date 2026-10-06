@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Added
+
+- **Surfaces of three charge planes** (`ChargePlanes`, `with_plane_charges`,
+  `charge_planes_potentials`): a surface whose charge sits in the surface plane,
+  at the head of the Stern layer and where the diffuse layer begins, two
+  capacitances between them, and each surface species placing its charge on
+  each plane. One model holds the basic Stern model (Westall and Hohl 1980), the
+  triple-layer model (Davis et al. 1978) and the charge distribution model
+  (Hiemstra and Van Riemsdijk 1996), whose complexes share their charge between
+  two planes, and several families on one surface share its planes. The three
+  potentials are unknowns of the solve. Against PHREEQC's CD-MUSIC surface, on
+  the goethite of Hiemstra and Van Riemsdijk in the three placements, 56 points
+  from pH 4 to 11 and 0.001 to 0.1 mol/kg of NaCl, all certify and agree to
+  5e-5 in the site fractions and 0.05 mV in the potentials, 7e-4 and 0.3 mV at
+  0.001 mol/kg in the basic Stern model, where the diffuse layer carries 0.18 V
+  (`test/charge_planes.jl`, oracle `test/reference/phreeqc_cd_music.py`). A
+  family whose plane charges and formula charges differ by different amounts
+  for different members is refused: a reaction between them would not conserve
+  charge in both counts.
+- **`temperature_range`**: the temperatures over which a record of a ThermoFun
+  database declares its heat capacity. Cemdata18 declares its AFm phases to
+  50 °C, its ettringites to 60 °C and its clinker phases from 25 °C; nothing
+  refuses a temperature outside, and the function says when a calculation
+  extrapolates.
+
 ### Changed
 
 - **The solvent follows water at every temperature and pressure.** The standard

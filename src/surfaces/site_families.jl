@@ -422,6 +422,151 @@ with_electrostatic_scale(m::DiffuseLayer, λ::Real) =
 supports_multidentate(m::DiffuseLayer) = supports_multidentate(m.base)
 
 """
+    struct ChargePlanes{M<:AbstractSiteMixingModel, T<:Real} <: AbstractSiteMixingModel
+
+A charged surface described by **three planes of charge** and a diffuse layer:
+the surface plane 0, where the protons and the inner-sphere complexes sit, a
+plane 1 at the head of the Stern layer, and a plane 2 where the diffuse layer
+begins. Each surface species puts a charge on each plane, and the planes are
+separated by two capacitors,
+
+```math
+\\tilde\\psi_0 - \\tilde\\psi_1 = \\frac{F\\sigma_0}{C_1 RT}, \\qquad
+\\tilde\\psi_1 - \\tilde\\psi_2 = \\frac{F(\\sigma_0 + \\sigma_1)}{C_2 RT}, \\qquad
+\\tilde\\psi_2 = 2\\operatorname{asinh}\\frac{\\sigma_0 + \\sigma_1 + \\sigma_2}{\\kappa\\sqrt{I}},
+```
+
+with ``\\tilde\\psi_p = F\\Psi_p/RT``, ``\\sigma_p = (F/\\mathcal{A})\\sum_k c_{p,k} n_k`` the
+charge density of plane `p` and ``c_{p,k}`` the charge species `k` places on it,
+and ``\\kappa`` as in [`DiffuseLayer`](@ref). The electrical work of species `k`
+is ``RT \\sum_p c_{p,k}\\tilde\\psi_p``.
+
+One description covers the models of the literature, by the charges the species
+are given and the capacitances:
+
+  - the **triple-layer model** of [Davis1978](@citet): protons and inner-sphere
+    complexes on plane 0, the ion pairs of the background electrolyte on plane 1,
+    two finite capacitances;
+  - the **basic Stern model** [Westall1980](@cite): the ion pairs on the plane where
+    the diffuse layer begins, `C2 = Inf`;
+  - the **charge distribution model** of [Hiemstra1996](@citet): the charge of an
+    inner-sphere complex shared between planes 0 and 1 in fractions, the
+    singly and triply coordinated surface groups of a mineral carrying fractional
+    charges of their own.
+
+The charges a species carries are its `:plane_charges` property, three numbers,
+given with [`with_plane_charges`](@ref); a species without it puts its formal
+charge on plane 0. The intrinsic charge of a MUSIC site, −1/2 on a singly
+coordinated group of goethite, belongs there too: it raises the potentials,
+while the formal charges, whole numbers, keep the conservation of charge, which
+the constant difference between the two does not change.
+
+The potentials are carried as unknowns of the solve, one per plane and per
+surface, closed by the three equations above; a diffuse layer makes the
+electrical term depend on the ionic strength of a solution that does not depend
+on the surface in return, so, as with [`DiffuseLayer`](@ref), what a solve
+returns is a self-consistent speciation rather than a certified minimum.
+
+# Fields
+
+  - `base`: the site mixing this decorates, [`IdealSiteMixing`](@ref) by default.
+  - `area`: the charged area [m²].
+  - `C1`, `C2`: the capacitances of the inner and outer Stern layers [F/m²];
+    `C2 = Inf` merges planes 1 and 2.
+  - `ε_r`: the relative permittivity of the solvent, for the diffuse layer.
+
+See also: [`with_plane_charges`](@ref), [`DiffuseLayer`](@ref),
+[`ConstantCapacitance`](@ref).
+"""
+struct ChargePlanes{M <: AbstractSiteMixingModel, T <: Real} <: AbstractSiteMixingModel
+    base::M
+    area::T
+    C1::T
+    C2::T
+    ε_r::T
+    function ChargePlanes{M, T}(base::AbstractSiteMixingModel, area::Real, C1::Real, C2::Real, ε_r::Real) where {M <: AbstractSiteMixingModel, T <: Real}
+        area > 0 || throw(ArgumentError("area must be positive; got $area m²."))
+        C1 > 0 || throw(ArgumentError("C1 must be positive; got $C1 F/m²."))
+        C2 > 0 || throw(ArgumentError("C2 must be positive (Inf to merge planes 1 and 2); got $C2 F/m²."))
+        ε_r > 0 || throw(ArgumentError("relative permittivity must be positive; got $ε_r."))
+        _refuse_stacked_electrostatics(base, "ChargePlanes")
+        return new{M, T}(base, convert(T, area), convert(T, C1), convert(T, C2), convert(T, ε_r))
+    end
+end
+
+"""
+    ChargePlanes(; area, C1, C2 = Inf, temperature = 298.15, pressure = 1.0e5,
+                   ε_r = water_relative_permittivity(temperature, pressure),
+                   base = IdealSiteMixing()) -> ChargePlanes
+
+Build a [`ChargePlanes`](@ref) surface: `area` in m², `C1` and `C2` in F/m², each
+a plain `Real` in SI or a `Quantity`.
+"""
+function ChargePlanes(;
+        area, C1, C2 = Inf,
+        temperature::Real = 298.15,
+        pressure::Real = 1.0e5,
+        ε_r = water_relative_permittivity(temperature, pressure),
+        base::AbstractSiteMixingModel = IdealSiteMixing(),
+    )
+    a = _area_si(us"m^2", area, "ChargePlanes area")
+    c1 = _area_si(us"F/m^2", C1, "ChargePlanes C1")
+    c2 = C2 isa Real && isinf(C2) ? float(C2) : _area_si(us"F/m^2", C2, "ChargePlanes C2")
+    e = _area_si(us"m^2/m^2", ε_r, "ChargePlanes relative permittivity")
+    v = promote(a, c1, c2, e)
+    return ChargePlanes{typeof(base), eltype(v)}(base, v...)
+end
+
+supports_multidentate(m::ChargePlanes) = supports_multidentate(m.base)
+
+"""
+    with_plane_charges(s::Species, c0, c1 = 0, c2 = 0) -> Species
+
+A copy of the surface species `s` placing the charges `c0`, `c1` and `c2` on the
+planes 0, 1 and 2 of a [`ChargePlanes`](@ref) surface: the intrinsic charge of
+its site plus the change of charge of its complexation on each plane, as
+PHREEQC's `-cd_music Δz0 Δz1 Δz2` gives the latter. Fractions are allowed.
+"""
+function with_plane_charges(s::Species{T}, c0::Real, c1::Real = 0, c2::Real = 0) where {T}
+    props = copy(s.properties)
+    props[:plane_charges] = Float64[c0, c1, c2]
+    return Species{T}(s.name, s.symbol, s.formula, s.aggregate_state, s.class, props)
+end
+
+# The charges a member of a family puts on the planes of a ChargePlanes surface:
+# its `:plane_charges`, or its formal charge on plane 0.
+function _plane_charges(sp::AbstractSpecies)
+    c = get(properties(sp), :plane_charges, nothing)
+    c === nothing && return (Float64(charge(sp)), 0.0, 0.0)
+    return (Float64(c[1]), Float64(c[2]), Float64(c[3]))
+end
+
+"""
+    charge_planes_potentials(model, c, n, I, T) -> (ψ̃₀, ψ̃₁, ψ̃₂)
+
+The dimensionless potentials ``F\\Psi_p/RT`` of the three planes of a
+[`ChargePlanes`](@ref) surface carrying the members of amounts `n`, of plane
+charges `c` (one triplet per member), screened by a solution of ionic strength
+`I` at `T`: the diffuse layer first, then the two capacitors inward.
+"""
+function charge_planes_potentials(m::ChargePlanes, c::AbstractVector, n::AbstractVector, I::Real, T::Real)
+    s0 = zero(eltype(n))
+    s1 = zero(eltype(n))
+    s2 = zero(eltype(n))
+    @inbounds for j in eachindex(n)
+        s0 += c[j][1] * n[j]
+        s1 += c[j][2] * n[j]
+        s2 += c[j][3] * n[j]
+    end
+    σ0, σ1, σ2 = FARADAY .* (s0, s1, s2) ./ m.area
+    κ = sqrt(8 * m.ε_r * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
+    ψ2 = 2 * asinh((σ0 + σ1 + σ2) / (κ * sqrt(max(I, eps(float(one(I)))))))
+    ψ1 = ψ2 + FARADAY * (σ0 + σ1) / (m.C2 * R_GAS * T)
+    ψ0 = ψ1 + FARADAY * σ0 / (m.C1 * R_GAS * T)
+    return ψ0, ψ1, ψ2
+end
+
+"""
     water_relative_permittivity(T_K, P_Pa = 1.0e5) -> Real
 
 The relative permittivity (dielectric constant) of liquid water at `T_K` kelvin
@@ -445,13 +590,14 @@ water_relative_permittivity(T_K::Real, P_Pa::Real = 1.0e5) =
 Whether a site mixing model adds the work of charging a surface, on top of
 whatever mixing it decorates.
 
-`true` for [`ConstantCapacitance`](@ref) and [`DiffuseLayer`](@ref), `false`
-otherwise — including for a model that merely *decorates* one, which is why the
+`true` for [`ConstantCapacitance`](@ref), [`DiffuseLayer`](@ref) and
+[`ChargePlanes`](@ref), `false` otherwise — including for a model that merely *decorates* one, which is why the
 predicate exists rather than an `isa` test at each use.
 """
 is_electrostatic(::AbstractSiteMixingModel) = false
 is_electrostatic(::ConstantCapacitance) = true
 is_electrostatic(::DiffuseLayer) = true
+is_electrostatic(::ChargePlanes) = true
 
 """
     _refuse_stacked_electrostatics(base, outer)
@@ -462,9 +608,8 @@ Stacking a diffuse layer on a constant capacitance is how a Stern or a
 triple-layer model is *drawn*, and adding the two potentials is not how it
 *works*: the two capacitances belong to different charge planes, and each
 surface species sits on one plane or the other. Summing them puts every species
-on both. A plane-resolved model is a different object, and it is not in this
-package yet; refusing here is what keeps someone from assembling a wrong one
-out of right parts.
+on both. The plane-resolved model is [`ChargePlanes`](@ref); refusing here is
+what keeps someone from assembling a wrong one out of right parts.
 """
 function _refuse_stacked_electrostatics(base::AbstractSiteMixingModel, outer::AbstractString)
     return is_electrostatic(base) && throw(
@@ -473,8 +618,8 @@ function _refuse_stacked_electrostatics(base::AbstractSiteMixingModel, outer::Ab
                 "electrostatic model. Two charge planes need a model that resolves " *
                 "them — summing two potentials puts every surface species on both " *
                 "planes at once, which is not the Stern or triple-layer model it " *
-                "looks like. Pick one electrostatic model, or describe the second " *
-                "plane explicitly once this package carries one."
+                "looks like. Pick one electrostatic model, or describe the planes " *
+                "with ChargePlanes, which places each species' charge on its own."
         )
     )
 end
@@ -486,8 +631,8 @@ Whether the activity contribution of a site mixing model is the gradient of a
 Gibbs energy — which is what the equilibrium certificate assumes about every
 term it certifies.
 
-`true` for every model here but [`DiffuseLayer`](@ref), whose potential depends
-on the ionic strength of a bulk solution that does not depend in return on the
+`true` for every model here but [`DiffuseLayer`](@ref) and
+[`ChargePlanes`](@ref), whose potentials depend on the ionic strength of a bulk solution that does not depend in return on the
 surface, making the activity Jacobian asymmetric. See that model's docstring for
 why this is the Dzombak-Morel approximation itself rather than a defect of the
 implementation, and [`site_gradient_asymmetry`](@ref) for the
@@ -495,6 +640,7 @@ measurement.
 """
 is_gradient_consistent(::AbstractSiteMixingModel) = true
 is_gradient_consistent(::DiffuseLayer) = false
+is_gradient_consistent(::ChargePlanes) = false
 is_gradient_consistent(m::ConstantCapacitance) = is_gradient_consistent(m.base)
 
 """
@@ -503,13 +649,14 @@ is_gradient_consistent(m::ConstantCapacitance) = is_gradient_consistent(m.base)
 Whether evaluating a site mixing model requires the ionic strength of the
 aqueous solution.
 
-Only [`DiffuseLayer`](@ref) does. The activity closures test this once, when
+[`DiffuseLayer`](@ref) and [`ChargePlanes`](@ref) do. The activity closures test this once, when
 they are built, and skip the ionic-strength sum entirely when no family asks for
 it — so a system without a diffuse layer pays nothing for the possibility of
 one.
 """
 needs_ionic_strength(::AbstractSiteMixingModel) = false
 needs_ionic_strength(::DiffuseLayer) = true
+needs_ionic_strength(::ChargePlanes) = true
 needs_ionic_strength(m::ConstantCapacitance) = needs_ionic_strength(m.base)
 
 """
@@ -789,6 +936,8 @@ function SiteFamily(
         )
     end
 
+    _check_plane_charges(name, model, members)
+
     qualified = [_as_surface_species(sp) for sp in members]
     return SiteFamily{
         eltype(qualified), typeof(capacity), typeof(support), typeof(model),
@@ -796,6 +945,30 @@ function SiteFamily(
         String(name), site, first(qualified), qualified[2:end],
         capacity, support, model,
     )
+end
+
+# A family on a `ChargePlanes` surface counts each member's charge twice: in its
+# formula, for the conservation of charge, and on the planes, for the
+# potentials. The two must differ by the same amount for every member, the
+# intrinsic charge of the group, or a reaction between members would move charge
+# in one count and not in the other.
+_check_plane_charges(name, ::AbstractSiteMixingModel, members) = nothing
+function _check_plane_charges(name, ::ChargePlanes, members)
+    offset = [sum(_plane_charges(sp)) - charge(sp) for sp in members]
+    for (sp, o) in zip(members, offset)
+        isapprox(o, offset[1]; atol = 1.0e-9) || throw(
+            ArgumentError(
+                "SiteFamily \"$name\": the plane charges of \"$(symbol(sp))\" sum " *
+                    "to $(sum(_plane_charges(sp))) and its formula carries " *
+                    "$(charge(sp)), a difference of $o, where " *
+                    "\"$(symbol(first(members)))\" has $(offset[1]). The difference is " *
+                    "the intrinsic charge of the group and is the same for every " *
+                    "member, so that a reaction between members conserves charge in " *
+                    "both counts.",
+            )
+        )
+    end
+    return nothing
 end
 
 # The one site symbol every member must agree on.
@@ -912,6 +1085,11 @@ function support_group(cs::ChemicalSystem)
     return [byname[f.support.name] for f in fams]
 end
 
+# The charges the members of a family carry for its electrostatic model: plane
+# triplets on a `ChargePlanes` surface, formal charges otherwise.
+_member_charges(::AbstractSiteMixingModel, members) = Float64[charge(sp) for sp in members]
+_member_charges(::ChargePlanes, members) = [_plane_charges(sp) for sp in members]
+
 """
     _support_members(cs) -> (indices, charges)
 
@@ -922,10 +1100,6 @@ surface charge density has to be summed over.
 function _support_members(cs::ChemicalSystem)
     groups = support_group(cs)
     idx = [reduce(vcat, (cs.site_groups[g] for g in grp); init = Int[]) for grp in groups]
-    chg = [
-        Float64[
-            charge(sp) for g in grp for sp in site_members(cs.site_families[g])
-        ] for grp in groups
-    ]
+    chg = [_member_charges(cs.site_families[first(grp)].model, [sp for g in grp for sp in site_members(cs.site_families[g])]) for grp in groups]
     return idx, chg
 end
