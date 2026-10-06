@@ -133,6 +133,7 @@ end
     include("seawater.jl")
     include("delayed_ettringite.jl")
     include("hemicarbonate.jl")
+    include("chloride_afm.jl")
     include("real_gases.jl")
     include("capillary.jl")
     include("pitzer.jl")

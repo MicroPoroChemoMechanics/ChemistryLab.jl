@@ -141,7 +141,21 @@ function _sa_solids(eq)
         SO3 = oxides["SO3"] / total, CaO = oxides["CaO"] / total, solids,
         gypsum = mass("Gp"), ettringite = mass("ettringite"), thaumasite = mass("thaumasite"),
         portlandite = mass("Portlandite"), calcite = mass("Cal"), monocarbonate = mass("monocarbonate"),
-        afm_so4 = ss("AFm_SO4_OH"), csh = ss("CSHQ"),
+        afm_so4 = _sa_members(eq, ("monosulphate12", "C4AH13")), csh = ss("CSHQ"),
+    )
+end
+
+# The mass (g) of the members `names` of a solid solution, every instance of
+# it counted: a solution split in two names its second instance's members
+# `name#2`.
+function _sa_members(eq, names)
+    cs = eq.system
+    n = ustrip.(us"mol", eq.n)
+    return sum(
+        (
+            n[j] * ustrip(us"g/mol", cs.species[j][:M]) for j in eachindex(n)
+                if any(m -> symbol(cs.species[j]) == m || startswith(symbol(cs.species[j]), m * "#"), names)
+        ); init = 0.0,
     )
 end
 

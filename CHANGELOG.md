@@ -72,6 +72,13 @@
   the calculation published in their data set: the phases agree to 0.03 g of
   20 at every step, katoite gone at ζ = 0.452 and hemicarbonate at 0.857, and
   the phases of their samples are reproduced but for a calcite not yet formed.
+- **Durability in zero dimensions: chloride and the AFm phases** (the page
+  *Chloride and the AFm phases: a model Portland system titrated by CaCl2*,
+  `scripts/balonis2010_chloride.jl`). The mixture of Balonis et al. (2010)
+  titrated by CaCl2 without and with calcite: the sulfate AFm, Kuzel's salt and
+  Friedel's salt in the order and at the samples their XRD found, the solution
+  at 2Cl/Al2O3 = 0.3 to 0.4 mmol/L, and the boundaries of their calculation
+  within 0.1.
 - **`temperature_range`**: the temperatures over which a record of a ThermoFun
   database declares its heat capacity. Cemdata18 declares its AFm phases to
   50 °C, its ettringites to 60 °C and its clinker phases from 25 °C; nothing
