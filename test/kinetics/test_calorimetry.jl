@@ -371,15 +371,21 @@ end
     @test T[end] > T[1] + 0.2
     # The cell is closed to heat: its enthalpy, `H + C_vessel (T − T₀)`, is
     # what it was at the start, at every instant, with the certified partition
-    # at the temperature the run solved. Measured: 3e-7 J against the 51 J the
-    # paste released.
+    # at the temperature the run solved. It is a sum of enthalpies of formation
+    # of some 8 MJ, which its rounding resolves to about 1e-9 J and the
+    # integration to a thousand times that: measured at 3e-7 J until 0.33.0 and
+    # at 1.5e-6 J since the solvent's enthalpy comes from the equation of state
+    # of water, against the 51 J the paste released. Bounded at 5e-12 of the
+    # cell's enthalpy, the run without optimization of the coverage job having
+    # gone past 1e-7 of the heat.
     times = [0.0, 6 * 3600.0, 86400.0, 2 * 86400.0]
     states = speciated_states(sol, kp; times)
     _, Tt = temperature_profile(sol, cal; times)
     @test all(temperature(st) ≈ Ti * u"K" for (st, Ti) in zip(states, Tt))
     H = [ustrip(us"J", enthalpy(st)) + C_vessel * (Ti - 293.15) for (st, Ti) in zip(states, Tt)]
     released = C_vessel * (Tt[end] - Tt[1])
-    @test maximum(abs, H .- p.H0[]) < 1.0e-7 * released
+    @test maximum(abs, H .- p.H0[]) < 5.0e-12 * abs(p.H0[])
+    @test abs(p.H0[]) * 5.0e-12 < 1.0e-6 * released
     # The heat the paste released is what warmed the vessel, exactly.
     _, Q = cumulative_heat(sol, cal)
     _, Q_ref, q_ref = heat_release(sol, kp; times)
