@@ -110,3 +110,48 @@ aluminum below 2.5 and 5 mM. A glass in a paste meets a pore solution at a pH
 of 13 to 13.8, with calcium and aluminum set by the hydrates around it, for
 months: whether this law, fitted on dilute solutions, follows the slag of a
 paste is a question for the measurements of a paste, not one it answers.
+
+## The slag of a paste under this law
+
+The ternary paste of the [pages on curing temperature](@ref ex-slag-temperature-pastes),
+50 % CEM I 52.5 R, 40 % slag and 10 % limestone at w/b 0.5 and 20 °C, is
+integrated here with its slag dissolved by this law instead of the law fitted
+there on its degree of reaction: the rate of the composition of its glass, slowed
+by the calcium of the pore solution with the factor above, over the surface of
+the slag shrinking as spheres. Nothing is fitted on the paste. The glass lies
+beyond the most calcic glass measured (``x = 0.72``), its MgO is left out of the
+law, and the activation energy is the authors' for the slag of these pastes
+([Snellings2022](@citet), Table 2), the dilute solutions being at 20 °C only.
+Which area the rates apply to is the open question: the paper normalized them by
+the BET surface of smooth grains of 50 to 125 µm, and the BET surface of a
+ground slag, 2.61 m²/g, holds a roughness its Blaine surface, 0.50 m²/g, does
+not. Both are run:
+
+```@example glass
+using Logging # hide
+include(joinpath(pkgdir(ChemistryLab), "scripts", "snellings2022_glass_law.jl"))
+setup = sn22g_setup()
+days = [1, 2, 7, 28, 90, 180]
+diagnostics = IOBuffer() # hide
+runs = with_logger(ConsoleLogger(diagnostics)) do # hide
+runs = Dict{Symbol, Any}(a => sn22g_run(setup, fit, 20.0; area = a) for a in (:bet, :blaine))
+end # hide
+messages = String(take!(diagnostics)) # hide
+occursin("re-speciation failed", messages) && error("a re-speciation failed") # hide
+occursin("could not be certified", messages) && error("an instant was not certified") # hide
+measured = literature_table(SN22, "degree_of_reaction"; constituent = "slag", temperature_C = 20, w_b = 0.5)
+println("degree of reaction of the slag (%)      ", join((lpad("$d d", 7) for d in days)))
+for (a, label) in ((:bet, "this law, BET area"), (:blaine, "this law, Blaine area"))
+    println(rpad(label, 40), join((@sprintf("%7.1f", x) for x in sn22g_slag_degree(runs[a], days))))
+end
+println(rpad("measured, Snellings et al. (2022)", 40), join((@sprintf("%7.1f", ustrip(x)) for x in measured.degree_percent)))
+```
+
+Over the BET surface the slag is gone in two days. Over the smaller surface the
+first day falls within the measurement, and then the dissolution does not slow
+down: the paste holds its slag at 41 to 62 % from the first week to the sixth
+month, where this law has dissolved it within the month. The paper sets out its
+use for cements under an assumption, "that dissolution rates control the
+consumption of SCMs in cement" (Section IV(3)); for this slag, the paste
+measures it holding for a day and no longer. What slows a slag in a paste after
+its first days is not in a law measured on its glass in a dilute solution.

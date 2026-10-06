@@ -137,8 +137,9 @@ end
 end
 
 isdefined(@__MODULE__, :sn13_rows) || include(joinpath(pkgdir(ChemistryLab), "scripts", "snellings2013_glass.jl"))
+isdefined(@__MODULE__, :sn22g_setup) || include(joinpath(pkgdir(ChemistryLab), "scripts", "snellings2022_glass_law.jl"))
 
-@testsection "calcium and aluminum slow the glasses down (fitted on Snellings 2013, Table II)" begin
+@testsection "calcium and aluminum slow the glasses down, in dilute solutions; and a paste" begin
     rows = sn13_rows()
     # Every solution of Table II at pH 13 certifies, with the NaOH that holds it.
     @test length(rows) == 51 && all(r -> r.certified, rows)
@@ -160,4 +161,21 @@ isdefined(@__MODULE__, :sn13_rows) || include(joinpath(pkgdir(ChemistryLab), "sc
     # The inhibitors of a glass: calcium always, aluminum on a tectosilicate one.
     @test [i.species for i in sn13_inhibitors(fit, "G1")] == ["Ca+2"]
     @test [i.species for i in sn13_inhibitors(fit, :tectosilicate)] == ["Ca+2", "AlO2-"]
+
+    # The slag of a paste under this law: the ternary paste of Snellings et
+    # al. (2022) at w/b 0.5 and 20 °C, nothing fitted on it.
+    setup = sn22g_setup()
+    # One mole of the glass is one mole of its cations.
+    @test ustrip(us"g/mol", setup.glass[:M]) ≈ ustrip(us"g/mol", cation_molar_mass(setup.oxides)) rtol = 1.0e-14
+    @test_throws ArgumentError sn22g_slag_law(setup, fit; area = :geometric)
+    # Over the BET surface of the slag, the law of the dilute solutions has
+    # dissolved three quarters of it in a day and all of it in two, where the
+    # paste measures 21 and 23 % (Snellings et al. 2022, Fig. 6b).
+    run = sn22g_run(setup, fit, 20.0; days = 2)
+    @test run.sol.retcode == ReturnCode.Success
+    α = sn22g_slag_degree(run, [1, 2])
+    measured = ustrip.(literature_table(SN22, "degree_of_reaction"; constituent = "slag", temperature_C = 20, w_b = 0.5, age = 1.0u"d").degree_percent)
+    @test α[1] ≈ 77.2 atol = 1.0
+    @test α[2] > 99
+    @test α[1] > 3 * only(measured)
 end
