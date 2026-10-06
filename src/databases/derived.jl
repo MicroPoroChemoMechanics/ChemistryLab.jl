@@ -5,10 +5,11 @@ using SHA: sha256
 
 # ── Databases built by ChemistryLab from a published one ─────────────────────
 #
-# Three databases extend Cemdata18 with phases it does not carry: 28 zeolites
+# Four databases extend Cemdata18 with phases it does not carry: 28 zeolites
 # (Ma & Lothenbach 2020, 2021); a chloride end member of CSHQ fitted on the
 # sorption tests of Hirao et al. (2005), with the Fe-Friedel's salt that the
-# Cemdata18 paper tabulates and its ThermoFun export lacks; and the CASH+ model of
+# Cemdata18 paper tabulates and its ThermoFun export lacks; the two shlykovites
+# of the alkali-silica reaction (Jin et al. 2023); and the CASH+ model of
 # C-S-H. Only what ChemistryLab adds lives in the package — the published data in
 # `data/literature/`, the fitted parameter in `data/chloride/cshq_cl.json`. The
 # database itself is assembled on first use from the downloaded Cemdata18 file,
@@ -83,11 +84,11 @@ const _CM3_PER_MOL_TO_J_PER_BAR = 0.1
 
 const _AQUEOUS_FORMULA = Dict(
     "Na+" => "Na|+|", "K+" => "K|+|", "AlO2-" => "AlO2|-|", "SiO2@" => "SiO2",
-    "H2O@" => "H2O", "OH-" => "OH|-|", "Cl-" => "Cl|-|", "NO3-" => "NO3|-|",
+    "H2O@" => "H2O", "OH-" => "OH|-|", "Cl-" => "Cl|-|", "NO3-" => "NO3|-|", "Ca+2" => "Ca+2",
 )
 const _AQUEOUS_CHARGE = Dict(
     "Na+" => 1.0, "K+" => 1.0, "AlO2-" => -1.0, "SiO2@" => 0.0,
-    "H2O@" => 0.0, "OH-" => -1.0, "Cl-" => -1.0, "NO3-" => -1.0,
+    "H2O@" => 0.0, "OH-" => -1.0, "Cl-" => -1.0, "NO3-" => -1.0, "Ca+2" => 2.0,
 )
 
 """
@@ -549,13 +550,157 @@ function _build_cashplus(base_path, out_path)
     return _write_json_atomically(out_path, db)
 end
 
+# ── the products of the alkali-silica reaction ───────────────────────────────
+
+const _ASR_SOURCE = "Jin2023"
+const _ASR_CORRIGENDUM = "Jin2024"
+const _ASR_LOGK_TOLERANCE = 0.05
+
+"""
+    asr_records() -> Vector{NamedTuple}
+
+K-shlykovite and Na-shlykovite, the crystalline products of the alkali-silica
+reaction, as [Jin2023](@citet) estimate them at 25 °C (Table 1, from
+`data/literature/Jin2023.json`): formula, standard Gibbs energy, entropy, heat
+capacity, volume, solubility product and its dissolution products, and the two
+enthalpies of formation published for each, the article's and its
+corrigendum's [Jin2024](@cite).
+"""
+function asr_records()
+    d = JSON.parsefile(datapath("literature", _ASR_SOURCE * ".json"); dicttype = Dict{String, Any})
+    t = d["tables"]["products"]
+    c = Dict(name => i for (i, name) in enumerate(t["columns"]))
+    products = Dict{String, Dict{String, Float64}}()
+    for (sym, sp, ν) in d["tables"]["dissolution_products"]["rows"]
+        get!(products, sym, Dict{String, Float64}())[sp] = Float64(ν)
+    end
+    corr = JSON.parsefile(datapath("literature", _ASR_CORRIGENDUM * ".json"); dicttype = Dict{String, Any})
+    ΔfH_corr = Dict(String(r[1]) => Float64(r[2]) for r in corr["tables"]["corrected_enthalpies"]["rows"])
+    num(r, name) = Float64(r[c[name]])
+    doi = String(d["source"]["doi"])
+    return [
+        (;
+            symbol = String(r[c["symbol"]]), formula = String(r[c["formula"]]),
+            logKsp = num(r, "log_K"), logKsp_err = num(r, "log_K_uncertainty"),
+            ΔfG⁰ = num(r, "dfG"), S⁰ = num(r, "S"), Cp⁰ = num(r, "Cp"), V⁰ = num(r, "V"),
+            ΔfH⁰_article = num(r, "dfH"), ΔfH⁰_corrigendum = ΔfH_corr[String(r[c["symbol"]])],
+            products = products[r[c["symbol"]]], doi, corrigendum_doi = String(corr["source"]["doi"]),
+        ) for r in t["rows"]
+    ]
+end
+
+"""
+    asr_enthalpy(record, base_path) -> Float64
+
+The enthalpy of formation (kJ/mol) of an ASR product of [`asr_records`](@ref)
+that agrees with its Gibbs energy and entropy at 298.15 K,
+``\\Delta_f H^\\circ = \\Delta_f G^\\circ + T\\,(S^\\circ - \\sum_e \\nu_e S^\\circ_e)``,
+with the entropies ``S^\\circ_e`` of the elements of the base database. The
+article's enthalpies agree with it to 0.5 kJ/mol; those of its corrigendum
+differ by about 572 kJ/mol (`data/literature/Jin2023.json`), so neither is
+used: the database entry carries this one.
+"""
+function asr_enthalpy(z, base_path)
+    db = JSON.parsefile(base_path; dicttype = Dict{String, Any})
+    S_el = Dict(Symbol(e["symbol"]) => Float64(e["entropy"]["values"][1]) for e in db["elements"])
+    s = sum(Float64(n) * S_el[el] for (el, n) in parse_formula(z.formula) if el !== :Zz)
+    return z.ΔfG⁰ + 298.15 * (z.S⁰ - s) / 1000
+end
+
+"""
+    asr_logK_check(base_path) -> Vector{NamedTuple}
+
+For each ASR product of [`asr_records`](@ref), the published log Ksp at 25 °C
+and the one recomputed from its Gibbs energy through the aqueous species of the
+base database, as for the zeolites: their agreement within 0.05 log units shows
+the product shares the reference state of the base. The build refuses
+otherwise.
+"""
+function asr_logK_check(base_path)
+    db = JSON.parsefile(base_path; dicttype = Dict{String, Any})
+    G = Dict{String, Float64}()
+    for s in db["substances"]
+        v = get(get(s, "sm_gibbs_energy", Dict()), "values", nothing)
+        v === nothing || isempty(v) || (G[String(s["symbol"])] = Float64(v[1]))
+    end
+    RTln10 = R_GAS * 298.15 * log(10)
+    return map(asr_records()) do z
+        ΔrG = sum(ν * G[sp] for (sp, ν) in z.products) - z.ΔfG⁰ * 1000
+        recomputed = -ΔrG / RTln10
+        (; symbol = z.symbol, published = z.logKsp, recomputed, difference = recomputed - z.logKsp)
+    end
+end
+
+function _asr_entry(z, ΔfH⁰)
+    return Dict{String, Any}(
+        "name" => z.symbol,
+        "symbol" => z.symbol,
+        "formula" => z.formula,
+        "formula_charge" => 0,
+        "aggregate_state" => Dict("3" => "AS_CRYSTAL"),
+        "class_" => Dict("0" => "SC_COMPONENT"),
+        "Tst" => 298.15,
+        "Pst" => 100000,
+        "sm_gibbs_energy" => Dict("values" => [z.ΔfG⁰ * 1000]),
+        "sm_enthalpy" => Dict("values" => [ΔfH⁰ * 1000]),
+        "sm_entropy_abs" => Dict("values" => [z.S⁰]),
+        "sm_heat_capacity_p" => Dict("values" => [z.Cp⁰]),
+        "sm_volume" => Dict("values" => [z.V⁰ * _CM3_PER_MOL_TO_J_PER_BAR]),
+        "datasources" => [z.doi],
+        "asr_provenance" => Dict(
+            "doi" => z.doi,
+            "log_Ksp_298K" => z.logKsp,
+            "log_Ksp_error" => z.logKsp_err,
+            "dissolution_products" => z.products,
+            "enthalpy" => "dfG + T (S - sum of the element entropies of the base), at 298.15 K",
+            "enthalpy_article_kJ_mol" => z.ΔfH⁰_article,
+            "enthalpy_corrigendum_kJ_mol" => z.ΔfH⁰_corrigendum,
+            "corrigendum_doi" => z.corrigendum_doi,
+        ),
+    )
+end
+
+function _build_asr(base_path, out_path)
+    db = JSON.parsefile(base_path; dicttype = Dict{String, Any})
+    existing = Set(String(s["symbol"]) for s in db["substances"])
+    records = asr_records()
+    for z in records
+        z.symbol in existing && error("$(z.symbol) would overwrite a Cemdata18 substance; nothing built.")
+        _check_zeolite_balance(z)
+    end
+    check = asr_logK_check(base_path)
+    worst = maximum(abs(c.difference) for c in check)
+    worst > _ASR_LOGK_TOLERANCE && error(
+        "an ASR product's log Ksp recomputed through the base database differs from the published one " *
+            "by $(round(worst; digits = 3)) log units (tolerance $(_ASR_LOGK_TOLERANCE)). Nothing built.",
+    )
+    n_base = length(db["substances"])
+    append!(db["substances"], [_asr_entry(z, asr_enthalpy(z, base_path)) for z in records])
+    db["thermodataset"] = "cemdata18-asr"
+    db["asr_extension"] = Dict(
+        "base" => "cemdata18 (Lothenbach et al. 2019, doi:10.1016/j.cemconres.2018.04.018)",
+        "base_substances" => n_base,
+        "added_substances" => length(records),
+        "sources" => unique(vcat([z.doi for z in records], [z.corrigendum_doi for z in records])),
+        "verification" => Dict(
+            "method" => "log Ksp recomputed from the aqueous Gibbs energies of the base",
+            "tolerance_log_units" => _ASR_LOGK_TOLERANCE,
+            "worst_discrepancy_log_units" => worst,
+        ),
+        "note" => "The base entries are copied unchanged; nothing is overwritten. The enthalpy " *
+            "of each product is the one its Gibbs energy and entropy give; the published ones " *
+            "are kept in its provenance.",
+    )
+    return _write_json_atomically(out_path, db)
+end
+
 """
     DERIVED_DATABASES
 
 The databases ChemistryLab builds from a published one, by file name: the
-Cemdata18 zeolite extension, the Cemdata18 chloride extension, and Cemdata18 with
-the CASH+ model of C-S-H and its extension to the alkali and alkaline-earth
-metals.
+Cemdata18 zeolite extension, the Cemdata18 chloride extension, the Cemdata18
+extension to the products of the alkali-silica reaction, and Cemdata18 with the
+CASH+ model of C-S-H and its extension to the alkali and alkaline-earth metals.
 """
 const DERIVED_DATABASES = Dict(
     d.name => d for d in (
@@ -570,6 +715,12 @@ const DERIVED_DATABASES = Dict(
                 "the chloride end member of CSHQ fitted on Hirao et al. (2005), and Fe-Friedel's salt of the Cemdata18 paper",
                 ["chloride/cshq_cl.json", "literature/Lothenbach2019.json"],
                 _build_chloride,
+            ),
+            DerivedDatabase(
+                "cemdata18-asr.json", "cemdata18-thermofun.json",
+                "K- and Na-shlykovite, products of the alkali-silica reaction, of Jin et al. (2023)",
+                ["literature/Jin2023.json", "literature/Jin2024.json"],
+                _build_asr,
             ),
             DerivedDatabase(
                 "cemdata18-cashplus.json", "cemdata18-thermofun.json",

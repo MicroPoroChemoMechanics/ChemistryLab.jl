@@ -4,10 +4,10 @@
   "key": "Jin2023",
   "doi": "10.1016/j.cemconres.2023.107253",
   "citation": "Jin, H., Ghazizadeh, S., Provis, J. L. (2023). Assessment of the thermodynamics of Na,K-shlykovite as potential alkali-silica reaction products in the (Na,K)2O-CaO-SiO2-H2O system. Cement and Concrete Research 172, 107253.",
-  "location": "Section 2.2 and Eqs. (3)-(7) (pp. 2-3), Table 1 (p. 4)"
+  "location": "Section 2.2 and Eqs. (3)-(7) (pp. 2-3), Fig. 1 (p. 3), Table 1 (p. 4)"
  },
  "transcription": {
-  "from": "the published article (open-access PDF, CC BY): Table 1 from the text layer, checked against the rendered page; Eqs. (3)-(7) from the text",
+  "from": "the published article (open-access PDF, CC BY): Table 1 from the text layer, checked against the rendered page; Eqs. (3)-(7) from the text; the two refined values of Fig. 1 (a raster image) as printed beside its points, read on the rendered page",
   "checked_against_source": true,
   "note": "The PDF ends with the corrigendum of 2024 (Jin2024), which reprints Table 1 with other enthalpies; this file holds the original table, the corrigendum its own file."
  },
@@ -59,6 +59,22 @@
    "uncertainty": 2.0,
    "location": "Section 2.2, p. 2",
    "description": "The solubility product of Na-shlykovite at 80 C of Shi and Lothenbach (2019), quoted as above."
+  },
+  "log_K_80C_K_shlykovite_refined": {
+   "value": -28.3,
+   "unit": "1",
+   "kind": "estimated",
+   "uncertainty": 1.2,
+   "location": "Fig. 1, p. 3: the value printed beside the refined point at 80 C",
+   "description": "The solubility product of K-shlykovite at 80 C refined by the authors from the measurements of Shi and Lothenbach (2019) with the pH recalculated at 80 C (Section 3.1)."
+  },
+  "log_K_80C_Na_shlykovite_refined": {
+   "value": -30.8,
+   "unit": "1",
+   "kind": "estimated",
+   "uncertainty": 0.4,
+   "location": "Fig. 1, p. 3: the value printed beside the refined point at 80 C",
+   "description": "The solubility product of Na-shlykovite at 80 C refined as above."
   }
  },
  "tables": {

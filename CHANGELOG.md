@@ -24,6 +24,14 @@
   refused outside the glasses measured unless `extrapolate = true`, and with no
   activation energy assumed. `cation_molar_mass(oxides)` makes one mole of a
   `glass_species` one mole of its cations, the unit of such rates.
+- **The products of the alkali-silica reaction**, `cemdata18-asr.json`: Cemdata18
+  with K- and Na-shlykovite as Jin et al. (2023) estimate them, built on first use
+  like the zeolite extension. The build refuses unless their solubility products
+  at 25 °C recompute through the Cemdata18 aqueous species (they agree to 0.02);
+  at 80 °C the database gives back the values the authors refined. Each record
+  carries the enthalpy its Gibbs energy and entropy give: the article's agrees
+  with it to 0.5 kJ/mol, the corrigendum's (2024) is 572 kJ/mol higher with the
+  same Gibbs energy and entropy, and both are kept in its provenance.
 - **A page on the glasses of slag, fly ash and silica fume dissolving at pH 13**
   (`examples/glass_dissolution.md`, `scripts/snellings2013_glass.jl`): the
   composition law against the six glasses, and the effect of dissolved calcium

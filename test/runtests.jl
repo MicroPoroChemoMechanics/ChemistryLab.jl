@@ -67,6 +67,7 @@ end
     include("databases_remote.jl")
     include("literature.jl")
     include("zeolites.jl")
+    include("asr_extension.jl")
     include("cshq_chloride.jl")
     include("parsing_utils.jl")
     include("reactions.jl")
