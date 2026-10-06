@@ -693,6 +693,7 @@ cs = ChemicalSystem(
 | [`RedlichKisterModel`](@ref) | `ln aᵢ = ln xᵢ + ln γᵢ` (Margules) | Binary only (2 end-members), parameters in J/mol |
 | [`RegularSolutionModel`](@ref) | `ln γᵢ` from one `Wᵢⱼ` per pair | Any number of end-members; convexity from [`mixing_convexity`](@ref) |
 | [`SublatticeModel`](@ref) | `ln aᵢ = Σₛ mₛ ln y_{s,σₛ(i)}` | Ideal mixing on sites; CNASH_ss of [Myers2014](@citet), CSH3T of [Kulik2011](@citet) |
+| [`CompoundEnergyModel`](@ref) | ideal site mixing, plus the reference surface of the end-member energies and regular interactions on a site | The CASH+ C-S-H of [Kulik2022](@citet); needs the end-members' standard Gibbs energies |
 
 The solid-solution activity is computed **inside** the aqueous activity closure — no
 separate activity model is needed. The existing `equilibrate(state)` call handles

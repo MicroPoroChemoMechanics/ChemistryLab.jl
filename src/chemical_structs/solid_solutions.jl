@@ -899,15 +899,16 @@ binary solid solution.
 
 # What this does and does not settle
 
-Given `x̄`, everything above is exact and costs microseconds. **Obtaining `x̄`
-from a full aqueous equilibrium inside a gap is the part a minimization over two
-declared instances does not currently deliver**: the symmetric state is a
-stationary point, and the two-instance problem carries a near-null direction that
-more iterations make worse rather than better (measured: the element balance
-degrades from 1.5e-01 to 4.5e+00 between 200 and 5000 iterations).
+Given `x̄`, everything above is exact and costs microseconds. It does not
+compute `x̄`, the overall composition of the phase in a full aqueous equilibrium:
+the equilibrium does. When the element balance pins `x̄` inside the gap, a phase
+declared twice (`instances = 2`) separates onto the pair by itself; when nothing
+pins it, two instances started at one composition stay there, the symmetric
+state being stationary, and [`equilibrate_split`](@ref) or `instances = :auto`
+seeds the split.
 
-So read `x̄` as the overall composition you have — from a single-phase solve, from
-an analysis, or as a scan — and this as the exact answer for it.
+So read `x̄` as the overall composition you have — from a solve, from an
+analysis, or as a scan — and this as the exact answer for it.
 
 See also: [`common_tangent`](@ref), [`spinodal_interval`](@ref).
 """

@@ -320,11 +320,31 @@ when ``u_i = g_i``, absent when undersaturated — the classical phase-stability
 criterion.
 
 Two levels. The inner one inverts the **solutes'** mass-action laws at fixed
-potentials and fixed solvent amount; the outer is a Newton on ``1 + m + |P|``
-unknowns — the solvent, the `m` element potentials, and the amounts of the
-active phases. Parameterizing the solutes by ``\ln n_i`` makes their positivity
-automatic, which is what removes the fraction-to-boundary limit that caps the
-interior-point step at every iteration.
+potentials and fixed solvent amount; the outer is a Newton on
+``|\Phi| + m + |P|`` unknowns — the total of each mixing phase present
+(``\Phi``: the solvent of the aqueous phase, and each solid solution present),
+the `m` element potentials, and the amounts of the active pure phases ``P``; a
+constraint adds its own parameters. Parameterizing the solutes by ``\ln n_i``
+makes their positivity automatic, which is what removes the fraction-to-boundary
+limit that caps the interior-point step at every iteration.
+
+A solid solution is a mixing phase without a solvent. At given potentials its
+composition is explicit,
+
+```math
+x_i = \frac{\exp(u_i - g_i - \ln\gamma_i)}{\sum_j \exp(u_j - g_j - \ln\gamma_j)} ,
+```
+
+each end-member taking the larger share the cheaper it is against the potentials
+of its elements, and the phase is present exactly when
+``\sum_i \exp(u_i - g_i - \ln\gamma_i) = 1``, the equation its total adds to the
+outer level. Which solid solutions are present is therefore not an input: an
+absent one enters when that sum, measured with its activity coefficients at a
+trial composition — the tangent-plane distance of [Michelsen1982](@citet) — says
+it would lower the Gibbs energy, and leaves when its total vanishes, the number
+of present phases bounded by the phase rule. Where ``\gamma_i`` depends on the
+composition (non-ideal and sublattice models) the composition is a root, found
+by Newton's method at each step.
 
 For the Debye–Hückel, Davies and Truesdell–Jones models the inner level is one
 equation. Their activity coefficients depend on the composition through the

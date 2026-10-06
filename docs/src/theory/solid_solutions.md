@@ -333,7 +333,7 @@ sitting inside its own spinodal satisfies every first-order condition — its
 end-members are stationary, the element balance closes, nothing absent is
 supersaturated — so stationarity alone certifies a non-minimum.
 
-The test that separates them is Michelsen's: for a trial composition
+The test that separates them is Michelsen's [Michelsen1982](@cite): for a trial composition
 ``\hat{\mathbf{x}}`` of the phase, the **tangent-plane distance**
 
 ```math

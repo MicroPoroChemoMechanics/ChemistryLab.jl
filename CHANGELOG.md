@@ -43,6 +43,15 @@
   saturation ratio without the mineral's energy, wrong by
   `exp(ΔₐG⁰/RT)` of the mineral, without a word. The energies are now built on
   demand, as everywhere else in the package.
+- **Documentation that said less than the code does.** The docstring of
+  `miscibility_split` still said that a minimization over two declared instances
+  does not deliver the composition inside a gap, which `equilibrate_split` and
+  `instances = :auto` now do; the theory of the certifying solver counted its
+  unknowns without the totals of the solid solutions, and now also gives the
+  explicit composition of a solid solution at given potentials and the condition
+  under which it is present; the table of solid-solution models of the manual
+  lacked `CompoundEnergyModel`; and Michelsen's tangent-plane distance is now
+  cited where it is used (Michelsen 1982).
 
 ## v0.34.0 — Water to 1000 °C, surfaces of three charge planes, durability in zero dimensions
 
