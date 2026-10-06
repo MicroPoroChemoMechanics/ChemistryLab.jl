@@ -45,6 +45,35 @@ saturation index is shifted by ``-3`` decades relative to the pure phase. A trac
 component is *stabilized* by being diluted in a host, which is why a solid
 solution can take up an ion that would never precipitate as its own phase.
 
+### The curve, its tangent, and the plane of the rest of the system
+
+![Left: the Gibbs energy of an ideal binary solid solution below the line of its two end-members unmixed, and the tangent at one composition meeting the two edges at the chemical potentials of the end-members. Right: the plane the rest of the system imposes, against three curves of a solid solution: above it, absent; touching it, present; below it, the phase would form.](../assets/theory/solid_solution_tangent.svg)
+
+Per mole of phase, the Gibbs energy of a binary of end-members A and B is the
+straight line of the two end-members unmixed, ``(1-x)\,\mu_A^\circ + x\,\mu_B^\circ``,
+plus ``G^{\text{mix}}``, negative between the two: the curve lies below the line,
+and the same matter costs less mixed than apart (left panel). The tangent to the
+curve at a composition ``x^\ast`` meets the edges ``x = 0`` and ``x = 1`` at the
+chemical potentials of the two end-members in the phase, and it is through these
+potentials that the phase exchanges matter with the rest of the system.
+
+At equilibrium each element has one potential, shared by every phase, and those
+potentials give each end-member a potential ``u_i`` in units of ``RT``, which
+defines a plane over the compositions of the phase (right panel). A curve lying
+above that plane everywhere is the Gibbs energy of an absent phase, none of its
+compositions being as cheap as what the rest of the system already offers; a
+curve touching it is that of a present phase, at the composition of the contact;
+a curve dipping below it is that of a phase which would lower the Gibbs energy by
+forming, so that the state is not yet an equilibrium. With ``g_i = \mu_i^\circ/RT``,
+the phase is present exactly when ``\sum_i \exp(u_i - g_i - \ln\gamma_i) = 1``,
+which [the certifying solver](@ref sec-theory-certificate) uses as an equation.
+For ideal mixing ``\gamma_i = 1``, and ``\exp(u_i - g_i)`` is then the saturation
+ratio ``\Omega_i`` end-member ``i`` would have as a pure phase: an ideal solid
+solution forms as soon as ``\sum_i \Omega_i`` reaches one, while every
+``\Omega_i`` is still below one and no end-member would precipitate on its own.
+[Solid solutions in a calculation](@ref sec-tutorial-solid-solutions) reads these
+ratios on a C-S-H gel.
+
 ## 2. Non-ideal mixing: the excess Gibbs energy
 
 Real end-members interact. Everything beyond the ideal term is collected into
@@ -262,6 +291,13 @@ gives, and the energy follows the tangent line rather than the curve.
 The common tangent construction is wider than the spinodal: the *binodal*
 ``[x_\alpha, x_\beta]`` contains the spinodal, and between the two the phase is
 metastable rather than unstable. A minimization sees only the tangent.
+
+![Left: a Gibbs energy with two wells, the spinodal shaded between its inflection points, and the common tangent touching the curve at two compositions. Right: a composition inside the gap, which costs more as one phase than the same matter split into the two compositions of the tangent; the phase is then held twice, one instance at each.](../assets/theory/miscibility_gap_instances.svg)
+
+The right panel states the difficulty the rest of this section resolves: inside
+the gap the equilibrium holds the phase at two compositions at once, in the
+proportions of the lever rule, which a formulation carrying one amount per
+end-member has no means to express.
 
 ### Computing the pair: what PHREEQC does, and what it costs
 

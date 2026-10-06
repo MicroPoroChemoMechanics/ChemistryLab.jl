@@ -156,6 +156,9 @@ pages = [
     "Tutorials" => [
         "Equilibrium" => [
             "tutorials/equilibrium.md",
+            # Solid solutions as candidates: which are present, with which
+            # composition, what the user chooses, and how to read the certificate.
+            "tutorials/solid_solutions.md",
         ],
         # The kinetics calls the equilibrium solver, so it reads after it.
         "Kinetics and coupling" => [

@@ -346,6 +346,17 @@ of present phases bounded by the phase rule. Where ``\gamma_i`` depends on the
 composition (non-ideal and sublattice models) the composition is a root, found
 by Newton's method at each step.
 
+![A round of the certified solver: the unknowns are the element potentials, the total of each mixing phase and the amount of each pure phase present; the compositions of every phase follow from them; the element balances and the presence equations must hold, and Newton's method corrects the unknowns until they do; between rounds one absent phase is admitted or a vanished one released; at the end, the certificate.](../assets/theory/solver_round.svg)
+
+Absent phases are admitted one at a time between the rounds, the most
+supersaturated first, a pure phase on its saturation index and a mixing phase on
+its tangent-plane distance: admitting several at once feeds a cycle in which a
+phase is admitted, driven negative, released and admitted again. The search
+starts from the linear program obtained by setting every activity to one, solved
+over the pure phases, which also proves an impossible budget to be impossible;
+when the certificate refuses the answer, other starts follow, which
+[`equilibrate_certified`](@ref) lists.
+
 For the Debye–Hückel, Davies and Truesdell–Jones models the inner level is one
 equation. Their activity coefficients depend on the composition through the
 ionic strength alone, so at a given ``I`` every solute is explicit,
@@ -369,6 +380,8 @@ dipping toward zero without reaching it and crossing again only through the
 potentials hold no composition instead of iterating on them, and the outer
 level moves on the sweeps until they hold one again. Recovering the solutes one
 by one instead cycles where multivalent ions couple strongly through ``I``.
+
+![Left: a sketch of the function whose zero is the self-consistent ionic strength, at fixed potentials of the elements, crossing zero three times, the equilibrium under the balances on the middle root and a ceiling at four times the range of the model. Right: the rule that chooses the root.](../assets/theory/ionic_strength_roots.svg)
 
 SIT and Pitzer add terms in the molalities themselves, the ``\varepsilon(i,k)\,m_k``
 of the specific ion interaction and the pair and triplet sums of Pitzer, and no
