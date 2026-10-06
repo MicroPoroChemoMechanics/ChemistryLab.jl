@@ -282,6 +282,7 @@ pages = [
             "examples/leaching.md",
             "examples/sulfate_attack.md",
             "examples/seawater.md",
+            "examples/delayed_ettringite.md",
         ],
         # Beyond the Portland cement. One page per EN 197-1 family, in order of
         # how much of the clinker is replaced and of what the replacement asks

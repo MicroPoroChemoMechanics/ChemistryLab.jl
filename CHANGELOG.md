@@ -57,6 +57,14 @@
   zones of their sixteen-year core read from the surface inward; Cemdata18,
   with hydrotalcite allowed, moves the middle of it to four to sixteen times
   smaller volumes.
+- **Durability in zero dimensions: delayed ettringite formation** (the page
+  *Delayed ettringite formation: a CEM I 52.5 N HTS from 5 to 80 °C and back*,
+  `scripts/delayed_ettringite.jl`). The SRPC of Lothenbach et al. (2008) at 5,
+  20, 50 and 80 °C against the pore solutions Lothenbach et al. (2007)
+  measured: the sulfate rises with the temperature, as measured, from 13 to 30
+  times lower, and the alkalis are low. At 80 °C a third of the ettringite
+  gives way to monosulfate and comes back whole at 20 °C, ettringite being
+  declared to 60 °C only.
 - **`temperature_range`**: the temperatures over which a record of a ThermoFun
   database declares its heat capacity. Cemdata18 declares its AFm phases to
   50 °C, its ettringites to 60 °C and its clinker phases from 25 °C; nothing

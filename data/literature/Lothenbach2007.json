@@ -1,0 +1,1029 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Lothenbach2007",
+    "doi": "10.1016/j.cemconres.2006.11.016",
+    "citation": "Lothenbach, B., Winnefeld, F., Alder, C., Wieland, E., Lunk, P. (2007). Effect of temperature on the pore solution, microstructure and hydration products of Portland cement pastes. Cement and Concrete Research 37(4), 483-491.",
+    "location": "Section 2 and Table 1 (p. 484), Sections 3.2 and 4.1 (pp. 486-489), Table 2 (p. 487), Fig. 8 (p. 490)"
+  },
+  "transcription": {
+    "from": "the published article (PDF): Table 1 footnotes, Table 2 and the text read in the text layer and checked on the rendered pages; Fig. 8, a raster image (754 x 661 pixels), digitized at its native resolution",
+    "checked_against_source": true,
+    "note": "The cements are the SRPC (CEM I 52.5 N) and PLC (CEM II/A-LL 42.5 R) of Lothenbach et al. (2008), whose Table 1 (in Lothenbach2008.json: chemical_analysis, normative_phases) repeats this paper's Table 1; it is not transcribed again here. What this file adds is what Lothenbach2008.json does not hold: the sulfate carriers and the readily soluble alkalis of the Table 1 footnotes, the PLC alkali rows where the two papers differ, the measured TGA contents and phase observations, Table 2, and the pore solutions of Fig. 8 at 28 and 150 days. The early-age points of Fig. 8 (1 h to 1 day) and Figs. 1 to 4 (alite XRD peak heights, TGA curves, strengths) are not transcribed: they describe hydration kinetics, not the equilibrium against temperature."
+  },
+  "quantities": {
+    "water_cement_ratio_srpc_paste": {
+      "value": 0.4,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "captions of Figs. 1, 2, 6 and 8",
+      "description": "Water/cement ratio of the SRPC pastes (1 kg of cement per batch, cast in sealed 0.5 l PE bottles) whose solids and pore solutions were analyzed at 5, 20 and 50 C."
+    },
+    "water_cement_ratio_plc_paste": {
+      "value": 0.5,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "caption of Fig. 4, p. 486",
+      "description": "Water/cement ratio of the PLC pastes analyzed by TGA and XRD after 28 days at 5, 20, 30 and 40 C (the PLC mortars and concretes were at 0.58)."
+    },
+    "preconditioning_time": {
+      "value": 2,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2, p. 484",
+      "description": "Water, cement and aggregates were stored this long at the curing temperature before mixing."
+    },
+    "al_so3_molar_ratio_plc": {
+      "value": 2.8,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 489",
+      "description": "Molar Al/SO3 ratio of the PLC (mol/mol), printed '2.8 mol/mol'."
+    },
+    "al_so3_molar_ratio_srpc": {
+      "value": 1.9,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 489",
+      "description": "Molar Al/SO3 ratio of the SRPC (mol/mol), printed '1.9 mol/mol'."
+    },
+    "monosulfate_observed_temperature_srpc": {
+      "value": 50,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 3.2.2, p. 487, and Fig. 6",
+      "description": "Curing temperature, degrees Celsius, at which monosulfate (XRD, TGA/DTG, EDX of platelets) was found in the 150-day SRPC paste, formed at the expense of ettringite and monocarbonate; it was not found at 5 and 20 C. No temperature between 20 and 50 C was tested on the SRPC."
+    }
+  },
+  "tables": {
+    "sulfate_carriers": {
+      "columns": [
+        "cement",
+        "phase",
+        "percent"
+      ],
+      "units": [
+        null,
+        null,
+        "1"
+      ],
+      "kind": "measured",
+      "location": "Table 1, footnote b, p. 484: the calcium sulfate of the normative composition (CaSO4 row: PLC 3.0, SRPC 3.6 g/100 g), split by phase, g/100 g of cement",
+      "rows": [
+        [
+          "SRPC",
+          "anhydrite",
+          1.5
+        ],
+        [
+          "SRPC",
+          "hemihydrate",
+          1.1
+        ],
+        [
+          "SRPC",
+          "gypsum",
+          1.3
+        ],
+        [
+          "PLC",
+          "anhydrite",
+          0.7
+        ],
+        [
+          "PLC",
+          "gypsum",
+          2.9
+        ]
+      ]
+    },
+    "readily_soluble_alkalis": {
+      "columns": [
+        "cement",
+        "oxide",
+        "percent"
+      ],
+      "units": [
+        null,
+        null,
+        "1"
+      ],
+      "kind": "measured",
+      "location": "Table 1, 'Readily soluble alkalis', p. 484, g/100 g of cement; SRPC: from the alkalis measured after 5 min agitation at w/c 10; PLC: estimated from the alkali content and Taylor's (1987) distribution (footnote c)",
+      "rows": [
+        [
+          "PLC",
+          "K2O",
+          0.75
+        ],
+        [
+          "PLC",
+          "Na2O",
+          0.13
+        ],
+        [
+          "SRPC",
+          "K2O",
+          0.08
+        ],
+        [
+          "SRPC",
+          "Na2O",
+          0.04
+        ]
+      ]
+    },
+    "plc_alkali_normative_rows": {
+      "columns": [
+        "phase",
+        "percent"
+      ],
+      "units": [
+        null,
+        "1"
+      ],
+      "kind": "published",
+      "location": "Table 1, normative phase composition, PLC column, p. 484, g/100 g; only the four rows that differ from Table 1 of Lothenbach et al. (2008)",
+      "rows": [
+        [
+          "K2SO4",
+          1.4
+        ],
+        [
+          "Na2SO4",
+          0.29
+        ],
+        [
+          "K2O in clinker phases",
+          0.08
+        ],
+        [
+          "Na2O in clinker phases",
+          0.15
+        ]
+      ]
+    },
+    "tga_contents": {
+      "columns": [
+        "cement",
+        "age_d",
+        "temperatures_C",
+        "quantity",
+        "low",
+        "high",
+        "wording"
+      ],
+      "units": [
+        null,
+        "d",
+        null,
+        null,
+        "1",
+        "1",
+        null
+      ],
+      "kind": "measured",
+      "location": "Sections 3.2.1 and 3.2.2, pp. 486-487: contents from TGA, in wt.% of the paste dried at 40 C (the paper's 'wt.%'); low = high when the paper gives a value and a +/- range, which is in the wording",
+      "rows": [
+        [
+          "PLC",
+          28,
+          "5, 20, 30, 40",
+          "ettringite",
+          11,
+          17,
+          "ettringite (14+-3 wt.%)"
+        ],
+        [
+          "PLC",
+          28,
+          "5, 20, 30, 40",
+          "portlandite",
+          14,
+          16,
+          "portlandite (15+-1 wt.%)"
+        ],
+        [
+          "PLC",
+          28,
+          "5, 20, 30, 40",
+          "calcite",
+          12,
+          14,
+          "13+-1 wt.% calcite"
+        ],
+        [
+          "PLC",
+          28,
+          "5, 20, 30, 40",
+          "chemically bound water (40-500 C)",
+          16,
+          17,
+          "16-17 wt.%, similar at all temperatures"
+        ],
+        [
+          "PLC",
+          28,
+          "40",
+          "ettringite, difference to lower temperatures",
+          -3,
+          -1,
+          "At 40 C, ... 1-3 wt.% less ettringite"
+        ],
+        [
+          "SRPC",
+          150,
+          "5, 20, 50",
+          "portlandite",
+          17,
+          19,
+          "17-19 wt.%; no clear dependence on temperature"
+        ],
+        [
+          "SRPC",
+          150,
+          "5, 20, 50",
+          "calcite",
+          2,
+          3,
+          "2-3 wt.%"
+        ],
+        [
+          "SRPC",
+          150,
+          "5, 20, 50",
+          "chemically bound water (40-500 C)",
+          14,
+          17,
+          "14-17 wt.%, comparable at 5, 20 and 50 C"
+        ]
+      ]
+    },
+    "phase_observations": {
+      "columns": [
+        "cement",
+        "age_d",
+        "temperature_C",
+        "phase",
+        "observation"
+      ],
+      "units": [
+        null,
+        "d",
+        "1",
+        null,
+        null
+      ],
+      "kind": "measured",
+      "location": "Sections 3.2.1, 3.2.2 and 4.2, pp. 486-489, Figs. 4 and 6 (XRD and TGA/DTG); the observations as the text states them, qualitative",
+      "rows": [
+        [
+          "PLC",
+          28,
+          5,
+          "ettringite",
+          "present"
+        ],
+        [
+          "PLC",
+          28,
+          5,
+          "monocarbonate",
+          "present"
+        ],
+        [
+          "PLC",
+          28,
+          5,
+          "portlandite",
+          "present"
+        ],
+        [
+          "PLC",
+          28,
+          5,
+          "calcite",
+          "present"
+        ],
+        [
+          "PLC",
+          28,
+          5,
+          "hydrotalcite",
+          "traces"
+        ],
+        [
+          "PLC",
+          28,
+          5,
+          "belite",
+          "present"
+        ],
+        [
+          "PLC",
+          28,
+          20,
+          "ettringite",
+          "present"
+        ],
+        [
+          "PLC",
+          28,
+          20,
+          "monocarbonate",
+          "present"
+        ],
+        [
+          "PLC",
+          28,
+          30,
+          "ettringite",
+          "present"
+        ],
+        [
+          "PLC",
+          28,
+          30,
+          "monocarbonate",
+          "present"
+        ],
+        [
+          "PLC",
+          28,
+          40,
+          "ettringite",
+          "present, 1-3 wt.% less than at 5 C"
+        ],
+        [
+          "PLC",
+          28,
+          40,
+          "monocarbonate",
+          "present, less than at 5 C"
+        ],
+        [
+          "PLC",
+          28,
+          40,
+          "calcite",
+          "slightly more than at 5 C"
+        ],
+        [
+          "PLC",
+          28,
+          40,
+          "portlandite",
+          "slightly more than at 5 C"
+        ],
+        [
+          "PLC",
+          28,
+          40,
+          "belite",
+          "less than at 5 C"
+        ],
+        [
+          "SRPC",
+          150,
+          5,
+          "ettringite",
+          "present"
+        ],
+        [
+          "SRPC",
+          150,
+          5,
+          "monocarbonate",
+          "traces"
+        ],
+        [
+          "SRPC",
+          150,
+          5,
+          "portlandite",
+          "present"
+        ],
+        [
+          "SRPC",
+          150,
+          5,
+          "calcite",
+          "present"
+        ],
+        [
+          "SRPC",
+          150,
+          5,
+          "belite",
+          "present, more than at 20 and 50 C"
+        ],
+        [
+          "SRPC",
+          150,
+          5,
+          "alite",
+          "traces"
+        ],
+        [
+          "SRPC",
+          150,
+          5,
+          "monosulfate",
+          "not detected"
+        ],
+        [
+          "SRPC",
+          150,
+          20,
+          "ettringite",
+          "present"
+        ],
+        [
+          "SRPC",
+          150,
+          20,
+          "monocarbonate",
+          "traces"
+        ],
+        [
+          "SRPC",
+          150,
+          20,
+          "monosulfate",
+          "not detected"
+        ],
+        [
+          "SRPC",
+          150,
+          50,
+          "ettringite",
+          "present, less than at 5 and 20 C"
+        ],
+        [
+          "SRPC",
+          150,
+          50,
+          "monocarbonate",
+          "less than at 5 and 20 C"
+        ],
+        [
+          "SRPC",
+          150,
+          50,
+          "monosulfate",
+          "formed at the expense of ettringite and monocarbonate"
+        ],
+        [
+          "SRPC",
+          150,
+          50,
+          "portlandite",
+          "present, no clear dependence on temperature"
+        ],
+        [
+          "SRPC",
+          150,
+          50,
+          "calcite",
+          "present"
+        ]
+      ]
+    },
+    "inner_csh_and_porosity": {
+      "columns": [
+        "cement",
+        "age_d",
+        "temperature_C",
+        "Ca_Si",
+        "Ca_Si_sd",
+        "Al_Ca",
+        "Al_Ca_sd",
+        "S_Ca",
+        "S_Ca_sd",
+        "coarse_porosity",
+        "coarse_porosity_sd"
+      ],
+      "units": [
+        null,
+        "d",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "kind": "measured",
+      "location": "Table 2, p. 487: mean atomic ratios of the inner C-S-H by EDX, and the coarse porosity (pores > 0.5 um) from BSE image analysis in vol.%, standard deviations in parentheses; PLC samples are the mortars at 91 days",
+      "rows": [
+        [
+          "PLC",
+          91,
+          5,
+          1.62,
+          0.08,
+          0.17,
+          0.04,
+          0.048,
+          0.018,
+          9,
+          3
+        ],
+        [
+          "PLC",
+          91,
+          20,
+          1.66,
+          0.17,
+          0.1,
+          0.05,
+          0.037,
+          0.009,
+          12,
+          3
+        ],
+        [
+          "PLC",
+          91,
+          40,
+          1.72,
+          0.16,
+          0.09,
+          0.04,
+          0.043,
+          0.015,
+          17,
+          2
+        ],
+        [
+          "SRPC",
+          150,
+          5,
+          1.56,
+          0.14,
+          0.08,
+          0.02,
+          0.037,
+          0.013,
+          11,
+          1
+        ],
+        [
+          "SRPC",
+          150,
+          20,
+          1.52,
+          0.1,
+          0.07,
+          0.02,
+          0.033,
+          0.011,
+          12,
+          1
+        ],
+        [
+          "SRPC",
+          150,
+          50,
+          1.59,
+          0.16,
+          0.07,
+          0.02,
+          0.032,
+          0.009,
+          14,
+          2
+        ]
+      ]
+    },
+    "pore_solution_srpc": {
+      "columns": [
+        "element",
+        "temperature_C",
+        "age_d",
+        "concentration",
+        "uncertainty",
+        "marker"
+      ],
+      "units": [
+        null,
+        "1",
+        "d",
+        "mol/L",
+        "mol/L",
+        null
+      ],
+      "kind": "measured",
+      "location": "Fig. 8, p. 490: pore solutions of the SRPC paste (w/c 0.4) pressed out at 28 and 150 days, cured at 5, 20 and 50 C; total concentrations by ICP-OES except OH-, the free concentration from a pH electrode calibrated against KOH solutions; 'SO4' is the series the figure labels 'Sulphate' (Section 2: S by ICP-OES and sulfate by ion chromatography agreed within +-20 %)",
+      "digitization": {
+        "method": "raster image",
+        "tool": "each marker located on the native-resolution image (754 x 661 pixels) from the vertical extent of its dark and grey pixels, its center taken at the middle of that extent; mapped through the decade tick marks of each panel (pixel rows 10/100/189/279 for 1 to 0.001 mol/l in the OH-/Ca panel, 10/77.5/144/212/279 for 1 to 0.0001 in the Na/sulfate panel, 347/436.5/525/615 for the K (1 to 0.001) and Si (0.01 to 0.00001) axes, 345/399/453 and 54 pixels per decade for the Al/Fe panel from 1E-4 to 1E-9)",
+        "uncertainty": null,
+        "note": "A fully visible marker is read to +-1.5 pixel, a marker partly hidden by another (its center inferred from one vertex and the marker height, 12-14 pixels) to +-3 pixels; the uncertainty column converts that into concentration (4 to 14 %). The x positions of the late markers (pixel 253 and 292 in the first panel) map to 28 and 147 days. Markers wholly hidden by another of the same series are not given a value: hidden_markers lists them; the paper states that after 150 days the concentrations are similar at 5, 20 and 50 C except sulfate, Al and Fe."
+      },
+      "rows": [
+        [
+          "OH-",
+          20,
+          28,
+          0.17,
+          0.014,
+          "partly hidden"
+        ],
+        [
+          "OH-",
+          50,
+          28,
+          0.22,
+          0.0087,
+          "visible"
+        ],
+        [
+          "OH-",
+          5,
+          150,
+          0.16,
+          0.013,
+          "partly hidden"
+        ],
+        [
+          "OH-",
+          50,
+          150,
+          0.19,
+          0.015,
+          "partly hidden"
+        ],
+        [
+          "Na",
+          20,
+          28,
+          0.12,
+          0.013,
+          "partly hidden"
+        ],
+        [
+          "Na",
+          50,
+          28,
+          0.18,
+          0.0094,
+          "visible"
+        ],
+        [
+          "Na",
+          5,
+          150,
+          0.14,
+          0.015,
+          "partly hidden; the 5 and 20 C markers overlap"
+        ],
+        [
+          "Na",
+          20,
+          150,
+          0.14,
+          0.015,
+          "partly hidden; the 5 and 20 C markers overlap"
+        ],
+        [
+          "Na",
+          50,
+          150,
+          0.17,
+          0.0092,
+          "visible"
+        ],
+        [
+          "K",
+          20,
+          28,
+          0.1,
+          0.0081,
+          "partly hidden"
+        ],
+        [
+          "K",
+          50,
+          28,
+          0.12,
+          0.0046,
+          "visible"
+        ],
+        [
+          "K",
+          5,
+          150,
+          0.14,
+          0.011,
+          "partly hidden; the 5 and 20 C markers overlap"
+        ],
+        [
+          "K",
+          20,
+          150,
+          0.14,
+          0.011,
+          "partly hidden; the 5 and 20 C markers overlap"
+        ],
+        [
+          "K",
+          50,
+          150,
+          0.13,
+          0.01,
+          "partly hidden"
+        ],
+        [
+          "Ca",
+          5,
+          28,
+          0.0046,
+          0.00018,
+          "visible"
+        ],
+        [
+          "Ca",
+          20,
+          28,
+          0.0033,
+          0.00027,
+          "partly hidden"
+        ],
+        [
+          "Ca",
+          50,
+          28,
+          0.0034,
+          0.00027,
+          "partly hidden"
+        ],
+        [
+          "Ca",
+          50,
+          150,
+          0.0032,
+          0.00013,
+          "visible"
+        ],
+        [
+          "SO4",
+          5,
+          28,
+          0.00064,
+          3.3e-05,
+          "visible"
+        ],
+        [
+          "SO4",
+          20,
+          28,
+          0.0012,
+          6.3e-05,
+          "visible"
+        ],
+        [
+          "SO4",
+          50,
+          28,
+          0.014,
+          0.00074,
+          "visible"
+        ],
+        [
+          "SO4",
+          5,
+          150,
+          0.00085,
+          4.5e-05,
+          "visible"
+        ],
+        [
+          "SO4",
+          20,
+          150,
+          0.0022,
+          0.00012,
+          "visible"
+        ],
+        [
+          "SO4",
+          50,
+          150,
+          0.013,
+          0.00069,
+          "visible"
+        ],
+        [
+          "Al",
+          5,
+          28,
+          2.9e-05,
+          1.9e-06,
+          "visible"
+        ],
+        [
+          "Al",
+          50,
+          28,
+          2.2e-05,
+          1.4e-06,
+          "visible"
+        ],
+        [
+          "Al",
+          5,
+          150,
+          3.9e-05,
+          2.6e-06,
+          "visible"
+        ],
+        [
+          "Al",
+          50,
+          150,
+          2.3e-05,
+          1.5e-06,
+          "visible"
+        ],
+        [
+          "Si",
+          5,
+          28,
+          5.1e-05,
+          4.1e-06,
+          "partly hidden"
+        ],
+        [
+          "Si",
+          20,
+          28,
+          4.5e-05,
+          3.6e-06,
+          "partly hidden"
+        ],
+        [
+          "Si",
+          50,
+          28,
+          3.6e-05,
+          1.4e-06,
+          "visible"
+        ],
+        [
+          "Si",
+          5,
+          150,
+          6.1e-05,
+          4.9e-06,
+          "partly hidden"
+        ],
+        [
+          "Si",
+          20,
+          150,
+          8.7e-05,
+          3.4e-06,
+          "visible"
+        ],
+        [
+          "Si",
+          50,
+          150,
+          5.7e-05,
+          2.2e-06,
+          "visible"
+        ],
+        [
+          "Fe",
+          5,
+          28,
+          4e-07,
+          2.6e-08,
+          "visible"
+        ],
+        [
+          "Fe",
+          20,
+          28,
+          3.2e-07,
+          4.4e-08,
+          "partly hidden"
+        ],
+        [
+          "Fe",
+          50,
+          28,
+          2.8e-08,
+          1.8e-09,
+          "visible"
+        ],
+        [
+          "Fe",
+          5,
+          150,
+          2.5e-07,
+          1.7e-08,
+          "visible"
+        ],
+        [
+          "Fe",
+          20,
+          150,
+          1.6e-07,
+          2.2e-08,
+          "partly hidden"
+        ],
+        [
+          "Fe",
+          50,
+          150,
+          6.3e-09,
+          4.1e-10,
+          "visible"
+        ]
+      ]
+    },
+    "pore_solution_hidden_markers": {
+      "columns": [
+        "element",
+        "temperature_C",
+        "age_d",
+        "reason"
+      ],
+      "units": [
+        null,
+        "1",
+        "d",
+        null
+      ],
+      "kind": "measured",
+      "location": "Fig. 8, p. 490: markers of the 28- and 150-day columns that another marker covers entirely, so that no value can be read",
+      "rows": [
+        [
+          "OH-",
+          5,
+          28,
+          "hidden behind the 20 C marker"
+        ],
+        [
+          "OH-",
+          20,
+          150,
+          "hidden behind the 50 C marker"
+        ],
+        [
+          "Ca",
+          20,
+          150,
+          "hidden behind the 50 C marker"
+        ],
+        [
+          "Ca",
+          5,
+          150,
+          "hidden behind the 50 C marker"
+        ],
+        [
+          "Na",
+          5,
+          28,
+          "hidden behind the 20 C marker"
+        ],
+        [
+          "K",
+          5,
+          28,
+          "hidden behind the 20 and 50 C markers"
+        ],
+        [
+          "Al",
+          20,
+          28,
+          "hidden between the 5 and 50 C markers"
+        ],
+        [
+          "Al",
+          20,
+          150,
+          "hidden behind the 50 C marker"
+        ]
+      ]
+    }
+  },
+  "notes": [
+    "Table 1 of this paper and Table 1 of Lothenbach et al. (2008) give the same SRPC column. For the PLC they differ in the alkali rows of the normative composition: 2007 prints K2SO4 1.4, Na2SO4 0.29, K2O 0.08 and Na2O 0.15 g/100 g where 2008 prints 1.1, 0.23, 0.25 and 0.18 (plc_alkali_normative_rows holds the 2007 values). The 2007 Table 1 also lists 'CaO 1.7 / 0.45' in the normative composition, the free lime of the chemical analysis.",
+    "The calculated hydrate assemblage against temperature (SRPC and PLC at 150 days, 0 to 60 C) is in Lothenbach et al. (2008), Figs. 5 and 6, already transcribed in Lothenbach2008.json (hydrate_volumes, transition_temperature 48 C, range 42-54 C); this paper has no calculation.",
+    "Section 3.3: the higher sulfate at 50 C is attributed to the increase of ettringite solubility with temperature and to the precipitation of monosulfate instead of ettringite; the paper adds that the sulfate concentration and pH of the pore solution, and not only the temperature, decide between ettringite and monosulfate.",
+    "The SRPC pastes were not cooled back after curing at 50 C: there is no measurement of a reversal (ettringite re-forming), which is the delayed-ettringite step proper."
+  ]
+}
