@@ -59,7 +59,7 @@ written in the slag's own degree of reaction cannot see.
 ## 2. The cement alone
 
 The plain paste, integrated over the 1018 days of the last bound-water
-measurement. The rate law of Parrott and Killoh carries its own water/cement
+measurement. The rate law of [ParrottKilloh1984](@citet) carries its own water/cement
 factor ([`pk_wc_factor`](@ref)), which slows a phase once its degree passes
 `1.333 w/c`, here 0.67.
 

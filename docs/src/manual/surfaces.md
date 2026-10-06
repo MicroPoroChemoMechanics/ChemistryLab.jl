@@ -401,8 +401,8 @@ its host the value enters the host's own energy. [`host_coupling_bias`](@ref)
 reads, in log units of the host's solubility, how far the declaration is from
 zero, and a family above `0.05` is refused with the value to use. Giving the free
 site the energy of the matter it carries, `μ°(H₂O) − μ°(H⁺) = −237.2 kJ/mol`
-for `XwOH`, would count that energy twice: at Dzombak and Morel's weak-site
-density, `ν = 0.2`, it is worth 8.3 log units.
+for `XwOH`, would count that energy twice: at the weak-site density of
+[DzombakMorel1990](@citet), `ν = 0.2`, it is worth 8.3 log units.
 
 The **free site is neutral**, and the host's formula contains `ν` free sites'
 worth of every element; either failing is refused by name. The primary of the

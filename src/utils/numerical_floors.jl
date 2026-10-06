@@ -33,12 +33,12 @@ of binder, H⁺ at pH 13.5 to 14 is 1e-16 mol, at the floor: its activity no lon
 followed its amount, a solve left it at 3e-100 mol, and a pH read from the amount
 came out 0.09 high.
 
-The other codes floor far lower, and one argument recurs. Leal, Kulik, Smith and
-Saar (2017, Pure Appl. Chem. 89, 597, doi:10.1515/pac-2016-1107) recall that in
-an interior-point minimization an unstable species ends at an amount of the
-order of the barrier parameter, and that Leal, Kulik and Kosakowski (2016)
-recommended it below 1e-25 so that such a species holds less than one molecule
-(1/N_A = 1.66e-24 mol) in a system of one mole. GEMS3K takes that same molecule as
+The other codes floor far lower, and one argument recurs. [Leal2017](@citet)
+recall that in an interior-point minimization an unstable species ends at an
+amount of the order of the barrier parameter, and that
+[LealKulikKosakowski2016](@citet) recommended it below 1e-25 so that such a
+species holds less than one molecule (1/N_A = 1.66e-24 mol) in a system of one
+mole. GEMS3K takes that same molecule as
 the least amount it considers (`lowPosNum`, 1.66e-24 mol) and eliminates a
 solution species below `DcMin = 1e-30` mol (`ms_multi.h`). PHREEQC sets a molality
 to zero below `MIN_LM = −30` in log (`global_structures.h`). Reaktoro bounds every

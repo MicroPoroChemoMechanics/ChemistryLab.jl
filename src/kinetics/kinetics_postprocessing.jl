@@ -571,7 +571,7 @@ nor the continuation proved: the full certified search of
 `equilibrate_certified`, its start from the linear program, its ideal starts and
 its restarts, on the instant's budget `b`, from `start` in the partition system
 `sub`. The first instant has no certified neighbor to walk from, and on a slag
-paste (Gruyaert et al. 2010, at 2 and 7 days) neither start certified it: the
+paste [Gruyaert2010](@cite), at 2 and 7 days, neither start certified it: the
 interior-point composition the replay then fell back to had a pH of 15.3, where
 the full search certifies 12.82 at once from the linear program.
 
@@ -743,7 +743,7 @@ Cumulative heat `Q` [J] and heat rate `q̇` [W] released along the trajectory, f
 the **certified** speciations at `times`.
 
 `Q(t) = H(t₀) − H(t)` with `H = Σᵢ nᵢ ΔₐH⁰ᵢ(T)`, which is Eq. (17)–(21) of
-Lavergne et al. (2018): enthalpy is a state function, so its drop between two
+[Lavergne2018](@citet): enthalpy is a state function, so its drop between two
 states at the same temperature is the heat given off, with reactants, ions and
 hydrates each counted once and no reaction stoichiometry to write down. Pass
 `reference` to measure from a state other than the first. Pass `states` when the

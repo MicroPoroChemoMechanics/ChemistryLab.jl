@@ -288,7 +288,7 @@ what a single-composition answer cannot reproduce at any resolution.
     independently from the same KKT conditions — its phase stability index
     ``\Lambda_k = \log_{10}\Omega_k`` is term for term what `phase_split_measure`
     computes [Kulik2013](@cite). The *construction* of the pair is PHREEQC's,
-    after Glynn & Reardon. Neither this package nor the others invented either.
+    after [GlynnReardon1990](@citet). Neither this package nor the others invented either.
 
     What differs is only where the duplication comes from. GEM-Selektor's users
     get the right answer inside a gap because CEMDATA18 ships the AFm and AFt
@@ -412,8 +412,8 @@ Sections 1 to 4 mix **end-members**. In a C-S-H the entities that actually mix
 are smaller: a few structural positions of the silicate chain and of the
 interlayer, each held by one species or another. An end-member is then one
 particular filling of those positions, and mixing is random on each position
-separately. That is the model of Kulik (2011) for CSH3T and of Myers et al.
-(2014) for the CNASH gel, and it is what [`SublatticeModel`](@ref) implements.
+separately. That is the model of [Kulik2011](@citet) for CSH3T and of
+[Myers2014](@citet) for the CNASH gel, and it is what [`SublatticeModel`](@ref) implements.
 
 **The model.** A formula unit has sites ``s``, site ``s`` counted ``m_s`` times,
 and end-member ``k`` puts the species ``\sigma_s(k)`` on site ``s``. The fraction
@@ -435,8 +435,8 @@ returns for this model.
 
 **CSH3T.** Two bridging-tetrahedral sites hold either Si or Ca. TobH puts Si on
 both, T2C puts Ca on both, and the ordered T5C puts Ca on the first and Si on the
-second (Kulik 2011, Eq. 19). The Cemdata18 records are half Kulik's formula
-units, so on them each site counts one half:
+second [Kulik2011; Eq. 19](@cite). The Cemdata18 records are half of its
+formula units, so on them each site counts one half:
 
 ```@example sublattice
 using ChemistryLab
@@ -518,7 +518,7 @@ reciprocal reaction
 ```
 
 leaves every site fraction unchanged, yet its standard Gibbs energy is not zero.
-The compound energy formalism, in which Kulik et al. write the model, gives such
+The compound energy formalism, in which [Kulik2022](@citet) write the model, gives such
 a reaction its energy. [`CompoundEnergyModel`](@ref) implements it.
 
 **The Gibbs energy.** The end-members must be every *compound* of the sites, each
@@ -630,7 +630,7 @@ xp = [y[1][o[1, j]] * y[2][o[2, j]] for j in 1:6]          # the product split
 ```
 
 All three are at the rounding of the arithmetic. The model and its data are
-in `data/literature/Kulik2022.json`, the sodium and potassium of Miron et al.
+in `data/literature/Kulik2022.json`, the sodium and potassium of
 [Miron2022a, Miron2022b](@citet) in `Miron2022a.json` and `Miron2022b.json`, and the
 twelve end-members in the database `cemdata18-cashplus.json`.
 [The CASH+ page](@ref ex-cashplus-csh) computes the C-S-H in water and in alkali
@@ -685,7 +685,7 @@ positive definite at the answer, and `:kkt_point` otherwise.
 Two different things can make one end-member the mixture of two others in
 composition. In an **ordered** member the difference of Gibbs energy is the point:
 the pentameric T5C of CSH3T is the average of TobH and T2C less an ordering
-energy (Kulik 2011, Eq. 18), and the siliceous hydrogarnet
+energy [Kulik2011; Eq. 18](@cite), and the siliceous hydrogarnet
 C3AS0.41H5.18 lies between C3AH6 and C3AS0.84H4.32. When the Gibbs energy is
 the average as well, the phase holds one substance twice, once as a member and
 once as a mixture of two, and ideal mixing counts its configurations twice.

@@ -1,5 +1,98 @@
 # Changelog
 
+## v0.33.0 — Real gases and pressure
+
+A gas may now follow the equation of state of Peng and Robinson (1976): its
+activity gains the fugacity coefficient, its phase occupies `Z N R T/P`, and a
+mixture mixes by the van der Waals rules. The solvent of the ThermoFun databases
+is compressible, as the equation of state of water says. Carbon dioxide
+dissolved in water from 12 to 40 °C and 25 to 500 atm (Wiebe and Gaddy 1940) is
+reproduced to 3.0 % on average with nothing fitted, where the ideal gas
+dissolved up to 5.6 times the measurement. Nothing moves at 1 bar: the 32
+cement pastes of a thesis print the same numbers as 0.32.2, in the same time.
+Every reference of the documentation is now a link, and the theory of kinetics
+under partial equilibrium starts from the stoichiometric matrix.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.32"` does not accept 0.33 and
+  has to widen its bound.
+- **Results at a pressure other than 1 bar move.** The standard state of the
+  solvent of the ThermoFun databases follows the equation of state of water
+  instead of a constant volume: its Gibbs energy at 500 bar and 25 °C is 10 J/mol
+  lower than before, and its volume 2.2 % smaller. Nothing changes at 1 bar.
+- **Three names are exported**: `peng_robinson`, `fugacity_coefficients` and
+  `compressibility_factor`. A package defining the same names alongside
+  `using ChemistryLab` now sees a conflict.
+
+### Added
+
+- **Real gases** (`peng_robinson`): a gas given its critical temperature,
+  critical pressure and acentric factor, or those PHREEQC ships in
+  `phreeqc.dat` (now transcribed in `data/literature/ParkhurstAppelo2013.json`),
+  follows the equation of state of Peng and Robinson (1976). Its activity gains
+  the fugacity coefficient, `ln aᵢ = ln yᵢ + ln φᵢ + ln(P/P°)`, in every
+  activity model; a mixture mixes by the van der Waals rules with binary
+  parameters `kij`; the gas phase occupies `Z N R T/P`, in the state and under a
+  prescribed volume. Until now every gas was ideal, so a gas at 50 bar and 25 °C
+  dissolved 1.35 times too much carbon dioxide (`φ = 0.74`): the new tests show
+  the dissolved amount moving by exactly `φ`. A gas alone keeps the proof of a
+  global minimum, its energy being linear in its amount; a mixture of real gases
+  is certified as a local minimum, since it can split into two fluids. The
+  constants `Ω_a` and `Ω_b` are the exact roots of the critical conditions, of
+  which the paper prints five decimals: rounded, they would move the critical
+  point of the equation by 0.01 in `Z`.
+- **Carbon dioxide in water under pressure, against Wiebe and Gaddy (1940)**
+  (the page *Carbon dioxide in water under pressure*,
+  `scripts/wiebe_gaddy1940_co2.jl`): their 42 solubilities from 12 to 40 °C
+  and 25 to 500 atm, transcribed from Table I read on the scan and checked
+  point by point against the mole fractions Spycher et al. (2003) derive from
+  them. With nothing fitted, the real gas reproduces them to 3.0 % on average,
+  7.3 % at worst, through the jump to liquid carbon dioxide below 31 °C; the
+  ideal gas dissolves from 12 % too much to 5.6 times the measurement. The page
+  separates the four terms of the logarithm of the molality, the Henry
+  constant, the pressure, the fugacity coefficient and the partial molar volume
+  of the solute, and says where the remaining few percent lie.
+- **The theory of real gases and of pressure** (the page *Real gases and
+  pressure*): the fugacity coefficient and its identities, the equation of
+  Peng and Robinson with its exact critical constants, the choice of the root,
+  the mixing rules, what the equilibrium solver sees of a real gas, and the
+  pressure terms of the condensed species and of the solvent; the syntax in the
+  manual (*Gases under pressure*).
+
+### Changed
+
+- **The solvent is compressible.** The standard state of the solvent of the
+  ThermoFun databases now moves with pressure as the equation of state of water
+  of Haar, Gallagher and Kell has it, its volume at 1 bar staying the one its
+  record tabulates: `V(T, P) = V⁰ ρ(T, P°)/ρ(T, P)`, and the Gibbs energy, the
+  enthalpy, the entropy and the heat capacity gain the terms of that one
+  equation, by automatic differentiation. Its volume was held constant before,
+  which overstated it by 1.1 % at 250 bar and its Gibbs energy by 10 J/mol at
+  500 bar. Nothing moves at 1 bar, to the bit, nor in cost: there the terms are
+  not evaluated.
+
+### Documentation
+
+- **Every reference is a link.** The pages and the docstrings named some
+  authors in plain text, Dzombak and Morel on the page of the diffuse layer of
+  hydrous ferric oxide among them; each mention of a publication is now a
+  citation into the bibliography, in some 150 places. Four references the
+  docstrings named and the bibliography lacked were added after checking them on
+  Crossref (Shock et al. 1992, Johnson and Norton 1991, Leal, Kulik and
+  Kosakowski 2016, Guggenheim 1937), and the steam tables of Haar, Gallagher and
+  Kell (1984) against library catalogs. The humidity factor attributed to
+  "Parrott et al., as used by van Breugel" stays without a link: neither source
+  is identified precisely enough to cite.
+- **Kinetics under partial equilibrium starts from the stoichiometric matrix**,
+  after Leal et al.: the formula matrix over the elements and its rank, the
+  primary species as a basis of its columns and the change of basis to the
+  conservation matrix, the reactions as its null space, then the partition
+  that exchanges elements between the kinetic and the equilibrium species, with
+  two diagrams and small executed examples on the carbonate system and on
+  calcite.
+
 ## v0.32.2 — The C-S-H models of a blend, in time and against syntheses
 
 The C-S-H models a blended cement may be computed with are compared where they

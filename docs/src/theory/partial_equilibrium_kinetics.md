@@ -23,14 +23,223 @@ the paste has reached its stable equilibrium: they are minima of ``G`` on the
 compositions the slow reactions have made accessible, as [Metastable does not
 mean a local minimum of G](@ref sec-theory-metastable) explains.
 
-The package advances such a system in two ways, which answer two questions.
-Sections 1 to 3 write the differential system of [Leal2015](@citet), whose
-right-hand side holds the minimization and whose Jacobian is exact; Section 4
+Section 1 sets out the matrix every later equation is written with, the
+stoichiometric matrix, over the elements and over the primary species. The
+package then advances such a system in two ways, which answer two questions.
+Sections 2 to 4 write the differential system of [Leal2015](@citet), whose
+right-hand side holds the minimization and whose Jacobian is exact; Section 5
 the implicit step of [Leal2017](@citet), where the step itself is one
-minimization; Section 5 extends the first to the energy balance of a
+minimization; Section 6 extends the first to the energy balance of a
 calorimeter.
 
-## [1. The partition, and why the state carries element amounts](@id sec-theory-pe-partition)
+## [1. The stoichiometric matrix](@id sec-theory-pe-matrix)
+
+Everything below rests on one matrix: what each species is made of. The
+partition, the state of the integration and the reactions it advances are all
+written with it, and the two ways of writing it, over the elements or over a
+few chosen species, are the source of the one error a kinetic scheme makes most
+easily, a budget kept in one basis and spent in the other.
+
+```@raw html
+<figure style="margin: 1.2em 0; text-align: center;">
+<svg viewBox="0 0 860 250" width="100%" style="max-width: 860px; font-family: inherit;" role="img" aria-label="From the formulas of the species to their reactions">
+  <defs>
+    <marker id="pe-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g fill="none" stroke="currentColor" stroke-width="1.4">
+    <rect x="10" y="40" width="185" height="150" rx="10" fill="rgba(70,130,180,0.12)"/>
+    <rect x="230" y="40" width="185" height="150" rx="10" fill="rgba(70,130,180,0.12)"/>
+    <rect x="450" y="40" width="185" height="150" rx="10" fill="rgba(46,139,87,0.14)"/>
+    <rect x="670" y="40" width="180" height="150" rx="10" fill="rgba(205,133,63,0.16)"/>
+    <line x1="195" y1="115" x2="228" y2="115" marker-end="url(#pe-arrow)"/>
+    <line x1="415" y1="115" x2="448" y2="115" marker-end="url(#pe-arrow)"/>
+    <line x1="635" y1="115" x2="668" y2="115" marker-end="url(#pe-arrow)"/>
+  </g>
+  <g fill="currentColor" font-size="14" text-anchor="middle">
+    <text x="102" y="30" font-weight="bold">formulas</text>
+    <text x="322" y="30" font-weight="bold">over the elements</text>
+    <text x="542" y="30" font-weight="bold">over the primaries</text>
+    <text x="760" y="30" font-weight="bold">reactions</text>
+    <text x="102" y="75">N species,</text>
+    <text x="102" y="97">each a column of</text>
+    <text x="102" y="119">atom counts and</text>
+    <text x="102" y="141">its charge</text>
+    <text x="322" y="75" font-style="italic">W</text>
+    <text x="322" y="97">E + 1 rows, N columns</text>
+    <text x="322" y="119">b = W n</text>
+    <text x="322" y="141">rank C ≤ E + 1</text>
+    <text x="322" y="168" font-size="12">a dependent row is redundant</text>
+    <text x="542" y="75">C independent columns:</text>
+    <text x="542" y="97">the primary species</text>
+    <text x="542" y="125" font-style="italic">A = [ I  |  ν̂ᵀ ]</text>
+    <text x="542" y="150">W = W<tspan baseline-shift="sub" font-size="10">P</tspan> A</text>
+    <text x="542" y="172" font-size="12">coordinates in the basis</text>
+    <text x="760" y="75">the null space of A,</text>
+    <text x="760" y="97">dimension M = N − C</text>
+    <text x="760" y="125" font-style="italic">ν = [ −ν̂  |  I ]</text>
+    <text x="760" y="150">A νᵀ = 0</text>
+    <text x="760" y="172" font-size="12">one per secondary species</text>
+    <text x="430" y="228" font-size="13">The columns are ordered primaries first; ν̂ holds the coordinates of each secondary species on the primaries.</text>
+  </g>
+</svg>
+</figure>
+```
+
+### Over the elements
+
+A species is a column of numbers, the atoms of each element in its formula and
+its charge. Placed side by side, the columns of the ``N`` species of a system
+form its **formula matrix** ``\mathbf{W}``, with one row per element and one for
+the charge, `Zz` in the package, and the amounts of the elements in a
+composition ``\mathbf{n}`` are
+
+```math
+\mathbf{b} = \mathbf{W}\,\mathbf{n} ,
+```
+
+the balance every equilibrium and every reaction conserves
+[Leal2017](@cite). The carbonate system, water with dissolved carbon dioxide and
+its ions, is the smallest one that shows everything that follows:
+
+```@example pe_matrix
+using ChemistryLab, LinearAlgebra
+
+aq(f, c = SC_AQSOLUTE) = Species(f; aggregate_state = AS_AQUEOUS, class = c)
+H2O = aq("H2O", SC_AQSOLVENT)
+Hp, OHm, CO2, HCO3m, CO3mm = aq("H+"), aq("OH-"), aq("CO2"), aq("HCO3-"), aq("CO3-2")
+carbonate = [H2O, Hp, OHm, CO2, HCO3m, CO3mm]
+W = CanonicalStoichMatrix(carbonate)
+pprint(W; label = :symbol)
+```
+
+Four rows, six columns, and yet only three of the rows are independent:
+
+```@example pe_matrix
+println("rank W = ", rank(Float64.(W.A)))
+```
+
+The fourth row is a combination of the other three. Weighting the hydrogen by
+``+1``, the oxygen by ``-2`` and the carbon by ``+4``, their oxidation numbers,
+gives the charge of every species, so the rows satisfy
+``\mathrm{H} - 2\,\mathrm{O} + 4\,\mathrm{C} - \mathrm{Z} = 0``, and conserving
+three of the four quantities conserves the fourth. That is the statement that no
+electron changes hands between these species, which
+[Oxidation state](@ref theory-redox) turns into a test. A minimization over all four
+rows would carry a constraint that adds nothing and a matrix that is not of full
+rank; the rank, not the number of elements, counts the independent balances.
+
+### Primary species: a basis of the columns
+
+Linear algebra says more. The ``N`` columns of ``\mathbf{W}`` live in a space of
+dimension ``C = \operatorname{rank}\mathbf{W}``, the space of the compositions
+the system can express, and any ``C`` of them that are linearly independent are a
+**basis** of it. The species of such a basis are the **primary species**; the
+``N - C`` others are the **secondary species**. Being a basis, the primary
+columns decompose every other column in exactly one way,
+
+```math
+\mathbf{w}_s = \sum_{p} \hat\nu_{sp}\,\mathbf{w}_p ,
+```
+
+and each decomposition is a balanced reaction, the formation of the secondary
+species ``s`` from the primaries, ``\sum_p \hat\nu_{sp}\,\mathrm{P}_p \rightleftharpoons
+\mathrm{S}_s``. The coefficients ``\hat\nu_{sp}`` form the **canonical
+stoichiometric matrix** ``\hat{\boldsymbol\nu}``, one row per secondary species.
+
+The same decomposition rewrites the whole formula matrix. With ``\mathbf{W}_P``
+the columns of the primaries, ``\mathbf{W} = \mathbf{W}_P\,\mathbf{A}``, where the
+column ``i`` of ``\mathbf{A}`` holds the coordinates of species ``i`` in the
+basis: a unit vector for a primary, ``\hat{\boldsymbol\nu}`` for a secondary.
+Ordering the primaries first,
+
+```math
+\mathbf{A} = \begin{bmatrix} \mathbf{I}_C & \hat{\boldsymbol\nu}^\mathsf{T} \end{bmatrix},
+\qquad
+\mathbf{W}\,\mathbf{n} = \mathbf{W}_P\,(\mathbf{A}\,\mathbf{n}) .
+```
+
+``\mathbf{A}`` is the **conservation matrix over the primaries**, `SM.A` in the
+package, of ``C`` rows, all independent. Since ``\mathbf{W}_P`` has independent
+columns, ``\mathbf{W}\mathbf{n} = \mathbf{W}\mathbf{n}'`` holds exactly when
+``\mathbf{A}\mathbf{n} = \mathbf{A}\mathbf{n}'``: the two matrices state the same
+conservation, ``\mathbf{A}`` with no redundant row, and the budget over the
+primaries ``\mathbf{b}_A = \mathbf{A}\mathbf{n}`` is the budget over the elements
+written in another basis, ``\mathbf{b} = \mathbf{W}_P\,\mathbf{b}_A``. With water,
+the proton and dissolved carbon dioxide as primaries:
+
+```@example pe_matrix
+SM = StoichMatrix(carbonate, [H2O, Hp, CO2])
+pprint(SM; label = :symbol)
+```
+
+The column of the carbonate ion reads ``\mathrm{CO_3^{2-}} = \mathrm{CO_2} +
+\mathrm{H_2O} - 2\,\mathrm{H^+}``: a negative coordinate is no difficulty, the
+decomposition being one of vectors, not of matter. The basis is a choice, and
+another one gives other coordinates for the same species,
+
+```@example pe_matrix
+pprint(StoichMatrix(carbonate, [H2O, Hp, HCO3m]); label = :symbol)
+```
+
+while the budgets it describes are the same compositions:
+
+```@example pe_matrix
+# mol, in the order of `carbonate`; the proton balances the anions
+n = [55.5, 1e-4 + 1e-10 + 2e-9, 1e-10, 1e-2, 1e-4, 1e-9]
+A₁ = Float64.(SM.A)
+A₂ = Float64.(StoichMatrix(carbonate, [H2O, Hp, HCO3m]).A)
+println("over H₂O, H⁺, CO₂:   b = ", round.(A₁ * n; digits = 6))
+println("over H₂O, H⁺, HCO₃⁻: b = ", round.(A₂ * n; digits = 6))
+println("over the elements:  b = ", round.(Float64.(W.A) * n; digits = 6))
+```
+
+Three budgets, one composition. In the first basis the row of the proton is the
+row of the charge, so its coordinate is the charge of the solution, zero here,
+and it would be negative for a solution holding a base: a coordinate, not an
+amount. Which basis is chosen changes the numbers, not the constraints; what it
+may not do is change in the middle of a calculation. The package uses the primaries of
+the system throughout, a choice made once ([Formation from primary
+species](@ref sec-theory-primaries) for the energies that go with it).
+
+### Reactions: the null space
+
+A reaction is a vector of coefficients ``\boldsymbol\nu``, negative for what it
+consumes and positive for what it produces, and it is balanced when it conserves
+every component, ``\mathbf{A}\boldsymbol\nu = \mathbf{0}``. The balanced reactions
+are therefore the **null space** of ``\mathbf{A}``, of dimension
+``M = N - C``: there are as many independent reactions as secondary species,
+and the canonical reactions are a basis of them. Stacked as rows, they form the
+**stoichiometric matrix** ``\boldsymbol\nu`` of ``M`` rows and ``N`` columns,
+
+```math
+\boldsymbol\nu = \begin{bmatrix} -\hat{\boldsymbol\nu} & \mathbf{I}_M \end{bmatrix},
+\qquad
+\mathbf{A}\,\boldsymbol\nu^\mathsf{T}
+= \begin{bmatrix} \mathbf{I}_C & \hat{\boldsymbol\nu}^\mathsf{T} \end{bmatrix}
+  \begin{bmatrix} -\hat{\boldsymbol\nu}^\mathsf{T} \\ \mathbf{I}_M \end{bmatrix}
+= \mathbf{0} ,
+```
+
+and any other balanced reaction is a combination of these. A minimization of the
+Gibbs energy needs no list of reactions at all: it moves ``\mathbf{n}`` within
+this null space, which ``\mathbf{A}\mathbf{n} = \mathbf{b}`` defines
+([Proving that an answer is the answer](@ref sec-theory-certificate)). A kinetic
+scheme needs some, the slow ones, and writes them in the same way.
+
+```@example pe_matrix
+for r in reactions(SM)
+    println(r.equation)
+end
+```
+
+```@example pe_matrix
+ν = [r[s] for r in reactions(SM), s in carbonate]     # one row per reaction, r[s] < 0 for a reactant
+println("A νᵀ = 0: ", iszero(SM.A * transpose(ν)))
+```
+
+## [2. The partition, and why the state carries element amounts](@id sec-theory-pe-partition)
 
 The species are split into a **kinetic partition**, of amounts
 ``\mathbf{n}_k``, the phases whose transformation a rate law controls, and an
@@ -63,13 +272,87 @@ fast reaction conserves ``\mathbf{b}_e`` by construction, only the kinetic
 reactions move it, and the minimizer, not the caller, distributes it over a
 feasible composition.
 
+```@raw html
+<figure style="margin: 1.2em 0; text-align: center;">
+<svg viewBox="0 0 860 300" width="100%" style="max-width: 860px; font-family: inherit;" role="img" aria-label="The kinetic and the equilibrium partitions exchanging elements">
+  <defs>
+    <marker id="pe-arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g fill="none" stroke="currentColor" stroke-width="1.4">
+    <rect x="15" y="40" width="300" height="190" rx="12" fill="rgba(205,133,63,0.16)"/>
+    <rect x="545" y="40" width="300" height="190" rx="12" fill="rgba(70,130,180,0.12)"/>
+    <line x1="318" y1="110" x2="542" y2="110" marker-end="url(#pe-arrow2)"/>
+    <line x1="542" y1="160" x2="318" y2="160" marker-end="url(#pe-arrow2)" stroke-dasharray="5 4"/>
+  </g>
+  <g fill="currentColor" font-size="14" text-anchor="middle">
+    <text x="165" y="30" font-weight="bold">kinetic partition</text>
+    <text x="695" y="30" font-weight="bold">equilibrium partition</text>
+    <text x="165" y="75" font-style="italic">n<tspan baseline-shift="sub" font-size="10">k</tspan></text>
+    <text x="165" y="100">the minerals a rate law holds:</text>
+    <text x="165" y="122">clinker phases, glasses, calcite</text>
+    <text x="165" y="158">dn<tspan baseline-shift="sub" font-size="10">k</tspan>/dt = ν<tspan baseline-shift="sub" font-size="10">k</tspan>ᵀ r</text>
+    <text x="165" y="195" font-size="12">integrated by the ODE solver</text>
+    <text x="695" y="75" font-style="italic">n<tspan baseline-shift="sub" font-size="10">e</tspan> = φ(b<tspan baseline-shift="sub" font-size="10">e</tspan>, T)</text>
+    <text x="695" y="100">the solution, the hydrates,</text>
+    <text x="695" y="122">solid solutions, surface sites</text>
+    <text x="695" y="158">min G  subject to  A<tspan baseline-shift="sub" font-size="10">e</tspan> n = b<tspan baseline-shift="sub" font-size="10">e</tspan></text>
+    <text x="695" y="195" font-size="12">solved at every evaluation</text>
+    <text x="430" y="100" font-size="13">elements released by the rates r</text>
+    <text x="430" y="182" font-size="13">composition read by the rates</text>
+    <text x="430" y="268" font-size="14">state  u = (b<tspan baseline-shift="sub" font-size="10">e</tspan>, n<tspan baseline-shift="sub" font-size="10">k</tspan>, ξ),   db<tspan baseline-shift="sub" font-size="10">e</tspan>/dt = A<tspan baseline-shift="sub" font-size="10">e</tspan> ν<tspan baseline-shift="sub" font-size="10">e</tspan>ᵀ r = −A<tspan baseline-shift="sub" font-size="10">k</tspan> ν<tspan baseline-shift="sub" font-size="10">k</tspan>ᵀ r</text>
+  </g>
+</svg>
+</figure>
+```
+
+On calcite dissolving in the carbonate solution, calcite alone is kinetic. Its
+canonical reaction on the primaries is its formation; turned so that calcite
+carries ``-1``, it is its dissolution, which consumes two protons, so that the
+equilibrium partition receives the calcium, the carbon and the oxygen of the
+calcite and gives up two protons per mole dissolved:
+
+```@example pe_matrix
+Cal = Species("CaCO3"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
+Cap = aq("Ca+2")
+species = [carbonate; Cap; Cal]
+SMc = StoichMatrix(species, [H2O, Hp, CO2, Cap])
+formation = only(r for r in reactions(SMc) if r[Cal] != 0)
+println(formation.equation)
+ν = [formation[s] for s in species]
+ν = ν ./ -ν[end]                                        # the dissolution: calcite carries −1
+e, k = 1:7, 8:8                                         # the two partitions
+show(b) = join(("$(symbol(p)) $(x)" for (p, x) in zip(SMc.primaries, b)), ",  ")
+println("A_e ν_eᵀ  = ", show(SMc.A[:, e] * ν[e]))      # per mole dissolved
+println("−A_k ν_kᵀ = ", show(-SMc.A[:, k] * ν[k]))
+```
+
+The budget moves by the calcite's column, the two expressions are one, and no
+amount of any equilibrium species is touched: the minimization decides where the
+released calcium and carbon go. Advancing the amounts themselves instead would
+remove two protons per mole from a solution that holds almost none. In a cement
+paste at pH 13 a liter holds ``10^{-13}`` mol of them:
+
+```@example pe_matrix
+n_H = 1e-13                                             # mol of H⁺ in the solution
+ξ = 1e-3                                                # mol of calcite dissolved
+println("H⁺ advanced along the reaction: ", round(n_H + ν[2] * ξ; sigdigits = 3), " mol")
+```
+
+The coordinate of the budget on the proton may well be negative, it is a
+coordinate; the amounts the minimization returns for it are not, the protons
+"consumed" being taken from the hydroxide and the water, as the equilibrium
+says.
+
 Three properties of the construction follow, each of which an implementation can
 get wrong while conserving matter:
 
 - **``\mathbf{A}_e`` is the matrix the minimization is posed on.** The formula
   matrix over the elements and the matrix over the primary species of the system
-  are different matrices; a budget built in one basis and a minimization posed
-  in the other is infeasible at every step. The equilibrium sub-system inherits
+  are different matrices, the same conservation in two bases (§1); a budget
+  built in one basis and a minimization posed in the other is infeasible at
+  every step. The equilibrium sub-system inherits
   the primary species of the parent system, so that ``\mathbf{b}_e``, its
   derivative and the minimization share one basis.
 - **The minimization runs over the equilibrium partition only.** Posed on the
@@ -84,7 +367,7 @@ get wrong while conserving matter:
   aqueous speciation; an adsorption slow enough to need a rate law is another
   model, declared by naming its species as kinetic.
 
-## [2. The state and the right-hand side](@id sec-theory-pe-rhs)
+## [3. The state and the right-hand side](@id sec-theory-pe-rhs)
 
 The state is
 
@@ -146,9 +429,9 @@ trajectory that reaches amounts the system cannot hold is returned as a failure
 rather than a success.
 
 A semi-adiabatic calorimeter takes the second route whatever its laws read: its
-temperature is solved with the partition (Section 5).
+temperature is solved with the partition (Section 6).
 
-## [3. The Jacobian](@id sec-theory-pe-jacobian)
+## [4. The Jacobian](@id sec-theory-pe-jacobian)
 
 A stiff method needs ``\mathbf{J} = \partial\mathbf{f}/\partial\mathbf{u}``.
 Applying the chain rule to the rates gives [Leal2015; Eqs. 2.34–2.35](@cite)
@@ -191,9 +474,9 @@ exact to first order, which is all a Rosenbrock method or the Newton iteration o
 a BDF method requires, and it holds the derivative of the partition rather than
 the zero a partition frozen within a step would contribute.
 
-## [4. The implicit step](@id sec-theory-implicit-step)
+## [5. The implicit step](@id sec-theory-implicit-step)
 
-The differential system of Sections 2 and 3 lets the integrator choose the step.
+The differential system of Sections 3 and 4 lets the integrator choose the step.
 The implicit step of [Leal2017](@citet) makes the step itself one minimization,
 in which the extents are unknowns beside the amounts:
 
@@ -271,7 +554,7 @@ is otherwise removed by the active-set rule, after which nothing enforces its
 reactivity row). The problem being convex, the certificate decides between the
 candidates exactly.
 
-## [5. The calorimeters](@id sec-theory-pe-calorimeters)
+## [6. The calorimeters](@id sec-theory-pe-calorimeters)
 
 The enthalpy of the paste is the sum of the standard enthalpies of its species,
 
@@ -362,7 +645,7 @@ derivatives of the temperature the Jacobian needs,
 \frac{\partial\mathcal{R}}{\partial\,\Delta H} = -1,
 ```
 
-and the package obtains them, as in Section 3, by a single correction lifted
+and the package obtains them, as in Section 4, by a single correction lifted
 into the dual numbers of the state, ``T \leftarrow T^\star - \bigl(\mathcal{R}(\mathbf{u},
 T^\star) - \mathcal{R}^\star\bigr)/C_{\rm eq}``, which keeps the value ``T^\star``
 at which the partition was solved. The partition at the state is then lifted in
@@ -404,7 +687,7 @@ integrates the temperature, and an isothermal cell the heat
 enthalpy ``\Delta_r H_j^\circ`` is computed from the enthalpies of formation of the
 participants, so that a reaction must be balanced for its heat to mean anything.
 
-## [6. What is checked](@id sec-theory-pe-checks)
+## [7. What is checked](@id sec-theory-pe-checks)
 
 The formulation is held to identities that a route sharing nothing with it
 computes:
@@ -436,7 +719,7 @@ computes:
   explicit Runge–Kutta method integrate the same temperature, to ``10^{-5}`` K,
   with losses through the walls equal to ``-\Delta H``.
 
-## [7. Limits](@id sec-theory-pe-limits)
+## [8. Limits](@id sec-theory-pe-limits)
 
 - The excess enthalpies of the activity models are not in ``H``, whereas the
   minimization carries the temperature dependence of the activity coefficients;

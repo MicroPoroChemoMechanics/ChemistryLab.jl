@@ -10,7 +10,7 @@ using SciMLBase
 """
     struct KineticsProblem{CS, CAL, ES, AM}
 
-Encapsulates a kinetics simulation following Leal et al. (2017).
+Encapsulates a kinetics simulation following [Leal2017](@citet).
 
 The ODE state vector `u` is structured as:
   - Without re-speciation: `u = [nₖ₁, …, nₖ_K, ξ₁, …, ξ_M, [T | Q]]`
@@ -765,7 +765,7 @@ rise at 207 K where the test gives some tens of kelvin.
 The enthalpy of the whole system has no such blind spot. It is a state function,
 so the heat released between two states at the same temperature is their
 difference — reactants, ions and hydrates all counted once, with no reaction
-stoichiometry to write down. This is Eq. (17)–(21) of Lavergne et al. (2018).
+stoichiometry to write down. This is [Lavergne2018; Eqs. 17–21](@citet).
 """
 function system_enthalpy(p, u, T)
     # The kinetic amounts are read from the ODE state, NOT from `p.n_full`.
@@ -1033,7 +1033,7 @@ re-equilibrates the equilibrium partition under the element amounts the ODE has
 just produced.
 
 The element amounts `bₑ` carried by the state vector are the constraint of that
-sub-problem (Leal et al. 2017, Eq. 54). `solve` conserves `A·n`, so what has to
+sub-problem [Leal2017; Eq. 54](@cite). `solve` conserves `A·n`, so what has to
 be handed to it is a composition whose element totals are exactly `bₑ` — here
 the previous speciation, projected onto `bₑ` through the pseudo-inverse of
 `Aₑ`. Handing over `p.n_full` unchanged, as an earlier version did, discards
@@ -1663,7 +1663,7 @@ end
 """
     build_kinetics_ode(kp::KineticsProblem) -> Function
 
-Build the ODE right-hand-side `f!(du, u, p, t)` implementing Leal et al. (2017).
+Build the ODE right-hand-side `f!(du, u, p, t)` implementing [Leal2017](@citet).
 
 State layout:
   - `u[1:n_be]`                    = bₑ (element amounts in equilibrium partition)
@@ -1675,7 +1675,7 @@ State layout:
                                      `SemiAdiabaticCalorimeter`, Q with an
                                      `IsothermalCalorimeter`; absent without one
 
-ODE equations (Leal 2017, Eq. 66):
+ODE equations [Leal2017; Eq. 66](@cite):
   - `dnₖ/dt = νₖᵀ r`
   - `dbₑ/dt = Aₑ νₑᵀ r`
   - `dξ/dt  = r`

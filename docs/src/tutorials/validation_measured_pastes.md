@@ -49,7 +49,7 @@ end
 
 ## 2. How much has reacted
 
-Each clinker phase dissolves by the rate law of Parrott and Killoh, with the
+Each clinker phase dissolves by the rate law of [ParrottKilloh1984](@citet), with the
 parameters of Table 4 and the correction the paper applies for the water/cement
 ratio: past a degree of hydration of 1.333 w/c, the rate is multiplied by
 ``(1 + 4.444\,w/c - 3.333\,\alpha)^4``, which slows the reaction as the water

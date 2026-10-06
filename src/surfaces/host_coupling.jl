@@ -241,7 +241,7 @@ species, read from `data/literature/Kulik2002.json`.
 
 An intrinsic adsorption constant is not a property of a surface alone: it is
 fitted at some **total site density** `Γ_C`, and the value depends on that
-choice. Dzombak and Morel fitted their hydrous-ferric-oxide constants at two
+choice. [DzombakMorel1990](@citet) fitted their hydrous-ferric-oxide constants at two
 site densities, one for the weak sites and one for the strong, a factor of forty
 apart, so two of their own constants are not directly comparable with each
 other, let alone with a constant from another compilation.
@@ -296,8 +296,9 @@ the surface literature quotes a site density.
 
 # Example
 
-Dzombak and Morel's own two densities, which is the case Kulik uses to make
-the point that their weak and strong constants are not on one scale:
+The two densities of [DzombakMorel1990](@citet), the case [Kulik2002](@citet)
+uses to make the point that their weak and strong constants are not on one
+scale:
 
 ```jldoctest
 julia> using ChemistryLab

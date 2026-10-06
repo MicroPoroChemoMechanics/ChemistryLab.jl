@@ -410,6 +410,8 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
     idx_solutes = cs.idx_solutes
     idx_gas = cs.idx_gas
     has_gas = !isempty(idx_gas)
+    # The mixing model of the gas phase: ideal, or an equation of state.
+    gas_mix = _gas_mixing(cs)
     # The solid solutions and the site families, prepared once; see `_MixingTerms`.
     mix = _MixingTerms(cs)
 
@@ -674,7 +676,7 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
         φ = 1 + 2 * acc / (Σm + ϵ)
         out[idx_solvent] = -M_w * Σm * φ
 
-        has_gas && _gas_lna!(out, _n, idx_gas, p)
+        has_gas && _gas_lna!(out, _n, idx_gas, p, gas_mix)
         # Solid solutions and surface sites mix on budgets of their own; leaving
         # either out would give its members unit activity, silently.
         _mixing_lna!(out, _n, mix, p, ϵ)

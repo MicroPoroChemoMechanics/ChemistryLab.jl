@@ -196,8 +196,8 @@ diffusion-controlled stage. The original authors acknowledged both.
     this one in the package (the two are set side by side in
     [the tutorial](@ref pk-variants)) — `min(max(r_{NG}, r_I), r_D)` with a damped
     nucleation term — and its `PK_PARAMS_*` are not transferable to the
-    canonical law. It is deprecated and **the attribution to Parrott & Killoh
-    was withdrawn** rather than repaired: its nucleation term carries no Avrami
+    canonical law. It is deprecated and **the attribution to
+    [ParrottKilloh1984](@citet) was withdrawn** rather than repaired: its nucleation term carries no Avrami
     logarithm, its shell coefficient sits in the diffusion expression, and no
     published set matches its parameters. The primary source is a conference
     proceedings without a DOI that could not be consulted, so the honest action
@@ -388,8 +388,8 @@ refilled from the bath in one case and not in the other.
 
 | quantity | where it comes from |
 |:--|:--|
-| `PK84_PARAMS_*` | Parrott & Killoh (1984) as reported by [Lothenbach2008, Lavergne2018](@citet) |
-| `WALLER_PARAMS_*` | Waller (1999), as used by [Lavergne2018](@citet) |
+| `PK84_PARAMS_*` | [ParrottKilloh1984](@citet) as reported by [Lothenbach2008, Lavergne2018](@citet) |
+| `WALLER_PARAMS_*` | [Waller1999](@citet), as used by [Lavergne2018](@citet) |
 | the dissolution rate constants and their exponents | [PalandriKharaka2004](@citet) |
 | `blaine_ref` 385 / 400 m²/kg | the finenesses those fits were made at |
 | the 0.80 humidity cut and its exponent | Parrott et al., as used by van Breugel |

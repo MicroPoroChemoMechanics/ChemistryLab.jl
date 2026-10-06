@@ -13,7 +13,7 @@ Base type for calorimeter models that can be coupled to a kinetics simulation.
 
 Concrete subtypes:
 - [`IsothermalCalorimeter`](@ref): T = constant, the heat Q(t) released to the bath.
-- [`SemiAdiabaticCalorimeter`](@ref): variable-T cell (Lavergne et al. 2018).
+- [`SemiAdiabaticCalorimeter`](@ref): variable-T cell [Lavergne2018](@cite).
 
 Under partial equilibrium both balance the enthalpy of the whole composition,
 the state carrying the change of the enthalpy of the cell; see the theory page
@@ -158,7 +158,7 @@ end
 """
     struct SemiAdiabaticCalorimeter{C, T, F} <: AbstractCalorimeter
 
-Semi-adiabatic calorimeter following the Lavergne et al. (2018) energy balance.
+Semi-adiabatic calorimeter following the energy balance of [Lavergne2018](@citet).
 When the kinetic reactions produce the hydrates, the temperature is integrated,
 
 ```math
@@ -221,8 +221,7 @@ t, qdot  = heat_flow(sol, cal)
 
 # References
 
-  - Lavergne, F., Ben Fraj, A., Bayane, I. & Barthélémy, J.-F. (2018).
-    *Cement and Concrete Research* **104**, 37–60.
+  - [Lavergne2018](@citet).
 """
 struct SemiAdiabaticCalorimeter{C, T, F} <: AbstractCalorimeter
     Cp::C       # heat capacity [J/K]
@@ -275,7 +274,7 @@ end
 Append `dT/dt = (q̇ − φ(ΔT)) / Cp_total(T, n)` to the ODE right-hand side.
 
 `Cp_total = Cp + Σᵢ nᵢ Cp°ᵢ(T)` is recomputed at every ODE step
-from `p.cp_fns` and `p.n_full` (Lavergne et al. 2018).
+from `p.cp_fns` and `p.n_full` [Lavergne2018](@cite).
 """
 function extend_ode!(du, u, p, n_kin::Int, cal::SemiAdiabaticCalorimeter)
     T_curr = u[n_kin + 1]

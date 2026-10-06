@@ -953,6 +953,18 @@ function _certificate_scope(des::DualEquilibriumSolver, p, n, constraint; Aq = n
             )
         end
     end
+    # A real gas alone is a pure phase, its energy linear in its amount whatever
+    # the equation of state, the root of least energy having already chosen
+    # between its vapor and its liquid. A mixture of real gases can split into
+    # two fluids of different compositions, and no convexity is proved for it.
+    if length(cs.idx_gas) > 1 && _gas_mixing(cs) !== nothing
+        convex = false
+        push!(
+            reasons,
+            "the gas phase is a mixture following the equation of state of Peng and Robinson, " *
+                "which can split into two fluids, so the minimum is not proved global",
+        )
+    end
     λ = _reduced_curvature(J, des.A, n, Aq, floor)
     convex && return (:global_minimum, reasons, λ)
     if λ > _REDUCED_CURVATURE_TOL

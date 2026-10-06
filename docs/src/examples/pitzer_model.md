@@ -83,7 +83,7 @@ to 0.99 at six molal**, neither of which any Debye-Hückel form can produce, sin
 both require a term that grows faster than ``\sqrt{I}`` and then turns over. The osmotic coefficient agrees to the same order, independently.
 
 The B-dot column follows the measurement to 1.5 % up to one molal, with the ion
-size Helgeson et al. give NaCl. Its range is nonetheless real — 3 % out at three
+size [Helgeson1981](@citet) give NaCl. Its range is nonetheless real — 3 % out at three
 molal, 13 % at six — and nothing in its output announces the exit.
 
 ```@example pz

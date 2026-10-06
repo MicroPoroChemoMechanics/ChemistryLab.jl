@@ -124,14 +124,14 @@ extent(e::CappedExtent, t) = min(extent(e.inner, t), e.cap)
                         parameters = nothing, H = nothing)
 
 The degree of hydration of the clinker phase `phase` ("C3S", "C2S", "C3A" or
-"C4AF") under the rate law of Parrott and Killoh (1984) in the form and with the
+"C4AF") under the rate law of [ParrottKilloh1984](@citet) in the form and with the
 parameters [`parrott_killoh_avrami`](@ref) uses, at the constant temperature
 `T`: the ordinary differential equation of that law integrated from zero, on a
 logarithmic grid of time. `α_max` is the ceiling of the law (Powers' water limit,
 for instance), `blaine` the fineness correction.
 
-`w_c` applies instead the water/cement factor of Parrott and Killoh, as
-Lothenbach and Winnefeld (2006, Section 4.1) state it: the rate is multiplied by
+`w_c` applies instead the water/cement factor of [ParrottKilloh1984](@citet), as
+[LothenbachWinnefeld2006; Section 4.1](@citet) state it: the rate is multiplied by
 
 ```math
 f = \\begin{cases} 1 & \\alpha \\le 1.333\\, w/c \\\\
@@ -143,7 +143,7 @@ constants are rounded, ``3.333 \\times 1.333 = 4.443``, so the factor steps up b
 ``(1 + 0.0011\\, w/c)^4`` at the threshold, 0.18 % at ``w/c = 0.4``.
 
 `H` replaces the critical degree 1.333 of that factor by a value of the phase's
-own, as Lothenbach et al. (2008, Section 3.2) fit one per clinker phase:
+own, as [Lothenbach2008; Section 3.2](@citet) fit one per clinker phase:
 ``f = (1 + 3.333\\,(H\\, w/c - \\alpha))^4`` for ``\\alpha > H\\, w/c``.
 `parameters` replaces some of the constants of the law, a `NamedTuple` with any of
 `k₁`, `n₁`, `k₂`, `k₃` and `n₃` (the same paper adapts `k₂` and `k₃` of belite);

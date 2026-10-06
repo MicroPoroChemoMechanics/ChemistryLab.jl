@@ -34,7 +34,7 @@ using LinearAlgebra
 """
     KineticStepSolver(system, model, reactions; opts...)
 
-A solver for one fully implicit kinetic step, following Leal et al. (2017).
+A solver for one fully implicit kinetic step, following [Leal2017](@citet).
 
 `reactions` are [`KineticReaction`](@ref) objects. Every species not carried by a
 declared reaction is at equilibrium; every declared reaction is kinetic and must

@@ -93,7 +93,7 @@ const _AQUEOUS_CHARGE = Dict(
 """
     zeolite_records() -> Vector{NamedTuple}
 
-The 28 zeolites of Ma & Lothenbach (2020, Na series; 2021, K series) as the two
+The 28 zeolites of [MaLothenbach2020, MaLothenbach2021](@citet) (Na and K series) as the two
 papers publish them, read from `data/literature/MaLothenbach2020.json` and
 `MaLothenbach2021.json`: energies in kJ/mol, S⁰ and Cp⁰ in J/(mol K), V⁰ in
 cm³/mol, and the products of their congruent dissolution.
@@ -403,10 +403,10 @@ taken as constant:
 
   - the six of the core model, from `data/literature/Kulik2022.json`: G° and H°
     of its Table 8, S°, Cp° and V° of its Table 4, except the H° of TSvh, which
-    is the one Miron et al. (2022a) reprint (Table 8 transposes two digits);
+    is the one [Miron2022a](@citet) reprint (Table 8 transposes two digits);
   - the six with sodium or potassium, from `data/literature/Miron2022a.json`
-    (Table A1), with the G° and H° of TCNh and TCKh fine-tuned by Miron et al.
-    (2022b, Table 5) for cement pore solutions;
+    (Table A1), with the G° and H° of TCNh and TCKh fine-tuned by
+    [Miron2022b; Table 5](@citet) for cement pore solutions;
   - the twenty-one with Li, Rb, Cs, Mg, Sr, Ba or Ra, from the same Table A1.
 """
 function cashplus_entries()

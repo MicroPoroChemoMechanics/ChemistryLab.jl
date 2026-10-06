@@ -563,7 +563,7 @@ Build a smoothed three-mechanism clinker hydration rate as a
     running, and it warns once per session.
 
     **Why the attribution is withdrawn.** The formulas below are not those of
-    Parrott & Killoh: the nucleation–growth term carries no Avrami logarithm,
+    [ParrottKilloh1984](@citet): the nucleation–growth term carries no Avrami logarithm,
     and `K₃` — a shell-formation coefficient — sits in the *diffusion*
     expression where the canonical formulation uses `K₂`. Nor do the shipped
     parameters match any published set: `N₁ = 3.3` is the canonical `n₃`, and
@@ -597,7 +597,7 @@ Build a smoothed three-mechanism clinker hydration rate as a
 `mineral_name` is the PHREEQC formula string (e.g. `"C3S"`) used to look up the
 mineral moles in the `n` and `n_initial` [`StateView`](@ref)s.
 
-Three competing mechanisms determine the rate (Parrott & Killoh 1984):
+Three competing mechanisms determine the rate [ParrottKilloh1984](@cite):
 
 | Mechanism | Formula |
 |-----------|---------|
@@ -609,7 +609,7 @@ The rate [mol/s] is `n_initial × Aₜ × min(max(r_NG, r_I), r_D)` where
 `ξ = α / α_max` is the normalized degree of hydration and
 `Aₜ = exp(-Ea/R × (1/T - 1/T_ref))` is the Arrhenius factor.
 
-`α_max` can be set to apply the Powers (1948) water/cement ratio limit:
+`α_max` can be set to apply the water/cement ratio limit of [Powers1948](@citet):
 `α_max = powers_alpha_max(w_c)`.
 
 # Returns
@@ -763,9 +763,9 @@ const PK_AVRAMI_SEED = 1.0e-6
                          α_max = 1.0, blaine = nothing, humidity = nothing,
                          w_c = nothing, H = nothing) -> KineticFunc
 
-Build the Parrott & Killoh (1984) clinker hydration rate in its **canonical
-formulation**, as reported by Lothenbach et al. (2008) and used by Lavergne
-et al. (2018).
+Build the clinker hydration rate of [ParrottKilloh1984](@citet) in its **canonical
+formulation**, as reported by [Lothenbach2008](@citet) and used by
+[Lavergne2018](@citet).
 
 `params` must be a `NamedTuple` with keys `k₁`, `n₁`, `k₂`, `k₃`, `n₃`, `Ea`,
 `T_ref` — see [`PK84_PARAMS_C3S`](@ref) and siblings. Dimensional values accept
@@ -801,7 +801,7 @@ against.
 
 # Keyword arguments
 
-  - `α_max`: Powers (1948) water availability cap — see [`powers_alpha_max`](@ref).
+  - `α_max`: the water availability cap of [Powers1948](@citet) — see [`powers_alpha_max`](@ref).
   - `blaine`: Blaine fineness of the binder, as a `Quantity`, a plain `Real` in
     m²/kg, a [`BlaineSurfaceArea`](@ref) — all three frozen for the whole
     integration — or a [`ShrinkingCoreArea`](@ref), which makes the factor
@@ -811,11 +811,11 @@ against.
     callable `t -> h(t)`. `nothing` (default) means no correction.
   - `w_c`: the water/cement ratio, which slows the hydration once the degree
     exceeds a critical fraction of it ([`pk_wc_factor`](@ref)); `H` the critical
-    degree of the phase in place of Parrott and Killoh's, as Lothenbach et al.
-    (2008) fit one per clinker phase. `nothing` (default) means no correction.
+    degree of the phase in place of that of [ParrottKilloh1984](@citet), as
+    [Lothenbach2008](@citet) fit one per clinker phase. `nothing` (default) means no correction.
 
 !!! warning "An evolving fineness is not a free improvement"
-    The Parrott & Killoh constants were fitted with `β_B` **constant**, so
+    The constants of [ParrottKilloh1984](@citet) were fitted with `β_B` **constant**, so
     passing a [`ShrinkingCoreArea`](@ref) leaves this law outside the
     calibration it came with and it has to be recalibrated — the machinery is
     `scripts/hydration_calibration.jl`.
@@ -914,18 +914,18 @@ const _PK_WC = (
 """
     pk_wc_factor(α, w_c; H = nothing) -> Real
 
-The water/cement factor of the Parrott and Killoh (1984) law: 1 while the degree
+The water/cement factor of the law of [ParrottKilloh1984](@citet): 1 while the degree
 of hydration `α` of the phase is below a critical fraction of `w_c`, and beyond it
 
 ```math
 f = (1 + 4.444\\,w/c - 3.333\\,\\alpha)^4 \\quad (\\alpha > 1.333\\,w/c),
 ```
 
-as Lothenbach and Winnefeld (2006, Section 4.1) state it, which stops the phase at
+as [LothenbachWinnefeld2006; Section 4.1](@citet) state it, which stops the phase at
 ``\\alpha = (1 + 4.444\\,w/c)/3.333``; the printed constants being rounded
 (``3.333 \\times 1.333 = 4.443``), it steps up by ``(1 + 0.0011\\,w/c)^4`` at the
 threshold. With `H`, the critical degree of the phase
-that Lothenbach et al. (2008, Section 3.2) fit for each clinker phase,
+that [Lothenbach2008; Section 3.2](@citet) fit for each clinker phase,
 
 ```math
 f = (1 + 3.333\\,(H\\,w/c - \\alpha))^4 \\quad (\\alpha > H\\,w/c).
@@ -975,11 +975,11 @@ end
 """
     PK84_PARAMS_C3S :: NamedTuple
 
-Canonical Parrott & Killoh (1984) parameters for alite (C₃S = Ca₃SiO₅), with keys
+Canonical parameters of [ParrottKilloh1984](@citet) for alite (C₃S = Ca₃SiO₅), with keys
 `k₁`, `n₁`, `k₂`, `k₃`, `n₃`, `Ea`, `T_ref`. They are valid for the Blaine
 fineness [`PK_BLAINE_REF`](@ref) and a reference temperature of 20 °C.
 
-The rate constants and exponents are those of Table 3 of Lavergne et al. (2018),
+The rate constants and exponents are those of Table 3 of [Lavergne2018](@citet),
 the activation energy that of their Table 4, both read from
 `data/literature/Lavergne2018.json`.
 
@@ -991,7 +991,7 @@ const PK84_PARAMS_C3S = _pk84_params("C3S")
 """
     PK84_PARAMS_C2S :: NamedTuple
 
-Canonical Parrott & Killoh (1984) parameters for belite (C₂S = Ca₂SiO₄).
+Canonical parameters of [ParrottKilloh1984](@citet) for belite (C₂S = Ca₂SiO₄).
 
 With `n₁ = 1` the Avrami branch reduces to `k₁(1-ξ)`, which never limits the
 rate: belite hydration is governed by the power law throughout.
@@ -1003,7 +1003,7 @@ const PK84_PARAMS_C2S = _pk84_params("C2S")
 """
     PK84_PARAMS_C3A :: NamedTuple
 
-Canonical Parrott & Killoh (1984) parameters for tricalcium aluminate
+Canonical parameters of [ParrottKilloh1984](@citet) for tricalcium aluminate
 (C₃A = Ca₃Al₂O₆). See [`PK84_PARAMS_C3S`](@ref).
 """
 const PK84_PARAMS_C3A = _pk84_params("C3A")
@@ -1011,7 +1011,7 @@ const PK84_PARAMS_C3A = _pk84_params("C3A")
 """
     PK84_PARAMS_C4AF :: NamedTuple
 
-Canonical Parrott & Killoh (1984) parameters for tetracalcium aluminoferrite
+Canonical parameters of [ParrottKilloh1984](@citet) for tetracalcium aluminoferrite
 (C₄AF = Ca₄Al₂Fe₂O₁₀). See [`PK84_PARAMS_C3S`](@ref).
 """
 const PK84_PARAMS_C4AF = _pk84_params("C4AF")
@@ -1022,8 +1022,9 @@ const PK84_PARAMS_C4AF = _pk84_params("C4AF")
     waller(params::NamedTuple, mineral_name::AbstractString;
            α_max = 1.0, blaine = nothing, humidity = nothing) -> KineticFunc
 
-Build the Waller (1999) reaction rate of a pozzolanic or latent-hydraulic
-addition (fly ash, silica fume, ground granulated slag) as a [`KineticFunc`](@ref).
+Build the reaction rate of a pozzolanic or latent-hydraulic addition (fly ash,
+silica fume, ground granulated slag) after [Waller1999](@citet), as a
+[`KineticFunc`](@ref).
 
 The degree of reaction follows a sigmoid in log-time,
 
@@ -1141,8 +1142,8 @@ _waller_params(τ) = (
 """
     WALLER_PARAMS_FLY_ASH :: NamedTuple
 
-Waller (1999) parameters for class-F fly ash, with keys `τ`, `n`, `blaine_ref`,
-`Ea`, `T_ref`, as adjusted by Lavergne et al. (2018, p. 42) to SEM image
+Parameters of [Waller1999](@citet) for class-F fly ash, with keys `τ`, `n`, `blaine_ref`,
+`Ea`, `T_ref`, as adjusted by [Lavergne2018; p. 42](@citet) to SEM image
 analyses of a fly ash of assumed pozzolanic activity. The values are read from
 `data/literature/Lavergne2018.json`.
 
@@ -1153,10 +1154,10 @@ const WALLER_PARAMS_FLY_ASH = _waller_params(literature_value("Lavergne2018", "w
 """
     WALLER_PARAMS_SILICA_FUME :: NamedTuple
 
-Waller (1999) parameters applied to silica fume — identical kinetics to
+Parameters of [Waller1999](@citet) applied to silica fume — identical kinetics to
 [`WALLER_PARAMS_FLY_ASH`](@ref), the higher reactivity being carried by the
 fineness. Pass to [`waller`](@ref) the effective Blaine fineness recommended by
-Lavergne et al. (2018),
+[Lavergne2018](@citet),
 `blaine = literature_value("Lavergne2018", "blaine_silica_fume")`; the BET
 surface of silica fume is **not** a Blaine fineness and must not be used here.
 """
@@ -1168,8 +1169,8 @@ const WALLER_PARAMS_SILICA_FUME = WALLER_PARAMS_FLY_ASH
 """
     PK_BLAINE_REF :: Quantity
 
-The Blaine fineness the Parrott & Killoh constants were calibrated at, B₀ of
-Lavergne et al. (2018, p. 39), read from `data/literature/Lavergne2018.json`.
+The Blaine fineness the constants of [ParrottKilloh1984](@citet) were calibrated
+at, B₀ of [Lavergne2018; p. 39](@citet), read from `data/literature/Lavergne2018.json`.
 
 It is the default reference of [`blaine_factor`](@ref) and the one
 [`parrott_killoh_avrami`](@ref) applies, written once so the two cannot drift
@@ -1220,7 +1221,8 @@ computes exactly the number it computed before this existed.
 """
     blaine_factor(blaine; blaine_ref = PK_BLAINE_REF) -> Real
 
-Fineness correction of the hydration rate: the Parrott & Killoh parameters were
+Fineness correction of the hydration rate: the parameters of
+[ParrottKilloh1984](@citet) were
 adjusted for a cement of Blaine fineness `blaine_ref`, and the rate scales as
 `blaine / blaine_ref`.
 
@@ -1433,7 +1435,7 @@ const POWERS_W_SATURATED = literature_value("Powers1948", "w_c_saturated")
 """
     powers_alpha_max(w_c; curing = :sealed) -> Real
 
-Powers (1948) upper bound on the degree of hydration set by the availability of
+The upper bound of [Powers1948](@citet) on the degree of hydration set by the availability of
 water, `α_max = min(1, w/c / k)`: a paste below `w/c = k` cannot hydrate
 completely, `k` being $(POWERS_W_SEALED) sealed or $(POWERS_W_SATURATED) water-cured, according to `curing`.
 

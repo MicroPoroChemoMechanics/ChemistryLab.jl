@@ -224,7 +224,7 @@ This model produces a single function `:logKr` (the fit directly) rather than th
 
 ### `:solute_hkf88_reaktoro` — HKF aqueous model
 
-The Helgeson-Kirkham-Flowers (1981/1988) model for aqueous solutes. This is a **numeric** model (returns `NumericFunc` objects) because it depends on the equation of state of water and cannot be written as a simple closed-form polynomial.
+The Helgeson-Kirkham-Flowers model for aqueous solutes [Helgeson1981, TangerHelgeson1988](@cite). This is a **numeric** model (returns `NumericFunc` objects) because it depends on the equation of state of water and cannot be written as a simple closed-form polynomial.
 
 **Parameters (all in SI):** `a1`–`a4`, `c1`, `c2`, `wref`, `z` (formal charge), `S⁰`, `ΔfH⁰`, `ΔfG⁰`.
 

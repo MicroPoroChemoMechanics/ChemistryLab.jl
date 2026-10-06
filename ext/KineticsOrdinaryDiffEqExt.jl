@@ -8,7 +8,7 @@ Extension activated when `OrdinaryDiffEq` is loaded. Provides the concrete
 `ChemistryLab.integrate(::KineticsProblem, ::KineticsSolver; ...)` implementation
 using `OrdinaryDiffEq.ODEProblem` and registers `Rodas5P()` as the default solver.
 
-Follows the Leal et al. (2017) formulation with partial equilibrium and
+Follows the formulation of [Leal2017](@citet) with partial equilibrium and
 optional thermal coupling (isothermal or semi-adiabatic calorimetry).
 
 # Usage
@@ -44,7 +44,7 @@ import ChemistryLab:
 """
     integrate(kp::KineticsProblem, ks::KineticsSolver) -> ODESolution
 
-Integrate the kinetics ODE using `OrdinaryDiffEq` (Leal et al. 2017 formulation).
+Integrate the kinetics ODE using `OrdinaryDiffEq`, in the formulation of [Leal2017](@citet).
 
 The ODE function, initial state, and parameters are built from `kp`.
 Calorimetry (isothermal or semi-adiabatic) is integrated in the same ODE: under

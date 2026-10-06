@@ -69,7 +69,7 @@ julia> m.W[1, 2]
 
 # References
 
-  - Guggenheim, E.A. (1937). *Trans. Faraday Soc.* **33**, 151–159.
+  - [Guggenheim1937](@citet).
 """
 struct RegularSolutionModel{T <: Real} <: AbstractSolidSolutionModel
     W::Matrix{T}

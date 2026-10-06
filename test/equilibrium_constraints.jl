@@ -104,10 +104,11 @@
     end
 
     @testsection "a volume constraint on a condensed system is refused, with the lever" begin
-        # Not a solver limitation: the molar volumes of water and of the minerals
-        # in these databases are exactly pressure-independent, so the volume of a
-        # condensed system is fixed by its composition and the pressure has no
-        # purchase on it. Diverging silently would be the wrong answer.
+        # Not a solver limitation: the molar volumes of the minerals in these
+        # databases are pressure-independent and water compresses by 4.5e-10 per
+        # pascal, so the volume of a condensed system is all but fixed by its
+        # composition and the pressure has little purchase on it. Diverging
+        # silently would be the wrong answer.
         cs = ChemicalSystem([sp[s] for s in split("H2O@ H+ OH-")], ["H2O@", "H+", "Zz"])
         des = DualEquilibriumSolver(cs, DiluteSolutionModel())
         st = ChemicalState(cs)
@@ -121,9 +122,9 @@
 
         n0 = Float64[ustrip(us"mol", x) for x in st.n]
         lever = ChemistryLab._pressure_lever(cs, n0, 298.15, 1.0e5)
-        @test lever < 1.0e-4                     # measured at 1.0e-6
+        @test lever < 1.0e-4                     # measured at 4.5e-5, the compressibility of water times 1 bar
         @test ChemistryLab._total_volume(cs, n0, 298.15, 1.0e5) ≈
-            ChemistryLab._total_volume(cs, n0, 298.15, 1.0e7) rtol = 1.0e-3
+            ChemistryLab._total_volume(cs, n0, 298.15, 1.0e7) rtol = 1.0e-2
     end
 
     @testsection "a volume constraint with a compressible member solves for its pressure" begin

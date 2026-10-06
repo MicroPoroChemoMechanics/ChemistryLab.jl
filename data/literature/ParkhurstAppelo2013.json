@@ -9,7 +9,7 @@
   "transcription": {
     "from": "the published report (PDF from pubs.usgs.gov): the example block of LLNL_AQUEOUS_MODEL_PARAMETERS, p. 118, and the activity-coefficient equations of SOLUTION_SPECIES, p. 201, read on the page image",
     "checked_against_source": true,
-    "note": "The 25 C row of the table is what the activity models of this package have used as their defaults for A, B and B-dot; the package attributed A and B to Table 1 of Helgeson et al. (1981), which gives 0.5091 and 0.3283 at 25 C (p. 1294), from the water properties of Helgeson and Kirkham (1974). The table is the one of the LLNL aqueous model, as the database llnl.dat carries it."
+    "note": "The 25 C row of the table is what the activity models of this package have used as their defaults for A, B and B-dot; the package attributed A and B to Table 1 of Helgeson et al. (1981), which gives 0.5091 and 0.3283 at 25 C (p. 1294), from the water properties of Helgeson and Kirkham (1974). The table is the one of the LLNL aqueous model, as the database llnl.dat carries it. The critical constants of the gases are read from phreeqc.dat as the file states them, not from the report; those of carbon dioxide agree with the critical point Spycher et al. (2003, p. 3016) quote from Span and Wagner (1996), 30.978 °C and 73.773 bar, that is 304.128 K and 72.81 atm, to 0.07 K and 0.07 %."
   },
   "quantities": {
     "uncharged_log_gamma_coefficient": {
@@ -36,6 +36,22 @@
         [200.0, 0.7994, 0.3639, 0.047],
         [250.0, 0.9593, 0.3766, 0.034],
         [300.0, 1.218, 0.3925, 0.0]
+      ]
+    },
+    "gas_critical_constants": {
+      "columns": ["phase", "gas", "T_c", "P_c", "omega"],
+      "units": [null, null, "K", "101325*Pa", "1"],
+      "kind": "published",
+      "location": "phreeqc.dat of PHREEQC 3.7.3 (test/reference/phreeqc.dat, unmodified), block PHASES: the critical temperature (-T_c), critical pressure (-P_c) and acentric factor (-Omega) of each gas, which its Peng-Robinson equation of state reads; the critical pressure is in atmospheres, as phreeqc.dat gives it, written 101325*Pa since the standard atmosphere is defined as exactly 101325 Pa; `gas` is the symbol the ThermoFun databases give the same gas",
+      "rows": [
+        ["CO2(g)", "CO2", 304.2, 72.86, 0.225],
+        ["H2O(g)", "H2O", 647.3, 217.6, 0.344],
+        ["O2(g)", "O2", 154.6, 49.8, 0.021],
+        ["H2(g)", "H2", 33.2, 12.8, -0.225],
+        ["N2(g)", "N2", 126.2, 33.5, 0.039],
+        ["H2S(g)", "H2S", 373.2, 88.2, 0.1],
+        ["CH4(g)", "CH4", 190.6, 45.4, 0.008],
+        ["NH3(g)", "NH3", 405.6, 111.3, 0.25]
       ]
     }
   },

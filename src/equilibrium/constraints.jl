@@ -109,16 +109,20 @@ end
     _total_volume(system, n, T, P)
 
 `Σᵢ nᵢ V⁰ᵢ(T, P)` in cubic meters, as a bare number, over the species that carry
-a molar volume.
+a molar volume; a real gas phase counts for `Z N R T / P` instead
+([`peng_robinson`](@ref)).
 """
 function _total_volume(system::ChemicalSystem, n, T, P)
     tot = zero(promote_type(eltype(n), typeof(T), typeof(P)))
+    gas_mix = _gas_mixing(system)
     for (i, s) in enumerate(system.species)
         _has_molar_volume(s) || continue
+        gas_mix === nothing || aggregate_state(s) != AS_GAS || continue
         tot += n[i] * ustrip(
             us"m^3/mol", _molar_volume(s)(T = T * u"K", P = P * u"Pa"; unit = true),
         )
     end
+    gas_mix === nothing || (tot += _pr_phase_volume(gas_mix, [n[i] for i in system.idx_gas], T, P))
     return tot
 end
 
@@ -181,17 +185,17 @@ forward-mode differentiation.
 
 A volume constraint prescribes `V` and solves for `P`, so it needs this to be
 non-negligible. It usually is not for a condensed system: in the databases
-shipped here the molar volumes of water and of the minerals do not depend on
-pressure at all — `V⁰(1 bar) = V⁰(100 bar)` exactly for `H2O@` and `Cal` — and
-only the partial molar volumes of a few aqueous ions vary, `OH-` by 8 % over
-100 bar. A kilogram of water with 0.25 mol of ions then has a lever of about
-`1e-6`, meaning some 10 000 bar to change the volume by one percent. Newton on
-that residual takes an enormous step and the pressure leaves the domain of the
-equation of state.
+shipped here the molar volumes of the minerals do not depend on pressure at all
+— `V⁰(1 bar) = V⁰(100 bar)` exactly for `Cal` — water compresses by about
+`4.5e-10` per pascal, and the partial molar volumes of a few aqueous ions vary,
+`OH-` by 8 % over 100 bar. A kilogram of water with 0.25 mol of ions then has a
+lever of about `5e-5` at 1 bar, meaning some 200 bar to change the volume by one
+percent, beyond what a Newton step on that residual can take before the
+pressure leaves the domain of the equations of state.
 
-Which is the physics, not a solver defect: the volume of an incompressible
-condensed system is fixed by its composition, and pressure has no purchase on it.
-A gas phase gives it one.
+Which is the physics, not a solver defect: the volume of a nearly
+incompressible condensed system is all but fixed by its composition, and
+pressure has little purchase on it. A gas phase gives it one.
 """
 function _pressure_lever(system::ChemicalSystem, n, T, P)
     V = _total_volume(system, n, T, P)
@@ -613,6 +617,14 @@ balance, silently, and the saturation the whole coupling rests on would be wrong
 with nothing to show for it.
 """
 function _molar_volumes(system, T, P)
+    # A volume linear in the amounts has no place for a real gas, whose phase
+    # occupies Z N R T / P with Z depending on the composition.
+    _gas_mixing(system) === nothing || throw(
+        ArgumentError(
+            "this constraint counts the volume as Σ nᵢ V⁰ᵢ, which a gas phase following the " *
+                "equation of state of Peng and Robinson does not obey; leave the gases ideal."
+        )
+    )
     # In the number type of `T` and `P`, which a derivative with respect to
     # them carries through.
     return _promoted(

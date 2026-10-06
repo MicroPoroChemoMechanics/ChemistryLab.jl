@@ -92,7 +92,7 @@ Two normalizations, selected by `reference`:
   - `reference::ChemicalState` — fractions are relative to
     `volume(reference).total`, held fixed. They then sum to less than 1, and the
     deficit is returned under `void_key` as the chemical-shrinkage void. This is
-    the sealed-curing convention of Lavergne et al. (2018): the specimen keeps
+    the sealed-curing convention of [Lavergne2018](@citet): the specimen keeps
     its volume while the reactions consume some, and the resulting empty
     porosity is a phase of the microstructure, not a rounding error.
 
