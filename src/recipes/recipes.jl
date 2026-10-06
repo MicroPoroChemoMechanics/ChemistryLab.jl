@@ -239,7 +239,12 @@ function equilibrate_certified(
         start::Union{Nothing, ChemicalState} = nothing, kwargs...,
     )
     bud = budget(r, cs; t)
-    from = start === nothing ? bud.state : start
+    # The amounts of `start`, at the temperature and pressure of the recipe:
+    # before 0.34.0 a start at another temperature imposed its own, so that a
+    # sequence in temperature started from its previous answer stayed at the
+    # first temperature.
+    from = start === nothing ? bud.state :
+        ChemicalState(start.system; T = temperature(bud.state), P = pressure(bud.state), n = start.n)
     eq, cert = equilibrate_certified(from; model, b = bud.b, kwargs...)
     return RecipeState(eq, cert, r, t, bud.state, bud.b, bud.residual, model), cert
 end

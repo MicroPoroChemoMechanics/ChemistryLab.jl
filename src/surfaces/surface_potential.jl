@@ -27,12 +27,14 @@
 Whether a site mixing model's electrostatic term must be carried as an unknown
 of the solve rather than evaluated from the composition.
 
-`true` for [`DiffuseLayer`](@ref) and `false` for everything else, including
+`true` for [`DiffuseLayer`](@ref) and [`ChargePlanes`](@ref), one unknown per
+plane, and `false` for everything else, including
 [`ConstantCapacitance`](@ref) — whose potential is linear in the composition,
 so the fixed point contracts and eliminating it costs nothing.
 """
 needs_potential_unknown(::AbstractSiteMixingModel) = false
 needs_potential_unknown(::DiffuseLayer) = true
+needs_potential_unknown(::ChargePlanes) = true
 needs_potential_unknown(m::ConstantCapacitance) = needs_potential_unknown(m.base)
 
 """
@@ -84,13 +86,13 @@ function _potential_supports(cs::ChemicalSystem)
                     "all of its families describe it or none does."
             ),
         )
-        areas = unique(cs.site_families[g].model.area for g in grp)
+        areas = unique(_surface_parameters(cs.site_families[g].model) for g in grp)
         listed = join(areas, ", ")
         length(areas) == 1 || throw(
             ArgumentError(
-                "the families on support \"$name\" declare different areas for it " *
-                    "($listed m²). One surface has one area, and the charge " *
-                    "density it carries depends on it."
+                "the families on support \"$name\" declare different areas or " *
+                    "capacitances for it ($listed). One surface has one area and one " *
+                    "set of planes, and the charge density it carries depends on them."
             ),
         )
         push!(out, grp)
@@ -98,12 +100,24 @@ function _potential_supports(cs::ChemicalSystem)
     return out
 end
 
+# What two families on one surface must agree on.
+_surface_parameters(m::AbstractSiteMixingModel) = m.area
+_surface_parameters(m::ChargePlanes) = (m.area, m.C1, m.C2, m.ε_r)
+
+# How many potentials a surface carries, and the residuals that close them.
+_potential_count(::AbstractSiteMixingModel) = 1
+_potential_count(::ChargePlanes) = 3
+_potential_closure(m::AbstractSiteMixingModel, c, n, I, T, q) = [q[1] - diffuse_layer_potential(m, c, n, I, T)]
+_potential_closure(m::ChargePlanes, c, n, I, T, q) = collect(q) .- collect(charge_planes_potentials(m, c, n, I, T))
+
 """
     _surface_potential_blocks(des, state, p, n0) -> NamedTuple or nothing
 
 The parameter block the **system** contributes, as opposed to the one its
 constraint does: one unknown `ψ̃ = FΨ/RT` per surface that needs it, with the
-Gouy-Chapman closure as its equation.
+Gouy-Chapman closure as its equation, or three, one per plane, for a
+[`ChargePlanes`](@ref) surface closed by its two capacitors and its diffuse
+layer.
 
 `nothing` when no surface needs one, which is every system without a diffuse
 layer — so nothing pays for the possibility.
@@ -134,27 +148,32 @@ function _surface_potential_blocks(des, state, p, n0)
         reduce(vcat, (cs.site_groups[g] for g in grp); init = Int[]) for grp in supports
     ]
     charges = [
-        Float64[charge(sp) for g in grp for sp in site_members(cs.site_families[g])]
-            for grp in supports
+        _member_charges(models[k], [sp for g in grp for sp in site_members(cs.site_families[g])])
+            for (k, grp) in enumerate(supports)
     ]
+    # The unknowns of each surface, one per plane, laid end to end.
+    widths = [_potential_count(m) for m in models]
+    offsets = cumsum(vcat(0, widths[1:(end - 1)]))
+    slots = [(offsets[k] + 1):(offsets[k] + widths[k]) for k in eachindex(models)]
     solvent = isempty(cs.idx_solvent) ? 0 : only(cs.idx_solvent)
     ions = [i for i in cs.idx_solutes if !iszero(charge(cs.species[i]))]
     ion_z = Float64[charge(cs.species[i]) for i in ions]
     M_w = iszero(solvent) ? 1.0 : ustrip(us"kg/mol", cs.species[solvent][:M])
-    nq = length(supports)
+    nq = sum(widths)
 
     # The activity model, evaluated at the potential the solve currently holds.
-    pq = (q, params) -> merge(params, (ψ_site = _scatter(cs, supports, q),))
+    pq = (q, params) -> merge(params, (ψ_site = _scatter(cs, supports, q, slots),))
     hq = (x, q, params) -> des.lna(x, pq(q, params))
 
     cq = function (x, q, params)
         T = hasproperty(params, :T) ? params.T : 298.15
         I = _aqueous_ionic_strength(x, ions, ion_z, solvent, M_w)
-        return [
-            q[k] - diffuse_layer_potential(
-                models[k], charges[k], [x[i] for i in members[k]], I, T,
-            ) for k in 1:nq
-        ]
+        return reduce(
+            vcat, (
+                _potential_closure(models[k], charges[k], [x[i] for i in members[k]], I, T, q[slots[k]])
+                    for k in eachindex(models)
+            ),
+        )
     end
 
     return (;
@@ -167,16 +186,18 @@ function _surface_potential_blocks(des, state, p, n0)
 end
 
 """
-    _scatter(cs, supports, q) -> Vector
+    _scatter(cs, supports, q, slots = eachindex(supports)) -> Vector
 
 Each surface's potential placed at every family standing on it, `nothing`
 elsewhere, so the activity kernel can index by family without knowing which
-families share a surface.
+families share a surface: a number for a single plane, a triplet for a surface
+of three planes.
 """
-function _scatter(cs::ChemicalSystem, supports::Vector{Vector{Int}}, q)
+function _scatter(cs::ChemicalSystem, supports::Vector{Vector{Int}}, q, slots = eachindex(supports))
     out = Vector{Any}(nothing, length(cs.site_families))
     @inbounds for (k, grp) in enumerate(supports), f in grp
-        out[f] = q[k]
+        s = slots[k]
+        out[f] = s isa Integer ? q[s] : (length(s) == 1 ? q[first(s)] : Tuple(q[s]))
     end
     return out
 end

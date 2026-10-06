@@ -33,7 +33,7 @@ end
 
 # Bumped whenever a builder changes what it writes, so that cached builds are
 # redone.
-const _DERIVED_VERSION = "3"
+const _DERIVED_VERSION = "4"
 
 function _derived_key(d::DerivedDatabase, base_path)
     parts = [_DERIVED_VERSION, d.name, _digest(base_path)]

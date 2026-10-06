@@ -20,11 +20,15 @@ jobs:
     # The coverage job instruments every line and runs without the
     # precompilation cache, which makes it the slowest by far: 49 and 55 minutes
     # on the two runs of 0.25.0, and past 60 on 0.25.1, where it was
-    # canceled at the limit while the three other jobs passed. It gets two
-    # hours. The others had one, until the suite of 0.29.0 took 56 and 58
-    # minutes on Linux (1.13, pre) and Windows was canceled at the limit; they
-    # get an hour and a half, which still stops a hung run early.
-    timeout-minutes: ${{ (matrix.version == '1.12' && matrix.os == 'ubuntu-latest') && 120 || 90 }}
+    # canceled at the limit while the three other jobs passed. It had two
+    # hours, which 0.33.0 reached: 88 and 118 minutes on two runs of the same
+    # commit, canceled at 120 on a third, before the durability pages of 0.34.0
+    # added their tests. It gets three. The others had one, until the suite of
+    # 0.29.0 took 56 and 58 minutes on Linux (1.13, pre) and Windows was
+    # canceled at the limit, then an hour and a half, which Windows reached
+    # within five minutes on 0.33.0; they get two, which still stops a hung run
+    # early.
+    timeout-minutes: ${{ (matrix.version == '1.12' && matrix.os == 'ubuntu-latest') && 180 || 120 }}
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
       actions: write
       contents: read

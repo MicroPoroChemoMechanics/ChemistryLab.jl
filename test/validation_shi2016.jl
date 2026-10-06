@@ -34,7 +34,10 @@ include(joinpath(pkgdir(ChemistryLab), "scripts", "shi_2016.jl"))
         paste = budget(shi16_recipe(row["mix"]), cs; t)
         elements = budget_elements(cs, shi16_carbonated_budget(cs, paste.b, row["co2_g"]))
         for (el, x) in row["elements"]
-            @test elements[el] ≈ x rtol = 1.0e-12 atol = 1.0e-15
+            # To 1e-11: a budget carries the neutral-water seed of H⁺ and OH⁻ at
+            # the ionization constant of the recipe's temperature, which the
+            # solvent of 0.34.0, following water away from 25 °C, moved by 2e-12.
+            @test elements[el] ≈ x rtol = 1.0e-11 atol = 1.0e-15
         end
     end
     @test all(row -> row["converged"], fixture["rows"])

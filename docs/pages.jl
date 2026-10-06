@@ -180,6 +180,9 @@ pages = [
             # The pressure: carbon dioxide dissolved up to 500 atm, the gas
             # ideal and following an equation of state.
             "tutorials/validation_co2_solubility.md",
+            # The range: the ionization constant of water and the solubility of
+            # quartz to 1000 °C and 5 kbar, against fits to the measurements.
+            "tutorials/validation_high_temperature.md",
             # A measured paste through its first year, and the same budgets
             # through GEMS3K: the model against the paste, the code against the code.
             "tutorials/validation_measured_pastes.md",
@@ -271,6 +274,17 @@ pages = [
             # calculation on cemdata2007.
             "examples/hydrates_temperature.md",
             "examples/chloride_temperature.md",
+        ],
+        # What the surroundings do to a hydrated paste, at equilibrium and in
+        # zero dimensions: a sequence of equilibria in which what enters or
+        # leaves the paste is the parameter, each against measurements.
+        "Durability in zero dimensions" => [
+            "examples/leaching.md",
+            "examples/sulfate_attack.md",
+            "examples/seawater.md",
+            "examples/delayed_ettringite.md",
+            "examples/hemicarbonate.md",
+            "examples/chloride_afm.md",
         ],
         # Beyond the Portland cement. One page per EN 197-1 family, in order of
         # how much of the clinker is replaced and of what the replacement asks

@@ -1,0 +1,101 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Hiemstra1996",
+    "doi": "10.1006/jcis.1996.0242",
+    "citation": "Hiemstra, T., Van Riemsdijk, W. H. (1996). A surface structural approach to ion adsorption: the charge distribution (CD) model. Journal of Colloid and Interface Science 179, 488-508.",
+    "location": "Fig. 6 caption, Eqs. [18]-[23], the text on the charge distribution of the phosphate complexes (p. 501), Table 2"
+  },
+  "transcription": {
+    "from": "the published article (PDF), read on the page text",
+    "checked_against_source": true,
+    "note": "The goethite of the study: two proton-reactive surface groups of the 110 face, singly (FeOH, charge -1/2) and triply (Fe3O, charge -1/2) coordinated, both protonating once. Fig. 6 fits the charging curves in NaNO3 with the basic Stern approach, ion pairs in the d-plane. Table 2 gives the parameters of the phosphate data sets, Case III being the three-plane approach with the monodentate complex FeOPO3; its charge distribution factor f = 0.25 is stated in the text as half the value of the nonprotonated bidentate complex. The plane charges of the monodentate complex are derived from f by the paper's Eqs. [15] and [16], with phosphorus +5: Delta z0 = +1 - 2 + 5 f and Delta z1 = -6 + 5 (1 - f)."
+  },
+  "quantities": {
+    "singly_coordinated_site_density": {
+      "value": 3.45,
+      "unit": "1/nm^2",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "Site density of the singly coordinated groups FeOH(-1/2) of the 110 face (Fig. 6, Ns,1)."
+    },
+    "triply_coordinated_site_density": {
+      "value": 2.7,
+      "unit": "1/nm^2",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "Site density of the triply coordinated groups Fe3O(-1/2) of the 110 face (Fig. 6, Ns,2)."
+    },
+    "specific_surface_area": {
+      "value": 105,
+      "unit": "m^2/g",
+      "kind": "published",
+      "uncertainty": 5,
+      "description": "Weighted mean BET surface area of the goethite preparations."
+    },
+    "stern_capacitance": {
+      "value": 0.9,
+      "unit": "F/m^2",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "Overall capacitance of the Stern layer, basic Stern approach (Fig. 6; C of Table 2)."
+    },
+    "log_K_protonation_charging": {
+      "value": 9.5,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "log K1,2 = log K3,1, protonation of FeOH(-1/2) and of Fe3O(-1/2), from the PZC of the preparation of Fig. 6."
+    },
+    "log_K_ion_pair": {
+      "value": -1,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "log Kc = log Ka, ion pairs of the electrolyte cation with the deprotonated groups and of its anion with the protonated groups, in the d-plane (Fig. 6, Eqs. [20]-[23])."
+    },
+    "log_K_protonation_phosphate_sets": {
+      "value": 9.2,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "log KH of Table 2, the protonation constant of the goethite of the phosphate data sets."
+    },
+    "outer_capacitance_three_planes": {
+      "value": 5,
+      "unit": "F/m^2",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "C2 of Table 2, Cases II and III, between the 1-plane of the solution-oriented ligands and the d-plane of the ion pairs."
+    },
+    "log_K_monodentate_phosphate": {
+      "value": 20.8,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "log Kin1 of Table 2, Case III: FeOH(-1/2) + H+ + PO4(3-) = FeOPO3 + H2O, Eq. [7]."
+    },
+    "cd_factor_monodentate_phosphate": {
+      "value": 0.25,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "f of the monodentate complex FeOPO3, the fraction of the charge of phosphorus attributed to the 0-plane."
+    },
+    "delta_z0_monodentate_phosphate": {
+      "value": 0.25,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "Change of charge of the 0-plane on forming FeOPO3: +1 (the proton) - 2 (the shared oxygen) + 5 f."
+    },
+    "delta_z1_monodentate_phosphate": {
+      "value": -2.25,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "Change of charge of the 1-plane on forming FeOPO3: -6 (three oxygens) + 5 (1 - f)."
+    }
+  },
+  "notes": []
+}

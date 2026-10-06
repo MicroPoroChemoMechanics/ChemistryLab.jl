@@ -187,6 +187,28 @@ const _HKF_Yr = -5.795424563e-5  # Born function Y at (Tr, Pr)
 const _HKF_θ = 228.0    # θ constant (K)
 const _HKF_Ψ = 2.6e+8   # Ψ constant (Pa)
 
+# The lowest density of water at which the HKF equations of an aqueous species
+# hold: the edge of the domain of the g-function of Shock et al. (1992, Fig. 6).
+const _HKF_MIN_WATER_DENSITY = 350.0
+
+# The properties of water an HKF species reads at (T, P): its density and their
+# derivatives, the dielectric functions and the g-function. Below the density at
+# which the equations hold there is no aqueous solution to describe (a vapor, or
+# a supercritical fluid too dilute), and asking is an error rather than a value.
+function _hkf_water_state(T, P)
+    wtp = water_thermo_props(T, P)
+    _primal(wtp.D) < _HKF_MIN_WATER_DENSITY && throw(
+        DomainError(
+            (T, P),
+            "the HKF equations of an aqueous species hold for water denser than " *
+                "$(_HKF_MIN_WATER_DENSITY) kg/m³ (Shock et al. 1992); at $(_primal(T)) K and " *
+                "$(_primal(P)) Pa its density is $(_primal(wtp.D)) kg/m³.",
+        )
+    )
+    wep = water_electro_props_jn(T, P, wtp)
+    return wtp, wep, hkf_g_function(T, P, wtp)
+end
+
 """
     _build_hkf_thermo_functions(params) -> OrderedDict
 
@@ -247,9 +269,7 @@ function _build_hkf_thermo_functions(params)
     # -- Closures (T in K, P in Pa) --
 
     function _Cp(T::Real, P::Real)
-        wtp = water_thermo_props(T, P)
-        wep = water_electro_props_jn(T, P, wtp)
-        gs = hkf_g_function(T, P, wtp)
+        wtp, wep, gs = _hkf_water_state(T, P)
         ae = species_electro_props_hkf(gs, z, wref)
         Tth = T - θ
         return c1 + c2 / (Tth * Tth) -
@@ -259,9 +279,7 @@ function _build_hkf_thermo_functions(params)
     end
 
     function _H(T::Real, P::Real)
-        wtp = water_thermo_props(T, P)
-        wep = water_electro_props_jn(T, P, wtp)
-        gs = hkf_g_function(T, P, wtp)
+        wtp, wep, gs = _hkf_water_state(T, P)
         ae = species_electro_props_hkf(gs, z, wref)
         Tth = T - θ
         Tth2 = Tth * Tth
@@ -273,9 +291,7 @@ function _build_hkf_thermo_functions(params)
     end
 
     function _S(T::Real, P::Real)
-        wtp = water_thermo_props(T, P)
-        wep = water_electro_props_jn(T, P, wtp)
-        gs = hkf_g_function(T, P, wtp)
+        wtp, wep, gs = _hkf_water_state(T, P)
         ae = species_electro_props_hkf(gs, z, wref)
         Tth = T - θ
         Tth2 = Tth * Tth
@@ -286,9 +302,7 @@ function _build_hkf_thermo_functions(params)
     end
 
     function _G(T::Real, P::Real)
-        wtp = water_thermo_props(T, P)
-        wep = water_electro_props_jn(T, P, wtp)
-        gs = hkf_g_function(T, P, wtp)
+        wtp, wep, gs = _hkf_water_state(T, P)
         ae = species_electro_props_hkf(gs, z, wref)
         Tth = T - θ
         return Gf - Sr * (T - Tr) - c1 * (T * log(T / Tr) - T + Tr) +
@@ -302,9 +316,7 @@ function _build_hkf_thermo_functions(params)
     end
 
     function _V(T::Real, P::Real)
-        wtp = water_thermo_props(T, P)
-        wep = water_electro_props_jn(T, P, wtp)
-        gs = hkf_g_function(T, P, wtp)
+        wtp, wep, gs = _hkf_water_state(T, P)
         ae = species_electro_props_hkf(gs, z, wref)
         Tth = T - θ
         return a1 + a2 / (Ψ + P) + (a3 + a4 / (Ψ + P)) / Tth -

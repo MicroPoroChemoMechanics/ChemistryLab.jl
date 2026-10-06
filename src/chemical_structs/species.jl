@@ -1699,7 +1699,7 @@ function complete_thermo_functions!(s::AbstractSpecies)
         end
         haskey(properties(s), :cp_intervals) && _follow_cp_intervals!(s, dict_params)
         constant_volume && _add_pressure_term!(s, dict_params[:V⁰])
-        solvent_volume && _add_solvent_pressure_term!(s, dict_params[:V⁰])
+        solvent_volume && _solvent_from_water_eos!(s, dict_params)
         delete!(s.properties, :thermo_params)
     end
     return s
@@ -1802,73 +1802,131 @@ function _add_pressure_term!(s::AbstractSpecies, V⁰)
     return s
 end
 
-# The density of water at T and P by the equation of state of Haar, Gallagher
-# and Kell, found on the values and lifted into the dual numbers of T and P by
-# two Newton steps on P = ρ² ∂A/∂ρ: the value does not move, and the
-# derivatives are exact to second order, as the implicit-function theorem gives
-# them, where the iteration's own stopping test would leave them at its
-# tolerance.
-function _hgk_density(T, P)
-    ρ = water_density_hgk(_plain(T), _plain(P)) + zero(T) + zero(P)
-    for _ in 1:2
-        h = water_helmholtz_hgk(promote(T, ρ)...)
-        ρ -= (ρ^2 * h.AD - P) / (2ρ * h.AD + ρ^2 * h.ADD)
-    end
-    return ρ
-end
+# The density of liquid water at T and P by the equation of state of Haar,
+# Gallagher and Kell, lifted into the dual numbers of T and P
+# (`water_density_hgk`).
+_hgk_density(T, P) = water_density_hgk(T, P)
 
-# The specific Gibbs energy of water, A + P/ρ, in J/kg.
-function _hgk_specific_gibbs(T, P)
+# The specific state of liquid water at T and P, from the Helmholtz function A of
+# the equation at the density of the state: the Gibbs energy g = A + P/ρ (J/kg),
+# the entropy s = −∂A/∂T at fixed density (J/(kg K)), to which −∂g/∂T at fixed
+# pressure reduces since ∂A/∂ρ = P/ρ² at the root, the enthalpy h = g + T s and
+# the isobaric heat capacity c_p = −T ∂²A/∂T² + T ρ² (∂²A/∂T∂ρ)²/(∂P/∂ρ), with
+# ∂P/∂ρ = 2ρ ∂A/∂ρ + ρ² ∂²A/∂ρ². The derivatives are the equation's own, so that
+# no derivative is nested in another and the functions take dual numbers of any
+# tag, or of none.
+function _hgk_specific_state(T, P)
     ρ = _hgk_density(T, P)
-    return water_helmholtz_hgk(promote(T, ρ)...).A + P / ρ
+    a = water_helmholtz_hgk(promote(T, ρ)...)
+    g = a.A + P / ρ
+    s = -a.AT
+    dPdρ = 2ρ * a.AD + ρ^2 * a.ADD
+    cp = -T * a.ATT + T * ρ^2 * a.ATD^2 / dPdρ
+    return (; ρ, g, s, h = g + T * s, cp)
+end
+_hgk_specific_gibbs(T, P) = _hgk_specific_state(T, P).g
+_hgk_specific_entropy(T, P) = _hgk_specific_state(T, P).s
+_hgk_specific_enthalpy(T, P) = _hgk_specific_state(T, P).h
+
+# The properties of liquid water at its triple point, to which the steam-table
+# convention of the equation of state (zero entropy and energy there) is
+# referred: T_tr, S_tr, H_tr and G_tr, in SI units, as SUPCRT92 states them
+# after Helgeson and Kirkham (1974).
+const _WATER_TRIPLE_POINT = let q(name) = ustrip(literature_value("Johnson1992", name))
+    (
+        T = q("water_triple_point_temperature"), S = q("water_triple_point_entropy"),
+        H = q("water_triple_point_enthalpy"), G = q("water_triple_point_gibbs_energy"),
+    )
 end
 
 """
-    _add_solvent_pressure_term!(s, V⁰)
+    _solvent_from_water_eos!(s, dict_params)
 
-Move the standard state of the solvent with pressure as the equation of state
-of water of Haar, Gallagher and Kell has it, its volume at ``P^\\circ`` being
-the one its record tabulates.
+Give the solvent of the ThermoFun databases the standard state of liquid water
+as the equation of state of Haar, Gallagher and Kell has it, at any temperature
+and pressure: the method its record declares (`water_eos_hgk84`), applied as
+[Johnson1992](@citet) apply it, their Eqs. (5) to (7), and referred to the
+values the record tabulates at 25 °C and 1 bar.
 
-The molar volume is ``V(T, P) = V^\\circ \\rho(T, P^\\circ)/\\rho(T, P)``: the
-tabulated ``V^\\circ`` at the standard pressure, compressed in the ratio of the
-densities of the equation. The Gibbs energy gains its integral,
-``\\Delta g = V^\\circ \\rho(T, P^\\circ)\\,[g(T, P) - g(T, P^\\circ)]`` with
-``g = A + P/\\rho`` the specific Gibbs energy of the equation, since
-``\\partial g/\\partial P = 1/\\rho``; the enthalpy, the entropy and the heat
-capacity gain ``\\Delta g - T\\,\\partial\\Delta g/\\partial T``,
-``-\\partial\\Delta g/\\partial T`` and ``-T\\,\\partial^2\\Delta g/\\partial T^2``,
-so that the four functions stay those of one Gibbs energy. Every term is an
-exact zero at ``P^\\circ``, where the functions keep their values to the last
-bit. A constant volume, as before, neglected the compressibility of water:
-1.1 % of its volume at 250 bar, 10 J/mol on its Gibbs energy at 500 bar.
+The equation is written in the steam-table convention, the entropy and the
+energy of liquid water vanishing at its triple point. With ``h`` and ``s`` its
+specific enthalpy and entropy and ``M`` the molar mass of water, SUPCRT92 refers
+the standard entropy and the apparent enthalpy and Gibbs energy of formation to
+the properties of liquid water at the triple point, ``T_{tr}``, ``S_{tr}``,
+``H_{tr}`` and ``G_{tr}``:
+
+```math
+S^\\star = S_{tr} + M\\,s(T, P), \\qquad
+H^\\star = H_{tr} + M\\,h(T, P), \\qquad
+G^\\star = M\\,h(T, P) - T\\,S^\\star + T_{tr}\\,S_{tr} + G_{tr}.
+```
+
+Those constants, which SUPCRT92 takes from Helgeson and Kirkham (1974), are not
+the ones the rest of a database is built on: at 25 °C and 1 bar they give a
+Gibbs energy 1.35 J/mol above the tabulated one and an enthalpy 48.6 J/mol
+above, and ``G^\\star - H^\\star + TS^\\star`` differs by 45 J/mol from the
+``T_r \\sum S_{\\text{el}}`` the element entropies of the file require of every
+species (the tabulated values come within 2.4 J/mol of it), so that the enthalpy
+of a reaction that consumes water would not be the one its Gibbs energy
+implies. The solubility products of Cemdata18, from which its hydrates' energies
+were derived, close against the tabulated water to 1e-4 in ``\\log K`` and
+against the equation's to 0.007 only. The solvent is therefore
+built as every other species of a database is, from its tabulated values at the
+reference and increments from there, the increments being the equation's:
+
+```math
+S = S^\\star + \\delta S, \\qquad
+\\Delta_a H = H^\\star + \\delta H, \\qquad
+\\Delta_a G = G^\\star + \\delta G - \\delta S\\,(T - T_r),
+```
+
+the three constants ``\\delta`` chosen so that the three functions take their
+tabulated values at ``(T_r, P_r)``. The heat capacity is ``\\partial H/\\partial T``
+and the volume ``M/\\rho(T, P)``, so that the five functions are those of one
+Gibbs energy.
+
+The ThermoFun library does not use the tabulated values; it also writes
+273.15 K for ``T_{tr}`` in the constant ``T_{tr} S_{tr}``, which puts its Gibbs
+energy of water 0.633 J/mol below the published conversion. The function this
+replaced extrapolated the tabulated values with the heat capacity of 25 °C, and
+left the solvent's energies drifting from those of water as the temperature
+left 25 °C.
 """
-function _add_solvent_pressure_term!(s::AbstractSpecies, V⁰)
-    V = ustrip(us"m^3/mol", V⁰)
+function _solvent_from_water_eos!(s::AbstractSpecies, dict_params)
+    M = ustrip(us"kg/mol", s[:M])
+    tp = _WATER_TRIPLE_POINT
+    Tr = ustrip(us"K", s.Tref)
     Pr = ustrip(us"Pa", s.Pref)
-    # At the standard pressure the terms are exact zeros, in every derivative
-    # with respect to T, and the volume is the tabulated one: nothing to solve
-    # for, where the equation of state costs some 20 µs a call. A pressure being
-    # differentiated still goes through it, for ∂G/∂P = V there.
-    at_Pr(P) = !(P isa ForwardDiff.Dual) && P == Pr
-    function Δg(T, P)
-        at_Pr(P) && return zero(promote_type(typeof(T), typeof(P)))
-        return V * _hgk_density(T, Pr) * (_hgk_specific_gibbs(T, P) - _hgk_specific_gibbs(T, Pr))
-    end
-    ∂T(T, P) = ForwardDiff.derivative(t -> Δg(t, P), T)
-    ∂TT(T, P) = ForwardDiff.derivative(t -> ∂T(t, P), T)
+    # The functions of SUPCRT92, referred to the triple point.
+    S★(T, P) = tp.S + M * _hgk_specific_entropy(T, P)
+    H★(T, P) = tp.H + M * _hgk_specific_enthalpy(T, P)
+    G★(w, T) = M * w.h - T * (tp.S + M * w.s) + tp.T * tp.S + tp.G
+    # Referred to the record's values at the reference, where it gives them.
+    given(k, u, f) = haskey(dict_params, k) && !ismissing(dict_params[k]) ?
+        ustrip(u, dict_params[k]) : f(Tr, Pr)
+    S_r = given(:S⁰, us"J/(mol*K)", S★)
+    H_r = given(:ΔₐH⁰, us"J/mol", H★)
+    G_r = given(:ΔₐG⁰, us"J/mol", (T, P) -> G★(_hgk_specific_state(T, P), T))
+    δS = S_r - S★(Tr, Pr)
+    δH = H_r - H★(Tr, Pr)
+    δG = G_r - G★(_hgk_specific_state(Tr, Pr), Tr)
+    S(T, P) = S★(T, P) + δS
+    H(T, P) = H★(T, P) + δH
+    G(T, P) = G★(_hgk_specific_state(T, P), T) + δG - δS * (T - Tr)
+    Cp(T, P) = M * _hgk_specific_state(T, P).cp
+    V(T, P) = M / _hgk_density(T, P)
+    # At the reference the values are those the record gives, and the others
+    # computed once: the equation costs some 50 µs a call, and 25 °C and 1 bar
+    # is where most calculations sit. A variable being differentiated still goes
+    # through it, for the derivatives.
+    at_ref(T, P) = !(T isa ForwardDiff.Dual) && !(P isa ForwardDiff.Dual) && T == Tr && P == Pr
+    cached(f, v = f(Tr, Pr)) = (T, P) -> at_ref(T, P) ? v : f(T, P)
     refs = (T = s.Tref, P = s.Pref)
-    Vf(T, P) = at_Pr(P) ? V + zero(T) : V * _hgk_density(T, Pr) / _hgk_density(T, P)
-    s[:V⁰] = NumericFunc(Vf, (:T, :P), refs, u"m^3/mol")
-    terms = (
-        ΔₐG⁰ = NumericFunc(Δg, (:T, :P), refs, u"J/mol"),
-        ΔₐH⁰ = NumericFunc((T, P) -> Δg(T, P) - T * ∂T(T, P), (:T, :P), refs, u"J/mol"),
-        S⁰ = NumericFunc((T, P) -> -∂T(T, P), (:T, :P), refs, u"J/(mol*K)"),
-        Cp⁰ = NumericFunc((T, P) -> -T * ∂TT(T, P), (:T, :P), refs, u"J/(mol*K)"),
-    )
-    for (k, term) in pairs(terms)
-        haskey(properties(s), k) && (s[k] = s[k] + term)
-    end
+    s[:ΔₐG⁰] = NumericFunc(cached(G, G_r), (:T, :P), refs, u"J/mol")
+    s[:ΔₐH⁰] = NumericFunc(cached(H, H_r), (:T, :P), refs, u"J/mol")
+    s[:S⁰] = NumericFunc(cached(S, S_r), (:T, :P), refs, u"J/(mol*K)")
+    s[:Cp⁰] = NumericFunc(cached(Cp), (:T, :P), refs, u"J/(mol*K)")
+    s[:V⁰] = NumericFunc(cached(V), (:T, :P), refs, u"m^3/mol")
     return s
 end
 

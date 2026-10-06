@@ -1,0 +1,31 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Davis1978",
+    "doi": "10.1016/s0021-9797(78)80009-5",
+    "citation": "Davis, J. A., James, R. O., Leckie, J. O. (1978). Surface ionization and complexation at the oxide/water interface: I. Computation of electrical double layer properties in simple electrolytes. Journal of Colloid and Interface Science 63, 480-499.",
+    "location": "Eqs. [24] and [25]; the text on the choice of the capacitances"
+  },
+  "transcription": {
+    "from": "the published article (PDF), read on the page text",
+    "checked_against_source": true,
+    "note": "The triple-layer model: protons on the surface plane, the ion pairs of the background electrolyte on a second plane at a distance beta, two constant capacitances in between, psi0 - psi_beta = sigma0/C1 and psi_beta - psi_d = -sigma_d/C2. The paper converts its microfarads per square centimeter here into SI: 140 and 20 uF/cm2 are 1.4 and 0.2 F/m2."
+  },
+  "quantities": {
+    "inner_capacitance": {
+      "value": 1.4,
+      "unit": "F/m^2",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "C1, between the surface plane and the plane of the ion pairs (140 uF/cm2, after Yates et al.)."
+    },
+    "outer_capacitance": {
+      "value": 0.2,
+      "unit": "F/m^2",
+      "kind": "published",
+      "uncertainty": null,
+      "description": "C2, between the plane of the ion pairs and the start of the diffuse layer (20 uF/cm2)."
+    }
+  },
+  "notes": []
+}

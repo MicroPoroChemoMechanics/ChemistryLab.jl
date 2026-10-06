@@ -1,5 +1,172 @@
 # Changelog
 
+## v0.34.0 — Water to 1000 °C, surfaces of three charge planes, durability in zero dimensions
+
+The solvent follows the equation of state of water at every temperature and
+pressure, anchored on its record at 25 °C and 1 bar, and the density of water
+no longer stops on a spurious root: against the ThermoFun library on 652 states
+to 1000 °C and 5 kbar the standard states agree once the anchoring is
+recomposed, and the ionization constant of water and the solubility of quartz
+follow fits to the measurements to 400 °C. A surface may carry its charge in
+three planes, the basic Stern, triple-layer and charge distribution models in
+one, and agrees with PHREEQC's CD-MUSIC on goethite. Six pages compute what the
+surroundings do to a hydrated paste, as sequences of equilibria against
+measurements: leaching, sulfate attack and thaumasite, seawater, delayed
+ettringite formation, hemicarbonate, chloride in the AFm phases.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.33"` does not accept 0.34
+  and has to widen its bound.
+- **Results away from 25 °C move.** The volume of the solvent follows the
+  thermal expansion of water instead of keeping its 25 °C value at 1 bar
+  (0.12 % at 20 °C, 2.6 % at 80 °C), which moves the concentrations computed at
+  20 °C by about 0.1 %; the Gibbs energy of water moves by 0.2 J/mol at most
+  from 0 to 100 °C at 1 bar, by 0.5 kJ/mol at 300 °C and 1 kbar. The corrected
+  density of water moves the HKF energies of the solutes at high pressure by up
+  to 60 J/mol. Nothing moves at 25 °C and 1 bar.
+- **HKF refuses water less dense than 350 kg/m³** with a `DomainError`, where
+  it returned a value.
+- **The chloride end member of CSHQ is refitted**, from −4907 to −4897 J/mol, and
+  the databases ChemistryLab derives are rebuilt on first use.
+- **Four names are exported**: `ChargePlanes`, `with_plane_charges`,
+  `charge_planes_potentials` and `temperature_range`. A package defining the
+  same names alongside `using ChemistryLab` now sees a conflict.
+
+### Added
+
+- **Surfaces of three charge planes** (`ChargePlanes`, `with_plane_charges`,
+  `charge_planes_potentials`): a surface whose charge sits in the surface plane,
+  at the head of the Stern layer and where the diffuse layer begins, two
+  capacitances between them, and each surface species placing its charge on
+  each plane. One model holds the basic Stern model (Westall and Hohl 1980), the
+  triple-layer model (Davis et al. 1978) and the charge distribution model
+  (Hiemstra and Van Riemsdijk 1996), whose complexes share their charge between
+  two planes, and several families on one surface share its planes. The three
+  potentials are unknowns of the solve. Against PHREEQC's CD-MUSIC surface, on
+  the goethite of Hiemstra and Van Riemsdijk in the three placements, 56 points
+  from pH 4 to 11 and 0.001 to 0.1 mol/kg of NaCl, all certify and agree to
+  5e-5 in the site fractions and 0.05 mV in the potentials, 7e-4 and 0.3 mV at
+  0.001 mol/kg in the basic Stern model, where the diffuse layer carries 0.18 V
+  (`test/charge_planes.jl`, oracle `test/reference/phreeqc_cd_music.py`). A
+  family whose plane charges and formula charges differ by different amounts
+  for different members is refused: a reaction between them would not conserve
+  charge in both counts.
+- **Water and quartz from 0 to 1000 °C** (the page *Water and quartz from 0 to
+  1000 °C*, `scripts/water_high_temperature.jl`): the ionization constant of
+  water against the formulation Bandura and Lvov (2006) fitted to the
+  measurements, at the 175 states of their table where water is dense enough
+  for HKF, and the solubility of quartz against the equation of Manning (1994),
+  from the standard states of slop98 with nothing fitted. pKw agrees to 0.20
+  from 25 to 400 °C, against the 0.16 standard deviation of their fit, and
+  departs above, by 1.4 at 1000 °C; the solubility of quartz to 0.022 in log m
+  up to 400 °C and 0.12 at 800 °C and 5 kbar.
+- **Durability in zero dimensions: leaching** (the page *Leaching: the C-S-H and
+  a CEM I paste in renewed water*, `scripts/berner1992_leaching.jl`). The C-S-H
+  of Cemdata18 against the six sets of solubility data Berner (1992) compiled,
+  264 rows transcribed: the calcium within a factor of 2 at 164 of the 176
+  points in the range of the gel, the measurements 1.23 times higher at the
+  median; the silicon 2.3 times too high at the median. A CEM I paste leached by
+  renewals of its solution loses its portlandite, then its AFm, then its
+  ettringite, the order of the zones Adenot and Buil (1992) observed, the gel
+  falling from a Ca/Si of 1.63 to 0.70.
+- **Durability in zero dimensions: sulfate attack and thaumasite** (the page
+  *Sulfate attack and thaumasite: a CEM I in sodium sulfate*,
+  `scripts/sulfate_attack.jl`). The laboratory CEM I of Lothenbach et al.
+  (2010) titrated by 4 and 44 g/L of Na2SO4: gypsum forms in 44 g/L only, as
+  their SEM-EDS found it, and the SO3/CaO of the solids reaches 0.27 and 0.57
+  where the measured profiles reach 0.22 and 0.44 after months. The batches of
+  Schmidt et al. (2008) with 5 and 25 % of limestone at 8 and 20 °C: at
+  equilibrium Cemdata18 gives the thaumasite their own calculation gave, within
+  6 % of the solids, more at 8 °C where the C-S-H limits it; the measured
+  thaumasite is 0.3 to 2 %, a reaction far from its end.
+- **Durability in zero dimensions: seawater** (the page *Seawater: a CEM I
+  42.5 R with limestone, titrated by the sea*, `scripts/seawater.jl`). The
+  paste of De Weerdt et al. (2014) in contact with up to 10 L of their seawater
+  per 100 g of cement: the sequence of their own calculation, Friedel's salt,
+  then thaumasite in its place, brucite, portlandite gone, in the order of the
+  zones of their sixteen-year core read from the surface inward; Cemdata18,
+  with hydrotalcite allowed, moves the middle of it to four to sixteen times
+  smaller volumes.
+- **Durability in zero dimensions: delayed ettringite formation** (the page
+  *Delayed ettringite formation: a CEM I 52.5 N HTS from 5 to 80 °C and back*,
+  `scripts/delayed_ettringite.jl`). The SRPC of Lothenbach et al. (2008) at 5,
+  20, 50 and 80 °C against the pore solutions Lothenbach et al. (2007)
+  measured: the sulfate rises with the temperature, as measured, from 13 to 30
+  times lower, and the alkalis are low. At 80 °C a third of the ettringite
+  gives way to monosulfate and comes back whole at 20 °C, ettringite being
+  declared to 60 °C only.
+- **Durability in zero dimensions: hemicarbonate and monocarbonate** (the page
+  *Hemicarbonate and monocarbonate: the carbonate of the AFm phases*,
+  `scripts/georget2022_hemicarbonate.jl`). The carbonate series of Georget et
+  al. (2022), C3A with portlandite replaced by calcite in 101 steps, against
+  the calculation published in their data set: the phases agree to 0.03 g of
+  20 at every step, katoite gone at ζ = 0.452 and hemicarbonate at 0.857, and
+  the phases of their samples are reproduced but for a calcite not yet formed.
+- **Durability in zero dimensions: chloride and the AFm phases** (the page
+  *Chloride and the AFm phases: a model Portland system titrated by CaCl2*,
+  `scripts/balonis2010_chloride.jl`). The mixture of Balonis et al. (2010)
+  titrated by CaCl2 without and with calcite: the sulfate AFm, Kuzel's salt and
+  Friedel's salt in the order and at the samples their XRD found, the solution
+  at 2Cl/Al2O3 = 0.3 to 0.4 mmol/L, and the boundaries of their calculation
+  within 0.1.
+- **`temperature_range`**: the temperatures over which a record of a ThermoFun
+  database declares its heat capacity. Cemdata18 declares its AFm phases to
+  50 °C, its ettringites to 60 °C and its clinker phases from 25 °C; nothing
+  refuses a temperature outside, and the function says when a calculation
+  extrapolates.
+
+### Changed
+
+- **The solvent follows water at every temperature and pressure.** The standard
+  state of the solvent of the ThermoFun databases is now the equation of state
+  of water of Haar, Gallagher and Kell as SUPCRT92 applies it (Johnson et al.
+  1992), its Gibbs energy, enthalpy and entropy anchored on the values its
+  record tabulates at 25 °C and 1 bar, so that nothing moves there. The
+  equation's own triple-point constants put the enthalpy 48.6 J/mol away from
+  the record and break the relation of the file's element entropies by 45
+  J/mol; the solubility products of Cemdata18 close against the tabulated water
+  to 1e-4 in log K, against the equation's to 0.007 only. Before, the
+  heat capacity of 25 °C was extrapolated and the volume held constant at
+  1 bar: from 0 to 100 °C the Gibbs energy of water moves by 0.2 J/mol at most,
+  the volume by its thermal expansion, 0.12 % at 20 °C and 2.6 % at 80 °C, and
+  at 300 °C and 1 kbar the Gibbs energy by 0.53 kJ/mol. Against the ThermoFun
+  library on 652 states from 0 to 1000 °C and 1 to 5000 bar, the solvent, the
+  aqueous species by HKF, the minerals and a gas agree once the anchoring, the
+  molar mass of water and a constant the library writes with 273.15 K for the
+  triple point are recomposed (`test/water_eos_reference.jl`).
+- **Results at 20 °C move slightly**, through the volume of the solution: the
+  alkali isotherms of Hong and Glasser by 0.1 % in the concentrations, the
+  C-A-S-H batches of L'Hôpital et al. by as much, and the chloride end member of
+  CSHQ, refitted on the tests of Hirao et al., from −4907 to −4897 J/mol, a
+  thirtieth of its uncertainty.
+- **The HKF equations are refused where they do not hold**, in water less dense
+  than 350 kg/m³, the limit of SUPCRT92, with a `DomainError` rather than a
+  value.
+
+### Fixed
+
+- **A recipe solved from a start state took that state's temperature.**
+  `equilibrate_certified(recipe, system; start)` solved at the temperature and
+  pressure of `start` rather than those of the recipe, so that a sequence in
+  temperature started from its previous answer stayed at its first
+  temperature. No page of the documentation did so; the start now carries its
+  amounts only.
+- **The density of water** stopped where the product of the residual and its
+  derivative was small, which accepts a stationary point that is not a root: at
+  0 °C and 5 kbar it returned 150.8 kg/m³ for 1152.6, at 350 °C and 1 bar the
+  spinodal of the liquid, and at high pressure a density good to 1e-4 only,
+  which put the HKF energies of the solutes 1 to 60 J/mol off. The liquid root
+  is now found from above, the vapor or supercritical root otherwise, to 1e-12.
+  The log Ks0 of calcite at 28 °C and 70 MPa moves from −7.813 to −7.814.
+- **The derivatives of the solvent** are the equation's own, with no derivative
+  nested in another: dual numbers without a tag, which a caller differentiating
+  by hand passes, no longer fail.
+- **`data/chloride/regenerate.jl`** ran again: the uncertainty of the fit
+  differentiates through the forward model since 0.29.0, and the end member,
+  built from a record, did not take a dual Gibbs energy.
+
 ## v0.33.0 — Real gases and pressure
 
 A gas may now follow the equation of state of Peng and Robinson (1976): its

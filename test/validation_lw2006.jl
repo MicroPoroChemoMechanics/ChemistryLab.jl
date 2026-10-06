@@ -21,7 +21,10 @@ include(joinpath(pkgdir(ChemistryLab), "scripts", "lothenbach_winnefeld_2006.jl"
     for row in fixture["rows"]
         elements = lw06_elements(cs, budget(recipe, cs; t = row["time_h"] / 24).b)
         for (el, x) in row["elements"]
-            @test elements[el] ≈ x rtol = 1.0e-12 atol = 1.0e-15
+            # To 1e-11: a budget carries the neutral-water seed of H⁺ and OH⁻ at
+            # the ionization constant of the recipe's temperature, which the
+            # solvent of 0.34.0, following water away from 25 °C, moved by 2e-12.
+            @test elements[el] ≈ x rtol = 1.0e-11 atol = 1.0e-15
         end
     end
 

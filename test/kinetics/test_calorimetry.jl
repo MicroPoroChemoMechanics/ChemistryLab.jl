@@ -367,12 +367,17 @@ end
     @test sol.retcode == ReturnCode.Success
     p = sol.prob.p
     t, T = temperature_profile(sol, cal)
-    @test T[1] ≈ 293.15 atol = 1.0e-9
+    # The temperature is the root of the cell's balance, which Newton returns
+    # within one step of `_CELL_T_TOL` (1e-9 K), and the root itself lies off
+    # `T₀` by what the rounding of the partition leaves of `H − H₀`, over the
+    # 2140 J/K of the cell: 1.07e-9 K in all on the Julia 1.12 job of the CI.
+    @test T[1] ≈ 293.15 atol = 10 * ChemistryLab._CELL_T_TOL
     @test T[end] > T[1] + 0.2
     # The cell is closed to heat: its enthalpy, `H + C_vessel (T − T₀)`, is
     # what it was at the start, at every instant, with the certified partition
-    # at the temperature the run solved. Measured: 3e-7 J against the 51 J the
-    # paste released.
+    # at the temperature the run solved. Measured: 1.5e-6 J (3e-7 J before the
+    # solvent's enthalpy came from the equation of state of water) against the
+    # 51 J the paste released.
     times = [0.0, 6 * 3600.0, 86400.0, 2 * 86400.0]
     states = speciated_states(sol, kp; times)
     _, Tt = temperature_profile(sol, cal; times)

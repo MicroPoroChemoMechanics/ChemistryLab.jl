@@ -1,0 +1,3743 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Berner1992",
+    "doi": "10.1016/0956-053x(92)90049-o",
+    "citation": "Berner, U. R. (1992). Evolution of pore water chemistry during degradation of cement in a radioactive waste repository environment. Waste Management 12(2-3), 201-219.",
+    "location": "Appendix A, Tables 8-13 (pp. 216-218); Table 3 (p. 207); Tables 4, 5 (p. 209); Tables 6, 7 (p. 210); Appendix B (p. 219); Fig. 8 (p. 212)"
+  },
+  "transcription": {
+    "from": "the published article (PDF, a 300 dpi scan with an OCR text layer): every table read on page crops rendered at 230-500 dpi, then compared value by value with the OCR text layer; the cells where the two readings differed were rendered again at 400-500 dpi and read a third time",
+    "checked_against_source": true,
+    "note": "Tables 8-13 are Berner's compilation of literature C-S-H solubility data (the original sources are his refs. 3-8, named in each table caption); they are transcribed in the printed order, left half of the table then right half, and printed_row numbers the rows in that order. A dash in the paper is null here. The OCR layer misreads several cells (2.84 for 2.64 and 15.50 for 15.59 in Table 8, D or F for P in Table 12, B for D in Table 10); the page image was followed in every case. Temperatures are converted from the captions (17, 25, 30 C) to K. The Ca and Si columns are total dissolved concentrations in mmol/L; the indicator says whether equilibrium was approached by dissolution (D) or precipitation (P). Figures 1-9 are raster images and were not digitized: Figs. 1-3 plot the data of Tables 8-13 against the model curve, Figs. 4-5 the apparent solubility products derived from them, Figs. 6-9 model results; only the two lifetimes printed as labels on Fig. 8 are taken from a figure."
+  },
+  "quantities": {
+    "log_K_SiO2_CaSi0": {
+      "value": -2.7,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 3, p. 207, and Eq. 7, p. 207",
+      "description": "Apparent solubility product of the model solid SiO2 at C/S = 0, log{H4SiO4} (equal to that of amorphous silica, Appendix B data)."
+    },
+    "SiO2_A": {
+      "value": -2.04,
+      "unit": "1",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "Table 3 and text, p. 207",
+      "description": "A in log K(SiO2) = A + B/(C/S - beta), 0 < C/S <= 1."
+    },
+    "SiO2_B": {
+      "value": 0.792,
+      "unit": "1",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "Table 3 and text, p. 207",
+      "description": "B in log K(SiO2) = A + B/(C/S - beta), 0 < C/S <= 1; A and B follow from beta through the conditions at C/S = 0 and C/S = 1."
+    },
+    "SiO2_beta": {
+      "value": 1.2,
+      "unit": "1",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "text, p. 207 (visual fit to Fig. 5)",
+      "description": "beta in log K(SiO2) = A + B/(C/S - beta), the only adjustable parameter of the 0 < C/S <= 1 range."
+    },
+    "CaH2SiO4_low_coefficient": {
+      "value": 0.78,
+      "unit": "1",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "Table 3, p. 207",
+      "description": "The 0.78 in log K(CaH2SiO4) = -8.16 - ((1 - C/S)/(C/S)) * (0.78 + 0.792/(C/S - 1.2)), 0 < C/S <= 1."
+    },
+    "log_K_CaH2SiO4": {
+      "value": -8.16,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 3, p. 207; Section 3.2, p. 206; Appendix B, p. 219",
+      "description": "Fixed solubility product of the model solid CaH2SiO4 = Ca+2 + H2SiO4-2 for C/S > 1 (said to agree with Greenberg and Chang, his ref. 5)."
+    },
+    "CaOH2_P": {
+      "value": -4.945,
+      "unit": "1",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "Table 3, p. 207",
+      "description": "Constant in log K(Ca(OH)2) = -4.945 - 0.338/(C/S - 0.85), 1 < C/S <= 2.5 (visual fit, Fig. 4)."
+    },
+    "CaOH2_Q": {
+      "value": 0.338,
+      "unit": "1",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "Table 3, p. 207",
+      "description": "Coefficient 0.338 in log K(Ca(OH)2) = -4.945 - 0.338/(C/S - 0.85), 1 < C/S <= 2.5."
+    },
+    "CaOH2_asymptote": {
+      "value": 0.85,
+      "unit": "1",
+      "kind": "fitted",
+      "uncertainty": null,
+      "location": "Table 3 and text, p. 207",
+      "description": "C/S of the asymptote of log K(Ca(OH)2), 0.85."
+    },
+    "log_K_CaOH2_CaSi_above_2_5": {
+      "value": -5.15,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 3, p. 207",
+      "description": "Apparent solubility product of the model solid Ca(OH)2 for C/S > 2.5 (portlandite); equal to the 1 < C/S <= 2.5 expression at C/S = 2.5."
+    },
+    "davies_C": {
+      "value": 0.2,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Appendix B, p. 219",
+      "description": "Constant of the Davies equation used for the activity coefficients (MINEQL)."
+    },
+    "w_c": {
+      "value": 0.43,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.2 and Table 5, p. 209",
+      "description": "Water/cement ratio of the model hydrated cements."
+    },
+    "trass_mass_percent": {
+      "value": 21,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Table 5 caption, p. 209",
+      "description": "Trass in the cement/trass mixture, % by weight (cement/trass = 79/21)."
+    },
+    "density_pc_trass": {
+      "value": 2030,
+      "unit": "kg/m^3",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "Table 5, p. 209",
+      "description": "Estimated density of the hydrated Portland cement/trass mixture."
+    },
+    "density_srpc": {
+      "value": 2090,
+      "unit": "kg/m^3",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "Table 5, p. 209",
+      "description": "Estimated density of the hydrated sulfate-resisting Portland cement ('sulphate resistant Portland cement' in the paper)."
+    },
+    "porosity_percent_pc_trass": {
+      "value": 26,
+      "unit": "1",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "Table 5, p. 209",
+      "description": "Estimated total porosity of the hydrated cement/trass mixture, %."
+    },
+    "porosity_percent_srpc": {
+      "value": 21,
+      "unit": "1",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "Table 5, p. 209",
+      "description": "Estimated total porosity of the hydrated sulfate-resisting Portland cement, %."
+    },
+    "alkali_release_fraction_per_cycle": {
+      "value": 0.05,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.3, p. 210",
+      "description": "Assumed fraction of the remaining alkali hydroxides released to the pore solution at each water exchange cycle (the '5% rule', which the author calls a weak point)."
+    },
+    "lifetime_cycles_pure_water_srpc": {
+      "value": 7450,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Fig. 8, p. 212 (label printed on the figure)",
+      "description": "Modeled 'lifetime' (cycle number at which the CSH-gel has dissolved completely) of the sulfate-resisting Portland cement of Table 5 degrading in pure water; one cycle replaces a volume of water equal to the total porosity."
+    },
+    "lifetime_cycles_marl_water_srpc": {
+      "value": 4480,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Fig. 8, p. 212 (label printed on the figure)",
+      "description": "The same lifetime in the marl-type groundwater of Table 6 (calcite precipitation shortens it)."
+    },
+    "pore_volumes_to_degrade_min": {
+      "value": 5000,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Abstract, p. 201",
+      "description": "Lower end of the volume of fresh groundwater, in total pore volumes, required to degrade the cement completely."
+    },
+    "pore_volumes_to_degrade_max": {
+      "value": 10000,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Abstract, p. 201",
+      "description": "Upper end of that range."
+    }
+  },
+  "tables": {
+    "csh_solubility": {
+      "columns": [
+        "table",
+        "original_source",
+        "T",
+        "CaSi_solid",
+        "Ca_total",
+        "Si_total",
+        "pH",
+        "indicator",
+        "printed_row"
+      ],
+      "units": [
+        null,
+        null,
+        "K",
+        "1",
+        "mmol/L",
+        "mmol/L",
+        "1",
+        null,
+        "1"
+      ],
+      "kind": "measured",
+      "location": "Appendix A, Tables 8-13, pp. 216-218: C/S of the solid in equilibrium with the solution, total Ca and total silica of the solution, pH, and D (dissolution) or P (precipitation); Table 8 Flint and Wells, 30 C; Table 9 Roller and Ervin, Jr., 30 C; Table 10 Taylor, 17 C; Table 11 Kalousek, 25 C; Table 12 Greenberg and Chang, 25 C; Table 13 Fujii and Kondo, 30 C (original sources as Berner cites them: his refs. 3, 7, 8, 6, 5, 4)",
+      "rows": [
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          0.04,
+          0.49,
+          2.95,
+          null,
+          "P",
+          1
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          0.05,
+          0.54,
+          3.06,
+          null,
+          "P",
+          2
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          0.06,
+          0.77,
+          4.64,
+          null,
+          "P",
+          3
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          0.1,
+          1.25,
+          5.43,
+          null,
+          "P",
+          4
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          0.22,
+          1.52,
+          5.11,
+          null,
+          "P",
+          5
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          0.29,
+          1.7,
+          4.34,
+          null,
+          "P",
+          6
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          0.42,
+          1.68,
+          3.67,
+          null,
+          "P",
+          7
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          0.54,
+          1.81,
+          3.43,
+          null,
+          "P",
+          8
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          0.93,
+          1.32,
+          2.73,
+          null,
+          "P",
+          9
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.0,
+          1.05,
+          1.99,
+          null,
+          "P",
+          10
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.03,
+          0.86,
+          1.26,
+          null,
+          "P",
+          11
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.07,
+          0.88,
+          0.77,
+          null,
+          "P",
+          12
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.07,
+          1.18,
+          0.44,
+          null,
+          "P",
+          13
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.09,
+          1.68,
+          0.31,
+          null,
+          "P",
+          14
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.09,
+          2.23,
+          0.23,
+          null,
+          "P",
+          15
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.14,
+          2.64,
+          0.17,
+          null,
+          "P",
+          16
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.21,
+          3.0,
+          0.14,
+          null,
+          "P",
+          17
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.22,
+          3.71,
+          0.1,
+          null,
+          "P",
+          18
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.23,
+          4.32,
+          0.077,
+          null,
+          "P",
+          19
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.25,
+          4.98,
+          0.055,
+          null,
+          "P",
+          20
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.25,
+          5.76,
+          0.073,
+          null,
+          "P",
+          21
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.25,
+          6.44,
+          0.04,
+          null,
+          "P",
+          22
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.27,
+          7.08,
+          0.058,
+          null,
+          "P",
+          23
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.31,
+          7.7,
+          0.047,
+          null,
+          "P",
+          24
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.26,
+          8.52,
+          0.033,
+          null,
+          "P",
+          25
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.27,
+          9.24,
+          0.047,
+          null,
+          "P",
+          26
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.31,
+          9.99,
+          0.045,
+          null,
+          "P",
+          27
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.34,
+          10.61,
+          0.038,
+          null,
+          "P",
+          28
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.39,
+          11.25,
+          0.03,
+          null,
+          "P",
+          29
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.42,
+          11.97,
+          0.033,
+          null,
+          "P",
+          30
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.5,
+          12.52,
+          0.022,
+          null,
+          "P",
+          31
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.49,
+          13.3,
+          0.025,
+          null,
+          "P",
+          32
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.48,
+          14.11,
+          0.017,
+          null,
+          "P",
+          33
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.5,
+          14.84,
+          0.015,
+          null,
+          "P",
+          34
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.54,
+          15.59,
+          0.012,
+          null,
+          "P",
+          35
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.59,
+          16.35,
+          0.01,
+          null,
+          "P",
+          36
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.63,
+          17.14,
+          0.013,
+          null,
+          "P",
+          37
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.64,
+          17.89,
+          0.01,
+          null,
+          "P",
+          38
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.12,
+          5.26,
+          null,
+          11.73,
+          "P",
+          39
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.21,
+          5.38,
+          null,
+          11.74,
+          "P",
+          40
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.18,
+          5.76,
+          null,
+          11.76,
+          "P",
+          41
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.2,
+          5.97,
+          null,
+          11.78,
+          "P",
+          42
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.19,
+          6.29,
+          null,
+          11.8,
+          "P",
+          43
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.2,
+          6.55,
+          null,
+          11.81,
+          "P",
+          44
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.22,
+          6.73,
+          null,
+          11.82,
+          "P",
+          45
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.31,
+          6.91,
+          null,
+          11.83,
+          "P",
+          46
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.29,
+          7.25,
+          null,
+          11.85,
+          "P",
+          47
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.25,
+          7.57,
+          null,
+          11.87,
+          "P",
+          48
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.27,
+          7.83,
+          null,
+          11.89,
+          "P",
+          49
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.83,
+          12.46,
+          null,
+          12.06,
+          "P",
+          50
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.84,
+          13.11,
+          null,
+          12.08,
+          "P",
+          51
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.86,
+          13.76,
+          null,
+          12.1,
+          "P",
+          52
+        ],
+        [
+          "Table 8",
+          "Flint and Wells (3)",
+          303.15,
+          1.85,
+          14.44,
+          null,
+          12.12,
+          "P",
+          53
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.87,
+          0.9,
+          null,
+          null,
+          "D",
+          1
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.85,
+          0.9,
+          null,
+          null,
+          "D",
+          2
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.82,
+          0.9,
+          null,
+          null,
+          "D",
+          3
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.85,
+          0.92,
+          null,
+          null,
+          "D",
+          4
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.9,
+          0.99,
+          null,
+          null,
+          "D",
+          5
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.9,
+          1.18,
+          null,
+          null,
+          "D",
+          6
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.92,
+          1.37,
+          null,
+          null,
+          "D",
+          7
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.92,
+          1.6,
+          null,
+          null,
+          "D",
+          8
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.91,
+          1.64,
+          null,
+          null,
+          "P",
+          9
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.93,
+          2.07,
+          null,
+          null,
+          "D",
+          10
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.94,
+          2.09,
+          null,
+          null,
+          "D",
+          11
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.96,
+          2.24,
+          null,
+          null,
+          "D",
+          12
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.96,
+          2.57,
+          null,
+          null,
+          "D",
+          13
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.96,
+          2.69,
+          null,
+          null,
+          "D",
+          14
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          0.96,
+          2.84,
+          null,
+          null,
+          "D",
+          15
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.01,
+          3.05,
+          null,
+          null,
+          "D",
+          16
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.0,
+          3.07,
+          null,
+          null,
+          "P",
+          17
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.05,
+          3.1,
+          null,
+          null,
+          "P",
+          18
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.01,
+          3.11,
+          null,
+          null,
+          "P",
+          19
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.05,
+          3.11,
+          null,
+          null,
+          "D",
+          20
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.1,
+          4.02,
+          null,
+          null,
+          "D",
+          21
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.12,
+          4.89,
+          null,
+          null,
+          "P",
+          22
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.16,
+          6.6,
+          null,
+          null,
+          "P",
+          23
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.17,
+          6.99,
+          null,
+          null,
+          "D",
+          24
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.19,
+          7.49,
+          null,
+          null,
+          "P",
+          25
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.24,
+          9.81,
+          null,
+          null,
+          "D",
+          26
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.27,
+          12.08,
+          null,
+          null,
+          "P",
+          27
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.31,
+          13.53,
+          null,
+          null,
+          "P",
+          28
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.33,
+          14.98,
+          null,
+          null,
+          "P",
+          29
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.39,
+          17.51,
+          null,
+          null,
+          "P",
+          30
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.43,
+          19.6,
+          null,
+          null,
+          "P",
+          31
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.42,
+          19.9,
+          null,
+          null,
+          "P",
+          32
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.45,
+          19.96,
+          null,
+          null,
+          "P",
+          33
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          1.4,
+          20.67,
+          null,
+          null,
+          "P",
+          34
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          20.47,
+          0.011,
+          null,
+          "P",
+          35
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          15.36,
+          0.015,
+          null,
+          "P",
+          36
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          8.76,
+          0.024,
+          null,
+          "P",
+          37
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          6.24,
+          0.034,
+          null,
+          "P",
+          38
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          4.54,
+          0.051,
+          null,
+          "P",
+          39
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          3.52,
+          0.078,
+          null,
+          "P",
+          40
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          3.41,
+          0.082,
+          null,
+          "P",
+          41
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          3.16,
+          0.092,
+          null,
+          "P",
+          42
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          2.92,
+          0.108,
+          null,
+          "P",
+          43
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          2.84,
+          0.112,
+          null,
+          "P",
+          44
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          2.81,
+          0.107,
+          null,
+          "P",
+          45
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          2.7,
+          0.114,
+          null,
+          "P",
+          46
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          2.69,
+          0.119,
+          null,
+          "P",
+          47
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          2.55,
+          0.14,
+          null,
+          "P",
+          48
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          1.83,
+          0.215,
+          null,
+          "P",
+          49
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          1.64,
+          0.267,
+          null,
+          "P",
+          50
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          1.52,
+          0.293,
+          null,
+          "P",
+          51
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          1.18,
+          0.442,
+          null,
+          "P",
+          52
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          1.01,
+          0.666,
+          null,
+          "P",
+          53
+        ],
+        [
+          "Table 9",
+          "Roller and Ervin, Jr. (7)",
+          303.15,
+          null,
+          0.99,
+          0.69,
+          null,
+          "P",
+          54
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.12,
+          0.81,
+          3.43,
+          null,
+          "P",
+          1
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.43,
+          1.11,
+          3.27,
+          null,
+          "P",
+          2
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.5,
+          1.34,
+          3.79,
+          null,
+          "P",
+          3
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.22,
+          1.55,
+          3.6,
+          null,
+          "P",
+          4
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.28,
+          1.57,
+          4.25,
+          null,
+          "P",
+          5
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.39,
+          13.04,
+          0.004,
+          null,
+          "P",
+          6
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.86,
+          20.64,
+          null,
+          null,
+          "P",
+          7
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.18,
+          3.75,
+          null,
+          null,
+          "D",
+          8
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.52,
+          16.18,
+          null,
+          null,
+          "D",
+          9
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.56,
+          17.46,
+          null,
+          null,
+          "D",
+          10
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.82,
+          20.06,
+          null,
+          null,
+          "D",
+          11
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.91,
+          20.37,
+          null,
+          null,
+          "D",
+          12
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.54,
+          1.71,
+          null,
+          null,
+          "D",
+          13
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.59,
+          1.13,
+          1.12,
+          null,
+          "D",
+          14
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.69,
+          1.14,
+          null,
+          null,
+          "D",
+          15
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.8,
+          1.31,
+          1.32,
+          null,
+          "D",
+          16
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.64,
+          1.46,
+          1.94,
+          null,
+          "D",
+          17
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.69,
+          1.5,
+          2.1,
+          null,
+          "D",
+          18
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.86,
+          1.65,
+          0.47,
+          null,
+          "D",
+          19
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.67,
+          1.73,
+          1.74,
+          null,
+          "D",
+          20
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.87,
+          1.2,
+          0.332,
+          null,
+          "D",
+          21
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.93,
+          1.36,
+          null,
+          null,
+          "D",
+          22
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.93,
+          1.87,
+          null,
+          null,
+          "D",
+          23
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.97,
+          2.43,
+          0.209,
+          null,
+          "D",
+          24
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          0.9,
+          2.49,
+          0.233,
+          null,
+          "D",
+          25
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.0,
+          3.6,
+          0.111,
+          null,
+          "D",
+          26
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.1,
+          4.06,
+          0.078,
+          null,
+          "D",
+          27
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.34,
+          12.36,
+          0.013,
+          null,
+          "D",
+          28
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.45,
+          17.53,
+          0.001,
+          null,
+          "D",
+          29
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.07,
+          2.27,
+          null,
+          null,
+          "D",
+          30
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.07,
+          2.94,
+          null,
+          null,
+          "D",
+          31
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.03,
+          3.69,
+          null,
+          null,
+          "D",
+          32
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.2,
+          5.14,
+          null,
+          null,
+          "D",
+          33
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.17,
+          5.63,
+          null,
+          null,
+          "D",
+          34
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.29,
+          8.21,
+          null,
+          null,
+          "D",
+          35
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.22,
+          9.36,
+          null,
+          null,
+          "D",
+          36
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.23,
+          6.8,
+          null,
+          null,
+          "D",
+          37
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.29,
+          9.73,
+          null,
+          null,
+          "D",
+          38
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.33,
+          11.55,
+          null,
+          null,
+          "D",
+          39
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.39,
+          14.05,
+          null,
+          null,
+          "D",
+          40
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.41,
+          14.92,
+          null,
+          null,
+          "D",
+          41
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.45,
+          16.21,
+          null,
+          null,
+          "D",
+          42
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.43,
+          16.69,
+          null,
+          null,
+          "D",
+          43
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.62,
+          19.06,
+          null,
+          null,
+          "D",
+          44
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.54,
+          19.24,
+          null,
+          null,
+          "D",
+          45
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.49,
+          19.35,
+          null,
+          null,
+          "D",
+          46
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.56,
+          19.75,
+          null,
+          null,
+          "D",
+          47
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.63,
+          19.75,
+          null,
+          null,
+          "D",
+          48
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.5,
+          20.15,
+          null,
+          null,
+          "D",
+          49
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.58,
+          19.38,
+          null,
+          null,
+          "D",
+          50
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.71,
+          19.98,
+          null,
+          null,
+          "D",
+          51
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.32,
+          6.51,
+          null,
+          null,
+          "D",
+          52
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.21,
+          6.66,
+          0.025,
+          null,
+          "D",
+          53
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.55,
+          16.47,
+          null,
+          null,
+          "D",
+          54
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.84,
+          19.7,
+          null,
+          null,
+          "D",
+          55
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.62,
+          19.88,
+          null,
+          null,
+          "D",
+          56
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          1.78,
+          19.98,
+          null,
+          null,
+          "D",
+          57
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          2.19,
+          20.42,
+          null,
+          null,
+          "D",
+          58
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          2.06,
+          20.51,
+          null,
+          null,
+          "D",
+          59
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          2.29,
+          20.62,
+          null,
+          null,
+          "D",
+          60
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          2.12,
+          20.72,
+          null,
+          null,
+          "D",
+          61
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          2.37,
+          20.83,
+          null,
+          null,
+          "D",
+          62
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          2.23,
+          20.97,
+          null,
+          null,
+          "D",
+          63
+        ],
+        [
+          "Table 10",
+          "Taylor (8)",
+          290.15,
+          2.39,
+          21.35,
+          null,
+          null,
+          "D",
+          64
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          0.56,
+          2.16,
+          3.1,
+          null,
+          "P",
+          1
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          0.6,
+          2.0,
+          2.83,
+          null,
+          "P",
+          2
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          0.66,
+          2.02,
+          2.66,
+          null,
+          "P",
+          3
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          0.77,
+          2.14,
+          2.68,
+          null,
+          "P",
+          4
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          0.83,
+          1.19,
+          1.33,
+          null,
+          "P",
+          5
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          0.85,
+          1.66,
+          1.36,
+          null,
+          "P",
+          6
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.0,
+          3.58,
+          null,
+          null,
+          "P",
+          7
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.02,
+          4.17,
+          0.05,
+          null,
+          "P",
+          8
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.09,
+          5.83,
+          0.03,
+          null,
+          "P",
+          9
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.19,
+          8.15,
+          0.08,
+          null,
+          "P",
+          10
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.2,
+          8.72,
+          0.1,
+          null,
+          "P",
+          11
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.22,
+          8.04,
+          0.08,
+          null,
+          "P",
+          12
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.24,
+          8.68,
+          0.04,
+          null,
+          "P",
+          13
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.28,
+          11.66,
+          0.05,
+          null,
+          "P",
+          14
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.29,
+          11.36,
+          0.05,
+          null,
+          "P",
+          15
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.28,
+          10.84,
+          0.07,
+          null,
+          "P",
+          16
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.31,
+          13.41,
+          0.07,
+          null,
+          "P",
+          17
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.46,
+          16.12,
+          0.05,
+          null,
+          "P",
+          18
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.42,
+          18.12,
+          0.03,
+          null,
+          "P",
+          19
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.33,
+          17.4,
+          0.05,
+          null,
+          "P",
+          20
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.39,
+          16.99,
+          0.13,
+          null,
+          "P",
+          21
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.38,
+          17.78,
+          null,
+          null,
+          "P",
+          22
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.39,
+          18.69,
+          0.1,
+          null,
+          "P",
+          23
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.38,
+          18.55,
+          null,
+          null,
+          "P",
+          24
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.58,
+          19.78,
+          0.05,
+          null,
+          "P",
+          25
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.55,
+          19.67,
+          0.07,
+          null,
+          "P",
+          26
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.62,
+          19.54,
+          0.03,
+          null,
+          "P",
+          27
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.6,
+          19.33,
+          0.03,
+          null,
+          "P",
+          28
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.7,
+          19.79,
+          0.03,
+          null,
+          "P",
+          29
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          2.12,
+          20.44,
+          0.03,
+          null,
+          "P",
+          30
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          1.83,
+          19.99,
+          null,
+          null,
+          "P",
+          31
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          2.1,
+          19.99,
+          0.03,
+          null,
+          "P",
+          32
+        ],
+        [
+          "Table 11",
+          "Kalousek (6)",
+          298.15,
+          2.26,
+          19.94,
+          0.03,
+          null,
+          "P",
+          33
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          0.05,
+          0.74,
+          2.31,
+          9.32,
+          "P",
+          1
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          0.07,
+          0.93,
+          2.6,
+          9.16,
+          "P",
+          2
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          0.14,
+          1.47,
+          3.4,
+          9.65,
+          "P",
+          3
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          0.23,
+          1.68,
+          4.33,
+          9.75,
+          "P",
+          4
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          0.76,
+          1.75,
+          1.47,
+          10.48,
+          "P",
+          5
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          0.32,
+          1.9,
+          4.07,
+          9.8,
+          "P",
+          6
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          0.41,
+          1.95,
+          3.9,
+          9.98,
+          "P",
+          7
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          0.43,
+          1.97,
+          3.87,
+          10.02,
+          "P",
+          8
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          0.68,
+          2.0,
+          3.77,
+          10.26,
+          "P",
+          9
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          0.93,
+          2.13,
+          0.25,
+          11.4,
+          "P",
+          10
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.01,
+          3.9,
+          0.09,
+          11.77,
+          "P",
+          11
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.17,
+          4.71,
+          0.065,
+          11.9,
+          "P",
+          12
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.08,
+          5.28,
+          0.062,
+          11.92,
+          "P",
+          13
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.25,
+          5.72,
+          0.043,
+          11.95,
+          "P",
+          14
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.43,
+          6.45,
+          0.033,
+          12.1,
+          "P",
+          15
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.33,
+          7.42,
+          0.029,
+          12.1,
+          "P",
+          16
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.49,
+          9.42,
+          0.022,
+          12.14,
+          "P",
+          17
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.57,
+          10.5,
+          0.025,
+          12.16,
+          "P",
+          18
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.63,
+          15.0,
+          0.018,
+          12.25,
+          "P",
+          19
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.79,
+          16.4,
+          0.016,
+          12.33,
+          "P",
+          20
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.69,
+          18.5,
+          0.015,
+          12.4,
+          "P",
+          21
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.65,
+          10.0,
+          0.075,
+          12.4,
+          "D",
+          22
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.68,
+          14.5,
+          0.008,
+          12.46,
+          "D",
+          23
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          1.75,
+          18.3,
+          0.017,
+          12.5,
+          "D",
+          24
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          2.12,
+          19.2,
+          0.007,
+          12.45,
+          "D",
+          25
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          2.33,
+          19.2,
+          null,
+          12.6,
+          "D",
+          26
+        ],
+        [
+          "Table 12",
+          "Greenberg and Chang (5)",
+          298.15,
+          2.47,
+          19.3,
+          null,
+          12.46,
+          "D",
+          27
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          0.91,
+          1.48,
+          0.237,
+          null,
+          "D",
+          1
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.0,
+          3.37,
+          0.068,
+          null,
+          "D",
+          2
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.37,
+          4.98,
+          0.053,
+          null,
+          "D",
+          3
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.55,
+          6.67,
+          0.028,
+          null,
+          "D",
+          4
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.57,
+          8.54,
+          0.013,
+          null,
+          "D",
+          5
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.7,
+          10.31,
+          0.008,
+          null,
+          "D",
+          6
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.8,
+          11.71,
+          0.006,
+          null,
+          "P",
+          7
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.81,
+          15.97,
+          0.003,
+          null,
+          "P",
+          8
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.86,
+          19.85,
+          0.001,
+          null,
+          "P",
+          9
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          0.98,
+          1.39,
+          0.23,
+          null,
+          "D",
+          10
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.06,
+          1.98,
+          0.075,
+          null,
+          "D",
+          11
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.07,
+          2.52,
+          0.046,
+          null,
+          "D",
+          12
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.23,
+          5.5,
+          0.023,
+          null,
+          "D",
+          13
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.26,
+          8.22,
+          0.011,
+          null,
+          "P",
+          14
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.32,
+          10.1,
+          0.007,
+          null,
+          "P",
+          15
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.37,
+          14.73,
+          0.003,
+          null,
+          "P",
+          16
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.45,
+          16.84,
+          0.002,
+          null,
+          "P",
+          17
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          0.91,
+          1.67,
+          0.155,
+          null,
+          "D",
+          18
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          0.9,
+          2.92,
+          0.098,
+          null,
+          "D",
+          19
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.05,
+          5.55,
+          0.038,
+          null,
+          "D",
+          20
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.15,
+          7.63,
+          0.019,
+          null,
+          "D",
+          21
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.2,
+          10.46,
+          0.013,
+          null,
+          "P",
+          22
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.27,
+          12.39,
+          0.008,
+          null,
+          "P",
+          23
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.27,
+          16.12,
+          0.005,
+          null,
+          "P",
+          24
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.41,
+          19.49,
+          0.004,
+          null,
+          "P",
+          25
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.54,
+          19.68,
+          0.003,
+          null,
+          "P",
+          26
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          0.91,
+          1.82,
+          0.18,
+          null,
+          "P",
+          27
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          0.97,
+          2.97,
+          0.099,
+          null,
+          "P",
+          28
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.0,
+          3.19,
+          0.084,
+          null,
+          "P",
+          29
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.06,
+          4.57,
+          0.055,
+          null,
+          "P",
+          30
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.06,
+          4.99,
+          0.047,
+          null,
+          "P",
+          31
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.13,
+          6.2,
+          0.033,
+          null,
+          "P",
+          32
+        ],
+        [
+          "Table 13",
+          "Fujii and Kondo (4)",
+          303.15,
+          1.17,
+          7.72,
+          0.025,
+          null,
+          "P",
+          33
+        ]
+      ]
+    },
+    "apparent_solubility_products": {
+      "columns": [
+        "CaSi_range",
+        "model_solid",
+        "log_K_expression"
+      ],
+      "units": [
+        null,
+        null,
+        null
+      ],
+      "kind": "fitted",
+      "location": "Table 3, p. 207 (and Table 2, p. 205): apparent solubility products of the model solids as functions of the C/S of the gel; valid only with the aqueous data of Appendix B",
+      "rows": [
+        [
+          "C/S = 0",
+          "SiO2",
+          "-2.70"
+        ],
+        [
+          "0 < C/S <= 1",
+          "SiO2",
+          "-2.04 + 0.792/(C/S - 1.2)"
+        ],
+        [
+          "0 < C/S <= 1",
+          "CaH2SiO4",
+          "-8.16 - ((1 - C/S)/(C/S)) * (0.78 + 0.792/(C/S - 1.2))"
+        ],
+        [
+          "1 < C/S <= 2.5",
+          "Ca(OH)2",
+          "-4.945 - 0.338/(C/S - 0.85)"
+        ],
+        [
+          "1 < C/S <= 2.5",
+          "CaH2SiO4",
+          "-8.16"
+        ],
+        [
+          "C/S > 2.5",
+          "Ca(OH)2",
+          "-5.15"
+        ],
+        [
+          "C/S > 2.5",
+          "CaH2SiO4",
+          "-8.16"
+        ]
+      ]
+    },
+    "speciation_data": {
+      "columns": [
+        "species",
+        "reaction",
+        "log_K",
+        "dH",
+        "dH_approximate"
+      ],
+      "units": [
+        null,
+        null,
+        "1",
+        "4184*J/mol",
+        null
+      ],
+      "kind": "published",
+      "location": "Appendix B, p. 219: the aqueous and solid data the C-S-H model was fitted with (MINEQL, auxiliary data from his ref. 24); dH in kcal/mol as printed",
+      "rows": [
+        [
+          "CaOH+",
+          "log{CaOH+} = -12.7 + log{Ca+2} - log{H+} + log{H2O}",
+          -12.7,
+          15.3,
+          false
+        ],
+        [
+          "H3SiO4-",
+          "log{H3SiO4-} = -13.1 + log{H2SiO4-2} + log{H+}",
+          -13.1,
+          -10.0,
+          false
+        ],
+        [
+          "H4SiO4(aq)",
+          "log{H4SiO4(aq)} = -22.96 + log{H2SiO4-2} + 2 log{H+}",
+          -22.96,
+          -15.0,
+          false
+        ],
+        [
+          "OH-",
+          "log{OH-} = -14.00 + log{H2O} - log{H+}",
+          -14.0,
+          13.34,
+          false
+        ],
+        [
+          "SiO2(am)",
+          "log{SiO2(am)} + log{H2O} = 25.66 + log{H2SiO4-2} + 2 log{H+}",
+          25.66,
+          4.4,
+          false
+        ],
+        [
+          "Ca(OH)2(s)",
+          "log{Ca(OH)2(s)} = -22.85 + log{Ca+2} - 2 log{H+} + 2 log{H2O}",
+          -22.85,
+          31.0,
+          false
+        ],
+        [
+          "CaH2SiO4(s)",
+          "log{CaH2SiO4(s)} = 8.16 + log{Ca+2} + log{H2SiO4-2}",
+          8.16,
+          13.0,
+          true
+        ]
+      ]
+    },
+    "raw_materials": {
+      "columns": [
+        "material",
+        "component",
+        "percent",
+        "basis"
+      ],
+      "units": [
+        null,
+        null,
+        "1",
+        null
+      ],
+      "kind": "published",
+      "location": "Table 4, p. 209: % by weight of completely dry material; the clinker composition by Bogue's method",
+      "rows": [
+        [
+          "Portland cement",
+          "CaO",
+          68.1,
+          "oxide"
+        ],
+        [
+          "Portland cement",
+          "SiO2",
+          24.1,
+          "oxide"
+        ],
+        [
+          "Portland cement",
+          "Al2O3",
+          2.6,
+          "oxide"
+        ],
+        [
+          "Portland cement",
+          "Fe2O3",
+          1.5,
+          "oxide"
+        ],
+        [
+          "Portland cement",
+          "SO3",
+          2.1,
+          "oxide"
+        ],
+        [
+          "Portland cement",
+          "K2O",
+          0.16,
+          "oxide"
+        ],
+        [
+          "Portland cement",
+          "Na2O",
+          0.1,
+          "oxide"
+        ],
+        [
+          "Portland cement",
+          "MgO",
+          0.7,
+          "oxide"
+        ],
+        [
+          "Portland cement",
+          "CaCO3",
+          0.57,
+          "oxide"
+        ],
+        [
+          "Portland cement",
+          "C3S",
+          64.9,
+          "Bogue"
+        ],
+        [
+          "Portland cement",
+          "C2S",
+          20.1,
+          "Bogue"
+        ],
+        [
+          "Portland cement",
+          "C3A",
+          4.3,
+          "Bogue"
+        ],
+        [
+          "Portland cement",
+          "C4AF",
+          4.5,
+          "Bogue"
+        ],
+        [
+          "Trass",
+          "CaO",
+          5.4,
+          "oxide"
+        ],
+        [
+          "Trass",
+          "SiO2",
+          57.3,
+          "oxide"
+        ],
+        [
+          "Trass",
+          "Al2O3",
+          20.1,
+          "oxide"
+        ],
+        [
+          "Trass",
+          "Fe2O3",
+          6.4,
+          "oxide"
+        ],
+        [
+          "Trass",
+          "SO3",
+          0.2,
+          "oxide"
+        ],
+        [
+          "Trass",
+          "K2O",
+          5.6,
+          "oxide"
+        ],
+        [
+          "Trass",
+          "Na2O",
+          1.65,
+          "oxide"
+        ],
+        [
+          "Trass",
+          "MgO",
+          1.32,
+          "oxide"
+        ],
+        [
+          "Trass",
+          "Loss by ign.",
+          2.3,
+          "oxide"
+        ],
+        [
+          "Sulphate resistant Portland cement",
+          "CaO",
+          62.0,
+          "oxide"
+        ],
+        [
+          "Sulphate resistant Portland cement",
+          "SiO2",
+          20.5,
+          "oxide"
+        ],
+        [
+          "Sulphate resistant Portland cement",
+          "Al2O3",
+          4.0,
+          "oxide"
+        ],
+        [
+          "Sulphate resistant Portland cement",
+          "Fe2O3",
+          7.25,
+          "oxide"
+        ],
+        [
+          "Sulphate resistant Portland cement",
+          "SO3",
+          2.75,
+          "oxide"
+        ],
+        [
+          "Sulphate resistant Portland cement",
+          "K2O",
+          1.0,
+          "oxide"
+        ],
+        [
+          "Sulphate resistant Portland cement",
+          "Na2O",
+          0.1,
+          "oxide"
+        ],
+        [
+          "Sulphate resistant Portland cement",
+          "MgO",
+          1.2,
+          "oxide"
+        ],
+        [
+          "Sulphate resistant Portland cement",
+          "Loss by ign.",
+          1.2,
+          "oxide"
+        ],
+        [
+          "Sulphate resistant Portland cement",
+          "C3S",
+          50.1,
+          "Bogue"
+        ],
+        [
+          "Sulphate resistant Portland cement",
+          "C2S",
+          21.0,
+          "Bogue"
+        ],
+        [
+          "Sulphate resistant Portland cement",
+          "C3A",
+          0,
+          "Bogue"
+        ],
+        [
+          "Sulphate resistant Portland cement",
+          "C4AF",
+          19.1,
+          "Bogue"
+        ]
+      ]
+    },
+    "hydrated_cement_model": {
+      "columns": [
+        "model_component",
+        "pc_trass",
+        "srpc",
+        "in_degradation_model"
+      ],
+      "units": [
+        null,
+        "mmol/kg",
+        "mmol/kg",
+        null
+      ],
+      "kind": "published",
+      "location": "Table 5, p. 209: calculated phase assemblage of the fully hydrated cements, w/c = 0.43, mmol per kg of hydrated material; the footnote marks the aluminate phases as not considered in the degradation model",
+      "rows": [
+        [
+          "C3A0.725F0.275H6 (solid sol.)",
+          401,
+          null,
+          false
+        ],
+        [
+          "C3A0.17F0.83H6 (solid sol.)",
+          null,
+          384,
+          false
+        ],
+        [
+          "C6AS3H32 (AFt)",
+          null,
+          16.1,
+          false
+        ],
+        [
+          "C4ASH12 (AFm)",
+          146,
+          192,
+          false
+        ],
+        [
+          "C1.39SH1.39",
+          3620,
+          null,
+          true
+        ],
+        [
+          "C1.8SH1.8",
+          null,
+          2386,
+          true
+        ],
+        [
+          "CH",
+          null,
+          1420,
+          true
+        ],
+        [
+          "MH",
+          144,
+          208,
+          true
+        ],
+        [
+          "KOH",
+          196,
+          148,
+          true
+        ],
+        [
+          "NaOH",
+          97.2,
+          22.4,
+          true
+        ],
+        [
+          "CaCO3",
+          31.5,
+          null,
+          true
+        ],
+        [
+          "free water",
+          7211,
+          5560,
+          true
+        ]
+      ]
+    },
+    "mixing_tank_evolution": {
+      "columns": [
+        "cycle",
+        "CaSi_solid",
+        "porosity_percent",
+        "pH",
+        "log_K_CaOH2",
+        "log_K_CaH2SiO4",
+        "log_K_SiO2"
+      ],
+      "units": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "kind": "published",
+      "location": "Table 7, p. 210: model results for the cement/trass mixture of Table 5 degrading in the marl-type groundwater of Table 6, against the number of water exchange cycles",
+      "rows": [
+        [
+          1,
+          1.39,
+          26.5,
+          12.9,
+          -5.57,
+          -8.16,
+          null
+        ],
+        [
+          523,
+          1.05,
+          28.4,
+          12.0,
+          -6.65,
+          -8.16,
+          null
+        ],
+        [
+          1097,
+          0.9,
+          31.0,
+          11.2,
+          null,
+          -7.95,
+          -4.66
+        ],
+        [
+          4413,
+          0.24,
+          40.1,
+          10.3,
+          null,
+          -8.01,
+          -2.87
+        ],
+        [
+          6650,
+          0,
+          46.5,
+          7.4,
+          null,
+          null,
+          -2.7
+        ]
+      ]
+    },
+    "degradation_stages": {
+      "columns": [
+        "stage",
+        "cycles",
+        "statement"
+      ],
+      "units": [
+        null,
+        null,
+        null
+      ],
+      "kind": "published",
+      "location": "Section 4.3, pp. 210-211: the model stages, as the text states them (sulfate-resisting cement and cement/trass in the marl water)",
+      "rows": [
+        [
+          "1",
+          "1 to ~100",
+          "pore solution dominated by the alkali hydroxides (released at 5 % per cycle); the model gives pH 12.6 at cycle 1, too low against the 13.0-13.5 of real pore solutions"
+        ],
+        [
+          "2",
+          "~100 to ~1000",
+          "dominated by the model solid Ca(OH)2: total dissolved Ca around 20 mmol/L, pH buffered at ~12.5, total silica < 0.03 mmol/L"
+        ],
+        [
+          "3",
+          "> 1000",
+          "the C/S of the gel controls the solution: pH drops continuously to ~11, total Ca to 1-5 mmol/L, silica rises to 2-6 mmol/L"
+        ]
+      ]
+    },
+    "marl_groundwater": {
+      "columns": [
+        "component",
+        "total",
+        "origin"
+      ],
+      "units": [
+        null,
+        "mmol/L",
+        null
+      ],
+      "kind": "published",
+      "location": "Table 6, p. 210: the marl-type groundwater (25 C), total concentrations, measured or modeled (saturation with calcite, quartz and fluorite, pCO2 = -2 in log, charge balanced with the proton)",
+      "rows": [
+        [
+          "Na+",
+          121.9,
+          "measured"
+        ],
+        [
+          "K+",
+          0.47,
+          "measured"
+        ],
+        [
+          "Ca+2",
+          5.58,
+          "modeled"
+        ],
+        [
+          "Mg+2",
+          0.66,
+          "measured"
+        ],
+        [
+          "Sr+2",
+          0.09,
+          "measured"
+        ],
+        [
+          "Cl-",
+          76.16,
+          "measured"
+        ],
+        [
+          "F-",
+          0.22,
+          "modeled"
+        ],
+        [
+          "NO3-",
+          1.61,
+          "measured"
+        ],
+        [
+          "CO3-2",
+          4.57,
+          "modeled"
+        ],
+        [
+          "SO4-2",
+          26.4,
+          "measured"
+        ],
+        [
+          "H2SiO4-2",
+          0.1,
+          "modeled"
+        ]
+      ]
+    }
+  },
+  "notes": [
+    "The model of Berner is a pair of model solids per C/S range with C/S-dependent apparent solubility products, not a solid solution in the Cemdata18 sense; it is context only and is not to be refitted. Its pure-water C-S-H solubility curve (solid lines of Figs. 1-3) is not tabulated; it follows from Table 3 with the Appendix B data and the Davies equation.",
+    "The data points of Tables 8-13 are what a C-S-H model (CSHQ in Cemdata18) is compared with: total Ca (and total Si) of the solution against the C/S of the solid. The temperatures differ (17, 25, 30 C); Table 10 (Taylor) is at 17 C.",
+    "The Ca of the dissolution (D) rows of Table 12 is printed with one decimal (10.0, 14.5, 18.3, 19.2, 19.2, 19.3), the other Ca values with two; JSON numbers do not keep trailing zeros. In several rows of Tables 8 (pH series), 9 (silica series) and 10 a column is a dash; the Roller and Ervin rows of Table 9 with a silica value have no C/S.",
+    "Table 6 also prints, as modeled values, pH 7.27, alkalinity 4.22 and ionic strength 0.15 (units of the last two not stated), and saturation indices: calcite -0.02, quartz -0.02, fluorite -0.04, celestite -0.26, gypsum -0.52, dolomite -0.91. The text (p. 212) adds that the total carbonate of the leachant must be below 1.1e-5 (unit not printed) to avoid calcite precipitation.",
+    "The degradation model leaves out AFm, AFt and hydrogarnet (Table 5 footnote, Section 4.3), so it gives no aluminate or sulfate sequence for the leaching of a CEM I paste; one cycle replaces a volume of leachant equal to the total porosity.",
+    "Table 7 is for the cement/trass mixture in the marl water; the pure-water case appears only in Fig. 8 (pH against cycles, sulfate-resisting cement), not digitized apart from its printed lifetime 7450."
+  ]
+}

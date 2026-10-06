@@ -1,0 +1,1654 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Balonis2010",
+    "doi": "10.1016/j.cemconres.2010.03.002",
+    "citation": "Balonis, M., Lothenbach, B., Le Saout, G., Glasser, F. P. (2010). Impact of chloride on the mineralogy of hydrated Portland cement systems. Cement and Concrete Research 40(7), 1009-1022.",
+    "location": "Tables 1-6 (pp. 1011-1016, 1021), Sections 2, 4 and 5, Figs. 7-11 (pp. 1016-1020)"
+  },
+  "transcription": {
+    "from": "the published article (PDF): Tables 1-6 from the text layer, each checked cell by cell against the page rendered at 220-300 dpi; the model mixtures, durations and thresholds from the text and the captions; the phases of the XRD patterns of Figs. 9 and 11 from the labels printed on them; selected points of Figs. 7, 8 and 10, which are raster images only, located on the embedded images by pixel analysis (see each table's digitization)",
+    "checked_against_source": true,
+    "note": "The article computes with GEMS-PSI, the cement hydrates from Matschei et al. (2007, its ref. [53], Cemdata07) and Friedel's and Kuzel's salts from its Table 1, alkali-free, the activities by the extended Debye-Hueckel equation of ref. [53]; Friedel's salt, the hydroxy-AFm and monocarbonate form one IDEAL solid solution (Section 4), monosulfate is in solid solution with the hydroxy-AFm (SO4-AFmss). Its ratio 2Cl/Al2O3 is n(Cl2)/n(Al2O3), i.e. n(CaCl2)/n(C3A) here, 1 for Friedel's salt (0.003 mol CaCl2 on 0.01 mol C3A is 0.3). The Cl/Al ratio of Tables 4 and 5 is n(Cl)/n(Al), also 1 for Friedel's salt. No NaCl appears anywhere in the article: every chloride is CaCl2."
+  },
+  "quantities": {
+    "c3a": {
+      "value": 0.01,
+      "unit": "mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 1014, and the captions of Figs. 8-11",
+      "description": "Tricalcium aluminate of the model mixture, carbonate-free and carbonate-bearing."
+    },
+    "caso4": {
+      "value": 0.01,
+      "unit": "mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 1014; captions of Figs. 9 and 11",
+      "description": "Calcium sulfate of the model mixture (SO3/Al2O3 = 1); the hydration state of the CaSO4 is not stated."
+    },
+    "portlandite": {
+      "value": 0.015,
+      "unit": "mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 1014; captions of Figs. 8-11",
+      "description": "Ca(OH)2 of the model mixture."
+    },
+    "water": {
+      "value": 60,
+      "unit": "mL",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 1014; captions of Figs. 8-11",
+      "description": "Water of the model mixture, 60 ml."
+    },
+    "calcite": {
+      "value": 0.0075,
+      "unit": "mol",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.2, p. 1015; captions of Figs. 10 and 11",
+      "description": "CaCO3 of the carbonate-bearing model mixture (CO2/Al2O3 = 0.75)."
+    },
+    "temperature_C": {
+      "value": 25,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": 2,
+      "location": "captions of Figs. 9 and 11; Section 4.2",
+      "description": "Temperature of the model-mixture experiments and of the AFm solid-solution tests (25 +/- 2 C), in degrees Celsius."
+    },
+    "equilibration_carbonate_system": {
+      "value": 45,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.2, p. 1015",
+      "description": "Equilibration time of the carbonate-bearing model mixture with and without CaCl2. The article states no equilibration time for the carbonate-free mixture of Fig. 9."
+    },
+    "equilibration_solid_solutions": {
+      "value": 180,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Sections 3.3.1 and 3.3.3; captions of Tables 4 and 5",
+      "description": "Equilibration time, from undersaturation, of the dried AFm solid-solution members redispersed in water (Tables 4 and 5)."
+    },
+    "water_solid_synthesis": {
+      "value": 10,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Sections 2.1.1-2.1.3, p. 1010",
+      "description": "Water/solid mass ratio of the syntheses, printed '~10'."
+    },
+    "water_solid_solubility": {
+      "value": 30,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.4, p. 1010",
+      "description": "Water/solid ratio of the solubility tests of Tables 2 and 3, printed '~30'."
+    },
+    "cl2_al2o3_kuzel_to_friedel": {
+      "value": 0.7,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 4.1, p. 1014",
+      "description": "Calculated ratio 2Cl/Al2O3 (Fig. 7) below which Kuzel's salt and above which Friedel's salt (in solid solution with the hydroxy-AFm) is the chloride AFm phase, printed '~0.70'. A calculated result, not a measurement."
+    },
+    "min_cl_for_friedel_5_25C": {
+      "value": 6,
+      "unit": "mmol/L",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 5.3, p. 1018",
+      "description": "Minimum aqueous chloride concentration necessary to stabilize Friedel's salt between 5 and 25 C, printed '~6 mM', read by the authors from Table 2."
+    },
+    "cl_oh_corrosion_threshold": {
+      "value": 0.6,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 5.4, p. 1020, citing its ref. [85] (Alonso et al. 2000)",
+      "description": "Aqueous [Cl-]/[OH-] ratio above which chloride-induced corrosion of steel is 'especially likely'; quoted, not determined, by this article."
+    },
+    "friedel_oh_afm_ss_lower_limit": {
+      "value": 0.2,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 3.3.1 and Conclusions, pp. 1013 and 1021",
+      "description": "Cl/(Cl+OH) above which Friedel's salt and the hydroxy-AFm form a solid solution (wet samples; two separate XRD peaks below 0.2), 'range 0.2-1'."
+    },
+    "friedel_monocarbonate_gap_limit": {
+      "value": 0.1,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 3.3.3 and Conclusions, pp. 1014 and 1021",
+      "description": "Cl/(Cl+1/2 CO3) at or below which a miscibility gap separates monocarbonate from the Friedel's-salt solid solution, printed '<=0.1'."
+    }
+  },
+  "tables": {
+    "chloride_afm_thermodynamics": {
+      "columns": [
+        "phase",
+        "log_Ks0",
+        "dfG",
+        "dfH",
+        "S",
+        "a0",
+        "a1",
+        "a2",
+        "a3",
+        "Cp",
+        "density"
+      ],
+      "units": [
+        null,
+        "1",
+        "kJ/mol",
+        "kJ/mol",
+        "J/(mol*K)",
+        "J/(mol*K)",
+        "J/(mol*K^2)",
+        "J*K/mol",
+        "J/(mol*K^0.5)",
+        "J/(mol*K)",
+        "kg/m^3"
+      ],
+      "kind": "published",
+      "location": "Table 1, p. 1011: Friedel's salt C4ACl1.95H10.025 = Ca4Al2Cl1.95(OH)12.05(H2O)4 and Kuzel's salt C4As0.5ClH12 = Ca4Al2(SO4)0.5Cl(OH)12(H2O)6 at 298 K; Cp = a0 + a1 T + a2 T^-2 + a3 T^-0.5; the densities from the article's ref. [62]",
+      "rows": [
+        [
+          "C4ACl1.95H10.025",
+          -27.69,
+          -6814.6,
+          -7625,
+          731,
+          498,
+          0.89,
+          -2030000.0,
+          1503,
+          829,
+          2064
+        ],
+        [
+          "C4As0.5ClH12",
+          -28.53,
+          -7533.3,
+          -8587,
+          820,
+          557,
+          1.14,
+          -1010000.0,
+          751.5,
+          929,
+          2114
+        ]
+      ]
+    },
+    "dissolution_products": {
+      "columns": [
+        "phase",
+        "species",
+        "coefficient"
+      ],
+      "units": [
+        null,
+        null,
+        "1"
+      ],
+      "kind": "published",
+      "location": "Eqs. (5) and (6), p. 1011: the right-hand sides of the dissolution reactions of one formula unit of each solid, to which the log Ks0 of Tables 1-3 refer, with the water the article writes",
+      "rows": [
+        [
+          "C4ACl1.95H10.025",
+          "Ca+2",
+          4
+        ],
+        [
+          "C4ACl1.95H10.025",
+          "AlO2-",
+          2
+        ],
+        [
+          "C4ACl1.95H10.025",
+          "Cl-",
+          1.95
+        ],
+        [
+          "C4ACl1.95H10.025",
+          "OH-",
+          4.05
+        ],
+        [
+          "C4ACl1.95H10.025",
+          "H2O",
+          8
+        ],
+        [
+          "C4As0.5ClH12",
+          "Ca+2",
+          4
+        ],
+        [
+          "C4As0.5ClH12",
+          "AlO2-",
+          2
+        ],
+        [
+          "C4As0.5ClH12",
+          "Cl-",
+          1
+        ],
+        [
+          "C4As0.5ClH12",
+          "SO4-2",
+          0.5
+        ],
+        [
+          "C4As0.5ClH12",
+          "OH-",
+          4
+        ],
+        [
+          "C4As0.5ClH12",
+          "H2O",
+          10
+        ]
+      ]
+    },
+    "friedel_solubility": {
+      "columns": [
+        "temperature_C",
+        "Ca",
+        "Al",
+        "Cl",
+        "log_Ks0",
+        "pH_measured",
+        "pH_corrected_from_25C",
+        "pH_GEMS",
+        "age_months",
+        "phases_after",
+        "table1_input"
+      ],
+      "units": [
+        "1",
+        "mmol/L",
+        "mmol/L",
+        "mmol/L",
+        "1",
+        "1",
+        null,
+        "1",
+        "1",
+        null,
+        null
+      ],
+      "kind": "measured",
+      "location": "Table 2, p. 1012: solubility of Friedel's salt Ca4Al2(OH)12.05Cl1.95(H2O)4 from undersaturation at w/s ~30; log_Ks0 is the authors' value for Eq. (5) computed from the measured Ca, Al and Cl with GEMS; pH_corrected_from_25C is footnote a (pH measured at 25 C and corrected by calculation to the temperature); pH_GEMS is the equilibrium pH calculated by GEMS; phases_after as printed (Fs_ss = Friedel's salt in solid solution with OH-AFm, HG = hydrogarnet), null for n.d.; table1_input marks the italic row used for Table 1",
+      "rows": [
+        [
+          5.0,
+          7.33,
+          3.96,
+          3.77,
+          -29.53,
+          12.4,
+          true,
+          12.51,
+          1.0,
+          null,
+          false
+        ],
+        [
+          5.0,
+          7.3,
+          2.93,
+          3.86,
+          -29.24,
+          12.45,
+          true,
+          12.56,
+          3.0,
+          "Fs_ss",
+          false
+        ],
+        [
+          5.0,
+          7.29,
+          2.9,
+          3.76,
+          -29.24,
+          12.45,
+          true,
+          12.57,
+          6.0,
+          null,
+          false
+        ],
+        [
+          5.0,
+          7.2,
+          2.85,
+          3.7,
+          -29.28,
+          12.43,
+          true,
+          12.56,
+          8.0,
+          "Fs_ss",
+          false
+        ],
+        [
+          5.0,
+          7.25,
+          2.89,
+          3.72,
+          -29.26,
+          12.44,
+          true,
+          12.57,
+          12.0,
+          "Fs_ss",
+          false
+        ],
+        [
+          25.0,
+          9.19,
+          4.52,
+          4.95,
+          -27.87,
+          12.0,
+          false,
+          11.9,
+          1.0,
+          null,
+          false
+        ],
+        [
+          25.0,
+          9.09,
+          2.48,
+          4.89,
+          -27.63,
+          12.01,
+          false,
+          11.98,
+          1.0,
+          "Fs_ss",
+          false
+        ],
+        [
+          25.0,
+          9.13,
+          2.63,
+          4.97,
+          -27.59,
+          12.01,
+          false,
+          11.97,
+          3.0,
+          "Fs_ss",
+          false
+        ],
+        [
+          25.0,
+          8.92,
+          2.73,
+          4.89,
+          -27.66,
+          11.99,
+          false,
+          11.96,
+          3.0,
+          null,
+          false
+        ],
+        [
+          25.0,
+          8.95,
+          2.35,
+          4.98,
+          -27.72,
+          12.0,
+          false,
+          11.97,
+          6.0,
+          "Fs_ss",
+          false
+        ],
+        [
+          25.0,
+          9.11,
+          2.78,
+          5.02,
+          -27.57,
+          11.96,
+          false,
+          11.96,
+          6.0,
+          "Fs_ss",
+          false
+        ],
+        [
+          25.0,
+          8.99,
+          2.69,
+          4.98,
+          -27.64,
+          11.98,
+          false,
+          11.96,
+          8.0,
+          null,
+          false
+        ],
+        [
+          25.0,
+          8.77,
+          2.97,
+          5.5,
+          -27.71,
+          11.94,
+          false,
+          11.9,
+          8.0,
+          "Fs_ss",
+          false
+        ],
+        [
+          25.0,
+          8.88,
+          2.7,
+          5.7,
+          -27.69,
+          11.94,
+          false,
+          11.92,
+          12.0,
+          "Fs_ss",
+          true
+        ],
+        [
+          25.0,
+          8.82,
+          2.39,
+          5.79,
+          -27.78,
+          11.93,
+          false,
+          11.92,
+          12.0,
+          null,
+          false
+        ],
+        [
+          55.0,
+          13.25,
+          2.31,
+          14.31,
+          -26.94,
+          11.08,
+          true,
+          10.99,
+          3.0,
+          "Fs_ss, HG",
+          false
+        ],
+        [
+          55.0,
+          13.66,
+          2.45,
+          15.1,
+          -26.83,
+          11.08,
+          true,
+          10.98,
+          6.0,
+          null,
+          false
+        ],
+        [
+          55.0,
+          13.73,
+          2.28,
+          15.25,
+          -26.85,
+          11.09,
+          true,
+          10.99,
+          8.0,
+          "Fs_ss, HG",
+          false
+        ],
+        [
+          55.0,
+          13.73,
+          2.7,
+          15.43,
+          -26.82,
+          11.06,
+          true,
+          10.97,
+          12.0,
+          null,
+          false
+        ],
+        [
+          85.0,
+          16.05,
+          2.9,
+          19.46,
+          -26.96,
+          10.22,
+          true,
+          10.24,
+          3.0,
+          "Fs_ss, HG",
+          false
+        ],
+        [
+          85.0,
+          16.68,
+          2.57,
+          19.06,
+          -26.77,
+          10.21,
+          true,
+          10.32,
+          6.0,
+          null,
+          false
+        ],
+        [
+          85.0,
+          16.58,
+          2.5,
+          19.2,
+          -26.83,
+          10.2,
+          true,
+          10.31,
+          8.0,
+          "Fs_ss, HG",
+          false
+        ],
+        [
+          85.0,
+          16.6,
+          2.54,
+          19.69,
+          -26.86,
+          10.19,
+          true,
+          10.29,
+          12.0,
+          null,
+          false
+        ]
+      ]
+    },
+    "kuzel_solubility": {
+      "columns": [
+        "temperature_C",
+        "Ca",
+        "Al",
+        "Cl",
+        "SO4_assumed",
+        "log_Ks0",
+        "pH_measured",
+        "pH_corrected_from_25C",
+        "pH_GEMS",
+        "age_months",
+        "phases_after",
+        "table1_input"
+      ],
+      "units": [
+        "1",
+        "mmol/L",
+        "mmol/L",
+        "mmol/L",
+        "mmol/L",
+        "1",
+        "1",
+        null,
+        "1",
+        "1",
+        null,
+        null
+      ],
+      "kind": "measured",
+      "location": "Table 3, p. 1012: solubility of Kuzel's salt Ca4Al2(SO4)0.5Cl(OH)12(H2O)6, which dissolves incongruently; SO4_assumed is NOT measured (footnote a: determined assuming saturation with monosulfoaluminate, from Matschei et al. [53]); pH_corrected_from_25C is footnote b (the 5 C, 12-month row carries none); phases_after as printed (Ks = Kuzel's salt, Fs = Friedel's salt, Ms = monosulfoaluminate, HG = hydrogarnet), null for n.d.; table1_input marks the italic row used for Table 1",
+      "rows": [
+        [
+          5.0,
+          5.25,
+          3.26,
+          3.85,
+          0.005,
+          -30.45,
+          12.34,
+          true,
+          12.2,
+          1.0,
+          "Ks, Fs, Ms",
+          false
+        ],
+        [
+          5.0,
+          5.47,
+          3.16,
+          3.89,
+          0.005,
+          -30.19,
+          12.33,
+          true,
+          12.26,
+          3.0,
+          "Ks, Fs, Ms",
+          false
+        ],
+        [
+          5.0,
+          5.45,
+          3.1,
+          3.99,
+          0.005,
+          -30.23,
+          12.35,
+          true,
+          12.25,
+          6.0,
+          null,
+          false
+        ],
+        [
+          5.0,
+          5.35,
+          3.16,
+          4.1,
+          0.005,
+          -30.4,
+          12.31,
+          true,
+          12.21,
+          8.0,
+          "Ks, Ms, Fs",
+          false
+        ],
+        [
+          5.0,
+          5.35,
+          3.19,
+          3.96,
+          0.005,
+          -30.35,
+          12.26,
+          false,
+          12.22,
+          12.0,
+          null,
+          false
+        ],
+        [
+          25.0,
+          7.65,
+          4.14,
+          4.01,
+          0.009,
+          -28.53,
+          11.76,
+          false,
+          11.77,
+          1.0,
+          "Ks, Ms, Fs",
+          false
+        ],
+        [
+          25.0,
+          8.73,
+          2.61,
+          5.96,
+          0.009,
+          -28.25,
+          11.77,
+          false,
+          11.86,
+          3.0,
+          "Ks, Ms, Fs",
+          false
+        ],
+        [
+          25.0,
+          8.88,
+          2.21,
+          6.22,
+          0.009,
+          -28.28,
+          11.8,
+          false,
+          11.88,
+          3.0,
+          "Ks, Ms, Fs",
+          false
+        ],
+        [
+          25.0,
+          8.64,
+          2.26,
+          5.89,
+          0.009,
+          -28.35,
+          11.76,
+          false,
+          11.87,
+          6.0,
+          "Ks, Ms, Fs",
+          false
+        ],
+        [
+          25.0,
+          8.66,
+          2.39,
+          5.9,
+          0.009,
+          -28.32,
+          11.88,
+          false,
+          11.87,
+          6.0,
+          null,
+          false
+        ],
+        [
+          25.0,
+          8.66,
+          2.43,
+          5.93,
+          0.009,
+          -28.31,
+          11.87,
+          false,
+          11.86,
+          8.0,
+          "Ks, Ms, Fs",
+          false
+        ],
+        [
+          25.0,
+          8.68,
+          2.4,
+          5.98,
+          0.009,
+          -28.32,
+          11.82,
+          false,
+          11.87,
+          8.0,
+          null,
+          false
+        ],
+        [
+          25.0,
+          8.41,
+          2.31,
+          5.7,
+          0.009,
+          -28.53,
+          11.76,
+          false,
+          11.79,
+          12.0,
+          "Ks, Ms, Fs",
+          true
+        ],
+        [
+          25.0,
+          8.21,
+          2.51,
+          5.39,
+          0.009,
+          -28.51,
+          11.74,
+          false,
+          11.86,
+          12.0,
+          null,
+          false
+        ],
+        [
+          55.0,
+          13.46,
+          3.3,
+          11.99,
+          0.25,
+          -26.64,
+          11.07,
+          true,
+          11.04,
+          3.0,
+          "Ks, HG, Ms, Fs",
+          false
+        ],
+        [
+          55.0,
+          12.71,
+          3.31,
+          11.38,
+          0.25,
+          -26.84,
+          11.05,
+          true,
+          11.01,
+          6.0,
+          null,
+          false
+        ],
+        [
+          55.0,
+          13.15,
+          3.2,
+          12.02,
+          0.25,
+          -26.77,
+          11.08,
+          true,
+          11.02,
+          8.0,
+          "Ks, HG, Ms, Fs",
+          false
+        ],
+        [
+          55.0,
+          12.88,
+          3.49,
+          11.89,
+          0.25,
+          -26.82,
+          11.02,
+          true,
+          10.99,
+          12.0,
+          null,
+          false
+        ],
+        [
+          85.0,
+          17.03,
+          3.54,
+          16.94,
+          1.31,
+          -26.5,
+          10.41,
+          true,
+          10.32,
+          3.0,
+          "Ks, HG, Ms, Fs",
+          false
+        ],
+        [
+          85.0,
+          17.49,
+          3.71,
+          16.51,
+          1.31,
+          -26.39,
+          10.36,
+          true,
+          10.34,
+          6.0,
+          "Ks, HG, Ms, Fs",
+          false
+        ],
+        [
+          85.0,
+          18.2,
+          3.48,
+          17.55,
+          1.31,
+          -26.32,
+          10.37,
+          true,
+          10.35,
+          8.0,
+          "Ks, HG, Ms, Fs",
+          false
+        ],
+        [
+          85.0,
+          18.15,
+          3.55,
+          17.41,
+          1.31,
+          -26.31,
+          10.37,
+          true,
+          10.35,
+          12.0,
+          null,
+          false
+        ]
+      ]
+    },
+    "cl_oh_afm_solution": {
+      "columns": [
+        "series",
+        "Cl_Al",
+        "Ca",
+        "Al",
+        "Cl",
+        "pH",
+        "phases_after"
+      ],
+      "units": [
+        null,
+        "1",
+        "mmol/L",
+        "mmol/L",
+        "mmol/L",
+        "1",
+        null
+      ],
+      "kind": "measured",
+      "location": "Table 4, p. 1014: aqueous composition from undersaturation of the solids between the hydroxy-AFm (Cl/Al = 0) and Friedel's salt (Cl/Al = 1), with excess CaCl2 above 1, 25 +/- 2 C, 180 days; Cl_Al is the calculated Cl/Al ratio of the total system; phases_after as printed (FS_ss = Cl-AFm/OH-AFm solid solution, printed 'Fsss' in the 0.30 row; HG = hydrogarnet; CH = portlandite), null for n.d.; the last row, pure hydrogarnet, is given by the article for reference",
+      "rows": [
+        [
+          "OH-AFm/Friedel series",
+          0.0,
+          17.63,
+          0.21,
+          0.0,
+          12.49,
+          "OH-AFm, HG, CH"
+        ],
+        [
+          "OH-AFm/Friedel series",
+          0.1,
+          17.19,
+          0.24,
+          0.72,
+          12.47,
+          "FS_ss, HG"
+        ],
+        [
+          "OH-AFm/Friedel series",
+          0.2,
+          15.21,
+          0.29,
+          0.86,
+          12.46,
+          "FS_ss, HG"
+        ],
+        [
+          "OH-AFm/Friedel series",
+          0.3,
+          12.68,
+          0.79,
+          1.29,
+          12.41,
+          "Fs_ss, HG"
+        ],
+        [
+          "OH-AFm/Friedel series",
+          0.4,
+          10.53,
+          1.87,
+          1.73,
+          12.33,
+          "FS_ss, HG(traces)"
+        ],
+        [
+          "OH-AFm/Friedel series",
+          0.5,
+          8.69,
+          3.27,
+          2.09,
+          12.21,
+          "FS_ss"
+        ],
+        [
+          "OH-AFm/Friedel series",
+          0.6,
+          8.84,
+          3.61,
+          3.61,
+          12.14,
+          "FS_ss"
+        ],
+        [
+          "OH-AFm/Friedel series",
+          0.7,
+          8.62,
+          4.46,
+          3.78,
+          12.07,
+          "FS_ss"
+        ],
+        [
+          "OH-AFm/Friedel series",
+          0.8,
+          8.59,
+          3.77,
+          4.31,
+          12.09,
+          "FS_ss"
+        ],
+        [
+          "OH-AFm/Friedel series",
+          0.9,
+          8.91,
+          2.49,
+          4.92,
+          12.12,
+          "FS_ss"
+        ],
+        [
+          "OH-AFm/Friedel series",
+          0.95,
+          8.82,
+          2.39,
+          5.79,
+          11.93,
+          "FS_ss"
+        ],
+        [
+          "OH-AFm/Friedel series",
+          1.05,
+          11.63,
+          1.35,
+          11.57,
+          11.78,
+          "FS_ss"
+        ],
+        [
+          "OH-AFm/Friedel series",
+          1.1,
+          13.13,
+          0.89,
+          15.7,
+          11.7,
+          null
+        ],
+        [
+          "OH-AFm/Friedel series",
+          1.2,
+          16.78,
+          0.93,
+          24.5,
+          11.62,
+          null
+        ],
+        [
+          "pure hydrogarnet",
+          null,
+          6.31,
+          5.07,
+          0.0,
+          11.81,
+          "HG"
+        ]
+      ]
+    },
+    "cl_co3_afm_solution": {
+      "columns": [
+        "Cl_Al",
+        "Ca",
+        "Al",
+        "Cl",
+        "pH",
+        "phases_after"
+      ],
+      "units": [
+        "1",
+        "mmol/L",
+        "mmol/L",
+        "mmol/L",
+        "1",
+        null
+      ],
+      "kind": "measured",
+      "location": "Table 5, p. 1016: aqueous composition from undersaturation of the solids between monocarboaluminate (Cl/Al = 0) and Friedel's salt (Cl/Al = 1), with excess CaCl2 above 1, 25 +/- 2 C, 180 days; phases_after as printed (Mc = monocarboaluminate, Cc = calcite, FS-Mc_ss = Friedel's salt in solid solution with monocarboaluminate), null for n.d.",
+      "rows": [
+        [
+          0.0,
+          3.67,
+          1.59,
+          0.0,
+          11.64,
+          "Mc, Cc"
+        ],
+        [
+          0.1,
+          4.14,
+          1.08,
+          0.81,
+          11.56,
+          "FS-Mc_ss, Mc, Cc"
+        ],
+        [
+          0.2,
+          5.35,
+          1.05,
+          2.02,
+          11.58,
+          "FS-Mc_ss, Cc"
+        ],
+        [
+          0.3,
+          5.7,
+          0.67,
+          3.47,
+          11.61,
+          "FS-Mc_ss, Cc"
+        ],
+        [
+          0.4,
+          6.95,
+          0.57,
+          7.6,
+          11.55,
+          "FS-Mc_ss, Cc"
+        ],
+        [
+          0.5,
+          9.25,
+          0.52,
+          9.87,
+          11.55,
+          "FS-Mc_ss, Cc"
+        ],
+        [
+          0.6,
+          9.39,
+          0.62,
+          10.72,
+          11.53,
+          "FS-Mc_ss, Cc"
+        ],
+        [
+          0.7,
+          10.24,
+          1.46,
+          11.97,
+          11.66,
+          "FS-Mc_ss, Cc"
+        ],
+        [
+          0.8,
+          10.74,
+          1.86,
+          12.42,
+          11.67,
+          "FS-Mc_ss, Cc"
+        ],
+        [
+          0.9,
+          12.17,
+          1.78,
+          13.13,
+          11.64,
+          "FS-Mc_ss, Cc"
+        ],
+        [
+          1.05,
+          12.33,
+          1.15,
+          13.37,
+          11.69,
+          null
+        ],
+        [
+          1.1,
+          13.73,
+          0.91,
+          15.77,
+          11.72,
+          null
+        ],
+        [
+          1.2,
+          16.88,
+          0.89,
+          24.75,
+          11.64,
+          null
+        ]
+      ]
+    },
+    "chloride_bound": {
+      "columns": [
+        "phase",
+        "Cl_wt_percent",
+        "reference"
+      ],
+      "units": [
+        null,
+        "1",
+        null
+      ],
+      "kind": "published",
+      "location": "Table 6, p. 1021: wt.% Cl bound per gram of solid phase; 'This work' or the article's ref. [44] (Beaudoin et al. 1990)",
+      "rows": [
+        [
+          "Ca4Al2(OH)13.8(Cl)0.2(H2O)4",
+          1.34,
+          "This work"
+        ],
+        [
+          "Ca4Al2(OH)12(CO3)0.95(Cl)0.1(H2O)5",
+          0.62,
+          "This work"
+        ],
+        [
+          "Ca4Al2(OH)12.05(Cl)1.95(H2O)4",
+          12.33,
+          "This work"
+        ],
+        [
+          "Ca4Al2(SO4)0.5(Cl)(OH)12(H2O)6",
+          5.81,
+          "This work"
+        ],
+        [
+          "C-S-H, C/S = 0.68",
+          0.6,
+          "[44]"
+        ],
+        [
+          "C-S-H, C/S = 1.91",
+          1.5,
+          "[44]"
+        ]
+      ]
+    },
+    "xrd_phases": {
+      "columns": [
+        "system",
+        "figure",
+        "plot",
+        "cacl2_added",
+        "cl2_al2o3_nominal",
+        "phases"
+      ],
+      "units": [
+        null,
+        null,
+        "1",
+        "mol",
+        "1",
+        null
+      ],
+      "kind": "measured",
+      "location": "captions and phase labels of the XRD patterns of Fig. 9 (p. 1018: 0.01 mol C3A, 0.01 mol CaSO4, 0.015 mol Ca(OH)2, 60 ml water) and Fig. 11 (p. 1020: the same with 0.0075 mol CaCO3), 25 +/- 2 C; cl2_al2o3_nominal is cacl2_added / 0.01 mol C3A; phases are the labels printed on each pattern: E ettringite, Ms SO4-AFm ss, Mc CO3-AFm, Ks Kuzel's salt, Fs Friedel's salt ss, P portlandite, Cc calcite (a 'contamination' in Fig. 9)",
+      "rows": [
+        [
+          "carbonate-free",
+          "Fig. 9",
+          1,
+          0.0,
+          0.0,
+          "E, Ms, P"
+        ],
+        [
+          "carbonate-free",
+          "Fig. 9",
+          2,
+          0.003,
+          0.3,
+          "E, Ms, Ks, P"
+        ],
+        [
+          "carbonate-free",
+          "Fig. 9",
+          3,
+          0.005,
+          0.5,
+          "E, Ks, P, Cc"
+        ],
+        [
+          "carbonate-free",
+          "Fig. 9",
+          4,
+          0.01,
+          1.0,
+          "E, Fs, P"
+        ],
+        [
+          "carbonate-bearing",
+          "Fig. 11",
+          1,
+          0.0,
+          0.0,
+          "E, Mc, P"
+        ],
+        [
+          "carbonate-bearing",
+          "Fig. 11",
+          2,
+          0.01,
+          1.0,
+          "E, Fs, P, Cc"
+        ]
+      ]
+    },
+    "fig8b_measured_solution": {
+      "columns": [
+        "cl2_al2o3",
+        "Ca",
+        "Cl",
+        "Al",
+        "pH"
+      ],
+      "units": [
+        "1",
+        "mmol/L",
+        "mmol/L",
+        "mmol/L",
+        "1"
+      ],
+      "kind": "measured",
+      "location": "Fig. 8(b), p. 1017, raster image: the measured aqueous composition of the carbonate-free model mixture (0.01 mol C3A, 0.015 mol portlandite, 60 ml water, SO3/Al2O3 = 1) against 2Cl/Al2O3, 25 +/- 2 C; the four compositions are the four XRD samples of Fig. 9, the second one plotted at 0.29 where the caption of Fig. 9 gives 0.003 mol CaCl2 (0.30)",
+      "digitization": {
+        "method": "raster image",
+        "tool": "the markers of each series separated by color (blue diamonds Ca, black triangles Cl, gray circles Al, red diamonds pH) in the embedded 1031 x 1442 image, each center taken as the middle of its bounding box, mapped through the plot frame (0 and 250 mM, pH 12.1 and 13, on the frame lines) and the x positions of the markers at 0 and 1",
+        "uncertainty": null,
+        "note": "One pixel is 0.39 mM and 0.0014 pH unit; a centroid and a bounding-box center differ by up to 1.3 mM for the triangles: about +/- 1 mM on Ca and Cl, +/- 0.01 on pH. The Al circles and the Cl triangle at 0 sit on the zero line: 0.0 is what the figure shows, the marker bounds Al below about 2 mM. The error bars are not transcribed; two of them span about 122 to 165 mM (Cl at 1.0) and 36 to 44 mM (Ca at 0.5)."
+      },
+      "rows": [
+        [
+          0.0,
+          19.7,
+          0.0,
+          0.0,
+          12.5
+        ],
+        [
+          0.29,
+          25.0,
+          10.4,
+          0.0,
+          12.44
+        ],
+        [
+          0.5,
+          40.2,
+          18.3,
+          0.0,
+          12.38
+        ],
+        [
+          1.0,
+          66.6,
+          143.0,
+          0.0,
+          12.24
+        ]
+      ]
+    },
+    "fig10b_measured_solution": {
+      "columns": [
+        "cl2_al2o3",
+        "Ca",
+        "Cl",
+        "Al",
+        "pH"
+      ],
+      "units": [
+        "1",
+        "mmol/L",
+        "mmol/L",
+        "mmol/L",
+        "1"
+      ],
+      "kind": "measured",
+      "location": "Fig. 10(b), p. 1019, raster image: the measured aqueous composition of the carbonate-bearing model mixture (0.01 mol C3A, 0.015 mol portlandite, 0.0075 mol CaCO3, 60 ml water, SO3/Al2O3 = 1), 25 +/- 2 C, 45 days; the two compositions are the two XRD samples of Fig. 11",
+      "digitization": {
+        "method": "raster image",
+        "tool": "as for fig8b_measured_solution, in the embedded 1052 x 1452 image; frame 0 and 200 mM, pH 12.2 and 12.7",
+        "uncertainty": null,
+        "note": "One pixel is 0.31 mM and 0.0008 pH unit: about +/- 1 mM on Ca and Cl, +/- 0.01 on pH. Al and the Cl at 0 sit on the zero line. Error bars: Cl at 1.0 about 139 to 188 mM, Ca at 1.0 about 81 to 99 mM."
+      },
+      "rows": [
+        [
+          0.0,
+          21.9,
+          0.0,
+          0.0,
+          12.47
+        ],
+        [
+          1.0,
+          90.1,
+          162.6,
+          0.0,
+          12.23
+        ]
+      ]
+    },
+    "fig7_calculated_amounts": {
+      "columns": [
+        "phase",
+        "cl2_al2o3",
+        "amount"
+      ],
+      "units": [
+        null,
+        "1",
+        "1"
+      ],
+      "kind": "published",
+      "location": "Fig. 7, p. 1016, raster image: the calculated 'relative amount of solids [mol]' of a model mixture of initially 1 mol C3A, excess portlandite and SO3/Al2O3 = 1 at 25 C against 2Cl/Al2O3, CaCl2 added; GEMS with Cemdata07 + Table 1, ideal Friedel-OH-AFm solid solution; the calculated points lie on a grid of about 0.045 in 2Cl/Al2O3, and the rows are the points on either side of each appearance or disappearance, the start and the end of each curve; a phase given 0.0 is drawn on the zero line",
+      "digitization": {
+        "method": "raster image",
+        "tool": "marker centers located column by column in the embedded 673 x 482 image (dark outlines of the triangles, diamonds and crosses, gray fill of the squares, whose drop shadow was left out), mapped through the eleven grid lines of the amount axis (39 px per 0.1) and the tick labels 0.00 to 0.80 of the ratio axis (107 px per 0.2)",
+        "uncertainty": {
+          "value": 0.01,
+          "unit": "1"
+        },
+        "note": "One pixel is 0.0026 in amount and 0.0019 in ratio; markers are 9 to 13 px wide. The ratios of the grid points come out at 0.412, 0.451, 0.677, 0.722 and 1.087 and are given to two decimals."
+      },
+      "rows": [
+        [
+          "SO4-AFm_ss",
+          0.0,
+          0.94
+        ],
+        [
+          "SO4-AFm_ss",
+          0.41,
+          0.02
+        ],
+        [
+          "SO4-AFm_ss",
+          0.45,
+          0.0
+        ],
+        [
+          "Kuzel's salt",
+          0.0,
+          0.0
+        ],
+        [
+          "Kuzel's salt",
+          0.41,
+          0.78
+        ],
+        [
+          "Kuzel's salt",
+          0.68,
+          0.04
+        ],
+        [
+          "Kuzel's salt",
+          0.72,
+          0.0
+        ],
+        [
+          "Friedel's salt_ss",
+          0.41,
+          0.0
+        ],
+        [
+          "Friedel's salt_ss",
+          0.45,
+          0.07
+        ],
+        [
+          "Friedel's salt_ss",
+          0.68,
+          0.64
+        ],
+        [
+          "Friedel's salt_ss",
+          0.72,
+          0.68
+        ],
+        [
+          "Friedel's salt_ss",
+          1.09,
+          0.68
+        ],
+        [
+          "ettringite",
+          0.0,
+          0.05
+        ],
+        [
+          "ettringite",
+          0.41,
+          0.21
+        ],
+        [
+          "ettringite",
+          0.68,
+          0.33
+        ],
+        [
+          "ettringite",
+          0.72,
+          0.34
+        ],
+        [
+          "ettringite",
+          1.09,
+          0.34
+        ],
+        [
+          "portlandite",
+          0.0,
+          0.1
+        ],
+        [
+          "portlandite",
+          0.41,
+          0.21
+        ],
+        [
+          "portlandite",
+          0.72,
+          0.22
+        ],
+        [
+          "portlandite",
+          1.09,
+          0.23
+        ]
+      ]
+    },
+    "calculated_solid_volumes": {
+      "columns": [
+        "figure",
+        "cl2_al2o3",
+        "boundary",
+        "volume"
+      ],
+      "units": [
+        null,
+        "1",
+        null,
+        "cm^3"
+      ],
+      "kind": "published",
+      "location": "Figs. 8(a) and 10(a), pp. 1017 and 1019, raster images: the calculated cumulative volumes of the solids of the carbonate-free (Fig. 8a) and carbonate-bearing (Fig. 10a) model mixtures with 0.01 mol C3A, 0.015 mol portlandite and 60 ml water at 25 C; 'total' is the top of the stack, 'top of X' the upper boundary of layer X, the layers stacked from the bottom as portlandite, then the AFm phases (Fig. 8a) or ettringite then the AFm phases then calcite (Fig. 10a); Fig. 10(a) starts at 2Cl/Al2O3 about 0.03",
+      "digitization": {
+        "method": "raster image",
+        "tool": "the boundary lines located column by column as dark pixels in the embedded images, mapped through the frame and grid lines of the volume axis (117.2 px per cm3 in Fig. 8a, 95.9 in Fig. 10a)",
+        "uncertainty": {
+          "value": 0.02,
+          "unit": "cm^3"
+        },
+        "note": "The plateau values are long horizontal boundary lines, read at 2Cl/Al2O3 = 1.0; the start values where the boundaries meet the left frame."
+      },
+      "rows": [
+        [
+          "Fig. 8a",
+          0.0,
+          "total",
+          3.71
+        ],
+        [
+          "Fig. 8a",
+          1.0,
+          "total",
+          4.8
+        ],
+        [
+          "Fig. 8a",
+          1.0,
+          "top of Friedel's salt_ss",
+          2.45
+        ],
+        [
+          "Fig. 8a",
+          1.0,
+          "top of portlandite",
+          0.63
+        ],
+        [
+          "Fig. 10a",
+          0.03,
+          "total",
+          4.75
+        ],
+        [
+          "Fig. 10a",
+          1.0,
+          "total",
+          5.07
+        ],
+        [
+          "Fig. 10a",
+          1.0,
+          "top of Friedel's salt_ss",
+          4.8
+        ],
+        [
+          "Fig. 10a",
+          1.0,
+          "top of ettringite",
+          2.99
+        ],
+        [
+          "Fig. 10a",
+          1.0,
+          "top of portlandite",
+          0.63
+        ]
+      ]
+    }
+  },
+  "notes": [
+    "Already in the repository and not repeated here: the Cemdata18 records of Friedel's salt C4AClH10 (log Ks0 -27.27, written for Cl2) and Kuzel's salt C4AsClH12 (-28.53) in Lothenbach2019.json and Balonis2019.json. The Friedel's salt of this article is a different formula, C4ACl1.95H10.025, with log Ks0 -27.69 and dfG -6814.6 kJ/mol; Kuzel's salt has the same dfG (-7533.3) and S (820) as Cemdata18.",
+    "The dfH of Table 1 are not consistent with its dfG and S: with the CODATA entropies of the elements (Ca 41.59, Al 28.30, S 32.054, 1/2 Cl2 111.54, 1/2 O2 102.576, 1/2 H2 65.34 J/(mol K)), dfH = dfG + 298.15 (S - sum S_el) gives -7609.4 kJ/mol for Friedel's salt (printed -7625) and -8472.5 for Kuzel's salt (printed -8587). Cemdata18 carries -8472.0 for Kuzel's salt (and -7604 for its Cl2 Friedel's salt, consistent the same way). The printed values are transcribed unchanged; at 25 C they play no role, the log Ks0 fix the equilibria.",
+    "The log Ks0 of Table 1 at 25 C are the italic 12-month rows of Tables 2 (-27.69) and 3 (-28.53). The Kuzel's-salt sulfate of Table 3 is assumed, not measured, so the log Ks0 of Kuzel's salt rests on that assumption.",
+    "Figs. 3(b) and 6(b) print measured [Cl-]/[OH-] ratios at selected points: 0.02, 0.68 and 1.92 (Fig. 3b), 0.22, 0.53, 0.85 and 3.00 (Fig. 6b). They are Cl/10^(pH-14) of Tables 4 and 5: at Cl/Al 0.95 and 1.05 of Table 4, and 0.10, 0.20, 0.30 and 0.90 of Table 5, to the printed digits; 0.02 is 0.024 at Cl/Al 0.10 of Table 4 and 0.030 at 0.20, where its arrow is drawn. They are not transcribed as a table.",
+    "Figs. 3, 6 and 12 are not transcribed: the measured points of Figs. 3 and 6 are Tables 4 and 5; their open squares (GEMS-calculated Cl) and the curves of Figs. 7, 8 and 10 are calculated results, of which only the points of fig7_calculated_amounts and calculated_solid_volumes are read; Fig. 12 is a schematic.",
+    "Fig. 7 and Fig. 8(a) are not the same system on two scales: in Fig. 7 the portlandite rises from 0.10 to 0.23 'relative mol' and the caption gives no water, while in Fig. 8(a) the portlandite volume stays at 0.63 cm3. The AFm and ettringite amounts of Fig. 7 are per mol C3A (they add up to about 1 mol Al2O3 at every ratio); its portlandite is not comparable."
+  ]
+}

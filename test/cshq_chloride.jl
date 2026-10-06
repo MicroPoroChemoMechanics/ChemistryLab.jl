@@ -93,14 +93,20 @@ include(joinpath(pkgdir(ChemistryLab), "data", "chloride", "member.jl"))
         s0 = ssr(δ)
         @test ssr(δ - 100) > s0 && ssr(δ + 100) > s0
         # What the fit is worth, pinned: -4.9 kJ/mol, within 0.03 mmol/g at 0.5
-        # mol/L, 0.05 low at 1 mol/L, four times the measurement at 0.1.
-        @test δ ≈ -4907 atol = 1
-        @test prov["delta_uncertainty_J_per_mol"] ≈ 308 atol = 1
-        @test all(abs.(r.bound .- [0.1384, 0.325, 0.2927]) .< 5.0e-5)
+        # mol/L, 0.05 low at 1 mol/L, four times the measurement at 0.1. Refitted
+        # in 0.34.0, when the volume of the solvent began to follow the thermal
+        # expansion of water: at 20 °C the 10 cm³ of the test hold 0.12 % more
+        # water, which moved the fit from -4907 to -4897 J/mol, a thirtieth of its
+        # uncertainty; that uncertainty is now the one automatic differentiation
+        # through the forward model gives, 353 J/mol where a difference quotient
+        # gave 308.
+        @test δ ≈ -4897 atol = 1
+        @test prov["delta_uncertainty_J_per_mol"] ≈ 353 atol = 1
+        @test all(abs.(r.bound .- [0.1378, 0.3234, 0.2911]) .< 5.0e-5)
         # The gel takes water from the solution as it rehydrates, which the
         # depletion reads as chloride released: at 1 mol/L the end member holds
         # 0.41 mmol/g where the measurement would see 0.29.
-        @test r.held[3] - r.bound[3] ≈ 0.122 atol = 5.0e-4
+        @test r.held[3] - r.bound[3] ≈ 0.1214 atol = 5.0e-4
     end
 
     ext_species = build_species(datapath("cemdata18-chloride.json"); verbose = false)

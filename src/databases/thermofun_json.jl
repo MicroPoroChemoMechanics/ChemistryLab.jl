@@ -232,6 +232,38 @@ function _cp_intervals(methods)
 end
 
 """
+    temperature_range(s::AbstractSpecies) -> (lower, upper)
+
+The temperatures, in K, over which the record of `s` declares its heat capacity:
+the `limitsTP` of its `cp_ft_equation` methods in a ThermoFun database, from the
+lowest bound of its first interval to the highest of its last. `(-Inf, Inf)`
+for a species whose record declares none, which includes every solute described
+by the HKF equations, whose domain is a density of water rather than a
+temperature (see [Real gases and pressure](@ref sec-theory-real-gases) §6), and
+the solvent.
+
+Nothing refuses a temperature outside the range: the heat capacity is carried
+past it by the nearest interval's function. The ranges are narrow in places.
+Cemdata18 declares its AFm phases to 50 °C, its ettringites to 60 °C and its
+clinker phases from 25 °C only, so that a calculation at 80 °C extrapolates
+ettringite and one at 5 °C extrapolates alite; a warning at every such
+evaluation would fire in most calculations below 25 °C, and the function is
+there for the calculation that needs to know.
+
+```jldoctest
+julia> s = Species("CaCO3"; aggregate_state = AS_CRYSTAL);
+
+julia> temperature_range(s)
+(-Inf, Inf)
+```
+"""
+function temperature_range(s::AbstractSpecies)
+    haskey(properties(s), :T_range) || return (-Inf, Inf)
+    r = s[:T_range]
+    return (Float64(r[1]), Float64(r[2]))
+end
+
+"""
     complete_species_with_thermo_model!(species, row; verbose=false)
 
 Populate thermodynamic reference values and build thermodynamic functions on `species`
@@ -282,6 +314,9 @@ function complete_species_with_thermo_model!(species, row; verbose = false)
         # record gives one, so that the functions follow T past the interval
         # that holds Tref (`complete_thermo_functions!`).
         intervals = _cp_intervals(TPMethods)
+        # The temperatures the record declares its heat capacity for, kept so
+        # that a calculation can be checked against them (`temperature_range`).
+        isempty(intervals) || (species[:T_range] = [first(intervals).lower, last(intervals).upper])
         # Held as a function returning the list, a property being a number, a
         # function, a string or a vector of numbers or of pairs.
         length(intervals) > 1 && (species[:cp_intervals] = () -> intervals)
@@ -314,10 +349,10 @@ function complete_species_with_thermo_model!(species, row; verbose = false)
             elseif method_type in ("mv_constant", "mv_pvnrt")
                 species[:V_method] = method_type
             elseif startswith(method_type, "water_eos")
-                # The solvent's standard energy follows its heat capacity in T,
-                # and in P the equation of state of Haar, Gallagher and Kell:
-                # its tabulated volume at P°, compressed as the equation says
-                # (`_add_solvent_pressure_term!`).
+                # The solvent's standard state is that of liquid water by the
+                # equation of state of Haar, Gallagher and Kell, at any T and P,
+                # anchored on the record at its reference
+                # (`_solvent_from_water_eos!`).
                 species[:V_method] = "water_eos"
             end
         end

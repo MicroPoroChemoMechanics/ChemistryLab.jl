@@ -140,6 +140,14 @@ That is why this model has a *ceiling* rather than an asymptote, and why the
 ceiling is quoted vaguely as "about a molal": the term is not wrong so much as
 it is standing in for physics it does not contain.
 
+Away from 25 °C the model keeps ``\dot{B}`` at its 25 °C value. With
+`temperature_dependent = true`, ``A`` and ``B`` are recomputed at the
+temperature and pressure of the solution from the water properties of §1,
+which the equation of state of water carries to 1000 °C; ``\dot{B}``, fitted to
+NaCl at 25 °C, has no temperature function here, and a calculation far from
+25 °C in a solution concentrated enough for the term to matter should supply
+its own value of it, a keyword away.
+
 The Davies equation [Davies1962](@cite) makes the same move with one more
 simplification. It drops the ion size, replacing ``1 + B\mathring{a}_i\sqrt{I}``
 by ``1 + \sqrt{I}``, and fixes the linear term once for every ion:

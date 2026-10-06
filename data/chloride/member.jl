@@ -228,7 +228,16 @@ function forward(c::Candidate, subs, db; model, water_fraction)
     r = t0.elements[:Ca] / t0.elements[:Si]
 
     return function (δ)
-        cs = gel_system(subs, member_species(member_entry(c, db, byname, δ)))
+        # The record is built at the value of δ. When δ is being differentiated
+        # its dual part is added to the Gibbs energy afterwards, at every
+        # temperature, which is exact: δ shifts the energies of the record at
+        # 293.15 K and not its entropy, so ∂ΔₐG⁰/∂δ = 1 at any T, and these tests
+        # are isothermal.
+        δ₀ = ChemistryLab.ForwardDiff.value(δ)
+        member = member_species(member_entry(c, db, byname, δ₀))
+        δ isa ChemistryLab.ForwardDiff.Dual &&
+            (member[:ΔₐG⁰] = member[:ΔₐG⁰] + NumericFunc(T -> δ - δ₀, (:T,), (T = member.Tref,), u"J/mol"))
+        cs = gel_system(subs, member)
         k_member = findfirst(s -> symbol(s) == member_symbol(c), cs.species)
         per_member = Float64(atoms(cs.species[k_member])[:Cl])
         order = sortperm(c0; rev = true)
