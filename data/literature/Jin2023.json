@@ -1,0 +1,208 @@
+{
+ "schema": "chemistrylab-literature/1",
+ "source": {
+  "key": "Jin2023",
+  "doi": "10.1016/j.cemconres.2023.107253",
+  "citation": "Jin, H., Ghazizadeh, S., Provis, J. L. (2023). Assessment of the thermodynamics of Na,K-shlykovite as potential alkali-silica reaction products in the (Na,K)2O-CaO-SiO2-H2O system. Cement and Concrete Research 172, 107253.",
+  "location": "Section 2.2 and Eqs. (3)-(7) (pp. 2-3), Table 1 (p. 4)"
+ },
+ "transcription": {
+  "from": "the published article (open-access PDF, CC BY): Table 1 from the text layer, checked against the rendered page; Eqs. (3)-(7) from the text",
+  "checked_against_source": true,
+  "note": "The PDF ends with the corrigendum of 2024 (Jin2024), which reprints Table 1 with other enthalpies; this file holds the original table, the corrigendum its own file."
+ },
+ "quantities": {
+  "entropy_volume_slope": {
+   "value": 1579.0,
+   "unit": "J/(mol*K*nm^3)",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Eq. (3), p. 2",
+   "description": "S = 1579 Vm + 6, Vm the formula unit volume in nm3, from Eq. (6) of Ghazizadeh et al. (2020) as the paper cites it: the slope."
+  },
+  "entropy_volume_intercept": {
+   "value": 6.0,
+   "unit": "J/(mol*K)",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Eq. (3), p. 2",
+   "description": "The intercept of Eq. (3)."
+  },
+  "heat_capacity_volume_slope": {
+   "value": 1388.1,
+   "unit": "J/(mol*K*nm^3)",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Eq. (4), p. 2",
+   "description": "Cp = 1388.1 Vm + 4.58, from Fig. 2 of Glasser and Jenkins (2011) as the paper cites it: the slope."
+  },
+  "heat_capacity_volume_intercept": {
+   "value": 4.58,
+   "unit": "J/(mol*K)",
+   "kind": "published",
+   "uncertainty": null,
+   "location": "Eq. (4), p. 2",
+   "description": "The intercept of Eq. (4)."
+  },
+  "log_K_80C_K_shlykovite_cited": {
+   "value": -25.8,
+   "unit": "1",
+   "kind": "published",
+   "uncertainty": 2.0,
+   "location": "Section 2.2, p. 2",
+   "description": "The solubility product of K-shlykovite at 80 C of Shi and Lothenbach (2019), the paper's reference [22], as the paper quotes it before refining it (Section 3.1, Fig. 1)."
+  },
+  "log_K_80C_Na_shlykovite_cited": {
+   "value": -26.5,
+   "unit": "1",
+   "kind": "published",
+   "uncertainty": 2.0,
+   "location": "Section 2.2, p. 2",
+   "description": "The solubility product of Na-shlykovite at 80 C of Shi and Lothenbach (2019), quoted as above."
+  }
+ },
+ "tables": {
+  "products": {
+   "columns": [
+    "symbol",
+    "formula",
+    "V",
+    "Vm",
+    "dfH",
+    "dfH_uncertainty",
+    "dfG",
+    "dfG_uncertainty",
+    "S",
+    "S_uncertainty",
+    "Cp",
+    "Cp_uncertainty",
+    "log_K",
+    "log_K_uncertainty"
+   ],
+   "units": [
+    null,
+    null,
+    "cm^3/mol",
+    "nm^3",
+    "kJ/mol",
+    "kJ/mol",
+    "kJ/mol",
+    "kJ/mol",
+    "J/(mol*K)",
+    "J/(mol*K)",
+    "J/(mol*K)",
+    "J/(mol*K)",
+    "1",
+    "1"
+   ],
+   "kind": "estimated",
+   "location": "Table 1, p. 4: thermodynamic properties of the ASR products at 25 C, estimated by the authors (S and Cp from the formula unit volume, Eqs. (3)-(4); the solubility product refined from the measurements at 80 C of their reference [22] and carried to 25 C, Eqs. (8)-(11)); log_K at 25 C of the dissolution of Eqs. (6)-(7)",
+   "rows": [
+    [
+     "K-shlykovite",
+     "KCaSi4O8(OH)3(H2O)2",
+     183.0,
+     0.3,
+     -5736.4,
+     13.0,
+     -5293.1,
+     3.0,
+     485.8,
+     48.0,
+     426.4,
+     42.0,
+     -31.2,
+     1.2
+    ],
+    [
+     "Na-shlykovite",
+     "NaCaSi4O8(OH)3(H2O)2.3",
+     164.0,
+     0.27,
+     -5839.8,
+     15.0,
+     -5364.4,
+     2.0,
+     435.9,
+     43.0,
+     382.5,
+     38.0,
+     -34.8,
+     0.4
+    ]
+   ]
+  },
+  "dissolution_products": {
+   "columns": [
+    "symbol",
+    "species",
+    "coefficient"
+   ],
+   "units": [
+    null,
+    null,
+    "1"
+   ],
+   "kind": "published",
+   "location": "Eqs. (6) and (7), p. 2: the dissolution reactions of the solubility products, written with the Cemdata18 symbols of the species (SiO2 = SiO2@, water = H2O@)",
+   "rows": [
+    [
+     "K-shlykovite",
+     "K+",
+     1.0
+    ],
+    [
+     "K-shlykovite",
+     "Ca+2",
+     1.0
+    ],
+    [
+     "K-shlykovite",
+     "SiO2@",
+     4.0
+    ],
+    [
+     "K-shlykovite",
+     "OH-",
+     3.0
+    ],
+    [
+     "K-shlykovite",
+     "H2O@",
+     2.0
+    ],
+    [
+     "Na-shlykovite",
+     "Na+",
+     1.0
+    ],
+    [
+     "Na-shlykovite",
+     "Ca+2",
+     1.0
+    ],
+    [
+     "Na-shlykovite",
+     "SiO2@",
+     4.0
+    ],
+    [
+     "Na-shlykovite",
+     "OH-",
+     3.0
+    ],
+    [
+     "Na-shlykovite",
+     "H2O@",
+     2.3
+    ]
+   ]
+  }
+ },
+ "notes": [
+  "The uncertainties of S and Cp are the authors' estimate of 10 %, propagated by them to the enthalpy and the Gibbs energy (footnote a of Table 1).",
+  "The entropies and heat capacities follow from Eqs. (3)-(4) with Vm = V/N_A: 0.3039 and 0.2723 nm3 give 485.8 and 436.0 J/(mol K) for S, 426.4 and 382.6 for Cp, the tabulated values to 0.1; the printed Vm (0.3, 0.27) are those rounded.",
+  "The Gibbs energies reproduce the solubility products through the aqueous species of Cemdata18 (the database of the paper, Section 2.1): log K at 25 C recomputed -31.19 and -34.82 against the printed -31.2 and -34.8.",
+  "With the element entropies of the Cemdata18 ThermoFun file, dfG + T (S - sum of the element entropies) at 298.15 K gives -5736.3 and -5839.3 kJ/mol: the enthalpies of this table agree with the Gibbs energies and entropies to 0.1 and 0.5 kJ/mol. The corrigendum (Jin2024) replaces them by -5163.6 and -5267.5 kJ/mol, which differ from that relation by +572.7 and +571.8 kJ/mol, the Gibbs energies and entropies being unchanged; recorded as found."
+ ]
+}

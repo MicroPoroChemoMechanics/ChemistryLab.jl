@@ -1,0 +1,47 @@
+{
+ "schema": "chemistrylab-literature/1",
+ "source": {
+  "key": "Jin2024",
+  "doi": "10.1016/j.cemconres.2023.107405",
+  "citation": "Jin, H., Ghazizadeh, S., Provis, J. L. (2024). Corrigendum to \"Assessment of the thermodynamics of Na,K-shlykovite as potential alkali-silica reaction products in the (Na,K)2O-CaO-SiO2-H2O system\" [Cement and Concrete Research (2023), 172, 107253]. Cement and Concrete Research 176, 107405.",
+  "location": "Text and Table 1, p. 1"
+ },
+ "transcription": {
+  "from": "the published corrigendum (open-access PDF, CC BY), from the text layer, checked against the rendered page",
+  "checked_against_source": true,
+  "note": "The corrigendum states that the enthalpies of formation of Table 1 of the article were in error, gives the ones below, and states that the calculations of the paper used the correct values throughout."
+ },
+ "quantities": {},
+ "tables": {
+  "corrected_enthalpies": {
+   "columns": [
+    "symbol",
+    "dfH",
+    "dfH_uncertainty"
+   ],
+   "units": [
+    null,
+    "kJ/mol",
+    "kJ/mol"
+   ],
+   "kind": "estimated",
+   "location": "Text and Table 1, p. 1",
+   "rows": [
+    [
+     "K-shlykovite",
+     -5163.6,
+     8.0
+    ],
+    [
+     "Na-shlykovite",
+     -5267.5,
+     9.0
+    ]
+   ]
+  }
+ },
+ "notes": [
+  "The other columns of the reprinted Table 1 are those of the article (Jin2023), except the log K of Na-shlykovite, printed '-34.0.8 +/- 0.4', a misprint of the article's -34.8 +/- 0.4.",
+  "These enthalpies differ by +572.7 and +571.8 kJ/mol from dfG + T (S - sum of the element entropies) computed with the Gibbs energies and entropies of the same table and the element entropies of Cemdata18, where those of the article agree with it to 0.5 kJ/mol (see Jin2023). ChemistryLab does not use either set: the Gibbs energy of a phase at temperature is built from dfG, S and Cp, and its enthalpy is taken consistent with them."
+ ]
+}
