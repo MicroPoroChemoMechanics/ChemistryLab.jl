@@ -188,8 +188,10 @@ CSHQ spans a Ca/Si from 0.67 to 2.25 and holds no aluminum: with it, every atom
 of aluminum of a paste is in another phase. CNASH_ss holds aluminum and sodium,
 and its Ca/Si stops at 1.5, short of the gel that sits beside portlandite in the
 section above. Neither limit can be removed by a setting of the solver; it is the
-choice of the model, and [Aluminum uptake by C-S-H](@ref sec-validation-aluminum-uptake)
-measures what it costs on syntheses of known composition.
+choice of the model. [Aluminum uptake by C-S-H](@ref sec-validation-aluminum-uptake)
+measures what it costs on syntheses of known composition, and [Aluminum in the
+C-S-H](@ref ex-csh-aluminum) records two extensions that were tried and why
+neither is shipped.
 
 ### One model of the gel at a time
 

@@ -49,6 +49,27 @@
   solutions and on the certifying solver gain four figures of principle: the
   tangent and the plane of the potentials, the miscibility gap and its two
   instances, a round of the solver, and the three roots of the ionic strength.
+- **Aluminum in the C-S-H, two extensions tried and not shipped**
+  (`examples/csh_aluminum.md`, `scripts/csh_aluminum.jl`). No shipped gel holds
+  both the calcium of a gel beside portlandite and aluminum. Two extensions,
+  each with one energy fitted by ChemistryLab, were fitted on the uptake
+  isotherm of the syntheses of L'Hôpital et al. (2016a): CASH+ with the
+  aluminate its authors describe for the bridging site, and CSHQ with an
+  aluminum end-member of one aluminum per formula unit, which the linear
+  isotherm of the measurements asks for. The first reproduces the isotherm at a
+  Ca/Si from 1.0 to 1.6 and alkaline syntheses at 1.0 it was not fitted on; it
+  fails below a Ca/Si of 1.0, above it in alkaline solutions, and in three of
+  four cement pastes. The page records why neither is shipped, and what the
+  syntheses say before any model: their solutions are undersaturated with
+  respect to the strätlingite and katoite they hold, so the Al/Si of the gel
+  beside these phases is not an equilibrium datum.
+- **The C-A-S-H syntheses of L'Hôpital et al. (2015) and of Yan et al. (2022)**,
+  transcribed in `data/literature/LHopital2015.json` (the gel, the other solids
+  and the solutions at a Ca/Si of 1.0, without alkali and in 0.5 M KOH) and
+  `data/literature/Yan2022.json` (the solutions, the solids and the gel at a
+  Ca/Si of 1.0 in NaOH and KOH up to 1 M), each value checked against the
+  rendered page. The chemical formulas of Yan et al.'s Table A4 count Na2O and
+  Al2O3 twice against its own ratio columns; the file keeps both and says so.
 
 ### Fixed
 

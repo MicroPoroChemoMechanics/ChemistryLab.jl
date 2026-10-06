@@ -229,6 +229,9 @@ pages = [
             # The CASH+ gel in the compound energy formalism: the invariant points
             # of the paper, the alkalis, and the authors' 110 gel compositions.
             "examples/cashplus_csh.md",
+            # A gel that holds aluminum at a high Ca/Si: two extensions fitted
+            # here, tested on syntheses and pastes, and why neither is shipped.
+            "examples/csh_aluminum.md",
             "examples/pitzer_model.md",
         ],
         # The smallest complete surface calculation, against the closed form it
