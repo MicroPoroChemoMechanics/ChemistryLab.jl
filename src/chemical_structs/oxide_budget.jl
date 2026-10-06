@@ -147,6 +147,42 @@ function glass_species(
 end
 
 """
+    cation_molar_mass(oxides) -> Quantity
+
+The mass of material per mole of the cations of its oxide analysis, in g/mol:
+``1 / \\sum_k f_k \\nu_k / M_k``, ``f_k`` the mass fraction of the oxide ``k``,
+``M_k`` its molar mass from the library and ``\\nu_k`` the cations in its
+formula (two in Al₂O₃, one in CaO). Hydrogen is not counted as a cation, so
+that water reported in an analysis is not. The analysis is not renormalized,
+as in [`oxide_budget`](@ref).
+
+Given as `M` to [`glass_species`](@ref), it makes one mole of the glass one mole
+of its cations, the unit in which the dissolution rates of glasses are
+measured per unit area ([`snellings2013_glass`](@ref)).
+
+# Examples
+
+```julia
+slag = Dict("CaO" => 0.43, "Al2O3" => 0.19, "SiO2" => 0.38)
+sp = glass_species(slag; symbol = "G1", M = cation_molar_mass(slag))
+sum(v for (el, v) in atoms(sp) if el != :O)        # 1.0
+```
+"""
+function cation_molar_mass(oxides::AbstractDict{<:AbstractString, <:Real})
+    T = promote_type(Float64, (typeof(float(v)) for v in values(oxides))...)
+    cations = zero(T)
+    for (ox, f) in oxides
+        iszero(f) && continue
+        f < 0 && throw(ArgumentError("cation_molar_mass: the mass fraction of `$ox` is negative ($f)."))
+        el, nu = _oxide_cation(ox)
+        el === :H && continue
+        cations += float(f) * nu / _oxide_molar_mass(ox)
+    end
+    cations > 0 || throw(ArgumentError("cation_molar_mass: the analysis holds no cation."))
+    return inv(cations) * u"g/mol"
+end
+
+"""
     oxide_budget(oxides, primaries; mass = 100.0u"g") -> Vector{Float64}
 
 The component totals `b` contributed by a material reported as an **oxide

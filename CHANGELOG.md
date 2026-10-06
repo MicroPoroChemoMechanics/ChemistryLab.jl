@@ -17,6 +17,13 @@
   added, and the regression of the rate on the glass composition read from the
   vector figure. The abscissa of that figure counts aluminum twice, which the
   file records with the check that shows it.
+- **The dissolution of a glass at pH 13**, `snellings2013_glass(oxides; Ea)`:
+  the rate constant per unit BET area and per mole of cations of a calcium
+  aluminosilicate glass, from its composition, as the regression of
+  Snellings (2013) gives it at 20 °C, with the abscissa of the paper's figure;
+  refused outside the glasses measured unless `extrapolate = true`, and with no
+  activation energy assumed. `cation_molar_mass(oxides)` makes one mole of a
+  `glass_species` one mole of its cations, the unit of such rates.
 
 ### Fixed
 

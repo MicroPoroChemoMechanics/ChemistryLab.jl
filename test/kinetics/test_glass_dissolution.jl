@@ -76,3 +76,62 @@
     end
     @test err isa ArgumentError && occursin("Al(OH)4-", sprint(showerror, err))
 end
+
+@testsection "the dissolution of a glass at pH 13 after Snellings (2013)" begin
+    key = "Snellings2013"
+    glasses = literature_table(key, "glasses")
+    markers = literature_table(key, "fig8_markers")
+    rates = literature_table(key, "initial_rates")
+    a = ustrip(literature_value(key, "fig8_slope"))
+    b = ustrip(literature_value(key, "fig8_intercept"))
+    M(ox) = ustrip(us"g/mol", Species(ox)[:M])
+    analysis(i) = Dict(
+        "CaO" => ustrip(glasses.CaO_percent[i]) / 100, "Al2O3" => ustrip(glasses.Al2O3_percent[i]) / 100,
+        "SiO2" => ustrip(glasses.SiO2_percent[i]) / 100,
+    )
+
+    # One mole of the glass is one mole of its cations.
+    g1 = analysis(1)
+    Mc = cation_molar_mass(g1)
+    @test ustrip(us"g/mol", Mc) ≈ 1 / (g1["CaO"] / M("CaO") + 2 * g1["Al2O3"] / M("Al2O3") + g1["SiO2"] / M("SiO2")) rtol = 1.0e-14
+    sp = glass_species(g1; symbol = "G1", M = Mc)
+    @test sum(v for (el, v) in atoms(sp) if el != :O) ≈ 1 rtol = 1.0e-14
+    @test ustrip(us"g/mol", cation_molar_mass(merge(g1, Dict("H2O" => 0.05)))) ≈ ustrip(us"g/mol", Mc) rtol = 1.0e-14
+    @test_throws ArgumentError cation_molar_mass(Dict("H2O" => 1.0))
+
+    for i in eachindex(glasses.glass)
+        g = glasses.glass[i]
+        mech = snellings2013_glass(analysis(i); Ea = 60.0e3)
+        logk = log10(mech.k(; T = 293.15))
+        # The abscissa is the one read on the figure, to its reading.
+        x = ChemistryLab._snellings2013_abscissa(analysis(i), ("CaO",))
+        @test x ≈ ustrip(markers.abscissa[findfirst(==(g), markers.glass)]) atol = 1.0e-3
+        # The constant is the printed regression, exactly, and within 0.1 of the
+        # rate the paper measured in NaOH alone (its error is 0.15).
+        @test logk ≈ a * x + b rtol = 1.0e-14
+        j = findfirst(k -> rates.glass[k] == g && all(iszero ∘ ustrip, (rates.Al_initial[k], rates.Ca_initial[k], rates.Si_initial[k])), eachindex(rates.glass))
+        @test abs(logk - ustrip(rates.log_rate[j])) < 0.1
+        @test isempty(mech.catalysts) && isempty(mech.inhibitors)
+    end
+
+    # The derivative with respect to the lime content is the slope times that of
+    # the abscissa, n_Ca over the denominator.
+    den = 2 * 2 * g1["Al2O3"] / M("Al2O3") + g1["SiO2"] / M("SiO2")
+    d = ForwardDiff.derivative(f -> log10(snellings2013_glass(merge(g1, Dict("CaO" => f)); Ea = 60.0e3).k(; T = 293.15)), g1["CaO"])
+    @test d ≈ a / M("CaO") / den rtol = 1.0e-12
+
+    # Arrhenius about 20 °C, and no activation energy taken for granted.
+    mech = snellings2013_glass(g1; Ea = 60.0e3)
+    @test mech.k(; T = 313.15) ≈ mech.k(; T = 293.15) * exp(-60.0e3 / ChemistryLab.R_GAS * (1 / 313.15 - 1 / 293.15)) rtol = 1.0e-13
+    @test_throws UndefKeywordError snellings2013_glass(g1)
+
+    # A slag analysis lies beyond the most calcic glass: refused, unless asked
+    # for; a modifier named counts in the abscissa.
+    slag = Dict("CaO" => 0.4164, "Al2O3" => 0.1127, "SiO2" => 0.3521, "MgO" => 0.0596)
+    @test_throws DomainError snellings2013_glass(slag; Ea = 60.0e3)
+    x_ca = ChemistryLab._snellings2013_abscissa(slag, ("CaO",))
+    x_camg = ChemistryLab._snellings2013_abscissa(slag, ("CaO", "MgO"))
+    @test x_camg - x_ca ≈ slag["MgO"] / M("MgO") / (2 * 2 * slag["Al2O3"] / M("Al2O3") + slag["SiO2"] / M("SiO2")) rtol = 1.0e-12
+    @test log10(snellings2013_glass(slag; Ea = 60.0e3, extrapolate = true).k(; T = 293.15)) ≈ a * x_ca + b rtol = 1.0e-14
+    @test_throws ArgumentError ChemistryLab._snellings2013_abscissa(Dict("CaO" => 1.0), ("CaO",))
+end

@@ -454,6 +454,7 @@ module ChemistryLab
         build_solid_solutions,
         oxide_budget,
         glass_species,
+        cation_molar_mass,
         primary_decomposition,
         get_compatible_species,
         HKF_SI_CONVERSIONS
@@ -533,6 +534,7 @@ module ChemistryLab
         RateMechanism,
         palandri_kharaka,
         palandri_kharaka_minerals,
+        snellings2013_glass,
         parrott_killoh,
         PK_PARAMS_C3S,
         PK_PARAMS_C2S,
