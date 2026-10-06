@@ -135,3 +135,29 @@ end
     @test log10(snellings2013_glass(slag; Ea = 60.0e3, extrapolate = true).k(; T = 293.15)) ≈ a * x_ca + b rtol = 1.0e-14
     @test_throws ArgumentError ChemistryLab._snellings2013_abscissa(Dict("CaO" => 1.0), ("CaO",))
 end
+
+isdefined(@__MODULE__, :sn13_rows) || include(joinpath(pkgdir(ChemistryLab), "scripts", "snellings2013_glass.jl"))
+
+@testsection "calcium and aluminum slow the glasses down (fitted on Snellings 2013, Table II)" begin
+    rows = sn13_rows()
+    # Every solution of Table II at pH 13 certifies, with the NaOH that holds it.
+    @test length(rows) == 51 && all(r -> r.certified, rows)
+    @test all(r -> 0.08 < r.NaOH < 0.12, rows)
+    # The activities follow what was added: none where nothing was.
+    @test all(r -> r.ca > 0 || r.a_Ca < 1.0e-20, rows) && all(r -> r.al > 0 || r.a_Al < 1.0e-20, rows)
+    fit = sn13_fit(rows)
+    # Calcium: one factor on all six glasses, within the error of the paper.
+    @test fit.ca.n == 12 && fit.ca.rms < ustrip(literature_value("Snellings2013", "log_rate_uncertainty"))
+    @test fit.ca.K ≈ 8617.6 rtol = 1.0e-4
+    # Aluminum on the tectosilicate glasses: one factor cannot follow G3 and G6
+    # both, and the residual says so.
+    @test fit.al.n == 12 && 0.2 < fit.al.rms < 0.3
+    @test fit.al.K ≈ 1310.5 rtol = 1.0e-4
+    # The fit is a minimum: its derivative in ln K vanishes.
+    d(r) = r.log_rate - r.log_base
+    sse(u) = sum((d(r) + log10(1 + exp(u) * r.a_Ca))^2 for r in rows if r.ca > 0)
+    @test abs(ForwardDiff.derivative(sse, log(fit.ca.K))) < 1.0e-10
+    # The inhibitors of a glass: calcium always, aluminum on a tectosilicate one.
+    @test [i.species for i in sn13_inhibitors(fit, "G1")] == ["Ca+2"]
+    @test [i.species for i in sn13_inhibitors(fit, :tectosilicate)] == ["Ca+2", "AlO2-"]
+end

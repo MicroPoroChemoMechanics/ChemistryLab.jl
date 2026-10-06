@@ -24,6 +24,13 @@
   refused outside the glasses measured unless `extrapolate = true`, and with no
   activation energy assumed. `cation_molar_mass(oxides)` makes one mole of a
   `glass_species` one mole of its cations, the unit of such rates.
+- **A page on the glasses of slag, fly ash and silica fume dissolving at pH 13**
+  (`examples/glass_dissolution.md`, `scripts/snellings2013_glass.jl`): the
+  composition law against the six glasses, and the effect of dissolved calcium
+  and aluminum fitted on the 51 rates of the paper with activities computed at
+  pH 13. Calcium follows one factor `(1 + K a)⁻¹` within the error of the
+  measurements; aluminum does not, one glass slowed at once and no further,
+  another more and more, and the page shows both.
 
 ### Fixed
 

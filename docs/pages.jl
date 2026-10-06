@@ -319,6 +319,9 @@ pages = [
             # degrees of reaction measured at each temperature.
             "examples/slag_temperature.md",
             "examples/slag_temperature_pastes.md",
+            # The glasses of the supplementary materials dissolving at pH 13,
+            # and what dissolved calcium and aluminum do to them.
+            "examples/glass_dissolution.md",
         ],
         # What a laboratory measures on a paste, read off computed states: the
         # heat an isothermal calorimeter records and the mass a thermobalance
