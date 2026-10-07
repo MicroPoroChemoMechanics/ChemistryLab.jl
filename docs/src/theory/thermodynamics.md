@@ -104,9 +104,17 @@ volume stays the record's at ``T_r``. An entry that gives a
 single heat capacity at ``T_r`` is extrapolated with the same model reduced to its
 constant term; in CEMDATA18, the zeolites and the magnesium silicate hydrates
 are among them, and the solvent's record is of this kind too, though the solvent
-follows the equation of state of water instead (below). An entry that gives none, but gives the entropy, is
-extrapolated with a zero heat capacity, so that its apparent Gibbs energy still
-decreases as ``-S^\circ`` with temperature.
+follows the equation of state of water instead (below). An entry that gives
+none, but gives the entropy, is extrapolated with a zero heat capacity, so that
+its apparent Gibbs energy still decreases as ``-S^\circ`` with temperature.
+That zero is a placeholder, heat capacities being positive
+[Richet2001; Sec. 1.2, p. 8](@cite). Leaving out a constant ``C_p^\circ`` raises
+``\Delta_a G^\circ`` by ``C_p^\circ[T\ln(T/T_r) - (T - T_r)] \approx C_p^\circ(T - T_r)^2/(2T_r)``
+and shifts ``\Delta_a H^\circ`` by ``-C_p^\circ(T - T_r)``: the enthalpy, and the
+heats computed with it, are off at first order in ``T - T_r`` where the Gibbs
+energy is off at second order only. The additivity of the heat capacities of
+the constituents, the rule of Neumann and Kopp, is the usual estimate above room
+temperature [Richet2001; Sec. 4.7b, Eq. (4.39), p. 83](@cite).
 
 For the Maier-Kelley heat capacity, ``C_p^\circ = a_0 + a_1 T + a_2 T^{-2}``,
 both temperature integrals are elementary, and the closed form can be set
@@ -193,7 +201,7 @@ H^\star = H_{tr} + M_w\,h, \qquad
 G^\star = M_w\,h - T\,S^\star + T_{tr}\,S_{tr} + G_{tr} .
 ```
 
-Those constants, which SUPCRT92 takes from Helgeson and Kirkham (1974), are not
+Those constants, which SUPCRT92 takes from [HelgesonKirkham1974](@citet), are not
 those of the other records of a database. At 25 °C and 1 bar they put the Gibbs
 energy 1.35 J/mol and the enthalpy 48.6 J/mol above the values the solvent's
 record tabulates; and ``G - H + TS``, which the element entropies of the file fix
@@ -246,13 +254,13 @@ spelling of ``f``. A value of ``\Delta_f G^\circ(T)`` read from a table built in
 the traditional convention cannot be combined with the apparent energies of a
 database, since the two differ by ``\sum_e \alpha_{ei}\,[G_e^\circ(T) -
 G_e^\circ(T_r)]`` and this difference no longer cancels between species taken
-from different sources. A second apparent convention, due to Berman and Brown,
-also removes the elemental entropies at ``T_r``
+from different sources. A second apparent convention also removes the elemental
+entropies at ``T_r``
 [AndersonCrerar1993](@cite) (§7.4.2); its values differ from the former by the
 constant ``T_r\sum_e \alpha_{ei}\, S_e^\circ(T_r)``, which is consistent within
 one database and inconsistent across two. Which convention the code implements
 can be read on the formula itself: the anchor ``\Delta_a G_i^\circ(T_r) =
-\Delta_f G_i^\circ(T_r)`` rules out the values of Berman and Brown, and the
+\Delta_f G_i^\circ(T_r)`` rules out the values of that second convention, and the
 absolute entropy in the linear term rules out the traditional ones.
 
 ## 4. Equilibrium is a constrained minimization, and its dual is the useful part
@@ -272,7 +280,10 @@ component and one column per species, and ``\mathbf{b}`` the budget of the compo
 The components are the primary species of the system, or the elements with the
 charge, and the two choices express the same constraints
 ([Formation from primary species](@ref sec-theory-primaries)). This is the
-formulation of [Leal2017](@citet), in which no list of reactions is needed: the
+formulation of [Leal2017](@citet), the classical minimization of the Gibbs
+energy with one multiplier per conserved component
+[Richet2001; Sec. 8.6d, Eq. (8.68), p. 194](@cite), in which no list of
+reactions is needed: the
 reactions are the moves of ``\mathbf{n}`` within the null space of ``\mathbf{A}``.
 
 The Lagrange multipliers of the equality constraints are the useful output.
@@ -318,7 +329,12 @@ with no equilibrium constant to look up,
 ``\Delta_r G`` being that of the reaction of formation. A negative index denotes
 an undersaturated phase, a zero index a phase in equilibrium with the solution,
 and a positive index a phase that should have precipitated; this is what
-[`saturation_indices`](@ref) returns.
+[`saturation_indices`](@ref) returns. A positive index states a direction, not a
+rate: a precipitate starts from a nucleus whose interface costs energy, so that
+a solution can stay supersaturated, metastable, for a long time
+[Richet2001; Sec. 12.3d, p. 298](@cite). The index also depends on the solid it
+is computed for, a metastable polymorph or a poorly crystallized form being more
+soluble than the stable crystal [Richet2001; Sec. 12.3d, p. 299](@cite).
 
 Two consequences of the identity make the index a check rather than a
 convention. Since ``K_{sp}`` never enters the computation, being implied by the
@@ -340,7 +356,11 @@ V = \sum_i n_i V_i^\circ(T,P) ,
 ```
 
 with no excess volume of mixing. This assumption underlies every porosity the
-package reports. [`volume`](@ref) returns the split by aggregate state,
+package reports. For a solute, ``V_i^\circ`` is a standard partial molar volume,
+which can be negative, that of OH⁻ for one [Richet2001; Sec. 12.3b, p. 296](@cite),
+and the sum gives the volume of a solution only in the dilute limit; an activity
+coefficient that depends on pressure carries an excess volume the sum leaves
+out. [`volume`](@ref) returns the split by aggregate state,
 [`porosity`](@ref) the void fraction relative to a reference state, and
 [`chemical_shrinkage`](@ref) the volume the reaction itself consumes, the
 hydrates occupying less than the water and the clinker they were made from,

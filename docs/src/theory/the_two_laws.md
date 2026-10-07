@@ -166,6 +166,19 @@ composition and temperature must be solved together. Phase transitions along
 the imaginary heating path require their enthalpy jumps as well. A vessel's
 heat capacity belongs in this balance if the vessel is part of the system.
 
+The ``C_p`` above is taken at fixed composition. A system in which some reactions
+stay at equilibrium as it is heated has the larger heat capacity
+
+```math
+C_p^{\text{eq}} = C_p + \sum_r \Delta_r H \left(\frac{\partial\xi_r}{\partial T}\right)_P ,
+```
+
+the second term being the configurational heat capacity of
+[Richet2001; Sec. 6.1d, Eqs. (6.10)–(6.11), p. 129](@cite), positive at a stable
+equilibrium. Reactions faster than the measurement, such as the aqueous
+speciation, follow the temperature; slower ones, such as the dissolution of the
+clinker, do not ([Kinetics under partial equilibrium](@ref sec-theory-pe-calorimeters)).
+
 A semi-adiabatic vessel adds the heat it loses to this balance, and it is the
 subject of [A CEM I 52.5 N mortar in a semi-adiabatic calorimeter, inside the kinetics](@ref ex-semiadiabatic).
 
@@ -181,7 +194,8 @@ Clausius [AndersonCrerar1993](@cite) (§5.2, §5.8)
 ```
 
 the equality holding for a reversible transformation only. Unlike ``U`` and
-``H``, the entropy can be given an absolute value, the third law fixing its zero;
+``H``, the entropy can be given a zero common to all substances, the third law
+fixing it for perfect crystals at 0 K [Richet2001; Sec. 4.4b, p. 75](@cite);
 [Absolute entropy and entropy of formation](@ref sec-theory-absolute-entropy)
 defines it, together with the entropy of formation it must not be confused with.
 
@@ -272,10 +286,14 @@ What ``G`` measures is a capacity for work. In a reversible change at fixed
 ``T`` and ``P``, a system can deliver work other than that of its expansion, the
 electrical work of a battery for instance, and the most it can deliver is
 ``-\Delta G``; a change that delivers none, as a reaction in a beaker does,
-dissipates that capacity as heat instead. The two terms of ``G`` weigh two tendencies against each other: a change releasing heat
-lowers ``H``, a change creating disorder raises ``S``, and a reaction that
-absorbs heat can still proceed when the entropy it creates outweighs it, as the
-dissolution of many salts does.
+dissipates that capacity as heat instead. The two terms of ``G`` weigh two tendencies against each other: a change
+releasing heat lowers ``H``, and a change raising the entropy of the system
+lowers ``-TS``. A reaction that absorbs heat, ``\Delta H > 0``, can therefore
+still proceed at fixed ``T`` and ``P`` when the entropy of the system grows by
+more than ``\Delta H/T``, the entropy that comes in with the heat drawn from the
+surroundings, as in the dissolution of many salts; the excess,
+``\Delta S - \Delta H/T = -\Delta G/T``, is the entropy the reaction produces
+[Richet2001; Sec. 2.3d, Eqs. (2.35)–(2.37), pp. 35–36](@cite).
 
 ### Why ``\Delta H`` and ``T\Delta S`` are not two flows of heat
 
@@ -299,9 +317,10 @@ states. They do not split the actual heat into a "chemical" contribution
 
 ### The natural variables of ``G``, and the Gibbs-Helmholtz relation
 
-For a closed system of fixed composition, the first law with only the work of
-the pressure, written for a reversible change, reads
-``\mathrm{d}U = T\,\mathrm{d}S - P\,\mathrm{d}V``. Differentiating
+For a closed system of fixed composition with only the work of the pressure,
+the first law combined with the second, ``\delta q_{\rm rev} = T\,\mathrm{d}S``,
+gives along a reversible change ``\mathrm{d}U = T\,\mathrm{d}S - P\,\mathrm{d}V``
+[Richet2001; Sec. 2.1, Eq. (2.4), p. 27](@cite). Differentiating
 ``G = U + PV - TS`` and inserting it,
 
 ```math
@@ -312,8 +331,10 @@ the pressure, written for a reversible change, reads
 ```
 
 The terms in ``\mathrm{d}S`` and ``\mathrm{d}V`` cancel: subtracting ``TS`` and
-adding ``PV`` exchanges the variables ``S`` and ``V``, which no experiment
-controls, for ``T`` and ``P``, which a laboratory sets. This exchange is called
+adding ``PV`` exchanges the variables ``S`` and ``V`` for ``T`` and ``P``: no
+apparatus holds the entropy fixed, and the volume of a condensed phase only with
+difficulty, whereas a thermostat and a vessel open to the atmosphere set the
+temperature and the pressure [Richet2001; Sec. 2.3d, p. 36](@cite). This exchange is called
 a Legendre transform [AndersonCrerar1993](@cite) (§5.4), and it is why ``G`` is the natural potential of a
 system held at fixed temperature and pressure. Since ``G``, ``S`` and ``V`` are
 state functions, the result holds for any change between two states, reversible

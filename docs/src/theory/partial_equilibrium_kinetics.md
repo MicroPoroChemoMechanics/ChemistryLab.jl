@@ -11,9 +11,9 @@
 A hydrating paste holds reactions on two time scales. The aqueous speciation,
 protonation, complexation and the autoprotolysis of water, reaches equilibrium
 in microseconds; alite dissolves over days. Integrating every reaction with a
-rate law would need kinetic constants nobody measures for the fast ones and
-would bring the integrator down to their time scale; equilibrating every phase
-would dissolve the clinker at once. Partial equilibrium integrates the slow
+rate law would need kinetic constants that are not measured for the fast ones
+and would bring the integrator down to their time scale; equilibrating every
+phase would dissolve the clinker at once. Partial equilibrium integrates the slow
 reactions and solves the fast ones by a minimization of the Gibbs energy at each
 instant [Leal2015, Leal2017](@cite).
 

@@ -88,7 +88,7 @@ support capacity; §10 treats a capacity that follows the host mineral.*
 
 !!! note "Where `N` comes from"
     Three ways, because published data comes in three shapes and converting
-    between them needs a number nobody measured: a site density per unit area
+    between them needs a quantity that is usually not measured: a site density per unit area
     times an area, a capacity per kilogram of dry support times its mass, or a
     prescribed total. The second needs no area at all, which matters — turning a
     clay's exchange capacity into the first would mean **inventing** a BET area

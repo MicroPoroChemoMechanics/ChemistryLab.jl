@@ -95,6 +95,33 @@
   the package computes and cite where each construction comes from (Glynn and
   Reardon 1990 for the common tangent, Kulik et al. 2013 for the phase
   stability index), instead of setting it side by side with other codes.
+- **The common tangent derived.** The theory of the solid solutions stated the
+  condition of the pair of a miscibility gap and drew it with the two contacts
+  at one height, the case of a symmetric binary with equal standard potentials
+  only. The condition is now derived from the minimization of the Gibbs energy
+  of two parts under the conservation of the two end-members: the multipliers
+  are the chemical potentials of the end-members, read where the tangent meets
+  the two pure compositions, and the contacts lie at heights that differ by the
+  slope times their distance. The figure is redrawn on an asymmetric model
+  tilted by its standard potentials.
+- **The theory checked against Richet (2001), *The Physical Basis of
+  Thermodynamics*.** The standard enthalpy of reaction was called the heat
+  given off; it is the heat received. The water activity of the SIT model was
+  said to be that of the Davies model, which uses an osmotic coefficient; it is
+  Raoult's, as in the Truesdell-Jones model. A miscibility gap was said to be
+  the only non-convexity in composition, where a mixture of real gases and an
+  aqueous model outside its range are others. The third-law entropy, the
+  residual entropy of a glass and what it depends on, the entropy produced by a
+  reaction, the configurational heat capacity, the hypothetical one-molal state,
+  the single-ion activity coefficients, the phase rule under partial
+  equilibrium, the fictive temperature of a glass and the reading of a
+  half-reaction constant are stated with the book's sections and pages cited.
+- **Every mention of an author is a citation.** Names given in plain text in
+  the theory, Powers, Kulik, Helffrich and Wood, Redlich and Kister, Holland and
+  Powell, Kolani, Peng and Robinson among them, are now links to the
+  bibliography, which gains Helgeson and Kirkham (1974) and Harvie, Møller and
+  Weare (1984), both checked on Crossref; a value the documentation could not
+  trace to a source is no longer quoted.
 
 ## v0.35.0 — The glasses of supplementary materials, the products of the alkali-silica reaction, asymmetric solid solutions
 

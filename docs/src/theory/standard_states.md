@@ -28,8 +28,8 @@ the same value in every phase between which the species can be exchanged;
 neither the activity nor the standard potential shares that property, only their
 combination does. Carbon dioxide distributed between a gas phase and water thus
 has one chemical potential and two activities, a fraction of the pressure in the
-gas and a molality in the solution. The ratio of the two activities is the Henry
-constant ``K_H``, and equating the two expressions of the potential shows that
+gas and a molality in the solution. The ratio of the two activities,
+``K_H = a_{\text{aq}}/a_{\text{gas}}``, is the Henry constant, and equating the two expressions of the potential shows that
 ``RT\ln K_H = \mu^\circ_{\text{gas}} - \mu^\circ_{\text{aq}}`` is nothing but
 the difference between the two standard potentials
 [AndersonCrerar1993](@cite) (§12.6).
@@ -102,6 +102,23 @@ Here ``M_w`` is expressed in kg/mol, so ``m_i`` is in mol/kg of **solvent**,
 not mol/g or mol/kg of solution. Molarity instead uses solution volume, in
 mol/L. At fixed composition, thermal expansion changes molarity but not
 molality; reaction or water exchange can change either.
+
+The state is not equally hypothetical in every property. Its partial molar
+enthalpy, volume and heat capacity are those of the solute at infinite dilution;
+its entropy and its standard potential are not, because of the term in
+``R\ln(m_i/m^\circ)`` [Richet2001; Sec. 11.2e, p. 254](@cite). The temperature
+dependence of ``\gamma_i`` therefore measures how far the partial molar enthalpy
+``h_i`` of the solute has moved from its value at infinite dilution,
+``h_i^\infty``:
+
+```math
+\left(\frac{\partial\ln\gamma_i}{\partial T}\right)_{P,\mathbf{n}}
+  = -\frac{h_i - h_i^\infty}{RT^2}
+```
+
+[Richet2001; Sec. 11.2e, Eq. (11.38), p. 255](@cite), and the standard
+properties of a solute, those the HKF equations give, are properties of infinite
+dilution.
 
 [`HKFActivityModel`](@ref), [`DaviesActivityModel`](@ref) and the Pitzer model
 compute ``\gamma_i`` from the composition of the solution

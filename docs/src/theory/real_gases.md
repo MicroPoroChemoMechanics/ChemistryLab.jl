@@ -74,8 +74,8 @@ and the cubic has a triple root ``Z_c``: ``(Z - Z_c)^3`` matched to it
 coefficient by coefficient gives ``Z_c = (1 - B)/3``,
 ``A = 3Z_c^2 + 3B^2 + 2B``, and for ``B`` the cubic
 ``64B^3 + 6B^2 + 12B - 1 = 0``. Its root is ``\Omega_b = 0.0777960739``, and
-then ``\Omega_a = 0.4572355289`` and ``Z_c = 0.3074013087``. The paper prints
-``0.45724`` and ``0.07780``, the same numbers rounded; the package takes the
+then ``\Omega_a = 0.4572355289`` and ``Z_c = 0.3074013087``.
+[PengRobinson1976](@citet) give ``0.45724`` and ``0.07780``, the same numbers rounded; the package takes the
 roots themselves. Rounded, they move the triple root by the cube root of the
 rounding, about ``0.01`` in ``Z``, so the critical point of the equation would
 no longer be the one it is given.
@@ -93,8 +93,9 @@ which is ``\ln\varphi`` for a pure gas.
 ## 3. Which root
 
 Below the critical temperature and between the spinodals the cubic has three
-real roots above ``B``: the vapor, the liquid and, between them, a root that
-describes no stable state. The stable phase is the root of least Gibbs energy,
+real roots above ``B``: the vapor, the liquid and, between them, a root at
+which ``(\partial P/\partial V)_T > 0``, a negative compressibility that no
+phase can have [Richet2001; Sec. 4.2, p. 66](@cite). The stable phase is the root of least Gibbs energy,
 and that is the one taken. Where the two energies are equal, the fugacities of
 the vapor and the liquid are, which is the saturation: for carbon dioxide at
 25 °C, with the constants of `phreeqc.dat` [ParkhurstAppelo2013](@cite), the
@@ -122,7 +123,10 @@ b = \sum_i y_i b_i ,
 ```
 
 the binary parameters ``k_{ij}`` correcting the geometric mean of the
-attractions; they are zero unless given. Differentiating ``N G^{\mathrm{res}}``
+attractions; they are zero unless given. The simplest mixture of real gases would
+keep for each gas its fugacity coefficient pure at the same temperature and
+pressure, the rule of Lewis and Randall [Richet2001; Sec. 8.4, p. 185](@cite);
+the mixing rules let the gases act on one another instead. Differentiating ``N G^{\mathrm{res}}``
 with respect to the amount of each gas gives
 
 ```math

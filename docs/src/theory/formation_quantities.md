@@ -103,10 +103,13 @@ forming the products from them.
 
 ### [Absolute entropy and entropy of formation](@id sec-theory-absolute-entropy)
 
-The entropy escapes the indeterminacy of the energies, because the third law
-fixes its zero: the entropy of a pure substance in a perfect crystalline form
-tends to zero as the temperature tends to 0 K [AndersonCrerar1993](@cite)
-(§6.5). The entropy at any other temperature then follows from the second law,
+The entropy is in a different position from the energies. Calorimetry gives
+only its changes, but a zero common to all substances can be chosen: the third
+law takes the entropy of a pure substance in a perfect crystalline form, in
+internal equilibrium, to tend to zero as the temperature tends to 0 K
+[AndersonCrerar1993](@cite) (§6.5). The choice leaves out what no chemical
+reaction changes, down to the constituents of the nuclei, and is a convention
+rather than a measurement [Richet2001; Sec. 4.4b, p. 75](@cite). The entropy at any other temperature then follows from the second law,
 ``\mathrm{d}S = \delta q_{\rm rev}/T = C_p\,\mathrm{d}T/T`` at constant pressure,
 integrated from 0 K, with the entropy of each phase transition met on the way,
 the ratio of its enthalpy to the temperature at which it occurs,
@@ -121,7 +124,11 @@ This is the absolute, or third-law, entropy, tabulated as ``S^\circ`` at
 and extrapolated to 0 K (§7.3, §7.5), and ``S^\circ`` is a positive quantity. A
 substance that is not a perfect crystal at 0 K, a glass or a crystal whose
 disorder freezes in on cooling, retains there a residual entropy, which adds to
-the integral (§6.5.3); the glass of a blast-furnace slag is of this kind.
+the integral (§6.5.3); the glass of a blast-furnace slag is of this kind. That
+entropy is not a property of the substance alone: it is the configurational
+entropy the phase had when its structure stopped relaxing on cooling, and it
+depends on the temperature at which that happened, so on the thermal history of
+the sample [Richet2001; Sec. 6.3a, Eq. (6.38), p. 144](@cite).
 
 The residual entropy escapes the calorimetry from 0 K, which starts from the
 glass as it already is, disorder included. It is obtained by closing a cycle
@@ -137,7 +144,12 @@ S_{\rm res} = \int_0^{T_m} \frac{C_{p,\text{crystal}}}{T}\,\mathrm{d}T
 ```
 
 the last heat capacity being that of the glass and, above its glass
-transition, of the supercooled liquid. None of this enters a calculation of
+transition, of the supercooled liquid [Richet2001; Sec. 4.4c, p. 76](@cite).
+The cycle crosses the glass transition, which is not reversible, and integrating
+``C_p/T`` across it treats it as if it were; the entropy produced there is small
+against the residual entropy, which is why the cycle is accepted
+[Richet2001; Sec. 6.4d, p. 152](@cite); [RichetBottinga1986](@citet) put it at
+least an order of magnitude below. None of this enters a calculation of
 this package. No database carries the Gibbs energy of a slag glass: the glass
 enters the budget through its oxides, and its reaction is prescribed, by a rate
 law or by an imposed degree of reaction, rather than decided by its energy.
@@ -177,7 +189,10 @@ entropy, ``S_i^\circ - z_i\,S_{\mathrm{H^+}}^\circ``, its absolute entropy less
 determine (§17.3). A conventional entropy can be negative, as that of Ca²⁺ is,
 and the unknown term cancels from any reaction, whose charges balance,
 ``\sum_i \nu_i z_i = 0``. Heat capacities and volumes of ions are conventional in
-the same way.
+the same way, and they describe the ion at infinite dilution: those of OH⁻, its
+entropy, heat capacity and volume, are all negative, which reflects the water
+around the ion rather than an error of the data
+[Richet2001; Sec. 12.3b, p. 296](@cite).
 
 !!! note "How these numbers are measured"
     No instrument reads a Gibbs energy. Every tabulated value combines a few
@@ -338,7 +353,11 @@ keeps the first term only and receives the pressure through its activity
 ([Standard states](@ref sec-theory-standard-states)). The relation is integrated
 from ``(T_r, P_r)`` in temperature at ``P_r``, where
 ``S_i^\circ(T') = S_i^\circ(T_r) + \int_{T_r}^{T'} C_{P,i}^\circ\,\mathrm{d}T''/T''``,
-and then in pressure at ``T``. The temperature step is a double integral,
+and then in pressure at ``T``. The order follows the data: heat capacities are
+measured near 1 bar, and integrating in pressure first would need ``C_P`` at
+``P``, which only the equation of state gives, through
+``(\partial C_P/\partial P)_T = -T\,(\partial^2 V/\partial T^2)_P``
+[Richet2001; Sec. 8.1a, Eq. (8.4), p. 174](@cite). The temperature step is a double integral,
 
 ```math
 -\int_{T_r}^{T} S_i^\circ(T')\,\mathrm{d}T'
@@ -396,8 +415,7 @@ over the whole range. The apparent quantities of formation leave them at
 ```
 
 so that the apparent Gibbs energy of H⁺ is zero at every temperature and
-pressure. This convention, due to Benson and Helgeson, is that of the databases
-the package reads, which stores it as `ΔₐG⁰`, and as `ΔₐH⁰` the apparent
+pressure. This convention is that of the databases the package reads, which stores it as `ΔₐG⁰`, and as `ΔₐH⁰` the apparent
 enthalpy defined in the same way. Both choices assign to the elements and to the
 charge energies common to all species, and the argument of §1 cancels them from
 any balanced reaction,
@@ -488,8 +506,10 @@ misfit(g, h, s) = (h(Tr) - g(Tr) - Tr * s(Tr)) / T^2
 
 ### [The heat of reaction](@id sec-theory-heat-of-reaction)
 
-The standard enthalpy of reaction is the heat given off at constant pressure when
-the reaction proceeds by one mole, in the standard states, and it decides how
+The standard enthalpy of reaction is the heat the system receives at constant
+pressure when the reaction proceeds by one mole, in the standard states; the heat
+it releases is ``-\Delta_r H^\circ``, and a reaction is exothermic when
+``\Delta_r H^\circ < 0`` [Richet2001; Sec. 4.5b, p. 80](@cite). It decides how
 ``K`` changes with temperature. Applying the relation of
 [The chemical potential and reactions](@ref sec-theory-basics) §1 to each constituent
 and summing over a balanced reaction, where it holds for apparent quantities,

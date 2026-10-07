@@ -117,10 +117,23 @@ g = glass_enthalpy(Dict(ox => n * M(ox) / Mf for (ox, n) in mol))
 
 A span of 32 kJ per formula is large against the enthalpies of mixing measured
 between silicate glasses, which [RichetBottinga1986](@citet) find below about
-5 kJ/mol near 1000 K. It is larger too than what they attribute to the fictive
-temperature of a glass, the temperature its structure was frozen at: an error
-of 100 K on it moves the enthalpy of a diopside or anorthite glass by about
-10 kJ/mol. The six measurements were
+5 kJ/mol near 1000 K. It is larger too than what [RichetBottinga1986](@citet)
+attribute to the fictive temperature of a glass, the temperature at which the
+supercooled liquid would have the configuration the glass kept
+[Richet2001; Sec. 6.4d, p. 153](@cite): an error of 100 K on it moves the
+enthalpy of a diopside or anorthite glass by about 10 kJ/mol. Two glasses of one
+composition whose fictive temperatures are ``T_{f,1}`` and ``T_{f,2}`` differ in
+enthalpy, below both, by
+
+```math
+\Delta H = \int_{T_{f,1}}^{T_{f,2}} \bigl[C_p^{\text{liq}}(T) - C_p^{\text{glass}}(T)\bigr]\,\mathrm{d}T ,
+```
+
+the heat capacity of a glass depending little on its history
+[Richet2001; Sec. 6.4d, Eq. (6.42), p. 153](@cite); a liquid cooled faster
+freezes at a higher temperature [Richet2001; Sec. 6.4b, p. 150](@cite), and,
+``C_p^{\text{liq}}`` exceeding ``C_p^{\text{glass}}``, the glass it gives holds
+more enthalpy. The six measurements were
 made on glasses of different thermal histories, by several laboratories, over
 half a century: the span is the measure of how far they can be combined, and
 it is reported rather than hidden in the midpoint.
@@ -153,11 +166,27 @@ reports.
 ## 5. What it does not give
 
 The construction gives an enthalpy, which is what a heat needs. It does not
-give an entropy or a Gibbs energy: the residual entropy of these glasses is not
-measured, so the glass cannot be a phase whose stability an equilibrium
-decides, and it enters a calculation as the residue of a constituent that
-reacts at a prescribed extent. The fictive temperature of a granulated slag,
-quenched in water, is not known, and section 3 gives its order of magnitude.
+give an entropy or a Gibbs energy. A glass is not in internal equilibrium: its
+residual entropy is the configurational entropy frozen at its fictive
+temperature, and it depends on the thermal history of the sample
+[Richet2001; Secs. 6.3a and 6.4d, pp. 144 and 153](@cite)
+([Absolute entropy and entropy of formation](@ref sec-theory-absolute-entropy)).
+Obtaining it takes the heat capacity of the glass down to a few kelvins, which
+[RichetBottinga1986; p. 16 and Table 5](@citet) report for silica, the
+feldspars and diopside, not for gehlenite, akermanite or pseudowollastonite;
+and no rule combines residual entropies the way section 2 combines enthalpies.
+The glass therefore cannot be a phase whose stability an equilibrium decides,
+and it enters a calculation as the residue of a constituent that reacts at a
+prescribed extent. For the same reason the enthalpy of vitrification is an
+upper bound to what the glass adds to the driving force of its dissolution,
+``\Delta G_v = \Delta H_v - T\Delta S_v``: the heat capacities of a glass and
+of its crystal differ little [Richet2001; Sec. 4.3a, p. 72](@cite), so that
+``\Delta S_v`` is close to the residual entropy and positive, and a less stable
+form is the more soluble [Richet2001; Sec. 12.3d, p. 299](@cite). The fictive
+temperature of a granulated slag, quenched in water, is not known; a slag
+quenched faster than the measured glasses holds more enthalpy than section 2
+gives it, by the integral of section 3, and section 3 gives the order of
+magnitude.
 And the glass of a siliceous fly ash, rich in silica and alumina, with
 potassium and iron, lies outside the measured glasses: its alumina has no
 measured glass to go to without lime, and it is left over as corundum, with the

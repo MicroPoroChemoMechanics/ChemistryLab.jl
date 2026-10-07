@@ -28,6 +28,18 @@ separated from the stable one by an energy barrier that the conditions do not
 allow the system to cross, whereas the stable equilibrium is the lowest state
 compatible with the constraints.
 
+A third kind of state is neither. A metastable phase such as aragonite is in
+internal equilibrium: its temperature, pressure and composition fix its
+properties, and only its transformation into another phase is blocked. A glass,
+or a crystal whose distribution of cations over its sites stopped changing on
+cooling, is not: its configuration froze when it could no longer follow the
+temperature, its properties depend on that history, and one more variable is
+needed to describe it [Richet2001; Secs. 2.4a and 6.3a, pp. 39 and 143–144](@cite).
+Properties that do not change with time are therefore no proof of equilibrium,
+and a minimization over amounts has no variable for such a state; the glass of
+a slag enters a calculation as a reactant of prescribed extent
+([The enthalpy of a glass](@ref sec-theory-glass)).
+
 A minimization knows nothing about barriers, and the state it returns is the
 stable equilibrium of the system that was posed. Metastability therefore enters a
 calculation only through the way the system is posed, and it does so in two ways.
@@ -53,7 +65,13 @@ speciation and the precipitation of hydrates are taken as instantaneous while
 the dissolution of the clinker phases follows rate laws. Each instant of such a
 trajectory is then the stable equilibrium of a smaller system, the one left once
 the kinetic amounts have been withdrawn from the budget, and it is this
-equilibrium that [`speciated_states`](@ref) recomputes and certifies. A last distinction concerns space.
+equilibrium that [`speciated_states`](@ref) recomputes and certifies. The
+phase rule says what such a system may hold. At temperature and pressure
+imposed, the phases coexisting at a stable equilibrium are generically no more
+numerous than the independent components, the rank of the conservation matrix;
+every transformation held back by kinetics adds one independent component
+[Richet2001; Secs. 9.1a–b, pp. 197–199](@cite), which is why the unreacted
+clinker can stand beside its hydrates. A last distinction concerns space.
 A system out of equilibrium as a whole may be made of regions each at
 equilibrium, which is called local equilibrium; every calculation of this package
 is zero-dimensional and describes one such region, transport between regions
@@ -155,7 +173,7 @@ did in a cement paste whose potentials gave it 1.2e-16.
 
 A species carrying a **vanished component** is absent by the *constraint*, not by
 thermodynamics, and its saturation index is meaningless — the element potential
-of a component nobody supplies is determined by nothing. The test for that is not
+of a component the budget does not supply is determined by nothing. The test for that is not
 `bₖ ≈ 0` but `bₖ ≈ 0` **with the non-zero entries of row `k` sharing a sign**:
 only then does ``\sum_i A_{ki} n_i = 0`` with ``\mathbf{n} \ge 0`` force each term to
 vanish. The `H⁺` row carries `+1` for `H⁺` and `−1` for `OH⁻`, so its zero total
@@ -393,8 +411,10 @@ through the ionic strength, and steps at most 30 in any log-amount, halving the
 step until the squared residual falls.
 
 The solvent is deliberately **not** inverted through its own mass-action law: its
-activity is a mole fraction, so ``\ln a_w \le 0`` always, and an arbitrary `y` can
-demand more, for which no finite composition exists. It belongs to the outer
+activity cannot exceed one, being a mole fraction in some models and
+``\exp(-M_w\varphi\sum_j m_j)`` with an osmotic coefficient ``\varphi > 0`` in the
+others [Richet2001; Sec. 11.6d, Eq. (11.116), p. 276](@cite), and an arbitrary `y`
+can demand more, for which no finite composition exists. It belongs to the outer
 system, where the balance determines it.
 
 !!! note "What it buys, measured"
