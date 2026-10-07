@@ -1,0 +1,50 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "RichetBottinga1986",
+    "doi": "10.1029/RG024i001p00001",
+    "citation": "Richet, P., Bottinga, Y. (1986). Thermochemical properties of silicate glasses and liquids: a review. Reviews of Geophysics 24(1), 1-25.",
+    "location": "Table A1, p. 22"
+  },
+  "transcription": {
+    "from": "the published article (publisher's PDF), Table A1 read on the page rendered at 200 dpi, with the reference letters of its footnotes",
+    "checked_against_source": true,
+    "note": "Only the enthalpies of vitrification are transcribed (columns Ts, Delta Hv(Ts) and Reference); the fusion columns of the table are not. An uncertainty the table does not print is null. The table compiles measurements by solution calorimetry: at 295-298 K in an aqueous solvent, near 970-985 K in an oxide melt. For CaSiO3 at 298 K the crystal is pseudowollastonite (Richet and Bottinga 1984, Table 6)."
+  },
+  "quantities": {},
+  "tables": {
+    "vitrification_enthalpies": {
+      "columns": ["formula", "T_s", "dH_v", "dH_v_uncertainty", "reference"],
+      "units": [null, "K", "kJ/mol", "kJ/mol", null],
+      "kind": "published",
+      "location": "Table A1, p. 22: enthalpies of vitrification (glass minus crystal) at the temperature Ts of the calorimetry, with the source of each",
+      "rows": [
+        ["Na2Si2O5", 298, 22.0, null, "Kracek et al. (1953)"],
+        ["Na2Si2O5", 298, 28.0, 2.2, "Hummel and Schwiete (1959)"],
+        ["Na2Si2O5", 295, 36.8, 0.4, "Kröger and Kreitlow (1956)"],
+        ["Na2Si2O5", 298, 30.9, null, "Takahashi and Yoshio (1970)"],
+        ["Na2SiO3", 298, 35.6, 2.9, "Hummel and Schwiete (1959)"],
+        ["Na2SiO3", 298, 36.2, null, "Takahashi and Yoshio (1970)"],
+        ["K2Si2O5", 298, 18.7, null, "Kracek et al. (1953)"],
+        ["K2Si2O5", 298, 14.2, null, "Takahashi and Yoshio (1970)"],
+        ["K2SiO3", 298, 9.1, null, "Takahashi and Yoshio (1970)"],
+        ["CaSiO3", 298, 29.9, 2.8, "Adamkovičová et al. (1980)"],
+        ["CaSiO3", 974, 25.5, 0.4, "Hervig et al. (1985); Charlu et al. (1978)"],
+        ["MgSiO3", 974, 42.1, 0.8, "Hervig et al. (1985)"],
+        ["CaNiSi2O6", 974, 94.3, null, "Hervig et al. (1985)"],
+        ["CaCoSi2O6", 974, 73.4, null, "Hervig et al. (1985)"],
+        ["Na2Ca2Si3O9", 295, 91.2, 0.5, "Kröger and Kreitlow (1956)"],
+        ["Na4CaSi3O9", 295, 64.9, 1.5, "Kröger and Kreitlow (1956)"],
+        ["Na2Ca3Si6O16", 295, 143.5, 1.7, "Kröger and Kreitlow (1956)"],
+        ["Ca2MgSi2O7", 298, 32.5, 1.5, "Neuvonen (1952)"],
+        ["Ca2Al2SiO7", 298, 49.8, 1.8, "Neuvonen (1952)"],
+        ["CaAl2SiO6", 980, 61.6, 1.5, "Navrotsky et al. (1983)"],
+        ["MgAl2SiO6", 974, 67.1, 6.0, "Hervig et al. (1985)"],
+        ["Ca0.5AlO2", 985, 12.8, 1.2, "Navrotsky et al. (1982b)"],
+        ["LiAlSiO4", 973, 33.8, 4.9, "Roy and Navrotsky (1984)"],
+        ["NaAlGe3O8", 981, 53.2, 5.2, "Capobianco and Navrotsky (1982)"]
+      ]
+    }
+  },
+  "notes": []
+}

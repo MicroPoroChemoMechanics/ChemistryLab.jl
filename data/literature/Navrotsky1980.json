@@ -1,0 +1,45 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "Navrotsky1980",
+    "doi": "10.1016/0016-7037(80)90107-6",
+    "citation": "Navrotsky, A., Hon, R., Weill, D. F., Henry, D. J. (1980). Thermochemistry of glasses and liquids in the systems CaMgSi2O6-CaAl2Si2O8-NaAlSi3O8, SiO2-CaAl2Si2O8-NaAlSi3O8 and SiO2-Al2O3-CaO-Na2O. Geochimica et Cosmochimica Acta 44(10), 1409-1423.",
+    "location": "Table 3, p. 1417"
+  },
+  "transcription": {
+    "from": "the published article (publisher's PDF), Table 3 read on the page rendered at 200 dpi",
+    "checked_against_source": true,
+    "note": "Only the vitrification columns are transcribed; enthalpies in calories as printed, the unit written 4.184*J/mol (the thermochemical calorie, 4.184 J exactly), per mole of the formula of the substance (SiO2 for quartz and cristobalite). The source (a) of the table, Weill et al. (1980), is the work of this paper, as the table cites it. For anorthite at 298 K this table gives 17,208 cal (72.0 kJ, Kracek 1953) where Richet and Bottinga (1984) print 71.8 kJ (Kracek and Neuvonen); for diopside 22,108 cal (92.5 kJ) where they print 92.4 kJ."
+  },
+  "quantities": {},
+  "tables": {
+    "vitrification_enthalpies": {
+      "columns": ["substance", "T", "dH_v", "method", "reference"],
+      "units": [null, "K", "4.184*J/mol", null, null],
+      "kind": "published",
+      "location": "Table 3, p. 1417: enthalpies of vitrification of silicates, by oxide-melt or HF solution calorimetry",
+      "rows": [
+        ["diopside", 985, 20459, "oxide melt", "Weill et al. (1980)"],
+        ["diopside", 985, 21011, "oxide melt", "Navrotsky and Coons (1976)"],
+        ["diopside", 968, 18500, "oxide melt", "Charlu and Kleppa, as reported in Yoder (1976)"],
+        ["diopside", 353, 21989, "HF", "Ferrier (1971)"],
+        ["diopside", 298, 22108, "HF", "Kracek (1953)"],
+        ["high albite", 986, 12403, "oxide melt", "Weill et al. (1980)"],
+        ["anorthite", 985, 18584, "oxide melt", "Weill et al. (1980)"],
+        ["anorthite", 968, 18700, "oxide melt", "Charlu and Kleppa, as reported in Yoder (1976)"],
+        ["anorthite", 353, 24618, "HF", "Ferrier (1971)"],
+        ["anorthite", 298, 17208, "HF", "Kracek (1953)"],
+        ["quartz", 985, 1673, "oxide melt", "Weill et al. (1980)"],
+        ["quartz", 970, 1500, "oxide melt", "Holm et al. (1967)"],
+        ["quartz", 298, 2270, "HF", "Hummel and Schwiete (1959)"],
+        ["quartz", 298, 2180, "HF", "Kracek (1953)"],
+        ["cristobalite", 985, 1456, "oxide melt", "Weill et al. (1980)"],
+        ["cristobalite", 968, 1100, "oxide melt", "Holm et al. (1967)"],
+        ["cristobalite", 1000, 943, "acid solution and Cp", "Robie et al. (1978a)"],
+        ["jadeite", 985, 17613, "oxide melt", "Weill et al. (1980)"],
+        ["nepheline", 985, 5951, "oxide melt", "Weill et al. (1980)"]
+      ]
+    }
+  },
+  "notes": []
+}
