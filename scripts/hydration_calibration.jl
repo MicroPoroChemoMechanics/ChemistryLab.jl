@@ -339,6 +339,29 @@ to [`stoichiometric_run`](@ref) or [`run_ionic_hydration`](@ref).
 """
 induction_tstops(τ, m; n = 9) = collect(τ .* 10 .^ range(-0.6, 0.6; length = n))
 
+# The smoothing of the gate of the ferrite on portlandite, in mol per kilogram of
+# binder: small against the 2 mol a paste forms, large against the precision of
+# the integration.
+const C4AF_CH_GATE = 1.0e-4
+
+"""
+    portlandite_gated(base; ε = C4AF_CH_GATE) -> KineticFunc
+
+`base` multiplied by `c/(c + ε)`, `c` the moles of portlandite present (zero
+when the reconstruction takes it below): the rate of a reaction that consumes
+portlandite stops when there is none, smoothly, as
+[Writing a kinetic model](@ref sec-kinetics-syntax) writes a gate.
+"""
+function portlandite_gated(base; ε = C4AF_CH_GATE)
+    return KineticFunc(
+        (T, P, t, n, lna, n0) -> begin
+            c = max(n["Portlandite"], zero(eltype(n.data)))
+            base(T, P, t, n, lna, n0) * c / (c + ε)
+        end,
+        (T = 293.15u"K", P = 1.0e5u"Pa"), u"mol/s",
+    )
+end
+
 """
     damped_rate(base::KineticFunc, β) -> KineticFunc
 
@@ -702,7 +725,9 @@ equilibrium solve at all.
     C₃A  + 6 H₂O                  → C₃AH₆
     C₄AF + 2 Portlandite + 10 H₂O → C₃AH₆ + C₃FH₆
 
-Gypsum and limestone are inert here.
+Gypsum and limestone are inert here. The rate of the ferrite is gated on the
+portlandite present ([`portlandite_gated`](@ref)), which the silicates form: it
+cannot take what they have not yet made.
 
 !!! warning "This is a surrogate, and its absolute heat is wrong"
     Imposing the assemblage is exactly what `ionic_hydration.jl` exists to avoid,
@@ -748,12 +773,17 @@ function stoichiometric_run(
     set_quantity!(state0, "H2O@", (binder_mass * wb)u"kg")
 
     s(name) = cs[name]
-    rates = Dict(
+    rates = Dict{String, Any}(
         ph => damped_rate(
             parrott_killoh_avrami(pk[ph], ph; α_max, blaine = blaine * u"m^2/kg"),
             ph in INDUCTION_PHASES ? induction : nothing,
         ) for ph in ("C3S", "C2S", "C3A", "C4AF")
     )
+    # The ferrite takes the portlandite the silicates form. During their dormant
+    # period there is none yet, and ungated it consumed up to 0.5 mmol per kg of
+    # binder that did not exist, over the first 1.4 h, which the check of the
+    # trajectory reports as a failed run.
+    rates["C4AF"] = portlandite_gated(rates["C4AF"]; ε = C4AF_CH_GATE * binder_mass)
 
     specs = (
         (

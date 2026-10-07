@@ -135,6 +135,31 @@
   instead of being given the charge of the higher valence. Every oxide at the
   valence of its primary decomposes as before, to the bit, and none of the
   shipped materials holds another.
+- **A co-reactant that no rate law reads ran out in silence.** Without an
+  equilibrium partition, the species other than the kinetic ones follow the
+  extents, `n = n(0) + νᵀξ`, and a rate law that reads only its own phase does
+  not see them run out: under a Parrott–Killoh rate, `C3A + 3 Gp + 26 H2O →
+  ettringite` went on after the gypsum was gone, the amounts read and reported
+  were floored at zero, and the sulfate the extent demanded beyond what the
+  paste held was created. On the CEM I of `examples/cem1_from_clinker.md` the
+  gypsum runs out after about 28 days and 0.027 mol of sulfate is created by
+  90 days; the run reported a success. The check of a trajectory, which judged
+  only the kinetic species, now also judges every phase, gas and the solvent
+  against what the extents take of it, and such a run comes back with the
+  retcode `Unstable` and a warning naming the species, the time it runs out and
+  the shortfall, or an error under `STRICT_CONVERGENCE`. A shortfall is
+  reported above the relative tolerance of the integration times the most of
+  the species the element totals allow, below which the extents that make the
+  amount are not known. The solutes are left out: without a partition a solute
+  stands for the total of its component, and a clinker phase dissolving into
+  the primaries takes `H+` below zero, which is hydroxide. A run whose
+  co-reactants last, or whose rates are gated on them, is unchanged.
+  The check found one such run in the package: the calibration surrogate of
+  `scripts/hydration_calibration.jl`, whose ferrite takes two portlandite per
+  formula, consumed during the dormant period of the silicates up to 0.5 mmol
+  of portlandite per kilogram of binder that they had not yet formed, over the
+  first 1.4 h. Its ferrite rate is now gated on the portlandite present
+  (`portlandite_gated`), as the manual writes a gate.
 - **Documentation that said less than the code does.** The docstring of
   `miscibility_split` still said that a minimization over two declared instances
   does not deliver the composition inside a gap, which `equilibrate_split` and

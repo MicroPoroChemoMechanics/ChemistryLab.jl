@@ -325,9 +325,12 @@ end
     kp_free = KineticsProblem(
         cs, [rxn_free], state0, (0.0, 3650 * 86400.0); equilibrium_solver = nothing
     )
-    sol_free = integrate(
+    sol_free = @test_logs (:warn, r"`Portlandite` runs out") match_mode = :any integrate(
         kp_free, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-8, abstol = 1.0e-12)
     )
+    # And that run is not a success: it consumed portlandite the paste did not hold.
+    @test sol_free.retcode == ReturnCode.Unstable
+    @test sol.retcode == ReturnCode.Success
     ξ_free = reaction_extents(sol_free, kp_free; times = [kp_free.tspan[2]])[1, 1]
     ξ_gated = reaction_extents(sol, kp; times = [kp.tspan[2]])[1, 1]
     @test ξ_free > 2 * ξ_gated

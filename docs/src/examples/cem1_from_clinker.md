@@ -265,14 +265,17 @@ to avoid — gives:
 | C₃A consumed by 90 days | 0.09388 mol |
 | gypsum the extent demands (``3\times``) | 0.28164 mol |
 | gypsum actually consumed | 0.25499 mol, and it stops at exactly zero |
+| gypsum runs out | after about 28 days |
 
 The extent kept advancing after the gypsum ran out. The amount of gypsum is
 floored at zero rather than going negative, so the shortfall — 0.027 mol of
-sulfate — is simply **created**. Nothing in the package objects:
-[`extent_residual`](@ref) measures the drift between the integrated species and
-the integrated extents, which is unaffected, and the feasibility machinery
-guards the element balance of an *equilibrium* sub-solve, which is not running
-here.
+sulfate — is simply **created**. [`extent_residual`](@ref) does not see it: it
+measures the drift between the integrated species and the integrated extents,
+which is unaffected. The check of the trajectory does: without an equilibrium
+partition, each phase, gas and the solvent is judged against what the extents
+take of it, and this run comes back with the retcode `Unstable` and a warning
+that names the gypsum, the time it runs out and the shortfall. The check says
+the run is wrong; it does not make it right.
 
 So a fixed-stoichiometry kinetic reaction is only safe when its co-reactants
 cannot run out. Two ways round it, and this page takes the first:

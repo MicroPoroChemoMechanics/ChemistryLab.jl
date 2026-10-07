@@ -565,6 +565,14 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         # species and the element totals of the system.
         E_kin = E_all[:, kp.idx_kinetic],
         B_el = B_el,
+        # The species whose amount is an amount of substance rather than the
+        # total of a component: all but the solutes. Each is judged against the
+        # most of it the element totals allow.
+        is_solute = [i in kp.system.idx_solutes for i in eachindex(kp.system.species)],
+        amount_cap = [
+            minimum((B_el[e] / E_all[e, i] for e in axes(E_all, 1) if E_all[e, i] > 0); init = Inf)
+                for i in eachindex(kp.system.species)
+        ],
         # Whether the LAST respeciation had to fall back on the reconstruction
         # because the warm start was in the wrong basin. An assemblage switch is
         # not a single-step event -- a phase takes several steps to exhaust --
@@ -1640,9 +1648,15 @@ Whether the kinetic amounts of the state `u` are outside what the system can
 hold: one of them negative beyond rounding, or the kinetic species together
 holding more of an element than the system was given. Each amount is judged
 against the most of it the element totals allow, so that a trace mineral is held
-to its own scale.
+to its own scale. Without an equilibrium partition, also whether the extents take
+a species they consume below zero (`_exhausted_coreactant`, to `rtol`).
 """
-function _kinetic_state_infeasible(p, u)
+_kinetic_state_infeasible(p, u; rtol = _FEASIBILITY_RTOL) =
+    _kinetic_amounts_infeasible(p, u) || _exhausted_coreactant(p, u; rtol) !== nothing
+
+# The kinetic amounts alone: negative, or holding more of an element than the
+# system was given.
+function _kinetic_amounts_infeasible(p, u)
     nk = @view u[(p.n_be + 1):(p.n_be + p.n_nk)]
     E = p.E_kin
     for j in eachindex(nk)
@@ -1656,6 +1670,44 @@ function _kinetic_state_infeasible(p, u)
         tot > p.B_el[e] * (1 + _FEASIBILITY_RTOL) + 1.0e-14 && return true
     end
     return false
+end
+
+"""
+    _exhausted_coreactant(p, u; rtol = _FEASIBILITY_RTOL) -> Union{Nothing, Tuple{Int, Float64}}
+
+The first species the extents of the state `u` take below zero, as its index in
+the system and its amount, when the species other than the kinetic ones follow
+the stoichiometry, `n = n(0) + νᵀξ`, that is without an equilibrium partition;
+`nothing` otherwise. Each amount is judged against the most of it the element
+totals allow, times `rtol`: the check of a trajectory passes the relative
+tolerance of its integration, below which the extents that make the amount are
+not known. A phase consumed in the first seconds slightly ahead of the reaction
+that forms it, by a few parts in 10⁸ of its calcium, is then not reported.
+
+Only the species whose amount is an amount of substance are judged: a phase, a
+gas, the solvent. Without a partition a solute stands for the total of its
+component, whose sign carries the acidity: a clinker phase dissolving into the
+primaries consumes `H+` below zero, which is hydroxide, not a shortfall.
+
+A rate law that reads only its own phase does not see a co-reactant run out:
+under a Parrott–Killoh rate, `C3A + 3 Gp + 26 H2O → ettringite` goes on after
+the gypsum is gone. The right-hand side floors the amount it reads at zero, so
+the run went on, reported a success, and created the sulfate the extent demanded
+beyond what the system held.
+"""
+function _exhausted_coreactant(p, u; rtol = _FEASIBILITY_RTOL)
+    p.n_be == 0 || return nothing
+    ξ = @view u[(p.n_nk + 1):(p.n_nk + p.n_rxn_state)]
+    for (k, idx) in enumerate(p.idx_equilibrium)
+        p.is_solute[idx] && continue
+        v = Float64(_plain(p.n_initial_full[idx]))
+        for j in eachindex(ξ)
+            v += p.νe[j, k] * _plain(ξ[j])
+        end
+        cap = p.amount_cap[idx]
+        v < -rtol * (isfinite(cap) ? cap : 1.0) - 1.0e-14 && return (idx, v)
+    end
+    return nothing
 end
 
 # ── build_kinetics_ode ───────────────────────────────────────────────────────
