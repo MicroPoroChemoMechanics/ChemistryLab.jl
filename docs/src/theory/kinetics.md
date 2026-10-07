@@ -223,16 +223,17 @@ script says so.
 
 A published law with a dormant period is that of [Nguyen2009](@citet)
 (Section 3.3.2): a constant rate ``\alpha_{NC}/t_{NC}`` up to ``t_{NC} = 3`` h,
-then the Avrami law shifted to start there, then diffusion through the hydrates
-after Fujii and Kondo, with an Arrhenius factor referred to 293 K and a factor
-for the water left, each clinker phase with its own constants fitted on the
-cement of Copeland et al. (its Tables 3.3 and 3.7). It is not implemented,
-because it cannot be run as printed. The radius of the grains that goes with the
-diffusion coefficients of Table 3.7, and the exponent of the water factor, are
-given nowhere in the thesis. And the nucleation and growth regime, read with the
-constants of Table 3.7, does not reproduce the thesis's own curves: for alite it
-gives a degree of 0.05 at 12 h where its Fig. 3.4 plots 0.30, and 0.84 when the
-characteristic time is read the other way. Its first regime alone, a constant
+then the Avrami law shifted to start there, then diffusion through the
+hydrates, with an Arrhenius factor referred to 293 K and a factor for the water
+left, each clinker phase with its own constants (Tables 3.3 and 3.7 of the
+thesis). It is not implemented here. Running it needs the radius of the grains
+that goes with the diffusion coefficients of Table 3.7 and the exponent of the
+water factor, which are not among the tabulated constants; and the nucleation
+and growth regime, evaluated here with the constants of Table 3.7, gives for
+alite a degree of 0.05 at 12 h where Fig. 3.4 of the thesis shows 0.30 (0.84
+with the characteristic time read the other way), so that the reading of the
+constants an implementation would rest on is not settled. Its first regime
+alone, a constant
 rate for three hours, would be one piece of a law taken out of the calibration
 it came with, which section 3 declines for the blended laws for the same reason.
 

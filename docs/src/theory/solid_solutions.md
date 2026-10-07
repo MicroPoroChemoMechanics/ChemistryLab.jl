@@ -470,7 +470,8 @@ through TobH and T5C:
 site_fractions(csh3t, [0.2, 0.5, 0.3])
 ```
 
-and the fictive activity coefficient of T5C is Kulik's Eq. (20), halved:
+and the fictive activity coefficient of T5C is Eq. (20) of [Kulik2011](@citet),
+halved:
 
 ```math
 \ln\lambda_{\mathrm{T5C}} = \tfrac12\ln(x_{\mathrm{TobH}} + x_{\mathrm{T5C}})
