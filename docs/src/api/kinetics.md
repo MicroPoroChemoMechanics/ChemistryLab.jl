@@ -19,6 +19,17 @@ Modules = [ChemistryLab]
 Pages   = ["kinetics/kinetics_reactions.jl"]
 ```
 
+## A slow surface
+
+A reaction moving a site from one state to another, at a rate that vanishes
+where the equilibrium puts the surface. See
+[A slow surface](@ref sec-theory-pe-slow-surface).
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["kinetics/sorption_rates.jl"]
+```
+
 ## Kinetics problem
 
 ```@autodocs
@@ -45,6 +56,17 @@ Pages   = ["kinetics/calorimetry.jl"]
 ```@autodocs
 Modules = [ChemistryLab]
 Pages   = ["kinetics/kinetics_postprocessing.jl"]
+```
+
+## The second law along a run
+
+The affinity of each kinetic reaction and the power it dissipates, on the
+certified compositions of a run. See
+[What a rate law may be](@ref sec-theory-kinetics-admissible).
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["kinetics/dissipation.jl"]
 ```
 
 ## The implicit kinetic step

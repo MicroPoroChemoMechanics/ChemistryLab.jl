@@ -167,6 +167,8 @@ pages = [
         "Kinetics and coupling" => [
             "tutorials/kinetics.md",
             "tutorials/coupling.md",
+            # A site family at a rate: needs the coupling and a surface.
+            "tutorials/slow_surface.md",
         ],
         # Uses the whole chain, which is why it comes last.
         "Cementitious media" => [
