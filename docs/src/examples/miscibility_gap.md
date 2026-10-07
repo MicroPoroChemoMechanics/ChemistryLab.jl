@@ -100,7 +100,7 @@ gap = spinodal_interval(afm, 2)
 
 fig = plot(xs, [g(afm, x) for x in xs]; label = "published Redlich-Kister",
            color = :firebrick, linewidth = 2,
-           xlabel = "x (sulfate end-member)", ylabel = "g / RT",
+           xlabel = "x (C4AH13, the first end-member)", ylabel = "g / RT",
            title = "The mixing energy of the AFm sulfate/hydroxide binary",
            size = (760, 420), bottom_margin = 8Plots.mm, left_margin = 8Plots.mm)
 plot!(fig, xs, [g(IdealSolidSolutionModel(), x) for x in xs];

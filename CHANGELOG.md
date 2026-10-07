@@ -1,5 +1,44 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Redlich-Kister mixing of any number of end-members**,
+  `MulticomponentRedlichKisterModel(pairs; ternary)`: a series of any order in
+  the difference of the two mole fractions for each pair, and a term in the
+  product of three for each triple, as Redlich and Kister (1948) write them,
+  every pair evaluated at the mole fractions of the solution as they are. The
+  activity coefficients follow the paper's Eq. (14), checked against its worked
+  ternary (heptane, methanol, toluene; its Eqs. 22 and 23 as printed), against
+  `RedlichKisterModel` for two end-members and against `SubregularSolutionModel`
+  to the first order. The paper's Eq. (19) prints the term of `C12` with its
+  binary value; the theory of the solid solutions gives the ternary one.
+- **The asymmetric formalism of Holland and Powell (2003)**, `VanLaarModel(W,
+  α)`: the regular model made asymmetric by a size per end-member, the van Laar
+  binary for two. Its activity coefficients are derived in the theory of the
+  solid solutions from the homogeneity of the excess energy, a shorter route
+  than the paper's rescaled interactions, and checked against the paper's
+  Eqs. (4), (5) and (13) with its parameters; equal sizes give
+  `RegularSolutionModel`.
+- A binary of a model without the three-coefficient Redlich-Kister form is
+  scanned for a spinodal, and given its common tangent, from its excess energy
+  `Σ xₖ ln γₖ`.
+
+### Fixed
+
+- **The witness of a concave binary, and the starting compositions of its
+  split, were mirrored.** The spinodal scan and the common tangent run over the
+  mole fraction of the first end-member, and `mixing_convexity` and the split
+  starts of the certified solver wrote it as the second's. On a symmetric binary
+  nothing changed; on an asymmetric one the witness was a point where the energy
+  is convex (`RedlichKisterModel(a0 = 7000.0, a1 = 3000.0)`: the scan is
+  concave over x₁ from 0.40 to 0.90, the witness was x₁ = 0.35), and the solver
+  tried a split at the mirror image of the common tangent. The published AFm
+  sulfate/hydroxide binary of Cemdata18 is asymmetric. The axis of its figure in
+  `examples/miscibility_gap.md` was labeled with the sulfate end-member; it is
+  the fraction of C4AH13, the first one.
+
 ## v0.35.0 — The glasses of supplementary materials, the products of the alkali-silica reaction, asymmetric solid solutions
 
 The glass of a slag, a fly ash or a silica fume dissolves at pH 13 at the rate

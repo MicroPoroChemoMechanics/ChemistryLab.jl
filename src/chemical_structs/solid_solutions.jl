@@ -277,6 +277,168 @@ function SubregularSolutionModel(W::AbstractMatrix; ternary = Dict{NTuple{3, Int
     return SubregularSolutionModel{T}(vals, tvals)
 end
 
+"""
+    struct MulticomponentRedlichKisterModel{T<:Real} <: AbstractSolidSolutionModel
+
+Redlich-Kister mixing of any number of end-members, as [RedlichKister1948](@citet)
+write it (their Eqs. 17 and 18): a series in the difference of the two mole
+fractions for each pair, and a term in the product of three for each triple,
+
+```math
+\\frac{G^{\\mathrm{ex}}}{RT} = \\sum_{(i,j)} x_i x_j \\sum_{k \\ge 0} L^{ij}_k (x_i - x_j)^k
+ + \\sum_{(i,j,l)} x_i x_j x_l \\bigl[C + D_1 (x_j - x_l) + D_2 (x_l - x_i)\\bigr] ,
+```
+
+every pair and triple evaluated at the mole fractions of the solution as they
+are, without renormalization. `pairs` maps an ordered pair `(i, j)` to its
+coefficients `[L₀, L₁, L₂, …]` in J/mol, the difference being `xᵢ − xⱼ` in that
+order; `ternary` maps an ordered triple `(i, j, l)` to `[C, D₁, D₂]` (or fewer)
+in J/mol. A pair or triple left out is zero. Redlich and Kister's own
+coefficients `B, C, D` are in units of `2.303 RT` (decimal logarithms): multiply
+them by `log(10) R T`.
+
+Two end-members with `pairs = Dict((1, 2) => [a₀, a₁, a₂])` are
+[`RedlichKisterModel`](@ref)`(; a0, a1, a2)`, and the first order is
+[`SubregularSolutionModel`](@ref) with `a₀ = (W₁₂ + W₂₁)/2`,
+`a₁ = (W₂₁ − W₁₂)/2`; the test suite checks both, and the activity coefficients
+against the paper's worked ternary (its Eqs. 22 and 23).
+
+AD-compatible: all computations propagate `ForwardDiff.Dual` numbers.
+
+# Examples
+
+```jldoctest
+julia> m = MulticomponentRedlichKisterModel(Dict((1, 2) => [4000.0, 500.0], (2, 3) => [2500.0]);
+                                            ternary = Dict((1, 2, 3) => [1000.0]));
+
+julia> m.pairs[1], m.ternary[1]
+((1, 2, [4000.0, 500.0]), (1, 2, 3, [1000.0, 0.0, 0.0]))
+```
+"""
+struct MulticomponentRedlichKisterModel{T <: Real} <: AbstractSolidSolutionModel
+    pairs::Vector{Tuple{Int, Int, Vector{T}}}
+    ternary::Vector{Tuple{Int, Int, Int, Vector{T}}}
+    n::Int
+
+    function MulticomponentRedlichKisterModel{T}(pairs, ternary, n::Int) where {T <: Real}
+        ps = Tuple{Int, Int, Vector{T}}[]
+        for (key, c) in pairs
+            (length(key) == 2 && allunique(key) && all(k -> 1 <= k, key)) || throw(
+                ArgumentError("MulticomponentRedlichKisterModel: a pair is keyed by two distinct end-member indices, got $(key).")
+            )
+            any(q -> Set(q[1:2]) == Set(key), ps) && throw(
+                ArgumentError("MulticomponentRedlichKisterModel: the pair $(Tuple(sort(collect(key)))) is given twice.")
+            )
+            push!(ps, (key[1], key[2], Vector{T}(c)))
+        end
+        ts = Tuple{Int, Int, Int, Vector{T}}[]
+        for (key, c) in ternary
+            (length(key) == 3 && allunique(key) && all(k -> 1 <= k, key)) || throw(
+                ArgumentError("MulticomponentRedlichKisterModel: a triple is keyed by three distinct end-member indices, got $(key).")
+            )
+            length(c) <= 3 || throw(
+                ArgumentError(
+                    "MulticomponentRedlichKisterModel: Redlich and Kister write the term of a triple to the first " *
+                        "order, [C, D₁, D₂]; got $(length(c)) coefficients for $(key)."
+                )
+            )
+            any(q -> Set(q[1:3]) == Set(key), ts) && throw(
+                ArgumentError("MulticomponentRedlichKisterModel: the triple $(Tuple(sort(collect(key)))) is given twice.")
+            )
+            push!(ts, (key[1], key[2], key[3], vcat(Vector{T}(c), zeros(T, 3 - length(c)))))
+        end
+        nmax = maximum((max(q[1], q[2]) for q in ps); init = 0)
+        nmax = max(nmax, maximum((max(q[1], q[2], q[3]) for q in ts); init = 0))
+        n >= nmax || throw(ArgumentError("MulticomponentRedlichKisterModel: an index exceeds the $n end-members."))
+        sort!(ps; by = q -> (min(q[1], q[2]), max(q[1], q[2])))
+        sort!(ts; by = q -> Tuple(sort([q[1], q[2], q[3]])))
+        return new{T}(ps, ts, n)
+    end
+end
+
+"""
+    MulticomponentRedlichKisterModel(pairs; ternary = Dict(), n = nothing)
+        -> MulticomponentRedlichKisterModel
+
+Construct a [`MulticomponentRedlichKisterModel`](@ref) from the series of each
+ordered pair and the terms of each ordered triple, in J/mol (bare numbers) or
+as energies per mole (`Quantity`). `n`, the number of end-members, defaults to
+the largest index named.
+"""
+function MulticomponentRedlichKisterModel(pairs::AbstractDict; ternary = Dict{NTuple{3, Int}, Vector{Float64}}(), n = nothing)
+    pv = [Tuple(k) => _interaction_energy.(collect(v)) for (k, v) in pairs]
+    tv = [Tuple(k) => _interaction_energy.(collect(v)) for (k, v) in ternary]
+    T = promote_type(Float64, (eltype(last(q)) for q in pv)..., (eltype(last(q)) for q in tv)...)
+    nn = n === nothing ? max(maximum((maximum(first(q)) for q in pv); init = 0), maximum((maximum(first(q)) for q in tv); init = 0)) : n
+    return MulticomponentRedlichKisterModel{T}(pv, tv, nn)
+end
+
+"""
+    struct VanLaarModel{T<:Real} <: AbstractSolidSolutionModel
+
+The asymmetric formalism of [HollandPowell2003](@citet), a macroscopic van Laar
+model of any number of end-members: each end-member carries a size parameter
+``\\alpha_i > 0``, the mole fractions are weighted into
+``\\varphi_i = \\alpha_i x_i / \\sum_l \\alpha_l x_l``, and
+
+```math
+G^{\\mathrm{ex}} = \\sum_{i<j} \\varphi_i \\varphi_j \\, \\frac{2 \\sum_l \\alpha_l x_l}{\\alpha_i + \\alpha_j} \\, W_{ij} ,
+```
+
+`W` symmetric, in J/mol, with a zero diagonal (ignored), and `α` dimensionless:
+only their ratios matter. Equal sizes give the regular model
+([`RegularSolutionModel`](@ref)), which Holland and Powell call the symmetric
+formalism, and two end-members the van Laar binary, asymmetric as soon as the
+sizes differ. `W` and `α` are those of the temperature and pressure of the
+calculation; the papers that fit them give their dependence, which the caller
+evaluates.
+
+AD-compatible: all computations propagate `ForwardDiff.Dual` numbers.
+
+# Examples
+
+```jldoctest
+julia> m = VanLaarModel([0.0 16000.0; 16000.0 0.0], [1.0, 0.643]);
+
+julia> m.α
+2-element Vector{Float64}:
+ 1.0
+ 0.643
+```
+"""
+struct VanLaarModel{T <: Real} <: AbstractSolidSolutionModel
+    W::Matrix{T}
+    α::Vector{T}
+
+    function VanLaarModel{T}(W::AbstractMatrix, α::AbstractVector) where {T <: Real}
+        n, m = size(W)
+        n == m || throw(ArgumentError("VanLaarModel: W must be square, got $(size(W))."))
+        length(α) == n || throw(ArgumentError("VanLaarModel: $(length(α)) size parameters for $n end-members."))
+        all(a -> a > 0, α) || throw(ArgumentError("VanLaarModel: the size parameters must be positive, got $(α)."))
+        for i in 1:n, j in (i + 1):n
+            isapprox(W[i, j], W[j, i]; rtol = 1.0e-12) || throw(
+                ArgumentError(
+                    "VanLaarModel: W must be symmetric (the asymmetry is in the sizes); W[$i,$j] = $(W[i, j]) " *
+                        "but W[$j,$i] = $(W[j, i]).",
+                )
+            )
+        end
+        return new{T}(Matrix{T}(W), Vector{T}(α))
+    end
+end
+
+"""
+    VanLaarModel(W::AbstractMatrix, α::AbstractVector) -> VanLaarModel
+
+Construct a [`VanLaarModel`](@ref) from the symmetric interaction energies `W`
+(J/mol, or energies per mole) and the size parameters `α` of the end-members.
+"""
+function VanLaarModel(W::AbstractMatrix, α::AbstractVector)
+    vals = _interaction_energy.(W)
+    T = promote_type(eltype(vals), eltype(float.(α)))
+    return VanLaarModel{T}(vals, float.(α))
+end
+
 # ── Solid solution phase ───────────────────────────────────────────────────────
 # ── Solid solution phase ───────────────────────────────────────────────────────
 
@@ -438,10 +600,16 @@ function SolidSolutionPhase(
                 "got $(length(end_members))",
         )
     end
-    if model isa Union{RegularSolutionModel, SubregularSolutionModel}
+    if model isa Union{RegularSolutionModel, SubregularSolutionModel, VanLaarModel}
         size(model.W, 1) == length(end_members) || error(
             "SolidSolutionPhase \"$name\": the interaction matrix of the model is " *
                 "$(size(model.W, 1))×$(size(model.W, 2)), and $(length(end_members)) end-members are given.",
+        )
+    end
+    if model isa MulticomponentRedlichKisterModel
+        model.n == length(end_members) || error(
+            "SolidSolutionPhase \"$name\": the Redlich-Kister model describes $(model.n) end-members, " *
+                "and $(length(end_members)) are given.",
         )
     end
     if model isa Union{SublatticeModel, CompoundEnergyModel}
@@ -555,6 +723,14 @@ function _rk_coefficients(model::AbstractSolidSolutionModel, T::Real)
     model isa RegularSolutionModel && return (model.W[1, 2] / RT, 0.0, 0.0)
     model isa SubregularSolutionModel &&
         return ((model.W[1, 2] + model.W[2, 1]) / (2RT), (model.W[2, 1] - model.W[1, 2]) / (2RT), 0.0)
+    if model isa MulticomponentRedlichKisterModel && model.n == 2
+        isempty(model.pairs) && return (0.0, 0.0, 0.0)
+        i, _, c = only(model.pairs)
+        length(c) <= 3 || return nothing
+        s = i == 1 ? 1 : -1          # the series is in x₁ − x₂ for the pair (1, 2)
+        a = vcat(c, zeros(3 - length(c)))
+        return (a[1] / RT, s * a[2] / RT, a[3] / RT)
+    end
     return nothing
 end
 
@@ -573,6 +749,24 @@ so every miscibility gap is the excess term's doing.
 _mixing_energy(A0, A1, A2) =
     x -> x * log(x) + (1 - x) * log(1 - x) +
     x * (1 - x) * (A0 + A1 * (2x - 1) + A2 * (2x - 1)^2)
+
+# The molar Gibbs energy of mixing of a binary in units of RT, as a function of
+# the mole fraction `x` of its FIRST end-member, or `nothing` when the model has
+# no excess term (ideal mixing, convex everywhere) or none this can evaluate. A
+# Redlich-Kister form goes through its coefficients; a model without one through
+# its activity coefficients, `Σₖ xₖ ln γₖ` being the excess.
+function _binary_mixing_energy(model::AbstractSolidSolutionModel, T::Real)
+    coeffs = _rk_coefficients(model, T)
+    if coeffs !== nothing
+        all(iszero, coeffs) && return nothing
+        return _mixing_energy(coeffs...)
+    end
+    model isa Union{VanLaarModel, MulticomponentRedlichKisterModel} || return nothing
+    return x -> begin
+        v = [x, 1 - x]
+        v[1] * (log(v[1]) + _excess_ln_gamma(model, 1, v, T)) + v[2] * (log(v[2]) + _excess_ln_gamma(model, 2, v, T))
+    end
+end
 
 # ── Convexity of the mixing energy ────────────────────────────────────────────
 
@@ -616,12 +810,8 @@ function spinodal_interval(
         model::AbstractSolidSolutionModel, n_members::Int; T::Real = 298.15
     )
     n_members == 2 || return nothing
-    coeffs = _rk_coefficients(model, T)
-    coeffs === nothing && return nothing    # ideal: convex everywhere
-    A0, A1, A2 = coeffs
-    (A0 == 0 && A1 == 0 && A2 == 0) && return nothing
-
-    gx = _mixing_energy(A0, A1, A2)
+    gx = _binary_mixing_energy(model, T)
+    gx === nothing && return nothing        # ideal: convex everywhere
 
     xs = range(1.0e-3, 1 - 1.0e-3; length = 2001)
     d2gx(x) = ForwardDiff.derivative(y -> ForwardDiff.derivative(gx, y), x)
@@ -689,13 +879,14 @@ function mixing_convexity(model::AbstractSolidSolutionModel, n::Int; T::Real = 2
     model isa SublatticeModel &&
         return (; verdict = :convex, witness = nothing, how = "ideal mixing on each site, in site fractions linear in x")
     model isa CompoundEnergyModel && return _cef_convexity(model, T, g)
-    if n == 2 && _rk_coefficients(model, T) !== nothing
+    if n == 2 && (_rk_coefficients(model, T) !== nothing || model isa Union{VanLaarModel, MulticomponentRedlichKisterModel})
         gap = spinodal_interval(model, 2; T = T)
         gap === nothing &&
             return (; verdict = :convex, witness = nothing, how = "binary: no concave point on the spinodal scan")
+        # The scan runs over the mole fraction of the first end-member.
         xm = (gap[1] + gap[2]) / 2
         return (;
-            verdict = :nonconvex, witness = [1 - xm, xm],
+            verdict = :nonconvex, witness = [xm, 1 - xm],
             how = "binary: concave for x in [$(round(gap[1]; digits = 3)), $(round(gap[2]; digits = 3))]",
         )
     end
@@ -900,10 +1091,8 @@ function common_tangent(
     gap = spinodal_interval(model, n_members; T = T)
     gap === nothing && return nothing
 
-    # `spinodal_interval` above already refused every model these cannot express,
-    # so the coefficients are here.
-    A0, A1, A2 = _rk_coefficients(model, T)
-    g = _mixing_energy(A0, A1, A2)
+    # `spinodal_interval` above already refused every model this cannot express.
+    g = _binary_mixing_energy(model, T)
     g′(x) = ForwardDiff.derivative(g, x)
 
     # Two residuals: equal slopes, and the slope equal to the chord. Both vanish
@@ -1013,8 +1202,7 @@ function miscibility_split(
     # these coefficients cannot express, so no second refusal is needed here --
     # and one written anyway would be unreachable, which is worse than absent.
     RT = R_GAS * T
-    A0, A1, A2 = _rk_coefficients(model, T)
-    g = _mixing_energy(A0, A1, A2)
+    g = _binary_mixing_energy(model, T)
 
     # Outside the pair the phase is homogeneous, and saying so is part of the
     # answer rather than an edge case to guard against.

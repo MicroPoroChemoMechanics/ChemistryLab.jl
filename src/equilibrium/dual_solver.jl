@@ -248,7 +248,9 @@ end
 # gives. Ideal mixing keeps the substitution, and its results bit for bit.
 _needs_newton_inversion(::Any) = false
 _needs_newton_inversion(::Union{SublatticeModel, CompoundEnergyModel}) = true
-_needs_newton_inversion(::Union{RedlichKisterModel, RegularSolutionModel, SubregularSolutionModel}) = true
+_needs_newton_inversion(
+    ::Union{RedlichKisterModel, RegularSolutionModel, SubregularSolutionModel, MulticomponentRedlichKisterModel, VanLaarModel}
+) = true
 
 # The log activities of a solid solution's members from their own amounts, as
 # `_solid_solution_lna!` computes them inside the activity closure (same ϵ, same
@@ -353,7 +355,7 @@ function _split_starts(model, nmembers::Int)
     pair === nothing && return out
     for x in pair
         (isfinite(x) && 0 < x < 1) || continue
-        push!(out, Float64[1 - x, x])
+        push!(out, Float64[x, 1 - x])   # x is the mole fraction of the first end-member
     end
     return out
 end

@@ -336,6 +336,8 @@ module ChemistryLab
         RedlichKisterModel,
         RegularSolutionModel,
         SubregularSolutionModel,
+        MulticomponentRedlichKisterModel,
+        VanLaarModel,
         SublatticeModel,
         site_fractions,
         sublattice_model,

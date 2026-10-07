@@ -179,8 +179,9 @@ agree to the last digit.
 [`SolidSolutionPhase`](@ref) refuses the combination at construction rather than
 letting a ternary reach an expression written for a binary. For three or more
 end-members the choices are the ideal model, `RegularSolutionModel` with a full
-``\mathbf{W}`` matrix, or the asymmetric model of section 9, whose binaries are
-this model to the first order.
+``\mathbf{W}`` matrix, or the asymmetric models of section 9: the subregular
+model, whose binaries are this model to the first order, the series of every
+order, and the van Laar model.
 
 ### Published dimensionless parameters, and the temperature
 
@@ -746,6 +747,125 @@ the paper, for each end-member of a quaternary with its twelve binary and four
 ternary coefficients, and Gibbs–Duhem and ``\sum_k x_k \ln\gamma_k = g`` as
 identities.
 
+### A series for each pair: `MulticomponentRedlichKisterModel`
+
+[RedlichKister1948](@citet) write the excess of a binary as a series in the
+difference of the two mole fractions, which changes sign when the components
+are exchanged, and that of a ternary as the sum of its three binaries, each
+evaluated at the mole fractions of the ternary as they are, plus a term in the
+product of the three (their Eqs. 17 and 18):
+
+```math
+\frac{G^{\text{ex}}}{RT} = \sum_{(i,j)} x_i x_j \sum_{k\ge 0} L^{ij}_k (x_i - x_j)^k
+ + \sum_{(i,j,l)} x_i x_j x_l \bigl[C + D_1 (x_j - x_l) + D_2 (x_l - x_i)\bigr] .
+```
+
+The order of a pair matters for its odd terms, which change sign with it, and
+the order of a triple for ``D_1`` and ``D_2``. Beyond three components the paper
+adds the further pairs and triples and a term in four mole fractions, which it
+does not write out and which is not implemented. Its coefficients are in units
+of ``2.303\,RT``, the paper working with decimal logarithms.
+
+The activity coefficients follow from the paper's Eq. (14), the partial molar
+derivative written in mole fractions, which is the formula of the subregular
+model above. For a pair, with ``d = x_i - x_j``, ``S = \sum_k L_k d^k`` and
+``S' = \sum_k k L_k d^{k-1}``, the term ``t = x_i x_j S`` has
+
+```math
+\frac{\partial t}{\partial x_i} = x_j S + x_i x_j S',
+\qquad
+\frac{\partial t}{\partial x_j} = x_i S - x_i x_j S',
+\qquad
+\sum_m x_m \frac{\partial t}{\partial x_m} = 2 x_i x_j S + x_i x_j\, d\, S' ,
+```
+
+and for a triple, with ``U = C + D_1(x_j - x_l) + D_2(x_l - x_i)``, the term
+``t = x_i x_j x_l U`` has
+
+```math
+\frac{\partial t}{\partial x_i} = x_j x_l U - x_i x_j x_l D_2,
+\quad
+\frac{\partial t}{\partial x_j} = x_i x_l U + x_i x_j x_l D_1,
+\quad
+\frac{\partial t}{\partial x_l} = x_i x_j U + x_i x_j x_l (D_2 - D_1),
+\quad
+\sum_m x_m \frac{\partial t}{\partial x_m} = 3t + x_i x_j x_l (U - C) .
+```
+
+``\ln\gamma_r`` is the sum over every pair and triple of ``t - \sum_m x_m
+\partial t/\partial x_m``, plus the derivatives with respect to ``x_r`` of the
+terms that contain it, which is `_excess_ln_gamma(::MulticomponentRedlichKisterModel, …)`.
+Two end-members give the model of section 4 with ``a_k = L_k``. To the first
+order the series is the subregular model above, with
+``L_0 = (W_{ij} + W_{ji})/2`` and ``L_1 = (W_{ji} - W_{ij})/2``: Redlich and
+Kister call the first-order binary "the equation of Margules", and the
+subregular section shows why the ternary extensions coincide.
+
+The paper also prints the ratio of two activity coefficients in a ternary (its
+Eq. 19). Its term in ``C_{12}``, ``C_{12}[3(x_1 - x_2)^2 - 1]/2``, is the value
+on the binary: in the ternary, Eq. (14) gives ``C_{12}[(x_1 - x_2)^2 - 2x_1x_2]``,
+which is that plus ``C_{12}\,x_3(2 - x_3)/2``. Every other term of Eq. (19)
+agrees with Eq. (14). The implementation follows Eq. (14), and the test suite
+checks it against the paper's worked ternary, heptane, methanol and toluene with
+the coefficients of its Eq. (21) and the association of methanol left out,
+through its Eqs. (22) and (23) as printed.
+
+### Unequal sizes: `VanLaarModel`
+
+[HollandPowell2003](@citet) make the regular model asymmetric by giving each
+end-member a size ``\alpha_i`` and weighting the mole fractions by it,
+``\varphi_i = \alpha_i x_i / \sum_l \alpha_l x_l``:
+
+```math
+G^{\text{ex}} = \sum_{i<j} \varphi_i \varphi_j B_{ij},
+\qquad
+B_{ij} = \frac{2 \sum_l \alpha_l x_l}{\alpha_i + \alpha_j}\, W_{ij} .
+```
+
+Only the ratios of the sizes matter. Equal sizes give back the regular model of
+section 3, which the paper calls the symmetric formalism, and two end-members
+give the van Laar binary, asymmetric as soon as the sizes differ. The papers
+that fit ``W_{ij}`` and ``\alpha_i`` often make them depend on temperature and
+pressure; the model takes their values at the conditions of the calculation.
+
+The paper writes the activity coefficients (its Eq. 2) with interactions
+rescaled by the size of the end-member considered,
+``W^*_{ij} = 2\alpha_k W_{ij}/(\alpha_i + \alpha_j)``; its double sum is printed
+over ``j > 1`` and runs over ``j > i``, as the excess energy shows. A shorter
+route goes through the excess itself. Substituting ``\varphi``,
+
+```math
+G^{\text{ex}} = \frac{Q(\mathbf{x})}{A(\mathbf{x})},
+\qquad
+Q = \sum_{i<j} x_i x_j w_{ij},
+\quad
+A = \sum_l \alpha_l x_l,
+\quad
+w_{ij} = \frac{2\alpha_i\alpha_j W_{ij}}{\alpha_i + \alpha_j},
+```
+
+a quadratic form over a linear one. The excess of ``n_k`` moles is then
+``N G^{\text{ex}}(\mathbf{n}/N) = Q(\mathbf{n})/A(\mathbf{n})``, homogeneous of
+degree one in the amounts, and its derivative is
+
+```math
+RT \ln\gamma_k = \frac{\partial}{\partial n_k}\frac{Q(\mathbf{n})}{A(\mathbf{n})}
+ = \frac{\sum_{j\neq k} x_j w_{kj}}{A} - \frac{\alpha_k\, Q}{A^2} ,
+```
+
+which is `_excess_ln_gamma(::VanLaarModel, …)`. With equal sizes ``\alpha``,
+``w_{ij} = \alpha W_{ij}`` and ``A = \alpha``, and the regular expression of
+section 3 comes back; for a binary it is the paper's Eqs. (4) and (5),
+``RT\ln\gamma_1 = 2\alpha_1/(\alpha_1 + \alpha_2)\,\varphi_2^2 W_{12}``. The test
+suite checks it against those equations for the alkali feldspar of the paper,
+against its Eq. (13) for calcite, magnesite and dolomite, with the paper's
+parameters, and ``\sum_k x_k RT\ln\gamma_k`` against ``G^{\text{ex}}``.
+
+Neither this model nor the series above has the Redlich-Kister form of section
+4 with three coefficients, so their binary is scanned for a spinodal and its
+common tangent found from the excess itself, ``\sum_k x_k \ln\gamma_k``, in the
+mole fraction of the first end-member.
+
 ### Convexity with more than two end-members
 
 A one-dimensional scan decides a binary. With ``n`` end-members the question is
@@ -772,10 +892,11 @@ condition. In the other direction, a pair with ``W_{ij} > 2RT`` is a witness:
 at the middle of that edge the second derivative along it is ``4 - 2w_{ij} < 0``.
 Between the two, the smallest eigenvalue of the projected Hessian is searched on
 a lattice of compositions, and a negative one is a witness too; finding none
-proves nothing, and the verdict is then `:undecided`. The subregular model is
-decided by that search alone beyond two end-members: its Hessian depends on the
-composition through the asymmetric and the ternary terms, and no bound of the
-kind above is written for it.
+proves nothing, and the verdict is then `:undecided`. The subregular, the
+Redlich-Kister and the van Laar models are decided by that search alone beyond
+two end-members: their Hessian depends on the composition through the
+asymmetric and the ternary terms, and no bound of the kind above is written for
+them.
 
 ```@example ss_convexity
 using ChemistryLab, DynamicQuantities, Printf

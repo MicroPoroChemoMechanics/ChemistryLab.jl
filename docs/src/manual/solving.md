@@ -693,6 +693,8 @@ cs = ChemicalSystem(
 | [`RedlichKisterModel`](@ref) | `ln aᵢ = ln xᵢ + ln γᵢ` (Margules) | Binary only (2 end-members), parameters in J/mol |
 | [`RegularSolutionModel`](@ref) | `ln γᵢ` from one `Wᵢⱼ` per pair | Any number of end-members; convexity from [`mixing_convexity`](@ref) |
 | [`SubregularSolutionModel`](@ref) | `ln γᵢ` from `Wᵢⱼ ≠ Wⱼᵢ` per pair and `Wᵢⱼₖ` per triple | Any number of end-members, asymmetric, after [HelffrichWood1989](@citet) |
+| [`MulticomponentRedlichKisterModel`](@ref) | a series in `xᵢ − xⱼ` per pair, a term per triple | Any number of end-members, any order, after [RedlichKister1948](@citet) |
+| [`VanLaarModel`](@ref) | one `Wᵢⱼ` per pair, one size `αᵢ` per end-member | Any number of end-members, asymmetric through the sizes, after [HollandPowell2003](@citet) |
 | [`SublatticeModel`](@ref) | `ln aᵢ = Σₛ mₛ ln y_{s,σₛ(i)}` | Ideal mixing on sites; CNASH_ss of [Myers2014](@citet), CSH3T of [Kulik2011](@citet) |
 | [`CompoundEnergyModel`](@ref) | ideal site mixing, plus the reference surface of the end-member energies and regular interactions on a site | The CASH+ C-S-H of [Kulik2022](@citet); needs the end-members' standard Gibbs energies |
 
@@ -734,7 +736,8 @@ Activity coefficients (Guggenheim / ThermoCalc convention):
     `RedlichKisterModel` requires exactly 2 end-members. For ternary or
     higher-order solid solutions, use the ideal model (`IdealSolidSolutionModel`),
     the symmetric multi-component Margules model ([`RegularSolutionModel`](@ref)),
-    or the asymmetric one ([`SubregularSolutionModel`](@ref)).
+    or an asymmetric one ([`SubregularSolutionModel`](@ref),
+    [`MulticomponentRedlichKisterModel`](@ref), [`VanLaarModel`](@ref)).
 
 !!! note "Integration with aqueous models"
     Solid-solution activities are computed independently of the aqueous activity model.

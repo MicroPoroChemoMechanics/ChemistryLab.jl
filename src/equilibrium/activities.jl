@@ -1426,6 +1426,8 @@ Methods:
 - [`RedlichKisterModel`](@ref): binary Redlich-Kister formula (requires `length(x) == 2`).
 - [`RegularSolutionModel`](@ref): symmetric multi-component Margules.
 - [`SubregularSolutionModel`](@ref): asymmetric multi-component Margules.
+- [`MulticomponentRedlichKisterModel`](@ref): Redlich-Kister series of any number of end-members.
+- [`VanLaarModel`](@ref): the asymmetric formalism of Holland and Powell (2003).
 """
 _excess_ln_gamma(::IdealSolidSolutionModel, k::Int, x::AbstractVector, T::Real) =
     zero(eltype(x))
@@ -1480,6 +1482,64 @@ function _excess_ln_gamma(m::SubregularSolutionModel, k::Int, x::AbstractVector,
         k == l && (acc += c * x[i] * x[j])
     end
     return acc
+end
+
+# Redlich and Kister (1948): for each ordered pair, `t = x_i x_j S(d)`,
+# `d = x_i − x_j`, `S = Σ_k L_k d^k`; for each ordered triple,
+# `t = x_i x_j x_l U`, `U = C + D₁(x_j − x_l) + D₂(x_l − x_i)`. Their Eq. (14) is
+# `ln γ_r = g + ∂g/∂x_r − Σ_k x_k ∂g/∂x_k`, with `Σ x ∂t = 2 x_i x_j S + x_i x_j d S'`
+# for a pair and `3t + x_i x_j x_l (U − C)` for a triple.
+function _excess_ln_gamma(m::MulticomponentRedlichKisterModel, r::Int, x::AbstractVector, T::Real)
+    RT = R_GAS * T   # J/mol
+    acc = zero(eltype(x))
+    for (i, j, L) in m.pairs
+        d = x[i] - x[j]
+        # S = Σ_p L_p d^p and S′ = Σ_p p L_p d^(p−1), the powers carried along
+        # rather than divided, so that d = 0 is no special case.
+        S, S′, cur, prev = zero(acc), zero(acc), one(acc), one(acc)
+        for k in eachindex(L)
+            p = k - 1
+            S += (L[k] / RT) * cur
+            p >= 1 && (S′ += p * (L[k] / RT) * prev)
+            prev = cur
+            cur *= d
+        end
+        xx = x[i] * x[j]
+        acc -= xx * (S + d * S′)              # t − Σ x ∂t
+        r == i && (acc += x[j] * S + xx * S′)
+        r == j && (acc += x[i] * S - xx * S′)
+    end
+    for (i, j, l, c) in m.ternary
+        C, D1, D2 = c[1] / RT, c[2] / RT, c[3] / RT
+        U = C + D1 * (x[j] - x[l]) + D2 * (x[l] - x[i])
+        xxx = x[i] * x[j] * x[l]
+        acc -= 2xxx * U + xxx * (U - C)       # t − Σ x ∂t
+        r == i && (acc += x[j] * x[l] * U - xxx * D2)
+        r == j && (acc += x[i] * x[l] * U + xxx * D1)
+        r == l && (acc += x[i] * x[j] * U + xxx * (D2 - D1))
+    end
+    return acc
+end
+
+# Holland and Powell (2003). With `A = Σ α_l x_l` and
+# `w_ij = 2 α_i α_j W_ij / (α_i + α_j)`, the excess is `G = Q/A`,
+# `Q = Σ_{i<j} x_i x_j w_ij`, homogeneous of degree one in the amounts, so
+# `RT ln γ_k = ∂(Q/A)/∂n_k = Σ_{j≠k} x_j w_kj / A − α_k Q / A²`.
+function _excess_ln_gamma(m::VanLaarModel, k::Int, x::AbstractVector, T::Real)
+    RT = R_GAS * T   # J/mol
+    n = length(x)
+    W, α = m.W, m.α
+    A = sum(α[l] * x[l] for l in 1:n)
+    w(i, j) = 2 * α[i] * α[j] * W[i, j] / (α[i] + α[j])
+    Q = zero(eltype(x))
+    lin = zero(eltype(x))
+    @inbounds for i in 1:n
+        i != k && (lin += x[i] * w(k, i))
+        for j in (i + 1):n
+            Q += x[i] * x[j] * w(i, j)
+        end
+    end
+    return (lin / A - α[k] * Q / A^2) / RT
 end
 
 """
