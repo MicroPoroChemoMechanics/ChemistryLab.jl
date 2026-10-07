@@ -231,6 +231,21 @@ end
         @test ForwardDiff.derivative(bound_at, k0) ≈ n_eq * s_ * t1 * exp(-k0 * s_ * t1) rtol = 1.0e-5
     end
 
+    @testset "a trace site budget is computed at equilibrium" begin
+        # Down to 1e-10 mol of sites beside a kilogram of water; until OptimaSolver
+        # 0.8.2 the total of the family was seeded at no less than 1e-6 and the
+        # search did not come back down to it (4e-9 mol of sites for 1e-9).
+        for N in (1.0e-10, 1.0e-9)
+            cs, st, idx = _sorb_system(; logK, n_slow = N)
+            eq, cert = equilibrate_certified(st; model = DiluteSolutionModel())
+            @test cert.optimal
+            n(s) = ustrip(us"mol", eq.n[idx(s)])
+            @test n("XsOH") + n("XsOCa+") ≈ N rtol = 1.0e-10
+            la = log_activities(eq, DiluteSolutionModel())
+            @test la["XsOCa+"] + la["H+"] - la["XsOH"] - la["Ca+2"] ≈ logK * log(10) atol = 1.0e-6
+        end
+    end
+
     @testset "what cannot be slow is refused, by name" begin
         cs, st, idx = _sorb_system()
         rxn = _sorb_reaction(cs, idx)
