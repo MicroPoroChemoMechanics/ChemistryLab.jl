@@ -1,6 +1,47 @@
 # Changelog
 
-## Unreleased
+## v0.35.0 — The glasses of supplementary materials, the products of the alkali-silica reaction, asymmetric solid solutions
+
+The glass of a slag, a fly ash or a silica fume dissolves at pH 13 at the rate
+Snellings (2013) measured on synthetic glasses, and a page fits how the calcium
+in solution slows it; put on the slag of a paste, that law dissolves it within
+a month where the paste holds it for months. The
+potassium and sodium shlykovites of the alkali-silica reaction come as a
+derived database, and the 17 syntheses at 80 °C of Shi and Lothenbach (2019)
+certify once the solve follows the ionic strength onto its middle root. A
+silica fume shotcrete paste is computed over 3.5 years against its pore
+solution, the formate of its accelerator entering as carbon (II) now that an
+oxide below the valence of its primary is written with its charge. Two attempts
+at aluminum in the C-S-H are recorded and not shipped. The asymmetric Margules
+model takes any number of end-members. A kinetic run without an equilibrium
+partition reports a co-reactant that runs out instead of creating it.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.34"` does not accept 0.35
+  and has to widen its bound.
+- **A kinetic run that consumes a phase, a gas or the solvent beyond what the
+  system holds returns the retcode `Unstable`**, with a warning naming the
+  species (an error under `STRICT_CONVERGENCE`), where it returned `Success`.
+  Only runs without an equilibrium partition are concerned, whose rate laws do
+  not read the co-reactant they consume.
+- **An oxide below the valence of its primary is refused in a system without
+  `Zz`.** `primary_decomposition`, `oxide_budget` and the oxide constituents of
+  a recipe raise an `ArgumentError` for it (FeO over `Fe+3`, CO over `CO3-2`),
+  where they returned a budget with the charge of the higher valence, and a
+  recipe no longer drops such an oxide as if its element were absent. With
+  `Zz`, the budget carries its electrons. Oxides at the valence of their
+  primary decompose as before, to the bit.
+- **A transition-state rate built on a fresh system** includes the standard
+  Gibbs energy of every species of its reaction; built after only the aqueous
+  species had been asked for theirs, its saturation ratio was wrong by
+  `exp(ΔₐG⁰/RT)` of the mineral.
+- **A solid solution whose interaction matrix does not match its end-members
+  is refused** at construction (`RegularSolutionModel`).
+- **Four names are exported**: `SubregularSolutionModel`, `RateModelInhibitor`,
+  `snellings2013_glass` and `cation_molar_mass`. A package defining the same
+  names alongside `using ChemistryLab` now sees a conflict.
 
 ### Added
 
@@ -38,7 +79,13 @@
   and aluminum fitted on the 51 rates of the paper with activities computed at
   pH 13. Calcium follows one factor `(1 + K a)⁻¹` within the error of the
   measurements; aluminum does not, one glass slowed at once and no further,
-  another more and more, and the page shows both.
+  another more and more, and the page shows both. A last section dissolves the
+  slag of the ternary paste of Snellings et al. (2022) by this law, nothing
+  fitted on the paste: over its Blaine surface the first day falls within the
+  measurement, and the slag is gone within the month where the paste holds it
+  at 41 to 62 % from the first week to the sixth month; over its BET surface it
+  is gone in two days. What slows a slag in a paste after its first days is not
+  in a law measured on its glass in a dilute solution.
 - **A tutorial on solid solutions in a calculation**
   (`tutorials/solid_solutions.md`): a C-S-H gel declared among other solids,
   which phases the equilibrium keeps and with which composition, why the gel is
@@ -92,7 +139,6 @@
   series: K-shlykovite at a low Ca/Si with the first, ASR-P1 from a Ca/Si of 0.3
   with the second. The solution of silica in KOH without lime sits on the middle
   root of its ionic strength, drawn on the page.
-
 - **Asymmetric mixing of any number of end-members**,
   `SubregularSolutionModel(W; ternary)`: the subregular Margules model in the
   form of Helffrich and Wood (1989), one coefficient per ordered pair, `W[i, j]`
