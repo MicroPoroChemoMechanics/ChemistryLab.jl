@@ -278,6 +278,49 @@ area to [`blaine_factor`](@ref) raises instead of returning a plausible number.
 A bare quantity is still read as a Blaine fineness, which is the contract every
 existing call relies on; see [Surface areas](@ref sec-manual-surfaces).
 
+### The laws of a blend that read the portlandite, and why they are not here
+
+The Waller sigmoid ignores the clinker it reacts with. Two laws written for a
+blend do not: they make the rate of the addition a product of factors, one of
+which reads the portlandite. For a fly ash, [BuffoLacarriere2007](@citet)
+multiply it by the volume fraction of portlandite in the paste (their Eq. 12);
+for a slag, [Kolani2012](@citet) by that fraction plus the volume fraction of
+the lime still held in the unreacted slag (their Eq. 13). The other factors of
+the slag law are an activation proportional to the degree of hydration of the
+clinker, taken as the measure of the alkalis it has released (Eq. 10), an
+access of water through the hydrate layer,
+
+```math
+\pi_i = \exp\left[-\frac{1}{n_i}\left(\frac{\bar r_i}{r_k}\right)^{n_i}\right],
+\qquad
+\bar r_i = \frac{C_{\mathrm{hyd},i}}{W\,\phi\,C_{\mathrm{anh},i}},
+```
+
+with ``C_{\mathrm{hyd},i}`` and ``C_{\mathrm{anh},i}`` the volume fractions of
+the hydrates of phase ``i`` and of its anhydrous grains, ``W`` that of the free
+water and ``\phi`` the porosity of the paste (Eqs. 11 and 12), and an Arrhenius
+factor at 293 K (Eq. 14), all multiplied by a constant ``A_i``.
+
+Neither law is implemented, because three things a rate law needs are not
+printed. The constant ``A_i`` has no unit of time: 3.48 for the clinker and
+5.0·10⁻⁶ for the slag (Kolani, Table 8). Evaluated on the mortars of the paper,
+with the densities of a clinker and a slag, the first gives the usual rates of
+clinker hydration if it is per hour, and the second lets the slag react within a
+month only if it is per second; that reading is ours, not the paper's. The activation of the clinker is proportional
+to its own degree of hydration, so it is zero at the start, and no starting
+value is given. And the volume fractions come from the authors' stoichiometry,
+which assigns each hydrate to the phase that formed it (their Tables 6 and 7),
+where an equilibrium calculation assigns a hydrate to no phase. The parameters
+of each phase were fitted together on one semi-adiabatic test, so no factor can
+be taken alone and put on another law: the portlandite factor, a volume
+fraction of the order of 0.1, would slow a Waller sigmoid tenfold.
+
+A filler effect on the clinker has no published formulation to implement either.
+[Berodier2014](@citet) relate the slope of the acceleration period of a cement
+paste to the distance between the particles, and find that a slag and a fly ash
+act as quartz does over the first day; the relation is shown as measured points,
+not as an expression a rate law can take.
+
 ## 4. The three multiplicative corrections
 
 Each of the empirical laws above is multiplied by three dimensionless factors.
