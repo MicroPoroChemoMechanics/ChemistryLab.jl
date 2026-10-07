@@ -6,11 +6,11 @@
 
 A blended cement binds the chloride that enters it in its AFm phases, as
 Kuzel's and Friedel's salts, and in its C-S-H. The salts are phases of
-CEMDATA18. The C-S-H is its CSHQ solid solution, whose end members hold calcium
-and alkalis but no chloride. This page salts the CEM III/A paste of the
-[blastfurnace cement page](@ref ex-cem3-slag) along two routes that give the
-C-S-H its share, then a CEM III/B paste without portlandite, along the one route
-that applies there.
+CEMDATA18 [Lothenbach2019](@cite). The C-S-H is its CSHQ solid solution, whose
+end members hold calcium and alkalis but no chloride. This page salts the CEM
+III/A paste of the [blastfurnace cement page](@ref ex-cem3-slag) along two
+routes that give the C-S-H its share, then a CEM III/B paste without
+portlandite, along the one route that applies there.
 
   - **Route A** keeps the surface model of the C-S-H that [Guo2018](@citet) use:
     silanol sites that bind calcium, alkalis and chloride. It puts them on a
@@ -40,8 +40,9 @@ that applies there.
         CEM II concrete, a CaCl₂ solution binds two to three times as much
         chloride at the same free chloride [Tran2018](@cite), which the end
         member does not reproduce.
-      - The B-dot activity model of the CEMDATA18 pages holds up to an ionic
-        strength of about 1 mol/kg. No solution below exceeds 0.7.
+      - The B-dot activity model [Helgeson1969](@cite) of the CEMDATA18 pages
+        holds up to an ionic strength of about 1 mol/kg. No solution below
+        exceeds 0.7.
 
 ```@example clblend
 using ChemistryLab, DynamicQuantities, JSON, OptimaSolver, OrderedCollections, Printf
@@ -139,10 +140,10 @@ so the support of the sites is declared external: it belongs to a solid outside
 the system, which is what allows sites that bind calcium beside the calcium of
 the hydrogarnet solid solution.
 The sites and their area are referred to the silicon of the frozen gel, through
-the molar mass of Guo's C-S-H per silicon: 0.004 mol/g and 500 m²/g, times
-191.4 g/mol. The gel of the first stage then carries as many sites per silicon
-as Guo's does. The alkalis of NaSiOH and KSiOH go back to the solution as
-hydroxides.
+the molar mass per silicon of the C-S-H of [Guo2018](@citet): 0.004 mol/g and
+500 m²/g, times 191.4 g/mol. The gel of the first stage then carries as many
+sites per silicon as that of [Guo2018](@citet) does. The alkalis of NaSiOH and
+KSiOH go back to the solution as hydroxides.
 
 ```@example clblend
 sp2 = speciation(substances, vcat(pure, salts, members(hydrogarnet), redox, ["Na+", "K+", "Cl-"]);
@@ -295,6 +296,7 @@ end member predicts for a gel it was not fitted on.
 ## See also
 
   - [Chloride binding by C-S-H and Friedel's salt](@ref sec-example-csh-chloride),
-    the surface model on Guo's paste, against PHREEQC.
+    the surface model on the paste of [Guo2018](@citet), against PHREEQC
+    [ParkhurstAppelo2013](@cite).
   - `data/chloride/README.md`, the data, the fit and the rejected candidate.
   - `test/chloride_blended_reference.jl` and `test/cshq_chloride.jl`.

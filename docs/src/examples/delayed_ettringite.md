@@ -55,5 +55,6 @@ println("ettringite declared from ", temperature_range(L08T_DB["ettringite"])[1]
 
 The equilibrium is reversible: the ettringite comes back, which is what makes
 the delayed formation possible, and the calculation cannot say where or when.
-At 80 °C the heat capacity of ettringite is extrapolated, Cemdata18 declaring it
-to 60 °C only ([`temperature_range`](@ref)).
+At 80 °C the heat capacity of ettringite is extrapolated, Cemdata18
+[Lothenbach2019](@cite) declaring it to 60 °C only
+([`temperature_range`](@ref)).

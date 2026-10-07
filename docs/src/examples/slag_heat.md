@@ -34,14 +34,14 @@ The paste is 100 g of the binder, its materials those of
 Rietveld phases, the slag by its calcite, its quartz and its glass, the
 limestone by its calcite, quartz and dolomite. At each age each of the four
 clinker phases has reacted to its own degree, one minus its content over its
-content at the mixing, the contents read off Fig. 5 of the paper, which is how
-the authors form the degree of the clinker; the glass of the slag has reacted
-to the degree given for the slag (Fig. 6b); everything else is at equilibrium
-from the mixing, the sulfates and the limestone included, so that their heat
-falls before the first state and is not counted; the quartz is inert. The heat
-is that of [`heat_release`](@ref) from the state at mixing, with nothing
-reacted, to the state at each age, per gram of Portland cement, as the paper
-reports its calorimetry. The measured heat is read off Fig. 3 of the paper
+content at the mixing, the contents read off [Snellings2022; Fig. 5](@cite),
+which is how the authors form the degree of the clinker; the glass of the slag
+has reacted to the degree given for the slag (Fig. 6b); everything else is at
+equilibrium from the mixing, the sulfates and the limestone included, so that
+their heat falls before the first state and is not counted; the quartz is inert.
+The heat is that of [`heat_release`](@ref) from the state at mixing, with
+nothing reacted, to the state at each age, per gram of Portland cement, as the
+paper reports its calorimetry. The measured heat is read off Fig. 3 of the paper
 (`data/literature/Snellings2022.json`). At w/b 0.5 the degrees are:
 
 ```@example slagheat
@@ -54,13 +54,13 @@ for T in (5, 20, 40), a in ages
 end
 ```
 
-The hydrates and the solution have their Cemdata18 enthalpies, the clinker
-phases those of their database records, and the glass the enthalpy of
-[`glass_enthalpy`](@ref), the oxides on the scale of Cemdata18 where it holds
-them. Its titanium and manganese, which the system has no element for, are set
-aside as the glass reacts, at the enthalpy of their crystals, which is what the
-glass enthalpy counts them at; its phosphorus, left out of the glass, is left
-out of the residue too.
+The hydrates and the solution have their Cemdata18 [Lothenbach2019](@cite)
+enthalpies, the clinker phases those of their database records, and the glass
+the enthalpy of [`glass_enthalpy`](@ref), the oxides on the scale of Cemdata18
+where it holds them. Its titanium and manganese, which the system has no element
+for, are set aside as the glass reacts, at the enthalpy of their crystals, which
+is what the glass enthalpy counts them at; its phosphorus, left out of the
+glass, is left out of the residue too.
 
 ```@example slagheat
 for T in (5, 20, 40)
@@ -97,12 +97,12 @@ measurement itself at 5 °C, and the difference closes with age.
 
 ## 3. The bound water at the same degrees
 
-The thermogravimetry of the paper was run on the powders the diffraction was
-measured on, the calorimetry on a paste of its own, sealed in its ampoule from
-the mixing. The states of section 2 give the bound water and the portlandite
-the thermogravimetry reports (Fig. 8, at w/b 0.5), over the mass at 550 °C,
-every hydrate assumed to have lost all its water by then and nothing else
-(`sn22h_tga` in `scripts/snellings2022_heat.jl`). The ratio of each
+The thermogravimetry of [Snellings2022](@citet) was run on the powders the
+diffraction was measured on, the calorimetry on a paste of its own, sealed in
+its ampoule from the mixing. The states of section 2 give the bound water and
+the portlandite the thermogravimetry reports (Fig. 8, at w/b 0.5), over the mass
+at 550 °C, every hydrate assumed to have lost all its water by then and nothing
+else (`sn22h_tga` in `scripts/snellings2022_heat.jl`). The ratio of each
 measurement to its computed value is:
 
 ```@example slagheat

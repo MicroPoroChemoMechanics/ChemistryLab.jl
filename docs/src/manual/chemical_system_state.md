@@ -366,8 +366,8 @@ porosity at the bottom is a number rather than `NaN`.
     partial molar volume of −4.7 cm³/mol. Partial molar volumes of ions are
     genuinely negative: the charge pulls the surrounding water in tighter than
     bulk water is packed, so adding the ion makes the solution *smaller*. The
-    figure is CEMDATA18's, not an artifact of the arithmetic, and the phase
-    totals are right to add it with its sign.
+    figure is CEMDATA18's [Lothenbach2019](@cite), not an artifact of the
+    arithmetic, and the phase totals are right to add it with its sign.
 
 ```@example cst_volume
 v = volume(wet)

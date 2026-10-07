@@ -74,13 +74,13 @@ println("$(length(cs.species)) species in the system")
 
 ## 3. The reactions, and the rate law each one carries
 
-Four hydration reactions, each with a Parrott-Killoh rate in its Avrami form.
-The water ceiling is computed rather than assumed — [`powers_alpha_max`](@ref)
-returns exactly 1 at `w/c = 0.45`, because above 0.42 there is enough water for
-complete hydration and nothing about water is limiting. Below it the same call
-would return a real ceiling, and [the w/c example](@ref sec-wc-ratio) is where
-that is the subject. Here the arrest, if any, is left to the humidity coupling
-of §7.
+Four hydration reactions, each with a Parrott-Killoh rate
+[ParrottKilloh1984](@cite) in its Avrami form. The water ceiling is computed
+rather than assumed — [`powers_alpha_max`](@ref) returns exactly 1 at
+`w/c = 0.45`, because above 0.42 there is enough water for complete hydration
+and nothing about water is limiting. Below it the same call would return a real
+ceiling, and [the w/c example](@ref sec-wc-ratio) is where that is the subject.
+Here the arrest, if any, is left to the humidity coupling of §7.
 
 ```@example cem1
 co = literature_row("BaroghelBouny1999", "retention_fit", "CO")   # Baroghel-Bouny, mix CO

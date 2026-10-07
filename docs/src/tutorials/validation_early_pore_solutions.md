@@ -9,8 +9,9 @@ alone and with half of it replaced by slag, fly ash, limestone or quartz, six
 times during the first six hours of hydration. They analyzed the solutions
 (their Table 6) and computed from them how saturated each solution was with
 ettringite, portlandite, gypsum, monosulfate and a calcium-rich C-S-H (their
-Table 7), with GEMS and the Cemdata07 database. For these solids the
-solubility products of Cemdata07 are those of Cemdata18.
+Table 7), with GEMS [Kulik2013](@cite) and the Cemdata07 database
+[Lothenbach2008](@cite). For these solids the solubility products of Cemdata07
+are those of Cemdata18 [Lothenbach2019](@cite).
 
 This page computes the same indices from the same analyses. Nothing is
 equilibrated with a solid: each solution is only speciated, at the pH that was
@@ -88,9 +89,10 @@ savefig(fig, "validation-early-indices.svg"); nothing # hide
 
 ![](validation-early-indices.svg)
 
-Every solution is speciated and certified. Portlandite and gypsum agree with the
-paper to within 0.08, and the calcium-rich C-S-H to within 0.21. Ettringite and
-monosulfate differ more, up to 0.9 and 0.7, and it is worth seeing where.
+Every solution is speciated and certified. Portlandite and gypsum agree with
+[Scholer2017](@citet) to within 0.08, and the calcium-rich C-S-H to within 0.21.
+Ettringite and monosulfate differ more, up to 0.9 and 0.7, and it is worth
+seeing where.
 
 A difference in the activity of one ion enters an index as many times as the
 formula holds that ion. Ettringite holds six calcium, three sulfate and four
@@ -111,8 +113,8 @@ on aluminum. It is largest in the sulfate-adjusted fly-ash blend (C-FA-\$), wher
 the aluminum is at 1.5 to 4.5 µmol/L, and reaches 0.28 log units there. At these
 pH both calculations hold the aluminum as Al(OH)₄⁻ (here `AlO2-`); leaving out the
 aluminosilicate complexes of Cemdata18, which Cemdata07 did not have, changes no
-index by more than 0.01. The paper does not say what else its calculation did
-with aluminum, and the difference is reported here as found.
+index by more than 0.01. [Scholer2017](@citet) do not say what else their
+calculation did with aluminum, and the difference is reported here as found.
 
 ## Where to go next
 

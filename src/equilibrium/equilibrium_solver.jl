@@ -379,13 +379,13 @@ end
 Whether a non-converged equilibrium solve raises (`true`) or warns (`false`,
 the default).
 
-The default is *not* strict, and deliberately so: the back-end's convergence
-flag is unreliable in both directions on these problems. It reports `MaxIters`
-on points that are numerically excellent — pure water comes back flagged while
-giving `[H⁺]/[OH⁻] = 1.000003` — and reports success on points that are not the
-minimum. Raising on the flag alone would reject good answers and would still
-miss the bad ones, so it is offered as an opt-in for callers who want the
-strictest possible reading.
+The default is *not* strict, and deliberately so: the back end's convergence
+flag does not by itself indicate whether a point is the minimum on these
+problems. It reports `MaxIters` on points that are numerically excellent — pure
+water comes back flagged while giving `[H⁺]/[OH⁻] = 1.000003` — and reports
+success on points that are not the minimum. Raising on the flag alone would
+reject good answers and would still miss the bad ones, so it is offered as an
+opt-in for callers who want the strictest possible reading.
 
 This is the **session default**, set by the caller and read by every solve.
 Internally the package sometimes has to suspend it — while it is computing a
@@ -680,17 +680,17 @@ temperature, its pressure), in the budget `b`, in the standard potentials of its
 species or in the parameters of its activity model.
 
 No optimization solver is asked to iterate on dual numbers — most cannot, and
-Ipopt never will, being a C library. The equilibrium is solved by `esolver` on
-the values of the outermost level of duals, polished by the dual Newton (see
-[`_POLISH`](@ref)), and the answer is lifted by the implicit-function theorem at
-it, as the certified route lifts its own (`_lift_equilibrium`): exact at every
-level of a nested differentiation, with the active set read off the answer. The
-conditions lifted are those of the dual Newton, `μ(n) = −Aᵀy` on the species
-present, and the polish is what makes them the conditions the returned answer
-satisfies; lifted at an unpolished answer of a back end that minimized
-`n⋅μ(n)`, they described another map than the one it returned. A pure phase
-holding no more than the certificate's floor is absent (`10ϵ` at an answer the
-polish was suspended for).
+Ipopt, a C library, does not operate on them. The equilibrium is solved by
+`esolver` on the values of the outermost level of duals, polished by the dual
+Newton (see [`_POLISH`](@ref)), and the answer is lifted by the
+implicit-function theorem at it, as the certified route lifts its own
+(`_lift_equilibrium`): exact at every level of a nested differentiation, with
+the active set read off the answer. The conditions lifted are those of the dual
+Newton, `μ(n) = −Aᵀy` on the species present, and the polish is what makes them
+the conditions the returned answer satisfies; lifted at an unpolished answer of
+a back end that minimized `n⋅μ(n)`, they described another map than the one it
+returned. A pure phase holding no more than the certificate's floor is absent
+(`10ϵ` at an answer the polish was suspended for).
 
 Without the certified solver of the system (OptimaSolver not loaded, or no
 aqueous phase), only the amounts of the state may carry duals, one level, and the
@@ -926,9 +926,9 @@ cert = Ref{Any}()
 state_eq = equilibrate(state; certificate = cert)   # cert[] === nothing if none
 ```
 
-The certified route is the default because a single back end is not reliable
-here: measured on calcite dissolving in water, the interior point returns a
-composition whose **charge balance is wrong in the second digit** (3 %), because
+The certified route is the default because a single back end does not certify
+every case here: measured on calcite dissolving in water, the interior point
+returns a composition whose **charge balance is met to 3 % only**, because
 the fraction-to-boundary rule caps its step and the residual stops moving. The
 dual Newton gets that case to 1e-12 but fails to admit a supersaturated phase on
 a low-water cement. Offering both and keeping a proved answer certifies all ten

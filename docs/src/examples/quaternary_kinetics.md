@@ -12,18 +12,20 @@ by thermogravimetry from one day to six months: the bound water and the
 portlandite of their Table 8. Their own calculations take the slag and the fly
 ash at the degrees of reaction reported after a year in the literature they
 cite, as long-term states. Here the ten pastes are integrated from the mixing,
-the four clinker phases under the Parrott–Killoh law, the glass of each addition
-under the Waller law, the limestone and everything else at equilibrium, and
-compared with Table 8, which nothing below was fitted to.
+the four clinker phases under the Parrott–Killoh law [ParrottKilloh1984](@cite),
+the glass of each addition under the Waller law [Waller1999](@cite), the
+limestone and everything else at equilibrium, and compared with Table 8, which
+nothing below was fitted to.
 
 ## 1. The materials
 
 The four materials come from their templates (`data/recipe_templates.toml`),
-built from the analyses and the Rietveld phases of Tables 1 and 2: the cement by
-its phases, the polymorphs of C₂S and of C₃A each summed into one constituent;
-the slag and the fly ash as their crystals and their glass, found by difference;
-the limestone by its analysis. As in the authors' calculations, only the glass of
-the two additions reacts, and [`glass_species`](@ref) gives each a formula, which
+built from the analyses and the Rietveld phases of
+[Scholer2015; Tables 1 and 2](@cite): the cement by its phases, the polymorphs
+of C₂S and of C₃A each summed into one constituent; the slag and the fly ash as
+their crystals and their glass, found by difference; the limestone by its
+analysis. As in the authors' calculations, only the glass of the two additions
+reacts, and [`glass_species`](@ref) gives each a formula, which
 [`with_species`](@ref) puts in its place.
 
 ```@example quaternary
@@ -55,11 +57,12 @@ end
 
 ## 3. The ten pastes
 
-Each paste is integrated over the six months of Table 8, at 20 °C, in the
-activity model the authors used. Neither law reads the equilibrium partition, so
-the trajectory does not depend on it: the run solves it at each accepted step
-only to report it, with the interior point, and everything below is computed on
-the certified replay of each run ([`speciated_states`](@ref)).
+Each paste is integrated over the six months of [Scholer2015; Table 8](@cite),
+at 20 °C, in the activity model the authors used. Neither law reads the
+equilibrium partition, so the trajectory does not depend on it: the run solves
+it at each accepted step only to report it, with the interior point, and
+everything below is computed on the certified replay of each run
+([`speciated_states`](@ref)).
 
 ```@example quaternary
 day = 86400.0
@@ -115,8 +118,8 @@ for name in ("20-30-0", "20-10-20", "30-20-0", "30-0-20")
 end
 ```
 
-The authors computed the two pastes without limestone at the degrees of
-reaction they assume for the long term (their Table 7, in percent of the dry
+[Scholer2015](@citet) computed the two pastes without limestone at the degrees
+of reaction they assume for the long term (their Table 7, in percent of the dry
 hydrates rather than of the dry sample):
 
 ```@example quaternary
@@ -149,11 +152,11 @@ within one point of the measured one at one day, 28 days and 91 days, about two
 points low at two and seven days, and three points high at six months, where the
 computed water keeps rising with the glasses and the measured one stops. Nothing
 was fitted to it: the clinker law has its published parameters, and the time of
-each glass is set on the degree the authors assume after a year. The direction
-of the gap at six months is the one the preparation of the samples gives: the
-thermobalance weighs a sample dried at 40 °C after a solvent exchange, which has
-already lost part of the water of the C–S–H and of the AFm phases, and the
-computation counts all of it.
+each glass is set on the degree [Scholer2015](@citet) assume after a year. The
+direction of the gap at six months is the one the preparation of the samples
+gives: the thermobalance weighs a sample dried at 40 °C after a solvent
+exchange, which has already lost part of the water of the C–S–H and of the AFm
+phases, and the computation counts all of it.
 
 **The portlandite is where the computation and the measurement part.** Computed,
 it is below the measurement from the first day, and its mean over the pastes
@@ -168,15 +171,15 @@ takes its calcium from portlandite cannot keep the portlandite, and neither
 calculation describes what keeps it in these pastes. Section 6 runs the two
 other gels the package ships.
 
-**The limestone stays calcite.** In Cemdata18, used here, the aluminum the
-clinker and the glasses release goes to ettringite and to the siliceous
-hydrogarnet C₃(A,F)S₀.₈₄H₄.₃₂, and little of it to monocarbonate: in the paste
-richest in limestone, a twentieth of the amount of hydrogarnet after six
-months, and no hemicarbonate. The authors calculated hemicarbonate and
-monocarbonate in the presence of limestone, with the database of the time (their
-Fig. 2), and found both by X-ray diffraction after six months (their Fig. 4).
-The difference is in which phases the equilibrium may form, which this page
-leaves as Cemdata18 does.
+**The limestone stays calcite.** In Cemdata18 [Lothenbach2019](@cite), used
+here, the aluminum the clinker and the glasses release goes to ettringite and to
+the siliceous hydrogarnet C₃(A,F)S₀.₈₄H₄.₃₂, and little of it to monocarbonate:
+in the paste richest in limestone, a twentieth of the amount of hydrogarnet
+after six months, and no hemicarbonate. [Scholer2015](@citet) calculated
+hemicarbonate and monocarbonate in the presence of limestone, with the database
+of the time (their Fig. 2), and found both by X-ray diffraction after six months
+(their Fig. 4). The difference is in which phases the equilibrium may form,
+which this page leaves as Cemdata18 does.
 
 ## 6. The two other gels
 
@@ -223,11 +226,11 @@ between. Without fly ash it is 1.4 and 1.6 points low at one and two days, then
 holding aluminum, an Al/Si of 0.085 and 0.099, poorer in calcium than a gel
 beside portlandite: the calcium it does not take is the portlandite that stays.
 `CASH+NK` gives the portlandite of `CSHQ` within 0.3 points. The measurement
-lies between the two models, as in the fly-ash pastes of
-[De Weerdt et al.](@ref ex-ternary-kinetics), whose gel was measured at a Ca/Si
-of 1.4: neither gel reproduces the gel and the portlandite together, `CNASH_ss`
-is the closer on the portlandite of these blends for a gel too poor in calcium,
-and `CSHQ` stays the gel of this page.
+lies between the two models, as in the fly-ash pastes of [DeWeerdt2011](@citet)
+([integrated in time here](@ref ex-ternary-kinetics)), whose gel was measured at
+a Ca/Si of 1.4: neither gel reproduces the gel and the portlandite together,
+`CNASH_ss` is the closer on the portlandite of these blends for a gel too poor
+in calcium, and `CSHQ` stays the gel of this page.
 
 ## Where to go next
 

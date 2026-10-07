@@ -14,8 +14,9 @@ they measured.
 Two comparisons are made, and they answer different questions:
 
   - **against the measurement**: is the model right about this paste?
-  - **against another code**, GEMS3K run on the same budgets with the same
-    phases: when the model is wrong, is it the model or ChemistryLab?
+  - **against another code**, GEMS3K run [Kulik2013](@cite) on the same budgets
+    with the same phases: when the model is wrong, is it the model or
+    ChemistryLab?
 
 ```@example validation
 using ChemistryLab
@@ -34,11 +35,11 @@ nothing # hide
 
 ## 1. The cement
 
-The paper gives the composition as normative phases, computed from the chemical
-analysis (Table 1), and the sodium, potassium, magnesium and sulfate each
-clinker phase carries (Table 2). Those minor elements are released with their
-phase, as it dissolves; the alkali sulfates, the calcium sulfates, calcite and the
-free lime are available from the start.
+[LothenbachWinnefeld2006](@citet) give the composition as normative phases,
+computed from the chemical analysis (Table 1), and the sodium, potassium,
+magnesium and sulfate each clinker phase carries (Table 2). Those minor elements
+are released with their phase, as it dissolves; the alkali sulfates, the calcium
+sulfates, calcite and the free lime are available from the start.
 
 ```@example validation
 cement = lw06_material()
@@ -66,9 +67,10 @@ end
 ## 3. The paste at each age of the measurement
 
 The system holds the clinker phases, the calcium sulfates, the hydrates of the
-paper's assemblage and the C-S-H as the `CSHQ` model of Cemdata18, whose
-end-members `KSiOH` and `NaSiOH` take up alkalis. The paste is solved at each age
-of Table 3, each age started from the one before:
+assemblage of [LothenbachWinnefeld2006](@citet) and the C-S-H as the `CSHQ`
+model of Cemdata18 [Lothenbach2019](@cite), whose end-members `KSiOH` and
+`NaSiOH` take up alkalis. The paste is solved at each age of Table 3, each age
+started from the one before:
 
 ```@example validation
 cs = lw06_system()
@@ -83,8 +85,8 @@ nothing # hide
 The model gives millimoles per kilogram of water, the analysis millimoles per
 liter of solution; the two differ by the density of the solution and the mass of
 its solutes, a few percent at these concentrations, which is small beside most
-of the differences below. A value the paper gives only as a detection limit is
-printed `<x` and not plotted.
+of the differences below. A value [LothenbachWinnefeld2006](@citet) give only as
+a detection limit is printed `<x` and not plotted.
 
 ```@example validation
 elements = ["K", "Na", "Ca", "S", "Si", "Al", "OH-"]
@@ -171,10 +173,10 @@ is within 5 % of the measurement at 1 and 16 h, sodium and sulfate at 1 h. The
 consumption of the calcium sulfates between 16 and 26 h shows in both: the
 sulfate falls and the hydroxide rises, from 105 to 312 mmol/kg in the model and
 from 200 to 360 mmol/L in the paste. The calcium is 40 % low in the first hours,
-13 against 22 mmol; the paper itself notes that the early solutions are
-oversaturated with respect to portlandite, gypsum, ettringite and syngenite,
-the clinker releasing calcium faster than those solids precipitate, and an
-equilibrium cannot represent an oversaturated solution.
+13 against 22 mmol; [LothenbachWinnefeld2006](@citet) note that the early
+solutions are oversaturated with respect to portlandite, gypsum, ettringite and
+syngenite, the clinker releasing calcium faster than those solids precipitate,
+and an equilibrium cannot represent an oversaturated solution.
 
 **The alkalis are where the model departs.** From the second day on, the model's
 potassium stays near 400 mmol/kg while the measured one rises to 640 by 317

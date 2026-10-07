@@ -394,8 +394,9 @@ B(T,P) = 50.29158649      × √ρ / √(εᵣ T)          [Å⁻¹ (kg/mol)^(1/
 ```
 where ρ is in g/cm³.
 
-Uses `water_thermo_props` (HGK equation of state) and
-`water_electro_props_jn` (Johnson-Norton dielectric constant).
+Uses `water_thermo_props` (HGK equation of state [Haar1984](@cite)) and
+`water_electro_props_jn` (Johnson-Norton dielectric constant
+[JohnsonNorton1991](@cite)).
 
 AD-compatible (ForwardDiff-safe). Returns a `NamedTuple` `(A=..., B=...)`.
 
@@ -612,13 +613,13 @@ The ion-size parameter `åᵢ` is resolved in order:
 1. `model.å` — a common ion size for every ion, when given. Short-circuits the
    rest of the chain, so a per-species table entry cannot silently override it.
 2. `sp[:å]` — explicit ion size in the species properties dict.
-3. The effective electrostatic radius `r_e,i` of [`REJ_HKF`](@ref) (Helgeson et
-   al. 1981, Table 3, keyed by PHREEQC formula), turned into an ion size by their
-   Eq. (125) for the electrolyte the ion forms with the NaCl background —
-   `åᵢ = 2 (r_e,i + r_e,c |zᵢ|) / (1 + |zᵢ|)`, `r_e,c` that of Cl⁻ for a cation
-   and of Na⁺ for an anion, as TOUGHREACT does [Xu2012; Eqs. H.4–H.5](@cite).
-   It reproduces their Table 2: 3.72 Å for NaCl, 4.32 for CaCl₂, 4.65 for
-   Na₂SO₄.
+3. The effective electrostatic radius `r_e,i` of [`REJ_HKF`](@ref)
+   ([Helgeson1981; Table 3](@cite), keyed by PHREEQC formula), turned into an
+   ion size by [Helgeson1981; Eq. 125](@cite) for the electrolyte the ion forms
+   with the NaCl background — `åᵢ = 2 (r_e,i + r_e,c |zᵢ|) / (1 + |zᵢ|)`,
+   `r_e,c` that of Cl⁻ for a cation and of Na⁺ for an anion, as TOUGHREACT does
+   [Xu2012; Eqs. H.4–H.5](@cite). It reproduces [Helgeson1981; Table 2](@cite):
+   3.72 Å for NaCl, 4.32 for CaCl₂, 4.65 for Na₂SO₄.
 4. [`REJ_CHARGE_DEFAULT`](@ref) — a radius by formal charge, turned into an ion
    size the same way.
 5. `model.å_default` — an ion size, reached only for a charge no table covers,
@@ -669,11 +670,11 @@ of every default is set out on [`HKFActivityModel`](@ref).
 
 `å` imposes **one common** ion size on every charged aqueous species,
 overriding the per-species tables. Use it to reproduce a published model that
-was run with a single ion-size parameter — which is what GEM-Selektor, PHREEQC's
-`-gamma` and most cement models do. Note that `å_default` does **not** do this:
-it is only the last resort of the lookup chain and is reached only for charges
-no table covers. `å = 0` gives the Debye-Hückel limiting law plus the B-dot
-term.
+was run with a single ion-size parameter — which is what GEM-Selektor
+[Kulik2013](@cite), PHREEQC's `-gamma` and most cement models do. Note that
+`å_default` does **not** do this: it is only the last resort of the lookup chain
+and is reached only for charges no table covers. `å = 0` gives the Debye-Hückel
+limiting law plus the B-dot term.
 
 # Examples
 
@@ -739,16 +740,17 @@ electrolyte that dominates the pore solution:
 The values are read from `data/literature/Lothenbach2019.json`. In terms of
 [`HKFActivityModel`](@ref) this is `å = a`, `Ḃ = Kₙ = b_γ`.
 
-  - `A` and `B` depend on temperature and pressure, as the paper states; with
-    `temperature_dependent = true` they are computed from the water properties
-    at every call. The paper gives `b_γ` at 25 °C only, and it is kept at that
-    value: [Helgeson1981](@citet) tabulate `b_γ` against temperature for HCl,
-    LiCl, NaCl, KCl, MgCl₂ and CaCl₂ (Table 26, p. 1457), and not for KOH or
-    NaOH, the two electrolytes the paper gives parameters for.
-  - The paper states the correction applicable up to about 1 mol/kg of ionic
-    strength, which [`activity_model_range`](@ref) returns and the certificate
-    of [`equilibrate_certified`](@ref) compares with the ionic strength of the
-    answer.
+  - `A` and `B` depend on temperature and pressure, as [Lothenbach2019](@citet)
+    state; with `temperature_dependent = true` they are computed from the water
+    properties at every call. The paper gives `b_γ` at 25 °C only, and it is
+    kept at that value: [Helgeson1981](@citet) tabulate `b_γ` against
+    temperature for HCl, LiCl, NaCl, KCl, MgCl₂ and CaCl₂ (Table 26, p. 1457),
+    and not for KOH or NaOH, the two electrolytes the paper gives parameters
+    for.
+  - [Lothenbach2019](@citet) state the correction applicable up to about
+    1 mol/kg of ionic strength, which [`activity_model_range`](@ref) returns and
+    the certificate of [`equilibrate_certified`](@ref) compares with the ionic
+    strength of the answer.
   - A certified answer computed with it is `:self_consistent`, not a
     `:global_minimum`. The term `b_γ I` gives every ion `i` the contribution
     `b_γ ∂I/∂n_j ∝ b_γ z_j²` to the derivative of its log activity with respect
@@ -1427,7 +1429,7 @@ Methods:
 - [`RegularSolutionModel`](@ref): symmetric multi-component Margules.
 - [`SubregularSolutionModel`](@ref): asymmetric multi-component Margules.
 - [`MulticomponentRedlichKisterModel`](@ref): Redlich-Kister series of any number of end-members.
-- [`VanLaarModel`](@ref): the asymmetric formalism of Holland and Powell (2003).
+- [`VanLaarModel`](@ref): the asymmetric formalism of [HollandPowell2003](@citet).
 """
 _excess_ln_gamma(::IdealSolidSolutionModel, k::Int, x::AbstractVector, T::Real) =
     zero(eltype(x))

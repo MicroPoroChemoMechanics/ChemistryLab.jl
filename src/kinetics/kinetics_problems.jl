@@ -1456,9 +1456,9 @@ of 8.4e-1, 2000 left 6.7e-2, and 20 000 were needed to reach 6.7e-9.
 The default is small on purpose, and measured: it runs at every re-speciation of
 a run, and on a full OPC the worst in-run balance is
 1.1 mol at 200 sweeps against 8.5 at 2000 and 41 at 100 000. A better guess
-producing a worse answer is the back-end's own unpredictability; until that is
-understood the in-run budget stays where it measures best. Note that the ranking
-depends on the back-end and should be re-measured if it changes.
+producing a worse answer is a behavior of the back end not yet understood; until
+it is understood the in-run budget stays where it measures best. Note that the
+ranking depends on the back-end and should be re-measured if it changes.
 
 A replay ([`speciated_states`](@ref)) runs a handful of times and buys accuracy
 instead, asking for a much larger budget.

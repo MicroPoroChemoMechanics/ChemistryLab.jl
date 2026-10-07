@@ -38,7 +38,7 @@ recall that in an interior-point minimization an unstable species ends at an
 amount of the order of the barrier parameter, and that
 [LealKulikKosakowski2016](@citet) recommended it below 1e-25 so that such a
 species holds less than one molecule (1/N_A = 1.66e-24 mol) in a system of one
-mole. GEMS3K takes that same molecule as
+mole. GEMS3K [Kulik2013](@cite) takes that same molecule as
 the least amount it considers (`lowPosNum`, 1.66e-24 mol) and eliminates a
 solution species below `DcMin = 1e-30` mol (`ms_multi.h`). PHREEQC sets a molality
 to zero below `MIN_LM = −30` in log (`global_structures.h`). Reaktoro bounds every

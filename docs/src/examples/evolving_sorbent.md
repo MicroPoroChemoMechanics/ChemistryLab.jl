@@ -54,7 +54,8 @@ the amount of sites together.
 Hydrous ferric oxide — amorphous `Fe(OH)₃`, the rust-colored precipitate that
 forms wherever dissolved iron meets oxygen — is the reference sorbent of the
 field. [DzombakMorel1990](@citet) measured its site densities and its binding
-constants, and those are the numbers PHREEQC ships to this day.
+constants, and those are the numbers PHREEQC [ParkhurstAppelo2013](@cite) ships
+to this day.
 
 Two numbers define the surface:
 
@@ -408,8 +409,8 @@ expected to differ on how much of the phase dissolves.
   - **A sorbent that *appears*.** Everything here runs backwards as well — the
     same declaration describes a phase precipitating and bringing its sites with
     it — but the case that matters, a C-S-H forming as a paste hydrates, needs
-    site densities for the C-S-H that nobody has published. That is a missing
-    measurement, not a missing feature.
+    site densities for the C-S-H, for which no published value is available.
+    That is a missing measurement, not a missing feature.
   - **Electrostatics.** The surface here has a charge and no potential; see
     [A charged surface, screened](@ref sec-example-diffuse-layer).
   - **The energy of the host's surface.** Counting the free sites as part of the

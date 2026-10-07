@@ -343,7 +343,7 @@ end
 `ν`, the moles of sites one mole of the host carries, for a family whose
 support is `SITES_FOLLOW_HOST`.
 
-This is Kulik's equation (30) read as a coefficient: the moles of sites of a
+This is [Kulik2002; Eq. 30](@citet) read as a coefficient: the moles of sites of a
 surface type are `ψ · A_s · M · Γ` times the moles of sorbent, so the whole
 dependence on the host is one number multiplying its amount.
 

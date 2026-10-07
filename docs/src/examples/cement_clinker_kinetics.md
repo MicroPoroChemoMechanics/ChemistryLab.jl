@@ -83,7 +83,8 @@ nothing # hide
 
 Reactions must be **mass-balanced** so that ``\Delta_r H^0`` can be computed
 automatically from species ``\Delta_a H^0``. The Jennite formula unit in
-CEMDATA18 is ``(\text{SiO}_2)(\text{CaO})_{5/3}(\text{H}_2\text{O})_{21/10}``.
+CEMDATA18 [Lothenbach2019](@cite) is
+``(\text{SiO}_2)(\text{CaO})_{5/3}(\text{H}_2\text{O})_{21/10}``.
 
 ```@example clinker
 sp(name) = cs[name]

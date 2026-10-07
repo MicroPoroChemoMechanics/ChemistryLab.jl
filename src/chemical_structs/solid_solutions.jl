@@ -213,16 +213,16 @@ G^{\\mathrm{ex}} = \\sum_{i<j} x_i x_j \\Bigl\\{ W_{ij}\\Bigl[x_j + \\tfrac12 \\
 the excess is ``x_i x_j (W_{ij} x_j + W_{ji} x_i)``, so ``W_{ij}`` is ``RT \\ln\\gamma_i``
 at infinite dilution of ``i`` in ``j``. `ternary` maps a triple of end-member
 indices to ``W_{ijk}`` in J/mol; a triple left out is zero. The ternary
-coefficients are not determined by the binaries, as Helffrich and Wood show, and
-no coefficient of higher order exists in this model.
+coefficients are not determined by the binaries, as [HelffrichWood1989](@citet)
+show, and no coefficient of higher order exists in this model.
 
 On the simplex the binary terms are those of [`RedlichKisterModel`](@ref) to first
 order, ``x_i x_j [a_0 + a_1 (x_i - x_j)]`` with ``a_0 = (W_{ij} + W_{ji})/2`` and
 ``a_1 = (W_{ji} - W_{ij})/2``, since ``\\sum_{k \\ne i,j} x_k = 1 - x_i - x_j`` there. So
 two end-members are `RedlichKisterModel(a0 = (W₁₂ + W₂₁)/2, a1 = (W₂₁ − W₁₂)/2)`,
 and a symmetric `W` without ternary terms is [`RegularSolutionModel`](@ref);
-the test suite checks both, and the activity coefficients against Eq. (6′) of
-the paper.
+the test suite checks both, and the activity coefficients against
+[HelffrichWood1989; Eq. 6′](@cite).
 
 AD-compatible: all computations propagate `ForwardDiff.Dual` numbers.
 
@@ -293,15 +293,15 @@ every pair and triple evaluated at the mole fractions of the solution as they
 are, without renormalization. `pairs` maps an ordered pair `(i, j)` to its
 coefficients `[L₀, L₁, L₂, …]` in J/mol, the difference being `xᵢ − xⱼ` in that
 order; `ternary` maps an ordered triple `(i, j, l)` to `[C, D₁, D₂]` (or fewer)
-in J/mol. A pair or triple left out is zero. Redlich and Kister's own
-coefficients `B, C, D` are in units of `2.303 RT` (decimal logarithms): multiply
-them by `log(10) R T`.
+in J/mol. A pair or triple left out is zero. The coefficients `B, C, D` of
+[RedlichKister1948](@citet) are in units of `2.303 RT` (decimal logarithms):
+multiply them by `log(10) R T`.
 
 Two end-members with `pairs = Dict((1, 2) => [a₀, a₁, a₂])` are
 [`RedlichKisterModel`](@ref)`(; a0, a1, a2)`, and the first order is
 [`SubregularSolutionModel`](@ref) with `a₀ = (W₁₂ + W₂₁)/2`,
 `a₁ = (W₂₁ − W₁₂)/2`; the test suite checks both, and the activity coefficients
-against the paper's worked ternary (its Eqs. 22 and 23).
+against the worked ternary of [RedlichKister1948; Eqs. 22–23](@cite).
 
 AD-compatible: all computations propagate `ForwardDiff.Dual` numbers.
 
@@ -387,11 +387,11 @@ G^{\\mathrm{ex}} = \\sum_{i<j} \\varphi_i \\varphi_j \\, \\frac{2 \\sum_l \\alph
 
 `W` symmetric, in J/mol, with a zero diagonal (ignored), and `α` dimensionless:
 only their ratios matter. Equal sizes give the regular model
-([`RegularSolutionModel`](@ref)), which Holland and Powell call the symmetric
-formalism, and two end-members the van Laar binary, asymmetric as soon as the
-sizes differ. `W` and `α` are those of the temperature and pressure of the
-calculation; the papers that fit them give their dependence, which the caller
-evaluates.
+([`RegularSolutionModel`](@ref)), which [HollandPowell2003](@citet) call the
+symmetric formalism, and two end-members the van Laar binary, asymmetric as soon
+as the sizes differ. `W` and `α` are those of the temperature and pressure of
+the calculation; the papers that fit them give their dependence, which the
+caller evaluates.
 
 AD-compatible: all computations propagate `ForwardDiff.Dual` numbers.
 

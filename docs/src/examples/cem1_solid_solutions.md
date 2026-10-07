@@ -169,9 +169,10 @@ solutions = [
 length(solutions), length(reduce(vcat, last.(solutions)))
 ```
 
-Eight phases over twenty end-members. A reader coming from GEM-Selektor will
-count **ten** phases in its CEMDATA18 setup, and the difference is worth
-stating because it is a difference of formulation and not of chemistry.
+Eight phases over twenty end-members. A reader coming from GEM-Selektor
+[Kulik2013](@cite) will count **ten** phases in its CEMDATA18 setup, and the
+difference is worth stating because it is a difference of formulation and not of
+chemistry.
 
 !!! note "Why eight here and ten there"
     Two of the ten repeat their end-members with the roles exchanged:

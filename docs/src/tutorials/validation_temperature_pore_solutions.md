@@ -28,8 +28,8 @@ temperature, and the solubility products, which the database extrapolates from
 ## Where the analyses come from
 
 The tables print the concentrations in mmol per liter, read here as mmol per
-kilogram of water, and the free hydroxide the authors derived from the pH,
-measured with an electrode calibrated against KOH solutions
+kilogram of water, and the free hydroxide [Deschner2013](@citet) derived from
+the pH, measured with an electrode calibrated against KOH solutions
 (`data/literature/Deschner2013.json`). Iron and chloride are analyzed as well;
 they enter the solution and its ionic strength, and complex nothing the indices
 read. The analyses carry a standard deviation of 5 to 10 %.
@@ -104,11 +104,11 @@ end
 ```
 
 Every solution is speciated and certified. From 7 to 50 °C the four indices
-differ from the paper's by 0.08 at most, and their mean difference at each
-temperature is within 0.04: the temperature dependence of the activity model
-and of the solubility products reproduces the one the authors computed with,
-over forty-three degrees and both pastes, as the 23 °C page does at one
-temperature.
+differ from those of [Deschner2013](@citet) by 0.08 at most, and their mean
+difference at each temperature is within 0.04: the temperature dependence of the
+activity model and of the solubility products reproduces the one the authors
+computed with, over forty-three degrees and both pastes, as the 23 °C page does
+at one temperature.
 
 At 80 °C the agreement holds for the three solutions of OPC-Qz, to 0.12, and not
 for the three of OPC-FA, whose portlandite index differs by up to 0.41 and the
@@ -119,8 +119,8 @@ the third parameter of the activity model, `b_γ`, which the model keeps at its
 25 °C value, the only one its sources give for KOH
 ([`cemdata18_activity_model`](@ref)); the complexes of sulfate with calcium and
 the alkalis, whose stability grows with temperature; and the database,
-Cemdata18 here, and for the authors the Nagra/PSI database with the cement data
-of [Lothenbach2008](@citet) and of Dilnesa et al.
+Cemdata18 [Lothenbach2019](@cite) here, and for the authors the Nagra/PSI
+database with the cement data of [Lothenbach2008](@citet) and of Dilnesa et al.
 
 ## A test holds it
 

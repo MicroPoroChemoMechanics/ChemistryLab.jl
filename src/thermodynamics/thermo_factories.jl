@@ -72,7 +72,7 @@ abstract type AbstractFunc end
     NumericFunc{N, F, R, Q} <: AbstractFunc
 
 Closure-backed thermodynamic function for models that cannot be represented as symbolic
-expressions (e.g. HKF, or any other numeric model).
+expressions (e.g. HKF [Helgeson1981](@cite), or any other numeric model).
 Calling convention is identical to `SymbolicFunc`: `f(; T=..., P=..., unit=false)`.
 
 Variable values are resolved in order: `kwarg > refs > _NF_DEFAULT_REFS`.

@@ -172,7 +172,7 @@ family = SiteFamily("Hfo_s", free, [prot, depr];
 ```
 
 The capacity comes in three shapes because the published data does, and
-converting between them needs a number nobody measured:
+converting between them needs a quantity that is usually not measured:
 [`TotalSiteAmount`](@ref) for a prescribed sorbent, [`AreaSiteDensity`](@ref) in
 mol/m² for the oxide literature, [`MassSiteDensity`](@ref) in mol/kg for a clay
 exchange capacity — the last needing no area at all.
@@ -254,8 +254,9 @@ Half the sites free, three tenths protonated, two tenths deprotonated — the
 composition put in, read back as activities.
 
 That is [`IdealSiteMixing`](@ref), and every activity model the package ships
-applies it — dilute, HKF, Davies and Pitzer alike — because a site fraction owes
-nothing to the ionic strength of the solution beside it.
+applies it — dilute, HKF [Helgeson1981](@cite), Davies [Davies1962](@cite) and
+Pitzer [Pitzer1975](@cite) alike — because a site fraction owes nothing to the
+ionic strength of the solution beside it.
 
 ### Langmuir is the consequence, not the premise
 

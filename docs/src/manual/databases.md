@@ -10,11 +10,12 @@ This is why ChemistryLab relies on existing databases, in particular [Cemdata18]
 ## [Where the databases come from](@id sec-datapath)
 
 The thermodynamic databases ChemistryLab reads are published by their authors,
-under their own terms: Cemdata18, PSI/Nagra 12/07, aq17 and SUPCRT's slop98, in
-the ThermoFun format that the ThermoHub project distributes, and Cemdata18 again
-in PHREEQC format, distributed by Empa. ChemistryLab obtains each one from its
-publisher the first time it is needed, checks it, and keeps it. You name a
-database by its file name with [`datapath`](@ref), and the rest is automatic:
+under their own terms: Cemdata18, PSI/Nagra 12/07, aq17 and SUPCRT's slop98
+[Johnson1992](@cite), in the ThermoFun format that the ThermoHub project
+distributes, and Cemdata18 again in PHREEQC format [ParkhurstAppelo2013](@cite),
+distributed by Empa. ChemistryLab obtains each one from its publisher the first
+time it is needed, checks it, and keeps it. You name a database by its file name
+with [`datapath`](@ref), and the rest is automatic:
 
 ```@example datapath
 using ChemistryLab
@@ -211,10 +212,11 @@ end
 ```
 
 !!! note "Nothing is overwritten, so both values stay available"
-    The papers revise `ΔfG⁰` for phases CEMDATA18 already carries — natrolite by
-    about 20 kJ/mol, from new solubility measurements. The new entries therefore
-    take **distinct symbols**: `NAT-Na` sits beside `natrolite`, and the caller
-    chooses. Declaring both in one system would count the same substance twice.
+    [MaLothenbach2020, MaLothenbach2021](@citet) revise `ΔfG⁰` for phases
+    CEMDATA18 already carries — natrolite by about 20 kJ/mol, from new
+    solubility measurements. The new entries therefore take **distinct
+    symbols**: `NAT-Na` sits beside `natrolite`, and the caller chooses.
+    Declaring both in one system would count the same substance twice.
 
 !!! warning "What makes the merge defensible, and what would make it wrong"
     Merging two thermodynamic datasets is only legitimate if they share a
@@ -222,14 +224,14 @@ end
     on `Na+` moves every dissolution equilibrium by an order of magnitude without
     any solver complaining.
 
-    Both papers publish `log Ksp` **and** `ΔfG⁰` for each phase, referred to the
-    CEMDATA18 primary species. The build recomputes one from the other through
-    CEMDATA18's own aqueous Gibbs energies and **refuses to produce the
-    database** if any phase misses by more than 0.05 log units
-    (`data/zeolites/regenerate.jl` prints the comparison). All 28
-    agree to within 0.026. It refuses on two further grounds: a symbol that would
-    overwrite a CEMDATA18 entry, and a dissolution reaction that does not balance
-    in elements and charge when re-derived from the formula string.
+    [MaLothenbach2020, MaLothenbach2021](@citet) both publish `log Ksp` **and**
+    `ΔfG⁰` for each phase, referred to the CEMDATA18 primary species. The build
+    recomputes one from the other through CEMDATA18's own aqueous Gibbs energies
+    and **refuses to produce the database** if any phase misses by more than
+    0.05 log units (`data/zeolites/regenerate.jl` prints the comparison). All 28
+    agree to within 0.026. It refuses on two further grounds: a symbol that
+    would overwrite a CEMDATA18 entry, and a dissolution reaction that does not
+    balance in elements and charge when re-derived from the formula string.
 
     `data/zeolites/README.md` records the whole provenance, including the three
     other candidate datasets that were examined and rejected on measurement.
@@ -296,10 +298,11 @@ agree to 0.02), and at 80 °C the database gives back the values the authors
 refined, −28.0 and −30.8 against −28.3 ± 1.2 and −30.8 ± 0.4.
 
 The enthalpy of each record is the one its Gibbs energy and entropy give with
-the element entropies of Cemdata18. The article's Table 1 agrees with it to
-0.5 kJ/mol; its corrigendum [Jin2024](@cite) replaces both enthalpies by values
-572 kJ/mol higher, the Gibbs energies and entropies unchanged, which no longer
-satisfy that relation. The equilibrium does not depend on it, the Gibbs energy at
+the element entropies of Cemdata18. [Jin2023; Table 1](@citet) agrees with it
+to 0.5 kJ/mol; its corrigendum [Jin2024](@cite) gives enthalpies 572 kJ/mol
+higher with unchanged Gibbs energies and entropies, and the record uses the
+enthalpy obtained from ``\Delta_f G^\circ``, ``S^\circ`` and the element
+entropies. The equilibrium does not depend on it, the Gibbs energy at
 temperature being built from ``\Delta_f G^\circ``, ``S^\circ`` and ``C_p^\circ``; a
 heat would. Both published values are kept on each record.
 

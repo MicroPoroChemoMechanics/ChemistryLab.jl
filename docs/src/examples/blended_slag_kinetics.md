@@ -86,8 +86,8 @@ interior point. Every number below is computed on the certified replay of the
 run ([`speciated_states`](@ref)).
 
 The heat is read off the certified replay of the run ([`heat_release`](@ref)),
-from the unreacted mix, and compared with the reaction degree of Table 6 times
-the total heat of Table 2.
+from the unreacted mix, and compared with the reaction degree of
+[Gruyaert2010; Table 6](@cite) times the total heat of its Table 2.
 
 ```@example g10k
 Q_total = ustrip(us"J/g", G10("isothermal_total_heat", :heat_infinity; slag_to_binder = 0.0))
@@ -104,8 +104,8 @@ end
 Nothing in this was fitted. The heat at 2 days is the measured one to 0.1 %, the
 degree of hydration 13 % below the image analysis; at 7 days the heat is 14 %
 below. At 28 months the cement is at 85 % against 74 %: the water/cement factor
-brings the law down from the 94 % it reaches without it, and the article's 74 %
-is the ultimate degree it computes for this w/c.
+brings the law down from the 94 % it reaches without it, and the 74 % of
+[Gruyaert2010](@citet) is the ultimate degree they compute for this w/c.
 
 ## 3. The blends
 
@@ -145,11 +145,12 @@ Section 1.
 
 ## 4. Bound water over 1018 days
 
-The bound water of the replayed states against the thermogravimetry of Fig. 7,
-batch b, whose materials are those of the calorimetry. The calculation counts
-every hydrogen of the solids and the thermobalance what leaves above 105 °C once
-the sample has been dried, so the computed water is the larger, as on
-[the page of the same pastes at measured degrees](@ref sec-example-tga).
+The bound water of the replayed states against the thermogravimetry of
+[Gruyaert2010; Fig. 7](@cite), batch b, whose materials are those of the
+calorimetry. The calculation counts every hydrogen of the solids and the
+thermobalance what leaves above 105 °C once the sample has been dried, so the
+computed water is the larger, as on [the page of the same pastes at measured
+degrees](@ref sec-example-tga).
 
 ```@example g10k
 wb_measured(sb) = (tb = literature_table("Gruyaert2010", "bound_water"; batch = "b", slag_to_binder = sb);

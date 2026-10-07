@@ -92,9 +92,9 @@ symbol says something the formula does not.
 
 The symbol is in the contract because the first three do not separate
 **polymorphs**, and a polymorph is a different substance. Calcite and aragonite
-are both `CaCO3`, both `AS_CRYSTAL`, both `SC_COMPONENT`, and in CEMDATA18 their
-standard Gibbs energies differ by 821 J/mol — at 298 K, 0.33 in `ln K`, which is
-the whole difference in solubility between them.
+are both `CaCO3`, both `AS_CRYSTAL`, both `SC_COMPONENT`, and in CEMDATA18
+[Lothenbach2019](@cite) their standard Gibbs energies differ by 821 J/mol — at
+298 K, 0.33 in `ln K`, which is the whole difference in solubility between them.
 
 ```@example identity
 using ChemistryLab
@@ -157,8 +157,8 @@ The molar mass is automatically calculated and stored in the species `properties
 
 A database record that declares a constant molar volume has the pressure term
 `V⁰ (P − P°)` in its `ΔₐH⁰` and `ΔₐG⁰`, which are then functions of `T` and `P`;
-an aqueous solute of the HKF model depends on both as well. A gas's `V⁰` is
-`RT/P`, and one built without a `V⁰` is given that volume.
+an aqueous solute of the HKF model [Helgeson1981](@cite) depends on both as
+well. A gas's `V⁰` is `RT/P`, and one built without a `V⁰` is given that volume.
 
 Properties are accessed and mutated via `[]`:
 

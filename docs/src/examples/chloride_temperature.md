@@ -8,18 +8,19 @@
 portlandite and water with sulfate, chloride and, in two of them, calcite, from
 0 to 99 °C, and stated where each chloride AFm phase gives way to
 monosulfate. Her Friedel's and Kuzel's salts are the records of Cemdata18
-(her Table 1); she mixes Friedel's salt ideally with the hydroxy-AFm and with
-monocarbonate, which Cemdata18 does not. This page computes the same mixtures
-with Cemdata18 as the package ships it, Friedel's salt pure, and compares.
+[Lothenbach2019](@cite) (her Table 1); she mixes Friedel's salt ideally with the
+hydroxy-AFm and with monocarbonate, which Cemdata18 does not. This page computes
+the same mixtures with Cemdata18 as the package ships it, Friedel's salt pure,
+and compares.
 
 ## 1. The mixtures
 
 Each holds 0.01 mol of C₃A, 0.015 mol of portlandite and 60 ml of water, the
 sulfate as calcium sulfate at SO₃/Al₂O₃ = 1, the chloride as CaCl₂ at the
-ratio the article writes 2Cl/Al₂O₃ (1 for Friedel's salt), and the carbonate
-as calcite (`data/literature/Balonis2019.json`). ASSUMED: the 60 ml of water
-are 60 g; the activity model is the package's extended Debye–Hückel equation
-for a KOH solution, where the article uses Truesdell and Jones' with
+ratio [Balonis2019](@citet) writes 2Cl/Al₂O₃ (1 for Friedel's salt), and the
+carbonate as calcite (`data/literature/Balonis2019.json`). ASSUMED: the 60 ml of
+water are 60 g; the activity model is the package's extended Debye–Hückel
+equation for a KOH solution, where the article uses Truesdell and Jones' with
 individual ion sizes.
 
 ```@example chloride-temperature
@@ -56,7 +57,7 @@ end
 
 ## 3. Where each phase gives way
 
-The temperatures the article states, against the two temperatures of the
+The temperatures [Balonis2019](@citet) states, against the two temperatures of the
 scan between which the calculation loses (or forms) the phase
 (`b19_transition`):
 
@@ -71,8 +72,8 @@ for (fig, phase, event, T) in zip(tr.figure, tr.phase, tr.event, tr.temperature_
 end
 ```
 
-The volume lost on heating, from 0 °C to the temperatures the article gives
-it for:
+The volume lost on heating, from 0 °C to the temperatures [Balonis2019](@citet)
+gives it for:
 
 ```@example chloride-temperature
 sh = literature_table(B19, "shrinkage")
@@ -100,30 +101,30 @@ end
 
 ## 5. What the comparison says
 
-**Where chloride is plentiful, the calculation follows the article.** With
-2Cl/Al₂O₃ = 1, Friedel's salt goes between 90 and 95 °C, where the article
+**Where chloride is plentiful, the calculation follows [Balonis2019](@citet).**
+With 2Cl/Al₂O₃ = 1, Friedel's salt goes between 90 and 95 °C, where the article
 states 80 and about 90 °C, ettringite with it in the carbonate mixture, and the
-solids have lost 22.8 and 26.0 % of their volume at 99 °C, against the
-article's 23 and 25 %. The monocarbonate of the carbonate mixture with less
-chloride goes between 50 and 55 °C, where the article states about 50.
+solids have lost 22.8 and 26.0 % of their volume at 99 °C, against the article's
+23 and 25 %. The monocarbonate of the carbonate mixture with less chloride goes
+between 50 and 55 °C, where the article states about 50.
 
-**Where it is scarce, Kuzel's salt takes the place of the article's phases.**
-With 2Cl/Al₂O₃ = 0.5 the calculation keeps Kuzel's salt up to 99 °C and loses
-Friedel's salt by 25 °C (by 45 °C with carbonate), where the article keeps
-Kuzel's salt up to 28 °C only and Friedel's salt up to 70 °C; its monosulfate
-appears between 50 and 55 °C instead of about 28. With 2Cl/Al₂O₃ = 1 Kuzel's
-salt forms above 55 °C, where the article forms monosulfate from 60 °C. Of the
-same records, the reaction of Section 4 costs Kuzel's salt 1.6 kJ/mol at 25 °C
-and 0.3 at 99 °C, never zero below 100 °C, so pure phases keep it. The
-article's Friedel's salt and hydroxy-AFm are solid solutions, which lower the
-competing AFm phases by about as much: the ideal mixing of two members at equal
-fractions is worth RT ln 2, 1.7 kJ/mol at 25 °C. The package does not declare
-those solutions; a calculation that needs the article's Kuzel's salt must
-declare them in its system.
+**Where it is scarce, Kuzel's salt takes the place of the phases of
+[Balonis2019](@citet).** With 2Cl/Al₂O₃ = 0.5 the calculation keeps Kuzel's salt
+up to 99 °C and loses Friedel's salt by 25 °C (by 45 °C with carbonate), where
+the article keeps Kuzel's salt up to 28 °C only and Friedel's salt up to 70 °C;
+its monosulfate appears between 50 and 55 °C instead of about 28. With
+2Cl/Al₂O₃ = 1 Kuzel's salt forms above 55 °C, where the article forms
+monosulfate from 60 °C. Of the same records, the reaction of Section 4 costs
+Kuzel's salt 1.6 kJ/mol at 25 °C and 0.3 at 99 °C, never zero below 100 °C, so
+pure phases keep it. The article's Friedel's salt and hydroxy-AFm are solid
+solutions, which lower the competing AFm phases by about as much: the ideal
+mixing of two members at equal fractions is worth RT ln 2, 1.7 kJ/mol at 25 °C.
+The package does not declare those solutions; a calculation that needs the
+article's Kuzel's salt must declare them in its system.
 
 ## Where to go next
 
 [CEM I 52.5 N HTS and CEM II/A-L 42.5 R from 0 to 60 °C](@ref ex-hydrates-temperature)
 finds the same transition from ettringite and monocarbonate to monosulfate in
 two cements, and [Solid solutions](@ref sec-theory-solid-solutions) writes
-the mixing the article adds.
+the mixing [Balonis2019](@citet) adds.

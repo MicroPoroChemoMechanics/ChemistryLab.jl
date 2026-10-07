@@ -25,7 +25,7 @@ All functions are AD-compatible (ForwardDiff.Dual-safe).
     WaterThermoProps{T<:Real}
 
 Density `D` (kg/m³) of liquid water and its partial derivatives w.r.t. T (K) and P (Pa),
-computed from the HGK (1984) equation of state.
+computed from the equation of state of [Haar1984](@citet).
 """
 struct WaterThermoProps{T <: Real}
     D::T
@@ -448,7 +448,8 @@ end
     water_helmholtz_hgk(T_K, D_kgm3) -> _HGKHelm
 
 Compute the specific Helmholtz free energy of water and its derivatives at temperature
-`T_K` (K) and density `D_kgm3` (kg/m³) using the HGK (1984) equation of state.
+`T_K` (K) and density `D_kgm3` (kg/m³) using the equation of state of
+[Haar1984](@citet).
 
 All outputs are in SI units (J/kg per derivative w.r.t. appropriate variables).
 AD-compatible (ForwardDiff-safe).
@@ -594,7 +595,7 @@ end
     water_thermo_props(T_K, P_Pa) -> WaterThermoProps
 
 Compute density and its partial derivatives for liquid water at `T_K` (K), `P_Pa` (Pa),
-using the HGK (1984) equation of state.
+using the equation of state of [Haar1984](@citet).
 
 AD-compatible (ForwardDiff-safe).
 """
@@ -645,9 +646,9 @@ the Properties of Water and Steam [IAPWS2014](@cite):
 with ``T_c = 647.096`` K, ``B = 235.8`` mN/m, ``b = -0.625`` and ``\\mu = 1.256``.
 The equation holds from the triple point to ``T_c``, where the surface tension
 vanishes, and the release extrapolates it into the supercooled liquid down to
-−25 °C. Its Table 1 lists the recommended values beside the equation's, and from
-the triple point to 200 °C the two differ by 0.01 mN/m at most.
-Above ``T_c`` there is no liquid, and asking is an error.
+−25 °C. [IAPWS2014; Table 1](@citet) lists the recommended values beside the
+equation's, and from the triple point to 200 °C the two differ by 0.01 mN/m at
+most. Above ``T_c`` there is no liquid, and asking is an error.
 
 AD-compatible in `T_K`.
 

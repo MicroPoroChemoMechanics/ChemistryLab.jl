@@ -21,13 +21,12 @@ porosity of the hardened paste in the sealed-curing convention.
     optimum. Those are **kinetic** limitations, carried by
     [`powers_alpha_max`](@ref) and the rate laws of the
     [kinetics tutorial](@ref sec-kinetics), not by the Gibbs minimum. A
-    water-limited regime does exist in the Gibbs minimum, but it starts far below
-    Powers' 0.42 — measured on this species list, between w/c = 0.28 and 0.30 —
-    and the two limits are not the same statement, which the analysis below
-    takes apart.
-    This page is the reference the kinetic calculation converges toward; the
-    [coupled hydration example](@ref sec-coupled-hydration) is the one to read
-    for an age.
+    water-limited regime does exist in the Gibbs minimum, but it starts far
+    below the 0.42 of [Powers1948](@citet) — measured on this species list,
+    between w/c = 0.28 and 0.30 — and the two limits are not the same statement,
+    which the analysis below takes apart. This page is the reference the kinetic
+    calculation converges toward; the [coupled hydration
+    example](@ref sec-coupled-hydration) is the one to read for an age.
 
 ---
 
@@ -294,16 +293,16 @@ the other way.
     does not, and the reason is worth stating because the two numbers measure
     different things.
 
-    Powers' 0.42 g of water per gram of cement is **not** a stoichiometric
-    demand. It is about 0.23 g of *non-evaporable* water, which is the water
-    written into the hydrate formulae, plus about 0.19 g of **gel water** held in
-    the C-S-H gel pores. Only the first is a mass balance that a Gibbs
-    minimization must respect. The second is water that is physically there and
-    chemically unavailable: in a sealed paste it is immobilized in pores too fine
-    to feed further reaction, and hydration stops by self-desiccation with water
-    still in the specimen. That is a statement about **transport and access**,
-    which no equilibrium calculation contains, and it is what
-    [`powers_alpha_max`](@ref) carries into the kinetic rate laws.
+    The 0.42 g of water per gram of cement of [Powers1948](@citet) is **not** a
+    stoichiometric demand. It is about 0.23 g of *non-evaporable* water, which
+    is the water written into the hydrate formulae, plus about 0.19 g of **gel
+    water** held in the C-S-H gel pores. Only the first is a mass balance that a
+    Gibbs minimization must respect. The second is water that is physically
+    there and chemically unavailable: in a sealed paste it is immobilized in
+    pores too fine to feed further reaction, and hydration stops by
+    self-desiccation with water still in the specimen. That is a statement about
+    **transport and access**, which no equilibrium calculation contains, and it
+    is what [`powers_alpha_max`](@ref) carries into the kinetic rate laws.
 
     So between roughly 0.23 and 0.42 the two disagree **and both are right**: the
     water suffices to write the hydrates, and a real sealed paste still cannot
@@ -441,14 +440,14 @@ else is then a proved Gibbs minimum.
     Predicting the arrest point instead of imposing it is a well-posed
     thermodynamic question, and this package cannot answer it yet. Two ingredients
     are missing, and both are about water that is present but unavailable. An
-    **activity model valid at very high concentration** — Pitzer-class — because
-    what physically stops hydration is the collapse of the water activity as the
-    last of the pore solution is consumed, and an extended Debye-Huckel model
-    extrapolated to 409 mol/kg goes on returning finite numbers instead of
-    collapsing. And a **coupling between pore structure and water activity**, the
-    Kelvin term, because in a fine pore water is held at a reduced activity
-    whatever its composition; that is what self-desiccation is, and it is
-    poromechanics, not solution chemistry.
+    **activity model valid at very high concentration** — Pitzer-class
+    [Pitzer1975](@cite) — because what physically stops hydration is the
+    collapse of the water activity as the last of the pore solution is consumed,
+    and an extended Debye-Huckel model extrapolated to 409 mol/kg goes on
+    returning finite numbers instead of collapsing. And a **coupling between
+    pore structure and water activity**, the Kelvin term, because in a fine pore
+    water is held at a reduced activity whatever its composition; that is what
+    self-desiccation is, and it is poromechanics, not solution chemistry.
 
     Until then, ``\alpha`` is not a fudge: it is where the missing physics is
     parameterized, measured on real pastes, and the calculation downstream of it
@@ -543,13 +542,13 @@ thermodynamic data that fixed the assemblage, and the same ``\bar V_i`` that
 [`volume`](@ref) and [`porosity`](@ref) use everywhere else on this page. No
 calorimetry, no shrinkage test, nothing fitted.
 
-**What Powers says about the same quantity.** His two complete-hydration ratios
-differ by ``0.42 - 0.36 = 0.06`` g of water per gram of cement, and that gap *is*
-this quantity: the water an immersed specimen takes up and a sealed one must find
-in itself. He measured it on pastes in 1948.
+**What [Powers1948](@citet) says about the same quantity.** His two
+complete-hydration ratios differ by ``0.42 - 0.36 = 0.06`` g of water per gram
+of cement, and that gap *is* this quantity: the water an immersed specimen takes
+up and a sealed one must find in itself. He measured it on pastes in 1948.
 
 So the package can be asked a question it was never fitted to answer: **does it
-reproduce the coefficient Powers measured?**
+reproduce the coefficient [Powers1948](@citet) measured?**
 
 ```@example wc_setup
 # The molar mass comes from the database, never from a table typed here.
@@ -580,9 +579,10 @@ k_saturated = w_probe / powers_alpha_max(w_probe; curing = :saturated)
 
 #### Is the comparison circular? No, and that is testable rather than arguable
 
-Powers' coefficients do enter the calculation, through `α_sealed = w/c / 0.42`.
-An objection follows immediately: if his number sets how much reacts, is the
-agreement above anything more than his number coming back out?
+The coefficients of [Powers1948](@citet) do enter the calculation, through
+`α_sealed = w/c / 0.42`. An objection follows immediately: if his number sets
+how much reacts, is the agreement above anything more than his number coming
+back out?
 
 It is not, and the reason is the normalization. ``\Delta V`` scales with how much
 clinker reacted, and it is divided by **that same reacted mass**, so `α` cancels
@@ -599,11 +599,11 @@ end
 ```
 
 The shrinkage per gram of reacted cement is **flat in `α`** — it moves by 0.3 %
-while `α` moves by two thirds, and all three points certify. So Powers' 0.42,
-which is what fixes `α = 0.952`, is demonstrably not what produces the answer.
-What produces it is the table of molar volumes, and the comparison with his
-0.06 g/g is therefore a check on that table rather than his own number coming
-back out.
+while `α` moves by two thirds, and all three points certify. So the 0.42 of
+[Powers1948](@citet), which is what fixes `α = 0.952`, is demonstrably not what
+produces the answer. What produces it is the table of molar volumes, and the
+comparison with his 0.06 g/g is therefore a check on that table rather than his
+own number coming back out.
 
 #### Every hypothesis behind the number
 
@@ -626,15 +626,15 @@ what its assumptions are worth:
     dimensions; the contraction appears as internal void rather than as external
     shrinkage. That is the usual convention for a set paste and wrong before
     setting.
-  - **Powers' 0.06 is itself an average** over the cements he had, and the
-    difference of two separately measured ratios, so it carries the uncertainty
-    of both.
+  - **The 0.06 of [Powers1948](@citet) is itself an average** over the cements
+    he had, and the difference of two separately measured ratios, so it carries
+    the uncertainty of both.
 
 None of these is tuned. Two of them — the closed species list and the ideal
 volumes — are the ones that would move the answer if the agreement were worse,
 and they are the ones to revisit first if a reader's own mix disagrees.
 
-Powers' two complete-hydration ratios differ by
+The two complete-hydration ratios of [Powers1948](@citet) differ by
 `0.42 − 0.36 = 0.06` g of water per gram of cement, and that gap is his statement
 of the same quantity: the water an immersed specimen takes up that a sealed one
 must find in itself. It was measured on pastes in 1948. The numbers above come
@@ -644,10 +644,11 @@ check on the volume data rather than a restatement.
 
 The two are under no obligation to agree, and the reasons they need not are worth
 naming: the assemblage here is the 14 declared species and not a real paste's,
-the molar volumes are ideal with no mixing term, and Powers' coefficient is an
-average over the cements he had in 1948. Whatever comes out is therefore a real
-check on the volume data rather than a restatement of it — and it is what makes
-an empirical coefficient *intelligible* rather than merely used.
+the molar volumes are ideal with no mixing term, and the coefficient of
+[Powers1948](@citet) is an average over the cements he had. Whatever comes out
+is therefore a real check on the volume data rather than a restatement of it —
+and it is what makes an empirical coefficient *intelligible* rather than merely
+used.
 
 Read the `void` column of the table above alongside it, and read it for what it
 is. Sealed, that fraction of the specimen is gas-filled porosity, and it is a

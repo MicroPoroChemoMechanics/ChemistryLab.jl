@@ -407,12 +407,12 @@ end
 Refuse a system in which two declared solid solutions describe the same
 substance, naming the pair.
 
-The case this exists for is the calcium silicate hydrate. CEMDATA18 carries
-three descriptions of it — `CSHQ`, `CNASH_ss` and the `ECSH` family — and they
-are three *models of one gel*, not three phases. Declaring two of them counts
-the same hydrate twice: the calcium, the silicon and the alkalis all enter the
-element balance once and come out distributed over two phases that are supposed
-to be alternatives.
+The case this exists for is the calcium silicate hydrate. CEMDATA18
+[Lothenbach2019](@cite) carries three descriptions of it — `CSHQ`, `CNASH_ss`
+and the `ECSH` family — and they are three *models of one gel*, not three
+phases. Declaring two of them counts the same hydrate twice: the calcium, the
+silicon and the alkalis all enter the element balance once and come out
+distributed over two phases that are supposed to be alternatives.
 
 The overlap is exact rather than approximate, which is what makes it detectable
 here: `KSiOH` (an end-member of `CSHQ`), `ECSH1-KSH` and `ECSH2-KSH` all carry
@@ -514,11 +514,11 @@ The case it was written for is CEMDATA18's aluminate sulfate. `ettringite03_ss`,
 the SO4 end-member of the SO4/CO3 AFt binary, is ettringite divided by three,
 5 J/mol apart, and GEM-Selektor's CEMDATA18 list declares the binary beside the
 `ettringite` solid solution. With ideal mixing the two phases share the
-substance and the certificate holds. With the published Redlich–Kister model on
-the binary, measured on four cement pastes, the certified search stopped short
-of the solution: moving the sulfate from one phase to the other changes the
-Gibbs energy by next to nothing, a flat direction the Newton cannot settle.
-Declaring the substance once certified all four.
+substance and the certificate holds. With the published Redlich–Kister model
+[RedlichKister1948](@cite) on the binary, measured on four cement pastes, the
+certified search stopped short of the solution: moving the sulfate from one
+phase to the other changes the Gibbs energy by next to nothing, a flat direction
+the Newton cannot settle. Declaring the substance once certified all four.
 
 A warning, not a refusal: with ideal mixing the double declaration is harmless,
 and a page may keep it on purpose rather than decide in advance which

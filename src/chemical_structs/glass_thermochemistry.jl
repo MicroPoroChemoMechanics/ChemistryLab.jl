@@ -114,10 +114,10 @@ ideal-mixing assumption, and the midpoint is returned with the half-range as
 aq17 database together, so that the enthalpy of forming the glass from its
 oxides is consistent within one database; the enthalpies of formation of the
 oxides themselves come from `reference`, an ordered list of species collections
-searched in turn (by default aq17 then slop98), so that the glass can be put on
-the scale of the database of a calculation. The other oxides of the analysis
-(Fe2O3, Na2O, K2O, TiO2, …) are counted as their crystals from `reference`,
-with no enthalpy of vitrification (assumed).
+searched in turn (by default aq17 then slop98 [Johnson1992](@cite)), so that the
+glass can be put on the scale of the database of a calculation. The other oxides
+of the analysis (Fe2O3, Na2O, K2O, TiO2, …) are counted as their crystals from
+`reference`, with no enthalpy of vitrification (assumed).
 
 At a temperature `T` other than 298.15 K the heat capacity of the glass,
 [`glass_heat_capacity`](@ref), is integrated from 298.15 K.

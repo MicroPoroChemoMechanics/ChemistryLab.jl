@@ -22,9 +22,9 @@ measured degrees of hydration instead, on the pastes of [Gruyaert2010](@citet).
 ## The pastes
 
 A CEM I 52.5 N and a blast-furnace slag, pastes at w/b = 0.5 with 0 to 85 %
-slag. The article reports the oxide composition of both, the degree of hydration
-of the cement and of the slag by image analysis at 2 days and 28 months, and the
-heat by isothermal calorimetry at 20 °C, all in
+slag. [Gruyaert2010](@citet) report the oxide composition of both, the degree of
+hydration of the cement and of the slag by image analysis at 2 days and 28
+months, and the heat by isothermal calorimetry at 20 °C, all in
 `data/literature/Gruyaert2010.json`. `scripts/gruyaert2010.jl` builds a paste
 from them; its assumptions are written there.
 
@@ -42,10 +42,11 @@ end
 ## The cement alone
 
 The heat of the plain paste at the degree of hydration the image analysis gives,
-against the heat the calorimeter measured at the same age. At 2 days that is
-the reaction degree of Table 6 times the total heat of Table 2; at 28 months the
-cement is at 74 %, the ultimate degree the article computes for w/c = 0.5, and
-the total heat, extrapolated to infinite time, is the comparison.
+against the heat the calorimeter measured at the same age. At 2 days that is the
+reaction degree of [Gruyaert2010; Table 6](@cite) times the total heat of its
+Table 2; at 28 months the cement is at 74 %, the ultimate degree the article
+computes for w/c = 0.5, and the total heat, extrapolated to infinite time, is
+the comparison.
 
 ```@example isocal
 cs = gruyaert_system()
@@ -84,7 +85,8 @@ A glass has no formula, and none of the databases carries its enthalpy of
 formation: the slag enters the budget through its oxides, and its heat cannot be
 computed. What the measurements can give is the enthalpy the glass must have for
 the computed heat to be the measured one. At 28 months, with the cement and the
-slag at their measured degrees and the total heat of Table 2,
+slag at their measured degrees and the total heat of
+[Gruyaert2010; Table 2](@cite),
 
 ```math
 h_{\rm glass} \;=\; \frac{Q\,m_b + H_{\rm eq} - H_0}{m_{\rm s}\,\alpha_{\rm s}} ,

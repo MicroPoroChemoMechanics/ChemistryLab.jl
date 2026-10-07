@@ -145,7 +145,8 @@ species = speciation(all_species, split("Portlandite H2O@");
               aggregate_state=[AS_AQUEOUS], exclude_species=split("H2@ O2@"))
 ```
 
-Primary species candidates for the Cemdata18 database are available via `CEMDATA_PRIMARIES`:
+Primary species candidates for the Cemdata18 database [Lothenbach2019](@cite)
+are available via `CEMDATA_PRIMARIES`:
 
 ```julia
 # 3. Select primaries present in our species subset

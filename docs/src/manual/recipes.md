@@ -46,9 +46,9 @@ choice, and `data/phase_lists.toml` records that choice for published pastes,
 each list after the paper it names. [`phase_list_system`](@ref) builds a system
 from one, and [the processes page](@ref ex-cement-processes) uses it.
 
-The Portland cement of the RILEM round robin by Bogue's calculation on its
-oxide analysis ([`bogue`](@ref)): four clinker phases and gypsum, and the oxides
-no phase takes as one oxide constituent.
+The Portland cement of the RILEM round robin [Durdzinski2017](@cite) by Bogue's
+calculation on its oxide analysis ([`bogue`](@ref)): four clinker phases and
+gypsum, and the oxides no phase takes as one oxide constituent.
 
 ```@example recipes
 pc = material_template("PC (Durdzinski 2017), Bogue", cs)
@@ -61,11 +61,11 @@ An extent is a number between 0 and 1, a function of time, or one of
 [`ConstantExtent`](@ref), [`TabulatedExtent`](@ref) (measured degrees of
 reaction, interpolated), [`LogisticExtent`](@ref), [`ParrottKillohExtent`](@ref)
 (the rate law of [ParrottKilloh1984](@citet) integrated) and [`CappedExtent`](@ref)
-(any of them under Powers' water limit). [`with_extents`](@ref) sets them by
-constituent, and `material_extent` sets one for the material as a whole; the
-effective extent of a constituent is the product of the two
-([`effective_extent`](@ref)). A glass described by its oxides alone has one
-extent, the material's.
+(any of them under Powers' water limit [Powers1948](@cite)).
+[`with_extents`](@ref) sets them by constituent, and `material_extent` sets one
+for the material as a whole; the effective extent of a constituent is the
+product of the two ([`effective_extent`](@ref)). A glass described by its oxides
+alone has one extent, the material's.
 
 ```@example recipes
 pc = with_extents(pc, Dict("C3S" => 0.80, "C2S" => 0.45, "C3A" => 0.90, "C4AF" => 0.60))

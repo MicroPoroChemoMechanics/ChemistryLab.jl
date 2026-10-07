@@ -6,9 +6,11 @@
 
 The AFm and AFt phases of a Portland cement are binaries — sulfate against
 hydroxide, sulfate against carbonate — and the Redlich-Kister parameters
-published for them in Cemdata18 [Lothenbach2019](@cite) are strong enough that the mixing energy is **concave over an
-interval**. Where an energy is concave the Gibbs minimum is not one composition
-but two: the phase unmixes, and the equilibrium is a **miscibility gap**.
+[RedlichKister1948](@cite) published for them in Cemdata18
+[Lothenbach2019](@cite) are strong enough that the mixing energy is **concave
+over an interval**. Where an energy is concave the Gibbs minimum is not one
+composition but two: the phase unmixes, and the equilibrium is a **miscibility
+gap**.
 
 This page runs the same cement three ways on the AFm sulfate/hydroxide binary,
 because the three are genuinely different claims:
@@ -254,9 +256,9 @@ asks for it.
 
 The two compositions are not unknown. They follow from the mixing model alone,
 by the construction [GlynnReardon1990](@citet) set out and that
-PHREEQC uses for a binary solid solution: the pair at which a single straight
-line is tangent to ``g`` twice, equivalently at which both end-members have equal
-chemical potentials in the two phases.
+PHREEQC [ParkhurstAppelo2013](@cite) uses for a binary solid solution: the pair
+at which a single straight line is tangent to ``g`` twice, equivalently at which
+both end-members have equal chemical potentials in the two phases.
 
 ```@example gap
 ct = common_tangent(published, 2)

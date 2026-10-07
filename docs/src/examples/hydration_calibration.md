@@ -108,9 +108,9 @@ wants a fitted `Ea` needs a second temperature: [Jaegle2025](@citet) is a
 CC-BY-4.0 route to one, at 20 °C and 35 °C on CEM I 42.5 R and 52.5 R, at the cost
 of a 341 MB download covering only the first 24 hours.
 
-**There is no phase composition.** The deposit reports the cement type, the
-fineness, the w/b ratio and the temperature — not the clinker mineralogy. §5
-measures what that costs.
+**There is no phase composition.** The deposit [Smilauer2025data](@cite) reports
+the cement type, the fineness, the w/b ratio and the temperature — not the
+clinker mineralogy. §5 measures what that costs.
 
 ## 2. The published parameters, untouched
 
@@ -337,10 +337,10 @@ multiplier alongside the rate-law fields would make the problem rank-deficient b
 construction rather than by accident. Use `IONIC_CALIBRATION` **or** the rate-law
 fields, never both.
 
-**`k₂_C3S` is excluded, because the data cannot see it.** Parrott and
-Killoh reported no diffusion-controlled stage for C₃S, and
-[`parrott_killoh_avrami`](@ref)'s docstring repeats it
-[Lothenbach2008](@cite) — so the expected sensitivity is zero. Measuring it:
+**`k₂_C3S` is excluded, because the data cannot see it.**
+[ParrottKilloh1984](@citet) reported no diffusion-controlled stage for C₃S, and
+[`parrott_killoh_avrami`](@ref)'s docstring repeats it [Lothenbach2008](@cite) —
+so the expected sensitivity is zero. Measuring it:
 
 Checked on the surrogate, and legitimately so: whether a mechanism limits the rate
 is a property of the rate law, not of the hydrate assemblage.
@@ -599,14 +599,15 @@ Two remedies, neither of them a better optimizer:
    by QXRD as in [Jansen2012](@citet), constrains the assemblage where a single
    integrated heat cannot. §10.
 
-!!! warning "And the holdout has a defect of its own"
-    In the deposit, the file named `116-CEM I 52.5 R Ladce-415.csv` carries
-    `Cement name: CEM I 42.5R Ladce-415` internally. Which is right is not
-    resolvable from the deposit, so the holdout may be a different strength class
-    from the one its filename claims — and then its clinker composition differs
-    from the one assumed here, and some part of the discrepancy belongs to that
-    rather than to the kinetics. It weakens the holdout as evidence; it does not
-    rescue the fit, whose own error bars already say the same thing.
+!!! warning "And the holdout file carries a note of its own"
+    In the deposit [Smilauer2025data](@cite), the file named
+    `116-CEM I 52.5 R Ladce-415.csv` carries
+    `Cement name: CEM I 42.5R Ladce-415` internally. Which of the two applies
+    cannot be decided from the deposit, so the holdout may be a different strength
+    class from the one its filename claims — and then its clinker composition
+    differs from the one assumed here, and some part of the discrepancy belongs
+    to that rather than to the kinetics. It weakens the holdout as evidence; it
+    does not rescue the fit, whose own error bars already say the same thing.
 
 ## 7b. The fix that was not run, and how to run it
 
@@ -674,11 +675,12 @@ as a function of `τ` rather than use a factor at all.
 
 ### The one that should work, and exactly how to launch it
 
-Fit **one** parameter set to **many** records. The deposit holds fourteen plain
-CEM I records — `CEM_I_DEPOSIT_RECORDS` lists them with their w/b, fineness
-and duration — across five plants and four strength classes. The parameter count
-stays at five while the data multiplies fourteen-fold, so the `τ`–`k₁` degeneracy
-is constrained by fourteen peak positions instead of one, and transferability
+Fit **one** parameter set to **many** records. The deposit
+[Smilauer2025data](@cite) holds fourteen plain CEM I records —
+`CEM_I_DEPOSIT_RECORDS` lists them with their w/b, fineness and duration —
+across five plants and four strength classes. The parameter count stays at five
+while the data multiplies fourteen-fold, so the `τ`–`k₁` degeneracy is
+constrained by fourteen peak positions instead of one, and transferability
 becomes what is being *optimized* rather than what is *tested afterwards*.
 
 `multirecord_loss` and `calibrate_multirecord` implement it.
@@ -693,9 +695,9 @@ multirecord_recipe()
     strength classes, w/b from 0.40 to 0.50, fineness from 250 to 440 m²/kg.
     `blaine_factor` and `powers_alpha_max` are meant to carry a rate law across the
     last two; the clinker composition they cannot carry, because it differs between
-    plants and the deposit does not report it. So a joint fit estimates one kinetic
-    parameter set for fourteen different clinkers, and the composition scatter is
-    absorbed into the kinetics.
+    plants and the deposit [Smilauer2025data](@cite) does not report it. So a
+    joint fit estimates one kinetic parameter set for fourteen different
+    clinkers, and the composition scatter is absorbed into the kinetics.
 
     That is a real weakness. It is preferable only because the alternative — one
     parameter set fitted to one record — is the thing that already failed to
@@ -706,10 +708,10 @@ multirecord_recipe()
 
 ## 8. What the composition assumption costs
 
-The deposit gives no mineralogy, so a composition was supplied. The consequence is
-exact rather than vague: a heat curve constrains the **product** of a phase
-fraction and its reaction rate, never the two apart. Perturbing the alite content
-and looking at what moves makes that concrete.
+The deposit [Smilauer2025data](@cite) gives no mineralogy, so a composition was
+supplied. The consequence is exact rather than vague: a heat curve constrains
+the **product** of a phase fraction and its reaction rate, never the two apart.
+Perturbing the alite content and looking at what moves makes that concrete.
 
 ```julia
 for δ in (-0.20, 0.20)
@@ -797,8 +799,9 @@ and it is blocked only by data, not by the code.
 
 ## 10. Limitations, each with its cause
 
-- **The composition is assumed**, because the deposit does not report it. Only the
-  products of a rate and a phase fraction are identifiable. §8 measures the cost.
+- **The composition is assumed**, because the deposit [Smilauer2025data](@cite)
+  does not report it. Only the products of a rate and a phase fraction are
+  identifiable. §8 measures the cost.
 - **The activation energies are not fitted**, because one temperature cannot
   determine a temperature sensitivity. They stay at published values.
 - **The outer loop is derivative-free by choice, not by necessity.** The run is

@@ -4,16 +4,16 @@
     [Validation against published data](@ref), the constants of the database
     at 25 °C against their sources.
 
-Cemdata18 tabulates its constants at 25 °C. At another temperature they follow
-from the standard properties of its species: the equation of state of
-[Helgeson1981](@citet) for the aqueous species, the heat capacities of the
-solids, and the water's own equation of state. The PHREEQC database
-[ParkhurstAppelo2013](@cite) gives many of the same reactions an analytical
-expression fitted to measured constants over a temperature range, with its
-sources in comments where it gives them. The two are
-independent descriptions of the same equilibria, and this page compares them
-from 5 to 90 °C, reaction by reaction (`scripts/logk_temperature_check.jl`, on
-the copy of `phreeqc.dat` 3.7.3 the test suite carries).
+Cemdata18 [Lothenbach2019](@cite) tabulates its constants at 25 °C. At another
+temperature they follow from the standard properties of its species: the
+equation of state of [Helgeson1981](@citet) for the aqueous species, the heat
+capacities of the solids, and the water's own equation of state. The PHREEQC
+database [ParkhurstAppelo2013](@cite) gives many of the same reactions an
+analytical expression fitted to measured constants over a temperature range,
+with its sources in comments where it gives them. The two are independent
+descriptions of the same equilibria, and this page compares them from 5 to
+90 °C, reaction by reaction (`scripts/logk_temperature_check.jl`, on the copy of
+`phreeqc.dat` 3.7.3 the test suite carries).
 
 ## 1. The comparison
 

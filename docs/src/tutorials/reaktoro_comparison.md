@@ -174,7 +174,7 @@ what the solver was allowed to stop on.
 ## The kinetics/equilibrium coupling
 
 **Validated against Reaktoro.** Calcite dissolves at a *constant* rate, so the
-kinetic half of Leal's system is analytic —
+kinetic half of the system of [Leal2015](@citet) is analytic —
 
 ```math
 n_{\text{Cal}}(t) = n_{\text{Cal}}(0) - k t,

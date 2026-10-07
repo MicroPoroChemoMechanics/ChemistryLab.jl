@@ -7,7 +7,8 @@ __precompile__(true)
     ChemistryLab
 
 Top-level module for parsing, representing and manipulating chemical
-formulas, species, stoichiometric matrices and ThermoFun / PHREEQC-like data.
+formulas, species, stoichiometric matrices and ThermoFun / PHREEQC-like data
+[ParkhurstAppelo2013](@cite).
 
 # Overview
 

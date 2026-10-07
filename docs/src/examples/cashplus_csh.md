@@ -14,11 +14,11 @@ the species of one site. ChemistryLab writes it as a [`CompoundEnergyModel`](@re
 
 This page does five things. It computes the gel in water, from the Ca/Si at
 which amorphous silica stops forming to the one at which portlandite starts, and
-compares both ends with the paper. It then adds sodium and potassium. It checks
-the model against the authors' own calculation of 110 gel compositions. It computes
-the pore solution of a hydrating Portland cement with CASH+NK and with CSHQ,
-against its analysis. Finally it extends the interlayer to the other alkali and
-alkaline-earth metals.
+compares both ends with [Kulik2022](@citet). It then adds sodium and potassium.
+It checks the model against the calculation of 110 gel compositions by
+[Miron2022a](@citet). It computes the pore solution of a hydrating Portland
+cement with CASH+NK and with CSHQ, against its analysis. Finally it extends the
+interlayer to the other alkali and alkaline-earth metals.
 
 The model has two mixing sites. The **bridging tetrahedron** (BT) of the silicate
 chain holds a silicate `S`, a vacancy `v` or a calcium `C`. The **interlayer
@@ -120,7 +120,7 @@ and portlandite at the highest; between the two, the gel is the only solid. At
 each end, three phases share three components (CaO, SiO₂ and H₂O) at a fixed
 temperature and pressure, so the composition of every phase is fixed: adding
 lime beyond the portlandite point, or silica below the silica point, only makes
-more of the solid that forms. The paper gives both ends:
+more of the solid that forms. [Kulik2022](@citet) give both ends:
 
 ```@example cashplus
 q(name) = literature_value("Kulik2022", name)
@@ -136,8 +136,8 @@ for (site, sp, f) in zip(printed.site, printed.species, printed.fraction)
 end
 ```
 
-Both ends agree with the paper to the digits it prints. The figure shows the
-solution and the sites between them:
+Both ends agree with [Kulik2022](@citet) to the digits they print. The figure
+shows the solution and the sites between them:
 
 ```@example cashplus
 gel_ratio = [r.gel for r in rows]
@@ -189,9 +189,9 @@ end
 
 Every paste certifies. From 25 to 90 °C the pH falls by 1.8 units at a Ca/Si of
 1.2 and by 1.8 beside portlandite, about 2.8 units per hundred degrees, somewhat
-more than the 2 to 2.5 the paper states. Beside portlandite the silicon rises, from
-0.0097 to 0.0137 mmol/kg, as the paper states, while the calcium falls from 20.4 to
-12.7 mmol/kg, with the solubility of portlandite.
+more than the 2 to 2.5 [Kulik2022](@citet) state. Beside portlandite the silicon
+rises, from 0.0097 to 0.0137 mmol/kg, as the paper states, while the calcium
+falls from 20.4 to 12.7 mmol/kg, with the solubility of portlandite.
 
 ## 2. Sodium and potassium: CASH+NK
 
@@ -200,7 +200,7 @@ twelve end-members, it is the one to use for a cement paste. The pastes below
 have a Ca/Si of 1 and of 1.6, in a solution of sodium and potassium hydroxides
 with three times as much potassium as sodium, as in the pore solution of a
 Portland cement. Potassium dominates, so the Debye-Hückel parameters are those
-Cemdata18 gives for KOH:
+Cemdata18 [Lothenbach2019](@cite) gives for KOH:
 
 ```@example cashplus
 cs_nk = gel_system("CASH+NK")
@@ -317,17 +317,18 @@ on the pore solutions of hydrated cements, among them the Portland cement with
 pore solution was analyzed from one day to 400 days. The same paste is computed
 here twice, with its C-S-H as `CSHQ` and as `CASH+NK`, everything else equal:
 
-- **the cement** is the normative composition of the paper (its Table 1): the four
-  clinker phases, periclase, free lime, calcite, gypsum and the readily soluble
-  alkali sulfates;
+- **the cement** is the normative composition of
+  [LothenbachLeSaout2008; Table 1](@citet): the four clinker phases, periclase,
+  free lime, calcite, gypsum and the readily soluble alkali sulfates;
 - **the clinker phases hydrate** by the law of [ParrottKilloh1984](@citet) with the
-  constants of the paper (its Table 3), including the two it adapts for belite
-  and the critical degree of hydration of each phase;
+  constants of [LothenbachLeSaout2008; Table 3](@citet), including the two it
+  adapts for belite and the critical degree of hydration of each phase;
 - **the minor oxides of the clinker** (0.052 g of K₂O, 0.31 g of Na₂O, 0.87 g of
   MgO and 0.11 g of SO₃ per 100 g) are released with the phases that hold them.
-  The paper gives their totals, not how they are shared among the phases. This
-  page assumes the sharing of [LothenbachWinnefeld2006](@citet), after Taylor, as a
-  content per gram of each phase;
+  [LothenbachLeSaout2008](@citet) give their totals, not how they are shared
+  among the phases. This page assumes the sharing of
+  [LothenbachWinnefeld2006](@citet), after Taylor, as a content per gram of each
+  phase;
 - **the phases that may form** are those of the Portland paste of
   [the validation page](@ref ex-validation), a paste of the same
   laboratory and the same modeling.

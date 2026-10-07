@@ -571,7 +571,7 @@ end
 
 The relative permittivity (dielectric constant) of liquid water at `T_K` kelvin
 and `P_Pa` pascal, from the model of [JohnsonNorton1991](@citet) this package already
-carries for the HKF activity model.
+carries for the HKF activity model [Helgeson1981](@cite).
 
 It is `78.245` at 25 °C and 1 bar, and falls to `66.68` at 60 °C — which is why
 a surface electrostatic model calibrated at room temperature is not transferable
@@ -675,12 +675,12 @@ returning moles of sites.
 # Why three of them, and not one
 
 Because the published data comes in three shapes, and converting between them
-needs a number nobody measured. A specific area with a site density per square
-meter ([`AreaSiteDensity`](@ref)) is the oxide literature's form; a capacity per
-kilogram of dry solid ([`MassSiteDensity`](@ref)) is the clay literature's, and
-turning the second into the first would mean **inventing a BET area** to divide
-by. A prescribed total ([`TotalSiteAmount`](@ref)) is what a fixed sorbent in a
-batch experiment actually gives.
+needs a quantity that is usually not measured. A specific area with a site
+density per square meter ([`AreaSiteDensity`](@ref)) is the oxide literature's
+form; a capacity per kilogram of dry solid ([`MassSiteDensity`](@ref)) is the
+clay literature's, and turning the second into the first would mean **inventing
+a BET area** to divide by. A prescribed total ([`TotalSiteAmount`](@ref)) is
+what a fixed sorbent in a batch experiment actually gives.
 
 See also: [`SiteFamily`](@ref), [`site_moles`](@ref).
 """

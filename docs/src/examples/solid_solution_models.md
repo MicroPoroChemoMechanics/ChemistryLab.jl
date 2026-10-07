@@ -72,9 +72,10 @@ which is what the table above measures.
 
 ## 2. Redlich-Kister reduces to a regular solution, as it must
 
-``a_0`` is the symmetric term of the Redlich-Kister expansion, so it is exactly
-a regular solution's ``W_{12}``, and setting the asymmetric terms to zero must
-reproduce the other model. Two independently written methods, one identity:
+``a_0`` is the symmetric term of the Redlich-Kister expansion
+[RedlichKister1948](@cite), so it is exactly a regular solution's ``W_{12}``,
+and setting the asymmetric terms to zero must reproduce the other model. Two
+independently written methods, one identity:
 
 ```@example ss
 W = 12_000.0        # J/mol

@@ -237,9 +237,10 @@ A specific area in m²/kg from a **Blaine** air-permeability fineness.
 
 Because the two measure different things, and the package already says so in
 prose three times over. Silica fume is about 20 000 m²/kg by BET, while the
-effective *Blaine* fineness recommended for its Waller kinetics is about
-2 000 m²/kg — a factor of ten. Passing the first where the second is expected
-produces a hydration rate ten times too fast, with nothing to catch it.
+effective *Blaine* fineness recommended for its Waller kinetics
+[Waller1999](@cite) is about 2 000 m²/kg — a factor of ten. Passing the first
+where the second is expected produces a hydration rate ten times too fast, with
+nothing to catch it.
 
 Making the measurement a type is what turns that warning into a refusal:
 [`area_ratio`](@ref) between a Blaine and a BET area raises, because no method

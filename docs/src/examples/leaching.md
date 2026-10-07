@@ -17,8 +17,8 @@ by deionized water. Nothing is fitted.
 ## 1. The C-S-H alone
 
 Lime and amorphous silica in water, at a bulk Ca/Si from 0.5 to 3, with the
-C-S-H of Cemdata18 (CSHQ) and portlandite and amorphous silica beside it, at
-25 °C:
+C-S-H of Cemdata18 [Lothenbach2019](@cite) (CSHQ) and portlandite and amorphous
+silica beside it, at 25 °C:
 
 ```@example leaching
 using ChemistryLab, DynamicQuantities, Printf
@@ -34,11 +34,11 @@ println("all certified: ", all(p -> p.certified, sweep))
 ```
 
 The gel spans a Ca/Si from 0.68, where amorphous silica appears beside it, to
-1.63, where portlandite does, at 20.3 mmol/L of calcium. Berner's Appendix A
-gathers six sets of measurements on synthetic C-S-H, the Ca/Si of the solid
-against the calcium and the silicon of the solution, from 17 to 30 °C. At the
-Ca/Si of each measured solid within the range of the gel, the computed
-concentration is interpolated and compared:
+1.63, where portlandite does, at 20.3 mmol/L of calcium.
+[Berner1992; Appendix A](@citet) gathers six sets of measurements on synthetic
+C-S-H, the Ca/Si of the solid against the calcium and the silicon of the
+solution, from 17 to 30 °C. At the Ca/Si of each measured solid within the range
+of the gel, the computed concentration is interpolated and compared:
 
 ```@example leaching
 m = be92_measured()

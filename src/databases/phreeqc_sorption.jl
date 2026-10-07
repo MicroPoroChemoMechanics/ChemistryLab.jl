@@ -67,11 +67,11 @@ A published sorption model read from a PHREEQC-format database: its surface
 site families, its exchangers, and where it came from.
 
 Reading one is not the same as being able to solve it. A model is written
-against a particular **aqueous** thermodynamic database — ClaySor 2023 says so
-in its own first lines, naming PSI/Nagra TDB 2020 — and its constants are that
-database's constants. Using them over a different one is a different model, in
-exactly the way a surface constant fitted with a diffuse layer is a different
-constant from one fitted without.
+against a particular **aqueous** thermodynamic database — ClaySor 2023
+[ClaySor2023data](@cite) says so in its own first lines, naming PSI/Nagra TDB
+2020 — and its constants are that database's constants. Using them over a
+different one is a different model, in exactly the way a surface constant fitted
+with a diffuse layer is a different constant from one fitted without.
 
 `header` keeps the file's own comment block, which is where such a statement
 lives and where the reference list usually is.
@@ -104,7 +104,8 @@ Reading rather than transcribing, for the reason every generator in
 package has already found standard energies that had drifted that way.
 
 **No sorption model ships with this package.** ClaySor 2023 is CC-BY-4.0 and
-freely available from its Zenodo deposit; point this at your own copy.
+freely available from its Zenodo deposit [ClaySor2023data](@cite); point this at
+your own copy.
 
 # Example
 

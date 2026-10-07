@@ -17,16 +17,17 @@ nothing was fitted on.
 
 ## 1. The pastes and their laws
 
-The three materials are built from Table 1 of the article (the templates
-`PC (Snellings 2022)`, `slag (Snellings 2022)` and `limestone (Snellings 2022)`
-of `data/recipe_templates.toml`): the cement by its Rietveld phases, the slag
-by its calcite, its quartz and its glass, found by difference from its
-analysis, the limestone by its calcite, quartz and dolomite. The quartz is
-inert. The four clinker phases dissolve under the law of
+The three materials are built from [Snellings2022; Table 1](@cite) (the
+templates `PC (Snellings 2022)`, `slag (Snellings 2022)` and
+`limestone (Snellings 2022)` of `data/recipe_templates.toml`): the cement by its
+Rietveld phases, the slag by its calcite, its quartz and its glass, found by
+difference from its analysis, the limestone by its calcite, quartz and dolomite.
+The quartz is inert. The four clinker phases dissolve under the law of
 [ParrottKilloh1984](@citet) with the published constants and activation
-energies, the glass of the slag under the Waller law with the constants fitted
-on the previous page for w/b 0.5, at the temperature of the paste. Everything
-else is at equilibrium from the mixing (`scripts/snellings2022_pastes.jl`).
+energies, the glass of the slag under the Waller law [Waller1999](@cite) with
+the constants fitted on the previous page for w/b 0.5, at the temperature of the
+paste. Everything else is at equilibrium from the mixing
+(`scripts/snellings2022_pastes.jl`).
 
 ASSUMED: the minor oxides of the cement, those of its analysis that its
 Rietveld phases do not hold, magnesia among them, enter the equilibrium at the
@@ -64,7 +65,7 @@ end
 Neither law reads the equilibrium partition, so the trajectories do not depend
 on it; every number below is computed on the certified replay of each run
 ([`speciated_states`](@ref)), in g per 100 g of binder, the thermogravimetry
-over the mass at 550 °C as the authors report it.
+over the mass at 550 °C as [Snellings2022](@citet) report it.
 
 ## 3. Bound water and portlandite
 
@@ -125,19 +126,21 @@ not report and this calculation leaves out, or the diffraction counts more
 ettringite than there is; the measurement alone does not tell which.
 
 **The carboaluminate is monocarbonate here, hemicarbonate in the paste.** With
-calcite in excess, monocarbonate is the stable carboaluminate of Cemdata18, and
-the calculation forms it alone; the diffraction finds mostly hemicarbonate,
-which forms first and turns into monocarbonate slowly, as the authors observe.
-From 28 days on the calculation forms more carboaluminate than the two
-measured together, the last three lines of the table: at six months half as
-much again at 5 °C and three times as much at 40 °C, where the measured ettringite holds
-aluminum the calculation puts in the AFm.
+calcite in excess, monocarbonate is the stable carboaluminate of Cemdata18
+[Lothenbach2019](@cite), and the calculation forms it alone; the diffraction
+finds mostly hemicarbonate, which forms first and turns into monocarbonate
+slowly, as [Snellings2022](@citet) observe. From 28 days on the calculation
+forms more carboaluminate than the two measured together, the last three lines
+of the table: at six months half as much again at 5 °C and three times as much
+at 40 °C, where the measured ettringite holds aluminum the calculation puts in
+the AFm.
 
 **The hydrotalcite is there from the first day.** The magnesia of the cement's
 minor oxides and of the dolomite, at equilibrium from the mixing, forms it at
 once, where the diffraction finds none before seven days at 20 °C and before
-28 days at 5 °C; the authors tie its formation to the reaction of the slag. At
-three and six months the calculation is within 2.3 points of the measurement.
+28 days at 5 °C; [Snellings2022](@citet) tie its formation to the reaction of
+the slag. At three and six months the calculation is within 2.3 points of the
+measurement.
 
 ## 5. What the comparison says
 
@@ -148,8 +151,8 @@ ettringite of the calculation is fixed by the sulfate of the cement where the
 measurement finds up to half as much again, the carboaluminate is the stable
 monocarbonate where the paste holds hemicarbonate, and the hydrotalcite forms
 from magnesia the calculation releases at the mixing. Each points to an input
-the article does not give, the sulfur of the slag and where the magnesia of the
-cement sits, or to a hydrate the paste has not yet reached.
+that [Snellings2022](@citet) do not give, the sulfur of the slag and where the
+magnesia of the cement sits, or to a hydrate the paste has not yet reached.
 
 ## Where to go next
 

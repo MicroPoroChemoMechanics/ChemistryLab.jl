@@ -7,14 +7,15 @@
 Seawater brings chloride, sulfate and magnesium at once. [DeWeerdt2014](@citet)
 cored a concrete of CEM I 42.5 R with limestone filler after sixteen years in
 the sea, measured its phases and elements against the depth, and computed with
-GEMS the paste in contact with increasing volumes of seawater, the volume
-standing for the depth: the core has seen little, the surface a great deal.
-This page repeats their calculation with Cemdata18, on their paste: 89 g of
-CEM I, 70 % of it reacted, 11 g of limestone and 42 g of water. The chloride
-AFm phases, thaumasite, brucite, hydrotalcite and M-S-H are allowed to form.
-Nothing is fitted.
+GEMS [Kulik2013](@cite) the paste in contact with increasing volumes of
+seawater, the volume standing for the depth: the core has seen little, the
+surface a great deal. This page repeats their calculation with Cemdata18
+[Lothenbach2019](@cite), on their paste: 89 g of CEM I, 70 % of it reacted, 11 g
+of limestone and 42 g of water. The chloride AFm phases, thaumasite, brucite,
+hydrotalcite and M-S-H are allowed to form. Nothing is fitted.
 
-The seawater of their Table 1, as printed, carries more anions than cations:
+The seawater of [DeWeerdt2014; Table 1](@citet), as tabulated, carries more anion
+than cation equivalents:
 
 ```@example seawater
 using ChemistryLab, DynamicQuantities, Printf
@@ -26,8 +27,8 @@ g = sw_charge_gap()
 ```
 
 The charge is closed on sodium, whose printed ratio to chloride is lower than
-that of ordinary seawater; the temperature of their calculation is not stated,
-and this one is at 20 °C.
+that of ordinary seawater; [DeWeerdt2014](@citet) do not give the temperature of
+their calculation, and this one is at 20 °C.
 
 ```@example seawater
 volumes = 10.0 .^ range(0, 4; length = 41)                  # mL per 100 g of cement
@@ -52,11 +53,11 @@ end
 ```
 
 The volumes are mL of seawater per 100 g of cement, read on a grid of ten
-points per decade here and on their Fig. 20 there. The order of the two
-calculations is the same: Friedel's salt from a few tens of mL, the
+points per decade here and on [DeWeerdt2014; Fig. 20](@cite) there. The order of
+the two calculations is the same: Friedel's salt from a few tens of mL, the
 monocarbonate giving it its aluminum; Friedel's salt gone where thaumasite
-appears, the carbonate and the sulfate taking the calcium and the aluminum
-from it; brucite, then portlandite gone; the calcite consumed by thaumasite.
+appears, the carbonate and the sulfate taking the calcium and the aluminum from
+it; brucite, then portlandite gone; the calcite consumed by thaumasite.
 Cemdata18 moves the middle of the sequence to smaller volumes, the chloride AFm
 and the monocarbonate giving way four to sixteen times sooner, and brings the
 brucite later: the hydrotalcite it allows, which the restricted set of the

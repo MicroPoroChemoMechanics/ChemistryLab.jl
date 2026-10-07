@@ -27,14 +27,14 @@ speciated, at the hydroxide measured, and nothing is equilibrated with a solid.
 
 ## Where the analyses come from
 
-The paper prints the analyses only as plots (its Figs. 13 to 16). The figures of
-the PDF are vector drawings, so each marker is a shape at an exact position.
-`data/literature/Deschner2012.json` holds the center of every marker, mapped to
-a time and a concentration through the major ticks of its panel. The ticks lie on
-a straight line to within 5e-4 decades, so the reading adds less than 0.2 % to
-the values plotted. The analyses themselves carry a standard deviation of 5 to
-10 %. A concentration below the axis (0.01 mmol/L) is not plotted: aluminum in
-the first hours, and so no aluminous index there.
+[Deschner2012](@citet) print the analyses only as plots (their Figs. 13 to 16).
+The figures of the PDF are vector drawings, so each marker is a shape at an
+exact position. `data/literature/Deschner2012.json` holds the center of every
+marker, mapped to a time and a concentration through the major ticks of its
+panel. The ticks lie on a straight line to within 5e-4 decades, so the reading
+adds less than 0.2 % to the values plotted. The analyses themselves carry a
+standard deviation of 5 to 10 %. A concentration below the axis (0.01 mmol/L) is
+not plotted: aluminum in the first hours, and so no aluminous index there.
 
 ```@example flyash
 using ChemistryLab
@@ -98,14 +98,15 @@ savefig(fig, "validation-fly-ash-indices.svg"); nothing # hide
 
 ![](validation-fly-ash-indices.svg)
 
-Every solution is speciated and certified. The aluminous solids agree with the
-paper to within 0.05: ettringite and strätlingite to 0.03, monosulfate to 0.05.
-Gypsum agrees to within 0.07 and portlandite to within 0.10, over five pastes
-and eighteen months, as the solution goes from sulfate-rich to alkaline and, in
-the fly-ash pastes, from saturated to undersaturated with portlandite. The mean
-differences are about 0.01. These indices are divided by the number of ions of
-the solid, from 2 for gypsum to 15 for ettringite; on the plain indices, the last
-column, the largest differences are 0.1 to 0.5.
+Every solution is speciated and certified. The aluminous solids agree with
+[Deschner2012](@citet) to within 0.05: ettringite and strätlingite to 0.03,
+monosulfate to 0.05. Gypsum agrees to within 0.07 and portlandite to within
+0.10, over five pastes and eighteen months, as the solution goes from
+sulfate-rich to alkaline and, in the fly-ash pastes, from saturated to
+undersaturated with portlandite. The mean differences are about 0.01. These
+indices are divided by the number of ions of the solid, from 2 for gypsum to 15
+for ettringite; on the plain indices, the last column, the largest differences
+are 0.1 to 0.5.
 
 Three things are left out, and each for the same reason, a value the figures do
 not give:

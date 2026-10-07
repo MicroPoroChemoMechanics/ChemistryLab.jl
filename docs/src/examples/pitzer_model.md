@@ -32,11 +32,11 @@ nothing # hide
 
 ## 1. The set says which of its numbers were measured
 
-Reardon's tables are those of Harvie, Møller and Weare, except that the
-silicate, aluminate and ferrate parameters had no published data at all and were
-**estimated by analogy** — he names the analog in each case. Those are exactly
-the ions a cement assemblage needs, so the set carries the distinction and
-[`pitzer_origin`](@ref) reads it back:
+The tables of [Reardon1990](@citet) are those of [HarvieMollerWeare1984](@citet),
+except that the silicate, aluminate and ferrate parameters had no published data
+at all and were **estimated by analogy** — he names the analog in each case.
+Those are exactly the ions a cement assemblage needs, so the set carries the
+distinction and [`pitzer_origin`](@ref) reads it back:
 
 ```@example pz
 for (c, a) in (("Na+", "Cl-"), ("Ca+2", "SO4-2"), ("Ca+2", "OH-"),
@@ -48,7 +48,8 @@ end
 ```
 
 A ``\beta^{(2)}`` appears only where the pair needs a third ionic-strength dependence —
-2-2 electrolytes, and Ca–OH, which Harvie et al. treat the same way.
+2-2 electrolytes, and Ca–OH, which [HarvieMollerWeare1984](@citet) treat the same
+way.
 
 ## 2. Against measurement, over four decades of molality
 
@@ -77,14 +78,17 @@ for (m, φm, γm) in HW
 end
 ```
 
-The Pitzer column follows the measurement to better than half a percent from a
-millimolal to six molal — through the **minimum near 1 mol/kg and the climb back
-to 0.99 at six molal**, neither of which any Debye-Hückel form can produce, since
-both require a term that grows faster than ``\sqrt{I}`` and then turns over. The osmotic coefficient agrees to the same order, independently.
+The Pitzer column [Pitzer1975](@cite) follows the measurement to better than
+half a percent from a millimolal to six molal — through the **minimum near
+1 mol/kg and the climb back to 0.99 at six molal**, neither of which any
+Debye-Hückel form can produce, since both require a term that grows faster than
+``\sqrt{I}`` and then turns over. The osmotic coefficient agrees to the same
+order, independently.
 
-The B-dot column follows the measurement to 1.5 % up to one molal, with the ion
-size [Helgeson1981](@citet) give NaCl. Its range is nonetheless real — 3 % out at three
-molal, 13 % at six — and nothing in its output announces the exit.
+The B-dot column [Helgeson1969](@cite) follows the measurement to 1.5 % up to
+one molal, with the ion size [Helgeson1981](@citet) give NaCl. Its range is
+nonetheless real — 3 % out at three molal, 13 % at six — and nothing in its
+output announces the exit.
 
 ```@example pz
 using Plots
@@ -197,10 +201,10 @@ end
 ```
 
 The same mechanism refuses something more important. **A Pitzer set assumes the
-speciation it was fitted with**, and Reardon's is fully dissociated: the
-association of Ca with SO₄, of Na with OH, is inside the ``\beta``
-coefficients. A species list that also carries the ion pairs counts each
-association twice — and CEMDATA18 carries them:
+speciation it was fitted with**, and that of [Reardon1990](@citet) is fully
+dissociated: the association of Ca with SO₄, of Na with OH, is inside the
+``\beta`` coefficients. A species list that also carries the ion pairs counts
+each association twice — and CEMDATA18 [Lothenbach2019](@cite) carries them:
 
 ```@example pz
 cem = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
@@ -277,9 +281,9 @@ measured = ustrip(us"mol/kg", literature_value("HamerWu1972", "nacl_saturated_mo
 ```
 
 The two agree to a quarter of a percent, from the standard Gibbs energy of
-halite in slop98 and the Na–Cl parameters of the set, neither of them fitted to
-this number, at a molality six times the 1 mol/kg up to which the Debye–Hückel
-forms are stated valid.
+halite in slop98 [Johnson1992](@cite) and the Na–Cl parameters of the set,
+neither of them fitted to this number, at a molality six times the 1 mol/kg up
+to which the Debye–Hückel forms are stated valid.
 
 ## Where to go next
 

@@ -578,11 +578,12 @@ needs a finite jump and not a gradient step.
 
 # What it does
 
-Michelsen's stability analysis, which is what the certificate already runs on
-every present mixing phase, does not only answer *whether* a phase splits: the
-trial composition that minimizes the tangent-plane distance is an estimate of the
-**incipient phase**, and that is what seeds the second instance here. The pass is
-then repeated until the certificate accepts or stops improving.
+Michelsen's stability analysis [Michelsen1982](@cite), which is what the
+certificate already runs on every present mixing phase, does not only answer
+*whether* a phase splits: the trial composition that minimizes the tangent-plane
+distance is an estimate of the **incipient phase**, and that is what seeds the
+second instance here. The pass is then repeated until the certificate accepts or
+stops improving.
 
 The seed comes from the analysis of the **full system** — the trial composition
 is computed with the chemical potentials the pore solution actually has — and not

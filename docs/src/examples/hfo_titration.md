@@ -20,7 +20,8 @@ experiment shows: at low loading a few strong sites take almost all the metal;
 once they saturate the weak ones take over, and the curve bends.
 
 This page builds that model, sorbs zinc onto it, and compares the result with
-PHREEQC computing the same thing from its own database.
+PHREEQC [ParkhurstAppelo2013](@cite) computing the same thing from its own
+database.
 
 !!! note "What this is not, yet"
     This runs **without an electric double layer**, `-no_edl` on both sides. The
@@ -186,10 +187,10 @@ comparison](@ref sec-example-surface-langmuir), which agrees to 1.7 × 10⁻⁸,
 the reason is instructive: **the difference is not in the surface model**.
 
 Zinc carries two charges, so its activity coefficient leaves 1 quickly — about
-0.72 at an ionic strength of 0.01 by the Davies equation. A model that puts it
-at 1 says the metal is more available than it is, and drives more sorption.
-Running the identical system under both aqueous models turns that explanation
-into a measurement:
+0.72 at an ionic strength of 0.01 by the Davies equation [Davies1962](@cite). A
+model that puts it at 1 says the metal is more available than it is, and drives
+more sorption. Running the identical system under both aqueous models turns that
+explanation into a measurement:
 
 | aqueous model | worst departure from PHREEQC |
 |:--|--:|

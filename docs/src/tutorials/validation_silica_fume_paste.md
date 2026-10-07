@@ -27,9 +27,10 @@ nothing # hide
 
 The silicates of the clinker and the silica fume are followed by NMR: the
 clinker's share of the silicon, and the silica fume left unreacted, which falls
-from 40 to 10 g per 100 g of binder in 3.5 years (Table 2 of the paper). They
-react here at those degrees; the aluminate and the ferrite, which the NMR does
-not see, by the law of Parrott and Killoh with the constants of this cement.
+from 40 to 10 g per 100 g of binder in 3.5 years
+([Lothenbach2014; Table 2](@cite)). They react here at those degrees; the
+aluminate and the ferrite, which the NMR does not see, by the law of
+[ParrottKilloh1984](@citet) with the constants of this cement.
 
 ```@example esdred
 nmr = es14_nmr_extents()
@@ -39,22 +40,22 @@ for d in (1, 7, 28, 360, 1310)
 end
 ```
 
-The binder is entered as the paper describes it: the normative phases of the
-CEM I (its Table 1, which sums to 100.31 g and is scaled to 100), the silica
-fume by its oxides, and the accelerator as an addition, its aluminum, sulfate
-and alkalis dissolved from the start. [Miron2022b](@citet) describe ESDRED as
-40 % CEM I and 60 % silica fume; the paper they cite, and its Table 2, give 60
-and 40, which is used here. The assumptions the script makes are listed at its
-head, `scripts/esdred_2014.jl`.
+The binder is entered as [Lothenbach2014](@citet) describe it: the normative
+phases of the CEM I (their Table 1, which sums to 100.31 g and is scaled to
+100), the silica fume by its oxides, and the accelerator as an addition, its
+aluminum, sulfate and alkalis dissolved from the start. [Miron2022b](@citet)
+describe ESDRED as 40 % CEM I and 60 % silica fume; the paper they cite, and its
+Table 2, give 60 and 40, which is used here. The assumptions the script makes
+are listed at its head, `scripts/esdred_2014.jl`.
 
 ## 2. The formate of the accelerator
 
-The accelerator brings organic carbon, which the authors identify as formate:
-202 mM in the mixing water at the start, of which they estimate from the charge
-balance of each pore solution how much is still dissolved, 140 mM after one day
-and about 80 mM after a year (footnote a of their Table 3). Formate is an anion,
-and at these concentrations it is the main one. The measured solution after 28
-days balances its charge only with it:
+The accelerator brings organic carbon, which [Lothenbach2014](@citet) identify
+as formate: 202 mM in the mixing water at the start, of which they estimate from
+the charge balance of each pore solution how much is still dissolved, 140 mM
+after one day and about 80 mM after a year (footnote a of their Table 3).
+Formate is an anion, and at these concentrations it is the main one. The
+measured solution after 28 days balances its charge only with it:
 
 ```@example esdred
 d = 28.0
@@ -64,14 +65,15 @@ anions = es14_measured(d, "OH-") + 2es14_measured(d, "S") + es14_measured(d, "fo
         d, cations, anions, es14_measured(d, "formate"))
 ```
 
-Cemdata18 has no formate, and [Miron2022b](@citet) left it out, naming it as a
-possible cause of the gaps they found. The formate of the SUPCRT organic
-database can be added. It then has to stay formate, as it does in the paste:
-the reduced species of sulfur and iron of the database are left out, so that
-nothing in the system can oxidize it. But the model has no solid that takes
-formate up, where the authors estimate that the solids take a third to
-three-fifths of it. The two calculations below are therefore two bounds: without
-the formate, and with all of it in solution.
+Cemdata18 [Lothenbach2019](@cite) has no formate, and [Miron2022b](@citet) left
+it out, naming it as a possible cause of the gaps they found. The formate of the
+SUPCRT [Johnson1992](@cite) organic database can be added. It then has to stay
+formate, as it does in the paste: the reduced species of sulfur and iron of the
+database are left out, so that nothing in the system can oxidize it. But the
+model has no solid that takes formate up, where [Lothenbach2014](@citet)
+estimate that the solids take a third to three-fifths of it. The two
+calculations below are therefore two bounds: without the formate, and with all
+of it in solution.
 
 ```@example esdred
 model = cemdata18_activity_model(:KOH)

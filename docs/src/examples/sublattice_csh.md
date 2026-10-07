@@ -55,10 +55,11 @@ nothing # hide
 ## 1. CSH3T, mixed by end-members and by sites
 
 CSH3T has three end-members: TobH, the silica-rich one, T2C, the calcium-rich
-one, and T5C between them, with a Ca/Si of 1. Cemdata18 ships them as an ideal
-mixture of end-members. Their site form puts Si or Ca on two bridging positions
-of the silicate chain: TobH has Si on both, T2C Ca on both, T5C Ca on one and Si on
-the other. The same three records serve both declarations:
+one, and T5C between them, with a Ca/Si of 1. Cemdata18 [Lothenbach2019](@cite)
+ships them as an ideal mixture of end-members. Their site form puts Si or Ca on
+two bridging positions of the silicate chain: TobH has Si on both, T2C Ca on
+both, T5C Ca on one and Si on the other. The same three records serve both
+declarations:
 
 ```@example sublattice
 CSH3T = ["CSH3T-TobH", "CSH3T-T5C", "CSH3T-T2C"]
@@ -130,7 +131,8 @@ crosslinked:
 with ``\chi_k`` the mole fractions of the end-members in the gel. A gel with
 every bridging site vacant is made of dimers, ``\mathrm{CL} = 2``; one with none
 vacant has infinite chains. The table reads each end-member's composition from
-its database record and its ``\nu`` from the transcription of Table 1:
+its database record and its ``\nu`` from the transcription of
+[Myers2014; Table 1](@cite):
 
 ```@example sublattice
 CNASH = ["T2C-CNASHss", "T5C-CNASHss", "TobH-CNASHss", "5CA", "5CNA", "INFCA", "INFCN", "INFCNA"]

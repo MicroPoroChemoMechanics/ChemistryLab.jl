@@ -26,12 +26,14 @@ concrete is no longer protected.
 | M | 68.1 % cement, 31.9 % metakaolin |
 | ML | 68.1 % cement, 25.5 % metakaolin, 6.4 % limestone |
 
-They measured the degree of hydration of the clinker and of the metakaolin by
-NMR, and the portlandite and calcium carbonate by thermogravimetry. They also
-computed each paste with GEMS and the Cemdata07 database, adding carbon dioxide
-step by step. This page computes the same pastes from their published data with
-the Cemdata18 database. It compares the pastes before carbonation with the
-measurements, and the carbonation sequence with the authors' calculation.
+[Shi2016](@citet) measured the degree of hydration of the clinker and of the
+metakaolin by NMR, and the portlandite and calcium carbonate by
+thermogravimetry. They also computed each paste with GEMS [Kulik2013](@cite) and
+the Cemdata07 database [Lothenbach2008](@cite), adding carbon dioxide step by
+step. This page computes the same pastes from their published data with the
+Cemdata18 database [Lothenbach2019](@cite). It compares the pastes before
+carbonation with the measurements, and the carbonation sequence with the
+authors' calculation.
 
 ```@example carbonation
 using ChemistryLab
@@ -52,8 +54,8 @@ nothing # hide
 ## 1. The materials
 
 The cement is described by its phases: alite and belite measured by NMR, the
-aluminate by mass balance, gypsum, calcite and free lime. The paper gives no
-ferrite phase: the little iron of a white cement is taken as part of the other
+aluminate by mass balance, gypsum, calcite and free lime. [Shi2016](@citet) give
+no ferrite phase: the little iron of a white cement is taken as part of the other
 phases. Counted with their pure formulas, these phases leave 1.3 % of the
 cement for the magnesia, alkalis and sulfate that the oxide analysis gives at
 3.9 %. The template keeps those minor oxides at their analyzed amounts and
@@ -74,9 +76,10 @@ end
 
 ## 2. How much has reacted at 91 days
 
-The paper measured the degrees of hydration at 28 and 180 days, not at 91, and
-states that little hydration takes place after 91 days: the values at 180 days
-are taken. The aluminate, the gypsum and the free lime are taken as reacted.
+[Shi2016](@citet) measured the degrees of hydration at 28 and 180 days, not at
+91, and state that little hydration takes place after 91 days: the values at
+180 days are taken. The aluminate, the gypsum and the free lime are taken as
+reacted.
 
 ```@example carbonation
 t = SHI16_AGE   # 91 days
@@ -90,11 +93,11 @@ end
 ## 3. The pastes before carbonation
 
 The mortars are 1 part of binder to 3 of sand, at a water/binder ratio of 0.5.
-The sand is inert and left out: the pastes are computed per 100 g of binder. The
-paper counts in moles per 100 g of **ignited mortar**, the mortar heated to
-800 °C, which is the sand and the binder less its loss on ignition.
-`shi16_ignited_mortar` gives that mass per 100 g of binder, about 400 g,
-and the helper below converts the model's amounts to the paper's unit.
+The sand is inert and left out: the pastes are computed per 100 g of binder.
+[Shi2016](@citet) count in moles per 100 g of **ignited mortar**, the mortar
+heated to 800 °C, which is the sand and the binder less its loss on ignition.
+`shi16_ignited_mortar` gives that mass per 100 g of binder, about 400 g, and the
+helper below converts the model's amounts to the paper's unit.
 
 ```@example carbonation
 # `Any`: the type of a state is long enough that a dictionary specialized on it
@@ -122,7 +125,7 @@ The authors' calculation gave a pH of 13.4 and a Ca/Si of 1.63 for P and L, and
 ## 4. The calcium that carbonation can take
 
 Every mole of calcium held by a hydrate can become a mole of calcium carbonate.
-Table 5 of the paper counts it hydrate by hydrate, as a **CO₂ binding
+[Shi2016; Table 5](@citet) count it hydrate by hydrate, as a **CO₂ binding
 capacity**. The calcite already present and the unreacted cement do not count.
 
 ```@example carbonation
@@ -136,8 +139,8 @@ end
 ## 5. Carbonation step by step
 
 [`carbonate`](@ref) adds carbon dioxide to each paste in steps of 5 g per 100 g
-of binder, up to 50 g, the range of the authors' calculation. Each equilibrium
-starts from the one before.
+of binder, up to 50 g, the range of the calculation of [Shi2016](@citet). Each
+equilibrium starts from the one before.
 
 ```@example carbonation
 M_CO2 = ustrip(us"g/mol", Species("CO2")[:M])
@@ -220,25 +223,25 @@ end
 
 ## 7. What the comparison says
 
-**Before carbonation, the pastes are those the paper measured.** The portlandite
-of the cement alone is within 1 % of the thermogravimetric measurement (0.101
-against 0.100 mol per 100 g of ignited mortar), and that of the limestone blend
-within 5 % (0.073 against 0.070). In the two metakaolin blends the model has
-consumed it all, where the measurement finds a little (0.008 and 0.004): the
-paste keeps some portlandite beside a gel it is no longer in equilibrium with.
-The C-S-H has the Ca/Si of the authors' calculation in P, L and ML (1.62 against
-1.63, and 1.27 against 1.29). In M it holds more calcium, 1.46 against 1.29.
-The pH is 0.2 and 0.3 lower than theirs in P and L (13.17 and 13.07 against
-13.4), and within 0.3 in the metakaolin blends.
+**Before carbonation, the pastes are those [Shi2016](@citet) measured.** The
+portlandite of the cement alone is within 1 % of the thermogravimetric
+measurement (0.101 against 0.100 mol per 100 g of ignited mortar), and that of
+the limestone blend within 5 % (0.073 against 0.070). In the two metakaolin
+blends the model has consumed it all, where the measurement finds a little
+(0.008 and 0.004): the paste keeps some portlandite beside a gel it is no longer
+in equilibrium with. The C-S-H has the Ca/Si of the authors' calculation in P, L
+and ML (1.62 against 1.63, and 1.27 against 1.29). In M it holds more calcium,
+1.46 against 1.29. The pH is 0.2 and 0.3 lower than theirs in P and L (13.17 and
+13.07 against 13.4), and within 0.3 in the metakaolin blends.
 
 **The calcium there is to carbonate is the same.** The total CO₂ binding
-capacity is within 1 % of the authors' in P and L, 2 % in ML, and 7 % below it
-in M, the paste whose gel differs.
+capacity is within 1 % of that of [Shi2016](@citet) in P and L, 2 % in ML, and
+7 % below it in M, the paste whose gel differs.
 
 **The sequence is the same.** While portlandite carbonates, the pH stays above
 13: it is set by the sodium and potassium of the pore solution. It then falls
 as the C-S-H gives up its calcium, and holds at about 9.7 once the gel is at
-its most calcium-poor, as the authors computed. The carbon dioxide taken up
+its most calcium-poor, as [Shi2016](@citet) computed. The carbon dioxide taken up
 when the pH falls below 9.7 orders the four pastes as theirs does, P, then L,
 then the two metakaolin blends together, and exceeds their effective capacity
 by 5 % (P) to 17 % (M). The last step does not compare: here every gram of
@@ -248,11 +251,11 @@ at 1 % CO₂ and reached 7.4.
 
 **A mortar in air is far from that equilibrium.** Near the exposed surface the
 thermogravimetry finds 0.12 to 0.13 mol of carbonate per 100 g of ignited mortar
-after 91 days in all four mortars, below every capacity. The paper concludes the
-same (its Section 4.3). An equilibrium calculation says how much calcium can be
-carbonated and at what pH the paste then stands. How fast the carbon dioxide
-gets there is a matter of transport, which the paper relates to the porosity
-and to the water held in the finest pores.
+after 91 days in all four mortars, below every capacity.
+[Shi2016; Section 4.3](@citet) conclude the same. An equilibrium calculation
+says how much calcium can be carbonated and at what pH the paste then stands.
+How fast the carbon dioxide gets there is a matter of transport, which the paper
+relates to the porosity and to the water held in the finest pores.
 
 **The two codes agree.** On the 44 budgets, GEMS3K and ChemistryLab give the
 same pH to 0.011 and the same dissolved elements to 7 %, with the same phases

@@ -22,7 +22,7 @@ exposed on the grain takes a proton in acid and gives one up in base:
 so the surface is positive in acid, negative in base, and neutral in between.
 The constants below are those of [DzombakMorel1990](@citet) for the weak sites of
 hydrous ferric oxide, `log K = 7.29` and `log K = −8.93`, the values
-PHREEQC ships.
+PHREEQC [ParkhurstAppelo2013](@cite) ships.
 
 ## The species
 
@@ -79,7 +79,7 @@ family  = SiteFamily("Hfo_w", free, [prot, depr];
 `TotalSiteAmount` is the honest description of a batch experiment: a weighed
 sorbent, a known number of sites. The two other forms — a density per square
 meter, a capacity per kilogram — exist because published data comes in both, and
-converting between them would need an area nobody measured.
+converting between them would need an area that was not measured.
 
 ## The system, and the row that makes it a surface
 

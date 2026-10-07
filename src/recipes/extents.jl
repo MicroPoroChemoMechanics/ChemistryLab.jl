@@ -106,8 +106,8 @@ end
 """
     CappedExtent(inner, cap)
 
-`inner`, never above `cap`. The cap of a clinker is usually Powers' water
-limit, `CappedExtent(inner, powers_alpha_max(w_c))`.
+`inner`, never above `cap`. The cap of a clinker is usually the water limit of
+[Powers1948](@citet), `CappedExtent(inner, powers_alpha_max(w_c))`.
 """
 struct CappedExtent{E <: AbstractExtent, T <: Real} <: AbstractExtent
     inner::E

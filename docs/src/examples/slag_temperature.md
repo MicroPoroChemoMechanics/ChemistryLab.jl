@@ -17,9 +17,10 @@ the authors fit with another law.
 
 ## 1. The measurements
 
-Fig. 6 is a raster image. Each of its 108 markers was found by its color and
-its shape, and placed where the lines drawn through it meet its age, to 0.3
-point (`data/literature/Snellings2022.json`, under `digitization`).
+[Snellings2022; Fig. 6](@cite) is a raster image. Each of its 108 markers was
+found by its color and its shape, and placed where the lines drawn through it
+meet its age, to 0.3 point (`data/literature/Snellings2022.json`, under
+`digitization`).
 
 ```@example slag-temperature
 using ChemistryLab, DynamicQuantities, Printf
@@ -57,10 +58,11 @@ points of the measurement at one day and then falls behind it, by 21 to 22
 points at seven days; at 20 and 40 °C it is too slow from the first day, by 19 to 21
 points at one day. At 20 °C the measured clinker reacts in one day as far as
 the law takes it in four. At 90 and 180 days the law is within four points of
-the measurement at the three temperatures. The clinker of
-[the De Weerdt pastes](@ref ex-ternary-kinetics) was also too slow under this
-law at one day, by 7 to 10 points; this one is by 20. The authors find the w/b
-of no effect on the clinker before seven days, as the law has it.
+the measurement at the three temperatures. The clinker of [the
+pastes](@ref ex-ternary-kinetics) of [DeWeerdt2011](@citet) was also too slow
+under this law at one day, by 7 to 10 points; this one is by 20.
+[Snellings2022](@citet) find the w/b of no effect on the clinker before seven
+days, as the law has it.
 
 ## 3. The slag under the Waller law
 
@@ -108,11 +110,12 @@ activation energy kept, the misfit is 3.5 points on the 54 degrees; freeing
 the exponent and then the activation energy brings it to 3.1 and 2.6. The
 four constants fitted on each w/b alone, twelve in all, do barely better, 2.0
 to 2.7 points, than these six. The water acts on the slag through its ceiling
-alone, as the authors observe it: the w/b changes the degree of the slag only
-at the later ages.
+alone, as [Snellings2022](@citet) observe it: the w/b changes the degree of the
+slag only at the later ages.
 
 The last fit, its constants and how well the 54 degrees determine them, for a
-measurement good to the 10 points the authors give ([`identifiability`](@ref)):
+measurement good to the 10 points [Snellings2022](@citet) give
+([`identifiability`](@ref)):
 
 ```@example slag-temperature
 fit = only(last(fits)[2])
@@ -131,8 +134,8 @@ end
 The six constants are all determined, the least well to 33 % (the time), the
 activation energy to 17 %. The ceiling rises with the water, from 0.54 at w/b 0.4 to 0.70 at 0.6. The
 exponent, 0.59, is near the fly ash's 0.7. The activation energy, 67 kJ/mol, is
-the one the authors find, from the same degrees with their own law and with a
-time of each temperature (their Table 2):
+the one [Snellings2022](@citet) find, from the same degrees with their own law
+and with a time of each temperature (their Table 2):
 
 ```@example slag-temperature
 ea = literature_table(SN22, "activation_energies"; constituent = "slag")
@@ -167,9 +170,10 @@ end
 As laboratory B measured them, both slags are within 6.2 points of the law at
 every age, and the first one as laboratory E measured it within 7.2. The two
 laboratories differ by up to 13 points on the same paste, and the round robin
-puts the precision of any technique at ±5 points at best. Laboratory E finds
-the second slag faster, by 11 points at seven days and 16 at ninety, beyond the
-ceiling of 0.54 the law takes from the pastes of [Snellings2022](@citet) at that w/b.
+[Durdzinski2017](@cite) puts the precision of any technique at ±5 points at
+best. Laboratory E finds the second slag faster, by 11 points at seven days and
+16 at ninety, beyond the ceiling of 0.54 the law takes from the pastes of
+[Snellings2022](@citet) at that w/b.
 
 ## 5. What the comparison says
 
@@ -184,10 +188,11 @@ the fly ash cannot follow a slag that slows down by the third month; with a
 ceiling that rises with the water, one time, one exponent and one activation
 energy describe the three temperatures and the three w/b to 2.6 points of
 degree, a quarter of the measurement's uncertainty. The activation energy,
-67 kJ/mol, is the authors', found by another route, below the 83 kJ/mol of the
-fly-ash set. These are fitted constants, of one slag in one cement; on the two
-slags of the round robin they hold within 7.2 points in three series of four.
-They are not shipped as the package's constants.
+67 kJ/mol, is that of [Snellings2022](@citet), found by another route, below the
+83 kJ/mol of the fly-ash set. These are fitted constants, of one slag in one
+cement; on the two slags of the round robin [Durdzinski2017](@cite) they hold
+within 7.2 points in three series of four. They are not shipped as the package's
+constants.
 
 ## Where to go next
 

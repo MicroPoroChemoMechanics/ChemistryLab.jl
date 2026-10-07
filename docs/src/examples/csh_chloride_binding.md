@@ -24,20 +24,22 @@ calcium and chloride constants were fitted to zeta potentials by
         solution of the cement pages. Putting the sites on CSHQ would count its
         calcium and its alkalis twice, once in the solid and once on the surface.
       - The diffuse layer sets the potential, following [DzombakMorel1990](@citet) as
-        PHREEQC does by default. The ions it holds are counted only in
+        PHREEQC [ParkhurstAppelo2013](@cite) does by default. The ions it holds
+        are counted only in
         [the last section](@ref "The chloride of the diffuse layer"), and there
         with a thickness that nothing published fixes for this paste.
-      - The hydrates are those of CEMDATA18, and Guo used Cemdata07. This is
-        their model on the package's database, not a reproduction of their
-        figure; [the validation chapter](@ref "Validation against published data") compares
-        the salts with that figure on its own terms.
+      - The hydrates are those of CEMDATA18 [Lothenbach2019](@cite), and
+        [Guo2018](@citet) used Cemdata07 [Lothenbach2008](@cite). This is their
+        model on the package's database, not a reproduction of their figure;
+        [the validation chapter](@ref "Validation against published data")
+        compares the salts with that figure on its own terms.
 
 ## The paste
 
-Guo state their inventory per liter of concrete (C-S-H, portlandite, AFm, AFt,
-and the porosity), and every amount below is brought to one kilogram of pore
-water. The site density and the specific area of the C-S-H are theirs, from
-the same file.
+[Guo2018](@citet) state their inventory per liter of concrete (C-S-H,
+portlandite, AFm, AFt, and the porosity), and every amount below is brought to
+one kilogram of pore water. The site density and the specific area of the C-S-H
+are theirs, from the same file.
 
 ```@example cshcl
 using ChemistryLab, DynamicQuantities, OptimaSolver, Printf
@@ -146,7 +148,8 @@ end
 
 The same paste is computed by PHREEQC on the same model: the same reactions
 and constants, the hydrates with the log K the package gives them, the Davies
-equation on both sides and the diffuse layer of [DzombakMorel1990](@citet). The generator,
+equation [Davies1962](@cite) on both sides and the diffuse layer of
+[DzombakMorel1990](@citet). The generator,
 `test/reference/phreeqc_csh_surface.py`, asks the package for every energy and
 molar mass it uses, so the comparison is of the two solvers and of nothing else.
 
@@ -246,6 +249,6 @@ anything measured.
     layer checked alone, on ferrihydrite.
   - [Chemistry that happens on a surface](@ref sec-theory-surface) — the site
     families and the potential.
-  - [Validation against published data](@ref) — Guo's
-    salts against their figure, without the surface.
+  - [Validation against published data](@ref) — the salts of
+    [Guo2018](@citet) against their figure, without the surface.
   - `test/csh_surface.jl` — the Donnan layer against PHREEQC's `-Donnan`.

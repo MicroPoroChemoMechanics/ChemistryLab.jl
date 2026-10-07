@@ -56,8 +56,8 @@ balance judged row by row against each row's own budget:
 
 Ten of ten certified through both routes; seven through the interior point alone,
 nine through the dual Newton alone. The interior point's 3 % on the first row is
-not a tolerance: it is a **charge balance wrong in the second digit**, and the
-reason it cannot be improved is that the fraction-to-boundary rule caps its step
+not a tolerance: it is a **charge balance met to 3 % only**, and the reason it
+cannot be improved is that the fraction-to-boundary rule caps its step
 at 15 % of a correction the next iteration re-poses — traced over twenty-three
 iterations with the residual frozen at 3.0e-6 and `‖dn‖` decaying at `1 − α`.
 
@@ -81,13 +81,14 @@ dual Newton solves the conditions of equilibrium themselves, `μ(n) = −Aᵀy` 
 species present. The gradient of `n⋅μ(n)` is `μ + Jᵀn`, where `J = ∂μ/∂n`, and
 `Jᵀn = 0` is the Gibbs–Duhem relation: where the activity model satisfies it,
 `n⋅μ(n)` is the Gibbs energy and the three agree; where it does not, the minimum
-of `n⋅μ(n)` is another composition. The ideal model, Pitzer, Davies on ions and
-the Debye–Hückel form with one ion size satisfy it; the B-dot model with its ion
-sizes and linear terms, Davies with a neutral solute and SIT do not. On calcite
-and carbon dioxide in a sodium chloride solution, Ipopt's answer meets the
-element balance to 1e-15 mol under every model; its dissolved calcium is the
-equilibrium's to 2e-6 under the ideal model, and 7e-4 off under Davies, whose
-dissolved carbon dioxide carries a salting-out term with no partner.
+of `n⋅μ(n)` is another composition. The ideal model, Pitzer [Pitzer1975](@cite),
+Davies on ions and the Debye–Hückel form with one ion size satisfy it; the B-dot
+model with its ion sizes and linear terms, Davies with a neutral solute and SIT
+do not. On calcite and carbon dioxide in a sodium chloride solution, Ipopt's
+answer meets the element balance to 1e-15 mol under every model; its dissolved
+calcium is the equilibrium's to 2e-6 under the ideal model, and 7e-4 off under
+Davies, whose dissolved carbon dioxide carries a salting-out term with no
+partner.
 
 So every back end's answer is **polished**: the dual Newton is started from it,
 and the composition it certifies is the one returned. The route then decides how
@@ -193,7 +194,8 @@ pH(eq_ad)               # 6.4323, against 6.4329 at fixed temperature
 
 ### The two vehicles
 
-They are not interchangeable, and the distinction is the same one Reaktoro draws.
+They are not interchangeable, and the distinction is the same one Reaktoro
+[Leal2017](@cite) draws.
 
 A **prescribed property** — an enthalpy, a volume — adds one *parameter* and one
 equation to the solver's own square system. Nothing loops around the equilibrium
@@ -258,8 +260,8 @@ composition built from `ForwardDiff.Dual` values propagates through the
 speciation, and `pH`, `pOH`, `porosity` and `saturation` come back as duals too.
 
 Crossing the **solve** works as well, and without asking any solver to iterate on
-dual numbers — Ipopt is a C library and never could. The equilibrium is solved
-once at the primal values, by the back end chosen and polished, and the
+dual numbers — Ipopt, a C library, does not operate on them. The equilibrium is
+solved once at the primal values, by the back end chosen and polished, and the
 sensitivities come from the conditions of equilibrium at the answer, the
 implicit-function-theorem route:
 
@@ -477,8 +479,8 @@ log₁₀ γᵢ = Kₙ I
     It is the **last resort** of the chain above, reached only for a charge that
     neither table covers — in practice `|z| ≥ 5`. Setting it changes essentially
     nothing for a real solution. Pass `å` to impose one common radius, which is
-    what GEM-Selektor, PHREEQC's `-gamma` and most published cement models
-    actually use.
+    what GEM-Selektor [Kulik2013](@cite), PHREEQC's `-gamma` and most published
+    cement models actually use.
 
 **Usage:**
 
@@ -510,10 +512,10 @@ same B-dot on the neutral species. It is [`cemdata18_activity_model`](@ref):
 model = cemdata18_activity_model(:KOH)    # or :NaOH
 ```
 
-The paper states it applicable up to about 1 mol/kg of ionic strength, which
-[`activity_model_range`](@ref) returns, and which the certificate of
-[`equilibrate_certified`](@ref) compares with the ionic strength of each answer
-(`cert.within_activity_range`).
+[Lothenbach2019](@citet) state it applicable up to about 1 mol/kg of ionic
+strength, which [`activity_model_range`](@ref) returns, and which the
+certificate of [`equilibrate_certified`](@ref) compares with the ionic strength
+of each answer (`cert.within_activity_range`).
 
 ### Reproducing one particular GEM-Selektor run
 

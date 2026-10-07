@@ -84,8 +84,9 @@ end
 ```
 
 Three numbers, all measured. **The clinker phase composition and the actual slag
-content are not in the deposit**, and nothing in it lets them be recovered. They
-have to be assumed, and the assumption is stated here rather than buried:
+content are not in the deposit** [Smilauer2025data](@cite), and nothing in it
+lets them be recovered. They have to be assumed, and the assumption is stated
+here rather than buried:
 
 ```@example cem3
 # ASSUMED, not measured: the midpoint of the EN 197-1 range for CEM III/A,
@@ -385,7 +386,7 @@ minimization is telling you about which measurement to go and make.
 
 The record gives the heat, and the heat is the one quantity here that was
 measured rather than assumed. It is worth putting beside the CEM I of the same
-deposit:
+deposit [Smilauer2025data](@cite):
 
 ```@example cem3
 function final_heat(file)
@@ -418,7 +419,8 @@ What the calculation above does **not** do is predict that curve. It is an
 equilibrium: it says what the paste tends to, not how fast. The
 [coupled runs](@ref ex-ionic-opc) do that for the clinker of a Portland cement;
 on a blend it also needs a rate law for the slag, and a measured degree of
-reaction to check it against, which this deposit does not report.
+reaction to check it against, which this deposit [Smilauer2025data](@cite) does
+not report.
 
 ## Where to go next
 
