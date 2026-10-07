@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## v0.35.1 — Asymmetric mixing, the enthalpy of a glass, and the heat of a blend from its first day
+
+The solid solutions gain the Redlich-Kister series of any number of
+end-members and the asymmetric formalism of Holland and Powell, and the binary
+scan reads the energy of any model; a concave binary's witness and split starts
+were mirrored and are not. A glass known by its oxides gets an enthalpy, built
+from the six silicate glasses whose enthalpy of vitrification is measured, so
+that the heat of a paste can count its unreacted slag; on the slag-limestone
+cement of Snellings et al. (2022) the heat computed from the measured degrees
+of reaction follows the calorimetry from the first day to the fourth week once
+the progress is the one the thermogravimetry gives. The theory is read against
+Richet (2001), corrected where it was wrong and completed where it was short,
+and the documentation cites every author it names and judges none.
 
 ### Added
 
@@ -116,12 +128,20 @@
   the single-ion activity coefficients, the phase rule under partial
   equilibrium, the fictive temperature of a glass and the reading of a
   half-reaction constant are stated with the book's sections and pages cited.
-- **Every mention of an author is a citation.** Names given in plain text in
-  the theory, Powers, Kulik, Helffrich and Wood, Redlich and Kister, Holland and
-  Powell, Kolani, Peng and Robinson among them, are now links to the
-  bibliography, which gains Helgeson and Kirkham (1974) and Harvie, Møller and
-  Weare (1984), both checked on Crossref; a value the documentation could not
-  trace to a source is no longer quoted.
+- **Every mention of an author is a citation, and no sentence judges one.**
+  Over the pages, the README and the rendered docstrings, the authors named in
+  plain text, the publications referred to as "the paper" or "their Table 3",
+  and the models, databases and codes at their first use on a page are now links
+  to the bibliography, with the table, figure or equation meant; the README
+  links to the DOIs. The bibliography gains Helgeson and Kirkham (1974) and
+  Harvie, Møller and Weare (1984), both checked on Crossref. Wordings that
+  called a source weak, self-contradictory, mislabeled or not usable, that said
+  nobody had measured a quantity, or that set the package against another code,
+  now state what the source gives and how it is used. A degree of hydration
+  quoted as what "the literature reports", for which no source was found, is no
+  longer quoted, in the documentation nor in the deprecation warning of
+  `parrott_killoh`; the humidity factor is cited from Lavergne et al. (2018,
+  Eq. 10), the form the code follows.
 
 ## v0.35.0 — The glasses of supplementary materials, the products of the alkali-silica reaction, asymmetric solid solutions
 
