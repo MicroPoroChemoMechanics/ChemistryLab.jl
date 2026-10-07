@@ -53,15 +53,14 @@ plus ``s_{ox}`` moles of oxide that no measured glass takes,
 \qquad \nu_k \ge 0,\quad s_{ox} \ge 0 ,
 ```
 
-``a_{k,ox}`` the moles of oxide ``ox`` in one formula of glass ``k``. The glasses
-are mixed ideally, with no enthalpy of mixing, and the oxide left over is
-counted as its crystal, with an enthalpy of vitrification of zero: the first
-assumption of the construction, the second being ideal mixing. The ``\nu_k``
-are chosen to leave as little as possible to the second assumption, that is to
-minimize ``\sum_{ox} s_{ox}``. This is a linear program with four equations;
-its solutions are among the vertices of the polytope, the choices of four
-columns whose square system has a non-negative solution, and with ten columns
-there are 210 to try.
+``a_{k,ox}`` the moles of oxide ``ox`` in one formula of glass ``k``. Two
+assumptions are made. The glasses are mixed ideally, with no enthalpy of
+mixing. And the oxide left over is counted as its crystal, with an enthalpy of
+vitrification of zero. The ``\nu_k`` are chosen to leave as little as possible
+to the second, that is to minimize ``\sum_{ox} s_{ox}``. This is a linear
+program with four equations; its solutions are among the vertices of the
+polytope, the choices of four columns whose square system has a non-negative
+solution, and with ten columns there are 210 to try.
 
 The enthalpy of formation of the glass is then
 
@@ -118,17 +117,18 @@ g = glass_enthalpy(Dict(ox => n * M(ox) / Mf for (ox, n) in mol))
 
 A span of 32 kJ per formula is large against the enthalpies of mixing measured
 between silicate glasses, which [RichetBottinga1986](@citet) find below about
-5 kJ/mol near 1000 K, and against which they warn that the fictive temperature
-of a glass, the temperature its structure was frozen at, moves its enthalpy by
-about 10 kJ/mol per 100 K for diopside and anorthite. The six measurements were
+5 kJ/mol near 1000 K. It is larger too than what they attribute to the fictive
+temperature of a glass, the temperature its structure was frozen at: an error
+of 100 K on it moves the enthalpy of a diopside or anorthite glass by about
+10 kJ/mol. The six measurements were
 made on glasses of different thermal histories, by several laboratories, over
 half a century: the span is the measure of how far they can be combined, and
 it is reported rather than hidden in the midpoint.
 
 ## 4. What a slag gets
 
-A blast-furnace slag is richer in lime than any measured glass: its alumina
-goes to gehlenite, its magnesia to akermanite, its remaining silica to
+A blast-furnace slag holds more lime than the measured glasses can take: its
+alumina goes to gehlenite, its magnesia to akermanite, its remaining silica to
 pseudowollastonite, and some lime is left over, which no combination can avoid,
 so the combination is unique and the span zero. For the slag of
 [Snellings2022](@citet):
