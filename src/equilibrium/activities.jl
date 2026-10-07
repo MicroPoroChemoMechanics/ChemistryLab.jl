@@ -1991,7 +1991,7 @@ function diffuse_layer_potential(
         m::DiffuseLayer, z::AbstractVector, n::AbstractVector, I::Real, T::Real
     )
     σ = _surface_charge_density(z, n, m.area)
-    κ = sqrt(8 * m.ε_r * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
+    κ = sqrt(8 * _permittivity(m, T) * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
     return 2 * asinh(σ / (κ * sqrt(max(I, eps(float(one(I)))))))
 end
 
@@ -2077,7 +2077,7 @@ function electrostatic_stiffness(
         m::DiffuseLayer, z::AbstractVector, n::AbstractVector, I::Real, T::Real
     )
     σ = _surface_charge_density(z, n, m.area)
-    κ = sqrt(8 * m.ε_r * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
+    κ = sqrt(8 * _permittivity(m, T) * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
     a = κ * sqrt(max(I, eps(float(one(I)))))
     u = σ / a
     return m.scale * sum(n) * 2 * FARADAY / (m.area * a * sqrt(1 + u^2))

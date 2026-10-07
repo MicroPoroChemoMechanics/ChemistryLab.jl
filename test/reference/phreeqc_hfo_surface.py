@@ -243,8 +243,14 @@ END
     emit("phreeqc_hfo_zn" + ("_ddl" if edl else ""), payload)
 
 
-def run_protolysis():
-    """The acid-base case: one family of weak sites, nothing else."""
+def fixture_name(base, temp):
+    """The fixture of a case: the 25 C one under its own name, another
+    temperature suffixed, so that adding one never replaces the other."""
+    return base if temp == 25.0 else f"{base}_{temp:g}C"
+
+
+def run_protolysis(temp=25.0):
+    """The acid-base case: one family of weak sites, nothing else, at `temp` (C)."""
     db = database_path(DATABASE)
     ip = VIPhreeqc()
     ip.load_database(db)
@@ -261,6 +267,7 @@ def run_protolysis():
         logK_protonation=logks["protonation"],
         logK_deprotonation=logks["deprotonation"],
         n_sites=SITES_PROTOLYSIS,
+        temperature_C=temp,
     )
     points = []
     for ph in PH_VALUES:
@@ -275,7 +282,7 @@ HCl
 END
 SOLUTION 1
     units    mol/kgw
-    temp     25.0
+    temp     {temp}
     water    1.0
     pH       7.0
     Na       0.01
@@ -310,13 +317,13 @@ END
         })
 
     payload["points"] = points
-    emit("phreeqc_protolysis", payload)
+    emit(fixture_name("phreeqc_protolysis", temp), payload)
 
 
 IONIC_STRENGTHS = [0.1, 0.01, 0.001]
 
 
-def run_diffuse_layer():
+def run_diffuse_layer(temp=25.0):
     """The acid-base case again, with the diffuse layer PHREEQC uses by default.
 
     Three background electrolyte levels rather than one, because the whole point
@@ -345,6 +352,7 @@ def run_diffuse_layer():
         n_sites=SITES_PROTOLYSIS,
         area=area,
         site_density_umol_per_m2=SITES_PROTOLYSIS / area * 1e6,
+        temperature_C=temp,
     )
     series = []
     for ionic in IONIC_STRENGTHS:
@@ -361,7 +369,7 @@ HCl
 END
 SOLUTION 1
     units    mol/kgw
-    temp     25.0
+    temp     {temp}
     water    1.0
     pH       7.0
     Na       {ionic}
@@ -399,7 +407,7 @@ END
         series.append({"nacl": ionic, "points": points})
 
     payload["series"] = series
-    emit("phreeqc_diffuse_layer", payload)
+    emit(fixture_name("phreeqc_diffuse_layer", temp), payload)
 
 
 if __name__ == "__main__":
@@ -415,10 +423,16 @@ if __name__ == "__main__":
         action="store_true",
         help="use the diffuse double layer instead of -no_edl (a different model)",
     )
+    parser.add_argument(
+        "--temp",
+        type=float,
+        default=25.0,
+        help="temperature of the protolysis cases, C (default 25; another one suffixes the fixture)",
+    )
     args = parser.parse_args()
     if args.case == "protolysis":
-        run_protolysis()
+        run_protolysis(args.temp)
     elif args.case == "protolysis-ddl":
-        run_diffuse_layer()
+        run_diffuse_layer(args.temp)
     else:
         run_zn_edge(args.edl)
