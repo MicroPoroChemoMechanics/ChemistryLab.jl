@@ -115,8 +115,12 @@ collapses to the form usually quoted:
 \ln\gamma_2 = \frac{W_{12}}{RT}x_1^2 .
 ```
 
-``W_{ij}`` (J/mol) is the energy of an ``i``–``j`` contact *relative to the
-average* of ``i``–``i`` and ``j``–``j``, so its sign is physical:
+In the picture of nearest neighbors behind the model, ``W_{ij}`` (J/mol) is the
+energy of an ``i``–``j`` contact less the mean of the ``i``–``i`` and ``j``–``j``
+contacts, counted over the contacts of a mole. Fitted to data, it often has to
+depend on temperature or pressure, and it then mixes enthalpy and entropy, but
+its sign keeps the sign of the departure from ideal mixing
+[Richet2001; Sec. 11.4b, pp. 262–263](@cite), and that sign is physical:
 
   - ``W_{ij} > 0`` — unlike neighbors are unfavorable. ``\gamma > 1``, the phase
     resists mixing, and above a threshold it unmixes;
@@ -194,6 +198,8 @@ temperature: the excess Gibbs energy is then all enthalpy, and the interaction
 it puts into ``\ln\gamma`` at another temperature is ``\alpha_k T_0/T``, 7 % larger at
 5 °C and 16 % smaller at 80 °C. Holding ``\alpha_k`` itself constant would make
 the excess all entropy and leave ``\ln\gamma`` the same at every temperature.
+The two limits have classical names, a *regular* solution for the first and an
+*athermal* one for the second [Richet2001; Secs. 11.4b and 11.5e, pp. 262 and 270](@cite).
 Neither choice is in the source, and no data in the package decides between
 them; the edges of a gap measured at two temperatures would. What the choice
 does to the gap of the AFm SO₄/OH binary, monosulfate and C₄AH₁₃, whose
@@ -276,25 +282,89 @@ asymmetric Redlich-Kister case without a separate derivation.
 
 ### The answer inside a gap is the common tangent
 
-Which pair? The two compositions ``x_\alpha < x_\beta`` at which the chemical
-potentials of *both* end-members agree:
+Which pair? Write ``g`` now for the molar Gibbs energy of the phase with its
+standard terms included,
 
 ```math
-\left.\frac{\mathrm{d}g}{\mathrm{d}x}\right|_{x_\alpha}
-  = \left.\frac{\mathrm{d}g}{\mathrm{d}x}\right|_{x_\beta}
-  = \frac{g(x_\beta) - g(x_\alpha)}{x_\beta - x_\alpha} ,
+g(x) = (1-x)\,\mu_A^\circ + x\,\mu_B^\circ + \Delta_{\text{mix}}g(x) ,
 ```
 
-which says geometrically that one straight line is tangent to the curve at both
-points — the **common tangent**. Between ``x_\alpha`` and ``x_\beta`` the
-equilibrium state is a mixture of the two, in the proportions the lever rule
-gives, and the energy follows the tangent line rather than the curve.
+``x`` the mole fraction of the end-member B and ``\Delta_{\text{mix}}g`` the
+energy of mixing above; the linear terms change neither the second derivative
+nor, as shown below, the pair. Let ``n`` moles of the phase, of overall composition
+``\bar{x}``, be shared between two parts ``\alpha`` and ``\beta`` holding
+``n_\alpha`` and ``n_\beta`` moles at compositions ``x_\alpha`` and ``x_\beta``.
+At fixed ``T`` and ``P`` the equilibrium minimizes
+
+```math
+G = n_\alpha\, g(x_\alpha) + n_\beta\, g(x_\beta)
+\quad\text{subject to}\quad
+n_\alpha + n_\beta = n , \qquad n_\alpha x_\alpha + n_\beta x_\beta = n\,\bar{x} ,
+```
+
+the conservation of the two end-members. With a multiplier ``\lambda_0`` for
+the first constraint and ``\lambda_1`` for the second, the Lagrangian is
+``\mathcal{L} = G - \lambda_0\,(n_\alpha + n_\beta - n) - \lambda_1\,(n_\alpha x_\alpha + n_\beta x_\beta - n\bar{x})``,
+and its stationarity with respect to the compositions and to the amounts, both
+parts being present (``n_\alpha, n_\beta > 0``), reads
+
+```math
+\frac{\partial\mathcal{L}}{\partial x_\varphi} = n_\varphi\,\bigl[g'(x_\varphi) - \lambda_1\bigr] = 0 ,
+\qquad
+\frac{\partial\mathcal{L}}{\partial n_\varphi} = g(x_\varphi) - \lambda_0 - \lambda_1 x_\varphi = 0 ,
+\qquad \varphi = \alpha, \beta .
+```
+
+The four equations say one thing: the straight line
+``\ell(x) = \lambda_0 + \lambda_1 x``
+passes through the curve at ``x_\alpha`` and at ``x_\beta`` and has the slope of
+the curve at both, so that it is tangent to ``g`` at the two compositions, the
+**common tangent**. Eliminating ``\lambda_0`` gives the two equations in two
+unknowns that [`common_tangent`](@ref) solves:
+
+```math
+g'(x_\alpha) = g'(x_\beta) = \frac{g(x_\beta) - g(x_\alpha)}{x_\beta - x_\alpha} .
+```
+
+The multipliers are chemical potentials. The tangent to ``g`` at a composition
+``x`` meets the vertical ``x = 0`` at ``g - x\,g'``, the chemical potential of
+A at that composition, and the vertical ``x = 1`` at ``g + (1-x)\,g'``, that of
+B, partial molar quantities being read as the intercepts of the tangent
+[Richet2001; Sec. 3.2c, Fig. 3.2, pp. 51–52](@cite). The stationarity
+therefore states that ``\mu_A = \lambda_0`` and ``\mu_B = \lambda_0 + \lambda_1``
+in both parts: each end-member has the same chemical potential in the two
+compositions, which is the condition of equilibrium between any two phases
+[Richet2001; Sec. 7.3, Fig. 7.5, pp. 167–169](@cite).
+
+Nothing requires the two points to be at the same height:
+``g(x_\beta) - g(x_\alpha) = \lambda_1 (x_\beta - x_\alpha)``, which vanishes
+only for a horizontal tangent, ``\lambda_1 = 0``, as for a symmetric mixing energy
+between end-members of equal standard potentials. Nor are they the minima of
+``g``, where ``g' = 0`` while here ``g' = \lambda_1``. A term linear in ``x``, as the
+standard potentials add, tilts the curve and its tangent alike and moves
+neither point: the pair depends on the mixing model only.
+
+What the split gains follows from the lever rule,
+``n_\alpha = n\,(x_\beta - \bar{x})/(x_\beta - x_\alpha)``: the Gibbs energy of
+the two parts is ``G = n\,\ell(\bar{x})``, the height of the tangent at
+``\bar{x}``, below the ``n\,g(\bar{x})`` of a single composition wherever the
+curve rises above its tangent. Between ``x_\alpha`` and ``x_\beta`` the
+equilibrium is this mixture, and the energy follows the tangent rather than the
+curve. Stationarity alone does not select it, however: a single composition,
+``x_\alpha = x_\beta = \bar{x}``, satisfies the same equations with the tangent
+drawn at ``\bar{x}``. What separates the two is a condition on the whole curve,
+that it lie nowhere below the line, which is the tangent-plane test of
+[Michelsen1982](@citet), the subject of a subsection below.
 
 The common tangent construction is wider than the spinodal: the *binodal*
 ``[x_\alpha, x_\beta]`` contains the spinodal, and between the two the phase is
-metastable rather than unstable. A minimization sees only the tangent.
+metastable rather than unstable. Inside the spinodal any small fluctuation of
+composition lowers ``G`` and grows by itself; between the spinodal and the
+binodal every small fluctuation raises it, and the phase splits only through a
+nucleus large enough to pay for its interface
+[Richet2001; Sec. 7.3c, p. 170](@cite). A minimization sees only the tangent.
 
-![Left: a Gibbs energy with two wells, the spinodal shaded between its inflection points, and the common tangent touching the curve at two compositions. Right: a composition inside the gap, which costs more as one phase than the same matter split into the two compositions of the tangent; the phase is then held twice, one instance at each.](../assets/theory/miscibility_gap_instances.svg)
+![Left: the molar Gibbs energy of an asymmetric binary, tilted by the standard potentials of its end-members, with two wells, the spinodal shaded between its inflection points, and the common tangent touching the curve at two compositions and two heights; extended to x = 0 and x = 1, the tangent marks the chemical potentials of A and B. Right: a composition inside the gap, which costs more as one phase than the same matter split into the two compositions of the tangent; the phase is then held twice, one instance at each.](../assets/theory/miscibility_gap_instances.svg)
 
 The right panel states the difficulty the rest of this section resolves: inside
 the gap the equilibrium holds the phase at two compositions at once, in the
@@ -314,7 +384,10 @@ The construction is that of [GlynnReardon1990](@citet) for binary solid
 solutions, which PHREEQC uses as well. It was validated here against a case
 with a closed form: for a symmetric model the pair must be symmetric about
 ``x = 1/2``, and it comes out at ``(0.070720,\ 0.929280)`` with a residual of
-``2.3\times10^{-13}`` and the symmetry exact to the last bit.
+``2.3\times10^{-13}`` and the symmetry exact to the last bit. For a symmetric
+regular model the pair has a closed form,
+``W/RT = \ln[(1-x)/x]/(1-2x)`` [Richet2001; Sec. 10.4b, Eq. (10.29), p. 230](@cite),
+which these two compositions satisfy with ``W = 3RT`` to the six figures given.
 
 [`miscibility_split`](@ref) then applies the lever rule. Inside the gap the two
 **compositions are fixed** and only their proportions move with the overall
@@ -445,7 +518,8 @@ configurational Gibbs energy is the ideal one of each site:
 
 The implication is ``\partial(n\,G^{\text{mix}}/RT)/\partial n_k``, exact because
 every end-member fills every site once. One site counted once is section 1 again.
-The papers write the same model as a *fictive activity coefficient*
+[Kulik2011](@citet) and [Myers2014](@citet) write the same model as a
+*fictive activity coefficient*
 ``\lambda_k = a_k/x_k``, which is what [`excess_ln_gamma_expression`](@ref)
 returns for this model.
 
@@ -462,7 +536,8 @@ csh3t.multiplicity
 ```
 
 `sublattice_model` finds that factor itself, by comparing each record's formula
-with the one the paper prints, and refuses a record that is not such a multiple.
+with the one [Kulik2011](@citet) prints, and refuses a record that is not such
+a multiple.
 At ``\mathbf{x} = (0.2, 0.5, 0.3)`` the first site holds Si only through TobH, the second
 through TobH and T5C:
 
@@ -515,7 +590,7 @@ the inequality a pure phase obeys (OptimaSolver's `SolutionPhase`, keywords
 with that phase mixing its end-members ideally, and the answer is the start of
 the sublattice solve.
 
-`data/solid_solutions.toml` ships `CNASH_ss` as Myers' model and `CSH3T` as
+`data/solid_solutions.toml` ships `CNASH_ss` as the model of [Myers2014](@citet) and `CSH3T` as
 Cemdata18 ships it, ideal between end-members; `sublattice_model("Kulik2011:csh3t",
 members)` gives the site form.
 
@@ -551,8 +626,8 @@ G = \underbrace{\sum_j G^\circ_j \prod_s y_{s,j_s}}_{G_\text{ref}}
 The first term, the *reference surface*, equals ``G^\circ_j`` at compound ``j``
 and is linear in the fractions of each site, so a reaction between compounds that
 changes no site fraction keeps its energy. The last term is a regular interaction
-between two species of one site (Berman's symmetric form, with the parameters
-``W`` of the paper). ``G`` depends on the site fractions alone.
+between two species of one site, symmetric, with the parameters ``W`` of
+[Kulik2022](@citet). ``G`` depends on the site fractions alone.
 
 **The activities.** With ``y_{s,i} = n_{s,i}/n``, the chemical potential of
 member ``k`` is ``\mu_k = \partial(nG)/\partial n_k``. For a function of the site
@@ -671,11 +746,12 @@ G^{\text{ex}} = \sum_{i<j} x_i x_j \Bigl\{ W_{ij}\Bigl[x_j + \tfrac12 \sum_{k\ne
 On the edge ``i``–``j`` the bracket sums vanish and the excess is
 ``x_i x_j (W_{ij} x_j + W_{ji} x_i)``: ``W_{ij}`` is ``RT\ln\gamma_i`` at infinite
 dilution of ``i`` in ``j``, and ``W_{ji}`` the converse. The ternary coefficients
-``W_{ijk}`` are a separate measurement. Helffrich and Wood show that the binaries
+``W_{ijk}`` are a separate measurement. [HelffrichWood1989](@citet) show that the binaries
 do not determine them, even when every binary is symmetric, and that no
 coefficient of higher order appears.
 
-The paper gives the activity coefficients (its Eq. 6′) without the intermediate
+[HelffrichWood1989](@citet) give the activity coefficients (their Eq. 6′)
+without the intermediate
 steps. They are short once the excess is written on the simplex, where
 ``\sum_{k\neq i,j} x_k = 1 - x_i - x_j``. The bracket of a pair is then
 
@@ -721,8 +797,8 @@ three times itself. Collecting, with every coefficient divided by ``RT``,
 with ``b_{kj} = (W_{jk} - W_{kj})/2``, which is
 `_excess_ln_gamma(::SubregularSolutionModel, …)` term by term. Setting
 ``W_{ij} = W_{ji}`` and every ``W_{ijk}`` to zero leaves the regular model of
-section 3, ``b = 0``. The test suite checks this expression against Eq. (6′) of
-the paper, for each end-member of a quaternary with its twelve binary and four
+section 3, ``b = 0``. The test suite checks this expression against
+[HelffrichWood1989; Eq. 6′](@cite), for each end-member of a quaternary with its twelve binary and four
 ternary coefficients, and Gibbs–Duhem and ``\sum_k x_k \ln\gamma_k = g`` as
 identities.
 
@@ -740,12 +816,13 @@ product of the three (their Eqs. 17 and 18):
 ```
 
 The order of a pair matters for its odd terms, which change sign with it, and
-the order of a triple for ``D_1`` and ``D_2``. Beyond three components the paper
-adds the further pairs and triples and a term in four mole fractions, which it
+the order of a triple for ``D_1`` and ``D_2``. Beyond three components
+[RedlichKister1948](@citet) add the further pairs and triples and a term in four mole fractions, which it
 does not write out and which is not implemented. Its coefficients are in units
 of ``2.303\,RT``, the paper working with decimal logarithms.
 
-The activity coefficients follow from the paper's Eq. (14), the partial molar
+The activity coefficients follow from Eq. (14) of [RedlichKister1948](@citet),
+the partial molar
 derivative written in mole fractions, which is the formula of the subregular
 model above. For a pair, with ``d = x_i - x_j``, ``S = \sum_k L_k d^k`` and
 ``S' = \sum_k k L_k d^{k-1}``, the term ``t = x_i x_j S`` has
@@ -776,18 +853,18 @@ and for a triple, with ``U = C + D_1(x_j - x_l) + D_2(x_l - x_i)``, the term
 terms that contain it, which is `_excess_ln_gamma(::MulticomponentRedlichKisterModel, …)`.
 Two end-members give the model of section 4 with ``a_k = L_k``. To the first
 order the series is the subregular model above, with
-``L_0 = (W_{ij} + W_{ji})/2`` and ``L_1 = (W_{ji} - W_{ij})/2``: Redlich and
-Kister call the first-order binary "the equation of Margules", and the
+``L_0 = (W_{ij} + W_{ji})/2`` and ``L_1 = (W_{ji} - W_{ij})/2``: [RedlichKister1948](@citet)
+call the first-order binary "the equation of Margules", and the
 subregular section shows why the ternary extensions coincide.
 
-The paper also prints the ratio of two activity coefficients in a ternary (its
-Eq. 19). Its term in ``C_{12}``, ``C_{12}[3(x_1 - x_2)^2 - 1]/2``, is the value
+[RedlichKister1948](@citet) also give the ratio of two activity coefficients in
+a ternary (their Eq. 19). Its term in ``C_{12}``, ``C_{12}[3(x_1 - x_2)^2 - 1]/2``, is the value
 on the binary: in the ternary, Eq. (14) gives ``C_{12}[(x_1 - x_2)^2 - 2x_1x_2]``,
 which is that plus ``C_{12}\,x_3(2 - x_3)/2``. Every other term of Eq. (19)
 agrees with Eq. (14). The implementation follows Eq. (14), and the test suite
 checks it against the paper's worked ternary, heptane, methanol and toluene with
 the coefficients of its Eq. (21) and the association of methanol left out,
-through its Eqs. (22) and (23) as printed.
+through its Eqs. (22) and (23).
 
 ### Unequal sizes: `VanLaarModel`
 
@@ -802,15 +879,16 @@ B_{ij} = \frac{2 \sum_l \alpha_l x_l}{\alpha_i + \alpha_j}\, W_{ij} .
 ```
 
 Only the ratios of the sizes matter. Equal sizes give back the regular model of
-section 3, which the paper calls the symmetric formalism, and two end-members
+section 3, which [HollandPowell2003](@citet) call the symmetric
+formalism, and two end-members
 give the van Laar binary, asymmetric as soon as the sizes differ. The papers
 that fit ``W_{ij}`` and ``\alpha_i`` often make them depend on temperature and
 pressure; the model takes their values at the conditions of the calculation.
 
-The paper writes the activity coefficients (its Eq. 2) with interactions
-rescaled by the size of the end-member considered,
-``W^*_{ij} = 2\alpha_k W_{ij}/(\alpha_i + \alpha_j)``; its double sum is printed
-over ``j > 1`` and runs over ``j > i``, as the excess energy shows. A shorter
+[HollandPowell2003](@citet) write the activity coefficients (their Eq. 2) with
+interactions rescaled by the size of the end-member considered,
+``W^*_{ij} = 2\alpha_k W_{ij}/(\alpha_i + \alpha_j)``, their double sum running over
+``j > i``, the range the excess energy implies. A shorter
 route goes through the excess itself. Substituting ``\varphi``,
 
 ```math
@@ -834,7 +912,8 @@ RT \ln\gamma_k = \frac{\partial}{\partial n_k}\frac{Q(\mathbf{n})}{A(\mathbf{n})
 
 which is `_excess_ln_gamma(::VanLaarModel, …)`. With equal sizes ``\alpha``,
 ``w_{ij} = \alpha W_{ij}`` and ``A = \alpha``, and the regular expression of
-section 3 comes back; for a binary it is the paper's Eqs. (4) and (5),
+section 3 comes back; for a binary it is Eqs. (4) and (5) of
+[HollandPowell2003](@citet),
 ``RT\ln\gamma_1 = 2\alpha_1/(\alpha_1 + \alpha_2)\,\varphi_2^2 W_{12}``. The test
 suite checks it against those equations for the alkali feldspar of the paper,
 against its Eq. (13) for calcite, magnesite and dolomite, with the paper's
