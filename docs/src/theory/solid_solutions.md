@@ -301,7 +301,7 @@ the gap the equilibrium holds the phase at two compositions at once, in the
 proportions of the lever rule, which a formulation carrying one amount per
 end-member has no means to express.
 
-### Computing the pair: what PHREEQC does, and what it costs
+### Computing the pair from the model alone
 
 The pair is not found by minimizing. It is **computed from the model alone**, by
 [`common_tangent`](@ref): two equations in two unknowns, solved by Newton with
@@ -310,38 +310,16 @@ system enters — not the aqueous solution, not the other phases, not the elemen
 budget — which is why it costs microseconds and can be used as the starting point
 of a full equilibrium rather than as its result.
 
-This is the construction PHREEQC uses for binary solid solutions, after
-[GlynnReardon1990](@cite). It was validated here against a case with a closed
-form: for a symmetric model the pair must be symmetric about ``x = 1/2``, and it
-comes out at ``(0.070720,\ 0.929280)`` with a residual of ``2.3\times10^{-13}``
-and the symmetry exact to the last bit.
+The construction is that of [GlynnReardon1990](@citet) for binary solid
+solutions, which PHREEQC uses as well. It was validated here against a case
+with a closed form: for a symmetric model the pair must be symmetric about
+``x = 1/2``, and it comes out at ``(0.070720,\ 0.929280)`` with a residual of
+``2.3\times10^{-13}`` and the symmetry exact to the last bit.
 
 [`miscibility_split`](@ref) then applies the lever rule. Inside the gap the two
 **compositions are fixed** and only their proportions move with the overall
 composition — which is what makes a miscibility gap flat in a phase diagram, and
 what a single-composition answer cannot reproduce at any resolution.
-
-!!! note "Where the three codes agree, and where this one adds a step"
-    The criterion is the **same object** in GEM-Selektor and here, arrived at
-    independently from the same KKT conditions — its phase stability index
-    ``\Lambda_k = \log_{10}\Omega_k`` is term for term what `phase_split_measure`
-    computes [Kulik2013](@cite). The *construction* of the pair is PHREEQC's,
-    after [GlynnReardon1990](@citet). Neither this package nor the others invented either.
-
-    What differs is only where the duplication comes from. GEM-Selektor's users
-    get the right answer inside a gap because CEMDATA18 ships the AFm and AFt
-    binaries under two names each, so the declaration is already doubled in the
-    database; here it is asked for by a keyword. Both are sound, and the database
-    route has the advantage of being the published one.
-
-    The step this package adds is the **refusal**: `SolidSolutionPhase` evaluates
-    the second derivative at construction and declines a model that unmixes,
-    naming the interval — and `OptimaSolver`'s certificate applies the
-    tangent-plane test to phases that are **present**, not only to absent ones.
-    Assuming convexity and leaving the duplication to the caller is a reasonable
-    design for a general-purpose code; checking it is worth the few lines here,
-    because a phase sitting inside its own spinodal otherwise certifies on the
-    stationarity of its members alone and says nothing.
 
 ### Why a formulation with one amount per species cannot hold it
 
@@ -392,32 +370,32 @@ mole-fraction phase and folds the result into the certificate. Concretely:
 `check_convexity = false` stops being a silent loss of the proof — a concave
 declaration that does unmix now fails to certify, with the phase named.
 
-### The same criterion, in another code
+### A second composition, declared or added when needed
 
-GEM-Selektor's `PhaseSelection` computes, for every phase, a stability index
+The certificate's measure of a phase is the sum over its members of their
+activities from the **dual** solution divided by their activity coefficients
+from the **primal** one, an estimate of the mole fraction the phase would take:
 
 ```math
-\Lambda_k = \log_{10}\Omega_k , \qquad
 \Omega_k = \sum_{j\in l_k}\pi_j , \qquad
-\pi_j = \frac{\omega_j(\hat{\mathbf{u}})}{\gamma_j(\hat{\mathbf{n}})} ,
+\pi_j = \frac{\omega_j(\hat{\mathbf{u}})}{\gamma_j(\hat{\mathbf{n}})} .
 ```
 
-the activity from the **dual** solution divided by the activity coefficient from
-the **primal** one — an estimate of the mole fraction. That is term for term what
-this package computes, in `_repair_start`'s ``\Omega = \sum_i 10^{SI_i}`` (the
-ideal case ``\gamma = 1``) and in `phase_split_measure`'s log-sum-exp of
-``d_j = u_i - g_i - \ln\gamma_i``. The GEMS3K paper calls ``\Omega_k``
-*"a generalization of the saturation index"* and notes that it derives from the
-KKT conditions [Kulik2013](@cite).
+It is the phase stability index ``\Lambda_k = \log_{10}\Omega_k`` of
+[Kulik2013](@citet), who derive it from the same KKT conditions and call
+``\Omega_k`` *"a generalization of the saturation index"*. The package
+evaluates it in two places: as ``\Omega = \sum_i 10^{SI_i}`` (the ideal case,
+``\gamma = 1``) when it repairs a start, and through the log-sum-exp of
+``d_j = u_i - g_i - \ln\gamma_i`` in `phase_split_measure`.
 
-So the criterion is one object, arrived at independently. What differs is the
-declaration. CEMDATA18 ships the AFm and AFt binaries under two names each, so a
-GEMS user represents a gap by declaring the binary twice in the database;
-`instances = 2` asks for the same thing with a keyword. `instances = :auto` asks
-for less: the phase is solved with one composition, and a second instance is added
-only when the certificate finds it wanting to split. On a binary whose overall
-composition the element budget holds inside the gap, calcite and magnesite in
-equal amounts, that finds the common-tangent pair:
+Holding a gap takes the phase twice. Cemdata18 ships the AFm and AFt binaries
+under two names each, so that the database itself declares each binary twice;
+`instances = 2` declares the second composition with a keyword.
+`instances = :auto` asks for less: the phase is solved with one composition,
+and a second instance is added only when the certificate finds it wanting to
+split. On a binary whose overall composition the element budget holds inside
+the gap, calcite and magnesite in equal amounts, that finds the common-tangent
+pair:
 
 ```@example split
 using ChemistryLab, DynamicQuantities, Printf

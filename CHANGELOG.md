@@ -74,6 +74,22 @@
   `examples/miscibility_gap.md` was labeled with the sulfate end-member; it is
   the fraction of C4AH13, the first one.
 
+### Documentation
+
+- **The gases and the pressure of the condensed phases on their own pages.**
+  The theory page *Real gases and pressure* held the equation of state of
+  water and the domain of the HKF equations as well as the gas; it is now
+  *Real gases*, and the solvent from 0 to 1000 °C and up to 5000 bar and the
+  density below which the HKF equations are refused join the minerals and the
+  solutes in *Thermochemistry*, §3, where each model of the standard
+  functions is stated, beside the volume term of *Standard states*, §1. That
+  section said the solvent was extrapolated from its heat capacity at 25 °C,
+  which it has not been since 0.34.0.
+- The theory of the solid solutions and the miscibility-gap page state what
+  the package computes and cite where each construction comes from (Glynn and
+  Reardon 1990 for the common tangent, Kulik et al. 2013 for the phase
+  stability index), instead of setting it side by side with other codes.
+
 ## v0.35.0 — The glasses of supplementary materials, the products of the alkali-silica reaction, asymmetric solid solutions
 
 The glass of a slag, a fly ash or a silica fume dissolves at pH 13 at the rate
