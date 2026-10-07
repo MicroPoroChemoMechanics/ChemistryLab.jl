@@ -24,6 +24,25 @@
 - A binary of a model without the three-coefficient Redlich-Kister form is
   scanned for a spinodal, and given its common tangent, from its excess energy
   `Σ xₖ ln γₖ`.
+- **The enthalpy of a glass known by its oxides**, `glass_enthalpy(oxides; T,
+  reference, ignore)`: the enthalpy of formation, per gram, of the glass of a
+  slag or a fly ash, which a heat needs for its unreacted part and which no
+  database holds. It is built from the six silicate glasses whose enthalpy of
+  vitrification is measured at 298 K (gehlenite, akermanite,
+  pseudowollastonite, anorthite, diopside, silica; Richet and Bottinga 1984,
+  1986; Navrotsky et al. 1980), mixed ideally, the combination chosen to leave
+  the least oxide outside them, and the formation of the crystals from their
+  oxides taken within one database. What it assumes is returned with it: the
+  oxide no measured glass takes (a slag holds more lime than they can), the
+  other oxides counted as crystals, and the span between the combinations that
+  ideal mixing cannot reconcile, which reaches 32 kJ per Ca3MgAl2Si4O15 and is
+  zero for a slag. The slag of Snellings et al. (2022) gets about 160 J/g of
+  vitrification, uncertain by 6 J/g. `glass_heat_capacity(oxides; T)` is the
+  additive heat capacity of Richet (1987), checked against his five measured
+  glasses within 1 %. The theory is a new page, *The enthalpy of a glass*.
+- **The measured thermochemistry of silicate glasses**, transcribed: Richet
+  (1987, Tables I and A-I), Richet and Bottinga (1986, Table A1; 1984,
+  Table 6) and Navrotsky et al. (1980, Table 3).
 
 ### Fixed
 

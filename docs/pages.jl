@@ -99,6 +99,9 @@ pages = [
             # From materials, masses and degrees of reaction to the budget the
             # minimization conserves, and what is kept out of it.
             "theory/recipe_bookkeeping.md",
+            # The enthalpy of a glass that has no formula, from measured
+            # silicate glasses, for the heat of a blend.
+            "theory/glass_thermochemistry.md",
         ],
     ],
     "Manual" => [

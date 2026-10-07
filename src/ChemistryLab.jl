@@ -118,6 +118,7 @@ module ChemistryLab
     include("chemical_structs/solid_solutions.jl")
     include("chemical_structs/sublattice.jl")
     include("chemical_structs/oxide_budget.jl")
+    include("chemical_structs/glass_thermochemistry.jl")
     include("chemical_structs/reactions.jl")
     include("chemical_structs/speciation.jl")
     include("chemical_structs/stoich_matrices.jl")
@@ -458,6 +459,8 @@ module ChemistryLab
         oxide_budget,
         glass_species,
         cation_molar_mass,
+        glass_enthalpy,
+        glass_heat_capacity,
         primary_decomposition,
         get_compatible_species,
         HKF_SI_CONVERSIONS

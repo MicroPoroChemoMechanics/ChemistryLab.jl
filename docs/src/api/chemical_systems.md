@@ -43,6 +43,16 @@ Modules = [ChemistryLab]
 Pages = ["chemical_structs/oxide_budget.jl"]
 ```
 
+## The enthalpy and heat capacity of a glass
+
+Built from measured silicate glasses; the construction and what it assumes are
+in [The enthalpy of a glass](@ref sec-theory-glass).
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages = ["chemical_structs/glass_thermochemistry.jl"]
+```
+
 ## Loss on ignition
 
 What a solid assemblage would lose on heating, from the formulas its phases
