@@ -10,9 +10,9 @@ hydrated 10 g of C₃A with portlandite and calcite in the proportions of these
 phases, 28 days at 20 °C, replacing portlandite by calcite from one sample to
 the next, with ζ the molar fraction of calcium carbonate among the two; they
 published with their data set [Georget2021data](@cite) the same series computed
-with GEMS and Cemdata18 in 101 steps. This page computes those steps, the water
-of the GEMS run being unstated and taken at the 2.7 times the solids of the
-experiments.
+with GEMS [Kulik2013](@cite) and Cemdata18 [Lothenbach2019](@cite) in 101 steps.
+This page computes those steps, the water of the GEMS run, not given with the
+data set, taken at 2.7 times the solids of the experiments.
 
 ```@example hemicarbonate
 using ChemistryLab, DynamicQuantities, Printf
@@ -53,4 +53,4 @@ end
 The phases are those the samples held, but for the calcite found beside
 monocarbonate and hemicarbonate at ζ = 0.75, which the equilibrium has not yet
 formed there. The pH is 0.05 to 0.1 below both: the sodium the calcium
-carbonate brought, which no one measured, is not in this calculation.
+carbonate brought, which was not measured, is not in this calculation.

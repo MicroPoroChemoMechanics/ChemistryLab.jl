@@ -126,12 +126,12 @@ is exactly the ordering of the replacement:
 
 Measured on one instrument at 20 °C, from the CC-BY-4.0 deposit of Šmilauer and
 Reiterman [Smilauer2025data](@cite); see `data/experimental/README.md` for the
-full provenance and for one inconsistency found in the source metadata.
+full provenance and for a note on the source metadata.
 
 !!! danger "What these records do **not** report"
-    The deposit gives the calorimetry, the Blaine fineness and the water/binder
-    ratio. It gives **neither the clinker phase composition nor the actual
-    replacement level** of any blend.
+    The deposit [Smilauer2025data](@cite) gives the calorimetry, the Blaine
+    fineness and the water/binder ratio. It gives **neither the clinker phase
+    composition nor the actual replacement level** of any blend.
 
     So a calculation of one of these cements has to *assume* a composition
     inside the EN 197-1 range of its family. Every page that does so says which
@@ -171,8 +171,8 @@ certified assemblage out, measured calorimetry beside it:
 | [CEM V/A (S-V): a composite binder, two glasses at once](@ref ex-cem5-composite) | CEM V | all four difficulties simultaneously, on one additive budget |
 
 The CEM IV page is the one without a measured specimen behind it — the deposit
-carries no record of that family — and it says so at its head rather than in a
-footnote.
+[Smilauer2025data](@cite) carries no record of that family — and it says so at
+its head rather than in a footnote.
 
 ## Where to go next
 

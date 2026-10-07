@@ -6,9 +6,11 @@
 
 The AFm and AFt phases of a Portland cement are binaries — sulfate against
 hydroxide, sulfate against carbonate — and the Redlich-Kister parameters
-published for them in Cemdata18 [Lothenbach2019](@cite) are strong enough that the mixing energy is **concave over an
-interval**. Where an energy is concave the Gibbs minimum is not one composition
-but two: the phase unmixes, and the equilibrium is a **miscibility gap**.
+[RedlichKister1948](@cite) published for them in Cemdata18
+[Lothenbach2019](@cite) are strong enough that the mixing energy is **concave
+over an interval**. Where an energy is concave the Gibbs minimum is not one
+composition but two: the phase unmixes, and the equilibrium is a **miscibility
+gap**.
 
 This page runs the same cement three ways on the AFm sulfate/hydroxide binary,
 because the three are genuinely different claims:
@@ -100,7 +102,7 @@ gap = spinodal_interval(afm, 2)
 
 fig = plot(xs, [g(afm, x) for x in xs]; label = "published Redlich-Kister",
            color = :firebrick, linewidth = 2,
-           xlabel = "x (sulfate end-member)", ylabel = "g / RT",
+           xlabel = "x (C4AH13, the first end-member)", ylabel = "g / RT",
            title = "The mixing energy of the AFm sulfate/hydroxide binary",
            size = (760, 420), bottom_margin = 8Plots.mm, left_margin = 8Plots.mm)
 plot!(fig, xs, [g(IdealSolidSolutionModel(), x) for x in xs];
@@ -254,9 +256,9 @@ asks for it.
 
 The two compositions are not unknown. They follow from the mixing model alone,
 by the construction [GlynnReardon1990](@citet) set out and that
-PHREEQC uses for a binary solid solution: the pair at which a single straight
-line is tangent to ``g`` twice, equivalently at which both end-members have equal
-chemical potentials in the two phases.
+PHREEQC [ParkhurstAppelo2013](@cite) uses for a binary solid solution: the pair
+at which a single straight line is tangent to ``g`` twice, equivalently at which
+both end-members have equal chemical potentials in the two phases.
 
 ```@example gap
 ct = common_tangent(published, 2)
@@ -332,9 +334,7 @@ the aqueous equilibrium decides. This paste's lies outside the gap. Where one
 falls inside, `instances = :auto` gives the phase its second instance and the
 split passes look for the pair, with the aqueous solution iterated along; the
 theory chapter runs that on a binary its element budget holds in the gap
-([Solid solutions](@ref sec-theory-solid-solutions), section 6). PHREEQC, for its
-part, treats a binary solid solution with a dedicated construction rather than
-the global minimization.
+([Solid solutions](@ref sec-theory-solid-solutions), section 6).
 
 !!! info "Where this leaves the three questions"
     | | |
@@ -348,10 +348,6 @@ the global minimization.
     The first four are what a user needs to answer "is this phase homogeneous,
     and if not, into what?". The last is the coupling with the rest of the
     paste.
-
-    In GEM-Selektor and Reaktoro the second declaration is the user's, and
-    PHREEQC draws the same line: it treats a binary solid solution with a
-    dedicated construction rather than handing it to the global minimization.
 
     Stated plainly because a reader deciding whether to trust a number here
     deserves to know which of these five they are relying on.
@@ -402,22 +398,6 @@ that nothing needs, is the one the search cannot close.
     tangent-plane test, which is exactly the condition that separates a
     one-composition minimum from a spurious stationary point; its scope does not
     claim a global minimum.
-
-## 5. How other codes represent the same thing
-
-GEM-Selektor computes the same criterion — its phase stability index
-``Λ_k = \log_{10} Ω_k`` is, term for term, the quantity this package's `Ω` and
-`phase_split_measure` compute, derived independently from the same KKT conditions
-[Kulik2013](@cite). Where the two differ is not detection but **declaration**:
-CEMDATA18 ships the AFm and AFt binaries under two names each, so a GEMS user
-represents a gap by declaring the binary twice, in the database. `instances = 2`
-is the same representation asked for by a keyword instead.
-
-A GEMS user gets the right answer because the database ships the binary twice
-and the solver is handed two declarations to populate. Here `instances = :auto`
-lets the certificate decide: a phase is given its second instance when the
-stability test finds it wanting to split, and the split passes then look for the
-pair ([Solid solutions](@ref sec-theory-solid-solutions), section 6).
 
 ## Where to go next
 

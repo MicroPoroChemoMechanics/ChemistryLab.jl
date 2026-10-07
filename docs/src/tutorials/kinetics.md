@@ -222,7 +222,7 @@ you wrote, not of the reconstruction; check it with `maximum(abs, A * ν')`.
 
 [`volume_fractions`](@ref) turns a state into the input a mean-field
 homogenization scheme consumes, using the standard molar volumes `V⁰` that
-CEMDATA18 supplies for every cement phase.
+CEMDATA18 [Lothenbach2019](@cite) supplies for every cement phase.
 
 ```julia
 groups = [

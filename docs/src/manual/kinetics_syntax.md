@@ -691,8 +691,8 @@ C₂S has no nucleation–growth stage and C₃S no diffusion-controlled stage.
 nucleation–growth term carries no Avrami logarithm, `K₃` sits where the canonical
 form has `k₂`, `N₁ = 3.3` is the canonical `n₃`, and `k₃ = 1.1` has no counterpart
 at all — so the two are different models, not two parameterizations of one. The
-primary source (*British Ceramic Proceedings* **35**, 41–53, 1984) has no DOI and
-could not be consulted, so the smoothed variant is not attributed to it. With
+primary source, [ParrottKilloh1984](@citet), has no DOI and could not be
+consulted, so the smoothed variant is not attributed to it. With
 `PK_PARAMS_*` the diffusion branch takes over at α ≈ 0.003 (C₂S), 0.013 (C₃S) and
 0.057 (C₃A); those three then follow the closed form
 `α(t) = α_max·[1 − (1 − √(2·K₃·t / N₃))³]`, giving **α(7 d) = 0.2386 for all
@@ -724,9 +724,9 @@ Supplementary cementitious materials do not follow the law of
 [ParrottKilloh1984](@citet) at all. Their
 pozzolanic or latent-hydraulic reaction follows [`waller`](@ref), a sigmoid in
 log-time, with [`WALLER_PARAMS_FLY_ASH`](@ref) or [`WALLER_PARAMS_SILICA_FUME`](@ref).
-No set is shipped for a slag: the 100-day time this package attributed to Waller
-(1999) is not in the thesis, so a slag's characteristic time is the caller's, with
-its source, `merge(WALLER_PARAMS_FLY_ASH, (τ = τ_slag,))`.
+No set is shipped for a slag: the 100-day time this package attributed to
+[Waller1999](@citet) is not in that thesis, so a slag's characteristic time is
+the caller's, with its source, `merge(WALLER_PARAMS_FLY_ASH, (τ = τ_slag,))`.
 
 ## [Rate laws that depend on a consumed reactant](@id kinetics-frozen-species)
 

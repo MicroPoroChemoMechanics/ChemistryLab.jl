@@ -31,9 +31,8 @@ which this page includes, so the page and the script cannot drift apart.
     balances between 1e-15 and 1e-11 mol.
 
     The interior-point solve alone would not support that claim: on this package's
-    own calcite reference it returns pH 6.96 against a certified 9.90, and it
-    rarely reports convergence at all, so its return code cannot tell the two
-    cases apart.
+    own calcite reference it returns pH 6.96 where the certified solve gives 9.90,
+    and on these problems its return code does not distinguish the two cases.
 
 ## 1. The system and the dissolution reactions
 

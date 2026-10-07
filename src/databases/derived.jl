@@ -402,9 +402,10 @@ The ThermoFun records of the thirty-three end-members of the CASH+ model of C-S-
 with its extension to the alkali and alkaline-earth metals, the heat capacity
 taken as constant:
 
-  - the six of the core model, from `data/literature/Kulik2022.json`: G° and H°
-    of its Table 8, S°, Cp° and V° of its Table 4, except the H° of TSvh, which
-    is the one [Miron2022a](@citet) reprint (Table 8 transposes two digits);
+  - the six of the core model of [Kulik2022](@citet), from
+    `data/literature/Kulik2022.json`: G° and H° of its Table 8, S°, Cp° and V°
+    of its Table 4, except the H° of TSvh, which is the value
+    [Miron2022a](@citet) give;
   - the six with sodium or potassium, from `data/literature/Miron2022a.json`
     (Table A1), with the G° and H° of TCNh and TCKh fine-tuned by
     [Miron2022b; Table 5](@citet) for cement pore solutions;
@@ -596,9 +597,10 @@ The enthalpy of formation (kJ/mol) of an ASR product of [`asr_records`](@ref)
 that agrees with its Gibbs energy and entropy at 298.15 K,
 ``\\Delta_f H^\\circ = \\Delta_f G^\\circ + T\\,(S^\\circ - \\sum_e \\nu_e S^\\circ_e)``,
 with the entropies ``S^\\circ_e`` of the elements of the base database. The
-article's enthalpies agree with it to 0.5 kJ/mol; those of its corrigendum
-differ by about 572 kJ/mol (`data/literature/Jin2023.json`), so neither is
-used: the database entry carries this one.
+enthalpies of [Jin2023](@citet) agree with it to 0.5 kJ/mol; those of its
+corrigendum [Jin2024](@cite) differ by about 572 kJ/mol
+(`data/literature/Jin2023.json`), so neither is used: the database entry carries
+this one.
 """
 function asr_enthalpy(z, base_path)
     db = JSON.parsefile(base_path; dicttype = Dict{String, Any})

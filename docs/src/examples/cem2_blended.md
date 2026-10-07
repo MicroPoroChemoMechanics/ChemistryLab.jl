@@ -114,9 +114,10 @@ header("smilauer2025-149-cemII-B-S-32.5R-mokra.csv")
 
 The fineness, the water/binder ratio and the calorimetry are measured. **The
 clinker phase composition and the replacement level are not**, for either
-record, and nothing in the deposit lets them be recovered. They are assumed
-below, at the midpoint of the EN 197-1 range for each family, and the assumption
-is stated where it is made rather than buried in a preamble.
+record, and nothing in the deposit [Smilauer2025data](@cite) lets them be
+recovered. They are assumed below, at the midpoint of the EN 197-1 range for
+each family, and the assumption is stated where it is made rather than buried in
+a preamble.
 
 ```@example cem2
 # ASSUMED: a Bogue composition representative of a CEM I clinker. The deposit
@@ -449,8 +450,9 @@ calculation at a single instant cannot show at all.
     The records stop at about three weeks. A slag binder is still reacting
     there, so its curve is truncated much further from its asymptote than the
     CEM I's is. Comparing final values of truncated curves understates the slag
-    binder, and the deposit's own fitted `DoHInf` of 0.85 is a reminder that the
-    depositors extrapolated rather than measured the end.
+    binder, and the fitted `DoHInf` of the deposit [Smilauer2025data](@cite),
+    0.85, is a reminder that the depositors extrapolated rather than measured
+    the end.
 
 ## Where to go next
 

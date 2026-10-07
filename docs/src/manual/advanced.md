@@ -274,11 +274,11 @@ species_list = build_species(aqueous)
 
 ### Merging databases
 
-`merge_json` combines a ThermoFun JSON file with a PHREEQC `.dat` file into a
-single JSON file. What it adds is the **dissolution reactions** of the `.dat`
-file, with their `log K`, and not species: the two files describe the same
-substances, and the ThermoFun file already carries their molar volumes. The test
-suite asserts both.
+`merge_json` combines a ThermoFun JSON file with a PHREEQC
+[ParkhurstAppelo2013](@cite) `.dat` file into a single JSON file. What it adds
+is the **dissolution reactions** of the `.dat` file, with their `log K`, and not
+species: the two files describe the same substances, and the ThermoFun file
+already carries their molar volumes. The test suite asserts both.
 
 ```julia
 merge_json(

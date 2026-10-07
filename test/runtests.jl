@@ -82,6 +82,7 @@ end
 @testsection "System and State tests" begin
     include("chemical_systems.jl")
     include("oxide_budget.jl")
+    include("glass_thermochemistry.jl")
     include("chemical_states.jl")
     include("site_families.jl")
     include("test_volume_fractions.jl")
@@ -145,6 +146,7 @@ end
     include("validation_lothenbach2008.jl")
     include("validation_lothenbach2008_temperature.jl")
     include("validation_lothenbach2014.jl")
+    include("validation_snellings2022_heat.jl")
     include("validation_chloride_temperature.jl")
     include("validation_logk_temperature.jl")
     include("validation_lhopital2016_alkali.jl")

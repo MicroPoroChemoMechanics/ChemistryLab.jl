@@ -194,10 +194,10 @@ What the parameters of that pair are: `"fitted"`, `"estimated:<analog>"`, or
 `"unrecorded"` when the set carries no note.
 
 A published Pitzer set can contain values obtained by analogy with a chemically
-similar ion rather than by fitting a measurement — Reardon's cement set does so
-for every silicate, aluminate and ferrate pair, which are exactly the ions a
-cement assemblage needs. This accessor is how that shows up in a calculation
-instead of staying in a paper's footnote.
+similar ion rather than by fitting a measurement — the cement set of
+[Reardon1990](@citet) does so for every silicate, aluminate and ferrate pair,
+which are exactly the ions a cement assemblage needs. This accessor is how that
+shows up in a calculation instead of staying in a paper's footnote.
 """
 pitzer_origin(p::PitzerParameters, cation::AbstractString, anion::AbstractString) =
     get(p.origin, (String(cation), String(anion)), "unrecorded")

@@ -92,10 +92,10 @@ n_water = ustrip(us"mol", 1.0u"kg" / water[:M])
 ```
 
 The difference is 1.7 × 10⁻⁴ relative. That sounds negligible until you compare
-against another code: matching Reaktoro's water basis exactly is what took one
-of this package's cross-code comparisons from 5.5 × 10⁻⁵ agreement to
-4.1 × 10⁻⁹. Molality is *per kilogram of solvent*, so the whole calculation
-inherits whatever you chose here.
+against another code: matching the water basis of Reaktoro [Leal2017](@cite)
+exactly is what took one of this package's cross-code comparisons from
+5.5 × 10⁻⁵ agreement to 4.1 × 10⁻⁹. Molality is *per kilogram of solvent*, so
+the whole calculation inherits whatever you chose here.
 
 ## Standard Gibbs energies and equilibrium constants
 
@@ -121,10 +121,11 @@ end
 ```
 
 Each is a different body of work with a different scope, and they do not always
-agree — `OH-` is `-157297.2 J/mol` in slop98 and `-157270.2` in CEMDATA18,
-because they were fitted in different contexts. **Do not mix two databases in
-one calculation** unless you know why you are doing it; see
-[Database Interoperability](@ref sec-databases) for what each one covers.
+agree — `OH-` is `-157297.2 J/mol` in slop98 [Johnson1992](@cite) and
+`-157270.2` in CEMDATA18 [Lothenbach2019](@cite), because they were fitted in
+different contexts. **Do not mix two databases in one calculation** unless you
+know why you are doing it; see [Database Interoperability](@ref sec-databases)
+for what each one covers.
 
 To find out whether a database has what you need:
 
@@ -193,9 +194,9 @@ the reading adds. The files follow the format described by
 checks that every key is an entry of the bibliography and repeats its DOI.
 
 Coefficients that define an equation of state or a published model, such as the
-constants of the water equation of state or of the HKF model, are part of the
-model rather than data taken from it, and they remain in the code with their
-source in a comment.
+constants of the water equation of state or of the HKF model
+[Helgeson1981](@cite), are part of the model rather than data taken from it, and
+they remain in the code with their source in a comment.
 
 ## When a number has to carry its own history
 
@@ -203,11 +204,11 @@ Everything above is about *finding* a number. This is about not losing what you
 found out about it.
 
 `data/pitzer-reardon1990.toml` already does this in data. It carries
-`origin = "estimated:<analog>"` on every coefficient Reardon had to borrow, and
-says why in its own header: *"a caller reading beta0 for Al(OH)4- would
-otherwise have no way of knowing that no aluminate solution was ever measured to
-obtain it"*. [`Traced`](@ref) is that idea in a type, so it survives out of the
-file and into a table, a figure or a fitted result.
+`origin = "estimated:<analog>"` on every coefficient [Reardon1990](@citet) had
+to borrow, and says why in its own header: *"a caller reading beta0 for Al(OH)4-
+would otherwise have no way of knowing that no aluminate solution was ever
+measured to obtain it"*. [`Traced`](@ref) is that idea in a type, so it survives
+out of the file and into a table, a figure or a fitted result.
 
 ```@example numbers
 using ChemistryLab: value, source     # too generic to export; reach for them by name
@@ -261,7 +262,7 @@ unlisted coefficient is zero.
 
 ## When the number does not exist yet
 
-Some numbers nobody has measured. A surface site density for a phase that has
+Some numbers have not been measured. A surface site density for a phase that has
 never been titrated, an interaction coefficient for a pair no compilation
 carries: they are real quantities and there is no source to take them from.
 

@@ -549,6 +549,219 @@ end
     @test c_asym.optimal
 end
 
+@testsection "MulticomponentRedlichKisterModel" begin
+    T = 298.15
+    RT = ChemistryLab.R_GAS * T
+    lng(m, k, x) = ChemistryLab._excess_ln_gamma(m, k, x, T)
+
+    # Construction and its guards.
+    @test_throws ArgumentError MulticomponentRedlichKisterModel(Dict((1, 2) => [1.0], (2, 1) => [2.0]))
+    @test_throws ArgumentError MulticomponentRedlichKisterModel(Dict((1, 1) => [1.0]))
+    @test_throws ArgumentError MulticomponentRedlichKisterModel(Dict((1, 2) => [1.0]); ternary = Dict((1, 2, 3) => [1.0, 2.0, 3.0, 4.0]))
+    @test_throws ArgumentError MulticomponentRedlichKisterModel(Dict((1, 2) => [1.0]); n = 1)
+    m = MulticomponentRedlichKisterModel(Dict((1, 2) => [4.0u"kJ/mol", 500.0u"J/mol"]); ternary = Dict((3, 1, 2) => [1000.0]))
+    @test m.pairs == [(1, 2, [4000.0, 500.0])] && m.n == 3
+    @test m.ternary == [(3, 1, 2, [1000.0, 0.0, 0.0])]
+
+    # Two end-members: the binary model, whichever way round the pair is written.
+    a0, a1, a2 = 4000.0, 1500.0, -700.0
+    rk = RedlichKisterModel(; a0, a1, a2)
+    for mm in (
+                MulticomponentRedlichKisterModel(Dict((1, 2) => [a0, a1, a2])),
+                MulticomponentRedlichKisterModel(Dict((2, 1) => [a0, -a1, a2])),
+            ), x1 in (0.05, 0.3, 0.5, 0.8), k in 1:2
+        @test lng(mm, k, [x1, 1 - x1]) ≈ lng(rk, k, [x1, 1 - x1]) rtol = 1.0e-12
+    end
+
+    # Its binary is scanned for a spinodal as the binary model is, whichever way
+    # round the pair is written; a series of higher order through its excess.
+    ref = spinodal_interval(RedlichKisterModel(a0 = 7000.0, a1 = 3000.0), 2)
+    @test spinodal_interval(MulticomponentRedlichKisterModel(Dict((1, 2) => [7000.0, 3000.0])), 2) == ref
+    @test spinodal_interval(MulticomponentRedlichKisterModel(Dict((2, 1) => [7000.0, -3000.0])), 2) == ref
+    @test spinodal_interval(MulticomponentRedlichKisterModel(Dict{NTuple{2, Int}, Vector{Float64}}(); n = 2), 2) === nothing
+    gap4 = spinodal_interval(MulticomponentRedlichKisterModel(Dict((1, 2) => [7000.0, 3000.0, 0.0, 400.0])), 2)
+    @test gap4 !== nothing && abs(gap4[1] - ref[1]) < 0.05 && abs(gap4[2] - ref[2]) < 0.05
+
+    # The first order is the subregular model of Helffrich and Wood.
+    W = [0.0 3100.0 -2200.0 1700.0; 5200.0 0.0 900.0 -1300.0; 4400.0 -800.0 0.0 2600.0; -600.0 1500.0 3300.0 0.0]
+    first = MulticomponentRedlichKisterModel(
+        Dict((i, j) => [(W[i, j] + W[j, i]) / 2, (W[j, i] - W[i, j]) / 2] for i in 1:4 for j in (i + 1):4)
+    )
+    for x in ([0.1, 0.2, 0.3, 0.4], [0.62, 0.08, 0.17, 0.13]), k in 1:4
+        @test lng(first, k, x) ≈ lng(SubregularSolutionModel(W), k, x) rtol = 1.0e-12
+    end
+
+    # The worked ternary of Redlich and Kister (1948): heptane (1), methanol (2),
+    # toluene (3), with the coefficients of their Eq. (21) in units of 2.303 RT,
+    # against their Eqs. (22) and (23) as printed, the association of methanol
+    # (their Eq. 20) left out of both.
+    u = log(10) * RT
+    hmt = MulticomponentRedlichKisterModel(
+        Dict((1, 2) => [1.178u, 0.0, 0.155u], (2, 3) => [0.95u], (3, 1) => [0.117u, 0.018u])
+    )
+    eq22(x1, x2, x3) = 1.061x1 + 0.95(x3 - x2) + 0.018x1 * (x1 - 2x3) + 0.155x1 * (x1^2 - 4x1 * x2 + 3x2^2)
+    eq23(x1, x2, x3) = 0.228x2 + 0.117(x3 - x1) + 0.018 * (x1 * (x1 - 2x3) + x3 * (x3 - 2x1)) + 0.155x2 * (3x1^2 - 4x1 * x2 + x2^2)
+    for x in ([0.0684, 0.8486, 0.083], [0.3412, 0.5409, 0.1179], [0.2533, 0.3172, 0.4295])
+        @test (lng(hmt, 2, x) - lng(hmt, 3, x)) / log(10) ≈ eq22(x...) rtol = 1.0e-12
+        @test (lng(hmt, 1, x) - lng(hmt, 3, x)) / log(10) ≈ eq23(x...) rtol = 1.0e-12
+    end
+    # Their Eq. (19) prints the term of C12 as C12[3(x1 − x2)² − 1]/2, which is
+    # its value on the binary only: in the ternary Eq. (14) adds C12 x3(2 − x3)/2.
+    c12 = MulticomponentRedlichKisterModel(Dict((1, 2) => [0.0, u]); n = 3)
+    for x in ([0.2, 0.3, 0.5], [0.6, 0.3, 0.1])
+        d = x[1] - x[2]
+        @test (lng(c12, 2, x) - lng(c12, 1, x)) / log(10) ≈ (3d^2 - 1) / 2 + x[3] * (2 - x[3]) / 2 rtol = 1.0e-12
+    end
+
+    # Against the definition: ln γ_k = ∂(N g)/∂n_k of the excess written out
+    # here, pairs and a triple of every order, by ForwardDiff; and Gibbs-Duhem.
+    full = MulticomponentRedlichKisterModel(
+        Dict((1, 2) => [3000.0, 1200.0, -800.0, 400.0], (3, 2) => [-1500.0, 600.0], (1, 4) => [2200.0]);
+        ternary = Dict((2, 3, 4) => [1800.0, -900.0, 700.0], (1, 3, 2) => [500.0, 300.0]),
+    )
+    function g_def(x)
+        acc = zero(eltype(x))
+        for (i, j, L) in ((1, 2, [3000.0, 1200.0, -800.0, 400.0]), (3, 2, [-1500.0, 600.0]), (1, 4, [2200.0]))
+            acc += x[i] * x[j] * sum(L[k] * (x[i] - x[j])^(k - 1) for k in eachindex(L))
+        end
+        for (i, j, l, c) in ((2, 3, 4, [1800.0, -900.0, 700.0]), (1, 3, 2, [500.0, 300.0, 0.0]))
+            acc += x[i] * x[j] * x[l] * (c[1] + c[2] * (x[j] - x[l]) + c[3] * (x[l] - x[i]))
+        end
+        return acc / RT
+    end
+    for x in ([0.1, 0.2, 0.3, 0.4], [0.05, 0.55, 0.25, 0.15])
+        grad = ForwardDiff.gradient(n -> sum(n) * g_def(n ./ sum(n)), 2.0 .* x)
+        for k in 1:4
+            @test lng(full, k, x) ≈ grad[k] rtol = 1.0e-12 atol = 1.0e-14
+        end
+        J = ForwardDiff.jacobian(n -> [lng(full, k, n ./ sum(n)) for k in 1:4], 2.0 .* x)
+        @test maximum(abs, transpose(2.0 .* x) * J) < 1.0e-13 * maximum(abs, J)
+    end
+end
+
+@testsection "VanLaarModel" begin
+    T = 298.15
+    RT = ChemistryLab.R_GAS * T
+    lng(m, k, x; T = T) = ChemistryLab._excess_ln_gamma(m, k, x, T)
+
+    @test_throws ArgumentError VanLaarModel([0.0 1.0 2.0; 1.0 0.0 3.0], [1.0, 1.0])
+    @test_throws ArgumentError VanLaarModel([0.0 1.0; 1.0 0.0], [1.0])
+    @test_throws ArgumentError VanLaarModel([0.0 1.0; 1.0 0.0], [1.0, 0.0])
+    @test_throws ArgumentError VanLaarModel([0.0 1.0; 2.0 0.0], [1.0, 1.0])
+
+    # Equal sizes: the regular model (the symmetric formalism), whatever the
+    # common size; and only the ratios of the sizes matter.
+    W = [0.0 3000.0 -1500.0 800.0; 3000.0 0.0 2000.0 -400.0; -1500.0 2000.0 0.0 1200.0; 800.0 -400.0 1200.0 0.0]
+    α = [1.0, 0.7, 0.45, 1.3]
+    for x in ([0.2, 0.3, 0.1, 0.4], [0.55, 0.05, 0.25, 0.15]), k in 1:4
+        @test lng(VanLaarModel(W, fill(2.5, 4)), k, x) ≈ lng(RegularSolutionModel(W), k, x) rtol = 1.0e-12
+        @test lng(VanLaarModel(W, 3 .* α), k, x) ≈ lng(VanLaarModel(W, α), k, x) rtol = 1.0e-12
+    end
+
+    # The alkali feldspar of Holland and Powell (2003): sanidine (1) and albite
+    # (2), α_ab = 0.643 and α_san = 1, W = 25.1 − 0.0108 T + 0.343 P kJ (T in K,
+    # P in kbar), against their Eqs. (4) and (5) at 873.15 K and 2 kbar.
+    Tf = 873.15
+    Wf = (25.1 - 0.0108Tf + 0.343 * 2) * 1000
+    fsp = VanLaarModel([0.0 Wf; Wf 0.0], [1.0, 0.643])
+    for xs in (0.3, 0.7)
+        x = [xs, 1 - xs]
+        φ = [1.0xs, 0.643 * (1 - xs)] ./ (1.0xs + 0.643 * (1 - xs))
+        RTf = ChemistryLab.R_GAS * Tf
+        @test RTf * lng(fsp, 1, x; T = Tf) ≈ 2 * 1.0 / (1.0 + 0.643) * φ[2]^2 * Wf rtol = 1.0e-12
+        @test RTf * lng(fsp, 2, x; T = Tf) ≈ 2 * 0.643 / (1.0 + 0.643) * φ[1]^2 * Wf rtol = 1.0e-12
+    end
+
+    # Their calcite (c), magnesite (m) and dolomite (d) at 1000 K, against the
+    # three expressions of their Eq. (13) as printed, and the excess energy
+    # against Σ φ_i φ_j B_ij.
+    Tc = 1000.0
+    αc = 0.5 + 0.000546Tc
+    Wcm, Wcd, Wmd = 70.0e3, 20.5e3, 29.9e3
+    carb = VanLaarModel([0.0 Wcm Wcd; Wcm 0.0 Wmd; Wcd Wmd 0.0], [αc, 1.0, 0.7])
+    x = [0.5, 0.3, 0.2]
+    a = [αc, 1.0, 0.7]
+    φ = a .* x ./ sum(a .* x)
+    φc, φm, φd = φ
+    RTc = ChemistryLab.R_GAS * Tc
+    eq13 = (
+        (1 - φc) * φm * Wcm * 2a[1] / (a[1] + a[2]) + (1 - φc) * φd * Wcd * 2a[1] / (a[1] + a[3]) - φm * φd * Wmd * 2a[1] / (a[2] + a[3]),
+        (1 - φm) * φc * Wcm * 2a[2] / (a[1] + a[2]) - φc * φd * Wcd * 2a[2] / (a[1] + a[3]) + (1 - φm) * φd * Wmd * 2a[2] / (a[2] + a[3]),
+        -φc * φm * Wcm * 2a[3] / (a[1] + a[2]) + (1 - φd) * φc * Wcd * 2a[3] / (a[1] + a[3]) + (1 - φd) * φm * Wmd * 2a[3] / (a[2] + a[3]),
+    )
+    for k in 1:3
+        @test RTc * lng(carb, k, x; T = Tc) ≈ eq13[k] rtol = 1.0e-12
+    end
+    B(i, j, Wij) = 2 * sum(a .* x) / (a[i] + a[j]) * Wij
+    gex = φc * φm * B(1, 2, Wcm) + φc * φd * B(1, 3, Wcd) + φm * φd * B(2, 3, Wmd)
+    @test RTc * sum(x[k] * lng(carb, k, x; T = Tc) for k in 1:3) ≈ gex rtol = 1.0e-12
+
+    # Gibbs-Duhem, by ForwardDiff on the amounts.
+    for xx in ([0.2, 0.3, 0.1, 0.4], [0.55, 0.05, 0.25, 0.15])
+        J = ForwardDiff.jacobian(n -> [lng(VanLaarModel(W, α), k, n ./ sum(n)) for k in 1:4], 2.0 .* xx)
+        @test maximum(abs, transpose(2.0 .* xx) * J) < 1.0e-13 * maximum(abs, J)
+    end
+
+    # A binary gap is found without a Redlich-Kister form, and its common
+    # tangent satisfies the definition.
+    wide = VanLaarModel([0.0 3.2RT; 3.2RT 0.0], [1.0, 0.5])
+    gap = spinodal_interval(wide, 2)
+    @test gap !== nothing
+    ct = common_tangent(wide, 2)
+    g = ChemistryLab._binary_mixing_energy(wide, T)
+    d(z) = ForwardDiff.derivative(g, z)
+    @test d(ct[1]) ≈ d(ct[2]) atol = 1.0e-7
+    @test d(ct[1]) ≈ (g(ct[2]) - g(ct[1])) / (ct[2] - ct[1]) atol = 1.0e-7
+    @test ct[1] < gap[1] && gap[2] < ct[2]
+    @test mixing_convexity(wide, 2).verdict === :nonconvex
+end
+
+@testset "the Redlich-Kister series and the van Laar model in a phase and an equilibrium" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    byname = Dict(symbol(s) => s for s in substances)
+    four = ["CSHQ-TobH", "CSHQ-TobD", "CSHQ-JenH", "CSHQ-JenD"]
+    members = [byname[s] for s in four]
+    @test_throws ErrorException SolidSolutionPhase("CSHQ", members[1:3]; model = VanLaarModel(zeros(4, 4), ones(4)))
+    @test_throws ErrorException SolidSolutionPhase(
+        "CSHQ", members[1:3]; model = MulticomponentRedlichKisterModel(Dict((1, 4) => [1000.0]))
+    )
+    function gel(mdl)
+        sp = speciation(substances, vcat(["Portlandite", "Amor-Sl"], four); aggregate_state = [AS_AQUEOUS])
+        cs = ChemicalSystem(sp, CEMDATA_PRIMARIES; solid_solutions = [SolidSolutionPhase("CSHQ", members; model = mdl)])
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "Portlandite", 0.06u"mol")
+        set_quantity!(st, "Amor-Sl", 0.05u"mol")
+        eq, cert = equilibrate_certified(st)
+        return ustrip.(us"mol", eq.n), cert
+    end
+    W = [0.0 2000.0 -1000.0 500.0; 4000.0 0.0 1500.0 -800.0; -2500.0 600.0 0.0 1000.0; 1500.0 -300.0 2200.0 0.0]
+    # The first-order series is the subregular model: the same equilibrium.
+    n_rk, c_rk = gel(
+        MulticomponentRedlichKisterModel(Dict((i, j) => [(W[i, j] + W[j, i]) / 2, (W[j, i] - W[i, j]) / 2] for i in 1:4 for j in (i + 1):4))
+    )
+    n_sub, c_sub = gel(SubregularSolutionModel(W))
+    @test c_rk.optimal && c_sub.optimal
+    @test n_rk ≈ n_sub rtol = 1.0e-8 atol = 1.0e-14
+    Ws = [0.0 2000.0 -1000.0 500.0; 2000.0 0.0 1500.0 -800.0; -1000.0 1500.0 0.0 1000.0; 500.0 -800.0 1000.0 0.0]
+    _, c_vl = gel(VanLaarModel(Ws, [1.0, 0.8, 1.2, 0.6]))
+    @test c_vl.optimal
+end
+
+@testset "a binary is read in the mole fraction of its first end-member" begin
+    # The spinodal scan and the common tangent run over x₁. The witness of a
+    # concave binary and the starts of a split were built as [1 − x, x], the
+    # mirror image: on an asymmetric binary the witness was a convex point.
+    T = 298.15
+    m = RedlichKisterModel(a0 = 7000.0, a1 = 3000.0)
+    g = ChemistryLab._binary_mixing_energy(m, T)
+    d2(z) = ForwardDiff.derivative(y -> ForwardDiff.derivative(g, y), z)
+    w = mixing_convexity(m, 2).witness
+    @test d2(w[1]) < 0
+    a, b = common_tangent(m, 2)
+    @test ChemistryLab._split_starts(m, 2) == [[a, 1 - a], [b, 1 - b]]
+end
+
 @testset "a mixing energy that is concave is refused, and says where" begin
     # The Gibbs minimum inside a spinodal is two coexisting compositions, and a
     # formulation with one amount per species cannot hold them. Refused at

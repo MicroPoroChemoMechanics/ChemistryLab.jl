@@ -72,8 +72,11 @@ The apparent Gibbs energy of a species is its value of formation at
 ``(T_r, P_r)`` plus integrals of its heat capacity and of its volume
 ([Apparent and formation Gibbs energies](@ref sec-theory-apparent)). A database
 supplies, for each species, the reference values and a model for these
-integrals, and three models cover the species of the databases the package
-reads.
+integrals. Three models cover the species of the databases the package reads:
+a heat-capacity polynomial for the minerals and the gases, the HKF equations
+for the solutes, and the equation of state of water for the solvent.
+
+### Minerals and gases
 
 Minerals and gases carry a heat-capacity polynomial, the model `:cp_ft_equation`,
 of up to eleven terms in powers of ``T``, ``\sqrt{T}`` and ``\ln T``.
@@ -99,35 +102,19 @@ transition the record places at a boundary adds its enthalpy ``\Delta H_t`` and
 its entropy ``\Delta S_t``, the Gibbs energy staying continuous; the molar
 volume stays the record's at ``T_r``. An entry that gives a
 single heat capacity at ``T_r`` is extrapolated with the same model reduced to its
-constant term; in CEMDATA18, the solvent, the zeolites and the magnesium silicate
-hydrates are among them. An entry that gives none, but gives the entropy, is
-extrapolated with a zero heat capacity, so that its apparent Gibbs energy still
-decreases as ``-S^\circ`` with temperature.
-
-Aqueous solutes use the model `:solute_hkf88_reaktoro`, the
-Helgeson-Kirkham-Flowers (HKF) equation of state [Helgeson1981](@cite) in its
-revised form [TangerHelgeson1988](@cite), whose standard Gibbs energy adds two
-contributions of different origins to the reference value
-[AndersonCrerar1993](@cite) (§17.9). The first, called nonsolvation, describes
-the species itself through a heat capacity (coefficients ``c_1``, ``c_2``) and a
-volume (coefficients ``a_1`` to ``a_4``) that depend on ``T`` and ``P``, the
-pressure entering through ``P - P_r`` and ``\ln[(\Psi + P)/(\Psi + P_r)]`` with
-``\Psi = 2600`` bar. The second is the energy of solvation of a charge in a
-dielectric continuum, given by the Born equation
-
-```math
-\Delta G_{\text{s}} = \omega\left(\frac{1}{\varepsilon_r} - 1\right) ,
-```
-
-where ``\varepsilon_r`` is the relative permittivity of water at ``T`` and ``P`` and
-``\omega`` the Born coefficient of the species, itself a function of ``T`` and
-``P`` for an ion. The code evaluates it through the Born function
-``Z = -1/\varepsilon_r`` as ``-\omega(Z+1)``, measured from its value at the
-reference conditions, a term that follows the permittivity of water, which falls
-from about 78 at 25 °C to about 55 at 100 °C; the same model of water supplies the
-parameters of the activity models. The standard state of a solute is thus taken
-at the pressure of the system, and the parameters of an ion are conventional,
-those of H⁺ being zero at every temperature and pressure.
+constant term; in CEMDATA18 [Lothenbach2019](@cite), the zeolites and the magnesium silicate hydrates
+are among them, and the solvent's record is of this kind too, though the solvent
+follows the equation of state of water instead (below). An entry that gives
+none, but gives the entropy, is extrapolated with a zero heat capacity, so that
+its apparent Gibbs energy still decreases as ``-S^\circ`` with temperature.
+That zero is a placeholder, heat capacities being positive
+[Richet2001; Sec. 1.2, p. 8](@cite). Leaving out a constant ``C_p^\circ`` raises
+``\Delta_a G^\circ`` by ``C_p^\circ[T\ln(T/T_r) - (T - T_r)] \approx C_p^\circ(T - T_r)^2/(2T_r)``
+and shifts ``\Delta_a H^\circ`` by ``-C_p^\circ(T - T_r)``: the enthalpy, and the
+heats computed with it, are off at first order in ``T - T_r`` where the Gibbs
+energy is off at second order only. The additivity of the heat capacities of
+the constituents, the rule of Neumann and Kopp, is the usual estimate above room
+temperature [Richet2001; Sec. 4.7b, Eq. (4.39), p. 83](@cite).
 
 For the Maier-Kelley heat capacity, ``C_p^\circ = a_0 + a_1 T + a_2 T^{-2}``,
 both temperature integrals are elementary, and the closed form can be set
@@ -157,19 +144,123 @@ dtf = build_thermo_functions(
 (code = dtf[:ΔₐG⁰](T = T), closed_form = closed_form)
 ```
 
+### [Aqueous solutes](@id sec-theory-hkf)
+
+Aqueous solutes use the model `:solute_hkf88_reaktoro`, the
+Helgeson-Kirkham-Flowers (HKF) equation of state [Helgeson1981](@cite) in its
+revised form [TangerHelgeson1988](@cite), whose standard Gibbs energy adds two
+contributions of different origins to the reference value
+[AndersonCrerar1993](@cite) (§17.9). The first, called nonsolvation, describes
+the species itself through a heat capacity (coefficients ``c_1``, ``c_2``) and a
+volume (coefficients ``a_1`` to ``a_4``) that depend on ``T`` and ``P``, the
+pressure entering through ``P - P_r`` and ``\ln[(\Psi + P)/(\Psi + P_r)]`` with
+``\Psi = 2600`` bar. The second is the energy of solvation of a charge in a
+dielectric continuum, given by the Born equation
+
+```math
+\Delta G_{\text{s}} = \omega\left(\frac{1}{\varepsilon_r} - 1\right) ,
+```
+
+where ``\varepsilon_r`` is the relative permittivity of water at ``T`` and ``P`` and
+``\omega`` the Born coefficient of the species, itself a function of ``T`` and
+``P`` for an ion. The code evaluates it through the Born function
+``Z = -1/\varepsilon_r`` as ``-\omega(Z+1)``, measured from its value at the
+reference conditions, a term that follows the permittivity of water, which falls
+from about 78 at 25 °C to about 55 at 100 °C; the same model of water supplies the
+parameters of the activity models. The standard state of a solute is thus taken
+at the pressure of the system, and the parameters of an ion are conventional,
+those of H⁺ being zero at every temperature and pressure.
+
+#### [Where the HKF equations hold](@id sec-theory-hkf-domain)
+
+The HKF equations describe a solute in water dense enough to solvate it. The
+solvent function ``g``, which corrects the Born coefficients of the charged
+species for the compressibility of water, was retrieved by [Shock1992](@citet)
+from dissociation constants of NaCl measured down to a density of 0.35 g/cm³,
+and SUPCRT92 restricts its calculations to that density [Johnson1992](@cite). A
+solute's standard properties are computed down to 350 kg/m³ and refused below,
+with a `DomainError`, rather than extrapolated: at 350 °C and 1 bar water is a
+vapor. SUPCRT92 also withholds the properties of charged species between 350
+and 400 °C below 500 bar, close to the critical point, where their
+uncertainties grow large; the package computes them there, and the comparison
+with the ThermoFun library in the next section leaves out the states above
+360 °C and below 600 bar. The solvent and the minerals are computed at every state.
+
+### [The solvent, from 0 to 1000 °C and up to 5000 bar](@id sec-theory-water-eos)
+
+The solvent of the ThermoFun databases follows the equation of state of water of
+[Haar1984](@citet) at every temperature and pressure. Written in the steam-table
+convention, where the entropy and the internal energy of liquid water vanish at
+its triple point, the equation gives a specific enthalpy ``h(T, P)`` and entropy
+``s(T, P)``, which SUPCRT92 refers to the properties of liquid water at the
+triple point [Johnson1992](@cite):
+
+```math
+S^\star = S_{tr} + M_w\,s, \qquad
+H^\star = H_{tr} + M_w\,h, \qquad
+G^\star = M_w\,h - T\,S^\star + T_{tr}\,S_{tr} + G_{tr} .
+```
+
+Those constants, which SUPCRT92 takes from [HelgesonKirkham1974](@citet), are not
+those of the other records of a database. At 25 °C and 1 bar they put the Gibbs
+energy 1.35 J/mol and the enthalpy 48.6 J/mol above the values the solvent's
+record tabulates; and ``G - H + TS``, which the element entropies of the file fix
+at ``T_r \sum S_{\mathrm{el}}`` for every species so that the enthalpy of a
+reaction is the one its Gibbs energy implies, comes out 45 J/mol off, where the
+tabulated values come within 2.4. The solubility products of Cemdata18, from
+which the energies of its hydrates were derived, close to ``10^{-4}`` in
+``\log K`` against the tabulated water and only to 0.007 against the equation's
+(ettringite, whose dissolution releases thirty waters). The solvent is
+therefore built as every other record is, from its tabulated values at
+``(T_r, P_r)`` and increments from there, the increments being the equation's:
+
+```math
+S_w^\circ = S^\star + \delta S, \qquad
+\Delta_a H_w^\circ = H^\star + \delta H, \qquad
+\Delta_a G_w^\circ = G^\star + \delta G - \delta S\,(T - T_r),
+```
+
+the three constants ``\delta`` making the three functions equal to the record's at
+the reference. The heat capacity is ``\partial H/\partial T`` and the volume
+``M_w/\rho(T, P)``, so that the five functions are those of one Gibbs energy. At
+25 °C and 1 bar the solvent is the record; elsewhere it follows water, where
+0.33.0 extrapolated the heat capacity of 25 °C and held the volume at 1 bar
+constant: the Gibbs energy moves by 0.2 J/mol at most from 0 to 100 °C at 1 bar,
+the volume by the thermal expansion of water, 0.12 % at 20 °C and 2.6 % at
+80 °C, and the Gibbs energy by 0.53 kJ/mol at 300 °C and 1 kbar.
+
+The ThermoFun library uses the equation's functions without the shift, with
+``T_{tr} = 273.15`` K in the constant ``T_{tr} S_{tr}``, a convention that places
+its Gibbs energy of water 0.633 J/mol below the one computed here. Its values and this package's differ
+by these constants and by the molar mass of water, 18.015268 g/mol in the
+library, 18.015 g/mol from the atomic masses here; with the three recomposed,
+the two agree to ``10^{-10}`` at 652 states from 0 to 1000 °C and from 1 to 5000
+bar (`test/water_eos_reference.jl`).
+
+The density is the root of ``P(\rho, T) = P`` that the state calls for: the
+liquid where it exists, the largest root, which a Newton iteration reaches by
+descending from a density above any the equation attains, the vapor or the
+supercritical fluid otherwise. The iteration stops on the pressure, to
+``10^{-12}`` of its scale, never on the step alone, which a stationary point of
+the isotherm would satisfy as well. The derivatives of the density with respect
+to ``T`` and ``P`` are those of the implicit-function theorem, carried by
+automatic differentiation.
+
+### The apparent convention
+
 This is the quantity every species carries as `ΔₐG⁰`, and the one the minimizer
 reads, divided by ``RT``, as `ΔₐG⁰overRT`; the subscript ``a`` is not a variant
 spelling of ``f``. A value of ``\Delta_f G^\circ(T)`` read from a table built in
 the traditional convention cannot be combined with the apparent energies of a
 database, since the two differ by ``\sum_e \alpha_{ei}\,[G_e^\circ(T) -
 G_e^\circ(T_r)]`` and this difference no longer cancels between species taken
-from different sources. A second apparent convention, due to Berman and Brown,
-also removes the elemental entropies at ``T_r``
+from different sources. A second apparent convention also removes the elemental
+entropies at ``T_r``
 [AndersonCrerar1993](@cite) (§7.4.2); its values differ from the former by the
 constant ``T_r\sum_e \alpha_{ei}\, S_e^\circ(T_r)``, which is consistent within
 one database and inconsistent across two. Which convention the code implements
 can be read on the formula itself: the anchor ``\Delta_a G_i^\circ(T_r) =
-\Delta_f G_i^\circ(T_r)`` rules out the values of Berman and Brown, and the
+\Delta_f G_i^\circ(T_r)`` rules out the values of that second convention, and the
 absolute entropy in the linear term rules out the traditional ones.
 
 ## 4. Equilibrium is a constrained minimization, and its dual is the useful part
@@ -189,7 +280,10 @@ component and one column per species, and ``\mathbf{b}`` the budget of the compo
 The components are the primary species of the system, or the elements with the
 charge, and the two choices express the same constraints
 ([Formation from primary species](@ref sec-theory-primaries)). This is the
-formulation of [Leal2017](@citet), in which no list of reactions is needed: the
+formulation of [Leal2017](@citet), the classical minimization of the Gibbs
+energy with one multiplier per conserved component
+[Richet2001; Sec. 8.6d, Eq. (8.68), p. 194](@cite), in which no list of
+reactions is needed: the
 reactions are the moves of ``\mathbf{n}`` within the null space of ``\mathbf{A}``.
 
 The Lagrange multipliers of the equality constraints are the useful output.
@@ -235,7 +329,12 @@ with no equilibrium constant to look up,
 ``\Delta_r G`` being that of the reaction of formation. A negative index denotes
 an undersaturated phase, a zero index a phase in equilibrium with the solution,
 and a positive index a phase that should have precipitated; this is what
-[`saturation_indices`](@ref) returns.
+[`saturation_indices`](@ref) returns. A positive index states a direction, not a
+rate: a precipitate starts from a nucleus whose interface costs energy, so that
+a solution can stay supersaturated, metastable, for a long time
+[Richet2001; Sec. 12.3d, p. 298](@cite). The index also depends on the solid it
+is computed for, a metastable polymorph or a poorly crystallized form being more
+soluble than the stable crystal [Richet2001; Sec. 12.3d, p. 299](@cite).
 
 Two consequences of the identity make the index a check rather than a
 convention. Since ``K_{sp}`` never enters the computation, being implied by the
@@ -257,7 +356,11 @@ V = \sum_i n_i V_i^\circ(T,P) ,
 ```
 
 with no excess volume of mixing. This assumption underlies every porosity the
-package reports. [`volume`](@ref) returns the split by aggregate state,
+package reports. For a solute, ``V_i^\circ`` is a standard partial molar volume,
+which can be negative, that of OH⁻ for one [Richet2001; Sec. 12.3b, p. 296](@cite),
+and the sum gives the volume of a solution only in the dilute limit; an activity
+coefficient that depends on pressure carries an excess volume the sum leaves
+out. [`volume`](@ref) returns the split by aggregate state,
 [`porosity`](@ref) the void fraction relative to a reference state, and
 [`chemical_shrinkage`](@ref) the volume the reaction itself consumes, the
 hydrates occupying less than the water and the clinker they were made from,
@@ -298,3 +401,8 @@ The other pages this one leads to are:
   - [Solid solutions](@ref sec-theory-solid-solutions), the part due to mixing
     in a solid;
   - [Chemical Equilibrium](@ref sec-equilibrium), which drives the solver.
+
+[Water and quartz from 0 to 1000 °C](@ref sec-validation-high-temperature)
+compares the ionization constant of water and the solubility of quartz computed
+with the solvent and the solutes of §3 with formulations fitted to the
+measurements over the whole range.

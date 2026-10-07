@@ -111,7 +111,7 @@ Similarly, we can provide information on the thermal capacity of species $\ce{Ca
 ![Figure](../assets/co3_properties_thermoddem.png)
 
 
-These new properties are also functions of temperature. However, unlike calcite, the heat capacities of $\ce{Ca^2+}$ and $\ce{CO3^2-}$ as a function of temperature are expressed using the Helgeson-Kirkham-Flowers (HKF) equation for Cp(T) of aqueous ions. The HKF Cp(T) model is not currently available as a built-in thermodynamic model in ChemistryLab; we therefore use the constant value at 25 °C given in Thermoddem, that is -26.38 and -276.88 J mol⁻¹ K⁻¹ respectively.
+These new properties are also functions of temperature. However, unlike calcite, the heat capacities of $\ce{Ca^2+}$ and $\ce{CO3^2-}$ as a function of temperature are expressed using the Helgeson-Kirkham-Flowers (HKF [Helgeson1981](@cite)) equation for Cp(T) of aqueous ions. The HKF Cp(T) model is not currently available as a built-in thermodynamic model in ChemistryLab; we therefore use the constant value at 25 °C given in Thermoddem, that is -26.38 and -276.88 J mol⁻¹ K⁻¹ respectively.
 
 
 ```@example example1

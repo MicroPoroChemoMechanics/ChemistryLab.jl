@@ -523,7 +523,7 @@ pore is not the same water as bulk water of the same composition. Its chemical
 potential is lower by the Kelvin term, `RT ln(a_w/a_w^chem) = -2 γ V_m / r`, so
 hydrates that consume water become less stable as the pore space empties. A
 sealed paste therefore stops hydrating **with water still in it** — which is what
-Powers' `α_max = w/c / 0.42` describes empirically, and what
+the `α_max = w/c / 0.42` of [Powers1948](@citet) describes empirically, and what
 [`powers_alpha_max`](@ref) carries into the kinetic rate laws.
 
 `retention` is a [`WaterRetention`](@ref): the material's own relation between

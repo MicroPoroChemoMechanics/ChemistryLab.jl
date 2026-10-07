@@ -31,12 +31,12 @@ end
 ```
 
 Each synthesis is computed as it was prepared (`lh16a_state`): the lime, the
-silica fume and the monocalcium aluminate of Appendix A, as the Cemdata18
-records of the three solids, which dissolve, in 90 g of water at 20 °C, beside
-portlandite, amorphous silica and the calcium aluminate hydrates of Cemdata18,
-among them katoite with its siliceous member, strätlingite and microcrystalline
-gibbsite. The activity model is the extended Debye–Hückel equation of Cemdata18
-[Lothenbach2019](@cite).
+silica fume and the monocalcium aluminate of [LHopital2016a; Appendix A](@cite),
+as the Cemdata18 records of the three solids, which dissolve, in 90 g of water
+at 20 °C, beside portlandite, amorphous silica and the calcium aluminate
+hydrates of Cemdata18, among them katoite with its siliceous member,
+strätlingite and microcrystalline gibbsite. The activity model is the extended
+Debye–Hückel equation of Cemdata18 [Lothenbach2019](@cite).
 
 ASSUMED: the 90 mL are 90 g of water; the comparison is with the samples
 hydrated for 182 days, or for 364 where a synthesis has no other.
@@ -131,8 +131,9 @@ it gives 0.042 and 0.071 where 0.031 and 0.052 were measured: its gel holds less
 silicon there, at a Ca/Si of 0.85 where the measured one is at least 0.67, the
 amorphous silica taking the rest, and the same aluminum is more per silicon.
 Beyond, its Al/Si stops between 0.10 and 0.12 whatever the Ca/Si, which is the
-paper's finding, 0.15 ± 0.05; the measured values run from 0.05 to 0.23, with
-an error the authors put at ±0.1 when other phases are present.
+finding of [LHopital2016a](@citet), 0.15 ± 0.05; the measured values run from
+0.05 to 0.23, with an error the authors put at ±0.1 when other phases are
+present.
 
 **It does not reproduce where the rest goes, nor the calcium of the gel above
 Ca/Si 1.2.** At an Al/Si of 0.2 the syntheses hold strätlingite at every Ca/Si,
@@ -142,8 +143,8 @@ Ca/Si 0.6 and 39 % at 1.0, and above to katoite, half of it at 1.6. Its gel
 stops at a Ca/Si of 1.19, where the measured one reaches 1.32 and 1.43, and the
 calcium it does not take precipitates as portlandite, 3.4 and 10.5 wt.% at Ca/Si
 1.4 and 1.6 where the syntheses hold none and 1.8. This is the limit of its end
-members that [the blended pastes of De Weerdt et al.](@ref sec-validation-blended-gels)
-also meet.
+members that [the blended pastes](@ref sec-validation-blended-gels) of
+[DeWeerdt2011](@citet) also meet.
 
 **CSHQ holds the calcium and none of the aluminum.** Its gel differs from the
 measured Ca/Si by 0.052 at most, at Ca/Si 1.2, and no portlandite forms, where
@@ -161,4 +162,5 @@ Neither forms the strätlingite these syntheses hold beside the gel.
 
 [The models of the C-S-H gel](@ref sec-csh-models) lists the gels of the
 package, and [Alkali uptake by C-A-S-H](@ref sec-validation-alkali-uptake)
-compares the two that carry the alkalis on the companion paper.
+compares the two that carry the alkalis on the companion paper
+[LHopital2016b](@cite).

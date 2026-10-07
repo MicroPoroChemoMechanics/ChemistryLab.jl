@@ -49,12 +49,12 @@ end
 
 ## Against the thermobalance
 
-The four pastes at the degrees of hydration of the image analysis, and the
-bound water of Fig. 7 at the nearest age, from the batch whose composition is
-that of the calorimetry (TG/b of Table 1). The image analysis is at 28 months and
-the thermogravimetry at 1018 days for the pastes with 0 and 50 % slag, at 363
-days for the one with 85 %; the extrapolation to infinite time the article fits
-on each series, $w_{b,\infty}$, is the other comparison.
+The four pastes at the degrees of hydration of the image analysis, and the bound
+water of [Gruyaert2010; Fig. 7](@cite) at the nearest age, from the batch whose
+composition is that of the calorimetry (TG/b of Table 1). The image analysis is
+at 28 months and the thermogravimetry at 1018 days for the pastes with 0 and
+50 % slag, at 363 days for the one with 85 %; the extrapolation to infinite time
+the article fits on each series, $w_{b,\infty}$, is the other comparison.
 
 ```@example tga
 wb_measured(sb, days) = only(literature_table("Gruyaert2010", "bound_water";

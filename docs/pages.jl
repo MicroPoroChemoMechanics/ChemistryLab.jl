@@ -99,6 +99,9 @@ pages = [
             # From materials, masses and degrees of reaction to the budget the
             # minimization conserves, and what is kept out of it.
             "theory/recipe_bookkeeping.md",
+            # The enthalpy of a glass that has no formula, from measured
+            # silicate glasses, for the heat of a blend.
+            "theory/glass_thermochemistry.md",
         ],
     ],
     "Manual" => [
@@ -341,6 +344,9 @@ pages = [
         # loses. Neither feeds back on the calculation.
         "Outputs of a calculation" => [
             "examples/isothermal_calorimetry.md",
+            # The heat of a blend at its measured degrees of reaction, the slag
+            # glass at the enthalpy of the measured glasses.
+            "examples/slag_heat.md",
             "examples/thermogravimetry.md",
         ],
     ],

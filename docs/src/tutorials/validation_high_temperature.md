@@ -1,8 +1,8 @@
 # [Water and quartz from 0 to 1000 °C](@id sec-validation-high-temperature)
 
 !!! info "Before this page"
-    [Real gases and pressure](@ref sec-theory-real-gases), §6, for the standard
-    state of the solvent and the domain of the HKF equations.
+    [Thermochemistry](@ref sec-theory-water-eos), §3, for the standard state of
+    the solvent and [the domain of the HKF equations](@ref sec-theory-hkf-domain).
 
 The standard states of the ThermoFun databases reach 1000 °C and 5000 bar: the
 solvent by the equation of state of water of [Haar1984](@citet), the aqueous
@@ -11,8 +11,8 @@ their heat-capacity functions. This page takes two equilibria that involve
 nothing but water and, for the second, one mineral, and compares them over that
 range with formulations fitted to the measurements: the ionization constant of
 water of [BanduraLvov2006](@citet) and the solubility of quartz of
-[Manning1994](@citet). The constants are those of slop98, the database written
-for this range; nothing is fitted.
+[Manning1994](@citet). The constants are those of slop98 [Johnson1992](@cite),
+the database written for this range; nothing is fitted.
 
 ## 1. The ionization constant of water
 
@@ -32,11 +32,11 @@ end
 
 ``Δ`` is this package's pKw minus theirs. From 25 to 400 °C the two differ by
 0.20 at most at every state of the table, close to the 0.16 standard deviation of
-the fit of Bandura and Lvov to the measurements, and within 0.3 at 0 °C. Above
-400 °C the difference grows with the temperature, this package giving the
-higher pKw, that is the less dissociated water: 0.4 on average at 600 °C, 0.8
-at 800 °C, 1.4 at 1000 °C, where the table reaches densities of 0.4 to
-0.6 g/cm³.
+the fit of [BanduraLvov2006](@citet) to the measurements, and within 0.3 at
+0 °C. Above 400 °C the difference grows with the temperature, this package
+giving the higher pKw, that is the less dissociated water: 0.4 on average at
+600 °C, 0.8 at 800 °C, 1.4 at 1000 °C, where the table reaches densities of 0.4
+to 0.6 g/cm³.
 
 ```@example hightemp
 using Plots
@@ -53,9 +53,9 @@ savefig(fig, "validation-high-temperature-pkw.svg"); nothing # hide
 
 ![](validation-high-temperature-pkw.svg)
 
-The lines are this package, the markers the formulation of Bandura and Lvov.
-Along each isobar pKw falls with the temperature, then rises again as the
-expanding solvent screens the ions less.
+The lines are this package, the markers the formulation of
+[BanduraLvov2006](@citet). Along each isobar pKw falls with the temperature,
+then rises again as the expanding solvent screens the ions less.
 
 ## 2. The solubility of quartz
 
@@ -80,9 +80,9 @@ savefig(fig2, "validation-high-temperature-quartz.svg"); nothing # hide
 
 ![](validation-high-temperature-quartz.svg)
 
-Solid lines, the database; dashed lines, the equation of Manning. The two differ
-by 0.004 to 0.022 in ``\log m`` up to 400 °C, by 0.06 at 500 °C and 2 kbar, and
-part by 0.12 at 800 °C and 5 kbar, the database dissolving less. The change of
-slope at 575 °C is the transition of α- to β-quartz, which the record of quartz
-places at the top of its first heat-capacity interval and which the package
-carries into the second.
+Solid lines, the database; dashed lines, the equation of [Manning1994](@citet).
+The two differ by 0.004 to 0.022 in ``\log m`` up to 400 °C, by 0.06 at 500 °C
+and 2 kbar, and part by 0.12 at 800 °C and 5 kbar, the database dissolving less.
+The change of slope at 575 °C is the transition of α- to β-quartz, which the
+record of quartz places at the top of its first heat-capacity interval and which
+the package carries into the second.

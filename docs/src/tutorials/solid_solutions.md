@@ -11,9 +11,10 @@ A solid solution is declared as a candidate, and the calculation decides whether
 it is present, in which amount and with which composition. This tutorial follows
 one such calculation from end to end on the simplest gel of a cement paste: the
 calcium silicate hydrate formed by lime and silica in water, described by the
-CSHQ model of Cemdata18 [Kulik2011](@cite). It declares the gel, reads which
-phases the equilibrium holds, explains from the output why the gel is absent or
-present, makes the choices that belong to the user, and reads the certificate.
+CSHQ model of Cemdata18 [Lothenbach2019, Kulik2011](@cite). It declares the gel,
+reads which phases the equilibrium holds, explains from the output why the gel
+is absent or present, makes the choices that belong to the user, and reads the
+certificate.
 
 ## 1. Declaring the gel
 

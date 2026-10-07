@@ -28,8 +28,8 @@ the same value in every phase between which the species can be exchanged;
 neither the activity nor the standard potential shares that property, only their
 combination does. Carbon dioxide distributed between a gas phase and water thus
 has one chemical potential and two activities, a fraction of the pressure in the
-gas and a molality in the solution. The ratio of the two activities is the Henry
-constant ``K_H``, and equating the two expressions of the potential shows that
+gas and a molality in the solution. The ratio of the two activities,
+``K_H = a_{\text{aq}}/a_{\text{gas}}``, is the Henry constant, and equating the two expressions of the potential shows that
 ``RT\ln K_H = \mu^\circ_{\text{gas}} - \mu^\circ_{\text{aq}}`` is nothing but
 the difference between the two standard potentials
 [AndersonCrerar1993](@cite) (§12.6).
@@ -52,7 +52,8 @@ state (see [Apparent and formation Gibbs energies](@ref sec-theory-apparent))
 rather than as a number.
 
 Pressure is treated according to the model attached to the species. The
-Helgeson-Kirkham-Flowers equation of state of aqueous solutes depends on ``P``,
+Helgeson-Kirkham-Flowers equation of state of aqueous solutes
+[Helgeson1981](@cite) depends on ``P``,
 so that the standard state of a solute is at the pressure of the system. A
 record that declares a molar volume independent of temperature and pressure
 (`mv_constant` in the ThermoFun databases: the solids and the solutes described
@@ -68,7 +69,7 @@ which vanishes at ``P_r = 1`` bar ([`P_STANDARD`](@ref)). For portlandite, with
 and to ``1.3\,RT`` at 1 kbar: negligible for a laboratory sample or a
 structure, not for a deep reservoir. The solvent follows the equation of state
 of water at every temperature and pressure, from the values its record tabulates
-at ``T_r`` and ``P_r`` ([Real gases and pressure](@ref sec-theory-real-gases) §6). A gas is referred to
+at ``T_r`` and ``P_r`` ([Thermochemistry](@ref sec-theory-water-eos) §3). A gas is referred to
 the pure ideal gas at ``P_r``, and the pressure enters its activity (§2). A
 species built by hand keeps the functions it is given: a heat-capacity
 polynomial alone carries no pressure term.
@@ -103,8 +104,25 @@ not mol/g or mol/kg of solution. Molarity instead uses solution volume, in
 mol/L. At fixed composition, thermal expansion changes molarity but not
 molality; reaction or water exchange can change either.
 
+The state is not equally hypothetical in every property. Its partial molar
+enthalpy, volume and heat capacity are those of the solute at infinite dilution;
+its entropy and its standard potential are not, because of the term in
+``R\ln(m_i/m^\circ)`` [Richet2001; Sec. 11.2e, p. 254](@cite). The temperature
+dependence of ``\gamma_i`` therefore measures how far the partial molar enthalpy
+``h_i`` of the solute has moved from its value at infinite dilution,
+``h_i^\infty``:
+
+```math
+\left(\frac{\partial\ln\gamma_i}{\partial T}\right)_{P,\mathbf{n}}
+  = -\frac{h_i - h_i^\infty}{RT^2}
+```
+
+[Richet2001; Sec. 11.2e, Eq. (11.38), p. 255](@cite), and the standard
+properties of a solute, those the HKF equations give, are properties of infinite
+dilution.
+
 [`HKFActivityModel`](@ref), [`DaviesActivityModel`](@ref) and the Pitzer model
-compute ``\gamma_i`` from the composition of the solution
+[Pitzer1975](@cite) compute ``\gamma_i`` from the composition of the solution
 ([Activity models](@ref sec-theory-activity)). The dilute model takes
 ``\gamma_i = 1`` and forms the same ratio ``n_i/(n_w M_w)``, which it declares to
 the aqueous accessors as a molarity, on the ground that a dilute solution has a
@@ -155,7 +173,7 @@ package gives a gas, whether its record declares the ideal gas (`mv_pvnrt`) or i
 is built without a molar volume, so that the two are consistent at every
 pressure. A real gas keeps this standard state and gains a fugacity coefficient
 in its activity, ``a_i = \varphi_i x_i P/P_r``, from an equation of state
-([Real gases and pressure](@ref sec-theory-real-gases)).
+([Real gases](@ref sec-theory-real-gases)).
 
 ### End-members of a solid solution
 

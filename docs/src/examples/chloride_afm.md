@@ -11,7 +11,8 @@ equilibrated at 25 °C the model mixture of a Portland paste, 0.01 mol of C₃A,
 0.015 mol of portlandite and 0.01 mol of calcium sulfate in 60 mL of water,
 without and with 0.0075 mol of calcite, with CaCl₂ up to 2Cl/Al₂O₃ = 1, and
 identified the phases by XRD. This page computes the titration with
-Cemdata18, on the system of the companion page on temperature.
+Cemdata18 [Lothenbach2019](@cite), on the system of the companion page on
+temperature.
 
 ```@example chloride
 using ChemistryLab, DynamicQuantities, Printf
@@ -37,11 +38,11 @@ end
 E is ettringite, Ms the sulfate AFm, Ks and Fs Kuzel's and Friedel's salts,
 Mc monocarbonate, P portlandite and Cc calcite. Without calcite, the sulfate
 AFm is gone at 0.44 here and between 0.41 and 0.45 in the calculation of
-Balonis et al., Kuzel's salt at 0.78 here and between 0.68 and 0.72 there, on
-a grid of 0.02; the phases of every sample are found, but for traces of
-calcite, which the carbonate-free mixture held from the air, and the calcite of
-the carbonate-bearing mixture before any chloride, which the equilibrium keeps
-and the XRD did not report.
+[Balonis2010](@citet), Kuzel's salt at 0.78 here and between 0.68 and 0.72
+there, on a grid of 0.02; the phases of every sample are found, but for traces
+of calcite, which the carbonate-free mixture held from the air, and the calcite
+of the carbonate-bearing mixture before any chloride, which the equilibrium
+keeps and the XRD did not report.
 
 ```@example chloride
 meas = literature_table("Balonis2010", "fig8b_measured_solution")
@@ -55,9 +56,9 @@ end
         100 * (row(free, 1.0).solids / row(free, 0.0).solids - 1), 100 * (row(carb, 1.0).solids / row(carb, 0.0).solids - 1))
 ```
 
-The solution of the samples, read on the figure of the article, is reproduced
-while the sulfate AFm remains; once Kuzel's salt alone holds the chloride the
-calculation leaves twice the measured chloride in solution, and at 2Cl/Al₂O₃ =
-1 a fifth less. Binding chloride swells the solids, by about a quarter
-without calcite and by a twentieth with it, against 29 % and 7 % in the
+The solution of the samples, read on the figure of [Balonis2010](@citet), is
+reproduced while the sulfate AFm remains; once Kuzel's salt alone holds the
+chloride the calculation leaves twice the measured chloride in solution, and at
+2Cl/Al₂O₃ = 1 a fifth less. Binding chloride swells the solids, by about a
+quarter without calcite and by a twentieth with it, against 29 % and 7 % in the
 calculation of the article.

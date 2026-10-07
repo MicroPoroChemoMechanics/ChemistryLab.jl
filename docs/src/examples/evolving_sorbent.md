@@ -54,7 +54,8 @@ the amount of sites together.
 Hydrous ferric oxide — amorphous `Fe(OH)₃`, the rust-colored precipitate that
 forms wherever dissolved iron meets oxygen — is the reference sorbent of the
 field. [DzombakMorel1990](@citet) measured its site densities and its binding
-constants, and those are the numbers PHREEQC ships to this day.
+constants, and those are the numbers PHREEQC [ParkhurstAppelo2013](@cite) ships
+to this day.
 
 Two numbers define the surface:
 
@@ -377,7 +378,7 @@ worst_si = maximum(
 to be admired: it is the definition of being at equilibrium with the solution,
 and an index that disagreed with it would be a diagnostic that lies.
 
-## What PHREEQC does, and where this differs
+## The same coupling in PHREEQC
 
 PHREEQC has been able to tie a surface to a mineral since version 2, written
 
@@ -390,9 +391,9 @@ which reads exactly as `SITES_FOLLOW_HOST` does here. The generator
 with it, and the two codes agree on the coupling law to `2 × 10⁻¹⁰` over five
 partially dissolved states.
 
-They are **not** running one surface model, and the difference is worth knowing
-before comparing anything else. PHREEQC scales the site totals from the phase
-and stops there: the phase's own stability is untouched. This package counts
+The two codes do not run the same surface model, which matters before comparing
+anything else. In PHREEQC the site totals scale with the phase amount, and the
+phase's solubility is that of its database record. This package counts
 the free sites as part of the host, so the host's stability includes the energy
 of its surface, and a surface that binds protons or metals changes how soluble
 the host is. The two therefore agree on the ratio of sites to phase, and are
@@ -408,8 +409,8 @@ expected to differ on how much of the phase dissolves.
   - **A sorbent that *appears*.** Everything here runs backwards as well — the
     same declaration describes a phase precipitating and bringing its sites with
     it — but the case that matters, a C-S-H forming as a paste hydrates, needs
-    site densities for the C-S-H that nobody has published. That is a missing
-    measurement, not a missing feature.
+    site densities for the C-S-H, for which no published value is available.
+    That is a missing measurement, not a missing feature.
   - **Electrostatics.** The surface here has a charge and no potential; see
     [A charged surface, screened](@ref sec-example-diffuse-layer).
   - **The energy of the host's surface.** Counting the free sites as part of the

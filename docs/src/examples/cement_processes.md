@@ -77,8 +77,8 @@ ratio(x) = isnan(x) ? "    –" : @sprintf("%5.2f", x)
 
 [`blend`](@ref) replaces the fraction `f` of the binder by another material and
 keeps the binder mass and the water/binder ratio. Here the material is the
-siliceous fly ash of the same paper. Its glass reacts at the rate the paper
-fitted, 30 % of the fly ash at 90 days, and its crystals stay inert. The
+siliceous fly ash of [DeWeerdt2011](@citet). Its glass reacts at the rate the
+paper fitted, 30 % of the fly ash at 90 days, and its crystals stay inert. The
 clinker keeps the degrees of reaction measured in the CEM I, although in the
 blended pastes of the paper the clinker reacted somewhat faster.
 
@@ -149,7 +149,8 @@ savefig(fig, "processes-carbonation.svg"); nothing # hide
 this system, and its ions enter together, so the budget stays neutral. Section 1
 declared Friedel's and Kuzel's salts, so the paste can bind chloride. Every
 equilibrium's certificate also reports its ionic strength against the range
-the Cemdata18 activity model is stated for, about 1 mol/kg.
+the Cemdata18 activity model [Lothenbach2019](@cite) is stated for, about
+1 mol/kg.
 
 ```@example processes
 nacl = 0.0:0.01:0.06

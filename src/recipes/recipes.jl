@@ -458,7 +458,7 @@ computed from it cannot pass for complete.
 enthalpy(rs::RecipeState) = _in_unit(us"J", enthalpy(rs.state)) + _residual_sum(rs, :enthalpy).value
 
 """
-    heat_release(rs1::RecipeState, rs2::RecipeState) -> Float64
+    heat_release(rs1::RecipeState, rs2::RecipeState; set_aside = nothing) -> Float64
 
 The heat (J) a paste releases from the state `rs1` to the state `rs2` of the
 same recipe, at the same temperature and pressure: the fall of its enthalpy,
@@ -467,8 +467,15 @@ set aside with the same mass in both (an inert crystal, an oxide the system has
 no primary for) adds nothing, whether or not its enthalpy is sourced. One whose
 unreacted mass changed needs a sourced enthalpy of formation, and the heat is
 `NaN` without it.
+
+An oxide the system has no primary for, released by a constituent that reacts
+(the titanium of a slag glass), is set aside with a mass that changes. Its
+enthalpy of formation per gram is given by `set_aside`, a map from the oxide's
+formula to it (J/g, or an energy per mass); the one [`glass_enthalpy`](@ref)
+counted it at, its crystal's, keeps the balance closed. Without an entry the
+heat is `NaN`.
 """
-function heat_release(a::RecipeState, b::RecipeState)
+function heat_release(a::RecipeState, b::RecipeState; set_aside = nothing)
     (a.state.T[1] == b.state.T[1] && a.state.P[1] == b.state.P[1]) || throw(
         ArgumentError("heat_release: the two states are at different temperatures or pressures; the heat is that of an isothermal, isobaric change."),
     )
@@ -480,12 +487,23 @@ function heat_release(a::RecipeState, b::RecipeState)
         ma = xa === nothing ? 0.0 : xa.mass
         mb = xb === nothing ? 0.0 : xb.mass
         ma == mb && continue
-        Ha = xa === nothing ? 0.0 : xa.enthalpy
-        Hb = xb === nothing ? 0.0 : xb.enthalpy
+        Ha = xa === nothing ? 0.0 : _set_aside_enthalpy(xa, set_aside)
+        Hb = xb === nothing ? 0.0 : _set_aside_enthalpy(xb, set_aside)
         (Ha === nothing || Hb === nothing) && return NaN
         q -= Hb - Ha
     end
     return q
+end
+
+# The enthalpy (J) of a residue entry: its own, or, for an oxide set aside
+# because the system has no primary for it ("glass: TiO2"), the mass times the
+# enthalpy per gram `set_aside` gives for that oxide, `nothing` without one.
+function _set_aside_enthalpy(x, set_aside)
+    x.enthalpy === nothing || return x.enthalpy
+    (set_aside === nothing || x.reason !== :not_in_system) && return nothing
+    oxide = String(last(split(x.constituent, ": ")))
+    h = get(set_aside, oxide, nothing)
+    return h === nothing ? nothing : x.mass * _in_unit(us"J/g", h)
 end
 
 function Base.show(io::IO, rs::RecipeState)

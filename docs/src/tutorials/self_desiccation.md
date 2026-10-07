@@ -5,8 +5,8 @@
     budget of a hydrating paste](@ref sec-theory-water-budget) for the theory
     this page applies.
 
-A sealed cement paste stops hydrating before it runs out of cement. Powers'
-rule of thumb caps the degree of hydration at
+A sealed cement paste stops hydrating before it runs out of cement. The rule of
+thumb of [Powers1948](@citet) caps the degree of hydration at
 
 ```math
 \alpha_{\max} = \frac{w/c}{0.42},
@@ -228,8 +228,9 @@ introduce Mualem's relative permeability. So a ``b`` from that literature enters
 [`VanGenuchten`](@ref) as ``m = 1/b``, and **getting that inversion wrong is
 silent**: it changes the exponent and nothing complains.
 
-Their Table 5, with the water-to-cement ratios of their Table 1. CO and CH are
-cement pastes, BO and BH concretes, and CH and BH contain 10 % silica fume:
+[BaroghelBouny1999; Table 5](@citet), with the water-to-cement ratios of their
+Table 1. CO and CH are cement pastes, BO and BH concretes, and CH and BH contain
+10 % silica fume:
 
 ```@example sd
 fits = literature_table("BaroghelBouny1999", "retention_fit")
@@ -273,8 +274,9 @@ end
 ```
 
 The last column sets the scale: 80 % relative humidity corresponds to a meniscus of
-radius 4.7 nm. That is the **gel-pore scale**, which is why the water Powers
-assigns to gel pores and the water a sealed paste cannot use are the same water.
+radius 4.7 nm. That is the **gel-pore scale**, which is why the water
+[Powers1948](@citet) assigns to gel pores and the water a sealed paste cannot
+use are the same water.
 
 ```@example sd
 using Plots
@@ -307,16 +309,17 @@ S80 = saturation_at(0.80)
         k_powers, min(1.0, wc / k_powers))
 ```
 
-**30 % above Powers.** Before calling that a disagreement, look at what ``b``
-means on each side.
+**30 % above [Powers1948](@citet).** Before calling that a disagreement, look at
+what ``b`` means on each side.
 
-Powers' 0.42 is itself a sum: about 0.23 g/g of **non-evaporable** water plus
-about 0.19 g/g of **gel** water. And his 0.23 is an *operational* quantity — the
-water that survives D-drying, over ``\ce{Mg(ClO4)2*2H2O}`` at roughly 8 %
-relative humidity. A thermodynamic database draws the line elsewhere: CEMDATA18
-writes interlayer water **into the C-S-H formula**, where D-drying would have
-removed it. The model's ``b`` and Powers' ``w_n`` are therefore not the same
-quantity, and their difference is not an error:
+The 0.42 of [Powers1948](@citet) is itself a sum: about 0.23 g/g of
+**non-evaporable** water plus about 0.19 g/g of **gel** water. And his 0.23 is
+an *operational* quantity — the water that survives D-drying, over
+``\ce{Mg(ClO4)2*2H2O}`` at roughly 8 % relative humidity. A thermodynamic
+database draws the line elsewhere: CEMDATA18 writes interlayer water **into the
+C-S-H formula**, where D-drying would have removed it. The model's ``b`` and
+Powers' ``w_n`` are therefore not the same quantity, and their difference is not
+an error:
 
 ```@example sd
 b_powers = literature_value("Powers1948", "non_evaporable_water")   # his own number
@@ -326,8 +329,8 @@ b_powers = literature_value("Powers1948", "non_evaporable_water")   # his own nu
         b_model - b_powers)
 ```
 
-Substituting Powers' own non-evaporable water, and leaving the chemical shrinkage
-and the isotherm exactly as measured:
+Substituting the non-evaporable water of [Powers1948](@citet), and leaving the
+chemical shrinkage and the isotherm exactly as measured:
 
 ```@example sd
 @printf("with Powers' w_n = %.2f:\n", b_powers)
@@ -345,8 +348,8 @@ how little that is.
 
 The comparison above runs one way — assume the arrest is at 80 % and see what
 ``k`` comes out. Run it the other way and the answer is a *prediction of a
-measurable quantity*: **at what internal humidity does Powers' 0.42 place the
-arrest?**
+measurable quantity*: **at what internal humidity does the 0.42 of
+[Powers1948](@citet) place the arrest?**
 
 ```@example sd
 function invert_k(b, s, k_target)
@@ -365,15 +368,15 @@ for (label, b) in (("the model's formula water", b_model), ("Powers' own w_n", b
 end
 ```
 
-With Powers' own non-evaporable water, **Powers' 0.42 corresponds to a hydration
-arrest at 77.5 % relative humidity.**
+With the non-evaporable water of [Powers1948](@citet), **his 0.42 corresponds to
+a hydration arrest at 77.5 % relative humidity.**
 
 That number was not put in anywhere. It came out of a chemical shrinkage computed
 from a thermodynamic database, a desorption isotherm measured for a drying study,
-and Powers' own water split — three sources, none of which knows what the others
-are for. And 75–80 % is the window in which sealed pastes are independently
-reported to stop hydrating; it is the same window `humidity_factor` implements as
-its cut-off.
+and the water split of [Powers1948](@citet) — three sources, none of which knows
+what the others are for. And 75–80 % is the window in which sealed pastes are
+independently reported to stop hydrating; it is the same window
+`humidity_factor` implements as its cut-off.
 
 !!! tip "A corroboration from the same paper's own measurements"
     [BaroghelBouny1999](@cite) also measured the internal relative humidity of
@@ -382,12 +385,12 @@ its cut-off.
     concrete BO (W/C 0.48) and **77.5 %** for the concrete BH (W/C 0.26).
 
     Monotone in W/C within each material class, as self-desiccation requires. And
-    the mixes Powers says should have arrested by 28 days — the low-W/C ones —
-    are the ones sitting in the 77.5–88.5 % band that the inversion above points
-    at, while the two mixes with water to spare sit at 97 %. Those specimens are
-    not arrested pastes at equilibrium, so this is corroboration of a range and
-    not a fourth decimal; it is worth stating because the numbers come from the
-    same table as the isotherm.
+    the mixes [Powers1948](@citet) says should have arrested by 28 days — the
+    low-W/C ones — are the ones sitting in the 77.5–88.5 % band that the
+    inversion above points at, while the two mixes with water to spare sit at
+    97 %. Those specimens are not arrested pastes at equilibrium, so this is
+    corroboration of a range and not a fourth decimal; it is worth stating
+    because the numbers come from the same table as the isotherm.
 
 ---
 
@@ -428,17 +431,17 @@ plot(p2; size = (700, 420), left_margin = 8Plots.mm, bottom_margin = 8Plots.mm)
 
 A tenth of a point of saturation moves ``k`` by 0.14, so the arrest humidity has
 to be known to about one point to pin ``k`` to 0.01. This page cannot separate
-Powers' sealed 0.42 from his saturated-curing 0.36 on the strength of the
-isotherm alone, and it does not try.
+the sealed 0.42 of [Powers1948](@citet) from his saturated-curing 0.36 on the
+strength of the isotherm alone, and it does not try.
 
 ---
 
 ## 7. Two negative controls
 
 Two claims carry the rest of the page: that the arrest criterion belongs in the
-rate law and not in the Gibbs energy, and that Powers' proportional *form* is no
-evidence for his coefficient. Both are testable on the material at hand, so both
-are measured here rather than asserted.
+rate law and not in the Gibbs energy, and that the proportional *form* of
+[Powers1948](@citet) is no evidence for his coefficient. Both are testable on
+the material at hand, so both are measured here rather than asserted.
 
 ### The thermodynamic route, measured
 
@@ -475,10 +478,10 @@ proof. The arithmetic in the opening admonition says why
 nothing is expected to happen in that range anyway.
 
 So a Gibbs minimization under [`CapillaryWater`](@ref) arrests where it ran out
-of water stoichiometrically, not where Powers says. What the constraint is good
-for is what §3–§5 use it for: making the water activity of a state mean the water
-in the pores rather than a mole fraction, and handing that humidity to a rate law
-through [`PoreHumidity`](@ref).
+of water stoichiometrically, not where [Powers1948](@citet) says. What the
+constraint is good for is what §3–§5 use it for: making the water activity of a
+state mean the water in the pores rather than a mole fraction, and handing that
+humidity to a rate law through [`PoreHumidity`](@ref).
 
 ### The proportional form, measured
 
@@ -519,8 +522,8 @@ of it. A page that quoted a five-digit agreement between that ratio and
 ``k`` and §6 reports ``\mathrm{d}k/\mathrm{d}S^\ast`` instead.
 
 Neither curve gives 0.42 at RH 0.80 with this system's formula water. Recovering
-Powers' coefficient takes his own water split as well, and §5 does that
-explicitly and says so.
+the coefficient of [Powers1948](@citet) takes his own water split as well, and
+§5 does that explicitly and says so.
 
 ---
 
@@ -532,15 +535,16 @@ explicitly and says so.
 | thermodynamic data | Cemdata18 | [Lothenbach2019](@citet) | no |
 | ``b``, ``s`` | 0.3095 g/g, 0.0639 cm³/g | computed here, certified | no |
 | retention curve | mix CO | [BaroghelBouny1999](@citet) Table 5 | no |
-| ``\gamma``, ``V_m``, ``T`` | 0.0720 N/m, 1.807e-5 m³/mol, 298.15 K | water at 25 °C: [IAPWS2014](@citet), and the HGK equation of state | no |
+| ``\gamma``, ``V_m``, ``T`` | 0.0720 N/m, 1.807e-5 m³/mol, 298.15 K | water at 25 °C: [IAPWS2014](@citet), and the HGK equation of state [Haar1984](@cite) | no |
 | ``w_n`` = 0.23 | Powers' own split of his 0.42 | [Powers1948](@citet) | **yes** |
 
 **output**: the arrest humidity, 77.5 %.
 
-Only the last row knows about Powers, and it contributes his *decomposition*, not
-his coefficient. Nothing on this page was adjusted to improve the agreement, and
-the one number that could have been — the retention curve — was fitted by its
-authors to a drying experiment two decades before this calculation existed.
+Only the last row knows about [Powers1948](@citet), and it contributes his
+*decomposition*, not his coefficient. Nothing on this page was adjusted to
+improve the agreement, and the one number that could have been — the retention
+curve — was fitted by [BaroghelBouny1999](@citet) to a drying experiment two
+decades before this calculation existed.
 
 ---
 
@@ -555,23 +559,24 @@ authors to a drying experiment two decades before this calculation existed.
     belongs to a mature paste; the page applies it at every ``\alpha``. The pore
     structure of a young paste is coarser, so its true ``S^\ast`` is higher and
     the arrest earlier.
-  - **The published fit excludes the humidity range this page works in.** The
-    authors state that "the experimental data corresponding to the lowest
-    capillary pressures (corresponding to the highest RH) have not been accounted
-    [for] due to their weak reliability". Above about 90 % RH the curve used here
-    is extrapolation into a region its authors declined to fit — which is exactly
-    where an unarrested paste sits, and a reason the corroboration in §5 is
-    stated as a range.
-  - **The saturations are normalized differently.** The paper's ``S`` is relative
-    to its measured total porosity, 30.3 % for mix CO; this model gives 27.4 % at
-    ``\alpha = 0.65`` and reaches 30.3 % nearer ``\alpha \approx 0.57``. A 10 %
-    difference in the denominator is a real bias on ``S^\ast``, and by §6 worth
-    a few hundredths of ``k``.
+  - **The published fit excludes the humidity range this page works in.**
+    [BaroghelBouny1999](@citet) state that "the experimental data corresponding
+    to the lowest capillary pressures (corresponding to the highest RH) have not
+    been accounted [for] due to their weak reliability". Above about 90 % RH the
+    curve used here is extrapolation into a region its authors declined to fit —
+    which is exactly where an unarrested paste sits, and a reason the
+    corroboration in §5 is stated as a range.
+  - **The saturations are normalized differently.** The ``S`` of
+    [BaroghelBouny1999](@citet) is relative to their measured total porosity,
+    30.3 % for mix CO; this model gives 27.4 % at ``\alpha = 0.65`` and reaches
+    30.3 % nearer ``\alpha \approx 0.57``. A 10 % difference in the denominator
+    is a real bias on ``S^\ast``, and by §6 worth a few hundredths of ``k``.
   - **The C-S-H model matters as much as the isotherm.** ``\mathrm{d}k/\mathrm{d}b = 1``,
     so a change in the C-S-H water content moves ``k`` one for one. Measured on
     this system: `Jennite` gives ``b`` = 0.3095 g/g and the `CSHQ` solid solution
-    gives **0.3684**, so it moves *away* from Powers, not toward him. Neither is
-    wrong; they draw the formula-water line in different places.
+    gives **0.3684**, so it moves *away* from the value of [Powers1948](@citet),
+    not toward it. Neither is wrong; they draw the formula-water line in
+    different places.
   - **No alkalis.** This species list carries none, so the pore solution's
     osmotic depression of ``a_w`` is absent. At 0.1–0.5 mol/kg it is worth one to
     two points of relative humidity, in the same direction as the capillary term.

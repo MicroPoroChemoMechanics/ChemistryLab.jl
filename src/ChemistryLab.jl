@@ -7,7 +7,8 @@ __precompile__(true)
     ChemistryLab
 
 Top-level module for parsing, representing and manipulating chemical
-formulas, species, stoichiometric matrices and ThermoFun / PHREEQC-like data.
+formulas, species, stoichiometric matrices and ThermoFun / PHREEQC-like data
+[ParkhurstAppelo2013](@cite).
 
 # Overview
 
@@ -118,6 +119,7 @@ module ChemistryLab
     include("chemical_structs/solid_solutions.jl")
     include("chemical_structs/sublattice.jl")
     include("chemical_structs/oxide_budget.jl")
+    include("chemical_structs/glass_thermochemistry.jl")
     include("chemical_structs/reactions.jl")
     include("chemical_structs/speciation.jl")
     include("chemical_structs/stoich_matrices.jl")
@@ -192,7 +194,7 @@ module ChemistryLab
         bogue, decompose, reactive_part,
         Recipe, budget, RecipeState, residual_mass, phase_masses, bound_water,
         pore_solution, ProcessResult, hydrate, blend, titrate, carbonate, add_salt,
-        leach, process_table, material_template, material_templates, with_extents, with_species,
+        leach, process_table, material_template, material_templates, with_extents, with_species, with_enthalpy,
         phase_list, phase_lists, phase_list_system
 
     export SymbolicFunc,
@@ -336,6 +338,8 @@ module ChemistryLab
         RedlichKisterModel,
         RegularSolutionModel,
         SubregularSolutionModel,
+        MulticomponentRedlichKisterModel,
+        VanLaarModel,
         SublatticeModel,
         site_fractions,
         sublattice_model,
@@ -456,6 +460,8 @@ module ChemistryLab
         oxide_budget,
         glass_species,
         cation_molar_mass,
+        glass_enthalpy,
+        glass_heat_capacity,
         primary_decomposition,
         get_compatible_species,
         HKF_SI_CONVERSIONS

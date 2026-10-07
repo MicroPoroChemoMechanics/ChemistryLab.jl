@@ -12,8 +12,10 @@ using TOML
 """
     HKF_SI_CONVERSIONS
 
-Hardcoded conversion factors from SUPCRT (cal, bar) to SI (J, Pa) for `eos_hkf_coeffs`.
-The JSON unit metadata for a3 and a4 is incorrect (missing `/bar`), hence this explicit table.
+Hardcoded conversion factors from SUPCRT [Johnson1992](@cite) (cal, bar) to SI
+(J, Pa) for `eos_hkf_coeffs`. The JSON unit metadata for a3 and a4 omit the
+`/bar` the SUPCRT units carry, so the conversion factors are set here
+explicitly.
 
 | Symbol | SUPCRT unit             | SI unit             | Factor     |
 |--------|-------------------------|---------------------|------------|
@@ -238,9 +240,9 @@ The temperatures, in K, over which the record of `s` declares its heat capacity:
 the `limitsTP` of its `cp_ft_equation` methods in a ThermoFun database, from the
 lowest bound of its first interval to the highest of its last. `(-Inf, Inf)`
 for a species whose record declares none, which includes every solute described
-by the HKF equations, whose domain is a density of water rather than a
-temperature (see [Real gases and pressure](@ref sec-theory-real-gases) §6), and
-the solvent.
+by the HKF equations [Helgeson1981](@cite), whose domain is a density of water
+rather than a temperature (see [Where the HKF equations
+hold](@ref sec-theory-hkf-domain)), and the solvent.
 
 Nothing refuses a temperature outside the range: the heat capacity is carried
 past it by the nearest interval's function. The ranges are narrow in places.
@@ -600,13 +602,13 @@ end_members = ["CSHQ-TobD", "CSHQ-TobH", "CSHQ-JenH", "CSHQ-JenD", "KSiOH", "NaS
 model       = "ideal"          # or "redlich_kister", "regular", "sublattice", "compound_energy"
 ```
 
-A Redlich-Kister entry gives its parameters in J/mol as `a0`, `a1`, `a2`, or
-names published dimensionless Guggenheim parameters with
+A Redlich-Kister [RedlichKister1948](@cite) entry gives its parameters in J/mol
+as `a0`, `a1`, `a2`, or names published dimensionless Guggenheim parameters with
 `guggenheim = "<literature key>:<pair>"`, a row of the `guggenheim_parameters`
 table of `data/literature/<key>.json`; they become `a = α R T` at 298.15 K, so
 that no published value is copied into the file. The sign of `a1` follows the
-order of `end_members`. A model that unmixes needs `instances = 2`, the number of
-coexisting compositions [`SolidSolutionPhase`](@ref) may give the phase, or
+order of `end_members`. A model that unmixes needs `instances = 2`, the number
+of coexisting compositions [`SolidSolutionPhase`](@ref) may give the phase, or
 `instances = "auto"`, which gives it the second only when a solve finds it
 wanting to split; without either the phase is refused at construction, which is
 what makes a gap visible. The keyword `instances`, a `Dict` from a phase name to

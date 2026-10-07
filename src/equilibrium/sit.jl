@@ -104,8 +104,8 @@ end
 """
     struct SITActivityModel{T<:Real, P} <: AbstractActivityModel
 
-The Specific ion Interaction Theory of Brønsted, Guggenheim and Scatchard, in
-the form the NEA thermodynamic reviews use.
+The Specific ion Interaction Theory (SIT): the Debye-Hückel screening term and
+one interaction coefficient per pair of ions of opposite charge.
 
 ```math
 \\log_{10}\\gamma_i \\;=\\; -z_i^2\\,\\frac{A\\sqrt{I}}{1 + b\\sqrt{I}}
@@ -128,9 +128,9 @@ same question — what to do beyond Debye-Hückel's limiting law.
 | [`PitzerActivityModel`](@ref) | none | binary *and* ternary, several per pair |
 
 So SIT sits between Davies and Pitzer exactly where its parameter count does. It
-is the model the NEA reviews and the ANDRA/ThermoChimie database are calibrated
-in, which is why a log K taken from those and used under Davies is not the
-constant that was fitted.
+is the model several thermodynamic databases are calibrated in, so that a log K
+taken from one of them and used under Davies is not the constant that was
+fitted.
 
 # Validity, stated because it is narrower than the equation looks
 
@@ -155,11 +155,10 @@ species — where a complex forms, SIT expects it in the speciation and not in `
 
 # Water
 
-The solvent activity uses the same mole-fraction approximation as
-[`DaviesActivityModel`](@ref) rather than an osmotic coefficient. That is a
-known departure from a full SIT treatment and is shared with this package's
-other models; it does not enter a comparison made at prescribed proton
-activity.
+The solvent activity is Raoult's mole fraction, as in
+[`TruesdellJonesActivityModel`](@ref), rather than an osmotic coefficient. That
+is a departure from a full SIT treatment; it does not enter a comparison made at
+prescribed proton activity.
 
 See also: [`SITParameters`](@ref), [`build_sit_parameters`](@ref),
 [`missing_epsilon_pairs`](@ref).

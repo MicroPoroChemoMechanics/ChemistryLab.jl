@@ -34,8 +34,9 @@ whatever the code actually produced.
 
 ## 1. Species and system
 
-Take the two silicate clinker phases, the hydrates Cemdata18 offers for them,
-and the aqueous species `speciation` pulls in from the primaries.
+Take the two silicate clinker phases, the hydrates Cemdata18
+[Lothenbach2019](@cite) offers for them, and the aqueous species `speciation`
+pulls in from the primaries.
 
 ```@example coupled
 using ChemistryLab, DynamicQuantities, OptimaSolver, OrdinaryDiffEq, Printf
@@ -216,15 +217,15 @@ end
   - **The C-S-H is `Jennite`**, the Cemdata18 end-member normalized per silicon.
     A real C-S-H is a solid solution of varying Ca/Si; using the CSHQ solid
     solution inside a coupled run is not exercised by this package's tests.
-  - **The interior-point optimizer rarely reports convergence** on a cement
-    equilibrium, and its return code is not the thing to read. `integrate` reports
-    the worst element balance instead, separating the accepted steps — the
-    trajectory — from the other solves, which never enter it. The compositions
-    above do not rest on that solver: [`speciated_states`](@ref) passes each
-    instant to [`DualEquilibriumSolver`](@ref), which solves the KKT system and
-    **certifies** the result. The problem is convex, so stationarity of the
-    interior species, the component balance, and undersaturation of every absent
-    phase together prove global optimality.
+  - **On a cement equilibrium the interior-point optimizer usually stops at its
+    iteration limit**, and its return code is not the thing to read. `integrate`
+    reports the worst element balance instead, separating the accepted steps —
+    the trajectory — from the other solves, which never enter it. The
+    compositions above do not rest on that solver: [`speciated_states`](@ref)
+    passes each instant to [`DualEquilibriumSolver`](@ref), which solves the KKT
+    system and **certifies** the result. The problem is convex, so stationarity
+    of the interior species, the component balance, and undersaturation of every
+    absent phase together prove global optimality.
   - **A Parrott–Killoh rate reads only its own degree of reaction**, so the
     trajectory here does not depend on the speciation at all; the speciation is
     what you read out of it. A rate law reading log-activities feeds the

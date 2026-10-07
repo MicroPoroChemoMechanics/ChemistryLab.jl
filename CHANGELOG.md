@@ -1,5 +1,148 @@
 # Changelog
 
+## v0.35.1 — Asymmetric mixing, the enthalpy of a glass, and the heat of a blend from its first day
+
+The solid solutions gain the Redlich-Kister series of any number of
+end-members and the asymmetric formalism of Holland and Powell, and the binary
+scan reads the energy of any model; a concave binary's witness and split starts
+were mirrored and are not. A glass known by its oxides gets an enthalpy, built
+from the six silicate glasses whose enthalpy of vitrification is measured, so
+that the heat of a paste can count its unreacted slag; on the slag-limestone
+cement of Snellings et al. (2022) the heat computed from the measured degrees
+of reaction follows the calorimetry from the first day to the fourth week once
+the progress is the one the thermogravimetry gives. The theory is read against
+Richet (2001), corrected where it was wrong and completed where it was short,
+and the documentation cites every author it names and judges none.
+
+### Added
+
+- **Redlich-Kister mixing of any number of end-members**,
+  `MulticomponentRedlichKisterModel(pairs; ternary)`: a series of any order in
+  the difference of the two mole fractions for each pair, and a term in the
+  product of three for each triple, as Redlich and Kister (1948) write them,
+  every pair evaluated at the mole fractions of the solution as they are. The
+  activity coefficients follow the paper's Eq. (14), checked against its worked
+  ternary (heptane, methanol, toluene; its Eqs. 22 and 23 as printed), against
+  `RedlichKisterModel` for two end-members and against `SubregularSolutionModel`
+  to the first order. The paper's Eq. (19) prints the term of `C12` with its
+  binary value; the theory of the solid solutions gives the ternary one.
+- **The asymmetric formalism of Holland and Powell (2003)**, `VanLaarModel(W,
+  α)`: the regular model made asymmetric by a size per end-member, the van Laar
+  binary for two. Its activity coefficients are derived in the theory of the
+  solid solutions from the homogeneity of the excess energy, a shorter route
+  than the paper's rescaled interactions, and checked against the paper's
+  Eqs. (4), (5) and (13) with its parameters; equal sizes give
+  `RegularSolutionModel`.
+- A binary of a model without the three-coefficient Redlich-Kister form is
+  scanned for a spinodal, and given its common tangent, from its excess energy
+  `Σ xₖ ln γₖ`.
+- **The enthalpy of a glass known by its oxides**, `glass_enthalpy(oxides; T,
+  reference, ignore)`: the enthalpy of formation, per gram, of the glass of a
+  slag or a fly ash, which a heat needs for its unreacted part and which no
+  database holds. It is built from the six silicate glasses whose enthalpy of
+  vitrification is measured at 298 K (gehlenite, akermanite,
+  pseudowollastonite, anorthite, diopside, silica; Richet and Bottinga 1984,
+  1986; Navrotsky et al. 1980), mixed ideally, the combination chosen to leave
+  the least oxide outside them, and the formation of the crystals from their
+  oxides taken within one database. What it assumes is returned with it: the
+  oxide no measured glass takes (a slag holds more lime than they can), the
+  other oxides counted as crystals, and the span between the combinations that
+  ideal mixing cannot reconcile, which reaches 32 kJ per Ca3MgAl2Si4O15 and is
+  zero for a slag. The slag of Snellings et al. (2022) gets about 160 J/g of
+  vitrification, uncertain by 6 J/g. `glass_heat_capacity(oxides; T)` is the
+  additive heat capacity of Richet (1987), checked against his five measured
+  glasses within 1 %. The theory is a new page, *The enthalpy of a glass*.
+- **The measured thermochemistry of silicate glasses**, transcribed: Richet
+  (1987, Tables I and A-I), Richet and Bottinga (1986, Table A1; 1984,
+  Table 6) and Navrotsky et al. (1980, Table 3).
+- **The heat of a blend at its measured degrees of reaction**
+  (`examples/slag_heat.md`, `scripts/snellings2022_heat.jl`): the
+  slag-limestone cement of Snellings et al. (2022), 50 % CEM I 52.5 R, 40 %
+  slag and 10 % limestone, each of its four clinker phases at its own degree of
+  reaction and its slag at its, against its isothermal calorimetry (Fig. 3) and
+  its thermogravimetry (Fig. 8), nothing fitted on the heat. At the degrees of
+  the X-ray diffraction the computed heat is 1 to 7 % above the calorimetry at
+  28 days, but 26 to 136 % above it at one day; the bound water computed at the
+  same degrees is above the measured one by the same proportion, on another
+  specimen and by another technique. With one factor on the degrees, the five
+  constituents alike, fitted on the bound water, the heat follows the
+  calorimetry from the first day to the fourth week at 5, 20 and 40 °C, 1 to
+  12 % below it. With the glass as the crystals of its composition it would be
+  6 to 62 J/g lower, 10 % short at 28 days at 20 °C instead of 1 %. The
+  contents of the four clinker phases (Fig. 5, 216 points) are transcribed in
+  `data/literature/Snellings2022.json`, and reproduce the degree of the clinker
+  of Fig. 6a to 0.11 point on average.
+- `with_enthalpy(material, enthalpies; source)` gives the constituents of a
+  material known by their oxides their enthalpy of formation, and
+  `heat_release(rs1, rs2; set_aside)` takes the enthalpy of the oxides a
+  reacting constituent sets aside because the system has no element for them
+  (the titanium of a slag glass), where the heat was `NaN`.
+
+### Fixed
+
+- **The witness of a concave binary, and the starting compositions of its
+  split, were mirrored.** The spinodal scan and the common tangent run over the
+  mole fraction of the first end-member, and `mixing_convexity` and the split
+  starts of the certified solver wrote it as the second's. On a symmetric binary
+  nothing changed; on an asymmetric one the witness was a point where the energy
+  is convex (`RedlichKisterModel(a0 = 7000.0, a1 = 3000.0)`: the scan is
+  concave over x₁ from 0.40 to 0.90, the witness was x₁ = 0.35), and the solver
+  tried a split at the mirror image of the common tangent. The published AFm
+  sulfate/hydroxide binary of Cemdata18 is asymmetric. The axis of its figure in
+  `examples/miscibility_gap.md` was labeled with the sulfate end-member; it is
+  the fraction of C4AH13, the first one.
+
+### Documentation
+
+- **The gases and the pressure of the condensed phases on their own pages.**
+  The theory page *Real gases and pressure* held the equation of state of
+  water and the domain of the HKF equations as well as the gas; it is now
+  *Real gases*, and the solvent from 0 to 1000 °C and up to 5000 bar and the
+  density below which the HKF equations are refused join the minerals and the
+  solutes in *Thermochemistry*, §3, where each model of the standard
+  functions is stated, beside the volume term of *Standard states*, §1. That
+  section said the solvent was extrapolated from its heat capacity at 25 °C,
+  which it has not been since 0.34.0.
+- The theory of the solid solutions and the miscibility-gap page state what
+  the package computes and cite where each construction comes from (Glynn and
+  Reardon 1990 for the common tangent, Kulik et al. 2013 for the phase
+  stability index), instead of setting it side by side with other codes.
+- **The common tangent derived.** The theory of the solid solutions stated the
+  condition of the pair of a miscibility gap and drew it with the two contacts
+  at one height, the case of a symmetric binary with equal standard potentials
+  only. The condition is now derived from the minimization of the Gibbs energy
+  of two parts under the conservation of the two end-members: the multipliers
+  are the chemical potentials of the end-members, read where the tangent meets
+  the two pure compositions, and the contacts lie at heights that differ by the
+  slope times their distance. The figure is redrawn on an asymmetric model
+  tilted by its standard potentials.
+- **The theory checked against Richet (2001), *The Physical Basis of
+  Thermodynamics*.** The standard enthalpy of reaction was called the heat
+  given off; it is the heat received. The water activity of the SIT model was
+  said to be that of the Davies model, which uses an osmotic coefficient; it is
+  Raoult's, as in the Truesdell-Jones model. A miscibility gap was said to be
+  the only non-convexity in composition, where a mixture of real gases and an
+  aqueous model outside its range are others. The third-law entropy, the
+  residual entropy of a glass and what it depends on, the entropy produced by a
+  reaction, the configurational heat capacity, the hypothetical one-molal state,
+  the single-ion activity coefficients, the phase rule under partial
+  equilibrium, the fictive temperature of a glass and the reading of a
+  half-reaction constant are stated with the book's sections and pages cited.
+- **Every mention of an author is a citation, and no sentence judges one.**
+  Over the pages, the README and the rendered docstrings, the authors named in
+  plain text, the publications referred to as "the paper" or "their Table 3",
+  and the models, databases and codes at their first use on a page are now links
+  to the bibliography, with the table, figure or equation meant; the README
+  links to the DOIs. The bibliography gains Helgeson and Kirkham (1974) and
+  Harvie, Møller and Weare (1984), both checked on Crossref. Wordings that
+  called a source weak, self-contradictory, mislabeled or not usable, that said
+  nobody had measured a quantity, or that set the package against another code,
+  now state what the source gives and how it is used. A degree of hydration
+  quoted as what "the literature reports", for which no source was found, is no
+  longer quoted, in the documentation nor in the deprecation warning of
+  `parrott_killoh`; the humidity factor is cited from Lavergne et al. (2018,
+  Eq. 10), the form the code follows.
+
 ## v0.35.0 — The glasses of supplementary materials, the products of the alkali-silica reaction, asymmetric solid solutions
 
 The glass of a slag, a fly ash or a silica fume dissolves at pH 13 at the rate

@@ -24,7 +24,8 @@ two models of the gel that carry the alkalis, and compares.
 
 ## 1. The batches
 
-The solids of each batch, in g per 90 mL of solution (their Appendix A):
+The solids of each batch, in g per 90 mL of solution
+([LHopital2016b; Appendix A](@cite)):
 
 ```@example alkali
 using ChemistryLab, DynamicQuantities, OptimaSolver, Printf
@@ -155,11 +156,11 @@ C-S-H, has to be extended to high pH.
 
 **CASH+NK reproduces the data it was fitted on.** Its alkali over silicon is
 0.62 to 1.55 times the measured one at every Ca/Si up to 1.2, within the error
-the authors give the indirect method at high concentration, up to 100 %; the
-dissolved alkali is at the median the measured one, and the silicon within 4 %
-of it below Ca/Si 1.1 and 39 % above. The calcium is where both models differ
-most from the measurement, high below Ca/Si 1.1, by a factor of 2.4 at the
-median with CSHQ and 1.7 with CASH+NK, and low above.
+[LHopital2016b](@citet) give the indirect method at high concentration, up to
+100 %; the dissolved alkali is at the median the measured one, and the silicon
+within 4 % of it below Ca/Si 1.1 and 39 % above. The calcium is where both
+models differ most from the measurement, high below Ca/Si 1.1, by a factor of
+2.4 at the median with CSHQ and 1.7 with CASH+NK, and low above.
 
 For a user, the page draws the line this way: in a gel of a Portland cement,
 above Ca/Si 1.4, the two models take up the same small amount of alkali and give

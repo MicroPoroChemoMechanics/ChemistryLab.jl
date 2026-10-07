@@ -776,12 +776,13 @@ volume, and when the solution is alkaline it is reconstructed from OH⁻ through
 `pKw` because OH⁻ is the better-resolved species. No activity coefficient enters.
 
 !!! warning "Not the pH another geochemical code reports"
-    GEM-Selektor, PHREEQC and Reaktoro report `−log₁₀ a(H⁺)`, the **activity**
-    on the molality scale. That is [`pH`](@ref)`(state, model)`, a different
-    quantity. On a Portland cement pore solution at `I ≈ 0.2 mol/kg`, with
-    `γ(H⁺) ≈ 0.61`, the two differ by about **0.21 units** — 13.31 here against
-    13.10 there. Comparing the wrong one against another code means chasing a
-    convention rather than a result.
+    GEM-Selektor [Kulik2013](@cite), PHREEQC [ParkhurstAppelo2013](@cite) and
+    Reaktoro [Leal2017](@cite) report `−log₁₀ a(H⁺)`, the **activity** on the
+    molality scale. That is [`pH`](@ref)`(state, model)`, a different quantity.
+    On a Portland cement pore solution at `I ≈ 0.2 mol/kg`, with `γ(H⁺) ≈ 0.61`,
+    the two differ by about **0.21 units** — 13.31 here against 13.10 there.
+    Comparing the wrong one against another code means chasing a convention
+    rather than a result.
 
 See also: [`pH`](@ref)`(state, model)`, [`pOH`](@ref),
 [`activity_coefficients`](@ref).

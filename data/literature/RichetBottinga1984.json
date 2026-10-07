@@ -1,0 +1,39 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "RichetBottinga1984",
+    "doi": "10.1016/0012-821X(84)90179-1",
+    "citation": "Richet, P., Bottinga, Y. (1984). Anorthite, andesine, wollastonite, diopside, cordierite and pyrope: thermodynamics of melting, glass transitions, and properties of the amorphous phases. Earth and Planetary Science Letters 67(3), 415-432.",
+    "location": "Table 6, p. 423"
+  },
+  "transcription": {
+    "from": "the published article (publisher's PDF), Table 6 read on the page rendered at 200 dpi",
+    "checked_against_source": true,
+    "note": "Only the solution and vitrification columns are transcribed (Ts, Delta Hs of crystal and glass, Delta Hv, and the fictive temperature T-bar of the glass where printed); the fusion columns are not. The table prints T-bar = 1030 +/- 20 K for the anorthite glasses of the oxide-melt calorimetry while the text (pp. 422, 428) and Appendix 1 give 1130 +/- 20 K; the printed value is kept. The sources are written as the table prints them, by name and number in the reference list of the paper. The table also prints the wollastonite-pseudowollastonite transition as -81.09 kJ/mol (p. 424), larger than the enthalpy of fusion, which cannot be: it is not used."
+  },
+  "quantities": {},
+  "tables": {
+    "vitrification_enthalpies": {
+      "columns": ["crystal", "reference", "T_s", "dH_s_crystal", "dH_s_crystal_uncertainty", "dH_s_glass", "dH_s_glass_uncertainty", "dH_v", "dH_v_uncertainty", "T_fictive"],
+      "units": [null, null, "K", "kJ/mol", "kJ/mol", "kJ/mol", "kJ/mol", "kJ/mol", "kJ/mol", "K"],
+      "kind": "published",
+      "location": "Table 6, p. 423: enthalpies of solution of crystal and glass, enthalpy of vitrification at Ts and fictive temperature of the glass",
+      "rows": [
+        ["anorthite", "Kracek and Neuvonen [26]", 298, -774.4, 3.2, -846.2, null, 71.8, null, null],
+        ["anorthite", "Ferrier [27]", 353, -737.0, 3.6, -839.6, 12.0, 102.0, 16.0, null],
+        ["anorthite", "Charlu and Kleppa [25]", 973, null, null, null, null, 78.2, null, 1030],
+        ["anorthite", "Navrotsky et al. [24]", 985, 64.32, 1.01, -13.43, 0.31, 77.8, 1.3, 1030],
+        ["pseudowollastonite", "Adamkovičová et al. [15]", 298, -309.2, 1.8, -339.1, 1.0, 29.9, 2.8, null],
+        ["diopside", "Kracek [33]", 298, null, null, null, null, 92.4, null, null],
+        ["diopside", "Ferrier [19]", 353, -500.8, 1.9, -593.9, 2.1, 93.0, 4.0, null],
+        ["diopside", "Navrotsky and Coons [31]", 986, 87.45, 1.09, -0.46, 0.36, 87.9, 1.5, 986],
+        ["diopside", "Kiseleva et al. [32]", 973, 85.86, 1.55, -0.54, 1.46, 86.4, 3.0, 973],
+        ["diopside", "Navrotsky et al. [24]", 985, 85.41, 1.47, -0.19, 0.26, 85.6, 1.7, 985],
+        ["cordierite", "Navrotsky and Kleppa [35]", 963, 117.6, 6.3, -108.4, 5.4, 226.0, 11.7, 1123],
+        ["cordierite", "Carpenter et al. [36]", 981, 115.9, 3.8, -92.84, 3.31, 208.7, 7.1, 1053],
+        ["pyrope", "Charlu and Kleppa [25,38]", 973, 107.0, 0.6, null, null, 147.9, null, 1020]
+      ]
+    }
+  },
+  "notes": []
+}

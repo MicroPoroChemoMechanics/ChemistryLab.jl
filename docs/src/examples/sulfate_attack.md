@@ -13,15 +13,15 @@ CEM I: [Lothenbach2010sulfate](@citet) exposed mortars to 4 and 44 g/L of
 Na₂SO₄ and measured the sulfur and calcium of the paste by SEM-EDS;
 [Schmidt2008](@citet) equilibrated crushed pastes of the same cement, with 0, 5
 and 25 % of limestone, with Na₂SO₄ solutions at 8 and 20 °C. This page
-computes both with Cemdata18, the cement fully hydrated as both papers' own
-calculations assume it. Nothing is fitted.
+computes both with Cemdata18 [Lothenbach2019](@cite), the cement fully hydrated
+as both papers' own calculations assume it. Nothing is fitted.
 
 ## 1. A paste titrated by the solution
 
 The paste at w/c 0.5 and 20 °C, mixed with an increasing volume of solution, up
 to 100 L per 100 g of cement: the axis of the zero-dimensional model of
-Lothenbach et al., on which the unaffected core sits at the left and the
-surface, which has seen the most solution, at the right.
+[Lothenbach2010sulfate](@citet), on which the unaffected core sits at the left
+and the surface, which has seen the most solution, at the right.
 
 ```@example sulfate
 using ChemistryLab, DynamicQuantities, Printf
@@ -43,12 +43,12 @@ end
 
 The volumes are in mL per 100 g of cement. The AFm of sulfate turns into
 ettringite first; gypsum forms in 44 g/L of Na₂SO₄ and never in 4 g/L, as the
-SEM-EDS of Lothenbach et al. found it, only in the mortar exposed to 44 g/L.
-The SO₃/CaO of the solids, which the normalization of an EDS analysis does not
-change, rises from 0.045 in the paste to 0.27 in 4 g/L and 0.57 in 44 g/L. The
-measured profiles reach about 10 and 20 wt.% of SO₃ against 45 to 47 % of CaO,
-ratios of 0.22 and 0.44, after 9 months and 8 weeks of exposure, where the
-calculation is the end of the road.
+SEM-EDS of [Lothenbach2010sulfate](@citet) found it, only in the mortar exposed
+to 44 g/L. The SO₃/CaO of the solids, which the normalization of an EDS analysis
+does not change, rises from 0.045 in the paste to 0.27 in 4 g/L and 0.57 in
+44 g/L. The measured profiles reach about 10 and 20 wt.% of SO₃ against 45 to 47 %
+of CaO, ratios of 0.22 and 0.44, after 9 months and 8 weeks of exposure, where
+the calculation is the end of the road.
 
 ```@example sulfate
 using Plots
@@ -68,8 +68,8 @@ savefig(fig, "sulfate-attack.svg"); nothing # hide
 
 ## 2. Thaumasite, at 8 and 20 °C
 
-The batches of Schmidt et al.: the binder with 0, 5 or 25 % of limestone (P0,
-P5, P25), fully hydrated, its solids mixed with seven times their mass of
+The batches of [Schmidt2008](@citet): the binder with 0, 5 or 25 % of limestone
+(P0, P5, P25), fully hydrated, its solids mixed with seven times their mass of
 0.30 mol/L (subsystem A) or 0.15 mol/L (B) of Na₂SO₄. At equilibrium the
 thaumasite takes what it can:
 
@@ -88,12 +88,12 @@ for (b, ls) in (("P5", 0.05), ("P25", 0.25)), s in ("A", "B")
 end
 ```
 
-Cemdata18 gives the thaumasite the calculation of Schmidt et al. gave it with
-the database of the time, within 6 % of the solids: more at 8 °C than
-at 20 °C where the C-S-H limits it (P25), the same at both where the calcite
-does (P5), every calcite gone. What the papers measured by ²⁹Si NMR after nine
-months is 0.3 to 2 wt.%, more at 8 °C: thaumasite forms slowly, and the
-equilibrium is where it goes, not where it is.
+Cemdata18 gives the thaumasite the calculation of [Schmidt2008](@citet) gave it
+with the database of the time, within 6 % of the solids: more at 8 °C than at
+20 °C where the C-S-H limits it (P25), the same at both where the calcite does
+(P5), every calcite gone. What [Lothenbach2010sulfate, Schmidt2008](@citet)
+measured by ²⁹Si NMR after nine months is 0.3 to 2 wt.%, more at 8 °C:
+thaumasite forms slowly, and the equilibrium is where it goes, not where it is.
 
 Without thaumasite, the batches stop at what was measured: a solution held by
 gypsum, monosulfate or monocarbonate, after nine months.

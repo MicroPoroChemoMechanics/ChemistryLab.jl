@@ -77,7 +77,8 @@ Canonical container for a chemical formula.
 # Fields
 
   - `expr::String`: original input expression.
-  - `phreeqc::String`: PHREEQC-compatible representation.
+  - `phreeqc::String`: PHREEQC-compatible [ParkhurstAppelo2013](@cite)
+    representation.
   - `unicode::String`: Unicode pretty representation.
   - `colored::String`: colored terminal representation.
   - `composition::OrderedDict{Symbol,T}`: mapping element symbol to coefficient.

@@ -4,11 +4,12 @@
     [Self-desiccation](@ref sec-self-desiccation) and the tutorial [Chemical
     Kinetics](@ref sec-kinetics).
 
-[Self-desiccation](@ref sec-self-desiccation) takes Powers' 0.42 apart into a
-water budget and reads the arrest off it at an assumed humidity. The degree of
-hydration is an **input** there, and the page says so. This one integrates
-instead: a rate law that reads the internal relative humidity of the paste it is
-hydrating, so the arrest comes out of the trajectory.
+[Self-desiccation](@ref sec-self-desiccation) takes the 0.42 of
+[Powers1948](@citet) apart into a water budget and reads the arrest off it at an
+assumed humidity. The degree of hydration is an **input** there, and the page
+says so. This one integrates instead: a rate law that reads the internal
+relative humidity of the paste it is hydrating, so the arrest comes out of the
+trajectory.
 
 What remains empirical is the **criterion** — [`humidity_factor`](@ref)
 implements the cut that stops hydration below about 80 % RH — not the arrest
@@ -141,7 +142,7 @@ is careful to call structural and no evidence. Integrated, the ratio is not
 constant: ``k = (w/c)/\alpha_{\max}`` comes out near 0.45 at the drier end and
 rises with `w/c`, because a wet paste has not finished self-desiccating within
 ninety days — the arrest is then set by the integration window rather than by
-the water. Powers' 0.42 sits just below the dry-end value.
+the water. The 0.42 of [Powers1948](@citet) sits just below the dry-end value.
 
 ## 3. What was in the way
 

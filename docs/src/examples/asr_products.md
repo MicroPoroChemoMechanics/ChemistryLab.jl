@@ -14,7 +14,8 @@ diffraction (XRD) and analyzed the solutions: amorphous silica without lime,
 K- or Na-shlykovite at a low Ca/Si, and above it, in KOH, a potassium calcium
 silicate hydrate they name ASR-P1. From the solutions they derived the
 solubility products of the three solids at 80 °C. This page computes the 17
-syntheses at equilibrium with Cemdata18, its C-S-H (CSHQ with the alkali
+syntheses at equilibrium with Cemdata18 [Lothenbach2019](@cite), its C-S-H (CSHQ
+with the alkali
 end-member), and the three products.
 
 ```@example asr
@@ -28,13 +29,15 @@ nothing # hide
 
 The constants of the products come in two sets, and they disagree.
 [Jin2023](@citet) gave the two shlykovites standard properties at 25 °C, which
-`cemdata18-asr.json` carries, by refining the measurements of Shi and Lothenbach
-with the pH recalculated at 80 °C; Shi and Lothenbach had corrected the pH
-measured at 23 °C by subtracting 1.47. ASR-P1 has only the solubility product of
-Shi and Lothenbach, at 80 °C. The set `:jin` takes the shlykovites of the
-database and ASR-P1 of Shi and Lothenbach; the set `:shi` takes all three from
-Shi and Lothenbach, consistent with one another and valid at 80 °C only. Their
-solubility products at 80 °C, computed through the aqueous species of Cemdata18:
+`cemdata18-asr.json` carries, by refining the measurements of
+[ShiLothenbach2019](@citet) with the pH recalculated at 80 °C, where the
+original authors had corrected the pH measured at 23 °C by subtracting 1.47.
+ASR-P1 has only the solubility product of [ShiLothenbach2019](@citet), at 80 °C.
+The set `:jin` takes the shlykovites of the database and ASR-P1 of
+[ShiLothenbach2019](@citet); the set `:shi` takes all three from
+[ShiLothenbach2019](@citet), consistent with one another and valid at 80 °C
+only. Their solubility products at 80 °C, computed through the aqueous species
+of Cemdata18:
 
 ```@example asr
 g(sp) = ustrip(us"J/mol", sp[:ΔₐG⁰](T = SL19_T * u"K", P = 1.0e5u"Pa"; unit = true))
@@ -107,11 +110,12 @@ products that hold the silicon there are not the ones the model forms, or not
 with the energies it gives them. In NaOH from 0.3, the set `:jin` goes the other
 way, its Na-shlykovite, four orders of magnitude less soluble than that of the
 set `:shi`, taking the silicon down to 7 to 19 mmol/L where 145 to 442 were
-measured; the set `:shi` keeps it within a factor of about two. The paper warns
-that at such concentrations polynuclear silicate species dominate the solution
-(Table 6, footnote c), of which Cemdata18 carries one, the tetramer; the
-solutions are the less telling comparison here, and they still side with the
-set whose constants were derived from them, consistently.
+measured; the set `:shi` keeps it within a factor of about two.
+[ShiLothenbach2019; Table 6, footnote c](@citet) warn that at such
+concentrations polynuclear silicate species dominate the solution, of which
+Cemdata18 carries one, the tetramer; the solutions are the less telling
+comparison here, and they still side with the set whose constants were derived
+from them, consistently.
 
 ## 4. An equilibrium on the middle root of the ionic strength
 

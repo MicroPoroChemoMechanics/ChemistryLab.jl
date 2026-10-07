@@ -1,8 +1,9 @@
 # [Carbon dioxide in water under pressure (Wiebe and Gaddy 1940)](@id sec-validation-co2-solubility)
 
 !!! info "Before this page"
-    [Real gases and pressure](@ref sec-theory-real-gases), for the equation of
-    state of the gas and the pressure terms of the solution.
+    [Real gases](@ref sec-theory-real-gases), for the equation of state of the
+    gas, and [Standard states](@ref sec-theory-standard-states) §1, for the
+    pressure terms of the solution.
 
 [WiebeGaddy1940](@citet) measured how much carbon dioxide dissolves in pure
 water from 12 to 40 °C and from 25 to 500 atm. At these pressures the gas is far
@@ -11,13 +12,14 @@ above, a dense supercritical fluid. This page computes their 42 solubilities wit
 the gas ideal and with the equation of state of [PengRobinson1976](@citet), and
 separates what each term of the calculation contributes. Nothing is fitted: the
 critical constants of the gas are those of `phreeqc.dat`
-[ParkhurstAppelo2013](@cite), the standard energies those of Cemdata18.
+[ParkhurstAppelo2013](@cite), the standard energies those of Cemdata18
+[Lothenbach2019](@cite).
 
 ## 1. The measurements
 
-Table I of the paper gives the volume of gas, reduced to 0 °C and 1 atm,
-dissolved per gram of water. Divided by the molar volume of the ideal gas at
-0 °C and 1 atm, it is the molality of the dissolved carbon dioxide
+[WiebeGaddy1940; Table I](@citet) give the volume of gas, reduced to 0 °C and
+1 atm, dissolved per gram of water. Divided by the molar volume of the ideal gas
+at 0 °C and 1 atm, it is the molality of the dissolved carbon dioxide
 (`wg40_measured`); converted to mole fractions, it is the table
 [Spycher2003](@citet) give in their Appendix A, to the last printed digit.
 
@@ -116,9 +118,9 @@ sum of four terms (`wg40_terms`):
 
 the Henry constant at the standard pressure, the pressure, the fugacity
 coefficient of the gas, and the work of the partial molar volume of the
-dissolved carbon dioxide, which its HKF equation of state gives as about
-33 cm³/mol. The four add up to the molality computed at equilibrium to 0.1 %,
-the share of the bicarbonate.
+dissolved carbon dioxide, which its HKF equation of state [Helgeson1981](@cite)
+gives as about 33 cm³/mol. The four add up to the molality computed at
+equilibrium to 0.1 %, the share of the bicarbonate.
 
 ```@example co2
 i40 = findall(==(40.0), r.T_C)

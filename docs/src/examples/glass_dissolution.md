@@ -15,8 +15,8 @@ meter of its BET surface. Measured in the same way on every glass, these rates
 compare the glasses with one another and show what the solution does to them.
 
 The rate grows with the calcium of the glass, which breaks up its silicate
-network. The paper relates the logarithm of the rate to the molar ratio of the
-calcium to the network formers, a straight line drawn on its Fig. 8, which
+network. [Snellings2013; Fig. 8](@citet) relates the logarithm of the rate to
+the molar ratio of the calcium to the network formers, a straight line, which
 [`snellings2013_glass`](@ref) returns as a rate constant:
 
 ```@example glass
@@ -39,30 +39,29 @@ end
 ```
 
 The rates are in mol of the glass's cations per m² and per second; the law
-meets every measurement within 0.1, inside the 0.15 the paper gives as its
-error. The ratio on the axis of the figure is labeled Ca/(Al + Si), but the
-abscissas of its six points are ``n_\text{Ca}/(2\,n_\text{Al} + n_\text{Si})``
-computed from the compositions, aluminum counted twice, and the printed line
-holds with that ratio only (with the ratio of the label, a line through the same
-rates would have a slope of 2.05, not 2.74): the law is used with the abscissa
-of the figure. It is measured on glasses holding nothing but CaO, Al₂O₃ and
-SiO₂, from silica to G1, at pH 13 and 20 °C; outside that range the function
-refuses unless told to extrapolate, and it takes no activation energy for
-granted.
+meets every measurement within 0.1, inside the 0.15 [Snellings2013](@citet)
+gives as the error. The abscissas of the six points of the figure are
+``n_\text{Ca}/(2\,n_\text{Al} + n_\text{Si})``, computed from the compositions,
+aluminum counted twice; with that ratio the line drawn, of slope 2.74, passes
+through the rates (with Ca/(Al + Si), the ratio named on the axis, a line
+through the same rates would have a slope of 2.05), and the law uses it. It is
+measured on glasses holding nothing but CaO, Al₂O₃ and SiO₂, from silica to G1,
+at pH 13 and 20 °C; outside that range the function refuses unless told to
+extrapolate, and it takes no activation energy for granted.
 
 ## Calcium and aluminum in solution
 
 Added to the solution, calcium slows every glass, and aluminum the glasses in
 which calcium only balances aluminum (G3 to G6, the tectosilicate glasses);
-silicon up to 11 mM moves the rates by 0.27 at most, which the paper finds not
-significant. The paper gives the rates, not a law. A
-factor ``(1 + K a)^{-1}``, ``a`` the activity of Ca²⁺ or of aluminate (AlO₂⁻ in
-the database), is one where the ion is absent and falls as ``1/a`` where it is
-plentiful; its ``K`` is fitted here, one for calcium on all glasses and one for
-aluminum on the tectosilicate glasses, to the change of each rate against the
-same glass in NaOH alone. The activities are those of the 51 solutions, each
-computed at pH 13 with the sodium hydroxide that holds it (the paper does not
-give its concentration):
+silicon up to 11 mM moves the rates by 0.27 at most, which
+[Snellings2013](@citet) finds not significant. The paper gives the rates, not a
+law. A factor ``(1 + K a)^{-1}``, ``a`` the activity of Ca²⁺ or of aluminate
+(AlO₂⁻ in the database), is one where the ion is absent and falls as ``1/a``
+where it is plentiful; its ``K`` is fitted here, one for calcium on all glasses
+and one for aluminum on the tectosilicate glasses, to the change of each rate
+against the same glass in NaOH alone. The activities are those of the 51
+solutions, each computed at pH 13 with the sodium hydroxide that holds it (the
+paper does not give its concentration):
 
 ```@example glass
 rows = sn13_rows()
@@ -82,8 +81,9 @@ Calcium is described within the error of the measurements: a Ca²⁺ activity of
 ``1/K``, about ``10^{-4}``, halves the rate of any of these glasses. Aluminum is
 not: one factor cannot follow both G3, slowed by 0.4 from the smallest addition
 on and no further, and G6, slowed by 0.4, 0.6 and 1.1 as the aluminum grows.
-On the slag-like glasses aluminum moves the rate by 0.26 to 0.40, which the paper
-reads as largely within its error; the law leaves them without that factor.
+On the slag-like glasses aluminum moves the rate by 0.26 to 0.40, which
+[Snellings2013](@citet) reads as largely within its error; the law leaves them
+without that factor.
 
 ```@example glass
 using Plots
@@ -133,10 +133,10 @@ the slag shrinking as spheres. Nothing is fitted on the paste. The glass lies
 beyond the most calcic glass measured (``x = 0.72``), its MgO is left out of the
 law, and the activation energy is the authors' for the slag of these pastes
 ([Snellings2022](@citet), Table 2), the dilute solutions being at 20 °C only.
-Which area the rates apply to is the open question: the paper normalized them by
-the BET surface of smooth grains of 50 to 125 µm, and the BET surface of a
-ground slag, 2.61 m²/g, holds a roughness its Blaine surface, 0.50 m²/g, does
-not. Both are run:
+Which area the rates apply to is the open question: [Snellings2013](@citet)
+normalized them by the BET surface of smooth grains of 50 to 125 µm, and the BET
+surface of a ground slag, 2.61 m²/g, holds a roughness its Blaine surface,
+0.50 m²/g, does not. Both are run:
 
 ```@example glass
 using Logging # hide
@@ -161,8 +161,9 @@ println(rpad("measured, Snellings et al. (2022)", 40), join((@sprintf("%7.1f", u
 Over the BET surface the slag is gone in two days. Over the smaller surface the
 first day falls within the measurement, and then the dissolution does not slow
 down: the paste holds its slag at 41 to 62 % from the first week to the sixth
-month, where this law has dissolved it within the month. The paper sets out its
-use for cements under an assumption, "that dissolution rates control the
-consumption of SCMs in cement" (Section IV(3)); for this slag, the paste
-measures it holding for a day and no longer. What slows a slag in a paste after
-its first days is not in a law measured on its glass in a dilute solution.
+month, where this law has dissolved it within the month.
+[Snellings2013; Section IV(3)](@citet) sets out the use of these rates for
+cements under an assumption, "that dissolution rates control the consumption of
+SCMs in cement"; for this slag, the paste measures it holding for a day and no
+longer. What slows a slag in a paste after its first days is not in a law
+measured on its glass in a dilute solution.

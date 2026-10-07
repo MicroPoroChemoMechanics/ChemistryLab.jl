@@ -244,10 +244,11 @@ desorption isotherms, and write it with `b = 1/m`:
 p_c(S) = a (S^(-b) - 1)^(1 - 1/b)
 ```
 
-so a `b` from that literature becomes `m = 1/b` here. Their Table 5, read from
-`data/literature/BaroghelBouny1999.json` with the water-to-cement ratios of their
-Table 1 (CO and CH are pastes, BO and BH concretes, CH and BH contain 10 % silica
-fume):
+so a `b` from that literature becomes `m = 1/b` here.
+[BaroghelBouny1999; Table 5](@citet), read from
+`data/literature/BaroghelBouny1999.json` with the water-to-cement ratios of
+their Table 1 (CO and CH are pastes, BO and BH concretes, CH and BH contain 10 %
+silica fume):
 
 $(_retention_fit_table())
 

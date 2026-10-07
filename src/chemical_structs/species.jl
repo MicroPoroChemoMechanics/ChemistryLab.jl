@@ -156,10 +156,10 @@ Whether two species are the same species: same **formula**, **aggregate state**,
 
 Because the first three do not separate polymorphs, and a polymorph is a
 different substance. Calcite and aragonite are both `CaCO3`, both `AS_CRYSTAL`,
-both `SC_COMPONENT`; in CEMDATA18 their standard Gibbs energies differ by
-821 J/mol, which at 298 K is 0.33 in `ln K` — the whole difference in solubility
-between them. Without the symbol they compared equal, and a `Dict` keyed by
-species could not tell them apart.
+both `SC_COMPONENT`; in CEMDATA18 [Lothenbach2019](@cite) their standard Gibbs
+energies differ by 821 J/mol, which at 298 K is 0.33 in `ln K` — the whole
+difference in solubility between them. Without the symbol they compared equal,
+and a `Dict` keyed by species could not tell them apart.
 
 It also restores the invariant `isequal ⟹ hash`, which [`Base.hash`](@ref) had
 always broken by including the symbol when this did not: `Dict(calcite => 1)`
@@ -514,7 +514,8 @@ expr(s::Species) = expr(formula(s))
 """
     phreeqc(s::Species) -> String
 
-Return the PHREEQC-compatible representation of the species formula.
+Return the PHREEQC-compatible [ParkhurstAppelo2013](@cite) representation of the
+species formula.
 """
 phreeqc(s::Species) = phreeqc(formula(s))
 
@@ -1843,7 +1844,7 @@ end
     _solvent_from_water_eos!(s, dict_params)
 
 Give the solvent of the ThermoFun databases the standard state of liquid water
-as the equation of state of Haar, Gallagher and Kell has it, at any temperature
+as the equation of state of [Haar1984](@citet) has it, at any temperature
 and pressure: the method its record declares (`water_eos_hgk84`), applied as
 [Johnson1992](@citet) apply it, their Eqs. (5) to (7), and referred to the
 values the record tabulates at 25 °C and 1 bar.
@@ -1861,7 +1862,7 @@ H^\\star = H_{tr} + M\\,h(T, P), \\qquad
 G^\\star = M\\,h(T, P) - T\\,S^\\star + T_{tr}\\,S_{tr} + G_{tr}.
 ```
 
-Those constants, which SUPCRT92 takes from Helgeson and Kirkham (1974), are not
+Those constants, which SUPCRT92 takes from [HelgesonKirkham1974](@citet), are not
 the ones the rest of a database is built on: at 25 °C and 1 bar they give a
 Gibbs energy 1.35 J/mol above the tabulated one and an enthalpy 48.6 J/mol
 above, and ``G^\\star - H^\\star + TS^\\star`` differs by 45 J/mol from the
@@ -1885,9 +1886,9 @@ tabulated values at ``(T_r, P_r)``. The heat capacity is ``\\partial H/\\partial
 and the volume ``M/\\rho(T, P)``, so that the five functions are those of one
 Gibbs energy.
 
-The ThermoFun library does not use the tabulated values; it also writes
-273.15 K for ``T_{tr}`` in the constant ``T_{tr} S_{tr}``, which puts its Gibbs
-energy of water 0.633 J/mol below the published conversion. The function this
+The ThermoFun library does not use the tabulated values, and takes
+``T_{tr} = 273.15`` K in the constant ``T_{tr} S_{tr}``, a convention that places
+its Gibbs energy of water 0.633 J/mol below the one computed here. The function this
 replaced extrapolated the tabulated values with the heat capacity of 25 °C, and
 left the solvent's energies drifting from those of water as the temperature
 left 25 °C.

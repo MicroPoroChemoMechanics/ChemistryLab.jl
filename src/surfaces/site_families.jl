@@ -310,7 +310,7 @@ in: at 25 °C that gives `κ = 0.117215`, against the `0.1174` PHREEQC writes
 into its source. Agreeing with PHREEQC while using a different dielectric
 constant is a stronger statement than agreeing with its arithmetic.
 
-# What this model costs the certificate, stated rather than hidden
+# What this model costs the certificate
 
 Unlike [`ConstantCapacitance`](@ref), **this term is not the gradient of any
 Gibbs energy**, and no implementation can make it one. At fixed `I` it is: the
@@ -333,7 +333,7 @@ bulk solution as a reservoir whose ionic strength is a parameter, which is
 precisely the approximation that lets the diffuse layer be written without
 carrying its ion inventory. PHREEQC's default `SURFACE` makes the same one.
 
-The consequence here is named rather than papered over.
+Here the consequence is reported.
 [`is_gradient_consistent`](@ref) returns `false` for this model, a system that
 uses it says so, and what comes back from a solve is a **self-consistent
 speciation** — mass action and conservation satisfied together — not a
@@ -571,7 +571,7 @@ end
 
 The relative permittivity (dielectric constant) of liquid water at `T_K` kelvin
 and `P_Pa` pascal, from the model of [JohnsonNorton1991](@citet) this package already
-carries for the HKF activity model.
+carries for the HKF activity model [Helgeson1981](@cite).
 
 It is `78.245` at 25 °C and 1 bar, and falls to `66.68` at 60 °C — which is why
 a surface electrostatic model calibrated at room temperature is not transferable
@@ -675,12 +675,12 @@ returning moles of sites.
 # Why three of them, and not one
 
 Because the published data comes in three shapes, and converting between them
-needs a number nobody measured. A specific area with a site density per square
-meter ([`AreaSiteDensity`](@ref)) is the oxide literature's form; a capacity per
-kilogram of dry solid ([`MassSiteDensity`](@ref)) is the clay literature's, and
-turning the second into the first would mean **inventing a BET area** to divide
-by. A prescribed total ([`TotalSiteAmount`](@ref)) is what a fixed sorbent in a
-batch experiment actually gives.
+needs a quantity that is usually not measured. A specific area with a site
+density per square meter ([`AreaSiteDensity`](@ref)) is the oxide literature's
+form; a capacity per kilogram of dry solid ([`MassSiteDensity`](@ref)) is the
+clay literature's, and turning the second into the first would mean **inventing
+a BET area** to divide by. A prescribed total ([`TotalSiteAmount`](@ref)) is
+what a fixed sorbent in a batch experiment actually gives.
 
 See also: [`SiteFamily`](@ref), [`site_moles`](@ref).
 """

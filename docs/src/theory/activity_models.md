@@ -128,7 +128,7 @@ no screening argument produces. The B-dot model adds a linear term for it,
 ```
 
 Its status is that of an empirical correlation. [AndersonCrerar1993](@citet) (§17.7.1,
-pp. 445–446) record that Helgeson defined ``\dot{B}`` as a **deviation
+pp. 445–446) record that [Helgeson1969](@citet) defined ``\dot{B}`` as a **deviation
 function**: the difference between the *observed* activity coefficient of an
 electrolyte — NaCl — and what the extended Debye-Hückel expression predicts for
 it. So it carries short-range ion-solvent and ion-ion interaction *and* whatever
@@ -219,13 +219,23 @@ that lets you choose.
 | scalar inputs | none | ``A``, ``b``, ``b_n`` | ``A``, ``B``, ``\dot{B}``, ``K_n``, ``\mathring{a}_{\text{default}}`` | ``A`` and the convention ``b = 1.5`` | the shape constants ``\alpha_1``, ``\alpha_2``, ``b`` |
 | ``T``, ``P`` dependence | none | ``A(T,P)`` on request | ``A(T,P)``, ``B(T,P)`` on request | ``A(T,P)`` on request; the ``\varepsilon`` set is fitted at one temperature | ``A_\varphi(T,P)`` only; the ``\beta`` set is fitted at one temperature |
 | returns | ``\ln a_i`` for every species | same | same | same | same |
-| ``\gamma`` useful to | ``I \lesssim 0.01`` | ``I \lesssim 0.5`` | ``I \lesssim 1`` | ``I \lesssim 3`` to ``4`` | the range its set was fitted over, a few mol/kg |
+| ``\gamma`` useful to | ``I \lesssim 10^{-4}`` (1 % on a monovalent ion) | ``I \lesssim 0.5`` | ``I \lesssim 1`` | ``I \lesssim 3`` to ``4`` | the range its set was fitted over, a few mol/kg |
 | Gibbs-Duhem consistent | **exactly** | **exactly** on ions; not for a neutral with ``b_n \neq 0`` (§5b) | to ``10^{-5}`` (§5) | see §6a | **exactly, by construction** (§6) |
 
 All of them return the same object — a vector of ``\ln a_i`` indexed like
 `cs.species`, covering solutes, solvent, pure crystals (``0``), gases and
 solid-solution end-members — so they are interchangeable at every call site, and
 `concentration_scale` tells the accessors which convention was used.
+
+One limit is common to all of them and is not one of accuracy. A cation cannot
+be added to a solution without an anion, so a measurement gives the mean
+coefficient of a neutral combination,
+``\gamma_\pm = (\gamma_+^{\nu_+}\gamma_-^{\nu_-})^{1/\nu}``, and the ratios that
+appear in balanced reactions, never the coefficient of one ion
+[Richet2001; Secs. 11.6b–c, pp. 273–275](@cite). How the mean is shared among
+the ions is the model's, and so is any quantity that rests on one ion alone,
+the pH, ``-\log_{10} a_{\mathrm{H^+}}``, among them
+[Richet2001; Sec. 12.1b, p. 287](@cite).
 
 ## 5. What the difference is worth, measured
 
@@ -302,7 +312,7 @@ relative asymmetry over pairs, ion/ion and solvent/ion separated:
 | B-dot, ``\mathring{a}`` per ion, ``\dot{B}=0`` | ``2.4\times10^{-1}`` | ``6.0\times10^{-2}`` |
 | **B-dot, common ``\mathring{a}`` and ``\dot{B}=0``** | ``0`` | ``1.8\times10^{-14}`` |
 | **Debye-Hückel limiting law** (``\mathring{a}=0``, ``\dot{B}=0``) | ``0`` | ``3.4\times10^{-13}`` |
-| ``\mathring{a}=0``, ``\dot{B}=0.0976`` (one GEM-Selektor run, not the Cemdata18 prescription) | ``1.2\times10^{-1}`` | ``3.6\times10^{-1}`` |
+| ``\mathring{a}=0``, ``\dot{B}=0.0976`` (one GEM-Selektor run [Kulik2013](@cite), not the prescription of Cemdata18 [Lothenbach2019](@cite)) | ``1.2\times10^{-1}`` | ``3.6\times10^{-1}`` |
 
 Two readings, and the second is the one that was not expected.
 
@@ -369,8 +379,7 @@ makes the formula written in §1 the formula that runs.
 ## [6a. SIT: one parameter per pair, and no radius](@id sec-theory-sit)
 
 Between the corrected Debye-Hückel laws above and the virial expansion below
-sits the **Specific ion Interaction Theory** of Brønsted, Guggenheim and
-Scatchard. It keeps the screening term and replaces the empirical deviation term
+sits the **Specific ion Interaction Theory** (SIT). It keeps the screening term and replaces the empirical deviation term
 with a sum over *pairs*:
 
 ```math
@@ -421,10 +430,12 @@ needs the model they were written in.
 
 ### What it costs
 
-The water activity here uses the same mole-fraction approximation as
-[`DaviesActivityModel`](@ref), not an osmotic coefficient — a departure from a
-full SIT treatment, shared with this package's other Debye-Hückel models, and
-one that does not enter a comparison made at prescribed proton activity.
+The water activity here is Raoult's mole fraction, as in
+[`TruesdellJonesActivityModel`](@ref), not an osmotic coefficient: a departure
+from a full SIT treatment, in which the solvent follows from the terms of the
+solutes through ``\ln a_w = -M_w\varphi\sum_j m_j``
+[Richet2001; Sec. 11.6d, Eq. (11.116), p. 276](@cite), and one that does not
+enter a comparison made at prescribed proton activity.
 
 And an unlisted ``\varepsilon`` is taken as **zero**, which is the literature's
 convention and never a measurement. `missing_epsilon_pairs` reports which pairs
@@ -528,14 +539,14 @@ A set in PHREEQC's format is read by [`build_pitzer_parameters`](@ref) with
 ### The speciation a set assumes is part of the set
 
 This one is easy to miss and changes results. A Pitzer set absorbs ion
-association into its ``\beta`` coefficients: Harvie, Møller and Weare fit
-Ca–SO₄ interaction rather than postulating a `CaSO₄⁰` complex. A species list
+association into its ``\beta`` coefficients: [HarvieMollerWeare1984](@citet)
+fit the Ca–SO₄ interaction rather than postulating a `CaSO₄⁰` complex. A species list
 that carries both the free ions **and** the ion pairs therefore counts the same
 association twice, and CEMDATA18 does carry them — `Ca(SO4)@`, `CaOH+`,
 `Na(SO4)-`, `NaOH@` among others. It also names the silica species differently
 (`HSiO3-`, `SiO2@`) from the set's `H3SiO4-` and `H2SiO4-2`.
 
-So the shipped Reardon set does not drop into a CEMDATA18 cement calculation,
+So the shipped set of [Reardon1990](@citet) does not drop into a CEMDATA18 cement calculation,
 and the completeness check refuses such a system rather than returning a number.
 That refusal is the correct outcome and not a limitation of the implementation:
 combining a dissociated parameterization with an associated speciation is not a

@@ -15,11 +15,12 @@ water/binder ratio of 0.5 and 20 °C:
 | OPC-FA | 65 % OPC, 35 % fly ash | CEM II/B-V |
 | OPC-FA-L | 65 % OPC, 30 % fly ash, 5 % limestone | CEM II/B-M (V-LL) |
 
-They measured how much of each clinker phase had reacted (XRD, their Table 7),
-how much of the fly ash (image analysis, the fit printed on their Fig. 7), the
-portlandite (Table 7) and the pore solution (Table 8), up to 180 days. With the
-degrees of reaction taken from the measurement, what is left to compare is the
-chemistry: what the reacted material becomes, and what stays in solution.
+[DeWeerdt2011](@citet) measured how much of each clinker phase had reacted (XRD,
+their Table 7), how much of the fly ash (image analysis, the fit printed on
+their Fig. 7), the portlandite (Table 7) and the pore solution (Table 8), up to
+180 days. With the degrees of reaction taken from the measurement, what is left
+to compare is the chemistry: what the reacted material becomes, and what stays
+in solution.
 
 ```@example blended
 using ChemistryLab
@@ -38,11 +39,11 @@ nothing # hide
 
 ## 1. The materials
 
-The clinker is described by its Rietveld phases (Table 2) and by what its oxide
-analysis (Table 1) holds beyond them, its free lime, alkalis, magnesia and
-sulfate; the fly ash by its crystals (Table 3), which do not react, and its glass,
-found by difference from its analysis; the limestone by its calcite. All three
-are templates of `data/recipe_templates.toml`:
+The clinker is described by its Rietveld phases ([DeWeerdt2011; Table 2](@cite))
+and by what its oxide analysis (Table 1) holds beyond them, its free lime,
+alkalis, magnesia and sulfate; the fly ash by its crystals (Table 3), which do
+not react, and its glass, found by difference from its analysis; the limestone
+by its calcite. All three are templates of `data/recipe_templates.toml`:
 
 ```@example blended
 for m in (dw11_clinker("OPC"), dw11_fly_ash(), dw11_limestone())
@@ -56,9 +57,10 @@ end
 ## 2. How much has reacted
 
 The degree of reaction of each clinker phase is one minus its content over its
-content before hydration, both from Table 7; the glass of the fly ash reacts at
-the rate of the fit on Fig. 7, the fly ash as a whole reaching
-``-15 + 10\ln(t + 4.5)`` percent at ``t`` days. For the CEM II/B-V:
+content before hydration, both from [DeWeerdt2011; Table 7](@cite); the glass of
+the fly ash reacts at the rate of the fit on their Fig. 7, the fly ash as a
+whole reaching ``-15 + 10\ln(t + 4.5)`` percent at ``t`` days. For the
+CEM II/B-V:
 
 ```@example blended
 clinker, fly_ash = dw11_clinker("OPC-FA"), dw11_fly_ash()
@@ -84,8 +86,8 @@ end
 
 ## 4. Portlandite
 
-Table 7 gives the portlandite by XRD in weight percent of the dry paste, which
-the paper states to ±1 wt.%; the model's is its mass over the mass of every solid
+[DeWeerdt2011; Table 7](@citet) give the portlandite by XRD in weight percent of
+the dry paste, to ±1 wt.%; the model's is its mass over the mass of every solid
 of the paste, the unreacted binder included.
 
 ```@example blended
@@ -142,9 +144,9 @@ Lines are the model, markers the measurement.
 
 ![](validation-deweerdt.svg)
 
-The C-S-H itself, against the SEM-EDX analyses of the paper (Ca/Si 1.8 ± 0.1
-without fly ash; with it, 1.7 at 1 day falling to 1.4 at 140 days, the Al/Si
-rising from 0.06 to 0.13):
+The C-S-H itself, against the SEM-EDX analyses of [DeWeerdt2011](@citet) (Ca/Si
+1.8 ± 0.1 without fly ash; with it, 1.7 at 1 day falling to 1.4 at 140 days, the
+Al/Si rising from 0.06 to 0.13):
 
 ```@example blended
 println("            Ca/Si of the gel         Al/Si")
@@ -156,10 +158,10 @@ end
 
 ## 6. The same budgets through GEMS3K
 
-`test/reference/xgems_deweerdt2011.json` holds the answer of GEMS3K on the twenty
-budgets, with the phases of this system; the AFm sulfate and hydroxide are, in
-both codes, the Guggenheim binary of Cemdata18, one composition unless the
-certificate asks for two.
+`test/reference/xgems_deweerdt2011.json` holds the answer of GEMS3K
+[Kulik2013](@cite) on the twenty budgets, with the phases of this system; the
+AFm sulfate and hydroxide are, in both codes, the Guggenheim binary of Cemdata18
+[Lothenbach2019](@cite), one composition unless the certificate asks for two.
 
 ```@example blended
 fixture = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference", "xgems_deweerdt2011.json"))
@@ -218,12 +220,12 @@ Neither reproduces the four pastes. `CASH+NK` changes nothing that matters
 here: it takes no aluminum, its gel is within 0.04 of the Ca/Si of that of
 `CSHQ`, and its portlandite within 1.6 points. `CNASH_ss` takes aluminum, an Al/Si of 0.10 to 0.11 against
 the 0.13 measured, but its gel sits at a Ca/Si of 1.16 in every paste, the plain
-cement included; its end members reach 1.5 at most (`T2C-CNASHss`), where the
-paper measures 1.8 without fly ash. The calcium the gel does not take goes to
-portlandite: 31.7 against 21.8 wt.% at 90 days in the CEM I. With fly ash the
-same excess brings the portlandite near the measurement, 14.7 against 12.5 and
-15.7 against 12.2, and the ettringite of the CEM II/B-V is still lost, 0.7
-against 6.6 wt.%.
+cement included; its end members reach 1.5 at most (`T2C-CNASHss`), where
+[DeWeerdt2011](@citet) measure 1.8 without fly ash. The calcium the gel does not
+take goes to portlandite: 31.7 against 21.8 wt.% at 90 days in the CEM I. With
+fly ash the same excess brings the portlandite near the measurement, 14.7
+against 12.5 and 15.7 against 12.2, and the ettringite of the CEM II/B-V is
+still lost, 0.7 against 6.6 wt.%.
 
 
 ## 8. What the comparison says
@@ -242,11 +244,11 @@ its calcium hydroxide in portlandite at once.
 4.5 against 12.5 wt.% at 90 days in the CEM II/B-V, 6.7 against 12.2 in the
 CEM II/B-M (V-LL). The fly ash dissolves at the measured rate in both, so the
 difference is what its silica becomes. The model's C-S-H stays at a Ca/Si of
-1.58, the composition in equilibrium with portlandite, in every paste; the paper
-measures 1.4 in the fly ash pastes at 140 days, with an Al/Si of 0.13, a gel
-poorer in calcium beside a portlandite it has not reached equilibrium with, and
-one that takes less calcium per silicon. `CSHQ` has no aluminum end-member, and
-the model's gel holds none.
+1.58, the composition in equilibrium with portlandite, in every paste;
+[DeWeerdt2011](@citet) measure 1.4 in the fly ash pastes at 140 days, with an
+Al/Si of 0.13, a gel poorer in calcium beside a portlandite it has not reached
+equilibrium with, and one that takes less calcium per silicon. `CSHQ` has no
+aluminum end-member, and the model's gel holds none.
 
 **The pore solution follows from both.** The pH is within 0.3 unit at every age.
 In the CEM I the alkalis are low (sodium 114 against 302 mmol at 140 days,

@@ -522,12 +522,11 @@ pH is 12.10, below the floor of about 12.5 that portlandite holds, so the
 portlandite is gone and the alkalis have the `KSiOH` and `NaSiOH` members to go
 to; with `CNASH_ss` it is 13.20, since that gel has no potassium member.
 
-Until this version the page ran the limiting law, `å = 0`, the configuration of
-one GEM-Selektor run that the tests reproduce, and in the limit neither model
-certified: the solve stopped with element balances of 0.26 and 0.35 mol. The
-activity model Cemdata18 prescribes certifies both from the first solve, and for
-`CSHQ` nothing else changed. What did not close at the limit was the limiting
-law, not the minimization and not the phase list.
+Until this version the page ran the Debye–Hückel limiting law, `å = 0`, and in
+the limit neither model certified: the solve stopped with element balances of 0.26 and 0.35 mol. The
+activity model Cemdata18 [Lothenbach2019](@cite) prescribes certifies both from
+the first solve, and for `CSHQ` nothing else changed. What did not close at the
+limit was the limiting law, not the minimization and not the phase list.
 
 Read the `CNASH_ss` limit for what it is. Its ionic strength, 1.09 mol/kg, is
 past the range Cemdata18 states for its model, about 1 mol/kg, and the

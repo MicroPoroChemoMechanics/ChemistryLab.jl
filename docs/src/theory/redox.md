@@ -105,7 +105,13 @@ pe = \frac{1}{n}\left(\log_{10}K
 The ``\log_{10}K`` is computed from the same standard Gibbs energies as
 everything else, with the electron at the conventional standard state
 ``\Delta_f G^0 = 0`` — the same convention that puts `H+` at zero, and equally a
-convention rather than a measurement. That it is the *usual* convention is what
+convention rather than a measurement. Strictly, a half-reaction has no constant of its
+own, no electron being free in solution [Richet2001; Sec. 12.4b, p. 301](@cite).
+Its constant stands for the full reaction in which the electrons come from
+hydrogen at unit fugacity turning into H⁺ at unit activity, the standard hydrogen
+electrode, whose potential is set to zero
+[Richet2001; Sec. 12.4e, p. 305](@cite); ``\Delta_f G^0(e^-) = 0`` is that choice
+written as an energy of formation. That it is the *usual* convention is what
 makes the numbers comparable with published half-reaction constants:
 
 | half-reaction | computed here | published |
@@ -113,7 +119,7 @@ makes the numbers comparable with published half-reaction constants:
 | ``\ce{SO4^2- + 9H+ + 8e- = HS- + 4H2O}`` | 33.69 | 33.66 |
 | ``\ce{Fe^3+ + e- = Fe^2+}`` | 13.02 | 13.03 |
 
-Computed from CEMDATA18's own data, so the agreement also checks that CEMDATA18
+Computed from the data of CEMDATA18 [Lothenbach2019](@cite), so the agreement also checks that CEMDATA18
 and the sources of those published constants share a reference state.
 
 ## What this does not buy: one potential per system

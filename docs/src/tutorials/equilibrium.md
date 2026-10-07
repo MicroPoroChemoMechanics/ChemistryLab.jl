@@ -348,7 +348,8 @@ The one-argument [`pH`](@ref)`(state)` and the two-argument
   liquid volume, and in an alkaline solution it is reconstructed from OH⁻
   through `pKw`. It is stored on the state and needs no activity model.
 - `pH(state, model)` is `−log₁₀ a(H⁺)`, the **activity** on the molality scale.
-  This is what GEM-Selektor, PHREEQC and Reaktoro report.
+  This is what GEM-Selektor [Kulik2013](@cite), PHREEQC
+  [ParkhurstAppelo2013](@cite) and Reaktoro [Leal2017](@cite) report.
 
 On a Portland cement pore solution at `I ≈ 0.2 mol/kg`, with `γ(H⁺) ≈ 0.61`, the
 two differ by about **0.21 units** (13.31 against 13.10). Comparing the wrong

@@ -214,9 +214,10 @@ as a pure phase it carries no mixing entropy, where a site-fraction model over
     wrong in a way that certifies. Three compositions of a two-site substitution
     are not three independent end-members; an ideal ternary over them counts
     configurations that do not exist and gets the mixing entropy wrong, so it
-    returns a confident answer to a model nobody published. A solid solution is
-    only ever as good as the model that was fitted for it: declare the range that
-    was fitted, and handle what lies outside it explicitly.
+    returns a confident answer to a model that has no published counterpart. A
+    solid solution is only ever as good as the model that was fitted for it:
+    declare the range that was fitted, and handle what lies outside it
+    explicitly.
 
 ## A habit worth adopting
 

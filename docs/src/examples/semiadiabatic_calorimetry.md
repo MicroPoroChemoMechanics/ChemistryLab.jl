@@ -47,11 +47,12 @@ cell = semiadiabatic_cell(; mix, T0 = T_env, T_env)
 @printf("losses: a = %.4f W/K, b = %.2e W/K²\n", CALORIMETRY_LOSS_A, CALORIMETRY_LOSS_B)
 ```
 
-The vessel is read as 380 J/K where the article prints "about 380 kJ/K": the
-note on `CALORIMETRY_VESSEL_CP` in `scripts/ionic_hydration.jl` gives the
-arithmetic, and the measured temperatures below leave no doubt either way, since
-380 kJ/K would let them rise by less than a kelvin. The cell starts at 20 °C,
-where the measured curve starts and where the kinetic parameters are referred.
+The heat capacity of the vessel is taken as 380 J/K; [Lavergne2018](@citet) give
+"about 380 kJ/K", and the measured temperature rises below correspond to 380 J/K
+(with 380 kJ/K they would stay below one kelvin). The note on
+`CALORIMETRY_VESSEL_CP` in `scripts/ionic_hydration.jl` gives the arithmetic.
+The cell starts at 20 °C, where the measured curve starts and where the kinetic
+parameters are referred.
 
 ## The run
 

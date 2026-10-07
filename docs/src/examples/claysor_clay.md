@@ -7,13 +7,15 @@
 
 Every surface example so far was built here, from constants chosen to make a
 point. This one is somebody else's model, read out of the file its authors
-published, and run against the code they published it for.
+published [ClaySor2023data](@cite), and run against the code they published it
+for.
 
-**ClaySor 2023** is the 2SPNE SC/CE model of Bradbury and Baeyens for illite and
-montmorillonite: two-site protolysis, **non-electrostatic**, plus cation
-exchange. It is a good test of this package for a reason beyond its constants —
-a clay carries **four site budgets on one solid**, three edge families and an
-exchanger, and they compete for the same solution.
+**ClaySor 2023** [Marinich2025](@cite) is the 2SPNE SC/CE model of Bradbury and
+Baeyens for illite and montmorillonite: two-site protolysis,
+**non-electrostatic**, plus cation exchange. It is a good test of this package
+for a reason beyond its constants — a clay carries **four site budgets on one
+solid**, three edge families and an exchanger, and they compete for the same
+solution.
 
 !!! warning "What this is not"
     ClaySor's constants were fitted against the PSI/Nagra TDB 2020 aqueous
@@ -59,8 +61,9 @@ be read as chemistry, which is exactly the trap the reserved site symbols exist
 to avoid.
 
 The exchanger mixes in the **Gaines-Thomas** convention, because that is what
-PHREEQC's `EXCHANGE` block uses; the edge families mix ideally, because the
-model is non-electrostatic by construction — the `NE` of `2SPNE`.
+PHREEQC's `EXCHANGE` block uses [ParkhurstAppelo2013](@cite); the edge families
+mix ideally, because the model is non-electrostatic by construction — the `NE`
+of `2SPNE`.
 
 ```@example claysor
 sites = CS["sites_mol_per_g"]
@@ -100,7 +103,8 @@ Four orders of magnitude apart, and the reason is structural rather than
 accidental. The edge sites see only the **proton**, whose activity `FixedpH`
 prescribes on both sides, so no aqueous activity model enters and what is
 compared is the surface model alone. The exchanger sees the **sodium and calcium
-activities**, where Davies and PHREEQC's extended Debye-Hückel genuinely differ.
+activities**, where Davies [Davies1962](@cite) and PHREEQC's extended
+Debye-Hückel genuinely differ.
 
 That second sentence is a measurement, not an explanation offered after the
 fact. Running the identical system under two aqueous models:

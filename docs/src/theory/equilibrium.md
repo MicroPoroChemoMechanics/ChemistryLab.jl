@@ -5,9 +5,9 @@
     multipliers are set up, and [Standard states](@ref sec-theory-standard-states).
 
 An interior-point method minimizes ``G`` by walking the interior of the feasible
-set, and on a cement equilibrium it stops on `MaxIters` — at any tolerance.
-Whether the point it returns is the minimum is then an open question. This page
-is why the question has an answer at all, what a certificate checks, and how a
+set and returns its last iterate; whether that point is the minimum is a
+question distinct from whether the iteration stopped. This page is why the
+question has an answer at all, what a certificate checks, and how a
 solver can aim at the optimality conditions directly instead of at the objective.
 
 For a consistent Gibbs potential, the formulation being certified is the one
@@ -27,6 +27,18 @@ is metastable,
 separated from the stable one by an energy barrier that the conditions do not
 allow the system to cross, whereas the stable equilibrium is the lowest state
 compatible with the constraints.
+
+A third kind of state is neither. A metastable phase such as aragonite is in
+internal equilibrium: its temperature, pressure and composition fix its
+properties, and only its transformation into another phase is blocked. A glass,
+or a crystal whose distribution of cations over its sites stopped changing on
+cooling, is not: its configuration froze when it could no longer follow the
+temperature, its properties depend on that history, and one more variable is
+needed to describe it [Richet2001; Secs. 2.4a and 6.3a, pp. 39 and 143–144](@cite).
+Properties that do not change with time are therefore no proof of equilibrium,
+and a minimization over amounts has no variable for such a state; the glass of
+a slag enters a calculation as a reactant of prescribed extent
+([The enthalpy of a glass](@ref sec-theory-glass)).
 
 A minimization knows nothing about barriers, and the state it returns is the
 stable equilibrium of the system that was posed. Metastability therefore enters a
@@ -53,7 +65,13 @@ speciation and the precipitation of hydrates are taken as instantaneous while
 the dissolution of the clinker phases follows rate laws. Each instant of such a
 trajectory is then the stable equilibrium of a smaller system, the one left once
 the kinetic amounts have been withdrawn from the budget, and it is this
-equilibrium that [`speciated_states`](@ref) recomputes and certifies. A last distinction concerns space.
+equilibrium that [`speciated_states`](@ref) recomputes and certifies. The
+phase rule says what such a system may hold. At temperature and pressure
+imposed, the phases coexisting at a stable equilibrium are generically no more
+numerous than the independent components, the rank of the conservation matrix;
+every transformation held back by kinetics adds one independent component
+[Richet2001; Secs. 9.1a–b, pp. 197–199](@cite), which is why the unreacted
+clinker can stand beside its hydrates. A last distinction concerns space.
 A system out of equilibrium as a whole may be made of regions each at
 equilibrium, which is called local equilibrium; every calculation of this package
 is zero-dimensional and describes one such region, transport between regions
@@ -155,7 +173,7 @@ did in a cement paste whose potentials gave it 1.2e-16.
 
 A species carrying a **vanished component** is absent by the *constraint*, not by
 thermodynamics, and its saturation index is meaningless — the element potential
-of a component nobody supplies is determined by nothing. The test for that is not
+of a component the budget does not supply is determined by nothing. The test for that is not
 `bₖ ≈ 0` but `bₖ ≈ 0` **with the non-zero entries of row `k` sharing a sign**:
 only then does ``\sum_i A_{ki} n_i = 0`` with ``\mathbf{n} \ge 0`` force each term to
 vanish. The `H⁺` row carries `+1` for `H⁺` and `−1` for `OH⁻`, so its zero total
@@ -169,10 +187,10 @@ potentials are the gradient of one Gibbs energy and that energy is convex over
 the feasible set. The first property can be measured at the audited composition,
 since the second derivatives of one energy commute: the Jacobian of the log
 activities has to be symmetric. It is for the ideal dilute model, whose solvent
-row is the partner of the solutes' ``\ln m_i``, for Davies on ions, for the
-Debye-Hückel form with a common ion size and no linear term, and for Pitzer's
-equations; it is not for the extended forms in general use, B-dot with its ion
-sizes and its linear term and Davies with a neutral solute, nor for SIT, nor for
+row is the partner of the solutes' ``\ln m_i``, for Davies [Davies1962](@cite)
+on ions, for the Debye-Hückel form with a common ion size and no linear term,
+and for the equations of [Pitzer1975](@citet); it is not for the extended forms
+in general use, B-dot [Helgeson1969](@cite) with its ion sizes and its linear term and Davies with a neutral solute, nor for SIT, nor for
 a diffuse layer. With these, a certified equilibrium is a composition consistent
 with its own activities rather than the minimum of an energy.
 
@@ -301,15 +319,15 @@ multipliers ``-y_c``, the condition written for a present species ``s`` reads
 which is the law of mass action of the reaction forming ``s`` from the basis,
 with the equilibrium constant implied by the standard potentials, while the
 inequality written for an absent phase is the condition that its saturation index
-be negative. What differs is what each family requires and what it guesses. A set
-of equilibrium constants may be gathered reaction by reaction from separate
-sources, whereas a minimization requires standard potentials consistent across
-all species; conversely, a mass-action solver decides the presence of each
-declared phase by a procedure added to its Newton iteration, whereas a
-minimization decides the assemblage from the same conditions that define the
-answer. When the model defines a convex Gibbs potential, the stationarity and
-phase conditions also certify global optimality. Equality of mass-action
-residuals alone does not establish the existence or convexity of that potential.
+be negative. The two families need different data and decide the assemblage
+differently. A set of equilibrium constants can be gathered reaction by reaction
+from separate sources, while a minimization needs standard potentials consistent
+across all species; a mass-action solver decides the presence of each declared
+phase from its saturation index within its Newton iteration, while a
+minimization decides it from the same conditions that define the answer. When
+the model defines a convex Gibbs potential, these conditions also certify global
+optimality; whether such a potential exists, and is convex, is a property of the
+activity model, whichever family solves it.
 
 ## The certifying solver
 
@@ -393,14 +411,16 @@ through the ionic strength, and steps at most 30 in any log-amount, halving the
 step until the squared residual falls.
 
 The solvent is deliberately **not** inverted through its own mass-action law: its
-activity is a mole fraction, so ``\ln a_w \le 0`` always, and an arbitrary `y` can
-demand more, for which no finite composition exists. It belongs to the outer
+activity cannot exceed one, being a mole fraction in some models and
+``\exp(-M_w\varphi\sum_j m_j)`` with an osmotic coefficient ``\varphi > 0`` in the
+others [Richet2001; Sec. 11.6d, Eq. (11.116), p. 276](@cite), and an arbitrary `y`
+can demand more, for which no finite composition exists. It belongs to the outer
 system, where the balance determines it.
 
 !!! note "What it buys, measured"
-    On calcite in pure water the certified pH is **9.90** against an
-    interior-point 6.96 — not an imprecision but a wrong answer, and one nothing
-    in that solver's output reveals. On the Reaktoro reference (calcite, CO₂ and
+    On calcite in pure water the certified pH is **9.90**, where the package's
+    interior-point solve alone stops at 6.96, a point its return code does not
+    distinguish from the minimum. On the Reaktoro reference (calcite, CO₂ and
     water) both routes now agree with Reaktoro on every species: above `10⁻⁵` mol
     to `10⁻³` relative, the trace ions to 5 %, the worst being `CaOH⁺` at ×1.032
     on 1.6 nmol. That reference used to carry a `@test_broken` for `CaOH⁺` at

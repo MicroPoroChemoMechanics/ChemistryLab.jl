@@ -61,7 +61,7 @@ build on the same objects.
 
 It is written for work that has to be reproducible and scripted: aqueous
 geochemistry, cement chemistry, and any problem where speciation, a database and
-a solver have to be driven from code rather than from a dialog box.
+a solver have to be driven from a script.
 
 ## A first calculation
 
@@ -165,12 +165,11 @@ against throughout — see [the validation page](@ref Validation-against-Reaktor
 Where a result differs, the burden of proof has been on us.
 
 Both are mature, carefully built and widely used, and both address a wider range
-of problems than this package attempts. What ChemistryLab tries to add is
-narrower: a Julia-native formulation in which an equilibrium comes with a
-**proof** of its optimality rather than a converged iterate, differentiable end
-to end so that a calibration can be posed as an optimization, and with the
-cementitious special cases — cement chemist notation, Bogue, the oxide-budget
-entry route for a glass, the binder families of EN 197-1 — treated as first-class
-rather than as an application layer.
+of problems than this package attempts. ChemistryLab's own scope is
+narrower: a Julia-native formulation in which an equilibrium is returned with a
+certificate stating what it proves, differentiable end to end so that a
+calibration can be posed as an optimization, and with the cementitious special
+cases — cement chemist notation, Bogue, the oxide-budget entry route for a
+glass, the binder families of EN 197-1 — written as objects of the package.
 
 That is an addition to their work, not a substitute for it.

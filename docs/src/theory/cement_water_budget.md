@@ -7,8 +7,8 @@
 
 Mix one gram of cement with ``w/c`` grams of water, seal it, and wait. Some of
 the water ends up inside hydrate formulas, some stays in pores the hydrates
-leave behind, and the reaction stops well before the cement is gone. Powers'
-rule of thumb summarizes the arrest as
+leave behind, and the reaction stops well before the cement is gone. The rule
+of thumb of [Powers1948](@citet) summarizes the arrest as
 
 ```math
 \alpha_{\max} = \frac{w/c}{0.42} ,
@@ -71,26 +71,27 @@ number 0.30 is nothing but ``b`` plus the little the solution retains.
 
 ## 3. What Powers' 0.42 actually contains
 
-Powers splits his coefficient himself: about **0.23 g/g** of non-evaporable water
+[Powers1948](@citet) splits his coefficient himself: about **0.23 g/g** of
+non-evaporable water
 — what survives D-drying, his operational definition of chemically bound — plus
 about **0.19 g/g** of **gel water**, which is water *present in the paste and
 unusable by the reaction*.
 
-The two splits do not draw the line in the same place. Powers' 0.23 is
-operational: it is the water that survives D-drying. CEMDATA18 writes the
-interlayer water of C-S-H into the formula, where D-drying would have removed
-it, so the computed ``b = 0.31`` already contains about 0.08 g/g of what Powers
-counts as gel water ([Self-desiccation](@ref sec-self-desiccation) §4 sets the
+The two splits do not draw the line in the same place. The 0.23 of
+[Powers1948](@citet) is operational: it is the water that survives D-drying.
+CEMDATA18 [Lothenbach2019](@cite) writes the interlayer water of C-S-H into the formula, where D-drying would have removed
+it, so the computed ``b = 0.31`` already contains about 0.08 g/g of what
+that definition counts as gel water ([Self-desiccation](@ref sec-self-desiccation) §4 sets the
 two side by side). So the gap between the two thresholds,
 
 ```math
 0.30 \;\;(\text{stoichiometric, predicted})
 \qquad\longleftrightarrow\qquad
-0.42 \;\;(\text{Powers, measured}) ,
+0.42 \;\;(\text{measured}) ,
 ```
 
 is the part of the gel water that no hydrate formula contains, about 0.12 g/g of
-Powers' 0.19, and it is the whole of the question. A paste at ``w/c = 0.35`` has
+the 0.19 of [Powers1948](@citet), and it is the whole of the question. A paste at ``w/c = 0.35`` has
 enough hydrogen to consume all its clinker — the minimization says so,
 correctly — and does not do it.
 
@@ -135,6 +136,12 @@ arithmetic: imposing a water activity from saturation down to 0.80 through
 unchanged to six digits, with a certificate on every answer — that is the first
 negative control on the [self-desiccation page](@ref sec-self-desiccation).
 
+Water at activity ``a_w`` behaves as liquid water under a pressure lower than
+that of the reference by ``RT\ln a_w/\bar V_w``, the relation of osmotic
+equilibrium [Richet2001; Sec. 11.3, Eq. (11.47), p. 258](@cite): about
+−31 MPa at ``a_w = 0.80`` and 25 °C, a tension that liquid water sustains
+metastably [Richet2001; Sec. 5.3, p. 106](@cite).
+
 So the capillary lowering of the water activity is real, representable, and
 energetically negligible. What stops a real paste is elsewhere.
 
@@ -173,14 +180,14 @@ Three routes, and they differ in what has to be assumed.
 compute the assemblage — the construction of [LothenbachWinnefeld2006](@citet),
 used by the [w/c example](@ref sec-wc-ratio) below its stoichiometric bound and
 by the self-desiccation page throughout. Honest, and ``\alpha`` is an input:
-either measured, or taken from `powers_alpha_max`. This is also what GEM-Selektor
-and Reaktoro offer, since they are 0D equilibrium codes too.
+either measured, or taken from `powers_alpha_max`.
 
 **Close the budget with a measured isotherm.** Take ``b`` and ``s`` from the
 minimization and ``S^\ast`` from a published desorption isotherm at an assumed
 arrest humidity. Then ``k`` is predicted up to that one empirical threshold — and
 inverting it is more informative than quoting it. The inversion has to use one
-definition of bound water throughout. Powers' 0.42 was split with his D-dried
+definition of bound water throughout. The 0.42 of [Powers1948](@citet) was split
+with his D-dried
 ``w_n = 0.23``, so it is that value, and not the formula water ``b`` of §1, that
 goes into ``k`` beside the computed ``s``: ``k = 0.42`` then corresponds to an
 arrest at **77.5 % relative humidity**, the window sealed pastes are
@@ -221,10 +228,11 @@ constituent of a blended binder on the pages for
 [CEM IV](@ref ex-cem4-pozzolanic) and [CEM V](@ref ex-cem5-composite). Two
 qualifications go with it, and both matter:
 
-**It is the water/*binder* ratio that is used.** Powers measured ``b`` and ``s``
+**It is the water/*binder* ratio that is used.** [Powers1948](@citet) measured
+``b`` and ``s``
 on Portland cement pastes, and a slag binder's C-A-S-H is not his C-S-H: it has a
-lower Ca/Si, it binds a different amount of water, and nobody has published the
-equivalent coefficients per supplementary material. Using ``w/b`` treats every
+lower Ca/Si, it binds a different amount of water, and no equivalent
+coefficients have been published per supplementary material. Using ``w/b`` treats every
 constituent as drawing on the same water, which is the conservative reading and
 is stated as an approximation rather than presented as a measurement.
 
@@ -256,7 +264,8 @@ porosity, the saturation falls, and the paste desiccates itself. That is one
 boundary condition. The other is a specimen kept under water after setting,
 which draws in what the shrinkage empties and never desiccates.
 
-Powers gives both, and the difference between them is exactly the chemical
+[Powers1948](@citet) gives both, and the difference between them is exactly the
+chemical
 shrinkage:
 
 ```math
@@ -300,20 +309,21 @@ the quantity a chemical-shrinkage test measures by watching a specimen drink.
 !!! tip "And the shrinkage is computed, which makes 0.06 a prediction rather than a constant"
     ``\Delta V`` is a difference of standard molar volumes — the same data that
     fixed the assemblage — so the package can be asked a question it was never
-    fitted to answer: does it reproduce the coefficient Powers measured? On a
+    fitted to answer: does it reproduce the coefficient measured by
+    [Powers1948](@citet)? On a
     w/c = 0.40 paste, per gram of reacted cement:
 
     | | |
     |:--|--:|
     | shrinkage from the molar volumes | 0.0606 cm³ |
     | water the cured specimen drew in | 0.0604 g |
-    | Powers, as ``k_{\text{sealed}} - k_{\text{saturated}}`` | 0.0600 g |
+    | [Powers1948](@citet), as ``k_{\text{sealed}} - k_{\text{saturated}}`` | 0.0600 g |
 
     The two internal routes agree with each other to 0.3 %, and both land within
     1 % of a number measured on pastes in 1948. They are not obliged to: the
     assemblage is a declared species list and not a real paste's, the molar
-    volumes are ideal, and Powers' coefficient is an average over the cements he
-    had. Which is what makes the agreement a check on the volume data rather
+    volumes are ideal, and the coefficient of [Powers1948](@citet) is an average
+    over the cements he had. Which is what makes the agreement a check on the volume data rather
     than a restatement of it — and what makes an empirical coefficient
     *intelligible* rather than merely used. [The w/c example](@ref sec-wc-ratio)
     runs it.

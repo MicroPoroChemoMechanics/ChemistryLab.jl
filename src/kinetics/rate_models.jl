@@ -364,7 +364,8 @@ The catalyst multiplies the base rate by `exp(n * ln aᵢ) = aᵢ^n`, where
 
 # Fields
 
-  - `species`: PHREEQC-format formula string of the catalyst species (e.g. `"H+"`, `"OH-"`).
+  - `species`: PHREEQC-format [ParkhurstAppelo2013](@cite) formula string of the
+    catalyst species (e.g. `"H+"`, `"OH-"`).
   - `n`: power exponent (dimensionless).
 
 # Examples
@@ -655,12 +656,13 @@ x = \\frac{\\sum_{\\text{modifiers}} n_M}{2\\,n_{\\text{Al}} + n_{\\text{Si}}} ,
 
 ``n`` the moles of each cation in the analysis `oxides` (mass fractions over
 the molar masses of the library), and ``a = 2.74``, ``b = -8.47`` the regression
-printed on Fig. 8 of the paper, read from `data/literature/Snellings2013.json`.
-The abscissa is the one of that figure, which counts aluminum twice although
-its label reads Ca/(Al + Si): the file records how the six glasses of Table I
-give it, and the regression holds with it only.
+printed on [Snellings2013; Fig. 8](@cite), read from
+`data/literature/Snellings2013.json`. The abscissa is that of the figure, the
+ratio above with aluminum counted twice, as the compositions of the six glasses
+of [Snellings2013; Table I](@cite) give it; the regression holds with that
+ratio.
 
-What the source covers, and what it does not:
+What [Snellings2013](@citet) covers, and what it does not:
 
   - **Composition.** The glasses hold CaO, Al₂O₃ and SiO₂ only, so only the
     oxides named in `modifiers` enter the numerator: CaO by default; the MgO,
@@ -670,12 +672,13 @@ What the source covers, and what it does not:
   - **Temperature.** The rates were measured at 20 °C only: the activation
     energy `Ea` (J/mol, or a quantity) has no default, and the constant is
     [`arrhenius_rate_constant`](@ref) referred to `T_ref` (K), 20 °C.
-  - **pH.** At 13 only; the source gives no dependence on pH.
+  - **pH.** At 13 only; [Snellings2013](@citet) gives no dependence on pH.
   - **Solution.** In NaOH alone. Dissolved calcium slows every glass and
-    aluminum the glasses whose calcium only balances their aluminum (Table II of
-    the paper); the paper gives the measurements, not a law, so `inhibitors`
-    ([`RateModelInhibitor`](@ref)) are the caller's. Dissolved silicon up to
-    11 mM, and the affinity above ``15\\,RT``, change nothing measurable.
+    aluminum the glasses whose calcium only balances their aluminum
+    ([Snellings2013; Table II](@cite)); the paper gives the measurements, not a
+    law, so `inhibitors` ([`RateModelInhibitor`](@ref)) are the caller's.
+    Dissolved silicon up to 11 mM, and the affinity above ``15\\,RT``, change
+    nothing measurable.
 
 The rate is per mole of cations: the glass species is
 [`glass_species`](@ref) with `M = `[`cation_molar_mass`](@ref)`(oxides)`, and its
@@ -740,10 +743,10 @@ Build a smoothed three-mechanism clinker hydration rate as a
     and `K₃` — a shell-formation coefficient — sits in the *diffusion*
     expression where the canonical formulation uses `K₂`. Nor do the shipped
     parameters match any published set: `N₁ = 3.3` is the canonical `n₃`, and
-    the canonical `k₃ = 1.1` has no counterpart at all. The primary source is a
-    conference proceedings without a DOI (*British Ceramic Proceedings* **35**,
-    41–53, 1984) that could not be consulted, so the attribution is retracted
-    rather than repaired by an invented calibration.
+    the canonical `k₃ = 1.1` has no counterpart at all. The primary source,
+    [ParrottKilloh1984](@citet), is a conference proceedings without a DOI that
+    could not be consulted, so the attribution is retracted rather than repaired
+    by an invented calibration.
 
     **Why it matters.** With `PK_PARAMS_*` the diffusion branch takes over very
     early — measured at `α/α_max` = 0.003 for C₂S, 0.013 for C₃S, 0.057 for C₃A,
@@ -758,8 +761,8 @@ Build a smoothed three-mechanism clinker hydration rate as a
     `N₃ = 4` are identical in all four parameter sets. Measured on a CEM I at
     w/c = 0.40 over seven days, C₃S, C₂S and C₃A all land on `α ≈ 0.239`, and
     C₄AF lower still at 0.193 — there its own nucleation-growth branch is
-    slower than diffusion and limits instead. The weighted mean comes to 0.234
-    against the 0.61 the cement literature reports. The signature is
+    slower than diffusion and limits instead. The weighted mean comes to 0.234. The
+    signature is
     unmistakable: `K₁` spans a factor of 18 across the four phases and changes
     almost nothing.
 
@@ -825,8 +828,8 @@ function parrott_killoh(params::NamedTuple, mineral_name::AbstractString; α_max
     Parrott & Killoh. With `PK_PARAMS_*` the diffusion branch takes over within the first \
     few percent of hydration (α ≈ 0.003 for C2S, 0.013 for C3S, 0.057 for C3A), so those \
     three phases reach α(7 d) = 0.2386 whatever their K₁; C4AF is limited by its own \
-    nucleation branch instead and reaches only 0.193. A CEM I at w/c = 0.40 is reported \
-    near 0.61. Use `parrott_killoh_avrami` with `PK84_PARAMS_*`.""" maxlog = 1
+    nucleation branch instead and reaches only 0.193. Use `parrott_killoh_avrami` with \
+    `PK84_PARAMS_*`.""" maxlog = 1
 
     α_max_f = float(α_max)
 
@@ -968,9 +971,9 @@ reduction ([`humidity_factor`](@ref)) and `f` the water/cement factor
     curves published in the cement literature cited above.
 
 With the canonical parameters, C₂S has no nucleation–growth stage and C₃S has no
-diffusion-controlled stage — an artifact of the 1984 fit that the original
-authors acknowledged, and a convenient signature to check an implementation
-against.
+diffusion-controlled stage — an artifact of the 1984 fit that
+[ParrottKilloh1984](@citet) acknowledged, and a convenient signature to check an
+implementation against.
 
 # Keyword arguments
 
@@ -1429,7 +1432,7 @@ end
     humidity_factor(h) -> Real
 
 Reduction coefficient `β_h` applied to the hydration rate at internal relative
-humidity `h ∈ [0, 1]` (Parrott et al., as used by van Breugel):
+humidity `h ∈ [0, 1]`, as [Lavergne2018; Eq. 10](@citet) write it:
 
 ```math
 β_h = \\left(\\frac{h - 0.55}{0.45}\\right)^4 \\ \\text{if } h > 0.80,
@@ -1470,8 +1473,8 @@ Pass it as the `humidity` keyword of [`parrott_killoh_avrami`](@ref) or
 and starts reading the one the material makes for itself. That is what closes the
 loop: hydration consumes water, the pore space empties, the humidity falls, and
 [`humidity_factor`](@ref) throttles the reaction — self-desiccation, which is
-what Powers' `α_max = w/c / 0.42` describes empirically and what
-[`powers_alpha_max`](@ref) otherwise supplies as an input.
+what the `α_max = w/c / 0.42` of [Powers1948](@citet) describes empirically and
+what [`powers_alpha_max`](@ref) otherwise supplies as an input.
 
 The humidity is the water activity the `retention` law returns at the current
 degree of saturation of the pore space,

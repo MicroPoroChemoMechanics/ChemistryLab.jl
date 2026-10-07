@@ -11,9 +11,9 @@
 A hydrating paste holds reactions on two time scales. The aqueous speciation,
 protonation, complexation and the autoprotolysis of water, reaches equilibrium
 in microseconds; alite dissolves over days. Integrating every reaction with a
-rate law would need kinetic constants nobody measures for the fast ones and
-would bring the integrator down to their time scale; equilibrating every phase
-would dissolve the clinker at once. Partial equilibrium integrates the slow
+rate law would need kinetic constants that are not measured for the fast ones
+and would bring the integrator down to their time scale; equilibrating every
+phase would dissolve the clinker at once. Partial equilibrium integrates the slow
 reactions and solves the fast ones by a minimization of the Gibbs energy at each
 instant [Leal2015, Leal2017](@cite).
 
@@ -406,8 +406,8 @@ first step, so that the trajectory starts on the constraint
 
 ### [When the partition may be frozen within a step](@id sec-theory-pe-splitting)
 
-When no rate law reads the equilibrium partition, as for a Parrott–Killoh or a
-Waller law, ``\mathbf{f}`` does not depend on ``\varphi`` at all. The
+When no rate law reads the equilibrium partition, as for a law of
+[ParrottKilloh1984](@citet) or of [Waller1999](@citet), ``\mathbf{f}`` does not depend on ``\varphi`` at all. The
 minimization then changes nothing in the trajectory, and solving it once per
 accepted step, only to report it, is exact: the splitting is exact
 (`speciation = :frozen`). [`speciated_states`](@ref) certifies the partition at

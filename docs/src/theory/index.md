@@ -102,8 +102,8 @@ balance of a calorimeter.
 
 [The water budget of a hydrating paste](@ref sec-theory-water-budget) is the
 cement-specific chapter, and the one to read if the question is why a
-calculation predicts a threshold at ``w/c \approx 0.30`` where Powers reports
-0.42. It is also where the limits of a 0D framework are argued rather than
+calculation predicts a threshold at ``w/c \approx 0.30`` where
+[Powers1948](@citet) reports 0.42. It is also where the limits of a 0D framework are argued rather than
 asserted.
 
 The constraint machinery — what can be held fixed instead of ``T`` and ``P``,

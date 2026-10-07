@@ -20,7 +20,7 @@ keywords:
   - "surface complexation"
   - "chemical kinetics"
   - "cement"
-version: 0.35.0
+version: 0.35.1
 date-released: '2026-10-07'
 doi: "10.5281/zenodo.17756074"
 url: "https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl"

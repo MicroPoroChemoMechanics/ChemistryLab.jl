@@ -10,10 +10,10 @@ about the water activity below a molal, and, in a single electrolyte, not at all
 about whether the solvent and the solutes form one thermodynamic system; that
 last question is decided in a mixed solution with a neutral species.
 
-A fourth column, `Cemdata18`, is the B-dot model again, with the parameters
-Cemdata18 prescribes for the pore solution of a cement
-([`cemdata18_activity_model`](@ref)): one ion size, 3.67 Å, for every ion, and the
-same linear coefficient on the ions and on the neutral species.
+A fourth column, `Cemdata18`, is the B-dot model [Helgeson1969](@cite) again,
+with the parameters Cemdata18 prescribes for the pore solution of a cement
+([`cemdata18_activity_model`](@ref)): one ion size, 3.67 Å, for every ion, and
+the same linear coefficient on the ions and on the neutral species.
 
 Everything below is evaluated on an imposed NaCl composition. Nothing is solved,
 so the whole page costs a few milliseconds — which is also the point: comparing
@@ -117,9 +117,10 @@ end
 Read the ``\gamma`` columns first. The ideal model is already several percent off
 at a **millimolal**, which is worth knowing before treating ideality as a safe
 default. The two corrections agree to about 1 % up to a tenth molal and part
-company above it — 8 % apart at 0.5 mol/kg — and by 3 mol/kg Davies has
-returned ``\gamma > 1`` while the B-dot model is still below 1: the ``bI`` term
-has taken over, which is the ceiling of the B-dot construction arriving.
+company above it — 8 % apart at 0.5 mol/kg — and by 3 mol/kg Davies
+[Davies1962](@cite) has returned ``\gamma > 1`` while the B-dot model is still
+below 1: the ``bI`` term has taken over, which is the ceiling of the B-dot
+construction arriving.
 
 The `Cemdata18` column is the same formula with other constants, and it stays
 within 2 % of the B-dot column up to a tenth molal. Above, its larger linear term
@@ -247,8 +248,9 @@ them: see [One equilibrium, whatever the back end](@ref).
     measured coefficients further than Davies once their linear terms take
     over. For the pore
     solution of a cement, [`cemdata18_activity_model`](@ref) gives it the
-    parameters Cemdata18 prescribes, which the paper states valid to about
-    1 mol/kg, and a certified answer reports its ionic strength against that;
+    parameters Cemdata18 prescribes, which [Lothenbach2019](@citet) state valid
+    to about 1 mol/kg, and a certified answer reports its ionic strength against
+    that;
   - above a few molal, none of these is defensible, and no warning is issued
     because none of them knows. [`solvent_fraction`](@ref) is the guard that
     does.

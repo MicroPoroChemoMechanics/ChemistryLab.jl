@@ -4,7 +4,7 @@
     [Solid solutions in a calculation](@ref sec-tutorial-solid-solutions), for
     how a gel is declared and what its end-members can hold, and [Aluminum
     uptake by C-S-H](@ref sec-validation-aluminum-uptake), which computes the
-    syntheses used below with the two gels of Cemdata18.
+    syntheses used below with the two gels of Cemdata18 [Lothenbach2019](@cite).
 
 !!! warning "What this page fits, and what it ships"
     The two extensions below are ChemistryLab's own, each with one energy fitted
@@ -22,8 +22,9 @@ binders has to hold both the calcium of a gel beside portlandite and some
 aluminum, and none of the gels ChemistryLab ships does. CSHQ [Kulik2011](@cite)
 and the CASH+ family [Kulik2022, Miron2022a](@cite) hold no aluminum; CNASH_ss
 [Myers2014](@cite) holds it, and its Ca/Si stops at 1.5, that of its
-calcium-richest end-member, its gel reaching 1.16 in the pastes of De Weerdt et
-al. where 1.8 was measured ([the validation page](@ref sec-validation-blended-gels)).
+calcium-richest end-member, its gel reaching 1.16 in the pastes of
+[DeWeerdt2011](@citet), where 1.8 was measured ([the validation
+page](@ref sec-validation-blended-gels)).
 
 ## 1. What the literature offers
 
@@ -33,7 +34,7 @@ in preparation [Kulik2022; ref. 25](@cite). [Yan2022](@citet) compare their
 measurements with a CASH+ model that holds aluminum, cited in turn as in
 preparation. A search of Crossref on 2026-10-06 finds no publication of it, and
 its parameters are not available, so that ChemistryLab can neither use it nor
-recompute the curves of Yan et al.
+recompute the curves of [Yan2022](@citet).
 
 The measurements are another matter. [LHopital2015](@citet) and
 [LHopital2016a](@citet) synthesized C-A-S-H at 20 °C at a Ca/Si from 0.6 to 1.6
@@ -63,16 +64,16 @@ Two readings of the measurements decide how a model can be fitted on them.
 The first concerns the other solids. Beyond an Al/Si of about 0.05 the
 syntheses hold strätlingite and katoite beside the gel, and the Al/Si of the
 gel stays near 0.1, which reads like the limit a model should reproduce. The
-saturation indices L'Hôpital et al. compute from their own solutions say
+saturation indices [LHopital2015](@citet) compute from their own solutions say
 otherwise: those solutions are undersaturated with respect to the strätlingite
-they hold, by 1.2 to 3.4 log units, and to the katoite, by 6 to 11 (their
-Appendix C, recorded in `data/literature/LHopital2015.json`). These phases are
-not at equilibrium with the solution, and the Al/Si the gel keeps beside them is
-not an equilibrium datum. What is one is the pair the gel and its solution
-form: the Al/Si of the gel, measured by mass balance, against the aluminum
-dissolved beside it. That pair, the uptake isotherm, is what the models below
-are fitted and tested on, with the aluminum-bearing pure phases left out of the
-calculation.
+they hold, by 1.2 to 3.4 log units, and to the katoite, by 6 to 11
+([LHopital2015; Appendix C](@cite), recorded in
+`data/literature/LHopital2015.json`). These phases are not at equilibrium with
+the solution, and the Al/Si the gel keeps beside them is not an equilibrium
+datum. What is one is the pair the gel and its solution form: the Al/Si of the
+gel, measured by mass balance, against the aluminum dissolved beside it. That
+pair, the uptake isotherm, is what the models below are fitted and tested on,
+with the aluminum-bearing pure phases left out of the calculation.
 
 The second concerns the shape of that isotherm. Without alkali, at a Ca/Si of
 1.0 and below an Al/Si of 0.05, where the gel holds all the aluminum:
@@ -136,7 +137,7 @@ carries one aluminum, its entropy, heat capacity and volume four times those of
 5CA, its Gibbs energy four times that of 5CA plus ``\delta``.
 
 Each way has one energy to fit, ``\delta``, and it is fitted on the syntheses of
-L'Hôpital et al. (2016a) without alkali, at a Ca/Si from 0.6 to 1.6: the
+[LHopital2016a](@citet) without alkali, at a Ca/Si from 0.6 to 1.6: the
 dissolved aluminum the model gives for the gel at its measured Al/Si, against
 the dissolved aluminum measured, in decimal logarithm. A synthesis whose
 aluminum was below the detection limit enters only by how far the model exceeds
@@ -230,24 +231,24 @@ savefig(fig, "cah-validation.svg"); nothing # hide
 ![The aluminum computed by way A against the aluminum measured in the alkaline syntheses of three series, with the line of equality.](cah-validation.svg)
 
 Way A carries over to the alkaline syntheses at a Ca/Si of 1.0: the series of
-Yan et al., in NaOH and KOH up to 1 M, within about 0.4 in decimal logarithm,
-and those of L'Hôpital et al. (2016b) at that Ca/Si with a bias of −0.07. Away from it,
-it does not: at a higher Ca/Si it puts more aluminum in solution than was
-measured, increasingly so up to an order of magnitude at 1.6, and at a lower one
-the excess of the alkali-free syntheses returns. Way B is further off on the two
-larger series and about as close on the four syntheses of L'Hôpital et al.
-(2015). The
-interlayer occupants sodium and potassium were given the same ``\delta`` as the
-proton and the calcium, an assumption these series test rather than fit. The
-equilibria that do not certify, eight of 87 in the first series under way A, are
-counted in the table and left out of the misfit.
+[Yan2022](@citet), in NaOH and KOH up to 1 M, within about 0.4 in decimal
+logarithm, and those of [LHopital2016b](@citet) at that Ca/Si with a bias of
+−0.07. Away from it, it does not: at a higher Ca/Si it puts more aluminum in
+solution than was measured, increasingly so up to an order of magnitude at 1.6,
+and at a lower one the excess of the alkali-free syntheses returns. Way B is
+further off on the two larger series and about as close on the four syntheses of
+[LHopital2015](@citet). The interlayer occupants sodium and potassium were given
+the same ``\delta`` as the proton and the calcium, an assumption these series
+test rather than fit. The equilibria that do not certify, eight of 87 in the
+first series under way A, are counted in the table and left out of the misfit.
 
 ## 5. In a cement paste
 
 The test that matters for a cement is a paste, where the gel shares the
-aluminum with the AFm, AFt and hydrogarnet phases. The pastes of De Weerdt et
-al. at 140 days, computed as on [the validation page](@ref ex-validation-blended)
-with the gel of way A in place of CSHQ, against the gel they measured:
+aluminum with the AFm, AFt and hydrogarnet phases. The pastes of
+[DeWeerdt2011](@citet) at 140 days, computed as on [the validation
+page](@ref ex-validation-blended) with the gel of way A in place of CSHQ,
+against the gel they measured:
 
 ```@example cah
 include(joinpath(pkgdir(ChemistryLab), "scripts", "de_weerdt_2011.jl"))
@@ -293,12 +294,12 @@ sec-validation-aluminum-uptake) concludes: CNASH_ss where the aluminum held by
 the gel matters, at a Ca/Si that cannot exceed about 1.2; CSHQ or CASH+NK where
 the calcium of a Portland cement's gel matters, the aluminum then going to the
 hydrates. What would settle the question is the extension of CASH+ its authors
-have announced, fitted together with the energies of the aluminate hydrates,
-and measurements of the gel's isotherm at a high Ca/Si in alkaline solutions,
-which none of the series above reaches beyond 1.6. `scripts/csh_aluminum.jl`
-reproduces everything on this page, and the transcriptions it reads,
-`data/literature/LHopital2015.json` and `data/literature/Yan2022.json`, record
-how each value was read and checked.
+have announced [Kulik2022; ref. 25](@cite), fitted together with the energies of
+the aluminate hydrates, and measurements of the gel's isotherm at a high Ca/Si
+in alkaline solutions, which none of the series above reaches beyond 1.6.
+`scripts/csh_aluminum.jl` reproduces everything on this page, and the
+transcriptions it reads, `data/literature/LHopital2015.json` and
+`data/literature/Yan2022.json`, record how each value was read and checked.
 
 ## Where to go next
 

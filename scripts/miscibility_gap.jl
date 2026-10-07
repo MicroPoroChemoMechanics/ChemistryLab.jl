@@ -77,7 +77,7 @@ gap = spinodal_interval(afm, 2)
 fig = plot(
     xs, [g(afm, x) for x in xs]; label = "published Redlich-Kister",
     color = :firebrick, linewidth = 2,
-    xlabel = "x (sulfate end-member)", ylabel = "g / RT",
+    xlabel = "x (C4AH13, the first end-member)", ylabel = "g / RT",
     title = "The mixing energy of the AFm sulfate/hydroxide binary",
     size = (760, 420), bottom_margin = 8Plots.mm, left_margin = 8Plots.mm
 )
@@ -88,7 +88,7 @@ plot!(
 vspan!(fig, [gap[1], gap[2]]; color = :firebrick, alpha = 0.12, label = "spinodal")
 savefig(fig, "gap-energy.svg"); nothing # hide
 
-# The Bogue composition of the CEM I 52.5 N of [Lavergne2018](@cite), Table 9,
+# The Bogue composition of the CEM I 52.5 N of [Lavergne2018](@citet), Table 9,
 # and its gypsum.
 bogue = literature_table("Lavergne2018", "cement_bogue")
 CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))

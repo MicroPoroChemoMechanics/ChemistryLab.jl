@@ -80,7 +80,8 @@ end
 """
     phreeqc_to_unicode(s::AbstractString) -> String
 
-Convert a PHREEQC formula string to Unicode representation with subscripts and superscripts.
+Convert a PHREEQC [ParkhurstAppelo2013](@cite) formula string to Unicode
+representation with subscripts and superscripts.
 
 # Arguments
 

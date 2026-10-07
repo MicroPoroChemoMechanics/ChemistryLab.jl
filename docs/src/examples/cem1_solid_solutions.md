@@ -12,9 +12,9 @@ everything the database defines and let the minimization decide.
 
 This page does exactly that on a CEM I at `w/c = 0.5`, from the oxide analysis
 on the datasheet through the Bogue conversion to the anhydrous charge, and then
-to the hydrated assemblage. It also measures what the alternatives cost, because
-the usual practice — declaring the two or three solid solutions one expects to
-find — turns out to be the risky one.
+to the hydrated assemblage. It also measures what declaring only the two or
+three solid solutions one expects to find changes: on this cement, the same
+answer, with a certificate that covers fewer phases.
 
 ```@example ss
 using ChemistryLab
@@ -169,9 +169,10 @@ solutions = [
 length(solutions), length(reduce(vcat, last.(solutions)))
 ```
 
-Eight phases over twenty end-members. A reader coming from GEM-Selektor will
-count **ten** phases in its CEMDATA18 setup, and the difference is worth
-stating because it is a difference of formulation and not of chemistry.
+Eight phases over twenty end-members. A reader coming from GEM-Selektor
+[Kulik2013](@cite) will count **ten** phases in its CEMDATA18 setup, and the
+difference is worth stating because it is a difference of formulation and not of
+chemistry.
 
 !!! note "Why eight here and ten there"
     Two of the ten repeat their end-members with the roles exchanged:
@@ -348,8 +349,8 @@ everything, in one number.
 
 ## 5. What declaring only some of them costs
 
-The common practice is to declare the solid solutions one expects to find and
-leave the rest out. There are two ways to do that. On this cement both reproduce
+Declaring only the solid solutions one expects to find, and leaving the rest
+out, can be done in two ways. On this cement both reproduce
 the answer, and neither proves what the complete declaration proves.
 
 **Leaving the other end-members in the system as pure phases.** Their
@@ -482,24 +483,19 @@ decimal places, so what follows is a comparison of chemistry.
 The two agree to 0.027 units of pH and 0.06 % of volume, on the same twelve
 solid phases, with the majors within a few percent.
 
-Two observations about the run itself, both of which are properties of the
-problem rather than of either code:
+Two observations about the run itself:
 
-- **The iteration count matters.** A full cement assemblage needs several
-  hundred iterations, above the default cap, and a run stopped at the cap
-  returns an intermediate iterate rather than an answer. Raising
-  `EquilibriumOptions.optima.maxiters` is what makes the comparison possible at
-  all; the converged run takes 306 iterations.
-- **The eight-phase configuration is genuinely hard.** A solid solution whose
-  end-members are *all* at zero has no mole fractions, so its ideal-mixing term
-  is undefined there and its gradient depends on the direction of approach — a
-  cone singularity at the origin of that phase's subspace. Every code has to
-  regularize it somehow. Here the regularization is the `ϵ` floor of the
-  activity closure combined with the multi-start of
-  [`equilibrate_certified`](@ref), which reaches and certifies the answer; in
-  the Reaktoro run the single Newton path did not converge within 4000
-  iterations for any of the floors tried, so its numbers above are from the
-  three-phase configuration, which is its documented setup for this system.
+- **The iteration count.** A full cement assemblage takes several hundred
+  iterations, more than the default limit of the Reaktoro run; with
+  `EquilibriumOptions.optima.maxiters` raised, it converges in 306 iterations.
+- **The eight-phase configuration needs a regularization.** A solid solution
+  whose end-members are all at zero has no mole fractions, so its ideal-mixing
+  term is undefined there and its gradient depends on the direction of
+  approach, a cone singularity at the origin of that phase's subspace. Here it
+  is handled by the `ϵ` floor of the activity closure together with the
+  multi-start of [`equilibrate_certified`](@ref). The Reaktoro run uses the
+  three-phase configuration documented for this system, hence the 8 and 3 of
+  the table; on this cement the two reach the same twelve solid phases.
 
 ## 7. What this does not settle
 

@@ -59,9 +59,9 @@ where a reader can see the claim being dropped.
     was borrowed from, the dataset it was fitted to.
   - `uncertainty`: what the source says about how well it is known, in the same
     unit as `value`, or `nothing` when it says nothing. Published sorption
-    compilations report it per entry — ClaySor 2023 writes `error: 0.17` beside
-    a `log K` — and a compilation where half the constants are known to 0.1 and
-    half to 0.5 is not one number's worth of information.
+    compilations report it per entry — ClaySor 2023 [Marinich2025](@cite) writes
+    `error: 0.17` beside a `log K` — and a compilation where half the constants
+    are known to 0.1 and half to 0.5 is not one number's worth of information.
 
 # Example
 

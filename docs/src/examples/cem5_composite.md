@@ -100,9 +100,10 @@ end
 ```
 
 `(S-V)` in the designation is the composition: **S** for blastfurnace slag, **V**
-for siliceous fly ash. The deposit gives the fineness, the water/binder ratio and
-the calorimetry. It gives neither the clinker composition nor the two replacement
-levels, so those are assumed at the midpoint of the EN 197-1 range and labeled:
+for siliceous fly ash. The deposit [Smilauer2025data](@cite) gives the fineness,
+the water/binder ratio and the calorimetry. It gives neither the clinker
+composition nor the two replacement levels, so those are assumed at the midpoint
+of the EN 197-1 range and labeled:
 
 ```@example cem5
 # ASSUMED: a Bogue composition representative of a CEM I clinker, here
@@ -442,12 +443,12 @@ hydration.
 ## [6. What the reacted fractions are worth](@id cem5-dor)
 
 The three fractions of section 1 are the page's only real assumption, so the
-page is obliged to say what turns on them. The round robin gives the answer its
-own way: it reports the same two glasses at 7, 28 and 90 days, so sweeping the
-*age* rather than an abstract parameter keeps every point on measured ground.
-The pairs below come from its Table 5, SEM image analysis: for the slag, the
-mean over the two slags and the two laboratories, and for the fly ash, the one
-laboratory that measured it.
+page is obliged to say what turns on them. The round robin
+[Durdzinski2017](@cite) gives the answer its own way: it reports the same two
+glasses at 7, 28 and 90 days, so sweeping the *age* rather than an abstract
+parameter keeps every point on measured ground. The pairs below come from its
+Table 5, SEM image analysis: for the slag, the mean over the two slags and the
+two laboratories, and for the fly ash, the one laboratory that measured it.
 
 ```@example cem5
 AGES = [(" 7 days", slag_dor(7), ash_dor(7)), ("28 days", ALPHA_SLAG, ALPHA_ASH),
@@ -475,9 +476,10 @@ end
 ```
 
 The package's own kinetics would answer this differently, and the disagreement is
-worth knowing about: the Waller sigmoid shipped for a slag and a fly ash gives
-0.29 and 0.32 at 28 days where the round robin measures 0.38–0.49 and 0.20. Both
-are fits to particular materials, and "a slag" is not a substance — [the rate law
+worth knowing about: the Waller sigmoid [Waller1999](@cite) shipped for a slag
+and a fly ash gives 0.29 and 0.32 at 28 days where the round robin
+[Durdzinski2017](@cite) measures 0.38–0.49 and 0.20. Both are fits to particular
+materials, and "a slag" is not a substance — [the rate law
 chapter](@ref sec-theory-kinetics) sets the two side by side.
 
 Read the columns against each other. The **portlandite** falls by a quarter
@@ -499,15 +501,15 @@ degree of reaction for their own materials.
 !!! warning "The fully reacted limit"
     Push the fractions to 1 — every grain of slag and every ash sphere fully
     dissolved — and the paste still certifies, below, but at an ionic strength
-    past the range Cemdata18 states for its activity model, about 1 mol/kg. The
-    certificate reports it (`within_activity_range`), and the answer is then a
-    composition consistent with an extrapolated activity model, certified as
-    such and no more. Until this version the page ran the limiting law
-    (`å = 0`), under which the same paste did not certify: the iteration ended
-    with an element balance off by 3·10⁻¹ mol and a pH of 14.4. What the section
-    says about the reacted fraction stands: a 48 %-replaced binder never
-    dissolves its glasses entirely, and the fraction, not the limit, describes a
-    specimen.
+    past the range Cemdata18 [Lothenbach2019](@cite) states for its activity
+    model, about 1 mol/kg. The certificate reports it (`within_activity_range`),
+    and the answer is then a composition consistent with an extrapolated
+    activity model, certified as such and no more. Until this version the page
+    ran the limiting law (`å = 0`), under which the same paste did not certify:
+    the iteration ended with an element balance off by 3·10⁻¹ mol and a pH of
+    14.4. What the section says about the reacted fraction stands: a 48
+    %-replaced binder never dissolves its glasses entirely, and the fraction,
+    not the limit, describes a specimen.
 
 ```@example cem5
 full = paste(1.0, 1.0)
@@ -566,12 +568,12 @@ savefig(fig, "cem5-heat.svg"); nothing # hide
 
 !!! warning "The abscissa is assumed, the ordinate is measured"
     The heats are measured on one instrument at 20 °C. The replacement levels are
-    **not in the deposit** — each is the midpoint of the EN 197-1 range for its
-    designation, the same assumption every page here makes. So the figure shows a
-    real trend read against an estimated axis, and the scatter about it is as much
-    the spread of the ranges as it is chemistry. What it does establish is the
-    ordering and the magnitude: half the clinker removed costs roughly a third of
-    the heat.
+    **not in the deposit** [Smilauer2025data](@cite) — each is the midpoint of
+    the EN 197-1 range for its designation, the same assumption every page here
+    makes. So the figure shows a real trend read against an estimated axis, and
+    the scatter about it is as much the spread of the ranges as it is chemistry.
+    What it does establish is the ordering and the magnitude: half the clinker
+    removed costs roughly a third of the heat.
 
 The CEM V/A and the CEM III/A sit almost on top of each other, at comparable
 replacement and comparable heat, which is what makes the family interesting: the

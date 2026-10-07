@@ -29,18 +29,18 @@ temperature sweeps and speciation diagrams are general.
 
 It is written for work that has to be reproducible and scripted — aqueous
 geochemistry, cement chemistry, and any problem where speciation, a database and
-a solver have to be driven from code rather than from a dialog box.
+a solver have to be driven from a script.
 
 ## Features
 
-- **Chemical formula handling**: Create, convert, and display formulas with charge management and Unicode/Phreeqc notation.
+- **Chemical formula handling**: Create, convert, and display formulas with charge management and Unicode/Phreeqc notation ([Parkhurst and Appelo 2013](https://doi.org/10.3133/tm6a43)).
 - **Chemical species management**: `Species` and `CemSpecies` types to represent solution and solid phase species; `with_class` to requalify a species without modifying the original.
 - **Stoichiometric matrices**: Automatic construction of matrices for reaction and equilibrium analysis.
 - **Database interoperability**: Import and merge ThermoFun (.json) and Cemdata (.dat) data. `datapath` obtains a ThermoFun database from ThermoHub on first use and checks it against a SHA-256; `install_database` takes a PHREEQC file downloaded by hand, and `fetch_databases` prepares a machine for offline work. Solid solution definitions are loaded from a TOML file with `build_solid_solutions`.
 - **Parsing tools**: Convert chemical notations, extract charges, calculate molar mass, and more.
-- **Solid solutions**: Define ideal (`IdealSolidSolutionModel`), Redlich-Kister (`RedlichKisterModel`), regular (`RegularSolutionModel`), sublattice (`SublatticeModel`, as in C-(N-)A-S-H) or compound-energy (`CompoundEnergyModel`, as in CASH+) mineral mixing phases via `SolidSolutionPhase`; end-members are automatically requalified at construction time, and a miscibility gap is detected, refused when spurious and located when real.
-- **Activity models**: Built-in aqueous activity models for equilibrium: `DiluteSolutionModel` (ideal), `HKFActivityModel` (extended Debye-Hückel B-dot), `DaviesActivityModel`, `TruesdellJonesActivityModel`, `SITActivityModel` and `PitzerActivityModel` (with the higher-order electrostatic terms, temperature terms, and a reader of PHREEQC's `PITZER` block), and `cemdata18_activity_model`, the extended Debye-Hückel setting Cemdata18 prescribes.
-- **Chemical equilibrium**: Compute thermodynamic equilibrium compositions from initial states using Gibbs energy minimization (`equilibrate`, `ChemicalSystem`, `ChemicalState`), with `equilibrate_certified` returning a KKT certificate that states what it proves — a global minimum, a KKT point, or a speciation consistent with its own activities (`scope`) — rather than a report that an iteration stopped.
+- **Solid solutions**: Define ideal (`IdealSolidSolutionModel`), Redlich-Kister (`RedlichKisterModel`, [Redlich and Kister 1948](https://doi.org/10.1021/ie50458a036)), regular (`RegularSolutionModel`), sublattice (`SublatticeModel`, as in C-(N-)A-S-H) or compound-energy (`CompoundEnergyModel`, as in CASH+) mineral mixing phases via `SolidSolutionPhase`; end-members are automatically requalified at construction time, and a miscibility gap is detected, refused when spurious and located when real.
+- **Activity models**: Built-in aqueous activity models for equilibrium: `DiluteSolutionModel` (ideal), `HKFActivityModel` (extended Debye-Hückel B-dot, [Helgeson 1969](https://doi.org/10.2475/ajs.267.7.729)), `DaviesActivityModel`, `TruesdellJonesActivityModel`, `SITActivityModel` and `PitzerActivityModel` (with the higher-order electrostatic terms of [Pitzer 1975](https://doi.org/10.1007/BF00646562), temperature terms, and a reader of PHREEQC's `PITZER` block), and `cemdata18_activity_model`, the extended Debye-Hückel setting Cemdata18 ([Lothenbach et al. 2019](https://doi.org/10.1016/j.cemconres.2018.04.018)) prescribes.
+- **Chemical equilibrium**: Compute thermodynamic equilibrium compositions from initial states using Gibbs energy minimization (`equilibrate`, `ChemicalSystem`, `ChemicalState`), with `equilibrate_certified` returning a KKT certificate that states what it proves — a global minimum, a KKT point, or a speciation consistent with its own activities (`scope`).
 - **Oxidation state**: Charge is kept as a conservation law of its own wherever an element appears at several valences, with `pe`, `Eh`, `half_reaction` and the `FixedpE` / `FixedEh` constraints — which is what a slag-blended binder needs, its sulfur arriving as S(-II) into a pore solution carrying S(+VI).
 - **Cementitious binders, CEM I to CEM V**: A glass with no formula enters through `oxide_budget` from its oxide analysis; how far each constituent has reacted is stated rather than assumed complete, bounded by `powers_alpha_max` for the water and space available, under either curing convention; `CapillaryWater` and `SaturatedCuring` are the two boundary conditions a specimen can be cured under.
 - **Surfaces**: Surface complexation on site families (`SiteFamily`), with constant-capacitance (`ConstantCapacitance`) or diffuse-layer (`DiffuseLayer`) electrostatics, cation exchange in the Vanselow or Gaines-Thomas convention, and the diffuse-layer inventory of a Donnan layer (`DonnanLayer`).
@@ -314,11 +314,16 @@ Parts of the thermodynamics and kinetics subsystems are Julia ports adapted
 from the [Reaktoro](https://github.com/reaktoro/reaktoro) C++ library
 (copyright © Allan Leal, LGPL-2.1-or-later):
 
-- the HKF standard thermodynamic model for aqueous solutes and the water
-  property functions (HGK 1984, Johnson-Norton 1991, Shock et al. 1992
-  g-function);
+- the HKF standard thermodynamic model for aqueous solutes
+  ([Helgeson et al. 1981](https://doi.org/10.2475/ajs.281.10.1249)) and the
+  water property functions (the equation of state of Haar, Gallagher and Kell
+  1984, the dielectric constant of
+  [Johnson and Norton 1991](https://doi.org/10.2475/ajs.291.6.541), the
+  g-function of [Shock et al. 1992](https://doi.org/10.1039/ft9928800803));
 - the Arrhenius rate constant, the saturation-ratio formulation, and the
-  Palandri-Kharaka / transition-state theory mineral rate factories
+  Palandri-Kharaka
+  ([Palandri and Kharaka 2004](https://doi.org/10.3133/ofr20041068)) /
+  transition-state theory mineral rate factories
   (`transition_state`, `first_order_rate`).
 
 The remainder of the package — chemical formula / species /
@@ -363,28 +368,35 @@ be possible without either.
 
 **[GEM-Selektor and GEMS3K](https://gems.web.psi.ch/)**, from the Paul Scherrer
 Institute and Empa — Kulik, Wagner, Dmytrieva, Kosakowski, Hingerl, Chudnenko,
-Berner and their colleagues. The Gibbs energy minimization approach used here is
-theirs, and so is much of the vocabulary: the phase stability index this package
-computes as `Ω` is the same quantity as their `Λ_k`, arrived at from the same KKT
-conditions. **CEMDATA18**, the thermodynamic database that makes every cement
-calculation in this manual possible, is the work of Lothenbach, Kulik, Matschei,
-Balonis, Baquerizo, Dilnesa, Miron and Myers, and it is read here unchanged, as ThermoHub publishes it.
-The zeolite extension is transcribed from two further papers by Ma and
-Lothenbach. Nothing in this package would produce a number without that data.
+Berner and their colleagues
+([Kulik et al. 2013](https://doi.org/10.1007/s10596-012-9310-6)). The Gibbs
+energy minimization approach used here is theirs, and so is much of the
+vocabulary: the phase stability index this package computes as `Ω` is the same
+quantity as their `Λ_k`, arrived at from the same KKT conditions.
+**CEMDATA18**, the thermodynamic database that makes every cement calculation in
+this manual possible, is the work of Lothenbach, Kulik, Matschei, Balonis,
+Baquerizo, Dilnesa, Miron and Myers
+([Lothenbach et al. 2019](https://doi.org/10.1016/j.cemconres.2018.04.018)), and
+it is read here unchanged, as ThermoHub publishes it. The zeolite extension is
+transcribed from two further papers by Ma and Lothenbach
+([2020](https://doi.org/10.1016/j.cemconres.2020.106111),
+[2021](https://doi.org/10.1016/j.cemconres.2021.106537)). Nothing in this
+package would produce a number without that data.
 
 **[Reaktoro](https://github.com/reaktoro/reaktoro)**, by Allan Leal and
-contributors. Parts of the thermodynamics and kinetics subsystems here are Julia
-ports of its C++ implementation — see the license section above for the list —
-and it has served throughout as the reference this package checks itself against.
+contributors ([Leal et al. 2017](https://doi.org/10.1515/pac-2016-1107)).
+Parts of the thermodynamics and kinetics subsystems here are Julia ports of its
+C++ implementation — see the license section above for the list — and it has
+served throughout as the reference this package checks itself against.
 Where a result of ours differs from Reaktoro's, the burden of proof has been on
 us.
 
 Both are mature, carefully built and widely used, and both solve a wider range of
-problems than this package attempts. What ChemistryLab tries to add is narrower:
-a Julia-native formulation in which an equilibrium comes with a certificate stating
+problems than this package attempts. ChemistryLab's own scope is narrower: a
+Julia-native formulation in which an equilibrium comes with a certificate stating
 what it proves, differentiable end to end, with the cementitious special cases —
 cement chemist notation, Bogue, the oxide-budget entry route for a glass —
-first-class rather than bolted on. That is a contribution on top of their work,
+written as objects of the package. That is a contribution on top of their work,
 not a replacement for it.
 
 Parts of the codebase were developed with the support of [Claude Code](https://claude.ai/code) (Anthropic) as an AI pair-programming assistant.

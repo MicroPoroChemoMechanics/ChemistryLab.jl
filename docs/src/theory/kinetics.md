@@ -58,7 +58,8 @@ There are two families below, and they answer different questions. The first is
 **mechanistic**: a rate proportional to how far the solution is from equilibrium
 with the mineral. The second is **empirical**: a degree of reaction as a function
 of time, fitted to calorimetry. Clinker and supplementary materials are described
-by the second, because nobody can write the first for a multiphase glass.
+by the second, no mechanistic law of the first kind being established for a
+multiphase material in a paste.
 
 ## 1. Distance from equilibrium: the Palandri–Kharaka form
 
@@ -94,6 +95,10 @@ reaction quotient is the ion activity product, and
 tends to one far from equilibrium, where the affinity is large, and to
 ``\mathcal{A}/RT`` close to it, so that near equilibrium the rate is
 proportional to the affinity.
+The sign of ``1 - \Omega`` is that of the affinity, so that the mineral
+dissolves below saturation and precipitates above it, as the second law requires
+of every rate: ``\mathcal{A}\,r \ge 0``, the inequality of De Donder
+[Richet2001; Sec. 7.1b, Eq. (7.14), p. 161](@cite).
 
 One mechanism ([`RateMechanism`](@ref)) contributes, per unit of reactive
 surface,
@@ -194,7 +199,7 @@ Two features of that table are artifacts of the 1984 fit rather than chemistry,
 and both are useful as checks on an implementation. With ``n_1 = 1`` the Avrami
 branch of **belite** reduces to ``k_1(1-\xi)``, which never limits, so C₂S is
 governed by the power law throughout. And **alite** never reaches its
-diffusion-controlled stage. The original authors acknowledged both.
+diffusion-controlled stage.
 
 !!! warning "Two Parrott–Killoh variants ship, and only one is attributed"
     [`parrott_killoh`](@ref) is a *different*, smoothed variant that predates
@@ -204,12 +209,38 @@ diffusion-controlled stage. The original authors acknowledged both.
     canonical law. It is deprecated and **the attribution to
     [ParrottKilloh1984](@citet) was withdrawn** rather than repaired: its nucleation term carries no Avrami
     logarithm, its shell coefficient sits in the diffusion expression, and no
-    published set matches its parameters. The primary source is a conference
-    proceedings without a DOI that could not be consulted, so the honest action
-    was to stop claiming it. Measured consequence: with `PK_PARAMS_*` all four
-    phases land on the diffusion branch almost immediately and a CEM I at
-    w/c 0.40 reaches α ≈ 0.234 at seven days against the ≈ 0.61 the literature
-    reports. Use [`parrott_killoh_avrami`](@ref).
+    published set matches its parameters. The primary source,
+    [ParrottKilloh1984](@citet), is a conference proceedings without a DOI that
+    could not be consulted here, so the attribution was withdrawn. Measured consequence: with `PK_PARAMS_*` all four
+    phases land on the diffusion branch almost immediately, and a CEM I at
+    w/c 0.40 reaches α ≈ 0.234 at seven days whatever the phase, the signature of
+    a rate set by the diffusion branch alone. Use [`parrott_killoh_avrami`](@ref).
+
+### The dormant period, which this law does not have
+
+The law starts hydrating at once. Its Avrami branch is seeded at a small degree
+so that the integration can leave ``\alpha = 0``, and a clinker then releases
+heat from the first minutes, where a calorimeter sees a dormant period of a few
+hours. `scripts/ionic_hydration.jl` multiplies the rate of the two silicates by
+``1 - \exp[-(t/\tau)^m]`` with ``\tau = 5`` h and ``m = 2.5``: round numbers
+consistent with a fit on one calorimetric record, not a published law, and the
+script says so.
+
+A published law with a dormant period is that of [Nguyen2009](@citet)
+(Section 3.3.2): a constant rate ``\alpha_{NC}/t_{NC}`` up to ``t_{NC} = 3`` h,
+then the Avrami law shifted to start there, then diffusion through the
+hydrates, with an Arrhenius factor referred to 293 K and a factor for the water
+left, each clinker phase with its own constants (Tables 3.3 and 3.7 of the
+thesis). It is not implemented here. Running it needs the radius of the grains
+that goes with the diffusion coefficients of Table 3.7 and the exponent of the
+water factor, which are not among the tabulated constants; and the nucleation
+and growth regime, evaluated here with the constants of Table 3.7, gives for
+alite a degree of 0.05 at 12 h where Fig. 3.4 of the thesis shows 0.30 (0.84
+with the characteristic time read the other way), so that the reading of the
+constants an implementation would rest on is not settled. Its first regime
+alone, a constant
+rate for three hours, would be one piece of a law taken out of the calibration
+it came with, which section 3 declines for the blended laws for the same reason.
 
 ## 3. Supplementary materials: the Waller sigmoid
 
@@ -257,10 +288,11 @@ one, and it is a prediction of the parameter and not an extra rule.
     additions an adiabatic test may contain. A slag's time is the caller's,
     from a source, `merge(WALLER_PARAMS_FLY_ASH, (τ = τ_slag,))`.
 
-    Neither is wrong. Waller's parameters are a fit to particular materials, and
+    Neither is wrong. The parameters of [Waller1999](@citet) are a fit to
+    particular materials, and
     "a slag" is not a substance — its reactivity depends on its glass content,
-    its basicity and its fineness. The round robin's own conclusion is the one to
-    keep: the precision of *any* determination of an SCM's degree of reaction is
+    its basicity and its fineness. The conclusion of the round robin
+    [Durdzinski2017](@cite) is the one to keep: the precision of *any* determination of an SCM's degree of reaction is
     "rather low, at best ± 4-5 %". So a reacted fraction is an input to be stated
     and swept, never a constant to be trusted to two digits — which is exactly
     how [the blended binder pages](@ref sec-theory-water-budget) treat it.
@@ -301,15 +333,17 @@ the hydrates of phase ``i`` and of its anhydrous grains, ``W`` that of the free
 water and ``\phi`` the porosity of the paste (Eqs. 11 and 12), and an Arrhenius
 factor at 293 K (Eq. 14), all multiplied by a constant ``A_i``.
 
-Neither law is implemented, because three things a rate law needs are not
-printed. The constant ``A_i`` has no unit of time: 3.48 for the clinker and
-5.0·10⁻⁶ for the slag (Kolani, Table 8). Evaluated on the mortars of the paper,
+Neither law is implemented here: three quantities a rate law needs are not
+among the published values. The constant ``A_i`` has no unit of time: 3.48 for the clinker and
+5.0·10⁻⁶ for the slag ([Kolani2012; Table 8](@cite)). Evaluated on the mortars
+of [Kolani2012](@citet),
 with the densities of a clinker and a slag, the first gives the usual rates of
 clinker hydration if it is per hour, and the second lets the slag react within a
 month only if it is per second; that reading is ours, not the paper's. The activation of the clinker is proportional
 to its own degree of hydration, so it is zero at the start, and no starting
-value is given. And the volume fractions come from the authors' stoichiometry,
-which assigns each hydrate to the phase that formed it (their Tables 6 and 7),
+value is given. And the volume fractions come from the stoichiometry of
+[Kolani2012](@citet), which assigns each hydrate to the phase that formed it
+(their Tables 6 and 7),
 where an equilibrium calculation assigns a hydrate to no phase. The parameters
 of each phase were fitted together on one semi-adiabatic test, so no factor can
 be taken alone and put on another law: the portlandite factor, a volume
@@ -440,7 +474,7 @@ refilled from the bath in one case and not in the other.
 | `WALLER_PARAMS_*` | [Waller1999](@citet), as used by [Lavergne2018](@citet) |
 | the dissolution rate constants and their exponents | [PalandriKharaka2004](@citet) |
 | `blaine_ref` 385 / 400 m²/kg | the finenesses those fits were made at |
-| the 0.80 humidity cut and its exponent | Parrott et al., as used by van Breugel |
+| the 0.80 humidity cut and its exponent | [Lavergne2018; Eq. 10](@cite), who take it from earlier work on Portland cement |
 | `powers_alpha_max` 0.42 / 0.36 | [Powers1948](@citet) |
 | `CALIBRATED_THETA` | **fitted here**, on one record — [the calibration page](@ref ex-hydration-calibration) |
 | an SCM's reacted fraction at a given age | **an input**, measured or assumed — never a constant of the code |

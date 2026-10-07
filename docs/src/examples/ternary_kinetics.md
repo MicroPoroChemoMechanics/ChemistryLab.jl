@@ -2,7 +2,7 @@
 
 !!! info "Before this page"
     [Validation against measured blended pastes](@ref ex-validation-blended),
-    the same four pastes at the extents their authors measured, and
+    the same four pastes at the extents [DeWeerdt2011](@citet) measured, and
     [CEM I 52.5 R with slag, fly ash and limestone, integrated in time](@ref ex-quaternary-kinetics),
     the same path on another blend.
 
@@ -22,10 +22,11 @@ The materials are the templates of the validation page: the clinker by its
 Rietveld phases and its minor oxides, the fly ash by its crystals, inert, and
 its glass, the limestone by its calcite. Each clinker phase dissolves under the
 law of [ParrottKilloh1984](@citet) with the parameters
-[Lavergne2018](@citet) tabulate, at the Blaine fineness of the cement (Table 1)
-and at the water/clinker ratio of the paste. The glass of the fly ash reacts as
-the authors measured it by image analysis: the fit printed on their Fig. 7,
-in percent of the fly ash at `t` days,
+[Lavergne2018](@citet) tabulate, at the Blaine fineness of the cement
+([DeWeerdt2011; Table 1](@cite)) and at the water/clinker ratio of the paste.
+The glass of the fly ash reacts as [DeWeerdt2011](@citet) measured it by image
+analysis: the fit printed on their Fig. 7, in percent of the fly ash at `t`
+days,
 
 ```@example ternary
 using ChemistryLab, DynamicQuantities, OptimaSolver, Printf
@@ -37,10 +38,10 @@ a, b, c = dw11_value("fly_ash_fit_a"), dw11_value("fly_ash_fit_b"), dw11_value("
 ```
 
 written on the degree of reaction `α` of the glass rather than on the time, as
-the Waller law is: with `s` the glass's share of the fly ash, `y = 100 s α`,
-`t + c = exp((y − a)/b)`, and the rate is `dα/dt = b exp(−(y − a)/b) / (100 s)`
-per day (`dw11k_fly_ash_law`). The limestone, the gypsum and everything else are
-at equilibrium.
+the Waller law [Waller1999](@cite) is: with `s` the glass's share of the fly
+ash, `y = 100 s α`, `t + c = exp((y − a)/b)`, and the rate is
+`dα/dt = b exp(−(y − a)/b) / (100 s)` per day (`dw11k_fly_ash_law`). The
+limestone, the gypsum and everything else are at equilibrium.
 
 ASSUMED: the minor oxides of the clinker (free lime, the alkalis, magnesia and
 the sulfate of the clinker itself) enter the equilibrium at the mixing. The
@@ -132,27 +133,27 @@ alite on the plain paste and tests them on the three others.
 **Without fly ash the portlandite is the measured one.** In the plain and in the
 limestone cement it is within two points of the measurement at every age, the
 measurement being good to ±1 wt.%. The ettringite of the limestone cement is
-within three points, and the limestone holds it as the authors found, as
-monocarbonate takes the aluminum; in the plain cement it falls below the
-measurement after a month, the minimization turning part of it into
-monosulfate, which the authors also found, but more of it.
+within three points, and the limestone holds it as [DeWeerdt2011](@citet) found,
+as monocarbonate takes the aluminum; in the plain cement it falls below the
+measurement after a month, the minimization turning part of it into monosulfate,
+which the authors also found, but more of it.
 
 **With fly ash the portlandite and, without limestone, the ettringite are
-lost.** The glass, at the degree of reaction the authors measured, consumes the
-portlandite at equilibrium: at six months a fifth of the measured amount is
-left in the paste without limestone, under half in the paste with it. This is
-the finding of [the validation page](@ref ex-validation-blended) at measured
-extents, which the kinetics carries in time: the C-S-H of this phase list,
-CSHQ, takes no aluminum and stays at the calcium-to-silicon ratio of a gel in
-equilibrium with portlandite, where the authors measured a gel poorer in calcium
-holding aluminum. Without limestone, the aluminum of the glass then goes to the
-AFm phases and to hydrogarnet, and the ettringite is gone from 28 days, where
-the paste keeps 7 wt.%; with limestone it goes to monocarbonate, and the
+lost.** The glass, at the degree of reaction [DeWeerdt2011](@citet) measured,
+consumes the portlandite at equilibrium: at six months a fifth of the measured
+amount is left in the paste without limestone, under half in the paste with it.
+This is the finding of [the validation page](@ref ex-validation-blended) at
+measured extents, which the kinetics carries in time: the C-S-H of this phase
+list, CSHQ, takes no aluminum and stays at the calcium-to-silicon ratio of a gel
+in equilibrium with portlandite, where the authors measured a gel poorer in
+calcium holding aluminum. Without limestone, the aluminum of the glass then goes
+to the AFm phases and to hydrogarnet, and the ettringite is gone from 28 days,
+where the paste keeps 7 wt.%; with limestone it goes to monocarbonate, and the
 ettringite stays. The two other gels the package ships do not fix it: at
 measured extents `CASH+NK` behaves as `CSHQ`, and `CNASH_ss` takes the aluminum
-at a calcium-to-silicon ratio a Portland cement's gel does not have
-([the validation page](@ref sec-validation-blended-gels)). Section 7 finds the
-same in time.
+at a calcium-to-silicon ratio a Portland cement's gel does not have ([the
+validation page](@ref sec-validation-blended-gels)). Section 7 finds the same in
+time.
 
 ## 6. The alite calibrated on the plain cement
 
@@ -214,8 +215,8 @@ point at every age.
 The limestone cement, which nothing was fitted on, follows: its alite is within
 1.2 points of the measurement at every age. With fly ash the measured alite is
 faster still, 2.4 and 1.8 wt.% at seven days against 4.4 computed: the filler
-effect of the fly ash, which the authors find, and which a law written for each
-phase of the cement alone does not carry.
+effect of the fly ash, which [DeWeerdt2011](@citet) find, and which a law
+written for each phase of the cement alone does not carry.
 
 The clinker reacted is now overestimated, by 3 to 11 points, because the
 belite still reacts as the published law makes it, too fast for this clinker,
@@ -230,7 +231,7 @@ within two points from seven days and two to three too high at one day.
 The two fly-ash pastes again, with `CNASH_ss` and then `CASH+NK` in place of
 `CSHQ`, the rest of the phase list and the laws unchanged, the alite under its
 published constants as in Sections 2 to 5; `CASH+NK` without the aqueous ion
-pairs its authors left out when fitting it, as on
+pairs its authors left out when fitting it [Miron2022a; Section 3.2](@cite), as on
 [the validation page](@ref sec-validation-blended-gels). The members of `CASH+NK` are mixed
 under the compound energy formalism, whose activities depend on the standard
 Gibbs energies of the members, which the run evaluates at its temperature.
@@ -262,8 +263,8 @@ for mix in fa_mixes
 end
 ```
 
-The C-S-H of each, against the SEM-EDX analyses of the paper, at one day and
-at 140 days:
+The C-S-H of each, against the SEM-EDX analyses of [DeWeerdt2011](@citet), at
+one day and at 140 days:
 
 ```@example ternary
 println("                     Ca/Si, 1 d and 140 d     Al/Si, 1 d and 140 d")
@@ -279,13 +280,13 @@ end
 In time as at the measured extents, neither gel reproduces the pastes. The gel
 of `CASH+NK` is that of `CSHQ`, a Ca/Si between 1.55 and 1.58 at one day and at
 140 days, with no aluminum, and the portlandite with it, within a point. `CNASH_ss` takes
-aluminum, an Al/Si rising from 0.09 to 0.10 or 0.11 where the paper measures
-0.06 rising to 0.13, but at a Ca/Si of 1.12 to 1.16 from the first day, where the
-paper measures 1.7 falling to 1.4. The calcium its gel does not take stays in
-portlandite, above the measurement by 1.7 to 3.9 points from seven days, and
-without limestone the ettringite goes more slowly, 1.8 wt.% left at six months
-against none with `CSHQ` and 6.6 measured. What the measurement asks of the
-model is a gel whose Ca/Si falls with time as it takes aluminum, beside
+aluminum, an Al/Si rising from 0.09 to 0.10 or 0.11 where [DeWeerdt2011](@citet)
+measure 0.06 rising to 0.13, but at a Ca/Si of 1.12 to 1.16 from the first day,
+where the paper measures 1.7 falling to 1.4. The calcium its gel does not take
+stays in portlandite, above the measurement by 1.7 to 3.9 points from seven
+days, and without limestone the ettringite goes more slowly, 1.8 wt.% left at
+six months against none with `CSHQ` and 6.6 measured. What the measurement asks
+of the model is a gel whose Ca/Si falls with time as it takes aluminum, beside
 portlandite: none of the three does both, and `CSHQ` stays the gel of these
 pages.
 

@@ -223,6 +223,17 @@ Away from equilibrium, ``\mathcal{A} = -\Delta_r G`` is the affinity of the
 reaction, positive when it proceeds forward (§14.5), which is the quantity the
 rate laws of [Rate laws](@ref sec-theory-kinetics) are written with.
 
+The affinity also states what the second law asks of a reaction in progress. In
+a closed system at fixed ``T`` and ``P``, with no work other than that of the
+pressure, the entropy the reaction produces is
+``T\,\mathrm{d}S_{\text{gen}} = -\mathrm{d}G = \mathcal{A}\,\mathrm{d}\xi \ge 0``,
+so that any rate ``r = \mathrm{d}\xi/\mathrm{d}t`` has the sign of the affinity,
+``\mathcal{A}\,r \ge 0``: a reaction runs only in the direction its affinity
+favors [Richet2001; Sec. 7.1b, Eqs. (7.10) and (7.14), pp. 160–161](@cite).
+The converse does not hold. A rate may vanish while ``\mathcal{A}`` does not,
+which is what a metastable state is: the reaction is allowed and does not
+proceed.
+
 ## [2. Reactions and equilibrium constants](@id sec-theory-reactions)
 
 Inserting ``\mu_i = \mu_i^\circ + RT\ln a_i`` into ``\Delta_r G`` separates the
@@ -306,10 +317,21 @@ reached, is what gives the metastable state as an answer. This is how the
 package treats a hydrating paste: the slow dissolution is integrated in time,
 and at every instant the rest is the minimum of ``G`` given what has dissolved
 so far, an equilibrium called partial
-([Kinetics under partial equilibrium](@ref sec-theory-pe-partition)). The only genuine
-non-convexity in composition is that of a solid solution with a miscibility
-gap, and it is a different phenomenon: two coexisting compositions of one
-phase ([Solid solutions](@ref sec-theory-solid-solutions)).
+([Kinetics under partial equilibrium](@ref sec-theory-pe-partition)).
+
+A non-convexity in composition is a different phenomenon. It arises where a
+mixing model has a strongly positive excess Gibbs energy, in solids, liquids and
+dense fluids alike [Richet2001; Secs. 7.3 and 10.1b, pp. 166–170 and 216](@cite):
+in this package, a solid solution with a miscibility gap
+([Solid solutions](@ref sec-theory-solid-solutions)), a mixture of real gases
+([Real gases](@ref sec-theory-real-gases) §5), and an aqueous model whose
+parameters are taken outside their range
+([Proving that an answer is the answer](@ref sec-theory-certificate)). The
+equilibrium is then two coexisting compositions of one phase. It is also the one
+case where a state held back is a local minimum of ``G``, though against small
+changes of composition only: between the spinodal and the binodal every small
+fluctuation raises ``G``, and the phase splits only through a nucleus large
+enough to pay for its interface [Richet2001; Sec. 7.3c, p. 170](@cite).
 
 ## Where to go next
 
