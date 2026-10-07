@@ -409,6 +409,20 @@ using ChemistryLab, DynamicQuantities, ForwardDiff, OrderedCollections, Test
         le = leach(rs, 2)
         @test all(s -> s.certificate.optimal, le)
         @test pore_solution(le[2]).elements[:K] < pore_solution(rs).elements[:K]
+
+        # A renewal by a solution given as its budget: pure water given that way
+        # is the default renewal, budget for budget; a charged solution, or one
+        # of the wrong length, is refused.
+        iw = findfirst(s -> symbol(s) == "H2O@", cs.species)
+        Mw = ustrip(us"g/mol", cs.species[iw][:M])
+        water = (rs.recipe.water_binder * rs.recipe.binder_mass / Mw) .* A[:, iw]
+        lw = leach(rs, 2; solution = water)
+        @test all(s -> s.certificate.optimal, lw)
+        @test lw[2].b ≈ le[2].b rtol = 1.0e-12
+        @test pore_solution(lw[2]).elements[:K] ≈ pore_solution(le[2]).elements[:K] rtol = 1.0e-8
+        iK = findfirst(s -> symbol(s) == "K+", cs.species)
+        @test_throws ArgumentError leach(rs, 1; solution = water .+ 1.0e-3 .* A[:, iK])
+        @test_throws DimensionMismatch leach(rs, 1; solution = [1.0])
     end
 
     @testset "derivatives through a recipe are exact" begin
