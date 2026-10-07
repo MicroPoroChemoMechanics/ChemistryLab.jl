@@ -173,8 +173,7 @@ Three routes, and they differ in what has to be assumed.
 compute the assemblage — the construction of [LothenbachWinnefeld2006](@citet),
 used by the [w/c example](@ref sec-wc-ratio) below its stoichiometric bound and
 by the self-desiccation page throughout. Honest, and ``\alpha`` is an input:
-either measured, or taken from `powers_alpha_max`. This is also what GEM-Selektor
-and Reaktoro offer, since they are 0D equilibrium codes too.
+either measured, or taken from `powers_alpha_max`.
 
 **Close the budget with a measured isotherm.** Take ``b`` and ``s`` from the
 minimization and ``S^\ast`` from a published desorption isotherm at an assumed

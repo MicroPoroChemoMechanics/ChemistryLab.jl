@@ -221,9 +221,9 @@ constant: the Gibbs energy moves by 0.2 J/mol at most from 0 to 100 °C at 1 bar
 the volume by the thermal expansion of water, 0.12 % at 20 °C and 2.6 % at
 80 °C, and the Gibbs energy by 0.53 kJ/mol at 300 °C and 1 kbar.
 
-The ThermoFun library uses the equation's functions without the shift, and
-writes 273.15 K for ``T_{tr}`` in the constant ``T_{tr} S_{tr}``, which takes
-0.633 J/mol from its Gibbs energy of water. Its values and this package's differ
+The ThermoFun library uses the equation's functions without the shift, with
+``T_{tr} = 273.15`` K in the constant ``T_{tr} S_{tr}``, a convention that places
+its Gibbs energy of water 0.633 J/mol below the one computed here. Its values and this package's differ
 by these constants and by the molar mass of water, 18.015268 g/mol in the
 library, 18.015 g/mol from the atomic masses here; with the three recomposed,
 the two agree to ``10^{-10}`` at 652 states from 0 to 1000 °C and from 1 to 5000

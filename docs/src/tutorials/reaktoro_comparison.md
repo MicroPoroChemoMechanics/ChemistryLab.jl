@@ -71,11 +71,10 @@ Reaktoro's own spread across `h ∈ {10⁻³, 10⁻⁴, 10⁻⁵}` is `7.2×10�
 residual difference sits **below the oracle's own truncation error**. This is as
 close as a comparison against a finite-difference reference can get.
 
-**Element balance.** Exact, and exactly where a finite difference is not:
-calcium has no source in this system, so the sensitivities of all Ca-bearing
-species must cancel. The implicit-function route gives `2×10⁻¹⁶`; a species
-absent from the solution gets identically zero, against `2×10⁻⁹` by finite
-differences.
+**Element balance.** Calcium has no source in this system, so the
+sensitivities of all Ca-bearing species must cancel. The implicit-function route
+gives `2×10⁻¹⁶`, and a species absent from the solution gets identically zero
+(`2×10⁻⁹` in the finite-difference reference, the size of its truncation error).
 
 ## The trace species
 
@@ -144,10 +143,11 @@ loose barrier.
 
 The reason the ×2.47 had been accepted is worth recording. The argument was that
 Ipopt landed on the same point (×2.46), so the discrepancy looked like a property
-of the problem rather than of one solver. **Both were barrier iterations stopping
-short of stationarity at μ = 0**, which is exactly the regime in which two codes
-of the same family agree with each other and not with the answer. Agreement
-between two back-ends that share a failure mode is not evidence.
+of the problem rather than of one solver. **Both were barrier iterations stopped,
+with the tolerances used here, short of stationarity at μ = 0**, the regime in
+which two solvers of the same family can agree with each other and not with the
+answer. Agreement between two back ends run under the same stopping rule is not
+evidence.
 
 ### What the diagnosis cost, and what to skip next time
 

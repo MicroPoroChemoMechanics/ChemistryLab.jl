@@ -310,7 +310,7 @@ in: at 25 °C that gives `κ = 0.117215`, against the `0.1174` PHREEQC writes
 into its source. Agreeing with PHREEQC while using a different dielectric
 constant is a stronger statement than agreeing with its arithmetic.
 
-# What this model costs the certificate, stated rather than hidden
+# What this model costs the certificate
 
 Unlike [`ConstantCapacitance`](@ref), **this term is not the gradient of any
 Gibbs energy**, and no implementation can make it one. At fixed `I` it is: the
@@ -333,7 +333,7 @@ bulk solution as a reservoir whose ionic strength is a parameter, which is
 precisely the approximation that lets the diffuse layer be written without
 carrying its ion inventory. PHREEQC's default `SURFACE` makes the same one.
 
-The consequence here is named rather than papered over.
+Here the consequence is reported.
 [`is_gradient_consistent`](@ref) returns `false` for this model, a system that
 uses it says so, and what comes back from a solve is a **self-consistent
 speciation** — mass action and conservation satisfied together — not a

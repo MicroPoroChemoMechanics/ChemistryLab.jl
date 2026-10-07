@@ -29,7 +29,7 @@ temperature sweeps and speciation diagrams are general.
 
 It is written for work that has to be reproducible and scripted — aqueous
 geochemistry, cement chemistry, and any problem where speciation, a database and
-a solver have to be driven from code rather than from a dialog box.
+a solver have to be driven from a script.
 
 ## Features
 
@@ -40,7 +40,7 @@ a solver have to be driven from code rather than from a dialog box.
 - **Parsing tools**: Convert chemical notations, extract charges, calculate molar mass, and more.
 - **Solid solutions**: Define ideal (`IdealSolidSolutionModel`), Redlich-Kister (`RedlichKisterModel`), regular (`RegularSolutionModel`), sublattice (`SublatticeModel`, as in C-(N-)A-S-H) or compound-energy (`CompoundEnergyModel`, as in CASH+) mineral mixing phases via `SolidSolutionPhase`; end-members are automatically requalified at construction time, and a miscibility gap is detected, refused when spurious and located when real.
 - **Activity models**: Built-in aqueous activity models for equilibrium: `DiluteSolutionModel` (ideal), `HKFActivityModel` (extended Debye-Hückel B-dot), `DaviesActivityModel`, `TruesdellJonesActivityModel`, `SITActivityModel` and `PitzerActivityModel` (with the higher-order electrostatic terms, temperature terms, and a reader of PHREEQC's `PITZER` block), and `cemdata18_activity_model`, the extended Debye-Hückel setting Cemdata18 prescribes.
-- **Chemical equilibrium**: Compute thermodynamic equilibrium compositions from initial states using Gibbs energy minimization (`equilibrate`, `ChemicalSystem`, `ChemicalState`), with `equilibrate_certified` returning a KKT certificate that states what it proves — a global minimum, a KKT point, or a speciation consistent with its own activities (`scope`) — rather than a report that an iteration stopped.
+- **Chemical equilibrium**: Compute thermodynamic equilibrium compositions from initial states using Gibbs energy minimization (`equilibrate`, `ChemicalSystem`, `ChemicalState`), with `equilibrate_certified` returning a KKT certificate that states what it proves — a global minimum, a KKT point, or a speciation consistent with its own activities (`scope`).
 - **Oxidation state**: Charge is kept as a conservation law of its own wherever an element appears at several valences, with `pe`, `Eh`, `half_reaction` and the `FixedpE` / `FixedEh` constraints — which is what a slag-blended binder needs, its sulfur arriving as S(-II) into a pore solution carrying S(+VI).
 - **Cementitious binders, CEM I to CEM V**: A glass with no formula enters through `oxide_budget` from its oxide analysis; how far each constituent has reacted is stated rather than assumed complete, bounded by `powers_alpha_max` for the water and space available, under either curing convention; `CapillaryWater` and `SaturatedCuring` are the two boundary conditions a specimen can be cured under.
 - **Surfaces**: Surface complexation on site families (`SiteFamily`), with constant-capacitance (`ConstantCapacitance`) or diffuse-layer (`DiffuseLayer`) electrostatics, cation exchange in the Vanselow or Gaines-Thomas convention, and the diffuse-layer inventory of a Donnan layer (`DonnanLayer`).
@@ -380,11 +380,11 @@ Where a result of ours differs from Reaktoro's, the burden of proof has been on
 us.
 
 Both are mature, carefully built and widely used, and both solve a wider range of
-problems than this package attempts. What ChemistryLab tries to add is narrower:
-a Julia-native formulation in which an equilibrium comes with a certificate stating
+problems than this package attempts. ChemistryLab's own scope is narrower: a
+Julia-native formulation in which an equilibrium comes with a certificate stating
 what it proves, differentiable end to end, with the cementitious special cases —
 cement chemist notation, Bogue, the oxide-budget entry route for a glass —
-first-class rather than bolted on. That is a contribution on top of their work,
+written as objects of the package. That is a contribution on top of their work,
 not a replacement for it.
 
 Parts of the codebase were developed with the support of [Claude Code](https://claude.ai/code) (Anthropic) as an AI pair-programming assistant.

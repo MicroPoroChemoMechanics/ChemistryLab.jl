@@ -377,7 +377,7 @@ worst_si = maximum(
 to be admired: it is the definition of being at equilibrium with the solution,
 and an index that disagreed with it would be a diagnostic that lies.
 
-## What PHREEQC does, and where this differs
+## The same coupling in PHREEQC
 
 PHREEQC has been able to tie a surface to a mineral since version 2, written
 
@@ -390,9 +390,9 @@ which reads exactly as `SITES_FOLLOW_HOST` does here. The generator
 with it, and the two codes agree on the coupling law to `2 × 10⁻¹⁰` over five
 partially dissolved states.
 
-They are **not** running one surface model, and the difference is worth knowing
-before comparing anything else. PHREEQC scales the site totals from the phase
-and stops there: the phase's own stability is untouched. This package counts
+The two codes do not run the same surface model, which matters before comparing
+anything else. In PHREEQC the site totals scale with the phase amount, and the
+phase's solubility is that of its database record. This package counts
 the free sites as part of the host, so the host's stability includes the energy
 of its surface, and a surface that binds protons or metals changes how soluble
 the host is. The two therefore agree on the ratio of sites to phase, and are

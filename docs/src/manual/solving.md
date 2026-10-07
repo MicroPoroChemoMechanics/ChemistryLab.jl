@@ -31,8 +31,8 @@ far more accurate on the element balance (`3e-12` relative against `3e-2`). Whic
 back end is quicker depends on the system, so neither ordering is worth stating
 as a rule.
 
-What is worth stating is that **neither of them returns a KKT point** on a
-cement. Both satisfy the element balance to `10⁻¹⁴`–`10⁻⁹` and agree on the pH to
+What is worth stating is that, as configured here, **neither of them returns a
+KKT point** on a cement. Both satisfy the element balance to `10⁻¹⁴`–`10⁻⁹` and agree on the pH to
 three decimals, while their stationarity residual sits at 133 and 136 in `RT`
 units. That does not matter for a pH, and it matters a great deal for a trace
 species or a saturation index — which is why `equilibrate` certifies by default,
@@ -40,8 +40,8 @@ at a cost of about 1.4 s on the same paste.
 
 ### `equilibrate(state)` does not pick one of them — it proves the answer
 
-Neither back end is reliable on its own, so the one-argument `equilibrate` solves
-by **every** route available and keeps the answer
+No single back end certifies every case measured below, so the one-argument
+`equilibrate` solves by **every** route available and keeps the answer
 [`optimality_certificate`](@ref) proves optimal. Measured, with the element
 balance judged row by row against each row's own budget:
 
@@ -344,8 +344,8 @@ rest rather than return derivatives that are not there.
     `7.2×10⁻⁴`, so the residual difference sits below the oracle's truncation
     error on every species.
 
-    The absent gas species gets exactly zero from the active-set treatment,
-    against `2×10⁻⁹` by finite differences.
+    The absent gas species gets exactly zero from the active-set treatment; the
+    finite-difference reference gives `2×10⁻⁹`, the size of its truncation error.
 
 !!! warning "A cross-code comparison has three knobs, not one"
     Database, species list and activity model all have to match, and each is

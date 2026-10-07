@@ -1494,8 +1494,8 @@ on has an ionic strength past the range the manual states for `model`
 ([`activity_model_range`](@ref)), and an empty string otherwise.
 
 Measured on blended cement pastes taken to full reaction, the refusal can be the
-activity model's rather than the solver's. The Debye–Hückel limiting law of a
-GEM-Selektor comparison, `HKFActivityModel(å = 0)`, has its `log γ` still falling
+activity model's rather than the solver's. The Debye–Hückel limiting law,
+`HKFActivityModel(å = 0)`, has its `log γ` still falling
 at several mol/kg, and the search does not conclude; with an ion size per ion the
 same budgets certify. Without this sentence the message names a stationarity and
 a balance, and nothing in it points at the activity model.

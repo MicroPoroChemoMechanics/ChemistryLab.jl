@@ -80,7 +80,7 @@ println("Δ pKa                 = ", round(pKa2 - pKa1, digits = 2))
 Each titration point is solved with [`equilibrate_certified`](@ref), which returns
 the composition together with a proof that it is the equilibrium. The proof is
 not a formality here: an Ipopt [`EquilibriumSolver`](@ref) reused across the
-points leaves a few of them unconverged near both ends of the curve, where one of
+points, with the settings of this page, leaves a few of them unconverged near both ends of the curve, where one of
 the acid forms is vanishingly rare, while returning the same pH elsewhere. The
 certificate lives in `OptimaSolver`:
 

@@ -5,9 +5,9 @@
     multipliers are set up, and [Standard states](@ref sec-theory-standard-states).
 
 An interior-point method minimizes ``G`` by walking the interior of the feasible
-set, and on a cement equilibrium it stops on `MaxIters` — at any tolerance.
-Whether the point it returns is the minimum is then an open question. This page
-is why the question has an answer at all, what a certificate checks, and how a
+set and returns its last iterate; whether that point is the minimum is a
+question distinct from whether the iteration stopped. This page is why the
+question has an answer at all, what a certificate checks, and how a
 solver can aim at the optimality conditions directly instead of at the objective.
 
 For a consistent Gibbs potential, the formulation being certified is the one
@@ -301,15 +301,15 @@ multipliers ``-y_c``, the condition written for a present species ``s`` reads
 which is the law of mass action of the reaction forming ``s`` from the basis,
 with the equilibrium constant implied by the standard potentials, while the
 inequality written for an absent phase is the condition that its saturation index
-be negative. What differs is what each family requires and what it guesses. A set
-of equilibrium constants may be gathered reaction by reaction from separate
-sources, whereas a minimization requires standard potentials consistent across
-all species; conversely, a mass-action solver decides the presence of each
-declared phase by a procedure added to its Newton iteration, whereas a
-minimization decides the assemblage from the same conditions that define the
-answer. When the model defines a convex Gibbs potential, the stationarity and
-phase conditions also certify global optimality. Equality of mass-action
-residuals alone does not establish the existence or convexity of that potential.
+be negative. The two families need different data and decide the assemblage
+differently. A set of equilibrium constants can be gathered reaction by reaction
+from separate sources, while a minimization needs standard potentials consistent
+across all species; a mass-action solver decides the presence of each declared
+phase from its saturation index within its Newton iteration, while a
+minimization decides it from the same conditions that define the answer. When
+the model defines a convex Gibbs potential, these conditions also certify global
+optimality; whether such a potential exists, and is convex, is a property of the
+activity model, whichever family solves it.
 
 ## The certifying solver
 
@@ -398,9 +398,9 @@ demand more, for which no finite composition exists. It belongs to the outer
 system, where the balance determines it.
 
 !!! note "What it buys, measured"
-    On calcite in pure water the certified pH is **9.90** against an
-    interior-point 6.96 — not an imprecision but a wrong answer, and one nothing
-    in that solver's output reveals. On the Reaktoro reference (calcite, CO₂ and
+    On calcite in pure water the certified pH is **9.90**, where the package's
+    interior-point solve alone stops at 6.96, a point its return code does not
+    distinguish from the minimum. On the Reaktoro reference (calcite, CO₂ and
     water) both routes now agree with Reaktoro on every species: above `10⁻⁵` mol
     to `10⁻³` relative, the trace ions to 5 %, the worst being `CaOH⁺` at ×1.032
     on 1.6 nmol. That reference used to carry a `@test_broken` for `CaOH⁺` at

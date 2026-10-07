@@ -1885,9 +1885,9 @@ tabulated values at ``(T_r, P_r)``. The heat capacity is ``\\partial H/\\partial
 and the volume ``M/\\rho(T, P)``, so that the five functions are those of one
 Gibbs energy.
 
-The ThermoFun library does not use the tabulated values; it also writes
-273.15 K for ``T_{tr}`` in the constant ``T_{tr} S_{tr}``, which puts its Gibbs
-energy of water 0.633 J/mol below the published conversion. The function this
+The ThermoFun library does not use the tabulated values, and takes
+``T_{tr} = 273.15`` K in the constant ``T_{tr} S_{tr}``, a convention that places
+its Gibbs energy of water 0.633 J/mol below the one computed here. The function this
 replaced extrapolated the tabulated values with the heat capacity of 25 °C, and
 left the solvent's energies drifting from those of water as the temperature
 left 25 °C.

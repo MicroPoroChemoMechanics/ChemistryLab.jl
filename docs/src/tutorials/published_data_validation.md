@@ -55,7 +55,7 @@ one costs seconds to minutes.
 
 | what | against | how closely | where it stops |
 |:--|:--|:--|:--|
-| **every solubility product** in the shipped CEMDATA18 — 54 phases | [Lothenbach2019](@citet) Tables 2-3 | 52 close to `0.040`, 50 to `0.005` | two M-S-H end members are `0.24` and `0.20` out at 25 °C; the source disagrees with itself |
+| **every solubility product** in the shipped CEMDATA18 — 54 phases | [Lothenbach2019](@citet) Tables 2-3 | 52 close to `0.040`, 50 to `0.005` | two M-S-H end members are `0.24` and `0.20` out at 25 °C, where their three tabulated values do not agree |
 | **standard properties and HKF coefficients**, 19 aqueous species and 7 gases | [Lothenbach2019](@citet) Tables D.1-D.2 | exact, all seven coefficients each | nitrite-AFm needs the `NO2-` of another file, and Fe-Friedel's salt is in ChemistryLab's chloride extension only; [both close there](@ref sec-cemdata18-missing-rows) |
 | **each record's `ΔfG°`, `ΔfH°` and `S°`** against one another | the file's own element entropies | 78 of 143 crystalline records to `1 J/mol`, 126 to `100 J/mol` | the two M-S-H end members miss by kilojoules at either temperature |
 | **HKF away from 298.15 K, 1 bar** | [Duan2016](@citet) Table 4, HKF column | `0.03 %` at the reference point; `0.3 %` across a factor 2.9 in pressure | their two constants in one row sit at two different pressures |
@@ -111,7 +111,7 @@ one aluminum per iron, so the siliceous hydrogarnet is capped by the iron
 available. On a clinker with `Fe₂O₃ = 4.49 %` there is enough iron to pair with
 every aluminum, no monocarbonate forms at any limestone content, and the
 published sequence simply does not appear. Below about 3.5 % it does. See
-[The sequence, and the condition nobody states](@ref).
+[The sequence, and the iron content it depends on](@ref).
 
 **Temperature belongs to the state, not to the solve.** The solves take `T` and
 `P` from the `ChemicalState`, and `equilibrate`, `equilibrate_certified` and
@@ -384,7 +384,7 @@ Measured here: **100.0 %**, at every limestone content and every iron content
 tried, from 0.5 to 4.49 % `Fe₂O₃`, to within `10⁻³`. That one reproduces without
 qualification.
 
-### The sequence, and the condition nobody states
+### The sequence, and the iron content it depends on
 
 Both papers report
 

@@ -33,7 +33,7 @@ of binder, H⁺ at pH 13.5 to 14 is 1e-16 mol, at the floor: its activity no lon
 followed its amount, a solve left it at 3e-100 mol, and a pH read from the amount
 came out 0.09 high.
 
-The other codes floor far lower, and one argument recurs. [Leal2017](@citet)
+Other codes floor lower, on one recurring argument. [Leal2017](@citet)
 recall that in an interior-point minimization an unstable species ends at an
 amount of the order of the barrier parameter, and that
 [LealKulikKosakowski2016](@citet) recommended it below 1e-25 so that such a
@@ -42,9 +42,9 @@ mole. GEMS3K takes that same molecule as
 the least amount it considers (`lowPosNum`, 1.66e-24 mol) and eliminates a
 solution species below `DcMin = 1e-30` mol (`ms_multi.h`). PHREEQC sets a molality
 to zero below `MIN_LM = −30` in log (`global_structures.h`). Reaktoro bounds every
-amount by `epsilon = 1e-16` mol and takes its barrier parameter from it
-(`EquilibriumOptions.hpp`); its code states no reason for that value, and it is a
-bound of its solver, as our `ϵ` is. So `ϵ` keeps its other two roles, and the
+amount by `epsilon = 1e-16` mol, a bound of its solver from which it takes its
+barrier parameter (`EquilibriumOptions.hpp`), the role our `ϵ` has. So `ϵ` keeps
+its other two roles, and the
 activity models floor at this value, below one molecule in any system up to a
 million moles.
 """

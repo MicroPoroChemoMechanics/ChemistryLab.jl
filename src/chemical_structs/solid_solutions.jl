@@ -487,10 +487,9 @@ and a formulation carrying one amount per species cannot write that down. So
 a derived symbol (`monosulphate12#2`) sharing the same thermodynamic record, and
 the minimization is free to put material in either lobe or in both.
 
-This is how GEM-Selektor represents the same thing: CEMDATA18 ships the AFm and
-AFt binaries under two names each, so that the user can declare them twice. The
-difference here is only that the duplication is asked for by a keyword rather
-than carried in the database.
+CEMDATA18 ships the AFm and AFt binaries under two names each, so that the
+database itself declares each binary twice; `instances = 2` declares the second
+composition with a keyword.
 
 `instances > 1` is **refused for a convex model**, and that is not a formality:
 two instances of a convex phase are degenerate, every split of the amount between
@@ -631,9 +630,7 @@ function SolidSolutionPhase(
     #
     # The physics is that the Gibbs minimum inside a spinodal is two coexisting
     # compositions, not one. Representing that needs the binary declared twice,
-    # which a formulation with one entry per species cannot do — and neither
-    # GEM-Selektor nor Reaktoro detects the condition either: both assume
-    # convexity and leave the duplication to the user.
+    # which a formulation with one entry per species cannot do.
     #
     # `check_convexity = false` proceeds anyway, for a caller who knows the answer
     # stays outside the gap. The optimality certificate then loses its ground,

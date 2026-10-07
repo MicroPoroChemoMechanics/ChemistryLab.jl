@@ -424,8 +424,8 @@ approximation that lets a diffuse layer be written without carrying its own
 inventory of counter-ions — the approximation [DzombakMorel1990](@citet) make, and the
 one PHREEQC's default `SURFACE` block makes. What comes back from such a solve
 is a **self-consistent speciation**, mass action and conservation satisfied
-together. It is not a certified minimum, and this package says which it is
-rather than letting the word "certificate" cover both.
+together. It is not a certified minimum, and the certificate reports it as a
+self-consistent speciation (`scope = :self_consistent`).
 
 ### And a second price, which is the one that bites
 

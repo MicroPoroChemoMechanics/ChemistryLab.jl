@@ -179,8 +179,7 @@ alkali-activated binder at high alkalinity precipitates zeolites; without them i
 the species list the alkalis have nowhere to go but the pore solution, and the
 calculated pH comes out too high. A blended binder taken to full reaction can
 also stop certifying without them, and that is a different matter: there it is
-the limiting-law activity model of a GEM-Selektor comparison (`å = 0`) that no
-longer closes, and a model with an ion size per ion certifies the same paste, as
+the Debye–Hückel limiting law (`å = 0`) that no longer closes, and a model with an ion size per ion certifies the same paste, as
 [the CEM IV page](@ref ex-cem4-pozzolanic) measures. CEMDATA18 carries five
 zeolites, and the families a blended cement actually needs — clinoptilolite,
 heulandite, mordenite, phillipsite, analcime, stilbite and the
