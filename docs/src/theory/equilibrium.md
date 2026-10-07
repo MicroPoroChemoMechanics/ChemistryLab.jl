@@ -187,10 +187,10 @@ potentials are the gradient of one Gibbs energy and that energy is convex over
 the feasible set. The first property can be measured at the audited composition,
 since the second derivatives of one energy commute: the Jacobian of the log
 activities has to be symmetric. It is for the ideal dilute model, whose solvent
-row is the partner of the solutes' ``\ln m_i``, for Davies on ions, for the
-Debye-Hückel form with a common ion size and no linear term, and for Pitzer's
-equations; it is not for the extended forms in general use, B-dot with its ion
-sizes and its linear term and Davies with a neutral solute, nor for SIT, nor for
+row is the partner of the solutes' ``\ln m_i``, for Davies [Davies1962](@cite)
+on ions, for the Debye-Hückel form with a common ion size and no linear term,
+and for the equations of [Pitzer1975](@citet); it is not for the extended forms
+in general use, B-dot [Helgeson1969](@cite) with its ion sizes and its linear term and Davies with a neutral solute, nor for SIT, nor for
 a diffuse layer. With these, a certified equilibrium is a composition consistent
 with its own activities rather than the minimum of an energy.
 

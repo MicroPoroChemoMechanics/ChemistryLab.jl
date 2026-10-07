@@ -381,7 +381,7 @@ budget — which is why it costs microseconds and can be used as the starting po
 of a full equilibrium rather than as its result.
 
 The construction is that of [GlynnReardon1990](@citet) for binary solid
-solutions, which PHREEQC uses as well. It was validated here against a case
+solutions, which PHREEQC [ParkhurstAppelo2013](@cite) uses as well. It was validated here against a case
 with a closed form: for a symmetric model the pair must be symmetric about
 ``x = 1/2``, and it comes out at ``(0.070720,\ 0.929280)`` with a residual of
 ``2.3\times10^{-13}`` and the symmetry exact to the last bit. For a symmetric

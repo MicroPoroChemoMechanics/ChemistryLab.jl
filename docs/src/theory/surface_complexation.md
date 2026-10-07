@@ -273,7 +273,7 @@ on the exchanger's composition, which is what the calculation is solving for
 convention is part of the declaration, and a constant fitted under one and used
 under the other is a different model — not a rescaled one.
 
-Both conventions are checked against Reaktoro, which carries both, on a
+Both conventions are checked against Reaktoro [Leal2017](@cite), which carries both, on a
 heterovalent Na/K/Ca exchange, and agree to 4 parts in 10⁹. On that composition
 they differ from **each other** by 48 % on the sodium, which is the point.
 
@@ -422,7 +422,7 @@ This is a property of the model, not of any implementation of it. Treating the
 bulk as a reservoir whose ionic strength is a parameter is precisely the
 approximation that lets a diffuse layer be written without carrying its own
 inventory of counter-ions — the approximation [DzombakMorel1990](@citet) make, and the
-one PHREEQC's default `SURFACE` block makes. What comes back from such a solve
+one the default `SURFACE` block of PHREEQC [ParkhurstAppelo2013](@cite) makes. What comes back from such a solve
 is a **self-consistent speciation**, mass action and conservation satisfied
 together. It is not a certified minimum, and the certificate reports it as a
 self-consistent speciation (`scope = :self_consistent`).

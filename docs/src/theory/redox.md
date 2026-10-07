@@ -119,7 +119,7 @@ makes the numbers comparable with published half-reaction constants:
 | ``\ce{SO4^2- + 9H+ + 8e- = HS- + 4H2O}`` | 33.69 | 33.66 |
 | ``\ce{Fe^3+ + e- = Fe^2+}`` | 13.02 | 13.03 |
 
-Computed from CEMDATA18's own data, so the agreement also checks that CEMDATA18
+Computed from the data of CEMDATA18 [Lothenbach2019](@cite), so the agreement also checks that CEMDATA18
 and the sources of those published constants share a reference state.
 
 ## What this does not buy: one potential per system

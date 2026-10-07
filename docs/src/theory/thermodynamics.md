@@ -102,7 +102,7 @@ transition the record places at a boundary adds its enthalpy ``\Delta H_t`` and
 its entropy ``\Delta S_t``, the Gibbs energy staying continuous; the molar
 volume stays the record's at ``T_r``. An entry that gives a
 single heat capacity at ``T_r`` is extrapolated with the same model reduced to its
-constant term; in CEMDATA18, the zeolites and the magnesium silicate hydrates
+constant term; in CEMDATA18 [Lothenbach2019](@cite), the zeolites and the magnesium silicate hydrates
 are among them, and the solvent's record is of this kind too, though the solvent
 follows the equation of state of water instead (below). An entry that gives
 none, but gives the entropy, is extrapolated with a zero heat capacity, so that

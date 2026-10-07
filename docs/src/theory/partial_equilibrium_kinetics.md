@@ -406,8 +406,8 @@ first step, so that the trajectory starts on the constraint
 
 ### [When the partition may be frozen within a step](@id sec-theory-pe-splitting)
 
-When no rate law reads the equilibrium partition, as for a Parrott–Killoh or a
-Waller law, ``\mathbf{f}`` does not depend on ``\varphi`` at all. The
+When no rate law reads the equilibrium partition, as for a law of
+[ParrottKilloh1984](@citet) or of [Waller1999](@citet), ``\mathbf{f}`` does not depend on ``\varphi`` at all. The
 minimization then changes nothing in the trajectory, and solving it once per
 accepted step, only to report it, is exact: the splitting is exact
 (`speciation = :frozen`). [`speciated_states`](@ref) certifies the partition at

@@ -312,7 +312,7 @@ relative asymmetry over pairs, ion/ion and solvent/ion separated:
 | B-dot, ``\mathring{a}`` per ion, ``\dot{B}=0`` | ``2.4\times10^{-1}`` | ``6.0\times10^{-2}`` |
 | **B-dot, common ``\mathring{a}`` and ``\dot{B}=0``** | ``0`` | ``1.8\times10^{-14}`` |
 | **Debye-Hückel limiting law** (``\mathring{a}=0``, ``\dot{B}=0``) | ``0`` | ``3.4\times10^{-13}`` |
-| ``\mathring{a}=0``, ``\dot{B}=0.0976`` (one GEM-Selektor run, not the Cemdata18 prescription) | ``1.2\times10^{-1}`` | ``3.6\times10^{-1}`` |
+| ``\mathring{a}=0``, ``\dot{B}=0.0976`` (one GEM-Selektor run [Kulik2013](@cite), not the prescription of Cemdata18 [Lothenbach2019](@cite)) | ``1.2\times10^{-1}`` | ``3.6\times10^{-1}`` |
 
 Two readings, and the second is the one that was not expected.
 

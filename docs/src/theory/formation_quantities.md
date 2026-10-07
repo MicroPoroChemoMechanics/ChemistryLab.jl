@@ -354,9 +354,9 @@ keeps the first term only and receives the pressure through its activity
 from ``(T_r, P_r)`` in temperature at ``P_r``, where
 ``S_i^\circ(T') = S_i^\circ(T_r) + \int_{T_r}^{T'} C_{P,i}^\circ\,\mathrm{d}T''/T''``,
 and then in pressure at ``T``. The order follows the data: heat capacities are
-measured near 1 bar, and integrating in pressure first would need ``C_P`` at
+measured near 1 bar, and integrating in pressure first would need ``C_p`` at
 ``P``, which only the equation of state gives, through
-``(\partial C_P/\partial P)_T = -T\,(\partial^2 V/\partial T^2)_P``
+``(\partial C_p/\partial P)_T = -T\,(\partial^2 V/\partial T^2)_P``
 [Richet2001; Sec. 8.1a, Eq. (8.4), p. 174](@cite). The temperature step is a double integral,
 
 ```math

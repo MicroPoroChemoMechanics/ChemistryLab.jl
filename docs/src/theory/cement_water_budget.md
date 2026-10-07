@@ -78,8 +78,8 @@ about **0.19 g/g** of **gel water**, which is water *present in the paste and
 unusable by the reaction*.
 
 The two splits do not draw the line in the same place. The 0.23 of
-[Powers1948](@citet) is operational: it is the water that survives D-drying. CEMDATA18 writes the
-interlayer water of C-S-H into the formula, where D-drying would have removed
+[Powers1948](@citet) is operational: it is the water that survives D-drying.
+CEMDATA18 [Lothenbach2019](@cite) writes the interlayer water of C-S-H into the formula, where D-drying would have removed
 it, so the computed ``b = 0.31`` already contains about 0.08 g/g of what
 that definition counts as gel water ([Self-desiccation](@ref sec-self-desiccation) §4 sets the
 two side by side). So the gap between the two thresholds,

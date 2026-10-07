@@ -52,7 +52,8 @@ state (see [Apparent and formation Gibbs energies](@ref sec-theory-apparent))
 rather than as a number.
 
 Pressure is treated according to the model attached to the species. The
-Helgeson-Kirkham-Flowers equation of state of aqueous solutes depends on ``P``,
+Helgeson-Kirkham-Flowers equation of state of aqueous solutes
+[Helgeson1981](@cite) depends on ``P``,
 so that the standard state of a solute is at the pressure of the system. A
 record that declares a molar volume independent of temperature and pressure
 (`mv_constant` in the ThermoFun databases: the solids and the solutes described
@@ -121,7 +122,7 @@ properties of a solute, those the HKF equations give, are properties of infinite
 dilution.
 
 [`HKFActivityModel`](@ref), [`DaviesActivityModel`](@ref) and the Pitzer model
-compute ``\gamma_i`` from the composition of the solution
+[Pitzer1975](@cite) compute ``\gamma_i`` from the composition of the solution
 ([Activity models](@ref sec-theory-activity)). The dilute model takes
 ``\gamma_i = 1`` and forms the same ratio ``n_i/(n_w M_w)``, which it declares to
 the aqueous accessors as a molarity, on the ground that a dilute solution has a
