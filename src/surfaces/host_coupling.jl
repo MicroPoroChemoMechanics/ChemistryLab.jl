@@ -401,7 +401,9 @@ function sites_per_host(family::SiteFamily, M_host::Real)
                     "A budget that follows the host has to be a coefficient times its " *
                     "amount, or the site row stops being linear and the problem stops " *
                     "being a polyhedron. Use a capacity measured per unit mass or per " *
-                    "unit specific area, or leave the support at SITES_FIXED.",
+                    "unit specific area, or leave the support at SITES_FIXED. A host " *
+                    "dissolving under a rate law is not bound by this: integrated with " *
+                    "`integrate`, its budget may be any function of its amount.",
             )
         )
     end

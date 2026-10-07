@@ -531,7 +531,12 @@ the species carrying it.
     evaluated on the host's current amount, so a sorbent that precipitates
     brings its sites with it and one that dissolves takes them away. The free
     sites are counted as part of the host, at zero energy
-    ([`conservation_matrix`](@ref)).
+    ([`conservation_matrix`](@ref)). When the host is a **kinetic** species of a
+    [`KineticsProblem`](@ref), the budget is not solved for but known from the
+    host's amount, so it may be any function of it, `site_moles(family, n, n₀, M)`
+    — over a [`ShrinkingCoreArea`](@ref), the area of grains dissolving from the
+    outside. The run carries it in the site row of `bₑ`, and the free site must
+    then be a bare site, carrying no atom and no charge.
 
 The second is a *different model*, not a refinement of the first, which is why
 it is asked for rather than inferred. Naming a host is not enough on its own:

@@ -155,6 +155,20 @@ function _build_kinetics_problem(
     # on a dimension mismatch.
     Ae = Float64.(_constraint_matrix(_equilibrium_subsystem(system, idx_eq)))
 
+    # Sites that follow a kinetic host live in the partition, so they need one,
+    # and their budget at the start has to be the one they declare.
+    sites = _kinetic_site_hosts(system, idx_kin, idx_eq, Ae)
+    if !isempty(sites)
+        equilibrium_solver === nothing && throw(
+            ArgumentError(
+                "SiteFamily \"$(name(first(sites).family))\" follows a kinetic host, " *
+                    "and its sites are solved with the equilibrium partition: pass an " *
+                    "`equilibrium_solver`.",
+            )
+        )
+        _check_kinetic_site_budgets(sites, initial_state, idx_kin)
+    end
+
     return KineticsProblem{
         typeof(system), typeof(kin_rxns), typeof(calorimeter),
         typeof(equilibrium_solver), typeof(activity_model),
@@ -644,6 +658,11 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
             minimum((B_el[e] / E_all[e, i] for e in axes(E_all, 1) if E_all[e, i] > 0); init = Inf)
                 for i in eachindex(kp.system.species)
         ],
+        # The site families whose budget follows a kinetic host, moved with it
+        # in the site row of `bₑ` (`_kinetic_site_hosts`).
+        site_hosts = _Heterogeneous(
+            n_be > 0 ? _kinetic_site_hosts(kp.system, kp.idx_kinetic, kp.idx_equilibrium, kp.Ae) : NamedTuple[]
+        ),
         # Whether the LAST respeciation had to fall back on the reconstruction
         # because the warm start was in the wrong basin. An assemblage switch is
         # not a single-step event -- a phase takes several steps to exhaust --
@@ -735,20 +754,24 @@ function _equilibrium_subsystem(system::ChemicalSystem, idx_equilibrium)
             f for f in families
                 if all(sp -> symbol(sp) in sub_names, site_members(f))
         ]
-        # A budget that follows its host needs the host in the same partition:
-        # a host whose amount a rate law moves would change the site budget
-        # between two re-speciations, which nothing here accounts for.
-        for f in kept
+        # A budget that follows a host of the partition is a conservation row the
+        # minimization solves with the host (`conservation_matrix`). One that
+        # follows a KINETIC host is not solved for at all: the host's amount is a
+        # variable of the ODE, so the budget is known before each solve, and the
+        # run carries it in `bₑ` (`_kinetic_site_hosts`). For the partition it is
+        # then an ordinary posted budget.
+        kept = map(kept) do f
             sup = surface_support(f)
-            sup.coupling === SITES_FOLLOW_HOST || continue
-            sup.host in sub_names || throw(
+            (sup.coupling === SITES_FOLLOW_HOST && !(sup.host in sub_names)) || return f
+            any(sp -> symbol(sp) == sup.host, system.species) || throw(
                 ArgumentError(
                     "SiteFamily \"$(name(f))\" follows host \"$(sup.host)\", which " *
-                        "is a kinetic species of this problem. A site budget that " *
-                        "follows a host whose amount a rate law controls is not " *
-                        "supported: put the host in the equilibrium partition, or " *
-                        "keep the support at SITES_FIXED.",
+                        "is not a species of this system.",
                 )
+            )
+            fixed = SurfaceSupport(sup.name, sup.host, sup.area; coupling = SITES_FIXED)
+            SiteFamily{typeof(f.free_site), typeof(f.capacity), typeof(fixed), typeof(f.model)}(
+                f.name, f.site, f.free_site, f.complexes, f.capacity, fixed, f.model,
             )
         end
         isempty(kept) ? nothing : kept
@@ -768,6 +791,100 @@ function _equilibrium_subsystem(system::ChemicalSystem, idx_equilibrium)
         solid_solutions = sub_ss,
         site_families = sub_families,
     )
+end
+
+# ── Site budgets that follow a kinetic host ──────────────────────────────────
+
+"""
+    _kinetic_site_hosts(system, idx_kinetic, idx_equilibrium, Ae) -> Vector{NamedTuple}
+
+The site families of `system` whose support is `SITES_FOLLOW_HOST` and whose
+host is a kinetic species, each with what the right-hand side needs to move its
+budget: the family, the host's position `j` in the kinetic partition, its molar
+mass `M`, and `col`, the column of `Aₑ` of the family's free site.
+
+# The budget is a function of the host, not a coefficient
+
+At equilibrium a budget that follows its host has to be `ν n_host`, linear, for
+the minimization to solve the two together ([`sites_per_host`](@ref)). A kinetic
+host is not solved for: its amount is a variable of the ODE, so the budget is
+known before each solve, and any capacity will do. Over a
+[`ShrinkingCoreArea`](@ref), `N(n) = Γ 𝒜₀ (n/n₀)^p`: a grain dissolving from
+the outside loses its sites as the square of its radius, not as its volume. The
+run carries `N` in the site row of `bₑ`,
+
+```math
+\\frac{d\\mathbf{b}_e}{dt} = A_e \\nu_e^\\mathsf{T} \\mathbf{r}
+  + \\frac{dN}{dn_\\text{host}} \\frac{dn_\\text{host}}{dt} \\, A_e \\mathbf{e}_\\text{free} ,
+```
+
+so that every reader of `bₑ` — the re-speciation, `speciated_states`, the
+certificate — sees the budget of the host's current amount.
+
+# Why the free site has to be bare
+
+A site that disappears with its grain is added to `bₑ` as one free site, with a
+minus sign, whatever it held. What it held stays in the partition: the calcium
+of a `≡SOCa⁺` goes back to the solution, which is the point. That conserves
+matter and charge only if the free site carries **nothing but the site** — no
+atom, no charge — since otherwise its atoms would leave with it. A family whose
+free site is `XsOH` is refused here; written relative to a bare `Xs`, the same
+model reads `Xs + H₂O = XsOH⁻ + H⁺` and `Xs + Ca²⁺ + H₂O = XsOHCa⁺ + H⁺`, with
+the constants unchanged (the water is at unit activity in the convention the
+constants are given in).
+"""
+function _kinetic_site_hosts(system::ChemicalSystem, idx_kinetic, idx_equilibrium, Ae)
+    out = NamedTuple[]
+    fams = system.site_families
+    fams === nothing && return out
+    for f in fams
+        sup = surface_support(f)
+        sup.coupling === SITES_FOLLOW_HOST || continue
+        ih = findfirst(i -> symbol(system.species[i]) == sup.host, idx_kinetic)
+        ih === nothing && continue          # a host of the partition: `conservation_matrix`
+        free = reference_member(f)
+        (_is_bare_site(free, f.site) && iszero(charge(free))) || throw(
+            ArgumentError(
+                "SiteFamily \"$(name(f))\" follows the kinetic host \"$(sup.host)\", " *
+                    "but its free site \"$(symbol(free))\" carries more than the site. " *
+                    "As the host dissolves, its vanishing sites are taken out of the " *
+                    "partition as free sites, and whatever a free site carries would " *
+                    "leave with them. Write the free site as the bare `$(f.site)` and each " *
+                    "complex relative to it — `$(f.site) + H2O = $(f.site)OH- + H+` for a " *
+                    "deprotonated silanol — with the same constants.",
+            )
+        )
+        kf = findfirst(i -> symbol(system.species[i]) == symbol(free), idx_equilibrium)
+        kf === nothing && throw(
+            ArgumentError(
+                "SiteFamily \"$(name(f))\" follows the kinetic host \"$(sup.host)\", " *
+                    "but its free site \"$(symbol(free))\" is not in the equilibrium " *
+                    "partition. Surface sites equilibrate instantly in this release.",
+            )
+        )
+        push!(
+            out, (
+                family = f, j = ih, M = _molar_mass_si(system.species[idx_kinetic[ih]]),
+                col = Float64.(Ae[:, kf]),
+            )
+        )
+    end
+    return out
+end
+
+# The budget a family following a kinetic host declares at the start, against
+# the one the initial state carries: they have to agree, as at equilibrium
+# (`check_site_budget`), or the run conserves the amounts and ignores the
+# declaration.
+function _check_kinetic_site_budgets(sites, state::ChemicalState, idx_kinetic)
+    for sh in sites
+        n0 = ustrip(us"mol", state.n[idx_kinetic[sh.j]])
+        declared = _plain(site_moles(sh.family, n0, n0, sh.M))
+        present = _plain(present_site_moles(state, sh.family))
+        abs(present - declared) <= 1.0e-6 * max(abs(declared), 1.0e-300) && continue
+        throw(InconsistentSiteBudget(name(sh.family), present - declared, declared, present))
+    end
+    return nothing
 end
 
 """
@@ -1967,6 +2084,17 @@ function build_kinetics_ode(kp::KineticsProblem)
             du_be = p.Ae * (p.νe' * rates)
             for j in 1:(p.n_be)
                 du[j] = du_be[j]
+            end
+            # 7b. A site budget following a kinetic host, N(n_host): its sites
+            # come and go with the host, as free sites (`_kinetic_site_hosts`).
+            for sh in p.site_hosts
+                i = p.idx_kinetic[sh.j]
+                n0 = p.n_initial_full[i]
+                dN = ForwardDiff.derivative(x -> site_moles(sh.family, x, n0, sh.M), n_full[i])
+                Ndot = dN * du_nk[sh.j]
+                for j in 1:(p.n_be)
+                    du[j] += Ndot * sh.col[j]
+                end
             end
         end
 
