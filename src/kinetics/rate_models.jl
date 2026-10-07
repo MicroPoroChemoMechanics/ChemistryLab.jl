@@ -530,7 +530,7 @@ const _PK04_MECHANISMS = (:acid, :neutral, :base, :carbonate)
 
 """
     palandri_kharaka(mineral; mechanisms = (:acid, :neutral, :base), pco2 = nothing,
-                     assume_Ea = nothing) -> Vector{RateMechanism}
+                     fe3 = "Fe+3", o2 = "O2@", assume_Ea = nothing) -> Vector{RateMechanism}
 
 The dissolution mechanisms of `mineral` as [PalandriKharaka2004](@citet) tabulate
 them, ready for [`transition_state`](@ref): of the mechanisms named in
@@ -544,6 +544,13 @@ rate constant (`log k` at 25 °C and the activation energy, through
 | `:neutral` | ``k_\\text{neutral}(T)`` | none |
 | `:base` | ``k_\\text{base}(T)\\,a_{\\text{H}^+}^{\\,n}`` | `"H+"`, `n < 0` |
 | `:carbonate` | ``k_\\text{carbonate}(T)\\,P_{\\text{CO}_2}^{\\,n}`` | the species `pco2` |
+
+Each catalyst is the activity of a species raised to its order, the product of
+the report's Eq. (3a). The sulfides of its Table 35 carry two more: an acid
+mechanism in `H⁺` and `Fe³⁺` (pyrite: ``a_{\\text{H}^+}^{-0.5}\\,a_{\\text{Fe}^{3+}}^{0.5}``,
+its Eq. 3b), and a neutral mechanism in dissolved `O₂`, the species named by
+`fe3` and `o2`; the order of pyrite in `H⁺` is negative although measured at
+low pH, the report reading it as a hydroxide catalysis (pp. 3–4).
 
 The report writes the base mechanism as an order in `H⁺` that is negative, which
 is how it is applied here rather than converted to an order in `OH⁻`. Each
@@ -564,7 +571,10 @@ as the activity of a gas species, `P/P°` ([`P_STANDARD`](@ref)): asking for
 An activation energy the report does not give (that of the neutral mechanism of
 gypsum, which its text says the data could not determine) is refused, unless
 `assume_Ea` supplies one; the rate constant is then that value's, an assumption
-of the caller, and exact at 25 °C whatever it is.
+of the caller, and exact at 25 °C whatever it is. So is one it prints negative,
+the acid mechanism of kyanite (Table 23), whose sign the transcription's notes
+argue is a misprint: it is stored as printed, and used only as the caller
+decides.
 
 # Examples
 
@@ -577,7 +587,8 @@ See also: [`palandri_kharaka_minerals`](@ref), [`RateMechanism`](@ref).
 """
 function palandri_kharaka(
         mineral::AbstractString; mechanisms = (:acid, :neutral, :base),
-        pco2::Union{Nothing, AbstractString} = nothing, assume_Ea = nothing,
+        pco2::Union{Nothing, AbstractString} = nothing,
+        fe3::AbstractString = "Fe+3", o2::AbstractString = "O2@", assume_Ea = nothing,
     )
     for m in mechanisms
         m in _PK04_MECHANISMS || throw(ArgumentError("palandri_kharaka: no mechanism :$m; the report's are $(_PK04_MECHANISMS)."))
@@ -593,22 +604,38 @@ function palandri_kharaka(
         logk = get(row, Symbol(m, "_log_k"), missing)
         ismissing(logk) && continue
         E = get(row, Symbol(m, "_E"), missing)
-        if ismissing(E)
+        if ismissing(E) || ustrip(E) < 0
             assume_Ea === nothing && throw(
                 ArgumentError(
-                    "palandri_kharaka: the report gives no activation energy for the $m mechanism of " *
-                        "$mineral; pass `assume_Ea` to use one of your own."
+                    "palandri_kharaka: the report gives " *
+                        (ismissing(E) ? "no activation energy" : "a negative activation energy, $E,") *
+                        " for the $m mechanism of $mineral (see the notes of " *
+                        "data/literature/PalandriKharaka2004.json); pass `assume_Ea` to use one of your own."
                 )
             )
             E = assume_Ea
         end
         k = arrhenius_rate_constant(10.0^ustrip(logk), E)
-        cat = if m === :acid || m === :base
-            [RateModelCatalyst("H+", float(ustrip(row[Symbol(m, "_n_H")])))]
-        elseif m === :carbonate
-            [RateModelCatalyst(String(pco2), float(ustrip(row.carbonate_n_PCO2)))]
-        else
-            RateModelCatalyst{Float64}[]
+        # The activities and orders of the report's Eq. (3a): H+ for the acid and
+        # base mechanisms, Fe3+ and O2 where Table 35 gives an order in them,
+        # P(CO2) for the carbonate one.
+        orders = Tuple{String, Symbol}[]
+        m in (:acid, :base) && push!(orders, ("H+", Symbol(m, "_n_H")))
+        m === :acid && push!(orders, (String(fe3), :acid_n_Fe3))
+        m === :neutral && push!(orders, (String(o2), :neutral_n_O2))
+        m === :carbonate && push!(orders, (String(pco2), :carbonate_n_PCO2))
+        cat = RateModelCatalyst{Float64}[]
+        for (sp, col) in orders
+            n = get(row, col, missing)
+            # The order in H+ defines the acid and base mechanisms; a blank one
+            # (fayalite, Table 23) is not an order of zero.
+            ismissing(n) && sp == "H+" && throw(
+                ArgumentError(
+                    "palandri_kharaka: the report gives no reaction order in H+ for the $m mechanism " *
+                        "of $mineral (see the notes of data/literature/PalandriKharaka2004.json)."
+                )
+            )
+            ismissing(n) || push!(cat, RateModelCatalyst(sp, float(ustrip(n))))
         end
         push!(out, RateMechanism(k, 1.0, 1.0, cat))
     end
