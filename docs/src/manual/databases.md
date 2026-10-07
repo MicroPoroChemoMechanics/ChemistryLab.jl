@@ -63,9 +63,10 @@ different file is never used without your knowing it. The first download of
 each file prints one message naming its source, the license its publisher
 states and the reference to cite. Later calls read the cache and print nothing.
 
-Three databases are **built** by ChemistryLab on first use rather than downloaded:
+Four databases are **built** by ChemistryLab on first use rather than downloaded:
 `cemdata18-zeolites.json` ([below](@ref sec-zeolites)),
-`cemdata18-chloride.json` ([below](@ref sec-chloride-extension)) and
+`cemdata18-chloride.json` ([below](@ref sec-chloride-extension)),
+`cemdata18-asr.json` ([below](@ref sec-asr-extension)) and
 `cemdata18-cashplus.json` ([the models of the C-S-H gel](@ref sec-csh-models)).
 Each is the downloaded Cemdata18 file, copied through unchanged, with
 ChemistryLab's own additions appended; the CASH+ build also replaces the aqueous
@@ -245,6 +246,25 @@ sorption tests of [Hirao2005](@cite), by `data/chloride/regenerate.jl`. The
 fitted value and its provenance are kept in `data/chloride/cshq_cl.json`, from
 which the end member is built, and carried on the end member itself.
 
+!!! warning "An end member fitted by ChemistryLab, not a published one"
+    `CSHQ-Cl` is not part of CEMDATA18, and no paper gives it. One number is
+    fitted, its Gibbs energy of formation from ½ Ca²⁺ + Cl⁻, on three points of
+    one gel: C-S-H formed by alite with its portlandite, in NaCl solutions at
+    20 °C, up to 1 mol/L. The fit is within 0.05 mmol/g at 0.5 and 1 mol/L and
+    four times the measurement at 0.1 mol/L. Its dependence on the Ca/Si of the
+    gel is not fitted, the tests holding one gel at portlandite saturation: it
+    is what ideal mixing gives, the formula having been chosen so that the gel
+    binds more chloride at a higher Ca/Si, as [Zibara2008](@citet) measured.
+    Fitted on NaCl solutions alone, it does not reproduce the effect of the
+    cation: in the CEM II concrete of [Tran2018](@citet), a CaCl₂ solution binds
+    two to three times as much chloride as a NaCl one at the same free
+    chloride, through the calcium the C-S-H adsorbs.
+    It is an effective description: chloride does not adsorb specifically on
+    C-S-H [Plusquellec2016](@cite), and the end member lumps the chloride that
+    accompanies the calcium the surface adsorbs, saying nothing of where it sits.
+    The entropy, volume and heat capacity of the end member are estimates, which
+    enter only between 20 °C and the temperature of a calculation.
+
 The second is Fe-Friedel's salt, `C4FCl2H10` = Ca₄Fe₂Cl₂(OH)₁₂·4H₂O, which the
 Cemdata18 paper tabulates [Lothenbach2019; Tables 1 and 2](@cite) and its
 ThermoFun export lacks. Its record is the row of Table 1, transcribed in
@@ -261,6 +281,33 @@ setdiff(symbol.(ext_cl), symbol.(base))
 [Chloride binding in CEM III/A and CEM III/B](@ref sec-example-chloride-blended) uses
 it, and says what it describes and what it does not. `data/chloride/README.md`
 records the data, the fit, and the candidate that was rejected.
+
+## [The products of the alkali-silica reaction](@id sec-asr-extension)
+
+`cemdata18-asr.json` is CEMDATA18 unchanged, with K-shlykovite,
+KCaSi₄O₈(OH)₃·2H₂O, and Na-shlykovite, NaCaSi₄O₈(OH)₃·2.3H₂O, appended: the
+crystalline products of the alkali-silica reaction that [Jin2023](@citet) give
+standard properties for. Their solubility products were measured at 80 °C
+[ShiLothenbach2019](@cite) and carried to 25 °C by the authors, with an entropy
+and a heat capacity estimated from the volume of the formula unit; the records
+are the rows of their Table 1, transcribed in `data/literature/Jin2023.json`.
+The build refuses to write them unless their `log Ks0` at 25 °C recomputed
+through the aqueous species of Cemdata18 is the published one within 0.05 (they
+agree to 0.02), and at 80 °C the database gives back the values the authors
+refined, −28.0 and −30.8 against −28.3 ± 1.2 and −30.8 ± 0.4.
+
+The enthalpy of each record is the one its Gibbs energy and entropy give with
+the element entropies of Cemdata18. The article's Table 1 agrees with it to
+0.5 kJ/mol; its corrigendum [Jin2024](@cite) replaces both enthalpies by values
+572 kJ/mol higher, the Gibbs energies and entropies unchanged, which no longer
+satisfy that relation. The equilibrium does not depend on it, the Gibbs energy at
+temperature being built from ``\Delta_f G^\circ``, ``S^\circ`` and ``C_p^\circ``; a
+heat would. Both published values are kept on each record.
+
+```@example datapath
+ext_asr = build_species(datapath("cemdata18-asr.json"); verbose = false)
+setdiff(symbol.(ext_asr), symbol.(base))
+```
 
 ## Loading species from a database
 

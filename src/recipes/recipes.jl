@@ -143,15 +143,11 @@ function _add_reacted!(st, oxides, c::OxideConstituent, mass, m)
     return nothing
 end
 
-# Whether the primaries of the system can hold the element of an oxide.
-function _representable(ox, prim)
-    return try
-        primary_decomposition(Species(ox), prim)
-        true
-    catch
-        false
-    end
-end
+# Whether the primaries of the system hold the element of an oxide at all. An
+# element they hold at another valence, FeO where the primary is FeO2-, is
+# representable: the budget then refuses it loudly unless the system follows
+# the oxidation state (`primary_decomposition`), rather than dropping it here.
+_representable(ox, prim) = last(_element_decomposition(Species(ox), prim)) <= 1.0e-8
 
 # The reacted part of an oxide the system has no element for is kept aside with
 # the residue, said so by `reason`, rather than refused or dropped.

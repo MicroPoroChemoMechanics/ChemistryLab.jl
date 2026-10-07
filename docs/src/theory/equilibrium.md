@@ -320,11 +320,42 @@ when ``u_i = g_i``, absent when undersaturated — the classical phase-stability
 criterion.
 
 Two levels. The inner one inverts the **solutes'** mass-action laws at fixed
-potentials and fixed solvent amount; the outer is a Newton on ``1 + m + |P|``
-unknowns — the solvent, the `m` element potentials, and the amounts of the
-active phases. Parameterizing the solutes by ``\ln n_i`` makes their positivity
-automatic, which is what removes the fraction-to-boundary limit that caps the
-interior-point step at every iteration.
+potentials and fixed solvent amount; the outer is a Newton on
+``|\Phi| + m + |P|`` unknowns — the total of each mixing phase present
+(``\Phi``: the solvent of the aqueous phase, and each solid solution present),
+the `m` element potentials, and the amounts of the active pure phases ``P``; a
+constraint adds its own parameters. Parameterizing the solutes by ``\ln n_i``
+makes their positivity automatic, which is what removes the fraction-to-boundary
+limit that caps the interior-point step at every iteration.
+
+A solid solution is a mixing phase without a solvent. At given potentials its
+composition is explicit,
+
+```math
+x_i = \frac{\exp(u_i - g_i - \ln\gamma_i)}{\sum_j \exp(u_j - g_j - \ln\gamma_j)} ,
+```
+
+each end-member taking the larger share the cheaper it is against the potentials
+of its elements, and the phase is present exactly when
+``\sum_i \exp(u_i - g_i - \ln\gamma_i) = 1``, the equation its total adds to the
+outer level. Which solid solutions are present is therefore not an input: an
+absent one enters when that sum, measured with its activity coefficients at a
+trial composition — the tangent-plane distance of [Michelsen1982](@citet) — says
+it would lower the Gibbs energy, and leaves when its total vanishes, the number
+of present phases bounded by the phase rule. Where ``\gamma_i`` depends on the
+composition (non-ideal and sublattice models) the composition is a root, found
+by Newton's method at each step.
+
+![A round of the certified solver: the unknowns are the element potentials, the total of each mixing phase and the amount of each pure phase present; the compositions of every phase follow from them; the element balances and the presence equations must hold, and Newton's method corrects the unknowns until they do; between rounds one absent phase is admitted or a vanished one released; at the end, the certificate.](../assets/theory/solver_round.svg)
+
+Absent phases are admitted one at a time between the rounds, the most
+supersaturated first, a pure phase on its saturation index and a mixing phase on
+its tangent-plane distance: admitting several at once feeds a cycle in which a
+phase is admitted, driven negative, released and admitted again. The search
+starts from the linear program obtained by setting every activity to one, solved
+over the pure phases, which also proves an impossible budget to be impossible;
+when the certificate refuses the answer, other starts follow, which
+[`equilibrate_certified`](@ref) lists.
 
 For the Debye–Hückel, Davies and Truesdell–Jones models the inner level is one
 equation. Their activity coefficients depend on the composition through the
@@ -332,13 +363,25 @@ ionic strength alone, so at a given ``I`` every solute is explicit,
 ``\ln m_i = u_i - g_i - \ln\gamma_i(I)``, and ``I`` solves
 ``I = \tfrac12\sum_i z_i^2 m_i(I)``, which is how PHREEQC carries the ionic
 strength, as an unknown of its own [ParkhurstAppelo2013](@cite). The root taken is
-the first one above the dilute limit, the branch connected to it. The limiting
-law past its range can have none there: the equation dips toward zero without
-reaching it and crosses again only through the ``\dot B I`` term, at thousands
-of mol/kg. The inversion then says that the potentials hold no composition
-instead of iterating on them, and the outer level moves on the sweeps until
-they hold one again. Recovering the solutes one by one instead cycles where
-multivalent ions couple strongly through ``I``.
+the first one above the dilute limit, the branch connected to it, unless the
+composition the solve holds lies above it on another branch. An ion of high
+valence makes the equation cross zero three times: its activity coefficient
+falls so fast with ``I`` that its amount, and ``I`` with it, outgrow ``I``. Under
+the balances the equilibrium can then sit on the middle root, where an open
+solution would be unstable — silica in a potassium hydroxide solution at 80 °C,
+with the tetramer ``\mathrm{Si_4O_{10}^{4-}}`` carrying most of the dissolved
+silicon, sits at 1.38 mol/kg between roots at 0.45 and 4.3 — and the first root
+alone never gives it. The inversion therefore takes the root nearest the ionic
+strength of the iterate when that lies above the first one, up to four times
+the range the model states; with one root, that is the first one. The limiting
+law keeps the first root: past its range it can have none there, the equation
+dipping toward zero without reaching it and crossing again only through the
+``\dot B I`` term, at thousands of mol/kg. The inversion then says that the
+potentials hold no composition instead of iterating on them, and the outer
+level moves on the sweeps until they hold one again. Recovering the solutes one
+by one instead cycles where multivalent ions couple strongly through ``I``.
+
+![Left: a sketch of the function whose zero is the self-consistent ionic strength, at fixed potentials of the elements, crossing zero three times, the equilibrium under the balances on the middle root and a ceiling at four times the range of the model. Right: the rule that chooses the root.](../assets/theory/ionic_strength_roots.svg)
 
 SIT and Pitzer add terms in the molalities themselves, the ``\varepsilon(i,k)\,m_k``
 of the specific ion interaction and the pair and triplet sums of Pitzer, and no

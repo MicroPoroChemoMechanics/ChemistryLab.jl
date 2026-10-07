@@ -241,3 +241,54 @@ end
     @test sub3.solid_solutions === nothing
 
 end
+
+@testset "a co-reactant that no rate law reads runs out" begin
+
+    # C3A + 3 Gp + 26 H2O → ettringite under a rate that reads the C3A alone,
+    # without an equilibrium partition: the other species follow the extent.
+    # The rate does not see the gypsum run out, and the run used to go on,
+    # creating the sulfate, and report a success.
+    subs = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    cs = ChemicalSystem(
+        speciation(subs, ["C3A", "Gp", "ettringite"]; aggregate_state = [AS_AQUEOUS]), CEMDATA_PRIMARIES
+    )
+    function run(gypsum)
+        st = ChemicalState(cs)
+        set_quantity!(st, "C3A", 1.0u"mol")
+        set_quantity!(st, "Gp", gypsum * u"mol")
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        rxn = Reaction(
+            OrderedDict(cs["C3A"] => 1.0, cs["Gp"] => 3.0, cs["H2O@"] => 26.0),
+            OrderedDict(cs["ettringite"] => 1.0); symbol = "C3A",
+        )
+        rxn[:rate] = KineticFunc(
+            (T, P, t, n, lna, n0) -> 1.0e-5 * max(n["C3A"], zero(eltype(n.data))),
+            (T = 298.15u"K", P = 1.0e5u"Pa"), u"mol/s",
+        )
+        kp = KineticsProblem(cs, [rxn], st, (0.0, 2.0e5))
+        return kp, integrate(kp, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-8, abstol = 1.0e-12))
+    end
+    i_Gp = findfirst(s -> symbol(s) == "Gp", cs.species)
+
+    # Enough gypsum for the whole run: nothing to report.
+    kp, sol = run(3.5)
+    @test SciMLBase.successful_retcode(sol)
+    @test !any(u -> ChemistryLab._kinetic_state_infeasible(sol.prob.p, u), sol.u)
+
+    # 1.5 mol, gone at half the C3A: the run is not a success, and the warning
+    # names the gypsum.
+    kp, sol = @test_logs (:warn, r"`Gp` runs out") match_mode = :any run(1.5)
+    @test sol.retcode == SciMLBase.ReturnCode.Unstable
+    p = sol.prob.p
+    @test p.n_be == 0
+    # What the extent takes of it, exactly: 1.5 − 3ξ at the end of the run.
+    i, v = ChemistryLab._exhausted_coreactant(p, sol.u[end])
+    @test i == i_Gp
+    @test v == 1.5 - 3 * sol.u[end][p.n_nk + 1]
+    @test v < -1
+    # The kinetic amounts themselves are within what the system holds.
+    @test !ChemistryLab._kinetic_amounts_infeasible(p, sol.u[end])
+    # With an equilibrium partition the stoichiometry no longer decides the
+    # other species, and this check does not apply.
+    @test ChemistryLab._exhausted_coreactant(merge(p, (n_be = 1,)), sol.u[end]) === nothing
+end

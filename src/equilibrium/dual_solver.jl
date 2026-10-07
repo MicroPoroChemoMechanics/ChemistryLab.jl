@@ -248,7 +248,7 @@ end
 # gives. Ideal mixing keeps the substitution, and its results bit for bit.
 _needs_newton_inversion(::Any) = false
 _needs_newton_inversion(::Union{SublatticeModel, CompoundEnergyModel}) = true
-_needs_newton_inversion(::Union{RedlichKisterModel, RegularSolutionModel}) = true
+_needs_newton_inversion(::Union{RedlichKisterModel, RegularSolutionModel, SubregularSolutionModel}) = true
 
 # The log activities of a solid solution's members from their own amounts, as
 # `_solid_solution_lna!` computes them inside the activity closure (same ϵ, same

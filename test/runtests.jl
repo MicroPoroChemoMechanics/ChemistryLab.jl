@@ -67,6 +67,7 @@ end
     include("databases_remote.jl")
     include("literature.jl")
     include("zeolites.jl")
+    include("asr_extension.jl")
     include("cshq_chloride.jl")
     include("parsing_utils.jl")
     include("reactions.jl")
@@ -143,6 +144,7 @@ end
     include("validation_shi2016.jl")
     include("validation_lothenbach2008.jl")
     include("validation_lothenbach2008_temperature.jl")
+    include("validation_lothenbach2014.jl")
     include("validation_chloride_temperature.jl")
     include("validation_logk_temperature.jl")
     include("validation_lhopital2016_alkali.jl")
@@ -177,6 +179,7 @@ end
     include("kinetics/test_slag_temperature.jl")
     include("kinetics/test_slag_temperature_pastes.jl")
     include("kinetics/test_palandri_kharaka.jl")
+    include("kinetics/test_glass_dissolution.jl")
     include("coupling_reference.jl")
 end
 

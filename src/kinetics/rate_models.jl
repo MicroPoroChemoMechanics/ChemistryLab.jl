@@ -380,6 +380,46 @@ struct RateModelCatalyst{T <: Real}
     n::T
 end
 
+# ── RateModelInhibitor ────────────────────────────────────────────────────────
+
+"""
+    RateModelInhibitor(species, K; m = 1)
+
+A species that slows a mechanism down: the mechanism's rate is multiplied by
+
+```math
+\\left(1 + K\\,a_i\\right)^{-m},
+```
+
+``a_i`` the activity of `species`. The factor is one where the species is
+absent, and falls as ``a_i^{-m}`` where ``K a_i \\gg 1``: unlike a catalyst
+with a negative order, ``a_i^{n}`` with ``n < 0``, which grows without bound as
+the species vanishes, it leaves the rate measured without the species unchanged.
+
+# Fields
+
+  - `species`: the species, by its symbol in the system.
+  - `K`: the inverse of the activity at which the factor is ``2^{-m}``.
+  - `m`: the order where ``K a_i \\gg 1``.
+
+# Examples
+
+```julia
+inh = RateModelInhibitor("Ca+2", 2000.0)       # halves the rate at a(Ca²⁺) = 5e-4
+```
+"""
+struct RateModelInhibitor{T <: Real}
+    species::String
+    K::T
+    m::T
+end
+function RateModelInhibitor(species::AbstractString, K::Real; m::Real = 1)
+    K >= 0 || throw(ArgumentError("RateModelInhibitor($species): K must not be negative; got $K."))
+    m >= 0 || throw(ArgumentError("RateModelInhibitor($species): m must not be negative; got $m."))
+    Kp, mp = promote(float(K), float(m))
+    return RateModelInhibitor{typeof(Kp)}(String(species), Kp, mp)
+end
+
 # ── RateMechanism ─────────────────────────────────────────────────────────────
 
 """
@@ -390,7 +430,7 @@ mineral dissolution or precipitation rate.
 
 The mechanism rate is:
 ```
-r_mech = k(T) × [Π_catalysts aᵢ^nᵢ] × sign(1 - Ω) × |1 - Ω^p|^q
+r_mech = k(T) × [Π_catalysts aᵢ^nᵢ] × [Π_inhibitors (1 + Kⱼ aⱼ)^(-mⱼ)] × sign(1 - Ω) × |1 - Ω^p|^q
 ```
 
 # Fields
@@ -400,6 +440,8 @@ r_mech = k(T) × [Π_catalysts aᵢ^nᵢ] × sign(1 - Ω) × |1 - Ω^p|^q
   - `p`: saturation exponent `p` in `(1 - Ω^p)^q`. Default 1.0.
   - `q`: outer exponent `q`. Default 1.0.
   - `catalysts`: vector of [`RateModelCatalyst`](@ref) (may be empty).
+  - `inhibitors`: vector of [`RateModelInhibitor`](@ref) (may be empty, which
+    it is unless given).
 
 # Examples
 
@@ -414,7 +456,10 @@ struct RateMechanism{F <: AbstractFunc, T <: Real}
     p::T
     q::T
     catalysts::Vector{RateModelCatalyst{T}}
+    inhibitors::Vector{RateModelInhibitor{T}}
 end
+RateMechanism{F, T}(k::F, p, q, catalysts) where {F <: AbstractFunc, T <: Real} =
+    RateMechanism{F, T}(k, T(p), T(q), catalysts, RateModelInhibitor{T}[])
 
 """
     RateMechanism(k::AbstractFunc, p::Real, q::Real) -> RateMechanism
@@ -424,6 +469,27 @@ Construct a [`RateMechanism`](@ref) with no catalyst contributions.
 function RateMechanism(k::AbstractFunc, p::Real, q::Real)
     T = typeof(promote(p, q)[1])
     return RateMechanism{typeof(k), T}(k, T(p), T(q), RateModelCatalyst{T}[])
+end
+
+"""
+    RateMechanism(k::AbstractFunc, p::Real, q::Real, catalysts,
+                  inhibitors = RateModelInhibitor[]) -> RateMechanism
+
+Construct a [`RateMechanism`](@ref) with catalysts and, optionally, inhibitors,
+their numbers promoted to one type.
+"""
+function RateMechanism(
+        k::AbstractFunc, p::Real, q::Real, catalysts::AbstractVector{<:RateModelCatalyst},
+        inhibitors::AbstractVector{<:RateModelInhibitor} = RateModelInhibitor{Float64}[],
+    )
+    T = promote_type(
+        typeof(float(p)), typeof(float(q)), (typeof(c.n) for c in catalysts)...,
+        (typeof(i.K) for i in inhibitors)...,
+    )
+    return RateMechanism{typeof(k), T}(
+        k, T(p), T(q), [RateModelCatalyst{T}(c.species, T(c.n)) for c in catalysts],
+        [RateModelInhibitor{T}(i.species, T(i.K), T(i.m)) for i in inhibitors],
+    )
 end
 
 # ── Palandri & Kharaka (2004): the mechanisms of a mineral ───────────────────
@@ -547,6 +613,113 @@ function palandri_kharaka(
     end
     isempty(out) && throw(ArgumentError("palandri_kharaka: the report gives $mineral none of the mechanisms $(mechanisms)."))
     return out
+end
+
+# ── Snellings (2013): the dissolution of a glass at pH 13 ────────────────────
+
+# The abscissa of Fig. 8 of Snellings (2013), with which its regression holds:
+# the moles of the modifiers' cations over twice the moles of aluminum plus the
+# moles of silicon (the figure counts aluminum twice; see
+# data/literature/Snellings2013.json, whose notes give the check).
+function _snellings2013_abscissa(oxides, modifiers)
+    T = promote_type(Float64, (typeof(float(v)) for v in values(oxides))...)
+    moles = Dict{Symbol, T}()
+    for (ox, f) in oxides
+        el, nu = _oxide_cation(ox)
+        moles[el] = get(moles, el, zero(T)) + float(f) * nu / _oxide_molar_mass(ox)
+    end
+    num = zero(T)
+    for m in modifiers
+        num += get(moles, first(_oxide_cation(m)), zero(T))
+    end
+    den = 2 * get(moles, :Al, zero(T)) + get(moles, :Si, zero(T))
+    den > 0 || throw(ArgumentError("snellings2013_glass: the analysis holds neither Al2O3 nor SiO2."))
+    return num / den
+end
+
+"""
+    snellings2013_glass(oxides; Ea, T_ref = 293.15, modifiers = ("CaO",),
+                        inhibitors = RateModelInhibitor{Float64}[],
+                        extrapolate = false) -> RateMechanism
+
+The dissolution of a calcium aluminosilicate glass far from equilibrium at
+pH 13, as [Snellings2013](@citet) measured it on six synthetic glasses from the
+composition of a slag to silica: per unit BET area and per mole of the glass's
+cations, at 20 °C,
+
+```math
+\\log_{10} k_{20} = a\\,x + b ,
+\\qquad
+x = \\frac{\\sum_{\\text{modifiers}} n_M}{2\\,n_{\\text{Al}} + n_{\\text{Si}}} ,
+```
+
+``n`` the moles of each cation in the analysis `oxides` (mass fractions over
+the molar masses of the library), and ``a = 2.74``, ``b = -8.47`` the regression
+printed on Fig. 8 of the paper, read from `data/literature/Snellings2013.json`.
+The abscissa is the one of that figure, which counts aluminum twice although
+its label reads Ca/(Al + Si): the file records how the six glasses of Table I
+give it, and the regression holds with it only.
+
+What the source covers, and what it does not:
+
+  - **Composition.** The glasses hold CaO, Al₂O₃ and SiO₂ only, so only the
+    oxides named in `modifiers` enter the numerator: CaO by default; the MgO,
+    Na₂O or K₂O of a real slag are left out unless named, as an assumption of
+    the caller. ``x`` runs from 0 (silica) to 0.556 (the most calcic glass);
+    outside, the constant is refused unless `extrapolate = true`.
+  - **Temperature.** The rates were measured at 20 °C only: the activation
+    energy `Ea` (J/mol, or a quantity) has no default, and the constant is
+    [`arrhenius_rate_constant`](@ref) referred to `T_ref` (K), 20 °C.
+  - **pH.** At 13 only; the source gives no dependence on pH.
+  - **Solution.** In NaOH alone. Dissolved calcium slows every glass and
+    aluminum the glasses whose calcium only balances their aluminum (Table II of
+    the paper); the paper gives the measurements, not a law, so `inhibitors`
+    ([`RateModelInhibitor`](@ref)) are the caller's. Dissolved silicon up to
+    11 mM, and the affinity above ``15\\,RT``, change nothing measurable.
+
+The rate is per mole of cations: the glass species is
+[`glass_species`](@ref) with `M = `[`cation_molar_mass`](@ref)`(oxides)`, and its
+area a [`BETSurfaceArea`](@ref) with the material's BET surface.
+
+# Examples
+
+```julia
+slag = Dict("CaO" => 0.43, "Al2O3" => 0.19, "SiO2" => 0.38)    # glass G1
+mech = snellings2013_glass(slag; Ea = 60.0e3)                 # Ea: the caller's
+log10(mech.k(; T = 293.15))                                   # 2.74 x - 8.47
+```
+
+See also: [`transition_state`](@ref), [`glass_species`](@ref).
+"""
+function snellings2013_glass(
+        oxides::AbstractDict{<:AbstractString, <:Real}; Ea,
+        T_ref = 273.15 + ustrip(literature_value("Snellings2013", "temperature_C")),
+        modifiers = ("CaO",), inhibitors::AbstractVector{<:RateModelInhibitor} = RateModelInhibitor{Float64}[],
+        extrapolate::Bool = false,
+    )
+    key = "Snellings2013"
+    a = ustrip(literature_value(key, "fig8_slope"))
+    b = ustrip(literature_value(key, "fig8_intercept"))
+    x = _snellings2013_abscissa(oxides, modifiers)
+    # The domain is that of the glasses of Table I, their abscissas computed
+    # the same way.
+    g = literature_table(key, "glasses")
+    x_max = maximum(
+        _snellings2013_abscissa(
+            Dict("CaO" => ustrip(g.CaO_percent[i]) / 100, "Al2O3" => ustrip(g.Al2O3_percent[i]) / 100, "SiO2" => ustrip(g.SiO2_percent[i]) / 100),
+            ("CaO",),
+        ) for i in eachindex(g.glass)
+    )
+    # To rounding: the most calcic glass itself sits on the bound.
+    (extrapolate || 0 <= x <= x_max + 1.0e-12) || throw(
+        DomainError(
+            x,
+            "snellings2013_glass: the composition gives x = $(round(_primal(x); digits = 3)), outside the " *
+                "glasses measured (0 to $(round(x_max; digits = 3))); pass `extrapolate = true` to use the regression there."
+        )
+    )
+    k = arrhenius_rate_constant(10.0^(a * x + b), Ea; T_ref)
+    return RateMechanism(k, 1.0, 1.0, RateModelCatalyst{Float64}[], inhibitors)
 end
 
 # ── parrott_killoh factory ──────────────────────────────────────────────────────

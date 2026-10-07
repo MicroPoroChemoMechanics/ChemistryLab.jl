@@ -499,6 +499,14 @@ using ChemistryLab, DynamicQuantities, ForwardDiff, OrderedCollections, Test
         ic3s = findfirst(s -> symbol(s) == "C3S", cs.species)
         k3 = findfirst(==(ic3s), kp.idx_kinetic)
         @test sol.u[end][k3] < sol.u[1][k3]
+        # Dissolved into the primaries without a partition, they consume `H+`
+        # below zero, which is hydroxide: the total of a component, not a
+        # co-reactant run out, and the run is a success.
+        p = sol.prob.p
+        iH = findfirst(s -> symbol(s) == "H+", cs.species)
+        kH = findfirst(==(iH), p.idx_equilibrium)
+        @test p.n_initial_full[iH] + sum(p.νe[j, kH] * sol.u[end][p.n_nk + j] for j in 1:(p.n_rxn_state)) < 0
+        @test SciMLBase.successful_retcode(sol)
         # The reacted oxides enter as the primaries: a basic oxide's protons as
         # hydroxide, an acidic oxide's water taken from the mixing water, and
         # anything else refused.

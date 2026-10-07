@@ -417,6 +417,138 @@ end
     @test all(length(end_members(p)) >= 2 for p in ss_all)
 end
 
+@testsection "SubregularSolutionModel" begin
+    T = 298.15
+    RT = ChemistryLab.R_GAS * T
+    lng(m, k, x) = ChemistryLab._excess_ln_gamma(m, k, x, T)
+
+    # Construction and its guards. A ternary key is three distinct indices of
+    # end-members, in any order, given once.
+    m = SubregularSolutionModel(
+        [0.0 3.0u"kJ/mol" 0.0; 5000.0u"J/mol" 0.0 0.0; 0.0 0.0 0.0];
+        ternary = Dict((3, 1, 2) => 1.5u"kJ/mol"),
+    )
+    @test m.W[1, 2] == 3000.0 && m.W[2, 1] == 5000.0
+    @test m.ternary == [(1, 2, 3, 1500.0)]
+    @test_throws ArgumentError SubregularSolutionModel([0.0 1.0 2.0; 1.0 0.0 3.0])
+    @test_throws ArgumentError SubregularSolutionModel(zeros(3, 3); ternary = Dict((1, 1, 2) => 1.0))
+    @test_throws ArgumentError SubregularSolutionModel(zeros(3, 3); ternary = Dict((1, 2, 4) => 1.0))
+    @test_throws ArgumentError SubregularSolutionModel(
+        zeros(3, 3); ternary = Dict((1, 2, 3) => 1.0, (3, 2, 1) => 2.0)
+    )
+
+    # Two end-members: the asymmetric Margules binary, which is Redlich-Kister
+    # with a0 = (W12 + W21)/2 and a1 = (W21 - W12)/2, and whose W12 is RT ln γ1
+    # at infinite dilution of 1 in 2.
+    W12, W21 = 3000.0, 8000.0
+    sub = SubregularSolutionModel([0.0 W12; W21 0.0])
+    rk = RedlichKisterModel(a0 = (W12 + W21) / 2, a1 = (W21 - W12) / 2)
+    for x1 in (0.05, 0.3, 0.5, 0.7, 0.95), k in 1:2
+        x = [x1, 1 - x1]
+        @test lng(sub, k, x) ≈ lng(rk, k, x) rtol = 1.0e-12
+    end
+    @test lng(sub, 1, [0.0, 1.0]) ≈ W12 / RT rtol = 1.0e-14
+    @test lng(sub, 2, [1.0, 0.0]) ≈ W21 / RT rtol = 1.0e-14
+    @test spinodal_interval(sub, 2) == spinodal_interval(rk, 2)
+
+    # A symmetric W without ternary terms: the regular model.
+    W4 = [0.0 3000.0 -1500.0 800.0; 3000.0 0.0 2000.0 -400.0; -1500.0 2000.0 0.0 1200.0; 800.0 -400.0 1200.0 0.0]
+    for x in ([0.2, 0.3, 0.1, 0.4], [0.55, 0.05, 0.25, 0.15]), k in 1:4
+        @test lng(SubregularSolutionModel(W4), k, x) ≈ lng(RegularSolutionModel(W4), k, x) rtol = 1.0e-12
+    end
+
+    # A quaternary with all twelve binary coefficients and the four ternary
+    # ones, against Eq. (6') of Helffrich and Wood (1989), written out as
+    # printed, for the first end-member; the others by relabeling the model so
+    # that each comes first.
+    Wq = [0.0 3100.0 -2200.0 1700.0; 5200.0 0.0 900.0 -1300.0; 4400.0 -800.0 0.0 2600.0; -600.0 1500.0 3300.0 0.0]
+    Wt = Dict((1, 2, 3) => 2500.0, (1, 2, 4) => -1800.0, (1, 3, 4) => 900.0, (2, 3, 4) => 4100.0)
+    function hw_eq6(W, Wt, X)
+        n = length(X)
+        w3(i, j, k) = get(Wt, Tuple(sort([i, j, k])), 0.0)
+        acc = 0.0
+        for j in 2:n
+            acc += X[j] / 2 * (
+                W[1, j] * (1 - X[1] + X[j] + 2X[1] * (X[1] - X[j] - 1)) +
+                    W[j, 1] * (1 - X[1] - X[j] - 2X[1] * (X[1] - X[j] - 1))
+            )
+        end
+        for i in 2:n, j in (i + 1):n
+            acc += X[i] * X[j] * (W[i, j] * (X[i] - X[j] - 1 / 2) + W[j, i] * (X[j] - X[i] - 1 / 2) + w3(1, i, j) * (1 - 2X[1]))
+        end
+        for i in 2:n, j in (i + 1):n, k in (j + 1):n
+            acc -= 2 * w3(i, j, k) * X[i] * X[j] * X[k]
+        end
+        return acc / RT
+    end
+    for x in ([0.1, 0.2, 0.3, 0.4], [0.62, 0.08, 0.17, 0.13], [0.05, 0.05, 0.45, 0.45]), k in 1:4
+        perm = vcat(k, setdiff(1:4, k))           # end-member k first
+        Wp = Wq[perm, perm]
+        Wtp = Dict(Tuple(sort([findfirst(==(a), perm) for a in key])) => v for (key, v) in Wt)
+        @test lng(SubregularSolutionModel(Wq; ternary = Wt), k, x) ≈ hw_eq6(Wp, Wtp, x[perm]) rtol = 1.0e-12
+    end
+
+    # Exact identities of a function: Σ x_k ln γ_k is G^ex/RT of Eq. (5'), and
+    # Gibbs-Duhem, Σ n_k ∂ln γ_k/∂n_m = 0, by ForwardDiff on the amounts.
+    msub = SubregularSolutionModel(Wq; ternary = Wt)
+    function gex(x)
+        n = length(x)
+        acc = 0.0
+        for i in 1:n, j in (i + 1):n
+            rest = sum(x[k] for k in 1:n if k != i && k != j)
+            acc += x[i] * x[j] * (Wq[i, j] * (x[j] + rest / 2) + Wq[j, i] * (x[i] + rest / 2))
+        end
+        for ((i, j, k), w) in Wt
+            acc += w * x[i] * x[j] * x[k]
+        end
+        return acc / RT
+    end
+    for x in ([0.1, 0.2, 0.3, 0.4], [0.62, 0.08, 0.17, 0.13])
+        @test sum(x[k] * lng(msub, k, x) for k in 1:4) ≈ gex(x) rtol = 1.0e-12
+        J = ForwardDiff.jacobian(n -> [lng(msub, k, n ./ sum(n)) for k in 1:4], 3.0 .* x)
+        @test maximum(abs, transpose(3.0 .* x) * J) < 1.0e-13 * maximum(abs, J)
+    end
+
+    # Differentiable in its parameters: ∂(RT ln γ1)/∂W12 = x2²(1 - 2x1) on a binary.
+    x = [0.3, 0.7]
+    @test ForwardDiff.derivative(w -> lng(SubregularSolutionModel([0.0 w; W21 0.0]), 1, x), W12) ≈
+        x[2]^2 * (1 - 2x[1]) / RT rtol = 1.0e-12
+
+    # In a phase: the matrix must match the end-members (and so must a regular
+    # one's, which read past a smaller matrix before), and a gap is refused.
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    byname = Dict(symbol(s) => s for s in substances)
+    four = ["CSHQ-TobH", "CSHQ-TobD", "CSHQ-JenH", "CSHQ-JenD"]
+    members = [byname[s] for s in four]
+    @test_throws ErrorException SolidSolutionPhase("CSHQ", members[1:3]; model = SubregularSolutionModel(zeros(4, 4)))
+    @test_throws ErrorException SolidSolutionPhase("CSHQ", members[1:3]; model = RegularSolutionModel(zeros(4, 4)))
+    wide = SubregularSolutionModel([0.0 9000.0 0.0 0.0; 9000.0 0.0 0.0 0.0; 0.0 0.0 0.0 0.0; 0.0 0.0 0.0 0.0])
+    @test mixing_convexity(wide, 4).verdict === :nonconvex
+    @test_throws ErrorException SolidSolutionPhase("CSHQ", members; model = wide)
+
+    # And an equilibrium: lime and silica in water with the four-member gel.
+    # Symmetric, it is the regular model's equilibrium; asymmetric, it certifies.
+    function gel_equilibrium(mdl)
+        gel = SolidSolutionPhase("CSHQ", members; model = mdl)
+        sp = speciation(substances, vcat(["Portlandite", "Amor-Sl"], four); aggregate_state = [AS_AQUEOUS])
+        cs = ChemicalSystem(sp, CEMDATA_PRIMARIES; solid_solutions = [gel])
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        set_quantity!(st, "Portlandite", 0.06u"mol")
+        set_quantity!(st, "Amor-Sl", 0.05u"mol")
+        eq, cert = equilibrate_certified(st)
+        return ustrip.(us"mol", eq.n), cert
+    end
+    Wsym = [0.0 2000.0 -1000.0 500.0; 2000.0 0.0 1500.0 -800.0; -1000.0 1500.0 0.0 1000.0; 500.0 -800.0 1000.0 0.0]
+    n_sub, c_sub = gel_equilibrium(SubregularSolutionModel(Wsym))
+    n_reg, c_reg = gel_equilibrium(RegularSolutionModel(Wsym))
+    @test c_sub.optimal && c_reg.optimal
+    @test n_sub ≈ n_reg rtol = 1.0e-8 atol = 1.0e-14
+    Wasym = [0.0 2000.0 -1000.0 500.0; 4000.0 0.0 1500.0 -800.0; -2500.0 600.0 0.0 1000.0; 1500.0 -300.0 2200.0 0.0]
+    _, c_asym = gel_equilibrium(SubregularSolutionModel(Wasym; ternary = Dict((1, 2, 3) => 1500.0)))
+    @test c_asym.optimal
+end
+
 @testset "a mixing energy that is concave is refused, and says where" begin
     # The Gibbs minimum inside a spinodal is two coexisting compositions, and a
     # formulation with one amount per species cannot hold them. Refused at

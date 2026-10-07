@@ -45,6 +45,35 @@ saturation index is shifted by ``-3`` decades relative to the pure phase. A trac
 component is *stabilized* by being diluted in a host, which is why a solid
 solution can take up an ion that would never precipitate as its own phase.
 
+### The curve, its tangent, and the plane of the rest of the system
+
+![Left: the Gibbs energy of an ideal binary solid solution below the line of its two end-members unmixed, and the tangent at one composition meeting the two edges at the chemical potentials of the end-members. Right: the plane the rest of the system imposes, against three curves of a solid solution: above it, absent; touching it, present; below it, the phase would form.](../assets/theory/solid_solution_tangent.svg)
+
+Per mole of phase, the Gibbs energy of a binary of end-members A and B is the
+straight line of the two end-members unmixed, ``(1-x)\,\mu_A^\circ + x\,\mu_B^\circ``,
+plus ``G^{\text{mix}}``, negative between the two: the curve lies below the line,
+and the same matter costs less mixed than apart (left panel). The tangent to the
+curve at a composition ``x^\ast`` meets the edges ``x = 0`` and ``x = 1`` at the
+chemical potentials of the two end-members in the phase, and it is through these
+potentials that the phase exchanges matter with the rest of the system.
+
+At equilibrium each element has one potential, shared by every phase, and those
+potentials give each end-member a potential ``u_i`` in units of ``RT``, which
+defines a plane over the compositions of the phase (right panel). A curve lying
+above that plane everywhere is the Gibbs energy of an absent phase, none of its
+compositions being as cheap as what the rest of the system already offers; a
+curve touching it is that of a present phase, at the composition of the contact;
+a curve dipping below it is that of a phase which would lower the Gibbs energy by
+forming, so that the state is not yet an equilibrium. With ``g_i = \mu_i^\circ/RT``,
+the phase is present exactly when ``\sum_i \exp(u_i - g_i - \ln\gamma_i) = 1``,
+which [the certifying solver](@ref sec-theory-certificate) uses as an equation.
+For ideal mixing ``\gamma_i = 1``, and ``\exp(u_i - g_i)`` is then the saturation
+ratio ``\Omega_i`` end-member ``i`` would have as a pure phase: an ideal solid
+solution forms as soon as ``\sum_i \Omega_i`` reaches one, while every
+``\Omega_i`` is still below one and no end-member would precipitate on its own.
+[Solid solutions in a calculation](@ref sec-tutorial-solid-solutions) reads these
+ratios on a C-S-H gel.
+
 ## 2. Non-ideal mixing: the excess Gibbs energy
 
 Real end-members interact. Everything beyond the ideal term is collected into
@@ -149,8 +178,9 @@ agree to the last digit.
 `RedlichKisterModel` **requires exactly two end-members**, and
 [`SolidSolutionPhase`](@ref) refuses the combination at construction rather than
 letting a ternary reach an expression written for a binary. For three or more
-end-members the choices are the ideal model or `RegularSolutionModel` with a
-full ``\mathbf{W}`` matrix.
+end-members the choices are the ideal model, `RegularSolutionModel` with a full
+``\mathbf{W}`` matrix, or the asymmetric model of section 9, whose binaries are
+this model to the first order.
 
 ### Published dimensionless parameters, and the temperature
 
@@ -263,6 +293,13 @@ The common tangent construction is wider than the spinodal: the *binodal*
 ``[x_\alpha, x_\beta]`` contains the spinodal, and between the two the phase is
 metastable rather than unstable. A minimization sees only the tangent.
 
+![Left: a Gibbs energy with two wells, the spinodal shaded between its inflection points, and the common tangent touching the curve at two compositions. Right: a composition inside the gap, which costs more as one phase than the same matter split into the two compositions of the tangent; the phase is then held twice, one instance at each.](../assets/theory/miscibility_gap_instances.svg)
+
+The right panel states the difficulty the rest of this section resolves: inside
+the gap the equilibrium holds the phase at two compositions at once, in the
+proportions of the lever rule, which a formulation carrying one amount per
+end-member has no means to express.
+
 ### Computing the pair: what PHREEQC does, and what it costs
 
 The pair is not found by minimizing. It is **computed from the model alone**, by
@@ -333,7 +370,7 @@ sitting inside its own spinodal satisfies every first-order condition — its
 end-members are stationary, the element balance closes, nothing absent is
 supersaturated — so stationarity alone certifies a non-minimum.
 
-The test that separates them is Michelsen's: for a trial composition
+The test that separates them is Michelsen's [Michelsen1982](@cite): for a trial composition
 ``\hat{\mathbf{x}}`` of the phase, the **tangent-plane distance**
 
 ```math
@@ -638,6 +675,77 @@ solutions with it.
 
 ## 9. More than two end-members
 
+### Asymmetric mixing of any number of end-members: `SubregularSolutionModel`
+
+The regular model of section 3 is symmetric on every edge, and the
+Redlich–Kister model of section 4 is asymmetric but binary.
+[HelffrichWood1989](@citet) write the asymmetric Margules model for any number of
+end-members (their Eq. 5′):
+
+```math
+G^{\text{ex}} = \sum_{i<j} x_i x_j \Bigl\{ W_{ij}\Bigl[x_j + \tfrac12 \sum_{k\neq i,j} x_k\Bigr]
+              + W_{ji}\Bigl[x_i + \tfrac12 \sum_{k\neq i,j} x_k\Bigr] \Bigr\}
+              + \sum_{i<j<k} W_{ijk}\, x_i x_j x_k .
+```
+
+On the edge ``i``–``j`` the bracket sums vanish and the excess is
+``x_i x_j (W_{ij} x_j + W_{ji} x_i)``: ``W_{ij}`` is ``RT\ln\gamma_i`` at infinite
+dilution of ``i`` in ``j``, and ``W_{ji}`` the converse. The ternary coefficients
+``W_{ijk}`` are a separate measurement. Helffrich and Wood show that the binaries
+do not determine them, even when every binary is symmetric, and that no
+coefficient of higher order appears.
+
+The paper gives the activity coefficients (its Eq. 6′) without the intermediate
+steps. They are short once the excess is written on the simplex, where
+``\sum_{k\neq i,j} x_k = 1 - x_i - x_j``. The bracket of a pair is then
+
+```math
+W_{ij}\Bigl[x_j + \tfrac12(1 - x_i - x_j)\Bigr] + W_{ji}\Bigl[x_i + \tfrac12(1 - x_i - x_j)\Bigr]
+= a_{ij} + b_{ij}(x_i - x_j),
+\qquad
+a_{ij} = \frac{W_{ij} + W_{ji}}{2},\quad b_{ij} = \frac{W_{ji} - W_{ij}}{2},
+```
+
+so each pair is a Redlich–Kister term of the first order, ``a_0 = a_{ij}`` and
+``a_1 = b_{ij}``, and two end-members are exactly the model of section 4 with
+those two coefficients. Write ``g = G^{\text{ex}}/RT`` in this form, as a
+function of ``x_1, \dots, x_n``. The excess of ``n_k`` moles is ``N g(\mathbf{n}/N)``,
+``N = \sum_k n_k``, and since ``\partial x_l/\partial n_k = (\delta_{kl} - x_l)/N``,
+
+```math
+\ln\gamma_k = \frac{\partial (N g)}{\partial n_k}
+            = g + \frac{\partial g}{\partial x_k} - \sum_l x_l \frac{\partial g}{\partial x_l} .
+```
+
+The formula holds whatever ``g`` is off the simplex, since ``N g(\mathbf{n}/N)``
+reads ``g`` only on it. For a pair, ``t = x_i x_j[a + b(x_i - x_j)]`` has
+
+```math
+\frac{\partial t}{\partial x_i} = x_j\bigl[a + b(2x_i - x_j)\bigr],
+\qquad
+\frac{\partial t}{\partial x_j} = x_i\bigl[a + b(x_i - 2x_j)\bigr],
+\qquad
+\sum_l x_l \frac{\partial t}{\partial x_l} = x_i x_j\bigl[2a + 3b(x_i - x_j)\bigr],
+```
+
+and a triple, ``W_{ijk} x_i x_j x_k``, has ``\sum_l x_l\,\partial/\partial x_l`` equal to
+three times itself. Collecting, with every coefficient divided by ``RT``,
+
+```math
+\ln\gamma_k = \sum_{j\neq k} x_j\bigl[a_{kj} + b_{kj}(2x_k - x_j)\bigr]
+            - \sum_{i<j} x_i x_j\bigl[a_{ij} + 2b_{ij}(x_i - x_j)\bigr]
+            + \sum_{\substack{i<j\\ i,j\neq k}} W_{kij}\, x_i x_j
+            - 2\sum_{i<j<l} W_{ijl}\, x_i x_j x_l ,
+```
+
+with ``b_{kj} = (W_{jk} - W_{kj})/2``, which is
+`_excess_ln_gamma(::SubregularSolutionModel, …)` term by term. Setting
+``W_{ij} = W_{ji}`` and every ``W_{ijk}`` to zero leaves the regular model of
+section 3, ``b = 0``. The test suite checks this expression against Eq. (6′) of
+the paper, for each end-member of a quaternary with its twelve binary and four
+ternary coefficients, and Gibbs–Duhem and ``\sum_k x_k \ln\gamma_k = g`` as
+identities.
+
 ### Convexity with more than two end-members
 
 A one-dimensional scan decides a binary. With ``n`` end-members the question is
@@ -664,7 +772,10 @@ condition. In the other direction, a pair with ``W_{ij} > 2RT`` is a witness:
 at the middle of that edge the second derivative along it is ``4 - 2w_{ij} < 0``.
 Between the two, the smallest eigenvalue of the projected Hessian is searched on
 a lattice of compositions, and a negative one is a witness too; finding none
-proves nothing, and the verdict is then `:undecided`.
+proves nothing, and the verdict is then `:undecided`. The subregular model is
+decided by that search alone beyond two end-members: its Hessian depends on the
+composition through the asymmetric and the ternary terms, and no bound of the
+kind above is written for it.
 
 ```@example ss_convexity
 using ChemistryLab, DynamicQuantities, Printf

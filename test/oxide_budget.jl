@@ -71,6 +71,53 @@
         @test x[i] ≈ 1.0 rtol = 1.0e-10
         @test_throws ArgumentError primary_decomposition(Species("TiO2"), prim)
     end
+
+    @testset "an element below the valence of its primary goes through the unit charge" begin
+        # Carbon (II) over the primaries of carbon (IV): CO is
+        # CO3-2 + 4 H+ − 2 H2O − 2 Zz, its column of the conservation matrix.
+        withz = [Species(s) for s in ("H2O@", "H+", "CO3-2", "Ca+2", "FeO2-", "Zz")]
+        nozz = withz[1:(end - 1)]
+        coef(x, s) = x[findfirst(p -> symbol(p) == s, withz)]
+        x = primary_decomposition(Species("CO"), withz)
+        @test coef(x, "CO3-2") ≈ 1 && coef(x, "H+") ≈ 4 && coef(x, "H2O@") ≈ -2
+        @test coef(x, "Zz") ≈ -2
+        # Written over the primaries, it carries the species' own charge.
+        @test sum(x .* charge.(withz)) ≈ 0 atol = 1.0e-12
+        @test coef(primary_decomposition(Species("FeO"), withz), "Zz") ≈ -1
+        # An element at the valence of its primary leaves Zz untouched, exactly.
+        @test coef(primary_decomposition(Species("CaO"), withz), "Zz") === 0.0
+        @test coef(primary_decomposition(Species("Fe2O3"), withz), "Zz") === 0.0
+        # Without Zz the system cannot hold carbon (II): refused, rather than
+        # given the charge of carbon (IV) in silence.
+        @test_throws ArgumentError primary_decomposition(Species("CO"), nozz)
+        # A recipe does not drop such an oxide as if its element were absent:
+        # the refusal reaches the caller.
+        @test ChemistryLab._representable("FeO", nozz)
+        @test !ChemistryLab._representable("TiO2", nozz)
+    end
+
+    @testset "carbon (II) of an oxide budget becomes formate" begin
+        # 0.01 mol of CO and 0.005 mol of Na2O in a kilogram of water, over the
+        # formate and the carbonate of SUPCRT: the carbon of valence two stays
+        # formate, nothing in the system being able to oxidize it.
+        org = Dict(symbol(s) => s for s in build_species(datapath("slop98-organic-thermofun.json"); verbose = false))
+        inorg = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
+        sp = vcat([inorg[s] for s in ("H2O@", "H+", "OH-", "Na+", "CO3-2", "HCO3-", "CO2@")], [org["For-"], org["ForH@"]])
+        cs = ChemicalSystem(sp)
+        prim = cs.SM.primaries
+        M(f) = ustrip(us"g/mol", Species(f)[:M])
+        m_CO, m_Na2O = 0.01 * M("CO"), 0.005 * M("Na2O")
+        m = m_CO + m_Na2O
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", 1.0u"kg")
+        b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n) .+
+            oxide_budget(Dict("CO" => m_CO / m, "Na2O" => m_Na2O / m), prim; mass = m * u"g")
+        eq, cert = equilibrate_certified(st; b)
+        @test cert.optimal
+        n = Dict(symbol(s) => ustrip(us"mol", x) for (s, x) in zip(cs.species, eq.n))
+        @test n["For-"] + n["ForH@"] ≈ 0.01 rtol = 1.0e-9
+        @test sum(n[symbol(s)] * charge(s) for s in cs.species) ≈ 0 atol = 1.0e-12
+    end
 end
 
 @testsection "glass_species — a material with no formula unit" begin

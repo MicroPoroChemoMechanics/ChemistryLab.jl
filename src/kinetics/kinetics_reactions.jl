@@ -250,7 +250,7 @@ The compiled closure captures:
 The net rate [mol/s] is:
 
 ```
-r = A(n) × Σ_m [ k_m(T) × Π_cat(aᵢ^nᵢ) × (1 - Ω^p) × |1 - Ω^p|^(q-1) ]
+r = A(n) × Σ_m [ k_m(T) × Π_cat(aᵢ^nᵢ) × Π_inh(1 + Kⱼ aⱼ)^(-mⱼ) × (1 - Ω^p) × |1 - Ω^p|^(q-1) ]
 ```
 
 where `Ω(T) = exp(Σ νᵢ ln aᵢ + Σ νᵢ ΔₐG°ᵢ(T)/(RT))` is re-evaluated at every ODE
@@ -302,6 +302,16 @@ function transition_state(
             )
         )
     end
+    # An inhibitor the system does not hold would leave the rate as if it were
+    # absent, without a word.
+    for mech in mechanisms, inh in mech.inhibitors
+        haskey(cs.dict_species, inh.species) || throw(
+            ArgumentError(
+                "transition_state: the inhibitor $(inh.species) is not a species of the system; " *
+                    "a mechanism would be computed as if it were absent."
+            )
+        )
+    end
 
     f = (T, _P, _t, n, lna, n_initial) -> begin
         n_m = max(n[mineral_name], oneunit(T) * 1.0e-30)
@@ -317,6 +327,11 @@ function transition_state(
             for cat in mech.catalysts
                 if haskey(lna, cat.species)
                     cat_term *= exp(cat.n * lna[cat.species])
+                end
+            end
+            for inh in mech.inhibitors
+                if haskey(lna, inh.species)
+                    cat_term /= (one(r) + inh.K * exp(lna[inh.species]))^inh.m
                 end
             end
             Ωp = Ω^mech.p
@@ -525,20 +540,24 @@ end
 
 # Returns Vector of (name::String, ν::Float64, ΔG_fn) for all species in rxn
 # that are present in cs and have a :ΔₐG⁰ property.
+# `haskey(sp, :ΔₐG⁰)`, which builds the thermodynamic functions on demand, and
+# not `haskey(properties(sp), :ΔₐG⁰)`, which reported every species not yet asked
+# for its Gibbs energy as lacking one: a rate law built on a fresh system then
+# computed its saturation ratio over the species already asked, or over none.
 function _stoich_named(cs::ChemicalSystem, rxn::AbstractReaction)
     result = Tuple{String, Float64, Any}[]
     for (sp, ν) in rxn.reactants
         i = findfirst(s -> s == sp, cs.species)
         isnothing(i) && continue
         sp_cs = cs.species[i]
-        haskey(properties(sp_cs), :ΔₐG⁰) || continue
+        haskey(sp_cs, :ΔₐG⁰) || continue
         push!(result, (phreeqc(formula(sp_cs)), -Float64(ν), sp_cs[:ΔₐG⁰]))
     end
     for (sp, ν) in rxn.products
         i = findfirst(s -> s == sp, cs.species)
         isnothing(i) && continue
         sp_cs = cs.species[i]
-        haskey(properties(sp_cs), :ΔₐG⁰) || continue
+        haskey(sp_cs, :ΔₐG⁰) || continue
         push!(result, (phreeqc(formula(sp_cs)), Float64(ν), sp_cs[:ΔₐG⁰]))
     end
     return result

@@ -156,6 +156,9 @@ pages = [
     "Tutorials" => [
         "Equilibrium" => [
             "tutorials/equilibrium.md",
+            # Solid solutions as candidates: which are present, with which
+            # composition, what the user chooses, and how to read the certificate.
+            "tutorials/solid_solutions.md",
         ],
         # The kinetics calls the equilibrium solver, so it reads after it.
         "Kinetics and coupling" => [
@@ -195,6 +198,9 @@ pages = [
             # Four blended pastes, their degrees of reaction from the measurement,
             # the chemistry against the measurement and against GEMS3K.
             "tutorials/validation_blended_pastes.md",
+            # A low-pH shotcrete, 40 % silica fume, and the formate of its set
+            # accelerator: the alkali end-members of CASH+NK on a gel of low Ca/Si.
+            "tutorials/validation_silica_fume_paste.md",
             # Forty-eight pore solutions of the first six hours, speciated at
             # their measured pH: the aqueous model against the paper's indices.
             "tutorials/validation_early_pore_solutions.md",
@@ -226,6 +232,9 @@ pages = [
             # The CASH+ gel in the compound energy formalism: the invariant points
             # of the paper, the alkalis, and the authors' 110 gel compositions.
             "examples/cashplus_csh.md",
+            # A gel that holds aluminum at a high Ca/Si: two extensions fitted
+            # here, tested on syntheses and pastes, and why neither is shipped.
+            "examples/csh_aluminum.md",
             "examples/pitzer_model.md",
         ],
         # The smallest complete surface calculation, against the closed form it
@@ -285,6 +294,10 @@ pages = [
             "examples/delayed_ettringite.md",
             "examples/hemicarbonate.md",
             "examples/chloride_afm.md",
+            # The products of the alkali-silica reaction synthesized at 80 °C:
+            # two sets of constants for them, and an equilibrium on the middle
+            # root of the ionic strength.
+            "examples/asr_products.md",
         ],
         # Beyond the Portland cement. One page per EN 197-1 family, in order of
         # how much of the clinker is replaced and of what the replacement asks
@@ -319,6 +332,9 @@ pages = [
             # degrees of reaction measured at each temperature.
             "examples/slag_temperature.md",
             "examples/slag_temperature_pastes.md",
+            # The glasses of the supplementary materials dissolving at pH 13,
+            # and what dissolved calcium and aluminum do to them.
+            "examples/glass_dissolution.md",
         ],
         # What a laboratory measures on a paste, read off computed states: the
         # heat an isothermal calorimeter records and the mass a thermobalance

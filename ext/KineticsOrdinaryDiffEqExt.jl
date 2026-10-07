@@ -223,16 +223,19 @@ function integrate(kp::KineticsProblem, ks::KineticsSolver; speciation::Symbol =
     else
         sol = auto_solver ? solve(prob; merged...) : solve(prob, solver; merged...)
     end
-    return _flag_infeasible(sol, p, kp)
+    # A co-reactant is judged to the precision asked of the integration.
+    return _flag_infeasible(sol, p, kp; rtol = max(ChemistryLab._FEASIBILITY_RTOL, float(maximum(merged.reltol))))
 end
 
 """
-    _flag_infeasible(sol, p, kp) -> ODESolution
+    _flag_infeasible(sol, p, kp; rtol) -> ODESolution
 
 `sol`, with the retcode `Unstable` when a saved state holds kinetic amounts
 outside what the system can produce (`ChemistryLab._kinetic_state_infeasible`):
-an amount negative beyond rounding, or the kinetic species holding more of an
-element than the system was given. A warning names the first such state, or,
+an amount negative beyond rounding, the kinetic species holding more of an
+element than the system was given, or, without an equilibrium partition, a
+co-reactant consumed beyond what the system holds, by more than `rtol` of the
+most of it the element totals allow. A warning names the first such state, or,
 under `STRICT_CONVERGENCE`, an error is raised.
 
 A trajectory of that kind used to come back with `Success` and a warning on its
@@ -244,21 +247,38 @@ relaxation of `Ω` overshoots the equilibrium and reverses it. Such a law now ha
 its partition solved in the right-hand side (`speciation = :rhs`), where this
 state is not reached; the check stands for every run.
 """
-function _flag_infeasible(sol, p, kp)
-    k = findfirst(u -> ChemistryLab._kinetic_state_infeasible(p, u), sol.u)
+function _flag_infeasible(sol, p, kp; rtol = ChemistryLab._FEASIBILITY_RTOL)
+    k = findfirst(u -> ChemistryLab._kinetic_state_infeasible(p, u; rtol), sol.u)
     k === nothing && return sol
     u = sol.u[k]
     nb = p.n_be
-    amounts = join(
-        (
-            "$(symbol(kp.system.species[kp.idx_kinetic[j]])) = " *
-                "$(round(ChemistryLab._plain(u[nb + j]); sigdigits = 4)) mol"
-                for j in 1:(p.n_nk)
-        ), ", ",
-    )
-    msg = "the trajectory reaches kinetic amounts no chemistry can produce from what " *
-        "the system holds, at t = $(round(ChemistryLab._plain(sol.t[k]); sigdigits = 4)) s: " *
-        "$amounts. The run is returned with the retcode `Unstable`."
+    t_k = round(ChemistryLab._plain(sol.t[k]); sigdigits = 4)
+    out = ChemistryLab._exhausted_coreactant(p, u; rtol)
+    msg = if out !== nothing && !ChemistryLab._kinetic_amounts_infeasible(p, u)
+        # A co-reactant no rate law reads: named, with what the extents take of
+        # it beyond what there is by the end of the run.
+        name = symbol(kp.system.species[first(out)])
+        last_out = ChemistryLab._exhausted_coreactant(p, sol.u[end]; rtol)
+        short = last_out === nothing ? -last(out) : -last(last_out)
+        "`$name` runs out at t = $t_k s while the reactions consuming it go on: by the end " *
+            "of the run their extents take $(round(short; sigdigits = 4)) mol of it beyond what " *
+            "the system holds. A rate law that does not read a co-reactant cannot stop when it " *
+            "runs out, and the amounts it reads are floored at zero, so the shortfall is created. " *
+            "Gate the rate on that co-reactant, write the reaction without it, or attach an " *
+            "equilibrium solver so that the assemblage follows from the element budgets. The run " *
+            "is returned with the retcode `Unstable`."
+    else
+        amounts = join(
+            (
+                "$(symbol(kp.system.species[kp.idx_kinetic[j]])) = " *
+                    "$(round(ChemistryLab._plain(u[nb + j]); sigdigits = 4)) mol"
+                    for j in 1:(p.n_nk)
+            ), ", ",
+        )
+        "the trajectory reaches kinetic amounts no chemistry can produce from what " *
+            "the system holds, at t = $t_k s: $amounts. The run is returned with the " *
+            "retcode `Unstable`."
+    end
     ChemistryLab._strict_convergence() && throw(ErrorException(msg))
     @warn msg maxlog = 1
     return SciMLBase.successful_retcode(sol) ?

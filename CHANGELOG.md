@@ -1,5 +1,254 @@
 # Changelog
 
+## v0.35.0 — The glasses of supplementary materials, the products of the alkali-silica reaction, asymmetric solid solutions
+
+The glass of a slag, a fly ash or a silica fume dissolves at pH 13 at the rate
+Snellings (2013) measured on synthetic glasses, and a page fits how the calcium
+in solution slows it; put on the slag of a paste, that law dissolves it within
+a month where the paste holds it for months. The
+potassium and sodium shlykovites of the alkali-silica reaction come as a
+derived database, and the 17 syntheses at 80 °C of Shi and Lothenbach (2019)
+certify once the solve follows the ionic strength onto its middle root. A
+silica fume shotcrete paste is computed over 3.5 years against its pore
+solution, the formate of its accelerator entering as carbon (II) now that an
+oxide below the valence of its primary is written with its charge. Two attempts
+at aluminum in the C-S-H are recorded and not shipped. The asymmetric Margules
+model takes any number of end-members. A kinetic run without an equilibrium
+partition reports a co-reactant that runs out instead of creating it.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.34"` does not accept 0.35
+  and has to widen its bound.
+- **A kinetic run that consumes a phase, a gas or the solvent beyond what the
+  system holds returns the retcode `Unstable`**, with a warning naming the
+  species (an error under `STRICT_CONVERGENCE`), where it returned `Success`.
+  Only runs without an equilibrium partition are concerned, whose rate laws do
+  not read the co-reactant they consume.
+- **An oxide below the valence of its primary is refused in a system without
+  `Zz`.** `primary_decomposition`, `oxide_budget` and the oxide constituents of
+  a recipe raise an `ArgumentError` for it (FeO over `Fe+3`, CO over `CO3-2`),
+  where they returned a budget with the charge of the higher valence, and a
+  recipe no longer drops such an oxide as if its element were absent. With
+  `Zz`, the budget carries its electrons. Oxides at the valence of their
+  primary decompose as before, to the bit.
+- **A transition-state rate built on a fresh system** includes the standard
+  Gibbs energy of every species of its reaction; built after only the aqueous
+  species had been asked for theirs, its saturation ratio was wrong by
+  `exp(ΔₐG⁰/RT)` of the mineral.
+- **A solid solution whose interaction matrix does not match its end-members
+  is refused** at construction (`RegularSolutionModel`).
+- **Four names are exported**: `SubregularSolutionModel`, `RateModelInhibitor`,
+  `snellings2013_glass` and `cation_molar_mass`. A package defining the same
+  names alongside `using ChemistryLab` now sees a conflict.
+
+### Added
+
+- **Inhibitors of a dissolution mechanism**, `RateModelInhibitor(species, K;
+  m = 1)`: a mechanism of `transition_state` is divided by `(1 + K a)^m`, `a`
+  the activity of the species. Unlike a catalyst of negative order, whose
+  factor grows without bound as the species vanishes, it leaves the rate
+  measured without the species unchanged, which is how the dissolution of the
+  glasses of supplementary materials responds to dissolved calcium and
+  aluminum.
+- **The dissolution rates of Snellings (2013)**, transcribed in
+  `data/literature/Snellings2013.json`: six calcium aluminosilicate glasses from
+  slag to silica fume, 51 initial rates at 20 °C and pH 13 with Al, Ca or Si
+  added, and the regression of the rate on the glass composition read from the
+  vector figure. The abscissa of that figure counts aluminum twice, which the
+  file records with the check that shows it.
+- **The dissolution of a glass at pH 13**, `snellings2013_glass(oxides; Ea)`:
+  the rate constant per unit BET area and per mole of cations of a calcium
+  aluminosilicate glass, from its composition, as the regression of
+  Snellings (2013) gives it at 20 °C, with the abscissa of the paper's figure;
+  refused outside the glasses measured unless `extrapolate = true`, and with no
+  activation energy assumed. `cation_molar_mass(oxides)` makes one mole of a
+  `glass_species` one mole of its cations, the unit of such rates.
+- **The products of the alkali-silica reaction**, `cemdata18-asr.json`: Cemdata18
+  with K- and Na-shlykovite as Jin et al. (2023) estimate them, built on first use
+  like the zeolite extension. The build refuses unless their solubility products
+  at 25 °C recompute through the Cemdata18 aqueous species (they agree to 0.02);
+  at 80 °C the database gives back the values the authors refined. Each record
+  carries the enthalpy its Gibbs energy and entropy give: the article's agrees
+  with it to 0.5 kJ/mol, the corrigendum's (2024) is 572 kJ/mol higher with the
+  same Gibbs energy and entropy, and both are kept in its provenance.
+- **A page on the glasses of slag, fly ash and silica fume dissolving at pH 13**
+  (`examples/glass_dissolution.md`, `scripts/snellings2013_glass.jl`): the
+  composition law against the six glasses, and the effect of dissolved calcium
+  and aluminum fitted on the 51 rates of the paper with activities computed at
+  pH 13. Calcium follows one factor `(1 + K a)⁻¹` within the error of the
+  measurements; aluminum does not, one glass slowed at once and no further,
+  another more and more, and the page shows both. A last section dissolves the
+  slag of the ternary paste of Snellings et al. (2022) by this law, nothing
+  fitted on the paste: over its Blaine surface the first day falls within the
+  measurement, and the slag is gone within the month where the paste holds it
+  at 41 to 62 % from the first week to the sixth month; over its BET surface it
+  is gone in two days. What slows a slag in a paste after its first days is not
+  in a law measured on its glass in a dilute solution. The measurements of
+  Newlands et al. (2017) are not used as a test of the law, and the page says
+  why: averages since the start at 25 °C in a closed reactor, not initial rates.
+- **A tutorial on solid solutions in a calculation**
+  (`tutorials/solid_solutions.md`): a C-S-H gel declared among other solids,
+  which phases the equilibrium keeps and with which composition, why the gel is
+  absent and then present (the saturation ratios of its end-members as pure
+  phases add up to one before any of them would precipitate alone), what the
+  user chooses (the end-members, one model of the gel, a second instance where a
+  phase unmixes), and how to read the certificate. The theory pages on solid
+  solutions and on the certifying solver gain four figures of principle: the
+  tangent and the plane of the potentials, the miscibility gap and its two
+  instances, a round of the solver, and the three roots of the ionic strength.
+- **Aluminum in the C-S-H, two extensions tried and not shipped**
+  (`examples/csh_aluminum.md`, `scripts/csh_aluminum.jl`). No shipped gel holds
+  both the calcium of a gel beside portlandite and aluminum. Two extensions,
+  each with one energy fitted by ChemistryLab, were fitted on the uptake
+  isotherm of the syntheses of L'Hôpital et al. (2016a): CASH+ with the
+  aluminate its authors describe for the bridging site, and CSHQ with an
+  aluminum end-member of one aluminum per formula unit, which the linear
+  isotherm of the measurements asks for. The first reproduces the isotherm at a
+  Ca/Si from 1.0 to 1.6 and alkaline syntheses at 1.0 it was not fitted on; it
+  fails below a Ca/Si of 1.0, above it in alkaline solutions, and in three of
+  four cement pastes. The page records why neither is shipped, and what the
+  syntheses say before any model: their solutions are undersaturated with
+  respect to the strätlingite and katoite they hold, so the Al/Si of the gel
+  beside these phases is not an equilibrium datum.
+- **A Portland cement with 40 % silica fume, the ESDRED shotcrete paste of
+  Lothenbach et al. (2014)** (`tutorials/validation_silica_fume_paste.md`,
+  `scripts/esdred_2014.jl`, the paper transcribed in
+  `data/literature/Lothenbach2014.json`), computed at the degrees of reaction
+  its NMR measured, with CSHQ and CASH+NK, against its pore solutions over 3.5
+  years. CASH+NK follows the late alkalis and CSHQ does not, as Miron et al.
+  (2022b) report; neither follows the calcium and the pH, which the formate of
+  the set accelerator governs: it is the main anion of the measured solution.
+  The paste is computed without it, as Miron et al. did, and with all of it in
+  solution, formate of the SUPCRT organic database kept from oxidation, two
+  bounds the measurement lies between. Miron et al. give the binder as 40 % CEM
+  I and 60 % silica fume; the source gives 60 and 40, which is used.
+- **The C-A-S-H syntheses of L'Hôpital et al. (2015) and of Yan et al. (2022)**,
+  transcribed in `data/literature/LHopital2015.json` (the gel, the other solids
+  and the solutions at a Ca/Si of 1.0, without alkali and in 0.5 M KOH) and
+  `data/literature/Yan2022.json` (the solutions, the solids and the gel at a
+  Ca/Si of 1.0 in NaOH and KOH up to 1 M), each value checked against the
+  rendered page. The chemical formulas of Yan et al.'s Table A4 count Na2O and
+  Al2O3 twice against its own ratio columns; the file keeps both and says so.
+- **The products of the alkali-silica reaction synthesized at 80 °C**
+  (`examples/asr_products.md`, `scripts/asr_products.jl`, and the syntheses of
+  Shi and Lothenbach (2019) transcribed in
+  `data/literature/ShiLothenbach2019.json`). The 17 syntheses certify with the
+  shlykovites of `cemdata18-asr.json` and with the three products of Shi and
+  Lothenbach at 80 °C. The two sets of constants come from the same solutions
+  with two treatments of the pH, and each reproduces one half of the potassium
+  series: K-shlykovite at a low Ca/Si with the first, ASR-P1 from a Ca/Si of 0.3
+  with the second. The solution of silica in KOH without lime sits on the middle
+  root of its ionic strength, drawn on the page.
+- **Asymmetric mixing of any number of end-members**,
+  `SubregularSolutionModel(W; ternary)`: the subregular Margules model in the
+  form of Helffrich and Wood (1989), one coefficient per ordered pair, `W[i, j]`
+  being `RT ln γᵢ` at infinite dilution of `i` in `j`, and one per triple. The
+  package had it only for two end-members (`RedlichKisterModel`) or symmetric
+  (`RegularSolutionModel`). The paper gives the activity coefficients without
+  the steps; the theory of the solid solutions writes them out, from the
+  observation that on the simplex each pair is a Redlich–Kister term of the
+  first order. Checked against Eq. (6′) of the paper for each member of a
+  quaternary with all its coefficients, against both models it extends, and on
+  Gibbs–Duhem; its equilibria certify, and a symmetric one is the regular
+  model's.
+
+### Fixed
+
+- **A regular solid solution read past its interaction matrix.**
+  `SolidSolutionPhase` did not compare the size of the matrix of a
+  `RegularSolutionModel` with the number of end-members, and the activity
+  coefficients read it without bounds checks: a matrix smaller than the phase
+  read memory past its end, and a larger one was used by its top-left block in
+  silence. The phase
+  now refuses a matrix of the wrong size, for the regular and the subregular
+  models.
+- **A rate law built on a fresh system had a wrong saturation ratio.**
+  `transition_state` looked for the standard Gibbs energy of each species of
+  the reaction in its property dictionary, where it appears only once the
+  species has been asked for it. Built before anything had asked, the law kept
+  none of the species, and its first evaluation failed; built after the
+  aqueous species had been asked but not the mineral, it computed the
+  saturation ratio without the mineral's energy, wrong by
+  `exp(ΔₐG⁰/RT)` of the mineral, without a word. The energies are now built on
+  demand, as everywhere else in the package.
+- **An equilibrium on the middle root of the ionic strength was out of reach.**
+  The aqueous solutes are recovered from their potentials through the ionic
+  strength, of which the solve took the first root. An ion of high valence makes
+  that equation cross zero three times, and under the balances the equilibrium
+  can sit on the middle root: silica in KOH at 80 °C with Cemdata18, where the
+  tetramer Si4O10-4 carries most of the dissolved silicon, has its equilibrium at
+  1.38 mol/kg between roots at 0.45 and 4.3. Taking the first root, the solve
+  never closed the potassium balance and nothing certified; the syntheses of the
+  products of the alkali-silica reaction of Shi and Lothenbach (2019) at 80 °C
+  certified in 4 cases of 17. The inversion now takes the root of the branch the
+  iterate is on when it lies above the first one, up to four times the range of
+  the model, and the first root otherwise, unchanged to the bit; the limiting law
+  keeps the first root. The same syntheses certify in 16 cases of 17 (the lime
+  entered as portlandite, as before), and in all 17 computed as
+  `examples/asr_products.md` computes them, the lime as weighed.
+- **An oxide below the valence of its primary entered a budget with the wrong
+  charge.** `primary_decomposition`, behind `oxide_budget` and the oxide
+  constituents of a recipe, wrote a species over the primaries by its elements
+  alone. An element at the valence of its primary (Ca in CaO) gives the right
+  charge that way; one below it does not: CO, carbon (II), came out as carbonate
+  with two protons too many and no electron, so that a system following the
+  oxidation state could never form the formate it stands for and solved, and
+  certified, a pore solution carrying a net charge. When the system has two
+  primaries for one element at two valences, the elements alone did not even
+  decide the decomposition, and an oxide like Na2O came out with a share of
+  each. The charge is now a row of the decomposition whenever the elements leave
+  it unbalanced: the difference goes to the unit charge `Zz`, or chooses between
+  the two primaries; without either, the oxide is refused with the reason,
+  instead of being given the charge of the higher valence. Every oxide at the
+  valence of its primary decomposes as before, to the bit, and none of the
+  shipped materials holds another.
+- **A co-reactant that no rate law reads ran out in silence.** Without an
+  equilibrium partition, the species other than the kinetic ones follow the
+  extents, `n = n(0) + νᵀξ`, and a rate law that reads only its own phase does
+  not see them run out: under a Parrott–Killoh rate, `C3A + 3 Gp + 26 H2O →
+  ettringite` went on after the gypsum was gone, the amounts read and reported
+  were floored at zero, and the sulfate the extent demanded beyond what the
+  paste held was created. On the CEM I of `examples/cem1_from_clinker.md` the
+  gypsum runs out after about 28 days and 0.027 mol of sulfate is created by
+  90 days; the run reported a success. The check of a trajectory, which judged
+  only the kinetic species, now also judges every phase, gas and the solvent
+  against what the extents take of it, and such a run comes back with the
+  retcode `Unstable` and a warning naming the species, the time it runs out and
+  the shortfall, or an error under `STRICT_CONVERGENCE`. A shortfall is
+  reported above the relative tolerance of the integration times the most of
+  the species the element totals allow, below which the extents that make the
+  amount are not known. The solutes are left out: without a partition a solute
+  stands for the total of its component, and a clinker phase dissolving into
+  the primaries takes `H+` below zero, which is hydroxide. A run whose
+  co-reactants last, or whose rates are gated on them, is unchanged.
+  The check found one such run in the package: the calibration surrogate of
+  `scripts/hydration_calibration.jl`, whose ferrite takes two portlandite per
+  formula, consumed during the dormant period of the silicates up to 0.5 mmol
+  of portlandite per kilogram of binder that they had not yet formed, over the
+  first 1.4 h. Its ferrite rate is now gated on the portlandite present
+  (`portlandite_gated`), as the manual writes a gate.
+- **Documentation that said less than the code does.** The docstring of
+  `miscibility_split` still said that a minimization over two declared instances
+  does not deliver the composition inside a gap, which `equilibrate_split` and
+  `instances = :auto` now do; the theory of the certifying solver counted its
+  unknowns without the totals of the solid solutions, and now also gives the
+  explicit composition of a solid solution at given potentials and the condition
+  under which it is present; the table of solid-solution models of the manual
+  lacked `CompoundEnergyModel`; and Michelsen's tangent-plane distance is now
+  cited where it is used (Michelsen 1982).
+- **The chloride end member of CSHQ was offered without saying it is fitted.**
+  The README listed `CSHQ_Cl` among the models of the C-S-H gel as "its
+  chloride end member", as if Cemdata18 carried it. It is ChemistryLab's own,
+  fitted on three sorption tests of one gel at portlandite saturation in NaCl
+  solutions; the README, the manual of the databases and the page that uses it
+  now say so, with what the fit does not cover: the dependence on the Ca/Si,
+  not fitted, and the effect of the cation, a CaCl2 solution binding two to
+  three times as much chloride at the same free chloride. That last statement
+  was also wrong in `data/chloride/README.md`, which attributed a factor of two
+  to the gel where Tran et al. (2018) report it for a CEM II concrete.
+
 ## v0.34.0 — Water to 1000 °C, surfaces of three charge planes, durability in zero dimensions
 
 The solvent follows the equation of state of water at every temperature and

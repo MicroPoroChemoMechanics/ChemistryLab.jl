@@ -197,6 +197,87 @@ function RedlichKisterModel(; a0 = 0.0, a1 = 0.0, a2 = 0.0)
     return RedlichKisterModel{eltype(vals)}(vals...)
 end
 
+"""
+    struct SubregularSolutionModel{T<:Real} <: AbstractSolidSolutionModel
+
+Asymmetric (subregular) Margules solid solution of any number of end-members, in
+the form [HelffrichWood1989](@citet) give it (their Eq. 5′):
+
+```math
+G^{\\mathrm{ex}} = \\sum_{i<j} x_i x_j \\Bigl\\{ W_{ij}\\Bigl[x_j + \\tfrac12 \\sum_{k \\ne i,j} x_k\\Bigr]
+                + W_{ji}\\Bigl[x_i + \\tfrac12 \\sum_{k \\ne i,j} x_k\\Bigr] \\Bigr\\}
+                + \\sum_{i<j<k} W_{ijk}\\, x_i x_j x_k .
+```
+
+`W[i, j]` is ``W_{ij}`` in J/mol; the diagonal is ignored. On the edge ``i``–``j``
+the excess is ``x_i x_j (W_{ij} x_j + W_{ji} x_i)``, so ``W_{ij}`` is ``RT \\ln\\gamma_i``
+at infinite dilution of ``i`` in ``j``. `ternary` maps a triple of end-member
+indices to ``W_{ijk}`` in J/mol; a triple left out is zero. The ternary
+coefficients are not determined by the binaries, as Helffrich and Wood show, and
+no coefficient of higher order exists in this model.
+
+On the simplex the binary terms are those of [`RedlichKisterModel`](@ref) to first
+order, ``x_i x_j [a_0 + a_1 (x_i - x_j)]`` with ``a_0 = (W_{ij} + W_{ji})/2`` and
+``a_1 = (W_{ji} - W_{ij})/2``, since ``\\sum_{k \\ne i,j} x_k = 1 - x_i - x_j`` there. So
+two end-members are `RedlichKisterModel(a0 = (W₁₂ + W₂₁)/2, a1 = (W₂₁ − W₁₂)/2)`,
+and a symmetric `W` without ternary terms is [`RegularSolutionModel`](@ref);
+the test suite checks both, and the activity coefficients against Eq. (6′) of
+the paper.
+
+AD-compatible: all computations propagate `ForwardDiff.Dual` numbers.
+
+# Examples
+
+```jldoctest
+julia> m = SubregularSolutionModel([0.0 3000.0 0.0; 5000.0 0.0 0.0; 0.0 0.0 0.0];
+                                   ternary = Dict((1, 2, 3) => 1500.0));
+
+julia> m.W[2, 1], only(m.ternary)
+(5000.0, (1, 2, 3, 1500.0))
+```
+"""
+struct SubregularSolutionModel{T <: Real} <: AbstractSolidSolutionModel
+    W::Matrix{T}
+    ternary::Vector{Tuple{Int, Int, Int, T}}
+
+    function SubregularSolutionModel{T}(W::AbstractMatrix, ternary) where {T <: Real}
+        n, m = size(W)
+        n == m || throw(ArgumentError("SubregularSolutionModel: W must be square, got $(size(W))."))
+        terms = Tuple{Int, Int, Int, T}[]
+        for (key, w) in ternary
+            (length(key) == 3 && allunique(key) && all(k -> 1 <= k <= n, key)) || throw(
+                ArgumentError(
+                    "SubregularSolutionModel: a ternary coefficient is keyed by three distinct " *
+                        "end-member indices in 1:$n, got $(key)."
+                )
+            )
+            i, j, k = sort(collect(key))
+            any(t -> t[1:3] == (i, j, k), terms) && throw(
+                ArgumentError("SubregularSolutionModel: the triple ($i, $j, $k) is given twice.")
+            )
+            push!(terms, (i, j, k, T(w)))
+        end
+        sort!(terms; by = t -> t[1:3])
+        return new{T}(Matrix{T}(W), terms)
+    end
+end
+
+"""
+    SubregularSolutionModel(W::AbstractMatrix; ternary = Dict()) -> SubregularSolutionModel
+
+Construct a [`SubregularSolutionModel`](@ref) from the matrix of the binary
+coefficients `W[i, j]` = ``W_{ij}`` and the ternary coefficients `ternary`, keyed
+by triples of end-member indices in any order, all in J/mol (a bare number) or
+as energies per mole (a `Quantity`).
+"""
+function SubregularSolutionModel(W::AbstractMatrix; ternary = Dict{NTuple{3, Int}, Float64}())
+    vals = _interaction_energy.(W)
+    tvals = [Tuple(k) => _interaction_energy(v) for (k, v) in ternary]
+    T = promote_type(eltype(vals), (typeof(last(t)) for t in tvals)...)
+    return SubregularSolutionModel{T}(vals, tvals)
+end
+
+# ── Solid solution phase ───────────────────────────────────────────────────────
 # ── Solid solution phase ───────────────────────────────────────────────────────
 
 """
@@ -357,6 +438,12 @@ function SolidSolutionPhase(
                 "got $(length(end_members))",
         )
     end
+    if model isa Union{RegularSolutionModel, SubregularSolutionModel}
+        size(model.W, 1) == length(end_members) || error(
+            "SolidSolutionPhase \"$name\": the interaction matrix of the model is " *
+                "$(size(model.W, 1))×$(size(model.W, 2)), and $(length(end_members)) end-members are given.",
+        )
+    end
     if model isa Union{SublatticeModel, CompoundEnergyModel}
         _n_members(model) == length(end_members) || error(
             "SolidSolutionPhase \"$name\": the sublattice model describes " *
@@ -453,7 +540,8 @@ The three Redlich-Kister coefficients of a **binary** mixing model, in units of
 `RT`, or `nothing` when the model has no excess term this form can express.
 
 `RegularSolutionModel` is the one-parameter case, `a₀ = W₁₂` with `a₁ = a₂ = 0`,
-which is why the two share this. `IdealSolidSolutionModel` — and any model a
+and `SubregularSolutionModel` the two-parameter one, `a₀ = (W₁₂ + W₂₁)/2` with
+`a₁ = (W₂₁ − W₁₂)/2`, which is why they share this. `IdealSolidSolutionModel` — and any model a
 caller adds — returns `nothing`: an ideal mixture is convex everywhere, so every
 construction below is vacuous for it.
 
@@ -465,6 +553,8 @@ function _rk_coefficients(model::AbstractSolidSolutionModel, T::Real)
     model isa RedlichKisterModel &&
         return (model.a0 / RT, model.a1 / RT, model.a2 / RT)
     model isa RegularSolutionModel && return (model.W[1, 2] / RT, 0.0, 0.0)
+    model isa SubregularSolutionModel &&
+        return ((model.W[1, 2] + model.W[2, 1]) / (2RT), (model.W[2, 1] - model.W[1, 2]) / (2RT), 0.0)
     return nothing
 end
 
@@ -899,15 +989,16 @@ binary solid solution.
 
 # What this does and does not settle
 
-Given `x̄`, everything above is exact and costs microseconds. **Obtaining `x̄`
-from a full aqueous equilibrium inside a gap is the part a minimization over two
-declared instances does not currently deliver**: the symmetric state is a
-stationary point, and the two-instance problem carries a near-null direction that
-more iterations make worse rather than better (measured: the element balance
-degrades from 1.5e-01 to 4.5e+00 between 200 and 5000 iterations).
+Given `x̄`, everything above is exact and costs microseconds. It does not
+compute `x̄`, the overall composition of the phase in a full aqueous equilibrium:
+the equilibrium does. When the element balance pins `x̄` inside the gap, a phase
+declared twice (`instances = 2`) separates onto the pair by itself; when nothing
+pins it, two instances started at one composition stay there, the symmetric
+state being stationary, and [`equilibrate_split`](@ref) or `instances = :auto`
+seeds the split.
 
-So read `x̄` as the overall composition you have — from a single-phase solve, from
-an analysis, or as a scan — and this as the exact answer for it.
+So read `x̄` as the overall composition you have — from a solve, from an
+analysis, or as a scan — and this as the exact answer for it.
 
 See also: [`common_tangent`](@ref), [`spinodal_interval`](@ref).
 """

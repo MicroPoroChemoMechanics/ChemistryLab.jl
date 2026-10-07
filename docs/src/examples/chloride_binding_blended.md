@@ -36,7 +36,10 @@ that applies there.
         1 mol/L, and four times too high at 0.1 mol/L. Its dependence on the
         Ca/Si is the model's: the end member was chosen to follow the trend
         measured by [Zibara2008](@citet), not fitted to it
-        (`data/chloride/README.md`).
+        (`data/chloride/README.md`). It is fitted on NaCl solutions only: in a
+        CEM II concrete, a CaCl₂ solution binds two to three times as much
+        chloride at the same free chloride [Tran2018](@cite), which the end
+        member does not reproduce.
       - The B-dot activity model of the CEMDATA18 pages holds up to an ionic
         strength of about 1 mol/kg. No solution below exceeds 0.7.
 

@@ -751,6 +751,15 @@ Keep such a gate **smooth**. A hard `n["Gp"] > 0 ? r : 0` is a discontinuity in
 the residual, which a stiff solver will either step over or grind against; the
 `x/(x+ε)` form above costs nothing and stays differentiable.
 
+Left without a gate, a reaction that consumes a species it does not read runs on
+after that species is gone, and the reconstruction takes it below zero. The run
+then comes back with the retcode `Unstable` and a warning that names the
+species, the time it runs out and the shortfall, once the shortfall exceeds the
+relative tolerance of the integration times the most of the species the element
+totals allow. Only the species whose amount is an amount of substance are
+judged, a phase, a gas, the solvent: without an equilibrium partition a solute
+stands for the total of its component, and `H+` below zero is hydroxide.
+
 !!! note "With an equilibrium solver, the non-kinetic partition is piecewise constant"
     When re-speciation is active the equilibrium partition is owned by the
     equilibrium solve, which runs once per accepted step by operator splitting.

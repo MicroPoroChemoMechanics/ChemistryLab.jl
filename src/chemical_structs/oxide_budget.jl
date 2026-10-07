@@ -24,22 +24,21 @@ whenever the primaries are not all exercised, and **refused** above a residual
 of `1e-8`: a species outside the span of the primaries has no decomposition, and
 returning a least-squares approximation of one would put elements into the
 budget that the species does not contain.
+
+The elements fix the decomposition but not the charge it carries. An element at
+the valence of its primary (Ca in CaO, Al in Al₂O₃) gives a charge that matches
+the species', and nothing more is needed. An element below it does not: CO over
+`CO3-2`, `H+` and `H2O@` balances carbon, oxygen and hydrogen with a charge of
++2 where CO has none, the two electrons of carbon (II) against carbon (IV). The
+difference is the unit charge `Zz`, the component that tracks the oxidation
+state when the system has one, so it is put there: CO is
+`CO3-2 + 4 H+ − 2 H2O@ − 2 Zz`, as its column of the conservation matrix is.
+Without `Zz` among the primaries such a species is **refused**: the system
+cannot hold carbon (II), and a budget that silently gave it the charge of
+carbon (IV) would describe neither.
 """
 function primary_decomposition(species::AbstractSpecies, primaries)
-    els = Symbol[]
-    for p in Iterators.flatten((primaries, (species,))), k in keys(atoms(p))
-        k in els || push!(els, k)
-    end
-    E = zeros(length(els), length(primaries))
-    for (j, p) in enumerate(primaries), (k, v) in atoms(p)
-        E[findfirst(==(k), els), j] = Float64(v)
-    end
-    t = zeros(length(els))
-    for (k, v) in atoms(species)
-        t[findfirst(==(k), els)] = Float64(v)
-    end
-    x = qr(E, ColumnNorm()) \ t
-    r = norm(E * x - t)
+    x, r = _element_decomposition(species, primaries)
     r > 1.0e-8 && throw(
         ArgumentError(
             "`$(symbol(species))` is not in the span of the primaries " *
@@ -48,7 +47,45 @@ function primary_decomposition(species::AbstractSpecies, primaries)
                 "put elements into the budget that this species does not carry.",
         ),
     )
-    return x
+    # The elements alone decide it when the charge it then carries is the
+    # species' own, an element at the valence of its primary: returned as is.
+    q = Float64(charge(species)) - sum(x[j] * Float64(charge(p)) for (j, p) in enumerate(primaries); init = 0.0)
+    abs(q) <= 1.0e-10 && return x
+    # Otherwise the charge is a row of its own, as in the conservation matrix:
+    # it puts the difference on the unit charge `Zz`, or chooses between two
+    # primaries of one element at two valences, which the elements alone cannot.
+    xc, rc = _element_decomposition(species, primaries; charge_row = true)
+    rc > 1.0e-8 && throw(
+        ArgumentError(
+            "`$(symbol(species))` holds an element at a valence the primaries do not hold: written " *
+                "over them, its elements carry a charge $(round(-q; sigdigits = 4)) away from its own, " *
+                "and neither the unit charge `Zz` nor a primary of that element at that valence is " *
+                "among them. This system follows no such oxidation state, so it cannot hold this species.",
+        ),
+    )
+    return xc
+end
+
+# The decomposition over the elements alone, and its residual: whether the
+# primaries hold the elements of `species` at all.
+function _element_decomposition(species::AbstractSpecies, primaries; charge_row::Bool = false)
+    # With `charge_row`, the charge counts as one more element, `:Zz`, as in the
+    # conservation matrix (`atoms_charge`).
+    comp(s) = charge_row ? atoms_charge(s) : atoms(s)
+    els = Symbol[]
+    for p in Iterators.flatten((primaries, (species,))), k in keys(comp(p))
+        k in els || push!(els, k)
+    end
+    E = zeros(length(els), length(primaries))
+    for (j, p) in enumerate(primaries), (k, v) in comp(p)
+        E[findfirst(==(k), els), j] = Float64(v)
+    end
+    t = zeros(length(els))
+    for (k, v) in comp(species)
+        t[findfirst(==(k), els)] = Float64(v)
+    end
+    x = qr(E, ColumnNorm()) \ t
+    return x, norm(E * x - t)
 end
 
 """
@@ -144,6 +181,42 @@ function glass_species(
         symbol = String(symbol), name = String(name),
         aggregate_state = AS_CRYSTAL, properties = props,
     )
+end
+
+"""
+    cation_molar_mass(oxides) -> Quantity
+
+The mass of material per mole of the cations of its oxide analysis, in g/mol:
+``1 / \\sum_k f_k \\nu_k / M_k``, ``f_k`` the mass fraction of the oxide ``k``,
+``M_k`` its molar mass from the library and ``\\nu_k`` the cations in its
+formula (two in Al₂O₃, one in CaO). Hydrogen is not counted as a cation, so
+that water reported in an analysis is not. The analysis is not renormalized,
+as in [`oxide_budget`](@ref).
+
+Given as `M` to [`glass_species`](@ref), it makes one mole of the glass one mole
+of its cations, the unit in which the dissolution rates of glasses are
+measured per unit area ([`snellings2013_glass`](@ref)).
+
+# Examples
+
+```julia
+slag = Dict("CaO" => 0.43, "Al2O3" => 0.19, "SiO2" => 0.38)
+sp = glass_species(slag; symbol = "G1", M = cation_molar_mass(slag))
+sum(v for (el, v) in atoms(sp) if el != :O)        # 1.0
+```
+"""
+function cation_molar_mass(oxides::AbstractDict{<:AbstractString, <:Real})
+    T = promote_type(Float64, (typeof(float(v)) for v in values(oxides))...)
+    cations = zero(T)
+    for (ox, f) in oxides
+        iszero(f) && continue
+        f < 0 && throw(ArgumentError("cation_molar_mass: the mass fraction of `$ox` is negative ($f)."))
+        el, nu = _oxide_cation(ox)
+        el === :H && continue
+        cations += float(f) * nu / _oxide_molar_mass(ox)
+    end
+    cations > 0 || throw(ArgumentError("cation_molar_mass: the analysis holds no cation."))
+    return inv(cations) * u"g/mol"
 end
 
 """
