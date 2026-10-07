@@ -125,7 +125,9 @@
     area = 1.0e4                                                    # m², a test value
     rq = Reaction(OrderedDict(csq["Qtz"] => 1.0), OrderedDict(csq["SiO2@"] => 1.0); symbol = "quartz dissolution")
     law = transition_state(palandri_kharaka("quartz, BET surface area"), csq, rq, FixedSurfaceArea(area))
-    nq0 = [nw * u"mol", 0.0u"mol", 1.0u"mol"]
+    iq(sym) = findfirst(s -> symbol(s) == sym, csq.species)
+    amounts(w, si, qz) = (n = fill(0.0u"mol", 3); n[iq("H2O@")] = w * u"mol"; n[iq("SiO2@")] = si * u"mol"; n[iq("Qtz")] = qz * u"mol"; n)
+    nq0 = amounts(nw, 0.0, 1.0)
     kq = KineticsProblem(csq, [KineticReaction(csq, rq, law)], ChemicalState(csq, nq0), (0.0, 3.0e6); equilibrium_solver = nothing)
     tq = [0.0, 3.0e5, 1.0e6, 3.0e6]
     solq = integrate(kq, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-10, abstol = 1.0e-20, saveat = tq))
@@ -133,4 +135,17 @@
     dissolved = [1.0 - u[1] for u in solq.u]
     @test dissolved ≈ [n_eq * (1 - exp(-area * kqz * t / n_eq)) for t in tq] rtol = 1.0e-6 atol = 1.0e-14
     @test area * kqz * tq[end] / n_eq > 1                           # the run reaches the saturation
+
+    # The saturation ratio of the reaction, as a rate law reads it: one at the
+    # solubility, and the value of the method over the whole system.
+    sat = saturation_ratio(csq, rq)
+    st_eq = ChemicalState(csq, amounts(nw, n_eq, 1.0))
+    @test sat(298.15, 1.0e5, log_activities(st_eq, DiluteSolutionModel())) ≈ 1 rtol = 1.0e-10
+    st_half = ChemicalState(csq, amounts(nw, 0.5n_eq, 1.0))
+    la = log_activities(st_half, DiluteSolutionModel())
+    ν = [symbol(s) == "SiO2@" ? 1.0 : symbol(s) == "Qtz" ? -1.0 : 0.0 for s in csq.species]
+    g = [ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true)) / (R_GAS * 298.15) for s in csq.species]
+    @test sat(298.15, 1.0e5, la) ≈ saturation_ratio(ν, [la[symbol(s)] for s in csq.species], g) rtol = 1.0e-12
+    @test sat(298.15, 1.0e5, la) ≈ 0.5 rtol = 1.0e-10
+    @test_throws ArgumentError saturation_ratio(csq, Reaction(OrderedDict(csq["Qtz"] => 1.0), OrderedDict(subs["Portlandite"] => 1.0); symbol = "not in the system"))
 end

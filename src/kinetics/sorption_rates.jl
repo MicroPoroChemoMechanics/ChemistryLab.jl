@@ -123,10 +123,7 @@ function sorption_rate(k, cs::ChemicalSystem, rxn::AbstractReaction)
     key(i) = _rate_lookup_key(cs, cs.species[i])
     site_key = key(i_s)
     forward = [(key(i), ν) for (i, ν) in reactants if i != i_s]
-    saturation = vcat(
-        [(key(i), -ν, cs.species[i][:ΔₐG⁰]) for (i, ν) in reactants],
-        [(key(i), ν, cs.species[i][:ΔₐG⁰]) for (i, ν) in products],
-    )
+    saturation = _saturation_terms(cs, rxn, "sorption_rate")
 
     f = (T, P, _t, n, lna, _n0) -> begin
         n_site = n[site_key]
