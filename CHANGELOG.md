@@ -85,7 +85,9 @@ partition reports a co-reactant that runs out instead of creating it.
   measurement, and the slag is gone within the month where the paste holds it
   at 41 to 62 % from the first week to the sixth month; over its BET surface it
   is gone in two days. What slows a slag in a paste after its first days is not
-  in a law measured on its glass in a dilute solution.
+  in a law measured on its glass in a dilute solution. The measurements of
+  Newlands et al. (2017) are not used as a test of the law, and the page says
+  why: averages since the start at 25 °C in a closed reactor, not initial rates.
 - **A tutorial on solid solutions in a calculation**
   (`tutorials/solid_solutions.md`): a C-S-H gel declared among other solids,
   which phases the equilibrium keeps and with which composition, why the gel is

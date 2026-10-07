@@ -111,6 +111,17 @@ of 13 to 13.8, with calcium and aluminum set by the hydrates around it, for
 months: whether this law, fitted on dilute solutions, follows the slag of a
 paste is a question for the measurements of a paste, not one it answers.
 
+The measurements of [Newlands2017](@citet), on two glasses of slag-like and
+fly-ash-like composition, are not used to test this law, and not for want of
+quality: they answer another question. The glasses dissolve at 25 °C in a
+closed, stirred reactor for three hours; the pH is read once, at the end, when
+the reactor is opened; and the paper reports the amount released per unit area
+divided by the time elapsed, an average since the start, while calcium returns
+onto the surface of the glass. An initial rate at 20 °C would have to be drawn
+from their figures, through a choice of the early window and an activation
+energy this law does not give, and the comparison would test those choices as
+much as the law.
+
 ## The slag of a paste under this law
 
 The ternary paste of the [pages on curing temperature](@ref ex-slag-temperature-pastes),
