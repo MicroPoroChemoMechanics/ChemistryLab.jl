@@ -1,8 +1,9 @@
 # [Carbon dioxide in water under pressure (Wiebe and Gaddy 1940)](@id sec-validation-co2-solubility)
 
 !!! info "Before this page"
-    [Real gases and pressure](@ref sec-theory-real-gases), for the equation of
-    state of the gas and the pressure terms of the solution.
+    [Real gases](@ref sec-theory-real-gases), for the equation of state of the
+    gas, and [Standard states](@ref sec-theory-standard-states) §1, for the
+    pressure terms of the solution.
 
 [WiebeGaddy1940](@citet) measured how much carbon dioxide dissolves in pure
 water from 12 to 40 °C and from 25 to 500 atm. At these pressures the gas is far

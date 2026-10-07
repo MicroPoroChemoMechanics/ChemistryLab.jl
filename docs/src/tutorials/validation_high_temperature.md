@@ -1,8 +1,8 @@
 # [Water and quartz from 0 to 1000 °C](@id sec-validation-high-temperature)
 
 !!! info "Before this page"
-    [Real gases and pressure](@ref sec-theory-real-gases), §6, for the standard
-    state of the solvent and the domain of the HKF equations.
+    [Thermochemistry](@ref sec-theory-water-eos), §3, for the standard state of
+    the solvent and [the domain of the HKF equations](@ref sec-theory-hkf-domain).
 
 The standard states of the ThermoFun databases reach 1000 °C and 5000 bar: the
 solvent by the equation of state of water of [Haar1984](@citet), the aqueous

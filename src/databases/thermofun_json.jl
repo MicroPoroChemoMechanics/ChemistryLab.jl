@@ -239,7 +239,7 @@ the `limitsTP` of its `cp_ft_equation` methods in a ThermoFun database, from the
 lowest bound of its first interval to the highest of its last. `(-Inf, Inf)`
 for a species whose record declares none, which includes every solute described
 by the HKF equations, whose domain is a density of water rather than a
-temperature (see [Real gases and pressure](@ref sec-theory-real-gases) §6), and
+temperature (see [Where the HKF equations hold](@ref sec-theory-hkf-domain)), and
 the solvent.
 
 Nothing refuses a temperature outside the range: the heat capacity is carried

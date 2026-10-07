@@ -68,7 +68,7 @@ which vanishes at ``P_r = 1`` bar ([`P_STANDARD`](@ref)). For portlandite, with
 and to ``1.3\,RT`` at 1 kbar: negligible for a laboratory sample or a
 structure, not for a deep reservoir. The solvent follows the equation of state
 of water at every temperature and pressure, from the values its record tabulates
-at ``T_r`` and ``P_r`` ([Real gases and pressure](@ref sec-theory-real-gases) §6). A gas is referred to
+at ``T_r`` and ``P_r`` ([Thermochemistry](@ref sec-theory-water-eos) §3). A gas is referred to
 the pure ideal gas at ``P_r``, and the pressure enters its activity (§2). A
 species built by hand keeps the functions it is given: a heat-capacity
 polynomial alone carries no pressure term.
@@ -155,7 +155,7 @@ package gives a gas, whether its record declares the ideal gas (`mv_pvnrt`) or i
 is built without a molar volume, so that the two are consistent at every
 pressure. A real gas keeps this standard state and gains a fugacity coefficient
 in its activity, ``a_i = \varphi_i x_i P/P_r``, from an equation of state
-([Real gases and pressure](@ref sec-theory-real-gases)).
+([Real gases](@ref sec-theory-real-gases)).
 
 ### End-members of a solid solution
 

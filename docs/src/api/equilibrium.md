@@ -15,7 +15,7 @@ Pages = ["equilibrium/activities.jl"]
 
 The equation of state of [PengRobinson1976](@citet) for a gas phase: the critical
 constants a gas carries, its fugacity coefficients and the compressibility factor
-of its phase. See [Real gases and pressure](@ref sec-theory-real-gases).
+of its phase. See [Real gases](@ref sec-theory-real-gases).
 
 ```@autodocs
 Modules = [ChemistryLab]

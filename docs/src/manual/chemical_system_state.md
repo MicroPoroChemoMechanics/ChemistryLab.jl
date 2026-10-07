@@ -276,7 +276,7 @@ same symbol, or `T_c`, `P_c` and `ω` given explicitly, with binary interaction
 parameters `kij` for a mixture. Its activity then gains the fugacity
 coefficient of the equation of state, and its phase the compressibility factor,
 which [`fugacity_coefficients`](@ref) and [`compressibility_factor`](@ref) read
-on a state ([Real gases and pressure](@ref sec-theory-real-gases)).
+on a state ([Real gases](@ref sec-theory-real-gases)).
 
 ```@example cst_gas
 using ChemistryLab, DynamicQuantities
