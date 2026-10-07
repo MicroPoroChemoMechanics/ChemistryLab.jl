@@ -184,6 +184,46 @@ function with_species(m::Material, species::AbstractDict)
     return Material(m.name, m.kind, cons, m.extent, m.source)
 end
 
+"""
+    with_enthalpy(material, enthalpies::AbstractDict; source) -> Material
+
+`material` with the standard enthalpy of formation (J/g, or an energy per mass)
+of the constituents known by their oxides named by the keys of `enthalpies`, and
+its `source`: a glass given its enthalpy by [`glass_enthalpy`](@ref), so that a
+heat which changes its unreacted mass can be computed
+([`heat_release`](@ref)). A constituent with a formula takes its enthalpy from
+its database record and is refused here.
+
+```julia
+glass = only(c for c in slag.constituents if c.name == "glass")
+g = glass_enthalpy(glass.oxides)
+slag = with_enthalpy(slag, Dict("glass" => g.enthalpy); source = "glass_enthalpy")
+```
+"""
+function with_enthalpy(m::Material, enthalpies::AbstractDict; source::AbstractString)
+    unknown = setdiff(String.(keys(enthalpies)), [c.name for c in m.constituents])
+    isempty(unknown) || throw(ArgumentError("with_enthalpy: $(m.name) has no constituent $(join(unknown, ", "))."))
+    cons = AbstractConstituent[]
+    for c in m.constituents
+        h = get(enthalpies, c.name, nothing)
+        if h === nothing
+            push!(cons, c)
+            continue
+        end
+        c isa OxideConstituent || throw(
+            ArgumentError("with_enthalpy: $(c.name) of $(m.name) has a formula; its enthalpy is that of its database record.")
+        )
+        src = c.source === nothing ? String(source) : string(c.source, "; enthalpy: ", source)
+        push!(
+            cons, OxideConstituent(
+                c.name, c.oxides; mass_fraction = c.mass_fraction, extent = c.extent,
+                density = c.density, enthalpy = h, source = src,
+            )
+        )
+    end
+    return Material(m.name, m.kind, cons, m.extent, m.source)
+end
+
 _with_extent(c::MineralConstituent, e) = MineralConstituent{typeof(c.species), typeof(e), typeof(c.mass_fraction)}(c.name, c.species, c.mass_fraction, e)
 _with_extent(c::OxideConstituent{<:Any, F}, e) where {F} = OxideConstituent{typeof(e), F}(c.name, c.oxides, c.mass_fraction, e, c.density, c.enthalpy, c.source)
 

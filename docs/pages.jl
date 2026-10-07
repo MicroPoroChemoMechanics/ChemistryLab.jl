@@ -344,6 +344,9 @@ pages = [
         # loses. Neither feeds back on the calculation.
         "Outputs of a calculation" => [
             "examples/isothermal_calorimetry.md",
+            # The heat of a blend at its measured degrees of reaction, the slag
+            # glass at the enthalpy of the measured glasses.
+            "examples/slag_heat.md",
             "examples/thermogravimetry.md",
         ],
     ],

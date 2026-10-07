@@ -503,6 +503,59 @@
         ["monocarbonate", "XRD", 40, 90, 0.78],
         ["monocarbonate", "XRD", 40, 180, 0.98]
       ]
+    },
+    "cumulative_heat": {
+      "columns": ["temperature_C", "w_b", "age", "heat"],
+      "units": ["1", "1", "d", "J/g"],
+      "kind": "measured",
+      "location": "Fig. 3, bottom row, p. 4: cumulative heat of isothermal calorimetry of the ternary cement PC50S40L10 (solid curves), per gram of the Portland cement of the paste, at w/b 0.4, 0.5 and 0.6 and 5, 20 and 40 C",
+      "rows": [
+        [5, 0.4, 1.0, 91.4],
+        [5, 0.4, 2.0, 215.1],
+        [5, 0.4, 7.0, 420.1],
+        [5, 0.4, 26.91, 543.2],
+        [5, 0.5, 1.0, 79.1],
+        [5, 0.5, 2.0, 205.8],
+        [5, 0.5, 7.0, 431.7],
+        [5, 0.5, 27.08, 585.6],
+        [5, 0.6, 1.0, 72.7],
+        [5, 0.6, 2.0, 203.6],
+        [5, 0.6, 7.0, 433.1],
+        [5, 0.6, 26.85, 588.5],
+        [20, 0.4, 1.0, 287.8],
+        [20, 0.4, 2.0, 392.8],
+        [20, 0.4, 7.0, 522.3],
+        [20, 0.4, 28.0, 593.5],
+        [20, 0.5, 1.0, 287.8],
+        [20, 0.5, 2.0, 409.4],
+        [20, 0.5, 7.0, 561.9],
+        [20, 0.5, 28.0, 650.4],
+        [20, 0.6, 1.0, 291.4],
+        [20, 0.6, 2.0, 418.7],
+        [20, 0.6, 7.0, 581.3],
+        [20, 0.6, 28.0, 683.5],
+        [40, 0.4, 1.0, 464.0],
+        [40, 0.4, 2.0, 530.9],
+        [40, 0.4, 7.0, 595.7],
+        [40, 0.4, 28.0, 646.0],
+        [40, 0.5, 1.0, 474.8],
+        [40, 0.5, 2.0, 559.7],
+        [40, 0.5, 7.0, 642.4],
+        [40, 0.5, 28.0, 705.0],
+        [40, 0.6, 1.0, 482.7],
+        [40, 0.6, 2.0, 577.0],
+        [40, 0.6, 7.0, 669.1],
+        [40, 0.6, 28.0, 735.3]
+      ],
+      "digitization": {
+        "method": "raster image",
+        "tool": "the image of Fig. 3 extracted at its native resolution (1896 x 1486 pixels); the axes calibrated on their tick marks (0 and 800 J/g at pixel rows 1276 and 720 in the three panels; 0 and 28 days at the axis column and 488 pixels to its right, 17.43 pixels per day); each solid curve isolated by its color (red 40 C, green 20 C, blue 5 C), followed by continuity from its right end, where it lies above the dashed curve of the reference cement, and read at 1, 2, 7 and 28 days",
+        "uncertainty": {
+          "value": 12,
+          "unit": "J/g"
+        },
+        "note": "One pixel is 1.4 J/g and 0.06 day: about 12 J/g at 1 day, where the curves are steep, and 2 to 3 J/g from 7 days on; the uncertainty given is the larger. The curves at 5 C stop between 26.9 and 27.1 days; their last point is given at its own age. The dashed curves of the reference cement are not transcribed."
+      }
     }
   },
   "notes": [

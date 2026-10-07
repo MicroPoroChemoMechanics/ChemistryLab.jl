@@ -43,6 +43,22 @@
 - **The measured thermochemistry of silicate glasses**, transcribed: Richet
   (1987, Tables I and A-I), Richet and Bottinga (1986, Table A1; 1984,
   Table 6) and Navrotsky et al. (1980, Table 3).
+- **The heat of a blend at its measured degrees of reaction**
+  (`examples/slag_heat.md`, `scripts/snellings2022_heat.jl`): the
+  slag-limestone cement of Snellings et al. (2022), 50 % CEM I 52.5 R, 40 %
+  slag and 10 % limestone, at the degrees of reaction of its clinker and slag,
+  against its isothermal calorimetry (Fig. 3, read off the figure into
+  `data/literature/Snellings2022.json`), nothing fitted. At 28 days the nine
+  pastes, 5 to 40 °C and w/b 0.4 to 0.6, fall within 4 % of the measurement
+  with the glass at the enthalpy of `glass_enthalpy`; with the glass as the
+  crystals of its composition they would be 6 to 13 % short. At one and two
+  days the computed heat runs ahead of the measured one by 80 to 130 J/g, which
+  the page reports and does not resolve.
+- `with_enthalpy(material, enthalpies; source)` gives the constituents of a
+  material known by their oxides their enthalpy of formation, and
+  `heat_release(rs1, rs2; set_aside)` takes the enthalpy of the oxides a
+  reacting constituent sets aside because the system has no element for them
+  (the titanium of a slag glass), where the heat was `NaN`.
 
 ### Fixed
 
