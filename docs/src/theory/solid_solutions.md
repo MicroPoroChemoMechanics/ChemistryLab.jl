@@ -178,8 +178,9 @@ agree to the last digit.
 `RedlichKisterModel` **requires exactly two end-members**, and
 [`SolidSolutionPhase`](@ref) refuses the combination at construction rather than
 letting a ternary reach an expression written for a binary. For three or more
-end-members the choices are the ideal model or `RegularSolutionModel` with a
-full ``\mathbf{W}`` matrix.
+end-members the choices are the ideal model, `RegularSolutionModel` with a full
+``\mathbf{W}`` matrix, or the asymmetric model of section 9, whose binaries are
+this model to the first order.
 
 ### Published dimensionless parameters, and the temperature
 
@@ -674,6 +675,77 @@ solutions with it.
 
 ## 9. More than two end-members
 
+### Asymmetric mixing of any number of end-members: `SubregularSolutionModel`
+
+The regular model of section 3 is symmetric on every edge, and the
+Redlich–Kister model of section 4 is asymmetric but binary.
+[HelffrichWood1989](@citet) write the asymmetric Margules model for any number of
+end-members (their Eq. 5′):
+
+```math
+G^{\text{ex}} = \sum_{i<j} x_i x_j \Bigl\{ W_{ij}\Bigl[x_j + \tfrac12 \sum_{k\neq i,j} x_k\Bigr]
+              + W_{ji}\Bigl[x_i + \tfrac12 \sum_{k\neq i,j} x_k\Bigr] \Bigr\}
+              + \sum_{i<j<k} W_{ijk}\, x_i x_j x_k .
+```
+
+On the edge ``i``–``j`` the bracket sums vanish and the excess is
+``x_i x_j (W_{ij} x_j + W_{ji} x_i)``: ``W_{ij}`` is ``RT\ln\gamma_i`` at infinite
+dilution of ``i`` in ``j``, and ``W_{ji}`` the converse. The ternary coefficients
+``W_{ijk}`` are a separate measurement. Helffrich and Wood show that the binaries
+do not determine them, even when every binary is symmetric, and that no
+coefficient of higher order appears.
+
+The paper gives the activity coefficients (its Eq. 6′) without the intermediate
+steps. They are short once the excess is written on the simplex, where
+``\sum_{k\neq i,j} x_k = 1 - x_i - x_j``. The bracket of a pair is then
+
+```math
+W_{ij}\Bigl[x_j + \tfrac12(1 - x_i - x_j)\Bigr] + W_{ji}\Bigl[x_i + \tfrac12(1 - x_i - x_j)\Bigr]
+= a_{ij} + b_{ij}(x_i - x_j),
+\qquad
+a_{ij} = \frac{W_{ij} + W_{ji}}{2},\quad b_{ij} = \frac{W_{ji} - W_{ij}}{2},
+```
+
+so each pair is a Redlich–Kister term of the first order, ``a_0 = a_{ij}`` and
+``a_1 = b_{ij}``, and two end-members are exactly the model of section 4 with
+those two coefficients. Write ``g = G^{\text{ex}}/RT`` in this form, as a
+function of ``x_1, \dots, x_n``. The excess of ``n_k`` moles is ``N g(\mathbf{n}/N)``,
+``N = \sum_k n_k``, and since ``\partial x_l/\partial n_k = (\delta_{kl} - x_l)/N``,
+
+```math
+\ln\gamma_k = \frac{\partial (N g)}{\partial n_k}
+            = g + \frac{\partial g}{\partial x_k} - \sum_l x_l \frac{\partial g}{\partial x_l} .
+```
+
+The formula holds whatever ``g`` is off the simplex, since ``N g(\mathbf{n}/N)``
+reads ``g`` only on it. For a pair, ``t = x_i x_j[a + b(x_i - x_j)]`` has
+
+```math
+\frac{\partial t}{\partial x_i} = x_j\bigl[a + b(2x_i - x_j)\bigr],
+\qquad
+\frac{\partial t}{\partial x_j} = x_i\bigl[a + b(x_i - 2x_j)\bigr],
+\qquad
+\sum_l x_l \frac{\partial t}{\partial x_l} = x_i x_j\bigl[2a + 3b(x_i - x_j)\bigr],
+```
+
+and a triple, ``W_{ijk} x_i x_j x_k``, has ``\sum_l x_l\,\partial/\partial x_l`` equal to
+three times itself. Collecting, with every coefficient divided by ``RT``,
+
+```math
+\ln\gamma_k = \sum_{j\neq k} x_j\bigl[a_{kj} + b_{kj}(2x_k - x_j)\bigr]
+            - \sum_{i<j} x_i x_j\bigl[a_{ij} + 2b_{ij}(x_i - x_j)\bigr]
+            + \sum_{\substack{i<j\\ i,j\neq k}} W_{kij}\, x_i x_j
+            - 2\sum_{i<j<l} W_{ijl}\, x_i x_j x_l ,
+```
+
+with ``b_{kj} = (W_{jk} - W_{kj})/2``, which is
+`_excess_ln_gamma(::SubregularSolutionModel, …)` term by term. Setting
+``W_{ij} = W_{ji}`` and every ``W_{ijk}`` to zero leaves the regular model of
+section 3, ``b = 0``. The test suite checks this expression against Eq. (6′) of
+the paper, for each end-member of a quaternary with its twelve binary and four
+ternary coefficients, and Gibbs–Duhem and ``\sum_k x_k \ln\gamma_k = g`` as
+identities.
+
 ### Convexity with more than two end-members
 
 A one-dimensional scan decides a binary. With ``n`` end-members the question is
@@ -700,7 +772,10 @@ condition. In the other direction, a pair with ``W_{ij} > 2RT`` is a witness:
 at the middle of that edge the second derivative along it is ``4 - 2w_{ij} < 0``.
 Between the two, the smallest eigenvalue of the projected Hessian is searched on
 a lattice of compositions, and a negative one is a witness too; finding none
-proves nothing, and the verdict is then `:undecided`.
+proves nothing, and the verdict is then `:undecided`. The subregular model is
+decided by that search alone beyond two end-members: its Hessian depends on the
+composition through the asymmetric and the ternary terms, and no bound of the
+kind above is written for it.
 
 ```@example ss_convexity
 using ChemistryLab, DynamicQuantities, Printf

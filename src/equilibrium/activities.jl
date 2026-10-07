@@ -1424,6 +1424,8 @@ AD-compatible: all branches preserve `ForwardDiff.Dual` through computations on 
 Methods:
 - [`IdealSolidSolutionModel`](@ref): returns `zero(eltype(x))`.
 - [`RedlichKisterModel`](@ref): binary Redlich-Kister formula (requires `length(x) == 2`).
+- [`RegularSolutionModel`](@ref): symmetric multi-component Margules.
+- [`SubregularSolutionModel`](@ref): asymmetric multi-component Margules.
 """
 _excess_ln_gamma(::IdealSolidSolutionModel, k::Int, x::AbstractVector, T::Real) =
     zero(eltype(x))
@@ -1446,6 +1448,38 @@ function _excess_ln_gamma(m::RegularSolutionModel, k::Int, x::AbstractVector, T:
         quad = quad + (W[i, j] / RT) * x[i] * x[j]
     end
     return lin - quad
+end
+
+# Asymmetric multi-component Margules (Helffrich and Wood 1989). On the simplex
+# each pair contributes `x_i x_j [a_ij + b_ij (x_i − x_j)]`, `a_ij = (W_ij + W_ji)/2`,
+# `b_ij = (W_ji − W_ij)/2`, and each triple `W_ijk x_i x_j x_k`. With `g = G^ex/RT`
+# so written, `ln γ_k = g + ∂g/∂x_k − Σ_l x_l ∂g/∂x_l`, the partial molar
+# derivative of `n g` whatever the extension of `g` off the simplex; the sum is
+# `x_i x_j [2a + 3b (x_i − x_j)]` for a pair and `3 W_ijk x_i x_j x_k` for a triple.
+# It is the paper's Eq. (6′), which the tests check term by term.
+function _excess_ln_gamma(m::SubregularSolutionModel, k::Int, x::AbstractVector, T::Real)
+    RT = R_GAS * T   # J/mol
+    n = length(x)
+    W = m.W
+    acc = zero(eltype(x))
+    @inbounds for i in 1:n, j in (i + 1):n
+        a = (W[i, j] + W[j, i]) / (2RT)
+        b = (W[j, i] - W[i, j]) / (2RT)
+        acc -= x[i] * x[j] * (a + 2b * (x[i] - x[j]))
+        if k == i
+            acc += x[j] * (a + b * (2x[i] - x[j]))
+        elseif k == j
+            acc += x[i] * (a + b * (x[i] - 2x[j]))
+        end
+    end
+    for (i, j, l, w) in m.ternary
+        c = w / RT
+        acc -= 2c * x[i] * x[j] * x[l]
+        k == i && (acc += c * x[j] * x[l])
+        k == j && (acc += c * x[i] * x[l])
+        k == l && (acc += c * x[i] * x[j])
+    end
+    return acc
 end
 
 """

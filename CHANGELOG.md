@@ -93,8 +93,29 @@
   with the second. The solution of silica in KOH without lime sits on the middle
   root of its ionic strength, drawn on the page.
 
+- **Asymmetric mixing of any number of end-members**,
+  `SubregularSolutionModel(W; ternary)`: the subregular Margules model in the
+  form of Helffrich and Wood (1989), one coefficient per ordered pair, `W[i, j]`
+  being `RT ln γᵢ` at infinite dilution of `i` in `j`, and one per triple. The
+  package had it only for two end-members (`RedlichKisterModel`) or symmetric
+  (`RegularSolutionModel`). The paper gives the activity coefficients without
+  the steps; the theory of the solid solutions writes them out, from the
+  observation that on the simplex each pair is a Redlich–Kister term of the
+  first order. Checked against Eq. (6′) of the paper for each member of a
+  quaternary with all its coefficients, against both models it extends, and on
+  Gibbs–Duhem; its equilibria certify, and a symmetric one is the regular
+  model's.
+
 ### Fixed
 
+- **A regular solid solution read past its interaction matrix.**
+  `SolidSolutionPhase` did not compare the size of the matrix of a
+  `RegularSolutionModel` with the number of end-members, and the activity
+  coefficients read it without bounds checks: a matrix smaller than the phase
+  read memory past its end, and a larger one was used by its top-left block in
+  silence. The phase
+  now refuses a matrix of the wrong size, for the regular and the subregular
+  models.
 - **A rate law built on a fresh system had a wrong saturation ratio.**
   `transition_state` looked for the standard Gibbs energy of each species of
   the reaction in its property dictionary, where it appears only once the

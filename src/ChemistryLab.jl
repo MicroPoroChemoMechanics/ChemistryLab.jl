@@ -335,6 +335,7 @@ module ChemistryLab
         IdealSolidSolutionModel,
         RedlichKisterModel,
         RegularSolutionModel,
+        SubregularSolutionModel,
         SublatticeModel,
         site_fractions,
         sublattice_model,
