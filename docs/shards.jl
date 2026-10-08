@@ -51,6 +51,18 @@ const DOC_SHARDS = [
         "examples/thermogravimetry.md",
         "examples/semiadiabatic_calorimetry.md",
     ],
+    # The blended cements integrated in time, taken out of `rest` when it reached
+    # 85 of its 120 minutes (0.36.0): ten quaternary pastes and four ternary
+    # ones with their gels, the slag pastes, the slag at three temperatures, and
+    # the glasses dissolving.
+    "blends" => [
+        "examples/quaternary_kinetics.md",
+        "examples/ternary_kinetics.md",
+        "examples/blended_slag_kinetics.md",
+        "examples/slag_temperature.md",
+        "examples/slag_temperature_pastes.md",
+        "examples/glass_dissolution.md",
+    ],
     # Everything else: theory, manual, the other tutorials and applications.
     "rest" => String[],
 ]
