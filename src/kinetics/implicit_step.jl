@@ -356,15 +356,28 @@ function kinetic_step(
     # `Δξ = Kᵀ(n − n₀)`, and with `n − n₀ = Kξ` that is `KᵀK ξ`. Pinning the
     # species instead makes `Δξ` the reaction progress itself, so `M` disappears.
     #
-    # Each residual is divided by its extent's scale. The solver judges these
-    # residuals, in the iteration and in the certificate, against an absolute
-    # tolerance: unscaled, a step whose extent is below that tolerance satisfies
-    # the equation where it starts. Measured on a slow site family (10⁻⁶ mol of
-    # sites, 2.3 × 10⁻¹⁰ mol/s), the step returned `Δξ = 10⁻¹⁵` instead of
-    # `9 × 10⁻¹⁰`, certified with a residual of `9.4 × 10⁻¹⁰`, the whole extent.
+    # Each residual is divided by the amount its reaction acts on, `Σᵢ |Kᵢⱼ| nᵢ`,
+    # capped at one mole, as an element balance is judged against
+    # `tol·min(s, 1 mol)`. The solver judges these residuals, in the iteration
+    # and in the certificate, against an absolute tolerance: unscaled, a step
+    # whose extent is below that tolerance satisfies the equation where it
+    # starts. Measured on a slow site family (10⁻⁶ mol of sites,
+    # 2.3 × 10⁻¹⁰ mol/s), the step returned `Δξ = 10⁻¹⁵` instead of `9 × 10⁻¹⁰`,
+    # certified with a residual of `9.4 × 10⁻¹⁰`, the whole extent.
+    #
+    # Not by the extent itself, `|Δt·M·r₀|`, which is the obvious scale and the
+    # wrong one, for the reason `kinetic_step_adaptive` gives for its own
+    # tolerance: it vanishes with the step and with the rate while the noise of
+    # the solve does not. Measured on calcite dissolving into water (the coupling
+    # tutorial), the certificate then failed near equilibrium on every step the
+    # adaptive march tried above one second: 706 steps reached 842 s, where the
+    # march reaches 10⁵ s in 19.
+    rscale = [
+        max(min(sum(abs(K[i, j]) * n0[i] for i in axes(K, 1)), 1.0), qscale[j]) for j in 1:nr
+    ]
     cq = use_M ?
-        (x, q, params) -> (q .- Δt_s .* (M * rates(x, params))) ./ qscale :
-        (x, q, params) -> (q .- Δt_s .* rates(x, params)) ./ qscale
+        (x, q, params) -> (q .- Δt_s .* (M * rates(x, params))) ./ rscale :
+        (x, q, params) -> (q .- Δt_s .* rates(x, params)) ./ rscale
 
     # A kinetic mineral is determined by its reactivity row, so it must not be
     # subject to an active-set sign test.
