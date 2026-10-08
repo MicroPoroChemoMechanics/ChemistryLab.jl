@@ -24,7 +24,7 @@ equation for a KOH solution, where the article uses Truesdell and Jones' with
 individual ion sizes.
 
 ```@example chloride-temperature
-using ChemistryLab, DynamicQuantities, OptimaSolver, Printf
+using ChemistryLab, DynamicQuantities, OptimaSolver, Printf, Plots
 include(joinpath(pkgdir(ChemistryLab), "scripts", "balonis2019_temperature.jl"))
 
 cs = b19_system()
@@ -53,6 +53,25 @@ for fig in mixtures.figure
         @printf("%3d %s\n", T, join((@sprintf("%10.3f", v[p]) for p in shown)))
     end
 end
+```
+
+The volumes stacked, every temperature of the scan:
+
+```@example chloride-temperature
+layers = [p for p in keys(first(scans[first(mixtures.figure)].volumes)) if p != "total" &&
+          any(fig -> any(v -> get(v, p, 0.0) > 1.0e-3, scans[fig].volumes), mixtures.figure)]
+panels = map(enumerate(zip(mixtures.figure, mixtures.cl2_al2o3, mixtures.co2_al2o3))) do (k, (fig, cl, co2))
+    sc = scans[fig]
+    areaplot(sc.temperatures, reduce(hcat, [[get(v, p, 0.0) for v in sc.volumes] for p in layers]);
+             label = permutedims(layers), palette = :tab10, lw = 0.5, legend = false,
+             xlabel = "temperature (°C)", ylabel = "cm³", titlefontsize = 9,
+             title = @sprintf("%s: 2Cl/Al₂O₃ %.1f, CO₂/Al₂O₃ %.2f", fig, ustrip(cl), ustrip(co2)))
+end
+# The legend as a panel of its own, so that the four plots keep one width.
+key = plot(fill(NaN, 1, length(layers)); label = permutedims(layers), palette = :tab10, lw = 8,
+           framestyle = :none, legend = :left)
+plot(panels..., key; layout = @layout([grid(2, 2) a{0.17w}]), size = (1000, 720),
+     left_margin = 5Plots.mm, bottom_margin = 5Plots.mm)
 ```
 
 ## 3. Where each phase gives way

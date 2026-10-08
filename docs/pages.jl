@@ -167,6 +167,8 @@ pages = [
         "Kinetics and coupling" => [
             "tutorials/kinetics.md",
             "tutorials/coupling.md",
+            # A site family at a rate: needs the coupling and a surface.
+            "tutorials/slow_surface.md",
         ],
         # Uses the whole chain, which is why it comes last.
         "Cementitious media" => [
@@ -294,6 +296,7 @@ pages = [
             "examples/leaching.md",
             "examples/sulfate_attack.md",
             "examples/seawater.md",
+            "examples/seawater_flushing.md",
             "examples/delayed_ettringite.md",
             "examples/hemicarbonate.md",
             "examples/chloride_afm.md",

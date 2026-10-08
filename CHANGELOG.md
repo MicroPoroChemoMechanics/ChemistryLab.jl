@@ -1,5 +1,146 @@
 # Changelog
 
+## v0.36.0 — A slow surface, what a rate law may be, and surfaces away from 25 °C
+
+A site family can now be slow: when a kinetic reaction controls one of its
+members, the whole family goes to the kinetic partition, its site budget kept
+by the stoichiometry, and `sorption_rate` gives the reaction the elementary
+mass-action law whose ratio of rate constants is the equilibrium constant of
+the database. Whether any rate law is admissible is now something a run can be
+asked: `dissipation` evaluates, on the certified compositions, the affinity of
+each kinetic reaction and the power it dissipates, and lists where a law runs
+against its affinity, which the theory shows a backward constant chosen
+independently of the database does. Surfaces away from 25 °C are computed as
+PHREEQC computes them: the published constants are held, and the diffuse layer
+screens with the permittivity of water at the temperature of the solve. The
+rate parameters of Palandri and Kharaka (2004) are complete, a leaching can
+renew the pore solution with a solution rather than with water, and a site
+budget of 1e-10 mol certifies.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.35"` does not accept 0.36
+  and has to widen its bound. OptimaSolver 0.8.2 is required.
+- **The constants of a surface built by `site_family` are held at every
+  temperature.** Each complex had a constant standard energy, evaluated at the
+  temperature of construction, so that away from it the log K of its reaction
+  moved with the aqueous species: on the weak sites of hydrous ferric oxide at
+  50 °C the protonation constant 7.29 became 6.73. The energy of each complex
+  now follows the aqueous species of its reaction and log K is the same at
+  every temperature (ASSUMED: no reaction enthalpy, a published surface
+  constant carrying none), as PHREEQC holds the constants of `phreeqc.dat`.
+  Results at the temperature of construction do not move; away from it they do.
+- **`DiffuseLayer` and `ChargePlanes` built without `ε_r` screen with the
+  permittivity of water at the temperature of each solve**, where they kept its
+  value at their construction temperature, 25 °C by default. A given `ε_r` is
+  held as before, and nothing moves at 25 °C. The positional constructors
+  accept the same arguments.
+- **Three names are exported**: `sorption_rate`, `reaction_affinities` and
+  `dissipation`. A package defining the same names alongside
+  `using ChemistryLab` now sees a conflict.
+
+### Added
+
+- **Slow site families.** A site family one of whose members a kinetic reaction
+  controls goes, whole, to the kinetic partition, its free site included, and
+  its site row is conserved by the stoichiometry of the reactions, on the ODE
+  route and in the automatic partition of the implicit step alike; such a
+  family was refused as split between the two partitions. Refused, each by
+  name: a family whose budget follows its host, an electrostatic family sharing
+  its support with a family left at equilibrium, and a state of a slow family
+  that no reaction forms.
+- **`sorption_rate(k, cs, rxn)`**, the elementary law
+  `k n_s ∏ a_i^ν_i (1 − Ω)` of a reaction between two states of one site
+  family: a forward and a backward mass action whose ratio is the equilibrium
+  constant of the database, so that the law vanishes where the equilibrium
+  lies. Tested against the closed-form kinetic Langmuir isotherm, its long-time
+  limit against the certified equilibrium, and its derivative with respect to
+  `k` by ForwardDiff against that of the closed form.
+- **`reaction_affinities(sol, kp)` and `dissipation(sol, kp)`**: the affinity
+  of each kinetic reaction, its rate and the power it dissipates at the saved
+  instants of a run, on the certified compositions, and the instants where a
+  law runs against its affinity beyond a tolerance on `ln Ω` and on the rate.
+  A law with a backward constant ten times too large is flagged; the same law
+  written in `(1 − Ω)` is not, and in a cycle of three reactions only the
+  former keeps a flux turning at rest.
+- **`saturation_ratio(cs, rxn)`** returns `(T, P, lna) -> Ω` over the
+  participants of a reaction, from the standard Gibbs energies the equilibrium
+  solver uses, so that a rate law written as `F (1 − Ω)` vanishes where the
+  equilibrium lies. A participant that is not a species of the system, or has
+  no standard Gibbs energy, is refused rather than left out of the sum.
+- **The twelve remaining tables of Palandri and Kharaka (2004)**: Tables 13,
+  15, 18, 23, 25, 27 to 30 and 35 to 37, 48 rows, in
+  `data/literature/PalandriKharaka2004.json`, each read twice on the rendered
+  pages and compared with the text layer. The misprints that bear on a value
+  are in the notes. `palandri_kharaka` builds the catalysts of the sulfides,
+  Fe³⁺ in the acid mechanism and dissolved O₂ in the neutral one (`fe3`, `o2`),
+  refuses a printed negative activation energy unless `assume_Ea` is given,
+  and refuses a blank order in H⁺ instead of reading it as zero.
+- **`leach(rs, steps; solution)`** renews the pore solution with the budget of a
+  solution, a seawater or a sulfate solution, instead of pure water. The
+  solution must be electrically neutral and written on the primaries of the
+  system; both are checked.
+
+### Fixed
+
+- **A rate parameter could not be differentiated under a stiff method once a
+  law read the equilibrium partition.** The kinetic partition handed the nested
+  dual numbers of a parameter under the Jacobian of Rodas5P to the equilibrium
+  tangent at once; they are now lifted one level at a time, as `solve` does.
+- **The implicit step certified a step that had not moved.** Its extent
+  residual was judged absolutely, so that a step whose extent is below the
+  tolerance satisfied it where it started: on 1e-6 mol of sites at
+  2.3e-10 mol/s the step returned 1e-15 mol instead of 9e-10, certified. Each
+  residual is now divided by the amount its reaction acts on, capped at one
+  mole as an element balance is, and the states of a slow family are seeded at
+  the explicit prediction.
+- **A site family of 1e-9 or 1e-10 mol beside a kilogram of water did not
+  certify**: the solver seeded the total of the family at no less than
+  1e-6 mol and did not come back down to it. OptimaSolver 0.8.2 starts such a
+  phase from its own total. Below 1e-12 of the largest budget (5.6e-11 mol
+  beside a kilogram of water) a component is treated as absent, as the theory
+  of the certificate now states.
+
+### Documentation
+
+- **What a rate law may be** (Theory, rate laws, section 7): for one reaction
+  the second law makes the rate carry the sign of the affinity and vanish with
+  it; the transition-state form fixes the exponent only when one step limits
+  the rate; for several reactions the second law bounds the sum only, and the
+  cycle condition of Wegscheider (1901) is met by laws written in `(1 − Ω)`
+  from one set of standard energies and not by an independent backward
+  constant. The laws of Parrott and Killoh and of Waller are admissible while
+  the affinity keeps the sign they assume, which `dissipation` checks.
+- **A slow surface** (Theory, partial equilibrium): when equilibrium is the
+  right description of a surface, what slow uptake usually is, why a fitted
+  rate constant is apparent, and the two-site model.
+- **Tutorial: a slow site family** on hydrous ferric oxide against its closed
+  form, beside a fast family, and a law with a wrong backward constant seen by
+  `dissipation`.
+- **The species classification note** of the manual described crystals as
+  kinetic and the rest as inert, which the code does not do; corrected.
+- **The theory of surfaces** says which permittivity the diffuse layer screens
+  with, and that the constant of a surface reaction is held at every
+  temperature, with the agreement measured against PHREEQC at 50 °C.
+- **Figures on twenty application pages** that showed their results as tables
+  only: the phases and the elements of the solids along the paths of the
+  durability pages, the hydrates against temperature, the degrees of reaction,
+  the bound water and the portlandite of the blended pastes against time with
+  the measurements beside them, and the assemblages before and after as bars.
+  The thermogram of the thermogravimetry page is computed on the page, where a
+  saved image, cropped, stood in for it. The ClaySor page computes its own side
+  of the comparison with PHREEQC, which it showed as dashes.
+- **Seawater flushed through a ground paste**, against De Weerdt and Justnes
+  (2015): their CEM I 42.5 R paste renewed two thousand times by 195 mL of the
+  Trondheim seawater per 100 g of cement (`leach` with a renewal solution),
+  their measurements in `data/literature/DeWeerdtJustnes2015.json`. One
+  parameter is fitted, the volume the paste equilibrated with, read where the
+  calcium retained is the measured fifth: 4 % of what passed. There Mg/Ca is
+  14 % above the measurement and Al/Ca 4 % below, the sulfur 2.6 times too
+  high, the chloride and the sodium too low; the page says why a ground paste of
+  two kinds of particles lies on no single path.
+
 ## v0.35.1 — Asymmetric mixing, the enthalpy of a glass, and the heat of a blend from its first day
 
 The solid solutions gain the Redlich-Kister series of any number of

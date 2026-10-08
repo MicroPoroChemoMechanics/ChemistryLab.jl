@@ -391,6 +391,17 @@ for (name, amount) in present
 end
 ```
 
+The same assemblage in grams, the members of each solid solution kept apart:
+
+```@example cem5
+in_grams = sort([(symbol(cs.species[i]), n[i] * ustrip(us"g/mol", cs.species[i][:M])) for i in cs.idx_crystal if n[i] > 1.0e-4];
+                by = last, rev = true)
+p_g = bar(first.(in_grams), last.(in_grams); legend = false, color = :steelblue, xrotation = 35,
+    ylabel = "g per 100 g of binder", size = (900, 400), left_margin = 6Plots.mm, bottom_margin = 14Plots.mm,
+    title = @sprintf("CEM V/A (S-V) at 28 days: slag %.0f %% and fly ash %.0f %% reacted", 100ALPHA_SLAG, 100ALPHA_ASH))
+plot!(p_g; ylims = (0, 1.1 * ylims(p_g)[2]))
+```
+
 Where each element ends up is the more useful reading, since the C-A-S-H holds
 several of them at once:
 
@@ -413,6 +424,16 @@ for (component, element) in ("AlO2-" => "Al", "Mg+2" => "Mg", "SO4-2" => "S")
     end
     println()
 end
+```
+
+```@example cem5
+holders = map(("AlO2-" => "Al", "Mg+2" => "Mg", "SO4-2" => "S")) do (component, element)
+    held = component_in_solids(component)
+    p = bar(first.(held), 1000 .* last.(held); legend = false, color = :steelblue, xrotation = 35,
+        ylabel = "mmol per 100 g of binder", title = element, titlefontsize = 10)
+    plot!(p; ylims = (0, 1.1 * ylims(p)[2]))
+end
+plot(holders...; layout = (1, 3), size = (1100, 380), left_margin = 7Plots.mm, bottom_margin = 16Plots.mm)
 ```
 
 ## 5. The oxidation state
@@ -461,6 +482,7 @@ i_portlandite = findfirst(sp -> symbol(sp) == "Portlandite", cs.species)
 # `let` rather than a bare loop: a top-level `for` that assigns to a name of the
 # enclosing scope makes a NEW LOCAL, so `prev` would be read before it is ever
 # written. Wrapping the sweep gives it a scope of its own.
+at_ages = []
 let prev = nothing
     for (label, a_sl, a_as) in AGES
         # Ordered by age and continued, for the reason `solve_paste` gives: each
@@ -468,11 +490,29 @@ let prev = nothing
         e, c = solve_paste(a_sl, a_as; start = prev)
         c.optimal && (prev = e)
         nn = ustrip.(us"mol", e.n)
+        push!(at_ages, (; label = strip(label), n = nn))
         @printf("%-9s %6.0f %% %6.0f %%   %-9s %9.1e %7.3f %9.5f\n",
                 label, 100a_sl, 100a_as, c.optimal, c.balance, pH(e, model),
                 nn[i_portlandite])
     end
 end
+```
+
+The solids at the three ages, those above half a gram at any of them:
+
+```@example cem5
+grams_at(a, i) = a.n[i] * ustrip(us"g/mol", cs.species[i][:M])
+solids = sort([i for i in cs.idx_crystal if maximum(grams_at(a, i) for a in at_ages) > 0.5];
+              by = i -> -maximum(grams_at(a, i) for a in at_ages))
+xs = collect(eachindex(solids))
+fig = plot(; xticks = (xs, symbol.(cs.species[solids])), xrotation = 35, ylabel = "g per 100 g of binder",
+           legend = :topright, size = (900, 420), left_margin = 6Plots.mm, bottom_margin = 14Plots.mm,
+           title = "The reacted fractions of the round robin at 7, 28 and 90 days")
+for (k, a) in enumerate(at_ages)
+    bar!(fig, xs .+ (k - 2) * 0.27, [grams_at(a, i) for i in solids]; bar_width = 0.27, label = a.label,
+         color = (:lightblue, :steelblue, :navy)[k])
+end
+plot!(fig; ylims = (0, 1.1 * ylims(fig)[2]))
 ```
 
 The package's own kinetics would answer this differently, and the disagreement is

@@ -361,11 +361,112 @@ get wrong while conserving matter:
   phases of the parent whose members are all in the partition, its solid
   solutions and its site families, on an all-or-nothing rule: a family split
   between the two partitions is refused, its members sharing one budget.
-- **Surface sites belong to the equilibrium partition.** A site family's budget
-  is a conservation row of the minimization; moving one member across would take
-  the row with it. The states of a site are taken to redistribute as fast as the
-  aqueous speciation; an adsorption slow enough to need a rate law is another
-  model, declared by naming its species as kinetic.
+- **A site family is fast or slow as a whole.** Its budget is a conservation row
+  of the minimization, and moving one member across would take the row with it.
+  A family no reaction controls belongs to the equilibrium partition, its states
+  redistributing as fast as the aqueous speciation. A family one of whose
+  members a kinetic reaction controls goes, whole, to the kinetic partition:
+  [A slow surface](@ref sec-theory-pe-slow-surface).
+
+### [A slow surface](@id sec-theory-pe-slow-surface)
+
+**When equilibrium is the right description.** Partial equilibrium asks the
+reactions it treats as equilibrated to be fast compared with what changes the
+composition, a criterion that is pragmatic, set by the error one accepts and by
+the time scales of the other processes [Rubin1983; p. 1232](@cite). For a
+surface, the time scales reported are short. [Greskowiak2011](@citet) describe
+the surface complexation of metals as reaching equilibrium within milliseconds,
+citing pressure-jump relaxation measurements, and attribute the nonequilibrium
+observed in sediments to diffusion-limited exchange (p. 1).
+[FurrerStumm1986](@citet) take the protonation of an oxide surface as
+equilibrated with the solution while the detachment of a metal center limits the
+dissolution (p. 1850). On calcium silicate hydrates, [Tits2006](@citet) find the
+uptake of strontium fast, with equilibrium reached within one day (Sec. 3.2,
+p. 81). A cement paste changes over hours to years, so equilibrium is the
+default here.
+
+**What a slow uptake usually is.** Where uptake goes on for days or months, the
+authors who analyzed it attribute it to transport into the solid rather than to
+a slow reaction at the site.
+
+- [AxeTrivedi2002](@citet) describe the slow uptake of metals by amorphous Al,
+  Fe and Mn oxides as diffusion along the walls of micropores, which hold 40 to
+  90 % of the sites, every site being at local equilibrium (pp. 259–263).
+- [Spiesz2012](@citet) describe chloride binding during a migration test as a
+  mass transfer toward the binding isotherm,
+  ``r = k\,[c - (C_b/K_b)^{1/n}]`` (Eq. 16, p. 299), and fit ``k`` between
+  1.0 and 10.5 × 10⁻⁶ s⁻¹, smaller for longer tests (Table 3).
+- [Liu2008](@citet) relax each class of sites toward the equilibrium of a
+  surface complexation model at a rate drawn from a lognormal distribution
+  (Eqs. 5 and 6), rates that may stand for diffusion as well as for chemistry
+  (paragraph 23).
+- [Greskowiak2011](@citet) compare that chemical description with a physical
+  one, diffusion into immobile water with equilibrium inside it: the two are
+  equivalent for a linear isotherm (p. 2) and differ when the partition
+  coefficient depends on the composition of the water (Eq. 11, p. 7).
+
+A rate constant fitted on a slow uptake is therefore an apparent parameter. It
+lumps a transport that a zero-dimensional calculation does not resolve, and it
+carries the conditions of the experiment it was fitted on.
+
+**The model.** A family one of whose members a kinetic reaction controls is moved,
+whole, to the kinetic partition, its free site included. Its site row leaves the
+minimization and is conserved by the stoichiometry of the reactions, each of
+which moves one site from one state to another. [`sorption_rate`](@ref) gives such
+a reaction the law
+
+```math
+r = k\, n_s \prod_i a_i^{\nu_i}\,(1 - \Omega) ,
+```
+
+``n_s`` the amount of the site state consumed, the product over the other
+reactants. With ideal site mixing, ``x_s = n_s/N`` and ``x_c = n_c/N`` over the
+family's ``N`` sites, the saturation ratio is
+``\Omega = x_c \prod_p a_p^{\nu_p} / (K\, x_s \prod_i a_i^{\nu_i})``, the
+product over the products other than the site state ``c``, and the law becomes
+
+```math
+r = k\, n_s \prod_i a_i^{\nu_i} - \frac{k}{K}\, n_c \prod_p a_p^{\nu_p} ,
+```
+
+a forward and a backward mass action whose ratio is the equilibrium constant of
+the database: the kinetics of a Langmuir site
+[Rubin1983; Eqs. (66) and (67), p. 1244](@cite). Section 7 of
+[Rate laws](@ref sec-theory-kinetics-admissible) gives the properties that
+follow. In a solution whose activities stay constant, a site family starting bare
+fills as
+
+```math
+n_c(t) = n_c^{\mathrm{eq}}\left(1 - e^{-\lambda t}\right), \qquad
+\lambda = k\left(\prod_i a_i^{\nu_i} + \frac{1}{K}\prod_p a_p^{\nu_p}\right), \qquad
+n_c^{\mathrm{eq}} = \frac{k N}{\lambda}\prod_i a_i^{\nu_i} ,
+```
+
+which the test suite checks against an integrated run, to ``10^{-6}`` of the
+site budget.
+
+**Two sites, and several.** A fast family at equilibrium beside a slow one is the
+two-site description: the fast family follows the solution at every instant, the
+slow one only at the end, and both reach the equilibrium of the whole system,
+which is checked. A distribution of rates, as [Liu2008](@citet) use, can be
+approximated by several slow families with different constants; the package does
+not draw the distribution itself.
+
+**What is refused, and what is assumed.**
+
+- A family whose budget follows its host (`SITES_FOLLOW_HOST`) is refused as
+  slow: its sites would appear or vanish with an equilibrium phase while their
+  occupancy is integrated.
+- An electrostatic family sharing its support with a family left at equilibrium
+  is refused: both would feel one potential, from a charge the equilibrium solve
+  does not hold. On a support of its own, the potential of a slow family is the
+  eliminated one, a function of its own composition.
+- A state of a slow family that no reaction forms is refused, since its amount
+  would never change.
+- The activity coefficients of the family, an exchange convention or a surface
+  potential, are in ``\Omega``, hence in the backward term. Thermodynamics fixes
+  the ratio of the two terms, not how a non-ideality is shared between them:
+  this is the choice made.
 
 ## [3. The state and the right-hand side](@id sec-theory-pe-rhs)
 

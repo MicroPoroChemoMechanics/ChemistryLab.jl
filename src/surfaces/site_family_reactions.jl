@@ -34,17 +34,21 @@ The standard energies are built so that every reaction has its constant, with
 the free site at zero and the aqueous species at their own `ΔₐG⁰`:
 
 ```math
-\\Delta_a G^\\circ_{\\text{complex}} = -RT \\ln 10 \\, \\log K
-  + \\sum_{\\text{reactants}} \\nu_i \\Delta_a G^\\circ_i
-  - \\sum_{\\text{other products}} \\nu_i \\Delta_a G^\\circ_i .
+\\Delta_a G^\\circ_{\\text{complex}}(T, P) = -RT \\ln 10 \\, \\log K
+  + \\sum_{\\text{reactants}} \\nu_i \\Delta_a G^\\circ_i(T, P)
+  - \\sum_{\\text{other products}} \\nu_i \\Delta_a G^\\circ_i(T, P) .
 ```
 
 The free site at zero is a gauge while the site budget is fixed, and it is the
 required value under `SITES_FOLLOW_HOST`, where the free sites are counted as part
 of the host; [`host_coupling_bias`](@ref) explains why.
 
-The energies are constants, evaluated at `T` and `P`: a published log K carries
-no temperature dependence, and neither does the family built from it.
+A published surface constant carries no reaction enthalpy, and `log K` is then
+held at every temperature, as PHREEQC holds a constant given without one: the
+energy of each complex follows the aqueous species of its reaction (ASSUMED:
+`ΔᵣH = 0`). Until 0.35 the energies were constants evaluated at `T` and `P`,
+which moved `log K` with the aqueous species instead; `T` and `P` are kept for
+compatibility and no longer change the answer.
 
 # Examples
 
@@ -70,9 +74,6 @@ function site_family(
     lookup = aqueous isa AbstractDict ? aqueous : Dict(symbol(s) => s for s in aqueous)
     Tq = T isa Real ? T * u"K" : T
     Pq = P isa Real ? P * u"Pa" : P
-    RT = R_GAS * ustrip(us"K", Tq)
-    energy(s) = ustrip(us"J/mol", s[:ΔₐG⁰](T = Tq, P = Pq; unit = true))
-    aqueous_energy(sym) = energy(_reaction_species(lookup, sym, name))
     surface(sym) = startswith(sym, master)
     rename(sym) = site * sym[(lastindex(master) + 1):end]
 
@@ -102,13 +103,16 @@ function site_family(
                     "one family has one free site."
             ),
         )
-        G = -RT * log(10) * logK
-        for (sp, ν) in stoich
-            surface(sp) && continue
-            G -= ν * aqueous_energy(sp)      # reactants have ν < 0, so they add
-        end
+        # −RT ln10 log K minus the energies of the other participants at the
+        # same (T, P): reactants have ν < 0, so they add.
+        terms = Tuple{Float64, Any}[
+            (Float64(ν), _reaction_species(lookup, sp, name)[:ΔₐG⁰]) for (sp, ν) in stoich if !surface(sp)
+        ]
+        lnK = log(10) * logK
+        G = (T, P) -> -R_GAS * T * lnK -
+            sum((ν * g(; T = T, P = P, unit = false) for (ν, g) in terms); init = zero(T * lnK))
         c = Species(rename(only(product)); aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
-        c[:ΔₐG⁰] = SymbolicFunc(G * u"J/mol")
+        c[:ΔₐG⁰] = NumericFunc(G, (:T, :P), (T = Tq, P = Pq), u"J/mol")
         push!(complexes, c)
     end
     free === nothing && throw(ArgumentError("site_family \"$name\": no reaction given."))

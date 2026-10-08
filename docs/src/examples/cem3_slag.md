@@ -278,6 +278,18 @@ for (name, amount) in present
 end
 ```
 
+The same assemblage in grams, the members of each solid solution kept apart:
+
+```@example cem3
+using Plots
+in_grams = sort([(symbol(cs.species[i]), n[i] * ustrip(us"g/mol", cs.species[i][:M])) for i in cs.idx_crystal if n[i] > 1.0e-4];
+                by = last, rev = true)
+p_g = bar(first.(in_grams), last.(in_grams); legend = false, color = :steelblue, xrotation = 35,
+    ylabel = "g per 100 g of binder", size = (860, 400), left_margin = 6Plots.mm, bottom_margin = 14Plots.mm,
+    title = @sprintf("CEM III/A, w/b %.2f: clinker %.0f %% and slag %.0f %% reacted", WB, 100ALPHA_CLINKER, 100ALPHA_SLAG))
+plot!(p_g; ylims = (0, 1.1 * ylims(p_g)[2]))
+```
+
 ## 5. The oxidation state, which is the point
 
 A CEM I has no answer to give here: its sulfur is all sulfate, so every couple
@@ -400,14 +412,34 @@ function final_heat(file)
     return t, Q
 end
 
-for (file, label) in (
-        ("smilauer2025-122-cemI-52.5R-cizkovice.csv", "CEM I 52.5 R"),
-        ("smilauer2025-184-cemIII-A-42.5N-hranice.csv", "CEM III/A 42.5 N"),
-        ("smilauer2025-121-cemIII-B-32.5N-mokra.csv", "CEM III/B 32.5 N"),
-    )
+records = (
+    ("smilauer2025-122-cemI-52.5R-cizkovice.csv", "CEM I 52.5 R"),
+    ("smilauer2025-184-cemIII-A-42.5N-hranice.csv", "CEM III/A 42.5 N"),
+    ("smilauer2025-121-cemIII-B-32.5N-mokra.csv", "CEM III/B 32.5 N"),
+)
+for (file, label) in records
     t, Q = final_heat(file)
     @printf("  %-18s %6.0f h   %6.1f J/g\n", label, t, Q)
 end
+```
+
+The three records over their whole length:
+
+```@example cem3
+# The time and the heat of every row, and the w/b the header of the record states.
+function heat_curve(file)
+    lines = collect(eachline(joinpath(datapath("experimental"), file)))
+    wb = only(strip(split(l, ':')[2]) for l in lines if startswith(l, "# wb:"))
+    rows = [split(l, ',') for l in lines if !startswith(l, "#") && !startswith(l, "time")]
+    return parse.(Float64, getindex.(rows, 1)), parse.(Float64, getindex.(rows, 3)), wb
+end
+fig = plot(; xscale = :log10, xlabel = "time (h)", ylabel = "heat released (J per g of binder)", legend = :topleft,
+           size = (760, 420), left_margin = 6Plots.mm, bottom_margin = 5Plots.mm, title = "Isothermal calorimetry at 20 °C")
+for (file, label) in records
+    t, Q, wb = heat_curve(file)
+    plot!(fig, t, Q; lw = 2, label = "$label, w/b $wb")
+end
+fig
 ```
 
 Replacing clinker with slag lowers the heat, because **every joule comes from

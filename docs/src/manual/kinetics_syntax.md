@@ -604,11 +604,15 @@ kp = KineticsProblem(
 ```
 
 !!! note "Species classification [Leal2017](@cite)"
-    `KineticsProblem` automatically applies the [Leal2017](@cite) classification:
-    - **Kinetic species** (tracked in ODE state `u`): `AS_CRYSTAL` species with non-zero
-      stoichiometry in any kinetic reaction.
-    - **Equilibrium species**: aqueous species re-equilibrated by `equilibrium_solver`.
-    - **Inert species**: all others.
+    `KineticsProblem` partitions the species as [Leal2017](@citet) do:
+    - **Kinetic species** (tracked in the ODE state `u`): the species each reaction
+      controls, which is the species the system declares kinetic, otherwise the
+      reaction's first crystal reactant, otherwise its first reactant (see
+      [`KineticReaction`](@ref)); and, when that species occupies a surface site,
+      every member of its site family (see [`sorption_rate`](@ref)).
+    - **Equilibrium species**: all the others. With an `equilibrium_solver` they are
+      re-speciated from their element totals; without one, they follow the
+      stoichiometry of the reactions, `n = n(0) + νᵀξ`.
 
 ## Parameter sensitivity and optimization
 

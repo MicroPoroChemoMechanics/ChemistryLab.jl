@@ -97,8 +97,9 @@ tends to one far from equilibrium, where the affinity is large, and to
 proportional to the affinity.
 The sign of ``1 - \Omega`` is that of the affinity, so that the mineral
 dissolves below saturation and precipitates above it, as the second law requires
-of every rate: ``\mathcal{A}\,r \ge 0``, the inequality of De Donder
-[Richet2001; Sec. 7.1b, Eq. (7.14), p. 161](@cite).
+of the rate of a single reaction: ``\mathcal{A}\,r \ge 0``, the inequality of
+De Donder [Richet2001; Sec. 7.1b, Eq. (7.14), p. 161](@cite). What it requires of
+several reactions is in [section 7](@ref sec-theory-kinetics-admissible).
 
 One mechanism ([`RateMechanism`](@ref)) contributes, per unit of reactive
 surface,
@@ -483,6 +484,123 @@ The last two rows are the ones to keep in view. Everything above them is
 somebody's published fit to somebody's materials; the calibration page shows what
 happens when those published parameters meet a calorimetry record they were not
 fitted to, and how much of the gap a five-parameter fit closes.
+
+## [7. What a rate law may be](@id sec-theory-kinetics-admissible)
+
+Section 0 says that a rate law may read anything. This section says what it must
+do with what it reads, so that a run does not leave the side of thermodynamics:
+where the rate vanishes, which sign it has, and how two laws closing a cycle
+must agree.
+
+### One reaction
+
+For a single reaction the second law makes the entropy it produces non-negative,
+``T\,\mathrm{d}S/\mathrm{d}t = \mathcal{A}\,r \ge 0``: the rate has the sign of
+the affinity and vanishes where the affinity does
+[Richet2001; Eq. (7.14), p. 161](@cite). The converse does not hold, as the same
+page notes: a rate may vanish while ``\mathcal{A}`` does not, which is what a
+metastable phase is.
+
+Any law of the form
+
+```math
+r = F\,\bigl(1 - \Omega^{p}\bigr), \qquad F \ge 0,\quad p > 0 ,
+```
+
+meets both requirements whatever ``F``, since ``1 - \Omega^{p}`` has the sign of
+``\mathcal{A} = -RT\ln\Omega`` (section 1). Thermodynamics fixes nothing more.
+When one elementary step limits the reaction and its activated complex is in
+equilibrium with the reactants of that step, transition-state theory gives the
+same form with ``F`` the forward rate and ``p = 1/\bar\chi``, ``\bar\chi`` the
+average stoichiometric number of the rate-limiting step
+[Boudart1976; Eqs. (11) and (13)](@cite)
+[AagaardHelgeson1982; Eqs. (23) and (30), pp. 250–251](@cite); close to
+equilibrium the rate is then linear in the affinity
+[AagaardHelgeson1982; Eq. (25)](@cite). How the rate depends on the affinity
+away from both limits is not uniquely determined by the equilibrium constant and
+the dissolution law measured far from equilibrium
+[Lasaga1984; p. 4015](@cite). The exponents ``p`` and ``q`` of
+[`transition_state`](@ref) are therefore parameters of a law, not consequences
+of thermodynamics.
+
+What is not a parameter is where the rate vanishes. Written as a forward rate
+minus a backward one, a law that must vanish where the reaction quotient equals
+the equilibrium constant has the ratio of its two rate constants fixed by that
+constant [Lasaga1984; Eqs. (A6)–(A7), p. 4024](@cite). The constant is the one of
+the database the equilibrium solver uses, so that the kinetic reaction and the
+equilibrium partition agree on the state they lead to. A backward rate chosen on
+its own stops the reaction at some ``\Omega \neq 1``, a state the minimization
+would not give, and between ``\Omega = 1`` and that point the law runs against
+the affinity. The laws the package ships, [`transition_state`](@ref),
+[`first_order_rate`](@ref) and [`sorption_rate`](@ref), compute ``\Omega`` from
+the standard Gibbs energies of the system and so vanish where its equilibrium
+lies.
+
+### The laws that do not read the composition
+
+The laws of sections 2 and 3, Parrott–Killoh and Waller, are functions of a
+degree of reaction and of time. They hold no ``\Omega``, so nothing in them
+stops the reaction where the affinity changes sign. They meet the requirement
+only while the reaction keeps the affinity its law assumes, a phase dissolving
+into a solution undersaturated with it. Whether a run stays there is a question
+of fact, which the diagnostic below answers on the run.
+
+### Several reactions
+
+For several reactions the second law bounds the sum ``\sum_j \mathcal{A}_j r_j``
+only. That each reaction carry the sign of its own affinity is a stronger
+requirement, and it is not automatic when the reactions share species.
+[Wegscheider1901](@citet) treated three isomers converting into one another
+around a cycle: at the kinetic steady state each pair of opposite reactions is
+at equilibrium on its own, with the equilibrium constant equal to the ratio of
+its rate constants, only if the product of the forward rate constants around the
+cycle equals the product of the backward ones (p. 865). Otherwise a steady state
+exists in which the pairs are not each at equilibrium (p. 856), and Wegscheider
+leaves open which of the two assumptions should give way (p. 905).
+[Lasaga1984](@citet) relies on the principle of detailed balancing to carry rate
+data measured far from equilibrium up to it (p. 4014).
+
+Written as ``F(1 - \Omega^{p})`` with ``\Omega`` from one set of standard Gibbs
+energies, the laws satisfy the condition by construction. Let reactions
+``j = 1, \dots, m`` close a single cycle: ``\sum_j c_j \nu_{ij} = 0`` for every
+species ``i``, with coefficients ``c_j`` not all zero. Then
+
+```math
+\sum_j c_j \ln\Omega_j
+= \sum_j c_j \sum_i \nu_{ij}\left(\ln a_i + \frac{\Delta_a G^\circ_i}{RT}\right)
+= \sum_i \left(\ln a_i + \frac{\Delta_a G^\circ_i}{RT}\right) \sum_j c_j \nu_{ij}
+= 0
+```
+
+whatever the composition. A rest state, every ``r_j = 0``, has every
+``\Omega_j = 1``, which the identity allows. If one law vanishes at
+``\Omega_j = \omega \neq 1`` instead, every rate cannot vanish together, since the
+identity would require ``c_j \ln\omega = 0``. The composition can still stop
+changing: with ``r_j = c_j J`` the amounts move by
+``\sum_j \nu_{ij} r_j = J\sum_j c_j \nu_{ij} = 0``, while a flux ``J \neq 0``
+turns around the cycle. That steady state dissipates
+
+```math
+\sum_j \mathcal{A}_j r_j = J \sum_j c_j \mathcal{A}_j
+= -RT\,J \sum_j c_j \ln\Omega_j = 0 ,
+```
+
+nothing in total, so that unless every term vanishes at least one reaction runs
+against its affinity.
+
+### Checking a run
+
+[`reaction_affinities`](@ref) gives ``\mathcal{A}_j`` for every kinetic reaction
+at every instant of a run, on its certified compositions
+([`speciated_states`](@ref)) and with the activities the rate laws read.
+[`dissipation`](@ref) adds the rate of each law evaluated there, the power
+``\mathcal{A}_j r_j`` and the entropy production ``\sum_j \mathcal{A}_j r_j/T``,
+and lists the instants where ``\mathcal{A}_j r_j < 0`` while
+``|\ln\Omega_j|`` exceeds the accuracy of the speciation. A law written as
+``F(1 - \Omega^{p})`` cannot appear in that list. The test suite checks it does
+not, that a law whose backward constant is ten times too small is listed, and
+that on a cycle of three reactions the flux at rest is zero with consistent laws
+and is not with one inconsistent law (`test/kinetics/test_sorption_kinetics.jl`).
 
 ## See also
 

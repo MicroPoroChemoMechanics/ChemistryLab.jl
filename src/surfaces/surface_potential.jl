@@ -102,7 +102,7 @@ end
 
 # What two families on one surface must agree on.
 _surface_parameters(m::AbstractSiteMixingModel) = m.area
-_surface_parameters(m::ChargePlanes) = (m.area, m.C1, m.C2, m.ε_r)
+_surface_parameters(m::ChargePlanes) = (m.area, m.C1, m.C2, m.ε_r, m.water)
 
 # How many potentials a surface carries, and the residuals that close them.
 _potential_count(::AbstractSiteMixingModel) = 1

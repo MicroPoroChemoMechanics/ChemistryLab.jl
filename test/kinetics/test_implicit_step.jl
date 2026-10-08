@@ -454,6 +454,33 @@ end
     @test e[] > 0
     @test isfinite(e[])
 
+    # Marched on to equilibrium, at ten times the rate, it still takes a few
+    # dozen steps. With the residuals of the step judged relative to the extent,
+    # which vanishes with the rate as the solution saturates, the certificate
+    # refused every step above a second or so: 200 steps reached 32 s of the
+    # 10⁵ s here, and 706 steps 842 s on the coupling tutorial.
+    k_fast = 10k
+    kss_fast = KineticStepSolver(
+        cs, DiluteSolutionModel(), [
+            KineticReaction(
+                cs, rxn2,
+                KineticFunc(
+                    (T, P, t, n, lna, n0) -> k_fast * (1 - saturation_ratio(stoich, [lna[symbol(s)] for s in cs.species], GT)),
+                    NamedTuple(), u"mol/s",
+                ),
+            ),
+        ],
+    )
+    let s = calcite_water(), t = 0.0, h = 1.0, n = 0
+        while t < 1.0e5 - 1.0e-6 && n < 200
+            s, used, h = kinetic_step_adaptive(kss_fast, s, min(h, 1.0e5 - t); t = t)
+            t += used
+            n += 1
+        end
+        @test t ≈ 1.0e5
+        @test n < 60
+    end
+
 end
 
 @testsection "the adaptive step survives a case the stiff ODE route gets wrong" begin

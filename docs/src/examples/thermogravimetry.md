@@ -20,7 +20,7 @@ The plain paste at 28 months, the cement at the 74 % the image analysis gives,
 built by `scripts/gruyaert2010.jl` as on the calorimetry page.
 
 ```@example tga
-using ChemistryLab, DynamicQuantities, Printf
+using ChemistryLab, DynamicQuantities, Printf, Plots
 include(joinpath(pkgdir(ChemistryLab), "scripts", "gruyaert2010.jl"))
 
 cs = gruyaert_system()
@@ -45,6 +45,11 @@ that searched the formula for `H₂O` would report none for it. Per phase:
 for (ph, m) in bound_water_per_phase(opc.eq)                 # largest first
     g(m) > 0.05 && @printf("  %-15s %5.2f g\n", ph, g(m))
 end
+per_phase = [(ph, g(m)) for (ph, m) in bound_water_per_phase(opc.eq) if g(m) > 0.05]
+p_w = bar(first.(per_phase), last.(per_phase); legend = false, color = :steelblue, xrotation = 30,
+    ylabel = "g of water per 100 g of binder", size = (760, 380), left_margin = 6Plots.mm, bottom_margin = 12Plots.mm,
+    title = "The plain paste at 28 months, cement 74 % hydrated, w/b 0.5")
+plot!(p_w; ylims = (0, 1.1 * ylims(p_w)[2]))
 ```
 
 ## Against the thermobalance
@@ -61,15 +66,30 @@ wb_measured(sb, days) = only(literature_table("Gruyaert2010", "bound_water";
     batch = "b", slag_to_binder = sb, age_days = days * u"d").bound_water)
 wb_inf(sb) = G10("bound_water_infinity", :bound_water_infinity; slag_to_binder = sb)
 rows = [(2, 0.0, 1.997), (852, 0.0, 1018.264), (852, 0.5, 1018.264), (852, 0.85, 363.392)]
+compared = []
 println("  age  s/b    αc    αs   computed (ettringite)  measured (age)   w_b,∞")
 for (days, sb, tg) in rows
     p = paste(days, sb)
     p.certificate.optimal || error("uncertified paste")
     aft = g(get(Dict(bound_water_per_phase(p.eq)), "ettringite", 0.0u"kg"))
+    push!(compared, (; days, sb, computed = g(bound_water(p.eq)), measured = wb_measured(sb, tg),
+                     infinity = days == 2 ? NaN : wb_inf(sb)))
     @printf("%5d  %4.2f  %4.2f  %4.2f   %6.2f  (%5.2f)      %6.2f (%4.0f d)   %s\n", days, sb,
             αc(days, sb), αs(days, sb), g(bound_water(p.eq)), aft, wb_measured(sb, tg), tg,
             days == 2 ? "  —" : @sprintf("%5.1f", wb_inf(sb)))
 end
+```
+
+```@example tga
+cases = [@sprintf("%s, %d %% slag", c.days == 2 ? "2 days" : "28 months", round(Int, 100c.sb)) for c in compared]
+xs = collect(eachindex(cases))
+fig = bar(xs .- 0.27, [c.computed for c in compared]; bar_width = 0.27, label = "computed: every hydrogen of the solids",
+          color = :steelblue, xticks = (xs, cases), ylabel = "bound water (g per 100 g of binder)", legend = :topleft,
+          size = (860, 420), left_margin = 6Plots.mm, bottom_margin = 6Plots.mm,
+          title = "At the degrees of the image analysis")
+bar!(fig, xs, [c.measured for c in compared]; bar_width = 0.27, label = "thermobalance, above 105 °C", color = :black)
+bar!(fig, xs .+ 0.27, [c.infinity for c in compared]; bar_width = 0.27, label = "w_b,∞ of the article", color = :grey60)
+plot!(fig; ylims = (0, 1.2 * ylims(fig)[2]))
 ```
 
 The calculation counts every hydrogen of the solids, the thermobalance only what
@@ -155,7 +175,21 @@ and the one a wrong window silently breaks.
     phases_without_windows(state, windows[1:2])   # calcite left out
     ```
 
-![A thermogram and its derivative](../assets/thermogram.png)
+The curve and its derivative, each window drawn on its own:
+
+```@example tgawin
+using Plots
+p_m = plot(grid, tg.mass_percent; lw = 2, color = :black, legend = false, xlabel = "temperature (K)",
+           ylabel = "mass (% of initial)", title = "1 mol CH, 2 mol gypsum, 3 mol calcite", titlefontsize = 10)
+vline!(p_m, [400.0, 720.0, 950.0]; ls = :dot, color = :grey50)
+p_d = plot(; xlabel = "temperature (K)", ylabel = "−dm/dT (g per K)", title = "Its derivative, which resolves the phases",
+           titlefontsize = 10, legend = :topleft)
+for (w, lab, c) in zip(windows, ("gypsum", "portlandite", "calcite"), (:steelblue, :firebrick, :seagreen))
+    plot!(p_d, grid, 1000 .* thermogram(state, [w]; temperatures = grid).dtg; lw = 2, color = c, label = lab)
+end
+plot!(p_d, grid, 1000 .* tg.dtg; lw = 2, ls = :dash, color = :black, label = "total")
+plot(p_m, p_d; layout = (1, 2), size = (980, 380), left_margin = 6Plots.mm, bottom_margin = 6Plots.mm)
+```
 
 ### Recovering the windows from the curve
 
@@ -217,6 +251,17 @@ fwd2(θ) = thermogram(state, with_window_parameters(overlapped, θ; kind = PROV_
 identifiability(fwd2, θ2; names = names2)
 ```
 
+```@example tgawin
+p_o = plot(; xlims = (300, 520), xlabel = "temperature (K)", ylabel = "−dm/dT (g per K)", legend = :topright,
+           size = (720, 360), left_margin = 6Plots.mm, bottom_margin = 6Plots.mm,
+           title = "Gypsum at 400 K and portlandite at 405 K, both 15 K wide")
+for (w, lab, c) in zip(overlapped, ("gypsum", "portlandite"), (:steelblue, :firebrick))
+    plot!(p_o, grid, 1000 .* thermogram(state, [w]; temperatures = grid).dtg; lw = 2, color = c, label = lab)
+end
+plot!(p_o, grid, 1000 .* fwd2(θ2); lw = 2, ls = :dash, color = :black, label = "what the curve shows")
+p_o
+```
+
 Two phases releasing 5 K apart, and the rank comes out at **one of four**: the
 position of what the curve shows as one peak, the spectrum falling by 10.6 after
 its first value and by 8.7 after its second. The two midpoints are correlated at
@@ -266,6 +311,16 @@ for (label, ref) in ((":initial", :initial), ("dry at 500 °C", dry), (":ignited
     @printf("%-14s reference %7.3f g   loss at the end %6.2f %%\n",
             label, ustrip(uconvert(us"g", t.reference_mass * us"kg")), t.loss_percent[end])
 end
+```
+
+```@example tgawin
+fig = plot(; xlabel = "temperature (K)", ylabel = "mass lost (% of the reference)", legend = :topleft,
+           size = (720, 380), left_margin = 6Plots.mm, bottom_margin = 6Plots.mm,
+           title = "One curve, three reference masses")
+for (label, ref) in ((":initial", :initial), ("dry at 500 °C", dry), (":ignited", :ignited))
+    plot!(fig, grid, thermogram(state, windows; temperatures = grid, relative_to = ref).loss_percent; lw = 2, label)
+end
+fig
 ```
 
 The same loss is a larger percentage of a smaller reference: which convention a

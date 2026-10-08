@@ -586,3 +586,61 @@ function molar_mass(kr::KineticReaction)
         )
     )
 end
+
+# ── the saturation ratio of a reaction, for a rate law ───────────────────────
+
+"""
+    saturation_ratio(cs::ChemicalSystem, rxn::AbstractReaction) -> Function
+
+The saturation ratio of `rxn`, as a function to call inside a rate law:
+`(T, P, lna) -> Ω`, with `lna` the log-activities the law receives (a
+[`StateView`](@ref), or any collection indexed by species symbol), `T` in K and
+`P` in Pa:
+
+```math
+\\ln\\Omega = \\sum_j \\nu_j \\left(\\ln a_j + \\frac{\\Delta_a G^\\circ_j(T, P)}{RT}\\right)
+```
+
+over every participant of `rxn`, products counted positive. `Ω = 1` where the
+equilibrium solver puts the reaction, since both read the same activities and
+the same standard Gibbs energies: a law written as `F (1 − Ω)` with this `Ω`
+vanishes there ([What a rate law may be](@ref sec-theory-kinetics-admissible)).
+
+Every participant must be a species of `cs` and carry a standard Gibbs energy;
+one missing either is refused here rather than left out of the sum.
+
+# Example
+
+```julia
+sat = saturation_ratio(cs, rxn)
+law = (T, P, t, n, lna, n0) -> k * n["Cal"] * (1 - sat(T, P, lna))
+```
+
+See also the method on vectors, for a computation over the whole system.
+"""
+function saturation_ratio(cs::ChemicalSystem, rxn::AbstractReaction)
+    terms = _saturation_terms(cs, rxn, "saturation_ratio")
+    return (T, P, lna) -> exp(
+        sum(ν * (lna[s] + g(; T = T, P = P, unit = false) / (R_GAS * T)) for (s, ν, g) in terms)
+    )
+end
+
+# The participants of `rxn` as (symbol, signed coefficient, ΔₐG⁰ function),
+# each a species of `cs` with a standard Gibbs energy, refused otherwise.
+function _saturation_terms(cs::ChemicalSystem, rxn::AbstractReaction, caller::AbstractString)
+    out = Tuple{String, Float64, Any}[]
+    for (side, sgn) in ((rxn.reactants, -1.0), (rxn.products, 1.0)), (sp, ν) in side
+        i = findfirst(s -> s == sp, cs.species)
+        i === nothing && throw(
+            ArgumentError("$caller: \"$(symbol(sp))\" is not a species of the system.")
+        )
+        haskey(cs.species[i], :ΔₐG⁰) || throw(
+            ArgumentError(
+                "$caller: \"$(symbol(sp))\" carries no standard Gibbs energy, which the " *
+                    "saturation ratio of the reaction needs."
+            )
+        )
+        push!(out, (_rate_lookup_key(cs, cs.species[i]), sgn * Float64(ν), cs.species[i][:ΔₐG⁰]))
+    end
+    return out
+end

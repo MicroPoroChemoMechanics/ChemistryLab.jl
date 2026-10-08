@@ -180,6 +180,16 @@ vanish. The `H⁺` row carries `+1` for `H⁺` and `−1` for `OH⁻`, so its ze
 is the ordinary state of pure water; treating it as degenerate kills the entire
 acid–base system and returns pH 7.000 with the calcite undissolved.
 
+Here ``b_k \approx 0`` means ``|b_k| \le 10^{-12}\max(1, \max_l |b_l|)``, which is
+``5.6 \times 10^{-11}`` mol beside a kilogram of water. The threshold separates a
+component nobody supplied from the floors a starting state gives every species,
+which the budget would otherwise carry as a trace. Its price is that a component
+supplied below it on purpose, a tracer for instance, is treated as absent as well:
+its species are set to zero, and the certificate counts them in
+`n_absent_component`. Measured on a site family of ``10^{-12}`` mol beside a
+kilogram of water, the sites vanished and the answer was certified; from
+``10^{-10}`` mol on, they are computed.
+
 ### [What the certificate proves, and when](@id sec-theory-certificate-scope)
 
 These conditions are sufficient for a global minimum only when the chemical

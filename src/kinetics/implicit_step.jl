@@ -343,14 +343,6 @@ function kinetic_step(
     idx = des.system.dict_species
     rates = _step_rate_closure(kss, des, T_K, P_Pa, t, n0)
 
-    # `Δξ − Δt·M·r(n) = 0` for Leal's form, `Δξ − Δt·r(n) = 0` for the
-    # species-pinned one. The `M` is not decoration: `Kᵀn − Δξ = ξ₀` defines
-    # `Δξ = Kᵀ(n − n₀)`, and with `n − n₀ = Kξ` that is `KᵀK ξ`. Pinning the
-    # species instead makes `Δξ` the reaction progress itself, so `M` disappears.
-    cq = use_M ?
-        (x, q, params) -> q .- Δt_s .* (M * rates(x, params)) :
-        (x, q, params) -> q .- Δt_s .* rates(x, params)
-
     # The scale of each extent is the one the explicit rate predicts, the only
     # one available before the step is taken, floored so that a reaction starting
     # at zero rate still has one.
@@ -358,6 +350,34 @@ function kinetic_step(
     qscale = [
         max(abs(Δt_s * (use_M ? sum(M[j, :] .* r0) : r0[j])), 1.0e-12) for j in 1:nr
     ]
+
+    # `Δξ − Δt·M·r(n) = 0` for Leal's form, `Δξ − Δt·r(n) = 0` for the
+    # species-pinned one. The `M` is not decoration: `Kᵀn − Δξ = ξ₀` defines
+    # `Δξ = Kᵀ(n − n₀)`, and with `n − n₀ = Kξ` that is `KᵀK ξ`. Pinning the
+    # species instead makes `Δξ` the reaction progress itself, so `M` disappears.
+    #
+    # Each residual is divided by the amount its reaction acts on, `Σᵢ |Kᵢⱼ| nᵢ`,
+    # capped at one mole, as an element balance is judged against
+    # `tol·min(s, 1 mol)`. The solver judges these residuals, in the iteration
+    # and in the certificate, against an absolute tolerance: unscaled, a step
+    # whose extent is below that tolerance satisfies the equation where it
+    # starts. Measured on a slow site family (10⁻⁶ mol of sites,
+    # 2.3 × 10⁻¹⁰ mol/s), the step returned `Δξ = 10⁻¹⁵` instead of `9 × 10⁻¹⁰`,
+    # certified with a residual of `9.4 × 10⁻¹⁰`, the whole extent.
+    #
+    # Not by the extent itself, `|Δt·M·r₀|`, which is the obvious scale and the
+    # wrong one, for the reason `kinetic_step_adaptive` gives for its own
+    # tolerance: it vanishes with the step and with the rate while the noise of
+    # the solve does not. Measured on calcite dissolving into water (the coupling
+    # tutorial), the certificate then failed near equilibrium on every step the
+    # adaptive march tried above one second: 706 steps reached 842 s, where the
+    # march reaches 10⁵ s in 19.
+    rscale = [
+        max(min(sum(abs(K[i, j]) * n0[i] for i in axes(K, 1)), 1.0), qscale[j]) for j in 1:nr
+    ]
+    cq = use_M ?
+        (x, q, params) -> (q .- Δt_s .* (M * rates(x, params))) ./ rscale :
+        (x, q, params) -> (q .- Δt_s .* rates(x, params)) ./ rscale
 
     # A kinetic mineral is determined by its reactivity row, so it must not be
     # subject to an active-set sign test.
@@ -408,9 +428,13 @@ function kinetic_step(
     # stalls near 1e-8 instead of reaching 1e-12 — measured on two C3A pathways.
     # The prediction costs nothing: the rates at the initial composition are
     # already evaluated for `qscale`.
-    if !isempty(pinned)
+    #
+    # The states of a slow site family are kinetic without being pure phases, so
+    # they are never pinned; a complex starting bare is seeded the same way.
+    seeded = union(pinned, (i for i in kss.idx_kin if i in des.system.idx_surface))
+    if !isempty(seeded)
         x0 = copy(x0)
-        for i in pinned
+        for i in seeded
             pred = n0[i] + sum(K[i, j] * Δt_s * r0[j] for j in 1:nr)
             pred > x0[i] && (x0[i] = pred)
         end
@@ -483,10 +507,11 @@ participant of a declared reaction**. That covers both styles of model:
     write when the hydrate assemblage is part of what you are prescribing.
 
 Species occupying a **surface site** are excluded from the automatic partition
-whatever reaction they take part in: their family's site budget is a
-conservation row of the equilibrium problem, and moving one member to the
-kinetic side would move that row with it. Adsorption slow enough to need a rate
-law of its own is a different model, and it takes an explicit list.
+when they only take part in a reaction another species controls: their family's
+site budget is a conservation row of the equilibrium problem, and moving one
+member to the kinetic side would move that row with it. When a reaction
+controls a member, as [`sorption_rate`](@ref) requires, the adsorption is the
+slow step and the whole family is kinetic, as in [`integrate`](@ref).
 
 Pass an explicit list of species (symbols or indices) to override the partition.
 
@@ -507,6 +532,10 @@ function _reactivity_matrix(reactions, system::ChemicalSystem, kinetic_species)
     # fast as the aqueous speciation does, so it belongs on the equilibrium side
     # — and putting it on the kinetic one would take its conservation row with
     # it, leaving the equilibrium a surface with no sites.
+    #
+    # Unless a reaction CONTROLS a member: the adsorption is then the slow step,
+    # and the whole family goes to the kinetic side, as `integrate` puts it
+    # (`_kinetic_partition`, which also refuses what cannot be slow).
     surface = Set(system.idx_surface)
 
     kin = if kinetic_species === :auto
@@ -514,6 +543,9 @@ function _reactivity_matrix(reactions, system::ChemicalSystem, kinetic_species)
         for kr in reactions, i in 1:ns
             kr.stoich[i] == 0 && continue
             (i in aqueous || i in surface) || push!(s, i)
+        end
+        for i in _kinetic_partition(system, reactions)
+            i in surface && push!(s, i)
         end
         s
     else

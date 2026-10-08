@@ -345,9 +345,13 @@ price is written on it.
 
   - `base`: the mixing model this decorates, `IdealSiteMixing()` by default.
   - `area`: the surface area carrying the charge, in m².
-  - `ε_r`: the relative permittivity of the solvent, dimensionless. Fixed at
-    construction; differentiating a solve with respect to temperature does not
-    propagate through it.
+  - `ε_r`: the relative permittivity of the solvent, dimensionless. Unless a
+    value is given, the permittivity of water at the temperature of each solve,
+    as PHREEQC takes it (at 50 °C, 69.8 against 78.2 at 25 °C); `ε_r` then holds
+    its value at the construction temperature, for display. A given value is held
+    at every temperature.
+  - `water`: whether the permittivity is that of water at the temperature of the
+    solve, and `pressure` the pressure it is evaluated at, in Pa.
 
 See also: [`ConstantCapacitance`](@ref), [`is_gradient_consistent`](@ref),
 [`water_relative_permittivity`](@ref).
@@ -358,30 +362,35 @@ struct DiffuseLayer{M <: AbstractSiteMixingModel, T <: Real} <:
     area::T
     ε_r::T
     scale::T
-    function DiffuseLayer{M, T}(base::AbstractSiteMixingModel, area::Real, ε_r::Real, scale::Real) where {M <: AbstractSiteMixingModel, T <: Real}
+    water::Bool
+    pressure::Float64
+    function DiffuseLayer{M, T}(
+            base::AbstractSiteMixingModel, area::Real, ε_r::Real, scale::Real,
+            water::Bool = false, pressure::Real = 1.0e5,
+        ) where {M <: AbstractSiteMixingModel, T <: Real}
         area > 0 || throw(ArgumentError("area must be positive; got $area m²."))
         ε_r > 0 ||
             throw(ArgumentError("relative permittivity must be positive; got $ε_r."))
         0 <= scale <= 1 ||
             throw(ArgumentError("scale is a homotopy parameter in [0, 1]; got $scale."))
         _refuse_stacked_electrostatics(base, "DiffuseLayer")
-        return new{M, T}(base, convert(T, area), convert(T, ε_r), convert(T, scale))
+        return new{M, T}(base, convert(T, area), convert(T, ε_r), convert(T, scale), water, Float64(pressure))
     end
 end
 
 """
     DiffuseLayer(base, area, ε_r) -> DiffuseLayer
-    DiffuseLayer(; area, temperature = 298.15, pressure = 1.0e5,
-                   ε_r = water_relative_permittivity(temperature, pressure),
+    DiffuseLayer(; area, temperature = 298.15, pressure = 1.0e5, ε_r = nothing,
                    base = IdealSiteMixing()) -> DiffuseLayer
 
 Build a [`DiffuseLayer`](@ref). `area` is in m², a plain `Real` in SI or a
-`Quantity`; `ε_r` is dimensionless and defaults to the permittivity of water at
-`temperature` and `pressure`, from this package's own model.
+`Quantity`. Without `ε_r`, the permittivity is that of water at the temperature
+of each solve and at `pressure`, from this package's own model, as PHREEQC
+takes it; `temperature` only sets the value shown. A given `ε_r` (and the
+positional form) is held at every temperature.
 
-That default costs a few milliseconds of water-property evaluation, paid once
-here rather than once per solver iteration — which is the whole reason it is a
-stored field and not a call inside the activity model.
+The permittivity of water costs 7 µs to evaluate (measured), so following the
+temperature costs a solve nothing worth counting.
 """
 function DiffuseLayer(base::AbstractSiteMixingModel, area, ε_r, scale = 1.0)
     a = _area_si(us"m^2", area, "DiffuseLayer area")
@@ -394,11 +403,13 @@ function DiffuseLayer(;
         area,
         temperature::Real = 298.15,
         pressure::Real = 1.0e5,
-        ε_r = water_relative_permittivity(temperature, pressure),
+        ε_r = nothing,
         scale::Real = 1.0,
         base::AbstractSiteMixingModel = IdealSiteMixing(),
     )
-    return DiffuseLayer(base, area, ε_r, scale)
+    ε_r === nothing || return DiffuseLayer(base, area, ε_r, scale)
+    m = DiffuseLayer(base, area, water_relative_permittivity(temperature, pressure), scale)
+    return DiffuseLayer{typeof(base), typeof(m.area)}(base, m.area, m.ε_r, m.scale, true, pressure)
 end
 
 """
@@ -417,7 +428,11 @@ continuation loop can be written without asking what it is solving.
 """
 with_electrostatic_scale(m::AbstractSiteMixingModel, ::Real) = m
 with_electrostatic_scale(m::DiffuseLayer, λ::Real) =
-    DiffuseLayer(m.base, m.area, m.ε_r, λ)
+    DiffuseLayer{typeof(m.base), typeof(m.area)}(m.base, m.area, m.ε_r, λ, m.water, m.pressure)
+
+# The relative permittivity a diffuse layer is screened with at `T`: water's at
+# that temperature, or the value the model was given.
+_permittivity(m::DiffuseLayer, T) = m.water ? water_relative_permittivity(T, m.pressure) : m.ε_r
 
 supports_multidentate(m::DiffuseLayer) = supports_multidentate(m.base)
 
@@ -473,7 +488,9 @@ returns is a self-consistent speciation rather than a certified minimum.
   - `area`: the charged area [m²].
   - `C1`, `C2`: the capacitances of the inner and outer Stern layers [F/m²];
     `C2 = Inf` merges planes 1 and 2.
-  - `ε_r`: the relative permittivity of the solvent, for the diffuse layer.
+  - `ε_r`, `water`, `pressure`: the relative permittivity of the solvent, for the
+    diffuse layer, as for [`DiffuseLayer`](@ref): water's at the temperature of
+    each solve unless a value is given.
 
 See also: [`with_plane_charges`](@ref), [`DiffuseLayer`](@ref),
 [`ConstantCapacitance`](@ref).
@@ -484,40 +501,49 @@ struct ChargePlanes{M <: AbstractSiteMixingModel, T <: Real} <: AbstractSiteMixi
     C1::T
     C2::T
     ε_r::T
-    function ChargePlanes{M, T}(base::AbstractSiteMixingModel, area::Real, C1::Real, C2::Real, ε_r::Real) where {M <: AbstractSiteMixingModel, T <: Real}
+    water::Bool
+    pressure::Float64
+    function ChargePlanes{M, T}(
+            base::AbstractSiteMixingModel, area::Real, C1::Real, C2::Real, ε_r::Real,
+            water::Bool = false, pressure::Real = 1.0e5,
+        ) where {M <: AbstractSiteMixingModel, T <: Real}
         area > 0 || throw(ArgumentError("area must be positive; got $area m²."))
         C1 > 0 || throw(ArgumentError("C1 must be positive; got $C1 F/m²."))
         C2 > 0 || throw(ArgumentError("C2 must be positive (Inf to merge planes 1 and 2); got $C2 F/m²."))
         ε_r > 0 || throw(ArgumentError("relative permittivity must be positive; got $ε_r."))
         _refuse_stacked_electrostatics(base, "ChargePlanes")
-        return new{M, T}(base, convert(T, area), convert(T, C1), convert(T, C2), convert(T, ε_r))
+        return new{M, T}(base, convert(T, area), convert(T, C1), convert(T, C2), convert(T, ε_r), water, Float64(pressure))
     end
 end
 
 """
     ChargePlanes(; area, C1, C2 = Inf, temperature = 298.15, pressure = 1.0e5,
-                   ε_r = water_relative_permittivity(temperature, pressure),
-                   base = IdealSiteMixing()) -> ChargePlanes
+                   ε_r = nothing, base = IdealSiteMixing()) -> ChargePlanes
 
 Build a [`ChargePlanes`](@ref) surface: `area` in m², `C1` and `C2` in F/m², each
-a plain `Real` in SI or a `Quantity`.
+a plain `Real` in SI or a `Quantity`. Without `ε_r`, the diffuse layer is
+screened with the permittivity of water at the temperature of each solve, as
+for [`DiffuseLayer`](@ref).
 """
 function ChargePlanes(;
         area, C1, C2 = Inf,
         temperature::Real = 298.15,
         pressure::Real = 1.0e5,
-        ε_r = water_relative_permittivity(temperature, pressure),
+        ε_r = nothing,
         base::AbstractSiteMixingModel = IdealSiteMixing(),
     )
     a = _area_si(us"m^2", area, "ChargePlanes area")
     c1 = _area_si(us"F/m^2", C1, "ChargePlanes C1")
     c2 = C2 isa Real && isinf(C2) ? float(C2) : _area_si(us"F/m^2", C2, "ChargePlanes C2")
-    e = _area_si(us"m^2/m^2", ε_r, "ChargePlanes relative permittivity")
+    water = ε_r === nothing
+    e = _area_si(us"m^2/m^2", water ? water_relative_permittivity(temperature, pressure) : ε_r, "ChargePlanes relative permittivity")
     v = promote(a, c1, c2, e)
-    return ChargePlanes{typeof(base), eltype(v)}(base, v...)
+    return ChargePlanes{typeof(base), eltype(v)}(base, v..., water, pressure)
 end
 
 supports_multidentate(m::ChargePlanes) = supports_multidentate(m.base)
+
+_permittivity(m::ChargePlanes, T) = m.water ? water_relative_permittivity(T, m.pressure) : m.ε_r
 
 """
     with_plane_charges(s::Species, c0, c1 = 0, c2 = 0) -> Species
@@ -559,7 +585,7 @@ function charge_planes_potentials(m::ChargePlanes, c::AbstractVector, n::Abstrac
         s2 += c[j][3] * n[j]
     end
     σ0, σ1, σ2 = FARADAY .* (s0, s1, s2) ./ m.area
-    κ = sqrt(8 * m.ε_r * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
+    κ = sqrt(8 * _permittivity(m, T) * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
     ψ2 = 2 * asinh((σ0 + σ1 + σ2) / (κ * sqrt(max(I, eps(float(one(I)))))))
     ψ1 = ψ2 + FARADAY * (σ0 + σ1) / (m.C2 * R_GAS * T)
     ψ0 = ψ1 + FARADAY * σ0 / (m.C1 * R_GAS * T)

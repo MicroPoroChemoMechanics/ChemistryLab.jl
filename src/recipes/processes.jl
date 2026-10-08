@@ -127,20 +127,37 @@ would make the budget charged.
 add_salt(rs::RecipeState, salt::AbstractString, amounts; kwargs...) = titrate(rs, salt, amounts; kwargs...)
 
 """
-    leach(rs, steps; renewal = nothing, kwargs...) -> ProcessResult
+    leach(rs, steps; renewal = nothing, solution = nothing, kwargs...) -> ProcessResult
 
 `steps` renewals of the pore solution: at each, the whole aqueous phase of the
 last equilibrium is removed and replaced by `renewal` of pure water (g; by
 default the water of the recipe), and the paste is equilibrated again with what
 remains. The residue is unchanged. Each budget depends on the previous answer,
 which is what makes this a sequence rather than a sweep.
+
+`solution` replaces the pure water by a solution: its budget in the primaries of
+the system, water included, added at each renewal (a seawater, a sulfate
+solution). It must be electrically neutral, and `renewal` is then not used.
 """
-function leach(rs::RecipeState, steps::Integer; renewal = nothing, kwargs...)
+function leach(rs::RecipeState, steps::Integer; renewal = nothing, solution = nothing, kwargs...)
     w = renewal === nothing ? rs.recipe.water_binder * rs.recipe.binder_mass : _in_unit(us"g", renewal)
+    if solution !== nothing
+        cs = rs.state.system
+        length(solution) == length(cs.SM.primaries) || throw(
+            DimensionMismatch(
+                "leach: the solution has $(length(solution)) entries for the " *
+                    "$(length(cs.SM.primaries)) primaries of the system."
+            )
+        )
+        z = _budget_charge(cs, solution)
+        abs(z) <= 1.0e-10 * max(1.0, maximum(abs, solution)) || throw(
+            ArgumentError("leach: the renewal solution carries a charge of $z mol; close it before leaching.")
+        )
+    end
     states = RecipeState[]
     prev = rs.state
     for _ in 1:steps
-        start, b = _renewal(prev, w)
+        start, b = _renewal(prev, w; solution)
         eq, cert = equilibrate_certified(start; model = rs.model, b, kwargs...)
         push!(states, RecipeState(eq, cert, rs.recipe, rs.t, rs.initial, b, rs.residual, rs.model))
         prev = eq
@@ -148,10 +165,16 @@ function leach(rs::RecipeState, steps::Integer; renewal = nothing, kwargs...)
     return ProcessResult(:step, collect(Any, 1:steps), states)
 end
 
+# The charge a budget carries, in mol: its amounts read through the charge of a
+# composition that realizes it in the primaries of `cs`.
+function _budget_charge(cs, b)
+    return sum(b[k] * charge(p) for (k, p) in enumerate(cs.SM.primaries); init = zero(eltype(b)))
+end
+
 # The state `prev` with its aqueous phase replaced by `w` grams of pure water, and
 # its budget. Read in the system of `prev`, which holds a second instance of a
 # phase declared `instances = :auto` once an earlier step has split it.
-function _renewal(prev::ChemicalState, w)
+function _renewal(prev::ChemicalState, w; solution = nothing)
     cs = prev.system
     iw = findfirst(==("H2O@"), [symbol(s) for s in cs.species])
     Mw = ustrip(us"g/mol", cs.species[iw][:M])
@@ -161,9 +184,21 @@ function _renewal(prev::ChemicalState, w)
     for i in cs.idx_aqueous
         n[i] = 0.0
     end
+    A = Float64.(cs.SM.A)
+    solution === nothing || return _renewal_with(cs, prev, n, iw, A, solution)
     n[iw] = w / Mw
     start = ChemicalState(cs; T = prev.T[1], P = prev.P[1], n = n .* u"mol")
-    return start, Float64.(cs.SM.A) * n
+    return start, A * n
+end
+
+# The same, the aqueous phase replaced by a solution given by its budget: the
+# start holds its water, the budget all of it.
+function _renewal_with(cs, prev, n, iw, A, solution)
+    b = A * n .+ solution
+    kw = findfirst(p -> symbol(p) == "H2O@", cs.SM.primaries)
+    kw === nothing || (n[iw] = max(solution[kw], zero(eltype(n))))
+    start = ChemicalState(cs; T = prev.T[1], P = prev.P[1], n = n .* u"mol")
+    return start, b
 end
 
 """

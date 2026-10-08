@@ -29,7 +29,7 @@ reacts, and [`glass_species`](@ref) gives each a formula, which
 [`with_species`](@ref) puts in its place.
 
 ```@example quaternary
-using ChemistryLab, DynamicQuantities, OptimaSolver, Printf
+using ChemistryLab, DynamicQuantities, OptimaSolver, Printf, Plots
 using Logging # hide
 include(joinpath(pkgdir(ChemistryLab), "scripts", "scholer2015_kinetics.jl"))
 
@@ -118,6 +118,29 @@ for name in ("20-30-0", "20-10-20", "30-20-0", "30-0-20")
 end
 ```
 
+The same four pastes in time, the lines computed at the ages of the
+measurements:
+
+```@example quaternary
+four = ("20-30-0", "20-10-20", "30-20-0", "30-0-20")
+function versus_age(field, ylabel, title)
+    p = plot(; xscale = :log10, xlabel = "age (days)", ylabel, title, titlefontsize = 10, legend = false)
+    for (k, name) in enumerate(four)
+        plot!(p, ages, [getproperty(tga[name][j], field) for j in eachindex(ages)]; lw = 2, color = k,
+              marker = :circle, ms = 3, label = name * ", computed")
+        scatter!(p, ages, getproperty(s15_measured(name), field); color = k, marker = :diamond, label = name * ", measured")
+    end
+    return p
+end
+plot(versus_age(:bound_water, "% of the dry sample", "Bound water, 20 °C"),
+     versus_age(:portlandite, "% of the dry sample", "Portlandite, 20 °C"),
+     plot(fill(NaN, 1, 2length(four)); framestyle = :none, legend = :left,
+          label = permutedims(vcat([[n * ", computed", n * ", measured"] for n in four]...)),
+          color = permutedims(repeat(1:length(four); inner = 2)), seriestype = permutedims(repeat([:path, :scatter], length(four))),
+          marker = permutedims(repeat([:circle, :diamond], length(four))), lw = 2);
+     layout = @layout([a b c{0.2w}]), size = (1000, 400), left_margin = 5Plots.mm, bottom_margin = 6Plots.mm)
+```
+
 [Scholer2015](@citet) computed the two pastes without limestone at the degrees
 of reaction they assume for the long term (their Table 7, in percent of the dry
 hydrates rather than of the dry sample):
@@ -139,10 +162,16 @@ r = runs["20-10-20"]
 st = with_logger(ConsoleLogger(diagnostics)) do # hide
 st = only(speciated_states(r.sol, r.kp; times = [182day]))
 end # hide
-for s in ("Cal", "ettringite", "monocarbonate", "hemicarbonate", "monosulphate12", "C3AFS0.84H4.32", "C3FS0.84H4.32")
-    i = findfirst(x -> symbol(x) == s, r.kp.system.species)
-    @printf("%-16s %.4f\n", s, ustrip(us"mol", st.n[i]))
+shown_phases = ("Cal", "ettringite", "monocarbonate", "hemicarbonate", "monosulphate12", "C3AFS0.84H4.32", "C3FS0.84H4.32")
+amounts = [ustrip(us"mol", st.n[findfirst(x -> symbol(x) == s, r.kp.system.species)]) for s in shown_phases]
+for (s, a) in zip(shown_phases, amounts)
+    @printf("%-16s %.4f\n", s, a)
 end
+# The aluminum carriers, in mmol; the calcite, which holds none, is left out.
+p_al = bar(collect(shown_phases[2:end]), 1000amounts[2:end]; legend = false, color = :steelblue, xrotation = 30,
+    ylabel = "mmol per 100 g of binder", title = "20-10-20 after 182 days, 20 °C",
+    size = (760, 400), left_margin = 6Plots.mm, bottom_margin = 12Plots.mm)
+plot!(p_al; ylims = (0, 1.1 * ylims(p_al)[2]))
 ```
 
 ## 5. What the comparison says
@@ -217,6 +246,19 @@ for name in ("20-30-0", "30-0-20")
     println("  the gel at ", Int(ages[end]), " days: CSHQ ", ratio(cshq_last[name], "CSHQ"), "; CNASH_ss ",
             ratio(gel_runs[("CNASH_ss", name)].last, "CNASH_ss"), "; CASH+NK ", ratio(gel_runs[("CASH+NK", name)].last, "CASH+NK"))
 end
+```
+
+```@example quaternary
+panels = map(("20-30-0", "30-0-20")) do name
+    p = plot(; xscale = :log10, xlabel = "age (days)", ylabel = "portlandite, % of the dry sample",
+             title = name, titlefontsize = 10, legend = name == "20-30-0" ? :bottomleft : false)
+    plot!(p, ages, [x.portlandite for x in tga[name]]; lw = 2, marker = :circle, ms = 3, label = "CSHQ")
+    for gel in ("CNASH_ss", "CASH+NK")
+        plot!(p, ages, [x.portlandite for x in gel_runs[(gel, name)].tga]; lw = 2, marker = :circle, ms = 3, label = gel)
+    end
+    scatter!(p, ages, s15_measured(name).portlandite; color = :black, marker = :diamond, label = "measured")
+end
+plot(panels...; layout = (1, 2), size = (900, 380), left_margin = 6Plots.mm, bottom_margin = 6Plots.mm)
 ```
 
 `CNASH_ss` keeps the portlandite near the measurement in the paste with the

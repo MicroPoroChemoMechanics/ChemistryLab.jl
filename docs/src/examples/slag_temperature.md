@@ -23,7 +23,7 @@ meet its age, to 0.3 point (`data/literature/Snellings2022.json`, under
 `digitization`).
 
 ```@example slag-temperature
-using ChemistryLab, DynamicQuantities, Printf
+using ChemistryLab, DynamicQuantities, Printf, Plots
 include(joinpath(pkgdir(ChemistryLab), "scripts", "snellings2022_kinetics.jl"))
 
 slag, clinker = sn22_degrees("slag"), sn22_degrees("clinker")
@@ -51,6 +51,22 @@ for T in temperatures
         @printf("%3d %6d  %5.1f   %s\n", T, t, law[k], join((@sprintf("%5.1f", measured(clinker, T, w, t)) for w in ratios), " "))
     end
 end
+```
+
+```@example slag-temperature
+grid_days = 10 .^ range(-0.5, log10(200); length = 120)
+wb_marker = Dict(zip(ratios, (:circle, :diamond, :utriangle)))
+fig = plot(; xscale = :log10, ylims = (0, 100), xlabel = "age (days)", ylabel = "degree of reaction of the clinker (%)",
+           legend = :outerright, size = (900, 420), left_margin = 5Plots.mm, bottom_margin = 5Plots.mm,
+           title = "The clinker under the published law", titlefontsize = 11)
+for (k, T) in enumerate(temperatures)
+    plot!(fig, grid_days, sn22_clinker_degree(T, first(ratios), grid_days); lw = 2, color = k, label = "law, $(Int(T)) °C")
+    for w in ratios
+        scatter!(fig, days, [measured(clinker, T, w, t) for t in days]; color = k, marker = wb_marker[w], ms = 4,
+                 label = T == first(temperatures) ? "measured, w/b $w" : "")
+    end
+end
+fig
 ```
 
 **The law has the clinker right only late.** At 5 °C it is within three
@@ -98,6 +114,19 @@ for (label, f) in fits
 end
 ```
 
+```@example slag-temperature
+labels = [first(f) for f in fits]
+fig = plot(; ylabel = "misfit (points of degree)", xticks = (eachindex(labels), labels), xrotation = 25,
+           legend = :topright, size = (900, 430), left_margin = 6Plots.mm, bottom_margin = 22Plots.mm,
+           title = "The Waller law fitted on the slag")
+for (j, w) in enumerate(ratios)
+    bar!(fig, (1:3) .+ (j - 2) * 0.27, [f[2][j].rms for f in fits[1:3]]; bar_width = 0.27, label = "w/b $w alone")
+end
+bar!(fig, 4:6, [only(f[2]).rms for f in fits[4:6]]; bar_width = 0.5, color = :grey50, label = "the 54 degrees together")
+hline!(fig, [10]; ls = :dash, color = :black, label = "uncertainty of the measurement")
+plot!(fig; ylims = (0, 1.1 * ylims(fig)[2]))
+```
+
 The first three rows fit each w/b alone, one column each, the last three the
 54 degrees together with one ceiling per w/b. The fly-ash shape, a sigmoid that goes on to
 complete reaction, misses the measurement by 15 to 18 points of degree, more
@@ -129,6 +158,21 @@ for T in temperatures, t in days
     i = [findfirst((fit.temperature_C .== T) .& (fit.w_b .== w) .& (fit.age .== t)) for w in ratios]
     @printf("%3d %6d   %s\n", T, t, join((@sprintf("%5.1f/%5.1f", fit.model[j], fit.measured[j]) for j in i), "  "))
 end
+```
+
+```@example slag-temperature
+panels = map(enumerate(ratios)) do (j, w)
+    p = plot(; xscale = :log10, ylims = (0, 100), xlabel = "age (days)", ylabel = "degree of the slag (%)",
+             title = @sprintf("w/b %.1f, ceiling %.2f", w, fit.θ[w].α_max), titlefontsize = 10,
+             legend = j == 1 ? :topleft : false)
+    for (k, T) in enumerate(temperatures)
+        plot!(p, grid_days, sn22_waller_degree(fit.θ[w], T, grid_days); lw = 2, color = k, label = "$(Int(T)) °C")
+        scatter!(p, days, [measured(slag, T, w, t) for t in days]; color = k, marker = :diamond,
+                 label = j == 1 && k == 1 ? "measured" : "")
+    end
+    p
+end
+plot(panels...; layout = (1, 3), size = (1100, 360), left_margin = 6Plots.mm, bottom_margin = 7Plots.mm)
 ```
 
 The six constants are all determined, the least well to 33 % (the time), the
@@ -165,6 +209,19 @@ for m in ("S1", "S2"), lab in ("B", "E")
     k = (dz.material .== m) .& (dz.lab .== lab)
     @printf("%s by %s: largest difference %.1f points\n", m, lab, maximum(abs, dz.model[k] .- dz.measured[k]))
 end
+```
+
+```@example slag-temperature
+fig = plot(; xscale = :log10, ylims = (0, 100), xlabel = "age (days)", ylabel = "degree of the slag (%)",
+           legend = :topleft, size = (760, 400), left_margin = 5Plots.mm, bottom_margin = 5Plots.mm,
+           title = "The law of w/b 0.4 on two other slags, assumed at 20 °C", titlefontsize = 11)
+plot!(fig, grid_days, sn22_waller_degree(fit.θ[0.4], 20.0, grid_days); lw = 2, color = :black, label = "law")
+for (k, (mat, lab)) in enumerate(Iterators.product(("S1", "S2"), ("B", "E")))
+    sel = (dz.material .== mat) .& (dz.lab .== lab)
+    scatter!(fig, dz.age[sel], dz.measured[sel]; color = mat == "S1" ? 2 : 3, marker = lab == "B" ? :circle : :diamond,
+             label = "$mat, laboratory $lab")
+end
+fig
 ```
 
 As laboratory B measured them, both slags are within 6.2 points of the law at

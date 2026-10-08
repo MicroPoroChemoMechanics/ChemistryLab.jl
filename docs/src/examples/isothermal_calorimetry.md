@@ -29,7 +29,7 @@ months, and the heat by isothermal calorimetry at 20 °C, all in
 from them; its assumptions are written there.
 
 ```@example isocal
-using ChemistryLab, DynamicQuantities, Printf
+using ChemistryLab, DynamicQuantities, Printf, Plots
 include(joinpath(pkgdir(ChemistryLab), "scripts", "gruyaert2010.jl"))
 
 c = gruyaert_bogue("OPC-CAL")
@@ -67,6 +67,36 @@ p28 = gruyaert_paste(cs; slag = 0.0, alpha_cement = α(852, 0.0), alpha_slag = 0
 @printf("per unit degree of hydration: computed %.0f and %.0f J/g, measured %.0f and %.0f J/g\n",
         heat(p2) / α(2, 0.0), heat(p28) / α(852, 0.0), r2 * Q_total(0.0) / α(2, 0.0),
         Q_total(0.0) / α(852, 0.0))
+```
+
+```@example isocal
+fig = bar([0.8, 1.8], [heat(p2), heat(p28)]; bar_width = 0.4, label = "computed from the states", color = :steelblue,
+          xticks = ([1, 2], ["2 days", "28 months"]), ylabel = "heat (J per g of binder)", legend = :topleft,
+          size = (700, 380), left_margin = 6Plots.mm, bottom_margin = 5Plots.mm,
+          title = "CEM I 52.5 N paste, w/b 0.5, 20 °C")
+bar!(fig, [1.2, 2.2], [r2 * Q_total(0.0), Q_total(0.0)]; bar_width = 0.4, color = :black,
+     label = "measured (at 28 months: the total extrapolated)")
+plot!(fig; ylims = (0, 1.15 * ylims(fig)[2]))
+```
+
+What the minimization made of the reacted cement and its water, at 28 months,
+in grams per 100 g of binder:
+
+```@example isocal
+mass_of(st) = Dict(symbol(st.system.species[i]) => ustrip(us"g", st.n[i] * st.system.species[i][:M])
+                   for i in eachindex(st.n) if !(i in st.system.idx_aqueous) || symbol(st.system.species[i]) == "H2O@")
+before, after = mass_of(p28.initial), mass_of(p28.eq)
+for d in (before, after)
+    d["water"] = pop!(d, "H2O@")
+end
+keep = sort([k for k in union(keys(before), keys(after)) if max(get(before, k, 0.0), get(after, k, 0.0)) > 0.5];
+            by = k -> -max(get(before, k, 0.0), get(after, k, 0.0)))
+xs = collect(eachindex(keep))
+fig = bar(xs .- 0.2, [get(before, k, 0.0) for k in keep]; bar_width = 0.4, label = "reacted cement and water",
+          color = :grey60, xticks = (xs, keep), xrotation = 30, ylabel = "g per 100 g of binder", legend = :topright,
+          size = (860, 400), left_margin = 6Plots.mm, bottom_margin = 12Plots.mm, title = "The plain paste, α = 0.74")
+bar!(fig, xs .+ 0.2, [get(after, k, 0.0) for k in keep]; bar_width = 0.4, label = "at equilibrium", color = :steelblue)
+plot!(fig; ylims = (0, 1.1 * ylims(fig)[2]))
 ```
 
 At 2 days the computed heat is 7 % above the measured one; at 28 months it is
@@ -147,6 +177,14 @@ for o in ("CaO", "SiO2", "Al2O3", "MgO")
     @printf("  %-6s half and half %5.1f %%, slag %5.1f %%\n", o,
             50 * (w_gh[o] + w_ak[o]), ustrip(getproperty(bfs, Symbol(o))))
 end
+```
+
+```@example isocal
+p_h = bar(["glass, 50 % slag", "glass, 85 % slag", "gehlenite", "åkermanite"],
+    [(h_glass .- h_oxides)..., dh_gh, dh_ak]; legend = false, color = [:steelblue, :steelblue, :grey60, :grey60],
+    ylabel = "enthalpy less the oxides (J/g)", size = (720, 380), left_margin = 6Plots.mm, bottom_margin = 5Plots.mm,
+    title = "Each less the crystalline oxides of its composition, SLOP98")
+plot!(p_h; ylims = (1.1 * ylims(p_h)[1], 0))
 ```
 
 The glass lies 330 to 400 J/g below the crystalline oxides of its composition,

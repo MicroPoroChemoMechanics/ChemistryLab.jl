@@ -36,7 +36,7 @@ package attributed to [Waller1999](@citet) is not in the thesis. The exponent
 28 months in the paste with 50 % slag.
 
 ```@example g10k
-using ChemistryLab, DynamicQuantities, OptimaSolver, Printf
+using ChemistryLab, DynamicQuantities, OptimaSolver, Printf, Plots
 using Logging # hide
 include(joinpath(pkgdir(ChemistryLab), "scripts", "gruyaert2010_kinetics.jl"))
 
@@ -48,6 +48,18 @@ G10(table, column; where...) = only(getproperty(literature_table("Gruyaert2010",
 for (days, sb) in ((852, 0.5), (2, 0.85), (852, 0.85))
     @printf("slag %.2f, %3d days: law %4.2f, measured %4.2f\n", sb, days, α_waller(days), αs_measured(days, sb))
 end
+```
+
+```@example g10k
+tt = 10 .^ range(-1, log10(1018); length = 200)
+fig = plot(tt, α_waller.(tt); xscale = :log10, lw = 2, ylims = (0, 1), legend = :topleft,
+           label = @sprintf("Waller law, τ = %.0f d, n = %.1f", ustrip(us"d", τ), WALLER_PARAMS_FLY_ASH.n),
+           xlabel = "age (days)", ylabel = "degree of reaction of the slag", size = (720, 400),
+           left_margin = 5Plots.mm, bottom_margin = 5Plots.mm, title = "The slag at 20 °C")
+scatter!(fig, [852], [αs_measured(852, 0.5)]; marker = :star5, ms = 8, label = "50 % slag, measured: the calibration")
+scatter!(fig, [2, 852], [αs_measured(2, 0.85), αs_measured(852, 0.85)]; marker = :diamond, ms = 6,
+         label = "85 % slag, measured")
+fig
 ```
 
 The first line is the calibration and reproduces its point. The second is a check
@@ -135,8 +147,33 @@ for sb in (0.5, 0.85), days in (2, 852)
 end
 ```
 
-The cement of the blends reaches 94 % at 28 months, the image analysis 94 % and
-91 %: more than in the plain paste, as measured, and for the reason the factor
+The whole runs, against the image analysis at 2 days and 28 months:
+
+```@example g10k
+grid_days = 10 .^ range(-1, log10(1018); length = 150)
+maybe(f, d, sb) = try f(d, sb) catch; NaN end
+fig = plot(; xscale = :log10, ylims = (0, 1), xlabel = "age (days)", ylabel = "degree of hydration (reaction)",
+           legend = :outerright, size = (900, 430), left_margin = 5Plots.mm, bottom_margin = 5Plots.mm,
+           title = "w/b 0.5, 20 °C: lines computed, markers measured")
+for (k, (sb, run)) in enumerate(((0.0, plain), (0.5, blends[0.5]), (0.85, blends[0.85])))
+    tag = @sprintf("%d %% slag", round(Int, 100sb))
+    # The laws of the two blends coincide: the paste with half slag is drawn
+    # wider, under the other.
+    lw = sb == 0.5 ? 5 : 2
+    plot!(fig, grid_days, [gruyaert_degree(run, clinker, d * day) for d in grid_days]; lw, color = k,
+          label = "cement, " * tag)
+    scatter!(fig, [2, 852], [maybe(αc_measured, d, sb) for d in (2, 852)]; color = k, label = "")
+    sb == 0 && continue
+    plot!(fig, grid_days, [gruyaert_degree(run, ["BFS"], d * day) for d in grid_days]; lw, ls = :dash, color = k,
+          label = "slag, " * tag)
+    scatter!(fig, [2, 852], [maybe(αs_measured, d, sb) for d in (2, 852)]; color = k, marker = :diamond, label = "")
+end
+fig
+```
+
+The two blends share their curves: the water/cement factor does not act on
+either, and the slag follows one law in both. The cement of the blends reaches
+94 % at 28 months, the image analysis 94 % and 91 %: more than in the plain paste, as measured, and for the reason the factor
 encodes. Two numbers are missed, and they say what the laws lack. At 2 days the
 cement of the paste with 85 % slag is at 29 %, the law at 47 %: the
 Parrott–Killoh constants know nothing of the slag around the grains. And the slag
@@ -157,6 +194,7 @@ wb_measured(sb) = (tb = literature_table("Gruyaert2010", "bound_water"; batch = 
                    (ustrip.(us"d", tb.age_days), ustrip.(tb.bound_water)))
 g(q) = ustrip(uconvert(us"g", q))
 println("slag   days  computed  measured  ratio")
+bw_series = []
 for (sb, run) in ((0.0, plain), (0.5, blends[0.5]), (0.85, blends[0.85]))
     ages, wb = wb_measured(sb)
     keep = [i for i in eachindex(ages) if ages[i] >= 1 && ages[i] <= 1019]
@@ -164,11 +202,24 @@ for (sb, run) in ((0.0, plain), (0.5, blends[0.5]), (0.85, blends[0.85]))
     states = speciated_states(run.sol, run.kp; times = ages[keep] .* day)
     end # hide
     occursin("could not be certified", String(take!(diagnostics))) && error("an instant was not certified") # hide
-    for (k, st) in zip(keep, states)
-        c = g(bound_water(st))
+    computed = [g(bound_water(st)) for st in states]
+    push!(bw_series, (; sb, ages = ages[keep], computed, measured = wb[keep]))
+    for (k, c) in zip(keep, computed)
         @printf("%4.2f  %5.0f   %6.2f    %6.2f   %4.2f\n", sb, ages[k], c, wb[k], c / wb[k])
     end
 end
+```
+
+```@example g10k
+fig = plot(; xscale = :log10, xlabel = "age (days)", ylabel = "bound water (g per 100 g of binder)", legend = :outerright,
+           size = (900, 430), left_margin = 5Plots.mm, bottom_margin = 5Plots.mm,
+           title = "Bound water, w/b 0.5, 20 °C: lines computed, markers measured", titlefontsize = 11)
+for (k, s) in enumerate(bw_series)
+    tag = @sprintf("%d %% slag", round(Int, 100s.sb))
+    plot!(fig, s.ages, s.computed; lw = 2, color = k, marker = :circle, ms = 3, label = "computed, " * tag)
+    scatter!(fig, s.ages, s.measured; color = k, marker = :diamond, label = "measured, " * tag)
+end
+fig
 ```
 
 For the plain paste and the paste with 50 % slag the ratio stays between 1.1 and

@@ -115,7 +115,7 @@ function _build_kinetics_problem(
         equilibrium_solver = nothing,
     )
     n_sp = length(system.species)
-    idx_kin = unique!(Int[kr.idx_mineral for kr in kin_rxns])
+    idx_kin = _kinetic_partition(system, kin_rxns)
     idx_eq = setdiff(1:n_sp, idx_kin)
     n_rxn = length(kin_rxns)
 
@@ -170,6 +170,77 @@ function _build_kinetics_problem(
         collect(Int, idx_eq),
         ν, νe, νk, Ae,
     )
+end
+
+"""
+    _kinetic_partition(system, kin_rxns) -> Vector{Int}
+
+The kinetic species of a run: the species each reaction controls and, when one of
+them occupies a surface site, every member of its site family.
+
+A family's members share one site budget, so they cannot be split between the
+two partitions. A family stays on the equilibrium side when no reaction controls
+one of its members, which is the fast surface the partial-equilibrium
+formulation assumes. When a reaction controls a member, the adsorption itself is
+the slow step: the free site goes with the complexes, and the site row is then
+conserved by the stoichiometry of the reactions instead of by the minimization.
+
+Two declarations are refused, each by name:
+
+  - a family whose budget follows its host (`SITES_FOLLOW_HOST`): its sites would
+    be created or destroyed by the host's equilibrium while their occupancy is
+    integrated, which nothing here accounts for;
+  - an electrostatic family sharing its support with a family left at
+    equilibrium: the two would see one potential, computed from a charge the
+    equilibrium solve does not hold.
+"""
+function _kinetic_partition(system::ChemicalSystem, kin_rxns)
+    idx = unique!(Int[kr.idx_mineral for kr in kin_rxns])
+    families = system.site_families
+    families === nothing && return idx
+    promoted = falses(length(families))
+    for (k, grp) in enumerate(system.site_groups)
+        any(in(idx), grp) || continue
+        f = families[k]
+        surface_support(f).coupling === SITES_FOLLOW_HOST && throw(
+            ArgumentError(
+                "SiteFamily \"$(name(f))\" has a kinetic member, and its site budget " *
+                    "follows host \"$(surface_support(f).host)\". A slow surface needs a " *
+                    "fixed budget: declare its support with `SITES_FIXED`."
+            )
+        )
+        promoted[k] = true
+        for i in grp
+            # On the kinetic side an amount moves only through the reactions, so
+            # a state no reaction reaches would keep its initial amount forever.
+            any(kr -> !iszero(kr.stoich[i]), kin_rxns) || throw(
+                ArgumentError(
+                    "SiteFamily \"$(name(f))\" is kinetic, but no reaction of the " *
+                        "problem changes \"$(symbol(system.species[i]))\": its amount " *
+                        "would stay at its initial value. Give each state of a slow " *
+                        "family the reaction that forms it."
+                )
+            )
+            i in idx || push!(idx, i)
+        end
+    end
+    groups = support_group(system)
+    for (k, f) in enumerate(families)
+        promoted[k] || continue
+        for g in groups[k]
+            promoted[g] && continue
+            (is_electrostatic(f.model) || is_electrostatic(families[g].model)) && throw(
+                ArgumentError(
+                    "SiteFamily \"$(name(f))\" is kinetic and shares its support " *
+                        "\"$(surface_support(f).name)\" with \"$(name(families[g]))\", left " *
+                        "at equilibrium, under an electrostatic model: both would feel one " *
+                        "potential, from a charge the equilibrium solve does not hold. Put " *
+                        "the two families on separate supports, or make both kinetic."
+                )
+            )
+        end
+    end
+    return idx
 end
 
 # 4-argument form: explicit reaction list (Reaction or KineticReaction)
@@ -640,8 +711,9 @@ function _equilibrium_subsystem(system::ChemicalSystem, idx_equilibrium)
     # Dropping it would leave its members in `sub_species` as `AS_SURFACE`
     # species belonging to no family, which `ChemicalSystem` refuses anyway —
     # but with a message about orphans rather than about the split that caused
-    # them. Sites equilibrate fast by construction in this release, so a split is
-    # a declaration error, and it is worth saying which family and why.
+    # them. A family is fast or slow as a whole (`_kinetic_partition` moves every
+    # member of a family whose member a reaction controls), so a split is a
+    # declaration error, and it is worth saying which family and why.
     families = system.site_families
     sub_families = if families === nothing
         nothing
@@ -1295,6 +1367,25 @@ end
 # lifted to the duals of `be` and of the temperature `T`, by default that of the
 # run.
 function _lifted_partition(p, n_v, T_v, P_v, be; T = p.T_q[])
+    # Nested dual numbers, a parameter's derivative under the Jacobian of a stiff
+    # method, are lifted one level at a time, as `solve` lifts them: the
+    # partition at the inner duals first, then the outer level from it. Handed
+    # to the tangent at once, the inner duals met a conversion to `Float64`, so
+    # no rate law reading the partition could be differentiated with respect to
+    # its parameters under `Rodas5P`.
+    Tn = ustrip(us"K", T)
+    D = promote_type(typeof(Tn), eltype(be))
+    if D <: ForwardDiff.Dual && ForwardDiff.valtype(D) <: ForwardDiff.Dual
+        Tg = ForwardDiff.tagtype(D)
+        T_in = _strip_tag(Tn, Tg)
+        inner = with(_STRIP_TAGS => (_STRIP_TAGS[]..., Tg)) do
+            _lifted_partition(p, n_v, T_v, P_v, _strip_tag(collect(be), Tg); T = T_in * u"K")
+        end
+        at = ChemicalState(p.eq_system[], n_v .* u"mol"; T = T, P = p.P_q[])
+        eq_in = ChemicalState(p.eq_system[], inner .* u"mol"; T = T_in * u"K", P = P_v)
+        eq_d, _ = _lift_equilibrium(p.eq_dual, at, eq_in, be; ϵ = p.ϵ, strip_tag = Tg)
+        return [ustrip(us"mol", x) for x in eq_d.n]
+    end
     at = ChemicalState(p.eq_system[], n_v .* u"mol"; T = T, P = p.P_q[])
     eq_d, _ = _lift_equilibrium(
         p.eq_dual, at, ChemicalState(p.eq_system[], n_v .* u"mol"; T = T_v, P = P_v), be; ϵ = p.ϵ,

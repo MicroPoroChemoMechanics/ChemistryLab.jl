@@ -41,6 +41,20 @@ By taking a cement sheet with classic percentages of oxides ($\ce{CaO}$=65.6%, $
 inv(Aoa) * [65.6, 21.5, 5.2, 2.8]
 ```
 
+The analysis in, and the clinker phases out, both in percent by mass:
+
+```@example Bogue
+using Plots
+oxide_percent = [65.6, 21.5, 5.2, 2.8]
+phase_percent = inv(Aoa) * oxide_percent
+p_in = bar(["CaO", "SiO₂", "Al₂O₃", "Fe₂O₃"], oxide_percent; legend = false, color = :grey60,
+           ylabel = "% by mass", title = "The oxide analysis", titlefontsize = 10)
+p_out = bar(["C₃S", "C₂S", "C₃A", "C₄AF"], phase_percent; legend = false, color = :steelblue,
+            title = "Bogue's phases", titlefontsize = 10)
+plot(p_in, p_out; layout = (1, 2), size = (760, 340), ylims = (0, 72), framestyle = :box, grid = false,
+     left_margin = 5Plots.mm, bottom_margin = 5Plots.mm)
+```
+
 ---
 
 ## Via `mass_matrix`

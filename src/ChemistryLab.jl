@@ -172,10 +172,12 @@ module ChemistryLab
 
     include("kinetics/rate_models.jl")
     include("kinetics/kinetics_reactions.jl")
+    include("kinetics/sorption_rates.jl")
     include("kinetics/kinetics_problems.jl")
     include("kinetics/kinetics_solver.jl")
     include("kinetics/calorimetry.jl")
     include("kinetics/kinetics_postprocessing.jl")
+    include("kinetics/dissipation.jl")
     include("kinetics/implicit_step.jl")
 
     include("recipes/extents.jl")
@@ -632,6 +634,7 @@ module ChemistryLab
         denticity,
         transition_state,
         first_order_rate,
+        sorption_rate,
         KineticReaction,
         molar_mass
 
@@ -649,6 +652,8 @@ module ChemistryLab
         state_at,
         speciated_states,
         degrees_of_hydration,
+        reaction_affinities,
+        dissipation,
         mean_degree_of_hydration
 
     export AbstractCalorimeter,

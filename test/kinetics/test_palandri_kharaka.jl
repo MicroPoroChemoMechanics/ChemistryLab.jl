@@ -8,7 +8,7 @@
 
 @testsection "Palandri and Kharaka (2004): the mechanisms of a mineral" begin
     minerals = palandri_kharaka_minerals()
-    @test length(minerals) == 34 && allunique(minerals)
+    @test length(minerals) == 82 && allunique(minerals)
     @test issubset(["calcite", "quartz, BET surface area", "gibbsite", "anhydrite", "gypsum", "wollastonite", "hematite"], minerals)
 
     k25(m) = m.k(; T = 298.15)
@@ -84,4 +84,68 @@
     # acid one through the activity of H+.
     tst = transition_state(palandri_kharaka("calcite"), cs, rxn, BETSurfaceArea(90.0))
     @test tst isa KineticFunc
+
+    # The sulfides of Table 35 carry orders in Fe3+ and in dissolved O2, the
+    # activities of the report's Eq. (3a); pyrite's acid mechanism is its Eq. (3b).
+    py = palandri_kharaka("pyrite")
+    @test length(py) == 2
+    @test [(c.species, c.n) for c in py[1].catalysts] == [("H+", -0.5), ("Fe+3", 0.5)]
+    @test [(c.species, c.n) for c in py[2].catalysts] == [("O2@", 0.5)]
+    @test k25(py[2]) ≈ 10.0^-4.55 rtol = 1.0e-12
+    py2 = palandri_kharaka("pyrite"; fe3 = "Fe[3+]", o2 = "O2(aq)")
+    @test py2[1].catalysts[2].species == "Fe[3+]" && only(py2[2].catalysts).species == "O2(aq)"
+
+    # K-feldspar has the three mechanisms of Table 15, the base one up to the
+    # alkaline range of a pore solution.
+    kf = palandri_kharaka("K-feldspar")
+    @test length(kf) == 3 && only(kf[3].catalysts).n == -0.823
+    @test k25.(kf) ≈ 10.0 .^ [-10.06, -12.41, -21.2] rtol = 1.0e-12
+
+    # Printed as -53.9 kJ/mol, the acid activation energy of kyanite is stored as
+    # printed and used only as the caller decides; a blank order in H+ (the acid
+    # mechanism of fayalite) is not an order of zero.
+    @test ustrip(us"J/mol", row("orthosilicate_rates", "kyanite").acid_E) == -53900.0
+    @test_throws ArgumentError palandri_kharaka("kyanite")
+    ky = palandri_kharaka("kyanite"; assume_Ea = 53.9e3)
+    @test ky[1].k(; T = 310.0) / k25(ky[1]) ≈ exp(-53.9e3 / R_GAS * (1 / 310.0 - 1 / 298.15)) rtol = 1.0e-12
+    @test ismissing(row("orthosilicate_rates", "fayalite").acid_n_H)
+    @test_throws ArgumentError palandri_kharaka("fayalite")
+    @test only(palandri_kharaka("fayalite"; mechanisms = (:neutral,))).catalysts == RateModelCatalyst{Float64}[]
+
+    # Quartz dissolving into water, through `transition_state` and a run: with
+    # the neutral mechanism of the BET row and one silica species, the amount
+    # dissolved follows n(t) = n_eq (1 − e^{−A k t / n_eq}), n_eq the solubility
+    # in the kilogram of water.
+    qsp = [subs["H2O@"], subs["SiO2@"], subs["Qtz"]]
+    csq = ChemicalSystem(qsp, [subs["H2O@"], subs["SiO2@"]])
+    G(s) = ustrip(us"J/mol", subs[s][:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+    m_eq = exp(-(G("SiO2@") - G("Qtz")) / (R_GAS * 298.15))      # mol/kg, ideal
+    nw = ustrip(us"mol", 1.0u"kg" / subs["H2O@"][:M])
+    n_eq = m_eq * 1.0                                              # one kilogram of water
+    area = 1.0e4                                                    # m², a test value
+    rq = Reaction(OrderedDict(csq["Qtz"] => 1.0), OrderedDict(csq["SiO2@"] => 1.0); symbol = "quartz dissolution")
+    law = transition_state(palandri_kharaka("quartz, BET surface area"), csq, rq, FixedSurfaceArea(area))
+    iq(sym) = findfirst(s -> symbol(s) == sym, csq.species)
+    amounts(w, si, qz) = (n = fill(0.0u"mol", 3); n[iq("H2O@")] = w * u"mol"; n[iq("SiO2@")] = si * u"mol"; n[iq("Qtz")] = qz * u"mol"; n)
+    nq0 = amounts(nw, 0.0, 1.0)
+    kq = KineticsProblem(csq, [KineticReaction(csq, rq, law)], ChemicalState(csq, nq0), (0.0, 3.0e6); equilibrium_solver = nothing)
+    tq = [0.0, 3.0e5, 1.0e6, 3.0e6]
+    solq = integrate(kq, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-10, abstol = 1.0e-20, saveat = tq))
+    kqz = 10.0^row("silica_rates", "quartz, BET surface area").neutral_log_k
+    dissolved = [1.0 - u[1] for u in solq.u]
+    @test dissolved ≈ [n_eq * (1 - exp(-area * kqz * t / n_eq)) for t in tq] rtol = 1.0e-6 atol = 1.0e-14
+    @test area * kqz * tq[end] / n_eq > 1                           # the run reaches the saturation
+
+    # The saturation ratio of the reaction, as a rate law reads it: one at the
+    # solubility, and the value of the method over the whole system.
+    sat = saturation_ratio(csq, rq)
+    st_eq = ChemicalState(csq, amounts(nw, n_eq, 1.0))
+    @test sat(298.15, 1.0e5, log_activities(st_eq, DiluteSolutionModel())) ≈ 1 rtol = 1.0e-10
+    st_half = ChemicalState(csq, amounts(nw, 0.5n_eq, 1.0))
+    la = log_activities(st_half, DiluteSolutionModel())
+    ν = [symbol(s) == "SiO2@" ? 1.0 : symbol(s) == "Qtz" ? -1.0 : 0.0 for s in csq.species]
+    g = [ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true)) / (R_GAS * 298.15) for s in csq.species]
+    @test sat(298.15, 1.0e5, la) ≈ saturation_ratio(ν, [la[symbol(s)] for s in csq.species], g) rtol = 1.0e-12
+    @test sat(298.15, 1.0e5, la) ≈ 0.5 rtol = 1.0e-10
+    @test_throws ArgumentError saturation_ratio(csq, Reaction(OrderedDict(csq["Qtz"] => 1.0), OrderedDict(subs["Portlandite"] => 1.0); symbol = "not in the system"))
 end

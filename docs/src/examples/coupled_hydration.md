@@ -39,7 +39,7 @@ Take the two silicate clinker phases, the hydrates Cemdata18
 pulls in from the primaries.
 
 ```@example coupled
-using ChemistryLab, DynamicQuantities, OptimaSolver, OrdinaryDiffEq, Printf
+using ChemistryLab, DynamicQuantities, OptimaSolver, OrdinaryDiffEq, Printf, Plots
 using Logging # hide
 
 data = datapath("cemdata18-thermofun.json")
@@ -183,6 +183,33 @@ for s in anhydrous
 end
 ```
 
+The whole week, the degrees read on the integrated trajectory and the
+assemblage on its certified replay at twenty instants:
+
+```@example coupled
+grid = 86400 .* 10 .^ range(-1, log10(7); length = 20)
+α_grid = degrees_of_hydration(sol, kp; times = grid)
+states_grid = with_logger(ConsoleLogger(diagnostics)) do # hide
+states_grid = speciated_states(sol, kp; times = grid)
+end # hide
+occursin("could not be certified", String(take!(diagnostics))) && error("an instant was not certified") # hide
+d = grid ./ 86400
+p_α = plot(d, [α_grid["C3S"] α_grid["C2S"]]; lw = 2, label = ["alite (C3S)" "belite (C2S)"], xscale = :log10,
+           ylims = (0, 1), xlabel = "age (days)", ylabel = "degree of hydration", legend = :topleft,
+           title = "w/c 0.40, Blaine 380 m²/kg, 25 °C", titlefontsize = 10)
+p_s = plot(; xscale = :log10, xlabel = "age (days)", ylabel = "mol per kg of clinker", legend = :topleft,
+           title = "Solids, at equilibrium with the solution", titlefontsize = 10)
+for s in ("Jennite", "Portlandite", "C3S", "C2S")
+    plot!(p_s, d, [ustrip(us"mol", moles(st, s)) for st in states_grid]; lw = 2, marker = :circle, ms = 2, label = s)
+end
+pHs = [something(pH(st), NaN) for st in states_grid]
+@printf("pH from %.4f to %.4f over the twenty instants\n", extrema(pHs)...)
+plot(p_α, p_s; layout = (1, 2), size = (980, 380), left_margin = 6Plots.mm, bottom_margin = 7Plots.mm)
+```
+
+The pH does not move: portlandite saturates the solution from the first instant
+shown, and with no alkali in this paste nothing else sets it.
+
 ## 6. What the thermodynamics decided
 
 Nothing above states that portlandite forms, or in what proportion to the
@@ -199,6 +226,19 @@ sort!(solids; by = last, rev = true)
 for (name, amount) in solids
     @printf "  %-14s %8.4f mol\n" name amount
 end
+```
+
+What went in, and what is there after a week, in grams:
+
+```@example coupled
+g_of(st, s) = ustrip(us"g", moles(st, s) * cs[s][:M])
+shown_solids = ["C3S", "C2S", "Portlandite", "Jennite"]
+xs = collect(eachindex(shown_solids))
+fig = bar(xs .- 0.2, [g_of(state0, s) for s in shown_solids]; bar_width = 0.4, label = "at the mixing", color = :grey60,
+          xticks = (xs, shown_solids), ylabel = "g", legend = :topright, size = (720, 380),
+          left_margin = 6Plots.mm, bottom_margin = 5Plots.mm, title = "The solids of the paste, at 0 and 7 days")
+bar!(fig, xs .+ 0.2, [g_of(st, s) for s in shown_solids]; bar_width = 0.4, label = "after 7 days", color = :steelblue)
+plot!(fig; ylims = (0, 1.1 * ylims(fig)[2]))
 ```
 
 The pore solution comes with it:

@@ -29,7 +29,7 @@ analysis: the fit printed on their Fig. 7, in percent of the fly ash at `t`
 days,
 
 ```@example ternary
-using ChemistryLab, DynamicQuantities, OptimaSolver, Printf
+using ChemistryLab, DynamicQuantities, OptimaSolver, Printf, Plots
 using Logging # hide
 include(joinpath(pkgdir(ChemistryLab), "scripts", "deweerdt2011_kinetics.jl"))
 
@@ -89,6 +89,23 @@ for mix in ("OPC", "OPC-FA")
 end
 ```
 
+```@example ternary
+meas(mix, d, q) = something(dw11_phase_content(mix, d, q), NaN)
+function phase_panel(mix, quantities; title = mix, legend = false, data = contents)
+    p = plot(; xscale = :log10, xlabel = "age (days)", ylabel = "wt.% of the solids", title, titlefontsize = 10, legend)
+    for (k, q) in enumerate(quantities)
+        plot!(p, days, [data[mix][j][q] for j in eachindex(days)]; lw = 2, color = k, marker = :circle, ms = 3, label = q)
+        scatter!(p, days, [meas(mix, d, q) for d in days]; color = k, marker = :diamond, label = "")
+    end
+    # The diamonds take the color of their phase; the legend names them once.
+    legend === false || scatter!(p, [NaN], [NaN]; color = :black, marker = :diamond, label = "measured (XRD)")
+    return p
+end
+plot(phase_panel("OPC", ("C3S", "C2S", "C3A", "C4AF"); legend = :topright, title = "OPC, w/b 0.5, 20 °C"),
+     phase_panel("OPC-FA", ("C3S", "C2S", "C3A", "C4AF"));
+     layout = (1, 2), size = (900, 380), left_margin = 6Plots.mm, bottom_margin = 6Plots.mm)
+```
+
 The last column is the table's own measure of the clinker reacted: one minus the
 sum of the four phases over that sum at the mixing, the same for the model and
 for the measurement.
@@ -105,6 +122,12 @@ for mix in DW11_MIXES
 end
 ```
 
+```@example ternary
+plot([phase_panel(mix, ("portlandite", "ettringite"); legend = mix == first(DW11_MIXES) ? :topleft : false,
+                  title = mix == first(DW11_MIXES) ? "$mix, w/b 0.5, 20 °C" : mix) for mix in DW11_MIXES]...;
+     layout = (1, 4), size = (1100, 330), left_margin = 6Plots.mm, bottom_margin = 7Plots.mm)
+```
+
 Where the aluminum and the sulfate are at six months, in mmol per 100 g of
 binder:
 
@@ -115,6 +138,15 @@ println(rpad("", 16), join((lpad(mix, 10) for mix in DW11_MIXES)))
 for name in phases
     println(rpad(name, 16), join((@sprintf("%10.2f", 1000 * dw11k_amount(states[mix][end], name)) for mix in DW11_MIXES)))
 end
+xs = collect(eachindex(phases))
+w = 0.2
+fig = plot(; xticks = (xs, collect(phases)), xrotation = 30, ylabel = "mmol per 100 g of binder", legend = :topright,
+           size = (900, 400), left_margin = 6Plots.mm, bottom_margin = 12Plots.mm, title = "At six months")
+for (k, mix) in enumerate(DW11_MIXES)
+    bar!(fig, xs .+ (k - 2.5) * w, [1000 * dw11k_amount(states[mix][end], name) for name in phases];
+         bar_width = w, label = mix)
+end
+plot!(fig; ylims = (0, 1.1 * ylims(fig)[2]))
 ```
 
 ## 5. What the comparison says
@@ -204,6 +236,18 @@ for mix in DW11_MIXES
 end
 ```
 
+```@example ternary
+alite = map(enumerate(DW11_MIXES)) do (k, mix)
+    p = plot(; xscale = :log10, xlabel = "age (days)", ylabel = "C3S, wt.% of the solids",
+             title = mix == "OPC" ? "OPC, the paste fitted on" : mix,
+             titlefontsize = 10, legend = k == 1 ? :topright : false)
+    plot!(p, days, [contents[mix][j]["C3S"] for j in eachindex(days)]; lw = 2, ls = :dash, color = :grey50, label = "published")
+    plot!(p, days, [recalc[mix][j]["C3S"] for j in eachindex(days)]; lw = 2, color = :steelblue, label = "calibrated")
+    scatter!(p, days, [measured(mix, d, "C3S") for d in days]; color = :black, marker = :diamond, label = "measured")
+end
+plot(alite...; layout = (1, 4), size = (1100, 330), left_margin = 6Plots.mm, bottom_margin = 7Plots.mm)
+```
+
 The fit determines two combinations of the four constants, those of the
 diffusion term. The interaction constant and the critical degree come out
 where they no longer act, the two zero singular values: the data say only that
@@ -261,6 +305,19 @@ for mix in fa_mixes
                 (gel_contents[(g, mix)][k]["ettringite"] for g in gels)..., measured(mix, d, "ettringite"))
     end
 end
+```
+
+```@example ternary
+gel_panels = map(fa_mixes) do mix
+    p = plot(; xscale = :log10, xlabel = "age (days)", ylabel = "portlandite, wt.% of the solids", title = mix,
+             titlefontsize = 10, legend = mix == first(fa_mixes) ? :bottomleft : false)
+    for g in gels
+        plot!(p, days, [gel_contents[(g, mix)][k]["portlandite"] for k in eachindex(days)]; lw = 2, marker = :circle,
+              ms = 3, label = g)
+    end
+    scatter!(p, days, [measured(mix, d, "portlandite") for d in days]; color = :black, marker = :diamond, label = "measured")
+end
+plot(gel_panels...; layout = (1, 2), size = (900, 380), left_margin = 6Plots.mm, bottom_margin = 6Plots.mm)
 ```
 
 The C-S-H of each, against the SEM-EDX analyses of [DeWeerdt2011](@citet), at
