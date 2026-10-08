@@ -133,7 +133,8 @@ using Logging
     @test s[:defining_reaction] == "CaSiO3@"
     # Every method of aq17 is computed: nothing is restricted to its reference
     # state.
-    _, aq17, _ = read_thermofun_database(datapath("aq17-thermofun.json"))
+    # Read through `import_database`, which takes the reader from the extension.
+    _, aq17, _ = import_database(datapath("aq17-thermofun.json"))
     built = @test_logs min_level = Logging.Warn build_species(aq17)
     @test any(x -> symbol(x) == "Calcite", built)
     @test any(x -> symbol(x) == "H2O@", built)
@@ -186,4 +187,48 @@ end
     @test ChemistryLab._thermofun_reactants(twice) == OrderedDict("A" => -1.0, "Z" => 1.0)
     twice["reactants"][2]["coefficient"] = -2
     @test_throws ArgumentError ChemistryLab._thermofun_reactants(twice)
+end
+
+@testsection "ThermoFun methods: refusals and the reactants of a reaction" begin
+    aq17 = JSON.parsefile(datapath("aq17-thermofun.json"); dicttype = Dict{String, Any})
+    cem = JSON.parsefile(datapath("cemdata18-thermofun.json"); dicttype = Dict{String, Any})
+    record(db, s) = deepcopy(only(r for r in db["substances"] if r["symbol"] == s))
+    # A method ThermoFun does not list, and a Landau transition without the bulk
+    # modulus its volume needs: both refused by name, the substance known at its
+    # reference state only.
+    odd = record(aq17, "Gibbsite")
+    odd["symbol"] = "Odd"
+    push!(odd["TPMethods"], Dict{String, Any}("method" => Dict{String, Any}("99" => "an_unknown_method")))
+    nobulk = record(aq17, "Quartz")
+    nobulk["symbol"] = "NoBulk"
+    delete!(nobulk, "m_compressibility")
+    # Reactants found by symbol, by the symbol with `_` read as `.`, and by
+    # formula; one found nowhere.
+    lime = record(cem, "Lim")
+    lime["symbol"] = "Lim.e"
+    reaction(sym, reactants) = Dict{String, Any}(
+        "symbol" => sym, "equation" => "", "Tst" => 298.15, "Pst" => 100000,
+        "logKr" => Dict("values" => [-22.8]), "drsm_entropy" => Dict("values" => [0.0]),
+        "drsm_enthalpy" => Dict("values" => [0.0]), "drsm_heat_capacity_p" => Dict("values" => [0.0]),
+        "TPMethods" => Any[], "reactants" => [Dict{String, Any}("symbol" => s, "coefficient" => c) for (s, c) in reactants],
+    )
+    db = Dict{String, Any}(
+        "elements" => cem["elements"],
+        "substances" => [odd, nobulk, lime, record(cem, "Portlandite"), record(cem, "H2O@")],
+        "reactions" => [
+            reaction("slaking", [("Ca(OH)2", -1), ("Lim_e", 1), ("H2O@", 1)]),
+            reaction("nowhere", [("Portlandite", -1), ("Nope", 1)]),
+        ],
+    )
+    file = joinpath(mktempdir(), "tiny-thermofun.json")
+    write(file, JSON.json(db))
+    _, subs, reacs = read_thermofun_database(file)
+    built = @test_logs (:warn, r"reference state only.*Odd \(`an_unknown_method`\).*NoBulk \(`landau_holland_powell98`\)") match_mode = :any build_species(subs)
+    sp = Dict(symbol(s) => s for s in built)
+    @test sp["Odd"][:refused_method] == "an_unknown_method"
+    @test sp["NoBulk"][:refused_method] == "landau_holland_powell98"
+    @test_throws ArgumentError sp["Odd"][:ΔₐG⁰](T = 333.15, P = 1.0e5)
+    rxn = only(build_reactions(reacs, built, ["slaking"]))
+    @test Set(symbol(k) for (k, _) in rxn) == Set(["Portlandite", "Lim.e", "H2O@"])
+    @test_throws "a reaction names Nope" build_reactions(reacs, built, ["nowhere"])
 end

@@ -822,8 +822,10 @@ function build_reactions(
         haskey(dict_species, k) && return dict_species[k]
         kdot = replace(k, "_" => ".")
         haskey(dict_species, kdot) && return dict_species[kdot]
+        # `find_species` returns a new species when none matches.
         s = find_species(k, collect(values(dict_species)))
-        s === nothing && throw(ArgumentError("a reaction names $k, which the species given do not contain"))
+        any(x -> x === s, values(dict_species)) ||
+            throw(ArgumentError("a reaction names $k, which the species given do not contain"))
         return s
     end
     progress = _progress(nrow(local_df_reactions))

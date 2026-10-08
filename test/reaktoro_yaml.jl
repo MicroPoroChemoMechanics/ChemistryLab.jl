@@ -25,6 +25,7 @@ isdefined(@__MODULE__, :write_reaktoro_yaml) || include(joinpath(@__DIR__, "refe
     @test bytes2hex(open(ChemistryLab.sha256, path)) == oracle["yaml_sha256"]
     _, subs, _ = read_reaktoro_database(path)
     @test metadata(subs, "format") == "reaktoro"
+    @test isequal(import_database(path)[2], subs)
     built = Dict(s.name => s for s in build_species(subs))
     @test Set(keys(built)) == Set(keys(oracle["species"]))
     at(f, row) = f(T = row["T"], P = row["P"])
@@ -112,6 +113,41 @@ end
     )
     _, subs, _ = read_reaktoro_database(bad)
     @test_throws "needs alpha0, kappa0p, numatoms" build_species(subs)
+    # A species without a single standard model is not read, and one of a model
+    # the package does not compute is left out with a warning.
+    write(
+        bad, """
+        Species:
+          Y:
+            Name: Y
+            Elements: 1:O
+            AggregateState: Aqueous
+          Z:
+            Name: Z
+            Elements: 1:Mg 1:O
+            AggregateState: Solid
+            StandardThermoModel:
+              MineralHKF:
+                Gf: -1.0
+        """,
+    )
+    _, subs, _ = read_reaktoro_database(bad)
+    @test any(occursin("Y has no single standard model", n) for n in metadata(subs, "notes"))
+    @test isempty(@test_logs (:warn, r"left out.*Z \(`MineralHKF`\)") build_species(subs))
+    # The excerpts the manual shows: a record of the zeolites ChemistryLab adds
+    # to Cemdata18, and the same zeolite as a database of Reaktoro.
+    page = read(joinpath(pkgdir(ChemistryLab), "docs", "src", "manual", "importing_databases.md"), String)
+    shown = JSON.parse(only(m.captures[1] for m in eachmatch(r"```json\n(.*?)```"s, page)))
+    record = only(r for r in JSON.parsefile(datapath("cemdata18-zeolites.json"))["substances"] if r["symbol"] == shown["symbol"])
+    for (k, v) in shown
+        @test v isa AbstractDict && haskey(v, "values") ? only(v["values"]) ≈ only(record[k]["values"]) : v == record[k]
+    end
+    write(bad, only(m.captures[1] for m in eachmatch(r"```yaml\n(.*?)```"s, page)))
+    _, subs, _ = read_reaktoro_database(bad)
+    z = only(build_species(subs))
+    @test z[:ΔₐG⁰](T = 298.15, P = 1.0e5) ≈ only(record["sm_gibbs_energy"]["values"])
+    @test z[:V⁰](T = 298.15, P = 1.0e5) ≈ 1.0e-5 * only(record["sm_volume"]["values"])
+    @test z[:Cp⁰](T = 350.0, P = 1.0e5) ≈ only(record["sm_heat_capacity_p"]["values"])
     # A list is not read; a negative number is a scalar.
     write(bad, "Species:\n  X:\n    Name: X\n    Elements: [1:Mg, 1:O]\n")
     @test_throws "holds a list" read_reaktoro_database(bad)

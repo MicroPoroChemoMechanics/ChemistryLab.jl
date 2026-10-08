@@ -1,7 +1,7 @@
 # [Importing thermodynamic databases](@id sec-importing-databases)
 
 !!! info "Before this page"
-    [Where the numbers come from](@ref sec-manual-numbers).
+    [Species](@ref sec-species).
 
 A chemical equilibrium is computed from the standard properties of the species
 that may form, and those are not the package's: they are measured, fitted and
@@ -214,14 +214,54 @@ Every message names the file concerned. What each one means, and what to do:
     through the three places above.
 
 
-## Reading a database of reactions
+## The readers, format by format
 
-A PHREEQC database is read whole: its master species, its species and phases,
-each resolved against the masters, with the log K of its formation as a function
-of temperature, as the manual of PHREEQC defines it (`log_k`, `delta_h` in any of
-its units, the six-term analytical expression, named expressions)
-[ParkhurstAppelo2013](@cite). The composition of a species is that of the
-balance of its reaction, not of its name.
+Each reader is shown below on an excerpt of the files it reads, so that the
+formats can be compared line by line: the calcite of `llnl.dat` in the three
+formats of reactions, and a zeolite in the two formats of formation properties.
+Whatever the format, the reader returns the three tables, and
+[`build_species`](@ref) takes it from there.
+
+### PHREEQC databases
+
+A PHREEQC database is a text file of keyword blocks
+[ParkhurstAppelo2013](@cite). `SOLUTION_MASTER_SPECIES` names one master
+species per element; `SOLUTION_SPECIES` and `PHASES` give every other species
+by the reaction that forms it from the masters, with the constant of that
+reaction. The calcite of `llnl.dat`, distributed with PHREEQC, shows the form of
+an entry: its master species, then the phase, with the reaction, its log K at
+25 °C, its enthalpy and the analytical expression of log K(T).
+
+```@raw html
+<details><summary>The calcite of llnl.dat, in the PHREEQC format</summary>
+```
+
+```text
+SOLUTION_MASTER_SPECIES
+C        HCO3-          1.0     HCO3            12.0110
+Ca       Ca+2           0.0     Ca              40.078
+
+PHASES
+Calcite
+        CaCO3 +1.0000 H+  =  + 1.0000 Ca++ + 1.0000 HCO3-
+        log_k           1.8487
+	-delta_H	-25.7149	kJ/mol	# Calculated enthalpy of reaction	Calcite
+#	Enthalpy of formation:	-288.552 kcal/mol
+        -analytic -1.4978e+002 -4.8370e-002 4.8974e+003 6.0458e+001 7.6464e+001
+#       -Range:  0-300
+```
+
+```@raw html
+</details>
+```
+
+[`read_phreeqc_database`](@ref) reads such a file whole, here `phreeqc.dat`, the
+default database of PHREEQC: its master species, its species and phases, each
+resolved against the masters, with the log K of its
+formation as a function of temperature, whichever way the file gives it
+(`log_k` with `delta_h` in any of its units, the six-term analytical expression,
+a named expression). The composition of a species is that of the balance of its
+reaction, not of its name.
 
 ```@example importing
 using ChemistryLab, DynamicQuantities
@@ -230,8 +270,9 @@ first(db[:, [:symbol, :name, :aggregate_state, :charge, :gamma]], 6)
 ```
 
 The column `formation` holds the log K of the formation of each species from the
-master species, as a function of temperature. What is read and not used is
-listed with its line in the metadata `notes`: transport data, species made of the
+master species, as a function of temperature, and `gamma` the parameters of its
+activity coefficient. What the reader meets and does not use is listed with its
+line in the metadata `notes` of the table: transport data, species made of the
 pseudo-elements a database defines to keep a gas out of redox equilibrium, input
 blocks a database may carry.
 
@@ -241,7 +282,9 @@ first(metadata(db, "notes"), 3)
 ```
 
 [`build_species`](@ref) builds the species named, by their PHREEQC names or by
-ChemistryLab's symbols (a neutral solute takes `@`, as `CO2@`):
+ChemistryLab's symbols (a neutral solute takes `@`, as `CO2@`), and an
+equilibrium is computed on them as on any other species. Calcite in a kilogram
+of water, closed to the atmosphere:
 
 ```@example importing
 species = build_species(db, ["H2O", "H+", "OH-", "Ca+2", "CO3-2", "HCO3-", "CO2", "CaCO3", "CaHCO3+", "CaOH+", "Calcite"])
@@ -254,10 +297,11 @@ eq = equilibrate(st; model)
 round(pH(eq, model); digits = 4)
 ```
 
-## The activity model of a database
+#### The activity model of a database
 
-The constants of a database are fitted with an activity model, and a database is
-used with that model. [`database_activity_model`](@ref) returns the one PHREEQC
+The equilibrium above is computed with `model`, and the choice matters: the
+constants of a database are fitted with an activity model, and a database is used
+with that model. [`database_activity_model`](@ref) returns the one PHREEQC
 applies, which the blocks of the database decide:
 
 | the database carries | model | as PHREEQC computes it |
@@ -281,35 +325,131 @@ package's own model of water, 0.27 % apart at 25 °C, they agree within a
 percent. Under Pitzer, PHREEQC reports single-ion activities on the MacInnes
 scale, which moves its pH, by 0.03 in that solution, and none of the molalities.
 
-## Energies, and why two databases do not mix
+### Thermo datasets of The Geochemist's Workbench
 
-A species read from a database of reactions has the standard Gibbs energy of its
-formation from the master species, which are at zero:
-``\mu_i^\circ(T) = -RT \ln 10\, \log_{10} K_i(T)``. A database of formation
-properties counts its energies from the elements. Within one database the choice
-does not change an equilibrium, beside the species of another it is
-meaningless ([Energies counted from the primaries](@ref sec-theory-gauge)). Each
-species records the zero of its database under `:gauge`, and
-[`ChemicalSystem`](@ref) refuses a system that mixes two:
+The Geochemist's Workbench writes the same kind of data, reactions and their
+constants, in a format of its own [BethkeFarrell2026](@cite). A thermo dataset
+lists its principal temperatures, then its elements, basis species, redox
+couples, aqueous species, minerals and gases in sections closed by `-end-`; each
+species gives the reaction that dissociates it into basis species, and the log K
+of that reaction either as a table at the principal temperatures or, in format
+"jan19", as the coefficients of a polynomial in T; the same calcite is shown
+below in that format, as `test/reaction_formats.jl` writes it from `llnl.dat`.
 
-```@example importing
-thermofun = build_species(datapath("cemdata18-thermofun.json"), ["Portlandite"])
-try
-    ChemicalSystem(vcat(species, thermofun))
-catch err
-    print(first(sprint(showerror, err), 160), "…")
-end
+```@raw html
+<details><summary>The same calcite in a thermo dataset of The Geochemist's Workbench</summary>
 ```
 
-## Reading a database of formation properties
+```text
+Calcite
+  formula= CaCO3
+  mole vol.= 36.9 cc  mole wt.= 100.086 g
+  3 species in reaction
+  1.0 HCO3-  1.0 Ca+2  -1.0 H+
+  a= 1.824684728904  b= -0.04837  c= 0.0
+  d= 4897.4  e= 76.464  f= 26.256575786907
+```
 
-A ThermoFun file gives each substance its standard properties at a reference
-state and the methods that carry them to other temperatures and pressures:
-heat-capacity polynomials over one or several intervals, the HKF equations of an
-aqueous species, the equation of state of water for the solvent. A substance the
-file defines by a reaction (440 in PSI/Nagra 12/07, 17 in Cemdata18) is computed
-from that reaction at every temperature, from the log K of the reaction and the
-properties of its other species, as ThermoFun computes it.
+```@raw html
+</details>
+```
+
+[`read_gwb_database`](@ref) reads the sections of species and evaluates a table
+of log K as the dataset's applications do, by the polynomial of degree four
+fitted to it, and the polynomial of "jan19" as written. The sections of solid
+solutions and of oxides, and the virial coefficients, are listed as not read.
+
+```julia
+_, db, _ = read_gwb_database("thermo.tdat")   # a dataset installed by hand
+```
+
+### data0 files of EQ3/6
+
+EQ3/6 writes them once more, in its data0 files, as blocks separated by a line of
+dashes [DavelerWolery1992](@cite). A block states the composition of its species,
+its reaction, and its log K on a grid of eight temperatures, 0 to 300 °C, as the
+same calcite shows.
+
+```@raw html
+<details><summary>The same calcite in a data0 file of EQ3/6</summary>
+```
+
+```text
+Calcite
+    keys   = solid
+     V0PrTr =   36.9 cm**3/mol
+     3 chemical elements =
+      1.0 ca    3.0 o    1.0 c
+     4 species in reaction =
+       -1.0  Calcite                         1.0  HCO3-
+        1.0  Ca+2                           -1.0  H+
+*
+     log k grid (0-25-60-100/150-200-250-300 C) =
+     2.237867322057  1.824684728904  1.320266683167  0.786693796345
+     0.118930300729  -0.590215045002  -1.360412889228  -2.198938985031
++--------------------------------------------------------------------
+```
+
+```@raw html
+</details>
+```
+
+[`read_eq36_database`](@ref) evaluates the grid as EQPT, the preprocessor of
+EQ3/6, does: by the interpolating polynomials through the valid points of
+0–100 °C and of 100–300 °C. It checks that each reaction balances the composition
+the block states, and lists what does not.
+
+```julia
+_, db, _ = read_eq36_database("data0.ymp.R2")   # a data0 file installed by hand
+```
+
+Neither format gives the activity model of its data in a form the package can
+build without formulas the format documentation leaves out, for neutral species
+and for water: a model is chosen explicitly for them among those of
+[Activity models](@ref sec-theory-activity).
+
+### ThermoFun files
+
+The formats above determine the energies of species only relative to their
+master species. ThermoFun files, like the YAML files of Reaktoro below, give them
+from the elements instead: each substance with its standard properties at a
+reference state and the methods that carry them to other temperatures and
+pressures. A zeolite that ChemistryLab adds to Cemdata18, with the values of
+[MaLothenbach2020](@citet), shows the form of a record, abbreviated below.
+
+```@raw html
+<details><summary>A zeolite in a ThermoFun file</summary>
+```
+
+```json
+{
+  "symbol": "NAT-Na",
+  "name": "natrolite (Na)",
+  "formula": "Na2(Al2Si3)O10(H2O)2",
+  "aggregate_state": {"3": "AS_CRYSTAL"},
+  "class_": {"0": "SC_COMPONENT"},
+  "Tst": 298.15,
+  "Pst": 100000,
+  "sm_gibbs_energy": {"values": [-5305150.0]},
+  "sm_enthalpy": {"values": [-5707020.0]},
+  "sm_entropy_abs": {"values": [360.0]},
+  "sm_heat_capacity_p": {"values": [359.0]},
+  "sm_volume": {"values": [16.936]}
+}
+```
+
+```@raw html
+</details>
+```
+
+A record may add heat-capacity polynomials over one or several intervals, the
+HKF equations of an aqueous species [TangerHelgeson1988](@cite), the equation of
+state of water for the solvent, or a reaction that defines the substance (440 in
+PSI/Nagra 12/07, 17 in Cemdata18): [`read_thermofun_database`](@ref) reads
+them all, and [`build_species`](@ref) computes such a substance from its reaction
+at every temperature, from the log K of the reaction and the properties of its
+other species, as ThermoFun computes it. [`import_database`](@ref) chooses this
+reader from the extension of the file:
 
 ```@example importing
 _, db18, _ = import_database(datapath("cemdata18-thermofun.json"))
@@ -324,19 +464,12 @@ and tested against ThermoFun up to 150 °C and 100 bar
 convention is accounted for: ThermoFun integrates the volume from zero pressure,
 which adds the molar volume times one bar away from the reference state, 10 J/mol
 for albite. The dissolved gases agree to 8 J/mol, the order of the difference
-between the two models of water they are computed with. A method the
-package does not implement is not ignored: the substance is built for its
-reference state, 25 °C and 1 bar, and anywhere else its properties raise an
-error naming the method; [`build_species`](@ref) warns which substances are in
-that case.
+between the two models of water they are computed with. A method the package
+does not implement is not ignored: the substance is built for its reference
+state, 25 °C and 1 bar, and anywhere else its properties raise an error naming
+the method; [`build_species`](@ref) warns which substances are in that case.
 
-A YAML file of Reaktoro is read the same way, for the models the package
-computes: `HKF`, `MaierKelley`, `HollandPowell` (with the modified Tait equation
-of state of [HollandPowell2011](@cite)) and water
-([`read_reaktoro_database`](@ref)), tested against Reaktoro
-(`test/reaktoro_yaml.jl`).
-
-### What a ThermoFun file may hold
+#### What a ThermoFun file may hold
 
 Classification fields contain exact enum names, such as `AS_AQUEOUS` and
 `SC_AQSOLUTE`. Missing, malformed, or unknown labels retain the undefined-state
@@ -355,24 +488,80 @@ are scientifically valid. Database metadata cannot define custom Julia code.
 all_species = build_species(datapath("cemdata18-thermofun.json"))
 ```
 
-## Thermo datasets of The Geochemist's Workbench, data0 files of EQ3/6
+### Reaktoro files
 
-Both are databases of reactions, read into the same representation as a PHREEQC
-database. A thermo dataset gives its log K as a table at its principal
-temperatures, which the package evaluates as the dataset's applications do
-between those temperatures, by the polynomial of degree four fitted to the table,
-or as the polynomial of format "jan19" [BethkeFarrell2026](@cite). A data0 file
-gives its log K on a grid of eight temperatures, which the package evaluates as
-EQPT does, by interpolating polynomials through the valid points of 0–100 °C and
-of 100–300 °C [DavelerWolery1992](@cite). Their activity models are not built
-from them: their conventions for neutral species and for water rest on formulas
-their format documentation does not state, and a model is chosen explicitly.
+A database of Reaktoro is a YAML file of the same kind of data: each species
+with its elements, its aggregate state and its standard model, whose parameters
+are in SI units; the same natrolite is shown below in the model of a constant
+heat capacity.
+
+```@raw html
+<details><summary>The same zeolite in a database of Reaktoro</summary>
+```
+
+```yaml
+Species:
+  NAT-Na:
+    Name: NAT-Na
+    Formula: Na2Al2Si3O10(H2O)2
+    Elements: 2:Na 2:Al 3:Si 12:O 4:H
+    AggregateState: Solid
+    StandardThermoModel:
+      MaierKelley:
+        Gf: -5305150.0
+        Hf: -5707020.0
+        Sr: 360.0
+        Vr: 1.6936e-4
+        a: 359.0
+        b: 0.0
+        c: 0.0
+```
+
+```@raw html
+</details>
+```
+
+[`read_reaktoro_database`](@ref) reads the models the package computes: `HKF`,
+`MaierKelley`, `HollandPowell` (with the modified Tait equation of state of
+[HollandPowell2011](@cite)) and water; any other model is left out with a
+warning naming it. Against Reaktoro 2.13.0, on a file written from published
+data (`test/reaktoro_yaml.jl`) up to 150 °C and 100 bar, the minerals of
+`MaierKelley` agree to 1e-10 J/mol, and those of `HollandPowell` too in Gibbs
+energy and volume once one convention is accounted for: Reaktoro integrates the
+volume from zero pressure, as the article writes it. The aqueous species of HKF
+agree within 2.5 J/mol, the two computing water with equations of state whose
+densities differ by 7e-5 at 150 °C.
+
+```julia
+_, db, _ = read_reaktoro_database("supcrtbl.yaml")   # a file installed by hand
+```
+
+## Energies, and why two databases do not mix
+
+The two families of formats meet here, and they cannot be put together in one
+system. A species read from a database of reactions has the standard Gibbs energy of its
+formation from the master species, which are at zero:
+``\mu_i^\circ(T) = -RT \ln 10\, \log_{10} K_i(T)``. A database of formation
+properties counts its energies from the elements. Within one database the choice
+does not change an equilibrium, beside the species of another it is
+meaningless ([Energies counted from the primaries](@ref sec-theory-gauge)). Each
+species records the zero of its database under `:gauge`, and
+[`ChemicalSystem`](@ref) refuses a system that mixes two:
+
+```@example importing
+thermofun = build_species(datapath("cemdata18-thermofun.json"), ["Portlandite"])
+try
+    ChemicalSystem(vcat(species, thermofun))
+catch err
+    print(first(sprint(showerror, err), 160), "…")
+end
+```
 
 ## Primary species
 
-The master species of a database of reactions, one per element with the proton,
-the electron and water, are the primary species from which every other species
-forms. [`extract_primary_species`](@ref) lists them, with the parameters of their
+The zero of a database of reactions is set by its master species, one per element
+with the proton, the electron and water: they are the primary species from which
+every other species forms. [`extract_primary_species`](@ref) lists them, with the parameters of their
 activity coefficients:
 
 ```@example importing
@@ -381,7 +570,8 @@ first(extract_primary_species(datapath("phreeqc.dat")), 6)
 
 ## Extending a database
 
-A database is extended by a database built from it, never by editing its file:
+A database read, a calculation may still need a phase it lacks. A database is
+extended by a database built from it, never by editing its file:
 the package's own extensions of Cemdata18 (the zeolites, the chloride phases, the
 products of the alkali-silica reaction, the CASH+ model of the C-S-H gel) are
 built on first use from the downloaded file and data published in articles,
