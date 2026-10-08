@@ -95,9 +95,10 @@ order, `-THETA` two ions of like sign, `-LAMDA` a neutral species and an ion,
 appended to a neutral species, which is how this package names them. The
 identifiers this model has no counterpart for (`-ZETA`, `-ETA`, `-MU`, `-ALPHAS`,
 `-APHI`, which the water model provides) are skipped, and a warning names them;
-`-use_etheta` is the model's own keyword, `etheta`. **No PHREEQC database ships
-with this package**: this reads the file the caller has, and every `origin`
-records its name and a truncated SHA-256 of its contents.
+`-use_etheta` is the model's own keyword, `etheta`. **No database is stored in
+this package**: this reads the file the caller has (`datapath("pitzer.dat")`
+obtains PHREEQC's own), and every `origin` records its name and a truncated
+SHA-256 of its contents.
 
 See also: [`PitzerParameters`](@ref), [`PitzerActivityModel`](@ref),
 [`pitzer_origin`](@ref).

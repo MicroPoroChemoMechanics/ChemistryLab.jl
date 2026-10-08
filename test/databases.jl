@@ -645,7 +645,7 @@ end
 end
 
 @testsection "PHREEQC files: -gamma, and the options of PHASES" begin
-    dat = joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat")
+    dat = datapath("phreeqc.dat")
     γp = phreeqc_gamma_parameters(dat)
     # Master and secondary species alike, by the symbol convention of the package.
     @test γp["H+"] == (9.0, 0.0)

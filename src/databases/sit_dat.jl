@@ -15,11 +15,12 @@ interaction coefficients copied by hand is a transcription, which is the error
 class every generator in `test/reference/` exists to remove, and this package
 has already found two standard energies that had drifted that way.
 
-**No such compilation ships with this package.** The one PHREEQC distributes in
-`sit.dat` is the ANDRA/RWM *ThermoChimie* database, which is not USGS-authored
-and whose terms are its own — so this reads a file the caller already has rather
-than redistributing one. `source` defaults to the file's name and a truncated SHA-256 of its
-contents, so a result can always say which compilation it came from.
+**No database is stored in this package.** The compilation PHREEQC distributes
+in `sit.dat`, the ANDRA/RWM *ThermoChimie* database, is obtained by
+`datapath("sit.dat")` from the PHREEQC distribution; any other file the caller has
+is read the same way. `source` defaults to the file's name and a truncated
+SHA-256 of its contents, so a result can always say which compilation it came
+from.
 
 # Format
 

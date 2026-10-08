@@ -38,7 +38,7 @@ g0(v) = SymbolicFunc(v * u"J/mol")          # a constant standard energy
 
 # The constants are read from the copy of phreeqc.dat that the test oracles use,
 # so this page and PHREEQC work from one set of numbers.
-dat = read_sorption_model(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+dat = read_sorption_model(datapath("phreeqc.dat"))
 log_k(product) = only(reactions_involving(dat, product)).log_K.value
 logK₁, logK₂ = log_k("Hfo_wOH2+"), log_k("Hfo_wO-")   # protonation, deprotonation
 

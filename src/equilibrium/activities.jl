@@ -1301,7 +1301,7 @@ model is not the gradient of one Gibbs energy, and a certificate says so
 # Example
 
 ```julia
-params = phreeqc_gamma_parameters(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+params = phreeqc_gamma_parameters(datapath("phreeqc.dat"))
 model = TruesdellJonesActivityModel(; parameters = params)
 ```
 """

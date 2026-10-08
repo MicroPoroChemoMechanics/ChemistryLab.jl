@@ -95,18 +95,20 @@ Regenerate a fixture by running its script; each names itself in the file's own
 `generator` field. The JSON is committed, the generators are not run in CI —
 running them needs PHREEQC, Reaktoro or GEMS, which CI does not have.
 
-## What is vendored here, and what deliberately is not
+## No database is stored here
 
-`phreeqc.dat` **is** committed, unmodified, with the USGS User Rights Notice
-beside it — see `PHREEQC-PROVENANCE.md`. That notice covers data as well as
-code, and requires the notice to travel with any copy.
+No thermodynamic database is committed in this repository. The PHREEQC
+generators load `phreeqc.dat` of PHREEQC's repository at tag v3.7.3, the release
+of the IPhreeqc engine phreeqpython bundles, through `usgs_database.py`: a copy
+in `$CHEMISTRYLAB_DATABASE_DIR`, or one downloaded once and checked against the
+same SHA-256 as `THIRD_PARTY_DATABASES` in `src/databases/remote.jl`. The Julia
+tests obtain the same file with `datapath("phreeqc.dat")`. Never the copy the
+phreeqpython wheel carries: it matches no upstream tag.
 
-`sit.dat` is **not**, and the difference is not an oversight. It is the ANDRA/RWM
-*ThermoChimie-TDB* compilation, redistributed with PHREEQC but not USGS-authored,
-so the notice above says nothing about its terms. `phreeqc_sit.py` therefore
-takes `--database` pointing at a copy the caller already has, and writes into its
-fixture only the handful of `ε` the comparison uses, with the database named and
-hashed. A test stays runnable in CI without a compilation being redistributed.
+`phreeqc_sit.py` takes `--database` pointing at a copy of `sit.dat` the caller
+has, and writes into its fixture only the handful of `ε` the comparison uses,
+with the database named and hashed. A fixture holds computed values and the
+few constants a comparison needs, never a database.
 
 ## Provenance
 

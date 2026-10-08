@@ -42,9 +42,11 @@ import sys
 
 from phreeqpython.viphreeqc import VIPhreeqc
 
+import usgs_database
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
-DATABASE = os.path.join(HERE, "phreeqc.dat")
+DATABASE = usgs_database.database_path("phreeqc.dat")
 
 
 def literature(key):

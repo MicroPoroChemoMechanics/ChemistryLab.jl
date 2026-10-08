@@ -46,7 +46,7 @@ const N_FE    = 1.0e-3u"mol"
 const AREA    = ustrip(us"m^2", dm("specific_surface_area") * dm("molar_mass") * N_FE)
 const N_SITES = dm("weak_sites_per_mol_Fe") * ustrip(us"mol", N_FE)
 # PHREEQC's own constants, read from the copy of phreeqc.dat the oracle uses.
-const DAT  = read_sorption_model(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+const DAT  = read_sorption_model(datapath("phreeqc.dat"))
 log_k(product) = only(reactions_involving(DAT, product)).log_K.value
 const LOGK = (protonation = log_k("Hfo_wOH2+"), deprotonation = log_k("Hfo_wO-"))
 # One kilogram of water, from the solvent's own molar mass: `55.5 mol` weighs

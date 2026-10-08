@@ -50,6 +50,8 @@ import sys
 
 from phreeqpython.viphreeqc import VIPhreeqc
 
+import usgs_database
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # The acid budget, in moles of HCl. Three moles dissolve one of Fe(OH)3, so this
@@ -64,16 +66,13 @@ AREA_PER_MOL = 53300.0       # m² per mol; parsed under -no_edl, unused by it
 
 
 def database_path():
-    """The database vendored in this repository, never the wheel's copy.
+    """PHREEQC's `phreeqc.dat` at tag v3.7.3 (`usgs_database.py`), never the wheel's copy.
 
     `phreeqpython` ships a `phreeqc.dat` that matches no upstream tag — its md5
     is `fca384eb…` against v3.7.3's `4d3f4378…`. A comparison run over a
     database nobody can name is not a comparison.
     """
-    path = os.path.join(HERE, "phreeqc.dat")
-    if not os.path.exists(path):
-        raise SystemExit(f"{path} is missing; see PHREEQC-PROVENANCE.md")
-    return path
+    return usgs_database.database_path("phreeqc.dat")
 
 
 def engine_version(ip):
