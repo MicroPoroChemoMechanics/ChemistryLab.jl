@@ -134,6 +134,7 @@ end
     include("leaching.jl")
     include("sulfate_attack.jl")
     include("seawater.jl")
+    include("seawater_flushing.jl")
     include("delayed_ettringite.jl")
     include("hemicarbonate.jl")
     include("chloride_afm.jl")

@@ -1,0 +1,392 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "DeWeerdtJustnes2015",
+    "doi": "10.1016/j.cemconcomp.2014.09.006",
+    "citation": "De Weerdt, K., Justnes, H. (2015). The effect of sea water on the phase assemblage of hydrated cement paste. Cement and Concrete Composites 55, 215-222.",
+    "location": "Section 2 and Tables 1-3 (pp. 216-217), Figs. 1 and 4 (pp. 216-217), Sections 3-5 (pp. 217-222)"
+  },
+  "transcription": {
+    "from": "the published article (PDF): Tables 1-3 from the text layer, checked against the rendered page; Fig. 4 and Fig. 1, raster images, by pixel analysis; the rest from the text",
+    "checked_against_source": true,
+    "note": "Fig. 4 (bar chart, logarithmic axis, 170.4 px per decade) is read at the center of the black outline of each bar top, mapped through the five tick marks; precision about 2 % relative. Fig. 1 (raster, 32.9 px per mm and 5475 px per unit of ratio) is read from the marker centers: filled circles by their dark core, open circles by ring matching, down-pointing triangles at 8.75 px below their top edge (between the centroid and the box center); where markers overlap (3.6 and 4.6 mm, 16 mm) the reading is visual on a 3x enlargement; precision 0.002 in ratio and 0.1 mm in depth. The paper prints no table of measured phase amounts and makes no thermodynamic calculation."
+  },
+  "quantities": {
+    "water_cement_ratio": {
+      "value": 0.4,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2",
+      "description": "w/c of the paste, without admixtures, about 5 L mixed"
+    },
+    "cure_sealed_5C_duration": {
+      "value": 3,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2",
+      "description": "Sealed in plastic bags in a water bath at +5 C"
+    },
+    "cure_sealed_5C_temperature": {
+      "value": 278.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2",
+      "description": "+5 C"
+    },
+    "cure_20C_duration": {
+      "value": 4,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2",
+      "description": "Then in a water bath at 20 C, before crushing and grinding to below 1 mm"
+    },
+    "cure_temperature": {
+      "value": 293.15,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2",
+      "description": "20 C for every later stage"
+    },
+    "added_water_percent": {
+      "value": 40,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2",
+      "description": "Water added, in % of the powder mass, after grinding"
+    },
+    "cure_after_water_duration": {
+      "value": 7,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2",
+      "description": "'another week at 20 C' after the water addition"
+    },
+    "storage_duration": {
+      "value": 14,
+      "unit": "d",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2",
+      "description": "'an additional two weeks at 20 C' after the second crushing"
+    },
+    "max_particle_size": {
+      "value": 1,
+      "unit": "mm",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.2",
+      "description": "Maximum particle size after the disc mill"
+    },
+    "evaporable_water_percent": {
+      "value": 38,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 2.2, TGA: drying at 105 C under N2 for 4 h",
+      "description": "Weight loss relative to the initial mass of the moist paste"
+    },
+    "bound_water_percent": {
+      "value": 21,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 2.2, TGA 105-1000 C ('approx.')",
+      "description": "Weight loss from 105 to 1000 C, which the paper calls 'evaporable water' and reads as a degree of reaction of about 90 %; the reference mass is not stated"
+    },
+    "degree_of_reaction_percent": {
+      "value": 90,
+      "unit": "1",
+      "kind": "estimated",
+      "uncertainty": null,
+      "location": "Section 2.2",
+      "description": "'a degree of reaction of approx. 90 %', from the bound water"
+    },
+    "cement_blaine": {
+      "value": 552,
+      "unit": "m^2/kg",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Table 2",
+      "description": "Blaine fineness"
+    },
+    "cement_density": {
+      "value": 3.15,
+      "unit": "g/cm^3",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Table 2",
+      "description": "Density of the cement"
+    },
+    "paste_mass": {
+      "value": 50,
+      "unit": "g",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.3",
+      "description": "Hydrated (moist) paste packed in a cellulose thimble (Whatman 603) in a Soxhlet extractor"
+    },
+    "chamber_volume": {
+      "value": 50,
+      "unit": "mL",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.3",
+      "description": "Extraction chamber, filled by dripping and emptied by a siphon"
+    },
+    "chamber_fill_time": {
+      "value": 30,
+      "unit": "min",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.3",
+      "description": "'approx. 30 min' to fill the chamber"
+    },
+    "seawater_total": {
+      "value": 100,
+      "unit": "L",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.3",
+      "description": "Total sea water dripped onto the sample"
+    },
+    "exposure_duration": {
+      "value": 6,
+      "unit": "wk",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "Section 2.3",
+      "description": "'about 6 weeks'"
+    },
+    "csh_ca_si_original": {
+      "value": 1.8,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Sections 4 and 5, SEM-EDS (Fig. 9)",
+      "description": "'approx. 1.8' in the original paste"
+    },
+    "csh_ca_si_exposed": {
+      "value": 1.0,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Sections 4 and 5, SEM-EDS (Fig. 9)",
+      "description": "'down to 1 or even lower' in the Ca-rich particles of the exposed paste"
+    },
+    "msh_mg_si": {
+      "value": 1.0,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 3 and Section 5, SEM-EDS (Figs. 11, 12)",
+      "description": "Mg/Si of the M-S-H, 'approx. 1'; higher values are read as brucite intermixed"
+    },
+    "msh_mg_si_min": {
+      "value": 0.9,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 4, Fig. 11",
+      "description": "Lowest Mg/Si of the M-S-H"
+    },
+    "msh_mg_si_max": {
+      "value": 2.5,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 4, Fig. 11",
+      "description": "Highest Mg/Si, attributed to intermixed brucite"
+    },
+    "msh_al_mg": {
+      "value": 0.2,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 3 and Section 5, SEM-EDS (Figs. 11, 13)",
+      "description": "Al/Mg of the M-S-H, 'approx. 0.2'"
+    },
+    "mg_al_slope": {
+      "value": 5,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 3, Fig. 13",
+      "description": "Slope of the Mg/Ca against Al/Ca trend, 'approx. 5'; a hydrotalcite-like phase would give 2"
+    },
+    "tga_50_300C_difference": {
+      "value": 1,
+      "unit": "1",
+      "kind": "measured",
+      "uncertainty": null,
+      "location": "Section 3, Fig. 5",
+      "description": "Difference of the 50-300 C weight loss between the exposed and the original sample, 'approx. 1 %' of the mass at 1000 C"
+    }
+  },
+  "tables": {
+    "cement_oxides": {
+      "columns": ["oxide", "percent"],
+      "units": [null, "1"],
+      "kind": "measured",
+      "location": "Table 1, p. 216: XRF of the CEM I 42.5 R, wt.%; free CaO and limestone as printed in the same table",
+      "rows": [
+        ["CaO", 61.0],
+        ["SiO2", 19.6],
+        ["Al2O3", 4.87],
+        ["Fe2O3", 3.48],
+        ["MgO", 2.83],
+        ["SO3", 3.81],
+        ["P2O5", 0.15],
+        ["K2O", 1.11],
+        ["Na2O", 0.51],
+        ["CaO_free", 1.43],
+        ["limestone", 4.1]
+      ]
+    },
+    "cement_bogue": {
+      "columns": ["phase", "percent"],
+      "units": [null, "1"],
+      "kind": "published",
+      "location": "Table 2, p. 216: Bogue calculation",
+      "rows": [
+        ["C3S", 54],
+        ["C2S", 16],
+        ["C3A", 7],
+        ["C4AF", 11]
+      ]
+    },
+    "seawater": {
+      "columns": ["water", "Cl", "Na", "Mg", "S", "K", "Ca"],
+      "units": [null, "g/L", "g/L", "g/L", "g/L", "g/L", "g/L"],
+      "kind": "measured",
+      "location": "Table 3, p. 216: ICP-MS of the Trondheim fjord sea water used, and the Atlantic Ocean from the paper's ref. [10] (CRC handbook)",
+      "rows": [
+        ["Trondheim fjord", 19.4, 9.5, 1.1, 0.86, 0.35, 0.35],
+        ["Atlantic Ocean", 19, 10.5, 1.35, 0.88, 0.38, 0.4]
+      ]
+    },
+    "bulk_elements": {
+      "columns": ["element", "original", "exposed"],
+      "units": [null, "1", "1"],
+      "kind": "measured",
+      "location": "Fig. 4, p. 217 (raster bar chart, logarithmic axis): ICP-MS after dissolution of about 5 g of powder dried at 105 C in hot 1:10 HNO3, in % of the dry sample mass, before and after the sea-water exposure",
+      "rows": [
+        ["Mg", 1.44, 17.2],
+        ["Na", 0.314, 1.72],
+        ["Cl", 0.0742, 3.74],
+        ["S", 1.29, 1.55],
+        ["Al", 2.26, 2.58],
+        ["Fe", 2.04, 2.37],
+        ["K", 0.721, 0.086],
+        ["Ca", 36.6, 8.18]
+      ],
+      "digitization": {
+        "method": "raster image",
+        "tool": "pixel analysis of the bar chart: the center of the black outline of each bar top, mapped through the five tick marks of the logarithmic axis (170.4 px per decade)",
+        "uncertainty": {
+          "relative": 0.02
+        }
+      }
+    },
+    "msh_point_analyses": {
+      "columns": ["image", "Mg", "Ca", "Si", "Al", "Cl"],
+      "units": [null, "1", "1", "1", "1", "1"],
+      "kind": "measured",
+      "location": "Fig. 14 caption, p. 221: EDS of magnesium silicate compounds in Mg-rich particles, in %; the paper does not say whether atomic or mass %",
+      "rows": [
+        ["a", 22, 6, 22, 5, 6],
+        ["b", 21, 2, 19, 3, 4],
+        ["c", 16, 2, 17, 3, 4]
+      ]
+    },
+    "wall_eds_profile": {
+      "columns": ["depth_mm", "cl_ca", "mg_ca", "s_ca"],
+      "units": ["mm", "1", "1", "1"],
+      "kind": "measured",
+      "location": "Fig. 1, p. 216 (raster): mass ratios by SEM-EDS area analysis (780 x 580 um, paste and aggregates) on a polished section of the 10-year tidal-zone wall of DeWeerdt2014, from the paper's ref. [4] (De Weerdt, Geiker, Justnes 2013, 14th Euroseminar); two analyses at 3.6 mm; the curves continue beyond the last marker to the 20 mm edge of the plot",
+      "rows": [
+        [0.0, 0.041, 0.074, 0.058],
+        [0.6, 0.052, 0.034, 0.075],
+        [1.2, 0.073, 0.041, 0.098],
+        [1.8, 0.077, 0.044, 0.082],
+        [2.4, 0.078, 0.034, 0.05],
+        [3.0, 0.073, 0.047, 0.038],
+        [3.6, 0.082, 0.041, 0.037],
+        [3.6, 0.078, 0.034, 0.034],
+        [4.6, 0.066, 0.032, 0.032],
+        [8.0, 0.06, 0.042, 0.031],
+        [16.0, 0.056, 0.035, 0.033]
+      ],
+      "digitization": {
+        "method": "raster image",
+        "tool": "marker centers (32.9 px per mm, 5475 px per unit of ratio): filled circles by their dark core, open circles by ring matching, down-pointing triangles 8.75 px below their top edge; overlapping markers at 3.6, 4.6 and 16 mm read on a threefold enlargement",
+        "uncertainty": {
+          "value": 0.002,
+          "unit": "1"
+        },
+        "note": "the depth is read to 0.1 mm"
+      }
+    },
+    "phase_observations": {
+      "columns": ["sample", "phase", "method", "observation"],
+      "units": [null, null, null, null],
+      "kind": "measured",
+      "location": "Section 3 and Section 4, Figs. 5-16, and the Conclusions",
+      "rows": [
+        ["original", "portlandite", "TGA (about 500 C), XRD", "present"],
+        ["exposed", "portlandite", "TGA, XRD", "absent ('totally deprived')"],
+        [
+          "exposed",
+          "brucite",
+          "XRD, TGA (about 400 C), SEM-EDS",
+          "present: deposits on Ca-rich particles and intermixed with M-S-H"
+        ],
+        ["original", "monosulfate and hemicarbonate", "XRD", "present"],
+        ["original", "AFm", "TGA (170-180 C)", "present"],
+        ["exposed", "AFm", "TGA (170-180 C)", "no clear peak"],
+        [
+          "exposed",
+          "Cl-AFm (Kuzel's or Friedel's salt) or monocarbonate",
+          "XRD, SEM-EDS (Fig. 16)",
+          "broad XRD peak in that region; Ca-rich particles trend towards Kuzel's or Friedel's salt"
+        ],
+        ["exposed", "ettringite", "XRD, SEM-EDS (Fig. 15)", "persists; more ettringite in the Ca-rich particles"],
+        ["exposed", "gypsum", "XRD, SEM-EDS (Figs. 7, 8)", "present (absent in the original)"],
+        ["exposed", "aragonite", "XRD, SEM-EDS (Fig. 8), TGA", "calcium carbonate formed, as aragonite by XRD"],
+        ["exposed", "halite", "SEM-EDS (Fig. 7)", "present; Na is mainly in NaCl"],
+        [
+          "exposed",
+          "decalcified C-S-H",
+          "SEM-EDS (Fig. 9)",
+          "Ca-rich particles, Ca/Si from about 1.8 down to 1 or lower, Cl taken up"
+        ],
+        [
+          "exposed",
+          "M-S-H",
+          "SEM-EDS (Figs. 10-14)",
+          "Mg-rich particles where Mg replaced almost all Ca, Mg/Si about 1, Al/Mg about 0.2, Cl taken up; no AFm or AFt in them, S leached"
+        ],
+        [
+          "exposed",
+          "hydrotalcite-like phase",
+          "SEM-EDS (Fig. 13)",
+          "possible: Mg/Ca against Al/Ca trend with slope about 5 instead of 2"
+        ]
+      ]
+    }
+  },
+  "notes": [
+    "Exposure: a flow-through (Soxhlet) test, not a batch equilibrium: the 50 mL chamber fills in about 30 min and is siphoned, so 100 L of sea water passed in about 2000 fillings over about 6 weeks; the sample was then homogenized in a mortar, so the Ca-rich and Mg-rich particles are mixed at random in the analyzed powder.",
+    "No thermodynamic calculation in this paper. The comparison calculation is the GEMS titration of DeWeerdt2014 (Fig. 20 there).",
+    "The ICP-MS of Fig. 4 is per dry mass of a sample that lost mass: the paper reads the increase of S, Al and Fe as a relative effect of the Ca leaching, not as an uptake. Al and Fe rise by the same factor (about 1.14 and 1.16), which can be used to refer the exposed contents to the original dry mass.",
+    "Binder: a CEM I 42.5 R with 4.1 % limestone (Blaine 552 m2/kg, SO3 3.81 %). It is not the cement of DeWeerdt2014 (Blaine 362 m2/kg, SO3 3.00 %) nor the laboratory OPC of DeWeerdt2011.",
+    "Figs. 9-13, 15 and 16 (EDS dot plots) are not transcribed; their reading by the authors is in phase_observations and the quantities. Figs. 5 and 6 (TG/DTG curves and diffractograms) are not transcribed.",
+    "The elemental profile of Fig. 1 is the 2014 wall, measured by area EDS (paste plus aggregates) and normalized by Ca; the paper warns that the Ca leaching near the surface makes the ratios to Ca overestimate the changes there."
+  ]
+}

@@ -296,6 +296,7 @@ pages = [
             "examples/leaching.md",
             "examples/sulfate_attack.md",
             "examples/seawater.md",
+            "examples/seawater_flushing.md",
             "examples/delayed_ettringite.md",
             "examples/hemicarbonate.md",
             "examples/chloride_afm.md",
