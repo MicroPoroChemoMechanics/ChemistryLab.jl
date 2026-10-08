@@ -45,7 +45,7 @@ portlandite, along the one route that applies there.
         exceeds 0.7.
 
 ```@example clblend
-using ChemistryLab, DynamicQuantities, JSON, OptimaSolver, OrderedCollections, Printf
+using ChemistryLab, DynamicQuantities, JSON, OptimaSolver, OrderedCollections, Printf, Plots
 
 substances = build_species(datapath("cemdata18-chloride.json"); verbose = false)
 byname = Dict(symbol(s) => s for s in substances)
@@ -285,6 +285,30 @@ route_c, certs_c = equilibrate_path(paste(csB; clinker_fraction = CEM_III_B).sta
     [paste(csB; dose = d, clinker_fraction = CEM_III_B).b for d in DOSES]; model)
 println("certified: ", count(c -> c.optimal, certs_c), " of ", length(certs_c))
 report(route_c, csB, "CSHQ-Cl")
+```
+
+Where the chloride sits, dose by dose, along the three paths:
+
+```@example clblend
+# Stacked bars with `Plots` alone: each bar is drawn at its cumulative height,
+# the tallest first, so that the shorter ones in front leave each layer visible.
+function stacked(states, cs, gel_species, title; legend = false)
+    r = [partition(eq, cs, d; gel_species) for (d, eq) in zip(DOSES, states)]
+    layers = ([x.friedel for x in r], [x.kuzel for x in r], [x.gel for x in r])
+    xs = collect(eachindex(DOSES))
+    p = plot(; xticks = (xs, string.(DOSES)), xlabel = "chloride added (% of binder)",
+             ylabel = "mmol of Cl per 100 g of binder", title, titlefontsize = 10, legend)
+    for (k, lab, c) in ((3, "C-S-H", :seagreen), (2, "Kuzel's salt", :darkorange), (1, "Friedel's salt", :steelblue))
+        bar!(p, xs, 1000 .* sum(layers[1:k]); bar_width = 0.6, label = lab, color = c)
+    end
+    return p
+end
+panels = [stacked(route_a, cs2, "XwOHCl-", "CEM III/A, route A (surface)"; legend = :topleft),
+          stacked(route_b, csB, "CSHQ-Cl", "CEM III/A, route B (end member)"),
+          stacked(route_c, csB, "CSHQ-Cl", "CEM III/B, route B")]
+# One scale for the three, with room above the tallest bar.
+plot(panels...; ylims = (0, 1.1 * maximum(ylims(p)[2] for p in panels)),
+     layout = (1, 3), size = (1100, 360), left_margin = 6Plots.mm, bottom_margin = 8Plots.mm)
 ```
 
 Without portlandite the salt moves the pH further, from 12.67 to 12.99. The gel
