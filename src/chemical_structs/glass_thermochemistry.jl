@@ -72,7 +72,7 @@ function _default_glass_reference()
     return _GLASS_REFERENCE[]
 end
 
-_formation_enthalpy(sp) = ustrip(us"J/mol", sp[:ΔₐH⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+_formation_enthalpy(sp) = ustrip(us"J/mol", sp[:ΔₐH⁰](T = T_STANDARD_Q, P = P_STANDARD_Q; unit = true))
 
 # The crystal of an oxide among `reference`, an ordered list of species
 # collections: in the first collection that holds a crystal of that formula, the
@@ -84,7 +84,7 @@ function _reference_oxide(formula::AbstractString, reference)
         best, gbest = nothing, Inf
         for sp in db
             (aggregate_state(sp) == AS_CRYSTAL && charge(sp) == 0 && atoms(sp) == target) || continue
-            g = ustrip(us"J/mol", sp[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+            g = ustrip(us"J/mol", sp[:ΔₐG⁰](T = T_STANDARD_Q, P = P_STANDARD_Q; unit = true))
             g < gbest && ((best, gbest) = (sp, g))
         end
         best === nothing || return (best, k)
@@ -145,7 +145,7 @@ g = glass_enthalpy(slag)
 OxideConstituent("glass", slag; enthalpy = g.enthalpy, source = "glass_enthalpy")
 ```
 """
-function glass_enthalpy(oxides::AbstractDict{<:AbstractString, <:Real}; T = 298.15u"K", reference = nothing, ignore = ())
+function glass_enthalpy(oxides::AbstractDict{<:AbstractString, <:Real}; T = T_STANDARD_Q, reference = nothing, ignore = ())
     aq = _aq17_crystals()
     refs = reference === nothing ? _default_glass_reference() : reference
     glasses = _vitrification_enthalpies()
@@ -209,12 +209,12 @@ function glass_enthalpy(oxides::AbstractDict{<:AbstractString, <:Real}; T = 298.
 
     TK = T isa Real ? float(T) : ustrip(us"K", T)
     enthalpy = formation
-    if TK != 298.15
+    if TK != T_STANDARD
         kept = Dict(ox => f for (ox, f) in oxides if !(ox in ignore))
         cp(θ) = ustrip(us"J/(g*K)", glass_heat_capacity(kept; T = θ * u"K", reference = refs))
         nodes, weights = _gauss_legendre_8()
-        half = (TK - 298.15) / 2
-        mid = (TK + 298.15) / 2
+        half = (TK - T_STANDARD) / 2
+        mid = (TK + T_STANDARD) / 2
         enthalpy += half * sum(w * cp(mid + half * x) for (x, w) in zip(nodes, weights))
     end
 
@@ -284,7 +284,7 @@ Eqs. 1 and 3, Table I), to about 1 % below the glass transition and between
 cover takes the heat capacity of its crystal (the paper's footnote), from
 `reference` as in [`glass_enthalpy`](@ref).
 """
-function glass_heat_capacity(oxides::AbstractDict{<:AbstractString, <:Real}; T = 298.15u"K", reference = nothing)
+function glass_heat_capacity(oxides::AbstractDict{<:AbstractString, <:Real}; T = T_STANDARD_Q, reference = nothing)
     TK = T isa Real ? float(T) : ustrip(us"K", T)
     t = literature_table("Richet1987", "oxide_heat_capacity")
     cp = 0.0
@@ -298,7 +298,7 @@ function glass_heat_capacity(oxides::AbstractDict{<:AbstractString, <:Real}; T =
             found === nothing && throw(
                 ArgumentError("glass_heat_capacity: $ox is not in Table I of Richet (1987) and no crystal of it is in the reference databases.")
             )
-            cp += m * ustrip(us"J/(mol*K)", first(found)[:Cp⁰](T = TK * u"K", P = 1.0e5u"Pa"; unit = true))
+            cp += m * ustrip(us"J/(mol*K)", first(found)[:Cp⁰](T = TK * u"K", P = P_STANDARD_Q; unit = true))
         else
             a, bb, c, d = (ustrip(t.a[i]), ustrip(t.b[i]), ustrip(t.c[i]), ustrip(t.d[i]))
             cp += m * (a + bb * TK + c / TK^2 + d / sqrt(TK))

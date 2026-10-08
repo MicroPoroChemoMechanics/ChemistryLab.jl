@@ -123,3 +123,57 @@ The standard-state pressure as a plain `Float64` in pascals, derived from
 [`P_STANDARD_Q`](@ref): `1.0e5`.
 """
 const P_STANDARD = ustrip(us"Pa", P_STANDARD_Q)
+
+"""
+    T_STANDARD_Q
+
+The reference temperature with its dimensions, `298.15 K`: the temperature at
+which the databases read by this package tabulate their standard properties and
+their equilibrium constants. It is a convention, as [`P_STANDARD_Q`](@ref) is.
+"""
+const T_STANDARD_Q = 298.15u"K"
+
+"""
+    T_STANDARD
+
+The reference temperature as a plain `Float64` in kelvins, derived from
+[`T_STANDARD_Q`](@ref): `298.15`.
+"""
+const T_STANDARD = ustrip(us"K", T_STANDARD_Q)
+
+"""
+    T_ZERO_CELSIUS_Q
+
+The zero of the Celsius scale with its dimensions, `273.15 K`, by the definition
+of the scale. `DynamicQuantities` has no affine units, and a temperature in
+degrees Celsius is converted to kelvins by adding it.
+"""
+const T_ZERO_CELSIUS_Q = 273.15u"K"
+
+"""
+    T_ZERO_CELSIUS
+
+The zero of the Celsius scale as a plain `Float64` in kelvins, derived from
+[`T_ZERO_CELSIUS_Q`](@ref): `273.15`.
+"""
+const T_ZERO_CELSIUS = ustrip(us"K", T_ZERO_CELSIUS_Q)
+
+_celsius(T) = T - T_ZERO_CELSIUS
+_kelvin(tc) = tc + T_ZERO_CELSIUS
+
+"""
+    CALORIE_Q
+
+The thermochemical calorie with its dimensions, `4.184 J` by definition: the unit
+of the energies of the older databases (`kcal` in PHREEQC files, `cal` in
+SUPCRT). `DynamicQuantities` does not define it.
+"""
+const CALORIE_Q = 4.184u"J"
+
+"""
+    CALORIE
+
+The thermochemical calorie as a plain `Float64` in joules, derived from
+[`CALORIE_Q`](@ref): `4.184`.
+"""
+const CALORIE = ustrip(us"J", CALORIE_Q)

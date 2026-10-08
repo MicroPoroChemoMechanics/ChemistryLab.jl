@@ -401,7 +401,7 @@ end
 
 function DiffuseLayer(;
         area,
-        temperature::Real = 298.15,
+        temperature::Real = T_STANDARD,
         pressure::Real = 1.0e5,
         ε_r = nothing,
         scale::Real = 1.0,
@@ -527,7 +527,7 @@ for [`DiffuseLayer`](@ref).
 """
 function ChargePlanes(;
         area, C1, C2 = Inf,
-        temperature::Real = 298.15,
+        temperature::Real = T_STANDARD,
         pressure::Real = 1.0e5,
         ε_r = nothing,
         base::AbstractSiteMixingModel = IdealSiteMixing(),

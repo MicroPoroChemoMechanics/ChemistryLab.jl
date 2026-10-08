@@ -66,7 +66,7 @@ function site_family(
         master::AbstractString, site::AbstractString,
         capacity::AbstractSiteCapacity, support::SurfaceSupport,
         model::AbstractSiteMixingModel = IdealSiteMixing(),
-        T = 298.15u"K", P = 1.0e5u"Pa",
+        T = T_STANDARD_Q, P = P_STANDARD_Q,
     )
     is_site_symbol(Symbol(site)) || throw(
         ArgumentError("site must be one of SITE_SYMBOLS, such as \"Xw\"; got \"$site\".")

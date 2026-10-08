@@ -132,7 +132,7 @@ end
 const _PITZER_TABLES = (:beta0, :beta1, :beta2, :Cphi, :theta, :psi, :lambda)
 
 # The reference temperature of the temperature terms, PHREEQC's.
-const _PITZER_TR = 298.15
+const _PITZER_TR = T_STANDARD
 
 # The five temperature coefficients A₁…A₅ of an entry, fewer meaning zeros.
 function _five(::Type{T}, v) where {T}

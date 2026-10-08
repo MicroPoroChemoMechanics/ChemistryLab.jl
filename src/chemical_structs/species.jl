@@ -1777,7 +1777,7 @@ m³/mol, referred to `(Tref, Pref)` when called without them. It is the volume o
 a gas whose record declares `mv_pvnrt`, and of a gas built without a molar
 volume.
 """
-_ideal_gas_molar_volume(Tref = 298.15u"K", Pref = P_STANDARD_Q) =
+_ideal_gas_molar_volume(Tref = T_STANDARD_Q, Pref = P_STANDARD_Q) =
     NumericFunc((T, P) -> R_GAS * T / P, (:T, :P), (T = Tref, P = Pref), u"m^3/mol")
 
 """

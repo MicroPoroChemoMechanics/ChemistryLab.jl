@@ -28,13 +28,13 @@ explicitly.
 | wref   | cal/mol                 | J/mol               | 4.184      |
 """
 const HKF_SI_CONVERSIONS = OrderedDict{Symbol, Float64}(
-    :a1 => 4.184e-5,
-    :a2 => 4.184,
-    :a3 => 4.184e-5,
-    :a4 => 4.184,
-    :c1 => 4.184,
-    :c2 => 4.184,
-    :wref => 4.184,
+    :a1 => CALORIE / ustrip(us"Pa", 1.0u"bar"),
+    :a2 => CALORIE,
+    :a3 => CALORIE / ustrip(us"Pa", 1.0u"bar"),
+    :a4 => CALORIE,
+    :c1 => CALORIE,
+    :c2 => CALORIE,
+    :wref => CALORIE,
 )
 
 # Banners and progress bars are for someone watching a terminal. Written to a file,
@@ -275,8 +275,8 @@ from a ThermoFun substance DataFrame `row`. Mutates `species.properties` in plac
 # omits it is referred to that state: one substance of the slop98 organic
 # database, `Eth@`, carries no `Tst`. Read as missing, it made the whole database
 # unreadable.
-const _THERMOFUN_TST = 298.15
-const _THERMOFUN_PST = 1.0e5
+const _THERMOFUN_TST = T_STANDARD
+const _THERMOFUN_PST = P_STANDARD
 _reference_value(row, key, default) = (
     v = hasproperty(row, key) ? getproperty(row, key) : missing;
     (ismissing(v) || v === nothing) ? default : v
@@ -749,6 +749,6 @@ function _guggenheim_model(ref::AbstractString, ss_name)
             "expected \"<literature key>:<pair>\", such as \"Lothenbach2019:AFm SO4/OH\"."
     )
     p = literature_row(String(parts[1]), "guggenheim_parameters", String(parts[2]))
-    RT = R_GAS * 298.15
+    RT = R_GAS * T_STANDARD
     return RedlichKisterModel(; a0 = ustrip(p.alpha0) * RT, a1 = ustrip(p.alpha1) * RT)
 end

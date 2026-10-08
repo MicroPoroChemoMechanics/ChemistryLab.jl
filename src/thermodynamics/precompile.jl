@@ -17,17 +17,17 @@ using PrecompileTools: @compile_workload
     # but without string units — avoids uparse during precompilation.
     _f1 = ThermoFactory(:(a₀ + a₁ * T + a₂ / T^2), [:T])
     _sf1 = _f1(; a₀ = 75.0, a₁ = 0.0, a₂ = 0.0)
-    _sf1(; T = 298.15)
+    _sf1(; T = T_STANDARD)
     _sf1(; T = 500.0)
-    _sf1(; T = 298.15, unit = true)
+    _sf1(; T = T_STANDARD, unit = true)
 
     _f2 = ThermoFactory(:(b₀ * T + b₁ * T^2), [:T])
     _sf2 = _f2(; b₀ = 1.0, b₁ = 0.0)
-    _sf2(; T = 298.15)
+    _sf2(; T = T_STANDARD)
 
     # Arithmetic (exercises combine_symbolic and SymbolicFunc binary ops)
     _sf_sum = _sf1 + _sf2
-    _sf_sum(; T = 298.15)
+    _sf_sum(; T = T_STANDARD)
     _sf_diff = _sf1 - _sf2
-    _sf_diff(; T = 298.15)
+    _sf_diff(; T = T_STANDARD)
 end

@@ -369,7 +369,7 @@ state across.
 refused where its mixing energy is convex, as at declaration. A system with
 kinetic species is refused, since a kinetic step works on a system it was given.
 """
-function with_instances(cs::ChemicalSystem, changes::Pair{<:AbstractString, <:Integer}...; T::Real = 298.15)
+function with_instances(cs::ChemicalSystem, changes::Pair{<:AbstractString, <:Integer}...; T::Real = T_STANDARD)
     isempty(cs.idx_kinetic) || throw(
         ArgumentError(
             "with_instances: this system has kinetic species, and a kinetic step " *
@@ -496,7 +496,7 @@ end
 # `nothing` for a species that does not carry one.
 function _g298(s)
     return try
-        ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+        ustrip(us"J/mol", s[:ΔₐG⁰](T = T_STANDARD_Q, P = P_STANDARD_Q; unit = true))
     catch
         nothing
     end
@@ -529,7 +529,7 @@ declaration are exempt, as they are there.
 function _warn_one_substance_two_phases(solid_solutions)
     phases = collect(solid_solutions)
     length(phases) < 2 && return nothing
-    RT = R_GAS * 298.15
+    RT = R_GAS * T_STANDARD
     for i in eachindex(phases), j in (i + 1):lastindex(phases)
         P, Q = phases[i], phases[j]
         _declared(P) == _declared(Q) && continue
@@ -576,7 +576,7 @@ function _warn_pure_phase_beside_nonideal(species, solid_solutions, idx_members)
     members = Set(idx_members)
     pure = [s for (i, s) in enumerate(species) if aggregate_state(s) == AS_CRYSTAL && !(i in members)]
     isempty(pure) && return nothing
-    RT = R_GAS * 298.15
+    RT = R_GAS * T_STANDARD
     for P in solid_solutions
         model(P) isa IdealSolidSolutionModel && continue
         for a in end_members(P), b in pure

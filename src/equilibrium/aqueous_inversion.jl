@@ -86,7 +86,7 @@ end
 function _aqueous_form(model::LLNLActivityModel, cs::ChemicalSystem, members)
     par = [_llnl_kind(model, cs.species[i]) for i in members]
     log10γ = (t, z, I, sqrtI, A, B) -> _llnl_log10γ(par[t], z, I, sqrtI, A, B)
-    AB = p -> (r = _llnl_terms(model, hasproperty(p, :T) ? p.T : 298.15); (r[1], (r[2], r[3], r[4], r[5])))
+    AB = p -> (r = _llnl_terms(model, hasproperty(p, :T) ? p.T : T_STANDARD); (r[1], (r[2], r[3], r[4], r[5])))
     return _ionic_form(cs, members, log10γ, AB)
 end
 

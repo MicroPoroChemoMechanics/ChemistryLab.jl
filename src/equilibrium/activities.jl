@@ -116,7 +116,7 @@ function _gas_lna!(out, _n, idx_gas, p, mix::_PengRobinsonMixing)
     m = length(idx_gas)
     n_gas = sum((_n[i] + ϵ for i in idx_gas); init = zero(eltype(_n)))
     y = m == 1 ? [one(eltype(_n))] : [(_n[i] + ϵ) / n_gas for i in idx_gas]
-    T = hasproperty(p, :T) ? p.T : 298.15
+    T = hasproperty(p, :T) ? p.T : T_STANDARD
     P = hasproperty(p, :P) ? p.P : P_STANDARD
     lnφ, _ = _pr_ln_phi(mix, y, T, P)
     lnP = _ln_pressure_ratio(p)
@@ -1539,7 +1539,7 @@ concentration_scale(::LLNLActivityModel) = :molality
 # A, B, Ḃ at a temperature in kelvin, interpolated linearly in °C on the grid,
 # and the two temperature terms of the formula of carbon dioxide.
 function _llnl_terms(model::LLNLActivityModel, T_K)
-    tc = T_K - 273.15
+    tc = _celsius(T_K)
     ts = model.temperatures
     v = _plain(tc)
     ts[1] <= v <= ts[end] || throw(
@@ -1581,7 +1581,7 @@ end
     activity_model(cs::ChemicalSystem, model::LLNLActivityModel) -> Function
 
 Return a closure `lna(n, p) -> Vector` computing log-activities for the LLNL
-aqueous model, at the temperature `p.T` (298.15 K when `p` carries none).
+aqueous model, at the temperature `p.T` ([`T_STANDARD`](@ref) when `p` carries none).
 
 AD-compatible: all closure computations accept `ForwardDiff.Dual` inputs.
 """
@@ -1602,7 +1602,7 @@ function activity_model(cs::ChemicalSystem, model::LLNLActivityModel)
     function lna(n::AbstractVector, p)
         ϵ = p.ϵ
         _n = max.(n, _activity_floor(p))
-        A, B, Bdot, c1, c2 = _llnl_terms(model, hasproperty(p, :T) ? p.T : 298.15)
+        A, B, Bdot, c1, c2 = _llnl_terms(model, hasproperty(p, :T) ? p.T : T_STANDARD)
         terms = (B, Bdot, c1, c2)
         out = zeros(promote_type(eltype(_n), _number_type_of(p), MT, typeof(A), typeof(c1)), n_sp)
         n_w = _n[idx_solvent]
@@ -1895,7 +1895,7 @@ none), and a surface potential carried as an unknown of the solve arrives the wa
 an adiabatic temperature does, through `p.ψ_site`.
 """
 function _mixing_lna!(out, _n, mix::_MixingTerms, p, ϵ)
-    T_val = hasproperty(p, :T) ? p.T : 298.15
+    T_val = hasproperty(p, :T) ? p.T : T_STANDARD
     g = hasproperty(p, :ΔₐG⁰overRT) ? p.ΔₐG⁰overRT : nothing
     mix.has_ss && _solid_solution_lna!(out, _n, mix.ss_groups, mix.ss_models, T_val, ϵ, g)
     if mix.has_sites
@@ -2308,7 +2308,7 @@ hold there.
 """
 function electrostatic_stiffness(
         state::ChemicalState; model::AbstractActivityModel = DiluteSolutionModel(),
-        T::Real = 298.15
+        T::Real = T_STANDARD
     )
     cs = state.system
     n = Float64[ustrip(us"mol", x) for x in state.n]
@@ -2441,7 +2441,7 @@ Differentiates the whole activity closure with `ForwardDiff`, so it costs about
 """
 function site_gradient_asymmetry(
         cs::ChemicalSystem, model::AbstractActivityModel, n::AbstractVector;
-        T::Real = 298.15, ϵ::Real = 1.0e-30
+        T::Real = T_STANDARD, ϵ::Real = 1.0e-30
     )
     n0 = collect(float.(n))
     lna = activity_model(cs, model)

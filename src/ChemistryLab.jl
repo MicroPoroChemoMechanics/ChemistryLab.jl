@@ -402,6 +402,12 @@ module ChemistryLab
         FARADAY_Q,
         P_STANDARD,
         P_STANDARD_Q,
+        T_STANDARD,
+        T_STANDARD_Q,
+        T_ZERO_CELSIUS,
+        T_ZERO_CELSIUS_Q,
+        CALORIE,
+        CALORIE_Q,
         with_symbol
 
     export ChemicalSystem,

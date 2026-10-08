@@ -188,7 +188,7 @@ struct PhreeqcLogK
     add::Vector{Tuple{Int, Float64}}
 end
 
-const _T25 = 298.15
+const _T25 = T_STANDARD
 
 # log10 K at T (kelvin) and its first two temperature derivatives, from the
 # reaction's own data, without the named expressions it adds.
@@ -301,8 +301,8 @@ end
 function _delta_h_kJ(value::Float64, unit)
     unit === nothing && return value
     u = lowercase(unit)
-    startswith(u, "kcal") && return 4.184 * value
-    startswith(u, "cal") && return 4.184e-3 * value
+    startswith(u, "kcal") && return CALORIE * value
+    startswith(u, "cal") && return CALORIE * value / 1000
     startswith(u, "kj") && return value
     startswith(u, "j") && return 1.0e-3 * value
     return value
@@ -794,7 +794,7 @@ function _phreeqc_species(db::PhreeqcDatabase, sp::PhreeqcSpecies)
     H(T, P) = (r = _formation_log10K(db, f, T); R_GAS * log(10) * T^2 * r[2])
     S(T, P) = (H(T, P) - G(T, P)) / T
     Cp(T, P) = (r = _formation_log10K(db, f, T); R_GAS * log(10) * (2T * r[2] + T^2 * r[3]))
-    refs = (T = 298.15u"K", P = 101325.0u"Pa")
+    refs = (T = T_STANDARD_Q, P = 1.0u"Constants.atm")
     s[:ΔₐG⁰] = NumericFunc(G, (:T, :P), refs, u"J/mol")
     s[:ΔₐH⁰] = NumericFunc(H, (:T, :P), refs, u"J/mol")
     s[:S⁰] = NumericFunc(S, (:T, :P), refs, u"J/(mol*K)")
@@ -807,7 +807,7 @@ function _phreeqc_species(db::PhreeqcDatabase, sp::PhreeqcSpecies)
         s[:V⁰] = NumericFunc((T, P) -> v + zero(T), (:T, :P), refs, u"m^3/mol")
     end
     s[:gauge] = db.gauge
-    sp.critical === nothing || (s[:critical_constants] = [sp.critical[1], sp.critical[2] * 101325.0, sp.critical[3]])
+    sp.critical === nothing || (s[:critical_constants] = [sp.critical[1], sp.critical[2] * ustrip(us"Pa", _DQConstants.atm), sp.critical[3]])
     return s
 end
 

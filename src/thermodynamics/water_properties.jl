@@ -695,7 +695,7 @@ function water_electro_props_jn(T_K::T, ::T, wtp::WaterThermoProps) where {T <: 
         -0.2729401652e+2,
     )
 
-    kReferenceTemperature = 298.15
+    kReferenceTemperature = T_STANDARD
     kReferenceDensity = 1000.0
 
     alpha = -wtp.DT / wtp.D
@@ -777,7 +777,7 @@ function hkf_g_function(T_K::T, P_Pa::T, wtp::WaterThermoProps) where {T <: Real
         return zero_state
     end
 
-    TdegC = T_K - 273.15
+    TdegC = _celsius(T_K)
     Pbar = P_Pa * 1.0e-5
 
     # Region I coefficients (Shock et al. 1992, eqs. 24-31)

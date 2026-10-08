@@ -616,7 +616,7 @@ function host_coupling_bias(cs::ChemicalSystem)
     out = OrderedDict{String, Real}()
     fams = cs.site_families
     fams === nothing && return out
-    RT = R_GAS * 298.15
+    RT = R_GAS * T_STANDARD
     for f in fams
         surface_support(f).coupling === SITES_FOLLOW_HOST || continue
         jf = findfirst(s -> symbol(s) == symbol(reference_member(f)), cs.species)
@@ -641,7 +641,7 @@ energy is genuinely zero must not be confused with one that has none.
 function _standard_gibbs(sp::AbstractSpecies)
     g = sp[:ΔₐG⁰]
     g isa Number && return nothing
-    return ustrip(us"J/mol", g(T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+    return ustrip(us"J/mol", g(T = T_STANDARD_Q, P = P_STANDARD_Q; unit = true))
 end
 
 """
