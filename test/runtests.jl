@@ -65,6 +65,7 @@ end
     include("stoich_matrices.jl")
     include("databases.jl")
     include("databases_remote.jl")
+    include("thermofun_methods.jl")
     include("literature.jl")
     include("zeolites.jl")
     include("asr_extension.jl")

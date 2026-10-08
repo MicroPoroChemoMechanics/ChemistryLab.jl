@@ -1,0 +1,42 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "HollandPowell1998",
+    "doi": "10.1111/j.1525-1314.1998.00140.x",
+    "citation": "Holland, T. J. B., Powell, R. (1998). An internally consistent thermodynamic data set for phases of petrological interest. Journal of Metamorphic Geology 16, 309-343.",
+    "location": null
+  },
+  "transcription": {
+    "from": "the published article (PDF from the publisher), the thermal expansion on p. 311, the Murnaghan equation of state and the Landau model on p. 312, read on the text layer and checked on the page",
+    "checked_against_source": true,
+    "note": "The three numbers are part of the equations of the data set, the same for every end-member: the thermal expansion a_T = a0 (1 - 10/sqrt(T)), whose integral gives V(1, T) = V(1, 298) [1 + a0 (T - 298) - 20 a0 (sqrt(T) - sqrt(298))]; the bulk modulus k_T = k_298 (1 - 1.5e-4 (T - 298)); the pressure derivative of the bulk modulus set to 4 for all end-members in the Murnaghan equation. aq17 carries the end-member parameters a0, k_298, Tc, Smax and Vmax of Table 5."
+  },
+  "quantities": {
+    "thermal_expansion_coefficient": {
+      "value": 10.0,
+      "unit": "K^(1/2)",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 311",
+      "description": "The constant c of the thermal expansion a_T = a0 (1 - c/sqrt(T))."
+    },
+    "bulk_modulus_temperature_coefficient": {
+      "value": 1.5e-4,
+      "unit": "1/K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 312",
+      "description": "The coefficient b of the bulk modulus k_T = k_298 (1 - b (T - 298))."
+    },
+    "bulk_modulus_pressure_derivative": {
+      "value": 4.0,
+      "unit": "1",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 312",
+      "description": "The pressure derivative k' of the bulk modulus in the Murnaghan equation of state, set to 4 for all end-members."
+    }
+  },
+  "tables": {},
+  "notes": []
+}

@@ -92,11 +92,12 @@ using JSON
 
     @testset "the standard pressure leaves every standard energy where it was" begin
         # At P° the pressure term is an exact zero: the tabulated ΔfG° comes back
-        # at each record's own Tst to rounding, as it did without the term.
+        # at each record's own Tst to rounding, as it did without the term. A
+        # substance the file defines by a reaction follows its reaction instead.
         raw = JSON.parsefile(datapath("cemdata18-thermofun.json"))
         for r in raw["substances"]
             k = String(r["symbol"])
-            haskey(r, "sm_gibbs_energy") && aggregate_state(cem[k]) != AS_AQUEOUS || continue
+            haskey(r, "sm_gibbs_energy") && aggregate_state(cem[k]) != AS_AQUEOUS && !haskey(r, "reaction") || continue
             Tst = Float64(get(r, "Tst", 298.15))
             @test abs(cem[k][:ΔₐG⁰](T = Tst, P = P_STANDARD) - Float64(r["sm_gibbs_energy"]["values"][1])) < 1.0e-8
         end

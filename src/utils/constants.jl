@@ -159,7 +159,7 @@ The zero of the Celsius scale as a plain `Float64` in kelvins, derived from
 const T_ZERO_CELSIUS = ustrip(us"K", T_ZERO_CELSIUS_Q)
 
 _celsius(T) = T - T_ZERO_CELSIUS
-_kelvin(tc) = tc + T_ZERO_CELSIUS
+_celsius_to_kelvin(tc) = tc + T_ZERO_CELSIUS
 
 """
     CALORIE_Q

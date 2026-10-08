@@ -93,7 +93,7 @@ const THERMO_MODELS = Dict(
     ),
     :logk_fpt_function => Dict(
         :logKr =>
-            :(A₀ + A₁ * T + A₂ / T + A₃ * log(T) + A₄ / T^2 + A₅ * T^2 + A₆ * sqrt(T)),
+            :(A₀ + A₁ * T + A₂ / T + A₃ * log(T) + A₄ / T^2 + A₅ * T^2 + A₆ / sqrt(T)),
         :units => [
             :A₀ => u"1",
             :A₁ => u"K^(-1)",
@@ -101,7 +101,7 @@ const THERMO_MODELS = Dict(
             :A₃ => u"1",
             :A₄ => u"K^2",
             :A₅ => u"K^(-2)",
-            :A₆ => u"K^(-1//2)",
+            :A₆ => u"K^(1//2)",
             :T => u"K",
             # :logKr => "1",
         ],

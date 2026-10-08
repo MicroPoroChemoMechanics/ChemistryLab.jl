@@ -59,7 +59,9 @@ Read a ThermoFun database from a JSON file.
 # Returns
 
   - `df_elements`: DataFrame of chemical elements.
-  - `df_substances`: DataFrame of chemical substances (species).
+  - `df_substances`: DataFrame of chemical substances (species). A substance the
+    database defines by a reaction carries that reaction's record in the column
+    `defining_reaction`, from which [`build_species`](@ref) computes it.
   - `df_reactions`: DataFrame of chemical reactions.
 """
 function read_thermofun_database(filename)
@@ -70,6 +72,19 @@ function read_thermofun_database(filename)
     data = JSON.parsefile(path)
     df_substances = DataFrame(Tables.dictrowtable(data["substances"]))
     df_reactions = DataFrame(Tables.dictrowtable(data["reactions"]))
+    # A substance defined by a reaction names it by its symbol. A symbol given to
+    # two records keeps the first, as the two copies Cemdata18 carries of some of
+    # its reactions differ only in listing each reactant twice.
+    if hasproperty(df_substances, :reaction)
+        by_symbol = Dict{String, Any}()
+        for r in data["reactions"]
+            get!(by_symbol, String(r["symbol"]), r)
+        end
+        df_substances.defining_reaction = Any[
+            (ismissing(r) || r === nothing) ? missing : get(by_symbol, String(r), missing)
+                for r in df_substances.reaction
+        ]
+    end
     df_elements = DataFrame(Tables.dictrowtable(data["elements"]))
     return df_elements, df_substances, df_reactions
 end
@@ -282,6 +297,29 @@ _reference_value(row, key, default) = (
     (ismissing(v) || v === nothing) ? default : v
 )
 
+# The methods of a ThermoFun record computed as their publications define them:
+# the volume and the Landau transition of a mineral of Holland and Powell,
+# `mv_eos_murnaghan_hp98` and `landau_holland_powell98` (`_holland_powell98!`), and
+# a dissolved gas of Akinfiev and Diamond, `solute_aknifiev_diamond03`
+# (`_akinfiev_diamond!`).
+#
+# The methods of a ThermoFun record that need nothing of their own here:
+#   - `standard_entropy_cp_integration` extrapolates the reference values with
+#     the heat capacity held constant, which is what a record without a
+#     heat-capacity function gets (`complete_thermo_functions!`);
+#   - `water_diel_*` is the permittivity of the solvent, which the package takes
+#     from its own model of water (`water_electro_props_jn`);
+#   - `fluid_comp_redlich_kwong_hp91`, the compensated Redlich-Kwong fluid of
+#     Holland and Powell, leaves the standard Gibbs energy that of the ideal gas,
+#     as ThermoFun applies it, and moves the departure from the ideal gas into
+#     the fugacity, which here is the gas phase's equation of state
+#     ([`peng_robinson`](@ref)) [HollandPowell1991](@cite).
+# Any other method is not computed, and the species carrying it is refused by
+# `build_species`.
+const _THERMOFUN_EQUIVALENT_METHODS = (
+    "standard_entropy_cp_integration", "water_diel_jnort91_reaktoro", "fluid_comp_redlich_kwong_hp91",
+)
+
 function complete_species_with_thermo_model!(species, row; verbose = false)
     Tst = _reference_value(row, :Tst, _THERMOFUN_TST)
     Tref = Tst * u"K"
@@ -324,6 +362,7 @@ function complete_species_with_thermo_model!(species, row; verbose = false)
         # Held as a function returning the list, a property being a number, a
         # function, a string or a vector of numbers or of pairs.
         length(intervals) > 1 && (species[:cp_intervals] = () -> intervals)
+        murnaghan, landau = false, nothing
         for method in TPMethods
             method_type = only(values(method.method))
             if method_type == "cp_ft_equation" && method === cp_interval
@@ -358,11 +397,43 @@ function complete_species_with_thermo_model!(species, row; verbose = false)
                 # anchored on the record at its reference
                 # (`_solvent_from_water_eos!`).
                 species[:V_method] = "water_eos"
+            elseif method_type in _THERMOFUN_EQUIVALENT_METHODS
+                # Computed the way the package computes a record without a
+                # method of its own; see `_THERMOFUN_EQUIVALENT_METHODS`.
+                nothing
+            elseif method_type == "mv_eos_murnaghan_hp98"
+                murnaghan = true
+            elseif method_type == "landau_holland_powell98" && haskey(method, :m_landau_phase_trans_props)
+                landau = Float64.(method.m_landau_phase_trans_props.values)
+            elseif method_type == "solute_aknifiev_diamond03" && haskey(method, :eos_akinfiev_diamond_coeffs)
+                # It needs the water of the database: refused until
+                # `_species_from_row` applies it (`_akinfiev_diamond!`).
+                species[:ad03] = Float64.(method.eos_akinfiev_diamond_coeffs.values[1:3])
+                _refuse_method!(species, method_type)
+            elseif !(method_type == "cp_ft_equation" || method_type == "solute_hkf88_reaktoro")
+                _refuse_method!(species, method_type)
+            end
+        end
+        if murnaghan || landau !== nothing
+            p = _hp98_parameters(row, landau, Tst, ustrip(us"Pa", Pref))
+            if p !== nothing
+                _holland_powell98!(species, p)
+            elseif landau === nothing
+                # Without a bulk modulus, the volume of the record is held
+                # constant, as ThermoFun holds it (Gibbsite and Boehmite in aq17).
+                species[:V_method] = "mv_constant"
+            else
+                _refuse_method!(species, "landau_holland_powell98")
             end
         end
     end
     return species
 end
+
+_refuse_method!(species, method) = (
+    species[:refused_method] = haskey(properties(species), :refused_method) ?
+        species[:refused_method] * "`, `" * method : method
+)
 
 """
     build_species(df_substances::AbstractDataFrame, list_symbols=nothing; verbose=false) -> Vector{Species}
@@ -378,6 +449,42 @@ Build Species objects from a substance DataFrame.
 # Returns
 
   - Vector of `Species`.
+
+# Substances defined by a reaction
+
+A substance the database defines by a reaction (`defining_reaction`, see
+[`read_thermofun_database`](@ref)) gets its standard properties at any
+temperature from that reaction, as ThermoFun computes them: with the reaction
+``\\sum_i \\nu_i \\mathrm{A}_i = 0`` and its properties ``\\Delta_r X`` from its
+``\\log K(T)``,
+``X_s = (\\Delta_r X - \\sum_{i \\ne s} \\nu_i X_i) / \\nu_s`` for ``G``, ``H``,
+``S`` and ``C_p``, and for the molar volume ``V`` of a solute; a solid keeps the
+molar volume its record gives. The other species of the reaction are built for
+the purpose when they are not in `list_symbols`.
+
+# Methods of aq17
+
+The volume of a mineral of Holland and Powell (`mv_eos_murnaghan_hp98`, the
+Murnaghan equation with a thermal expansion) and its order-disorder transition
+(`landau_holland_powell98`, tricritical Landau theory) are computed as
+[HollandPowell1998](@cite) defines them, the volume integrated from the
+reference pressure; a mineral whose record gives no bulk modulus keeps the
+volume of its record, its Gibbs energy moving by ``V^\\circ (P - P^\\circ)``, as
+ThermoFun computes Gibbsite and Boehmite. A dissolved gas of Akinfiev and
+Diamond (`solute_aknifiev_diamond03`) is computed as [AkinfievDiamond2003](@cite)
+defines it, with the water and the water vapor of the same table. ThermoFun
+integrates the volume of a mineral from zero pressure and leaves it out at the
+reference state: away from that state its energies exceed these by the molar
+volume times one bar, a few J/mol.
+
+# Methods that are not computed
+
+A substance whose record computes it by a method the package does not implement
+(a method ThermoFun does not list, or a dissolved gas without the water of its
+database) is built for its reference state only: its standard properties are
+those of its record at the reference temperature, and within one bar of the
+reference pressure; anywhere else they raise an error naming the method. A
+warning lists such substances.
 """
 function build_species(
         df_substances::AbstractDataFrame, list_symbols = nothing; verbose = false
@@ -389,29 +496,227 @@ function build_species(
     end
     keylist = String[]
     species_list = Species[]
+    refused = Tuple{String, String}[]
     _banner("Building species", :blue)
     progress = _progress(nrow(local_df_substances))
     for row in eachrow(local_df_substances)
         if verbose
             println(row[:symbol])
         end
-        species = Species(
-            row.formula;
-            name = row.name,
-            symbol = row.symbol,
-            aggregate_state = extract_classification(get(row, :aggregate_state, missing), AS_UNDEF),
-            class = extract_classification(get(row, :class_, missing), SC_UNDEF),
-        )
-        complete_species_with_thermo_model!(species, row; verbose = verbose)
+        species = _species_from_row(row, df_substances; verbose = verbose)
+        _tick!(progress)
+        if haskey(properties(species), :refused_method)
+            push!(refused, (row.symbol, species[:refused_method]))
+            _reference_state_only!(species)
+        end
         key = row.symbol
         if key in keylist
             @warn("Symbol $key is used for multiple species")
         end
         push!(keylist, key)
         push!(species_list, species)
-        _tick!(progress)
     end
+    isempty(refused) || @warn "build_species: $(length(refused)) substance(s) computed by a method ChemistryLab does not implement, usable at their reference state only: " *
+        join(("$s (`$m`)" for (s, m) in refused), ", ")
+    _define_by_reactions!(species_list, df_substances; verbose = verbose)
     return species_list
+end
+
+# The species of a row of `df`; a dissolved gas of Akinfiev and Diamond takes the
+# water of `df` (`_akinfiev_diamond!`).
+function _species_from_row(row, df = nothing; verbose = false)
+    species = Species(
+        row.formula;
+        name = row.name,
+        symbol = row.symbol,
+        aggregate_state = extract_classification(get(row, :aggregate_state, missing), AS_UNDEF),
+        class = extract_classification(get(row, :class_, missing), SC_UNDEF),
+    )
+    complete_species_with_thermo_model!(species, row; verbose = verbose)
+    haskey(properties(species), :ad03) && _akinfiev_diamond!(species, df)
+    return species
+end
+
+const _ONE_BAR = ustrip(us"Pa", 1.0u"bar")
+
+# The functions of a substance computed by a method the package does not
+# implement, restricted to its reference state, where the method leaves the
+# record's values: the reference temperature (unless `temperature = false`, for a
+# method that moves the properties with pressure only), and one bar about the
+# reference pressure. Anywhere else they raise an error naming the method.
+function _reference_state_only!(s; temperature::Bool = true)
+    complete_thermo_functions!(s)
+    sym, method = symbol(s), s[:refused_method]
+    Tr, Pr = ustrip(us"K", s.Tref), ustrip(us"Pa", s.Pref)
+    function check(T, P)
+        ((!temperature || abs(_plain(T) - Tr) <= 1.0e-6) && abs(_plain(P) - Pr) <= _ONE_BAR) || throw(
+            ArgumentError(
+                "$sym: its record computes it by the method `$method`, which ChemistryLab does not implement; " *
+                    "its properties are known " * (temperature ? "at its reference state only, $(Tr) K and " : "at ") *
+                    "$(Pr) Pa within 1 bar, not at $(_plain(T)) K and $(_plain(P)) Pa. " *
+                    "Leave it out of the system, or take it from another database.",
+            )
+        )
+        return nothing
+    end
+    for key in (:ΔₐG⁰, :ΔₐH⁰, :S⁰, :Cp⁰, :V⁰)
+        haskey(properties(s), key) || continue
+        f = s[key]
+        f isa AbstractFunc || continue
+        s[key] = NumericFunc((T, P) -> (check(T, P); f(T = T, P = P)), (:T, :P), (T = s.Tref, P = s.Pref), f.unit)
+    end
+    return s
+end
+
+
+# Computes the substances of `species_list` that the database defines by a
+# reaction, building the other species of each reaction from `df` as needed,
+# themselves defined by a reaction or not.
+function _define_by_reactions!(species_list, df; verbose = false)
+    hasproperty(df, :defining_reaction) || return species_list
+    rows = Dict(String(r.symbol) => r for r in eachrow(df))
+    cache = Dict{String, Species}(symbol(s) => s for s in species_list)
+    done, visiting = Set{String}(), Set{String}()
+    function define!(s)
+        sym = symbol(s)
+        sym in done && return s
+        row = get(rows, sym, nothing)
+        rec = row === nothing ? missing : row.defining_reaction
+        if !ismissing(rec)
+            sym in visiting && throw(ArgumentError("$sym is defined by a reaction that rests on itself"))
+            push!(visiting, sym)
+            _define_by_reaction!(s, rec, species_of)
+            delete!(visiting, sym)
+        end
+        push!(done, sym)
+        return s
+    end
+    function species_of(sym)
+        s = get(cache, sym, nothing)
+        if s === nothing
+            row = get(rows, sym, nothing)
+            row === nothing && throw(ArgumentError("a reaction of the database names $sym, which it does not define"))
+            s = _species_from_row(row, df; verbose = verbose)
+            haskey(properties(s), :refused_method) && _reference_state_only!(s)
+            cache[sym] = s
+        end
+        return define!(s)
+    end
+    foreach(define!, species_list)
+    return species_list
+end
+
+# ── Substances defined by a reaction ─────────────────────────────────────────
+#
+# A ThermoFun database may define a substance by a reaction rather than by a
+# heat-capacity function of its own: its record gives the standard properties at
+# the reference temperature, and `reaction` names the reaction whose log K, with
+# the properties of the other species of that reaction, gives them at any
+# temperature. PSI/Nagra 12/07 defines 440 substances that way, Cemdata18 17
+# (the zeolites, Fe(OH)3, MgSiO3@, S-2, ...). Extrapolated from the reference
+# with its own heat capacity, such a substance follows neither its reaction nor
+# ThermoFun, which computes it from the reaction.
+
+# The log K of a ThermoFun reaction at T (kelvin) and its first two derivatives:
+# the seven terms of `logk_fpt_function`,
+#     log K = A₀ + A₁T + A₂/T + A₃ ln T + A₄/T² + A₅T² + A₆/√T,
+# or, for a record without them, the value at the reference with the enthalpy
+# and the heat capacity of reaction there, held constant (van 't Hoff's
+# equation, integrated with a constant heat capacity of reaction).
+function _thermofun_log10K(rec)
+    coeffs = nothing
+    for m in something(get(rec, "TPMethods", nothing), [])
+        c = get(m, "logk_ft_coeffs", nothing)
+        c === nothing || (coeffs = Float64.(c["values"]))
+    end
+    if coeffs !== nothing && any(!iszero, coeffs)
+        length(coeffs) > 7 && any(!iszero, coeffs[8:end]) && throw(
+            ArgumentError("reaction $(rec["symbol"]): logk_fpt_function has nonzero coefficients past the seventh, which no published form gives")
+        )
+        A = ntuple(i -> i <= length(coeffs) ? coeffs[i] : 0.0, 7)
+        return function (T)
+            L = A[1] + A[2] * T + A[3] / T + A[4] * log(T) + A[5] / T^2 + A[6] * T^2 + A[7] / sqrt(T)
+            dL = A[2] - A[3] / T^2 + A[4] / T - 2A[5] / T^3 + 2A[6] * T - A[7] / (2 * T^1.5)
+            d2L = 2A[3] / T^3 - A[4] / T^2 + 6A[5] / T^4 + 2A[6] + 3A[7] / (4 * T^2.5)
+            return L, dL, d2L
+        end
+    end
+    value(key) = (v = get(rec, key, nothing); v === nothing ? 0.0 : Float64(only(v["values"])))
+    L0, H, Cp = value("logKr"), value("drsm_enthalpy"), value("drsm_heat_capacity_p")
+    Tr = Float64(get(rec, "Tst", _THERMOFUN_TST))
+    k = R_GAS * log(10)
+    return function (T)
+        L = L0 - H / k * (1 / T - 1 / Tr) + Cp / k * (Tr / T - 1 + log(T / Tr))
+        dL = H / (k * T^2) + Cp / k * (1 / T - Tr / T^2)
+        d2L = -2H / (k * T^3) + Cp / k * (2Tr / T^3 - 1 / T^2)
+        return L, dL, d2L
+    end
+end
+
+# The reactants of a reaction record, by symbol: a record that lists a species
+# twice (the second copy of some reactions of Cemdata18 does) counts it once, and
+# two different coefficients for one species are refused.
+function _thermofun_reactants(rec)
+    out = OrderedDict{String, Float64}()
+    for r in rec["reactants"]
+        s, c = String(r["symbol"]), Float64(r["coefficient"])
+        if haskey(out, s) && out[s] != c
+            throw(ArgumentError("reaction $(rec["symbol"]) gives $s two coefficients, $(out[s]) and $c"))
+        end
+        out[s] = c
+    end
+    return out
+end
+
+# Defines the standard properties of `s` by the reaction `rec`, from those of the
+# other species of the reaction, which `species_of(symbol)` returns. With the
+# reaction written Σ νᵢ Aᵢ = 0 (products positive) and its properties ΔᵣX:
+#
+#     X_s = (ΔᵣX − Σ_{i≠s} νᵢ Xᵢ) / ν_s ,
+#
+# for G, H, S and Cp, and V for a solute, where
+#     ΔᵣG = −RT ln 10 log K(T) + ΔᵣV (P − P°),  ΔᵣH = RT² ln 10 d log K/dT + ΔᵣV (P − P°),
+#     ΔᵣS = R ln 10 (log K + T d log K/dT),     ΔᵣCp = R ln 10 (2T d log K/dT + T² d² log K/dT²),
+# and ΔᵣV the constant volume of reaction (`dr_volume_constant`). The molar
+# volume of a solid or a gas is the one its record gives, or none when the
+# record gives zero (Cemdata18 for Fe(OH)3): it is what the volume of the phase
+# is computed from, which a volume of reaction does not give.
+function _define_by_reaction!(s, rec, species_of)
+    reactants = _thermofun_reactants(rec)
+    me = symbol(s)
+    haskey(reactants, me) || throw(ArgumentError("reaction $(rec["symbol"]) does not contain $me, which it is said to define"))
+    ν_s = reactants[me]
+    others = [(species_of(k), ν) for (k, ν) in reactants if k != me]
+    logK = _thermofun_log10K(rec)
+    ΔV = let v = get(rec, "drsm_volume", nothing)
+        v === nothing ? 0.0 : ustrip(us"m^3/mol", Float64(only(v["values"])) * u"J/(bar*mol)")
+    end
+    Pr = Float64(get(rec, "Pst", _THERMOFUN_PST))
+    k = R_GAS * log(10)
+    ΔG(T, P) = -k * T * first(logK(T)) + ΔV * (P - Pr)
+    ΔH(T, P) = (r = logK(T); k * T^2 * r[2] + ΔV * (P - Pr))
+    ΔS(T, P) = (r = logK(T); k * (r[1] + T * r[2]))
+    ΔCp(T, P) = (r = logK(T); k * (2T * r[2] + T^2 * r[3]))
+    ΔVf(T, P) = ΔV + zero(T)
+    refs = (T = s.Tref, P = s.Pref)
+    for (key, Δ, unit) in (
+            (:ΔₐG⁰, ΔG, u"J/mol"), (:ΔₐH⁰, ΔH, u"J/mol"), (:S⁰, ΔS, u"J/(mol*K)"),
+            (:Cp⁰, ΔCp, u"J/(mol*K)"), (:V⁰, ΔVf, u"m^3/mol"),
+        )
+        key === :V⁰ && aggregate_state(s) != AS_AQUEOUS && continue
+        all(o -> haskey(first(o), key), others) || continue
+        fs = [(first(o)[key], last(o)) for o in others]
+        f = function (T, P)
+            acc = Δ(T, P)
+            for (g, ν) in fs
+                acc -= ν * g(T = T, P = P)
+            end
+            return acc / ν_s
+        end
+        s[key] = NumericFunc(f, (:T, :P), refs, unit)
+    end
+    s[:defining_reaction] = String(rec["symbol"])
+    return s
 end
 
 function build_species(filename, list_symbols = nothing; verbose = false)
@@ -435,8 +740,12 @@ function complete_reaction_with_thermo_model!(reaction, row; verbose = false)
             row, :drsm_heat_capacity_p; verbose = verbose, default_unit = u"J/K/mol"
         ),
         :ΔᵣH⁰ => extract_value(row, :drsm_enthalpy; verbose = verbose, default_unit = u"J/mol"),
-        :ΔᵣS⁰ =>
+        # ThermoFun writes the entropy of reaction as `drsm_entropy`; an older
+        # spelling, `drsm_entropy_abs`, is read when it is the one given.
+        :ΔᵣS⁰ => coalesce(
+            extract_value(row, :drsm_entropy; verbose = verbose, default_unit = u"J/K/mol"),
             extract_value(row, :drsm_entropy_abs; verbose = verbose, default_unit = u"J/K/mol"),
+        ),
         :ΔᵣG⁰ =>
             extract_value(row, :drsm_gibbs_energy; verbose = verbose, default_unit = u"J/mol"),
         :ΔᵣV⁰ => correct_volume_unit(extract_value(row, :drsm_volume; verbose = verbose, default_unit = u"J/bar")),
@@ -451,7 +760,8 @@ function complete_reaction_with_thermo_model!(reaction, row; verbose = false)
                 reaction[:logk_method] = "logk_fpt_function"
                 coeffs = method.logk_ft_coeffs
                 vals = coeffs.values
-                units = dimension.([1, u"1/K", u"K", 1, u"K^2", u"1/K^2", u"1/√K"])
+                # The seventh term is A₆/√T, as ThermoFun evaluates it.
+                units = dimension.([1, u"1/K", u"K", 1, u"K^2", u"1/K^2", u"√K"])
                 params = [
                     Symbol("A", subscriptnumber(i - 1)) =>
                         float(Quantity(vals[i], units[i])) for
@@ -497,30 +807,27 @@ function build_reactions(
     keylist = String[]
     reactions_list = Reaction[]
     _banner("Building reactions", :red)
-    function choose_species(k, rowsymbol, dict_species)
-        if haskey(dict_species, k)
-            return dict_species[k]
-        elseif haskey(dict_species, rowsymbol)
-            return dict_species[rowsymbol]
-        else
-            rowsymboldot = replace(rowsymbol, "_" => ".")
-            if haskey(dict_species, rowsymboldot)
-                return dict_species[rowsymboldot]
-            else
-                return find_species(k, collect(values(dict_species)))
-            end
-        end
+    # A reactant by its symbol, or by that symbol with `_` read as `.`; then by
+    # the other names `find_species` knows. A reactant found nowhere is an error:
+    # no other species stands in for it.
+    function choose_species(k)
+        haskey(dict_species, k) && return dict_species[k]
+        kdot = replace(k, "_" => ".")
+        haskey(dict_species, kdot) && return dict_species[kdot]
+        s = find_species(k, collect(values(dict_species)))
+        s === nothing && throw(ArgumentError("a reaction names $k, which the species given do not contain"))
+        return s
     end
     progress = _progress(nrow(local_df_reactions))
     for row in eachrow(local_df_reactions)
         if verbose
             println(row[:symbol])
         end
+        # The reactants by symbol, whatever the order of the keys of each entry.
+        stoich = [(k, ν) for (k, ν) in _thermofun_reactants(row) if k != "e-"]
+        whole = all(isinteger(last(x)) for x in stoich)
         reaction = Reaction(
-            OrderedDict(
-                choose_species(last(k), row.symbol, dict_species) => last(v) for
-                    (k, v) in row.reactants if last(k) != "e-"
-            );
+            OrderedDict(choose_species(k) => (whole ? Int(ν) : ν) for (k, ν) in stoich);
             symbol = row.symbol,
         )
         complete_reaction_with_thermo_model!(reaction, row; verbose = verbose)
@@ -751,4 +1058,187 @@ function _guggenheim_model(ref::AbstractString, ss_name)
     p = literature_row(String(parts[1]), "guggenheim_parameters", String(parts[2]))
     RT = R_GAS * T_STANDARD
     return RedlichKisterModel(; a0 = ustrip(p.alpha0) * RT, a1 = ustrip(p.alpha1) * RT)
+end
+
+# ── Holland and Powell (1998): the volume of a solid and its Landau transition ──
+#
+# Two methods of aq17 carry a mineral away from its reference state beyond its
+# heat-capacity polynomial [HollandPowell1998; p. 312](@cite). Its volume follows
+# temperature and pressure,
+#
+#     V(T, P) = V₁(T) (1 + k′P/k(T))^(−1/k′),
+#     V₁(T) = V° [1 + a° (T − Tr) − 2c a° (√T − √Tr)],   k(T) = k₂₉₈ [1 − b (T − Tr)],
+#
+# the thermal expansion a° (1 − c/√T) rising to a° at high temperature, and the
+# Gibbs energy gains ∫ V dP from the reference pressure (`mv_eos_murnaghan_hp98`).
+# A mineral with an order-disorder transition gains the excess energy of
+# tricritical Landau theory (`landau_holland_powell98`),
+#
+#     G_ex = h° − T s° + ∫ v dP + S_max [(T − T_c) Q² + T_c Q⁶ / 3],
+#     h° = S_max T°_c (Q₀² − Q₀⁶/3),  s° = S_max Q₀²,  Q₀⁴ = 1 − Tr/T°_c,
+#     Q⁴ = 1 − T/T_c below T_c (0 above),  T_c = T°_c + (V_max/S_max)(P − Pr),
+#     v = V_max Q₀² [1 + a° (T − Tr) − 2c a° (√T − √Tr)],
+#
+# whose Gibbs energy, enthalpy and entropy vanish at the reference state, so that
+# the record's values hold there; its volume there is V_max Q₀⁶/3. The article's
+# pressures are absolute, its ∫ v dP starting from zero and its T_c moving with P;
+# both are taken here from the reference pressure P°, which keeps the record's
+# Gibbs energy at P° and differs from the article by the volume of disorder times
+# one bar, about 0.1 J/mol. The constants b, c and k′ of the equations are read
+# from `data/literature/HollandPowell1998.json`.
+const _HP98 = let q(name) = ustrip(literature_value("HollandPowell1998", name))
+    (; b = q("bulk_modulus_temperature_coefficient"), c = q("thermal_expansion_coefficient"), kprime = q("bulk_modulus_pressure_derivative"))
+end
+
+_hp98_v1(V0, a0, Tr, T) = V0 * (1 + a0 * (T - Tr) - 2 * _HP98.c * a0 * (sqrt(T) - sqrt(Tr)))
+_hp98_dv1(V0, a0, T) = V0 * a0 * (1 - _HP98.c / sqrt(T))
+
+# ∫_{Pr}^{P} v (1 + k′P/k)^(−1/k′) dP and its derivatives in T and in P, for `v`
+# and `k` the values at T and `dv`, `dk` their derivatives in T.
+function _murnaghan_integral(v, dv, k, dk, P, Pr)
+    kp = _HP98.kprime
+    e = (kp - 1) / kp
+    u, ur = 1 + kp * P / k, 1 + kp * Pr / k
+    I = v * k / (kp - 1) * (u^e - ur^e)
+    # The derivative of k u^e in T, u depending on T through k.
+    dkue(uu, PP) = dk * (uu^e - (kp - 1) * PP * uu^(e - 1) / k)
+    dIdT = dv * k / (kp - 1) * (u^e - ur^e) + v / (kp - 1) * (dkue(u, P) - dkue(ur, Pr))
+    dIdP = v * u^(-1 / kp)
+    return I, dIdT, dIdP
+end
+
+# The Gibbs energy the two methods add to a mineral's, with its derivatives in T
+# and P; `p` holds V° (m³/mol), a° (1/K), k₂₉₈ (Pa), Tr (K), Pr (Pa) and, for a
+# transition, `landau = (T°_c, S_max, V_max)` in K, J/(mol K), m³/mol.
+function _hp98_excess(p, T, P)
+    k = p.k0 * (1 - _HP98.b * (T - p.Tr))
+    dk = -p.k0 * _HP98.b
+    G, dGdT, dGdP = _murnaghan_integral(_hp98_v1(p.V0, p.a0, p.Tr, T), _hp98_dv1(p.V0, p.a0, T), k, dk, P, p.Pr)
+    if p.landau !== nothing
+        Tc0, Smax, Vmax = p.landau
+        Q0² = sqrt(1 - p.Tr / Tc0)
+        h0 = Smax * Tc0 * (Q0² - Q0²^3 / 3)
+        s0 = Smax * Q0²
+        I, dI_T, dI_P = _murnaghan_integral(
+            _hp98_v1(Vmax * Q0², p.a0, p.Tr, T), _hp98_dv1(Vmax * Q0², p.a0, T), k, dk, P, p.Pr,
+        )
+        Tc = Tc0 + Vmax / Smax * (P - p.Pr)
+        Q² = _plain(T) < _plain(Tc) ? sqrt(1 - T / Tc) : zero(T / Tc)
+        # Q is that of equilibrium, ∂G/∂Q = 0: the derivatives are the explicit ones.
+        G += h0 - T * s0 + I + Smax * ((T - Tc) * Q² + Tc * Q²^3 / 3)
+        dGdT += -s0 + dI_T + Smax * Q²
+        dGdP += dI_P + Vmax * (Q²^3 / 3 - Q²)
+    end
+    return G, dGdT, dGdP
+end
+
+# The parameters of the two methods from a record of aq17, `nothing` when it
+# gives no bulk modulus: the bulk modulus in kbar under `m_compressibility` and
+# the thermal expansion in 1/K under `m_expansivity` (their unit labels are each
+# other's in the file), T°_c in °C, S_max in J/(mol K) and V_max in J/bar under
+# `m_landau_phase_trans_props`.
+function _hp98_parameters(row, landau, Tr, Pr)
+    value(key) = hasproperty(row, key) ? extract_value(row, key; with_units = false) : missing
+    k0, a0, V0 = value(:m_compressibility), value(:m_expansivity), value(:sm_volume)
+    (any(ismissing, (k0, a0, V0)) || iszero(k0)) && return nothing
+    J_bar = u"J/(bar*mol)"
+    return (;
+        V0 = ustrip(us"m^3/mol", V0 * J_bar), a0 = Float64(a0), k0 = 1000 * k0 * ustrip(us"Pa", 1.0u"bar"), Tr, Pr,
+        landau = landau === nothing ? nothing :
+            (_celsius_to_kelvin(landau[1]), landau[2], ustrip(us"m^3/mol", landau[3] * J_bar)),
+    )
+end
+
+# Adds the two methods to the functions of a mineral built from its heat
+# capacity: G, H, S and C_p gain the excess and its derivatives, and V is that of
+# the equation of state.
+function _holland_powell98!(s, p)
+    complete_thermo_functions!(s)
+    G0, H0, S0, Cp0 = s[:ΔₐG⁰], s[:ΔₐH⁰], s[:S⁰], s[:Cp⁰]
+    refs = (T = s.Tref, P = s.Pref)
+    d2(T, P) = ForwardDiff.derivative(t -> _hp98_excess(p, t, P)[2], T)
+    s[:ΔₐG⁰] = NumericFunc((T, P) -> G0(T = T, P = P) + first(_hp98_excess(p, T, P)), (:T, :P), refs, u"J/mol")
+    s[:ΔₐH⁰] = NumericFunc((T, P) -> (x = _hp98_excess(p, T, P); H0(T = T, P = P) + x[1] - T * x[2]), (:T, :P), refs, u"J/mol")
+    s[:S⁰] = NumericFunc((T, P) -> S0(T = T, P = P) - _hp98_excess(p, T, P)[2], (:T, :P), refs, u"J/(mol*K)")
+    s[:Cp⁰] = NumericFunc((T, P) -> Cp0(T = T, P = P) - T * d2(T, P), (:T, :P), refs, u"J/(mol*K)")
+    s[:V⁰] = NumericFunc((T, P) -> _hp98_excess(p, T, P)[3], (:T, :P), refs, u"m^3/mol")
+    return s
+end
+
+# ── Akinfiev and Diamond (2003): a dissolved gas ─────────────────────────────
+#
+# The chemical potential of a dissolved nonelectrolyte, from that of its ideal
+# gas, of pure water and of three parameters ξ, a, b [AkinfievDiamond2003; Eq. 18](@cite):
+#
+#     μ_aq = μ_g(T) − RT ln N_w + (1 − ξ) RT ln f°_w + ξ RT ln(R T ρ°_w / M_w)
+#            + RT ρ°_w [a + b (10³/T)^½],
+#
+# N_w the moles of water in a kilogram, f°_w the fugacity of pure water (bar),
+# ρ°_w its density (g/cm³) and R in cm³ bar/(mol K) inside the logarithm. The
+# fugacity is that of the database's own water: RT ln f°_w is the Gibbs energy of
+# its solvent less that of its water vapor as an ideal gas at 1 bar. The record
+# gives the Gibbs energy, enthalpy and entropy of the solute at the reference
+# state, and the heat capacity of its ideal gas: μ_g(T) is the function of that
+# heat capacity through the values the equation gives the gas there, so that the
+# solute keeps its own. The excess the equation adds to the record's functions is
+# therefore the term above less its value and its slope in T at the reference
+# state.
+const _G_CM3_PER_KG_M3 = ustrip(us"g/cm^3", 1.0u"kg/m^3")
+
+function _ad03_term(p, w, T, P)
+    ρ = _hgk_density(T, P) * _G_CM3_PER_KG_M3
+    Rv = ustrip(us"cm^3*bar/(mol*K)", R_GAS_Q)
+    lnf = (w.water(T = T, P = P) - w.steam(T = T, P = w.Pr)) / (R_GAS * T)
+    return R_GAS * T * (-log(w.Nw) + (1 - p.ξ) * lnf + p.ξ * log(Rv * T * ρ / w.Mw) + ρ * (p.a + p.b * sqrt(1000 / T)))
+end
+
+# The water and the water vapor of the database of `df`, as `_ad03_term` uses
+# them, or `nothing` when it has not both.
+function _ad03_water(df)
+    df === nothing && return nothing
+    wrow = findfirst(==("H2O@"), df.symbol)
+    srow = findfirst(eachrow(df)) do r
+        extract_classification(get(r, :aggregate_state, missing), AS_UNDEF) == AS_GAS &&
+            replace(String(r.formula), r"\|.*$" => "") == "H2O"
+    end
+    (wrow === nothing || srow === nothing) && return nothing
+    water, steam = (complete_thermo_functions!(_species_from_row(df[r, :])) for r in (wrow, srow))
+    M = water[:M]
+    return (;
+        water = water[:ΔₐG⁰], steam = steam[:ΔₐG⁰], Pr = ustrip(us"Pa", steam.Pref),
+        Mw = ustrip(us"g/mol", M), Nw = ustrip(us"mol/kg", 1 / M),
+    )
+end
+
+# Applies the equation of Akinfiev and Diamond to a dissolved gas, with the water
+# of the database `df`; without it, the gas stays usable at its reference state
+# only.
+function _akinfiev_diamond!(s, df)
+    w = _ad03_water(df)
+    # Refused until applied; with another method refused too, it stays so.
+    (w === nothing || get(properties(s), :refused_method, "") != "solute_aknifiev_diamond03") && return s
+    delete!(s.properties, :refused_method)
+    ξ, a, b = s[:ad03]
+    p = (; ξ, a, b)
+    Tr, Pr = ustrip(us"K", s.Tref), ustrip(us"Pa", s.Pref)
+    gr = _ad03_term(p, w, Tr, Pr)
+    sr = ForwardDiff.derivative(t -> _ad03_term(p, w, t, Pr), Tr)
+    return _add_excess!(s, (T, P) -> _ad03_term(p, w, T, P) - gr - sr * (T - Tr))
+end
+
+# Adds to the functions of `s` built from its record a Gibbs energy `x(T, P)`
+# that vanishes at its reference state, with the enthalpy, entropy, heat
+# capacity and volume that follow from it by differentiation.
+function _add_excess!(s, x)
+    complete_thermo_functions!(s)
+    G0, H0, S0, Cp0 = s[:ΔₐG⁰], s[:ΔₐH⁰], s[:S⁰], s[:Cp⁰]
+    dT(T, P) = ForwardDiff.derivative(t -> x(t, P), T)
+    d2T(T, P) = ForwardDiff.derivative(t -> dT(t, P), T)
+    refs = (T = s.Tref, P = s.Pref)
+    s[:ΔₐG⁰] = NumericFunc((T, P) -> G0(T = T, P = P) + x(T, P), (:T, :P), refs, u"J/mol")
+    s[:ΔₐH⁰] = NumericFunc((T, P) -> H0(T = T, P = P) + x(T, P) - T * dT(T, P), (:T, :P), refs, u"J/mol")
+    s[:S⁰] = NumericFunc((T, P) -> S0(T = T, P = P) - dT(T, P), (:T, :P), refs, u"J/(mol*K)")
+    s[:Cp⁰] = NumericFunc((T, P) -> Cp0(T = T, P = P) - T * d2T(T, P), (:T, :P), refs, u"J/(mol*K)")
+    s[:V⁰] = NumericFunc((T, P) -> ForwardDiff.derivative(q -> x(T, q), P), (:T, :P), refs, u"m^3/mol")
+    return s
 end

@@ -34,9 +34,9 @@ isdefined(@__MODULE__, :dj_path) || include(joinpath(pkgdir(ChemistryLab), "scri
     # the measured one.
     @test rows[end].retained < 0.01
     x = dj_match(rows, m.retained)
-    @test x.V ≈ 15511 rtol = 2.0e-3
-    @test x.ratios[:Mg] ≈ 2.393 rtol = 2.0e-3
-    @test x.ratios[:S] ≈ 0.494 rtol = 2.0e-3
+    @test x.V ≈ 15479 rtol = 2.0e-3
+    @test x.ratios[:Mg] ≈ 2.389 rtol = 2.0e-3
+    @test x.ratios[:S] ≈ 0.497 rtol = 2.0e-3
     @test x.ratios[:Al] ≈ 0.301 rtol = 2.0e-3
     @test x.ratios[:Cl] < 1.0e-6
     @test x.ratios_pw[:Cl] ≈ 0.18 rtol = 5.0e-3
@@ -53,7 +53,7 @@ isdefined(@__MODULE__, :dj_path) || include(joinpath(pkgdir(ChemistryLab), "scri
     @test last_with("Portlandite") ≈ 4489 rtol = 2.0e-3
     @test first_with("Gp") ≈ 6440 rtol = 2.0e-3
     @test first_with("thaumasite") ≈ 781 rtol = 2.0e-3
-    @test first_with("M15SH") ≈ 9368 rtol = 2.0e-3
+    @test first_with("M15SH") ≈ 9173 rtol = 2.0e-3
 
     # The solids take up the chloride first, the sulfur next, the magnesium
     # last: the volume at which each holds the most.

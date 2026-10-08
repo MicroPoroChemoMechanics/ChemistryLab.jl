@@ -50,16 +50,20 @@ using JSON
             if !isempty(s)
     ]
 
-    # The two M-S-H end-members do not close. Brought to 25 °C, the temperature
-    # of Table 2, their tabulated energies and their published log Ks0 disagree
-    # by 0.244 and 0.205: 1.39 and 1.17 kJ/mol. Every other phase in the table
-    # closes to better than 0.04, so this is a property of the source and not of
-    # the transcription. GEMS, run on the CemGEMS export of the database, does
-    # not close them either (0.17 and 0.09, from energies of its own).
+    # The two M-S-H end-members do not close. The file defines them by their
+    # reactions, whose log K coefficients give -28.634 and -23.460 at 25 °C, the
+    # temperature of Table 2, where the records state the published -28.80 and
+    # -23.57: computed from their reactions, as ThermoFun computes them, they
+    # disagree with Table 2 by 0.166 and 0.110, 0.95 and 0.63 kJ/mol. Every other
+    # phase in the table closes to better than 0.04, so this is a property of the
+    # source and not of the transcription. GEMS, run on the CemGEMS export of the
+    # database, does not close them either (0.17 and 0.09). Their tabulated
+    # energies, which the package used before it computed such a substance from
+    # its reaction, disagree by 0.244 and 0.205.
     #
     # Pinned at the observed offset rather than hidden behind a loose tolerance,
     # so that a corrected upstream file shows up as a failing test, not silence.
-    msh_offset = Dict("M075SH" => 0.2438, "M15SH" => 0.2045)
+    msh_offset = Dict("M075SH" => 0.1659, "M15SH" => 0.1095)
 
     RTln10 = R_GAS * 298.15 * log(10)
     # Each energy at 25 °C, as the package forms it from the file. A record is
@@ -127,7 +131,7 @@ using JSON
     # `−S° × 5 K`. Comparing their tabulated ΔfG° with `ΔₐG⁰(298.15)`, as an
     # earlier version of this test did, measured that step and attributed it to
     # an inconsistent estimated entropy.
-    @testset "ΔₐG⁰ at each record's Tst is the tabulated ΔfG°" begin
+    @testset "ΔₐG⁰ at each record's Tst is the tabulated ΔfG°, except by a reaction" begin
         Tst(k) = Float64(get(rec[k], "Tst", 298.15))
         tabulated(k) = Float64(rec[k]["sm_gibbs_energy"]["values"][1])
         withG = [k for k in keys(rec) if haskey(rec[k], "sm_gibbs_energy")]
@@ -142,7 +146,11 @@ using JSON
         @test all(k -> Tst(k) == 293.15 || Tst(k) == 298.15, withG)
         # To 0.3 J/mol: the evaluation of the HKF equations of state at their
         # reference point rounds at that level; the other records agree to 1e-9.
-        @test maximum(k -> abs(sp[k].ΔₐG⁰(T = Tst(k)) - tabulated(k)), withG) < 0.5
+        # The 17 records the file defines by a reaction follow their reaction,
+        # as ThermoFun computes them, and their tabulated energies are not used.
+        byreaction = [k for k in withG if haskey(rec[k], "reaction")]
+        @test length(byreaction) == 17
+        @test maximum(k -> abs(sp[k].ΔₐG⁰(T = Tst(k)) - tabulated(k)), setdiff(withG, byreaction)) < 0.5
     end
 
     # ── Whether a record's three formation properties agree ──────────────────
@@ -193,7 +201,7 @@ using JSON
         page = read(joinpath(pkgdir(ChemistryLab), "docs", "src", "tutorials", "published_data_validation.md"), String)
         for quoted in (
                 "**52 of the 54 rows close.**", "`0.040` on\n`M8A-OH-LDH`", "50 are inside\n`0.005`",
-                "| **+0.244** |", "| **+0.205** |", "For 230 of the 238 records",
+                "| **+0.166** |", "| **+0.110** |", "For 230 of the 238 records",
                 "Over the 143 crystalline records", "`1 J/mol` for 78 and to `100 J/mol` for 126",
                 "| −6.61 kJ/mol | −1.79 kJ/mol |", "| −5.70 kJ/mol | −1.73 kJ/mol |",
                 "| `0.000` |", "| `0.011` |", "closes to `−0.02 kJ/mol`",
