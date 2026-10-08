@@ -92,8 +92,9 @@ budget of 1e-10 mol certifies.
   residual was judged absolutely, so that a step whose extent is below the
   tolerance satisfied it where it started: on 1e-6 mol of sites at
   2.3e-10 mol/s the step returned 1e-15 mol instead of 9e-10, certified. Each
-  residual is now divided by the scale of its extent, and the states of a slow
-  family are seeded at the explicit prediction.
+  residual is now divided by the amount its reaction acts on, capped at one
+  mole as an element balance is, and the states of a slow family are seeded at
+  the explicit prediction.
 - **A site family of 1e-9 or 1e-10 mol beside a kilogram of water did not
   certify**: the solver seeded the total of the family at no less than
   1e-6 mol and did not come back down to it. OptimaSolver 0.8.2 starts such a
@@ -119,6 +120,26 @@ budget of 1e-10 mol certifies.
   `dissipation`.
 - **The species classification note** of the manual described crystals as
   kinetic and the rest as inert, which the code does not do; corrected.
+- **The theory of surfaces** says which permittivity the diffuse layer screens
+  with, and that the constant of a surface reaction is held at every
+  temperature, with the agreement measured against PHREEQC at 50 °C.
+- **Figures on twenty application pages** that showed their results as tables
+  only: the phases and the elements of the solids along the paths of the
+  durability pages, the hydrates against temperature, the degrees of reaction,
+  the bound water and the portlandite of the blended pastes against time with
+  the measurements beside them, and the assemblages before and after as bars.
+  The thermogram of the thermogravimetry page is computed on the page, where a
+  saved image, cropped, stood in for it. The ClaySor page computes its own side
+  of the comparison with PHREEQC, which it showed as dashes.
+- **Seawater flushed through a ground paste**, against De Weerdt and Justnes
+  (2015): their CEM I 42.5 R paste renewed two thousand times by 195 mL of the
+  Trondheim seawater per 100 g of cement (`leach` with a renewal solution),
+  their measurements in `data/literature/DeWeerdtJustnes2015.json`. One
+  parameter is fitted, the volume the paste equilibrated with, read where the
+  calcium retained is the measured fifth: 4 % of what passed. There Mg/Ca is
+  14 % above the measurement and Al/Ca 4 % below, the sulfur 2.6 times too
+  high, the chloride and the sodium too low; the page says why a ground paste of
+  two kinds of particles lies on no single path.
 
 ## v0.35.1 — Asymmetric mixing, the enthalpy of a glass, and the heat of a blend from its first day
 
