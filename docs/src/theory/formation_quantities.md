@@ -404,7 +404,7 @@ With phreeqc.dat, the master species Ca²⁺ and CO₃²⁻ are at zero, and the
 energy of calcite is that of its dissolution constant, ``\log_{10} K = -8.48``:
 
 ```@example basics
-pdb = read_phreeqc_database(datapath("phreeqc.dat"))
+_, pdb, _ = read_phreeqc_database(datapath("phreeqc.dat"))
 ps = Dict(symbol(s) => s for s in build_species(pdb, ["Ca+2", "CO3-2", "CaCO3", "Calcite"]))
 for s in ("Ca+2", "CO3-2", "CaCO3@", "Calcite")
     @printf("%-8s %9.3f kJ/mol\n", s, ps[s][:ΔₐG⁰](T = Tr) / 1000)

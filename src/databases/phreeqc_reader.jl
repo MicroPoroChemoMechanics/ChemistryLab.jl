@@ -173,6 +173,19 @@ end
 # ── Equilibrium constants ────────────────────────────────────────────────────
 
 """
+    AbstractLogK
+
+The log K of one reaction of a database of reactions, as a function of
+temperature, in the form its format gives: `_log10K(k, T)` returns it with its
+first two derivatives.
+"""
+abstract type AbstractLogK end
+
+# The constants a log K adds to its own (PHREEQC's `-add_logk`); none for the
+# other formats.
+_added(::AbstractLogK) = ()
+
+"""
     PhreeqcLogK
 
 The log K of one reaction as a PHREEQC database states it: at 25 °C, with an
@@ -181,7 +194,7 @@ of the temperature, which takes precedence over both (Parkhurst and Appelo
 2013, `SOLUTION_SPECIES` and `PHASES`). `add` holds the named expressions the
 constant adds (`-add_logk`), as `(index, coefficient)`.
 """
-struct PhreeqcLogK
+struct PhreeqcLogK <: AbstractLogK
     log_k::Float64
     delta_h::Float64                      # kJ/mol
     analytic::Union{Nothing, NTuple{6, Float64}}
@@ -189,6 +202,7 @@ struct PhreeqcLogK
 end
 
 const _T25 = T_STANDARD
+_added(k::PhreeqcLogK) = k.add
 
 # log10 K at T (kelvin) and its first two temperature derivatives, from the
 # reaction's own data, without the named expressions it adds.
@@ -206,59 +220,46 @@ end
 
 # ── The database ─────────────────────────────────────────────────────────────
 
-"""
-    PhreeqcSpecies
-
-A species or a phase of a PHREEQC database, resolved: its composition and charge
-by the balance of its reaction, and its log K of formation from the master
-species as a combination `Σ c_k log K_k(T)` of the constants of the database.
-`gamma` holds the `(å, b)` of `-gamma`, `llnl_gamma` the å of `-llnl_gamma`,
-`co2_gamma` whether a neutral species takes the activity coefficient of CO2
-(`-co2_llnl_gamma`),
-`volume` the molar volume of a phase (`-Vm`, cm³/mol), `critical` the `(T_c,
-P_c, ω)` of a gas.
-"""
-struct PhreeqcSpecies
+# A species or a phase of a database of reactions, resolved: its composition and
+# charge by the balance of its reaction, and its log K of formation from the
+# master species as a combination `Σ c_k log K_k(T)` of the constants of the
+# database (`formation`, index => coefficient). `gamma` holds the `(å, b)` of
+# PHREEQC's `-gamma`, `ion_size` the size å of PHREEQC's `-llnl_gamma` or of the
+# ion size of the other formats, `co2_gamma` whether a neutral species takes the
+# activity coefficient of CO2 (`-co2_llnl_gamma`), `volume` the molar volume of
+# a phase (cm³/mol), `critical` the `(T_c, P_c, ω)` of a gas (K, atm).
+struct _ReactionEntry
     name::String
     kind::Symbol                          # :solution or :phase
     atoms::Dict{Symbol, Float64}
     charge::Float64
     formation::Dict{Int, Float64}
     gamma::Union{Nothing, Tuple{Float64, Float64}}
-    llnl_gamma::Union{Nothing, Float64}
+    ion_size::Union{Nothing, Float64}
     co2_gamma::Bool
     volume::Union{Nothing, Float64}
     critical::Union{Nothing, NTuple{3, Float64}}
     line::Int
+    formula::String                       # the name of a solute, the formula of a phase
 end
 
-"""
-    PhreeqcDatabase
-
-A PHREEQC database read by [`read_phreeqc_database`](@ref): its master species,
-its solution species and phases resolved against them, the constants they rest
-on, the parameters of its activity model, and the notes of what was read and
-not used. `gauge` names the zero the energies of its species are counted from.
-"""
-struct PhreeqcDatabase
+# A database of reactions as read, before it is laid out in tables
+# (`_reaction_tables`): PHREEQC, The Geochemist's Workbench or EQ3/6.
+struct _ReactionData
     name::String
     path::String
     source::String
     gauge::String
+    format::Symbol
     masters::Dict{String, String}         # element, or element(valence) => master species
-    species::Vector{PhreeqcSpecies}
-    phases::Vector{PhreeqcSpecies}
-    logks::Vector{PhreeqcLogK}
-    named::Dict{String, Int}
-    llnl::Union{Nothing, NamedTuple}
-    blocks::Vector{PhreeqcBlock}
+    species::Vector{_ReactionEntry}
+    phases::Vector{_ReactionEntry}
+    logks::Vector{AbstractLogK}
+    reactions::Vector{NamedTuple}         # (symbol, kind, equation, logk, line), as written
+    parameters::Any                       # the activity model's, as the format gives them
+    keywords::Set{String}                 # the blocks of a PHREEQC file
     notes::Vector{String}
 end
-
-Base.show(io::IO, db::PhreeqcDatabase) = print(
-    io, "PhreeqcDatabase(\"", db.name, "\": ", length(db.species), " solution species, ",
-    length(db.phases), " phases, ", length(db.notes), " notes)",
-)
 
 # The options of a species or a phase, in every spelling the manual lists:
 # case does not matter, the leading dash is optional, and an abbreviation is the
@@ -469,21 +470,29 @@ function _llnl_parameters(block::PhreeqcBlock)
 end
 
 """
-    read_phreeqc_database(path) -> PhreeqcDatabase
+    read_phreeqc_database(path) -> (df_elements, df_substances, df_reactions)
 
-Read a PHREEQC database: its master species, its solution species and phases
-with their constants, their activity-coefficient parameters (`-gamma`,
-`-llnl_gamma`), the molar volumes of the phases, the critical constants of the
-gases, its named expressions and the parameters of its LLNL activity model.
+Read a PHREEQC database into three tables, as [`read_thermofun_database`](@ref)
+reads a ThermoFun file: its master species (`df_elements`: `element`,
+`master`), its species and phases (`df_substances`), and its reactions as
+written, each with its constant (`df_reactions`: `symbol`, `kind`, `equation`,
+`logk`, `line`).
 
 Every species is resolved against the master species, its composition by the
-balance of its reaction and its energy by the log K of its formation from them
-(see [`build_species`](@ref)). What is read and not used is listed in `notes`,
-with its line: transport data (`-dw`, `-Millero`), an option the manual does not
-document, a species whose equation does not balance (`-mole_balance`,
-`-no_check`), and the blocks that are not thermodynamic data (`RATES`). The
-blocks themselves are kept, for the readers of the sorption models
-([`read_sorption_model`](@ref)), of the Pitzer and of the SIT parameters.
+balance of its reaction and its energy by the log K of its formation from them.
+`df_substances` has one row per species or phase: `symbol` (ChemistryLab's),
+`name` (PHREEQC's), `formula`, `aggregate_state`, `class`, `charge`, `atoms`,
+`formation` (a [`FormationLogK`](@ref)), the activity parameters `gamma` (the
+`(å, b)` of `-gamma`), `ion_size` (`-llnl_gamma`) and `co2_gamma`, the
+`molar_volume` of a phase (m³/mol), the critical constants `T_c` (K), `P_c` (Pa)
+and `omega` of a gas, `gauge` and `line`; [`build_species`](@ref) builds from it,
+and [`database_activity_model`](@ref) finds in it the activity model of the
+database. Its metadata (`metadata(df_substances, "notes")`) hold `format`,
+`path`, `source`, `gauge`, the `parameters` of the LLNL model, the `keywords` of
+the blocks, and the `notes`: what is read and not used, with its line —
+transport data (`-dw`, `-Millero`), an option the manual does not document, a
+species whose equation does not balance (`-mole_balance`, `-no_check`), and the
+blocks that are not thermodynamic data (`RATES`).
 
 Any PHREEQC database is read the same way. The ones PHREEQC distributes are
 obtained by `datapath`: `datapath("phreeqc.dat")`, `"llnl.dat"`,
@@ -534,7 +543,7 @@ function read_phreeqc_database(path::AbstractString)
     precs = _last_definitions(precs, file, notes)
 
     # The constants: the named expressions first, then one per record.
-    logks = PhreeqcLogK[]
+    logks = AbstractLogK[]
     named = Dict{String, Int}()
     function logk_of(rec)
         add = Tuple{Int, Float64}[]
@@ -594,7 +603,7 @@ function read_phreeqc_database(path::AbstractString)
         return (resolved[name] = out)
     end
 
-    species = PhreeqcSpecies[]
+    species = _ReactionEntry[]
     for rec in srecs
         r = resolve(rec.name)
         if r === nothing
@@ -604,14 +613,16 @@ function read_phreeqc_database(path::AbstractString)
         _refusal(rec, r, file, notes) && continue
         _pseudo_element(rec, r, file, notes) && continue
         atoms, z, formation = r
-        push!(species, PhreeqcSpecies(rec.name, :solution, atoms, z, formation, rec.gamma, rec.llnl_gamma, rec.co2_gamma, nothing, nothing, rec.line))
+        push!(species, _ReactionEntry(rec.name, :solution, atoms, z, formation, rec.gamma, rec.llnl_gamma, rec.co2_gamma, nothing, nothing, rec.line, rec.name))
     end
 
-    phases = PhreeqcSpecies[]
+    phases = _ReactionEntry[]
+    phase_logk = Dict{String, Int}()
     for rec in precs
         lhs, rhs = phreeqc_equation(rec.equation)
         isempty(lhs) && (push!(notes, "$file:$(rec.line): phase $(rec.name) has no formula on the left; not read"); continue)
         k = logk_of(rec)
+        phase_logk[rec.name] = k
         # The phase is the first term on the left; everything else is aqueous.
         terms = vcat([(-lhs[1][1], "\$phase")], [(-c, s) for (c, s) in lhs[2:end]], [(c, s) for (c, s) in rhs])
         r = _resolve_defined("\$phase", terms, k, logks, resolve)
@@ -623,11 +634,28 @@ function read_phreeqc_database(path::AbstractString)
         _pseudo_element(rec, r, file, notes) && continue
         atoms, z, formation = r
         critical = all(x -> x !== nothing, rec.critical) ? (rec.critical[1], rec.critical[2], rec.critical[3]) : nothing
-        push!(phases, PhreeqcSpecies(rec.name, :phase, atoms, z, formation, nothing, nothing, false, rec.vm, critical, rec.line))
+        push!(phases, _ReactionEntry(rec.name, :phase, atoms, z, formation, nothing, nothing, false, rec.vm, critical, rec.line, lhs[1][2]))
     end
 
     gauge = "PHREEQC master species of $file ($(digest[1:12]))"
-    return PhreeqcDatabase(file, String(path), "$file sha256 $(digest[1:12])", gauge, masters, species, phases, logks, named, llnl, blocks, notes)
+    # The reactions as written, each with its constant.
+    reactions = NamedTuple[]
+    for rec in nrecs
+        push!(reactions, (; symbol = rec.name, kind = :named, equation = "", logk = logks[named[rec.name]], line = rec.line))
+    end
+    for rec in srecs
+        haskey(by_name, rec.name) &&
+            push!(reactions, (; symbol = rec.name, kind = :solution, equation = rec.equation, logk = logks[by_name[rec.name][2]], line = rec.line))
+    end
+    for rec in precs
+        haskey(phase_logk, rec.name) &&
+            push!(reactions, (; symbol = rec.name, kind = :phase, equation = rec.equation, logk = logks[phase_logk[rec.name]], line = rec.line))
+    end
+    data = _ReactionData(
+        file, String(path), "$file sha256 $(digest[1:12])", gauge, :phreeqc, masters, species, phases, logks,
+        reactions, llnl, Set(b.keyword for b in blocks), notes,
+    )
+    return _reaction_tables(data)
 end
 
 function _last_definitions(recs, file, notes)
@@ -739,15 +767,24 @@ function _pseudo_element(rec, r, file, notes)
     return true
 end
 
-# ── Species ──────────────────────────────────────────────────────────────────
+# ── Tables ───────────────────────────────────────────────────────────────────
 
-# log10 K of formation from the masters, and its first two derivatives in T.
-function _formation_log10K(db::PhreeqcDatabase, f::Dict{Int, Float64}, T)
-    L = zero(T)
-    dL = zero(T)
-    d2L = zero(T)
-    for (j, c) in f
-        l, d, d2 = _log10K_total(db.logks, j, T)
+"""
+    FormationLogK
+
+The log K of formation of a species of a database of reactions from its master
+species, as the column `formation` of its table of substances holds it: a
+combination `Σ cₖ log Kₖ(T)` of the constants of the database, each in the form
+its format gives ([`AbstractLogK`](@ref)).
+"""
+struct FormationLogK
+    terms::Vector{Tuple{Float64, AbstractLogK}}
+end
+
+function _log10K(f::FormationLogK, T)
+    L = dL = d2L = zero(T) * 0.0
+    for (c, k) in f.terms
+        l, d, d2 = _log10K(k, T)
         L += c * l
         dL += c * d
         d2L += c * d2
@@ -755,145 +792,181 @@ function _formation_log10K(db::PhreeqcDatabase, f::Dict{Int, Float64}, T)
     return L, dL, d2L
 end
 
-function _log10K_total(logks, j, T)
-    k = logks[j]
-    l, d, d2 = _log10K(k, T)
-    for (i, c) in k.add
-        li, di, d2i = _log10K_total(logks, i, T)
-        l += c * li
-        d += c * di
-        d2 += c * d2i
+# A combination of constants, by index, as one `FormationLogK`: the constants a
+# PHREEQC constant adds (`-add_logk`) carried with their coefficients.
+function _formation(logks, f::Dict{Int, Float64})
+    terms = Tuple{Float64, AbstractLogK}[]
+    function add!(j, c)
+        k = logks[j]
+        push!(terms, (c, k))
+        for (i, ci) in _added(k)
+            add!(i, c * ci)
+        end
+        return nothing
     end
-    return l, d, d2
+    for (j, c) in sort!(collect(f); by = first)
+        add!(j, c)
+    end
+    return FormationLogK(terms)
 end
 
-# The ChemistryLab symbol of a PHREEQC species: `@` marks a neutral solute, as
-# the other readers of this package write it, and water is the solvent.
-function _phreeqc_symbol_of(sp::PhreeqcSpecies)
-    sp.kind === :phase && return sp.name
-    return _phreeqc_solute_symbol(sp.name, sp.charge)
+# The ChemistryLab symbol of a species of a database of reactions: `@` marks a
+# neutral solute, as the other readers of this package write it, and replaces the
+# `(aq)` with which GWB and EQ3/6 name one; water is the solvent.
+function _phreeqc_solute_symbol(name, charge = _phreeqc_name_charge(name))
+    base = replace(name, r"\(aq\)$"i => "")
+    lowercase(base) == "h2o" && return "H2O@"
+    return iszero(charge) ? base * "@" : name
 end
-_phreeqc_solute_symbol(name, charge = _phreeqc_name_charge(name)) =
-    name == "H2O" ? "H2O@" : (iszero(charge) ? name * "@" : name)
 
-function _phreeqc_species(db::PhreeqcDatabase, sp::PhreeqcSpecies)
-    is_gas = sp.kind === :phase && (sp.critical !== nothing || endswith(lowercase(sp.name), "(g)"))
-    state = sp.kind === :solution ? AS_AQUEOUS : (is_gas ? AS_GAS : AS_CRYSTAL)
-    cls = sp.kind === :solution ? (sp.name == "H2O" ? SC_AQSOLVENT : SC_AQSOLUTE) :
-        (is_gas ? SC_GASFLUID : SC_COMPONENT)
-    # Whole coefficients as integers, as the other readers give them.
-    atoms = all(isinteger, values(sp.atoms)) ? Dict{Symbol, Int}(e => Int(n) for (e, n) in sp.atoms) :
-        Dict{Symbol, Float64}(e => n for (e, n) in sp.atoms)
-    z = sp.charge
+# A database of reactions laid out in tables, as `read_thermofun_database` lays
+# out a database of formation properties: the master species, the substances
+# (one row per species or phase, its log K of formation in the column
+# `formation`) and the reactions as written. What concerns the database as a
+# whole is metadata of the table of substances.
+function _reaction_tables(d::_ReactionData)
+    rows = NamedTuple[]
+    cm3 = ustrip(us"m^3", 1.0u"cm^3")
+    atm = ustrip(us"Pa", _DQConstants.atm)
+    for sp in vcat(d.species, d.phases)
+        lowercase(sp.name) == "e-" && continue
+        sym = sp.kind === :phase ? sp.name : _phreeqc_solute_symbol(sp.name, sp.charge)
+        is_gas = sp.kind === :phase && (sp.critical !== nothing || endswith(lowercase(sp.name), "(g)"))
+        state = sp.kind === :solution ? AS_AQUEOUS : (is_gas ? AS_GAS : AS_CRYSTAL)
+        cls = sp.kind === :solution ? (sym == "H2O@" ? SC_AQSOLVENT : SC_AQSOLUTE) : (is_gas ? SC_GASFLUID : SC_COMPONENT)
+        push!(
+            rows, (;
+                symbol = sym, name = sp.name, formula = sp.formula, aggregate_state = state, class = cls,
+                charge = sp.charge, atoms = sp.atoms, formation = _formation(d.logks, sp.formation),
+                gamma = something(sp.gamma, missing), ion_size = something(sp.ion_size, missing),
+                co2_gamma = sp.co2_gamma,
+                molar_volume = sp.volume === nothing ? missing : sp.volume * cm3,
+                T_c = sp.critical === nothing ? missing : sp.critical[1],
+                P_c = sp.critical === nothing ? missing : sp.critical[2] * atm,
+                omega = sp.critical === nothing ? missing : sp.critical[3],
+                gauge = d.gauge, line = sp.line,
+            ),
+        )
+    end
+    df_substances = DataFrame(Tables.dictrowtable(rows))
+    df_elements = DataFrame(element = collect(keys(d.masters)), master = collect(values(d.masters)))
+    sort!(df_elements, :element)
+    df_reactions = isempty(d.reactions) ?
+        DataFrame(symbol = String[], kind = Symbol[], equation = String[], logk = AbstractLogK[], line = Int[]) :
+        DataFrame(Tables.dictrowtable(d.reactions))
+    for (key, value) in (
+            "format" => String(d.format), "path" => d.path, "source" => d.source, "gauge" => d.gauge,
+            "notes" => d.notes, "parameters" => d.parameters, "keywords" => sort!(collect(d.keywords)),
+        )
+        metadata!(df_substances, key, value; style = :note)
+    end
+    return df_elements, df_substances, df_reactions
+end
+
+# One species of a table of a database of reactions. Its standard Gibbs energy is
+# `−RT ln 10 · L(T)`, `L` its log K of formation from the master species, which
+# are at zero; its enthalpy, entropy and heat capacity follow from the
+# temperature dependence of `L`.
+function _reaction_species(row)
+    atoms = all(isinteger, values(row.atoms)) ? Dict{Symbol, Int}(e => Int(n) for (e, n) in row.atoms) :
+        Dict{Symbol, Float64}(e => n for (e, n) in row.atoms)
+    z = row.charge
     s = Species(
         atoms, isinteger(z) ? Int(z) : z;
-        name = sp.name, symbol = _phreeqc_symbol_of(sp), aggregate_state = state, class = cls,
+        name = row.name, symbol = row.symbol, aggregate_state = row.aggregate_state, class = row.class,
     )
-    f = sp.formation
-    G(T, P) = -R_GAS * T * log(10) * first(_formation_log10K(db, f, T))
-    H(T, P) = (r = _formation_log10K(db, f, T); R_GAS * log(10) * T^2 * r[2])
+    f = row.formation
+    k = R_GAS * log(10)
+    G(T, P) = -k * T * first(_log10K(f, T))
+    H(T, P) = (r = _log10K(f, T); k * T^2 * r[2])
     S(T, P) = (H(T, P) - G(T, P)) / T
-    Cp(T, P) = (r = _formation_log10K(db, f, T); R_GAS * log(10) * (2T * r[2] + T^2 * r[3]))
-    refs = (T = T_STANDARD_Q, P = 1.0u"Constants.atm")
+    Cp(T, P) = (r = _log10K(f, T); k * (2T * r[2] + T^2 * r[3]))
+    refs = _NF_DEFAULT_REFS
     s[:ΔₐG⁰] = NumericFunc(G, (:T, :P), refs, u"J/mol")
     s[:ΔₐH⁰] = NumericFunc(H, (:T, :P), refs, u"J/mol")
     s[:S⁰] = NumericFunc(S, (:T, :P), refs, u"J/(mol*K)")
     s[:Cp⁰] = NumericFunc(Cp, (:T, :P), refs, u"J/(mol*K)")
-    if sp.name == "H2O" && sp.kind === :solution
+    if row.class == SC_AQSOLVENT
         M = ustrip(us"kg/mol", s[:M])
         s[:V⁰] = NumericFunc((T, P) -> M / _hgk_density(T, P), (:T, :P), refs, u"m^3/mol")
-    elseif sp.volume !== nothing && state == AS_CRYSTAL
-        v = sp.volume * 1.0e-6
+    elseif !ismissing(row.molar_volume) && row.aggregate_state == AS_CRYSTAL
+        v = row.molar_volume
         s[:V⁰] = NumericFunc((T, P) -> v + zero(T), (:T, :P), refs, u"m^3/mol")
     end
-    s[:gauge] = db.gauge
-    sp.critical === nothing || (s[:critical_constants] = [sp.critical[1], sp.critical[2] * ustrip(us"Pa", _DQConstants.atm), sp.critical[3]])
+    s[:gauge] = row.gauge
+    ismissing(row.T_c) || (s[:critical_constants] = [row.T_c, row.P_c, row.omega])
     return s
 end
 
-"""
-    build_species(db::PhreeqcDatabase, names = nothing) -> Vector{Species}
-
-The species of a PHREEQC database, as ChemistryLab species: every solution
-species and phase, or those whose names (PHREEQC's, or ChemistryLab's symbol)
-are in `names`.
-
-The standard Gibbs energy of each is `−RT ln 10 · L(T)`, `L` the log K of its
-formation from the master species, which are at zero; its enthalpy, entropy and
-heat capacity follow from the temperature dependence of `L`. Those are energies
-in the gauge of the database, recorded under `:gauge`: they mean something
-beside the other species of the same database, and [`ChemicalSystem`](@ref)
-refuses to mix them with species of another. A phase carries its molar volume
-(`-Vm`), and water the volume of the equation of state of Haar, Gallagher and
-Kell.
-"""
-function build_species(db::PhreeqcDatabase, names = nothing)
-    out = Species[]
-    for sp in vcat(db.species, db.phases)
-        names === nothing || sp.name in names || _phreeqc_symbol_of(sp) in names || continue
-        sp.name == "e-" && continue
-        push!(out, _phreeqc_species(db, sp))
-    end
-    return out
+# The species of a table of a database of reactions, those named (by the
+# database's name or ChemistryLab's symbol) or all.
+function _build_reaction_species(df::AbstractDataFrame, names = nothing)
+    keep(r) = names === nothing || r.name in names || r.symbol in names
+    return Species[_reaction_species(r) for r in eachrow(df) if keep(r)]
 end
 
 # ── Activity model ───────────────────────────────────────────────────────────
 
 """
-    database_activity_model(db::PhreeqcDatabase) -> AbstractActivityModel
+    database_activity_model(df_substances) -> AbstractActivityModel
 
-The activity model PHREEQC applies with the database `db`, which its blocks
-decide: Pitzer's with a `PITZER` block ([`PitzerActivityModel`](@ref), the
-parameters of the block, a pair it leaves out taken as zero), the specific ion interaction theory with a `SIT`
-block ([`SITActivityModel`](@ref)), the aqueous model of Lawrence Livermore
-with `LLNL_AQUEOUS_MODEL_PARAMETERS` ([`LLNLActivityModel`](@ref)), and the
-WATEQ and Davies equations otherwise ([`TruesdellJonesActivityModel`](@ref)).
+The activity model PHREEQC applies with the database whose table of substances
+is `df_substances` ([`read_phreeqc_database`](@ref)), which its blocks decide:
+Pitzer's with a `PITZER` block ([`PitzerActivityModel`](@ref), the parameters of
+the block, a pair it leaves out taken as zero), the specific ion interaction
+theory with a `SIT` block ([`SITActivityModel`](@ref)), the aqueous model of
+Lawrence Livermore with `LLNL_AQUEOUS_MODEL_PARAMETERS`
+([`LLNLActivityModel`](@ref)), and the WATEQ and Davies equations otherwise
+([`TruesdellJonesActivityModel`](@ref)).
 
 Each is built with the parameters the database gives its species, its
 Debye–Hückel parameters following temperature, and the activity of water PHREEQC
 computes: the osmotic coefficient of the model for Pitzer and SIT, and
-`a_w = 1 − 0.017 Σᵢ mᵢ` for the other two [ParkhurstAppelo1999; Eq. 25](@cite). The species are keyed by their
-ChemistryLab symbols, those of [`build_species`](@ref).
+`a_w = 1 − 0.017 Σᵢ mᵢ` for the other two [ParkhurstAppelo1999; Eq. 25](@cite).
+The species are keyed by their ChemistryLab symbols, those of
+[`build_species`](@ref).
 
 # Example
 
 ```julia
-db = read_phreeqc_database(datapath("llnl.dat"))
-model = database_activity_model(db)          # an LLNLActivityModel
+_, substances, _ = read_phreeqc_database(datapath("llnl.dat"))
+model = database_activity_model(substances)          # an LLNLActivityModel
 ```
 """
-function database_activity_model(db::PhreeqcDatabase)
-    keywords = Set(b.keyword for b in db.blocks)
+function database_activity_model(df::AbstractDataFrame)
+    format = metadata(df, "format", "unstated")
+    format == "phreeqc" || throw(
+        ArgumentError(
+            "the activity model of a database of format `$format` is not built from it: " *
+                (format in ("gwb", "eq36") ? "its conventions for neutral species and water rest on formulas its format documentation does not give; " : "") *
+                "choose an activity model (HKFActivityModel, LLNLActivityModel, …)",
+        )
+    )
+    keywords = Set(metadata(df, "keywords", String[]))
+    path = metadata(df, "path")
+    solutes = [r for r in eachrow(df) if r.aggregate_state == AS_AQUEOUS]
     if "PITZER" in keywords
         return PitzerActivityModel(;
-            parameters = build_pitzer_parameters(db.path; format = :phreeqc), temperature_dependent = true,
+            parameters = build_pitzer_parameters(path; format = :phreeqc), temperature_dependent = true,
             missing_pairs = :zero,
         )
     elseif "SIT" in keywords
-        return SITActivityModel(;
-            parameters = build_sit_parameters(db.path), temperature_dependent = true, water = :osmotic,
-        )
-    elseif db.llnl !== nothing
-        l = db.llnl
+        return SITActivityModel(; parameters = build_sit_parameters(path), temperature_dependent = true, water = :osmotic)
+    end
+    gamma = Dict{String, Tuple{Float64, Float64}}(r.symbol => r.gamma for r in solutes if !ismissing(r.gamma))
+    l = metadata(df, "parameters", nothing)
+    if l !== nothing
         for key in (:temperatures, :dh_a, :dh_b, :bdot, :co2_coefs)
-            haskey(l, key) || throw(ArgumentError("$(db.name): LLNL_AQUEOUS_MODEL_PARAMETERS gives no `-$key`"))
+            haskey(l, key) || throw(ArgumentError("LLNL_AQUEOUS_MODEL_PARAMETERS gives no `-$key`"))
         end
-        sizes = Dict{String, Float64}(
-            _phreeqc_symbol_of(sp) => sp.llnl_gamma for sp in db.species if sp.llnl_gamma !== nothing
-        )
-        gamma = Dict{String, Tuple{Float64, Float64}}(
-            _phreeqc_symbol_of(sp) => sp.gamma for sp in db.species if sp.gamma !== nothing
-        )
-        co2 = [_phreeqc_symbol_of(sp) for sp in db.species if sp.co2_gamma]
+        sizes = Dict{String, Float64}(r.symbol => r.ion_size for r in solutes if !ismissing(r.ion_size))
+        co2 = [r.symbol for r in solutes if r.co2_gamma]
         return LLNLActivityModel(;
             temperatures = l.temperatures, A = l.dh_a, B = l.dh_b, Bdot = l.bdot, co2 = l.co2_coefs,
             sizes, co2_species = co2, gamma, water = :phreeqc,
         )
     end
-    parameters = Dict{String, Tuple{Float64, Float64}}(
-        _phreeqc_symbol_of(sp) => sp.gamma for sp in db.species if sp.gamma !== nothing
-    )
-    return TruesdellJonesActivityModel(; parameters, temperature_dependent = true, water = :phreeqc)
+    return TruesdellJonesActivityModel(; parameters = gamma, temperature_dependent = true, water = :phreeqc)
 end
 
 # ── Parameters and master species, for the readers that need only these ─────
@@ -945,17 +1018,17 @@ One row per species, with the columns `species` (the PHREEQC name), `symbol`,
 `-gamma`, empty without one).
 """
 function extract_primary_species(path::AbstractString)
-    db = read_phreeqc_database(resolve_data_path(path))
+    _, substances, _ = read_phreeqc_database(resolve_data_path(path))
     rows = NamedTuple{(:species, :symbol, :gamma), Tuple{String, String, Vector{Float64}}}[]
-    for sp in db.species
-        isempty(sp.formation) || continue
-        γ = sp.gamma === nothing ? Float64[] : [sp.gamma...]
-        push!(rows, sp.name == "e-" ? (species = "Zz", symbol = "Zz", gamma = γ) : (species = sp.name, symbol = _phreeqc_symbol_of(sp), gamma = γ))
+    for r in eachrow(substances)
+        r.aggregate_state == AS_AQUEOUS && isempty(r.formation.terms) || continue
+        push!(rows, (species = r.name, symbol = r.symbol, gamma = ismissing(r.gamma) ? Float64[] : [r.gamma...]))
     end
+    push!(rows, (species = "Zz", symbol = "Zz", gamma = Float64[]))
     df = DataFrame(rows)
     df.formula = copy(df.symbol)
     df.aggregate_state .= "AS_AQUEOUS"
     df.atoms = parse_formula.(df.symbol)
     df.charge = [s == "Zz" ? 1 : extract_charge(s) for s in df.symbol]
-    return df[sortperm(df.symbol .== "Zz"), :]
+    return df
 end

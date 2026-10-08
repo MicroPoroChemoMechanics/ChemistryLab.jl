@@ -144,6 +144,10 @@ module ChemistryLab
     include("databases/phreeqc_dat.jl")
     include("databases/thermofun_json.jl")
     include("databases/phreeqc_reader.jl")
+    include("databases/gwb_reader.jl")
+    include("databases/eq36_reader.jl")
+    include("databases/reaktoro_yaml.jl")
+    include("databases/import.jl")
     include("databases/pitzer_toml.jl")
     include("databases/sit_dat.jl")
     include("databases/phreeqc_sorption.jl")
@@ -510,7 +514,11 @@ module ChemistryLab
         read_sorption_model,
         read_phreeqc_database,
         database_activity_model,
-        PhreeqcDatabase,
+        read_gwb_database,
+        read_eq36_database,
+        read_reaktoro_database,
+        import_database,
+        FormationLogK,
         SorptionModel,
         SorptionSite,
         SorptionReaction,

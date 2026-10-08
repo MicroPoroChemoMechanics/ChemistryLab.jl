@@ -1,4 +1,5 @@
 using JSON
+using ChemistryLab.DataFrames: metadata
 
 # The reader of PHREEQC databases against PHREEQC itself, on the six databases
 # PHREEQC distributes, obtained by `datapath` as the package obtains them. The
@@ -38,34 +39,34 @@ using JSON
         )
         # The LLNL model takes its A and B from the database, as PHREEQC does.
         @test model isa LLNLActivityModel
-        @test ChemistryLab._llnl_terms(model, 273.15 + T)[1] ≈ o["DH_A"] rtol = 1.0e-12
+        @test ChemistryLab._llnl_terms(model, T_ZERO_CELSIUS + T)[1] ≈ o["DH_A"] rtol = 1.0e-12
         return model
     end
 
     # The largest relative gap over the species PHREEQC finds above 1e-12 mol/kg.
     function worst_gap(db, eq, o)
         w = ustrip(us"mol", moles(eq, "H2O@")) * ustrip(us"kg/mol", eq.system.species[only(eq.system.idx_solvent)][:M])
-        by_name = Dict(sp.name => sp for sp in db.species)
+        by_name = Dict(r.name => r for r in eachrow(db) if r.aggregate_state == AS_AQUEOUS)
         worst = 0.0
         for (name, m) in o["molality"]
             m < 1.0e-12 && continue
-            sym = ChemistryLab._phreeqc_symbol_of(by_name[ChemistryLab._phreeqc_name(name)])
+            sym = by_name[ChemistryLab._phreeqc_name(name)].symbol
             worst = max(worst, abs(ustrip(us"mol", moles(eq, sym)) / w / m - 1))
         end
         return worst
     end
 
     for (file, (tol25, tol60)) in sort!(collect(tight))
-        db = read_phreeqc_database(datapath(file))
+        _, db, _ = read_phreeqc_database(datapath(file))
         own = database_activity_model(db)
         @testset "$file" begin
             for case in ("speciation", "minerals")
                 phases = case == "minerals" ? ["Calcite", "Gypsum"] : String[]
-                names = [sp.name for sp in db.species if sp.name != "e-" && all(in(elements), keys(sp.atoms))]
+                names = [r.name for r in eachrow(db) if r.aggregate_state == AS_AQUEOUS && all(in(elements), keys(r.atoms))]
                 cs = ChemicalSystem(build_species(db, vcat(names, phases)))
                 for (T, tol) in ((25.0, tol25), (60.0, tol60))
                     o = oracle[file][case][string(T)]
-                    st = ChemicalState(cs; T = (273.15 + T) * u"K", P = 101325.0u"Pa")
+                    st = ChemicalState(cs; T = (T_ZERO_CELSIUS + T) * u"K", P = 1.0u"Constants.atm")
                     set_quantity!(st, "H2O@", 1.0u"kg")
                     if case == "speciation"
                         for (s, m) in solutes
@@ -168,12 +169,13 @@ end
         fa, fb = joinpath(dir, "a.dat"), joinpath(dir, "b.dat")
         write(fa, a)
         write(fb, b)
-        da, db = read_phreeqc_database(fa), read_phreeqc_database(fb)
-        @test da.gauge != db.gauge
+        (_, da, _), (_, db, _) = read_phreeqc_database(fa), read_phreeqc_database(fb)
+        @test metadata(da, "gauge") != metadata(db, "gauge")
+        @test only(unique(da.gauge)) == metadata(da, "gauge")
         sa, sb = build_species(da), build_species(db)
         ga = Dict(symbol(s) => s for s in sa)
         gb = Dict(symbol(s) => s for s in sb)
-        T, P = 323.15, 1.0e5
+        T, P = T_ZERO_CELSIUS + 50.0, P_STANDARD
         # The energies differ by the gauge: CO3-2 is at zero in the first only.
         @test ga["CO3-2"][:ΔₐG⁰](T = T, P = P) == 0.0
         @test abs(gb["CO3-2"][:ΔₐG⁰](T = T, P = P)) > 1.0e4
@@ -183,7 +185,7 @@ end
         for (Tc, tol) in ((25.0, 1.0e-9), (50.0, 1.0e-9))
             amounts = map((sa, sb)) do sp
                 cs = ChemicalSystem(sp)
-                st = ChemicalState(cs; T = (273.15 + Tc) * u"K", P = 101325.0u"Pa")
+                st = ChemicalState(cs; T = (T_ZERO_CELSIUS + Tc) * u"K", P = 1.0u"Constants.atm")
                 set_quantity!(st, "H2O@", 1.0u"kg")
                 set_quantity!(st, "Calcite", 1.0u"mol")
                 eq = equilibrate(st; model)
@@ -247,29 +249,33 @@ end
                 END
                 """,
         )
-        dc = read_phreeqc_database(fc)
-        @test any(n -> occursin("CaCO3 is defined again", n), dc.notes)
-        @test any(n -> occursin("`-frobnicate`", n), dc.notes)
-        @test any(n -> occursin("CaMtg+2 is made of", n), dc.notes)
-        @test any(n -> occursin("KNOBS is an input block", n), dc.notes)
-        caco3 = only(sp for sp in dc.species if sp.name == "CaCO3")
-        @test first(ChemistryLab._formation_log10K(dc, caco3.formation, 298.15)) ≈ 3.2
+        _, dc, rc = read_phreeqc_database(fc)
+        notes = metadata(dc, "notes")
+        bysym = Dict(r.name => r for r in eachrow(dc))
+        @test any(n -> occursin("CaCO3 is defined again", n), notes)
+        @test any(n -> occursin("`-frobnicate`", n), notes)
+        @test any(n -> occursin("CaMtg+2 is made of", n), notes)
+        @test any(n -> occursin("KNOBS is an input block", n), notes)
+        caco3 = bysym["CaCO3"]
+        @test first(ChemistryLab._log10K(caco3.formation, T_STANDARD)) ≈ 3.2
         # An enthalpy in joules; a unit the manual does not name is taken as kJ.
-        r = ChemistryLab._formation_log10K(dc, caco3.formation, 298.15)
-        @test r[2] ≈ 4.184 / (ChemistryLab.R_GAS * log(10) * 298.15^2) * 1000 rtol = 1.0e-12
+        r = ChemistryLab._log10K(caco3.formation, T_STANDARD)
+        @test r[2] ≈ 4184 / (R_GAS * log(10) * T_STANDARD^2) rtol = 1.0e-12
         # A constant added to log K, an expression that does not exist, an
         # electrostatic option, a species and a phase on an undefined species, an
         # equation in PHASES with no phase name, a line that belongs to no species.
-        cc = only(sp for sp in dc.species if sp.name == "Ca(CO3)2-2")
-        @test first(ChemistryLab._formation_log10K(dc, cc.formation, 298.15)) ≈ 4.0
-        @test any(n -> occursin("`-add_logk Unnamed`", n), dc.notes)
-        @test !any(sp -> sp.name == "CaOH+", dc.species)
-        @test any(n -> occursin("`-cd_music` (a surface electrostatic option)", n), dc.notes)
-        @test any(n -> occursin("XxCO3 rests on a species the database does not define", n), dc.notes)
-        @test any(n -> occursin("phase Xxite rests on a species", n), dc.notes)
-        @test any(n -> occursin("an equation with no phase name", n), dc.notes)
-        @test any(n -> occursin("`stray line` belongs to no species", n), dc.notes)
-        @test occursin("PhreeqcDatabase(\"c.dat\"", sprint(show, dc))
+        cc = bysym["Ca(CO3)2-2"]
+        @test first(ChemistryLab._log10K(cc.formation, T_STANDARD)) ≈ 4.0
+        @test any(n -> occursin("`-add_logk Unnamed`", n), notes)
+        @test !haskey(bysym, "CaOH+")
+        @test any(n -> occursin("`-cd_music` (a surface electrostatic option)", n), notes)
+        @test any(n -> occursin("XxCO3 rests on a species the database does not define", n), notes)
+        @test any(n -> occursin("phase Xxite rests on a species", n), notes)
+        @test any(n -> occursin("an equation with no phase name", n), notes)
+        @test any(n -> occursin("`stray line` belongs to no species", n), notes)
+        # The reactions as written, each with its constant.
+        @test only(rc[rc.symbol .== "Calcite", :equation]) == "CaCO3 = CO3-2 + Ca+2"
+        @test "CO3-2" in rc.symbol
 
         # The electron used without being defined, as some databases do.
         fd = joinpath(dir, "d.dat")
@@ -286,8 +292,8 @@ end
             END
             """,
         )
-        dd = read_phreeqc_database(fd)
-        o2 = only(sp for sp in dd.species if sp.name == "O2")
+        _, dd, _ = read_phreeqc_database(fd)
+        o2 = only(r for r in eachrow(dd) if r.name == "O2")
         @test o2.atoms == Dict(:O => 2.0) && iszero(o2.charge)
     end
 
@@ -299,15 +305,15 @@ end
     @test "Ca+2" in primaries.symbol
     @test last(primaries.symbol) == "Zz"
     @test !("HCO3-" in primaries.symbol)
-    @test database_activity_model(read_phreeqc_database(datapath("wateq4f.dat"))) isa TruesdellJonesActivityModel
+    @test database_activity_model(read_phreeqc_database(datapath("wateq4f.dat"))[2]) isa TruesdellJonesActivityModel
 
     # The LLNL model: its A, B and B-dot interpolated linearly in °C, refused
     # outside its grid, and its arguments checked.
-    llnl = database_activity_model(read_phreeqc_database(datapath("llnl.dat")))
-    A, B, Bdot = ChemistryLab._llnl_terms(llnl, 273.15 + 120.0)[1:3]
+    llnl = database_activity_model(read_phreeqc_database(datapath("llnl.dat"))[2])
+    A, B, Bdot = ChemistryLab._llnl_terms(llnl, T_ZERO_CELSIUS + 120.0)[1:3]
     @test A ≈ 0.5995 + 0.4 * (0.6855 - 0.5995)
     @test Bdot ≈ 0.046 + 0.4 * 0.001
-    @test_throws DomainError ChemistryLab._llnl_terms(llnl, 273.15 + 320.0)
+    @test_throws DomainError ChemistryLab._llnl_terms(llnl, T_ZERO_CELSIUS + 320.0)
     @test_throws ArgumentError LLNLActivityModel(; temperatures = [25.0], A = [0.5], B = [0.3], Bdot = [0.04], co2 = zeros(5), sizes = Dict{String, Float64}())
     @test_throws ArgumentError LLNLActivityModel(; temperatures = [0.0, 25.0], A = [0.5], B = [0.3, 0.3], Bdot = [0.04, 0.04], co2 = zeros(5), sizes = Dict{String, Float64}())
     @test_throws ArgumentError LLNLActivityModel(; temperatures = [25.0, 0.0], A = [0.5, 0.5], B = [0.3, 0.3], Bdot = [0.04, 0.04], co2 = zeros(5), sizes = Dict{String, Float64}())
@@ -324,7 +330,7 @@ end
         co2 = (-1.0312, 0.0012806, 255.9, 0.4445, -0.001606), sizes = Dict("Na+" => 4.0, "SiO2@" => 3.0),
         co2_species = ["CO2@"], gamma = Dict("K+" => (3.5, 0.015)), water = :phreeqc,
     )
-    terms = ChemistryLab._llnl_terms(toy, 298.15)
+    terms = ChemistryLab._llnl_terms(toy, T_STANDARD)
     I, sI = 0.5, sqrt(0.5)
     @test ChemistryLab._llnl_log10γ((0, 0.0, 0.0), 1, I, sI, terms[1], terms[2:5]) == 0.0
     @test ChemistryLab._llnl_log10γ((3, 3.5, 0.015), 1, I, sI, terms[1], terms[2:5]) ≈ 0.015 * I
@@ -332,22 +338,23 @@ end
         (terms[4] * I - terms[5] * I / (1 + I)) / log(10)
     # The coefficients a state reports are those of the closure: an ion with a
     # size, carbon dioxide, a neutral species with a size (γ = 1).
-    db_llnl = read_phreeqc_database(datapath("llnl.dat"))
+    _, db_llnl, _ = read_phreeqc_database(datapath("llnl.dat"))
     cs = ChemicalSystem(build_species(db_llnl, ["H2O", "H+", "OH-", "Na+", "Cl-", "HCO3-", "CO3-2", "CO2", "NaCl"]))
-    st = ChemicalState(cs; T = 333.15u"K", P = 101325.0u"Pa")
+    st = ChemicalState(cs; T = (T_ZERO_CELSIUS + 60.0) * u"K", P = 1.0u"Constants.atm")
     set_quantity!(st, "H2O@", 1.0u"kg")
     set_quantity!(st, "Na+", 0.5u"mol")
     set_quantity!(st, "Cl-", 0.49u"mol")
     set_quantity!(st, "HCO3-", 0.01u"mol")
     eq = equilibrate(st; model = llnl)
     γs = activity_coefficients(eq, llnl)
-    A60, B60, Bd60, c1, c2 = ChemistryLab._llnl_terms(llnl, 333.15)
+    A60, B60, Bd60, c1, c2 = ChemistryLab._llnl_terms(llnl, T_ZERO_CELSIUS + 60.0)
     Ieq = ionic_strength(eq)
     @test log10(γs["Na+"]) ≈ -A60 * sqrt(Ieq) / (1 + 4.0 * B60 * sqrt(Ieq)) + Bd60 * Ieq rtol = 1.0e-6
     @test log10(γs["CO2@"]) ≈ (c1 * Ieq - c2 * Ieq / (1 + Ieq)) / log(10) rtol = 1.0e-6
     @test γs["NaCl@"] ≈ 1.0
     # An element outside the order the package writes formulas in.
     @test length(build_species(db_llnl, ["ZnCl+", "LiCl"])) == 2
-    @test ChemistryLab._solvent_lna(:phreeqc, 1.0, 2.0, 1.0, 0.018) ≈ log(1 - 0.017 / 0.018)
-    @test isfinite(ChemistryLab._solvent_lna(:phreeqc, 1.0, 101.0, 100.0, 0.018))
+    Mw = ustrip(us"kg/mol", Species("H2O")[:M])
+    @test ChemistryLab._solvent_lna(:phreeqc, 1.0, 2.0, 1.0, Mw) ≈ log(1 - ChemistryLab._PHREEQC_WATER_COEFFICIENT / Mw)
+    @test isfinite(ChemistryLab._solvent_lna(:phreeqc, 1.0, 101.0, 100.0, Mw))
 end

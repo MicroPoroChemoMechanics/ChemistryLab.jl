@@ -112,6 +112,8 @@ end
     include("csh_surface.jl")
     include("sit.jl")
     include("phreeqc_databases.jl")
+    include("reaction_formats.jl")
+    include("reaktoro_yaml.jl")
     include("provenance.jl")
     include("identifiability.jl")
     include("ignition_loss.jl")

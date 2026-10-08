@@ -438,7 +438,12 @@ _refuse_method!(species, method) = (
 """
     build_species(df_substances::AbstractDataFrame, list_symbols=nothing; verbose=false) -> Vector{Species}
 
-Build Species objects from a substance DataFrame.
+Build Species objects from a substance DataFrame: that of a ThermoFun file
+([`read_thermofun_database`](@ref)), of a database of reactions
+([`read_phreeqc_database`](@ref), [`read_gwb_database`](@ref),
+[`read_eq36_database`](@ref)) or of a database of Reaktoro
+([`read_reaktoro_database`](@ref)). The substances named in `list_symbols` are
+looked up by their symbol, or by their name in the database.
 
 # Arguments
 
@@ -489,6 +494,9 @@ warning lists such substances.
 function build_species(
         df_substances::AbstractDataFrame, list_symbols = nothing; verbose = false
     )
+    # The tables of a database of reactions and of a database of Reaktoro.
+    hasproperty(df_substances, :formation) && return _build_reaction_species(df_substances, list_symbols)
+    hasproperty(df_substances, :standard_model) && return _build_reaktoro_species(df_substances, list_symbols)
     local_df_substances = if isnothing(list_symbols)
         df_substances
     else
