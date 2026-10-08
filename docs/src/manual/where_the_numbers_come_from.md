@@ -99,8 +99,8 @@ the whole calculation inherits whatever you chose here.
 
 ## Standard Gibbs energies and equilibrium constants
 
-These come from a thermodynamic database. The package ships several; `datapath`
-locates them and `build_species` reads them.
+These come from a thermodynamic database, which `datapath` obtains from its
+publisher and `build_species` reads.
 
 ```@example numbers
 G(s) = ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
@@ -124,8 +124,8 @@ Each is a different body of work with a different scope, and they do not always
 agree — `OH-` is `-157297.2 J/mol` in slop98 [Johnson1992](@cite) and
 `-157270.2` in CEMDATA18 [Lothenbach2019](@cite), because they were fitted in
 different contexts. **Do not mix two databases in one calculation** unless you
-know why you are doing it; see [Database Interoperability](@ref sec-databases)
-for what each one covers.
+know why you are doing it; see [Importing thermodynamic databases](@ref
+sec-importing-databases) for what each one covers.
 
 To find out whether a database has what you need:
 
@@ -441,7 +441,7 @@ Before a number goes into a script:
 
 ## See also
 
-  - [Database Interoperability](@ref sec-databases) — what each shipped database covers.
+  - [Importing thermodynamic databases](@ref sec-importing-databases) — which databases are read, and where each comes from.
   - [Species](@ref sec-species) — building one from scratch, including
     when you genuinely have to.
   - [Thermodynamic Functions](@ref sec-thermodynamics) — how a standard

@@ -55,7 +55,7 @@ one costs seconds to minutes.
 
 | what | against | how closely | where it stops |
 |:--|:--|:--|:--|
-| **every solubility product** in the shipped CEMDATA18 — 54 phases | [Lothenbach2019](@citet) Tables 2-3 | 52 close to `0.040`, 50 to `0.005` | two M-S-H end members, defined in the file by reactions whose `log K` coefficients give at 25 °C `0.17` and `0.11` more than the tabulated `log Ks0` |
+| **every solubility product** in CEMDATA18 as read — 54 phases | [Lothenbach2019](@citet) Tables 2-3 | 52 close to `0.040`, 50 to `0.005` | two M-S-H end members, defined in the file by reactions whose `log K` coefficients give at 25 °C `0.17` and `0.11` more than the tabulated `log Ks0` |
 | **standard properties and HKF coefficients**, 19 aqueous species and 7 gases | [Lothenbach2019](@citet) Tables D.1-D.2 | exact, all seven coefficients each | nitrite-AFm needs the `NO2-` of another file, and Fe-Friedel's salt is in ChemistryLab's chloride extension only; [both close there](@ref sec-cemdata18-missing-rows) |
 | **each record's `ΔfG°`, `ΔfH°` and `S°`** against one another | the file's own element entropies | 78 of 143 crystalline records to `1 J/mol`, 126 to `100 J/mol` | the two M-S-H end members miss by kilojoules at either temperature |
 | **HKF away from 298.15 K, 1 bar** | [Duan2016](@citet) Table 4, HKF column | `0.03 %` at the reference point; `0.3 %` across a factor 2.9 in pressure | the `K₄` of one row matches the HKF value at 1 bar and the `K₃` of the same row at 1000 bar |
@@ -277,7 +277,7 @@ Table D.2's gas column, under the same header, really is J/bar — 2479 J/bar is
 package's `RT/P` gives a gas there. The two tables share a header and not a
 unit.
 
-## [What the shipped file does not carry](@id sec-cemdata18-missing-rows)
+## [What the file does not carry](@id sec-cemdata18-missing-rows)
 
 Two rows of [Lothenbach2019; Table 2](@cite) cannot be checked on the shipped
 file alone. The test asserts what is missing, so that a database update which
@@ -741,7 +741,7 @@ here.
 
 [Lothenbach2010](@citet) reviews what equilibrium calculations do for cements,
 and its Table 1 lists the solubility products it computed with: those of
-Cemdata07, the generation before the one this package ships, for 29 solids. It
+Cemdata07, the generation before the one this package reads, for 29 solids. It
 prints no Gibbs energy and no molar volume, only the constant and its reaction.
 Read through the package's own energies, the same reactions separate what
 Cemdata18 kept from what it revised.
@@ -887,7 +887,7 @@ sum is 45.0 and `14.6 + 2 × 15.5 = 45.6`.
 julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
-The Cemdata18 checks are pure arithmetic over the shipped file and need no
+The Cemdata18 checks are pure arithmetic over the downloaded file and need no
 solver. The case of [Atkins1992](@citet) runs one `equilibrate_certified` and
 takes about a second once compiled.
 

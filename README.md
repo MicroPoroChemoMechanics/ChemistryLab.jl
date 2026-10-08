@@ -18,8 +18,8 @@
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.17756074-blue)](https://doi.org/10.5281/zenodo.17756074)
 
 `ChemistryLab.jl` handles chemical formulas, species and reactions as
-first-class objects, reads thermodynamic data from ThermoFun and Cemdata, and
-solves equilibrium by Gibbs-energy minimization. Kinetics and chemo-mechanical
+first-class objects, imports thermodynamic databases of the formats in common
+use, and solves equilibrium by Gibbs-energy minimization. Kinetics and chemo-mechanical
 coupling build on the same objects.
 
 It grew out of work on low-carbon cementitious materials and aqueous solutions,
@@ -36,7 +36,7 @@ a solver have to be driven from a script.
 - **Chemical formula handling**: Create, convert, and display formulas with charge management and Unicode/Phreeqc notation ([Parkhurst and Appelo 2013](https://doi.org/10.3133/tm6a43)).
 - **Chemical species management**: `Species` and `CemSpecies` types to represent solution and solid phase species; `with_class` to requalify a species without modifying the original.
 - **Stoichiometric matrices**: Automatic construction of matrices for reaction and equilibrium analysis.
-- **Database interoperability**: Import and merge ThermoFun (.json) and Cemdata (.dat) data. `datapath` obtains a ThermoFun database from ThermoHub on first use and checks it against a SHA-256; `install_database` takes a PHREEQC file downloaded by hand, and `fetch_databases` prepares a machine for offline work. Solid solution definitions are loaded from a TOML file with `build_solid_solutions`.
+- **Thermodynamic databases**: `import_database` reads databases of reactions (PHREEQC, The Geochemist's Workbench, EQ3/6) and of formation properties (JSON and YAML formats), and builds their species; a database of reactions comes with the activity model it was fitted with. No database is stored in the package: `datapath` obtains the freely redistributable ones from their publishers on first use and checks each against a SHA-256, `install_database` takes a file downloaded by hand under its publisher's terms, and `fetch_databases` prepares a machine for offline work. Solid solution definitions are loaded from a TOML file with `build_solid_solutions`.
 - **Parsing tools**: Convert chemical notations, extract charges, calculate molar mass, and more.
 - **Solid solutions**: Define ideal (`IdealSolidSolutionModel`), Redlich-Kister (`RedlichKisterModel`, [Redlich and Kister 1948](https://doi.org/10.1021/ie50458a036)), regular (`RegularSolutionModel`), sublattice (`SublatticeModel`, as in C-(N-)A-S-H) or compound-energy (`CompoundEnergyModel`, as in CASH+) mineral mixing phases via `SolidSolutionPhase`; end-members are automatically requalified at construction time, and a miscibility gap is detected, refused when spurious and located when real.
 - **Activity models**: Built-in aqueous activity models for equilibrium: `DiluteSolutionModel` (ideal), `HKFActivityModel` (extended Debye-Hückel B-dot, [Helgeson 1969](https://doi.org/10.2475/ajs.267.7.729)), `DaviesActivityModel`, `TruesdellJonesActivityModel`, `SITActivityModel` and `PitzerActivityModel` (with the higher-order electrostatic terms of [Pitzer 1975](https://doi.org/10.1007/BF00646562), temperature terms, and a reader of PHREEQC's `PITZER` block), and `cemdata18_activity_model`, the extended Debye-Hückel setting Cemdata18 ([Lothenbach et al. 2019](https://doi.org/10.1016/j.cemconres.2018.04.018)) prescribes.
@@ -93,7 +93,7 @@ $\text{CaCO}_3 \rightleftharpoons \text{Ca}^{2+} + {\text{CO}_3}^{2-}$
 
 To do this, we can create a list of chemical species, retrieve the thermodynamic properties of these species from one of the databases ChemistryLab reads. We can then deduce the chemical species likely to appear in the reaction and calculate the associated stoichiometric matrix.
 
-In this example, the database is [Cemdata18](https://www.empa.ch/web/s308/thermodynamic-data), in the ThermoFun format that [ThermoHub](https://github.com/thermohub/thermohub) publishes. ChemistryLab downloads it from ThermoHub the first time it is needed, checks it against the version it was validated with, and keeps it in its cache; the manual page *Database Interoperability* explains how, and how to work offline.
+In this example, the database is a database of cement phases that `datapath` names by its file name. ChemistryLab downloads it from its publisher the first time it is needed, checks it against the version it was validated with, and keeps it in its cache; the manual page *Importing thermodynamic databases* explains how, which formats are read, and how to work offline.
 
 ```julia
 using ChemistryLab
@@ -303,7 +303,7 @@ rescale!(state_eq, 1.0u"m^3")   # total volume → 1 m³   (in-place)
 
 ## Usage
 
-See the [documentation and tutorials](https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl) for examples on formula creation, species management, reaction parsing, and database merging.
+See the [documentation and tutorials](https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl) for examples on formula creation, species management, reaction parsing, and database import.
 
 ## License
 

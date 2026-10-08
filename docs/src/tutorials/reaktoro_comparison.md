@@ -25,7 +25,8 @@ A cross-code comparison has **three** knobs, and each is worth tens of percent:
 | activity model | same convention | `∂Ca²⁺/∂(CO₂)` moves from `+0.152` to `+0.218` |
 
 Reaktoro reads ThermoFun databases, so it can be pointed at **the very file this
-package ships**, `data/cemdata18-thermofun.json`, with identical species names.
+package reads**, `cemdata18-thermofun.json` as `datapath` obtains it, with
+identical species names.
 This package's default is `DiluteSolutionModel()`, matched on the Reaktoro side
 by `ActivityModelIdealAqueous()`.
 

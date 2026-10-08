@@ -55,7 +55,8 @@ features:
 ## What it does
 
 `ChemistryLab` handles chemical formulas, species and reactions as first-class
-objects, reads thermodynamic data from ThermoFun and Cemdata, and solves
+objects, imports thermodynamic databases of the formats in common use
+([Importing thermodynamic databases](@ref sec-importing-databases)), and solves
 equilibrium by Gibbs-energy minimization. Kinetics and chemo-mechanical coupling
 build on the same objects.
 

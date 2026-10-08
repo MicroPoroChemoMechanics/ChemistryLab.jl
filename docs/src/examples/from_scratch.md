@@ -159,7 +159,7 @@ plot!(p1, θ -> r.ΔᵣG⁰(T = 273.15+θ) / (R_GAS * (273.15+θ)) / log(10), 0:
 
 This example demonstrates the **manual** workflow: create species, attach thermodynamic data from an external source, build a reaction and evaluate its temperature-dependent properties.
 
-In practice, loading species from a built-in database (see [Database Interoperability](@ref sec-databases)) is faster and less error-prone:
+In practice, loading species from a database (see [Importing thermodynamic databases](@ref sec-importing-databases)) is faster and less error-prone:
 
 ```julia
 all_species = build_species(datapath("cemdata18-thermofun.json"))

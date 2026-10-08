@@ -23,7 +23,7 @@ Enumeration for species aggregate states.
 
 An imported label is matched **by name**, so ThermoFun's numbering and this
 enum's are independent and neither constrains the other. The codes below are the
-ones its files carry, counted over the databases shipped in `data/`:
+ones its files carry, counted over the ThermoFun files `datapath` obtains:
 
 | ThermoFun code | label | occurrences | here |
 |---:|:--|---:|:--|
@@ -37,13 +37,13 @@ ones its files carry, counted over the databases shipped in `data/`:
 complex, because it is a modeling declaration rather than a substance record.
 
 Both `AS_LIQUID` and `AS_SURFACE` are appended rather than inserted, so no
-existing member changes its integer value. It is here because a shipped database uses it -- metallic mercury
+existing member changes its integer value. It is here because a database the package reads uses it -- metallic mercury
 in `slop98-inorganic-thermofun.json` -- and until it was added that record read
 as `AS_UNDEF`, an import silently losing what the file said.
 
 A label with no member to land on takes the fallback, and a fallback is a valid
 value, so nothing announces the loss. `test/databases.jl` therefore walks the
-`substances` of every shipped database and requires each label to resolve, which
+`substances` of every database `datapath` obtains and requires each label to resolve, which
 is what turns the table above from a claim into a check.
 """
 @enum AggregateState AS_UNDEF AS_AQUEOUS AS_CRYSTAL AS_GAS AS_LIQUID AS_SURFACE

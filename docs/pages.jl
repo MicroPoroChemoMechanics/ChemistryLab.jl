@@ -107,8 +107,14 @@ pages = [
     "Manual" => [
         # What a formula, a species and a reaction *are* here. Everything else
         # consumes these.
-        "Chemical description" => [
+        # Where the numbers of a calculation come from, and how a database is
+        # read: first, because every page after this one computes with species
+        # read from a database.
+        "Data and databases" => [
             "manual/where_the_numbers_come_from.md",
+            "manual/importing_databases.md",
+        ],
+        "Chemical description" => [
             "manual/formula_manipulation.md",
             "manual/species.md",
             "manual/reactions.md",
