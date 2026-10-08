@@ -374,8 +374,10 @@ to the potential it raises and to how well the solution screens it:
 \qquad \kappa = \sqrt{8\,\varepsilon_r\varepsilon_0 RT\rho}
 ```
 
-with ``I`` the ionic strength of the bulk solution and ``\rho = 1000`` kg/m³ the
-factor that makes it a volumetric concentration. This is transcendental in
+with ``I`` the ionic strength of the bulk solution, ``\varepsilon_r`` the
+relative permittivity of water at the temperature of the solve unless a value is
+given ([`DiffuseLayer`](@ref)), and ``\rho = 1000`` kg/m³ the factor that makes
+it a volumetric concentration. This is transcendental in
 ``\Psi`` — and *monotone* in it, which is a different thing. A monotone relation
 inverts, and this one inverts in closed form:
 
@@ -673,10 +675,16 @@ Saying what is absent is part of describing what is present.
     approximation of [`DonnanLayer`](@ref); the Poisson–Boltzmann profile across
     the layer is not computed, and neither is the overlap of two layers in a
     pore narrower than they are.
-  - **No temperature dependence of the surface constants.** The standard
-    energies of the surface species are fixed at their 25 °C values, as the
-    published constants are, so a surface computed at another temperature rests
-    on that assumption.
+  - **No enthalpy of a surface reaction.** The constant of each reaction of a
+    family built by [`site_family`](@ref) is held at every temperature: the
+    standard energy of a complex follows the aqueous species of its reaction,
+    so that ``\log K`` does not move, which is a zero reaction enthalpy. A
+    published constant carries none, and PHREEQC holds those of `phreeqc.dat`
+    the same way: on the weak sites of hydrous ferric oxide, its site fractions
+    at 50 °C are those at 25 °C at the same proton activity, and the
+    calculation here agrees with them to ``10^{-8}`` without a diffuse layer
+    and within ``5\times10^{-4}`` with one (`test/surface_temperature.jl`). A
+    measured reaction enthalpy has nowhere to go.
   - **No more than three charge planes**, and no plane-resolved surface
     without a diffuse layer other than the constant capacitance; stacking two
     electrostatic models is refused rather than summed (§11).
