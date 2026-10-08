@@ -14,7 +14,7 @@ solution and its phases. This page computes the paste of the companion paper
 temperature, then heated to 80 °C and brought back to 20 °C.
 
 ```@example def
-using ChemistryLab, DynamicQuantities, Printf
+using ChemistryLab, DynamicQuantities, Printf, Plots
 include(joinpath(pkgdir(ChemistryLab), "scripts", "delayed_ettringite.jl"))
 
 cs = l08t_system()
@@ -30,6 +30,18 @@ for T in (5.0, 20.0, 50.0, 80.0)
             o.OH, isnan(de_measured("OH-", T)) ? "-" : @sprintf("%.2f", de_measured("OH-", T)),
             o.ettringite, o.monosulfate)
 end
+```
+
+```@example def
+Ts = [5.0, 20.0, 50.0, 80.0]
+fig = plot(; yscale = :log10, xlabel = "temperature (°C)", ylabel = "dissolved sulfur (mmol/L)", legend = :bottomright,
+           size = (700, 400), left_margin = 5Plots.mm, bottom_margin = 5Plots.mm,
+           title = "SRPC, w/c 0.4, at the degree of hydration of 150 days")
+plot!(fig, Ts, [1000de_observables(paste[T]).SO4 for T in Ts]; lw = 2, marker = :circle, label = "here")
+measured_T = [T for T in Ts if !isnan(de_measured("SO4", T))]
+scatter!(fig, measured_T, [1000de_measured("SO4", T) for T in measured_T]; color = :black, marker = :diamond,
+         label = "measured, Lothenbach et al. (2007)")
+fig
 ```
 
 Here / measured at 150 days. The sulfate of the solution rises with the
@@ -51,6 +63,19 @@ o, o20 = de_observables(back), de_observables(paste[20.0])
         o.ettringite, o.monosulfate, o20.ettringite, o20.monosulfate)
 println("ettringite declared from ", temperature_range(L08T_DB["ettringite"])[1], " to ",
         temperature_range(L08T_DB["ettringite"])[2], " K")
+```
+
+```@example def
+stages = ["5 °C", "20 °C", "50 °C", "80 °C", "back to 20 °C"]
+obs = [de_observables(paste[T]) for T in Ts]
+push!(obs, o)
+xs = collect(eachindex(stages))
+fig = bar(xs .- 0.2, [x.ettringite for x in obs]; bar_width = 0.4, label = "ettringite", color = :steelblue,
+          xticks = (xs, stages), ylabel = "g per 100 g of cement", legend = :topleft, size = (750, 400),
+          ylims = (0, 1.25 * maximum(max(x.ettringite, x.monosulfate) for x in obs)),
+          left_margin = 5Plots.mm, bottom_margin = 5Plots.mm, title = "The paste heated to 80 °C and cooled")
+bar!(fig, xs .+ 0.2, [x.monosulfate for x in obs]; bar_width = 0.4, label = "monosulfate", color = :darkorange)
+fig
 ```
 
 The equilibrium is reversible: the ettringite comes back, which is what makes

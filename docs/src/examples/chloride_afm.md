@@ -15,7 +15,7 @@ Cemdata18 [Lothenbach2019](@cite), on the system of the companion page on
 temperature.
 
 ```@example chloride
-using ChemistryLab, DynamicQuantities, Printf
+using ChemistryLab, DynamicQuantities, Printf, Plots
 include(joinpath(pkgdir(ChemistryLab), "scripts", "balonis2010_chloride.jl"))
 
 ratios = 0.0:0.02:1.1
@@ -33,6 +33,18 @@ for i in eachindex(xrd.phases)
     r = ustrip(xrd.cl2_al2o3_nominal[i])
     @printf("%-19s %8.1f   %-16s %s\n", xrd.system[i], r, xrd.phases[i], ba10_phases(row(rows, r)))
 end
+```
+
+```@example chloride
+phases = ((:ettringite, "ettringite"), (:monosulfate, "sulfate AFm"), (:kuzel, "Kuzel's salt"),
+          (:friedel, "Friedel's salt"), (:monocarbonate, "monocarbonate"))
+panel(rows, title; legend = false) = (p = plot(; xlabel = "2Cl/Al₂O₃ added as CaCl₂", ylabel = "mol per mol of Al₂O₃",
+                               title, titlefontsize = 10, legend, ylims = (0, 1.05));
+                      for (k, (f, lab)) in enumerate(phases)
+                          plot!(p, [r.ratio for r in rows], [getproperty(r, f) for r in rows]; lw = 2, color = k, label = lab)
+                      end; p)
+plot(panel(free, "0.01 mol C₃A, SO₃/Al₂O₃ = 1"; legend = :topright), panel(carb, "the same with 0.0075 mol of calcite");
+     layout = (1, 2), size = (900, 380), left_margin = 5Plots.mm, bottom_margin = 6Plots.mm)
 ```
 
 E is ettringite, Ms the sulfate AFm, Ks and Fs Kuzel's and Friedel's salts,
@@ -54,6 +66,17 @@ for i in eachindex(meas.pH)
 end
 @printf("solid volume, 2Cl/Al2O3 0 to 1: %+.0f %% without calcite, %+.0f %% with\n",
         100 * (row(free, 1.0).solids / row(free, 0.0).solids - 1), 100 * (row(carb, 1.0).solids / row(carb, 0.0).solids - 1))
+```
+
+```@example chloride
+r_meas = ustrip.(meas.cl2_al2o3)
+fig = plot(; xlabel = "2Cl/Al₂O₃ added as CaCl₂", ylabel = "mmol/L", legend = :topleft, size = (750, 400),
+           left_margin = 5Plots.mm, bottom_margin = 5Plots.mm, title = "Pore solution, without calcite, 25 °C")
+plot!(fig, [r.ratio for r in free], [r.Cl for r in free]; lw = 2, color = 1, label = "Cl, here")
+scatter!(fig, r_meas, ustrip.(meas.Cl); color = 1, label = "Cl, measured")
+plot!(fig, [r.ratio for r in free], [r.Ca for r in free]; lw = 2, color = 2, label = "Ca, here")
+scatter!(fig, r_meas, ustrip.(meas.Ca); color = 2, marker = :diamond, label = "Ca, measured")
+fig
 ```
 
 The solution of the samples, read on the figure of [Balonis2010](@citet), is

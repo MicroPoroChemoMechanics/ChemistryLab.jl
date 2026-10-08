@@ -78,6 +78,30 @@ state_eq
 </details>
 ```
 
+What went in and what came out, the solids and the free water, in grams per
+kilogram of paste:
+
+```@example eq_setup
+using Plots
+grams(st, i) = ustrip(us"g", st.n[i] * st.system.species[i][:M])
+function inventory(st)
+    out = Dict(symbol(st.system.species[i]) => grams(st, i) for i in st.system.idx_crystal if grams(st, i) > 0.1)
+    out["free water"] = grams(st, findfirst(sp -> symbol(sp) == "H2O@", st.system.species))
+    return out
+end
+before, after = inventory(state), inventory(state_eq)
+names_ba = sort(collect(union(keys(before), keys(after))); by = k -> -max(get(before, k, 0.0), get(after, k, 0.0)))
+xs = collect(eachindex(names_ba))
+fig = bar(xs .- 0.2, [get(before, k, 0.0) for k in names_ba]; bar_width = 0.4, label = "before",
+          color = :grey60, xticks = (xs, names_ba), xrotation = 30, ylabel = "g per kg of paste",
+          ylims = (0, 1.1 * maximum(max(get(before, k, 0.0), get(after, k, 0.0)) for k in names_ba)),
+          size = (820, 400), left_margin = 6Plots.mm, bottom_margin = 10Plots.mm, titlefontsize = 11,
+          title = "Clinker and gypsum at w/c 0.4, then at equilibrium, 25 °C")
+bar!(fig, xs .+ 0.2, [get(after, k, 0.0) for k in names_ba]; bar_width = 0.4, label = "at equilibrium",
+     color = :steelblue)
+fig
+```
+
 !!! tip "Quick shortcut"
     If your `ChemicalState` was constructed from a `ChemicalSystem` built with `CEMDATA_PRIMARIES`, calling `equilibrate(state)` with no other arguments is usually sufficient for cement-chemistry problems.
 

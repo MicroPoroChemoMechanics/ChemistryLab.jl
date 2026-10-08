@@ -15,7 +15,7 @@ This page computes those steps, the water of the GEMS run, not given with the
 data set, taken at 2.7 times the solids of the experiments.
 
 ```@example hemicarbonate
-using ChemistryLab, DynamicQuantities, Printf
+using ChemistryLab, DynamicQuantities, Printf, Plots
 include(joinpath(pkgdir(ChemistryLab), "scripts", "georget2022_hemicarbonate.jl"))
 
 rows = ge22_series()
@@ -31,6 +31,19 @@ for k in 1:10:101
 end
 gap = maximum(maximum(abs(getproperty(rows[k], f) - g(f, k)) for f in (:katoite, :hemicarbonate, :monocarbonate, :calcite, :portlandite)) for k in eachindex(rows))
 @printf("largest difference over the 101 steps: %.3f g\n", gap)
+```
+
+```@example hemicarbonate
+z = [r.zeta for r in rows]
+fig = plot(; xlabel = "ζ, CaCO₃ / (CaCO₃ + Ca(OH)₂), molar", ylabel = "g", legend = :outerright,
+           size = (860, 420), left_margin = 5Plots.mm, bottom_margin = 5Plots.mm,
+           title = "9.7 g of C₃A, water 2.7 × the solids, 20 °C; dashed: GEMS", titlefontsize = 11)
+for (k, (f, lab)) in enumerate(((:katoite, "katoite"), (:hemicarbonate, "hemicarbonate"),
+                                (:monocarbonate, "monocarbonate"), (:calcite, "calcite"), (:portlandite, "portlandite")))
+    plot!(fig, z, [getproperty(r, f) for r in rows]; lw = 2, color = k, label = lab)
+    plot!(fig, ustrip.(t.zeta_CO3), [g(f, j) for j in eachindex(t.zeta_CO3)]; lw = 2, ls = :dash, color = k, label = "")
+end
+fig
 ```
 
 The two calculations agree to 0.03 g of a solid of 20 g at every step. Below

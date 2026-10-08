@@ -34,7 +34,7 @@ Rietveld phases do not hold, magnesia among them, enter the equilibrium at the
 mixing; the slag's sulfur, which its analysis does not report, is left out.
 
 ```@example slag-pastes
-using ChemistryLab, DynamicQuantities, OptimaSolver, Printf
+using ChemistryLab, DynamicQuantities, OptimaSolver, Printf, Plots
 using Logging # hide
 include(joinpath(pkgdir(ChemistryLab), "scripts", "snellings2022_pastes.jl"))
 
@@ -79,6 +79,22 @@ for (key, name, technique) in ((:bound_water, "bound water", "TGA"), (:portlandi
 end
 ```
 
+```@example slag-pastes
+function versus_age(key, name, technique; legend = false)
+    ylabel = technique == "TGA" ? "% of the mass at 550 °C" : "g per 100 g of binder"
+    p = plot(; xscale = :log10, xlabel = "age (days)", ylabel, title = "$name ($technique)", titlefontsize = 10, legend)
+    for (k, T) in enumerate(temperatures)
+        plot!(p, days, [getproperty(o, key) for o in obs[T]]; lw = 2, color = k, marker = :circle, ms = 3, label = "$(Int(T)) °C")
+        scatter!(p, days, sn22p_measured(name, technique, T); color = k, marker = :diamond,
+                 label = legend !== false && k == 1 ? "measured" : "")
+    end
+    return p
+end
+plot(versus_age(:bound_water, "bound water", "TGA"; legend = :bottomright),
+     versus_age(:portlandite_tga, "portlandite", "TGA"), versus_age(:portlandite, "portlandite", "XRD");
+     layout = (1, 3), size = (1100, 360), left_margin = 6Plots.mm, bottom_margin = 7Plots.mm)
+```
+
 **The bound water and the portlandite follow the measurement.** The bound water
 is within two points of it from 28 days on at the three temperatures, and at
 seven days at 5 and 20 °C. Before, it is high, at 5 °C by four and a half points
@@ -102,6 +118,19 @@ for T in temperatures
     computed = [o.hemicarbonate + o.monocarbonate for o in obs[T]]
     @printf("both          %2.0f °C  %s\n", T, join((@sprintf("%5.1f/%5.1f", c, m) for (c, m) in zip(computed, measured)), " "))
 end
+```
+
+```@example slag-pastes
+both(T) = [o.hemicarbonate + o.monocarbonate for o in obs[T]]
+carbo = plot(; xscale = :log10, xlabel = "age (days)", ylabel = "g per 100 g of binder",
+             title = "hemi- + monocarbonate (XRD)", titlefontsize = 10, legend = false)
+for (k, T) in enumerate(temperatures)
+    plot!(carbo, days, both(T); lw = 2, color = k, marker = :circle, ms = 3)
+    scatter!(carbo, days, sn22p_measured("hemicarbonate", "XRD", T) .+ sn22p_measured("monocarbonate", "XRD", T);
+             color = k, marker = :diamond)
+end
+plot(versus_age(:ettringite, "ettringite", "XRD"; legend = :bottomright), versus_age(:hydrotalcite, "hydrotalcite", "XRD"),
+     carbo; layout = (1, 3), size = (1100, 360), left_margin = 6Plots.mm, bottom_margin = 7Plots.mm)
 ```
 
 The sulfate of the paste bounds its ettringite. All of it held in ettringite
