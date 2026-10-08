@@ -214,11 +214,34 @@ end
                     -frobnicate 2
                 Ca+2 + CO3-2 = CaCO3
                     -log_k 3.2
+                    -delta_h 4184 J
+                Ca+2 + 2 CO3-2 = Ca(CO3)2-2
+                    -log_k 3.5
+                    -delta_h 1.0 furlongs
+                    -add_constant 0.5
+                Ca+2 + H2O = CaOH+ + H+
+                    -log_k -12.8
+                    -add_logk Unnamed 1.0
+                Ca+2 + CO3-2 = CaCO3:sorbed
+                    -log_k 1.0
+                    -cd_music 1 0 0 0 0
+                Xx+2 + CO3-2 = XxCO3
+                    -log_k 2.0
                 Mtg = Mtg
                 Mtg + Ca+2 = CaMtg+2
                     -log_k 1.0
                 SOLUTION_MASTER_SPECIES
                 Mtg     Mtg     0.0  Mtg  16.042
+                PHASES
+                    CaCO3 = CO3-2 + Ca+2
+                Calcite
+                    CaCO3 = CO3-2 + Ca+2
+                    -log_k -8.5
+                Xxite
+                    XxCO3 = Xx+2 + CO3-2
+                    -log_k -5.0
+                SOLUTION_SPECIES
+                    stray line
                 KNOBS
                     -iterations 200
                 END
@@ -231,7 +254,41 @@ end
         @test any(n -> occursin("KNOBS is an input block", n), dc.notes)
         caco3 = only(sp for sp in dc.species if sp.name == "CaCO3")
         @test first(ChemistryLab._formation_log10K(dc, caco3.formation, 298.15)) ≈ 3.2
+        # An enthalpy in joules; a unit the manual does not name is taken as kJ.
+        r = ChemistryLab._formation_log10K(dc, caco3.formation, 298.15)
+        @test r[2] ≈ 4.184 / (ChemistryLab.R_GAS * log(10) * 298.15^2) * 1000 rtol = 1.0e-12
+        # A constant added to log K, an expression that does not exist, an
+        # electrostatic option, a species and a phase on an undefined species, an
+        # equation in PHASES with no phase name, a line that belongs to no species.
+        cc = only(sp for sp in dc.species if sp.name == "Ca(CO3)2-2")
+        @test first(ChemistryLab._formation_log10K(dc, cc.formation, 298.15)) ≈ 4.0
+        @test any(n -> occursin("`-add_logk Unnamed`", n), dc.notes)
+        @test !any(sp -> sp.name == "CaOH+", dc.species)
+        @test any(n -> occursin("`-cd_music` (a surface electrostatic option)", n), dc.notes)
+        @test any(n -> occursin("XxCO3 rests on a species the database does not define", n), dc.notes)
+        @test any(n -> occursin("phase Xxite rests on a species", n), dc.notes)
+        @test any(n -> occursin("an equation with no phase name", n), dc.notes)
+        @test any(n -> occursin("`stray line` belongs to no species", n), dc.notes)
         @test occursin("PhreeqcDatabase(\"c.dat\"", sprint(show, dc))
+
+        # The electron used without being defined, as some databases do.
+        fd = joinpath(dir, "d.dat")
+        write(
+            fd, """
+            SOLUTION_MASTER_SPECIES
+            H     H+     -1.0  H     1.008
+            O     H2O     0.0  O     16.0
+            SOLUTION_SPECIES
+            H+ = H+
+            H2O = H2O
+            2 H2O = O2 + 4 H+ + 4 e-
+                -log_k -86.08
+            END
+            """,
+        )
+        dd = read_phreeqc_database(fd)
+        o2 = only(sp for sp in dd.species if sp.name == "O2")
+        @test o2.atoms == Dict(:O => 2.0) && iszero(o2.charge)
     end
 
     # The parameters of `-gamma`, the master species, and the activity model of
@@ -290,7 +347,7 @@ end
     @test log10(γs["CO2@"]) ≈ (c1 * Ieq - c2 * Ieq / (1 + Ieq)) / log(10) rtol = 1.0e-6
     @test γs["NaCl@"] ≈ 1.0
     # An element outside the order the package writes formulas in.
-    @test length(build_species(db_llnl, ["Li+", "Zn+2"])) == 2
+    @test length(build_species(db_llnl, ["ZnCl+", "LiCl"])) == 2
     @test ChemistryLab._solvent_lna(:phreeqc, 1.0, 2.0, 1.0, 0.018) ≈ log(1 - 0.017 / 0.018)
     @test isfinite(ChemistryLab._solvent_lna(:phreeqc, 1.0, 101.0, 100.0, 0.018))
 end
