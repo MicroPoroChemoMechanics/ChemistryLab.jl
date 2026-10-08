@@ -30,7 +30,7 @@ oxides held in the clinker phases are released at the overall degree of the
 clinker, the article giving their amounts and not how the phases share them.
 
 ```@example hydrates-temperature
-using ChemistryLab, DynamicQuantities, OptimaSolver, Printf
+using ChemistryLab, DynamicQuantities, OptimaSolver, Printf, Plots
 include(joinpath(pkgdir(ChemistryLab), "scripts", "lothenbach2008_temperature.jl"))
 
 cements = ("SRPC", "PLC")
@@ -58,14 +58,31 @@ cs = l08t_system()
 materials = Dict(c => l08t_material(c) for c in cements)
 temperatures = 0.0:5.0:60.0
 shown = ("ettringite", "monocarbonate", "monosulfate", "calcite", "portlandite", "hydrotalcite", "C-S-H", "iron hydroxide", "unhydrated clinker")
+volumes = Dict(c => [l08t_grouped(l08t_volumes(l08t_state(c, T; cs, material = materials[c]))) for T in temperatures]
+               for c in cements)
 for c in cements
     println(c, ", cm³/100 g")
     println(" °C  ", join((lpad(first(g, 11), 12) for g in shown)))
-    for T in temperatures
-        v = l08t_grouped(l08t_volumes(l08t_state(c, T; cs, material = materials[c])))
+    for (T, v) in zip(temperatures, volumes[c])
         @printf("%3.0f  %s\n", T, join((@sprintf("%12.2f", v[g]) for g in shown)))
     end
 end
+```
+
+The same volumes stacked, from the unhydrated clinker up, as the figures of
+[Lothenbach2008](@citet) draw them:
+
+```@example hydrates-temperature
+layers = reverse([g for g in shown if any(v -> v[g] > 0.01, vcat(volumes["SRPC"], volumes["PLC"]))])
+panel(c) = areaplot(collect(temperatures), reduce(hcat, [[v[g] for v in volumes[c]] for g in layers]);
+                    label = permutedims(layers), xlabel = "temperature (°C)", ylabel = "cm³ per 100 g of cement",
+                    title = "$c, w/c $(l08t_water_cement(c))", titlefontsize = 10, legend = false,
+                    palette = :tab10, lw = 0.5)
+# The legend as a panel of its own, so that the two plots keep one width.
+key = plot(fill(NaN, 1, length(layers)); label = permutedims(layers), palette = :tab10, lw = 8,
+           framestyle = :none, legend = :left)
+plot(panel("SRPC"), panel("PLC"), key; layout = @layout([a b c{0.2w}]),
+     size = (1000, 420), left_margin = 5Plots.mm, bottom_margin = 5Plots.mm)
 ```
 
 Between the transitions nothing changes but by fractions of a cubic

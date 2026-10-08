@@ -42,7 +42,7 @@ one kilogram of pore water. The site density and the specific area of the C-S-H
 are theirs, from the same file.
 
 ```@example cshcl
-using ChemistryLab, DynamicQuantities, OptimaSolver, Printf
+using ChemistryLab, DynamicQuantities, OptimaSolver, Printf, Plots
 
 const DB = Dict(symbol(s) => s for s in
                 build_species(datapath("cemdata18-thermofun.json"); verbose = false))
@@ -144,6 +144,17 @@ for (c, r) in zip(NACL, rows)
 end
 ```
 
+```@example cshcl
+fig = plot(; xlabel = "NaCl added (mol per kg of pore water)", ylabel = "chloride bound (mol per kg of pore water)",
+           legend = :topleft, size = (760, 420), left_margin = 5Plots.mm, bottom_margin = 5Plots.mm,
+           title = @sprintf("C-S-H sites %.2f mol, Davies, diffuse layer, 25 °C", n_sites))
+for (f, lab, st) in ((:friedel, "Friedel's salt", :solid), (:kuzel, "Kuzel's salt", :solid),
+                     (:surface, "C-S-H surface", :solid), (:bound, "all bound", :dash))
+    plot!(fig, NACL, [getproperty(r, f) for r in rows]; lw = 2, ls = st, marker = :circle, ms = 3, label = lab)
+end
+fig
+```
+
 ## Against PHREEQC
 
 The same paste is computed by PHREEQC on the same model: the same reactions
@@ -174,6 +185,19 @@ end
 @printf("over %d points: %.1e mol on a phase, %.1e mol on a surface species,\n",
         length(ORACLE["points"]), worst.phase, worst.surface)
 @printf("%.1e on the pH, %.3f mV on the potential\n", worst.pH, worst.psi_mV)
+```
+
+```@example cshcl
+pts = ORACLE["points"]
+p_psi = plot(NACL, [r.psi_mV for r in rows]; lw = 2, label = "here", ylabel = "Ψ (mV)",
+             xlabel = "NaCl (mol/kg)", title = "Surface potential", titlefontsize = 10)
+scatter!(p_psi, [pt["nacl"] for pt in pts], [1000pt["psi_V"] for pt in pts]; color = :black, ms = 4,
+         marker = :diamond, label = "PHREEQC")
+p_ph = plot(NACL, [r.pH for r in rows]; lw = 2, label = "here", ylabel = "pH", xlabel = "NaCl (mol/kg)",
+            title = "pH", titlefontsize = 10)
+scatter!(p_ph, [pt["nacl"] for pt in pts], [pt["pH"] for pt in pts]; color = :black, ms = 4, marker = :diamond,
+         label = "PHREEQC")
+plot(p_psi, p_ph; layout = (1, 2), size = (860, 360), left_margin = 6Plots.mm, bottom_margin = 6Plots.mm)
 ```
 
 ## Reading the partition
