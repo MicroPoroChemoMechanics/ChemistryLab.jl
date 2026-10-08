@@ -107,9 +107,8 @@ database you download by hand, once:
 install_database(expanduser("~/Downloads/CEMDATA18-31-03-2022-phaseVol.dat"))
 ```
 
-Nothing ChemistryLab does by default needs it. It is the input of
-[`merge_json`](@ref) and of the PHREEQC readers when you want to work with that
-file itself. If Empa has published a newer version since, `install_database`
+Nothing ChemistryLab does by default needs it. [`read_phreeqc_database`](@ref)
+reads it when you want to work with that file itself. If Empa has published a newer version since, `install_database`
 refuses it with the message explained below. Pass `force = true` to use it
 anyway, knowing that results may then differ from the documented ones.
 

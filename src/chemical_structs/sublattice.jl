@@ -531,7 +531,7 @@ The compound-energy model a published source gives for a phase, read from
 # Example
 
 ```julia
-subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-cashplus-thermofun.json")))
+subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-cashplus.json")))
 m = compound_energy_model("Kulik2022:cashplus", [subs[n] for n in ("TSvh", "TSCh", "Tvvh", "TCvh", "TvCh", "TCCh")])
 ```
 """

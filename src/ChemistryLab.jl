@@ -141,7 +141,6 @@ module ChemistryLab
 
     include("databases/paths.jl")
     include("databases/remote.jl")
-    include("databases/phreeqc_dat.jl")
     include("databases/thermofun_json.jl")
     include("databases/phreeqc_reader.jl")
     include("databases/gwb_reader.jl")
@@ -152,7 +151,6 @@ module ChemistryLab
     include("databases/sit_dat.jl")
     include("databases/phreeqc_sorption.jl")
     include("surfaces/site_family_reactions.jl")
-    include("databases/merge_dat_json.jl")
     include("databases/derived.jl")
 
     include("equilibrium/real_gases.jl")
@@ -479,7 +477,6 @@ module ChemistryLab
         get_compatible_species,
         HKF_SI_CONVERSIONS
 
-    export merge_json
 
     export literature,
         literature_value,

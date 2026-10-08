@@ -272,39 +272,20 @@ charged_species = filter(row -> row.charge != 0, df_substances)
 species_list = build_species(aqueous)
 ```
 
-### Merging databases
+### The master species of a PHREEQC database
 
-`merge_json` combines a ThermoFun JSON file with a PHREEQC
-[ParkhurstAppelo2013](@cite) `.dat` file into a single JSON file. What it adds
-is the **dissolution reactions** of the `.dat` file, with their `log K`, and not
-species: the two files describe the same substances, and the ThermoFun file
-already carries their molar volumes. The test suite asserts both.
+[`extract_primary_species`](@ref) lists the master species of a PHREEQC
+database [ParkhurstAppelo2013](@cite), those its `SOLUTION_SPECIES` define by an
+identity reaction, from which every other species is formed:
 
 ```julia
-merge_json(
-    datapath("cemdata18-thermofun.json"),            # obtained from ThermoHub
-    datapath("CEMDATA18-31-03-2022-phaseVol.dat"),   # installed by hand from Empa
-    "cemdata18-merged.json",                         # output: an ordinary path of your choosing
-)
+df_primary = extract_primary_species(datapath("phreeqc.dat"))
 ```
 
-The two inputs are resolved as [`datapath`](@ref) resolves them, so the call
-works from any working directory once the Empa file is
-[installed](@ref sec-empa-dat). The third argument is a file to be *written*,
-and is never resolved that way: give it the path where you want the merged
-database. The fields of the input keep their order in the output.
-
-The merged file can then be loaded with `build_species` or `build_reactions` as
-usual.
-
-### Cemdata .dat parsing and extraction
-
-Extract primary species from a Phreeqc / Cemdata `.dat` file:
-
-```julia
-# Extract primary aqueous species (SOLUTION_MASTER_SPECIES section)
-df_primary = extract_primary_species("path/to/file.dat")
-```
+A species of a PHREEQC database, a mineral or a reaction is not merged into a
+database of another format: the energies of the two are counted from different
+zeros ([Energies counted from the primaries](@ref sec-theory-gauge)). A database
+is extended by a database built from it ([the extensions of Cemdata18](@ref sec-databases)).
 
 ---
 
