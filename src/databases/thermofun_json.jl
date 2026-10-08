@@ -309,6 +309,8 @@ function complete_species_with_thermo_model!(species, row; verbose = false)
         values0 = values0[1:(end - 1)]
     end
     species[:thermo_params] = [values0; :T => Tref; :P => Pref]
+    # The energies are of formation from the elements (`_refuse_mixed_gauges`).
+    species[:gauge] = "formation from the elements"
     TPMethods = row.TPMethods
     if !ismissing(TPMethods)
         cp_interval = _reference_cp_interval(TPMethods, Tst)

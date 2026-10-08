@@ -42,7 +42,7 @@
       "columns": ["phase", "gas", "T_c", "P_c", "omega"],
       "units": [null, null, "K", "101325*Pa", "1"],
       "kind": "published",
-      "location": "phreeqc.dat of PHREEQC 3.7.3 (test/reference/phreeqc.dat, unmodified), block PHASES: the critical temperature (-T_c), critical pressure (-P_c) and acentric factor (-Omega) of each gas, which its Peng-Robinson equation of state reads; the critical pressure is in atmospheres, as phreeqc.dat gives it, written 101325*Pa since the standard atmosphere is defined as exactly 101325 Pa; `gas` is the symbol the ThermoFun databases give the same gas",
+      "location": "phreeqc.dat of PHREEQC 3.7.3 (the file datapath(\"phreeqc.dat\") obtains from the PHREEQC repository at tag v3.7.3, unmodified), block PHASES: the critical temperature (-T_c), critical pressure (-P_c) and acentric factor (-Omega) of each gas, which its Peng-Robinson equation of state reads; the critical pressure is in atmospheres, as phreeqc.dat gives it, written 101325*Pa since the standard atmosphere is defined as exactly 101325 Pa; `gas` is the symbol the ThermoFun databases give the same gas",
       "rows": [
         ["CO2(g)", "CO2", 304.2, 72.86, 0.225],
         ["H2O(g)", "H2O", 647.3, 217.6, 0.344],

@@ -267,8 +267,15 @@ function Formula(
     # `findfirst` returns `nothing` for a symbol absent from `order`, and
     # comparing that against an `Int` raises `isless(::Int64, ::Nothing)` — a
     # failure that names neither the symbol nor the list. Say which, instead.
+    # An element of the periodic table that the order does not list goes after
+    # the last element it does, by atomic number, so that the sites and the
+    # charge stay last.
+    last_element = findlast(k -> haskey(elements.bysymbol, k), order)
     function _rank(k)
         i = findfirst(==(k), order)
+        if i === nothing && last_element !== nothing && haskey(elements.bysymbol, k)
+            return last_element + elements.bysymbol[k].number / 1000
+        end
         i === nothing && throw(
             ArgumentError(
                 "symbol :$k has no place in the ordering passed to `Formula`. " *

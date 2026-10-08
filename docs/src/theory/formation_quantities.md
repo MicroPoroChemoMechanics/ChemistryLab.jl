@@ -334,6 +334,84 @@ the natural scale for a glass, and
 [CEM I 52.5 N and slag in an isothermal calorimeter, read off the states](@ref sec-example-isothermal)
 places the slag of a blended cement on it.
 
+### [Energies counted from the primaries: the gauge of a database of reactions](@id sec-theory-gauge)
+
+A database of reactions, of which PHREEQC's are the common example, does not
+give the formation of its species from the elements but only from its master
+species: the log K of each reaction, ``L_i(T) = \log_{10} K_i(T)``, as a function
+of temperature, with the master species ``\mathrm{B}_c`` defined by identity
+reactions (`Ca+2 = Ca+2`). By the relation above, it determines
+
+```math
+\mu_i^\circ(T) - \sum_c A_{ci}\,\mu_c^\circ(T) = -RT\ln 10\; L_i(T)
+```
+
+and nothing else: the ``\mu_c^\circ`` of the master species are not in it. The
+package reads such a database by setting them to zero at every temperature,
+
+```math
+\mu_c^\circ(T) = 0 , \qquad \mu_i^\circ(T) = -RT\ln 10\; L_i(T) ,
+```
+
+which is a choice of zero, a gauge, and not a measurement. It does not change
+an equilibrium. The energies so defined differ from any others consistent with
+the database by
+
+```math
+\delta\mu_i^\circ = \sum_c A_{ci}\,\lambda_c ,
+\qquad \lambda_c = -\mu_c^\circ(T) ,
+```
+
+a combination of the rows of the conservation matrix, the same for every
+species, solute or mineral, since each decomposes on the same master species.
+On a composition ``\mathbf{n}`` that meets the balances ``\mathbf{A}\mathbf{n} =
+\mathbf{b}``, the Gibbs energy changes by
+
+```math
+\sum_i n_i\,\delta\mu_i^\circ = \sum_c \lambda_c \sum_i A_{ci}\,n_i = \sum_c \lambda_c\,b_c ,
+```
+
+a constant of the feasible set, and the composition that minimizes it is the
+same. The master species of a database span the elements and the charge (one
+per element, H⁺ for hydrogen and H₂O for oxygen, with the electron for the
+charge), so that every species of the database decomposes on them and the
+argument applies to all.
+
+It applies within one database only. Species taken from two databases, or from a
+database of reactions and a database of formation properties, carry energies
+whose differences from the formation energies are two different combinations
+``\sum_c A_{ci}\lambda_c`` and ``\sum_c A_{ci}\lambda'_c``. Their sum over a
+feasible composition is no longer a constant, and the equilibrium is changed by
+an amount that has no physical meaning: a master species of PHREEQC is at zero
+where its formation energy from the elements is several hundred kilojoules per
+mole. Each species read from a database therefore records its gauge under
+`:gauge` (the database file and its digest for a database of reactions, the
+formation from the elements for ThermoFun), and [`ChemicalSystem`](@ref) refuses
+a system that mixes two.
+
+The other standard quantities follow from the temperature dependence of
+``L_i``, by the Gibbs–Helmholtz relation, and are counted in the same gauge:
+
+```math
+\Delta_a H_i^\circ = RT^2 \ln 10\,\frac{\mathrm{d}L_i}{\mathrm{d}T} ,
+\qquad
+S_i^\circ = \frac{\Delta_a H_i^\circ - \mu_i^\circ}{T} ,
+\qquad
+C_{p,i}^\circ = R\ln 10\left(2T\,\frac{\mathrm{d}L_i}{\mathrm{d}T} + T^2\,\frac{\mathrm{d}^2L_i}{\mathrm{d}T^2}\right) .
+```
+
+With phreeqc.dat, the master species Ca²⁺ and CO₃²⁻ are at zero, and the Gibbs
+energy of calcite is that of its dissolution constant, ``\log_{10} K = -8.48``:
+
+```@example basics
+pdb = read_phreeqc_database(datapath("phreeqc.dat"))
+ps = Dict(symbol(s) => s for s in build_species(pdb, ["Ca+2", "CO3-2", "CaCO3", "Calcite"]))
+for s in ("Ca+2", "CO3-2", "CaCO3@", "Calcite")
+    @printf("%-8s %9.3f kJ/mol\n", s, ps[s][:ΔₐG⁰](T = Tr) / 1000)
+end
+@printf("log10 K of the dissolution of calcite: %.2f\n", ps["Calcite"][:ΔₐG⁰](T = Tr) / (R_GAS * Tr * log(10)))
+```
+
 ## 2. Temperature, pressure, and the apparent quantities of a database
 
 ### The standard potential at any temperature and pressure

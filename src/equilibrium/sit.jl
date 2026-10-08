@@ -152,13 +152,25 @@ species — where a complex forms, SIT expects it in the speciation and not in `
     which reduces the model to its Debye-Hückel term — a legitimate limiting
     case, and never silently a full SIT calculation.
   - `temperature_dependent`: whether `A` follows temperature.
+  - `water`: `:raoult` or `:osmotic`.
 
 # Water
 
 The solvent activity is Raoult's mole fraction, as in
-[`TruesdellJonesActivityModel`](@ref), rather than an osmotic coefficient. That
-is a departure from a full SIT treatment; it does not enter a comparison made at
-prescribed proton activity.
+[`TruesdellJonesActivityModel`](@ref), unless `water = :osmotic`, which takes it
+from the osmotic coefficient of the same model, as PHREEQC does with a database
+that carries a `SIT` block:
+
+```math
+\\ln a_w = -M_w\\Big[\\sum_i m_i
+  - \\frac{2 \\ln 10\\, A}{b^3}\\Big(1 + b\\sqrt{I} - 2\\ln(1 + b\\sqrt{I}) - \\frac{1}{1 + b\\sqrt{I}}\\Big)
+  + \\ln 10 \\sum_{i<k} \\varepsilon(i,k)\\, m_i m_k\\Big] ,
+```
+
+the sum over the solutes and over the pairs of the compilation: the partner the
+Gibbs–Duhem relation gives the coefficients of the solutes. Raoult's mole
+fraction is a departure from a full SIT treatment; it does not enter a
+comparison made at prescribed proton activity.
 
 See also: [`SITParameters`](@ref), [`build_sit_parameters`](@ref),
 [`missing_epsilon_pairs`](@ref).
@@ -168,23 +180,26 @@ struct SITActivityModel{T <: Real, P} <: AbstractActivityModel
     b::T
     parameters::P
     temperature_dependent::Bool
+    water::Symbol
 end
 
 """
     SITActivityModel(; A = 0.509, b = 1.5, parameters = SITParameters(),
-                       temperature_dependent = false) -> SITActivityModel
+                       temperature_dependent = false, water = :raoult) -> SITActivityModel
 
 Build a [`SITActivityModel`](@ref).
 """
 function SITActivityModel(;
         A::Real = 0.509, b::Real = 1.5,
         parameters = SITParameters(),
-        temperature_dependent::Bool = false,
+        temperature_dependent::Bool = false, water::Symbol = :raoult,
     )
     b > 0 || throw(ArgumentError("the SIT denominator coefficient must be positive; got $b."))
+    water in (:raoult, :osmotic) ||
+        throw(ArgumentError("the activity of water is `:raoult` or `:osmotic`; got `:$water`"))
     v = promote(float(A), float(b))
     return SITActivityModel{eltype(v), typeof(parameters)}(
-        v[1], v[2], parameters, temperature_dependent,
+        v[1], v[2], parameters, temperature_dependent, water,
     )
 end
 
@@ -302,6 +317,7 @@ function activity_model(cs::ChemicalSystem, model::SITActivityModel)
     A_fixed = model.A
     b_sit = model.b
     temp_dep = model.temperature_dependent
+    osmotic = model.water === :osmotic
 
     zv = Int8[charge(sp) for sp in cs.species]
     n_sp = lastindex(zv)
@@ -375,8 +391,22 @@ function activity_model(cs::ChemicalSystem, model::SITActivityModel)
             out[i] = ln10 * pair + log(mᵢ)
         end
 
-        n_aqueous = n_w + sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
-        out[idx_solvent] = log(n_w / n_aqueous)
+        n_solutes = sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
+        out[idx_solvent] = if osmotic
+            # The pairs once each: `E` holds both orders.
+            pairs = zero(ET)
+            @inbounds for i in idx_solutes, k in idx_solutes
+                k > i || continue
+                e = E[i, k]
+                iszero(e) && continue
+                pairs += e * (_n[i] / denom_mol) * (_n[k] / denom_mol)
+            end
+            t = 1 + b_sit * sqrtI
+            debye = -2 * A / b_sit^3 * (t - 2 * log(t) - 1 / t)
+            -M_w * (n_solutes / denom_mol + ln10 * (debye + pairs))
+        else
+            log(n_w / (n_w + n_solutes))
+        end
 
         has_gas && _gas_lna!(out, _n, idx_gas, p, gas_mix)
 

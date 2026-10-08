@@ -725,6 +725,33 @@ function _refuse_sites_on_mixing_hosts(site_families, solid_solutions)
 end
 
 
+# The standard energies of a database are counted from a zero it chooses: the
+# elements in their reference states for a database of formation properties
+# (ThermoFun), its master species for a database of reactions (PHREEQC), each
+# master at zero at every temperature. Within one database the choice does not
+# change the equilibrium; beside the species of another it is meaningless, a
+# master species of PHREEQC being at zero where its formation energy from the
+# elements is hundreds of kilojoules. A species read from a database carries its
+# zero under `:gauge`, and a system holding two is refused. A species built by
+# hand carries none and is not checked.
+function _refuse_mixed_gauges(species)
+    seen = Dict{String, String}()
+    for s in species
+        haskey(s, :gauge) || continue
+        g = s[:gauge]
+        haskey(seen, g) || (seen[g] = symbol(s))
+    end
+    length(seen) > 1 || return nothing
+    throw(
+        ArgumentError(
+            "the species come from databases whose energies are counted from different zeros: " *
+                join(("$(v) (and others) from $(k)" for (k, v) in seen), "; ") * ". " *
+                "Equilibria are meaningful only among the species of one of them; build the system " *
+                "from one database, or give the others energies counted from the same zero.",
+        )
+    )
+end
+
 """
     ChemicalSystem(species, primaries=species; kinetic_species, solid_solutions) -> ChemicalSystem
 
@@ -795,6 +822,7 @@ function ChemicalSystem(
     ) where {T <: AbstractSpecies}
     solid_solutions = _normalize_solid_solutions(solid_solutions)
     species, solid_solutions = _expand_instances(species, solid_solutions)
+    _refuse_mixed_gauges(species)
     idx(f) = findall(f, species)
     # Extract kinetic species keys for StoichMatrix construction
     kin_keys = if isnothing(kinetic_species)

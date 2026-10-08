@@ -143,6 +143,7 @@ module ChemistryLab
     include("databases/remote.jl")
     include("databases/phreeqc_dat.jl")
     include("databases/thermofun_json.jl")
+    include("databases/phreeqc_reader.jl")
     include("databases/pitzer_toml.jl")
     include("databases/sit_dat.jl")
     include("databases/phreeqc_sorption.jl")
@@ -492,6 +493,7 @@ module ChemistryLab
         HKFActivityModel,
         cemdata18_activity_model,
         TruesdellJonesActivityModel,
+        LLNLActivityModel,
         phreeqc_gamma_parameters,
         DaviesActivityModel,
         SITActivityModel,
@@ -500,6 +502,9 @@ module ChemistryLab
         missing_epsilon_pairs,
         build_sit_parameters,
         read_sorption_model,
+        read_phreeqc_database,
+        database_activity_model,
+        PhreeqcDatabase,
         SorptionModel,
         SorptionSite,
         SorptionReaction,
