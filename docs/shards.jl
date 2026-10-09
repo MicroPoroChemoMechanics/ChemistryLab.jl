@@ -49,7 +49,7 @@ const DOC_SHARDS = [
     "calorimetry" => [
         "examples/isothermal_calorimetry.md",
         "examples/thermogravimetry.md",
-        "examples/semiadiabatic_calorimetry.md",
+        "examples/lavergne2018.md",
     ],
     # The blended cements integrated in time, taken out of `rest` when it reached
     # 85 of its 120 minutes (0.36.0): ten quaternary pastes and four ternary

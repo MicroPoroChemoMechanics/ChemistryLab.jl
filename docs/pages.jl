@@ -330,7 +330,9 @@ pages = [
             "examples/coupled_hydration.md",
             "examples/ionic_hydration.md",
             "examples/hydration_calibration.md",
-            "examples/semiadiabatic_calorimetry.md",
+            # The comparisons of Lavergne et al. (2018), the semi-adiabatic
+            # calorimeter among them.
+            "examples/lavergne2018.md",
             # The first blended cement integrated in time: the slag pastes the
             # two output pages read at measured degrees of hydration.
             "examples/blended_slag_kinetics.md",
