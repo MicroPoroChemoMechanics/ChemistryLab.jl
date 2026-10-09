@@ -125,10 +125,11 @@ file comes from and under what terms, and how a database is extended.
   before, and there the certified solve stalls short of its certificate (a KKT
   error of 1.5e-4 where hydrogarnet gives way to monosulfate); the run itself
   had passed through the interior point, which its re-speciation falls back on.
-  The answer of the interior point is now the last start of the certified solve
-  of the partition, for the right-hand side and the accessors alike: five of the
-  27 cements of Lerch and Ford, which threw at 23.9 °C, are read back, and the
-  trajectories are unchanged.
+  The accessors now offer the answer of the interior point as the last start of
+  the certified solve, kept when it is proved: five of the 27 cements of Lerch
+  and Ford, which threw at 23.9 °C, are read back. The integration is unchanged:
+  offered there too, the start doubled the cost of a semi-adiabatic run and, kept
+  uncertified, made the temperature of its cell fail.
 
 ### Documentation
 
