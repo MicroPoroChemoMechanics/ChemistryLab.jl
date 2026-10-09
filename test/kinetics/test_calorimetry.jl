@@ -525,3 +525,42 @@ end
     h[end] = nothing
     @test_throws ArgumentError ChemistryLab._refuse_missing_enthalpy(cs, h)
 end
+
+# ── the heat read back across an assemblage switch ───────────────────────────
+
+isdefined(@__MODULE__, :run_ionic_hydration) ||
+    include(joinpath(pkgdir(ChemistryLab), "scripts", "ionic_hydration.jl"))
+
+@testset "the heat of a run is read back across an assemblage switch" begin
+    # Cement c13 of Lerch and Ford (Lavergne et al. 2018, Table 7) at w/c = 0.4
+    # and 23.9 °C, its anhydrite as the gypsum of the same sulfate. Near 4.2 h
+    # hydrogarnet gives way to monosulfate, and the certified solve started from
+    # the partition of the instant before stalls short of the certificate: the
+    # accessor, which walks the run instant after instant, threw "the partition
+    # cannot be solved at this state" where the run had passed, until the answer
+    # of the interior point was offered as a start.
+    t7 = literature_table("Lavergne2018", "table7_cements")
+    i = findfirst(==("c13"), t7.name)
+    s = parse(Float64, replace(t7.calcium_sulfates[i], "CS̅" => "")) / 100
+    M(f) = ustrip(us"kg/mol", Species(f)[:M])
+    g = s * (M("CaSO4") + 2 * M("H2O")) / M("CaSO4")
+    binder = 1 - s + g
+    f = 100 * (1 - s)
+    clinker = (C3S = t7.C3S[i] / f, C2S = t7.C2S[i] / f, C3A = t7.C3A[i] / f, C4AF = t7.C4AF[i] / f)
+    cal = IsothermalCalorimeter((23.9 + T_ZERO_CELSIUS)u"K")
+    run = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+        run_ionic_hydration(;
+            wb = 0.4 / binder, binder_mass = binder * u"kg", clinker, gypsum = g / binder,
+            filler = 0.0, blaine = t7.blaine[i], calorimeter = cal, tend = 0.25 * 86400.0,
+            tstops = [1 / 24, 1 / 6] .* 86400,
+        )
+    end
+    @test SciMLBase.successful_retcode(run.sol)
+    t, Q = cumulative_heat(run.sol, cal)
+    @test length(t) == length(run.sol.t)
+    # The same heat as the certified replay of the end of the run.
+    _, Qr, _ = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+        heat_release(run.sol, run.kp; times = [0.0, t[end]])
+    end
+    @test Q[end] ≈ Qr[end] rtol = 1.0e-6
+end

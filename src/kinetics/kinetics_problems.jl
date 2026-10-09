@@ -1653,10 +1653,11 @@ end
 
 The partition at the element amounts `bv` and the temperature `Tv`, on plain
 numbers, by the certified solve warm-started from the last accepted partition,
-then from the cast composition carried onto `bv`; `nothing` when neither
-certifies and the better one leaves more than `_RETRY_ABS_TOL` of matter
-unaccounted for. The last answer is cached, so that the evaluations of one
-point by the integrator and by the step's re-speciation solve it once.
+then from the cast composition carried onto `bv`, then from the answer of the
+interior point; `nothing` when none certifies and the best leaves more than
+`_RETRY_ABS_TOL` of matter unaccounted for. The last answer is cached, so that
+the evaluations of one point by the integrator and by the step's re-speciation
+solve it once.
 """
 function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
     c = p.rhs_cache[]
@@ -1682,6 +1683,31 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
         eq2, cert2 = _exploring_starts(() -> solve_certified(p.eq_dual, (state(guess),); b = bv, ϵ = p.ϵ))
         eq, cert = eq === nothing ? (eq2, cert2) :
             eq2 === nothing ? (eq, cert) : _keep_better(eq, cert, eq2, cert2)
+    end
+    # Where the assemblage switches, the starts above hold the assemblage of the
+    # last accepted step, or none, and the dual Newton stalls short of the
+    # certificate from either. Measured on a paste of cement c13 of Lavergne et
+    # al. (2018) at 23.9 °C and 4.2 h, where hydrogarnet gives way to
+    # monosulfate: a KKT error of 1.5e-4 from the warm start, 1.3e-4 from the
+    # reconstruction. The interior point crosses to the new assemblage, and the
+    # certified solve from its answer proves it at once (7e-15). The step's
+    # re-speciation falls back on the interior point too; without this start an
+    # accessor walking the run, which solves through here alone, failed where the
+    # run had passed. The polish takes the interior point's answer as a start
+    # only: its return code is not counted among the solves used anyway.
+    if (eq === nothing || !cert.optimal) && p.eq_solver !== nothing
+        cref = Ref{Any}(nothing)
+        eq2 = try
+            _exploring_starts() do
+                SciMLBase.solve(p.eq_solver, state(warm); b = bv, ϵ = p.ϵ, polish = true, certificate = cref)
+            end
+        catch
+            nothing
+        end
+        cert2 = cref[]
+        if eq2 !== nothing && cert2 !== nothing
+            eq, cert = eq === nothing ? (eq2, cert2) : _keep_better(eq, cert, eq2, cert2)
+        end
     end
     eq === nothing && return nothing
     n = Float64[ustrip(us"mol", x) for x in eq.n]

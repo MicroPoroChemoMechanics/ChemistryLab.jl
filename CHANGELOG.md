@@ -118,6 +118,17 @@ file comes from and under what terms, and how a database is extended.
 - *From scratch* compares with the values transcribed from Blanc et al.
   (2012) in `data/literature/Blanc2012.json`, and says why the HKF model of the
   aqueous ions, which the package carries, is not used there.
+- Under partial equilibrium, `cumulative_heat`, `heat_flow` and
+  `temperature_profile` threw "the partition cannot be solved at this state" on
+  runs that had completed, at the instants where the assemblage switches. The
+  accessors solve the partition of each instant from that of the instant
+  before, and there the certified solve stalls short of its certificate (a KKT
+  error of 1.5e-4 where hydrogarnet gives way to monosulfate); the run itself
+  had passed through the interior point, which its re-speciation falls back on.
+  The answer of the interior point is now the last start of the certified solve
+  of the partition, for the right-hand side and the accessors alike: five of the
+  27 cements of Lerch and Ford, which threw at 23.9 °C, are read back, and the
+  trajectories are unchanged.
 
 ### Documentation
 
