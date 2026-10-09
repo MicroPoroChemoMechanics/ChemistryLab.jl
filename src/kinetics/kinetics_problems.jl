@@ -770,7 +770,8 @@ function _equilibrium_subsystem(system::ChemicalSystem, idx_equilibrium)
                 )
             )
             fixed = SurfaceSupport(sup.name, sup.host, sup.area; coupling = SITES_FIXED)
-            SiteFamily{typeof(f.free_site), typeof(f.capacity), typeof(fixed), typeof(f.model)}(
+            # the family's own species type: its complexes may be of a wider type than its free site
+            SiteFamily{typeof(f).parameters[1], typeof(f.capacity), typeof(fixed), typeof(f.model)}(
                 f.name, f.site, f.free_site, f.complexes, f.capacity, fixed, f.model,
             )
         end
