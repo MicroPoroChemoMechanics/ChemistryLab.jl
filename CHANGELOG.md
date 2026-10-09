@@ -119,6 +119,24 @@ file comes from and under what terms, and how a database is extended.
   (2012) in `data/literature/Blanc2012.json`, and says why the HKF model of the
   aqueous ions, which the package carries, is not used there.
 
+### Documentation
+
+- **One page on Lavergne et al. (2018)** puts the package's calculation beside
+  each comparison the article makes with measurements it can run: the degrees
+  of hydration of the clinker phases of seven cements (Figs. 4 to 6), the
+  phases of a hydrating CEM I paste against the article's stoichiometric
+  reactions (Fig. 1, left), the heat of the cements of Lerch and Ford (1948) in
+  isothermal calorimeters at four temperatures (Fig. 7) and that of a mortar of
+  Waller (1999) up to 50 °C (Fig. 9(b)), and mortars in the semi-adiabatic
+  calorimeter, plain and with 15 and 30 % of limestone (Fig. 15(a)); the page
+  on the semi-adiabatic calorimeter is merged into it. The comparisons locate
+  where the model of the paste departs from the measurements: its dormant
+  period delays the first hours, the kinetic law it shares with the article
+  falls short on the cements of types III and IV and overshoots more as the
+  temperature rises, and it holds no acceleration by a limestone filler. Every
+  curve compared with is in `data/literature/Lavergne2018.json`, read from the
+  vector drawings of the article, or from its raster image for Fig. 15(a).
+
 ## v0.36.0 — A slow surface, what a rate law may be, and surfaces away from 25 °C
 
 A site family can now be slow: when a kinetic reaction controls one of its
