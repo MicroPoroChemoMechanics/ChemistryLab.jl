@@ -27,8 +27,10 @@ measured points and model estimates alike (`data/literature/Lavergne2018.json`).
       - How much heat do the cements of Lerch and Ford release in their first
         three days, and at what temperature does the model drift from the
         measurement?
+      - What does silica fume in place of part of the cement change in the
+        phases of the paste?
       - How does the same paste heat a semi-adiabatic calorimeter, and what
-        changes when limestone replaces part of the cement?
+        changes when limestone or silica fume replaces part of the cement?
 
 ## The cements
 
@@ -234,8 +236,9 @@ families = [
 ]
 push!(families, "air" => ["void"])
 mine(f, keys) = sum(get(f, k, 0.0) for k in keys)
-theirs(name) = (i = [j for j in eachindex(fig1.phase) if fig1.paste[j] == "plain paste, w/c = 0.5" && fig1.phase[j] == name];
-                (fig1.alpha[i], fig1.volume_fraction[i]))
+theirs(name; paste = "plain paste, w/c = 0.5") =
+    (i = [j for j in eachindex(fig1.phase) if fig1.paste[j] == paste && fig1.phase[j] == name];
+     (fig1.alpha[i], fig1.volume_fraction[i]))
 panels = map(families) do (name, keys)
     a, v = theirs(name)
     p = plot(a, v; color = :black, ls = :dash, label = "article",
@@ -268,6 +271,73 @@ carbonate phases tell the two approaches apart most: the minimization consumes
 the calcite at once, into carboaluminates, and the gypsum from the first hours,
 where the reactions of the article form ettringite while gypsum lasts and then
 monocarboaluminate while calcite does, so that its calcite lasts to the end.
+
+### With silica fume
+
+[Lavergne2018; Fig. 1](@citet), right, draws the same cement with a tenth of its
+mass replaced by silica fume, at w/(c+sf) = 0.35. The model of the paste takes
+the fume of Table 7 (`lavergne_addition` in the script): its silica as amorphous silica,
+`Amor-Sl`, dissolving by the law of [Waller1999](@citet) with the parameters of
+the article, Eqs. (24) and (25) at a Blaine fineness of 2000 m²/kg, up to its
+pozzolanic activity, 0.9 of it; the rest of the fume, 5.5 %, is left out.
+Beside the jennite end member of the C-S-H the minimization may form the
+tobermorite one, `Tob-II`, of Ca/Si 0.83, where the pozzolanic reaction of the
+article forms C₁.₁SH₃.₉ (its Table 1), and the gel water of each is counted with
+it as the formulas of the article give it. The article's curves stop at α = 0.66,
+which the paste reaches within a month.
+
+```@example lavergne
+sf = lavergne_addition("SF", 0.1)
+sfpaste = quiet() do
+    run_ionic_hydration(; wb = 0.35, gypsum = 0.9 * IONIC_CEMENT.gypsum, filler = 0.9 * IONIC_CEMENT.filler,
+                        silica_fume = sf, tend = 28 * 86400.0)
+end
+tsf = tdays[tdays .<= 28]
+sfstates = quiet() do
+    speciated_states(sfpaste.sol, sfpaste.kp; times = tsf .* 86400)
+end
+_, sffractions, _, _ = ionic_phase_history(sfpaste, tsf .* 86400; states = sfstates)
+αsf = [1 - mass(st) / mass(sfpaste.state0) for st in sfstates]
+silica(st) = ustrip(us"mol", moles(st, "Amor-Sl"))
+@printf("%s; after 28 days α = %.2f, %.2f of the silica reacted, portlandite %.2f mol, tobermorite %.2f mol\n",
+        sfpaste.sol.retcode, αsf[end], 1 - silica(sfstates[end]) / silica(sfpaste.state0),
+        ustrip(us"mol", moles(sfstates[end], "Portlandite")), ustrip(us"mol", moles(sfstates[end], "Tob-II")))
+```
+
+```@example lavergne
+sfpaste_name = "10 % silica fume, w/(c+sf) = 0.35"
+sffamilies = [families[1], "silica fume" => ["silica fume"], families[2:end]...]
+panels = map(sffamilies) do (name, keys)
+    a, v = theirs(name; paste = sfpaste_name)
+    p = plot(a, v; color = :black, ls = :dash, label = "article",
+             title = name, xlabel = "α", ylabel = "volume fraction", xlims = (0, 0.8), legend = false)
+    plot!(p, αsf, [mine(f, keys) for f in sffractions]; color = :steelblue, lw = 2, marker = :circle, ms = 3, label = "computed")
+end
+plot(panels...; layout = (3, 3), size = (1000, 760), plot_title = "Fig. 1, right: computed (blue), the article's model (dashed)",
+     left_margin = 3Plots.mm, bottom_margin = 4Plots.mm)
+```
+
+At the last degree the paste reaches below the end of the article's curves:
+
+```@example lavergne
+k = findlast(<=(0.66), αsf)
+@printf("α = %.2f, after %g days\n%-18s %9s %9s\n", αsf[k], tsf[k], "", "computed", "article")
+for (name, keys) in sffamilies
+    a, v = theirs(name; paste = sfpaste_name)
+    @printf("%-18s %9.3f %9.3f\n", name, mine(sffractions[k], keys), interp(αsf[k], a, v))
+end
+```
+
+After 28 days the cement has reached α = 0.68 and 55 % of the silica of the
+fume has reacted, and the portlandite has not run out. In equilibrium with
+portlandite the C-S-H of the minimization is the jennite end member, of Ca/Si
+1.67, and the tobermorite one never forms: the pozzolanic reaction of the
+calculation takes 1.67 mol of portlandite per mole of silica, where that of the
+article, 1.1 CH + S + 2.8 H → C₁.₁SH₃.₉, takes 1.1. The computed portlandite therefore
+peaks near α = 0.55 and falls, half the article's at α = 0.63, and the C-S-H gel
+is a third larger. The fume reacts faster in the calculation than in the
+article's model as well, by the law and the parameters the article gives, its
+volume 0.038 against 0.050 at that degree.
 
 ## [The heat of hydration in isothermal calorimeters](@id ex-lavergne-isothermal)
 
@@ -641,17 +711,66 @@ Through the cooling, at two and a half days, the calculation stands 3.3, 0.4 and
 4.0 K above the measurements of the plain mortar and of those with 15 and 30 %
 of limestone.
 
+### Silica fume in place of cement
+
+[Lavergne2018; Fig. 16(a)](@citet) runs the test on mortars where silica fume
+replaces 5 and 15 % of the cement, and fly ash 25 and 50 %. The measured curves
+of the mortars with silica fume end near 0.7 day, that with 15 % before its
+maximum. The mortar with 5 % runs here over a day, with the fume of Table 7 as in
+the paste above. That with 15 % is not run, its integration taking more than
+forty minutes, nor those with fly ash, of which the article gives the class, F,
+and not the composition.
+
+```@example lavergne
+pozz = literature_table("Lavergne2018", "semi_adiabatic_pozzolan_wb050_temperature")
+msf = calorimetry_mix("C95SF05")
+csf = semiadiabatic_cell(; mix = msf, T0 = T_env, T_env)
+rsf = quiet() do
+    run_ionic_hydration(; wb = msf.wb, binder_mass = msf.binder, gypsum = 0.95 * IONIC_CEMENT.gypsum,
+                        filler = 0.95 * IONIC_CEMENT.filler, silica_fume = lavergne_addition("SF", 0.05),
+                        calorimeter = csf, tend = 86400.0)
+end
+tsf5, Tsf5 = temperature_profile(rsf.sol, csf)
+j = argmax(Tsf5)
+k = findfirst(==("C95SF05"), peaks.mix)
+@printf("C95SF05: maximum measured %.1f °C at %.2f d, computed %.1f °C at %.2f d\n",
+        peaks.temperature_C[k], ustrip(u"d", peaks.time[k]), Tsf5[j] - 273.15, tsf5[j] / 86400)
+p = plot(; xlabel = "time [days]", ylabel = "T [°C]", xlims = (0, 1), size = (720, 420),
+         legend = :topleft, title = "computed (lines), measured (markers)")
+t, T = limestone["C100"]
+plot!(p, t ./ 86400, T .- 273.15; color = palette(:tab10)[1], lw = 2, label = "C100")
+scatter!(p, measured_T("C100")...; color = palette(:tab10)[1], ms = 2.5, label = "")
+plot!(p, tsf5 ./ 86400, Tsf5 .- 273.15; color = palette(:tab10)[4], lw = 2, label = "C95SF05")
+for (name, col) in (("C95SF05", 4), ("C85SF15", 5))
+    i = findall(==(name), pozz.mix)
+    scatter!(p, ustrip.(u"d", pozz.time[i]), pozz.temperature_C[i]; color = palette(:tab10)[col], ms = 2.5,
+             label = name == "C85SF15" ? "C85SF15, measured" : "")
+end
+p
+```
+
+With 5 % of silica fume the calculation peaks at 76.3 °C at 0.75 day, 9.7 K
+above the measurement and four hours after it, 66.6 °C at 0.58 day. The law of
+the fume is that of a fly ash at five times its fineness, as the article sets
+it, with an activation energy of 83 kJ/mol, twice that of alite: as the cell
+warms, the fume reacts the faster, and its heat adds to that of the clinker in
+the same hours. The measured mortars with silica fume rise some 15 K above the
+plain one; the calculation puts 20 K between the plain mortar and that with 5 %
+of fume.
+
 ## What this page does not reproduce yet
 
-The comparisons with silica fume and fly ash wait for a model of the paste that
-holds their pozzolanic reactions: the bound water and the portlandite of the
-blended pastes of [Lavergne2018; Fig. 8](@citet), the adiabatic concretes of
-Fig. 9(a), the paste with silica fume of Fig. 1, right, and the semi-adiabatic
-mortars of Fig. 16. Of Fig. 15, the mortars at w/b = 0.32 of panel (b) are left
-out, their curves covering one another in the raster image of the figure so that
-two of the five only can be read; at w/b = 0.5, the mortars with 5 and 10 % of
-limestone are read, their maxima printed above, and not run, each semi-adiabatic
-run costing minutes.
+The bound water and the portlandite of the pastes of [PaneHansen2005](@citet)
+with silica fume and fly ash, [Lavergne2018; Fig. 8](@citet), need the
+proportions of their blends, which the article does not give. The adiabatic concretes of
+Fig. 9(a) need their mixes, which are in the work of [Waller1999](@citet) and
+not in the article. Of the semi-adiabatic mortars, those with fly ash are left
+out, the article giving its class and not its composition, and so is that with
+15 % of silica fume, whose integration takes more than forty minutes. The
+mortars at w/b = 0.32 of Figs. 15(b) and 16(b) are left out too, their curves
+covering one another in the raster images of the figures so that few can be
+read; at w/b = 0.5, the mortars with 5 and 10 % of limestone are read, their
+maxima printed above, and not run, each semi-adiabatic run costing minutes.
 
 ## See also
 

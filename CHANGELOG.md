@@ -139,15 +139,21 @@ file comes from and under what terms, and how a database is extended.
   phases of a hydrating CEM I paste against the article's stoichiometric
   reactions (Fig. 1, left), the heat of the cements of Lerch and Ford (1948) in
   isothermal calorimeters at four temperatures (Fig. 7) and that of a mortar of
-  Waller (1999) up to 50 °C (Fig. 9(b)), and mortars in the semi-adiabatic
-  calorimeter, plain and with 15 and 30 % of limestone (Fig. 15(a)); the page
-  on the semi-adiabatic calorimeter is merged into it. The comparisons locate
-  where the model of the paste departs from the measurements: its dormant
-  period delays the first hours, the kinetic law it shares with the article
-  falls short on the cements of types III and IV and overshoots more as the
-  temperature rises, and it holds no acceleration by a limestone filler. Every
-  curve compared with is in `data/literature/Lavergne2018.json`, read from the
-  vector drawings of the article, or from its raster image for Fig. 15(a).
+  Waller (1999) up to 50 °C (Fig. 9(b)), a paste with 10 % of silica fume
+  (Fig. 1, right), and mortars in the semi-adiabatic calorimeter, plain, with
+  15 and 30 % of limestone and with 5 % of silica fume (Figs. 15(a) and 16(a));
+  the page on the semi-adiabatic calorimeter is merged into it. The model of
+  the paste of `scripts/ionic_hydration.jl` gains the silica fume of the
+  article, dissolving by the law of Waller (1999), with the tobermorite end
+  member of the C-S-H beside the jennite one. The comparisons locate where the
+  model departs from the measurements: its dormant period delays the first
+  hours, the kinetic law it shares with the article falls short on the cements
+  of types III and IV and overshoots more as the temperature rises, it holds no
+  acceleration by a limestone filler, and its silica fume, as fast as a fly
+  ash of five times its fineness and as sensitive to the temperature, overheats
+  the semi-adiabatic mortar. Every curve compared with is in
+  `data/literature/Lavergne2018.json`, read from the vector drawings of the
+  article, or from its raster images for Figs. 15(a) and 16(a).
 
 ## v0.36.0 — A slow surface, what a rate law may be, and surfaces away from 25 °C
 
