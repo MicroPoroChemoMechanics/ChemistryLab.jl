@@ -24,6 +24,9 @@ measured points and model estimates alike (`data/literature/Lavergne2018.json`).
         estimates, and to the measured degrees of hydration?
       - What phases does a Gibbs minimization give a CEM I paste as it hydrates,
         against the stoichiometric reactions of the article?
+      - How much heat do the cements of Lerch and Ford release in their first
+        three days, and at what temperature does the model drift from the
+        measurement?
       - How does the same paste heat a semi-adiabatic calorimeter?
 
 ## The cements
@@ -265,12 +268,141 @@ the calcite at once, into carboaluminates, and the gypsum from the first hours,
 where the reactions of the article form ettringite while gypsum lasts and then
 monocarboaluminate while calcite does, so that its calcite lasts to the end.
 
+## [The cements of Lerch and Ford in isothermal calorimeters](@id ex-lavergne-isothermal)
+
+The heat a paste releases at constant temperature is the other measurement the
+article checks its model against. [LerchFord1948](@citet) measured it on pastes of
+the 27 cements of a long-time study, at w/c = 0.4, in calorimeters held at four
+temperatures, from one hour to three days; [Lavergne2018; Fig. 7](@citet) put
+their model beside those measurements, one panel per ASTM type of cement. The
+model of the paste above runs here on the compositions of Table 7, in an
+isothermal calorimeter, and the heat is the enthalpy the paste has lost since
+mixing ([`cumulative_heat`](@ref)).
+
+Two choices make the comparison possible. The cements of Lerch and Ford carry
+their sulfate as anhydrite, and the model of the paste knows gypsum only: each
+cement enters with the gypsum that carries the same sulfate, the ratio of the two
+taken from the molar masses of the phases. And one kilogram of cement is run, so
+that the heat comes in joules per gram of cement, as the article plots it.
+
+```@example lavergne
+# Kilograms of gypsum that carry the sulfate of one kilogram of anhydrite.
+molar_mass(formula) = ustrip(us"kg/mol", Species(formula)[:M])
+gypsum_per_anhydrite = (molar_mass("CaSO4") + 2 * molar_mass("H2O")) / molar_mass("CaSO4")
+
+# The heat a paste of one kilogram of the cement `c` of Lerch and Ford releases
+# over three days at w/c = 0.4, in an isothermal calorimeter at `Tc` °C: the
+# times in days and the heat in J/g of cement.
+function lerch_ford(c, Tc)
+    i = row(c)
+    s = parse(Float64, replace(t7.calcium_sulfates[i], "CS̅" => "")) / 100
+    g = s * gypsum_per_anhydrite       # kg of gypsum for the anhydrite of 1 kg of cement
+    binder = 1 - s + g                 # kg of clinker and gypsum
+    f = 100 * (1 - s)                  # Table 7 gives percent of cement, the model fractions of clinker
+    clinker = (C3S = t7.C3S[i] / f, C2S = t7.C2S[i] / f, C3A = t7.C3A[i] / f, C4AF = t7.C4AF[i] / f)
+    cal = IsothermalCalorimeter((Tc + T_ZERO_CELSIUS)u"K")
+    run = quiet() do
+        run_ionic_hydration(; wb = 0.4 / binder, binder_mass = binder * u"kg", clinker,
+                            gypsum = g / binder, filler = 0.0, blaine = t7.blaine[i],
+                            calorimeter = cal, tend = 3 * 86400.0)
+    end
+    t, Q = cumulative_heat(run.sol, cal)
+    return (; days = t ./ 86400, heat = Q ./ 1000)
+end
+
+# The rows of Fig. 7 for one cement at one temperature: times in days, heat in J/g.
+fig7m = literature_table("Lavergne2018", "fig7_heat_measured")
+fig7e = literature_table("Lavergne2018", "fig7_heat_estimated")
+function fig7(tab, c, Tc)
+    k = [i for i in eachindex(tab.cement) if tab.cement[i] == c && abs(tab.temperature_C[i] - Tc) < 1]
+    return ustrip.(u"d", tab.time[k]), ustrip.(u"J/g", tab.heat[k])
+end
+nothing # hide
+```
+
+Panels (a) to (d) of the figure give each type at 4, 23, 32 and 40 °C; panel (e)
+gives the same four temperatures to a tenth of a degree, 4.4, 23.9, 32.2 and
+40.6 °C, which the calculation takes. The first cement of each type, at 23.9 °C,
+computed (solid lines), as the article estimates it (dashed) and measured
+(markers):
+
+```@example lavergne
+types = ["c11" => "I", "c21" => "II", "c31" => "III", "c41" => "IV", "c51" => "V"]
+at23 = Dict(c => lerch_ford(c, 23.9) for (c, _) in types)
+println("cement  type      Q at 1 day (J/g)             Q at 3 days (J/g)")
+println("                measured computed article   measured computed article")
+for (c, ty) in types
+    tm, Qm = fig7(fig7m, c, 23.9)
+    te, Qe = fig7(fig7e, c, 23.9)
+    r = at23[c]
+    at(t) = (Qm[argmin(abs.(tm .- t))], interp(t, r.days, r.heat), interp(t, te, Qe))
+    @printf("%-6s  %-4s    %7.1f  %7.1f  %7.1f    %7.1f  %7.1f  %7.1f\n", c, ty, at(1)..., at(3)...)
+end
+```
+
+```@example lavergne
+p = plot(; xlabel = "t [days]", ylabel = "Q [J/g of cement]", xlims = (0, 3), ylims = (0, 400),
+         legend = :topleft, size = (720, 420),
+         title = "first cement of each type, 23.9 °C")
+for (k, (c, ty)) in enumerate(types)
+    col = palette(:tab10)[k]
+    tm, Qm = fig7(fig7m, c, 23.9)
+    te, Qe = fig7(fig7e, c, 23.9)
+    plot!(p, at23[c].days, at23[c].heat; color = col, lw = 2, label = "$c, type $ty")
+    plot!(p, te, Qe; color = col, ls = :dash, label = "")
+    scatter!(p, tm, Qm; color = col, ms = 3, label = "")
+end
+p
+```
+
+The two calculations share the kinetic law of the clinker phases and differ in
+what the phases become, a Gibbs minimization against stoichiometric reactions,
+and in the start: the model of the paste holds the silicates in a dormant
+period, five hours long and the same at every temperature
+([A complete CEM I 52.5 N, through its pore solution](@ref ex-ionic-opc)), where
+the law alone starts at once. Panel (e) follows cement c51, of type V, through
+the four temperatures, drawn as above:
+
+```@example lavergne
+temps = [4.4, 23.9, 32.2, 40.6]
+c51 = Dict(Tc => (Tc == 23.9 ? at23["c51"] : lerch_ford("c51", Tc)) for Tc in temps)
+rms(x) = sqrt(sum(abs2, x) / length(x))
+p = plot(; xlabel = "t [days]", ylabel = "Q [J/g of cement]", xlims = (0, 3), ylims = (0, 400),
+         legend = :topleft, size = (720, 420),
+         title = "cement c51, type V")
+for (k, Tc) in enumerate(temps)
+    col = palette(:tab10)[k]
+    tm, Qm = fig7(fig7m, "c51", Tc)
+    te, Qe = fig7(fig7e, "c51", Tc)
+    plot!(p, c51[Tc].days, c51[Tc].heat; color = col, lw = 2, label = "$Tc °C")
+    plot!(p, te, Qe; color = col, ls = :dash, label = "")
+    scatter!(p, tm, Qm; color = col, ms = 3, label = "")
+    @printf("%4.1f °C: root-mean-square gap to the seven measurements, computed %4.1f J/g, article %4.1f J/g\n",
+            Tc, rms([interp(t, c51[Tc].days, c51[Tc].heat) for t in tm] .- Qm),
+            rms([interp(t, te, Qe) for t in tm] .- Qm))
+end
+p
+```
+
+Within the first day the paste model releases its heat later than the
+calorimeter and than the article's estimate: its dormant period holds the
+silicates through the first hours, when the measurement already sees them react.
+From one day on the two calculations run side by side, the package's 7 to
+12 J/g above the article's at three days, the enthalpy of what the minimization
+forms rather than that of the reactions, and both fall short of the heat
+measured on the cements of types I, III and IV, by 31, 41 and 47 J/g for the
+package. Cement c41 is the plainest case: at one day the two calculations agree
+to the tenth, 107.0 J/g, and both miss 31 J/g of the measurement, a gap in the
+kinetic law they share rather than in what either makes of it. Through the four
+temperatures, the package stays 15 to 24 J/g from the measured heat of cement
+c51 in root mean square, against 9 to 14 J/g for the article's estimate, the
+largest gap at 23.9 °C around half a day.
+
 ## [A CEM I 52.5 N mortar in a semi-adiabatic calorimeter, inside the kinetics](@id ex-semiadiabatic)
 
-An isothermal calorimeter holds the sample at one temperature, and what it
-records can be read off a calculated trajectory afterwards, as the enthalpy the
-states lose ([CEM I 52.5 N and slag in an isothermal calorimeter, read off the states](@ref sec-example-isothermal)). A
-semi-adiabatic calorimeter cannot be read that way. It lets the heat of
+The calorimeters of Lerch and Ford hold the paste at one temperature, and what
+they record is read off the calculated trajectory as the enthalpy the paste
+loses. A semi-adiabatic calorimeter cannot be read that way. It lets the heat of
 hydration raise the temperature of the sample against the losses of the vessel,
 and the temperature raises the rates of the reactions in turn. The temperature
 is then an unknown of the kinetic problem: the enthalpy of the cell, the paste
