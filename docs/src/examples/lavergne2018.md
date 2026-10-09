@@ -27,7 +27,8 @@ measured points and model estimates alike (`data/literature/Lavergne2018.json`).
       - How much heat do the cements of Lerch and Ford release in their first
         three days, and at what temperature does the model drift from the
         measurement?
-      - How does the same paste heat a semi-adiabatic calorimeter?
+      - How does the same paste heat a semi-adiabatic calorimeter, and what
+        changes when limestone replaces part of the cement?
 
 ## The cements
 
@@ -268,7 +269,7 @@ the calcite at once, into carboaluminates, and the gypsum from the first hours,
 where the reactions of the article form ettringite while gypsum lasts and then
 monocarboaluminate while calcite does, so that its calcite lasts to the end.
 
-## [The cements of Lerch and Ford in isothermal calorimeters](@id ex-lavergne-isothermal)
+## [The heat of hydration in isothermal calorimeters](@id ex-lavergne-isothermal)
 
 The heat a paste releases at constant temperature is the other measurement the
 article checks its model against. [LerchFord1948](@citet) measured it on pastes of
@@ -290,10 +291,10 @@ that the heat comes in joules per gram of cement, as the article plots it.
 molar_mass(formula) = ustrip(us"kg/mol", Species(formula)[:M])
 gypsum_per_anhydrite = (molar_mass("CaSO4") + 2 * molar_mass("H2O")) / molar_mass("CaSO4")
 
-# The heat a paste of one kilogram of the cement `c` of Lerch and Ford releases
-# over three days at w/c = 0.4, in an isothermal calorimeter at `Tc` °C: the
-# times in days and the heat in J/g of cement.
-function lerch_ford(c, Tc)
+# The heat a paste of one kilogram of the cement `c` of Table 7 releases over
+# `days` at the water-to-cement ratio `wc`, in an isothermal calorimeter at
+# `Tc` °C: the times in days and the heat in J/g of cement.
+function isothermal_heat(c, Tc; wc = 0.4, days = 3)
     i = row(c)
     s = parse(Float64, replace(t7.calcium_sulfates[i], "CS̅" => "")) / 100
     g = s * gypsum_per_anhydrite       # kg of gypsum for the anhydrite of 1 kg of cement
@@ -302,9 +303,9 @@ function lerch_ford(c, Tc)
     clinker = (C3S = t7.C3S[i] / f, C2S = t7.C2S[i] / f, C3A = t7.C3A[i] / f, C4AF = t7.C4AF[i] / f)
     cal = IsothermalCalorimeter((Tc + T_ZERO_CELSIUS)u"K")
     run = quiet() do
-        run_ionic_hydration(; wb = 0.4 / binder, binder_mass = binder * u"kg", clinker,
+        run_ionic_hydration(; wb = wc / binder, binder_mass = binder * u"kg", clinker,
                             gypsum = g / binder, filler = 0.0, blaine = t7.blaine[i],
-                            calorimeter = cal, tend = 3 * 86400.0)
+                            calorimeter = cal, tend = days * 86400.0)
     end
     t, Q = cumulative_heat(run.sol, cal)
     return (; days = t ./ 86400, heat = Q ./ 1000)
@@ -328,7 +329,7 @@ computed (solid lines), as the article estimates it (dashed) and measured
 
 ```@example lavergne
 types = ["c11" => "I", "c21" => "II", "c31" => "III", "c41" => "IV", "c51" => "V"]
-at23 = Dict(c => lerch_ford(c, 23.9) for (c, _) in types)
+at23 = Dict(c => isothermal_heat(c, 23.9) for (c, _) in types)
 println("cement  type      Q at 1 day (J/g)             Q at 3 days (J/g)")
 println("                measured computed article   measured computed article")
 for (c, ty) in types
@@ -365,7 +366,7 @@ the four temperatures, drawn as above:
 
 ```@example lavergne
 temps = [4.4, 23.9, 32.2, 40.6]
-c51 = Dict(Tc => (Tc == 23.9 ? at23["c51"] : lerch_ford("c51", Tc)) for Tc in temps)
+c51 = Dict(Tc => (Tc == 23.9 ? at23["c51"] : isothermal_heat("c51", Tc)) for Tc in temps)
 rms(x) = sqrt(sum(abs2, x) / length(x))
 p = plot(; xlabel = "t [days]", ylabel = "Q [J/g of cement]", xlims = (0, 3), ylims = (0, 400),
          legend = :topleft, size = (720, 420),
@@ -398,7 +399,43 @@ temperatures, the package stays 15 to 24 J/g from the measured heat of cement
 c51 in root mean square, against 9 to 14 J/g for the article's estimate, the
 largest gap at 23.9 °C around half a day.
 
-## [A CEM I 52.5 N mortar in a semi-adiabatic calorimeter, inside the kinetics](@id ex-semiadiabatic)
+[Lavergne2018; Fig. 9(b)](@citet) adds a warmer calorimeter: the heat of a
+mortar of cement `ca` of Table 7, at w/c = 0.55, held at 20, 30 and 50 °C, from
+the work of [Waller1999](@citet). The same calculation, over five days:
+
+```@example lavergne
+fig9m = literature_table("Lavergne2018", "fig9b_heat_measured")
+fig9e = literature_table("Lavergne2018", "fig9b_heat_estimated")
+temps9 = [20.0, 30.0, 50.0]
+ca55 = Dict(Tc => isothermal_heat("ca", Tc; wc = 0.55, days = 5) for Tc in temps9)
+p = plot(; xlabel = "t [days]", ylabel = "Q [J/g of cement]", xlims = (0, 5), ylims = (0, 450),
+         legend = :bottomright, size = (720, 420), title = "mortar ca55")
+for (k, Tc) in enumerate(temps9)
+    col = palette(:tab10)[k]
+    sel(tab) = [i for i in eachindex(tab.time) if tab.temperature_C[i] == Tc]
+    km, ke = sel(fig9m), sel(fig9e)
+    tm, Qm = ustrip.(u"d", fig9m.time[km]), ustrip.(u"J/g", fig9m.heat[km])
+    te, Qe = ustrip.(u"d", fig9e.time[ke]), ustrip.(u"J/g", fig9e.heat[ke])
+    plot!(p, ca55[Tc].days, ca55[Tc].heat; color = col, lw = 2, label = "$Tc °C")
+    plot!(p, te, Qe; color = col, ls = :dash, label = "")
+    scatter!(p, tm, Qm; color = col, ms = 3, label = "")
+    @printf("%4.1f °C, at %.1f days: measured %5.1f J/g, computed %5.1f, article %5.1f\n", Tc, tm[end], Qm[end],
+            interp(tm[end], ca55[Tc].days, ca55[Tc].heat), interp(tm[end], te, Qe))
+end
+p
+```
+
+At 20 °C the calculation ends 14 J/g above the measurement at five days, where
+the article's estimate meets it. The warmer the calorimeter, the further both
+overshoot: by 28 and 15 J/g at 30 °C, and by 102 and 89 J/g at 50 °C, where the
+measured heat stays near 250 to 260 J/g from a day and a half on while both
+calculations climb past 350 J/g. An overshoot the two share, and which grows
+with the temperature, points to the kinetic law and its activation energies,
+common to both, rather than to what either makes of the reactions. In the first
+hours, as above, the dormant period of the model of the paste delays its heat at
+every temperature.
+
+## [Mortars of CEM I 52.5 N in a semi-adiabatic calorimeter, inside the kinetics](@id ex-semiadiabatic)
 
 The calorimeters of Lerch and Ford hold the paste at one temperature, and what
 they record is read off the calculated trajectory as the enthalpy the paste
@@ -531,14 +568,90 @@ through their activation energies; a semi-adiabatic test is therefore a test of
 those energies as much as of the heat, and it cannot be read off an isothermal
 calculation.
 
+### Limestone in place of cement
+
+[Lavergne2018; Fig. 15(a)](@citet) runs the same test on four mortars where
+limestone replaces 5 to 30 % of the cement, at w/b = 0.5 (Table 11). The mixes
+differ by more than the filler: the binder of a mortar rises from 371 g without
+limestone to 503 to 566 g with it, and the sand falls, so that the measured
+maximum rises from 52.2 °C without limestone to 63.8 °C with 10 %, and falls back
+as the limestone grows. The model of the paste holds the limestone as calcite,
+which enters the chemistry, into carboaluminates, and not the rates: the kinetic
+law reads the fineness of the cement alone. Two of the four mortars, with 15 and
+30 % of limestone, run here as the plain one did; the curves of the figure are a
+raster image, read where the band of each mortar is not covered by another
+(`data/literature/Lavergne2018.json`).
+
+```@example lavergne
+limestone = Dict(map(("C85L15", "C70L30")) do name
+    m = calorimetry_mix(name)
+    fc = parse(Int, match(r"^C(\d+)", name)[1]) / 100          # cement in the binder
+    c = semiadiabatic_cell(; mix = m, T0 = T_env, T_env)
+    r = quiet() do
+        run_ionic_hydration(; wb = m.wb, binder_mass = m.binder, gypsum = fc * IONIC_CEMENT.gypsum,
+                            filler = fc * IONIC_CEMENT.filler + (1 - fc), calorimeter = c,
+                            tend = 3.5 * 86400.0)
+    end
+    name => temperature_profile(r.sol, c)
+end)
+limestone["C100"] = temperature_profile(semi.sol, cell)
+# The measured temperature of a mortar: times in days, temperatures in °C.
+lime = literature_table("Lavergne2018", "semi_adiabatic_limestone_wb050_temperature")
+function measured_T(name)
+    name == "C100" && return ustrip.(u"d", meas.time), meas.temperature_C
+    i = findall(==(name), lime.mix)
+    return ustrip.(u"d", lime.time[i]), lime.temperature_C[i]
+end
+peaks = literature_table("Lavergne2018", "semi_adiabatic_wb050_maximum")
+println("mortar   maximum, measured     maximum, computed      at 2.5 days, measured  computed")
+for (k, name) in enumerate(peaks.mix)
+    measured = @sprintf("%5.1f °C at %.2f d", peaks.temperature_C[k], ustrip(u"d", peaks.time[k]))
+    if haskey(limestone, name)
+        t, T = limestone[name]
+        j = argmax(T)
+        tm, Tm = measured_T(name)
+        @printf("%-7s  %s   %5.1f °C at %.2f d             %5.1f °C  %5.1f °C\n", name, measured,
+                T[j] - 273.15, t[j] / 86400, interp(2.5, tm, Tm), interp(2.5 * 86400, t, T) - 273.15)
+    else
+        @printf("%-7s  %s   not run\n", name, measured)
+    end
+end
+```
+
+```@example lavergne
+p = plot(; xlabel = "time [days]", ylabel = "T [°C]", xlims = (0, 3.5), size = (720, 420),
+         legend = :topright, title = "computed (lines), measured (markers)")
+for (k, name) in enumerate(("C100", "C85L15", "C70L30"))
+    col = palette(:tab10)[k]
+    t, T = limestone[name]
+    plot!(p, t ./ 86400, T .- 273.15; color = col, lw = 2, label = name)
+    scatter!(p, measured_T(name)...; color = col, ms = 2.5, label = "")
+end
+p
+```
+
+Without limestone and with 15 % of it, the calculation peaks 4.2 and 2.2 K
+above the measurement, some two and a half hours late. With 30 % it falls 3.8 K
+short, and late by nearly six hours: the measured maximum comes as early with
+30 % of limestone as without, where the calculation, whose rates follow the
+cement alone, delays it as the cement is diluted. A filler that hastens the
+hydration of the cement would account for a peak both earlier and higher; the
+kinetic law, which reads the fineness of the cement alone, holds no such effect.
+Through the cooling, at two and a half days, the calculation stands 3.3, 0.4 and
+4.0 K above the measurements of the plain mortar and of those with 15 and 30 %
+of limestone.
+
 ## What this page does not reproduce yet
 
-The article compares its model with other tests, which this page does not take
-up yet: the isothermal calorimetry of the 27 cements of [Lavergne2018; Fig. 7](@citet),
-whose compositions its Table 7 gives (`table7_cements`), the bound water and the
-portlandite of blended pastes (Fig. 8), the adiabatic calorimetry of concretes
-with silica fume and fly ash (Fig. 9), the paste with silica fume of Fig. 1, and
-the semi-adiabatic tests of the other mixes of Table 11 (Figs. 15 and 16).
+The comparisons with silica fume and fly ash wait for a model of the paste that
+holds their pozzolanic reactions: the bound water and the portlandite of the
+blended pastes of [Lavergne2018; Fig. 8](@citet), the adiabatic concretes of
+Fig. 9(a), the paste with silica fume of Fig. 1, right, and the semi-adiabatic
+mortars of Fig. 16. Of Fig. 15, the mortars at w/b = 0.32 of panel (b) are left
+out, their curves covering one another in the raster image of the figure so that
+two of the five only can be read; at w/b = 0.5, the mortars with 5 and 10 % of
+limestone are read, their maxima printed above, and not run, each semi-adiabatic
+run costing minutes.
 
 ## See also
 

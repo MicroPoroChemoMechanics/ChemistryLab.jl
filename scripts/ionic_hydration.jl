@@ -423,10 +423,29 @@ _calorimeter_T0(cal::SemiAdiabaticCalorimeter) = cal.T0
 # ── calorimetry, after Lavergne et al. (2018) §4.1 ────────────────────────────
 
 """
+    calorimetry_mix(name, table = "semi_adiabatic_mixes_wb050") -> NamedTuple
+
+Mix proportions of the mortar `name` of Lavergne et al. (2018), Table 11, read
+from `data/literature/Lavergne2018.json`, `table` naming its group at w/b = 0.5
+(`"semi_adiabatic_mixes_wb050"`) or 0.32 (`"semi_adiabatic_mixes_wb032"`): the
+binder, the dry sand and the water, the water the dry sand absorbs (`absorbed`),
+0.9 % of its mass by the caption of the table, and the water-to-binder ratio of
+the paste once that water is set aside (`wb`).
+"""
+function calorimetry_mix(name, table = "semi_adiabatic_mixes_wb050")
+    m = literature_row("Lavergne2018", table, name)
+    absorbed = ustrip(literature_value("Lavergne2018", "sand_water_absorption")) * m.dry_sand
+    return (
+        binder = m.binder, sand = m.dry_sand, water = m.water, absorbed = absorbed,
+        wb = Float64(ustrip((m.water - absorbed) / m.binder)),
+    )
+end
+
+"""
     CALORIMETRY_MIX_C100
 
 Mix proportions of the plain-cement semi-adiabatic test of Lavergne et al.
-(2018), Table 11, at w/b = 0.5, read from `data/literature/Lavergne2018.json`:
+(2018), Table 11, at w/b = 0.5 ([`calorimetry_mix`](@ref)):
 371 g of binder, 1113 g of dry sand, 196 g of water. The sand is there to keep
 the temperature rise moderate, as NF EN 196-9 prescribes; it takes no part in the
 chemistry and enters only through its heat capacity. The water includes what the
@@ -434,13 +453,7 @@ dry sand absorbs, 0.9 % of its mass by the caption of the table: `absorbed` is
 that water, which stays in the sand, and `wb` the water-to-binder ratio of the
 paste once it is set aside.
 """
-const CALORIMETRY_MIX_C100 = let m = literature_row("Lavergne2018", "semi_adiabatic_mixes_wb050", "C100")
-    absorbed = ustrip(literature_value("Lavergne2018", "sand_water_absorption")) * m.dry_sand
-    (
-        binder = m.binder, sand = m.dry_sand, water = m.water, absorbed = absorbed,
-        wb = Float64(ustrip((m.water - absorbed) / m.binder)),
-    )
-end
+const CALORIMETRY_MIX_C100 = calorimetry_mix("C100")
 
 """
     CALORIMETRY_LOSS_A, CALORIMETRY_LOSS_B

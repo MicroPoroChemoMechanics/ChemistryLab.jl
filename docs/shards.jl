@@ -44,8 +44,10 @@ const DOC_SHARDS = [
         "examples/hydration_calibration.md",
     ],
     # The outputs of a calculation, each a handful of certified solves on the
-    # cement system of `scripts/gruyaert2010.jl`, and the semi-adiabatic run,
-    # a coupled trajectory with the temperature among its unknowns.
+    # cement system of `scripts/gruyaert2010.jl`, and the page on Lavergne et
+    # al. (2018): a dozen pastes in isothermal calorimeters and three mortars in
+    # the semi-adiabatic one, coupled trajectories with the temperature among
+    # their unknowns, some thirteen minutes.
     "calorimetry" => [
         "examples/isothermal_calorimetry.md",
         "examples/thermogravimetry.md",
