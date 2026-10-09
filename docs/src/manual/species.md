@@ -286,5 +286,5 @@ println("formula preserved: ", formula(em) == formula(cal))
 Species combine into reactions in [Chemical Reactions](@ref sec-reactions),
 and into the conservation matrix of a system in
 [Stoichiometric Matrix](@ref sec-stoich-matrices). Species are seldom built by
-hand in practice: [Database Interoperability](@ref sec-databases) reads them
-from the shipped databases.
+hand in practice: [Importing thermodynamic databases](@ref
+sec-importing-databases) reads them from the databases.

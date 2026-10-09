@@ -39,24 +39,32 @@ The created object contains a certain amount of information whose properties can
 
 ### Second step: calculation of the thermodynamic properties of each species
 
-For each species, it is possible to assign thermodynamic properties, such as the Gibbs energy of formation or the heat capacity. This data can be found in databases, for example [Thermoddem](https://thermoddem.brgm.fr) [Blanc2012](@cite). For calcite, the properties are described in the following figure (which is a capture of the Thermoddem website).
-![Figure](../assets/calcite_properties_thermoddem.png)
+For each species, it is possible to assign thermodynamic properties, such as the Gibbs energy of formation or the heat capacity. These data come from a database, here [Thermoddem](https://thermoddem.brgm.fr) [Blanc2012](@cite), whose values for the three species at 25 °C are transcribed in `data/literature/Blanc2012.json`:
+
+```@example example1
+using DynamicQuantities, Printf
+
+thermoddem(sp) = literature_row("Blanc2012", "individual_properties", sp)
+@printf("%-8s %12s %12s %12s %12s %12s\n", "", "ΔfG° kJ/mol", "ΔfH° kJ/mol", "S° J/K/mol", "Cp° J/K/mol", "V° cm³/mol")
+for sp in ("Calcite", "Ca+2", "CO3-2")
+    r = thermoddem(sp)
+    @printf("%-8s %12.3f %12.3f %12.2f %12.2f %12.2f\n", sp, ustrip(us"kJ/mol", r.dfG), ustrip(us"kJ/mol", r.dfH),
+            ustrip(us"J/(mol*K)", r.S), ustrip(us"J/(mol*K)", r.Cp), ustrip(us"cm^3/mol", r.V))
+end
+```
 
 #### Thermodynamic properties of formation
 
-The first step involves associating the values of the thermodynamic properties of formation for each species. The values of the figure are kept, as transcribed, in `data/literature/Blanc2012.json`, and read from there so that the page cannot drift from its source. Typing them by hand, as `83.47u"J/K/mol"` for the heat capacity, gives the same entry. For calcite:
+The first step involves associating the values of the thermodynamic properties of formation for each species. The values are read from `data/literature/Blanc2012.json` rather than typed, so that the page cannot drift from its source. Typing them by hand, as `83.47u"J/K/mol"` for the heat capacity, gives the same entry. For calcite:
 
 ```@example example1
-using DynamicQuantities
-
-thermoddem(sp) = literature_row("Blanc2012", "individual_properties", sp)
 cal = thermoddem("Calcite")
 th_prop_0_calcite = Dict(:Cp⁰ => cal.Cp, :ΔₐH⁰ => cal.dfH, :S⁰ => cal.S, :ΔₐG⁰ => cal.dfG, :V⁰ => cal.V)
 ```
 
 #### Heat capacity, enthalpy and free energy as a function of temperature
 
-The second step is to describe the evolution of heat capacity as a function of temperature for each species. As exposed in the previous figure, heat capacity is expressed as a function of temperature: $C_p = a + bT + cT^{-2}$. A reference temperature can then be defined in order to construct thermodynamic functions, such as heat capacity, entropy, enthalpy and free enthalpy. For calcite, this can be done as follows:
+The second step is to describe the evolution of heat capacity as a function of temperature for each species. For calcite, the database expresses the heat capacity as a function of temperature, $C_p = a + bT + cT^{-2}$, whose coefficients are transcribed in the same file. A reference temperature can then be defined in order to construct thermodynamic functions, such as heat capacity, entropy, enthalpy and free enthalpy. For calcite, this can be done as follows:
 
 ```@example example1
 mk = literature_row("Blanc2012", "maier_kelley", "Calcite")
@@ -104,14 +112,7 @@ plot!(p1, θ -> calcite.ΔₐG⁰(T = 273.15+θ), 0:0.1:100, label="ΔₐG⁰ of
 ```
 
 
-Similarly, we can provide information on the thermal capacity of species $\ce{Ca^2+}$ and $\ce{CO3^2-}$, as proposed in the thermoddem database:
-
-![Figure](../assets/ca_properties_thermoddem.png)
-
-![Figure](../assets/co3_properties_thermoddem.png)
-
-
-These new properties are also functions of temperature. However, unlike calcite, the heat capacities of $\ce{Ca^2+}$ and $\ce{CO3^2-}$ as a function of temperature are expressed using the Helgeson-Kirkham-Flowers (HKF [Helgeson1981](@cite)) equation for Cp(T) of aqueous ions. The HKF Cp(T) model is not currently available as a built-in thermodynamic model in ChemistryLab; we therefore use the constant value at 25 °C given in Thermoddem, that is -26.38 and -276.88 J mol⁻¹ K⁻¹ respectively.
+Similarly, we can provide the properties of the species $\ce{Ca^2+}$ and $\ce{CO3^2-}$, printed above. Unlike that of calcite, the heat capacity of an aqueous ion follows the Helgeson-Kirkham-Flowers equations of state (HKF [Helgeson1981](@cite)). ChemistryLab has them (`:solute_hkf88_reaktoro`), but they take the HKF coefficients of each ion, which are not among the values transcribed here; we therefore hold the heat capacity at its value at 25 °C, -26.38 and -276.88 J mol⁻¹ K⁻¹ respectively.
 
 
 ```@example example1
@@ -130,8 +131,8 @@ dtf_CO₃²⁻ = build_thermo_functions(:cp_ft_equation, params_CO₃²⁻)
 CO₃²⁻.ΔₐG⁰ = dtf_CO₃²⁻[:ΔₐG⁰]
 ```
 
-!!! warning "HKF Cp(T) model for aqueous ions"
-    The Helgeson-Kirkham-Flowers equation for the temperature dependence of Cp of aqueous ions is not yet available as a built-in thermodynamic model. The expressions for enthalpies and free energies remain temperature-dependent thanks to the integration performed on Cp. Within the temperature and pressure ranges typically considered in ChemistryLab (0–100 °C, 1 atm), assuming a constant Cp has little impact on the solubility product.
+!!! warning "A constant heat capacity for the ions"
+    The expressions for enthalpies and free energies remain temperature-dependent thanks to the integration performed on Cp. Within the temperature and pressure ranges typically considered in ChemistryLab (0–100 °C, 1 atm), assuming a constant Cp has little impact on the solubility product.
 
 ### Third step: writing the reaction
 
@@ -158,7 +159,7 @@ plot!(p1, θ -> r.ΔᵣG⁰(T = 273.15+θ) / (R_GAS * (273.15+θ)) / log(10), 0:
 
 This example demonstrates the **manual** workflow: create species, attach thermodynamic data from an external source, build a reaction and evaluate its temperature-dependent properties.
 
-In practice, loading species from a built-in database (see [Database Interoperability](@ref sec-databases)) is faster and less error-prone:
+In practice, loading species from a database (see [Importing thermodynamic databases](@ref sec-importing-databases)) is faster and less error-prone:
 
 ```julia
 all_species = build_species(datapath("cemdata18-thermofun.json"))

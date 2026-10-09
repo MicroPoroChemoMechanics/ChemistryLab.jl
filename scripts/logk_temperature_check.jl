@@ -6,7 +6,7 @@
 #  capacities of its solids, water from its own equation of state), against the
 #  analytical expressions of the PHREEQC database, fits to measured constants
 #  whose sources the file names in its comments where it names them. The file is
-#  the one the test suite carries, test/reference/phreeqc.dat (v3.7.3). The page
+#  PHREEQC's phreeqc.dat of release 3.7.3, which datapath obtains. The page
 #  docs/src/tutorials/validation_logk_temperature.md runs it.
 # =============================================================================
 
@@ -14,7 +14,7 @@ using ChemistryLab
 using DynamicQuantities
 
 const LKT_DB = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
-const LKT_PHREEQC = joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat")
+const LKT_PHREEQC = datapath("phreeqc.dat")
 
 # Each reaction: the line or the phase name that heads its record in
 # phreeqc.dat, and the same reaction in Cemdata18 symbols, products positive.

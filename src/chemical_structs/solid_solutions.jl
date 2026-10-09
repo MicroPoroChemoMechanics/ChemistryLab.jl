@@ -565,7 +565,7 @@ function SolidSolutionPhase(
         name::AbstractString,
         end_members::AbstractVector{<:AbstractSpecies};
         model::AbstractSolidSolutionModel = IdealSolidSolutionModel(),
-        check_convexity::Bool = true, T::Real = 298.15,
+        check_convexity::Bool = true, T::Real = T_STANDARD,
         instances::Union{Integer, Symbol} = 1, declared::AbstractString = name,
         acknowledge_degenerate::Bool = false,
     )
@@ -804,7 +804,7 @@ end-members, where a one-dimensional scan is not the right test: see
 See also: [`RedlichKisterModel`](@ref), [`RegularSolutionModel`](@ref).
 """
 function spinodal_interval(
-        model::AbstractSolidSolutionModel, n_members::Int; T::Real = 298.15
+        model::AbstractSolidSolutionModel, n_members::Int; T::Real = T_STANDARD
     )
     n_members == 2 || return nothing
     gx = _binary_mixing_energy(model, T)
@@ -869,7 +869,7 @@ for a binary, and this answers it for any number of end-members.
   - **Any other model** is sampled the same way, through `ForwardDiff` of its
     ``g/RT``: a witness or `:undecided`, never a proof of convexity.
 """
-function mixing_convexity(model::AbstractSolidSolutionModel, n::Int; T::Real = 298.15, g = nothing)
+function mixing_convexity(model::AbstractSolidSolutionModel, n::Int; T::Real = T_STANDARD, g = nothing)
     n >= 2 || return (; verdict = :convex, witness = nothing, how = "a single end-member")
     model isa IdealSolidSolutionModel &&
         return (; verdict = :convex, witness = nothing, how = "ideal mixing is strictly convex")
@@ -969,7 +969,7 @@ function _warn_degenerate_end_members(name, end_members, model)
     model isa CompoundEnergyModel && return nothing
     G = [_g298(sp) for sp in end_members]
     any(isnothing, G) && return nothing
-    RT = R_GAS * 298.15
+    RT = R_GAS * T_STANDARD
     if model isa SublatticeModel
         model.rank == length(end_members) && return nothing
         O = zeros(sum(length, model.species), length(end_members))
@@ -1083,7 +1083,7 @@ See also: [`spinodal_interval`](@ref), [`SolidSolutionPhase`](@ref).
 """
 function common_tangent(
         model::AbstractSolidSolutionModel, n_members::Integer = 2;
-        T::Real = 298.15, tol::Real = 1.0e-12, maxit::Integer = 100,
+        T::Real = T_STANDARD, tol::Real = 1.0e-12, maxit::Integer = 100,
     )
     gap = spinodal_interval(model, n_members; T = T)
     gap === nothing && return nothing
@@ -1134,7 +1134,7 @@ end
 
 As above for a declared phase.
 """
-common_tangent(phase::SolidSolutionPhase; T::Real = 298.15) =
+common_tangent(phase::SolidSolutionPhase; T::Real = T_STANDARD) =
     common_tangent(model(phase), length(end_members(phase)); T = T)
 
 """
@@ -1190,7 +1190,7 @@ See also: [`common_tangent`](@ref), [`spinodal_interval`](@ref).
 """
 function miscibility_split(
         model::AbstractSolidSolutionModel, x̄::Real, n_members::Integer = 2;
-        T::Real = 298.15,
+        T::Real = T_STANDARD,
     )
     ct = common_tangent(model, n_members; T = T)
     ct === nothing && return nothing
@@ -1218,7 +1218,7 @@ end
 
 As above for a declared phase.
 """
-miscibility_split(phase::SolidSolutionPhase, x̄::Real; T::Real = 298.15) =
+miscibility_split(phase::SolidSolutionPhase, x̄::Real; T::Real = T_STANDARD) =
     miscibility_split(model(phase), x̄, length(end_members(phase)); T = T)
 
 # ── Accessors ─────────────────────────────────────────────────────────────────

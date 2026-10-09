@@ -1,0 +1,34 @@
+{
+  "schema": "chemistrylab-literature/1",
+  "source": {
+    "key": "HollandPowell2011",
+    "doi": "10.1111/j.1525-1314.2010.00923.x",
+    "citation": "Holland, T. J. B., Powell, R. (2011). An improved and extended internally consistent thermodynamic dataset for phases of petrological interest, involving a new equation of state for solids. Journal of Metamorphic Geology 29, 333-383.",
+    "location": null
+  },
+  "transcription": {
+    "from": "the published article (PDF from the publisher), the Einstein temperature of an end-member on p. 346, read on the page",
+    "checked_against_source": true,
+    "note": "The empirical relation that gives each end-member i its Einstein temperature from its molar entropy S_i (J/(K mol)) and the number n_i of atoms in its formula: theta_i = 10636 / (S_i / n_i + 6.44). The temperature enters the thermal pressure of the modified Tait equation of state (Eqs. 11-13)."
+  },
+  "quantities": {
+    "einstein_temperature_coefficient": {
+      "value": 10636.0,
+      "unit": "K",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 346",
+      "description": "The numerator of theta_i = 10636 / (S_i / n_i + 6.44), with S_i / n_i in J/(K mol)."
+    },
+    "einstein_temperature_entropy_offset": {
+      "value": 6.44,
+      "unit": "J/(K*mol)",
+      "kind": "published",
+      "uncertainty": null,
+      "location": "p. 346",
+      "description": "The constant added to the entropy per atom S_i / n_i in theta_i = 10636 / (S_i / n_i + 6.44)."
+    }
+  },
+  "tables": {},
+  "notes": []
+}

@@ -20,9 +20,12 @@ using Scratch: get_scratch!
 #  2. the package's cache, a Scratch space of the depot;
 #  3. the publisher, downloaded into the cache after its checksum is verified.
 #
-# A file that no program can download (the publisher's site demands a browser)
-# stops at step 2 with instructions, and `install_database` puts the copy the
-# user downloaded into the cache.
+# A file ChemistryLab does not download (the publisher's site demands a browser,
+# or its terms leave the copy to the user) stops at step 2 with instructions,
+# and `install_database` puts the copy the user downloaded into the cache. A
+# program downloads only what its publisher states may be copied: the PHREEQC
+# databases of the U.S. Geological Survey, under its User Rights Notice, and
+# the ThermoHub files, under GPL-3.0. No database is stored in the package.
 
 """
     ThirdPartyDatabase
@@ -61,6 +64,35 @@ function _thermohub(file, title, sha, citation)
     )
 end
 
+# The databases distributed with PHREEQC, from `database/` of its repository at
+# tag v3.7.3. That is the release of the IPhreeqc engine the PHREEQC oracles of
+# the test suite run on (phreeqpython bundles 3.7.3), and a database of a later
+# release uses keywords that engine refuses; v3.7.3's `phreeqc.dat` is byte for
+# byte that of v3.7.1. The User Rights Notice of PHREEQC
+# (https://water.usgs.gov/water-resources/software/PHREEQC/Phreeqc_UserRightsNotice.txt)
+# allows the files to be used, copied and distributed, the notice kept and the
+# authors and the USGS acknowledged. Each one's own source is cited as its
+# header states it.
+const _USGS_TAG = "v3.7.3"
+const _USGS_PAGE = "https://github.com/phreeqc-dev/phreeqc3/tree/$(_USGS_TAG)/database " *
+    "(PHREEQC: https://www.usgs.gov/software/phreeqc-version-3)"
+const _USGS_LICENSE = "the U.S. Geological Survey User Rights Notice of PHREEQC: use, copy, " *
+    "modification and distribution allowed, the notice kept and the authors and the USGS acknowledged"
+const _PHREEQC_CITATION = "Parkhurst & Appelo (2013), Description of input and examples for " *
+    "PHREEQC version 3, U.S. Geological Survey Techniques and Methods 6-A43, doi:10.3133/tm6A43"
+
+_usgs_urls(file) = [
+    "https://raw.githubusercontent.com/phreeqc-dev/phreeqc3/$(_USGS_TAG)/database/$file",
+    "https://cdn.jsdelivr.net/gh/phreeqc-dev/phreeqc3@$(_USGS_TAG)/database/$file",
+]
+
+function _usgs(file, title, sha, source)
+    return ThirdPartyDatabase(
+        file, title, _usgs_urls(file), sha, _USGS_PAGE, _USGS_LICENSE,
+        "$(_PHREEQC_CITATION); $source",
+    )
+end
+
 """
     THIRD_PARTY_DATABASES
 
@@ -93,6 +125,42 @@ const THIRD_PARTY_DATABASES = Dict(
                 "slop98-organic-thermofun.json", "SUPCRT slop98, organic species, ThermoFun format",
                 "d5ed815a162e20f46a45b35abb95faaf76f19d2fdb8382ba95198c618958ef7a",
                 "the slop98 data file of SUPCRT92, Johnson, Oelkers & Helgeson (1992), Comput. Geosci. 18, 899-947, doi:10.1016/0098-3004(92)90029-Q",
+            ),
+            _usgs(
+                "phreeqc.dat", "phreeqc.dat, the default database of PHREEQC",
+                "3e819f36a78a134b9e53557e9fd9e640d3616b84282cf7095c60337c49c6357b",
+                "its pressure and temperature data: Appelo, Parkhurst & Post (2014), Geochim. " *
+                "Cosmochim. Acta 125, 49-67, doi:10.1016/j.gca.2013.10.003",
+            ),
+            _usgs(
+                "llnl.dat", "llnl.dat, PHREEQC format of the LLNL thermo.com.V8.R6.230 data",
+                "24d9266ff5c02aab84b2ba295567c8a5328d26f0a00fc69a43b6bb33b3efade2",
+                "its data: thermo.com.V8.R6.230, prepared by J. Johnson at Lawrence Livermore " *
+                "National Laboratory, converted to PHREEQC format by G. Anderson with D. Parkhurst",
+            ),
+            _usgs(
+                "minteq.v4.dat", "minteq.v4.dat, PHREEQC format of MINTEQA2 version 4.02",
+                "1d4dd3f14932ccc4236f862f56689be6b1d1bbaa14067b23277bfcfa7c9bea3b",
+                "its data: MINTEQA2 version 4.02 of the U.S. Environmental Protection Agency, " *
+                "translated as the PHREEQC release notes state",
+            ),
+            _usgs(
+                "wateq4f.dat", "wateq4f.dat, PHREEQC format of the WATEQ4F database",
+                "b12c4a9818c946a882c675c458499d76a71fa0ec0becc8e5b9e175391ffaeb39",
+                "its data: Ball & Nordstrom (1991), User's manual for WATEQ4F, U.S. Geological " *
+                "Survey Open-File Report 91-183, doi:10.3133/ofr91183",
+            ),
+            _usgs(
+                "sit.dat", "sit.dat, PHREEQC format of ThermoChimie 9b0 with SIT",
+                "427d6114ed3f3135054683882319a0852b593d2685f0ccc80855f10ae1c4b840",
+                "its data: ThermoChimie, Giffaut et al. (2014), Appl. Geochem. 49, 225-236, " *
+                "doi:10.1016/j.apgeochem.2014.05.007",
+            ),
+            _usgs(
+                "pitzer.dat", "pitzer.dat, the Pitzer database of PHREEQC",
+                "3895bc5caf3f843abbb6deade72c9515c2be1c2efa3dd57052d0bb10cba68996",
+                "its pressure and temperature data: Appelo, Parkhurst & Post (2014), Geochim. " *
+                "Cosmochim. Acta 125, 49-67, doi:10.1016/j.gca.2013.10.003",
             ),
             ThirdPartyDatabase(
                 "CEMDATA18-31-03-2022-phaseVol.dat", "Cemdata18 in PHREEQC format, from Empa",
@@ -242,8 +310,8 @@ function Base.showerror(io::IO, e::DatabaseUnavailable)
     print(io, isempty(dir) ? "(not set)" : "($dir)")
     print(io, ", nor in the cache ($(e.cache)).\n")
     if isempty(db.urls)
-        print(io, "  Its publisher distributes it through a web page that a program cannot use,\n")
-        print(io, "  so it has to be downloaded once by hand. To provide it, either:\n")
+        print(io, "  ChemistryLab does not download it: its publisher distributes it through a web\n")
+        print(io, "  page, under its own terms, so it has to be downloaded once by hand. To provide it, either:\n")
         print(io, "    - open $(db.page) in a web browser, download `$(db.name)`,\n")
         print(io, "      then call `install_database(\"<path of the downloaded file>\")`;\n")
     else
@@ -306,8 +374,9 @@ that of the version ChemistryLab was validated with; a different file is
 refused unless `force = true`, in which case it is installed and a warning says
 that results may differ from the documented ones.
 
-This is how a database that no program can download is provided (the Empa
-PHREEQC file), and how a machine without network access is prepared.
+This is how a database that ChemistryLab does not download is provided (one
+whose publisher distributes it through a web page, under its own terms), and how
+a machine without network access is prepared.
 """
 function install_database(path::AbstractString; name::AbstractString = basename(path), force::Bool = false)
     db = get(THIRD_PARTY_DATABASES, name, nothing)
@@ -390,7 +459,8 @@ end
 Where each database ChemistryLab knows currently resolves, without downloading
 or building anything: `:local` (in `CHEMISTRYLAB_DATABASE_DIR`), `:cached`,
 `:downloadable`, `:manual` (to be downloaded by hand) or, for a derived
-database, `:buildable`. Printed as a table, and returned as one
+database, `:buildable`. Printed as a table, each database with its source and
+the license its publisher states, and returned as one
 `(; name, status, path, source, license)` per database.
 """
 function database_info(io::IO = stdout)
@@ -424,6 +494,7 @@ function database_info(io::IO = stdout)
     end
     for r in rows
         println(io, rpad(r.name, 36), rpad(string(r.status), 14), r.source)
+        println(io, " "^50, "license: ", r.license)
     end
     return rows
 end

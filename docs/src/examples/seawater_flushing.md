@@ -113,7 +113,7 @@ fig
 
 Friedel's salt, which the first renewals form, is gone by 585 mL; thaumasite
 forms from 781 mL and brucite from 1366 mL; the portlandite is gone after
-4489 mL; gypsum forms from 6440 mL and M-S-H from 9368 mL, as the C-S-H is
+4489 mL; gypsum forms from 6440 mL and M-S-H from 9173 mL, as the C-S-H is
 consumed.
 
 And the elements the solids hold, which is what [DeWeerdtJustnes2015; Fig. 4](@cite)

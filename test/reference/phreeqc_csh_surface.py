@@ -54,6 +54,8 @@ import tempfile
 import phreeqpython
 from phreeqpython.viphreeqc import VIPhreeqc
 
+import usgs_database
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(os.path.dirname(_HERE))
 T_K = 298.15
@@ -137,9 +139,9 @@ def library_values(elements, species):
 
 def _redox_log_k():
     """The two redox couples PHREEQC needs to define O(0) and H(0), from the
-    phreeqc.dat committed next to this file. They set the pe of these
+    phreeqc.dat of PHREEQC v3.7.3 (`usgs_database.py`). They set the pe of these
     solutions, which nothing compared here depends on."""
-    with open(os.path.join(_HERE, "phreeqc.dat"), encoding="utf-8") as f:
+    with open(usgs_database.database_path("phreeqc.dat"), encoding="utf-8") as f:
         lines = f.read().splitlines()
     out = {}
     for eq in ("2 H2O = O2 + 4 H+ + 4 e-", "2 H+ + 2 e- = H2"):

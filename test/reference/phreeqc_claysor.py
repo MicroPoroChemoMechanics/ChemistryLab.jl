@@ -36,8 +36,10 @@ import sys
 
 from phreeqpython.viphreeqc import VIPhreeqc
 
+import usgs_database
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-BASE = os.path.join(HERE, "phreeqc.dat")
+BASE = usgs_database.database_path("phreeqc.dat")
 
 # The subset, by the species each reaction produces.
 SURFACE_WANTED = {

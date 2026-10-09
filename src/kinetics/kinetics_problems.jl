@@ -631,6 +631,10 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         # The last partition solved in `:rhs` mode, keyed by the values of `bₑ`
         # and of the temperature it was solved at.
         rhs_cache = Ref{Any}(nothing),
+        # Set while an accessor walks a finished run (`_with_saved_warm_start`):
+        # `_rhs_values` then offers the interior point as a last start, which
+        # the integration does not need and should not pay for.
+        walking = Ref(false),
         n_rhs = similar(n_full),
         # Feasibility of a kinetic state: the element content of the kinetic
         # species and the element totals of the system.
@@ -1067,7 +1071,8 @@ end
 # instant warm-started from the one before, and leaves the run's state as it
 # found it.
 function _with_saved_warm_start(f, p)
-    n, T, c, r = copy(p.n_full), p.T_q[], p.rhs_cache[], p.cell_root[]
+    n, T, c, r, wk = copy(p.n_full), p.T_q[], p.rhs_cache[], p.cell_root[], p.walking[]
+    p.walking[] = true
     try
         return f()
     finally
@@ -1075,6 +1080,7 @@ function _with_saved_warm_start(f, p)
         p.T_q[] = T
         p.rhs_cache[] = c
         p.cell_root[] = r
+        p.walking[] = wk
     end
 end
 
@@ -1653,10 +1659,12 @@ end
 
 The partition at the element amounts `bv` and the temperature `Tv`, on plain
 numbers, by the certified solve warm-started from the last accepted partition,
-then from the cast composition carried onto `bv`; `nothing` when neither
-certifies and the better one leaves more than `_RETRY_ABS_TOL` of matter
-unaccounted for. The last answer is cached, so that the evaluations of one
-point by the integrator and by the step's re-speciation solve it once.
+then from the cast composition carried onto `bv`, and, for an accessor walking a
+finished run, from the answer of the interior point; `nothing` when none
+certifies and the best leaves more than
+`_RETRY_ABS_TOL` of matter unaccounted for. The last answer is cached, so that
+the evaluations of one point by the integrator and by the step's re-speciation
+solve it once.
 """
 function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
     c = p.rhs_cache[]
@@ -1682,6 +1690,39 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
         eq2, cert2 = _exploring_starts(() -> solve_certified(p.eq_dual, (state(guess),); b = bv, ϵ = p.ϵ))
         eq, cert = eq === nothing ? (eq2, cert2) :
             eq2 === nothing ? (eq, cert) : _keep_better(eq, cert, eq2, cert2)
+    end
+    # Where the assemblage switches, the starts above hold the assemblage of the
+    # last accepted step, or none, and the dual Newton stalls short of the
+    # certificate from either. Measured on a paste of cement c13 of Lavergne et
+    # al. (2018) at 23.9 °C and 4.2 h, where hydrogarnet gives way to
+    # monosulfate: a KKT error of 1.5e-4 from the warm start, 1.3e-4 from the
+    # reconstruction. The interior point crosses to the new assemblage, and the
+    # certified solve from its answer proves it at once (7e-15).
+    #
+    # Offered to an accessor walking a finished run only (`p.walking`). The run
+    # passes these states by its step re-speciation, which falls back on the
+    # interior point, and a failure inside it only rejects a step; tried at every
+    # failure of the integration, this start doubled the cost of a semi-adiabatic
+    # run, whose cell temperature is a root over partitions solved at trial
+    # temperatures (316 s against 160 s on the C100 mortar of Lavergne et al.
+    # 2018). The polish takes the interior point's answer as a start only: its
+    # return code is not counted among the solves used anyway, and its answer is
+    # kept only when the polish proves it. Kept uncertified, it was accepted on
+    # its element balance, which the interior point always meets, and the
+    # temperature of that cell then failed where the run had passed.
+    if p.walking[] && (eq === nothing || !cert.optimal) && p.eq_solver !== nothing
+        cref = Ref{Any}(nothing)
+        eq2 = try
+            _exploring_starts() do
+                SciMLBase.solve(p.eq_solver, state(warm); b = bv, ϵ = p.ϵ, polish = true, certificate = cref)
+            end
+        catch
+            nothing
+        end
+        cert2 = cref[]
+        if eq2 !== nothing && cert2 !== nothing && cert2.optimal
+            eq, cert = eq2, cert2
+        end
     end
     eq === nothing && return nothing
     n = Float64[ustrip(us"mol", x) for x in eq.n]

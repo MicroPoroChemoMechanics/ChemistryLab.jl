@@ -224,7 +224,7 @@ tex = "q"
 label = "q"
 name = "heat received by the system, or released by the reactions"
 unit = "J"
-pages = ["theory/the_two_laws.md", "examples/semiadiabatic_calorimetry.md"]
+pages = ["theory/the_two_laws.md", "examples/lavergne2018.md"]
 
 [[symbol]]
 group = "State and thermodynamic functions"
@@ -910,7 +910,7 @@ tex = "\\varphi"
 label = "φ"
 name = "heat loss of the calorimeter against the temperature difference"
 unit = "W"
-pages = ["manual/kinetics_syntax.md", "examples/semiadiabatic_calorimetry.md", "examples/cement_clinker_kinetics.md"]
+pages = ["manual/kinetics_syntax.md", "examples/lavergne2018.md", "examples/cement_clinker_kinetics.md"]
 
 [[symbol]]
 group = "Kinetics and hydration"
@@ -918,7 +918,7 @@ tex = "a"
 label = "a"
 name = "linear coefficient of the heat loss of the calorimeter, φ = aΔT + bΔT²"
 unit = "W/K"
-pages = ["manual/kinetics_syntax.md", "examples/semiadiabatic_calorimetry.md", "examples/cement_clinker_kinetics.md"]
+pages = ["manual/kinetics_syntax.md", "examples/lavergne2018.md", "examples/cement_clinker_kinetics.md"]
 
 [[symbol]]
 group = "Kinetics and hydration"
@@ -926,7 +926,7 @@ tex = "b"
 label = "b"
 name = "quadratic coefficient of the heat loss of the calorimeter, φ = aΔT + bΔT²"
 unit = "W/K²"
-pages = ["manual/kinetics_syntax.md", "examples/semiadiabatic_calorimetry.md", "examples/cement_clinker_kinetics.md"]
+pages = ["manual/kinetics_syntax.md", "examples/lavergne2018.md", "examples/cement_clinker_kinetics.md"]
 
 [[symbol]]
 group = "Kinetics and hydration"
@@ -950,7 +950,7 @@ tex = "C"
 label = "C"
 name = "heat capacity of the calorimeter and of what it holds besides the paste"
 unit = "J/K"
-pages = ["examples/semiadiabatic_calorimetry.md"]
+pages = ["examples/lavergne2018.md"]
 
 [[symbol]]
 group = "Kinetics and hydration"

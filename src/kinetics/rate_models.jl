@@ -92,7 +92,7 @@ struct KineticFunc{F, R <: NamedTuple, Q} <: Function
 end
 
 const _KF_VARS = (:T, :P, :t, :n, :lna, :n_initial)
-const _KF_DEFAULT_REFS = (T = 298.15u"K", P = 1.0e5u"Pa")
+const _KF_DEFAULT_REFS = (T = T_STANDARD_Q, P = P_STANDARD_Q)
 
 # Convenience constructor — vars defaults to the standard 6-argument names.
 KineticFunc(compiled, refs::NamedTuple, unit) = KineticFunc(compiled, _KF_VARS, refs, unit)
@@ -294,7 +294,7 @@ ForwardDiff.derivative(k₀ -> arrhenius_rate_constant(k₀,   62000.0)(; T = 29
 function arrhenius_rate_constant(
         k₀,
         Ea;
-        T_ref = 298.15,
+        T_ref = T_STANDARD,
         R_gas::Real = R_GAS,
     )
     k₀_si = safe_ustrip(us"mol/(m^2*s)", k₀)
@@ -723,7 +723,7 @@ See also: [`transition_state`](@ref), [`glass_species`](@ref).
 """
 function snellings2013_glass(
         oxides::AbstractDict{<:AbstractString, <:Real}; Ea,
-        T_ref = 273.15 + ustrip(literature_value("Snellings2013", "temperature_C")),
+        T_ref = T_ZERO_CELSIUS + ustrip(literature_value("Snellings2013", "temperature_C")),
         modifiers = ("CaO",), inhibitors::AbstractVector{<:RateModelInhibitor} = RateModelInhibitor{Float64}[],
         extrapolate::Bool = false,
     )
@@ -879,7 +879,7 @@ function parrott_killoh(params::NamedTuple, mineral_name::AbstractString; α_max
         return n_init * Aₜ * min(max(r_NG, r_I), r_D)
     end
 
-    refs = (T = Float64(_primal(T_ref)) * u"K", P = 1.0e5u"Pa")
+    refs = (T = Float64(_primal(T_ref)) * u"K", P = P_STANDARD_Q)
     return KineticFunc(f, refs, u"mol/s")
 end
 
@@ -1099,7 +1099,7 @@ function parrott_killoh_avrami(
         return n_init * Aₜ * β_B * β_h * f_wc * min(r₁, r₂, r₃)
     end
 
-    refs = (T = Float64(_primal(T_ref)) * u"K", P = 1.0e5u"Pa")
+    refs = (T = Float64(_primal(T_ref)) * u"K", P = P_STANDARD_Q)
     return KineticFunc(f, refs, u"mol/s")
 end
 
@@ -1326,7 +1326,7 @@ function waller(
         return n_init * Aₜ * β_B * β_h * r
     end
 
-    refs = (T = Float64(_primal(T_ref)) * u"K", P = 1.0e5u"Pa")
+    refs = (T = Float64(_primal(T_ref)) * u"K", P = P_STANDARD_Q)
     return KineticFunc(f, refs, u"mol/s")
 end
 

@@ -55,7 +55,7 @@ one costs seconds to minutes.
 
 | what | against | how closely | where it stops |
 |:--|:--|:--|:--|
-| **every solubility product** in the shipped CEMDATA18 — 54 phases | [Lothenbach2019](@citet) Tables 2-3 | 52 close to `0.040`, 50 to `0.005` | two M-S-H end members, whose `log Ks0` recomputed from the tabulated `ΔfG°` differs from the tabulated one by `0.24` and `0.20` at 25 °C |
+| **every solubility product** in CEMDATA18 as read — 54 phases | [Lothenbach2019](@citet) Tables 2-3 | 52 close to `0.040`, 50 to `0.005` | two M-S-H end members, defined in the file by reactions whose `log K` coefficients give at 25 °C `0.17` and `0.11` more than the tabulated `log Ks0` |
 | **standard properties and HKF coefficients**, 19 aqueous species and 7 gases | [Lothenbach2019](@citet) Tables D.1-D.2 | exact, all seven coefficients each | nitrite-AFm needs the `NO2-` of another file, and Fe-Friedel's salt is in ChemistryLab's chloride extension only; [both close there](@ref sec-cemdata18-missing-rows) |
 | **each record's `ΔfG°`, `ΔfH°` and `S°`** against one another | the file's own element entropies | 78 of 143 crystalline records to `1 J/mol`, 126 to `100 J/mol` | the two M-S-H end members miss by kilojoules at either temperature |
 | **HKF away from 298.15 K, 1 bar** | [Duan2016](@citet) Table 4, HKF column | `0.03 %` at the reference point; `0.3 %` across a factor 2.9 in pressure | the `K₄` of one row matches the HKF value at 1 bar and the `K₃` of the same row at 1000 bar |
@@ -154,7 +154,8 @@ at zero for the host to keep its database energy, and
 
 **A record has its own reference temperature.** `ΔₐG⁰(T)` is anchored to the
 tabulated `ΔfG°` at the temperature `Tst` the record states, which is 293.15 K
-for eight CEMDATA18 records, the alkali C-S-H and M-S-H end members. A 25 °C
+for eight CEMDATA18 records, the alkali C-S-H and M-S-H end members; a record the
+file defines by a reaction follows its reaction instead. A 25 °C
 comparison with one of them goes through `ΔₐG⁰(T = 298.15)`, never through the
 tabulated number, which is a 20 °C number. See [Eight records at 20 °C](@ref).
 
@@ -190,25 +191,30 @@ Two do not:
 
 | phase | from the file at 25 °C | published `log Ks0` | Δ | in energy |
 |:--|--:|--:|--:|--:|
-| `M075SH` (M₁.₅S₂H₂.₅) | −28.556 | −28.80 | **+0.244** | 1.39 kJ/mol |
-| `M15SH` (M₁.₅SH₂.₅) | −23.365 | −23.57 | **+0.205** | 1.17 kJ/mol |
+| `M075SH` (M₁.₅S₂H₂.₅) | −28.634 | −28.80 | **+0.166** | 0.95 kJ/mol |
+| `M15SH` (M₁.₅SH₂.₅) | −23.460 | −23.57 | **+0.110** | 0.63 kJ/mol |
 
-Both are M-S-H end members. With every other phase in the table closing to
-better than `0.04`, the difference lies between the two published quantities
-for these two phases, not in the transcription.
+Both are M-S-H end members, and the file defines both by their dissolution
+reactions: their energies follow from the `log K(T)` of those reactions, as
+ThermoFun computes them, and the coefficients of that function do not give, at
+25 °C, the value the records themselves state. GEMS, run on the same data, does
+not close them either, by 0.17 and 0.09. With every other phase in the table
+closing to better than `0.04`, the difference lies in the published data for
+these two phases, not in the transcription.
 
 ### Eight records at 20 °C
 
 Each record of the file states the temperature `Tst` at which its `ΔfG°`,
 `ΔfH°` and `S°` are given, and `ΔₐG⁰(T)` is anchored there: at `T = Tst` it
-returns the tabulated `ΔfG°`, to rounding for the condensed phases and gases
+returns the tabulated `ΔfG°`, except for the 17 records the file defines by a
+reaction, which follow it, to rounding for the condensed phases and gases
 and to `0.3 J/mol` for the aqueous species, whose HKF equations of state are
 evaluated at that point. For 230 of the 238 records, `Tst` is 298.15 K. For eight it is
 293.15 K: the six alkali C-S-H end members (`KSiOH`, `NaSiOH`, `ECSH1-KSH`,
 `ECSH2-KSH`, `ECSH1-NaSH`, `ECSH2-NaSH`) and the two M-S-H end members. Their
 energies at 25 °C differ from the tabulated numbers by the 5 K step, close to
-`−S° × 5 K`: `−208.6 J/mol` for `KSiOH`, `−1364.8 J/mol` for `M075SH`. GEMS
-anchors these records in the same way.
+`−S° × 5 K`: `−208.6 J/mol` for `KSiOH`. GEMS anchors these records in the same
+way. The two M-S-H end members follow their reactions.
 
 The three formation properties of a record are related by
 
@@ -234,8 +240,8 @@ satisfy it at neither temperature:
 capacity from those of talc, chrysotile and water, after [Nied2016](@cite). For
 `M075SH`, the tabulated `ΔfG°`, the value implied by its `ΔfH°` and `S°`, and
 the value implied by its published `log Ks0` span `1.4 kJ/mol` at 25 °C; a
-calculation that uses the tabulated `ΔfG°` therefore gives a `log Ks0` 0.24
-above the tabulated one. After these two, the largest residuals belong to five
+calculation that used the tabulated `ΔfG°` would give a `log Ks0` 0.24 above the
+tabulated one, and its reaction gives one 0.17 above. After these two, the largest residuals belong to five
 anhydrous aluminate phases of clinker and of calcium aluminate cement, `C4AF`,
 `C3A`, `CA2`, `C12A7` and `CA`, from `1.6` to `2.5 kJ/mol`.
 
@@ -271,7 +277,7 @@ Table D.2's gas column, under the same header, really is J/bar — 2479 J/bar is
 package's `RT/P` gives a gas there. The two tables share a header and not a
 unit.
 
-## [What the shipped file does not carry](@id sec-cemdata18-missing-rows)
+## [What the file does not carry](@id sec-cemdata18-missing-rows)
 
 Two rows of [Lothenbach2019; Table 2](@cite) cannot be checked on the shipped
 file alone. The test asserts what is missing, so that a database update which
@@ -735,7 +741,7 @@ here.
 
 [Lothenbach2010](@citet) reviews what equilibrium calculations do for cements,
 and its Table 1 lists the solubility products it computed with: those of
-Cemdata07, the generation before the one this package ships, for 29 solids. It
+Cemdata07, the generation before the one this package reads, for 29 solids. It
 prints no Gibbs energy and no molar volume, only the constant and its reaction.
 Read through the package's own energies, the same reactions separate what
 Cemdata18 kept from what it revised.
@@ -881,7 +887,7 @@ sum is 45.0 and `14.6 + 2 × 15.5 = 45.6`.
 julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
-The Cemdata18 checks are pure arithmetic over the shipped file and need no
+The Cemdata18 checks are pure arithmetic over the downloaded file and need no
 solver. The case of [Atkins1992](@citet) runs one `equilibrate_certified` and
 takes about a second once compiled.
 

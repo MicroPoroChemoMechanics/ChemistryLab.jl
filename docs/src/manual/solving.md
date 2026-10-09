@@ -236,13 +236,14 @@ temperature equal to the one the adiabatic solve found returns the same
 composition to `1e-12`.
 
 A volume constraint on a **condensed** system is **refused**, with the lever it
-measured named in the error. The molar volumes of water and of the minerals in the
-shipped databases are exactly pressure-independent — `V⁰(1 bar) = V⁰(100 bar)` to
-the last bit for `H2O@` and `Cal` — and only a few aqueous ions vary, `OH⁻` by 8 %
-over 100 bar. The relative lever `(∂V/∂P)·P/V` is then about `1e-6`, meaning some
-**9 600 bar to change the volume by one percent**. That is the physics, not a
-solver limitation: the volume of an incompressible condensed system is fixed by
-its composition. Declare a gas phase to give the pressure something to do. To
+measured named in the error. The molar volumes of the minerals in Cemdata18 do
+not depend on pressure — `V⁰(1 bar) = V⁰(100 bar)` to the last bit for `Cal` —
+water's falls by 0.44 % over 100 bar, and the partial volumes of a few aqueous
+ions vary, `OH⁻`'s by 8 % over 100 bar. The relative lever `(∂V/∂P)·P/V` of
+water alone is `4.5e-5` at 1 bar, some **225 bar to change its volume by one
+percent**, and a paste, whose solids do not move, has less. That is the physics,
+not a solver limitation: the volume of a nearly incompressible condensed system
+is fixed by its composition. Declare a gas phase to give the pressure something to do. To
 report the volume change of a sealed specimen at fixed pressure — what a hydrating
 binder actually needs — use [`porosity`](@ref) with a reference state instead.
 
@@ -656,7 +657,7 @@ ss_hg = SolidSolutionPhase("C3(AF)S0.84H",
 ss_phases = build_solid_solutions(datapath("solid_solutions.toml"), dict)
 ```
 
-See the manual page [Database Interoperability](@ref sec-databases) for the TOML format and the
+See the manual page [Database extensions, filters and solid solutions](@ref sec-databases) for the TOML format and the
 pre-built `data/solid_solutions.toml` file shipped with ChemistryLab.
 
 !!! note "What the shipped file is, and is not"

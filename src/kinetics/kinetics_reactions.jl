@@ -342,7 +342,7 @@ function transition_state(
         return A * r
     end
 
-    refs = (T = 298.15u"K", P = 1.0e5u"Pa")
+    refs = (T = T_STANDARD_Q, P = P_STANDARD_Q)
     return KineticFunc(f, refs, u"mol/s")
 end
 

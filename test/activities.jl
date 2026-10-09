@@ -729,7 +729,7 @@ end
     end
     set_quantity!(st, "CO2", 0.02u"mol")
     p = ChemistryLab._build_params(st)
-    γp = phreeqc_gamma_parameters(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+    γp = phreeqc_gamma_parameters(datapath("phreeqc.dat"))
     fixed = ChemistryLab.activity_model(cs, TruesdellJonesActivityModel(; parameters = γp, temperature_dependent = false))
     moving = ChemistryLab.activity_model(cs, TruesdellJonesActivityModel(; parameters = γp, temperature_dependent = true))
     n = ustrip.(us"mol", st.n)

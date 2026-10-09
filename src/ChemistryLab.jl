@@ -141,13 +141,16 @@ module ChemistryLab
 
     include("databases/paths.jl")
     include("databases/remote.jl")
-    include("databases/phreeqc_dat.jl")
     include("databases/thermofun_json.jl")
+    include("databases/phreeqc_reader.jl")
+    include("databases/gwb_reader.jl")
+    include("databases/eq36_reader.jl")
+    include("databases/reaktoro_yaml.jl")
+    include("databases/import.jl")
     include("databases/pitzer_toml.jl")
     include("databases/sit_dat.jl")
     include("databases/phreeqc_sorption.jl")
     include("surfaces/site_family_reactions.jl")
-    include("databases/merge_dat_json.jl")
     include("databases/derived.jl")
 
     include("equilibrium/real_gases.jl")
@@ -401,6 +404,12 @@ module ChemistryLab
         FARADAY_Q,
         P_STANDARD,
         P_STANDARD_Q,
+        T_STANDARD,
+        T_STANDARD_Q,
+        T_ZERO_CELSIUS,
+        T_ZERO_CELSIUS_Q,
+        CALORIE,
+        CALORIE_Q,
         with_symbol
 
     export ChemicalSystem,
@@ -468,7 +477,6 @@ module ChemistryLab
         get_compatible_species,
         HKF_SI_CONVERSIONS
 
-    export merge_json
 
     export literature,
         literature_value,
@@ -492,6 +500,7 @@ module ChemistryLab
         HKFActivityModel,
         cemdata18_activity_model,
         TruesdellJonesActivityModel,
+        LLNLActivityModel,
         phreeqc_gamma_parameters,
         DaviesActivityModel,
         SITActivityModel,
@@ -500,6 +509,13 @@ module ChemistryLab
         missing_epsilon_pairs,
         build_sit_parameters,
         read_sorption_model,
+        read_phreeqc_database,
+        database_activity_model,
+        read_gwb_database,
+        read_eq36_database,
+        read_reaktoro_database,
+        import_database,
+        FormationLogK,
         SorptionModel,
         SorptionSite,
         SorptionReaction,

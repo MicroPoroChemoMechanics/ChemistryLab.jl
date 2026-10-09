@@ -1,8 +1,8 @@
 # [ChemicalSystem and ChemicalState](@id sec-system-state)
 
 !!! info "Before this page"
-    [Species](@ref sec-species) and [Database Interoperability](@ref
-    sec-databases).
+    [Species](@ref sec-species) and [Importing thermodynamic
+    databases](@ref sec-importing-databases).
 
 These two types are the bridge between species definitions and equilibrium calculations:
 

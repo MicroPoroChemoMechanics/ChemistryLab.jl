@@ -1,8 +1,8 @@
 # [Thermodynamic Functions](@id sec-thermodynamics)
 
 !!! info "Before this page"
-    [Species](@ref sec-species) and [Database Interoperability](@ref
-    sec-databases); the quantities themselves are defined in [Apparent and
+    [Species](@ref sec-species) and [Importing thermodynamic
+    databases](@ref sec-importing-databases); the quantities themselves are defined in [Apparent and
     formation Gibbs energies](@ref sec-theory-apparent).
 
 ChemistryLab represents temperature-dependent thermodynamic properties (Cp°, ΔₐH°, S°, ΔₐG°, log K°, …) as **callable function objects** rather than plain numbers. This page explains the three concrete types — `SymbolicFunc`, `NumericFunc`, and `ThermoFactory` — and shows how to build, combine, and extend them.

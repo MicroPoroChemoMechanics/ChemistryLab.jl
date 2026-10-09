@@ -95,18 +95,20 @@ Regenerate a fixture by running its script; each names itself in the file's own
 `generator` field. The JSON is committed, the generators are not run in CI —
 running them needs PHREEQC, Reaktoro or GEMS, which CI does not have.
 
-## What is vendored here, and what deliberately is not
+## No database is stored here
 
-`phreeqc.dat` **is** committed, unmodified, with the USGS User Rights Notice
-beside it — see `PHREEQC-PROVENANCE.md`. That notice covers data as well as
-code, and requires the notice to travel with any copy.
+No thermodynamic database is committed in this repository. The PHREEQC
+generators load `phreeqc.dat` of PHREEQC's repository at tag v3.7.3, the release
+of the IPhreeqc engine phreeqpython bundles, through `usgs_database.py`: a copy
+in `$CHEMISTRYLAB_DATABASE_DIR`, or one downloaded once and checked against the
+same SHA-256 as `THIRD_PARTY_DATABASES` in `src/databases/remote.jl`. The Julia
+tests obtain the same file with `datapath("phreeqc.dat")`. Never the copy the
+phreeqpython wheel carries: it matches no upstream tag.
 
-`sit.dat` is **not**, and the difference is not an oversight. It is the ANDRA/RWM
-*ThermoChimie-TDB* compilation, redistributed with PHREEQC but not USGS-authored,
-so the notice above says nothing about its terms. `phreeqc_sit.py` therefore
-takes `--database` pointing at a copy the caller already has, and writes into its
-fixture only the handful of `ε` the comparison uses, with the database named and
-hashed. A test stays runnable in CI without a compilation being redistributed.
+`phreeqc_sit.py` takes `--database` pointing at a copy of `sit.dat` the caller
+has, and writes into its fixture only the handful of `ε` the comparison uses,
+with the database named and hashed. A fixture holds computed values and the
+few constants a comparison needs, never a database.
 
 ## Provenance
 
@@ -171,6 +173,7 @@ wherever its data is used.
 | `reaktoro_pitzer_j0.py` | any `python3` | `reaktoro_pitzer_j0.json`, read by `test/pitzer.jl`: Pitzer's `J(x)` as Reaktoro tabulates it, read from its source at a pinned commit, against which the Chebyshev series of `src/equilibrium/pitzer.jl` is checked |
 | `phreeqc_hfo_surface.py` | `mpcm-oracles` | a Zn sorption edge on hydrous ferric oxide, strong and weak sites, `-no_edl`; `--edl` switches to the diffuse layer, which is a **different model** |
 | `phreeqc_csh_surface.py` | `mpcm-oracles`, plus `julia` | `phreeqc_csh_surface.json`, with `--case paste` `phreeqc_csh_paste.json`, and with `--case donnan` `phreeqc_csh_donnan.json` (the first case with `SURFACE -Donnan`, the diffuse layer's water and ions reported by `EDL()`), all read by `test/csh_surface.jl`: the silanol surface of Guo et al. (2018) with a diffuse layer, in NaOH-CaCl₂-NaCl solutions, then in Guo's paste (portlandite, AFm, AFt, Friedel's and Kuzel's salts) over a NaCl sweep; closed systems. The generator writes its own database — free ions, Davies activity — and reads the surface reactions from `data/literature/Guo2018.json`, the table the Julia side reads too. The standard energies, the molar masses and the atomic masses are asked of ChemistryLab itself, through `julia --project=$CHEMISTRYLAB_PROJECT` (the repository by default), so no energy or mass is read from a database file or typed |
+| `phreeqc_databases.py` | `mpcm-oracles` | `phreeqc_databases.json`, read by `test/phreeqc_databases.jl`: the six databases PHREEQC distributes (`phreeqc.dat`, `llnl.dat`, `minteq.v4.dat`, `wateq4f.dat`, `sit.dat`, `pitzer.dat`), each with a seven-ion solution and with calcite and gypsum in water, at 25 and 60 °C: every aqueous molality, the ionic strength, the pH, the activity of water, and the Debye–Hückel A and B PHREEQC used, which separate the gap these make from the rest |
 | `phreeqc_evolving_surface.py` | `mpcm-oracles` | a sorbent that DISSOLVES: a `SURFACE` coupled to an `EQUILIBRIUM_PHASES` mineral, titrated to exhaustion. Captures the coupling law, not a shared surface model |
 | `gems_bench.py` | `mpcm-oracles` | the GEMS3K status report above |
 

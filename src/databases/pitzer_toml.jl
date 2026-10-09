@@ -95,9 +95,10 @@ order, `-THETA` two ions of like sign, `-LAMDA` a neutral species and an ion,
 appended to a neutral species, which is how this package names them. The
 identifiers this model has no counterpart for (`-ZETA`, `-ETA`, `-MU`, `-ALPHAS`,
 `-APHI`, which the water model provides) are skipped, and a warning names them;
-`-use_etheta` is the model's own keyword, `etheta`. **No PHREEQC database ships
-with this package**: this reads the file the caller has, and every `origin`
-records its name and a truncated SHA-256 of its contents.
+`-use_etheta` is the model's own keyword, `etheta`. **No database is stored in
+this package**: this reads the file the caller has (`datapath("pitzer.dat")`
+obtains PHREEQC's own), and every `origin` records its name and a truncated
+SHA-256 of its contents.
 
 See also: [`PitzerParameters`](@ref), [`PitzerActivityModel`](@ref),
 [`pitzer_origin`](@ref).
@@ -194,8 +195,8 @@ function _phreeqc_charge(name::AbstractString)
     return m.captures[1] == "+" ? z : -z
 end
 
-# A PHREEQC name is turned into this package's by `_phreeqc_symbol`
-# (`phreeqc_dat.jl`), which puts `@` on a neutral species.
+# A PHREEQC name is turned into this package's by `_phreeqc_symbol` (below),
+# which puts `@` on a neutral species.
 
 function _pitzer_from_phreeqc(path::AbstractString)
     isfile(path) || throw(ArgumentError("no such database: $path"))
@@ -269,4 +270,12 @@ function _pitzer_from_phreeqc(path::AbstractString)
         origin = Dict{P2, String}(k => src for k in keys(tables[:beta0])),
         temperature = temperature,
     )
+end
+
+# The ChemistryLab symbol of a species of a PHREEQC file, from its name alone:
+# a name ending in a charge is kept, any other gets `@`, `H2O` is the solvent.
+function _phreeqc_symbol(name::AbstractString)
+    name == "e-" && return "Zz"
+    name == "H2O" && return "H2O@"
+    return occursin(r"[+-][0-9]*$", name) ? String(name) : String(name) * "@"
 end

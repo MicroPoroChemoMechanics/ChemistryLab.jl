@@ -1,5 +1,160 @@
 # Changelog
 
+## v0.37.0 — Any thermodynamic database imported, none stored in the package
+
+A thermodynamic database can now be read in any of the formats in common use:
+the databases of reactions of PHREEQC, of The Geochemist's Workbench and of
+EQ3/6, and the databases of formation properties of ThermoFun and of Reaktoro.
+Every reader returns the same three tables, `import_database` chooses the
+reader from the file, and `build_species` builds the species of any of them.
+No database is stored in the package: the files whose publishers allow a
+program to copy them, the six databases distributed with PHREEQC and the
+ThermoFun files of ThermoHub, are obtained on first use and checked against
+their SHA-256; every other file is downloaded by hand, under its publisher's
+terms, and installed. A database of reactions is computed with the activity
+model PHREEQC applies to it, its conventions measured against PHREEQC before
+being written. The methods of a ThermoFun file that were left aside are
+computed from their articles, or refused by name. A new page of the manual,
+*Importing thermodynamic databases*, says which formats are read, where each
+file comes from and under what terms, and how a database is extended.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.36"` does not accept 0.37
+  and has to widen its bound.
+- **`merge_json` is removed**, with `merge_reactions` and `parse_phases`. It
+  appended the phases of a PHREEQC file to a ThermoFun file, with the Gibbs
+  energy of reaction of the wrong sign, and rewrote the reactions already
+  there. A database of reactions and a database of formation properties count
+  their energies from different zeros and cannot be merged: the PHREEQC file is
+  read by `read_phreeqc_database`, and a database is extended by a database
+  built from it.
+- **`read_phreeqc_database` returns three tables**, `(df_elements,
+  df_substances, df_reactions)`, as `read_thermofun_database` does, and
+  `PhreeqcDatabase` is removed. `build_species`, `database_activity_model` and
+  `extract_primary_species` take the table of substances; what concerns the
+  whole database is its metadata (`metadata(df, "notes")`).
+- **Two databases of different zeros are not mixed.** A species read from a
+  database of reactions has the Gibbs energy of its formation from the master
+  species, which are at zero; each species records that zero under `:gauge`,
+  and `ChemicalSystem` refuses a system that mixes two.
+- **The substances a ThermoFun file defines by a reaction follow it** at every
+  temperature, as ThermoFun computes them: 17 in Cemdata18, 440 in PSI/Nagra
+  12/07. They kept their tabulated energies. The two M-S-H end members of
+  Cemdata18 move by 0.08 and 0.10 in log K at 25 °C, now 0.166 and 0.110 above
+  Table 2 of Lothenbach et al. (2019) where their tabulated energies were 0.244
+  and 0.205 above it; the seawater flushed through a paste forms M-S-H after
+  9173 mL per 100 g of cement rather than 9368.
+- **The minerals and the dissolved gases of aq17 move away from the reference
+  state.** The volume and the order-disorder transitions of Holland and Powell
+  (1998) and the equation of Akinfiev and Diamond (2003) were left aside: up to
+  150 °C and 100 bar the Gibbs energies of the dissolved gases move by 3 to
+  4 kJ/mol, those of the minerals by 0.2 to 1 kJ/mol.
+- **New exported names**: `import_database`, `read_gwb_database`,
+  `read_eq36_database`, `read_reaktoro_database`, `FormationLogK`,
+  `T_STANDARD`, `T_STANDARD_Q`, `T_ZERO_CELSIUS`, `T_ZERO_CELSIUS_Q`, `CALORIE`
+  and `CALORIE_Q`. A package defining the same names alongside `using
+  ChemistryLab` now sees a conflict.
+
+### Added
+
+- **Databases obtained, never stored.** The six databases distributed with
+  PHREEQC 3.7.3 (`phreeqc.dat`, `llnl.dat`, `minteq.v4.dat`, `wateq4f.dat`,
+  `sit.dat`, `pitzer.dat`) are obtained by `datapath` from the repository of
+  PHREEQC at that version and checked against their SHA-256, like the ThermoFun
+  files of ThermoHub; every other database is installed by hand, and
+  `database_info` prints the terms of each.
+- **`read_phreeqc_database`** reads a PHREEQC database whole: its master
+  species, its solution species and phases resolved against them, their log K
+  as the manual defines them (`log_k`, `delta_h` in any unit, the analytic
+  expression, named expressions), the activity parameters and those of the LLNL
+  model. **`database_activity_model`** gives the model PHREEQC applies with
+  each database: Truesdell-Jones with PHREEQC's activity of water
+  (`a_w = 1 - 0.017 Σm`); `LLNLActivityModel`, new, the B-dot model of
+  `llnl.dat`; SIT with the osmotic activity of water (`water = :osmotic`);
+  Pitzer with the pairs a set leaves out taken as zero (`missing_pairs =
+  :zero`). Against PHREEQC 3.7.3 on its six databases, a seven-ion solution
+  and calcite with gypsum at 25 and 60 °C: within 2e-5 given PHREEQC's
+  Debye-Hückel A and B, 7e-5 at 60 °C (PHREEQC's gas constant in its van 't
+  Hoff equation) and 8e-5 with `pitzer.dat` (its `-ZETA` terms).
+- **`read_gwb_database`** and **`read_eq36_database`** read the thermo datasets
+  of The Geochemist's Workbench and the data0 files of EQ3/6, their log K
+  evaluated as each format's documentation states; tested on files written
+  during the test from `llnl.dat`.
+- **`read_reaktoro_database`** reads a YAML database of Reaktoro (HKF,
+  MaierKelley, HollandPowell with the modified Tait equation of state of
+  Holland and Powell (2011), water); tested against Reaktoro 2.13.0.
+- **`import_database`** reads any of the five formats.
+- **The methods of aq17**, from their articles: the Murnaghan volume and the
+  Landau transition of Holland and Powell (1998), the dissolved gases of
+  Akinfiev and Diamond (2003); against ThermoFun up to 150 °C and 100 bar,
+  within 0.05 J/mol for the minerals once its convention of integrating the
+  volume from zero pressure is accounted for, and within 8 J/mol for the gases.
+- **`T_STANDARD`, `T_ZERO_CELSIUS`, `CALORIE`** and their quantities, used in
+  place of the numbers written inline in the sources.
+- **The gauge of a database of reactions**, written out in *Formation
+  quantities* (Theory), with the proof that an equilibrium does not depend on
+  it.
+- **A Manual page, *Importing thermodynamic databases***, first of the pages on
+  databases: the two families of formats, where each file comes from and under
+  what terms, each reader on an excerpt of the files it reads (checked by the
+  tests against its source), the activity model of a database, why two
+  databases do not mix, and how a database is extended.
+
+### Fixed
+
+- `build_reactions` read the reactants of a ThermoFun reaction in the order of
+  their JSON keys, taking a coefficient for a symbol on some files; it reads
+  them by symbol, and a reaction listed twice in Cemdata18 is one reaction. A
+  reactant the species given do not contain is refused, where it became a new
+  species with no data.
+- The entropy of a ThermoFun reaction is read from `drsm_entropy`, the key
+  ThermoFun writes; the seventh term of `logk_fpt_function` is `A6/sqrt(T)`.
+- The docstring of the sublattice model named a file that does not exist; it
+  names `cemdata18-cashplus.json`, the database the package builds.
+- The manual said the molar volume of water does not depend on pressure; it
+  falls by 0.44 % over 100 bar, and the page on solving gives that lever.
+- *From scratch* compares with the values transcribed from Blanc et al.
+  (2012) in `data/literature/Blanc2012.json`, and says why the HKF model of the
+  aqueous ions, which the package carries, is not used there.
+- Under partial equilibrium, `cumulative_heat`, `heat_flow` and
+  `temperature_profile` threw "the partition cannot be solved at this state" on
+  runs that had completed, at the instants where the assemblage switches. The
+  accessors solve the partition of each instant from that of the instant
+  before, and there the certified solve stalls short of its certificate (a KKT
+  error of 1.5e-4 where hydrogarnet gives way to monosulfate); the run itself
+  had passed through the interior point, which its re-speciation falls back on.
+  The accessors now offer the answer of the interior point as the last start of
+  the certified solve, kept when it is proved: five of the 27 cements of Lerch
+  and Ford, which threw at 23.9 °C, are read back. The integration is unchanged:
+  offered there too, the start doubled the cost of a semi-adiabatic run and, kept
+  uncertified, made the temperature of its cell fail.
+
+### Documentation
+
+- **One page on Lavergne et al. (2018)** puts the package's calculation beside
+  each comparison the article makes with measurements it can run: the degrees
+  of hydration of the clinker phases of seven cements (Figs. 4 to 6), the
+  phases of a hydrating CEM I paste against the article's stoichiometric
+  reactions (Fig. 1, left), the heat of the cements of Lerch and Ford (1948) in
+  isothermal calorimeters at four temperatures (Fig. 7) and that of a mortar of
+  Waller (1999) up to 50 °C (Fig. 9(b)), a paste with 10 % of silica fume
+  (Fig. 1, right), and mortars in the semi-adiabatic calorimeter, plain, with
+  15 and 30 % of limestone and with 5 % of silica fume (Figs. 15(a) and 16(a));
+  the page on the semi-adiabatic calorimeter is merged into it. The model of
+  the paste of `scripts/ionic_hydration.jl` gains the silica fume of the
+  article, dissolving by the law of Waller (1999), with the tobermorite end
+  member of the C-S-H beside the jennite one. The comparisons locate where the
+  model departs from the measurements: its dormant period delays the first
+  hours, the kinetic law it shares with the article falls short on the cements
+  of types III and IV and overshoots more as the temperature rises, it holds no
+  acceleration by a limestone filler, and its silica fume, as fast as a fly
+  ash of five times its fineness and as sensitive to the temperature, overheats
+  the semi-adiabatic mortar. Every curve compared with is in
+  `data/literature/Lavergne2018.json`, read from the vector drawings of the
+  article, or from its raster images for Figs. 15(a) and 16(a).
+
 ## v0.36.0 — A slow surface, what a rate law may be, and surfaces away from 25 °C
 
 A site family can now be slow: when a kinetic reaction controls one of its

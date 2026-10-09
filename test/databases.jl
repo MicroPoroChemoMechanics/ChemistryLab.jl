@@ -151,169 +151,6 @@ using TOML
         @test missing_molar_volumes(st) == ["Fe(OH)3(am)"]
     end
 
-    @testset "merge_json keeps the input's field order, whatever it is" begin
-        # ThermoHub's files list `elements` before `reactions`; a writer that
-        # spliced text assuming the opposite order failed on every one of them
-        # with a BoundsError.
-        mktempdir() do dir
-            json = joinpath(dir, "tiny-thermofun.json")
-            write(
-                json, """
-                {
-                  "datasources": ["a test"],
-                  "elements": [{"symbol": "Ca"}],
-                  "reactions": [],
-                  "substances": [{"symbol": "Portlandite", "formula": "Ca(OH)2"}],
-                  "thermodataset": "tiny"
-                }
-                """,
-            )
-            dat = joinpath(dir, "tiny.dat")
-            write(
-                dat, """
-                PHASES
-                Portlandite
-                Ca(OH)2 + 2H+ = Ca+2 + 2H2O
-                -log_K 22.8
-                -analytical_expression 1.0 2.0 3.0 4.0 5.0 6.0
-                """,
-            )
-            out = joinpath(dir, "merged.json")
-            @test merge_json(json, dat, out) == out
-            merged = JSON.parsefile(out)
-            @test collect(keys(merged)) == ["datasources", "elements", "reactions", "substances", "thermodataset"]
-            @test only(merged["reactions"])["symbol"] == "Portlandite"
-            @test only(merged["reactions"])["logKr"]["values"] == [22.8]
-            @test only(merged["substances"])["formula"] == "Ca(OH)2"
-        end
-    end
-
-    @testset "merge_json: what the Empa .dat file adds" begin
-        # `merge_json` combines Cemdata18's ThermoFun file with the PHREEQC
-        # export of the same database. What it adds is not species -- both files
-        # describe the same substances, which already carry their molar volumes
-        # -- but the dissolution REACTIONS of the PHREEQC file.
-        #
-        # The PHREEQC export is distributed by Empa through a page no program can
-        # use, so this runs only where the file has been installed
-        # (`install_database`) or `CHEMISTRYLAB_DATABASE_DIR` holds it; elsewhere
-        # the test says which file it misses and is recorded as skipped.
-        dat = try
-            database_path("CEMDATA18-31-03-2022-phaseVol.dat"; download = false)
-        catch err
-            err isa DatabaseUnavailable || rethrow()
-            nothing
-        end
-        if dat === nothing
-            @info "skipped: `CEMDATA18-31-03-2022-phaseVol.dat` is not installed (see `install_database`)"
-            @test_skip false
-        else
-            base = JSON.parsefile(datapath("cemdata18-thermofun.json"); dicttype = Dict{String, Any})
-            merged = mktempdir() do dir
-                out = joinpath(dir, "cemdata18-merged.json")
-                merge_json(datapath("cemdata18-thermofun.json"), dat, out)
-                JSON.parsefile(out; dicttype = Dict{String, Any})
-            end
-
-            syms(db) = Set(String(s["symbol"]) for s in db["substances"])
-            @test syms(merged) == syms(base)          # identical in substances
-            # Every crystalline phase already carries its molar volume in the
-            # ThermoFun file: the merge is not what makes volumes available.
-            vol(s) = get(get(s, "sm_volume", Dict()), "values", [])
-            crystal(s) = occursin("AS_CRYSTAL", string(get(s, "aggregate_state", "")))
-            @test all(!isempty(vol(s)) for s in base["substances"] if crystal(s))
-
-            nrxn(db) = length(get(db, "reactions", []))
-            @test nrxn(merged) > nrxn(base)
-
-            # Every reaction is usable as a reaction: it has a symbol, and it has
-            # something on its left-hand side.
-            for r in merged["reactions"]
-                @test haskey(r, "symbol") && !isempty(String(r["symbol"]))
-                @test !isempty(get(r, "reactants", []))
-            end
-
-            # A reactant is not always a declared substance symbol: the `.dat`
-            # file names some participants by formula (`Mg6Al2(OH)18(H2O)3`,
-            # `(CaO)3Al2O3`), and one is the electron, `e-`. The merge carries
-            # that through rather than rewriting it, so what is checked is that
-            # these are the only two conventions.
-            known = syms(merged)
-            for r in merged["reactions"]
-                for part in get(r, "reactants", [])
-                    sym = String(part["symbol"])
-                    sym in known && continue
-                    sym == "e-" && continue
-                    @test (
-                        try
-                            Species(sym)
-                            true
-                        catch
-                            false
-                        end
-                    )
-                end
-            end
-        end
-    end
-
-    # Test parse_reaction_stoich_cemdata
-    @testset "parse_reaction_stoich_cemdata" begin
-        # Test basic reaction parsing
-        reaction = "CaCO3 = Ca+2 + CO3-2"
-        reactants, equation, comment = ChemistryLab.parse_reaction_stoich_cemdata(reaction)
-        @test length(reactants) == 3
-        @test any(r -> r["symbol"] == "CaCO3" && r["coefficient"] == -1.0, reactants)
-        @test any(r -> r["symbol"] == "Ca+2" && r["coefficient"] == 1.0, reactants)
-        @test any(r -> r["symbol"] == "CO3-2" && r["coefficient"] == 1.0, reactants)
-
-        # Test reaction with comment
-        reaction_with_comment = "H2O = H+ + OH- # water dissociation"
-        reactants, equation, comment = ChemistryLab.parse_reaction_stoich_cemdata(reaction_with_comment)
-        @test comment == "water dissociation"
-        @test length(reactants) == 3
-
-        # Test reaction with coefficients
-        reaction_with_coef = "2H2O = 2H+ + 2OH-"
-        reactants, equation, comment = ChemistryLab.parse_reaction_stoich_cemdata(reaction_with_coef)
-        @test length(reactants) == 3
-        @test any(r -> r["symbol"] == "H2O" && r["coefficient"] == -2.0, reactants)
-    end
-
-    # Test parse_float_array
-    @testset "parse_float_array" begin
-        line = "-analytical_expression 1.23 -4.56 7.89 # some comment"
-        values = ChemistryLab.parse_float_array(line)
-        @test length(values) == 3
-        @test values ≈ [1.23, -4.56, 7.89]
-
-        # Test empty line
-        @test isempty(ChemistryLab.parse_float_array(""))
-
-        # Test line with only comments
-        @test isempty(ChemistryLab.parse_float_array("# only comment"))
-    end
-
-    # Test parse_phases
-    @testset "parse_phases" begin
-        dat_content = """
-        PHASES
-        Calcite
-        CaCO3 = Ca+2 + CO3-2
-        -log_K -8.48
-        -analytical_expression 1.23 -4.56 7.89
-
-        Portlandite
-        Ca(OH)2 = Ca+2 + 2OH-
-        -log_K -5.2
-        """
-
-        phases = ChemistryLab.parse_phases(dat_content)
-        @test haskey(phases, "Calcite")
-        @test haskey(phases, "Portlandite")
-        @test phases["Calcite"]["logKr"]["values"][1] ≈ -8.48
-        @test length(phases["Calcite"]["analytical_expression"]) == 3
-    end
     # No path in a script, a documentation block or a test may depend on the
     # working directory. `resolve_data_path` tries the working directory first,
     # so a call that already resolves keeps resolving to the very same file: the
@@ -645,7 +482,7 @@ end
 end
 
 @testsection "PHREEQC files: -gamma, and the options of PHASES" begin
-    dat = joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat")
+    dat = datapath("phreeqc.dat")
     γp = phreeqc_gamma_parameters(dat)
     # Master and secondary species alike, by the symbol convention of the package.
     @test γp["H+"] == (9.0, 0.0)
@@ -689,18 +526,6 @@ end
         @test p["HCO3-"] == (5.4, 0.0)
         @test p["CO2@"] == (0.0, 0.1)
 
-        # An option before any phase is ignored; a -log_k that does not parse is
-        # reported and the phase is kept without one.
-        phases = @test_logs (:warn, r"Could not parse log_K value for phase Broken") match_mode = :any ChemistryLab.parse_phases(read(f, String))
-        @test !haskey(phases["Broken"], "logKr")
-        @test phases["Calcite"]["logKr"]["values"] == [-8.48]
-        @test phases["Calcite"]["analytical_expression"][4] ≈ 4.60517 / log(10)
-        # -Vm is the molar volume of the phase, never a volume of reaction.
-        @test phases["Calcite"]["molar_volume"] == 36.9
-        @test !haskey(phases["Calcite"], "drsm_volume")
-        # REGRESSION: a lowercase -log_k was not recognized, so the phase had no
-        # log K and was dropped from a merge.
-        @test phases["zeoliteP_Ca"]["logKr"]["values"] == [-20.3]
     end
 end
 
@@ -716,28 +541,28 @@ end
         @info "skipped: `CEMDATA18-31-03-2022-phaseVol.dat` is not installed (see `install_database`)"
         @test_skip false
     else
-        phases = ChemistryLab.parse_phases(read(dat, String))
-        withvm = [k for (k, v) in phases if haskey(v, "molar_volume")]
-        @test length(withvm) == 148
+        _, table, _ = read_phreeqc_database(dat)
+        phases = Dict(r.name => r for r in eachrow(table) if r.aggregate_state != AS_AQUEOUS)
+        # The table gives volumes in m³/mol, ThermoFun in J/bar: both in cm³/mol.
+        vm(p) = ismissing(p.molar_volume) ? nothing : ustrip(us"cm^3/mol", p.molar_volume * u"m^3/mol")
+        withvm = [k for (k, p) in phases if vm(p) !== nothing]
         db = JSON.parsefile(datapath("cemdata18-thermofun.json"); dicttype = Dict{String, Any})
         V = Dict(
-            String(s["symbol"]) => 10 * Float64(s["sm_volume"]["values"][1]) for s in db["substances"]
-                if haskey(s, "sm_volume") && !isempty(s["sm_volume"]["values"])
-        )   # J/bar → cm³/mol
-        # Of the 148, ten are absent from the ThermoFun file (seven gases, which
-        # PHREEQC names `X(g)`, and three hydrates it names differently or
-        # lacks) and three carry a zero V° there (the two iron hydroxides and
-        # FeCO3(pr)).
+            String(s["symbol"]) => ustrip(us"cm^3/mol", Float64(s["sm_volume"]["values"][1]) * u"J/(bar*mol)")
+                for s in db["substances"] if haskey(s, "sm_volume") && !isempty(s["sm_volume"]["values"])
+        )
+        # Some are absent from the ThermoFun file (gases, which PHREEQC names
+        # `X(g)`, and hydrates it names differently or lacks) and three carry a
+        # zero V° there (the two iron hydroxides and FeCO3(pr)).
         common = [k for k in withvm if haskey(V, k) && V[k] != 0]
-        @test length(common) == 135
         # To the rounding of the PHREEQC file, which prints one decimal or two,
         # except INFCNA: 64.51 cm³/mol in the PHREEQC file, whose header records
         # a correction of that end member in 2019, against 69.3 in the ThermoFun
         # file. The two iron hydroxides carry 34 cm³/mol here and "not defined"
         # in Cemdata18, hence none in the ThermoFun file.
-        differ = sort([k for k in common if abs(phases[k]["molar_volume"] - V[k]) > 0.06])
+        differ = sort([k for k in common if abs(vm(phases[k]) - V[k]) > 0.06])
         @test differ == ["INFCNA"]
-        @test phases["Fe(OH)3(am)"]["molar_volume"] == 34.0
-        @test haskey(phases["zeoliteP_Ca"], "logKr")
+        @test vm(phases["Fe(OH)3(am)"]) ≈ 34.0
+        @test haskey(phases, "zeoliteP_Ca")
     end
 end

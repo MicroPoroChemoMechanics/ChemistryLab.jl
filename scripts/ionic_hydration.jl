@@ -78,6 +78,17 @@ const IONIC_SYSTEMS = Dict(
             "monocarbonate", "C3AH6", "FeOOHmic",
         ],
     ),
+    # The same cement with silica fume: amorphous silica dissolving by the law of
+    # Waller (1999), and the tobermorite end member of the C-S-H beside the
+    # jennite one, so that the minimization can lower the Ca/Si of the C-S-H as
+    # the silica consumes the portlandite.
+    :opc_sf => (
+        anhydrous = ["C3S", "C2S", "C3A", "C4AF", "Gp", "Cal", "Amor-Sl"],
+        hydrates = [
+            "Portlandite", "Jennite", "Tob-II", "ettringite", "monosulphate12",
+            "monocarbonate", "C3AH6", "FeOOHmic",
+        ],
+    ),
 )
 
 """
@@ -127,7 +138,8 @@ const IONIC_GROUPS = [
     "anhydrous" => ["C3S", "C2S", "C3A", "C4AF"],
     "gypsum" => "Gp",
     "calcite" => "Cal",
-    "C-S-H" => "Jennite",
+    "C-S-H" => ["Jennite", "Tob-II"],
+    "silica fume" => "Amor-Sl",
     "CH" => "Portlandite",
     "AFt" => "ettringite",
     "AFm" => ["monosulphate12", "monocarbonate"],
@@ -159,6 +171,19 @@ the convention of Lavergne et al. (2018); pass `gel_water = 0` to
 [`ionic_phase_history`](@ref) to leave it in the liquid.
 """
 const GEL_WATER_PER_CSH = 4.0 - 2.1
+
+"""
+    gel_water_per_tobermorite(cs) -> Float64
+
+Water held in the gel of the C-S-H of the pozzolanic reaction, per mole of
+silicon: the C₁.₁SH₃.₉ of Lavergne et al. (2018) less the water the `Tob-II` end
+member of `cs` carries in its own formula. Counted with the C-S-H, as
+[`GEL_WATER_PER_CSH`](@ref) is.
+"""
+function gel_water_per_tobermorite(cs)
+    a = atoms(cs["Tob-II"])
+    return ustrip(literature_value("Lavergne2018", "pozzolanic_csh_water")) - a[:H] / 2 / a[:Si]
+end
 
 """
     build_ionic_system(system = IONIC_DEFAULT_SYSTEM) -> ChemicalSystem
@@ -269,6 +294,12 @@ const IONIC_PK84 = Dict(
 Congruent dissolution of each anhydrous phase into the primary aqueous species,
 with a Parrott–Killoh rate scaled by a per-phase calibration factor.
 
+Silica fume, `Amor-Sl` in the system `:opc_sf`, dissolves by the law of
+[`waller`](@ref) with the parameters of Lavergne et al. (2018)
+([`WALLER_PARAMS_SILICA_FUME`](@ref)), at the fineness `silica_fume.blaine` and up
+to its pozzolanic activity `silica_fume.activity`, the share of it that can react;
+`silica_fume` is the named tuple [`run_ionic_hydration`](@ref) takes.
+
 `pk_params` overrides the published Parrott–Killoh sets, as a
 `Dict{String,NamedTuple}` keyed by phase symbol; `nothing` (default) keeps them.
 It is what `hydration_calibration.jl` varies, and it is deliberately separate
@@ -296,6 +327,7 @@ function ionic_reactions(
         pk_params = nothing,
         induction = ionic_induction(),
         induction_phases = IONIC_INDUCTION_PHASES,
+        silica_fume = nothing,
     )
     nmv = symbol.(cs.species)
     prim = [
@@ -312,6 +344,14 @@ function ionic_reactions(
 
         base = if haskey(pk_of, a)
             parrott_killoh_avrami(pk_of[a], a; α_max, blaine)
+        elseif a == "Amor-Sl"
+            silica_fume === nothing && throw(
+                ArgumentError("the system :$system holds silica fume: pass `silica_fume`."),
+            )
+            waller(
+                WALLER_PARAMS_SILICA_FUME, a;
+                blaine = silica_fume.blaine, α_max = silica_fume.activity,
+            )
         else
             # Gypsum and calcite are not clinker: give them a fast first-order
             # release so sulfate and carbonate are available to the minimization
@@ -325,7 +365,7 @@ function ionic_reactions(
 
         f = get(calibration, a, 1.0)
         β = (induction !== nothing && a in induction_phases) ? induction : nothing
-        rate = if haskey(pk_of, a) || β !== nothing
+        rate = if haskey(pk_of, a) || a == "Amor-Sl" || β !== nothing
             g = β === nothing ? (_t -> 1.0) : β
             KineticFunc(
                 (T, P, t, n, lna, n0) -> f * g(t) * base(T, P, t, n, lna, n0),
@@ -339,6 +379,30 @@ function ionic_reactions(
         push!(out, KineticReaction(cs, rxn))
     end
     return out
+end
+
+"""
+    lavergne_addition(name, fraction) -> NamedTuple
+
+The mineral addition `name` of Lavergne et al. (2018), Table 7 (`"SF"`, `"Fly ash"`,
+…), read from `data/literature/Lavergne2018.json`, at the mass `fraction` of the
+binder: `(; fraction, silica, alumina, sulfate, activity, blaine)`, the oxides as
+mass fractions of the addition (zero where the table gives none), the pozzolanic
+activity as the share that can react, and the Blaine fineness.
+"""
+function lavergne_addition(name, fraction)
+    t = literature_table("Lavergne2018", "table7_additions")
+    i = findfirst(==(name), t.name)
+    i === nothing && throw(ArgumentError("no addition $name in Table 7 of Lavergne et al. (2018)"))
+    parts = Dict(
+        strip(k) => parse(Float64, strip(v))
+            for (k, v) in (split(x, "=") for x in split(replace(t.composition[i], "CS̅" => "CSbar"), ","))
+    )
+    pct(k) = get(parts, k, 0.0) / 100
+    return (;
+        fraction, silica = pct("S"), alumina = pct("A"), sulfate = pct("CSbar"),
+        activity = parts["activity"], blaine = t.blaine[i],
+    )
 end
 
 """
@@ -360,6 +424,13 @@ behavior. `ode_solver` and `tstops` go to the integrator — the default
 sharp early feature is exactly the case where an adaptive-order multistep method
 is worth measuring against it.
 
+`silica_fume`, when given, is a named tuple `(; fraction, silica, activity,
+blaine)`: its mass fraction of the binder, the mass fraction of silica it holds,
+the share of that silica which can react, and its Blaine fineness, as
+[`lavergne_addition`](@ref) reads them from Table 7 of Lavergne et al. (2018). The
+silica enters as `Amor-Sl` and the rest of the fume is left out; the system is
+then `:opc_sf`.
+
 Returns `(; cs, state0, kp, system, calorimeter, sol)`. The activity model is
 `HKFActivityModel` on both halves — a cement pore solution sits at
 I ≈ 0.1–0.7 mol/kg, where a dilute model is not defensible.
@@ -378,11 +449,19 @@ function run_ionic_hydration(;
         induction_phases = IONIC_INDUCTION_PHASES,
         ode_solver = Rodas5P(),
         tstops = Float64[],
+        silica_fume = nothing,
         solver_kwargs...,
     )
+    if silica_fume !== nothing
+        system === IONIC_DEFAULT_SYSTEM && (system = :opc_sf)
+        "Amor-Sl" in IONIC_SYSTEMS[system].anhydrous || throw(
+            ArgumentError("the system :$system holds no silica fume; use :opc_sf."),
+        )
+    end
     cs = build_ionic_system(system)
     nmv = symbol.(cs.species)
-    f_clinker = 1.0 - gypsum - filler
+    f_sf = silica_fume === nothing ? 0.0 : silica_fume.fraction
+    f_clinker = 1.0 - gypsum - filler - f_sf
 
     mb = ustrip(us"kg", binder_mass)
     T0 = calorimeter === nothing ? 293.15u"K" : _calorimeter_T0(calorimeter)
@@ -393,10 +472,11 @@ function run_ionic_hydration(;
     end
     gypsum > 0 && "Gp" in nmv && set_quantity!(state0, "Gp", (mb * gypsum)u"kg")
     filler > 0 && "Cal" in nmv && set_quantity!(state0, "Cal", (mb * filler)u"kg")
+    f_sf > 0 && set_quantity!(state0, "Amor-Sl", (mb * f_sf * silica_fume.silica)u"kg")
     set_quantity!(state0, "H2O@", (mb * wb)u"kg")
 
     model = HKFActivityModel()
-    krs = ionic_reactions(cs; wb, blaine, system, pk_params, induction, induction_phases)
+    krs = ionic_reactions(cs; wb, blaine, system, pk_params, induction, induction_phases, silica_fume)
     kp = if calorimeter === nothing
         KineticsProblem(
             cs, krs, state0, (0.0, tend);
@@ -423,10 +503,29 @@ _calorimeter_T0(cal::SemiAdiabaticCalorimeter) = cal.T0
 # ── calorimetry, after Lavergne et al. (2018) §4.1 ────────────────────────────
 
 """
+    calorimetry_mix(name, table = "semi_adiabatic_mixes_wb050") -> NamedTuple
+
+Mix proportions of the mortar `name` of Lavergne et al. (2018), Table 11, read
+from `data/literature/Lavergne2018.json`, `table` naming its group at w/b = 0.5
+(`"semi_adiabatic_mixes_wb050"`) or 0.32 (`"semi_adiabatic_mixes_wb032"`): the
+binder, the dry sand and the water, the water the dry sand absorbs (`absorbed`),
+0.9 % of its mass by the caption of the table, and the water-to-binder ratio of
+the paste once that water is set aside (`wb`).
+"""
+function calorimetry_mix(name, table = "semi_adiabatic_mixes_wb050")
+    m = literature_row("Lavergne2018", table, name)
+    absorbed = ustrip(literature_value("Lavergne2018", "sand_water_absorption")) * m.dry_sand
+    return (
+        binder = m.binder, sand = m.dry_sand, water = m.water, absorbed = absorbed,
+        wb = Float64(ustrip((m.water - absorbed) / m.binder)),
+    )
+end
+
+"""
     CALORIMETRY_MIX_C100
 
 Mix proportions of the plain-cement semi-adiabatic test of Lavergne et al.
-(2018), Table 11, at w/b = 0.5, read from `data/literature/Lavergne2018.json`:
+(2018), Table 11, at w/b = 0.5 ([`calorimetry_mix`](@ref)):
 371 g of binder, 1113 g of dry sand, 196 g of water. The sand is there to keep
 the temperature rise moderate, as NF EN 196-9 prescribes; it takes no part in the
 chemistry and enters only through its heat capacity. The water includes what the
@@ -434,13 +533,7 @@ dry sand absorbs, 0.9 % of its mass by the caption of the table: `absorbed` is
 that water, which stays in the sand, and `wb` the water-to-binder ratio of the
 paste once it is set aside.
 """
-const CALORIMETRY_MIX_C100 = let m = literature_row("Lavergne2018", "semi_adiabatic_mixes_wb050", "C100")
-    absorbed = ustrip(literature_value("Lavergne2018", "sand_water_absorption")) * m.dry_sand
-    (
-        binder = m.binder, sand = m.dry_sand, water = m.water, absorbed = absorbed,
-        wb = Float64(ustrip((m.water - absorbed) / m.binder)),
-    )
-end
+const CALORIMETRY_MIX_C100 = calorimetry_mix("C100")
 
 """
     CALORIMETRY_LOSS_A, CALORIMETRY_LOSS_B
@@ -592,13 +685,12 @@ function ionic_phase_history(run, times; gel_water = GEL_WATER_PER_CSH, states =
     phs = Vector{Float64}(undef, length(times))
     pors = Vector{NamedTuple}(undef, length(times))
     nmv = symbol.(run.cs.species)
+    members(v) = filter(x -> x in nmv, v isa AbstractString ? [v] : v)
     groups = vcat(
-        [
-            k => v for (k, v) in IONIC_GROUPS
-                if any(x -> x in nmv, v isa AbstractString ? [v] : v)
-        ],
+        [k => members(v) for (k, v) in IONIC_GROUPS if !isempty(members(v))],
         [ionic_water_group(run.cs)],
     )
+    tob = "Tob-II" in nmv && gel_water > 0 ? gel_water_per_tobermorite(run.cs) : 0.0
     sts = states === nothing ? speciated_states(run.sol, run.kp; times = times) : states
     for (i, st) in enumerate(sts)
         f = volume_fractions(st, groups; reference = run.state0)
@@ -611,7 +703,8 @@ function ionic_phase_history(run, times; gel_water = GEL_WATER_PER_CSH, states =
                     T = temperature(st), P = pressure(st); unit = true,
                 ) / V_ref,
             )
-            f_gel = min(n_csh * gel_water * V_H2O, get(d, "water", 0.0))
+            n_tob = tob > 0 ? ustrip(us"mol", moles(st, "Tob-II")) : 0.0
+            f_gel = min((n_csh * gel_water + n_tob * tob) * V_H2O, get(d, "water", 0.0))
             d["C-S-H"] = get(d, "C-S-H", 0.0) + f_gel
             d["water"] = get(d, "water", 0.0) - f_gel
         end

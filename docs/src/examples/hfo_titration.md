@@ -47,12 +47,12 @@ mRT(logK) = -RT * log(10.0^logK)
 
 # PHREEQC's own constants for this model, read from the copy of phreeqc.dat
 # that the test oracles use rather than typed again.
-dat = read_sorption_model(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+dat = read_sorption_model(datapath("phreeqc.dat"))
 log_k(product) = only(reactions_involving(dat, product)).log_K.value
 logK_prot, logK_depr = log_k("Hfo_wOH2+"), log_k("Hfo_wO-")
 logK_Zn_strong, logK_Zn_weak = log_k("Hfo_sOZn+"), log_k("Hfo_wOZn+")
 
-# The aqueous species come from a database the package ships, not from numbers
+# The aqueous species come from a database the package reads, not from numbers
 # typed here — see [Where the numbers come from](@ref sec-manual-numbers).
 db = Dict(symbol(s) => s for s in
           build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))

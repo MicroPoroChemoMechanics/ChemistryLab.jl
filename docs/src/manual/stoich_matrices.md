@@ -194,7 +194,7 @@ list_reactions = reactions(cs.SM)
 ## Where to go next
 
 The matrix is computed from real data once species are read from a database,
-which is the subject of [Database Interoperability](@ref sec-databases); the
+which is the subject of [Importing thermodynamic databases](@ref sec-importing-databases); the
 application page [Stoichiometric matrices](@ref ex-stoich-matrix) shows it over
 atoms, over primary species and in cement notation. In an equilibrium
 calculation the matrix is held by a [`ChemicalSystem`](@ref), described in

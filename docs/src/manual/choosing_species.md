@@ -1,8 +1,8 @@
 # [Choosing the species list](@id man-choosing-species)
 
 !!! info "Before this page"
-    [Database Interoperability](@ref sec-databases) and the tutorial [Chemical
-    Equilibrium](@ref sec-equilibrium).
+    [Database extensions, filters and solid solutions](@ref sec-databases) and
+    the tutorial [Chemical Equilibrium](@ref sec-equilibrium).
 
 A Gibbs energy minimization answers the question *"of the phases I was told
 about, which assemblage has the lowest energy?"*. It cannot form a phase it was

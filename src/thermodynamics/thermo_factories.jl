@@ -93,7 +93,7 @@ struct NumericFunc{N, F, R <: NamedTuple, Q} <: AbstractFunc
 end
 
 # Global fallback for vars absent from refs
-const _NF_DEFAULT_REFS = (T = 298.15u"K", P = 1.0e5u"Pa")
+const _NF_DEFAULT_REFS = (T = T_STANDARD_Q, P = P_STANDARD_Q)
 
 """
     NumericFunc(f, vars, unit)

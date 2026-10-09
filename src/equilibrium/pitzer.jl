@@ -132,7 +132,7 @@ end
 const _PITZER_TABLES = (:beta0, :beta1, :beta2, :Cphi, :theta, :psi, :lambda)
 
 # The reference temperature of the temperature terms, PHREEQC's.
-const _PITZER_TR = 298.15
+const _PITZER_TR = T_STANDARD
 
 # The five temperature coefficients A₁…A₅ of an entry, fewer meaning zeros.
 function _five(::Type{T}, v) where {T}
@@ -218,7 +218,8 @@ end
 end
 
 """
-    PitzerActivityModel(; parameters, temperature_dependent = false, etheta = true)
+    PitzerActivityModel(; parameters, temperature_dependent = false, etheta = true,
+                          missing_pairs = :refuse, A = $(_DH_A_25C))
 
 The Pitzer ion-interaction activity model.
 
@@ -228,6 +229,12 @@ is not a property of the set alone but of the set *relative to a species list*,
 so the check happens when the model meets a [`ChemicalSystem`](@ref): every
 cation-anion pair the system contains must have a `beta0` entry, and the error
 names the pairs that do not.
+
+`missing_pairs = :zero` takes the coefficients of such a pair as zero instead,
+which is what PHREEQC does with a database whose `PITZER` block leaves pairs out
+(`pitzer.dat` describes neither H⁺–OH⁻ nor Ca²⁺–CO₃²⁻): it is the convention of
+the database, and [`database_activity_model`](@ref) builds the model of such a
+database with it.
 
 # Why this model rather than an extended Debye-Hückel one
 
@@ -260,8 +267,10 @@ are fitted together, and a set is used with the convention it was fitted with.
 
 # Temperature
 
-`temperature_dependent = true` takes ``A_\\varphi`` from the water model at the
-temperature of the state, and evaluates the temperature terms of the
+`A` is the Debye–Hückel constant of the decimal logarithm, from which
+``A_\\varphi = A \\ln 10 / 3``. It is used as given unless
+`temperature_dependent = true`, which takes ``A_\\varphi`` from the water model at
+the temperature of the state, and evaluates the temperature terms of the
 coefficients when the set carries them (see [`PitzerParameters`](@ref)). A
 published set fitted at one temperature carries none, and is then used at its
 own values whatever the temperature, which is what the set can support.
@@ -276,14 +285,22 @@ model = PitzerActivityModel(; parameters = p)
 See also: [`PitzerParameters`](@ref), [`build_pitzer_parameters`](@ref),
 [`pitzer_origin`](@ref).
 """
-struct PitzerActivityModel{T <: Real} <: AbstractActivityModel
+struct PitzerActivityModel{T <: Real, TA <: Real} <: AbstractActivityModel
     parameters::PitzerParameters{T}
     temperature_dependent::Bool
     etheta::Bool
+    missing_pairs::Symbol
+    A::TA
 end
 
-PitzerActivityModel(; parameters, temperature_dependent::Bool = false, etheta::Bool = true) =
-    PitzerActivityModel(parameters, temperature_dependent, etheta)
+function PitzerActivityModel(;
+        parameters, temperature_dependent::Bool = false, etheta::Bool = true,
+        missing_pairs::Symbol = :refuse, A::Real = _DH_A_25C,
+    )
+    missing_pairs in (:refuse, :zero) ||
+        throw(ArgumentError("missing_pairs is `:refuse` or `:zero`; got `:$missing_pairs`"))
+    return PitzerActivityModel(parameters, temperature_dependent, etheta, missing_pairs, float(A))
+end
 
 concentration_scale(::PitzerActivityModel) = :molality
 
@@ -403,7 +420,8 @@ Return the closure `lna(n, p)` of the Pitzer model for `cs`.
 
 The completeness of `model.parameters` is checked **here**, against the species
 `cs` actually contains, and a missing cation-anion pair raises rather than
-defaulting to ideal behavior.
+defaulting to ideal behavior, unless the model takes it as zero
+(`missing_pairs = :zero`).
 """
 function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
     idx_solvent = only(cs.idx_solvent)
@@ -430,7 +448,7 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
     for c in cats, a in ans
         haskey(par.beta0, (sym[c], sym[a])) || push!(missing_pairs, (sym[c], sym[a]))
     end
-    if !isempty(missing_pairs)
+    if !isempty(missing_pairs) && model.missing_pairs === :refuse
         listed = join(("$(c)/$(a)" for (c, a) in missing_pairs), ", ")
         throw(
             ArgumentError(
@@ -449,7 +467,7 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
 
     # Precomputed per-pair tables, Float64 and not differentiated.
     npair = (length(cats), length(ans))
-    B0 = [par.beta0[(sym[c], sym[a])] for c in cats, a in ans]
+    B0 = [get(par.beta0, (sym[c], sym[a]), zero(valtype(par.beta0))) for c in cats, a in ans]
     B1 = [get(par.beta1, (sym[c], sym[a]), 0.0) for c in cats, a in ans]
     B2 = [get(par.beta2, (sym[c], sym[a]), 0.0) for c in cats, a in ans]
     CC = [
@@ -495,7 +513,7 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
 
     α2 = par.alpha2
     bp = par.b
-    A_fixed = _DH_A_25C                  # log10-basis Debye-Hückel A at 25 °C
+    A_fixed = model.A                    # log10-basis Debye-Hückel A
     temp_dep = model.temperature_dependent
     t_terms = temp_dep && any(!isempty, values(tt))
     # The charges of the cations and of the anions, for the higher-order

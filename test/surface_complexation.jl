@@ -1122,7 +1122,7 @@ end
     # `read_sorption_model`: the energies must be the same numbers.
     cs, _, _ = _hfo_system()
     aqueous = [sp for sp in cs.species if aggregate_state(sp) != AS_SURFACE]
-    dat = read_sorption_model(joinpath(@__DIR__, "reference", "phreeqc.dat"))
+    dat = read_sorption_model(datapath("phreeqc.dat"))
     G(s) = ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
     for (master, site, fam) in (
             ("Hfo_s", "Xs", cs.site_families[1]), ("Hfo_w", "Xw", cs.site_families[2]),

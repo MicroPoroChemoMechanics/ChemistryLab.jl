@@ -116,7 +116,7 @@ function _gas_lna!(out, _n, idx_gas, p, mix::_PengRobinsonMixing)
     m = length(idx_gas)
     n_gas = sum((_n[i] + ϵ for i in idx_gas); init = zero(eltype(_n)))
     y = m == 1 ? [one(eltype(_n))] : [(_n[i] + ϵ) / n_gas for i in idx_gas]
-    T = hasproperty(p, :T) ? p.T : 298.15
+    T = hasproperty(p, :T) ? p.T : T_STANDARD
     P = hasproperty(p, :P) ? p.P : P_STANDARD
     lnφ, _ = _pr_ln_phi(mix, y, T, P)
     lnP = _ln_pressure_ratio(p)
@@ -1285,10 +1285,17 @@ PHREEQC applies:
 \\log_{10}\\gamma_i = 0.1\\,I .
 ```
 
-The solvent follows Raoult's law, `ln a_w = ln x_w`. Its per-species parameters
-leave the Gibbs–Duhem relation no closed-form partner for the solvent, so the
-model is not the gradient of one Gibbs energy, and a certificate says so
-(`:self_consistent`).
+The solvent follows Raoult's law, `ln a_w = ln x_w`, or, with `water =
+:phreeqc`, the approximation PHREEQC applies to every database without a Pitzer
+or SIT block [ParkhurstAppelo1999; Eq. 25](@cite),
+
+```math
+a_w = 1 - 0.017 \\sum_i m_i ,
+```
+
+the sum over the solutes. Neither is the partner the Gibbs–Duhem relation gives
+the per-species parameters, which have no closed-form one, so the model is not
+the gradient of one Gibbs energy, and a certificate says so (`:self_consistent`).
 
 # Fields
 
@@ -1297,11 +1304,12 @@ model is not the gradient of one Gibbs energy, and a certificate says so
     properties at every call.
   - `parameters`: species symbol ⇒ `(å, b)`, as [`phreeqc_gamma_parameters`](@ref)
     reads them from a database file.
+  - `water`: `:raoult` or `:phreeqc`, the activity of the solvent.
 
 # Example
 
 ```julia
-params = phreeqc_gamma_parameters(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+params = phreeqc_gamma_parameters(datapath("phreeqc.dat"))
 model = TruesdellJonesActivityModel(; parameters = params)
 ```
 """
@@ -1310,6 +1318,7 @@ struct TruesdellJonesActivityModel{T <: Real} <: AbstractActivityModel
     B::T
     parameters::Dict{String, Tuple{T, T}}
     temperature_dependent::Bool
+    water::Symbol
 end
 
 # The two defaults of PHREEQC for a species without `-gamma`: the constant of
@@ -1320,19 +1329,37 @@ const _PHREEQC_DAVIES_B = 0.3
 const _PHREEQC_NEUTRAL_B = 0.1
 
 """
-    TruesdellJonesActivityModel(; parameters, A=$(_DH_A_25C), B=$(_DH_B_25C), temperature_dependent=false)
+    TruesdellJonesActivityModel(; parameters, A=$(_DH_A_25C), B=$(_DH_B_25C), temperature_dependent=false, water=:raoult)
 
 Construct a [`TruesdellJonesActivityModel`](@ref) from a dictionary of species
 parameters, typically [`phreeqc_gamma_parameters`](@ref)`(path)`.
 """
 function TruesdellJonesActivityModel(;
         parameters::AbstractDict, A::Real = _DH_A_25C, B::Real = _DH_B_25C,
-        temperature_dependent::Bool = false,
+        temperature_dependent::Bool = false, water::Symbol = :raoult,
     )
+    _check_water_law(water)
     T = promote_type(typeof(A), typeof(B), (promote_type(map(typeof, v)...) for v in values(parameters))...)
     T = float(T)
     p = Dict{String, Tuple{T, T}}(String(k) => (T(v[1]), T(v[2])) for (k, v) in parameters)
-    return TruesdellJonesActivityModel{T}(T(A), T(B), p, temperature_dependent)
+    return TruesdellJonesActivityModel{T}(T(A), T(B), p, temperature_dependent, water)
+end
+
+_check_water_law(water) = water in (:raoult, :phreeqc) ||
+    throw(ArgumentError("the activity of water is `:raoult` or `:phreeqc`; got `:$water`"))
+
+# The coefficient of PHREEQC's activity of water, `a_w = 1 − 0.017 Σ mᵢ`.
+const _PHREEQC_WATER_COEFFICIENT = ustrip(us"kg/mol", literature_value("ParkhurstAppelo1999", "water_activity_coefficient"))
+
+# ln a_w of the solvent: Raoult's mole fraction, or PHREEQC's approximation, from
+# the amount of water, the amount of the aqueous phase and the sum of the
+# amounts of its solutes. PHREEQC's has no value past Σm = 1/0.017 ≈ 59 mol/kg,
+# far beyond the range of any of the models it serves; it is held at its bound
+# there, which keeps a trial step of a solver finite.
+@inline function _solvent_lna(water::Symbol, n_w, n_aqueous, n_solutes, M_w)
+    water === :raoult && return log(n_w / n_aqueous)
+    x = _PHREEQC_WATER_COEFFICIENT * n_solutes / (n_w * M_w)
+    return log1p(-min(x, one(x) - 1.0e-12))
 end
 
 concentration_scale(::TruesdellJonesActivityModel) = :molality
@@ -1404,8 +1431,193 @@ function activity_model(cs::ChemicalSystem, model::TruesdellJonesActivityModel)
         @inbounds for i in idx_solutes
             out[i] = ln10 * _truesdell_jones(parv[i], zv[i], I, sqrtI, A, B) + log(_n[i] / denom_mol)
         end
-        n_aqueous = n_w + sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
-        out[idx_solvent] = log(n_w / n_aqueous)
+        n_solutes = sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
+        out[idx_solvent] = _solvent_lna(model.water, n_w, n_w + n_solutes, n_solutes, M_w)
+        has_gas && _gas_lna!(out, _n, idx_gas, p, gas_mix)
+        _mixing_lna!(out, _n, mix, p, ϵ)
+        return out
+    end
+    return lna
+end
+
+# ── LLNLActivityModel ────────────────────────────────────────────────────────
+
+"""
+    struct LLNLActivityModel{T<:Real} <: AbstractActivityModel
+
+The aqueous model of Lawrence Livermore National Laboratory, as a PHREEQC
+database that carries `LLNL_AQUEOUS_MODEL_PARAMETERS` defines it (`llnl.dat`):
+the B-dot equation with Debye–Hückel parameters tabulated in temperature, and a
+formula of its own for aqueous carbon dioxide
+[ParkhurstAppelo2013; p. 120](@cite).
+
+# Formulas
+
+For an ion given a size `å` by `-llnl_gamma`:
+
+```math
+\\log_{10}\\gamma_i = -\\frac{A\\,z_i^2\\sqrt{I}}{1 + B\\,\\mathring{a}_i\\sqrt{I}} + \\dot{B}\\,I ,
+```
+
+`A`, `B` and `Ḃ` interpolated linearly in temperature between the points of
+the grid of the database. For a neutral species marked `-co2_llnl_gamma`, the
+temperature `T` in kelvin and `C`, `F`, `G`, `E`, `H` the coefficients of
+`-co2_coefs`:
+
+```math
+\\ln\\gamma_i = \\left(C + F\\,T + \\frac{G}{T}\\right) I - (E + H\\,T)\\,\\frac{I}{1 + I} .
+```
+
+Every other species has `γ = 1`: a neutral species given a size, and an ion
+given none. A species given `(å, b)` by `-gamma` has `log₁₀ γ = b I`, without
+the Debye–Hückel term. These are what PHREEQC 3.7.3 computes with such a
+database, measured against it: the manual does not state them.
+
+The solvent follows Raoult's law, `ln a_w = ln x_w`, or, with `water =
+:phreeqc`, PHREEQC's `a_w = 1 − 0.017 Σᵢ mᵢ` [ParkhurstAppelo1999; Eq. 25](@cite).
+The model is not the gradient of one Gibbs energy, and a certificate says so
+(`:self_consistent`).
+
+# Fields
+
+  - `temperatures`: the grid, in °C; `A`, `B`, `Bdot` the parameters at its
+    points. A temperature outside the grid is refused, as PHREEQC refuses it.
+  - `co2`: `(C, F, G, E, H)`.
+  - `sizes`: species symbol ⇒ `å`, in Å.
+  - `co2_species`: the symbols of the species that take the formula of carbon
+    dioxide.
+  - `gamma`: species symbol ⇒ `(å, b)`.
+  - `water`: `:raoult` or `:phreeqc`.
+
+Built from a database by [`database_activity_model`](@ref).
+"""
+struct LLNLActivityModel{T <: Real} <: AbstractActivityModel
+    temperatures::Vector{T}
+    A::Vector{T}
+    B::Vector{T}
+    Bdot::Vector{T}
+    co2::NTuple{5, T}
+    sizes::Dict{String, T}
+    co2_species::Set{String}
+    gamma::Dict{String, Tuple{T, T}}
+    water::Symbol
+end
+
+"""
+    LLNLActivityModel(; temperatures, A, B, Bdot, co2, sizes, co2_species = String[],
+                        gamma = Dict(), water = :raoult)
+
+Construct an [`LLNLActivityModel`](@ref).
+"""
+function LLNLActivityModel(;
+        temperatures::AbstractVector, A::AbstractVector, B::AbstractVector,
+        Bdot::AbstractVector, co2, sizes::AbstractDict, co2_species = String[],
+        gamma::AbstractDict = Dict{String, Tuple{Float64, Float64}}(), water::Symbol = :raoult,
+    )
+    _check_water_law(water)
+    n = length(temperatures)
+    n >= 2 || throw(ArgumentError("the temperature grid has $n point; the model interpolates between two at least"))
+    (length(A) == length(B) == length(Bdot) == n) ||
+        throw(ArgumentError("A, B and Bdot have $(length(A)), $(length(B)) and $(length(Bdot)) values for $n temperatures"))
+    issorted(temperatures; lt = <=) || throw(ArgumentError("the temperatures of the grid are not increasing"))
+    length(co2) == 5 || throw(ArgumentError("the formula of carbon dioxide has five coefficients; got $(length(co2))"))
+    T = float(
+        promote_type(
+            eltype(temperatures), eltype(A), eltype(B), eltype(Bdot), map(typeof, Tuple(co2))...,
+            valtype(sizes), (promote_type(map(typeof, v)...) for v in values(gamma))...,
+        )
+    )
+    return LLNLActivityModel{T}(
+        T.(temperatures), T.(A), T.(B), T.(Bdot), ntuple(i -> T(co2[i]), 5),
+        Dict{String, T}(String(k) => T(v) for (k, v) in sizes), Set{String}(String.(co2_species)),
+        Dict{String, Tuple{T, T}}(String(k) => (T(v[1]), T(v[2])) for (k, v) in gamma), water,
+    )
+end
+
+concentration_scale(::LLNLActivityModel) = :molality
+
+# A, B, Ḃ at a temperature in kelvin, interpolated linearly in °C on the grid,
+# and the two temperature terms of the formula of carbon dioxide.
+function _llnl_terms(model::LLNLActivityModel, T_K)
+    tc = _celsius(T_K)
+    ts = model.temperatures
+    v = _plain(tc)
+    ts[1] <= v <= ts[end] || throw(
+        DomainError(v, "the temperature (°C) is outside the grid of the LLNL aqueous model, $(ts[1]) to $(ts[end]) °C")
+    )
+    k = clamp(searchsortedlast(ts, v), 1, length(ts) - 1)
+    w = (tc - ts[k]) / (ts[k + 1] - ts[k])
+    lin(y) = y[k] + w * (y[k + 1] - y[k])
+    C, F, G, E, H = model.co2
+    return lin(model.A), lin(model.B), lin(model.Bdot), C + F * T_K + G / T_K, E + H * T_K
+end
+
+# The kind of a species in the model and its parameters, resolved once:
+# 1 an ion with a size, 2 carbon dioxide, 3 a species with `-gamma`, 0 the rest.
+function _llnl_kind(model::LLNLActivityModel{T}, sp) where {T}
+    s = symbol(sp)
+    s in model.co2_species && return (2, zero(T), zero(T))
+    g = get(model.gamma, s, nothing)
+    g === nothing || return (3, g[1], g[2])
+    å = get(model.sizes, s, nothing)
+    (å === nothing || iszero(charge(sp))) && return (0, zero(T), zero(T))
+    return (1, å, zero(T))
+end
+
+# One species's log₁₀ γ; `terms` is `(B, Ḃ, c₁, c₂)`, the temperature part of the
+# model beside its `A`.
+@inline function _llnl_log10γ((kind, å, b), z, I, sqrtI, A, terms)
+    B, Bdot, c1, c2 = terms
+    kind == 1 && return -A * z^2 * sqrtI / (1 + B * å * sqrtI) + Bdot * I
+    kind == 2 && return (c1 * I - c2 * I / (1 + I)) / log(10.0)
+    kind == 3 && return b * I + zero(A * c1)
+    return zero(A * I * c1)
+end
+
+@inline _log10γ_species(model::LLNLActivityModel, sp, z, å, I, sqrtI, A, B) =
+    _llnl_log10γ(_llnl_kind(model, sp), z, I, sqrtI, A, B)
+
+"""
+    activity_model(cs::ChemicalSystem, model::LLNLActivityModel) -> Function
+
+Return a closure `lna(n, p) -> Vector` computing log-activities for the LLNL
+aqueous model, at the temperature `p.T` ([`T_STANDARD`](@ref) when `p` carries none).
+
+AD-compatible: all closure computations accept `ForwardDiff.Dual` inputs.
+"""
+function activity_model(cs::ChemicalSystem, model::LLNLActivityModel)
+    idx_solvent = only(cs.idx_solvent)
+    idx_solutes = cs.idx_solutes
+    idx_gas = cs.idx_gas
+    has_gas = !isempty(idx_gas)
+    gas_mix = _gas_mixing(cs)
+    mix = _MixingTerms(cs)
+    M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
+    zv = Int8[charge(sp) for sp in cs.species]
+    n_sp = lastindex(zv)
+    parv = [_llnl_kind(model, sp) for sp in cs.species]
+    MT = promote_type(_captured_number_type(mix), _captured_number_type(model))
+    ln10 = log(10.0)
+
+    function lna(n::AbstractVector, p)
+        ϵ = p.ϵ
+        _n = max.(n, _activity_floor(p))
+        A, B, Bdot, c1, c2 = _llnl_terms(model, hasproperty(p, :T) ? p.T : T_STANDARD)
+        terms = (B, Bdot, c1, c2)
+        out = zeros(promote_type(eltype(_n), _number_type_of(p), MT, typeof(A), typeof(c1)), n_sp)
+        n_w = _n[idx_solvent]
+        denom_mol = n_w * M_w
+        I = zero(eltype(_n))
+        @inbounds for i in idx_solutes
+            I += (_n[i] / denom_mol) * zv[i]^2
+        end
+        I /= 2
+        sqrtI = sqrt(I + ϵ)
+        @inbounds for i in idx_solutes
+            out[i] = ln10 * _llnl_log10γ(parv[i], zv[i], I, sqrtI, A, terms) + log(_n[i] / denom_mol)
+        end
+        n_solutes = sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
+        out[idx_solvent] = _solvent_lna(model.water, n_w, n_w + n_solutes, n_solutes, M_w)
         has_gas && _gas_lna!(out, _n, idx_gas, p, gas_mix)
         _mixing_lna!(out, _n, mix, p, ϵ)
         return out
@@ -1683,7 +1895,7 @@ none), and a surface potential carried as an unknown of the solve arrives the wa
 an adiabatic temperature does, through `p.ψ_site`.
 """
 function _mixing_lna!(out, _n, mix::_MixingTerms, p, ϵ)
-    T_val = hasproperty(p, :T) ? p.T : 298.15
+    T_val = hasproperty(p, :T) ? p.T : T_STANDARD
     g = hasproperty(p, :ΔₐG⁰overRT) ? p.ΔₐG⁰overRT : nothing
     mix.has_ss && _solid_solution_lna!(out, _n, mix.ss_groups, mix.ss_models, T_val, ϵ, g)
     if mix.has_sites
@@ -2096,7 +2308,7 @@ hold there.
 """
 function electrostatic_stiffness(
         state::ChemicalState; model::AbstractActivityModel = DiluteSolutionModel(),
-        T::Real = 298.15
+        T::Real = T_STANDARD
     )
     cs = state.system
     n = Float64[ustrip(us"mol", x) for x in state.n]
@@ -2229,7 +2441,7 @@ Differentiates the whole activity closure with `ForwardDiff`, so it costs about
 """
 function site_gradient_asymmetry(
         cs::ChemicalSystem, model::AbstractActivityModel, n::AbstractVector;
-        T::Real = 298.15, ϵ::Real = 1.0e-30
+        T::Real = T_STANDARD, ϵ::Real = 1.0e-30
     )
     n0 = collect(float.(n))
     lna = activity_model(cs, model)

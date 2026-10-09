@@ -53,7 +53,7 @@ compatibility and no longer change the answer.
 # Examples
 
 ```julia
-dat = read_sorption_model(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+dat = read_sorption_model(datapath("phreeqc.dat"))
 weak = [r for r in dat.surfaces["Hfo_w"].reactions if !haskey(r.stoichiometry, "Hfo_sOH")]
 family = site_family("Hfo_w", weak, aqueous; master = "Hfo_w", site = "Xw",
                      capacity = TotalSiteAmount(2.0e-4u"mol"), support)
@@ -66,7 +66,7 @@ function site_family(
         master::AbstractString, site::AbstractString,
         capacity::AbstractSiteCapacity, support::SurfaceSupport,
         model::AbstractSiteMixingModel = IdealSiteMixing(),
-        T = 298.15u"K", P = 1.0e5u"Pa",
+        T = T_STANDARD_Q, P = P_STANDARD_Q,
     )
     is_site_symbol(Symbol(site)) || throw(
         ArgumentError("site must be one of SITE_SYMBOLS, such as \"Xw\"; got \"$site\".")

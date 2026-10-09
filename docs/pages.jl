@@ -114,7 +114,11 @@ pages = [
             "manual/reactions.md",
             "manual/stoich_matrices.md",
         ],
+        # How a database of any format is read, then what is built on it: the
+        # extensions, the filters and the solid solutions, and the functions of
+        # temperature its species carry.
         "Databases and thermodynamic data" => [
+            "manual/importing_databases.md",
             "manual/databases.md",
             "manual/thermodynamic_data.md",
         ],
@@ -326,7 +330,9 @@ pages = [
             "examples/coupled_hydration.md",
             "examples/ionic_hydration.md",
             "examples/hydration_calibration.md",
-            "examples/semiadiabatic_calorimetry.md",
+            # The comparisons of Lavergne et al. (2018), the semi-adiabatic
+            # calorimeter among them.
+            "examples/lavergne2018.md",
             # The first blended cement integrated in time: the slag pastes the
             # two output pages read at measured degrees of hydration.
             "examples/blended_slag_kinetics.md",

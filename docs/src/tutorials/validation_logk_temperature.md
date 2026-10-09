@@ -13,7 +13,7 @@ analytical expression fitted to measured constants over a temperature range,
 with its sources in comments where it gives them. The two are independent
 descriptions of the same equilibria, and this page compares them from 5 to
 90 °C, reaction by reaction (`scripts/logk_temperature_check.jl`, on the copy of
-`phreeqc.dat` 3.7.3 the test suite carries).
+`phreeqc.dat` of PHREEQC 3.7.3, which `datapath` obtains).
 
 ## 1. The comparison
 

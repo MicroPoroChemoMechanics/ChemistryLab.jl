@@ -166,7 +166,7 @@ function _surface_potential_blocks(des, state, p, n0)
     hq = (x, q, params) -> des.lna(x, pq(q, params))
 
     cq = function (x, q, params)
-        T = hasproperty(params, :T) ? params.T : 298.15
+        T = hasproperty(params, :T) ? params.T : T_STANDARD
         I = _aqueous_ionic_strength(x, ions, ion_z, solvent, M_w)
         return reduce(
             vcat, (

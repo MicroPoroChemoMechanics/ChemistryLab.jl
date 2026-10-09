@@ -162,7 +162,7 @@ function zeolite_logK_check(base_path)
         v = get(get(s, "sm_gibbs_energy", Dict()), "values", nothing)
         v === nothing || isempty(v) || (G[String(s["symbol"])] = Float64(v[1]))
     end
-    RTln10 = R_GAS * 298.15 * log(10)
+    RTln10 = R_GAS * T_STANDARD * log(10)
     return map(zeolite_records()) do z
         ΔrG = sum(ν * G[sp] for (sp, ν) in z.products) - z.ΔfG⁰ * 1000
         recomputed = -ΔrG / RTln10
@@ -178,7 +178,7 @@ function _zeolite_entry(z)
         "formula_charge" => 0,
         "aggregate_state" => Dict("3" => "AS_CRYSTAL"),
         "class_" => Dict("0" => "SC_COMPONENT"),
-        "Tst" => 298.15,
+        "Tst" => T_STANDARD,
         "Pst" => 100000,
         "sm_gibbs_energy" => Dict("values" => [z.ΔfG⁰ * 1000]),
         "sm_enthalpy" => Dict("values" => [z.ΔfH⁰ * 1000]),
@@ -256,7 +256,7 @@ function cshq_chloride_entry(db, δ; provenance = nothing)
     # dictionary type `db` was parsed with.
     records = JSON.parse(JSON.json([s for s in db["substances"] if s["symbol"] in first.(composition)]))
     byname = Dict(symbol(s) => s for s in build_species(DataFrame(Tables.dictrowtable(records))))
-    at_ref(s, key, unit) = ustrip(unit, s[key](T = T_ref * u"K", P = 1.0e5u"Pa"; unit = true))
+    at_ref(s, key, unit) = ustrip(unit, s[key](T = T_ref * u"K", P = P_STANDARD_Q; unit = true))
     along(key, unit) = sum(ν * at_ref(byname[s], key, unit) for (s, ν) in composition)
     G = along(:ΔₐG⁰, us"J/mol") + δ
     S = along(:S⁰, us"J/(mol*K)")
@@ -307,10 +307,10 @@ and the heat capacity `Cp = a₀ + a₁T + a₂T⁻² + a₃T^(-1/2)`.
 function fe_friedel_entry(db)
     r = literature_row("Lothenbach2019", "solid_standard_properties", _FE_FRIEDEL)
     template = only(s for s in db["substances"] if s["symbol"] == "C4AClH10")
-    template["Tst"] == 298.15 || error("C4AClH10 is no longer referred to 298.15 K; Fe-Friedel's salt must be redone.")
+    template["Tst"] == T_STANDARD || error("C4AClH10 is no longer referred to 298.15 K; Fe-Friedel's salt must be redone.")
     # The four coefficients are in SI units already: their values are the table's.
     a = Float64[ustrip(r.a0), ustrip(r.a1), ustrip(r.a2), ustrip(r.a3)]
-    T = 298.15
+    T = T_STANDARD
     e = JSON.parse(JSON.json(template))
     # As for the chloride end member, the package computes molar masses from
     # formulas, and the template's is Friedel's salt's.
@@ -357,7 +357,7 @@ function fe_friedel_logK_check(base_path)
     t2 = literature_table("Lothenbach2019", "solubility_products")
     published = t2.log_Ks0[only(findall(==("Fe-Friedel's salt"), t2.printed))]
     ΔfG = ustrip(us"J/mol", literature_row("Lothenbach2019", "solid_standard_properties", _FE_FRIEDEL).dfG)
-    recomputed = -(sum(n * G[sp] for (sp, n) in ν) - ΔfG) / (R_GAS * 298.15 * log(10))
+    recomputed = -(sum(n * G[sp] for (sp, n) in ν) - ΔfG) / (R_GAS * T_STANDARD * log(10))
     return (; published, recomputed, difference = recomputed - published)
 end
 
@@ -427,7 +427,7 @@ function cashplus_entries()
             "formula_charge" => 0,
             "aggregate_state" => Dict("3" => "AS_CRYSTAL"),
             "class_" => Dict("0" => "SC_COMPONENT"),
-            "Tst" => 298.15,
+            "Tst" => T_STANDARD,
             "Pst" => 100000,
             "sm_gibbs_energy" => Dict("values" => [ustrip(us"J/mol", G)]),
             "sm_enthalpy" => Dict("values" => [ustrip(us"J/mol", H)]),
@@ -606,7 +606,7 @@ function asr_enthalpy(z, base_path)
     db = JSON.parsefile(base_path; dicttype = Dict{String, Any})
     S_el = Dict(Symbol(e["symbol"]) => Float64(e["entropy"]["values"][1]) for e in db["elements"])
     s = sum(Float64(n) * S_el[el] for (el, n) in parse_formula(z.formula) if el !== :Zz)
-    return z.ΔfG⁰ + 298.15 * (z.S⁰ - s) / 1000
+    return z.ΔfG⁰ + T_STANDARD * (z.S⁰ - s) / 1000
 end
 
 """
@@ -625,7 +625,7 @@ function asr_logK_check(base_path)
         v = get(get(s, "sm_gibbs_energy", Dict()), "values", nothing)
         v === nothing || isempty(v) || (G[String(s["symbol"])] = Float64(v[1]))
     end
-    RTln10 = R_GAS * 298.15 * log(10)
+    RTln10 = R_GAS * T_STANDARD * log(10)
     return map(asr_records()) do z
         ΔrG = sum(ν * G[sp] for (sp, ν) in z.products) - z.ΔfG⁰ * 1000
         recomputed = -ΔrG / RTln10
@@ -641,7 +641,7 @@ function _asr_entry(z, ΔfH⁰)
         "formula_charge" => 0,
         "aggregate_state" => Dict("3" => "AS_CRYSTAL"),
         "class_" => Dict("0" => "SC_COMPONENT"),
-        "Tst" => 298.15,
+        "Tst" => T_STANDARD,
         "Pst" => 100000,
         "sm_gibbs_energy" => Dict("values" => [z.ΔfG⁰ * 1000]),
         "sm_enthalpy" => Dict("values" => [ΔfH⁰ * 1000]),

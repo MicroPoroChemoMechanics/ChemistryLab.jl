@@ -68,7 +68,7 @@ volume, and only the species carrying a molar volume contribute — see
 
 !!! warning "Needs a system whose volume depends on pressure"
     A condensed system's does not. The molar volumes of water and of the minerals
-    in the shipped databases are exactly pressure-independent, so prescribing the
+    barely depend on pressure, and not at all in most records, so prescribing the
     volume of a paste or of an aqueous solution is an equation the pressure cannot
     satisfy, and the constructor refuses it rather than diverging — the error
     names the lever it measured. Declare a gas phase to make the constraint
@@ -220,8 +220,8 @@ function _pressure_blocks(des, state, p, target_V)
                     "being $(round(lever, sigdigits = 2)). Changing the volume by " *
                     "one percent would take about " *
                     "$(round(0.01 / max(lever, 1.0e-30) * p.P / 1.0e5, sigdigits = 2)) " *
-                    "bar. The molar volumes of water and of the minerals in the " *
-                    "shipped databases do not depend on pressure at all, so a " *
+                    "bar. The molar volumes of water and of the minerals barely " *
+                    "depend on pressure, and not at all in most records, so a " *
                     "condensed system's volume is fixed by its composition and " *
                     "there is nothing for the pressure to do. Declare a gas phase, " *
                     "or hold the pressure and let the volume follow — " *

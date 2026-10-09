@@ -53,6 +53,12 @@ _debye_huckel_AB(::DiluteSolutionModel, T_K, P_Pa) = (A = 0.0, B = 0.0)
 _debye_huckel_AB(model::TruesdellJonesActivityModel, T_K, P_Pa) =
     model.temperature_dependent ? hkf_debye_huckel_params(T_K, P_Pa) :
     (A = model.A, B = model.B)
+# The LLNL model carries its B with the rest of its temperature part, `(B, Ḃ, c₁,
+# c₂)`, which its per-species formula reads.
+function _debye_huckel_AB(model::LLNLActivityModel, T_K, P_Pa)
+    A, B, Bdot, c1, c2 = _llnl_terms(model, T_K)
+    return (A = A, B = (B, Bdot, c1, c2))
+end
 
 # The effective radius actually used for each species, by the same lookup the
 # closure uses. Zero for models that have no radius.

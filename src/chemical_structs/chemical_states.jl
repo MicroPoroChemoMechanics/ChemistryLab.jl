@@ -276,7 +276,7 @@ true
 """
 function ChemicalState(
         system::ChemicalSystem;
-        T = 298.15u"K",
+        T = T_STANDARD_Q,
         P = 1u"bar",
         n::AbstractVector = fill(0.0u"mol", length(system)),
     )
@@ -356,7 +356,7 @@ true
 function ChemicalState(
         system::ChemicalSystem,
         values::AbstractVector;
-        T = 298.15u"K",
+        T = T_STANDARD_Q,
         P = 1u"bar",
     )
     return ChemicalState(system; T = T, P = P, n = values)

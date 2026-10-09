@@ -44,12 +44,26 @@ const DOC_SHARDS = [
         "examples/hydration_calibration.md",
     ],
     # The outputs of a calculation, each a handful of certified solves on the
-    # cement system of `scripts/gruyaert2010.jl`, and the semi-adiabatic run,
-    # a coupled trajectory with the temperature among its unknowns.
+    # cement system of `scripts/gruyaert2010.jl`, and the page on Lavergne et
+    # al. (2018): a dozen pastes in isothermal calorimeters, a paste with silica
+    # fume, and four mortars in the semi-adiabatic one, coupled trajectories with
+    # the temperature among their unknowns, some eighteen minutes.
     "calorimetry" => [
         "examples/isothermal_calorimetry.md",
         "examples/thermogravimetry.md",
-        "examples/semiadiabatic_calorimetry.md",
+        "examples/lavergne2018.md",
+    ],
+    # The blended cements integrated in time, taken out of `rest` when it reached
+    # 85 of its 120 minutes (0.36.0): ten quaternary pastes and four ternary
+    # ones with their gels, the slag pastes, the slag at three temperatures, and
+    # the glasses dissolving.
+    "blends" => [
+        "examples/quaternary_kinetics.md",
+        "examples/ternary_kinetics.md",
+        "examples/blended_slag_kinetics.md",
+        "examples/slag_temperature.md",
+        "examples/slag_temperature_pastes.md",
+        "examples/glass_dissolution.md",
     ],
     # Everything else: theory, manual, the other tutorials and applications.
     "rest" => String[],

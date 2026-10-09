@@ -41,7 +41,7 @@ default(framestyle = :box, grid = false)
 const RT = R_GAS * 298.15
 g0(v) = SymbolicFunc(v * u"J/mol")
 
-dat = read_sorption_model(joinpath(pkgdir(ChemistryLab), "test", "reference", "phreeqc.dat"))
+dat = read_sorption_model(datapath("phreeqc.dat"))
 logK = only(reactions_involving(dat, "Hfo_sOHCa+2")).log_K.value
 
 db = Dict(symbol(s) => s for s in

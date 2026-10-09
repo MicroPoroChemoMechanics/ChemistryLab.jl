@@ -260,7 +260,7 @@ _needs_newton_inversion(
 # activities depend on them (`CompoundEnergyModel`).
 function _local_log_activities(mdl, p, grp)
     ϵ = (p !== nothing && hasproperty(p, :ϵ)) ? p.ϵ : _AMOUNT_FLOOR
-    T = (p !== nothing && hasproperty(p, :T)) ? p.T : 298.15
+    T = (p !== nothing && hasproperty(p, :T)) ? p.T : T_STANDARD
     g = (p !== nothing && hasproperty(p, :ΔₐG⁰overRT)) ? collect(p.ΔₐG⁰overRT[grp]) : nothing
     return function (nm)
         tot = sum(nm) + ϵ

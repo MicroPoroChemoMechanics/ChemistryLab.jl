@@ -138,6 +138,6 @@ function sorption_rate(k, cs::ChemicalSystem, rxn::AbstractReaction)
         return -kv * exp(ln_fwd) * expm1(ln_Ω)
     end
 
-    refs = (T = 298.15u"K", P = 1.0e5u"Pa")
+    refs = (T = T_STANDARD_Q, P = P_STANDARD_Q)
     return KineticFunc(f, refs, u"mol/s")
 end
