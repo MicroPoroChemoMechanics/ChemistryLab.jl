@@ -8,7 +8,7 @@ authors:
     given-names: "Anthony"
     orcid: "0000-0002-2368-6848"
 title: "ChemistryLab.jl: Numerical laboratory for computational chemistry"
-abstract: "Computational chemistry toolkit providing formula handling, species management, stoichiometric matrix construction, ThermoFun and Cemdata databases obtained from their publishers on first use, and thermodynamic equilibrium by Gibbs free energy minimization returned with a KKT certificate stating what it proves. Aqueous activity models: extended Debye-Hückel (B-dot), Davies, Truesdell-Jones, SIT and Pitzer. Solid solutions: ideal, Redlich-Kister, regular, sublattice and compound-energy models, with miscibility-gap detection. Surface complexation with electrostatic models, cation exchange and a Donnan layer; oxidation state as an independent conserved quantity with pe and Eh; recipes and a kinetics module for mineral dissolution/precipitation coupled to ODE-based integration (Parrott-Killoh and Waller rate laws, isothermal and semi-adiabatic calorimetry); exact forward-mode derivatives through equilibria and kinetic runs. Initially focused on cement chemistry, including blended binders entered from an oxide analysis, but applicable more broadly."
+abstract: "Computational chemistry toolkit providing formula handling, species management, stoichiometric matrix construction, thermodynamic databases imported in the formats in common use (PHREEQC, The Geochemist's Workbench, EQ3/6, JSON and YAML), none stored in the package, and thermodynamic equilibrium by Gibbs free energy minimization returned with a KKT certificate stating what it proves. Aqueous activity models: extended Debye-Hückel (B-dot), Davies, Truesdell-Jones, SIT and Pitzer. Solid solutions: ideal, Redlich-Kister, regular, sublattice and compound-energy models, with miscibility-gap detection. Surface complexation with electrostatic models, cation exchange and a Donnan layer; oxidation state as an independent conserved quantity with pe and Eh; recipes and a kinetics module for mineral dissolution/precipitation coupled to ODE-based integration (Parrott-Killoh and Waller rate laws, isothermal and semi-adiabatic calorimetry); exact forward-mode derivatives through equilibria and kinetic runs. Initially focused on cement chemistry, including blended binders entered from an oxide analysis, but applicable more broadly."
 keywords:
   - "computational chemistry"
   - "Julia"
@@ -20,8 +20,8 @@ keywords:
   - "surface complexation"
   - "chemical kinetics"
   - "cement"
-version: 0.36.0
-date-released: '2026-10-08'
+version: 0.37.0
+date-released: '2026-10-09'
 doi: "10.5281/zenodo.17756074"
 url: "https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl"
 repository-code: "https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl"
