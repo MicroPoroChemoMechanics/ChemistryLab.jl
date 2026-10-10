@@ -149,6 +149,12 @@ end
     # The density of water itself, through the same memo.
     @test ChemistryLab.water_density_hgk(310.0, 2.0e5) == ChemistryLab._water_density_hgk(310.0, 2.0e5, 1000.0)
     @test ChemistryLab.water_density_hgk(Td, 2.0e5) == ChemistryLab._water_density_hgk(Td, 2.0e5, 1000.0)
+    # A hit is inferred and allocates nothing.
+    wd(T, P) = ChemistryLab.water_density_hgk(T, P)
+    @test @inferred(wd(310.0, 2.0e5)) == ChemistryLab._water_density_hgk(310.0, 2.0e5, 1000.0)
+    @test (@allocated wd(310.0, 2.0e5)) == 0
+    @test (@allocated hws(310.0, 2.0e5)) == 0
+    @inferred hws(310.0, 2.0e5)
     # Bounded: past its size the table starts again.
     for k in 1:ChemistryLab._MEMO_MAX
         hws(300.0 + 1.0e-6k, 1.0e5)

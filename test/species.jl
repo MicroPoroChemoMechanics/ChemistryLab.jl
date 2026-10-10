@@ -222,3 +222,15 @@ end
     # Nothing that answers: a new species of that formula.
     @test symbol(ChemistryLab.find_species("KCl", [salt, water])) == "KCl"
 end
+
+@testset "a lookup in a charged species copies nothing" begin
+    # Its components are its atoms and its charge; looked up one after the
+    # other, none of them is built, so a lookup allocates nothing.
+    ion = Species("Ca+2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    lookup(s, k) = s[k]
+    @test lookup(ion, :Ca) == 1 && lookup(ion, :Zz) == 2 && lookup(ion, :N) == 0
+    lookup(ion, :M)
+    @test (@allocated lookup(ion, :Ca)) == 0
+    @test (@allocated lookup(ion, :Zz)) == 0
+    @test (@allocated lookup(ion, :M)) == 0
+end
