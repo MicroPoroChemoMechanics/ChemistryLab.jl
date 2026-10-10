@@ -38,6 +38,12 @@ slot is present only with a calorimeter: the temperature for
   - `νe`, `νk`: partitions of `ν` for equilibrium / kinetic species.
   - `Ae`: formula matrix restricted to equilibrium species (C × Nₑ).
 
+# Threads
+
+A problem is not meant to be integrated on two threads at once: the runs would
+share its equilibrium solver, whose optimizer may keep its last answer as the
+next start. Independent trajectories run in parallel with one problem each.
+
 See also: [`integrate`](@ref), [`KineticsSolver`](@ref).
 """
 struct KineticsProblem{

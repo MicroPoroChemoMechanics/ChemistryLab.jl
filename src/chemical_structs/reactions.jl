@@ -476,7 +476,8 @@ function complete_thermo_functions!(r::Reaction)
             r.Pref = dict_params[:P]
         end
         if haskey(properties(r), :logk_method)
-            r.logKr = THERMO_FACTORIES[Symbol(r[:logk_method])][:logKr](; params..., T = r.Tref, P = r.Pref)
+            factories = lock(() -> THERMO_FACTORIES[Symbol(r[:logk_method])], _THERMO_FACTORY_LOCK)
+            r.logKr = factories[:logKr](; params..., T = r.Tref, P = r.Pref)
             delete!(r.properties, :logk_method)
         end
         for k in [:ΔᵣCp⁰, :ΔᵣH⁰, :ΔᵣS⁰, :ΔᵣG⁰, :ΔᵣV⁰, :logKr]

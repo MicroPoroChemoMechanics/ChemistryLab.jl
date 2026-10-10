@@ -1608,8 +1608,20 @@ is taken as constant. An entry that gives no heat capacity but carries `S⁰`, `
 `ΔₐG⁰` is extrapolated with a zero heat capacity, so that `ΔₐG⁰` still follows
 `-S⁰` away from the reference temperature; an entry lacking `S⁰` keeps its tabulated
 values at every temperature.
+
+The functions are built under a lock: the species of a database are shared by
+every system made from them, and two threads that use one of them for the first
+time would otherwise write in its properties at once. Reading a species while
+another thread completes it is not covered; complete the species before sharing
+them between threads, e.g. `foreach(complete_thermo_functions!, species)`.
 """
 function complete_thermo_functions!(s::AbstractSpecies)
+    return lock(() -> _complete_thermo_functions!(s), _SPECIES_COMPLETION_LOCK)
+end
+
+const _SPECIES_COMPLETION_LOCK = ReentrantLock()
+
+function _complete_thermo_functions!(s::AbstractSpecies)
     if haskey(properties(s), :thermo_params)
         params = s[:thermo_params]
         dict_params = Dict(params)

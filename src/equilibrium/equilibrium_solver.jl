@@ -63,6 +63,9 @@ Repeated calls to `solve` with different `ChemicalState` inputs reuse it.
   - `solver`: any Optimization.jl solver.
   - `variable_space`: `Val(:linear)` (default) or `Val(:log)`.
   - `kwargs...`: forwarded to the underlying `solve` call (tolerances, verbosity...).
+
+A solver is not meant to be used by two threads at once: its optimizer may keep
+the last answer as the next start (`OptimaOptimizer`). Give each thread its own.
 """
 function EquilibriumSolver(
         cs::ChemicalSystem,

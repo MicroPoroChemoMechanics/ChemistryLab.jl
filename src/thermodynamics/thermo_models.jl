@@ -139,7 +139,7 @@ build_thermo_functions(model_name::Symbol, params) =
 
 # Default: use THERMO_FACTORIES (symbolic models)
 function build_thermo_functions(::Val{M}, params) where {M}
-    dict_factories = THERMO_FACTORIES[M]
+    dict_factories = lock(() -> THERMO_FACTORIES[M], _THERMO_FACTORY_LOCK)
     dict_params = Dict(params)
 
     STref = dict_params[:S⁰]
@@ -383,6 +383,10 @@ add_thermo_model(:my_model, :(a + b*T), [:T => u"K", :a => u"J/mol/K", :b => u"J
 ```
 """
 function add_thermo_model(model_name, dict_model::AbstractDict)
-    THERMO_MODELS[model_name] = dict_model
-    return THERMO_FACTORIES[model_name] = build_thermo_factories(dict_model)
+    # The registries are read by every species completed, possibly on another
+    # thread: they are written under the factories' lock, which those reads take.
+    return lock(_THERMO_FACTORY_LOCK) do
+        THERMO_MODELS[model_name] = dict_model
+        THERMO_FACTORIES[model_name] = build_thermo_factories(dict_model)
+    end
 end

@@ -51,25 +51,33 @@ function _glass_oxide_counts(formula::AbstractString)
     return [Float64(get(a, :Ca, 0)), Float64(get(a, :Mg, 0)), Float64(get(a, :Al, 0)) / 2, Float64(get(a, :Si, 0))]
 end
 
+# The crystals of aq17 and the default reference, built once, under a lock as
+# `_gel_models` is: two threads asking first would both build them and race on the
+# reference.
+const _GLASS_DATA_LOCK = ReentrantLock()
 const _AQ17 = Ref{Any}(nothing)
 function _aq17_crystals()
-    if _AQ17[] === nothing
-        _AQ17[] = Dict(symbol(s) => s for s in build_species(datapath("aq17-thermofun.json"); verbose = false))
+    return lock(_GLASS_DATA_LOCK) do
+        if _AQ17[] === nothing
+            _AQ17[] = Dict(symbol(s) => s for s in build_species(datapath("aq17-thermofun.json"); verbose = false))
+        end
+        _AQ17[]
     end
-    return _AQ17[]
 end
 
 # The default reference for the enthalpies of formation of the oxides: aq17,
 # then slop98, built once.
 const _GLASS_REFERENCE = Ref{Any}(nothing)
 function _default_glass_reference()
-    if _GLASS_REFERENCE[] === nothing
-        _GLASS_REFERENCE[] = (
-            collect(values(_aq17_crystals())),
-            build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false),
-        )
+    return lock(_GLASS_DATA_LOCK) do
+        if _GLASS_REFERENCE[] === nothing
+            _GLASS_REFERENCE[] = (
+                collect(values(_aq17_crystals())),
+                build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false),
+            )
+        end
+        _GLASS_REFERENCE[]
     end
-    return _GLASS_REFERENCE[]
 end
 
 _formation_enthalpy(sp) = ustrip(us"J/mol", sp[:ΔₐH⁰](T = T_STANDARD_Q, P = P_STANDARD_Q; unit = true))
