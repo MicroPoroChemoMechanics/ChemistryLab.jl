@@ -86,17 +86,17 @@ end
 # The first parameter is bounded as the struct bounds it, and this is what makes
 # the method reachable at all once `OptimizationIpoptExt` is loaded. That
 # extension defines `solve(::EquilibriumSolver, ::ChemicalState)` for every
-# back end, and this signature used to read `EquilibriumSolver{F,
-# <:OptimaOptimizer, V} where {F, V}`: with `F` and `V` free of the bounds the
-# struct declares, Julia does not rank it as more specific than the bare
-# `EquilibriumSolver`, and the generic method won. Every `OptimaOptimizer` solve
-# of a session that had also loaded Ipopt then went through the generic
-# `OptimizationProblem` -- no exact conservation matrix, the gradient of
-# `dot(n, μ(n))` by automatic differentiation instead of `μ` itself -- which is
-# the path the comments above measure as wrong. On a 109-species cement it
-# returned a start 2e-3 mol away from this method's, which the dual solve could
-# not certify, and a certified solve that costs 0.7 s here cost 34 to 78 s
-# there. The documentation loads Ipopt, so every page paid it.
+# back end. Written `EquilibriumSolver{F, <:OptimaOptimizer, V} where {F, V}`,
+# with `F` and `V` free of the bounds the struct declares, this signature would
+# not rank as more specific than the bare `EquilibriumSolver`, and the generic
+# method would win: every `OptimaOptimizer` solve of a session that had also
+# loaded Ipopt would go through the generic `OptimizationProblem` -- no exact
+# conservation matrix, the gradient of `dot(n, μ(n))` by automatic
+# differentiation instead of `μ` itself -- which is the path the comments above
+# measure as wrong. Measured that way on a 109-species cement, it returned a
+# start 2e-3 mol away from this method's, which the dual solve could not
+# certify, and a certified solve that costs 0.7 s here cost 34 to 78 s there;
+# the documentation loads Ipopt, so every page paid it.
 """
     SciMLBase.solve(esolver::EquilibriumSolver{<:Function, <:OptimaOptimizer},
                     state::ChemicalState; ϵ = _AMOUNT_FLOOR, b = nothing,

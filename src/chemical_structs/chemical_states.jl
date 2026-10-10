@@ -291,10 +291,10 @@ function ChemicalState(
             for (nᵢ, s) in zip(n, system.species)
     ]
 
-    # The element type is the promotion of T, P **and the amounts**. Taking it
-    # from T alone, as an earlier version did, silently forced `Float64` on the
-    # composition: a dual number could not be stored, so nothing downstream of a
-    # `ChemicalState` was differentiable.
+    # The element type is the promotion of T, P **and the amounts**. Taken from
+    # T alone, it would silently force `Float64` on the composition: a dual
+    # number could not be stored, so nothing downstream of a `ChemicalState`
+    # would be differentiable.
     Q = mapreduce(
         typeof, promote_type, n_conv;
         init = promote_type(typeof(T_q), typeof(P_q))
@@ -1031,7 +1031,7 @@ state the solvers return has its pH computed, and building the reaction object
 for it, its thermodynamic functions combined and simplified symbolically, cost
 1.3 ms a call, a tenth of a warm equilibrium solve; the direct sum costs 10 µs and
 agrees to the last digit (1.8e-15 at 25 and 90 °C). A species that carries no
-`ΔₐG⁰` goes through the reaction, as before.
+`ΔₐG⁰` goes through the reaction.
 
 Returns `nothing` if any of H2O@, H+, or OH- is absent from the system.
 """

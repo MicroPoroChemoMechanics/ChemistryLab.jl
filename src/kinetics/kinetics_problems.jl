@@ -697,12 +697,12 @@ function _equilibrium_subsystem(system::ChemicalSystem, idx_equilibrium)
     comp_names = Set(symbol(sp) for sp in system.SM.primaries)
     prim = [sp for sp in sub_species if symbol(sp) in comp_names]
 
-    # Carry the solid solutions over. Dropping them — as this did until 0.8.2 —
-    # is silent and total: the parent may declare CSHQ, AFm or Hydrogarnet, and
-    # the partition the equilibrium is actually solved on knows nothing of them,
-    # so their end-members are treated as separate pure phases and the mixing
-    # entropy never enters the Gibbs energy. Measured on alite and belite with
-    # the four CSHQ end-members, the run was bit-identical with and without the
+    # Carry the solid solutions over. Dropping them would be silent and total:
+    # the parent may declare CSHQ, AFm or Hydrogarnet, and the partition the
+    # equilibrium is actually solved on knows nothing of them, so their
+    # end-members are treated as separate pure phases and the mixing entropy
+    # never enters the Gibbs energy. Measured on alite and belite with the four
+    # CSHQ end-members, the run was bit-identical with and without the
     # declaration, and produced no C-S-H at all: the silicon stayed in solution
     # and the portlandite came out at 4.52 mol against 2.93 with a Jennite
     # end-member.
@@ -1146,8 +1146,8 @@ The element amounts `bₑ` carried by the state vector are the constraint of tha
 sub-problem [Leal2017; Eq. 54](@cite). `solve` conserves `A·n`, so what has to
 be handed to it is a composition whose element totals are exactly `bₑ` — here
 the previous speciation, projected onto `bₑ` through the pseudo-inverse of
-`Aₑ`. Handing over `p.n_full` unchanged, as an earlier version did, discards
-`bₑ` entirely and leaves the element balance to drift.
+`Aₑ`. Handing over `p.n_full` unchanged would discard `bₑ` entirely and leave
+the element balance to drift.
 """
 function respeciate!(p, u)
     p.n_be > 0 || return false
@@ -1173,10 +1173,10 @@ function respeciate!(p, u)
     # the way an individual species may want to go negative — the generated
     # dissolution reactions are written in H⁺, and a cement paste contains no
     # acid — and it is the minimizer, not the caller, that redistributes the
-    # elements over a feasible set. An earlier version reconstructed `nₑ` from
-    # `bₑ` through `pinv(Aₑ)` and clamped the result at `ϵ`; the clamp destroyed
-    # the balance the projection had just established, and the solve went on to
-    # return amounts of 1e65.
+    # elements over a feasible set. Reconstructing `nₑ` from `bₑ` through
+    # `pinv(Aₑ)` and clamping the result at `ϵ` does not do: the clamp destroys
+    # the balance the projection has just established, and the solve was
+    # measured to return amounts of 1e65 from there.
     #
     # The composition below is a starting guess only, and does not have to carry
     # `bₑ`. It is built from the reaction extents, which come free from the
@@ -1219,14 +1219,14 @@ function respeciate!(p, u)
         # the mixing water and nothing precipitated — and let
         # `_restore_feasibility!` below carry it onto the current `bₑ`.
         #
-        # The stoichiometric reconstruction `νₑᵀξ` that used to be added here
-        # placed every dissolved element in solution with ZERO hydrates. For an
-        # aqueous-only system that is harmless, but for a cement it is close to
-        # the worst possible start: it is supersaturated in every phase at once,
-        # and its H⁺ entry is strongly negative (−6 per mole of alite) so it is
-        # clamped to the floor, losing the acidity that the hydroxides have to
-        # balance. Started there, the back-end stops next to its own guess and
-        # returned an assemblage demanding 174 % of the sulfate present.
+        # Adding the stoichiometric reconstruction `νₑᵀξ` here would place every
+        # dissolved element in solution with ZERO hydrates. For an aqueous-only
+        # system that is harmless, but for a cement it is close to the worst
+        # possible start: it is supersaturated in every phase at once, and its
+        # H⁺ entry is strongly negative (−6 per mole of alite) so it is clamped
+        # to the floor, losing the acidity that the hydroxides have to balance.
+        # Started there, the back end stopped next to its own guess and returned
+        # an assemblage demanding 174 % of the sulfate present.
         #
         # Floor strictly inside the box, not at `p.ϵ`: `EquilibriumProblem`
         # raises anything below 1e-16 to exactly its lower bound, and an
@@ -1287,7 +1287,8 @@ An assemblage switch is not a single-step event — a phase takes several steps 
 exhaust — so the previous call's outcome says which guess to try first, and
 `eq_switching` carries it. This is information the problem already has, not a
 tuning parameter: no threshold is introduced, and the tolerance that decides
-"too much matter unaccounted for" is the same `_RETRY_ABS_TOL` as before.
+"too much matter unaccounted for" is `_RETRY_ABS_TOL`, whichever guess runs
+first.
 """
 function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
     # `is_reconstruction` says that `n_eq` IS the reconstruction, because the

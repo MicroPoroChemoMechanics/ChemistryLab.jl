@@ -1194,11 +1194,11 @@ certificate judges the result afterwards.
 
 The first rung is built at the temperature `T` and pressure `P` of the state the
 walk continues from, and every later one starts from the last. Built at the
-default 25 °C instead, as it was until 0.24.0, the whole walk solved a problem
-at the wrong temperature, and the certificate, which reads the temperature off
-the state it is given, certified that problem: a pore solution meant for 20 °C
-came back 0.19 low in pH, the shift of pKw between the two temperatures,
-whenever this route was the one that succeeded.
+default 25 °C instead, the whole walk solved a problem at the wrong temperature,
+and the certificate, which reads the temperature off the state it is given,
+certified that problem: a pore solution meant for 20 °C came back 0.19 low in
+pH, the shift of pKw between the two temperatures, whenever this route was the
+one that succeeded.
 """
 function _homotopy_rung(cs, A, i_w, n0, model, λ, start, ϵ, verbose, atol, rtol, T, P)
     nλ = [i == i_w ? n0[i] : λ * n0[i] for i in eachindex(n0)]

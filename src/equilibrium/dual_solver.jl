@@ -544,10 +544,9 @@ be left there. The equation of the model is then solved exactly by
 satisfies it, and the one computed is kept. The element balance moves by the
 amounts added, of the order of the floor.
 
-Measured with the floor at 1e-16, where it stood until 0.28.0, on a cement paste
-at pH 14 in 7.8 g of water, whose equilibrium holds 1.2e-16 mol of H⁺: a solve
-left it at 3e-100 mol, and `pH(eq, model)`, which reads the amount, came out 0.09
-high. With the floor at 1e-30 such a solute is far above it, and this is the net
+Measured with the floor at 1e-16, on a cement paste at pH 14 in 7.8 g of water,
+whose equilibrium holds 1.2e-16 mol of H⁺: a solve left it at 3e-100 mol, and
+`pH(eq, model)`, which reads the amount, came out 0.09 high. With the floor at 1e-30 such a solute is far above it, and this is the net
 for one that is not.
 """
 function _complete_floored_solutes(des::DualEquilibriumSolver, prob, res, floor::Real)
@@ -589,12 +588,12 @@ one of them is undersaturated, as optimality requires). The balance is reported
 twice: `balance`, the worst row in moles, and `balance_relative`, the worst row
 relative to what it holds. Each row is judged on the larger of the two below one
 mole and in moles above it, so that a trace is held to its own amount, as
-PHREEQC and GEMS hold a mass balance to its element total; judged in moles alone,
-as until 0.29, a trace of 1e-9 mol could be 10 % wrong and certified. A component
-whose budget is below 1e-12 of the largest is one nobody supplies, its carriers
-held at the floor, and its row is judged in moles. `stationarity_floored` is
-the first, one-sided, on the members of a present phase held below `floor`: such
-a member may hold more than its exact amount, by truncation, but not less, and it
+PHREEQC and GEMS hold a mass balance to its element total; judged in moles
+alone, a trace of 1e-9 mol could be 10 % wrong and certified. A component whose
+budget is below 1e-12 of the largest is one nobody supplies, its carriers held
+at the floor, and its row is judged in moles. `stationarity_floored` is the
+first, one-sided, on the members of a present phase held below `floor`: such a
+member may hold more than its exact amount, by truncation, but not less, and it
 fails when the search left it far below what the multipliers give it.
 
 `worst_violation_split` extends that last test to the phases that are **present**:

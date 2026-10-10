@@ -846,8 +846,8 @@ function StoichMatrix(
     gather_species(d::AbstractDict{S, T} where {S <: AbstractSpecies, T}) = collect(keys(d))
     # Both sides carrying species is genuinely ambiguous in meaning, not merely in
     # dispatch: keys and values are two different sets, and nothing says which one
-    # the caller means. Say so, rather than pick one — this used to surface as an
-    # unexplained `MethodError` about ambiguous methods.
+    # the caller means. Say so, rather than pick one or leave the dispatch to
+    # raise an unexplained `MethodError` about ambiguous methods.
     gather_species(
         ::AbstractDict{S, T} where {S <: AbstractSpecies, T <: AbstractSpecies}
     ) = throw(

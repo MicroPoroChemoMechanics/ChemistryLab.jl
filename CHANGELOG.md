@@ -118,11 +118,11 @@ They are corrected here, each with a test that failed before.
   dual numbers (a site capacity being differentiated) is refused by name when a
   `KineticsProblem` is built, where it failed on its conversion.
 - The thermodynamic functions of a species, built on its first use, are built
-  under a lock: the species of a database are shared by every system built
-  from them, and two threads using one at once wrote in its properties
-  together. `add_thermo_model`, given the expressions or a heat capacity to
-  integrate (with SymbolicNumericIntegration), writes the registries of models
-  under the lock their readers take, the crystals of aq17 and the reference of the glass
+  under a lock: the species of a database are shared by every system built from
+  them, and two threads using one at once wrote in its properties together.
+  `add_thermo_model`, given the expressions or a heat capacity to integrate
+  (with SymbolicNumericIntegration), writes the registries of models under the
+  lock their readers take, the crystals of aq17 and the reference of the glass
   enthalpy are built once under a lock, and the cache of the convexity of a
   compound-energy model is keyed by copies of its values, not by their hash,
   and bounded. That a problem or a solver is not to be shared between threads
@@ -218,7 +218,8 @@ They are corrected here, each with a test that failed before.
 - The tolerances section of the manual says which keywords each back end reads:
   OptimaSolver takes its tolerance from its options, not from `reltol`.
 - Accounts of earlier versions are removed from the pages, the docstrings and
-  the comments; the CHANGELOG keeps them.
+  the comments, which state the reason for the code as it stands; the CHANGELOG
+  keeps them. A measurement taken with an earlier version keeps its provenance.
 - Every page draws its figures with the same defaults, a frame and no grid,
   whatever the order the pages are built in; the walk of the page tree and the
   plot theme are each defined once for the build, its shards and the timing

@@ -604,9 +604,9 @@ each pass; `maxpasses` bounds the work.
 
 Under [`STRICT_CONVERGENCE`](@ref) the passes are searches, not results: they run
 with strictness suspended, and the answer they end on is judged strictly — an
-error if it does not certify. Until 0.25.1 the flag was honored by the first
-pass, which is by construction the one expected not to certify, so the function
-raised before it had seeded anything.
+error if it does not certify. Honored by the first pass, which is by
+construction the one expected not to certify, the flag would make the function
+raise before it had seeded anything.
 
 !!! note "This is where convexity has already been given up"
     A phase that unmixes has a concave mixing energy, so `G` is not convex and
@@ -938,12 +938,12 @@ at every step.
 
 `dual` is a `NamedTuple` of keywords for the [`DualEquilibriumSolver`](@ref) the
 route certifies with — `maxit`, `max_active_updates`, `inner_tol`, `inner_maxit`,
-`tol`, `si_tol` — for instance `dual = (; maxit = 1000)`. Until 0.25.2 nothing
-reached it. `tol` and `si_tol` are also the thresholds of the certificate, so
-loosening them loosens the proof. The other keywords go to the interior-point
-starts: `variable_space` sets their formulation, Ipopt takes the common
-arguments of Optimization.jl (`maxiters`, `reltol`, `maxtime`, `verbose`), which
-OptimizationIpopt maps to its options, and `OptimaOptimizer` ignores the rest.
+`tol`, `si_tol` — for instance `dual = (; maxit = 1000)`. `tol` and `si_tol` are
+also the thresholds of the certificate, so loosening them loosens the proof. The
+other keywords go to the interior-point starts: `variable_space` sets their
+formulation, Ipopt takes the common arguments of Optimization.jl (`maxiters`,
+`reltol`, `maxtime`, `verbose`), which OptimizationIpopt maps to its options, and
+`OptimaOptimizer` ignores the rest.
 
 `certificate.optimal == true` is a **proof** of a global minimum when the log
 activities are the gradient of one Gibbs energy and that energy is proved convex

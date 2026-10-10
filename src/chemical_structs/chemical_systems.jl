@@ -100,8 +100,8 @@ end
 
 Resolve declared [`SiteFamily`](@ref) objects against the species list.
 
-Returns `(nothing, Vector{Int}[])` when none is declared, so a system without a
-surface is byte-identical to what it was before surfaces existed.
+Returns `(nothing, Vector{Int}[])` when none is declared, so that a system
+without a surface holds nothing of the surface machinery.
 
 Everything refused here is refused rather than discovered later, because the
 alternative is a wrong number rather than an error:

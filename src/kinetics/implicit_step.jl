@@ -113,9 +113,9 @@ function KineticStepSolver(
         # `_equilibrium_subsystem`, not a bare `ChemicalSystem`. Rebuilding the
         # free side from its species and the parent's primary NAMES dropped
         # every piece of metadata the parent carried: the solid solutions —
-        # which is the defect `kinetics_problems.jl` documents at length and
-        # fixed on its own path in 0.8.2, end-members silently becoming separate
-        # pure phases with no mixing entropy — and the site families, whose loss
+        # which is the defect `kinetics_problems.jl` documents at length,
+        # end-members silently becoming separate pure phases with no mixing
+        # entropy — and the site families, whose loss
         # leaves their members in the sub-system as `AS_SURFACE` species
         # belonging to no family, which `ChemicalSystem` refuses outright. So
         # `coupling = :species` could not be combined with a surface at all.
