@@ -61,14 +61,9 @@ const _REAKTORO_STATES = Dict(
     "Aqueous" => AS_AQUEOUS, "Solid" => AS_CRYSTAL, "Gas" => AS_GAS, "Liquid" => AS_LIQUID,
 )
 
-# The ChemistryLab symbol of a species of Reaktoro: a neutral solute gets `@` in
-# place of `(aq)`, water is the solvent.
-function _reaktoro_symbol(name, state, charge)
-    state == AS_AQUEOUS || return name
-    base = replace(name, r"\(aq\)$" => "")
-    base == "H2O" && return "H2O@"
-    return iszero(charge) ? base * "@" : base
-end
+# The ChemistryLab symbol of a species of Reaktoro: a solute's by the rule of
+# every reader (`@` in place of `(aq)`, water the solvent), any other's its name.
+_reaktoro_symbol(name, state, charge) = state == AS_AQUEOUS ? _solute_symbol(name, charge) : name
 
 """
     read_reaktoro_database(path) -> (df_elements, df_substances, df_reactions)
@@ -117,7 +112,7 @@ function read_reaktoro_database(path::AbstractString)
         state = get(_REAKTORO_STATES, get(entry, "AggregateState", ""), AS_UNDEF)
         charge = parse(Float64, get(entry, "Charge", "0"))
         sym = _reaktoro_symbol(name, state, charge)
-        cls = state == AS_AQUEOUS ? (sym == "H2O@" ? SC_AQSOLVENT : SC_AQSOLUTE) : (state == AS_GAS ? SC_GASFLUID : SC_COMPONENT)
+        cls = _class_of(state, sym)
         parameters = Dict{String, Float64}()
         if p isa AbstractDict
             for (k, v) in p
@@ -145,12 +140,8 @@ const _REAKTORO_MODELS = ("HKF", "MaierKelley", "HollandPowell", "WaterHKF", "Wa
 
 # One species of a table of a database of Reaktoro.
 function _reaktoro_species(row)
-    atoms, charge, p, kind = row.atoms, row.charge, row.parameters, row.standard_model
-    whole = all(isinteger, values(atoms))
-    s = Species(
-        whole ? Dict{Symbol, Int}(e => Int(n) for (e, n) in atoms) : atoms, isinteger(charge) ? Int(charge) : charge;
-        name = row.name, symbol = row.symbol, aggregate_state = row.aggregate_state, class = row.class,
-    )
+    charge, p, kind = row.charge, row.parameters, row.standard_model
+    s = _row_species(row)
     num(k) = get(p, k, 0.0)
     s.Tref = T_STANDARD_Q
     s.Pref = P_STANDARD_Q
@@ -195,7 +186,7 @@ function _build_reaktoro_species(df::AbstractDataFrame, names = nothing)
     out = Species[]
     refused = Tuple{String, String}[]
     for r in eachrow(df)
-        names === nothing || r.name in names || r.symbol in names || continue
+        _listed(r, names) || continue
         if !(r.standard_model in _REAKTORO_MODELS)
             push!(refused, (r.name, r.standard_model))
             continue

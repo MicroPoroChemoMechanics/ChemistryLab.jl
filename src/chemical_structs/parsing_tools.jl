@@ -420,15 +420,9 @@ end
 """
     extract_charge(formula::AbstractString) -> Int
 
-Extract the formal charge from a chemical formula string.
-
-# Arguments
-
-  - `formula`: formula string with optional charge notation (e.g., "+2", "-", "3+").
-
-# Returns
-
-  - Integer charge value (0 if no charge present).
+The charge a formula ends with: a sign and its magnitude (`"Ca+2"`), or a run of
+one sign, each counting one (`"Cl-"`, `"Ca++"`, `"SO4--"`); zero without either.
+Superscripts are read as their ASCII form (`"SO₄²⁻"` is `"SO4-2"`).
 
 # Examples
 
@@ -436,22 +430,24 @@ Extract the formal charge from a chemical formula string.
 julia> extract_charge("Ca+2")
 2
 
-julia> extract_charge("SO4-2")
+julia> extract_charge("SO4--")
 -2
 
 julia> extract_charge("H2O")
 0
 ```
 """
-function extract_charge(formula::AbstractString)
-    m = match(r"([+-])([0-9]*)$", unicode_to_phreeqc(formula))
-    if m === nothing
-        return 0
-    else
-        sign = m.captures[1] == "+" ? 1 : -1
-        val = m.captures[2] == "" ? 1 : parse(Int, m.captures[2])
-        return sign * val
-    end
+extract_charge(formula::AbstractString) = _name_charge(unicode_to_phreeqc(formula), Int)
+
+# The charge a species name ends with, in the number type `T`: a sign and its
+# magnitude (`Ca+2`, `Fe+2.5` in `Float64`), or a run of one sign, each sign
+# counting one (`Cl-`, `Ca++`, `SO4--`). The one rule every reader applies.
+function _name_charge(name::AbstractString, ::Type{T} = Float64) where {T <: Real}
+    m = match(T <: Integer ? r"([+-]+)(\d+)?$" : r"([+-]+)(\d+(?:\.\d+)?)?$", name)
+    m === nothing && return zero(T)
+    signs, magnitude = m.captures
+    z = magnitude === nothing ? T(length(signs)) : parse(T, magnitude)
+    return last(signs) == '+' ? z : -z
 end
 
 """

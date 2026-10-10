@@ -177,3 +177,9 @@ The thermochemical calorie as a plain `Float64` in joules, derived from
 [`CALORIE_Q`](@ref): `4.184`.
 """
 const CALORIE = ustrip(us"J", CALORIE_Q)
+
+# The pressure units of the databases in pascals, and `R ln 10`, which turns a
+# log K into a Gibbs energy: `ΔG = −R T ln 10 log K`.
+const _ONE_BAR = ustrip(us"Pa", 1.0u"bar")
+const _ONE_ATM = ustrip(us"Pa", _DQConstants.atm)
+const _R_LN10 = R_GAS * log(10)

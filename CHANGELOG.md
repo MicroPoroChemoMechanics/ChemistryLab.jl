@@ -126,6 +126,43 @@ They are corrected here, each with a test that failed before.
   compound-energy model is keyed by copies of its values, not by their hash,
   and bounded. That a problem or a solver is not to be shared between threads
   solving at once is written in their docstrings.
+- **The sorption models of `llnl.dat`, `minteq.v4.dat`, `wateq4f.dat` and
+  `pitzer.dat` have their reactions.** These databases write `log_k` without
+  its dash in `SURFACE_SPECIES`, which `read_sorption_model` did not read:
+  every constant was passed over, and every site came back without a
+  reaction. The options are read in every spelling PHREEQC reads, as in the
+  blocks of species of a database. A semicolon separates two logical lines: a
+  constant written on the line of its equation was lost with it, as were the
+  three silicate complexes of `Hfo_w` in `phreeqc.dat`. A block given twice is
+  read twice, and the file ends at its first `END`, as PHREEQC reads it.
+- **The `PITZER` and `SIT` blocks follow the naming rule of the other
+  readers.** A name written with a run of signs (`SO4--`) or with `(aq)` was
+  kept as written, and its coefficients never met a species of a system. A
+  coefficient line starting at the first column ended a `PITZER` block, and a
+  line of another shape than `species species ε` ended the reading of a `SIT`
+  block, the coefficients after either lost without a word. A block now ends at
+  the next keyword, and a `SIT` line that is not read is reported.
+- **`extract_charge`, and so `Formula`, read a run of signs as a charge**:
+  `SO4--` is −2 and `Fe+++` is 3, where the last sign alone gave −1 and +1.
+- **A site family finds a neutral aqueous participant under the symbol the
+  readers give it** (`H4SiO4` as `H4SiO4@`); water alone was.
+- **The log K of a database of reactions takes the number type it is given**
+  (`PhreeqcLogK`, `TabulatedLogK`, `GWBPolynomialLogK`, `GridLogK`): a constant
+  being fitted carries its derivative into the Gibbs energy of the species it
+  forms.
+
+### Changed
+
+- The readers of PHREEQC, GWB and EQ3/6 files, of the `PITZER`, `SIT` and
+  sorption blocks, and of Reaktoro files share one scanner of blocks, one
+  reader of equations, one rule for the names and the charges of species, one
+  resolution of species against their basis, and the provenance tag, computed
+  once per file. The import manual states the naming rule. The standard
+  entropy of a species of a database of reactions is computed as
+  `R ln 10 (L + T L′)` rather than `(H − G)/T`, which subtracted two terms of
+  order 10⁵ J/mol: it moves by 2 × 10⁻¹² relative at most, the Gibbs energy,
+  the enthalpy and the heat capacity being unchanged to the bit. The critical
+  pressure of a GWB gas is converted from bar to pascals directly.
 
 ### Performance
 

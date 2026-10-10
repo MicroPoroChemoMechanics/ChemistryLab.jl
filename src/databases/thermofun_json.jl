@@ -28,9 +28,9 @@ explicitly.
 | wref   | cal/mol                 | J/mol               | 4.184      |
 """
 const HKF_SI_CONVERSIONS = OrderedDict{Symbol, Float64}(
-    :a1 => CALORIE / ustrip(us"Pa", 1.0u"bar"),
+    :a1 => CALORIE / _ONE_BAR,
     :a2 => CALORIE,
-    :a3 => CALORIE / ustrip(us"Pa", 1.0u"bar"),
+    :a3 => CALORIE / _ONE_BAR,
     :a4 => CALORIE,
     :c1 => CALORIE,
     :c2 => CALORIE,
@@ -556,8 +556,6 @@ function _species_from_row(row, df = nothing; verbose = false)
     return species
 end
 
-const _ONE_BAR = ustrip(us"Pa", 1.0u"bar")
-
 # The functions of a substance computed by a method the package does not
 # implement, restricted to its reference state, where the method leaves the
 # record's values: the reference temperature (unless `temperature = false`, for a
@@ -663,7 +661,7 @@ function _thermofun_log10K(rec)
     value(key) = (v = get(rec, key, nothing); v === nothing ? 0.0 : Float64(only(v["values"])))
     L0, H, Cp = value("logKr"), value("drsm_enthalpy"), value("drsm_heat_capacity_p")
     Tr = Float64(get(rec, "Tst", _THERMOFUN_TST))
-    k = R_GAS * log(10)
+    k = _R_LN10
     return function (T)
         L = L0 - H / k * (1 / T - 1 / Tr) + Cp / k * (Tr / T - 1 + log(T / Tr))
         dL = H / (k * T^2) + Cp / k * (1 / T - Tr / T^2)
@@ -711,11 +709,10 @@ function _define_by_reaction!(s, rec, species_of)
         v === nothing ? 0.0 : ustrip(us"m^3/mol", Float64(only(v["values"])) * u"J/(bar*mol)")
     end
     Pr = Float64(get(rec, "Pst", _THERMOFUN_PST))
-    k = R_GAS * log(10)
-    ΔG(T, P) = -k * T * first(logK(T)) + ΔV * (P - Pr)
-    ΔH(T, P) = (r = logK(T); k * T^2 * r[2] + ΔV * (P - Pr))
-    ΔS(T, P) = (r = logK(T); k * (r[1] + T * r[2]))
-    ΔCp(T, P) = (r = logK(T); k * (2T * r[2] + T^2 * r[3]))
+    ΔG(T, P) = _logK_gibbs(logK(T), T) + ΔV * (P - Pr)
+    ΔH(T, P) = _logK_enthalpy(logK(T), T) + ΔV * (P - Pr)
+    ΔS(T, P) = _logK_entropy(logK(T), T)
+    ΔCp(T, P) = _logK_heat_capacity(logK(T), T)
     ΔVf(T, P) = ΔV + zero(T)
     refs = (T = s.Tref, P = s.Pref)
     for (key, Δ, unit) in (

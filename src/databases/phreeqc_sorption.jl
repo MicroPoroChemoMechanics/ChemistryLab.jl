@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright © 2025-2026 Jean-François Barthélémy and Anthony Soive (Cerema, UMR MCD)
 
-using SHA
 
 # ── Reading a published sorption model ───────────────────────────────────────
 #
@@ -126,7 +125,7 @@ See also: [`log_constants`](@ref), [`reactions_involving`](@ref).
 function read_sorption_model(path::AbstractString)
     isfile(path) || throw(ArgumentError("no such database: $path"))
     text = read(path, String)
-    src = "$(basename(path)) sha256 $(first(bytes2hex(sha256(text)), 12))"
+    src = _source_tag(path)
 
     header = join(
         Iterators.takewhile(
@@ -137,10 +136,13 @@ function read_sorption_model(path::AbstractString)
 
     surfaces = Dict{String, SorptionSite}()
     exchangers = Dict{String, SorptionSite}()
-    _read_masters!(surfaces, text, "SURFACE_MASTER_SPECIES")
-    _read_masters!(exchangers, text, "EXCHANGE_MASTER_SPECIES")
-    _read_reactions!(surfaces, text, "SURFACE_SPECIES", src)
-    _read_reactions!(exchangers, text, "EXCHANGE_SPECIES", src)
+    # The comments are kept: they hold the source and the uncertainty of a
+    # constant (`ref:`, `error:`).
+    blocks = _phreeqc_blocks(split(text, '\n'); comments = true)
+    _read_masters!(surfaces, blocks, "SURFACE_MASTER_SPECIES")
+    _read_masters!(exchangers, blocks, "EXCHANGE_MASTER_SPECIES")
+    _read_reactions!(surfaces, blocks, "SURFACE_SPECIES", src)
+    _read_reactions!(exchangers, blocks, "EXCHANGE_SPECIES", src)
 
     (isempty(surfaces) && isempty(exchangers)) && throw(
         ArgumentError(
@@ -151,53 +153,35 @@ function read_sorption_model(path::AbstractString)
     return SorptionModel(surfaces, exchangers, src, header)
 end
 
-"""
-    _block(text, keyword) -> Vector{String}
+# The lines of the blocks of `keyword`, in order.
+_block_lines(blocks, keyword) = (line for b in blocks if b.keyword == keyword for (_, line) in b.lines)
 
-The lines of one PHREEQC keyword block, up to the next keyword at column one.
-"""
-function _block(text::AbstractString, keyword::AbstractString)
-    out = String[]
-    inside = false
-    for raw in split(text, '\n')
-        line = rstrip(raw)
-        if !inside
-            startswith(line, keyword) && (inside = true)
-            continue
-        end
-        # A keyword starts at column one, in capitals, and is not a species.
-        if !isempty(line) && !startswith(line, (' ', '\t', '#')) &&
-                occursin(r"^[A-Z_]{4,}\s*$", rstrip(line))
-            break
-        end
-        push!(out, line)
-    end
-    return out
-end
-
-function _read_masters!(into::Dict{String, SorptionSite}, text, keyword)
-    for raw in _block(text, keyword)
+function _read_masters!(into::Dict{String, SorptionSite}, blocks, keyword)
+    for raw in _block_lines(blocks, keyword)
         body, comment = _split_comment(raw)
         fields = split(strip(body))
         length(fields) == 2 || continue
         into[fields[1]] = SorptionSite(
-            String(fields[1]), String(fields[2]), SorptionReaction[], comment,
+            String(fields[1]), _phreeqc_name(fields[2]), SorptionReaction[], comment,
         )
     end
     return into
 end
 
-function _read_reactions!(into::Dict{String, SorptionSite}, text, keyword, src)
+function _read_reactions!(into::Dict{String, SorptionSite}, blocks, keyword, src)
     isempty(into) && return into
     pending = nothing
     pending_comment = ""
-    for raw in _block(text, keyword)
+    for raw in _block_lines(blocks, keyword)
         body, comment = _split_comment(raw)
         s = strip(body)
         isempty(s) && continue
-        if occursin('=', s) && !startswith(s, '-')
+        # The options in every spelling PHREEQC reads (`-log_k`, `log_k`, `-l`),
+        # as in the blocks of species of a database.
+        opt = _species_option(first(split(s, r"[\s=]+")))
+        if opt === nothing && occursin('=', s)
             pending, pending_comment = s, comment
-        elseif startswith(lowercase(s), "-log_k") && pending !== nothing
+        elseif opt === :log_k && pending !== nothing
             logk = _parse_log_k(s)
             logk === nothing && (pending = nothing; continue)
             stoich = _parse_sorption_stoichiometry(pending)
@@ -225,14 +209,11 @@ function _read_reactions!(into::Dict{String, SorptionSite}, text, keyword, src)
     return into
 end
 
-_split_comment(line) = let i = findfirst('#', line)
-    i === nothing ? (line, "") : (line[1:(i - 1)], strip(line[(i + 1):end]))
-end
-
+# The constant of a `log_k` line, whatever the spelling of the option and
+# whether an equal sign follows it (`-log_k = 0.0`).
 function _parse_log_k(s)
-    m = match(r"^-log_k\s*=?\s*(\S+)"i, strip(s))
-    m === nothing && return nothing
-    return tryparse(Float64, m.captures[1])
+    words = split(s, r"[\s=]+"; keepempty = false)
+    return length(words) >= 2 ? tryparse(Float64, words[2]) : nothing
 end
 
 _ref_tag(comment, fallback) = let m = match(r"ref:\s*(\S+)", comment)
@@ -250,36 +231,21 @@ _plain_comment(comment) =
     _parse_sorption_stoichiometry(equation) -> Dict{String,Rational{Int}}
 
 `species => coefficient` for a PHREEQC reaction line, negative on the left of
-the `=` and positive on the right.
-
-Handles the two spacings a database uses interchangeably, `2 Na+` and `2Na+`,
-and decimal coefficients, `0.5 X`, read exactly as rationals.
+the `=` and positive on the right, a species on both sides counted once: the
+equation is read by [`phreeqc_equation`](@ref), as every PHREEQC reaction is, and
+its coefficients as written, exactly (`0.5` is `1//2`).
 """
 function _parse_sorption_stoichiometry(equation::AbstractString)
-    lhs, rhs = split(equation, '='; limit = 2)
+    lhs, rhs = phreeqc_equation(equation)
     out = Dict{String, Rational{Int}}()
-    for (side, sgn) in ((lhs, -1), (rhs, +1))
-        # SPLIT ON THE SEPARATOR, NOT ON THE CHARACTER. `+` is also a charge, so
-        # splitting `Ca+2 + 2 IltxNa` on every `+` yields "Ca", "2" and
-        # "2 IltxNa" — three terms, none of them the calcium ion. The separator
-        # is a plus with whitespace on both sides, which is how every database
-        # writes it and how a charge never appears.
-        for term in split(side, r"\s+\+\s+")
-            t = strip(term)
-            isempty(t) && continue
-            # A decimal is read whole: `^(\d+)` alone took `0.5 X` for the
-            # coefficient 0 of a species named `.5 X`.
-            m = match(r"^(\d+\.\d*|\.\d+|\d+)\s*(.*)$", t)
-            coef, name = m === nothing ? (1 // 1, t) : (_exact_coefficient(m.captures[1]), strip(m.captures[2]))
-            isempty(name) && continue
-            out[String(name)] = get(out, String(name), 0) + sgn * coef
-        end
+    for (side, sgn) in ((lhs, -1), (rhs, 1)), (c, name) in side
+        out[name] = get(out, name, 0) + sgn * _exact_coefficient(c)
     end
     return out
 end
 
-# A coefficient as written, exactly: `2` is `2//1`, `0.5` is `1//2`.
-_exact_coefficient(c::AbstractString) = occursin('.', c) ? rationalize(Int, parse(Float64, c)) : parse(Int, c) // 1
+# A coefficient as written, exactly: `2.0` is `2//1`, `0.5` is `1//2`.
+_exact_coefficient(c::Float64) = isinteger(c) ? Int(c) // 1 : rationalize(Int, c)
 
 """
     log_constants(m::SorptionModel) -> Vector{<:Traced}

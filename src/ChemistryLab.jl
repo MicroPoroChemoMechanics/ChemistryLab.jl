@@ -142,6 +142,7 @@ module ChemistryLab
     include("databases/paths.jl")
     include("databases/remote.jl")
     include("databases/thermofun_json.jl")
+    include("databases/reaction_tables.jl")
     include("databases/phreeqc_reader.jl")
     include("databases/gwb_reader.jl")
     include("databases/eq36_reader.jl")

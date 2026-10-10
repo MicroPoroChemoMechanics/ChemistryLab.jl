@@ -105,7 +105,7 @@ function site_family(
         # −RT ln10 log K minus the energies of the other participants at the
         # same (T, P): reactants have ν < 0, so they add.
         terms = Tuple{Float64, Any}[
-            (Float64(ν), _reaction_species(lookup, sp, name)[:ΔₐG⁰]) for (sp, ν) in stoich if !surface(sp)
+            (Float64(ν), _aqueous_participant(lookup, sp, name)[:ΔₐG⁰]) for (sp, ν) in stoich if !surface(sp)
         ]
         lnK = log(10) * logK
         G = (T, P) -> -R_GAS * T * lnK -
@@ -125,9 +125,12 @@ end
 _equation_and_logk(r::SorptionReaction) = (r.equation, float(value(r.log_K)))
 _equation_and_logk(r::Pair) = (String(first(r)), float(last(r)))
 
-function _reaction_species(lookup, sym, name)
+# The aqueous species a sorption reaction names, among those given: by the name
+# as written, or by the symbol the readers give it (`H2O@`, `@` on a neutral).
+function _aqueous_participant(lookup, sym, name)
     haskey(lookup, sym) && return lookup[sym]
-    sym == "H2O" && haskey(lookup, "H2O@") && return lookup["H2O@"]
+    alias = _solute_symbol(sym)
+    haskey(lookup, alias) && return lookup[alias]
     throw(
         ArgumentError(
             "site_family \"$name\": no aqueous species \"$sym\" among the ones given."
