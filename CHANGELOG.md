@@ -163,6 +163,9 @@ They are corrected here, each with a test that failed before.
   order 10⁵ J/mol: it moves by 2 × 10⁻¹² relative at most, the Gibbs energy,
   the enthalpy and the heat capacity being unchanged to the bit. The critical
   pressure of a GWB gas is converted from bar to pascals directly.
+- The four Debye–Hückel activity models (HKF, Davies, Truesdell–Jones, LLNL)
+  share one frame, a kernel holding what is each model's own, and the search of
+  `equilibrate_certified` is written as its stages; neither changes a result.
 
 ### Performance
 
