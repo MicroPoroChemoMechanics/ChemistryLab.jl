@@ -7,7 +7,7 @@
 # and that is where they come from here. Writing `8.31446261815324` into a
 # formula is wrong in three ways at once: it is a magic number a reader has to
 # recognize, it silently asserts a unit system, and the next occurrence of it
-# drifts from the first. There were nine of them in this package.
+# drifts from the first.
 #
 # Both forms are provided because both are needed and the difference matters.
 # The DIMENSIONAL constant is the one to use when a quantity carries units; the
@@ -177,3 +177,9 @@ The thermochemical calorie as a plain `Float64` in joules, derived from
 [`CALORIE_Q`](@ref): `4.184`.
 """
 const CALORIE = ustrip(us"J", CALORIE_Q)
+
+# The pressure units of the databases in pascals, and `R ln 10`, which turns a
+# log K into a Gibbs energy: `ΔG = −R T ln 10 log K`.
+const _ONE_BAR = ustrip(us"Pa", 1.0u"bar")
+const _ONE_ATM = ustrip(us"Pa", _DQConstants.atm)
+const _R_LN10 = R_GAS * log(10)

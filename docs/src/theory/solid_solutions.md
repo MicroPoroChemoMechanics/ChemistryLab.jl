@@ -474,12 +474,12 @@ pair:
 using ChemistryLab, DynamicQuantities, Printf
 sp = Dict(symbol(s) => s for s in build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
 gap = RedlichKisterModel(a0 = 14_000.0)
-carbonate = SolidSolutionPhase("carbonate", [sp["Cal"], sp["Mgs"]]; model = gap, instances = :auto)
+carbonate_ss = SolidSolutionPhase("carbonate", [sp["Cal"], sp["Mgs"]]; model = gap, instances = :auto)
 cs = ChemicalSystem([sp[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Mg+2 Cal Mgs")],
-                    ["H2O@", "H+", "Ca+2", "Mg+2", "CO3-2", "Zz"]; solid_solutions = [carbonate])
+                    ["H2O@", "H+", "Ca+2", "Mg+2", "CO3-2", "Zz"]; solid_solutions = [carbonate_ss])
 st = ChemicalState(cs)
 set_quantity!(st, "H2O@", 1.0u"kg"); set_quantity!(st, "Cal", 0.025u"mol"); set_quantity!(st, "Mgs", 0.025u"mol")
-eq, cert = equilibrate_certified(st; b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n))
+eq, cert = equilibrate_certified(st; b = budget(st))
 n = ustrip.(us"mol", eq.n)
 @printf("certified %s, instances added to %s\n", cert.optimal, cert.instances_added)
 for (g, ph) in zip(eq.system.ss_groups, eq.system.solid_solutions)

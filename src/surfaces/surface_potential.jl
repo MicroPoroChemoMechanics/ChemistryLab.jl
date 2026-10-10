@@ -38,21 +38,6 @@ needs_potential_unknown(::ChargePlanes) = true
 needs_potential_unknown(m::ConstantCapacitance) = needs_potential_unknown(m.base)
 
 """
-    _potential_families(cs) -> Vector{Int}
-
-Which of `cs`'s site families need a potential unknown, by index.
-
-`cs.site_families` is `nothing` — not an empty vector — for a system that
-declares no surface, which is most of them, so the guard is the first line
-rather than an afterthought.
-"""
-function _potential_families(cs::ChemicalSystem)
-    fams = cs.site_families
-    fams === nothing && return Int[]
-    return [k for (k, f) in enumerate(fams) if needs_potential_unknown(f.model)]
-end
-
-"""
     _potential_supports(cs) -> Vector{Vector{Int}}
 
 The distinct supports of `cs` that need a potential unknown, each as the list of

@@ -83,6 +83,18 @@
     c3s_copy = CemSpecies("C3S")
     @test c3s == c3s_copy
     @test hash(c3s) == hash(c3s_copy)
+
+    # A species the direct solve over the oxides does not reproduce goes to the
+    # stoichiometric decomposition, which was called with a keyword it does not
+    # have: a MethodError whatever the species. It now answers, here by refusing
+    # a species no combination of the oxides writes.
+    err = try
+        CemSpecies(Species("OH-"))
+        nothing
+    catch e
+        e
+    end
+    @test err !== nothing && !(err isa MethodError)
 end
 
 @testsection "with_class" begin
@@ -190,4 +202,42 @@ end
             if i < j && isequal(subs[i], subs[j]) && hash(subs[i]) != hash(subs[j])
     ]
     @test isempty(violations)
+end
+
+@testset "find_species answers to the name, within the state and class asked for" begin
+    # Species built without a class have `SC_UNDEF`; the filter read
+    # `name && state || state && class || class`, and such a species answered
+    # to every name: the first of the list came back whatever was asked.
+    salt, water = Species("NaCl"), Species("H2O")
+    @test symbol(ChemistryLab.find_species("H2O", [salt, water])) == "H2O"
+    @test symbol(ChemistryLab.find_species("NaCl", [water, salt])) == "NaCl"
+    # With a state asked for, every species of that state answered.
+    na = Species("Na+"; aggregate_state = AS_AQUEOUS)
+    aq = Species("H2O"; aggregate_state = AS_AQUEOUS)
+    gas = Species("H2O"; aggregate_state = AS_GAS)
+    @test ChemistryLab.find_species("H2O", [na, gas, aq]; aggregate_state = AS_AQUEOUS) === aq
+    @test ChemistryLab.find_species("H2O", [na, aq, gas]; aggregate_state = AS_GAS) === gas
+    # By formula when no spelling matches, within the same filters.
+    @test ChemistryLab.find_species("OH2", [na, gas, aq]; aggregate_state = AS_AQUEOUS) === aq
+    # Nothing that answers: a new species of that formula.
+    @test symbol(ChemistryLab.find_species("KCl", [salt, water])) == "KCl"
+    # Several that answer: the first, and the ambiguity said.
+    printed = mktemp() do path, io
+        @test redirect_stdout(() -> ChemistryLab.find_species("H2O", [gas, aq]), io) === gas
+        flush(io)
+        read(path, String)
+    end
+    @test occursin("Several species correspond to H2O", printed)
+end
+
+@testset "a lookup in a charged species copies nothing" begin
+    # Its components are its atoms and its charge; looked up one after the
+    # other, none of them is built, so a lookup allocates nothing.
+    ion = Species("Ca+2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    lookup(s, k) = s[k]
+    @test lookup(ion, :Ca) == 1 && lookup(ion, :Zz) == 2 && lookup(ion, :N) == 0
+    lookup(ion, :M)
+    @test (@allocated lookup(ion, :Ca)) == 0
+    @test (@allocated lookup(ion, :Zz)) == 0
+    @test (@allocated lookup(ion, :M)) == 0
 end

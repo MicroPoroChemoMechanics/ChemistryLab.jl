@@ -28,9 +28,9 @@ explicitly.
 | wref   | cal/mol                 | J/mol               | 4.184      |
 """
 const HKF_SI_CONVERSIONS = OrderedDict{Symbol, Float64}(
-    :a1 => CALORIE / ustrip(us"Pa", 1.0u"bar"),
+    :a1 => CALORIE / _ONE_BAR,
     :a2 => CALORIE,
-    :a3 => CALORIE / ustrip(us"Pa", 1.0u"bar"),
+    :a3 => CALORIE / _ONE_BAR,
     :a4 => CALORIE,
     :c1 => CALORIE,
     :c2 => CALORIE,
@@ -126,13 +126,23 @@ Reject executable syntax before calling `uparse`. Returns `default_unit` for
 unsupported expressions, unknown units, or malformed input.
 """
 function extract_unit(v, default_unit = u"1")
+    v isa AbstractString || return something(_parse_unit(v), default_unit)
+    # A database spells its units with a handful of strings, read once each.
+    parsed = lock(() -> get!(() -> _parse_unit(v), _UNIT_CACHE, String(v)), _UNIT_LOCK)
+    return something(parsed, default_unit)
+end
+
+# The unit `v` spells, or `nothing` when it is not unit arithmetic.
+function _parse_unit(v)
     return try
-        is_unit_expression(Meta.parse(v)) || return default_unit
-        uparse(v)
+        is_unit_expression(Meta.parse(v)) ? uparse(v) : nothing
     catch
-        default_unit
+        nothing
     end
 end
+
+const _UNIT_CACHE = Dict{String, Any}()
+const _UNIT_LOCK = ReentrantLock()
 
 # Classification labels are enum names, never Julia expressions. Preserve the
 # existing undefined fallback for missing, malformed, and unsupported labels.
@@ -280,16 +290,10 @@ function temperature_range(s::AbstractSpecies)
     return (Float64(r[1]), Float64(r[2]))
 end
 
-"""
-    complete_species_with_thermo_model!(species, row; verbose=false)
-
-Populate thermodynamic reference values and build thermodynamic functions on `species`
-from a ThermoFun substance DataFrame `row`. Mutates `species.properties` in place.
-"""
 # ThermoFun's standard reference state is 298.15 K and 1 bar, and a record that
 # omits it is referred to that state: one substance of the slop98 organic
-# database, `Eth@`, carries no `Tst`. Read as missing, it made the whole database
-# unreadable.
+# database, `Eth@`, carries no `Tst`, and read as missing it would make the whole
+# database unreadable.
 const _THERMOFUN_TST = T_STANDARD
 const _THERMOFUN_PST = P_STANDARD
 _reference_value(row, key, default) = (
@@ -320,6 +324,12 @@ const _THERMOFUN_EQUIVALENT_METHODS = (
     "standard_entropy_cp_integration", "water_diel_jnort91_reaktoro", "fluid_comp_redlich_kwong_hp91",
 )
 
+"""
+    complete_species_with_thermo_model!(species, row; verbose=false)
+
+Populate thermodynamic reference values and build thermodynamic functions on `species`
+from a ThermoFun substance DataFrame `row`. Mutates `species.properties` in place.
+"""
 function complete_species_with_thermo_model!(species, row; verbose = false)
     Tst = _reference_value(row, :Tst, _THERMOFUN_TST)
     Tref = Tst * u"K"
@@ -379,11 +389,11 @@ function complete_species_with_thermo_model!(species, row; verbose = false)
             elseif method_type == "solute_hkf88_reaktoro" && haskey(method, :eos_hkf_coeffs)
                 species[:thermo_method] = "solute_hkf88_reaktoro"
                 coeffs = method.eos_hkf_coeffs
-                vals = float.(coeffs.values)
+                hkf_vals = float.(coeffs.values)
                 names = [:a1, :a2, :a3, :a4, :c1, :c2, :wref]
                 hkf_params = [
-                    names[i] => vals[i] * HKF_SI_CONVERSIONS[names[i]] for
-                        i in 1:min(length(vals), length(names))
+                    names[i] => hkf_vals[i] * HKF_SI_CONVERSIONS[names[i]] for
+                        i in 1:min(length(hkf_vals), length(names))
                 ]
                 z = float(get(row, :formula_charge, 0))
                 push!(hkf_params, :z => z)
@@ -443,7 +453,8 @@ Build Species objects from a substance DataFrame: that of a ThermoFun file
 ([`read_phreeqc_database`](@ref), [`read_gwb_database`](@ref),
 [`read_eq36_database`](@ref)) or of a database of Reaktoro
 ([`read_reaktoro_database`](@ref)). The substances named in `list_symbols` are
-looked up by their symbol, or by their name in the database.
+looked up by their symbol, and in a database of reactions or of Reaktoro also by
+their name in the database.
 
 # Arguments
 
@@ -545,8 +556,6 @@ function _species_from_row(row, df = nothing; verbose = false)
     return species
 end
 
-const _ONE_BAR = ustrip(us"Pa", 1.0u"bar")
-
 # The functions of a substance computed by a method the package does not
 # implement, restricted to its reference state, where the method leaves the
 # record's values: the reference temperature (unless `temperature = false`, for a
@@ -584,34 +593,51 @@ function _define_by_reactions!(species_list, df; verbose = false)
     hasproperty(df, :defining_reaction) || return species_list
     rows = Dict(String(r.symbol) => r for r in eachrow(df))
     cache = Dict{String, Species}(symbol(s) => s for s in species_list)
-    done, visiting = Set{String}(), Set{String}()
-    function define!(s)
-        sym = symbol(s)
-        sym in done && return s
-        row = get(rows, sym, nothing)
-        rec = row === nothing ? missing : row.defining_reaction
-        if !ismissing(rec)
-            sym in visiting && throw(ArgumentError("$sym is defined by a reaction that rests on itself"))
-            push!(visiting, sym)
-            _define_by_reaction!(s, rec, species_of)
-            delete!(visiting, sym)
-        end
-        push!(done, sym)
-        return s
+    definer = _ReactionDefiner(rows, df, cache, Set{String}(), Set{String}(), verbose)
+    for s in species_list
+        _define!(definer, s)
     end
-    function species_of(sym)
-        s = get(cache, sym, nothing)
-        if s === nothing
-            row = get(rows, sym, nothing)
-            row === nothing && throw(ArgumentError("a reaction of the database names $sym, which it does not define"))
-            s = _species_from_row(row, df; verbose = verbose)
-            haskey(properties(s), :refused_method) && _reference_state_only!(s)
-            cache[sym] = s
-        end
-        return define!(s)
-    end
-    foreach(define!, species_list)
     return species_list
+end
+
+# What `_define_by_reactions!` works with: the rows of the database by symbol,
+# the species read so far, and the symbols defined and being defined. Called
+# with a symbol, it returns that species, read from its row if need be, and
+# defined by its own reaction first: the reactions rest on one another.
+struct _ReactionDefiner{R, D}
+    rows::R
+    df::D
+    cache::Dict{String, Species}
+    done::Set{String}
+    visiting::Set{String}
+    verbose::Bool
+end
+
+function _define!(d::_ReactionDefiner, s)
+    sym = symbol(s)
+    sym in d.done && return s
+    row = get(d.rows, sym, nothing)
+    rec = row === nothing ? missing : row.defining_reaction
+    if !ismissing(rec)
+        sym in d.visiting && throw(ArgumentError("$sym is defined by a reaction that rests on itself"))
+        push!(d.visiting, sym)
+        _define_by_reaction!(s, rec, d)
+        delete!(d.visiting, sym)
+    end
+    push!(d.done, sym)
+    return s
+end
+
+function (d::_ReactionDefiner)(sym)
+    s = get(d.cache, sym, nothing)
+    if s === nothing
+        row = get(d.rows, sym, nothing)
+        row === nothing && throw(ArgumentError("a reaction of the database names $sym, which it does not define"))
+        s = _species_from_row(row, d.df; verbose = d.verbose)
+        haskey(properties(s), :refused_method) && _reference_state_only!(s)
+        d.cache[sym] = s
+    end
+    return _define!(d, s)
 end
 
 # ── Substances defined by a reaction ─────────────────────────────────────────
@@ -632,11 +658,7 @@ end
 # and the heat capacity of reaction there, held constant (van 't Hoff's
 # equation, integrated with a constant heat capacity of reaction).
 function _thermofun_log10K(rec)
-    coeffs = nothing
-    for m in something(get(rec, "TPMethods", nothing), [])
-        c = get(m, "logk_ft_coeffs", nothing)
-        c === nothing || (coeffs = Float64.(c["values"]))
-    end
+    coeffs = _logk_coefficients(rec)
     if coeffs !== nothing && any(!iszero, coeffs)
         length(coeffs) > 7 && any(!iszero, coeffs[8:end]) && throw(
             ArgumentError("reaction $(rec["symbol"]): logk_fpt_function has nonzero coefficients past the seventh, which no published form gives")
@@ -652,13 +674,24 @@ function _thermofun_log10K(rec)
     value(key) = (v = get(rec, key, nothing); v === nothing ? 0.0 : Float64(only(v["values"])))
     L0, H, Cp = value("logKr"), value("drsm_enthalpy"), value("drsm_heat_capacity_p")
     Tr = Float64(get(rec, "Tst", _THERMOFUN_TST))
-    k = R_GAS * log(10)
+    k = _R_LN10
     return function (T)
         L = L0 - H / k * (1 / T - 1 / Tr) + Cp / k * (Tr / T - 1 + log(T / Tr))
         dL = H / (k * T^2) + Cp / k * (1 / T - Tr / T^2)
         d2L = -2H / (k * T^3) + Cp / k * (2Tr / T^3 - 1 / T^2)
         return L, dL, d2L
     end
+end
+
+# The `logk_fpt_function` coefficients of a reaction record, from the last of its
+# methods that lists them, or `nothing`.
+function _logk_coefficients(rec)
+    coeffs = nothing
+    for m in something(get(rec, "TPMethods", nothing), [])
+        c = get(m, "logk_ft_coeffs", nothing)
+        c === nothing || (coeffs = Float64.(c["values"]))
+    end
+    return coeffs
 end
 
 # The reactants of a reaction record, by symbol: a record that lists a species
@@ -700,11 +733,10 @@ function _define_by_reaction!(s, rec, species_of)
         v === nothing ? 0.0 : ustrip(us"m^3/mol", Float64(only(v["values"])) * u"J/(bar*mol)")
     end
     Pr = Float64(get(rec, "Pst", _THERMOFUN_PST))
-    k = R_GAS * log(10)
-    ΔG(T, P) = -k * T * first(logK(T)) + ΔV * (P - Pr)
-    ΔH(T, P) = (r = logK(T); k * T^2 * r[2] + ΔV * (P - Pr))
-    ΔS(T, P) = (r = logK(T); k * (r[1] + T * r[2]))
-    ΔCp(T, P) = (r = logK(T); k * (2T * r[2] + T^2 * r[3]))
+    ΔG(T, P) = _logK_gibbs(logK(T), T) + ΔV * (P - Pr)
+    ΔH(T, P) = _logK_enthalpy(logK(T), T) + ΔV * (P - Pr)
+    ΔS(T, P) = _logK_entropy(logK(T), T)
+    ΔCp(T, P) = _logK_heat_capacity(logK(T), T)
     ΔVf(T, P) = ΔV + zero(T)
     refs = (T = s.Tref, P = s.Pref)
     for (key, Δ, unit) in (
@@ -785,7 +817,7 @@ function complete_reaction_with_thermo_model!(reaction, row; verbose = false)
 end
 
 """
-    build_reactions(df_reactions::AbstractDataFrame, dict_species=Dict(), list_symbols=nothing; verbose=false) -> Vector{Reaction}
+    build_reactions(df_reactions::AbstractDataFrame, species_list=[], list_symbols=nothing; verbose=false) -> Vector{Reaction}
 
 Build Reaction objects from a reaction DataFrame.
 
@@ -864,7 +896,9 @@ Find species in the database compatible with a given list of species (sharing at
 
 # Arguments
 
-  - `df_substances`: substance DataFrame.
+  - `df_substances`: substance DataFrame of a ThermoFun database, as
+    `read_thermofun_database` returns it: its `aggregate_state` column holds
+    ThermoFun's one-entry dictionaries, which the filter reads.
   - `species_list`: list of target species symbols.
   - `aggregate_states`: filter for specific aggregate states (default: `[AS_AQUEOUS]`).
   - `exclude_species`: list of species symbols to exclude.

@@ -60,7 +60,8 @@ the first mixes two.
 # Each synthesis at equilibrium at 80 °C, in each set. The warnings of the solver,
 # if any, are kept out of the page; the certificates are printed.
 runs = with_logger(NullLogger()) do # hide
-runs = Dict(set => sl19_syntheses(set) for set in (:jin, :shi))
+# `Any`: a container typed on the states it holds compiles for minutes.
+runs = Dict{Symbol, Any}(set => sl19_syntheses(set) for set in (:jin, :shi))
 end # hide
 println("sample   series    XRD                        set :jin                      set :shi")
 for (a, b) in zip(runs[:jin], runs[:shi])

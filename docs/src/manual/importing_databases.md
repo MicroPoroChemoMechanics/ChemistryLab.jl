@@ -53,6 +53,20 @@ reads any of the five formats, choosing the reader by the name of the file and
 its first lines, and [`build_species`](@ref) builds the species of the table of
 substances, whichever it is.
 
+A dissolved species keeps the name its database gives it in the column `name`,
+and gets a ChemistryLab symbol by one rule, the same in every reader and in the
+`PITZER` and `SIT` blocks of a PHREEQC file:
+
+| written in the database | symbol |
+|:--|:--|
+| `Ca+2`, `Ca++`, `Na+1` | `Ca+2`, `Ca+2`, `Na+` |
+| `SO4-2`, `SO4--` | `SO4-2` |
+| `CO2`, `CO2(aq)` | `CO2@` |
+| `H2O`, `H2O(aq)` | `H2O@` (the solvent) |
+
+A run of signs is a charge, each sign counting one; `(aq)` is dropped and a
+neutral solute is marked by `@`. A mineral or a gas keeps its name.
+
 ## [Where the databases come from](@id sec-datapath)
 
 No database is stored in the package. Each is published by its authors, under

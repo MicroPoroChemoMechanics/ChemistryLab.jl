@@ -90,7 +90,7 @@ default(framestyle = :box, grid = false)
 
 substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
 byname = Dict(symbol(s) => s for s in substances)
-molar_mass(n) = ustrip(us"g/mol", byname[n][:M])
+molar_mass_g(n) = ustrip(us"g/mol", byname[n][:M])
 nothing # hide
 ```
 
@@ -120,9 +120,11 @@ each family, and the assumption is stated where it is made rather than buried in
 a preamble.
 
 ```@example cem2
-# ASSUMED: a Bogue composition representative of a CEM I clinker. The deposit
-# reports none.
-CLINKER = OrderedDict("C3S" => 0.65, "C2S" => 0.11, "C3A" => 0.11, "C4AF" => 0.08)
+# ASSUMED: a Bogue composition representative of a CEM I clinker, here the
+# Bogue composition of the CEM I 52.5 N of [Lavergne2018](@citet), Table 9. The
+# deposit reports none.
+bogue_table = literature_table("Lavergne2018", "cement_bogue")
+CLINKER = OrderedDict(zip(bogue_table.phase, bogue_table.percent ./ 100))
 
 # ASSUMED: midpoints of the EN 197-1 ranges. CEM II/A-LL is 80-94 % clinker
 # with 6-20 % limestone; CEM II/B-S is 65-79 % clinker with 21-35 % slag.
@@ -216,9 +218,9 @@ model = cemdata18_activity_model(:KOH)
 Mox(ox) = ustrip(us"g/mol", Species(ox)[:M])
 println("molar K/Na of the alkalis: ", round((2 * ALKALIS["K2O"] / Mox("K2O")) / (2 * ALKALIS["Na2O"] / Mox("Na2O")); digits = 1))
 
-components = String.(symbol.(cs.SM.primaries))
+component_names = String.(symbol.(cs.SM.primaries))
 @printf("%d species, %d conservation components: %s\n",
-        length(cs.species), length(components), join(components, " "))
+        length(cs.species), length(component_names), join(component_names, " "))
 ```
 
 `Zz` is in that list because the sulfur ladder is: with sulfur at more than one
@@ -235,24 +237,24 @@ limestone as calcite — a species with a formula — and the slag through
 
 ```@example cem2
 """Element budget of one paste, in moles per 100 g of binder."""
-function budget(; clinker_frac, limestone = 0.0, slag = 0.0, wb)
+function paste_budget(; clinker_frac, limestone = 0.0, slag = 0.0, wb)
     α = reacted(wb)
     state = ChemicalState(cs)
     # Only the reacted clinker is posed to the minimization; the unhydrated
     # cores are still in the specimen but are not at equilibrium with it.
     for (phase, frac) in CLINKER
         set_quantity!(state, phase,
-            α.clinker * BINDER_G * clinker_frac * frac / molar_mass(phase) * u"mol")
+            α.clinker * BINDER_G * clinker_frac * frac / molar_mass_g(phase) * u"mol")
     end
     # The calcium sulfate is soluble and the limestone is a declared phase, so
     # neither carries a ceiling. All of the mixing water enters: the ceiling
     # says how far the reaction goes, not how much water was poured in.
-    set_quantity!(state, "Gp", BINDER_G * GYPSUM / molar_mass("Gp") * u"mol")
+    set_quantity!(state, "Gp", BINDER_G * GYPSUM / molar_mass_g("Gp") * u"mol")
     limestone > 0 && set_quantity!(state, "Cal",
-        BINDER_G * limestone / molar_mass("Cal") * u"mol")
-    set_quantity!(state, "H2O@", BINDER_G * wb / molar_mass("H2O@") * u"mol")
+        BINDER_G * limestone / molar_mass_g("Cal") * u"mol")
+    set_quantity!(state, "H2O@", BINDER_G * wb / molar_mass_g("H2O@") * u"mol")
 
-    b = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
+    b = budget(state)
     # The alkalis leave the grain as it dissolves, so they follow the clinker and
     # its reacted fraction.
     b .+= oxide_budget(ALKALIS, cs.SM.primaries;
@@ -264,13 +266,13 @@ end
 
 # The clinker fraction is what is left once the replacement and the gypsum are
 # taken out, so the three pastes really are 100 g of binder each.
-st_ll, b_ll = budget(clinker_frac = 1 - LL_LIMESTONE - GYPSUM,
+st_ll, b_ll = paste_budget(clinker_frac = 1 - LL_LIMESTONE - GYPSUM,
                      limestone = LL_LIMESTONE, wb = 0.45)
-st_ref, b_ref = budget(clinker_frac = 1 - LL_LIMESTONE - GYPSUM, wb = 0.45)
-st_bs, b_bs = budget(clinker_frac = 1 - BS_SLAG - GYPSUM,
+st_ref, b_ref = paste_budget(clinker_frac = 1 - LL_LIMESTONE - GYPSUM, wb = 0.45)
+st_bs, b_bs = paste_budget(clinker_frac = 1 - BS_SLAG - GYPSUM,
                      slag = BS_SLAG, wb = 0.40)
 
-@printf("%-10s %s\n", "", join((@sprintf("%8s", c) for c in components), ""))
+@printf("%-10s %s\n", "", join((@sprintf("%8s", c) for c in component_names), ""))
 for (label, b) in ("CEM II/A-LL" => b_ll, "no limestone" => b_ref,
                    "CEM II/B-S" => b_bs)
     @printf("%-12s%s\n", label, join((@sprintf("%8.3f", v) for v in b), ""))

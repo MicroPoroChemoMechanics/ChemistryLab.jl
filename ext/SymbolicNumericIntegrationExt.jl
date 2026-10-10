@@ -4,12 +4,7 @@
 module SymbolicNumericIntegrationExt
 
 using ChemistryLab
-import ChemistryLab:
-    add_thermo_model,
-    extract_vars_params,
-    build_thermo_factories,
-    THERMO_MODELS,
-    THERMO_FACTORIES
+import ChemistryLab: add_thermo_model, extract_vars_params
 using Symbolics: Num, variable, simplify, expand, parse_expr_to_symbolic, toexpr
 using SymbolicNumericIntegration: integrate, terms
 
@@ -50,8 +45,8 @@ function ChemistryLab.add_thermo_model(model_name, Cpexpr::Expr, units = nothing
         )
     end
 
-    THERMO_MODELS[model_name] = dict_model
-    return THERMO_FACTORIES[model_name] = build_thermo_factories(dict_model)
+    # Registered as any model is, under the lock its readers take.
+    return add_thermo_model(model_name, dict_model)
 end
 
 end # module SymbolicNumericIntegrationExt

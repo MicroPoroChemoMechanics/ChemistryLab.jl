@@ -85,10 +85,6 @@ const THERMO_MODELS = Dict(
             :a₉ => u"J/(mol*K^(3//2))",
             :a₁₀ => u"J/(mol*K)",
             :T => u"K",
-            # :Cp => "J/(mol*K)",
-            # :S => "J/(mol*K)",
-            # :H => "J/mol",
-            # :G => "J/mol",
         ],
     ),
     :logk_fpt_function => Dict(
@@ -103,7 +99,6 @@ const THERMO_MODELS = Dict(
             :A₅ => u"K^(-2)",
             :A₆ => u"K^(1//2)",
             :T => u"K",
-            # :logKr => "1",
         ],
     ),
 )
@@ -139,7 +134,7 @@ build_thermo_functions(model_name::Symbol, params) =
 
 # Default: use THERMO_FACTORIES (symbolic models)
 function build_thermo_functions(::Val{M}, params) where {M}
-    dict_factories = THERMO_FACTORIES[M]
+    dict_factories = lock(() -> THERMO_FACTORIES[M], _THERMO_FACTORY_LOCK)
     dict_params = Dict(params)
 
     STref = dict_params[:S⁰]
@@ -181,7 +176,7 @@ end
 # ============================================================
 
 const _HKF_Tr = T_STANDARD   # reference temperature (K)
-const _HKF_Pr = 1.0e+5   # reference pressure    (Pa)
+const _HKF_Pr = P_STANDARD   # reference pressure    (Pa)
 const _HKF_Zr = -1.278055636e-2  # Born function Z at (Tr, Pr)
 const _HKF_Yr = -5.795424563e-5  # Born function Y at (Tr, Pr)
 const _HKF_θ = 228.0    # θ constant (K)
@@ -195,7 +190,20 @@ const _HKF_MIN_WATER_DENSITY = 350.0
 # derivatives, the dielectric functions and the g-function. Below the density at
 # which the equations hold there is no aqueous solution to describe (a vapor, or
 # a supercritical fluid too dilute), and asking is an error rather than a value.
+#
+# Every HKF species of a system reads the same state at the same (T, P), and its
+# density is a Newton solve of the HGK equation: see `_TPMemo`.
+_hkf_water_state(T::Float64, P::Float64) = _HKF_WATER_MEMO(_hkf_water_state_uncached, (T, P))
 function _hkf_water_state(T, P)
+    R = promote_type(typeof(T), typeof(P))
+    R <: ForwardDiff.Dual || return _hkf_water_state_uncached(T, P)
+    return _HKF_WATER_MEMO(_hkf_water_state_uncached, (T, P), _HKFWaterState{R})
+end
+
+const _HKFWaterState{R} = Tuple{WaterThermoProps{R}, WaterElectroProps{R}, HKFGState{R}}
+const _HKF_WATER_MEMO = _TPMemo{NTuple{2, Float64}, _HKFWaterState{Float64}}()
+
+function _hkf_water_state_uncached(T, P)
     wtp = water_thermo_props(T, P)
     _primal(wtp.D) < _HKF_MIN_WATER_DENSITY && throw(
         DomainError(
@@ -233,9 +241,10 @@ See the theory page *Formation quantities and the database*, section
 function _build_hkf_thermo_functions(params)
     dp = Dict(params)
 
-    # Extract SI values (strip units if present)
+    # Extract SI values (strip units if present), in the number type they come
+    # in: a datum being fitted carries its derivative.
     _strip(x::AbstractQuantity) = ustrip(uexpand(x))
-    _strip(x::Real) = Float64(x)
+    _strip(x::Real) = float(x)
 
     a1 = _strip(dp[:a1])
     a2 = _strip(dp[:a2])
@@ -382,6 +391,10 @@ add_thermo_model(:my_model, :(a + b*T), [:T => u"K", :a => u"J/mol/K", :b => u"J
 ```
 """
 function add_thermo_model(model_name, dict_model::AbstractDict)
-    THERMO_MODELS[model_name] = dict_model
-    return THERMO_FACTORIES[model_name] = build_thermo_factories(dict_model)
+    # The registries are read by every species completed, possibly on another
+    # thread: they are written under the factories' lock, which those reads take.
+    return lock(_THERMO_FACTORY_LOCK) do
+        THERMO_MODELS[model_name] = dict_model
+        THERMO_FACTORIES[model_name] = build_thermo_factories(dict_model)
+    end
 end

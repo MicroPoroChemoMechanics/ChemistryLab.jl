@@ -1,5 +1,230 @@
 # Changelog
 
+## v0.38.0 — Derivatives carried through, and the defects an audit found
+
+An audit of the code against the rules of the package, numbers generic enough
+for dual and symbolic arithmetic and Julia written for speed, found defects
+that changed a result or raised an error, paths on which a derivative was
+dropped or refused, and caches written from several threads without a lock.
+They are corrected here, each with a test that failed before.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.37"` does not accept 0.38
+  and has to widen its bound.
+- **`find_species` answers to the name, within the state and the class asked
+  for.** The filter combined its conditions with `.&&` and `.||` without
+  parentheses, and `.&&` binds tighter: a species of undefined state and class
+  answered to any name, and `aggregate_state = AS_AQUEOUS` returned the first
+  aqueous species of the list whatever the name.
+- **`scale_stoich!`, and so `Reaction(...; auto_scale = true)`, reduces the
+  coefficients to the smallest integers in the same ratios.** It multiplied
+  them by their greatest common divisor, `{2, 4}` becoming `{4, 8}` where its
+  docstring promised integers scaled down; rational coefficients are now
+  cleared of their denominators too.
+- **`merge(cs1, cs2)` keeps the solid solutions and the site families** of both
+  systems, by name, `cs1` winning a conflict. It kept the species alone, so a
+  merged system lost its mixing phases and its surfaces without a word.
+- **A kinetic run on dual numbers takes the route of the same run on plain
+  numbers.** The probe that decides whether the rates read the speciation looked
+  for its seed one level of duals deep; inside a differentiation it missed it,
+  chose the frozen speciation, and the derivative was that of another
+  trajectory.
+- **`transition_state` reads the saturation of its reaction by symbol**, as
+  `saturation_ratio` does. It looked the species up by formula, so of two
+  polymorphs, calcite and aragonite, it read whichever came first.
+- **`SorptionReaction` is parametric, `SorptionReaction{T}`**, its `log_K` a
+  `Traced{T}` in the number type it is given in, and its `stoichiometry` a
+  `Dict{String, Rational{Int}}`: a decimal coefficient is held exactly.
+- **A new exported name**, `element_amounts`: a package defining the same name
+  alongside `using ChemistryLab` now sees a conflict.
+- **OptimaSolver 0.8.3 at least.** The suite and the certified solves are
+  validated against it: its warm-start cache no longer crosses number types,
+  and it returns the best round of a relinearized constraint.
+
+### Added
+
+- `budget(state)`, the totals of the primaries a solve of `state` conserves,
+  `conservation_matrix(system) * n`, in the number type of the amounts and of
+  the matrix. The pages wrote it out by hand with `SM.A`, which is the solver's
+  matrix only where no site family follows its host, and some as
+  `Float64[ustrip(us"mol", x) for x in st.n]`, which drops the derivatives of
+  the amounts.
+- `element_amounts(state)`, the amount of each atom of the system in a state.
+- `pore_solution(state, model; per = :kg)`, the pore solution of any state, per
+  kilogram of water or per liter of solution; that of a `RecipeState` is now
+  this one.
+- `saturation_indices(state, model, species)`, the indices of solids outside
+  the system, each formed from the primaries by its decomposition.
+- The keyword `species` of `mean_degree_of_hydration`, which averages over the
+  kinetic species named.
+- The docstrings of `equilibrate` and `equilibrate_certified` say that the state
+  given is not modified.
+
+### Fixed
+
+- `Formula(f::Formula)` kept the composition and dropped the charge.
+- The decomposition of a `CemSpecies` by the stoichiometric matrix, the route
+  taken when the direct solve over the oxides misses, called `StoichMatrix` with
+  a keyword it does not have, a `MethodError` whatever the species.
+- A sorption equation of PHREEQC whose coefficient is a decimal, `0.5 X-`, was
+  read with the coefficient 0; coefficients are read exactly, as rationals.
+- `SymbolicFunc(sym; kwargs...)` and `SymbolicFunc(expr, vars; kwargs...)` gave
+  every keyword both to the factory and to its call: the units were refused by
+  the call, and the reference values by the factory. Each keyword now goes where
+  it belongs.
+- The predictor of the Pitzer inversion used the Debye–Hückel slope at 25 °C
+  where the model holds its own, `model.A`.
+- An `EquilibriumSolver` with `variable_space = Val(:log)` and `OptimaOptimizer`
+  handed OptimaSolver the constraint `A exp(x) = b`, which it linearized once
+  at the start and then held: it solved another problem, and its answer missed
+  the balance. The problem is now built in the amounts whatever the variable
+  space, the formulation the interior point is made for, with the same minimum;
+  `Val(:log)` is still served as it is to Ipopt.
+- Derivatives that raised or were dropped, each now carried in the number type
+  of what it comes from (a parameter being fitted, a temperature, a
+  composition), with a test against an exact identity:
+  - the heat of reaction of a kinetic reaction given as a dual number, and the
+    constants of a calorimeter (heat-loss coefficient, initial temperature, heat
+    capacity), which were converted to `Float64`; a semi-adiabatic cell whose
+    initial and ambient temperatures differ in number type (a dual and a plain
+    one, or an integer and a float) had no constructor;
+  - the Peng–Robinson gas phase: critical constants, acentric factor and
+    binary interaction parameters;
+  - the molar volumes of `PoreHumidity`, at a dual temperature or reference
+    state;
+  - the Pitzer parameters: a set given as dictionaries mixing one dual value
+    with plain ones was converted to `Float64` (the number type was read off
+    the dictionaries' value type, `Real`), and the tables filled a missing
+    entry with a `Float64` zero beside dual ones, a `Matrix{Real}`;
+  - a datum of the HKF equation of state given as a plain number;
+  - the `log K` of a sorption reaction, the charge distribution of CD-MUSIC
+    and the pressure a diffuse layer or charge planes follow their
+    permittivity at;
+  - `volume_fractions`, which ignored the number type of the molar volumes
+    (temperature, pressure, data);
+  - `glass_species` and `glass_enthalpy`, at dual mass fractions;
+  - nested differentiation where a value was peeled one level of duals deep
+    and then converted to `Float64` (the convexity verdict of a solid solution,
+    the reference temperature of a rate law).
+- The accessors that read a run back by solving on its values (`heat_flow`,
+  `cumulative_heat`, `temperature_profile`, the heat flow of `heat_release`
+  under partial equilibrium) return values only: on a run carrying dual numbers
+  they now say so once, rather than dropping the derivative in silence.
+- `kinetic_step` and `kinetic_step_adaptive` work on plain numbers and now say
+  so when handed dual ones, naming `integrate` for the derivatives of a run;
+  they failed further down on a plain buffer. A conservation matrix carrying
+  dual numbers (a site capacity being differentiated) is refused by name when a
+  `KineticsProblem` is built, where it failed on its conversion.
+- The thermodynamic functions of a species, built on its first use, are built
+  under a lock: the species of a database are shared by every system built from
+  them, and two threads using one at once wrote in its properties together.
+  `add_thermo_model`, given the expressions or a heat capacity to integrate
+  (with SymbolicNumericIntegration), writes the registries of models under the
+  lock their readers take, the crystals of aq17 and the reference of the glass
+  enthalpy are built once under a lock, and the cache of the convexity of a
+  compound-energy model is keyed by copies of its values, not by their hash,
+  and bounded. That a problem or a solver is not to be shared between threads
+  solving at once is written in their docstrings.
+- **The sorption models of `llnl.dat`, `minteq.v4.dat`, `wateq4f.dat` and
+  `pitzer.dat` have their reactions.** These databases write `log_k` without
+  its dash in `SURFACE_SPECIES`, which `read_sorption_model` did not read:
+  every constant was passed over, and every site came back without a
+  reaction. The options are read in every spelling PHREEQC reads, as in the
+  blocks of species of a database. A semicolon separates two logical lines: a
+  constant written on the line of its equation was lost with it, as were the
+  three silicate complexes of `Hfo_w` in `phreeqc.dat`. A block given twice is
+  read twice, and the file ends at its first `END`, as PHREEQC reads it.
+- **The `PITZER` and `SIT` blocks follow the naming rule of the other
+  readers.** A name written with a run of signs (`SO4--`) or with `(aq)` was
+  kept as written, and its coefficients never met a species of a system. A
+  coefficient line starting at the first column ended a `PITZER` block, and a
+  line of another shape than `species species ε` ended the reading of a `SIT`
+  block, the coefficients after either lost without a word. A block now ends at
+  the next keyword, and a `SIT` line that is not read is reported.
+- **`extract_charge`, and so `Formula`, read a run of signs as a charge**:
+  `SO4--` is −2 and `Fe+++` is 3, where the last sign alone gave −1 and +1.
+- **A site family finds a neutral aqueous participant under the symbol the
+  readers give it** (`H4SiO4` as `H4SiO4@`); water alone was.
+- **The log K of a database of reactions takes the number type it is given**
+  (`PhreeqcLogK`, `TabulatedLogK`, `GWBPolynomialLogK`, `GridLogK`): a constant
+  being fitted carries its derivative into the Gibbs energy of the species it
+  forms.
+
+### Changed
+
+- The readers of PHREEQC, GWB and EQ3/6 files, of the `PITZER`, `SIT` and
+  sorption blocks, and of Reaktoro files share one scanner of blocks, one
+  reader of equations, one rule for the names and the charges of species, one
+  resolution of species against their basis, and the provenance tag, computed
+  once per file. The import manual states the naming rule. The standard
+  entropy of a species of a database of reactions is computed as
+  `R ln 10 (L + T L′)` rather than `(H − G)/T`, which subtracted two terms of
+  order 10⁵ J/mol: it moves by 2 × 10⁻¹² relative at most, the Gibbs energy,
+  the enthalpy and the heat capacity being unchanged to the bit. The critical
+  pressure of a GWB gas is converted from bar to pascals directly.
+- The four Debye–Hückel activity models (HKF, Davies, Truesdell–Jones, LLNL)
+  share one frame, a kernel holding what is each model's own; the search of
+  `equilibrate_certified`, the replay of a run (`speciated_states`) and the
+  starts of a right-hand side that solves its partition are written as their
+  stages. None of them changes a result.
+- No function of the package or of its extensions keeps a captured variable in
+  a `Core.Box`, the untyped cell Julia gives a variable that a closure or a
+  generator captures and that is assigned more than once. Fourteen functions did,
+  from `StoichMatrix`, `Reaction` and `ThermoFactory` to the readers of
+  ThermoFun files: a name reassigned, a local function given several methods,
+  or local functions calling themselves or each other. Every result is the
+  same to the bit.
+
+### Performance
+
+- **Semi-adiabatic runs under partial equilibrium are 36 to 48 % faster, and
+  isothermal pastes 7 to 11 %, every trajectory identical to the bit.** Measured
+  on one machine on the mortars of Lavergne et al. (2018): C100 over five days
+  131 s → 72 s, C70L30 124 → 68 s, C85L15 130 → 68 s, C95SF05 over a day
+  183 → 116 s. The density of water, a Newton solve of the HGK equation, and the
+  HKF state of water built on it were computed again for every aqueous species
+  and every state an evaluation builds, at the same temperature and pressure;
+  they are kept, in a bounded table on plain numbers and for the last call on
+  dual numbers, matched by identity. A search judges its candidates on the
+  optimality conditions and computes what the proof covers once, for the
+  answer it returns. The lookups of a species no longer copy its composition,
+  and `StateView` has concrete fields.
+- The units of a database are parsed once per spelling, not once per record.
+- The ionic strength of an aqueous inversion, which every trial step of the
+  certified solve runs, is searched on one evaluation of its equation per point,
+  value and slope together, where the value and then its derivative were two;
+  the square root of the ionic strength is taken once per evaluation. Cement
+  pastes of the thesis corpus solve 4 to 10 % faster, every answer the same to
+  the bit.
+
+### Documentation
+
+- Docstrings that disagreed with their code are corrected: missing keywords
+  (`Reaction`'s `symbol`, `ChemicalSystem`'s `site_families`, `StoichMatrix`'s
+  `optimize_primaries` and `kinetic_species`, `ThermoFactory`'s `output_unit`,
+  `glass_enthalpy`'s `ignore`, `ParrottKillohExtent`'s `horizon_days`,
+  `SiteFamily`'s `model`, `DiffuseLayer`'s `scale`, `SurfaceSupport`'s
+  `external`), return types still given as `Float64`, the examples of `+` and
+  `-` on species and reactions, `calculate_molar_mass` in kg/mol, and stale
+  counts. Seven docstrings separated from their code by a comment, and so never
+  shown, are attached again.
+- The pages no longer redefine names the package exports (`molar_mass`,
+  `budget`, `bogue`, `components`, `charge`, `aqueous`, `carbonate`, `titrate`,
+  `mass`), the CEM II page reads its clinker from the literature table as the
+  other binder pages do, and the calibration page no longer prints wall-clock
+  times, which no other machine reproduces.
+- The tolerances section of the manual says which keywords each back end reads:
+  OptimaSolver takes its tolerance from its options, not from `reltol`.
+- Accounts of earlier versions are removed from the pages, the docstrings and
+  the comments, which state the reason for the code as it stands; the CHANGELOG
+  keeps them. A measurement taken with an earlier version keeps its provenance.
+- Every page draws its figures with the same defaults, a frame and no grid,
+  whatever the order the pages are built in; the walk of the page tree and the
+  plot theme are each defined once for the build, its shards and the timing
+  script.
+
 ## v0.37.0 — Any thermodynamic database imported, none stored in the package
 
 A thermodynamic database can now be read in any of the formats in common use:

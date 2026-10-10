@@ -47,16 +47,6 @@
 const ALWAYS_KEPT = ("index.md", "references.md")
 
 """
-    page_leaves(node) -> Vector{String}
-
-Every page path under `node`, in build order. A leaf is a bare path or the value
-of a `"Title" => "path"` pair; a `"Title" => [...]` pair is a section.
-"""
-page_leaves(node::AbstractString) = [node]
-page_leaves(node::Pair) = page_leaves(node.second)
-page_leaves(node::AbstractVector) = reduce(vcat, page_leaves.(node); init = String[])
-
-"""
     is_kept(page, patterns) -> Bool
 
 Whether a source-relative page path survives the filter.

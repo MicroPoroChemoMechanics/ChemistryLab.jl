@@ -38,6 +38,12 @@ slot is present only with a calorimeter: the temperature for
   - `νe`, `νk`: partitions of `ν` for equilibrium / kinetic species.
   - `Ae`: formula matrix restricted to equilibrium species (C × Nₑ).
 
+# Threads
+
+A problem is not meant to be integrated on two threads at once: the runs would
+share its equilibrium solver, whose optimizer may keep its last answer as the
+next start. Independent trajectories run in parallel with one problem each.
+
 See also: [`integrate`](@ref), [`KineticsSolver`](@ref).
 """
 struct KineticsProblem{
@@ -153,7 +159,17 @@ function _build_kinetics_problem(
     # row counts differ, and so do the parent's and the sub-system's: `bₑ` must
     # be built on exactly the matrix the solve is posed on, or every step fails
     # on a dimension mismatch.
-    Ae = Float64.(_constraint_matrix(_equilibrium_subsystem(system, idx_eq)))
+    Ac = _constraint_matrix(_equilibrium_subsystem(system, idx_eq))
+    # On plain numbers: the run restores the feasibility of its partition on
+    # this matrix, and a site capacity being differentiated (which makes a
+    # coupled family's entries dual) is not carried through a kinetic run.
+    eltype(Ac) <: ForwardDiff.Dual && throw(
+        ArgumentError(
+            "KineticsProblem: the conservation matrix of the partition carries dual numbers " *
+                "(a site capacity being differentiated); a kinetic run takes it on plain numbers.",
+        ),
+    )
+    Ae = Float64.(Ac)
 
     return KineticsProblem{
         typeof(system), typeof(kin_rxns), typeof(calorimeter),
@@ -316,10 +332,36 @@ end
 
 # ── build_u0 ─────────────────────────────────────────────────────────────────
 
-"""
-    build_u0(kp::KineticsProblem) -> Vector{Float64}
+# ── the number type of a run ─────────────────────────────────────────────────
+#
+# A run is differentiated with respect to whatever carries dual numbers: the
+# amounts, temperature or pressure of the initial state, the constants of a
+# calorimeter, and the parameters a rate law captures (a rate constant handed in
+# as a dual by the function being differentiated). The time span is plain. The state
+# of the integrator and every buffer the run writes into its result are of the
+# number type that covers them all. Anything narrower either raises or, worse,
+# drops the derivative: the ODE interface promotes the state only when it finds
+# the duals in the parameter object, and those of a rate law live in closures it
+# does not look into.
 
-Build the initial ODE state vector.
+"""
+    _kinetics_number_type(kp) -> Type
+
+The number type of a run of `kp`: `Float64`, or the dual type covering the
+initial state, the calorimeter and every rate law.
+"""
+function _kinetics_number_type(kp::KineticsProblem)
+    R = promote_type(Float64, _amount_number_type(kp.initial_state))
+    for kr in kp.kinetic_reactions
+        R = promote_type(R, _captured_number_type(kr.rate_fn), _captured_number_type(kr.heat_per_mol))
+    end
+    return promote_type(R, _captured_number_type(kp.calorimeter))
+end
+
+"""
+    build_u0(kp::KineticsProblem; R = _kinetics_number_type(kp)) -> Vector{R}
+
+Build the initial ODE state vector, in the number type `R` of the run.
 
 Structure of `u`:
   - Without re-speciation: `u = [nₖ₁, …, nₖ_K, ξ₁, …, ξ_M]`
@@ -337,32 +379,6 @@ rather than quadrature-limited.
 The calorimeter's slot stays last and is addressed from the end of the vector,
 so it is unaffected by the presence of `ξ`.
 """
-# ── the number type of a run ─────────────────────────────────────────────────
-#
-# A run is differentiated with respect to whatever carries dual numbers: the
-# amounts, temperature or pressure of the initial state, the constants of a
-# calorimeter, the time span, and the parameters a rate law captures (a rate
-# constant handed in as a dual by the function being differentiated). The state
-# of the integrator and every buffer the run writes into its result are of the
-# number type that covers them all. Anything narrower either raises or, worse,
-# drops the derivative: the ODE interface promotes the state only when it finds
-# the duals in the parameter object, and those of a rate law live in closures it
-# does not look into.
-
-"""
-    _kinetics_number_type(kp) -> Type
-
-The number type of a run of `kp`: `Float64`, or the dual type covering the
-initial state, the time span, the calorimeter and every rate law.
-"""
-function _kinetics_number_type(kp::KineticsProblem)
-    R = promote_type(Float64, _amount_number_type(kp.initial_state), typeof(float(kp.tspan[1])))
-    for kr in kp.kinetic_reactions
-        R = promote_type(R, _captured_number_type(kr.rate_fn), _captured_number_type(kr.heat_per_mol))
-    end
-    return promote_type(R, _captured_number_type(kp.calorimeter))
-end
-
 function build_u0(kp::KineticsProblem; R::Type = _kinetics_number_type(kp))
     n_mol = R[
         ustrip(us"mol", kp.initial_state.n[i])
@@ -630,7 +646,7 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         rates_read_speciation = Ref(false),
         # The last partition solved in `:rhs` mode, keyed by the values of `bₑ`
         # and of the temperature it was solved at.
-        rhs_cache = Ref{Any}(nothing),
+        rhs_cache = Ref{Union{Nothing, _RhsCache}}(nothing),
         # Set while an accessor walks a finished run (`_with_saved_warm_start`):
         # `_rhs_values` then offers the interior point as a last start, which
         # the integration does not need and should not pay for.
@@ -681,12 +697,12 @@ function _equilibrium_subsystem(system::ChemicalSystem, idx_equilibrium)
     comp_names = Set(symbol(sp) for sp in system.SM.primaries)
     prim = [sp for sp in sub_species if symbol(sp) in comp_names]
 
-    # Carry the solid solutions over. Dropping them — as this did until 0.8.2 —
-    # is silent and total: the parent may declare CSHQ, AFm or Hydrogarnet, and
-    # the partition the equilibrium is actually solved on knows nothing of them,
-    # so their end-members are treated as separate pure phases and the mixing
-    # entropy never enters the Gibbs energy. Measured on alite and belite with
-    # the four CSHQ end-members, the run was bit-identical with and without the
+    # Carry the solid solutions over. Dropping them would be silent and total:
+    # the parent may declare CSHQ, AFm or Hydrogarnet, and the partition the
+    # equilibrium is actually solved on knows nothing of them, so their
+    # end-members are treated as separate pure phases and the mixing entropy
+    # never enters the Gibbs energy. Measured on alite and belite with the four
+    # CSHQ end-members, the run was bit-identical with and without the
     # declaration, and produced no C-S-H at all: the silicon stayed in solution
     # and the portlandite came out at 4.52 mol against 2.93 with a Jennite
     # end-member.
@@ -792,6 +808,10 @@ const _EQ_GUESS_FLOOR = 1.0e-10
 # what any amount of a partition means, so that the traces keep their potentials.
 const _RHS_GUESS_FLOOR = 1.0e-16
 
+# The last partition `_rhs_values` solved, keyed by the plain element amounts and
+# temperature it was solved at.
+const _RhsCache = NamedTuple{(:b, :T, :n), Tuple{Vector{Float64}, Float64, Vector{Float64}}}
+
 """
     EQ_RESIDUAL_TOL
 
@@ -861,12 +881,15 @@ function system_enthalpy(p, u, T)
     # neighboring point's clinker, and the resulting enthalpy is not a state of
     # the trajectory at all: the recorded heat came out NON-MONOTONE, 936 J/g at
     # one day and 631 J/g at two, which no calorimeter has ever measured.
-    kin = p.idx_kinetic
+    # The slot of each kinetic species in `u`, zero for the others.
+    slot = zeros(Int, length(p.h_fns))
+    for (j, i) in enumerate(p.idx_kinetic)
+        slot[i] = j
+    end
     H = zero(promote_type(eltype(u), typeof(T), eltype(p.n_full)))
     @inbounds for (i, h_fn) in enumerate(p.h_fns)
         isnothing(h_fn) && continue
-        j = findfirst(==(i), kin)
-        nᵢ = j === nothing ? p.n_full[i] : max(u[p.n_be + j], p.ϵ)
+        nᵢ = iszero(slot[i]) ? p.n_full[i] : max(u[p.n_be + slot[i]], p.ϵ)
         H += nᵢ * h_fn(; T = T, unit = false)
     end
     return H
@@ -956,7 +979,8 @@ the heat capacity of the cell at equilibrium: the partition `n_e`, solved at
 plain numbers.
 """
 function _cell_residual(p, bv, nkv, n_e, Tv, ΔHv)
-    D = ForwardDiff.Dual{typeof(ForwardDiff.Tag(_cell_residual, Float64)), Float64, 1}
+    V = typeof(Tv)
+    D = ForwardDiff.Dual{typeof(ForwardDiff.Tag(_cell_residual, V)), V, 1}
     Td = D(Tv, ForwardDiff.Partials((1.0,)))
     P = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
     n_d = _lifted_partition(p, n_e, Tv * u"K", P, bv; T = Td * u"K")
@@ -1122,8 +1146,8 @@ The element amounts `bₑ` carried by the state vector are the constraint of tha
 sub-problem [Leal2017; Eq. 54](@cite). `solve` conserves `A·n`, so what has to
 be handed to it is a composition whose element totals are exactly `bₑ` — here
 the previous speciation, projected onto `bₑ` through the pseudo-inverse of
-`Aₑ`. Handing over `p.n_full` unchanged, as an earlier version did, discards
-`bₑ` entirely and leaves the element balance to drift.
+`Aₑ`. Handing over `p.n_full` unchanged would discard `bₑ` entirely and leave
+the element balance to drift.
 """
 function respeciate!(p, u)
     p.n_be > 0 || return false
@@ -1149,10 +1173,10 @@ function respeciate!(p, u)
     # the way an individual species may want to go negative — the generated
     # dissolution reactions are written in H⁺, and a cement paste contains no
     # acid — and it is the minimizer, not the caller, that redistributes the
-    # elements over a feasible set. An earlier version reconstructed `nₑ` from
-    # `bₑ` through `pinv(Aₑ)` and clamped the result at `ϵ`; the clamp destroyed
-    # the balance the projection had just established, and the solve went on to
-    # return amounts of 1e65.
+    # elements over a feasible set. Reconstructing `nₑ` from `bₑ` through
+    # `pinv(Aₑ)` and clamping the result at `ϵ` does not do: the clamp destroys
+    # the balance the projection has just established, and the solve was
+    # measured to return amounts of 1e65 from there.
     #
     # The composition below is a starting guess only, and does not have to carry
     # `bₑ`. It is built from the reaction extents, which come free from the
@@ -1195,14 +1219,14 @@ function respeciate!(p, u)
         # the mixing water and nothing precipitated — and let
         # `_restore_feasibility!` below carry it onto the current `bₑ`.
         #
-        # The stoichiometric reconstruction `νₑᵀξ` that used to be added here
-        # placed every dissolved element in solution with ZERO hydrates. For an
-        # aqueous-only system that is harmless, but for a cement it is close to
-        # the worst possible start: it is supersaturated in every phase at once,
-        # and its H⁺ entry is strongly negative (−6 per mole of alite) so it is
-        # clamped to the floor, losing the acidity that the hydroxides have to
-        # balance. Started there, the back-end stops next to its own guess and
-        # returned an assemblage demanding 174 % of the sulfate present.
+        # Adding the stoichiometric reconstruction `νₑᵀξ` here would place every
+        # dissolved element in solution with ZERO hydrates. For an aqueous-only
+        # system that is harmless, but for a cement it is close to the worst
+        # possible start: it is supersaturated in every phase at once, and its
+        # H⁺ entry is strongly negative (−6 per mole of alite) so it is clamped
+        # to the floor, losing the acidity that the hydroxides have to balance.
+        # Started there, the back end stopped next to its own guess and returned
+        # an assemblage demanding 174 % of the sulfate present.
         #
         # Floor strictly inside the box, not at `p.ϵ`: `EquilibriumProblem`
         # raises anything below 1e-16 to exactly its lower bound, and an
@@ -1263,7 +1287,8 @@ An assemblage switch is not a single-step event — a phase takes several steps 
 exhaust — so the previous call's outcome says which guess to try first, and
 `eq_switching` carries it. This is information the problem already has, not a
 tuning parameter: no threshold is introduced, and the tolerance that decides
-"too much matter unaccounted for" is the same `_RETRY_ABS_TOL` as before.
+"too much matter unaccounted for" is `_RETRY_ABS_TOL`, whichever guess runs
+first.
 """
 function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
     # `is_reconstruction` says that `n_eq` IS the reconstruction, because the
@@ -1356,7 +1381,7 @@ function _one_speciation(p, guess, be)
         P_v = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
         ok, n_v, abs_v = _value_speciation(p, guess, _plain.(be), T_v, P_v)
         st0 = ChemicalState(p.eq_system[], (ok ? n_v : guess) .* u"mol"; T = p.T_q[], P = p.P_q[])
-        eq_c, cert = solve_certified(p.eq_dual, (st0,); b = be, ϵ = p.ϵ)
+        eq_c, cert = solve_certified(p.eq_dual, (st0,); b = be, ϵ = p.ϵ, report = false)
         n_c = [ustrip(us"mol", x) for x in eq_c.n]
         abs_c = _abs_residual(p.Ae, n_c, be)
         # The rule of a plain run: an uncertified answer that balances worse than
@@ -1447,7 +1472,7 @@ function _value_speciation(p, guess, be, T, P)
     if abs_res > _RETRY_ABS_TOL && hasproperty(p, :eq_dual) && p.eq_dual !== nothing
         try
             eq_c, cert = solve_certified(
-                p.eq_dual, (eq_result,); b = be, ϵ = p.ϵ,
+                p.eq_dual, (eq_result,); b = be, ϵ = p.ϵ, report = false,
             )
             n_c = [ustrip(us"mol", x) for x in eq_c.n]
             abs_c = _abs_residual(p.Ae, n_c, be)
@@ -1641,17 +1666,30 @@ function _rates_read_speciation(p)
     end
     any(i -> rn.read[i] || rl.read[i], eq) && return true
     # Through the activity model: a law reading the activity of a kinetic
-    # aqueous species reads the partition through the ionic strength.
-    eltype(n) === Float64 && p.T isa Float64 || return false
+    # aqueous species reads the partition through the ionic strength. Seeded on
+    # the values of the amounts, so that a run on dual numbers (a rate constant
+    # being differentiated) decides as the run on its values does: skipped
+    # there, the probe chose the frozen route where the plain run solved the
+    # partition in the right-hand side, and the derivative was that of another
+    # trajectory. The seed's dual may end up outside or inside the run's own;
+    # `_reads_seed` looks for it in both.
     D = ForwardDiff.Dual{typeof(ForwardDiff.Tag(_rates_read_speciation, Float64)), Float64, 1}
     eqset = Set(eq)
-    nd = [D(n[i], ForwardDiff.Partials((i in eqset ? 1.0 : 0.0,))) for i in eachindex(n)]
+    nd = [D(_plain(n[i]), ForwardDiff.Partials((i in eqset ? 1.0 : 0.0,))) for i in eachindex(n)]
     ld = p.lna_fn(nd, _lna_params(p, p.T))
     for kr in p.kin_rxns
         r = kr.rate_fn(p.T, p.P, t0, StateView(nd, p.species_index), StateView(ld, p.species_index), n0)
-        r isa ForwardDiff.Dual && !iszero(ForwardDiff.partials(r)[1]) && return true
+        _reads_seed(D, r) && return true
     end
     return false
+end
+
+# Whether `r` carries a nonzero derivative along the seed of the dual type `D`,
+# however it is nested among the duals of other tags.
+_reads_seed(::Type, r) = false
+function _reads_seed(::Type{D}, r::ForwardDiff.Dual{S}) where {D <: ForwardDiff.Dual, S}
+    S === ForwardDiff.tagtype(D) && return any(c -> !iszero(_plain(c)), ForwardDiff.partials(r))
+    return _reads_seed(D, ForwardDiff.value(r)) || any(c -> _reads_seed(D, c), ForwardDiff.partials(r))
 end
 
 """
@@ -1678,19 +1716,11 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
     # started there failed to certify where the partition itself, floored at
     # 1e-16, certified at once. The floored start is the next one tried.
     warm = Float64[max(_plain(p.n_full[i]), _RHS_GUESS_FLOOR) for i in p.idx_equilibrium]
-    eq, cert = _exploring_starts(() -> solve_certified(p.eq_dual, (state(warm),); b = bv, ϵ = p.ϵ))
-    if eq === nothing || !cert.optimal
-        lifted = max.(warm, _EQ_GUESS_FLOOR)
-        eq2, cert2 = _exploring_starts(() -> solve_certified(p.eq_dual, (state(lifted),); b = bv, ϵ = p.ϵ))
-        eq, cert = eq === nothing ? (eq2, cert2) :
-            eq2 === nothing ? (eq, cert) : _keep_better(eq, cert, eq2, cert2)
-    end
-    if eq === nothing || !cert.optimal
-        guess = _reconstruction_guess!(similar(warm), p, bv)
-        eq2, cert2 = _exploring_starts(() -> solve_certified(p.eq_dual, (state(guess),); b = bv, ϵ = p.ϵ))
-        eq, cert = eq === nothing ? (eq2, cert2) :
-            eq2 === nothing ? (eq, cert) : _keep_better(eq, cert, eq2, cert2)
-    end
+    solve_from(n) = _exploring_starts(() -> solve_certified(p.eq_dual, (state(n),); b = bv, ϵ = p.ϵ, report = false))
+    eq, cert = solve_from(warm)
+    eq, cert = _or_next(eq, cert, () -> solve_from(max.(warm, _EQ_GUESS_FLOOR)))
+    # The reconstruction: feasible on the budget, with no active set.
+    eq, cert = _or_next(eq, cert, () -> solve_from(_reconstruction_guess!(similar(warm), p, bv)))
     # Where the assemblage switches, the starts above hold the assemblage of the
     # last accepted step, or none, and the dual Newton stalls short of the
     # certificate from either. Measured on a paste of cement c13 of Lavergne et
@@ -1731,6 +1761,17 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
     cert.optimal || abs_res <= _RETRY_ABS_TOL || return nothing
     p.rhs_cache[] = (b = copy(bv), T = Tv, n = n)
     return n
+end
+
+# The answer in hand when it is certified; otherwise the better of it and the
+# answer `attempt()` gives, which is solved only then: the next start of a
+# cascade (`_keep_better`).
+function _or_next(eq, cert, attempt)
+    (eq !== nothing && cert.optimal) && return eq, cert
+    eq2, cert2 = attempt()
+    eq === nothing && return eq2, cert2
+    eq2 === nothing && return eq, cert
+    return _keep_better(eq, cert, eq2, cert2)
 end
 
 """

@@ -67,7 +67,7 @@ function paste(cs, ca_si)
     set_quantity!(st, "H2O@", 1.0u"kg")
     set_quantity!(st, "Amor-Sl", 0.05u"mol")
     set_quantity!(st, "Portlandite", ca_si * 0.05u"mol")
-    b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    b = budget(st)
     return equilibrate_certified(st; model, b)
 end
 
@@ -176,7 +176,7 @@ function paste_at(cs, ca_si, T)
     set_quantity!(st, "H2O@", 1.0u"kg")
     set_quantity!(st, "Amor-Sl", 0.05u"mol")
     set_quantity!(st, "Portlandite", ca_si * 0.05u"mol")
-    b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    b = budget(st)
     return equilibrate_certified(st; model, b)
 end
 println(" Ca/Si    T (°C)   certified   Ca (mmol/kg)   Si (mmol/kg)     pH")
@@ -214,7 +214,7 @@ for r in (1.0, 1.6), na in (0.01, 0.02, 0.05, 0.1)
     set_quantity!(st, "Na+", na * u"mol")
     set_quantity!(st, "K+", 3na * u"mol")
     set_quantity!(st, "OH-", 4na * u"mol")
-    b = Float64.(cs_nk.SM.A) * ustrip.(us"mol", st.n)
+    b = budget(st)
     eq, cert = equilibrate_certified(st; model, b)
     gel = solid_solution_totals(eq, "CASH+NK").elements
     point = (na = 1000in_solution(eq, :Na), k = 1000in_solution(eq, :K), gna = gel[:Na] / gel[:Si], gk = gel[:K] / gel[:Si])
@@ -339,7 +339,8 @@ which the test of this page includes too.
 ```@example cashplus
 include(joinpath(pkgdir(ChemistryLab), "scripts", "lothenbach_2008.jl"))
 days = l08_days()
-runs = Dict(gel => hydrate(l08_recipe("PC4"), l08_system(gel), days; model) for gel in (:CSHQ, :CASHNK))
+# `Any`: a container typed on the states of a run compiles for minutes.
+runs = Dict{Symbol, Any}(gel => hydrate(l08_recipe("PC4"), l08_system(gel), days; model) for gel in (:CSHQ, :CASHNK))
 for gel in (:CSHQ, :CASHNK)
     @printf("%-7s certified at %s of %d ages\n", gel, count(rs -> rs.certificate.optimal, runs[gel].states), length(days))
 end

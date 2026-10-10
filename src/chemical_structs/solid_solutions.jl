@@ -980,8 +980,8 @@ function _warn_degenerate_end_members(name, end_members, model)
             end
             row += length(model.species[s])
         end
-        for v in eachcol(nullspace(O))
-            v = v ./ maximum(abs, v)
+        for direction in eachcol(nullspace(O))
+            v = direction ./ maximum(abs, direction)
             dG = sum(v[k] * G[k] for k in eachindex(G))
             abs(dG) < _ONE_SUBSTANCE_RT * RT && error(
                 "SolidSolutionPhase \"$name\": the combination " *

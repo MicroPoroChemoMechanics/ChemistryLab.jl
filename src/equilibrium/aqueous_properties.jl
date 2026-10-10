@@ -975,6 +975,58 @@ function saturation_indices(
         state::ChemicalState, model::AbstractActivityModel = DiluteSolutionModel();
         ϵ::Float64 = _AMOUNT_FLOOR,
     )
+    cs, g, A, yv = _primary_potentials(state, model, ϵ)
+    inv_ln10 = inv(log(10))
+    return OrderedDict(
+        symbol(cs.species[i]) =>
+            (sum(A[c, i] * yv[c] for c in eachindex(yv)) - g[i]) * inv_ln10
+            for i in eachindex(cs.species)
+    )
+end
+
+"""
+    saturation_indices(state, model, species; ϵ = 1e-16) -> OrderedDict{String, <:Real}
+
+`LogSI` at `state` of each of `species`, solids that need not be species of the
+system: each is taken as a pure phase, of activity one, formed from the system's
+primaries by its [`primary_decomposition`](@ref), with its standard Gibbs energy
+at the state's temperature and pressure,
+
+```
+LogSI_s = [Σ_c a_cs y_c − ΔₐG⁰_s/RT] / ln 10 ,
+```
+
+`y_c` the potentials of the primaries read as the method without `species` reads
+them. For a pure phase of the system it is that method's index, to rounding. A
+species outside the span of the primaries is refused by name.
+
+# Examples
+
+```julia
+si = saturation_indices(eq, model, [db["Gp"], db["ettringite"]])
+```
+"""
+function saturation_indices(
+        state::ChemicalState, model::AbstractActivityModel, species::AbstractVector{<:AbstractSpecies};
+        ϵ::Float64 = _AMOUNT_FLOOR,
+    )
+    cs, _, _, yv = _primary_potentials(state, model, ϵ)
+    T, P = temperature(state), pressure(state)
+    RT = Constants.R * T
+    inv_ln10 = inv(log(10))
+    return OrderedDict(
+        symbol(sp) => (
+            sum(a * y for (a, y) in zip(primary_decomposition(sp, cs.SM.primaries), yv)) -
+                ustrip(sp[:ΔₐG⁰](T = T, P = P; unit = true) / RT)
+        ) * inv_ln10
+            for sp in species
+    )
+end
+
+# The reduced potentials `g = μ/RT` of the species of `state`, the conservation
+# matrix `A`, and the potentials `yv` of the system's primaries the indices are
+# formed from (`saturation_indices`).
+function _primary_potentials(state::ChemicalState, model::AbstractActivityModel, ϵ)
     cs = state.system
     lna = log_activities(state, model; ϵ = ϵ)
     p = _build_params(state; ϵ = ϵ)
@@ -993,12 +1045,7 @@ function saturation_indices(
     yv = [k == 0 ? zero(eltype(g)) : g[k] for k in y]
     _fill_site_potentials!(yv, cs, g)
     _repair_clipped_potentials!(yv, cs, A, g, ustrip.(us"mol", state.n), ϵ)
-    inv_ln10 = inv(log(10))
-    return OrderedDict(
-        symbol(cs.species[i]) =>
-            (sum(A[c, i] * yv[c] for c in eachindex(yv)) - g[i]) * inv_ln10
-            for i in eachindex(cs.species)
-    )
+    return cs, g, A, yv
 end
 
 """
@@ -1147,11 +1194,11 @@ certificate judges the result afterwards.
 
 The first rung is built at the temperature `T` and pressure `P` of the state the
 walk continues from, and every later one starts from the last. Built at the
-default 25 °C instead, as it was until 0.24.0, the whole walk solved a problem
-at the wrong temperature, and the certificate, which reads the temperature off
-the state it is given, certified that problem: a pore solution meant for 20 °C
-came back 0.19 low in pH, the shift of pKw between the two temperatures,
-whenever this route was the one that succeeded.
+default 25 °C instead, the whole walk solved a problem at the wrong temperature,
+and the certificate, which reads the temperature off the state it is given,
+certified that problem: a pore solution meant for 20 °C came back 0.19 low in
+pH, the shift of pKw between the two temperatures, whenever this route was the
+one that succeeded.
 """
 function _homotopy_rung(cs, A, i_w, n0, model, λ, start, ϵ, verbose, atol, rtol, T, P)
     nλ = [i == i_w ? n0[i] : λ * n0[i] for i in eachindex(n0)]

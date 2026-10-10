@@ -2,7 +2,6 @@
 # Copyright © 2025-2026 Jean-François Barthélémy and Anthony Soive (Cerema, UMR MCD)
 
 using TOML
-using SHA
 
 """
     build_pitzer_parameters(path; format = :auto) -> PitzerParameters
@@ -186,74 +185,56 @@ function _pitzer_from_toml(toml_file::AbstractString)
     )
 end
 
-# The charge a PHREEQC species name ends with: `Ca+2` is 2, `Cl-` is −1, a name
-# with neither sign is neutral.
-function _phreeqc_charge(name::AbstractString)
-    m = match(r"([+-])(\d*)$", name)
-    m === nothing && return 0
-    z = isempty(m.captures[2]) ? 1 : parse(Int, m.captures[2])
-    return m.captures[1] == "+" ? z : -z
-end
+# The options of a PITZER block, by their spellings, and those that set no
+# coefficient this model has.
+const _PITZER_OPTIONS = Dict(
+    "-b0" => :beta0, "-b1" => :beta1, "-b2" => :beta2, "-c0" => :Cphi,
+    "-theta" => :theta, "-lamda" => :lambda, "-lambda" => :lambda, "-psi" => :psi,
+)
+const _PITZER_SWITCHES = ("-use_etheta", "-macinnes", "-redox")
 
-# A PHREEQC name is turned into this package's by `_phreeqc_symbol` (below),
-# which puts `@` on a neutral species.
-
+# The PITZER blocks of a PHREEQC database. The names are read by the rule of
+# every reader (`_phreeqc_name`, then `_solute_symbol` for a neutral species,
+# which gets `@`); a cation–anion pair is keyed cation first, a neutral species
+# with an ion neutral first.
 function _pitzer_from_phreeqc(path::AbstractString)
     isfile(path) || throw(ArgumentError("no such database: $path"))
-    text = read(path, String)
-    src = "$(basename(path)) sha256 $(first(bytes2hex(sha256(text)), 12))"
+    blocks = [b for b in phreeqc_blocks(path) if b.keyword == "PITZER"]
+    isempty(blocks) && throw(ArgumentError("no PITZER block in $path."))
+    src = _source_tag(path)
 
     tables = Dict(k => Dict{Any, Float64}() for k in (:beta0, :beta1, :beta2, :Cphi, :theta, :psi, :lambda))
     temperature = Dict{Symbol, Dict{Any, Vector{Float64}}}()
     skipped = Set{String}()
     pairs_seen = Set{Tuple{String, String}}()
-    current = nothing
-    in_block = false
-    found = false
-    for raw in split(text, '\n')
-        body = first(split(raw, '#'))
-        line = strip(body)
-        if !in_block
-            uppercase(line) == "PITZER" && (in_block = found = true)
-            continue
+    for b in blocks
+        current = nothing
+        for (_, line) in b.lines
+            if startswith(line, '-')
+                id = lowercase(first(split(line)))
+                current = get(_PITZER_OPTIONS, id, nothing)
+                current === nothing && !(id in _PITZER_SWITCHES) && push!(skipped, id)
+                continue
+            end
+            current === nothing && continue
+            fields = split(line)
+            nsp = current === :psi ? 3 : 2
+            length(fields) > nsp || throw(ArgumentError("$path: a $current line has no coefficient: \"$line\""))
+            names = _phreeqc_name.(fields[1:nsp])
+            coeffs = parse.(Float64, fields[(nsp + 1):end])
+            length(coeffs) <= 6 || throw(ArgumentError("$path: more than six coefficients on \"$line\""))
+            key = if current in _PITZER_PAIRS
+                _cation_anion(names, current, path, line)
+            elseif current === :lambda
+                _neutral_first(names, path, line)
+            else
+                Tuple(_solute_symbol.(names))
+            end
+            tables[current][key] = coeffs[1]
+            current in _PITZER_PAIRS && push!(pairs_seen, key)
+            length(coeffs) > 1 && (get!(temperature, current, Dict{Any, Vector{Float64}}())[key] = coeffs[2:end])
         end
-        isempty(line) && continue
-        if startswith(line, '-')
-            id = lowercase(first(split(line)))
-            current = get(
-                Dict(
-                    "-b0" => :beta0, "-b1" => :beta1, "-b2" => :beta2, "-c0" => :Cphi,
-                    "-theta" => :theta, "-lamda" => :lambda, "-lambda" => :lambda, "-psi" => :psi,
-                ), id, nothing,
-            )
-            current === nothing && !(id in ("-use_etheta", "-macinnes", "-redox")) && push!(skipped, id)
-            continue
-        end
-        # A line that does not start indented is the next keyword: the block ends.
-        isspace(first(body)) || break
-        current === nothing && continue
-        fields = split(line)
-        nsp = current === :psi ? 3 : 2
-        length(fields) > nsp || throw(ArgumentError("$path: a $current line has no coefficient: \"$line\""))
-        names = String.(fields[1:nsp])
-        coeffs = parse.(Float64, fields[(nsp + 1):end])
-        length(coeffs) <= 6 || throw(ArgumentError("$path: more than six coefficients on \"$line\""))
-        key = if current in (:beta0, :beta1, :beta2, :Cphi)
-            z = _phreeqc_charge.(names)
-            z[1] * z[2] < 0 || throw(ArgumentError("$path: $current needs a cation and an anion: \"$line\""))
-            z[1] > 0 ? (names[1], names[2]) : (names[2], names[1])
-        elseif current === :lambda
-            z = _phreeqc_charge.(names)
-            count(iszero, z) >= 1 || throw(ArgumentError("$path: a lambda line needs a neutral species: \"$line\""))
-            iszero(z[1]) ? (_phreeqc_symbol(names[1]), names[2]) : (_phreeqc_symbol(names[2]), names[1])
-        else
-            Tuple(_phreeqc_symbol.(names))
-        end
-        tables[current][key] = coeffs[1]
-        current in (:beta0, :beta1, :beta2, :Cphi) && push!(pairs_seen, key)
-        length(coeffs) > 1 && (get!(temperature, current, Dict{Any, Vector{Float64}}())[key] = coeffs[2:end])
     end
-    found || throw(ArgumentError("no PITZER block in $path."))
     isempty(skipped) || @warn "build_pitzer_parameters: $(basename(path)) carries $(join(sort!(collect(skipped)), ", ")), which this model has no counterpart for; they are skipped." maxlog = 1
 
     # A pair described by β¹, β² or Cφ without β⁰ has β⁰ = 0, as PHREEQC takes it.
@@ -272,10 +253,19 @@ function _pitzer_from_phreeqc(path::AbstractString)
     )
 end
 
-# The ChemistryLab symbol of a species of a PHREEQC file, from its name alone:
-# a name ending in a charge is kept, any other gets `@`, `H2O` is the solvent.
-function _phreeqc_symbol(name::AbstractString)
-    name == "e-" && return "Zz"
-    name == "H2O" && return "H2O@"
-    return occursin(r"[+-][0-9]*$", name) ? String(name) : String(name) * "@"
+const _PITZER_PAIRS = (:beta0, :beta1, :beta2, :Cphi)
+
+# A cation–anion pair of a PITZER block, keyed cation first.
+function _cation_anion(names, table, path, line)
+    z = _name_charge.(names)
+    z[1] * z[2] < 0 || throw(ArgumentError("$path: $table needs a cation and an anion: \"$line\""))
+    return z[1] > 0 ? (names[1], names[2]) : (names[2], names[1])
+end
+
+# A neutral species with an ion (or another neutral species), keyed neutral first.
+function _neutral_first(names, path, line)
+    z = _name_charge.(names)
+    count(iszero, z) >= 1 || throw(ArgumentError("$path: a lambda line needs a neutral species: \"$line\""))
+    a, b = iszero(z[1]) ? (names[1], names[2]) : (names[2], names[1])
+    return (_solute_symbol(a), _solute_symbol(b))
 end

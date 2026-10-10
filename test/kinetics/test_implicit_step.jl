@@ -62,6 +62,16 @@ using LinearAlgebra
         end
     end
 
+    @testsection "a step is solved on plain numbers, and says so" begin
+        # A rate constant being differentiated: the step would differentiate the
+        # iterations of its Newton method. Refused by name; it raised further
+        # down on a plain buffer.
+        kd = ForwardDiff.Dual(1.0e-6, 1.0)
+        krd = KineticReaction(cs, rxn, KineticFunc((T, P, t, n, lna, n0) -> kd, NamedTuple(), u"mol/s"))
+        kssd = KineticStepSolver(cs, DiluteSolutionModel(), [krd])
+        @test_throws "kinetic_step works on plain numbers" kinetic_step(kssd, calcite_water(), 10.0)
+    end
+
     @testsection "a rate reading the activities cannot cross saturation" begin
         # `r = k(1 − Ω)`: the feedback path from the aqueous equilibrium back into
         # the rate law. An EXPLICIT step of 1e6 s at k = 1e-5 would dissolve 10 mol,

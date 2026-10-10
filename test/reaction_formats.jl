@@ -331,3 +331,71 @@ end
         @test "CaOH+" in e.name
     end
 end
+
+# The constants of a database of reactions take the number type they are given:
+# a log K being fitted carries its derivative into the Gibbs energy of the
+# species it forms. The references are exact: `G = −RT ln 10 L` is linear in L,
+# and L in each coefficient of its form.
+@testsection "A log K of a database of reactions carries a derivative" begin
+    T = 323.15
+    tc = T - T_ZERO_CELSIUS
+    none = Tuple{Int, Float64}[]
+    G(k) = ChemistryLab._logK_gibbs(ChemistryLab._log10K(FormationLogK([(1.0, k)]), T), T)
+    g(x) = G(ChemistryLab.PhreeqcLogK(x, -10.0, nothing, none))
+    @test ForwardDiff.derivative(g, 2.5) == -ChemistryLab._R_LN10 * T
+    @test ChemistryLab.PhreeqcLogK(2.5, -10.0, nothing, none) isa ChemistryLab.PhreeqcLogK{Float64}
+    # Nested: the second derivative of G² is 2 G′², G being linear.
+    @test ForwardDiff.derivative(x -> ForwardDiff.derivative(y -> g(y)^2, x), 2.5) ≈
+        2 * (ChemistryLab._R_LN10 * T)^2 rtol = 1.0e-14
+    # An analytical expression, coefficient by coefficient.
+    ga(x) = first(ChemistryLab._log10K(ChemistryLab.PhreeqcLogK(0.0, 0.0, (1.0, x, 0.0, 0.0, 0.0, 0.0), none), T))
+    @test ForwardDiff.derivative(ga, 1.0e-3) == T
+    # GWB: a table fitted to a polynomial in °C, and the polynomial "jan19".
+    gt(x) = first(ChemistryLab._log10K(ChemistryLab.TabulatedLogK([1.0, 0.01, x], (0.0, 300.0)), T))
+    @test ForwardDiff.derivative(gt, 1.0e-5) == tc^2
+    gp(x) = first(ChemistryLab._log10K(ChemistryLab.GWBPolynomialLogK((x, 0.0, 0.0, 0.0, 0.0, 0.0), (273.15, 573.15)), T))
+    @test ForwardDiff.derivative(gp, 3.0) == 1.0
+    # EQ3/6: the interpolating polynomial of the part of the grid below 100 °C.
+    gg(x) = first(ChemistryLab._log10K(ChemistryLab.GridLogK([x, 0.02], [x, 0.03], 100.0), T))
+    @test ForwardDiff.derivative(gg, 1.0) == 1.0
+
+    # The critical pressure of a gas, in pascals whatever unit the format gives.
+    mktempdir() do dir
+        gwb = joinpath(dir, "gas.tdat")
+        write(
+            gwb, """
+            dataset of thermodynamic data for gwb programs
+            dataset format: jan26
+            * temperatures
+            0.01 25.0 60.0 100.0
+            150.0 200.0 250.0 300.0
+               2 elements
+            Hydrogen (H) mole wt.= 1.008 g
+            Oxygen (O) mole wt.= 16.0 g
+            -end-
+               2 basis species
+            H+
+              charge= 1  ion size= 9.0 A  mole wt.= 1.0 g
+              1 elements in species
+              1.000 H
+            H2O
+              charge= 0  ion size= 0.0 A  mole wt.= 18.0 g
+              2 elements in species
+              2.000 H  1.000 O
+            -end-
+               1 gases
+            H2O(g)
+              mole wt.= 18.0 g  Tcrit= 647.1 K  Pcrit= 220.64 bar  omega= 0.344
+              1 species in reaction
+              1.000 H2O
+              a= -1.5  b= 0  c= 0
+              d= 0  e= 0  f= 0
+            -end-
+            """,
+        )
+        _, g, _ = read_gwb_database(gwb)
+        row = only(eachrow(g[g.name .== "H2O(g)", :]))
+        @test row.P_c === 220.64 * ChemistryLab._ONE_BAR
+        @test row.T_c === 647.1
+    end
+end

@@ -96,7 +96,7 @@ function d12_solution(cs, system::AbstractString, age::Real; model, T = 296.15)
     for (el, sp) in D12_SPECIES
         set_quantity!(st, sp, get(c, el, 1.0e-12)u"mol")
     end
-    b = Float64.(conservation_matrix(cs)) * ustrip.(us"mol", st.n)
+    b = budget(st)
     γ = 1.0
     local eq, cert
     from = st

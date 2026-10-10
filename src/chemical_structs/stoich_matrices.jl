@@ -6,10 +6,12 @@ using OrderedCollections
 using PrettyTables
 
 """
-        StoichMatrix{T,P}
+        StoichMatrix{T, P, V, M, S}
 
 Container holding a stoichiometric matrix `A` together with the
-`primaries` (independent components) and the full `species` vector.
+`primaries` (independent components) and the full `species` vector: `T` is the
+coefficient type, `P` the type of a primary (a `Symbol` or a species), `V` and `M`
+the vector of primaries and the matrix types, `S` the species type.
 
 # Fields
 
@@ -49,8 +51,6 @@ end
 
 Base.eltype(::StoichMatrix{T}) where {T} = T
 
-primtype(::StoichMatrix{T, P}) where {T, P} = P
-
 # Lossless conversion helpers — avoid the overflow in rationalize(BigInt, ::Rational{Int64}).
 _to_qbig(x::Integer) = Rational{BigInt}(BigInt(x))
 _to_qbig(x::Rational) = Rational{BigInt}(BigInt(numerator(x)), BigInt(denominator(x)))
@@ -61,9 +61,6 @@ function _to_qbig(x::AbstractFloat)
     r = rationalize(x; tol = 1.0e-3)
     return Rational{BigInt}(BigInt(numerator(r)), BigInt(denominator(r)))
 end
-# Fallback for other concrete Number types (e.g. ForwardDiff.Dual): extract Float64 value.
-# Symbolic types (Symbolics.Num) are excluded upstream by _is_rationalizable.
-_to_qbig(x::Number) = _to_qbig(Float64(x))
 
 # Convert A to a BigInt integer matrix.
 # For pure integer input (common case), this is just BigInt.(A).
@@ -255,15 +252,15 @@ function _optimal_from_rational(N_rat::Matrix{Rational{BigInt}}, A::AbstractMatr
         else
             mapreduce(denominator, lcm, v; init = one(BigInt))
         end
-        v = v .* d
+        v .*= d
         g = if !isempty(int_idx)
             mapreduce(i -> abs(numerator(v[i])), gcd, int_idx; init = zero(BigInt))
         else
             mapreduce(x -> abs(numerator(x)), gcd, v; init = zero(BigInt))
         end
-        !iszero(g) && g > 1 && (v = v .// g)
+        !iszero(g) && g > 1 && (v .//= g)
         lead = findfirst(!iszero, v)
-        !isnothing(lead) && v[lead] < 0 && (v = -v)
+        !isnothing(lead) && v[lead] < 0 && (v .= .-v)
         for i in 1:n
             N_out[i, j] = _to_stoich_real(v[i])
         end
@@ -271,9 +268,8 @@ function _optimal_from_rational(N_rat::Matrix{Rational{BigInt}}, A::AbstractMatr
     return N_out
 end
 
-# Thin wrappers: compute rational nullspace then convert.
+# Thin wrapper: compute the rational nullspace then convert.
 _integer_nullspace(A::AbstractMatrix) = _integer_from_rational(_rational_nullspace(A))
-_optimal_nullspace(A::AbstractMatrix) = _optimal_from_rational(_rational_nullspace(A), A)
 
 # ── Stage 3: kinetic species diagonalization ─────────────────────────────────
 
@@ -584,8 +580,47 @@ function CanonicalStoichMatrix(species::AbstractVector{<:AbstractSpecies})
     return StoichMatrix(A, involved_atoms, Vector(species), N)
 end
 
+# Throws when a species is outside the span of the chosen components (see the
+# comment at the call), naming each one.
+function _refuse_out_of_span(M_indep, M, newspecies, independent_cols_indices)
+    r_indep = _exact_rank(M_indep)
+    if _exact_rank(hcat(M_indep, M)) != r_indep
+        # Only now is it worth asking which columns are the offenders: one
+        # rank computation per species, and only on a system that is already
+        # known to be ill-posed.
+        bad = [
+            j for j in axes(M, 2)
+                if _exact_rank(hcat(M_indep, M[:, j])) != r_indep
+        ]
+        throw(
+            ArgumentError(
+                "these species cannot be written over the chosen components, " *
+                    "so no conservation law covers them: " *
+                    join(
+                    (
+                        string(symbol(newspecies[j])) * " (" *
+                            string(formula(newspecies[j])) * ")" for j in bad
+                    ), ", ",
+                ) *
+                    ". The components are [" *
+                    join(
+                    (
+                        string(symbol(newspecies[c]))
+                            for c in independent_cols_indices
+                    ), ", ",
+                ) *
+                    "]. Add a component carrying the missing element, or drop " *
+                    "the species: decomposing it anyway projects it onto the " *
+                    "components and lets the solver create it out of nothing.",
+            ),
+        )
+    end
+    return nothing
+end
+
 """
-        StoichMatrix(species, candidate_primaries=species; involve_all_atoms=true)
+        StoichMatrix(species, candidate_primaries=species; involve_all_atoms=true,
+                     optimize_primaries=false, kinetic_species=nothing)
 
 Construct a StoichMatrix from a list of species and a list of candidate primary species
 (by default the list of species itself).
@@ -596,6 +631,12 @@ Construct a StoichMatrix from a list of species and a list of candidate primary 
   - `candidate_primaries`: list of candidate primary species (default: `species`).
   - `involve_all_atoms`: if true the algorithm is allowed to use species
     of `candidate_primaries` containing atoms which are not in `species` (default: true).
+  - `optimize_primaries`: choose the primaries by a pivoted QR, for a better
+    conditioned basis, instead of the first independent candidates in order
+    (default: false). The QR decides on floating-point comparisons, so the basis
+    it picks can differ from one machine to another.
+  - `kinetic_species`: species (symbols or species) kept out of the primaries, so
+    that each can be isolated in one column of the nullspace (default: `nothing`).
 
 # Examples
 
@@ -774,39 +815,7 @@ function StoichMatrix(
     # a rank comparison has no threshold at all. `_exact_rank` rationalizes with
     # the package's own tolerance, so the two rows agree again and the residual
     # is exactly zero where it should be.
-    let r_indep = _exact_rank(M_indep)
-        if _exact_rank(hcat(M_indep, M)) != r_indep
-            # Only now is it worth asking which columns are the offenders: one
-            # rank computation per species, and only on a system that is already
-            # known to be ill-posed.
-            bad = [
-                j for j in axes(M, 2)
-                    if _exact_rank(hcat(M_indep, M[:, j])) != r_indep
-            ]
-            throw(
-                ArgumentError(
-                    "these species cannot be written over the chosen components, " *
-                        "so no conservation law covers them: " *
-                        join(
-                        (
-                            string(symbol(newspecies[j])) * " (" *
-                                string(formula(newspecies[j])) * ")" for j in bad
-                        ), ", ",
-                    ) *
-                        ". The components are [" *
-                        join(
-                        (
-                            string(symbol(newspecies[c]))
-                                for c in independent_cols_indices
-                        ), ", ",
-                    ) *
-                        "]. Add a component carrying the missing element, or drop " *
-                        "the species: decomposing it anyway projects it onto the " *
-                        "components and lets the solver create it out of nothing.",
-                ),
-            )
-        end
-    end
+    _refuse_out_of_span(M_indep, M, newspecies, independent_cols_indices)
     A = stoich_coef_round.(A_raw)
 
     indep_comp = newspecies[independent_cols_indices]
@@ -837,8 +846,8 @@ function StoichMatrix(
     gather_species(d::AbstractDict{S, T} where {S <: AbstractSpecies, T}) = collect(keys(d))
     # Both sides carrying species is genuinely ambiguous in meaning, not merely in
     # dispatch: keys and values are two different sets, and nothing says which one
-    # the caller means. Say so, rather than pick one — this used to surface as an
-    # unexplained `MethodError` about ambiguous methods.
+    # the caller means. Say so, rather than pick one or leave the dispatch to
+    # raise an unexplained `MethodError` about ambiguous methods.
     gather_species(
         ::AbstractDict{S, T} where {S <: AbstractSpecies, T <: AbstractSpecies}
     ) = throw(
@@ -1130,8 +1139,9 @@ julia> reactions(SM)
  H₂O + CO₂ = CO₃²⁻ + 2H⁺
 ```
 """
-# Species-primary matrices: use push_primaries when possible, fall back to general extraction.
 function reactions(SM::StoichMatrix)
+    # Species-primary matrices: use push_primaries when possible, fall back to
+    # general extraction.
     if !isempty(SM.N)
         pSM = push_primaries(SM)
         if pSM === SM
@@ -1164,7 +1174,7 @@ Pretty print a list of reactions.
 
 # Arguments
 
-  - `SM`: StoichMatrix.
+  - `reactions`: the reactions, e.g. `reactions(SM)` for a `StoichMatrix`.
 
 # Examples
 

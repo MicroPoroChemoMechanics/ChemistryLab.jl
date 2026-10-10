@@ -344,3 +344,14 @@ end
     end
     @test hem2[:ΔₐG⁰](T = 500.0) == G(500.0)
 end
+
+@testsection "SymbolicFunc sends each keyword where it belongs" begin
+    # From a symbol, every keyword went to `ThermoFactory`, which takes only
+    # `units` and `output_unit`: a reference value raised a `MethodError`.
+    sT = SymbolicFunc(:T; T = 300.0)
+    @test sT() ≈ 300.0
+    # From an expression, `units` and `output_unit` were silently dropped.
+    sf = SymbolicFunc(:(a * T); a = 2.0, units = [:T => "K"], output_unit = "J/mol")
+    @test sf(; T = 300.0) ≈ 600.0
+    @test dimension(sf(; T = 300.0, unit = true)) == dimension(u"J/mol")
+end

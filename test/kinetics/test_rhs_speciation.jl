@@ -157,3 +157,18 @@ using OrderedCollections
         @test ChemistryLab._kinetic_state_infeasible(p, u)
     end
 end
+
+@testset "the speciation probe finds its seed however the duals nest" begin
+    # The probe of `_rates_read_speciation` seeds the amounts with its own dual;
+    # in a run on dual numbers a rate combines it with the run's, and the seed
+    # ends up outside or inside them. It is found either way, and only it.
+    D = ForwardDiff.Dual{typeof(ForwardDiff.Tag(ChemistryLab._rates_read_speciation, Float64)), Float64, 1}
+    probe = D(2.0, ForwardDiff.Partials((1.0,)))
+    other(v) = ForwardDiff.Dual{typeof(ForwardDiff.Tag(sin, Float64))}(v, 1.0)
+    @test ChemistryLab._reads_seed(D, 3 * probe)
+    @test ChemistryLab._reads_seed(D, probe * other(1.5))
+    @test ChemistryLab._reads_seed(D, other(1.5) * probe)
+    @test !ChemistryLab._reads_seed(D, other(1.5))
+    @test !ChemistryLab._reads_seed(D, 0 * probe + other(1.5))
+    @test !ChemistryLab._reads_seed(D, 1.0)
+end

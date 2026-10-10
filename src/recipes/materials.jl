@@ -368,7 +368,7 @@ function _nnls(A::AbstractMatrix, b::AbstractVector; tol = 1.0e-12, maxit = 30 *
             z = zeros(T, n)
             z[idx] = A[:, idx] \ b
             if all(z[idx] .> tol)
-                x = z
+                copyto!(x, z)
                 break
             end
             # Step back to the boundary of the feasible set along x → z.
@@ -378,7 +378,7 @@ function _nnls(A::AbstractMatrix, b::AbstractVector; tol = 1.0e-12, maxit = 30 *
                 x[i] <= tol && (P[i] = false; x[i] = 0.0)
             end
         end
-        w = transpose(A) * (b .- A * x)
+        w .= transpose(A) * (b .- A * x)
     end
     return x
 end

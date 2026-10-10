@@ -2,7 +2,6 @@
 # Copyright © 2025-2026 Jean-François Barthélémy and Anthony Soive (Cerema, UMR MCD)
 
 using DynamicQuantities
-using SHA
 
 """
     build_sit_parameters(path; source = nothing) -> SITParameters
@@ -31,9 +30,10 @@ SIT
     ...
 ```
 
-Three whitespace-separated fields per line: two species symbols and the
-coefficient in kg/mol. Blank lines and `#` comments are skipped; the block ends
-at the first line that is neither.
+Three whitespace-separated fields per line: two species and the coefficient in
+kg/mol. The block ends at the next keyword. The species are named as in the
+database and keyed by the rule of every reader: `SO4--` is `SO4-2`, a neutral
+species gets `@`. A line of another shape is not read, and a warning lists it.
 
 # Example
 
@@ -45,37 +45,30 @@ missing_epsilon_pairs(cs, model)     # what the compilation does not cover
 """
 function build_sit_parameters(path::AbstractString; source = nothing)
     isfile(path) || throw(ArgumentError("no such database: $path"))
-    text = read(path, String)
-    digest = bytes2hex(sha256(text))
-    src = source === nothing ?
-        "$(basename(path)) sha256 $(first(digest, 12))" : String(source)
-
+    src = source === nothing ? _source_tag(path) : String(source)
     pairs = Pair{Tuple{String, String}, Float64}[]
-    in_block = false
-    seen_epsilon = false
-    for raw in split(text, '\n')
-        line = strip(first(split(raw, '#')))
-        if !in_block
-            uppercase(line) == "SIT" && (in_block = true)
-            continue
-        end
-        isempty(line) && continue
-        if startswith(line, '-')
-            seen_epsilon = lowercase(line) == "-epsilon"
-            seen_epsilon && continue
-            # another sub-keyword of the same block: stop reading coefficients
-            seen_epsilon = false
-            continue
-        end
-        fields = split(line)
-        if length(fields) == 3 && seen_epsilon
-            v = tryparse(Float64, fields[3])
-            v === nothing && break
-            push!(pairs, (String(fields[1]), String(fields[2])) => v)
-        else
-            break          # the next keyword block
+    unread = String[]
+    for b in phreeqc_blocks(path)
+        b.keyword == "SIT" || continue
+        epsilon = false
+        for (n, line) in b.lines
+            if startswith(line, '-')
+                # `-epsilon` opens the coefficients; another option closes them.
+                epsilon = lowercase(line) == "-epsilon"
+                continue
+            end
+            epsilon || continue
+            fields = split(line)
+            v = length(fields) == 3 ? tryparse(Float64, fields[3]) : nothing
+            if v === nothing
+                push!(unread, "line $n: `$line`")
+                continue
+            end
+            a, c = _solute_symbol.(_phreeqc_name.(fields[1:2]))
+            push!(pairs, (a, c) => v)
         end
     end
+    isempty(unread) || @warn "build_sit_parameters: $(basename(path)) has ε lines of another shape than `species species ε`; not read: $(join(unread, "; "))"
     isempty(pairs) && throw(
         ArgumentError(
             "no SIT ε found in $path. A PHREEQC database carries them in a " *

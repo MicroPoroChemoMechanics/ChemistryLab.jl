@@ -85,6 +85,9 @@ end
     # StateView is a thin wrapper — mutation in data is reflected
     data[2] = 99.0
     @test sv["B"] ≈ 99.0
+    # Its data field is concretely typed: a rate law reads an inferred number.
+    @test sv isa StateView{Float64, Vector{Float64}}
+    @test @inferred(sv["B"]) === 99.0
 
     # AD smoke-test: ForwardDiff through StateView lookup
     function f_sv(x)

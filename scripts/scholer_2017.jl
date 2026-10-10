@@ -69,7 +69,7 @@ function s17_solution(cs, system::AbstractString, age::Real; model)
     for (el, sp) in ("Ca" => "Ca+2", "Al" => "AlO2-", "SO4" => "SO4-2", "K" => "K+", "Na" => "Na+", "Si" => "SiO2@")
         set_quantity!(st, sp, mol(el)u"mol")
     end
-    b = Float64.(conservation_matrix(cs)) * ustrip.(us"mol", st.n)
+    b = budget(st)
     eq, cert = equilibrate_certified(st; model, b, constraint = FixedpH(s17_pH(system, age); titrant = "OH-"))
     return (; state = eq, certificate = cert)
 end

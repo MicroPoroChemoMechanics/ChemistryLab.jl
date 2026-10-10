@@ -15,12 +15,11 @@ matrix assembly instead of being bolted on at the solve.
 
 # Why a fixed list rather than a registry
 
-A registry would be mutable global state shared between calculations, which is
-the defect release 0.19.0 removed from the solver. A fixed list is a pure
-predicate, [`is_site_symbol`](@ref), and it cannot drift between two systems
-built in the same session.
+A registry would be mutable global state shared between calculations. A fixed
+list is a pure predicate, [`is_site_symbol`](@ref), and it cannot drift between
+two systems built in the same session.
 
-# Why these twenty-five
+# Why these twenty-four
 
 The formula parser accepts one uppercase letter and at most one lowercase one,
 so a site symbol has two characters; `Xs1` would parse as `Xs` followed by the
@@ -67,14 +66,21 @@ Canonical atomic ordering used across the package for serialization,
 stringification and deterministic ordering of formula fields.
 
 This vector lists element symbols in the preferred display/serialization
-order and includes the special placeholder :Zz which represents a unit
-positive charge in compositions.
+order, then the [`SITE_SYMBOLS`](@ref), and last the special placeholder :Zz
+which represents a unit positive charge in compositions.
 
 # Examples
 
 ```julia
-julia> print(ATOMIC_ORDER)
-[:Ca, :Na, :K, :Mg, :Sr, :Ba, :Al, :Fe, :Ti, :Mn, :Cr, :Si, :C, :H, :N, :S, :O, :P, :B, :F, :Cl, :Br, :I, :Zz]
+julia> ATOMIC_ORDER[1:4]
+4-element Vector{Symbol}:
+ :Ca
+ :Na
+ :K
+ :Mg
+
+julia> last(ATOMIC_ORDER)
+:Zz
 ```
 """
 const ATOMIC_ORDER = [
@@ -103,9 +109,9 @@ const ATOMIC_ORDER = [
     :I,
     :U,
     # The site families, between the elements and the charge. Their position
-    # matters twice: `Formula` sorts a composition by this list and has no
-    # fallback for a symbol absent from it, and `speciation` relies on `:Zz`
-    # staying last.
+    # matters twice: `Formula` sorts a composition by this list (an element it
+    # does not list goes after the last element it does, by atomic number), and
+    # `speciation` relies on `:Zz` staying last.
     SITE_SYMBOLS...,
     :Zz,
 ]

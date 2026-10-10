@@ -100,11 +100,11 @@ the background ends up 14 % above nominal. Matching it is what keeps this a
 comparison of surface models rather than of titration bookkeeping.
 
 ```@example ddl
-function titrate(pt, nacl; model, surface_potential = :auto)
+function titrate_hfo(pt, nacl; model, surface_potential = :auto)
     mH, mOH = 10.0^(-pt["pH"]), 10.0^(pt["pH"] - 14)
     cs, st = hfo(; m_na = nacl, m_cl = 2 * pt["I"] - nacl - mH - mOH, model)
     des = DualEquilibriumSolver(cs, DiluteSolutionModel())
-    b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
+    b = budget(st)
     eq = SciMLBase.solve(des, st; b = b, constraint = FixedpH(pt["pH"]),
                          surface_potential, parameters = Base.RefValue{Any}(nothing))
     cert = optimality_certificate(des, eq; b = b, constraint = FixedpH(pt["pH"]))
@@ -124,7 +124,7 @@ worst_abs = 0.0
 for ser in ORACLE["series"]
     @printf("%5.0f mM NaCl  ", ser["nacl"] * 1000)
     for pt in ser["points"]
-        r = titrate(pt, ser["nacl"]; model = dl)
+        r = titrate_hfo(pt, ser["nacl"]; model = dl)
         global worst_abs = max(worst_abs, abs(r.free - pt["free"]))
         @printf("%8.4f", r.free)
     end
@@ -161,9 +161,9 @@ for pt in ORACLE["series"][1]["points"]
     s = electrostatic_stiffness(dl, z, n_ref, pt["I"], 298.15)
     # A diverging point is printed as such; the solver's warning would repeat it.
     a = with_logger(NullLogger()) do
-        titrate(pt, 0.1; model = dl, surface_potential = :eliminated)
+        titrate_hfo(pt, 0.1; model = dl, surface_potential = :eliminated)
     end
-    b = titrate(pt, 0.1; model = dl, surface_potential = :unknown)
+    b = titrate_hfo(pt, 0.1; model = dl, surface_potential = :unknown)
     @printf("%5.1f %10.2f   %-16s  %s\n", pt["pH"], s,
             a.stationarity < 1e-8 ? @sprintf("%.4f", a.free) : "diverges",
             @sprintf("%.4f", b.free))
@@ -205,7 +205,7 @@ for (k, ser) in enumerate(ORACLE["series"])
     ph = [pt["pH"] for pt in ser["points"]]
     plot!(p1, ph, [pt["free"] for pt in ser["points"]]; color = cols[k], lw = 2,
           label = "PHREEQC, $(round(Int, ser["nacl"] * 1000)) mM NaCl")
-    ours = [titrate(pt, ser["nacl"]; model = dl).free for pt in ser["points"]]
+    ours = [titrate_hfo(pt, ser["nacl"]; model = dl).free for pt in ser["points"]]
     stiff = [
         electrostatic_stiffness(
             dl, z,

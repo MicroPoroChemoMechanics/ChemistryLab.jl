@@ -92,9 +92,6 @@ function KineticStepSolver(
     end
     K = _reactivity_matrix(reactions, system, kinetic_species)
     idx_kin = [i for i in 1:ns if any(!iszero, @view K[i, :])]
-    if coupling === :species && length(idx_kin) > 1 && rank(K) < length(reactions)
-        # already caught in `_reactivity_matrix`, kept for symmetry
-    end
     des = DualEquilibriumSolver(system, model; kwargs...)
 
     # `:species` ELIMINATES the pinned species instead of constraining them.
@@ -116,9 +113,9 @@ function KineticStepSolver(
         # `_equilibrium_subsystem`, not a bare `ChemicalSystem`. Rebuilding the
         # free side from its species and the parent's primary NAMES dropped
         # every piece of metadata the parent carried: the solid solutions —
-        # which is the defect `kinetics_problems.jl` documents at length and
-        # fixed on its own path in 0.8.2, end-members silently becoming separate
-        # pure phases with no mixing entropy — and the site families, whose loss
+        # which is the defect `kinetics_problems.jl` documents at length,
+        # end-members silently becoming separate pure phases with no mixing
+        # entropy — and the site families, whose loss
         # leaves their members in the sub-system as `AS_SURFACE` species
         # belonging to no family, which `ChemicalSystem` refuses outright. So
         # `coupling = :species` could not be combined with a surface at all.
@@ -238,6 +235,21 @@ function kinetic_step(
         pin_minerals = :auto,
         parameters::Union{Nothing, Base.RefValue} = nothing,
         certificate::Union{Nothing, Base.RefValue} = nothing,
+    )
+    # On plain numbers only, and said at once. On dual numbers the step would
+    # differentiate the iterations of its Newton method, not the step, and it
+    # failed further down on a plain buffer; the derivatives of a kinetic run
+    # are those `integrate` carries along the trajectory.
+    D = promote_type(
+        _amount_number_type(state), _captured_number_type(Δt),
+        (_captured_number_type(kr.rate_fn) for kr in kss.reactions)...,
+    )
+    D <: ForwardDiff.Dual && throw(
+        ArgumentError(
+            "kinetic_step works on plain numbers: the state, the step or a rate law carries " *
+                "dual numbers. Differentiate a kinetic run through `integrate`, whose " *
+                "trajectory carries the derivatives.",
+        ),
     )
     # Whether to hold the kinetic minerals in the active set is decided by the
     # certificate, not by taste, because neither answer works on both cases.
@@ -842,7 +854,7 @@ function _kinetic_step_eliminated(
             kss.dual_free.system, n0[free] .* u"mol";
             T = temperature(state), P = pressure(state),
         )
-        eq, cert = solve_certified(kss.dual_free, (st_free,); b = b_free, ϵ = ϵ)
+        eq, cert = solve_certified(kss.dual_free, (st_free,); b = b_free, ϵ = ϵ, report = false)
         last_cert[] = cert
         for (r, i) in enumerate(free)
             nf[i] = ustrip(us"mol", eq.n[r])

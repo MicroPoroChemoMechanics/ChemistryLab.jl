@@ -90,12 +90,13 @@ const EQUAL_REACTION_SET = Set(EQUAL_REACTION)
 abstract type AbstractReaction end
 
 """
-    struct Reaction{SR<:AbstractSpecies,TR<:Number,SP<:AbstractSpecies,TP<:Number}
+    struct Reaction{SR<:AbstractSpecies,TR<:Number,SP<:AbstractSpecies,TP<:Number,IC<:Number}
 
 Representation of a chemical reaction with reactants and products.
 
 # Fields
 
+  - `symbol::String`: the reaction's symbol (empty when none was given).
   - `equation::String`: Unicode equation string.
   - `colored::String`: colored terminal representation.
   - `reactants::OrderedDict{SR,TR}`: species => coefficient for reactants.
@@ -144,14 +145,14 @@ end
 
 Return the symbol string of the reaction.
 """
-symbol(r::Reaction) = r.symbol
+symbol(r::Reaction) = getfield(r, :symbol)
 
 """
     equation(r::Reaction) -> String
 
 Return the equation string of the reaction.
 """
-equation(r::Reaction) = r.equation
+equation(r::Reaction) = getfield(r, :equation)
 
 """
     colored(r::Reaction) -> String
@@ -166,7 +167,7 @@ julia> r = Reaction("CaSO4 = Ca²⁺ + SO4²⁻");
 julia> print(colored(r))  # Returns string with ANSI color codes
 ```
 """
-colored(r::Reaction) = r.colored
+colored(r::Reaction) = getfield(r, :colored)
 
 """
     reactants(r::Reaction) -> OrderedDict
@@ -180,7 +181,7 @@ julia> reactants(Reaction("CaCO3 = CO3-2 + Ca+2")) == Dict(Species("CaCO3") => 1
 true
 ```
 """
-reactants(r::Reaction) = r.reactants
+reactants(r::Reaction) = getfield(r, :reactants)
 
 """
     products(r::Reaction) -> OrderedDict
@@ -194,7 +195,7 @@ julia> products(Reaction("CaCO3 = CO3-2 + Ca+2")) == Dict(Species("CO3-2") => 1,
 true
 ```
 """
-products(r::Reaction) = r.products
+products(r::Reaction) = getfield(r, :products)
 
 """
     charge(r::Reaction)
@@ -208,14 +209,14 @@ julia> charge(Reaction("Fe + 2H2O = FeO2- + 4H+"))
 3
 ```
 """
-charge(r::Reaction) = r.charge
+charge(r::Reaction) = getfield(r, :charge)
 
 """
     equal_sign(r::Reaction) -> Char
 
 Return the equality operator character of the reaction.
 """
-equal_sign(r::Reaction) = r.equal_sign
+equal_sign(r::Reaction) = getfield(r, :equal_sign)
 
 """
     properties(r::Reaction) -> OrderedDict{Symbol,PropertyType}
@@ -229,7 +230,7 @@ julia> properties(Reaction("H2 + O2 = H2O"))
 OrderedDict{Symbol, Union{Missing, AbstractFunc, AbstractString, Function, Number, AbstractVector{<:Number}, AbstractVector{<:Pair{Symbol}}}}()
 ```
 """
-properties(r::Reaction) = r.properties
+properties(r::Reaction) = getfield(r, :properties)
 
 """
     Base.getindex(r::Reaction, i::Symbol) -> Any
@@ -295,7 +296,7 @@ Access reaction fields or registered properties.
 Throws an error if the symbol is neither a field nor a property.
 """
 function Base.getproperty(r::Reaction, sym::Symbol)
-    if sym in fieldnames(typeof(r))
+    if hasfield(typeof(r), sym)
         return getfield(r, sym)
     else
         if !haskey(properties(r), sym) && sym in [:ΔᵣCp⁰, :ΔᵣH⁰, :ΔᵣS⁰, :ΔᵣG⁰, :ΔᵣV⁰, :logK⁰, :logKr]
@@ -336,7 +337,7 @@ julia> setproperty!(Reaction("H2 + O2 = H2O"), :ΔᵣH⁰, -241.8)
 """
 function Base.setproperty!(r::Reaction, sym::Symbol, value)
     if !ismissing(value)
-        if sym in fieldnames(typeof(r))
+        if hasfield(typeof(r), sym)
             error(
                 "Cannot modify field '$sym' directly. Use constructor or dedicated methods."
             )
@@ -476,7 +477,8 @@ function complete_thermo_functions!(r::Reaction)
             r.Pref = dict_params[:P]
         end
         if haskey(properties(r), :logk_method)
-            r.logKr = THERMO_FACTORIES[Symbol(r[:logk_method])][:logKr](; params..., T = r.Tref, P = r.Pref)
+            factories = lock(() -> THERMO_FACTORIES[Symbol(r[:logk_method])], _THERMO_FACTORY_LOCK)
+            r.logKr = factories[:logKr](; params..., T = r.Tref, P = r.Pref)
             delete!(r.properties, :logk_method)
         end
         for k in [:ΔᵣCp⁰, :ΔᵣH⁰, :ΔᵣS⁰, :ΔᵣG⁰, :ΔᵣV⁰, :logKr]
@@ -496,7 +498,7 @@ function complete_thermo_functions!(r::Reaction)
 end
 
 """
-    Reaction(equation::AbstractString, S::Type{<:AbstractSpecies}=Species; properties, side, species_list) -> Reaction
+    Reaction(equation::AbstractString, S::Type{<:AbstractSpecies}=Species; symbol, properties, side, species_list) -> Reaction
 
 Construct a Reaction from an equation string.
 
@@ -504,6 +506,7 @@ Construct a Reaction from an equation string.
 
   - `equation`: reaction equation string (e.g., "2H2 + O2 = 2H2O").
   - `S`: species type to use (default: Species).
+  - `symbol`: the reaction's symbol (default: empty).
   - `properties`: property dictionary (default: empty OrderedDict).
   - `side`: how to split species - :none, :sign, :reactants, :products (default: :none).
   - `species_list`: optional list of known species for lookup.
@@ -527,12 +530,10 @@ function Reaction(
         species_list = nothing,
     )
     reactants, products, equal_sign = parse_equation(equation)
-    if !isnothing(species_list)
-        species_list = collect(values(species_list))
-    end
+    listed = isnothing(species_list) ? nothing : collect(values(species_list))
     reacdict = ordered_dict_with_default(
         (
-            find_species(k, species_list, S) => _printed_coefficient(v) for
+            find_species(k, listed, S) => _printed_coefficient(v) for
                 (k, v) in reactants if !iszero(v) && !startswith(k, "Zz") && !startswith(k, "e")
         ),
         S,
@@ -540,7 +541,7 @@ function Reaction(
     )
     proddict = ordered_dict_with_default(
         (
-            find_species(k, species_list, S) => _printed_coefficient(v) for
+            find_species(k, listed, S) => _printed_coefficient(v) for
                 (k, v) in products if !iszero(v) && !startswith(k, "Zz") && !startswith(k, "e")
         ),
         S,
@@ -573,7 +574,6 @@ function Reaction(
         equal_sign,
         OrderedDict{Symbol, PropertyType}(properties),
     )
-    # complete_thermo_functions!(r)
     if side == :none
         return r
     else
@@ -720,25 +720,11 @@ function Reaction(
         )
     end
     # BY SYMBOL, not by `delete!`, and the difference decides whether a redox
-    # half-reaction keeps its electrons.
-    #
-    # `delete!` looks the key up by `hash` and then confirms with `isequal`, and
-    # for `AbstractSpecies` those two disagree: `isequal` compares formula,
-    # aggregate state and class, while `hash` also mixes in the SYMBOL. So
-    # `ELECTRON` and `Species("e")` are `==` but hash differently, and whether
-    # `delete!` finds one through the other depends on where the hash table
-    # happens to put them — that is, on the hash function, that is, on the Julia
-    # version.
-    #
-    # Measured: CI green on 1.13 and red on 1.12 from the same commit, with
-    # `SO4-2/HS-` reported as "balancing with no electron" on 1.12 alone. There
-    # the electron WAS deleted; here it was not. Removing by symbol is exactly
-    # what this is for, and it does the same thing on every machine.
-    #
-    # The underlying `isequal`/`hash` disagreement is a defect of its own —
-    # calcite and aragonite are `==` under it, and so is a species and its `#2`
-    # instance twin — and it is not fixed here because it is a behavior change
-    # that deserves its own campaign, not a side effect of a bug fix.
+    # half-reaction keeps its electrons. `delete!` finds a key through `hash` and
+    # `isequal`, which compare the identity of a species object; the charge and
+    # the electron to strip are known by their symbol, `Zz` and `e`, whatever
+    # object carries it, and removing by symbol does the same thing on every
+    # machine and Julia version.
     #
     # `ChemistryLab.symbol` is spelled out because this constructor takes a
     # KEYWORD ARGUMENT named `symbol`, which shadows the function throughout the
@@ -801,7 +787,6 @@ function Reaction(
         equal_sign,
         OrderedDict{Symbol, PropertyType}(properties),
     )
-    # complete_thermo_functions!(r)
     return r
 end
 
@@ -942,21 +927,27 @@ end
 """
     scale_stoich!(species_stoich::AbstractDict{<:AbstractSpecies,<:Number})
 
-Scale stoichiometric coefficients by their GCD if all are integers or rationals.
-Modifies the dictionary in place to ensure integer coefficients when possible.
+Reduce integer or rational stoichiometric coefficients to the smallest integers
+in the same ratios: multiplied by the least common multiple of their
+denominators, then divided by the greatest common divisor of their numerators.
+`{2, 4}` becomes `{1, 2}`, `{−1, 1//2, 3//2}` becomes `{−2, 1, 3}`. Coefficients
+of any other type are left as they are. Modifies the dictionary in place.
 
 # Arguments
 
   - `species_stoich`: dictionary mapping species to stoichiometric coefficients
 """
 function scale_stoich!(species_stoich::AbstractDict{<:AbstractSpecies, <:Number})
-    v = values(species_stoich)
-    return if all(x -> x isa Integer || x isa Rational, v)
-        mult = gcd([numerator(x) for x in v]...)
-        for k in keys(species_stoich)
-            species_stoich[k] *= mult
-        end
+    v = collect(values(species_stoich))
+    (isempty(v) || !all(x -> x isa Integer || x isa Rational, v)) && return species_stoich
+    r = Rational.(v)
+    g = gcd(numerator.(r))
+    iszero(g) && return species_stoich
+    factor = lcm(denominator.(r)) // g
+    for k in keys(species_stoich)
+        species_stoich[k] = Rational(species_stoich[k]) * factor
     end
+    return species_stoich
 end
 
 """
@@ -1190,10 +1181,10 @@ Reverse a reaction (swap reactants and products).
 # Examples
 
 ```jldoctest
-julia> 3Reaction("2H2 + O2 = 2H2O") - 2Reaction("2H2 + O2 = 2H2O")
-  equation: 6H₂ + 3O₂ + 4H₂O = 6H₂O + 4H₂ + 2O₂
- reactants: H₂ => 6, O₂ => 3, H₂O => 4
-  products: H₂O => 6, H₂ => 4, O₂ => 2
+julia> -Reaction("2H2 + O2 = 2H2O")
+  equation: 2H₂O = 2H₂ + O₂
+ reactants: H₂O => 2
+  products: H₂ => 2, O₂ => 1
     charge: 0
 ```
 """
@@ -1213,7 +1204,8 @@ Add two species to create a Reaction.
 
 # Returns
 
-  - A Reaction with both species as reactants (coefficient 1 each)
+  - A Reaction with both species as products (coefficient 1 each, 2 for a
+    species added to itself): a positive coefficient is a product
 
 # Examples
 
@@ -1242,7 +1234,8 @@ Subtract two species to create a Reaction.
 
 # Returns
 
-  - A Reaction with s as reactant and t as product
+  - A Reaction with s as product and t as reactant (empty for a species
+    subtracted from itself)
 """
 function -(s::S1, t::S2) where {S1 <: AbstractSpecies, S2 <: AbstractSpecies}
     S = promote_type(S1, S2)

@@ -604,9 +604,9 @@ each pass; `maxpasses` bounds the work.
 
 Under [`STRICT_CONVERGENCE`](@ref) the passes are searches, not results: they run
 with strictness suspended, and the answer they end on is judged strictly — an
-error if it does not certify. Until 0.25.1 the flag was honored by the first
-pass, which is by construction the one expected not to certify, so the function
-raised before it had seeded anything.
+error if it does not certify. Honored by the first pass, which is by
+construction the one expected not to certify, the flag would make the function
+raise before it had seeded anything.
 
 !!! note "This is where convexity has already been given up"
     A phase that unmixes has a concave mixing energy, so `G` is not convex and
@@ -894,6 +894,9 @@ Equilibrium composition together with a proof of its global optimality, obtained
 by solving from every registered back end and keeping the answer
 [`optimality_certificate`](@ref) proves optimal.
 
+`state` is not modified: the answer is a new state, and the same `state` can be
+solved again, or under another model, without a copy.
+
 # The linear program over the pure phases comes first
 
 With every activity set to one, the equilibrium is a linear program:
@@ -935,12 +938,12 @@ at every step.
 
 `dual` is a `NamedTuple` of keywords for the [`DualEquilibriumSolver`](@ref) the
 route certifies with — `maxit`, `max_active_updates`, `inner_tol`, `inner_maxit`,
-`tol`, `si_tol` — for instance `dual = (; maxit = 1000)`. Until 0.25.2 nothing
-reached it. `tol` and `si_tol` are also the thresholds of the certificate, so
-loosening them loosens the proof. The other keywords go to the interior-point
-starts: `variable_space` sets their formulation, Ipopt takes the common
-arguments of Optimization.jl (`maxiters`, `reltol`, `maxtime`, `verbose`), which
-OptimizationIpopt maps to its options, and `OptimaOptimizer` ignores the rest.
+`tol`, `si_tol` — for instance `dual = (; maxit = 1000)`. `tol` and `si_tol` are
+also the thresholds of the certificate, so loosening them loosens the proof. The
+other keywords go to the interior-point starts: `variable_space` sets their
+formulation, Ipopt takes the common arguments of Optimization.jl (`maxiters`,
+`reltol`, `maxtime`, `verbose`), which OptimizationIpopt maps to its options, and
+`OptimaOptimizer` ignores the rest.
 
 `certificate.optimal == true` is a **proof** of a global minimum when the log
 activities are the gradient of one Gibbs energy and that energy is proved convex
@@ -1222,69 +1225,128 @@ function _equilibrate_certified(
         return _refuse_infeasible_budget(des, state, bfix, lp, ϵ)
     end
 
-    # Every back end's answer from `from`, and `from` itself — the only start
-    # available if they all threw.
-    #
-    # Strict convergence is suspended for the duration, through
-    # `_relaxed_convergence` and so for this task alone: what this computes is a
-    # STARTING POINT, not a result. Left set, a back end that
-    # reports `MaxIters` raises, the `catch` below swallows it, and the search
-    # silently loses that candidate — so a caller asking for strict results gets
-    # a *worse* search than a caller who did not. Measured on a CEM I paste where
-    # the interior point ends on `MaxIters`: with the flag set the route returned
-    # an element balance of 27.6 mol, and with it clear the very same call
-    # returned 1.8e-14. The result is still judged strictly, at the end of this
-    # function, which is where the flag belongs.
-    route_of = IdDict{Any, Symbol}()
-    function starts_from(
-            from::ChemicalState, what::AbstractString, route::Symbol;
-            factories::Vector{Function} = copy(_SOLVER_FACTORIES), offer_tail::Bool = true,
-        )
-        route_of[from] = route
-        solve_one = function (f)
-            r = _relaxed_convergence() do
-                try
-                    # A candidate is a start: polishing it here would run the
-                    # dual Newton the search runs on it anyway, twice.
-                    _exploring_starts() do
-                        esolver = EquilibriumSolver(state.system, model, f(); kwargs...)
-                        SciMLBase.solve(esolver, from; ϵ = ϵ, b = bfix, polish = false)
-                    end
-                catch err
-                    verbose && @info "$what rejected" backend = f err
-                    nothing
-                end
-            end
-            r === nothing || (route_of[r] = route)
-            return r
-        end
-        return _LazyStarts(solve_one, factories, from, typeof(from)[], Ref(0), offer_tail)
+    s = _CertifiedSearch(des, state, model, bfix, ϵ, constraint, parameters, verbose, dual, kwargs, split_early)
+    starts = _first_starts(s, lp, autostart)
+    eq, cert = _search(s, starts)
+    split_next = _stops(s, cert)
+    if autostart && !cert.optimal && !split_next && !(model isa DiluteSolutionModel)
+        eq, cert = _from_ideal_answer(s, eq, cert, starts)
     end
+    # What the automatic start did, in words, for the diagnostic of a refusal.
+    note = autostart ? "not reached (the first route certified)" : "declined (autostart = false)"
+    if autostart && !cert.optimal && !split_next
+        eq, cert, note = _from_continuation(s, eq, cert, starts)
+        eq, cert = _restarts(s, eq, cert)
+        eq, cert = _repairs(s, eq, cert, starts)
+    end
+    !cert.optimal && !split_next && _uncertified(eq, cert, model, note)
+    _check_solvent(eq)
+    eq, cert = _reported(des, eq, cert, true; ϵ, floor = _CERTIFICATE_FLOOR, constraint)
+    return (eq, merge(cert, (; route = _route(s, eq), n_dual_solves = length(s.memo), budget_feasible = true)))
+end
 
-    # Every candidate the search tries is a candidate, and a candidate that does
-    # not converge is what the search exists for. Its diagnostics stay quiet; the
-    # verdict on the answer is pronounced once, below, on the certificate.
-    #
-    # The same cached starts are offered again after the continuation, after
-    # each restart and in each repair round, and a start already solved is not
-    # solved twice: `memo` returns what it gave the first time, which is the
-    # same answer bit for bit, since `des`, `bfix`, `ϵ` and `constraint` are
-    # fixed for the whole call. See `solve_certified`.
-    memo = IdDict{Any, Any}()
+# ── The stages of the search ──────────────────────────────────────────────────
+
+# One certified search: the problem posed once (the solver `des` and the budget
+# `bfix`), the dual solves already made (`memo`), and the route each start came
+# by (`route_of`). The same cached starts are offered again after the
+# continuation, after each restart and in each repair round, and a start already
+# solved is not solved twice: `memo` returns what it gave the first time, which is
+# the same answer bit for bit, since `des`, `bfix`, `ϵ` and `constraint` are fixed
+# for the whole call. See `solve_certified`.
+#
+# The fields are of abstract types on purpose: each stage is then compiled once,
+# and what it calls is compiled when it is first called. Typed by parameters,
+# the stages let inference reach the fallbacks a certified solve never takes,
+# and the first equilibrium of a cement compiled 20 s longer (172.8 against
+# 152.4 s); with these fields, 158.6 s. A dynamic call costs nothing beside a
+# solve.
+struct _CertifiedSearch
+    des::DualEquilibriumSolver
+    state::ChemicalState
+    model::AbstractActivityModel
+    bfix::Vector{Float64}
+    ϵ::Float64
+    constraint::EquilibriumConstraint
+    parameters::Union{Nothing, Base.RefValue}
+    verbose::Bool
+    dual::NamedTuple
+    kwargs::Any
+    stop::Any
+    memo::IdDict{Any, Any}
+    route_of::IdDict{Any, Symbol}
+end
+
+function _CertifiedSearch(des, state, model, bfix, ϵ, constraint, parameters, verbose, dual, kwargs, split_early)
+    system = state.system
     # A phase declared `instances = :auto` that asks to split cannot certify with
     # one composition from any start, so the search stops there and the answer
     # goes to `equilibrate_certified`, which gives the phase its second instance.
-    wants_split(c) = !c.optimal && _wants_auto_split(state.system, c)
-    stop = split_early && _AUTO_SPLIT[] && _has_auto_instances(state.system) ? wants_split : nothing
-    search(starts) = _exploring_starts() do
-        solve_certified(
-            des, starts; b = bfix, ϵ = ϵ,
-            constraint = constraint, parameters = parameters, memo = memo, stop = stop,
-        )
-    end
+    stop = split_early && _AUTO_SPLIT[] && _has_auto_instances(system) ?
+        (c -> !c.optimal && _wants_auto_split(system, c)) : nothing
+    return _CertifiedSearch(
+        des, state, model, bfix, ϵ, constraint, parameters, verbose, dual, kwargs, stop,
+        IdDict{Any, Any}(), IdDict{Any, Symbol}(),
+    )
+end
 
-    starts = starts_from(state, "start", :state)
-    state_starts = starts
+_stops(s::_CertifiedSearch, cert) = s.stop !== nothing && s.stop(cert)
+
+# Every back end's answer from `from`, and `from` itself — the only start
+# available if they all threw.
+#
+# Strict convergence is suspended for the duration, through
+# `_relaxed_convergence` and so for this task alone: what this computes is a
+# STARTING POINT, not a result. Left set, a back end that
+# reports `MaxIters` raises, the `catch` below swallows it, and the search
+# silently loses that candidate — so a caller asking for strict results gets
+# a *worse* search than a caller who did not. Measured on a CEM I paste where
+# the interior point ends on `MaxIters`: with the flag set the route returned
+# an element balance of 27.6 mol, and with it clear the very same call
+# returned 1.8e-14. The result is still judged strictly, at the end of
+# `_equilibrate_certified`, which is where the flag belongs.
+function _starts_from(
+        s::_CertifiedSearch, from::ChemicalState, what::AbstractString, route::Symbol;
+        factories::Vector{Function} = copy(_SOLVER_FACTORIES), offer_tail::Bool = true,
+    )
+    s.route_of[from] = route
+    solve_one = function (f)
+        r = _relaxed_convergence() do
+            try
+                # A candidate is a start: polishing it here would run the
+                # dual Newton the search runs on it anyway, twice.
+                _exploring_starts() do
+                    esolver = EquilibriumSolver(s.state.system, s.model, f(); s.kwargs...)
+                    SciMLBase.solve(esolver, from; ϵ = s.ϵ, b = s.bfix, polish = false)
+                end
+            catch err
+                s.verbose && @info "$what rejected" backend = f err
+                nothing
+            end
+        end
+        r === nothing || (s.route_of[r] = route)
+        return r
+    end
+    return _LazyStarts(solve_one, factories, from, typeof(from)[], Ref(0), offer_tail)
+end
+
+# The certified solve over `starts`. Every candidate the search tries is a
+# candidate, and a candidate that does not converge is what the search exists
+# for: its diagnostics stay quiet, and the verdict on the answer is pronounced
+# once, on the certificate. The search decides on the verdicts; what the proof
+# covers is reported once, for the answer returned.
+_search(s::_CertifiedSearch, starts) = _exploring_starts() do
+    solve_certified(
+        s.des, starts; b = s.bfix, ϵ = s.ϵ, constraint = s.constraint, parameters = s.parameters,
+        memo = s.memo, stop = s.stop, report = false,
+    )
+end
+
+# The starts of the first search: the vertex of the linear program when it has
+# one, ideal mixing for a phase mixing on sites, and the state as given.
+function _first_starts(s::_CertifiedSearch, lp, autostart::Bool)
+    state_starts = _starts_from(s, s.state, "start", :state)
+    starts = state_starts
     lp_first = false
     first_start = nothing
 
@@ -1309,9 +1371,9 @@ function _equilibrate_certified(
     # from the answer) 0.32 and 0.02, every composition the same to 3e-10.
     default = _DEFAULT_SOLVER_FACTORY[]
     if lp !== nothing && lp.start.status === :optimal && default !== nothing
-        lifted = _lp_lifted_state(des, state, lp, ϵ)
-        first_start = starts_from(
-            lifted, "start from the linear program", :lp_start;
+        lifted = _lp_lifted_state(s.des, s.state, lp, s.ϵ)
+        first_start = _starts_from(
+            s, lifted, "start from the linear program", :lp_start;
             factories = Function[default], offer_tail = false,
         )
         starts = Iterators.flatten((first_start, starts))
@@ -1325,166 +1387,157 @@ function _equilibrate_certified(
     # start of the linear program certifies, it is not needed. Measured on a CEM I
     # paste with the CNASH gel on its sites, ten warm restarts on neighboring
     # budgets: computed first, it was 47 % of their time.
-    if autostart && _has_site_mixing(state.system)
+    if autostart && _has_site_mixing(s.state.system)
         mixed = _DeferredStarts() do
-            m = _ideal_mixing_start(state, model, bfix, ϵ, constraint, verbose; dual = dual, kwargs...)
-            m === nothing ? nothing : starts_from(m, "start from ideal mixing", :ideal_mixing)
+            m = _ideal_mixing_start(s.state, s.model, s.bfix, s.ϵ, s.constraint, s.verbose; dual = s.dual, s.kwargs...)
+            m === nothing ? nothing : _starts_from(s, m, "start from ideal mixing", :ideal_mixing)
         end
         starts = lp_first ? Iterators.flatten((first_start, mixed, state_starts)) :
             Iterators.flatten((mixed, state_starts))
     end
+    return starts
+end
 
-    eq, cert = search(starts)
-    split_next = stop !== nothing && stop(cert)
+# The ideal model as a stepping stone.
+#
+# A start near the answer is what this problem needs, and the cheapest good
+# one is the answer to an easier question: the same minimization under ideal
+# activities, which has no activity coefficients to make the residual depend
+# on the composition and certifies where the non-ideal model does not. Its
+# assemblage is the right one -- the phases present differ from the non-ideal
+# answer by their amounts, not by their identity -- so the non-ideal solve
+# starts with the correct active set instead of discovering it. See
+# `_ideal_start`, whose docstring records the ulp sensitivity it fixed.
+#
+# Without it, a cold 109-species CEM IV paste without ash does not certify
+# from either back end (dual balances 4.5 and 0.12); from the ideal answer it
+# certifies at 3.6e-15, pH 13.444.
+#
+# Only when nothing else certified, so the ordinary case pays nothing, and
+# guarded against recursion: the inner call is already ideal.
+function _from_ideal_answer(s::_CertifiedSearch, eq, cert, starts)
+    ideal = _ideal_start(s.state, s.model, s.bfix, s.ϵ, s.constraint, s.verbose; dual = s.dual, s.kwargs...)
+    ideal === nothing && return eq, cert
+    return _keep_better(
+        eq, cert,
+        _search(s, Iterators.flatten((_starts_from(s, ideal, "start from the ideal answer", :ideal), starts)))...,
+    )
+end
 
-    # The ideal model as a stepping stone.
-    #
-    # A start near the answer is what this problem needs, and the cheapest good
-    # one is the answer to an easier question: the same minimization under ideal
-    # activities, which has no activity coefficients to make the residual depend
-    # on the composition and certifies where the non-ideal model does not. Its
-    # assemblage is the right one -- the phases present differ from the non-ideal
-    # answer by their amounts, not by their identity -- so the non-ideal solve
-    # starts with the correct active set instead of discovering it. See
-    # `_ideal_start`, whose docstring records the ulp sensitivity it fixed.
-    #
-    # It had been unwired by accident: the commit that removed the linear-
-    # programming start (d1035f97) took this block out with it, although its
-    # message argued for removing the LP alone. The loss stayed hidden while an
-    # `OptimaOptimizer` start silently went through the generic path whenever
-    # Ipopt was loaded, which happened to supply a start the dual solve could
-    # use. With that path corrected, a cold 109-species CEM IV paste without ash
-    # no longer certified from either back end (dual balances 4.5 and 0.12); from
-    # the ideal answer it certifies at 3.6e-15, pH 13.444.
-    #
-    # Only when nothing else certified, so the ordinary case pays nothing, and
-    # guarded against recursion: the inner call is already ideal.
-    if autostart && !cert.optimal && !split_next && !(model isa DiluteSolutionModel)
-        ideal = _ideal_start(state, model, bfix, ϵ, constraint, verbose; dual = dual, kwargs...)
-        if ideal !== nothing
-            eq, cert = _keep_better(
-                eq, cert,
-                search(
-                    Iterators.flatten((starts_from(ideal, "start from the ideal answer", :ideal), starts)),
-                )...,
-            )
-        end
-    end
-
-    # An automatic initial approximation, computed rather than asked for.
-    #
-    # Only when nothing above certified, so the common case pays nothing for it.
-    # A realistic cement does not converge from the state as given — all the mass
-    # in the reactants, every product at the `ϵ` floor — and the caller should
-    # not have to know that, nor supply a chemically informed guess.
-    # `homotopy_initial_state` walks the solute amount up from a dilute system,
-    # which costs a handful of extra solves and needs nothing from the caller.
-    # What the automatic start did, in words, for the diagnostic below. When a
-    # solve fails on one machine and not another, the first thing anyone needs to
-    # know is whether the continuation ran at all and whether it helped — and
-    # asking for that should not require a second run with `verbose = true`.
-    note = autostart ? "not reached (the first route certified)" : "declined (autostart = false)"
-    if autostart && !cert.optimal && !split_next
-        # Walked under the IDEAL model, deliberately, whatever `model` is: the
-        # non-ideal ones do not walk (the a = 0 Debye-Huckel runs away to
-        # I = 18 mol/kg, its coefficients falling with I raising solubility
-        # raising I). The ideal endpoint is then a good start for `model`,
-        # which is what the back-end loop below does with it.
-        guess = homotopy_initial_state(state; ϵ = ϵ, verbose = verbose)
-        if guess === nothing
-            note = "the continuation produced no usable start: every rung was " *
-                "refused, or the system has no aqueous solvent to walk"
-        else
-            before = _kkt_error(cert)
-            eq, cert = _keep_better(
-                eq, cert,
-                search(Iterators.flatten((starts_from(guess, "start from the continuation", :continuation), starts)))...,
-            )
-            note = cert.optimal ?
-                "the continuation certified it" :
-                (
-                    _kkt_error(cert) < before ?
-                    "the continuation improved the KKT error from $before to " *
-                    "$(_kkt_error(cert)) without certifying" :
-                    "the continuation ran and its answer was no better than " *
-                    "$before, so it was discarded"
-                )
-        end
-
-        # Restart from the answer. The continuation ends on a composition that is
-        # nearly the equilibrium but not certifiably so, and one more solve from
-        # there closes the gap — measured on a CEM I paste under the per-species
-        # Debye-Huckel model, stationarity 9.9e-7 (uncertified) becomes 1.5e-16
-        # with the worst absent phase 1.4e-5 below saturation. It is the same
-        # observation that motivates the continuation, applied once more: a start
-        # near the answer is what this problem needs, and the best one available
-        # is the answer already in hand.
-        #
-        # Bounded, and it stops as soon as a round buys nothing, so a genuinely
-        # hard case costs a fixed handful of solves rather than looping.
-        for _ in 1:_MAX_RESTARTS
-            cert.optimal && break
-            eq2, cert2 = search(starts_from(eq, "restart from the answer", :restart))
-            improved = cert2.optimal || _kkt_error(cert2) < _kkt_error(cert)
-            eq, cert = _keep_better(eq, cert, eq2, cert2)
-            improved || break
-        end
-
-        # Act on what the certificate says. A positive worst supersaturation
-        # names a phase that should be present and is not, which no amount of
-        # restarting from the same active set will fix: see `_repair_start`.
-        # The accumulated starts go back in with the repaired composition.
-        # Measured on the paste, a solve from the repair start alone reaches the
-        # right assemblage -- 74.19 cm3, all the magnesium back in the
-        # hydrotalcite -- and still fails its certificate on an unrelated trace
-        # component: the recipe's 1e-9 mol of carbon is lost, leaving an element
-        # balance of exactly 1e-9 against a tolerance of 1e-10. Ranked on the
-        # worst residual, that answer loses to the very point it was meant to
-        # replace. Handing the search the repaired composition *and* the
-        # candidates it already had keeps the chemistry of the one and the trace
-        # components of the others.
-        repair_search(f) = search(Iterators.flatten((starts_from(f, "repair start", :repair), starts)))
-        for _ in 1:_MAX_RESTARTS
-            cert.optimal && break
-            eq, cert, improved = _repair_round(
-                eq, cert, model, bfix, ϵ, repair_search, verbose,
-            )
-            improved || break
-        end
-    end
-
-    if !cert.optimal && !split_next
-        # `STRICT_CONVERGENCE[]` is honored here, not only on the interior-point
-        # retcode. A caller who sets it is asking that a non-converged solve
-        # never pass as a result, and an uncertified answer from this route is
-        # exactly that: it can violate the element balance by moles and still
-        # come back looking like an ordinary `ChemicalState` — measured, a paste
-        # returned with a balance off by 6.7 mol, every hydrate at zero and a
-        # table of amounts that reads as a result. A warning is the right default
-        # (the answer is still the best one found, and `optimality_certificate`
-        # audits it), but under the strict flag it must raise.
-        msg = "no route produced a certifiable equilibrium: stationarity " *
-            "$(cert.stationarity), $(_balance_text(cert)), worst " *
-            "supersaturation $(cert.worst_supersaturation). Automatic initial " *
-            "approximation: $note" * _activity_range_hint(eq, model)
-        _strict_convergence() && error(
-            msg * ". `ChemistryLab.STRICT_CONVERGENCE[]` is set, so this raises " *
-                "rather than returning an answer that is not an equilibrium. " *
-                "Audit it with `optimality_certificate`; " *
-                "`homotopy_initial_state(state; verbose = true)` reports each rung."
+# An automatic initial approximation, computed rather than asked for.
+#
+# Only when nothing above certified, so the common case pays nothing for it.
+# A realistic cement does not converge from the state as given — all the mass
+# in the reactants, every product at the `ϵ` floor — and the caller should
+# not have to know that, nor supply a chemically informed guess.
+# `homotopy_initial_state` walks the solute amount up from a dilute system,
+# which costs a handful of extra solves and needs nothing from the caller.
+# It says what it did, in words, for the diagnostic of a refusal: when a
+# solve fails on one machine and not another, the first thing anyone needs to
+# know is whether the continuation ran at all and whether it helped — and
+# asking for that should not require a second run with `verbose = true`.
+function _from_continuation(s::_CertifiedSearch, eq, cert, starts)
+    # Walked under the IDEAL model, deliberately, whatever `model` is: the
+    # non-ideal ones do not walk (the a = 0 Debye-Huckel runs away to
+    # I = 18 mol/kg, its coefficients falling with I raising solubility
+    # raising I). The ideal endpoint is then a good start for `model`,
+    # which is what the back-end loop below does with it.
+    guess = homotopy_initial_state(s.state; ϵ = s.ϵ, verbose = s.verbose)
+    guess === nothing && return eq, cert,
+        "the continuation produced no usable start: every rung was " *
+        "refused, or the system has no aqueous solvent to walk"
+    before = _kkt_error(cert)
+    eq, cert = _keep_better(
+        eq, cert,
+        _search(s, Iterators.flatten((_starts_from(s, guess, "start from the continuation", :continuation), starts)))...,
+    )
+    note = cert.optimal ?
+        "the continuation certified it" :
+        (
+            _kkt_error(cert) < before ?
+            "the continuation improved the KKT error from $before to " *
+            "$(_kkt_error(cert)) without certifying" :
+            "the continuation ran and its answer was no better than " *
+            "$before, so it was discarded"
         )
-        @warn msg * "; returning the answer with the smallest KKT error — audit it with `optimality_certificate`" maxlog = 1
+    return eq, cert, note
+end
+
+# Restart from the answer. The continuation ends on a composition that is
+# nearly the equilibrium but not certifiably so, and one more solve from
+# there closes the gap — measured on a CEM I paste under the per-species
+# Debye-Huckel model, stationarity 9.9e-7 (uncertified) becomes 1.5e-16
+# with the worst absent phase 1.4e-5 below saturation. It is the same
+# observation that motivates the continuation, applied once more: a start
+# near the answer is what this problem needs, and the best one available
+# is the answer already in hand.
+#
+# Bounded, and it stops as soon as a round buys nothing, so a genuinely
+# hard case costs a fixed handful of solves rather than looping.
+function _restarts(s::_CertifiedSearch, eq, cert)
+    for _ in 1:_MAX_RESTARTS
+        cert.optimal && break
+        eq2, cert2 = _search(s, _starts_from(s, eq, "restart from the answer", :restart))
+        improved = cert2.optimal || _kkt_error(cert2) < _kkt_error(cert)
+        eq, cert = _keep_better(eq, cert, eq2, cert2)
+        improved || break
     end
-    _check_solvent(eq)
-    # Which start the answer came from, found by identity among the dual solves.
-    route = :other
-    for (s0, hit) in memo
-        if first(hit) === eq
-            route = get(route_of, s0, :other)
-            break
-        end
+    return eq, cert
+end
+
+# Act on what the certificate says. A positive worst supersaturation
+# names a phase that should be present and is not, which no amount of
+# restarting from the same active set will fix: see `_repair_start`.
+# The accumulated starts go back in with the repaired composition.
+# Measured on the paste, a solve from the repair start alone reaches the
+# right assemblage -- 74.19 cm3, all the magnesium back in the
+# hydrotalcite -- and still fails its certificate on an unrelated trace
+# component: the recipe's 1e-9 mol of carbon is lost, leaving an element
+# balance of exactly 1e-9 against a tolerance of 1e-10. Ranked on the
+# worst residual, that answer loses to the very point it was meant to
+# replace. Handing the search the repaired composition *and* the
+# candidates it already had keeps the chemistry of the one and the trace
+# components of the others.
+function _repairs(s::_CertifiedSearch, eq, cert, starts)
+    repair_search(f) = _search(s, Iterators.flatten((_starts_from(s, f, "repair start", :repair), starts)))
+    for _ in 1:_MAX_RESTARTS
+        cert.optimal && break
+        eq, cert, improved = _repair_round(eq, cert, s.model, s.bfix, s.ϵ, repair_search, s.verbose)
+        improved || break
     end
-    return (eq, merge(cert, (; route, n_dual_solves = length(memo), budget_feasible = true)))
+    return eq, cert
+end
+
+# `STRICT_CONVERGENCE[]` is honored here, not only on the interior-point
+# retcode. A caller who sets it is asking that a non-converged solve
+# never pass as a result, and an uncertified answer from this route is
+# exactly that: it can violate the element balance by moles and still
+# come back looking like an ordinary `ChemicalState` — measured, a paste
+# returned with a balance off by 6.7 mol, every hydrate at zero and a
+# table of amounts that reads as a result. A warning is the right default
+# (the answer is still the best one found, and `optimality_certificate`
+# audits it), but under the strict flag it must raise.
+function _uncertified(eq, cert, model, note)
+    msg = "no route produced a certifiable equilibrium: stationarity " *
+        "$(cert.stationarity), $(_balance_text(cert)), worst " *
+        "supersaturation $(cert.worst_supersaturation). Automatic initial " *
+        "approximation: $note" * _activity_range_hint(eq, model)
+    _strict_convergence() && error(
+        msg * ". `ChemistryLab.STRICT_CONVERGENCE[]` is set, so this raises " *
+            "rather than returning an answer that is not an equilibrium. " *
+            "Audit it with `optimality_certificate`; " *
+            "`homotopy_initial_state(state; verbose = true)` reports each rung."
+    )
+    @warn msg * "; returning the answer with the smallest KKT error — audit it with `optimality_certificate`" maxlog = 1
+    return nothing
+end
+
+# Which start the answer came from, found by identity among the dual solves.
+function _route(s::_CertifiedSearch, eq)
+    for (s0, hit) in s.memo
+        first(hit) === eq && return get(s.route_of, s0, :other)
+    end
+    return :other
 end
 
 """

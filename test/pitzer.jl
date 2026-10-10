@@ -191,6 +191,28 @@ end
     @test all(isfinite, J0)
 end
 
+@testsection "parameters being fitted, a coefficient missing for one pair" begin
+    # β₂ given for Na+/Cl- and not for K+/Cl-: the missing entry is a zero of
+    # the parameters' number type, so a dual β₀ leaves the tables concretely
+    # typed (they were filled with a Float64 zero, and came out `Matrix{Real}`).
+    # β₀ of Na+/Cl- enters ln γ(Na+) as 2 m(Cl-) β₀ and nowhere else in it.
+    cs = _pz_system(split("H2O@ Na+ K+ Cl-"), ["H2O@", "Na+", "K+", "Cl-"])
+    P2 = Tuple{String, String}
+    n = [1 / _PZ_M_W, 0.5, 0.3, 0.8]        # one kilogram of water
+    function lna_Na(β0)
+        par = PitzerParameters(;
+            beta0 = Dict(("Na+", "Cl-") => β0, ("K+", "Cl-") => 0.0483),
+            beta1 = Dict(("Na+", "Cl-") => 0.2664, ("K+", "Cl-") => 0.2122),
+            beta2 = Dict(("Na+", "Cl-") => 0.0),
+            Cphi = Dict(("Na+", "Cl-") => 0.0013, ("K+", "Cl-") => -0.0008),
+            theta = Dict{P2, Float64}(), psi = Dict{Tuple{String, String, String}, Float64}(),
+            lambda = Dict{P2, Float64}(),
+        )
+        return activity_model(cs, PitzerActivityModel(; parameters = par))(n, _pz_p(4))[2]
+    end
+    @test ForwardDiff.derivative(lna_Na, 0.0765) ≈ 2 * n[4] rtol = 1.0e-12
+end
+
 # ── a mixed solution, where theta and psi actually do something ─────────────
 
 @testsection "the mixture terms are reached and change the answer" begin

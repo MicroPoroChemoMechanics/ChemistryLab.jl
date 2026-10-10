@@ -115,11 +115,60 @@ function budget(r::Recipe, cs::ChemicalSystem; t = nothing)
         _set_aside!(residual, c, m, α * mc, cs)
     end
     set_quantity!(st, "H2O@", moles(st, "H2O@") + water / ustrip(us"g/mol", cs.dict_species["H2O@"][:M]) * u"mol")
+    # `SM.A`, and not the solver's `conservation_matrix`: a recipe gives the host
+    # of a family that follows it, whose formula holds its sites, and no free
+    # site. `SM.A` counts those sites once, inside the host, which is what the
+    # coupled matrix counts in a state that lays them out (`host_consistent_state`).
     b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
     for (ox, mass) in oxides
         b .+= oxide_budget(ox, cs.SM.primaries; mass = mass * u"g")
     end
     return (; state = st, b, residual)
+end
+
+"""
+    budget(state::ChemicalState) -> Vector
+
+The budget of `state`: the totals of the system's primaries
+(`state.system.SM.primaries`), `conservation_matrix(system) * n`, the right-hand
+side every equilibrium solve of `state` conserves when it is given no `b`. In the
+number type of the amounts and of the matrix, so that a composition or a site
+density being differentiated carries its derivative.
+
+Where a site family follows its host, the matrix is the solver's own
+[`conservation_matrix`](@ref), not `SM.A`, which would leave the coupling out.
+It counts the family's sites as laid out in `state`: one whose host alone holds
+them is made consistent first by [`host_consistent_state`](@ref).
+
+# Examples
+
+```julia
+b = budget(state)                       # what `equilibrate_certified(state)` conserves
+eq, cert = equilibrate_certified(state2; b = budget(state))   # state2 as a start only
+```
+"""
+budget(state::ChemicalState) = conservation_matrix(state.system) * ustrip.(us"mol", state.n)
+
+"""
+    element_amounts(state::ChemicalState) -> OrderedDict{Symbol, <:Real}
+
+The amount, in moles, of each atom of the system in `state`: the rows of its
+canonical stoichiometric matrix (`state.system.CSM`), the elements, the charge
+`:Zz` and any site symbol, summed over every species. In the number type of the
+amounts.
+
+The dissolved part alone, per kilogram of water or per liter of solution, is
+[`pore_solution`](@ref).
+
+# Examples
+
+```julia
+element_amounts(eq)[:Ca]               # mol of calcium in the whole state
+```
+"""
+function element_amounts(state::ChemicalState)
+    CSM = state.system.CSM
+    return OrderedDict(zip(CSM.primaries, CSM.A * ustrip.(us"mol", state.n)))
 end
 
 function _add_reacted!(st, oxides, c::MineralConstituent, mass, m)
@@ -235,10 +284,9 @@ function equilibrate_certified(
         start::Union{Nothing, ChemicalState} = nothing, kwargs...,
     )
     bud = budget(r, cs; t)
-    # The amounts of `start`, at the temperature and pressure of the recipe:
-    # before 0.34.0 a start at another temperature imposed its own, so that a
-    # sequence in temperature started from its previous answer stayed at the
-    # first temperature.
+    # The amounts of `start`, at the temperature and pressure of the recipe: a
+    # start at another temperature must not impose its own, or a sequence in
+    # temperature started from its previous answer would stay at the first one.
     from = start === nothing ? bud.state :
         ChemicalState(start.system; T = temperature(bud.state), P = pressure(bud.state), n = start.n)
     eq, cert = equilibrate_certified(from; model, b = bud.b, kwargs...)
@@ -246,7 +294,7 @@ function equilibrate_certified(
 end
 
 """
-    residual_mass(rs::RecipeState) -> Float64
+    residual_mass(rs::RecipeState) -> Real
 
 The mass (g) of what has not reacted.
 """
@@ -294,7 +342,7 @@ function porosity(rs::RecipeState)
 end
 
 """
-    volume_fractions(rs::RecipeState; void_key = "void") -> OrderedDict{String, Float64}
+    volume_fractions(rs::RecipeState; void_key = "void") -> OrderedDict{String, <:Real}
 
 The volume fraction of every species of the equilibrium and of every unreacted
 constituent (under `"unreacted <name>"`), relative to the initial volume of the
@@ -333,7 +381,7 @@ function volume_fractions(rs::RecipeState; void_key::AbstractString = "void")
 end
 
 """
-    phase_masses(rs::RecipeState; min_mass = 1e-6) -> OrderedDict{String, Float64}
+    phase_masses(rs::RecipeState; min_mass = 1e-6) -> OrderedDict{String, <:Real}
 
 The mass (g, for the recipe's binder mass, so g per 100 g of binder by default)
 of every solid of the equilibrium above `min_mass`, largest first, then of each
@@ -355,7 +403,7 @@ end
 
 """
     bound_water(rs::RecipeState; window = nothing, windows = nothing, min_mass = 1e-6)
-        -> Float64
+        -> Real
 
 The bound water per gram of binder (g/g): the water the solids of the equilibrium
 would lose on ignition ([`ignition_loss`](@ref)), plus that of an unreacted
@@ -429,27 +477,48 @@ end
 """
     pore_solution(rs::RecipeState) -> NamedTuple
 
-The pore solution: `pH` in the activity convention of the solve's model, and
-`elements`, the total molality (mol per kg of water) of each element dissolved,
-all aqueous species counted.
+The pore solution of the recipe's equilibrium,
+`pore_solution(rs.state, rs.model)`.
 """
-function pore_solution(rs::RecipeState)
-    cs = rs.state.system
-    iw = findfirst(==("H2O@"), [symbol(s) for s in cs.species])
-    kgw = _in_unit(us"kg", mass(rs.state, cs.species[iw]))
-    el = OrderedDict{Symbol, promote_type(_realtype(eltype(rs.state.n)), typeof(kgw))}()
+pore_solution(rs::RecipeState) = pore_solution(rs.state, rs.model)
+
+"""
+    pore_solution(state::ChemicalState, model; per = :kg) -> NamedTuple
+
+The pore solution of `state`: `pH` in the activity convention of `model`, and
+`elements`, the total amount of each element dissolved, all solutes counted,
+hydrogen and oxygen left out: per kilogram of water (`per = :kg`, a molality) or
+per liter of solution (`per = :L`, the liquid volume of the state). In the number
+type of the amounts.
+
+# Examples
+
+```julia
+ps = pore_solution(eq, model)
+ps.pH, ps.elements[:Ca]                # mol of dissolved calcium per kg of water
+pore_solution(eq, model; per = :L).elements[:Na]
+```
+"""
+function pore_solution(state::ChemicalState, model::AbstractActivityModel; per::Symbol = :kg)
+    per in (:kg, :L) || throw(ArgumentError("pore_solution: `per` must be :kg or :L, got :$per."))
+    cs = state.system
+    haskey(cs.dict_species, "H2O@") ||
+        throw(ArgumentError("pore_solution: the system has no H2O@, so it has no pore solution."))
+    scale = per === :kg ? _in_unit(us"kg", mass(state, cs.dict_species["H2O@"])) :
+        _in_unit(us"L", volume(state).liquid)
+    el = OrderedDict{Symbol, promote_type(_realtype(eltype(state.n)), typeof(scale))}()
     for i in cs.idx_solutes
-        n = ustrip(us"mol", rs.state.n[i])
+        n = ustrip(us"mol", state.n[i])
         for (e, k) in atoms(cs.species[i])
             (e === :H || e === :O) && continue
-            el[e] = get(el, e, 0.0) + k * n / kgw
+            el[e] = get(el, e, 0.0) + k * n / scale
         end
     end
-    return (; pH = pH(rs.state, rs.model), elements = el)
+    return (; pH = pH(state, model), elements = el)
 end
 
 """
-    enthalpy(rs::RecipeState) -> Float64
+    enthalpy(rs::RecipeState) -> Real
 
 The enthalpy (J) of the paste, the equilibrium's plus the residue's; `NaN` when
 an unreacted constituent has no sourced enthalpy of formation, so that a heat
@@ -458,7 +527,7 @@ computed from it cannot pass for complete.
 enthalpy(rs::RecipeState) = _in_unit(us"J", enthalpy(rs.state)) + _residual_sum(rs, :enthalpy).value
 
 """
-    heat_release(rs1::RecipeState, rs2::RecipeState; set_aside = nothing) -> Float64
+    heat_release(rs1::RecipeState, rs2::RecipeState; set_aside = nothing) -> Real
 
 The heat (J) a paste releases from the state `rs1` to the state `rs2` of the
 same recipe, at the same temperature and pressure: the fall of its enthalpy,

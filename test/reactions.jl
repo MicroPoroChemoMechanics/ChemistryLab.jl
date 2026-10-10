@@ -103,9 +103,16 @@ using Test
     end
 
     @testsection "scale_stoich!" begin
+        # The smallest integers in the same ratios. Until 0.37.0 the
+        # coefficients were multiplied by their divisor: {2, 4} gave {4, 8}.
         s = Dict(Species("O") => 2, Species("H") => 4)
         ChemistryLab.scale_stoich!(s)
-        @test s[Species("O")] == 4 && s[Species("H")] == 8
+        @test s[Species("O")] == 1 && s[Species("H")] == 2
+        r = Dict{Species, Rational{Int}}(Species("Ca") => -1, Species("O") => 1 // 2, Species("H") => 3 // 2)
+        ChemistryLab.scale_stoich!(r)
+        @test r[Species("Ca")] == -2 && r[Species("O")] == 1 && r[Species("H")] == 3
+        f = Dict(Species("O") => 0.5, Species("H") => 1.0)
+        @test ChemistryLab.scale_stoich!(f) == Dict(Species("O") => 0.5, Species("H") => 1.0)
     end
 end
 

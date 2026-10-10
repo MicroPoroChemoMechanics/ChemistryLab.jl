@@ -134,6 +134,14 @@ end
     dqdot_dr = ForwardDiff.derivative(r -> heat_rate([kr], [r], 298.15), 1.0e-5)
     @test isapprox(dqdot_dr, -ΔHr_thermo; rtol = 1.0e-6)
 
+    # A heat of reaction being fitted carries its derivative: q̇ = r ΔH, so
+    # ∂q̇/∂ΔH = r. Only `Float64` had a method, and a dual raised.
+    dq_dH = ForwardDiff.derivative(
+        H -> heat_rate([KineticReaction(reaction, dummy_fn, 1, [-1.0, 1.0]; heat_per_mol = H)], rates, 298.15),
+        50_000.0,
+    )
+    @test dq_dH == rates[1]
+
 end
 
 # ── extend_ode! for IsothermalCalorimeter ─────────────────────────────────────
@@ -242,33 +250,6 @@ end
 
 end
 
-# ── _total_enthalpy ────────────────────────────────────────────────────────────
-
-@testset "_total_enthalpy" begin
-
-    sp1 = Species("H2O"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
-    sp1.properties[:ΔₐH⁰] = NumericFunc((T) -> H_WATER, (:T,), u"J/mol")
-    sp2 = Species("CaO"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
-
-    h_fns = [sp1[:ΔₐH⁰], nothing]
-    n_full = [0.5, 1.0]
-
-    H = ChemistryLab._total_enthalpy(n_full, h_fns, 298.15)
-    @test isapprox(H, 0.5 * H_WATER; rtol = 1.0e-10)
-    @test isapprox(H - H, 0.0; atol = 1.0e-12)
-
-    H_none = ChemistryLab._total_enthalpy(n_full, [nothing, nothing], 298.15)
-    @test iszero(H_none)
-
-    dHdn = ForwardDiff.derivative(n -> ChemistryLab._total_enthalpy([n, 1.0], h_fns, 298.15), 0.5)
-    @test isfinite(dHdn)
-    @test isapprox(dHdn, H_WATER; rtol = 1.0e-10)
-
-    dHdT = ForwardDiff.derivative(T -> ChemistryLab._total_enthalpy(n_full, h_fns, T), 298.15)
-    @test isfinite(dHdT)
-
-end
-
 @testset "the per-species functions behave as the vector they wrap" begin
 
     f = NumericFunc((T) -> H_WATER, (:T,), u"J/mol")
@@ -279,9 +260,9 @@ end
     @test fns[1] === f && fns[2] === nothing
     @test eltype(fns) == eltype(v)
     @test collect(fns) == v
-    # The heat terms read it exactly as they read the vector.
-    @test ChemistryLab._total_enthalpy([0.5, 1.0], fns, 298.15) ==
-        ChemistryLab._total_enthalpy([0.5, 1.0], v, 298.15)
+    # A sum over it reads exactly what a sum over the vector reads.
+    term(g) = sum(n * h(; T = 298.15, unit = false) for (n, h) in zip([0.5, 1.0], g) if h !== nothing)
+    @test term(fns) == term(v)
 
     # What it is for: the vector, heterogeneous by nature, is what SciMLBase
     # reads as badly typed parameters and warns about; the wrapper is not.
@@ -356,6 +337,12 @@ end
     # the certified states give.
     _, qdot = heat_flow(sol, cal)
     @test qdot[ks] ≈ q_ref rtol = 1.0e-8
+    # The enthalpy of a composition from the run's buffers, the kinetic amounts
+    # read from `u` and the partition from `p.n_full`: at the start, where both
+    # hold the initial state, its enthalpy.
+    p0 = build_kinetics_params(kp)
+    T0 = ustrip(us"K", temperature(kp.initial_state))
+    @test system_enthalpy(p0, build_u0(kp), T0) ≈ ustrip(us"J", enthalpy(kp.initial_state)) rtol = 1.0e-12
 end
 
 @testset "an adiabatic cell under partial equilibrium conserves its enthalpy" begin
@@ -563,4 +550,13 @@ isdefined(@__MODULE__, :run_ionic_hydration) ||
         heat_release(run.sol, run.kp; times = [0.0, t[end]])
     end
     @test Q[end] ≈ Qr[end] rtol = 1.0e-6
+end
+
+@testset "a heat-loss coefficient being fitted carries its derivative" begin
+    # φ(ΔT) = L ΔT, so ∂φ/∂L = ΔT; `L` was converted to `Float64` and a dual
+    # one raised. The cell's other data keep their number type as well.
+    loss(L) = SemiAdiabaticCalorimeter(; Cp = 1000.0, T_env = 293.15, T0 = 293.15, L = L).heat_loss(2.0)
+    @test ForwardDiff.derivative(loss, 0.5) == 2.0
+    cal = SemiAdiabaticCalorimeter(; Cp = 1000.0, T_env = 293.15, T0 = ForwardDiff.Dual(300.0, 1.0), L = 0.5)
+    @test ForwardDiff.partials(extend_u0([1.0, 2.0], cal)[end])[1] == 1.0
 end

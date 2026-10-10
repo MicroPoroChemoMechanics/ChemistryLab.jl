@@ -27,8 +27,9 @@ jobs:
     # 0.29.0 took 56 and 58 minutes on Linux (1.13, pre) and Windows was
     # canceled at the limit, then an hour and a half, which Windows reached
     # within five minutes on 0.33.0; they get two, which still stops a hung run
-    # early.
-    timeout-minutes: ${{ (matrix.version == '1.12' && matrix.os == 'ubuntu-latest') && 180 || 120 }}
+    # early. Windows gets three as well: the same source of 0.37.0 took 68
+    # minutes on one run and was canceled at 120 on the next.
+    timeout-minutes: ${{ ((matrix.version == '1.12' && matrix.os == 'ubuntu-latest') || matrix.os == 'windows-latest') && 180 || 120 }}
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
       actions: write
       contents: read

@@ -112,4 +112,25 @@
         cs = merge(cs1, cs2, cs3)
         @test length(cs) == 3
     end
+
+    @testsection "merge keeps the solid solutions" begin
+        # Until 0.37.0 the merged system was built from the species alone: the
+        # solid solutions of both systems were dropped.
+        em1 = Species("AFm1"; aggregate_state = AS_CRYSTAL, class = SC_SSENDMEMBER)
+        em2 = Species("AFm2"; aggregate_state = AS_CRYSTAL, class = SC_SSENDMEMBER)
+        cs1 = ChemicalSystem([em1, em2]; solid_solutions = [SolidSolutionPhase("AFm", [em1, em2])])
+        cs = merge(ChemicalSystem([h2o, hplus, oh]), cs1)
+        @test length(cs) == 5
+        @test [name(ss) for ss in cs.solid_solutions] == ["AFm"]
+        @test cs.ss_groups == [[4, 5]]
+        # A phase declared twice is declared again, its copies built once.
+        two = ChemicalSystem(
+            [em1, em2];
+            solid_solutions = [SolidSolutionPhase("AFm", [em1, em2]; model = RedlichKisterModel(a0 = 20_000.0), instances = 2)],
+        )
+        cs2 = merge(two, ChemicalSystem([h2o]))
+        @test sort([name(ss) for ss in cs2.solid_solutions]) == ["AFm", "AFm#2"]
+        @test count(s -> symbol(s) == "AFm1#2", cs2.species) == 1
+        @test length(cs2) == length(two) + 1
+    end
 end

@@ -121,6 +121,30 @@ include("reference_species.jl")
         @test ChemistryLab._ionic_strength_root(G, dF, -5.0; smax = 3.0) === nothing
     end
 
+    @testset "the root search reads a value and a slope from one evaluation" begin
+        # The value is computed by the operations of `F(s)` itself, the same to
+        # the bit, and the slope is `ForwardDiff.derivative`'s: the search finds
+        # the same root as from two evaluations.
+        F(s) = log(exp(2s) + 3.0 * sqrt(exp(s) + 1.0e-12)) - s^2 / 7
+        for s in (-30.0, -2.5, 0.0, 0.7, 4.0)
+            v, d = ChemistryLab._value_and_slope(F, s)
+            @test v === F(s)
+            @test d === ForwardDiff.derivative(F, s)
+        end
+        # Parameters carrying dual numbers, as an adiabatic solve's temperature
+        # does: their values, the same to the bit.
+        Tc = typeof(ForwardDiff.Tag(identity, Float64))
+        c = ForwardDiff.Dual{Tc}(2.0, 1.0)
+        G(s) = log(exp(c * s) + 1.0) - s
+        v, d = ChemistryLab._value_and_slope(G, 0.4)
+        @test v === ChemistryLab._plain(G(0.4))
+        @test d === ChemistryLab._plain(ForwardDiff.derivative(G, 0.4))
+        H(s) = (s - 0.3)^2 - 1.0e-4
+        dH(s) = 2 * (s - 0.3)
+        @test ChemistryLab._ionic_strength_root(s -> ChemistryLab._value_and_slope(H, s), -5.0) ===
+            ChemistryLab._ionic_strength_root(H, dH, -5.0)
+    end
+
     @testset "the dilute branch ends at a dip above zero, and at the ceiling" begin
         # A dip that stays above zero, then a rise, and a root far above: the
         # shape of the limiting law with `Ḃ` past its range, where the third root
@@ -193,6 +217,10 @@ end
     # OH- under Pitzer, whose set has no pair for them, as on the Pitzer page.
     sit_cs = ChemicalSystem([slop[s] for s in split("H2O@ H+ OH- Na+ Cl-")], ["H2O@", "H+", "Na+", "Cl-", "Zz"])
     pz_cs = ChemicalSystem([slop[s] for s in split("H2O@ Na+ Cl- Hl")], ["H2O@", "Na+", "Cl-"])
+    # The predictor of the Pitzer inversion uses the model's Debye–Hückel `A`,
+    # as the model does: it took the 25 °C value whatever `A` the model held.
+    pz_A = PitzerActivityModel(; parameters = pitzer.parameters, A = 0.6)
+    @test ChemistryLab._newton_predictor_form(pz_A, pz_cs, [1, 2, 3]).AB((;)) == (0.6, 0.0)
     function brine(cs, m)
         st = ChemicalState(cs)
         set_quantity!(st, "H2O@", 1.0u"kg")

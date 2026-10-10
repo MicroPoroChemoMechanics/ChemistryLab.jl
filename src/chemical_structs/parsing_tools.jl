@@ -140,26 +140,26 @@ function phreeqc_to_unicode(s::AbstractString)
         s = prefix * replacement * suffix
     end
 
-    chars = collect(s)
+    glyphs = collect(s)
 
-    ind_sign = findall(
+    ind_digit = findall(
         i ->
-        chars[i] in keys(dict_normal_to_sub) &&
+        glyphs[i] in keys(dict_normal_to_sub) &&
             i > 1 &&
-            chars[i - 1] != ' ' &&
-            !(chars[i - 1] in keys(dict_normal_to_sub)),
-        1:length(chars),
+            glyphs[i - 1] != ' ' &&
+            !(glyphs[i - 1] in keys(dict_normal_to_sub)),
+        1:length(glyphs),
     )
 
-    for i in ind_sign
+    for i in ind_digit
         j = i
-        while j <= length(chars) && chars[j] in keys(dict_normal_to_sub)
-            chars[j] = dict_normal_to_sub[chars[j]]
+        while j <= length(glyphs) && glyphs[j] in keys(dict_normal_to_sub)
+            glyphs[j] = dict_normal_to_sub[glyphs[j]]
             j += 1
         end
     end
 
-    return join(chars)
+    return join(glyphs)
 end
 
 """
@@ -420,15 +420,9 @@ end
 """
     extract_charge(formula::AbstractString) -> Int
 
-Extract the formal charge from a chemical formula string.
-
-# Arguments
-
-  - `formula`: formula string with optional charge notation (e.g., "+2", "-", "3+").
-
-# Returns
-
-  - Integer charge value (0 if no charge present).
+The charge a formula ends with: a sign and its magnitude (`"Ca+2"`), or a run of
+one sign, each counting one (`"Cl-"`, `"Ca++"`, `"SO4--"`); zero without either.
+Superscripts are read as their ASCII form (`"SO₄²⁻"` is `"SO4-2"`).
 
 # Examples
 
@@ -436,22 +430,24 @@ Extract the formal charge from a chemical formula string.
 julia> extract_charge("Ca+2")
 2
 
-julia> extract_charge("SO4-2")
+julia> extract_charge("SO4--")
 -2
 
 julia> extract_charge("H2O")
 0
 ```
 """
-function extract_charge(formula::AbstractString)
-    m = match(r"([+-])([0-9]*)$", unicode_to_phreeqc(formula))
-    if m === nothing
-        return 0
-    else
-        sign = m.captures[1] == "+" ? 1 : -1
-        val = m.captures[2] == "" ? 1 : parse(Int, m.captures[2])
-        return sign * val
-    end
+extract_charge(formula::AbstractString) = _name_charge(unicode_to_phreeqc(formula), Int)
+
+# The charge a species name ends with, in the number type `T`: a sign and its
+# magnitude (`Ca+2`, `Fe+2.5` in `Float64`), or a run of one sign, each sign
+# counting one (`Cl-`, `Ca++`, `SO4--`). The one rule every reader applies.
+function _name_charge(name::AbstractString, ::Type{T} = Float64) where {T <: Real}
+    m = match(T <: Integer ? r"([+-]+)(\d+)?$" : r"([+-]+)(\d+(?:\.\d+)?)?$", name)
+    m === nothing && return zero(T)
+    signs, magnitude = m.captures
+    z = magnitude === nothing ? T(length(signs)) : parse(T, magnitude)
+    return last(signs) == '+' ? z : -z
 end
 
 """
@@ -493,7 +489,7 @@ function to_mendeleev(oxides::AbstractDict{Symbol, T}) where {T <: Number}
             end
         end
     end
-    return if length(result) > 0
+    return if !isempty(result)
         OrderedDict(k => stoich_coef_round(v) for (k, v) in result)
     else
         result
@@ -744,10 +740,10 @@ function format_equation(coeffs::AbstractDict; scaling = 1, equal_sign = '=')
         end
     end
 
-    if length(left_side) == 0
+    if isempty(left_side)
         left_side = "∅"
     end
-    if length(right_side) == 0
+    if isempty(right_side)
         right_side = "∅"
     end
 
