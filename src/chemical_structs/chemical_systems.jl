@@ -1107,12 +1107,15 @@ get_reaction(cs::ChemicalSystem, sym::AbstractString) = cs.dict_reactions[sym]
 
 Construct a new `ChemicalSystem` from the union of two systems.
 
-Species and reactions are unioned by symbol — duplicates from `cs2` are discarded.
-`CSM` and `SM` are built from scratch from the full species list.
-Primaries are taken as the union of both systems' primaries, filtered
-to those actually present in the merged species list.
+Species are unioned by symbol — duplicates from `cs2` are discarded — and the
+solid solutions and site families by name. `CSM`, `SM` and the reactions are
+built from scratch from the full species list. Primaries are taken as the union
+of both systems' primaries, filtered to those actually present in the merged
+species list. A solid solution declared with several instances is declared
+again, and its copies are built anew. Kinetic species are not carried over: a
+kinetic system is to be declared as such.
 
-In case of symbol conflict (species or reactions), `cs1` takes priority over `cs2`.
+In case of a conflict of symbol or name, `cs1` takes priority over `cs2`.
 The return type is inferred from the merged collections and may differ from
 `typeof(cs1)` or `typeof(cs2)` if they contain different concrete types.
 
@@ -1135,33 +1138,36 @@ julia> length(cs)
 ```
 """
 function Base.merge(cs1::ChemicalSystem, cs2::ChemicalSystem)
-    # Build lookup sets for fast duplicate detection
+    # The phases as declared, and the copies of end-members that the instances
+    # of a phase declared several times added to the species: the declarations
+    # are carried over and the copies built again, as `with_instances` does.
+    declarations(cs) = cs.solid_solutions === nothing ? AbstractSolidSolutionPhase[] :
+        [ss for ss in cs.solid_solutions if name(ss) == _declared(ss)]
+    copies(cs) = cs.solid_solutions === nothing ? Set{String}() :
+        Set(symbol(em) for ss in cs.solid_solutions if name(ss) != _declared(ss) for em in end_members(ss))
+    families(cs) = cs.site_families === nothing ? SiteFamily[] : collect(SiteFamily, cs.site_families)
+
+    # Species: cs1 first, then those of cs2 it does not hold (cs1 wins on conflict).
     existing_symbols = Set(symbol.(cs1.species))
-
-    # Append only species from cs2 not already present in cs1 (cs1 wins on conflict)
     extra_species = filter(s -> symbol(s) ∉ existing_symbols, cs2.species)
-    all_species = vcat(cs1.species, extra_species)
+    dropped = union(copies(cs1), copies(cs2))
+    all_species = filter(s -> symbol(s) ∉ dropped, vcat(cs1.species, extra_species))
 
-    # Union of primaries: cs1 first, then new ones from cs2 not already present
+    # Union of primaries: cs1 first, then new ones from cs2, among the species kept.
     existing_primary_symbols = Set(symbol.(cs1.SM.primaries))
-    extra_primaries = filter(
-        p -> symbol(p) ∉ existing_primary_symbols,
-        cs2.SM.primaries,
-    )
-    all_primaries = vcat(cs1.SM.primaries, extra_primaries)
-
-    # Drop primaries absent from the merged species list
+    extra_primaries = filter(p -> symbol(p) ∉ existing_primary_symbols, cs2.SM.primaries)
     all_species_symbols = Set(symbol.(all_species))
-    all_primaries = filter(p -> symbol(p) ∈ all_species_symbols, all_primaries)
+    all_primaries = filter(p -> symbol(p) ∈ all_species_symbols, vcat(cs1.SM.primaries, extra_primaries))
 
-    # Union of reactions by symbol — cs1 wins on conflict
-    existing_reaction_symbols = Set(symbol.(cs1.reactions))
-    extra_reactions = filter(r -> symbol(r) ∉ existing_reaction_symbols, cs2.reactions)
-    all_reactions = vcat(cs1.reactions, extra_reactions)
-
-    # Construct a new ChemicalSystem — all derived fields rebuilt from scratch
-    # Kinetic species are not propagated through merge (requires re-specification).
-    return ChemicalSystem(all_species, all_primaries)
+    # Solid solutions and site families by name, cs1 winning on conflict.
+    ss1, sf1 = declarations(cs1), families(cs1)
+    names1, fnames1 = Set(name.(ss1)), Set(f.name for f in sf1)
+    ss = vcat(ss1, filter(p -> name(p) ∉ names1, declarations(cs2)))
+    sf = vcat(sf1, filter(f -> f.name ∉ fnames1, families(cs2)))
+    return ChemicalSystem(
+        all_species, all_primaries;
+        solid_solutions = isempty(ss) ? nothing : ss, site_families = isempty(sf) ? nothing : sf,
+    )
 end
 
 """

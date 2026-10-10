@@ -193,6 +193,10 @@ end
     # OH- under Pitzer, whose set has no pair for them, as on the Pitzer page.
     sit_cs = ChemicalSystem([slop[s] for s in split("H2O@ H+ OH- Na+ Cl-")], ["H2O@", "H+", "Na+", "Cl-", "Zz"])
     pz_cs = ChemicalSystem([slop[s] for s in split("H2O@ Na+ Cl- Hl")], ["H2O@", "Na+", "Cl-"])
+    # The predictor of the Pitzer inversion uses the model's Debye–Hückel `A`,
+    # as the model does: it took the 25 °C value whatever `A` the model held.
+    pz_A = PitzerActivityModel(; parameters = pitzer.parameters, A = 0.6)
+    @test ChemistryLab._newton_predictor_form(pz_A, pz_cs, [1, 2, 3]).AB((;)) == (0.6, 0.0)
     function brine(cs, m)
         st = ChemicalState(cs)
         set_quantity!(st, "H2O@", 1.0u"kg")

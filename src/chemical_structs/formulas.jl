@@ -339,10 +339,10 @@ end
 """
     Formula(f::Formula) -> Formula
 
-Copy constructor: return a new `Formula` built from `f`'s composition.
+Copy constructor: return a new `Formula` built from `f`'s composition and charge.
 """
 function Formula(f::Formula)
-    return Formula(composition(f))
+    return Formula(composition(f), charge(f))
 end
 
 """

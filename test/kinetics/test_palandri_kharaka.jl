@@ -84,6 +84,9 @@
     # acid one through the activity of H+.
     tst = transition_state(palandri_kharaka("calcite"), cs, rxn, BETSurfaceArea(90.0))
     @test tst isa KineticFunc
+    # Its saturation terms are read by symbol, as those of `saturation_ratio`:
+    # by formula, calcite and aragonite would read one activity.
+    @test first.(ChemistryLab._stoich_named(cs, rxn)) == ["Cal", "Ca+2", "CO3-2"]
 
     # The sulfides of Table 35 carry orders in Fe3+ and in dissolved O2, the
     # activities of the report's Eq. (3a); pyrite's acid mechanism is its Eq. (3b).

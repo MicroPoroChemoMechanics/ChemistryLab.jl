@@ -558,24 +558,34 @@ end
 # ── SymbolicFunc convenience constructors ──────────────────────────────────────
 # (placed after ThermoFactory since they use it)
 
-"""
-    SymbolicFunc(sym::Symbol; kwargs...) -> SymbolicFunc
+# The keywords of `ThermoFactory`; every other keyword of a `SymbolicFunc`
+# constructor goes to the factory's call: parameter values and reference values.
+const _FACTORY_KEYWORDS = (:units, :output_unit)
+_factory_kwargs(kwargs) = (; (k => v for (k, v) in pairs(kwargs) if k in _FACTORY_KEYWORDS)...)
+_call_kwargs(kwargs) = (; (k => v for (k, v) in pairs(kwargs) if !(k in _FACTORY_KEYWORDS))...)
 
-Create a `SymbolicFunc` from a single symbol.
+"""
+    SymbolicFunc(sym::Symbol; units, output_unit, kwargs...) -> SymbolicFunc
+
+Create a `SymbolicFunc` from a single symbol. `units` and `output_unit` are those
+of [`ThermoFactory`](@ref); the other keywords are the values of its parameters
+and the reference values of its variable.
 """
 function SymbolicFunc(sym::Symbol; kwargs...)
-    factory = ThermoFactory(sym, [sym]; kwargs...)
-    return factory(; kwargs...)
+    factory = ThermoFactory(sym, [sym]; _factory_kwargs(kwargs)...)
+    return factory(; _call_kwargs(kwargs)...)
 end
 
 """
-    SymbolicFunc(expr::Expr, vars=[:T, :P, :t, :x, :y, :z]; kwargs...) -> SymbolicFunc
+    SymbolicFunc(expr::Expr, vars=[:T, :P, :t, :x, :y, :z]; units, output_unit, kwargs...) -> SymbolicFunc
 
-Create a `SymbolicFunc` from an expression.
+Create a `SymbolicFunc` from an expression. `units` and `output_unit` are those
+of [`ThermoFactory`](@ref); the other keywords are the values of its parameters
+and the reference values of its variables.
 """
 function SymbolicFunc(expr::Expr, vars = [:T, :P, :t, :x, :y, :z]; kwargs...)
-    factory = ThermoFactory(expr, vars)
-    return factory(; kwargs...)
+    factory = ThermoFactory(expr, vars; _factory_kwargs(kwargs)...)
+    return factory(; _call_kwargs(kwargs)...)
 end
 
 """

@@ -12,7 +12,6 @@ import ChemistryLab:
     ChemicalState,
     _build_params,
     _build_n0,
-    _solution_transform,
     _update_derived!
 using OptimaSolver: OptimaOptimizer, DualNewtonProblem, DualNewtonOptions,
     SolutionPhase, dual_newton_solve, dual_newton_tangent, kkt_certificate, lp_start
@@ -25,13 +24,10 @@ using ForwardDiff
 
 # ── OptimizationProblem helpers (NoAD — OptimaOptimizer handles gradients) ────
 
-# The element-conservation matrix and vector are passed through the parameters.
-# Without them `OptimaSolver` falls back to rebuilding `A` by finite differences
-# on the constraint function, which caps the achievable feasibility at ~1e-6
-# whatever tolerance is requested — `A` is known exactly, so it is handed over.
-# Only in the linear parameterization: in log space the constraint is
-# A·exp(x) = b, which is not linear in the optimization variables, so handing
-# over `A` would be wrong there.
+# The element-conservation matrix and vector are passed through the parameters:
+# `A` is known exactly, and handed over it spares OptimaSolver extracting it from
+# the constraint function. The problem is built in the amounts whatever the
+# solver's `variable_space` (see `solve` below), where `A n = b` is linear.
 """
     _hessian_diagonal(μ, q) -> (hf, n) -> hf
 
@@ -85,24 +81,6 @@ function _build_optima_opt_prob(ep::EquilibriumProblem, μ, ::Val{:linear})
     )
 end
 
-function _build_optima_opt_prob(ep::EquilibriumProblem, μ, ::Val{:log})
-    f_gibbs(x, q) = (n = exp.(x); dot(n, μ(n, q)))
-    # In `x = ln n` the gradient of G is `n ∘ μ`, by the chain rule on the one of
-    # the linear route above, and it is handed over for the same reason: the
-    # derivative of `dot(n, μ(n))` carries the term `Jᵀn`, which is zero only
-    # where the model satisfies the Gibbs–Duhem relation, and steering on it
-    # settled on another composition than the equilibrium.
-    g_gibbs!(g, x, q) = (n = exp.(x); g .= n .* μ(n, q))
-    cons!(res, x, _) = (n = exp.(x); mul!(res, ep.A, n); res .-= ep.b)
-    optf = SciMLBase.OptimizationFunction{true}(f_gibbs; grad = g_gibbs!, cons = cons!)
-    return SciMLBase.OptimizationProblem(
-        optf, log.(ep.u0), ep.p;
-        lb = log.(ep.lb), ub = log.(ep.ub),
-        lcons = zeros(size(ep.A, 1)),
-        ucons = zeros(size(ep.A, 1)),
-    )
-end
-
 # ── solve(EquilibriumSolver{OptimaOptimizer}, ChemicalState) ──────────────────
 
 """
@@ -150,7 +128,11 @@ function SciMLBase.solve(
     prob = isnothing(b) ?
         EquilibriumProblem(A, esolver.μ, n0; p = p) :
         EquilibriumProblem(A, esolver.μ, n0; b = collect(b), p = p)
-    opt_prob = _build_optima_opt_prob(prob, esolver.μ, esolver.variable_space)
+    # In the amounts, whatever `variable_space`: OptimaSolver handles `A n = b`,
+    # and handed `A exp(x) − b` it would take its tangent at the start for the
+    # constraint. The minimum is the same; the logarithms are a parameterization
+    # for Ipopt.
+    opt_prob = _build_optima_opt_prob(prob, esolver.μ, Val(:linear))
 
     # The polish decides on the answer, so the interior point's own return code
     # is not checked when there is one: it is neither a warning nor, under
@@ -162,11 +144,9 @@ function SciMLBase.solve(
         ChemistryLab._dual_applicable(state.system)
     raw = SciMLBase.solve(opt_prob, esolver.solver; esolver.kwargs...)
     sol = polish ? raw : ChemistryLab._check_converged(raw, "equilibrium solve")
-    transform = _solution_transform(esolver.variable_space)
-
     state_eq = copy(state)
     for (i, nᵢ) in enumerate(sol.u)
-        state_eq.n[i] = max(transform(nᵢ), ϵ) * u"mol"
+        state_eq.n[i] = max(nᵢ, ϵ) * u"mol"
     end
     _update_derived!(state_eq)
 

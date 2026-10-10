@@ -1209,7 +1209,7 @@ function CemSpecies(
             properties = properties,
         )
     else
-        SM = StoichMatrix([s], oxides_as_species; pprint = false)
+        SM = StoichMatrix([s], oxides_as_species)
         A, indep_comp = SM.A, SM.primaries
         oxides = OrderedDict(Symbol(indep_comp[i].symbol) => A[i, 1] for i in 1:size(A, 1))
         if !isempty(oxides)
@@ -1565,57 +1565,33 @@ function find_species(
         aggregate_state = AS_UNDEF,
         class = SC_UNDEF,
     )
-    if isnothing(species_list)
-        return S(s)
-    else
-        for crit in (symbol, phreeqc, unicode, expr ∘ mainformula, name)
-            crit_vals = crit.(species_list)
-            fil = species_list[
-                .!isnothing.(species_list) .&& .!ismissing.(species_list) .&& ((s .== crit_vals) .|| (phreeqc_to_unicode(s) .== crit_vals) .|| (unicode_to_phreeqc(s) .== crit_vals)) .&& (aggregate_state .== AS_UNDEF) .|| (aggregate_state .== (x -> x.aggregate_state).(species_list)) .&& (class .== SC_UNDEF) .|| (
-                    class .== (x -> x.class).(
-                        species_list
-                    )
-                ),
-            ]
-            if length(fil) > 1
-                println(crayon"red bold"("Several species correspond to $s:"))
-                for x in fil
-                    println("∙ ", x)
-                end
-                println(
-                    crayon"red bold"(
-                        "!!! In absence of more precision $(fil[1]) will be chosen !!!"
-                    ),
-                )
-            end
-            if length(fil) > 0
-                return fil[1]
-            end
-        end
-        comp_vals = composition.(mainformula.(species_list))
-        fil = species_list[
-            .!isnothing.(species_list) .&& .!ismissing.(species_list) .&& (comp_vals .== Ref(parse_formula(s))) .&& (aggregate_state .== AS_UNDEF) .|| (aggregate_state .== (x -> x.aggregate_state).(species_list)) .&& (class .== SC_UNDEF) .|| (
-                class .== (x -> x.class).(
-                    species_list
-                )
-            ),
-        ]
-        if length(fil) > 1
-            println(crayon"red bold"("Several species correspond to $s:"))
-            for x in fil
-                println("∙ ", x)
-            end
-            println(
-                crayon"red bold"(
-                    "!!! In absence of more precision $(fil[1]) will be chosen !!!"
-                ),
-            )
-        end
-        if length(fil) > 0
-            return fil[1]
-        end
-        return S(s)
+    isnothing(species_list) && return S(s)
+    # A species is a candidate when it matches the state and the class asked
+    # for, each `*_UNDEF` meaning "any", and then the name.
+    eligible(x) = !isnothing(x) && !ismissing(x) &&
+        (aggregate_state == AS_UNDEF || x.aggregate_state == aggregate_state) &&
+        (class == SC_UNDEF || x.class == class)
+    spellings = (s, phreeqc_to_unicode(s), unicode_to_phreeqc(s))
+    for crit in (symbol, phreeqc, unicode, expr ∘ mainformula, name)
+        fil = [x for x in species_list if eligible(x) && crit(x) in spellings]
+        isempty(fil) || return _first_of(fil, s)
     end
+    target = parse_formula(s)
+    fil = [x for x in species_list if eligible(x) && composition(mainformula(x)) == target]
+    isempty(fil) || return _first_of(fil, s)
+    return S(s)
+end
+
+# The first of several species answering to `s`, the ambiguity printed.
+function _first_of(fil, s)
+    if length(fil) > 1
+        println(crayon"red bold"("Several species correspond to $s:"))
+        for x in fil
+            println("∙ ", x)
+        end
+        println(crayon"red bold"("!!! In absence of more precision $(fil[1]) will be chosen !!!"))
+    end
+    return fil[1]
 end
 
 """

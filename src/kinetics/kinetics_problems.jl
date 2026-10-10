@@ -1641,17 +1641,30 @@ function _rates_read_speciation(p)
     end
     any(i -> rn.read[i] || rl.read[i], eq) && return true
     # Through the activity model: a law reading the activity of a kinetic
-    # aqueous species reads the partition through the ionic strength.
-    eltype(n) === Float64 && p.T isa Float64 || return false
+    # aqueous species reads the partition through the ionic strength. Seeded on
+    # the values of the amounts, so that a run on dual numbers (a rate constant
+    # being differentiated) decides as the run on its values does: skipped
+    # there, the probe chose the frozen route where the plain run solved the
+    # partition in the right-hand side, and the derivative was that of another
+    # trajectory. The seed's dual may end up outside or inside the run's own;
+    # `_reads_seed` looks for it in both.
     D = ForwardDiff.Dual{typeof(ForwardDiff.Tag(_rates_read_speciation, Float64)), Float64, 1}
     eqset = Set(eq)
-    nd = [D(n[i], ForwardDiff.Partials((i in eqset ? 1.0 : 0.0,))) for i in eachindex(n)]
+    nd = [D(_plain(n[i]), ForwardDiff.Partials((i in eqset ? 1.0 : 0.0,))) for i in eachindex(n)]
     ld = p.lna_fn(nd, _lna_params(p, p.T))
     for kr in p.kin_rxns
         r = kr.rate_fn(p.T, p.P, t0, StateView(nd, p.species_index), StateView(ld, p.species_index), n0)
-        r isa ForwardDiff.Dual && !iszero(ForwardDiff.partials(r)[1]) && return true
+        _reads_seed(D, r) && return true
     end
     return false
+end
+
+# Whether `r` carries a nonzero derivative along the seed of the dual type `D`,
+# however it is nested among the duals of other tags.
+_reads_seed(::Type, r) = false
+function _reads_seed(::Type{D}, r::ForwardDiff.Dual{S}) where {D <: ForwardDiff.Dual, S}
+    S === ForwardDiff.tagtype(D) && return any(c -> !iszero(_plain(c)), ForwardDiff.partials(r))
+    return _reads_seed(D, ForwardDiff.value(r)) || any(c -> _reads_seed(D, c), ForwardDiff.partials(r))
 end
 
 """

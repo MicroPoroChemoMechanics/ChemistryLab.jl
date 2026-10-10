@@ -17,7 +17,7 @@ using SHA
 # `Traced`.
 
 """
-    struct SorptionReaction
+    struct SorptionReaction{T}
 
 One reaction of a published sorption model: its equation as written, its
 stoichiometry, and its `log K` with [`provenance`](@ref) and
@@ -28,18 +28,24 @@ stoichiometry, and its `log K` with [`provenance`](@ref) and
   - `equation`: the line as the database writes it, kept verbatim so a reader
     can check the parse.
   - `stoichiometry`: `species => coefficient`, negative for reactants and
-    positive for products.
+    positive for products, as a rational number (`0.5 X` is `1//2`).
   - `log_K`: a [`Traced`](@ref) whose source is the `ref:` tag and whose
-    uncertainty is the `error:` tag, when the entry carries them.
+    uncertainty is the `error:` tag, when the entry carries them, in the number
+    type `T` it is given in: a `log K` being fitted carries its derivative.
   - `comment`: the rest of the comment, which usually says what the reaction is
     in words.
 """
-struct SorptionReaction
+struct SorptionReaction{T <: Real}
     equation::String
-    stoichiometry::Dict{String, Int}
-    log_K::Traced{Float64}
+    stoichiometry::Dict{String, Rational{Int}}
+    log_K::Traced{T}
     comment::String
 end
+
+# Any string for the equation and the comment, as the struct took before it was
+# parametric: the generated constructor of a parametric struct converts nothing.
+SorptionReaction(equation::AbstractString, stoichiometry::AbstractDict, log_K::Traced{T}, comment::AbstractString) where {T} =
+    SorptionReaction{T}(String(equation), Dict{String, Rational{Int}}(stoichiometry), log_K, String(comment))
 
 """
     struct SorptionSite
@@ -241,17 +247,17 @@ _plain_comment(comment) =
     strip(replace(comment, r"error:\s*[0-9.eE+-]+" => "", r"ref:\s*\S+" => ""))
 
 """
-    _parse_sorption_stoichiometry(equation) -> Dict{String,Int}
+    _parse_sorption_stoichiometry(equation) -> Dict{String,Rational{Int}}
 
 `species => coefficient` for a PHREEQC reaction line, negative on the left of
 the `=` and positive on the right.
 
 Handles the two spacings a database uses interchangeably, `2 Na+` and `2Na+`,
-and refuses a coefficient it cannot read rather than silently taking it as one.
+and decimal coefficients, `0.5 X`, read exactly as rationals.
 """
 function _parse_sorption_stoichiometry(equation::AbstractString)
     lhs, rhs = split(equation, '='; limit = 2)
-    out = Dict{String, Int}()
+    out = Dict{String, Rational{Int}}()
     for (side, sgn) in ((lhs, -1), (rhs, +1))
         # SPLIT ON THE SEPARATOR, NOT ON THE CHARACTER. `+` is also a charge, so
         # splitting `Ca+2 + 2 IltxNa` on every `+` yields "Ca", "2" and
@@ -261,8 +267,10 @@ function _parse_sorption_stoichiometry(equation::AbstractString)
         for term in split(side, r"\s+\+\s+")
             t = strip(term)
             isempty(t) && continue
-            m = match(r"^(\d+)\s*(.*)$", t)
-            coef, name = m === nothing ? (1, t) : (parse(Int, m.captures[1]), strip(m.captures[2]))
+            # A decimal is read whole: `^(\d+)` alone took `0.5 X` for the
+            # coefficient 0 of a species named `.5 X`.
+            m = match(r"^(\d+\.\d*|\.\d+|\d+)\s*(.*)$", t)
+            coef, name = m === nothing ? (1 // 1, t) : (_exact_coefficient(m.captures[1]), strip(m.captures[2]))
             isempty(name) && continue
             out[String(name)] = get(out, String(name), 0) + sgn * coef
         end
@@ -270,8 +278,11 @@ function _parse_sorption_stoichiometry(equation::AbstractString)
     return out
 end
 
+# A coefficient as written, exactly: `2` is `2//1`, `0.5` is `1//2`.
+_exact_coefficient(c::AbstractString) = occursin('.', c) ? rationalize(Int, parse(Float64, c)) : parse(Int, c) // 1
+
 """
-    log_constants(m::SorptionModel) -> Vector{Traced{Float64}}
+    log_constants(m::SorptionModel) -> Vector{<:Traced}
 
 Every `log K` of the model, for [`provenance_report`](@ref).
 """

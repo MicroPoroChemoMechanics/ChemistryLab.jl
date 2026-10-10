@@ -942,21 +942,27 @@ end
 """
     scale_stoich!(species_stoich::AbstractDict{<:AbstractSpecies,<:Number})
 
-Scale stoichiometric coefficients by their GCD if all are integers or rationals.
-Modifies the dictionary in place to ensure integer coefficients when possible.
+Reduce integer or rational stoichiometric coefficients to the smallest integers
+in the same ratios: multiplied by the least common multiple of their
+denominators, then divided by the greatest common divisor of their numerators.
+`{2, 4}` becomes `{1, 2}`, `{−1, 1//2, 3//2}` becomes `{−2, 1, 3}`. Coefficients
+of any other type are left as they are. Modifies the dictionary in place.
 
 # Arguments
 
   - `species_stoich`: dictionary mapping species to stoichiometric coefficients
 """
 function scale_stoich!(species_stoich::AbstractDict{<:AbstractSpecies, <:Number})
-    v = values(species_stoich)
-    return if all(x -> x isa Integer || x isa Rational, v)
-        mult = gcd([numerator(x) for x in v]...)
-        for k in keys(species_stoich)
-            species_stoich[k] *= mult
-        end
+    v = collect(values(species_stoich))
+    (isempty(v) || !all(x -> x isa Integer || x isa Rational, v)) && return species_stoich
+    r = Rational.(v)
+    g = gcd(numerator.(r))
+    iszero(g) && return species_stoich
+    factor = lcm(denominator.(r)) // g
+    for k in keys(species_stoich)
+        species_stoich[k] = Rational(species_stoich[k]) * factor
     end
+    return species_stoich
 end
 
 """

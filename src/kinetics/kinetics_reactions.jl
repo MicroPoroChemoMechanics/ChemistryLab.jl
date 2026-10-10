@@ -538,30 +538,16 @@ function _surface_context(cs::ChemicalSystem, rxn::AbstractReaction, s::SurfaceS
     return (_rate_lookup_key(cs, sp), _molar_mass_si(sp), s.area)
 end
 
-# Returns Vector of (name::String, ν::Float64, ΔG_fn) for all species in rxn
-# that are present in cs and have a :ΔₐG⁰ property.
+# Returns Vector of (key::String, ν::Float64, ΔG_fn) for all species in rxn
+# that are present in cs and have a :ΔₐG⁰ property; those that are not are
+# passed over (`_saturation_terms` refuses them instead).
 # `haskey(sp, :ΔₐG⁰)`, which builds the thermodynamic functions on demand, and
 # not `haskey(properties(sp), :ΔₐG⁰)`, which reported every species not yet asked
 # for its Gibbs energy as lacking one: a rate law built on a fresh system then
 # computed its saturation ratio over the species already asked, or over none.
-function _stoich_named(cs::ChemicalSystem, rxn::AbstractReaction)
-    result = Tuple{String, Float64, Any}[]
-    for (sp, ν) in rxn.reactants
-        i = findfirst(s -> s == sp, cs.species)
-        isnothing(i) && continue
-        sp_cs = cs.species[i]
-        haskey(sp_cs, :ΔₐG⁰) || continue
-        push!(result, (phreeqc(formula(sp_cs)), -Float64(ν), sp_cs[:ΔₐG⁰]))
-    end
-    for (sp, ν) in rxn.products
-        i = findfirst(s -> s == sp, cs.species)
-        isnothing(i) && continue
-        sp_cs = cs.species[i]
-        haskey(sp_cs, :ΔₐG⁰) || continue
-        push!(result, (phreeqc(formula(sp_cs)), Float64(ν), sp_cs[:ΔₐG⁰]))
-    end
-    return result
-end
+# The key is `_rate_lookup_key`, the symbol: keyed by formula, two polymorphs of
+# one formula read the same activity.
+_stoich_named(cs::ChemicalSystem, rxn::AbstractReaction) = _saturation_terms(cs, rxn, "transition_state"; strict = false)
 
 # ── molar_mass ────────────────────────────────────────────────────────────────
 
@@ -626,20 +612,25 @@ function saturation_ratio(cs::ChemicalSystem, rxn::AbstractReaction)
 end
 
 # The participants of `rxn` as (symbol, signed coefficient, ΔₐG⁰ function),
-# each a species of `cs` with a standard Gibbs energy, refused otherwise.
-function _saturation_terms(cs::ChemicalSystem, rxn::AbstractReaction, caller::AbstractString)
+# each a species of `cs` with a standard Gibbs energy, refused otherwise; with
+# `strict = false`, passed over otherwise.
+function _saturation_terms(cs::ChemicalSystem, rxn::AbstractReaction, caller::AbstractString; strict::Bool = true)
     out = Tuple{String, Float64, Any}[]
     for (side, sgn) in ((rxn.reactants, -1.0), (rxn.products, 1.0)), (sp, ν) in side
         i = findfirst(s -> s == sp, cs.species)
-        i === nothing && throw(
-            ArgumentError("$caller: \"$(symbol(sp))\" is not a species of the system.")
-        )
-        haskey(cs.species[i], :ΔₐG⁰) || throw(
-            ArgumentError(
-                "$caller: \"$(symbol(sp))\" carries no standard Gibbs energy, which the " *
-                    "saturation ratio of the reaction needs."
+        if i === nothing
+            strict || continue
+            throw(ArgumentError("$caller: \"$(symbol(sp))\" is not a species of the system."))
+        end
+        if !haskey(cs.species[i], :ΔₐG⁰)
+            strict || continue
+            throw(
+                ArgumentError(
+                    "$caller: \"$(symbol(sp))\" carries no standard Gibbs energy, which the " *
+                        "saturation ratio of the reaction needs."
+                )
             )
-        )
+        end
         push!(out, (_rate_lookup_key(cs, cs.species[i]), sgn * Float64(ν), cs.species[i][:ΔₐG⁰]))
     end
     return out

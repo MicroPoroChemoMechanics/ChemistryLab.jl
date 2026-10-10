@@ -404,7 +404,7 @@ function _newton_predictor_form(model::PitzerActivityModel, cs::ChemicalSystem, 
     fγ(A, sqrtI) = -(A / 3) * (sqrtI / (1 + bp * sqrtI) + 2 / bp * log1p(bp * sqrtI))
     log10γ = (t, z, I, sqrtI, A, B) -> z^2 * fγ(A, sqrtI)
     AB = p -> (model.temperature_dependent && hasproperty(p, :T) && hasproperty(p, :P)) ?
-        (hkf_debye_huckel_params(p.T, p.P).A, 0.0) : (_DH_A_25C, 0.0)
+        (hkf_debye_huckel_params(p.T, p.P).A, 0.0) : (model.A, 0.0)
     return _ionic_form(cs, members, log10γ, AB)
 end
 

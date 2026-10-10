@@ -1,5 +1,64 @@
 # Changelog
 
+## v0.38.0 — Derivatives carried through, and the defects an audit found
+
+An audit of the code against the rules of the package, numbers generic enough
+for dual and symbolic arithmetic and Julia written for speed, found defects
+that changed a result or raised an error, paths on which a derivative was
+dropped or refused, and caches written from several threads without a lock.
+They are corrected here, each with a test that failed before.
+
+### Breaking changes
+
+- **The compatibility bound.** Below 1.0 a minor release is breaking for the
+  registry: a package bounding ChemistryLab at `"0.37"` does not accept 0.38
+  and has to widen its bound.
+- **`find_species` answers to the name, within the state and the class asked
+  for.** The filter combined its conditions with `.&&` and `.||` without
+  parentheses, and `.&&` binds tighter: a species of undefined state and class
+  answered to any name, and `aggregate_state = AS_AQUEOUS` returned the first
+  aqueous species of the list whatever the name.
+- **`scale_stoich!`, and so `Reaction(...; auto_scale = true)`, reduces the
+  coefficients to the smallest integers in the same ratios.** It multiplied
+  them by their greatest common divisor, `{2, 4}` becoming `{4, 8}` where its
+  docstring promised integers scaled down; rational coefficients are now
+  cleared of their denominators too.
+- **`merge(cs1, cs2)` keeps the solid solutions and the site families** of both
+  systems, by name, `cs1` winning a conflict. It kept the species alone, so a
+  merged system lost its mixing phases and its surfaces without a word.
+- **A kinetic run on dual numbers takes the route of the same run on plain
+  numbers.** The probe that decides whether the rates read the speciation looked
+  for its seed one level of duals deep; inside a differentiation it missed it,
+  chose the frozen speciation, and the derivative was that of another
+  trajectory.
+- **`transition_state` reads the saturation of its reaction by symbol**, as
+  `saturation_ratio` does. It looked the species up by formula, so of two
+  polymorphs, calcite and aragonite, it read whichever came first.
+- **`SorptionReaction` is parametric, `SorptionReaction{T}`**, its `log_K` a
+  `Traced{T}` in the number type it is given in, and its `stoichiometry` a
+  `Dict{String, Rational{Int}}`: a decimal coefficient is held exactly.
+
+### Fixed
+
+- `Formula(f::Formula)` kept the composition and dropped the charge.
+- The decomposition of a `CemSpecies` by the stoichiometric matrix, the route
+  taken when the direct solve over the oxides misses, called `StoichMatrix` with
+  a keyword it does not have, a `MethodError` whatever the species.
+- A sorption equation of PHREEQC whose coefficient is a decimal, `0.5 X-`, was
+  read with the coefficient 0; coefficients are read exactly, as rationals.
+- `SymbolicFunc(sym; kwargs...)` and `SymbolicFunc(expr, vars; kwargs...)` gave
+  every keyword both to the factory and to its call: the units were refused by
+  the call, and the reference values by the factory. Each keyword now goes where
+  it belongs.
+- The predictor of the Pitzer inversion used the Debye–Hückel slope at 25 °C
+  where the model holds its own, `model.A`.
+- A `EquilibriumSolver` with `variable_space = Val(:log)` and `OptimaOptimizer`
+  handed OptimaSolver the constraint `A exp(x) = b`, which it linearized once
+  at the start and then held: it solved another problem, and its answer missed
+  the balance. The problem is now built in the amounts whatever the variable
+  space, the formulation the interior point is made for, with the same minimum;
+  `Val(:log)` is still served as it is to Ipopt.
+
 ## v0.37.0 — Any thermodynamic database imported, none stored in the package
 
 A thermodynamic database can now be read in any of the formats in common use:

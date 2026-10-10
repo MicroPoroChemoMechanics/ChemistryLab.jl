@@ -91,3 +91,12 @@
     @test f_ca_oh2[:O] == 2
     @test f_ca_oh2[:H] == 2
 end
+
+@testsection "Formula copies keep the charge" begin
+    # Until 0.37.0 the copy was built from the composition alone, at charge 0.
+    f = Formula("SO4-2")
+    g = Formula(f)
+    @test charge(g) == charge(f) == -2
+    @test composition(g) == composition(f)
+    @test expr(g) == expr(f)
+end

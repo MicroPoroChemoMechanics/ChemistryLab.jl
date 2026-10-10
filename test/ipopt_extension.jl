@@ -134,6 +134,14 @@ end
         @test optimality_certificate(des, eq; b = b).stationarity_abs < 1.0e-9
         @test all(isapprox.(amounts(eq), amounts(ref); rtol = 1.0e-8, atol = 1.0e-14))
     end
+    # OptimaSolver handles `A n = b`; handed the log-space problem it took the
+    # tangent of `A exp(x) − b` at the start for the constraint, and its own
+    # answer, unpolished, broke the balance away from the start. It is now
+    # given the problem in the amounts whatever `variable_space`.
+    unpolished = ChemistryLab._unpolished(
+        () -> ChemistryLab.SciMLBase.solve(EquilibriumSolver(cs, model, OptimaOptimizer(); variable_space = Val(:log)), st; b = b),
+    )
+    @test optimality_certificate(des, unpolished; b = b).balance < 1.0e-10
 end
 
 @testset "the derivative is that of the composition returned" begin
