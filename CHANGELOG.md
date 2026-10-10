@@ -39,6 +39,9 @@ They are corrected here, each with a test that failed before.
   `Dict{String, Rational{Int}}`: a decimal coefficient is held exactly.
 - **A new exported name**, `element_amounts`: a package defining the same name
   alongside `using ChemistryLab` now sees a conflict.
+- **OptimaSolver 0.8.3 at least.** The suite and the certified solves are
+  validated against it: its warm-start cache no longer crosses number types,
+  and it returns the best round of a relinearized constraint.
 
 ### Added
 
@@ -71,7 +74,7 @@ They are corrected here, each with a test that failed before.
   it belongs.
 - The predictor of the Pitzer inversion used the Debye–Hückel slope at 25 °C
   where the model holds its own, `model.A`.
-- A `EquilibriumSolver` with `variable_space = Val(:log)` and `OptimaOptimizer`
+- An `EquilibriumSolver` with `variable_space = Val(:log)` and `OptimaOptimizer`
   handed OptimaSolver the constraint `A exp(x) = b`, which it linearized once
   at the start and then held: it solved another problem, and its answer missed
   the balance. The problem is now built in the amounts whatever the variable
