@@ -140,26 +140,26 @@ function phreeqc_to_unicode(s::AbstractString)
         s = prefix * replacement * suffix
     end
 
-    chars = collect(s)
+    glyphs = collect(s)
 
-    ind_sign = findall(
+    ind_digit = findall(
         i ->
-        chars[i] in keys(dict_normal_to_sub) &&
+        glyphs[i] in keys(dict_normal_to_sub) &&
             i > 1 &&
-            chars[i - 1] != ' ' &&
-            !(chars[i - 1] in keys(dict_normal_to_sub)),
-        1:length(chars),
+            glyphs[i - 1] != ' ' &&
+            !(glyphs[i - 1] in keys(dict_normal_to_sub)),
+        1:length(glyphs),
     )
 
-    for i in ind_sign
+    for i in ind_digit
         j = i
-        while j <= length(chars) && chars[j] in keys(dict_normal_to_sub)
-            chars[j] = dict_normal_to_sub[chars[j]]
+        while j <= length(glyphs) && glyphs[j] in keys(dict_normal_to_sub)
+            glyphs[j] = dict_normal_to_sub[glyphs[j]]
             j += 1
         end
     end
 
-    return join(chars)
+    return join(glyphs)
 end
 
 """
@@ -489,7 +489,7 @@ function to_mendeleev(oxides::AbstractDict{Symbol, T}) where {T <: Number}
             end
         end
     end
-    return if length(result) > 0
+    return if !isempty(result)
         OrderedDict(k => stoich_coef_round(v) for (k, v) in result)
     else
         result
@@ -740,10 +740,10 @@ function format_equation(coeffs::AbstractDict; scaling = 1, equal_sign = '=')
         end
     end
 
-    if length(left_side) == 0
+    if isempty(left_side)
         left_side = "∅"
     end
-    if length(right_side) == 0
+    if isempty(right_side)
         right_side = "∅"
     end
 

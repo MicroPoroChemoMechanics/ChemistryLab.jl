@@ -1146,8 +1146,7 @@ function TruesdellJonesActivityModel(;
         temperature_dependent::Bool = false, water::Symbol = :raoult,
     )
     _check_water_law(water)
-    T = promote_type(typeof(A), typeof(B), (promote_type(map(typeof, v)...) for v in values(parameters))...)
-    T = float(T)
+    T = float(promote_type(typeof(A), typeof(B), (promote_type(map(typeof, v)...) for v in values(parameters))...))
     p = Dict{String, Tuple{T, T}}(String(k) => (T(v[1]), T(v[2])) for (k, v) in parameters)
     return TruesdellJonesActivityModel{T}(T(A), T(B), p, temperature_dependent, water)
 end

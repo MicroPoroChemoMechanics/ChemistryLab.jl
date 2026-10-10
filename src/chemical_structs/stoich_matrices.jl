@@ -252,15 +252,15 @@ function _optimal_from_rational(N_rat::Matrix{Rational{BigInt}}, A::AbstractMatr
         else
             mapreduce(denominator, lcm, v; init = one(BigInt))
         end
-        v = v .* d
+        v .*= d
         g = if !isempty(int_idx)
             mapreduce(i -> abs(numerator(v[i])), gcd, int_idx; init = zero(BigInt))
         else
             mapreduce(x -> abs(numerator(x)), gcd, v; init = zero(BigInt))
         end
-        !iszero(g) && g > 1 && (v = v .// g)
+        !iszero(g) && g > 1 && (v .//= g)
         lead = findfirst(!iszero, v)
-        !isnothing(lead) && v[lead] < 0 && (v = -v)
+        !isnothing(lead) && v[lead] < 0 && (v .= .-v)
         for i in 1:n
             N_out[i, j] = _to_stoich_real(v[i])
         end
@@ -580,6 +580,44 @@ function CanonicalStoichMatrix(species::AbstractVector{<:AbstractSpecies})
     return StoichMatrix(A, involved_atoms, Vector(species), N)
 end
 
+# Throws when a species is outside the span of the chosen components (see the
+# comment at the call), naming each one.
+function _refuse_out_of_span(M_indep, M, newspecies, independent_cols_indices)
+    r_indep = _exact_rank(M_indep)
+    if _exact_rank(hcat(M_indep, M)) != r_indep
+        # Only now is it worth asking which columns are the offenders: one
+        # rank computation per species, and only on a system that is already
+        # known to be ill-posed.
+        bad = [
+            j for j in axes(M, 2)
+                if _exact_rank(hcat(M_indep, M[:, j])) != r_indep
+        ]
+        throw(
+            ArgumentError(
+                "these species cannot be written over the chosen components, " *
+                    "so no conservation law covers them: " *
+                    join(
+                    (
+                        string(symbol(newspecies[j])) * " (" *
+                            string(formula(newspecies[j])) * ")" for j in bad
+                    ), ", ",
+                ) *
+                    ". The components are [" *
+                    join(
+                    (
+                        string(symbol(newspecies[c]))
+                            for c in independent_cols_indices
+                    ), ", ",
+                ) *
+                    "]. Add a component carrying the missing element, or drop " *
+                    "the species: decomposing it anyway projects it onto the " *
+                    "components and lets the solver create it out of nothing.",
+            ),
+        )
+    end
+    return nothing
+end
+
 """
         StoichMatrix(species, candidate_primaries=species; involve_all_atoms=true,
                      optimize_primaries=false, kinetic_species=nothing)
@@ -777,39 +815,7 @@ function StoichMatrix(
     # a rank comparison has no threshold at all. `_exact_rank` rationalizes with
     # the package's own tolerance, so the two rows agree again and the residual
     # is exactly zero where it should be.
-    let r_indep = _exact_rank(M_indep)
-        if _exact_rank(hcat(M_indep, M)) != r_indep
-            # Only now is it worth asking which columns are the offenders: one
-            # rank computation per species, and only on a system that is already
-            # known to be ill-posed.
-            bad = [
-                j for j in axes(M, 2)
-                    if _exact_rank(hcat(M_indep, M[:, j])) != r_indep
-            ]
-            throw(
-                ArgumentError(
-                    "these species cannot be written over the chosen components, " *
-                        "so no conservation law covers them: " *
-                        join(
-                        (
-                            string(symbol(newspecies[j])) * " (" *
-                                string(formula(newspecies[j])) * ")" for j in bad
-                        ), ", ",
-                    ) *
-                        ". The components are [" *
-                        join(
-                        (
-                            string(symbol(newspecies[c]))
-                                for c in independent_cols_indices
-                        ), ", ",
-                    ) *
-                        "]. Add a component carrying the missing element, or drop " *
-                        "the species: decomposing it anyway projects it onto the " *
-                        "components and lets the solver create it out of nothing.",
-                ),
-            )
-        end
-    end
+    _refuse_out_of_span(M_indep, M, newspecies, independent_cols_indices)
     A = stoich_coef_round.(A_raw)
 
     indep_comp = newspecies[independent_cols_indices]

@@ -389,11 +389,11 @@ function complete_species_with_thermo_model!(species, row; verbose = false)
             elseif method_type == "solute_hkf88_reaktoro" && haskey(method, :eos_hkf_coeffs)
                 species[:thermo_method] = "solute_hkf88_reaktoro"
                 coeffs = method.eos_hkf_coeffs
-                vals = float.(coeffs.values)
+                hkf_vals = float.(coeffs.values)
                 names = [:a1, :a2, :a3, :a4, :c1, :c2, :wref]
                 hkf_params = [
-                    names[i] => vals[i] * HKF_SI_CONVERSIONS[names[i]] for
-                        i in 1:min(length(vals), length(names))
+                    names[i] => hkf_vals[i] * HKF_SI_CONVERSIONS[names[i]] for
+                        i in 1:min(length(hkf_vals), length(names))
                 ]
                 z = float(get(row, :formula_charge, 0))
                 push!(hkf_params, :z => z)
@@ -593,34 +593,51 @@ function _define_by_reactions!(species_list, df; verbose = false)
     hasproperty(df, :defining_reaction) || return species_list
     rows = Dict(String(r.symbol) => r for r in eachrow(df))
     cache = Dict{String, Species}(symbol(s) => s for s in species_list)
-    done, visiting = Set{String}(), Set{String}()
-    function define!(s)
-        sym = symbol(s)
-        sym in done && return s
-        row = get(rows, sym, nothing)
-        rec = row === nothing ? missing : row.defining_reaction
-        if !ismissing(rec)
-            sym in visiting && throw(ArgumentError("$sym is defined by a reaction that rests on itself"))
-            push!(visiting, sym)
-            _define_by_reaction!(s, rec, species_of)
-            delete!(visiting, sym)
-        end
-        push!(done, sym)
-        return s
+    definer = _ReactionDefiner(rows, df, cache, Set{String}(), Set{String}(), verbose)
+    for s in species_list
+        _define!(definer, s)
     end
-    function species_of(sym)
-        s = get(cache, sym, nothing)
-        if s === nothing
-            row = get(rows, sym, nothing)
-            row === nothing && throw(ArgumentError("a reaction of the database names $sym, which it does not define"))
-            s = _species_from_row(row, df; verbose = verbose)
-            haskey(properties(s), :refused_method) && _reference_state_only!(s)
-            cache[sym] = s
-        end
-        return define!(s)
-    end
-    foreach(define!, species_list)
     return species_list
+end
+
+# What `_define_by_reactions!` works with: the rows of the database by symbol,
+# the species read so far, and the symbols defined and being defined. Called
+# with a symbol, it returns that species, read from its row if need be, and
+# defined by its own reaction first: the reactions rest on one another.
+struct _ReactionDefiner{R, D}
+    rows::R
+    df::D
+    cache::Dict{String, Species}
+    done::Set{String}
+    visiting::Set{String}
+    verbose::Bool
+end
+
+function _define!(d::_ReactionDefiner, s)
+    sym = symbol(s)
+    sym in d.done && return s
+    row = get(d.rows, sym, nothing)
+    rec = row === nothing ? missing : row.defining_reaction
+    if !ismissing(rec)
+        sym in d.visiting && throw(ArgumentError("$sym is defined by a reaction that rests on itself"))
+        push!(d.visiting, sym)
+        _define_by_reaction!(s, rec, d)
+        delete!(d.visiting, sym)
+    end
+    push!(d.done, sym)
+    return s
+end
+
+function (d::_ReactionDefiner)(sym)
+    s = get(d.cache, sym, nothing)
+    if s === nothing
+        row = get(d.rows, sym, nothing)
+        row === nothing && throw(ArgumentError("a reaction of the database names $sym, which it does not define"))
+        s = _species_from_row(row, d.df; verbose = d.verbose)
+        haskey(properties(s), :refused_method) && _reference_state_only!(s)
+        d.cache[sym] = s
+    end
+    return _define!(d, s)
 end
 
 # ── Substances defined by a reaction ─────────────────────────────────────────
@@ -641,11 +658,7 @@ end
 # and the heat capacity of reaction there, held constant (van 't Hoff's
 # equation, integrated with a constant heat capacity of reaction).
 function _thermofun_log10K(rec)
-    coeffs = nothing
-    for m in something(get(rec, "TPMethods", nothing), [])
-        c = get(m, "logk_ft_coeffs", nothing)
-        c === nothing || (coeffs = Float64.(c["values"]))
-    end
+    coeffs = _logk_coefficients(rec)
     if coeffs !== nothing && any(!iszero, coeffs)
         length(coeffs) > 7 && any(!iszero, coeffs[8:end]) && throw(
             ArgumentError("reaction $(rec["symbol"]): logk_fpt_function has nonzero coefficients past the seventh, which no published form gives")
@@ -668,6 +681,17 @@ function _thermofun_log10K(rec)
         d2L = -2H / (k * T^3) + Cp / k * (2Tr / T^3 - 1 / T^2)
         return L, dL, d2L
     end
+end
+
+# The `logk_fpt_function` coefficients of a reaction record, from the last of its
+# methods that lists them, or `nothing`.
+function _logk_coefficients(rec)
+    coeffs = nothing
+    for m in something(get(rec, "TPMethods", nothing), [])
+        c = get(m, "logk_ft_coeffs", nothing)
+        c === nothing || (coeffs = Float64.(c["values"]))
+    end
+    return coeffs
 end
 
 # The reactants of a reaction record, by symbol: a record that lists a species

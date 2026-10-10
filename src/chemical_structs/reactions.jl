@@ -530,12 +530,10 @@ function Reaction(
         species_list = nothing,
     )
     reactants, products, equal_sign = parse_equation(equation)
-    if !isnothing(species_list)
-        species_list = collect(values(species_list))
-    end
+    listed = isnothing(species_list) ? nothing : collect(values(species_list))
     reacdict = ordered_dict_with_default(
         (
-            find_species(k, species_list, S) => _printed_coefficient(v) for
+            find_species(k, listed, S) => _printed_coefficient(v) for
                 (k, v) in reactants if !iszero(v) && !startswith(k, "Zz") && !startswith(k, "e")
         ),
         S,
@@ -543,7 +541,7 @@ function Reaction(
     )
     proddict = ordered_dict_with_default(
         (
-            find_species(k, species_list, S) => _printed_coefficient(v) for
+            find_species(k, listed, S) => _printed_coefficient(v) for
                 (k, v) in products if !iszero(v) && !startswith(k, "Zz") && !startswith(k, "e")
         ),
         S,

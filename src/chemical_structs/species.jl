@@ -696,10 +696,10 @@ function Species(
         properties::AbstractDict = OrderedDict{Symbol, PropertyType}(),
     ) where {T}
     formula = Formula(atoms, charge)
-    if length(name) == 0
+    if isempty(name)
         name = unicode(formula)
     end
-    if length(symbol) == 0
+    if isempty(symbol)
         symbol = name
     end
     return Species(
@@ -1108,10 +1108,10 @@ function CemSpecies(
         properties::AbstractDict = OrderedDict{Symbol, PropertyType}(),
     ) where {T}
     cemformula = Formula(oxides, charge; order = OXIDE_ORDER)
-    if length(name) == 0
+    if isempty(name)
         name = unicode(cemformula)
     end
-    if length(symbol) == 0
+    if isempty(symbol)
         symbol = name
     end
     return CemSpecies(

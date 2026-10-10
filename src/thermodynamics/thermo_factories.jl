@@ -328,20 +328,23 @@ function extract_vars_params(expr, vars)
     vars_set = Set(vars)
     newvars = Symbol[]
 
-    function scan_expr(ex)
-        return if ex isa Symbol
-            ex ∈ vars_set ? push!(newvars, ex) : push!(params, ex)
-        elseif ex isa Expr
-            for arg in ex.args[2:end]
-                scan_expr(arg)
-            end
-        end
-    end
-
-    scan_expr(expr)
+    _scan_symbols!(newvars, params, vars_set, expr)
     unique!(newvars)
     unique!(params)
     return newvars, params
+end
+
+# The symbols of `ex`, to `newvars` when in `vars_set` and to `params` otherwise,
+# leaving out the first argument of each expression: the function of a call.
+function _scan_symbols!(newvars, params, vars_set, ex)
+    if ex isa Symbol
+        ex ∈ vars_set ? push!(newvars, ex) : push!(params, ex)
+    elseif ex isa Expr
+        for arg in @view ex.args[2:end]
+            _scan_symbols!(newvars, params, vars_set, arg)
+        end
+    end
+    return nothing
 end
 
 """
@@ -356,6 +359,14 @@ function compile_symbolic(symbolic_expr, var_symbols)
         Symbolics.build_function(symbolic_expr, var_symbols...; expression = Val(false))
     end
 end
+
+# The units given to a factory, by symbol, and each read as a unit: a string is
+# parsed, a quantity gives its unit, anything else is dimensionless.
+_units_by_symbol(nt::NamedTuple) = Dict(pairs(nt))
+_units_by_symbol(v::AbstractVector{<:Pair}) = Dict(v)
+_as_unit(s::String) = uparse(s)
+_as_unit(q::AbstractQuantity) = oneunit(q)
+_as_unit(::Any) = u"1"
 
 """
     ThermoFactory{Q}
@@ -406,21 +417,15 @@ function ThermoFactory(
         units = nothing,
         output_unit = nothing,
     )
-    vars, params = extract_vars_params(expr, vars)
-    var_sym_dict = OrderedDict{Symbol, Num}(v => Symbolics.variable(v) for v in vars)
+    found_vars, params = extract_vars_params(expr, vars)
+    var_sym_dict = OrderedDict{Symbol, Num}(v => Symbolics.variable(v) for v in found_vars)
     param_sym_dict = OrderedDict{Symbol, Num}(p => Symbolics.variable(p) for p in params)
-
-    to_dict(nt::NamedTuple) = Dict(pairs(nt))
-    to_dict(v::AbstractVector{<:Pair}) = Dict(v)
-    to_unit(s::String) = uparse(s)
-    to_unit(q::AbstractQuantity) = oneunit(q)
-    to_unit(::Any) = u"1"
 
     _fallback = u"1"
     if !isnothing(units)
-        dict_units = to_dict(units)
+        dict_units = _units_by_symbol(units)
         unit_dict = Dict{Symbol, typeof(_fallback)}(
-            sym => (haskey(dict_units, sym) ? to_unit(dict_units[sym]) : _fallback)
+            sym => (haskey(dict_units, sym) ? _as_unit(dict_units[sym]) : _fallback)
                 for sym in Iterators.flatten((keys(var_sym_dict), keys(param_sym_dict)))
         )
     else
@@ -430,7 +435,7 @@ function ThermoFactory(
         )
     end
 
-    out_unit = isnothing(output_unit) ? _fallback : to_unit(output_unit)
+    out_unit = isnothing(output_unit) ? _fallback : _as_unit(output_unit)
 
     all_symbols = merge(var_sym_dict, param_sym_dict)
     symbolic = Symbolics.wrap(Symbolics.parse_expr_to_symbolic(expr, all_symbols))
@@ -515,9 +520,8 @@ function (factory::ThermoFactory)(; kwargs...)
                     (p, v) in factory.params
             )
             substituted = Symbolics.substitute(factory.symbolic, substitutions)
-            simplified = Symbolics.simplify(Symbolics.expand(substituted))
-            compiled = compile_symbolic(simplified, collect(keys(factory.vars)))
-            (simplified, compiled)
+            reduced = Symbolics.simplify(Symbolics.expand(substituted))
+            (reduced, compile_symbolic(reduced, collect(keys(factory.vars))))
         end
     end
 

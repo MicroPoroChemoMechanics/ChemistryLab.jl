@@ -168,6 +168,13 @@ They are corrected here, each with a test that failed before.
   `equilibrate_certified`, the replay of a run (`speciated_states`) and the
   starts of a right-hand side that solves its partition are written as their
   stages. None of them changes a result.
+- No function of the package or of its extensions keeps a captured variable in
+  a `Core.Box`, the untyped cell Julia gives a variable that a closure or a
+  generator captures and that is assigned more than once. Fourteen functions did,
+  from `StoichMatrix`, `Reaction` and `ThermoFactory` to the readers of
+  ThermoFun files: a name reassigned, a local function given several methods,
+  or local functions calling themselves or each other. Every result is the
+  same to the bit.
 
 ### Performance
 
