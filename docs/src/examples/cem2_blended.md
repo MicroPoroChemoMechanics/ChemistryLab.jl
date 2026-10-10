@@ -254,7 +254,7 @@ function paste_budget(; clinker_frac, limestone = 0.0, slag = 0.0, wb)
         BINDER_G * limestone / molar_mass_g("Cal") * u"mol")
     set_quantity!(state, "H2O@", BINDER_G * wb / molar_mass_g("H2O@") * u"mol")
 
-    b = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
+    b = budget(state)
     # The alkalis leave the grain as it dissolves, so they follow the clinker and
     # its reacted fraction.
     b .+= oxide_budget(ALKALIS, cs.SM.primaries;

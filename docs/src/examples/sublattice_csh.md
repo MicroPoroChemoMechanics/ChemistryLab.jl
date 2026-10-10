@@ -83,7 +83,7 @@ for r in ratios, (label, cs) in systems
     set_quantity!(st, "Amor-Sl", 0.05u"mol")
     set_quantity!(st, "Portlandite", r * 0.05u"mol")
     set_quantity!(st, "H2O@", 1.0u"kg")
-    b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    b = budget(st)
     eq, cert = equilibrate_certified(st; model, b)
     gel = solid_solution_totals(eq, "C-S-H").elements
     c = curves[label]
@@ -170,7 +170,7 @@ for alsi in (0.0, 0.05, 0.10, 0.15)
     set_quantity!(st, "Na+", 0.02u"mol")
     set_quantity!(st, "OH-", 0.02u"mol")
     set_quantity!(st, "H2O@", 1.0u"kg")
-    b = Float64.(cs_n.SM.A) * ustrip.(us"mol", st.n)
+    b = budget(st)
     eq, cert = equilibrate_certified(st; model, b)
     gel = solid_solution_totals(eq, "C-S-H")
     χ = [gel.members[m] for m in CNASH] ./ gel.amount

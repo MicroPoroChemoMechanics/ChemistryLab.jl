@@ -196,7 +196,7 @@ function paste_budget(cs; ash, wb = WB, α_ash = ALPHA_ASH, α_clinker = ALPHA_C
     # much water was poured in.
     set_quantity!(state, "Gp", BINDER_G * GYPSUM / molar_mass_g("Gp") * u"mol")
     set_quantity!(state, "H2O@", BINDER_G * wb / molar_mass_g("H2O@") * u"mol")
-    b = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
+    b = budget(state)
     # The alkalis leave the grain as it dissolves: same fraction as the clinker.
     b .+= oxide_budget(
         ALKALIS, cs.SM.primaries;

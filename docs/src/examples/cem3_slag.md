@@ -232,7 +232,7 @@ function paste(; alkali = 1.0)
     end
     set_quantity!(st, "H2O@", BINDER_G * WB / molar_mass_g("H2O@") * u"mol")
 
-    clinker = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    clinker = budget(st)
     # The alkalis follow the clinker, and its reacted fraction: they leave the
     # grain as it dissolves.
     clinker .+= alkali * oxide_budget(ALKALIS, cs.SM.primaries;

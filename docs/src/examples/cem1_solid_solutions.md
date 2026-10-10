@@ -224,7 +224,7 @@ for (sym, n) in batch
 end
 set_quantity!(state, "H2O@", free_water * u"mol")
 set_quantity!(state, "CO2@", 1.0e-9u"mol")
-b = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
+b = budget(state)
 
 # The activity model Cemdata18 prescribes (its Eq. C.1): extended Debye-Hückel,
 # with the common ion size and B-dot the paper gives for KOH solutions (it also
@@ -370,7 +370,7 @@ for (sym, x) in batch
 end
 set_quantity!(st, "H2O@", free_water * u"mol")
 set_quantity!(st, "CO2@", 1.0e-9u"mol")
-b2 = Float64.(cs_pure.SM.A) * ustrip.(us"mol", st.n)
+b2 = budget(st)
 eq2, cert2 = equilibrate_certified(st; model = model, b = b2)
 
 @printf("optimal=%s  worst supersaturation=%+.3f  pH=%.4f  V=%.3f cm3\n",
@@ -423,7 +423,7 @@ for (sym, x) in batch
 end
 set_quantity!(st3, "H2O@", free_water * u"mol")
 set_quantity!(st3, "CO2@", 1.0e-9u"mol")
-b3 = Float64.(cs3.SM.A) * ustrip.(us"mol", st3.n)
+b3 = budget(st3)
 eq3, cert3 = equilibrate_certified(st3; model = model, b = b3)
 
 @printf("optimal=%s  worst supersaturation=%+.3f  pH=%.4f  V=%.3f cm3\n",

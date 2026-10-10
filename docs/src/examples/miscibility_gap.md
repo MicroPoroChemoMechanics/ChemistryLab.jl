@@ -165,7 +165,7 @@ function run_case(afm_phase; autostart = true)
     end
     set_quantity!(st, "Gp", BINDER_G * GYPSUM / molar_mass_g("Gp") * u"mol")
     set_quantity!(st, "H2O@", BINDER_G * WB / molar_mass_g("H2O@") * u"mol")
-    b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    b = budget(st)
 
     # Every case prints its certificate; the warning of a refusal would only repeat it.
     eq, cert = with_logger(NullLogger()) do

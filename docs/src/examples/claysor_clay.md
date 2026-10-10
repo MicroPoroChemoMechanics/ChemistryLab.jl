@@ -134,7 +134,7 @@ function solve_point(pt, model)
     mH, mOH = 10.0^(-pt["pH"]), 10.0^(pt["pH"] - 14)
     cs, st, idx = clay(2pt["I"] - CS["na"] - 4CS["ca"] - mH - mOH)
     des = DualEquilibriumSolver(cs, model)
-    b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
+    b = budget(st)
     eq = SciMLBase.solve(des, st; b, constraint = FixedpH(pt["pH"]), parameters = Base.RefValue{Any}(nothing))
     cert = optimality_certificate(des, eq; b, constraint = FixedpH(pt["pH"]))
     n = Float64[ustrip(us"mol", x) for x in eq.n]

@@ -104,7 +104,7 @@ function titrate_hfo(pt, nacl; model, surface_potential = :auto)
     mH, mOH = 10.0^(-pt["pH"]), 10.0^(pt["pH"] - 14)
     cs, st = hfo(; m_na = nacl, m_cl = 2 * pt["I"] - nacl - mH - mOH, model)
     des = DualEquilibriumSolver(cs, DiluteSolutionModel())
-    b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
+    b = budget(st)
     eq = SciMLBase.solve(des, st; b = b, constraint = FixedpH(pt["pH"]),
                          surface_potential, parameters = Base.RefValue{Any}(nothing))
     cert = optimality_certificate(des, eq; b = b, constraint = FixedpH(pt["pH"]))

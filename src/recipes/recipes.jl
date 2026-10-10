@@ -115,6 +115,10 @@ function budget(r::Recipe, cs::ChemicalSystem; t = nothing)
         _set_aside!(residual, c, m, α * mc, cs)
     end
     set_quantity!(st, "H2O@", moles(st, "H2O@") + water / ustrip(us"g/mol", cs.dict_species["H2O@"][:M]) * u"mol")
+    # `SM.A`, and not the solver's `conservation_matrix`: a recipe gives the host
+    # of a family that follows it, whose formula holds its sites, and no free
+    # site. `SM.A` counts those sites once, inside the host, which is what the
+    # coupled matrix counts in a state that lays them out (`host_consistent_state`).
     b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
     for (ox, mass) in oxides
         b .+= oxide_budget(ox, cs.SM.primaries; mass = mass * u"g")
@@ -133,6 +137,8 @@ density being differentiated carries its derivative.
 
 Where a site family follows its host, the matrix is the solver's own
 [`conservation_matrix`](@ref), not `SM.A`, which would leave the coupling out.
+It counts the family's sites as laid out in `state`: one whose host alone holds
+them is made consistent first by [`host_consistent_state`](@ref).
 
 # Examples
 

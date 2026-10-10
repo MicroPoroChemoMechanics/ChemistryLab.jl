@@ -290,7 +290,7 @@ function paste(α_slag, α_ash; α_clinker = ALPHA_CLINKER)
     set_quantity!(st, "Gp", BINDER_G * GYPSUM / molar_mass_g("Gp") * u"mol")
     set_quantity!(st, "H2O@", BINDER_G * WB / molar_mass_g("H2O@") * u"mol")
 
-    clinker = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    clinker = budget(st)
     # The alkalis leave the grain as it dissolves: same fraction as the clinker.
     clinker .+= oxide_budget(ALKALIS, cs.SM.primaries;
                              mass = BINDER_G * clinker_frac * α_clinker * u"g")

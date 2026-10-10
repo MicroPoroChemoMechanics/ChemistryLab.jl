@@ -46,9 +46,11 @@ They are corrected here, each with a test that failed before.
 ### Added
 
 - `budget(state)`, the totals of the primaries a solve of `state` conserves,
-  `conservation_matrix(system) * n`, in the number type of the amounts. The
-  pages computed it as `Float64.(cs.SM.A) * n`, which drops the derivatives and
-  is the wrong matrix where a site family follows its host.
+  `conservation_matrix(system) * n`, in the number type of the amounts and of
+  the matrix. The pages wrote it out by hand with `SM.A`, which is the solver's
+  matrix only where no site family follows its host, and some as
+  `Float64[ustrip(us"mol", x) for x in st.n]`, which drops the derivatives of
+  the amounts.
 - `element_amounts(state)`, the amount of each atom of the system in a state.
 - `pore_solution(state, model; per = :kg)`, the pore solution of any state, per
   kilogram of water or per liter of solution; that of a `RecipeState` is now

@@ -102,7 +102,7 @@ function paste(cs; dose = 0.0, clinker_fraction = 0.5)
         set_quantity!(st, "Na+", n_cl * u"mol")
         set_quantity!(st, "Cl-", n_cl * u"mol")
     end
-    b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    b = budget(st)
     b .+= oxide_budget(ALKALIS, cs.SM.primaries; mass = BINDER_G * clinker_fraction * ALPHA_CLINKER * u"g")
     b .+= oxide_budget(SLAG, cs.SM.primaries; mass = BINDER_G * (1 - clinker_fraction) * ALPHA_SLAG * u"g")
     return (; state = st, b)
