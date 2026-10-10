@@ -90,12 +90,13 @@ const EQUAL_REACTION_SET = Set(EQUAL_REACTION)
 abstract type AbstractReaction end
 
 """
-    struct Reaction{SR<:AbstractSpecies,TR<:Number,SP<:AbstractSpecies,TP<:Number}
+    struct Reaction{SR<:AbstractSpecies,TR<:Number,SP<:AbstractSpecies,TP<:Number,IC<:Number}
 
 Representation of a chemical reaction with reactants and products.
 
 # Fields
 
+  - `symbol::String`: the reaction's symbol (empty when none was given).
   - `equation::String`: Unicode equation string.
   - `colored::String`: colored terminal representation.
   - `reactants::OrderedDict{SR,TR}`: species => coefficient for reactants.
@@ -497,7 +498,7 @@ function complete_thermo_functions!(r::Reaction)
 end
 
 """
-    Reaction(equation::AbstractString, S::Type{<:AbstractSpecies}=Species; properties, side, species_list) -> Reaction
+    Reaction(equation::AbstractString, S::Type{<:AbstractSpecies}=Species; symbol, properties, side, species_list) -> Reaction
 
 Construct a Reaction from an equation string.
 
@@ -505,6 +506,7 @@ Construct a Reaction from an equation string.
 
   - `equation`: reaction equation string (e.g., "2H2 + O2 = 2H2O").
   - `S`: species type to use (default: Species).
+  - `symbol`: the reaction's symbol (default: empty).
   - `properties`: property dictionary (default: empty OrderedDict).
   - `side`: how to split species - :none, :sign, :reactants, :products (default: :none).
   - `species_list`: optional list of known species for lookup.
@@ -721,25 +723,11 @@ function Reaction(
         )
     end
     # BY SYMBOL, not by `delete!`, and the difference decides whether a redox
-    # half-reaction keeps its electrons.
-    #
-    # `delete!` looks the key up by `hash` and then confirms with `isequal`, and
-    # for `AbstractSpecies` those two disagree: `isequal` compares formula,
-    # aggregate state and class, while `hash` also mixes in the SYMBOL. So
-    # `ELECTRON` and `Species("e")` are `==` but hash differently, and whether
-    # `delete!` finds one through the other depends on where the hash table
-    # happens to put them — that is, on the hash function, that is, on the Julia
-    # version.
-    #
-    # Measured: CI green on 1.13 and red on 1.12 from the same commit, with
-    # `SO4-2/HS-` reported as "balancing with no electron" on 1.12 alone. There
-    # the electron WAS deleted; here it was not. Removing by symbol is exactly
-    # what this is for, and it does the same thing on every machine.
-    #
-    # The underlying `isequal`/`hash` disagreement is a defect of its own —
-    # calcite and aragonite are `==` under it, and so is a species and its `#2`
-    # instance twin — and it is not fixed here because it is a behavior change
-    # that deserves its own campaign, not a side effect of a bug fix.
+    # half-reaction keeps its electrons. `delete!` finds a key through `hash` and
+    # `isequal`, which compare the identity of a species object; the charge and
+    # the electron to strip are known by their symbol, `Zz` and `e`, whatever
+    # object carries it, and removing by symbol does the same thing on every
+    # machine and Julia version.
     #
     # `ChemistryLab.symbol` is spelled out because this constructor takes a
     # KEYWORD ARGUMENT named `symbol`, which shadows the function throughout the
@@ -1197,10 +1185,10 @@ Reverse a reaction (swap reactants and products).
 # Examples
 
 ```jldoctest
-julia> 3Reaction("2H2 + O2 = 2H2O") - 2Reaction("2H2 + O2 = 2H2O")
-  equation: 6H₂ + 3O₂ + 4H₂O = 6H₂O + 4H₂ + 2O₂
- reactants: H₂ => 6, O₂ => 3, H₂O => 4
-  products: H₂O => 6, H₂ => 4, O₂ => 2
+julia> -Reaction("2H2 + O2 = 2H2O")
+  equation: 2H₂O = 2H₂ + O₂
+ reactants: H₂O => 2
+  products: H₂ => 2, O₂ => 1
     charge: 0
 ```
 """
@@ -1220,7 +1208,8 @@ Add two species to create a Reaction.
 
 # Returns
 
-  - A Reaction with both species as reactants (coefficient 1 each)
+  - A Reaction with both species as products (coefficient 1 each, 2 for a
+    species added to itself): a positive coefficient is a product
 
 # Examples
 
@@ -1249,7 +1238,8 @@ Subtract two species to create a Reaction.
 
 # Returns
 
-  - A Reaction with s as reactant and t as product
+  - A Reaction with s as product and t as reactant (empty for a species
+    subtracted from itself)
 """
 function -(s::S1, t::S2) where {S1 <: AbstractSpecies, S2 <: AbstractSpecies}
     S = promote_type(S1, S2)

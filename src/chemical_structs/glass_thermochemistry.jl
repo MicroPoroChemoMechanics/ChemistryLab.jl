@@ -101,7 +101,7 @@ function _reference_oxide(formula::AbstractString, reference)
 end
 
 """
-    glass_enthalpy(oxides; T = 298.15u"K", reference = nothing) -> NamedTuple
+    glass_enthalpy(oxides; T = 298.15u"K", reference = nothing, ignore = ()) -> NamedTuple
 
 The standard enthalpy of formation of a silicate glass known by its oxide
 analysis, per gram of material, built from measurements on silicate glasses and

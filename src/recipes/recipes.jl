@@ -235,10 +235,9 @@ function equilibrate_certified(
         start::Union{Nothing, ChemicalState} = nothing, kwargs...,
     )
     bud = budget(r, cs; t)
-    # The amounts of `start`, at the temperature and pressure of the recipe:
-    # before 0.34.0 a start at another temperature imposed its own, so that a
-    # sequence in temperature started from its previous answer stayed at the
-    # first temperature.
+    # The amounts of `start`, at the temperature and pressure of the recipe: a
+    # start at another temperature must not impose its own, or a sequence in
+    # temperature started from its previous answer would stay at the first one.
     from = start === nothing ? bud.state :
         ChemicalState(start.system; T = temperature(bud.state), P = pressure(bud.state), n = start.n)
     eq, cert = equilibrate_certified(from; model, b = bud.b, kwargs...)
@@ -246,7 +245,7 @@ function equilibrate_certified(
 end
 
 """
-    residual_mass(rs::RecipeState) -> Float64
+    residual_mass(rs::RecipeState) -> Real
 
 The mass (g) of what has not reacted.
 """
@@ -294,7 +293,7 @@ function porosity(rs::RecipeState)
 end
 
 """
-    volume_fractions(rs::RecipeState; void_key = "void") -> OrderedDict{String, Float64}
+    volume_fractions(rs::RecipeState; void_key = "void") -> OrderedDict{String, <:Real}
 
 The volume fraction of every species of the equilibrium and of every unreacted
 constituent (under `"unreacted <name>"`), relative to the initial volume of the
@@ -333,7 +332,7 @@ function volume_fractions(rs::RecipeState; void_key::AbstractString = "void")
 end
 
 """
-    phase_masses(rs::RecipeState; min_mass = 1e-6) -> OrderedDict{String, Float64}
+    phase_masses(rs::RecipeState; min_mass = 1e-6) -> OrderedDict{String, <:Real}
 
 The mass (g, for the recipe's binder mass, so g per 100 g of binder by default)
 of every solid of the equilibrium above `min_mass`, largest first, then of each
@@ -355,7 +354,7 @@ end
 
 """
     bound_water(rs::RecipeState; window = nothing, windows = nothing, min_mass = 1e-6)
-        -> Float64
+        -> Real
 
 The bound water per gram of binder (g/g): the water the solids of the equilibrium
 would lose on ignition ([`ignition_loss`](@ref)), plus that of an unreacted
@@ -449,7 +448,7 @@ function pore_solution(rs::RecipeState)
 end
 
 """
-    enthalpy(rs::RecipeState) -> Float64
+    enthalpy(rs::RecipeState) -> Real
 
 The enthalpy (J) of the paste, the equilibrium's plus the residue's; `NaN` when
 an unreacted constituent has no sourced enthalpy of formation, so that a heat
@@ -458,7 +457,7 @@ computed from it cannot pass for complete.
 enthalpy(rs::RecipeState) = _in_unit(us"J", enthalpy(rs.state)) + _residual_sum(rs, :enthalpy).value
 
 """
-    heat_release(rs1::RecipeState, rs2::RecipeState; set_aside = nothing) -> Float64
+    heat_release(rs1::RecipeState, rs2::RecipeState; set_aside = nothing) -> Real
 
 The heat (J) a paste releases from the state `rs1` to the state `rs2` of the
 same recipe, at the same temperature and pressure: the fall of its enthalpy,

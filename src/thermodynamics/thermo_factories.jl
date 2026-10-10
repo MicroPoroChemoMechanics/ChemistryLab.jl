@@ -361,8 +361,8 @@ end
     ThermoFactory{Q}
 
 Factory for creating `SymbolicFunc` instances from expressions.
-Units for each variable/parameter and the output unit are stored explicitly,
-removing the need for symbolic unit propagation (previously done via ModelingToolkitBase).
+Units for each variable/parameter and the output unit are stored explicitly, so
+no symbolic unit propagation is needed.
 """
 struct ThermoFactory{Q}
     symbolic::Num
@@ -387,7 +387,7 @@ struct ThermoFactory{Q}
 end
 
 """
-    ThermoFactory(expr, vars=[:T, :P, :t, :x, :y, :z]; units=nothing) -> ThermoFactory
+    ThermoFactory(expr, vars=[:T, :P, :t, :x, :y, :z]; units=nothing, output_unit=nothing) -> ThermoFactory
 
 Create a `ThermoFactory` from a symbolic expression.
 
@@ -395,7 +395,10 @@ Create a `ThermoFactory` from a symbolic expression.
 
   - `expr`: symbolic expression (Expr or Symbol).
   - `vars`: list of variable symbols (default: T, P, t, x, y, z).
-  - `units`: dictionary mapping symbols to their units.
+  - `units`: dictionary mapping symbols to their units; a symbol it does not
+    list is dimensionless.
+  - `output_unit`: the unit of the expression's value (dimensionless when
+    `nothing`).
 """
 function ThermoFactory(
         expr,

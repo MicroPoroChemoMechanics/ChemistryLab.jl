@@ -181,7 +181,7 @@ end
 # ============================================================
 
 const _HKF_Tr = T_STANDARD   # reference temperature (K)
-const _HKF_Pr = 1.0e+5   # reference pressure    (Pa)
+const _HKF_Pr = P_STANDARD   # reference pressure    (Pa)
 const _HKF_Zr = -1.278055636e-2  # Born function Z at (Tr, Pr)
 const _HKF_Yr = -5.795424563e-5  # Born function Y at (Tr, Pr)
 const _HKF_θ = 228.0    # θ constant (K)

@@ -161,9 +161,8 @@ energies differ by 821 J/mol, which at 298 K is 0.33 in `ln K` — the whole
 difference in solubility between them. Without the symbol they compared equal,
 and a `Dict` keyed by species could not tell them apart.
 
-It also restores the invariant `isequal ⟹ hash`, which [`Base.hash`](@ref) had
-always broken by including the symbol when this did not: `Dict(calcite => 1)`
-raised `KeyError` on `aragonite` while `calcite == aragonite` said `true`.
+[`Base.hash`](@ref) hashes exactly what this compares, so `isequal ⟹ hash`
+holds and a `Dict` keyed by species finds calcite and aragonite apart.
 
 Two spellings of one formula remain one species, because
 [`_identity_symbol`](@ref) drops a symbol that merely spells the formula instead
@@ -203,9 +202,6 @@ end
 Hash a species on exactly what [`Base.isequal`](@ref) compares — formula,
 aggregate state, class, and [`_identity_symbol`](@ref) — which is what `Dict` and
 `Set` require of the pair.
-
-It used to hash the stored `symbol` while `isequal` ignored it altogether, so two
-species that compared equal could land in different buckets.
 """
 function Base.hash(s::AbstractSpecies, h::UInt)
     return hash(

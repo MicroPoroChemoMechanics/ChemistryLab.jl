@@ -41,6 +41,12 @@ import ChemistryLab:
 
 # ── Concrete integrate implementation ────────────────────────────────────────
 
+# `u_modified!` was renamed `derivative_discontinuity!` in SciMLBase; the new
+# name where it exists, the old one on the versions the compat bound still
+# admits. Chosen once, when the extension loads.
+const _mark_modified! = isdefined(SciMLBase, :derivative_discontinuity!) ?
+    SciMLBase.derivative_discontinuity! : SciMLBase.u_modified!
+
 """
     integrate(kp::KineticsProblem, ks::KineticsSolver) -> ODESolution
 
@@ -78,12 +84,6 @@ ks  = KineticsSolver(; ode_solver=Rodas5P(), reltol=1e-8, abstol=1e-10)
 sol = integrate(kp, ks)
 ```
 """
-# `u_modified!` was renamed `derivative_discontinuity!` in SciMLBase; the new
-# name where it exists, the old one on the versions the compat bound still
-# admits. Chosen once, when the extension loads.
-const _mark_modified! = isdefined(SciMLBase, :derivative_discontinuity!) ?
-    SciMLBase.derivative_discontinuity! : SciMLBase.u_modified!
-
 function integrate(kp::KineticsProblem, ks::KineticsSolver; speciation::Symbol = :auto, kwargs...)
     speciation in (:auto, :rhs, :frozen) || throw(
         ArgumentError("speciation must be :auto, :rhs or :frozen; got :$speciation"),

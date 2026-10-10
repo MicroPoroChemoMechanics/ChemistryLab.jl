@@ -332,27 +332,6 @@ end
 
 # ── build_u0 ─────────────────────────────────────────────────────────────────
 
-"""
-    build_u0(kp::KineticsProblem) -> Vector{Float64}
-
-Build the initial ODE state vector.
-
-Structure of `u`:
-  - Without re-speciation: `u = [nₖ₁, …, nₖ_K, ξ₁, …, ξ_M]`
-  - With re-speciation:    `u = [bₑ₁, …, bₑ_C, nₖ₁, …, nₖ_K, ξ₁, …, ξ_M]`
-  - Semi-adiabatic adds `T` at the end: `u = [..., T₀]`
-
-The extents of reaction `ξ` are carried alongside the kinetic moles, integrating
-`dξ/dt = r`. They are redundant with `nₖ` — the two satisfy
-`nₖ = nₖ(0) + νₖᵀ ξ` — but they are what makes the **non-kinetic** amounts
-available inside the residual, through `n = n(0) + νᵀ ξ`. Without them, a rate
-law gating on a species that is not itself kinetic would read a value frozen at
-`t = 0`. They also make [`reaction_extents`](@ref) and [`state_at`](@ref) exact
-rather than quadrature-limited.
-
-The calorimeter's slot stays last and is addressed from the end of the vector,
-so it is unaffected by the presence of `ξ`.
-"""
 # ── the number type of a run ─────────────────────────────────────────────────
 #
 # A run is differentiated with respect to whatever carries dual numbers: the
@@ -379,6 +358,27 @@ function _kinetics_number_type(kp::KineticsProblem)
     return promote_type(R, _captured_number_type(kp.calorimeter))
 end
 
+"""
+    build_u0(kp::KineticsProblem; R = _kinetics_number_type(kp)) -> Vector{R}
+
+Build the initial ODE state vector, in the number type `R` of the run.
+
+Structure of `u`:
+  - Without re-speciation: `u = [nₖ₁, …, nₖ_K, ξ₁, …, ξ_M]`
+  - With re-speciation:    `u = [bₑ₁, …, bₑ_C, nₖ₁, …, nₖ_K, ξ₁, …, ξ_M]`
+  - Semi-adiabatic adds `T` at the end: `u = [..., T₀]`
+
+The extents of reaction `ξ` are carried alongside the kinetic moles, integrating
+`dξ/dt = r`. They are redundant with `nₖ` — the two satisfy
+`nₖ = nₖ(0) + νₖᵀ ξ` — but they are what makes the **non-kinetic** amounts
+available inside the residual, through `n = n(0) + νᵀ ξ`. Without them, a rate
+law gating on a species that is not itself kinetic would read a value frozen at
+`t = 0`. They also make [`reaction_extents`](@ref) and [`state_at`](@ref) exact
+rather than quadrature-limited.
+
+The calorimeter's slot stays last and is addressed from the end of the vector,
+so it is unaffected by the presence of `ξ`.
+"""
 function build_u0(kp::KineticsProblem; R::Type = _kinetics_number_type(kp))
     n_mol = R[
         ustrip(us"mol", kp.initial_state.n[i])

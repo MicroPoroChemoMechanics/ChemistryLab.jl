@@ -64,7 +64,7 @@ where:
   - `t` [s]: current time.
   - `n::StateView`: moles of all species (named access: `n["C3S"]`).
   - `lna::StateView`: log-activities of all species.
-  - `n_initial::StateView`: initial moles (always `Float64`).
+  - `n_initial::StateView`: initial moles, in the number type of the initial state.
   - return: net dissolution rate [mol/s], positive = dissolution.
 
 AD-compatible when the compiled closure is AD-compatible.

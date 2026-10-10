@@ -223,7 +223,7 @@ function cation_molar_mass(oxides::AbstractDict{<:AbstractString, <:Real})
 end
 
 """
-    oxide_budget(oxides, primaries; mass = 100.0u"g") -> Vector{Float64}
+    oxide_budget(oxides, primaries; mass = 100.0u"g") -> Vector{<:Real}
 
 The component totals `b` contributed by a material reported as an **oxide
 analysis**, for use as the right-hand side of `A n = b`.

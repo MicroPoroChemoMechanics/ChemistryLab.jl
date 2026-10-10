@@ -155,13 +155,6 @@ end
 
 activity_model(des::DualEquilibriumSolver) = des.model
 
-"""
-    _dual_problem(des, p, n0) -> DualNewtonProblem
-
-Package the chemistry as the convex program `OptimaSolver` solves. Built per
-solve because the reference potentials `Δ_a G⁰/RT` depend on temperature and
-pressure.
-"""
 function _dual_phases(des::DualEquilibriumSolver, n0, p = nothing; invert = _aqueous_inverter(des))
     # One mixing phase for the aqueous solution — always present, the solvent as
     # its reference — and one more per declared solid solution, whose presence
@@ -360,6 +353,14 @@ function _split_starts(model, nmembers::Int)
     return out
 end
 
+"""
+    _dual_problem(des, p, n0, blocks = nothing) -> DualNewtonProblem
+
+Package the chemistry as the convex program `OptimaSolver` solves. Built per
+solve because the reference potentials `Δ_a G⁰/RT` depend on temperature and
+pressure. `blocks` are the constraint blocks of the solve, those of a fixed
+temperature and pressure when `nothing`.
+"""
 function _dual_problem(des::DualEquilibriumSolver, p, n0, blocks = nothing)
     bl = blocks === nothing ?
         _constraint_blocks(FixedTP(), des, nothing, p, n0) : blocks

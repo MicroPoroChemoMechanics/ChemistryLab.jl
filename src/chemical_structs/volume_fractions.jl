@@ -73,7 +73,7 @@ end
 
 """
     volume_fractions(state::ChemicalState; reference = nothing, void_key = "void")
-        -> OrderedDict{String, Float64}
+        -> OrderedDict{String, <:Real}
 
 Volume fraction of every species carrying a standard molar volume, keyed by
 species symbol. Species with a zero amount are omitted.
@@ -159,7 +159,7 @@ end
 
 """
     volume_fractions(state::ChemicalState, groups; kwargs...)
-        -> OrderedDict{String, Float64}
+        -> OrderedDict{String, <:Real}
 
 Volume fractions aggregated into named families.
 

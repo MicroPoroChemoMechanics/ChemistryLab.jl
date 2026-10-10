@@ -10,19 +10,19 @@ using ForwardDiff
 
 `x` as a bare number, **checking** that it carries no dimension.
 
-# What it replaces, and why that had to go
+# Why not extend the `Base` math functions to quantities
 
-`thermo_factories.jl` used to extend some thirty `Base` math functions to
-`DynamicQuantities.Quantity` by stripping the unit first:
+Extending them to `DynamicQuantities.Quantity` by stripping the unit first,
 
 ```julia
-Base.log(x::Quantity) = log(ustrip(x))     # removed
+Base.log(x::Quantity) = log(ustrip(x))
 ```
 
-That is type piracy — the function and the type both belong elsewhere — so it
-applied to **every** package loaded beside this one, whether or not it asked. And
-it did not merely remove a dimension check; it made the result depend on an
-invisible normalization, because `ustrip` returns the value in SI **base** units:
+would be type piracy — the function and the type both belong elsewhere — and so
+apply to **every** package loaded beside this one, whether or not it asked. And
+it would not merely remove a dimension check; it would make the result depend on
+an invisible normalization, because `ustrip` returns the value in SI **base**
+units:
 
 ```
 log(2u"m")       = 0.693      instead of raising
@@ -36,10 +36,8 @@ Dispatch rather than a branch, so `Float64`, `ForwardDiff.Dual` and
 `Symbolics.Num` all take the first method untouched — none of them carries a
 dimension — and only a genuine `Quantity` pays for the test.
 
-A dimensionless `Quantity` passes, which is the case the extensions existed for:
-a ratio whose units cancel is a number, and saying so explicitly is the point.
-Anything else raises, which is the check being restored rather than a new
-restriction.
+A dimensionless `Quantity` passes: a ratio whose units cancel is a number, and
+saying so explicitly is the point. Anything else raises.
 """
 @inline _adim(x::Real) = x
 @inline function _adim(x::DynamicQuantities.AbstractQuantity)
@@ -267,13 +265,13 @@ end
 # The same question asked of a parameter tuple at the level of TYPES, so that it
 # costs nothing where it is asked at every evaluation of an activity model.
 #
-# It used to map over the VALUES of the tuple. An equilibrium hands a model a
+# Not a `map` over the VALUES of the tuple: an equilibrium hands a model a
 # handful of parameters, but a kinetic run hands it the run's own parameters,
-# some fifty fields, and a `map` over a tuple that long is not unrolled: each
-# field was dispatched at run time, at every evaluation. Measured on the
-# pore-humidity test, 44 % of the integration went there. The answer depends on
-# the types alone, so it is computed from them, and `:foldable` lets the
-# compiler fold it into a constant.
+# some fifty fields, and a `map` over a tuple that long is not unrolled, each
+# field dispatched at run time at every evaluation (44 % of the integration of
+# the pore-humidity test, measured). The answer depends on the types alone, so it
+# is computed from them, and `:foldable` lets the compiler fold it into a
+# constant.
 _number_type_of(x) = _number_type_t(typeof(x))
 
 _number_type_t(::Type{T}) where {T <: ForwardDiff.Dual} = T

@@ -6,10 +6,12 @@ using OrderedCollections
 using PrettyTables
 
 """
-        StoichMatrix{T,P}
+        StoichMatrix{T, P, V, M, S}
 
 Container holding a stoichiometric matrix `A` together with the
-`primaries` (independent components) and the full `species` vector.
+`primaries` (independent components) and the full `species` vector: `T` is the
+coefficient type, `P` the type of a primary (a `Symbol` or a species), `V` and `M`
+the vector of primaries and the matrix types, `S` the species type.
 
 # Fields
 
@@ -585,7 +587,8 @@ function CanonicalStoichMatrix(species::AbstractVector{<:AbstractSpecies})
 end
 
 """
-        StoichMatrix(species, candidate_primaries=species; involve_all_atoms=true)
+        StoichMatrix(species, candidate_primaries=species; involve_all_atoms=true,
+                     optimize_primaries=false, kinetic_species=nothing)
 
 Construct a StoichMatrix from a list of species and a list of candidate primary species
 (by default the list of species itself).
@@ -596,6 +599,12 @@ Construct a StoichMatrix from a list of species and a list of candidate primary 
   - `candidate_primaries`: list of candidate primary species (default: `species`).
   - `involve_all_atoms`: if true the algorithm is allowed to use species
     of `candidate_primaries` containing atoms which are not in `species` (default: true).
+  - `optimize_primaries`: choose the primaries by a pivoted QR, for a better
+    conditioned basis, instead of the first independent candidates in order
+    (default: false). The QR decides on floating-point comparisons, so the basis
+    it picks can differ from one machine to another.
+  - `kinetic_species`: species (symbols or species) kept out of the primaries, so
+    that each can be isolated in one column of the nullspace (default: `nothing`).
 
 # Examples
 
@@ -1130,8 +1139,9 @@ julia> reactions(SM)
  H₂O + CO₂ = CO₃²⁻ + 2H⁺
 ```
 """
-# Species-primary matrices: use push_primaries when possible, fall back to general extraction.
 function reactions(SM::StoichMatrix)
+    # Species-primary matrices: use push_primaries when possible, fall back to
+    # general extraction.
     if !isempty(SM.N)
         pSM = push_primaries(SM)
         if pSM === SM
@@ -1164,7 +1174,7 @@ Pretty print a list of reactions.
 
 # Arguments
 
-  - `SM`: StoichMatrix.
+  - `reactions`: the reactions, e.g. `reactions(SM)` for a `StoichMatrix`.
 
 # Examples
 

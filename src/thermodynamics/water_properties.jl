@@ -6,16 +6,14 @@
 
 using ForwardDiff
 
-"""
-    water_properties.jl
-
-Water thermodynamic and electrostatic properties using:
-- the HGK equation of state of [Haar1984](@citet) for density and derivatives
-- the dielectric constant model of [JohnsonNorton1991](@citet) and Born functions
-- the g-function of [Shock1992](@citet) for electrostatic corrections
-
-All functions are AD-compatible (ForwardDiff.Dual-safe).
-"""
+# Water thermodynamic and electrostatic properties using:
+# - the HGK equation of state of Haar et al. (1984) for density and derivatives;
+# - the dielectric constant model of Johnson and Norton (1991) and Born functions;
+# - the g-function of Shock et al. (1992) for electrostatic corrections.
+#
+# The functions accept dual numbers, nested ones included. The density is solved
+# on plain numbers and lifted into the duals (`water_density_hgk`), so symbolic
+# numbers do not pass through it.
 
 # ============================================================
 #  Public structs
@@ -502,12 +500,6 @@ largest root without overshooting it; failing a liquid root, from the side of th
 dilute gas. It is then lifted into the dual numbers of `T_K` and `P_Pa` by two
 Newton steps: the value does not move, and the derivatives are exact to second
 order, as the implicit-function theorem gives them.
-
-Before 0.34.0 the iteration also stopped where the product of the residual and
-its derivative fell below its tolerance, which accepted a stationary point of the
-squared residual that is not a root: at 0 °C and 5 kbar it returned 150.8 kg/m³
-for 1152.6, at 350 °C and 1 bar the spinodal density of the liquid, and at high
-pressure a density good to ``10^{-4}`` only.
 """
 function water_density_hgk(T_K::Real, P_Pa::Real; D0::Real = 1000.0)
     ρ = _hgk_density_root(_hgk_value(T_K), _hgk_value(P_Pa), Float64(D0)) + zero(T_K) + zero(P_Pa)

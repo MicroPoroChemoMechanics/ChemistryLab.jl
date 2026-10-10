@@ -105,6 +105,17 @@ function _area_si(unit::UnionAbstractQuantity, x::UnionAbstractQuantity, what::A
     end
 end
 
+# ── Why every struct here carries an inner constructor ────────────────────────
+#
+# Julia generates `Foo(x::T) where {T}` for a parametric struct, and that
+# generated method is *more specific* than an outer `Foo(x)` written with an
+# untyped argument. So the unit conversion and the refusal below were dead code
+# for every plain `Real`: `BETSurfaceArea(90)` went straight to the generated
+# constructor and came back as `BETSurfaceArea{Int64}`, unvalidated. Defining an
+# inner constructor suppresses the generated ones, which makes the outer
+# constructor the only way in — the point being that a check placed outside a
+# constructor is a check that can be walked around.
+
 # ── FixedSurfaceArea ──────────────────────────────────────────────────────────
 
 """
@@ -131,18 +142,6 @@ FixedSurfaceArea{Float64}(0.05)
 
 See also: [`BETSurfaceArea`](@ref), [`total_area`](@ref).
 """
-
-# ── Why every struct here carries an inner constructor ────────────────────────
-#
-# Julia generates `Foo(x::T) where {T}` for a parametric struct, and that
-# generated method is *more specific* than an outer `Foo(x)` written with an
-# untyped argument. So the unit conversion and the refusal below were dead code
-# for every plain `Real`: `BETSurfaceArea(90)` went straight to the generated
-# constructor and came back as `BETSurfaceArea{Int64}`, unvalidated. Defining an
-# inner constructor suppresses the generated ones, which makes the outer
-# constructor the only way in — the point being that a check placed outside a
-# constructor is a check that can be walked around.
-
 struct FixedSurfaceArea{T <: Real} <: AbstractSurfaceModel
     A::T
     FixedSurfaceArea{T}(A::Real) where {T <: Real} = new{T}(convert(T, A))
@@ -153,9 +152,8 @@ end
 
 Build a [`FixedSurfaceArea`](@ref) from a total area.
 
-`A` is a plain `Real` in m², or a `Quantity` convertible to m². Unlike the
-previous implementation the element type is **kept**, so a `ForwardDiff.Dual`
-area differentiates through.
+`A` is a plain `Real` in m², or a `Quantity` convertible to m². The element type
+is **kept**, so a `ForwardDiff.Dual` area differentiates through.
 """
 function FixedSurfaceArea(A)
     a = _area_si(us"m^2", A, "FixedSurfaceArea")
@@ -550,11 +548,10 @@ model.
 
 # What this factorizes
 
-The rate factories used to carry a surface model and rediscover the mineral it
-belonged to from the reaction, through a helper that fell back to **0.1 kg/mol**
-when the species had no molar mass — silently, and wrong by up to an order of
-magnitude. A `SurfaceSupport` names the host once, so the molar mass is looked up once
-and its absence is an error that names the species.
+A rate factory needs the mineral a surface model belongs to. A `SurfaceSupport`
+names that host once, so its molar mass is looked up once, and its absence is an
+error that names the species rather than a default molar mass, silently wrong by
+up to an order of magnitude.
 
 The same object is what a family of surface sites will hang from, which is why
 it lives here rather than in the kinetics: one support, one area, whether what
@@ -599,7 +596,7 @@ struct SurfaceSupport{M <: AbstractSurfaceModel}
 end
 
 """
-    SurfaceSupport(name, host, area; coupling = SITES_FIXED) -> SurfaceSupport
+    SurfaceSupport(name, host, area; coupling = SITES_FIXED, external = false) -> SurfaceSupport
     SurfaceSupport(name, area; coupling = SITES_FIXED, external = false) -> SurfaceSupport
 
 Build a [`SurfaceSupport`](@ref). The two-argument form leaves the host unset, for a

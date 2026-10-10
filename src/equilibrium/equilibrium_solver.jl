@@ -20,7 +20,7 @@ Construct once, call repeatedly with different `ChemicalState` inputs.
 
 # Fields
 
-  - `μ`: chemical potential closure `μ(n, p) -> Vector{Float64}`.
+  - `μ`: chemical potential closure `μ(n, p) -> Vector`, in the number type of `n` and `p`.
   - `solver`: any Optimization.jl-compatible solver (e.g. `IpoptOptimizer()`).
   - `variable_space`: variable space — `Val(:linear)` or `Val(:log)`.
   - `kwargs`: solver keyword arguments forwarded to `solve`.

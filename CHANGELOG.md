@@ -103,6 +103,20 @@ They are corrected here, each with a test that failed before.
   and bounded. That a problem or a solver is not to be shared between threads
   solving at once is written in their docstrings.
 
+### Documentation
+
+- Docstrings that disagreed with their code are corrected: missing keywords
+  (`Reaction`'s `symbol`, `ChemicalSystem`'s `site_families`, `StoichMatrix`'s
+  `optimize_primaries` and `kinetic_species`, `ThermoFactory`'s `output_unit`,
+  `glass_enthalpy`'s `ignore`, `ParrottKillohExtent`'s `horizon_days`,
+  `SiteFamily`'s `model`, `DiffuseLayer`'s `scale`, `SurfaceSupport`'s
+  `external`), return types still given as `Float64`, the examples of `+` and
+  `-` on species and reactions, `calculate_molar_mass` in kg/mol, and stale
+  counts. Seven docstrings separated from their code by a comment, and so never
+  shown, are attached again.
+- Accounts of earlier versions are removed from the pages, the docstrings and
+  the comments; the CHANGELOG keeps them.
+
 ## v0.37.0 — Any thermodynamic database imported, none stored in the package
 
 A thermodynamic database can now be read in any of the formats in common use:

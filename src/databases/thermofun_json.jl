@@ -280,16 +280,10 @@ function temperature_range(s::AbstractSpecies)
     return (Float64(r[1]), Float64(r[2]))
 end
 
-"""
-    complete_species_with_thermo_model!(species, row; verbose=false)
-
-Populate thermodynamic reference values and build thermodynamic functions on `species`
-from a ThermoFun substance DataFrame `row`. Mutates `species.properties` in place.
-"""
 # ThermoFun's standard reference state is 298.15 K and 1 bar, and a record that
 # omits it is referred to that state: one substance of the slop98 organic
-# database, `Eth@`, carries no `Tst`. Read as missing, it made the whole database
-# unreadable.
+# database, `Eth@`, carries no `Tst`, and read as missing it would make the whole
+# database unreadable.
 const _THERMOFUN_TST = T_STANDARD
 const _THERMOFUN_PST = P_STANDARD
 _reference_value(row, key, default) = (
@@ -320,6 +314,12 @@ const _THERMOFUN_EQUIVALENT_METHODS = (
     "standard_entropy_cp_integration", "water_diel_jnort91_reaktoro", "fluid_comp_redlich_kwong_hp91",
 )
 
+"""
+    complete_species_with_thermo_model!(species, row; verbose=false)
+
+Populate thermodynamic reference values and build thermodynamic functions on `species`
+from a ThermoFun substance DataFrame `row`. Mutates `species.properties` in place.
+"""
 function complete_species_with_thermo_model!(species, row; verbose = false)
     Tst = _reference_value(row, :Tst, _THERMOFUN_TST)
     Tref = Tst * u"K"
@@ -443,7 +443,8 @@ Build Species objects from a substance DataFrame: that of a ThermoFun file
 ([`read_phreeqc_database`](@ref), [`read_gwb_database`](@ref),
 [`read_eq36_database`](@ref)) or of a database of Reaktoro
 ([`read_reaktoro_database`](@ref)). The substances named in `list_symbols` are
-looked up by their symbol, or by their name in the database.
+looked up by their symbol, and in a database of reactions or of Reaktoro also by
+their name in the database.
 
 # Arguments
 
@@ -785,7 +786,7 @@ function complete_reaction_with_thermo_model!(reaction, row; verbose = false)
 end
 
 """
-    build_reactions(df_reactions::AbstractDataFrame, dict_species=Dict(), list_symbols=nothing; verbose=false) -> Vector{Reaction}
+    build_reactions(df_reactions::AbstractDataFrame, species_list=[], list_symbols=nothing; verbose=false) -> Vector{Reaction}
 
 Build Reaction objects from a reaction DataFrame.
 
@@ -864,7 +865,9 @@ Find species in the database compatible with a given list of species (sharing at
 
 # Arguments
 
-  - `df_substances`: substance DataFrame.
+  - `df_substances`: substance DataFrame of a ThermoFun database, as
+    `read_thermofun_database` returns it: its `aggregate_state` column holds
+    ThermoFun's one-entry dictionaries, which the filter reads.
   - `species_list`: list of target species symbols.
   - `aggregate_states`: filter for specific aggregate states (default: `[AS_AQUEOUS]`).
   - `exclude_species`: list of species symbols to exclude.

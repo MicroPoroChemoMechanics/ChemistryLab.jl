@@ -7,7 +7,7 @@
 # and that is where they come from here. Writing `8.31446261815324` into a
 # formula is wrong in three ways at once: it is a magic number a reader has to
 # recognize, it silently asserts a unit system, and the next occurrence of it
-# drifts from the first. There were nine of them in this package.
+# drifts from the first.
 #
 # Both forms are provided because both are needed and the difference matters.
 # The DIMENSIONAL constant is the one to use when a quantity carries units; the

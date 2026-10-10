@@ -83,13 +83,6 @@ end
 
 # ── solve(EquilibriumSolver{OptimaOptimizer}, ChemicalState) ──────────────────
 
-"""
-    SciMLBase.solve(esolver::EquilibriumSolver{<:Function, <:OptimaOptimizer},
-                   state::ChemicalState; ϵ=1e-16) -> ChemicalState
-
-Solve a chemical equilibrium problem using an `OptimaOptimizer` solver.
-Loaded automatically when `using OptimaSolver` is active.
-"""
 # The first parameter is bounded as the struct bounds it, and this is what makes
 # the method reachable at all once `OptimizationIpoptExt` is loaded. That
 # extension defines `solve(::EquilibriumSolver, ::ChemicalState)` for every
@@ -104,6 +97,26 @@ Loaded automatically when `using OptimaSolver` is active.
 # returned a start 2e-3 mol away from this method's, which the dual solve could
 # not certify, and a certified solve that costs 0.7 s here cost 34 to 78 s
 # there. The documentation loads Ipopt, so every page paid it.
+"""
+    SciMLBase.solve(esolver::EquilibriumSolver{<:Function, <:OptimaOptimizer},
+                    state::ChemicalState; ϵ = _AMOUNT_FLOOR, b = nothing,
+                    certificate = nothing, polish = _POLISH[]) -> ChemicalState
+
+Solve a chemical equilibrium problem using an `OptimaOptimizer` solver.
+Loaded automatically when `using OptimaSolver` is active.
+
+  - `ϵ`: the floor of the amounts, applied to the start and to the answer.
+  - `b`: the element budget; the state's own when `nothing`, and otherwise the
+    totals the answer holds, the state supplying only the start, `T` and `P`.
+  - `certificate`: a `Ref` that receives the certificate of the answer returned,
+    or `nothing` when none was computed.
+  - `polish`: polish the answer by the dual Newton and certify it
+    ([`_POLISH`](@ref)).
+
+A state, budget, data or activity model carrying dual numbers is solved on its
+values and the answer lifted by the implicit-function theorem
+([`_solve_dual`](@ref)).
+"""
 function SciMLBase.solve(
         esolver::EquilibriumSolver{<:Function, <:OptimaOptimizer},
         state::ChemicalState;

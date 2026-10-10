@@ -5,7 +5,7 @@ using LinearAlgebra
 using OrderedCollections
 
 """
-    struct ChemicalSystem{T<:AbstractSpecies, R<:AbstractReaction, C, S, SS} <: AbstractVector{T}
+    struct ChemicalSystem{T<:AbstractSpecies, R<:AbstractReaction, C, S, SS, SF} <: AbstractVector{T}
 
 An immutable, fully typed collection of chemical species and reactions
 with derived index structures and stoichiometric matrices.
@@ -25,14 +25,14 @@ construct a new `ChemicalSystem`.
   - `dict_reactions`: fast O(1) lookup by reaction symbol.
   - `CSM`: canonical stoichiometric matrix.
   - `SM`: stoichiometric matrix with respect to primaries.
-  - `solid_solutions`: `Nothing` when no solid solutions are present, or a concrete
-    `Vector{<:AbstractSolidSolutionPhase}` describing each solid-solution phase and
+  - `solid_solutions`: `Nothing` when no solid solutions are present, or a
+    `Vector{AbstractSolidSolutionPhase}` describing each solid-solution phase and
     its end-members. Populated via the `solid_solutions` keyword constructor.
   - `ss_groups`: for each solid solution, the indices of its end-members in `species`.
   - `idx_ssendmembers`: union of all end-member indices (flattened `ss_groups`).
   - `idx_surface`: indices of species in `AS_SURFACE`, i.e. bound to a site.
-  - `site_families`: `Nothing` when no surface is declared, or a concrete
-    `Vector{<:SiteFamily}`. Populated through the `site_families` keyword.
+  - `site_families`: `Nothing` when no surface is declared, or a
+    `Vector{SiteFamily}`. Populated through the `site_families` keyword.
   - `site_groups`: for each family, the indices of its members in `species`, the
     **free site first** — the order the site mixing and the solver's reference
     member both rely on.
@@ -427,8 +427,8 @@ question the rank test upstream already refuses.
 
 **Composition cannot see every pair, so a second test reads the database's own
 models.** `CSHQ` and `CNASH_ss` share no composition — no end-member of one is a
-substance of the other — and until 0.25.1 the pair passed, the gel counted
-twice without a word. `data/gel_models.toml` lists the end-member symbols of each
+substance of the other, so on composition alone the pair would pass and the gel
+be counted twice without a word. `data/gel_models.toml` lists the end-member symbols of each
 model of one gel, and two declared phases whose end-members belong to two
 different models of the same gel are refused, naming both models. Matching is by
 symbol, so it does not depend on the name a phase is declared under.
@@ -753,7 +753,7 @@ function _refuse_mixed_gauges(species)
 end
 
 """
-    ChemicalSystem(species, primaries=species; kinetic_species, solid_solutions) -> ChemicalSystem
+    ChemicalSystem(species, primaries=species; kinetic_species, solid_solutions, site_families) -> ChemicalSystem
 
 Construct a fully typed `ChemicalSystem` from a vector of species,
 an optional vector of primary species, optional kinetic species with rates,
@@ -777,6 +777,9 @@ consistent for the lifetime of the object.
   - `solid_solutions`: vector of [`SolidSolutionPhase`](@ref) (default: `nothing`).
     When provided, end-members must already appear in `species` (matched by symbol) and
     must carry `aggregate_state = AS_CRYSTAL` and `class = SC_SSENDMEMBER`.
+  - `site_families`: vector of [`SiteFamily`](@ref) (default: `nothing`), the
+    surfaces of the system; their members must already appear in `species`
+    (matched by symbol).
 
 # Examples
 ```jldoctest
@@ -943,7 +946,7 @@ function ChemicalSystem(
 end
 
 """
-    ChemicalSystem(species, primaries::AbstractVector{<:AbstractString}; kinetic_species, solid_solutions) -> ChemicalSystem
+    ChemicalSystem(species, primaries::AbstractVector{<:AbstractString}; kinetic_species, solid_solutions, site_families) -> ChemicalSystem
 
 Convenience constructor that resolves primary species from their symbol strings.
 

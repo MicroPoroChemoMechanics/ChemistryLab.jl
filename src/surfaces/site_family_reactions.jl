@@ -46,9 +46,8 @@ of the host; [`host_coupling_bias`](@ref) explains why.
 A published surface constant carries no reaction enthalpy, and `log K` is then
 held at every temperature, as PHREEQC holds a constant given without one: the
 energy of each complex follows the aqueous species of its reaction (ASSUMED:
-`ΔᵣH = 0`). Until 0.35 the energies were constants evaluated at `T` and `P`,
-which moved `log K` with the aqueous species instead; `T` and `P` are kept for
-compatibility and no longer change the answer.
+`ΔᵣH = 0`). The keywords `T` and `P` are accepted for compatibility and do not
+change the answer.
 
 # Examples
 

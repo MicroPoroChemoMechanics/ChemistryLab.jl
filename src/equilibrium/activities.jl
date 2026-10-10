@@ -189,7 +189,7 @@ struct DiluteSolutionModel <: AbstractActivityModel end
 """
     activity_model(cs::ChemicalSystem, ::DiluteSolutionModel) -> Function
 
-Return a closure `lna(n, p) -> Vector{Float64}` computing the vector of
+Return a closure `lna(n, p) -> Vector` computing the vector of
 log-activities for the dilute ideal solution model.
 
 The returned function has signature `lna(n, p)` where:
@@ -259,7 +259,7 @@ end
 """
     build_potentials(cs::ChemicalSystem, model::AbstractActivityModel) -> Function
 
-Return a closure `μ(n, p) -> Vector{Float64}` computing dimensionless chemical
+Return a closure `μ(n, p) -> Vector` computing dimensionless chemical
 potentials `μ_i / RT` for all species.
 
 ``\\mu_i / RT = \\Delta_a G_i^0 / RT + \\ln a_i``
