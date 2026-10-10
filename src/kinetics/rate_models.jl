@@ -11,7 +11,7 @@ using OrderedCollections
 # ── StateView ─────────────────────────────────────────────────────────────────
 
 """
-    StateView{T, I <: AbstractDict}
+    StateView{T, V <: AbstractVector{T}, I <: AbstractDict}
 
 Thin wrapper giving O(1) named access to a species data vector.
 
@@ -37,8 +37,8 @@ julia> haskey(sv, "Ca++")
 true
 ```
 """
-struct StateView{T, I <: AbstractDict}
-    data::AbstractVector{T}
+struct StateView{T, V <: AbstractVector{T}, I <: AbstractDict}
+    data::V
     index::I
 end
 

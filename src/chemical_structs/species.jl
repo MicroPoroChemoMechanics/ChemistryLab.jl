@@ -224,14 +224,14 @@ julia> s1.name == "H2O"
 true
 ```
 """
-name(s::AbstractSpecies) = s.name
+name(s::AbstractSpecies) = getfield(s, :name)
 
 """
     symbol(s::AbstractSpecies) -> String
 
 Return the symbol of the species.
 """
-symbol(s::AbstractSpecies) = s.symbol
+symbol(s::AbstractSpecies) = getfield(s, :symbol)
 
 """
     formula(s::AbstractSpecies) -> Formula
@@ -247,7 +247,7 @@ julia> formula(s1) == Formula("H2O")
 true
 ```
 """
-formula(s::AbstractSpecies) = s.formula
+formula(s::AbstractSpecies) = getfield(s, :formula)
 
 """
     atoms(s::AbstractSpecies) -> OrderedDict{Symbol,Number}
@@ -286,21 +286,21 @@ julia> aggregate_state(s1) == AS_AQUEOUS
 true
 ```
 """
-aggregate_state(s::AbstractSpecies) = s.aggregate_state
+aggregate_state(s::AbstractSpecies) = getfield(s, :aggregate_state)
 
 """
     class(s::AbstractSpecies) -> Class
 
 Return the chemical class of the species.
 """
-class(s::AbstractSpecies) = s.class
+class(s::AbstractSpecies) = getfield(s, :class)
 
 """
     properties(s::AbstractSpecies) -> OrderedDict{Symbol,PropertyType}
 
 Return the properties dictionary of the species.
 """
-properties(s::AbstractSpecies) = s.properties
+properties(s::AbstractSpecies) = getfield(s, :properties)
 
 """
     check_mendeleev(s::AbstractSpecies) -> Bool
@@ -363,24 +363,31 @@ julia> s[:N]
 ```
 """
 function Base.getindex(s::AbstractSpecies, i::Symbol)
-    coef = get(components(s), i, get(atoms(s), i, get(properties(s), i, nothing)))
-    if isnothing(coef)
-        # The thermodynamic functions are built on demand, and `getproperty`
-        # already knows that. `getindex` did not, so `s[:Cp⁰]` returned the
-        # not-found value 0 on any species whose functions had not been forced
-        # yet — silently, and as an `Int64` that blows up only when the caller
-        # tries to evaluate it. Returning 0 is right for a missing ATOM, which is
-        # what that fallback is for; it is never right for a property that the
-        # species can produce.
-        if i in [:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰, :V⁰]
-            complete_thermo_functions!(s)
-            haskey(properties(s), i) && return properties(s)[i]
-        end
-        # println("$(i) not found in $(root_type(typeof(s))) $(colored(s))")
-        return 0
+    # The components (the charge as `:Zz`), the atoms, then the properties, each
+    # looked up only if the one before misses, and none copied.
+    v = _component(s, i)
+    v === nothing || return v
+    v = get(atoms(s), i, nothing)
+    v === nothing || return v
+    v = get(properties(s), i, nothing)
+    v === nothing || return v
+    # The thermodynamic functions are built on demand: 0 is the answer for a
+    # missing atom, never for a property the species can produce.
+    if i in _THERMO_FUNCTIONS
+        complete_thermo_functions!(s)
+        haskey(properties(s), i) && return properties(s)[i]
     end
-    return coef
+    return 0
 end
+
+# The standard functions a species builds on first use.
+const _THERMO_FUNCTIONS = (:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰, :V⁰)
+
+# `get(components(s), i, nothing)` without building `components(s)`, which
+# copies the composition of a charged species to add its charge (methods for
+# `Species` and `CemSpecies` beside their `components`).
+_component(s::AbstractSpecies, i::Symbol) = get(components(s), i, nothing)
+_with_charge(d, z, i::Symbol) = (i === :Zz && !iszero(z)) ? z : get(d, i, nothing)
 
 """
     Base.setindex!(s::AbstractSpecies, value, i::Symbol)
@@ -397,10 +404,10 @@ Access species fields or registered properties.
 Throws an error if the symbol is neither a field nor a property.
 """
 function Base.getproperty(s::AbstractSpecies, sym::Symbol)
-    if sym in fieldnames(typeof(s))
+    if hasfield(typeof(s), sym)
         return getfield(s, sym)
     else
-        if !haskey(properties(s), sym) && sym in [:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰, :V⁰]
+        if !haskey(properties(s), sym) && sym in _THERMO_FUNCTIONS
             complete_thermo_functions!(s)
         end
         return properties(s)[sym]
@@ -416,7 +423,7 @@ function Base.haskey(s::AbstractSpecies, sym::Symbol)
     if haskey(properties(s), sym)
         return true
     else
-        if sym in [:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰, :V⁰]
+        if sym in _THERMO_FUNCTIONS
             complete_thermo_functions!(s)
             return haskey(properties(s), sym)
         else
@@ -434,7 +441,7 @@ Throws an error if attempting to modify a structural field directly.
 """
 function Base.setproperty!(s::AbstractSpecies, sym::Symbol, value)
     if !ismissing(value)
-        if sym in fieldnames(typeof(s))
+        if hasfield(typeof(s), sym)
             error(
                 "Cannot modify field '$sym' directly. Use constructor or dedicated methods."
             )
@@ -535,13 +542,14 @@ colored(s::Species) = colored(formula(s))
 Return the components of a Species (atomic composition with charge).
 """
 components(s::Species) = atoms_charge(s)
+_component(s::Species, i::Symbol) = _with_charge(atoms(s), charge(s), i)
 
 """
     mainformula(s::Species) -> Formula
 
 Return the main formula representation for the species.
 """
-mainformula(s::Species) = s.formula
+mainformula(s::Species) = getfield(s, :formula)
 
 """
     Species(formula::Formula; name, symbol, aggregate_state, class, properties) -> Species
@@ -917,14 +925,14 @@ end
 
 Return the oxide notation formula of the cement species.
 """
-cemformula(s::CemSpecies) = s.cemformula
+cemformula(s::CemSpecies) = getfield(s, :cemformula)
 
 """
     mainformula(s::CemSpecies) -> Formula
 
 Return the main formula representation (oxide notation) for the cement species.
 """
-mainformula(s::CemSpecies) = s.cemformula
+mainformula(s::CemSpecies) = getfield(s, :cemformula)
 
 """
     expr(s::CemSpecies) -> String
@@ -985,6 +993,7 @@ end
 Return the components of a CemSpecies (oxide composition with charge).
 """
 components(s::CemSpecies) = oxides_charge(s)
+_component(s::CemSpecies, i::Symbol) = _with_charge(oxides(s), charge(s), i)
 
 """
     CemSpecies(cemformula::Formula; name, symbol, aggregate_state, class, properties) -> CemSpecies
@@ -1674,7 +1683,7 @@ function _complete_thermo_functions!(s::AbstractSpecies)
                 end
             end
         end
-        for k in [:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰, :V⁰]
+        for k in _THERMO_FUNCTIONS
             if haskey(dict_params, k) && !ismissing(dict_params[k])
                 s[Symbol(k, "_Tref")] = dict_params[k]
                 if !haskey(properties(s), k)

@@ -646,7 +646,7 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         rates_read_speciation = Ref(false),
         # The last partition solved in `:rhs` mode, keyed by the values of `bₑ`
         # and of the temperature it was solved at.
-        rhs_cache = Ref{Any}(nothing),
+        rhs_cache = Ref{Union{Nothing, _RhsCache}}(nothing),
         # Set while an accessor walks a finished run (`_with_saved_warm_start`):
         # `_rhs_values` then offers the interior point as a last start, which
         # the integration does not need and should not pay for.
@@ -807,6 +807,10 @@ const _EQ_GUESS_FLOOR = 1.0e-10
 # The floor of the warm start of a certified solve in the right-hand side: below
 # what any amount of a partition means, so that the traces keep their potentials.
 const _RHS_GUESS_FLOOR = 1.0e-16
+
+# The last partition `_rhs_values` solved, keyed by the plain element amounts and
+# temperature it was solved at.
+const _RhsCache = NamedTuple{(:b, :T, :n), Tuple{Vector{Float64}, Float64, Vector{Float64}}}
 
 """
     EQ_RESIDUAL_TOL

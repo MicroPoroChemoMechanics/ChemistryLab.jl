@@ -145,14 +145,14 @@ end
 
 Return the symbol string of the reaction.
 """
-symbol(r::Reaction) = r.symbol
+symbol(r::Reaction) = getfield(r, :symbol)
 
 """
     equation(r::Reaction) -> String
 
 Return the equation string of the reaction.
 """
-equation(r::Reaction) = r.equation
+equation(r::Reaction) = getfield(r, :equation)
 
 """
     colored(r::Reaction) -> String
@@ -167,7 +167,7 @@ julia> r = Reaction("CaSO4 = Ca²⁺ + SO4²⁻");
 julia> print(colored(r))  # Returns string with ANSI color codes
 ```
 """
-colored(r::Reaction) = r.colored
+colored(r::Reaction) = getfield(r, :colored)
 
 """
     reactants(r::Reaction) -> OrderedDict
@@ -181,7 +181,7 @@ julia> reactants(Reaction("CaCO3 = CO3-2 + Ca+2")) == Dict(Species("CaCO3") => 1
 true
 ```
 """
-reactants(r::Reaction) = r.reactants
+reactants(r::Reaction) = getfield(r, :reactants)
 
 """
     products(r::Reaction) -> OrderedDict
@@ -195,7 +195,7 @@ julia> products(Reaction("CaCO3 = CO3-2 + Ca+2")) == Dict(Species("CO3-2") => 1,
 true
 ```
 """
-products(r::Reaction) = r.products
+products(r::Reaction) = getfield(r, :products)
 
 """
     charge(r::Reaction)
@@ -209,14 +209,14 @@ julia> charge(Reaction("Fe + 2H2O = FeO2- + 4H+"))
 3
 ```
 """
-charge(r::Reaction) = r.charge
+charge(r::Reaction) = getfield(r, :charge)
 
 """
     equal_sign(r::Reaction) -> Char
 
 Return the equality operator character of the reaction.
 """
-equal_sign(r::Reaction) = r.equal_sign
+equal_sign(r::Reaction) = getfield(r, :equal_sign)
 
 """
     properties(r::Reaction) -> OrderedDict{Symbol,PropertyType}
@@ -230,7 +230,7 @@ julia> properties(Reaction("H2 + O2 = H2O"))
 OrderedDict{Symbol, Union{Missing, AbstractFunc, AbstractString, Function, Number, AbstractVector{<:Number}, AbstractVector{<:Pair{Symbol}}}}()
 ```
 """
-properties(r::Reaction) = r.properties
+properties(r::Reaction) = getfield(r, :properties)
 
 """
     Base.getindex(r::Reaction, i::Symbol) -> Any
@@ -296,7 +296,7 @@ Access reaction fields or registered properties.
 Throws an error if the symbol is neither a field nor a property.
 """
 function Base.getproperty(r::Reaction, sym::Symbol)
-    if sym in fieldnames(typeof(r))
+    if hasfield(typeof(r), sym)
         return getfield(r, sym)
     else
         if !haskey(properties(r), sym) && sym in [:ΔᵣCp⁰, :ΔᵣH⁰, :ΔᵣS⁰, :ΔᵣG⁰, :ΔᵣV⁰, :logK⁰, :logKr]
@@ -337,7 +337,7 @@ julia> setproperty!(Reaction("H2 + O2 = H2O"), :ΔᵣH⁰, -241.8)
 """
 function Base.setproperty!(r::Reaction, sym::Symbol, value)
     if !ismissing(value)
-        if sym in fieldnames(typeof(r))
+        if hasfield(typeof(r), sym)
             error(
                 "Cannot modify field '$sym' directly. Use constructor or dedicated methods."
             )
