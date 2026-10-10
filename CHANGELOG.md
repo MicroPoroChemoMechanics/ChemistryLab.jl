@@ -184,6 +184,12 @@ They are corrected here, each with a test that failed before.
   answer it returns. The lookups of a species no longer copy its composition,
   and `StateView` has concrete fields.
 - The units of a database are parsed once per spelling, not once per record.
+- The ionic strength of an aqueous inversion, which every trial step of the
+  certified solve runs, is searched on one evaluation of its equation per point,
+  value and slope together, where the value and then its derivative were two;
+  the square root of the ionic strength is taken once per evaluation. Cement
+  pastes of the thesis corpus solve 4 to 10 % faster, every answer the same to
+  the bit.
 
 ### Documentation
 
