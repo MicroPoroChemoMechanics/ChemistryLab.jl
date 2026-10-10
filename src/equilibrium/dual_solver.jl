@@ -939,9 +939,9 @@ function _certificate_scope(des::DualEquilibriumSolver, p, n, constraint; Aq = n
             # A compound-energy model is judged with the energies of its members
             # at the temperature of the solve.
             g = ph.model isa CompoundEnergyModel ?
-                [Float64(ForwardDiff.value(p.ΔₐG⁰overRT[findfirst(s -> symbol(s) == symbol(m), cs.species)])) for m in ph.end_members] :
+                [_plain(p.ΔₐG⁰overRT[findfirst(s -> symbol(s) == symbol(m), cs.species)]) for m in ph.end_members] :
                 nothing
-            c = mixing_convexity(ph.model, length(ph.end_members); T = ForwardDiff.value(T), g)
+            c = mixing_convexity(ph.model, length(ph.end_members); T = _plain(T), g)
             c.verdict === :convex && continue
             convex = false
             push!(

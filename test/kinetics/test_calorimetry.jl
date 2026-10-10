@@ -134,6 +134,14 @@ end
     dqdot_dr = ForwardDiff.derivative(r -> heat_rate([kr], [r], 298.15), 1.0e-5)
     @test isapprox(dqdot_dr, -ΔHr_thermo; rtol = 1.0e-6)
 
+    # A heat of reaction being fitted carries its derivative: q̇ = r ΔH, so
+    # ∂q̇/∂ΔH = r. Only `Float64` had a method, and a dual raised.
+    dq_dH = ForwardDiff.derivative(
+        H -> heat_rate([KineticReaction(reaction, dummy_fn, 1, [-1.0, 1.0]; heat_per_mol = H)], rates, 298.15),
+        50_000.0,
+    )
+    @test dq_dH == rates[1]
+
 end
 
 # ── extend_ode! for IsothermalCalorimeter ─────────────────────────────────────
@@ -563,4 +571,13 @@ isdefined(@__MODULE__, :run_ionic_hydration) ||
         heat_release(run.sol, run.kp; times = [0.0, t[end]])
     end
     @test Q[end] ≈ Qr[end] rtol = 1.0e-6
+end
+
+@testset "a heat-loss coefficient being fitted carries its derivative" begin
+    # φ(ΔT) = L ΔT, so ∂φ/∂L = ΔT; `L` was converted to `Float64` and a dual
+    # one raised. The cell's other data keep their number type as well.
+    loss(L) = SemiAdiabaticCalorimeter(; Cp = 1000.0, T_env = 293.15, T0 = 293.15, L = L).heat_loss(2.0)
+    @test ForwardDiff.derivative(loss, 0.5) == 2.0
+    cal = SemiAdiabaticCalorimeter(; Cp = 1000.0, T_env = 293.15, T0 = ForwardDiff.Dual(300.0, 1.0), L = 0.5)
+    @test ForwardDiff.partials(extend_u0([1.0, 2.0], cal)[end])[1] == 1.0
 end

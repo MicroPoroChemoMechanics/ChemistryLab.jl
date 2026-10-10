@@ -58,6 +58,41 @@ They are corrected here, each with a test that failed before.
   the balance. The problem is now built in the amounts whatever the variable
   space, the formulation the interior point is made for, with the same minimum;
   `Val(:log)` is still served as it is to Ipopt.
+- Derivatives that raised or were dropped, each now carried in the number type
+  of what it comes from (a parameter being fitted, a temperature, a
+  composition), with a test against an exact identity:
+  - the heat of reaction of a kinetic reaction given as a dual number, and the
+    constants of a calorimeter (heat-loss coefficient, initial temperature, heat
+    capacity), which were converted to `Float64`; a semi-adiabatic cell whose
+    initial and ambient temperatures differ in number type (a dual and a plain
+    one, or an integer and a float) had no constructor;
+  - the Peng–Robinson gas phase: critical constants, acentric factor and
+    binary interaction parameters;
+  - the molar volumes of `PoreHumidity`, at a dual temperature or reference
+    state;
+  - the Pitzer parameters: a set given as dictionaries mixing one dual value
+    with plain ones was converted to `Float64` (the number type was read off
+    the dictionaries' value type, `Real`), and the tables filled a missing
+    entry with a `Float64` zero beside dual ones, a `Matrix{Real}`;
+  - a datum of the HKF equation of state given as a plain number;
+  - the `log K` of a sorption reaction, the charge distribution of CD-MUSIC
+    and the pressure a diffuse layer or charge planes follow their
+    permittivity at;
+  - `volume_fractions`, which ignored the number type of the molar volumes
+    (temperature, pressure, data);
+  - `glass_species` and `glass_enthalpy`, at dual mass fractions;
+  - nested differentiation where a value was peeled one level of duals deep
+    and then converted to `Float64` (the convexity verdict of a solid solution,
+    the reference temperature of a rate law).
+- The accessors that read a run back by solving on its values (`heat_flow`,
+  `cumulative_heat`, `temperature_profile`, the heat flow of `heat_release`
+  under partial equilibrium) return values only: on a run carrying dual numbers
+  they now say so once, rather than dropping the derivative in silence.
+- `kinetic_step` and `kinetic_step_adaptive` work on plain numbers and now say
+  so when handed dual ones, naming `integrate` for the derivatives of a run;
+  they failed further down on a plain buffer. A conservation matrix carrying
+  dual numbers (a site capacity being differentiated) is refused by name when a
+  `KineticsProblem` is built, where it failed on its conversion.
 
 ## v0.37.0 — Any thermodynamic database imported, none stored in the package
 

@@ -64,7 +64,7 @@ struct KineticReaction{R <: AbstractReaction, F, H}
     rate_fn::F           # KineticFunc or compatible callable
     idx_mineral::Int
     stoich::Vector{Float64}    # stoich coefficients for all species in system
-    heat_per_mol::H            # Nothing or Float64: enthalpy [J/mol], positive = exothermic
+    heat_per_mol::H            # Nothing or a Real: enthalpy [J/mol], positive = exothermic
 
     function KineticReaction{R, F, H}(
             reaction::R,
@@ -392,7 +392,7 @@ end
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
-# Convert heat_per_mol to Float64 SI [J/mol], or return nothing.
+# heat_per_mol in SI [J/mol], in the number type it is given in, or nothing.
 _strip_heat_per_mol(::Nothing) = nothing
 _strip_heat_per_mol(h) = float(safe_ustrip(us"J/mol", h))
 

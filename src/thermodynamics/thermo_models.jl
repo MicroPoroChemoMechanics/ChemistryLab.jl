@@ -233,9 +233,10 @@ See the theory page *Formation quantities and the database*, section
 function _build_hkf_thermo_functions(params)
     dp = Dict(params)
 
-    # Extract SI values (strip units if present)
+    # Extract SI values (strip units if present), in the number type they come
+    # in: a datum being fitted carries its derivative.
     _strip(x::AbstractQuantity) = ustrip(uexpand(x))
-    _strip(x::Real) = Float64(x)
+    _strip(x::Real) = float(x)
 
     a1 = _strip(dp[:a1])
     a2 = _strip(dp[:a2])

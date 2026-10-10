@@ -750,6 +750,9 @@ hydrates each counted once and no reaction stoichiometry to write down. Pass
 certified replay at those instants is already in hand — it is the expensive part,
 and a caller that needs the compositions anyway should not pay for it twice.
 
+`q̇` is computed on the values of the run: on a run carrying dual numbers it
+carries no derivative, and a warning says so once.
+
 # Why this does not read the running composition
 
 The obvious implementation — accumulate the enthalpy the integrator already has
@@ -793,6 +796,7 @@ function heat_release(
     H = [ustrip(us"J", enthalpy(st)) for st in states]
     H0 = reference === nothing ? H[1] : ustrip(us"J", enthalpy(reference))
     Q = H0 .- H
+    _warn_values_only(sol, "the heat flow returned by heat_release")
     q̇ = _heat_rate_of_states(sol, kp, states, times)
     return collect(times), Q, q̇
 end

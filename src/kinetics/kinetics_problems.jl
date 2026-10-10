@@ -153,7 +153,17 @@ function _build_kinetics_problem(
     # row counts differ, and so do the parent's and the sub-system's: `bₑ` must
     # be built on exactly the matrix the solve is posed on, or every step fails
     # on a dimension mismatch.
-    Ae = Float64.(_constraint_matrix(_equilibrium_subsystem(system, idx_eq)))
+    Ac = _constraint_matrix(_equilibrium_subsystem(system, idx_eq))
+    # On plain numbers: the run restores the feasibility of its partition on
+    # this matrix, and a site capacity being differentiated (which makes a
+    # coupled family's entries dual) is not carried through a kinetic run.
+    eltype(Ac) <: ForwardDiff.Dual && throw(
+        ArgumentError(
+            "KineticsProblem: the conservation matrix of the partition carries dual numbers " *
+                "(a site capacity being differentiated); a kinetic run takes it on plain numbers.",
+        ),
+    )
+    Ae = Float64.(Ac)
 
     return KineticsProblem{
         typeof(system), typeof(kin_rxns), typeof(calorimeter),
@@ -341,8 +351,8 @@ so it is unaffected by the presence of `ξ`.
 #
 # A run is differentiated with respect to whatever carries dual numbers: the
 # amounts, temperature or pressure of the initial state, the constants of a
-# calorimeter, the time span, and the parameters a rate law captures (a rate
-# constant handed in as a dual by the function being differentiated). The state
+# calorimeter, and the parameters a rate law captures (a rate constant handed in
+# as a dual by the function being differentiated). The time span is plain. The state
 # of the integrator and every buffer the run writes into its result are of the
 # number type that covers them all. Anything narrower either raises or, worse,
 # drops the derivative: the ODE interface promotes the state only when it finds
@@ -353,10 +363,10 @@ so it is unaffected by the presence of `ξ`.
     _kinetics_number_type(kp) -> Type
 
 The number type of a run of `kp`: `Float64`, or the dual type covering the
-initial state, the time span, the calorimeter and every rate law.
+initial state, the calorimeter and every rate law.
 """
 function _kinetics_number_type(kp::KineticsProblem)
-    R = promote_type(Float64, _amount_number_type(kp.initial_state), typeof(float(kp.tspan[1])))
+    R = promote_type(Float64, _amount_number_type(kp.initial_state))
     for kr in kp.kinetic_reactions
         R = promote_type(R, _captured_number_type(kr.rate_fn), _captured_number_type(kr.heat_per_mol))
     end
@@ -956,7 +966,8 @@ the heat capacity of the cell at equilibrium: the partition `n_e`, solved at
 plain numbers.
 """
 function _cell_residual(p, bv, nkv, n_e, Tv, ΔHv)
-    D = ForwardDiff.Dual{typeof(ForwardDiff.Tag(_cell_residual, Float64)), Float64, 1}
+    V = typeof(Tv)
+    D = ForwardDiff.Dual{typeof(ForwardDiff.Tag(_cell_residual, V)), V, 1}
     Td = D(Tv, ForwardDiff.Partials((1.0,)))
     P = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
     n_d = _lifted_partition(p, n_e, Tv * u"K", P, bv; T = Td * u"K")

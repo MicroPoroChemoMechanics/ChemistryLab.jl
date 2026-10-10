@@ -239,6 +239,21 @@ function kinetic_step(
         parameters::Union{Nothing, Base.RefValue} = nothing,
         certificate::Union{Nothing, Base.RefValue} = nothing,
     )
+    # On plain numbers only, and said at once. On dual numbers the step would
+    # differentiate the iterations of its Newton method, not the step, and it
+    # failed further down on a plain buffer; the derivatives of a kinetic run
+    # are those `integrate` carries along the trajectory.
+    D = promote_type(
+        _amount_number_type(state), _captured_number_type(Δt),
+        (_captured_number_type(kr.rate_fn) for kr in kss.reactions)...,
+    )
+    D <: ForwardDiff.Dual && throw(
+        ArgumentError(
+            "kinetic_step works on plain numbers: the state, the step or a rate law carries " *
+                "dual numbers. Differentiate a kinetic run through `integrate`, whose " *
+                "trajectory carries the derivatives.",
+        ),
+    )
     # Whether to hold the kinetic minerals in the active set is decided by the
     # certificate, not by taste, because neither answer works on both cases.
     #

@@ -150,12 +150,14 @@ function PitzerParameters(;
     )
     Tterm = isempty(temperature) ? Float64 :
         mapreduce(d -> isempty(d) ? Float64 : mapreduce(v -> promote_type(map(typeof, v)...), promote_type, values(d)), promote_type, values(temperature))
+    # The number type of the values themselves, not the value type of their
+    # dictionary: one being fitted among plain ones makes a `Dict{K, Real}`,
+    # whose `float` is `Float64`, and the derivative was refused.
+    vt(d) = mapreduce(typeof, promote_type, values(d); init = float(valtype(d) <: Real && isconcretetype(valtype(d)) ? valtype(d) : Float64))
     T = float(
         promote_type(
-            eltype(values(beta0)), eltype(values(beta1)), eltype(values(beta2)),
-            eltype(values(Cphi)), eltype(values(theta)), eltype(values(psi)),
-            eltype(values(lambda)), typeof(alpha1), typeof(alpha1_22),
-            typeof(alpha2), typeof(b), Tterm,
+            vt(beta0), vt(beta1), vt(beta2), vt(Cphi), vt(theta), vt(psi), vt(lambda),
+            typeof(alpha1), typeof(alpha1_22), typeof(alpha2), typeof(b), Tterm,
         )
     )
     conv(d, K) = Dict{K, T}(k => T(v) for (k, v) in d)
@@ -465,13 +467,15 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
         )
     end
 
-    # Precomputed per-pair tables, Float64 and not differentiated.
+    # Precomputed per-pair tables, in the number type of the parameters: a
+    # missing pair is a zero of that type, so that a parameter being fitted
+    # leaves the table concretely typed.
     npair = (length(cats), length(ans))
     B0 = [get(par.beta0, (sym[c], sym[a]), zero(valtype(par.beta0))) for c in cats, a in ans]
-    B1 = [get(par.beta1, (sym[c], sym[a]), 0.0) for c in cats, a in ans]
-    B2 = [get(par.beta2, (sym[c], sym[a]), 0.0) for c in cats, a in ans]
+    B1 = [get(par.beta1, (sym[c], sym[a]), zero(valtype(par.beta1))) for c in cats, a in ans]
+    B2 = [get(par.beta2, (sym[c], sym[a]), zero(valtype(par.beta2))) for c in cats, a in ans]
     CC = [
-        get(par.Cphi, (sym[c], sym[a]), 0.0) /
+        get(par.Cphi, (sym[c], sym[a]), zero(valtype(par.Cphi))) /
             (2 * sqrt(abs(Int(zv[c]) * Int(zv[a])))) for c in cats, a in ans
     ]
     A1 = [

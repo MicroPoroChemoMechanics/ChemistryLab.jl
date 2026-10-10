@@ -123,6 +123,17 @@ end
     @test thermo[:Cp⁰](; T = 298.15, P = 1.0e5, unit = true) isa AbstractQuantity
 end
 
+@testsection "HKF data being fitted carry their derivatives" begin
+    # A coefficient of the equation of state given as a plain number, here a
+    # dual one: it was read as Float64 and raised. The heat capacity is c₁ plus
+    # terms free of it, so its derivative in c₁ is exactly one.
+    params = _hkf_aloh2_params()
+    c1 = ustrip(last(only(p for p in params if first(p) == :c1)))
+    others = [p for p in params if first(p) != :c1]
+    Cp(x) = build_thermo_functions(:solute_hkf88_reaktoro, vcat(others, [:c1 => x]))[:Cp⁰](; T = 310.0, P = 2.0e5)
+    @test ForwardDiff.derivative(Cp, c1) ≈ 1 rtol = 1.0e-12
+end
+
 @testsection "HKF ForwardDiff compatibility" begin
     params = _hkf_aloh2_params()
     thermo = build_thermo_functions(:solute_hkf88_reaktoro, params)
