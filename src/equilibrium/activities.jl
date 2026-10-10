@@ -796,134 +796,15 @@ If `model.temperature_dependent=true`, `p` must contain `T` (K) and `P` (Pa)
 AD-compatible: all closure computations accept `ForwardDiff.Dual` inputs.
 """
 function activity_model(cs::ChemicalSystem, model::HKFActivityModel)
-
-    # ── Precompute at closure-construction time ────────────────────────────
-    idx_solvent = only(cs.idx_solvent)
-    idx_solutes = cs.idx_solutes
-    idx_gas = cs.idx_gas
-
-    has_gas = !isempty(idx_gas)
-    # The mixing model of the gas phase: ideal, or an equation of state.
-    gas_mix = _gas_mixing(cs)
-    # The solid solutions and the site families, prepared once; see `_MixingTerms`.
-    mix = _MixingTerms(cs)
-
-    M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])   # kg/mol, e.g. 0.018015
-
-    A_fixed = model.A
-    B_fixed = model.B
-    temp_dep = model.temperature_dependent
-
+    zv = Int8[charge(sp) for sp in cs.species]
     # Per-species data, in the number type they are given in: a radius being
     # differentiated is a dual.
-    zv = Int8[charge(sp) for sp in cs.species]
-    åv = _promoted(
-        [
-            iszero(zv[i]) ? 0.0 : _hkf_lookup_å(cs.species[i], model)
-                for i in eachindex(zv)
-        ]
-    )
-    n_sp = lastindex(zv)
-
-    idx_ions = [i for i in idx_solutes if !iszero(zv[i])]
-    idx_neutrals = [i for i in idx_solutes if  iszero(zv[i])]
+    åv = _promoted([iszero(zv[i]) ? 0.0 : _hkf_lookup_å(cs.species[i], model) for i in eachindex(zv)])
     # Setschenow coefficient per neutral species, resolved once (see
     # `_setschenow`): `sp[:Kₙ]` when set, the model's global value otherwise.
-    Kₙv = _promoted(
-        [
-            iszero(zv[i]) ? _setschenow(cs.species[i], model) : 0.0 for i in eachindex(zv)
-        ]
-    )
-    MT = promote_type(_captured_number_type(mix), _captured_number_type(model), eltype(åv), eltype(Kₙv))
-
-    ln10 = log(10.0)
-
-    function lna(n::AbstractVector, p)
-        ϵ = p.ϵ
-        _n = max.(n, _activity_floor(p))
-
-        # ── A and B (fixed or T,P-dependent) ──────────────────────────────
-        if temp_dep && hasproperty(p, :T) && hasproperty(p, :P)
-            AB = hkf_debye_huckel_params(p.T, p.P)
-            A, B = AB.A, AB.B
-        else
-            A, B = A_fixed, B_fixed
-        end
-
-        out = zeros(promote_type(eltype(_n), _number_type_of(p), MT, typeof(A), typeof(B)), n_sp)
-
-        # ── Molality: mᵢ = nᵢ / (n_w × M_w) [mol/kg] ─────────────────────
-        n_w = _n[idx_solvent]
-        denom_mol = n_w * M_w             # kg of solvent
-
-        # ── Ionic strength I = ½ Σ mⱼ zⱼ² ────────────────────────────────
-        I = zero(eltype(_n))
-        @inbounds for i in idx_solutes
-            mᵢ = _n[i] / denom_mol
-            I = I + mᵢ * zv[i]^2
-        end
-        I = I / 2
-        sqrtI = sqrt(I + ϵ)              # regularized to avoid Dual NaN at I=0
-
-        # ── Effective radius å_eff for osmotic coefficient ─────────────────
-        sum_mz2a = zero(eltype(_n))
-        @inbounds for i in idx_ions
-            sum_mz2a = sum_mz2a + (_n[i] / denom_mol) * zv[i]^2 * åv[i]
-        end
-        sum_mz2 = 2 * I                 # Σ mⱼ zⱼ² = 2I by definition
-        # Smooth blend: avoids branching on Dual values at ionic-strength ≈ 0.
-        # The ϵ term only sets the value in the I → 0 limit, where the osmotic
-        # coefficient is 1 regardless; it uses the imposed radius when there is
-        # one so that `å = 0` really means a vanishing `B å √I` everywhere.
-        å_fallback = model.å === nothing ? model.å_default : model.å
-        å_eff = (sum_mz2a + å_fallback * ϵ) / (sum_mz2 + ϵ)
-
-        # ── Ion log-activity coefficients ──────────────────────────────────
-        # The formula lives in `_log10γ_ion`, which `activity_coefficients`
-        # also calls, so the accessor cannot drift from the solver.
-        # `log(mᵢ)` and NOT `log(mᵢ + ϵ)`. `mᵢ` is built from `max.(n, ϵ)`, so
-        # it is already strictly positive and the second regularization only
-        # STACKS: at the floor it returns `log(2ϵ)` where the dilute model
-        # returns `log(ϵ)`, an offset of `ln 2`. Measured, that is how an
-        # amorphous ferric hydroxide sitting at equilibrium came back at
-        # `log SI = 0.298 = ln2/ln10` — the floored `Fe⁺³` is a primary, so
-        # every phase carrying an iron inherited its corrupted potential.
-        @inbounds for i in idx_ions
-            log10γᵢ = _log10γ_ion(model, zv[i], åv[i], I, sqrtI, A, B)
-            mᵢ = _n[i] / denom_mol
-            out[i] = ln10 * log10γᵢ + log(mᵢ)
-        end
-
-        # ── Neutral solute log-activities ──────────────────────────────────
-        @inbounds for i in idx_neutrals
-            log10γᵢ = _log10γ_neutral(model, I, Kₙv[i])
-            mᵢ = _n[i] / denom_mol
-            out[i] = ln10 * log10γᵢ + log(mᵢ)
-        end
-
-        # ── Water activity via osmotic coefficient (Gibbs-Duhem) ───────────
-        sum_m = zero(eltype(_n))
-        @inbounds for i in idx_solutes
-            sum_m = sum_m + _n[i] / denom_mol
-        end
-        x_arg = B * å_eff * sqrtI
-        σ = _hkf_sigma(x_arg)
-        φ = 1 - (A * ln10 / 3) * (sum_mz2 / (sum_m + ϵ)) * sqrtI * σ +
-            (model.Ḃ * ln10 / 2) * I
-        out[idx_solvent] = -M_w * sum_m * φ
-
-        # ── Gas: ideal mixture ─────────────────────────────────────────────
-        has_gas && _gas_lna!(out, _n, idx_gas, p, gas_mix)
-
-        # ── Solid solutions ────────────────────────────────────────────────
-        # Solid solutions and surface sites mix on budgets of their own; leaving
-        # either out would give its members unit activity, silently.
-        _mixing_lna!(out, _n, mix, p, ϵ)
-
-        return out
-    end
-
-    return lna
+    Kₙv = _promoted([iszero(zv[i]) ? _setschenow(cs.species[i], model) : 0.0 for i in eachindex(zv)])
+    kernel = _HKFKernel(model, åv, Kₙv, _ions(cs, zv), _neutrals(cs, zv))
+    return _debye_huckel_lna(cs, zv, kernel, promote_type(_captured_number_type(model), eltype(åv), eltype(Kₙv)))
 end
 
 # ── DaviesActivityModel ───────────────────────────────────────────────────────
@@ -1157,83 +1038,9 @@ model of [Davies1962](@citet). No species-specific ionic radii are required.
 AD-compatible: all closure computations accept `ForwardDiff.Dual` inputs.
 """
 function activity_model(cs::ChemicalSystem, model::DaviesActivityModel)
-
-    idx_solvent = only(cs.idx_solvent)
-    idx_solutes = cs.idx_solutes
-    idx_gas = cs.idx_gas
-
-    has_gas = !isempty(idx_gas)
-    # The mixing model of the gas phase: ideal, or an equation of state.
-    gas_mix = _gas_mixing(cs)
-    # The solid solutions and the site families, prepared once; see `_MixingTerms`.
-    mix = _MixingTerms(cs)
-    MT = promote_type(_captured_number_type(mix), _captured_number_type(model))
-
-    M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
-
-    A_fixed = model.A
-    temp_dep = model.temperature_dependent
-
     zv = Int8[charge(sp) for sp in cs.species]
-    n_sp = lastindex(zv)
-    idx_ions = [i for i in idx_solutes if !iszero(zv[i])]
-    idx_neutrals = [i for i in idx_solutes if  iszero(zv[i])]
-
-    ln10 = log(10.0)
-
-    function lna(n::AbstractVector, p)
-        ϵ = p.ϵ
-        _n = max.(n, _activity_floor(p))
-
-        A = if temp_dep && hasproperty(p, :T) && hasproperty(p, :P)
-            hkf_debye_huckel_params(p.T, p.P).A
-        else
-            A_fixed
-        end
-
-        out = zeros(promote_type(eltype(_n), _number_type_of(p), MT, typeof(A)), n_sp)
-
-        n_w = _n[idx_solvent]
-        denom_mol = n_w * M_w
-
-        # Ionic strength
-        I = zero(eltype(_n))
-        @inbounds for i in idx_solutes
-            I = I + (_n[i] / denom_mol) * zv[i]^2
-        end
-        I = I / 2
-        sqrtI = sqrt(I + ϵ)
-
-        # Ions — `_log10γ_ion` is shared with `activity_coefficients`.
-        @inbounds for i in idx_ions
-            log10γᵢ = _log10γ_ion(model, zv[i], 0.0, I, sqrtI, A, 0.0)
-            mᵢ = _n[i] / denom_mol
-            out[i] = ln10 * log10γᵢ + log(mᵢ)
-        end
-
-        # Neutral solutes
-        @inbounds for i in idx_neutrals
-            mᵢ = _n[i] / denom_mol
-            out[i] = ln10 * _log10γ_neutral(model, I) + log(mᵢ)
-        end
-
-        # Water activity: the Gibbs–Duhem partner of the solutes' terms, the
-        # ideal `−M_w Σm` and the integral `M_w W(I)` of the ionic term.
-        Σm = sum((_n[i] for i in idx_solutes); init = zero(eltype(_n))) / denom_mol
-        out[idx_solvent] = M_w * (_davies_osmotic_W(A, model.b, I, ϵ) - Σm)
-
-        # Gas: ideal mixture
-        has_gas && _gas_lna!(out, _n, idx_gas, p, gas_mix)
-
-        # Solid solutions
-        # Solid solutions and surface sites mix on budgets of their own; leaving
-        # either out would give its members unit activity, silently.
-        _mixing_lna!(out, _n, mix, p, ϵ)
-
-        return out
-    end
-
-    return lna
+    kernel = _DaviesKernel(model, _ions(cs, zv), _neutrals(cs, zv))
+    return _debye_huckel_lna(cs, zv, kernel, _captured_number_type(model))
 end
 
 """
@@ -1395,49 +1202,11 @@ resolved once, at construction.
 AD-compatible: all closure computations accept `ForwardDiff.Dual` inputs.
 """
 function activity_model(cs::ChemicalSystem, model::TruesdellJonesActivityModel)
-    idx_solvent = only(cs.idx_solvent)
-    idx_solutes = cs.idx_solutes
-    idx_gas = cs.idx_gas
-    has_gas = !isempty(idx_gas)
-    # The mixing model of the gas phase: ideal, or an equation of state.
-    gas_mix = _gas_mixing(cs)
-    mix = _MixingTerms(cs)
-    M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
     zv = Int8[charge(sp) for sp in cs.species]
-    n_sp = lastindex(zv)
     # Resolved once: `nothing` for PHREEQC's defaults, the pair otherwise.
     parv = [get(model.parameters, symbol(sp), nothing) for sp in cs.species]
-    MT = promote_type(_captured_number_type(mix), _captured_number_type(model), _captured_number_type(parv))
-    ln10 = log(10.0)
-
-    function lna(n::AbstractVector, p)
-        ϵ = p.ϵ
-        _n = max.(n, _activity_floor(p))
-        A, B = if model.temperature_dependent && hasproperty(p, :T) && hasproperty(p, :P)
-            AB = hkf_debye_huckel_params(p.T, p.P)
-            (AB.A, AB.B)
-        else
-            (model.A, model.B)
-        end
-        out = zeros(promote_type(eltype(_n), _number_type_of(p), MT, typeof(A), typeof(B)), n_sp)
-        n_w = _n[idx_solvent]
-        denom_mol = n_w * M_w
-        I = zero(eltype(_n))
-        @inbounds for i in idx_solutes
-            I += (_n[i] / denom_mol) * zv[i]^2
-        end
-        I /= 2
-        sqrtI = sqrt(I + ϵ)
-        @inbounds for i in idx_solutes
-            out[i] = ln10 * _truesdell_jones(parv[i], zv[i], I, sqrtI, A, B) + log(_n[i] / denom_mol)
-        end
-        n_solutes = sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
-        out[idx_solvent] = _solvent_lna(model.water, n_w, n_w + n_solutes, n_solutes, M_w)
-        has_gas && _gas_lna!(out, _n, idx_gas, p, gas_mix)
-        _mixing_lna!(out, _n, mix, p, ϵ)
-        return out
-    end
-    return lna
+    kernel = _TruesdellJonesKernel(model, parv)
+    return _debye_huckel_lna(cs, zv, kernel, promote_type(_captured_number_type(model), _captured_number_type(parv)))
 end
 
 # ── LLNLActivityModel ────────────────────────────────────────────────────────
@@ -1586,43 +1355,9 @@ aqueous model, at the temperature `p.T` ([`T_STANDARD`](@ref) when `p` carries n
 AD-compatible: all closure computations accept `ForwardDiff.Dual` inputs.
 """
 function activity_model(cs::ChemicalSystem, model::LLNLActivityModel)
-    idx_solvent = only(cs.idx_solvent)
-    idx_solutes = cs.idx_solutes
-    idx_gas = cs.idx_gas
-    has_gas = !isempty(idx_gas)
-    gas_mix = _gas_mixing(cs)
-    mix = _MixingTerms(cs)
-    M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
     zv = Int8[charge(sp) for sp in cs.species]
-    n_sp = lastindex(zv)
-    parv = [_llnl_kind(model, sp) for sp in cs.species]
-    MT = promote_type(_captured_number_type(mix), _captured_number_type(model))
-    ln10 = log(10.0)
-
-    function lna(n::AbstractVector, p)
-        ϵ = p.ϵ
-        _n = max.(n, _activity_floor(p))
-        A, B, Bdot, c1, c2 = _llnl_terms(model, hasproperty(p, :T) ? p.T : T_STANDARD)
-        terms = (B, Bdot, c1, c2)
-        out = zeros(promote_type(eltype(_n), _number_type_of(p), MT, typeof(A), typeof(c1)), n_sp)
-        n_w = _n[idx_solvent]
-        denom_mol = n_w * M_w
-        I = zero(eltype(_n))
-        @inbounds for i in idx_solutes
-            I += (_n[i] / denom_mol) * zv[i]^2
-        end
-        I /= 2
-        sqrtI = sqrt(I + ϵ)
-        @inbounds for i in idx_solutes
-            out[i] = ln10 * _llnl_log10γ(parv[i], zv[i], I, sqrtI, A, terms) + log(_n[i] / denom_mol)
-        end
-        n_solutes = sum((_n[i] for i in idx_solutes); init = zero(eltype(_n)))
-        out[idx_solvent] = _solvent_lna(model.water, n_w, n_w + n_solutes, n_solutes, M_w)
-        has_gas && _gas_lna!(out, _n, idx_gas, p, gas_mix)
-        _mixing_lna!(out, _n, mix, p, ϵ)
-        return out
-    end
-    return lna
+    kernel = _LLNLKernel(model, [_llnl_kind(model, sp) for sp in cs.species])
+    return _debye_huckel_lna(cs, zv, kernel, _captured_number_type(model))
 end
 
 # ── Solid solution activity helpers ───────────────────────────────────────────
@@ -2470,4 +2205,213 @@ function _gibbs_duhem_defect(J::AbstractMatrix, n::AbstractVector)
         r > gd && ((gd, at) = (r, j))
     end
     return (gd, at)
+end
+
+# ── The Debye–Hückel family: one frame, a kernel per model ─────────────────────
+
+# The aqueous phase as every model of the family reads it. The kernels receive
+# this struct and not the functor: Julia does not specialize a method on an
+# argument of a `Function` type that it only passes along, and every field read
+# through the functor would then be dynamic.
+struct _AqueousFrame
+    idx_solvent::Int
+    idx_solutes::Vector{Int}
+    zv::Vector{Int8}
+    M_w::Float64
+end
+
+"""
+    _DebyeHuckelLna{K, G, X, M}
+
+The log activities `lna(n, p)` of a system whose aqueous phase follows a model of
+the Debye–Hückel family: [`HKFActivityModel`](@ref), [`DaviesActivityModel`](@ref),
+[`TruesdellJonesActivityModel`](@ref) and [`LLNLActivityModel`](@ref). The frame
+is the same for all four,
+
+```math
+m_i = \\frac{n_i}{n_w M_w}, \\qquad I = \\tfrac12 \\sum_i m_i z_i^2, \\qquad
+\\ln a_i = \\ln 10 \\, \\log_{10}\\gamma_i(I) + \\ln m_i ,
+```
+
+with `nᵢ` floored at the activity floor, and the solvent row the Gibbs–Duhem
+partner of the solutes' terms. The kernel `K` holds what is the model's own: its
+coefficients `A` and `B` (`_coefficients`), the terms of its solutes
+(`_solute_lna!`) and its solvent row (`_solvent_row`). The gas phase and the
+mixing phases follow (`_gas_lna!`, `_mixing_lna!`). `M` is the number type of the
+data the kernel and the mixing models capture.
+"""
+struct _DebyeHuckelLna{K, G, X, M} <: Function
+    kernel::K
+    aq::_AqueousFrame
+    idx_gas::Vector{Int}
+    gas_mix::G
+    mix::X
+end
+
+function _debye_huckel_lna(cs::ChemicalSystem, zv::Vector{Int8}, kernel, MT::Type)
+    idx_solvent = only(cs.idx_solvent)
+    # The mixing model of the gas phase: ideal, or an equation of state. The
+    # solid solutions and the site families, prepared once; see `_MixingTerms`.
+    gas_mix = _gas_mixing(cs)
+    mix = _MixingTerms(cs)
+    M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
+    M = promote_type(_captured_number_type(mix), MT)
+    aq = _AqueousFrame(idx_solvent, cs.idx_solutes, zv, M_w)
+    return _DebyeHuckelLna{typeof(kernel), typeof(gas_mix), typeof(mix), M}(kernel, aq, cs.idx_gas, gas_mix, mix)
+end
+
+_ions(cs::ChemicalSystem, zv) = [i for i in cs.idx_solutes if !iszero(zv[i])]
+_neutrals(cs::ChemicalSystem, zv) = [i for i in cs.idx_solutes if iszero(zv[i])]
+
+function (f::_DebyeHuckelLna{K, G, X, M})(n::AbstractVector, p) where {K, G, X, M}
+    ϵ = p.ϵ
+    aq = f.aq
+    _n = max.(n, _activity_floor(p))
+    A, B = _coefficients(f.kernel, p)
+    out = zeros(promote_type(eltype(_n), _number_type_of(p), M, _coefficient_type(f.kernel, A, B)), length(aq.zv))
+    n_w = _n[aq.idx_solvent]
+    denom_mol = n_w * aq.M_w            # kg of solvent
+    I = zero(eltype(_n))
+    @inbounds for i in aq.idx_solutes
+        I = I + (_n[i] / denom_mol) * aq.zv[i]^2
+    end
+    I = I / 2
+    sqrtI = sqrt(I + ϵ)                 # regularized to avoid Dual NaN at I = 0
+    _solute_lna!(out, f.kernel, aq, _n, denom_mol, I, sqrtI, A, B)
+    out[aq.idx_solvent] = _solvent_row(f.kernel, aq, _n, n_w, denom_mol, I, sqrtI, A, B, ϵ)
+    isempty(f.idx_gas) || _gas_lna!(out, _n, f.idx_gas, p, f.gas_mix)
+    # Solid solutions and surface sites mix on budgets of their own; leaving
+    # either out would give its members unit activity, silently.
+    _mixing_lna!(out, _n, f.mix, p, ϵ)
+    return out
+end
+
+const _LN10 = log(10.0)
+
+# The coefficients `A` and `B` of the Debye–Hückel term at the temperature and
+# pressure of `p` when the model follows them, its own values otherwise.
+_hkf_AB(model, p) = (model.temperature_dependent && hasproperty(p, :T) && hasproperty(p, :P)) ?
+    hkf_debye_huckel_params(p.T, p.P) : (A = model.A, B = model.B)
+
+# HKF: B-dot ions with a radius per species, salting-out neutrals, the solvent
+# through the osmotic coefficient.
+struct _HKFKernel{T, V, W}
+    model::HKFActivityModel{T}
+    åv::V
+    Kₙv::W
+    idx_ions::Vector{Int}
+    idx_neutrals::Vector{Int}
+end
+_coefficients(k::_HKFKernel, p) = (AB = _hkf_AB(k.model, p); (AB.A, AB.B))
+_coefficient_type(::_HKFKernel, A, B) = promote_type(typeof(A), typeof(B))
+function _solute_lna!(out, k::_HKFKernel, aq::_AqueousFrame, _n, denom_mol, I, sqrtI, A, B)
+    # The formula lives in `_log10γ_ion`, which `activity_coefficients` also
+    # calls, so the accessor cannot drift from the solver. `log(mᵢ)` and not
+    # `log(mᵢ + ϵ)`: `mᵢ` is built from the floored amounts already, and a
+    # second regularization would offset a floored species by `ln 2`.
+    @inbounds for i in k.idx_ions
+        log10γᵢ = _log10γ_ion(k.model, aq.zv[i], k.åv[i], I, sqrtI, A, B)
+        mᵢ = _n[i] / denom_mol
+        out[i] = _LN10 * log10γᵢ + log(mᵢ)
+    end
+    @inbounds for i in k.idx_neutrals
+        log10γᵢ = _log10γ_neutral(k.model, I, k.Kₙv[i])
+        mᵢ = _n[i] / denom_mol
+        out[i] = _LN10 * log10γᵢ + log(mᵢ)
+    end
+    return out
+end
+function _solvent_row(k::_HKFKernel, aq::_AqueousFrame, _n, n_w, denom_mol, I, sqrtI, A, B, ϵ)
+    model = k.model
+    # Effective radius for the osmotic coefficient, a smooth blend that avoids
+    # branching on dual values at an ionic strength near zero; the ϵ term only
+    # sets the value in that limit, where the osmotic coefficient is one, and
+    # uses the imposed radius when there is one, so that `å = 0` means a
+    # vanishing `B å √I` everywhere.
+    sum_mz2a = zero(eltype(_n))
+    @inbounds for i in k.idx_ions
+        sum_mz2a = sum_mz2a + (_n[i] / denom_mol) * aq.zv[i]^2 * k.åv[i]
+    end
+    sum_mz2 = 2 * I                 # Σ mⱼ zⱼ² = 2I by definition
+    å_fallback = model.å === nothing ? model.å_default : model.å
+    å_eff = (sum_mz2a + å_fallback * ϵ) / (sum_mz2 + ϵ)
+    sum_m = zero(eltype(_n))
+    @inbounds for i in aq.idx_solutes
+        sum_m = sum_m + _n[i] / denom_mol
+    end
+    σ = _hkf_sigma(B * å_eff * sqrtI)
+    φ = 1 - (A * _LN10 / 3) * (sum_mz2 / (sum_m + ϵ)) * sqrtI * σ + (model.Ḃ * _LN10 / 2) * I
+    return -aq.M_w * sum_m * φ
+end
+
+# Davies: no ion size; the solvent row integrates the ionic term.
+struct _DaviesKernel{T}
+    model::DaviesActivityModel{T}
+    idx_ions::Vector{Int}
+    idx_neutrals::Vector{Int}
+end
+_coefficients(k::_DaviesKernel, p) = (
+    (k.model.temperature_dependent && hasproperty(p, :T) && hasproperty(p, :P)) ?
+        hkf_debye_huckel_params(p.T, p.P).A : k.model.A,
+    0.0,
+)
+_coefficient_type(::_DaviesKernel, A, B) = typeof(A)
+function _solute_lna!(out, k::_DaviesKernel, aq::_AqueousFrame, _n, denom_mol, I, sqrtI, A, B)
+    @inbounds for i in k.idx_ions
+        log10γᵢ = _log10γ_ion(k.model, aq.zv[i], 0.0, I, sqrtI, A, 0.0)
+        mᵢ = _n[i] / denom_mol
+        out[i] = _LN10 * log10γᵢ + log(mᵢ)
+    end
+    @inbounds for i in k.idx_neutrals
+        mᵢ = _n[i] / denom_mol
+        out[i] = _LN10 * _log10γ_neutral(k.model, I) + log(mᵢ)
+    end
+    return out
+end
+function _solvent_row(k::_DaviesKernel, aq::_AqueousFrame, _n, n_w, denom_mol, I, sqrtI, A, B, ϵ)
+    # The Gibbs–Duhem partner of the solutes' terms: the ideal `−M_w Σm` and the
+    # integral `M_w W(I)` of the ionic term.
+    Σm = sum((_n[i] for i in aq.idx_solutes); init = zero(eltype(_n))) / denom_mol
+    return aq.M_w * (_davies_osmotic_W(A, k.model.b, I, ϵ) - Σm)
+end
+
+# Truesdell–Jones: parameters per species, PHREEQC's water.
+struct _TruesdellJonesKernel{T, V}
+    model::TruesdellJonesActivityModel{T}
+    parv::V
+end
+_coefficients(k::_TruesdellJonesKernel, p) = (AB = _hkf_AB(k.model, p); (AB.A, AB.B))
+_coefficient_type(::_TruesdellJonesKernel, A, B) = promote_type(typeof(A), typeof(B))
+function _solute_lna!(out, k::_TruesdellJonesKernel, aq::_AqueousFrame, _n, denom_mol, I, sqrtI, A, B)
+    @inbounds for i in aq.idx_solutes
+        out[i] = _LN10 * _truesdell_jones(k.parv[i], aq.zv[i], I, sqrtI, A, B) + log(_n[i] / denom_mol)
+    end
+    return out
+end
+_solvent_row(k::_TruesdellJonesKernel, aq::_AqueousFrame, _n, n_w, denom_mol, I, sqrtI, A, B, ϵ) =
+    _phreeqc_water_row(k.model.water, aq, _n, n_w)
+
+# LLNL: a temperature grid for A, B, Ḃ and the CO₂ coefficients, parameters per
+# species, PHREEQC's water. Its "B" is the tuple `(B, Ḃ, c₁, c₂)`.
+struct _LLNLKernel{T, V}
+    model::LLNLActivityModel{T}
+    parv::V
+end
+function _coefficients(k::_LLNLKernel, p)
+    A, B, Bdot, c1, c2 = _llnl_terms(k.model, hasproperty(p, :T) ? p.T : T_STANDARD)
+    return A, (B, Bdot, c1, c2)
+end
+_coefficient_type(::_LLNLKernel, A, terms) = promote_type(typeof(A), typeof(terms[3]))
+function _solute_lna!(out, k::_LLNLKernel, aq::_AqueousFrame, _n, denom_mol, I, sqrtI, A, terms)
+    @inbounds for i in aq.idx_solutes
+        out[i] = _LN10 * _llnl_log10γ(k.parv[i], aq.zv[i], I, sqrtI, A, terms) + log(_n[i] / denom_mol)
+    end
+    return out
+end
+_solvent_row(k::_LLNLKernel, aq::_AqueousFrame, _n, n_w, denom_mol, I, sqrtI, A, terms, ϵ) =
+    _phreeqc_water_row(k.model.water, aq, _n, n_w)
+
+function _phreeqc_water_row(water::Symbol, aq::_AqueousFrame, _n, n_w)
+    n_solutes = sum((_n[i] for i in aq.idx_solutes); init = zero(eltype(_n)))
+    return _solvent_lna(water, n_w, n_w + n_solutes, n_solutes, aq.M_w)
 end
