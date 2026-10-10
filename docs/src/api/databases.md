@@ -6,7 +6,7 @@ Pages = ["databases.md"]
 
 ```@autodocs
 Modules = [ChemistryLab]
-Pages = ["databases/paths.jl", "databases/remote.jl", "databases/derived.jl", "databases/thermofun_json.jl", "databases/phreeqc_reader.jl", "databases/gwb_reader.jl", "databases/eq36_reader.jl", "databases/reaktoro_yaml.jl", "databases/import.jl"]
+Pages = ["databases/paths.jl", "databases/remote.jl", "databases/derived.jl", "databases/thermofun_json.jl", "databases/reaction_tables.jl", "databases/phreeqc_reader.jl", "databases/gwb_reader.jl", "databases/eq36_reader.jl", "databases/reaktoro_yaml.jl", "databases/import.jl"]
 ```
 
 ## Published values
