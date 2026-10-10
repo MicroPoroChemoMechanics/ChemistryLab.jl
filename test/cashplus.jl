@@ -180,6 +180,16 @@ end
     @test all(c[k] == b[k] for k in keys(b) if k != "CaSiO3@")
     @test c["CaSiO3@"]["sm_gibbs_energy"]["values"][1] ≈ -1514140 rtol = 1.0e-12
     @test b["CaSiO3@"]["sm_gibbs_energy"]["values"][1] ≈ -1517556.9 rtol = 1.0e-12
+    # The builder itself, into a scratch directory: the file `datapath` returns
+    # may come from a cache, in which case the build above was not run here.
+    mktempdir() do dir
+        built = JSON.parsefile(ChemistryLab._build_cashplus(datapath("cemdata18-thermofun.json"), joinpath(dir, "cashplus.json")); dicttype = Dict{String, Any})
+        bt = bysym(built)
+        @test keys(bt) == keys(c)
+        @test bt["CaSiO3@"]["sm_gibbs_energy"]["values"][1] ≈ -1514140 rtol = 1.0e-12
+        @test built["thermodataset"] == "cemdata18-cashplus"
+        @test sort(built["cashplus_extension"]["added_substances"]) == sort(collect(setdiff(keys(c), keys(b))))
+    end
     subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-cashplus.json"); verbose = false))
     at25(sp, key, unit) = ustrip(unit, subs[sp][key](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
     # The CaSiO3@ complex holds the reaction properties of Table 9 against the
