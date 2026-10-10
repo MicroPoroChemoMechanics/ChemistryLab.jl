@@ -39,9 +39,11 @@ They are corrected here, each with a test that failed before.
   `Dict{String, Rational{Int}}`: a decimal coefficient is held exactly.
 - **A new exported name**, `element_amounts`: a package defining the same name
   alongside `using ChemistryLab` now sees a conflict.
-- **OptimaSolver 0.8.3 at least.** The suite and the certified solves are
+- **OptimaSolver 0.8.4 at least.** The suite and the certified solves are
   validated against it: its warm-start cache no longer crosses number types,
-  and it returns the best round of a relinearized constraint.
+  it returns the best round of a relinearized constraint, and after a line
+  search that accepts no step it reads the saturation indices at the iterate
+  rather than at the last trial.
 
 ### Added
 
