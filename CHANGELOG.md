@@ -37,6 +37,25 @@ They are corrected here, each with a test that failed before.
 - **`SorptionReaction` is parametric, `SorptionReaction{T}`**, its `log_K` a
   `Traced{T}` in the number type it is given in, and its `stoichiometry` a
   `Dict{String, Rational{Int}}`: a decimal coefficient is held exactly.
+- **A new exported name**, `element_amounts`: a package defining the same name
+  alongside `using ChemistryLab` now sees a conflict.
+
+### Added
+
+- `budget(state)`, the totals of the primaries a solve of `state` conserves,
+  `conservation_matrix(system) * n`, in the number type of the amounts. The
+  pages computed it as `Float64.(cs.SM.A) * n`, which drops the derivatives and
+  is the wrong matrix where a site family follows its host.
+- `element_amounts(state)`, the amount of each atom of the system in a state.
+- `pore_solution(state, model; per = :kg)`, the pore solution of any state, per
+  kilogram of water or per liter of solution; that of a `RecipeState` is now
+  this one.
+- `saturation_indices(state, model, species)`, the indices of solids outside
+  the system, each formed from the primaries by its decomposition.
+- The keyword `species` of `mean_degree_of_hydration`, which averages over the
+  kinetic species named.
+- The docstrings of `equilibrate` and `equilibrate_certified` say that the state
+  given is not modified.
 
 ### Fixed
 

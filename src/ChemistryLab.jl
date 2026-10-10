@@ -198,7 +198,7 @@ module ChemistryLab
         effective_extent, oxide_content, literature_oxides, oxide_material,
         bogue, decompose, reactive_part,
         Recipe, budget, RecipeState, residual_mass, phase_masses, bound_water,
-        pore_solution, ProcessResult, hydrate, blend, titrate, carbonate, add_salt,
+        pore_solution, element_amounts, ProcessResult, hydrate, blend, titrate, carbonate, add_salt,
         leach, process_table, material_template, material_templates, with_extents, with_species, with_enthalpy,
         phase_list, phase_lists, phase_list_system
 

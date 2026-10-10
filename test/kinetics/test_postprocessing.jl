@@ -219,6 +219,12 @@ end
 
     @test_throws ArgumentError mean_degree_of_hydration(sol, kp; weights = :volume)
 
+    # Restricted to one species, the average is that species' degree; to both,
+    # the unrestricted average, to the bit. A name that is not kinetic is refused.
+    @test mean_degree_of_hydration(sol, kp; species = ["C3S"]) ≈ α["C3S"] rtol = 1.0e-14
+    @test mean_degree_of_hydration(sol, kp; species = ("C3S", "C2S")) == ᾱ
+    @test_throws ArgumentError mean_degree_of_hydration(sol, kp; species = ["C3A"])
+
 end
 
 @testset "time-dependent rate laws with a Rosenbrock solver" begin

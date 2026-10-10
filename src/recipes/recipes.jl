@@ -122,6 +122,49 @@ function budget(r::Recipe, cs::ChemicalSystem; t = nothing)
     return (; state = st, b, residual)
 end
 
+"""
+    budget(state::ChemicalState) -> Vector
+
+The budget of `state`: the totals of the system's primaries
+(`state.system.SM.primaries`), `conservation_matrix(system) * n`, the right-hand
+side every equilibrium solve of `state` conserves when it is given no `b`. In the
+number type of the amounts and of the matrix, so that a composition or a site
+density being differentiated carries its derivative.
+
+Where a site family follows its host, the matrix is the solver's own
+[`conservation_matrix`](@ref), not `SM.A`, which would leave the coupling out.
+
+# Examples
+
+```julia
+b = budget(state)                       # what `equilibrate_certified(state)` conserves
+eq, cert = equilibrate_certified(state2; b = budget(state))   # state2 as a start only
+```
+"""
+budget(state::ChemicalState) = conservation_matrix(state.system) * ustrip.(us"mol", state.n)
+
+"""
+    element_amounts(state::ChemicalState) -> OrderedDict{Symbol, <:Real}
+
+The amount, in moles, of each atom of the system in `state`: the rows of its
+canonical stoichiometric matrix (`state.system.CSM`), the elements, the charge
+`:Zz` and any site symbol, summed over every species. In the number type of the
+amounts.
+
+The dissolved part alone, per kilogram of water or per liter of solution, is
+[`pore_solution`](@ref).
+
+# Examples
+
+```julia
+element_amounts(eq)[:Ca]               # mol of calcium in the whole state
+```
+"""
+function element_amounts(state::ChemicalState)
+    CSM = state.system.CSM
+    return OrderedDict(zip(CSM.primaries, CSM.A * ustrip.(us"mol", state.n)))
+end
+
 function _add_reacted!(st, oxides, c::MineralConstituent, mass, m)
     mass > 0 || return nothing
     sym = symbol(c.species)
@@ -428,23 +471,44 @@ end
 """
     pore_solution(rs::RecipeState) -> NamedTuple
 
-The pore solution: `pH` in the activity convention of the solve's model, and
-`elements`, the total molality (mol per kg of water) of each element dissolved,
-all aqueous species counted.
+The pore solution of the recipe's equilibrium,
+`pore_solution(rs.state, rs.model)`.
 """
-function pore_solution(rs::RecipeState)
-    cs = rs.state.system
-    iw = findfirst(==("H2O@"), [symbol(s) for s in cs.species])
-    kgw = _in_unit(us"kg", mass(rs.state, cs.species[iw]))
-    el = OrderedDict{Symbol, promote_type(_realtype(eltype(rs.state.n)), typeof(kgw))}()
+pore_solution(rs::RecipeState) = pore_solution(rs.state, rs.model)
+
+"""
+    pore_solution(state::ChemicalState, model; per = :kg) -> NamedTuple
+
+The pore solution of `state`: `pH` in the activity convention of `model`, and
+`elements`, the total amount of each element dissolved, all solutes counted,
+hydrogen and oxygen left out: per kilogram of water (`per = :kg`, a molality) or
+per liter of solution (`per = :L`, the liquid volume of the state). In the number
+type of the amounts.
+
+# Examples
+
+```julia
+ps = pore_solution(eq, model)
+ps.pH, ps.elements[:Ca]                # mol of dissolved calcium per kg of water
+pore_solution(eq, model; per = :L).elements[:Na]
+```
+"""
+function pore_solution(state::ChemicalState, model::AbstractActivityModel; per::Symbol = :kg)
+    per in (:kg, :L) || throw(ArgumentError("pore_solution: `per` must be :kg or :L, got :$per."))
+    cs = state.system
+    haskey(cs.dict_species, "H2O@") ||
+        throw(ArgumentError("pore_solution: the system has no H2O@, so it has no pore solution."))
+    scale = per === :kg ? _in_unit(us"kg", mass(state, cs.dict_species["H2O@"])) :
+        _in_unit(us"L", volume(state).liquid)
+    el = OrderedDict{Symbol, promote_type(_realtype(eltype(state.n)), typeof(scale))}()
     for i in cs.idx_solutes
-        n = ustrip(us"mol", rs.state.n[i])
+        n = ustrip(us"mol", state.n[i])
         for (e, k) in atoms(cs.species[i])
             (e === :H || e === :O) && continue
-            el[e] = get(el, e, 0.0) + k * n / kgw
+            el[e] = get(el, e, 0.0) + k * n / scale
         end
     end
-    return (; pH = pH(rs.state, rs.model), elements = el)
+    return (; pH = pH(state, model), elements = el)
 end
 
 """

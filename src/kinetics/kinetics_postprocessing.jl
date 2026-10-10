@@ -169,7 +169,8 @@ function degrees_of_hydration(sol, kp::KineticsProblem; times = sol.t)
 end
 
 """
-    mean_degree_of_hydration(sol, kp::KineticsProblem; times = sol.t, weights = :mass) -> Vector{Float64}
+    mean_degree_of_hydration(sol, kp::KineticsProblem; times = sol.t, weights = :mass,
+                             species = nothing) -> Vector{<:Real}
 
 Degree of reaction of the binder as a whole, averaged over the kinetic species.
 
@@ -179,21 +180,38 @@ Degree of reaction of the binder as a whole, averaged over the kinetic species.
     convention used when a single ᾱ is quoted for a cement.
   - `:mole` — weighted by initial moles.
 
+`species`, a collection of symbols, restricts the average to those kinetic
+species (the clinker phases of a blend without its slag, for instance); a symbol
+that is not a kinetic species of `kp` is refused.
+
 Only species with a non-zero initial amount take part, consistently with
 [`degrees_of_hydration`](@ref).
 """
 function mean_degree_of_hydration(
-        sol, kp::KineticsProblem; times = sol.t, weights::Symbol = :mass
+        sol, kp::KineticsProblem; times = sol.t, weights::Symbol = :mass, species = nothing,
     )
     weights in (:mass, :mole) ||
         throw(ArgumentError("weights must be :mass or :mole, got :$weights"))
+    keep = species === nothing ? nothing : Set(String.(species))
+    if keep !== nothing
+        unknown = setdiff(keep, (symbol(kp.system.species[i]) for i in kp.idx_kinetic))
+        isempty(unknown) || throw(
+            ArgumentError(
+                "mean_degree_of_hydration: $(join(sort!(collect(unknown)), ", ")) " *
+                    "is not a kinetic species of the problem.",
+            ),
+        )
+    end
     p = sol.prob.p
     α = degrees_of_hydration(sol, kp; times = times)
     w = eltype(p.n_initial_full)[]
+    averaged = String[]
     for idx in kp.idx_kinetic
         n0 = p.n_initial_full[idx]
         n0 > 0 || continue
         sp = kp.system.species[idx]
+        keep === nothing || symbol(sp) in keep || continue
+        push!(averaged, symbol(sp))
         if weights === :mass
             haskey(properties(sp), :M) || throw(
                 ArgumentError(
@@ -206,9 +224,13 @@ function mean_degree_of_hydration(
             push!(w, n0)
         end
     end
+    isempty(w) && throw(
+        ArgumentError("mean_degree_of_hydration: none of the species averaged is present at the start."),
+    )
     total = sum(w)
     out = zeros(promote_type(eltype(w), eltype(first(values(α)))), length(times))
-    for (k, αᵢ) in enumerate(values(α))
+    for (k, sym) in enumerate(averaged)
+        αᵢ = α[sym]
         @. out += w[k] * αᵢ
     end
     return out ./ total

@@ -969,6 +969,8 @@ back end.
   - `kwargs...`: forwarded to the underlying solver. The temperature and the
     pressure are not among them: they are the state's, and a `T` or a `P` given
     here is refused rather than passed on and ignored.
+
+`state` is not modified: the answer is a new state.
 """
 function equilibrate(
         state::ChemicalState,

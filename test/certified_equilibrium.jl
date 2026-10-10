@@ -128,6 +128,13 @@ include("reference_species.jl")
         @test pH(eq1) == pH(eq2)          # bit-for-bit, no path dependence
         @test balance_rel(st, eq1) < 1.0e-10
         @test c1.worst_supersaturation < 0 || c1.worst_supersaturation == -Inf
+        # The state given is not modified, as the docstring says; and its budget
+        # is the product the solve conserves.
+        n0, T0 = copy(st.n), temperature(st)
+        eq3, _ = equilibrate_certified(st)
+        @test st.n == n0 && temperature(st) == T0
+        @test pH(eq3) == pH(eq1)
+        @test budget(st) == A * [ustrip(us"mol", x) for x in st.n]
     end
 
     @testsection "a trace is held to its own amount" begin

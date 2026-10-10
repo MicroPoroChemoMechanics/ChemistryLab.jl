@@ -894,6 +894,9 @@ Equilibrium composition together with a proof of its global optimality, obtained
 by solving from every registered back end and keeping the answer
 [`optimality_certificate`](@ref) proves optimal.
 
+`state` is not modified: the answer is a new state, and the same `state` can be
+solved again, or under another model, without a copy.
+
 # The linear program over the pure phases comes first
 
 With every activity set to one, the equilibrium is a linear program:
