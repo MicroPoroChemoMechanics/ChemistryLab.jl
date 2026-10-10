@@ -200,6 +200,10 @@ They are corrected here, each with a test that failed before.
   OptimaSolver takes its tolerance from its options, not from `reltol`.
 - Accounts of earlier versions are removed from the pages, the docstrings and
   the comments; the CHANGELOG keeps them.
+- Every page draws its figures with the same defaults, a frame and no grid,
+  whatever the order the pages are built in; the walk of the page tree and the
+  plot theme are each defined once for the build, its shards and the timing
+  script.
 
 ## v0.37.0 — Any thermodynamic database imported, none stored in the package
 

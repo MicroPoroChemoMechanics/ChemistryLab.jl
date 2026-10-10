@@ -214,7 +214,7 @@ jobs:
             # temporary file, and `include` resolves against the including file.
             include(joinpath(pwd(), "docs", "pages.jl"))
             include(joinpath(pwd(), "docs", "shards.jl"))
-            sel = shard_pages("${{ matrix.shard }}", doc_page_leaves(pages))
+            sel = shard_pages("${{ matrix.shard }}", page_leaves(pages))
             println(join(sel, "\n"))
             open(ENV["GITHUB_ENV"], "a") do io
                 println(io, "CHEMLAB_DOCS_ONLY=", join(sel, ","))

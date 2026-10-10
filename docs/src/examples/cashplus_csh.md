@@ -339,7 +339,8 @@ which the test of this page includes too.
 ```@example cashplus
 include(joinpath(pkgdir(ChemistryLab), "scripts", "lothenbach_2008.jl"))
 days = l08_days()
-runs = Dict(gel => hydrate(l08_recipe("PC4"), l08_system(gel), days; model) for gel in (:CSHQ, :CASHNK))
+# `Any`: a container typed on the states of a run compiles for minutes.
+runs = Dict{Symbol, Any}(gel => hydrate(l08_recipe("PC4"), l08_system(gel), days; model) for gel in (:CSHQ, :CASHNK))
 for gel in (:CSHQ, :CASHNK)
     @printf("%-7s certified at %s of %d ages\n", gel, count(rs -> rs.certificate.optimal, runs[gel].states), length(days))
 end
