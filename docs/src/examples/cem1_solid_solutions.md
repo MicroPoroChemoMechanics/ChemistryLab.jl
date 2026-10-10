@@ -86,11 +86,11 @@ tabulated coefficient appears anywhere.
 ```@example ss
 clinker = CemSpecies.(split("C3S C2S C3A C4AF"))
 oxide4 = CemSpecies.(split("C S A F"))
-bogue = inv(mass_matrix(CanonicalStoichMatrix(clinker)).A)
+bogue_inverse = inv(mass_matrix(CanonicalStoichMatrix(clinker)).A)
 
 for (i, sp) in enumerate(clinker)
     @printf("  %-5s = %+8.4f CaO %+8.4f SiO2 %+8.4f Al2O3 %+8.4f Fe2O3\n",
-            symbol(sp), bogue[i, 1], bogue[i, 2], bogue[i, 3], bogue[i, 4])
+            symbol(sp), bogue_inverse[i, 1], bogue_inverse[i, 2], bogue_inverse[i, 3], bogue_inverse[i, 4])
 end
 ```
 
@@ -104,9 +104,9 @@ f = 100 / sum(values(oxides))
 CaO_free = oxides["CaO"] -
     oxides["SO3"] * oxide_mass("CaO") / oxide_mass("SO3") -
     oxides["CO2"] * oxide_mass("CaO") / oxide_mass("CO2")
-grams = bogue * [CaO_free, oxides["SiO2"], oxides["Al2O3"], oxides["Fe2O3"]]
+grams = bogue_inverse * [CaO_free, oxides["SiO2"], oxides["Al2O3"], oxides["Fe2O3"]]
 
-charge = OrderedDict{String, Float64}(
+batch = OrderedDict{String, Float64}(
     symbol(sp) => grams[i] * f / phase_mass(symbol(sp))
         for (i, sp) in enumerate(clinker)
 )
@@ -114,21 +114,21 @@ charge = OrderedDict{String, Float64}(
 # brucite and the sulfate as gypsum.  The water they bring is part of the cement
 # and comes off the mixing water.
 n_ox = Dict(k => v * f / oxide_mass(k) for (k, v) in oxides)
-charge["Gp"] = n_ox["SO3"]
-charge["Brc"] = n_ox["MgO"]
-charge["K2O"] = n_ox["K2O"]
-charge["Na2O"] = n_ox["Na2O"]
+batch["Gp"] = n_ox["SO3"]
+batch["Brc"] = n_ox["MgO"]
+batch["K2O"] = n_ox["K2O"]
+batch["Na2O"] = n_ox["Na2O"]
 free_water = water_g / oxide_mass("H2O") - 2n_ox["SO3"] - n_ox["MgO"]
 
-for (k, v) in charge
+for (k, v) in batch
     @printf("  %-5s %10.6f mol   (%6.2f g)\n", k, v, v * phase_mass(k))
 end
 @printf("  %-5s %10.6f mol\n", "H2O@", free_water)
 ```
 
 ```@example ss
-names_c = collect(keys(charge))
-mass_c = [charge[k] * phase_mass(k) for k in names_c]
+names_c = collect(keys(batch))
+mass_c = [batch[k] * phase_mass(k) for k in names_c]
 bar(names_c, mass_c;
     legend = false, ylabel = "g per 100 g of oxides",
     title = "The anhydrous charge, from the oxide analysis",
@@ -219,7 +219,7 @@ used can only decide whether the optimum is reached, never which optimum it is.
 
 ```@example ss
 state = ChemicalState(cs)
-for (sym, n) in charge
+for (sym, n) in batch
     n > 0 && set_quantity!(state, sym, n * u"mol")
 end
 set_quantity!(state, "H2O@", free_water * u"mol")
@@ -365,7 +365,7 @@ cs_pure = ChemicalSystem(
     ],
 )
 st = ChemicalState(cs_pure)
-for (sym, x) in charge
+for (sym, x) in batch
     x > 0 && set_quantity!(st, sym, x * u"mol")
 end
 set_quantity!(st, "H2O@", free_water * u"mol")
@@ -418,7 +418,7 @@ cs3 = ChemicalSystem(
     ],
 )
 st3 = ChemicalState(cs3)
-for (sym, x) in charge
+for (sym, x) in batch
     x > 0 && set_quantity!(st3, sym, x * u"mol")
 end
 set_quantity!(st3, "H2O@", free_water * u"mol")

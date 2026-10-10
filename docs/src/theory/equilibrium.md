@@ -167,9 +167,9 @@ equality on an amount held at `1e-16` whose mass-action value is `e⁻³⁰⁰`
 misstates its log-activity by 263 `RT` units, and the check then reports a
 residual of 74 for a composition solved to `5e-12`. A member of a present phase
 below the floor is read the same way, as the truncation of a smaller exact
-amount: it may hold more than that amount, not less. Excluded from every test
-until 0.28.0, such a member left behind by the search passed, as H⁺ at 3e-100 mol
-did in a cement paste whose potentials gave it 1.2e-16.
+amount: it may hold more than that amount, not less. Excluded from every test,
+such a member left behind by the search would pass, as H⁺ at 3e-100 mol would in
+a cement paste whose potentials give it 1.2e-16.
 
 A species carrying a **vanished component** is absent by the *constraint*, not by
 thermodynamics, and its saturation index is meaningless — the element potential

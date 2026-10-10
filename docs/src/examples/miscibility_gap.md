@@ -37,7 +37,7 @@ default(framestyle = :box, grid = false)
 
 substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
 byname = Dict(symbol(s) => s for s in substances)
-molar_mass(n) = ustrip(us"g/mol", byname[n][:M])
+molar_mass_g(n) = ustrip(us"g/mol", byname[n][:M])
 nothing # hide
 ```
 
@@ -121,8 +121,8 @@ the three runs:
 ```@example gap
 # The Bogue composition of the CEM I 52.5 N of [Lavergne2018](@citet), Table 9,
 # and its gypsum.
-bogue = literature_table("Lavergne2018", "cement_bogue")
-CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))
+bogue_table = literature_table("Lavergne2018", "cement_bogue")
+CLINKER = OrderedDict(zip(bogue_table.phase, bogue_table.percent ./ 100))
 GYPSUM = literature_value("Lavergne2018", "gypsum_percent") / 100
 WB = 0.50
 BINDER_G = 100.0
@@ -133,7 +133,7 @@ pure = split(
 )
 CSHQ = ["CSHQ-JenD", "CSHQ-JenH", "CSHQ-TobD", "CSHQ-TobH", "KSiOH", "NaSiOH"]
 AFM = ["C4AH13", "monosulphate12"]
-aqueous = ["SO4-2", "CO2@"]
+extra_aqueous = ["SO4-2", "CO2@"]
 
 # The activity model Cemdata18 prescribes (its Eq. C.1): extended Debye-Hückel,
 # with the common ion size and B-dot the paper gives for KOH solutions (it also
@@ -153,7 +153,7 @@ answer the first route already gave. The certificate reported is the same one
 either way; declining the cascade declines only the search for a better start.
 """
 function run_case(afm_phase; autostart = true)
-    sp = speciation(substances, vcat(pure, CSHQ, AFM, aqueous);
+    sp = speciation(substances, vcat(pure, CSHQ, AFM, extra_aqueous);
                     aggregate_state = [AS_AQUEOUS])
     ss = [SolidSolutionPhase("CSHQ", [byname[m] for m in CSHQ]), afm_phase]
     cs = ChemicalSystem(sp, CEMDATA_PRIMARIES; solid_solutions = ss)
@@ -161,10 +161,10 @@ function run_case(afm_phase; autostart = true)
     st = ChemicalState(cs)
     for (phase, frac) in CLINKER
         set_quantity!(st, phase,
-            BINDER_G * (1 - GYPSUM) * frac / molar_mass(phase) * u"mol")
+            BINDER_G * (1 - GYPSUM) * frac / molar_mass_g(phase) * u"mol")
     end
-    set_quantity!(st, "Gp", BINDER_G * GYPSUM / molar_mass("Gp") * u"mol")
-    set_quantity!(st, "H2O@", BINDER_G * WB / molar_mass("H2O@") * u"mol")
+    set_quantity!(st, "Gp", BINDER_G * GYPSUM / molar_mass_g("Gp") * u"mol")
+    set_quantity!(st, "H2O@", BINDER_G * WB / molar_mass_g("H2O@") * u"mol")
     b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
 
     # Every case prints its certificate; the warning of a refusal would only repeat it.

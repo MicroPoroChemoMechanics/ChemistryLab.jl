@@ -133,6 +133,13 @@ They are corrected here, each with a test that failed before.
   `-` on species and reactions, `calculate_molar_mass` in kg/mol, and stale
   counts. Seven docstrings separated from their code by a comment, and so never
   shown, are attached again.
+- The pages no longer redefine names the package exports (`molar_mass`,
+  `budget`, `bogue`, `components`, `charge`, `aqueous`, `carbonate`, `titrate`,
+  `mass`), the CEM II page reads its clinker from the literature table as the
+  other binder pages do, and the calibration page no longer prints wall-clock
+  times, which no other machine reproduces.
+- The tolerances section of the manual says which keywords each back end reads:
+  OptimaSolver takes its tolerance from its options, not from `reltol`.
 - Accounts of earlier versions are removed from the pages, the docstrings and
   the comments; the CHANGELOG keeps them.
 

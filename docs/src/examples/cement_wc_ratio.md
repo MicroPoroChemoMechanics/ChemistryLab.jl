@@ -363,20 +363,19 @@ end
     minimum below the stoichiometric water demand, which is a mass balance — 15 g
     of water cannot hydrate 100 g of cement whatever the algorithm, since the
     hydrates would need some 23 g. Its molar amounts, its pH, its ionic strength
-    are **not** equilibrium values and must not be quoted as such. Since 0.15.2
-    the package says so itself: [`equilibrate_certified`](@ref) checks
+    are **not** equilibrium values and must not be quoted as such. The package
+    says so itself: [`equilibrate_certified`](@ref) checks
     [`solvent_fraction`](@ref) on the answer it returns and warns — or raises,
     under `STRICT_CONVERGENCE[]` — when the aqueous phase has effectively
     vanished.
 
-    The previous version of this page said no clinker survives *at any* w/c and
-    explained it by the minimum "always forming a less hydrous assemblage". The
-    first half is true only over the range scanned, and the second is false: the
-    least hydrous assemblage available still binds water, and when there is not
-    enough, alite stays — and then, shortly after, the model stops applying.
+    It is not true that no clinker survives *at any* w/c because the minimum
+    "always forms a less hydrous assemblage": the least hydrous assemblage
+    available still binds water, and when there is not enough, alite stays —
+    and then, shortly after, the model stops applying.
 
-    What remains true is the rest of the original claim, and it matters for mix
-    design: over 0.30–0.60 this scan shows **no optimum w/c and no inflection**.
+    What matters for mix design is the rest: over 0.30–0.60 this scan shows **no
+    optimum w/c and no inflection**.
     The porosity rises monotonically and the minimum-porosity mix design does not
     appear, because it is set by the degree of hydration a paste actually
     reaches, not by the assemblage it would reach given time.

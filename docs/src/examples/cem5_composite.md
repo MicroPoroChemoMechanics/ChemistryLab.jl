@@ -74,7 +74,7 @@ default(framestyle = :box, grid = false)
 # limit, and none forms in the assemblage of section 4.
 substances = build_species(datapath("cemdata18-zeolites.json"); verbose = false)
 byname = Dict(symbol(s) => s for s in substances)
-molar_mass(n) = ustrip(us"g/mol", byname[n][:M])
+molar_mass_g(n) = ustrip(us"g/mol", byname[n][:M])
 
 # Only the zeolites this binder could form. Two of the twenty-eight are a
 # chloride and a nitrate sodalite, and this paste carries neither element:
@@ -108,8 +108,8 @@ of the EN 197-1 range and labeled:
 ```@example cem5
 # ASSUMED: a Bogue composition representative of a CEM I clinker, here
 # the Bogue composition of the CEM I 52.5 N of [Lavergne2018](@citet), Table 9.
-bogue = literature_table("Lavergne2018", "cement_bogue")
-CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))
+bogue_table = literature_table("Lavergne2018", "cement_bogue")
+CLINKER = OrderedDict(zip(bogue_table.phase, bogue_table.percent ./ 100))
 
 # ASSUMED: midpoint of the EN 197-1 CEM V/A range, which is 40-64 % clinker
 # with 18-30 % slag and 18-30 % pozzolana.
@@ -193,8 +193,8 @@ pure = split(
     "C3S C2S C3A C4AF Gp Anh Cal Portlandite ettringite monosulphate12 " *
     "monocarbonate hemicarbonate C4AH13 C3AH6 C3FH6 straetlingite " *
     "hydrotalcite Mg2AlC0.5OH Brc FeOOHmic AlOHmic Amor-Sl Mgs " *
-    # Aluminum sinks that CEMDATA18 documents and an earlier version of this
-    # list simply did not declare. The siliceous hydrogarnet `C3AS0.84H4.32`
+    # Aluminum sinks that CEMDATA18 documents, declared here. The siliceous
+    # hydrogarnet `C3AS0.84H4.32`
     # is the one that matters most here: it is the ALUMINUM end-member of the
     # family whose iron end-member was already present, and a blended binder
     # puts a great deal of aluminum into it. Leaving it out does not make the
@@ -249,11 +249,11 @@ model = cemdata18_activity_model(:KOH)
 Mox(ox) = ustrip(us"g/mol", Species(ox)[:M])
 println("molar K/Na of the alkalis: ", round((2 * ALKALIS["K2O"] / Mox("K2O")) / (2 * ALKALIS["Na2O"] / Mox("Na2O")); digits = 1))
 
-components = String.(symbol.(cs.SM.primaries))
+component_names = String.(symbol.(cs.SM.primaries))
 @printf("%d species, %d components: %s\n",
-        length(cs.species), length(components), join(components, " "))
+        length(cs.species), length(component_names), join(component_names, " "))
 @printf("charge (`Zz`) kept as a conservation component: %s\n",
-        "Zz" in components ? "yes" : "no")
+        "Zz" in component_names ? "yes" : "no")
 ```
 
 ## 3. The budget is additive
@@ -285,10 +285,10 @@ function paste(α_slag, α_ash; α_clinker = ALPHA_CLINKER)
     st = ChemicalState(cs)
     for (phase, frac) in CLINKER
         set_quantity!(st, phase,
-            α_clinker * BINDER_G * clinker_frac * frac / molar_mass(phase) * u"mol")
+            α_clinker * BINDER_G * clinker_frac * frac / molar_mass_g(phase) * u"mol")
     end
-    set_quantity!(st, "Gp", BINDER_G * GYPSUM / molar_mass("Gp") * u"mol")
-    set_quantity!(st, "H2O@", BINDER_G * WB / molar_mass("H2O@") * u"mol")
+    set_quantity!(st, "Gp", BINDER_G * GYPSUM / molar_mass_g("Gp") * u"mol")
+    set_quantity!(st, "H2O@", BINDER_G * WB / molar_mass_g("H2O@") * u"mol")
 
     clinker = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
     # The alkalis leave the grain as it dissolves: same fraction as the clinker.
@@ -343,7 +343,7 @@ state, b = p28.state, p28.total
         100clinker_frac * ALPHA_CLINKER, 100SLAG_FRACTION * ALPHA_SLAG,
         100ASH_FRACTION * ALPHA_ASH, 100GYPSUM)
 @printf("%-8s %10s %10s %10s %10s\n", "", "clinker", "slag", "fly ash", "total")
-for (i, c) in enumerate(components)
+for (i, c) in enumerate(component_names)
     abs(b[i]) > 1.0e-6 &&
         @printf("%-8s %10.5f %10.5f %10.5f %10.5f\n",
                 c, p28.clinker[i], p28.slag[i], p28.ash[i], b[i])

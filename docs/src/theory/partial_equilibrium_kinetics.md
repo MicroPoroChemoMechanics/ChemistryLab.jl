@@ -109,8 +109,8 @@ using ChemistryLab, LinearAlgebra
 aq(f, c = SC_AQSOLUTE) = Species(f; aggregate_state = AS_AQUEOUS, class = c)
 H2O = aq("H2O", SC_AQSOLVENT)
 Hp, OHm, CO2, HCO3m, CO3mm = aq("H+"), aq("OH-"), aq("CO2"), aq("HCO3-"), aq("CO3-2")
-carbonate = [H2O, Hp, OHm, CO2, HCO3m, CO3mm]
-W = CanonicalStoichMatrix(carbonate)
+carbonate_species = [H2O, Hp, OHm, CO2, HCO3m, CO3mm]
+W = CanonicalStoichMatrix(carbonate_species)
 pprint(W; label = :symbol)
 ```
 
@@ -170,7 +170,7 @@ written in another basis, ``\mathbf{b} = \mathbf{W}_P\,\mathbf{b}_A``. With wate
 the proton and dissolved carbon dioxide as primaries:
 
 ```@example pe_matrix
-SM = StoichMatrix(carbonate, [H2O, Hp, CO2])
+SM = StoichMatrix(carbonate_species, [H2O, Hp, CO2])
 pprint(SM; label = :symbol)
 ```
 
@@ -180,7 +180,7 @@ decomposition being one of vectors, not of matter. The basis is a choice, and
 another one gives other coordinates for the same species,
 
 ```@example pe_matrix
-pprint(StoichMatrix(carbonate, [H2O, Hp, HCO3m]); label = :symbol)
+pprint(StoichMatrix(carbonate_species, [H2O, Hp, HCO3m]); label = :symbol)
 ```
 
 while the budgets it describes are the same compositions:
@@ -189,7 +189,7 @@ while the budgets it describes are the same compositions:
 # mol, in the order of `carbonate`; the proton balances the anions
 n = [55.5, 1e-4 + 1e-10 + 2e-9, 1e-10, 1e-2, 1e-4, 1e-9]
 A₁ = Float64.(SM.A)
-A₂ = Float64.(StoichMatrix(carbonate, [H2O, Hp, HCO3m]).A)
+A₂ = Float64.(StoichMatrix(carbonate_species, [H2O, Hp, HCO3m]).A)
 println("over H₂O, H⁺, CO₂:   b = ", round.(A₁ * n; digits = 6))
 println("over H₂O, H⁺, HCO₃⁻: b = ", round.(A₂ * n; digits = 6))
 println("over the elements:  b = ", round.(Float64.(W.A) * n; digits = 6))
@@ -235,7 +235,7 @@ end
 ```
 
 ```@example pe_matrix
-ν = [r[s] for r in reactions(SM), s in carbonate]     # one row per reaction, r[s] < 0 for a reactant
+ν = [r[s] for r in reactions(SM), s in carbonate_species]     # one row per reaction, r[s] < 0 for a reactant
 println("A νᵀ = 0: ", iszero(SM.A * transpose(ν)))
 ```
 
@@ -316,7 +316,7 @@ calcite and gives up two protons per mole dissolved:
 ```@example pe_matrix
 Cal = Species("CaCO3"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
 Cap = aq("Ca+2")
-species = [carbonate; Cap; Cal]
+species = [carbonate_species; Cap; Cal]
 SMc = StoichMatrix(species, [H2O, Hp, CO2, Cap])
 formation = only(r for r in reactions(SMc) if r[Cal] != 0)
 println(formation.equation)
