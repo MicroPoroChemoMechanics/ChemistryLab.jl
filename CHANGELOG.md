@@ -120,8 +120,9 @@ They are corrected here, each with a test that failed before.
 - The thermodynamic functions of a species, built on its first use, are built
   under a lock: the species of a database are shared by every system built
   from them, and two threads using one at once wrote in its properties
-  together. `add_thermo_model` writes the registries of models under the lock
-  their readers take, the crystals of aq17 and the reference of the glass
+  together. `add_thermo_model`, given the expressions or a heat capacity to
+  integrate (with SymbolicNumericIntegration), writes the registries of models
+  under the lock their readers take, the crystals of aq17 and the reference of the glass
   enthalpy are built once under a lock, and the cache of the convexity of a
   compound-energy model is keyed by copies of its values, not by their hash,
   and bounded. That a problem or a solver is not to be shared between threads
