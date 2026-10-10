@@ -967,6 +967,19 @@ end
     @test cert.n_dual_solves >= 1
     eq0, cert0 = equilibrate_certified(st8; lp_start = false)
     @test cert0.route === :state
+
+    # The route is found by identity among the dual solves of the search: an
+    # answer none of them returned, a copy included, is reported as `:other`.
+    model8 = DiluteSolutionModel()
+    search = ChemistryLab._CertifiedSearch(
+        DualEquilibriumSolver(st8.system, model8), st8, model8, budget(eq0),
+        ChemistryLab._AMOUNT_FLOOR, ChemistryLab.FixedTP(), nothing, false, (;), (;), false,
+    )
+    @test ChemistryLab._route(search, eq0) === :other
+    search.memo[st8] = (eq0, cert0)
+    search.route_of[st8] = :state
+    @test ChemistryLab._route(search, eq0) === :state
+    @test ChemistryLab._route(search, deepcopy(eq0)) === :other
     @test ustrip.(us"mol", eq.n) ≈ ustrip.(us"mol", eq0.n) rtol = 1.0e-8
 end
 

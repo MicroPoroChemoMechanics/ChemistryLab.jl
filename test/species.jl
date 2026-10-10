@@ -230,6 +230,17 @@ end
     @test occursin("Several species correspond to H2O", printed)
 end
 
+@testset "a lookup in a cement species reads its oxides, then its atoms" begin
+    # A cement species is written over oxides: `:C` is lime and `:S` silica, read
+    # before the atoms of the same names; an element is then found among its
+    # atoms, and a neutral species has no charge.
+    c3s = CemSpecies("C3S")
+    @test c3s[:C] == oxides(c3s)[:C] == 3
+    @test c3s[:S] == oxides(c3s)[:S] == 1
+    @test c3s[:Ca] == atoms(c3s)[:Ca]
+    @test c3s[:Zz] == 0
+end
+
 @testset "a lookup in a charged species copies nothing" begin
     # Its components are its atoms and its charge; looked up one after the
     # other, none of them is built, so a lookup allocates nothing.

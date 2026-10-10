@@ -187,6 +187,22 @@ end
     # Descending instants are refused: each solve warm-starts from the previous
     @test_throws ArgumentError speciated_states(sol, kp; times = [3600.0, 600.0])
 
+    # A stage of the replay whose solve raises tries its next candidate instead
+    # of failing the replay: the seed ladder ends with no seed, the run-up hands
+    # its guess on, a certifying start gives way to the next one and the
+    # instant stays unproved. Raised here by the whole system in place of its
+    # equilibrium partition, on which no state of the partition's size is built.
+    Pv = 1.0e5u"Pa"
+    guess = Float64[max(x, ChemistryLab._EQ_GUESS_FLOOR) for x in p.n_eq_init]
+    es = EquilibriumSolver(sub, model, OptimaOptimizer())
+    @test ChemistryLab._replay_seed(des, sol, kp, cs, times, Pv) === (nothing, nothing)
+    @test ChemistryLab._replay_run_up(es, sol, kp, cs, times, Pv, guess) === guess
+    be1 = collect(sol(times[1])[1:(p.n_be)])
+    proved, n_back, eq_back, _ = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+        ChemistryLab._replay_certify(des, sol, kp, cs, guess, nothing, nothing, nothing, times[1], 298.15u"K", Pv, be1)
+    end
+    @test !proved && n_back === guess && eq_back === nothing
+
 end
 
 @testset "the equilibrium partition keeps its solid solutions" begin
