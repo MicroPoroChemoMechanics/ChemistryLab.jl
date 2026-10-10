@@ -1279,10 +1279,12 @@ function _equilibrate_certified(
     # goes to `equilibrate_certified`, which gives the phase its second instance.
     wants_split(c) = !c.optimal && _wants_auto_split(state.system, c)
     stop = split_early && _AUTO_SPLIT[] && _has_auto_instances(state.system) ? wants_split : nothing
+    # The search decides on the verdicts; what the proof covers is reported once,
+    # for the answer returned.
     search(starts) = _exploring_starts() do
         solve_certified(
             des, starts; b = bfix, ϵ = ϵ,
-            constraint = constraint, parameters = parameters, memo = memo, stop = stop,
+            constraint = constraint, parameters = parameters, memo = memo, stop = stop, report = false,
         )
     end
 
@@ -1479,6 +1481,7 @@ function _equilibrate_certified(
         @warn msg * "; returning the answer with the smallest KKT error — audit it with `optimality_certificate`" maxlog = 1
     end
     _check_solvent(eq)
+    eq, cert = _reported(des, eq, cert, true; ϵ, floor = _CERTIFICATE_FLOOR, constraint)
     # Which start the answer came from, found by identity among the dual solves.
     route = :other
     for (s0, hit) in memo

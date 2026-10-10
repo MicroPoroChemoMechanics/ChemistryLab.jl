@@ -857,7 +857,7 @@ function _kinetic_step_eliminated(
             kss.dual_free.system, n0[free] .* u"mol";
             T = temperature(state), P = pressure(state),
         )
-        eq, cert = solve_certified(kss.dual_free, (st_free,); b = b_free, ϵ = ϵ)
+        eq, cert = solve_certified(kss.dual_free, (st_free,); b = b_free, ϵ = ϵ, report = false)
         last_cert[] = cert
         for (r, i) in enumerate(free)
             nf[i] = ustrip(us"mol", eq.n[r])

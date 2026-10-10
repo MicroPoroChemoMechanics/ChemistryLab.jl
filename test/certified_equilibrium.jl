@@ -135,6 +135,20 @@ include("reference_species.jl")
         @test st.n == n0 && temperature(st) == T0
         @test pH(eq3) == pH(eq1)
         @test budget(st) == A * [ustrip(us"mol", x) for x in st.n]
+
+        # The search decides on the verdicts and reports once: the certificate it
+        # returns is `optimality_certificate`'s at the answer, field for field and
+        # in its order, then the search's own fields; `report = false` returns
+        # the verdict alone, with the same values.
+        des = DualEquilibriumSolver(cs, DiluteSolutionModel())
+        full = optimality_certificate(des, eq1; b = budget(st))
+        @test collect(keys(c1))[1:length(full)] == collect(keys(full))
+        @test all(isequal(c1[k], full[k]) for k in keys(full))
+        _, v = solve_certified(des, (eq1,); b = budget(st), report = false)
+        _, r = solve_certified(des, (eq1,); b = budget(st))
+        @test !hasproperty(v, :scope) && hasproperty(r, :scope)
+        @test all(isequal(v[k], r[k]) for k in keys(r) if haskey(v, k))
+        @test r.scope == full.scope
     end
 
     @testsection "a trace is held to its own amount" begin

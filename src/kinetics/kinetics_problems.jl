@@ -1377,7 +1377,7 @@ function _one_speciation(p, guess, be)
         P_v = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
         ok, n_v, abs_v = _value_speciation(p, guess, _plain.(be), T_v, P_v)
         st0 = ChemicalState(p.eq_system[], (ok ? n_v : guess) .* u"mol"; T = p.T_q[], P = p.P_q[])
-        eq_c, cert = solve_certified(p.eq_dual, (st0,); b = be, ϵ = p.ϵ)
+        eq_c, cert = solve_certified(p.eq_dual, (st0,); b = be, ϵ = p.ϵ, report = false)
         n_c = [ustrip(us"mol", x) for x in eq_c.n]
         abs_c = _abs_residual(p.Ae, n_c, be)
         # The rule of a plain run: an uncertified answer that balances worse than
@@ -1468,7 +1468,7 @@ function _value_speciation(p, guess, be, T, P)
     if abs_res > _RETRY_ABS_TOL && hasproperty(p, :eq_dual) && p.eq_dual !== nothing
         try
             eq_c, cert = solve_certified(
-                p.eq_dual, (eq_result,); b = be, ϵ = p.ϵ,
+                p.eq_dual, (eq_result,); b = be, ϵ = p.ϵ, report = false,
             )
             n_c = [ustrip(us"mol", x) for x in eq_c.n]
             abs_c = _abs_residual(p.Ae, n_c, be)
@@ -1712,16 +1712,16 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
     # started there failed to certify where the partition itself, floored at
     # 1e-16, certified at once. The floored start is the next one tried.
     warm = Float64[max(_plain(p.n_full[i]), _RHS_GUESS_FLOOR) for i in p.idx_equilibrium]
-    eq, cert = _exploring_starts(() -> solve_certified(p.eq_dual, (state(warm),); b = bv, ϵ = p.ϵ))
+    eq, cert = _exploring_starts(() -> solve_certified(p.eq_dual, (state(warm),); b = bv, ϵ = p.ϵ, report = false))
     if eq === nothing || !cert.optimal
         lifted = max.(warm, _EQ_GUESS_FLOOR)
-        eq2, cert2 = _exploring_starts(() -> solve_certified(p.eq_dual, (state(lifted),); b = bv, ϵ = p.ϵ))
+        eq2, cert2 = _exploring_starts(() -> solve_certified(p.eq_dual, (state(lifted),); b = bv, ϵ = p.ϵ, report = false))
         eq, cert = eq === nothing ? (eq2, cert2) :
             eq2 === nothing ? (eq, cert) : _keep_better(eq, cert, eq2, cert2)
     end
     if eq === nothing || !cert.optimal
         guess = _reconstruction_guess!(similar(warm), p, bv)
-        eq2, cert2 = _exploring_starts(() -> solve_certified(p.eq_dual, (state(guess),); b = bv, ϵ = p.ϵ))
+        eq2, cert2 = _exploring_starts(() -> solve_certified(p.eq_dual, (state(guess),); b = bv, ϵ = p.ϵ, report = false))
         eq, cert = eq === nothing ? (eq2, cert2) :
             eq2 === nothing ? (eq, cert) : _keep_better(eq, cert, eq2, cert2)
     end

@@ -391,7 +391,7 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
                     des, ChemicalState(sub, seed .* u"mol"; T = plain_T(_replay_temperature(sol, kp, tc)), P = Pv);
                     b = be0,
                 )
-                if optimality_certificate(des, st0; b = be0).optimal
+                if _verdict(des, st0; b = be0).optimal
                     certified = Float64[ustrip(us"mol", x) for x in st0.n]
                     t_prev = tc
                     break
@@ -484,7 +484,7 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
                         ChemicalState(sub, guess0 .* u"mol"; T = Tt, P = Pv);
                         b = be,
                     )
-                    if optimality_certificate(des, st_dual; b = be).optimal
+                    if _verdict(des, st_dual; b = be).optimal
                         n_eq = Float64[ustrip(us"mol", x) for x in st_dual.n]
                         eq = st_dual
                         certified = copy(n_eq)
@@ -644,7 +644,7 @@ function _replay_continuation(sol, kp, p, des, sub, certified, n_eq, eq, t_prev,
                 des, ChemicalState(sub, gm .* u"mol"; T = plain_T(_replay_temperature(sol, kp, tm)), P = Pv);
                 b = be_m,
             )
-            if optimality_certificate(des, st_m; b = be_m).optimal
+            if _verdict(des, st_m; b = be_m).optimal
                 certified = Float64[ustrip(us"mol", x) for x in st_m.n]
                 anchor = tm
                 stepped = true
@@ -654,7 +654,7 @@ function _replay_continuation(sol, kp, p, des, sub, certified, n_eq, eq, t_prev,
                     ChemicalState(sub, certified .* u"mol"; T = Tt, P = Pv);
                     b = be,
                 )
-                if optimality_certificate(des, st_t; b = be).optimal
+                if _verdict(des, st_t; b = be).optimal
                     n_t = Float64[ustrip(us"mol", x) for x in st_t.n]
                     return true, n_t, st_t, copy(n_t)
                 end
