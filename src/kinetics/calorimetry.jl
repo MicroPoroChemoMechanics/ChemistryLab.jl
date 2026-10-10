@@ -89,24 +89,6 @@ function _reaction_enthalpy(reaction::AbstractReaction, T_K::Real)
     return zero(T_K)
 end
 
-# ── Total-enthalpy helper ─────────────────────────────────────────────────────
-
-"""
-    _total_enthalpy(n_full, h_fns, T_K) -> Real
-
-Total molar enthalpy `H = Σᵢ nᵢ ΔₐH⁰ᵢ(T)`.
-Used by the `DiscreteCallback` in `KineticsOrdinaryDiffEqExt`.
-"""
-function _total_enthalpy(n_full::AbstractVector, h_fns, T_K::Real)
-    H = zero(promote_type(eltype(n_full), typeof(T_K)))
-    for (i, hf) in enumerate(h_fns)
-        isnothing(hf) && continue
-        h_i = ustrip(hf(; T = T_K * u"K", unit = true))
-        H += n_full[i] * h_i
-    end
-    return H
-end
-
 # ── IsothermalCalorimeter ─────────────────────────────────────────────────────
 
 """

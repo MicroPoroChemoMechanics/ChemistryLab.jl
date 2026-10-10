@@ -250,33 +250,6 @@ end
 
 end
 
-# ── _total_enthalpy ────────────────────────────────────────────────────────────
-
-@testset "_total_enthalpy" begin
-
-    sp1 = Species("H2O"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
-    sp1.properties[:ΔₐH⁰] = NumericFunc((T) -> H_WATER, (:T,), u"J/mol")
-    sp2 = Species("CaO"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
-
-    h_fns = [sp1[:ΔₐH⁰], nothing]
-    n_full = [0.5, 1.0]
-
-    H = ChemistryLab._total_enthalpy(n_full, h_fns, 298.15)
-    @test isapprox(H, 0.5 * H_WATER; rtol = 1.0e-10)
-    @test isapprox(H - H, 0.0; atol = 1.0e-12)
-
-    H_none = ChemistryLab._total_enthalpy(n_full, [nothing, nothing], 298.15)
-    @test iszero(H_none)
-
-    dHdn = ForwardDiff.derivative(n -> ChemistryLab._total_enthalpy([n, 1.0], h_fns, 298.15), 0.5)
-    @test isfinite(dHdn)
-    @test isapprox(dHdn, H_WATER; rtol = 1.0e-10)
-
-    dHdT = ForwardDiff.derivative(T -> ChemistryLab._total_enthalpy(n_full, h_fns, T), 298.15)
-    @test isfinite(dHdT)
-
-end
-
 @testset "the per-species functions behave as the vector they wrap" begin
 
     f = NumericFunc((T) -> H_WATER, (:T,), u"J/mol")
@@ -287,9 +260,9 @@ end
     @test fns[1] === f && fns[2] === nothing
     @test eltype(fns) == eltype(v)
     @test collect(fns) == v
-    # The heat terms read it exactly as they read the vector.
-    @test ChemistryLab._total_enthalpy([0.5, 1.0], fns, 298.15) ==
-        ChemistryLab._total_enthalpy([0.5, 1.0], v, 298.15)
+    # A sum over it reads exactly what a sum over the vector reads.
+    term(g) = sum(n * h(; T = 298.15, unit = false) for (n, h) in zip([0.5, 1.0], g) if h !== nothing)
+    @test term(fns) == term(v)
 
     # What it is for: the vector, heterogeneous by nature, is what SciMLBase
     # reads as badly typed parameters and warns about; the wrapper is not.

@@ -576,7 +576,6 @@ function Reaction(
         equal_sign,
         OrderedDict{Symbol, PropertyType}(properties),
     )
-    # complete_thermo_functions!(r)
     if side == :none
         return r
     else
@@ -790,7 +789,6 @@ function Reaction(
         equal_sign,
         OrderedDict{Symbol, PropertyType}(properties),
     )
-    # complete_thermo_functions!(r)
     return r
 end
 

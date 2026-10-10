@@ -92,9 +92,6 @@ function KineticStepSolver(
     end
     K = _reactivity_matrix(reactions, system, kinetic_species)
     idx_kin = [i for i in 1:ns if any(!iszero, @view K[i, :])]
-    if coupling === :species && length(idx_kin) > 1 && rank(K) < length(reactions)
-        # already caught in `_reactivity_matrix`, kept for symmetry
-    end
     des = DualEquilibriumSolver(system, model; kwargs...)
 
     # `:species` ELIMINATES the pinned species instead of constraining them.

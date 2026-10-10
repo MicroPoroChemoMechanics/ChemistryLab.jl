@@ -51,8 +51,6 @@ end
 
 Base.eltype(::StoichMatrix{T}) where {T} = T
 
-primtype(::StoichMatrix{T, P}) where {T, P} = P
-
 # Lossless conversion helpers — avoid the overflow in rationalize(BigInt, ::Rational{Int64}).
 _to_qbig(x::Integer) = Rational{BigInt}(BigInt(x))
 _to_qbig(x::Rational) = Rational{BigInt}(BigInt(numerator(x)), BigInt(denominator(x)))
@@ -63,9 +61,6 @@ function _to_qbig(x::AbstractFloat)
     r = rationalize(x; tol = 1.0e-3)
     return Rational{BigInt}(BigInt(numerator(r)), BigInt(denominator(r)))
 end
-# Fallback for other concrete Number types (e.g. ForwardDiff.Dual): extract Float64 value.
-# Symbolic types (Symbolics.Num) are excluded upstream by _is_rationalizable.
-_to_qbig(x::Number) = _to_qbig(Float64(x))
 
 # Convert A to a BigInt integer matrix.
 # For pure integer input (common case), this is just BigInt.(A).
@@ -273,9 +268,8 @@ function _optimal_from_rational(N_rat::Matrix{Rational{BigInt}}, A::AbstractMatr
     return N_out
 end
 
-# Thin wrappers: compute rational nullspace then convert.
+# Thin wrapper: compute the rational nullspace then convert.
 _integer_nullspace(A::AbstractMatrix) = _integer_from_rational(_rational_nullspace(A))
-_optimal_nullspace(A::AbstractMatrix) = _optimal_from_rational(_rational_nullspace(A), A)
 
 # ── Stage 3: kinetic species diagonalization ─────────────────────────────────
 

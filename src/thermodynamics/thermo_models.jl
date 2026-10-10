@@ -85,10 +85,6 @@ const THERMO_MODELS = Dict(
             :a₉ => u"J/(mol*K^(3//2))",
             :a₁₀ => u"J/(mol*K)",
             :T => u"K",
-            # :Cp => "J/(mol*K)",
-            # :S => "J/(mol*K)",
-            # :H => "J/mol",
-            # :G => "J/mol",
         ],
     ),
     :logk_fpt_function => Dict(
@@ -103,7 +99,6 @@ const THERMO_MODELS = Dict(
             :A₅ => u"K^(-2)",
             :A₆ => u"K^(1//2)",
             :T => u"K",
-            # :logKr => "1",
         ],
     ),
 )

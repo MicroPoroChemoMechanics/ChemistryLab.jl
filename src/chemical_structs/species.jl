@@ -828,7 +828,6 @@ function Base.show(io::IO, ::MIME"text/plain", s::Species)
     if symbol(s) != formula(s) && length(symbol(s)) > 0
         println(io, lpad("symbol", pad), ": ", symbol(s))
     end
-    # println(io, lpad("formula", pad), ": ", colored_formula(expr(s)), " | ", colored_formula(phreeqc(s)), " | ", colored_formula(unicode(s)))
     print_formula(io, formula(s), "formula", pad)
     println(io, lpad("atoms", pad), ": ", join(["$k => $v" for (k, v) in atoms(s)], ", "))
     println(io, lpad("charge", pad), ": ", charge(s))
@@ -1391,10 +1390,8 @@ function Base.show(io::IO, ::MIME"text/plain", s::CemSpecies)
     end
     cf = cemformula(s)
     f = formula(s)
-    # println(io, lpad("cemformula", pad), ": ", colored_formula(expr(cf)), " | ", colored_formula(phreeqc(cf)), " | ", colored_formula(unicode(cf)))
     print_formula(io, cf, "cemformula", pad)
     println(io, lpad("oxides", pad), ": ", join(["$k => $v" for (k, v) in oxides(s)], ", "))
-    # println(io, lpad("formula", pad), ": ", colored_formula(expr(f)), " | ", colored_formula(phreeqc(f)), " | ", colored_formula(unicode(f)))
     print_formula(io, f, "formula", pad)
     println(io, lpad("atoms", pad), ": ", join(["$k => $v" for (k, v) in atoms(s)], ", "))
     println(io, lpad("charge", pad), ": ", charge(s))
@@ -1436,10 +1433,8 @@ function pprint(s::CemSpecies)
     end
     cf = cemformula(s)
     f = formula(s)
-    # println(lpad("cemformula", pad), ": ", colored_formula(expr(cf)), " | ", colored_formula(phreeqc(cf)), " | ", colored_formula(unicode(cf)))
     pprint_formula(cf, "cemformula", pad)
     println(lpad("oxides", pad), ": ", join(["$k => $v" for (k, v) in oxides(s)], ", "))
-    # println(lpad("formula", pad), ": ", colored_formula(expr(f)), " | ", colored_formula(phreeqc(f)), " | ", colored_formula(unicode(f)))
     pprint_formula(f, "formula", pad)
     println(lpad("atoms", pad), ": ", join(["$k => $v" for (k, v) in atoms(s)], ", "))
     println(lpad("charge", pad), ": ", charge(s))
@@ -1675,12 +1670,8 @@ function _complete_thermo_functions!(s::AbstractSpecies)
             end
             delete!(s.properties, :V_method)
         else
-            for k in [:V⁰]
-                if !haskey(properties(s), k) &&
-                        haskey(dict_params, k) &&
-                        !ismissing(dict_params[k])
-                    s[k] = SymbolicFunc(dict_params[k])
-                end
+            if !haskey(properties(s), :V⁰) && !ismissing(get(dict_params, :V⁰, missing))
+                s[:V⁰] = SymbolicFunc(dict_params[:V⁰])
             end
         end
         for k in _THERMO_FUNCTIONS
@@ -1818,7 +1809,6 @@ function _hgk_specific_state(T, P)
     cp = -T * a.ATT + T * ρ^2 * a.ATD^2 / dPdρ
     return (; ρ, g, s, h = g + T * s, cp)
 end
-_hgk_specific_gibbs(T, P) = _hgk_specific_state(T, P).g
 _hgk_specific_entropy(T, P) = _hgk_specific_state(T, P).s
 _hgk_specific_enthalpy(T, P) = _hgk_specific_state(T, P).h
 
