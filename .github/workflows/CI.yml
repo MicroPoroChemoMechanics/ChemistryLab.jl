@@ -91,6 +91,14 @@ jobs:
           # Instrument only the primary job: coverage disables precompilation
           # caching and would slow down every other matrix entry for nothing.
           coverage: ${{ matrix.version == '1.12' && matrix.os == 'ubuntu-latest' }}
+      # The extensions whose dependencies the suite does not load, tested in an
+      # environment of their own (`test/extensions`) and in this job only, so
+      # that their lines are measured with the others: SymbolicNumericIntegration
+      # brings some fifty packages, ModelingToolkitBase among them, that the
+      # other jobs have no use for.
+      - name: Test the extensions the suite does not load
+        if: matrix.version == '1.12' && matrix.os == 'ubuntu-latest'
+        run: julia --color=yes --code-coverage=@"$GITHUB_WORKSPACE/ext" --project=test/extensions -e 'using Pkg; Pkg.instantiate(); include("test/extensions/runtests.jl")'
       # Not julia-actions/julia-processcoverage: see the header of the script
       # for why its `amend_coverage_from_src!` step misreports this package.
       - name: Process coverage

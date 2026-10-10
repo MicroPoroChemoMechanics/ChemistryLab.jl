@@ -104,27 +104,6 @@ using JSON
         @test length(factory.cache) == length(keys_)
     end
 
-    if Base.get_extension(ChemistryLab, :SymbolicNumericIntegrationExt) !== nothing
-        @testsection "add_thermo_model" begin
-            model_name = :test_linear_model
-            Cpexpr = :(c₀ + c₁ * T)
-
-            # Register a new model from a Cp expression
-            @test_nowarn add_thermo_model(model_name, Cpexpr)
-
-            @test haskey(THERMO_MODELS, model_name)
-            @test haskey(THERMO_FACTORIES, model_name)
-
-            factories = THERMO_FACTORIES[model_name]
-            @test haskey(factories, :Cp)
-            @test haskey(factories, :H)   # integrated automatically
-
-            # Clean up: remove the test model so it doesn't pollute other tests
-            delete!(THERMO_MODELS, model_name)
-            delete!(THERMO_FACTORIES, model_name)
-        end
-    end
-
     @testsection "build_thermo_functions" begin
         # Build thermodynamic functions from cp_ft_equation with minimal
         # parameters: a constant heat capacity and the reference properties of
