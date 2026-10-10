@@ -344,7 +344,6 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
     end
 
     guess = Float64[max(x, _EQ_GUESS_FLOOR) for x in p.n_eq_init]
-    n_sp = length(kp.system.species)
 
     # A run differentiated with respect to its parameters carries dual numbers
     # in its state. The replay below is run on the values, unchanged; each
@@ -359,86 +358,10 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
         ),
     )
     Pv = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
-    plain_T(T) = _plain(ustrip(us"K", T)) * u"K"
 
-    certified = nothing            # last composition that carried a certificate
-    t_prev = nothing               # the time that composition belongs to
+    certified, t_prev = des === nothing ? (nothing, nothing) : _replay_seed(des, sol, kp, sub, times, Pv)
     uncertified = Float64[]        # instants that could not be proved optimal
-
-    # Seed the chain at the start of the run, where `bₑ` is the mixing water and
-    # little else, so the equilibrium is easy and certifies at once. The FIRST
-    # requested instant then has a certified predecessor to start from, which it
-    # otherwise lacks by construction — and on a cement without limestone that is
-    # exactly the instant that could not be proved, neither the interior-point
-    # answer nor the cast composition putting the Newton close enough.
-    if des !== nothing
-        # A LADDER of candidate seeds, not one point. The start of the run is the
-        # obvious candidate and often the worst: there most component totals are
-        # at machine zero, so their element potentials are undetermined and the
-        # balance settles a few orders above tolerance. An instant a little later,
-        # where the clinker has begun to dissolve but the assemblage is still
-        # simple, certifies at once — on a cement without limestone the run start
-        # does not certify and 432 s does, to 2e-12.
-        t1 = float(first(times))
-        for tc in (float(first(sol.t)), t1 / 100, t1 / 30, t1 / 10, t1 / 3)
-            tc < float(first(sol.t)) && continue
-            try
-                be0 = _plain.(collect(@view sol(tc)[1:(p.n_be)]))
-                seed = Float64[max(x, _EQ_GUESS_FLOOR) for x in p.n_eq_init]
-                _budget_clip!(seed, p.Ae, be0)
-                _restore_feasibility!(seed, p.Ae, be0; maxit = 100_000)
-                st0 = SciMLBase.solve(
-                    des, ChemicalState(sub, seed .* u"mol"; T = plain_T(_replay_temperature(sol, kp, tc)), P = Pv);
-                    b = be0,
-                )
-                if _verdict(des, st0; b = be0).optimal
-                    certified = Float64[ustrip(us"mol", x) for x in st0.n]
-                    t_prev = tc
-                    break
-                end
-            catch
-                # A seed that fails is not an error: the next candidate is tried.
-            end
-        end
-    end
-
-    # RUN-UP for the interior-point chain.
-    #
-    # Every instant is warm-started from the previous one, and the FIRST requested
-    # instant has no previous one: it starts from the cast composition, which
-    # carries no active set at all. On the reference OPC that left the
-    # interior-point answer at `t = 4320 s` holding 56 interior species where the
-    # answer has 25 — every candidate hydrate present, four of them at 1e-5 to
-    # 1e-6 mol — and neither the certifying Newton nor its continuation recovers
-    # from that: they inherit the start.
-    #
-    # The replay is a continuation in `bₑ`, and the first REQUESTED instant is not
-    # the first instant of the trajectory. So the chain is walked up to it through
-    # a few earlier times, whose compositions are thrown away and whose only
-    # purpose is to hand `guess` an active set. Measured: simply asking for four
-    # extra instants before `t₁` brought that solve from 56 interior species to 25
-    # and its element balance from 2.8e-11 to 3.2e-14, which is what this does
-    # without the caller having to know.
-    let t1 = float(first(times)), t0 = float(first(sol.t))
-        for tc in (t0, t1 / 100, t1 / 30, t1 / 10, t1 / 3)
-            (tc < t0 || tc >= t1) && continue
-            try
-                be0 = _plain.(collect(@view sol(tc)[1:(p.n_be)]))
-                _budget_clip!(guess, p.Ae, be0)
-                _restore_feasibility!(guess, p.Ae, be0; maxit = 100_000)
-                eq0 = SciMLBase.solve(
-                    es, ChemicalState(sub, guess .* u"mol"; T = plain_T(_replay_temperature(sol, kp, tc)), P = Pv);
-                    b = be0, polish = false,
-                )
-                guess = Float64[
-                    max(ustrip(us"mol", x), _EQ_GUESS_FLOOR) for x in eq0.n
-                ]
-            catch
-                # A run-up step that fails leaves `guess` as it was; the next
-                # candidate is tried and the sweep proceeds regardless.
-            end
-        end
-    end
+    guess = _replay_run_up(es, sol, kp, sub, times, Pv, guess)
 
     out = ChemicalState[]
     for t in times
@@ -446,110 +369,25 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
         be_d = collect(@view u[1:(p.n_be)])
         be = _plain.(be_d)
         Tt_d = _replay_temperature(sol, kp, t)
-        Tt = plain_T(Tt_d)
+        Tt = _plain_kelvin(Tt_d)
 
         _budget_clip!(guess, p.Ae, be)
         _restore_feasibility!(guess, p.Ae, be; maxit = 100_000)
 
-        # A start for the certification below, which polishes it.
+        # A start for the certification, which polishes it.
         eq = SciMLBase.solve(
             es,
             ChemicalState(sub, guess .* u"mol"; T = Tt, P = Pv);
             b = be, polish = false,
         )
         n_eq = Float64[ustrip(us"mol", x) for x in eq.n]
-
-        # CERTIFY. The interior-point solve reaches a neighborhood;
-        # `DualEquilibriumSolver` brings the KKT conditions to tolerance and
-        # PROVES optimality, the Gibbs problem being convex. This is not a
-        # refinement: on the package's calcite reference the interior-point answer
-        # is pH 6.96 against a certified 9.90, and 147 % out on a trace species
-        # that the test suite records as `@test_broken`.
-        #
-        # Three starting points, in order of expected quality: the interior-point
-        # answer for this instant; the last certified composition, whose active
-        # set is usually the right one; and the cast composition, which carries no
-        # active set at all.
         if des !== nothing
-            cold_start = Float64[max(x, _EQ_GUESS_FLOOR) for x in p.n_eq_init]
-            _budget_clip!(cold_start, p.Ae, be)
-            _restore_feasibility!(cold_start, p.Ae, be; maxit = 100_000)
-
-            proved = false
-            for guess0 in (n_eq, certified, cold_start)
-                guess0 === nothing && continue
-                try
-                    st_dual = SciMLBase.solve(
-                        des,
-                        ChemicalState(sub, guess0 .* u"mol"; T = Tt, P = Pv);
-                        b = be,
-                    )
-                    if _verdict(des, st_dual; b = be).optimal
-                        n_eq = Float64[ustrip(us"mol", x) for x in st_dual.n]
-                        eq = st_dual
-                        certified = copy(n_eq)
-                        proved = true
-                        break
-                    end
-                catch err
-                    @warn (
-                        """a certifying solve raised for one instant; another start is tried, and the interior-point composition is used if none succeeds."""
-                    ) exception = err maxlog = 1
-                end
-            end
-            # CONTINUATION. If no start works, the jump in `bₑ` from the last
-            # certified instant is too large for the Newton. Walk it: a homotopy in
-            # the component totals, with an ADAPTIVE FORWARD STEP.
-            #
-            # The step only ever moves toward `t`. On success the anchor advances and
-            # the target is retried directly from it; on failure the step is halved
-            # and tried again from the same anchor. Progress is therefore monotone
-            # and the loop terminates: either the target certifies, or the step
-            # underflows, or the attempt budget runs out.
-            #
-            # Bisecting the interval instead was tried and is subtly wrong. Halving
-            # toward the midpoint moves the UPPER end down whenever an intermediate
-            # fails, and a single early failure then sends the search away from the
-            # target for good — the remaining rounds bracket a small interval just
-            # above the anchor and the target is never retried from close by. On the
-            # reference OPC that left `t = 4320 s` unproved with 56 interior species
-            # where the answer has 25, while simply requesting four extra instants
-            # before it — which is what a forward walk does by itself — brought the
-            # active set back to 25 and the balance to 3e-14.
-            !proved && t_prev !== nothing && ((proved, n_eq, eq, certified) = _replay_continuation(sol, kp, p, des, sub, certified, n_eq, eq, t_prev, t, Tt, Pv, be))
-
-            # The full search, last (`_replay_full_search`).
-            (proved, n_eq, eq, certified) = _replay_full_search(
-                proved, n_eq, eq, certified, sub, cold_start, Tt, Pv, activity_model(p.eq_solver), be,
-            )
-
+            proved, n_eq, _, certified = _replay_certify(des, sol, kp, sub, n_eq, eq, certified, t_prev, t, Tt, Pv, be)
             proved && (t_prev = float(t))
             proved || push!(uncertified, float(t))
         end
-
         guess = Float64[max(x, _EQ_GUESS_FLOOR) for x in n_eq]
-
-        n_out = if dual_run
-            at = ChemicalState(sub, n_eq .* u"mol"; T = Tt_d, P = p.P_q[])
-            eq_d, _ = _lift_equilibrium(des, at, ChemicalState(sub, n_eq .* u"mol"; T = Tt, P = Pv), be_d)
-            [ustrip(us"mol", x) for x in eq_d.n]
-        else
-            n_eq
-        end
-        n = zeros(promote_type(eltype(n_out), eltype(u)), n_sp)
-        for (j, idx) in enumerate(kp.idx_equilibrium)
-            n[idx] = n_out[j]
-        end
-        for (j, idx) in enumerate(kp.idx_kinetic)
-            n[idx] = max(u[p.n_be + j], 0.0)
-        end
-
-        push!(
-            out, ChemicalState(
-                kp.system; T = Tt, P = p.P * u"Pa",
-                n = [nᵢ * u"mol" for nᵢ in n],
-            )
-        )
+        push!(out, _replayed_state(kp, p, sub, des, n_eq, u, be_d, Tt_d, Tt, Pv, dual_run))
     end
 
     # !!! note "A backward pass over the neighbors does not rescue an unproved instant"
@@ -582,6 +420,182 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
     end
 
     return out
+end
+
+_plain_kelvin(T) = _plain(ustrip(us"K", T)) * u"K"
+
+# Seed the chain at the start of the run, where `bₑ` is the mixing water and
+# little else, so the equilibrium is easy and certifies at once. The FIRST
+# requested instant then has a certified predecessor to start from, which it
+# otherwise lacks by construction — and on a cement without limestone that is
+# exactly the instant that could not be proved, neither the interior-point
+# answer nor the cast composition putting the Newton close enough.
+#
+# A LADDER of candidate seeds, not one point. The start of the run is the
+# obvious candidate and often the worst: there most component totals are
+# at machine zero, so their element potentials are undetermined and the
+# balance settles a few orders above tolerance. An instant a little later,
+# where the clinker has begun to dissolve but the assemblage is still
+# simple, certifies at once — on a cement without limestone the run start
+# does not certify and 432 s does, to 2e-12.
+#
+# The composition of the first seed that certifies, and its time; `nothing` for
+# both when none does.
+function _replay_seed(des, sol, kp::KineticsProblem, sub, times, Pv)
+    p = sol.prob.p
+    t1 = float(first(times))
+    for tc in (float(first(sol.t)), t1 / 100, t1 / 30, t1 / 10, t1 / 3)
+        tc < float(first(sol.t)) && continue
+        try
+            be0 = _plain.(collect(@view sol(tc)[1:(p.n_be)]))
+            seed = Float64[max(x, _EQ_GUESS_FLOOR) for x in p.n_eq_init]
+            _budget_clip!(seed, p.Ae, be0)
+            _restore_feasibility!(seed, p.Ae, be0; maxit = 100_000)
+            st0 = SciMLBase.solve(
+                des, ChemicalState(sub, seed .* u"mol"; T = _plain_kelvin(_replay_temperature(sol, kp, tc)), P = Pv);
+                b = be0,
+            )
+            _verdict(des, st0; b = be0).optimal && return Float64[ustrip(us"mol", x) for x in st0.n], tc
+        catch
+            # A seed that fails is not an error: the next candidate is tried.
+        end
+    end
+    return nothing, nothing
+end
+
+# RUN-UP for the interior-point chain.
+#
+# Every instant is warm-started from the previous one, and the FIRST requested
+# instant has no previous one: it starts from the cast composition, which
+# carries no active set at all. On the reference OPC that left the
+# interior-point answer at `t = 4320 s` holding 56 interior species where the
+# answer has 25 — every candidate hydrate present, four of them at 1e-5 to
+# 1e-6 mol — and neither the certifying Newton nor its continuation recovers
+# from that: they inherit the start.
+#
+# The replay is a continuation in `bₑ`, and the first REQUESTED instant is not
+# the first instant of the trajectory. So the chain is walked up to it through
+# a few earlier times, whose compositions are thrown away and whose only
+# purpose is to hand `guess` an active set. Measured: simply asking for four
+# extra instants before `t₁` brought that solve from 56 interior species to 25
+# and its element balance from 2.8e-11 to 3.2e-14, which is what this does
+# without the caller having to know.
+function _replay_run_up(es, sol, kp::KineticsProblem, sub, times, Pv, guess)
+    p = sol.prob.p
+    t1, t0 = float(first(times)), float(first(sol.t))
+    for tc in (t0, t1 / 100, t1 / 30, t1 / 10, t1 / 3)
+        (tc < t0 || tc >= t1) && continue
+        try
+            be0 = _plain.(collect(@view sol(tc)[1:(p.n_be)]))
+            _budget_clip!(guess, p.Ae, be0)
+            _restore_feasibility!(guess, p.Ae, be0; maxit = 100_000)
+            eq0 = SciMLBase.solve(
+                es, ChemicalState(sub, guess .* u"mol"; T = _plain_kelvin(_replay_temperature(sol, kp, tc)), P = Pv);
+                b = be0, polish = false,
+            )
+            guess = Float64[
+                max(ustrip(us"mol", x), _EQ_GUESS_FLOOR) for x in eq0.n
+            ]
+        catch
+            # A run-up step that fails leaves `guess` as it was; the next
+            # candidate is tried and the sweep proceeds regardless.
+        end
+    end
+    return guess
+end
+
+# CERTIFY. The interior-point solve reaches a neighborhood;
+# `DualEquilibriumSolver` brings the KKT conditions to tolerance and
+# PROVES optimality, the Gibbs problem being convex. This is not a
+# refinement: on the package's calcite reference the interior-point answer
+# is pH 6.96 against a certified 9.90, and 147 % out on a trace species
+# that the test suite records as `@test_broken`.
+#
+# Three starting points, in order of expected quality: the interior-point
+# answer for this instant; the last certified composition, whose active
+# set is usually the right one; and the cast composition, which carries no
+# active set at all.
+#
+# Returns `(proved, n_eq, eq, certified)`: whether the instant is certified, its
+# composition and state, and the last certified composition.
+function _replay_certify(des, sol, kp::KineticsProblem, sub, n_eq, eq, certified, t_prev, t, Tt, Pv, be)
+    p = sol.prob.p
+    cold_start = Float64[max(x, _EQ_GUESS_FLOOR) for x in p.n_eq_init]
+    _budget_clip!(cold_start, p.Ae, be)
+    _restore_feasibility!(cold_start, p.Ae, be; maxit = 100_000)
+
+    proved = false
+    for guess0 in (n_eq, certified, cold_start)
+        guess0 === nothing && continue
+        try
+            st_dual = SciMLBase.solve(
+                des,
+                ChemicalState(sub, guess0 .* u"mol"; T = Tt, P = Pv);
+                b = be,
+            )
+            if _verdict(des, st_dual; b = be).optimal
+                n_eq = Float64[ustrip(us"mol", x) for x in st_dual.n]
+                eq = st_dual
+                certified = copy(n_eq)
+                proved = true
+                break
+            end
+        catch err
+            @warn (
+                """a certifying solve raised for one instant; another start is tried, and the interior-point composition is used if none succeeds."""
+            ) exception = err maxlog = 1
+        end
+    end
+
+    # CONTINUATION. If no start works, the jump in `bₑ` from the last
+    # certified instant is too large for the Newton. Walk it: a homotopy in
+    # the component totals, with an ADAPTIVE FORWARD STEP.
+    #
+    # The step only ever moves toward `t`. On success the anchor advances and
+    # the target is retried directly from it; on failure the step is halved
+    # and tried again from the same anchor. Progress is therefore monotone
+    # and the loop terminates: either the target certifies, or the step
+    # underflows, or the attempt budget runs out.
+    #
+    # Bisecting the interval instead was tried and is subtly wrong. Halving
+    # toward the midpoint moves the UPPER end down whenever an intermediate
+    # fails, and a single early failure then sends the search away from the
+    # target for good — the remaining rounds bracket a small interval just
+    # above the anchor and the target is never retried from close by. On the
+    # reference OPC that left `t = 4320 s` unproved with 56 interior species
+    # where the answer has 25, while simply requesting four extra instants
+    # before it — which is what a forward walk does by itself — brought the
+    # active set back to 25 and the balance to 3e-14.
+    !proved && t_prev !== nothing && ((proved, n_eq, eq, certified) = _replay_continuation(sol, kp, p, des, sub, certified, n_eq, eq, t_prev, t, Tt, Pv, be))
+
+    # The full search, last (`_replay_full_search`).
+    return _replay_full_search(
+        proved, n_eq, eq, certified, sub, cold_start, Tt, Pv, activity_model(p.eq_solver), be,
+    )
+end
+
+# The state of the whole system at an instant: the partition `n_eq`, lifted to
+# the duals of the instant's budget and temperature on a differentiated run, and
+# the kinetic species read from the ODE state `u`.
+function _replayed_state(kp::KineticsProblem, p, sub, des, n_eq, u, be_d, Tt_d, Tt, Pv, dual_run::Bool)
+    n_out = if dual_run
+        at = ChemicalState(sub, n_eq .* u"mol"; T = Tt_d, P = p.P_q[])
+        eq_d, _ = _lift_equilibrium(des, at, ChemicalState(sub, n_eq .* u"mol"; T = Tt, P = Pv), be_d)
+        [ustrip(us"mol", x) for x in eq_d.n]
+    else
+        n_eq
+    end
+    n = zeros(promote_type(eltype(n_out), eltype(u)), length(kp.system.species))
+    for (j, idx) in enumerate(kp.idx_equilibrium)
+        n[idx] = n_out[j]
+    end
+    for (j, idx) in enumerate(kp.idx_kinetic)
+        n[idx] = max(u[p.n_be + j], 0.0)
+    end
+    return ChemicalState(
+        kp.system; T = Tt, P = p.P * u"Pa",
+        n = [nᵢ * u"mol" for nᵢ in n],
+    )
 end
 
 """

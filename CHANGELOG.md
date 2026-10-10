@@ -164,8 +164,10 @@ They are corrected here, each with a test that failed before.
   the enthalpy and the heat capacity being unchanged to the bit. The critical
   pressure of a GWB gas is converted from bar to pascals directly.
 - The four Debye–Hückel activity models (HKF, Davies, Truesdell–Jones, LLNL)
-  share one frame, a kernel holding what is each model's own, and the search of
-  `equilibrate_certified` is written as its stages; neither changes a result.
+  share one frame, a kernel holding what is each model's own; the search of
+  `equilibrate_certified`, the replay of a run (`speciated_states`) and the
+  starts of a right-hand side that solves its partition are written as their
+  stages. None of them changes a result.
 
 ### Performance
 

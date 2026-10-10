@@ -1715,19 +1715,11 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
     # started there failed to certify where the partition itself, floored at
     # 1e-16, certified at once. The floored start is the next one tried.
     warm = Float64[max(_plain(p.n_full[i]), _RHS_GUESS_FLOOR) for i in p.idx_equilibrium]
-    eq, cert = _exploring_starts(() -> solve_certified(p.eq_dual, (state(warm),); b = bv, ϵ = p.ϵ, report = false))
-    if eq === nothing || !cert.optimal
-        lifted = max.(warm, _EQ_GUESS_FLOOR)
-        eq2, cert2 = _exploring_starts(() -> solve_certified(p.eq_dual, (state(lifted),); b = bv, ϵ = p.ϵ, report = false))
-        eq, cert = eq === nothing ? (eq2, cert2) :
-            eq2 === nothing ? (eq, cert) : _keep_better(eq, cert, eq2, cert2)
-    end
-    if eq === nothing || !cert.optimal
-        guess = _reconstruction_guess!(similar(warm), p, bv)
-        eq2, cert2 = _exploring_starts(() -> solve_certified(p.eq_dual, (state(guess),); b = bv, ϵ = p.ϵ, report = false))
-        eq, cert = eq === nothing ? (eq2, cert2) :
-            eq2 === nothing ? (eq, cert) : _keep_better(eq, cert, eq2, cert2)
-    end
+    solve_from(n) = _exploring_starts(() -> solve_certified(p.eq_dual, (state(n),); b = bv, ϵ = p.ϵ, report = false))
+    eq, cert = solve_from(warm)
+    eq, cert = _or_next(eq, cert, () -> solve_from(max.(warm, _EQ_GUESS_FLOOR)))
+    # The reconstruction: feasible on the budget, with no active set.
+    eq, cert = _or_next(eq, cert, () -> solve_from(_reconstruction_guess!(similar(warm), p, bv)))
     # Where the assemblage switches, the starts above hold the assemblage of the
     # last accepted step, or none, and the dual Newton stalls short of the
     # certificate from either. Measured on a paste of cement c13 of Lavergne et
@@ -1768,6 +1760,17 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
     cert.optimal || abs_res <= _RETRY_ABS_TOL || return nothing
     p.rhs_cache[] = (b = copy(bv), T = Tv, n = n)
     return n
+end
+
+# The answer in hand when it is certified; otherwise the better of it and the
+# answer `attempt()` gives, which is solved only then: the next start of a
+# cascade (`_keep_better`).
+function _or_next(eq, cert, attempt)
+    (eq !== nothing && cert.optimal) && return eq, cert
+    eq2, cert2 = attempt()
+    eq === nothing && return eq2, cert2
+    eq2 === nothing && return eq, cert
+    return _keep_better(eq, cert, eq2, cert2)
 end
 
 """
