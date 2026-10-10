@@ -285,3 +285,49 @@ Base.@assume_effects :foldable function _number_type_t(::Type{T}) where {T <: Un
     end
     return R
 end
+
+# ── Memos of the state of water ───────────────────────────────────────────────
+
+"""
+    _TPMemo{K, V}
+
+A memo of a pure function of the temperature and the pressure, asked for at the
+same arguments by every species and every state an evaluation builds (the
+density of water, a Newton solve of its equation of state, and what is derived
+from it). On plain numbers it keeps a table of every call, emptied past
+`_MEMO_MAX` entries; on dual numbers it keeps the last call, matched by identity
+of its arguments (`===`: values and partials). Both under a lock. What it returns
+is what the function computes, bit for bit.
+"""
+struct _TPMemo{K, V}
+    table::Dict{K, V}
+    last::Base.RefValue{Any}
+    lock::ReentrantLock
+end
+_TPMemo{K, V}() where {K, V} = _TPMemo{K, V}(Dict{K, V}(), Ref{Any}(nothing), ReentrantLock())
+
+const _MEMO_MAX = 4096
+
+# Plain arguments: the table.
+function (m::_TPMemo{K, V})(f, key::K) where {K, V}
+    hit = lock(() -> get(m.table, key, nothing), m.lock)
+    hit === nothing || return hit
+    value = f(key...)::V
+    lock(m.lock) do
+        length(m.table) >= _MEMO_MAX && empty!(m.table)
+        m.table[key] = value
+    end
+    return value
+end
+
+# Dual arguments: the last call, its value of type `S`.
+function (m::_TPMemo)(f, key::Tuple, ::Type{S}) where {S}
+    hit = lock(m.lock) do
+        last = m.last[]
+        (last !== nothing && first(last) === key) ? last[2] : nothing
+    end
+    hit === nothing || return hit::S
+    value = f(key...)::S
+    lock(() -> (m.last[] = (key, value)), m.lock)
+    return value
+end

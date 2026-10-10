@@ -881,12 +881,15 @@ function system_enthalpy(p, u, T)
     # neighboring point's clinker, and the resulting enthalpy is not a state of
     # the trajectory at all: the recorded heat came out NON-MONOTONE, 936 J/g at
     # one day and 631 J/g at two, which no calorimeter has ever measured.
-    kin = p.idx_kinetic
+    # The slot of each kinetic species in `u`, zero for the others.
+    slot = zeros(Int, length(p.h_fns))
+    for (j, i) in enumerate(p.idx_kinetic)
+        slot[i] = j
+    end
     H = zero(promote_type(eltype(u), typeof(T), eltype(p.n_full)))
     @inbounds for (i, h_fn) in enumerate(p.h_fns)
         isnothing(h_fn) && continue
-        j = findfirst(==(i), kin)
-        nᵢ = j === nothing ? p.n_full[i] : max(u[p.n_be + j], p.ϵ)
+        nᵢ = iszero(slot[i]) ? p.n_full[i] : max(u[p.n_be + slot[i]], p.ϵ)
         H += nᵢ * h_fn(; T = T, unit = false)
     end
     return H

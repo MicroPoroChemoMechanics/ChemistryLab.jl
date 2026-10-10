@@ -364,6 +364,12 @@ end
     # the certified states give.
     _, qdot = heat_flow(sol, cal)
     @test qdot[ks] ≈ q_ref rtol = 1.0e-8
+    # The enthalpy of a composition from the run's buffers, the kinetic amounts
+    # read from `u` and the partition from `p.n_full`: at the start, where both
+    # hold the initial state, its enthalpy.
+    p0 = build_kinetics_params(kp)
+    T0 = ustrip(us"K", temperature(kp.initial_state))
+    @test system_enthalpy(p0, build_u0(kp), T0) ≈ ustrip(us"J", enthalpy(kp.initial_state)) rtol = 1.0e-12
 end
 
 @testset "an adiabatic cell under partial equilibrium conserves its enthalpy" begin

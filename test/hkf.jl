@@ -134,6 +134,28 @@ end
     @test ForwardDiff.derivative(Cp, c1) ≈ 1 rtol = 1.0e-12
 end
 
+@testsection "the state of water an HKF species reads is computed once per (T, P)" begin
+    hws, uncached = ChemistryLab._hkf_water_state, ChemistryLab._hkf_water_state_uncached
+    s = hws(310.0, 2.0e5)
+    @test s == uncached(310.0, 2.0e5)
+    @test hws(310.0, 2.0e5) == s
+    # Dual arguments: the last call is kept, matched by identity, and a call with
+    # other partials is computed again; both carry ∂D/∂T.
+    Td = ForwardDiff.Dual{:hkf_test}(310.0, 1.0)
+    d1 = hws(Td, 2.0e5)
+    @test d1 == uncached(Td, 2.0e5) && hws(Td, 2.0e5) == d1
+    @test ForwardDiff.partials(d1[1].D)[1] ≈ s[1].DT rtol = 1.0e-8
+    @test ForwardDiff.partials(hws(ForwardDiff.Dual{:hkf_test}(310.0, 2.0), 2.0e5)[1].D)[1] ≈ 2 * s[1].DT rtol = 1.0e-8
+    # The density of water itself, through the same memo.
+    @test ChemistryLab.water_density_hgk(310.0, 2.0e5) == ChemistryLab._water_density_hgk(310.0, 2.0e5, 1000.0)
+    @test ChemistryLab.water_density_hgk(Td, 2.0e5) == ChemistryLab._water_density_hgk(Td, 2.0e5, 1000.0)
+    # Bounded: past its size the table starts again.
+    for k in 1:ChemistryLab._MEMO_MAX
+        hws(300.0 + 1.0e-6k, 1.0e5)
+    end
+    @test length(ChemistryLab._HKF_WATER_MEMO.table) <= ChemistryLab._MEMO_MAX
+end
+
 @testsection "HKF ForwardDiff compatibility" begin
     params = _hkf_aloh2_params()
     thermo = build_thermo_functions(:solute_hkf88_reaktoro, params)

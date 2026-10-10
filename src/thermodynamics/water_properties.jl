@@ -502,7 +502,17 @@ Newton steps: the value does not move, and the derivatives are exact to second
 order, as the implicit-function theorem gives them.
 """
 function water_density_hgk(T_K::Real, P_Pa::Real; D0::Real = 1000.0)
-    ρ = _hgk_density_root(_hgk_value(T_K), _hgk_value(P_Pa), Float64(D0)) + zero(T_K) + zero(P_Pa)
+    R = promote_type(typeof(T_K), typeof(P_Pa))
+    R <: ForwardDiff.Dual || return _water_density_hgk(T_K, P_Pa, Float64(D0))
+    return _WATER_DENSITY_MEMO(_water_density_hgk, (T_K, P_Pa, Float64(D0)), R)
+end
+water_density_hgk(T_K::Float64, P_Pa::Float64; D0::Real = 1000.0) =
+    _WATER_DENSITY_MEMO(_water_density_hgk, (T_K, P_Pa, Float64(D0)))
+
+const _WATER_DENSITY_MEMO = _TPMemo{NTuple{3, Float64}, Float64}()
+
+function _water_density_hgk(T_K, P_Pa, D0::Float64)
+    ρ = _hgk_density_root(_hgk_value(T_K), _hgk_value(P_Pa), D0) + zero(T_K) + zero(P_Pa)
     for _ in 1:2
         h = water_helmholtz_hgk(promote(T_K, ρ)...)
         ρ -= (ρ^2 * h.AD - P_Pa) / (2ρ * h.AD + ρ^2 * h.ADD)
@@ -563,7 +573,13 @@ end
 const _HGK_DENSITY_CEILING = 1500.0
 const _HGK_LIQUID_DENSITY = 600.0
 
-function _hgk_density_root(T::Float64, P::Float64, D0::Float64)
+# The root is a Newton solve of the equation of state, asked for at the same
+# values of (T, P) by every species and every state an evaluation builds, on dual
+# numbers as well (their root is solved on the values): see `_TPMemo`.
+_hgk_density_root(T::Float64, P::Float64, D0::Float64) = _HGK_ROOT_MEMO(_hgk_density_root_uncached, (T, P, D0))
+const _HGK_ROOT_MEMO = _TPMemo{NTuple{3, Float64}, Float64}()
+
+function _hgk_density_root_uncached(T::Float64, P::Float64, D0::Float64)
     ρ, dp = _hgk_newton(T, P, D0)
     isfinite(ρ) && dp > 0 && ρ >= _HGK_LIQUID_DENSITY && return ρ
     # From above, where the pressure grows without bound towards the divergence.

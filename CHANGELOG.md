@@ -125,6 +125,21 @@ They are corrected here, each with a test that failed before.
   and bounded. That a problem or a solver is not to be shared between threads
   solving at once is written in their docstrings.
 
+### Performance
+
+- **Semi-adiabatic runs under partial equilibrium are 36 to 48 % faster, and
+  isothermal pastes 7 to 11 %, every trajectory identical to the bit.** Measured
+  on one machine on the mortars of Lavergne et al. (2018): C100 over five days
+  131 s → 72 s, C70L30 124 → 68 s, C85L15 130 → 68 s, C95SF05 over a day
+  183 → 116 s. The density of water, a Newton solve of the HGK equation, and the
+  HKF state of water built on it were computed again for every aqueous species
+  and every state an evaluation builds, at the same temperature and pressure;
+  they are kept, in a bounded table on plain numbers and for the last call on
+  dual numbers, matched by identity. A search judges its candidates on the
+  optimality conditions and computes what the proof covers once, for the
+  answer it returns. The lookups of a species no longer copy its composition,
+  and `StateView` has concrete fields.
+
 ### Documentation
 
 - Docstrings that disagreed with their code are corrected: missing keywords

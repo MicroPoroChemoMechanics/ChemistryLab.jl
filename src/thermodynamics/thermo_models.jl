@@ -195,7 +195,20 @@ const _HKF_MIN_WATER_DENSITY = 350.0
 # derivatives, the dielectric functions and the g-function. Below the density at
 # which the equations hold there is no aqueous solution to describe (a vapor, or
 # a supercritical fluid too dilute), and asking is an error rather than a value.
+#
+# Every HKF species of a system reads the same state at the same (T, P), and its
+# density is a Newton solve of the HGK equation: see `_TPMemo`.
+_hkf_water_state(T::Float64, P::Float64) = _HKF_WATER_MEMO(_hkf_water_state_uncached, (T, P))
 function _hkf_water_state(T, P)
+    R = promote_type(typeof(T), typeof(P))
+    R <: ForwardDiff.Dual || return _hkf_water_state_uncached(T, P)
+    return _HKF_WATER_MEMO(_hkf_water_state_uncached, (T, P), _HKFWaterState{R})
+end
+
+const _HKFWaterState{R} = Tuple{WaterThermoProps{R}, WaterElectroProps{R}, HKFGState{R}}
+const _HKF_WATER_MEMO = _TPMemo{NTuple{2, Float64}, _HKFWaterState{Float64}}()
+
+function _hkf_water_state_uncached(T, P)
     wtp = water_thermo_props(T, P)
     _primal(wtp.D) < _HKF_MIN_WATER_DENSITY && throw(
         DomainError(
