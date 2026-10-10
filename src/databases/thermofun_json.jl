@@ -126,13 +126,23 @@ Reject executable syntax before calling `uparse`. Returns `default_unit` for
 unsupported expressions, unknown units, or malformed input.
 """
 function extract_unit(v, default_unit = u"1")
+    v isa AbstractString || return something(_parse_unit(v), default_unit)
+    # A database spells its units with a handful of strings, read once each.
+    parsed = lock(() -> get!(() -> _parse_unit(v), _UNIT_CACHE, String(v)), _UNIT_LOCK)
+    return something(parsed, default_unit)
+end
+
+# The unit `v` spells, or `nothing` when it is not unit arithmetic.
+function _parse_unit(v)
     return try
-        is_unit_expression(Meta.parse(v)) || return default_unit
-        uparse(v)
+        is_unit_expression(Meta.parse(v)) ? uparse(v) : nothing
     catch
-        default_unit
+        nothing
     end
 end
+
+const _UNIT_CACHE = Dict{String, Any}()
+const _UNIT_LOCK = ReentrantLock()
 
 # Classification labels are enum names, never Julia expressions. Preserve the
 # existing undefined fallback for missing, malformed, and unsupported labels.

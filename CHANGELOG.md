@@ -139,6 +139,7 @@ They are corrected here, each with a test that failed before.
   optimality conditions and computes what the proof covers once, for the
   answer it returns. The lookups of a species no longer copy its composition,
   and `StateView` has concrete fields.
+- The units of a database are parsed once per spelling, not once per record.
 
 ### Documentation
 
