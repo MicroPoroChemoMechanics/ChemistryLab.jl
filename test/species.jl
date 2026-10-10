@@ -221,6 +221,13 @@ end
     @test ChemistryLab.find_species("OH2", [na, gas, aq]; aggregate_state = AS_AQUEOUS) === aq
     # Nothing that answers: a new species of that formula.
     @test symbol(ChemistryLab.find_species("KCl", [salt, water])) == "KCl"
+    # Several that answer: the first, and the ambiguity said.
+    printed = mktemp() do path, io
+        @test redirect_stdout(() -> ChemistryLab.find_species("H2O", [gas, aq]), io) === gas
+        flush(io)
+        read(path, String)
+    end
+    @test occursin("Several species correspond to H2O", printed)
 end
 
 @testset "a lookup in a charged species copies nothing" begin
