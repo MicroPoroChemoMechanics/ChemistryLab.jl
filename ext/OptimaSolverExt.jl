@@ -12,7 +12,6 @@ import ChemistryLab:
     ChemicalState,
     _build_params,
     _build_n0,
-    _solution_transform,
     _update_derived!
 using OptimaSolver: OptimaOptimizer, DualNewtonProblem, DualNewtonOptions,
     SolutionPhase, dual_newton_solve, dual_newton_tangent, kkt_certificate, lp_start
@@ -25,13 +24,10 @@ using ForwardDiff
 
 # ── OptimizationProblem helpers (NoAD — OptimaOptimizer handles gradients) ────
 
-# The element-conservation matrix and vector are passed through the parameters.
-# Without them `OptimaSolver` falls back to rebuilding `A` by finite differences
-# on the constraint function, which caps the achievable feasibility at ~1e-6
-# whatever tolerance is requested — `A` is known exactly, so it is handed over.
-# Only in the linear parameterization: in log space the constraint is
-# A·exp(x) = b, which is not linear in the optimization variables, so handing
-# over `A` would be wrong there.
+# The element-conservation matrix and vector are passed through the parameters:
+# `A` is known exactly, and handed over it spares OptimaSolver extracting it from
+# the constraint function. The problem is built in the amounts whatever the
+# solver's `variable_space` (see `solve` below), where `A n = b` is linear.
 """
     _hessian_diagonal(μ, q) -> (hf, n) -> hf
 
@@ -85,47 +81,42 @@ function _build_optima_opt_prob(ep::EquilibriumProblem, μ, ::Val{:linear})
     )
 end
 
-function _build_optima_opt_prob(ep::EquilibriumProblem, μ, ::Val{:log})
-    f_gibbs(x, q) = (n = exp.(x); dot(n, μ(n, q)))
-    # In `x = ln n` the gradient of G is `n ∘ μ`, by the chain rule on the one of
-    # the linear route above, and it is handed over for the same reason: the
-    # derivative of `dot(n, μ(n))` carries the term `Jᵀn`, which is zero only
-    # where the model satisfies the Gibbs–Duhem relation, and steering on it
-    # settled on another composition than the equilibrium.
-    g_gibbs!(g, x, q) = (n = exp.(x); g .= n .* μ(n, q))
-    cons!(res, x, _) = (n = exp.(x); mul!(res, ep.A, n); res .-= ep.b)
-    optf = SciMLBase.OptimizationFunction{true}(f_gibbs; grad = g_gibbs!, cons = cons!)
-    return SciMLBase.OptimizationProblem(
-        optf, log.(ep.u0), ep.p;
-        lb = log.(ep.lb), ub = log.(ep.ub),
-        lcons = zeros(size(ep.A, 1)),
-        ucons = zeros(size(ep.A, 1)),
-    )
-end
-
 # ── solve(EquilibriumSolver{OptimaOptimizer}, ChemicalState) ──────────────────
 
-"""
-    SciMLBase.solve(esolver::EquilibriumSolver{<:Function, <:OptimaOptimizer},
-                   state::ChemicalState; ϵ=1e-16) -> ChemicalState
-
-Solve a chemical equilibrium problem using an `OptimaOptimizer` solver.
-Loaded automatically when `using OptimaSolver` is active.
-"""
 # The first parameter is bounded as the struct bounds it, and this is what makes
 # the method reachable at all once `OptimizationIpoptExt` is loaded. That
 # extension defines `solve(::EquilibriumSolver, ::ChemicalState)` for every
-# back end, and this signature used to read `EquilibriumSolver{F,
-# <:OptimaOptimizer, V} where {F, V}`: with `F` and `V` free of the bounds the
-# struct declares, Julia does not rank it as more specific than the bare
-# `EquilibriumSolver`, and the generic method won. Every `OptimaOptimizer` solve
-# of a session that had also loaded Ipopt then went through the generic
-# `OptimizationProblem` -- no exact conservation matrix, the gradient of
-# `dot(n, μ(n))` by automatic differentiation instead of `μ` itself -- which is
-# the path the comments above measure as wrong. On a 109-species cement it
-# returned a start 2e-3 mol away from this method's, which the dual solve could
-# not certify, and a certified solve that costs 0.7 s here cost 34 to 78 s
-# there. The documentation loads Ipopt, so every page paid it.
+# back end. Written `EquilibriumSolver{F, <:OptimaOptimizer, V} where {F, V}`,
+# with `F` and `V` free of the bounds the struct declares, this signature would
+# not rank as more specific than the bare `EquilibriumSolver`, and the generic
+# method would win: every `OptimaOptimizer` solve of a session that had also
+# loaded Ipopt would go through the generic `OptimizationProblem` -- no exact
+# conservation matrix, the gradient of `dot(n, μ(n))` by automatic
+# differentiation instead of `μ` itself -- which is the path the comments above
+# measure as wrong. Measured that way on a 109-species cement, it returned a
+# start 2e-3 mol away from this method's, which the dual solve could not
+# certify, and a certified solve that costs 0.7 s here cost 34 to 78 s there;
+# the documentation loads Ipopt, so every page paid it.
+"""
+    SciMLBase.solve(esolver::EquilibriumSolver{<:Function, <:OptimaOptimizer},
+                    state::ChemicalState; ϵ = _AMOUNT_FLOOR, b = nothing,
+                    certificate = nothing, polish = _POLISH[]) -> ChemicalState
+
+Solve a chemical equilibrium problem using an `OptimaOptimizer` solver.
+Loaded automatically when `using OptimaSolver` is active.
+
+  - `ϵ`: the floor of the amounts, applied to the start and to the answer.
+  - `b`: the element budget; the state's own when `nothing`, and otherwise the
+    totals the answer holds, the state supplying only the start, `T` and `P`.
+  - `certificate`: a `Ref` that receives the certificate of the answer returned,
+    or `nothing` when none was computed.
+  - `polish`: polish the answer by the dual Newton and certify it
+    ([`_POLISH`](@ref)).
+
+A state, budget, data or activity model carrying dual numbers is solved on its
+values and the answer lifted by the implicit-function theorem
+([`_solve_dual`](@ref)).
+"""
 function SciMLBase.solve(
         esolver::EquilibriumSolver{<:Function, <:OptimaOptimizer},
         state::ChemicalState;
@@ -150,7 +141,11 @@ function SciMLBase.solve(
     prob = isnothing(b) ?
         EquilibriumProblem(A, esolver.μ, n0; p = p) :
         EquilibriumProblem(A, esolver.μ, n0; b = collect(b), p = p)
-    opt_prob = _build_optima_opt_prob(prob, esolver.μ, esolver.variable_space)
+    # In the amounts, whatever `variable_space`: OptimaSolver handles `A n = b`,
+    # and handed `A exp(x) − b` it would take its tangent at the start for the
+    # constraint. The minimum is the same; the logarithms are a parameterization
+    # for Ipopt.
+    opt_prob = _build_optima_opt_prob(prob, esolver.μ, Val(:linear))
 
     # The polish decides on the answer, so the interior point's own return code
     # is not checked when there is one: it is neither a warning nor, under
@@ -162,11 +157,9 @@ function SciMLBase.solve(
         ChemistryLab._dual_applicable(state.system)
     raw = SciMLBase.solve(opt_prob, esolver.solver; esolver.kwargs...)
     sol = polish ? raw : ChemistryLab._check_converged(raw, "equilibrium solve")
-    transform = _solution_transform(esolver.variable_space)
-
     state_eq = copy(state)
     for (i, nᵢ) in enumerate(sol.u)
-        state_eq.n[i] = max(transform(nᵢ), ϵ) * u"mol"
+        state_eq.n[i] = max(nᵢ, ϵ) * u"mol"
     end
     _update_derived!(state_eq)
 

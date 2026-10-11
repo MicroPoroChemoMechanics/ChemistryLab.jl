@@ -1,4 +1,5 @@
 using JSON
+using ChemistryLab: value, source
 using ChemistryLab.DataFrames: metadata
 
 # The reader of PHREEQC databases against PHREEQC itself, on the six databases
@@ -357,4 +358,108 @@ end
     Mw = ustrip(us"kg/mol", Species("H2O")[:M])
     @test ChemistryLab._solvent_lna(:phreeqc, 1.0, 2.0, 1.0, Mw) ≈ log(1 - ChemistryLab._PHREEQC_WATER_COEFFICIENT / Mw)
     @test isfinite(ChemistryLab._solvent_lna(:phreeqc, 1.0, 101.0, 100.0, Mw))
+end
+
+# The readers of PHREEQC files share one scanner of blocks, one reader of
+# equations and one rule for names, and the readers of the other formats the same
+# rule. Each test fails on the readers as they were, each with its own rules.
+@testsection "One rule for the names and the blocks of every reader" begin
+    # The rule: `(aq)` dropped, `@` on a neutral species, water the solvent, a
+    # run of signs a charge.
+    @test ChemistryLab._solute_symbol("CaSO4(aq)") == "CaSO4@"
+    @test ChemistryLab._solute_symbol("CaSO4(AQ)") == "CaSO4@"
+    @test ChemistryLab._solute_symbol("H2O") == "H2O@"
+    @test ChemistryLab._solute_symbol("Na+") == "Na+"
+    @test ChemistryLab._phreeqc_name("SO4--") == "SO4-2"
+    @test ChemistryLab._phreeqc_name("Na+1") == "Na+"
+
+    mktempdir() do dir
+        # PITZER: `SO4--` was kept as written (no species of a system is named
+        # so) and `CaSO4(aq)` became `CaSO4(aq)@`; a coefficient line at the
+        # first column ended the block, and its remaining lines were lost.
+        pz = joinpath(dir, "pitzer-names.dat")
+        write(
+            pz, """
+            PITZER
+            -B0
+              Na+   SO4--   0.0195
+            Ca+2  Cl-   0.3159
+            -LAMDA
+              CaSO4(aq)  Na+   0.1
+            -THETA
+              K+  Na+  -0.012
+            END
+            """,
+        )
+        p = build_pitzer_parameters(pz; format = :phreeqc)
+        @test p.beta0[("Na+", "SO4-2")] == 0.0195
+        @test p.beta0[("Ca+2", "Cl-")] == 0.3159
+        @test p.lambda[("CaSO4@", "Na+")] == 0.1
+        @test p.theta[("K+", "Na+")] == -0.012
+
+        # SIT: a line of another shape ended the reading; it is now reported,
+        # and the lines after it are read.
+        st = joinpath(dir, "sit-names.dat")
+        write(
+            st, """
+            SIT
+            -epsilon
+              Na+   SO4--   -0.12
+              Na+   Cl-   0.03   0.0
+              K+    Cl-   0.00
+            END
+            """,
+        )
+        q = @test_logs (:warn, r"Na\+   Cl-   0.03   0.0") build_sit_parameters(st)
+        @test value(sit_epsilon(q, "Na+", "SO4-2")) == -0.12
+        @test value(sit_epsilon(q, "K+", "Cl-")) == 0.0
+        @test sit_epsilon(q, "Na+", "Cl-") === nothing
+
+        # Sorption: logical lines split at semicolons as in every PHREEQC
+        # block (the constant of the first reaction was lost with the line it
+        # shared), a block given twice read twice, a run of signs a charge, and
+        # the comment of the line kept on both pieces.
+        so = joinpath(dir, "sorption-names.dat")
+        write(
+            so, """
+            SURFACE_MASTER_SPECIES
+                Hfo_w   Hfo_wOH
+            SURFACE_SPECIES
+                Hfo_wOH = Hfo_wOH; -log_k 0.0
+                Hfo_wOH + Ca++ = Hfo_wOCa+ + H+; -log_k 4.97   # ref: Dzombak:1990:bk: error: 0.1
+            SURFACE_SPECIES
+                Hfo_wOH + H+ = Hfo_wOH2+
+                -log_k 7.29
+            END
+            """,
+        )
+        m = read_sorption_model(so)
+        # The identity reaction of the master species produces nothing and
+        # belongs to no site; the two others are read.
+        rs = m.surfaces["Hfo_w"].reactions
+        @test length(rs) == 2
+        ca = only(r for r in rs if haskey(r.stoichiometry, "Ca+2"))
+        @test ca.stoichiometry == Dict("Hfo_wOH" => -1, "Ca+2" => -1, "Hfo_wOCa+" => 1, "H+" => 1)
+        @test value(ca.log_K) == 4.97
+        @test source(ca.log_K) == "Dzombak:1990:bk:"
+        @test uncertainty(ca.log_K) == 0.1
+        @test any(r -> haskey(r.stoichiometry, "Hfo_wOH2+"), rs)
+    end
+
+    # `log_k` without its dash, as llnl.dat, minteq.v4.dat, wateq4f.dat and
+    # pitzer.dat write it in their SURFACE_SPECIES: their constants were all
+    # passed over, and their sorption models read without a reaction.
+    for f in ("llnl.dat", "minteq.v4.dat", "wateq4f.dat", "pitzer.dat")
+        rs = read_sorption_model(datapath(f)).surfaces["Hfo_w"].reactions
+        protonation = only(r for r in rs if haskey(r.stoichiometry, "Hfo_wOH2+"))
+        @test value(protonation.log_K) == 7.29
+    end
+
+    # A sorption reaction names its aqueous partners as a database does: a
+    # neutral one is found under the symbol the readers give it.
+    s = Species("H4SiO4"; symbol = "H4SiO4@", aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+    lookup = Dict("H4SiO4@" => s)
+    @test ChemistryLab._aqueous_participant(lookup, "H4SiO4", "f") === s
+    @test ChemistryLab._aqueous_participant(Dict("H2O@" => s), "H2O", "f") === s
+    @test_throws ArgumentError ChemistryLab._aqueous_participant(lookup, "SiO2", "f")
 end

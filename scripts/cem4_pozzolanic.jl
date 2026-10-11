@@ -30,13 +30,13 @@ default(framestyle = :box, grid = false)
 
 substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
 byname = Dict(symbol(s) => s for s in substances)
-molar_mass(n) = ustrip(us"g/mol", byname[n][:M])
+molar_mass_g(n) = ustrip(us"g/mol", byname[n][:M])
 nothing # hide
 
 # ASSUMED: a Bogue composition representative of a CEM I clinker, here
 # the Bogue composition of the CEM I 52.5 N of [Lavergne2018](@citet), Table 9.
-bogue = literature_table("Lavergne2018", "cement_bogue")
-CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))
+bogue_table = literature_table("Lavergne2018", "cement_bogue")
+CLINKER = OrderedDict(zip(bogue_table.phase, bogue_table.percent ./ 100))
 
 # ASSUMED: a siliceous (class V) fly ash analysis of the kind European standards
 # admit — low calcium, high silica and alumina, and the alkalis that make the
@@ -107,8 +107,8 @@ pure = split(
     "C3S C2S C3A C4AF Gp Anh Cal Portlandite ettringite monosulphate12 " *
         "monocarbonate hemicarbonate C4AH13 C3AH6 C3FH6 straetlingite " *
         "hydrotalcite Brc FeOOHmic AlOHmic Amor-Sl Mgs " *
-        # Aluminum sinks that CEMDATA18 documents and an earlier version of this
-        # list simply did not declare. The siliceous hydrogarnet `C3AS0.84H4.32`
+        # Aluminum sinks that CEMDATA18 documents, declared here. The siliceous
+        # hydrogarnet `C3AS0.84H4.32`
         # is the one that matters most here: it is the ALUMINUM end-member of the
         # family whose iron end-member was already present, and a blended binder
         # puts a great deal of aluminum into it. Leaving it out does not make the
@@ -118,7 +118,7 @@ pure = split(
         "M4A-OH-LDH M6A-OH-LDH M8A-OH-LDH C2AH7.5 C4AH11 C4AH19 " *
         "K2SO4 syngenite Na2SO4"
 )
-aqueous = ["SO4-2", "CO2@", "O2@"]
+extra_aqueous = ["SO4-2", "CO2@", "O2@"]
 
 CSHQ = ["CSHQ-JenD", "CSHQ-JenH", "CSHQ-TobD", "CSHQ-TobH", "KSiOH", "NaSiOH"]
 CNASH = [
@@ -151,7 +151,7 @@ FEAL = ["C3AFS0.84H4.32", "C3FS0.84H4.32"]
 
 function system(gel_name, gel_members)
     sp = speciation(
-        substances, vcat(pure, gel_members, FEAL, aqueous);
+        substances, vcat(pure, gel_members, FEAL, extra_aqueous);
         aggregate_state = [AS_AQUEOUS]
     )
     # CNASH_ss mixes on the sites of Myers et al. (2014), as it ships in
@@ -182,21 +182,21 @@ println("molar K/Na of the alkalis: ", round((2 * ALKALIS["K2O"] / Mox("K2O")) /
 # `α_ash` is a keyword rather than a constant so that section 7 can drive it,
 # and the state carries only the reacted clinker: what has not reacted is still
 # in the specimen but is not at equilibrium with the pore solution.
-function budget(cs; ash, wb = WB, α_ash = ALPHA_ASH, α_clinker = ALPHA_CLINKER)
+function paste_budget(cs; ash, wb = WB, α_ash = ALPHA_ASH, α_clinker = ALPHA_CLINKER)
     clinker_frac = 1 - ash - GYPSUM
     state = ChemicalState(cs)
     for (phase, frac) in CLINKER
         set_quantity!(
             state, phase,
-            α_clinker * BINDER_G * clinker_frac * frac / molar_mass(phase) * u"mol"
+            α_clinker * BINDER_G * clinker_frac * frac / molar_mass_g(phase) * u"mol"
         )
     end
     # The calcium sulfate is soluble and carries no ceiling, and all of the
     # mixing water enters: the ceiling limits how far the reaction goes, not how
     # much water was poured in.
-    set_quantity!(state, "Gp", BINDER_G * GYPSUM / molar_mass("Gp") * u"mol")
-    set_quantity!(state, "H2O@", BINDER_G * wb / molar_mass("H2O@") * u"mol")
-    b = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
+    set_quantity!(state, "Gp", BINDER_G * GYPSUM / molar_mass_g("Gp") * u"mol")
+    set_quantity!(state, "H2O@", BINDER_G * wb / molar_mass_g("H2O@") * u"mol")
+    b = budget(state)
     # The alkalis leave the grain as it dissolves: same fraction as the clinker.
     b .+= oxide_budget(
         ALKALIS, cs.SM.primaries;
@@ -211,8 +211,8 @@ function budget(cs; ash, wb = WB, α_ash = ALPHA_ASH, α_clinker = ALPHA_CLINKER
     return state, b
 end
 
-st_q, b_q = budget(cs_q; ash = ASH_FRACTION)
-st_n, b_n = budget(cs_n; ash = ASH_FRACTION)
+st_q, b_q = paste_budget(cs_q; ash = ASH_FRACTION)
+st_n, b_n = paste_budget(cs_n; ash = ASH_FRACTION)
 
 comps = String.(symbol.(cs_n.SM.primaries))
 for (c, v) in zip(comps, b_n)
@@ -276,7 +276,7 @@ for α in (ALPHA_ASH, 1.0)
     ch, phs, ok = Float64[], Float64[], Bool[]
     prev = nothing
     for f in fractions
-        st, b = budget(cs_n; ash = f, α_ash = α)
+        st, b = paste_budget(cs_n; ash = f, α_ash = α)
         # CONTINUATION along the sweep: each point starts from its neighbor's
         # answer rather than from a fresh paste.
         #
@@ -355,7 +355,7 @@ eq_b, c_b = nothing, nothing          # the full-reaction case, kept below
 
 # The 28-day fraction, each model started from its own fresh paste.
 for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
-    st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = ALPHA_ASH)
+    st, b = paste_budget(cs; ash = ASH_FRACTION_B, α_ash = ALPHA_ASH)
     eq, c = equilibrate_certified(st; model = model, b = b)
     @printf(
         "%2.0f %% ash reacted %3.0f %%  %-10s optimal=%-5s balance=%.1e  pH=%.3f\n",
@@ -367,7 +367,7 @@ end
 # the ionic strength it was reached at, and whether that lies within the range
 # the activity model is stated for.
 for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
-    st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = 1.0)
+    st, b = paste_budget(cs; ash = ASH_FRACTION_B, α_ash = 1.0)
     eq, c = equilibrate_certified(st; model = model, b = b)
     (label == "CNASH_ss") && (global eq_b, c_b = eq, c)
     @printf(
@@ -383,7 +383,7 @@ end
 
 perion = HKFActivityModel()
 for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
-    st, b = budget(cs; ash = ASH_FRACTION_B, α_ash = 1.0)
+    st, b = paste_budget(cs; ash = ASH_FRACTION_B, α_ash = 1.0)
     eq, c = equilibrate_certified(st; model = perion, b = b)
     @printf(
         "100 %% ash reacted  %-10s optimal=%-5s balance=%.1e  pH=%.3f  I=%.2f mol/kg\n",
@@ -424,7 +424,7 @@ end
 
 pure_z = vcat(String.(pure), zeolites)
 sp_z = speciation(
-    zeo_db, vcat(pure_z, CNASH, FEAL, aqueous);
+    zeo_db, vcat(pure_z, CNASH, FEAL, extra_aqueous);
     aggregate_state = [AS_AQUEOUS]
 )
 ss_z = [
@@ -438,7 +438,7 @@ cs_z = ChemicalSystem(sp_z, CEMDATA_PRIMARIES; solid_solutions = ss_z)
 
 # The full-reaction limit, through the same `budget` as `c_b`, so that the two
 # answers are to one question and differ only in the phases declared.
-st_z, b_z = budget(cs_z; ash = ASH_FRACTION_B, α_ash = 1.0)
+st_z, b_z = paste_budget(cs_z; ash = ASH_FRACTION_B, α_ash = 1.0)
 
 eq_z, c_z = equilibrate_certified(st_z; model = model, b = b_z)
 @printf(

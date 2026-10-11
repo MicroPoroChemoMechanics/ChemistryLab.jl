@@ -271,4 +271,15 @@
         @test mu[2] ≈ mu[3] atol = 1.0e-8
         @test n[4] ≈ 2 rtol = 1.0e-12
     end
+
+    @testset "constants being fitted carry their derivatives" begin
+        # The critical constants, the acentric factor and the interaction
+        # parameters were stored as `Float64`, and a dual one raised.
+        lnφk(k) = CL._pr_ln_phi(mixing(co2, peng_robinson(cem["N2"]; kij = [:CO2 => k])), [0.5, 0.5], 298.15, 5.0e6)[1][1]
+        dk = ForwardDiff.derivative(lnφk, 0.1)
+        @test isfinite(dk) && dk != 0
+        lnφω(w) = CL._pr_ln_phi(mixing(peng_robinson(cem["CO2"]; T_c = 304.2, P_c = 7.38e6, ω = w)), [1.0], 298.15, 5.0e6)[1][1]
+        dω = ForwardDiff.derivative(lnφω, 0.225)
+        @test isfinite(dω) && dω != 0
+    end
 end

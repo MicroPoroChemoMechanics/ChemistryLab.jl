@@ -126,22 +126,24 @@ function _invert_aqueous(form, c, ref, w, p, jref)
     ln10 = log(10.0)
     lndenom = log(ref * form.M_w)
     ions = [t for t in eachindex(z) if t != jref && z[t] != 0]
-    lnγ(t, I) = ln10 * form.log10γ(t, z[t], I, sqrt(I + ϵ), A, B)
+    lnγ(t, I, sqrtI) = ln10 * form.log10γ(t, z[t], I, sqrtI, A, B)
     # `ln(½ zₜ²) + cₜ`, the part of `ln(½ zₜ² mₜ)` that does not depend on `I`.
     a0 = [log(abs(z[t])^2 / 2) + c[t] for t in ions]
     # `ln I` of the composition the potentials give at an ionic strength `exp(s)`,
     # minus `s`: its root is the self-consistent ionic strength. One pass, a
     # running log-sum-exp, and nothing allocated: it is evaluated some twenty
     # times per inversion, an inversion per trial step of the outer Newton. Its
-    # ionic strength has a name of its own: written `I`, it was the `I` this
-    # function assigns below, which Julia then boxed, and every evaluation
-    # allocated and dispatched on it.
+    # locals have names of their own (`Is`, `sIs`): named as a variable this
+    # function assigns below (`I`, `sI`), each was that variable, which Julia then
+    # boxed, and every evaluation allocated and dispatched on it — a CEM V paste
+    # took 21 s for 8.7.
     F(s) = begin
         Is = exp(s)
-        M = a0[1] - lnγ(ions[1], Is)
+        sIs = sqrt(Is + ϵ)
+        M = a0[1] - lnγ(ions[1], Is, sIs)
         acc = one(M)
         @inbounds for k in 2:length(ions)
-            x = a0[k] - lnγ(ions[k], Is)
+            x = a0[k] - lnγ(ions[k], Is, sIs)
             if x > M
                 acc = acc * exp(M - x) + 1
                 M = x
@@ -156,13 +158,14 @@ function _invert_aqueous(form, c, ref, w, p, jref)
     else
         # Values for the search, and the derivative in `s` taken on `F` itself
         # before its values are read: stripping first would strip the derivative.
+        # The search reads both at each point, from one evaluation.
         Fv = s -> _plain(F(s))
-        dFv = s -> _plain(ForwardDiff.derivative(F, s))
+        FdF = s -> _value_and_slope(F, s)
         # Below the dilute limit, where the solutes are those of zero ionic
         # strength: the Debye–Hückel coefficients only raise them from there, so
         # the root lies above.
         s_start = max(log(1.0e-30), Fv(log(1.0e-30)) + log(1.0e-30) - 1.0)
-        sv = _ionic_strength_root(Fv, dFv, s_start)
+        sv = _ionic_strength_root(FdF, s_start)
         sv === nothing && return nothing
         # The root of the branch the iterate is on, when it sits above the first
         # one (`_branch_of_iterate`); the first one otherwise, to the bit.
@@ -184,7 +187,18 @@ function _invert_aqueous(form, c, ref, w, p, jref)
         end
         exp(s)
     end
-    return [j == jref ? w[j] : c[j] - lnγ(j, I) + lndenom for j in eachindex(c)]
+    sI = sqrt(I + ϵ)
+    return [j == jref ? w[j] : c[j] - lnγ(j, I, sI) + lndenom for j in eachindex(c)]
+end
+
+# `F(s)` and `F′(s)` from one evaluation in dual numbers: the derivative is the
+# one `ForwardDiff.derivative(F, s)` returns, and the value is computed by the
+# operations of `F(s)` itself, the same to the bit. Both on values, whatever
+# dual numbers the parameters carry being peeled (`_plain`).
+function _value_and_slope(F, s::Float64)
+    T = typeof(ForwardDiff.Tag(F, Float64))
+    r = F(ForwardDiff.Dual{T}(s, one(s)))
+    return _plain(ForwardDiff.value(T, r)), _plain(ForwardDiff.extract_derivative(T, r))
 end
 
 """
@@ -217,15 +231,17 @@ from that start had certified it at once. `s_start` lies below the root
 than `smax` at zero ionic strength, is searched downwards, under the same
 ceiling.
 """
-function _ionic_strength_root(F, dF, s_start; smax = log(1.0e4), hmax = 4.0)
+_ionic_strength_root(F, dF, s_start; kwargs...) = _ionic_strength_root(s -> (F(s), dF(s)), s_start; kwargs...)
+
+# On `FdF(s) = (F(s), F′(s))`, which the search reads at each point it visits.
+function _ionic_strength_root(FdF, s_start; smax = log(1.0e4), hmax = 4.0)
     a = s_start
-    Fa = F(a)
+    Fa, da = FdF(a)
     isfinite(Fa) || return nothing
     if !(Fa > 0)                                     # already past it: below
-        r = _bracketed_root(F, dF, a - 60.0, a)
+        r = _bracketed_root(FdF, a - 60.0, a)
         return r <= smax ? r : nothing
     end
-    da = dF(a)
     while a < smax
         # Newton's step towards the root while `F` falls, which from the left of
         # a convex `F` never passes it; at most `hmax`, and that much where `F`
@@ -233,17 +249,16 @@ function _ionic_strength_root(F, dF, s_start; smax = log(1.0e4), hmax = 4.0)
         step = da < 0 ? min(-Fa / da, hmax) : hmax
         b = min(a + step, smax)
         b - a <= 4 * eps(max(1.0, abs(a))) && return b
-        Fb = F(b)
+        Fb, db = FdF(b)
         isfinite(Fb) || return nothing
-        Fb <= 0 && return _bracketed_root(F, dF, a, b)
-        db = dF(b)
+        Fb <= 0 && return _bracketed_root(FdF, a, b)
         if da < 0 && db > 0
             # A minimum inside: below zero, it holds the first root; above, the
             # dilute branch ends there. Located by the secant on `F′`, kept inside
             # its bracket (Illinois): a few evaluations, where under the limiting
             # law past its range nine searches in ten end on such a dip.
-            m = _bracketed_zero(dF, a, da, b, db)
-            return F(m) <= 0 ? _bracketed_root(F, dF, a, m) : nothing
+            m = _bracketed_zero(s -> last(FdF(s)), a, da, b, db)
+            return first(FdF(m)) <= 0 ? _bracketed_root(FdF, a, m) : nothing
         end
         a, Fa, da = b, Fb, db
     end
@@ -343,17 +358,17 @@ function _bracketed_zero(f, a, fa, b, fb)
 end
 
 # The root of `F` in `[a, b]`, `F(a) > 0 ≥ F(b)`, by Newton's method kept inside
-# the bracket, `dF` its derivative.
-function _bracketed_root(F, dF, a, b)
+# the bracket, `FdF(s) = (F(s), F′(s))`.
+function _bracketed_root(FdF, a, b)
     lo, hi = a, b
-    F(lo) > 0 || return lo
+    first(FdF(lo)) > 0 || return lo
     s = (lo + hi) / 2
     sn, k, done = s, 0, false
     while !done
         k += 1
-        fs = F(s)
+        fs, ds = FdF(s)
         fs > 0 ? (lo = s) : (hi = s)
-        sn = s - fs / dF(s)
+        sn = s - fs / ds
         (isfinite(sn) && lo < sn < hi) || (sn = (lo + hi) / 2)
         done = k == 200 || abs(sn - s) <= 4 * eps(max(1.0, abs(s))) ||
             hi - lo <= 4 * eps(max(1.0, abs(lo)))
@@ -404,7 +419,7 @@ function _newton_predictor_form(model::PitzerActivityModel, cs::ChemicalSystem, 
     fγ(A, sqrtI) = -(A / 3) * (sqrtI / (1 + bp * sqrtI) + 2 / bp * log1p(bp * sqrtI))
     log10γ = (t, z, I, sqrtI, A, B) -> z^2 * fγ(A, sqrtI)
     AB = p -> (model.temperature_dependent && hasproperty(p, :T) && hasproperty(p, :P)) ?
-        (hkf_debye_huckel_params(p.T, p.P).A, 0.0) : (_DH_A_25C, 0.0)
+        (hkf_debye_huckel_params(p.T, p.P).A, 0.0) : (model.A, 0.0)
     return _ionic_form(cs, members, log10γ, AB)
 end
 

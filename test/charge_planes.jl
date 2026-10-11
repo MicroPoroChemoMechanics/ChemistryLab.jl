@@ -143,6 +143,12 @@ end
         @test ChemistryLab._plane_charges(c) == (0.5, 0.0, -1.0)
         @test charge(c) == charge(s) && symbol(c) == symbol(s)
         @test ChemistryLab._plane_charges(with_plane_charges(s, 0.25)) == (0.25, 0.0, 0.0)
+        # A charge distribution being fitted keeps its derivative, where the
+        # `Float64[…]` it was stored in raised; so does the pressure of a model.
+        dz = ForwardDiff.derivative(z -> ChemistryLab._plane_charges(with_plane_charges(s, z, 1 - z))[2], 0.5)
+        @test dz == -1
+        @test ChargePlanes(; area = 105.0, C1 = 0.9, pressure = ForwardDiff.Dual(1.0e5, 1.0)).pressure isa ForwardDiff.Dual
+        @test DiffuseLayer(; area = 600.0, pressure = ForwardDiff.Dual(1.0e5, 1.0)).pressure isa ForwardDiff.Dual
     end
 
     @testset "a family's two counts of charge agree up to the group's own" begin

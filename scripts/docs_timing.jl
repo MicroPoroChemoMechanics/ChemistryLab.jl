@@ -42,16 +42,12 @@ using OrdinaryDiffEq
 ENV["GKSwstype"] = "100"          # headless GR, as in docs/make.jl
 using Plots
 Plots.gr()
-Plots.default(; fontfamily = "sans-serif")   # the font docs/make.jl pins
 
 const ROOT = dirname(@__DIR__)
 const SRC = joinpath(ROOT, "docs", "src")
 
+include(joinpath(ROOT, "docs", "plots_theme.jl"))   # the defaults docs/make.jl sets
 include(joinpath(ROOT, "docs", "pages.jl"))
-
-leaves(node::AbstractString) = [node]
-leaves(node::Pair) = leaves(node.second)
-leaves(node::AbstractVector) = reduce(vcat, leaves.(node); init = String[])
 
 """
     executed_blocks(path) -> Vector{Tuple{Union{String,Nothing},String}}
@@ -137,7 +133,7 @@ function time_page(rel, io)
 end
 
 function main(patterns = ARGS)
-    selected = [p for p in leaves(pages) if isempty(patterns) || any(occursin(q, p) for q in patterns)]
+    selected = [p for p in page_leaves(pages) if isempty(patterns) || any(occursin(q, p) for q in patterns)]
     csv = get(ENV, "CHEMLAB_TIMING_CSV", "docs_timing.csv")
     totals = Pair{String, Float64}[]
     open(csv, "w") do io

@@ -155,13 +155,6 @@ end
 
 activity_model(des::DualEquilibriumSolver) = des.model
 
-"""
-    _dual_problem(des, p, n0) -> DualNewtonProblem
-
-Package the chemistry as the convex program `OptimaSolver` solves. Built per
-solve because the reference potentials `Δ_a G⁰/RT` depend on temperature and
-pressure.
-"""
 function _dual_phases(des::DualEquilibriumSolver, n0, p = nothing; invert = _aqueous_inverter(des))
     # One mixing phase for the aqueous solution — always present, the solvent as
     # its reference — and one more per declared solid solution, whose presence
@@ -360,6 +353,14 @@ function _split_starts(model, nmembers::Int)
     return out
 end
 
+"""
+    _dual_problem(des, p, n0, blocks = nothing) -> DualNewtonProblem
+
+Package the chemistry as the convex program `OptimaSolver` solves. Built per
+solve because the reference potentials `Δ_a G⁰/RT` depend on temperature and
+pressure. `blocks` are the constraint blocks of the solve, those of a fixed
+temperature and pressure when `nothing`.
+"""
 function _dual_problem(des::DualEquilibriumSolver, p, n0, blocks = nothing)
     bl = blocks === nothing ?
         _constraint_blocks(FixedTP(), des, nothing, p, n0) : blocks
@@ -543,10 +544,9 @@ be left there. The equation of the model is then solved exactly by
 satisfies it, and the one computed is kept. The element balance moves by the
 amounts added, of the order of the floor.
 
-Measured with the floor at 1e-16, where it stood until 0.28.0, on a cement paste
-at pH 14 in 7.8 g of water, whose equilibrium holds 1.2e-16 mol of H⁺: a solve
-left it at 3e-100 mol, and `pH(eq, model)`, which reads the amount, came out 0.09
-high. With the floor at 1e-30 such a solute is far above it, and this is the net
+Measured with the floor at 1e-16, on a cement paste at pH 14 in 7.8 g of water,
+whose equilibrium holds 1.2e-16 mol of H⁺: a solve left it at 3e-100 mol, and
+`pH(eq, model)`, which reads the amount, came out 0.09 high. With the floor at 1e-30 such a solute is far above it, and this is the net
 for one that is not.
 """
 function _complete_floored_solutes(des::DualEquilibriumSolver, prob, res, floor::Real)
@@ -588,12 +588,12 @@ one of them is undersaturated, as optimality requires). The balance is reported
 twice: `balance`, the worst row in moles, and `balance_relative`, the worst row
 relative to what it holds. Each row is judged on the larger of the two below one
 mole and in moles above it, so that a trace is held to its own amount, as
-PHREEQC and GEMS hold a mass balance to its element total; judged in moles alone,
-as until 0.29, a trace of 1e-9 mol could be 10 % wrong and certified. A component
-whose budget is below 1e-12 of the largest is one nobody supplies, its carriers
-held at the floor, and its row is judged in moles. `stationarity_floored` is
-the first, one-sided, on the members of a present phase held below `floor`: such
-a member may hold more than its exact amount, by truncation, but not less, and it
+PHREEQC and GEMS hold a mass balance to its element total; judged in moles
+alone, a trace of 1e-9 mol could be 10 % wrong and certified. A component whose
+budget is below 1e-12 of the largest is one nobody supplies, its carriers held
+at the floor, and its row is judged in moles. `stationarity_floored` is the
+first, one-sided, on the members of a present phase held below `floor`: such a
+member may hold more than its exact amount, by truncation, but not less, and it
 fails when the search left it far below what the multipliers give it.
 
 `worst_violation_split` extends that last test to the phases that are **present**:
@@ -623,25 +623,36 @@ function optimality_certificate(
     state = _primal(state)
     p = _build_params(state; ϵ = ϵ)
     n = Float64[ustrip(us"mol", x) for x in state.n]
+    verdict, Aq = _kkt_verdict(des, state, p, n; b, floor, constraint, q)
+    return merge(verdict, _certificate_report(des, state, p, n, constraint, Aq, floor))
+end
+
+# The conditions a search decides on, at the composition `state` on plain
+# numbers: what `optimality_certificate` returns up to `optimal`, and the matrix
+# of the constraint's unknowns its report needs.
+function _kkt_verdict(
+        des::DualEquilibriumSolver, state::ChemicalState, p, n;
+        b = nothing, floor::Float64 = _CERTIFICATE_FLOOR,
+        constraint::EquilibriumConstraint = FixedTP(), q = nothing,
+    )
     bv = b === nothing ? des.A * n : Float64[_plain(x) for x in collect(b)]
 
     # The certificate has to audit the problem that was SOLVED, and a constraint
-    # is part of that problem. Rebuilt with `FixedTP` — which is what this did
-    # until 0.16 — the audit misses two things at once: the conservation rows
-    # lose their `Aq q` term, so a prescribed activity or pH is measured against
-    # a budget short by exactly the titrant amount; and `hq` is skipped, so a
-    # constraint that shifts a chemical potential is measured against the
-    # unshifted one and can never certify however right it is.
+    # is part of that problem. Rebuilt with `FixedTP`, the audit would miss two
+    # things at once: the conservation rows would lose their `Aq q` term, so a
+    # prescribed activity or pH would be measured against a budget short by
+    # exactly the titrant amount; and `hq` would be skipped, so a constraint that
+    # shifts a chemical potential would be measured against the unshifted one
+    # and could never certify however right it is.
     blocks = _constraint_blocks(constraint, des, state, p, n)
 
     # A solve that carried the surface potential as an unknown returns it in `q`
     # after the constraint's own unknowns, and `equilibrate_certified` hands that
     # whole vector here. It is then the augmented problem that was solved, and the
     # one audited: the surface block is composed exactly as `solve` composes it,
-    # so the closure of each potential is part of the parameter residual. Built
-    # from the constraint alone, as this did until 0.23, a prescribed pH on a
-    # diffuse layer met a `q` one entry too long and threw a `DimensionMismatch`
-    # before measuring anything. Without the potentials in `q` — a solve that
+    # so the closure of each potential is part of the parameter residual (built
+    # from the constraint alone, a prescribed pH on a diffuse layer would meet a
+    # `q` one entry too long). Without the potentials in `q` — a solve that
     # eliminated them, or a caller auditing a bare composition — the eliminated
     # form is audited, which is exact: the activity model then evaluates each
     # potential from the composition itself.
@@ -664,43 +675,48 @@ function optimality_certificate(
         _dual_problem(des, p, n, _scoped_blocks(blocks)), n, bv, floor,
         des.opts.tol, des.opts.si_tol, qv,
     )
-    scope, scope_reasons, reduced_curvature = _certificate_scope(
-        des, p, n, constraint; Aq = blocks.Aq, floor = floor,
-    )
+    return (;
+            # In moles, and relative to what each row holds; `optimal` judges the
+            # larger of the two below one mole (OptimaSolver's `kkt_certificate`).
+            stationarity = c.stationarity, balance = c.feasibility_abs,
+            balance_relative = c.feasibility_rel,
+            # The unscaled stationarity, in RT units. `stationarity` is divided by the
+            # size of the potentials it is built from — they are of order 10²-10³, so
+            # an absolute threshold on their residual would ask for thirteen digits of
+            # cancellation — and this is the raw figure for reporting.
+            stationarity_abs = c.stationarity_abs,
+            # The same condition on the members of a present phase held below the
+            # floor, one-sided: such a member may hold less than its multipliers
+            # give it only by truncation, never by being left behind. Read through
+            # `hasproperty` for a certificate from a back end that does not run it.
+            stationarity_floored = hasproperty(c, :stationarity_floored) ? c.stationarity_floored : 0.0,
+            worst_supersaturation = c.worst_violation, n_interior = c.n_interior,
+            n_absent_component = c.n_forced_zero,
+            # Zero on the unconstrained route, so it costs nothing there and is the
+            # constraint's own residual when there is one.
+            param_residual = hasproperty(c, :param_residual) ? c.param_residual : 0.0,
+            # Michelsen's split verdict on the PRESENT mixing phases, forwarded
+            # rather than dropped. `equilibrate_split` seeds a second instance from
+            # `split_trials`, and it is the only place that composition exists: the
+            # trial is a property of the full system, fixed jointly with the solution
+            # the phase sits in, so a caller cannot recompute it from the mixing
+            # model alone. Read through `hasproperty` because a certificate also
+            # arrives from a back end that does not run the test.
+            worst_violation_split = hasproperty(c, :worst_violation_split) ?
+            c.worst_violation_split : -Inf,
+            split_phases = hasproperty(c, :split_phases) ? c.split_phases : Int[],
+            split_trials = hasproperty(c, :split_trials) ? c.split_trials :
+            Dict{Int, NamedTuple{(:members, :x), Tuple{Vector{Int}, Vector{Float64}}}}(),
+            optimal = c.optimal,
+        ), blocks.Aq
+end
+
+# What `optimal = true` proves at `state` and whether it lies where its activity
+# model holds: computed once, for the answer a search returns.
+function _certificate_report(des::DualEquilibriumSolver, state::ChemicalState, p, n, constraint, Aq, floor)
+    scope, scope_reasons, reduced_curvature = _certificate_scope(des, p, n, constraint; Aq, floor)
     I, I_max, within = _activity_range_report(des.model, state)
     return (;
-        # In moles, and relative to what each row holds; `optimal` judges the
-        # larger of the two below one mole (OptimaSolver's `kkt_certificate`).
-        stationarity = c.stationarity, balance = c.feasibility_abs,
-        balance_relative = c.feasibility_rel,
-        # The unscaled stationarity, in RT units. `stationarity` is divided by the
-        # size of the potentials it is built from — they are of order 10²-10³, so
-        # an absolute threshold on their residual would ask for thirteen digits of
-        # cancellation — and this is the raw figure for reporting.
-        stationarity_abs = c.stationarity_abs,
-        # The same condition on the members of a present phase held below the
-        # floor, one-sided: such a member may hold less than its multipliers
-        # give it only by truncation, never by being left behind. Read through
-        # `hasproperty` for a certificate from a back end that does not run it.
-        stationarity_floored = hasproperty(c, :stationarity_floored) ? c.stationarity_floored : 0.0,
-        worst_supersaturation = c.worst_violation, n_interior = c.n_interior,
-        n_absent_component = c.n_forced_zero,
-        # Zero on the unconstrained route, so it costs nothing there and is the
-        # constraint's own residual when there is one.
-        param_residual = hasproperty(c, :param_residual) ? c.param_residual : 0.0,
-        # Michelsen's split verdict on the PRESENT mixing phases, forwarded
-        # rather than dropped. `equilibrate_split` seeds a second instance from
-        # `split_trials`, and it is the only place that composition exists: the
-        # trial is a property of the full system, fixed jointly with the solution
-        # the phase sits in, so a caller cannot recompute it from the mixing
-        # model alone. Read through `hasproperty` because a certificate also
-        # arrives from a back end that does not run the test.
-        worst_violation_split = hasproperty(c, :worst_violation_split) ?
-            c.worst_violation_split : -Inf,
-        split_phases = hasproperty(c, :split_phases) ? c.split_phases : Int[],
-        split_trials = hasproperty(c, :split_trials) ? c.split_trials :
-            Dict{Int, NamedTuple{(:members, :x), Tuple{Vector{Int}, Vector{Float64}}}}(),
-        optimal = c.optimal,
         # What `optimal = true` proves for this problem; see `_certificate_scope`.
         scope, scope_reasons, reduced_curvature,
         # Whether the answer lies where its activity model is stated valid. The
@@ -939,9 +955,9 @@ function _certificate_scope(des::DualEquilibriumSolver, p, n, constraint; Aq = n
             # A compound-energy model is judged with the energies of its members
             # at the temperature of the solve.
             g = ph.model isa CompoundEnergyModel ?
-                [Float64(ForwardDiff.value(p.ΔₐG⁰overRT[findfirst(s -> symbol(s) == symbol(m), cs.species)])) for m in ph.end_members] :
+                [_plain(p.ΔₐG⁰overRT[findfirst(s -> symbol(s) == symbol(m), cs.species)]) for m in ph.end_members] :
                 nothing
-            c = mixing_convexity(ph.model, length(ph.end_members); T = ForwardDiff.value(T), g)
+            c = mixing_convexity(ph.model, length(ph.end_members); T = _plain(T), g)
             c.verdict === :convex && continue
             convex = false
             push!(
@@ -1042,13 +1058,22 @@ _kkt_error(cert) = max(
 )
 
 """
-    solve_certified(des, starts; b = nothing, ϵ = 1e-16, floor = 1e-25, memo = nothing)
+    solve_certified(des, starts; b = nothing, ϵ = 1e-16, floor = 1e-25, constraint = FixedTP(),
+                    parameters = nothing, memo = nothing, stop = nothing, report = true)
         -> (state, certificate)
 
 Solve from each starting composition in `starts` and return the first answer
 [`optimality_certificate`](@ref) **proves** optimal. If none is proved, return the
 one with the smallest KKT error, together with its certificate, so the caller sees
 what it is getting.
+
+Each candidate is judged on the optimality conditions alone; what the proof
+covers (`scope`, `reduced_curvature`, the range of the activity model) is
+computed once, for the answer returned. `report = false` returns the verdict
+without it, for a caller that only reads `optimal` and the residuals. `stop`,
+a function of a candidate's certificate, ends the search on the first candidate
+it accepts; `parameters`, a `Ref`, receives the unknowns of the constraint at
+the answer.
 
 # Why trying more than one start is the rigorous thing to do, not a fudge
 
@@ -1108,6 +1133,7 @@ function solve_certified(
         parameters::Union{Nothing, Base.RefValue} = nothing,
         memo::Union{Nothing, IdDict} = nothing,
         stop::Union{Nothing, Function} = nothing,
+        report::Bool = true,
     )
     # A budget carrying dual numbers, or starts whose temperature, pressure or
     # amounts do: the search runs on the values, one level of duals down, and
@@ -1126,7 +1152,7 @@ function solve_certified(
             solve_certified(
                 _rebuilt(des), explicit ? map(s -> _strip_state(s, Tg), starts) : starts;
                 b = b === nothing ? nothing : _strip_tag(collect(b), Tg), ϵ = ϵ, floor = floor,
-                constraint = constraint, parameters = qv, memo = memo, stop = stop,
+                constraint = constraint, parameters = qv, memo = memo, stop = stop, report = report,
             )
         end
         eq === nothing && return (eq, cert)
@@ -1160,10 +1186,9 @@ function solve_certified(
             # measure the stationarity of a different problem. `q` is part of what
             # the solve found in exactly the same way, and is passed for the same
             # reason.
-            cert = optimality_certificate(
-                des, eq; b = b, ϵ = ϵ, floor = floor,
-                constraint = constraint, q = qref[],
-            )
+            # Each candidate is judged on the conditions alone; what the proof
+            # covers is reported for the answer returned (`_reported`).
+            cert = _verdict(des, eq; b, ϵ, floor, constraint, q = qref[])
             memo === nothing || (memo[s0] = (eq, cert, qref[]))
         else
             eq, cert, q = hit
@@ -1171,14 +1196,14 @@ function solve_certified(
         end
         if cert.optimal
             parameters === nothing || (parameters[] = qref[])
-            return (eq, cert)
+            return _reported(des, eq, cert, report; ϵ, floor, constraint)
         end
         # A caller may know that an uncertified answer is already what it needs:
         # a phase declared `instances = :auto` asking to split, which no other
         # start can make certify with one composition.
         if stop !== nothing && stop(cert)
             parameters === nothing || (parameters[] = qref[])
-            return (eq, cert)
+            return _reported(des, eq, cert, report; ϵ, floor, constraint)
         end
         # Ranked on the KKT error, but only among answers the model can describe:
         # a composition whose solvent has been taken by the solids is outside the
@@ -1195,7 +1220,35 @@ function solve_certified(
         end
     end
     parameters === nothing || (parameters[] = best_q)
-    return (best, best_cert)
+    best === nothing && return (best, best_cert)
+    return _reported(des, best, best_cert, report; ϵ, floor, constraint)
+end
+
+# The verdict of `optimality_certificate` at the answer `eq` of a candidate, and
+# the matrix of the constraint's unknowns its report will need.
+function _verdict(
+        des::DualEquilibriumSolver, eq::ChemicalState;
+        b = nothing, ϵ::Float64 = _AMOUNT_FLOOR, floor::Float64 = _CERTIFICATE_FLOOR,
+        constraint::EquilibriumConstraint = FixedTP(), q = nothing,
+    )
+    state = _primal(eq)
+    p = _build_params(state; ϵ = ϵ)
+    n = Float64[ustrip(us"mol", x) for x in state.n]
+    verdict, Aq = _kkt_verdict(des, state, p, n; b, floor, constraint, q)
+    return merge(verdict, (; _Aq = Aq))
+end
+
+# The certificate of the answer a search returns: its verdict and what the proof
+# covers, the fields of `optimality_certificate` in its order. With
+# `report = false` the verdict alone, for a caller that decides on it and may
+# report later (it keeps the matrix the report needs, as `_Aq`).
+function _reported(des::DualEquilibriumSolver, eq::ChemicalState, cert, report::Bool; ϵ, floor, constraint)
+    (report && hasproperty(cert, :_Aq)) || return (eq, cert)
+    verdict = Base.structdiff(cert, NamedTuple{(:_Aq,)})
+    state = _primal(eq)
+    p = _build_params(state; ϵ = ϵ)
+    n = Float64[ustrip(us"mol", x) for x in state.n]
+    return (eq, merge(verdict, _certificate_report(des, state, p, n, constraint, cert._Aq, floor)))
 end
 
 # ── hooks filled in by the OptimaSolver extension ────────────────────────────

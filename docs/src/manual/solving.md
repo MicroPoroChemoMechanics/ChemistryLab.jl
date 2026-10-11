@@ -24,10 +24,9 @@ ChemistryLab provides two solver extensions. Load whichever fits your workflow:
 
 When both are loaded, `OptimaSolver` provides the default single back end, and on
 a cement equilibrium it is the faster of the two: 0.10 s against 0.28 s for Ipopt
-on a CEM I paste at w/c = 0.45. An earlier version of this page quoted "3 to 26
-times faster"; that range is not reproduced — the measured factor there is 2.8,
-and on a small calcite system Ipopt is both faster (0.015 s against 0.038 s) and
-far more accurate on the element balance (`3e-12` relative against `3e-2`). Which
+on a CEM I paste at w/c = 0.45. On a small calcite system Ipopt is both faster
+(0.015 s against 0.038 s) and far more accurate on the element balance (`3e-12`
+relative against `3e-2`). Which
 back end is quicker depends on the system, so neither ordering is worth stating
 as a rule.
 
@@ -159,11 +158,9 @@ vessel that exchanges no heat has its temperature *determined* by the reaction; 
 titration holds the pH and lets the amount of acid follow. Both are equilibrium
 problems, and both are stated by saying what is held and what is unknown.
 
-!!! compat "Needs OptimaSolver 0.5"
-    The blocks in this section are shown rather than executed: the documentation
-    environment resolves `OptimaSolver` from the registry, and the parameter block
-    these constraints ride on arrived in 0.5.0. The figures quoted below are the
-    ones `test/equilibrium_constraints.jl` asserts.
+!!! note "Shown, not executed"
+    The blocks in this section are shown rather than executed. The figures quoted
+    below are the ones `test/equilibrium_constraints.jl` asserts.
 
 ```julia
 using ChemistryLab, DynamicQuantities, OptimaSolver
@@ -396,15 +393,20 @@ state_eq_log = equilibrate(state_eq, IpoptOptimizer(); variable_space = Val(:log
 
 ---
 
-### Tolerances
+### [Tolerances](@id man-tolerances)
 
-Solver options are passed as keyword arguments and forwarded to the optimizer.
-Ipopt reads `reltol` as its convergence tolerance `tol`; it has no counterpart
-for `abstol`, which it ignores:
+Solver options are passed as keyword arguments and forwarded to the optimizer's
+`solve`. Ipopt reads `reltol` as its convergence tolerance `tol`; it has no
+counterpart for `abstol`, which it ignores:
 
 ```julia
-state_eq_tight = equilibrate(state; reltol = 1e-12)
+state_eq_tight = equilibrate(state, IpoptOptimizer(); reltol = 1e-12)
 ```
+
+OptimaSolver, the default back end once it is loaded, ignores these keywords:
+its tolerances are the options of the optimizer, `OptimaOptimizer(; tol = 1e-12)`.
+The answer of [`equilibrate_certified`](@ref) is judged by its certificate,
+whatever the back end's tolerance.
 
 ## [Activity models](@id sec-activity-models)
 

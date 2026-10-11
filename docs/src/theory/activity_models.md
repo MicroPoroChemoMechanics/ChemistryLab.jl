@@ -293,8 +293,9 @@ and, ``\mu_i`` being homogeneous of degree zero,
 ```
 
 The first is the sharper: it fails exactly when **no** ``G`` has these activities
-for its gradient, whatever ``G`` might be. Both are read off the Jacobian of
-`ln_activities` by automatic differentiation — no ``G`` is constructed, no solve
+for its gradient, whatever ``G`` might be. Both are read off the Jacobian of the
+log-activities, the closure [`activity_model`](@ref) returns, by automatic
+differentiation — no ``G`` is constructed, no solve
 runs, nothing is differenced against a second solve.
 
 ### What is measured

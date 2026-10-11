@@ -83,18 +83,20 @@ function peng_robinson(
     props = copy(s.properties)
     props[:T_c] = Tc
     props[:P_c] = Pc
-    props[:ω] = Float64(ω)
-    props[:kij] = Pair{Symbol, Float64}[Symbol(first(p)) => Float64(last(p)) for p in kij]
+    # In the number type they are given in: a critical constant, an acentric
+    # factor or an interaction parameter being fitted carries its derivative.
+    props[:ω] = float(ω)
+    props[:kij] = [Symbol(first(p)) => float(last(p)) for p in kij]
     return Species{T}(s.name, s.symbol, s.formula, s.aggregate_state, s.class, props)
 end
 
 # A value in SI units: a plain number is taken as given in them (K, Pa), a
 # quantity is converted, and refused when its dimension is not the expected one.
-_pr_si(x::Real, _) = Float64(x)
+_pr_si(x::Real, _) = float(x)
 function _pr_si(x::DynamicQuantities.AbstractQuantity, unit)
     q = uexpand(x)
     dimension(q) == dimension(unit) || throw(DimensionError(q, unit))
-    return Float64(ustrip(q))
+    return float(ustrip(q))
 end
 
 """
@@ -105,11 +107,11 @@ order of `idx_gas`, the critical temperature (K) and pressure (Pa) and the
 coefficient ``\\kappa(\\omega)``, and the matrix of binary interaction
 parameters.
 """
-struct _PengRobinsonMixing
-    T_c::Vector{Float64}
-    P_c::Vector{Float64}
-    κ::Vector{Float64}
-    kij::Matrix{Float64}
+struct _PengRobinsonMixing{T <: Real}
+    T_c::Vector{T}
+    P_c::Vector{T}
+    κ::Vector{T}
+    kij::Matrix{T}
 end
 
 """
@@ -135,12 +137,18 @@ function _gas_mixing(cs)
     )
     # `properties`, not `s[:key]`, which looks among the atoms first.
     pr = [properties(cs.species[i]) for i in idx]
-    Tc = [Float64(q[:T_c]) for q in pr]
-    Pc = [Float64(q[:P_c]) for q in pr]
-    κ = [_PR_KAPPA[1] + _PR_KAPPA[2] * q[:ω] + _PR_KAPPA[3] * q[:ω]^2 for q in pr]
+    Tc0 = [float(q[:T_c]) for q in pr]
+    Pc0 = [float(q[:P_c]) for q in pr]
+    κ0 = [_PR_KAPPA[1] + _PR_KAPPA[2] * q[:ω] + _PR_KAPPA[3] * q[:ω]^2 for q in pr]
     sym = [Symbol(symbol(cs.species[i])) for i in idx]
     m = length(idx)
-    kij = zeros(m, m)
+    # In the number type of the data, plain or dual alike.
+    F = promote_type(
+        Float64, eltype.((Tc0, Pc0, κ0))...,
+        (typeof(float(last(p))) for q in pr for p in q[:kij])...,
+    )
+    Tc, Pc, κ = convert(Vector{F}, Tc0), convert(Vector{F}, Pc0), convert(Vector{F}, κ0)
+    kij = zeros(F, m, m)
     for (a, q) in enumerate(pr), (partner, k) in q[:kij]
         b = findfirst(==(partner), sym)
         b === nothing && continue

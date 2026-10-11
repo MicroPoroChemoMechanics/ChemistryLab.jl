@@ -116,7 +116,7 @@ n0[i["XsOH"]] = N_strong * u"mol"; n0[i["XwOH"]] = N_weak * u"mol"
 state = ChemicalState(cs, n0)
 
 des = DualEquilibriumSolver(cs, DaviesActivityModel())
-b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in state.n]
+b = budget(state)
 
 function at(pH)
     eq = SciMLBase.solve(des, state; b = b, constraint = FixedpH(pH))
@@ -243,7 +243,7 @@ function sorbed_with_layer(pt)
     n0[j["Zn+2"]] = Zn_total * u"mol"
     n0[j["XsOH"]] = N_strong * u"mol"; n0[j["XwOH"]] = N_weak * u"mol"
     st = ChemicalState(cs_dl, n0)
-    bb = Float64.(cs_dl.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
+    bb = budget(st)
     eq = SciMLBase.solve(des_dl, st; b = bb, constraint = FixedpH(pt["pH"]))
     n = Float64[ustrip(us"mol", x) for x in eq.n]
     return (n[j["XsOZn+"]] + n[j["XwOZn+"]]) / Zn_total

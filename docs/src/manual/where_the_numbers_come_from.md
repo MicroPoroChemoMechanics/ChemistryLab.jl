@@ -383,12 +383,12 @@ idpk = identifiability(pk_curve, θpk; names = ["k₃", "n₃", "p"])
 (condition = idpk.condition, r_n3_p = idpk.correlation[2, 3])
 ```
 
-Until 0.28.2 these sensitivities were central differences. Their default 5 %
-step moved `n₃ = 3.3` by 0.165 **in an exponent**, far enough for the
-second-order error of the differences to differ between two parameters that are
-exactly collinear, and the same model came out with a condition number of about
-eighty where it is 1e10: a degeneracy partly hidden by the method that was meant
-to find it.
+These sensitivities are exact, by forward-mode differentiation. Central
+differences with a 5 % step would move `n₃ = 3.3` by 0.165 **in an exponent**,
+far enough for the second-order error of the differences to differ between two
+parameters that are exactly collinear, and the same model would come out with a
+condition number of about eighty where it is 1e10: a degeneracy partly hidden by
+the method meant to find it.
 
 #### What it says
 

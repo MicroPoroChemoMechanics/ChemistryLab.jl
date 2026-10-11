@@ -150,12 +150,14 @@ function PitzerParameters(;
     )
     Tterm = isempty(temperature) ? Float64 :
         mapreduce(d -> isempty(d) ? Float64 : mapreduce(v -> promote_type(map(typeof, v)...), promote_type, values(d)), promote_type, values(temperature))
+    # The number type of the values themselves, not the value type of their
+    # dictionary: one being fitted among plain ones makes a `Dict{K, Real}`,
+    # whose `float` is `Float64`, and the derivative was refused.
+    vt(d) = mapreduce(typeof, promote_type, values(d); init = float(valtype(d) <: Real && isconcretetype(valtype(d)) ? valtype(d) : Float64))
     T = float(
         promote_type(
-            eltype(values(beta0)), eltype(values(beta1)), eltype(values(beta2)),
-            eltype(values(Cphi)), eltype(values(theta)), eltype(values(psi)),
-            eltype(values(lambda)), typeof(alpha1), typeof(alpha1_22),
-            typeof(alpha2), typeof(b), Tterm,
+            vt(beta0), vt(beta1), vt(beta2), vt(Cphi), vt(theta), vt(psi), vt(lambda),
+            typeof(alpha1), typeof(alpha1_22), typeof(alpha2), typeof(b), Tterm,
         )
     )
     conv(d, K) = Dict{K, T}(k => T(v) for (k, v) in d)
@@ -443,73 +445,13 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
     ans = [i for i in idx_solutes if zv[i] < 0]
     neus = [i for i in idx_solutes if iszero(zv[i])]
 
-    # ── The refusal that makes "no half-parameterized Pitzer" true ───────────
-    missing_pairs = Tuple{String, String}[]
-    for c in cats, a in ans
-        haskey(par.beta0, (sym[c], sym[a])) || push!(missing_pairs, (sym[c], sym[a]))
-    end
-    if !isempty(missing_pairs) && model.missing_pairs === :refuse
-        listed = join(("$(c)/$(a)" for (c, a) in missing_pairs), ", ")
-        throw(
-            ArgumentError(
-                "PitzerActivityModel: the parameter set has no beta0 for " *
-                    "$(length(missing_pairs)) cation-anion pair(s) this system contains: " *
-                    "$listed. A Pitzer model cannot fall back on ideal behavior for a " *
-                    "pair it does not describe, so the model refuses rather than " *
-                    "returning a number. Either supply the missing parameters or build " *
-                    "a species list the set covers. Note that a set fitted for a " *
-                    "dissociated speciation does not describe ion pairs such as " *
-                    "Ca(SO4)@ or CaOH+: those associations are already inside its beta " *
-                    "coefficients, and carrying them as species counts them twice.",
-            )
-        )
-    end
-
-    # Precomputed per-pair tables, Float64 and not differentiated.
-    npair = (length(cats), length(ans))
-    B0 = [get(par.beta0, (sym[c], sym[a]), zero(valtype(par.beta0))) for c in cats, a in ans]
-    B1 = [get(par.beta1, (sym[c], sym[a]), 0.0) for c in cats, a in ans]
-    B2 = [get(par.beta2, (sym[c], sym[a]), 0.0) for c in cats, a in ans]
-    CC = [
-        get(par.Cphi, (sym[c], sym[a]), 0.0) /
-            (2 * sqrt(abs(Int(zv[c]) * Int(zv[a])))) for c in cats, a in ans
-    ]
+    _refuse_undescribed_pairs(model, sym, cats, ans)
+    tables0, tablesT = _pitzer_tables(par, sym, zv, cats, ans, neus)
     A1 = [
         (abs(zv[c]) >= 2 && abs(zv[a]) >= 2) ? par.alpha1_22 : par.alpha1
             for c in cats, a in ans
     ]
-    ΘCC = [_sym2(par.theta, sym[i], sym[j]) for i in cats, j in cats]
-    ΘAA = [_sym2(par.theta, sym[i], sym[j]) for i in ans, j in ans]
-    ΨCCA = [_sym3(par.psi, sym[i], sym[j], sym[a]) for i in cats, j in cats, a in ans]
-    ΨAAC = [_sym3(par.psi, sym[i], sym[j], sym[c]) for i in ans, j in ans, c in cats]
-    ΛNC = [_sym2(par.lambda, sym[nn], sym[i]) for nn in neus, i in cats]
-    ΛNA = [_sym2(par.lambda, sym[nn], sym[i]) for nn in neus, i in ans]
-
-    # The temperature terms of the same entries, looked up as the values are.
     tt = par.temperature
-    Z5 = ntuple(_ -> zero(eltype(B0)), 5)
-    tget(kind, key) = haskey(tt, kind) ? get(tt[kind], key, nothing) : nothing
-    tsym2(kind, i, j) = something(tget(kind, (i, j)), tget(kind, (j, i)), Z5)
-    tsym3(kind, i, j, k) = something(
-        (tget(kind, key) for key in ((i, j, k), (i, k, j), (j, i, k), (j, k, i), (k, i, j), (k, j, i)))...,
-        Z5,
-    )
-    tables0 = (B0, B1, B2, CC, ΘCC, ΘAA, ΨCCA, ΨAAC, ΛNC, ΛNA)
-    tablesT = (
-        [something(tget(:beta0, (sym[c], sym[a])), Z5) for c in cats, a in ans],
-        [something(tget(:beta1, (sym[c], sym[a])), Z5) for c in cats, a in ans],
-        [something(tget(:beta2, (sym[c], sym[a])), Z5) for c in cats, a in ans],
-        [
-            something(tget(:Cphi, (sym[c], sym[a])), Z5) ./ (2 * sqrt(abs(Int(zv[c]) * Int(zv[a]))))
-                for c in cats, a in ans
-        ],
-        [tsym2(:theta, sym[i], sym[j]) for i in cats, j in cats],
-        [tsym2(:theta, sym[i], sym[j]) for i in ans, j in ans],
-        [tsym3(:psi, sym[i], sym[j], sym[a]) for i in cats, j in cats, a in ans],
-        [tsym3(:psi, sym[i], sym[j], sym[c]) for i in ans, j in ans, c in cats],
-        [tsym2(:lambda, sym[nn], sym[i]) for nn in neus, i in cats],
-        [tsym2(:lambda, sym[nn], sym[i]) for nn in neus, i in ans],
-    )
 
     α2 = par.alpha2
     bp = par.b
@@ -702,4 +644,79 @@ function activity_model(cs::ChemicalSystem, model::PitzerActivityModel)
     end
 
     return lna
+end
+
+# The refusal that makes "no half-parameterized Pitzer" true: with
+# `missing_pairs = :refuse`, a cation–anion pair of the system that the
+# parameter set gives no β⁰ for.
+function _refuse_undescribed_pairs(model::PitzerActivityModel, sym, cats, ans)
+    par = model.parameters
+    missing_pairs = Tuple{String, String}[]
+    for c in cats, a in ans
+        haskey(par.beta0, (sym[c], sym[a])) || push!(missing_pairs, (sym[c], sym[a]))
+    end
+    (isempty(missing_pairs) || model.missing_pairs !== :refuse) && return nothing
+    listed = join(("$(c)/$(a)" for (c, a) in missing_pairs), ", ")
+    throw(
+        ArgumentError(
+            "PitzerActivityModel: the parameter set has no beta0 for " *
+                "$(length(missing_pairs)) cation-anion pair(s) this system contains: " *
+                "$listed. A Pitzer model cannot fall back on ideal behavior for a " *
+                "pair it does not describe, so the model refuses rather than " *
+                "returning a number. Either supply the missing parameters or build " *
+                "a species list the set covers. Note that a set fitted for a " *
+                "dissociated speciation does not describe ion pairs such as " *
+                "Ca(SO4)@ or CaOH+: those associations are already inside its beta " *
+                "coefficients, and carrying them as species counts them twice.",
+        )
+    )
+end
+
+# The coefficients of the pairs and triplets of the system's solutes, at the
+# reference and as temperature terms, each a tuple `(β⁰, β¹, β², C, Θ_cc′, Θ_aa′,
+# Ψ_cc′a, Ψ_aa′c, Λ_nc, Λ_na)` of tables over the cations `cats`, the anions `ans`
+# and the neutral species `neus`, with `C = Cᵠ / (2 √|z_c z_a|)`. In the number
+# type of the parameters: a missing pair is a zero of that type, so that a
+# parameter being fitted leaves the table concretely typed.
+function _pitzer_tables(par, sym, zv, cats, ans, neus)
+    B0 = [get(par.beta0, (sym[c], sym[a]), zero(valtype(par.beta0))) for c in cats, a in ans]
+    B1 = [get(par.beta1, (sym[c], sym[a]), zero(valtype(par.beta1))) for c in cats, a in ans]
+    B2 = [get(par.beta2, (sym[c], sym[a]), zero(valtype(par.beta2))) for c in cats, a in ans]
+    CC = [
+        get(par.Cphi, (sym[c], sym[a]), zero(valtype(par.Cphi))) /
+            (2 * sqrt(abs(Int(zv[c]) * Int(zv[a])))) for c in cats, a in ans
+    ]
+    ΘCC = [_sym2(par.theta, sym[i], sym[j]) for i in cats, j in cats]
+    ΘAA = [_sym2(par.theta, sym[i], sym[j]) for i in ans, j in ans]
+    ΨCCA = [_sym3(par.psi, sym[i], sym[j], sym[a]) for i in cats, j in cats, a in ans]
+    ΨAAC = [_sym3(par.psi, sym[i], sym[j], sym[c]) for i in ans, j in ans, c in cats]
+    ΛNC = [_sym2(par.lambda, sym[nn], sym[i]) for nn in neus, i in cats]
+    ΛNA = [_sym2(par.lambda, sym[nn], sym[i]) for nn in neus, i in ans]
+
+    # The temperature terms of the same entries, looked up as the values are.
+    tt = par.temperature
+    Z5 = ntuple(_ -> zero(eltype(B0)), 5)
+    tget(kind, key) = haskey(tt, kind) ? get(tt[kind], key, nothing) : nothing
+    tsym2(kind, i, j) = something(tget(kind, (i, j)), tget(kind, (j, i)), Z5)
+    tsym3(kind, i, j, k) = something(
+        (tget(kind, key) for key in ((i, j, k), (i, k, j), (j, i, k), (j, k, i), (k, i, j), (k, j, i)))...,
+        Z5,
+    )
+    tables0 = (B0, B1, B2, CC, ΘCC, ΘAA, ΨCCA, ΨAAC, ΛNC, ΛNA)
+    tablesT = (
+        [something(tget(:beta0, (sym[c], sym[a])), Z5) for c in cats, a in ans],
+        [something(tget(:beta1, (sym[c], sym[a])), Z5) for c in cats, a in ans],
+        [something(tget(:beta2, (sym[c], sym[a])), Z5) for c in cats, a in ans],
+        [
+            something(tget(:Cphi, (sym[c], sym[a])), Z5) ./ (2 * sqrt(abs(Int(zv[c]) * Int(zv[a]))))
+                for c in cats, a in ans
+        ],
+        [tsym2(:theta, sym[i], sym[j]) for i in cats, j in cats],
+        [tsym2(:theta, sym[i], sym[j]) for i in ans, j in ans],
+        [tsym3(:psi, sym[i], sym[j], sym[a]) for i in cats, j in cats, a in ans],
+        [tsym3(:psi, sym[i], sym[j], sym[c]) for i in ans, j in ans, c in cats],
+        [tsym2(:lambda, sym[nn], sym[i]) for nn in neus, i in cats],
+        [tsym2(:lambda, sym[nn], sym[i]) for nn in neus, i in ans],
+    )
+    return tables0, tablesT
 end

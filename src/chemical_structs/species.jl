@@ -161,9 +161,8 @@ energies differ by 821 J/mol, which at 298 K is 0.33 in `ln K` — the whole
 difference in solubility between them. Without the symbol they compared equal,
 and a `Dict` keyed by species could not tell them apart.
 
-It also restores the invariant `isequal ⟹ hash`, which [`Base.hash`](@ref) had
-always broken by including the symbol when this did not: `Dict(calcite => 1)`
-raised `KeyError` on `aragonite` while `calcite == aragonite` said `true`.
+[`Base.hash`](@ref) hashes exactly what this compares, so `isequal ⟹ hash`
+holds and a `Dict` keyed by species finds calcite and aragonite apart.
 
 Two spellings of one formula remain one species, because
 [`_identity_symbol`](@ref) drops a symbol that merely spells the formula instead
@@ -203,9 +202,6 @@ end
 Hash a species on exactly what [`Base.isequal`](@ref) compares — formula,
 aggregate state, class, and [`_identity_symbol`](@ref) — which is what `Dict` and
 `Set` require of the pair.
-
-It used to hash the stored `symbol` while `isequal` ignored it altogether, so two
-species that compared equal could land in different buckets.
 """
 function Base.hash(s::AbstractSpecies, h::UInt)
     return hash(
@@ -228,14 +224,14 @@ julia> s1.name == "H2O"
 true
 ```
 """
-name(s::AbstractSpecies) = s.name
+name(s::AbstractSpecies) = getfield(s, :name)
 
 """
     symbol(s::AbstractSpecies) -> String
 
 Return the symbol of the species.
 """
-symbol(s::AbstractSpecies) = s.symbol
+symbol(s::AbstractSpecies) = getfield(s, :symbol)
 
 """
     formula(s::AbstractSpecies) -> Formula
@@ -251,7 +247,7 @@ julia> formula(s1) == Formula("H2O")
 true
 ```
 """
-formula(s::AbstractSpecies) = s.formula
+formula(s::AbstractSpecies) = getfield(s, :formula)
 
 """
     atoms(s::AbstractSpecies) -> OrderedDict{Symbol,Number}
@@ -290,21 +286,21 @@ julia> aggregate_state(s1) == AS_AQUEOUS
 true
 ```
 """
-aggregate_state(s::AbstractSpecies) = s.aggregate_state
+aggregate_state(s::AbstractSpecies) = getfield(s, :aggregate_state)
 
 """
     class(s::AbstractSpecies) -> Class
 
 Return the chemical class of the species.
 """
-class(s::AbstractSpecies) = s.class
+class(s::AbstractSpecies) = getfield(s, :class)
 
 """
     properties(s::AbstractSpecies) -> OrderedDict{Symbol,PropertyType}
 
 Return the properties dictionary of the species.
 """
-properties(s::AbstractSpecies) = s.properties
+properties(s::AbstractSpecies) = getfield(s, :properties)
 
 """
     check_mendeleev(s::AbstractSpecies) -> Bool
@@ -367,24 +363,31 @@ julia> s[:N]
 ```
 """
 function Base.getindex(s::AbstractSpecies, i::Symbol)
-    coef = get(components(s), i, get(atoms(s), i, get(properties(s), i, nothing)))
-    if isnothing(coef)
-        # The thermodynamic functions are built on demand, and `getproperty`
-        # already knows that. `getindex` did not, so `s[:Cp⁰]` returned the
-        # not-found value 0 on any species whose functions had not been forced
-        # yet — silently, and as an `Int64` that blows up only when the caller
-        # tries to evaluate it. Returning 0 is right for a missing ATOM, which is
-        # what that fallback is for; it is never right for a property that the
-        # species can produce.
-        if i in [:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰, :V⁰]
-            complete_thermo_functions!(s)
-            haskey(properties(s), i) && return properties(s)[i]
-        end
-        # println("$(i) not found in $(root_type(typeof(s))) $(colored(s))")
-        return 0
+    # The components (the charge as `:Zz`), the atoms, then the properties, each
+    # looked up only if the one before misses, and none copied.
+    v = _component(s, i)
+    v === nothing || return v
+    v = get(atoms(s), i, nothing)
+    v === nothing || return v
+    v = get(properties(s), i, nothing)
+    v === nothing || return v
+    # The thermodynamic functions are built on demand: 0 is the answer for a
+    # missing atom, never for a property the species can produce.
+    if i in _THERMO_FUNCTIONS
+        complete_thermo_functions!(s)
+        haskey(properties(s), i) && return properties(s)[i]
     end
-    return coef
+    return 0
 end
+
+# The standard functions a species builds on first use.
+const _THERMO_FUNCTIONS = (:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰, :V⁰)
+
+# `get(components(s), i, nothing)` without building `components(s)`, which
+# copies the composition of a charged species to add its charge (methods for
+# `Species` and `CemSpecies` beside their `components`).
+_component(s::AbstractSpecies, i::Symbol) = get(components(s), i, nothing)
+_with_charge(d, z, i::Symbol) = (i === :Zz && !iszero(z)) ? z : get(d, i, nothing)
 
 """
     Base.setindex!(s::AbstractSpecies, value, i::Symbol)
@@ -401,10 +404,10 @@ Access species fields or registered properties.
 Throws an error if the symbol is neither a field nor a property.
 """
 function Base.getproperty(s::AbstractSpecies, sym::Symbol)
-    if sym in fieldnames(typeof(s))
+    if hasfield(typeof(s), sym)
         return getfield(s, sym)
     else
-        if !haskey(properties(s), sym) && sym in [:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰, :V⁰]
+        if !haskey(properties(s), sym) && sym in _THERMO_FUNCTIONS
             complete_thermo_functions!(s)
         end
         return properties(s)[sym]
@@ -420,7 +423,7 @@ function Base.haskey(s::AbstractSpecies, sym::Symbol)
     if haskey(properties(s), sym)
         return true
     else
-        if sym in [:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰, :V⁰]
+        if sym in _THERMO_FUNCTIONS
             complete_thermo_functions!(s)
             return haskey(properties(s), sym)
         else
@@ -438,7 +441,7 @@ Throws an error if attempting to modify a structural field directly.
 """
 function Base.setproperty!(s::AbstractSpecies, sym::Symbol, value)
     if !ismissing(value)
-        if sym in fieldnames(typeof(s))
+        if hasfield(typeof(s), sym)
             error(
                 "Cannot modify field '$sym' directly. Use constructor or dedicated methods."
             )
@@ -539,13 +542,14 @@ colored(s::Species) = colored(formula(s))
 Return the components of a Species (atomic composition with charge).
 """
 components(s::Species) = atoms_charge(s)
+_component(s::Species, i::Symbol) = _with_charge(atoms(s), charge(s), i)
 
 """
     mainformula(s::Species) -> Formula
 
 Return the main formula representation for the species.
 """
-mainformula(s::Species) = s.formula
+mainformula(s::Species) = getfield(s, :formula)
 
 """
     Species(formula::Formula; name, symbol, aggregate_state, class, properties) -> Species
@@ -692,10 +696,10 @@ function Species(
         properties::AbstractDict = OrderedDict{Symbol, PropertyType}(),
     ) where {T}
     formula = Formula(atoms, charge)
-    if length(name) == 0
+    if isempty(name)
         name = unicode(formula)
     end
-    if length(symbol) == 0
+    if isempty(symbol)
         symbol = name
     end
     return Species(
@@ -824,7 +828,6 @@ function Base.show(io::IO, ::MIME"text/plain", s::Species)
     if symbol(s) != formula(s) && length(symbol(s)) > 0
         println(io, lpad("symbol", pad), ": ", symbol(s))
     end
-    # println(io, lpad("formula", pad), ": ", colored_formula(expr(s)), " | ", colored_formula(phreeqc(s)), " | ", colored_formula(unicode(s)))
     print_formula(io, formula(s), "formula", pad)
     println(io, lpad("atoms", pad), ": ", join(["$k => $v" for (k, v) in atoms(s)], ", "))
     println(io, lpad("charge", pad), ": ", charge(s))
@@ -921,14 +924,14 @@ end
 
 Return the oxide notation formula of the cement species.
 """
-cemformula(s::CemSpecies) = s.cemformula
+cemformula(s::CemSpecies) = getfield(s, :cemformula)
 
 """
     mainformula(s::CemSpecies) -> Formula
 
 Return the main formula representation (oxide notation) for the cement species.
 """
-mainformula(s::CemSpecies) = s.cemformula
+mainformula(s::CemSpecies) = getfield(s, :cemformula)
 
 """
     expr(s::CemSpecies) -> String
@@ -989,6 +992,7 @@ end
 Return the components of a CemSpecies (oxide composition with charge).
 """
 components(s::CemSpecies) = oxides_charge(s)
+_component(s::CemSpecies, i::Symbol) = _with_charge(oxides(s), charge(s), i)
 
 """
     CemSpecies(cemformula::Formula; name, symbol, aggregate_state, class, properties) -> CemSpecies
@@ -1104,10 +1108,10 @@ function CemSpecies(
         properties::AbstractDict = OrderedDict{Symbol, PropertyType}(),
     ) where {T}
     cemformula = Formula(oxides, charge; order = OXIDE_ORDER)
-    if length(name) == 0
+    if isempty(name)
         name = unicode(cemformula)
     end
-    if length(symbol) == 0
+    if isempty(symbol)
         symbol = name
     end
     return CemSpecies(
@@ -1209,7 +1213,7 @@ function CemSpecies(
             properties = properties,
         )
     else
-        SM = StoichMatrix([s], oxides_as_species; pprint = false)
+        SM = StoichMatrix([s], oxides_as_species)
         A, indep_comp = SM.A, SM.primaries
         oxides = OrderedDict(Symbol(indep_comp[i].symbol) => A[i, 1] for i in 1:size(A, 1))
         if !isempty(oxides)
@@ -1386,10 +1390,8 @@ function Base.show(io::IO, ::MIME"text/plain", s::CemSpecies)
     end
     cf = cemformula(s)
     f = formula(s)
-    # println(io, lpad("cemformula", pad), ": ", colored_formula(expr(cf)), " | ", colored_formula(phreeqc(cf)), " | ", colored_formula(unicode(cf)))
     print_formula(io, cf, "cemformula", pad)
     println(io, lpad("oxides", pad), ": ", join(["$k => $v" for (k, v) in oxides(s)], ", "))
-    # println(io, lpad("formula", pad), ": ", colored_formula(expr(f)), " | ", colored_formula(phreeqc(f)), " | ", colored_formula(unicode(f)))
     print_formula(io, f, "formula", pad)
     println(io, lpad("atoms", pad), ": ", join(["$k => $v" for (k, v) in atoms(s)], ", "))
     println(io, lpad("charge", pad), ": ", charge(s))
@@ -1431,10 +1433,8 @@ function pprint(s::CemSpecies)
     end
     cf = cemformula(s)
     f = formula(s)
-    # println(lpad("cemformula", pad), ": ", colored_formula(expr(cf)), " | ", colored_formula(phreeqc(cf)), " | ", colored_formula(unicode(cf)))
     pprint_formula(cf, "cemformula", pad)
     println(lpad("oxides", pad), ": ", join(["$k => $v" for (k, v) in oxides(s)], ", "))
-    # println(lpad("formula", pad), ": ", colored_formula(expr(f)), " | ", colored_formula(phreeqc(f)), " | ", colored_formula(unicode(f)))
     pprint_formula(f, "formula", pad)
     println(lpad("atoms", pad), ": ", join(["$k => $v" for (k, v) in atoms(s)], ", "))
     println(lpad("charge", pad), ": ", charge(s))
@@ -1565,57 +1565,33 @@ function find_species(
         aggregate_state = AS_UNDEF,
         class = SC_UNDEF,
     )
-    if isnothing(species_list)
-        return S(s)
-    else
-        for crit in (symbol, phreeqc, unicode, expr ∘ mainformula, name)
-            crit_vals = crit.(species_list)
-            fil = species_list[
-                .!isnothing.(species_list) .&& .!ismissing.(species_list) .&& ((s .== crit_vals) .|| (phreeqc_to_unicode(s) .== crit_vals) .|| (unicode_to_phreeqc(s) .== crit_vals)) .&& (aggregate_state .== AS_UNDEF) .|| (aggregate_state .== (x -> x.aggregate_state).(species_list)) .&& (class .== SC_UNDEF) .|| (
-                    class .== (x -> x.class).(
-                        species_list
-                    )
-                ),
-            ]
-            if length(fil) > 1
-                println(crayon"red bold"("Several species correspond to $s:"))
-                for x in fil
-                    println("∙ ", x)
-                end
-                println(
-                    crayon"red bold"(
-                        "!!! In absence of more precision $(fil[1]) will be chosen !!!"
-                    ),
-                )
-            end
-            if length(fil) > 0
-                return fil[1]
-            end
-        end
-        comp_vals = composition.(mainformula.(species_list))
-        fil = species_list[
-            .!isnothing.(species_list) .&& .!ismissing.(species_list) .&& (comp_vals .== Ref(parse_formula(s))) .&& (aggregate_state .== AS_UNDEF) .|| (aggregate_state .== (x -> x.aggregate_state).(species_list)) .&& (class .== SC_UNDEF) .|| (
-                class .== (x -> x.class).(
-                    species_list
-                )
-            ),
-        ]
-        if length(fil) > 1
-            println(crayon"red bold"("Several species correspond to $s:"))
-            for x in fil
-                println("∙ ", x)
-            end
-            println(
-                crayon"red bold"(
-                    "!!! In absence of more precision $(fil[1]) will be chosen !!!"
-                ),
-            )
-        end
-        if length(fil) > 0
-            return fil[1]
-        end
-        return S(s)
+    isnothing(species_list) && return S(s)
+    # A species is a candidate when it matches the state and the class asked
+    # for, each `*_UNDEF` meaning "any", and then the name.
+    eligible(x) = !isnothing(x) && !ismissing(x) &&
+        (aggregate_state == AS_UNDEF || x.aggregate_state == aggregate_state) &&
+        (class == SC_UNDEF || x.class == class)
+    spellings = (s, phreeqc_to_unicode(s), unicode_to_phreeqc(s))
+    for crit in (symbol, phreeqc, unicode, expr ∘ mainformula, name)
+        fil = [x for x in species_list if eligible(x) && crit(x) in spellings]
+        isempty(fil) || return _first_of(fil, s)
     end
+    target = parse_formula(s)
+    fil = [x for x in species_list if eligible(x) && composition(mainformula(x)) == target]
+    isempty(fil) || return _first_of(fil, s)
+    return S(s)
+end
+
+# The first of several species answering to `s`, the ambiguity printed.
+function _first_of(fil, s)
+    if length(fil) > 1
+        println(crayon"red bold"("Several species correspond to $s:"))
+        for x in fil
+            println("∙ ", x)
+        end
+        println(crayon"red bold"("!!! In absence of more precision $(fil[1]) will be chosen !!!"))
+    end
+    return fil[1]
 end
 
 """
@@ -1632,8 +1608,20 @@ is taken as constant. An entry that gives no heat capacity but carries `S⁰`, `
 `ΔₐG⁰` is extrapolated with a zero heat capacity, so that `ΔₐG⁰` still follows
 `-S⁰` away from the reference temperature; an entry lacking `S⁰` keeps its tabulated
 values at every temperature.
+
+The functions are built under a lock: the species of a database are shared by
+every system made from them, and two threads that use one of them for the first
+time would otherwise write in its properties at once. Reading a species while
+another thread completes it is not covered; complete the species before sharing
+them between threads, e.g. `foreach(complete_thermo_functions!, species)`.
 """
 function complete_thermo_functions!(s::AbstractSpecies)
+    return lock(() -> _complete_thermo_functions!(s), _SPECIES_COMPLETION_LOCK)
+end
+
+const _SPECIES_COMPLETION_LOCK = ReentrantLock()
+
+function _complete_thermo_functions!(s::AbstractSpecies)
     if haskey(properties(s), :thermo_params)
         params = s[:thermo_params]
         dict_params = Dict(params)
@@ -1682,15 +1670,11 @@ function complete_thermo_functions!(s::AbstractSpecies)
             end
             delete!(s.properties, :V_method)
         else
-            for k in [:V⁰]
-                if !haskey(properties(s), k) &&
-                        haskey(dict_params, k) &&
-                        !ismissing(dict_params[k])
-                    s[k] = SymbolicFunc(dict_params[k])
-                end
+            if !haskey(properties(s), :V⁰) && !ismissing(get(dict_params, :V⁰, missing))
+                s[:V⁰] = SymbolicFunc(dict_params[:V⁰])
             end
         end
-        for k in [:Cp⁰, :ΔₐH⁰, :S⁰, :ΔₐG⁰, :V⁰]
+        for k in _THERMO_FUNCTIONS
             if haskey(dict_params, k) && !ismissing(dict_params[k])
                 s[Symbol(k, "_Tref")] = dict_params[k]
                 if !haskey(properties(s), k)
@@ -1825,7 +1809,6 @@ function _hgk_specific_state(T, P)
     cp = -T * a.ATT + T * ρ^2 * a.ATD^2 / dPdρ
     return (; ρ, g, s, h = g + T * s, cp)
 end
-_hgk_specific_gibbs(T, P) = _hgk_specific_state(T, P).g
 _hgk_specific_entropy(T, P) = _hgk_specific_state(T, P).s
 _hgk_specific_enthalpy(T, P) = _hgk_specific_state(T, P).h
 

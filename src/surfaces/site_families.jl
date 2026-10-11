@@ -363,10 +363,10 @@ struct DiffuseLayer{M <: AbstractSiteMixingModel, T <: Real} <:
     ε_r::T
     scale::T
     water::Bool
-    pressure::Float64
+    pressure::T
     function DiffuseLayer{M, T}(
             base::AbstractSiteMixingModel, area::Real, ε_r::Real, scale::Real,
-            water::Bool = false, pressure::Real = 1.0e5,
+            water::Bool = false, pressure::Real = P_STANDARD,
         ) where {M <: AbstractSiteMixingModel, T <: Real}
         area > 0 || throw(ArgumentError("area must be positive; got $area m²."))
         ε_r > 0 ||
@@ -374,20 +374,21 @@ struct DiffuseLayer{M <: AbstractSiteMixingModel, T <: Real} <:
         0 <= scale <= 1 ||
             throw(ArgumentError("scale is a homotopy parameter in [0, 1]; got $scale."))
         _refuse_stacked_electrostatics(base, "DiffuseLayer")
-        return new{M, T}(base, convert(T, area), convert(T, ε_r), convert(T, scale), water, Float64(pressure))
+        return new{M, T}(base, convert(T, area), convert(T, ε_r), convert(T, scale), water, convert(T, pressure))
     end
 end
 
 """
-    DiffuseLayer(base, area, ε_r) -> DiffuseLayer
+    DiffuseLayer(base, area, ε_r, scale = 1.0) -> DiffuseLayer
     DiffuseLayer(; area, temperature = 298.15, pressure = 1.0e5, ε_r = nothing,
-                   base = IdealSiteMixing()) -> DiffuseLayer
+                   scale = 1.0, base = IdealSiteMixing()) -> DiffuseLayer
 
 Build a [`DiffuseLayer`](@ref). `area` is in m², a plain `Real` in SI or a
 `Quantity`. Without `ε_r`, the permittivity is that of water at the temperature
 of each solve and at `pressure`, from this package's own model, as PHREEQC
 takes it; `temperature` only sets the value shown. A given `ε_r` (and the
-positional form) is held at every temperature.
+positional form) is held at every temperature. `scale` multiplies the
+electrostatic term, as [`with_electrostatic_scale`](@ref) sets it.
 
 The permittivity of water costs 7 µs to evaluate (measured), so following the
 temperature costs a solve nothing worth counting.
@@ -402,14 +403,17 @@ end
 function DiffuseLayer(;
         area,
         temperature::Real = T_STANDARD,
-        pressure::Real = 1.0e5,
+        pressure::Real = P_STANDARD,
         ε_r = nothing,
         scale::Real = 1.0,
         base::AbstractSiteMixingModel = IdealSiteMixing(),
     )
     ε_r === nothing || return DiffuseLayer(base, area, ε_r, scale)
     m = DiffuseLayer(base, area, water_relative_permittivity(temperature, pressure), scale)
-    return DiffuseLayer{typeof(base), typeof(m.area)}(base, m.area, m.ε_r, m.scale, true, pressure)
+    # The pressure the permittivity follows is kept in the model's number type:
+    # a pressure being differentiated makes the whole model dual.
+    T = promote_type(typeof(m.area), typeof(float(pressure)))
+    return DiffuseLayer{typeof(base), T}(base, m.area, m.ε_r, m.scale, true, pressure)
 end
 
 """
@@ -502,17 +506,17 @@ struct ChargePlanes{M <: AbstractSiteMixingModel, T <: Real} <: AbstractSiteMixi
     C2::T
     ε_r::T
     water::Bool
-    pressure::Float64
+    pressure::T
     function ChargePlanes{M, T}(
             base::AbstractSiteMixingModel, area::Real, C1::Real, C2::Real, ε_r::Real,
-            water::Bool = false, pressure::Real = 1.0e5,
+            water::Bool = false, pressure::Real = P_STANDARD,
         ) where {M <: AbstractSiteMixingModel, T <: Real}
         area > 0 || throw(ArgumentError("area must be positive; got $area m²."))
         C1 > 0 || throw(ArgumentError("C1 must be positive; got $C1 F/m²."))
         C2 > 0 || throw(ArgumentError("C2 must be positive (Inf to merge planes 1 and 2); got $C2 F/m²."))
         ε_r > 0 || throw(ArgumentError("relative permittivity must be positive; got $ε_r."))
         _refuse_stacked_electrostatics(base, "ChargePlanes")
-        return new{M, T}(base, convert(T, area), convert(T, C1), convert(T, C2), convert(T, ε_r), water, Float64(pressure))
+        return new{M, T}(base, convert(T, area), convert(T, C1), convert(T, C2), convert(T, ε_r), water, convert(T, pressure))
     end
 end
 
@@ -528,7 +532,7 @@ for [`DiffuseLayer`](@ref).
 function ChargePlanes(;
         area, C1, C2 = Inf,
         temperature::Real = T_STANDARD,
-        pressure::Real = 1.0e5,
+        pressure::Real = P_STANDARD,
         ε_r = nothing,
         base::AbstractSiteMixingModel = IdealSiteMixing(),
     )
@@ -537,8 +541,8 @@ function ChargePlanes(;
     c2 = C2 isa Real && isinf(C2) ? float(C2) : _area_si(us"F/m^2", C2, "ChargePlanes C2")
     water = ε_r === nothing
     e = _area_si(us"m^2/m^2", water ? water_relative_permittivity(temperature, pressure) : ε_r, "ChargePlanes relative permittivity")
-    v = promote(a, c1, c2, e)
-    return ChargePlanes{typeof(base), eltype(v)}(base, v..., water, pressure)
+    v = promote(a, c1, c2, e, float(pressure))
+    return ChargePlanes{typeof(base), eltype(v)}(base, v[1:4]..., water, v[5])
 end
 
 supports_multidentate(m::ChargePlanes) = supports_multidentate(m.base)
@@ -551,11 +555,12 @@ _permittivity(m::ChargePlanes, T) = m.water ? water_relative_permittivity(T, m.p
 A copy of the surface species `s` placing the charges `c0`, `c1` and `c2` on the
 planes 0, 1 and 2 of a [`ChargePlanes`](@ref) surface: the intrinsic charge of
 its site plus the change of charge of its complexation on each plane, as
-PHREEQC's `-cd_music Δz0 Δz1 Δz2` gives the latter. Fractions are allowed.
+PHREEQC's `-cd_music Δz0 Δz1 Δz2` gives the latter. Fractions are allowed, and
+so are dual numbers: a charge distribution being fitted carries its derivative.
 """
 function with_plane_charges(s::Species{T}, c0::Real, c1::Real = 0, c2::Real = 0) where {T}
     props = copy(s.properties)
-    props[:plane_charges] = Float64[c0, c1, c2]
+    props[:plane_charges] = collect(promote(float(c0), float(c1), float(c2)))
     return Species{T}(s.name, s.symbol, s.formula, s.aggregate_state, s.class, props)
 end
 
@@ -563,8 +568,8 @@ end
 # its `:plane_charges`, or its formal charge on plane 0.
 function _plane_charges(sp::AbstractSpecies)
     c = get(properties(sp), :plane_charges, nothing)
-    c === nothing && return (Float64(charge(sp)), 0.0, 0.0)
-    return (Float64(c[1]), Float64(c[2]), Float64(c[3]))
+    c === nothing && return (float(charge(sp)), 0.0, 0.0)
+    return promote(float(c[1]), float(c[2]), float(c[3]))
 end
 
 """
@@ -603,11 +608,11 @@ It is `78.245` at 25 °C and 1 bar, and falls to `66.68` at 60 °C — which is 
 a surface electrostatic model calibrated at room temperature is not transferable
 to a hydrating paste without saying so.
 
-This evaluates the water equation of state and costs milliseconds. It is meant
-for **construction time**, not for an inner loop; [`DiffuseLayer`](@ref) calls
-it once and stores the result.
+It evaluates the water equation of state, in about 7 µs (measured), and a
+[`DiffuseLayer`](@ref) that follows the temperature calls it at every evaluation of
+its potential.
 """
-water_relative_permittivity(T_K::Real, P_Pa::Real = 1.0e5) =
+water_relative_permittivity(T_K::Real, P_Pa::Real = P_STANDARD) =
     water_electro_props_jn(T_K, P_Pa, water_thermo_props(T_K, P_Pa)).epsilon
 
 """
@@ -785,10 +790,12 @@ precipitates carry its sites with it.
 
 # Who calls this
 
-You do. Nothing inside the solve does, and that is exactly what "the support is
-fixed" means here: the site budget reaches the calculation through the initial
-amounts of the site-bearing species, so this is the helper that computes the
-number you put there, evaluated once, before the solve.
+You do, or the checks of a state against its families that call it for you
+([`declared_site_moles`](@ref), [`check_site_budget`](@ref),
+[`host_consistent_state`](@ref)). The solve itself does not, and that is exactly
+what "the support is fixed" means here: the site budget reaches the calculation
+through the initial amounts of the site-bearing species, so this is the helper
+that computes the number you put there, evaluated once, before the solve.
 
 Writing it as a function of the host's amount rather than as a constant is what
 makes an evolving support a change of *when* it is called, not of the data
@@ -839,9 +846,11 @@ a wrong index for every surface species without a word.
 
 How many sites a molecule occupies is the coefficient of the family's symbol in
 its formula — `Xs2OCa` occupies two. Declaring it separately would create a way
-for the two to disagree. The first milestone **refuses** anything but one,
-because ideal mixing of occupied and free sites is exact only for a monodentate
-species; the quasi-chemical treatment of the rest is a later, separate model.
+for the two to disagree. Ideal mixing of occupied and free sites is exact only
+for a monodentate species, so a family under it **refuses** anything but one; a
+mixing model that describes multidentate occupancy
+([`supports_multidentate`](@ref), the Vanselow and Gaines–Thomas conventions)
+accepts more.
 
 # Fields
 
@@ -890,7 +899,7 @@ denticity(family::SiteFamily, sp::AbstractSpecies) =
     Int(get(atoms(sp), family.site, 0))
 
 """
-    SiteFamily(name, free_site, complexes; capacity, support) -> SiteFamily
+    SiteFamily(name, free_site, complexes; capacity, support, model = IdealSiteMixing()) -> SiteFamily
 
 Build and validate a [`SiteFamily`](@ref).
 
@@ -902,9 +911,11 @@ than an error:
 
   - a free site whose formula carries no site symbol, or two members carrying
     different ones — the family would have no budget to share;
-  - a free site occupying anything other than one site;
-  - a complex of denticity zero (it is not a member) or above one (ideal site
-    mixing does not describe it; see the note on denticity above);
+  - a free site occupying no site, or more than one under a mixing `model` that
+    does not describe multidentate occupancy;
+  - a complex of denticity zero (it is not a member), or above one under such a
+    model (ideal site mixing does not describe it; see the note on denticity
+    above);
   - a duplicate member.
 """
 function SiteFamily(

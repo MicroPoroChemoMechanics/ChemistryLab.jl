@@ -133,4 +133,11 @@ end
     g2 = ForwardDiff.gradient(x -> h(x), n2)
     @test all(isfinite, g2)
     @test any(!iszero, g2)
+
+    # The volumes are in the number type of what they come from: at a dual
+    # temperature the solvent's molar volume carries its derivative, where the
+    # `Float64[…]` they were stored in raised.
+    vw(Tk) = PoreHumidity(VanGenuchten(; a = co.a, m = 1 / co.b), cs; reference = st, T = Tk * u"K").V_m_w
+    dv = ForwardDiff.derivative(vw, 298.15)
+    @test isfinite(dv)
 end

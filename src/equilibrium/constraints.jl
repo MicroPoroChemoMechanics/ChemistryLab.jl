@@ -246,7 +246,7 @@ function _pressure_blocks(des, state, p, target_V)
     return (;
         nq = 1, gq = gq, hq = hq, pq = pq, cq = cq,
         Aq = zeros(Float64, size(des.A, 1), 1),
-        q0 = [p.P], qscale = [max(p.P, 1.0e5)],
+        q0 = [p.P], qscale = [max(p.P, P_STANDARD)],
         apply = (Tv, P, q) -> (Tv, q[1] * u"Pa"),
     )
 end

@@ -105,7 +105,8 @@ function build(compo; humidity = true, tend = 90 * 86400.0)
     return kp, integrate(kp, ks), st, h
 end
 
-runs = OrderedDict(name => build(c) for (name, c) in CLINKERS)
+# `Any`: a container typed on the problem and the solution compiles for minutes.
+runs = OrderedDict{String, Any}(name => build(c) for (name, c) in CLINKERS)
 println("integrated: ", join(keys(runs), ", "))
 
 kp, sol, st0, h = runs["measured (Baroghel-Bouny CO)"]

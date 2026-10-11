@@ -97,8 +97,8 @@ SLAG_FRACTION = 0.50
 # ASSUMED: a Bogue composition representative of a CEM I clinker, here
 # the Bogue composition of the CEM I 52.5 N of [Lavergne2018](@citet), Table 9.
 # The deposit does not report one for this cement.
-bogue = literature_table("Lavergne2018", "cement_bogue")
-CLINKER = OrderedDict(zip(bogue.phase, bogue.percent ./ 100))
+bogue_table = literature_table("Lavergne2018", "cement_bogue")
+CLINKER = OrderedDict(zip(bogue_table.phase, bogue_table.percent ./ 100))
 
 # ASSUMED: a European ground granulated blastfurnace slag analysis. The sulfur
 # is the part that matters here, and it is the part a datasheet reports least
@@ -201,15 +201,15 @@ two oxidation states in the species list, charge is no longer a fixed
 combination of the element rows, so it survives as a component of its own:
 
 ```@example cem3
-components = String.(symbol.(cs.SM.primaries))
+component_names = String.(symbol.(cs.SM.primaries))
 @printf("charge (`Zz`) kept as a conservation component: %s\n",
-        "Zz" in components ? "yes — the oxidation state is conserved" : "no")
+        "Zz" in component_names ? "yes — the oxidation state is conserved" : "no")
 ```
 
 ## 3. The budget, clinker plus glass
 
 ```@example cem3
-molar_mass(n) = ustrip(us"g/mol", byname[n][:M])
+molar_mass_g(n) = ustrip(us"g/mol", byname[n][:M])
 
 """
     paste(; alkali = 1.0) -> (; state, clinker, slag, total)
@@ -228,11 +228,11 @@ function paste(; alkali = 1.0)
     st = ChemicalState(cs)
     for (phase, frac) in CLINKER
         set_quantity!(st, phase,
-            ALPHA_CLINKER * BINDER_G * CLINKER_FRACTION * frac / molar_mass(phase) * u"mol")
+            ALPHA_CLINKER * BINDER_G * CLINKER_FRACTION * frac / molar_mass_g(phase) * u"mol")
     end
-    set_quantity!(st, "H2O@", BINDER_G * WB / molar_mass("H2O@") * u"mol")
+    set_quantity!(st, "H2O@", BINDER_G * WB / molar_mass_g("H2O@") * u"mol")
 
-    clinker = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    clinker = budget(st)
     # The alkalis follow the clinker, and its reacted fraction: they leave the
     # grain as it dissolves.
     clinker .+= alkali * oxide_budget(ALKALIS, cs.SM.primaries;
@@ -245,7 +245,7 @@ end
 p0 = paste()
 state, b = p0.state, p0.total
 
-for (comp, v) in zip(components, b)
+for (comp, v) in zip(component_names, b)
     abs(v) > 1.0e-6 && @printf("  %-8s %10.5f mol\n", comp, v)
 end
 ```

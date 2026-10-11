@@ -114,7 +114,7 @@ n0[4] = N_sites * u"mol"
 state = ChemicalState(cs, n0)
 
 des = DualEquilibriumSolver(cs, DiluteSolutionModel())
-b   = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in state.n]
+b   = budget(state)
 
 eq = SciMLBase.solve(des, state; b = b, constraint = FixedpH(6.0))
 n  = Float64[ustrip(us"mol", x) for x in eq.n]

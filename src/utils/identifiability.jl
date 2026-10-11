@@ -35,7 +35,7 @@ rounding of the computation, not as a condition number of a few hundred.
 The logarithm is undefined at zero, and so is this: rescale or shift a
 parameter that can vanish first.
 
-`relstep` set the difference step until 0.28.2. It is deprecated, accepted and ignored.
+`relstep` is deprecated, accepted and ignored: the derivatives are exact.
 """
 function log_sensitivity(forward, θ; relstep = nothing)
     relstep === nothing || Base.depwarn(

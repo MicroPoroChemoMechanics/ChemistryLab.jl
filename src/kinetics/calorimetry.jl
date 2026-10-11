@@ -62,11 +62,15 @@ heat_rate(kinetic_reactions::_Heterogeneous, rates::AbstractVector, T_K; kwargs.
 # ── _reaction_enthalpy dispatch hierarchy ────────────────────────────────────
 #
 # Priority:
-#   1. KineticReaction{R, F, Float64}  — explicit heat_per_mol
+#   1. KineticReaction{R, F, <:Real}   — explicit heat_per_mol, in its number
+#                                        type: a heat of reaction being fitted
+#                                        to a calorimetric curve carries its
+#                                        derivative (`Float64` alone raised a
+#                                        `MethodError` on a dual one)
 #   2. KineticReaction{R, F, Nothing}  — delegate to reaction stoichiometry
 #   3. AbstractReaction                — stoichiometric sum of ΔₐH⁰
 
-function _reaction_enthalpy(kr::KineticReaction{<:Any, <:Any, Float64}, ::Real)
+function _reaction_enthalpy(kr::KineticReaction{<:Any, <:Any, <:Real}, ::Real)
     return kr.heat_per_mol
 end
 
@@ -83,24 +87,6 @@ function _reaction_enthalpy(reaction::AbstractReaction, T_K::Real)
         return -ustrip(reaction[:ΔᵣH⁰](; T = T_K * u"K", unit = true))
     end
     return zero(T_K)
-end
-
-# ── Total-enthalpy helper ─────────────────────────────────────────────────────
-
-"""
-    _total_enthalpy(n_full, h_fns, T_K) -> Real
-
-Total molar enthalpy `H = Σᵢ nᵢ ΔₐH⁰ᵢ(T)`.
-Used by the `DiscreteCallback` in `KineticsOrdinaryDiffEqExt`.
-"""
-function _total_enthalpy(n_full::AbstractVector, h_fns, T_K::Real)
-    H = zero(promote_type(eltype(n_full), typeof(T_K)))
-    for (i, hf) in enumerate(h_fns)
-        isnothing(hf) && continue
-        h_i = ustrip(hf(; T = T_K * u"K", unit = true))
-        H += n_full[i] * h_i
-    end
-    return H
 end
 
 # ── IsothermalCalorimeter ─────────────────────────────────────────────────────
@@ -244,12 +230,16 @@ All scalar fields accept plain `Real` (assumed SI) or `Quantity`:
 """
 function SemiAdiabaticCalorimeter(; Cp, T_env, T0, heat_loss = nothing, L = nothing)
     Cp_q = _ensure_unit(us"J/K", Cp)
-    T_env_q = _ensure_unit(us"K", T_env)
-    T0_q = _ensure_unit(us"K", T0)
+    # The two temperatures share one number type: an initial temperature being
+    # fitted beside a plain ambient one makes both dual.
+    Tk = (safe_ustrip(us"K", T_env), safe_ustrip(us"K", T0))
+    R = promote_type(map(typeof ∘ float, Tk)...)
+    T_env_q = _ensure_unit(us"K", R(Tk[1]))
+    T0_q = _ensure_unit(us"K", R(Tk[2]))
     hl = if !isnothing(heat_loss)
         heat_loss
     elseif !isnothing(L)
-        L_f = Float64(safe_ustrip(us"W/K", L))
+        L_f = float(safe_ustrip(us"W/K", L))
         ΔT -> L_f * ΔT
     else
         throw(
@@ -264,8 +254,8 @@ end
 n_extra_states(::SemiAdiabaticCalorimeter) = 1
 
 function extend_u0(u0::AbstractVector, cal::SemiAdiabaticCalorimeter)
-    T0_f = Float64(safe_ustrip(us"K", cal.T0))
-    return vcat(u0, eltype(u0)(T0_f))
+    T0_f = float(safe_ustrip(us"K", cal.T0))
+    return vcat(u0, T0_f)
 end
 
 """
@@ -278,8 +268,8 @@ from `p.cp_fns` and `p.n_full` [Lavergne2018](@cite).
 """
 function extend_ode!(du, u, p, n_kin::Int, cal::SemiAdiabaticCalorimeter)
     T_curr = u[n_kin + 1]
-    Cp_f = Float64(safe_ustrip(us"J/K", cal.Cp))
-    T_env_f = Float64(safe_ustrip(us"K", cal.T_env))
+    Cp_f = float(safe_ustrip(us"J/K", cal.Cp))
+    T_env_f = float(safe_ustrip(us"K", cal.T_env))
     # Variable total heat capacity: Cp_calorimeter + Σᵢ nᵢ Cp°ᵢ(T)
     Cp_total = Cp_f
     for (i, cp_fn) in enumerate(p.cp_fns)
@@ -304,6 +294,14 @@ end
 # Whether the run of `sol` carries a calorimeter under partial equilibrium.
 _cell_run(sol) = sol.prob.p.heat_eq
 
+# What a read-back computes on the values of a run on dual numbers carries no
+# derivative: said, once per read-back, rather than handed back as if it did.
+function _warn_values_only(sol, what::AbstractString)
+    eltype(first(sol.u)) <: ForwardDiff.Dual || return nothing
+    @warn "$what of a run on dual numbers is computed on the values of the run and carries no derivative." maxlog = 1 _id = Symbol(what)
+    return nothing
+end
+
 # The temperature of the cell and the enthalpy of the paste at each instant the
 # solution saved, for a run under partial equilibrium.
 function _cell_points(sol)
@@ -327,6 +325,7 @@ in the direction the run moves its element amounts.
 function heat_flow(sol, cal::IsothermalCalorimeter)
     t = sol.t
     _cell_run(sol) || return t, [sol(ti, Val{1})[end] for ti in t]
+    _warn_values_only(sol, "heat_flow")
     p = sol.prob.p
     qdot = _with_saved_warm_start(p) do
         map(eachindex(t)) do i
@@ -354,6 +353,7 @@ function heat_flow(sol, cal::SemiAdiabaticCalorimeter)
     Cp_f = safe_ustrip(us"J/K", cal.Cp)
     T_env_f = safe_ustrip(us"K", cal.T_env)
     if _cell_run(sol)
+        _warn_values_only(sol, "heat_flow")
         p = sol.prob.p
         T, _ = _cell_points(sol)
         dTdt = _with_saved_warm_start(p) do
@@ -392,6 +392,7 @@ certified speciations.
 """
 function cumulative_heat(sol, cal::IsothermalCalorimeter)
     if _cell_run(sol)
+        _warn_values_only(sol, "cumulative_heat")
         _, H = _cell_points(sol)
         H0 = _plain(sol.prob.p.H0[])
         return sol.t, [H0 - H[i] + _plain(sol.u[i][end]) for i in eachindex(H)]
@@ -409,9 +410,14 @@ partial equilibrium it is the enthalpy it has lost, which went to warm the
 vessel or out through its walls, `Q = C_v (T − T₀) − ΔH`, exactly, `ΔH` the
 change of the enthalpy of the cell the state carries. In the stoichiometric
 formulation, the integral of [`heat_flow`](@ref) by the rectangle rule.
+
+Under partial equilibrium, as [`heat_flow`](@ref) and
+[`temperature_profile`](@ref), it is computed on the values of the run: on a run
+carrying dual numbers it carries no derivative, and a warning says so once.
 """
 function cumulative_heat(sol, cal::SemiAdiabaticCalorimeter)
     if _cell_run(sol)
+        _warn_values_only(sol, "cumulative_heat")
         p = sol.prob.p
         T, _ = _cell_points(sol)
         Cv, T0 = _plain(p.Cp_calo), _plain(p.T0_cell)
@@ -439,6 +445,7 @@ warm-started from the one before.
 function temperature_profile(sol, ::SemiAdiabaticCalorimeter; times = sol.t)
     us = times === sol.t ? sol.u : [sol(t) for t in times]
     if _cell_run(sol)
+        _warn_values_only(sol, "temperature_profile")
         p = sol.prob.p
         T = _with_saved_warm_start(p) do
             [first(_cell_point(p, u)) for u in us]

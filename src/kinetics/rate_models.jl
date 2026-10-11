@@ -11,7 +11,7 @@ using OrderedCollections
 # ── StateView ─────────────────────────────────────────────────────────────────
 
 """
-    StateView{T, I <: AbstractDict}
+    StateView{T, V <: AbstractVector{T}, I <: AbstractDict}
 
 Thin wrapper giving O(1) named access to a species data vector.
 
@@ -37,8 +37,8 @@ julia> haskey(sv, "Ca++")
 true
 ```
 """
-struct StateView{T, I <: AbstractDict}
-    data::AbstractVector{T}
+struct StateView{T, V <: AbstractVector{T}, I <: AbstractDict}
+    data::V
     index::I
 end
 
@@ -64,7 +64,7 @@ where:
   - `t` [s]: current time.
   - `n::StateView`: moles of all species (named access: `n["C3S"]`).
   - `lna::StateView`: log-activities of all species.
-  - `n_initial::StateView`: initial moles (always `Float64`).
+  - `n_initial::StateView`: initial moles, in the number type of the initial state.
   - return: net dissolution rate [mol/s], positive = dissolution.
 
 AD-compatible when the compiled closure is AD-compatible.
@@ -304,7 +304,7 @@ function arrhenius_rate_constant(
     # through k₀, Ea, or T_ref when differentiating through construction.
     f = (T) -> k₀_si * exp(-Ea_si / R_gas * (1 / T - 1 / T_ref_si))
     # refs is metadata for default call values — always stored as plain Float64
-    refs = (T = Float64(_primal(T_ref_si)) * u"K",)
+    refs = (T = _plain(T_ref_si) * u"K",)
     return NumericFunc(f, (:T,), refs, u"mol/(m^2*s)")
 end
 
@@ -879,7 +879,7 @@ function parrott_killoh(params::NamedTuple, mineral_name::AbstractString; α_max
         return n_init * Aₜ * min(max(r_NG, r_I), r_D)
     end
 
-    refs = (T = Float64(_primal(T_ref)) * u"K", P = P_STANDARD_Q)
+    refs = (T = _plain(T_ref) * u"K", P = P_STANDARD_Q)
     return KineticFunc(f, refs, u"mol/s")
 end
 
@@ -1099,7 +1099,7 @@ function parrott_killoh_avrami(
         return n_init * Aₜ * β_B * β_h * f_wc * min(r₁, r₂, r₃)
     end
 
-    refs = (T = Float64(_primal(T_ref)) * u"K", P = P_STANDARD_Q)
+    refs = (T = _plain(T_ref) * u"K", P = P_STANDARD_Q)
     return KineticFunc(f, refs, u"mol/s")
 end
 
@@ -1326,7 +1326,7 @@ function waller(
         return n_init * Aₜ * β_B * β_h * r
     end
 
-    refs = (T = Float64(_primal(T_ref)) * u"K", P = P_STANDARD_Q)
+    refs = (T = _plain(T_ref) * u"K", P = P_STANDARD_Q)
     return KineticFunc(f, refs, u"mol/s")
 end
 
@@ -1561,15 +1561,20 @@ function PoreHumidity(
         ArgumentError("PoreHumidity needs an aqueous solvent to compute a humidity for.")
     )
     P = pressure(reference)
-    V̄ = Float64[
+    # In the number type of what they are computed from: a reference state or a
+    # temperature carrying dual numbers makes the volumes dual.
+    v = [
         _has_molar_volume(sp) ? ustrip(us"m^3/mol", _molar_volume(sp)(T = T, P = P; unit = true)) : 0.0
             for sp in system.species
     ]
     V_ref = ustrip(us"m^3", volume(reference).total)
     V_ref > 0 || throw(ArgumentError("PoreHumidity: the reference volume is zero."))
+    T_K = ustrip(us"K", T)
+    F = mapreduce(typeof, promote_type, v; init = promote_type(Float64, typeof(V_ref), typeof(T_K)))
+    V̄ = convert(Vector{F}, v)
     return PoreHumidity(
         retention, V̄, collect(system.idx_aqueous), collect(system.idx_crystal),
-        V_ref, V̄[only(system.idx_solvent)], ustrip(us"K", T),
+        F(V_ref), V̄[only(system.idx_solvent)], F(T_K),
     )
 end
 

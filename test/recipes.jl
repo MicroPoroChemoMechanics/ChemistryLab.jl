@@ -342,6 +342,18 @@ using ChemistryLab, DynamicQuantities, ForwardDiff, OrderedCollections, Test
         @test bound_water(rg) ≈ (ChemistryLab._in_unit(us"g", ignition_loss(rg.state).water) + unreacted) / rg.recipe.binder_mass rtol = 1.0e-12
         ps = pore_solution(rs)
         @test ps.pH > 12 && ps.elements[:K] > 0
+        # The state's own: the same molalities, and per liter of solution the
+        # same amounts over the liquid volume instead of the mass of water.
+        @test pore_solution(rs.state, rs.model) == ps
+        kgw = ChemistryLab._in_unit(us"kg", mass(rs.state, "H2O@"))
+        V_L = ChemistryLab._in_unit(us"L", volume(rs.state).liquid)
+        @test pore_solution(rs.state, rs.model; per = :L).elements[:K] ≈ ps.elements[:K] * kgw / V_L rtol = 1.0e-12
+        @test_throws ArgumentError pore_solution(rs.state, rs.model; per = :m3)
+        # Every atom of the state, and the budget the solve conserved.
+        ea = element_amounts(rs.state)
+        iK = findfirst(s -> symbol(s) == "K+", rs.state.system.species)
+        @test ea[:K] ≈ sum(get(atoms(sp), :K, 0) * ustrip(us"mol", x) for (sp, x) in zip(rs.state.system.species, rs.state.n)) rtol = 1.0e-12
+        @test budget(rs.state) ≈ rs.b rtol = 1.0e-8
         # The residue has no sourced enthalpy (the glass): the heat is not complete.
         @test isnan(enthalpy(rs))
         @test isnan(volume(rs).residual) && "S1 slag (Durdzinski 2017)" in volume(rs).missing

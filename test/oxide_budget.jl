@@ -157,4 +157,14 @@ end
     @test_throws ArgumentError glass_species(Dict("CaO" => -0.1); symbol = "X")
     @test_throws ArgumentError glass_species(Dict("CaO" => 0.0); symbol = "X")
     @test_throws ArgumentError glass_species(slag; symbol = "X", M = -1.0u"g/mol")
+
+    # A composition being calibrated: the element counts carry the derivative of
+    # the mass fraction, one mole of CaO per M(CaO) grams. They were stored as
+    # Float64 and a dual fraction raised.
+    M_CaO = ustrip(us"g/mol", Species("CaO")[:M])
+    dCa = ForwardDiff.derivative(
+        x -> atoms(glass_species(Dict("CaO" => x, "SiO2" => 0.36); symbol = "G", M = 95.0u"g/mol"))[:Ca],
+        0.41,
+    )
+    @test dCa ≈ 95.0 / M_CaO rtol = 1.0e-12
 end

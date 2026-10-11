@@ -91,7 +91,7 @@ the mixture of `figure` at `T_C` °C, and their total under `"total"`.
 """
 function b19_solids(cs, figure, T_C; model = cemdata18_activity_model(:KOH))
     st = b19_state(cs, figure, T_C)
-    eq, cert = equilibrate_certified(st; model, b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n))
+    eq, cert = equilibrate_certified(st; model, b = budget(st))
     cert.optimal || error("b19_solids: the mixture of $figure at $T_C °C is not certified")
     V = ustrip(uconvert(us"cm^3", volume(eq).total))
     solid = Set(symbol(s) for s in cs.species if aggregate_state(s) != AS_AQUEOUS)

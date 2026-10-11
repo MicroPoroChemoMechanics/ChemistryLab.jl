@@ -65,7 +65,9 @@ function _derived_path(d::DerivedDatabase; download::Bool = true)
     end
 end
 
-function _write_json_atomically(path, db)
+# Written in place: `_derived_path` builds into a temporary file and moves it,
+# which is what makes a build atomic.
+function _write_json(path, db)
     open(path, "w") do io
         JSON.print(io, db, 2)
     end
@@ -230,7 +232,7 @@ function _build_zeolites(base_path, out_path)
         ),
         "note" => "The base entries are copied unchanged; nothing is overwritten.",
     )
-    return _write_json_atomically(out_path, db)
+    return _write_json(out_path, db)
 end
 
 # ── the chloride end member of CSHQ ──────────────────────────────────────────
@@ -390,7 +392,7 @@ function _build_chloride(base_path, out_path)
             "end member is fitted, not measured: see its chloride_provenance. Fe-Friedel's " *
             "salt is the one of Table 1 of the Cemdata18 paper, which its ThermoFun export lacks.",
     )
-    return _write_json_atomically(out_path, db)
+    return _write_json(out_path, db)
 end
 
 # ── the CASH+ core model of C-S-H ────────────────────────────────────────────
@@ -548,7 +550,7 @@ function _build_cashplus(base_path, out_path)
             "The aqueous species added (Li+, Rb+, Cs+, Ba+2, Ra+2, Ca(OH)2@) carry the " *
             "properties of Miron et al. (2022a, Table A1), with a constant heat capacity.",
     )
-    return _write_json_atomically(out_path, db)
+    return _write_json(out_path, db)
 end
 
 # ── the products of the alkali-silica reaction ───────────────────────────────
@@ -693,7 +695,7 @@ function _build_asr(base_path, out_path)
             "of each product is the one its Gibbs energy and entropy give; the published ones " *
             "are kept in its provenance.",
     )
-    return _write_json_atomically(out_path, db)
+    return _write_json(out_path, db)
 end
 
 """

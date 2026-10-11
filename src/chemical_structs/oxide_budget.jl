@@ -147,9 +147,12 @@ function glass_species(
     M_g = ustrip(us"g/mol", M)
     M_g > 0 || throw(ArgumentError("`M` must be positive, got $M."))
 
-    # Element amounts in one gram of material, from the analysis as reported.
-    per_gram = OrderedDict{Symbol, Float64}()
-    modeled = 0.0
+    # Element amounts in one gram of material, from the analysis as reported,
+    # in the number type of the fractions (a dual fraction is a composition
+    # being calibrated).
+    R = mapreduce(f -> typeof(float(f)), promote_type, values(oxides); init = Float64)
+    per_gram = OrderedDict{Symbol, R}()
+    modeled = zero(R)
     for (formula, frac) in oxides
         frac == 0 && continue
         frac < 0 && throw(
@@ -158,7 +161,7 @@ function glass_species(
         ox = Species(formula)
         n_ox = float(frac) / ustrip(us"g/mol", ox[:M])
         for (el, k) in atoms(ox)
-            per_gram[el] = get(per_gram, el, 0.0) + n_ox * k
+            per_gram[el] = get(per_gram, el, zero(R)) + n_ox * k
         end
         modeled += float(frac)
     end
@@ -169,7 +172,7 @@ function glass_species(
         ),
     )
 
-    counts = OrderedDict{Symbol, Float64}(el => v * M_g for (el, v) in per_gram)
+    counts = OrderedDict{Symbol, promote_type(R, typeof(M_g))}(el => v * M_g for (el, v) in per_gram)
     props = OrderedDict{Symbol, PropertyType}(
         :M => M,
         :modeled_mass_fraction => modeled,
@@ -220,7 +223,7 @@ function cation_molar_mass(oxides::AbstractDict{<:AbstractString, <:Real})
 end
 
 """
-    oxide_budget(oxides, primaries; mass = 100.0u"g") -> Vector{Float64}
+    oxide_budget(oxides, primaries; mass = 100.0u"g") -> Vector{<:Real}
 
 The component totals `b` contributed by a material reported as an **oxide
 analysis**, for use as the right-hand side of `A n = b`.

@@ -26,8 +26,8 @@
 # the continuous one). The fit is by least squares, the number of values present
 # exceeding five as a rule; with five or fewer, the polynomial of lower degree
 # through them.
-struct TabulatedLogK <: AbstractLogK
-    poly::Vector{Float64}                 # coefficients in °C, constant first
+struct TabulatedLogK{T <: Real} <: AbstractLogK
+    poly::Vector{T}                       # coefficients in °C, constant first
     range::Tuple{Float64, Float64}        # °C, the principal temperatures with data
 end
 
@@ -35,34 +35,26 @@ function TabulatedLogK(temperatures::AbstractVector, values::AbstractVector)
     keep = [i for i in eachindex(values) if values[i] != 500.0]
     isempty(keep) && throw(ArgumentError("a log K table without any value"))
     t, v = Float64.(temperatures[keep]), Float64.(values[keep])
-    degree = min(4, length(t) - 1)
-    V = [ti^k for ti in t, k in 0:degree]
-    return TabulatedLogK(V \ v, (minimum(t), maximum(t)))
+    return TabulatedLogK(_polynomial_fit(t, v, min(4, length(t) - 1)), (minimum(t), maximum(t)))
 end
 
-function _log10K(k::TabulatedLogK, T)
-    tc = _celsius(T)
-    L, dL, d2L = zero(tc), zero(tc), zero(tc)
-    for (j, a) in enumerate(k.poly)
-        n = j - 1
-        L += a * tc^n
-        n >= 1 && (dL += n * a * tc^(n - 1))
-        n >= 2 && (d2L += n * (n - 1) * a * tc^(n - 2))
-    end
-    return L, dL, d2L
-end
+_log10K(k::TabulatedLogK, T) = _celsius_polynomial(k.poly, _celsius(T))
 
 # The polynomial of format "jan19" [BethkeFarrell2026; § 3.2.2](@cite),
 #     a + b (T − Tr) + c (T² − Tr²) + d (1/T − 1/Tr) + e (1/T² − 1/Tr²) + f ln(T/Tr),
 # T in kelvin and Tr = 298.15 K.
-struct GWBPolynomialLogK <: AbstractLogK
-    coeffs::NTuple{6, Float64}
+struct GWBPolynomialLogK{T <: Real} <: AbstractLogK
+    coeffs::NTuple{6, T}
     range::Tuple{Float64, Float64}        # K
+end
+function GWBPolynomialLogK(coeffs::NTuple{6, Real}, range)
+    T = promote_type(map(typeof, coeffs)...)
+    return GWBPolynomialLogK{T}(map(T, coeffs), range)
 end
 
 function _log10K(k::GWBPolynomialLogK, T)
     a, b, c, d, e, f = k.coeffs
-    Tr = _T25
+    Tr = T_STANDARD
     L = a + b * (T - Tr) + c * (T^2 - Tr^2) + d * (1 / T - 1 / Tr) + e * (1 / T^2 - 1 / Tr^2) + f * log(T / Tr)
     dL = b + 2c * T - d / T^2 - 2e / T^3 + f / T
     d2L = 2c + 2d / T^3 + 6e / T^4 - f / T^2
@@ -101,7 +93,6 @@ function _next!(c::_GWBCursor)
     c.i += 1
     return c.lines[c.i - 1][2]
 end
-_numbers_on(line) = (v = tryparse.(Float64, split(line)); any(isnothing, v) ? nothing : Float64.(v))
 
 # The numbers on the following lines, `n` of them.
 function _numbers!(c::_GWBCursor, n)
@@ -203,7 +194,6 @@ and a copy is installed by hand ([`install_database`](@ref)).
 """
 function read_gwb_database(path::AbstractString)
     file = basename(path)
-    digest = bytes2hex(open(sha256, path))
     c = _GWBCursor(_gwb_lines(path), 1)
     notes = String[]
     header = Dict{String, String}()
@@ -277,13 +267,13 @@ function read_gwb_database(path::AbstractString)
             push!(notes, "$file:$start: section `$section` is not read")
         _peek(c) === nothing || _next!(c)        # -end-
     end
-    return _gwb_database(file, String(path), digest, header, temperatures, variables, element_names, basis, records, notes)
+    return _gwb_database(file, String(path), header, temperatures, variables, element_names, basis, records, notes)
 end
 
 # The species of a dataset resolved against its basis species: a basis species
 # by its composition, at zero; any other by the balance of its dissociation
 # reaction, `s = Σ cᵢ Pᵢ`, and the log K of its formation from the basis.
-function _gwb_database(file, path, digest, header, temperatures, variables, element_names, basis, records, notes)
+function _gwb_database(file, path, header, temperatures, variables, element_names, basis, records, notes)
     logks = AbstractLogK[]
     by_name = Dict{String, Any}()
     for rec in records
@@ -292,25 +282,7 @@ function _gwb_database(file, path, digest, header, temperatures, variables, elem
         k = rec.logk === nothing ? 0 : (push!(logks, rec.logk); length(logks))
         by_name[rec.name] = (rec, k)
     end
-    resolved = Dict{String, Any}()
-    visiting = Set{String}()
-    function resolve(name)
-        haskey(resolved, name) && return resolved[name]
-        haskey(by_name, name) || return (resolved[name] = nothing)
-        name in visiting && return nothing
-        push!(visiting, name)
-        rec, k = by_name[name]
-        out = if haskey(basis, name)
-            comp, z = basis[name]
-            (Dict{Symbol, Float64}(comp), z, Dict{Int, Float64}())
-        else
-            terms = vcat([(-1.0, "\$self")], rec.terms)
-            r = _resolve_defined("\$self", terms, k, logks, resolve)
-            r === nothing ? nothing : (r[1], r[2], r[3])
-        end
-        delete!(visiting, name)
-        return (resolved[name] = out)
-    end
+    resolve = _Resolver((name, r) -> _gwb_define(name, by_name, basis, logks, r))
     species, phases = _ReactionEntry[], _ReactionEntry[]
     for rec in values(by_name) |> collect |> v -> sort(v; by = x -> x[1].line)
         r = rec[1]
@@ -320,31 +292,38 @@ function _gwb_database(file, path, digest, header, temperatures, variables, elem
             continue
         end
         atoms, z, formation = res
-        unknown = [e for e in keys(atoms) if !haskey(elements.bysymbol, e)]
-        if !isempty(unknown)
-            push!(notes, "$file:$(r.line): $(r.name) is made of $(join(string.(unknown), ", ")), not of chemical elements; not read")
-            continue
-        end
+        _not_elements(atoms, file, r.line, r.name, notes) && continue
         h = r.header
         if r.section in ("minerals", "gases")
-            # The critical pressure in atm, as the entries of the other formats hold it.
-            critical = (h.Tc === nothing || h.Pc === nothing) ? nothing :
-                (h.Tc, ustrip(us"Pa", h.Pc * u"bar") / ustrip(us"Pa", _DQConstants.atm), something(h.omega, 0.0))
+            # The critical pressure in pascals; the dataset gives it in bar.
+            critical = (h.Tc === nothing || h.Pc === nothing) ? nothing : (h.Tc, h.Pc * _ONE_BAR, something(h.omega, 0.0))
             push!(phases, _ReactionEntry(r.name, :phase, atoms, z, formation, nothing, nothing, false, h.volume, critical, r.line, r.name))
         else
             push!(species, _ReactionEntry(r.name, :solution, atoms, z, formation, nothing, h.ion_size, false, nothing, nothing, r.line, r.name))
         end
     end
     masters = Dict{String, String}(name => name for name in keys(basis))
-    gauge = "basis species of $file ($(digest[1:12]))"
+    gauge = "basis species of $file ($(_short_digest(path)))"
     parameters = (; format = get(header, "dataset format", "unstated"), activity_model = get(header, "activity model", "unstated"), temperatures, variables)
     reactions = NamedTuple[
         (; symbol = rec.name, kind = Symbol(replace(rec.section, " " => "_")), equation = join(("$(c) $(n)" for (c, n) in rec.terms), " + "), logk = rec.logk, line = rec.line)
             for rec in records if rec.logk !== nothing
     ]
     data = _ReactionData(
-        file, path, "$file sha256 $(digest[1:12])", gauge, :gwb, masters, species, phases, logks,
+        file, path, _source_tag(path), gauge, :gwb, masters, species, phases, logks,
         reactions, parameters, Set{String}(), notes,
     )
     return _reaction_tables(data)
+end
+
+# A species of a dataset resolved against the basis species: a basis species by
+# its composition, at zero; any other by its dissociation reaction.
+function _gwb_define(name, by_name, basis, logks, resolve)
+    haskey(by_name, name) || return nothing
+    rec, k = by_name[name]
+    if haskey(basis, name)
+        comp, z = basis[name]
+        return (Dict{Symbol, Float64}(comp), z, Dict{Int, Float64}())
+    end
+    return _resolve_defined("\$self", vcat([(-1.0, "\$self")], rec.terms), k, logks, resolve)
 end

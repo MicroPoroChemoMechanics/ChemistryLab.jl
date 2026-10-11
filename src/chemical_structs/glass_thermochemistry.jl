@@ -51,25 +51,33 @@ function _glass_oxide_counts(formula::AbstractString)
     return [Float64(get(a, :Ca, 0)), Float64(get(a, :Mg, 0)), Float64(get(a, :Al, 0)) / 2, Float64(get(a, :Si, 0))]
 end
 
+# The crystals of aq17 and the default reference, built once, under a lock as
+# `_gel_models` is: two threads asking first would both build them and race on the
+# reference.
+const _GLASS_DATA_LOCK = ReentrantLock()
 const _AQ17 = Ref{Any}(nothing)
 function _aq17_crystals()
-    if _AQ17[] === nothing
-        _AQ17[] = Dict(symbol(s) => s for s in build_species(datapath("aq17-thermofun.json"); verbose = false))
+    return lock(_GLASS_DATA_LOCK) do
+        if _AQ17[] === nothing
+            _AQ17[] = Dict(symbol(s) => s for s in build_species(datapath("aq17-thermofun.json"); verbose = false))
+        end
+        _AQ17[]
     end
-    return _AQ17[]
 end
 
 # The default reference for the enthalpies of formation of the oxides: aq17,
 # then slop98, built once.
 const _GLASS_REFERENCE = Ref{Any}(nothing)
 function _default_glass_reference()
-    if _GLASS_REFERENCE[] === nothing
-        _GLASS_REFERENCE[] = (
-            collect(values(_aq17_crystals())),
-            build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false),
-        )
+    return lock(_GLASS_DATA_LOCK) do
+        if _GLASS_REFERENCE[] === nothing
+            _GLASS_REFERENCE[] = (
+                collect(values(_aq17_crystals())),
+                build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false),
+            )
+        end
+        _GLASS_REFERENCE[]
     end
-    return _GLASS_REFERENCE[]
 end
 
 _formation_enthalpy(sp) = ustrip(us"J/mol", sp[:ΔₐH⁰](T = T_STANDARD_Q, P = P_STANDARD_Q; unit = true))
@@ -93,7 +101,7 @@ function _reference_oxide(formula::AbstractString, reference)
 end
 
 """
-    glass_enthalpy(oxides; T = 298.15u"K", reference = nothing) -> NamedTuple
+    glass_enthalpy(oxides; T = 298.15u"K", reference = nothing, ignore = ()) -> NamedTuple
 
 The standard enthalpy of formation of a silicate glass known by its oxide
 analysis, per gram of material, built from measurements on silicate glasses and
@@ -150,9 +158,11 @@ function glass_enthalpy(oxides::AbstractDict{<:AbstractString, <:Real}; T = T_ST
     refs = reference === nothing ? _default_glass_reference() : reference
     glasses = _vitrification_enthalpies()
 
-    # Moles of each oxide per gram of material.
-    n = Dict{String, Float64}()
-    ignored = Dict{String, Float64}()
+    # Moles of each oxide per gram of material, in the number type of the
+    # fractions (a dual fraction is a composition being calibrated).
+    R = mapreduce(f -> typeof(float(f)), promote_type, values(oxides); init = Float64)
+    n = Dict{String, R}()
+    ignored = Dict{String, R}()
     for (ox, f) in oxides
         f == 0 && continue
         f < 0 && throw(ArgumentError("glass_enthalpy: the mass fraction of `$ox` is negative ($f)."))
@@ -163,7 +173,7 @@ function glass_enthalpy(oxides::AbstractDict{<:AbstractString, <:Real}; T = T_ST
         n[ox] = float(f) / ustrip(us"g/mol", Species(ox)[:M])
     end
     isempty(n) && throw(ArgumentError("glass_enthalpy: the analysis carries no oxide with a positive mass fraction."))
-    b = [get(n, ox, 0.0) for ox in _GLASS_OXIDES]
+    b = [get(n, ox, zero(R)) for ox in _GLASS_OXIDES]
 
     # The columns of the small linear program: the measured glasses, then one
     # crystalline oxide per oxide (the part no measured glass covers).
@@ -235,15 +245,16 @@ end
 # rows, ten columns, 210 choices).
 function _norm_vertices(A::AbstractMatrix, b::AbstractVector)
     m, n = size(A)
-    out = Vector{Vector{Float64}}()
+    R = float(promote_type(eltype(A), eltype(b)))
+    out = Vector{Vector{R}}()
     scale = max(1.0, maximum(abs, b))
     for cols in _combinations(n, m)
         B = A[:, cols]
         abs(det(B)) < 1.0e-12 && continue
         x = B \ b
         all(>=(-1.0e-12 * scale), x) || continue
-        v = zeros(n)
-        v[cols] .= max.(x, 0.0)
+        v = zeros(R, n)
+        v[cols] .= max.(x, zero(R))
         any(w -> isapprox(w, v; atol = 1.0e-14 * scale), out) || push!(out, v)
     end
     isempty(out) && error("glass_enthalpy: no non-negative combination; this cannot happen with the crystalline oxides among the columns.")

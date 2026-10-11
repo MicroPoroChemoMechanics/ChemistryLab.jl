@@ -328,20 +328,23 @@ function extract_vars_params(expr, vars)
     vars_set = Set(vars)
     newvars = Symbol[]
 
-    function scan_expr(ex)
-        return if ex isa Symbol
-            ex ∈ vars_set ? push!(newvars, ex) : push!(params, ex)
-        elseif ex isa Expr
-            for arg in ex.args[2:end]
-                scan_expr(arg)
-            end
-        end
-    end
-
-    scan_expr(expr)
+    _scan_symbols!(newvars, params, vars_set, expr)
     unique!(newvars)
     unique!(params)
     return newvars, params
+end
+
+# The symbols of `ex`, to `newvars` when in `vars_set` and to `params` otherwise,
+# leaving out the first argument of each expression: the function of a call.
+function _scan_symbols!(newvars, params, vars_set, ex)
+    if ex isa Symbol
+        ex ∈ vars_set ? push!(newvars, ex) : push!(params, ex)
+    elseif ex isa Expr
+        for arg in @view ex.args[2:end]
+            _scan_symbols!(newvars, params, vars_set, arg)
+        end
+    end
+    return nothing
 end
 
 """
@@ -357,12 +360,20 @@ function compile_symbolic(symbolic_expr, var_symbols)
     end
 end
 
+# The units given to a factory, by symbol, and each read as a unit: a string is
+# parsed, a quantity gives its unit, anything else is dimensionless.
+_units_by_symbol(nt::NamedTuple) = Dict(pairs(nt))
+_units_by_symbol(v::AbstractVector{<:Pair}) = Dict(v)
+_as_unit(s::String) = uparse(s)
+_as_unit(q::AbstractQuantity) = oneunit(q)
+_as_unit(::Any) = u"1"
+
 """
     ThermoFactory{Q}
 
 Factory for creating `SymbolicFunc` instances from expressions.
-Units for each variable/parameter and the output unit are stored explicitly,
-removing the need for symbolic unit propagation (previously done via ModelingToolkitBase).
+Units for each variable/parameter and the output unit are stored explicitly, so
+no symbolic unit propagation is needed.
 """
 struct ThermoFactory{Q}
     symbolic::Num
@@ -387,7 +398,7 @@ struct ThermoFactory{Q}
 end
 
 """
-    ThermoFactory(expr, vars=[:T, :P, :t, :x, :y, :z]; units=nothing) -> ThermoFactory
+    ThermoFactory(expr, vars=[:T, :P, :t, :x, :y, :z]; units=nothing, output_unit=nothing) -> ThermoFactory
 
 Create a `ThermoFactory` from a symbolic expression.
 
@@ -395,7 +406,10 @@ Create a `ThermoFactory` from a symbolic expression.
 
   - `expr`: symbolic expression (Expr or Symbol).
   - `vars`: list of variable symbols (default: T, P, t, x, y, z).
-  - `units`: dictionary mapping symbols to their units.
+  - `units`: dictionary mapping symbols to their units; a symbol it does not
+    list is dimensionless.
+  - `output_unit`: the unit of the expression's value (dimensionless when
+    `nothing`).
 """
 function ThermoFactory(
         expr,
@@ -403,21 +417,15 @@ function ThermoFactory(
         units = nothing,
         output_unit = nothing,
     )
-    vars, params = extract_vars_params(expr, vars)
-    var_sym_dict = OrderedDict{Symbol, Num}(v => Symbolics.variable(v) for v in vars)
+    found_vars, params = extract_vars_params(expr, vars)
+    var_sym_dict = OrderedDict{Symbol, Num}(v => Symbolics.variable(v) for v in found_vars)
     param_sym_dict = OrderedDict{Symbol, Num}(p => Symbolics.variable(p) for p in params)
-
-    to_dict(nt::NamedTuple) = Dict(pairs(nt))
-    to_dict(v::AbstractVector{<:Pair}) = Dict(v)
-    to_unit(s::String) = uparse(s)
-    to_unit(q::AbstractQuantity) = oneunit(q)
-    to_unit(::Any) = u"1"
 
     _fallback = u"1"
     if !isnothing(units)
-        dict_units = to_dict(units)
+        dict_units = _units_by_symbol(units)
         unit_dict = Dict{Symbol, typeof(_fallback)}(
-            sym => (haskey(dict_units, sym) ? to_unit(dict_units[sym]) : _fallback)
+            sym => (haskey(dict_units, sym) ? _as_unit(dict_units[sym]) : _fallback)
                 for sym in Iterators.flatten((keys(var_sym_dict), keys(param_sym_dict)))
         )
     else
@@ -427,7 +435,7 @@ function ThermoFactory(
         )
     end
 
-    out_unit = isnothing(output_unit) ? _fallback : to_unit(output_unit)
+    out_unit = isnothing(output_unit) ? _fallback : _as_unit(output_unit)
 
     all_symbols = merge(var_sym_dict, param_sym_dict)
     symbolic = Symbolics.wrap(Symbolics.parse_expr_to_symbolic(expr, all_symbols))
@@ -512,9 +520,8 @@ function (factory::ThermoFactory)(; kwargs...)
                     (p, v) in factory.params
             )
             substituted = Symbolics.substitute(factory.symbolic, substitutions)
-            simplified = Symbolics.simplify(Symbolics.expand(substituted))
-            compiled = compile_symbolic(simplified, collect(keys(factory.vars)))
-            (simplified, compiled)
+            reduced = Symbolics.simplify(Symbolics.expand(substituted))
+            (reduced, compile_symbolic(reduced, collect(keys(factory.vars))))
         end
     end
 
@@ -558,24 +565,34 @@ end
 # ── SymbolicFunc convenience constructors ──────────────────────────────────────
 # (placed after ThermoFactory since they use it)
 
-"""
-    SymbolicFunc(sym::Symbol; kwargs...) -> SymbolicFunc
+# The keywords of `ThermoFactory`; every other keyword of a `SymbolicFunc`
+# constructor goes to the factory's call: parameter values and reference values.
+const _FACTORY_KEYWORDS = (:units, :output_unit)
+_factory_kwargs(kwargs) = (; (k => v for (k, v) in pairs(kwargs) if k in _FACTORY_KEYWORDS)...)
+_call_kwargs(kwargs) = (; (k => v for (k, v) in pairs(kwargs) if !(k in _FACTORY_KEYWORDS))...)
 
-Create a `SymbolicFunc` from a single symbol.
+"""
+    SymbolicFunc(sym::Symbol; units, output_unit, kwargs...) -> SymbolicFunc
+
+Create a `SymbolicFunc` from a single symbol. `units` and `output_unit` are those
+of [`ThermoFactory`](@ref); the other keywords are the values of its parameters
+and the reference values of its variable.
 """
 function SymbolicFunc(sym::Symbol; kwargs...)
-    factory = ThermoFactory(sym, [sym]; kwargs...)
-    return factory(; kwargs...)
+    factory = ThermoFactory(sym, [sym]; _factory_kwargs(kwargs)...)
+    return factory(; _call_kwargs(kwargs)...)
 end
 
 """
-    SymbolicFunc(expr::Expr, vars=[:T, :P, :t, :x, :y, :z]; kwargs...) -> SymbolicFunc
+    SymbolicFunc(expr::Expr, vars=[:T, :P, :t, :x, :y, :z]; units, output_unit, kwargs...) -> SymbolicFunc
 
-Create a `SymbolicFunc` from an expression.
+Create a `SymbolicFunc` from an expression. `units` and `output_unit` are those
+of [`ThermoFactory`](@ref); the other keywords are the values of its parameters
+and the reference values of its variables.
 """
 function SymbolicFunc(expr::Expr, vars = [:T, :P, :t, :x, :y, :z]; kwargs...)
-    factory = ThermoFactory(expr, vars)
-    return factory(; kwargs...)
+    factory = ThermoFactory(expr, vars; _factory_kwargs(kwargs)...)
+    return factory(; _call_kwargs(kwargs)...)
 end
 
 """

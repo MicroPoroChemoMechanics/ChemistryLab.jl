@@ -73,7 +73,7 @@ end
 
 """
     volume_fractions(state::ChemicalState; reference = nothing, void_key = "void")
-        -> OrderedDict{String, Float64}
+        -> OrderedDict{String, <:Real}
 
 Volume fraction of every species carrying a standard molar volume, keyed by
 species symbol. Species with a zero amount are omitted.
@@ -118,11 +118,11 @@ function volume_fractions(
     _primal(ustrip(us"m^3", V_ref)) > 0 ||
         throw(ArgumentError("reference volume is zero: no fractions can be defined"))
 
-    # In the number type of the states, as every output a caller may
-    # differentiate: a volume fraction is what a homogenization scheme reads.
-    R = promote_type(_realtype(eltype(state.n)), reference === nothing ? Float64 : _realtype(eltype(reference.n)))
-    out = OrderedDict{String, R}()
-    V_sum = zero(R)
+    # In the number type of everything a fraction is computed from, as every
+    # output a caller may differentiate: a volume fraction is what a
+    # homogenization scheme reads. The amounts of the states, and the molar
+    # volumes too, which carry the temperature, the pressure and the data.
+    entries = Pair{String, Any}[]
     for (i, sp) in enumerate(state.system.species)
         _has_molar_volume(sp) || continue
         # Filter on the AMOUNT, not on the sign of the contribution: aqueous
@@ -132,8 +132,16 @@ function volume_fractions(
         # fractions summing to slightly more than one.
         iszero(_primal(ustrip(us"mol", state.n[i]))) && continue
         Vᵢ = state.n[i] * _molar_volume(sp)(T = T, P = P; unit = true)
-        fᵢ = ustrip(Vᵢ / V_ref)
-        out[symbol(sp)] = fᵢ
+        push!(entries, symbol(sp) => ustrip(Vᵢ / V_ref))
+    end
+    R = mapreduce(
+        e -> typeof(last(e)), promote_type, entries;
+        init = promote_type(_realtype(eltype(state.n)), reference === nothing ? Float64 : _realtype(eltype(reference.n))),
+    )
+    out = OrderedDict{String, R}()
+    V_sum = zero(R)
+    for (k, fᵢ) in entries
+        out[k] = fᵢ
         V_sum += fᵢ
     end
 
@@ -151,7 +159,7 @@ end
 
 """
     volume_fractions(state::ChemicalState, groups; kwargs...)
-        -> OrderedDict{String, Float64}
+        -> OrderedDict{String, <:Real}
 
 Volume fractions aggregated into named families.
 

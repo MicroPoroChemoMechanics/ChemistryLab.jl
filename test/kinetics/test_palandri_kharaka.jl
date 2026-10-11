@@ -84,6 +84,21 @@
     # acid one through the activity of H+.
     tst = transition_state(palandri_kharaka("calcite"), cs, rxn, BETSurfaceArea(90.0))
     @test tst isa KineticFunc
+    # Its saturation terms are read by symbol, as those of `saturation_ratio`:
+    # by formula, calcite and aragonite would read one activity.
+    @test first.(ChemistryLab._stoich_named(cs, rxn)) == ["Cal", "Ca+2", "CO3-2"]
+    # A participant the system does not hold, or one without a standard Gibbs
+    # energy, is passed over by `transition_state` and refused by
+    # `saturation_ratio`.
+    absent = Species("CO2"; symbol = "CO2(g)", aggregate_state = AS_GAS, class = SC_GASFLUID)
+    bare = Species("CaO"; symbol = "Lim_bare", aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
+    cs2 = ChemicalSystem(vcat(sp, [bare]), CEMDATA_PRIMARIES)
+    r2 = Reaction(
+        OrderedDict(cs2["Cal"] => 1.0, cs2["Lim_bare"] => 1.0, absent => 1.0),
+        OrderedDict(cs2["Ca+2"] => 1.0, cs2["CO3-2"] => 1.0); symbol = "with two passed over",
+    )
+    @test first.(ChemistryLab._stoich_named(cs2, r2)) == ["Cal", "Ca+2", "CO3-2"]
+    @test_throws ArgumentError saturation_ratio(cs2, r2)
 
     # The sulfides of Table 35 carry orders in Fe3+ and in dissolved O2, the
     # activities of the report's Eq. (3a); pyrite's acid mechanism is its Eq. (3b).

@@ -154,4 +154,13 @@ end
         write(plain, "SOLUTION_SPECIES\n    H2O = H2O\n    log_k 0.0\n")
         @test_throws ArgumentError read_sorption_model(plain)
     end
+
+    @testset "a decimal coefficient is read whole and exactly" begin
+        # `^(\d+)` took `0.5 Ca+2` for the coefficient 0 of a species named
+        # `.5 Ca+2`; spaced or not, a decimal is now read as a rational.
+        st = ChemistryLab._parse_sorption_stoichiometry("2 Hfo_wOH + 0.5 Ca+2 = Hfo_w2O2Ca0.5 + 2 H+")
+        @test st == Dict("Hfo_wOH" => -2, "Ca+2" => -1 // 2, "Hfo_w2O2Ca0.5" => 1, "H+" => 2)
+        @test ChemistryLab._parse_sorption_stoichiometry("Mntx- + .5Na+ = MntxNa0.5") ==
+            Dict("Mntx-" => -1, "Na+" => -1 // 2, "MntxNa0.5" => 1)
+    end
 end

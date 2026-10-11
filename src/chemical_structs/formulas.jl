@@ -152,8 +152,8 @@ Return the Unicode pretty representation of `f`.
 # Examples
 
 ```jldoctest
-julia> phreeqc(Formula("C3A"))
-"C3A"
+julia> unicode(Formula("H2O"))
+"H₂O"
 ```
 """
 unicode(f::Formula) = f.unicode
@@ -339,10 +339,10 @@ end
 """
     Formula(f::Formula) -> Formula
 
-Copy constructor: return a new `Formula` built from `f`'s composition.
+Copy constructor: return a new `Formula` built from `f`'s composition and charge.
 """
 function Formula(f::Formula)
-    return Formula(composition(f))
+    return Formula(composition(f), charge(f))
 end
 
 """
@@ -660,8 +660,7 @@ placeholder `:Zz`, and a surface site symbol ([`SITE_SYMBOLS`](@ref)). Anything
 else — a typo, most often — makes this `false`, and a species built from such a
 formula is then left **without** a molar mass rather than given a wrong one.
 
-It **returns** `false`; it does not throw. The docstring claimed otherwise until
-0.20, and the difference matters: callers branch on it.
+It **returns** `false`; it does not throw: callers branch on it.
 
 # What a site symbol weighs
 
@@ -702,7 +701,7 @@ Calculate the molar mass from an atomic composition dictionary.
 
 # Returns
 
-  - Molar mass as a Quantity in g/mol units.
+  - Molar mass as a Quantity in kg/mol (SI units).
 
 # Examples
 

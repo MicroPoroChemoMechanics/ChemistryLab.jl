@@ -128,6 +128,27 @@ include("reference_species.jl")
         @test pH(eq1) == pH(eq2)          # bit-for-bit, no path dependence
         @test balance_rel(st, eq1) < 1.0e-10
         @test c1.worst_supersaturation < 0 || c1.worst_supersaturation == -Inf
+        # The state given is not modified, as the docstring says; and its budget
+        # is the product the solve conserves.
+        n0, T0 = copy(st.n), temperature(st)
+        eq3, _ = equilibrate_certified(st)
+        @test st.n == n0 && temperature(st) == T0
+        @test pH(eq3) == pH(eq1)
+        @test budget(st) == A * [ustrip(us"mol", x) for x in st.n]
+
+        # The search decides on the verdicts and reports once: the certificate it
+        # returns is `optimality_certificate`'s at the answer, field for field and
+        # in its order, then the search's own fields; `report = false` returns
+        # the verdict alone, with the same values.
+        des = DualEquilibriumSolver(cs, DiluteSolutionModel())
+        full = optimality_certificate(des, eq1; b = budget(st))
+        @test collect(keys(c1))[1:length(full)] == collect(keys(full))
+        @test all(isequal(c1[k], full[k]) for k in keys(full))
+        _, v = solve_certified(des, (eq1,); b = budget(st), report = false)
+        _, r = solve_certified(des, (eq1,); b = budget(st))
+        @test !hasproperty(v, :scope) && hasproperty(r, :scope)
+        @test all(isequal(v[k], r[k]) for k in keys(r) if haskey(v, k))
+        @test r.scope == full.scope
     end
 
     @testsection "a trace is held to its own amount" begin
@@ -946,6 +967,19 @@ end
     @test cert.n_dual_solves >= 1
     eq0, cert0 = equilibrate_certified(st8; lp_start = false)
     @test cert0.route === :state
+
+    # The route is found by identity among the dual solves of the search: an
+    # answer none of them returned, a copy included, is reported as `:other`.
+    model8 = DiluteSolutionModel()
+    search = ChemistryLab._CertifiedSearch(
+        DualEquilibriumSolver(st8.system, model8), st8, model8, budget(eq0),
+        ChemistryLab._AMOUNT_FLOOR, ChemistryLab.FixedTP(), nothing, false, (;), (;), false,
+    )
+    @test ChemistryLab._route(search, eq0) === :other
+    search.memo[st8] = (eq0, cert0)
+    search.route_of[st8] = :state
+    @test ChemistryLab._route(search, eq0) === :state
+    @test ChemistryLab._route(search, deepcopy(eq0)) === :other
     @test ustrip.(us"mol", eq.n) ≈ ustrip.(us"mol", eq0.n) rtol = 1.0e-8
 end
 

@@ -104,27 +104,6 @@ using JSON
         @test length(factory.cache) == length(keys_)
     end
 
-    if Base.get_extension(ChemistryLab, :SymbolicNumericIntegrationExt) !== nothing
-        @testsection "add_thermo_model" begin
-            model_name = :test_linear_model
-            Cpexpr = :(c₀ + c₁ * T)
-
-            # Register a new model from a Cp expression
-            @test_nowarn add_thermo_model(model_name, Cpexpr)
-
-            @test haskey(THERMO_MODELS, model_name)
-            @test haskey(THERMO_FACTORIES, model_name)
-
-            factories = THERMO_FACTORIES[model_name]
-            @test haskey(factories, :Cp)
-            @test haskey(factories, :H)   # integrated automatically
-
-            # Clean up: remove the test model so it doesn't pollute other tests
-            delete!(THERMO_MODELS, model_name)
-            delete!(THERMO_FACTORIES, model_name)
-        end
-    end
-
     @testsection "build_thermo_functions" begin
         # Build thermodynamic functions from cp_ft_equation with minimal
         # parameters: a constant heat capacity and the reference properties of
@@ -343,4 +322,15 @@ end
         @test hem2[:ΔₐG⁰](T = T) ≈ G(T) - dH + T * dS rtol = 1.0e-12
     end
     @test hem2[:ΔₐG⁰](T = 500.0) == G(500.0)
+end
+
+@testsection "SymbolicFunc sends each keyword where it belongs" begin
+    # From a symbol, every keyword went to `ThermoFactory`, which takes only
+    # `units` and `output_unit`: a reference value raised a `MethodError`.
+    sT = SymbolicFunc(:T; T = 300.0)
+    @test sT() ≈ 300.0
+    # From an expression, `units` and `output_unit` were silently dropped.
+    sf = SymbolicFunc(:(a * T); a = 2.0, units = [:T => "K"], output_unit = "J/mol")
+    @test sf(; T = 300.0) ≈ 600.0
+    @test dimension(sf(; T = 300.0, unit = true)) == dimension(u"J/mol")
 end

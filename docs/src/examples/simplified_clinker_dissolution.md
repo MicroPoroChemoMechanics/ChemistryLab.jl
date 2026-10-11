@@ -158,13 +158,8 @@ refinement rather than a start, is explained in
 
 ### Tolerances
 
-Solver options are passed as keyword arguments and forwarded to the optimizer.
-Ipopt reads `reltol` as its convergence tolerance `tol`; it has no counterpart
-for `abstol`, which it ignores:
-
-```julia
-state_eq_tight = equilibrate(state; reltol = 1e-12)
-```
+Solver options are passed as keyword arguments and forwarded to the optimizer;
+which ones each back end reads is in [the manual](@ref man-tolerances).
 
 ---
 

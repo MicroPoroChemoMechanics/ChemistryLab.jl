@@ -70,17 +70,6 @@ const DOC_SHARDS = [
 ]
 
 """
-    doc_page_leaves(node) -> Vector{String}
-
-Every page path of a `pages` tree, in order. Duplicated from `partial.jl` so that
-this file can be read without triggering a partial build.
-"""
-doc_page_leaves(node::AbstractString) = [node]
-doc_page_leaves(node::Pair) = doc_page_leaves(node.second)
-doc_page_leaves(node::AbstractVector) =
-    reduce(vcat, doc_page_leaves.(node); init = String[])
-
-"""
     shard_pages(name, leaves) -> Vector{String}
 
 The pages of shard `name` among `leaves`. The shard `rest` holds every page no

@@ -389,3 +389,15 @@ pages = [
     "Nomenclature" => "nomenclature.md",
     "References" => "references.md",
 ]
+
+"""
+    page_leaves(node) -> Vector{String}
+
+Every page path under `node`, in build order. A leaf is a bare path or the value
+of a `"Title" => "path"` pair; a `"Title" => [...]` pair is a section. The full
+build, the partial builds, the shards of the CI and `scripts/docs_timing.jl` all
+walk the tree with it.
+"""
+page_leaves(node::AbstractString) = [node]
+page_leaves(node::Pair) = page_leaves(node.second)
+page_leaves(node::AbstractVector) = reduce(vcat, page_leaves.(node); init = String[])

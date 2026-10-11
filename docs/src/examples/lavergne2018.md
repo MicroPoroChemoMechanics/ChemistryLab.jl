@@ -216,8 +216,8 @@ _, fractions, _, _ = ionic_phase_history(paste, tdays .* 86400; states)
 # The degree of hydration of the cement: the mass of clinker consumed.
 clinker = ("C3S", "C2S", "C3A", "C4AF")
 M = Dict(c => ustrip(us"kg/mol", paste.cs[c][:M]) for c in clinker)
-mass(st) = sum(ustrip(us"mol", moles(st, c)) * M[c] for c in clinker)
-α = [1 - mass(st) / mass(paste.state0) for st in states]
+clinker_mass(st) = sum(ustrip(us"mol", moles(st, c)) * M[c] for c in clinker)
+α = [1 - clinker_mass(st) / clinker_mass(paste.state0) for st in states]
 @printf("%s; α = %.2f after 28 days, %.2f after a year\n", paste.sol.retcode, α[13], α[end])
 ```
 
@@ -297,7 +297,7 @@ sfstates = quiet() do
     speciated_states(sfpaste.sol, sfpaste.kp; times = tsf .* 86400)
 end
 _, sffractions, _, _ = ionic_phase_history(sfpaste, tsf .* 86400; states = sfstates)
-αsf = [1 - mass(st) / mass(sfpaste.state0) for st in sfstates]
+αsf = [1 - clinker_mass(st) / clinker_mass(sfpaste.state0) for st in sfstates]
 silica(st) = ustrip(us"mol", moles(st, "Amor-Sl"))
 @printf("%s; after 28 days α = %.2f, %.2f of the silica reacted, portlandite %.2f mol, tobermorite %.2f mol\n",
         sfpaste.sol.retcode, αsf[end], 1 - silica(sfstates[end]) / silica(sfpaste.state0),

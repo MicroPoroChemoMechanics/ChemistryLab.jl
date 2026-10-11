@@ -470,12 +470,12 @@ function database_info(io::IO = stdout)
     for name in sort!(collect(keys(THIRD_PARTY_DATABASES)))
         db = THIRD_PARTY_DATABASES[name]
         local_copy, cached = lock(_DATABASE_LOCK) do
-            local_copy = try
+            found = try
                 _from_local_dir(db, dir)
             catch
                 nothing
             end
-            local_copy, (local_copy === nothing ? _cached(db, cache) : nothing)
+            found, (found === nothing ? _cached(db, cache) : nothing)
         end
         status, path = if local_copy !== nothing
             (:local, local_copy)

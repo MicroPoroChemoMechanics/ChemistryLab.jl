@@ -16,17 +16,14 @@
 # polynomial through the valid points of each part of the grid, 0-100 °C and
 # 100-300 °C, of degree three at most below and four above, a constant where a
 # part has a single point [DavelerWolery1992; § 3.1](@cite).
-struct GridLogK <: AbstractLogK
-    low::Vector{Float64}                  # 0-100 °C, coefficients in °C
-    high::Vector{Float64}                 # 100-300 °C
+struct GridLogK{T <: Real} <: AbstractLogK
+    low::Vector{T}                        # 0-100 °C, coefficients in °C
+    high::Vector{T}                       # 100-300 °C
     split::Float64                        # °C
 end
 
-function _interpolating(t, v)
-    isempty(t) && return Float64[]
-    V = [ti^k for ti in t, k in 0:(length(t) - 1)]
-    return V \ v
-end
+# The polynomial through the points `(t, v)`, none without points.
+_interpolating(t, v) = isempty(t) ? Float64[] : _polynomial_fit(t, v)
 
 function GridLogK(temperatures::AbstractVector, values::AbstractVector)
     length(temperatures) == 8 || throw(ArgumentError("a log K grid has eight temperatures; got $(length(temperatures))"))
@@ -44,15 +41,7 @@ end
 
 function _log10K(k::GridLogK, T)
     tc = _celsius(T)
-    p = _plain(tc) <= k.split ? k.low : k.high
-    L, dL, d2L = zero(tc), zero(tc), zero(tc)
-    for (j, a) in enumerate(p)
-        n = j - 1
-        L += a * tc^n
-        n >= 1 && (dL += n * a * tc^(n - 1))
-        n >= 2 && (d2L += n * (n - 1) * a * tc^(n - 2))
-    end
-    return L, dL, d2L
+    return _celsius_polynomial(_plain(tc) <= k.split ? k.low : k.high, tc)
 end
 
 # A reaction line: one or two terms, a coefficient then a name that may hold
@@ -90,7 +79,6 @@ installed by hand ([`install_database`](@ref)).
 """
 function read_eq36_database(path::AbstractString)
     file = basename(path)
-    digest = bytes2hex(open(sha256, path))
     raw = [(n, rstrip(l)) for (n, l) in enumerate(eachline(path))]
     notes = String[]
     first_line = isempty(raw) ? "" : strip(raw[1][2])
@@ -110,8 +98,8 @@ function read_eq36_database(path::AbstractString)
         out = Float64[]
         j = k + 1
         while length(out) < n && j <= length(lines)
-            v = tryparse.(Float64, split(text(j)))
-            all(!isnothing, v) && !isempty(v) && append!(out, Float64.(v))
+            v = _numbers_on(text(j))
+            v === nothing || append!(out, v)
             j += 1
         end
         out
@@ -196,8 +184,8 @@ function read_eq36_database(path::AbstractString)
             elseif occursin(r"log k grid", low)
                 while length(grid) < 8 && j < length(blk)
                     j += 1
-                    v = tryparse.(Float64, split(blk[j][2]))
-                    all(!isnothing, v) && append!(grid, Float64.(v))
+                    v = _numbers_on(blk[j][2])
+                    v === nothing || append!(grid, v)
                 end
             end
             j += 1
@@ -205,10 +193,10 @@ function read_eq36_database(path::AbstractString)
         sec == "basis species" && push!(basis, name)
         push!(records, (; name, section = sec, line = line0, charge, volume, comp, terms, grid))
     end
-    return _eq36_database(file, String(path), digest, archetype, temperatures, parameters, sizes, basis, records, notes)
+    return _eq36_database(file, String(path), archetype, temperatures, parameters, sizes, basis, records, notes)
 end
 
-function _eq36_database(file, path, digest, archetype, temperatures, parameters, sizes, basis, records, notes)
+function _eq36_database(file, path, archetype, temperatures, parameters, sizes, basis, records, notes)
     logks = AbstractLogK[]
     by_name = Dict{String, Any}()
     for rec in records
@@ -226,23 +214,7 @@ function _eq36_database(file, path, digest, archetype, temperatures, parameters,
         end
         by_name[rec.name] = (rec, k)
     end
-    resolved = Dict{String, Any}()
-    visiting = Set{String}()
-    function resolve(name)
-        haskey(resolved, name) && return resolved[name]
-        haskey(by_name, name) || return (resolved[name] = nothing)
-        name in visiting && return nothing
-        push!(visiting, name)
-        rec, k = by_name[name]
-        out = if name in basis
-            (Dict{Symbol, Float64}(rec.comp), rec.charge, Dict{Int, Float64}())
-        else
-            # The reaction lists the species itself, with a negative coefficient.
-            _resolve_defined(name, rec.terms, k, logks, resolve)
-        end
-        delete!(visiting, name)
-        return (resolved[name] = out)
-    end
+    resolve = _Resolver((name, r) -> _eq36_define(name, by_name, basis, logks, r))
     species, phases = _ReactionEntry[], _ReactionEntry[]
     for (rec, _) in sort!(collect(values(by_name)); by = x -> x[1].line)
         r = resolve(rec.name)
@@ -256,11 +228,7 @@ function _eq36_database(file, path, digest, archetype, temperatures, parameters,
             push!(notes, "$file:$(rec.line): the reaction of $(rec.name) does not balance against its stated composition; not read")
             continue
         end
-        unknown = [e for e in keys(atoms) if !haskey(elements.bysymbol, e)]
-        if !isempty(unknown)
-            push!(notes, "$file:$(rec.line): $(rec.name) is made of $(join(string.(unknown), ", ")), not of chemical elements; not read")
-            continue
-        end
+        _not_elements(atoms, file, rec.line, rec.name, notes) && continue
         if rec.section in ("solids", "liquids", "gases") || endswith(rec.name, "(g)")
             push!(phases, _ReactionEntry(rec.name, :phase, atoms, z, formation, nothing, nothing, false, rec.volume, nothing, rec.line, rec.name))
         else
@@ -269,7 +237,7 @@ function _eq36_database(file, path, digest, archetype, temperatures, parameters,
         end
     end
     masters = Dict{String, String}(b => b for b in basis)
-    gauge = "strict basis species of $file ($(digest[1:12]))"
+    gauge = "strict basis species of $file ($(_short_digest(path)))"
     params = (; archetype, temperatures, parameters, sizes)
     reactions = NamedTuple[
         (; symbol = rec.name, kind = Symbol(replace(rec.section, " " => "_")), equation = join(("$(c) $(n)" for (c, n) in rec.terms), " + "), logk = logks[k], line = rec.line)
@@ -277,8 +245,18 @@ function _eq36_database(file, path, digest, archetype, temperatures, parameters,
     ]
     sort!(reactions; by = r -> r.line)
     data = _ReactionData(
-        file, path, "$file sha256 $(digest[1:12])", gauge, :eq36, masters, species, phases, logks,
+        file, path, _source_tag(path), gauge, :eq36, masters, species, phases, logks,
         reactions, params, Set{String}(), notes,
     )
     return _reaction_tables(data)
+end
+
+# A species of a data0 file resolved against the strict basis species: a basis
+# species by its composition, at zero; any other by its reaction, which lists the
+# species itself with a negative coefficient.
+function _eq36_define(name, by_name, basis, logks, resolve)
+    haskey(by_name, name) || return nothing
+    rec, k = by_name[name]
+    name in basis && return (Dict{Symbol, Float64}(rec.comp), rec.charge, Dict{Int, Float64}())
+    return _resolve_defined(name, rec.terms, k, logks, resolve)
 end

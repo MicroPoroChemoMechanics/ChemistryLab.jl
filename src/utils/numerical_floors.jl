@@ -26,12 +26,12 @@ const _AMOUNT_FLOOR = 1.0e-16
 The amount, in moles, below which an activity model reads a species at this
 amount: `1e-30`. It keeps `log n` finite, and nothing else.
 
-It was `ϵ = 1e-16` until 0.28.0, the floor that also bounds the interior-point
-back ends and fills the absent products of a cold state. As a floor on the
-activities it is too high for a cement paste. With a few grams of water per 100 g
-of binder, H⁺ at pH 13.5 to 14 is 1e-16 mol, at the floor: its activity no longer
-followed its amount, a solve left it at 3e-100 mol, and a pH read from the amount
-came out 0.09 high.
+It is lower than `ϵ = 1e-16`, the floor that bounds the interior-point back ends
+and fills the absent products of a cold state, which is too high a floor for the
+activities of a cement paste. With a few grams of water per 100 g of binder, H⁺
+at pH 13.5 to 14 is 1e-16 mol: floored there, its activity no longer followed its
+amount, a solve left it at 3e-100 mol, and a pH read from the amount came out
+0.09 high.
 
 Other codes floor lower, on one recurring argument. [Leal2017](@citet)
 recall that in an interior-point minimization an unstable species ends at an

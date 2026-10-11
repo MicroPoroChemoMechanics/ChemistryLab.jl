@@ -277,7 +277,7 @@ const _SITE_RANK_GAP = 5.0
 
 """
     convert_logk_site_density(logK, Γ_C; Γ0 = REFERENCE_SITE_DENSITY_NM2,
-                              free_site_side = :reactant) -> Float64
+                              free_site_side = :reactant) -> Real
 
 An intrinsic adsorption constant moved from the total site density it was
 fitted at to a reference one — equation (21) of [Kulik2002](@citet):
@@ -585,7 +585,7 @@ end
 const _MAX_COUPLING_BIAS = 0.05
 
 """
-    host_coupling_bias(cs::ChemicalSystem) -> OrderedDict{String, Float64}
+    host_coupling_bias(cs::ChemicalSystem) -> OrderedDict{String, <:Real}
 
 Per coupled family, the shift in `log SI` that the reference energy of the free
 site imposes on the host, in the units the answer is read in:

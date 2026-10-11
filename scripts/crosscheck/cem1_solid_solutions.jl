@@ -134,7 +134,7 @@ for (sym, x) in charge
 end
 set_quantity!(state, "H2O@", free_water * u"mol")
 set_quantity!(state, "CO2@", 1.0e-9u"mol")
-b = Float64.(cs.SM.A) * ustrip.(us"mol", state.n)
+b = budget(state)
 
 # The activity model Cemdata18 prescribes for a KOH-dominated pore solution
 # (Lothenbach et al. 2019, Appendix C, Eq. C.1): the extended Debye-Hückel law with

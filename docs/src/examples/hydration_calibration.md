@@ -154,7 +154,6 @@ cal = read_precomputed("calibration_target")
 target = resample_log(CEM_I_TARGET, N_RESIDUALS_COUPLED)
 θ0 = prior_vector()
 Q_prior = cal.columns["Q_prior"]
-t_coupled = 364.0        # measured once, on two cores; see the file's header
 
 for line in cal.provenance
     println("  ", line)
@@ -174,7 +173,6 @@ print(String(take!(diagnostics))) # hide
 ```
 
 ```@example calib
-@printf("one coupled forward solve on %d instants: %.0f s\n", length(target.t), t_coupled)
 @printf(
     "Q(%.0f h) = %.1f J/g computed against %.1f J/g measured  (%+.1f %%)\n",
     target.t[end] / 3600, Q_prior[end], target.Q[end],
@@ -242,11 +240,8 @@ that buys, and what it costs:
 
 ```@example calib
 Q_surr = forward_Q(θ0, target; mode = :surrogate)
-t0 = time(); forward_Q(θ0, target; mode = :surrogate); t_surr = time() - t0
 
-@printf("one surrogate solve: %.3f s — %.0f× cheaper than the coupled model\n",
-    t_surr, t_coupled / t_surr)
-println("\n   instant      surrogate      coupled     measured")
+println("   instant      surrogate      coupled     measured")
 for (lab, h) in (("6 h", 6), ("24 h", 24), ("end", 0))
     i = h == 0 ? lastindex(target.t) : findfirst(>=(h * 3600 - 1), target.t)
     @printf("   %-8s %11.1f %12.1f %12.1f\n", lab, Q_surr[i], Q_prior[i], target.Q[i])
@@ -370,10 +365,10 @@ published constants it never becomes the minimum of the three branches, so the
 released heat does not depend on `k₂` at all, as [ParrottKilloh1984](@citet) reported. A
 ten times smaller `k₂` makes the branch bind, and the sensitivity then sees it.
 
-Until 0.28.2 this page printed about an eighth of `k₁`'s influence instead. The
-sensitivity was then a central difference with a 5 % step, which crosses the kink
-of the minimum wherever the Jander branch comes within 5 % of binding: it measured
-the step, not the model. The exact derivative settles it.
+The derivative is exact. A central difference with a 5 % step would cross the
+kink of the minimum wherever the Jander branch comes within 5 % of binding, and
+print about an eighth of `k₁`'s influence: it would measure the step, not the
+model.
 
 **Gypsum and calcite dissolution are excluded** because
 `ionic_reactions` deliberately makes them fast, so that sulfate reaches
@@ -632,20 +627,18 @@ the first two explanations were wrong.
 | `Q` + **instrument** `q̇` | 300 pts | 27.8 | 0.9942 | 5.2 h |
 | `Q` + instrument `q̇`, w = 3 | 300 pts | 28.5 | 0.9936 | 5.4 h |
 
-The correlations of this table were computed in 0.28.2, from the central
-differences the sensitivities then were. At the stored optimum, exact
-derivatives move the same correlation from 0.9937 to 0.9941: differences of that
-size do not change what the table says.
+The correlations of this table were computed from central differences. At the
+stored optimum, exact derivatives move the same correlation from 0.9937 to
+0.9941: differences of that size do not change what the table says.
 
-The first explanation was discretization: until 0.28.2 `heat_release` returned `q̇`
-as a centered difference of `Q` over the output grid, which near the 10-hour peak
-is spaced 0.91 h apart, so the model's `q̇` was a smeared version of what the
-instrument resolves at 77 s (it is now the exact rate of the certified states).
-Matching the operators — differencing the measurement the same way — changed
-nothing, because that differencing is a **linear map on the same numbers**: a
-residual on the differenced curve is a linear combination of the residuals on
-`Q`, so it re-weights information instead of adding any. The option was removed
-from the script in 0.29.0.
+The first explanation was discretization: a `q̇` taken as a centered difference
+of `Q` over the output grid, which near the 10-hour peak is spaced 0.91 h apart,
+is a smeared version of what the instrument resolves at 77 s (`heat_release`
+returns the exact rate of the certified states). Matching the operators —
+differencing the measurement the same way — changes nothing, because that
+differencing is a **linear map on the same numbers**: a residual on the
+differenced curve is a linear combination of the residuals on `Q`, so it
+re-weights information instead of adding any.
 
 The second explanation was the grid. Using the instrument's own `q̇` on 300 points,
 where the spacing near the peak is 0.24 h, changed nothing either.

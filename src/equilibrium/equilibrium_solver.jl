@@ -20,7 +20,7 @@ Construct once, call repeatedly with different `ChemicalState` inputs.
 
 # Fields
 
-  - `μ`: chemical potential closure `μ(n, p) -> Vector{Float64}`.
+  - `μ`: chemical potential closure `μ(n, p) -> Vector`, in the number type of `n` and `p`.
   - `solver`: any Optimization.jl-compatible solver (e.g. `IpoptOptimizer()`).
   - `variable_space`: variable space — `Val(:linear)` or `Val(:log)`.
   - `kwargs`: solver keyword arguments forwarded to `solve`.
@@ -63,6 +63,9 @@ Repeated calls to `solve` with different `ChemicalState` inputs reuse it.
   - `solver`: any Optimization.jl solver.
   - `variable_space`: `Val(:linear)` (default) or `Val(:log)`.
   - `kwargs...`: forwarded to the underlying `solve` call (tolerances, verbosity...).
+
+A solver is not meant to be used by two threads at once: its optimizer may keep
+the last answer as the next start (`OptimaOptimizer`). Give each thread its own.
 """
 function EquilibriumSolver(
         cs::ChemicalSystem,
@@ -966,6 +969,8 @@ back end.
   - `kwargs...`: forwarded to the underlying solver. The temperature and the
     pressure are not among them: they are the state's, and a `T` or a `P` given
     here is refused rather than passed on and ignored.
+
+`state` is not modified: the answer is a new state.
 """
 function equilibrate(
         state::ChemicalState,

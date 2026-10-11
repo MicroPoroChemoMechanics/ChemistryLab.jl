@@ -725,8 +725,8 @@ the two columns below compare two methods. At 25 °C and 1 bar this package give
 Both agree on the two signs a burial calculation turns on — heating dissolves
 less, compressing dissolves more — and on how much compressing dissolves: at
 301 K the two methods are within 0.03 at 50 and 70 MPa. That agreement needs the
-volume of the crystal, 36.9 cm³/mol, in its standard energy; before 0.31 it was
-left out, compression acted through the ions alone, and 70 MPa was 0.44 short.
+volume of the crystal, 36.9 cm³/mol, in its standard energy: left out,
+compression acts through the ions alone, and 70 MPa comes out 0.44 short.
 The 15 MPa row of [Duan2016; Table 6](@citet) is the exception: it gives the
 0.1 MPa value, −8.53, whereas the 50 and 70 MPa rows differ by 0.21 over
 20 MPa.

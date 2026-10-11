@@ -232,3 +232,17 @@ end
     @test_throws ArgumentError porosity(st, ChemicalState(cs))
 
 end
+
+@testset "volume fractions in the number type of what they come from" begin
+    # At a dual temperature with plain amounts, the fractions carry the
+    # derivative the molar volumes bring; they were stored in a dictionary typed
+    # by the amounts alone, and a dual fraction raised.
+    cs = _vf_system()
+    st = ChemicalState(cs)
+    set_quantity!(st, "Portlandite", 2.0u"mol")
+    set_quantity!(st, "H2O@", 10.0u"mol")
+    n = [ustrip(us"mol", x) for x in st.n]
+    fT(T) = volume_fractions(ChemicalState(cs, n .* u"mol"; T = T * u"K"))["H2O@"]
+    d = ForwardDiff.derivative(fT, 298.15)
+    @test isfinite(d)
+end

@@ -362,7 +362,9 @@ end
     @test cert_m.stationarity == cert.stationarity
     eq_m2, cert_m2 = solve_certified(des, [bad, good]; b = b, memo = memo)
     @test eq_m2 === eq_m
-    @test cert_m2 === cert_m
+    # The verdict comes from the record; the report is computed again for the
+    # answer returned, the same to the bit.
+    @test isequal(cert_m2, cert_m)
     @test length(memo) == recorded
 
 end

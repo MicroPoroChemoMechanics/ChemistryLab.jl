@@ -62,6 +62,14 @@ using Test
         @test extract_charge("H2O") == 0
         @test extract_charge("H+") == 1
         @test extract_charge("OH-") == -1
+        # A run of one sign counts each sign: PHREEQC's `SO4--` is `SO4-2`.
+        # Read as its last sign alone, it was −1.
+        @test extract_charge("SO4--") == -2
+        @test extract_charge("Fe+++") == 3
+        @test extract_charge("SO₄²⁻") == -2
+        @test charge(Formula("SO4--")) == -2
+        @test ChemistryLab._name_charge("Fe+2.5") === 2.5
+        @test ChemistryLab._name_charge("Fe+2.5", Int) === 0
     end
 
     @testset "Equation parsing" begin

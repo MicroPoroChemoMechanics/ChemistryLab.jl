@@ -102,4 +102,14 @@
     @test_throws ArgumentError glass_enthalpy(Dict("CaO" => -0.1, "SiO2" => 1.1))
     @test_throws ArgumentError glass_enthalpy(Dict("CaO" => 0.0))
     @test_throws ArgumentError glass_heat_capacity(Dict("CaO" => -0.1))
+
+    # A composition being calibrated. At 298.15 K the enthalpy per gram is
+    # homogeneous of degree one in the fractions (every step, the norm
+    # included, is linear in them at a fixed vertex), so its derivative along
+    # the analysis scaled by x is the enthalpy itself. The moles per gram were
+    # stored as Float64 and a dual fraction raised.
+    slag2 = Dict("CaO" => 0.416, "SiO2" => 0.352, "Al2O3" => 0.113, "MgO" => 0.06)
+    H0 = Jg(glass_enthalpy(slag2).enthalpy)
+    dH = ForwardDiff.derivative(x -> Jg(glass_enthalpy(Dict(k => x * v for (k, v) in slag2)).enthalpy), 1.0)
+    @test dH ≈ H0 rtol = 1.0e-12
 end

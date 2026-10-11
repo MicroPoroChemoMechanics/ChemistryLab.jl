@@ -157,7 +157,7 @@ end
 
 cement_mass(st) = sum(ustrip(us"kg", st.n[i] * cs.species[i][:M]) for i in ic)
 
-function budget(α)
+function paste_budget(α)
     fresh = paste(1.0)
     mc    = cement_mass(fresh)
     w_tot = ustrip(us"mol", fresh.n[iw]) * M_H2O
@@ -178,7 +178,7 @@ end
 
 println(" α      b (g/g)   s (cm³/g)   free water (g/g)   porosity   certified")
 for α in (0.55, 0.60, 0.65, 0.70, 0.80)
-    r = budget(α)
+    r = paste_budget(α)
     @printf("%5.2f  %9.4f  %10.4f  %16.4f  %9.4f   %s\n",
             α, r.b, r.s, r.w_free, r.porosity, r.certified)
 end
@@ -197,7 +197,7 @@ minimum and not the point an iteration stopped at — see
 [Proving that an answer is the answer](@ref sec-theory-certificate).
 
 ```@example sd
-ref = budget(0.65)
+ref = paste_budget(0.65)
 b_model, s_shrink = ref.b, ref.s
 @printf("b = %.4f g/g (formula water)     s = %.4f cm³/g (chemical shrinkage)\n",
         b_model, s_shrink)

@@ -548,16 +548,25 @@ end
 # The convexity of a compound-energy model in its site fractions: the bound of
 # the docstring of `mixing_convexity` for two sites, a sampled Hessian otherwise.
 # The certificate asks at every solve; the verdict depends only on the model, the
-# energies and the temperature, and is kept.
-const _CEF_CONVEXITY = Dict{UInt, Any}()
+# energies and the temperature, and is kept. Keyed by plain copies of those values,
+# not by their hash, which two of them could share, nor by the model's own arrays,
+# which could be changed after the verdict was stored; and emptied past
+# `_CEF_CONVEXITY_MAX` entries, since a run in a semi-adiabatic cell asks at a new
+# temperature at every evaluation.
+const _CEF_CONVEXITY = Dict{Tuple, Any}()
 const _CEF_CONVEXITY_LOCK = ReentrantLock()
+const _CEF_CONVEXITY_MAX = 10_000
 function _cef_convexity(m::CompoundEnergyModel, T::Real, g)
     g === nothing && return (;
         verdict = :undecided, witness = nothing,
         how = "the reference surface depends on the energies of the end-members, which were not given",
     )
-    key = hash((m.lattice.multiplicity, m.lattice.occupancy, m.interactions, Float64.(g), Float64(T)))
+    key = (
+        _plain.(m.lattice.multiplicity), copy(m.lattice.occupancy),
+        [(s, i, j, _plain(W)) for (s, i, j, W) in m.interactions], _plain.(g), _plain(T),
+    )
     return lock(_CEF_CONVEXITY_LOCK) do
+        length(_CEF_CONVEXITY) >= _CEF_CONVEXITY_MAX && empty!(_CEF_CONVEXITY)
         get!(() -> _cef_convexity_uncached(m, T, g), _CEF_CONVEXITY, key)
     end
 end

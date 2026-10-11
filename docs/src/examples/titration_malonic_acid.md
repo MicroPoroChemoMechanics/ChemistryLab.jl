@@ -144,7 +144,7 @@ end
 ```
 
 The two half-equivalence points return the two constants, which is the Henderson–Hasselbalch
-condition and the internal check the previous version of this page failed.
+condition and the internal check of this page.
 
 ---
 
@@ -198,9 +198,7 @@ hline!(p, [pKa2];  linestyle = :dot,  color = :green,  label = "pKₐ₂ = $(rou
     The two constants of malonic acid are separated by Δ pKₐ ≈ 2.85. That is enough for two
     distinguishable buffer regions, but **not** enough for a sharp first equivalence point: at
     V = 5 mL the curve shows a gentle inflection rather than a jump, and only the second
-    equivalence point rises steeply. An earlier version of this page claimed
-    "Δ pKₐ ≈ 4.35 … two clearly resolved inflection points" — that figure belongs to maleic
-    acid, and the claim does not survive looking at the curve it accompanied.
+    equivalence point rises steeply.
 
 ## Where to go next
 

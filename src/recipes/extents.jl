@@ -121,14 +121,15 @@ extent(e::CappedExtent, t) = min(extent(e.inner, t), e.cap)
 
 """
     ParrottKillohExtent(phase; T = 293.15u"K", α_max = 1.0, blaine = nothing, w_c = nothing,
-                        parameters = nothing, H = nothing)
+                        horizon_days = 3650.0, parameters = nothing, H = nothing)
 
 The degree of hydration of the clinker phase `phase` ("C3S", "C2S", "C3A" or
 "C4AF") under the rate law of [ParrottKilloh1984](@citet) in the form and with the
 parameters [`parrott_killoh_avrami`](@ref) uses, at the constant temperature
 `T`: the ordinary differential equation of that law integrated from zero, on a
 logarithmic grid of time. `α_max` is the ceiling of the law (Powers' water limit,
-for instance), `blaine` the fineness correction.
+for instance), `blaine` the fineness correction. The grid ends at `horizon_days`,
+and the degree is held at its last value beyond it.
 
 `w_c` applies instead the water/cement factor of [ParrottKilloh1984](@citet), as
 [LothenbachWinnefeld2006; Section 4.1](@citet) state it: the rate is multiplied by
@@ -177,7 +178,7 @@ function ParrottKillohExtent(
     # positional call of a `KineticFunc` takes and returns bare SI numbers.
     ph = String(phase)
     fwc(α) = w_c === nothing ? 1.0 : pk_wc_factor(α, w_c; H)
-    dα(α) = rate(TK, 1.0e5, 0.0, Dict(ph => 1 - α), nothing, Dict(ph => 1.0)) * fwc(α)
+    dα(α) = rate(TK, P_STANDARD, 0.0, Dict(ph => 1 - α), nothing, Dict(ph => 1.0)) * fwc(α)
     grid = exp.(range(log(1.0e-4), log(horizon_days); length = 4001))   # days
     α = 0.0
     # In the number type of the law, its temperature, w/c and ceiling: a

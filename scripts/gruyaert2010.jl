@@ -137,7 +137,7 @@ function gruyaert_budget(cs; slag, alpha_cement, alpha_slag, batch = "CAL", bind
     set_quantity!(st, "Gp", m_cement * c.gypsum / _molar("Gp") * u"mol")
     set_quantity!(st, "Cal", m_cement * c.calcite / _molar("Cal") * u"mol")
     set_quantity!(st, "H2O@", binder * wb / _molar("H2O@") * u"mol")
-    b = Float64.(cs.SM.A) * ustrip.(us"mol", st.n)
+    b = budget(st)
     if slag > 0 && alpha_slag > 0
         r = gruyaert_oxides("BFS-" * batch)
         ox = Dict(o => ustrip(getproperty(r, Symbol(o))) / 100 for o in ("CaO", "SiO2", "Al2O3", "Fe2O3", "MgO", "SO3"))

@@ -629,6 +629,16 @@ end
         end
         # A primary species is formed from itself, so its index is exactly zero.
         @test abs(si["Ca+2"]) < 1.0e-10
+
+        # A solid outside the system, by its decomposition on the primaries:
+        # aragonite, formed as calcite is, differs from it by their standard
+        # energies alone; calcite asked that way is its own index.
+        sio = saturation_indices(st, model, [dict["Arg"], dict["Cal"]])
+        @test sio["Cal"] ≈ si["Cal"] atol = 1.0e-10
+        T, P = temperature(st), pressure(st)
+        ΔG(sp) = ustrip(us"J/mol", sp[:ΔₐG⁰](T = T, P = P; unit = true))
+        @test sio["Arg"] - sio["Cal"] ≈ (ΔG(dict["Cal"]) - ΔG(dict["Arg"])) / (ChemistryLab.R_GAS * ustrip(us"K", T) * log(10)) rtol = 1.0e-10
+        @test_throws ArgumentError saturation_indices(st, model, [dict["Gbs"]])
     end
 end
 
