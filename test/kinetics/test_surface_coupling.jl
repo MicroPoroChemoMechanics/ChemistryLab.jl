@@ -501,4 +501,59 @@ end
         @test_throws ArgumentError KineticsProblem(cs, [kr], state, (0.0u"s", t_end * u"s"))
     end
 
+    # A family whose complex carries a fractional coefficient, the silicate bridging
+    # `Xs + ½SiO₂ = XsSi0.5O`, on the same kinetic host. The equilibrium subsystem
+    # used to rebuild the family with the species type of its free site, which an
+    # integer-coefficient free site cannot hold, and failed on a conversion.
+    @testset "a kinetic-host family with a fractional complex" begin
+        sf(sym, g) = begin
+            s = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+            s[:ΔₐG⁰] = _gc(g)
+            s
+        end
+        h2o, hp, oh, ca, sio2 = reference_species(("H2O@", "H+", "OH-", "Ca+2", "SiO2@"))
+        solid = reference_species("Portlandite"; db = :cemdata18)
+        G(s) = ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+        free = sf("Xs", 0.0)
+        silanolate = sf("XsOH-", -RT_COUP * log(10.0^-12.0) + G(h2o))
+        bridged = sf("XsSi0.5O", 0.5 * G(sio2) - RT_COUP * log(10.0^2.75))
+        family = SiteFamily(
+            "Xs", free, Species[silanolate, bridged];
+            capacity = AreaSiteDensity(1.0e-5u"mol/m^2"),
+            support = SurfaceSupport(
+                "portlandite", "Portlandite",
+                ShrinkingCoreArea(BETSurfaceArea(1.0e5u"m^2/kg"));
+                coupling = SITES_FOLLOW_HOST,
+            ),
+        )
+        cs = ChemicalSystem(
+            AbstractSpecies[h2o, hp, oh, ca, sio2, solid, free, silanolate, bridged],
+            AbstractSpecies[h2o, hp, ca, sio2, free]; site_families = [family],
+        )
+        nm = symbol.(cs.species)
+        idx(s) = findfirst(==(s), nm)
+        spc(s) = cs.species[idx(s)]
+        state = ChemicalState(cs)
+        set_quantity!(state, "H2O@", moles_of_water() * u"mol")
+        set_quantity!(state, "Portlandite", 1.0e-3u"mol")
+        set_quantity!(state, "Ca+2", 1.0e-4u"mol")
+        set_quantity!(state, "OH-", 2.0e-4u"mol")
+        set_quantity!(state, "SiO2@", 1.0e-6u"mol")
+        state = host_consistent_state(state)
+        dissolution = Reaction(
+            OrderedDict(spc("Portlandite") => 1),
+            OrderedDict(spc("Ca+2") => 1, spc("OH-") => 2);
+            symbol = "dissolution", equal_sign = '→',
+        )
+        st = zeros(Float64, length(nm))
+        st[idx("Portlandite")] = -1.0; st[idx("Ca+2")] = 1.0; st[idx("OH-")] = 2.0
+        kr = KineticReaction(dissolution, (T, P, t, n, lna, n0) -> 2.0e-7, idx("Portlandite"), st)
+        es = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer())
+        kp = KineticsProblem(cs, [kr], state, (0.0u"s", 600.0u"s"); equilibrium_solver = es)
+        sol = integrate(kp, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-8, abstol = 1.0e-14))
+        @test sol.t[end] ≈ 600.0
+        last = speciated_states(sol, kp; times = [600.0])[1]
+        @test ustrip(us"mol", last.n[idx("XsSi0.5O")]) > 0
+    end
+
 end
