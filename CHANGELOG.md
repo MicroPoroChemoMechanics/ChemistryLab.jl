@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### New features
+
+- **A site budget that follows a kinetic host.** A `SiteFamily` whose support is
+  `SITES_FOLLOW_HOST` may now name a *kinetic* species of a `KineticsProblem` as
+  its host; it was refused. The budget is any function of the host's amount,
+  `site_moles(family, n, n₀, M)`, carried by the run in the site row of `bₑ`:
+  over a `ShrinkingCoreArea`, the sites of grains dissolving from the outside
+  follow n^(2/3), not the amount. The free site must be bare (no atom, no
+  charge), so that a vanishing site returns what it held to the solution and
+  matter and charge are conserved. An initial budget that disagrees with the
+  declared one raises `InconsistentSiteBudget`, and an equilibrium solver is
+  required.
+
+### Bug fixes
+
+- **A kinetic-host family keeps its species type.** The equilibrium subsystem
+  rebuilt such a family with the type of its free site, so a family with a
+  fractional coefficient (a bridging silicate `Xs + ½SiO₂ = XsSi0.5O`) failed
+  on a conversion.
+
 ## v0.38.1 — OptimaSolver 0.8.5 at least
 
 A patch release, on OptimaSolver 0.8.5: two failures on site families whose
