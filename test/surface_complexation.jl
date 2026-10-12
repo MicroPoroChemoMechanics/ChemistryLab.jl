@@ -207,6 +207,58 @@ end
         @test J[5, 4] ≈ -1 / N rtol = 1.0e-6
     end
 
+    @testset "a family below the degeneracy threshold is differentiated" begin
+        # 1e-14 mol of sites beside a kilogram of water is below the threshold
+        # under which OptimaSolver reads a row as absent. Every member of the
+        # family carries that row, so the family cannot exist and the
+        # equilibrium holds no site. Its derivatives raised until OptimaSolver
+        # 0.8.5, whose tangent took the family, always present, as active.
+        # Differentiated in an acid added, the solution moves as it does
+        # without the family, and the sites stay at zero.
+        cs, st, _ = _amphoteric_system(; n_sites = 1.0e-14)
+        cs0 = ChemicalSystem(cs.species[1:3], cs.species[1:2])
+        st0 = ChemicalState(cs0, st.n[1:3])
+        n = Float64[ustrip(us"mol", x) for x in st.n]
+        n[5] = n[6] = 0.0
+        acid(m, δ) = (mδ = m .+ zero(δ); mδ[2] += δ; mδ)
+        amounts(des, s, m, δ) = [
+            ustrip(us"mol", x) for x in SciMLBase.solve(des, s; b = Float64.(des.system.SM.A) * acid(m, δ)).n
+        ]
+        des = DualEquilibriumSolver(cs, DiluteSolutionModel())
+        des0 = DualEquilibriumSolver(cs0, DiluteSolutionModel())
+        δ = 1.0e-6
+        @test maximum(amounts(des, st, n, δ)[4:6]) < 1.0e-20
+        d = ForwardDiff.derivative(x -> amounts(des, st, n, x), δ)
+        d0 = ForwardDiff.derivative(x -> amounts(des0, st0, n[1:3], x), δ)
+        @test d[1:3] ≈ d0 rtol = 1.0e-8
+        @test all(iszero, d[4:6])
+    end
+
+    @testset "a family of 1e-9 mol started without sites reaches its budget" begin
+        # Above the degeneracy threshold and below `si_tol` (1e-8 mol), started
+        # from no site at all, as a family whose budget has just passed the
+        # threshold. OptimaSolver up to 0.8.4 stopped its Newton after every
+        # step on a phase that small, though a site family is never dropped,
+        # and the solve ended with the sites far below their budget.
+        logK1, logK2 = 7.0, -9.0
+        cs, st, _ = _amphoteric_system(; logK1, logK2, n_sites = 1.0e-9)
+        n = Float64[ustrip(us"mol", x) for x in st.n]
+        b = Float64.(cs.SM.A) * n
+        start = copy(n)
+        start[4:6] .= 0.0
+        des = DualEquilibriumSolver(cs, DiluteSolutionModel())
+        eq = SciMLBase.solve(des, ChemicalState(cs, start .* u"mol"); b = b)
+        m = Float64[ustrip(us"mol", x) for x in eq.n]
+        @test optimality_certificate(des, eq; b = b).optimal
+        N = m[4] + m[5] + m[6]
+        @test N ≈ n[4] + n[5] + n[6] rtol = 1.0e-8
+        # The competitive Langmuir of the surface, at the pH the solve found.
+        a_H = exp(des.lna(m, ChemistryLab._build_params(eq))[2])
+        x_free, x_occ = _langmuir([10.0^logK1 * a_H, 10.0^logK2 / a_H])
+        @test m[4] / N ≈ x_free rtol = 1.0e-6
+        @test m[5:6] ./ N ≈ x_occ rtol = 1.0e-6
+    end
+
     @testset "competitive Langmuir falls out of the site balance" begin
         logK1, logK2, n_sites = 7.0, -9.0, 1.0e-3
         cs, st, _ = _amphoteric_system(; logK1, logK2, n_sites)
