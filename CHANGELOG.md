@@ -14,12 +14,11 @@ family too small to exist. No computed value changes.
   its site row, so such a family cannot exist, and the solve left it out. Its
   derivatives, lifted by OptimaSolver's tangent through `_lift_equilibrium`,
   took it as present, since a site family is always present, and raised on an
-  empty reduction: a family carried by a host seeded at 1e-12 mol failed so at
-  the first step of a kinetic run, and seeding the host at 1e-6 mol was the
-  workaround. OptimaSolver 0.8.5 leaves such a family out of the tangent as
-  well, and the bound is raised to it, in the package and in the
-  documentation environment. Until its budget passes the threshold, the
-  family holds no site and its amounts have no derivative.
+  empty reduction; so did the Jacobian of a kinetic step that solves its
+  partition, which lifts the same way. OptimaSolver 0.8.5 leaves such a family
+  out of the tangent as well, and the bound is raised to it, in the package
+  and in the documentation environment. Until its budget passes the
+  threshold, the family holds no site and its amounts have no derivative.
 
 ## v0.38.0 — Derivatives carried through, and the defects an audit found
 
