@@ -234,6 +234,31 @@ end
         @test all(iszero, d[4:6])
     end
 
+    @testset "a family of 1e-9 mol started without sites reaches its budget" begin
+        # Above the degeneracy threshold and below `si_tol` (1e-8 mol), started
+        # from no site at all, as a family whose budget has just passed the
+        # threshold. OptimaSolver up to 0.8.4 stopped its Newton after every
+        # step on a phase that small, though a site family is never dropped,
+        # and the solve ended with the sites far below their budget.
+        logK1, logK2 = 7.0, -9.0
+        cs, st, _ = _amphoteric_system(; logK1, logK2, n_sites = 1.0e-9)
+        n = Float64[ustrip(us"mol", x) for x in st.n]
+        b = Float64.(cs.SM.A) * n
+        start = copy(n)
+        start[4:6] .= 0.0
+        des = DualEquilibriumSolver(cs, DiluteSolutionModel())
+        eq = SciMLBase.solve(des, ChemicalState(cs, start .* u"mol"); b = b)
+        m = Float64[ustrip(us"mol", x) for x in eq.n]
+        @test optimality_certificate(des, eq; b = b).optimal
+        N = m[4] + m[5] + m[6]
+        @test N ≈ n[4] + n[5] + n[6] rtol = 1.0e-8
+        # The competitive Langmuir of the surface, at the pH the solve found.
+        a_H = exp(des.lna(m, ChemistryLab._build_params(eq))[2])
+        x_free, x_occ = _langmuir([10.0^logK1 * a_H, 10.0^logK2 / a_H])
+        @test m[4] / N ≈ x_free rtol = 1.0e-6
+        @test m[5:6] ./ N ≈ x_occ rtol = 1.0e-6
+    end
+
     @testset "competitive Langmuir falls out of the site balance" begin
         logK1, logK2, n_sites = 7.0, -9.0, 1.0e-3
         cs, st, _ = _amphoteric_system(; logK1, logK2, n_sites)

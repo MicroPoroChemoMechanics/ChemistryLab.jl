@@ -2,8 +2,10 @@
 
 ## v0.38.1 — OptimaSolver 0.8.5 at least
 
-A patch release: the derivatives of an equilibrium no longer raise on a site
-family too small to exist. No computed value changes.
+A patch release, on OptimaSolver 0.8.5: two failures on site families whose
+budget is a trace are gone. The derivatives of an equilibrium no longer raise
+on a family too small to exist, and a family below 1e-8 mol started far below
+its budget is brought to it.
 
 ### Fixed
 
@@ -19,6 +21,16 @@ family too small to exist. No computed value changes.
   out of the tangent as well, and the bound is raised to it, in the package
   and in the documentation environment. Until its budget passes the
   threshold, the family holds no site and its amounts have no derivative.
+- **A site family below 1e-8 mol, solved from a start far below its budget,
+  was not brought to it.** OptimaSolver up to 0.8.4 stopped the Newton of an
+  active set as soon as an active phase held less than 1e-8 mol, though a site
+  family is never dropped; the family, whose amount a step multiplies by `e`
+  at most, then rose by one step per round, and the search ended uncertified.
+  Measured on the amphoteric surface with 1e-9 mol of sites, solved from a
+  state holding none, the sites came back at 8e-16 mol. A family starts so in
+  a sequence of solves warm-started from a state where it was absent, as when
+  its budget has just passed the degeneracy threshold. OptimaSolver 0.8.5 no
+  longer stops the Newton on such a phase.
 
 ## v0.38.0 — Derivatives carried through, and the defects an audit found
 
