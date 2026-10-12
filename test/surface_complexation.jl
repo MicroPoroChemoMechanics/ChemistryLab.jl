@@ -207,6 +207,33 @@ end
         @test J[5, 4] ≈ -1 / N rtol = 1.0e-6
     end
 
+    @testset "a family below the degeneracy threshold is differentiated" begin
+        # 1e-14 mol of sites beside a kilogram of water is below the threshold
+        # under which OptimaSolver reads a row as absent. Every member of the
+        # family carries that row, so the family cannot exist and the
+        # equilibrium holds no site. Its derivatives raised until OptimaSolver
+        # 0.8.5, whose tangent took the family, always present, as active.
+        # Differentiated in an acid added, the solution moves as it does
+        # without the family, and the sites stay at zero.
+        cs, st, _ = _amphoteric_system(; n_sites = 1.0e-14)
+        cs0 = ChemicalSystem(cs.species[1:3], cs.species[1:2])
+        st0 = ChemicalState(cs0, st.n[1:3])
+        n = Float64[ustrip(us"mol", x) for x in st.n]
+        n[5] = n[6] = 0.0
+        acid(m, δ) = (mδ = m .+ zero(δ); mδ[2] += δ; mδ)
+        amounts(des, s, m, δ) = [
+            ustrip(us"mol", x) for x in SciMLBase.solve(des, s; b = Float64.(des.system.SM.A) * acid(m, δ)).n
+        ]
+        des = DualEquilibriumSolver(cs, DiluteSolutionModel())
+        des0 = DualEquilibriumSolver(cs0, DiluteSolutionModel())
+        δ = 1.0e-6
+        @test maximum(amounts(des, st, n, δ)[4:6]) < 1.0e-20
+        d = ForwardDiff.derivative(x -> amounts(des, st, n, x), δ)
+        d0 = ForwardDiff.derivative(x -> amounts(des0, st0, n[1:3], x), δ)
+        @test d[1:3] ≈ d0 rtol = 1.0e-8
+        @test all(iszero, d[4:6])
+    end
+
     @testset "competitive Langmuir falls out of the site balance" begin
         logK1, logK2, n_sites = 7.0, -9.0, 1.0e-3
         cs, st, _ = _amphoteric_system(; logK1, logK2, n_sites)
