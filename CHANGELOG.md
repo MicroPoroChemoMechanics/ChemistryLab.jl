@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.38.1 — OptimaSolver 0.8.5 at least
+
+A patch release: the derivatives of an equilibrium no longer raise on a site
+family too small to exist. No computed value changes.
+
+### Fixed
+
+- **Differentiating an equilibrium raised when a site family held fewer sites
+  than the solver's degeneracy threshold.** OptimaSolver reads a conservation
+  row as absent when its budget is below 1e-12 of the largest one, about
+  5e-11 mol beside a kilogram of water. Every member of a site family carries
+  its site row, so such a family cannot exist, and the solve left it out. Its
+  derivatives, lifted by OptimaSolver's tangent through `_lift_equilibrium`,
+  took it as present, since a site family is always present, and raised on an
+  empty reduction: a family carried by a host seeded at 1e-12 mol failed so at
+  the first step of a kinetic run, and seeding the host at 1e-6 mol was the
+  workaround. OptimaSolver 0.8.5 leaves such a family out of the tangent as
+  well, and the bound is raised to it, in the package and in the
+  documentation environment. Until its budget passes the threshold, the
+  family holds no site and its amounts have no derivative.
+
 ## v0.38.0 — Derivatives carried through, and the defects an audit found
 
 An audit of the code against the rules of the package, numbers generic enough
