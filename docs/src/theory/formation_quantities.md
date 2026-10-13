@@ -316,8 +316,8 @@ SM = StoichMatrix([db["Lim"], db["Portlandite"], basis...], basis)
 names = symbol.(SM.species)
 ν = [get(Dict(slaking), s, 0) for s in names]     # slaking, in the order of the columns
 # Gibbs energy of formation of each species from the primaries (rows of SM.A)
-ΔrG_B = [G(s, Tr) - sum(SM.A[c, j] * G(symbol(b), Tr) for (c, b) in enumerate(SM.primaries))
-         for (j, s) in enumerate(names)]
+Gp = [G(symbol(b), Tr) for b in SM.primaries]
+ΔrG_B = G.(names, Tr) .- transpose(SM.A) * Gp
 logK(s) = -ΔrG_B[findfirst(==(s), names)] / (R_GAS * Tr * log(10))
 @printf("log K of formation from the primaries: lime %.2f, portlandite %.2f\n", logK("Lim"), logK("Portlandite"))
 @printf("primaries conserved by slaking: %s; ΔrG = %.3f kJ/mol from the primaries, %.3f from the elements\n",

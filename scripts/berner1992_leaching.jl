@@ -74,9 +74,8 @@ certified.
 """
 function be92_sweep(ratios; T = 298.15)
     cs = be92_system()
-    A = Float64.(cs.SM.A)
     states = [be92_state(cs, r; T) for r in ratios]
-    eqs, certs = equilibrate_path(first(states), [A * ustrip.(us"mol", st.n) for st in states]; model = BE92_MODEL)
+    eqs, certs = equilibrate_path(first(states), budget.(states); model = BE92_MODEL)
     return map(zip(ratios, eqs, certs)) do (r, eq, cert)
         n = ustrip.(us"mol", eq.n)
         V_L = ustrip(uconvert(us"L", volume(eq).liquid))

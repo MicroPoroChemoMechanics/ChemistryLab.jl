@@ -51,8 +51,8 @@ certified.
 function ba10_titration(ratios; calcite = false)
     cs = b19_system()
     st = ba10_state(cs; calcite)
-    A = Float64.(cs.SM.A)
-    b0 = A * ustrip.(us"mol", st.n)
+    A = conservation_matrix(cs)
+    b0 = budget(st)
     col(s) = A[:, findfirst(x -> symbol(x) == s, cs.species)]
     al = ba10_value("c3a")
     out = NamedTuple[]

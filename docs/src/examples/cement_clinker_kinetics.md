@@ -285,20 +285,8 @@ t_Q, Q_J_vec = cumulative_heat(sol, cal)
 T_°C = T_K_vec .- 273.15
 Q_kJ = Q_J_vec ./ 1000.0
 
-n0_kin = [sol.prob.p.n_initial_full[i] for i in kp.idx_kinetic]
-n_kin  = [[u[i] for u in sol.u] for i in eachindex(n0_kin)]
-
-function phase_alpha(cs, kp, sol, n0_kin, n_kin, name)
-    sp_idx = findfirst(sp -> ChemistryLab.symbol(sp) == name, cs.species)
-    pos = findfirst(==(sp_idx), kp.idx_kinetic)
-    isnothing(pos) && return fill(NaN, length(sol.t))
-    return 1.0 .- n_kin[pos] ./ n0_kin[pos]
-end
-
-α_C3S  = phase_alpha(cs, kp, sol, n0_kin, n_kin, "C3S")
-α_C2S  = phase_alpha(cs, kp, sol, n0_kin, n_kin, "C2S")
-α_C3A  = phase_alpha(cs, kp, sol, n0_kin, n_kin, "C3A")
-α_C4AF = phase_alpha(cs, kp, sol, n0_kin, n_kin, "C4AF")
+α = degrees_of_hydration(sol, kp)
+α_C3S, α_C2S, α_C3A, α_C4AF = α["C3S"], α["C2S"], α["C3A"], α["C4AF"]
 
 w = COMPOSITION
 α_mean = (w.C3S .* α_C3S .+ w.C2S .* α_C2S .+

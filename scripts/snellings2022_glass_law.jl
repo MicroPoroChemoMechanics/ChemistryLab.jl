@@ -68,7 +68,7 @@ function sn22g_slag_law(setup, fit; w_b = 0.5, modifiers = ("CaO",), area = :bet
     Ea = only(literature_table(SN22, "activation_energies"; constituent = "slag", w_b).Ea)
     mech = snellings2013_glass(setup.oxides; Ea, modifiers, inhibitors = sn13_inhibitors(fit, :percalcic), extrapolate = true)
     cs = setup.cs
-    A = Float64.(cs.SM.A)
+    A = conservation_matrix(cs)
     j = findfirst(s -> symbol(s) == "SLAG", cs.species)
     products = [cs.dict_species[symbol(p)] for (q, p) in enumerate(cs.SM.primaries) if !iszero(A[q, j])]
     rxn = Reaction([cs.species[j]], products; symbol = "SLAG dissolution")

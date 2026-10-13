@@ -38,7 +38,7 @@ Complete chain — [`ChemicalSystem`](@ref) → [`ChemicalState`](@ref) →
 [`KineticReaction`](@ref) → [`KineticsProblem`](@ref) → [`integrate`](@ref):
 
 ```julia
-using ChemistryLab, OrdinaryDiffEq, DynamicQuantities, Printf
+using ChemistryLab, OrdinaryDiffEq, DynamicQuantities, OrderedCollections, Printf
 
 # ── 1. ChemicalSystem from CEMDATA18 ────────────────────────────────────────
 DATA_FILE = datapath("cemdata18-thermofun.json")
@@ -125,20 +125,10 @@ sol = integrate(kp, ks)
 _, T_vec = temperature_profile(sol, cal)
 _, Q_vec = cumulative_heat(sol, cal)
 
-n0_kin = [sol.prob.p.n_initial_full[i] for i in kp.idx_kinetic]
-n_kin  = [[u[i] for u in sol.u] for i in eachindex(n0_kin)]
+α_C3S = degrees_of_hydration(sol, kp)["C3S"]
 
-function phase_alpha(cs, kp, n0_kin, n_kin, name)
-    sp_idx = findfirst(s -> ChemistryLab.symbol(s) == name, cs.species)
-    pos    = findfirst(==(sp_idx), kp.idx_kinetic)
-    isnothing(pos) && return fill(NaN, length(sol.t))
-    return 1.0 .- n_kin[pos] ./ n0_kin[pos]
-end
-
-α_C3S = phase_alpha(cs, kp, n0_kin, n_kin, "C3S")
-
-@printf "ΔT_max = %.2f °C   Q_7d = %.1f kJ/kg   α(C3S) = %.4f\n" \
-    maximum(T_vec .- 273.15) - 20.0  Q_vec[end]/1000  α_C3S[end]
+@printf("ΔT_max = %.2f °C   Q_7d = %.1f kJ/kg   α(C3S) = %.4f\n",
+        maximum(T_vec .- 273.15) - 20.0, Q_vec[end] / 1000, α_C3S[end])
 ```
 
 !!! tip "Choosing `equilibrium_solver`"

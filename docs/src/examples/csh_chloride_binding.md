@@ -112,8 +112,7 @@ end
 
 model = DaviesActivityModel()
 NACL = [0.4, 0.3, 0.2, 0.15, 0.1, 0.07, 0.05, 0.03, 0.02, 0.01, 0.0]
-A = Float64.(cs.SM.A)
-budgets = [A * ustrip.(us"mol", paste(c).n) for c in NACL]
+budgets = [budget(paste(c)) for c in NACL]
 states, certs = equilibrate_path(paste(first(NACL)), budgets; model)
 println("certified: ", count(c -> c.optimal, certs), " of ", length(certs))
 ```
