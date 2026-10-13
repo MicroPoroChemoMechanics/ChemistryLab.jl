@@ -101,13 +101,13 @@ function _affinities_and_rates(sol, kp, times, states; rates::Bool)
     A = fill(NaN, length(times), M)
     r = fill(NaN, length(times), M)
     Ts = zeros(length(times))
-    n0 = StateView(Float64[_plain(x) for x in p.n_initial_full], p.species_index)
+    n0 = StateView(_plain.(p.n_initial_full), p.species_index)
     for (i, st) in enumerate(sts)
         T = Float64(_plain(ustrip(us"K", temperature(st))))
         P = Float64(_plain(ustrip(us"Pa", pressure(st))))
         Ts[i] = T
         n = Float64[_plain(ustrip(us"mol", x)) for x in st.n]
-        lna = Float64[_plain(x) for x in p.lna_fn(n, _lna_params(p, T))]
+        lna = _plain.(p.lna_fn(n, _lna_params(p, T)))
         μ = [isnothing(g) ? NaN : g(; T = T, P = P, unit = false) + R_GAS * T * lna[k] for (k, g) in enumerate(g_fns)]
         for (j, kr) in enumerate(kp.kinetic_reactions)
             acc = 0.0

@@ -131,7 +131,7 @@ function state_at(sol, kp::KineticsProblem, t::Real; ξ = nothing)
         kp.system;
         T = T_new * u"K",
         P = p.P * u"Pa",
-        n = [nᵢ * u"mol" for nᵢ in n_new],
+        n = n_new .* u"mol",
     )
 end
 
@@ -247,7 +247,7 @@ function _run_temperature(sol, kp, t)
     p = sol.prob.p
     kp.calorimeter isa SemiAdiabaticCalorimeter || return _plain(p.T)
     p.heat_eq || return _plain(sol(t)[end])
-    u = Float64[_plain(x) for x in sol(t)]
+    u = _plain.(sol(t))
     T = _with_saved_warm_start(() -> _cell_temperature(p, u), p)
     T === nothing && throw(ErrorException("the temperature of the cell cannot be solved at t = $t s."))
     return T
@@ -594,7 +594,7 @@ function _replayed_state(kp::KineticsProblem, p, sub, des, n_eq, u, be_d, Tt_d, 
     end
     return ChemicalState(
         kp.system; T = Tt, P = p.P * u"Pa",
-        n = [nᵢ * u"mol" for nᵢ in n],
+        n = n .* u"mol",
     )
 end
 
@@ -708,8 +708,8 @@ function _heat_rate_of_states(sol, kp, states, times)
             st = states[i]
             T = Float64(_plain(ustrip(us"K", temperature(st))))
             n = Float64[_plain(ustrip(us"mol", x)) for x in st.n]
-            u = Float64[_plain(x) for x in sol(times[i])]
-            du = Float64[_plain(x) for x in sol(times[i], Val{1})]
+            u = _plain.(sol(times[i]))
+            du = _plain.(sol(times[i], Val{1}))
             if n_be == 0
                 # Every amount follows the extents, `n = n₀ + νᵀξ`, and a
                 # semi-adiabatic cell carries its temperature in the state.
