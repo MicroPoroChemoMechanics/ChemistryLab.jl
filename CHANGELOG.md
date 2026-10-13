@@ -1,5 +1,57 @@
 # Changelog
 
+## v0.38.2 — OptimaSolver 0.8.6, and the pages written with the package's own functions
+
+A patch release that changes no result, on OptimaSolver 0.8.6. The eliminated
+implicit step evaluates the activities of its start once instead of once per
+reaction, a few internal conversions are written as broadcasts, and the
+documentation pages and scripts call the functions the package exports
+instead of rewriting them by hand.
+
+### Changed
+
+- **The eliminated implicit step evaluated the activities of its start once
+  per reaction.** Every rate law of `kinetic_step` reads the same `ln a` at
+  the composition the step starts from; they are evaluated once and shared.
+- Conversions to plain numbers of vectors whose element type is concrete by
+  construction (a solution's states, the amounts of a run, the output of an
+  activity model) are written `_plain.(v)`. The budget and the unknowns a
+  caller passes to `optimality_certificate` keep a typed conversion,
+  `Float64[_plain(x) for x in b]`, so that a `Vector{Any}` or a tuple still
+  gives a `Vector{Float64}` the compiler knows; the `collect` that preceded it
+  is gone. The worst residual of the aqueous Newton inversion is read without
+  building an array.
+- `mass_matrix` divides by the molar masses through `transpose` rather than
+  `'`, which would conjugate a symbolic entry.
+- `OptimaSolver` is bounded to `"0.8.6"`, in the package and in the
+  documentation environment.
+
+### Documentation
+
+- The pages and scripts that wrote the budget of a state as
+  `Float64.(cs.SM.A) * ustrip.(us"mol", st.n)` call `budget(state)`, and those
+  that read a component through the stoichiometric matrix call
+  `conservation_matrix(cs)`. That is the right matrix when a site family
+  follows its host: it couples the family's sites to the host's amount, and
+  carries the derivative of that coupling when a site density is
+  differentiated, both of which `SM.A` leaves out. On the systems of these
+  pages, which hold no such family, the two matrices are equal and the
+  results do not move.
+- The kinetics tutorial and the clinker kinetics example call
+  `degrees_of_hydration(sol, kp)` instead of a hand-written `phase_alpha`.
+- The surface-complexation example computes the site fractions, the
+  comparison with the closed form and the conservation check on vectors, with
+  `budget` and `conservation_matrix`, instead of loops over indices.
+- The formation quantities of the theory page are a matrix product,
+  `ΔrG = G − Aᵀ G_primaries`.
+- Two pages did not run on their own. The surface-complexation example builds
+  a `DualEquilibriumSolver` without `using OptimaSolver`, and ran only because
+  the documentation build loads it. The kinetics tutorial, whose blocks the
+  build does not execute, builds an `OrderedDict` without
+  `using OrderedCollections`, and continued its `@printf` line with a
+  backslash, which Julia reads as a left division. Both pages now load what
+  they use, and the tutorial runs to its end.
+
 ## v0.38.1 — OptimaSolver 0.8.5 at least
 
 A patch release, on OptimaSolver 0.8.5: two failures on site families whose
