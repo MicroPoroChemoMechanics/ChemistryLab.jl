@@ -410,7 +410,7 @@ several of them at once:
 function component_in_solids(component; tol = 1.0e-4)
     row = findfirst(==(component), String.(symbol.(cs.SM.primaries)))
     row === nothing && error("$component is not a component of this system")
-    A = Float64.(cs.SM.A)
+    A = conservation_matrix(cs)
     out = [(symbol(cs.species[i]), A[row, i] * n[i]) for i in cs.idx_crystal]
     return sort(filter(p -> last(p) > tol, out); by = last, rev = true)
 end

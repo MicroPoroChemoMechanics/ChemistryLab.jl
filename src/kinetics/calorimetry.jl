@@ -329,10 +329,10 @@ function heat_flow(sol, cal::IsothermalCalorimeter)
     p = sol.prob.p
     qdot = _with_saved_warm_start(p) do
         map(eachindex(t)) do i
-            u = Float64[_plain(x) for x in sol.u[i]]
+            u = _plain.(sol.u[i])
             T, _ = _cell_point(p, u)
             n_e = Float64[_plain(p.n_full[k]) for k in p.idx_equilibrium]
-            _paste_heat_rate(p, n_e, u, Float64[_plain(x) for x in sol(t[i], Val{1})], T)
+            _paste_heat_rate(p, n_e, u, _plain.(sol(t[i], Val{1})), T)
         end
     end
     return t, qdot
@@ -358,9 +358,9 @@ function heat_flow(sol, cal::SemiAdiabaticCalorimeter)
         T, _ = _cell_points(sol)
         dTdt = _with_saved_warm_start(p) do
             map(eachindex(t)) do i
-                u = Float64[_plain(x) for x in sol.u[i]]
+                u = _plain.(sol.u[i])
                 p.T_q[] = T[i] * u"K"
-                _cell_temperature_rate(p, u, Float64[_plain(x) for x in sol(t[i], Val{1})])
+                _cell_temperature_rate(p, u, _plain.(sol(t[i], Val{1})))
             end
         end
         return t, Cp_f .* dTdt .+ cal.heat_loss.(T .- T_env_f)

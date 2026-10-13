@@ -1074,14 +1074,14 @@ julia> mass_matrix(CSM)
 function mass_matrix(SM::StoichMatrix{T, S}) where {T, S <: AbstractSpecies}
     Mspecies = ustrip.(getproperty.(SM.species, :M))
     Mprimaries = ustrip.(getproperty.(SM.primaries, :M))
-    return StoichMatrix(Mprimaries .* SM.A .* inv.(Mspecies)', SM.primaries, SM.species)
+    return StoichMatrix(Mprimaries .* SM.A .* transpose(inv.(Mspecies)), SM.primaries, SM.species)
 end
 
 function mass_matrix(SM::StoichMatrix{T, Symbol}) where {T}
     Mspecies = ustrip.(getproperty.(SM.species, :M))
     S = promote_type(root_type.(typeof.(SM.species))...)
     Mprimaries = ustrip.(getproperty.(S.(string.(SM.primaries)), :M))
-    return StoichMatrix(Mprimaries .* SM.A .* inv.(Mspecies)', SM.primaries, SM.species)
+    return StoichMatrix(Mprimaries .* SM.A .* transpose(inv.(Mspecies)), SM.primaries, SM.species)
 end
 
 # Internal: build reactions from nullspace columns (general case).

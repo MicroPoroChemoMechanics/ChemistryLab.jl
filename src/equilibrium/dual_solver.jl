@@ -467,7 +467,7 @@ function SciMLBase.solve(
     T_out, P_out = blocks.apply(temperature(state), pressure(state), res.q)
     x = res.converged ? _complete_floored_solutes(des, prob, res, _activity_floor(p)) : res.x
     return ChemicalState(
-        des.system, [nᵢ * u"mol" for nᵢ in x];
+        des.system, x .* u"mol";
         T = T_out, P = P_out,
     )
 end
@@ -635,7 +635,7 @@ function _kkt_verdict(
         b = nothing, floor::Float64 = _CERTIFICATE_FLOOR,
         constraint::EquilibriumConstraint = FixedTP(), q = nothing,
     )
-    bv = b === nothing ? des.A * n : Float64[_plain(x) for x in collect(b)]
+    bv = b === nothing ? des.A * n : Float64[_plain(x) for x in b]
 
     # The certificate has to audit the problem that was SOLVED, and a constraint
     # is part of that problem. Rebuilt with `FixedTP`, the audit would miss two
@@ -669,7 +669,7 @@ function _kkt_verdict(
         blocks = _compose_blocks(blocks, surf)
     end
     qv = blocks.nq == 0 ? nothing :
-        (q === nothing ? Float64[_plain(x) for x in blocks.q0] : Float64[_plain(x) for x in q])
+        (q === nothing ? _plain.(blocks.q0) : Float64[_plain(x) for x in q])
 
     c = _optima_kkt_certificate(
         _dual_problem(des, p, n, _scoped_blocks(blocks)), n, bv, floor,

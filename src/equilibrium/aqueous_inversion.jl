@@ -451,7 +451,7 @@ end
 const _NEWTON_TRACE_LOG = log(1.0e-25)
 
 function _invert_aqueous_newton(lna, pred, ns, aq, jref, c, ref, w, p; maxit::Int = 50, tol = nothing)
-    cv = Float64[_plain(x) for x in c]
+    cv = _plain.(c)
     wv = Float64[clamp(_plain(x), -700.0, 20.0) for x in w]
     live = [t for t in eachindex(cv) if t != jref && isfinite(cv[t])]
     lndenom = log(_plain(ref) * pred.M_w)
@@ -482,7 +482,7 @@ function _invert_aqueous_newton(lna, pred, ns, aq, jref, c, ref, w, p; maxit::In
     # Bound once: the closures below capture `z`, and a binding assigned twice
     # is boxed, which made every evaluation allocate and dispatch.
     all_idx = collect(eachindex(live))
-    worst(zz) = maximum(abs, Float64[_plain(r) for r in residual(zz[all_idx], all_idx, zz)]; init = 0.0)
+    worst(zz) = maximum(r -> abs(_plain(r)), residual(zz[all_idx], all_idx, zz); init = 0.0)
     wp = _invert_aqueous(pred, cv, _plain(ref), wv, p, jref)
     z = let z0 = wv[live]
         wp === nothing ? z0 :
@@ -494,7 +494,7 @@ function _invert_aqueous_newton(lna, pred, ns, aq, jref, c, ref, w, p; maxit::In
     for _ in 1:3
         sig = [k for k in eachindex(live) if z[k] > _NEWTON_TRACE_LOG]
         zs = z[sig]
-        F(zz) = Float64[_plain(r) for r in residual(zz, sig, z)]
+        F(zz) = _plain.(residual(zz, sig, z))
         J(zz) = _plain.(ForwardDiff.jacobian(zz -> residual(zz, sig, z), zz))
         Fz = F(zs)
         φ = sum(abs2, Fz)

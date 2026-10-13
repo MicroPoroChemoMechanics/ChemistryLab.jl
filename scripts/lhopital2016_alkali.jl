@@ -145,12 +145,11 @@ function lh16_compute(gel)
     out = Dict{NTuple{4, Any}, Any}()
     for alkali in ("none", "KOH", "NaOH")
         cs = lh16_system(gel, alkali)
-        A = Float64.(cs.SM.A)
         model = lh16_model(alkali)
         for (al, ca) in unique((b[1], b[2]) for b in batches if b[3] == alkali)
             series = sort([b for b in batches if b[1] == al && b[2] == ca && b[3] == alkali]; by = b -> -b[4])
             states = [lh16_state(cs, b[1], b[2], b[3], b[4]) for b in series]
-            eqs, certs = equilibrate_path(first(states), [A * ustrip.(us"mol", st.n) for st in states]; model)
+            eqs, certs = equilibrate_path(first(states), budget.(states); model)
             for (b, eq, cert) in zip(series, eqs, certs)
                 out[b] = (; lh16_observables(eq, gel, alkali)..., certified = cert.optimal, state = eq)
             end

@@ -525,7 +525,7 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
     # See `_kinetic_state_infeasible`.
     elements = sort!(collect(setdiff(union((keys(atoms_charge(sp)) for sp in kp.system.species)...), (:Zz,))))
     E_all = [Float64(get(atoms_charge(sp), el, 0)) for el in elements, sp in kp.system.species]
-    B_el = E_all * Float64[_plain(x) for x in n_initial_full]
+    B_el = E_all * _plain.(n_initial_full)
 
     # Calorimeter parameters (semi-adiabatic)
     cal = kp.calorimeter
@@ -1033,7 +1033,7 @@ partition was solved at. `nothing` when the root cannot be found.
 """
 function _cell_temperature(p, u)
     nb, nn = p.n_be, p.n_nk
-    uv = Float64[_plain(x) for x in u]
+    uv = _plain.(u)
     # The passes of a Jacobian evaluate the same state as the value pass: its
     # root is kept rather than solved again.
     cached = p.cell_root[]
@@ -1117,7 +1117,7 @@ warm start of the next instant.
 """
 function _cell_point(p, u)
     nb, nn = p.n_be, p.n_nk
-    uv = Float64[_plain(x) for x in u]
+    uv = _plain.(u)
     T = p.has_T ? _cell_temperature(p, uv) : Float64(_plain(p.T))
     T === nothing && throw(ErrorException("the temperature of the cell cannot be solved at this state."))
     n_e = _rhs_values(p, uv[1:nb], T)
@@ -1785,7 +1785,7 @@ the implicit-function theorem at the answer, so that the Jacobian of the
 right-hand side holds `∂r/∂nₑ ⋅ ∂nₑ/∂bₑ` exactly.
 """
 function _rhs_partition(p, be, T)
-    bv = Float64[_plain(x) for x in be]
+    bv = _plain.(be)
     Tv = Float64(_plain(T))
     n = _rhs_values(p, bv, Tv)
     n === nothing && return nothing
@@ -1799,7 +1799,7 @@ end
 function _respeciate_rhs!(p, u)
     be = @view u[1:(p.n_be)]
     Tv = Float64(_plain(ustrip(us"K", p.T_q[])))
-    n = _rhs_values(p, Float64[_plain(x) for x in be], Tv)
+    n = _rhs_values(p, _plain.(be), Tv)
     n === nothing && return false
     for (j, idx) in enumerate(p.idx_equilibrium)
         p.n_full[idx] = n[j]

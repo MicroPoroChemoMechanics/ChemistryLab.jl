@@ -484,7 +484,7 @@ function kinetic_step(
     end
 
     return ChemicalState(
-        des.system, [nᵢ * u"mol" for nᵢ in x];
+        des.system, x .* u"mol";
         T = temperature(state), P = pressure(state),
     )
 end
@@ -882,13 +882,10 @@ function _kinetic_step_eliminated(
             ForwardDiff.value.(nd)
     end
 
-    # Newton on `nr` unknowns, from the explicit prediction.
-    q = Float64[
-        Δt_s * kss.reactions[j].rate_fn(
-            p.T, p.P, t, n0_sv,
-            StateView(collect(des.lna(n0, p)), index), n0_sv,
-        ) for j in 1:nr
-    ]
+    # Newton on `nr` unknowns, from the explicit prediction. Every rate law reads
+    # the same activities at n0: they are evaluated once, not once per reaction.
+    lna0_sv = StateView(collect(des.lna(n0, p)), index)
+    q = Float64[Δt_s * kss.reactions[j].rate_fn(p.T, p.P, t, n0_sv, lna0_sv, n0_sv) for j in 1:nr]
     F, J, n_full = residual_and_jacobian(q)
     for _ in 1:maxit
         maximum(abs, F) <= 1.0e-14 * max(1.0, maximum(abs, q)) && break
@@ -910,7 +907,7 @@ function _kinetic_step_eliminated(
     certificate === nothing || (certificate[] = last_cert[])
 
     return ChemicalState(
-        system, [nᵢ * u"mol" for nᵢ in n_full];
+        system, n_full .* u"mol";
         T = temperature(state), P = pressure(state),
     )
 end

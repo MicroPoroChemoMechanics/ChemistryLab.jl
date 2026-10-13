@@ -31,7 +31,7 @@ and the **site symbol in its formula** — `Xs` here — which is what turns the
 site balance into a row of the conservation matrix.
 
 ```@example surface
-using ChemistryLab, DynamicQuantities, SciMLBase
+using ChemistryLab, DynamicQuantities, OptimaSolver, SciMLBase
 
 const RT = R_GAS * 298.15
 g0(v) = SymbolicFunc(v * u"J/mol")          # a constant standard energy
@@ -117,9 +117,9 @@ des = DualEquilibriumSolver(cs, DiluteSolutionModel())
 b   = budget(state)
 
 eq = SciMLBase.solve(des, state; b = b, constraint = FixedpH(6.0))
-n  = Float64[ustrip(us"mol", x) for x in eq.n]
-N  = n[4] + n[5] + n[6]
-(free = n[4] / N, protonated = n[5] / N, deprotonated = n[6] / N)
+θ  = ustrip.(us"mol", eq.n[4:6])          # the free, protonated and deprotonated sites
+x  = θ ./ sum(θ)
+(free = x[1], protonated = x[2], deprotonated = x[3])
 ```
 
 At pH 6 the surface is mostly protonated, and almost none of it is
@@ -143,9 +143,8 @@ enough to test competition.
 ```@example surface
 function solved(pH)
     eq = SciMLBase.solve(des, state; b = b, constraint = FixedpH(pH))
-    n = Float64[ustrip(us"mol", x) for x in eq.n]
-    N = n[4] + n[5] + n[6]
-    return (n[4] / N, n[5] / N, n[6] / N)
+    θ = ustrip.(us"mol", eq.n[4:6])          # the free, protonated and deprotonated sites
+    return Tuple(θ ./ sum(θ))
 end
 
 function closed_form(pH)
@@ -155,12 +154,8 @@ function closed_form(pH)
     return (1 / d, β[1] / d, β[2] / d)
 end
 
-worst = 0.0
-for pH in 4.0:1.0:9.0
-    s, c = solved(pH), closed_form(pH)
-    global worst = max(worst, maximum(abs.(s ./ c .- 1)))
-end
-worst      # worst relative departure from the closed form, over six pH values
+# worst relative departure from the closed form, over six pH values
+maximum(pH -> maximum(abs, solved(pH) ./ closed_form(pH) .- 1), 4.0:1.0:9.0)
 ```
 
 That is the solver and the algebra agreeing to the last digits either can claim.
@@ -174,12 +169,10 @@ site budget differ by ten orders of magnitude, so each conserved quantity is
 scaled by how much matter its own row moves.
 
 ```@example surface
-A = Float64.(cs.SM.A)
 eq_closed = SciMLBase.solve(des, state; b = b)          # no constraint: closed
-nc = Float64[ustrip(us"mol", x) for x in eq_closed.n]
-r  = A * nc .- b
-turnover(c) = sum(abs(A[c, i]) * nc[i] for i in eachindex(nc))
-[(symbol(p), abs(r[c]) / max(abs(b[c]), turnover(c))) for (c, p) in enumerate(cs.SM.primaries)]
+r = budget(eq_closed) .- b
+turnover = abs.(conservation_matrix(cs)) * ustrip.(us"mol", eq_closed.n)   # matter each row moves
+[(symbol(p), abs(r[c]) / max(abs(b[c]), turnover[c])) for (c, p) in enumerate(cs.SM.primaries)]
 ```
 
 The site row is conserved to the same precision as the water it sits in.

@@ -99,14 +99,13 @@ solve starting from the last ([`equilibrate_path`](@ref)).
 """
 function lh16a_compute(gel)
     cs = lh16a_system(gel)
-    A = Float64.(cs.SM.A)
     model = lh16_model("none")
     mix = lh16a_table("mixing_proportions")
     out = Dict{Tuple{Float64, Float64}, Any}()
     for ca in unique(mix.Ca_Si_target)
         series = sort([al for (c, al) in zip(mix.Ca_Si_target, mix.Al_Si_target) if c == ca])
         states = [lh16a_state(cs, ca, al) for al in series]
-        eqs, certs = equilibrate_path(first(states), [A * ustrip.(us"mol", st.n) for st in states]; model)
+        eqs, certs = equilibrate_path(first(states), budget.(states); model)
         for (al, eq, cert) in zip(series, eqs, certs)
             out[(ca, al)] = (; lh16a_observables(eq, gel)..., certified = cert.optimal, state = eq)
         end
