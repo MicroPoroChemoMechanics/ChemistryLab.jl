@@ -66,6 +66,34 @@ exactly zero at zero, exactly `A₀` at `n₀`, and differentiable throughout.
     amount. That is a different object, and [`PoreHumidity`](@ref) is the
     precedent for writing one.
 
+## A powder of several sizes
+
+The fines of a ground mineral carry most of its surface, so a single shrinking
+core misplaces the surface over the run: the fines are consumed first, and with
+them the surface the coarse grains do not have. [`size_classes`](@ref) cuts the
+size distribution by volume into ``K`` classes of equal volume, each a copy of
+the species with its own amount and shrinking-core area, ready for one rate law.
+The particles of class ``k``, between the volume fractions ``(k-1)/K`` and
+``k/K``, have as spheres the specific surface
+
+```math
+s_k = \frac{6}{\rho}\,K \int_{(k-1)/K}^{k/K} \frac{\mathrm dF}{d} ,
+```
+
+exact for a [`LogNormalPSD`](@ref) (a closed form in the normal distribution
+function) and for a measured [`TabulatedPSD`](@ref), so that the classes add up
+to the surface of the whole powder.
+
+```@example surfaces
+subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+classes = size_classes(subs["C3S"], LogNormalPSD(; d50 = 10u"μm", d90 = 30u"μm"), 4; mass = 1u"kg")
+[(symbol(c.species), c.amount, c.diameter * 1e6, specific_area(c.surface.initial)) for c in classes]
+```
+
+The columns are the species of each class, its amount in mol, its Sauter
+diameter in µm and its specific surface in m²/kg. One class is the mineral
+itself with the surface of the whole powder.
+
 ## Two areas of different measurements do not compare
 
 This is the part worth reading even if the rest looks obvious. A BET area and a

@@ -545,6 +545,30 @@ only while the reaction keeps the affinity its law assumes, a phase dissolving
 into a solution undersaturated with it. Whether a run stays there is a question
 of fact, which the diagnostic below answers on the run.
 
+### A law that runs one way
+
+A phase that dissolves and never reprecipitates, or grows on its seeds and is
+never redissolved, has a rate that vanishes on one side of saturation while the
+affinity does not. That is allowed (the converse noted above), and
+[`dissolution_only`](@ref) and [`growth_only`](@ref) build it from any law:
+
+```math
+r_\mathrm{diss} = r\;s(-\ln\Omega)\;\frac{n}{n + \varepsilon n_0} ,
+\qquad
+r_\mathrm{growth} = r\;s(\ln\Omega) ,
+\qquad
+s(x) = \frac{x^2}{x^2 + w^2}\ \ (x > 0), \quad s(x) = 0\ \ (x \le 0) .
+```
+
+The factor ``s`` is continuous with its slope at ``\Omega = 1``, whatever ``r``
+is, so neither the rate nor the Jacobian a stiff integrator forms jumps there,
+as they would under ``\max(r, 0)`` or a test on the sign of ``\ln\Omega``. Beyond a few widths ``w`` of ``\ln\Omega`` the
+restricted law is ``r`` to within ``(w/\ln\Omega)^2``. The depletion factor stops
+a dissolving phase at zero amount even when its reactive area does not vanish
+there, a [`FixedSurfaceArea`](@ref) for instance; ``\varepsilon`` is
+[`SHRINK_FLOOR`](@ref). A restricted law keeps the sign of the affinity where it
+runs, so [`dissipation`](@ref) never lists it.
+
 ### Several reactions
 
 For several reactions the second law bounds the sum ``\sum_j \mathcal{A}_j r_j``

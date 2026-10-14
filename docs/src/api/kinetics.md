@@ -30,6 +30,16 @@ Modules = [ChemistryLab]
 Pages   = ["kinetics/sorption_rates.jl"]
 ```
 
+## Laws that run one way
+
+A law restricted to dissolution or to growth, switched off smoothly at
+saturation. See [What a rate law may be](@ref sec-theory-kinetics-admissible).
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["kinetics/rate_gates.jl"]
+```
+
 ## Kinetics problem
 
 ```@autodocs

@@ -21,6 +21,23 @@
 
 ### Added
 
+- **Size classes of a ground mineral,** `size_classes(species, psd, K; mass)`,
+  from a lognormal distribution by volume (`LogNormalPSD(; d50, d90)`) or a
+  measured one (`TabulatedPSD(d, F)`). It returns `K` classes of equal volume,
+  each a copy of the species with its amount and a shrinking-core area of its
+  own specific surface, exact for both distributions
+  (`inverse_diameter_moment`), so that the classes add up to the amount and to
+  the surface of the whole powder; one class is the mineral itself. It was
+  written by hand for each mineral. SpecialFunctions, already loaded through
+  ForwardDiff, becomes a direct dependency for `erf` and `erfinv`.
+- **`dissolution_only(rate, cs, rxn)` and `growth_only(rate, cs, rxn)`**
+  restrict any rate law to one direction: zero on the other side of
+  saturation, and, for a dissolving phase, at zero amount. The factor,
+  `x²/(x² + w²)` of the driving force `∓ln Ω` above zero and nothing below, is
+  continuous with its slope at `Ω = 1` whatever the law, so neither the rate
+  nor the Jacobian of a stiff integrator jumps there; away from saturation the
+  law is unchanged to within `(w/ln Ω)²`. Gypsum in a supersaturated solution
+  keeps its amount under `dissolution_only`, where its own law grows it back.
 - **A diffuse layer whose area follows its host,**
   `DiffuseLayer(; specific_area = a)`, with `a` in m²/mol or m²/kg of the host
   of the family's support. A layer of fixed area on a growing C-S-H spread a

@@ -259,6 +259,17 @@ Two rules make gates like this behave:
     `<= 0 && return zero(x)` guard as well — it is what keeps a rate from being
     computed on a negative amount the integrator proposed and rejected.
 
+A gate on the saturation of the reaction itself — a phase that dissolves and
+never reprecipitates, or one that only grows — need not be written by hand:
+[`dissolution_only`](@ref) and [`growth_only`](@ref) wrap any law with a factor
+that is zero on the forbidden side of ``\Omega = 1`` and continuous with its
+slope there ([What a rate law may be](@ref sec-theory-kinetics-admissible)):
+
+```julia
+law = first_order_rate(k, cs, rxn, BlaineSurfaceArea(blaine))
+kr  = KineticReaction(cs, rxn, dissolution_only(law, cs, rxn))
+```
+
 A gate on a species the reactions consume only works because the reaction extents
 are carried in the ODE state, which is what lets non-kinetic amounts move during
 the step. Before that they were pinned at their initial values inside the
