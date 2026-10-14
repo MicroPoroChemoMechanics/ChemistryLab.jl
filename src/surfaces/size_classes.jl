@@ -68,6 +68,9 @@ granulometer reports it.
 struct TabulatedPSD{T <: Real} <: AbstractPSD
     lnd::Vector{T}
     F::Vector{T}
+    # Built only through the constructor below, which takes diameters: the one
+    # Julia generates would take them for their logarithms.
+    TabulatedPSD{T}(lnd::Vector{T}, F::Vector{T}, ::Val{:checked}) where {T <: Real} = new{T}(lnd, F)
 end
 
 function TabulatedPSD(d::AbstractVector, F::AbstractVector)
@@ -86,7 +89,7 @@ function TabulatedPSD(d::AbstractVector, F::AbstractVector)
     )
     f = F ./ last(F)
     T = promote_type(eltype(m), eltype(f))
-    return TabulatedPSD{T}(log.(T.(m)), T.(f))
+    return TabulatedPSD{T}(log.(T.(m)), T.(f), Val(:checked))
 end
 
 # The standard normal distribution and its inverse.

@@ -82,6 +82,8 @@ using Test
         @test_throws ArgumentError LogNormalPSD(; d50 = 10u"μm", d90 = 5u"μm")
         @test_throws ArgumentError TabulatedPSD([1.0, 1.0] .* u"μm", [0.0, 1.0])
         @test_throws "start at zero" TabulatedPSD([1.0, 2.0] .* u"μm", [0.1, 1.0])
+        # Plain numbers are diameters in m, not their logarithms.
+        @test TabulatedPSD([1.0e-6, 2.0e-6], [0.0, 1.0]).lnd ≈ log.([1.0e-6, 2.0e-6])
         @test_throws ArgumentError size_classes(c3s, psd, 0; mass = 1.0)
         @test_throws ArgumentError size_classes(c3s, psd, 2)
         @test_throws "molar volume" size_classes(Species("CaO"; aggregate_state = AS_CRYSTAL), psd, 2; mass = 1.0)
