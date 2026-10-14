@@ -92,30 +92,45 @@ function idx_speciation(
 end
 
 """
-    speciation(species_list, atoms_list::AbstractVector{Symbol}; kwargs...) -> SubArray
-    speciation(species_list, short_species_list::AbstractVector{<:AbstractSpecies}; kwargs...) -> SubArray
-    speciation(species_list, short_species_list_symbols::AbstractVector{<:AbstractString}; kwargs...) -> SubArray
+    speciation(species_list, atoms_list::AbstractVector{Symbol}; kwargs...) -> Vector
+    speciation(species_list, seeds::AbstractVector{<:AbstractSpecies}; keep_seeds = true, kwargs...) -> Vector
+    speciation(species_list, seed_symbols::AbstractVector{<:AbstractString}; keep_seeds = true, kwargs...) -> Vector
 
-Filter a list of species to those whose atomic composition is a subset of the given atoms (or of the atoms
-found in `short_species_list`).
+Filter a list of species to those whose atomic composition is a subset of the
+given atoms, or of the atoms found in the seed species.
 
 # Arguments
 
   - `species_list`: full list of species to filter.
   - `atoms_list`: vector of atom symbols that define the chemical space.
-  - `short_species_list`: seed species whose union of atoms defines the chemical space.
-  - `short_species_list_symbols`: string symbols of seed species.
+  - `seeds`: seed species whose union of atoms defines the chemical space.
+  - `seed_symbols`: symbols of seed species, looked up in `species_list`; a
+    symbol found there under no species raises an `ArgumentError`.
 
 # Keyword arguments
 
   - `aggregate_state`: filter by aggregate state (default: all states).
-  - `class`: filter by species class (default: all classes).
+  - `class`: filter by species class (default: `SC_AQSOLUTE`, `SC_AQSOLVENT`,
+    `SC_COMPONENT`, `SC_GASFLUID` and `SC_UNDEF`). Solid-solution end-members
+    and surface complexes are left out, because they enter a system through
+    their phase or their site family, not as species of their own.
   - `exclude_species`: species (or symbols) to always exclude.
-  - `include_species`: species (or symbols) to always include regardless of composition.
+  - `include_species`: species (or symbols) to always include regardless of
+    composition.
+  - `keep_seeds`: whether the seeds are always included, whatever the filters
+    (default), or go through `aggregate_state`, `class` and `exclude_species`
+    like every other species. With the default, a solid seed is in the result
+    even under `aggregate_state = [AS_AQUEOUS]`, which is what building a
+    system from its phases needs.
 
 # Returns
 
-  - A view (SubArray) of `species_list` containing the matching species.
+  - A new `Vector` holding the matching species, in the order of `species_list`.
+    It is not a view: it can be filtered or extended without touching the list.
+
+Two results join without duplicates with Base `union`, since species compare
+by formula, aggregate state, class and symbol: `union(speciation(subs,
+["C3S"]), speciation(subs, ["Portlandite"]))`.
 
 # Examples
 
@@ -123,7 +138,7 @@ found in `short_species_list`).
 julia> all_species = [Species("H2O"), Species("OH-"), Species("H+"), Species("Ca+2"), Species("CaCO3")];
 
 julia> speciation(all_species, [:H, :O])
-3-element view(::Vector{Species{Int64}}, [1, 2, 3]) with eltype Species{Int64}:
+3-element Vector{Species{Int64}}:
  H₂O {H₂O} [H₂O ◆ H2O]
  OH⁻ {OH⁻} [OH⁻ ◆ OH-]
  H⁺ {H⁺} [H⁺ ◆ H+]
@@ -132,25 +147,30 @@ julia> speciation(all_species, [:H, :O])
 function speciation(
         species_list, atoms_list::AbstractVector{Symbol}; kwargs...
     )
-    return @view species_list[idx_speciation(species_list, atoms_list; kwargs...)]
+    return species_list[idx_speciation(species_list, atoms_list; kwargs...)]
 end
 
 function speciation(
-        species_list, short_species_list::AbstractVector{<:AbstractSpecies}; kwargs...
+        species_list, seeds::AbstractVector{<:AbstractSpecies};
+        include_species = [], keep_seeds::Bool = true, kwargs...
     )
     return speciation(
-        species_list, union_atoms(short_species_list);
-        include_species = short_species_list, kwargs...
+        species_list, union_atoms(seeds);
+        include_species = keep_seeds ? vcat(include_species, seeds) : include_species, kwargs...
     )
 end
 
-
 function speciation(
-        species_list, short_species_list_symbols::AbstractVector{<:AbstractString}; kwargs...
+        species_list, seed_symbols::AbstractVector{<:AbstractString}; kwargs...
     )
-    short_species_list = @view species_list[symbol.(species_list) .∈ Ref(short_species_list_symbols)]
-    return speciation(
-        species_list, short_species_list;
-        include_species = short_species_list_symbols, kwargs...
+    symbols = symbol.(species_list)
+    absent = setdiff(seed_symbols, symbols)
+    isempty(absent) || throw(
+        ArgumentError(
+            "speciation: no species $(join(absent, ", ")) in the list. A seed that is " *
+                "not there would leave its elements out of the chemical space without " *
+                "a word; check the spelling or the database.",
+        )
     )
+    return speciation(species_list, species_list[symbols .∈ Ref(seed_symbols)]; kwargs...)
 end

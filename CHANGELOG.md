@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### Breaking changes
+
+- **`speciation` returns a `Vector`, not a view.** A `filter!` on the result
+  failed or reached into the database list; the result is now a list of its
+  own. Code that relied on the result being a `SubArray` of the database sees a
+  different type.
+- **The caller's `include_species` is added to the seeds of `speciation`.** It
+  replaced them, Julia keeping the rightmost keyword, so passing it dropped the
+  seed species from the result.
+- **A seed symbol absent from the list is an `ArgumentError`.** It was ignored,
+  which left its elements out of the chemical space without a word.
+- **`ChemicalSystem` keeps each species once.** A species listed twice — what a
+  `vcat` of two `speciation` results carries — gave the system two columns and
+  two copies under one name, `cs["X"]` returning the last and a solid solution
+  the first. The later copies are now dropped, with a warning naming them; two
+  *different* species under one symbol are refused.
+
+### Added
+
+- **`speciation(...; keep_seeds = false)`** puts the seed species through the
+  `aggregate_state`, `class` and `exclude_species` filters like every other
+  species; by default they are kept whatever the filters, as before, which is
+  what building a system from its phases needs. The docstring and the manual
+  now say that the default classes leave out solid-solution end-members and
+  surface complexes.
+
 ### Fixed
 
 - **`activity_coefficients` threw a `MethodError` for `PitzerActivityModel` and
