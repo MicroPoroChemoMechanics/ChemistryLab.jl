@@ -535,6 +535,23 @@ excludes would give the same row twice, `Kᵀn` could not tell their extents apa
 and the linear system would be singular. That is checked here, with the offending
 reactions named.
 """
+# A slow family whose budget follows a kinetic host: its members move with the
+# host as well as with their reactions, which the reactivity constraints of one
+# implicit step, `Kᵀn − Δξ = ξ₀`, cannot express.
+function _refuse_slow_host_families(system::ChemicalSystem, kinetic)
+    system.site_families === nothing && return nothing
+    for (f, grp) in zip(system.site_families, system.site_groups)
+        surface_support(f).coupling === SITES_FOLLOW_HOST && any(in(kinetic), grp) && throw(
+            ArgumentError(
+                "SiteFamily \"$(name(f))\" is slow and its budget follows its host: its " *
+                    "states move with the host as well as with their reactions, which the " *
+                    "implicit step does not pose. Integrate it with `integrate`.",
+            )
+        )
+    end
+    return nothing
+end
+
 function _reactivity_matrix(reactions, system::ChemicalSystem, kinetic_species)
     ns = length(system.species)
     syms = symbol.(system.species)
@@ -559,6 +576,7 @@ function _reactivity_matrix(reactions, system::ChemicalSystem, kinetic_species)
         for i in _kinetic_partition(system, reactions)
             i in surface && push!(s, i)
         end
+        _refuse_slow_host_families(system, s)
         s
     else
         Set(

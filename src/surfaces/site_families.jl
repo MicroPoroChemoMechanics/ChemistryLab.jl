@@ -267,7 +267,7 @@ ConstantCapacitance(; C, area, base::AbstractSiteMixingModel = IdealSiteMixing()
 supports_multidentate(m::ConstantCapacitance) = supports_multidentate(m.base)
 
 """
-    struct DiffuseLayer{M<:AbstractSiteMixingModel, T<:Real} <: AbstractSiteMixingModel
+    struct DiffuseLayer{M<:AbstractSiteMixingModel, T<:Real, A} <: AbstractSiteMixingModel
 
 A charged surface, in the **diffuse-layer** (Gouy-Chapman) model: the potential
 is raised by the charge the surface carries and screened by the ions in
@@ -344,7 +344,9 @@ price is written on it.
 # Fields
 
   - `base`: the mixing model this decorates, `IdealSiteMixing()` by default.
-  - `area`: the surface area carrying the charge, in m².
+  - `area`: the surface area carrying the charge — a number of m², or, for a
+    layer given a `specific_area`, the area per mole of sites of its support
+    that the system resolves it to (see below).
   - `ε_r`: the relative permittivity of the solvent, dimensionless. Unless a
     value is given, the permittivity of water at the temperature of each solve,
     as PHREEQC takes it (at 50 °C, 69.8 against 78.2 at 25 °C); `ε_r` then holds
@@ -353,67 +355,163 @@ price is written on it.
   - `water`: whether the permittivity is that of water at the temperature of the
     solve, and `pressure` the pressure it is evaluated at, in Pa.
 
+# A surface whose amount changes
+
+A surface whose host precipitates or dissolves during a calculation carries a
+charge per unit area that is a property of the phase, so its area has to follow
+the host as its sites do. Give the layer a `specific_area`, per mole or per
+kilogram of the host of its support, instead of an `area`. The support must
+follow its host (`SITES_FOLLOW_HOST`) with a budget proportional to it, `ν` moles
+of sites per mole of host ([`sites_per_host`](@ref)), and every member must
+occupy one site. When the system is built, the specific area `a` becomes an
+area per mole of sites of the support, `s = a/ν`, and the area at every solve is
+
+```math
+\\mathcal{A} = s \\sum_k n_k ,
+\\qquad
+\\sigma = \\frac{F}{s}\\,\\frac{\\sum_k z_k n_k}{\\sum_k n_k} ,
+```
+
+the sums running over the members of every family on the support. At the
+solution `Σₖ nₖ = ν n_host`, so `𝒜 = a·n_host`, and the charge per unit area is
+a function of the site fractions alone: it does not change when the surface
+grows or shrinks at a fixed occupancy. The area is read from the site amounts
+rather than from the host's, so it holds whether the host is a species of the
+equilibrium, a kinetic species of a [`KineticsProblem`](@ref), or both.
+
 See also: [`ConstantCapacitance`](@ref), [`is_gradient_consistent`](@ref),
 [`water_relative_permittivity`](@ref).
 """
-struct DiffuseLayer{M <: AbstractSiteMixingModel, T <: Real} <:
+struct DiffuseLayer{M <: AbstractSiteMixingModel, T <: Real, A} <:
     AbstractSiteMixingModel
     base::M
-    area::T
+    area::A
     ε_r::T
     scale::T
     water::Bool
     pressure::T
-    function DiffuseLayer{M, T}(
-            base::AbstractSiteMixingModel, area::Real, ε_r::Real, scale::Real,
+    function DiffuseLayer{M, T, A}(
+            base::AbstractSiteMixingModel, area, ε_r::Real, scale::Real,
             water::Bool = false, pressure::Real = P_STANDARD,
-        ) where {M <: AbstractSiteMixingModel, T <: Real}
-        area > 0 || throw(ArgumentError("area must be positive; got $area m²."))
+        ) where {M <: AbstractSiteMixingModel, T <: Real, A}
+        _area_value(area) > 0 || throw(ArgumentError("area must be positive; got $(_area_value(area))."))
         ε_r > 0 ||
             throw(ArgumentError("relative permittivity must be positive; got $ε_r."))
         0 <= scale <= 1 ||
             throw(ArgumentError("scale is a homotopy parameter in [0, 1]; got $scale."))
         _refuse_stacked_electrostatics(base, "DiffuseLayer")
-        return new{M, T}(base, convert(T, area), convert(T, ε_r), convert(T, scale), water, convert(T, pressure))
+        return new{M, T, A}(base, convert(A, area), convert(T, ε_r), convert(T, scale), water, convert(T, pressure))
     end
+end
+
+# ── The area a diffuse layer carries its charge on ────────────────────────────
+#
+# A number of m², or a specific area of the host, which the system resolves into
+# an area per mole of sites of the support (`_resolve_layer_areas`).
+
+# A specific area of the host, m² per mole or per kilogram, before resolution.
+struct _SpecificLayerArea{T <: Real}
+    a::T
+    per_mole::Bool
+end
+
+# The area per mole of sites of the support, m²/mol: 𝒜 = s Σₖ nₖ.
+struct _PerSiteLayerArea{T <: Real}
+    s::T
+end
+
+_area_value(A::Real) = A
+_area_value(A::_SpecificLayerArea) = A.a
+_area_value(A::_PerSiteLayerArea) = A.s
+
+# The same area in the number type `T`.
+_area_like(A::Real, ::Type{T}) where {T <: Real} = convert(T, A)
+_area_like(A::_SpecificLayerArea, ::Type{T}) where {T <: Real} = _SpecificLayerArea{T}(A.a, A.per_mole)
+_area_like(A::_PerSiteLayerArea, ::Type{T}) where {T <: Real} = _PerSiteLayerArea{T}(A.s)
+
+# The area at the amounts `n` of the members of the support.
+_layer_area(A::Real, n) = A
+_layer_area(A::_PerSiteLayerArea, n) = A.s * sum(n)
+_layer_area(::_SpecificLayerArea, n) = throw(
+    ArgumentError(
+        "a DiffuseLayer given a `specific_area` is resolved against its host when the " *
+            "ChemicalSystem is built; evaluate the model the system holds " *
+            "(`cs.site_families`), not the one passed to it.",
+    )
+)
+
+_layer_area_si(A::Union{_SpecificLayerArea, _PerSiteLayerArea}) = A
+_layer_area_si(A) = _area_si(us"m^2", A, "DiffuseLayer area")
+
+_specific_layer_area(a::Real) = _SpecificLayerArea(float(a), false)
+function _specific_layer_area(a::UnionAbstractQuantity)
+    # The conversion itself is the test, as in `_area_si`.
+    for (unit, per_mole) in ((us"m^2/kg", false), (us"m^2/mol", true))
+        v = try
+            _area_si(unit, a, "DiffuseLayer specific_area")
+        catch
+            nothing
+        end
+        v === nothing || return _SpecificLayerArea(v, per_mole)
+    end
+    throw(
+        ArgumentError(
+            "DiffuseLayer specific_area expects an area per mole or per kilogram of host " *
+                "(m²/mol or m²/kg); got $a.",
+        )
+    )
 end
 
 """
     DiffuseLayer(base, area, ε_r, scale = 1.0) -> DiffuseLayer
     DiffuseLayer(; area, temperature = 298.15, pressure = 1.0e5, ε_r = nothing,
                    scale = 1.0, base = IdealSiteMixing()) -> DiffuseLayer
+    DiffuseLayer(; specific_area, ...) -> DiffuseLayer
 
 Build a [`DiffuseLayer`](@ref). `area` is in m², a plain `Real` in SI or a
-`Quantity`. Without `ε_r`, the permittivity is that of water at the temperature
-of each solve and at `pressure`, from this package's own model, as PHREEQC
-takes it; `temperature` only sets the value shown. A given `ε_r` (and the
-positional form) is held at every temperature. `scale` multiplies the
-electrostatic term, as [`with_electrostatic_scale`](@ref) sets it.
+`Quantity`. `specific_area`, given instead, is an area per mole or per kilogram
+of the host of the family's support — a `Quantity` in m²/mol or m²/kg, or a
+plain `Real` in m²/kg — and the area then follows the host (see the type).
+Without `ε_r`, the permittivity is that of water at the temperature of each
+solve and at `pressure`, from this package's own model, as PHREEQC takes it;
+`temperature` only sets the value shown. A given `ε_r` (and the positional form)
+is held at every temperature. `scale` multiplies the electrostatic term, as
+[`with_electrostatic_scale`](@ref) sets it.
 
 The permittivity of water costs 7 µs to evaluate (measured), so following the
 temperature costs a solve nothing worth counting.
 """
 function DiffuseLayer(base::AbstractSiteMixingModel, area, ε_r, scale = 1.0)
-    a = _area_si(us"m^2", area, "DiffuseLayer area")
+    A = _layer_area_si(area)
     e = _area_si(us"m^2/m^2", ε_r, "DiffuseLayer relative permittivity")
-    v = promote(a, e, float(scale))
-    return DiffuseLayer{typeof(base), eltype(v)}(base, v[1], v[2], v[3])
+    T = promote_type(typeof(float(_area_value(A))), typeof(e), typeof(float(scale)))
+    Aₜ = _area_like(A, T)
+    return DiffuseLayer{typeof(base), T, typeof(Aₜ)}(base, Aₜ, e, scale)
 end
 
 function DiffuseLayer(;
-        area,
+        area = nothing,
+        specific_area = nothing,
         temperature::Real = T_STANDARD,
         pressure::Real = P_STANDARD,
         ε_r = nothing,
         scale::Real = 1.0,
         base::AbstractSiteMixingModel = IdealSiteMixing(),
     )
-    ε_r === nothing || return DiffuseLayer(base, area, ε_r, scale)
-    m = DiffuseLayer(base, area, water_relative_permittivity(temperature, pressure), scale)
+    (area === nothing) == (specific_area === nothing) && throw(
+        ArgumentError(
+            "give a DiffuseLayer either an `area`, in m², or a `specific_area` of its " *
+                "host, in m²/mol or m²/kg — one of the two.",
+        )
+    )
+    A = area === nothing ? _specific_layer_area(specific_area) : area
+    ε_r === nothing || return DiffuseLayer(base, A, ε_r, scale)
+    m = DiffuseLayer(base, A, water_relative_permittivity(temperature, pressure), scale)
     # The pressure the permittivity follows is kept in the model's number type:
     # a pressure being differentiated makes the whole model dual.
-    T = promote_type(typeof(m.area), typeof(float(pressure)))
-    return DiffuseLayer{typeof(base), T}(base, m.area, m.ε_r, m.scale, true, pressure)
+    T = promote_type(typeof(m.ε_r), typeof(float(pressure)))
+    Aₜ = _area_like(m.area, T)
+    return DiffuseLayer{typeof(base), T, typeof(Aₜ)}(base, Aₜ, m.ε_r, m.scale, true, pressure)
 end
 
 """
@@ -432,7 +530,7 @@ continuation loop can be written without asking what it is solving.
 """
 with_electrostatic_scale(m::AbstractSiteMixingModel, ::Real) = m
 with_electrostatic_scale(m::DiffuseLayer, λ::Real) =
-    DiffuseLayer{typeof(m.base), typeof(m.area)}(m.base, m.area, m.ε_r, λ, m.water, m.pressure)
+    DiffuseLayer{typeof(m.base), typeof(m.ε_r), typeof(m.area)}(m.base, m.area, m.ε_r, λ, m.water, m.pressure)
 
 # The relative permittivity a diffuse layer is screened with at `T`: water's at
 # that temperature, or the value the model was given.
@@ -887,6 +985,18 @@ struct SiteFamily{
     support::U
     model::M
 end
+
+# The same family on another support, or with another mixing model. The species
+# type is the family's own, not re-inferred: its complexes may be of a wider type
+# than its free site.
+_with_support(f::SiteFamily{S, C, U, M}, support::SurfaceSupport) where {S, C, U, M} =
+    SiteFamily{S, C, typeof(support), M}(
+    f.name, f.site, f.free_site, f.complexes, f.capacity, support, f.model,
+)
+_with_model(f::SiteFamily{S, C, U, M}, model::AbstractSiteMixingModel) where {S, C, U, M} =
+    SiteFamily{S, C, U, typeof(model)}(
+    f.name, f.site, f.free_site, f.complexes, f.capacity, f.support, model,
+)
 
 """
     denticity(family::SiteFamily, sp::AbstractSpecies) -> Int

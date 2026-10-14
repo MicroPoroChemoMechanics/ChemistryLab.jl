@@ -1936,7 +1936,7 @@ does, which is why it lives in one place.
 function diffuse_layer_potential(
         m::DiffuseLayer, z::AbstractVector, n::AbstractVector, I::Real, T::Real
     )
-    σ = _surface_charge_density(z, n, m.area)
+    σ = _surface_charge_density(z, n, _layer_area(m.area, n))
     κ = sqrt(8 * _permittivity(m, T) * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
     return 2 * asinh(σ / (κ * sqrt(max(I, eps(float(one(I)))))))
 end
@@ -2020,13 +2020,28 @@ function electrostatic_stiffness(
 end
 
 function electrostatic_stiffness(
-        m::DiffuseLayer, z::AbstractVector, n::AbstractVector, I::Real, T::Real
+        m::DiffuseLayer{<:AbstractSiteMixingModel, <:Real, <:Real}, z::AbstractVector, n::AbstractVector, I::Real, T::Real
     )
     σ = _surface_charge_density(z, n, m.area)
     κ = sqrt(8 * _permittivity(m, T) * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
     a = κ * sqrt(max(I, eps(float(one(I)))))
     u = σ / a
     return m.scale * sum(n) * 2 * FARADAY / (m.area * a * sqrt(1 + u^2))
+end
+
+# With an area per site, `σ = (F/s) Σzₖnₖ / Σnₖ` is homogeneous of degree zero in
+# the amounts, and `N ∂σ/∂nₖ = F zₖ/s − σ`: the area that grows with the sites
+# takes back part of the charge each one brings.
+function electrostatic_stiffness(
+        m::DiffuseLayer, z::AbstractVector, n::AbstractVector, I::Real, T::Real
+    )
+    A = _layer_area(m.area, n)           # refuses a specific area left unresolved
+    s = _area_value(m.area)
+    σ = _surface_charge_density(z, n, A)
+    κ = sqrt(8 * _permittivity(m, T) * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
+    a = κ * sqrt(max(I, eps(float(one(I)))))
+    u = σ / a
+    return m.scale * 2 * maximum(zk -> abs(FARADAY * zk / s - σ), z) / (a * sqrt(1 + u^2))
 end
 
 """

@@ -410,6 +410,81 @@ function sites_per_host(family::SiteFamily, M_host::Real)
     return ν
 end
 
+# ── A diffuse layer whose area follows its host ──────────────────────────────
+
+# The site families of a system, a diffuse layer given a specific area of its
+# host resolved into an area per mole of sites of its support: s = a/ν, with ν the
+# moles of sites one mole of host carries over every family on the support. The
+# area is then s Σₖ nₖ over the support's members, which at the solution is
+# a·n_host, and no amount of the host is needed to evaluate it — the host may be a
+# kinetic species, absent from an equilibrium partition.
+function _resolve_layer_areas(fams::AbstractVector, species::AbstractVector)
+    any(f -> _has_specific_area(f.model), fams) || return fams
+    return collect(SiteFamily, (_resolve_layer_area(f, fams, species) for f in fams))
+end
+
+_has_specific_area(::AbstractSiteMixingModel) = false
+_has_specific_area(::DiffuseLayer{<:AbstractSiteMixingModel, <:Real, <:_SpecificLayerArea}) = true
+
+_resolve_layer_area(f::SiteFamily, fams, species) =
+    _has_specific_area(f.model) ? _resolved_layer(f, f.model, fams, species) : f
+
+function _resolved_layer(f::SiteFamily, m::DiffuseLayer, fams, species)
+    sup = surface_support(f)
+    sup.coupling === SITES_FOLLOW_HOST || throw(
+        ArgumentError(
+            "SiteFamily \"$(name(f))\": a DiffuseLayer with a `specific_area` follows the " *
+                "amount of its host, and the support \"$(sup.name)\" has a fixed budget. " *
+                "Give the layer an `area` in m², or declare the support SITES_FOLLOW_HOST.",
+        )
+    )
+    k = findfirst(sp -> symbol(sp) == sup.host, species)
+    k === nothing && throw(
+        ArgumentError(
+            "SiteFamily \"$(name(f))\": the host \"$(sup.host)\" its specific area refers " *
+                "to is not a species of the system.",
+        )
+    )
+    on_support = [g for g in fams if surface_support(g).name == sup.name]
+    # The area is counted over the members, so every member has to be one site.
+    for g in on_support, sp in site_members(g)
+        denticity(g, sp) == 1 || throw(
+            ArgumentError(
+                "SiteFamily \"$(name(g))\": \"$(symbol(sp))\" occupies " *
+                    "$(denticity(g, sp)) sites, and a `specific_area` is counted over the " *
+                    "members of the support, one site each. Give the layer an `area`.",
+            )
+        )
+    end
+    M = _molar_mass_si(species[k])
+    ν = sum(sites_per_host(g, M) for g in on_support)
+    s = (m.area.per_mole ? m.area.a : m.area.a * M) / ν
+    T = promote_type(typeof(s), typeof(m.ε_r))
+    A = _PerSiteLayerArea{T}(s)
+    return _with_model(f, DiffuseLayer{typeof(m.base), T, typeof(A)}(m.base, A, m.ε_r, m.scale, m.water, m.pressure))
+end
+
+# What each member of a slow family holds, in the rows `rows` of the parent's
+# stoichiometric matrix that a kinetic partition keeps: the members' own columns,
+# which no coupling modifies (only the host's column changes). Refused when a
+# member holds a primary outside those rows other than its site, which could not
+# be returned to the partition when the site vanishes.
+function _member_content(system::ChemicalSystem, f::SiteFamily, rows)
+    A, primaries = system.SM.A, system.SM.primaries
+    cols = [findfirst(==(symbol(sp)), symbol.(system.species)) for sp in site_members(f)]
+    for (sp, k) in zip(site_members(f), cols), r in setdiff(axes(A, 1), rows)
+        (iszero(A[r, k]) || !iszero(get(atoms(primaries[r]), f.site, 0))) && continue
+        throw(
+            ArgumentError(
+                "SiteFamily \"$(name(f))\": \"$(symbol(sp))\" holds \"$(symbol(primaries[r]))\", " *
+                    "which is not in the equilibrium partition, so what it holds could not be " *
+                    "returned there when its site vanishes with the host.",
+            )
+        )
+    end
+    return Float64[A[r, k] for r in rows, k in cols]
+end
+
 # ── The coupling: the host's formula includes its sites ──────────────────────
 
 """

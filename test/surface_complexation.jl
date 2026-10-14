@@ -7,6 +7,7 @@ using JSON
 using ForwardDiff
 using LinearAlgebra
 using SciMLBase
+using Symbolics
 using Test
 
 const RT25 = ChemistryLab.R_GAS * 298.15
@@ -1215,4 +1216,152 @@ end
     @test_throws ArgumentError refused([pairs[1], "Hfo_wO- + H+ = Hfo_wOH" => 8.93])
     @test_throws ArgumentError refused(["Hfo_wOH + Cd+2 = Hfo_wOCd+ + H+" => -2.91])
     @test_throws ArgumentError refused(Pair{String, Float64}[])
+end
+
+@testsection "a diffuse layer whose area follows its host" begin
+    # The weak sites of Dzombak and Morel's hydrous ferric oxide on amorphous
+    # ferric hydroxide, their budget following the host, and a diffuse layer
+    # given their specific area per mole of Fe instead of an area in m².
+    psi = build_species(datapath("psinagra-12-07-thermofun.json"); verbose = false)
+    bn = Dict(symbol(s) => s for s in psi)
+    M = ustrip(us"kg/mol", bn["Fe(OH)3(am)"][:M])
+    ν = literature_value("DzombakMorel1990", "weak_sites_per_mol_Fe")
+    a_mol = ustrip(
+        us"m^2/mol",
+        literature_value("DzombakMorel1990", "specific_surface_area") *
+            literature_value("DzombakMorel1990", "molar_mass"),
+    )
+    aq = speciation(
+        psi, ["Fe(OH)3(am)", "Na+", "Cl-"]; aggregate_state = [AS_AQUEOUS],
+        exclude_species = split("H2@ O2@ Fe+2 FeOH+ FeO+ Cl2@ ClO- HClO@ ClO2- ClO3- ClO4- HClO2@"),
+    )
+    surf(sym, g) = (
+        s = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX);
+        s[:ΔₐG⁰] = _g0(g); s
+    )
+    mem = [
+        surf("XwOH", 0.0),
+        surf("XwOH2+", -RT25 * log(10.0^PHREEQC_PROTOLYSIS.logK_protonation)),
+        surf("XwO-", -RT25 * log(10.0^PHREEQC_PROTOLYSIS.logK_deprotonation)),
+    ]
+    function system(model; coupling = SITES_FOLLOW_HOST)
+        family = SiteFamily(
+            "Xw", mem[1], mem[2:3];
+            capacity = MassSiteDensity(ν / M),
+            support = SurfaceSupport("hydrous ferric oxide", "Fe(OH)3(am)", FixedSurfaceArea(1.0); coupling),
+            model,
+        )
+        return ChemicalSystem(
+            AbstractSpecies[vcat(aq, mem)...],
+            AbstractSpecies[bn["H2O@"], bn["H+"], bn["Fe+3"], bn["Na+"], bn["Cl-"], mem[1]];
+            site_families = [family],
+        )
+    end
+    # An acid NaCl solution, the whole of it scaled by λ.
+    function solve(cs; λ = 1.0)
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", λ * moles_of_water() * u"mol")
+        set_quantity!(st, "Fe(OH)3(am)", λ * 1.0e-3u"mol")
+        set_quantity!(st, "Na+", λ * 1.0e-2u"mol")
+        set_quantity!(st, "Cl-", λ * 1.01e-2u"mol")
+        set_quantity!(st, "H+", λ * 1.0e-4u"mol")
+        st = host_consistent_state(st)
+        n0 = [ustrip(us"mol", x) for x in st.n]
+        return equilibrate_certified(st; model = DaviesActivityModel(), b = conservation_matrix(cs) * n0)
+    end
+    # The surface potential ψ̃, the charge per unit area σ (C/m²) and the host
+    # amount of a solution, read from the model the system holds.
+    function surface(eq)
+        cs = eq.system
+        f = only(cs.site_families)
+        idx = Dict(symbol(sp) => k for (k, sp) in enumerate(cs.species))
+        n = [ustrip(us"mol", eq.n[idx[symbol(sp)]]) for sp in site_members(f)]
+        z = Float64[charge(sp) for sp in site_members(f)]
+        A = ChemistryLab._layer_area(f.model.area, n)
+        return (
+            ψ = ChemistryLab.diffuse_layer_potential(f.model, z, n, ionic_strength(eq), 298.15),
+            σ = ChemistryLab.FARADAY * sum(z .* n) / A,
+            host = ustrip(us"mol", eq.n[idx["Fe(OH)3(am)"]]),
+        )
+    end
+
+    specific = DiffuseLayer(; specific_area = a_mol * u"m^2/mol")
+    cs = system(specific)
+    # Resolved, when the system is built, into an area per mole of sites.
+    @test only(cs.site_families).model.area.s ≈ a_mol / ν rtol = 1.0e-14
+    eq1, c1 = solve(cs)
+    @test c1.stationarity < 1.0e-8
+    s1 = surface(eq1)
+    @test s1.σ > 0                                   # an acid solution charges the oxide
+
+    @testset "the charge per unit area does not depend on the amount" begin
+        # Every amount scaled by three: the state is the same intensively, so σ
+        # and ψ are too — which an area held at its value is not.
+        eq3, c3 = solve(cs; λ = 3.0)
+        @test c3.stationarity < 1.0e-8
+        s3 = surface(eq3)
+        @test s3.σ ≈ s1.σ rtol = 1.0e-8
+        @test s3.ψ ≈ s1.ψ rtol = 1.0e-8
+        @test s3.host ≈ 3 * s1.host rtol = 1.0e-8
+        held = surface(first(solve(system(DiffuseLayer(; area = a_mol * s1.host)); λ = 3.0)))
+        @test abs(held.σ / s1.σ - 1) > 0.1
+    end
+
+    @testset "at a given amount, it is the area that amount carries" begin
+        # The fixed area a·n_host, with n_host the solution's own: the same
+        # equations at the same point, hence the same answer.
+        eqf, cf = solve(system(DiffuseLayer(; area = a_mol * s1.host)))
+        @test cf.stationarity < 1.0e-8
+        n1 = [ustrip(us"mol", x) for x in eq1.n]
+        nf = [ustrip(us"mol", x) for x in eqf.n]
+        @test maximum(abs.(n1 .- nf) ./ max.(abs.(nf), 1.0e-12)) < 1.0e-7
+        @test surface(eqf).ψ ≈ s1.ψ rtol = 1.0e-8
+    end
+
+    @testset "differentiable in the specific area, against the fixed area" begin
+        # On the fixed route, ψ and the host amount are functions of the area A;
+        # on this one A = a·n_host(a) at the solution, so
+        # dψ/da = (dψ/dA) n_host / (1 − a dn_host/dA), from two derivatives of a
+        # different code path.
+        dspec = ForwardDiff.derivative(a -> surface(first(solve(system(DiffuseLayer(; specific_area = a * u"m^2/mol"))))).ψ, a_mol)
+        A0 = a_mol * s1.host
+        dfix = ForwardDiff.derivative(A -> collect(values(surface(first(solve(system(DiffuseLayer(; area = A))))))), A0)
+        dψdA, dhdA = dfix[1], dfix[3]
+        @test dspec ≈ dψdA * s1.host / (1 - a_mol * dhdA) rtol = 1.0e-6
+    end
+
+    @testset "what a specific area needs" begin
+        # The area per site of a symbolic surface: s Σn, and σ of degree zero.
+        Symbolics.@variables s n1 n2 n3 λ
+        A = ChemistryLab._layer_area(ChemistryLab._PerSiteLayerArea(s), [n1, n2, n3])
+        @test isequal(Symbolics.simplify(A - s * (n1 + n2 + n3)), 0)
+        σ(n) = ChemistryLab._surface_charge_density([0.0, 1.0, -1.0], n, ChemistryLab._layer_area(ChemistryLab._PerSiteLayerArea(s), n))
+        @test isequal(Symbolics.simplify(Symbolics.simplify_fractions(σ([λ * n1, λ * n2, λ * n3]) - σ([n1, n2, n3]))), 0)
+
+        # A budget that does not follow the host has no amount to follow.
+        @test_throws "SITES_FOLLOW_HOST" system(specific; coupling = SITES_FIXED)
+        # Exactly one of the two areas.
+        @test_throws ArgumentError DiffuseLayer()
+        @test_throws ArgumentError DiffuseLayer(; area = 1.0, specific_area = 1.0)
+        @test_throws "m²/mol or m²/kg" DiffuseLayer(; specific_area = 1.0u"m^2")
+        # A plain number is per kilogram; a quantity says which.
+        @test DiffuseLayer(; specific_area = 600.0).area.per_mole == false
+        @test DiffuseLayer(; specific_area = 600.0u"m^2/g").area.a ≈ 6.0e5
+        # The model handed to the system is not the one it holds, and the first
+        # cannot be evaluated alone.
+        @test_throws "resolved against its host" ChemistryLab.diffuse_layer_potential(
+            specific, [0.0, 1.0, -1.0], [1.0, 1.0, 1.0], 0.01, 298.15,
+        )
+        @test_throws "resolved against its host" ChemistryLab.electrostatic_stiffness(
+            specific, [0.0, 1.0, -1.0], [1.0, 1.0, 1.0], 0.01, 298.15,
+        )
+        # The stiffness of an area per site: N ∂σ/∂n = F z/s − σ.
+        m = only(cs.site_families).model
+        n = [0.6, 0.3, 0.1]
+        z = [0.0, 1.0, -1.0]
+        k = ChemistryLab.electrostatic_stiffness(m, z, n, 0.01, 298.15)
+        ψ(x) = ChemistryLab.diffuse_layer_potential(m, z, x, 0.01, 298.15)
+        g = ForwardDiff.gradient(ψ, n)
+        @test k ≈ sum(n) * maximum(abs, g) rtol = 1.0e-10
+    end
 end

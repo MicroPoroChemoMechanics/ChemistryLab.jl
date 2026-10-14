@@ -244,7 +244,7 @@ function _resolve_site_families(site_families, species, idx_surface)
         )
     )
 
-    return collect(SiteFamily, site_families), groups
+    return _resolve_layer_areas(collect(SiteFamily, site_families), species), groups
 end
 
 """

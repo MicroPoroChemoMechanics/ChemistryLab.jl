@@ -470,6 +470,28 @@ two give the same answer.
     cements](@ref sec-example-chloride-blended) describes the two ways around it
     that exist today.
 
+### A host that a rate law dissolves or grows
+
+The host may be a kinetic species of a [`KineticsProblem`](@ref). Its amount is
+then a variable of the integration, known before every solve of the equilibrium
+partition, so the budget is not solved for: it is
+`N(n_host) = site_moles(family, n_host, n₀, M)`, whatever the capacity, and the
+run moves it in the site row of the partition's budget,
+
+```math
+\frac{d\mathbf{b}_e}{dt} = A_e \nu_e^\mathsf{T} \mathbf{r}
+  + \frac{dN}{dn_\text{host}} \frac{dn_\text{host}}{dt} \, A_e \mathbf{e}_\text{free} .
+```
+
+Over a [`ShrinkingCoreArea`](@ref) the sites follow the area of grains dissolving
+from the outside, ``(n/n_0)^{2/3}``, which a host at equilibrium cannot do. A
+vanishing site leaves the partition as a free site, so the free site must be
+**bare**, carrying no atom and no charge: what a complex held then returns to
+the solution. Write the free site as `Xs` and every state relative to it,
+`Xs + H₂O = XsOH⁻ + H⁺`. The implicit step ([`KineticStepSolver`](@ref)) poses
+the host and its sites in one conservation row, so it takes only a budget linear
+in the host.
+
 ### What to check afterwards
 
 [`site_budget_residual`](@ref) reports, per family, the moles of sites the state

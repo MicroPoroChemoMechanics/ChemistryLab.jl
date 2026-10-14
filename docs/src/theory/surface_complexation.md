@@ -576,6 +576,38 @@ site and a bare site component as primaries give the same host amount to
 `EQUILIBRIUM_PHASES` mineral, the site total is the declared coefficient times
 the phase amount to ``2\times 10^{-10}`` over five partially dissolved states.
 
+### A diffuse layer on a support that grows
+
+A diffuse layer of fixed area ``\mathcal{A}`` on a support that grows would
+spread a growing charge over an unchanged area, so its charge density, and its
+potential, would follow the amount of the phase rather than its state. The
+charge per unit area is a property of the phase: [`DiffuseLayer`](@ref) can be
+given a specific area ``a`` of the host, per mole or per kilogram, instead of an
+area. When the system is built it becomes an area per mole of sites of the
+support, ``s = a/\nu`` with ``\nu`` summed over the families on it, and the area
+is read from the site amounts at every solve,
+
+```math
+\mathcal{A} = s \sum_k n_k ,
+\qquad
+\sigma = \frac{F}{s}\,\frac{\sum_k z_k n_k}{\sum_k n_k} ,
+```
+
+the sums over the members of the support, each occupying one site. At the
+solution ``\sum_k n_k = \nu\, n_{\text{host}}``, so ``\mathcal{A} = a\,
+n_{\text{host}}``, and ``\sigma`` is homogeneous of degree zero in the
+amounts: a function of the occupancy alone. Reading the area from the sites
+rather than from the host keeps it valid when the host is not a species of the
+solve at all — a kinetic host, outside the equilibrium partition, whose budget
+the run carries ([partial-equilibrium kinetics](@ref sec-theory-pe-kinetics)).
+
+The eliminated potential then reacts to the composition through the area as
+well as through the charge, ``N\,\partial\sigma/\partial n_k = F z_k/s -
+\sigma``, which [`ChemistryLab.electrostatic_stiffness`](@ref) reports. On the
+weak sites of hydrous ferric oxide in acid NaCl, multiplying every amount by
+three leaves ``\sigma`` and ``\tilde\psi`` unchanged to ``10^{-8}``, where a
+layer held at its first area would change ``\sigma`` by more than 10 %.
+
 ## 11. Three planes of charge
 
 A capacitor and a diffuse layer describe a surface whose charge sits in one

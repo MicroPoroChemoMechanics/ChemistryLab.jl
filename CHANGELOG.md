@@ -21,15 +21,56 @@
 
 ### Added
 
+- **A diffuse layer whose area follows its host,**
+  `DiffuseLayer(; specific_area = a)`, with `a` in m²/mol or m²/kg of the host
+  of the family's support. A layer of fixed area on a growing C-S-H spread a
+  growing charge over an unchanged area, so its potential followed the amount
+  of the phase instead of its occupancy. The specific area is resolved, when
+  the system is built, into an area per mole of sites of the support,
+  `s = a/ν`, and the area at every solve is `s Σₖ nₖ` over the support's
+  members, `a·n_host` at the solution: the charge per unit area depends on the
+  occupancy alone, whether the host is a species of the equilibrium or a
+  kinetic one outside the partition. It requires a support following its host
+  with a budget proportional to it, and members of one site each; a layer
+  given an `area` is unchanged.
 - **`speciation(...; keep_seeds = false)`** puts the seed species through the
   `aggregate_state`, `class` and `exclude_species` filters like every other
   species; by default they are kept whatever the filters, as before, which is
   what building a system from its phases needs. The docstring and the manual
   now say that the default classes leave out solid-solution end-members and
   surface complexes.
+- **A site budget that follows a kinetic host.** A `SiteFamily` whose support is
+  `SITES_FOLLOW_HOST` may now name a *kinetic* species of a `KineticsProblem` as
+  its host; it was refused. The budget is any function of the host's amount,
+  `site_moles(family, n, n₀, M)`, carried by the run in the site row of `bₑ`:
+  over a `ShrinkingCoreArea`, the sites of grains dissolving from the outside
+  follow n^(2/3), not the amount. The free site must be bare (no atom, no
+  charge), so that a vanishing site returns what it held to the solution and
+  matter and charge are conserved. An initial budget that disagrees with the
+  declared one raises `InconsistentSiteBudget`, and an equilibrium solver is
+  required. The implicit step (`KineticStepSolver`, both couplings) moves the
+  sites with such a host when the budget is linear in it, and refuses a
+  non-linear one, which `integrate` handles. `state_at`, which replays the
+  stoichiometry of the reactions, refuses such a run rather than return its
+  initial sites; `speciated_states` reads it.
+- **A slow surface on a kinetic host.** A family with a member under
+  `sorption_rate` may now follow a host that a rate law controls; it was
+  refused whatever the host. Sites that vanish with the host take every state
+  in proportion to its amount and return what each held to the equilibrium
+  partition; sites the host brings are born free. The members sum to the
+  budget and stay positive, matter and charge are conserved to 1e-12, and the
+  occupancy approaches the family at equilibrium as one over the rate
+  constant. A slow family on a host at equilibrium is still refused, and the
+  implicit step refuses a slow family whose budget follows its host.
 
 ### Fixed
 
+- **A copy of a species could be read for the original in a kinetic run.** The
+  name index of a run registered every species under its formula as well as
+  its symbol, the formula first, so the copy of a species whose symbol is its
+  formula (`CaCO3` and its copy `CaCO3_2`) took the original's name. Symbols
+  now take precedence, and a formula names a species only when no other
+  species shares it.
 - **`activity_coefficients` threw a `MethodError` for `PitzerActivityModel` and
   `SITActivityModel`**, including every model read from `pitzer.dat` or
   `sit.dat` by `database_activity_model`. The function evaluated the
