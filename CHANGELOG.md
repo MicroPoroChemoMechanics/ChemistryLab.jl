@@ -11,7 +11,8 @@
   exception, new and exported, carries the answer and its certificate, and is
   what `STRICT_CONVERGENCE` now raises too, in place of an `ErrorException`.
   The default, `certify = nothing`, still returns the answer with a warning,
-  which now names the conservation row furthest out relative to what it holds.
+  which now names the conservation row furthest out, judged as the
+  certificate judges the balance.
 - **`speciation` returns a `Vector`, not a view.** A `filter!` on the result
   failed or reached into the database list; the result is now a list of its
   own. Code that relied on the result being a `SubArray` of the database sees a

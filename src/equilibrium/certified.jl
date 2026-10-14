@@ -1239,7 +1239,7 @@ function _equilibrate_certified(
         eq, cert = _restarts(s, eq, cert)
         eq, cert = _repairs(s, eq, cert, starts)
     end
-    !cert.optimal && !split_next && _uncertified(eq, cert, model, note, des, bfix)
+    !cert.optimal && !split_next && _uncertified(eq, cert, model, note, des, bfix, constraint)
     _check_solvent(eq)
     eq, cert = _reported(des, eq, cert, true; ϵ, floor = _CERTIFICATE_FLOOR, constraint)
     return (eq, merge(cert, (; route = _route(s, eq), n_dual_solves = length(s.memo), budget_feasible = true)))
@@ -1517,9 +1517,9 @@ end
 # table of amounts that reads as a result. A warning is the right default
 # (the answer is still the best one found, and `optimality_certificate`
 # audits it), but under the strict flag it must raise.
-function _uncertified(eq, cert, model, note, des, b)
+function _uncertified(eq, cert, model, note, des, b, constraint)
     msg = "no route produced a certifiable equilibrium: stationarity " *
-        "$(cert.stationarity), $(_balance_text(cert))$(_worst_row_text(des, eq, b)), worst " *
+        "$(cert.stationarity), $(_balance_text(cert))$(_worst_row_text(des, eq, b, constraint)), worst " *
         "supersaturation $(cert.worst_supersaturation). Automatic initial " *
         "approximation: $note" * _activity_range_hint(eq, model)
     _strict_convergence() && throw(
@@ -1535,18 +1535,33 @@ function _uncertified(eq, cert, model, note, des, b)
     return nothing
 end
 
-# The conservation row the answer misses most, relative to what the row holds
-# (in moles above one mole), named by its primary: where a trace was lost.
-function _worst_row_text(des, eq, b)
+# The conservation row the answer misses most, named by its primary: where a
+# trace was lost. Each row is judged as the certificate judges it
+# (OptimaSolver's `kkt_certificate`): a row with a budget on the larger of its
+# residual in moles and that residual over what the row holds; a row whose
+# budget is below 1e-12 of the largest — one nobody supplies, or zero within
+# rounding like the electron row — in moles alone, its carriers holding next to
+# nothing. Judged against what it held, the electron row of a chloride AFm
+# mixture read 1.8e-29 mol as all of it, and was named.
+function _worst_row_text(des, eq, b, ::FixedTP)
     n = [_plain(ustrip(us"mol", x)) for x in eq.n]
+    bv = _plain.(b)
     A = des.A
-    r = A * n .- _plain.(b)
+    r = A * n .- bv
     held = abs.(A) * n
-    rel = [abs(r[k]) / max(min(held[k], 1.0), floatmin(Float64)) for k in eachindex(r)]
-    k = argmax(rel)
+    bscale = max(1.0, maximum(abs, bv; init = 0.0))
+    judged = [
+        abs(bv[k]) > 1.0e-12 * bscale ?
+            max(abs(r[k]), abs(r[k]) / max(held[k], eps()^2 * abs(bv[k]))) : abs(r[k])
+            for k in eachindex(r)
+    ]
+    k = argmax(judged)
     return "; the row of $(symbol(des.system.SM.primaries[k])) is the furthest out, " *
-        "by $(abs(r[k])) mol, $(rel[k]) of what it holds"
+        "by $(abs(r[k])) mol, $(abs(r[k]) / max(held[k], floatmin(Float64))) of what it holds"
 end
+# Under another constraint the rows also carry the constraint's unknowns,
+# `Aq q`, which the composition alone does not give: no row is named.
+_worst_row_text(des, eq, b, ::EquilibriumConstraint) = ""
 
 """
     UncertifiedEquilibrium <: Exception

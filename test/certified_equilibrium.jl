@@ -363,6 +363,19 @@ include("reference_species.jl")
         @test !e.certificate.optimal && e.state isa ChemicalState
         @test occursin("is the furthest out", e.msg)
         @test occursin("UncertifiedEquilibrium: no route", sprint(showerror, e))
+
+        # The row named is the one the certificate judges furthest out: the
+        # calcium row, 1e-6 mol off a millimole, and not a row with no budget
+        # whose carriers hold 1e-25 mol, which is judged in moles. Judged against
+        # what it held, that row read as wholly out and was named (the electron
+        # row of a chloride AFm mixture, by 1.8e-29 mol).
+        des = (; A = [1.0 0 0; 0 1 0; 0 0 1], system = (; SM = (; primaries = [sp["H2O@"], sp["Ca+2"], sp["H+"]])))
+        n = [55.5, 1.0e-3, 1.0e-25]
+        b_off = [55.5, 1.0e-3 + 1.0e-6, 0.0]
+        text = ChemistryLab._worst_row_text(des, (; n = n .* u"mol"), b_off, FixedTP())
+        @test occursin("the row of Ca+2 is the furthest out", text)
+        # Under a constraint the rows carry its unknowns too, and none is named.
+        @test ChemistryLab._worst_row_text(des, (; n = n .* u"mol"), b_off, FixedpH(7.0)) == ""
     end
 
     @testsection "certify = true: a certified equilibrium, or an error" begin
