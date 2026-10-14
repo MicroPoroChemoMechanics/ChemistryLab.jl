@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## v0.39.0 — surfaces that follow their host, tools for kinetic phases, and the coefficients of Pitzer and SIT
+
+A minor release, on OptimaSolver 0.8.7. A site family may follow a host that a
+rate law dissolves or grows, at equilibrium or slowly, and a diffuse layer the
+area of its host; tools written by hand for each phase until now enter the
+package: size classes of a ground mineral, laws that run one way, seed
+populations, a layer covering a surface. `activity_coefficients` works for the
+Pitzer and SIT models, and an element present as a trace is balanced on its own
+row. The breaking changes come first; the bound `ChemistryLab = "0.38"` of a
+dependent does not accept 0.39 and has to be widened.
 
 ### Breaking changes
 
@@ -106,6 +115,18 @@
 
 ### Fixed
 
+- **An element present as a trace could leave its row unbalanced.** A
+  portlandite suspension with gypsum, its aluminum a 1e-9 mol seed of
+  ettringite, was certified by no route: OptimaSolver dropped the ettringite as
+  vanishing at every round, since it cannot hold the 1e-8 mol that `si_tol`
+  meant. The search from the linear program left the aluminum row 7.9e-9 mol
+  out, four times its budget, and the answer returned, the best of the routes,
+  missed its balance by 1e-2 to 1e-1 of a row with the gypsum wrong — gone where
+  3.05e-5 mol remain, 14 % high at 1.74 mmol — under a single warning for the
+  session. OptimaSolver 0.8.7, now
+  required, judges the amount of a phase that cannot hold 1e-4 mol on the scale
+  of what it can hold, and the suspension certifies, with the gypsum where a
+  seed of 1e-6 mol puts it.
 - **A copy of a species could be read for the original in a kinetic run.** The
   name index of a run registered every species under its formula as well as
   its symbol, the formula first, so the copy of a species whose symbol is its

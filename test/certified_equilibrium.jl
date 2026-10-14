@@ -1995,3 +1995,40 @@ end
     _, c = equilibrate_certified(st; model)
     @test c.scope !== :global_minimum
 end
+
+@testsection "an element present as a trace is balanced on its own row" begin
+    # A portlandite suspension with gypsum, its aluminum only a seed of
+    # ettringite. With a seed of 1e-9 mol no route certified on OptimaSolver
+    # 0.8.6: the ettringite was dropped as vanishing at every round, the search
+    # from the linear program left the aluminum row four times its budget out,
+    # and the answer returned had the gypsum wrong (gone where 3.05e-5 mol
+    # remain, 14 % high at 1.74 mmol), with a single warning for a whole session.
+    # The phase is now judged on what it can hold, and the answer is that of a
+    # seed a thousand times larger, the aluminum aside.
+    subs = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    db = Dict(symbol(s) => s for s in subs)
+    solids = ["Gp", "Portlandite", "ettringite", "monosulphate12", "C4AH13"]
+    aq = speciation(subs, vcat(["C3A"], solids); aggregate_state = [AS_AQUEOUS], keep_seeds = false)
+    cs = ChemicalSystem(vcat(aq, [db[s] for s in solids]), CEMDATA_PRIMARIES)
+    idx(s) = findfirst(==(s), symbol.(cs.species))
+    model = HKFActivityModel()
+    function suspension(seed, gypsum)
+        st = ChemicalState(cs)
+        set_quantity!(st, "H2O@", 0.025u"kg")
+        set_quantity!(st, "Portlandite", 0.5e-3u"mol")
+        set_quantity!(st, "Gp", gypsum * u"mol")
+        for ph in ("monosulphate12", "C4AH13")
+            set_quantity!(st, ph, 1.0e-12u"mol")
+        end
+        set_quantity!(st, "ettringite", seed * u"mol")
+        return equilibrate_certified(st; model)
+    end
+    for gypsum in (0.35e-3, 1.74e-3)
+        trace, c9 = suspension(1.0e-9, gypsum)
+        @test c9.optimal
+        @test c9.balance_relative < 1.0e-9
+        ample, c6 = suspension(1.0e-6, gypsum)
+        @test ustrip(us"mol", trace.n[idx("Gp")]) ≈ ustrip(us"mol", ample.n[idx("Gp")]) rtol = 1.0e-6
+        @test 0 < ustrip(us"mol", trace.n[idx("ettringite")]) <= 1.0e-9
+    end
+end
