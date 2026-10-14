@@ -509,6 +509,12 @@ end
             cs, [_slow_sorption(cs, idx, 0.05)], st, (0.0, 1.0);
             equilibrium_solver = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer()),
         )
+        # A member holding a primary the partition does not keep: what it holds
+        # could not be returned there when its site vanishes.
+        idx_kin = [idx("Portlandite"), idx("Xs"), idx("XsOHCa+")]
+        rows = ChemistryLab._partition_rows(cs, setdiff(eachindex(cs.species), idx_kin))
+        no_ca = filter(r -> ChemistryLab.symbol(cs.SM.primaries[r]) != "Ca+2", rows)
+        @test_throws "not in the equilibrium partition" ChemistryLab._member_content(cs, family, no_ca)
         # The implicit step, whose reactivity constraints cannot hold a member
         # that moves with its host.
         @test_throws "integrate" KineticStepSolver(

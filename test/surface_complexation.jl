@@ -1304,7 +1304,7 @@ end
         @test s3.ψ ≈ s1.ψ rtol = 1.0e-8
         @test s3.host ≈ 3 * s1.host rtol = 1.0e-8
         held = surface(first(solve(system(DiffuseLayer(; area = a_mol * s1.host)); λ = 3.0)))
-        @test abs(held.σ / s1.σ - 1) > 0.1
+        @test held.σ / s1.σ - 1 > 0.5             # measured: 0.90
     end
 
     @testset "at a given amount, it is the area that amount carries" begin

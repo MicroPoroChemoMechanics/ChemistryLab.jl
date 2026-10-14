@@ -606,7 +606,8 @@ well as through the charge, ``N\,\partial\sigma/\partial n_k = F z_k/s -
 \sigma``, which [`ChemistryLab.electrostatic_stiffness`](@ref) reports. On the
 weak sites of hydrous ferric oxide in acid NaCl, multiplying every amount by
 three leaves ``\sigma`` and ``\tilde\psi`` unchanged to ``10^{-8}``, where a
-layer held at its first area would change ``\sigma`` by more than 10 %.
+layer held at its first area raises ``\sigma`` by 90 % and ``\tilde\psi`` from
+6.33 to 7.61.
 
 ## 11. Three planes of charge
 
