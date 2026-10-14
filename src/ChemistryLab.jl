@@ -179,6 +179,8 @@ module ChemistryLab
     include("kinetics/kinetics_reactions.jl")
     include("kinetics/sorption_rates.jl")
     include("kinetics/rate_gates.jl")
+    include("kinetics/seed_populations.jl")
+    include("kinetics/covering_layers.jl")
     include("kinetics/kinetics_problems.jl")
     include("kinetics/kinetics_solver.jl")
     include("kinetics/calorimetry.jl")
@@ -662,6 +664,21 @@ module ChemistryLab
         inverse_diameter_moment,
         dissolution_only,
         growth_only,
+        AbstractSeedGeometry,
+        SphericalSeeds,
+        NeedleSeeds,
+        seed_volume,
+        SeededGrowthArea,
+        AbstractNucleationLaw,
+        ThresholdNucleation,
+        ClassicalNucleation,
+        FixedExtent,
+        SubstrateAmount,
+        SubstrateSurface,
+        nucleation_rate,
+        CoveringLayer,
+        covered,
+        covering_rate,
         KineticReaction,
         molar_mass
 

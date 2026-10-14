@@ -569,6 +569,71 @@ there, a [`FixedSurfaceArea`](@ref) for instance; ``\varepsilon`` is
 [`SHRINK_FLOOR`](@ref). A restricted law keeps the sign of the affinity where it
 runs, so [`dissipation`](@ref) never lists it.
 
+### A phase that grows from its own seeds
+
+A phase that precipitates kinetically is written as two species: a **reservoir
+of seeds**, a copy of the phase ([`with_symbol`](@ref)) that a nucleation rate
+fills, and the phase itself, growing on the surface those seeds offer. The
+number of seeds is the volume of the reservoir over the volume of one seed,
+``N = V_\text{res}/v_0``, and the population holds the volume
+``V = V_m (n_\text{res} + n)``. As ``N`` equal spheres
+([`SphericalSeeds`](@ref)), it grows on
+
+```math
+\mathcal{A} = (36\pi N)^{1/3} V^{2/3} = \frac{3}{r_0}\,V\left(\frac{V_\text{res}}{V}\right)^{1/3} ,
+```
+
+the area of the seeds themselves before anything has grown on them. As needles
+of a fixed aspect ratio ([`NeedleSeeds`](@ref)), the length is
+``l = l_0 (V/V_\text{res})^{1/3}`` and the area a growth law multiplies is the rate
+of change of the volume with the length, ``3V/l``, switched off as ``l`` reaches
+the length at which the needles meet. [`SeededGrowthArea`](@ref) is that area, as
+the surface of a [`transition_state`](@ref) law, usually restricted to growth.
+
+The reservoir fills at the frequency of nucleation ``J``, per unit of the extent
+``E`` nuclei form on — a fixed area, or the amount or the surface of another
+solid for heterogeneous nucleation — times the volume of a seed:
+
+```math
+\frac{dn_\text{res}}{dt} = J(\Omega)\,E\,\frac{v_0}{V_m} ,
+\qquad
+J(\Omega) = J_2 \exp\!\left(\frac{B}{\ln^2 2} - \frac{B}{\ln^2\Omega}\right)
+\quad (\Omega > 1) ,
+```
+
+the classical form written through its value ``J_2`` at ``\Omega = 2``
+([`ClassicalNucleation`](@ref)), every derivative of which vanishes at
+saturation, or a frequency proportional to the excess over a critical ratio
+([`ThresholdNucleation`](@ref)). [`nucleation_rate`](@ref) builds that law. What
+these tools do not do is share the substrate between generations of nuclei or
+let the seeds of one cohort stop nucleating others: those remain choices of a
+model, written in its own rate laws.
+
+### A layer that covers a surface
+
+A thin layer that forms on a mineral while its phase is stable blocks part of
+the mineral's sites, and opens again, from the sites already free, when that
+phase is no longer stable ([`CoveringLayer`](@ref)). Counted in the sites it
+blocks, ``n_\ell`` against ``N = \Gamma\mathcal{A}`` sites of the substrate, it
+leaves the fraction ``\varphi = 1 - n_\ell/N`` free, which [`covered`](@ref)
+multiplies into the rate of the substrate, and it follows
+([`covering_rate`](@ref))
+
+```math
+\frac{dn_\ell}{dt} =
+\begin{cases}
+k\,(bN - n_\ell)^+\,\dfrac{\Omega - 1}{\Omega + 1} & \Omega \ge 1 ,\\[1ex]
+-\dfrac{n_\ell}{\tau}\left(1 - \dfrac{n_\ell}{N}\right)^+ (1 - \Omega) & \Omega < 1 ,
+\end{cases}
+```
+
+with ``b`` the fraction of the sites that can be blocked. At a fixed ``\Omega <
+1`` the blocked fraction recedes as a logistic, ``\dot\theta = -\theta(1 -
+\theta)(1 - \Omega)/\tau``: the layer opens from the edges of what is already
+open, slowly while little is. This is one representation of a passivation, the
+dormant period of tricalcium silicate among them; it is a choice of model, and
+its constants are the model's.
+
 ### Several reactions
 
 For several reactions the second law bounds the sum ``\sum_j \mathcal{A}_j r_j``

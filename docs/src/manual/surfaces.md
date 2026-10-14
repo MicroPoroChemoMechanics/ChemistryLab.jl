@@ -63,8 +63,9 @@ exactly zero at zero, exactly `A₀` at `n₀`, and differentiable throughout.
     None of them describes an area **blocked** by something growing on it. A
     hydrate layer covering a clinker grain reduces the accessible area without
     consuming the grain, so it depends on the whole assemblage rather than on one
-    amount. That is a different object, and [`PoreHumidity`](@ref) is the
-    precedent for writing one.
+    amount. That is a different object: a factor of the rate law,
+    [`CoveringLayer`](@ref) with [`covered`](@ref) for a layer counted in the
+    sites it blocks, and [`PoreHumidity`](@ref) for the water the grain sees.
 
 ## A powder of several sizes
 

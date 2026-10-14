@@ -21,6 +21,21 @@
 
 ### Added
 
+- **A phase that grows from its own seeds.** `nucleation_rate` fills a
+  reservoir of seeds, a copy of the phase, at a frequency `J(Ω)` per unit of an
+  extent — `ClassicalNucleation(J₂, B)`, `J₂ exp(B/ln²2 − B/ln²Ω)`, or
+  `ThresholdNucleation(J, Ω_c)`, on a `FixedExtent`, the amount of another solid
+  (`SubstrateAmount`) or its surface (`SubstrateSurface`) — and
+  `SeededGrowthArea(reservoir, geometry)` is the surface the phase grows on,
+  `N = V_res/v₀` seeds of `SphericalSeeds(r₀)` or of `NeedleSeeds` that
+  lengthen up to the length at which they meet. It was written by hand for
+  each phase.
+- **A layer covering a surface, counted in sites.** `CoveringLayer(layer,
+  substrate, area, Γ)` with `covered(rate, cs, layer)`, the rate of the
+  substrate times the fraction of its sites left free, and
+  `covering_rate(layer, cs, rxn; k_form, τ_open)`, a layer that forms on the
+  blockable sites while its phase is stable and opens from the free sites, as
+  a logistic, once it is not.
 - **Size classes of a ground mineral,** `size_classes(species, psd, K; mass)`,
   from a lognormal distribution by volume (`LogNormalPSD(; d50, d90)`) or a
   measured one (`TabulatedPSD(d, F)`). It returns `K` classes of equal volume,
