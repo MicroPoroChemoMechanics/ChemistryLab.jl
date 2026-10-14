@@ -265,8 +265,14 @@ kr_b = KineticReaction(cs_h, bind, sorption_rate(0.05, cs_h, bind))
 ts_h = collect(range(0.0, 1.5e4; length = 61))
 kp_h = KineticsProblem(cs_h, [kr_d, kr_b], st_h, (0.0, ts_h[end]);
                        equilibrium_solver = EquilibriumSolver(cs_h, DiluteSolutionModel(), OptimaOptimizer()))
+diagnostics_h = IOBuffer() # hide
+states_h = with_logger(ConsoleLogger(diagnostics_h)) do # hide
 states_h = speciated_states(integrate(kp_h, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-10,
                                                          abstol = 1.0e-20, saveat = ts_h)), kp_h)
+end # hide
+log_h = String(take!(diagnostics_h)) # hide
+occursin("re-speciation failed", log_h) && error("a re-speciation failed") # hide
+occursin("could not be certified", log_h) && error("an instant was not certified") # hide
 m(s, x) = ustrip(us"mol", s.n[ih(x)])
 host  = [m(s, "Portlandite") for s in states_h]
 sites = [m(s, "Xs") + m(s, "XsOHCa+") for s in states_h]
