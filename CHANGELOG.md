@@ -4,6 +4,14 @@
 
 ### Breaking changes
 
+- **`equilibrate(state; certify = true)` raises `UncertifiedEquilibrium` when no
+  route certifies.** It returned the answer with the smallest KKT error with a
+  warning, although the manual said "certified, or an error"; the warning was
+  shown once per session, so a second wrong equilibrium passed in silence. The
+  exception, new and exported, carries the answer and its certificate, and is
+  what `STRICT_CONVERGENCE` now raises too, in place of an `ErrorException`.
+  The default, `certify = nothing`, still returns the answer with a warning,
+  which now names the conservation row furthest out relative to what it holds.
 - **`speciation` returns a `Vector`, not a view.** A `filter!` on the result
   failed or reached into the database list; the result is now a list of its
   own. Code that relied on the result being a `SubArray` of the database sees a

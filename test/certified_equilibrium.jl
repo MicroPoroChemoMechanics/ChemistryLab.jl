@@ -348,6 +348,47 @@ include("reference_species.jl")
         # And the flag is left exactly as it was found.
         @test ChemistryLab.STRICT_CONVERGENCE[] == strict
 
+        # Under the flag, the exception carries the answer and its certificate,
+        # and names the row furthest out.
+        e = try
+            ChemistryLab.STRICT_CONVERGENCE[] = true
+            equilibrate_certified(st; b = b_bad, autostart = false)
+            nothing
+        catch err
+            err
+        finally
+            ChemistryLab.STRICT_CONVERGENCE[] = strict
+        end
+        @test e isa UncertifiedEquilibrium
+        @test !e.certificate.optimal && e.state isa ChemicalState
+        @test occursin("is the furthest out", e.msg)
+        @test occursin("UncertifiedEquilibrium: no route", sprint(showerror, e))
+    end
+
+    @testsection "certify = true: a certified equilibrium, or an error" begin
+        # What the manual promised: `certify = true` returns a certified answer or
+        # raises. It used to raise only where the certified route does not apply,
+        # and return an uncertified answer, with a warning, where it applies and
+        # fails. The same infeasible budget, without touching the flag.
+        st = calcite()
+        b_bad = -(A * [ustrip(us"mol", x) for x in st.n])
+        cref = Ref{Any}(nothing)
+        e = try
+            equilibrate(st; certify = true, b = b_bad, autostart = false, certificate = cref)
+            nothing
+        catch err
+            err
+        end
+        @test e isa UncertifiedEquilibrium
+        @test !e.certificate.optimal && cref[] === e.certificate
+        @test !ChemistryLab.STRICT_CONVERGENCE[]
+        # Left at its default, the same call returns the answer.
+        @test equilibrate(st; b = b_bad, autostart = false) isa ChemicalState
+        # And a solvable state is returned certified.
+        cref2 = Ref{Any}(nothing)
+        @test equilibrate(st; certify = true, certificate = cref2) isa ChemicalState
+        @test cref2[].optimal
+
     end
 end
 

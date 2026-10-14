@@ -326,6 +326,7 @@ module ChemistryLab
         optimality_certificate,
         solve_certified,
         equilibrate_certified,
+        UncertifiedEquilibrium,
         equilibrate_path,
         equilibrate_split,
         EquilibriumConstraint,

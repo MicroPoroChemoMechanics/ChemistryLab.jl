@@ -72,6 +72,39 @@ one back end without the search. Its answer is still polished, as described
 next, and `certificate = Ref{Any}()` receives the certificate of what is
 returned, `nothing` when none could be computed.
 
+### Trace elements and the certificate
+
+Each conservation row is judged on its own scale: the balance of row ``k`` is
+met when ``|r_k| \le \texttt{tol}\,\min(s_k, 1\ \text{mol})``, ``s_k`` what the
+row holds, so that an element present as a trace is balanced to the same
+relative accuracy as a major one. The amount of every phase is judged the same
+way, on the scale of what the budget lets it hold (OptimaSolver ≥ 0.8.7):
+a portlandite suspension whose aluminum is a ``10^{-9}`` mol seed of ettringite
+certifies, with the gypsum where a seed of ``10^{-6}`` mol puts it. Before that,
+no route certified it, the aluminum row ended several times out and the gypsum
+14 % off at 1.74 mmol.
+
+When no route certifies, `equilibrate` and [`equilibrate_certified`](@ref)
+return the answer with the smallest KKT error and warn, once per session, naming
+the row furthest out relative to what it holds. That answer is not an
+equilibrium. Ask for one with `certify = true`, which raises
+[`UncertifiedEquilibrium`](@ref) instead, the answer and its certificate in the
+exception:
+
+```julia
+eq = try
+    equilibrate(state; certify = true)
+catch e
+    e isa UncertifiedEquilibrium || rethrow()
+    @show e.certificate.balance_relative    # the worst row, relative to what it holds
+    e.state                                  # the answer with the smallest KKT error
+end
+```
+
+[`optimality_certificate`](@ref) audits any state against its budget:
+`balance` is the worst row in moles, `balance_relative` the worst relative to
+what it holds.
+
 ### One equilibrium, whatever the back end
 
 The back ends do not all solve the same equations. Ipopt minimizes the scalar

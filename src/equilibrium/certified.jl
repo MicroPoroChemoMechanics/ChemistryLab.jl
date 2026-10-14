@@ -1239,7 +1239,7 @@ function _equilibrate_certified(
         eq, cert = _restarts(s, eq, cert)
         eq, cert = _repairs(s, eq, cert, starts)
     end
-    !cert.optimal && !split_next && _uncertified(eq, cert, model, note)
+    !cert.optimal && !split_next && _uncertified(eq, cert, model, note, des, bfix)
     _check_solvent(eq)
     eq, cert = _reported(des, eq, cert, true; ϵ, floor = _CERTIFICATE_FLOOR, constraint)
     return (eq, merge(cert, (; route = _route(s, eq), n_dual_solves = length(s.memo), budget_feasible = true)))
@@ -1517,20 +1517,70 @@ end
 # table of amounts that reads as a result. A warning is the right default
 # (the answer is still the best one found, and `optimality_certificate`
 # audits it), but under the strict flag it must raise.
-function _uncertified(eq, cert, model, note)
+function _uncertified(eq, cert, model, note, des, b)
     msg = "no route produced a certifiable equilibrium: stationarity " *
-        "$(cert.stationarity), $(_balance_text(cert)), worst " *
+        "$(cert.stationarity), $(_balance_text(cert))$(_worst_row_text(des, eq, b)), worst " *
         "supersaturation $(cert.worst_supersaturation). Automatic initial " *
         "approximation: $note" * _activity_range_hint(eq, model)
-    _strict_convergence() && error(
-        msg * ". `ChemistryLab.STRICT_CONVERGENCE[]` is set, so this raises " *
-            "rather than returning an answer that is not an equilibrium. " *
-            "Audit it with `optimality_certificate`; " *
-            "`homotopy_initial_state(state; verbose = true)` reports each rung."
+    _strict_convergence() && throw(
+        UncertifiedEquilibrium(
+            msg * ". `ChemistryLab.STRICT_CONVERGENCE[]` is set, so this raises " *
+                "rather than returning an answer that is not an equilibrium. " *
+                "Audit it with `optimality_certificate`; " *
+                "`homotopy_initial_state(state; verbose = true)` reports each rung.",
+            eq, cert,
+        )
     )
     @warn msg * "; returning the answer with the smallest KKT error — audit it with `optimality_certificate`" maxlog = 1
     return nothing
 end
+
+# The conservation row the answer misses most, relative to what the row holds
+# (in moles above one mole), named by its primary: where a trace was lost.
+function _worst_row_text(des, eq, b)
+    n = [_plain(ustrip(us"mol", x)) for x in eq.n]
+    A = des.A
+    r = A * n .- _plain.(b)
+    held = abs.(A) * n
+    rel = [abs(r[k]) / max(min(held[k], 1.0), floatmin(Float64)) for k in eachindex(r)]
+    k = argmax(rel)
+    return "; the row of $(symbol(des.system.SM.primaries[k])) is the furthest out, " *
+        "by $(abs(r[k])) mol, $(rel[k]) of what it holds"
+end
+
+"""
+    UncertifiedEquilibrium <: Exception
+
+Raised when no route produced a certified equilibrium and the caller asked for
+one: `equilibrate(state; certify = true)`, or any solve under
+[`STRICT_CONVERGENCE`](@ref). The answer with the smallest KKT error and its
+certificate travel with it, to be audited:
+
+```julia
+try
+    equilibrate(state; certify = true)
+catch e
+    e isa UncertifiedEquilibrium || rethrow()
+    e.certificate.balance_relative, e.state
+end
+```
+
+The message names the conservation row the answer misses most, relative to what
+it holds: an element present as a trace is where a wrong answer shows first.
+
+# Fields
+
+  - `msg`: what failed, with the stationarity, the balance and that row;
+  - `state`: the answer with the smallest KKT error, a [`ChemicalState`](@ref);
+  - `certificate`: its certificate ([`optimality_certificate`](@ref)).
+"""
+struct UncertifiedEquilibrium{S, C} <: Exception
+    msg::String
+    state::S
+    certificate::C
+end
+
+Base.showerror(io::IO, e::UncertifiedEquilibrium) = print(io, "UncertifiedEquilibrium: ", e.msg)
 
 # Which start the answer came from, found by identity among the dual solves.
 function _route(s::_CertifiedSearch, eq)
