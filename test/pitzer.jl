@@ -117,6 +117,48 @@ end
     end
 end
 
+# ── γ from the closure ───────────────────────────────────────────────────────
+
+# The single-salt form of the model for a 1-1 electrolyte, written out from
+# [Pitzer & Mayorga 1973] with the set's own β⁰, β¹ and Cᵠ: an implementation
+# of the same model that shares no line with the closure, whose sums run over
+# every pair of a mixture.
+function _pz_lnγ_single_salt(m, par, A_log10)
+    β0, β1, Cφ = par.beta0[("Na+", "Cl-")], par.beta1[("Na+", "Cl-")], par.Cphi[("Na+", "Cl-")]
+    b, α = par.b, par.alpha1
+    Aφ = A_log10 * log(10) / 3
+    x = α * sqrt(m)                       # I = m for a 1-1 salt
+    fγ = -Aφ * (sqrt(m) / (1 + b * sqrt(m)) + 2 / b * log(1 + b * sqrt(m)))
+    Bγ = 2β0 + 2β1 * (1 - (1 + x - x^2 / 2) * exp(-x)) / x^2
+    return fγ + m * Bγ + 3 / 2 * m^2 * Cφ
+end
+
+@testsection "activity_coefficients reads Pitzer's γ from its closure" begin
+    cs = _pz_system()
+    par = _pz_params()
+    model = PitzerActivityModel(; parameters = par)
+    n_w = 1 / _PZ_M_W
+    state(m) = ChemicalState(cs, [n_w, m, m] .* u"mol")
+
+    # It used to throw a MethodError: the model has no formula per ion.
+    for m in (0.1, 1.0, 3.0, 6.0)
+        γ = activity_coefficients(state(m), model)
+        ref = exp(_pz_lnγ_single_salt(m, par, model.A))
+        @test γ["Na+"] ≈ ref rtol = 1.0e-12
+        @test γ["Cl-"] ≈ ref rtol = 1.0e-12
+        # The solvent, as for every model: a_w over its mole fraction.
+        @test γ["H2O@"] ≈ exp(log_activities(state(m), model)["H2O@"]) / (n_w / (n_w + 2m)) rtol = 1.0e-14
+    end
+
+    # Differentiable in the composition, against the same independent form.
+    for m in (0.5, 4.0)
+        d = ForwardDiff.derivative(x -> log(activity_coefficients(state(x), model)["Na+"]), m)
+        @test d ≈ ForwardDiff.derivative(x -> _pz_lnγ_single_salt(x, par, model.A), m) rtol = 1.0e-10
+    end
+    lna = activity_model(cs, model)([n_w, 1.0, 1.0], _pz_p(3))
+    @test (@inferred ChemistryLab._closure_coefficients(lna, [n_w, 1.0, 1.0], 1, _PZ_M_W, [2, 3])) isa Vector{Float64}
+end
+
 @testsection "Pitzer and the B-dot model agree where both must" begin
     cs = _pz_system()
     pz = activity_model(cs, PitzerActivityModel(; parameters = _pz_params()))

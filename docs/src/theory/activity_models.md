@@ -226,6 +226,11 @@ All of them return the same object — a vector of ``\ln a_i`` indexed like
 `cs.species`, covering solutes, solvent, pure crystals (``0``), gases and
 solid-solution end-members — so they are interchangeable at every call site, and
 `concentration_scale` tells the accessors which convention was used.
+[`activity_coefficients`](@ref) evaluates the per-ion formula of the first three
+directly. SIT and Pitzer couple the solutes and have none; their coefficient is
+read back from the closure, which writes ``\ln a_i = \ln\gamma_i + \ln m_i`` with
+``m_i`` built on its own floored amounts, so that
+``\ln\gamma_i = \ln a_i - \ln m_i`` is exact for a trace solute as for a major one.
 
 One limit is common to all of them and is not one of accuracy. A cation cannot
 be added to a solution without an anion, so a measurement gives the mean

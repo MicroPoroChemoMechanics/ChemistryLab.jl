@@ -701,9 +701,9 @@ end
         @test !isapprox(lna["Ca+2"], log(γ * ϵ / kgw); atol = 1.0)
     end
 
-    # Pitzer carried the same two regularizations and has no `activity_coefficients`
-    # accessor, so it is pinned by a ratio instead — which needs no formula and
-    # no coefficient. Doubling an amount that is ABOVE the floor must double the
+    # Pitzer carried the same two regularizations. Its `activity_coefficients`
+    # are read from its closure, so they cannot pin the closure's floor; it is
+    # pinned by a ratio instead — which needs no formula and no coefficient. Doubling an amount that is ABOVE the floor must double the
     # activity. With `ϵ` added a second time it does not: `log(2ϵ + ϵ)` against
     # `log(4ϵ + ϵ)` is a factor 5/3, and the test reads 0.51 where it wants 0.69.
     pitzer = PitzerActivityModel(;

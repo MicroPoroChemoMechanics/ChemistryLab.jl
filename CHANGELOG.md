@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **`activity_coefficients` threw a `MethodError` for `PitzerActivityModel` and
+  `SITActivityModel`**, including every model read from `pitzer.dat` or
+  `sit.dat` by `database_activity_model`. The function evaluated the
+  Debye–Hückel formula per ion, which neither model has: their coefficients
+  couple the solutes. They are now read back from the model's own closure,
+  `ln γᵢ = ln aᵢ − ln mᵢ`, with the molalities built on the closure's floor, so
+  the value is exact for a trace solute too; any model on the molality scale is
+  served the same way. The five models with a per-ion formula keep it, and
+  their values are unchanged.
+
 ## v0.38.2 — OptimaSolver 0.8.6, and the pages written with the package's own functions
 
 A patch release that changes no result, on OptimaSolver 0.8.6. The eliminated

@@ -421,21 +421,41 @@ end
     activity_coefficients(state::ChemicalState, model::AbstractActivityModel)
         -> OrderedDict{String,Float64}
 
-Activity coefficient γᵢ of every aqueous species, from the model's formula.
+Activity coefficient γᵢ of every aqueous species.
 
-Solutes are evaluated as `γᵢ = 10^(log₁₀ γᵢ)` with the model's own expression —
-`−A zᵢ² √I/(1 + B åᵢ √I) + Ḃ I` for the ions of [`HKFActivityModel`](@ref), `Kₙ I`
-for its neutrals, and identically 1 for [`DiluteSolutionModel`](@ref), which is
-ideal *on its own* (molarity) scale. The solvent is reported as `γ_w = a_w / x_w`,
-which for that model differs from 1 at second order in `M_w Σ m`, its water
-activity being `exp(−M_w Σ m)` rather than `x_w`.
+For a model with a formula per ion, solutes are evaluated as `γᵢ = 10^(log₁₀ γᵢ)`
+with the model's own expression — `−A zᵢ² √I/(1 + B åᵢ √I) + Ḃ I` for the ions of
+[`HKFActivityModel`](@ref), `Kₙ I` for its neutrals, and identically 1 for
+[`DiluteSolutionModel`](@ref), which is ideal *on its own* (molarity) scale. The
+same holds for [`DaviesActivityModel`](@ref),
+[`TruesdellJonesActivityModel`](@ref) and [`LLNLActivityModel`](@ref).
 
-**Not** computed as a ratio of activity to concentration. That ratio agrees for
-an abundant solute — and the tests check that it does — but it diverges for a
-species parked at the solver's lower bound, whose log-activity is dominated by
-the closures' `+ ϵ` term: it returns values of order 1e300 for a charge class
-whose only members are trace. The formula depends on the ionic strength and the
-charge alone, so it is exact for a trace species and for a major one alike.
+**Not** computed as a ratio of activity to concentration for those models. That
+ratio agrees for an abundant solute — and the tests check that it does — but it
+diverged for a species parked at the solver's lower bound while their closures
+added an `ϵ` inside the logarithm, returning values of order 1e300 for a charge
+class whose only members are trace. The formula depends on the ionic strength
+and the charge alone, so it is exact for a trace species and for a major one
+alike.
+
+A model whose coefficients couple the solutes, [`PitzerActivityModel`](@ref) and
+[`SITActivityModel`](@ref), has no formula per ion to share. Its coefficient is
+read from its own closure, on the molality scale its
+[`concentration_scale`](@ref) declares,
+
+```math
+\\ln \\gamma_i = \\ln a_i - \\ln m_i , \\qquad
+m_i = \\frac{\\max(n_i, ϵ_a)}{\\max(n_w, ϵ_a) \\, M_w} ,
+```
+
+with the closure's own floor `ϵₐ`, so that `ln mᵢ` cancels the term the closure
+added and γ is exact for a trace species too. Any model on the molality scale
+whose closure writes `ln aᵢ = ln γᵢ + ln mᵢ` that way is served by the same path;
+one on another scale is refused.
+
+The solvent is reported as `γ_w = a_w / x_w`, which for the dilute model differs
+from 1 at second order in `M_w Σ m`, its water activity being `exp(−M_w Σ m)`
+rather than `x_w`.
 
 Throws if the system has no aqueous phase.
 
@@ -456,36 +476,65 @@ function activity_coefficients(
     cs = state.system
     i_w = _require_aqueous(cs, "activity_coefficients")
     n = ustrip.(us"mol", state.n)
-
-    I = ionic_strength(state; ϵ = ϵ)
-    sqrtI = sqrt(I)
-    T_K = ustrip(us"K", temperature(state))
-    P_Pa = ustrip(us"Pa", pressure(state))
-    AB = _debye_huckel_AB(model, T_K, P_Pa)
-    åv = _ion_sizes(cs, model)
-
-    keys_ = String[]
-    vals = Any[]
-    for i in cs.idx_solutes
-        z = Int(charge(cs.species[i]))
-        # The per-species formula the closure uses, dispatched on the model.
-        log10γ = _log10γ_species(model, cs.species[i], z, åv[i], I, sqrtI, AB.A, AB.B)
-        push!(keys_, symbol(cs.species[i]))
-        push!(vals, 10.0^log10γ)
-    end
+    p = _build_params(state; ϵ = ϵ)
+    lna = activity_model(cs, model)(n, p)
+    γ = _solute_coefficients(model, state, n, lna, p)
 
     # The solvent has no formula of that shape: its activity is the model's
     # own solvent row (an osmotic coefficient, or `−M_w Σ m` for the dilute
     # model), so report the coefficient the mole-fraction convention implies.
     n_aq = sum(max(n[i], ϵ) for i in cs.idx_aqueous)
     x_w = max(n[i_w], ϵ) / n_aq
-    a_w = exp(log_activities(state, model; ϵ = ϵ)[symbol(cs.species[i_w])])
-    push!(keys_, symbol(cs.species[i_w]))
-    push!(vals, a_w / x_w)
+    keys_ = [symbol(cs.species[i]) for i in vcat(cs.idx_solutes, i_w)]
 
     # In the number type the coefficients come out in, which is that of the
     # state and of the model: differentiable like the activities they make.
-    return OrderedDict(zip(keys_, _promoted(vals)))
+    return OrderedDict(zip(keys_, _promoted([γ; exp(lna[i_w]) / x_w])))
+end
+
+# The models with a formula per ion, which `activity_coefficients` evaluates
+# directly rather than through the closure (see its docstring).
+const _PerIonActivityModel = Union{
+    HKFActivityModel, DaviesActivityModel, DiluteSolutionModel,
+    TruesdellJonesActivityModel, LLNLActivityModel,
+}
+
+# γ of the solutes from the per-species formula the closure uses, dispatched on
+# the model.
+function _solute_coefficients(model::_PerIonActivityModel, state::ChemicalState, n, lna, p)
+    cs = state.system
+    I = ionic_strength(state; ϵ = p.ϵ)
+    sqrtI = sqrt(I)
+    AB = _debye_huckel_AB(model, ustrip(us"K", temperature(state)), ustrip(us"Pa", pressure(state)))
+    åv = _ion_sizes(cs, model)
+    return [
+        10.0^_log10γ_species(model, cs.species[i], Int(charge(cs.species[i])), åv[i], I, sqrtI, AB.A, AB.B)
+            for i in cs.idx_solutes
+    ]
+end
+
+# γ of the solutes read back from the closure, `ln γᵢ = ln aᵢ − ln mᵢ`, with the
+# molalities built on the closure's own floor. Not symbolic: the floor is a `max`.
+function _solute_coefficients(model::AbstractActivityModel, state::ChemicalState, n, lna, p)
+    scale = concentration_scale(model)
+    scale === :molality || throw(
+        ArgumentError(
+            "activity_coefficients reads the coefficients of $(nameof(typeof(model))) from " *
+                "its closure, as `a/m` on the molality scale, and the model declares " *
+                "`concentration_scale = :$scale`. Give the model a formula per ion, or a " *
+                "closure on the molality scale.",
+        )
+    )
+    cs = state.system
+    i_w = only(cs.idx_solvent)
+    # The molar mass is read from the species' properties, which are not
+    # inferred: the coefficients are formed behind a function barrier.
+    return _closure_coefficients(lna, max.(n, _activity_floor(p)), i_w, ustrip(us"kg/mol", cs.species[i_w][:M]), cs.idx_solutes)
+end
+
+function _closure_coefficients(lna, _n, i_w, M_w, solutes)
+    kg = _n[i_w] * M_w
+    return [exp(lna[i] - log(_n[i] / kg)) for i in solutes]
 end
 
 """

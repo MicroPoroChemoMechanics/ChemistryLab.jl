@@ -620,8 +620,11 @@ Pass your model to `equilibrate` or `EquilibriumSolver`:
 state_eq = equilibrate(state; model=MyModel(...))
 ```
 
-A custom model should also declare its solute concentration scale, so that
-[`activity_coefficients`](@ref) divides by the right thing:
+A custom model should also declare its solute concentration scale.
+[`activity_coefficients`](@ref) reads the coefficients of a model without a
+formula per ion from its closure, as ``\ln\gamma_i = \ln a_i - \ln m_i`` with the
+molalities built on the closure's own floor, and it does so only on the molality
+scale:
 
 ```julia
 ChemistryLab.concentration_scale(::MyModel) = :molality
