@@ -1271,10 +1271,12 @@ end
     end
     # The surface potential ψ̃, the charge per unit area σ (C/m²) and the host
     # amount of a solution, read from the model the system holds.
+    # The system is read into a name of its own: assigned as `cs`, it rebound the
+    # `cs` of this block at every call.
     function surface(eq)
-        cs = eq.system
-        f = only(cs.site_families)
-        idx = Dict(symbol(sp) => k for (k, sp) in enumerate(cs.species))
+        sys = eq.system
+        f = only(sys.site_families)
+        idx = Dict(symbol(sp) => k for (k, sp) in enumerate(sys.species))
         n = [ustrip(us"mol", eq.n[idx[symbol(sp)]]) for sp in site_members(f)]
         z = Float64[charge(sp) for sp in site_members(f)]
         A = ChemistryLab._layer_area(f.model.area, n)
@@ -1357,6 +1359,7 @@ end
         )
         # The stiffness of an area per site: N ∂σ/∂n = F z/s − σ.
         m = only(cs.site_families).model
+        @test m.area isa ChemistryLab._PerSiteLayerArea
         n = [0.6, 0.3, 0.1]
         z = [0.0, 1.0, -1.0]
         k = ChemistryLab.electrostatic_stiffness(m, z, n, 0.01, 298.15)
