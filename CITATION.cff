@@ -21,7 +21,7 @@ keywords:
   - "chemical kinetics"
   - "cement"
 version: 0.39.0
-date-released: '2026-10-14'
+date-released: '2026-10-15'
 doi: "10.5281/zenodo.17756074"
 url: "https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl"
 repository-code: "https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl"
