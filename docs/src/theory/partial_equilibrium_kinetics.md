@@ -452,11 +452,32 @@ which is checked. A distribution of rates, as [Liu2008](@citet) use, can be
 approximated by several slow families with different constants; the package does
 not draw the distribution itself.
 
+**A slow surface on a host that dissolves or grows.** When the budget follows
+a host (`SITES_FOLLOW_HOST`) that a rate law controls, ``N = N(n_\text{host})``
+moves with an amount the run integrates, ``\dot N = (dN/dn_\text{host})\,
+\dot n_\text{host}``. Sites that vanish take every state in proportion to its
+amount, and what each held returns to the partition; sites the host brings are
+born free:
+
+```math
+\frac{dn_k}{dt} = (\nu_k^\mathsf{T}\mathbf{r})_k
+  + \min(\dot N, 0)\,\frac{n_k}{N} + \max(\dot N, 0)\,\delta_{k,\text{free}} ,
+\qquad
+\frac{d\mathbf{b}_e}{dt} = A_e \nu_e^\mathsf{T}\mathbf{r}
+  - \min(\dot N, 0) \sum_k \frac{n_k}{N}\,\mathbf{c}_k ,
+```
+
+with ``\mathbf{c}_k`` what state ``k`` holds beyond its site, in the rows of
+``\mathbf{b}_e``. The free site is bare, so a site born or lost free carries
+nothing. The members then sum to ``N(n_\text{host})`` and stay positive, and
+matter and charge are conserved; as the rate constant grows, the occupancy
+approaches the family at equilibrium on the same host as ``1/k``.
+
 **What is refused, and what is assumed.**
 
-- A family whose budget follows its host (`SITES_FOLLOW_HOST`) is refused as
-  slow: its sites would appear or vanish with an equilibrium phase while their
-  occupancy is integrated.
+- A slow family whose budget follows a host at equilibrium is refused: its
+  sites would appear or vanish with an equilibrium phase while their occupancy
+  is integrated.
 - An electrostatic family sharing its support with a family left at equilibrium
   is refused: both would feel one potential, from a charge the equilibrium solve
   does not hold. On a support of its own, the potential of a slow family is the

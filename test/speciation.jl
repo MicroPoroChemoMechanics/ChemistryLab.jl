@@ -106,4 +106,58 @@
         # Na+ must be in the filtered set (it's a seed)
         @test any(s -> symbol(s) == "Na+", filtered)
     end
+
+    # The three traps of 0.38: a view, the seeds kept whatever the filters, and
+    # duplicates when two results are concatenated.
+    @testsection "speciation returns a vector, and says what it keeps" begin
+        all_sp = [
+            Species("H2O"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT),
+            Species("H+"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE),
+            Species("OH-"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE),
+            Species("Ca+2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE),
+            Species("CaOH+"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE),
+            Species("Ca(OH)2"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),
+            Species("CaCO3"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT),
+        ]
+        before = copy(all_sp)
+
+        # A vector of its own: filtering it leaves the list as it was.
+        sp = speciation(all_sp, ["Ca(OH)2", "H2O"]; aggregate_state = [AS_AQUEOUS])
+        @test sp isa Vector
+        filter!(s -> aggregate_state(s) == AS_AQUEOUS, sp)
+        @test all_sp == before
+
+        # The seeds are kept whatever the filters, a solid one included...
+        sp = speciation(all_sp, ["Ca(OH)2", "H2O"]; aggregate_state = [AS_AQUEOUS])
+        @test "Ca(OH)2" in symbol.(sp)
+        @test "CaCO3" ∉ symbol.(sp)
+        # ...unless asked to go through them like every other species.
+        sp = speciation(all_sp, ["Ca(OH)2", "H2O"]; aggregate_state = [AS_AQUEOUS], keep_seeds = false)
+        @test "Ca(OH)2" ∉ symbol.(sp)
+        @test issubset(["H2O", "H+", "OH-", "Ca+2", "CaOH+"], symbol.(sp))
+
+        # The caller's `include_species` is added to the seeds, not substituted.
+        sp = speciation(all_sp, ["Ca(OH)2"]; aggregate_state = [AS_AQUEOUS], include_species = ["CaCO3"])
+        @test issubset(["Ca(OH)2", "CaCO3"], symbol.(sp))
+
+        # A seed that is not in the list is an error, not a smaller space.
+        @test_throws "Portlandit" speciation(all_sp, ["Portlandit", "H2O"])
+
+        # Two results join without duplicates through `union`; through `vcat`
+        # they carry each shared species twice, which `ChemicalSystem` reports
+        # and drops.
+        a = speciation(all_sp, ["Ca+2", "H2O"]; aggregate_state = [AS_AQUEOUS])
+        b = speciation(all_sp, ["Ca(OH)2", "H2O"]; aggregate_state = [AS_AQUEOUS])
+        u = union(a, b)
+        @test length(u) == length(unique(symbol.(u)))
+        cs_u = ChemicalSystem(u)
+        cs_v = @test_logs (:warn, r"listed more than once") ChemicalSystem(vcat(a, b))
+        @test symbol.(cs_v.species) == symbol.(cs_u.species)
+        @test size(cs_v.SM.A) == size(cs_u.SM.A)
+
+        # Two different species under one symbol are refused.
+        @test_throws "two different species" ChemicalSystem(
+            [all_sp[1], Species("CaCO3"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE), all_sp[7]],
+        )
+    end
 end

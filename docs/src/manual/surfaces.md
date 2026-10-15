@@ -63,8 +63,37 @@ exactly zero at zero, exactly `A₀` at `n₀`, and differentiable throughout.
     None of them describes an area **blocked** by something growing on it. A
     hydrate layer covering a clinker grain reduces the accessible area without
     consuming the grain, so it depends on the whole assemblage rather than on one
-    amount. That is a different object, and [`PoreHumidity`](@ref) is the
-    precedent for writing one.
+    amount. That is a different object: a factor of the rate law,
+    [`CoveringLayer`](@ref) with [`covered`](@ref) for a layer counted in the
+    sites it blocks, and [`PoreHumidity`](@ref) for the water the grain sees.
+
+## A powder of several sizes
+
+The fines of a ground mineral carry most of its surface, so a single shrinking
+core misplaces the surface over the run: the fines are consumed first, and with
+them the surface the coarse grains do not have. [`size_classes`](@ref) cuts the
+size distribution by volume into ``K`` classes of equal volume, each a copy of
+the species with its own amount and shrinking-core area, ready for one rate law.
+The particles of class ``k``, between the volume fractions ``(k-1)/K`` and
+``k/K``, have as spheres the specific surface
+
+```math
+s_k = \frac{6}{\rho}\,K \int_{(k-1)/K}^{k/K} \frac{\mathrm dF}{d} ,
+```
+
+exact for a [`LogNormalPSD`](@ref) (a closed form in the normal distribution
+function) and for a measured [`TabulatedPSD`](@ref), so that the classes add up
+to the surface of the whole powder.
+
+```@example surfaces
+subs = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+classes = size_classes(subs["C3S"], LogNormalPSD(; d50 = 10u"μm", d90 = 30u"μm"), 4; mass = 1u"kg")
+[(symbol(c.species), c.amount, c.diameter * 1e6, specific_area(c.surface.initial)) for c in classes]
+```
+
+The columns are the species of each class, its amount in mol, its Sauter
+diameter in µm and its specific surface in m²/kg. One class is the mineral
+itself with the surface of the whole powder.
 
 ## Two areas of different measurements do not compare
 
@@ -469,6 +498,28 @@ two give the same answer.
     construction of the system refuses it. [Chloride binding in blended
     cements](@ref sec-example-chloride-blended) describes the two ways around it
     that exist today.
+
+### A host that a rate law dissolves or grows
+
+The host may be a kinetic species of a [`KineticsProblem`](@ref). Its amount is
+then a variable of the integration, known before every solve of the equilibrium
+partition, so the budget is not solved for: it is
+`N(n_host) = site_moles(family, n_host, n₀, M)`, whatever the capacity, and the
+run moves it in the site row of the partition's budget,
+
+```math
+\frac{d\mathbf{b}_e}{dt} = A_e \nu_e^\mathsf{T} \mathbf{r}
+  + \frac{dN}{dn_\text{host}} \frac{dn_\text{host}}{dt} \, A_e \mathbf{e}_\text{free} .
+```
+
+Over a [`ShrinkingCoreArea`](@ref) the sites follow the area of grains dissolving
+from the outside, ``(n/n_0)^{2/3}``, which a host at equilibrium cannot do. A
+vanishing site leaves the partition as a free site, so the free site must be
+**bare**, carrying no atom and no charge: what a complex held then returns to
+the solution. Write the free site as `Xs` and every state relative to it,
+`Xs + H₂O = XsOH⁻ + H⁺`. The implicit step ([`KineticStepSolver`](@ref)) poses
+the host and its sites in one conservation row, so it takes only a budget linear
+in the host.
 
 ### What to check afterwards
 

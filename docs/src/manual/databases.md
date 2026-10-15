@@ -165,7 +165,7 @@ species_calcite = speciation(all_species, split("Cal H2O@");
 dict_species_calcite = Dict(symbol(s) => s for s in species_calcite)
 ```
 
-The `aggregate_state` keyword restricts results to aqueous species (the seed species themselves — `Cal` and `H2O@` — are always kept through `include_species` internally). For example, the properties of Ca(HCO₃)⁺ can then be read as:
+The `aggregate_state` keyword restricts results to aqueous species, except for the seed species themselves — `Cal` and `H2O@` — which are always kept, so that a solid seed brings its phase into the system. Pass `keep_seeds = false` to put the seeds through the filters like every other species. The result is a new `Vector`, not a view of the database: it can be filtered or extended freely. For example, the properties of Ca(HCO₃)⁺ can then be read as:
 
 ```@example database
 dict_species_calcite["Ca(HCO3)+"]
@@ -179,16 +179,31 @@ dict_species_calcite["Ca(HCO3)+"]
 |:--------------|:------------|
 | `Vector{Symbol}` | Explicit list of atom symbols |
 | `Vector{<:AbstractSpecies}` | Species objects — their union of atoms defines the space |
-| `Vector{<:AbstractString}` | Species symbol strings — looked up in `species_list` |
+| `Vector{<:AbstractString}` | Species symbol strings — looked up in `species_list`; an absent one is an error |
 
 Common keyword arguments:
 
 | Keyword | Default | Description |
 |:--------|:--------|:------------|
 | `aggregate_state` | all states | restrict to `[AS_AQUEOUS]`, `[AS_CRYSTAL]`, etc. |
-| `class` | all classes | restrict to `[SC_AQSOLUTE]`, etc. |
+| `class` | all but `SC_SSENDMEMBER` and `SC_SURFCOMPLEX` | restrict to `[SC_AQSOLUTE]`, etc.; end-members and surface complexes enter a system through their phase or family |
 | `exclude_species` | `[]` | species (or symbols) to always exclude |
-| `include_species` | `[]` | species to always include regardless of composition |
+| `include_species` | `[]` | species to always include regardless of composition, in addition to the seeds |
+| `keep_seeds` | `true` | whether the seeds are kept whatever the filters |
+
+Two results join without duplicates with Base `union`, since species compare by
+formula, aggregate state, class and symbol:
+
+```@example database
+cs_species = union(
+    speciation(all_species, ["C3S"]; aggregate_state = [AS_AQUEOUS]),
+    speciation(all_species, ["Portlandite"]; aggregate_state = [AS_AQUEOUS]),
+)
+length(cs_species) == length(unique(symbol.(cs_species)))
+```
+
+A list built by `vcat` instead keeps both copies of every shared species, and
+[`ChemicalSystem`](@ref) then drops the second copy of each with a warning.
 
 ## Building solid solution phases from a TOML file
 

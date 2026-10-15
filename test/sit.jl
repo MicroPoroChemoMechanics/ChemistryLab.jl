@@ -213,6 +213,38 @@ end
         @test worst < 5.0e-3
     end
 
+    @testset "activity_coefficients reads SIT's γ" begin
+        # It used to throw a MethodError: SIT has no formula per ion to share.
+        # At PHREEQC's compositions it returns PHREEQC's coefficients, to the
+        # Debye-Hückel slope measured above.
+        worst = 0.0
+        for pt in PHREEQC_SIT.points
+            n = fill(1.0e-12, length(cs.species))
+            n[idx["H2O@"]] = moles_of_water()
+            for (name, sp) in pairs(pt.species)
+                n[idx[String(name)]] = sp.molality
+            end
+            γ = activity_coefficients(ChemicalState(cs, n .* u"mol"), model)
+            for (name, sp) in pairs(pt.species)
+                worst = max(worst, abs(log10(γ[String(name)]) - sp.log_gamma))
+            end
+        end
+        @test worst < 5.0e-3
+
+        # ∂ln γ(Na⁺)/∂m(Cl⁻) = ln10 (ε − ½ dD/dI), D = A√I/(1 + b√I), in NaCl alone.
+        n = fill(1.0e-12, length(cs.species))
+        n[idx["H2O@"]] = moles_of_water()
+        n[idx["Na+"]] = 1.0
+        function lnγ(m_cl)
+            x = oftype.(m_cl, n)
+            x[idx["Cl-"]] = m_cl
+            return log(activity_coefficients(ChemicalState(cs, x .* u"mol"), model)["Na+"])
+        end
+        I = (1.0 + 1.0 + 2.0e-12) / 2
+        dD = model.A / (2 * sqrt(I) * (1 + model.b * sqrt(I))^2)
+        @test ForwardDiff.derivative(lnγ, 1.0) ≈ ln10 * (0.03 - dD / 2) rtol = 1.0e-8
+    end
+
     @testset "which pairs the compilation does not carry" begin
         # An unlisted ε is taken as zero by the SIT literature. That is a
         # convention and never a measurement, so a caller can ask which of its

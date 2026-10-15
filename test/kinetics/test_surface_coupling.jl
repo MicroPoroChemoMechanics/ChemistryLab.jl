@@ -348,7 +348,9 @@ end
         @test ChemistryLab.activity_model(p_default.eq_solver) isa DaviesActivityModel
     end
 
-    @testset "a host whose amount a rate law controls is refused" begin
+    @testset "a kinetic host whose free site carries matter is refused" begin
+        # A kinetic host takes its vanishing sites out of the partition as free
+        # sites; a free site `XwOH` would take its oxygen and hydrogen with it.
         psi = build_species(datapath("psinagra-12-07-thermofun.json"); verbose = false)
         bn = Dict(symbol(s) => s for s in psi)
         M = ustrip(us"kg/mol", bn["Fe(OH)3(am)"][:M])
@@ -397,7 +399,214 @@ end
             err
         end
         @test e isa ArgumentError
-        @test occursin("kinetic species of this problem", e.msg)
+        @test occursin("carries more than the site", e.msg)
+    end
+
+    # A kinetic host dissolving at a constant rate, so that its amount is known
+    # exactly at every instant, carrying sites on a shrinking-core area: the
+    # budget N(n) = Γ 𝒜₀ (n/n₀)^(2/3) is not linear in the host, which is what a
+    # host of the partition could not do. The free site is bare, `Xs`, and the
+    # silanol states are written relative to it, `Xs + H₂O = XsOH⁻ + H⁺` and
+    # `Xs + Ca²⁺ + H₂O = XsOHCa⁺ + H⁺`.
+    function _kinetic_host_system(;
+            Γ = 1.0e-5, ssa = 1.0e5, area = ShrinkingCoreArea(BETSurfaceArea(ssa * u"m^2/kg")),
+        )
+        sf(sym, g) = begin
+            s = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+            s[:ΔₐG⁰] = _gc(g)
+            s
+        end
+        h2o, hp, oh, ca = reference_species(("H2O@", "H+", "OH-", "Ca+2"))
+        solid = reference_species("Portlandite"; db = :cemdata18)
+        G(s) = ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+        free = sf("Xs", 0.0)
+        silanolate = sf("XsOH-", -RT_COUP * log(10.0^-12.0) + G(h2o))
+        calcium = sf("XsOHCa+", -RT_COUP * log(10.0^-9.2) + G(h2o) + G(ca))
+        family = SiteFamily(
+            "Xs", free, [silanolate, calcium];
+            capacity = AreaSiteDensity(Γ * u"mol/m^2"),
+            support = SurfaceSupport("portlandite", "Portlandite", area; coupling = SITES_FOLLOW_HOST),
+        )
+        cs = ChemicalSystem(
+            AbstractSpecies[h2o, hp, oh, ca, solid, free, silanolate, calcium],
+            AbstractSpecies[h2o, hp, ca, free]; site_families = [family],
+        )
+        return cs, family
+    end
+
+    @testset "a budget that follows a kinetic host, on a shrinking core" begin
+        cs, family = _kinetic_host_system()
+        nm = symbol.(cs.species)
+        idx(s) = findfirst(==(s), nm)
+        spc(s) = cs.species[idx(s)]
+        n_host0, k_rate, t_end = 1.0e-3, 2.0e-7, 3600.0     # 72 % dissolved
+
+        state = ChemicalState(cs)
+        set_quantity!(state, "H2O@", moles_of_water() * u"mol")
+        set_quantity!(state, "Portlandite", n_host0 * u"mol")
+        set_quantity!(state, "Ca+2", 1.0e-4u"mol")
+        set_quantity!(state, "OH-", 2.0e-4u"mol")
+        state = host_consistent_state(state)
+        N0 = ustrip(us"mol", state.n[idx("Xs")])
+        M = ustrip(us"kg/mol", spc("Portlandite")[:M])
+        @test N0 ≈ 1.0e-5 * 1.0e5 * M * n_host0 rtol = 1.0e-12
+
+        dissolution = Reaction(
+            OrderedDict(spc("Portlandite") => 1),
+            OrderedDict(spc("Ca+2") => 1, spc("OH-") => 2);
+            symbol = "dissolution", equal_sign = '→',
+        )
+        st = zeros(Float64, length(nm))
+        st[idx("Portlandite")] = -1.0; st[idx("Ca+2")] = 1.0; st[idx("OH-")] = 2.0
+        kr = KineticReaction(dissolution, (T, P, t, n, lna, n0) -> k_rate, idx("Portlandite"), st)
+        es = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer())
+
+        times = [0.0, 1200.0, 2400.0, 3600.0]
+        kp = KineticsProblem(cs, [kr], state, (0.0u"s", t_end * u"s"); equilibrium_solver = es)
+        sol = integrate(
+            kp, KineticsSolver(;
+                ode_solver = Rodas5P(), reltol = 1.0e-10, abstol = 1.0e-16, saveat = times,
+            ),
+        )
+        states = speciated_states(sol, kp)
+        mol(s, x) = ustrip(us"mol", s.n[idx(x)])
+        host = [mol(s, "Portlandite") for s in states]
+        sites = [mol(s, "Xs") + mol(s, "XsOH-") + mol(s, "XsOHCa+") for s in states]
+
+        # The host follows its rate law exactly, and the sites follow the area of
+        # the host — the two-thirds power, not the amount: at the end the area
+        # holds 43 % of the sites where the amount holds 28 % of the solid.
+        @test host ≈ n_host0 .- k_rate .* times rtol = 1.0e-9
+        @test sites ≈ N0 .* (host ./ n_host0) .^ (2 / 3) rtol = 1.0e-6
+        @test sites[end] / N0 > 1.4 * host[end] / n_host0
+
+        # What the vanishing sites held went back to the solution: calcium and
+        # charge are conserved across the solid, the solution and the surface.
+        ca_total(s) = mol(s, "Portlandite") + mol(s, "Ca+2") + mol(s, "XsOHCa+")
+        z = [Float64(charge(sp)) for sp in cs.species]
+        charge_of(s) = sum(z .* Float64[ustrip(us"mol", x) for x in s.n])
+        @test maximum(abs(ca_total(s) - ca_total(state)) for s in states) < 1.0e-12
+        @test maximum(abs(charge_of(s) - charge_of(state)) for s in states) < 1.0e-12
+        @test mol(states[end], "XsOHCa+") > 0
+
+        # A declaration and a starting composition that disagree are refused, as
+        # at equilibrium.
+        bad = ChemicalState(cs, [x * (symbol(sp) == "Xs" ? 2 : 1) for (x, sp) in zip(state.n, cs.species)])
+        @test_throws InconsistentSiteBudget KineticsProblem(
+            cs, [kr], bad, (0.0u"s", t_end * u"s"); equilibrium_solver = es,
+        )
+        # And without a partition to solve them in, the sites go nowhere.
+        @test_throws ArgumentError KineticsProblem(cs, [kr], state, (0.0u"s", t_end * u"s"))
+    end
+
+    # A family whose complex carries a fractional coefficient, the silicate bridging
+    # `Xs + ½SiO₂ = XsSi0.5O`, on the same kinetic host. The equilibrium subsystem
+    # used to rebuild the family with the species type of its free site, which an
+    # integer-coefficient free site cannot hold, and failed on a conversion.
+    @testset "a kinetic-host family with a fractional complex" begin
+        sf(sym, g) = begin
+            s = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
+            s[:ΔₐG⁰] = _gc(g)
+            s
+        end
+        h2o, hp, oh, ca, sio2 = reference_species(("H2O@", "H+", "OH-", "Ca+2", "SiO2@"))
+        solid = reference_species("Portlandite"; db = :cemdata18)
+        G(s) = ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+        free = sf("Xs", 0.0)
+        silanolate = sf("XsOH-", -RT_COUP * log(10.0^-12.0) + G(h2o))
+        bridged = sf("XsSi0.5O", 0.5 * G(sio2) - RT_COUP * log(10.0^2.75))
+        family = SiteFamily(
+            "Xs", free, Species[silanolate, bridged];
+            capacity = AreaSiteDensity(1.0e-5u"mol/m^2"),
+            support = SurfaceSupport(
+                "portlandite", "Portlandite",
+                ShrinkingCoreArea(BETSurfaceArea(1.0e5u"m^2/kg"));
+                coupling = SITES_FOLLOW_HOST,
+            ),
+        )
+        cs = ChemicalSystem(
+            AbstractSpecies[h2o, hp, oh, ca, sio2, solid, free, silanolate, bridged],
+            AbstractSpecies[h2o, hp, ca, sio2, free]; site_families = [family],
+        )
+        nm = symbol.(cs.species)
+        idx(s) = findfirst(==(s), nm)
+        spc(s) = cs.species[idx(s)]
+        state = ChemicalState(cs)
+        set_quantity!(state, "H2O@", moles_of_water() * u"mol")
+        set_quantity!(state, "Portlandite", 1.0e-3u"mol")
+        set_quantity!(state, "Ca+2", 1.0e-4u"mol")
+        set_quantity!(state, "OH-", 2.0e-4u"mol")
+        set_quantity!(state, "SiO2@", 1.0e-6u"mol")
+        state = host_consistent_state(state)
+        dissolution = Reaction(
+            OrderedDict(spc("Portlandite") => 1),
+            OrderedDict(spc("Ca+2") => 1, spc("OH-") => 2);
+            symbol = "dissolution", equal_sign = '→',
+        )
+        st = zeros(Float64, length(nm))
+        st[idx("Portlandite")] = -1.0; st[idx("Ca+2")] = 1.0; st[idx("OH-")] = 2.0
+        kr = KineticReaction(dissolution, (T, P, t, n, lna, n0) -> 2.0e-7, idx("Portlandite"), st)
+        es = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer())
+        kp = KineticsProblem(cs, [kr], state, (0.0u"s", 600.0u"s"); equilibrium_solver = es)
+        sol = integrate(kp, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-8, abstol = 1.0e-14))
+        @test sol.t[end] ≈ 600.0
+        last = speciated_states(sol, kp; times = [600.0])[1]
+        @test ustrip(us"mol", last.n[idx("XsSi0.5O")]) > 0
+    end
+
+
+    # The implicit step solves a kinetic host together with its sites. On a budget
+    # linear in the host, `conservation_matrix` couples the two in one row, and the
+    # `:species` route forms the budget of the free side from that row; both routes
+    # must then move the sites with the host. On a shrinking core the row is not
+    # linear, and the step refuses it, pointing to `integrate`.
+    @testset "an implicit step with a kinetic host" begin
+        n_host0, k_rate, Δt = 1.0e-3, 2.0e-7, 1200.0
+        # The portlandite dissolving at a constant rate, in the system `cs`.
+        function constant_dissolution(cs)
+            spc(s) = cs.species[findfirst(==(s), symbol.(cs.species))]
+            rxn = Reaction(
+                OrderedDict(spc("Portlandite") => 1),
+                OrderedDict(spc("Ca+2") => 1, spc("OH-") => 2);
+                symbol = "dissolution", equal_sign = '→',
+            )
+            st = Float64[get(Dict("Portlandite" => -1.0, "Ca+2" => 1.0, "OH-" => 2.0), symbol(sp), 0.0) for sp in cs.species]
+            return KineticReaction(rxn, (T, P, t, n, lna, n0) -> k_rate, findfirst(==("Portlandite"), symbol.(cs.species)), st)
+        end
+
+        cs, _ = _kinetic_host_system(; area = BETSurfaceArea(1.0e5u"m^2/kg"))
+        nm = symbol.(cs.species)
+        idx(s) = findfirst(==(s), nm)
+        state = ChemicalState(cs)
+        set_quantity!(state, "H2O@", moles_of_water() * u"mol")
+        set_quantity!(state, "Portlandite", n_host0 * u"mol")
+        set_quantity!(state, "Ca+2", 1.0e-4u"mol")
+        set_quantity!(state, "OH-", 2.0e-4u"mol")
+        state = host_consistent_state(state)
+        N0 = ustrip(us"mol", state.n[idx("Xs")])
+        kr = constant_dissolution(cs)
+
+        mol(s, x) = ustrip(us"mol", s.n[idx(x)])
+        sites(s) = mol(s, "Xs") + mol(s, "XsOH-") + mol(s, "XsOHCa+")
+        ca_total(s) = mol(s, "Portlandite") + mol(s, "Ca+2") + mol(s, "XsOHCa+")
+        z = [Float64(charge(sp)) for sp in cs.species]
+        charge_of(s) = sum(z .* Float64[ustrip(us"mol", x) for x in s.n])
+        for coupling in (:reactions, :species)
+            kss = KineticStepSolver(cs, DiluteSolutionModel(), [kr]; coupling)
+            s = state
+            for _ in 1:3
+                s = kinetic_step(kss, s, Δt)
+            end
+            # A constant rate is integrated exactly by the backward Euler step.
+            @test mol(s, "Portlandite") ≈ n_host0 - 3 * k_rate * Δt rtol = 1.0e-9
+            @test sites(s) ≈ N0 * mol(s, "Portlandite") / n_host0 rtol = 1.0e-8
+            @test abs(ca_total(s) - ca_total(state)) < 1.0e-12
+            @test abs(charge_of(s) - charge_of(state)) < 1.0e-12
+        end
+
+        # On a shrinking core, the budget is not a coefficient times the host.
+        csc, _ = _kinetic_host_system()
+        @test_throws "integrate" KineticStepSolver(csc, DiluteSolutionModel(), [constant_dissolution(csc)])
     end
 
 end

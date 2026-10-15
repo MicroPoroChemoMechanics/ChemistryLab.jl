@@ -220,6 +220,78 @@ passes zero, from which instant on the rate runs against the affinity (the
 marked points), and settles at ``\ln 10``, where its own rate vanishes: a state
 the equilibrium solver would not give.
 
+## On a host that dissolves
+
+The sites may belong to a solid that dissolves under its own rate law, their
+budget then following the solid's amount
+([A slow surface](@ref sec-theory-pe-slow-surface)). Sites that vanish take
+every state in proportion to its amount and return what it held to the
+solution. The free site must be bare, `≡Xs`, and the states written relative to
+it. The constants below are illustrative, like the rate constant above: the
+sites of portlandite, at a density of 10⁻⁵ mol/m² on 10⁵ m²/kg, binding calcium
+as ``\equiv\!\mathrm{Xs} + \mathrm{Ca^{2+}} + \mathrm{H_2O} \rightarrow
+\equiv\!\mathrm{XsOHCa^{+}} + \mathrm{H^+}`` with ``\log K = -9.2``, and the
+solid dissolving at ``k_d\,n``.
+
+```@example slow
+G(s) = ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+portlandite = only(filter(s -> symbol(s) == "Portlandite",
+                          build_species(datapath("cemdata18-thermofun.json"); verbose = false)))
+xs, xsca = site("Xs", 0.0), site("XsOHCa+", -RT * log(10.0^-9.2) + G(h2o) + G_Ca)
+on_host = SiteFamily("Xs", xs, [xsca];
+    capacity = AreaSiteDensity(1.0e-5u"mol/m^2"),
+    support = SurfaceSupport("portlandite", "Portlandite", BETSurfaceArea(1.0e5u"m^2/kg");
+                             coupling = SITES_FOLLOW_HOST))
+cs_h = ChemicalSystem([h2o, hp, oh, ca, portlandite, xs, xsca], [h2o, hp, ca, xs];
+                      site_families = [on_host])
+ih(s) = findfirst(==(s), symbol.(cs_h.species))
+st_h = ChemicalState(cs_h)
+set_quantity!(st_h, "H2O@", 1.0u"kg" / h2o[:M])
+set_quantity!(st_h, "Portlandite", 1.0e-3u"mol")
+set_quantity!(st_h, "Ca+2", n_Ca * u"mol")
+set_quantity!(st_h, "OH-", 2n_Ca * u"mol")
+st_h = host_consistent_state(st_h)          # the free sites the host declares
+
+k_d = 2.0e-4                                 # s⁻¹, the solid's own rate constant
+dissolve = Reaction(OrderedDict(portlandite => 1), OrderedDict(ca => 1, oh => 2);
+                    symbol = "portlandite", equal_sign = '→')
+st_d = Float64[get(Dict("Portlandite" => -1.0, "Ca+2" => 1.0, "OH-" => 2.0), symbol(s), 0.0)
+               for s in cs_h.species]
+kr_d = KineticReaction(dissolve, (T, P, t, n, lna, n0) -> k_d * n["Portlandite"], ih("Portlandite"), st_d)
+bind = Reaction(OrderedDict(xs => 1, ca => 1, h2o => 1), OrderedDict(xsca => 1, hp => 1);
+                symbol = "Ca on Xs", equal_sign = '→')
+kr_b = KineticReaction(cs_h, bind, sorption_rate(0.05, cs_h, bind))
+
+ts_h = collect(range(0.0, 1.5e4; length = 61))
+kp_h = KineticsProblem(cs_h, [kr_d, kr_b], st_h, (0.0, ts_h[end]);
+                       equilibrium_solver = EquilibriumSolver(cs_h, DiluteSolutionModel(), OptimaOptimizer()))
+diagnostics_h = IOBuffer() # hide
+states_h = with_logger(ConsoleLogger(diagnostics_h)) do # hide
+states_h = speciated_states(integrate(kp_h, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-10,
+                                                         abstol = 1.0e-20, saveat = ts_h)), kp_h)
+end # hide
+log_h = String(take!(diagnostics_h)) # hide
+occursin("re-speciation failed", log_h) && error("a re-speciation failed") # hide
+occursin("could not be certified", log_h) && error("an instant was not certified") # hide
+m(s, x) = ustrip(us"mol", s.n[ih(x)])
+host  = [m(s, "Portlandite") for s in states_h]
+sites = [m(s, "Xs") + m(s, "XsOHCa+") for s in states_h]
+calcium(s) = m(s, "Portlandite") + m(s, "Ca+2") + m(s, "XsOHCa+")
+@printf("sites / (ν n_host) − 1: %.1e; calcium drift: %.1e mol\n",
+        maximum(abs.(sites ./ (sites[1] .* host ./ host[1]) .- 1)),
+        maximum(abs(calcium(s) - calcium(st_h)) for s in states_h))
+```
+
+The sites follow the solid exactly, and the calcium they held is back in the
+solution when they go:
+
+```@example slow
+plot(ts_h ./ 60, sites ./ sites[1]; label = "sites", lw = 2,
+     xlabel = "time (min)", ylabel = "fraction of the initial amount")
+plot!(ts_h ./ 60, [m(s, "XsOHCa+") for s in states_h] ./ sites[1]; label = "sites holding Ca", lw = 2)
+plot!(ts_h ./ 60, host ./ host[1]; label = "portlandite", ls = :dash, lw = 2)
+```
+
 ## What this page does not show
 
 - **That this surface is slow.** The rate constant is illustrative. A rate

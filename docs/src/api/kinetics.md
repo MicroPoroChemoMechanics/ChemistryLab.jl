@@ -30,6 +30,33 @@ Modules = [ChemistryLab]
 Pages   = ["kinetics/sorption_rates.jl"]
 ```
 
+## Laws that run one way
+
+A law restricted to dissolution or to growth, switched off smoothly at
+saturation. See [What a rate law may be](@ref sec-theory-kinetics-admissible).
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["kinetics/rate_gates.jl"]
+```
+
+## Seeds, nucleation and growth
+
+A phase that precipitates from its own nuclei: a reservoir of seeds fed by a
+nucleation rate, and growth on the surface those seeds offer.
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["kinetics/seed_populations.jl"]
+```
+
+## A layer covering a surface
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["kinetics/covering_layers.jl"]
+```
+
 ## Kinetics problem
 
 ```@autodocs

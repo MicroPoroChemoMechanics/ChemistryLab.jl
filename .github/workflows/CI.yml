@@ -28,8 +28,11 @@ jobs:
     # canceled at the limit, then an hour and a half, which Windows reached
     # within five minutes on 0.33.0; they get two, which still stops a hung run
     # early. Windows gets three as well: the same source of 0.37.0 took 68
-    # minutes on one run and was canceled at 120 on the next.
-    timeout-minutes: ${{ ((matrix.version == '1.12' && matrix.os == 'ubuntu-latest') || matrix.os == 'windows-latest') && 180 || 120 }}
+    # minutes on one run and was canceled at 120 on the next. The coverage job
+    # of 0.39.0, with its kinetic surfaces, seeds and size classes, was canceled
+    # at three hours: it and Windows get five and a half, under the six hours a
+    # hosted runner allows, and the others four.
+    timeout-minutes: ${{ ((matrix.version == '1.12' && matrix.os == 'ubuntu-latest') || matrix.os == 'windows-latest') && 330 || 240 }}
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
       actions: write
       contents: read

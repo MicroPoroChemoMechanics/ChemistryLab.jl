@@ -13,6 +13,13 @@ Modules = [ChemistryLab]
 Pages   = ["surfaces/surface_areas.jl"]
 ```
 
+## Size classes of a powder
+
+```@autodocs
+Modules = [ChemistryLab]
+Pages   = ["surfaces/size_classes.jl"]
+```
+
 ## Site families
 
 A site is a conserved quantity that is not a chemical element, and it is carried

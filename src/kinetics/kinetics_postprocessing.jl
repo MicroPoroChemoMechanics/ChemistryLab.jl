@@ -69,12 +69,15 @@ not that the post-processing is inaccurate.
 function extent_residual(sol, kp::KineticsProblem, ξ::AbstractMatrix; times = sol.t)
     p = sol.prob.p
     nk0 = p.n_initial_full[kp.idx_kinetic]
+    # The members of a slow family whose budget follows a kinetic host move with
+    # the host as well as with their reactions, so the extents do not hold them.
+    replayed = setdiff(eachindex(nk0), (q for sh in p.site_hosts if sh isa _SlowSiteHost for q in sh.pos))
     worst = 0.0
     for (i, t) in enumerate(times)
         u = sol(t)
         nk = u[(p.n_be + 1):(p.n_be + p.n_nk)]
         pred = nk0 .+ kp.νk' * ξ[i, :]
-        worst = max(worst, maximum(abs, nk .- pred))
+        worst = max(worst, maximum(abs, (nk .- pred)[replayed]; init = 0.0))
     end
     return worst
 end
@@ -116,13 +119,21 @@ See also: [`reaction_extents`](@ref), [`degrees_of_hydration`](@ref),
 [`volume_fractions`](@ref).
 """
 function state_at(sol, kp::KineticsProblem, t::Real; ξ = nothing)
+    p = sol.prob.p
+    isempty(p.site_hosts) || throw(
+        ArgumentError(
+            "state_at replays the stoichiometry of the reactions, and the site budget of " *
+                "\"$(name(first(p.site_hosts).family))\" follows a kinetic host, which no " *
+                "reaction carries: the replay would keep its initial sites. Read the " *
+                "states with `speciated_states(sol, kp; times)`.",
+        )
+    )
     ξ_t = if ξ === nothing
         vec(reaction_extents(sol, kp; times = [float(t)]))
     else
         vec(ξ[end, :])
     end
 
-    p = sol.prob.p
     n_new = p.n_initial_full .+ kp.ν' * ξ_t
     @. n_new = max(n_new, 0.0)
 

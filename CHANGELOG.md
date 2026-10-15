@@ -1,5 +1,148 @@
 # Changelog
 
+## v0.39.0 — surfaces that follow their host, tools for kinetic phases, and the coefficients of Pitzer and SIT
+
+A minor release, on OptimaSolver 0.8.7. A site family may follow a host that a
+rate law dissolves or grows, at equilibrium or slowly, and a diffuse layer the
+area of its host; tools written by hand for each phase until now enter the
+package: size classes of a ground mineral, laws that run one way, seed
+populations, a layer covering a surface. `activity_coefficients` works for the
+Pitzer and SIT models, and an element present as a trace is balanced on its own
+row. The breaking changes come first; the bound `ChemistryLab = "0.38"` of a
+dependent does not accept 0.39 and has to be widened.
+
+### Breaking changes
+
+- **`equilibrate(state; certify = true)` raises `UncertifiedEquilibrium` when no
+  route certifies.** It returned the answer with the smallest KKT error with a
+  warning, although the manual said "certified, or an error"; the warning was
+  shown once per session, so a second wrong equilibrium passed in silence. The
+  exception, new and exported, carries the answer and its certificate, and is
+  what `STRICT_CONVERGENCE` now raises too, in place of an `ErrorException`.
+  The default, `certify = nothing`, still returns the answer with a warning,
+  which now names the conservation row furthest out, judged as the
+  certificate judges the balance.
+- **`speciation` returns a `Vector`, not a view.** A `filter!` on the result
+  failed or reached into the database list; the result is now a list of its
+  own. Code that relied on the result being a `SubArray` of the database sees a
+  different type.
+- **The caller's `include_species` is added to the seeds of `speciation`.** It
+  replaced them, Julia keeping the rightmost keyword, so passing it dropped the
+  seed species from the result.
+- **A seed symbol absent from the list is an `ArgumentError`.** It was ignored,
+  which left its elements out of the chemical space without a word.
+- **`ChemicalSystem` keeps each species once.** A species listed twice — what a
+  `vcat` of two `speciation` results carries — gave the system two columns and
+  two copies under one name, `cs["X"]` returning the last and a solid solution
+  the first. The later copies are now dropped, with a warning naming them; two
+  *different* species under one symbol are refused.
+
+### Added
+
+- **A phase that grows from its own seeds.** `nucleation_rate` fills a
+  reservoir of seeds, a copy of the phase, at a frequency `J(Ω)` per unit of an
+  extent — `ClassicalNucleation(J₂, B)`, `J₂ exp(B/ln²2 − B/ln²Ω)`, or
+  `ThresholdNucleation(J, Ω_c)`, on a `FixedExtent`, the amount of another solid
+  (`SubstrateAmount`) or its surface (`SubstrateSurface`) — and
+  `SeededGrowthArea(reservoir, geometry)` is the surface the phase grows on,
+  `N = V_res/v₀` seeds of `SphericalSeeds(r₀)` or of `NeedleSeeds` that
+  lengthen up to the length at which they meet. It was written by hand for
+  each phase.
+- **A layer covering a surface, counted in sites.** `CoveringLayer(layer,
+  substrate, area, Γ)` with `covered(rate, cs, layer)`, the rate of the
+  substrate times the fraction of its sites left free, and
+  `covering_rate(layer, cs, rxn; k_form, τ_open)`, a layer that forms on the
+  blockable sites while its phase is stable and opens from the free sites, as
+  a logistic, once it is not.
+- **Size classes of a ground mineral,** `size_classes(species, psd, K; mass)`,
+  from a lognormal distribution by volume (`LogNormalPSD(; d50, d90)`) or a
+  measured one (`TabulatedPSD(d, F)`). It returns `K` classes of equal volume,
+  each a copy of the species with its amount and a shrinking-core area of its
+  own specific surface, exact for both distributions
+  (`inverse_diameter_moment`), so that the classes add up to the amount and to
+  the surface of the whole powder; one class is the mineral itself. It was
+  written by hand for each mineral. SpecialFunctions, already loaded through
+  ForwardDiff, becomes a direct dependency for `erf` and `erfinv`.
+- **`dissolution_only(rate, cs, rxn)` and `growth_only(rate, cs, rxn)`**
+  restrict any rate law to one direction: zero on the other side of
+  saturation, and, for a dissolving phase, at zero amount. The factor,
+  `x²/(x² + w²)` of the driving force `∓ln Ω` above zero and nothing below, is
+  continuous with its slope at `Ω = 1` whatever the law, so neither the rate
+  nor the Jacobian of a stiff integrator jumps there; away from saturation the
+  law is unchanged to within `(w/ln Ω)²`. Gypsum in a supersaturated solution
+  keeps its amount under `dissolution_only`, where its own law grows it back.
+- **A diffuse layer whose area follows its host,**
+  `DiffuseLayer(; specific_area = a)`, with `a` in m²/mol or m²/kg of the host
+  of the family's support. A layer of fixed area on a growing C-S-H spread a
+  growing charge over an unchanged area, so its potential followed the amount
+  of the phase instead of its occupancy. The specific area is resolved, when
+  the system is built, into an area per mole of sites of the support,
+  `s = a/ν`, and the area at every solve is `s Σₖ nₖ` over the support's
+  members, `a·n_host` at the solution: the charge per unit area depends on the
+  occupancy alone, whether the host is a species of the equilibrium or a
+  kinetic one outside the partition. It requires a support following its host
+  with a budget proportional to it, and members of one site each; a layer
+  given an `area` is unchanged.
+- **`speciation(...; keep_seeds = false)`** puts the seed species through the
+  `aggregate_state`, `class` and `exclude_species` filters like every other
+  species; by default they are kept whatever the filters, as before, which is
+  what building a system from its phases needs. The docstring and the manual
+  now say that the default classes leave out solid-solution end-members and
+  surface complexes.
+- **A site budget that follows a kinetic host.** A `SiteFamily` whose support is
+  `SITES_FOLLOW_HOST` may now name a *kinetic* species of a `KineticsProblem` as
+  its host; it was refused. The budget is any function of the host's amount,
+  `site_moles(family, n, n₀, M)`, carried by the run in the site row of `bₑ`:
+  over a `ShrinkingCoreArea`, the sites of grains dissolving from the outside
+  follow n^(2/3), not the amount. The free site must be bare (no atom, no
+  charge), so that a vanishing site returns what it held to the solution and
+  matter and charge are conserved. An initial budget that disagrees with the
+  declared one raises `InconsistentSiteBudget`, and an equilibrium solver is
+  required. The implicit step (`KineticStepSolver`, both couplings) moves the
+  sites with such a host when the budget is linear in it, and refuses a
+  non-linear one, which `integrate` handles. `state_at`, which replays the
+  stoichiometry of the reactions, refuses such a run rather than return its
+  initial sites; `speciated_states` reads it.
+- **A slow surface on a kinetic host.** A family with a member under
+  `sorption_rate` may now follow a host that a rate law controls; it was
+  refused whatever the host. Sites that vanish with the host take every state
+  in proportion to its amount and return what each held to the equilibrium
+  partition; sites the host brings are born free. The members sum to the
+  budget and stay positive, matter and charge are conserved to 1e-12, and the
+  occupancy approaches the family at equilibrium as one over the rate
+  constant. A slow family on a host at equilibrium is still refused, and the
+  implicit step refuses a slow family whose budget follows its host.
+
+### Fixed
+
+- **An element present as a trace could leave its row unbalanced.** A
+  portlandite suspension with gypsum, its aluminum a 1e-9 mol seed of
+  ettringite, was certified by no route: OptimaSolver dropped the ettringite as
+  vanishing at every round, since it cannot hold the 1e-8 mol that `si_tol`
+  meant. The search from the linear program left the aluminum row 7.9e-9 mol
+  out, four times its budget, and the answer returned, the best of the routes,
+  missed its balance by 1e-2 to 1e-1 of a row with the gypsum wrong — gone where
+  3.05e-5 mol remain, 14 % high at 1.74 mmol — under a single warning for the
+  session. OptimaSolver 0.8.7, now required, judges a phase that cannot reach
+  its thresholds on the scale of what it can hold, once the search has sent it
+  away and taken it back, and the suspension certifies, with the gypsum where a
+  seed of 1e-6 mol puts it.
+- **A copy of a species could be read for the original in a kinetic run.** The
+  name index of a run registered every species under its formula as well as
+  its symbol, the formula first, so the copy of a species whose symbol is its
+  formula (`CaCO3` and its copy `CaCO3_2`) took the original's name. Symbols
+  now take precedence, and a formula names a species only when no other
+  species shares it.
+- **`activity_coefficients` threw a `MethodError` for `PitzerActivityModel` and
+  `SITActivityModel`**, including every model read from `pitzer.dat` or
+  `sit.dat` by `database_activity_model`. The function evaluated the
+  Debye–Hückel formula per ion, which neither model has: their coefficients
+  couple the solutes. They are now read back from the model's own closure,
+  `ln γᵢ = ln aᵢ − ln mᵢ`, with the molalities built on the closure's floor, so
+  the value is exact for a trace solute too; any model on the molality scale is
+  served the same way. The five models with a per-ion formula keep it, and
+  their values are unchanged.
+
 ## v0.38.2 — OptimaSolver 0.8.6, and the pages written with the package's own functions
 
 A patch release that changes no result, on OptimaSolver 0.8.6. The eliminated

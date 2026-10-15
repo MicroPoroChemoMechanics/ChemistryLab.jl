@@ -65,14 +65,18 @@ HW_ALL = collect(zip(ustrip.(us"mol/kg", hw.m), hw.phi, hw.gamma))
 # Ten of its 29 rows, a decade at a time and then every molal, keep the table short.
 HW = filter(r -> r[1] in (0.001, 0.01, 0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0), HW_ALL)
 
+bdot = HKFActivityModel()
+# γ± of NaCl at m mol/kg, the geometric mean of the coefficients of its two ions
+γ_of(mdl, m) = let γ = activity_coefficients(ChemicalState(nacl, [n_w, m, m] .* u"mol"), mdl)
+    sqrt(γ["Na+"] * γ["Cl-"])
+end
+# φ from the solvent row of the closure, ln a_w = −M_w Σm φ
 lna_pz = activity_model(nacl, model)
-lna_bd = activity_model(nacl, HKFActivityModel())
-γ_of(f, m) = let o = f([n_w, m, m], prm(3)); exp((o[2] + o[3]) / 2 - log(m)) end
 φ_of(f, m) = let o = f([n_w, m, m], prm(3)); -o[1] / (M_w * 2m) end
 
 println("      m   γ± measured   Pitzer      dev     B-dot       dev    φ meas   φ Pitzer")
 for (m, φm, γm) in HW
-    g1, g2, f1 = γ_of(lna_pz, m), γ_of(lna_bd, m), φ_of(lna_pz, m)
+    g1, g2, f1 = γ_of(model, m), γ_of(bdot, m), φ_of(lna_pz, m)
     @printf("%7.3f  %11.4f  %8.4f  %6.2f%%  %8.4f  %6.1f%%  %8.4f  %9.4f\n",
             m, γm, g1, 100 * (g1 - γm) / γm, g2, 100 * (g2 - γm) / γm, φm, f1)
 end
@@ -94,11 +98,11 @@ output announces the exit.
 using Plots
 
 ms = exp10.(range(-3, log10(6.0); length = 120))
-p1 = plot(ms, [γ_of(lna_pz, m) for m in ms];
+p1 = plot(ms, [γ_of(model, m) for m in ms];
     xscale = :log10, xlabel = "molality m (mol/kg)", ylabel = "γ±",
     label = "Pitzer (Reardon set)", linewidth = 2, color = :steelblue,
     title = "NaCl mean activity coefficient at 25 °C", legend = :bottomleft)
-plot!(p1, ms, [γ_of(lna_bd, m) for m in ms];
+plot!(p1, ms, [γ_of(bdot, m) for m in ms];
     label = "B-dot", linewidth = 2, color = :firebrick)
 A25 = hkf_debye_huckel_params(298.15, 1.0e5).A
 plot!(p1, ms, [exp(-A25 * sqrt(m) * log(10)) for m in ms];
@@ -113,14 +117,14 @@ they must be, the limiting law is exact there — and separate irreversibly abov
 a hundredth molal. The measured points sit on the Pitzer curve throughout.
 
 ```@example pz
-p2 = plot(ms, [100 * (γ_of(lna_pz, m) - 1) * 0 for m in ms];
+p2 = plot(ms, [100 * (γ_of(model, m) - 1) * 0 for m in ms];
     label = "", color = :black, linewidth = 1, linestyle = :dash,
     xscale = :log10, xlabel = "molality m (mol/kg)",
     ylabel = "deviation from measurement (%)",
     title = "Where each model leaves the data", legend = :bottomleft)
-scatter!(p2, [h[1] for h in HW], [100 * (γ_of(lna_pz, h[1]) - h[3]) / h[3] for h in HW];
+scatter!(p2, [h[1] for h in HW], [100 * (γ_of(model, h[1]) - h[3]) / h[3] for h in HW];
     label = "Pitzer", color = :steelblue, markersize = 5)
-scatter!(p2, [h[1] for h in HW], [100 * (γ_of(lna_bd, h[1]) - h[3]) / h[3] for h in HW];
+scatter!(p2, [h[1] for h in HW], [100 * (γ_of(bdot, h[1]) - h[3]) / h[3] for h in HW];
     label = "B-dot", color = :firebrick, markersize = 5, markershape = :diamond)
 hline!(p2, [-1, 1]; label = "± 1 %", color = :seagreen, linestyle = :dot)
 plot(p2; size = (720, 430), left_margin = 10Plots.mm, bottom_margin = 8Plots.mm)
@@ -139,8 +143,7 @@ survive either.
 ```@example pz
 println("       m        ln γ± (Pitzer)    limiting law     ratio")
 for m in (1.0e-6, 1.0e-5, 1.0e-4, 1.0e-3)
-    out = lna_pz([n_w, m, m], prm(3))
-    lnγ = ((out[2] - log(m)) + (out[3] - log(m))) / 2
+    lnγ = log(γ_of(model, m))
     law = -A25 * sqrt(m) * log(10)
     @printf("  %8.1e    %14.6f  %14.6f  %8.4f\n", m, lnγ, law, lnγ / law)
 end
@@ -235,21 +238,15 @@ pore = ChemicalSystem(
     [dict[s] for s in split("H2O@ Na+ K+ Ca+2 OH- SO4-2")],
     ["H2O@", "Na+", "K+", "Ca+2", "OH-", "SO4-2"],
 )
-lna_pz = activity_model(pore, PitzerActivityModel(; parameters = pars))
-lna_bd = activity_model(pore, HKFActivityModel())
 
 # a mixture in the proportions an alkali-rich pore solution reaches
-n = [n_w, 0.30, 0.15, 0.02, 0.40, 0.045]
-a_pz, a_bd = lna_pz(n, prm(6)), lna_bd(n, prm(6))
-names = ["H2O@", "Na+", "K+", "Ca+2", "OH-", "SO4-2"]
+st = ChemicalState(pore, [n_w, 0.30, 0.15, 0.02, 0.40, 0.045] .* u"mol")
+γ_pz, γ_bd = activity_coefficients(st, model), activity_coefficients(st, bdot)
 println("            γ (Pitzer)   γ (B-dot)    ratio")
-for (i, nm) in enumerate(names)
-    i == 1 && continue
-    m = n[i] / (n[1] * M_w)
-    g_pz, g_bd = exp(a_pz[i] - log(m)), exp(a_bd[i] - log(m))
-    @printf("  %-6s  %10.4f  %10.4f  %8.3f\n", nm, g_pz, g_bd, g_pz / g_bd)
+for nm in ("Na+", "K+", "Ca+2", "OH-", "SO4-2")
+    @printf("  %-6s  %10.4f  %10.4f  %8.3f\n", nm, γ_pz[nm], γ_bd[nm], γ_pz[nm] / γ_bd[nm])
 end
-@printf("\n  a_w:    %10.5f  %10.5f\n", exp(a_pz[1]), exp(a_bd[1]))
+@printf("\n  a_w:    %10.5f  %10.5f\n", water_activity(st, model), water_activity(st, bdot))
 ```
 
 The two models disagree by tens of percent on the ions, and the disagreement is

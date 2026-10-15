@@ -355,3 +355,170 @@ end
         end
     end
 end
+
+# A slow surface on a host that dissolves under its own rate law: the sites of
+# portlandite, `AreaSiteDensity` over a specific area, their budget following the
+# kinetic host, and calcium binding to them slowly,
+#
+#     ≡Xs + Ca+2 + H₂O → ≡XsOHCa+ + H+,     log K = −9.2,
+#
+# the free site bare, as a budget following a kinetic host requires.
+function _slow_host_system(; n_host0 = 1.0e-3, Γ = 1.0e-5, ssa = 1.0e5, area = BETSurfaceArea(ssa * u"m^2/kg"))
+    g(v) = SymbolicFunc(v * u"J/mol")
+    sf(sym, v) = (s = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX); s[:ΔₐG⁰] = g(v); s)
+    h2o, hp, oh, ca = reference_species(("H2O@", "H+", "OH-", "Ca+2"))
+    pt = reference_species("Portlandite"; db = :cemdata18)
+    G(s) = ustrip(us"J/mol", s[:ΔₐG⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+    free, bound = sf("Xs", 0.0), sf("XsOHCa+", -_SORB_RT * log(10.0^-9.2) + G(h2o) + G(ca))
+    family = SiteFamily(
+        "Xs", free, [bound];
+        capacity = AreaSiteDensity(Γ * u"mol/m^2"),
+        support = SurfaceSupport("portlandite", "Portlandite", area; coupling = SITES_FOLLOW_HOST),
+    )
+    cs = ChemicalSystem(
+        AbstractSpecies[h2o, hp, oh, ca, pt, free, bound], AbstractSpecies[h2o, hp, ca, free];
+        site_families = [family],
+    )
+    idx(s) = findfirst(==(s), symbol.(cs.species))
+    st = ChemicalState(cs)
+    set_quantity!(st, "H2O@", moles_of_water() * u"mol")
+    set_quantity!(st, "Portlandite", n_host0 * u"mol")
+    set_quantity!(st, "Ca+2", 1.0e-4u"mol")
+    set_quantity!(st, "OH-", 2.0e-4u"mol")
+    return cs, host_consistent_state(st), idx, family
+end
+
+# The host dissolving at `k_d n_host`: its amount is n₀ e^{−k_d t}, exactly.
+function _host_dissolution(cs, idx; k_d)
+    sp(s) = cs.species[idx(s)]
+    rxn = Reaction(
+        OrderedDict(sp("Portlandite") => 1), OrderedDict(sp("Ca+2") => 1, sp("OH-") => 2);
+        symbol = "portlandite", equal_sign = '→',
+    )
+    st = Float64[get(Dict("Portlandite" => -1.0, "Ca+2" => 1.0, "OH-" => 2.0), symbol(s), 0.0) for s in cs.species]
+    return KineticReaction(rxn, (T, P, t, n, lna, n0) -> k_d * n["Portlandite"], idx("Portlandite"), st)
+end
+
+function _slow_sorption(cs, idx, k)
+    sp(s) = cs.species[idx(s)]
+    rxn = Reaction(
+        OrderedDict(sp("Xs") => 1, sp("Ca+2") => 1, sp("H2O@") => 1),
+        OrderedDict(sp("XsOHCa+") => 1, sp("H+") => 1);
+        symbol = "Ca on Xs", equal_sign = '→',
+    )
+    return KineticReaction(cs, rxn, sorption_rate(k, cs, rxn))
+end
+
+function _slow_host_run(cs, st, krs, ts)
+    kp = KineticsProblem(
+        cs, krs, st, (0.0, ts[end]);
+        equilibrium_solver = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer()),
+    )
+    sol = integrate(kp, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-10, abstol = 1.0e-20, saveat = ts))
+    return kp, sol, speciated_states(sol, kp)
+end
+
+@testsection "A slow surface on a kinetic host" begin
+    cs, st, idx, family = _slow_host_system()
+    mol(s, x) = ustrip(us"mol", s.n[idx(x)])
+    M = ustrip(us"kg/mol", cs.species[idx("Portlandite")][:M])
+    N(n_host) = 1.0e-5 * 1.0e5 * M * n_host
+    k_d = 2.0e-4
+    ts = [0.0, 1000.0, 3000.0, 6000.0]
+
+    @testset "matter and charge are conserved, and the members follow the budget" begin
+        kp, sol, states = _slow_host_run(cs, st, [_host_dissolution(cs, idx; k_d), _slow_sorption(cs, idx, 0.05)], ts)
+        @test sort(kp.idx_kinetic) == sort([idx("Portlandite"), idx("Xs"), idx("XsOHCa+")])
+        host = [mol(s, "Portlandite") for s in states]
+        @test host ≈ 1.0e-3 .* exp.(-k_d .* ts) rtol = 1.0e-7
+        @test [mol(s, "Xs") + mol(s, "XsOHCa+") for s in states] ≈ N.(host) rtol = 1.0e-8
+        ca(s) = mol(s, "Portlandite") + mol(s, "Ca+2") + mol(s, "XsOHCa+")
+        z = [Float64(charge(sp)) for sp in cs.species]
+        q(s) = sum(z .* [ustrip(us"mol", x) for x in s.n])
+        @test maximum(abs(ca(s) - ca(st)) for s in states) < 1.0e-12
+        @test maximum(abs(q(s) - q(st)) for s in states) < 1.0e-12
+        @test mol(states[end], "XsOHCa+") > 0
+        # The extents no longer hold the members, and the replay is refused.
+        @test ChemistryLab.extent_residual(sol, kp, reaction_extents(sol, kp)) < 1.0e-12
+        @test_throws "speciated_states" state_at(sol, kp, ts[end])
+    end
+
+    @testset "as the rate grows, the family at equilibrium" begin
+        # The same host with the family left at equilibrium (a budget following a
+        # kinetic host, the fast route), against the slow family at k and 10k:
+        # the lag of the occupancy is one over the rate constant.
+        _, _, fast = _slow_host_run(cs, st, [_host_dissolution(cs, idx; k_d)], ts)
+        gap(k) = begin
+            _, _, slow = _slow_host_run(cs, st, [_host_dissolution(cs, idx; k_d), _slow_sorption(cs, idx, k)], ts)
+            abs(mol(slow[end], "XsOHCa+") - mol(fast[end], "XsOHCa+"))
+        end
+        g1, g10 = gap(0.05), gap(0.5)
+        @test 0.05 < g10 / g1 < 0.2
+    end
+
+    @testset "everything bound returns when the host is gone" begin
+        tend = 25 / k_d                         # e^{−25}: 1.4e-11 of the host left
+        _, _, states = _slow_host_run(cs, st, [_host_dissolution(cs, idx; k_d), _slow_sorption(cs, idx, 0.05)], [0.0, tend])
+        @test mol(states[end], "Xs") + mol(states[end], "XsOHCa+") < 1.0e-9 * N(1.0e-3)
+        @test mol(states[end], "Ca+2") ≈ mol(st, "Ca+2") + mol(st, "XsOHCa+") + 1.0e-3 rtol = 1.0e-8
+    end
+
+    @testset "the budget term, differentiated" begin
+        # dnₖ/dt gains Ṅ nₖ/N when sites vanish: its Jacobian in the members is
+        # Ṅ (δₖₘ/N − nₖ/N²), and what returns to bₑ is minus that times the
+        # column of what each member holds.
+        idx_kin = [idx("Portlandite"), idx("Xs"), idx("XsOHCa+")]
+        idx_eq = setdiff(eachindex(cs.species), idx_kin)
+        Ae = Float64.(ChemistryLab._constraint_matrix(ChemistryLab._equilibrium_subsystem(cs, idx_eq)))
+        sh = only(ChemistryLab._kinetic_site_hosts(cs, idx_kin, idx_eq, Ae))
+        @test sh isa ChemistryLab._SlowSiteHost
+        n_be = size(Ae, 1)
+        n_host, rate = 6.0e-4, -1.0e-7
+        p = (; idx_kinetic = idx_kin, n_initial_full = fill(1.0e-3, length(cs.species)), n_be)
+        function term(nm)
+            n_full = zeros(eltype(nm), length(cs.species))
+            n_full[idx("Portlandite")] = n_host
+            n_full[idx("Xs")], n_full[idx("XsOHCa+")] = nm
+            du = zeros(eltype(nm), n_be + 3)
+            ChemistryLab._move_site_budget!(du, sh, p, n_full, [rate, 0.0, 0.0])
+            return du
+        end
+        nm = [2.0e-5, 2.4e-5]
+        Ndot = 1.0e-5 * 1.0e5 * M * rate
+        Nm = sum(nm)
+        J = ForwardDiff.jacobian(term, nm)
+        analytic = [Ndot * ((k == m) / Nm - nm[k] / Nm^2) for k in 1:2, m in 1:2]
+        @test J[n_be .+ (2:3), :] ≈ analytic rtol = 1.0e-12
+        @test J[1:n_be, :] ≈ -sh.content * analytic rtol = 1.0e-12
+        # The sites born with a growing host are free, and hold nothing.
+        function grow(nm)
+            n_full = zeros(eltype(nm), length(cs.species))
+            n_full[idx("Portlandite")] = n_host
+            n_full[idx("Xs")], n_full[idx("XsOHCa+")] = nm
+            du = zeros(eltype(nm), n_be + 3)
+            ChemistryLab._move_site_budget!(du, sh, p, n_full, [-rate, 0.0, 0.0])
+            return du
+        end
+        @test grow(nm)[n_be .+ (2:3)] ≈ [-Ndot, 0.0] rtol = 1.0e-14
+        @test all(iszero, grow(nm)[1:n_be])
+    end
+
+    @testset "what a slow surface on a host still refuses" begin
+        # A host the equilibrium moves.
+        @test_throws "no rate law controls" KineticsProblem(
+            cs, [_slow_sorption(cs, idx, 0.05)], st, (0.0, 1.0);
+            equilibrium_solver = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer()),
+        )
+        # A member holding a primary the partition does not keep: what it holds
+        # could not be returned there when its site vanishes.
+        idx_kin = [idx("Portlandite"), idx("Xs"), idx("XsOHCa+")]
+        rows = ChemistryLab._partition_rows(cs, setdiff(eachindex(cs.species), idx_kin))
+        no_ca = filter(r -> ChemistryLab.symbol(cs.SM.primaries[r]) != "Ca+2", rows)
+        @test_throws "not in the equilibrium partition" ChemistryLab._member_content(cs, family, no_ca)
+        # The implicit step, whose reactivity constraints cannot hold a member
+        # that moves with its host.
+        @test_throws "integrate" KineticStepSolver(
+            cs, DiluteSolutionModel(), [_host_dissolution(cs, idx; k_d), _slow_sorption(cs, idx, 0.05)],
+        )
+    end
+end

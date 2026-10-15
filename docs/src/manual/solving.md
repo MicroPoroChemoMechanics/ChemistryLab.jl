@@ -72,6 +72,40 @@ one back end without the search. Its answer is still polished, as described
 next, and `certificate = Ref{Any}()` receives the certificate of what is
 returned, `nothing` when none could be computed.
 
+### Trace elements and the certificate
+
+Each conservation row is judged on its own scale: the balance of row ``k`` is
+met when ``|r_k| \le \texttt{tol}\,\min(s_k, 1\ \text{mol})``, ``s_k`` what the
+row holds, so that an element present as a trace is balanced to the same
+relative accuracy as a major one. A phase made of such a trace, which cannot
+hold the amounts in moles the search compares it with, is judged on the scale of
+what it can hold once the search has sent it away and taken it back
+(OptimaSolver ≥ 0.8.7): a portlandite suspension whose aluminum is a ``10^{-9}`` mol seed of ettringite
+certifies, with the gypsum where a seed of ``10^{-6}`` mol puts it. Before that,
+no route certified it, the aluminum row ended several times out and the gypsum
+14 % off at 1.74 mmol.
+
+When no route certifies, `equilibrate` and [`equilibrate_certified`](@ref)
+return the answer with the smallest KKT error and warn, once per session, naming
+the row furthest out, judged as the certificate judges it. That answer is not an
+equilibrium. Ask for one with `certify = true`, which raises
+[`UncertifiedEquilibrium`](@ref) instead, the answer and its certificate in the
+exception:
+
+```julia
+eq = try
+    equilibrate(state; certify = true)
+catch e
+    e isa UncertifiedEquilibrium || rethrow()
+    @show e.certificate.balance_relative    # the worst row, relative to what it holds
+    e.state                                  # the answer with the smallest KKT error
+end
+```
+
+[`optimality_certificate`](@ref) audits any state against its budget:
+`balance` is the worst row in moles, `balance_relative` the worst relative to
+what it holds.
+
 ### One equilibrium, whatever the back end
 
 The back ends do not all solve the same equations. Ipopt minimizes the scalar
@@ -620,8 +654,11 @@ Pass your model to `equilibrate` or `EquilibriumSolver`:
 state_eq = equilibrate(state; model=MyModel(...))
 ```
 
-A custom model should also declare its solute concentration scale, so that
-[`activity_coefficients`](@ref) divides by the right thing:
+A custom model should also declare its solute concentration scale.
+[`activity_coefficients`](@ref) reads the coefficients of a model without a
+formula per ion from its closure, as ``\ln\gamma_i = \ln a_i - \ln m_i`` with the
+molalities built on the closure's own floor, and it does so only on the molality
+scale:
 
 ```julia
 ChemistryLab.concentration_scale(::MyModel) = :molality

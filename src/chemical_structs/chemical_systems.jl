@@ -244,7 +244,7 @@ function _resolve_site_families(site_families, species, idx_surface)
         )
     )
 
-    return collect(SiteFamily, site_families), groups
+    return _resolve_layer_areas(collect(SiteFamily, site_families), species), groups
 end
 
 """
@@ -752,6 +752,37 @@ function _refuse_mixed_gauges(species)
     )
 end
 
+# One species per symbol. Entries that are the same species (`isequal`) are one:
+# the later ones are dropped, with a warning unless `warn = false`. Two different
+# species under one symbol are refused — `cs["X"]` would return the last one, a
+# solid solution and `set_quantity!` the first, and nothing would say so.
+function _unique_species(species::AbstractVector{T}; warn::Bool = true) where {T <: AbstractSpecies}
+    first_of = Dict{String, Int}()
+    keep = trues(length(species))
+    for (k, sp) in enumerate(species)
+        j = get!(first_of, symbol(sp), k)
+        j == k && continue
+        prev = species[j]
+        isequal(prev, sp) || throw(
+            ArgumentError(
+                "ChemicalSystem: two different species are named \"$(symbol(sp))\" " *
+                    "($(formula(prev)), $(aggregate_state(prev)) and $(formula(sp)), " *
+                    "$(aggregate_state(sp))). Every lookup by name would reach one of " *
+                    "them; rename one with `with_symbol`.",
+            )
+        )
+        keep[k] = false
+    end
+    all(keep) && return species
+    if warn
+        dup = unique(symbol(sp) for (sp, kept) in zip(species, keep) if !kept)
+        @warn "ChemicalSystem: $(join(dup, ", ")) listed more than once; each is kept once " *
+            "(the first entry, with its data). Join `speciation` results with `union` " *
+            "rather than `vcat`."
+    end
+    return species[keep]
+end
+
 """
     ChemicalSystem(species, primaries=species; kinetic_species, solid_solutions, site_families) -> ChemicalSystem
 
@@ -764,7 +795,11 @@ consistent for the lifetime of the object.
 
 # Arguments
 
-  - `species`: vector of `AbstractSpecies`.
+  - `species`: vector of `AbstractSpecies`. A species listed twice — equal by
+    `isequal`, which compares formula, aggregate state, class and symbol — is
+    kept once, with a warning naming it; this is what a list concatenated from
+    two [`speciation`](@ref) results carries. Two *different* species under one
+    symbol are refused, since every lookup by name would reach one of them.
   - `primaries`: subset used as independent components (default: all species).
   - `kinetic_species`: `nothing` (default) or a dictionary / vector of pairs mapping
     each kinetic species (by name `String` or `Species` object) to its rate function.
@@ -823,6 +858,8 @@ function ChemicalSystem(
         solid_solutions::Union{Nothing, AbstractVector} = nothing,
         site_families::Union{Nothing, AbstractVector} = nothing,
     ) where {T <: AbstractSpecies}
+    species = _unique_species(species)
+    primaries = _unique_species(primaries; warn = false)
     solid_solutions = _normalize_solid_solutions(solid_solutions)
     species, solid_solutions = _expand_instances(species, solid_solutions)
     _refuse_mixed_gauges(species)

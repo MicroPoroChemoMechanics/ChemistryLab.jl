@@ -943,8 +943,9 @@ certificate was computed. `certify` has three values:
 
   - `nothing` (the default): the certified search where it applies — OptimaSolver
     loaded, an aqueous phase with `H2O@` — and the single back end otherwise;
-  - `true`: the certified search, and an `ArgumentError` where it does not apply,
-    rather than an answer that was never certified;
+  - `true`: the certified search, an `ArgumentError` where it does not apply,
+    and an [`UncertifiedEquilibrium`](@ref) where no route certifies, rather
+    than an answer that was never certified;
   - `false`: the single back end, its answer polished by the dual Newton where
     the certified search would apply.
 
@@ -1021,6 +1022,17 @@ function equilibrate(
             state; model = model, constraint = constraint, kwargs...,
         )
         certificate === nothing || (certificate[] = cert)
+        # Asked for a certified equilibrium, the caller gets one or an error, the
+        # verdict tested on the answer rather than set for the whole search.
+        certify === true && cert !== nothing && !cert.optimal && throw(
+            UncertifiedEquilibrium(
+                "certify = true asks for a certified equilibrium, and no route produced " *
+                    "one: stationarity $(cert.stationarity), $(_balance_text(cert)), worst " *
+                    "supersaturation $(cert.worst_supersaturation). The answer with the " *
+                    "smallest KKT error and its certificate are fields of this exception.",
+                eq, cert,
+            )
+        )
         return eq
     end
     constraint isa FixedTP || throw(

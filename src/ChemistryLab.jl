@@ -135,6 +135,7 @@ module ChemistryLab
     # exists, which Julia resolves at call time; the two are one unit and the
     # order between them is the only one that works.
     include("surfaces/surface_areas.jl")
+    include("surfaces/size_classes.jl")
     include("surfaces/site_families.jl")
     # After both, because it reads a family's capacity and its support's host.
     include("surfaces/host_coupling.jl")
@@ -177,6 +178,9 @@ module ChemistryLab
     include("kinetics/rate_models.jl")
     include("kinetics/kinetics_reactions.jl")
     include("kinetics/sorption_rates.jl")
+    include("kinetics/rate_gates.jl")
+    include("kinetics/seed_populations.jl")
+    include("kinetics/covering_layers.jl")
     include("kinetics/kinetics_problems.jl")
     include("kinetics/kinetics_solver.jl")
     include("kinetics/calorimetry.jl")
@@ -322,6 +326,7 @@ module ChemistryLab
         optimality_certificate,
         solve_certified,
         equilibrate_certified,
+        UncertifiedEquilibrium,
         equilibrate_path,
         equilibrate_split,
         EquilibriumConstraint,
@@ -652,6 +657,29 @@ module ChemistryLab
         transition_state,
         first_order_rate,
         sorption_rate,
+        AbstractPSD,
+        LogNormalPSD,
+        TabulatedPSD,
+        SizeClass,
+        size_classes,
+        inverse_diameter_moment,
+        dissolution_only,
+        growth_only,
+        AbstractSeedGeometry,
+        SphericalSeeds,
+        NeedleSeeds,
+        seed_volume,
+        SeededGrowthArea,
+        AbstractNucleationLaw,
+        ThresholdNucleation,
+        ClassicalNucleation,
+        FixedExtent,
+        SubstrateAmount,
+        SubstrateSurface,
+        nucleation_rate,
+        CoveringLayer,
+        covered,
+        covering_rate,
         KineticReaction,
         molar_mass
 

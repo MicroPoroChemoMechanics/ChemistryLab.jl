@@ -73,6 +73,7 @@ end
     include("parsing_utils.jl")
     include("reactions.jl")
     include("surfaces.jl")
+    include("size_classes.jl")
 
 end
 
@@ -179,6 +180,9 @@ end
     include("kinetics/test_pore_humidity.jl")
     include("kinetics/test_surface_coupling.jl")
     include("kinetics/test_sorption_kinetics.jl")
+    include("kinetics/test_rate_gates.jl")
+    include("kinetics/test_seed_populations.jl")
+    include("kinetics/test_covering_layers.jl")
     include("kinetics/test_parameter_ad.jl")
     include("kinetics/test_rhs_speciation.jl")
     include("kinetics/test_compound_energy_kinetics.jl")

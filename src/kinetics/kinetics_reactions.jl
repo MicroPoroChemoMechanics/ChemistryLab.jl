@@ -313,10 +313,9 @@ function transition_state(
         )
     end
 
+    _check_reactive_area(cs, area_model)
     f = (T, _P, _t, n, lna, n_initial) -> begin
-        n_m = max(n[mineral_name], oneunit(T) * 1.0e-30)
-        n_m0 = max(n_initial[mineral_name], oneunit(T) * 1.0e-30)
-        A = total_area(area_model, n_m, n_m0, M)
+        A = _reactive_area(area_model, T, n, n_initial, mineral_name, M)
         ln_iap = sum(ν * lna[sp] for (sp, ν, _) in stoich_species)
         ln_K = -sum(ν * ΔG_fn(; T = T, unit = false) / (R_GAS * T) for (_, ν, ΔG_fn) in stoich_species)
         Ω = exp(ln_iap - ln_K)
@@ -345,6 +344,19 @@ function transition_state(
     refs = (T = T_STANDARD_Q, P = P_STANDARD_Q)
     return KineticFunc(f, refs, u"mol/s")
 end
+
+# The reactive area a rate law multiplies, from the amounts of the run: by
+# default the area model of the controlled species alone, at its current and
+# initial amounts. A model whose area depends on other species too (a growth on
+# seeds) reads them here.
+function _reactive_area(model::AbstractSurfaceModel, T, n, n_initial, key, M)
+    n_m = max(n[key], oneunit(T) * 1.0e-30)
+    n_m0 = max(n_initial[key], oneunit(T) * 1.0e-30)
+    return total_area(model, n_m, n_m0, M)
+end
+
+# What an area model needs of the system, checked when the law is built.
+_check_reactive_area(::ChemicalSystem, ::AbstractSurfaceModel) = nothing
 
 # ── first_order_rate factory ──────────────────────────────────────────────────
 

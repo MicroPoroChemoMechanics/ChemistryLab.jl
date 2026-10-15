@@ -96,7 +96,7 @@ function diffuse_layer_contents(state::ChemicalState, layer::DonnanLayer)
     groups = _diffuse_layer_groups(cs)
     R = promote_type(
         Float64, eltype(n), typeof(layer.thickness),
-        (typeof(float(f.model.area)) for fs in values(groups) for f in fs)...,
+        (typeof(float(_area_value(f.model.area))) for fs in values(groups) for f in fs)...,
     )
     amounts = zeros(R, length(n))
     excess = zeros(R, length(n))
@@ -104,9 +104,10 @@ function diffuse_layer_contents(state::ChemicalState, layer::DonnanLayer)
     charges = Dict{String, R}()
     water = zero(R)
     for (support, families) in groups
-        area = only(unique(f.model.area for f in families))
+        n_sup = [n[idx[symbol(sp)]] for f in families for sp in site_members(f)]
+        area = only(unique(_layer_area(f.model.area, n_sup) for f in families))
         σ = sum(
-            charge(sp) * n[idx[symbol(sp)]] for f in families for sp in vcat([f.free_site], f.complexes)
+            charge(sp) * n[idx[symbol(sp)]] for f in families for sp in site_members(f)
         )
         W_D = 1000 * area * layer.thickness
         ψ = _donnan_potential(σ, z, m, W_D)
