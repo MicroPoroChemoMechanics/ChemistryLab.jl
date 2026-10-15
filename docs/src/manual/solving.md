@@ -77,9 +77,10 @@ returned, `nothing` when none could be computed.
 Each conservation row is judged on its own scale: the balance of row ``k`` is
 met when ``|r_k| \le \texttt{tol}\,\min(s_k, 1\ \text{mol})``, ``s_k`` what the
 row holds, so that an element present as a trace is balanced to the same
-relative accuracy as a major one. The amount of a phase that the budget limits
-to less than ``10^{-4}`` mol is judged the same way, on the scale of what it can
-hold (OptimaSolver ≥ 0.8.7): a portlandite suspension whose aluminum is a ``10^{-9}`` mol seed of ettringite
+relative accuracy as a major one. A phase made of such a trace, which cannot
+hold the amounts in moles the search compares it with, is judged on the scale of
+what it can hold once the search has sent it away and taken it back
+(OptimaSolver ≥ 0.8.7): a portlandite suspension whose aluminum is a ``10^{-9}`` mol seed of ettringite
 certifies, with the gypsum where a seed of ``10^{-6}`` mol puts it. Before that,
 no route certified it, the aluminum row ended several times out and the gypsum
 14 % off at 1.74 mmol.

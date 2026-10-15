@@ -123,9 +123,9 @@ dependent does not accept 0.39 and has to be widened.
   out, four times its budget, and the answer returned, the best of the routes,
   missed its balance by 1e-2 to 1e-1 of a row with the gypsum wrong — gone where
   3.05e-5 mol remain, 14 % high at 1.74 mmol — under a single warning for the
-  session. OptimaSolver 0.8.7, now
-  required, judges the amount of a phase that cannot hold 1e-4 mol on the scale
-  of what it can hold, and the suspension certifies, with the gypsum where a
+  session. OptimaSolver 0.8.7, now required, judges a phase that cannot reach
+  its thresholds on the scale of what it can hold, once the search has sent it
+  away and taken it back, and the suspension certifies, with the gypsum where a
   seed of 1e-6 mol puts it.
 - **A copy of a species could be read for the original in a kinetic run.** The
   name index of a run registered every species under its formula as well as

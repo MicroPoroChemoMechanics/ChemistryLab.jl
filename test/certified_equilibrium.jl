@@ -2003,8 +2003,8 @@ end
     # from the linear program left the aluminum row four times its budget out,
     # and the answer returned had the gypsum wrong (gone where 3.05e-5 mol
     # remain, 14 % high at 1.74 mmol), with a single warning for a whole session.
-    # The phase is now judged on what it can hold, and the answer is that of a
-    # seed a thousand times larger, the aluminum aside.
+    # Sent away and taken back, the phase is now judged on what it can hold, and
+    # the answer is that of a seed a thousand times larger, the aluminum aside.
     subs = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
     db = Dict(symbol(s) => s for s in subs)
     solids = ["Gp", "Portlandite", "ettringite", "monosulphate12", "C4AH13"]
