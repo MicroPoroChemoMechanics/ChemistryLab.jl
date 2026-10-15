@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
+  <title id="title">A barrier on a pathway is not a second minimum of G</title>
+  <desc id="desc">Left panel: energy along a molecular reaction coordinate, with a metastable well A separated from a lower stable well B by an activation barrier. Right panel: the Gibbs energy as a convex function of composition, with a single global minimum; when kinetics holds part of the composition back, the feasible set shrinks and the equilibrium computed is the minimum on that smaller set, at its boundary.</desc>
+  <defs>
+    <marker id="arrow2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8Z" fill="#52667d"/></marker>
+    <marker id="barrier" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7Z" fill="#996019"/></marker>
+    <pattern id="excluded" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <path d="M0 0V10" stroke="#c9d3df" stroke-width="3"/>
+    </pattern>
+  </defs>
+  <rect width="900" height="560" rx="18" fill="#f8fafc"/>
+  <g font-family="Arial, Helvetica, sans-serif" fill="#172b42">
+    <!-- Left panel: a molecular pathway. Schematic, not data. -->
+    <text x="36" y="43" font-size="15" font-weight="700" letter-spacing="2" fill="#52667d">MOLECULAR PATHWAY</text>
+    <text x="36" y="70" font-size="16">What kinetics has to cross</text>
+    <path d="M80 420V110M80 420H430" fill="none" stroke="#52667d" stroke-width="2" marker-end="url(#arrow2)"/>
+    <path d="M80 150V110" stroke="#52667d" stroke-width="2" marker-end="url(#arrow2)"/>
+    <text x="48" y="122" font-size="20">E</text>
+    <text x="255" y="452" text-anchor="middle" font-size="17">reaction coordinate (one pathway)</text>
+    <path d="M95 280C130 320 160 320 185 290C215 250 235 140 260 140C290 140 305 300 330 360C345 395 380 395 410 370" fill="none" stroke="#3664a0" stroke-width="4"/>
+    <circle cx="144" cy="311" r="6" fill="#996019"/>
+    <text x="104" y="345" font-size="17" fill="#996019">A, metastable</text>
+    <circle cx="364" cy="388" r="6" fill="#177567"/>
+    <text x="300" y="412" font-size="17" fill="#177567">B, stable</text>
+    <path d="M144 311H108M260 140H108" stroke="#b9c6d5" stroke-width="1.5" stroke-dasharray="6 5"/>
+    <path d="M112 309V150" stroke="#996019" stroke-width="2.5" marker-end="url(#barrier)"/>
+    <text x="122" y="200" font-size="17" fill="#996019">activation</text>
+    <text x="122" y="221" font-size="17" fill="#996019">barrier</text>
+
+    <path d="M450 96V470" stroke="#d5dde7" stroke-width="1.5"/>
+
+    <!-- Right panel: G as a function of composition. Quadratic Bezier with its
+         minimum at (691.7, 340.1); the bound at x = 620 meets it at y = 302. -->
+    <text x="476" y="43" font-size="15" font-weight="700" letter-spacing="2" fill="#52667d">GIBBS ENERGY OF THE SYSTEM</text>
+    <text x="476" y="70" font-size="16">What the solver minimizes</text>
+    <rect x="620" y="110" width="232" height="310" fill="url(#excluded)" opacity="0.8"/>
+    <text x="736" y="132" text-anchor="middle" font-size="15" fill="#52667d">held back by kinetics</text>
+    <path d="M510 420V110M510 420H860" fill="none" stroke="#52667d" stroke-width="2" marker-end="url(#arrow2)"/>
+    <path d="M510 150V110" stroke="#52667d" stroke-width="2" marker-end="url(#arrow2)"/>
+    <text x="482" y="122" font-size="20" font-style="italic">G</text>
+    <text x="685" y="452" text-anchor="middle" font-size="17">composition (e.g. extent ξ)</text>
+    <path d="M530 150Q690 520 840 170" fill="none" stroke="#3664a0" stroke-width="4"/>
+    <path d="M620 110V420" stroke="#52667d" stroke-width="2" stroke-dasharray="6 5"/>
+    <circle cx="691.7" cy="340.1" r="6" fill="#177567"/>
+    <text x="660" y="372" font-size="17" fill="#177567">global minimum</text>
+    <text x="660" y="392" font-size="17" fill="#177567">(stable equilibrium)</text>
+    <circle cx="620" cy="302" r="6" fill="#996019"/>
+    <text x="606" y="332" text-anchor="end" font-size="17" fill="#996019">minimum on the</text>
+    <text x="606" y="352" text-anchor="end" font-size="17" fill="#996019">smaller set</text>
+
+    <rect x="36" y="491" width="828" height="43" rx="8" fill="#e8effa"/>
+    <text x="56" y="518" font-size="17">Sketch: metastable means a minimum of G on a smaller feasible set, not a second minimum.</text>
+  </g>
+</svg>
