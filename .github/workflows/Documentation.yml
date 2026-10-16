@@ -177,7 +177,12 @@ jobs:
       - uses: julia-actions/setup-julia@v3
         with:
           version: '1'
+      # One depot cache for the shards, which build from the same environment: a
+      # cache per shard made seven of the twenty that overflowed the 10 GB a
+      # repository may hold, so that the caches evicted each other.
       - uses: julia-actions/cache@v3
+        with:
+          include-matrix: false
       - uses: actions/cache@v4
         with:
           path: docs/node_modules

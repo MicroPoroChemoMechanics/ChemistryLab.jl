@@ -8,11 +8,53 @@ using OrderedCollections
 using Test
 using TimerOutputs
 
+# The suite runs in parts, so that CI can run them as parallel jobs.
+# `Pkg.test(; test_args = ["equilibrium"])` runs the files of one part, several
+# parts may be named, and with no argument every file runs, as it always has.
+# A unit is a test file, or the name of a section that includes none (Aqua).
+# Every unit belongs to exactly one part, which the last testset checks.
+include("test_parts.jl")
+
+function rununit(unit::AbstractString)
+    isempty(ARGS) && return true
+    for part in ARGS
+        haskey(TEST_PARTS, part) ||
+            error("unknown test part \"$(part)\"; the parts are $(join(sort!(collect(keys(TEST_PARTS))), ", "))")
+    end
+    return any(part -> unit in TEST_PARTS[part], ARGS)
+end
+
+# A file of a section: run if its part is selected, and timed on its own, so
+# that the timer printed at the end gives the cost of every file, which is what
+# the parts are balanced on.
+function testfile(file::AbstractString)
+    rununit(file) || return nothing
+    t0 = time()
+    @timeit file include(file)
+    println("⏱ ", lpad(round(time() - t0; digits = 1), 7), " s  ", file)
+    flush(stdout)
+    return nothing
+end
+
+# `include("x.jl")` in a section becomes `testfile("x.jl")`; a section that
+# includes no file is one unit, named after the section.
+_route(ex) = ex
+function _route(ex::Expr)
+    if ex.head === :call && ex.args[1] === :include && length(ex.args) == 2 && ex.args[2] isa String
+        return :(testfile($(ex.args[2])))
+    end
+    return Expr(ex.head, map(_route, ex.args)...)
+end
+_includes(ex) = false
+_includes(ex::Expr) = (ex.head === :call && ex.args[1] === :testfile) || any(_includes, ex.args)
+
 macro testsection(str, block)
+    body = _route(block)
+    gated = _includes(body) ? body : :(rununit($str) && $body)
     return quote
         @timeit "$($(esc(str)))" begin
             @testset "$($(esc(str)))" begin
-                $(esc(block))
+                $(esc(gated))
             end
         end
     end
@@ -200,6 +242,20 @@ end
 # which no test above may depend on.
 @testsection "Ipopt extension" begin
     include("ipopt_extension.jl")
+end
+
+# Every unit of this file belongs to exactly one part, and every unit a part
+# names exists: a file added to a section and to no part would run in no CI job.
+# Read from the source, so that every part checks it, not only a full run.
+@testset "Test parts" begin
+    units = String[]
+    for sec in eachmatch(r"^@testsection \"([^\"]+)\" begin(.*?)^end"ms, read(@__FILE__, String))
+        files = [m.captures[1] for m in eachmatch(r"^\s*include\(\"([^\"]+)\"\)"m, sec.captures[2])]
+        append!(units, isempty(files) ? [sec.captures[1]] : files)
+    end
+    listed = reduce(vcat, collect(values(TEST_PARTS)))
+    @test allunique(listed)
+    @test sort(listed) == sort(units)
 end
 
 print_timer()

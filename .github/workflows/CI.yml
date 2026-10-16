@@ -15,24 +15,15 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+    name: Julia ${{ matrix.version }} - ${{ matrix.part }} - ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
-    # The coverage job instruments every line and runs without the
-    # precompilation cache, which makes it the slowest by far: 49 and 55 minutes
-    # on the two runs of 0.25.0, and past 60 on 0.25.1, where it was
-    # canceled at the limit while the three other jobs passed. It had two
-    # hours, which 0.33.0 reached: 88 and 118 minutes on two runs of the same
-    # commit, canceled at 120 on a third, before the durability pages of 0.34.0
-    # added their tests. It gets three. The others had one, until the suite of
-    # 0.29.0 took 56 and 58 minutes on Linux (1.13, pre) and Windows was
-    # canceled at the limit, then an hour and a half, which Windows reached
-    # within five minutes on 0.33.0; they get two, which still stops a hung run
-    # early. Windows gets three as well: the same source of 0.37.0 took 68
-    # minutes on one run and was canceled at 120 on the next. The coverage job
-    # of 0.39.0, with its kinetic surfaces, seeds and size classes, was canceled
-    # at three hours: it and Windows get five and a half, under the six hours a
-    # hosted runner allows, and the others four.
-    timeout-minutes: ${{ ((matrix.version == '1.12' && matrix.os == 'ubuntu-latest') || matrix.os == 'windows-latest') && 330 || 240 }}
+    # The suite runs in parts (`TEST_PARTS` in test/test_parts.jl), one job each.
+    # Whole, it had grown to three hours on the coverage job and two on Windows,
+    # canceled at five and a half when a release added tests; each part is a
+    # fraction of that, and the parts are balanced on the time of every file,
+    # which the timer printed at the end of each run reports. The coverage job
+    # and Windows stay the slowest and get more room.
+    timeout-minutes: ${{ ((matrix.version == '1.12' && matrix.os == 'ubuntu-latest') || matrix.os == 'windows-latest') && 150 || 120 }}
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
       actions: write
       contents: read
@@ -43,29 +34,43 @@ jobs:
           - '1.12'
           - '1.13'
           - 'pre'
+        part:
+          - core
+          - equilibrium
+          - kinetics
+          - calorimetry
         os:
           - ubuntu-latest
-        arch:
-          - x64
-        include:
           # WINDOWS, on the current release only. What this job is here to catch
           # is platform-specific -- path separators, line endings, spawning a
           # child process, anything that assumes a POSIX filesystem -- and none
-          # of that needs three Julia versions to show itself. One job rather
-          # than three, because a Windows runner minute costs several Linux ones.
+          # of that needs three Julia versions to show itself.
           #
           # `.gitattributes` normalizes the working tree to LF, so a `\r` cannot
           # reach the code that reads the bundled `.dat` databases.
-          - version: '1.13'
-            os: windows-latest
-            arch: x64
+          - windows-latest
+        arch:
+          - x64
+        exclude:
+          - os: windows-latest
+            version: '1.12'
+          - os: windows-latest
+            version: 'pre'
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
+      # One depot cache per Julia version and system, shared by the parts, which
+      # install and precompile the same test environment. A cache per part, with
+      # those of the documentation shards, would overflow the 10 GB a repository
+      # may hold: the caches would evict each other and jobs start from a cold
+      # depot, precompiling every dependency again.
       - uses: julia-actions/cache@v3
+        with:
+          cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};version=${{ matrix.version }}
+          include-matrix: false
       # The Pkg server intermittently advertises a General tree hash that its
       # CDN then answers with a 404, which kills the first `Pkg.add` of a cold
       # depot before any of this repository's code runs.  Install the registry
@@ -91,21 +96,102 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
         with:
+          test_args: ${{ matrix.part }}
           # Instrument only the primary job: coverage disables precompilation
           # caching and would slow down every other matrix entry for nothing.
+          # Keep it on 1.12: Julia 1.12 precompiles for the coverage
+          # configuration, so that the package's own code runs instrumented, while
+          # 1.13 reuses the ordinary package images and leaves most of the lines
+          # of `src/` without a count (measured: 56 % against 98 %).
           coverage: ${{ matrix.version == '1.12' && matrix.os == 'ubuntu-latest' }}
-      # The extensions whose dependencies the suite does not load, tested in an
-      # environment of their own (`test/extensions`) and in this job only, so
-      # that their lines are measured with the others: SymbolicNumericIntegration
-      # brings some fifty packages, ModelingToolkitBase among them, that the
-      # other jobs have no use for.
-      - name: Test the extensions the suite does not load
+      # The coverage of the parts is merged before it is processed, into one
+      # report. Processed part by part, a file that a part never runs counts every
+      # executable line as missed, and the union Codecov takes of the reports then
+      # flags the lines Julia never instruments wherever another part does run the
+      # file. Each part keeps its raw `.cov` files instead, tagged with its name so
+      # that two runners reusing a process id cannot overwrite each other's.
+      - name: Tag the coverage files with the part
         if: matrix.version == '1.12' && matrix.os == 'ubuntu-latest'
+        run: |
+          find src ext -name '*.cov' -print0 |
+            while IFS= read -r -d '' f; do mv "$f" "${f%.cov}.${{ matrix.part }}.cov"; done
+      - uses: actions/upload-artifact@v7
+        if: matrix.version == '1.12' && matrix.os == 'ubuntu-latest'
+        with:
+          name: coverage-${{ matrix.part }}
+          path: |
+            src/**/*.cov
+            ext/**/*.cov
+          if-no-files-found: error
+          retention-days: 1
+  extensions:
+    # The extensions whose dependencies the suite does not load, tested in an
+    # environment of their own (`test/extensions`) and measured with the rest:
+    # SymbolicNumericIntegration brings some fifty packages, ModelingToolkitBase
+    # among them, that the parts have no use for.
+    name: Extensions the suite does not load
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1.12'
+      - uses: julia-actions/cache@v3
+      - name: Test the extensions the suite does not load
         run: julia --color=yes --code-coverage=@"$GITHUB_WORKSPACE/ext" --project=test/extensions -e 'using Pkg; Pkg.instantiate(); include("test/extensions/runtests.jl")'
+      - name: Tag the coverage files
+        run: |
+          find ext -name '*.cov' -print0 |
+            while IFS= read -r -d '' f; do mv "$f" "${f%.cov}.extensions.cov"; done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage-extensions
+          path: ext/**/*.cov
+          if-no-files-found: error
+          retention-days: 1
+  coverage:
+    name: Coverage
+    needs: [test, extensions]
+    # Runs once the matrix is done, whatever its outcome, and uploads only when
+    # every part and the extensions produced coverage, which they do only when
+    # their tests pass: a report lacking one would show the lines only it runs as
+    # missed.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read # the artifacts of the test jobs
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1.12'
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-*
+          path: coverage-parts
+      - name: Merge the parts
+        id: merge
+        run: |
+          # The values of `matrix.part` above, plus the extensions.
+          expected=5
+          n=$(find coverage-parts -mindepth 1 -maxdepth 1 -type d | wc -l)
+          if [ "$n" -eq "$expected" ]; then
+            for d in coverage-parts/*/; do cp -r "$d". .; done
+            echo "complete=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::coverage from $n of the $expected jobs: nothing uploaded"
+            echo "complete=false" >> "$GITHUB_OUTPUT"
+          fi
       # Not julia-actions/julia-processcoverage: see the header of the script
       # for why its `amend_coverage_from_src!` step misreports this package.
       - name: Process coverage
-        if: matrix.version == '1.12' && matrix.os == 'ubuntu-latest'
+        if: steps.merge.outputs.complete == 'true'
         shell: julia --color=yes {0}
         run: |
           using Pkg
@@ -116,7 +202,7 @@ jobs:
           # resolves relative to THAT file's directory, not the cwd.
           include(joinpath(pwd(), ".github", "scripts", "coverage.jl"))
       - uses: codecov/codecov-action@v7
-        if: matrix.version == '1.12' && matrix.os == 'ubuntu-latest'
+        if: steps.merge.outputs.complete == 'true'
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
