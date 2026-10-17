@@ -1,0 +1,151 @@
+# The parts of the test suite: each unit — a test file, or a section that
+# includes none — belongs to exactly one, and CI runs each part as a job of its
+# own (`test_args` of `julia-runtest`). Within a part, the units run in the order
+# of `runtests.jl`, and each part is a contiguous run of that order, so that no
+# unit runs after units that never preceded it in the whole suite. The parts are
+# balanced on the time of every unit, which each run prints as it goes; the
+# comment of each part gives the sum of its units, measured on 0.39.0 under
+# coverage, one process per part, on a local machine.
+#
+# `ipopt_extension.jl` must stay the last unit of its part: loading Ipopt
+# registers one more starting point for the certified search, which no file
+# after it may depend on. It is the last unit of `runtests.jl`, hence of `core`.
+const TEST_PARTS = Dict(
+    "core" => [
+        # The package as a whole (Aqua), its construction, the thermodynamic
+        # data, the utilities, and the Ipopt extension last (8 min).
+        "Aqua",
+        "species.jl",
+        "formulas.jl",
+        "stoich_matrices.jl",
+        "databases.jl",
+        "databases_remote.jl",
+        "thermofun_methods.jl",
+        "literature.jl",
+        "zeolites.jl",
+        "asr_extension.jl",
+        "cshq_chloride.jl",
+        "parsing_utils.jl",
+        "reactions.jl",
+        "surfaces.jl",
+        "size_classes.jl",
+        "speciation.jl",
+        "thermodynamics.jl",
+        "hkf.jl",
+        "cemdata18_reference.jl",
+        "duan2016_reference.jl",
+        "lothenbach2010_reference.jl",
+        "lothenbach2008_reference.jl",
+        "utils.jl",
+        "scripts.jl",
+        "docs_nomenclature.jl",
+        "ipopt_extension.jl",
+    ],
+    "equilibrium-1" => [
+        # Systems and states, activity models, solid solutions, surfaces, the
+        # database formats and the first references (17 min).
+        "chemical_systems.jl",
+        "oxide_budget.jl",
+        "glass_thermochemistry.jl",
+        "chemical_states.jl",
+        "site_families.jl",
+        "test_volume_fractions.jl",
+        "activities.jl",
+        "aqueous_properties.jl",
+        "redox.jl",
+        "solid_solutions.jl",
+        "cashplus.jl",
+        "surface_complexation.jl",
+        "ion_exchange.jl",
+        "diffuse_layer.jl",
+        "surface_temperature.jl",
+        "charge_planes.jl",
+        "csh_surface.jl",
+        "sit.jl",
+        "phreeqc_databases.jl",
+        "reaction_formats.jl",
+        "reaktoro_yaml.jl",
+        "provenance.jl",
+        "identifiability.jl",
+        "ignition_loss.jl",
+        "thermogram.jl",
+        "sorption_models.jl",
+        "claysor.jl",
+        "equilibrium_reference.jl",
+        "published_values.jl",
+        "atkins1992_reference.jl",
+        "limestone_blending_reference.jl",
+        "chloride_binding_reference.jl",
+        "chloride_blended_reference.jl",
+        "hong_glasser1999_reference.jl",
+    ],
+    "equilibrium-2" => [
+        # The equilibrium solvers, their constraints, the applications and the
+        # validations against published data (19 min).
+        "test_dual_solver.jl",
+        "certified_equilibrium.jl",
+        "aqueous_inversion.jl",
+        "trace_sensitivity.jl",
+        "equilibrium_constraints.jl",
+        "pressure.jl",
+        "water_eos_reference.jl",
+        "validation_high_temperature.jl",
+        "leaching.jl",
+        "sulfate_attack.jl",
+        "seawater.jl",
+        "seawater_flushing.jl",
+        "delayed_ettringite.jl",
+        "hemicarbonate.jl",
+        "chloride_afm.jl",
+        "real_gases.jl",
+        "capillary.jl",
+        "pitzer.jl",
+        "recipes.jl",
+        "validation_lw2006.jl",
+        "validation_deweerdt2011.jl",
+        "validation_shi2016.jl",
+        "validation_lothenbach2008.jl",
+        "validation_lothenbach2008_temperature.jl",
+        "validation_lothenbach2014.jl",
+        "validation_snellings2022_heat.jl",
+        "validation_chloride_temperature.jl",
+        "validation_logk_temperature.jl",
+        "validation_lhopital2016_alkali.jl",
+        "validation_lhopital2016_aluminum.jl",
+        "validation_wiebe_gaddy1940.jl",
+        "validation_scholer2017.jl",
+        "validation_deschner2012.jl",
+        "validation_deschner2013.jl",
+    ],
+    "kinetics-1" => [
+        # The rate models and the calorimeters, then the first kinetic models
+        # and their coupling to equilibrium (15 min).
+        "kinetics/test_rate_models.jl",
+        "kinetics/test_calorimetry.jl",
+        "kinetics/test_postprocessing.jl",
+        "kinetics/test_feasibility.jl",
+        "kinetics/test_calibration.jl",
+        "kinetics/test_implicit_step.jl",
+        "kinetics/test_pore_humidity.jl",
+        "kinetics/test_surface_coupling.jl",
+    ],
+    "kinetics-2" => [
+        # The other kinetic models, the cements among them, and the
+        # cross-code reference of the coupling (18 min).
+        "kinetics/test_sorption_kinetics.jl",
+        "kinetics/test_rate_gates.jl",
+        "kinetics/test_seed_populations.jl",
+        "kinetics/test_covering_layers.jl",
+        "kinetics/test_parameter_ad.jl",
+        "kinetics/test_rhs_speciation.jl",
+        "kinetics/test_compound_energy_kinetics.jl",
+        "kinetics/test_blended_kinetics.jl",
+        "kinetics/test_quaternary_kinetics.jl",
+        "kinetics/test_ternary_kinetics.jl",
+        "kinetics/test_slag_temperature.jl",
+        "kinetics/test_slag_temperature_pastes.jl",
+        "kinetics/test_palandri_kharaka.jl",
+        "kinetics/test_glass_dissolution.jl",
+        "coupling_reference.jl",
+    ],
+)

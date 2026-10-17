@@ -43,9 +43,12 @@ jobs:
         with:
           fetch-depth: 0
       - uses: julia-actions/setup-julia@v3
+        id: julia
         with:
           version: '1'
       - uses: julia-actions/cache@v3
+        with:
+          cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia=${{ steps.julia.outputs.julia-version }}
       # Node itself comes from NodeJS_20_jll, which the Julia depot cache above
       # already covers; this caches only what `npm install` fetches for the
       # VitePress build, keyed on the manifest that determines it.
@@ -119,9 +122,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
+        id: julia
         with:
           version: '1'
       - uses: julia-actions/cache@v3
+        with:
+          cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia=${{ steps.julia.outputs.julia-version }}
       - uses: actions/cache@v4
         with:
           path: docs/node_modules
@@ -175,9 +181,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
+        id: julia
         with:
           version: '1'
+      # One depot cache for the shards, which build from the same environment: a
+      # cache per shard made seven of the twenty that overflowed the 10 GB a
+      # repository may hold, so that the caches evicted each other.
       - uses: julia-actions/cache@v3
+        with:
+          cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia=${{ steps.julia.outputs.julia-version }}
+          include-matrix: false
       - uses: actions/cache@v4
         with:
           path: docs/node_modules
@@ -249,9 +262,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
+        id: julia
         with:
           version: '1'
       - uses: julia-actions/cache@v3
+        with:
+          cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia=${{ steps.julia.outputs.julia-version }}
       # Same registry fallback as the build job, and for the same reason: the
       # Pkg server intermittently advertises a tree hash its CDN answers with a
       # 404, which kills the first `Pkg.add` of a cold depot.
