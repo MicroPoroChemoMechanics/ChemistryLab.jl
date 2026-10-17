@@ -1,18 +1,19 @@
 # The parts of the test suite: each unit — a test file, or a section that
 # includes none — belongs to exactly one, and CI runs each part as a job of its
-# own (`test_args` of `julia-runtest`). Within a part, the files run in the order
-# of `runtests.jl`. Balanced on the time of every file, which each run prints as
-# it goes (measured on 0.39.0, one process per part, ≈ 5–6 min each locally).
-# `kinetics/test_calorimetry.jl` alone takes about as long as a part, so more
-# parts would not shorten the slowest one.
+# own (`test_args` of `julia-runtest`). Within a part, the units run in the order
+# of `runtests.jl`, and each part is a contiguous run of that order, so that no
+# unit runs after units that never preceded it in the whole suite. The parts are
+# balanced on the time of every unit, which each run prints as it goes; the
+# comment of each part gives the sum of its units, measured on 0.39.0 under
+# coverage, one process per part, on a local machine.
 #
 # `ipopt_extension.jl` must stay the last unit of its part: loading Ipopt
 # registers one more starting point for the certified search, which no file
-# after it may depend on.
+# after it may depend on. It is the last unit of `runtests.jl`, hence of `core`.
 const TEST_PARTS = Dict(
     "core" => [
         # The package as a whole (Aqua), its construction, the thermodynamic
-        # data, the utilities, and the Ipopt extension last.
+        # data, the utilities, and the Ipopt extension last (8 min).
         "Aqua",
         "species.jl",
         "formulas.jl",
@@ -40,9 +41,9 @@ const TEST_PARTS = Dict(
         "docs_nomenclature.jl",
         "ipopt_extension.jl",
     ],
-    "equilibrium" => [
-        # Systems and states, then equilibrium: activity models, solid
-        # solutions, surfaces, and the validations against published data.
+    "equilibrium-1" => [
+        # Systems and states, activity models, solid solutions, surfaces, the
+        # database formats and the first references (17 min).
         "chemical_systems.jl",
         "oxide_budget.jl",
         "glass_thermochemistry.jl",
@@ -77,6 +78,10 @@ const TEST_PARTS = Dict(
         "chloride_binding_reference.jl",
         "chloride_blended_reference.jl",
         "hong_glasser1999_reference.jl",
+    ],
+    "equilibrium-2" => [
+        # The equilibrium solvers, their constraints, the applications and the
+        # validations against published data (19 min).
         "test_dual_solver.jl",
         "certified_equilibrium.jl",
         "aqueous_inversion.jl",
@@ -112,15 +117,21 @@ const TEST_PARTS = Dict(
         "validation_deschner2012.jl",
         "validation_deschner2013.jl",
     ],
-    "kinetics" => [
-        # The kinetic models and their coupling to equilibrium, but for the
-        # calorimetry.
+    "kinetics-1" => [
+        # The rate models and the calorimeters, then the first kinetic models
+        # and their coupling to equilibrium (15 min).
+        "kinetics/test_rate_models.jl",
+        "kinetics/test_calorimetry.jl",
         "kinetics/test_postprocessing.jl",
         "kinetics/test_feasibility.jl",
         "kinetics/test_calibration.jl",
         "kinetics/test_implicit_step.jl",
         "kinetics/test_pore_humidity.jl",
         "kinetics/test_surface_coupling.jl",
+    ],
+    "kinetics-2" => [
+        # The other kinetic models, the cements among them, and the
+        # cross-code reference of the coupling (18 min).
         "kinetics/test_sorption_kinetics.jl",
         "kinetics/test_rate_gates.jl",
         "kinetics/test_seed_populations.jl",
@@ -136,10 +147,5 @@ const TEST_PARTS = Dict(
         "kinetics/test_palandri_kharaka.jl",
         "kinetics/test_glass_dissolution.jl",
         "coupling_reference.jl",
-    ],
-    "calorimetry" => [
-        # The calorimeters, with the rate models they compile first.
-        "kinetics/test_rate_models.jl",
-        "kinetics/test_calorimetry.jl",
     ],
 )

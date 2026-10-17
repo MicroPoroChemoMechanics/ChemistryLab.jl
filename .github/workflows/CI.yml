@@ -36,9 +36,10 @@ jobs:
           - 'pre'
         part:
           - core
-          - equilibrium
-          - kinetics
-          - calorimetry
+          - equilibrium-1
+          - equilibrium-2
+          - kinetics-1
+          - kinetics-2
         os:
           - ubuntu-latest
           # WINDOWS, on the current release only. What this job is here to catch
@@ -179,7 +180,7 @@ jobs:
         id: merge
         run: |
           # The values of `matrix.part` above, plus the extensions.
-          expected=5
+          expected=6
           n=$(find coverage-parts -mindepth 1 -maxdepth 1 -type d | wc -l)
           if [ "$n" -eq "$expected" ]; then
             for d in coverage-parts/*/; do cp -r "$d". .; done

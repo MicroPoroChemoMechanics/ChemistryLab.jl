@@ -36,8 +36,10 @@ function testfile(file::AbstractString)
     return nothing
 end
 
-# `include("x.jl")` in a section becomes `testfile("x.jl")`; a section that
-# includes no file is one unit, named after the section.
+# In the sections of this file, `include("x.jl")` becomes `testfile("x.jl")`,
+# and a section that includes no file is one unit, named after the section. The
+# test files use `@testsection` too: theirs are left as they were, run whenever
+# their file runs — rewritten or gated, they would be skipped silently.
 _route(ex) = ex
 function _route(ex::Expr)
     if ex.head === :call && ex.args[1] === :include && length(ex.args) == 2 && ex.args[2] isa String
@@ -49,8 +51,10 @@ _includes(ex) = false
 _includes(ex::Expr) = (ex.head === :call && ex.args[1] === :testfile) || any(_includes, ex.args)
 
 macro testsection(str, block)
-    body = _route(block)
-    gated = _includes(body) ? body : :(rununit($str) && $body)
+    here = __source__.file === nothing ? "" : basename(String(__source__.file))
+    toplevel = here == "runtests.jl"
+    body = toplevel ? _route(block) : block
+    gated = toplevel && !_includes(body) ? :(rununit($str) && $body) : body
     return quote
         @timeit "$($(esc(str)))" begin
             @testset "$($(esc(str)))" begin
