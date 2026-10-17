@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.39.1 — on OptimaSolver 0.8.8
+
+A patch release, which requires OptimaSolver 0.8.8. Its interior point limits
+its step on the step it actually takes, and its dual Newton method lets a mixing
+phase enter in place of another when nothing else can leave. No API changes; a
+run's path changes, so the last digits of an equilibrium may.
+
+### Changed
+
+- **OptimaSolver 0.8.8 or later is required** (`[compat] OptimaSolver = "0.8.8"`,
+  was `"0.8.7"`). The interior point used to halve its step against a limit taken
+  on a direction it did not follow: on the part of this package's suite that
+  equilibrates the most, 1.1 million halvings went away and the iterations
+  dropped by 6 %. The dual Newton method now converges from a start that holds
+  only the less stable phase of a mixing pair, where it ended unconverged.
+
+### Tests
+
+- The unpolished interior point on calcite now comes 5.2e-4 from the certified
+  pH: the disagreement the test documents is asked to exceed 1e-4, where it was
+  1e-3.
+
 ## v0.39.0 — surfaces that follow their host, tools for kinetic phases, and the coefficients of Pitzer and SIT
 
 A minor release, on OptimaSolver 0.8.7. A site family may follow a host that a
