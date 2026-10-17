@@ -194,8 +194,10 @@ include("reference_species.jl")
         @test balance_rel(st, eq_bar) > 1.0e-3      # measured at 3.0e-2
         @test balance_rel(st, eq_cert) < 1.0e-8
         @test cert.optimal
-        # And they disagree on the answer, not merely on the residual.
-        @test abs(pH(eq_bar) - pH(eq_cert)) > 1.0e-3
+        # And they disagree on the answer, not merely on the residual: by more
+        # than 1e-3 in pH with OptimaSolver 0.8.7, by 5e-4 since 0.8.8 limits the
+        # interior point's steps on the step it actually takes.
+        @test abs(pH(eq_bar) - pH(eq_cert)) > 1.0e-4
     end
 
     @testsection "b is fixed once, not taken from each start" begin
