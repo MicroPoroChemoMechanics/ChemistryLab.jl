@@ -63,6 +63,13 @@ using Test
         # Each item is a Pair{Species, Number}
         @test all(p -> p isa Pair, all_reac)
         @test all(p -> p isa Pair, all_prod)
+        # The reaction itself yields its species with signed coefficients, as
+        # pairs on both sides: the reactants came as tuples, so that `collect`
+        # gave a `Vector{Any}`.
+        terms = collect(r)
+        @test terms isa Vector{Pair{Species{Int}, Int}}
+        @test first.(terms) == collect(keys(r))
+        @test last.(terms) == [-1, 1, 1] == collect(values(r))
     end
 
     @testsection "Simplify reaction" begin

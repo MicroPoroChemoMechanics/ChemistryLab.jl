@@ -232,6 +232,10 @@ end
         # stand for these: `Int` of each throws, and the value comes back as is.
         @test stoich_coef_round(Inf) === Inf
         @test stoich_coef_round(1.0e30) === 1.0e30
+        @test isnan(stoich_coef_round(NaN))
+        # A symbolic coefficient has no value to round.
+        a = ChemistryLab.Symbolics.variable(:a)
+        @test isequal(stoich_coef_round(2a + 1), 2a + 1)
     end
 
     @testset "a rational count that is a whole number is an integer" begin
@@ -239,6 +243,14 @@ end
         # the composition keeps the integer type of an ordinary formula.
         @test parse_formula("H4//2O")[:H] === 2
         @test parse_formula("H4//2O") == parse_formula("H2O")
+    end
+
+    @testset "a formula closing on a parenthesis" begin
+        # Goethite and the C4AF of CEMDATA18 end on a group with no factor, so
+        # the reading of the group leaves the cursor past the end of the string.
+        @test parse_formula("Fe|3|O(OH)") == Dict(:Fe => 1, :O => 2, :H => 1)
+        @test parse_formula("(CaO)4(Al2O3)(Fe|3|2O3)") == Dict(:Ca => 4, :O => 10, :Al => 2, :Fe => 2)
+        @test parse_formula("Ca(OH)") == Dict(:Ca => 1, :O => 1, :H => 1)
     end
 
     @testset "equations with an empty side, a negative or a missing term" begin
@@ -266,6 +278,15 @@ end
         @test format_equation(OrderedDict("Fe+3" => -1, "Fe+2" => 1)) == "Fe+3 + e⁻ = Fe+2"
         # No product at all reads as ∅.
         @test format_equation(OrderedDict("H2O" => -1)) == "H2O = ∅"
+    end
+
+    @testset "format_equation refuses a sign it cannot decide" begin
+        # The side of a species is read from the sign of its coefficient. A
+        # symbol has none (a `TypeError` in the comparison), nor has a NaN,
+        # which was written among the products.
+        a = ChemistryLab.Symbolics.variable(:a)
+        @test_throws "the sign of -a cannot be decided" format_equation(OrderedDict("H2" => -a, "H2O" => a))
+        @test_throws "the sign of NaN cannot be decided" format_equation(OrderedDict("H2" => NaN, "H2O" => 1))
     end
 
     @testset "parentheses are added only around a root-level sum" begin

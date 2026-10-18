@@ -9,7 +9,6 @@ using OrderedCollections
 # the stored diagnostics keep their dual part so that pH, pOH, porosity and
 # saturation stay differentiable like every other output.
 _plain(x) = x
-_plain(::Nothing) = nothing
 _plain(x::Real) = Float64(x)
 _plain(x::ForwardDiff.Dual) = _plain(ForwardDiff.value(x))
 

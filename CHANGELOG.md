@@ -1,5 +1,66 @@
 # Changelog
 
+## v0.39.2 — a reaction iterated as pairs, and cement species from any formula
+
+A patch release. Three defects found while raising the test coverage are fixed:
+iterating a `Reaction` gave tuples for its reactants and pairs for its products,
+`CemSpecies(::Species)` refused every symbolic or dual composition and answered
+an ion with another function's error, and `format_equation` took a NaN or a
+symbolic coefficient for a product. No equilibrium or kinetic result changes:
+every species and reaction of the bundled databases reads, rounds and prints as
+in 0.39.1.
+
+### Fixed
+
+- **A `Reaction` iterated as two kinds of element.** Its reactants came as
+  `(species, -ν)` tuples and its products as `species => ν` pairs, so that
+  `collect(reaction)` was a `Vector{Any}`. Both sides now yield pairs, with the
+  reactants' coefficients negated as before, and `eltype` says so:
+  `collect(Reaction("2H2 + O2 = 2H2O"))` is a `Vector{Pair{Species{Int}, Int}}`.
+  Code that destructures `for (s, ν) in reaction` is unaffected.
+- **`CemSpecies(::Species)` with symbolic or dual amounts, and its refusals.**
+  The conversion solved a least-squares system in floating point, which a
+  `Symbolics.Num` or a `ForwardDiff.Dual` amount could not enter; a species it
+  could not write went to a second decomposition that raised its own,
+  unrelated error. Each element of the cement oxides other than oxygen belongs
+  to one oxide only, so the amount of each oxide is now read from its element,
+  and the oxygen checks the result: exactly for symbolic amounts, to the
+  rounding of a stoichiometric coefficient otherwise. A species that is no sum
+  of oxides, an ion such as OH⁻ or Ca²⁺, is refused with the oxygen the oxides
+  would hold and the oxygen it has. A C-S-H of composition `Ca_a Si O_(a+2+g)
+  H_2g` converts to `C_a S H_g`, and the derivative of an oxide amount with
+  respect to an element amount comes through. Numerical conversions give the
+  oxides they gave.
+- **`format_equation` and an undecidable sign.** The side of a species is read
+  from the sign of its coefficient: a symbolic coefficient raised a `TypeError`
+  in the comparison, and a NaN was written among the products as `(NaN)`. Both
+  are now refused with an `ArgumentError` that names the species and points to
+  building a `Reaction` from its two sides.
+
+### Changed
+
+- `stoich_coef_round` no longer catches every exception: an infinite or NaN
+  coefficient and a whole number beyond `Int` are returned as given by explicit
+  tests, and a symbolic coefficient by its own method. Its results are those of
+  0.39.1 on every input tried: grids around each fraction `k/d`, `d ≤ 12`, on
+  either side of the tolerance, 400 000 random values, and the coefficients of
+  every species and reaction of the bundled ThermoFun and PHREEQC databases.
+- `common_tangent` and the polishing Newton of an eliminated kinetic step catch a
+  singular Jacobian only, as they document; any other error propagates instead
+  of ending the iteration in silence.
+- The implicit kinetic step lost a branch for a coupling it never receives (the
+  `:species` coupling is the eliminated step), and its residual scales are
+  written as the products they are.
+
+### Tests
+
+- The sensitivity of an equilibrium now holds an absent pure phase that takes
+  the whole perturbation when left free, as its pinning rule promises; that path
+  had no test.
+- A formula closing on a parenthesis with no factor, as goethite and the C₄AF of
+  CEMDATA18 are written, is parsed in the tests.
+- Each fix above has a test that fails on 0.39.1.
+
 ## v0.39.1 — on OptimaSolver 0.8.8, and four defects
 
 A patch release, which requires OptimaSolver 0.8.8. Its interior point limits

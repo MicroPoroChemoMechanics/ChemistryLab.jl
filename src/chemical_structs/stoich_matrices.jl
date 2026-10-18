@@ -1213,10 +1213,3 @@ function pprint(reactions::AbstractVector{<:Reaction}; kwargs...)
     end
     return
 end
-
-const oxides_as_species = [Species(d; symbol = string(k)) for (k, d) in CEMENT_TO_MENDELEEV]
-
-const Aoxides, atoms_in_oxides =
-    getfield.(Ref(CanonicalStoichMatrix(oxides_as_species)), [:A, :primaries])
-
-const order_atom_in_oxides = Dict(atom => i for (i, atom) in enumerate(atoms_in_oxides))

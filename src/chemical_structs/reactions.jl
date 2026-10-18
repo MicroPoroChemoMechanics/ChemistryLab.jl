@@ -349,46 +349,23 @@ function Base.setproperty!(r::Reaction, sym::Symbol, value)
 end
 
 """
-    Base.iterate(r::Reaction, state=(1, nothing))
+    Base.iterate(r::Reaction[, state])
 
-Iterate over all species in the reaction with signed coefficients.
-Yields (species, coefficient) pairs where coefficients are negative for reactants
-and positive for products.
+Iterate over all species in the reaction with signed coefficients: yields
+`species => coefficient` pairs, the coefficients negative for the reactants and
+positive for the products.
 """
-function Base.iterate(r::Reaction, state = (1, nothing))
-    idx, inner_state = state
-    if idx == 1
-        if inner_state === nothing
-            inner_state = iterate(reactants(r))
-        else
-            inner_state = iterate(reactants(r), inner_state)
-        end
-        if inner_state === nothing
-            return iterate(r, (2, nothing))
-        else
-            (k, v), new_state = inner_state
-            return (k, -v), (1, new_state)
-        end
-    elseif idx == 2
-        if inner_state === nothing
-            inner_state = iterate(products(r))
-        else
-            inner_state = iterate(products(r), inner_state)
-        end
-        if inner_state === nothing
-            return nothing
-        else
-            kv, new_state = inner_state
-            return kv, (2, new_state)
-        end
-    else
-        return nothing
-    end
-end
+Base.iterate(r::Reaction, state...) = iterate(_signed_terms(r), state...)
+
+# The reactants with their coefficients negated, then the products, as pairs.
+_signed_terms(r::Reaction) =
+    Iterators.flatten(((species => -c for (species, c) in reactants(r)), pairs(products(r))))
 
 function Base.length(r::Reaction)
     return length(reactants(r)) + length(products(r))
 end
+
+Base.eltype(::Type{<:Reaction{SR, TR, SP, TP}}) where {SR, TR, SP, TP} = Union{Pair{SR, TR}, Pair{SP, TP}}
 
 """
     Base.keys(r::Reaction)
