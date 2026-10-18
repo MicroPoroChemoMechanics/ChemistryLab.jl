@@ -84,6 +84,16 @@ using JSON
         tf = factory(; a = 2.0, b = 5.0)
         @test tf isa SymbolicFunc
         @test tf(; T = 10.0) ≈ 25.0   # 2*10 + 5
+
+        # A parameter carrying a derivative, a datum being fitted, is not
+        # substituted into the expression, which would key the compiled function
+        # on its value and lose the derivative: the expression is compiled with
+        # the parameters as arguments. The derivatives are those of a T + b,
+        # T with respect to a and 1 with respect to b, and the value is unchanged.
+        @test factory(; a = ForwardDiff.Dual(2.0, 1.0), b = 5.0) isa NumericFunc
+        @test ForwardDiff.derivative(a -> factory(; a = a, b = 5.0)(; T = 10.0), 2.0) ≈ 10.0
+        @test ForwardDiff.derivative(b -> factory(; a = 2.0, b = b)(; T = 10.0), 5.0) ≈ 1.0
+        @test ForwardDiff.value(factory(; a = ForwardDiff.Dual(2.0, 1.0), b = 5.0)(; T = 10.0)) ≈ 25.0
     end
 
     @testsection "ThermoFactory called from several tasks at once" begin
@@ -170,6 +180,47 @@ using JSON
         # Without an entropy there is nothing to extrapolate with.
         bare = entry([:Cp⁰ => missing; :S⁰ => missing; ref])
         @test bare[:ΔₐG⁰](T = T, unit = false) ≈ G0
+    end
+
+    @testsection "a model registered without G takes it from H and S" begin
+        # A model that states Cp, H and S but no G has its Gibbs energy built
+        # as H − T S, shifted to equal ΔfG⁰ at Tref. That is the closed form
+        # ΔfG⁰ − S⁰(Tref) (T − Tref) + ∫Cp dT − T ∫Cp/T dT, checked here on a
+        # heat capacity linear in T. Made-up values: only the construction of G
+        # matters. The model is removed from the registries afterwards.
+        model_name = :_test_linear_cp_without_g
+        add_thermo_model(
+            model_name,
+            Dict(
+                :Cp => :(a₀ + a₁ * T),
+                :H => :(a₀ * T + a₁ * T^2 / 2),
+                :S => :(a₀ * log(T) + a₁ * T),
+                :units => [:T => u"K", :a₀ => u"J/(mol*K)", :a₁ => u"J/(mol*K^2)"],
+            ),
+        )
+        try
+            Tr, T = 298.15, 350.0
+            a0, a1, S0, H0, G0 = 30.0, 0.02, 100.0, -1.0e5, -1.3e5
+            thermo = build_thermo_functions(
+                model_name,
+                [
+                    :a₀ => a0 * u"J/(mol*K)", :a₁ => a1 * u"J/(mol*K^2)",
+                    :S⁰ => S0 * u"J/(mol*K)", :ΔfH⁰ => H0 * u"J/mol", :ΔfG⁰ => G0 * u"J/mol",
+                    :T => Tr * u"K",
+                ],
+            )
+            ∫Cp = a0 * (T - Tr) + a1 * (T^2 - Tr^2) / 2
+            ∫Cp_T = a0 * log(T / Tr) + a1 * (T - Tr)
+            @test thermo[:ΔₐH⁰](T = T, unit = false) ≈ H0 + ∫Cp rtol = 1.0e-12
+            @test thermo[:S⁰](T = T, unit = false) ≈ S0 + ∫Cp_T rtol = 1.0e-12
+            @test thermo[:ΔₐG⁰](T = Tr, unit = false) ≈ G0 rtol = 1.0e-12
+            @test thermo[:ΔₐG⁰](T = T, unit = false) ≈ G0 - S0 * (T - Tr) + ∫Cp - T * ∫Cp_T rtol = 1.0e-10
+        finally
+            lock(ChemistryLab._THERMO_FACTORY_LOCK) do
+                delete!(THERMO_MODELS, model_name)
+                delete!(THERMO_FACTORIES, model_name)
+            end
+        end
     end
 
     @testsection "a heat capacity given on several intervals" begin

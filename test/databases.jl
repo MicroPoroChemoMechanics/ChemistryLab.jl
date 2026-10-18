@@ -46,6 +46,20 @@ using TOML
         end
         @test parse_unit(missing, u"Pa") == u"Pa"
 
+        # A field is read when it holds exactly one value, with its unit; two
+        # values are not a value, and `missing` says so rather than an error
+        # raised from inside the reader. Asked to, it prints what it read.
+        extract = ChemistryLab.extract_value
+        @test extract((symbol = "X", f = (values = [2.0], units = ["J/mol"])), :f) == 2.0u"J/mol"
+        @test ismissing(extract((symbol = "X", f = (values = [1.0, 2.0],)), :f))
+        shown = mktemp() do _, io
+            redirect_stdout(() -> extract((symbol = "X", f = (values = [2.0],)), :f; verbose = true), io)
+            flush(io)
+            seekstart(io)
+            read(io, String)
+        end
+        @test occursin("X => f=", shown)
+
         # Scan every ThermoFun unit of the databases, including coefficient metadata.
         bundled_units = Set{String}()
         function collect_units(value)
@@ -292,6 +306,43 @@ end
         @test_throws ErrorException build_solid_solutions(
             tmp_missing, dict; skip_missing = false
         )
+    end
+
+    @testset "a regular model from a matrix or a single parameter, an unknown one as ideal" begin
+        # The interaction parameters are made up, below 2RT so that the phases
+        # stay convex: only the way the file is read matters. `W` is given as
+        # its rows, `w` as the single parameter of a binary, which is the
+        # symmetric matrix with that off-diagonal entry.
+        toml_regular = """
+        [[solid_solution]]
+        name        = "Reg_matrix"
+        end_members = ["Ms", "Mc"]
+        model       = "regular"
+        W           = [[0.0, 1500.0], [1500.0, 0.0]]
+
+        [[solid_solution]]
+        name        = "Reg_binary"
+        end_members = ["TobD", "TobH"]
+        model       = "regular"
+        w           = 2000.0
+
+        [[solid_solution]]
+        name        = "Unknown_model"
+        end_members = ["JenH", "JenD"]
+        model       = "margules"
+        """
+        tmp_regular = tempname() * ".toml"
+        write(tmp_regular, toml_regular)
+        read_back = @test_logs (:warn, r"unknown model \"margules\"") match_mode = :any build_solid_solutions(
+            tmp_regular, dict
+        )
+        rm(tmp_regular; force = true)
+        byname = Dict(name(p) => p for p in read_back)
+        @test model(byname["Reg_matrix"]) isa RegularSolutionModel
+        @test model(byname["Reg_matrix"]).W == [0.0 1500.0; 1500.0 0.0]
+        @test model(byname["Reg_binary"]) isa RegularSolutionModel
+        @test model(byname["Reg_binary"]).W == [0.0 2000.0; 2000.0 0.0]
+        @test model(byname["Unknown_model"]) isa IdealSolidSolutionModel
     end
 
     @testset "data/solid_solutions.toml parses without error" begin

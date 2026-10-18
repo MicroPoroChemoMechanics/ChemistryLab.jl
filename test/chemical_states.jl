@@ -212,6 +212,19 @@ using JSON
         @test_throws ErrorException rescale!(s_zero, 1.0u"mol")
     end
 
+    @testsection "an amount that is neither moles nor mass is refused" begin
+        # An amount is read as moles, or as a mass divided by the molar mass. A
+        # length has neither reading, and is refused by name rather than stored
+        # with a dimension the state cannot hold; the state is left as it was.
+        state = ChemicalState(cs_basic)
+        @test_throws "must have amount (mol) or mass dimension" set_quantity!(state, "H2O", 1.0u"m")
+        @test all(iszero, ustrip.(state.n))
+        # The constructor reads its amounts through the same conversion.
+        @test_throws "must have amount (mol) or mass dimension" ChemicalState(
+            cs_basic, [1.0u"m", 0.0u"mol", 0.0u"mol"]
+        )
+    end
+
     @testsection "ForwardDiff — _build_params / _build_n0" begin
         using ForwardDiff
 

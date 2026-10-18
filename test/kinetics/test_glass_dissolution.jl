@@ -67,6 +67,17 @@
     dr = ForwardDiff.derivative(K -> rate(RateMechanism(k, 1.0, 1.0, RateModelCatalyst{Float64}[], [RateModelInhibitor("Ca+2", K)])), K0)
     @test dr ≈ -a * (1 + K0 * a)^(-2) * plain rtol = 1.0e-12
 
+    # A catalyst multiplies the mechanism by aⁿ, a the activity read from the
+    # state (here that of H⁺, e⁻⁷); with an inhibitor as well, the two factors
+    # compose.
+    aH = exp(lna[index["H+"]])
+    for n_cat in (0.5, 1.0)
+        r = rate(RateMechanism(k, 1.0, 1.0, [RateModelCatalyst("H+", n_cat)]))
+        @test r ≈ plain * aH^n_cat rtol = 1.0e-12
+    end
+    both = rate(RateMechanism(k, 1.0, 1.0, [RateModelCatalyst("H+", 0.5)], [RateModelInhibitor("Ca+2", K0)]))
+    @test both ≈ plain * aH^0.5 / (1 + K0 * a) rtol = 1.0e-12
+
     # An inhibitor the system does not hold is refused by name.
     err = try
         transition_state([RateMechanism(k, 1.0, 1.0, RateModelCatalyst{Float64}[], [RateModelInhibitor("Al(OH)4-", 1.0)])], cs, rxn, BETSurfaceArea(90.0))

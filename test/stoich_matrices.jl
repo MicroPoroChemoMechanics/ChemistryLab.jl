@@ -256,5 +256,125 @@ using LinearAlgebra
         @test ChemistryLab._label_accessor(:symbol) === symbol
         @test ChemistryLab._label_accessor(:name) === name
         @test ChemistryLab._label_accessor(:formula) === formula
+
+        # `label` sets both accessors at once: the same table as asking for
+        # each, with the names on both axes and no symbol left.
+        both = captured(; label = :name)
+        @test both == captured(; row_label = :name, col_label = :name)
+        @test occursin("Water", both) && occursin("Proton", both)
+        @test !occursin("H2O@", both)
     end
+
+    @testsection "a null space over a matrix given by hand keeps simple fractions exact" begin
+        # Primaries that are not species send the constructor to the rational
+        # elimination. A species whose column is integer gets an integer
+        # coefficient, the others what the elimination gives: a fraction of
+        # denominator below ten exactly, anything else as a float rounded to
+        # five digits, as `stoich_coef_round` documents. Ozone carries 3/2 of
+        # the O2 unit, so 3 O2 = 2 O3, written with a unit coefficient on O2.
+        o2, o3 = Species("O2"), Species("O3")
+        SM = StoichMatrix([1.0 1.5], [:O2], [o2, o3])
+        @test size(SM.N) == (2, 1)
+        @test SM.N[1, 1] == 1
+        @test SM.N[2, 1] ≈ -2 / 3 rtol = 1.0e-14
+        @test abs(only(SM.A * SM.N)) < 1.0e-14
+        # A species carrying 1.1 of the unit: the fraction is 10/11, whose
+        # denominator is past the bound, so the coefficient is the rounded float.
+        nacl, salt = Species("NaCl"), Species("Na1.1Cl1.1")
+        SMx = StoichMatrix([1.0 1.1], [:NaCl], [nacl, salt])
+        @test SMx.N[1, 1] == 1
+        @test SMx.N[2, 1] == round(-10 / 11; digits = 5)
+        @test abs(only(SMx.A * SMx.N)) < 1.0e-5
+    end
+
+    @testsection "no reaction among species that are all components" begin
+        # Water and carbon dioxide have independent element vectors: both are
+        # components, the null space is empty, and no reaction can be written
+        # between them.
+        SM = StoichMatrix([Species("H2O"), Species("CO2")])
+        @test size(SM.N, 2) == 0
+        @test isempty(reactions(SM))
+    end
+
+    @testsection "cement species decompose over the oxides they are written in" begin
+        # C3S is three lime and one silica, CH one lime and one water: the
+        # cement notation itself is the reference.
+        SM = StoichMatrix(
+            [CemSpecies("C3S"), CemSpecies("CH")],
+            [CemSpecies("C"), CemSpecies("S"), CemSpecies("H")],
+        )
+        coef(sp, ox) = SM.A[
+            findfirst(p -> symbol(p) == ox, SM.primaries),
+            findfirst(s -> symbol(s) == sp, SM.species),
+        ]
+        @test coef("C3S", "C") == 3 && coef("C3S", "S") == 1 && coef("C3S", "H") == 0
+        @test coef("CH", "C") == 1 && coef("CH", "H") == 1 && coef("CH", "S") == 0
+        @test size(SM.N, 2) == 0
+    end
+
+    @testsection "primaries chosen by a pivoted QR still decompose every species" begin
+        # The basis may differ from the greedy one, and from one machine to
+        # another, so what is checked holds for any basis: as many primaries as
+        # the rank, and each species' elements and charge equal to those of its
+        # decomposition over them.
+        species = Species.(split("H2O H+ OH- CO2 HCO3- CO3-2"))
+        SM = StoichMatrix(species; optimize_primaries = true)
+        @test length(SM.primaries) == length(StoichMatrix(species).primaries) == 3
+        for (j, s) in enumerate(SM.species), el in (:H, :O, :C, :Zz)
+            @test get(atoms_charge(s), el, 0) ≈
+                sum(SM.A[i, j] * get(atoms_charge(p), el, 0) for (i, p) in enumerate(SM.primaries)) atol = 1.0e-4
+        end
+        @test maximum(abs, Float64.(SM.A) * Float64.(SM.N)) < 1.0e-12
+    end
+
+    @testsection "a matrix with symbols: the rank, the inverse and the printing fall back" begin
+        # A C-S-H of symbolic composition, as in the manual: no rank or
+        # pseudo-inverse can be computed numerically on it, so the rank falls
+        # back to the dimensions and the decomposition to the inverse, and the
+        # colored printing, which compares each entry with zero, falls back to
+        # the plain table. The decomposition is checked at a composition
+        # substituted afterwards, against the one solved by hand:
+        # C3S = (a − g − 3) H + CSH + (3 − a) CH.
+        Sym = ChemistryLab.Symbolics
+        a, g = Sym.variable(:a), Sym.variable(:g)
+        CSH = CemSpecies(Dict(:C => a, :S => one(a), :H => g))
+        C3S, H, CH = CemSpecies("C3S"), CemSpecies("H"), CemSpecies("CH")
+        SM = StoichMatrix([C3S], [CSH, H, CH])
+        @test length(SM.primaries) == 3
+        @test isempty(SM.N)
+        at = Dict(a => 1.7, g => 4.0)
+        num(x) = Float64(Sym.value(Sym.substitute(x, at)))
+        iH = findfirst(p -> symbol(p) == "H", SM.primaries)
+        iCH = findfirst(p -> symbol(p) == "CH", SM.primaries)
+        iCSH = only(setdiff(1:3, [iH, iCH]))
+        @test num(SM.A[iCSH, 1]) ≈ 1 atol = 1.0e-12
+        @test num(SM.A[iCH, 1]) ≈ 3 - 1.7 atol = 1.0e-12
+        @test num(SM.A[iH, 1]) ≈ 1.7 - 4.0 - 3 atol = 1.0e-12
+
+        out = mktemp() do _, io
+            redirect_stdout(io) do
+                pprint(SM)
+            end
+            flush(io)
+            seekstart(io)
+            read(io, String)
+        end
+        @test occursin("C3S", out) && occursin("CH", out)
+    end
+end
+
+@testsection "an abstract element type is rationalized on its entries" begin
+    # `Matrix{Real}` is how a `ChemicalSystem` holds integer and rational
+    # coefficients together, a cement's among them. A decimal coefficient beside
+    # its rational form, as CEMDATA18 gives (jennite's 1.666667 calcium is 5//3 on
+    # another row), is rationalized with the package's tolerance, so the two
+    # columns below are one, as they are in a `Matrix{Float64}`. Decided on the
+    # element type, a `Matrix{Real}` went to the floating-point rank instead,
+    # which counted two.
+    @test ChemistryLab._is_rationalizable(Real[1 2 // 3; 0.5 1])
+    @test ChemistryLab._exact_rank(Real[5 // 3 1.6667; 1 1]) == 1
+    @test ChemistryLab._exact_rank([5 / 3 1.6667; 1 1]) == 1
+    @test ChemistryLab._exact_rank(Real[1 2 // 3; 3 2]) == 1
+    # An entry that is not a number of fixed value keeps the matrix out.
+    @test !ChemistryLab._is_rationalizable(Real[1 ForwardDiff.Dual(1.0, 1.0)])
 end

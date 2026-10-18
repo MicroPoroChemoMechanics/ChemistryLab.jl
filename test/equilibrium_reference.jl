@@ -133,6 +133,24 @@ const N_H2O, N_CAL, N_CO2 = RK.n_H2O, RK.n_Cal, RK.n_CO2
         @test h ≈ oh rtol = 1.0e-4
         @test 13.9 < -log10(h * oh) < 14.1
 
+        # Handed the exact Hessian diagonal, `∂μ/∂n` by automatic
+        # differentiation, the back end starts the polish from another point,
+        # and the certified answer is the same equilibrium: neutral, at the same
+        # ion product. The flag is global, so it is restored whatever happens.
+        exact = ChemistryLab.EXACT_HESSIAN[]
+        try
+            ChemistryLab.EXACT_HESSIAN[] = true
+            cx = Ref{Any}()
+            eqx = equilibrate(ChemicalState(csw, n), OptimaOptimizer(); certificate = cx)
+            @test cx[].optimal
+            vx = [ustrip(us"mol", x) for x in eqx.n]
+            hx, ohx = vx[findfirst(==("H+"), nw)], vx[findfirst(==("OH-"), nw)]
+            @test hx ≈ ohx rtol = 1.0e-4
+            @test -log10(hx * ohx) ≈ -log10(h * oh) atol = 1.0e-6
+        finally
+            ChemistryLab.EXACT_HESSIAN[] = exact
+        end
+
         # THE SCHUR-COMPLEMENT ROUTE IS STILL WRONG, and this testset used to say
         # otherwise because it only looked at the half that happens to be right.
         #

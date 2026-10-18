@@ -265,6 +265,26 @@ using LinearAlgebra
         @test_throws ArgumentError KineticStepSolver(
             cs, DiluteSolutionModel(), [kr, kr2],
         )
+
+        # A kinetic partition named by symbol or by index is the one `:auto`
+        # finds on this reaction, calcite alone; a name the system does not
+        # hold is refused.
+        auto = KineticStepSolver(cs, DiluteSolutionModel(), [kr])
+        by_name = KineticStepSolver(cs, DiluteSolutionModel(), [kr]; kinetic_species = ["Cal"])
+        by_index = KineticStepSolver(cs, DiluteSolutionModel(), [kr]; kinetic_species = [i_Cal])
+        @test by_name.K == by_index.K == auto.K
+        @test by_name.idx_kin == by_index.idx_kin == auto.idx_kin == [i_Cal]
+        @test_throws "is not a species of this system" KineticStepSolver(
+            cs, DiluteSolutionModel(), [kr]; kinetic_species = ["NotHere"],
+        )
+
+        # A zero tolerance accepts no step: the Richardson difference of a step
+        # is never below it (a difference of exactly zero over a zero tolerance
+        # is not a number, and is refused too). With no halving allowed, the
+        # march says why it stopped.
+        @test_throws "no step of this march" kinetic_step_adaptive(
+            auto, calcite_water(), 10.0; reltol = 0.0, abstol = 0.0, max_halvings = 0,
+        )
     end
 
 end

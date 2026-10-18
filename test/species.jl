@@ -252,3 +252,56 @@ end
     @test (@allocated lookup(ion, :Zz)) == 0
     @test (@allocated lookup(ion, :M)) == 0
 end
+
+@testset "a species built from its composition, and its cement form" begin
+    # Built from a composition with no name, a species is named by the Unicode
+    # form of its formula, and that name is its symbol as well. The reference is
+    # the formula parsed from its string, a different constructor.
+    w = Species(OrderedDict(:H => 2, :O => 1))
+    @test name(w) == unicode(Formula("H2O")) == "H₂O"
+    @test symbol(w) == name(w)
+
+    # Its structural fields are set by the constructors only: a property may be
+    # assigned, a field may not, and the refusal changes nothing.
+    @test_throws "Cannot modify field 'name'" setproperty!(w, :name, "water")
+    @test name(w) == "H₂O"
+
+    # `apply` maps every coefficient it can and keeps the others as they were:
+    # `Int(1//2)` throws, so carbon keeps its half while oxygen is mapped.
+    half = Species(OrderedDict(:C => 1 // 2, :O => 1); symbol = "CO_half")
+    mapped = apply(x -> Int(x), half)
+    @test atoms(mapped)[:C] === 1 // 2
+    @test atoms(mapped)[:O] === 1
+
+    # The PHREEQC and Unicode forms of a cement species are those of its oxide
+    # formula: C3S reads back as written, with a subscript in Unicode.
+    c3s = CemSpecies("C3S")
+    @test phreeqc(c3s) == "C3S"
+    @test unicode(c3s) == "C₃S"
+
+    # The charge carrier of a cement system, which `StoichMatrix` builds for a
+    # list of cement species, holds no oxide and no atom and one unit of charge,
+    # which its components report under `:Zz`.
+    zz = CemSpecies("Zz")
+    @test isempty(oxides(zz))
+    @test isempty(atoms(zz))
+    @test charge(zz) == 1
+    @test components(zz) == OrderedDict(:Zz => 1)
+    @test isempty(to_mendeleev(OrderedDict(:Zz => 1)))
+
+    # A species written over the elements of the cement oxides converts to
+    # them: Ca(OH)2 is CH, lime and water, as the cement notation parses it. It
+    # keeps its own symbol and its atoms.
+    portlandite = Species("Ca(OH)2")
+    ch = CemSpecies(portlandite)
+    @test oxides(ch) == oxides(CemSpecies("CH")) == OrderedDict(:C => 1, :H => 1)
+    @test atoms(ch) == atoms(portlandite)
+    @test symbol(ch) == symbol(portlandite)
+    # Built from oxides with no name, it is named after its cement formula.
+    ch2 = CemSpecies(OrderedDict(:C => 1, :H => 1))
+    @test name(ch2) == "CH" && symbol(ch2) == "CH"
+    @test atoms(ch2) == atoms(portlandite)
+    # A species carrying an element that no cement oxide holds is refused, and
+    # the element is named.
+    @test_throws "Cl does not belong to cement atoms" CemSpecies(Species("NaCl"))
+end

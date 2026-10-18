@@ -1486,30 +1486,7 @@ Apply a function element-wise to all numeric components and properties of a spec
 Handles Quantity types, attempting to preserve dimensions when possible.
 """
 function apply(func::Function, s::S, args...; kwargs...) where {S <: AbstractSpecies}
-    function tryfunc(v)
-        return if v isa Quantity
-            (
-                try
-                    func(ustrip(v), args...; kwargs...) *
-                        func(dimension(v), args...; kwargs...)
-                catch
-                    try
-                        func(ustrip(v), args...; kwargs...) * dimension(v)
-                    catch
-                        v
-                    end
-                end
-            )
-        else
-            (
-                try
-                    func(v, args...; kwargs...)
-                catch
-                    v
-                end
-            )
-        end
-    end
+    tryfunc(v) = _apply_to(func, v, args...; kwargs...)
     newcomponents = OrderedDict(k => tryfunc(v) for (k, v) in components(s))
     newSpecies = root_type(typeof(s))(
         newcomponents,

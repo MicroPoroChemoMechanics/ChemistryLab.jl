@@ -429,6 +429,21 @@ end
     ChemistryLab.NONCONVERGED[] = 0
     @test ChemistryLab.NONCONVERGED[] == 0
 
+    # The equilibrium solver of a `KineticsSolver` reaches a problem built
+    # without one, which is otherwise unchanged; one already set on the problem
+    # wins, silently when it is the same solver and with a warning when the two
+    # differ. `integrate` runs on the problem this returns.
+    es = kp.equilibrium_solver
+    bare = KineticsProblem(cs, [kr], ChemicalState(cs, n), (0.0u"s", 600.0u"s"); equilibrium_solver = nothing)
+    @test ChemistryLab._with_equilibrium_solver(bare, nothing) === bare
+    wired = ChemistryLab._with_equilibrium_solver(bare, es)
+    @test wired.equilibrium_solver === es
+    @test wired.idx_kinetic == bare.idx_kinetic && wired.Ae == bare.Ae && wired.ν == bare.ν
+    @test wired.tspan == bare.tspan
+    @test (@test_logs ChemistryLab._with_equilibrium_solver(kp, es)) === kp
+    other = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer())
+    @test (@test_logs (:warn, r"set on both") ChemistryLab._with_equilibrium_solver(kp, other)) === kp
+
 end
 
 @testset "integrate forwards solver keyword arguments" begin

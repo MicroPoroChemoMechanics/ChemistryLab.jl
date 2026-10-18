@@ -767,25 +767,21 @@ Parentheses are added only when the expression contains addition or subtraction
 operators at the root level (outside any existing parentheses).
 """
 function add_parentheses_if_needed(s::String)
-    # Return early if s is already parenthesized fully and balanced
+    # Already wrapped when the first parenthesis closes on the last character.
+    # The test used to read `count == 0` after a `break` taken precisely when it
+    # was 0, so that `(a)+(b)` passed for wrapped; and it compared a character
+    # count with a byte index, which a superscript charge throws off.
     if startswith(s, "(") && endswith(s, ")")
-        # Check if outer parentheses fully enclose s
-        count = 0
-        for (i, c) in enumerate(s)
-            if c == '('
-                count += 1
-            elseif c == ')'
-                count -= 1
-                if count == 0 && i != lastindex(s)
-                    break
-                end
-            end
-        end
-        if count == 0
-            return s  # already properly parenthesized
+        depth = 0
+        for (i, c) in pairs(s)
+            depth += (c == '(') - (c == ')')
+            depth == 0 && return i == lastindex(s) ? s : _parenthesize_at_root(s)
         end
     end
+    return _parenthesize_at_root(s)
+end
 
+function _parenthesize_at_root(s::String)
     # Helper to detect + or - at root level (outside any parentheses)
     function has_root_level_plusminus(str)
         lvl = 0
