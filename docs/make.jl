@@ -13,6 +13,11 @@ using PrettyTables
 
 include("pages.jl")
 
+# Documenter checks the docstrings of every submodule of `modules`. Those of
+# `ChemistryLab.Studio` document the studio's code, not the package's API: only
+# `clstudio` belongs in the manual, in the Studio chapter.
+const STUDIO_INTERNALS = [ChemistryLab.Studio]
+
 # The nomenclature, as the JSON that the plugin typesetting the formulas and the
 # hints of the theme read: the entries of `nomenclature.toml`, the values of the
 # physical constants taken from the library. Written before any page is built,
@@ -476,6 +481,7 @@ PARTIAL_BUILD || let t0 = time()
         Logging.with_logger(RecordingLogger(Logging.current_logger(), _PREFLIGHT_LOG)) do
             makedocs(;
                 modules = [ChemistryLab],
+                checkdocs_ignored_modules = STUDIO_INTERNALS,
                 remotes = nothing,
                 authors = "Jean-François Barthélémy and Anthony Soive",
                 sitename = "ChemistryLab.jl",
@@ -546,6 +552,7 @@ makedocs(;
     # `clean = false` lets pages deleted from the source survive in `build/`
     # and go on being deployed. Nothing writes there before `makedocs`.
     modules=[ChemistryLab],
+    checkdocs_ignored_modules=STUDIO_INTERNALS,
     remotes=nothing,
     authors="Jean-François Barthélémy and Anthony Soive",
     sitename="ChemistryLab.jl",
