@@ -21,7 +21,14 @@ end
 
 studio_url(h::StudioHandle) = h.url
 
-Base.wait(h::StudioHandle) = Base.wait(h.server)
+# Ctrl-C interrupts a task asleep on a timer, never one waiting on a condition
+# (as `wait(server)` does): the server is watched by short sleeps instead.
+function Base.wait(h::StudioHandle)
+    while !h.closed && isopen(h.server)
+        sleep(0.2)
+    end
+    return nothing
+end
 
 function Base.close(h::StudioHandle)
     h.closed && return nothing
@@ -116,6 +123,11 @@ function run_studio(
 
     host in LOOPBACK || @warn "The studio listens on $host: it can be reached from other machines, " *
         "and runs code on request. Its token is the only protection; share it with nobody."
+    # A script (`julia -e`, `julia file.jl`) exits on Ctrl-C at once, from a
+    # handler that cannot stop the compute process; a blocking run takes the
+    # interrupt itself instead, as at the REPL, from before its address is
+    # printed, and restores the script's setting when it stops.
+    wait && Base.exit_on_sigint(false)
     token = Random.randstring(Random.RandomDevice(), 32)
     session = Session(app, token, String(host), Int(something(port, app.default_port)), compute, app.new_state(), managed)
     router = HTTP.Router()
@@ -138,6 +150,7 @@ function run_studio(
         println("\nStopping $(app.name).")
     finally
         close(handle)
+        Base.exit_on_sigint(!isinteractive())
     end
     return nothing
 end

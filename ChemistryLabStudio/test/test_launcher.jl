@@ -116,6 +116,31 @@ end
     @test result === nothing
 end
 
+# A terminal's Ctrl-C on a studio run as a script: it reaches the waiting loop,
+# which stops the server and the compute process. (Windows has no SIGINT to send.)
+Sys.iswindows() || @testset "Ctrl-C stops a studio run as a script" begin
+    code = "using ChemistryLabStudio; clstudio(; port = 0, no_browser = true, project = $(repr(lacking)))"
+    cmd = `$(Base.julia_cmd()) $(CLS.coverage_flags()) --project=$(Base.active_project()) -e $code`
+    log = tempname()
+    p = run(pipeline(ignorestatus(cmd); stdout = log, stderr = log); wait = false)
+    # the address is printed once the server listens
+    for _ in 1:1200
+        (occursin("token=", read(log, String)) || !process_running(p)) && break
+        sleep(0.1)
+    end
+    @test occursin("token=", read(log, String))
+    kill(p, Base.SIGINT)
+    t0 = time()
+    while process_running(p) && time() - t0 < 60
+        sleep(0.2)
+    end
+    stopped = !process_running(p)
+    stopped || kill(p, Base.SIGKILL)
+    @test stopped
+    @test occursin("Stopping ChemistryLab Studio.", read(log, String))
+    rm(log; force = true)
+end
+
 @testset "a boot that prepares its environment" begin
     # the whole boot on a managed environment holding a standard library only,
     # and a boot file that needs nothing: no download, no ChemistryLab
