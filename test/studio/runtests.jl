@@ -1,12 +1,19 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright © 2026 Jean-François Barthélémy (Cerema, UMR MCD)
 
-using ChemistryLabStudio
-using Test
+# The tests of ChemistryLab Studio (src/studio/), in a module of their own so
+# that their helpers stay apart from those of the package's other tests. A unit
+# of the `core` part of the suite; the Studio workflow runs them alone too, with
+# a compute process.
 
-const CLS = ChemistryLabStudio
+module StudioTests
 
-@testset "ChemistryLabStudio" begin
+using ChemistryLab, Test
+using ChemistryLab.Studio: HTTP, JSON, Malt, Dates
+
+const CLS = ChemistryLab.Studio
+
+@testset "Studio" begin
     @testset "rows" include("test_rows.jl")
     @testset "schema" include("test_schema.jl")
     @testset "words of the page" include("test_i18n.jl")
@@ -24,5 +31,6 @@ const CLS = ChemistryLabStudio
     else
         @info "Compute-process tests skipped: set CLSTUDIO_WORKER_PROJECT to an environment holding ChemistryLab."
     end
-    @testset "Aqua" include("test_aqua.jl")
+end
+
 end

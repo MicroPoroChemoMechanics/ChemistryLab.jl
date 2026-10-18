@@ -215,6 +215,7 @@ end
     include("utils.jl")
     include("scripts.jl")
     include("docs_nomenclature.jl")
+    include("studio/runtests.jl")
 end
 
 @testsection "Kinetics tests" begin

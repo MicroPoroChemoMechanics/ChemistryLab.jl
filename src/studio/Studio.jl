@@ -2,19 +2,22 @@
 # Copyright © 2026 Jean-François Barthélémy (Cerema, UMR MCD)
 
 """
-    ChemistryLabStudio
+    ChemistryLab.Studio
 
-A local web interface for ChemistryLab, for cementitious materials: build a
+ChemistryLab Studio, a local web interface for cementitious materials: build a
 calculation with forms, run it, read its plots and tables, and get the Julia
 script that does the same on its own. Start it with [`clstudio`](@ref).
 
-The server is this package, light; the calculations run in a separate Julia
-process, in an environment of their own (`@chemistrylab-studio`) that the first
-launch prepares. The files under `src/core/` hold what any studio needs and
-never refer to ChemistryLab.
+The server runs in the user's session; the calculations run in a separate Julia
+process, in an environment of their own (`@chemistrylab-studio`) holding this
+very version of ChemistryLab, which the first launch prepares. The files under
+`core/` hold what any studio needs and never refer to ChemistryLab's
+chemistry; `worker/` is the code the compute process includes; `web/` is the
+page.
 """
-module ChemistryLabStudio
+module Studio
 
+using ..ChemistryLab: ChemistryLab
 using Dates: Dates
 using HTTP: HTTP
 using JSON: JSON
@@ -25,13 +28,13 @@ using TOML: TOML
 
 export clstudio
 
-const PACKAGE_ROOT = dirname(@__DIR__)
-const WEB_DIR = joinpath(PACKAGE_ROOT, "web")
-const WORKER_DIR = joinpath(PACKAGE_ROOT, "worker")
-const LIBRARY_DIR = joinpath(PACKAGE_ROOT, "library")
+const STUDIO_ROOT = @__DIR__
+const WEB_DIR = joinpath(STUDIO_ROOT, "web")
+const WORKER_DIR = joinpath(STUDIO_ROOT, "worker")
+const LIBRARY_DIR = joinpath(STUDIO_ROOT, "library")
 
-include_dependency(joinpath(PACKAGE_ROOT, "Project.toml"))
-const STUDIO_VERSION = VersionNumber(TOML.parsefile(joinpath(PACKAGE_ROOT, "Project.toml"))["version"])
+"The version of the studio: that of ChemistryLab, which ships it."
+const STUDIO_VERSION = pkgversion(ChemistryLab)
 
 include("core/memory.jl")
 include("core/browser.jl")
@@ -57,19 +60,20 @@ include("codegen.jl")
 include("api.jl")
 
 """
-The packages the compute process needs, with the bounds this studio is tested
-against. OrdinaryDiffEq integrates the kinetic runs (loaded by the first one);
-Plots draws the figures of the scripts the studio writes, which run in the same
-environment.
+The packages the compute process needs: ChemistryLab itself, at the version
+running (the studio and the chemistry it drives are one), and the others with
+the bounds the studio is tested against. OrdinaryDiffEq integrates the kinetic
+runs (loaded by the first one); Plots draws the figures of the scripts the
+studio writes, which run in the same environment.
 """
 const ENVIRONMENT = EnvironmentSpec(
+    PackageSource(ChemistryLab),
     [
-        "ChemistryLab" => "0.39.3",
         "OptimaSolver" => "0.8",
         "DynamicQuantities" => "1",
         "OrdinaryDiffEq" => "7",
         "Plots" => "1",
-    ]
+    ],
 )
 
 const APP = StudioApp(;
@@ -124,7 +128,7 @@ address: open it on your own machine, after forwarding the port
 
 # Examples
 ```julia
-using ChemistryLabStudio
+using ChemistryLab
 clstudio()                     # opens the browser on http://127.0.0.1:8766
 clstudio(port = 9000)          # another port
 clstudio(no_browser = true)    # stay in the terminal

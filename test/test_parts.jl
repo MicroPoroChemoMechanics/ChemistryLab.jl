@@ -39,6 +39,7 @@ const TEST_PARTS = Dict(
         "utils.jl",
         "scripts.jl",
         "docs_nomenclature.jl",
+        "studio/runtests.jl",
         "ipopt_extension.jl",
     ],
     "equilibrium-1" => [

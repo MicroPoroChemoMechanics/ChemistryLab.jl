@@ -52,11 +52,8 @@ jobs:
       # *load*, with an `UndefVarError` naming something that simply is not there.
       # Widening is still the right move when both versions really do work, and
       # then it is a deliberate edit on the pull request rather than a default.
-      #
-      # ChemistryLabStudio, a package of its own in this repository, and its
-      # test environment are watched too; both bound every dependency.
       - name: CompatHelper.main()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMPATHELPER_PRIV: ${{ secrets.DOCUMENTER_KEY }}
-        run: julia -e 'using CompatHelper; CompatHelper.main(; subdirs = ["", "docs", "ChemistryLabStudio", "ChemistryLabStudio/test"], entry_type = DropEntry())'
+        run: julia -e 'using CompatHelper; CompatHelper.main(; subdirs = ["", "docs"], entry_type = DropEntry())'

@@ -42,9 +42,9 @@ computing, draws the phases, the pore solution and the heat, and writes the
 Julia script of each calculation as you go, which runs on its own.
 
 ```julia-repl
-pkg> add ChemistryLabStudio
+pkg> add ChemistryLab
 
-julia> using ChemistryLabStudio; clstudio()
+julia> using ChemistryLab; clstudio()
 ```
 
 <picture>
@@ -57,7 +57,7 @@ julia> using ChemistryLabStudio; clstudio()
   <img alt="A kinetic run: the degree of reaction of each clinker phase in time" src="docs/src/assets/studio/studio_kinetics_light.png">
 </picture>
 
-The studio is a package of its own, in [`ChemistryLabStudio/`](ChemistryLabStudio);
+The studio comes with ChemistryLab, its code in [`src/studio/`](src/studio);
 its [documentation](https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl/dev/studio/getting_started)
 says how to start it, on your machine or on a remote one. Its sibling for the
 mechanics of heterogeneous materials is

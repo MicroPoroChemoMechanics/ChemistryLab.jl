@@ -2,8 +2,6 @@
 # the same calculation, the refusal of malformed fields, and each problem a
 # model can have, raised by a model built for it.
 
-using JSON
-
 m0 = CLS.default_model()
 @test CLS.to_dict(CLS.model_from_dict(CLS.to_dict(m0))) == CLS.to_dict(m0)
 d = JSON.parse(JSON.json(CLS.to_dict(m0)); dicttype = Dict{String, Any})

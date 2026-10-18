@@ -5,8 +5,6 @@
 # then the watchdog and the diagnosis of `check = true`, each on a process of
 # its own.
 
-using HTTP, JSON
-
 project = ENV["CLSTUDIO_WORKER_PROJECT"]
 julia = first(Base.julia_cmd().exec)
 
@@ -342,8 +340,8 @@ close(h)          # a normal exit of the compute process
 # connection closes, and Malt's loop ends it.
 Sys.iswindows() || @testset "the compute process follows its studio" begin
     code = """
-    using ChemistryLabStudio
-    const CLS = ChemistryLabStudio
+    using ChemistryLab
+    const CLS = ChemistryLab.Studio
     cp = CLS.ComputeProcess(; project = $(repr(project)), julia = $(repr(julia)), boot = joinpath(CLS.WORKER_DIR, "boot.jl"))
     CLS.start!(cp)
     println("worker ", cp.worker.proc_pid)

@@ -221,7 +221,7 @@ function generate(m::StudioModel; version::VersionNumber = STUDIO_VERSION, date:
     header = String[
         "# " * repeat("=", RULE_WIDTH - 2),
         "# $(m.title)",
-        "# Written by ChemistryLab Studio $version on $date.",
+        "# Written by ChemistryLab Studio (ChemistryLab $version) on $date.",
         "#",
         "# This script runs on its own, outside the studio:",
         "#     julia --project=@chemistrylab-studio $stem.jl",

@@ -120,7 +120,7 @@ function start!(cp::ComputeProcess)
         coverage_flags(),
     )
     w = Malt.Worker(;
-        exename = cp.julia, exeflags = flags, env = ["OPENBLAS_NUM_THREADS=1"],
+        exename = cp.julia, exeflags = flags, env = ["OPENBLAS_NUM_THREADS=1", join(DEFAULT_LOAD_PATH, '=')],
         monitor_stdout = false, monitor_stderr = false,
     )
     lock(cp.lock) do

@@ -200,7 +200,7 @@ mjx-container[data-nomen] {
 }
 
 /* The screenshots of ChemistryLab Studio, taken in each theme
- * (ChemistryLabStudio/tools/screenshots.mjs): the one of the current theme is
+ * (src/studio/tools/screenshots.mjs): the one of the current theme is
  * shown, framed as a window. */
 .studio-shot {
   display: block;

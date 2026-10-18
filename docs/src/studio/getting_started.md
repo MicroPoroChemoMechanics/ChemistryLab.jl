@@ -18,17 +18,17 @@ script it writes is a way to learn.
 
 ## Installing and starting
 
-In a Julia session (the REPL), type `]` to enter the package mode, then add
-the studio once:
+The studio comes with ChemistryLab. In a Julia session (the REPL), type `]`
+to enter the package mode, then add ChemistryLab once:
 
 ```julia-repl
-pkg> add ChemistryLabStudio
+pkg> add ChemistryLab
 ```
 
 Press Backspace to leave the package mode. Each time you want the studio:
 
 ```julia-repl
-julia> using ChemistryLabStudio
+julia> using ChemistryLab
 
 julia> clstudio()
 ChemistryLab Studio → http://127.0.0.1:8766/?token=…

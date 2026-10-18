@@ -2,10 +2,8 @@
 # values the model holds are the ones the code passes, read back from the
 # parsed expressions rather than from the text the generator wrote.
 
-using Dates
-
 m0 = CLS.default_model()
-g = CLS.generate(m0; version = v"0.1.0", date = Date(2026, 10, 18))
+g = CLS.generate(m0; version = v"0.40.0", date = Dates.Date(2026, 10, 18))
 
 "Every call to `f` in an expression tree."
 function calls(ex, f::Symbol, found = Expr[])
@@ -33,7 +31,7 @@ with(f) = (m = CLS.model_from_dict(CLS.to_dict(m0)); f(m); m)
     @test startswith(g.source, g.compute)
     @test occursin("## 5. Calculation", g.compute) && !occursin("## 6.", g.compute)
     @test all(occursin("## $k. ", g.source) for k in 1:7)
-    @test occursin("Written by ChemistryLab Studio 0.1.0 on 2026-10-18.", g.source)
+    @test occursin("Written by ChemistryLab Studio (ChemistryLab 0.40.0) on 2026-10-18.", g.source)
     @test occursin("julia --project=@chemistrylab-studio cem_i_52_5_n_paste.jl", g.source)
     c = Meta.parseall(g.compute)
     @test only(assignments(c, :w_b)) == m0.mix.w_b

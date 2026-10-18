@@ -33,8 +33,8 @@
 pages = [
     "Home" => "index.md",
     "Getting Started" => "quickstart.md",
-    # The graphical interface, a package of its own in ChemistryLabStudio/: for
-    # a reader who would rather not write Julia, right after the first steps.
+    # The graphical interface (`src/studio`, the submodule `ChemistryLab.Studio`):
+    # for a reader who would rather not write Julia, right after the first steps.
     "Studio" => [
         "studio/getting_started.md",
         "studio/tour.md",

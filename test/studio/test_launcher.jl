@@ -2,8 +2,6 @@
 # command, the port fallback, a handle that stops cleanly, and a blocking run
 # stopped by an interrupt.
 
-using HTTP
-
 @testset "remote session and browser" begin
     withenv("SSH_CONNECTION" => "1 2 3 4", "VSCODE_IPC_HOOK_CLI" => nothing, "BROWSER" => nothing) do
         @test CLS.is_remote_session()
@@ -153,7 +151,7 @@ end
 # A terminal's Ctrl-C on a studio run as a script ends it at once; its compute
 # process follows (test_compute.jl). Windows has no SIGINT to send.
 Sys.iswindows() || @testset "Ctrl-C stops a studio run as a script" begin
-    code = "using ChemistryLabStudio; clstudio(; port = 0, no_browser = true, project = $(repr(lacking)))"
+    code = "using ChemistryLab; clstudio(; port = 0, no_browser = true, project = $(repr(lacking)))"
     cmd = `$(Base.julia_cmd()) $(CLS.coverage_flags()) --project=$(Base.active_project()) -e $code`
     log = tempname()
     p = run(pipeline(ignorestatus(cmd); stdout = log, stderr = log); wait = false)
@@ -198,7 +196,9 @@ end
         )
         cp = CLS.ComputeProcess(; project = env, julia = first(Base.julia_cmd().exec), boot)
         session = CLS.Session(app, "b"^32, "127.0.0.1", 0, cp, nothing, true)
-        CLS.boot!(session)
+        # a load path without the standard libraries, as under `Pkg.test`: the
+        # environment and the compute process start from Julia's default one
+        withenv(() -> CLS.boot!(session), "JULIA_LOAD_PATH" => "@")
         s = CLS.status(cp)
         @test s.state == "ready" && s.message == "warmed"
         @test any(occursin("Preparing the compute environment", l) for l in s.log)

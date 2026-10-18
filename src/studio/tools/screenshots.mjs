@@ -6,8 +6,8 @@
 // taken from a running studio so that they can be taken again whenever the
 // page changes.
 //
-//   julia -e 'using ChemistryLabStudio; clstudio(no_browser = true)'   # in another terminal
-//   node screenshots.mjs --url 'http://127.0.0.1:8766/?token=…' [--out ../../docs/src/assets/studio]
+//   julia -e 'using ChemistryLab; clstudio(no_browser = true)'   # in another terminal
+//   node screenshots.mjs --url 'http://127.0.0.1:8766/?token=…' [--out ../../../docs/src/assets/studio]
 //
 // Each picture is taken in the light and in the dark theme:
 //   studio_equilibrium_{light,dark}.png  the default cement paste at 28 days;

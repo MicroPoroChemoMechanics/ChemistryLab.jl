@@ -1,16 +1,66 @@
 # Changelog
 
-## v0.39.3 — what a choice of species leaves out, said before computing, and a studio
+## v0.40.0 — ChemistryLab Studio, and what a choice of species leaves out
 
-A patch release that adds a function and changes no result. A calculation on a
-cement paste silently sets aside what its system cannot hold, reads crystals
-beyond the temperatures their data cover, or counts one phase twice; each of
-these is now reported, before the calculation, with what it costs and what to
-do. The repository also holds ChemistryLab Studio, a graphical interface for
-cement pastes, registered as a package of its own (`ChemistryLabStudio`).
+A minor release: it adds exported functions and two dependencies, and changes no
+result. ChemistryLab now ships a graphical interface for cement pastes,
+started with `clstudio()`, for a reader who would rather not write Julia; and a
+calculation that silently sets aside what its system cannot hold, reads crystals
+beyond the temperatures their data cover, or counts one phase twice, is now
+told so before it runs, with what it costs and what to do.
+
+### Breaking changes
+
+- None in the API or in the results. The minor version moves because of the
+  new exported functions and dependencies: below 1.0, a bound
+  `ChemistryLab = "0.39"` does not admit 0.40, so a package or an environment
+  that bounds ChemistryLab must widen its bound to take this release.
+- ChemistryLab now depends on **HTTP.jl 2.11 or later** and on **Malt.jl 1.4**,
+  which the studio needs. An environment that also holds a package requiring
+  HTTP 1.x can no longer resolve with this release until that package admits
+  HTTP 2.
 
 ### Added
 
+- **ChemistryLab Studio** (`clstudio()`, the submodule `ChemistryLab.Studio`,
+  its code in `src/studio/`): a local web interface that builds a calculation
+  with forms, runs it with ChemistryLab, draws and tabulates its results, and
+  writes as it goes the Julia script that does the same on its own, so that the
+  studio is also a way of learning the package. It computes:
+  - **one equilibrium** of a paste, certified, its degrees of reaction read at
+    the age given;
+  - **paths of equilibria**, each point started from the previous one:
+    hydration in time, the replacement of the binder by a supplementary
+    material, carbonation, a salt or any species added, leaching by renewals of
+    pure water or of an attacking solution, ranges of temperatures and of
+    water-to-binder ratios;
+  - **kinetic runs**: the constituents given a rate law react by it (Parrott
+    and Killoh for the clinker phases, Waller for a fly ash or a silica fume, a
+    first-order law, or a Julia expression), the others are at equilibrium from
+    the start; isothermal, or in a semi-adiabatic cell;
+  - **constraints** on an equilibrium: a pH held, the activity of a species held
+    (a partial pressure of CO₂), saturated curing, adiabatic conditions.
+
+  A calculation is built from a database ChemistryLab ships or a file of the
+  user's; a published phase list, edited from a browser of the species, or a
+  list of the user's; materials from a published template, an oxide analysis or
+  a mineral composition, entered in a table that reads a block pasted from a
+  spreadsheet; an activity model; a law of the degree of reaction per
+  constituent. The page shows the phase masses and volume fractions, the pore
+  solution, porosity and bound water, saturation indices, the certificate of
+  the solver, the degrees of reaction and the heat of a kinetic run, and a
+  table to copy. A library of formulations published in papers loads in one
+  click. A saved script reopens with every form restored from the model it
+  embeds; one edited by hand is never overwritten.
+
+  The calculations run in a separate Julia process, in an environment the first
+  start prepares (`@chemistrylab-studio`) with the very ChemistryLab running: a
+  registered version is installed and pinned there, a clone is developed. A run
+  is refused when the machine cannot spare the memory and stopped when it
+  outgrows what was left; *Stop* interrupts it or restarts the process, and the
+  process ends with the studio. The page answers only to the token of the
+  session, from the studio's own address, on the loopback interface; a remote
+  session prints the address to open through a forwarded port.
 - **`diagnose_system(cs; recipe, T, t, model, reactants, large)`** returns
   the findings worth reading before computing, each a `SystemDiagnostic` with
   a level (`:blocking`, `:warning`, `:info`), a code, a message saying what
@@ -29,13 +79,15 @@ cement pastes, registered as a package of its own (`ChemistryLabStudio`).
   - a system of more than `large` species, whose first solve compiles longer.
 
   An empty result means none of these was found, not that the calculation is
-  right. The scripts ChemistryLab Studio writes print the findings first.
+  right. The scripts the studio writes print the findings first, and its page
+  shows them as the forms change.
 
 ### Documentation
 
 - A chapter **Studio**, after *Getting Started*: starting the studio on a
   local or a remote machine, a tour of its tabs and results, and its library
-  of published formulations. The home page and *Getting Started* point to it.
+  of published formulations. The README, the home page and *Getting Started*
+  point to it.
 
 ## v0.39.2 — a reaction iterated as pairs, and cement species from any formula
 

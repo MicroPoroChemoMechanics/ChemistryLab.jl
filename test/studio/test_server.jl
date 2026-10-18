@@ -2,8 +2,6 @@
 # guard of every `/api` route, the static files, and the routes that need no
 # calculation. Requests go through a real HTTP client.
 
-using HTTP, JSON
-
 cp0 = CLS.ComputeProcess(; project = joinpath(tempdir(), "no-such-environment"), julia = first(Base.julia_cmd().exec), boot = "none.jl")
 session = CLS.Session(CLS.APP, "s"^32, "127.0.0.1", 0, cp0, CLS.StudioState(), false)
 router = HTTP.Router()
@@ -78,7 +76,7 @@ end
     @test all(e -> haskey(e, "sources") && !isempty(e["sources"]), entries)
     @test allunique(e["id"] for e in entries)
     # the page of the documentation lists every entry (in the repository)
-    page = joinpath(CLS.PACKAGE_ROOT, "..", "docs", "src", "studio", "library.md")
+    page = pkgdir(ChemistryLab, "docs", "src", "studio", "library.md")
     isfile(page) && @test all(e -> occursin("| " * e["title"] * " |", read(page, String)), CLS.library_entries())
     # every entry is a model that runs as it is, and its process is its calculation
     for e in CLS.library_entries()

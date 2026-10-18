@@ -3,8 +3,6 @@
 # object round-trips; a model holding it writes a script that parses. Then the
 # reading of each kind of field refuses what it must, by name.
 
-using JSON
-
 parses(src) = !any(a -> a isa Expr && a.head in (:error, :incomplete), Meta.parseall(src).args)
 
 "A default model with `x` put where its family belongs."

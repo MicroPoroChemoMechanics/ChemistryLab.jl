@@ -715,6 +715,13 @@ module ChemistryLab
         cumulative_heat,
         temperature_profile
 
+    # ChemistryLab Studio, the graphical interface for cementitious materials
+    # (src/studio/): a module of its own, so that its names stay apart from the
+    # package's, started by `clstudio()`.
+    include("studio/Studio.jl")
+    using .Studio: clstudio
+    export clstudio
+
     function __init__()
         for (k, v) in THERMO_MODELS
             THERMO_FACTORIES[k] = build_thermo_factories(v)

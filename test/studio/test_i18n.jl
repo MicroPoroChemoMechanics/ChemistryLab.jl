@@ -2,8 +2,6 @@
 # field of the schema, every problem the model can raise, every key the page
 # asks for has its words in both.
 
-using JSON
-
 words(lang) = JSON.parse(read(joinpath(CLS.WEB_DIR, "i18n", "$lang.json"), String); dicttype = Dict{String, Any})
 en, fr = words("en"), words("fr")
 
@@ -17,7 +15,7 @@ for (_, F) in CLS.FAMILIES, T in CLS.members(F)
         push!(needed, "f_" * f.name)
     end
 end
-for dir in ("src", joinpath("src", "features")), file in readdir(joinpath(CLS.PACKAGE_ROOT, dir); join = true)
+for dir in (CLS.STUDIO_ROOT, joinpath(CLS.STUDIO_ROOT, "features")), file in readdir(dir; join = true)
     endswith(file, ".jl") || continue
     for m in eachmatch(r"Problem\(\s*\"([a-z_]+)\"", read(file, String))
         push!(needed, "problem_" * m[1])
