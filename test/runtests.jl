@@ -193,6 +193,7 @@ end
     include("capillary.jl")
     include("pitzer.jl")
     include("recipes.jl")
+    include("diagnostics.jl")
     include("validation_lw2006.jl")
     include("validation_deweerdt2011.jl")
     include("validation_shi2016.jl")

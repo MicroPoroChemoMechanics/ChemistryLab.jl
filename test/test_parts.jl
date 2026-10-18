@@ -101,6 +101,7 @@ const TEST_PARTS = Dict(
         "capillary.jl",
         "pitzer.jl",
         "recipes.jl",
+        "diagnostics.jl",
         "validation_lw2006.jl",
         "validation_deweerdt2011.jl",
         "validation_shi2016.jl",

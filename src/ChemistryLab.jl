@@ -195,6 +195,7 @@ module ChemistryLab
     include("recipes/recipe_kinetics.jl")
     include("recipes/templates.jl")
     include("recipes/phase_lists.jl")
+    include("recipes/diagnostics.jl")
 
     # Recipes: materials, extents, budgets and processes.
     export AbstractExtent, ConstantExtent, TabulatedExtent, LogisticExtent,
@@ -205,7 +206,7 @@ module ChemistryLab
         Recipe, budget, RecipeState, residual_mass, phase_masses, bound_water,
         pore_solution, element_amounts, ProcessResult, hydrate, blend, titrate, carbonate, add_salt,
         leach, process_table, material_template, material_templates, with_extents, with_species, with_enthalpy,
-        phase_list, phase_lists, phase_list_system
+        phase_list, phase_lists, phase_list_system, diagnose_system, SystemDiagnostic
 
     export SymbolicFunc,
         ThermoFactory,
