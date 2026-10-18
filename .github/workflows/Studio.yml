@@ -89,7 +89,7 @@ jobs:
           using Pkg
           Pkg.activate(joinpath(ENV["RUNNER_TEMP"], "studio-worker"))
           Pkg.develop(path = pwd())
-          Pkg.add(["OptimaSolver", "DynamicQuantities", "Plots"])
+          Pkg.add(["OptimaSolver", "DynamicQuantities", "OrdinaryDiffEq", "Plots"])
           Pkg.precompile()
       - name: Test
         shell: bash

@@ -42,6 +42,9 @@ end
 
 s = CLS.schema()
 @test sort(collect(keys(s))) == sort(collect(keys(CLS.FAMILIES)))
+# a kind names one choice: the page's labels are keyed by it
+kinds = [CLS.kind(T) for (_, F) in CLS.FAMILIES for T in CLS.members(F)]
+@test allunique(kinds)
 @test all(m -> haskey(m, "kind") && haskey(m, "fields"), s["calculation"])
 # the page's buttons: one equilibrium, or a path of equilibria
 modes = Dict(m["kind"] => m["mode"] for m in s["calculation"])

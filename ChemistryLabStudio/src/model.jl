@@ -62,6 +62,8 @@ register_family!("extent", ExtentChoice)
 register_family!("mix", MixChoice)
 register_family!("calculation", CalculationChoice)
 register_family!("constraint", ConstraintChoice)
+register_family!("rate", RateChoice)
+register_family!("calorimeter", CalorimeterChoice)
 
 "The model as the JSON object the page and the embedded block carry."
 function to_dict(m::StudioModel)
@@ -187,5 +189,8 @@ function problems(m::StudioModel)
         push!(out, Problem("no_law_of_age", "A path in time needs a degree of reaction that depends on the age (a law, not a constant)."))
     end
     append!(out, constraint_problems(m.constraint))
+    if m.calculation isa KineticsCalc && !(m.constraint isa FixedTPChoice)
+        push!(out, Problem("kinetics_constraint", "A kinetic run holds the temperature and the pressure only: choose no constraint."))
+    end
     return out
 end

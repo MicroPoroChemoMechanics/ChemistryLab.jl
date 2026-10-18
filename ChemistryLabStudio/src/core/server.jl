@@ -165,6 +165,8 @@ function answer(router::HTTP.Router, req::HTTP.Request)
     try
         return router(req)
     catch err
+        # a Ctrl-C that landed in this request stops the studio, not the request
+        err isa InterruptException && (interrupted!(); return json_response(503, Dict("error" => "Interrupted.")))
         @error "a studio route failed" target = req.target exception = (err, catch_backtrace())
         return json_response(500, Dict("error" => sprint(showerror, err)))
     end
@@ -217,10 +219,16 @@ function boot!(session::Session; update::Bool = false)
         start!(cp)
         session.app.warm_up!(session)
     catch err
-        # the boot runs in a task of its own: its failure is shown on the page
-        # rather than lost with the task
-        set_state!(cp, :failed, error_text(err))
+        boot_failed!(cp, err)
     end
+    return nothing
+end
+
+# The boot runs in a task of its own: its failure is shown on the page rather
+# than lost with the task, and a Ctrl-C that landed in it is relayed.
+function boot_failed!(cp::ComputeProcess, err)
+    err isa InterruptException && interrupted!()
+    set_state!(cp, :failed, err isa InterruptException ? "Interrupted." : error_text(err))
     return nothing
 end
 

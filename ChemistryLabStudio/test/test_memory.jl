@@ -3,6 +3,9 @@
 
 avail = CLS.available_memory()
 @test 0 < avail <= Sys.total_physical_memory()
+# what the system can hand out, at least what it reports as free (on macOS, the
+# inactive pages counted besides; elsewhere libuv's own figure)
+@test Sys.free_memory() ÷ 2 <= CLS.machine_memory() <= Sys.total_physical_memory()
 # read on every system the studio supports
 @test CLS.process_rss(getpid()) > 0
 @test CLS.process_rss(typemax(Int32)) === nothing

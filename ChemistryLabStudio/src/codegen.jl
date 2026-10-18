@@ -35,7 +35,8 @@ const RESERVED_NAMES = Set(
     [
         "substances", "cs", "recipe", "model", "state", "certificate", "study", "masses", "width", "w_b", "T",
         "path", "paste", "states", "temperatures", "ratios", "fractions", "scm", "ages", "column", "solution",
-        "V", "M_water", "fresh", "db", "species", "members", "solid_solutions", "table", "phases", "x", "table",
+        "V", "M_water", "fresh", "db", "species", "members", "solid_solutions", "table", "phases", "x",
+        "rates", "horizon", "problem", "solution", "w_c", "calorimeter", "degrees", "curves", "times", "key",
     ]
 )
 
@@ -133,24 +134,26 @@ function diagnostic_source(m::StudioModel)
     return join(lines, '\n') * '\n'
 end
 
-"The tables of section 6, for a single equilibrium or for a path."
-function tables_section(m::StudioModel)
-    if m.calculation isa EquilibriumCalc
-        return [
-            heading(6, "Tables"),
-            "println(\"Certificate: optimal = \", certificate.optimal, \", scope = \", certificate.scope)",
-            "println(\"pH of the pore solution: \", round(pore_solution(state).pH; digits = 2))",
-            "println(\"Bound water: \", round(bound_water(state); digits = 3), \" g per g of binder\")",
-            "println(\"Phase masses, in g for the binder mass of the recipe:\")",
-            "masses = phase_masses(state)",
-            "width = maximum(length, keys(masses)) + 2",
-            "for (phase, mass) in masses",
-            "    println(\"  \", rpad(phase, width), round(mass; digits = 2))",
-            "end",
-        ]
-    end
+"The tables of section 6, for a single equilibrium, a path or a kinetic run."
+tables_section(m::StudioModel) = vcat([heading(6, "Tables")], table_lines(m.calculation))
+
+function table_lines(::EquilibriumCalc)
     return [
-        heading(6, "Tables"),
+
+        "println(\"Certificate: optimal = \", certificate.optimal, \", scope = \", certificate.scope)",
+        "println(\"pH of the pore solution: \", round(pore_solution(state).pH; digits = 2))",
+        "println(\"Bound water: \", round(bound_water(state); digits = 3), \" g per g of binder\")",
+        "println(\"Phase masses, in g for the binder mass of the recipe:\")",
+        "masses = phase_masses(state)",
+        "width = maximum(length, keys(masses)) + 2",
+        "for (phase, mass) in masses",
+        "    println(\"  \", rpad(phase, width), round(mass; digits = 2))",
+        "end",
+    ]
+end
+
+function table_lines(::CalculationChoice)
+    return [
         "# One row per point of the path: the parameter, whether the equilibrium is",
         "# certified, the pH, the porosity, the bound water and the mass of each phase.",
         "table = process_table(path)",
@@ -159,30 +162,53 @@ function tables_section(m::StudioModel)
     ]
 end
 
-"The figure of section 7, for a single equilibrium or for a path."
+function table_lines(::KineticsCalc)
+    return [
+        "# The degree of reaction of each constituent with a rate law, at the ages.",
+        "degrees = degrees_of_hydration(solution, problem; times = ages .* 86400)",
+        "println(\"Degree of reaction at \", join(ages, \", \"), \" days:\")",
+        "for (name, α) in degrees",
+        "    println(\"  \", rpad(name, 10), join((rpad(round(a; digits = 3), 8) for a in α)))",
+        "end",
+        "println(\"pH of the pore solution: \", [round(pore_solution(s, model).pH; digits = 2) for s in states])",
+    ]
+end
+
+"The figure of section 7, for a single equilibrium, a path or a kinetic run."
 function figures_section(m::StudioModel, stem::AbstractString)
-    file = repr(stem * "_phases.png")
     head = [heading(7, "Figures"), "# Plots draws the figure, saved next to this script.", "using Plots"]
-    if m.calculation isa EquilibriumCalc
-        return vcat(
-            head, [
-                "bar(collect(keys(masses)), collect(values(masses)); legend = false, xrotation = 45,",
-                "    ylabel = \"mass (g)\", title = \"Phase assemblage\")",
-                "savefig(joinpath(@__DIR__, $file))",
-            ]
-        )
-    end
-    return vcat(
-        head, [
-            "# The mass of each phase along the path, stacked.",
-            "masses = [phase_masses(rs) for rs in path]",
-            "phases = unique(k for d in masses for k in keys(d) if !startswith(k, \"unreacted\"))",
-            "x = Float64.(path.parameter)",
-            "areaplot(x, reduce(hcat, [[get(d, p, 0.0) for d in masses] for p in phases]);",
-            "    labels = permutedims(phases), xlabel = string(path.label), ylabel = \"mass (g)\", legend = :outerright)",
-            "savefig(joinpath(@__DIR__, $file))",
-        ]
-    )
+    return vcat(head, figure_lines(m.calculation, stem))
+end
+
+function figure_lines(::EquilibriumCalc, stem)
+    return [
+        "bar(collect(keys(masses)), collect(values(masses)); legend = false, xrotation = 45,",
+        "    ylabel = \"mass (g)\", title = \"Phase assemblage\")",
+        "savefig(joinpath(@__DIR__, $(repr(stem * "_phases.png"))))",
+    ]
+end
+
+function figure_lines(::KineticsCalc, stem)
+    return [
+        "# The degree of reaction of each constituent in time, from the integration's own steps.",
+        "times = filter(>(0), solution.t)",
+        "curves = degrees_of_hydration(solution, problem; times)",
+        "plot(times ./ 86400, reduce(hcat, collect(values(curves))); labels = permutedims(collect(keys(curves))),",
+        "    xscale = :log10, xlabel = \"age (d)\", ylabel = \"degree of reaction\", legend = :topleft)",
+        "savefig(joinpath(@__DIR__, $(repr(stem * "_degrees.png"))))",
+    ]
+end
+
+function figure_lines(::CalculationChoice, stem)
+    return [
+        "# The mass of each phase along the path, stacked.",
+        "masses = [phase_masses(rs) for rs in path]",
+        "phases = unique(k for d in masses for k in keys(d) if !startswith(k, \"unreacted\"))",
+        "x = Float64.(path.parameter)",
+        "areaplot(x, reduce(hcat, [[get(d, p, 0.0) for d in masses] for p in phases]);",
+        "    labels = permutedims(phases), xlabel = string(path.label), ylabel = \"mass (g)\", legend = :outerright)",
+        "savefig(joinpath(@__DIR__, $(repr(stem * "_phases.png"))))",
+    ]
 end
 
 """

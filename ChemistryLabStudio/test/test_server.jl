@@ -76,6 +76,16 @@ end
     entries = payload(get("/api/library"))
     @test [e["id"] for e in entries][1:2] == ["cem1-52.5n-gruyaert2010", "portland-rilem-pc"]
     @test all(e -> haskey(e, "sources") && !isempty(e["sources"]), entries)
+    @test allunique(e["id"] for e in entries)
+    # the page of the documentation lists every entry (in the repository)
+    page = joinpath(CLS.PACKAGE_ROOT, "..", "docs", "src", "studio", "library.md")
+    isfile(page) && @test all(e -> occursin("| " * e["title"] * " |", read(page, String)), CLS.library_entries())
+    # every entry is a model that runs as it is, and its process is its calculation
+    for e in CLS.library_entries()
+        m = CLS.model_from_dict(e["model"])
+        @test isempty(CLS.problems(m))
+        @test CLS.kind(typeof(m.calculation)) == e["process"]
+    end
     st = payload(post("/api/library", Dict("id" => "portland-rilem-pc")))
     @test st["model"]["mix"]["w_b"] == 0.45
     @test post("/api/library", Dict("id" => "nothing")).status == 400

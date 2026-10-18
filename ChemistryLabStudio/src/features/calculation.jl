@@ -323,6 +323,6 @@ end
 
 members(::Type{CalculationChoice}) = (
     EquilibriumCalc, HydrationPath, BlendPath, CarbonationPath, SaltPath, TitrationPath,
-    LeachingPath, AttackPath, TemperatureSweep, WaterSweep,
+    LeachingPath, AttackPath, TemperatureSweep, WaterSweep, KineticsCalc,
 )
 member_traits(::Type{T}) where {T <: CalculationChoice} = Dict{String, Any}("mode" => mode(T))

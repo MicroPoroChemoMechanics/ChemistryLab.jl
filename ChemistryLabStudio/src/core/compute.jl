@@ -84,7 +84,28 @@ function error_text(err)
     return sprint(showerror, err)
 end
 
-drain!(cp::ComputeProcess, pipe) = foreach(line -> log!(cp, line), eachline(pipe))
+# Ctrl-C raises an InterruptException in whichever task runs at that moment:
+# the waiting loop of a blocking run, or one of the studio's own tasks (the
+# boot, a request, a reader of the compute process's output). Those record it
+# here instead of ending with it, and the waiting loop raises it again
+# (`wait(::StudioHandle)`).
+const INTERRUPTED = Threads.Atomic{Bool}(false)
+interrupted!() = (INTERRUPTED[] = true; nothing)
+
+"Log what the compute process writes, until it closes; a Ctrl-C landing here is relayed."
+function drain!(cp::ComputeProcess, pipe)
+    closed = false
+    while !closed
+        try
+            foreach(line -> log!(cp, line), eachline(pipe))
+            closed = true
+        catch err
+            err isa InterruptException || rethrow()
+            interrupted!()
+        end
+    end
+    return nothing
+end
 
 """
     start!(cp) -> Nothing

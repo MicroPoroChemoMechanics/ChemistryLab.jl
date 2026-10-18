@@ -116,8 +116,42 @@ end
     @test result === nothing
 end
 
-# A terminal's Ctrl-C on a studio run as a script: it reaches the waiting loop,
-# which stops the server and the compute process. (Windows has no SIGINT to send.)
+# A Ctrl-C that lands in another task of the studio than the waiting loop: the
+# task records it and goes on (a reader) or stops (the boot, a request), and the
+# waiting loop raises it.
+mutable struct OnceInterrupting <: IO
+    lines::Vector{String}
+    thrown::Bool
+end
+Base.eof(io::OnceInterrupting) = (io.thrown || (io.thrown = true; throw(InterruptException())); isempty(io.lines))
+Base.readline(io::OnceInterrupting; keep::Bool = false) = popfirst!(io.lines)
+
+@testset "a Ctrl-C another task received" begin
+    cp = CLS.ComputeProcess(; project = lacking, julia = first(Base.julia_cmd().exec), boot = "")
+    CLS.drain!(cp, OnceInterrupting(["one", "two"], false))
+    @test CLS.status(cp).log == ["one", "two"]
+    @test Threads.atomic_xchg!(CLS.INTERRUPTED, false)
+    CLS.boot_failed!(cp, InterruptException())
+    @test CLS.status(cp).state == "failed" && CLS.status(cp).message == "Interrupted."
+    @test Threads.atomic_xchg!(CLS.INTERRUPTED, false)
+    router = HTTP.Router()
+    HTTP.register!(router, "GET", "/interrupted", _ -> throw(InterruptException()))
+    r = CLS.answer(router, HTTP.Request("GET", "/interrupted"))
+    @test r.status == 503
+    @test Threads.atomic_xchg!(CLS.INTERRUPTED, false)
+    # the waiting loop raises what was recorded, and the studio stops
+    h = redirect_stdout(devnull) do
+        clstudio(; port = 0, no_browser = true, wait = false, project = lacking)
+    end
+    CLS.INTERRUPTED[] = true
+    @test_throws InterruptException wait(h)
+    @test !CLS.INTERRUPTED[]
+    close(h)
+    wait(h)                         # a closed studio is not waited for
+end
+
+# A terminal's Ctrl-C on a studio run as a script ends it at once; its compute
+# process follows (test_compute.jl). Windows has no SIGINT to send.
 Sys.iswindows() || @testset "Ctrl-C stops a studio run as a script" begin
     code = "using ChemistryLabStudio; clstudio(; port = 0, no_browser = true, project = $(repr(lacking)))"
     cmd = `$(Base.julia_cmd()) $(CLS.coverage_flags()) --project=$(Base.active_project()) -e $code`
@@ -137,7 +171,6 @@ Sys.iswindows() || @testset "Ctrl-C stops a studio run as a script" begin
     stopped = !process_running(p)
     stopped || kill(p, Base.SIGKILL)
     @test stopped
-    @test occursin("Stopping ChemistryLab Studio.", read(log, String))
     rm(log; force = true)
 end
 

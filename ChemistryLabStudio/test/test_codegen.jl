@@ -166,6 +166,57 @@ end
     @test occursin("process_table(path)", s) && occursin("areaplot(", s)
 end
 
+@testset "kinetics" begin
+    law(kind; kw...) = CLS.choice_from_dict(CLS.RateChoice, Dict{String, Any}("kind" => kind, (string(k) => v for (k, v) in kw)...))
+    run(rates; kw...) = CLS.KineticsCalc(get(kw, :horizon, 28.0), get(kw, :ages, [1.0, 28.0]), rates, get(kw, :cal, CLS.IsothermalChoice()), 1.0e-6)
+    pk = law("parrott_killoh_avrami")
+    m = with(m -> (m.calculation = run(["C3S" => pk, "Gp" => law("first_order"; k = 0.5)])))
+    @test isempty(CLS.problems(m))
+    c = compute(m)
+    @test !isempty(calls(c, :KineticsProblem)) && only(calls(c, :integrate)).args[2] === :problem
+    p = only(calls(c, :parrott_killoh_avrami))
+    @test p.args[(end - 1):end] == [:PK84_PARAMS_C3S, "C3S"]
+    @test kwarg(p, :blaine) == 385.0 && kwarg(p, :w_c) === :w_c && kwarg(p, :α_max) == :(powers_alpha_max(w_c))
+    @test length(assignments(c, :w_c)) == 1
+    @test only(assignments(c, :horizon)) == 28.0 && only(assignments(c, :ages)).args[end] == :([1.0, 28.0])
+    # the first-order law, in mol/s from a constant per day
+    f = only(calls(c, :KineticFunc))
+    @test f.args[2].args[2] isa Expr && occursin("0.5 / 86400", string(f.args[2]))
+    @test isempty(calls(c, :SemiAdiabaticCalorimeter)) && kwarg(only(calls(c, :KineticsProblem)), :calorimeter) === nothing
+    # no clinker law that reads the water, no `w_c`
+    c = compute(with(m -> (m.calculation = run(["C3S" => CLS.PKAvramiRate(0.0, false, false)]))))
+    p = only(calls(c, :parrott_killoh_avrami))
+    @test isempty(assignments(c, :w_c)) && kwarg(p, :blaine) === nothing && kwarg(p, :w_c) === nothing
+    # the laws of Waller, the user's own, a semi-adiabatic cell
+    rates = ["C3S" => law("waller"), "C2S" => law("waller"; preset = "silica_fume", tau = 40.0, blaine = 2000.0), "Gp" => law("custom_rate")]
+    s = CLS.generate(with(m -> (m.calculation = run(rates; cal = CLS.SemiAdiabaticChoice(900.0, 0.3, 20.0))))).source
+    @test parses(s)
+    c = Meta.parseall(s)
+    w = calls(c, :waller)
+    @test w[1].args[(end - 1):end] == [:WALLER_PARAMS_FLY_ASH, "C3S"]
+    @test string(w[2].args[end - 1]) == string(:(merge(WALLER_PARAMS_SILICA_FUME, (τ = 40.0u"d",)))) && kwarg(w[2], :blaine) == 2000.0
+    @test only(assignments(c, :key)) == "Gp"
+    cal = only(calls(c, :SemiAdiabaticCalorimeter))
+    @test string(kwarg(cal, :Cp)) == string(:(900.0u"J/K")) && kwarg(cal, :T0) === :T
+    @test kwarg(only(calls(c, :KineticsProblem)), :calorimeter) === :calorimeter
+    @test occursin("degrees_of_hydration(solution, problem; times = ages .* 86400)", s)
+    @test occursin("_degrees.png", s)
+    # what keeps a kinetic run from running
+    codes(m) = [p.code for p in CLS.problems(m)]
+    @test codes(with(m -> (m.calculation = run(Pair{String, CLS.RateChoice}[])))) == ["no_rate"]
+    @test codes(with(m -> (m.calculation = run(["C3S" => pk]; ages = [1.0, 90.0])))) == ["ages_beyond_horizon"]
+    @test codes(with(m -> (m.calculation = run(["C3S" => pk]; ages = Float64[])))) == ["empty_path"]
+    @test codes(with(m -> (m.calculation = run(["Gp" => pk])))) == ["pk_rate_phase"]
+    @test codes(with(m -> (m.calculation = run(["Gp" => CLS.CustomRate("n[key] *")])))) == ["rate_syntax"]
+    @test codes(with(m -> (m.calculation = run(["Gp" => CLS.CustomRate("  ")])))) == ["rate_syntax"]
+    @test codes(with(m -> (m.calculation = run(["C3S" => pk]); m.constraint = CLS.FixedpHChoice(12.0)))) == ["kinetics_constraint"]
+    @test codes(with(m -> (m.calculation = run(["C3S" => CLS.FirstOrderRate(-1.0)])))) == ["out_of_range"]
+    # the laws of the degrees of reaction are read at the start of the run
+    logistic = ["C2S" => CLS.LogisticExtentChoice(0.8, 3.0, 1.5, 0.0)]
+    c = compute(with(m -> (m.materials[1] = CLS.TemplateMaterial(m0.materials[1].template, 1.0, logistic, nothing); m.calculation = run(["C3S" => pk]))))
+    @test kwarg(only(calls(c, :diagnose_system)), :t) == 0.0
+end
+
 @testset "names and numbers" begin
     @test CLS.material_name("S1 slag (Durdzinski 2017)", String[]) == "s1_slag"
     @test CLS.material_name("PC (Durdzinski 2017), Bogue", ["pc"]) == "pc_2"

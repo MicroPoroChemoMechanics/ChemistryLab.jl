@@ -50,6 +50,7 @@ include("features/activity.jl")
 include("features/mix.jl")
 include("features/constraint.jl")
 include("features/calculation.jl")
+include("features/kinetics.jl")
 include("model.jl")
 include("readback.jl")
 include("codegen.jl")
@@ -57,14 +58,16 @@ include("api.jl")
 
 """
 The packages the compute process needs, with the bounds this studio is tested
-against. Plots draws the figures of the scripts the studio writes, which run in
-the same environment.
+against. OrdinaryDiffEq integrates the kinetic runs (loaded by the first one);
+Plots draws the figures of the scripts the studio writes, which run in the same
+environment.
 """
 const ENVIRONMENT = EnvironmentSpec(
     [
-        "ChemistryLab" => "0.39",
+        "ChemistryLab" => "0.39.3",
         "OptimaSolver" => "0.8",
         "DynamicQuantities" => "1",
+        "OrdinaryDiffEq" => "7",
         "Plots" => "1",
     ]
 )

@@ -96,6 +96,92 @@ end
     post("/api/library", Dict("id" => "cem1-52.5n-gruyaert2010"))
 end
 
+@testset "the library" begin
+    entries = Dict(e["id"] => e for e in CLS.library_entries())
+    # the proportions a formulation takes from its paper, against ChemistryLab's data
+    published = CLS.call!(
+        cp, quote
+            (;
+                slag = ustrip(literature_value("Durdzinski2017", "slag_replacement")) / 100,
+                fly_ash = ustrip(literature_value("Durdzinski2017", "fly_ash_replacement")) / 100,
+                w_b = ustrip(literature_value("Durdzinski2017", "water_binder_ratio")),
+                gruyaert_w_b = ustrip(literature_value("Gruyaert2010", "water_binder_ratio")),
+                gruyaert_slag = sort(unique(Float64.(literature_table("Gruyaert2010", "bound_water").slag_to_binder))),
+            )
+        end
+    )
+    @test published.ok
+    pub = published.value
+    fractions(id) = [m["fraction"] for m in entries[id]["model"]["materials"]]
+    @test fractions("pc-s1-slag-rilem") ≈ [1 - pub.slag, pub.slag]
+    @test fractions("pc-siliceous-fly-ash-rilem") ≈ [1 - pub.fly_ash, pub.fly_ash]
+    @test entries["pc-s1-slag-rilem"]["model"]["mix"]["w_b"] == entries["pc-siliceous-fly-ash-rilem"]["model"]["mix"]["w_b"] == pub.w_b
+    @test entries["slag-replacement-gruyaert2010"]["model"]["calculation"]["fractions"] == pub.gruyaert_slag
+    @test all(entries[id]["model"]["mix"]["w_b"] == pub.gruyaert_w_b for id in keys(entries) if occursin("cem1", id) || occursin("gruyaert", id))
+    # every entry runs, but the kinetic one (its own test below integrates a shorter run)
+    for (id, e) in entries
+        e["process"] == "kinetics" && continue
+        post("/api/library", Dict("id" => id))
+        r = post("/api/run", Dict())
+        r["ok"] || @error "library entry $id failed" r["error"] get(r, "output", "")
+        @test r["ok"] && r["results"]["kind"] == (e["process"] == "equilibrium" ? "equilibrium" : "path")
+    end
+    post("/api/library", Dict("id" => "cem1-52.5n-gruyaert2010"))
+end
+
+@testset "a kinetic run against the same one written by hand" begin
+    model = api("/api/state")["model"]
+    rates = [Dict("key" => k, "value" => Dict("kind" => "parrott_killoh_avrami")) for k in ("C3S", "C2S")]
+    model["calculation"] = Dict("kind" => "kinetics", "horizon" => 2.0, "ages" => [1.0, 2.0], "rates" => rates)
+    post("/api/model", Dict("model" => model))
+    run = post("/api/run", Dict())
+    run["ok"] || @error "the kinetic run failed" run["error"] get(run, "output", "")
+    @test run["ok"] && run["results"]["kind"] == "kinetics"
+    res = run["results"]
+    @test CLS.call!(cp, :(using OrdinaryDiffEq)).ok
+    reference = CLS.call!(
+        cp, quote
+            let substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+                cs = phase_list_system("Portland paste (Lothenbach and Winnefeld 2006)", substances)
+                cement = with_extents(
+                    material_template("CEM I 52.5 N (Gruyaert 2010), Bogue", cs),
+                    Dict("C3S" => 0.8, "C2S" => 0.45, "C3A" => 0.9, "C4AF" => 0.6),
+                )
+                model = cemdata18_activity_model(:KOH)
+                recipe = Recipe(cement => 1.0; w_b = 0.5, T = T_ZERO_CELSIUS_Q + 20u"K")
+                law(p, q) = parrott_killoh_avrami(q, p; blaine = 385.0, w_c = 0.5, α_max = powers_alpha_max(0.5))
+                rates = Dict{String, Any}("C3S" => law("C3S", PK84_PARAMS_C3S), "C2S" => law("C2S", PK84_PARAMS_C2S))
+                kp = KineticsProblem(
+                    recipe, cs, rates, (0.0, 2 * 86400.0); activity_model = model,
+                    equilibrium_solver = EquilibriumSolver(cs, model, OptimaOptimizer()),
+                )
+                sol = integrate(kp, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-6, abstol = 1.0e-10))
+                times = [1.0, 2.0] .* 86400
+                states = speciated_states(sol, kp; times)
+                _, Q, _ = heat_release(sol, kp; times, states, reference = kp.initial_state)
+                # a Dict: this process does not load OrderedCollections to read one back
+                (; α = Dict(degrees_of_hydration(sol, kp; times)), pH = [pore_solution(s, model).pH for s in states], Q)
+            end
+        end
+    )
+    @test reference.ok
+    ref = reference.value
+    @test res["parameter"] == [1.0, 2.0] && res["retcode"] == "Success"
+    @test res["time"][end] ≈ 2.0
+    for (k, name) in enumerate(res["degrees"]["labels"])
+        @test res["degrees"]["series"][k][end] ≈ ref.α[name][end] rtol = 1.0e-9
+    end
+    @test sort(res["degrees"]["labels"]) == ["C2S", "C3S"]
+    # a long run is drawn from at most 300 of its instants, the last kept
+    t = CLS.call!(cp, :(Main.StudioWorker.sampled(collect(0.0:1.0:1000.0)))).value
+    @test length(t) <= 301 && last(t) == 1000.0 && first(t) > 0 && issorted(t)
+    @test res["pH"] ≈ ref.pH rtol = 1.0e-9
+    @test res["heat"]["heat"] ≈ ref.Q ./ 100 rtol = 1.0e-9
+    @test all(x -> 0 < x < 1, res["porosity"]) && length(res["bound_water"]) == 2
+    @test "Portlandite" in res["phase_masses"]["labels"] && "pore solution" in res["volume_fractions"]["labels"]
+    post("/api/library", Dict("id" => "cem1-52.5n-gruyaert2010"))
+end
+
 @testset "a calculation against the same one written by hand" begin
     run = post("/api/run", Dict())
     @test run["ok"]
@@ -199,6 +285,39 @@ end
 
 close(h)          # a normal exit of the compute process
 @test CLS.status(cp).state == "stopped"
+
+# The compute process ends when the process that started it is killed: its
+# connection closes, and Malt's loop ends it.
+Sys.iswindows() || @testset "the compute process follows its studio" begin
+    code = """
+    using ChemistryLabStudio
+    const CLS = ChemistryLabStudio
+    cp = CLS.ComputeProcess(; project = $(repr(project)), julia = $(repr(julia)), boot = joinpath(CLS.WORKER_DIR, "boot.jl"))
+    CLS.start!(cp)
+    println("worker ", cp.worker.proc_pid)
+    flush(stdout)
+    sleep(600)
+    """
+    log = tempname()
+    driver = run(pipeline(`$(Base.julia_cmd()) $(CLS.coverage_flags()) --project=$(Base.active_project()) -e $code`; stdout = log, stderr = log); wait = false)
+    found = nothing
+    for _ in 1:2400
+        found = match(r"worker (\d+)", read(log, String))
+        (found !== nothing || !process_running(driver)) && break
+        sleep(0.1)
+    end
+    @test found !== nothing
+    pid = parse(Cint, found[1])
+    alive(p) = ccall(:kill, Cint, (Cint, Cint), p, 0) == 0
+    @test alive(pid)
+    kill(driver, Base.SIGKILL)
+    for _ in 1:300
+        alive(pid) || break
+        sleep(0.1)
+    end
+    @test !alive(pid)
+    rm(log; force = true)
+end
 
 @testset "watchdog" begin
     cp2 = CLS.ComputeProcess(; project, julia, boot = joinpath(CLS.WORKER_DIR, "boot.jl"))

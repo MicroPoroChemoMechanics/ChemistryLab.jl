@@ -100,7 +100,7 @@
           <b data-i18n="mode_extents">Path of equilibria</b>
           <span data-i18n="mode_extents_text">Equilibria along a parameter: the age, a replacement, an added species, renewals of water, the temperature.</span>
         </button>
-        <button data-mode="kinetics" data-i18n-title="later">
+        <button data-mode="kinetics">
           <b data-i18n="mode_kinetics">Kinetics</b>
           <span data-i18n="mode_kinetics_text">Rate equations integrated in time, the equilibrium solved at each step.</span>
         </button>
@@ -119,12 +119,14 @@
   <!-- middle: results -->
   <section id="middle">
     <nav class="tabs" id="result-tabs">
+      <button data-result="degrees" data-only="kinetics" data-i18n="res_degrees">Degrees</button>
       <button data-result="phases" class="on" data-i18n="res_phases">Phases</button>
       <button data-result="pore" data-i18n="res_pore">Pore solution</button>
       <button data-result="si" data-only="equilibrium" data-i18n="res_si">Saturation</button>
-      <button data-result="porosity" data-only="path" data-i18n="res_porosity">Porosity</button>
+      <button data-result="porosity" data-only="path kinetics" data-i18n="res_porosity">Porosity</button>
+      <button data-result="heat" data-only="kinetics" data-i18n="res_heat">Heat</button>
       <button data-result="certificate" data-only="equilibrium" data-i18n="res_certificate">Certificate</button>
-      <button data-result="table" data-only="path" data-i18n="res_table">Table</button>
+      <button data-result="table" data-only="path kinetics" data-i18n="res_table">Table</button>
       <button data-result="output" data-i18n="res_output">Output</button>
     </nav>
     <div id="results" class="pane">
@@ -132,6 +134,10 @@
         <b data-i18n="getting_ready">Getting ready</b>
         <p id="ready-message"></p>
         <p class="hint" data-i18n="getting_ready_hint">The first launch prepares the environment of the calculations, then each session compiles its first calculation. You can fill in the forms meanwhile.</p>
+      </div>
+      <div class="result" id="result-degrees">
+        <div class="plot" id="plot-degrees"></div>
+        <p class="hint" id="kinetics-note"></p>
       </div>
       <div class="result on" id="result-phases">
         <div class="plot" id="plot-masses"></div>
@@ -150,6 +156,11 @@
       </div>
       <div class="result" id="result-porosity">
         <div class="plot" id="plot-porosity"></div>
+      </div>
+      <div class="result" id="result-heat">
+        <div class="plot" id="plot-heat"></div>
+        <div class="plot" id="plot-temperature" hidden></div>
+        <p class="hint" id="heat-note"></p>
       </div>
       <div class="result" id="result-certificate">
         <p class="hint" data-i18n="certificate_hint">What the solver proved about the answer.</p>

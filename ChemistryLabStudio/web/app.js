@@ -224,7 +224,7 @@
     renderSolidSolutionPicker();
   }
 
-  function changedPhases() { renderPhases(); renderSpeciesList(); edited(); }
+  function changedPhases() { renderPhases(); renderSpeciesList(); renderMaterials(); edited(); }
 
   function systemPhases() {
     const s = S.model.system;
@@ -334,6 +334,21 @@
     return mat.minerals.map((r) => r.formula).filter((x) => x);
   }
 
+  // The constituents that may react in time: those with a species of their own
+  // (a mineral), not those known by their oxides.
+  function kineticConstituents() {
+    const keys = [];
+    for (const mat of S.model.materials) {
+      if (mat.kind === "template") {
+        const e = templateEntry(mat.template);
+        if (e && e.constituents) keys.push(...e.constituents.filter((c) => c.species).map((c) => c.name));
+      } else if (mat.kind === "oxides") {
+        if (mat.route === "bogue") keys.push(...CLINKER, mat.sulfate);
+      } else keys.push(...constituentsOf(mat));
+    }
+    return unique(keys);
+  }
+
   function materialContext(mat) {
     return {
       keys: () => constituentsOf(mat),
@@ -374,10 +389,22 @@
           if (now.kind !== before.kind || now.template !== before.template) { v.extents = []; v.material_extent = null; draw(); }
           else if (now.route !== before.route || now.sulfate !== before.sulfate || (now.name !== before.name && v.route === "oxides") || now.rows !== before.rows) draw();
         }, { ctx: materialContext(mat) }),
-        entry && entry.source ? el("p", { class: "hint refs" }, t("source_label"), " ", reference(entry.source)) : null);
+        entry && entry.source ? el("p", { class: "hint refs" }, t("source_label"), " ", reference(entry.source)) : null,
+        missingMinerals(entry));
     }
     draw();
     return card;
+  }
+
+  /* A published material brings minerals the system must hold: the ones it
+     lacks are named, with a button that adds them. */
+  function missingMinerals(entry) {
+    if (!entry || !entry.constituents) return null;
+    const there = systemPhases();
+    const lacking = unique(entry.constituents.map((c) => c.species).filter((s) => s && !there.has(s)));
+    if (!lacking.length) return null;
+    return el("p", { class: "hint problem" }, t("minerals_missing", { minerals: lacking.join(", ") }), " ",
+      el("button", { class: "small", text: t("add_to_system"), onclick: () => { lacking.forEach(addPhase); renderMaterials(); } }));
   }
 
   function renderFractionSum() {
@@ -415,7 +442,10 @@
     fill($("#calculation-form"), Forms.kinded("calculation", m.calculation, (v) => {
       m.calculation = v;
       edited();
-    }, { only: (x) => x.mode === mode, hideKind: mode === "equilibrium", ctx: { units: () => ["mmol/L", "mol/L"] } }));
+    }, {
+      only: (x) => x.mode === mode, hideKind: mode !== "extents",
+      ctx: { units: () => ["mmol/L", "mol/L"], keys: kineticConstituents, noneLabel: () => t("at_equilibrium") },
+    }));
     fill($("#constraint-form"), Forms.kinded("constraint", m.constraint, (v) => { m.constraint = v; edited(); }));
   }
 
@@ -424,6 +454,11 @@
     const first = Forms.membersOf("calculation").find((x) => x.mode === mode);
     if (!first) return;
     S.model.calculation = Forms.defaults("calculation", first.kind);
+    // a kinetic run starts with the law of Parrott and Killoh on the clinker phases
+    if (mode === "kinetics") {
+      S.model.calculation.rates = kineticConstituents().filter((k) => CLINKER.includes(k))
+        .map((key) => ({ key, value: Forms.defaults("rate", "parrott_killoh_avrami") }));
+    }
     renderCalculation();
     edited();
   }
@@ -569,6 +604,7 @@
     $("#ready-card").hidden = true;
     renderResults();
     toast(t("run_done", { seconds: fmt(data.elapsed, 2) }));
+    if (S.results.retcode && S.results.retcode !== "Success") toast(t("kinetics_retcode", { retcode: S.results.retcode }), true);
   }
 
   async function stop() {
@@ -618,6 +654,7 @@
     layout.xaxis.title = { text: xtitle };
     layout.yaxis.title = { text: ytitle };
     if (o.log) layout.yaxis.type = "log";
+    if (o.logx) layout.xaxis.type = "log";
     const traces = series.map((s) => Object.assign({
       type: "scatter", mode: o.stack ? "lines" : "lines+markers", x, y: s.values, name: s.label,
       line: { width: o.stack ? 0.5 : 2 }, hovertemplate: s.label + ": %{y:.4g}<extra></extra>",
@@ -637,12 +674,13 @@
   function renderResults() {
     const r = S.results;
     if (!r) return;
-    const path = r.kind === "path";
     document.querySelectorAll("#result-tabs button").forEach((b) => {
       const only = b.dataset.only;
-      b.hidden = !!only && only !== r.kind;
+      b.hidden = !!only && !only.split(" ").includes(r.kind);
     });
-    if (path) renderPath_(r); else renderEquilibrium(r);
+    if (r.kind === "equilibrium") renderEquilibrium(r);
+    else renderPath_(r);
+    if (r.kind === "kinetics") renderKinetics(r);
     const current = document.querySelector("#result-tabs button.on");
     if (current && current.hidden) showResult("phases");
   }
@@ -719,11 +757,34 @@
       { label: t("porosity") + " (%)", values: r.porosity.map(percent) },
       { label: t("bound_water") + " (g/g × 100)", values: r.bound_water.map(percent) },
     ], t("porosity_water"), xt, "%");
-    const head = [xt, t("certified"), "pH", t("porosity") + " (%)", t("bound_water") + " (g/g)"].concat(pm.labels);
-    fillTable("#path-table", head, x.map((v, i) => [
-      { text: fmt(v, 3), cls: "" }, { text: r.certified[i] ? "✓" : "✗", cls: r.certified[i] ? "ok" : "warn" },
-      { text: fmt(r.pH[i], 2), cls: "" }, { text: fmt(percent(r.porosity[i]), 1), cls: "" }, { text: fmt(r.bound_water[i], 3), cls: "" },
-    ].concat(pm.series.map((s) => ({ text: fmt(s[i], 2), cls: "" })))));
+    // a kinetic run reads each age off a certified replay: no flag per point
+    const certified = r.certified ? [t("certified")] : [];
+    const head = [xt].concat(certified, ["pH", t("porosity") + " (%)", t("bound_water") + " (g/g)"], pm.labels);
+    fillTable("#path-table", head, x.map((v, i) => [{ text: fmt(v, 3), cls: "" }].concat(
+      r.certified ? [{ text: r.certified[i] ? "✓" : "✗", cls: r.certified[i] ? "ok" : "warn" }] : [],
+      [{ text: fmt(r.pH[i], 2), cls: "" }, { text: fmt(percent(r.porosity[i]), 1), cls: "" }, { text: fmt(r.bound_water[i], 3), cls: "" }],
+      pm.series.map((s) => ({ text: fmt(s[i], 2), cls: "" })))));
+  }
+
+  /* A kinetic run: the degree of reaction of each constituent with a rate law,
+     in time; the heat it released; the temperature of a semi-adiabatic cell. */
+  function renderKinetics(r) {
+    const d = r.degrees;
+    curves("plot-degrees", r.time, d.labels.map((l, k) => ({ label: l, values: d.series[k] })), t("plot_degrees"),
+      t("axis_time"), t("degree"), { logx: true });
+    $("#kinetics-note").textContent = r.retcode === "Success" ? "" : t("kinetics_retcode", { retcode: r.retcode });
+    const h = r.heat;
+    if (h.heat) {
+      $("#heat-note").textContent = "";
+      curves("plot-heat", h.time, [{ label: t("heat"), values: h.heat }], t("plot_heat"), t("axis_time"), t("plot_heat_axis"),
+        { logx: !h.temperature });
+      if (h.temperature) curves("plot-temperature", h.time, [{ label: t("temperature"), values: h.temperature }], t("plot_temperature"), t("axis_time"), "°C");
+      else hide("plot-temperature");
+    } else {
+      hide("plot-heat");
+      hide("plot-temperature");
+      $("#heat-note").textContent = h.reason;
+    }
   }
 
   // mmol per kg of water below which an element is reported as a trace

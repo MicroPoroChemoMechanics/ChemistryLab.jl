@@ -72,13 +72,48 @@ end
 """
     available_memory() -> Int
 
-The bytes a new process may still take: the lower of the machine's free memory
-and of the room the tightest enclosing cgroup leaves.
+The bytes a new process may still take: the lower of the machine's available
+memory and of the room the tightest enclosing cgroup leaves.
 """
 function available_memory()
-    machine = Int(Sys.free_physical_memory())
+    machine = machine_memory()
     budget = cgroup_budget()
-    return budget === nothing ? min(machine, Int(Sys.free_memory())) : min(machine, budget.room)
+    return budget === nothing ? machine : min(machine, budget.room)
+end
+
+"""
+    machine_memory() -> Int
+
+The memory the system can hand to a new process, in bytes. Linux and Windows
+count in it the cache they would drop (`MemAvailable`, the standby list), as
+libuv reports it; macOS keeps most of its memory as inactive pages and reports
+only the few pages it has not touched as free, so there the inactive and
+speculative pages are counted too, read with `host_statistics64`.
+"""
+function machine_memory end
+
+@static if Sys.isapple()
+    # `host_statistics64(…, HOST_VM_INFO64, …)` fills a `vm_statistics64` of
+    # <mach/vm_statistics.h>, 38 words of 32 bits: the free, active, inactive
+    # and wired page counts first, then nine 64-bit counters, then the
+    # purgeable and the speculative counts.
+    const HOST_VM_INFO64 = Cint(4)
+    const VM_STATISTICS64_WORDS = 38
+    function machine_memory()
+        stats = zeros(UInt32, VM_STATISTICS64_WORDS)
+        count = Ref{UInt32}(VM_STATISTICS64_WORDS)
+        host = ccall(:mach_host_self, UInt32, ())
+        kr = ccall(:host_statistics64, Cint, (UInt32, Cint, Ptr{UInt32}, Ref{UInt32}), host, HOST_VM_INFO64, stats, count)
+        # the send right `mach_host_self` gives is returned (`mach_task_self()` is
+        # a macro of C reading the global `mach_task_self_`)
+        ccall(:mach_port_deallocate, Cint, (UInt32, UInt32), unsafe_load(cglobal(:mach_task_self_, UInt32)), host)
+        # a refusal of the kernel leaves the free pages only, the cautious figure
+        kr == 0 || return Int(Sys.free_memory())
+        free, inactive, speculative = stats[1], stats[3], stats[24]
+        return (Int(free) + Int(inactive) + Int(speculative)) * Int(ccall(:getpagesize, Cint, ()))
+    end
+else
+    machine_memory() = min(Int(Sys.free_physical_memory()), Int(Sys.free_memory()))
 end
 
 """
