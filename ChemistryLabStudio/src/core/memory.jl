@@ -7,6 +7,8 @@
 # process sits in, never its ancestors nor `memory.high`. A calculation is
 # refused below a floor before it starts, rather than discovered too big during
 # the solve, and the compute process is stopped if it outgrows what was left.
+# Nothing here is tuned to one machine: the figures are read where the studio
+# runs, and the floor is what one cement calculation needs.
 
 const GIB = 2^30
 
@@ -82,31 +84,80 @@ end
 """
     process_rss(pid) -> Union{Nothing, Int}
 
-The resident memory of process `pid`, in bytes; `nothing` where it cannot be
-read (a process that has ended, or a system without `/proc`, where the
-watchdog relies on the floor checked before each run).
+The resident memory of process `pid`, in bytes, read from the system: `/proc`
+on Linux, `proc_pidinfo` on macOS, `K32GetProcessMemoryInfo` on Windows.
+`nothing` for a process that does not exist (any more), or a system that
+offers none of these. Each system compiles its own method only.
 """
-function process_rss(pid::Integer)
-    lines = try
-        readlines("/proc/$pid/status")
-    catch err
-        # no such process (it has ended), or no `/proc` on this system
-        err isa SystemError || rethrow()
-        return nothing
+function process_rss end
+
+@static if Sys.islinux()
+    function process_rss(pid::Integer)
+        lines = try
+            readlines("/proc/$pid/status")
+        catch err
+            # no such process: it has ended
+            err isa SystemError || rethrow()
+            return nothing
+        end
+        k = findfirst(startswith("VmRSS:"), lines)
+        return k === nothing ? nothing : 1024 * parse(Int, split(lines[k])[2])
     end
-    k = findfirst(startswith("VmRSS:"), lines)
-    return k === nothing ? nothing : 1024 * parse(Int, split(lines[k])[2])
+elseif Sys.isapple()
+    # `struct proc_taskinfo` of <sys/proc_info.h>, 96 bytes: the resident size
+    # is its second field, after the virtual size, both 64-bit.
+    function process_rss(pid::Integer)
+        info = zeros(UInt64, 12)
+        PROC_PIDTASKINFO = Cint(4)
+        n = ccall(
+            (:proc_pidinfo, "libproc"), Cint, (Cint, Cint, UInt64, Ptr{UInt64}, Cint),
+            pid, PROC_PIDTASKINFO, 0, info, sizeof(info),
+        )
+        return n == sizeof(info) ? Int(info[2]) : nothing
+    end
+elseif Sys.iswindows()
+    # `PROCESS_MEMORY_COUNTERS` of <psapi.h>: two 32-bit counters, then SIZE_T
+    # fields, the working set (the resident memory) being the second of them.
+    struct ProcessMemoryCounters
+        cb::UInt32
+        page_fault_count::UInt32
+        peak_working_set_size::Csize_t
+        working_set_size::Csize_t
+        quota_peak_paged_pool_usage::Csize_t
+        quota_paged_pool_usage::Csize_t
+        quota_peak_non_paged_pool_usage::Csize_t
+        quota_non_paged_pool_usage::Csize_t
+        pagefile_usage::Csize_t
+        peak_pagefile_usage::Csize_t
+    end
+    function process_rss(pid::Integer)
+        PROCESS_QUERY_LIMITED_INFORMATION = UInt32(0x1000)
+        handle = ccall(
+            (:OpenProcess, "kernel32"), stdcall, Ptr{Cvoid}, (UInt32, Cint, UInt32),
+            PROCESS_QUERY_LIMITED_INFORMATION, false, pid,
+        )
+        handle == C_NULL && return nothing
+        counters = Ref(ProcessMemoryCounters(sizeof(ProcessMemoryCounters), 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        ok = ccall(
+            (:K32GetProcessMemoryInfo, "kernel32"), stdcall, Cint,
+            (Ptr{Cvoid}, Ptr{ProcessMemoryCounters}, UInt32), handle, counters, sizeof(ProcessMemoryCounters),
+        )
+        ccall((:CloseHandle, "kernel32"), stdcall, Cint, (Ptr{Cvoid},), handle)
+        return ok == 0 ? nothing : Int(counters[].working_set_size)
+    end
+else
+    process_rss(::Integer) = nothing
 end
 
 """
     heap_size_hint(available) -> String
 
-The `--heap-size-hint` given to the compute process: six tenths of what is
-available, between 1 and 4 GiB. The garbage collector works harder near it,
-which keeps the process's footprint near what was measured, about 1.7 GiB for a
-cement paste.
+The `--heap-size-hint` given to the compute process: six tenths of the memory
+available when it starts, and at least 1 GiB. The garbage collector works
+harder as the process nears it, which keeps the process within what the
+machine had to spare.
 """
-heap_size_hint(available::Integer) = string(clamp(6 * (available ÷ 10), GIB, 4GIB) ÷ 2^20, "M")
+heap_size_hint(available::Integer) = string(max(6 * (available ÷ 10), GIB) ÷ 2^20, "M")
 
 "Memory in gigabytes, for messages."
 gigabytes(bytes::Integer) = round(bytes / GIB; digits = 1)

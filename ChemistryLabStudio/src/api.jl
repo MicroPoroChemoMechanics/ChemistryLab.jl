@@ -16,10 +16,11 @@ mutable struct StudioState
     model::StudioModel
     path::Union{Nothing, String}
     catalog::Union{Nothing, Dict{String, Any}}
+    const species::Dict{String, Any}
     const lock::ReentrantLock
 end
 
-StudioState() = StudioState(default_model(), nothing, nothing, ReentrantLock())
+StudioState() = StudioState(default_model(), nothing, nothing, Dict{String, Any}(), ReentrantLock())
 
 "What the page needs after any change: the model, its script, its problems, the bound file."
 function state_payload(st::StudioState)
@@ -61,6 +62,36 @@ function post_run(session::Session, st::StudioState)
     script = generate(m)
     outcome = compute!(session, :(Main.StudioWorker.run_compute($(script.compute))))
     outcome.ok || return json_response(200, Dict("ok" => false, "error" => outcome.error))
+    return json_response(200, outcome.value)
+end
+
+"""
+    post_diagnose(session, st)
+
+The findings of `diagnose_system` for the current model, computed in the
+compute process; none while the model has problems of its own.
+"""
+function post_diagnose(session::Session, st::StudioState)
+    m = lock(() -> st.model, st.lock)
+    isempty(problems(m)) || return json_response(200, Dict("ok" => true, "diagnostics" => Any[], "pending" => true))
+    outcome = compute!(session, :(Main.StudioWorker.run_diagnostics($(diagnostic_source(m)))))
+    outcome.ok || return json_response(200, Dict("ok" => false, "error" => outcome.error, "diagnostics" => Any[]))
+    return json_response(200, outcome.value)
+end
+
+"""
+    get_species(session, st, req)
+
+The species of a database (`?database=…`) for the page's picker, read once
+from the compute process and kept.
+"""
+function get_species(session::Session, st::StudioState, req::HTTP.Request)
+    name = get(query(req), "database", "cemdata18-thermofun.json")
+    cached = lock(() -> get(st.species, name, nothing), st.lock)
+    cached === nothing || return json_response(200, cached)
+    outcome = compute!(session, :(Main.StudioWorker.species_catalog($name)))
+    outcome.ok || return json_response(503, Dict("error" => outcome.error))
+    lock(() -> (st.species[name] = outcome.value), st.lock)
     return json_response(200, outcome.value)
 end
 
@@ -167,6 +198,26 @@ function post_library(st::StudioState, req::HTTP.Request)
 end
 
 """
+    post_rows_parse(req)
+
+Read a block pasted into an input table (`{"text": …, "unit": …}`): the rows,
+and the lines that were skipped.
+"""
+function post_rows_parse(req::HTTP.Request)
+    body = read_json(req)
+    text, unit = get(body, "text", ""), get(body, "unit", "%")
+    (text isa AbstractString && unit isa AbstractString) || return bad_request("give the pasted text and a unit")
+    unit in ALL_UNITS || return bad_request("unknown unit $(repr(unit))")
+    r = parse_table(text; unit)
+    return json_response(
+        200, Dict{String, Any}(
+            "rows" => to_dict.(r.rows), "skipped" => r.skipped,
+            "separator" => r.separator, "decimal_comma" => r.decimal_comma,
+        )
+    )
+end
+
+"""
     chemistrylab_routes!(router, session)
 
 Register the routes of ChemistryLab Studio.
@@ -180,10 +231,14 @@ function chemistrylab_routes!(router::HTTP.Router, session::Session)
         _ -> json_response(200, something(lock(() -> st.catalog, st.lock), Dict("pending" => true))),
     )
     HTTP.register!(router, "POST", "/api/run", _ -> post_run(session, st))
+    HTTP.register!(router, "POST", "/api/diagnose", _ -> post_diagnose(session, st))
+    HTTP.register!(router, "GET", "/api/species", req -> get_species(session, st, req))
     HTTP.register!(router, "POST", "/api/save", req -> post_save(st, req))
     HTTP.register!(router, "POST", "/api/open", req -> post_open(st, req))
     HTTP.register!(router, "GET", "/api/browse", req -> json_response(200, browse(get(query(req), "path", ""))))
     HTTP.register!(router, "GET", "/api/library", _ -> json_response(200, library_listing()))
+    HTTP.register!(router, "GET", "/api/schema", _ -> json_response(200, schema()))
+    HTTP.register!(router, "POST", "/api/rows/parse", post_rows_parse)
     HTTP.register!(router, "POST", "/api/library", req -> post_library(st, req))
     return nothing
 end
@@ -192,7 +247,7 @@ end
     warm_up!(session)
 
 Read the catalog of ChemistryLab, then run the default calculation once so that
-its compilation, about two minutes, is paid before the user's first run.
+its compilation is paid before the user's first run.
 """
 function warm_up!(session::Session)
     st, cp = session.state, session.compute
@@ -202,7 +257,7 @@ function warm_up!(session::Session)
         st.catalog = catalog.ok ? catalog.value : Dict{String, Any}("error" => catalog.error)
     end
     catalog.stopped === :none || return nothing
-    set_state!(cp, :ready, "Compiling the first calculation: about two minutes, once per session.")
+    set_state!(cp, :ready, "Compiling the first calculation, once per session.")
     warm = call!(cp, :(Main.StudioWorker.run_compute($(generate(default_model()).compute))))
     warm.stopped === :none || return nothing
     set_state!(cp, :ready)

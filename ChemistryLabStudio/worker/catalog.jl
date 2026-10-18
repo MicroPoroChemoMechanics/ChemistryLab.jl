@@ -2,62 +2,102 @@
 # Copyright © 2026 Jean-François Barthélémy (Cerema, UMR MCD)
 
 # What the page offers to choose from, read from ChemistryLab rather than
-# copied into the studio: the published phase lists, the material templates
-# with their constituents, the databases and their status.
+# copied into the studio: the databases and their status, the published phase
+# lists, the material templates with their constituents, the solid solutions,
+# and the species of a database.
 
-"The system of a phase list, built once per list (the first build compiles for a while)."
-const SYSTEMS = Dict{String, Any}()   # a `ChemicalSystem`'s type is huge; `Any` spares its compilation
-const SYSTEMS_LOCK = ReentrantLock()
+# The species of a database, read once (the first read compiles for a while).
+# A species vector's type is huge; `Any` spares compiling a Dict for it.
+const SUBSTANCES = Dict{String, Any}()
+const SUBSTANCES_LOCK = ReentrantLock()
 
-function system_of(list::AbstractString)
-    return lock(SYSTEMS_LOCK) do
-        get!(SYSTEMS, list) do
-            pl = phase_list(list)
-            phase_list_system(list, build_species(datapath(pl.database); verbose = false))
-        end
+function substances_of(database::AbstractString)
+    return lock(SUBSTANCES_LOCK) do
+        get!(() -> build_species(datapath(database); verbose = false), SUBSTANCES, database)
     end
 end
 
-"A template's constituents, built in the system of `list`."
-function template_entry(name::AbstractString, list::AbstractString)
-    entry = Dict{String, Any}("name" => name)
-    m = try
-        material_template(name, system_of(list))
-    catch err
-        # a template whose species the list does not hold: listed, with the reason
-        err isa KeyError || err isa ArgumentError || err isa ErrorException || rethrow()
-        entry["unavailable"] = err isa KeyError ?
-            "needs the species $(err.key), which the phase list \"$list\" does not declare" : sprint(showerror, err)
-        return entry
-    end
-    entry["kind"] = String(m.kind)
-    entry["source"] = m.source === nothing ? nothing : string(m.source)
-    entry["constituents"] = [
-        Dict{String, Any}("name" => c.name, "mass_fraction" => Float64(c.mass_fraction)) for c in m.constituents
+"A template's constituents, built against the whole database (every species is there)."
+function template_entry(name::AbstractString, db)
+    m = material_template(name, db)
+    return Dict{String, Any}(
+        "name" => name, "kind" => String(m.kind), "source" => m.source === nothing ? nothing : string(m.source),
+        "constituents" => [
+            Dict{String, Any}(
+                "name" => c.name, "mass_fraction" => Float64(c.mass_fraction),
+                "species" => c isa MineralConstituent ? symbol(c.species) : nothing,
+            ) for c in m.constituents
+        ],
+    )
+end
+
+"The solid solutions ChemistryLab ships, as its file declares them."
+function solid_solution_entries()
+    toml = TOML.parsefile(datapath("solid_solutions.toml"))
+    return [
+        Dict{String, Any}(
+            "name" => e["name"], "end_members" => String.(e["end_members"]), "model" => get(e, "model", "ideal"),
+            "database" => get(e, "database", nothing), "source" => string(get(e, "source", "")),
+        ) for e in get(toml, "solid_solution", Any[])
     ]
-    return entry
 end
 
 """
     catalog() -> Dict{String, Any}
 
-The choices ChemistryLab offers: phase lists with their source, material
-templates with their constituents (built in the system of the first list),
-and the databases with their status.
+The choices ChemistryLab offers: the databases with their status, the phase
+lists with their phases, the material templates with their constituents, the
+solid solutions, and the versions.
 """
 function catalog()
-    lists = phase_lists()
-    first_list = first(lists)
+    db = Dict(symbol(s) => s for s in substances_of("cemdata18-thermofun.json"))
+    lists = map(phase_lists()) do n
+        pl = phase_list(n)
+        Dict{String, Any}(
+            "name" => n, "source" => string(something(pl.source, "")), "database" => pl.database,
+            "reactants" => pl.reactants, "products" => pl.products, "solid_solutions" => pl.solid_solutions,
+        )
+    end
     return Dict{String, Any}(
-        "phase_lists" => [Dict{String, Any}("name" => n, "source" => string(something(phase_list(n).source, ""))) for n in lists],
-        "templates" => [template_entry(n, first_list) for n in material_templates()],
         "databases" => [
             Dict{String, Any}("name" => d.name, "status" => String(d.status), "license" => string(d.license))
                 for d in database_info(devnull)
         ],
-        "activity_models" => ["cemdata18_KOH", "cemdata18_NaOH"],
+        "phase_lists" => lists,
+        "templates" => [template_entry(n, db) for n in material_templates()],
+        "solid_solutions" => solid_solution_entries(),
         "versions" => versions(),
     )
+end
+
+# The cement notation of a species, when it has one (not for ions).
+function cement_notation(s)
+    return try
+        unicode(cemformula(CemSpecies(s)))
+    catch err
+        # a species whose elements are not all cement oxides, or an ion
+        err isa ArgumentError || err isa ErrorException || err isa KeyError || rethrow()
+        ""
+    end
+end
+
+"""
+    species_catalog(database) -> Vector{Dict}
+
+The species of a database, for the page's picker: symbol, formula, cement
+notation, aggregate state, elements, molar mass and temperature range.
+"""
+function species_catalog(database::AbstractString)
+    return map(substances_of(database)) do s
+        lo, hi = temperature_range(s)
+        Dict{String, Any}(
+            "symbol" => symbol(s), "formula" => unicode(formula(s)), "cement" => cement_notation(s),
+            "state" => lowercase(replace(string(aggregate_state(s)), "AS_" => "")),
+            "elements" => [string(e) for e in keys(atoms(s)) if e !== :Zz],
+            "molar_mass" => finite(ustrip(us"g/mol", s[:M])),
+            "T_min" => finite(lo), "T_max" => finite(hi),
+        )
+    end
 end
 
 "The versions of Julia and of the packages the calculations use."
@@ -70,8 +110,8 @@ versions() = Dict{String, Any}(
 """
     check_report() -> Vector{String}
 
-The lines `clstudio(check = true)` prints: versions, the status of each
-database, and the free memory as this process sees it.
+The lines `clstudio(check = true)` prints: versions and the status of each
+database.
 """
 function check_report()
     v = versions()

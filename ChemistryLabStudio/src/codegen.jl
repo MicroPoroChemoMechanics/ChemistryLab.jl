@@ -5,7 +5,8 @@
 # Julia and less thermochemistry: every section says what it does and why, and
 # the script runs on its own in the studio's environment. The studio runs the
 # text of sections 1 to 5 itself, so what the page shows is what the script
-# computes; sections 6 and 7 (tables and figures) serve the script alone.
+# computes; sections 6 and 7 (tables and figures) serve the script alone. Each
+# part of the model writes its own lines (src/features/).
 
 """
     GeneratedScript(source, compute)
@@ -29,15 +30,24 @@ end
 "A number as Julia source, keeping it a float: `0.45`, `1.0`, `20.0`."
 julia_number(x::Real) = repr(Float64(x))
 
-"""
-    material_name(template, taken) -> String
+"The names the script gives itself, which a material may not take."
+const RESERVED_NAMES = Set(
+    [
+        "substances", "cs", "recipe", "model", "state", "certificate", "study", "masses", "width", "w_b", "T",
+        "path", "paste", "states", "temperatures", "ratios", "fractions", "scm", "ages", "column", "solution",
+        "V", "M_water", "fresh", "db", "species", "members", "solid_solutions", "table", "phases", "x", "table",
+    ]
+)
 
-A Julia variable name for a material, from its template's name: the words
-before the parenthesis, lowercased (`"S1 slag (Durdzinski 2017)"` gives
-`s1_slag`), unique among `taken` and clear of the script's other names.
 """
-function material_name(template::AbstractString, taken)
-    words = lowercase(strip(first(split(template, '('))))
+    material_name(label, taken) -> String
+
+A Julia variable name for a material, from its name: the words before the
+parenthesis, lowercased (`"S1 slag (Durdzinski 2017)"` gives `s1_slag`), unique
+among `taken` and clear of the script's other names.
+"""
+function material_name(label::AbstractString, taken)
+    words = lowercase(strip(first(split(label, '('))))
     base = strip(replace(words, r"[^a-z0-9]+" => "_"), '_')
     (isempty(base) || !isletter(first(base))) && (base = "material_" * base)
     base in RESERVED_NAMES && (base *= "_material")
@@ -49,92 +59,6 @@ function material_name(template::AbstractString, taken)
     return String(name)
 end
 
-const RESERVED_NAMES = Set(["substances", "cs", "recipe", "model", "state", "certificate", "study", "masses", "width"])
-
-function activity_model_code(key::AbstractString)
-    key == "cemdata18_KOH" && return "cemdata18_activity_model(:KOH)"
-    key == "cemdata18_NaOH" && return "cemdata18_activity_model(:NaOH)"
-    throw(ArgumentError("unknown activity model $key"))
-end
-
-function activity_model_comment(key::AbstractString)
-    salt = key == "cemdata18_NaOH" ? "NaOH" : "KOH"
-    return "# How the dissolved species interact: extended Debye–Hückel, with the\n" *
-        "# parameters Cemdata18 recommends for a pore solution dominated by $salt."
-end
-
-function extents_code(name::AbstractString, c::MaterialChoice)
-    isempty(c.extents) && c.material_extent === nothing && return String[]
-    pairs = join(("$(repr(k)) => $(julia_number(v))" for (k, v) in c.extents), ", ")
-    call = "$name = with_extents($name, Dict{String, Any}($pairs)"
-    c.material_extent === nothing || (call *= "; material_extent = $(julia_number(c.material_extent))")
-    return [call * ")"]
-end
-
-function materials_section(m::StudioModel)
-    lines = String[
-        heading(4, "Materials and mix"),
-        "# Each material comes from a published composition shipped with ChemistryLab",
-        "# (`material_templates()` lists them). A degree of reaction says which",
-        "# fraction of a constituent has reacted, between 0 and 1.",
-    ]
-    names = String[]
-    for c in m.materials
-        name = material_name(c.template, names)
-        push!(names, name)
-        push!(lines, "$name = material_template($(repr(c.template)), cs)")
-        append!(lines, extents_code(name, c))
-    end
-    fractions = join(("$n => $(julia_number(c.fraction))" for (n, c) in zip(names, m.materials)), ", ")
-    t = julia_number(m.temperature_c)
-    append!(
-        lines, [
-            "# The mix: the mass fraction of each material in the binder, the",
-            "# water-to-binder ratio w/b, and the temperature ($(t) °C, written in kelvins).",
-            "recipe = Recipe($fractions; w_b = $(julia_number(m.w_b)), T = T_ZERO_CELSIUS_Q + $(t)u\"K\")",
-        ]
-    )
-    return lines
-end
-
-function calculation_section(m::StudioModel)
-    return String[
-        heading(5, "Calculation"),
-        activity_model_comment(m.activity_model),
-        "model = $(activity_model_code(m.activity_model))",
-        "# The equilibrium minimizes the Gibbs energy of the paste. It comes with a",
-        "# certificate saying what was proven (`certificate.optimal`, `certificate.scope`).",
-        "state, certificate = equilibrate_certified(recipe, cs; model)",
-        "# Everything computed above, gathered for the tables and figures below.",
-        "study = (; recipe, cs, model, output = state, certificate)",
-    ]
-end
-
-const TABLES_SECTION = String[
-    heading(6, "Tables"),
-    "println(\"Certificate: optimal = \", certificate.optimal, \", scope = \", certificate.scope)",
-    "println(\"pH of the pore solution: \", round(pore_solution(state).pH; digits = 2))",
-    "println(\"Bound water: \", round(bound_water(state); digits = 3), \" g per g of binder\")",
-    "println(\"Phase masses, in g for the binder mass of the recipe (100 g by default):\")",
-    "masses = phase_masses(state)",
-    "width = maximum(length, keys(masses)) + 2",
-    "for (phase, mass) in masses",
-    "    println(\"  \", rpad(phase, width), round(mass; digits = 2))",
-    "end",
-]
-
-function figures_section(stem::AbstractString)
-    file = repr(stem * "_phases.png")
-    return String[
-        heading(7, "Figures"),
-        "# Plots draws the figure, saved next to this script.",
-        "using Plots",
-        "bar(collect(keys(masses)), collect(values(masses)); legend = false, xrotation = 45,",
-        "    ylabel = \"mass (g)\", title = \"Phase assemblage\")",
-        "savefig(joinpath(@__DIR__, $file))",
-    ]
-end
-
 """
     script_stem(title) -> String
 
@@ -143,6 +67,122 @@ A file name stem from a title: lowercase words joined by underscores.
 function script_stem(title::AbstractString)
     s = strip(replace(lowercase(title), r"[^a-z0-9]+" => "_"), '_')
     return isempty(s) ? "chemistrylab_study" : String(s)
+end
+
+function materials_section(m::StudioModel)
+    lines = vcat([heading(4, "Materials and mix")], mix_lines(m.mix))
+    push!(
+        lines,
+        "# Each material comes from a published composition shipped with ChemistryLab",
+        "# (`material_templates()` lists them) or from the user's own analysis. A degree",
+        "# of reaction says which fraction of a constituent has reacted, between 0 and 1.",
+    )
+    names = String[]
+    for x in m.materials
+        name = material_name(label(x), names)
+        push!(names, name)
+        append!(lines, material_lines(name, x))
+    end
+    fractions = join(("$n => $(julia_number(x.fraction))" for (n, x) in zip(names, m.materials)), ", ")
+    push!(
+        lines,
+        "# The mix: the mass fraction of each material in the binder, and the conditions.",
+        "recipe = Recipe($fractions; $(recipe_keywords(m.mix)))",
+    )
+    return lines
+end
+
+"""
+    diagnose_call(m) -> String
+
+The call to `diagnose_system` for model `m`: the recipe, the model, the age the
+laws are read at, and the reactants of the phase list.
+"""
+function diagnose_call(m::StudioModel)
+    kws = ["recipe", "model"]
+    a = diagnosis_age(m.calculation)
+    depends_on_age(m) && a !== nothing && push!(kws, "t = $(julia_number(a))")
+    m.system isa PhaseListSystem && push!(kws, "reactants = phase_list($(repr(m.system.phase_list))).reactants")
+    return "diagnose_system(cs; $(join(kws, ", ")))"
+end
+
+function calculation_section(m::StudioModel)
+    clines, ckw = constraint_code(m.constraint)
+    return vcat(
+        [heading(5, "Calculation")], activity_lines(m.activity),
+        [
+            "# What deserves a look before computing: a constituent the system cannot",
+            "# hold, data read beyond their range, a phase counted twice…",
+            "foreach(println, $(diagnose_call(m)))",
+        ],
+        calculation_lines(m.calculation, depends_on_age(m), clines, ckw),
+    )
+end
+
+"""
+    diagnostic_source(m) -> String
+
+What the studio runs to diagnose a model before it is computed: the database,
+the system, the materials and the activity model, then `diagnostics`.
+"""
+function diagnostic_source(m::StudioModel)
+    lines = vcat(
+        ["using ChemistryLab, OptimaSolver, DynamicQuantities"], database_lines(m.database), system_lines(m.system),
+        materials_section(m), activity_lines(m.activity), ["diagnostics = $(diagnose_call(m))"],
+    )
+    return join(lines, '\n') * '\n'
+end
+
+"The tables of section 6, for a single equilibrium or for a path."
+function tables_section(m::StudioModel)
+    if m.calculation isa EquilibriumCalc
+        return [
+            heading(6, "Tables"),
+            "println(\"Certificate: optimal = \", certificate.optimal, \", scope = \", certificate.scope)",
+            "println(\"pH of the pore solution: \", round(pore_solution(state).pH; digits = 2))",
+            "println(\"Bound water: \", round(bound_water(state); digits = 3), \" g per g of binder\")",
+            "println(\"Phase masses, in g for the binder mass of the recipe:\")",
+            "masses = phase_masses(state)",
+            "width = maximum(length, keys(masses)) + 2",
+            "for (phase, mass) in masses",
+            "    println(\"  \", rpad(phase, width), round(mass; digits = 2))",
+            "end",
+        ]
+    end
+    return [
+        heading(6, "Tables"),
+        "# One row per point of the path: the parameter, whether the equilibrium is",
+        "# certified, the pH, the porosity, the bound water and the mass of each phase.",
+        "table = process_table(path)",
+        "show(stdout, MIME\"text/plain\"(), table; allrows = true, allcols = true)",
+        "println()",
+    ]
+end
+
+"The figure of section 7, for a single equilibrium or for a path."
+function figures_section(m::StudioModel, stem::AbstractString)
+    file = repr(stem * "_phases.png")
+    head = [heading(7, "Figures"), "# Plots draws the figure, saved next to this script.", "using Plots"]
+    if m.calculation isa EquilibriumCalc
+        return vcat(
+            head, [
+                "bar(collect(keys(masses)), collect(values(masses)); legend = false, xrotation = 45,",
+                "    ylabel = \"mass (g)\", title = \"Phase assemblage\")",
+                "savefig(joinpath(@__DIR__, $file))",
+            ]
+        )
+    end
+    return vcat(
+        head, [
+            "# The mass of each phase along the path, stacked.",
+            "masses = [phase_masses(rs) for rs in path]",
+            "phases = unique(k for d in masses for k in keys(d) if !startswith(k, \"unreacted\"))",
+            "x = Float64.(path.parameter)",
+            "areaplot(x, reduce(hcat, [[get(d, p, 0.0) for d in masses] for p in phases]);",
+            "    labels = permutedims(phases), xlabel = string(path.label), ylabel = \"mass (g)\", legend = :outerright)",
+            "savefig(joinpath(@__DIR__, $file))",
+        ]
+    )
 end
 
 """
@@ -171,20 +211,13 @@ function generate(m::StudioModel; version::VersionNumber = STUDIO_VERSION, date:
             "using ChemistryLab, OptimaSolver, DynamicQuantities",
             "",
             heading(2, "Thermodynamic database"),
-            "# The species and their thermodynamic data, downloaded from the publisher of",
-            "# the database at the first use and kept afterwards.",
-            "substances = build_species(datapath($(repr(m.database))); verbose = false)",
-            "",
-            heading(3, "Chemical system"),
-            "# The phases the paste may form, from a published phase list",
-            "# (`phase_lists()` lists them).",
-            "cs = phase_list_system($(repr(m.phase_list)), substances)",
-            "",
         ],
+        database_lines(m.database), [""],
+        [heading(3, "Chemical system")], system_lines(m.system), [""],
         materials_section(m), [""],
         calculation_section(m),
     )
-    rest = vcat([""], TABLES_SECTION, [""], figures_section(stem))
+    rest = vcat([""], tables_section(m), [""], figures_section(m, stem))
     compute_text = join(compute, '\n') * '\n'
     body = compute_text * join(rest, '\n') * '\n'
     return GeneratedScript(embed_model(body, m), compute_text)

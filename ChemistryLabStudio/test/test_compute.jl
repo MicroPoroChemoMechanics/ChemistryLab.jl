@@ -46,12 +46,57 @@ end
     @test cat["versions"]["julia"] == string(VERSION)
 end
 
+@testset "diagnosis and species" begin
+    d = post("/api/diagnose", Dict())
+    @test d["ok"] && [x["code"] for x in d["diagnostics"]] == ["reactant_temperature_range"]
+    species = JSON.parse(String(HTTP.get(base * "/api/species?database=cemdata18-thermofun.json", ["X-Studio-Token" => token]).body); dicttype = Dict{String, Any})
+    portlandite = only(x for x in species if x["symbol"] == "Portlandite")
+    @test portlandite["state"] == "crystal" && portlandite["cement"] == "CH" && sort(portlandite["elements"]) == ["Ca", "H", "O"]
+    @test portlandite["molar_mass"] ≈ 74.09 rtol = 1.0e-3
+    # a second read is served from the server's copy
+    @test length(api("/api/species?database=cemdata18-thermofun.json")) == length(species)
+end
+
+@testset "a path against the same one written by hand" begin
+    model = api("/api/state")["model"]
+    model["calculation"] = Dict("kind" => "carbonation", "amounts" => [0.0, 0.3], "age" => 28.0)
+    post("/api/model", Dict("model" => model))
+    run = post("/api/run", Dict())
+    @test run["ok"] && run["results"]["kind"] == "path"
+    res = run["results"]
+    # the packages first: `u"K"` below is expanded before the block runs
+    @test CLS.call!(cp, :(using ChemistryLab, OptimaSolver, DynamicQuantities)).ok
+    reference = CLS.call!(
+        cp, quote
+            let substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+                cs = phase_list_system("Portland paste (Lothenbach and Winnefeld 2006)", substances)
+                cement = with_extents(
+                    material_template("CEM I 52.5 N (Gruyaert 2010), Bogue", cs),
+                    Dict("C3S" => 0.8, "C2S" => 0.45, "C3A" => 0.9, "C4AF" => 0.6),
+                )
+                model = cemdata18_activity_model(:KOH)
+                rs, _ = equilibrate_certified(Recipe(cement => 1.0; w_b = 0.5, T = T_ZERO_CELSIUS_Q + 20u"K"), cs; model)
+                p = carbonate(rs, [0.0, 0.3])
+                (; pH = [pore_solution(x).pH for x in p], calcite = [get(phase_masses(x), "Cal", 0.0) for x in p])
+            end
+        end
+    )
+    @test reference.ok
+    @test res["parameter"] == [0.0, 0.3]
+    @test res["pH"] ≈ reference.value.pH rtol = 1.0e-9
+    calcite = res["phase_masses"]["series"][findfirst(==("Cal"), res["phase_masses"]["labels"])]
+    @test calcite ≈ reference.value.calcite rtol = 1.0e-9
+    @test all(res["certified"])
+    @test length(res["porosity"]) == 2 && length(res["bound_water"]) == 2
+    @test haskey(res["volume_fractions"], "series")
+    @test "Ca" in res["molalities"]["labels"]
+    post("/api/library", Dict("id" => "cem1-52.5n-gruyaert2010"))
+end
+
 @testset "a calculation against the same one written by hand" begin
     run = post("/api/run", Dict())
     @test run["ok"]
     res = run["results"]
-    # the packages first: `u"K"` below is expanded before the block runs
-    @test CLS.call!(cp, :(using ChemistryLab, OptimaSolver, DynamicQuantities)).ok
     reference = CLS.call!(
         cp, quote
             let substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
@@ -89,6 +134,13 @@ end
     other = post("/api/run", Dict())["results"]
     @test occursin("No sourced density", other["volume_fractions"]["reason"])
     @test other["porosity"]["total"] === nothing
+    # and along a path
+    model = api("/api/state")["model"]
+    model["calculation"] = Dict("kind" => "carbonation", "amounts" => [0.0, 0.3], "age" => 28.0)
+    post("/api/model", Dict("model" => model))
+    path = post("/api/run", Dict())["results"]
+    @test occursin("No sourced density", path["volume_fractions"]["reason"])
+    post("/api/library", Dict("id" => "cem1-52.5n-gruyaert2010"))
     @test res["saturation_indices"]["values"] == sort(res["saturation_indices"]["values"]; rev = true)
 end
 
@@ -119,8 +171,17 @@ end
     sleep(1)
     @test CLS.stop!(cp)
     r = fetch(t)
-    @test !r.ok && r.error == "Stopped." && r.stopped === :none
-    @test CLS.status(cp).state == "ready"          # the interrupt took: no restart
+    @test !r.ok
+    if r.stopped === :user
+        # the interrupt did not take (on Windows, where the console event does
+        # not reach the process): the watchdog killed it after 5 s
+        @test occursin("restarting", r.error) && CLS.status(cp).state == "stopped"
+        CLS.start!(cp)
+    else
+        # the interrupt took: no restart, the compilation is kept
+        @test r.error == "Stopped." && CLS.status(cp).state == "ready"
+    end
+    Sys.iswindows() || @test r.stopped === :none
     r = CLS.call!(cp, :(1 + 1); floor = typemax(Int))
     @test !r.ok && occursin("GB of memory are free", r.error)
     @test CLS.call!(cp, :(1 + 1)).value == 2
@@ -129,9 +190,7 @@ end
 close(h)          # a normal exit of the compute process
 @test CLS.status(cp).state == "stopped"
 
-# The watchdog reads the resident memory in /proc; elsewhere the floor checked
-# before each run is the protection.
-Sys.islinux() && @testset "watchdog" begin
+@testset "watchdog" begin
     cp2 = CLS.ComputeProcess(; project, julia, boot = joinpath(CLS.WORKER_DIR, "boot.jl"))
     CLS.start!(cp2)
     rss = something(CLS.process_rss(cp2.worker.proc_pid), 0)

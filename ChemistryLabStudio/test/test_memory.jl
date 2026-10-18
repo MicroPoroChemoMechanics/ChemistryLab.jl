@@ -3,13 +3,12 @@
 
 avail = CLS.available_memory()
 @test 0 < avail <= Sys.total_physical_memory()
-if Sys.islinux()
-    @test CLS.process_rss(getpid()) > 0
-end
+# read on every system the studio supports
+@test CLS.process_rss(getpid()) > 0
 @test CLS.process_rss(typemax(Int32)) === nothing
 
 @test CLS.heap_size_hint(0) == "1024M"
-@test CLS.heap_size_hint(100 * CLS.GIB) == "4096M"
+@test CLS.heap_size_hint(100 * CLS.GIB) == string(60 * 1024, "M")     # no upper cap
 @test CLS.heap_size_hint(3 * CLS.GIB) == string(6 * (3 * CLS.GIB ÷ 10) ÷ 2^20, "M")
 @test CLS.gigabytes(3 * CLS.GIB ÷ 2) == 1.5
 

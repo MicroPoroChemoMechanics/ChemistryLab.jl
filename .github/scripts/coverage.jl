@@ -16,14 +16,19 @@
 #     as missed, so genuine gaps stay visible at 0 % instead of silently
 #     vanishing from the report.
 
+#
+# Usage: `julia coverage.jl [output [folder...]]`, by default `lcov.info` from
+# `src` and `ext`; the studio passes `lcov-studio.info` and its own folders.
+
 # CoverageTools is a dependency of Coverage
 using Coverage
 using Coverage.CoverageTools
 
-const DIRS = ["src", "ext"]
+const OUTPUT = isempty(ARGS) ? "lcov.info" : ARGS[1]
+const DIRS = length(ARGS) > 1 ? ARGS[2:end] : ["src", "ext"]
 # `.cov` files are also dropped next to the test sources; wipe them too so a
 # local run leaves the working tree clean.
-const CLEAN_DIRS = ["src", "ext", "test", "docs"]
+const CLEAN_DIRS = unique(vcat(DIRS, joinpath.(dirname.(DIRS), "test"), ["src", "ext", "test", "docs"]))
 
 collect_dirs() = reduce(vcat, (process_folder(d) for d in DIRS if isdir(d)); init = FileCoverage[])
 
@@ -68,5 +73,7 @@ covered == 0 && error(
     "No coverage data found: every file reports 0 %.  Did `julia-runtest` run " *
         "with `coverage: true`, and is this script running from the repo root?"
 )
-LCOV.writefile("lcov.info", fcs)
+# Paths with forward slashes, so that a report written on Windows names the
+# same files as the others when Codecov merges them.
+LCOV.writefile(OUTPUT, [FileCoverage(replace(fc.filename, '\\' => '/'), fc.source, fc.coverage) for fc in fcs])
 clean_folder.(filter(isdir, CLEAN_DIRS))

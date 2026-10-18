@@ -51,20 +51,23 @@ end
     @test isempty(st["problems"])
     @test startswith(st["script"], "# ===")
     model = st["model"]
-    model["w_b"] = 0.4
+    model["mix"]["w_b"] = 0.4
     st = payload(post("/api/model", Dict("model" => model)))
-    @test occursin("w_b = 0.4,", st["script"])
-    r = post("/api/model", Dict("model" => Dict("w_b" => "x")))
+    @test occursin("w_b = 0.4 ", st["script"])
+    r = post("/api/model", Dict("model" => Dict("mix" => Dict("kind" => "mix", "w_b" => "x"))))
     @test r.status == 400 && occursin("w_b", payload(r)["error"])
     @test post("/api/model", Dict("nothing" => 1)).status == 400
-    model["temperature_c"] = 150
+    model["mix"]["temperature"] = 150
     st = payload(post("/api/model", Dict("model" => model)))
-    @test [p["code"] for p in st["problems"]] == ["temperature_out_of_range"]
-    # a model that cannot run is not sent to the compute process
+    @test [p["code"] for p in st["problems"]] == ["out_of_range"]
+    # a model that cannot run is neither run nor diagnosed
     r = post("/api/run", Dict())
-    @test r.status == 422 && payload(r)["problems"][1]["code"] == "temperature_out_of_range"
-    model["temperature_c"] = 20
+    @test r.status == 422 && payload(r)["problems"][1]["code"] == "out_of_range"
+    @test payload(post("/api/diagnose", Dict()))["pending"]
+    model["mix"]["temperature"] = 20
     post("/api/model", Dict("model" => model))
+    @test occursin("not ready", payload(post("/api/diagnose", Dict()))["error"])
+    @test get("/api/species?database=cemdata18-thermofun.json").status == 503
     r = payload(post("/api/run", Dict()))
     @test r["ok"] == false && occursin("not ready", r["error"])
 end
@@ -74,7 +77,7 @@ end
     @test [e["id"] for e in entries][1:2] == ["cem1-52.5n-gruyaert2010", "portland-rilem-pc"]
     @test all(e -> haskey(e, "sources") && !isempty(e["sources"]), entries)
     st = payload(post("/api/library", Dict("id" => "portland-rilem-pc")))
-    @test st["model"]["w_b"] == 0.45
+    @test st["model"]["mix"]["w_b"] == 0.45
     @test post("/api/library", Dict("id" => "nothing")).status == 400
     @test payload(get("/api/catalog")) == Dict{String, Any}("pending" => true)
 end
@@ -98,7 +101,7 @@ end
 
         st = payload(post("/api/open", Dict("path" => file)))
         @test st["path"] == file && st["message"] == ""
-        write(file, replace(read(file, String), "w_b = 0.45" => "w_b = 0.6"))
+        write(file, replace(read(file, String), "w_b = 0.45 " => "w_b = 0.6 "))
         st = payload(post("/api/open", Dict("path" => file)))
         @test st["path"] === nothing && occursin("edited by hand", st["message"])
         plain = joinpath(dir, "plain.jl")
@@ -106,7 +109,7 @@ end
         r = post("/api/open", Dict("path" => plain))
         @test r.status == 422 && occursin("not written", payload(r)["error"])
         damaged = joinpath(dir, "damaged.jl")
-        write(damaged, "x = 1\n" * CLS.MODEL_TAG * " sha256=0\n{\"w_b\": \"x\"}\n=#\n")
+        write(damaged, "x = 1\n" * CLS.MODEL_TAG * " sha256=0\n{\"mix\": {\"kind\": \"mix\", \"w_b\": \"x\"}}\n=#\n")
         @test post("/api/open", Dict("path" => damaged)).status == 422
         @test post("/api/open", Dict("path" => joinpath(dir, "absent.jl"))).status == 400
         @test post("/api/open", Dict()).status == 400
@@ -130,6 +133,14 @@ end
         end
         @test payload(get("/api/browse?path=" * HTTP.escapeuri(joinpath(dir, "absent"))))["path"] == homedir()
     end
+end
+
+@testset "pasted rows and the schema" begin
+    r = payload(post("/api/rows/parse", Dict("text" => "CaO;63,7\nSiO2;19,3\n", "unit" => "%")))
+    @test [x["formula"] for x in r["rows"]] == ["CaO", "SiO2"] && r["decimal_comma"]
+    @test post("/api/rows/parse", Dict("text" => 3)).status == 400
+    @test post("/api/rows/parse", Dict("text" => "x 1", "unit" => "furlong")).status == 400
+    @test payload(get("/api/schema")) isa Dict
 end
 
 @testset "status, stop, restart" begin

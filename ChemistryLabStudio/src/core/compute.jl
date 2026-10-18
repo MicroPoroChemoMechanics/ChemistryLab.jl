@@ -178,7 +178,8 @@ end
 
 # Waits for a running call, killing the process if it outgrows `cap`, if the
 # machine runs short, or if a requested stop has not taken within 5 s (code
-# that does not yield ignores the interrupt).
+# that does not yield ignores the interrupt). Where the resident memory cannot
+# be read, the floor checked before the call is the protection left.
 function watch!(cp::ComputeProcess, w::Malt.Worker, task::Task, cap::Integer)
     stop_since = 0.0
     while !istaskdone(task)

@@ -10,10 +10,11 @@ rb = CLS.read_script(src)
 @test !rb.edited
 @test isempty(rb.message)
 
-edited = replace(src, "w_b = 0.5" => "w_b = 0.4")
+edited = replace(src, "w_b = 0.5 " => "w_b = 0.4 ")
 rb = CLS.read_script(edited)
 @test rb.edited
-@test rb.model.w_b == 0.5           # the model of the block, not the hand edit
+@test rb.model.mix.w_b == 0.5       # the model of the block, not the hand edit
+@test occursin("w_b = 0.4 ", edited)
 @test occursin("edited by hand", rb.message)
 
 rb = CLS.read_script("x = 1\n")

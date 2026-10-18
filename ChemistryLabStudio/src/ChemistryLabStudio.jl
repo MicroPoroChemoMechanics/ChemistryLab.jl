@@ -40,6 +40,16 @@ include("core/compute.jl")
 include("core/server.jl")
 include("core/launcher.jl")
 
+include("rows.jl")
+include("schema.jl")
+include("features/extents.jl")
+include("features/materials.jl")
+include("features/database.jl")
+include("features/system.jl")
+include("features/activity.jl")
+include("features/mix.jl")
+include("features/constraint.jl")
+include("features/calculation.jl")
 include("model.jl")
 include("readback.jl")
 include("codegen.jl")
@@ -85,8 +95,8 @@ a handle at once and keep the REPL free: `close(handle)` stops the studio.
 
 The first launch prepares the environment the calculations run in,
 `@chemistrylab-studio`, which takes several minutes; the page opens at once and
-shows the progress. The first calculation of a session then compiles for about
-two minutes; later ones take a fraction of a second.
+shows the progress. The first calculation of a session then compiles, which
+takes a while depending on the machine; later ones take a fraction of a second.
 
 # Arguments
 - `host`/`port` — where to listen; the address printed is

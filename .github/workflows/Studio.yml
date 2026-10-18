@@ -42,11 +42,14 @@ jobs:
           - '1'
         os:
           - ubuntu-latest
-          # Windows, where spawning, interrupting and killing the compute
-          # process take other routes than on Linux.
+          # Windows and macOS, where spawning, interrupting and killing the
+          # compute process, and reading its memory, take other routes.
           - windows-latest
+          - macos-latest
         exclude:
           - os: windows-latest
+            version: 'min'
+          - os: macos-latest
             version: 'min'
     steps:
       - uses: actions/checkout@v7
@@ -93,23 +96,24 @@ jobs:
         env:
           CLSTUDIO_WORKER_PROJECT: ${{ runner.temp }}/studio-worker
         run: |
+          # Coverage on the latest release of every system: reading the memory
+          # of a process takes a route of its own on each, merged by Codecov.
           coverage=""
-          if [ "${{ matrix.version }}" = "1" ] && [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          if [ "${{ matrix.version }}" = "1" ]; then
             coverage="--code-coverage=@$GITHUB_WORKSPACE/ChemistryLabStudio"
           fi
           julia --color=yes $coverage --project=ChemistryLabStudio/test -e 'using Pkg; Pkg.instantiate(); include("ChemistryLabStudio/test/runtests.jl")'
+      # The repository's script: raw counts for the files a run loaded, so
+      # that a method whose body is a constant (no counter) is not counted
+      # missed; see .github/scripts/coverage.jl.
       - name: Process coverage
-        if: matrix.version == '1' && matrix.os == 'ubuntu-latest'
-        shell: julia --color=yes {0}
+        if: matrix.version == '1'
+        shell: bash
         run: |
-          using Pkg
-          Pkg.activate(; temp = true)
-          Pkg.add("Coverage")
-          using Coverage
-          files = vcat(process_folder("ChemistryLabStudio/src"), process_folder("ChemistryLabStudio/worker"))
-          LCOV.writefile("lcov-studio.info", files)
+          julia --color=yes -e 'using Pkg; Pkg.activate(; temp = true); Pkg.add("Coverage"); include(".github/scripts/coverage.jl")' \
+            lcov-studio.info ChemistryLabStudio/src ChemistryLabStudio/worker
       - uses: codecov/codecov-action@v7
-        if: matrix.version == '1' && matrix.os == 'ubuntu-latest'
+        if: matrix.version == '1'
         with:
           files: lcov-studio.info
           flags: studio

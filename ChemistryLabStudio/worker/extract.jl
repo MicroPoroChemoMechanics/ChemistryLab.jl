@@ -13,6 +13,9 @@ finite(x::Real) = isfinite(x) ? Float64(x) : nothing
 "A labeled series: the keys of an ordered dictionary and their values."
 series(d::AbstractDict) = Dict{String, Any}("labels" => string.(collect(keys(d))), "values" => [finite(v) for v in values(d)])
 
+"A parameter of a path as a number: days, a fraction, an amount, a step."
+parameter_number(x::Real) = Float64(x)
+
 """
     extract(study) -> Dict{String, Any}
 
@@ -20,19 +23,21 @@ The results of a study, by the type of its `output`.
 """
 extract(study) = extract_output(study.output, study)
 
+"The volume fractions of a state, or why they are unknown."
+function fractions_entry(rs::RecipeState)
+    v = volume(rs)
+    isempty(v.missing) && return series(volume_fractions(rs))
+    return Dict{String, Any}(
+        "reason" => "No sourced density for the unreacted part of $(join(v.missing, ", ")): " *
+            "its volume, and every volume fraction, is unknown.",
+    )
+end
+
 function extract_output(rs::RecipeState, study)
     out = Dict{String, Any}("kind" => "equilibrium")
     out["binder_mass_g"] = finite(rs.recipe.binder_mass)
     out["phase_masses"] = series(phase_masses(rs))
-    v = volume(rs)
-    if isempty(v.missing)
-        out["volume_fractions"] = series(volume_fractions(rs))
-    else
-        out["volume_fractions"] = Dict{String, Any}(
-            "reason" => "No sourced density for the unreacted part of $(join(v.missing, ", ")): " *
-                "its volume, and every volume fraction, is unknown.",
-        )
-    end
+    out["volume_fractions"] = fractions_entry(rs)
     p = porosity(rs)
     out["porosity"] = Dict{String, Any}("liquid" => finite(p.liquid), "void" => finite(p.void), "total" => finite(p.total))
     ps = pore_solution(rs)
@@ -43,6 +48,43 @@ function extract_output(rs::RecipeState, study)
     out["saturation_indices"] = series(sort(si; byvalue = true, rev = true))
     out["certificate"] = certificate_entry(study.certificate)
     return out
+end
+
+"""
+The results of a path: for each phase and each dissolved element, a series over
+the parameter; the pH, porosity, bound water and certification at each point.
+"""
+function extract_output(p::ProcessResult, study)
+    states = collect(p)
+    masses = [phase_masses(rs) for rs in states]
+    phases = unique(k for d in masses for k in keys(d))
+    solutions = [pore_solution(rs) for rs in states]
+    elements = unique(k for s in solutions for k in keys(s.elements))
+    fractions = [fractions_entry(rs) for rs in states]
+    known = all(f -> haskey(f, "labels"), fractions)
+    return Dict{String, Any}(
+        "kind" => "path", "label" => string(p.label),
+        "parameter" => [parameter_number(x) for x in p.parameter],
+        "binder_mass_g" => finite(first(states).recipe.binder_mass),
+        "phase_masses" => Dict{String, Any}(
+            "labels" => phases, "series" => [[finite(get(d, k, 0.0)) for d in masses] for k in phases],
+        ),
+        "volume_fractions" => known ? volume_series(fractions) : Dict{String, Any}("reason" => first(f["reason"] for f in fractions if haskey(f, "reason"))),
+        "pH" => [finite(s.pH) for s in solutions],
+        "molalities" => Dict{String, Any}(
+            "labels" => string.(elements), "series" => [[finite(get(s.elements, e, 0.0)) for s in solutions] for e in elements],
+        ),
+        "porosity" => [finite(porosity(rs).total) for rs in states],
+        "bound_water" => [finite(bound_water(rs)) for rs in states],
+        "certified" => [rs.certificate !== nothing && hasproperty(rs.certificate, :optimal) && rs.certificate.optimal === true for rs in states],
+    )
+end
+
+"Volume fractions of the points of a path, as one series per phase."
+function volume_series(fractions)
+    labels = unique(l for f in fractions for l in f["labels"])
+    lookup = [Dict(zip(f["labels"], f["values"])) for f in fractions]
+    return Dict{String, Any}("labels" => labels, "series" => [[get(d, l, 0.0) for d in lookup] for l in labels])
 end
 
 "The fields of a certificate the page shows, those it has."
