@@ -95,6 +95,50 @@
         cs_no_kin = ChemicalSystem([h2o, hplus, oh])
         @test isempty(cs_no_kin.reactions)
         @test isempty(cs_no_kin.idx_kinetic)
+
+        # Given as a vector of pairs rather than a dictionary, over components
+        # that include one which is not a species (dissolved CO2). The null
+        # space is then computed by rational elimination, and calcite enters two
+        # of the vectors it returns (with Ca²⁺ and HCO₃⁻, and with Ca²⁺ and
+        # CO₃²⁻): isolating it in one column takes a column operation.
+        calcite = Species("CaCO3"; symbol = "Calcite", aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
+        ca = Species("Ca+2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+        hco3 = Species("HCO3-"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+        co3 = Species("CO3-2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+        co2 = Species("CO2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE)
+        sp = [calcite, h2o, hplus, oh, ca, hco3, co3]
+        comps = [h2o, hplus, ca, co2]
+        calcite_rate(T, P, t, n, lna, n0) = 1.0e-6
+
+        plain = StoichMatrix(sp, comps)
+        @test co2 ∉ plain.species                     # a component that is not a species
+        @test iszero(plain.A * plain.N)
+        @test count(!iszero, plain.N[1, :]) == 2      # calcite in two vectors
+
+        cs = ChemicalSystem(sp, comps; kinetic_species = ["Calcite" => calcite_rate])
+        @test cs.idx_kinetic == [1]
+        @test symbol.(kinetic_species(cs)) == ["Calcite"]
+        A, N = cs.SM.A, cs.SM.N
+        # Still a basis of the null space, with calcite in one vector only.
+        @test size(N, 2) == length(sp) - size(A, 1) == 3
+        @test iszero(A * N)
+        @test count(!iszero, N[1, :]) == 1
+
+        # That vector is the kinetic reaction. It conserves every element and
+        # the charge, counted on the formulas of its species rather than on the
+        # matrix it came from.
+        rxn = only(cs.reactions)
+        ν = rxn[calcite]
+        @test !iszero(ν)
+        balance = Dict{Symbol, Any}()
+        for (s, c) in rxn, (el, k) in atoms(s)
+            balance[el] = get(balance, el, 0) + c * k
+        end
+        @test all(iszero, values(balance))
+        @test iszero(sum(c * charge(s) for (s, c) in rxn))
+        # Its rate is the one given, per mole of calcite.
+        @test rxn[:rate](298.15, 1.0e5, 0.0, nothing, nothing, nothing) ==
+            calcite_rate(298.15, 1.0e5, 0.0, nothing, nothing, nothing) / abs(ν)
     end
 
     @testsection "merge two systems" begin

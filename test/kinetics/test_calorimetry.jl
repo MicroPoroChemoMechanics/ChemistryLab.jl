@@ -142,6 +142,19 @@ end
     )
     @test dq_dH == rates[1]
 
+    # A reaction whose species carry no enthalpy of formation has no enthalpy
+    # of reaction and contributes no heat; the heat of the others is unchanged.
+    bare_rxn = Reaction(
+        OrderedDict(Species("CaCO3"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT) => 1.0),
+        OrderedDict(Species("Ca+2"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLUTE) => 1.0);
+        symbol = "no enthalpy",
+    )
+    kr_bare = KineticReaction(bare_rxn, dummy_fn, 1, [-1.0, 1.0])
+    @test !ChemistryLab._has_reaction_enthalpy(kr_bare)
+    @test ChemistryLab._heatless_reactions([kr, kr_bare]) == [kr_bare]
+    @test heat_rate([kr_bare], rates, 298.15) == 0.0
+    @test heat_rate([kr, kr_bare], [rates[1], 1.0e-3], 298.15) == qdot
+
 end
 
 # ── extend_ode! for IsothermalCalorimeter ─────────────────────────────────────
@@ -247,6 +260,39 @@ end
     Cp_total_expected = 4000.0 + 0.01 * 100.0   # = 4001 J/K
     dTdt_cp = (qdot_expected - 0.0) / Cp_total_expected
     @test isapprox(du_cp[2], dTdt_cp; rtol = 1.0e-6)
+
+    # Integrated, a cell whose species carry no Cp° is warned about, their
+    # share of the heat capacity being taken as zero. At a rate of zero nothing
+    # moves: no heat is released, and none is lost at T = T_env.
+    cs_cell = ChemicalSystem([CaO, H2Osp, Ca_OH_2], [H2Osp, Ca_OH_2])
+    st_cell = ChemicalState(cs_cell; T = 293.15u"K")
+    set_quantity!(st_cell, "H2O", 1.0u"mol")
+    set_quantity!(st_cell, "CaO", 0.01u"mol")
+    kp_cell = KineticsProblem(cs_cell, [kr], st_cell, (0.0, 600.0); calorimeter = cal, equilibrium_solver = nothing)
+    sol_cell = @test_logs (:warn, r"Cp_total requires Cp° data") match_mode = :any integrate(
+        kp_cell, KineticsSolver(; ode_solver = Rodas5P())
+    )
+    @test sol_cell.retcode == ReturnCode.Success
+    _, T_cell = temperature_profile(sol_cell, cal)
+    @test all(T -> isapprox(T, 293.15; atol = 1.0e-10), T_cell)
+
+    # A kinetic reaction whose species carry no ΔₐH⁰ releases no heat, which
+    # `integrate` says before the run rather than count it at zero in silence.
+    CaO_b = Species("CaO"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
+    H2O_b = Species("H2O"; aggregate_state = AS_AQUEOUS, class = SC_AQSOLVENT)
+    CH_b = Species("Ca(OH)2"; aggregate_state = AS_CRYSTAL, class = SC_COMPONENT)
+    rxn_b = Reaction(OrderedDict(CaO_b => 1.0, H2O_b => 1.0), OrderedDict(CH_b => 1.0); symbol = "bare")
+    cs_b = ChemicalSystem([CaO_b, H2O_b, CH_b], [H2O_b, CH_b])
+    st_b = ChemicalState(cs_b; T = 293.15u"K")
+    set_quantity!(st_b, "H2O", 1.0u"mol")
+    set_quantity!(st_b, "CaO", 0.01u"mol")
+    kp_b = KineticsProblem(
+        cs_b, [KineticReaction(rxn_b, dummy_fn, 1, [-1.0, -1.0, 1.0])], st_b, (0.0, 600.0);
+        calorimeter = IsothermalCalorimeter(293.15u"K"), equilibrium_solver = nothing,
+    )
+    @test_logs (:warn, r"without ΔᵣH⁰.*bare") match_mode = :any integrate(
+        kp_b, KineticsSolver(; ode_solver = Rodas5P())
+    )
 
 end
 

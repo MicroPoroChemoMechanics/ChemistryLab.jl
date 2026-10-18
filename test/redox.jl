@@ -145,6 +145,26 @@ end
         @test ratios[end] / ratios[1] > 100
     end
 
+    @testset "the couple may be named either way round" begin
+        # Named reduced => oxidized, the half-reaction is written the other way
+        # round: sulfide gives up eight electrons, which stand among its
+        # products. Its log K and its electron count change sign together, so the
+        # potential it prescribes is the same, and so is the equilibrium.
+        r = half_reaction(st, "HS-", "SO4-2")
+        @test any(s -> symbol(s) == symbol(ELECTRON), keys(products(r)))
+        @test occursin(r"=.*8e⁻", r.equation)
+        eq_f, cert_f = equilibrate_certified(st; model = model, b = b, constraint = FixedpE(-3.0))
+        eq_r, cert_r = equilibrate_certified(
+            st; model = model, b = b, constraint = FixedpE(-3.0; couple = "HS-" => "SO4-2")
+        )
+        @test cert_f.optimal && cert_r.optimal
+        # Read back through `pe` on the usual couple, which knows nothing of the
+        # order in which the constraint was named.
+        @test pe(eq_r, model) ≈ -3.0 atol = 1.0e-3
+        ratio(eq) = ustrip(us"mol", moles(eq, "SO4-2")) / ustrip(us"mol", moles(eq, "HS-"))
+        @test ratio(eq_r) ≈ ratio(eq_f) rtol = 1.0e-6
+    end
+
     @testset "FixedEh is FixedpE through Nernst" begin
         # 0.05916 V per pe unit at 25 C.
         eq_e, cert_e = equilibrate_certified(

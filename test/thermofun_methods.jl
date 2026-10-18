@@ -231,4 +231,26 @@ end
     rxn = only(build_reactions(reacs, built, ["slaking"]))
     @test Set(symbol(k) for (k, _) in rxn) == Set(["Portlandite", "Lim.e", "H2O@"])
     @test_throws "a reaction names Nope" build_reactions(reacs, built, ["nowhere"])
+
+    # Asked to, the readers say what they read: the symbol of each record and
+    # each value with its field. Without a list of symbols, every row of the
+    # table given is read, and the reaction is the one read by its name.
+    printed(f) = mktemp() do _, io
+        value = redirect_stdout(f, io)
+        flush(io)
+        seekstart(io)
+        return value, read(io, String)
+    end
+    portlandite, out = printed(() -> only(build_species(subs, ["Portlandite"]; verbose = true)))
+    @test occursin("Portlandite", out) && occursin("Portlandite => ", out)
+    @test portlandite[:ΔₐG⁰](T = 298.15) == sp["Portlandite"][:ΔₐG⁰](T = 298.15)
+    slaking, out = printed(() -> only(build_reactions(reacs[reacs.symbol .== "slaking", :], built; verbose = true)))
+    @test occursin("slaking", out) && occursin("slaking => logKr=", out)
+    @test [(symbol(k), ν) for (k, ν) in slaking] == [(symbol(k), ν) for (k, ν) in rxn]
+
+    # A symbol given to two records is reported, and both are read.
+    twice = vcat(subs[subs.symbol .== "Portlandite", :], subs[subs.symbol .== "Portlandite", :])
+    dup = @test_logs (:warn, r"Symbol Portlandite is used for multiple species") match_mode = :any build_species(twice)
+    @test length(dup) == 2
+    @test dup[1][:ΔₐG⁰](T = 298.15) == dup[2][:ΔₐG⁰](T = 298.15)
 end

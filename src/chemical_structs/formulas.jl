@@ -605,6 +605,25 @@ end
 Base.convert(::Type{ForwardDiff.Dual{T, V, N}}, f::Formula) where {T, V, N} =
     invoke(Base.convert, Tuple{Type{<:Number}, Formula}, ForwardDiff.Dual{T, V, N}, f)
 
+# `func` applied to one value, for the `apply` methods below and in `species.jl`
+# and `reactions.jl`: a quantity as a whole first, since its arithmetic carries
+# the dimension (`2x` makes 4 mol of 2 mol, `sqrt` the square root of both), then
+# on its magnitude with its dimension kept; a value `func` cannot take is kept as
+# it was. Multiplying a magnitude by a `Dimensions`, as was done, is refused by
+# DynamicQuantities, so that `apply` left every quantity unchanged.
+function _apply_to(func, v, args...; kwargs...)
+    return try
+        func(v, args...; kwargs...)
+    catch
+        v isa Quantity || return v
+        try
+            Quantity(func(ustrip(v), args...; kwargs...), dimension(v))
+        catch
+            v
+        end
+    end
+end
+
 """
     apply(func::Function, f::Formula, args...; kwargs...) -> Formula
 
@@ -621,29 +640,7 @@ julia> result[:H]
 ```
 """
 function apply(func::Function, f::Formula, args...; kwargs...)
-    tryfunc(v) =
-    if v isa Quantity
-        (
-            try
-                func(ustrip(v), args...; kwargs...) *
-                    func(dimension(v), args...; kwargs...)
-            catch
-                try
-                    func(ustrip(v), args...; kwargs...) * dimension(v)
-                catch
-                    v
-                end
-            end
-        )
-    else
-        (
-            try
-                func(v, args...; kwargs...)
-            catch
-                v
-            end
-        )
-    end
+    tryfunc(v) = _apply_to(func, v, args...; kwargs...)
     newcomposition = OrderedDict(k => tryfunc(v) for (k, v) in composition(f))
     return Formula{valtype(newcomposition)}(
         expr(f), phreeqc(f), unicode(f), colored(f), newcomposition, tryfunc(charge(f))

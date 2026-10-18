@@ -199,7 +199,7 @@ function _to_stoich_real(r::Rational{BigInt})
     n, d = numerator(r), denominator(r)
     if isone(d)
         return typemin(Int) <= n <= typemax(Int) ? Int(n) : stoich_coef_round(Float64(r))
-    elseif d < 10 && typemin(Int) <= n <= typemax(Int) && typemin(Int) <= d
+    elseif d < 10 && typemin(Int) <= n <= typemax(Int)
         return Rational{Int}(Int(n), Int(d))
     else
         return stoich_coef_round(Float64(r))
@@ -211,11 +211,14 @@ _is_int_entry(x::Integer) = true
 _is_int_entry(x::Rational) = isone(denominator(x))
 _is_int_entry(x::AbstractFloat) = isapprox(x, round(x); atol = 1.0e-9)
 
-# Check whether a matrix element type supports exact rational conversion.
-# Symbolic types (Symbolics.Num <: Real) are excluded — their nullspace
-# cannot be computed numerically and must remain empty.
+# Check whether a matrix supports exact rational conversion. Symbolic entries
+# (Symbolics.Num <: Real) are excluded — their nullspace cannot be computed
+# numerically and must remain empty. An abstract element type is decided on the
+# entries: `Matrix{Real}` is how a `ChemicalSystem` stores integer and rational
+# coefficients together, a cement's among them, and deciding on the type sent
+# every such matrix to the floating-point rank, with its threshold.
 _is_rationalizable(::AbstractMatrix{<:Union{Integer, AbstractFloat, Rational}}) = true
-_is_rationalizable(::AbstractMatrix) = false
+_is_rationalizable(A::AbstractMatrix) = all(x -> x isa Union{Integer, AbstractFloat, Rational}, A)
 
 # Clear all denominators + GCD + sign normalize on a pre-computed rational nullspace.
 # Returns Matrix{BigInt}.
@@ -762,7 +765,7 @@ function StoichMatrix(
         # different machine. It is off by default and nothing in the package
         # turns it on; the note is here so that a caller who does knows what is
         # being traded for the better conditioning.
-        F = qr(M_subset, Val(true))
+        F = qr(M_subset, ColumnNorm())
         pivot_idx = F.p[1:r]
         independent_cols_indices = sort(cols_candidates[pivot_idx])
     else

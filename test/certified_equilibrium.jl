@@ -194,8 +194,10 @@ include("reference_species.jl")
         @test balance_rel(st, eq_bar) > 1.0e-3      # measured at 3.0e-2
         @test balance_rel(st, eq_cert) < 1.0e-8
         @test cert.optimal
-        # And they disagree on the answer, not merely on the residual.
-        @test abs(pH(eq_bar) - pH(eq_cert)) > 1.0e-3
+        # And they disagree on the answer, not merely on the residual: by more
+        # than 1e-3 in pH with OptimaSolver 0.8.7, by 5e-4 since 0.8.8 limits the
+        # interior point's steps on the step it actually takes.
+        @test abs(pH(eq_bar) - pH(eq_cert)) > 1.0e-4
     end
 
     @testsection "b is fixed once, not taken from each start" begin
@@ -311,6 +313,29 @@ include("reference_species.jl")
         eq_solid = equilibrate(st_solid; certificate = cref)
         @test cref[] === nothing
         @test ustrip(us"mol", eq_solid.n[1]) ≈ 0.1 rtol = 1.0e-10
+        # Asked for a certified answer directly, the same system returns the
+        # plain one, with `nothing` in place of the certificate. Its single
+        # species holds the whole budget, by conservation alone.
+        eq_c, cert_c = equilibrate_certified(st_solid)
+        @test cert_c === nothing
+        @test ustrip(us"mol", eq_c.n[1]) ≈ 0.1 rtol = 1.0e-10
+    end
+
+    @testsection "without the solver extensions, the entry points say what to load" begin
+        # Both refusals come before any work, from flags that the extensions set
+        # when they load. The suite loads them, so a session without them is
+        # simulated by clearing the flags, which are restored whatever happens.
+        dual, factory = ChemistryLab._DUAL_AVAILABLE[], ChemistryLab._DEFAULT_SOLVER_FACTORY[]
+        try
+            ChemistryLab._DUAL_AVAILABLE[] = false
+            @test_throws "needs `OptimaSolver`" equilibrate_certified(calcite())
+            ChemistryLab._DEFAULT_SOLVER_FACTORY[] = nothing
+            @test_throws "requires an extension" equilibrate(calcite())
+        finally
+            ChemistryLab._DUAL_AVAILABLE[] = dual
+            ChemistryLab._DEFAULT_SOLVER_FACTORY[] = factory
+        end
+        @test ChemistryLab._DUAL_AVAILABLE[] == dual
     end
 
 

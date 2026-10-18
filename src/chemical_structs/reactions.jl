@@ -729,10 +729,12 @@ function Reaction(
     # `ChemistryLab.symbol` is spelled out because this constructor takes a
     # KEYWORD ARGUMENT named `symbol`, which shadows the function throughout the
     # body: a bare `symbol(sp)` here tries to call a `String`.
-    strip_pseudo!(d) =
-        filter!(kv -> !(String(ChemistryLab.symbol(first(kv))) in ("Zz", "e")), d)
-    strip_pseudo!(reactants)
-    strip_pseudo!(products)
+    #
+    # A filtered copy: filtering the caller's dictionaries in place, as was done
+    # with `side = :none`, took their electrons out of them.
+    real_species(kv) = !(String(ChemistryLab.symbol(first(kv))) in ("Zz", "e"))
+    reactants = filter(real_species, reactants)
+    products = filter(real_species, products)
     sreac, creac, charge_left = format_side(reactants)
     sprod, cprod, charge_right = format_side(products)
     charge_diff = charge_right - charge_left
@@ -1613,29 +1615,7 @@ Apply a function to all species and coefficients in a reaction.
 function apply(
         func::Function, r::Reaction{SR, TR, SP, TP}, args...; kwargs...
     ) where {SR <: AbstractSpecies, TR <: Number, SP <: AbstractSpecies, TP <: Number}
-    tryfunc(v) =
-    if v isa Quantity
-        (
-            try
-                func(ustrip(v), args...; kwargs...) *
-                    func(dimension(v), args...; kwargs...)
-            catch
-                try
-                    func(ustrip(v), args...; kwargs...) * dimension(v)
-                catch
-                    v
-                end
-            end
-        )
-    else
-        (
-            try
-                func(v, args...; kwargs...)
-            catch
-                v
-            end
-        )
-    end
+    tryfunc(v) = _apply_to(func, v, args...; kwargs...)
     reac = OrderedDict{SR, TR}(
         apply(func, k, args...; kwargs...) => tryfunc(v) for (k, v) in reactants(r)
     )

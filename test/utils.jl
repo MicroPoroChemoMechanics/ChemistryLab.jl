@@ -7,6 +7,12 @@
         # Plain number → returned unchanged
         @test ChemistryLab.safe_ustrip(1u"m", 3.0) ≈ 3.0
         @test ChemistryLab.safe_ustrip(1u"K", 42) == 42
+
+        # Dimensions that differ → no conversion, the value in its own unit, as
+        # the docstring states: the dimensionless placeholder of a factory
+        # meeting a quantity, and a symbolic unit meeting another dimension.
+        @test ChemistryLab.safe_ustrip(u"1", 5.0u"J/mol") == 5.0
+        @test ChemistryLab.safe_ustrip(us"m", 2.0u"s") == 2.0
     end
 
     @testsection "safe_uconvert" begin

@@ -89,6 +89,15 @@ function _reaction_enthalpy(reaction::AbstractReaction, T_K::Real)
     return zero(T_K)
 end
 
+# Whether a kinetic reaction has a heat to release: an explicit `heat_per_mol`,
+# or the ΔᵣH⁰ its reaction builds from the ΔₐH⁰ of its species. Without either,
+# `_reaction_enthalpy` counts it at zero, and `integrate` says so.
+_has_reaction_enthalpy(::KineticReaction{<:Any, <:Any, <:Real}) = true
+_has_reaction_enthalpy(kr::KineticReaction{<:Any, <:Any, Nothing}) = haskey(kr.reaction, :ΔᵣH⁰)
+
+_heatless_reactions(kinetic_reactions) =
+    [kr for kr in kinetic_reactions if !_has_reaction_enthalpy(kr)]
+
 # ── IsothermalCalorimeter ─────────────────────────────────────────────────────
 
 """

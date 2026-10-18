@@ -97,6 +97,18 @@ function integrate(kp::KineticsProblem, ks::KineticsSolver; speciation::Symbol =
     u0 = build_u0(kp)
     p = build_kinetics_params(kp)
 
+    # Warn for kinetic reactions without a heat: a calorimeter would count them
+    # at zero and come out short without a word.
+    if !isnothing(kp.calorimeter)
+        heatless = ChemistryLab._heatless_reactions(kp.kinetic_reactions)
+        if !isempty(heatless)
+            @warn "$(nameof(typeof(kp.calorimeter))): $(length(heatless)) kinetic " *
+                "reaction(s) without ΔᵣH⁰ or `heat_per_mol` " *
+                "($(join((string(symbol(kr.reaction)) for kr in heatless), ", "))). " *
+                "Their species carry no ΔₐH⁰; they release no heat."
+        end
+    end
+
     # Warn for missing Cp° when semi-adiabatic
     if kp.calorimeter isa SemiAdiabaticCalorimeter
         missing_cp = String[]

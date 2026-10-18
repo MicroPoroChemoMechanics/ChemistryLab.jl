@@ -100,3 +100,32 @@ end
     @test composition(g) == composition(f)
     @test expr(g) == expr(f)
 end
+
+@testsection "a negative coefficient is parenthesized, and apply keeps what it cannot map" begin
+    # A negative coefficient, which removing atoms with an `AtomGroup` produces,
+    # is written in parentheses, since a sign followed by a number is how a
+    # charge is written. The composition and the charge are those of the
+    # arithmetic: 2 − 3 hydrogens, and no charge.
+    f = Formula("H2O") + AtomGroup(-3, :H)
+    @test f[:H] == -1
+    @test charge(f) == 0
+    @test expr(f) == "H(-1)O"
+
+    # `apply` maps every coefficient it can and keeps the others as they were:
+    # `Int(1//2)` throws, so oxygen keeps its half while hydrogen is mapped.
+    half = Formula("H2O") // 2
+    g = apply(x -> Int(x), half)
+    @test g[:H] === 1
+    @test g[:O] === 1 // 2
+
+    # Coefficients carrying a unit take their own branch; the identity leaves
+    # them as they are.
+    fq = Formula(OrderedDict(:H => 2.0u"mol", :O => 1.0u"mol"))
+    @test composition(apply(identity, fq)) == composition(fq)
+    # They are mapped: the function on the quantity, whose arithmetic keeps the
+    # dimension, or on its magnitude when it takes plain numbers only. Both cases
+    # used to leave them unchanged.
+    @test composition(apply(x -> 2x, fq)) == OrderedDict(:H => 4.0u"mol", :O => 2.0u"mol")
+    @test apply(sqrt, fq)[:H] ≈ sqrt(2.0u"mol")
+    @test apply(x -> round(Int, x), fq)[:H] == 2u"mol"
+end

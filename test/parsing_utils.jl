@@ -225,3 +225,62 @@ using Test
         @test mendeleev[:O] == 3
     end
 end
+
+@testset "Parsing Utils: edge cases of the parsers and formatters" begin
+    @testset "a coefficient beyond any integer is returned as given" begin
+        # Neither an integer, nor a simple fraction, nor a five-digit decimal can
+        # stand for these: `Int` of each throws, and the value comes back as is.
+        @test stoich_coef_round(Inf) === Inf
+        @test stoich_coef_round(1.0e30) === 1.0e30
+    end
+
+    @testset "a rational count that is a whole number is an integer" begin
+        # `4//2` is two hydrogens, and an `Int`, not the `Rational` 2//1, so that
+        # the composition keeps the integer type of an ordinary formula.
+        @test parse_formula("H4//2O")[:H] === 2
+        @test parse_formula("H4//2O") == parse_formula("H2O")
+    end
+
+    @testset "equations with an empty side, a negative or a missing term" begin
+        # An empty right side reads as no products.
+        reac, prod, _ = parse_equation("2H2O = ∅")
+        @test reac == Dict("H2O" => 2)
+        @test isempty(prod)
+        # Both sides empty are printed as such.
+        c = colored_equation("∅ = ∅")
+        @test startswith(c, "∅") && endswith(c, "∅")
+        # A negative coefficient is printed in parentheses, on either side.
+        c = colored_equation("-2H2 = -3O2")
+        @test occursin("(-2)", c) && occursin("(-3)", c)
+        # A `+` with nothing after it leaves an empty term, which is refused.
+        @test_throws "Unexpected term format" parse_equation("H2 + = H2O")
+    end
+
+    @testset "format_equation: zero terms, electrons on the left, empty right side" begin
+        # A zero coefficient drops the species: the result is the equation
+        # without it.
+        @test format_equation(OrderedDict("H2" => -2, "O2" => -1, "N2" => 0, "H2O" => 2)) ==
+            "2H2 + O2 = 2H2O"
+        # Fe³⁺ + e⁻ = Fe²⁺: the charge is balanced by an electron among the
+        # reactants, since the products carry less charge.
+        @test format_equation(OrderedDict("Fe+3" => -1, "Fe+2" => 1)) == "Fe+3 + e⁻ = Fe+2"
+        # No product at all reads as ∅.
+        @test format_equation(OrderedDict("H2O" => -1)) == "H2O = ∅"
+    end
+
+    @testset "parentheses are added only around a root-level sum" begin
+        # Already enclosed: unchanged.
+        @test ChemistryLab.add_parentheses_if_needed("(1+x)") == "(1+x)"
+        # Two groups side by side, with no sum between them: unchanged.
+        @test ChemistryLab.add_parentheses_if_needed("(a)*(b)") == "(a)*(b)"
+        # A sum inside parentheses is not at the root.
+        @test ChemistryLab.add_parentheses_if_needed("2*(1+a)") == "2*(1+a)"
+        # A difference after a group is, and is enclosed.
+        @test ChemistryLab.add_parentheses_if_needed("(1+a)-b") == "((1+a)-b)"
+        # So is a sum between two groups, although the string starts and ends
+        # with a parenthesis; a superscript does not shift the reading.
+        @test ChemistryLab.add_parentheses_if_needed("(a)+(b)") == "((a)+(b))"
+        @test ChemistryLab.add_parentheses_if_needed("(a⁺)-(b)") == "((a⁺)-(b))"
+        @test ChemistryLab.add_parentheses_if_needed("(a⁺+b)") == "(a⁺+b)"
+    end
+end

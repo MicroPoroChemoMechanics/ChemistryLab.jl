@@ -162,3 +162,100 @@ end
             for sp in keys(merge(r2.reactants, r2.products))
     )
 end
+
+@testsection "Reactions: the less common constructors and accessors" begin
+    h2, o2, h2o = Species("H2"), Species("O2"), Species("H2O")
+
+    @testsection "absent species, absent properties, and fixed fields" begin
+        r = Reaction("2H2 + O2 = 2H2O")
+        # A species that takes no part has a zero coefficient.
+        @test r[Species("CO2")] == 0
+        # A key that is neither a property nor a thermodynamic function is absent.
+        @test !haskey(r, :not_a_property)
+        # The structural fields are set by the constructors only.
+        @test_throws "Cannot modify field 'equation'" setproperty!(r, :equation, "H2O = H2O")
+        @test r.equation == "2H2 + O2 = 2H2O"
+    end
+
+    @testsection "a reaction is named after a participant when asked to" begin
+        # `symbol = nothing` names it after its last reactant, after its first
+        # product when it has no reactant, and leaves it unnamed when it has
+        # neither: from an equation and from two dictionaries alike.
+        @test symbol(Reaction("CaCO3 + H+ = Ca+2 + HCO3-"; symbol = nothing)) == "H+"
+        @test symbol(Reaction("∅ = 2H2O + O2"; symbol = nothing)) == "H2O"
+        @test symbol(Reaction("∅ = ∅"; symbol = nothing)) == ""
+        none = OrderedDict{Species{Int}, Int}()
+        @test symbol(Reaction(OrderedDict(h2 => 2, o2 => 1), OrderedDict(h2o => 2); symbol = nothing)) == "O2"
+        @test symbol(Reaction(none, OrderedDict(h2o => 2, o2 => 1); symbol = nothing)) == "H2O"
+        @test symbol(Reaction(none, none; symbol = nothing)) == ""
+    end
+
+    @testsection "one electron is written without a coefficient" begin
+        # Fe²⁺ → Fe³⁺ gives up one electron. The balancing term is `e⁻`, not
+        # `1e⁻`, in the plain and in the colored equation alike.
+        r = Reaction(OrderedDict(Species("Fe+2") => 1), OrderedDict(Species("Fe+3") => 1))
+        @test r.equation == "Fe²⁺ = Fe³⁺ + e⁻"
+        @test endswith(colored(r), " + e⁻")
+    end
+
+    @testsection "a species on both sides with the same coefficient cancels" begin
+        # The sodium ion is a spectator of the hydration of CO2: it leaves both
+        # sides, and the rest is the reaction without it.
+        r = simplify_reaction(Reaction("CO2 + H2O + Na+ = H2CO3 + Na+"))
+        @test !haskey(reactants(r), Species("Na+")) && !haskey(products(r), Species("Na+"))
+        @test r[Species("Na+")] == 0
+        @test r[Species("CO2")] == -1 && r[Species("H2O")] == -1 && r[Species("H2CO3")] == 1
+    end
+
+    @testsection "balanced coefficients scaled to the smallest integers" begin
+        # Balanced on water as the dependent species, water splitting reads
+        # H2O = H2 + ½O2; scaled, 2H2O = 2H2 + O2.
+        unscaled = Reaction([h2o, h2, o2])
+        @test unscaled[h2o] == -1 && unscaled[h2] == 1 && unscaled[o2] == 1 // 2
+        r = Reaction([h2o, h2, o2]; auto_scale = true)
+        @test r[h2o] == -2 && r[h2] == 2 && r[o2] == 1
+    end
+
+    @testsection "every participant on one side keeps its signed coefficient" begin
+        # Lime slaking, CaO + H2O = Ca(OH)2. With `side = :products` every
+        # species is written on the right, the reactants with negative
+        # coefficients, and the signed coefficient of each is unchanged.
+        lime, water, port = Species("CaO"), Species("H2O"), Species("Ca(OH)2")
+        ref = Reaction([lime, water], [port])
+        @test ref[lime] == -1 && ref[water] == -1 && ref[port] == 1
+        right = Reaction([lime, water], [port]; side = :products)
+        @test isempty(reactants(right))
+        @test all(right[s] == ref[s] for s in (lime, water, port))
+        # The same from the equation.
+        from_eq = Reaction("CaO + H2O = Ca(OH)2"; side = :products)
+        @test isempty(reactants(from_eq))
+        @test from_eq[lime] == -1 && from_eq[water] == -1 && from_eq[port] == 1
+    end
+
+    @testsection "parameters given on a reaction set its reference state" begin
+        # A reaction carrying its own parameters, as a database reader stores
+        # them, takes its reference temperature and pressure from that list when
+        # it states none. The value of log K is made up: only where it lands
+        # matters.
+        r = Reaction("CaCO3 = Ca+2 + CO3-2")
+        r[:thermo_params] = [:logKr => 1.25, :T => 298.15u"K", :P => 1.0e5u"Pa"]
+        ChemistryLab.complete_thermo_functions!(r)
+        @test r.Tref == 298.15u"K"
+        @test r.Pref == 1.0e5u"Pa"
+        @test r[:logKr_Tref] == 1.25
+        @test r[:logKr](T = 350.0) ≈ 1.25
+        @test !haskey(properties(r), :thermo_params)
+    end
+end
+
+@testsection "the dictionary constructor leaves its arguments as they were" begin
+    # The pseudo-species `e` and `Zz` are dropped from the reaction, not from the
+    # caller's dictionaries, which a `filter!` on them used to empty of their
+    # electrons.
+    e = Species("e"; symbol = "e")
+    reac = OrderedDict(Species("Fe+3") => 1, e => 1)
+    prod = OrderedDict(Species("Fe+2") => 1)
+    r = Reaction(reac, prod)
+    @test length(reac) == 2 && haskey(reac, e)
+    @test !any(String(symbol(sp)) in ("Zz", "e") for sp in keys(r.reactants))
+end

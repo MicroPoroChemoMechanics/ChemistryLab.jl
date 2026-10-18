@@ -1,5 +1,62 @@
 # Changelog
 
+## v0.39.1 — on OptimaSolver 0.8.8, and four defects
+
+A patch release, which requires OptimaSolver 0.8.8. Its interior point limits
+its step on the step it actually takes, and its dual Newton method lets a mixing
+phase enter in place of another when nothing else can leave; a run's path
+changes, so the last digits of an equilibrium may. Four defects found while
+raising the test coverage are fixed: the rank of a stoichiometry held as
+`Matrix{Real}`, a cement's for one, was not the exact rank the package computes
+for every other; `apply` left quantities unchanged; the `Reaction` constructor
+took the electrons out of the caller's dictionaries; and a kinetic reaction
+without an enthalpy released no heat in a calorimeter without a word.
+
+### Fixed
+
+- **The exact rank was bypassed for a `Matrix{Real}`.** Whether a matrix can be
+  rationalized was decided on its element type, and `Matrix{Real}` is how a
+  `ChemicalSystem` stores integer and rational coefficients together, as a
+  cement's are. Every such matrix went to the floating-point rank and its
+  threshold, which `_exact_rank` exists to avoid: a decimal coefficient beside
+  its rational form, as CEMDATA18 writes jennite's calcium (1.666667 and 5//3),
+  made two columns where the package, rationalizing with its own tolerance,
+  sees one. The decision is now taken on the entries.
+- **`apply` left every quantity unchanged.** On a coefficient carrying a unit it
+  multiplied a magnitude by a `Dimensions`, which DynamicQuantities refuses, and
+  fell back to the original value: `apply(x -> 2x, f)` returned 2 mol for 2 mol.
+  It now applies the function to the quantity, whose arithmetic carries the
+  dimension, or to its magnitude when the function takes plain numbers only.
+  The formula, species and reaction methods share that rule.
+- **`Reaction(reactants, products)` emptied the caller's dictionaries of their
+  electrons.** With `side = :none` it filtered its own arguments in place to drop
+  the pseudo-species `e` and `Zz`. It now works on a copy.
+- **A kinetic reaction without ΔᵣH⁰ released no heat in silence.** Its species
+  carrying no ΔₐH⁰, its heat was counted as zero and the calorimeter came out
+  short. `integrate` now names such reactions in a warning, as it does for a
+  missing Cp°.
+- `add_parentheses_if_needed` took `(a)+(b)` for wrapped, since its test read the
+  depth after a `break` taken when the depth was zero; a sum between two groups
+  is now enclosed. The pivoted QR of `optimize_primaries` uses `ColumnNorm()`
+  instead of the deprecated `Val(true)`.
+
+### Changed
+
+- **OptimaSolver 0.8.8 or later is required** (`[compat] OptimaSolver = "0.8.8"`,
+  was `"0.8.7"`). The interior point used to halve its step against a limit taken
+  on a direction it did not follow: on the part of this package's suite that
+  equilibrates the most, 1.1 million halvings went away and the iterations
+  dropped by 6 %. The dual Newton method now converges from a start that holds
+  only the less stable phase of a mixing pair, where it ended unconverged.
+
+### Tests
+
+- The unpolished interior point on calcite now comes 5.2e-4 from the certified
+  pH: the disagreement the test documents is asked to exceed 1e-4, where it was
+  1e-3.
+- Each fix above has a test that fails on 0.39.0, and lines no test reached are
+  now run, across 18 test files.
+
 ## v0.39.0 — surfaces that follow their host, tools for kinetic phases, and the coefficients of Pitzer and SIT
 
 A minor release, on OptimaSolver 0.8.7. A site family may follow a host that a
