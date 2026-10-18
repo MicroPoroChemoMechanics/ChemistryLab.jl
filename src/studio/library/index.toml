@@ -1,0 +1,267 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright © 2026 Jean-François Barthélémy (Cerema, UMR MCD)
+#
+# Published formulations, ready to load in ChemistryLab Studio (its Start tab).
+#
+# An entry holds choices only: the template of each material, its fraction,
+# the degrees of reaction, the phase list. Every published number (oxide
+# analyses, phase compositions) stays in ChemistryLab's data/literature files,
+# which the templates read by name. An entry names the published works it rests
+# on, each checked against Crossref and against the table its data come from.
+#
+# Only formulations published in a paper belong here.
+
+[[entry]]
+id = "cem1-52.5n-gruyaert2010"
+title = "CEM I 52.5 N paste"
+designation = "CEM I 52.5 N"
+process = "equilibrium"
+level = "novice"
+sources = ["Gruyaert2010", "LothenbachWinnefeld2006"]
+summary = "The CEM I 52.5 N of Gruyaert et al. (2010), by Bogue's calculation on its oxide analysis, at their water-to-binder ratio of 0.5, in the phases Lothenbach and Winnefeld (2006) list for a Portland paste. The degrees of reaction are illustrative values, to be set for the age of interest."
+
+[entry.model]
+version = 2
+title = "CEM I 52.5 N paste"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)" }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.5, temperature = 20.0 }
+calculation = { kind = "equilibrium", age = 28.0 }
+
+[[entry.model.materials]]
+kind = "template"
+template = "CEM I 52.5 N (Gruyaert 2010), Bogue"
+fraction = 1.0
+extents = [
+    { key = "C3S", value = { kind = "constant", value = 0.8 } },
+    { key = "C2S", value = { kind = "constant", value = 0.45 } },
+    { key = "C3A", value = { kind = "constant", value = 0.9 } },
+    { key = "C4AF", value = { kind = "constant", value = 0.6 } },
+]
+
+[[entry]]
+id = "portland-rilem-pc"
+title = "Portland cement paste, RILEM round robin"
+designation = "PC, RILEM round robin"
+process = "equilibrium"
+level = "novice"
+sources = ["Durdzinski2017", "LothenbachWinnefeld2006"]
+summary = "The Portland cement of the RILEM round robin on blended cements, by Bogue's calculation on its oxide analysis (Durdzinski et al. 2017), in the phases Lothenbach and Winnefeld (2006) list for a Portland paste. Three minor oxides of this cement have no sourced density, so its volumes are unknown. The degrees of reaction are illustrative values."
+
+[entry.model]
+version = 2
+title = "Portland cement paste"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)" }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.45, temperature = 20.0 }
+calculation = { kind = "equilibrium", age = 28.0 }
+
+[[entry.model.materials]]
+kind = "template"
+template = "PC (Durdzinski 2017), Bogue"
+fraction = 1.0
+extents = [
+    { key = "C3S", value = { kind = "constant", value = 0.8 } },
+    { key = "C2S", value = { kind = "constant", value = 0.45 } },
+    { key = "C3A", value = { kind = "constant", value = 0.9 } },
+    { key = "C4AF", value = { kind = "constant", value = 0.6 } },
+]
+
+[[entry]]
+id = "pc-s1-slag-rilem"
+title = "Portland cement with 40 % slag, RILEM round robin"
+designation = "PC + 40 % S1 slag"
+process = "equilibrium"
+level = "novice"
+sources = ["Durdzinski2017", "LothenbachWinnefeld2006"]
+summary = "The binary paste PC-S1 of the RILEM round robin on blended cements: 40 % of the S1 slag in the binder, at the water-to-binder ratio of 0.4 of every paste of the study (Durdzinski et al. 2017). The degrees of reaction, of the clinker phases and of the slag, are illustrative values."
+
+[entry.model]
+version = 2
+title = "PC with 40 % S1 slag"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)" }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.4, temperature = 20.0 }
+calculation = { kind = "equilibrium", age = 28.0 }
+
+[[entry.model.materials]]
+kind = "template"
+template = "PC (Durdzinski 2017), Bogue"
+fraction = 0.6
+extents = [
+    { key = "C3S", value = { kind = "constant", value = 0.8 } },
+    { key = "C2S", value = { kind = "constant", value = 0.45 } },
+    { key = "C3A", value = { kind = "constant", value = 0.9 } },
+    { key = "C4AF", value = { kind = "constant", value = 0.6 } },
+]
+
+[[entry.model.materials]]
+kind = "template"
+template = "S1 slag (Durdzinski 2017)"
+fraction = 0.4
+extents = []
+material_extent = { kind = "constant", value = 0.4 }
+
+[[entry]]
+id = "pc-siliceous-fly-ash-rilem"
+title = "Portland cement with 30 % siliceous fly ash, RILEM round robin"
+designation = "PC + 30 % siliceous fly ash"
+process = "equilibrium"
+level = "novice"
+sources = ["Durdzinski2017", "LothenbachWinnefeld2006"]
+summary = "The binary paste PC-SFA of the RILEM round robin on blended cements: 30 % of the siliceous fly ash in the binder, at the water-to-binder ratio of 0.4 (Durdzinski et al. 2017). The quartz of the fly ash is added to the phases of the paste; it and the mullite stay inert, and the glass reacts. The degrees of reaction, of the clinker phases and of the glass, are illustrative values."
+
+[entry.model]
+version = 2
+title = "PC with 30 % siliceous fly ash"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)", add = ["Qtz"] }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.4, temperature = 20.0 }
+calculation = { kind = "equilibrium", age = 28.0 }
+
+[[entry.model.materials]]
+kind = "template"
+template = "PC (Durdzinski 2017), Bogue"
+fraction = 0.7
+extents = [
+    { key = "C3S", value = { kind = "constant", value = 0.8 } },
+    { key = "C2S", value = { kind = "constant", value = 0.45 } },
+    { key = "C3A", value = { kind = "constant", value = 0.9 } },
+    { key = "C4AF", value = { kind = "constant", value = 0.6 } },
+]
+
+[[entry.model.materials]]
+kind = "template"
+template = "siliceous fly ash (Durdzinski 2017)"
+fraction = 0.3
+extents = [
+    { key = "Quartz", value = { kind = "constant", value = 0.0 } },
+    { key = "Mullite", value = { kind = "constant", value = 0.0 } },
+    { key = "glass", value = { kind = "constant", value = 0.2 } },
+]
+
+[[entry]]
+id = "slag-replacement-gruyaert2010"
+title = "Slag cements: the replacement of a CEM I 52.5 N by slag"
+designation = "CEM I 52.5 N + blast-furnace slag"
+process = "blend"
+level = "novice"
+sources = ["Gruyaert2010", "LothenbachWinnefeld2006"]
+summary = "The CEM I 52.5 N of Gruyaert et al. (2010) replaced by their blast-furnace slag at the slag-to-binder ratios of the study, 0, 0.30, 0.50 and 0.85, at their water-to-binder ratio of 0.5. The degrees of reaction, of the clinker phases and of the slag, are illustrative values."
+
+[entry.model]
+version = 2
+title = "CEM I 52.5 N replaced by slag"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)" }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.5, temperature = 20.0 }
+calculation = { kind = "blend", scm = "blast-furnace slag (Gruyaert 2010)", scm_extent = 0.5, fractions = [0.0, 0.3, 0.5, 0.85], age = 28.0 }
+
+[[entry.model.materials]]
+kind = "template"
+template = "CEM I 52.5 N (Gruyaert 2010), Bogue"
+fraction = 1.0
+extents = [
+    { key = "C3S", value = { kind = "constant", value = 0.8 } },
+    { key = "C2S", value = { kind = "constant", value = 0.45 } },
+    { key = "C3A", value = { kind = "constant", value = 0.9 } },
+    { key = "C4AF", value = { kind = "constant", value = 0.6 } },
+]
+
+[[entry]]
+id = "cem1-kinetics-parrott-killoh"
+title = "Hydration of a CEM I 52.5 N in time, by rate laws"
+designation = "CEM I 52.5 N"
+process = "kinetics"
+level = "novice"
+sources = ["Gruyaert2010", "Lavergne2018", "LothenbachWinnefeld2006"]
+summary = "The CEM I 52.5 N of Gruyaert et al. (2010) hydrating over 28 days at 20 °C, its four clinker phases by the law of Parrott and Killoh with the parameters Lavergne et al. (2018) give, at the reference fineness of the law; the gypsum and the calcite are at equilibrium from the start. The first run compiles for a few minutes."
+
+[entry.model]
+version = 2
+title = "CEM I 52.5 N hydrating"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)" }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.5, temperature = 20.0 }
+
+[entry.model.calculation]
+kind = "kinetics"
+horizon = 28.0
+ages = [1.0, 2.0, 7.0, 28.0]
+calorimeter = { kind = "isothermal" }
+rates = [
+    { key = "C3S", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C2S", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C3A", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C4AF", value = { kind = "parrott_killoh_avrami" } },
+]
+
+[[entry.model.materials]]
+kind = "template"
+template = "CEM I 52.5 N (Gruyaert 2010), Bogue"
+fraction = 1.0
+extents = []
+
+[[entry]]
+id = "cem1-carbonation"
+title = "Carbonation of a CEM I 52.5 N paste"
+designation = "CEM I 52.5 N"
+process = "carbonation"
+level = "novice"
+sources = ["Gruyaert2010", "LothenbachWinnefeld2006"]
+summary = "The paste of the CEM I 52.5 N of Gruyaert et al. (2010) to which CO2 is added, mole by mole, up to 1 mol per 100 g of binder: portlandite, then the AFm phases and the C-S-H turn into calcite. The degrees of reaction are illustrative values."
+
+[entry.model]
+version = 2
+title = "CEM I 52.5 N paste carbonating"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)" }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.5, temperature = 20.0 }
+calculation = { kind = "carbonation", amounts = [0.0, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0], age = 28.0 }
+
+[[entry.model.materials]]
+kind = "template"
+template = "CEM I 52.5 N (Gruyaert 2010), Bogue"
+fraction = 1.0
+extents = [
+    { key = "C3S", value = { kind = "constant", value = 0.8 } },
+    { key = "C2S", value = { kind = "constant", value = 0.45 } },
+    { key = "C3A", value = { kind = "constant", value = 0.9 } },
+    { key = "C4AF", value = { kind = "constant", value = 0.6 } },
+]
+
+[[entry]]
+id = "cem1-leaching"
+title = "Leaching of a CEM I 52.5 N paste by pure water"
+designation = "CEM I 52.5 N"
+process = "leaching"
+level = "novice"
+sources = ["Gruyaert2010", "LothenbachWinnefeld2006"]
+summary = "The paste of the CEM I 52.5 N of Gruyaert et al. (2010) whose pore solution is replaced, twelve times, by 5 kg of pure water: the alkalis go first, then the portlandite dissolves and the C-S-H decalcifies. The degrees of reaction are illustrative values."
+
+[entry.model]
+version = 2
+title = "CEM I 52.5 N paste leached"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)" }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.5, temperature = 20.0 }
+calculation = { kind = "leaching", steps = 12, renewal = 5000.0, age = 28.0 }
+
+[[entry.model.materials]]
+kind = "template"
+template = "CEM I 52.5 N (Gruyaert 2010), Bogue"
+fraction = 1.0
+extents = [
+    { key = "C3S", value = { kind = "constant", value = 0.8 } },
+    { key = "C2S", value = { kind = "constant", value = 0.45 } },
+    { key = "C3A", value = { kind = "constant", value = 0.9 } },
+    { key = "C4AF", value = { kind = "constant", value = 0.6 } },
+]

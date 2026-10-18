@@ -86,5 +86,5 @@ Materials, their extents, recipes and the processes built on them; see
 Modules = [ChemistryLab]
 Pages   = ["recipes/extents.jl", "recipes/materials.jl", "recipes/recipes.jl",
            "recipes/processes.jl", "recipes/templates.jl", "recipes/phase_lists.jl",
-           "recipes/recipe_kinetics.jl"]
+           "recipes/recipe_kinetics.jl", "recipes/diagnostics.jl"]
 ```

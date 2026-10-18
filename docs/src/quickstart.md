@@ -24,6 +24,25 @@ or, equivalently, through the `Pkg` API:
 julia> import Pkg; Pkg.add("ChemistryLab")
 ```
 
+## Prefer a graphical interface? ChemistryLab Studio
+
+The calculations of a cement paste can also be built with forms, in your
+browser, with [ChemistryLab Studio](@ref studio-start): it loads published
+formulations in one click, computes an equilibrium, a path (hydration,
+replacement, carbonation, leaching…) or a kinetic run, draws the results, and
+writes the Julia script of each calculation as you go.
+
+```julia-repl
+julia> using ChemistryLab; clstudio()
+```
+
+```@raw html
+<img class="studio-shot light-only" src="./assets/studio/studio_equilibrium_light.png" alt="ChemistryLab Studio: the materials of a CEM I paste on the left, its phase assemblage in the middle, the Julia script on the right">
+<img class="studio-shot dark-only" src="./assets/studio/studio_equilibrium_dark.png" alt="ChemistryLab Studio in the dark theme">
+```
+
+The rest of this page writes the calculations in Julia.
+
 ## A first reaction: calcite in water
 
 The dissolution of calcite is written
