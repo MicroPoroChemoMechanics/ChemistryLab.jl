@@ -77,21 +77,17 @@ function diagnose_system(
     symbols = Set(symbol(s) for s in cs.species)
     crystals = [cs.species[i] for i in cs.idx_crystal]
     # the species that only dissolve: the minerals a recipe brings, and those named
-    brought_in = recipe === nothing ? String[] :
-        [symbol(c.species) for (m, _) in _material_masses(recipe) for c in m.constituents if c isa MineralConstituent]
-    dissolving = Set(vcat(brought_in, String.(reactants)))
+    dissolving = Set(vcat(_recipe_minerals(recipe), String.(reactants)))
 
-    if recipe !== nothing
-        aside = unique(r.constituent for r in budget(recipe, cs; t).residual if r.reason === :not_in_system)
-        isempty(aside) || push!(
-            out, SystemDiagnostic(
-                :warning, :not_in_system,
-                "$(join(aside, ", ")) cannot be held by the system: set aside, unreacted.",
-                "Add the species (or the species carrying their elements) to the system, or accept that they stay inert.",
-                aside,
-            )
+    aside = _set_aside(recipe, cs, t)
+    isempty(aside) || push!(
+        out, SystemDiagnostic(
+            :warning, :not_in_system,
+            "$(join(aside, ", ")) cannot be held by the system: set aside, unreacted.",
+            "Add the species (or the species carrying their elements) to the system, or accept that they stay inert.",
+            aside,
         )
-    end
+    )
 
     if "ettringite" in symbols && "ettringite03_ss" in symbols
         push!(
@@ -103,30 +99,12 @@ function diagnose_system(
         )
     end
 
-    θ = T !== nothing ? _kelvin(T) : recipe !== nothing ? recipe.T : nothing
-    if θ !== nothing
-        outside = [symbol(s) for s in crystals if !(first(temperature_range(s)) <= θ <= last(temperature_range(s)))]
-        formed = filter(∉(dissolving), outside)
-        brought = filter(in(dissolving), outside)
-        isempty(formed) || push!(
-            out, SystemDiagnostic(
-                :warning, :temperature_range,
-                "$(join(formed, ", ")) $(length(formed) == 1 ? "is" : "are") used outside the temperature range $(length(formed) == 1 ? "its" : "their") data declare.",
-                "Read the results for these phases with care, or leave them out at this temperature.", formed,
-            )
-        )
-        isempty(brought) || push!(
-            out, SystemDiagnostic(
-                :info, :reactant_temperature_range,
-                "The reactants $(join(brought, ", ")) are read outside the temperature range their data declare; they dissolve into the paste rather than form.",
-                "", brought,
-            )
-        )
-    end
+    θ = _diagnosis_temperature(T, recipe)
+    append!(out, _temperature_findings(θ, crystals, dissolving))
 
     slow = [h for h in _SLOW_HYDROGARNETS if h in symbols]
     if !isempty(slow)
-        level = θ === nothing || θ <= _AMBIENT_LIMIT ? :warning : :info
+        level = _hydrogarnet_level(θ)
         push!(
             out, SystemDiagnostic(
                 level, :slow_hydrogarnet,
@@ -154,16 +132,7 @@ function diagnose_system(
         )
     )
 
-    if model isa SITActivityModel
-        pairs = missing_epsilon_pairs(cs, model)
-        isempty(pairs) || push!(
-            out, SystemDiagnostic(
-                :warning, :missing_sit_pairs,
-                "$(length(pairs)) pairs of ions have no SIT coefficient, such as $(join(("$(a)–$(b)" for (a, b) in first(pairs, 3)), ", ")): they are taken as not interacting.",
-                "Use an activity model whose parameters cover these ions.", ["$(a)–$(b)" for (a, b) in pairs],
-            )
-        )
-    end
+    append!(out, _model_findings(model, cs))
 
     n = length(cs.species)
     n > large && push!(
@@ -173,4 +142,64 @@ function diagnose_system(
         )
     )
     return out
+end
+
+# The mineral species a recipe brings (none without a recipe).
+_recipe_minerals(::Nothing) = String[]
+_recipe_minerals(recipe::Recipe) =
+    [symbol(c.species) for (m, _) in _material_masses(recipe) for c in m.constituents if c isa MineralConstituent]
+
+# The constituents a recipe brings that the system cannot hold, at age `t`.
+_set_aside(::Nothing, cs, t) = String[]
+_set_aside(recipe::Recipe, cs, t) = unique(r.constituent for r in budget(recipe, cs; t).residual if r.reason === :not_in_system)
+
+# The temperature the data are judged at: the one given, else the recipe's.
+_diagnosis_temperature(T, recipe) = _kelvin(T)
+_diagnosis_temperature(::Nothing, recipe::Recipe) = recipe.T
+_diagnosis_temperature(::Nothing, ::Nothing) = nothing
+
+# The crystals read outside the temperature range of their data, at `θ` (none
+# without a temperature): a warning for those that may form, information for the
+# reactants, which only dissolve. A comparison of values: numbers only.
+_temperature_findings(::Nothing, crystals, dissolving) = SystemDiagnostic[]
+function _temperature_findings(θ, crystals, dissolving)
+    out = SystemDiagnostic[]
+    outside = [symbol(s) for s in crystals if !(first(temperature_range(s)) <= θ <= last(temperature_range(s)))]
+    formed = filter(∉(dissolving), outside)
+    brought = filter(in(dissolving), outside)
+    isempty(formed) || push!(
+        out, SystemDiagnostic(
+            :warning, :temperature_range,
+            "$(join(formed, ", ")) $(length(formed) == 1 ? "is" : "are") used outside the temperature range $(length(formed) == 1 ? "its" : "their") data declare.",
+            "Read the results for these phases with care, or leave them out at this temperature.", formed,
+        )
+    )
+    isempty(brought) || push!(
+        out, SystemDiagnostic(
+            :info, :reactant_temperature_range,
+            "The reactants $(join(brought, ", ")) are read outside the temperature range their data declare; they dissolve into the paste rather than form.",
+            "", brought,
+        )
+    )
+    return out
+end
+
+# The note on the Al-Si hydrogarnets concerns ambient conditions: a warning there
+# (or when no temperature is known), information above.
+_hydrogarnet_level(::Nothing) = :warning
+_hydrogarnet_level(θ) = θ <= _AMBIENT_LIMIT ? :warning : :info
+
+# What an activity model lacks for the ions of the system: the pairs of a SIT
+# model without a coefficient; nothing to say of the others.
+_model_findings(model, cs) = SystemDiagnostic[]
+function _model_findings(model::SITActivityModel, cs)
+    pairs = missing_epsilon_pairs(cs, model)
+    isempty(pairs) && return SystemDiagnostic[]
+    return [
+        SystemDiagnostic(
+            :warning, :missing_sit_pairs,
+            "$(length(pairs)) pairs of ions have no SIT coefficient, such as $(join(("$(a)–$(b)" for (a, b) in first(pairs, 3)), ", ")): they are taken as not interacting.",
+            "Use an activity model whose parameters cover these ions.", ["$(a)–$(b)" for (a, b) in pairs],
+        ),
+    ]
 end
