@@ -42,12 +42,20 @@ function solid_solution_entries()
     ]
 end
 
+"The published works ChemistryLab holds data from: the citation and the DOI of each, by key."
+function references()
+    return Dict{String, Any}(
+        key => Dict{String, Any}("citation" => get(r.source, "citation", key), "doi" => get(r.source, "doi", nothing))
+            for (key, r) in ((k, literature(k)) for k in available_literature())
+    )
+end
+
 """
     catalog() -> Dict{String, Any}
 
 The choices ChemistryLab offers: the databases with their status, the phase
 lists with their phases, the material templates with their constituents, the
-solid solutions, and the versions.
+solid solutions, the published works the data come from, and the versions.
 """
 function catalog()
     db = Dict(symbol(s) => s for s in substances_of("cemdata18-thermofun.json"))
@@ -66,6 +74,7 @@ function catalog()
         "phase_lists" => lists,
         "templates" => [template_entry(n, db) for n in material_templates()],
         "solid_solutions" => solid_solution_entries(),
+        "references" => references(),
         "versions" => versions(),
     )
 end

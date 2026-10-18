@@ -70,7 +70,7 @@ constraint_code(::SaturatedCuringChoice) = (
 constraint_problems(c::ConstraintChoice) = bound_problems(c, "the constraint")
 function constraint_problems(c::FixedActivityChoice)
     out = bound_problems(c, "the constraint")
-    c.activity > 0 || push!(out, Problem("activity_not_positive", "The activity of $(c.species) must be positive."))
+    c.activity > 0 || push!(out, Problem("activity_not_positive", "The activity of $(c.species) must be positive.", Dict{String, Any}("species" => c.species)))
     isempty(strip(c.species)) && push!(out, Problem("no_species", "Name the species whose activity is held."))
     return out
 end

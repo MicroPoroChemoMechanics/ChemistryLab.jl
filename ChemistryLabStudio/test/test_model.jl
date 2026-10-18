@@ -76,8 +76,8 @@ mineral(rows) = CLS.MineralMaterial("mine", "cement", 1.0, rows, Pair{String, CL
 for T in CLS.members(CLS.CalculationChoice)
     list = findfirst(f -> f.kind === :numbers, CLS.fields(T))
     list === nothing && continue
-    d = Dict{String, Any}("kind" => CLS.kind(T), CLS.fields(T)[list].name => Float64[])
-    @test "empty_path" in codes(with(m -> (m.calculation = CLS.choice_from_dict(CLS.CalculationChoice, d))))
+    spec = Dict{String, Any}("kind" => CLS.kind(T), CLS.fields(T)[list].name => Float64[])
+    @test "empty_path" in codes(with(m -> (m.calculation = CLS.choice_from_dict(CLS.CalculationChoice, spec))))
 end
 @test codes(with(m -> (m.calculation = CLS.AttackPath(CLS.AmountRow[], 500.0, 3, 28.0)))) == ["empty_solution"]
 @test codes(with(m -> (m.calculation = CLS.AttackPath([CLS.AmountRow("Na2SO4", 1, "g")], 500.0, 3, 28.0)))) == ["solution_unit"]

@@ -9,6 +9,7 @@ const CLS = ChemistryLabStudio
 @testset "ChemistryLabStudio" begin
     @testset "rows" include("test_rows.jl")
     @testset "schema" include("test_schema.jl")
+    @testset "words of the page" include("test_i18n.jl")
     @testset "model" include("test_model.jl")
     @testset "codegen" include("test_codegen.jl")
     @testset "readback" include("test_readback.jl")

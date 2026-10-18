@@ -23,10 +23,25 @@ The results of a study, by the type of its `output`.
 """
 extract(study) = extract_output(study.output, study)
 
-"The volume fractions of a state, or why they are unknown."
+"The name under which the aqueous species of a state are counted together."
+const PORE_SOLUTION = "pore solution"
+
+"""
+The volume fractions of a state, its aqueous species counted together as the
+pore solution (where the first of them comes), or why they are unknown.
+"""
 function fractions_entry(rs::RecipeState)
     v = volume(rs)
-    isempty(v.missing) && return series(volume_fractions(rs))
+    if isempty(v.missing)
+        aqueous = Set(symbol(s) for s in rs.state.system.species if aggregate_state(s) == AS_AQUEOUS)
+        labels, values = String[], Float64[]
+        for (k, f) in volume_fractions(rs)
+            key = k in aqueous ? PORE_SOLUTION : k
+            i = findfirst(==(key), labels)
+            i === nothing ? (push!(labels, key); push!(values, f)) : (values[i] += f)
+        end
+        return Dict{String, Any}("labels" => labels, "values" => [finite(v) for v in values])
+    end
     return Dict{String, Any}(
         "reason" => "No sourced density for the unreacted part of $(join(v.missing, ", ")): " *
             "its volume, and every volume fraction, is unknown.",

@@ -2,37 +2,27 @@
  * Copyright © 2026 Jean-François Barthélémy (Cerema, UMR MCD)
  *
  * The page: forms that edit the model, the script the server writes from it,
- * the status of the compute process, and the results of a run.
+ * the findings of the diagnosis, the status of the compute process, and the
+ * results of a run.
  *
- * The model lives in the server. Every edit is sent there (debounced), and the
- * answer brings back the script and the problems; the forms are redrawn only
- * when the model changes from elsewhere (a library entry, an opened file), so
- * that typing is never interrupted. Server data reaches the page through
- * `textContent` only.
+ * The model lives in the server. Every edit changes the page's copy and is
+ * sent there (debounced); the answer brings back the script and the problems.
+ * The forms are redrawn only when the model changes from elsewhere (a library
+ * entry, an opened file) or when an edit changes what a form offers (another
+ * template, another mode), so that typing is never interrupted. Server data
+ * reach the page through `textContent` only.
  */
 
 (() => {
   const $ = (s) => document.querySelector(s);
+  const el = Forms.make;
   const S = {
     model: null, problems: [], path: null, stem: "study", script: "",
-    catalog: null, library: [], results: null, status: { state: "starting" },
+    catalog: null, schema: null, library: [], results: null, status: { state: "starting" },
+    species: null, speciesFor: null, diagnostics: null, filter: { text: "", state: "crystal", elements: [] },
   };
 
   /* ── helpers ──────────────────────────────────────────────────── */
-
-  function el(tag, attrs, ...children) {
-    const e = document.createElement(tag);
-    for (const [k, v] of Object.entries(attrs || {})) {
-      if (v === undefined || v === null || v === false) continue;
-      if (k === "class") e.className = v;
-      else if (k === "text") e.textContent = v;
-      else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
-      else if (k in e && typeof v !== "string") e[k] = v;
-      else e.setAttribute(k, v === true ? "" : v);
-    }
-    for (const c of children.flat()) if (c !== null && c !== undefined) e.append(c);
-    return e;
-  }
 
   function fmt(x, digits) {
     if (x === null || x === undefined || Number.isNaN(x)) return "—";
@@ -42,14 +32,19 @@
   }
 
   const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  // `replaceChildren` would write a null as the text "null": the absent parts are dropped.
+  const fill = (node, ...kids) => node.replaceChildren(...kids.flat().filter((c) => c !== null && c !== undefined && c !== false));
+  const unique = (xs) => [...new Set(xs)];
 
   /* ── model and script ─────────────────────────────────────────── */
 
   let pushTimer = null;
+  let pushing = Promise.resolve();
 
   function edited() {
     clearTimeout(pushTimer);
-    pushTimer = setTimeout(push, 250);
+    pushTimer = setTimeout(() => { pushing = push(); }, 250);
+    scheduleDiagnosis();
   }
 
   async function push() {
@@ -58,15 +53,24 @@
     else toast(data.error || t("error"), true);
   }
 
+  async function flush() {
+    clearTimeout(pushTimer);
+    await pushing;
+    await push();
+  }
+
+  /* The page keeps its own copy while the user edits: the server's answer to
+     an edit is the same model, and replacing the copy would detach the forms
+     from what they edit. */
   function applyState(d, redraw) {
-    S.model = d.model;
+    if (redraw) S.model = d.model;
     S.problems = d.problems;
     S.path = d.path;
     S.stem = d.stem;
     renderScript(d.script);
     renderPath();
     renderProblems();
-    if (redraw) renderForms();
+    if (redraw) { renderForms(); scheduleDiagnosis(); }
   }
 
   function renderScript(source) {
@@ -84,68 +88,296 @@
     label.title = S.path || t("untitled_hint");
   }
 
+  // The parts of the model a problem names, in the page's language.
+  const WHERE = { "the system": "where_system", "the activity model": "where_activity", "the mix": "where_mix",
+    "the calculation": "where_calculation", "the constraint": "where_constraint" };
+
   function problemText(p) {
     const key = "problem_" + p.code;
-    const s = t(key, p.values);
+    const v = Object.assign({}, p.values);
+    if (v.field) v.field = Forms.fieldLabel(v.field);
+    if (v.where) v.where = v.where.split(", ").map((w) => (WHERE[w] ? t(WHERE[w]) : w)).join(", ");
+    for (const k of ["min", "max"]) if (v[k] === null || v[k] === undefined) v[k] = "—";
+    const s = t(key, v);
     return s === key ? p.text : s;
   }
 
   function renderProblems() {
-    const list = $("#problems");
-    list.replaceChildren(
+    fill($("#problems"),
       ...(S.problems.length ? S.problems.map((p) => el("li", { class: "problem", text: problemText(p) }))
-        : [el("li", { class: "ok", text: t("no_problem") })])
-    );
+        : [el("li", { class: "ok", text: t("no_problem") })]));
     updateRunButton();
+  }
+
+  /* ── diagnosis ────────────────────────────────────────────────── */
+
+  let diagnosisTimer = null;
+  let diagnosing = Promise.resolve();
+
+  function scheduleDiagnosis() {
+    clearTimeout(diagnosisTimer);
+    diagnosisTimer = setTimeout(() => { diagnosing = diagnose(); }, 1500);
+  }
+
+  async function diagnose() {
+    if (S.status.state !== "ready" || S.problems.length) {
+      S.diagnostics = null;
+      renderDiagnostics();
+      return;
+    }
+    await pushing;
+    const { status, data } = await Studio.post("/api/diagnose");
+    if (status !== 200) return;
+    if (data.ok) S.diagnostics = data.diagnostics;
+    else if (data.error && !/already running/.test(data.error)) S.diagnostics = [{ level: "blocking", code: "failed", message: data.error, fix: "", subjects: [] }];
+    renderDiagnostics();
+  }
+
+  const LEVEL_ICON = { blocking: "⛔", warning: "⚠", info: "ℹ" };
+
+  function renderDiagnostics() {
+    const items = S.diagnostics === null
+      ? [el("li", { class: "hint", text: t(S.problems.length ? "diagnosis_after_problems" : "diagnosis_pending") })]
+      : S.diagnostics.length
+        ? S.diagnostics.map((d) => el("li", { class: "diag " + d.level },
+            el("span", { class: "icon", text: LEVEL_ICON[d.level] || "•" }),
+            el("span", {}, el("span", { text: diagnosticText(d) }), d.fix ? el("span", { class: "hint fix", text: " " + d.fix } ) : null)))
+        : [el("li", { class: "ok", text: t("diagnosis_clean") })];
+    for (const id of ["#diagnostics", "#diagnostics-system"]) fill($(id), ...items.map((x) => x.cloneNode(true)));
+  }
+
+  // The messages are ChemistryLab's own, in English; a translation keyed by
+  // the code replaces them when it exists.
+  function diagnosticText(d) {
+    const key = "diag_" + d.code;
+    const s = t(key, { subjects: d.subjects.join(", ") });
+    return s === key ? d.message : s;
   }
 
   /* ── forms ────────────────────────────────────────────────────── */
 
   function renderForms() {
-    if (!S.model) return;
+    if (!S.model || !S.schema) return;
     $("#title").value = S.model.title;
-    $("#w-b").value = S.model.w_b;
-    $("#temperature").value = S.model.temperature_c;
     renderSystem();
     renderMaterials();
+    renderMix();
+    renderCalculation();
   }
 
+  /* System: the database, the system and its species, the activity model. */
   function renderSystem() {
     const m = S.model;
-    const dbs = S.catalog ? S.catalog.databases.map((d) => d.name).filter((n) => n.endsWith(".json")) : [m.database];
-    $("#database").replaceChildren(...dbs.map((n) => el("option", { value: n, text: n, selected: n === m.database })));
-
-    const lists = S.catalog ? S.catalog.phase_lists : [{ name: m.phase_list, source: "" }];
-    $("#phase-list").replaceChildren(...lists.map((l) => el("option", { value: l.name, text: l.name, selected: l.name === m.phase_list })));
-    const current = lists.find((l) => l.name === m.phase_list);
-    $("#phase-list-source").textContent = current && current.source ? t("source", { source: current.source }) : "";
-
-    const models = S.catalog ? S.catalog.activity_models : ["cemdata18_KOH", "cemdata18_NaOH"];
-    $("#activity-model").replaceChildren(
-      ...models.map((key) =>
-        el("label", { class: "choice" },
-          el("input", {
-            type: "radio", name: "activity-model", value: key, checked: key === m.activity_model,
-            onchange: () => { m.activity_model = key; edited(); },
-          }),
-          el("span", {},
-            el("b", { text: t("am_" + key) }),
-            el("span", { class: "hint", text: t("am_" + key + "_text") })
-          )
-        )
-      )
-    );
+    fill($("#database-form"), Forms.kinded("database", m.database, (v) => {
+      const changed = v.kind !== m.database.kind || v.name !== m.database.name;
+      m.database = v;
+      edited();
+      if (changed) { S.species = null; renderSpecies(); }
+    }));
+    renderDatabaseStatus();
+    fill($("#system-form"), Forms.kinded("system", m.system, (v) => {
+      const redraw = v.kind !== m.system.kind || v.phase_list !== m.system.phase_list || v.gel !== m.system.gel;
+      m.system = v;
+      edited();
+      if (redraw) renderPhases();
+    }, { ctx: { skip: ["add", "remove", "phases", "solid_solutions"] } }));
+    fill($("#activity-form"), Forms.kinded("activity", m.activity, (v) => { m.activity = v; edited(); }));
+    renderPhases();
+    renderSpecies();
   }
+
+  function renderDatabaseStatus() {
+    const dbs = S.catalog ? S.catalog.databases : [];
+    fill($("#database-status"), ...dbs.map((d) =>
+      el("li", {}, el("span", { class: "tag " + (d.status === "local" || d.status === "cached" ? "ok" : ""), text: t("db_" + d.status) }),
+        " ", el("span", { text: d.name }))));
+  }
+
+  function currentList() {
+    const s = S.model.system;
+    return s.kind === "phase_list" && S.catalog ? S.catalog.phase_lists.find((l) => l.name === s.phase_list) : null;
+  }
+
+  /* The phases of the system as chips: where each comes from, and a button to
+     leave it out or take it back. */
+  function renderPhases() {
+    const s = S.model.system;
+    const chips = [];
+    const chip = (name, cls, why, action, actionText) => el("span", { class: "chip " + cls, title: why },
+      el("span", { text: name }), action ? el("button", { class: "x", text: actionText || "×", title: why, onclick: action }) : null);
+    if (s.kind === "phase_list") {
+      const list = currentList();
+      const base = list ? unique(list.reactants.concat(list.products)) : [];
+      const sss = list ? list.solid_solutions.map((x) => (x === "CSHQ" ? s.gel : x)) : [];
+      for (const p of base) {
+        if (s.remove.includes(p)) chips.push(chip(p, "removed", t("chip_removed"), () => { s.remove = s.remove.filter((x) => x !== p); changedPhases(); }, "↺"));
+        else chips.push(chip(p, list.reactants.includes(p) ? "reactant" : "", t(list.reactants.includes(p) ? "chip_reactant" : "chip_product"), () => { s.remove.push(p); changedPhases(); }));
+      }
+      for (const p of sss) chips.push(chip(p, "ss", t("chip_solid_solution")));
+      for (const p of s.add) chips.push(chip(p, "added", t("chip_added"), () => { s.add = s.add.filter((x) => x !== p); changedPhases(); }));
+      if (!list) chips.push(el("span", { class: "hint", text: t("constituents_pending") }));
+    } else if (s.kind === "custom") {
+      for (const p of s.phases) chips.push(chip(p, "", t("chip_custom"), () => { s.phases = s.phases.filter((x) => x !== p); changedPhases(); }));
+      for (const p of s.solid_solutions) chips.push(chip(p, "ss", t("chip_solid_solution"), () => { s.solid_solutions = s.solid_solutions.filter((x) => x !== p); changedPhases(); }));
+    }
+    fill($("#phases"), ...chips);
+    renderSolidSolutionPicker();
+  }
+
+  function changedPhases() { renderPhases(); renderSpeciesList(); edited(); }
+
+  function systemPhases() {
+    const s = S.model.system;
+    if (s.kind === "custom") return new Set(s.phases);
+    const list = currentList();
+    const base = list ? list.reactants.concat(list.products).filter((p) => !s.remove.includes(p)) : [];
+    return new Set(base.concat(s.add));
+  }
+
+  function addPhase(p) {
+    const s = S.model.system;
+    if (s.kind === "custom") { if (!s.phases.includes(p)) s.phases.push(p); }
+    else if (s.remove.includes(p)) s.remove = s.remove.filter((x) => x !== p);
+    else if (!s.add.includes(p)) s.add.push(p);
+    changedPhases();
+  }
+
+  function renderSolidSolutionPicker() {
+    const s = S.model.system;
+    const box = $("#ss-picker");
+    if (s.kind !== "custom" || !S.catalog) { fill(box); return; }
+    const names = S.catalog.solid_solutions.map((x) => x.name).filter((n) => !s.solid_solutions.includes(n));
+    const select = el("select", {}, names.map((n) => el("option", { value: n, text: n })));
+    fill(box, el("div", { class: "row" }, select,
+      el("button", { class: "small", text: t("add_solid_solution"), onclick: () => { s.solid_solutions.push(select.value); changedPhases(); } })));
+  }
+
+  /* The species of the database: a search, a filter by state and by the
+     elements a species may be made of, and a button to add one. */
+  async function renderSpecies() {
+    const db = S.model.database;
+    const box = $("#species-browser");
+    if (db.kind !== "builtin") { fill(box, el("p", { class: "hint", text: t("species_builtin_only") })); return; }
+    if (!S.species || S.speciesFor !== db.name) {
+      fill(box, el("p", { class: "hint", text: t("species_loading") }));
+      if (S.status.state !== "ready") return;
+      const name = db.name;
+      const { status, data } = await Studio.get("/api/species?database=" + encodeURIComponent(name));
+      if (status !== 200 || S.model.database.name !== name) return;
+      S.species = data;
+      S.speciesFor = name;
+    }
+    const elements = unique(S.species.flatMap((x) => x.elements)).sort(byPeriod);
+    fill(box,
+      el("div", { class: "row" },
+        el("input", { type: "search", placeholder: t("species_search"), value: S.filter.text, spellcheck: "false",
+          oninput: (e) => { S.filter.text = e.target.value; renderSpeciesList(); } }),
+        el("select", { onchange: (e) => { S.filter.state = e.target.value; renderSpeciesList(); } },
+          ["crystal", "aqueous", "gas", "all"].map((x) => el("option", { value: x, text: t("state_" + x), selected: x === S.filter.state })))),
+      el("div", { class: "elements", title: t("elements_hint") }, elements.map((e) =>
+        el("button", { class: "element" + (S.filter.elements.includes(e) ? " on" : ""), text: e, onclick: (ev) => {
+          S.filter.elements = S.filter.elements.includes(e) ? S.filter.elements.filter((x) => x !== e) : S.filter.elements.concat([e]);
+          ev.target.classList.toggle("on");
+          renderSpeciesList();
+        } }))),
+      el("div", { id: "species-list", class: "species-list" }));
+    renderSpeciesList();
+  }
+
+  // Elements by period, then group, as a periodic table reads.
+  const ORDER = "H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am".split(" ");
+  const byPeriod = (a, b) => (ORDER.indexOf(a) + 1 || 999) - (ORDER.indexOf(b) + 1 || 999);
+
+  function renderSpeciesList() {
+    const box = document.getElementById("species-list");
+    if (!box || !S.species) return;
+    const f = S.filter;
+    const text = f.text.trim().toLowerCase();
+    const inSystem = systemPhases();
+    const hits = S.species.slice().sort((a, b) => a.symbol.localeCompare(b.symbol)).filter((x) =>
+      (f.state === "all" || x.state === f.state) &&
+      (!f.elements.length || x.elements.every((e) => f.elements.includes(e))) &&
+      (!text || x.symbol.toLowerCase().includes(text) || x.formula.toLowerCase().includes(text) || (x.cement || "").toLowerCase().includes(text)));
+    const T = S.model.mix.temperature + 273.15;
+    fill(box,
+      el("p", { class: "hint", text: t("species_count", { n: hits.length }) }),
+      el("table", { class: "data compact" }, el("tbody", {}, hits.slice(0, 150).map((x) => {
+        const outside = x.T_min !== null && x.T_max !== null && (T < x.T_min || T > x.T_max);
+        const there = inSystem.has(x.symbol);
+        return el("tr", { title: t("species_card", { formula: x.formula, M: fmt(x.molar_mass, 2), lo: fmt(x.T_min - 273.15, 0), hi: fmt(x.T_max - 273.15, 0) }) },
+          el("td", {}, el("b", { text: x.symbol })),
+          el("td", { text: x.formula }),
+          // a cement notation with an improper fraction (H₃//₂) reads worse than the formula
+          el("td", { class: "hint", text: x.cement && !x.cement.includes("//") ? x.cement : "" }),
+          el("td", { class: "warn", text: outside ? "⚠" : "", title: outside ? t("outside_range") : null }),
+          el("td", {}, x.state === "crystal"
+            ? el("button", { class: "small", text: there ? "✓" : "+", disabled: there, title: t(there ? "in_system" : "add_to_system"), onclick: () => addPhase(x.symbol) })
+            : null));
+      }))),
+      hits.length > 150 ? el("p", { class: "hint", text: t("species_more", { n: hits.length - 150 }) }) : null);
+  }
+
+  /* Materials: a card per material, its kind, its fields, a law per
+     constituent. */
+  const CLINKER = ["C3S", "C2S", "C3A", "C4AF"];
 
   function templateEntry(name) {
     return S.catalog ? S.catalog.templates.find((e) => e.name === name) : null;
   }
 
+  function constituentsOf(mat) {
+    if (mat.kind === "template") {
+      const e = templateEntry(mat.template);
+      return e && e.constituents ? e.constituents.map((c) => c.name) : [];
+    }
+    if (mat.kind === "oxides") return mat.route === "bogue" ? CLINKER.concat([mat.sulfate]) : [mat.name];
+    return mat.minerals.map((r) => r.formula).filter((x) => x);
+  }
+
+  function materialContext(mat) {
+    return {
+      keys: () => constituentsOf(mat),
+      note: (f, key) => {
+        if (mat.kind !== "template") return "";
+        const e = templateEntry(mat.template);
+        const c = e && e.constituents ? e.constituents.find((x) => x.name === key) : null;
+        return c ? fmt(100 * c.mass_fraction, 1) + " %" : "";
+      },
+      noneLabel: () => t("reacts_fully"),
+      units: () => ["%"],
+    };
+  }
+
   function renderMaterials() {
     const m = S.model;
-    const cards = m.materials.map((mat, i) => materialCard(mat, i));
-    $("#materials").replaceChildren(...cards);
+    fill($("#materials"), ...m.materials.map((mat, i) => materialCard(mat, i)));
     renderFractionSum();
+  }
+
+  function materialCard(mat, i) {
+    const m = S.model;
+    const card = el("div", { class: "card material" });
+    function draw() {
+      const before = { kind: mat.kind, template: mat.template, route: mat.route, sulfate: mat.sulfate, name: mat.name, rows: JSON.stringify(mat.minerals) };
+      const entry = mat.kind === "template" ? templateEntry(mat.template) : null;
+      fill(card,
+        el("header", {}, el("b", { text: t("material_n", { n: i + 1 }) }),
+          m.materials.length > 1 ? el("button", { class: "small", title: t("remove_material"), text: "−",
+            onclick: () => { m.materials.splice(i, 1); renderMaterials(); edited(); } }) : null),
+        Forms.kinded("material", mat, (v) => {
+          m.materials[i] = v;
+          mat = v;
+          renderFractionSum();
+          edited();
+          // Another template, route or list of minerals offers other constituents.
+          const now = { kind: v.kind, template: v.template, route: v.route, sulfate: v.sulfate, name: v.name, rows: JSON.stringify(v.minerals) };
+          if (now.kind !== before.kind || now.template !== before.template) { v.extents = []; v.material_extent = null; draw(); }
+          else if (now.route !== before.route || now.sulfate !== before.sulfate || (now.name !== before.name && v.route === "oxides") || now.rows !== before.rows) draw();
+        }, { ctx: materialContext(mat) }),
+        entry && entry.source ? el("p", { class: "hint refs" }, t("source_label"), " ", reference(entry.source)) : null);
+    }
+    draw();
+    return card;
   }
 
   function renderFractionSum() {
@@ -155,82 +387,45 @@
     note.classList.toggle("problem", Math.abs(total - 1) > 1e-9);
   }
 
-  function materialCard(mat, i) {
-    const m = S.model;
-    const templates = S.catalog ? S.catalog.templates : [{ name: mat.template }];
-    const select = el("select", {
-      onchange: (e) => {
-        mat.template = e.target.value;
-        mat.extents = [];
-        mat.material_extent = null;
-        renderMaterials();
-        edited();
-      },
-    }, templates.map((e) => el("option", {
-      value: e.name, text: e.name, selected: e.name === mat.template,
-      disabled: !!e.unavailable, title: e.unavailable || "",
-    })));
-
-    const remove = m.materials.length > 1
-      ? el("button", { class: "small", title: t("remove_material"), text: "−",
-          onclick: () => { m.materials.splice(i, 1); renderMaterials(); edited(); } })
-      : null;
-
-    const fraction = el("input", {
-      type: "number", step: "0.01", min: "0", max: "1", value: mat.fraction,
-      oninput: (e) => { mat.fraction = Number(e.target.value); renderFractionSum(); edited(); },
-    });
-
-    const entry = templateEntry(mat.template);
-    const rows = [];
-    const names = entry && entry.constituents ? entry.constituents.map((c) => c.name)
-      : mat.extents.map((x) => x.constituent);
-    for (const name of names) {
-      const c = entry && entry.constituents ? entry.constituents.find((x) => x.name === name) : null;
-      const set = mat.extents.find((x) => x.constituent === name);
-      rows.push(el("tr", {},
-        el("td", { text: name }),
-        el("td", { class: "num", text: c ? fmt(100 * c.mass_fraction, 1) + " %" : "" }),
-        el("td", {}, el("input", {
-          type: "number", step: "0.05", min: "0", max: "1", placeholder: "1",
-          value: set ? set.extent : "",
-          oninput: (e) => {
-            const v = e.target.value;
-            mat.extents = mat.extents.filter((x) => x.constituent !== name);
-            if (v !== "") mat.extents.push({ constituent: name, extent: Number(v) });
-            edited();
-          },
-        }))
-      ));
-    }
-    const table = el("table", { class: "data compact" },
-      el("thead", {}, el("tr", {},
-        el("th", { text: t("constituent") }), el("th", { text: t("mass_fraction") }), el("th", { text: t("degree") }))),
-      el("tbody", {}, rows)
-    );
-
-    const source = entry && entry.source ? el("p", { class: "hint", text: t("source", { source: entry.source }) }) : null;
-    return el("div", { class: "card" },
-      el("header", {}, select, remove),
-      source,
-      el("div", { class: "field" }, el("label", { text: t("binder_fraction") }), fraction),
-      rows.length ? table : el("p", { class: "hint", text: t("constituents_pending") }),
-      el("p", { class: "hint", text: t("degree_hint") })
-    );
+  function addMaterial() {
+    const first = S.catalog ? S.catalog.templates.find((e) => !e.unavailable && e.kind === "scm") : null;
+    const mat = Forms.defaults("material", "template");
+    if (first) mat.template = first.name;
+    mat.fraction = 0;
+    S.model.materials.push(mat);
+    renderMaterials();
+    edited();
   }
 
-  function wireStaticForms() {
-    $("#title").addEventListener("input", (e) => { S.model.title = e.target.value; edited(); });
-    $("#w-b").addEventListener("input", (e) => { S.model.w_b = Number(e.target.value); edited(); });
-    $("#temperature").addEventListener("input", (e) => { S.model.temperature_c = Number(e.target.value); edited(); });
-    $("#phase-list").addEventListener("change", (e) => { S.model.phase_list = e.target.value; renderSystem(); edited(); });
-    $("#material-add").addEventListener("click", () => {
-      const first = S.catalog ? S.catalog.templates.find((e) => !e.unavailable) : null;
-      S.model.materials.push({ template: first ? first.name : S.model.materials[0].template,
-        fraction: 0, extents: [], material_extent: null });
-      renderMaterials();
-      edited();
+  function renderMix() {
+    fill($("#mix-form"), Forms.fieldsOf("mix", S.model.mix, (v) => { S.model.mix = v; edited(); renderSpeciesList(); }));
+  }
+
+  /* Calculation: the three modes, the calculations of the chosen one, and the
+     constraint on the equilibrium. */
+  const modeOf = (kind) => { const m = Forms.memberOf("calculation", kind); return m ? m.mode : "equilibrium"; };
+
+  function renderCalculation() {
+    const m = S.model;
+    const mode = modeOf(m.calculation.kind);
+    document.querySelectorAll("#modes button").forEach((b) => {
+      b.classList.toggle("on", b.dataset.mode === mode);
+      b.disabled = !Forms.membersOf("calculation").some((x) => x.mode === b.dataset.mode);
     });
+    fill($("#calculation-form"), Forms.kinded("calculation", m.calculation, (v) => {
+      m.calculation = v;
+      edited();
+    }, { only: (x) => x.mode === mode, hideKind: mode === "equilibrium", ctx: { units: () => ["mmol/L", "mol/L"] } }));
+    fill($("#constraint-form"), Forms.kinded("constraint", m.constraint, (v) => { m.constraint = v; edited(); }));
+  }
+
+  function setMode(mode) {
+    if (modeOf(S.model.calculation.kind) === mode) return;
+    const first = Forms.membersOf("calculation").find((x) => x.mode === mode);
+    if (!first) return;
+    S.model.calculation = Forms.defaults("calculation", first.kind);
+    renderCalculation();
+    edited();
   }
 
   /* ── library ──────────────────────────────────────────────────── */
@@ -239,21 +434,35 @@
     const { status, data } = await Studio.get("/api/library");
     if (status !== 200) return;
     S.library = data;
-    $("#library").replaceChildren(...data.map((e) =>
+    renderLibrary();
+  }
+
+  /* A published work, by its key: its citation linked to its DOI once the
+     catalog of ChemistryLab is read, its key until then. */
+  function reference(key) {
+    const r = S.catalog && S.catalog.references ? S.catalog.references[key] : null;
+    if (!r) return el("span", { text: key });
+    return r.doi ? el("a", { href: "https://doi.org/" + r.doi, target: "_blank", rel: "noopener", text: r.citation })
+      : el("span", { text: r.citation });
+  }
+
+  const references = (keys) => keys.flatMap((k, i) => [i ? el("br") : null, reference(k)]);
+
+  function renderLibrary() {
+    fill($("#library"), ...S.library.map((e) =>
       el("div", { class: "card" },
-        el("header", {}, el("b", { text: e.title }), e.designation ? el("span", { class: "tag", text: e.designation }) : null),
+        el("header", {}, el("b", { text: e.title }), e.designation ? el("span", { class: "tag", text: e.designation }) : null,
+          e.process ? el("span", { class: "tag", text: Forms.kindLabel(e.process) }) : null),
         el("p", { class: "hint", text: e.summary || "" }),
-        el("p", { class: "hint", text: t("sources", { sources: (e.sources || []).join(", ") }) }),
-        el("button", { class: "small primary", text: t("load"), onclick: () => loadEntry(e.id) })
-      )
-    ));
+        el("p", { class: "hint refs" }, ...references(e.sources || [])),
+        el("button", { class: "small primary", text: t("load"), onclick: () => loadEntry(e.id) }))));
   }
 
   async function loadEntry(id) {
     const { status, data } = await Studio.post("/api/library", { id });
     if (status !== 200) return toast(data.error || t("error"), true);
     applyState(data, true);
-    showTab("mix");
+    showTab("materials");
     toast(t("loaded"));
   }
 
@@ -270,18 +479,23 @@
       setBadge("bad", t("status_offline"));
       return;
     }
+    const was = S.status.state;
     S.status = data;
     const cls = data.state === "ready" ? "ok" : data.state === "failed" ? "bad" : "busy";
     setBadge(cls, t(BADGE[data.state] || data.state));
     $("#status").title = data.message || "";
     $("#stop").hidden = data.state !== "busy";
-    $("#ready-card").hidden = !!S.results || data.state === "ready";
+    $("#ready-card").hidden = !!S.results || data.state === "ready" || S.running;
     $("#ready-message").textContent = data.message || t(BADGE[data.state] || data.state);
     $("#log").textContent = data.log.slice(-60).join("\n");
     $("#log").scrollTop = $("#log").scrollHeight;
     renderBanner(data);
     updateRunButton();
     if (!S.catalog && (data.state === "ready" || data.state === "busy")) loadCatalog();
+    if (data.state === "ready" && was !== "ready") {
+      if (!S.species) renderSpecies();
+      if (S.diagnostics === null) scheduleDiagnosis();
+    }
   }
 
   function setBadge(cls, text) {
@@ -294,11 +508,10 @@
     const banner = $("#banner");
     if (data.state !== "failed") { banner.hidden = true; return; }
     banner.hidden = false;
-    banner.replaceChildren(
+    fill(banner,
       el("b", { text: t("failed_title") }), " ",
       el("button", { class: "small", text: t("restart"), onclick: restart }),
-      el("pre", { text: data.message })
-    );
+      el("pre", { text: data.message }));
   }
 
   async function restart() {
@@ -315,7 +528,9 @@
     if (status !== 200 || data.pending) return;
     if (data.error) { toast(t("catalog_failed") + " " + data.error, true); S.catalog = null; return; }
     S.catalog = data;
+    Forms.setCatalog(data);
     renderForms();
+    renderLibrary();
   }
 
   function updateRunButton() {
@@ -327,11 +542,16 @@
   /* ── running ──────────────────────────────────────────────────── */
 
   async function run() {
-    clearTimeout(pushTimer);
-    await push();
+    clearTimeout(diagnosisTimer);
+    await flush();
+    await diagnosing;
     $("#run").disabled = true;
     setBadge("busy", t("status_busy"));
+    $("#stop").hidden = false;
+    S.running = true;
+    $("#ready-card").hidden = true;
     const { status, data } = await Studio.post("/api/run");
+    S.running = false;
     poll();
     if (status === 422) {
       toast(t("run_problems"), true);
@@ -339,9 +559,9 @@
       return;
     }
     if (status !== 200 || !data.ok) {
-      $("#output").textContent = (data && (data.output || "")) + "\n" + ((data && data.error) || t("error"));
+      $("#output").textContent = ((data && data.output) || "") + "\n" + ((data && data.error) || t("error"));
       showResult("output");
-      toast(t("run_failed"), true);
+      toast(data && data.stopped ? t("run_stopped") : t("run_failed"), true);
       return;
     }
     S.results = data.results;
@@ -365,10 +585,12 @@
       paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
       font: { color: ink, size: 12, family: getComputedStyle(document.body).fontFamily },
       margin: { l: 10, r: 20, t: 36, b: 40 },
-      xaxis: Object.assign({}, axis), yaxis: Object.assign({}, axis, { autorange: "reversed" }),
+      xaxis: Object.assign({}, axis), yaxis: Object.assign({}, axis),
       showlegend: false,
     }, extra || {});
   }
+
+  const PLOT_CONFIG = { displaylogo: false, responsive: true, toImageButtonOptions: { format: "svg" } };
 
   /* A horizontal bar per label, every label shown: the plot grows with the
      number of bars rather than letting Plotly thin the axis. What has not
@@ -378,41 +600,77 @@
     const layout = plotLayout({ title: { text: title, font: { size: 13 } }, height });
     layout.xaxis.title = { text: xtitle };
     layout.yaxis.dtick = 1;
+    layout.yaxis.autorange = "reversed";
     if (xtype) layout.xaxis.type = xtype;
     const colors = labels.map((l) => (l.startsWith("unreacted ") ? css("--muted") : css("--accent")));
     const trace = { type: "bar", orientation: "h", x: values, y: labels, marker: { color: colors },
       hovertemplate: "%{y}: %{x:.4g}<extra></extra>" };
-    document.getElementById(id).style.height = height + "px";
-    Plotly.react(id, [trace], layout, { displaylogo: false, responsive: true });
+    show(id, height);
+    Plotly.react(id, [trace], layout, PLOT_CONFIG);
   }
+
+  /* Curves along a path: stacked areas for what adds up (masses, volumes), or
+     plain lines; a legend beside them. */
+  function curves(id, x, series, title, xtitle, ytitle, opts) {
+    const o = opts || {};
+    const layout = plotLayout({ title: { text: title, font: { size: 13 } }, height: 360, showlegend: series.length > 1,
+      legend: { font: { size: 10 } } });
+    layout.xaxis.title = { text: xtitle };
+    layout.yaxis.title = { text: ytitle };
+    if (o.log) layout.yaxis.type = "log";
+    const traces = series.map((s) => Object.assign({
+      type: "scatter", mode: o.stack ? "lines" : "lines+markers", x, y: s.values, name: s.label,
+      line: { width: o.stack ? 0.5 : 2 }, hovertemplate: s.label + ": %{y:.4g}<extra></extra>",
+    }, o.stack ? { stackgroup: "one" } : {}, s.label.startsWith("unreacted ") ? { line: { color: css("--muted"), width: 0.5 } } : {}));
+    show(id, 360);
+    Plotly.react(id, traces, layout, PLOT_CONFIG);
+  }
+
+  function show(id, height) {
+    const d = document.getElementById(id);
+    d.hidden = false;
+    d.style.height = height + "px";
+  }
+
+  function hide(id) { const d = document.getElementById(id); d.hidden = true; Plotly.purge(d); }
 
   function renderResults() {
     const r = S.results;
     if (!r) return;
+    const path = r.kind === "path";
+    document.querySelectorAll("#result-tabs button").forEach((b) => {
+      const only = b.dataset.only;
+      b.hidden = !!only && only !== r.kind;
+    });
+    if (path) renderPath_(r); else renderEquilibrium(r);
+    const current = document.querySelector("#result-tabs button.on");
+    if (current && current.hidden) showResult("phases");
+  }
+
+  function renderEquilibrium(r) {
     const binder = r.binder_mass_g ? fmt(r.binder_mass_g, 0) : "100";
     const pm = r.phase_masses;
     barh("plot-masses", pm.labels, pm.values, t("plot_masses"), t("plot_masses_axis", { binder }));
     const vf = r.volume_fractions;
     if (vf.labels) {
-      $("#plot-volumes").hidden = false;
       $("#volumes-note").textContent = "";
       barh("plot-volumes", vf.labels, vf.values.map((v) => (v === null ? null : 100 * v)), t("plot_volumes"), t("plot_volumes_axis"));
     } else {
-      $("#plot-volumes").hidden = true;
+      hide("plot-volumes");
       $("#volumes-note").textContent = vf.reason;
     }
 
     const ps = r.pore_solution;
-    $("#pore-summary").replaceChildren(
+    fill($("#pore-summary"),
       summaryItem(t("ph"), fmt(ps.pH, 2)),
       summaryItem(t("ionic_strength"), withUnit(fmt(r.ionic_strength, 3), "mol/kg")),
       summaryItem(t("porosity"), withUnit(fmt(percent(r.porosity.total), 1), "%"), t("porosity_unknown")),
-      summaryItem(t("bound_water"), withUnit(fmt(r.bound_water, 3), "g/g"))
-    );
+      summaryItem(t("bound_water"), withUnit(fmt(r.bound_water, 3), "g/g")));
     // What is dissolved below a trace would squeeze the log axis to nothing.
     const mm = ps.molalities.values.map((v) => (v === null ? null : 1000 * v));
     const shown = ps.molalities.labels.map((k, i) => [k, mm[i]]).filter(([, v]) => v !== null && v >= TRACE);
     barh("plot-pore", shown.map((x) => x[0]), shown.map((x) => x[1]), t("plot_pore"), t("plot_pore_axis"), "log");
+    hide("plot-ph");
     fillTable("#pore-table", [t("element"), t("plot_pore_axis")],
       ps.molalities.labels.map((k, i) => [k, { text: mm[i] !== null && mm[i] < TRACE ? "< 1e-9" : fmt(mm[i], 3), cls: "" }]));
 
@@ -424,6 +682,48 @@
 
     fillTable("#certificate-table", [t("cert_field"), t("cert_value")],
       Object.entries(r.certificate).map(([k, v]) => [t("cert_" + k), typeof v === "number" ? fmt(v, 3) : String(v)]));
+  }
+
+  /* The axis of a path, from its label: an age, a fraction, an amount of a
+     species, a step, a temperature, a ratio. */
+  function pathAxis(label) {
+    const key = "axis_" + label;
+    const s = t(key);
+    return s === key ? t("axis_added", { species: label }) : s;
+  }
+
+  function renderPath_(r) {
+    const x = r.parameter;
+    const xt = pathAxis(r.label);
+    const binder = r.binder_mass_g ? fmt(r.binder_mass_g, 0) : "100";
+    const pm = r.phase_masses;
+    curves("plot-masses", x, pm.labels.map((l, k) => ({ label: l, values: pm.series[k] })), t("plot_masses"), xt,
+      t("plot_masses_axis", { binder }), { stack: true });
+    const vf = r.volume_fractions;
+    if (vf.labels) {
+      $("#volumes-note").textContent = "";
+      curves("plot-volumes", x, vf.labels.map((l, k) => ({ label: l, values: vf.series[k].map((v) => (v === null ? null : 100 * v)) })),
+        t("plot_volumes"), xt, t("plot_volumes_axis"), { stack: true });
+    } else {
+      hide("plot-volumes");
+      $("#volumes-note").textContent = vf.reason;
+    }
+    fill($("#pore-summary"));
+    curves("plot-ph", x, [{ label: "pH", values: r.pH }], t("ph"), xt, "pH");
+    const mol = r.molalities;
+    const lines = mol.labels.map((l, k) => ({ label: l, values: mol.series[k].map((v) => (v === null ? null : 1000 * v)) }))
+      .filter((s) => s.values.some((v) => v !== null && v >= TRACE));
+    curves("plot-pore", x, lines, t("plot_pore"), xt, t("plot_pore_axis"), { log: true });
+    fill($("#pore-table"));
+    curves("plot-porosity", x, [
+      { label: t("porosity") + " (%)", values: r.porosity.map(percent) },
+      { label: t("bound_water") + " (g/g × 100)", values: r.bound_water.map(percent) },
+    ], t("porosity_water"), xt, "%");
+    const head = [xt, t("certified"), "pH", t("porosity") + " (%)", t("bound_water") + " (g/g)"].concat(pm.labels);
+    fillTable("#path-table", head, x.map((v, i) => [
+      { text: fmt(v, 3), cls: "" }, { text: r.certified[i] ? "✓" : "✗", cls: r.certified[i] ? "ok" : "warn" },
+      { text: fmt(r.pH[i], 2), cls: "" }, { text: fmt(percent(r.porosity[i]), 1), cls: "" }, { text: fmt(r.bound_water[i], 3), cls: "" },
+    ].concat(pm.series.map((s) => ({ text: fmt(s[i], 2), cls: "" })))));
   }
 
   // mmol per kg of water below which an element is reported as a trace
@@ -439,11 +739,17 @@
   }
 
   function fillTable(sel, head, rows) {
-    $(sel).replaceChildren(
+    fill($(sel),
       el("thead", {}, el("tr", {}, head.map((h) => el("th", { text: h })))),
       el("tbody", {}, rows.map((row) => el("tr", {}, row.map((c) =>
-        typeof c === "object" ? el("td", { class: "num " + c.cls, text: c.text }) : el("td", { text: c })))))
-    );
+        typeof c === "object" ? el("td", { class: "num " + c.cls, text: c.text }) : el("td", { text: c }))))));
+  }
+
+  /* Copy a table as tab-separated text, for a spreadsheet. */
+  async function copyTable(sel) {
+    const rows = [...document.querySelectorAll(sel + " tr")].map((tr) => [...tr.children].map((c) => c.textContent).join("\t"));
+    try { await navigator.clipboard.writeText(rows.join("\n")); toast(t("copied_rows")); }
+    catch (e) { toast(t("copy_failed"), true); }
   }
 
   /* ── files ────────────────────────────────────────────────────── */
@@ -452,7 +758,7 @@
 
   async function save() {
     if (!S.path) return saveAs();
-    await push();
+    await flush();
     const { status, data } = await Studio.post("/api/save", {});
     if (status === 200) { applyState(data, false); toast(t("saved", { path: data.path })); }
     else toast(data.error || t("error"), true);
@@ -461,7 +767,7 @@
   async function saveAs() {
     const path = await Picker.pick("save", dirOf(S.path), S.stem + ".jl");
     if (!path) return;
-    await push();
+    await flush();
     let { status, data } = await Studio.post("/api/save", { path });
     if (status === 409) {
       if (!confirm(t("overwrite", { path: data.path }))) return;
@@ -480,7 +786,7 @@
     toast(data.message || t("opened"), !!data.message);
   }
 
-  /* ── tabs, theme, language ────────────────────────────────────── */
+  /* ── tabs, theme, language, expert fields ─────────────────────── */
 
   function showTab(name) {
     document.querySelectorAll("#steps button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
@@ -505,14 +811,24 @@
     try { return localStorage.getItem("clstudio.theme") || "auto"; } catch (e) { return "auto"; }
   }
 
+  function applyExpert(on) {
+    document.body.classList.toggle("expert-on", on);
+    $("#expert").checked = on;
+    try { localStorage.setItem("clstudio.expert", on ? "1" : "0"); } catch (e) { /* not remembered */ }
+  }
+  function savedExpert() {
+    try { return localStorage.getItem("clstudio.expert") === "1"; } catch (e) { return false; }
+  }
+
   async function toggleLanguage() {
     await Studio.setLanguage(Studio.language() === "en" ? "fr" : "en");
     $("#lang").textContent = Studio.language() === "en" ? "FR" : "EN";
     renderPath();
     renderProblems();
     renderForms();
+    renderDiagnostics();
     renderResults();
-    if (S.library.length) loadLibrary();
+    renderLibrary();
   }
 
   /* ── start ────────────────────────────────────────────────────── */
@@ -521,29 +837,37 @@
     await Studio.setLanguage(Studio.savedLanguage());
     $("#lang").textContent = Studio.language() === "en" ? "FR" : "EN";
     applyTheme(savedTheme());
+    applyExpert(savedExpert());
     document.querySelectorAll("#steps button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
     document.querySelectorAll("#result-tabs button").forEach((b) => b.addEventListener("click", () => showResult(b.dataset.result)));
+    document.querySelectorAll("#modes button").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
+    document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => copyTable(b.dataset.copy)));
     $("#run").addEventListener("click", run);
     $("#stop").addEventListener("click", stop);
     $("#save").addEventListener("click", save);
     $("#saveas").addEventListener("click", saveAs);
     $("#open").addEventListener("click", open);
     $("#open2").addEventListener("click", open);
+    $("#material-add").addEventListener("click", addMaterial);
+    $("#title").addEventListener("input", (e) => { S.model.title = e.target.value; edited(); });
+    $("#expert").addEventListener("change", (e) => applyExpert(e.target.checked));
     $("#copy").addEventListener("click", async () => {
       try { await navigator.clipboard.writeText(S.script); toast(t("copied")); }
       catch (e) { toast(t("copy_failed"), true); }
     });
     $("#theme").addEventListener("click", () => applyTheme(THEMES[(THEMES.indexOf(savedTheme()) + 1) % THEMES.length]));
     $("#lang").addEventListener("click", toggleLanguage);
-    wireStaticForms();
 
-    const { status, data } = await Studio.get("/api/state");
-    if (status !== 200) {
+    const [state, schema] = await Promise.all([Studio.get("/api/state"), Studio.get("/api/schema")]);
+    if (state.status !== 200 || schema.status !== 200) {
       setBadge("bad", t("status_denied"));
-      toast(data.error || t("error"), true);
+      toast((state.data && state.data.error) || t("error"), true);
       return;
     }
-    applyState(data, true);
+    S.schema = schema.data;
+    Forms.setSchema(schema.data);
+    applyState(state.data, true);
+    renderDiagnostics();
     loadLibrary();
     poll();
     setInterval(poll, 1500);

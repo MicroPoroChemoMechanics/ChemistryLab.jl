@@ -44,6 +44,9 @@ end
     @test all(e -> haskey(e, "constituents") || occursin("species", e["unavailable"]), cat["templates"])
     @test any(d -> d["name"] == "cemdata18-thermofun.json", cat["databases"])
     @test cat["versions"]["julia"] == string(VERSION)
+    # the published works, read from ChemistryLab's own files
+    @test cat["references"]["Gruyaert2010"]["doi"] == "10.1007/s10973-010-0841-6"
+    @test startswith(cat["references"]["Gruyaert2010"]["citation"], "Gruyaert, E.")
 end
 
 @testset "diagnosis and species" begin
@@ -109,9 +112,16 @@ end
                     Recipe(cement => 1.0; w_b = 0.5, T = T_ZERO_CELSIUS_Q + 20u"K"), cs;
                     model = cemdata18_activity_model(:KOH),
                 )
+                # the aqueous species counted as one, the pore solution
+                liquid = Set(symbol(s) for s in cs.species if aggregate_state(s) == AS_AQUEOUS)
+                fractions = Dict{String, Float64}()
+                for (k, f) in volume_fractions(rs)
+                    key = k in liquid ? "pore solution" : k
+                    fractions[key] = get(fractions, key, 0.0) + f
+                end
                 (;
                     pH = pore_solution(rs).pH, bound_water = bound_water(rs), masses = Dict(phase_masses(rs)),
-                    fractions = Dict(volume_fractions(rs)), porosity = porosity(rs).total,
+                    fractions, porosity = porosity(rs).total,
                 )
             end
         end

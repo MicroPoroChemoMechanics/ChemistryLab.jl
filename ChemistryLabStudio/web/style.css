@@ -293,6 +293,65 @@ h3 {
 .problems { margin: 0; padding-left: 18px; }
 .problems li { margin: 3px 0; }
 
+/* The expert fields show only when asked for. */
+body:not(.expert-on) .field.expert { display: none; }
+.toggle { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); cursor: pointer; }
+.toggle input { width: auto; }
+
+.field.inline > label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink); }
+.unit { color: var(--muted); }
+input.invalid { border-color: var(--bad); box-shadow: 0 0 0 1px var(--bad) inset; }
+input.num { font-family: var(--mono); }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); column-gap: 10px; }
+.fields > .field.wide, .fields > .field.inline { grid-column: 1 / -1; }
+.nested { display: flex; flex-direction: column; gap: 4px; padding-left: 8px; border-left: 2px solid var(--line); }
+
+.keyed { display: flex; flex-direction: column; gap: 4px; }
+.keyed-row { border: 1px solid var(--line); border-radius: 5px; padding: 4px 6px; background: var(--panel); }
+.keyed-head { display: flex; align-items: center; gap: 8px; }
+.keyed-head b { min-width: 5em; font-family: var(--mono); font-size: 12px; }
+.keyed-head .hint { min-width: 4em; margin: 0; }
+.keyed-head select { flex: 1; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font: 11px/1 var(--mono);
+  padding: 3px 4px 3px 7px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+.chip.reactant { border-color: var(--warn); }
+.chip.ss { border-style: dashed; border-color: var(--accent); padding-right: 7px; }
+.chip.added { border-color: var(--ok); }
+.chip.removed { text-decoration: line-through; color: var(--muted); }
+.chip .x { border: none; background: none; padding: 0 3px; font-size: 12px; line-height: 1; color: var(--muted); }
+.chip .x:hover { color: var(--bad); }
+
+.elements { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0 6px; }
+.element { font: 11px/1 var(--mono); padding: 4px 0; width: 2.6em; text-align: center; }
+.element.on { background: var(--accent); color: #fff; border-color: transparent; }
+.species-list { max-height: 320px; overflow: auto; }
+
+ul.plain { list-style: none; padding: 0; margin: 4px 0; }
+ul.plain li { margin: 3px 0; font-size: 12px; }
+.tag.ok { color: var(--ok); border-color: var(--ok); }
+details.expert-block summary { cursor: pointer; font-size: 11px; color: var(--muted); }
+.refs a { color: var(--accent); }
+
+.diagnostics { list-style: none; padding: 0; margin: 6px 0; }
+.diagnostics li { display: flex; gap: 6px; margin: 4px 0; font-size: 12px; }
+.diagnostics li .icon { flex: 0 0 1.2em; }
+.diag.blocking { color: var(--bad); }
+.diag.warning { color: var(--warn); }
+.diag.info { color: var(--muted); }
+.diag .fix { color: var(--muted); }
+
+.scroll-x { overflow-x: auto; }
+
 /* ── results ────────────────────────────────────────────────────── */
 
 #results { flex: 1 1 0; position: relative; overflow: auto; min-height: 0; padding: 8px 10px; }

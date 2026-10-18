@@ -20,6 +20,7 @@
     <button id="saveas" data-i18n="save_as">Save as…</button>
   </div>
   <div class="spacer"></div>
+  <label class="toggle" data-i18n-title="expert_title" title="Show the expert options"><input type="checkbox" id="expert"> <span data-i18n="expert">Expert</span></label>
   <button id="lang" class="small" title="Language">FR</button>
   <button id="theme" class="small" data-i18n-title="theme_title" title="Light or dark theme">◐</button>
   <span id="status" class="badge" data-i18n="status_starting">starting…</span>
@@ -35,6 +36,7 @@
     <nav class="tabs" id="steps">
       <button data-tab="start" class="on" data-i18n="tab_start">Start</button>
       <button data-tab="system" data-i18n="tab_system">System</button>
+      <button data-tab="materials" data-i18n="tab_materials">Materials</button>
       <button data-tab="mix" data-i18n="tab_mix">Mix</button>
       <button data-tab="calculation" data-i18n="tab_calculation">Calculation</button>
     </nav>
@@ -49,37 +51,38 @@
     </div>
 
     <div class="tab" id="tab-system">
-      <div class="field">
-        <label data-i18n="database">Thermodynamic database</label>
-        <select id="database" disabled></select>
-        <p class="hint" data-i18n="database_hint">Downloaded from its publisher at the first use, then kept.</p>
+      <h3 data-i18n="database">Thermodynamic database</h3>
+      <div id="database-form"></div>
+      <details class="expert-block">
+        <summary data-i18n="database_status">Databases on this machine</summary>
+        <ul id="database-status" class="plain"></ul>
+      </details>
+      <h3 data-i18n="system">Phases the paste may form</h3>
+      <div id="system-form"></div>
+      <div id="phases" class="chips"></div>
+      <div id="ss-picker"></div>
+      <h3 data-i18n="species">Species of the database</h3>
+      <p class="hint" data-i18n="species_lead">Search by name, formula or cement notation; the elements keep the species made of them only.</p>
+      <div id="species-browser"></div>
+      <h3 data-i18n="activity_model">Activity model of the pore solution</h3>
+      <div id="activity-form"></div>
+      <h3 data-i18n="diagnosis">Diagnosis</h3>
+      <ul id="diagnostics-system" class="diagnostics"></ul>
+    </div>
+
+    <div class="tab" id="tab-materials">
+      <p class="lead" data-i18n="materials_lead">The binder: published materials, or your own from an oxide analysis or a mineral composition.</p>
+      <div id="materials"></div>
+      <div class="row">
+        <button id="material-add" class="small" data-i18n="add_material">+ material</button>
+        <span class="hint" id="fraction-sum"></span>
       </div>
-      <div class="field">
-        <label data-i18n="phase_list">Phases the paste may form</label>
-        <select id="phase-list"></select>
-        <p class="hint" id="phase-list-source"></p>
-      </div>
-      <div class="field">
-        <label data-i18n="activity_model">Activity model of the pore solution</label>
-        <div class="choices" id="activity-model"></div>
-      </div>
+      <p class="hint" data-i18n="degree_hint">The degree of reaction is the fraction of a constituent that has reacted, from 0 to 1.</p>
     </div>
 
     <div class="tab" id="tab-mix">
-      <h3><span data-i18n="materials">Materials</span>
-        <button id="material-add" class="small" data-i18n="add_material">+ material</button></h3>
-      <div id="materials"></div>
-      <p class="hint" id="fraction-sum"></p>
-      <div class="grid2">
-        <div class="field">
-          <label for="w-b" data-i18n="w_b">Water-to-binder ratio w/b</label>
-          <input id="w-b" type="number" step="0.01" min="0.05">
-        </div>
-        <div class="field">
-          <label for="temperature" data-i18n="temperature">Temperature (°C)</label>
-          <input id="temperature" type="number" step="1" min="0" max="99">
-        </div>
-      </div>
+      <p class="lead" data-i18n="mix_lead">The water, the temperature and the amount of binder of the paste.</p>
+      <div id="mix-form"></div>
     </div>
 
     <div class="tab" id="tab-calculation">
@@ -91,19 +94,23 @@
       <div class="modes" id="modes">
         <button data-mode="equilibrium" class="on">
           <b data-i18n="mode_equilibrium">Equilibrium</b>
-          <span data-i18n="mode_equilibrium_text">One equilibrium of the paste, at the degrees of reaction of the Mix tab.</span>
+          <span data-i18n="mode_equilibrium_text">One equilibrium of the paste, at the degrees of reaction of the Materials tab.</span>
         </button>
-        <button data-mode="extents" disabled data-i18n-title="later">
-          <b data-i18n="mode_extents">Degrees of reaction in time</b>
-          <span data-i18n="mode_extents_text">A path of equilibria, the degrees of reaction following a law in time.</span>
+        <button data-mode="extents">
+          <b data-i18n="mode_extents">Path of equilibria</b>
+          <span data-i18n="mode_extents_text">Equilibria along a parameter: the age, a replacement, an added species, renewals of water, the temperature.</span>
         </button>
-        <button data-mode="kinetics" disabled data-i18n-title="later">
+        <button data-mode="kinetics" data-i18n-title="later">
           <b data-i18n="mode_kinetics">Kinetics</b>
           <span data-i18n="mode_kinetics_text">Rate equations integrated in time, the equilibrium solved at each step.</span>
         </button>
       </div>
+      <div id="calculation-form"></div>
+      <h3 data-i18n="constraint">Constraint on the equilibrium</h3>
+      <div id="constraint-form"></div>
       <h3 data-i18n="problems">Before running</h3>
       <ul id="problems" class="problems"></ul>
+      <ul id="diagnostics" class="diagnostics"></ul>
     </div>
   </section>
 
@@ -114,8 +121,10 @@
     <nav class="tabs" id="result-tabs">
       <button data-result="phases" class="on" data-i18n="res_phases">Phases</button>
       <button data-result="pore" data-i18n="res_pore">Pore solution</button>
-      <button data-result="si" data-i18n="res_si">Saturation</button>
-      <button data-result="certificate" data-i18n="res_certificate">Certificate</button>
+      <button data-result="si" data-only="equilibrium" data-i18n="res_si">Saturation</button>
+      <button data-result="porosity" data-only="path" data-i18n="res_porosity">Porosity</button>
+      <button data-result="certificate" data-only="equilibrium" data-i18n="res_certificate">Certificate</button>
+      <button data-result="table" data-only="path" data-i18n="res_table">Table</button>
       <button data-result="output" data-i18n="res_output">Output</button>
     </nav>
     <div id="results" class="pane">
@@ -131,6 +140,7 @@
       </div>
       <div class="result" id="result-pore">
         <div class="summary" id="pore-summary"></div>
+        <div class="plot" id="plot-ph" hidden></div>
         <div class="plot" id="plot-pore"></div>
         <table class="data" id="pore-table"></table>
       </div>
@@ -138,9 +148,16 @@
         <p class="hint" data-i18n="si_hint">Saturation index log(Q/K): 0 for a phase at equilibrium, negative for one that would dissolve, positive for one that would precipitate.</p>
         <table class="data" id="si-table"></table>
       </div>
+      <div class="result" id="result-porosity">
+        <div class="plot" id="plot-porosity"></div>
+      </div>
       <div class="result" id="result-certificate">
         <p class="hint" data-i18n="certificate_hint">What the solver proved about the answer.</p>
         <table class="data" id="certificate-table"></table>
+      </div>
+      <div class="result" id="result-table">
+        <div class="row"><button class="small" data-copy="#path-table" data-i18n="copy_table">Copy the table</button></div>
+        <div class="scroll-x"><table class="data" id="path-table"></table></div>
       </div>
       <div class="result" id="result-output"><pre id="output"></pre></div>
     </div>
@@ -184,6 +201,7 @@
 <script src="/vendor/highlight.min.js"></script>
 <script src="/vendor/julia.min.js"></script>
 <script src="/api.js"></script>
+<script src="/forms.js"></script>
 <script src="/split.js"></script>
 <script src="/picker.js"></script>
 <script src="/app.js"></script>
