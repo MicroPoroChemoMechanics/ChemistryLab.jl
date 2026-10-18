@@ -1,5 +1,42 @@
 # Changelog
 
+## v0.39.3 — what a choice of species leaves out, said before computing, and a studio
+
+A patch release that adds a function and changes no result. A calculation on a
+cement paste silently sets aside what its system cannot hold, reads crystals
+beyond the temperatures their data cover, or counts one phase twice; each of
+these is now reported, before the calculation, with what it costs and what to
+do. The repository also holds ChemistryLab Studio, a graphical interface for
+cement pastes, registered as a package of its own (`ChemistryLabStudio`).
+
+### Added
+
+- **`diagnose_system(cs; recipe, T, t, model, reactants, large)`** returns
+  the findings worth reading before computing, each a `SystemDiagnostic` with
+  a level (`:blocking`, `:warning`, `:info`), a code, a message saying what
+  was found and what it costs, a fix, and the species concerned:
+  - a constituent of the recipe the system cannot hold, set aside unreacted;
+  - ettringite declared both as a pure phase and as `ettringite03_ss`, one
+    phase counted twice;
+  - a crystal used outside the temperature range its data declare, reported
+    as information for the reactants (the minerals of the recipe, and those a
+    phase list names), which only dissolve;
+  - the Al-Si hydrogarnets of Cemdata18, which Lothenbach et al. (2019) note
+    precipitate very slowly at 20 °C and are generally left out;
+  - crystals without a standard molar volume (volumes and porosity incomplete)
+    or without an enthalpy of formation (heat incomplete);
+  - with a SIT model, the pairs of ions without an interaction coefficient;
+  - a system of more than `large` species, whose first solve compiles longer.
+
+  An empty result means none of these was found, not that the calculation is
+  right. The scripts ChemistryLab Studio writes print the findings first.
+
+### Documentation
+
+- A chapter **Studio**, after *Getting Started*: starting the studio on a
+  local or a remote machine, a tour of its tabs and results, and its library
+  of published formulations. The home page and *Getting Started* point to it.
+
 ## v0.39.2 — a reaction iterated as pairs, and cement species from any formula
 
 A patch release. Three defects found while raising the test coverage are fixed:

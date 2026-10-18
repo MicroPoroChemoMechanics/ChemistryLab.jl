@@ -17,7 +17,7 @@
 // A kinetic run compiles for a few minutes the first time: the script waits.
 // The pictures committed are then reduced to 256 colors (a third of the size,
 // no visible loss), for instance with Python's PIL:
-//   Image.open(f).convert("RGB").quantize(256, dither = NONE).save(f, optimize = True)
+//   Image.open(f).convert("RGB").quantize(256, dither=Image.Dither.NONE).save(f, optimize=True)
 //
 // Needs Node and playwright-core with a Chromium build. playwright-core is found
 // through $PLAYWRIGHT_CORE, then in the global @playwright/mcp install, then by
