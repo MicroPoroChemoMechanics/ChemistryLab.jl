@@ -319,36 +319,15 @@ function kinetic_step(
     K, M = kss.K, kss.M
     nr = size(K, 2)
     m = size(des.A, 1)
-    ns = length(n0)
 
-    A_aug, Aq, b_aug, use_M = if kss.coupling === :reactions
-        # Leal's form: `[A ; Kᵀ] n + [0 ; −I] Δξ = [A n₀ ; Kᵀ n₀]`, one row per
-        # reaction. The extents are functionals of the composition, and every
-        # species the partition excludes is left to the minimization.
-        (
-            vcat(des.A, transpose(K)),
-            vcat(zeros(m, nr), -Matrix(1.0I, nr, nr)),
-            vcat(des.A * n0, transpose(K) * n0),
-            true,
-        )
-    else
-        # One row per KINETIC SPECIES: `nᵢ − Σⱼ νᵢⱼ Δξⱼ = nᵢ(0)`. Every species in
-        # the partition is then pinned by the extents, so a solid-to-solid
-        # reaction imposes its products instead of proposing them — while the
-        # aqueous phase still minimizes `G` under element conservation, which is
-        # the coupling a plain ODE integration does not have.
-        nk = length(kss.idx_kin)
-        E = zeros(nk, ns)
-        for (r, i) in enumerate(kss.idx_kin)
-            E[r, i] = 1.0
-        end
-        (
-            vcat(des.A, E),
-            vcat(zeros(m, nr), -K[kss.idx_kin, :]),
-            vcat(des.A * n0, n0[kss.idx_kin]),
-            false,
-        )
-    end
+    # Leal's form: `[A ; Kᵀ] n + [0 ; −I] Δξ = [A n₀ ; Kᵀ n₀]`, one row per
+    # reaction. The extents are functionals of the composition, and every
+    # species the partition excludes is left to the minimization. (The
+    # `:species` coupling, one row per kinetic species, is the elimination
+    # returned above.)
+    A_aug = vcat(des.A, transpose(K))
+    Aq = vcat(zeros(m, nr), -Matrix(1.0I, nr, nr))
+    b_aug = vcat(des.A * n0, transpose(K) * n0)
 
     T_K = p.T
     P_Pa = p.P
@@ -359,14 +338,10 @@ function kinetic_step(
     # one available before the step is taken, floored so that a reaction starting
     # at zero rate still has one.
     r0 = rates(n0, p)
-    qscale = [
-        max(abs(Δt_s * (use_M ? sum(M[j, :] .* r0) : r0[j])), 1.0e-12) for j in 1:nr
-    ]
+    qscale = max.(abs.(Δt_s .* (M * r0)), 1.0e-12)
 
-    # `Δξ − Δt·M·r(n) = 0` for Leal's form, `Δξ − Δt·r(n) = 0` for the
-    # species-pinned one. The `M` is not decoration: `Kᵀn − Δξ = ξ₀` defines
-    # `Δξ = Kᵀ(n − n₀)`, and with `n − n₀ = Kξ` that is `KᵀK ξ`. Pinning the
-    # species instead makes `Δξ` the reaction progress itself, so `M` disappears.
+    # `Δξ − Δt·M·r(n) = 0`. The `M` is not decoration: `Kᵀn − Δξ = ξ₀` defines
+    # `Δξ = Kᵀ(n − n₀)`, and with `n − n₀ = Kξ` that is `KᵀK ξ`.
     #
     # Each residual is divided by the amount its reaction acts on, `Σᵢ |Kᵢⱼ| nᵢ`,
     # capped at one mole, as an element balance is judged against
@@ -384,12 +359,8 @@ function kinetic_step(
     # tutorial), the certificate then failed near equilibrium on every step the
     # adaptive march tried above one second: 706 steps reached 842 s, where the
     # march reaches 10⁵ s in 19.
-    rscale = [
-        max(min(sum(abs(K[i, j]) * n0[i] for i in axes(K, 1)), 1.0), qscale[j]) for j in 1:nr
-    ]
-    cq = use_M ?
-        (x, q, params) -> (q .- Δt_s .* (M * rates(x, params))) ./ rscale :
-        (x, q, params) -> (q .- Δt_s .* rates(x, params)) ./ rscale
+    rscale = max.(min.(transpose(abs.(K)) * n0, 1.0), qscale)
+    cq = (x, q, params) -> (q .- Δt_s .* (M * rates(x, params))) ./ rscale
 
     # A kinetic mineral is determined by its reactivity row, so it must not be
     # subject to an active-set sign test.
@@ -907,9 +878,12 @@ function _kinetic_step_eliminated(
     F, J, n_full = residual_and_jacobian(q)
     for _ in 1:maxit
         maximum(abs, F) <= 1.0e-14 * max(1.0, maximum(abs, q)) && break
+        # A singular Jacobian ends the polish, which keeps the last iterate; any
+        # other error is a defect and propagates.
         δ = try
             J \ (-F)
-        catch
+        catch err
+            err isa LinearAlgebra.SingularException || rethrow()
             break
         end
         all(isfinite, δ) || break

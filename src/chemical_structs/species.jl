@@ -1158,12 +1158,32 @@ function CemSpecies(
     )
 end
 
+# One formula unit of each cement oxide: the element it holds besides oxygen,
+# the atoms of that element and of oxygen. Each element belongs to one oxide
+# only, which is what lets a species be split by reading its elements.
+function _oxide_unit((oxide, composition))
+    element = only(k for k in keys(composition) if k !== :O)
+    return (; oxide, element, atoms = composition[element], oxygen = composition[:O])
+end
+const _OXIDE_UNITS = map(_oxide_unit, CEMENT_TO_MENDELEEV)
+
+# Whether two amounts of an element agree: to the rounding of a stoichiometric
+# coefficient for numbers, exactly (once `-` has simplified) for symbolic ones,
+# whose comparison is not a `Bool`.
+_same_amount(a, b) = isapprox(a, b; rtol = 1.0e-4)
+_same_amount(a::Num, b) = iszero(a - b)
+_same_amount(a, b::Num) = iszero(a - b)
+_same_amount(a::Num, b::Num) = iszero(a - b)
+
 """
     CemSpecies(s::Species; name, symbol, aggregate_state, class, properties) -> CemSpecies
 
 Convert a Species to CemSpecies by decomposing into oxide notation.
 
-Throws an error if the species cannot be decomposed into cement oxides.
+Each element but oxygen belongs to a single cement oxide, whose amount it sets;
+the species is refused when it holds an element of no cement oxide, or when its
+oxygen differs from that of the oxides, as for an ion such as OH⁻ or Ca²⁺.
+Symbolic and dual coefficients are carried through.
 
 # Arguments
 
@@ -1183,57 +1203,32 @@ function CemSpecies(
         properties = properties(s),
     )
     satoms = atoms(s)
-    b = zeros(valtype(satoms), size(Aoxides, 1))
-    for (atom, coef) in satoms
-        if atom ∉ atoms_in_oxides
-            error(
-                "$(name) cannot be decomposed in cement oxides since $(atom) does not belong to cement atoms",
-            )
-        else
-            b[order_atom_in_oxides[atom]] = coef
-        end
-    end
-    x = stoich_coef_round.(Aoxides \ b)
-    bcalc = stoich_coef_round.(Aoxides * x)
-    if try
-            isequal(bcalc, b) || isapprox(bcalc, b; rtol = 1.0e-4)
-        catch
-            false
-        end
-        oxides = OrderedDict(
-            OXIDE_ORDER[i] => vx for (i, vx) in enumerate(x) if !iszero(vx)
+    for atom in keys(satoms)
+        atom === :O || any(u -> u.element === atom, _OXIDE_UNITS) || error(
+            "$(name) cannot be decomposed in cement oxides since $(atom) does not belong to cement atoms",
         )
-        return CemSpecies(
-            oxides,
-            charge(s);
-            name = name,
-            symbol = symbol,
-            aggregate_state = aggregate_state,
-            class = class,
-            properties = properties,
-        )
-    else
-        SM = StoichMatrix([s], oxides_as_species)
-        A, indep_comp = SM.A, SM.primaries
-        oxides = OrderedDict(Symbol(indep_comp[i].symbol) => A[i, 1] for i in 1:size(A, 1))
-        if !isempty(oxides)
-            cemspecies = CemSpecies(
-                oxides,
-                charge(s);
-                name = name,
-                symbol = symbol,
-                aggregate_state = aggregate_state,
-                class = class,
-                properties = OrderedDict{Symbol, PropertyType}(
-                    k => v for (k, v) in properties
-                ),
-            )
-            if cemspecies == s
-                return cemspecies
-            end
-        end
     end
-    return error("$(name) cannot be decomposed in cement oxides")
+    # Every element but oxygen belongs to one oxide, whose amount it fixes;
+    # oxygen is then the check that the species is a sum of oxides.
+    units = [u for u in _OXIDE_UNITS if haskey(satoms, u.element)]
+    amounts = [stoich_coef_round(satoms[u.element] / u.atoms) for u in units]
+    oxygen = sum(x * u.oxygen for (u, x) in zip(units, amounts); init = 0)
+    _same_amount(oxygen, get(satoms, :O, 0)) || error(
+        "$(name) cannot be decomposed in cement oxides: the oxides of its elements hold $(oxygen) oxygen, and it has $(get(satoms, :O, 0))",
+    )
+    # A species with no element, the charge carrier Zz, keeps the number type
+    # of its formula.
+    oxides = isempty(units) ? OrderedDict{Symbol, valtype(satoms)}() :
+        OrderedDict(u.oxide => x for (u, x) in zip(units, amounts))
+    return CemSpecies(
+        oxides,
+        charge(s);
+        name = name,
+        symbol = symbol,
+        aggregate_state = aggregate_state,
+        class = class,
+        properties = properties,
+    )
 end
 
 """

@@ -1106,9 +1106,12 @@ function common_tangent(
         r = F(v)
         maximum(abs, r) < tol && break
         J = ForwardDiff.jacobian(F, v)
+        # A singular Jacobian means no binodal from this start (`nothing`, as
+        # documented); any other error is a defect and propagates.
         Δ = try
             J \ r
-        catch
+        catch err
+            err isa LinearAlgebra.SingularException || rethrow()
             return nothing
         end
         # Damped, and kept strictly inside (0,1) with a < b: the residual has a

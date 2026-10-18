@@ -84,17 +84,30 @@
     @test c3s == c3s_copy
     @test hash(c3s) == hash(c3s_copy)
 
-    # A species the direct solve over the oxides does not reproduce goes to the
-    # stoichiometric decomposition, which was called with a keyword it does not
-    # have: a MethodError whatever the species. It now answers, here by refusing
-    # a species no combination of the oxides writes.
-    err = try
-        CemSpecies(Species("OH-"))
-        nothing
-    catch e
-        e
-    end
-    @test err !== nothing && !(err isa MethodError)
+    # A species no sum of oxides writes is refused, and its oxygen says why:
+    # the hydrogen of OH⁻ is half a water, which holds half its oxygen. The
+    # fallback that was meant to answer raised another component's error.
+    @test_throws "OH- cannot be decomposed in cement oxides: the oxides of its elements hold 1//2 oxygen, and it has 1" CemSpecies(
+        Species("OH-")
+    )
+    @test_throws "the oxides of its elements hold 1 oxygen, and it has 0" CemSpecies(Species("Ca+2"))
+    # A fraction of an oxide is exact.
+    @test oxides(CemSpecies(Species("KOH"))) == OrderedDict(:K => 1 // 2, :H => 1 // 2)
+    # The charge carrier holds no element, hence no oxide.
+    zz = CemSpecies(Species("Zz"))
+    @test isempty(oxides(zz)) && charge(zz) == 1
+    # Symbolic amounts are carried, and the oxygen is checked exactly: the
+    # direct solve over the oxides refused them.
+    Sym = ChemistryLab.Symbolics
+    a, g = Sym.variable(:a), Sym.variable(:g)
+    csh = CemSpecies(Species(OrderedDict(:Ca => a, :Si => 1, :O => a + 2 + g, :H => 2g)))
+    @test isequal(oxides(csh)[:C], a) && isequal(oxides(csh)[:H], g) && oxides(csh)[:S] == 1
+    @test_throws "cannot be decomposed in cement oxides" CemSpecies(
+        Species(OrderedDict(:Ca => a, :Si => 1, :O => a + 3 + g, :H => 2g))
+    )
+    # So are dual amounts, with their derivatives.
+    lime(t) = oxides(CemSpecies(Species(OrderedDict(:Ca => t, :Si => 1, :O => t + 2))))[:C]
+    @test ForwardDiff.derivative(lime, 1.7) == 1
 end
 
 @testsection "with_class" begin

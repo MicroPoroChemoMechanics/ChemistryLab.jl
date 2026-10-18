@@ -34,26 +34,22 @@ julia> stoich_coef_round(3.14159)
 3.14159
 ```
 """
-function stoich_coef_round(x::T; tol = 1.0e-3) where {T <: Real}
-    try
-        if isapprox(x, round(x); atol = tol)
-            return Int(round(x))
-        end
-
-        rat = rationalize(x; tol = tol)
-        if isapprox(x, float(rat); atol = tol)
-            if 1 < denominator(rat) < 10
-                return rat
-            end
-        end
-
-        return round(x; digits = 5)
-    catch e
-        return x
+function stoich_coef_round(x::Real; tol = 1.0e-3)
+    # An infinite or a NaN coefficient has nothing to round.
+    isfinite(x) || return x
+    n = round(x)
+    if isapprox(x, n; atol = tol)
+        # A whole number beyond `Int` stays as given.
+        return typemin(Int) ≤ n ≤ typemax(Int) ? Int(n) : x
     end
+    rat = rationalize(x; tol = tol)
+    isapprox(x, float(rat); atol = tol) && 1 < denominator(rat) < 10 && return rat
+    return round(x; digits = 5)
 end
 
 stoich_coef_round(x) = x
+# A symbolic coefficient has no value to round (`Num <: Real`).
+stoich_coef_round(x::Num; tol = 1.0e-3) = x
 # A coefficient carrying a dual number is a parameter being differentiated, and
 # rounding it would drop its derivative (`round` of a dual is its value).
 stoich_coef_round(x::ForwardDiff.Dual; tol = 1.0e-3) = x
@@ -299,6 +295,10 @@ function colored_formula(s::AbstractString; colorcharge = true)
     return join(colored_graph)
 end
 
+# A count written `4//2` is the integer 2; a float count that is an integer is
+# already one, `_printed_coefficient` rounding it.
+_integral_count(x::Rational) = isone(denominator(x)) ? numerator(x) : x
+
 """
     parse_formula(formula::AbstractString) -> OrderedDict{Symbol,Number}
 
@@ -328,18 +328,6 @@ OrderedDict{Symbol, Int64} with 3 entries:
 ```
 """
 function parse_formula(formula::AbstractString)
-    function safe_nextind(s::AbstractString, i::Integer, n::Integer = 1)
-        last_i = lastindex(s)
-        idx = i
-        for _ in 1:n
-            if idx > last_i
-                return last_i + 1
-            end
-            idx = nextind(s, idx)
-        end
-        return idx
-    end
-
     formula = replace(formula, ":" => "", "{" => "(", "}" => ")", "[" => "(", "]" => ")")
     formula = replace(formula, r"\|\-?\d+\|" => "")
     formula = replace(formula, r"\|" => "")
@@ -352,16 +340,16 @@ function parse_formula(formula::AbstractString)
         c = formula[i]
         if c == '('
             depth = 1
-            j = safe_nextind(formula, i)
+            j = nextind(formula, i)
             while j <= lastindex(formula) && depth > 0
                 if formula[j] == '('
                     depth += 1
                 elseif formula[j] == ')'
                     depth -= 1
                 end
-                j = safe_nextind(formula, j)
+                j = nextind(formula, j)
             end
-            inner = formula[safe_nextind(formula, i):prevind(formula, j)]
+            inner = formula[nextind(formula, i):prevind(formula, j)]
 
             rest = j <= lastindex(formula) ? formula[j:end] : ""
 
@@ -381,7 +369,10 @@ function parse_formula(formula::AbstractString)
                 counts[el] = get(counts, el, 0) + n * factor
             end
 
-            i = safe_nextind(formula, j, offset)
+            # Past the group and its factor. With no factor, `j` may already be
+            # past the end (a formula closing on a parenthesis, FeO(OH)), where
+            # `nextind` refuses to start.
+            i = iszero(offset) ? j : nextind(formula, j, offset)
         else
             m = match(
                 r"^(\p{Lu}[\p{Ll}\u0300-\u036F]?)(([0-9]+//[0-9]+)|([0-9]+(?:\.[0-9]+)?))?",
@@ -393,22 +384,16 @@ function parse_formula(formula::AbstractString)
                 cnt = if countstr === nothing || isempty(countstr)
                     1
                 elseif occursin("//", countstr)
-                    parse(Rational{Int}, countstr)
+                    _integral_count(parse(Rational{Int}, countstr))
                 else
                     _printed_coefficient(parse(Float64, countstr))
                 end
 
-                if cnt isa Rational && denominator(cnt) == 1
-                    cnt = Int(numerator(cnt))
-                elseif cnt isa Float64 && isinteger(cnt)
-                    cnt = Int(cnt)
-                end
-
                 counts[el] = get(counts, el, 0) + cnt
 
-                i = safe_nextind(formula, i, length(m.match))
+                i = nextind(formula, i, length(m.match))
             else
-                i = safe_nextind(formula, i)
+                i = nextind(formula, i)
             end
         end
     end
@@ -685,69 +670,42 @@ julia> format_equation(coeffs)
 ```
 """
 function format_equation(coeffs::AbstractDict; scaling = 1, equal_sign = '=')
-    # Separate reactants and products
-    reactants = String[]
-    products = String[]
-    total_charge_left = 0
-    total_charge_right = 0
-
-    for (species, coeff) in coeffs
-        if species !== "Zz"
-            coeff = stoich_coef_round(coeff * scaling)
-
-            # Format the coefficient
-            abs_coeff = coeff < 0 ? -coeff : coeff
-            coeff_str = if isapprox(abs_coeff, 1; atol = 1.0e-6)
-                ""
-            elseif isinteger(abs_coeff)
-                string(Int(abs_coeff))
-            else
-                string(abs_coeff)
-            end
-
-            if coeff > 0
-                push!(products, "$coeff_str$species")
-                total_charge_right += coeff * extract_charge(species)
-            elseif coeff < 0
-                push!(reactants, "$coeff_str$species")
-                total_charge_left += coeff * extract_charge(species)
-            elseif coeff == 0
-            else
-                push!(products, "($coeff_str)$species")
-                total_charge_right += coeff * extract_charge(species)
-            end
-        end
+    terms = [(species, stoich_coef_round(coeff * scaling)) for (species, coeff) in coeffs if species != "Zz"]
+    sides = [_coefficient_side(c, species) for (species, c) in terms]
+    reactants = [_equation_term(c, species) for ((species, c), side) in zip(terms, sides) if side < 0]
+    products = [_equation_term(c, species) for ((species, c), side) in zip(terms, sides) if side > 0]
+    # The charge left over, Σ ν z with the reactants counted negative, is balanced
+    # by electrons on the side that lacks them.
+    charge = sum(c * extract_charge(species) for (species, c) in terms; init = 0)
+    if !isapprox(charge, 0; atol = 1.0e-6)
+        needed = stoich_coef_round(abs(charge))
+        electrons = isone(needed) ? "e⁻" : "$(needed)e⁻"
+        push!(charge < 0 ? reactants : products, electrons)
     end
+    written(side) = isempty(side) ? "∅" : join(side, " + ")
+    return "$(written(reactants)) $(something(equal_sign, '=')) $(written(products))"
+end
 
-    # Build the initial equation
-    left_side = join(reactants, " + ")
-    right_side = join(products, " + ")
+# The side of a species, read from the sign of its coefficient: -1 for a
+# reactant, 1 for a product, 0 for an absent species. A sign that cannot be
+# decided, that of a symbol or of a NaN, is refused rather than guessed.
+function _coefficient_side(c, species)
+    positive, negative = c > 0, c < 0
+    (positive isa Bool && negative isa Bool && (positive || negative || iszero(c))) || throw(
+        ArgumentError(
+            "format_equation reads the side of $species from the sign of its coefficient, " *
+                "and the sign of $c cannot be decided; build a `Reaction` from its " *
+                "reactants and products instead"
+        )
+    )
+    return positive ? 1 : negative ? -1 : 0
+end
 
-    # Compute the charge difference (corrected)
-    charge_diff = total_charge_right + total_charge_left
-
-    # Balance charges if necessary
-    if !isapprox(charge_diff, 0; atol = 1.0e-6)
-        needed_e = stoich_coef_round(abs(charge_diff))
-        e_term = needed_e == 1 ? "e⁻" : "$needed_e" * "e⁻"
-
-        if charge_diff < 0
-            # Add e- to the left (reactants)
-            left_side = isempty(left_side) ? e_term : "$left_side + $e_term"
-        else
-            # Add e- to the right (products)
-            right_side = isempty(right_side) ? e_term : "$right_side + $e_term"
-        end
-    end
-
-    if isempty(left_side)
-        left_side = "∅"
-    end
-    if isempty(right_side)
-        right_side = "∅"
-    end
-
-    return "$left_side $(isnothing(equal_sign) ? '=' : equal_sign) $right_side"
+# A term of an equation: "2H2O", "H2O" for a unit coefficient, "1//2O2".
+function _equation_term(c, species)
+    a = abs(c)
+    coefficient = isapprox(a, 1; atol = 1.0e-6) ? "" : isinteger(a) ? string(Int(a)) : string(a)
+    return coefficient * species
 end
 
 """

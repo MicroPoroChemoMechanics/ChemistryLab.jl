@@ -39,6 +39,12 @@ using Test
             Matrix{Float64}(I, 2, 2), diagm([1.0, 0.0]), zeros(2), [0.0, 1.0], [1.0, 0.0];
             pinned = [false, true],
         )
+        # Left free, the absent pure phase, of zero curvature, takes the whole
+        # perturbation. Marked pinnable, it is found and held, and the present
+        # species carries the component.
+        absent = ([1.0 1.0], diagm([1.0, 0.0]), zeros(2), [1.0], [1.0, 0.0])
+        @test ChemistryLab._equilibrium_sensitivity(absent...) ≈ [0.0, 1.0]
+        @test ChemistryLab._equilibrium_sensitivity(absent...; pinnable = [false, true]) ≈ [1.0, 0.0]
     end
 
     @testset "the derivative of a certified equilibrium through dual element amounts" begin
