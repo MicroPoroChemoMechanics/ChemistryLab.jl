@@ -1,10 +1,15 @@
-# Starting ChemistryLab Studio
+# [Starting ChemistryLab Studio](@id studio-start)
 
 ChemistryLab Studio is a graphical interface for cementitious materials. It
 runs in your web browser, on your own machine: you build a calculation with
 forms, run it, read its plots and tables, and get the Julia script that does
 the same calculation on its own. No programming is needed to use it, and the
 script it writes is a way to learn.
+
+```@raw html
+<img class="studio-shot light-only" src="../assets/studio/studio_equilibrium_light.png" alt="ChemistryLab Studio: the materials of a CEM I paste on the left, its phase assemblage in the middle, the Julia script on the right">
+<img class="studio-shot dark-only" src="../assets/studio/studio_equilibrium_dark.png" alt="ChemistryLab Studio in the dark theme">
+```
 
 ## What you need
 
@@ -39,14 +44,14 @@ process, in an environment of its own named `@chemistrylab-studio`. The page
 opens at once and shows, under *Getting ready*, what is being done:
 
 1. **The environment is prepared**, once: ChemistryLab, its equilibrium solver
-   OptimaSolver, DynamicQuantities for the units and Plots for the figures of
-   the scripts. On a fresh installation this downloads and compiles them, which
-   takes several minutes; when they are already installed it takes about a
-   minute.
+   OptimaSolver, DynamicQuantities for the units, OrdinaryDiffEq for the
+   kinetic runs and Plots for the figures of the scripts. On a fresh installation this downloads and compiles them, which
+   takes several minutes; it is much shorter when they are already installed.
 2. **The thermodynamic database is downloaded** from its publisher, once, and
    kept on your machine.
-3. **The first calculation is compiled**, at each start of the studio: about
-   two minutes. Later calculations take a fraction of a second.
+3. **The first calculation is compiled**, at each start of the studio, which
+   takes from under a minute to a few minutes depending on the machine. Later
+   calculations of the same kind take a fraction of a second.
 
 You can fill in the forms meanwhile. The badge at the top right turns green
 (*ready*) when a calculation can run.
@@ -105,3 +110,9 @@ It prints its tables and saves its figure next to itself.
 | A database is unavailable | The message says where to download the file and how to install it. |
 | *port … is already in use* | Another program uses that port: start with another one, `clstudio(port = 9000)`. |
 | The packages are old | `clstudio(update = true)`. |
+
+## Reference
+
+```@docs
+clstudio
+```

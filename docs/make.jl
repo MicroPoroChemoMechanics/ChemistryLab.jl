@@ -1,4 +1,7 @@
 using ChemistryLab
+# The docstring of `clstudio` in the Studio chapter. Not in `modules`: the
+# studio's internal docstrings document its code, not the package's API.
+using ChemistryLabStudio
 using Optimization, OptimizationIpopt  # load extension OptimizationIpoptExt
 using OptimaSolver                     # load extension OptimaSolverExt
 using OrdinaryDiffEq                  # load extension KineticsOrdinaryDiffEqExt
