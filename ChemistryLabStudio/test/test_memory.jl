@@ -26,6 +26,30 @@ end
 b = CLS.cgroup_budget()
 @test b === nothing || (b.limit > 0 && b.room <= b.limit)
 
+# A budget on a cgroup tree written for the test: a slice capped by memory.high,
+# a user's slice inside it capped by memory.max, the process's scope with no
+# limit of its own. The tightest limit, and the least room counting page cache.
+mktempdir() do root
+    slice = joinpath(root, "user.slice")
+    user = joinpath(slice, "user-1.slice")
+    mkpath(joinpath(user, "session.scope"))
+    write(joinpath(slice, "memory.high"), "$(8 * CLS.GIB)\n")
+    write(joinpath(slice, "memory.current"), "$(3 * CLS.GIB)\n")
+    write(joinpath(slice, "memory.stat"), "active_file $(CLS.GIB)\n")
+    write(joinpath(user, "memory.max"), "$(6 * CLS.GIB)\n")
+    write(joinpath(user, "memory.current"), "$(5 * CLS.GIB)\n")
+    write(joinpath(user, "memory.stat"), "inactive_file $(CLS.GIB ÷ 2)\n")
+    membership = joinpath(root, "cgroup")
+    write(membership, "0::/user.slice/user-1.slice/session.scope\n")
+    @test CLS.cgroup_budget(; membership, root) == (; limit = 6 * CLS.GIB, room = 3 * CLS.GIB ÷ 2)
+    # no limit on the way up, a cgroup v1 membership, no membership at all
+    write(membership, "0::/user.slice/user-1.slice/session.scope/\n")
+    @test CLS.cgroup_budget(; membership, root = joinpath(root, "elsewhere")) === nothing
+    write(membership, "4:memory:/user.slice\n")
+    @test CLS.cgroup_budget(; membership, root) === nothing
+    @test CLS.cgroup_budget(; membership = joinpath(root, "absent"), root) === nothing
+end
+
 # the compute process is measured in the coverage mode of this process
 path = "/some/path"
 GC.@preserve path begin

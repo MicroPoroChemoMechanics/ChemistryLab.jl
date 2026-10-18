@@ -43,22 +43,22 @@ function page_cache(dir::AbstractString)
 end
 
 """
-    cgroup_budget() -> Union{Nothing, NamedTuple}
+    cgroup_budget(; membership = "/proc/self/cgroup", root = "/sys/fs/cgroup") -> Union{Nothing, NamedTuple}
 
 The memory budget of the cgroups (v2) this process runs in, from its own up to
 the root: `limit`, the tightest `min(memory.high, memory.max)`, and `room`, the
 least left under one of them, page cache counted as free. `nothing` when no
 limit applies or none can be read (not Linux, cgroup v1).
 """
-function cgroup_budget()
-    Sys.islinux() || return nothing
-    isfile("/proc/self/cgroup") || return nothing
-    lines = readlines("/proc/self/cgroup")
+function cgroup_budget(; membership::AbstractString = "/proc/self/cgroup", root::AbstractString = "/sys/fs/cgroup")
+    # the file that names this process's cgroup exists on Linux only
+    isfile(membership) || return nothing
+    lines = readlines(membership)
     k = findfirst(startswith("0::"), lines)
     k === nothing && return nothing
-    dir = rstrip("/sys/fs/cgroup" * lines[k][4:end], '/')
+    dir = rstrip(root * lines[k][4:end], '/')
     limit, room = typemax(Int), typemax(Int)
-    while startswith(dir, "/sys/fs/cgroup/")
+    while startswith(dir, root * "/")
         cap = min(cgroup_value(dir, "memory.high"), cgroup_value(dir, "memory.max"))
         if cap < typemax(Int)
             limit = min(limit, cap)
