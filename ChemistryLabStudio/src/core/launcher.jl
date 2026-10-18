@@ -139,12 +139,17 @@ function run_studio(
     # the default port gives way to the next free one; a port the user chose does not
     server = serve(session, router; tries = port === nothing ? 20 : 1)
     url = "http://$(url_host(host)):$(session.port)/?token=$token"
+    handle = StudioHandle(server, session, url, false)
+    # The waiting loop compiled before the address is printed, the first moment
+    # a user may press Ctrl-C: a Ctrl-C during a compilation can hold the exit.
+    wait && precompile(Base.wait, (typeof(handle),))
     foreach(println, banner(app.name, url, session.port))
     flush(stdout)   # a terminal shows it at once; a log file would hold it back
     no_browser || open_browser(url) || println("  Open that address in your browser.")
     errormonitor(@async boot!(session; update))
-    handle = StudioHandle(server, session, url, false)
-    atexit(() -> close(handle))
+    # No hook at exit: the system closes the server's socket, and the compute
+    # process ends when its connection closes. A hook would compile the whole
+    # shutdown on the way out, which held a Ctrl-C for tens of seconds.
     wait || return handle
     try
         Base.wait(handle)

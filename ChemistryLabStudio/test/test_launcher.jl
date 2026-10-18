@@ -163,6 +163,15 @@ Sys.iswindows() || @testset "Ctrl-C stops a studio run as a script" begin
         sleep(0.1)
     end
     @test occursin("token=", read(log, String))
+    # as a user would, once the studio has started (here its boot has failed,
+    # the environment lacking ChemistryLab): the process is idle, not compiling
+    m = match(r"http://127\.0\.0\.1:(\d+)/\?token=(\w+)", read(log, String))
+    for _ in 1:600
+        r = HTTP.get("http://127.0.0.1:$(m[1])/api/status", ["X-Studio-Token" => m[2]]; status_exception = false)
+        occursin("\"failed\"", String(r.body)) && break
+        sleep(0.1)
+    end
+    sleep(1)
     kill(p, Base.SIGINT)
     t0 = time()
     while process_running(p) && time() - t0 < 60

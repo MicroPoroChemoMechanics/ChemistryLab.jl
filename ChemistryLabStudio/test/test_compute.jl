@@ -182,6 +182,53 @@ end
     post("/api/library", Dict("id" => "cem1-52.5n-gruyaert2010"))
 end
 
+# Half a day in a semi-adiabatic cell, short of the change of assemblage where
+# ChemistryLab's integration stops: the heat and the temperature of the cell.
+@testset "a semi-adiabatic run against the same one written by hand" begin
+    model = api("/api/state")["model"]
+    model["calculation"] = Dict(
+        "kind" => "kinetics", "horizon" => 0.5, "ages" => [0.25, 0.5],
+        "rates" => [Dict("key" => "C3S", "value" => Dict("kind" => "parrott_killoh_avrami"))],
+        "calorimeter" => Dict("kind" => "semi_adiabatic", "heat_capacity" => 900.0, "loss" => 0.05, "ambient" => 20.0),
+    )
+    post("/api/model", Dict("model" => model))
+    run = post("/api/run", Dict())
+    run["ok"] || @error "the semi-adiabatic run failed" run["error"] get(run, "output", "")
+    @test run["ok"] && run["results"]["retcode"] == "Success"
+    h = run["results"]["heat"]
+    reference = CLS.call!(
+        cp, quote
+            let substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+                cs = phase_list_system("Portland paste (Lothenbach and Winnefeld 2006)", substances)
+                cement = with_extents(
+                    material_template("CEM I 52.5 N (Gruyaert 2010), Bogue", cs),
+                    Dict("C3S" => 0.8, "C2S" => 0.45, "C3A" => 0.9, "C4AF" => 0.6),
+                )
+                model = cemdata18_activity_model(:KOH)
+                T = T_ZERO_CELSIUS_Q + 20u"K"
+                recipe = Recipe(cement => 1.0; w_b = 0.5, T)
+                cal = SemiAdiabaticCalorimeter(; Cp = 900.0u"J/K", L = 0.05u"W/K", T_env = T, T0 = T)
+                rates = Dict{String, Any}("C3S" => parrott_killoh_avrami(PK84_PARAMS_C3S, "C3S"; blaine = 385.0, w_c = 0.5, α_max = powers_alpha_max(0.5)))
+                kp = KineticsProblem(
+                    recipe, cs, rates, (0.0, 0.5 * 86400.0); activity_model = model,
+                    equilibrium_solver = EquilibriumSolver(cs, model, OptimaOptimizer()), calorimeter = cal,
+                )
+                sol = integrate(kp, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-6, abstol = 1.0e-10))
+                _, Q = cumulative_heat(sol, cal)
+                _, θ = temperature_profile(sol, cal; times = [last(sol.t)])
+                (; Q = last(Q), T = only(θ))
+            end
+        end
+    )
+    @test reference.ok
+    @test last(h["heat"]) ≈ reference.value.Q / 100 rtol = 1.0e-9
+    @test last(h["temperature"]) ≈ reference.value.T - 273.15 rtol = 1.0e-9
+    # the paste warms the cell above the room, and its heat only grows
+    @test maximum(h["temperature"]) > 20 && issorted(h["heat"])
+    @test length(h["time"]) == length(h["heat"]) == length(h["temperature"])
+    post("/api/library", Dict("id" => "cem1-52.5n-gruyaert2010"))
+end
+
 @testset "a calculation against the same one written by hand" begin
     run = post("/api/run", Dict())
     @test run["ok"]
@@ -257,6 +304,11 @@ end
 end
 
 @testset "busy, stop, refusal" begin
+    # A stop may kill the process (on Windows, where the interrupt does not
+    # reach it), and its coverage with it: it exits normally first, writing what
+    # the tests above measured.
+    CLS.shutdown!(cp)
+    CLS.start!(cp)
     @test !CLS.stop!(cp)
     t = @async CLS.call!(cp, :(Main.StudioWorker.run_compute("sleep(60)\n")))
     for _ in 1:100
