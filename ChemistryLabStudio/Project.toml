@@ -1,0 +1,23 @@
+name = "ChemistryLabStudio"
+uuid = "41e5306f-482f-4787-86b7-5e4727e8e495"
+version = "0.1.0"
+authors = ["Jean-François Barthélémy"]
+
+[deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+Malt = "36869731-bdee-424d-aa32-cab38c994e3b"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
+
+[compat]
+Dates = "1"
+HTTP = "2.11"
+JSON = "1"
+Malt = "1.4"
+Random = "1"
+SHA = "0.7, 1"
+TOML = "1"
+julia = "1.12"

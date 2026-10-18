@@ -1,0 +1,23 @@
+[deps]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+ChemistryLabStudio = "41e5306f-482f-4787-86b7-5e4727e8e495"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+Malt = "36869731-bdee-424d-aa32-cab38c994e3b"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ChemistryLabStudio = {path = ".."}
+
+# `ChemistryLabStudio = "0"`: the package is mounted from `..` and Pkg applies
+# the bound to a path source too, so a narrower one would break the tests at
+# the next minor release.
+[compat]
+Aqua = "0.8"
+ChemistryLabStudio = "0"
+Dates = "1"
+HTTP = "2.11"
+JSON = "1"
+Malt = "1.4"
+Test = "1"

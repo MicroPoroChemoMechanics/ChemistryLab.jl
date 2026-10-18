@@ -1,0 +1,3 @@
+# The environments of the subpackage and of its tests resolve on each machine.
+/Manifest.toml
+/test/Manifest.toml

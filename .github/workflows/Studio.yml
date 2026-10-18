@@ -1,0 +1,137 @@
+name: Studio
+# ChemistryLab Studio (the ChemistryLabStudio subpackage): its tests, with a
+# compute process running the ChemistryLab of this commit, its coverage, its
+# formatting and its spelling. A workflow of its own, so that the studio is
+# tested whenever it or the package under it changes, and only then.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ChemistryLabStudio/**'
+      - 'src/**'
+      - 'data/**'
+      - 'Project.toml'
+      - '.github/workflows/Studio.yml'
+  pull_request:
+    paths:
+      - 'ChemistryLabStudio/**'
+      - 'src/**'
+      - 'data/**'
+      - 'Project.toml'
+      - '.github/workflows/Studio.yml'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+jobs:
+  test:
+    name: Studio - Julia ${{ matrix.version }} - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    permissions:
+      actions: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - 'min'
+          - '1'
+        os:
+          - ubuntu-latest
+          # Windows, where spawning, interrupting and killing the compute
+          # process take other routes than on Linux.
+          - windows-latest
+        exclude:
+          - os: windows-latest
+            version: 'min'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        id: julia
+        with:
+          version: ${{ matrix.version }}
+      - uses: julia-actions/cache@v3
+        with:
+          cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};version=${{ matrix.version }};julia=${{ steps.julia.outputs.julia-version }}
+          include-matrix: false
+      # As in CI.yml: the Pkg server intermittently fails to serve the registry
+      # of a cold depot; a direct clone is the fallback.
+      - name: Install the General registry
+        shell: julia --color=yes {0}
+        run: |
+          using Pkg
+          regdir = joinpath(first(DEPOT_PATH), "registries")
+          if isdir(joinpath(regdir, "General")) || isfile(joinpath(regdir, "General.tar.gz"))
+              @info "General registry already installed"
+          else
+              try
+                  Pkg.Registry.add("General")
+              catch err
+                  @warn "Pkg server could not serve the registry; cloning from GitHub" err
+                  withenv("JULIA_PKG_SERVER" => "") do
+                      Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/JuliaRegistries/General.git"))
+                  end
+              end
+          end
+      # The environment the compute process runs in, as the studio's own would
+      # hold it, with the ChemistryLab of this commit rather than the registered
+      # one. It lives outside the repository's tree.
+      - name: Build the compute environment
+        shell: julia --color=yes {0}
+        run: |
+          using Pkg
+          Pkg.activate(joinpath(ENV["RUNNER_TEMP"], "studio-worker"))
+          Pkg.develop(path = pwd())
+          Pkg.add(["OptimaSolver", "DynamicQuantities", "Plots"])
+          Pkg.precompile()
+      - name: Test
+        shell: bash
+        env:
+          CLSTUDIO_WORKER_PROJECT: ${{ runner.temp }}/studio-worker
+        run: |
+          coverage=""
+          if [ "${{ matrix.version }}" = "1" ] && [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            coverage="--code-coverage=@$GITHUB_WORKSPACE/ChemistryLabStudio"
+          fi
+          julia --color=yes $coverage --project=ChemistryLabStudio/test -e 'using Pkg; Pkg.instantiate(); include("ChemistryLabStudio/test/runtests.jl")'
+      - name: Process coverage
+        if: matrix.version == '1' && matrix.os == 'ubuntu-latest'
+        shell: julia --color=yes {0}
+        run: |
+          using Pkg
+          Pkg.activate(; temp = true)
+          Pkg.add("Coverage")
+          using Coverage
+          files = vcat(process_folder("ChemistryLabStudio/src"), process_folder("ChemistryLabStudio/worker"))
+          LCOV.writefile("lcov-studio.info", files)
+      - uses: codecov/codecov-action@v7
+        if: matrix.version == '1' && matrix.os == 'ubuntu-latest'
+        with:
+          files: lcov-studio.info
+          flags: studio
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+  format:
+    name: Studio - formatting and spelling
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1'
+      # The Runic of Format.yml, pinned for the same reason.
+      - name: Install Runic
+        run: julia -e 'using Pkg; Pkg.activate("runic", shared=true); Pkg.add(name="Runic", version="1.10")'
+      - name: Check formatting
+        run: julia --project=@runic -e 'using Runic; exit(Runic.main(["--check", "ChemistryLabStudio/src", "ChemistryLabStudio/test", "ChemistryLabStudio/worker"]))'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.x'
+      # The repository's spelling job reads the package's own folders only.
+      - name: Check spelling
+        run: python3 .github/scripts/spelling_tool.py check $(git ls-files 'ChemistryLabStudio/*.jl' 'ChemistryLabStudio/*.md') --convention us

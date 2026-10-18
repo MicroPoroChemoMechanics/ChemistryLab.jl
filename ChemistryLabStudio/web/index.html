@@ -1,0 +1,191 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later
+     Copyright © 2026 Jean-François Barthélémy (Cerema, UMR MCD) -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChemistryLab Studio</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+
+<header id="topbar">
+  <h1>ChemistryLab&nbsp;Studio</h1>
+  <div class="file">
+    <span id="path-label" class="pathlabel" data-i18n="untitled">untitled</span>
+    <button id="open" data-i18n="open">Open…</button>
+    <button id="save" data-i18n="save">Save</button>
+    <button id="saveas" data-i18n="save_as">Save as…</button>
+  </div>
+  <div class="spacer"></div>
+  <button id="lang" class="small" title="Language">FR</button>
+  <button id="theme" class="small" data-i18n-title="theme_title" title="Light or dark theme">◐</button>
+  <span id="status" class="badge" data-i18n="status_starting">starting…</span>
+  <button id="stop" class="danger" hidden data-i18n="stop">Stop</button>
+  <button id="run" class="primary" data-i18n="run">Run</button>
+</header>
+
+<div id="banner" hidden></div>
+
+<main>
+  <!-- left: the steps of a calculation -->
+  <section id="left">
+    <nav class="tabs" id="steps">
+      <button data-tab="start" class="on" data-i18n="tab_start">Start</button>
+      <button data-tab="system" data-i18n="tab_system">System</button>
+      <button data-tab="mix" data-i18n="tab_mix">Mix</button>
+      <button data-tab="calculation" data-i18n="tab_calculation">Calculation</button>
+    </nav>
+
+    <div class="tab on" id="tab-start">
+      <p class="lead" data-i18n="start_lead">Start from a published formulation, or open a script you saved.</p>
+      <div class="row">
+        <button id="open2" data-i18n="open_script">Open a script…</button>
+      </div>
+      <h3 data-i18n="library">Library of published formulations</h3>
+      <div id="library"></div>
+    </div>
+
+    <div class="tab" id="tab-system">
+      <div class="field">
+        <label data-i18n="database">Thermodynamic database</label>
+        <select id="database" disabled></select>
+        <p class="hint" data-i18n="database_hint">Downloaded from its publisher at the first use, then kept.</p>
+      </div>
+      <div class="field">
+        <label data-i18n="phase_list">Phases the paste may form</label>
+        <select id="phase-list"></select>
+        <p class="hint" id="phase-list-source"></p>
+      </div>
+      <div class="field">
+        <label data-i18n="activity_model">Activity model of the pore solution</label>
+        <div class="choices" id="activity-model"></div>
+      </div>
+    </div>
+
+    <div class="tab" id="tab-mix">
+      <h3><span data-i18n="materials">Materials</span>
+        <button id="material-add" class="small" data-i18n="add_material">+ material</button></h3>
+      <div id="materials"></div>
+      <p class="hint" id="fraction-sum"></p>
+      <div class="grid2">
+        <div class="field">
+          <label for="w-b" data-i18n="w_b">Water-to-binder ratio w/b</label>
+          <input id="w-b" type="number" step="0.01" min="0.05">
+        </div>
+        <div class="field">
+          <label for="temperature" data-i18n="temperature">Temperature (°C)</label>
+          <input id="temperature" type="number" step="1" min="0" max="99">
+        </div>
+      </div>
+    </div>
+
+    <div class="tab" id="tab-calculation">
+      <div class="field">
+        <label for="title" data-i18n="title">Title of the study</label>
+        <input id="title" type="text" spellcheck="false">
+      </div>
+      <h3 data-i18n="mode">What to compute</h3>
+      <div class="modes" id="modes">
+        <button data-mode="equilibrium" class="on">
+          <b data-i18n="mode_equilibrium">Equilibrium</b>
+          <span data-i18n="mode_equilibrium_text">One equilibrium of the paste, at the degrees of reaction of the Mix tab.</span>
+        </button>
+        <button data-mode="extents" disabled data-i18n-title="later">
+          <b data-i18n="mode_extents">Degrees of reaction in time</b>
+          <span data-i18n="mode_extents_text">A path of equilibria, the degrees of reaction following a law in time.</span>
+        </button>
+        <button data-mode="kinetics" disabled data-i18n-title="later">
+          <b data-i18n="mode_kinetics">Kinetics</b>
+          <span data-i18n="mode_kinetics_text">Rate equations integrated in time, the equilibrium solved at each step.</span>
+        </button>
+      </div>
+      <h3 data-i18n="problems">Before running</h3>
+      <ul id="problems" class="problems"></ul>
+    </div>
+  </section>
+
+  <div class="gutter gutter-v" data-col="l" title="Drag to resize · double-click to reset"></div>
+
+  <!-- middle: results -->
+  <section id="middle">
+    <nav class="tabs" id="result-tabs">
+      <button data-result="phases" class="on" data-i18n="res_phases">Phases</button>
+      <button data-result="pore" data-i18n="res_pore">Pore solution</button>
+      <button data-result="si" data-i18n="res_si">Saturation</button>
+      <button data-result="certificate" data-i18n="res_certificate">Certificate</button>
+      <button data-result="output" data-i18n="res_output">Output</button>
+    </nav>
+    <div id="results" class="pane">
+      <div id="ready-card" class="card ready">
+        <b data-i18n="getting_ready">Getting ready</b>
+        <p id="ready-message"></p>
+        <p class="hint" data-i18n="getting_ready_hint">The first launch prepares the environment of the calculations, then each session compiles its first calculation. You can fill in the forms meanwhile.</p>
+      </div>
+      <div class="result on" id="result-phases">
+        <div class="plot" id="plot-masses"></div>
+        <div class="plot" id="plot-volumes"></div>
+        <p class="hint" id="volumes-note"></p>
+      </div>
+      <div class="result" id="result-pore">
+        <div class="summary" id="pore-summary"></div>
+        <div class="plot" id="plot-pore"></div>
+        <table class="data" id="pore-table"></table>
+      </div>
+      <div class="result" id="result-si">
+        <p class="hint" data-i18n="si_hint">Saturation index log(Q/K): 0 for a phase at equilibrium, negative for one that would dissolve, positive for one that would precipitate.</p>
+        <table class="data" id="si-table"></table>
+      </div>
+      <div class="result" id="result-certificate">
+        <p class="hint" data-i18n="certificate_hint">What the solver proved about the answer.</p>
+        <table class="data" id="certificate-table"></table>
+      </div>
+      <div class="result" id="result-output"><pre id="output"></pre></div>
+    </div>
+    <div class="gutter gutter-h" data-above="results" data-below="log" data-mode="fixed-below"
+         title="Drag to resize · double-click to reset"></div>
+    <pre id="log"></pre>
+  </section>
+
+  <div class="gutter gutter-v" data-col="r" title="Drag to resize · double-click to reset"></div>
+
+  <!-- right: the script -->
+  <section id="right">
+    <div class="panel-head">
+      <span data-i18n="script">Julia script</span>
+      <span class="spacer"></span>
+      <button id="copy" class="small" data-i18n="copy">Copy</button>
+    </div>
+    <pre id="code"><code class="language-julia" id="code-text"></code></pre>
+  </section>
+</main>
+
+<div id="picker" class="modal" hidden>
+  <div class="dialog">
+    <header>
+      <b id="picker-title"></b>
+      <button id="picker-close" class="small">✕</button>
+    </header>
+    <div class="places" id="picker-places"></div>
+    <div class="crumb" id="picker-crumb"></div>
+    <div class="listing" id="picker-list"></div>
+    <footer>
+      <input id="picker-name" type="text" spellcheck="false" placeholder="file name.jl">
+      <button id="picker-ok" class="primary"></button>
+    </footer>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/vendor/plotly.min.js"></script>
+<script src="/vendor/highlight.min.js"></script>
+<script src="/vendor/julia.min.js"></script>
+<script src="/api.js"></script>
+<script src="/split.js"></script>
+<script src="/picker.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
