@@ -670,10 +670,11 @@ end
 # A CEM I paste in a semi-adiabatic cell, its four clinker phases by Parrott and
 # Killoh: at 1.22 days a change of assemblage left the partition uncertifiable
 # from every start of the dual Newton, no step was accepted, and the run ended
-# `Unstable`, its step below the floating-point epsilon. Once the partition has
-# failed in a row, the interior point is offered to the integration too, and the
-# last partition solved is a start: the run crosses the change and reaches its
-# horizon.
+# `Unstable`, its step below the floating-point epsilon, on some machines (with
+# bounds checking, as Pkg.test runs it). There 7e-7 mol of monocarbonate holds
+# the aluminum the other phases leave over, below the amount from which the dual
+# Newton seeds a phase; OptimaSolver 0.8.9 seeds such a trace when no start
+# converges, and the run crosses the change and reaches its horizon.
 @testset "a semi-adiabatic cell crosses a change of assemblage" begin
     substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
     cs = phase_list_system("Portland paste (Lothenbach and Winnefeld 2006)", substances)
