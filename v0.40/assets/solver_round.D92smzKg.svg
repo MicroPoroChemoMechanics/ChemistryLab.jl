@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
+  <title id="title">How the certified solver finds the phases and their compositions</title>
+  <desc id="desc">A loop: from the potentials of the elements, the compositions of every phase follow (the aqueous solutes through the ionic strength, each solid solution from an explicit formula, each pure phase present or absent); the element balances and the equations of the present phases are then checked, and Newton's method corrects the potentials and the totals; between rounds the most supersaturated absent phase is admitted and a vanished one released. At the end a certificate checks the answer independently.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8Z" fill="#52667d"/></marker>
+    <marker id="arrowo" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8Z" fill="#996019"/></marker>
+    <marker id="arrowg" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8Z" fill="#177567"/></marker>
+  </defs>
+  <rect width="900" height="560" rx="18" fill="#f8fafc"/>
+  <g font-family="Arial, Helvetica, sans-serif" fill="#172b42">
+    <text x="36.0" y="43.0" font-size="15" fill="#52667d" text-anchor="start" font-weight="700">THE SOLVER, ONE ROUND</text>
+    <text x="36.0" y="70.0" font-size="16" fill="#172b42" text-anchor="start">What is unknown, what follows, and what is checked</text>
+    <rect x="40" y="100" width="250" height="150" rx="12" fill="#ffffff" stroke="#3664a0" stroke-width="2"/>
+    <text x="54.0" y="126.0" font-size="15" fill="#3664a0" text-anchor="start" font-weight="700">1  UNKNOWNS</text>
+    <text x="54.0" y="150.0" font-size="14" fill="#172b42" text-anchor="start">one potential per element (y),</text>
+    <text x="54.0" y="170.0" font-size="14" fill="#172b42" text-anchor="start">the total of each mixing phase,</text>
+    <text x="54.0" y="190.0" font-size="14" fill="#172b42" text-anchor="start">the amount of each pure phase</text>
+    <text x="54.0" y="210.0" font-size="14" fill="#172b42" text-anchor="start">present (the active set)</text>
+    <rect x="325" y="100" width="250" height="150" rx="12" fill="#ffffff" stroke="#177567" stroke-width="2"/>
+    <text x="339.0" y="126.0" font-size="15" fill="#177567" text-anchor="start" font-weight="700">2  COMPOSITIONS FOLLOW</text>
+    <text x="339.0" y="150.0" font-size="14" fill="#172b42" text-anchor="start">aqueous: through the ionic strength</text>
+    <text x="339.0" y="170.0" font-size="14" fill="#172b42" text-anchor="start">solid solution: xᵢ ∝ e^(uᵢ − gᵢ − ln γᵢ)</text>
+    <text x="339.0" y="190.0" font-size="14" fill="#172b42" text-anchor="start">pure phase: present or absent</text>
+    <text x="339.0" y="210.0" font-size="14" fill="#172b42" text-anchor="start">(no other unknown)</text>
+    <rect x="610" y="100" width="250" height="150" rx="12" fill="#ffffff" stroke="#996019" stroke-width="2"/>
+    <text x="624.0" y="126.0" font-size="15" fill="#996019" text-anchor="start" font-weight="700">3  WHAT MUST HOLD</text>
+    <text x="624.0" y="150.0" font-size="14" fill="#172b42" text-anchor="start">each element balanced: A n = b,</text>
+    <text x="624.0" y="170.0" font-size="14" fill="#172b42" text-anchor="start">each present mixing phase:</text>
+    <text x="624.0" y="190.0" font-size="14" fill="#172b42" text-anchor="start">Σᵢ e^(uᵢ − gᵢ − ln γᵢ) = 1</text>
+    <path d="M290.0 175.0L323.0 175.0" stroke="#52667d" stroke-width="2" marker-end="url(#arrow)"/>
+    <path d="M575.0 175.0L608.0 175.0" stroke="#52667d" stroke-width="2" marker-end="url(#arrow)"/>
+    <path d="M735 252V300H165V254" fill="none" stroke="#52667d" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="450.0" y="322.0" font-size="15" fill="#52667d" text-anchor="middle">Newton step on the potentials and the totals, until 3 holds</text>
+    <rect x="40" y="345" width="395" height="120" rx="12" fill="#ffffff" stroke="#3664a0" stroke-width="2"/>
+    <text x="54.0" y="371.0" font-size="15" fill="#3664a0" text-anchor="start" font-weight="700">4  BETWEEN ROUNDS: WHICH PHASES</text>
+    <text x="54.0" y="395.0" font-size="14" fill="#172b42" text-anchor="start">admit the most supersaturated absent phase</text>
+    <text x="54.0" y="415.0" font-size="14" fill="#172b42" text-anchor="start">(a pure one by its index, a solution by the plane test);</text>
+    <text x="54.0" y="435.0" font-size="14" fill="#172b42" text-anchor="start">release a phase whose total vanished</text>
+    <rect x="465" y="345" width="395" height="120" rx="12" fill="#ffffff" stroke="#177567" stroke-width="2"/>
+    <text x="479.0" y="371.0" font-size="15" fill="#177567" text-anchor="start" font-weight="700">5  AT THE END: THE CERTIFICATE</text>
+    <text x="479.0" y="395.0" font-size="14" fill="#172b42" text-anchor="start">stationarity, balances, no absent phase below the</text>
+    <text x="479.0" y="415.0" font-size="14" fill="#172b42" text-anchor="start">plane, no present solution wanting to split;</text>
+    <text x="479.0" y="435.0" font-size="14" fill="#172b42" text-anchor="start">and what it proves: global, local, or a KKT point</text>
+    <rect x="40" y="484" width="820" height="46" rx="10" fill="#e8eef8"/>
+    <text x="62.0" y="513.0" font-size="16" fill="#172b42" text-anchor="start">Schematic. The start is a linear program over the pure phases; other starts are tried if the certificate refuses.</text>
+  </g>
+</svg>
