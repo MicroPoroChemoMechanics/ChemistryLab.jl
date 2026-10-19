@@ -196,6 +196,7 @@ module ChemistryLab
     include("recipes/templates.jl")
     include("recipes/phase_lists.jl")
     include("recipes/diagnostics.jl")
+    include("recipes/csh_surface.jl")
 
     # Recipes: materials, extents, budgets and processes.
     export AbstractExtent, ConstantExtent, TabulatedExtent, LogisticExtent,
@@ -386,6 +387,7 @@ module ChemistryLab
         released_rate,
         phases_without_windows,
         windows_without_phases,
+        literature_windows,
         window_parameters,
         with_window_parameters,
         Traced,
@@ -477,6 +479,8 @@ module ChemistryLab
         build_solid_solutions,
         oxide_budget,
         glass_species,
+        with_glass_species,
+        with_csh_surface,
         cation_molar_mass,
         glass_enthalpy,
         glass_heat_capacity,

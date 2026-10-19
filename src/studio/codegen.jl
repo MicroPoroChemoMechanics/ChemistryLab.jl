@@ -37,6 +37,7 @@ const RESERVED_NAMES = Set(
         "path", "paste", "states", "temperatures", "ratios", "fractions", "scm", "ages", "column", "solution",
         "V", "M_water", "fresh", "db", "species", "members", "solid_solutions", "table", "phases", "x",
         "rates", "horizon", "problem", "solution", "w_c", "calorimeter", "degrees", "curves", "times", "key",
+        "glasses", "surface",
     ]
 )
 
@@ -117,6 +118,7 @@ function calculation_section(m::StudioModel)
             "foreach(println, $(diagnose_call(m)))",
         ],
         calculation_lines(m.calculation, depends_on_age(m), clines, ckw),
+        surface_lines(m.surface, m.calculation),
     )
 end
 

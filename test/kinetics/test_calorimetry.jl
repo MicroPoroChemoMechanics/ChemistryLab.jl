@@ -606,3 +606,34 @@ end
     cal = SemiAdiabaticCalorimeter(; Cp = 1000.0, T_env = 293.15, T0 = ForwardDiff.Dual(300.0, 1.0), L = 0.5)
     @test ForwardDiff.partials(extend_u0([1.0, 2.0], cal)[end])[1] == 1.0
 end
+
+# A CEM I paste in a semi-adiabatic cell, its four clinker phases by Parrott and
+# Killoh: at 1.22 days a change of assemblage left the partition uncertifiable
+# from every start of the dual Newton, no step was accepted, and the run ended
+# `Unstable`, its step below the floating-point epsilon. Once the partition has
+# failed in a row, the interior point is offered to the integration too, and the
+# last partition solved is a start: the run crosses the change and reaches its
+# horizon.
+@testset "a semi-adiabatic cell crosses a change of assemblage" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    cs = phase_list_system("Portland paste (Lothenbach and Winnefeld 2006)", substances)
+    cement = material_template("CEM I 52.5 N (Gruyaert 2010), Bogue", cs)
+    model = cemdata18_activity_model(:KOH)
+    T = 293.15u"K"
+    recipe = Recipe(cement => 1.0; w_b = 0.5, T)
+    rates = Dict{String, Any}(
+        p => parrott_killoh_avrami(params, p; blaine = 385.0, w_c = 0.5, α_max = powers_alpha_max(0.5))
+            for (p, params) in ("C3S" => PK84_PARAMS_C3S, "C2S" => PK84_PARAMS_C2S, "C3A" => PK84_PARAMS_C3A, "C4AF" => PK84_PARAMS_C4AF)
+    )
+    cal = SemiAdiabaticCalorimeter(; Cp = 900.0u"J/K", L = 0.3u"W/K", T_env = T, T0 = T)
+    horizon = 1.3 * 86400.0   # past the 1.22 days where the run stopped
+    kp = KineticsProblem(
+        recipe, cs, rates, (0.0, horizon); activity_model = model,
+        equilibrium_solver = EquilibriumSolver(cs, model, OptimaOptimizer()), calorimeter = cal,
+    )
+    sol = integrate(kp, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-6, abstol = 1.0e-10))
+    @test sol.retcode == ReturnCode.Success && last(sol.t) == horizon
+    # the paste warmed the cell above the room
+    _, T = temperature_profile(sol, cal)
+    @test maximum(T) > 293.15
+end

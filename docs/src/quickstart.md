@@ -24,25 +24,6 @@ or, equivalently, through the `Pkg` API:
 julia> import Pkg; Pkg.add("ChemistryLab")
 ```
 
-## Prefer a graphical interface? ChemistryLab Studio
-
-The calculations of a cement paste can also be built with forms, in your
-browser, with [ChemistryLab Studio](@ref studio-start): it loads published
-formulations in one click, computes an equilibrium, a path (hydration,
-replacement, carbonation, leaching…) or a kinetic run, draws the results, and
-writes the Julia script of each calculation as you go.
-
-```julia-repl
-julia> using ChemistryLab; clstudio()
-```
-
-```@raw html
-<img class="studio-shot light-only" src="./assets/studio/studio_equilibrium_light.png" alt="ChemistryLab Studio: the materials of a CEM I paste on the left, its phase assemblage in the middle, the Julia script on the right">
-<img class="studio-shot dark-only" src="./assets/studio/studio_equilibrium_dark.png" alt="ChemistryLab Studio in the dark theme">
-```
-
-The rest of this page writes the calculations in Julia.
-
 ## A first reaction: calcite in water
 
 The dissolution of calcite is written
@@ -209,6 +190,24 @@ reader already knows.
   analysis to a chemical system in [Bogue calculation](@ref ex-bogue), and the
   worked binders from [A CEM I from its clinker phases](@ref sec-cem1-from-clinker)
   onwards.
+
+## An alternative to scripting: ChemistryLab Studio
+
+ChemistryLab is a library driven from Julia, as on this page. The calculations
+of a cement paste can also be built with forms, in the browser, with
+[ChemistryLab Studio](@ref studio-start): it loads published formulations in
+one click, computes an equilibrium, a path (hydration, replacement,
+carbonation, leaching…) or a kinetic run, draws the results, and writes the
+Julia script of each calculation as it goes, which runs on its own.
+
+```julia-repl
+julia> using ChemistryLab; clstudio()
+```
+
+```@raw html
+<img class="studio-shot light-only" src="./assets/studio/studio_equilibrium_light.png" alt="ChemistryLab Studio: the materials of a CEM I paste on the left, its phase assemblage in the middle, the Julia script on the right">
+<img class="studio-shot dark-only" src="./assets/studio/studio_equilibrium_dark.png" alt="ChemistryLab Studio in the dark theme">
+```
 
 ## Citing ChemistryLab
 

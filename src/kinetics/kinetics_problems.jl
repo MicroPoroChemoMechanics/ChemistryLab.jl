@@ -691,6 +691,10 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         # `_rhs_values` then offers the interior point as a last start, which
         # the integration does not need and should not pay for.
         walking = Ref(false),
+        # The partitions `_rhs_values` failed in a row: past `_RHS_STUCK_AFTER`
+        # the integration is stuck at a change of assemblage, and the interior
+        # point is offered to it as well.
+        rhs_failures = Ref(0),
         n_rhs = similar(n_full),
         # Feasibility of a kinetic state: the element content of the kinetic
         # species and the element totals of the system.
@@ -1040,6 +1044,12 @@ const _EQ_GUESS_FLOOR = 1.0e-10
 # The floor of the warm start of a certified solve in the right-hand side: below
 # what any amount of a partition means, so that the traces keep their potentials.
 const _RHS_GUESS_FLOOR = 1.0e-16
+
+# The partitions `_rhs_values` may fail in a row before it offers the interior
+# point to the integration: an isolated failure only rejects a step, which a
+# smaller one passes; failures in a row are an integration stuck at a change of
+# assemblage, which no smaller step passes.
+const _RHS_STUCK_AFTER = 2
 
 # The last partition `_rhs_values` solved, keyed by the plain element amounts and
 # temperature it was solved at.
@@ -1954,6 +1964,13 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
     eq, cert = _or_next(eq, cert, () -> solve_from(max.(warm, _EQ_GUESS_FLOOR)))
     # The reconstruction: feasible on the budget, with no active set.
     eq, cert = _or_next(eq, cert, () -> solve_from(_reconstruction_guess!(similar(warm), p, bv)))
+    # The last partition solved, when it is not the last accepted one: past a
+    # change of assemblage it holds the new one, from which the dual Newton
+    # certifies the states that follow where the accepted partition stalls it.
+    if c !== nothing && length(c.n) == length(warm)
+        last = Float64[max(x, _RHS_GUESS_FLOOR) for x in c.n]
+        last != warm && ((eq, cert) = _or_next(eq, cert, () -> solve_from(last)))
+    end
     # Where the assemblage switches, the starts above hold the assemblage of the
     # last accepted step, or none, and the dual Newton stalls short of the
     # certificate from either. Measured on a paste of cement c13 of Lavergne et
@@ -1962,18 +1979,24 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
     # reconstruction. The interior point crosses to the new assemblage, and the
     # certified solve from its answer proves it at once (7e-15).
     #
-    # Offered to an accessor walking a finished run only (`p.walking`). The run
-    # passes these states by its step re-speciation, which falls back on the
-    # interior point, and a failure inside it only rejects a step; tried at every
-    # failure of the integration, this start doubled the cost of a semi-adiabatic
-    # run, whose cell temperature is a root over partitions solved at trial
-    # temperatures (316 s against 160 s on the C100 mortar of Lavergne et al.
-    # 2018). The polish takes the interior point's answer as a start only: its
-    # return code is not counted among the solves used anyway, and its answer is
-    # kept only when the polish proves it. Kept uncertified, it was accepted on
-    # its element balance, which the interior point always meets, and the
+    # Offered to an accessor walking a finished run (`p.walking`), and to the
+    # integration once it is stuck (`_RHS_STUCK_AFTER` failures in a row). The
+    # run usually passes these states by its step re-speciation, which falls back
+    # on the interior point, and an isolated failure only rejects a step; tried
+    # at every failure of the integration, this start doubled the cost of a
+    # semi-adiabatic run, whose cell temperature is a root over partitions solved
+    # at trial temperatures (316 s against 160 s on the C100 mortar of Lavergne
+    # et al. 2018). A cell whose partition cannot be certified past a change of
+    # assemblage is the stuck case: no step is accepted, so no step re-speciation
+    # runs, and the integration shrank its step until it gave up (a CEM I paste
+    # with the four clinker phases by Parrott and Killoh, at 1.22 days). The
+    # polish takes the interior point's answer as a start only: its return code
+    # is not counted among the solves used anyway, and its answer is kept only
+    # when the polish proves it. Kept uncertified, it was accepted on its
+    # element balance, which the interior point always meets, and the
     # temperature of that cell then failed where the run had passed.
-    if p.walking[] && (eq === nothing || !cert.optimal) && p.eq_solver !== nothing
+    stuck = p.rhs_failures[] >= _RHS_STUCK_AFTER
+    if (p.walking[] || stuck) && (eq === nothing || !cert.optimal) && p.eq_solver !== nothing
         cref = Ref{Any}(nothing)
         eq2 = try
             _exploring_starts() do
@@ -1987,11 +2010,12 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
             eq, cert = eq2, cert2
         end
     end
-    eq === nothing && return nothing
+    eq === nothing && (p.rhs_failures[] += 1; return nothing)
     n = Float64[ustrip(us"mol", x) for x in eq.n]
     abs_res = _abs_residual(p.Ae, n, bv)
     abs_res > p.eq_worst_abs[] && (p.eq_worst_abs[] = abs_res)
-    cert.optimal || abs_res <= _RETRY_ABS_TOL || return nothing
+    cert.optimal || abs_res <= _RETRY_ABS_TOL || (p.rhs_failures[] += 1; return nothing)
+    p.rhs_failures[] = 0
     p.rhs_cache[] = (b = copy(bv), T = Tv, n = n)
     return n
 end

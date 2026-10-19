@@ -89,7 +89,7 @@ function _element_decomposition(species::AbstractSpecies, primaries; charge_row:
 end
 
 """
-    glass_species(oxides; symbol, M = 100.0u"g/mol", name, ΔₐG⁰) -> Species
+    glass_species(oxides; symbol, M = 100.0u"g/mol", name, ΔₐG⁰, enthalpy = false) -> Species
 
 A **pseudo-species for a material that has no formula unit** — a blastfurnace
 slag, a fly ash, a calcined clay — built from its oxide analysis, so that a rate
@@ -118,11 +118,17 @@ oxides a datasheet omits. The analysis is **not** renormalized, for the reason
 material. `modeled_mass_fraction` in the returned species' properties records
 what fraction of the material the formula actually accounts for.
 
-`ΔₐG⁰` is optional and defaults to a placeholder far below anything the system
-contains, so that the dissolution is always favored. That is sound for a rate law
-of the `waller` or Parrott–Killoh kind, which never reads the saturation ratio;
-it is **not** sound for a mechanistic rate driven by `Ω`, and such a law needs a
-real Gibbs energy, which a glass does not have.
+`ΔₐG⁰` is optional; a glass has no measured Gibbs energy, and without one a
+rate law of the `waller` or Parrott–Killoh kind, which never reads the saturation
+ratio, is the sound choice. A mechanistic rate driven by `Ω` needs a real Gibbs
+energy, which a glass does not have.
+
+With `enthalpy = true` the species carries an enthalpy of formation and a heat
+capacity, functions of the temperature: [`glass_enthalpy`](@ref) at 298.15 K,
+carried to `T` by [`glass_heat_capacity`](@ref), per formula unit of `M`. Its
+heat then counts in a calorimeter (the enthalpy of the whole composition, under
+partial equilibrium), as an estimate whose construction and uncertainty
+[The enthalpy of a glass](@ref sec-theory-glass) gives.
 
 # Examples
 
@@ -143,6 +149,7 @@ function glass_species(
         M = 100.0u"g/mol",
         name::AbstractString = symbol,
         ΔₐG⁰ = nothing,
+        enthalpy::Bool = false,
     )
     M_g = ustrip(us"g/mol", M)
     M_g > 0 || throw(ArgumentError("`M` must be positive, got $M."))
@@ -179,6 +186,11 @@ function glass_species(
     )
     ΔₐG⁰ === nothing ||
         (props[:ΔₐG⁰] = ΔₐG⁰)
+    if enthalpy
+        th = _glass_thermo_functions(oxides, M_g)
+        props[:ΔₐH⁰] = th.ΔₐH⁰
+        props[:Cp⁰] = th.Cp⁰
+    end
     return Species(
         counts, 0;
         symbol = String(symbol), name = String(name),

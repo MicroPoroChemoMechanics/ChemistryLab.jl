@@ -1,5 +1,111 @@
 # Changelog
 
+## v0.41.0 — The studio completed: glasses in time, the surface of the C-S-H, thermograms, a cell that crosses a change of assemblage
+
+A minor release: three exported functions, a fix of the semi-adiabatic cell
+under partial equilibrium, and ChemistryLab Studio given what its first version
+left out. No result of an existing calculation changes, except a semi-adiabatic
+run that used to stop short and now reaches its horizon.
+
+### Breaking changes
+
+- None in the API or in the results. The minor version moves because of the
+  new exported functions: below 1.0, a bound `ChemistryLab = "0.40"` does not
+  admit 0.41, so a package or an environment that bounds ChemistryLab must
+  widen its bound to take this release.
+
+### Added
+
+- **`with_glass_species(recipe, system, names)`**: the recipe and the system in
+  which each named constituent known by its oxides (a slag, the glass of a fly
+  ash) takes a formula written from them (`glass_species`) in its material
+  and in the system: what a rate law needs to dissolve a glass, in one call
+  rather than the three steps a script wrote by hand.
+- **`glass_species(...; enthalpy = true)`**: the pseudo-species of a glass with
+  an enthalpy of formation and a heat capacity, functions of the temperature
+  (`glass_enthalpy` at 298.15 K carried by `glass_heat_capacity`), so that the
+  heat of its dissolution counts in a calorimeter, isothermal or
+  semi-adiabatic, under partial equilibrium; `with_glass_species` gives it by
+  default. `glass_heat_capacity` is now generic in the number type of the
+  fractions and of the temperature, which a semi-adiabatic cell differentiates.
+- **SO3 in a glass**: `glass_enthalpy` and `glass_heat_capacity` count it as
+  anhydrite less lime, from the first reference collection that holds both,
+  where they used to refuse it. No database holds crystalline SO3, yet every
+  slag and fly ash reports some, so the heat of their glass could not be
+  computed without leaving the SO3 out by name (`ignore`), which counts it at
+  zero enthalpy and so misses its heat. The sulfate is taken as bound to the
+  lime of the glass, as in a calcium sulfate, the same rule the example on
+  isothermal calorimetry follows.
+- **`literature_windows(state)`**: a decomposition window for every release of
+  the solids of a state, each the interval in which the cement literature
+  reads it: the water of portlandite (De Weerdt et al. 2011), of the
+  ettringites (Möschner et al. 2009), of the other hydrates over the interval
+  of the total bound water (L'Hôpital et al. 2016), the carbon dioxide of the
+  carbonates (Shi et al. 2016), read from their data files. A thermogram of a
+  paste in one call, which says where a loss is attributed rather than how a
+  phase decomposes.
+- **`with_csh_surface(rs; donnan, water)`**: the paste of a recipe state with
+  the surface of its C-S-H after Guo et al. (2018): the gel frozen at its
+  composition, portlandite fixing the activities it shares with it, the sites
+  and the area of the model referred to its silicon, the complexes whose ions
+  the system holds, a diffuse layer, and on request a Donnan layer, refused
+  with the reason when the pore water is a film thinner than the layer or
+  than the Debye length (a hardened paste): the layer is meant for a
+  suspension.
+- **A template from the Bogue phases of a clinker** (`clinker`, `gypsum`,
+  `calcite` in `data/recipe_templates.toml`), and with it the CEM I 52.5 N of
+  Lavergne et al. (2018), Table 9.
+
+### Fixed
+
+- **A semi-adiabatic cell under partial equilibrium stopped at a change of
+  assemblage.** A CEM I paste with its four clinker phases by the law of
+  Parrott and Killoh ended `Unstable` at 1.22 days: the partition of the
+  states past the change could not be certified from any start of the dual
+  Newton, every trial step was rejected, and the integration shrank its step
+  below the floating-point epsilon. The interior point, which crosses such a
+  change, was offered only to a finished run, because offering it at every
+  failure had doubled the cost of a run that passes anyway. It is now offered
+  to the integration as well once the partition has failed in a row, and the
+  last partition solved is a start of the dual Newton: the same run reaches
+  its horizon.
+- **The pore solution of a state holding a glass** (its pH, its activities)
+  failed: a glass given a formula for its rate law has no standard Gibbs
+  energy, and the potentials of every species were evaluated. Such a species
+  now has none (NaN, so does its saturation index), which nothing at
+  equilibrium reads: `KineticsProblem` refuses it there.
+- **`speciated_states` with no instant** returns no state, where it failed
+  reading the first one: the ages a script asks of a run that stopped short
+  of all of them.
+
+### ChemistryLab Studio
+
+- **A glass can be given a rate law** (Waller, first order, or a law of one's
+  own): the script writes it a formula from its oxides, with an enthalpy, by
+  `with_glass_species`.
+- **The surface of the C-S-H**, in the System tab: computed after an
+  equilibrium or at each point of a path (an addition of salt gives the binding
+  of chloride by the surface beside the AFm phases), its results in a
+  *Surface* tab; a Donnan layer in expert mode.
+- **A *TGA* tab** for every calculation: the mass lost and its rate from 30 to
+  980 °C, in percent of the reference mass the papers use (the sample at 30 °C,
+  dry at 105, 500 or 800 °C, or ignited), and for one equilibrium the loss of
+  each phase.
+- **The loss of a semi-adiabatic cell** may carry the quadratic term of a
+  calibration (expert).
+- **New entries in the library**: the CEM I 52.5 N of Lavergne et al. (2018)
+  hydrating at w/b 0.50 and 0.32; a Portland cement with 30 % of siliceous fly
+  ash in time, its glass by the law of Waller; the binding of chloride by a
+  CEM I paste with the surface of its C-S-H.
+- The file picker leaves out an entry that refuses a stat (a file Windows holds
+  open at the root of a drive) rather than failing; the opener of the browser
+  is tested for every system on every runner.
+- The model of the page is of version 3 (the surface); a script of version 2
+  opens as the same calculation.
+- docs: ChemistryLab is a library of scripts, and the studio an alternative to
+  them, presented after the chapters that teach the scripts, at the end of the
+  README and of "Getting started".
+
 ## v0.40.0 — ChemistryLab Studio, and what a choice of species leaves out
 
 A minor release: it adds exported functions and two dependencies, and changes no

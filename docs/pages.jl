@@ -33,13 +33,6 @@
 pages = [
     "Home" => "index.md",
     "Getting Started" => "quickstart.md",
-    # The graphical interface (`src/studio`, the submodule `ChemistryLab.Studio`):
-    # for a reader who would rather not write Julia, right after the first steps.
-    "Studio" => [
-        "studio/getting_started.md",
-        "studio/tour.md",
-        "studio/library.md",
-    ],
     "Theory" => [
         "theory/index.md",
         # The definitions and identities the rest is written in. Read first: the
@@ -365,6 +358,15 @@ pages = [
             "examples/slag_heat.md",
             "examples/thermogravimetry.md",
         ],
+    ],
+    # The graphical interface (`src/studio`, the submodule `ChemistryLab.Studio`):
+    # an alternative for a reader who would rather not start from code. The
+    # package is a library of scripts, so the studio comes after the chapters
+    # that teach them, not before.
+    "Studio" => [
+        "studio/getting_started.md",
+        "studio/tour.md",
+        "studio/library.md",
     ],
     "API" => Any[
         "Chemical description" => [

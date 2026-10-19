@@ -139,6 +139,16 @@ end
             @test isempty(listing["folders"]) && isempty(listing["files"])
             chmod(locked, 0o700)
         end
+        if Sys.isunix()
+            # an entry that refuses a stat (a loop of links here, a file the
+            # system holds open on Windows) is left out, and a path to it falls
+            # back as a missing one does
+            symlink(joinpath(dir, "loop_b.jl"), joinpath(dir, "loop_a.jl"))
+            symlink(joinpath(dir, "loop_a.jl"), joinpath(dir, "loop_b.jl"))
+            listing = payload(get("/api/browse?path=" * HTTP.escapeuri(dir)))
+            @test sort(listing["files"]) == ["damaged.jl", "other.jl", "paste.jl", "plain.jl"]
+            @test payload(get("/api/browse?path=" * HTTP.escapeuri(joinpath(dir, "loop_a.jl"))))["path"] == homedir()
+        end
         @test payload(get("/api/browse?path=" * HTTP.escapeuri(joinpath(dir, "absent"))))["path"] == homedir()
     end
 end

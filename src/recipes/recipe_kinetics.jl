@@ -107,12 +107,74 @@ fly ash) stays out of the formula and in the mass `M` of material a formula
 unit stands for, as the part of it the formula does not model
 (`modeled_mass_fraction`), which is how [`budget`](@ref) keeps it aside on the
 route of imposed extents. The two routes then put the same elements into the
-equilibrium at the same degree of reaction.
+equilibrium at the same degree of reaction, to the five decimals at which the
+system writes every species over its primaries (5e-6 mol of a primary per mole
+of glass at most).
 """
 function glass_species(c::OxideConstituent, system::ChemicalSystem; kwargs...)
     prim = system.SM.primaries
     held = OrderedDict(k => v for (k, v) in c.oxides if _representable(k, prim))
     return glass_species(held; kwargs...)
+end
+
+"""
+    with_glass_species(recipe, system, names; enthalpy = true, M = 100.0u"g/mol")
+        -> (; recipe, system, species)
+
+The recipe and the system in which each constituent of `recipe` named in
+`names` and known by its oxides only (a glass: a slag, the glass of a fly ash)
+is given a formula: its pseudo-species ([`glass_species`](@ref), named after the
+constituent) takes its place in its material ([`with_species`](@ref)) and joins
+the system. That is what a rate law needs to dissolve a glass in a
+[`KineticsProblem`](@ref); a constituent of `names` that is a mineral already, or
+that no material has, is left alone, and with no glass among `names` the recipe
+and the system come back as they were. `species` maps each name to its
+pseudo-species. The elements the glass brings are those of its oxides
+([`glass_species`](@ref)), to the rounding of its column over the primaries.
+
+With `enthalpy = true` (the default) each pseudo-species carries an enthalpy of
+formation and a heat capacity estimated from its oxides
+([`glass_species`](@ref)), so that a calorimeter counts the heat of its
+dissolution; without, a run with a calorimeter is refused, a glass having no
+enthalpy of its own in a database.
+
+# Examples
+
+```julia
+rates = Dict("glass" => waller(WALLER_PARAMS_FLY_ASH, "glass"))
+(; recipe, system) = with_glass_species(recipe, system, keys(rates))
+kp = KineticsProblem(recipe, system, rates, (0.0, 28 * 86400.0))
+```
+"""
+function with_glass_species(recipe::Recipe{R}, system::ChemicalSystem, names; enthalpy::Bool = true, M = 100.0u"g/mol") where {R}
+    wanted = Set(String.(collect(names)))
+    found = OrderedDict{String, Species}()
+    function swap(m::Material)
+        here = Dict{String, Species}()
+        for c in m.constituents
+            (c isa OxideConstituent && c.name in wanted) || continue
+            haskey(found, c.name) && throw(
+                ArgumentError("with_glass_species: $(c.name) is a constituent of more than one material; give each its own name.")
+            )
+            here[c.name] = found[c.name] = glass_species(c, system; symbol = c.name, M, enthalpy)
+        end
+        return isempty(here) ? m : with_species(m, here)
+    end
+    binder = Pair{Material, R}[swap(m) => f for (m, f) in recipe.binder]
+    additions = Pair{Material, R}[swap(m) => f for (m, f) in recipe.additions]
+    isempty(found) && return (; recipe, system, species = found)
+    taken = [s for s in keys(found) if haskey(system.dict_species, s)]
+    isempty(taken) || throw(
+        ArgumentError("with_glass_species: the system already has a species named $(join(taken, ", ")); rename the constituent.")
+    )
+    glasses = collect(values(found))
+    cs = ChemicalSystem(
+        vcat(collect(system.species), glasses), collect(system.SM.primaries);
+        solid_solutions = system.solid_solutions === nothing ? nothing : collect(system.solid_solutions),
+        site_families = system.site_families === nothing ? nothing : collect(system.site_families),
+    )
+    r = Recipe{R}(binder, additions, recipe.water_binder, recipe.binder_mass, recipe.T, recipe.P)
+    return (; recipe = r, system = cs, species = found)
 end
 
 # The element budget `b` (over the primaries of the system) added to `state` as

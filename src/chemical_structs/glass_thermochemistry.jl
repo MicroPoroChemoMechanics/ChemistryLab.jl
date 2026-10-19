@@ -100,6 +100,28 @@ function _reference_oxide(formula::AbstractString, reference)
     return nothing
 end
 
+# Oxides no database holds as a crystal, counted as their calcium salt less
+# lime: the sulfur of a slag or a fly ash, which the analysis reports as SO3, as
+# anhydrite less lime.
+const _OXIDES_AS_CALCIUM_SALTS = Dict("SO3" => "CaSO4")
+
+# The crystals an oxide of a glass is counted as, `(parts, k)`: each species with
+# its coefficient (the crystal of the oxide, or its calcium salt less lime, both
+# from one collection) and the position in `reference` of the collection they
+# come from; `nothing` when no collection holds them.
+function _oxide_crystals(ox::AbstractString, reference)
+    found = _reference_oxide(ox, reference)
+    found === nothing || return ((first(found) => 1.0,), last(found))
+    salt = get(_OXIDES_AS_CALCIUM_SALTS, ox, nothing)
+    salt === nothing && return nothing
+    for (k, db) in enumerate(reference)
+        s, l = _reference_oxide(salt, (db,)), _reference_oxide("CaO", (db,))
+        (s === nothing || l === nothing) && continue
+        return ((first(s) => 1.0, first(l) => -1.0), k)
+    end
+    return nothing
+end
+
 """
     glass_enthalpy(oxides; T = 298.15u"K", reference = nothing, ignore = ()) -> NamedTuple
 
@@ -125,7 +147,11 @@ oxides themselves come from `reference`, an ordered list of species collections
 searched in turn (by default aq17 then slop98 [Johnson1992](@cite)), so that the
 glass can be put on the scale of the database of a calculation. The other oxides
 of the analysis (Fe2O3, Na2O, K2O, TiO2, …) are counted as their crystals from
-`reference`, with no enthalpy of vitrification (assumed).
+`reference`, with no enthalpy of vitrification (assumed). SO3, which no database
+holds as a crystal, is counted as anhydrite less lime, both from the first
+collection of `reference` that holds them: the sulfate is taken as bound to the
+lime of the glass, as in a calcium sulfate (the sulfur of a slag, mostly a
+sulfide, is reported as SO3 by the analysis and counted the same way).
 
 At a temperature `T` other than 298.15 K the heat capacity of the glass,
 [`glass_heat_capacity`](@ref), is integrated from 298.15 K.
@@ -204,7 +230,7 @@ function glass_enthalpy(oxides::AbstractDict{<:AbstractString, <:Real}; T = T_ST
     sources = Dict{String, Int}()
     formation = from_oxides
     for (ox, m) in n
-        found = _reference_oxide(ox, refs)
+        found = _oxide_crystals(ox, refs)
         found === nothing && throw(
             ArgumentError(
                 "glass_enthalpy: no crystal of $ox in the reference databases; give `reference` a " *
@@ -212,9 +238,9 @@ function glass_enthalpy(oxides::AbstractDict{<:AbstractString, <:Real}; T = T_ST
                     "which the result then reports."
             )
         )
-        sp, k = found
+        parts, k = found
         sources[ox] = k
-        formation += m * _formation_enthalpy(sp)
+        formation += m * sum(c * _formation_enthalpy(sp) for (sp, c) in parts)
     end
 
     TK = T isa Real ? float(T) : ustrip(us"K", T)
@@ -293,27 +319,70 @@ their partial molar heat capacity in the glass, `aᵢ + bᵢT + cᵢ/T² + dᵢ/
 Eqs. 1 and 3, Table I), to about 1 % below the glass transition and between
 270 K and the upper temperature of each oxide's data. An oxide the paper does not
 cover takes the heat capacity of its crystal (the paper's footnote), from
-`reference` as in [`glass_enthalpy`](@ref).
+`reference` as in [`glass_enthalpy`](@ref), SO3 that of anhydrite less lime.
 """
 function glass_heat_capacity(oxides::AbstractDict{<:AbstractString, <:Real}; T = T_STANDARD_Q, reference = nothing)
     TK = T isa Real ? float(T) : ustrip(us"K", T)
+    return _glass_cp(_glass_cp_terms(oxides, reference), TK) * u"J/(g*K)"
+end
+
+# The terms of the heat capacity of a glass per gram, read once: for each oxide
+# Richet covers, its moles per gram and the four coefficients of his Eq. 3; for
+# the others, their moles per gram and the heat capacity of their crystal.
+function _glass_cp_terms(oxides::AbstractDict{<:AbstractString, <:Real}, reference)
     t = literature_table("Richet1987", "oxide_heat_capacity")
-    cp = 0.0
+    # in the number type of the fractions: a composition being calibrated
+    R = mapreduce(f -> typeof(float(f)), promote_type, values(oxides); init = Float64)
+    richet = Tuple{R, Float64, Float64, Float64, Float64}[]
+    crystals = Tuple{R, Any}[]
     for (ox, f) in oxides
         f == 0 && continue
         f < 0 && throw(ArgumentError("glass_heat_capacity: the mass fraction of `$ox` is negative ($f)."))
-        m = float(f) / ustrip(us"g/mol", Species(ox)[:M])
+        m = R(f) / ustrip(us"g/mol", Species(ox)[:M])
         i = findfirst(==(ox), t.oxide)
         if i === nothing
-            found = _reference_oxide(ox, reference === nothing ? _default_glass_reference() : reference)
+            found = _oxide_crystals(ox, reference === nothing ? _default_glass_reference() : reference)
             found === nothing && throw(
                 ArgumentError("glass_heat_capacity: $ox is not in Table I of Richet (1987) and no crystal of it is in the reference databases.")
             )
-            cp += m * ustrip(us"J/(mol*K)", first(found)[:Cp⁰](T = TK * u"K", P = P_STANDARD_Q; unit = true))
+            for (sp, c) in first(found)
+                push!(crystals, (c * m, sp[:Cp⁰]))
+            end
         else
-            a, bb, c, d = (ustrip(t.a[i]), ustrip(t.b[i]), ustrip(t.c[i]), ustrip(t.d[i]))
-            cp += m * (a + bb * TK + c / TK^2 + d / sqrt(TK))
+            push!(richet, (m, ustrip(t.a[i]), ustrip(t.b[i]), ustrip(t.c[i]), ustrip(t.d[i])))
         end
     end
-    return cp * u"J/(g*K)"
+    return (; richet, crystals, R)
+end
+
+# The heat capacity per gram [J/(g K)] at `TK` [K], in the number type of `TK`
+# (a temperature being differentiated, in the cell of a semi-adiabatic run).
+function _glass_cp(terms, TK)
+    cp = zero(promote_type(typeof(float(TK)), terms.R))
+    for (m, a, b, c, d) in terms.richet
+        cp += m * (a + b * TK + c / TK^2 + d / sqrt(TK))
+    end
+    for (m, f) in terms.crystals
+        cp += m * f(; T = TK, P = P_STANDARD, unit = false)
+    end
+    return cp
+end
+
+# The enthalpy of formation and the heat capacity, per mole of a formula unit of
+# `M_g` grams of material, of a glass of oxide analysis `oxides`: what a species
+# needs for its heat to count in a calorimeter. The enthalpy is `glass_enthalpy`
+# at 298.15 K, carried to `T` by the integral of `glass_heat_capacity`; both are
+# functions of `T` in its own number type, the temperature of a semi-adiabatic
+# cell being differentiated.
+function _glass_thermo_functions(oxides::AbstractDict{<:AbstractString, <:Real}, M_g::Real; reference = nothing)
+    H298 = ustrip(us"J/g", glass_enthalpy(oxides; reference).formation_298)
+    terms = _glass_cp_terms(oxides, reference)
+    nodes, weights = _gauss_legendre_8()
+    function H(T, P)
+        half = (T - T_STANDARD) / 2
+        mid = (T + T_STANDARD) / 2
+        return M_g * (H298 + half * sum(w * _glass_cp(terms, mid + half * x) for (x, w) in zip(nodes, weights)))
+    end
+    Cp(T, P) = M_g * _glass_cp(terms, T)
+    return (; ΔₐH⁰ = NumericFunc(H, (:T, :P), u"J/mol"), Cp⁰ = NumericFunc(Cp, (:T, :P), u"J/(mol*K)"))
 end

@@ -236,6 +236,10 @@ monosulfate of the first stage carry sulfate for 0.0112. The surface holds
 fix the chloride activity, as in [the one-stage paste](@ref sec-example-csh-chloride).
 No Friedel's salt forms at these doses.
 
+[`with_csh_surface`](@ref) runs this route on the equilibrium of a recipe in
+one call: the gel frozen, the sites and the area of [Guo2018](@citet) referred
+to its silicon, the paste solved again, and what the surface holds.
+
 ## Route B: chloride in the solid solution
 
 Route B needs no second stage: the paste and the salt are equilibrated

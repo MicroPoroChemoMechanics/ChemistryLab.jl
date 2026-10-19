@@ -186,6 +186,8 @@ end
 
     # Descending instants are refused: each solve warm-starts from the previous
     @test_throws ArgumentError speciated_states(sol, kp; times = [3600.0, 600.0])
+    # and no instant gives no state (a run stopped short of every age asked for)
+    @test speciated_states(sol, kp; times = Float64[]) == ChemicalState[]
 
     # A stage of the replay whose solve raises tries its next candidate instead
     # of failing the replay: the seed ladder ends with no seed, the run-up hands

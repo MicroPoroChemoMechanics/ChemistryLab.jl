@@ -181,13 +181,16 @@ end
     f = only(calls(c, :KineticFunc))
     @test f.args[2].args[2] isa Expr && occursin("0.5 / 86400", string(f.args[2]))
     @test isempty(calls(c, :SemiAdiabaticCalorimeter)) && kwarg(only(calls(c, :KineticsProblem)), :calorimeter) === nothing
+    # a glass given a law takes a formula before the problem is built
+    g = only(calls(c, :with_glass_species))
+    @test g.args[2:3] == [:recipe, :cs] && g.args[4] == :(keys(rates))
     # no clinker law that reads the water, no `w_c`
     c = compute(with(m -> (m.calculation = run(["C3S" => CLS.PKAvramiRate(0.0, false, false)]))))
     p = only(calls(c, :parrott_killoh_avrami))
     @test isempty(assignments(c, :w_c)) && kwarg(p, :blaine) === nothing && kwarg(p, :w_c) === nothing
     # the laws of Waller, the user's own, a semi-adiabatic cell
     rates = ["C3S" => law("waller"), "C2S" => law("waller"; preset = "silica_fume", tau = 40.0, blaine = 2000.0), "Gp" => law("custom_rate")]
-    s = CLS.generate(with(m -> (m.calculation = run(rates; cal = CLS.SemiAdiabaticChoice(900.0, 0.3, 20.0))))).source
+    s = CLS.generate(with(m -> (m.calculation = run(rates; cal = CLS.SemiAdiabaticChoice(900.0, 0.3, 20.0, 0.0))))).source
     @test parses(s)
     c = Meta.parseall(s)
     w = calls(c, :waller)
@@ -196,6 +199,12 @@ end
     @test only(assignments(c, :key)) == "Gp"
     cal = only(calls(c, :SemiAdiabaticCalorimeter))
     @test string(kwarg(cal, :Cp)) == string(:(900.0u"J/K")) && kwarg(cal, :T0) === :T
+    @test string(kwarg(cal, :L)) == string(:(0.3u"W/K")) && kwarg(cal, :heat_loss) === nothing
+    # a loss with the quadratic term of a calibration
+    c2 = compute(with(m -> (m.calculation = run(rates; cal = CLS.SemiAdiabaticChoice(900.0, 0.02, 20.0, 7.0e-5)))))
+    cal2 = only(calls(c2, :SemiAdiabaticCalorimeter))
+    @test kwarg(cal2, :L) === nothing
+    @test string(Base.remove_linenums!(kwarg(cal2, :heat_loss))) == string(Base.remove_linenums!(:(ΔT -> 0.02 * ΔT + 7.0e-5 * ΔT^2)))
     @test kwarg(only(calls(c, :KineticsProblem)), :calorimeter) === :calorimeter
     @test occursin("degrees_of_hydration(solution, problem; times = ages .* 86400)", s)
     @test occursin("_degrees.png", s)
@@ -213,6 +222,30 @@ end
     logistic = ["C2S" => CLS.LogisticExtentChoice(0.8, 3.0, 1.5, 0.0)]
     c = compute(with(m -> (m.materials[1] = CLS.TemplateMaterial(m0.materials[1].template, 1.0, logistic, nothing); m.calculation = run(["C3S" => pk]))))
     @test kwarg(only(calls(c, :diagnose_system)), :t) == 0.0
+end
+
+@testset "surface" begin
+    surf(donnan = false, thickness = 0.0) = CLS.CshSurfaceChoice(donnan, thickness)
+    m = with(m -> (m.surface = surf()))
+    @test isempty(CLS.problems(m))
+    c = compute(m)
+    s = only(calls(c, :with_csh_surface))
+    @test s.args[end] === :state && kwarg(s, :donnan) === nothing
+    @test length(assignments(c, :surface)) == 1 && occursin("merge(study, (; surface))", CLS.generate(m).compute)
+    # along a path, each point; a Donnan layer one Debye length thick, or given
+    c = compute(with(m -> (m.calculation = CLS.CarbonationPath([0.0, 0.5], 28.0); m.surface = surf(true))))
+    @test kwarg(only(calls(c, :with_csh_surface)), :donnan) == QuoteNode(:debye)
+    @test occursin("[with_csh_surface(rs; donnan = :debye) for rs in path]", CLS.generate(with(m -> (m.calculation = CLS.CarbonationPath([0.0, 0.5], 28.0); m.surface = surf(true)))).compute)
+    @test kwarg(only(calls(compute(with(m -> (m.surface = surf(true, 5.0)))), :with_csh_surface)), :donnan) == 5.0e-9
+    # no surface, no line; none along a kinetic run
+    @test isempty(calls(compute(m0), :with_csh_surface))
+    run = CLS.KineticsCalc(28.0, [1.0], ["C3S" => CLS.PKAvramiRate(385.0, true, true)], CLS.IsothermalChoice(), 1.0e-6)
+    @test [p.code for p in CLS.problems(with(m -> (m.calculation = run; m.surface = surf())))] == ["surface_kinetics"]
+    # a model of version 2, before the surface, is the same calculation without one
+    d = CLS.to_dict(m0)
+    d["version"] = 2
+    delete!(d, "surface")
+    @test CLS.model_from_dict(d).surface isa CLS.NoSurfaceChoice
 end
 
 @testset "names and numbers" begin

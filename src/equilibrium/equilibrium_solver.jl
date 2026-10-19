@@ -155,9 +155,13 @@ function _build_params(state::ChemicalState; ϵ::Float64 = _AMOUNT_FLOOR)
     # ustrip without forced Float64 conversion — preserves Dual if T is Dual
     # In the common number type of the potentials: one species whose data are
     # being differentiated makes the whole vector dual, not a `Vector{Real}`.
+    # A pseudo-species with no standard Gibbs energy (a glass given a formula for
+    # its rate law, `glass_species`) has no potential: NaN. It reacts by its law,
+    # never at equilibrium (`KineticsProblem` refuses it there), and the
+    # activities of a state holding it, its pH, never read its potential.
     ΔₐG⁰overRT = _promoted(
         [
-            ustrip(s[:ΔₐG⁰](T = T, P = P; unit = true) / RT)
+            haskey(s, :ΔₐG⁰) ? ustrip(s[:ΔₐG⁰](T = T, P = P; unit = true) / RT) : NaN
                 for s in state.system.species
         ]
     )

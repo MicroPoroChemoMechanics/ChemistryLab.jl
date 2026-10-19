@@ -88,6 +88,27 @@
     xs = range(298.15, 313.15; length = 301)
     cps = [ustrip(us"J/(g*K)", glass_heat_capacity(kept; T = x * u"K")) for x in xs]
     @test Jg(s40.enthalpy) - Jg(s.enthalpy) ≈ step(xs) * (sum(cps) - (cps[1] + cps[end]) / 2) rtol = 1.0e-6
+
+    # SO3 has no crystal in the databases: it counts as anhydrite less lime, both
+    # from the first collection that holds them, in the enthalpy as in the heat
+    # capacity, read here from slop98 directly.
+    slop = Dict(symbol(x) => x for x in ChemistryLab._default_glass_reference()[2])
+    hs(sym) = ustrip(us"J/mol", slop[sym][:ΔₐH⁰](T = 298.15u"K", P = 1.0e5u"Pa"; unit = true))
+    cs(sym) = ustrip(us"J/(mol*K)", slop[sym][:Cp⁰](T = 350.0u"K", P = 1.0e5u"Pa"; unit = true))
+    ref = ([slop["Anh"], slop["Lim"]], ChemistryLab._default_glass_reference()...)
+    sulfated = merge(slag, Dict("SO3" => 0.02))
+    nSO3 = 0.02 / M("SO3")
+    s0 = glass_enthalpy(slag; ignore = ("P2O5",), reference = ref)
+    s1 = glass_enthalpy(sulfated; ignore = ("P2O5",), reference = ref)
+    @test s1.oxide_sources["SO3"] == 1 && Jg(s1.vitrification) == Jg(s0.vitrification)
+    @test Jg(s1.formation_298) - Jg(s0.formation_298) ≈ nSO3 * (hs("Anh") - hs("Lim")) rtol = 1.0e-9
+    cpg(x) = ustrip(us"J/(g*K)", glass_heat_capacity(x; T = 350.0u"K", reference = ref))
+    @test cpg(merge(kept, Dict("SO3" => 0.02))) - cpg(kept) ≈ nSO3 * (cs("Anh") - cs("Lim")) rtol = 1.0e-9
+    # a collection that holds lime alone is passed over: both come from one database
+    @test glass_enthalpy(sulfated; ignore = ("P2O5",), reference = ([slop["Lim"]], ref...)).oxide_sources["SO3"] == 2
+    # and with no collection holding both, SO3 is refused like any oxide
+    @test ChemistryLab._oxide_crystals("SO3", ([slop["Lim"]], [slop["Anh"]])) === nothing
+    @test_throws ArgumentError glass_heat_capacity(Dict("SO3" => 0.02); reference = ([slop["Lim"]],))
     t = literature_table("Richet1987", "relative_enthalpies")
     for i in eachindex(t.glass)
         mol = Dict(ox => ustrip(getfield(t, Symbol(ox * "_percent"))[i]) / 100 for ox in ("Na2O", "K2O", "MgO", "CaO", "Al2O3", "SiO2"))
@@ -112,4 +133,30 @@
     H0 = Jg(glass_enthalpy(slag2).enthalpy)
     dH = ForwardDiff.derivative(x -> Jg(glass_enthalpy(Dict(k => x * v for (k, v) in slag2)).enthalpy), 1.0)
     @test dH ≈ H0 rtol = 1.0e-12
+end
+
+@testsection "a glass species with an enthalpy, for a calorimeter" begin
+    slag = Dict("CaO" => 0.416, "SiO2" => 0.352, "Al2O3" => 0.113, "MgO" => 0.06)
+    sp = glass_species(slag; symbol = "BFS", M = 100.0u"g/mol", enthalpy = true)
+    H(T) = sp[:ΔₐH⁰](; T, unit = false)
+    Cp(T) = sp[:Cp⁰](; T, unit = false)
+    # per formula unit of 100 g: glass_enthalpy per gram, at 298.15 K and away
+    # from it, where glass_enthalpy integrates the same heat capacity
+    @test H(298.15) ≈ 100 * ustrip(us"J/g", glass_enthalpy(slag).formation_298) rtol = 1.0e-12
+    @test H(350.0) ≈ 100 * ustrip(us"J/g", glass_enthalpy(slag; T = 350.0u"K").enthalpy) rtol = 1.0e-9
+    @test Cp(320.0) ≈ 100 * ustrip(us"J/(g*K)", glass_heat_capacity(slag; T = 320.0u"K")) rtol = 1.0e-12
+    # the temperature of a semi-adiabatic cell is differentiated: dH/dT is Cp
+    for T in (298.15, 320.0, 360.0)
+        @test ForwardDiff.derivative(H, T) ≈ Cp(T) rtol = 1.0e-10
+    end
+    # and so is a composition being calibrated: at 298.15 K the enthalpy is
+    # homogeneous of degree one in the fractions
+    h(x) = glass_species(Dict(k => x * v for (k, v) in slag); symbol = "B", enthalpy = true)[:ΔₐH⁰](; T = 298.15, unit = false)
+    @test ForwardDiff.derivative(h, 1.0) ≈ H(298.15) rtol = 1.0e-10
+    # an oxide outside Richet's table takes its crystal's heat capacity, here too
+    fe = Dict("CaO" => 0.4, "SiO2" => 0.4, "MnO" => 0.05)
+    @test glass_species(fe; symbol = "G", enthalpy = true)[:Cp⁰](; T = 310.0, unit = false) ≈
+        100 * ustrip(us"J/(g*K)", glass_heat_capacity(fe; T = 310.0u"K")) rtol = 1.0e-12
+    # none by default: a glass has no enthalpy in a database
+    @test !haskey(glass_species(slag; symbol = "BFS").properties, :ΔₐH⁰)
 end

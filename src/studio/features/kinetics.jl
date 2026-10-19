@@ -134,30 +134,39 @@ struct IsothermalChoice <: CalorimeterChoice end
 kind(::Type{IsothermalChoice}) = "isothermal"
 fields(::Type{IsothermalChoice}) = Field[]
 
-"A semi-adiabatic cell: its heat capacity, its loss to the room, the room's temperature."
+"A semi-adiabatic cell: its heat capacity, its loss to the room (linear and quadratic in the difference of temperature), the room's temperature."
 struct SemiAdiabaticChoice <: CalorimeterChoice
     heat_capacity::Float64
     loss::Float64
     ambient::Float64
+    loss_quadratic::Float64
 end
 kind(::Type{SemiAdiabaticChoice}) = "semi_adiabatic"
 fields(::Type{SemiAdiabaticChoice}) = [
     Field("heat_capacity", :number; default = 900.0, unit = "J/K", min = 0),
     Field("loss", :number; default = 0.05, unit = "W/K", min = 0),
     Field("ambient", :number; default = 20.0, unit = "°C", min = -20, max = 99),
+    Field("loss_quadratic", :number; default = 0.0, unit = "W/K²", min = 0, level = :expert),
 ]
 
 members(::Type{CalorimeterChoice}) = (IsothermalChoice, SemiAdiabaticChoice)
 
 calorimeter_lines(::IsothermalChoice) = String[], ""
-calorimeter_lines(c::SemiAdiabaticChoice) = [
-        "# A semi-adiabatic cell: the heat capacity of the vessel and the inert parts (the",
-        "# paste's own is added), its loss to the room, the room's temperature.",
-        "calorimeter = SemiAdiabaticCalorimeter(;",
-        "    Cp = $(julia_number(c.heat_capacity))u\"J/K\", L = $(julia_number(c.loss))u\"W/K\",",
-        "    T_env = T_ZERO_CELSIUS_Q + $(julia_number(c.ambient))u\"K\", T0 = T,",
-        ")",
-    ], ", calorimeter"
+function calorimeter_lines(c::SemiAdiabaticChoice)
+    # the loss in watts, linear in the difference of temperature or with the
+    # quadratic term of a calibration (NF EN 196-9)
+    loss = c.loss_quadratic > 0 ?
+        "heat_loss = ΔT -> $(julia_number(c.loss)) * ΔT + $(julia_number(c.loss_quadratic)) * ΔT^2," :
+        "L = $(julia_number(c.loss))u\"W/K\","
+    return [
+            "# A semi-adiabatic cell: the heat capacity of the vessel and the inert parts (the",
+            "# paste's own is added), its loss to the room (W), the room's temperature.",
+            "calorimeter = SemiAdiabaticCalorimeter(;",
+            "    Cp = $(julia_number(c.heat_capacity))u\"J/K\", $loss",
+            "    T_env = T_ZERO_CELSIUS_Q + $(julia_number(c.ambient))u\"K\", T0 = T,",
+            ")",
+        ], ", calorimeter"
+end
 
 """
     KineticsCalc
@@ -211,6 +220,14 @@ function calculation_lines(c::KineticsCalc, timed::Bool, constraint_lines, const
             "w_c = w_b / sum(f for (m, f) in recipe.binder if m.kind === :cement; init = 0.0)",
         ] : String[]
     rates = ["    $(repr(key)) => $(rate_code(r, key))," for (key, r) in c.rates]
+    glass = [
+        "# A glass (a constituent known by its oxides) has no formula to dissolve: each",
+        "# one given a rate law takes, in its material and in the system, a pseudo-species",
+        "# written from its own oxides, with an enthalpy estimated from them. With no",
+        "# glass among the laws, the recipe and the system are left as they are.",
+        "glasses = with_glass_species(recipe, cs, keys(rates))",
+        "recipe, cs = glasses.recipe, glasses.system",
+    ]
     return vcat(
         [
             "# Kinetics is integrated in time by OrdinaryDiffEq.",
@@ -224,6 +241,7 @@ function calculation_lines(c::KineticsCalc, timed::Bool, constraint_lines, const
         ],
         rates,
         [")"],
+        glass,
         cal,
         [
             "horizon = $(julia_number(c.horizon))   # days",

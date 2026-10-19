@@ -26,6 +26,9 @@ function template_entry(name::AbstractString, db)
             Dict{String, Any}(
                 "name" => c.name, "mass_fraction" => Float64(c.mass_fraction),
                 "species" => c isa MineralConstituent ? symbol(c.species) : nothing,
+                # known by its oxides: in a supplementary material, a glass a
+                # rate law can dissolve (`with_glass_species`)
+                "oxides" => c isa OxideConstituent,
             ) for c in m.constituents
         ],
     )

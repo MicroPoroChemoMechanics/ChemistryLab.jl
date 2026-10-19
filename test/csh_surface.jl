@@ -390,3 +390,63 @@ const PHREEQC_CSH_DONNAN = reference_oracle("phreeqc_csh_donnan")
         @test abs(d[2]) < 1.0e-6 * 1000 * f.area_m2 * maximum(ms)
     end
 end
+
+@testsection "The surface of the C-S-H of a paste, after Guo et al. (2018)" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    list = "Portland paste (Lothenbach and Winnefeld 2006)"
+    cs = phase_list_system(list, substances)
+    cement = with_extents(
+        material_template("CEM I 52.5 N (Gruyaert 2010), Bogue", cs),
+        Dict("C3S" => 0.8, "C2S" => 0.45, "C3A" => 0.9, "C4AF" => 0.6),
+    )
+    model = cemdata18_activity_model(:KOH)
+    rs, _ = equilibrate_certified(Recipe(cement => 1.0; w_b = 0.5), cs; model)
+    s = with_csh_surface(rs)
+    @test s.certificate.optimal
+    # the sites and the area keep the ratio of the data: a site density and a
+    # specific surface referred to the same gram of C-S-H
+    ratio = ustrip(us"m^2/g", literature_value("Guo2018", "csh_specific_surface_area")) /
+        ustrip(us"mol/g", literature_value("Guo2018", "csh_site_density"))
+    @test s.area / s.sites ≈ ratio rtol = 1.0e-12
+    # every site is somewhere, free or complexed
+    @test sum(last, s.complexes) ≈ s.sites rtol = 1.0e-8
+    # the surface takes calcium, and the pore water is a film on its area
+    @test s.bound[:Ca] > 0 && !haskey(s.bound, :Xw)
+    cs2 = s.state.system
+    iw = findfirst(x -> symbol(x) == "H2O@", cs2.species)
+    w = ustrip(us"mol", s.state.n[iw]) * ustrip(us"kg/mol", cs2.species[iw][:M])
+    @test s.film ≈ w / 1000 / s.area rtol = 1.0e-12
+    @test isfinite(s.potential) && s.debye > 0
+    # the elements of the paste are those of the two stages and the frozen gel
+    el(st, e) = sum(get(atoms(x), e, 0) * ustrip(us"mol", st.n[i]) for (i, x) in enumerate(st.system.species))
+    for e in (:Ca, :Si, :Al, :S)
+        @test el(s.state, e) + get(s.frozen.elements, e, 0.0) ≈ el(rs.state, e) rtol = 1.0e-8
+    end
+    # a Donnan layer: refused on a film thinner than the Debye length, however
+    # thin the layer (its water would be a twentieth of the film here), and in a
+    # suspension, its water the area times its thickness
+    @test s.film < s.debye
+    err = try
+        with_csh_surface(rs; donnan = 0.05 * s.film)
+    catch e
+        e
+    end
+    @test err isa ArgumentError && occursin("Debye length", sprint(showerror, err))
+    rsus, _ = equilibrate_certified(Recipe(cement => 1.0; w_b = 20.0), cs; model)
+    d = with_csh_surface(rsus; donnan = :debye)
+    @test d.film > d.debye && d.certificate.optimal
+    @test d.donnan.contents.water ≈ d.area * d.debye * 1000 rtol = 1.0e-6
+    @test d.donnan.result.state isa ChemicalState
+    # the thickness as a layer, a number of meters, a length, or one Debye length
+    @test ChemistryLab._donnan_thickness(DonnanLayer(; thickness = 2.0e-9), 1.0) == 2.0e-9
+    @test ChemistryLab._donnan_thickness(2.0e-9u"m", 1.0) ≈ 2.0e-9 && ChemistryLab._donnan_thickness(2, 1.0) === 2.0
+    @test ChemistryLab._donnan_thickness(:debye, 3.0e-9) == 3.0e-9
+    @test_throws ArgumentError ChemistryLab._donnan_thickness(:bjerrum, 3.0e-9)
+    # what the surface needs: the CSHQ gel in the system, and a gel in the paste
+    lime = Material("lime", :other; constituents = [MineralConstituent(cs["Portlandite"]; mass_fraction = 1.0)])
+    rl, _ = equilibrate_certified(Recipe(lime => 1.0; w_b = 0.5), cs; model)
+    @test_throws ArgumentError with_csh_surface(rl)
+    small = ChemicalSystem(speciation(substances, ["Portlandite"]; aggregate_state = [AS_AQUEOUS]), CEMDATA_PRIMARIES)
+    rs0, _ = equilibrate_certified(Recipe(lime => 1.0; w_b = 0.5), small; model)
+    @test_throws ArgumentError with_csh_surface(rs0)
+end

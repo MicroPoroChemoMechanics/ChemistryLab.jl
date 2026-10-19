@@ -66,6 +66,9 @@
       <div id="species-browser"></div>
       <h3 data-i18n="activity_model">Activity model of the pore solution</h3>
       <div id="activity-form"></div>
+      <h3 data-i18n="surface">Surface of the C-S-H</h3>
+      <p class="hint" data-i18n="surface_lead">The sites of the published model of Guo et al. (2018) on the C-S-H, after the equilibrium: what the surface binds (calcium, alkalis, chloride) and its potential.</p>
+      <div id="surface-form"></div>
       <h3 data-i18n="diagnosis">Diagnosis</h3>
       <ul id="diagnostics-system" class="diagnostics"></ul>
     </div>
@@ -125,6 +128,8 @@
       <button data-result="si" data-only="equilibrium" data-i18n="res_si">Saturation</button>
       <button data-result="porosity" data-only="path kinetics" data-i18n="res_porosity">Porosity</button>
       <button data-result="heat" data-only="kinetics" data-i18n="res_heat">Heat</button>
+      <button data-result="tga" data-i18n="res_tga">TGA</button>
+      <button data-result="surface" data-only="equilibrium path" data-i18n="res_surface">Surface</button>
       <button data-result="certificate" data-only="equilibrium" data-i18n="res_certificate">Certificate</button>
       <button data-result="table" data-only="path kinetics" data-i18n="res_table">Table</button>
       <button data-result="output" data-i18n="res_output">Output</button>
@@ -161,6 +166,31 @@
         <div class="plot" id="plot-heat"></div>
         <div class="plot" id="plot-temperature" hidden></div>
         <p class="hint" id="heat-note"></p>
+      </div>
+      <div class="result" id="result-surface">
+        <div class="summary" id="surface-summary"></div>
+        <div class="plot" id="plot-surface"></div>
+        <div class="plot" id="plot-surface-bound"></div>
+        <div class="plot" id="plot-donnan" hidden></div>
+        <p class="hint" id="surface-note"></p>
+      </div>
+      <div class="result" id="result-tga">
+        <div class="row">
+          <label for="tga-state" id="tga-state-label" data-i18n="tga_state">State</label>
+          <select id="tga-state"></select>
+          <label for="tga-reference" data-i18n="tga_reference">Reference mass</label>
+          <select id="tga-reference">
+            <option value="initial" data-i18n="tga_ref_initial">the sample at 30 °C</option>
+            <option value="105" data-i18n="tga_ref_105">dry at 105 °C</option>
+            <option value="500" data-i18n="tga_ref_500">dry at 500 °C</option>
+            <option value="800" data-i18n="tga_ref_800">dry at 800 °C</option>
+            <option value="ignited" data-i18n="tga_ref_ignited">ignited at 980 °C</option>
+          </select>
+        </div>
+        <div class="plot" id="plot-tga"></div>
+        <div class="plot" id="plot-dtg"></div>
+        <div class="plot" id="plot-tga-phases" hidden></div>
+        <p class="hint" id="tga-note"></p>
       </div>
       <div class="result" id="result-certificate">
         <p class="hint" data-i18n="certificate_hint">What the solver proved about the answer.</p>
