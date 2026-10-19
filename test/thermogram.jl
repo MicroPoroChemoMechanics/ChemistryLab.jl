@@ -395,4 +395,19 @@ end
     # the curve integrates to what the formulas hold
     tg = thermogram(st, w; temperatures = collect(303.15:5.0:1253.15))
     @test tg.loss[end] ≈ ustrip(us"kg", ignition_loss(st).total) rtol = 1.0e-9
+
+    # one's own windows first, the literature's for the releases they leave out:
+    # the water of portlandite and the carbon dioxide of calcite read elsewhere,
+    # the latter a logistic peak narrow enough to be over at 980 °C
+    own = [
+        DecompositionWindow("Portlandite"; between = (673.15, 793.15)),
+        DecompositionWindow("Cal", 1000.0, 5.0; releases = :carbon_dioxide),
+    ]
+    mixed = literature_windows(st, own)
+    @test mixed[1:2] == own && length(mixed) == length(w)
+    @test isempty(phases_without_windows(st, mixed))
+    @test [x for x in mixed[3:end]] == [x for x in w if !((x.phase, x.releases) in (("Portlandite", :water), ("Cal", :carbon_dioxide)))]
+    @test literature_windows(st, w) == w
+    tm = thermogram(st, mixed; temperatures = collect(303.15:5.0:1253.15))
+    @test tm.loss[end] ≈ tg.loss[end] rtol = 1.0e-12
 end

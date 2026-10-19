@@ -37,7 +37,7 @@ const RESERVED_NAMES = Set(
         "path", "paste", "states", "temperatures", "ratios", "fractions", "scm", "ages", "column", "solution",
         "V", "M_water", "fresh", "db", "species", "members", "solid_solutions", "table", "phases", "x",
         "rates", "horizon", "problem", "solution", "w_c", "calorimeter", "degrees", "curves", "times", "key",
-        "glasses", "surface",
+        "glasses", "surface", "windows", "heating", "tga", "losses",
     ]
 )
 
@@ -119,6 +119,7 @@ function calculation_section(m::StudioModel)
         ],
         calculation_lines(m.calculation, depends_on_age(m), clines, ckw),
         surface_lines(m.surface, m.calculation),
+        tga_lines(m.tga),
     )
 end
 
@@ -137,7 +138,42 @@ function diagnostic_source(m::StudioModel)
 end
 
 "The tables of section 6, for a single equilibrium, a path or a kinetic run."
-tables_section(m::StudioModel) = vcat([heading(6, "Tables")], table_lines(m.calculation))
+tables_section(m::StudioModel) = vcat([heading(6, "Tables")], table_lines(m.calculation), [""], tga_table_lines(m.calculation))
+
+# The thermogram as the studio draws it: from 30 to 980 °C every 5 K, the
+# windows of section 5 completed by the literature's.
+const TGA_HEATING = [
+    "# The thermogram of the solids, from 30 to 980 °C: the windows of section 5,",
+    "# completed by the literature's for every other release.",
+    "heating = T_ZERO_CELSIUS .+ (30.0:5.0:980.0)",
+]
+
+function tga_table_lines(::EquilibriumCalc)
+    return vcat(
+        TGA_HEATING, [
+            "tga = thermogram(state, literature_windows(state, windows); temperatures = heating)",
+            "println(\"Loss on ignition: \", round(tga.loss_percent[end]; digits = 2), \" % of the sample at 30 °C\")",
+        ]
+    )
+end
+
+function tga_table_lines(::CalculationChoice)
+    return vcat(
+        TGA_HEATING, [
+            "losses = [thermogram(rs.state, literature_windows(rs.state, windows); temperatures = heating).loss_percent[end] for rs in path]",
+            "println(\"Loss on ignition at each point, % of the sample at 30 °C: \", round.(losses; digits = 2))",
+        ]
+    )
+end
+
+function tga_table_lines(::KineticsCalc)
+    return vcat(
+        TGA_HEATING, [
+            "losses = [thermogram(s, literature_windows(s, windows); temperatures = heating).loss_percent[end] for s in states]",
+            "println(\"Loss on ignition at \", join(ages, \", \"), \" days, % of the sample at 30 °C: \", round.(losses; digits = 2))",
+        ]
+    )
+end
 
 function table_lines(::EquilibriumCalc)
     return [

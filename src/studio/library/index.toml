@@ -324,6 +324,41 @@ fraction = 1.0
 extents = []
 
 [[entry]]
+id = "cem1-lavergne2018-semiadiabatic"
+title = "CEM I 52.5 N of Lavergne et al. (2018) in a semi-adiabatic cell"
+designation = "CEM I 52.5 N"
+process = "kinetics"
+level = "expert"
+sources = ["Lavergne2018", "LothenbachWinnefeld2006"]
+summary = "The mortar C100 of Lavergne et al. (2018) in their semi-adiabatic cell (NF EN 196-9), from 20 °C over the 3.5 days of the temperature they measured (Fig. 15(a)): the 371 g of cement of the mix (Table 11), at the water-to-binder ratio of its paste, 0.5013, once the water the sand absorbs (0.9 % of its mass) is set aside. The heat capacity of the cell, 1234 J/K, is that of the vessel (380 J/K, which the article prints in kJ/K), of the 1113 g of sand and of the water it absorbs, the paste's own being added by the run; its loss is the calibration of the article (Eq. 23), 75 J/(h K) and 0.26 J/(h K²), the quadratic term in expert mode. The four clinker phases react by the law of Parrott and Killoh with the parameters of the article, and the hydrates are at equilibrium: near 53 °C ettringite and monocarbonate give way to monosulfate at one temperature, where the cell then stays for several hours while that reaction takes the heat. The run takes about ten minutes, and the first one a few more to compile."
+
+[entry.model]
+version = 3
+title = "CEM I 52.5 N (Lavergne 2018), semi-adiabatic"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)" }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.5013, temperature = 20.0, binder_mass = 371.0 }
+
+[entry.model.calculation]
+kind = "kinetics"
+horizon = 3.5
+ages = [0.5, 1.0, 2.0, 3.5]
+calorimeter = { kind = "semi_adiabatic", heat_capacity = 1234.3, loss = 0.0208333, ambient = 20.0, loss_quadratic = 7.2222e-5 }
+rates = [
+    { key = "C3S", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C2S", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C3A", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C4AF", value = { kind = "parrott_killoh_avrami" } },
+]
+
+[[entry.model.materials]]
+kind = "template"
+template = "CEM I 52.5 N (Lavergne 2018)"
+fraction = 1.0
+extents = []
+
+[[entry]]
 id = "cem1-carbonation"
 title = "Carbonation of a CEM I 52.5 N paste"
 designation = "CEM I 52.5 N"

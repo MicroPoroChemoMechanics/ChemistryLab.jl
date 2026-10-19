@@ -7,12 +7,14 @@
 // page changes.
 //
 //   julia -e 'using ChemistryLab; clstudio(no_browser = true)'   # in another terminal
-//   node screenshots.mjs --url 'http://127.0.0.1:8766/?token=…' [--out ../../../docs/src/assets/studio]
+//   node screenshots.mjs --url 'http://127.0.0.1:8766/?token=…' [--out ../../../docs/src/assets/studio] [--only tga,surface]
 //
 // Each picture is taken in the light and in the dark theme:
 //   studio_equilibrium_{light,dark}.png  the default cement paste at 28 days;
 //   studio_species_{light,dark}.png      the System tab: phases, species, diagnosis;
+//   studio_tga_{light,dark}.png          the thermogram of that paste, the windows of its releases;
 //   studio_path_{light,dark}.png         a carbonation path;
+//   studio_surface_{light,dark}.png      the binding of chloride with the surface of the C-S-H;
 //   studio_kinetics_{light,dark}.png     a kinetic run, its degrees of reaction.
 // A kinetic run compiles for a few minutes the first time: the script waits.
 // The pictures committed are then reduced to 256 colors (a third of the size,
@@ -33,7 +35,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, all) =>
   (a.startsWith("--") ? acc.concat([[a.slice(2), all[i + 1]]]) : acc), []));
 if (!args.url) throw new Error("give the address of a running studio: --url 'http://127.0.0.1:8766/?token=…'");
-const out = resolve(args.out || join(here, "..", "..", "docs", "src", "assets", "studio"));
+const out = resolve(args.out || join(here, "..", "..", "..", "docs", "src", "assets", "studio"));
+const only = args.only ? args.only.split(",") : null;
 const VIEW = { width: 1600, height: 950 };
 
 function playwright() {
@@ -75,7 +78,26 @@ async function run(page, minutes) {
   await page.waitForTimeout(1500);   // the plots settle
 }
 
+// A run the studio refused or that failed (too little memory free, an error)
+// leaves an empty tab: the script stops with what the studio said rather than
+// take a picture of nothing.
+async function result(page, r) {
+  await page.click(`#result-tabs button[data-result=${r}]`);
+  const drawn = await page.waitForFunction((id) => document.querySelector(`#result-${id} .main-svg, #result-${id} table tr`),
+    r, { timeout: 15000 }).then(() => true, () => false);
+  if (!drawn) throw new Error(`nothing drawn in the ${r} tab: ${(await page.textContent("#output")).trim()}`);
+}
+
+// Once a run is over the page asks for the diagnosis of the model, which shows
+// as busy too: the picture waits until the compute process is free again.
+async function settled(page, minutes) {
+  await ready(page, minutes);
+  await page.waitForTimeout(1500);
+  await ready(page, minutes);
+}
+
 async function shoot(page, name) {
+  if (only && !only.includes(name.id)) return;
   for (const theme of ["light", "dark"]) {
     // the page reads its theme when it loads, the plots when they are drawn:
     // a reload in the theme, then the calculation again
@@ -84,6 +106,7 @@ async function shoot(page, name) {
     await ready(page, 2);
     await page.waitForTimeout(300);
     await name.prepare(page);
+    await settled(page, 5);
     await page.waitForTimeout(800);
     const file = join(out, `studio_${name.id}_${theme}.png`);
     await page.screenshot({ path: file, clip: { x: 0, y: 0, ...VIEW } });
@@ -92,7 +115,6 @@ async function shoot(page, name) {
 }
 
 const tab = (page, t) => page.click(`#steps button[data-tab=${t}]`);
-const result = (page, r) => page.click(`#result-tabs button[data-result=${r}]`);
 
 const { chromium } = playwright();
 mkdirSync(out, { recursive: true });
@@ -120,11 +142,46 @@ try {
     },
   };
   await shoot(page, species);
+  // the thermogram of the same paste, the mass lost and its rate, beside the
+  // window of each release of its solids in the Calculation tab
+  const tga = {
+    id: "tga", prepare: async (p) => {
+      await tab(p, "calculation");
+      await run(p, 10);
+      await result(p, "tga");
+      await p.evaluate(() => { const d = document.getElementById("tga-details"); d.open = true; d.scrollIntoView({ block: "start" }); });
+    },
+  };
+  await shoot(page, tga);
 
   // a carbonation path
   await setModel(page, (m) => ({ ...m, calculation: { kind: "carbonation", amounts: [0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0], age: 28 } }));
   const path = { id: "path", prepare: async (p) => { await tab(p, "calculation"); await run(p, 10); await result(p, "phases"); } };
   await shoot(page, path);
+
+  // the binding of chloride by the paste, the surface of its C-S-H at each point
+  await api(page, "/api/library", { id: "cem1-chloride-binding-surface" });
+  await page.reload();
+  await ready(page, 2);
+  // the output pane at its smallest, as its separator would leave it, so that
+  // both plots of the tab show
+  const surface = {
+    id: "surface", prepare: async (p) => {
+      await tab(p, "system");
+      await run(p, 20);
+      await result(p, "surface");
+      await p.evaluate(() => {
+        const log = document.getElementById("log");
+        log.style.flex = "0 0 60px";
+        log.style.maxHeight = "none";
+        window.dispatchEvent(new Event("resize"));
+      });
+    },
+  };
+  await shoot(page, surface);
+  await api(page, "/api/library", { id: "cem1-52.5n-gruyaert2010" });
+  await page.reload();
+  await ready(page, 2);
 
   // a kinetic run, the four clinker phases by the law of Parrott and Killoh
   const rates = ["C3S", "C2S", "C3A", "C4AF"].map((key) => ({ key, value: { kind: "parrott_killoh_avrami", blaine: 385, water_factor: true, powers_cap: true } }));

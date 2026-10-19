@@ -248,6 +248,50 @@ end
     @test CLS.model_from_dict(d).surface isa CLS.NoSurfaceChoice
 end
 
+@testset "windows of the thermogram" begin
+    # a release is keyed by its phase and its product, a parenthesis in a name kept
+    @test CLS.release_of(CLS.release_key("Portlandite", :water)) == ("Portlandite" => :water)
+    @test CLS.release_of(CLS.release_key("A (B)", :carbon_dioxide)) == ("A (B)" => :carbon_dioxide)
+    @test CLS.release_of("Portlandite") === nothing && CLS.release_of("Cal (CO3)") === nothing
+    # none set: every release as the literature reads it, in the tables too
+    c = compute(m0)
+    @test only(assignments(c, :windows)) == :(DecompositionWindow[])
+    @test occursin("study = merge(study, (; windows))", g.compute)
+    @test occursin("thermogram(state, literature_windows(state, windows); temperatures = heating)", g.source)
+    # an interval for the water of portlandite, a logistic peak for the carbon
+    # dioxide of calcite: the windows the script builds are those built by hand
+    own = Pair{String, CLS.WindowChoice}[
+        "Portlandite (water)" => CLS.IntervalWindowChoice(400.0, 520.0),
+        "Cal (CO2)" => CLS.LogisticWindowChoice(750.0, 20.0),
+    ]
+    m = with(m -> (m.tga = CLS.TgaWindowsChoice(own)))
+    @test isempty(CLS.problems(m))
+    @test CLS.model_from_dict(CLS.to_dict(m)).tga == m.tga
+    sandbox = Module()
+    Core.eval(sandbox, :(using ChemistryLab))
+    built = Core.eval(sandbox, only(assignments(compute(m), :windows)))
+    @test built == [
+        DecompositionWindow("Portlandite"; between = (T_ZERO_CELSIUS + 400.0, T_ZERO_CELSIUS + 520.0)),
+        DecompositionWindow("Cal", T_ZERO_CELSIUS + 750.0, 20.0; releases = :carbon_dioxide),
+    ]
+    # along a path and in time, the thermogram of each state
+    path = CLS.generate(with(m -> (m.calculation = CLS.CarbonationPath([0.0, 0.5], 28.0)))).source
+    @test parses(path) && occursin("literature_windows(rs.state, windows)", path)
+    run = CLS.KineticsCalc(28.0, [1.0], ["C3S" => CLS.PKAvramiRate(385.0, true, true)], CLS.IsothermalChoice(), 1.0e-6)
+    timed = CLS.generate(with(m -> (m.calculation = run))).source
+    @test parses(timed) && occursin("literature_windows(s, windows)", timed)
+    # a window that ends before it starts, a key that names no release, a
+    # temperature out of range
+    codes(t) = [p.code for p in CLS.problems(with(m -> (m.tga = CLS.TgaWindowsChoice(t))))]
+    @test codes(["Portlandite (water)" => CLS.IntervalWindowChoice(520.0, 400.0)]) == ["window_order"]
+    @test codes(["Portlandite" => CLS.LogisticWindowChoice(450.0, 15.0)]) == ["window_key"]
+    @test codes(["Portlandite (water)" => CLS.IntervalWindowChoice(400.0, 1200.0)]) == ["out_of_range"]
+    # a model written before the windows reads them as the literature's
+    d = CLS.to_dict(m0)
+    delete!(d, "tga")
+    @test isempty(CLS.model_from_dict(d).tga.windows)
+end
+
 @testset "names and numbers" begin
     @test CLS.material_name("S1 slag (Durdzinski 2017)", String[]) == "s1_slag"
     @test CLS.material_name("PC (Durdzinski 2017), Bogue", ["pc"]) == "pc_2"

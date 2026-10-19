@@ -620,6 +620,9 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         # and the re-speciation of one step evaluate a few nearby states, and
         # the passes of a Jacobian the same one.
         cell_root = Ref((Float64[], NaN, NaN)),
+        # The partition on the far side of the reaction that holds the cell at
+        # its temperature, the start of the next solve there.
+        cell_high = Ref{Union{Nothing, Vector{Float64}}}(nothing),
         # Equilibrium — Leal et al. (2017) §5. The re-speciation φ(bₑ) is a
         # minimization over the EQUILIBRIUM PARTITION ONLY, at frozen kinetic
         # amounts. Running it over the whole system would let the kinetic
@@ -691,10 +694,6 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         # `_rhs_values` then offers the interior point as a last start, which
         # the integration does not need and should not pay for.
         walking = Ref(false),
-        # The partitions `_rhs_values` failed in a row: past `_RHS_STUCK_AFTER`
-        # the integration is stuck at a change of assemblage, and the interior
-        # point is offered to it as well.
-        rhs_failures = Ref(0),
         n_rhs = similar(n_full),
         # Feasibility of a kinetic state: the element content of the kinetic
         # species and the element totals of the system.
@@ -1045,12 +1044,6 @@ const _EQ_GUESS_FLOOR = 1.0e-10
 # what any amount of a partition means, so that the traces keep their potentials.
 const _RHS_GUESS_FLOOR = 1.0e-16
 
-# The partitions `_rhs_values` may fail in a row before it offers the interior
-# point to the integration: an isolated failure only rejects a step, which a
-# smaller one passes; failures in a row are an integration stuck at a change of
-# assemblage, which no smaller step passes.
-const _RHS_STUCK_AFTER = 2
-
 # The last partition `_rhs_values` solved, keyed by the plain element amounts and
 # temperature it was solved at.
 const _RhsCache = NamedTuple{(:b, :T, :n), Tuple{Vector{Float64}, Float64, Vector{Float64}}}
@@ -1204,9 +1197,28 @@ function _paste_enthalpy(p, n_e, nk, T)
 end
 
 # The temperature of a cell is solved to this step, in kelvin, and in at most
-# this many Newton iterations.
+# this many Newton iterations. A root Newton cannot reach is bracketed by steps
+# doubling from `_CELL_T_STEP`, and the temperature of a reaction that holds the
+# cell is located to it; whether the balance jumps across a bracket, which tells
+# such a reaction from a root, is judged on `_CELL_T_JUMP`, in kelvin.
 const _CELL_T_TOL = 1.0e-9
 const _CELL_T_MAXIT = 30
+const _CELL_T_STEP = 1.0e-6
+const _CELL_T_JUMP = 1.0e-3
+
+# The residual of the energy balance of the cell, in the number types of its
+# arguments: the enthalpy of the paste of partition `n_e` and kinetic amounts
+# `nk` at `T`, less its reference, with the vessel's, less the change the state
+# carries.
+_cell_balance(p, n_e, nk, T, ΔH) =
+    _paste_enthalpy(p, n_e, nk, T) - _plain(p.H0[]) + _plain(p.Cp_calo) * (T - _plain(p.T0_cell)) - ΔH
+
+# That residual at the plain temperature `T`, its partition solved there (and
+# left in the cache of `_rhs_values`); `nothing` when it cannot be solved.
+function _cell_balance_at(p, bv, nkv, T, ΔHv; start = nothing)
+    n_e = _rhs_values(p, bv, T; start)
+    return n_e === nothing ? nothing : _cell_balance(p, n_e, nkv, T, ΔHv)
+end
 
 """
     _cell_residual(p, bv, nkv, n_e, Tv, ΔHv) -> (R, C)
@@ -1227,7 +1239,7 @@ function _cell_residual(p, bv, nkv, n_e, Tv, ΔHv)
     Td = D(Tv, ForwardDiff.Partials((1.0,)))
     P = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
     n_d = _lifted_partition(p, n_e, Tv * u"K", P, bv; T = Td * u"K")
-    R = _paste_enthalpy(p, n_d, nkv, Td) - _plain(p.H0[]) + _plain(p.Cp_calo) * (Td - _plain(p.T0_cell)) - ΔHv
+    R = _cell_balance(p, n_d, nkv, Td, ΔHv)
     return _plain(ForwardDiff.value(R)), _plain(ForwardDiff.partials(R)[1])
 end
 
@@ -1239,25 +1251,125 @@ capacity at equilibrium there ([`_cell_residual`](@ref)): Newton on `R`, from th
 last root found (`p.cell_root`), the nearest state evaluated, or else from the
 last accepted temperature, until its step falls below `_CELL_T_TOL`. The
 temperature returned is the last one the partition was solved at, which the
-evaluation that follows finds in the cache of `_rhs_values`. `nothing` when the
-partition cannot be solved, when the capacity is not positive (the balance would
-then have no unique root), or after `_CELL_T_MAXIT` iterations.
+evaluation that follows finds in the cache of `_rhs_values`.
+
+`R` grows with `T`, and the temperatures where it was found negative and
+positive bracket the root. Where Newton cannot go on, the root is bisected in
+that bracket, widened first if one side is missing
+([`_cell_temperature_bracketed`](@ref)): when the capacity it reads is not
+positive, which the partition lifted in temperature gives where its assemblage
+is about to change, and when its iterations run out, which they do across the
+jump of `R` at a reaction between phases of fixed composition (ettringite and
+monocarbonate giving way to monosulfate in a paste near 53 °C). While the cell
+is held at such a reaction (the last root found had an infinite capacity), the
+root is bracketed from it at once. Where Newton converges, nothing else is
+done. `nothing` when the partition cannot be solved.
 """
 function _cell_temperature_value(p, bv, nkv, ΔHv)
-    last = p.cell_root[][2]
+    _, last, held = p.cell_root[]
     Tv = isfinite(last) ? last : Float64(_plain(ustrip(us"K", p.T_q[])))
+    lo, hi, Rlo, Rhi = -Inf, Inf, NaN, NaN
+    if isinf(held)
+        # Held at a reaction: still held while the balance changes sign across
+        # the step above that temperature (two solves, the one at `Tv` last, so
+        # that its partition is the one in the cache); otherwise Newton again,
+        # from there, with what the two told of the root.
+        R1 = _cell_balance_at(p, bv, nkv, Tv + _CELL_T_STEP, ΔHv; start = p.cell_high[])
+        R1 === nothing || (p.cell_high[] = copy(p.rhs_cache[].n))
+        R0 = _cell_balance_at(p, bv, nkv, Tv, ΔHv)
+        (R0 === nothing || R1 === nothing || !isfinite(R0) || !isfinite(R1)) && return nothing
+        R0 < 0 <= R1 && return Tv, Inf
+        R1 < 0 ? ((lo, Rlo) = (Tv + _CELL_T_STEP, R1)) : ((hi, Rhi) = (Tv, R0))
+    end
     for _ in 1:_CELL_T_MAXIT
         n_e = _rhs_values(p, bv, Tv)
-        n_e === nothing && break
+        n_e === nothing && return nothing
         R, C = _cell_residual(p, bv, nkv, n_e, Tv, ΔHv)
-        (isfinite(R) && isfinite(C) && C > 0) || break
+        isfinite(R) || return nothing
+        R < 0 ? ((lo, Rlo) = (Tv, R)) : ((hi, Rhi) = (Tv, R))
+        (isfinite(C) && C > 0) || break
         δ = R / C
         abs(δ) <= _CELL_T_TOL && return Tv, C
         Tv -= δ
     end
-    # The partition could not be solved, the capacity was not positive, or the
-    # iterations ran out.
-    return nothing
+    # The capacity could not be read, or the iterations ran out: the root on the
+    # values of `R`, which the run stopped short of before.
+    return _cell_temperature_bracketed(p, bv, nkv, ΔHv, (lo, Rlo), (hi, Rhi))
+end
+
+"""
+    _cell_temperature_bracketed(p, bv, nkv, ΔHv, (lo, Rlo), (hi, Rhi))
+        -> Union{Nothing, Tuple{Float64, Float64}}
+
+The root of the balance of the cell between `lo`, where its residual `R` is
+`Rlo < 0`, and `hi`, where it is `Rhi ≥ 0`, on the values of `R` alone: the
+missing side, if one is (an infinite end), found by steps doubling from
+`_CELL_T_STEP`, then the bracket bisected. Returns its lower end, where the
+partition is that of the assemblage below the root, and the capacity there.
+
+The bracket is bisected to `_CELL_T_JUMP` first. When `R` jumps across it, by
+more than ten times what the capacity at its lower end accounts for (or that
+capacity cannot be read), the root is a reaction between phases of fixed
+composition, which takes its heat at one temperature: the cell stays at it
+while the heat of the paste goes into the reaction, and its temperature does
+not depend on the state there, which the capacity returned, infinite, says
+(`∂T/∂u = 0`, [`_cell_temperature`](@ref)); the bracket is then bisected on to
+`_CELL_T_STEP`, the temperature of the reaction. Judged on that width, the
+threshold is several joules for a paste, well above the noise of a residual that
+differences enthalpies of megajoules and well below the heat of such a reaction
+(7 kJ for the gypsum of 100 g of binder turning to anhydrite, 5.8 kJ for the
+ettringite and monocarbonate of a CEM I mortar turning to monosulfate). A
+regular root is bisected on to `_CELL_T_TOL`. `nothing` when the partition cannot
+be solved, or no bracket is found.
+"""
+function _cell_temperature_bracketed(p, bv, nkv, ΔHv, (lo, Rlo), (hi, Rhi))
+    balance(T) = _cell_balance_at(p, bv, nkv, T, ΔHv)
+    # the missing side, away from the one found
+    h = _CELL_T_STEP
+    while !isfinite(lo) || !isfinite(hi)
+        h > 2.0^_CELL_T_MAXIT * _CELL_T_STEP && return nothing
+        T = isfinite(lo) ? lo + h : hi - h
+        R = balance(T)
+        R === nothing && return nothing
+        R < 0 ? ((lo, Rlo) = (T, R)) : ((hi, Rhi) = (T, R))
+        h *= 2
+    end
+    b = _bisect_cell(balance, lo, Rlo, hi, Rhi, _CELL_T_JUMP)
+    b === nothing && return nothing
+    lo, Rlo, hi, Rhi = b
+    C = _cell_capacity(p, bv, nkv, ΔHv, lo)
+    held = !(isfinite(C) && C > 0 && Rhi - Rlo <= 10 * C * max(hi - lo, _CELL_T_JUMP))
+    b = _bisect_cell(balance, lo, Rlo, hi, Rhi, held ? _CELL_T_STEP : _CELL_T_TOL)
+    b === nothing && return nothing
+    lo = first(b)
+    if held
+        _cell_balance_at(p, bv, nkv, lo + _CELL_T_STEP, ΔHv) === nothing && return nothing
+        p.cell_high[] = copy(p.rhs_cache[].n)
+        _rhs_values(p, bv, lo) === nothing && return nothing
+        return lo, Inf
+    end
+    C = _cell_capacity(p, bv, nkv, ΔHv, lo)
+    return lo, isfinite(C) && C > 0 ? C : Inf
+end
+
+# The bracket `lo < hi` of the root of `balance`, negative at `lo` and not at
+# `hi`, bisected to `tol`: `(lo, Rlo, hi, Rhi)`, or `nothing` when a partition
+# cannot be solved.
+function _bisect_cell(balance::F, lo, Rlo, hi, Rhi, tol) where {F}
+    while hi - lo > tol
+        mid = (lo + hi) / 2
+        R = balance(mid)
+        R === nothing && return nothing
+        R < 0 ? ((lo, Rlo) = (mid, R)) : ((hi, Rhi) = (mid, R))
+    end
+    return lo, Rlo, hi, Rhi
+end
+
+# The heat capacity of the cell at equilibrium at `T` (`_cell_residual`), NaN
+# when the partition cannot be solved there.
+function _cell_capacity(p, bv, nkv, ΔHv, T)
+    n_e = _rhs_values(p, bv, T)
+    return n_e === nothing ? NaN : last(_cell_residual(p, bv, nkv, n_e, T, ΔHv))
 end
 
 """
@@ -1272,7 +1384,10 @@ evaluated on the state's own numbers at the root `T*`, its partition lifted in
     T = T* − (R(u, T*) − R*) / C ,
 
 which carries `∂T/∂u = −(∂R/∂u)/C` exactly and keeps the value `T*` the
-partition was solved at. `nothing` when the root cannot be found.
+partition was solved at. At a reaction that holds the cell at its temperature
+(`C` infinite, [`_cell_temperature_bracketed`](@ref)) that derivative is zero:
+the temperature of a reaction between phases of fixed composition does not
+depend on how much of them there is. `nothing` when the root cannot be found.
 """
 function _cell_temperature(p, u)
     nb, nn = p.n_be, p.n_nk
@@ -1289,6 +1404,9 @@ function _cell_temperature(p, u)
         p.cell_root[] = (uv, Tv, C)
     end
     eltype(u) === Float64 && return Tv
+    # at a reaction that holds the cell at its temperature (an infinite
+    # capacity), the temperature does not depend on the state
+    isinf(C) && return Tv + zero(eltype(u))
     n_e = _rhs_partition(p, (@view u[1:nb]), Tv)
     n_e === nothing && return nothing
     R = _paste_enthalpy(p, n_e, (@view u[(nb + 1):(nb + nn)]), Tv) - p.H0[] +
@@ -1338,7 +1456,7 @@ end
 # instant warm-started from the one before, and leaves the run's state as it
 # found it.
 function _with_saved_warm_start(f, p)
-    n, T, c, r, wk = copy(p.n_full), p.T_q[], p.rhs_cache[], p.cell_root[], p.walking[]
+    n, T, c, r, wk, hi = copy(p.n_full), p.T_q[], p.rhs_cache[], p.cell_root[], p.walking[], p.cell_high[]
     p.walking[] = true
     try
         return f()
@@ -1348,6 +1466,7 @@ function _with_saved_warm_start(f, p)
         p.rhs_cache[] = c
         p.cell_root[] = r
         p.walking[] = wk
+        p.cell_high[] = hi
     end
 end
 
@@ -1947,7 +2066,7 @@ certifies and the best leaves more than
 the evaluations of one point by the integrator and by the step's re-speciation
 solve it once.
 """
-function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
+function _rhs_values(p, bv::Vector{Float64}, Tv::Float64; start = nothing)
     c = p.rhs_cache[]
     c !== nothing && c.T == Tv && c.b == bv && return c.n
     P = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
@@ -1960,17 +2079,17 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
     # 1e-16, certified at once. The floored start is the next one tried.
     warm = Float64[max(_plain(p.n_full[i]), _RHS_GUESS_FLOOR) for i in p.idx_equilibrium]
     solve_from(n) = _exploring_starts(() -> solve_certified(p.eq_dual, (state(n),); b = bv, ϵ = p.ϵ, report = false))
-    eq, cert = solve_from(warm)
+    # A start the caller holds closer than the accepted partition: the far side of
+    # the reaction that holds a semi-adiabatic cell, which the accepted partition,
+    # on the near side, does not reach (`_cell_temperature_value`).
+    if start === nothing
+        eq, cert = solve_from(warm)
+    else
+        eq, cert = _or_next(solve_from(Float64[max(x, _RHS_GUESS_FLOOR) for x in start])..., () -> solve_from(warm))
+    end
     eq, cert = _or_next(eq, cert, () -> solve_from(max.(warm, _EQ_GUESS_FLOOR)))
     # The reconstruction: feasible on the budget, with no active set.
     eq, cert = _or_next(eq, cert, () -> solve_from(_reconstruction_guess!(similar(warm), p, bv)))
-    # The last partition solved, when it is not the last accepted one: past a
-    # change of assemblage it holds the new one, from which the dual Newton
-    # certifies the states that follow where the accepted partition stalls it.
-    if c !== nothing && length(c.n) == length(warm)
-        last = Float64[max(x, _RHS_GUESS_FLOOR) for x in c.n]
-        last != warm && ((eq, cert) = _or_next(eq, cert, () -> solve_from(last)))
-    end
     # Where the assemblage switches, the starts above hold the assemblage of the
     # last accepted step, or none, and the dual Newton stalls short of the
     # certificate from either. Measured on a paste of cement c13 of Lavergne et
@@ -1979,24 +2098,18 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
     # reconstruction. The interior point crosses to the new assemblage, and the
     # certified solve from its answer proves it at once (7e-15).
     #
-    # Offered to an accessor walking a finished run (`p.walking`), and to the
-    # integration once it is stuck (`_RHS_STUCK_AFTER` failures in a row). The
-    # run usually passes these states by its step re-speciation, which falls back
-    # on the interior point, and an isolated failure only rejects a step; tried
-    # at every failure of the integration, this start doubled the cost of a
-    # semi-adiabatic run, whose cell temperature is a root over partitions solved
-    # at trial temperatures (316 s against 160 s on the C100 mortar of Lavergne
-    # et al. 2018). A cell whose partition cannot be certified past a change of
-    # assemblage is the stuck case: no step is accepted, so no step re-speciation
-    # runs, and the integration shrank its step until it gave up (a CEM I paste
-    # with the four clinker phases by Parrott and Killoh, at 1.22 days). The
-    # polish takes the interior point's answer as a start only: its return code
-    # is not counted among the solves used anyway, and its answer is kept only
-    # when the polish proves it. Kept uncertified, it was accepted on its
-    # element balance, which the interior point always meets, and the
+    # Offered to an accessor walking a finished run only (`p.walking`). The run
+    # passes these states by its step re-speciation, which falls back on the
+    # interior point, and a failure inside it only rejects a step; tried at every
+    # failure of the integration, this start doubled the cost of a semi-adiabatic
+    # run, whose cell temperature is a root over partitions solved at trial
+    # temperatures (316 s against 160 s on the C100 mortar of Lavergne et al.
+    # 2018). The polish takes the interior point's answer as a start only: its
+    # return code is not counted among the solves used anyway, and its answer is
+    # kept only when the polish proves it. Kept uncertified, it was accepted on
+    # its element balance, which the interior point always meets, and the
     # temperature of that cell then failed where the run had passed.
-    stuck = p.rhs_failures[] >= _RHS_STUCK_AFTER
-    if (p.walking[] || stuck) && (eq === nothing || !cert.optimal) && p.eq_solver !== nothing
+    if p.walking[] && (eq === nothing || !cert.optimal) && p.eq_solver !== nothing
         cref = Ref{Any}(nothing)
         eq2 = try
             _exploring_starts() do
@@ -2010,12 +2123,11 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
             eq, cert = eq2, cert2
         end
     end
-    eq === nothing && (p.rhs_failures[] += 1; return nothing)
+    eq === nothing && return nothing
     n = Float64[ustrip(us"mol", x) for x in eq.n]
     abs_res = _abs_residual(p.Ae, n, bv)
     abs_res > p.eq_worst_abs[] && (p.eq_worst_abs[] = abs_res)
-    cert.optimal || abs_res <= _RETRY_ABS_TOL || (p.rhs_failures[] += 1; return nothing)
-    p.rhs_failures[] = 0
+    cert.optimal || abs_res <= _RETRY_ABS_TOL || return nothing
     p.rhs_cache[] = (b = copy(bv), T = Tv, n = n)
     return n
 end

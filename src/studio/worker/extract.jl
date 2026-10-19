@@ -106,7 +106,7 @@ function extract_output(rs::RecipeState, study)
     si = saturation_indices(rs.state, rs.model)
     out["saturation_indices"] = series(sort(si; byvalue = true, rev = true))
     out["certificate"] = certificate_entry(study.certificate)
-    out["tga"] = tga_series([rs.state], Float64(rs.recipe.binder_mass))
+    out["tga"] = tga_series([rs.state], Float64(rs.recipe.binder_mass), windows_of(study))
     return out
 end
 
@@ -138,7 +138,7 @@ function extract_output(p::ProcessResult, study)
         "porosity" => [finite(porosity(rs).total) for rs in states],
         "bound_water" => [finite(bound_water(rs)) for rs in states],
         "certified" => [rs.certificate !== nothing && hasproperty(rs.certificate, :optimal) && rs.certificate.optimal === true for rs in states],
-        "tga" => tga_series([rs.state for rs in states], binder),
+        "tga" => tga_series([rs.state for rs in states], binder, windows_of(study)),
     )
 end
 
@@ -178,7 +178,7 @@ function extract_output(o::NamedTuple{(:problem, :solution, :ages, :states)}, st
         "bound_water" => [finite(in_unit(us"g", bound_water(st)) / binder) for st in states],
     )
     out["heat"] = heat_entry(kp.calorimeter, sol, kp, o, binder)
-    out["tga"] = tga_series(states, binder)
+    out["tga"] = tga_series(states, binder, windows_of(study))
     return out
 end
 
@@ -237,16 +237,20 @@ function heat_entry(cal::SemiAdiabaticCalorimeter, sol, kp, o, binder)
 end
 
 # The thermogram of a state, from 30 to 980 °C as the papers the windows come
-# from record it, every loss over the interval in which the literature reads it
-# (`literature_windows`): the mass on the pan and the DTG, per 100 g of binder;
-# for one state, the loss of each phase too. The page chooses the reference mass
-# (the sample at 30 °C, dry at 105, 500 or 800 °C, or ignited), points of this
-# grid, so that the loss in percent of it is exact.
-const TGA_TEMPERATURES = collect(303.15:5.0:1253.15)
+# from record it, on the grid of the script's tables: every release over the
+# window the script set for it, the others over the interval in which the
+# literature reads them (`literature_windows`); the mass on the pan and the DTG,
+# per 100 g of binder; for one state, the loss of each phase too. The page
+# chooses the reference mass (the sample at 30 °C, dry at 105, 500 or 800 °C, or
+# ignited), points of this grid, so that the loss in percent of it is exact.
+const TGA_CELSIUS = 30.0:5.0:980.0
+const TGA_TEMPERATURES = collect(T_ZERO_CELSIUS .+ TGA_CELSIUS)
 
-function tga_entry(st, binder; by_phase::Bool = false)
-    windows = literature_windows(st)
-    tg = thermogram(st, windows; temperatures = TGA_TEMPERATURES)
+"The windows the script of a study set: none in a script written before it could."
+windows_of(study) = hasproperty(study, :windows) ? study.windows : DecompositionWindow{Float64}[]
+
+function tga_entry(st, binder, given; by_phase::Bool = false)
+    tg = thermogram(st, literature_windows(st, given); temperatures = TGA_TEMPERATURES)
     per100 = 100 * 1000 / binder          # kg of the state → g per 100 g of binder
     out = Dict{String, Any}(
         "mass" => [finite(per100 * m) for m in tg.mass],
@@ -260,11 +264,34 @@ function tga_entry(st, binder; by_phase::Bool = false)
     return out
 end
 
-"The thermograms of a calculation's states, and the sources of their windows."
-function tga_series(states, binder)
-    entries = [tga_entry(st, binder; by_phase = length(states) == 1) for st in states]
-    sources = sort!(unique(w.midpoint.source for st in states for w in literature_windows(st)))
-    return Dict{String, Any}("temperature" => TGA_TEMPERATURES .- 273.15, "states" => entries, "sources" => sources)
+# A window as the page lists it: the release it is for, its ends in °C (where 1 %
+# and 99 % of a logistic peak are released), its form and its source.
+function window_entry(w)
+    lo, hi = window_interval(w)
+    return Dict{String, Any}(
+        "key" => release_key(w.phase, w.releases), "from" => finite(lo - T_ZERO_CELSIUS), "to" => finite(hi - T_ZERO_CELSIUS),
+        "shape" => String(w.shape), "source" => w.midpoint.source,
+    )
+end
+
+"""
+The thermograms of a calculation's states, the sources of their windows, and for
+each release of their solids the window used, whether the script set it, and
+the literature's.
+"""
+function tga_series(states, binder, given)
+    entries = [tga_entry(st, binder, given; by_phase = length(states) == 1) for st in states]
+    used = unique(w -> (w.phase, w.releases), (w for st in states for w in literature_windows(st, given)))
+    literature = Dict(release_key(w.phase, w.releases) => window_entry(w) for st in states for w in literature_windows(st))
+    own = Set((w.phase, w.releases) for w in given)
+    windows = map(used) do w
+        e = window_entry(w)
+        e["own"] = (w.phase, w.releases) in own
+        e["literature"] = get(literature, e["key"], nothing)
+        return e
+    end
+    sources = sort!(unique(w.midpoint.source for w in used if !((w.phase, w.releases) in own)))
+    return Dict{String, Any}("temperature" => collect(TGA_CELSIUS), "states" => entries, "sources" => sources, "windows" => windows)
 end
 
 "Volume fractions of the points of a path, as one series per phase."

@@ -105,6 +105,23 @@ end
                 w_b = ustrip(literature_value("Durdzinski2017", "water_binder_ratio")),
                 gruyaert_w_b = ustrip(literature_value("Gruyaert2010", "water_binder_ratio")),
                 gruyaert_slag = sort(unique(Float64.(literature_table("Gruyaert2010", "bound_water").slag_to_binder))),
+                # the mortar C100 of Lavergne et al. in their semi-adiabatic cell:
+                # the paste once the water the sand absorbs is set aside, and the
+                # heat capacity of the vessel (its 380, printed in kJ/K, is in J/K:
+                # scripts/ionic_hydration.jl), of the sand and of that water
+                lavergne = let m = literature_row("Lavergne2018", "semi_adiabatic_mixes_wb050", "C100")
+                    absorbed = ustrip(literature_value("Lavergne2018", "sand_water_absorption")) * m.dry_sand
+                    db = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+                    heat(s, mass) = ustrip(us"J/(mol*K)", db[s][:Cp⁰](T = 293.15, P = 1.0e5, unit = true)) /
+                        ustrip(us"kg/mol", db[s][:M]) * ustrip(us"kg", mass)
+                    (;
+                        binder = ustrip(us"g", m.binder), w_b = ustrip((m.water - absorbed) / m.binder),
+                        Cp = ustrip(us"kJ/K", literature_value("Lavergne2018", "calorimeter_heat_capacity")) +
+                            heat("Qtz", m.dry_sand) + heat("H2O@", absorbed),
+                        a = ustrip(us"W/K", literature_value("Lavergne2018", "heat_loss_a")),
+                        b = ustrip(us"W/K^2", literature_value("Lavergne2018", "heat_loss_b")),
+                    )
+                end,
             )
         end
     )
@@ -119,6 +136,13 @@ end
     # the two water-to-binder ratios of the mortars of Lavergne et al., as their Table 11 names them
     @test entries["cem1-lavergne2018-kinetics-wb050"]["model"]["mix"]["w_b"] == 0.5
     @test entries["cem1-lavergne2018-kinetics-wb032"]["model"]["mix"]["w_b"] == 0.32
+    lav = entries["cem1-lavergne2018-semiadiabatic"]["model"]
+    cell = lav["calculation"]["calorimeter"]
+    @test lav["mix"]["binder_mass"] == pub.lavergne.binder
+    @test lav["mix"]["w_b"] ≈ pub.lavergne.w_b rtol = 1.0e-4
+    @test cell["heat_capacity"] ≈ pub.lavergne.Cp rtol = 1.0e-4
+    @test cell["loss"] ≈ pub.lavergne.a rtol = 1.0e-5
+    @test cell["loss_quadratic"] ≈ pub.lavergne.b rtol = 1.0e-4
     # every entry runs, but the kinetic one (its own test below integrates a shorter run)
     for (id, e) in entries
         e["process"] == "kinetics" && continue
@@ -133,6 +157,12 @@ end
 @testset "the thermogram and the surface of an equilibrium, against the calls themselves" begin
     model = api("/api/state")["model"]
     model["surface"] = Dict("kind" => "csh_surface")
+    # the water of portlandite read between 400 and 520 °C, every other release
+    # as the literature reads it
+    model["tga"] = Dict(
+        "kind" => "tga_windows",
+        "windows" => [Dict("key" => "Portlandite (water)", "value" => Dict("kind" => "window_interval", "from" => 400.0, "to" => 520.0))],
+    )
     post("/api/model", Dict("model" => model))
     run = post("/api/run", Dict())
     run["ok"] || @error "the run with a surface failed" run["error"] Base.get(run, "output", "")
@@ -149,9 +179,11 @@ end
                 model = cemdata18_activity_model(:KOH)
                 recipe = Recipe(cement => 1.0; w_b = 0.5, T = T_ZERO_CELSIUS_Q + 20u"K")
                 rs, _ = equilibrate_certified(recipe, cs; model)
-                tg = thermogram(rs.state, literature_windows(rs.state); temperatures = collect(303.15:5.0:1253.15))
+                own = [DecompositionWindow("Portlandite"; between = (673.15, 793.15))]
+                tg = thermogram(rs.state, vcat(own, filter(w -> w.phase != "Portlandite", literature_windows(rs.state))); temperatures = collect(303.15:5.0:1253.15))
+                portlandite = window_interval(only(w for w in literature_windows(rs.state) if w.phase == "Portlandite"))
                 s = with_csh_surface(rs)
-                (; mass = tg.mass, potential = s.potential, film = s.film, Ca = s.bound[:Ca])
+                (; mass = tg.mass, portlandite, potential = s.potential, film = s.film, Ca = s.bound[:Ca])
             end
         end
     )
@@ -160,7 +192,12 @@ end
     g = r["tga"]
     @test length(g["temperature"]) == length(ref.mass) && g["temperature"][1] ≈ 30.0 && g["temperature"][end] ≈ 980.0
     @test g["states"][1]["mass"] ≈ 100 .* 1000 .* ref.mass ./ r["binder_mass_g"] rtol = 1.0e-9
-    @test haskey(g["states"][1], "by_phase") && sort(g["sources"]) == sort(["DeWeerdt2011", "LHopital2016b", "Moschner2009", "Shi2016"])
+    @test haskey(g["states"][1], "by_phase") && sort(g["sources"]) == sort(["LHopital2016b", "Moschner2009", "Shi2016"])
+    # the window set, and the literature's beside it, in °C
+    ch = only(w for w in g["windows"] if w["key"] == "Portlandite (water)")
+    @test ch["own"] && ch["from"] ≈ 400 && ch["to"] ≈ 520 && ch["shape"] == "interval"
+    @test [ch["literature"]["from"], ch["literature"]["to"]] ≈ collect(ref.portlandite) .- 273.15 && ch["literature"]["source"] == "DeWeerdt2011"
+    @test all(!w["own"] && w["source"] == w["literature"]["source"] for w in g["windows"] if w["key"] != "Portlandite (water)")
     s = r["surface"]
     @test s["potential_mV"] ≈ 1000 * ref.potential rtol = 1.0e-9
     @test s["film_nm"] ≈ 1.0e9 * ref.film rtol = 1.0e-9

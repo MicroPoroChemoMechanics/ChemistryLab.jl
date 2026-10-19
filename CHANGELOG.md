@@ -2,10 +2,11 @@
 
 ## v0.41.0 — The studio completed: glasses in time, the surface of the C-S-H, thermograms, a cell that crosses a change of assemblage
 
-A minor release: three exported functions, a fix of the semi-adiabatic cell
-under partial equilibrium, and ChemistryLab Studio given what its first version
-left out. No result of an existing calculation changes, except a semi-adiabatic
-run that used to stop short and now reaches its horizon.
+A minor release: three exported functions, two fixes of the semi-adiabatic
+cell under partial equilibrium, and ChemistryLab Studio given what its first
+version left out. It requires OptimaSolver 0.8.9. No result of an existing
+calculation changes, except the semi-adiabatic runs that used to stop short and
+now reach their horizon.
 
 ### Breaking changes
 
@@ -13,6 +14,10 @@ run that used to stop short and now reaches its horizon.
   new exported functions: below 1.0, a bound `ChemistryLab = "0.40"` does not
   admit 0.41, so a package or an environment that bounds ChemistryLab must
   widen its bound to take this release.
+- OptimaSolver 0.8.9 at least (`OptimaSolver = "0.8.9"`, in the package and in
+  the documentation): the two semi-adiabatic runs fixed below need its two
+  fixes of the dual Newton method. An environment held at OptimaSolver 0.8.8
+  keeps ChemistryLab 0.40.
 
 ### Added
 
@@ -36,9 +41,10 @@ run that used to stop short and now reaches its horizon.
   zero enthalpy and so misses its heat. The sulfate is taken as bound to the
   lime of the glass, as in a calcium sulfate, the same rule the example on
   isothermal calorimetry follows.
-- **`literature_windows(state)`**: a decomposition window for every release of
-  the solids of a state, each the interval in which the cement literature
-  reads it: the water of portlandite (De Weerdt et al. 2011), of the
+- **`literature_windows(state[, windows])`**: a decomposition window for every
+  release of the solids of a state, each the interval in which the cement
+  literature reads it, after the `windows` given (one's own intervals for some
+  releases, the literature's for the others): the water of portlandite (De Weerdt et al. 2011), of the
   ettringites (Möschner et al. 2009), of the other hydrates over the interval
   of the total bound water (L'Hôpital et al. 2016), the carbon dioxide of the
   carbonates (Shi et al. 2016), read from their data files. A thermogram of a
@@ -58,17 +64,28 @@ run that used to stop short and now reaches its horizon.
 
 ### Fixed
 
-- **A semi-adiabatic cell under partial equilibrium stopped at a change of
-  assemblage.** A CEM I paste with its four clinker phases by the law of
-  Parrott and Killoh ended `Unstable` at 1.22 days: the partition of the
-  states past the change could not be certified from any start of the dual
-  Newton, every trial step was rejected, and the integration shrank its step
-  below the floating-point epsilon. The interior point, which crosses such a
-  change, was offered only to a finished run, because offering it at every
-  failure had doubled the cost of a run that passes anyway. It is now offered
-  to the integration as well once the partition has failed in a row, and the
-  last partition solved is a start of the dual Newton: the same run reaches
-  its horizon.
+- **A semi-adiabatic cell under partial equilibrium stopped at 1.22 days**, on
+  a CEM I paste with its four clinker phases by the law of Parrott and Killoh,
+  on some machines and not on others (with bounds checking, as `Pkg.test` runs
+  it): every trial step was rejected, and the run ended `Unstable`. At that
+  instant 7e-7 mol of monocarbonate holds the aluminum that ettringite and
+  hydrotalcite leave over, too little for the dual Newton method to put it in
+  its initial set, and without it no start converged. OptimaSolver 0.8.9 tries
+  such a trace once more when no start converges: the run reaches its horizon
+  on every machine, with no change in ChemistryLab.
+- **A semi-adiabatic cell at a reaction between pure phases.** Where two
+  assemblages exchange at one temperature (gypsum and anhydrite; near 53 °C in
+  a CEM I paste, ettringite and monocarbonate for monosulfate), the heat
+  balance of the cell jumps: the reaction takes the heat at that temperature
+  and holds the cell there until it is done. The Newton iteration on the
+  temperature had no root to converge to, and the run stopped. Where it fails,
+  the temperature is now bracketed and bisected. A jump of the balance within
+  1e-3 K is a cell held at the temperature of the exchange, to 2e-6 K, its
+  temperature then independent of the amounts, and the partition on the far
+  side of the jump starts the next solve. A run that passed takes the same
+  path as before. OptimaSolver 0.8.9 gives the partition across the exchange,
+  which its dual Newton method could not reach from the side the run comes
+  from.
 - **The pore solution of a state holding a glass** (its pH, its activities)
   failed: a glass given a formula for its rate law has no standard Gibbs
   energy, and the potentials of every species were evaluated. Such a species
@@ -90,21 +107,27 @@ run that used to stop short and now reaches its horizon.
 - **A *TGA* tab** for every calculation: the mass lost and its rate from 30 to
   980 °C, in percent of the reference mass the papers use (the sample at 30 °C,
   dry at 105, 500 or 800 °C, or ignited), and for one equilibrium the loss of
-  each phase.
+  each phase. Each release of the solids takes the interval in which the
+  literature reads it, or the interval or logistic peak the Calculation tab
+  sets it; the tab lists the window of each release and its source. The script
+  builds the same windows and prints the loss on ignition from them, so that
+  the thermogram on the page is the script's.
 - **The loss of a semi-adiabatic cell** may carry the quadratic term of a
   calibration (expert).
 - **New entries in the library**: the CEM I 52.5 N of Lavergne et al. (2018)
-  hydrating at w/b 0.50 and 0.32; a Portland cement with 30 % of siliceous fly
+  hydrating at w/b 0.50 and 0.32, and their mortar C100 in their
+  semi-adiabatic cell over 3.5 days (expert); a Portland cement with 30 % of siliceous fly
   ash in time, its glass by the law of Waller; the binding of chloride by a
   CEM I paste with the surface of its C-S-H.
 - The file picker leaves out an entry that refuses a stat (a file Windows holds
   open at the root of a drive) rather than failing; the opener of the browser
   is tested for every system on every runner.
-- The model of the page is of version 3 (the surface); a script of version 2
-  opens as the same calculation.
+- The model of the page is of version 3 (the surface, the windows of the
+  thermogram); a script of version 2 opens as the same calculation.
 - docs: ChemistryLab is a library of scripts, and the studio an alternative to
   them, presented after the chapters that teach the scripts, at the end of the
-  README and of "Getting started".
+  README and of "Getting started"; the tour of the studio shows the *TGA* and
+  *Surface* tabs, its screenshots retaken by the script of the studio.
 
 ## v0.40.0 — ChemistryLab Studio, and what a choice of species leaves out
 

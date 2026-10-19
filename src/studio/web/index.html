@@ -111,6 +111,11 @@
       <div id="calculation-form"></div>
       <h3 data-i18n="constraint">Constraint on the equilibrium</h3>
       <div id="constraint-form"></div>
+      <details class="block" id="tga-details">
+        <summary data-i18n="tga_windows">Thermogravimetry</summary>
+        <p class="hint" data-i18n="tga_windows_lead">Each release of the solids, the water of a phase or its carbon dioxide, is spread over the interval in which the literature reads it. Any of them may be given an interval or a peak of your own; the releases of the paste are listed once it has been run.</p>
+        <div id="tga-form"></div>
+      </details>
       <h3 data-i18n="problems">Before running</h3>
       <ul id="problems" class="problems"></ul>
       <ul id="diagnostics" class="diagnostics"></ul>
@@ -191,6 +196,11 @@
         <div class="plot" id="plot-dtg"></div>
         <div class="plot" id="plot-tga-phases" hidden></div>
         <p class="hint" id="tga-note"></p>
+        <div class="row">
+          <b data-i18n="tga_windows_used">Windows of the releases</b>
+          <button class="small" id="tga-edit" data-i18n="tga_edit">Change the windows</button>
+        </div>
+        <table class="data" id="tga-windows"></table>
       </div>
       <div class="result" id="result-certificate">
         <p class="hint" data-i18n="certificate_hint">What the solver proved about the answer.</p>

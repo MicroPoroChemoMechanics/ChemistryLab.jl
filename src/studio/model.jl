@@ -13,7 +13,8 @@
 
 The choices of a calculation: its title, the database, the chemical system, the
 activity model, the materials of the binder, the mix, the calculation, the
-constraint of the equilibrium, and the surface of the C-S-H computed after it.
+constraint of the equilibrium, the surface of the C-S-H computed after it, and
+the windows of the thermogram.
 """
 mutable struct StudioModel
     title::String
@@ -25,10 +26,12 @@ mutable struct StudioModel
     calculation::CalculationChoice
     constraint::ConstraintChoice
     surface::SurfaceChoice
+    tga::TgaChoice
 end
 
-# Version 3 added the surface; a model of version 2 is the same calculation
-# without one.
+# Version 3 added the surface and the windows of the thermogram; a model of
+# version 2 is the same calculation without a surface, its thermogram read with
+# the windows of the literature.
 const MODEL_VERSION = 3
 
 """
@@ -55,6 +58,7 @@ function default_model()
         EquilibriumCalc(28.0),
         FixedTPChoice(),
         NoSurfaceChoice(),
+        TgaWindowsChoice(Pair{String, WindowChoice}[]),
     )
 end
 
@@ -69,6 +73,8 @@ register_family!("constraint", ConstraintChoice)
 register_family!("rate", RateChoice)
 register_family!("calorimeter", CalorimeterChoice)
 register_family!("surface", SurfaceChoice)
+register_family!("window", WindowChoice)
+register_family!("tga", TgaChoice)
 
 "The model as the JSON object the page and the embedded block carry."
 function to_dict(m::StudioModel)
@@ -77,7 +83,7 @@ function to_dict(m::StudioModel)
         "database" => to_dict(m.database), "system" => to_dict(m.system), "activity" => to_dict(m.activity),
         "materials" => to_dict.(m.materials), "mix" => to_dict(m.mix),
         "calculation" => to_dict(m.calculation), "constraint" => to_dict(m.constraint),
-        "surface" => to_dict(m.surface),
+        "surface" => to_dict(m.surface), "tga" => to_dict(m.tga),
     )
 end
 
@@ -109,7 +115,7 @@ function model_from_dict(d::AbstractDict)
         _part(d, "database", DatabaseChoice, base.database), _part(d, "system", SystemChoice, base.system),
         _part(d, "activity", ActivityChoice, base.activity), materials, _part(d, "mix", MixChoice, base.mix),
         _part(d, "calculation", CalculationChoice, base.calculation), _part(d, "constraint", ConstraintChoice, base.constraint),
-        _part(d, "surface", SurfaceChoice, base.surface),
+        _part(d, "surface", SurfaceChoice, base.surface), _part(d, "tga", TgaChoice, base.tga),
     )
 end
 
@@ -201,5 +207,7 @@ function problems(m::StudioModel)
     end
     append!(out, bound_problems(m.surface, "the surface"))
     append!(out, surface_problems(m.surface, m.calculation))
+    append!(out, bound_problems(m.tga, "the thermogram"))
+    append!(out, tga_problems(m.tga))
     return out
 end

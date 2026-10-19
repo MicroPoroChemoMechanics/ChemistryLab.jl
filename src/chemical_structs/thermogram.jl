@@ -429,10 +429,13 @@ end
 
 """
     literature_windows(state) -> Vector{DecompositionWindow}
+    literature_windows(state, windows) -> Vector{DecompositionWindow}
 
 A window for every `phase => product` of `state` ([`phases_without_windows`](@ref)),
 each the temperature interval in which the cement literature reads that loss,
-with its source:
+with its source; given `windows`, those first, then one for every
+`phase => product` they leave without a window: one's own intervals for some
+releases, the literature's for the others.
 
 | what | interval | source |
 |:--|:--|:--|
@@ -456,9 +459,12 @@ having a window.
 ```julia
 tg = thermogram(state, literature_windows(state); temperatures = range(303.15, 1253.15; length = 191))
 tg.loss_percent[end]       # the loss on ignition, in percent of the sample at 30 °C
+# portlandite read between 400 and 520 °C, every other release as the papers read it
+own = [DecompositionWindow("Portlandite"; between = (673.15, 793.15))]
+tg = thermogram(state, literature_windows(state, own))
 ```
 """
-function literature_windows(state::ChemicalState)
+function literature_windows(state::ChemicalState, given::AbstractVector{<:DecompositionWindow} = DecompositionWindow{Float64}[])
     interval(key, table) = (t = literature_table(key, table); (only(t.lower), only(t.upper)))
     portlandite = interval("DeWeerdt2011", "tga_intervals")
     ettringite = interval("Moschner2009", "tga_intervals")
@@ -467,8 +473,8 @@ function literature_windows(state::ChemicalState)
     # portlandite by its formula, the ettringites (iron, carbonate, sulfate
     # forms, solid-solution members) by their name
     ch = Dict(:Ca => 1, :O => 2, :H => 2)
-    windows = DecompositionWindow[]
-    for (phase, product) in phases_without_windows(state, DecompositionWindow{Float64}[])
+    windows = DecompositionWindow[given...]
+    for (phase, product) in phases_without_windows(state, given)
         if product === :carbon_dioxide
             push!(windows, DecompositionWindow(phase; between = carbonate, releases = :carbon_dioxide, kind = PROV_PUBLISHED, source = "Shi2016"))
         elseif atoms(state.system.dict_species[phase]) == ch

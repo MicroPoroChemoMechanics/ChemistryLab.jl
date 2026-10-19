@@ -340,6 +340,8 @@ ul.plain { list-style: none; padding: 0; margin: 4px 0; }
 ul.plain li { margin: 3px 0; font-size: 12px; }
 .tag.ok { color: var(--ok); border-color: var(--ok); }
 details.expert-block summary { cursor: pointer; font-size: 11px; color: var(--muted); }
+details.block { margin: 14px 0 6px; }
+details.block summary { cursor: pointer; font-weight: 600; }
 .refs a { color: var(--accent); }
 
 .diagnostics { list-style: none; padding: 0; margin: 6px 0; }

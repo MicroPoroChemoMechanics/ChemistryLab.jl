@@ -86,8 +86,12 @@ mass of binder and the pressure.
 
 A constraint can be put on an equilibrium: a pH held, the activity of a species
 held (`CO2@` for a partial pressure of CO₂), saturated curing, or adiabatic
-conditions. *Before running* lists what keeps the model from running; *Run*
-stays disabled until the list is empty.
+conditions. *Thermogravimetry*, at the end of the tab, sets the window of any
+release of the solids (the water of a phase, or its carbon dioxide): an
+interval, or a logistic peak, in place of the interval in which the literature
+reads it. The releases of the paste are listed once it has been run, each with
+the literature's interval beside it. *Before running* lists what keeps the
+model from running; *Run* stays disabled until the list is empty.
 
 ## The results
 
@@ -108,9 +112,12 @@ The tabs of the middle panel follow the calculation:
   its rate (DTG), in percent of a reference mass you choose (the sample at
   30 °C, dry at 105, 500 or 800 °C, or ignited), the conventions the papers
   use; for one equilibrium, the loss of each phase. Each loss is spread over
-  the interval in which the literature reads it ([`literature_windows`](@ref)),
-  so that the curve says where a loss is attributed, not how a phase
-  decomposes. Along a path or in time, a list chooses the point.
+  its window: the interval in which the literature reads it
+  ([`literature_windows`](@ref)), unless the Calculation tab sets another. The
+  curve says where a loss is attributed, not how a phase decomposes. A table
+  lists the window of each release and where it comes from, and *Change the
+  windows* opens them in the Calculation tab. Along a path or in time, a list
+  chooses the point.
 - **Surface**: with the surface of the C-S-H, what its complexes hold per mass
   of binder, its potential, the film of pore water on its area against the
   Debye length, and the Donnan layer; along a path, what it binds and its
@@ -127,13 +134,24 @@ Every plot can be saved as an image from its toolbar.
 <img class="studio-shot dark-only" src="../assets/studio/studio_path_dark.png" alt="A carbonation path in the dark theme">
 ```
 
+```@raw html
+<img class="studio-shot light-only" src="../assets/studio/studio_tga_light.png" alt="The TGA tab: the mass lost by a CEM I paste and its rate from 30 to 980 °C; on the left, the window of each release of its solids, the interval of the literature beside it">
+<img class="studio-shot dark-only" src="../assets/studio/studio_tga_dark.png" alt="The TGA tab in the dark theme">
+```
+
+```@raw html
+<img class="studio-shot light-only" src="../assets/studio/studio_surface_light.png" alt="The Surface tab: the chloride and the calcium the surface of the C-S-H binds along an addition of salt, and its potential">
+<img class="studio-shot dark-only" src="../assets/studio/studio_surface_dark.png" alt="The Surface tab in the dark theme">
+```
+
 ## The script
 
 The right panel shows the script of the current calculation, rewritten at each
 change. It is written for a reader who knows little Julia: seven sections, each
 saying what it does. The studio runs sections 1 to 5 itself, so the results on
-the page are those of the script; section 6 prints tables and section 7 draws
-a figure, for the script alone. *Save* writes it to a file; *Copy* puts it on
+the page are those of the script, the windows of the thermogram included;
+section 6 prints tables (the loss on ignition among them, from the same
+windows) and section 7 draws a figure, for the script alone. *Save* writes it to a file; *Copy* puts it on
 the clipboard.
 
 The model of the page is embedded at the end of the script, in a comment, so

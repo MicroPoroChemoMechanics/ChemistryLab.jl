@@ -453,6 +453,19 @@
       ctx: { units: () => ["mmol/L", "mol/L"], keys: kineticConstituents, noneLabel: () => t("at_equilibrium") },
     }));
     fill($("#constraint-form"), Forms.kinded("constraint", m.constraint, (v) => { m.constraint = v; edited(); }));
+    fill($("#tga-form"), Forms.kinded("tga", m.tga, (v) => { m.tga = v; edited(); }, {
+      hideKind: true,
+      ctx: { keys: () => tgaWindows().map((w) => w.key), note: tgaNote, noneLabel: () => t("tga_as_literature"), noKeys: () => t("tga_no_keys") },
+    }));
+  }
+
+  /* The releases of the solids the last run reported, each with the window it
+     used and the literature's, for the form of the windows of the thermogram. */
+  const tgaWindows = () => (S.results && S.results.tga && S.results.tga.windows) || [];
+  function tgaNote(f, key) {
+    const w = tgaWindows().find((x) => x.key === key);
+    const lit = w && w.literature;
+    return lit ? t("tga_literature_note", { from: fmt(lit.from, 0), to: fmt(lit.to, 0), source: lit.source }) : "";
   }
 
   function setMode(mode) {
@@ -609,6 +622,7 @@
     $("#output").textContent = data.output || t("no_output");
     $("#ready-card").hidden = true;
     renderResults();
+    renderCalculation();   // the releases the run found, for the windows of the thermogram
     toast(t("run_done", { seconds: fmt(data.elapsed, 2) }));
     if (S.results.retcode && S.results.retcode !== "Success") toast(t("kinetics_retcode", { retcode: S.results.retcode }), true);
   }
@@ -830,6 +844,8 @@
         t("plot_tga_phases"), "°C", t("plot_tga_axis"), { stack: true });
     } else hide("plot-tga-phases");
     $("#tga-note").textContent = t("tga_note", { sources: g.sources.join(", ") });
+    fillTable("#tga-windows", [t("tga_release"), t("tga_interval"), t("tga_source")],
+      g.windows.map((w) => [w.key, `${fmt(w.from, 0)} – ${fmt(w.to, 0)}`, w.own ? t("tga_own") : w.source]));
   }
 
   /* The surface of the C-S-H: what its complexes hold, per 100 g of binder, its
@@ -989,6 +1005,11 @@
     $("#title").addEventListener("input", (e) => { S.model.title = e.target.value; edited(); });
     $("#expert").addEventListener("change", (e) => applyExpert(e.target.checked));
     for (const id of ["#tga-state", "#tga-reference"]) $(id).addEventListener("change", () => S.results && renderTGA(S.results));
+    $("#tga-edit").addEventListener("click", () => {
+      showTab("calculation");
+      $("#tga-details").open = true;
+      $("#tga-details").scrollIntoView({ block: "start" });
+    });
     $("#copy").addEventListener("click", async () => {
       try { await navigator.clipboard.writeText(S.script); toast(t("copied")); }
       catch (e) { toast(t("copy_failed"), true); }

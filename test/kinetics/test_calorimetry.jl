@@ -607,6 +607,66 @@ end
     @test ForwardDiff.partials(extend_u0([1.0, 2.0], cal)[end])[1] == 1.0
 end
 
+# A cell held at a reaction between phases of fixed composition. Lime slaking
+# heats a cell holding gypsum, which gives way to anhydrite at one temperature
+# (Gp = Anh + 2 H2O, portlandite and the solution fixing the water): the
+# enthalpy of the paste jumps there, and the cell stays at that temperature
+# while the reaction takes the heat. Newton on the energy balance jumped across
+# the step until its iterations ran out, and the run stopped there; the root is
+# now bracketed and bisected on the values of the balance.
+@testset "a semi-adiabatic cell held at a reaction between pure phases" begin
+    substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+    db = Dict(symbol(s) => s for s in substances)
+    cs = ChemicalSystem(speciation(substances, ["Lim", "Portlandite", "Gp", "Anh"]; aggregate_state = [AS_AQUEOUS]), CEMDATA_PRIMARIES)
+    model = cemdata18_activity_model(:KOH)
+    lime = Material("lime", :other; constituents = [MineralConstituent(db["Lim"]; mass_fraction = 1.0)])
+    gypsum = Material("gypsum", :other; constituents = [MineralConstituent(db["Gp"]; mass_fraction = 1.0)])
+    T0 = 293.15u"K"
+    recipe = Recipe(lime => 0.3, gypsum => 0.7; w_b = 0.5, T = T0)
+    rates = Dict{String, Any}("Lim" => KineticFunc((T, P, t, n, lna, n0) -> n["Lim"] / 3600, NamedTuple(), u"mol/s"))
+    cal = SemiAdiabaticCalorimeter(; Cp = 200.0u"J/K", L = 0.01u"W/K", T_env = T0, T0)
+    horizon = 4500.0
+    kp = KineticsProblem(
+        recipe, cs, rates, (0.0, horizon); activity_model = model,
+        equilibrium_solver = EquilibriumSolver(cs, model, OptimaOptimizer()), calorimeter = cal,
+    )
+    sol = integrate(kp, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-6, abstol = 1.0e-10))
+    @test sol.retcode == ReturnCode.Success && last(sol.t) == horizon
+    # the cell stays at one temperature while gypsum turns to anhydrite, located
+    # to `_CELL_T_STEP` below it at each instant...
+    _, T = temperature_profile(sol, cal; times = collect(2200.0:100.0:3600.0))
+    @test maximum(T) - minimum(T) <= 2 * ChemistryLab._CELL_T_STEP
+    # ...the temperature at which the two coexist, from their Gibbs energies and
+    # the activity of the water of the paste there
+    st = only(speciated_states(sol, kp; times = [2900.0]))
+    a_w = water_activity(st, model)
+    G(s, Tk) = ustrip(us"J/mol", db[s][:ΔₐG⁰](T = Tk * u"K", P = 1.0e5u"Pa"; unit = true))
+    ΔG(Tk) = G("Anh", Tk) + 2 * G("H2O@", Tk) - G("Gp", Tk) + 2 * R_GAS * Tk * log(a_w)
+    Tr = let lo = first(T) - 1, hi = first(T) + 1
+        for _ in 1:60
+            m = (lo + hi) / 2
+            sign(ΔG(m)) == sign(ΔG(lo)) ? (lo = m) : (hi = m)
+        end
+        lo
+    end
+    @test abs(first(T) - Tr) < 1.0e-5
+    # and it warms again once the reaction is over
+    _, Tend = temperature_profile(sol, cal; times = [horizon])
+    @test only(Tend) > first(T) + 1
+    # Bracketed from one side, below or above, the root of a state warming up is
+    # the one Newton finds, with its capacity.
+    p = sol.prob.p
+    u = sol(1000.0)
+    bv, nkv, ΔHv = u[1:(p.n_be)], u[(p.n_be + 1):(p.n_be + p.n_nk)], u[end]
+    TN, CN = ChemistryLab._cell_temperature_value(p, bv, nkv, ΔHv)
+    R(Tk) = ChemistryLab._cell_balance_at(p, bv, nkv, Tk, ΔHv)
+    for (lo, hi) in (((TN - 0.5, R(TN - 0.5)), (Inf, NaN)), ((-Inf, NaN), (TN + 0.5, R(TN + 0.5))))
+        TB, CB = ChemistryLab._cell_temperature_bracketed(p, bv, nkv, ΔHv, lo, hi)
+        @test TB ≈ TN atol = 1.0e-8
+        @test CB ≈ CN rtol = 1.0e-6
+    end
+end
+
 # A CEM I paste in a semi-adiabatic cell, its four clinker phases by Parrott and
 # Killoh: at 1.22 days a change of assemblage left the partition uncertifiable
 # from every start of the dual Newton, no step was accepted, and the run ended
