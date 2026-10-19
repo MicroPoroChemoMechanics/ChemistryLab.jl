@@ -119,6 +119,12 @@ now reach their horizon.
   semi-adiabatic cell over 3.5 days (expert); a Portland cement with 30 % of siliceous fly
   ash in time, its glass by the law of Waller; the binding of chloride by a
   CEM I paste with the surface of its C-S-H.
+- **The memory guard saw nothing of the compute process on macOS**: it read its
+  resident size with `proc_pidinfo(…, PROC_PIDTASKINFO, …)`, which on the macOS
+  runners of GitHub never showed the watchdog the same process of
+  MeanFieldHomogenization's studio allocating 600 MB. It now reads its physical
+  footprint with `proc_pid_rusage`, compressed pages included; a test reads the
+  memory of a child process on every system.
 - The file picker leaves out an entry that refuses a stat (a file Windows holds
   open at the root of a drive) rather than failing; the opener of the browser
   is tested for every system on every runner.

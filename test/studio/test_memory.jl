@@ -9,6 +9,20 @@ avail = CLS.available_memory()
 # read on every system the studio supports
 @test CLS.process_rss(getpid()) > 0
 @test CLS.process_rss(typemax(Int32)) === nothing
+# another process, as the compute process is to the studio: its memory read too,
+# and seen to grow with what it allocates (random bytes, which no system compresses)
+child = run(pipeline(`$(Base.julia_cmd()) --startup-file=no -e "x = rand(UInt8, 100_000_000); sleep(60)"`; stdout = devnull, stderr = devnull); wait = false)
+try
+    held = 0
+    for _ in 1:120
+        held = something(CLS.process_rss(getpid(child)), 0)
+        held > 100_000_000 && break
+        sleep(0.5)
+    end
+    @test held > 100_000_000
+finally
+    kill(child)
+end
 
 @test CLS.heap_size_hint(0) == "1024M"
 @test CLS.heap_size_hint(100 * CLS.GIB) == string(60 * 1024, "M")     # no upper cap

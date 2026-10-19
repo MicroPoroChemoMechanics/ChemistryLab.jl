@@ -486,7 +486,9 @@ end
 @testset "watchdog" begin
     cp2 = CLS.ComputeProcess(; project, julia, boot = joinpath(CLS.WORKER_DIR, "boot.jl"))
     CLS.start!(cp2)
-    rss = something(CLS.process_rss(cp2.worker.proc_pid), 0)
+    rss = CLS.process_rss(cp2.worker.proc_pid)
+    @test rss !== nothing && rss > 0          # the watchdog reads the memory of the compute process
+    rss = something(rss, 0)
     # random bytes, not ones: macOS compresses a uniform buffer to almost nothing,
     # its resident size then stays under the cap and nothing is stopped
     r = CLS.call!(cp2, :(x = rand(UInt8, 600_000_000); sleep(30); sum(x)); cap = rss + 200 * 2^20)
