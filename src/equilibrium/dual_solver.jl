@@ -45,11 +45,12 @@ mass-action law `aᵢ = exp(uᵢ − gᵢ)` and a pure phase is present exactly 
 Starting from the answer of an [`EquilibriumSolver`](@ref) is the intended use —
 the interior-point method reaches a neighborhood, this reaches the conditions.
 
-The keywords are OptimaSolver's `DualNewtonOptions`: `maxit` and
-`max_active_updates` bound the outer Newton and the active-set search,
-`inner_tol` and `inner_maxit` the inner fixed point that recovers the phase
-compositions. `tol` and `si_tol` are also the thresholds of the certificate this
-solver issues, so loosening them loosens the proof, not only the search.
+The keywords are OptimaSolver's `DualNewtonOptions`: `maxit` bounds the Newton
+search, whose active set is reclassified at every iteration, and `inner_tol` and
+`inner_maxit` the inner fixed point that recovers the phase compositions.
+`max_active_updates` is no longer used, and deprecated. `tol` and `si_tol` are
+also the thresholds of the certificate this solver issues, so loosening them
+loosens the proof, not only the search.
 `inner_fall_bound` (30) and `lenient_line_search` (`false`) change the path of
 the search and not the conditions of its answer; the steps of a kinetic run set
 them to `Inf` and `true`, which is where they pay (see OptimaSolver's
@@ -87,7 +88,7 @@ function DualEquilibriumSolver(
         system::ChemicalSystem,
         model::AbstractActivityModel = DiluteSolutionModel();
         tol::Float64 = 1.0e-10,
-        maxit::Int = 200,
+        maxit::Int = 500,
         max_active_updates::Int = 200,
         si_tol::Float64 = 1.0e-8,
         inner_tol::Float64 = 1.0e-10,
@@ -95,6 +96,11 @@ function DualEquilibriumSolver(
         inner_fall_bound::Float64 = 30.0,
         lenient_line_search::Bool = false,
         verbose::Bool = false,
+    )
+    max_active_updates == 200 || Base.depwarn(
+        "`max_active_updates` is no longer used: the dual Newton reclassifies its " *
+            "active set at every iteration, which `maxit` bounds.",
+        :DualEquilibriumSolver,
     )
     idx_aq = [i for (i, s) in enumerate(system.species) if aggregate_state(s) == AS_AQUEOUS]
     idx_pure = [i for (i, s) in enumerate(system.species) if aggregate_state(s) != AS_AQUEOUS]
@@ -381,11 +387,16 @@ function _dual_problem(des::DualEquilibriumSolver, p, n0, blocks = nothing)
 end
 
 """
-    SciMLBase.solve(des::DualEquilibriumSolver, state; b = nothing, ϵ = 1e-16)
-        -> ChemicalState
+    SciMLBase.solve(des::DualEquilibriumSolver, state; b = nothing, ϵ = 1e-16,
+                    y0 = nothing, dual_state = nothing) -> ChemicalState
 
 Equilibrium composition. `state` supplies the temperature, the pressure and the
 starting guess; `b` the component totals, defaulting to those of `state`.
+
+An answer of this solver holds an absent pure phase at exactly zero, and is a
+start as it stands. `y0`, the multipliers of that answer, resumes the search
+where it ended, as the next solve of a sequence; a `Ref` passed as `dual_state`
+receives those of this one, `(; y, q, route, iterations)`, to hand to the next.
 
 The amounts are returned as computed, without a floor: an amount of `e⁻³⁰⁰` IS
 the mass-action answer for a species that is not there, and raising it to `ϵ`
@@ -401,6 +412,8 @@ function SciMLBase.solve(
         constraint::EquilibriumConstraint = FixedTP(),
         parameters::Union{Nothing, Base.RefValue} = nothing,
         surface_potential::Symbol = :auto,
+        y0::Union{Nothing, AbstractVector{<:Real}} = nothing,
+        dual_state::Union{Nothing, Base.RefValue} = nothing,
     )
     surface_potential in (:auto, :unknown, :eliminated) || throw(
         ArgumentError(
@@ -418,6 +431,7 @@ function SciMLBase.solve(
             SciMLBase.solve(
                 _rebuilt(des), _strip_state(state, Tg); b = b === nothing ? nothing : _strip_tag(collect(b), Tg),
                 ϵ = ϵ, constraint = constraint, parameters = qv, surface_potential = surface_potential,
+                y0 = y0, dual_state = dual_state,
             )
         end
         bd = b === nothing ? des.A * _build_n0(state) : collect(b)
@@ -445,10 +459,12 @@ function SciMLBase.solve(
     end
     blocks = _scoped_blocks(blocks)
     prob = _dual_problem(des, p, n0, blocks)
-    # The solve starts with no amount below `ϵ`, the amount of an absent species
-    # in a cold state: an exact zero would start it at `exp(−700)`, from which a
-    # solute climbs thirty log units a sweep. The budget stays that of the state.
-    res = _optima_dual_solve(prob, bv, max.(n0, ϵ), des.opts)
+    # The state as it is: an exact zero is a pure phase on its bound, and a solute
+    # at zero starts at a fixed fraction of the budget (OptimaSolver reads the
+    # start against the multipliers, with no amount in moles).
+    res = _optima_dual_solve(prob, bv, max.(n0, 0.0), des.opts; y0 = y0)
+    dual_state === nothing ||
+        (dual_state[] = (; y = copy(res.y), q = copy(res.q), route = res.route, iterations = res.iterations))
 
     res.converged || begin
         Threads.atomic_add!(NONCONVERGED, 1)
@@ -1059,7 +1075,8 @@ _kkt_error(cert) = max(
 
 """
     solve_certified(des, starts; b = nothing, ϵ = 1e-16, floor = 1e-25, constraint = FixedTP(),
-                    parameters = nothing, memo = nothing, stop = nothing, report = true)
+                    parameters = nothing, memo = nothing, stop = nothing, report = true,
+                    y0 = nothing, dual_state = nothing)
         -> (state, certificate)
 
 Solve from each starting composition in `starts` and return the first answer
@@ -1073,7 +1090,10 @@ computed once, for the answer returned. `report = false` returns the verdict
 without it, for a caller that only reads `optimal` and the residuals. `stop`,
 a function of a candidate's certificate, ends the search on the first candidate
 it accepts; `parameters`, a `Ref`, receives the unknowns of the constraint at
-the answer.
+the answer. `y0` and `dual_state` are those of the solve
+(`SciMLBase.solve(::DualEquilibriumSolver, …)`): the multipliers each start is
+resumed from, for a start that is the answer of an earlier solve, and a `Ref`
+that receives the multipliers of the answer returned.
 
 # Why trying more than one start is the rigorous thing to do, not a fudge
 
@@ -1134,6 +1154,8 @@ function solve_certified(
         memo::Union{Nothing, IdDict} = nothing,
         stop::Union{Nothing, Function} = nothing,
         report::Bool = true,
+        y0::Union{Nothing, AbstractVector{<:Real}} = nothing,
+        dual_state::Union{Nothing, Base.RefValue} = nothing,
     )
     # A budget carrying dual numbers, or starts whose temperature, pressure or
     # amounts do: the search runs on the values, one level of duals down, and
@@ -1153,6 +1175,7 @@ function solve_certified(
                 _rebuilt(des), explicit ? map(s -> _strip_state(s, Tg), starts) : starts;
                 b = b === nothing ? nothing : _strip_tag(collect(b), Tg), ϵ = ϵ, floor = floor,
                 constraint = constraint, parameters = qv, memo = memo, stop = stop, report = report,
+                y0 = y0, dual_state = dual_state,
             )
         end
         eq === nothing && return (eq, cert)
@@ -1167,6 +1190,7 @@ function solve_certified(
     best_cert = nothing
     best_err = Inf
     best_q = Float64[]
+    best_dual = nothing
     best_ok = false
     for s0 in starts
         # Each candidate's own parameters, captured here rather than written
@@ -1177,8 +1201,10 @@ function solve_certified(
         hit = memo === nothing ? nothing : get(memo, s0, nothing)
         if hit === nothing
             qref = Ref(Float64[])
+            dref = Ref{Any}(nothing)
             eq = SciMLBase.solve(
                 des, s0; b = b, ϵ = ϵ, constraint = constraint, parameters = qref,
+                y0 = y0, dual_state = dref,
             )
             # The certificate is evaluated at the T and P the constrained solve
             # FOUND, which `eq` carries — not at the ones the start had. `∇f`
@@ -1189,13 +1215,15 @@ function solve_certified(
             # Each candidate is judged on the conditions alone; what the proof
             # covers is reported for the answer returned (`_reported`).
             cert = _verdict(des, eq; b, ϵ, floor, constraint, q = qref[])
-            memo === nothing || (memo[s0] = (eq, cert, qref[]))
+            memo === nothing || (memo[s0] = (eq, cert, qref[], dref[]))
         else
-            eq, cert, q = hit
+            eq, cert, q, ds = hit
             qref = Ref(q)
+            dref = Ref{Any}(ds)
         end
         if cert.optimal
             parameters === nothing || (parameters[] = qref[])
+            dual_state === nothing || (dual_state[] = dref[])
             return _reported(des, eq, cert, report; ϵ, floor, constraint)
         end
         # A caller may know that an uncertified answer is already what it needs:
@@ -1203,6 +1231,7 @@ function solve_certified(
         # start can make certify with one composition.
         if stop !== nothing && stop(cert)
             parameters === nothing || (parameters[] = qref[])
+            dual_state === nothing || (dual_state[] = dref[])
             return _reported(des, eq, cert, report; ϵ, floor, constraint)
         end
         # Ranked on the KKT error, but only among answers the model can describe:
@@ -1216,10 +1245,12 @@ function solve_certified(
             best = eq
             best_cert = cert
             best_q = qref[]
+            best_dual = dref[]
             best_ok = ok
         end
     end
     parameters === nothing || (parameters[] = best_q)
+    dual_state === nothing || (dual_state[] = best_dual)
     best === nothing && return (best, best_cert)
     return _reported(des, best, best_cert, report; ϵ, floor, constraint)
 end
@@ -1258,7 +1289,7 @@ end
 # overrides. Called without it loaded, they say what is missing.
 
 _optima_dual_problem(args...) = _need_optima()
-_optima_dual_solve(args...) = _need_optima()
+_optima_dual_solve(args...; kwargs...) = _need_optima()
 _optima_kkt_certificate(args...) = _need_optima()
 _optima_lp(args...) = _need_optima()
 _optima_complete_floored(args...) = _need_optima()

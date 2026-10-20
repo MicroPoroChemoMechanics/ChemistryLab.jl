@@ -401,9 +401,13 @@ function kinetic_step(
     else
         n0
     end
-    # The cold start, which `_warm_x0` also falls back to, with no amount below
-    # `ϵ`, as in the equilibrium solve; `b_aug` keeps the state's own.
-    x0 === n0 && (x0 = max.(n0, ϵ))
+    # The cold start, which `_warm_x0` also falls back to, as the state holds it,
+    # as in the equilibrium solve: an exact zero is a pure phase on its bound, and
+    # a solute at zero starts at a fixed fraction of the budget (OptimaSolver
+    # reads the start against the multipliers, with no amount in moles). Lifted
+    # to `ϵ`, an absent product of a reaction read as held where no multiplier of
+    # the solution reads it, and started free.
+    x0 === n0 && (x0 = max.(n0, 0.0))
 
     # Seed the pinned species at the amount the EXPLICIT step predicts, not at
     # the floor. A solid product that starts absent would otherwise enter the

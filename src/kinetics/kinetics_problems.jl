@@ -681,6 +681,10 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         on_accepted = Ref(false),
         # Set once a speciation exists, so `respeciate!` can warm-start from it.
         eq_warm = Ref(false),
+        # The multipliers of the partition in `n_full` when an answer of the dual
+        # Newton put it there: the state the next solve of the partition resumes
+        # from (`_rhs_values`). `nothing` after any other route.
+        y_full = Ref{Union{Nothing, Vector{Float64}}}(nothing),
         # Where the right-hand side reads the equilibrium partition: `:frozen`,
         # as the last accepted step left it, or `:rhs`, at the state it is
         # evaluated at (see `build_kinetics_ode`). `integrate` sets it, from
@@ -1040,13 +1044,11 @@ guess inside keeps the tight tolerance and removes the stalls.
 """
 const _EQ_GUESS_FLOOR = 1.0e-10
 
-# The floor of the warm start of a certified solve in the right-hand side: below
-# what any amount of a partition means, so that the traces keep their potentials.
-const _RHS_GUESS_FLOOR = 1.0e-16
-
 # The last partition `_rhs_values` solved, keyed by the plain element amounts and
 # temperature it was solved at.
-const _RhsCache = NamedTuple{(:b, :T, :n), Tuple{Vector{Float64}, Float64, Vector{Float64}}}
+const _RhsCache = NamedTuple{
+    (:b, :T, :n, :y), Tuple{Vector{Float64}, Float64, Vector{Float64}, Union{Nothing, Vector{Float64}}},
+}
 
 """
     EQ_RESIDUAL_TOL
@@ -1445,6 +1447,7 @@ function _initialize_cell!(p, u0)
     for (j, i) in enumerate(p.idx_equilibrium)
         p.n_full[i] = n_e[j]
     end
+    p.y_full[] = _rhs_multipliers(p)
     p.eq_warm[] = true
     p.H0[] = _paste_enthalpy(p, n_e, (@view u0[(nb + 1):(nb + nn)]), T0)
     p.cell_ready[] = true
@@ -1456,12 +1459,13 @@ end
 # instant warm-started from the one before, and leaves the run's state as it
 # found it.
 function _with_saved_warm_start(f, p)
-    n, T, c, r, wk, hi = copy(p.n_full), p.T_q[], p.rhs_cache[], p.cell_root[], p.walking[], p.cell_high[]
+    n, y, T, c, r, wk, hi = copy(p.n_full), p.y_full[], p.T_q[], p.rhs_cache[], p.cell_root[], p.walking[], p.cell_high[]
     p.walking[] = true
     try
         return f()
     finally
         copyto!(p.n_full, n)
+        p.y_full[] = y
         p.T_q[] = T
         p.rhs_cache[] = c
         p.cell_root[] = r
@@ -1487,6 +1491,7 @@ function _cell_point(p, u)
     for (j, i) in enumerate(p.idx_equilibrium)
         p.n_full[i] = n_e[j]
     end
+    p.y_full[] = _rhs_multipliers(p)
     p.T_q[] = T * u"K"
     return T, Float64(_plain(_paste_enthalpy(p, n_e, (@view uv[(nb + 1):(nb + nn)]), T)))
 end
@@ -1689,6 +1694,8 @@ function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
     for (j, idx) in enumerate(p.idx_equilibrium)
         p.n_full[idx] = n_e[j]
     end
+    # The interior point's answer comes with no multipliers of the dual Newton.
+    p.y_full[] = nothing
 
     res = _row_residual(p.Ae, n_e, be)
     abs_res > p.eq_worst_abs[] && (p.eq_worst_abs[] = _plain(abs_res))
@@ -2071,23 +2078,29 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64; start = nothing)
     c !== nothing && c.T == Tv && c.b == bv && return c.n
     P = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
     state(n) = ChemicalState(p.eq_system[], n .* u"mol"; T = Tv * u"K", P = P)
-    # The last accepted partition as it is, floored only where it is zero. The
-    # floor of the interior point, `_EQ_GUESS_FLOOR`, lifts the traces of a
-    # certified partition to 1e-10 mol and their potentials with them; measured
-    # on the C100 mortar of Lavergne et al. (2018) at 1.6 h, the dual Newton
-    # started there failed to certify where the partition itself, floored at
-    # 1e-16, certified at once. The floored start is the next one tried.
-    warm = Float64[max(_plain(p.n_full[i]), _RHS_GUESS_FLOOR) for i in p.idx_equilibrium]
-    solve_from(n) = _exploring_starts(() -> solve_certified(p.eq_dual, (state(n),); b = bv, ϵ = p.ϵ, report = false))
+    # The last accepted partition as it is, its absent phases at exactly zero, and
+    # with the multipliers of the solve that gave it when there are some: the
+    # state the solve resumes from, as the next solve of a sequence. The floor of
+    # the interior point, `_EQ_GUESS_FLOOR`, lifted the traces of a certified
+    # partition to 1e-10 mol and their potentials with them; measured on the C100
+    # mortar of Lavergne et al. (2018) at 1.6 h, the dual Newton started there
+    # failed to certify where the partition itself certified at once.
+    warm = Float64[_plain(p.n_full[i]) for i in p.idx_equilibrium]
+    dual = Ref{Any}(nothing)
+    solve_from(n, y0 = nothing) = _exploring_starts(
+        () -> solve_certified(p.eq_dual, (state(n),); b = bv, ϵ = p.ϵ, report = false, y0 = y0, dual_state = dual),
+    )
     # A start the caller holds closer than the accepted partition: the far side of
     # the reaction that holds a semi-adiabatic cell, which the accepted partition,
     # on the near side, does not reach (`_cell_temperature_value`).
+    resumed = nothing
+    y_resumed = nothing
     if start === nothing
-        eq, cert = solve_from(warm)
+        eq, cert = solve_from(warm, p.y_full[])
+        resumed, y_resumed = eq, dual[]
     else
-        eq, cert = _or_next(solve_from(Float64[max(x, _RHS_GUESS_FLOOR) for x in start])..., () -> solve_from(warm))
+        eq, cert = _or_next(solve_from(collect(Float64, start))..., () -> solve_from(warm, p.y_full[]))
     end
-    eq, cert = _or_next(eq, cert, () -> solve_from(max.(warm, _EQ_GUESS_FLOOR)))
     # The reconstruction: feasible on the budget, with no active set.
     eq, cert = _or_next(eq, cert, () -> solve_from(_reconstruction_guess!(similar(warm), p, bv)))
     # Where the assemblage switches, the starts above hold the assemblage of the
@@ -2128,9 +2141,16 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64; start = nothing)
     abs_res = _abs_residual(p.Ae, n, bv)
     abs_res > p.eq_worst_abs[] && (p.eq_worst_abs[] = abs_res)
     cert.optimal || abs_res <= _RETRY_ABS_TOL || return nothing
-    p.rhs_cache[] = (b = copy(bv), T = Tv, n = n)
+    # The multipliers kept with the partition when it is the answer the warm start
+    # resumed to; another start's answer comes without them.
+    y = (eq === resumed && y_resumed !== nothing) ? copy(y_resumed.y) : nothing
+    p.rhs_cache[] = (b = copy(bv), T = Tv, n = n, y = y)
     return n
 end
+
+# The multipliers of the partition `_rhs_values` solved last, when the answer it
+# kept is the one its warm start resumed to: the state the next solve resumes from.
+_rhs_multipliers(p) = (c = p.rhs_cache[]; c === nothing ? nothing : c.y)
 
 # The answer in hand when it is certified; otherwise the better of it and the
 # answer `attempt()` gives, which is solved only then: the next start of a
@@ -2173,6 +2193,7 @@ function _respeciate_rhs!(p, u)
     for (j, idx) in enumerate(p.idx_equilibrium)
         p.n_full[idx] = n[j]
     end
+    p.y_full[] = _rhs_multipliers(p)
     p.eq_warm[] = true
     abs_res = _abs_residual(p.Ae, n, be)
     p.on_accepted[] && abs_res > p.eq_worst_abs_acc[] && (p.eq_worst_abs_acc[] = _plain(abs_res))

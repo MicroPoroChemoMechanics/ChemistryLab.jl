@@ -151,6 +151,38 @@ include("reference_species.jl")
         @test r.scope == full.scope
     end
 
+    @testsection "a solve resumes from the multipliers of the one before" begin
+        # The answer of a solve and its multipliers are the state the next solve
+        # of a sequence starts from: re-solved from them, the same problem takes
+        # only the final Newton step, from within the tolerance, and lands on the
+        # same answer; a neighbor resumes too.
+        st = calcite()
+        b = budget(st)
+        des = DualEquilibriumSolver(cs, DiluteSolutionModel())
+        eq1, _ = equilibrate_certified(st)
+        ds = Ref{Any}(nothing)
+        eq2 = SciMLBase.solve(des, eq1; b = b, dual_state = ds)
+        @test ds[].route in (:fit, :start, :lp) && length(ds[].y) == size(A, 1)
+        ds2 = Ref{Any}(nothing)
+        eq3 = SciMLBase.solve(des, eq2; b = b, y0 = ds[].y, dual_state = ds2)
+        @test ds2[].route === :start && ds2[].iterations == 1
+        n2 = [ustrip(us"mol", x) for x in eq2.n]
+        n3 = [ustrip(us"mol", x) for x in eq3.n]
+        @test n3 ≈ n2 rtol = 1.0e-12
+        @test optimality_certificate(des, eq3; b = b).optimal
+        # Through the certified search, the multipliers of the answer it keeps.
+        ds3 = Ref{Any}(nothing)
+        eq4, c4 = solve_certified(des, (eq2,); b = b, y0 = ds[].y, dual_state = ds3)
+        @test c4.optimal && ds3[].route === :start
+        @test ds3[].y ≈ ds2[].y rtol = 1.0e-12
+        # A neighbor, with some carbon dioxide added, resumed from the same state.
+        b5 = budget(calcite(; nco2 = 1.0e-4))
+        ds5 = Ref{Any}(nothing)
+        eq5 = SciMLBase.solve(des, eq2; b = b5, y0 = ds[].y, dual_state = ds5)
+        @test ds5[].route === :start
+        @test optimality_certificate(des, eq5; b = b5).optimal
+    end
+
     @testsection "a trace is held to its own amount" begin
         # A nanomole of sodium chloride in a kilogram of water. A composition
         # holding 95 % of its chloride is 5e-11 mol short, below the 1e-10 mol a
@@ -177,11 +209,15 @@ include("reference_species.jl")
         @test c.balance < 1.0e-10
         @test c.balance_relative ≈ 0.05 / 0.95 rtol = 1.0e-6
         @test !c.optimal
-        # And a large row keeps the tolerance in moles it had: water 1e-9 mol
-        # off is refused, though that is 2e-11 of it.
-        wet = deepcopy(eq)
+        # And every row is held to the same relative tolerance, whatever its
+        # size: water 1e-9 mol off is 2e-11 of its row and passes, 1e-8 of its
+        # row does not.
         j = findfirst(s -> symbol(s) == "H2O@", tcs.species)
-        set_quantity!(wet, "H2O@", (ustrip(us"mol", eq.n[j]) + 1.0e-9) * u"mol")
+        nw = ustrip(us"mol", eq.n[j])
+        wet = deepcopy(eq)
+        set_quantity!(wet, "H2O@", (nw + 1.0e-9) * u"mol")
+        @test optimality_certificate(des, wet; b).balance_relative < 1.0e-10
+        set_quantity!(wet, "H2O@", nw * (1 + 1.0e-8) * u"mol")
         @test !optimality_certificate(des, wet; b).optimal
     end
 
@@ -1739,7 +1775,12 @@ end
         eq0, c0 = equilibrate_certified(st; b = b, autostart = false)
         @test !c0.optimal
         @test !isempty(c0.split_trials)
-        @test x_of(eq0)[2] - x_of(eq0)[1] < 1.0e-6       # both instances where they started
+        # The phase does not split: the instances it holds share one
+        # composition, metastable, between the binodal and the spinodal (the
+        # search may keep one of two identical instances, the same state).
+        held = [x for x in x_of(eq0) if !isnan(x)]
+        @test !isempty(held) && maximum(held) - minimum(held) < 1.0e-6
+        @test all(x -> pair[1] < x < spinodal_interval(gap, 2; T)[1], held)
 
         eq, c = equilibrate_split(st; b = b, autostart = false)
         @test c.optimal

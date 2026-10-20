@@ -221,14 +221,13 @@ end
 # The options of a `DualEquilibriumSolver`, as OptimaSolver takes them.
 _dual_newton_options(o) = DualNewtonOptions(;
     tol = o.tol, maxit = o.maxit,
-    max_active_updates = o.max_active_updates,
     si_tol = o.si_tol, inner_tol = o.inner_tol,
     inner_maxit = o.inner_maxit, inner_fall_bound = o.inner_fall_bound,
     lenient_line_search = o.lenient_line_search, verbose = o.verbose,
 )
 
-function ChemistryLab._optima_dual_solve(prob, b, x0, o)
-    return dual_newton_solve(prob, b, x0; opts = _dual_newton_options(o))
+function ChemistryLab._optima_dual_solve(prob, b, x0, o; y0 = nothing)
+    return dual_newton_solve(prob, b, x0; opts = _dual_newton_options(o), y0 = y0)
 end
 
 ChemistryLab._optima_lp(prob, b) = lp_start(prob, b)
