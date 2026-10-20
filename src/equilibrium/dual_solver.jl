@@ -98,7 +98,7 @@ function DualEquilibriumSolver(
         verbose::Bool = false,
     )
     max_active_updates == 200 || Base.depwarn(
-        "`max_active_updates` is no longer used: the dual Newton reclassifies its " *
+        "`max_active_updates` is deprecated and no longer used: the dual Newton reclassifies its " *
             "active set at every iteration, which `maxit` bounds.",
         :DualEquilibriumSolver,
     )
