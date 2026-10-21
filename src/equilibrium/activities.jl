@@ -1645,6 +1645,10 @@ function _mixing_lna!(out, _n, mix::_MixingTerms, p, ϵ)
     return out
 end
 
+# The fraction `n/total` of a member, zero in a phase that holds nothing, whose
+# composition is then undefined and whose members its model floors.
+_fraction(n, total) = iszero(total) ? zero(n / oneunit(total)) : n / total
+
 """
     _solid_solution_lna!(out, _n, ss_groups, ss_models, T, ϵ, g = nothing)
 
@@ -1664,11 +1668,13 @@ function _solid_solution_lna!(
         ss_groups::Vector{Vector{Int}}, ss_models, T, ϵ, g = nothing
     ) where {ET}
     for (grp, mdl) in zip(ss_groups, ss_models)
-        n_total = sum(_n[i] for i in grp) + ϵ
+        # The fractions, of degree zero in the amounts: offset by `ϵ`, the total
+        # shifted those of a phase of 1e-14 mol by a percent.
+        n_total = sum(_n[i] for i in grp)
         # ET follows eltype(_n) — AD-compatible (Dual when differentiating)
         x = Vector{ET}(undef, length(grp))
         @inbounds for (j, i) in enumerate(grp)
-            x[j] = _n[i] / n_total
+            x[j] = _fraction(_n[i], n_total)
         end
         _ss_log_activities!(out, grp, x, mdl, T, ϵ, g === nothing ? nothing : view(g, grp))
     end

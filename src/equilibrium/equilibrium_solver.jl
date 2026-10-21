@@ -139,8 +139,8 @@ Units are stripped — compatible with ForwardDiff dual numbers.
   - `T`: temperature in K (plain number, Dual-safe).
   - `P`: pressure in Pa (plain number, Dual-safe).
   - `ϵ`: regularization floor (default `1e-16`).
-  - `ϵa`: the floor of the activities, `min(ϵ, _ACTIVITY_FLOOR)`; see
-    [`_ACTIVITY_FLOOR`](@ref).
+  - `ϵa`: the floor of the activities, `min(ϵ, _activity_floor_amount(state))`,
+    the molality [`_ACTIVITY_FLOOR`](@ref) times the state's water.
 
 `T` and `P` are included so that temperature-dependent activity models
 (e.g. [`HKFActivityModel`](@ref) with `temperature_dependent=true`) can
@@ -172,8 +172,20 @@ function _build_params(state::ChemicalState; ϵ::Float64 = _AMOUNT_FLOOR)
     # Inside a search run on the values (`_STRIP_TAGS`), the data are values too.
     return (
         ΔₐG⁰overRT = _unscoped(ΔₐG⁰overRT), T = _unscoped(T_K), P = _unscoped(P_Pa),
-        ϵ = ϵ, ϵa = min(ϵ, _ACTIVITY_FLOOR),
+        ϵ = ϵ, ϵa = min(ϵ, _activity_floor_amount(state)),
     )
+end
+
+# The floor of the activities of `state`, as an amount: the molality
+# `_ACTIVITY_FLOOR` times the mass of its water, so that it follows the size of
+# the system; without water, where the floor only keeps a logarithm finite, the
+# smallest normal number.
+function _activity_floor_amount(state::ChemicalState)
+    cs = state.system
+    length(cs.idx_solvent) == 1 || return floatmin(Float64)
+    iw = only(cs.idx_solvent)
+    m_w = _plain(ustrip(us"mol", state.n[iw])) * _plain(ustrip(us"kg/mol", cs.species[iw][:M]))
+    return m_w > 0 ? _ACTIVITY_FLOOR * m_w : floatmin(Float64)
 end
 
 """

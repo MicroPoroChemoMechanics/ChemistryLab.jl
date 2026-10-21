@@ -850,24 +850,15 @@ end
 
 end
 
-@testsection "the certificate names the missing phase, and the route puts it in" begin
+@testsection "the certificate names the missing phase, and the search puts it in" begin
     # A positive worst supersaturation means a phase sits at the lower bound
     # while the solution is supersaturated with respect to it. On a convex
     # problem that is a genuine KKT failure: the active set is wrong and the
-    # answer is not the answer. The certificate reports it as one number;
-    # `saturation_indices` says which phase, and `_repair_start` puts it in.
-    #
-    # The case this exists for is a phase SWAP, which an active-set loop that
-    # admits one phase at a time cannot perform. Reproduced exactly on a CEM I
-    # paste by solving it with `hydrotalcite` out of the phase list: all
-    # 0.02515 mol of magnesium goes to brucite, the aqueous phase equilibrates
-    # with that assemblage, and putting hydrotalcite back leaves it absent and
-    # supersaturated by 5.58 log units while the solve is otherwise impeccable —
-    # stationarity 5.9e-16, element balance 1.6e-14. That is the reported
-    # failure, and `equilibrate_certified` from that state now certifies at
-    # 74.1899 cm3 with the magnesium back where it belongs. Too heavy for this
-    # suite; what is asserted here is the mechanism, on a system of eight
-    # species.
+    # answer is not the answer. The certificate reports it as one number, and
+    # `saturation_indices` says which phase. The search takes such a phase off
+    # its bound itself, whatever start it is handed: a repair stage that put the
+    # phase into a new start, after a search that had left it out, never certified
+    # anything over ChemistryLab's suite in 0.41.0 and was removed.
     sp4 = Dict(
         symbol(s) => s for s in build_species(
                 datapath("slop98-inorganic-thermofun.json")
@@ -877,7 +868,6 @@ end
         [sp4[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal")],
         ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"],
     )
-    A4 = Float64.(cs4.SM.A)
     model4 = DiluteSolutionModel()
 
     # At a certified equilibrium every phase present is at LogSI = 0 and no
@@ -893,70 +883,21 @@ end
     @test si4 isa AbstractDict
     @test length(si4) == length(cs4.species)
     @test abs(si4["Cal"]) < 1.0e-8            # present, hence saturated
-    # Nothing to repair at an answer that certifies, and the route must say so
-    # rather than invent a start.
-    @test ChemistryLab._repair_start(
-        eq4, model4, A4 * ustrip.(us"mol", eq4.n), 1.0e-16
-    ) === nothing
 
     # Now a state where calcite is absent and the solution is grossly
-    # supersaturated with respect to it — the shape of the reported failure,
-    # without its size.
+    # supersaturated with respect to it — the shape of a phase left out, without
+    # its size. The certified search precipitates it, from that state alone.
     st5 = ChemicalState(cs4)
     set_quantity!(st5, "H2O@", 1.0u"kg")
     set_quantity!(st5, "Ca+2", 0.1u"mol")
     set_quantity!(st5, "CO3-2", 0.1u"mol")
     si5 = saturation_indices(st5, model4)
     @test si5["Cal"] > 1.0
-    b5 = A4 * ustrip.(us"mol", st5.n)
-
-    fixed = ChemistryLab._repair_start(st5, model4, b5, 1.0e-16)
-    @test fixed isa ChemicalState
-    n5 = ustrip.(us"mol", fixed.n)
     i_cal = findfirst(s -> symbol(s) == "Cal", cs4.species)
-    # The amount is what the recipe could make of it, scaled: a chemical bound,
-    # not a guess at the answer. Calcite takes one Ca and one CO3, and there are
-    # 0.1 mol of each.
-    @test n5[i_cal] ≈ ChemistryLab._REPAIR_FRACTION * 0.1 rtol = 1.0e-8
-    @test n5[i_cal] > 0
-    # Everything else is left alone: the element balance of a start is not this
-    # function's business, since `b` is fixed by the caller and every start is
-    # projected onto it.
-    @test all(
-        n5[i] == ustrip(us"mol", st5.n[i]) for i in eachindex(n5) if i != i_cal
-    )
-    # And the temperature and pressure of the state it came from are carried.
-    @test temperature(fixed) == temperature(st5)
-    @test pressure(fixed) == pressure(st5)
-
-    # A round of the repair, with the search injected. The situation it exists
-    # for -- a back end converging onto the wrong active set -- needs a system of
-    # some 135 species to arise, while the round's logic needs eight, so the
-    # search is passed in rather than closed over.
-    solve_from(f) = equilibrate_certified(f; model = model4, b = b5, autostart = false)
-    # The certificate the round is handed stands for "the back ends failed",
-    # which is what it is only ever called after.
-    failed = (;
-        optimal = false, stationarity = 1.0, balance = 1.0,
-        worst_supersaturation = 10.0,
-    )
-    eq6, cert6, improved6 = ChemistryLab._repair_round(
-        st5, failed, model4, b5, 1.0e-16, solve_from, false,
-    )
-    @test improved6                          # anything beats that certificate
-    @test cert6.optimal                      # and here the repair certifies
-    @test ustrip(us"mol", eq6.n[i_cal]) > 1.0e-6    # calcite precipitated
-    @test abs(saturation_indices(eq6, model4)["Cal"]) < 1.0e-8   # and is saturated
-
-    # Nothing to repair: the round says so and changes nothing, which is what
-    # stops the loop.
-    eq7, cert7, improved7 = ChemistryLab._repair_round(
-        eq4, failed, model4, A4 * ustrip.(us"mol", eq4.n), 1.0e-16, solve_from, false,
-    )
-    @test !improved7
-    @test eq7 === eq4
-    @test cert7 === failed
-
+    eq5, cert5 = equilibrate_certified(st5; model = model4, autostart = false)
+    @test cert5.optimal
+    @test ustrip(us"mol", eq5.n[i_cal]) > 0.09     # most of the 0.1 mol precipitated
+    @test abs(saturation_indices(eq5, model4)["Cal"]) < 1.0e-8   # and saturated
 end
 
 @testsection "an infeasible budget is neither certified nor made to hang" begin
@@ -991,10 +932,6 @@ end
         eq8, cert8 = equilibrate_certified(st8; b = -b8, lp_start = false)
         @test !cert8.optimal
         @test eq8 isa ChemicalState
-        # A budget with a negative component offers nothing to lift a phase off
-        # its bound with, so the repair declines rather than inventing an amount.
-        @test ChemistryLab._repair_start(eq8, DiluteSolutionModel(), -b8, 1.0e-16) ===
-            nothing
 
         # A back end that throws is reported under `verbose` and costs the search
         # only that candidate. Registered first, since a start is taken from the
@@ -1446,11 +1383,10 @@ end
     end
 
     @testset "a missing solid solution is offered back by its own criterion" begin
-        # `_repair_start` skips solid-solution end-members, and rightly: the
-        # saturation index of a member at the bound reports a small mole fraction,
-        # not a phase that should form. The PHASE has its own criterion —
-        # `Omega = sum_i 10^SI_i(pure) > 1` — and without it a search that has lost
-        # a solid solution cannot get it back, because no member is ever offered.
+        # The saturation index of a member at the bound reports a small mole
+        # fraction, not a phase that should form. The PHASE has its own criterion,
+        # the tangent plane, and without it a search that has lost a solid
+        # solution could not get it back, no member being ever offered.
         cs_ss = ChemicalSystem(
             [sp2[s] for s in split("H2O@ H+ OH- CO2@ HCO3- CO3-2 Ca+2 Cal Arg")],
             ["H2O@", "H+", "Ca+2", "CO3-2", "Zz"];
@@ -1462,15 +1398,15 @@ end
         set_quantity!(st, "H2O@", 1.0u"kg")
         set_quantity!(st, "Ca+2", 0.05u"mol")
         set_quantity!(st, "CO3-2", 0.05u"mol")
-        bfix = Float64.(cs_ss.SM.A) * ustrip.(us"mol", st.n)
 
         # Both end-members sit at the floor while the solution is loaded with
-        # calcium carbonate, so the phase is supersaturated and comes back in.
-        repaired = ChemistryLab._repair_start(st, DiluteSolutionModel(), bfix, 1.0e-16)
-        @test repaired isa ChemicalState
-        n = ustrip.(us"mol", repaired.n)
+        # calcium carbonate, so the phase is supersaturated: the search admits it,
+        # from that state alone, and certifies.
+        eq, cert = equilibrate_certified(st; model = DiluteSolutionModel(), autostart = false)
+        @test cert.optimal
+        n = ustrip.(us"mol", eq.n)
         grp = only(cs_ss.ss_groups)
-        @test any(n[i] > 1.0e-8 for i in grp)
+        @test sum(n[i] for i in grp) > 0.04
         @test all(n[i] >= 0 for i in grp)
     end
 
@@ -1882,7 +1818,12 @@ end
         ChemistryLab._certified_with_fallback(st; b = b)
     end
     @test ChemistryLab._wants_auto_split(cs, first_cert)
-    unbeatable = merge(first_cert, (; stationarity = 0.0, balance = 0.0, worst_supersaturation = -1.0))
+    unbeatable = merge(
+        first_cert, (;
+            stationarity = 0.0, stationarity_floored = 0.0, balance = 0.0, balance_relative = 0.0,
+            param_residual = 0.0, worst_supersaturation = -1.0,
+        ),
+    )
     back_eq, back_cert = ChemistryLab._relaxed_convergence() do
         ChemistryLab._after_first_search(st, first_eq, unbeatable; b = b)
     end
@@ -1951,11 +1892,11 @@ end
 
     # The split test is read only on an answer that has reached the solution. The
     # first answer inside the gap is stationary and balanced, and asks to split;
-    # the same certificate with an element balance of 0.17 is a search that has
+    # the same certificate with a row 17 % off its budget is a search that has
     # not arrived, and asks nothing.
     _, first_cert = ChemistryLab._equilibrate_certified(st_gap; b = b_gap, split_early = true)
     @test ChemistryLab._wants_auto_split(cs_gap, first_cert)
-    @test !ChemistryLab._wants_auto_split(cs_gap, merge(first_cert, (; balance = 0.17)))
+    @test !ChemistryLab._wants_auto_split(cs_gap, merge(first_cert, (; balance_relative = 0.17)))
     @test !ChemistryLab._wants_auto_split(cs_gap, merge(first_cert, (; stationarity = 1.0e-4)))
 end
 

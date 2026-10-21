@@ -580,6 +580,10 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         T = T_K,
         P = P_Pa,
         ϵ = ϵ,
+        # The floor of the activities the rate laws read, the molality the
+        # equilibrium solves floor them at (`_activity_floor_amount`), so that
+        # both read one activity model.
+        ϵa = _activity_floor_amount(state),
         has_Q = has_Q,
         lna_fn = lna_fn,
         kin_rxns = kin_rxns,
@@ -1059,14 +1063,11 @@ on as a warm start and the solve is retried from a budget-clipped guess.
 """
 const EQ_RESIDUAL_TOL = 1.0e-8
 
-"""
-    _RETRY_ABS_TOL
-
-Element-balance violation in moles above which a replayed speciation is solved a
-second time from a guess carrying no active set. Chosen well above machine
-precision and well below anything chemically meaningful.
-"""
-const _RETRY_ABS_TOL = 1.0e-6
+# Whether the partition `n_e` leaves more of the budget `be` unaccounted for than
+# a converged speciation does: some element row off by more than
+# `EQ_RESIDUAL_TOL` of what it holds (`_row_residual`). What decides a retry, an
+# escalation to the certified solve, or the refusal of an uncertified answer.
+_unbalanced(Ae, n_e, be) = _row_residual(Ae, n_e, be) > EQ_RESIDUAL_TOL
 
 """
     _CONTINUATION_STEPS
@@ -1654,7 +1655,8 @@ An assemblage switch is not a single-step event — a phase takes several steps 
 exhaust — so the previous call's outcome says which guess to try first, and
 `eq_switching` carries it. This is information the problem already has, not a
 tuning parameter: no threshold is introduced, and the tolerance that decides
-"too much matter unaccounted for" is `_RETRY_ABS_TOL`, whichever guess runs
+"too much matter unaccounted for" is that of a converged speciation,
+`EQ_RESIDUAL_TOL` of each element row (`_unbalanced`), whichever guess runs
 first.
 """
 function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
@@ -1665,22 +1667,29 @@ function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
     switching = p.eq_switching[] && !is_reconstruction
     first_guess = switching ? _reconstruction_guess!(p.n_eq_buf2, p, be) : n_eq
 
-    ok, n_e, abs_res = _one_speciation(p, first_guess, be)
+    # The warm guess resumes from the multipliers of the partition it is (`y_full`),
+    # the reconstruction from none; the multipliers of the answer kept are written
+    # beside it, for the next re-speciation.
+    y_first = Ref{Any}(nothing)
+    ok, n_e, abs_res = _one_speciation(p, first_guess, be; y0 = switching ? nothing : p.y_full[], y_out = y_first)
+    y_kept = y_first[]
     ok || return false
 
-    # The other guess, when the first leaves too much matter unaccounted for.
-    # Decided on the ABSOLUTE balance, in moles, because that is the quantity
-    # with a meaning: it is the matter the composition fails to account for. The
-    # relative measure is for reporting.
-    if abs_res > _RETRY_ABS_TOL && is_reconstruction
+    # The other guess, when the first leaves too much matter unaccounted for:
+    # some element row off by more than a converged speciation leaves it, relative
+    # to what the row holds. Decided in moles until 0.41.0 (1e-6 mol), which let a
+    # trace element miss its whole budget and held a major one to a millionth of
+    # a mole whatever the size of the system.
+    if _unbalanced(p.Ae, n_e, be) && is_reconstruction
         # Already on the reconstruction and still short: nothing left to try, but
         # the regime is plainly switching, so the next call should start there.
         p.eq_switching[] = true
-    elseif abs_res > _RETRY_ABS_TOL
+    elseif _unbalanced(p.Ae, n_e, be)
         other = switching ? n_eq : _reconstruction_guess!(p.n_eq_buf2, p, be)
-        ok2, n2, abs2 = _one_speciation(p, other, be)
-        if ok2 && abs2 < abs_res
-            n_e, abs_res = n2, abs2
+        y_other = Ref{Any}(nothing)
+        ok2, n2, abs2 = _one_speciation(p, other, be; y0 = switching ? p.y_full[] : nothing, y_out = y_other)
+        if ok2 && _row_residual(p.Ae, n2, be) < _row_residual(p.Ae, n_e, be)
+            n_e, abs_res, y_kept = n2, abs2, y_other[]
         end
         # The regime is switching: prefer the reconstruction next time.
         p.eq_switching[] = true
@@ -1694,8 +1703,8 @@ function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
     for (j, idx) in enumerate(p.idx_equilibrium)
         p.n_full[idx] = n_e[j]
     end
-    # The interior point's answer comes with no multipliers of the dual Newton.
-    p.y_full[] = nothing
+    # The multipliers of the dual Newton's answer, none for the interior point's.
+    p.y_full[] = y_kept
 
     res = _row_residual(p.Ae, n_e, be)
     abs_res > p.eq_worst_abs[] && (p.eq_worst_abs[] = _plain(abs_res))
@@ -1725,7 +1734,7 @@ One equilibrium solve of `φ(bₑ)` from `guess`. Returns `ok = false` only if t
 solve threw; a solve that returns a poor composition still returns `true`, with
 its element-balance violation in moles, so the caller can compare attempts.
 """
-function _one_speciation(p, guess, be)
+function _one_speciation(p, guess, be; y0 = nothing, y_out = nothing)
     # A run differentiated with respect to its parameters carries dual numbers
     # in its budget, and possibly in its temperature. The partition is then the
     # certified answer, lifted to those duals by the implicit-function theorem
@@ -1748,7 +1757,7 @@ function _one_speciation(p, guess, be)
         )
         T_v = _plain(ustrip(us"K", p.T_q[])) * u"K"
         P_v = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
-        ok, n_v, abs_v = _value_speciation(p, guess, _plain.(be), T_v, P_v)
+        ok, n_v, abs_v = _value_speciation(p, guess, _plain.(be), T_v, P_v; y0, y_out)
         st0 = ChemicalState(p.eq_system[], (ok ? n_v : guess) .* u"mol"; T = p.T_q[], P = p.P_q[])
         eq_c, cert = solve_certified(p.eq_dual, (st0,); b = be, ϵ = p.ϵ, report = false)
         n_c = [ustrip(us"mol", x) for x in eq_c.n]
@@ -1757,10 +1766,11 @@ function _one_speciation(p, guess, be)
         # the values found is not taken. Those values are then lifted where they
         # are, as `speciated_states` lifts an instant it could not certify, so
         # that the run on dual numbers follows the plain one.
-        ok && !cert.optimal && !(abs_c < abs_v) && return true, _lifted_partition(p, n_v, T_v, P_v, be), abs_v
+        ok && !cert.optimal && !(_row_residual(p.Ae, n_c, be) < _row_residual(p.Ae, n_v, be)) &&
+            return true, _lifted_partition(p, n_v, T_v, P_v, be), abs_v
         return true, n_c, abs_c
     end
-    return _value_speciation(p, guess, be, p.T_q[], p.P_q[])
+    return _value_speciation(p, guess, be, p.T_q[], p.P_q[]; y0, y_out)
 end
 
 # The partition `n_v`, found on the values of the budget `be` at `T_v` and `P_v`,
@@ -1794,8 +1804,28 @@ function _lifted_partition(p, n_v, T_v, P_v, be; T = p.T_q[])
 end
 
 # `_one_speciation` on plain numbers, at the temperature `T` and pressure `P`.
-function _value_speciation(p, guess, be, T, P)
+#
+# The certified solve first, resumed from `guess` and the multipliers `y0` of the
+# partition it is when it is one, as the partition of the right-hand side is
+# (`_rhs_values`); the multipliers of its answer go to `y_out`. The interior point
+# only where that does not certify, and the certified solve again from its
+# answer. Measured over ChemistryLab's suite before this order, the interior point
+# left 5 % of its partitions balanced (115 s for 2093 of them) and the certified
+# escalation from its answer took 262 s, where the dual Newton resumed from the
+# partition before certified 99 % at 1.4 ms each.
+function _value_speciation(p, guess, be, T, P; y0 = nothing, y_out = nothing)
     state_eq = ChemicalState(p.eq_system[], guess .* u"mol"; T = T, P = P)
+    if hasproperty(p, :eq_dual) && p.eq_dual !== nothing
+        dref = Ref{Any}(nothing)
+        eq_d, cert_d = _exploring_starts(
+            () -> solve_certified(p.eq_dual, (state_eq,); b = be, ϵ = p.ϵ, report = false, y0, dual_state = dref),
+        )
+        if eq_d !== nothing && cert_d.optimal
+            n_d = [ustrip(us"mol", x) for x in eq_d.n]
+            y_out === nothing || dref[] === nothing || (y_out[] = copy(dref[].y))
+            return true, n_d, _abs_residual(p.Ae, n_d, be)
+        end
+    end
 
     # `p.eq_solver` is a prebuilt `EquilibriumSolver` over the partition — a
     # solver *object*, not a SciML algorithm — so `solve`, not `equilibrate`.
@@ -1838,14 +1868,14 @@ function _value_speciation(p, guess, be, T, P)
     # built to be feasible on the current budget, so it converges in 1.5 s where
     # `state_eq` takes seconds to tens of seconds. Two layers were paying for the
     # same idea and the inner one was the expensive way to have it.
-    if abs_res > _RETRY_ABS_TOL && hasproperty(p, :eq_dual) && p.eq_dual !== nothing
+    if _unbalanced(p.Ae, n_e, be) && hasproperty(p, :eq_dual) && p.eq_dual !== nothing
         try
             eq_c, cert = solve_certified(
                 p.eq_dual, (eq_result,); b = be, ϵ = p.ϵ, report = false,
             )
             n_c = [ustrip(us"mol", x) for x in eq_c.n]
             abs_c = _abs_residual(p.Ae, n_c, be)
-            if cert.optimal || abs_c < abs_res
+            if cert.optimal || _row_residual(p.Ae, n_c, be) < _row_residual(p.Ae, n_e, be)
                 return true, n_c, abs_c
             end
         catch
@@ -1881,7 +1911,9 @@ function _row_residual(Ae, n_e, be)
         for j in eachindex(n_e)
             flux += abs(Ae[i, j] * n_e[j])
         end
-        worst = max(worst, abs(r[i]) / max(scale, abs(be[i]), flux, 1.0e-30))
+        # A row that holds nothing and has no budget balances exactly.
+        d = max(scale, abs(be[i]), flux)
+        d > 0 && (worst = max(worst, abs(r[i]) / d))
     end
     return worst
 end
@@ -2068,8 +2100,8 @@ The partition at the element amounts `bv` and the temperature `Tv`, on plain
 numbers, by the certified solve warm-started from the last accepted partition,
 then from the cast composition carried onto `bv`, and, for an accessor walking a
 finished run, from the answer of the interior point; `nothing` when none
-certifies and the best leaves more than
-`_RETRY_ABS_TOL` of matter unaccounted for. The last answer is cached, so that
+certifies and the best leaves some element row off by more than a converged
+speciation does (`_unbalanced`). The last answer is cached, so that
 the evaluations of one point by the integrator and by the step's re-speciation
 solve it once.
 """
@@ -2140,7 +2172,7 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64; start = nothing)
     n = Float64[ustrip(us"mol", x) for x in eq.n]
     abs_res = _abs_residual(p.Ae, n, bv)
     abs_res > p.eq_worst_abs[] && (p.eq_worst_abs[] = abs_res)
-    cert.optimal || abs_res <= _RETRY_ABS_TOL || return nothing
+    cert.optimal || !_unbalanced(p.Ae, n, bv) || return nothing
     # The multipliers kept with the partition when it is the answer the warm start
     # resumed to; another start's answer comes without them.
     y = (eq === resumed && y_resumed !== nothing) ? copy(y_resumed.y) : nothing

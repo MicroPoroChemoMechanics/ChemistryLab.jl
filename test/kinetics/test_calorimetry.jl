@@ -673,8 +673,9 @@ end
 # `Unstable`, its step below the floating-point epsilon, on some machines (with
 # bounds checking, as Pkg.test runs it). There 7e-7 mol of monocarbonate holds
 # the aluminum the other phases leave over, below the amount from which the dual
-# Newton seeds a phase; OptimaSolver 0.8.9 seeds such a trace when no start
-# converges, and the run crosses the change and reaches its horizon.
+# Newton then counted a phase present. OptimaSolver 0.9.0 reads every amount the
+# start holds above zero as present, and resumes from the multipliers of the
+# instant before: the run crosses the change and reaches its horizon.
 @testset "a semi-adiabatic cell crosses a change of assemblage" begin
     substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
     cs = phase_list_system("Portland paste (Lothenbach and Winnefeld 2006)", substances)

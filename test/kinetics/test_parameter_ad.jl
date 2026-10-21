@@ -91,11 +91,10 @@
             @test cert.optimal
             return ustrip(us"mol", eq.n[findfirst(==(i_ca), idx)])
         end
-        # A ten-thousandth of the calcite dissolves over the run. On plain numbers
-        # the partition of the run is the interior point's, escalated to the
-        # certified solve only past 1e-6 mol of imbalance: it agrees with the
-        # certified answer to that accuracy (1.4e-6 measured). On dual numbers it
-        # is the certified answer, lifted, and so is its derivative.
+        # A ten-thousandth of the calcite dissolves over the run. Each instant of
+        # the run is the certified answer, resumed from the instant before, the
+        # interior point serving only where it fails; on dual numbers it is
+        # lifted, and so is its derivative.
         kc = 1.0e-8
         @test ca_by_run(kc) ≈ ca_by_equilibrium(kc) rtol = 1.0e-5
         @test ForwardDiff.derivative(ca_by_run, kc) ≈ ForwardDiff.derivative(ca_by_equilibrium, kc) rtol = 1.0e-6

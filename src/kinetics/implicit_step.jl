@@ -335,20 +335,21 @@ function kinetic_step(
     rates = _step_rate_closure(kss, des, T_K, P_Pa, t, n0)
 
     # The scale of each extent is the one the explicit rate predicts, the only
-    # one available before the step is taken, floored so that a reaction starting
-    # at zero rate still has one.
+    # one available before the step is taken, floored, for a reaction starting at
+    # zero rate, at the rounding of the budget: a fraction of what the system
+    # holds, not an amount in moles.
     r0 = rates(n0, p)
-    qscale = max.(abs.(Δt_s .* (M * r0)), 1.0e-12)
+    S = maximum(abs, b_aug; init = 0.0)
+    qscale = max.(abs.(Δt_s .* (M * r0)), eps() * S)
 
     # `Δξ − Δt·M·r(n) = 0`. The `M` is not decoration: `Kᵀn − Δξ = ξ₀` defines
     # `Δξ = Kᵀ(n − n₀)`, and with `n − n₀ = Kξ` that is `KᵀK ξ`.
     #
     # Each residual is divided by the amount its reaction acts on, `Σᵢ |Kᵢⱼ| nᵢ`,
-    # capped at one mole, as an element balance is judged against
-    # `tol·min(s, 1 mol)`. The solver judges these residuals, in the iteration
-    # and in the certificate, against an absolute tolerance: unscaled, a step
-    # whose extent is below that tolerance satisfies the equation where it
-    # starts. Measured on a slow site family (10⁻⁶ mol of sites,
+    # as an element balance is judged relative to what its row holds. The solver
+    # judges these residuals, in the iteration and in the certificate, against an
+    # absolute tolerance: unscaled, a step whose extent is below that tolerance
+    # satisfies the equation where it starts. Measured on a slow site family (10⁻⁶ mol of sites,
     # 2.3 × 10⁻¹⁰ mol/s), the step returned `Δξ = 10⁻¹⁵` instead of `9 × 10⁻¹⁰`,
     # certified with a residual of `9.4 × 10⁻¹⁰`, the whole extent.
     #
@@ -359,7 +360,7 @@ function kinetic_step(
     # tutorial), the certificate then failed near equilibrium on every step the
     # adaptive march tried above one second: 706 steps reached 842 s, where the
     # march reaches 10⁵ s in 19.
-    rscale = max.(min.(transpose(abs.(K)) * n0, 1.0), qscale)
+    rscale = max.(transpose(abs.(K)) * n0, qscale)
     cq = (x, q, params) -> (q .- Δt_s .* (M * rates(x, params))) ./ rscale
 
     # A kinetic mineral is determined by its reactivity row, so it must not be

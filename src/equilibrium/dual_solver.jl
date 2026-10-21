@@ -262,8 +262,8 @@ function _local_log_activities(mdl, p, grp)
     T = (p !== nothing && hasproperty(p, :T)) ? p.T : T_STANDARD
     g = (p !== nothing && hasproperty(p, :ΔₐG⁰overRT)) ? collect(p.ΔₐG⁰overRT[grp]) : nothing
     return function (nm)
-        tot = sum(nm) + ϵ
-        x = nm ./ tot
+        tot = sum(nm)
+        x = _fraction.(nm, tot)
         return _ss_log_activities!(similar(x), eachindex(x), x, mdl, T, ϵ, g)
     end
 end
@@ -1024,12 +1024,13 @@ end
 """
     _judged_balance(cert) -> Float64
 
-The balance as the certificate judges it: the larger of `balance` (moles) and
-`balance_relative` (relative to what each row holds), which is the worst row on
-`min(scale, 1)`. A certificate without the relative figure gives `balance`.
+The balance as the certificate judges it: `balance_relative`, the worst row
+relative to what it holds, as OptimaSolver's certificate judges it. Until 0.41.0
+the larger of that and `balance` in moles, which held a large row to an amount of
+matter and made the verdict depend on the size of the system. A certificate
+without the relative figure gives `balance`.
 """
-_judged_balance(cert) = hasproperty(cert, :balance_relative) ?
-    max(cert.balance, cert.balance_relative) : cert.balance
+_judged_balance(cert) = hasproperty(cert, :balance_relative) ? cert.balance_relative : cert.balance
 
 # The balance in words, for a message: both figures.
 _balance_text(cert) = hasproperty(cert, :balance_relative) ?
@@ -1142,7 +1143,7 @@ the certificate are deterministic functions of the start once `des`, `b`, `ϵ`,
 the caller owns the dictionary and must not share it between calls that differ
 in any of those. [`equilibrate_certified`](@ref) keeps one for the duration of a
 call, because its search offers the same cached starts again after the
-continuation, after each restart and in each repair round: measured on a CEM I
+continuation and after each restart: measured on a CEM I
 paste that does not certify at once, twelve of the thirty-six dual solves of one
 call were repeats of earlier ones.
 """
