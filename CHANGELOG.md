@@ -93,6 +93,11 @@ that used to stop short now reach their horizon.
   off); the activity floor is a molality, 1e-30 mol per kilogram of water.
   Starts are no longer lifted to a floor: an exact zero is a pure phase on its
   bound.
+- **Faster where it was slowest.** The three slowest test files, in fresh
+  processes, alternated with ChemistryLab 0.40.0 on OptimaSolver 0.8.8 on the
+  same machine (the minimum of two runs): 401 s against 517 s. A quaternary
+  cement hydration takes 285 s against 386 s, the binding of chloride by the
+  AFm phases 61 s against 63 s, the dissolution of glasses 55 s against 68 s.
 - **The repair stage of the certified search is gone.** It restarted the
   search with a phase the certificate named, and certified nothing over the
   test suite (0 of 6): the search of OptimaSolver 0.9 takes such a phase off
