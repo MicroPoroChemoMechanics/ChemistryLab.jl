@@ -2,22 +2,29 @@
 
 ## v0.41.0 — The studio completed: glasses in time, the surface of the C-S-H, thermograms, a cell that crosses a change of assemblage
 
-A minor release: three exported functions, two fixes of the semi-adiabatic
-cell under partial equilibrium, and ChemistryLab Studio given what its first
-version left out. It requires OptimaSolver 0.8.9. No result of an existing
-calculation changes, except the semi-adiabatic runs that used to stop short and
-now reach their horizon.
+A minor release: three exported functions, a coupled run that resumes each
+solve from the one before and takes no decision on an amount in moles, two
+fixes of the semi-adiabatic cell under partial equilibrium, and ChemistryLab
+Studio given what its first version left out. It requires OptimaSolver 0.9.
+Results change within the tolerances of the solves, and the semi-adiabatic runs
+that used to stop short now reach their horizon.
 
 ### Breaking changes
 
-- None in the API or in the results. The minor version moves because of the
-  new exported functions: below 1.0, a bound `ChemistryLab = "0.40"` does not
-  admit 0.41, so a package or an environment that bounds ChemistryLab must
-  widen its bound to take this release.
-- OptimaSolver 0.8.9 at least (`OptimaSolver = "0.8.9"`, in the package and in
-  the documentation): the two semi-adiabatic runs fixed below need its two
-  fixes of the dual Newton method. An environment held at OptimaSolver 0.8.8
-  keeps ChemistryLab 0.40.
+- None in the API. The minor version moves because of the new exported
+  functions: below 1.0, a bound `ChemistryLab = "0.40"` does not admit 0.41, so
+  a package or an environment that bounds ChemistryLab must widen its bound to
+  take this release.
+- OptimaSolver 0.9 (`OptimaSolver = "0.9"`, in the package and in the
+  documentation), whose dual Newton method reclassifies its active set at every
+  iteration and compares no amount with a number of moles: the two
+  semi-adiabatic runs fixed below need it. An environment held at OptimaSolver
+  0.8 keeps ChemistryLab 0.40.
+- Answers may differ from 0.40.0 within the tolerances of the solves: the
+  equilibria are those of OptimaSolver 0.9, and a run now resumes each of its
+  solves from the one before.
+- `DualEquilibriumSolver(...; max_active_updates)` is deprecated and ignored,
+  as in OptimaSolver; `maxit` (500 by default) bounds the whole search.
 
 ### Added
 
@@ -62,6 +69,35 @@ now reach their horizon.
   `calcite` in `data/recipe_templates.toml`), and with it the CEM I 52.5 N of
   Lavergne et al. (2018), Table 9.
 
+### Changed
+
+- **A run resumes each solve from the one before.** The dual solve takes the
+  multipliers of an earlier answer and hands back its own
+  (`SciMLBase.solve(::DualEquilibriumSolver, state; y0, dual_state)`,
+  `solve_certified(...; y0, dual_state)`); a kinetic run keeps them beside its
+  partition, and both its right-hand side and the re-speciation of a step
+  resume the certified solve from them, the interior point serving only where
+  that does not certify. The interior point balanced 5 % of the partitions of
+  the suite, the others escalated to the certified solve from its answer:
+  resumed, the dual solve certifies 97 % of them at once. On the kinetic test
+  files that re-speciate, 616 s instead of 698 s; a ternary cement hydration
+  23 s instead of 56 s.
+- **No decision of a run is taken on an amount in moles.** A speciation is
+  retried, escalated or refused when an element row is off by more than a
+  converged speciation leaves it, relative to what the row holds, instead of
+  1e-6 mol, which let a trace element miss its whole budget and held a major
+  one to a millionth of a mole. The certificate judges each balance row
+  relative to itself; the reactivity rows of the implicit step are scaled by
+  the amount each reaction acts on; the fractions of a solid solution are of
+  degree zero in its amounts (those of a phase of 1e-14 mol were a percent
+  off); the activity floor is a molality, 1e-30 mol per kilogram of water.
+  Starts are no longer lifted to a floor: an exact zero is a pure phase on its
+  bound.
+- **The repair stage of the certified search is gone.** It restarted the
+  search with a phase the certificate named, and certified nothing over the
+  test suite (0 of 6): the search of OptimaSolver 0.9 takes such a phase off
+  its bound itself.
+
 ### Fixed
 
 - **A semi-adiabatic cell under partial equilibrium stopped at 1.22 days**, on
@@ -70,9 +106,9 @@ now reach their horizon.
   it): every trial step was rejected, and the run ended `Unstable`. At that
   instant 7e-7 mol of monocarbonate holds the aluminum that ettringite and
   hydrotalcite leave over, too little for the dual Newton method to put it in
-  its initial set, and without it no start converged. OptimaSolver 0.8.9 tries
-  such a trace once more when no start converges: the run reaches its horizon
-  on every machine, with no change in ChemistryLab.
+  its initial set, and without it no start converged. OptimaSolver 0.9 reads
+  every amount a start holds above zero as present, and the run resumes each
+  solve from the one before: it reaches its horizon on every machine.
 - **A semi-adiabatic cell at a reaction between pure phases.** Where two
   assemblages exchange at one temperature (gypsum and anhydrite; near 53 °C in
   a CEM I paste, ettringite and monocarbonate for monosulfate), the heat
@@ -83,9 +119,9 @@ now reach their horizon.
   1e-3 K is a cell held at the temperature of the exchange, to 2e-6 K, its
   temperature then independent of the amounts, and the partition on the far
   side of the jump starts the next solve. A run that passed takes the same
-  path as before. OptimaSolver 0.8.9 gives the partition across the exchange,
-  which its dual Newton method could not reach from the side the run comes
-  from.
+  path as before. OptimaSolver 0.9 gives the partition across the exchange,
+  the phase that enters taking the place of the one it depends on, which its
+  dual Newton method could not reach from the side the run comes from.
 - **The pore solution of a state holding a glass** (its pH, its activities)
   failed: a glass given a formula for its rate law has no standard Gibbs
   energy, and the potentials of every species were evaluated. Such a species
