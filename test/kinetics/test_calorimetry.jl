@@ -269,7 +269,7 @@ end
     set_quantity!(st_cell, "H2O", 1.0u"mol")
     set_quantity!(st_cell, "CaO", 0.01u"mol")
     kp_cell = KineticsProblem(cs_cell, [kr], st_cell, (0.0, 600.0); calorimeter = cal, equilibrium_solver = nothing)
-    sol_cell = @test_logs (:warn, r"Cp_total requires Cp° data") match_mode = :any integrate(
+    sol_cell = @test_logs_own (:warn, r"Cp_total requires Cp° data") match_mode = :any integrate(
         kp_cell, KineticsSolver(; ode_solver = Rodas5P())
     )
     @test sol_cell.retcode == ReturnCode.Success
@@ -290,7 +290,7 @@ end
         cs_b, [KineticReaction(rxn_b, dummy_fn, 1, [-1.0, -1.0, 1.0])], st_b, (0.0, 600.0);
         calorimeter = IsothermalCalorimeter(293.15u"K"), equilibrium_solver = nothing,
     )
-    @test_logs (:warn, r"without ΔᵣH⁰.*bare") match_mode = :any integrate(
+    @test_logs_own (:warn, r"without ΔᵣH⁰.*bare") match_mode = :any integrate(
         kp_b, KineticsSolver(; ode_solver = Rodas5P())
     )
 

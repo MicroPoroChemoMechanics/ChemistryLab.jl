@@ -112,7 +112,7 @@ using OrderedCollections
     end
 
     @testset "frozen under the Ω law, the run is not reported a success" begin
-        sol = @test_logs (:warn, r"no chemistry can produce") match_mode = :any integrate(kp, ks; speciation = :frozen)
+        sol = @test_logs_own (:warn, r"no chemistry can produce") match_mode = :any integrate(kp, ks; speciation = :frozen)
         @test !SciMLBase.successful_retcode(sol)
         @test any(u -> ChemistryLab._kinetic_state_infeasible(sol.prob.p, u), sol.u)
     end

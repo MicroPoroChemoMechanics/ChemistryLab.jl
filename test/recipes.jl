@@ -646,7 +646,7 @@ using ChemistryLab, DynamicQuantities, ForwardDiff, OrderedCollections, Test
         @test_throws ArgumentError phase_list_system(list, substances; add = ["no such phase"])
         # A database without a member of the list's solid solutions is refused,
         # after the warning of `build_solid_solutions` that names the phase.
-        err = @test_logs (:warn, r"CSHQ") match_mode = :any try
+        err = @test_logs_own (:warn, r"CSHQ") match_mode = :any try
             phase_list_system(list, [s for s in substances if symbol(s) != "KSiOH"])
         catch e
             e

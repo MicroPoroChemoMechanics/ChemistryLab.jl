@@ -189,7 +189,7 @@ const N_H2O, N_CAL, N_CO2 = RK.n_H2O, RK.n_Cal, RK.n_CO2
         # that it did not converge, and the point it returns conserves matter.
         stw = ChemicalState(csw, n)
         schur = OptimaOptimizer(; nullspace_step = false)
-        eqs = @test_logs (:warn, r"MaxIters") match_mode = :any ChemistryLab._unpolished(
+        eqs = @test_logs_own (:warn, r"MaxIters") match_mode = :any ChemistryLab._unpolished(
             () -> equilibrate(stw, schur)
         )
         Aw = Float64.(conservation_matrix(csw))
@@ -203,7 +203,7 @@ const N_H2O, N_CAL, N_CO2 = RK.n_H2O, RK.n_Cal, RK.n_CO2
         # equilibrium and certifies it, and the back end's own return code, which
         # no longer decides on the answer, is not reported.
         cref = Ref{Any}()
-        eqp = @test_logs min_level = Base.CoreLogging.Warn equilibrate(stw, schur; certificate = cref)
+        eqp = @test_logs_own min_level = Base.CoreLogging.Warn equilibrate(stw, schur; certificate = cref)
         @test cref[].optimal
         vp = [ustrip(us"mol", x) for x in eqp.n]
         hp, ohp = vp[findfirst(==("H+"), nw)], vp[findfirst(==("OH-"), nw)]

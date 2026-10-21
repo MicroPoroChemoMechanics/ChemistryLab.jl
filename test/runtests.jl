@@ -64,6 +64,37 @@ macro testsection(str, block)
     end
 end
 
+# `@test_logs`, with the deprecations that other packages raise left out.
+# `Pkg.test` runs with `--depwarn=yes`, and every log assertion installs a logger
+# of its own, so a deprecation that a dependency reaches is captured by each one
+# whose call reaches it: on Julia 1.14, the `Queue` of DataStructures 0.19.6 that
+# MultivariatePolynomials adds terms with calls the deprecated
+# `Base._unsetindex!`, from every symbolic simplification. The log assertions of
+# this suite are about ChemistryLab's records; a deprecation raised from
+# ChemistryLab's code, its extensions included, is kept. Same patterns and
+# keywords as `@test_logs` (`match_mode`, `min_level`), same value returned.
+macro test_logs_own(exs...)
+    patterns = [esc(e) for e in exs[1:(end - 1)] if !(e isa Expr && e.head === :(=))]
+    kwargs = [esc(Expr(:kw, e.args...)) for e in exs[1:(end - 1)] if e isa Expr && e.head === :(=)]
+    return quote
+        local didmatch, value = _own_logs_match(() -> $(esc(exs[end])), $(patterns...); $(kwargs...))
+        @test didmatch
+        value
+    end
+end
+
+_own_record(r) = !(r.group === :depwarn && r._module isa Module && pkgdir(r._module) != pkgdir(ChemistryLab))
+
+function _own_logs_match(f, patterns...; match_mode::Symbol = :all, kwargs...)
+    logs, value = Test.collect_test_logs(f; kwargs...)
+    filter!(_own_record, logs)
+    didmatch = match_mode === :all ?
+        length(logs) == length(patterns) && all(occursin(p, l) for (p, l) in zip(patterns, logs)) :
+        all(any(occursin(p, l) for l in logs) for p in patterns)
+    didmatch || foreach(l -> println("  captured: ", l.level, " ", l._module, ": ", l.message), logs)
+    return didmatch, value
+end
+
 reset_timer!()
 
 """

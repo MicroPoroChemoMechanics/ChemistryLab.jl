@@ -34,7 +34,7 @@ using JSON
 
             # The first address serves the wrong content and is passed over; the
             # second is verified and cached, and the download is announced once.
-            path = @test_logs (:info, r"downloaded `fake-thermofun.json`") CL._obtain(db, nothing, cache)
+            path = @test_logs_own (:info, r"downloaded `fake-thermofun.json`") CL._obtain(db, nothing, cache)
             @test path == joinpath(cache, db.name)
             @test read(path, String) == read(src, String)
 
@@ -98,7 +98,7 @@ using JSON
             @test CL._obtain(db, mine, joinpath(dir, "cache")) == joinpath(mine, "new", db.name)
             # Only a different version: it is used, and said so once.
             rm(joinpath(mine, "new"); recursive = true)
-            @test_logs (:warn, r"not the version ChemistryLab") CL._obtain(db, mine, joinpath(dir, "cache"))
+            @test_logs_own (:warn, r"not the version ChemistryLab") CL._obtain(db, mine, joinpath(dir, "cache"))
             @test CL._obtain(db, mine, joinpath(dir, "cache")) == joinpath(mine, "old", db.name)
         end
     end
@@ -121,7 +121,7 @@ using JSON
                 @test occursin("not the version", sprint(showerror, err))
                 @test occursin("force = true", sprint(showerror, err))
                 # Forced: installed, announced, and then recognized from the cache.
-                path = @test_logs (:warn, r"not validated") install_database(wrong; force = true)
+                path = @test_logs_own (:warn, r"not validated") install_database(wrong; force = true)
                 @test isfile(path)
                 @test CL._cached(real, CL.database_cache()) == path
                 @test_throws ArgumentError install_database(wrong; name = "unknown.dat")

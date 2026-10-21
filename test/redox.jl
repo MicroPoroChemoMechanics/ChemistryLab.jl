@@ -204,11 +204,11 @@ end
     set_quantity!(both, "SO4-2", 1.0e-3u"mol")
     set_quantity!(both, "HS-", 1.0e-3u"mol")
     set_quantity!(both, "Ca+2", 1.0e-3u"mol")
-    @test_logs min_level = Logging.Warn pe(both, model)      # both present: silent
+    @test_logs_own min_level = Logging.Warn pe(both, model)      # both present: silent
 
     starved = ChemicalState(cs)
     set_quantity!(starved, "H2O@", 1.0u"kg")
     set_quantity!(starved, "SO4-2", 1.0e-3u"mol")
     set_quantity!(starved, "Ca+2", 1.0e-3u"mol")             # no sulfide at all
-    @test_logs (:warn,) match_mode = :any pe(starved, model)
+    @test_logs_own (:warn,) match_mode = :any pe(starved, model)
 end

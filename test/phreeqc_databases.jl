@@ -410,7 +410,7 @@ end
             END
             """,
         )
-        q = @test_logs (:warn, r"Na\+   Cl-   0.03   0.0") build_sit_parameters(st)
+        q = @test_logs_own (:warn, r"Na\+   Cl-   0.03   0.0") build_sit_parameters(st)
         @test value(sit_epsilon(q, "Na+", "SO4-2")) == -0.12
         @test value(sit_epsilon(q, "K+", "Cl-")) == 0.0
         @test sit_epsilon(q, "Na+", "Cl-") === nothing

@@ -132,6 +132,11 @@ that used to stop short now reach their horizon.
   energy, and the potentials of every species were evaluated. Such a species
   now has none (NaN, so does its saturation index), which nothing at
   equilibrium reads: `KineticsProblem` refuses it there.
+- **`add_thermo_model` from a heat capacity** (the SymbolicNumericIntegration
+  extension) failed with SymbolicUtils 4.53 on every integrated function holding
+  a power (H and G of a linear Cp): `toexpr` now writes `x^2` as
+  `Base.literal_pow(^, x, Val(2))`, which the model reader took for a call of
+  unknown type. The power is written back as `x ^ 2` before it is read.
 - **`speciated_states` with no instant** returns no state, where it failed
   reading the first one: the ages a script asks of a run that stopped short
   of all of them.

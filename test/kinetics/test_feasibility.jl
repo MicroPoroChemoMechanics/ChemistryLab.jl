@@ -295,7 +295,7 @@ end
 
     # 1.5 mol, gone at half the C3A: the run is not a success, and the warning
     # names the gypsum.
-    kp, sol = @test_logs (:warn, r"`Gp` runs out") match_mode = :any run(1.5)
+    kp, sol = @test_logs_own (:warn, r"`Gp` runs out") match_mode = :any run(1.5)
     @test sol.retcode == SciMLBase.ReturnCode.Unstable
     p = sol.prob.p
     @test p.n_be == 0

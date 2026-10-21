@@ -331,7 +331,7 @@ end
     kp_free = KineticsProblem(
         cs, [rxn_free], state0, (0.0, 3650 * 86400.0); equilibrium_solver = nothing
     )
-    sol_free = @test_logs (:warn, r"`Portlandite` runs out") match_mode = :any integrate(
+    sol_free = @test_logs_own (:warn, r"`Portlandite` runs out") match_mode = :any integrate(
         kp_free, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-8, abstol = 1.0e-12)
     )
     # And that run is not a success: it consumed portlandite the paste did not hold.
@@ -440,9 +440,9 @@ end
     @test wired.equilibrium_solver === es
     @test wired.idx_kinetic == bare.idx_kinetic && wired.Ae == bare.Ae && wired.ν == bare.ν
     @test wired.tspan == bare.tspan
-    @test (@test_logs ChemistryLab._with_equilibrium_solver(kp, es)) === kp
+    @test (@test_logs_own ChemistryLab._with_equilibrium_solver(kp, es)) === kp
     other = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer())
-    @test (@test_logs (:warn, r"set on both") ChemistryLab._with_equilibrium_solver(kp, other)) === kp
+    @test (@test_logs_own (:warn, r"set on both") ChemistryLab._with_equilibrium_solver(kp, other)) === kp
 
 end
 

@@ -37,16 +37,34 @@ function ChemistryLab.add_thermo_model(model_name, Cpexpr::Expr, units = nothing
     end
 
     dict_model = if isnothing(units_dict)
-        Dict(:Cp => Cpexpr, :H => toexpr(H), :S => toexpr(S), :G => toexpr(G))
+        Dict(:Cp => Cpexpr, :H => _model_expr(H), :S => _model_expr(S), :G => _model_expr(G))
     else
         Dict(
-            :Cp => Cpexpr, :H => toexpr(H), :S => toexpr(S), :G => toexpr(G),
+            :Cp => Cpexpr, :H => _model_expr(H), :S => _model_expr(S), :G => _model_expr(G),
             :units => units_dict,
         )
     end
 
     # Registered as any model is, under the lock its readers take.
     return add_thermo_model(model_name, dict_model)
+end
+
+# The expression of an integrated function, as the model reader reads it. From
+# SymbolicUtils 4.53 on, `toexpr` writes an integer power `x^n` as
+# `Base.literal_pow(^, x, Val(n))`, the form Julia lowers `x^2` to, which the
+# reader takes for a call of unknown type: the substitution of the parameters
+# then fails (`symtype(ex) <: Number`) on every function holding a power, H and
+# G of a linear Cp. The power is written back as `x ^ n`.
+_model_expr(f) = _plain_powers(toexpr(f))
+
+_plain_powers(ex) = ex
+function _plain_powers(ex::Expr)
+    args = map(_plain_powers, ex.args)
+    if ex.head === :call && length(args) == 4 && args[1] === Base.literal_pow && args[2] === (^) &&
+            args[4] isa Expr && args[4].head === :call && length(args[4].args) == 2 && args[4].args[1] === Val
+        return Expr(:call, ^, args[3], args[4].args[2])
+    end
+    return Expr(ex.head, args...)
 end
 
 end # module SymbolicNumericIntegrationExt

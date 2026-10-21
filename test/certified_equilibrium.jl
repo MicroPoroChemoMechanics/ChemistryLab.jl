@@ -65,7 +65,7 @@ include("reference_species.jl")
 
         # With a fallback asked for out of range, the fallback's answer is
         # returned, said once, with the first certificate kept.
-        eqf, certf = @test_logs (:warn, r"fallback activity model HKFActivityModel") equilibrate_certified(
+        eqf, certf = @test_logs_own (:warn, r"fallback activity model HKFActivityModel") equilibrate_certified(
             brine; model = DaviesActivityModel(), fallback_model = HKFActivityModel(), fallback_on = :out_of_range,
         )
         @test certf.optimal
@@ -85,7 +85,7 @@ include("reference_species.jl")
         strict = ChemistryLab.STRICT_CONVERGENCE[]
         try
             ChemistryLab.STRICT_CONVERGENCE[] = false
-            _, certn = @test_logs (:warn, r"did not certify either") match_mode = :any equilibrate_certified(
+            _, certn = @test_logs_own (:warn, r"did not certify either") match_mode = :any equilibrate_certified(
                 calcite(); model = DaviesActivityModel(), fallback_model = HKFActivityModel(), b = impossible,
             )
             @test !certn.optimal
@@ -802,7 +802,7 @@ end
     st3 = ChemicalState(cs3)
     set_quantity!(st3, "H2O@", 1.0u"kg")
     set_quantity!(st3, "Cal", 1.0e-3u"mol")
-    eq3, cert3 = @test_logs equilibrate_certified(st3)
+    eq3, cert3 = @test_logs_own equilibrate_certified(st3)
     @test cert3.optimal
 
 end
@@ -1369,7 +1369,7 @@ end
         strict = ChemistryLab.STRICT_CONVERGENCE[]
         try
             ChemistryLab.STRICT_CONVERGENCE[] = false
-            @test_logs (:warn, r"aqueous phase has effectively vanished") match_mode = :any (
+            @test_logs_own (:warn, r"aqueous phase has effectively vanished") match_mode = :any (
                 ChemistryLab._check_solvent(starved)
             )
             ChemistryLab.STRICT_CONVERGENCE[] = true
