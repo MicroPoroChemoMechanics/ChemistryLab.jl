@@ -94,51 +94,11 @@ const APP = StudioApp(;
     check = :(Main.StudioWorker.check_report()),
 )
 
-"""
-    clstudio(; host = "127.0.0.1", port = nothing, no_browser = false,
-               project = nothing, julia = nothing, check = false, wait = true,
-               update = false)
-
-Start ChemistryLab Studio, the graphical interface for cementitious materials,
-and block until it stops (press Ctrl-C in the REPL). With `wait = false`, return
-a handle at once and keep the REPL free: `close(handle)` stops the studio.
-
-The first launch prepares the environment the calculations run in,
-`@chemistrylab-studio`, which takes several minutes; the page opens at once and
-shows the progress. The first calculation of a session then compiles, which
-takes a while depending on the machine; later ones take a fraction of a second.
-
-# Arguments
-- `host`/`port` — where to listen; the address printed is
-  `http://host:port/?token=…`. Without `port`, the studio takes 8766, or the
-  next free port when 8766 is taken (MFH Studio uses 8765, so both run
-  together); a `port` given explicitly is used or refused.
-- `no_browser` — start without opening the browser (the address is printed).
-- `project` — the environment the calculations run in: a folder, or `@name`
-  for a shared one. By default the studio's own `@chemistrylab-studio`, which
-  it creates and keeps; the `CLSTUDIO_PROJECT` environment variable is honored.
-  An environment named this way is only checked, never modified.
-- `julia` — the Julia executable of the compute process (default: the running
-  one; the `JULIA` environment variable is honored).
-- `check` — prepare and check the compute environment, print what it holds, and
-  stop instead of serving.
-- `wait` — block until the studio stops (default), or return its handle.
-- `update` — update the packages of the studio's environment before starting.
-
-On a remote machine (SSH, a VS Code remote window) the studio prints its
-address: open it on your own machine, after forwarding the port
-(`ssh -L 8766:127.0.0.1:8766 …`; VS Code forwards it by itself).
-
-# Examples
-```julia
-using ChemistryLab
-clstudio()                     # opens the browser on http://127.0.0.1:8766
-clstudio(port = 9000)          # another port
-clstudio(no_browser = true)    # stay in the terminal
-h = clstudio(wait = false)     # keep the REPL; later `close(h)`
-clstudio(check = true)         # diagnose the compute environment
-```
-"""
+# The docstring of `clstudio` is in `src/ChemistryLab.jl`, where it is exported:
+# the documentation leaves this module out of its docstring check
+# (`checkdocs_ignored_modules` in docs/make.jl), which also drops its docstrings
+# from every `@docs` block, so that one written here showed as missing on the
+# studio's page.
 function clstudio(;
         host::AbstractString = "127.0.0.1",
         port::Union{Nothing, Integer} = nothing,
