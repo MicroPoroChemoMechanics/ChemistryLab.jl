@@ -62,19 +62,26 @@ include("readback.jl")
 include("codegen.jl")
 include("api.jl")
 
+# The bounds ChemistryLab declares, read from its own Project.toml. Copied by
+# hand, the studio's `"OptimaSolver" => "0.8"` outlived the 0.40 it was written
+# for: ChemistryLab 0.41.0, which requires 0.9.3, could not be added beside it,
+# and the compute process never started.
+const OWN_COMPAT = TOML.parsefile(joinpath(@__DIR__, "..", "..", "Project.toml"))["compat"]
+
 """
 The packages the compute process needs: ChemistryLab itself, at the version
 running (the studio and the chemistry it drives are one), and the others with
-the bounds the studio is tested against. OrdinaryDiffEq integrates the kinetic
-runs (loaded by the first one); Plots draws the figures of the scripts the
-studio writes, which run in the same environment.
+ChemistryLab's own bounds where it declares one. OrdinaryDiffEq integrates the
+kinetic runs (loaded by the first one); Plots draws the figures of the scripts
+the studio writes, which run in the same environment, and is no dependency of
+ChemistryLab: its bound is the studio's.
 """
 const ENVIRONMENT = EnvironmentSpec(
     PackageSource(ChemistryLab),
     [
-        "OptimaSolver" => "0.8",
-        "DynamicQuantities" => "1",
-        "OrdinaryDiffEq" => "7",
+        "OptimaSolver" => OWN_COMPAT["OptimaSolver"],
+        "DynamicQuantities" => OWN_COMPAT["DynamicQuantities"],
+        "OrdinaryDiffEq" => OWN_COMPAT["OrdinaryDiffEq"],
         "Plots" => "1",
     ],
 )
