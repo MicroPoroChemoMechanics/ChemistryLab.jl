@@ -1301,11 +1301,13 @@ end
             @test pH(eq, model) ≈ 13.444 atol = 1.0e-3
 
             # With it, the default: the same answer from the first start, in
-            # fewer dual solves.
+            # fewer dual solves, unless the search above certified from its own
+            # first start, as it does on Windows from OptimaSolver 0.9.2 on:
+            # one solve each then, and nothing for the start to save.
             eqlp, certlp = quiet(() -> equilibrate_certified(st; model = model, b = b))
             @test certlp.optimal
             @test certlp.route === :lp_start
-            @test certlp.n_dual_solves < cert.n_dual_solves
+            @test certlp.n_dual_solves < cert.n_dual_solves || certlp.n_dual_solves == cert.n_dual_solves == 1
             @test ustrip.(us"mol", eqlp.n) ≈ ustrip.(us"mol", eq.n) rtol = 1.0e-8 atol = 1.0e-14
 
             # The same paste with the CNASH_ss that ships, Myers' own model: ideal
