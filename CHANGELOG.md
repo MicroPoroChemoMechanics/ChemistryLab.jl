@@ -137,6 +137,15 @@ that used to stop short now reach their horizon.
   energy, and the potentials of every species were evaluated. Such a species
   now has none (NaN, so does its saturation index), which nothing at
   equilibrium reads: `KineticsProblem` refuses it there.
+- **The aqueous inversion answered "no composition" to potentials that hold
+  one.** A solute of a component absent from the budget has a potential of
+  −∞; with the first charged solute so, the running log-sum-exp of the
+  ionic-strength equation read exp(−∞ + ∞) at the next one, the equation was
+  NaN everywhere, and the solution was left to the sweeps, whose outcome
+  depends on where they start. Such a solute now holds nothing and counts in no
+  ionic strength. In the temperature walk of a semi-adiabatic CEM I cell, 859
+  inversions answered nothing and none does now; the walk failed on the CI
+  runners of Linux and Windows under Julia 1.
 - **`add_thermo_model` from a heat capacity** (the SymbolicNumericIntegration
   extension) failed with SymbolicUtils 4.53 on every integrated function holding
   a power (H and G of a linear Cp): `toexpr` now writes `x^2` as

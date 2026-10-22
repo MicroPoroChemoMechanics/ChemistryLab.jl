@@ -48,6 +48,33 @@ include("reference_species.jl")
         return des, aq, c, w, [t for (t, i) in enumerate(aq) if t != des.j_solvent && x[i] > 1.0e-20]
     end
 
+    # A member whose potential is −∞ holds nothing, as a solute of a component
+    # absent from the budget does: it counts in no ionic strength. With the first
+    # charged member so, the running log-sum-exp read exp(−∞ + ∞) at the next
+    # one, the ionic-strength equation was NaN everywhere, and the inversion
+    # answered "no composition" to potentials that hold one: 859 times in the
+    # temperature walk of a semi-adiabatic CEM I cell, each solve then left to
+    # sweeps whose outcome depended on the machine.
+    @testset "a member at −∞ holds nothing and counts in no ionic strength" begin
+        des = DualEquilibriumSolver(cs, HKFActivityModel())
+        aq = des.idx_aq
+        charged = [t for (t, i) in enumerate(aq) if t != des.j_solvent && !iszero(charge(cs.species[i]))]
+        gone = charged[1:2]
+        x = copy(n)
+        x[aq[gone]] .= 0.0
+        c = des.lna(x, p)[aq]
+        c[gone] .= -Inf
+        ref = x[aq[des.j_solvent]]
+        w0 = log.(max.(x[aq], 1.0e-300)) .+ 0.7
+        w = ChemistryLab._aqueous_inverter(des)(c, ref, w0, Float64[], p)
+        @test w !== nothing
+        @test all(==(-Inf), w[gone])
+        for (t, i) in enumerate(aq)
+            (t == des.j_solvent || t in gone || x[i] <= 1.0e-20) && continue
+            @test w[t] ≈ log(x[i]) atol = 1.0e-10
+        end
+    end
+
     # A model whose ionic-strength equation has one root gives the composition
     # back wherever it is.
     models = (HKFActivityModel(), DaviesActivityModel(), tj, DiluteSolutionModel())
