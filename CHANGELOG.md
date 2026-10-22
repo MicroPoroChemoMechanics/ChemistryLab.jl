@@ -5,7 +5,7 @@
 A minor release: three exported functions, a coupled run that resumes each
 solve from the one before and takes no decision on an amount in moles, two
 fixes of the semi-adiabatic cell under partial equilibrium, and ChemistryLab
-Studio given what its first version left out. It requires OptimaSolver 0.9.1.
+Studio given what its first version left out. It requires OptimaSolver 0.9.2.
 Results change within the tolerances of the solves, and the semi-adiabatic runs
 that used to stop short now reach their horizon.
 
@@ -15,12 +15,15 @@ that used to stop short now reach their horizon.
   functions: below 1.0, a bound `ChemistryLab = "0.40"` does not admit 0.41, so
   a package or an environment that bounds ChemistryLab must widen its bound to
   take this release.
-- OptimaSolver 0.9.1 (`OptimaSolver = "0.9.1"`, in the package and in the
+- OptimaSolver 0.9.2 (`OptimaSolver = "0.9.2"`, in the package and in the
   documentation), whose dual Newton method reclassifies its active set at every
   iteration and compares no amount with a number of moles: the two
   semi-adiabatic runs fixed below need it, and the semi-adiabatic mortar with
   silica fume of the Lavergne et al. (2018) example needs 0.9.1, on which a
-  runaway iterate ends an attempt instead of raising from LAPACK. An
+  runaway iterate ends an attempt instead of raising from LAPACK; the chloride
+  binding of a paste under the limiting law needs 0.9.2, which takes a solution
+  whose potentials hold no composition at the edge of the model's domain
+  instead of sweeping it in a cycle (it certified on some machines only). An
   environment held at OptimaSolver 0.8 keeps ChemistryLab 0.40.
 - Answers may differ from 0.40.0 within the tolerances of the solves: the
   equilibria are those of OptimaSolver 0.9, and a run now resumes each of its
