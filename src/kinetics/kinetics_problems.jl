@@ -580,6 +580,10 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         T = T_K,
         P = P_Pa,
         ϵ = ϵ,
+        # The floor of the activities the rate laws read, the molality the
+        # equilibrium solves floor them at (`_activity_floor_amount`), so that
+        # both read one activity model.
+        ϵa = _activity_floor_amount(state),
         has_Q = has_Q,
         lna_fn = lna_fn,
         kin_rxns = kin_rxns,
@@ -620,6 +624,9 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         # and the re-speciation of one step evaluate a few nearby states, and
         # the passes of a Jacobian the same one.
         cell_root = Ref((Float64[], NaN, NaN)),
+        # The partition on the far side of the reaction that holds the cell at
+        # its temperature, the start of the next solve there.
+        cell_high = Ref{Union{Nothing, Vector{Float64}}}(nothing),
         # Equilibrium — Leal et al. (2017) §5. The re-speciation φ(bₑ) is a
         # minimization over the EQUILIBRIUM PARTITION ONLY, at frozen kinetic
         # amounts. Running it over the whole system would let the kinetic
@@ -678,6 +685,10 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         on_accepted = Ref(false),
         # Set once a speciation exists, so `respeciate!` can warm-start from it.
         eq_warm = Ref(false),
+        # The multipliers of the partition in `n_full` when an answer of the dual
+        # Newton put it there: the state the next solve of the partition resumes
+        # from (`_rhs_values`). `nothing` after any other route.
+        y_full = Ref{Union{Nothing, Vector{Float64}}}(nothing),
         # Where the right-hand side reads the equilibrium partition: `:frozen`,
         # as the last accepted step left it, or `:rhs`, at the state it is
         # evaluated at (see `build_kinetics_ode`). `integrate` sets it, from
@@ -1037,13 +1048,11 @@ guess inside keeps the tight tolerance and removes the stalls.
 """
 const _EQ_GUESS_FLOOR = 1.0e-10
 
-# The floor of the warm start of a certified solve in the right-hand side: below
-# what any amount of a partition means, so that the traces keep their potentials.
-const _RHS_GUESS_FLOOR = 1.0e-16
-
 # The last partition `_rhs_values` solved, keyed by the plain element amounts and
 # temperature it was solved at.
-const _RhsCache = NamedTuple{(:b, :T, :n), Tuple{Vector{Float64}, Float64, Vector{Float64}}}
+const _RhsCache = NamedTuple{
+    (:b, :T, :n, :y), Tuple{Vector{Float64}, Float64, Vector{Float64}, Union{Nothing, Vector{Float64}}},
+}
 
 """
     EQ_RESIDUAL_TOL
@@ -1054,14 +1063,11 @@ on as a warm start and the solve is retried from a budget-clipped guess.
 """
 const EQ_RESIDUAL_TOL = 1.0e-8
 
-"""
-    _RETRY_ABS_TOL
-
-Element-balance violation in moles above which a replayed speciation is solved a
-second time from a guess carrying no active set. Chosen well above machine
-precision and well below anything chemically meaningful.
-"""
-const _RETRY_ABS_TOL = 1.0e-6
+# Whether the partition `n_e` leaves more of the budget `be` unaccounted for than
+# a converged speciation does: some element row off by more than
+# `EQ_RESIDUAL_TOL` of what it holds (`_row_residual`). What decides a retry, an
+# escalation to the certified solve, or the refusal of an uncertified answer.
+_unbalanced(Ae, n_e, be) = _row_residual(Ae, n_e, be) > EQ_RESIDUAL_TOL
 
 """
     _CONTINUATION_STEPS
@@ -1194,9 +1200,28 @@ function _paste_enthalpy(p, n_e, nk, T)
 end
 
 # The temperature of a cell is solved to this step, in kelvin, and in at most
-# this many Newton iterations.
+# this many Newton iterations. A root Newton cannot reach is bracketed by steps
+# doubling from `_CELL_T_STEP`, and the temperature of a reaction that holds the
+# cell is located to it; whether the balance jumps across a bracket, which tells
+# such a reaction from a root, is judged on `_CELL_T_JUMP`, in kelvin.
 const _CELL_T_TOL = 1.0e-9
 const _CELL_T_MAXIT = 30
+const _CELL_T_STEP = 1.0e-6
+const _CELL_T_JUMP = 1.0e-3
+
+# The residual of the energy balance of the cell, in the number types of its
+# arguments: the enthalpy of the paste of partition `n_e` and kinetic amounts
+# `nk` at `T`, less its reference, with the vessel's, less the change the state
+# carries.
+_cell_balance(p, n_e, nk, T, ΔH) =
+    _paste_enthalpy(p, n_e, nk, T) - _plain(p.H0[]) + _plain(p.Cp_calo) * (T - _plain(p.T0_cell)) - ΔH
+
+# That residual at the plain temperature `T`, its partition solved there (and
+# left in the cache of `_rhs_values`); `nothing` when it cannot be solved.
+function _cell_balance_at(p, bv, nkv, T, ΔHv; start = nothing)
+    n_e = _rhs_values(p, bv, T; start)
+    return n_e === nothing ? nothing : _cell_balance(p, n_e, nkv, T, ΔHv)
+end
 
 """
     _cell_residual(p, bv, nkv, n_e, Tv, ΔHv) -> (R, C)
@@ -1217,7 +1242,7 @@ function _cell_residual(p, bv, nkv, n_e, Tv, ΔHv)
     Td = D(Tv, ForwardDiff.Partials((1.0,)))
     P = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
     n_d = _lifted_partition(p, n_e, Tv * u"K", P, bv; T = Td * u"K")
-    R = _paste_enthalpy(p, n_d, nkv, Td) - _plain(p.H0[]) + _plain(p.Cp_calo) * (Td - _plain(p.T0_cell)) - ΔHv
+    R = _cell_balance(p, n_d, nkv, Td, ΔHv)
     return _plain(ForwardDiff.value(R)), _plain(ForwardDiff.partials(R)[1])
 end
 
@@ -1229,25 +1254,125 @@ capacity at equilibrium there ([`_cell_residual`](@ref)): Newton on `R`, from th
 last root found (`p.cell_root`), the nearest state evaluated, or else from the
 last accepted temperature, until its step falls below `_CELL_T_TOL`. The
 temperature returned is the last one the partition was solved at, which the
-evaluation that follows finds in the cache of `_rhs_values`. `nothing` when the
-partition cannot be solved, when the capacity is not positive (the balance would
-then have no unique root), or after `_CELL_T_MAXIT` iterations.
+evaluation that follows finds in the cache of `_rhs_values`.
+
+`R` grows with `T`, and the temperatures where it was found negative and
+positive bracket the root. Where Newton cannot go on, the root is bisected in
+that bracket, widened first if one side is missing
+([`_cell_temperature_bracketed`](@ref)): when the capacity it reads is not
+positive, which the partition lifted in temperature gives where its assemblage
+is about to change, and when its iterations run out, which they do across the
+jump of `R` at a reaction between phases of fixed composition (ettringite and
+monocarbonate giving way to monosulfate in a paste near 53 °C). While the cell
+is held at such a reaction (the last root found had an infinite capacity), the
+root is bracketed from it at once. Where Newton converges, nothing else is
+done. `nothing` when the partition cannot be solved.
 """
 function _cell_temperature_value(p, bv, nkv, ΔHv)
-    last = p.cell_root[][2]
+    _, last, held = p.cell_root[]
     Tv = isfinite(last) ? last : Float64(_plain(ustrip(us"K", p.T_q[])))
+    lo, hi, Rlo, Rhi = -Inf, Inf, NaN, NaN
+    if isinf(held)
+        # Held at a reaction: still held while the balance changes sign across
+        # the step above that temperature (two solves, the one at `Tv` last, so
+        # that its partition is the one in the cache); otherwise Newton again,
+        # from there, with what the two told of the root.
+        R1 = _cell_balance_at(p, bv, nkv, Tv + _CELL_T_STEP, ΔHv; start = p.cell_high[])
+        R1 === nothing || (p.cell_high[] = copy(p.rhs_cache[].n))
+        R0 = _cell_balance_at(p, bv, nkv, Tv, ΔHv)
+        (R0 === nothing || R1 === nothing || !isfinite(R0) || !isfinite(R1)) && return nothing
+        R0 < 0 <= R1 && return Tv, Inf
+        R1 < 0 ? ((lo, Rlo) = (Tv + _CELL_T_STEP, R1)) : ((hi, Rhi) = (Tv, R0))
+    end
     for _ in 1:_CELL_T_MAXIT
         n_e = _rhs_values(p, bv, Tv)
-        n_e === nothing && break
+        n_e === nothing && return nothing
         R, C = _cell_residual(p, bv, nkv, n_e, Tv, ΔHv)
-        (isfinite(R) && isfinite(C) && C > 0) || break
+        isfinite(R) || return nothing
+        R < 0 ? ((lo, Rlo) = (Tv, R)) : ((hi, Rhi) = (Tv, R))
+        (isfinite(C) && C > 0) || break
         δ = R / C
         abs(δ) <= _CELL_T_TOL && return Tv, C
         Tv -= δ
     end
-    # The partition could not be solved, the capacity was not positive, or the
-    # iterations ran out.
-    return nothing
+    # The capacity could not be read, or the iterations ran out: the root on the
+    # values of `R`, which the run stopped short of before.
+    return _cell_temperature_bracketed(p, bv, nkv, ΔHv, (lo, Rlo), (hi, Rhi))
+end
+
+"""
+    _cell_temperature_bracketed(p, bv, nkv, ΔHv, (lo, Rlo), (hi, Rhi))
+        -> Union{Nothing, Tuple{Float64, Float64}}
+
+The root of the balance of the cell between `lo`, where its residual `R` is
+`Rlo < 0`, and `hi`, where it is `Rhi ≥ 0`, on the values of `R` alone: the
+missing side, if one is (an infinite end), found by steps doubling from
+`_CELL_T_STEP`, then the bracket bisected. Returns its lower end, where the
+partition is that of the assemblage below the root, and the capacity there.
+
+The bracket is bisected to `_CELL_T_JUMP` first. When `R` jumps across it, by
+more than ten times what the capacity at its lower end accounts for (or that
+capacity cannot be read), the root is a reaction between phases of fixed
+composition, which takes its heat at one temperature: the cell stays at it
+while the heat of the paste goes into the reaction, and its temperature does
+not depend on the state there, which the capacity returned, infinite, says
+(`∂T/∂u = 0`, [`_cell_temperature`](@ref)); the bracket is then bisected on to
+`_CELL_T_STEP`, the temperature of the reaction. Judged on that width, the
+threshold is several joules for a paste, well above the noise of a residual that
+differences enthalpies of megajoules and well below the heat of such a reaction
+(7 kJ for the gypsum of 100 g of binder turning to anhydrite, 5.8 kJ for the
+ettringite and monocarbonate of a CEM I mortar turning to monosulfate). A
+regular root is bisected on to `_CELL_T_TOL`. `nothing` when the partition cannot
+be solved, or no bracket is found.
+"""
+function _cell_temperature_bracketed(p, bv, nkv, ΔHv, (lo, Rlo), (hi, Rhi))
+    balance(T) = _cell_balance_at(p, bv, nkv, T, ΔHv)
+    # the missing side, away from the one found
+    h = _CELL_T_STEP
+    while !isfinite(lo) || !isfinite(hi)
+        h > 2.0^_CELL_T_MAXIT * _CELL_T_STEP && return nothing
+        T = isfinite(lo) ? lo + h : hi - h
+        R = balance(T)
+        R === nothing && return nothing
+        R < 0 ? ((lo, Rlo) = (T, R)) : ((hi, Rhi) = (T, R))
+        h *= 2
+    end
+    b = _bisect_cell(balance, lo, Rlo, hi, Rhi, _CELL_T_JUMP)
+    b === nothing && return nothing
+    lo, Rlo, hi, Rhi = b
+    C = _cell_capacity(p, bv, nkv, ΔHv, lo)
+    held = !(isfinite(C) && C > 0 && Rhi - Rlo <= 10 * C * max(hi - lo, _CELL_T_JUMP))
+    b = _bisect_cell(balance, lo, Rlo, hi, Rhi, held ? _CELL_T_STEP : _CELL_T_TOL)
+    b === nothing && return nothing
+    lo = first(b)
+    if held
+        _cell_balance_at(p, bv, nkv, lo + _CELL_T_STEP, ΔHv) === nothing && return nothing
+        p.cell_high[] = copy(p.rhs_cache[].n)
+        _rhs_values(p, bv, lo) === nothing && return nothing
+        return lo, Inf
+    end
+    C = _cell_capacity(p, bv, nkv, ΔHv, lo)
+    return lo, isfinite(C) && C > 0 ? C : Inf
+end
+
+# The bracket `lo < hi` of the root of `balance`, negative at `lo` and not at
+# `hi`, bisected to `tol`: `(lo, Rlo, hi, Rhi)`, or `nothing` when a partition
+# cannot be solved.
+function _bisect_cell(balance::F, lo, Rlo, hi, Rhi, tol) where {F}
+    while hi - lo > tol
+        mid = (lo + hi) / 2
+        R = balance(mid)
+        R === nothing && return nothing
+        R < 0 ? ((lo, Rlo) = (mid, R)) : ((hi, Rhi) = (mid, R))
+    end
+    return lo, Rlo, hi, Rhi
+end
+
+# The heat capacity of the cell at equilibrium at `T` (`_cell_residual`), NaN
+# when the partition cannot be solved there.
+function _cell_capacity(p, bv, nkv, ΔHv, T)
+    n_e = _rhs_values(p, bv, T)
+    return n_e === nothing ? NaN : last(_cell_residual(p, bv, nkv, n_e, T, ΔHv))
 end
 
 """
@@ -1262,7 +1387,10 @@ evaluated on the state's own numbers at the root `T*`, its partition lifted in
     T = T* − (R(u, T*) − R*) / C ,
 
 which carries `∂T/∂u = −(∂R/∂u)/C` exactly and keeps the value `T*` the
-partition was solved at. `nothing` when the root cannot be found.
+partition was solved at. At a reaction that holds the cell at its temperature
+(`C` infinite, [`_cell_temperature_bracketed`](@ref)) that derivative is zero:
+the temperature of a reaction between phases of fixed composition does not
+depend on how much of them there is. `nothing` when the root cannot be found.
 """
 function _cell_temperature(p, u)
     nb, nn = p.n_be, p.n_nk
@@ -1279,6 +1407,9 @@ function _cell_temperature(p, u)
         p.cell_root[] = (uv, Tv, C)
     end
     eltype(u) === Float64 && return Tv
+    # at a reaction that holds the cell at its temperature (an infinite
+    # capacity), the temperature does not depend on the state
+    isinf(C) && return Tv + zero(eltype(u))
     n_e = _rhs_partition(p, (@view u[1:nb]), Tv)
     n_e === nothing && return nothing
     R = _paste_enthalpy(p, n_e, (@view u[(nb + 1):(nb + nn)]), Tv) - p.H0[] +
@@ -1317,6 +1448,7 @@ function _initialize_cell!(p, u0)
     for (j, i) in enumerate(p.idx_equilibrium)
         p.n_full[i] = n_e[j]
     end
+    p.y_full[] = _rhs_multipliers(p)
     p.eq_warm[] = true
     p.H0[] = _paste_enthalpy(p, n_e, (@view u0[(nb + 1):(nb + nn)]), T0)
     p.cell_ready[] = true
@@ -1328,16 +1460,18 @@ end
 # instant warm-started from the one before, and leaves the run's state as it
 # found it.
 function _with_saved_warm_start(f, p)
-    n, T, c, r, wk = copy(p.n_full), p.T_q[], p.rhs_cache[], p.cell_root[], p.walking[]
+    n, y, T, c, r, wk, hi = copy(p.n_full), p.y_full[], p.T_q[], p.rhs_cache[], p.cell_root[], p.walking[], p.cell_high[]
     p.walking[] = true
     try
         return f()
     finally
         copyto!(p.n_full, n)
+        p.y_full[] = y
         p.T_q[] = T
         p.rhs_cache[] = c
         p.cell_root[] = r
         p.walking[] = wk
+        p.cell_high[] = hi
     end
 end
 
@@ -1358,6 +1492,7 @@ function _cell_point(p, u)
     for (j, i) in enumerate(p.idx_equilibrium)
         p.n_full[i] = n_e[j]
     end
+    p.y_full[] = _rhs_multipliers(p)
     p.T_q[] = T * u"K"
     return T, Float64(_plain(_paste_enthalpy(p, n_e, (@view uv[(nb + 1):(nb + nn)]), T)))
 end
@@ -1520,7 +1655,8 @@ An assemblage switch is not a single-step event — a phase takes several steps 
 exhaust — so the previous call's outcome says which guess to try first, and
 `eq_switching` carries it. This is information the problem already has, not a
 tuning parameter: no threshold is introduced, and the tolerance that decides
-"too much matter unaccounted for" is `_RETRY_ABS_TOL`, whichever guess runs
+"too much matter unaccounted for" is that of a converged speciation,
+`EQ_RESIDUAL_TOL` of each element row (`_unbalanced`), whichever guess runs
 first.
 """
 function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
@@ -1531,22 +1667,29 @@ function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
     switching = p.eq_switching[] && !is_reconstruction
     first_guess = switching ? _reconstruction_guess!(p.n_eq_buf2, p, be) : n_eq
 
-    ok, n_e, abs_res = _one_speciation(p, first_guess, be)
+    # The warm guess resumes from the multipliers of the partition it is (`y_full`),
+    # the reconstruction from none; the multipliers of the answer kept are written
+    # beside it, for the next re-speciation.
+    y_first = Ref{Any}(nothing)
+    ok, n_e, abs_res = _one_speciation(p, first_guess, be; y0 = switching ? nothing : p.y_full[], y_out = y_first)
+    y_kept = y_first[]
     ok || return false
 
-    # The other guess, when the first leaves too much matter unaccounted for.
-    # Decided on the ABSOLUTE balance, in moles, because that is the quantity
-    # with a meaning: it is the matter the composition fails to account for. The
-    # relative measure is for reporting.
-    if abs_res > _RETRY_ABS_TOL && is_reconstruction
+    # The other guess, when the first leaves too much matter unaccounted for:
+    # some element row off by more than a converged speciation leaves it, relative
+    # to what the row holds. Decided in moles until 0.41.0 (1e-6 mol), which let a
+    # trace element miss its whole budget and held a major one to a millionth of
+    # a mole whatever the size of the system.
+    if _unbalanced(p.Ae, n_e, be) && is_reconstruction
         # Already on the reconstruction and still short: nothing left to try, but
         # the regime is plainly switching, so the next call should start there.
         p.eq_switching[] = true
-    elseif abs_res > _RETRY_ABS_TOL
+    elseif _unbalanced(p.Ae, n_e, be)
         other = switching ? n_eq : _reconstruction_guess!(p.n_eq_buf2, p, be)
-        ok2, n2, abs2 = _one_speciation(p, other, be)
-        if ok2 && abs2 < abs_res
-            n_e, abs_res = n2, abs2
+        y_other = Ref{Any}(nothing)
+        ok2, n2, abs2 = _one_speciation(p, other, be; y0 = switching ? p.y_full[] : nothing, y_out = y_other)
+        if ok2 && _row_residual(p.Ae, n2, be) < _row_residual(p.Ae, n_e, be)
+            n_e, abs_res, y_kept = n2, abs2, y_other[]
         end
         # The regime is switching: prefer the reconstruction next time.
         p.eq_switching[] = true
@@ -1560,6 +1703,8 @@ function _respeciate_solve!(p, n_eq, be; is_reconstruction::Bool = false)
     for (j, idx) in enumerate(p.idx_equilibrium)
         p.n_full[idx] = n_e[j]
     end
+    # The multipliers of the dual Newton's answer, none for the interior point's.
+    p.y_full[] = y_kept
 
     res = _row_residual(p.Ae, n_e, be)
     abs_res > p.eq_worst_abs[] && (p.eq_worst_abs[] = _plain(abs_res))
@@ -1589,7 +1734,7 @@ One equilibrium solve of `φ(bₑ)` from `guess`. Returns `ok = false` only if t
 solve threw; a solve that returns a poor composition still returns `true`, with
 its element-balance violation in moles, so the caller can compare attempts.
 """
-function _one_speciation(p, guess, be)
+function _one_speciation(p, guess, be; y0 = nothing, y_out = nothing)
     # A run differentiated with respect to its parameters carries dual numbers
     # in its budget, and possibly in its temperature. The partition is then the
     # certified answer, lifted to those duals by the implicit-function theorem
@@ -1612,7 +1757,7 @@ function _one_speciation(p, guess, be)
         )
         T_v = _plain(ustrip(us"K", p.T_q[])) * u"K"
         P_v = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
-        ok, n_v, abs_v = _value_speciation(p, guess, _plain.(be), T_v, P_v)
+        ok, n_v, abs_v = _value_speciation(p, guess, _plain.(be), T_v, P_v; y0, y_out)
         st0 = ChemicalState(p.eq_system[], (ok ? n_v : guess) .* u"mol"; T = p.T_q[], P = p.P_q[])
         eq_c, cert = solve_certified(p.eq_dual, (st0,); b = be, ϵ = p.ϵ, report = false)
         n_c = [ustrip(us"mol", x) for x in eq_c.n]
@@ -1621,10 +1766,11 @@ function _one_speciation(p, guess, be)
         # the values found is not taken. Those values are then lifted where they
         # are, as `speciated_states` lifts an instant it could not certify, so
         # that the run on dual numbers follows the plain one.
-        ok && !cert.optimal && !(abs_c < abs_v) && return true, _lifted_partition(p, n_v, T_v, P_v, be), abs_v
+        ok && !cert.optimal && !(_row_residual(p.Ae, n_c, be) < _row_residual(p.Ae, n_v, be)) &&
+            return true, _lifted_partition(p, n_v, T_v, P_v, be), abs_v
         return true, n_c, abs_c
     end
-    return _value_speciation(p, guess, be, p.T_q[], p.P_q[])
+    return _value_speciation(p, guess, be, p.T_q[], p.P_q[]; y0, y_out)
 end
 
 # The partition `n_v`, found on the values of the budget `be` at `T_v` and `P_v`,
@@ -1658,8 +1804,28 @@ function _lifted_partition(p, n_v, T_v, P_v, be; T = p.T_q[])
 end
 
 # `_one_speciation` on plain numbers, at the temperature `T` and pressure `P`.
-function _value_speciation(p, guess, be, T, P)
+#
+# The certified solve first, resumed from `guess` and the multipliers `y0` of the
+# partition it is when it is one, as the partition of the right-hand side is
+# (`_rhs_values`); the multipliers of its answer go to `y_out`. The interior point
+# only where that does not certify, and the certified solve again from its
+# answer. Measured over ChemistryLab's suite before this order, the interior point
+# left 5 % of its partitions balanced (115 s for 2093 of them) and the certified
+# escalation from its answer took 262 s, where the dual Newton resumed from the
+# partition before certified 99 % at 1.4 ms each.
+function _value_speciation(p, guess, be, T, P; y0 = nothing, y_out = nothing)
     state_eq = ChemicalState(p.eq_system[], guess .* u"mol"; T = T, P = P)
+    if hasproperty(p, :eq_dual) && p.eq_dual !== nothing
+        dref = Ref{Any}(nothing)
+        eq_d, cert_d = _exploring_starts(
+            () -> solve_certified(p.eq_dual, (state_eq,); b = be, ϵ = p.ϵ, report = false, y0, dual_state = dref),
+        )
+        if eq_d !== nothing && cert_d.optimal
+            n_d = [ustrip(us"mol", x) for x in eq_d.n]
+            y_out === nothing || dref[] === nothing || (y_out[] = copy(dref[].y))
+            return true, n_d, _abs_residual(p.Ae, n_d, be)
+        end
+    end
 
     # `p.eq_solver` is a prebuilt `EquilibriumSolver` over the partition — a
     # solver *object*, not a SciML algorithm — so `solve`, not `equilibrate`.
@@ -1702,14 +1868,14 @@ function _value_speciation(p, guess, be, T, P)
     # built to be feasible on the current budget, so it converges in 1.5 s where
     # `state_eq` takes seconds to tens of seconds. Two layers were paying for the
     # same idea and the inner one was the expensive way to have it.
-    if abs_res > _RETRY_ABS_TOL && hasproperty(p, :eq_dual) && p.eq_dual !== nothing
+    if _unbalanced(p.Ae, n_e, be) && hasproperty(p, :eq_dual) && p.eq_dual !== nothing
         try
             eq_c, cert = solve_certified(
                 p.eq_dual, (eq_result,); b = be, ϵ = p.ϵ, report = false,
             )
             n_c = [ustrip(us"mol", x) for x in eq_c.n]
             abs_c = _abs_residual(p.Ae, n_c, be)
-            if cert.optimal || abs_c < abs_res
+            if cert.optimal || _row_residual(p.Ae, n_c, be) < _row_residual(p.Ae, n_e, be)
                 return true, n_c, abs_c
             end
         catch
@@ -1745,7 +1911,9 @@ function _row_residual(Ae, n_e, be)
         for j in eachindex(n_e)
             flux += abs(Ae[i, j] * n_e[j])
         end
-        worst = max(worst, abs(r[i]) / max(scale, abs(be[i]), flux, 1.0e-30))
+        # A row that holds nothing and has no budget balances exactly.
+        d = max(scale, abs(be[i]), flux)
+        d > 0 && (worst = max(worst, abs(r[i]) / d))
     end
     return worst
 end
@@ -1932,26 +2100,39 @@ The partition at the element amounts `bv` and the temperature `Tv`, on plain
 numbers, by the certified solve warm-started from the last accepted partition,
 then from the cast composition carried onto `bv`, and, for an accessor walking a
 finished run, from the answer of the interior point; `nothing` when none
-certifies and the best leaves more than
-`_RETRY_ABS_TOL` of matter unaccounted for. The last answer is cached, so that
+certifies and the best leaves some element row off by more than a converged
+speciation does (`_unbalanced`). The last answer is cached, so that
 the evaluations of one point by the integrator and by the step's re-speciation
 solve it once.
 """
-function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
+function _rhs_values(p, bv::Vector{Float64}, Tv::Float64; start = nothing)
     c = p.rhs_cache[]
     c !== nothing && c.T == Tv && c.b == bv && return c.n
     P = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
     state(n) = ChemicalState(p.eq_system[], n .* u"mol"; T = Tv * u"K", P = P)
-    # The last accepted partition as it is, floored only where it is zero. The
-    # floor of the interior point, `_EQ_GUESS_FLOOR`, lifts the traces of a
-    # certified partition to 1e-10 mol and their potentials with them; measured
-    # on the C100 mortar of Lavergne et al. (2018) at 1.6 h, the dual Newton
-    # started there failed to certify where the partition itself, floored at
-    # 1e-16, certified at once. The floored start is the next one tried.
-    warm = Float64[max(_plain(p.n_full[i]), _RHS_GUESS_FLOOR) for i in p.idx_equilibrium]
-    solve_from(n) = _exploring_starts(() -> solve_certified(p.eq_dual, (state(n),); b = bv, ϵ = p.ϵ, report = false))
-    eq, cert = solve_from(warm)
-    eq, cert = _or_next(eq, cert, () -> solve_from(max.(warm, _EQ_GUESS_FLOOR)))
+    # The last accepted partition as it is, its absent phases at exactly zero, and
+    # with the multipliers of the solve that gave it when there are some: the
+    # state the solve resumes from, as the next solve of a sequence. The floor of
+    # the interior point, `_EQ_GUESS_FLOOR`, lifted the traces of a certified
+    # partition to 1e-10 mol and their potentials with them; measured on the C100
+    # mortar of Lavergne et al. (2018) at 1.6 h, the dual Newton started there
+    # failed to certify where the partition itself certified at once.
+    warm = Float64[_plain(p.n_full[i]) for i in p.idx_equilibrium]
+    dual = Ref{Any}(nothing)
+    solve_from(n, y0 = nothing) = _exploring_starts(
+        () -> solve_certified(p.eq_dual, (state(n),); b = bv, ϵ = p.ϵ, report = false, y0 = y0, dual_state = dual),
+    )
+    # A start the caller holds closer than the accepted partition: the far side of
+    # the reaction that holds a semi-adiabatic cell, which the accepted partition,
+    # on the near side, does not reach (`_cell_temperature_value`).
+    resumed = nothing
+    y_resumed = nothing
+    if start === nothing
+        eq, cert = solve_from(warm, p.y_full[])
+        resumed, y_resumed = eq, dual[]
+    else
+        eq, cert = _or_next(solve_from(collect(Float64, start))..., () -> solve_from(warm, p.y_full[]))
+    end
     # The reconstruction: feasible on the budget, with no active set.
     eq, cert = _or_next(eq, cert, () -> solve_from(_reconstruction_guess!(similar(warm), p, bv)))
     # Where the assemblage switches, the starts above hold the assemblage of the
@@ -1991,10 +2172,17 @@ function _rhs_values(p, bv::Vector{Float64}, Tv::Float64)
     n = Float64[ustrip(us"mol", x) for x in eq.n]
     abs_res = _abs_residual(p.Ae, n, bv)
     abs_res > p.eq_worst_abs[] && (p.eq_worst_abs[] = abs_res)
-    cert.optimal || abs_res <= _RETRY_ABS_TOL || return nothing
-    p.rhs_cache[] = (b = copy(bv), T = Tv, n = n)
+    cert.optimal || !_unbalanced(p.Ae, n, bv) || return nothing
+    # The multipliers kept with the partition when it is the answer the warm start
+    # resumed to; another start's answer comes without them.
+    y = (eq === resumed && y_resumed !== nothing) ? copy(y_resumed.y) : nothing
+    p.rhs_cache[] = (b = copy(bv), T = Tv, n = n, y = y)
     return n
 end
+
+# The multipliers of the partition `_rhs_values` solved last, when the answer it
+# kept is the one its warm start resumed to: the state the next solve resumes from.
+_rhs_multipliers(p) = (c = p.rhs_cache[]; c === nothing ? nothing : c.y)
 
 # The answer in hand when it is certified; otherwise the better of it and the
 # answer `attempt()` gives, which is solved only then: the next start of a
@@ -2037,6 +2225,7 @@ function _respeciate_rhs!(p, u)
     for (j, idx) in enumerate(p.idx_equilibrium)
         p.n_full[idx] = n[j]
     end
+    p.y_full[] = _rhs_multipliers(p)
     p.eq_warm[] = true
     abs_res = _abs_residual(p.Ae, n, be)
     p.on_accepted[] && abs_res > p.eq_worst_abs_acc[] && (p.eq_worst_abs_acc[] = _plain(abs_res))

@@ -308,10 +308,12 @@ input.num { font-family: var(--mono); }
 
 .keyed { display: flex; flex-direction: column; gap: 4px; }
 .keyed-row { border: 1px solid var(--line); border-radius: 5px; padding: 4px 6px; background: var(--panel); }
-.keyed-head { display: flex; align-items: center; gap: 8px; }
+/* a long note (the literature's window of a release) wraps, and the list keeps
+   room for its labels, going under the key when the line is too short */
+.keyed-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .keyed-head b { min-width: 5em; font-family: var(--mono); font-size: 12px; }
-.keyed-head .hint { min-width: 4em; margin: 0; }
-.keyed-head select { flex: 1; }
+.keyed-head .hint { flex: 1 1 10em; min-width: 4em; margin: 0; }
+.keyed-head select { flex: 1 0 13em; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
 .chip {
@@ -340,6 +342,8 @@ ul.plain { list-style: none; padding: 0; margin: 4px 0; }
 ul.plain li { margin: 3px 0; font-size: 12px; }
 .tag.ok { color: var(--ok); border-color: var(--ok); }
 details.expert-block summary { cursor: pointer; font-size: 11px; color: var(--muted); }
+details.block { margin: 14px 0 6px; }
+details.block summary { cursor: pointer; font-weight: 600; }
 .refs a { color: var(--accent); }
 
 .diagnostics { list-style: none; padding: 0; margin: 6px 0; }

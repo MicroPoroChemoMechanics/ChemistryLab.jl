@@ -182,6 +182,7 @@
       if (redraw) renderPhases();
     }, { ctx: { skip: ["add", "remove", "phases", "solid_solutions"] } }));
     fill($("#activity-form"), Forms.kinded("activity", m.activity, (v) => { m.activity = v; edited(); }));
+    fill($("#surface-form"), Forms.kinded("surface", m.surface, (v) => { m.surface = v; edited(); }));
     renderPhases();
     renderSpecies();
   }
@@ -335,15 +336,20 @@
   }
 
   // The constituents that may react in time: those with a species of their own
-  // (a mineral), not those known by their oxides.
+  // (a mineral), and the glasses of the supplementary materials, known by their
+  // oxides, which the script gives a formula (`with_glass_species`). The minor
+  // oxides of a cement are not offered: they react with their cement.
   function kineticConstituents() {
     const keys = [];
     for (const mat of S.model.materials) {
       if (mat.kind === "template") {
         const e = templateEntry(mat.template);
-        if (e && e.constituents) keys.push(...e.constituents.filter((c) => c.species).map((c) => c.name));
+        if (e && e.constituents) {
+          keys.push(...e.constituents.filter((c) => c.species || (c.oxides && e.kind === "scm")).map((c) => c.name));
+        }
       } else if (mat.kind === "oxides") {
         if (mat.route === "bogue") keys.push(...CLINKER, mat.sulfate);
+        else if (mat.material_kind === "scm") keys.push(mat.name);
       } else keys.push(...constituentsOf(mat));
     }
     return unique(keys);
@@ -447,6 +453,19 @@
       ctx: { units: () => ["mmol/L", "mol/L"], keys: kineticConstituents, noneLabel: () => t("at_equilibrium") },
     }));
     fill($("#constraint-form"), Forms.kinded("constraint", m.constraint, (v) => { m.constraint = v; edited(); }));
+    fill($("#tga-form"), Forms.kinded("tga", m.tga, (v) => { m.tga = v; edited(); }, {
+      hideKind: true,
+      ctx: { keys: () => tgaWindows().map((w) => w.key), note: tgaNote, noneLabel: () => t("tga_as_literature"), noKeys: () => t("tga_no_keys") },
+    }));
+  }
+
+  /* The releases of the solids the last run reported, each with the window it
+     used and the literature's, for the form of the windows of the thermogram. */
+  const tgaWindows = () => (S.results && S.results.tga && S.results.tga.windows) || [];
+  function tgaNote(f, key) {
+    const w = tgaWindows().find((x) => x.key === key);
+    const lit = w && w.literature;
+    return lit ? t("tga_literature_note", { from: fmt(lit.from, 0), to: fmt(lit.to, 0), source: lit.source }) : "";
   }
 
   function setMode(mode) {
@@ -603,6 +622,7 @@
     $("#output").textContent = data.output || t("no_output");
     $("#ready-card").hidden = true;
     renderResults();
+    renderCalculation();   // the releases the run found, for the windows of the thermogram
     toast(t("run_done", { seconds: fmt(data.elapsed, 2) }));
     if (S.results.retcode && S.results.retcode !== "Success") toast(t("kinetics_retcode", { retcode: S.results.retcode }), true);
   }
@@ -681,6 +701,11 @@
     if (r.kind === "equilibrium") renderEquilibrium(r);
     else renderPath_(r);
     if (r.kind === "kinetics") renderKinetics(r);
+    renderTGA(r);
+    // the surface tab only when the calculation computed one
+    const tab = document.querySelector('#result-tabs button[data-result="surface"]');
+    if (!r.surface) tab.hidden = true;
+    else renderSurface(r);
     const current = document.querySelector("#result-tabs button.on");
     if (current && current.hidden) showResult("phases");
   }
@@ -785,6 +810,73 @@
       hide("plot-temperature");
       $("#heat-note").textContent = h.reason;
     }
+  }
+
+  /* The thermogram of a state: the loss of the solids between 30 and 980 °C
+     and its rate (DTG), in percent of the reference mass the page chooses, each
+     loss over the interval in which the literature reads it. A path or a run
+     has one per point; an equilibrium shows the loss of each phase too. */
+  function renderTGA(r) {
+    const g = r.tga;
+    if (!g || !g.states.length) return;
+    const n = g.states.length;
+    const sel = $("#tga-state");
+    const keep = Number(sel.value);
+    sel.hidden = $("#tga-state-label").hidden = n === 1;
+    if (n > 1) {
+      const xt = pathAxis(r.label);
+      fill(sel, ...r.parameter.map((v, i) => el("option", { value: String(i) }, `${xt}: ${fmt(v, 3)}`)));
+      sel.value = String(Number.isInteger(keep) && keep < n && sel.dataset.kind === r.kind ? keep : n - 1);
+      sel.dataset.kind = r.kind;
+    }
+    const st = g.states[n > 1 ? Number(sel.value) : 0];
+    const T = g.temperature;
+    const choice = $("#tga-reference").value;
+    const at = (c) => st.mass[T.findIndex((x) => Math.abs(x - c) < 1e-6)];
+    const ref = choice === "initial" ? st.mass[0] : choice === "ignited" ? st.mass[T.length - 1] : at(Number(choice));
+    const pct = (v) => (v === null || !ref ? null : (100 * v) / ref);
+    curves("plot-tga", T, [{ label: t("tga_loss"), values: st.mass.map((m) => pct(st.mass[0] - m)) }],
+      t("plot_tga"), "°C", t("plot_tga_axis"));
+    curves("plot-dtg", T, [{ label: "DTG", values: st.dtg.map(pct) }], t("plot_dtg"), "°C", t("plot_dtg_axis"));
+    if (st.by_phase) {
+      const b = st.by_phase;
+      curves("plot-tga-phases", T, b.labels.map((l, k) => ({ label: l, values: b.series[k].map(pct) })),
+        t("plot_tga_phases"), "°C", t("plot_tga_axis"), { stack: true });
+    } else hide("plot-tga-phases");
+    $("#tga-note").textContent = t("tga_note", { sources: g.sources.join(", ") });
+    fillTable("#tga-windows", [t("tga_release"), t("tga_interval"), t("tga_source")],
+      g.windows.map((w) => [w.key, `${fmt(w.from, 0)} – ${fmt(w.to, 0)}`, w.own ? t("tga_own") : w.source]));
+  }
+
+  /* The surface of the C-S-H: what its complexes hold, per 100 g of binder, its
+     potential, the film of pore water on it against the Debye length, and the
+     Donnan layer; along a path, what it binds and its potential at each point. */
+  function renderSurface(r) {
+    const s = r.surface;
+    const binder = r.binder_mass_g ? fmt(r.binder_mass_g, 0) : "100";
+    if (s.points) {
+      const x = r.parameter;
+      const xt = pathAxis(r.label);
+      fill($("#surface-summary"));
+      curves("plot-surface", x, [{ label: t("surface_potential"), values: s.potential_mV }], t("surface_potential"), xt, "mV");
+      curves("plot-surface-bound", x, s.bound.labels.map((l, k) => ({ label: l, values: s.bound.series[k] })),
+        t("surface_bound"), xt, t("surface_bound_axis", { binder }));
+      hide("plot-donnan");
+      const p = s.points[s.points.length - 1];
+      $("#surface-note").textContent = t("surface_note", { film: fmt(p.film_nm, 2), debye: fmt(p.debye_nm, 2) });
+      return;
+    }
+    fill($("#surface-summary"),
+      summaryItem(t("surface_potential"), withUnit(fmt(s.potential_mV, 1), "mV")),
+      summaryItem(t("surface_sites"), withUnit(fmt(s.sites, 4), "mol")),
+      summaryItem(t("surface_area"), withUnit(fmt(s.area_m2, 3), "m²")),
+      summaryItem(t("surface_film"), withUnit(fmt(s.film_nm, 2), "nm")),
+      summaryItem(t("surface_debye"), withUnit(fmt(s.debye_nm, 2), "nm")));
+    barh("plot-surface", s.complexes.labels, s.complexes.values, t("surface_complexes"), t("surface_bound_axis", { binder }));
+    barh("plot-surface-bound", s.bound.labels, s.bound.values, t("surface_bound"), t("surface_bound_axis", { binder }));
+    if (s.donnan) barh("plot-donnan", s.donnan.excess.labels, s.donnan.excess.values, t("surface_donnan", { water: fmt(s.donnan.water_g, 3) }), t("surface_bound_axis", { binder }));
+    else hide("plot-donnan");
+    $("#surface-note").textContent = t("surface_note", { film: fmt(s.film_nm, 2), debye: fmt(s.debye_nm, 2) });
   }
 
   // mmol per kg of water below which an element is reported as a trace
@@ -912,6 +1004,12 @@
     $("#material-add").addEventListener("click", addMaterial);
     $("#title").addEventListener("input", (e) => { S.model.title = e.target.value; edited(); });
     $("#expert").addEventListener("change", (e) => applyExpert(e.target.checked));
+    for (const id of ["#tga-state", "#tga-reference"]) $(id).addEventListener("change", () => S.results && renderTGA(S.results));
+    $("#tga-edit").addEventListener("click", () => {
+      showTab("calculation");
+      $("#tga-details").open = true;
+      $("#tga-details").scrollIntoView({ block: "start" });
+    });
     $("#copy").addEventListener("click", async () => {
       try { await navigator.clipboard.writeText(S.script); toast(t("copied")); }
       catch (e) { toast(t("copy_failed"), true); }

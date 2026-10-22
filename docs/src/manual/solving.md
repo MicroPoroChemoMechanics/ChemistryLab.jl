@@ -149,7 +149,7 @@ it before anything else.
     given; a state already near its answer loses nothing.
 
 `cert.route` says which start the answer came from (`:lp_start`, `:state`,
-`:ideal_mixing`, `:ideal`, `:continuation`, `:restart` or `:repair`) and
+`:ideal_mixing`, `:ideal`, `:continuation` or `:restart`) and
 `cert.n_dual_solves` how many solves the search ran. `lp_start = false` turns
 the program off.
 

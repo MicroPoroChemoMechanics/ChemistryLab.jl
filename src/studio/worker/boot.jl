@@ -10,6 +10,7 @@ using ChemistryLab, OptimaSolver, DynamicQuantities
 using Logging: ConsoleLogger, with_logger
 using TOML: TOML
 
+include(joinpath(@__DIR__, "..", "shared", "releases.jl"))
 include(joinpath(@__DIR__, "catalog.jl"))
 include(joinpath(@__DIR__, "run.jl"))
 include(joinpath(@__DIR__, "extract.jl"))

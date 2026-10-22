@@ -12,8 +12,9 @@
     StudioModel
 
 The choices of a calculation: its title, the database, the chemical system, the
-activity model, the materials of the binder, the mix, the calculation and the
-constraint of the equilibrium.
+activity model, the materials of the binder, the mix, the calculation, the
+constraint of the equilibrium, the surface of the C-S-H computed after it, and
+the windows of the thermogram.
 """
 mutable struct StudioModel
     title::String
@@ -24,9 +25,14 @@ mutable struct StudioModel
     mix::MixChoice
     calculation::CalculationChoice
     constraint::ConstraintChoice
+    surface::SurfaceChoice
+    tga::TgaChoice
 end
 
-const MODEL_VERSION = 2
+# Version 3 added the surface and the windows of the thermogram; a model of
+# version 2 is the same calculation without a surface, its thermogram read with
+# the windows of the literature.
+const MODEL_VERSION = 3
 
 """
     default_model() -> StudioModel
@@ -51,6 +57,8 @@ function default_model()
         Mix(0.5, 20.0, 100.0, 1.0),
         EquilibriumCalc(28.0),
         FixedTPChoice(),
+        NoSurfaceChoice(),
+        TgaWindowsChoice(Pair{String, WindowChoice}[]),
     )
 end
 
@@ -64,6 +72,9 @@ register_family!("calculation", CalculationChoice)
 register_family!("constraint", ConstraintChoice)
 register_family!("rate", RateChoice)
 register_family!("calorimeter", CalorimeterChoice)
+register_family!("surface", SurfaceChoice)
+register_family!("window", WindowChoice)
+register_family!("tga", TgaChoice)
 
 "The model as the JSON object the page and the embedded block carry."
 function to_dict(m::StudioModel)
@@ -72,6 +83,7 @@ function to_dict(m::StudioModel)
         "database" => to_dict(m.database), "system" => to_dict(m.system), "activity" => to_dict(m.activity),
         "materials" => to_dict.(m.materials), "mix" => to_dict(m.mix),
         "calculation" => to_dict(m.calculation), "constraint" => to_dict(m.constraint),
+        "surface" => to_dict(m.surface), "tga" => to_dict(m.tga),
     )
 end
 
@@ -90,7 +102,7 @@ studio) is read as the same calculation.
 function model_from_dict(d::AbstractDict)
     version = get(d, "version", MODEL_VERSION)
     version == 1 && return model_from_dict(migrate_v1(d))
-    version == MODEL_VERSION || throw(ArgumentError("model version $version is not one this studio reads ($MODEL_VERSION)"))
+    version in (2, MODEL_VERSION) || throw(ArgumentError("model version $version is not one this studio reads ($MODEL_VERSION)"))
     base = default_model()
     title = get(d, "title", base.title)
     title isa AbstractString || throw(ArgumentError("model field \"title\" must be text, got $(repr(title))"))
@@ -103,6 +115,7 @@ function model_from_dict(d::AbstractDict)
         _part(d, "database", DatabaseChoice, base.database), _part(d, "system", SystemChoice, base.system),
         _part(d, "activity", ActivityChoice, base.activity), materials, _part(d, "mix", MixChoice, base.mix),
         _part(d, "calculation", CalculationChoice, base.calculation), _part(d, "constraint", ConstraintChoice, base.constraint),
+        _part(d, "surface", SurfaceChoice, base.surface), _part(d, "tga", TgaChoice, base.tga),
     )
 end
 
@@ -192,5 +205,9 @@ function problems(m::StudioModel)
     if m.calculation isa KineticsCalc && !(m.constraint isa FixedTPChoice)
         push!(out, Problem("kinetics_constraint", "A kinetic run holds the temperature and the pressure only: choose no constraint."))
     end
+    append!(out, bound_problems(m.surface, "the surface"))
+    append!(out, surface_problems(m.surface, m.calculation))
+    append!(out, bound_problems(m.tga, "the thermogram"))
+    append!(out, tga_problems(m.tga))
     return out
 end

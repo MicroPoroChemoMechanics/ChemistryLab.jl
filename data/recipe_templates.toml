@@ -140,6 +140,22 @@ analysis = "Gruyaert2010:oxides:OPC-CAL"
 route    = "bogue"
 source   = "Gruyaert2010"
 
+#   Lavergne2018   : the CEM I 52.5 N of Lavergne et al. (2018), Table 9 (the
+#                    Bogue composition of its clinker, its gypsum and limestone)
+
+# The cement by the Bogue composition of its clinker, which the article gives in
+# percent of the clinker, with its gypsum and its limestone in percent of the
+# cement. The clinker is what they leave (91.9 %): the 96 % printed beside them
+# does not add up with 4.6 % and 3.5 %. The 5 % of the clinker the four phases
+# leave (its minor phases, no oxide analysis given) stays out of the material.
+[[material]]
+name     = "CEM I 52.5 N (Lavergne 2018)"
+kind     = "cement"
+clinker  = "Lavergne2018:cement_bogue"
+gypsum   = "Lavergne2018:gypsum_percent"
+calcite  = "Lavergne2018:limestone_percent"
+source   = "Lavergne2018"
+
 [[material]]
 name     = "blast-furnace slag (Gruyaert 2010)"
 kind     = "scm"

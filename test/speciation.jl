@@ -151,7 +151,7 @@
         u = union(a, b)
         @test length(u) == length(unique(symbol.(u)))
         cs_u = ChemicalSystem(u)
-        cs_v = @test_logs (:warn, r"listed more than once") ChemicalSystem(vcat(a, b))
+        cs_v = @test_logs_own (:warn, r"listed more than once") ChemicalSystem(vcat(a, b))
         @test symbol.(cs_v.species) == symbol.(cs_u.species)
         @test size(cs_v.SM.A) == size(cs_u.SM.A)
 

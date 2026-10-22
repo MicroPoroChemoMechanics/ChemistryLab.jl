@@ -61,7 +61,7 @@ file holds only references and choices. `species` maps database symbols to
 species (a `Dict`, or a [`ChemicalSystem`](@ref) holding them all).
 `material_templates()` lists the names.
 
-An entry is built one of four ways:
+An entry is built one of five ways:
 
   - `phases = "<key>:<table>:<material>"`: from an XRD-Rietveld table, each
     phase a [`MineralConstituent`](@ref) or, when the database has no record of
@@ -81,7 +81,12 @@ An entry is built one of four ways:
   - `analysis = …` and `route = "oxides"`: the analysis alone, one oxide
     constituent;
   - `analysis = …` and `crystalline = "<key>:<table>:<material>"`: the glass by
-    difference, reacting, beside its crystals, inert.
+    difference, reacting, beside its crystals, inert;
+  - `clinker = "<key>:<table>"`, the Bogue phases of a clinker in percent of the
+    clinker (`phase`, `percent`), with `gypsum` and `calcite` naming the
+    quantities that give them in percent of the cement: the clinker is what the
+    two leave, its phases scaled to it, and what they do not account for (its
+    minor phases) is left out of the material.
 
 Every constituent of a template reacts completely unless the entry says
 otherwise; the extents of a real mix are the caller's, set with
@@ -126,6 +131,21 @@ function _material_from_entry(e::AbstractDict, species)
         return Material(name, kind; constituents = cons, source = src)
     elseif get(e, "route", "") == "oxides"
         return oxide_material(name, _split3(e["analysis"])...; kind)
+    elseif haskey(e, "clinker")
+        key, table = split(e["clinker"], ":")
+        t = literature_table(String(key), String(table))
+        added = OrderedDict{String, Float64}()
+        for (k, sp) in (("gypsum", "Gp"), ("calcite", "Cal"))
+            haskey(e, k) || continue
+            q_key, q = split(e[k], ":")
+            added[sp] = ustrip(literature_value(String(q_key), String(q))) / 100
+        end
+        f = 1 - sum(values(added); init = 0.0)
+        cons = AbstractConstituent[
+            MineralConstituent(species[String(p)]; mass_fraction = f * ustrip(v) / 100) for (p, v) in zip(t.phase, t.percent)
+        ]
+        append!(cons, [MineralConstituent(species[sp]; mass_fraction = x) for (sp, x) in added])
+        return Material(name, kind; constituents = cons, source = src)
     elseif haskey(e, "crystalline")
         crystals = _literature_phases(e["crystalline"])
         pop!(crystals, "Amorphous", nothing)

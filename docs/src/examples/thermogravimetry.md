@@ -333,7 +333,11 @@ about 300 to 850 °C [Shi2016](@cite), the water of ettringite between 30 and
 150 °C [Moschner2009](@cite), the total bound water between 30 and 550 °C
 [LHopital2016b](@cite). A window can be given that way, `between = (T₁, T₂)`:
 the phase then releases everything inside the interval and nothing outside it,
-along a smooth step whose rate vanishes at both ends.
+along a smooth step whose rate vanishes at both ends. [`literature_windows`](@ref)
+gives such a window for every release of a state at once, from these four
+papers: the water of portlandite and of the ettringites over their own
+intervals, that of every other hydrate over the interval of the total bound
+water, the carbon dioxide over that of the carbonate.
 
 ```@example tgawin
 ch = literature_table("DeWeerdt2011", "tga_intervals")

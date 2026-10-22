@@ -31,39 +31,6 @@ It is written for work that has to be reproducible and scripted — aqueous
 geochemistry, cement chemistry, and any problem where speciation, a database and
 a solver have to be driven from a script.
 
-## ChemistryLab Studio: a graphical interface for cement pastes
-
-No Julia to write: **ChemistryLab Studio** builds a calculation with forms, in
-your browser, and runs it with ChemistryLab. It loads published formulations in
-one click, computes one equilibrium, a path of equilibria (hydration, replacement
-by a supplementary material, carbonation, salts, leaching, temperature or water
-sweeps) or a kinetic run with rate laws, checks the choice of species before
-computing, draws the phases, the pore solution and the heat, and writes the
-Julia script of each calculation as you go, which runs on its own.
-
-```julia-repl
-pkg> add ChemistryLab
-
-julia> using ChemistryLab; clstudio()
-```
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/studio/studio_equilibrium_dark.png">
-  <img alt="ChemistryLab Studio: the materials of a CEM I paste on the left, its phase assemblage in the middle, the Julia script on the right" src="docs/src/assets/studio/studio_equilibrium_light.png">
-</picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/studio/studio_kinetics_dark.png">
-  <img alt="A kinetic run: the degree of reaction of each clinker phase in time" src="docs/src/assets/studio/studio_kinetics_light.png">
-</picture>
-
-The studio comes with ChemistryLab, its code in [`src/studio/`](src/studio);
-its [documentation](https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl/dev/studio/getting_started)
-says how to start it, on your machine or on a remote one. Its sibling for the
-mechanics of heterogeneous materials is
-[MFH Studio](https://github.com/MicroPoroChemoMechanics/MeanFieldHomogenization.jl#mfh-studio--building-models-in-the-browser),
-in MeanFieldHomogenization.jl.
-
 ## Features
 
 - **Chemical formula handling**: Create, convert, and display formulas with charge management and Unicode/Phreeqc notation ([Parkhurst and Appelo 2013](https://doi.org/10.3133/tm6a43)).
@@ -337,6 +304,42 @@ rescale!(state_eq, 1.0u"m^3")   # total volume → 1 m³   (in-place)
 ## Usage
 
 See the [documentation and tutorials](https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl) for examples on formula creation, species management, reaction parsing, and database import.
+
+## ChemistryLab Studio — an alternative to scripting
+
+ChemistryLab is driven from Julia scripts, as above. For a reader who would
+rather not start from code, **ChemistryLab Studio** builds the calculations of
+a cement paste with forms, in the browser, and runs them with ChemistryLab. It
+loads published formulations in one click, computes one equilibrium, a path of
+equilibria (hydration, replacement by a supplementary material, carbonation,
+salts, leaching, temperature or water sweeps) or a kinetic run with rate laws
+(glasses included, isothermal or in a semi-adiabatic cell), checks the choice
+of species before computing, draws the phases, the pore solution, the heat,
+the thermogram and the surface of the C-S-H, and writes the Julia script of
+each calculation as you go, which runs on its own.
+
+```julia-repl
+pkg> add ChemistryLab
+
+julia> using ChemistryLab; clstudio()
+```
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/studio/studio_equilibrium_dark.png">
+  <img alt="ChemistryLab Studio: the materials of a CEM I paste on the left, its phase assemblage in the middle, the Julia script on the right" src="docs/src/assets/studio/studio_equilibrium_light.png">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/studio/studio_kinetics_dark.png">
+  <img alt="A kinetic run: the degree of reaction of each clinker phase in time" src="docs/src/assets/studio/studio_kinetics_light.png">
+</picture>
+
+The studio comes with ChemistryLab, its code in [`src/studio/`](src/studio);
+its [documentation](https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl/dev/studio/getting_started)
+says how to start it, on your machine or on a remote one. Its sibling for the
+mechanics of heterogeneous materials is
+[MFH Studio](https://github.com/MicroPoroChemoMechanics/MeanFieldHomogenization.jl#mfh-studio--an-alternative-to-scripting),
+in MeanFieldHomogenization.jl.
 
 ## License
 

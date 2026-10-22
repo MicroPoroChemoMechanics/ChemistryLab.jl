@@ -156,7 +156,8 @@ remote session has no local file dialog anyway.
 """
 function browse(path::AbstractString)
     dir = isempty(path) ? homedir() : abspath(expanduser(path))
-    isdir(dir) || (dir = homedir())
+    s = path_stat(dir)
+    (s !== nothing && isdir(s)) || (dir = homedir())
     folders, files = String[], String[]
     names = try
         readdir(dir)
@@ -167,14 +168,27 @@ function browse(path::AbstractString)
     end
     for name in names
         startswith(name, '.') && continue
-        full = joinpath(dir, name)
-        # a dangling link or a folder the user may not read is left out
-        isdir(full) ? push!(folders, name) : (endswith(name, ".jl") && isfile(full) && push!(files, name))
+        # a dangling link, or an entry that refuses a stat, is left out
+        s = path_stat(joinpath(dir, name))
+        s === nothing && continue
+        isdir(s) ? push!(folders, name) : (endswith(name, ".jl") && isfile(s) && push!(files, name))
     end
     return Dict{String, Any}(
         "path" => dir, "parent" => dirname(dir), "folders" => folders, "files" => files,
         "places" => [Dict("label" => "Home", "path" => homedir()), Dict("label" => "Current folder", "path" => pwd())],
     )
+end
+
+# The status of a path, or `nothing` when even that cannot be read: a file the
+# system holds open on Windows (`C:\DumpStack.log.tmp`, `C:\pagefile.sys`)
+# refuses a stat, as a loop of symbolic links does anywhere.
+function path_stat(path::AbstractString)
+    return try
+        stat(path)
+    catch err
+        err isa Base.IOError || rethrow()
+        nothing
+    end
 end
 
 "The library of published formulations, as `library/index.toml` lists it."

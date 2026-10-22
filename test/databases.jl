@@ -296,7 +296,7 @@ end
     end
 
     @testset "skip_missing = true warns and skips" begin
-        phases_skip = @test_logs (:warn, r"skipping.*Missing_phase") match_mode = :any build_solid_solutions(
+        phases_skip = @test_logs_own (:warn, r"skipping.*Missing_phase") match_mode = :any build_solid_solutions(
             tmp_missing, dict; skip_missing = true
         )
         @test length(phases_skip) == 2   # Missing_phase skipped
@@ -333,7 +333,7 @@ end
         """
         tmp_regular = tempname() * ".toml"
         write(tmp_regular, toml_regular)
-        read_back = @test_logs (:warn, r"unknown model \"margules\"") match_mode = :any build_solid_solutions(
+        read_back = @test_logs_own (:warn, r"unknown model \"margules\"") match_mode = :any build_solid_solutions(
             tmp_regular, dict
         )
         rm(tmp_regular; force = true)
@@ -572,7 +572,7 @@ end
         )
         # A -gamma that does not parse is reported and skipped; case and the
         # abbreviation `-g` are PHREEQC's.
-        p = @test_logs (:warn, r"does not parse") phreeqc_gamma_parameters(f)
+        p = @test_logs_own (:warn, r"does not parse") phreeqc_gamma_parameters(f)
         @test !haskey(p, "CaOH+")
         @test p["HCO3-"] == (5.4, 0.0)
         @test p["CO2@"] == (0.0, 0.1)

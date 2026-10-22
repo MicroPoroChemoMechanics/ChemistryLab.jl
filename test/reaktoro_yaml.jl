@@ -133,7 +133,7 @@ end
     )
     _, subs, _ = read_reaktoro_database(bad)
     @test any(occursin("Y has no single standard model", n) for n in metadata(subs, "notes"))
-    @test isempty(@test_logs (:warn, r"left out.*Z \(`MineralHKF`\)") build_species(subs))
+    @test isempty(@test_logs_own (:warn, r"left out.*Z \(`MineralHKF`\)") build_species(subs))
     # The excerpts the manual shows: a record of the zeolites ChemistryLab adds
     # to Cemdata18, and the same zeolite as a database of Reaktoro.
     page = read(joinpath(pkgdir(ChemistryLab), "docs", "src", "manual", "importing_databases.md"), String)

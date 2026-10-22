@@ -91,108 +91,6 @@ end
 _within_domain(::Any) = true
 
 """
-    _repair_start(eq, model, bfix, ϵ) -> Union{ChemicalState, Nothing}
-
-Build a starting point that makes the phases the certificate says are missing
-actually present. `nothing` when there are none.
-
-This is what turns a diagnosis into a repair. `optimality_certificate` reports a
-positive worst supersaturation when a phase sits at the lower bound while the
-solution is supersaturated with respect to it — a genuine KKT failure on a convex
-problem, so the active set is wrong and the answer is not the answer.
-[`saturation_indices`](@ref) says *which* phase, and the obvious move is then to
-put it in and solve again.
-
-The failure it exists for is a **phase swap**, which an active-set loop that
-admits one phase at a time cannot perform. Measured on a CEM I paste, reported
-from one machine while another certified the same source: all 0.02515 mol of
-magnesium sat in brucite with `hydrotalcite` absent and supersaturated by 5.58
-log units, and admitting the hydrotalcite requires dissolving the brucite
-entirely and taking aluminum back from the hydrogarnet in the same step. The
-solve was otherwise impeccable — stationarity 1.5e-16, element balance 1.8e-14 —
-which is exactly what a converged-onto-the-wrong-active-set answer looks like.
-
-The amount each missing phase is given is what the recipe could make of it,
-`min_c b_c / A_cs` over the components it consumes, scaled by `_REPAIR_FRACTION`.
-That is a chemical bound, not a guess at the answer: a carbonate in a system with
-1e-9 mol of carbon is offered 1e-9 mol and no more. What matters is only that the
-phase starts well away from the boundary, since being *at* the boundary is what
-the active-set loop cannot recover from. The element balance of the result is not
-this function's business — `b` is fixed once by the caller and every start is
-projected onto it, so a start that over-spends the budget costs nothing.
-"""
-function _repair_start(eq::ChemicalState, model, bfix, ϵ::Float64)
-    cs = eq.system
-    si = saturation_indices(eq, model; ϵ = ϵ)
-    n = Float64[ustrip(us"mol", x) for x in eq.n]
-    A = _constraint_matrix(cs)
-    # A solid-solution end-member is not a pure phase and its own index does not
-    # decide anything: the activity of a member is `ln x`, so an index taken at
-    # the bound reports that its mole fraction is small, not that the phase should
-    # form. The phase has its own criterion, applied below.
-    ss = Set(cs.idx_ssendmembers)
-    missing_phases = [
-        i for i in cs.idx_crystal
-            if !(i in ss) && n[i] <= 10ϵ && get(si, symbol(cs.species[i]), -Inf) > 1.0e-4
-    ]
-
-    n2 = copy(n)
-    cap_of(i) = minimum(
-        (
-            bfix[c] / A[c, i]
-                for c in eachindex(bfix) if A[c, i] > 0 && bfix[c] > 0
-        );
-        init = Inf,
-    )
-    for i in missing_phases
-        cap = cap_of(i)
-        isfinite(cap) && cap > 0 || continue
-        n2[i] = max(n2[i], _REPAIR_FRACTION * cap)
-    end
-
-    # ── the phases that are not pure ──
-    #
-    # An ideal solid solution can only exist at `xᵢ = 10^SIᵢ`, with `SIᵢ` the index
-    # of the PURE end-member: that is what `μᵢ⁰ + RT ln xᵢ = νᵢ` says, one equation
-    # per member. A composition needs `Σᵢ xᵢ = 1`, so the phase is exactly
-    # saturated when `Ω = Σᵢ 10^SIᵢ = 1` and should form above it. Those numbers
-    # are available here: `saturation_indices` reports `SIᵢ − log₁₀ xᵢ`, and adding
-    # `ln aᵢ / ln 10` back removes the mole fraction — and with it the `0/0` a
-    # phase sitting entirely at the floor would otherwise produce.
-    #
-    # Without this a search that has lost a solid solution cannot get it back:
-    # every member reports a small index because its mole fraction is small, no
-    # member is offered, and the round does nothing. On a CEM I with eight solid
-    # solutions that is the difference between an answer whose element balance is
-    # 13.6 mol and one certified to 1.1e-14.
-    lna = log_activities(eq, model; ϵ = ϵ)
-    inv_ln10 = inv(log(10))
-    for (grp, phase) in zip(cs.ss_groups, cs.solid_solutions)
-        all(n[i] <= 10ϵ for i in grp) || continue        # already present
-        sip = [
-            si[symbol(cs.species[i])] + lna[symbol(cs.species[i])] * inv_ln10
-                for i in grp
-        ]
-        m = maximum(sip)
-        isfinite(m) || continue
-        Ω = sum(10^(v - m) for v in sip) * 10^m
-        Ω > 1 || continue                                 # cannot form, whatever mixing
-        x = [10^(v - m) for v in sip]
-        x ./= sum(x)                                      # the composition it would take
-        cap = minimum((cap_of(i) for i in grp); init = Inf)
-        isfinite(cap) && cap > 0 || continue
-        for (j, i) in enumerate(grp)
-            n2[i] = max(n2[i], _REPAIR_FRACTION * cap * x[j])
-        end
-    end
-
-    n2 == n && return nothing
-    return ChemicalState(
-        cs, n2 .* u"mol"; T = temperature(eq), P = pressure(eq),
-    )
-end
-
-"""
     _LazyStarts
 
 The starting points offered to [`solve_certified`](@ref), each back end solved
@@ -249,7 +147,7 @@ end
 Starts computed only when the search reaches them, and once: `make()` returns an
 iterable of starting states, or `nothing`, and is called the first time the
 iterator is iterated; the search offers its starts again after a continuation or
-a repair, and the second pass reads what the first made. For a start that is a
+a restart, and the second pass reads what the first made. For a start that is a
 solve in its own right, such as [`_ideal_mixing_start`](@ref
 ChemistryLab._ideal_mixing_start), which a search that certifies from an earlier
 start never needs.
@@ -335,8 +233,8 @@ answers two questions at the cost of a few hundred pivots.
     non-negative amounts of the declared species reproduce `b`, and the program
     says so with a Farkas vector `z`, `Aᵀz ≥ 0` and `bᵀz < 0`, verified: a
     combination of the balances that every species raises and the budget lowers.
-    The cascade would otherwise spend its restarts, repairs and continuation on a
-    problem without an answer.
+    The cascade would otherwise spend its restarts and continuation on a problem
+    without an answer.
   - **Where to start.** Its vertex is the assemblage of pure phases of lowest
     standard energy, and its multipliers give every other species an amount; see
     `_lp_lifted_state`.
@@ -513,39 +411,6 @@ function _ideal_mixing_start(
         )
     end
     return cert0.optimal ? ChemicalState(state.system; T = state.T[1], P = state.P[1], n = eq0.n) : nothing
-end
-
-"""
-    _REPAIR_FRACTION
-
-What fraction of the amount the recipe could make of a missing phase
-[`_repair_start`](@ref) puts in. Far enough off the boundary for the active-set
-loop to work with, small enough not to pretend it knows the answer.
-"""
-const _REPAIR_FRACTION = 0.1
-
-"""
-    _repair_round(eq, cert, model, bfix, ϵ, solve_from, verbose)
-        -> (eq, cert, improved)
-
-One round of "the certificate names a missing phase, so put it in and solve
-again". Returns the better of the two answers and whether the round bought
-anything, so the caller can stop as soon as it does not.
-
-`solve_from` is the search, injected: given a starting composition it returns
-`(state, certificate)`. Passing it in rather than closing over the caller's
-solver is what makes this round testable on its own — the situation it exists
-for, a back end that converges onto the wrong active set, needs a system of some
-135 species to arise, while the round's logic needs eight.
-"""
-function _repair_round(eq, cert, model, bfix, ϵ::Float64, solve_from, verbose::Bool)
-    fixed = _repair_start(eq, model, bfix, ϵ)
-    fixed === nothing && return (eq, cert, false)
-    verbose && @info "repairing a missing phase" worst_si = cert.worst_supersaturation
-    eq2, cert2 = solve_from(fixed)
-    improved = cert2.optimal || _kkt_error(cert2) < _kkt_error(cert)
-    kept, kept_cert = _keep_better(eq, cert, eq2, cert2)
-    return (kept, kept_cert, improved)
 end
 
 """
@@ -916,8 +781,8 @@ With every activity set to one, the equilibrium is a linear program:
 
 `lp_start = false` skips it, and so does `autostart = false`. The certificate
 reports `budget_feasible`, the start the answer came from as `route`
-(`:lp_start`, `:state`, `:ideal_mixing`, `:ideal`, `:continuation`, `:restart`
-or `:repair`) and the number of dual solves the search ran, `n_dual_solves`.
+(`:lp_start`, `:state`, `:ideal_mixing`, `:ideal`, `:continuation` or
+`:restart`) and the number of dual solves the search ran, `n_dual_solves`.
 
 # The starting point is found, not asked for
 
@@ -1237,7 +1102,6 @@ function _equilibrate_certified(
     if autostart && !cert.optimal && !split_next
         eq, cert, note = _from_continuation(s, eq, cert, starts)
         eq, cert = _restarts(s, eq, cert)
-        eq, cert = _repairs(s, eq, cert, starts)
     end
     !cert.optimal && !split_next && _uncertified(eq, cert, model, note, des, bfix, constraint)
     _check_solvent(eq)
@@ -1250,8 +1114,8 @@ end
 # One certified search: the problem posed once (the solver `des` and the budget
 # `bfix`), the dual solves already made (`memo`), and the route each start came
 # by (`route_of`). The same cached starts are offered again after the
-# continuation, after each restart and in each repair round, and a start already
-# solved is not solved twice: `memo` returns what it gave the first time, which is
+# continuation and after each restart, and a start already solved is not solved
+# twice: `memo` returns what it gave the first time, which is
 # the same answer bit for bit, since `des`, `bfix`, `ϵ` and `constraint` are fixed
 # for the whole call. See `solve_certified`.
 #
@@ -1480,29 +1344,6 @@ function _restarts(s::_CertifiedSearch, eq, cert)
         eq2, cert2 = _search(s, _starts_from(s, eq, "restart from the answer", :restart))
         improved = cert2.optimal || _kkt_error(cert2) < _kkt_error(cert)
         eq, cert = _keep_better(eq, cert, eq2, cert2)
-        improved || break
-    end
-    return eq, cert
-end
-
-# Act on what the certificate says. A positive worst supersaturation
-# names a phase that should be present and is not, which no amount of
-# restarting from the same active set will fix: see `_repair_start`.
-# The accumulated starts go back in with the repaired composition.
-# Measured on the paste, a solve from the repair start alone reaches the
-# right assemblage -- 74.19 cm3, all the magnesium back in the
-# hydrotalcite -- and still fails its certificate on an unrelated trace
-# component: the recipe's 1e-9 mol of carbon is lost, leaving an element
-# balance of exactly 1e-9 against a tolerance of 1e-10. Ranked on the
-# worst residual, that answer loses to the very point it was meant to
-# replace. Handing the search the repaired composition *and* the
-# candidates it already had keeps the chemistry of the one and the trace
-# components of the others.
-function _repairs(s::_CertifiedSearch, eq, cert, starts)
-    repair_search(f) = _search(s, Iterators.flatten((_starts_from(s, f, "repair start", :repair), starts)))
-    for _ in 1:_MAX_RESTARTS
-        cert.optimal && break
-        eq, cert, improved = _repair_round(eq, cert, s.model, s.bfix, s.ϵ, repair_search, s.verbose)
         improved || break
     end
     return eq, cert

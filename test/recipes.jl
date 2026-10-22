@@ -122,6 +122,16 @@ using ChemistryLab, DynamicQuantities, ForwardDiff, OrderedCollections, Test
         @test only(c for c in ash.constituents if c.name == "glass").mass_fraction ≈ 0.68
         rest = only(c for c in material_template("limestone (De Weerdt 2011)", db).constituents if c.name == "minor oxides")
         @test sum(values(rest.oxides)) ≈ 1 && rest.mass_fraction ≈ 0.19
+        # A cement from the Bogue phases of its clinker, with its gypsum and its
+        # limestone in percent of the cement: the clinker is what they leave, its
+        # phases scaled to it, as read from the data file here.
+        lav = material_template("CEM I 52.5 N (Lavergne 2018)", db)
+        bogue = literature_table("Lavergne2018", "cement_bogue")
+        gp, cal = (ustrip(literature_value("Lavergne2018", q)) / 100 for q in ("gypsum_percent", "limestone_percent"))
+        frac(name) = only(c.mass_fraction for c in lav.constituents if c.name == name)
+        @test [c.name for c in lav.constituents] == vcat(String.(bogue.phase), ["Gp", "Cal"])
+        @test all(frac(String(p)) ≈ (1 - gp - cal) * ustrip(v) / 100 for (p, v) in zip(bogue.phase, bogue.percent))
+        @test frac("Gp") ≈ gp && frac("Cal") ≈ cal && lav.kind == :cement
         @test_throws ErrorException ChemistryLab._material_from_entry(
             Dict("name" => "x", "phases" => "DeWeerdt2011:mineral_composition:clinker", "remainder" => true), db,
         )
@@ -560,6 +570,43 @@ using ChemistryLab, DynamicQuantities, ForwardDiff, OrderedCollections, Test
         @test err isa ArgumentError
         # The refusal names the way round it.
         @test occursin("glass_species", sprint(showerror, err))
+        # The way round: the glass takes a formula, in its material and in the
+        # system, with an enthalpy estimated from its oxides, and the problem is
+        # built.
+        r2 = Recipe(pc => 0.7, slag => 0.3; w_b = 0.45)
+        gs = with_glass_species(r2, cs, [glass])
+        @test haskey(gs.system.dict_species, glass) && length(gs.system.species) == length(cs.species) + 1
+        @test haskey(gs.species[glass].properties, :ΔₐH⁰)
+        g2 = only(c for (m, _) in gs.recipe.binder for c in m.constituents if c.name == glass)
+        @test g2 isa ChemistryLab.MineralConstituent &&
+            g2.mass_fraction == only(c for c in slag.constituents if c.name == glass).mass_fraction
+        @test gs.recipe.water_binder == r2.water_binder && gs.recipe.binder_mass == r2.binder_mass
+        # the elements the glass brings are those of its oxides, either way, to
+        # the rounding of its column over the primaries: five decimals per mole
+        # of glass (measured at 5.5e-7 mol here, against a bound of 6e-7)
+        bg = budget(gs.recipe, gs.system)
+        n_glass = ustrip(us"mol", moles(bg.state, glass))
+        @test n_glass > 0 && maximum(abs, bg.b - budget(r2, cs).b) <= 5.0e-6 * n_glass
+        kp2 = KineticsProblem(gs.recipe, gs.system, Dict(glass => waller(WALLER_PARAMS_FLY_ASH, glass)), (0.0, 1.0))
+        @test length(kp2.kinetic_reactions) == 1
+        # a state holding the glass reads its pore solution as without it: the
+        # activities need no Gibbs energy of the glass, which has none
+        st_g = kp2.initial_state
+        st_0 = ChemicalState(cs, [moles(st_g, symbol(x)) for x in cs.species]; T = temperature(st_g), P = pressure(st_g))
+        @test pH(st_g, model) ≈ pH(st_0, model) rtol = 1.0e-12
+        si = saturation_indices(st_g, model)
+        @test isnan(si[glass])
+        @test si["Portlandite"] ≈ saturation_indices(st_0, model)["Portlandite"] rtol = 1.0e-12
+        # left alone: a mineral, a name no material has, no glass at all
+        same = with_glass_species(r2, cs, ["C3S", "no such"])
+        @test same.system === cs && same.recipe === r2 && isempty(same.species)
+        @test isempty(with_glass_species(r2, cs, String[]).species)
+        # without its enthalpy, on request
+        @test !haskey(with_glass_species(r2, cs, [glass]; enthalpy = false).species[glass].properties, :ΔₐH⁰)
+        # a glass named in two materials is refused, and so is a name the
+        # system already has
+        @test_throws ArgumentError with_glass_species(Recipe(slag => 0.5, slag => 0.5; w_b = 0.45), cs, [glass])
+        @test_throws ArgumentError with_glass_species(r2, gs.system, [glass])
     end
 
     @testset "phase lists" begin
@@ -599,7 +646,7 @@ using ChemistryLab, DynamicQuantities, ForwardDiff, OrderedCollections, Test
         @test_throws ArgumentError phase_list_system(list, substances; add = ["no such phase"])
         # A database without a member of the list's solid solutions is refused,
         # after the warning of `build_solid_solutions` that names the phase.
-        err = @test_logs (:warn, r"CSHQ") match_mode = :any try
+        err = @test_logs_own (:warn, r"CSHQ") match_mode = :any try
             phase_list_system(list, [s for s in substances if symbol(s) != "KSiOH"])
         catch e
             e

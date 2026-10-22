@@ -496,7 +496,7 @@ end
     terms = Dict((:beta0, ("Na+", "Cl-")) => (1.0, 2.0e-2, 3.0e-3, 4.0e-6, 5.0))
     path = joinpath(mktempdir(), "pitzer-test.dat")
     open(io -> _pz_write_phreeqc(io, par; terms), path, "w")
-    got = @test_logs (:warn, r"-zeta") match_mode = :any build_pitzer_parameters(path)
+    got = @test_logs_own (:warn, r"-zeta") match_mode = :any build_pitzer_parameters(path)
     for kind in (:beta0, :beta1, :beta2, :Cphi, :theta, :psi, :lambda)
         @test getfield(got, kind) == getfield(par, kind)
     end

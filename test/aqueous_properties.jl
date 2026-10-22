@@ -573,7 +573,7 @@ end
     # floor, loud below it, and under the strict flag it raises like any other
     # answer that is not one.
     @test ChemistryLab._check_solvent(wet) === nothing
-    @test_logs (:warn,) ChemistryLab._check_solvent(dry)
+    @test_logs_own (:warn,) ChemistryLab._check_solvent(dry)
     strict = ChemistryLab.STRICT_CONVERGENCE[]
     try
         ChemistryLab.STRICT_CONVERGENCE[] = true

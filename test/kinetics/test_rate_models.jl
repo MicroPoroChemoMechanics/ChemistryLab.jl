@@ -147,7 +147,7 @@ end
 
 # Deprecated, and every call below says so: the warning is asserted, not printed.
 _pk_deprecated(args...; kwargs...) =
-    @test_logs (:warn, r"`parrott_killoh` is deprecated") parrott_killoh(args...; kwargs...)
+    @test_logs_own (:warn, r"`parrott_killoh` is deprecated") parrott_killoh(args...; kwargs...)
 
 @testset "parrott_killoh" begin
 

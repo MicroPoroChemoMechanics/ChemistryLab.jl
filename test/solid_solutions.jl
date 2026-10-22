@@ -1226,12 +1226,12 @@ end
     @test ChemistryLab._g298(Species("CaO")) === nothing
 
     # Ideal on both sides the double declaration is harmless, and nothing is said.
-    @test_logs min_level = Base.CoreLogging.Warn ChemicalSystem(
+    @test_logs_own min_level = Base.CoreLogging.Warn ChemicalSystem(
         sp, CEMDATA_PRIMARIES; solid_solutions = [so4, SolidSolutionPhase("AFt_SO4_CO3", aft)],
     )
     # With the published model on the binary it is said, naming both phases and
     # both species.
-    @test_logs (:warn, r"\"AFt_SO4\" and \"AFt_SO4_CO3\" hold one substance twice: \"ettringite03_ss\" is \"ettringite\" times") ChemicalSystem(
+    @test_logs_own (:warn, r"\"AFt_SO4\" and \"AFt_SO4_CO3\" hold one substance twice: \"ettringite03_ss\" is \"ettringite\" times") ChemicalSystem(
         sp, CEMDATA_PRIMARIES; solid_solutions = [
             so4, SolidSolutionPhase("AFt_SO4_CO3", aft; model = published, check_convexity = false),
         ],
@@ -1250,12 +1250,12 @@ end
     published = RedlichKisterModel(a0 = p.alpha0 * RT, a1 = p.alpha1 * RT)
 
     # Ettringite declared pure beside the binary: harmless with ideal mixing...
-    @test_logs min_level = Base.CoreLogging.Warn ChemicalSystem(
+    @test_logs_own min_level = Base.CoreLogging.Warn ChemicalSystem(
         sp, CEMDATA_PRIMARIES; solid_solutions = [SolidSolutionPhase("AFt_SO4_CO3", aft)],
     )
     # ...and said with the published model, naming the pure phase, the phase and
     # the member it repeats three times over.
-    @test_logs (:warn, r"the pure phase \"ettringite\" and the solid solution \"AFt_SO4_CO3\" hold one substance twice: \"ettringite\" is \"ettringite03_ss\" times 3") ChemicalSystem(
+    @test_logs_own (:warn, r"the pure phase \"ettringite\" and the solid solution \"AFt_SO4_CO3\" hold one substance twice: \"ettringite\" is \"ettringite03_ss\" times 3") ChemicalSystem(
         sp, CEMDATA_PRIMARIES;
         solid_solutions = [SolidSolutionPhase("AFt_SO4_CO3", aft; model = published, check_convexity = false)],
     )
@@ -1550,14 +1550,14 @@ end
     ldh = [by[n] for n in ("M4A-OH-LDH", "M6A-OH-LDH", "M8A-OH-LDH")]
     # M6A is the average of M4A and M8A, in composition and to 0.3 J/mol in
     # Gibbs energy: the published ternary of Cemdata18 is degenerate.
-    @test_logs (:warn, r"M6A-OH-LDH.*is 0.5 ×.*M4A-OH-LDH") SolidSolutionPhase("MgAl_OH_LDH", ldh)
-    @test_logs SolidSolutionPhase("MgAl_OH_LDH", ldh; acknowledge_degenerate = true)
+    @test_logs_own (:warn, r"M6A-OH-LDH.*is 0.5 ×.*M4A-OH-LDH") SolidSolutionPhase("MgAl_OH_LDH", ldh)
+    @test_logs_own SolidSolutionPhase("MgAl_OH_LDH", ldh; acknowledge_degenerate = true)
     # An ordering energy the model means is not a degeneracy: T5C of CSH3T
     # (−4.35 kJ/mol) and the siliceous hydrogarnet (−10.4 kJ/mol).
-    @test_logs SolidSolutionPhase("CSH3T", [by[n] for n in ("CSH3T-TobH", "CSH3T-T5C", "CSH3T-T2C")])
-    @test_logs SolidSolutionPhase("Hydrogarnet_Si", [by[n] for n in ("C3AH6", "C3AS0.41H5.18", "C3AS0.84H4.32")])
+    @test_logs_own SolidSolutionPhase("CSH3T", [by[n] for n in ("CSH3T-TobH", "CSH3T-T5C", "CSH3T-T2C")])
+    @test_logs_own SolidSolutionPhase("Hydrogarnet_Si", [by[n] for n in ("C3AH6", "C3AS0.41H5.18", "C3AS0.84H4.32")])
     # And no shipped phase warns.
-    ss = @test_logs min_level = Base.CoreLogging.Warn build_solid_solutions(datapath("solid_solutions.toml"), by)
+    ss = @test_logs_own min_level = Base.CoreLogging.Warn build_solid_solutions(datapath("solid_solutions.toml"), by)
     @test "MgAl_OH_LDH" in [ChemistryLab.name(p) for p in ss]
 end
 

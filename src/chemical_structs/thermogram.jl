@@ -428,6 +428,67 @@ function phases_without_windows(
 end
 
 """
+    literature_windows(state) -> Vector{DecompositionWindow}
+    literature_windows(state, windows) -> Vector{DecompositionWindow}
+
+A window for every `phase => product` of `state` ([`phases_without_windows`](@ref)),
+each the temperature interval in which the cement literature reads that loss,
+with its source; given `windows`, those first, then one for every
+`phase => product` they leave without a window: one's own intervals for some
+releases, the literature's for the others.
+
+| what | interval | source |
+|:--|:--|:--|
+| the water of portlandite | 350 – 500 °C | [DeWeerdt2011](@cite) |
+| the water of the ettringites | 30 – 150 °C | [Moschner2009](@cite) |
+| the water of every other solid | 30 – 550 °C, the total bound water | [LHopital2016b](@cite) |
+| the carbon dioxide of every solid | 300 – 850 °C | [Shi2016](@cite) |
+
+The intervals are read from the data files of those papers. A phase releases
+everything inside its interval and nothing outside it, along a smooth step
+([`DecompositionWindow`](@ref) with `between`): the curve says **where** the
+papers attribute a loss, not how a phase decomposes. The water of the hydrates
+other than portlandite and ettringite has no interval of its own in them, and is
+spread over the interval of the total bound water; a peak of the DTG there is a
+reading aid, not a measurement. The thermogram integrates to
+[`ignition_loss`](@ref) all the same, every hydrogen and carbon of the solids
+having a window.
+
+# Examples
+
+```julia
+tg = thermogram(state, literature_windows(state); temperatures = range(303.15, 1253.15; length = 191))
+tg.loss_percent[end]       # the loss on ignition, in percent of the sample at 30 °C
+# portlandite read between 400 and 520 °C, every other release as the papers read it
+own = [DecompositionWindow("Portlandite"; between = (673.15, 793.15))]
+tg = thermogram(state, literature_windows(state, own))
+```
+"""
+function literature_windows(state::ChemicalState, given::AbstractVector{<:DecompositionWindow} = DecompositionWindow{Float64}[])
+    interval(key, table) = (t = literature_table(key, table); (only(t.lower), only(t.upper)))
+    portlandite = interval("DeWeerdt2011", "tga_intervals")
+    ettringite = interval("Moschner2009", "tga_intervals")
+    carbonate = interval("Shi2016", "tga_intervals")
+    bound = (literature_value("LHopital2016b", "bound_water_lower"), literature_value("LHopital2016b", "bound_water_upper"))
+    # portlandite by its formula, the ettringites (iron, carbonate, sulfate
+    # forms, solid-solution members) by their name
+    ch = Dict(:Ca => 1, :O => 2, :H => 2)
+    windows = DecompositionWindow[given...]
+    for (phase, product) in phases_without_windows(state, given)
+        if product === :carbon_dioxide
+            push!(windows, DecompositionWindow(phase; between = carbonate, releases = :carbon_dioxide, kind = PROV_PUBLISHED, source = "Shi2016"))
+        elseif atoms(state.system.dict_species[phase]) == ch
+            push!(windows, DecompositionWindow(phase; between = portlandite, kind = PROV_PUBLISHED, source = "DeWeerdt2011"))
+        elseif occursin(r"ettringite"i, phase)
+            push!(windows, DecompositionWindow(phase; between = ettringite, kind = PROV_MEASURED, source = "Moschner2009"))
+        else
+            push!(windows, DecompositionWindow(phase; between = bound, kind = PROV_PUBLISHED, source = "LHopital2016b"))
+        end
+    end
+    return windows
+end
+
+"""
     windows_without_phases(state, windows) -> Vector{String}
 
 Which windows name a phase `state` has nothing to release from.

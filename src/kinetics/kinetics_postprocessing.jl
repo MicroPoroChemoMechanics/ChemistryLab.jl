@@ -330,6 +330,9 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
             "`times` must be ascending: each speciation warm-starts from the previous one."
         )
     )
+    # No instant to speciate (a run stopped short of every age asked for): the
+    # replay below seeds from the first one.
+    isempty(times) && return ChemicalState[]
 
     sub = _equilibrium_subsystem(kp.system, kp.idx_equilibrium)
 

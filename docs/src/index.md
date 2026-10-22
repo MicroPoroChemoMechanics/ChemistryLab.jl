@@ -15,9 +15,6 @@ hero:
       text: Get started
       link: /quickstart
     - theme: alt
-      text: Studio
-      link: /studio/getting_started
-    - theme: alt
       text: Theory
       link: /theory/
     - theme: alt
@@ -32,10 +29,6 @@ features:
     title: Getting started
     details: Install the package, evaluate the solubility constant of a reaction, then solve and certify a first equilibrium.
     link: /quickstart
-  - icon: 🖥️
-    title: ChemistryLab Studio
-    details: A graphical interface for cement pastes, in your browser — published formulations, equilibria, paths, rate laws — that writes the Julia script of each calculation.
-    link: /studio/getting_started
   - icon: 🎓
     title: Theory
     details: Why each calculation is the right one, written for a reader who has never studied chemical thermodynamics, with every equation the one the code evaluates.
@@ -52,6 +45,10 @@ features:
     title: Applications
     details: Complete cases and what the modeling choices cost in numbers — aqueous equilibria, surfaces, Portland and blended cements, hydration in time.
     link: /examples/co2_carbonate_system
+  - icon: 🖥️
+    title: ChemistryLab Studio
+    details: An alternative to scripting for cement pastes — forms in the browser, published formulations, equilibria, paths, rate laws — that writes the Julia script of each calculation.
+    link: /studio/getting_started
   - icon: 📖
     title: API reference
     details: Every exported function and type, grouped by topic.

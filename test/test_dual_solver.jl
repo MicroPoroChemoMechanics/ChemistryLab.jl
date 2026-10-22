@@ -414,6 +414,13 @@ end
     ext = Base.get_extension(ChemistryLab, :OptimaSolverExt)
     dn = ext._dual_newton_options(o)
     @test (dn.inner_tol, dn.inner_maxit, dn.maxit) === (1.0e-12, 7, 3)
+    # `max_active_updates` is no longer used, and says so: the active set is
+    # reclassified at every Newton iteration, which `maxit` bounds.
+    dep = @test_deprecated DualEquilibriumSolver(cs, model; max_active_updates = 10)
+    @test ext._dual_newton_options(dep.opts).maxit == d.maxit
+    # And without OptimaSolver the dual solve says what it lacks: the extension
+    # defines it only for the arguments the solver hands over.
+    @test_throws ErrorException ChemistryLab._optima_dual_solve()
 
     # `dual` is handed to the solver the certified route builds: an unknown
     # option is refused there, and a stationarity threshold no answer can meet

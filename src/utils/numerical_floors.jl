@@ -23,8 +23,12 @@ const _AMOUNT_FLOOR = 1.0e-16
 """
     _ACTIVITY_FLOOR
 
-The amount, in moles, below which an activity model reads a species at this
-amount: `1e-30`. It keeps `log n` finite, and nothing else.
+The molality, in mol per kilogram of water, below which an activity model reads a
+species at this molality: `1e-30`. It keeps `log n` finite, and nothing else. The
+amount it stands for is that molality times the water of the state
+(`_activity_floor_amount`), so that the floor follows the size of the system:
+until 0.41.0 it was `1e-30` mol whatever the system, the same amount for a
+kilogram of paste and for a pore solution of a few grams.
 
 It is lower than `ϵ = 1e-16`, the floor that bounds the interior-point back ends
 and fills the absent products of a cold state, which is too high a floor for the
@@ -41,12 +45,11 @@ species holds less than one molecule (1/N_A = 1.66e-24 mol) in a system of one
 mole. GEMS3K [Kulik2013](@cite) takes that same molecule as
 the least amount it considers (`lowPosNum`, 1.66e-24 mol) and eliminates a
 solution species below `DcMin = 1e-30` mol (`ms_multi.h`). PHREEQC sets a molality
-to zero below `MIN_LM = −30` in log (`global_structures.h`). Reaktoro bounds every
-amount by `epsilon = 1e-16` mol, a bound of its solver from which it takes its
-barrier parameter (`EquilibriumOptions.hpp`), the role our `ϵ` has. So `ϵ` keeps
-its other two roles, and the
-activity models floor at this value, below one molecule in any system up to a
-million moles.
+to zero below `MIN_LM = −30` in log (`global_structures.h`), the form taken here.
+Reaktoro bounds every amount by `epsilon = 1e-16` mol, a bound of its solver from
+which it takes its barrier parameter (`EquilibriumOptions.hpp`), the role our `ϵ`
+has. So `ϵ` keeps its other two roles, and the activity models floor at this
+molality.
 """
 const _ACTIVITY_FLOOR = 1.0e-30
 
@@ -54,7 +57,7 @@ const _ACTIVITY_FLOOR = 1.0e-30
     _activity_floor(p) -> Real
 
 The floor an activity model applies to the amounts of `p`: `p.ϵa`, set by
-[`_build_params`](@ref) to `min(ϵ, _ACTIVITY_FLOOR)`, or `p.ϵ` for a parameter
+[`_build_params`](@ref) to `min(ϵ, _activity_floor_amount(state))`, or `p.ϵ` for a parameter
 tuple built by hand without it.
 """
 _activity_floor(p) = hasproperty(p, :ϵa) ? p.ϵa : p.ϵ

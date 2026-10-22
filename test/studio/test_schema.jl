@@ -15,6 +15,9 @@ function model_with(x)
     x isa CLS.MixChoice && (m.mix = x)
     x isa CLS.CalculationChoice && (m.calculation = x)
     x isa CLS.ConstraintChoice && (m.constraint = x)
+    x isa CLS.SurfaceChoice && (m.surface = x)
+    x isa CLS.TgaChoice && (m.tga = x)
+    x isa CLS.WindowChoice && (m.tga = CLS.TgaWindowsChoice(["Portlandite (water)" => x]))
     if x isa CLS.ExtentChoice
         m.materials = CLS.MaterialChoice[CLS.TemplateMaterial(m.materials[1].template, 1.0, ["C3S" => x], nothing)]
     end

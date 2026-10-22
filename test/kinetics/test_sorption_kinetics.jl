@@ -298,7 +298,15 @@ end
             @test d.affinity == reaction_affinities(sol, kp)
             if consistent
                 @test isempty(d.violations)
-                @test all(>=(0), d.entropy_production)
+                # Non-negative, but for the instants at rest, where each reaction
+                # sits at equilibrium to the accuracy of the speciation and the sign
+                # of 𝒜 r is rounding (`dissipation`, `lnΩ_tol = 1e-6`): there
+                # |𝒜| ≤ RT·1e-6, so 𝒜 r / T ≥ −R·1e-6·|r|. Under Julia 1.12 an
+                # instant read below zero, with no violation reported.
+                @test all(
+                    i -> d.entropy_production[i] >= -ChemistryLab.R_GAS * 1.0e-6 * sum(abs, d.rate[i, :]),
+                    axes(d.rate, 1),
+                )
                 @test abs(d.affinity[end, 1]) < 1.0e-6 * ChemistryLab.R_GAS * 298.15
             else
                 @test !isempty(d.violations)

@@ -125,7 +125,12 @@ function _invert_aqueous(form, c, ref, w, p, jref)
     ϵ = p.ϵ
     ln10 = log(10.0)
     lndenom = log(ref * form.M_w)
-    ions = [t for t in eachindex(z) if t != jref && z[t] != 0]
+    # A member at −∞, a solute of a component absent from the budget, holds
+    # nothing and counts in no ionic strength. Left in, with the first ion so,
+    # the running log-sum-exp below read exp(−∞ + ∞) at the next one and the
+    # equation was NaN everywhere: "no composition" to potentials that hold one,
+    # 859 times in the temperature walk of a semi-adiabatic CEM I cell.
+    ions = [t for t in eachindex(z) if t != jref && z[t] != 0 && c[t] != -Inf]
     lnγ(t, I, sqrtI) = ln10 * form.log10γ(t, z[t], I, sqrtI, A, B)
     # `ln(½ zₜ²) + cₜ`, the part of `ln(½ zₜ² mₜ)` that does not depend on `I`.
     a0 = [log(abs(z[t])^2 / 2) + c[t] for t in ions]

@@ -105,6 +105,23 @@ end
                 w_b = ustrip(literature_value("Durdzinski2017", "water_binder_ratio")),
                 gruyaert_w_b = ustrip(literature_value("Gruyaert2010", "water_binder_ratio")),
                 gruyaert_slag = sort(unique(Float64.(literature_table("Gruyaert2010", "bound_water").slag_to_binder))),
+                # the mortar C100 of Lavergne et al. in their semi-adiabatic cell:
+                # the paste once the water the sand absorbs is set aside, and the
+                # heat capacity of the vessel (its 380, printed in kJ/K, is in J/K:
+                # scripts/ionic_hydration.jl), of the sand and of that water
+                lavergne = let m = literature_row("Lavergne2018", "semi_adiabatic_mixes_wb050", "C100")
+                    absorbed = ustrip(literature_value("Lavergne2018", "sand_water_absorption")) * m.dry_sand
+                    db = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+                    heat(s, mass) = ustrip(us"J/(mol*K)", db[s][:Cp⁰](T = 293.15, P = 1.0e5, unit = true)) /
+                        ustrip(us"kg/mol", db[s][:M]) * ustrip(us"kg", mass)
+                    (;
+                        binder = ustrip(us"g", m.binder), w_b = ustrip((m.water - absorbed) / m.binder),
+                        Cp = ustrip(us"kJ/K", literature_value("Lavergne2018", "calorimeter_heat_capacity")) +
+                            heat("Qtz", m.dry_sand) + heat("H2O@", absorbed),
+                        a = ustrip(us"W/K", literature_value("Lavergne2018", "heat_loss_a")),
+                        b = ustrip(us"W/K^2", literature_value("Lavergne2018", "heat_loss_b")),
+                    )
+                end,
             )
         end
     )
@@ -115,15 +132,112 @@ end
     @test fractions("pc-siliceous-fly-ash-rilem") ≈ [1 - pub.fly_ash, pub.fly_ash]
     @test entries["pc-s1-slag-rilem"]["model"]["mix"]["w_b"] == entries["pc-siliceous-fly-ash-rilem"]["model"]["mix"]["w_b"] == pub.w_b
     @test entries["slag-replacement-gruyaert2010"]["model"]["calculation"]["fractions"] == pub.gruyaert_slag
-    @test all(entries[id]["model"]["mix"]["w_b"] == pub.gruyaert_w_b for id in keys(entries) if occursin("cem1", id) || occursin("gruyaert", id))
+    @test all(entries[id]["model"]["mix"]["w_b"] == pub.gruyaert_w_b for id in keys(entries) if (occursin("cem1", id) || occursin("gruyaert", id)) && !occursin("lavergne", id))
+    # the two water-to-binder ratios of the mortars of Lavergne et al., as their Table 11 names them
+    @test entries["cem1-lavergne2018-kinetics-wb050"]["model"]["mix"]["w_b"] == 0.5
+    @test entries["cem1-lavergne2018-kinetics-wb032"]["model"]["mix"]["w_b"] == 0.32
+    lav = entries["cem1-lavergne2018-semiadiabatic"]["model"]
+    cell = lav["calculation"]["calorimeter"]
+    @test lav["mix"]["binder_mass"] == pub.lavergne.binder
+    @test lav["mix"]["w_b"] ≈ pub.lavergne.w_b rtol = 1.0e-4
+    @test cell["heat_capacity"] ≈ pub.lavergne.Cp rtol = 1.0e-4
+    @test cell["loss"] ≈ pub.lavergne.a rtol = 1.0e-5
+    @test cell["loss_quadratic"] ≈ pub.lavergne.b rtol = 1.0e-4
     # every entry runs, but the kinetic one (its own test below integrates a shorter run)
     for (id, e) in entries
         e["process"] == "kinetics" && continue
         post("/api/library", Dict("id" => id))
         r = post("/api/run", Dict())
-        r["ok"] || @error "library entry $id failed" r["error"] get(r, "output", "")
+        r["ok"] || @error "library entry $id failed" r["error"] Base.get(r, "output", "")
         @test r["ok"] && r["results"]["kind"] == (e["process"] == "equilibrium" ? "equilibrium" : "path")
     end
+    post("/api/library", Dict("id" => "cem1-52.5n-gruyaert2010"))
+end
+
+@testset "the thermogram and the surface of an equilibrium, against the calls themselves" begin
+    model = api("/api/state")["model"]
+    model["surface"] = Dict("kind" => "csh_surface")
+    # the water of portlandite read between 400 and 520 °C, every other release
+    # as the literature reads it
+    model["tga"] = Dict(
+        "kind" => "tga_windows",
+        "windows" => [Dict("key" => "Portlandite (water)", "value" => Dict("kind" => "window_interval", "from" => 400.0, "to" => 520.0))],
+    )
+    post("/api/model", Dict("model" => model))
+    run = post("/api/run", Dict())
+    run["ok"] || @error "the run with a surface failed" run["error"] Base.get(run, "output", "")
+    @test run["ok"]
+    r = run["results"]
+    reference = CLS.call!(
+        cp, quote
+            let substances = build_species(datapath("cemdata18-thermofun.json"); verbose = false)
+                cs = phase_list_system("Portland paste (Lothenbach and Winnefeld 2006)", substances)
+                cement = with_extents(
+                    material_template("CEM I 52.5 N (Gruyaert 2010), Bogue", cs),
+                    Dict("C3S" => 0.8, "C2S" => 0.45, "C3A" => 0.9, "C4AF" => 0.6),
+                )
+                model = cemdata18_activity_model(:KOH)
+                recipe = Recipe(cement => 1.0; w_b = 0.5, T = T_ZERO_CELSIUS_Q + 20u"K")
+                rs, _ = equilibrate_certified(recipe, cs; model)
+                own = [DecompositionWindow("Portlandite"; between = (673.15, 793.15))]
+                tg = thermogram(rs.state, vcat(own, filter(w -> w.phase != "Portlandite", literature_windows(rs.state))); temperatures = collect(303.15:5.0:1253.15))
+                portlandite = window_interval(only(w for w in literature_windows(rs.state) if w.phase == "Portlandite"))
+                s = with_csh_surface(rs)
+                (; mass = tg.mass, portlandite, potential = s.potential, film = s.film, Ca = s.bound[:Ca])
+            end
+        end
+    )
+    @test reference.ok
+    ref = reference.value
+    g = r["tga"]
+    @test length(g["temperature"]) == length(ref.mass) && g["temperature"][1] ≈ 30.0 && g["temperature"][end] ≈ 980.0
+    @test g["states"][1]["mass"] ≈ 100 .* 1000 .* ref.mass ./ r["binder_mass_g"] rtol = 1.0e-9
+    @test haskey(g["states"][1], "by_phase") && sort(g["sources"]) == sort(["LHopital2016b", "Moschner2009", "Shi2016"])
+    # the window set, and the literature's beside it, in °C
+    ch = only(w for w in g["windows"] if w["key"] == "Portlandite (water)")
+    @test ch["own"] && ch["from"] ≈ 400 && ch["to"] ≈ 520 && ch["shape"] == "interval"
+    @test [ch["literature"]["from"], ch["literature"]["to"]] ≈ collect(ref.portlandite) .- 273.15 && ch["literature"]["source"] == "DeWeerdt2011"
+    @test all(!w["own"] && w["source"] == w["literature"]["source"] for w in g["windows"] if w["key"] != "Portlandite (water)")
+    s = r["surface"]
+    @test s["potential_mV"] ≈ 1000 * ref.potential rtol = 1.0e-9
+    @test s["film_nm"] ≈ 1.0e9 * ref.film rtol = 1.0e-9
+    @test only(v for (k, v) in zip(s["bound"]["labels"], s["bound"]["values"]) if k == "Ca") ≈ 100 * ref.Ca / r["binder_mass_g"] rtol = 1.0e-9
+    @test s["certified"] && !haskey(s, "donnan")
+    # a Donnan layer on this paste is refused, with the reason: its pore water
+    # is a film thinner than the Debye length
+    model["surface"] = Dict("kind" => "csh_surface", "donnan" => true, "thickness" => 0.1)
+    post("/api/model", Dict("model" => model))
+    run = post("/api/run", Dict())
+    @test !run["ok"] && occursin("Debye length", run["error"])
+    # in a suspension, one Debye length thick: its water is its area times its
+    # thickness, and its excess is reported
+    model["mix"]["w_b"] = 20.0
+    model["surface"] = Dict("kind" => "csh_surface", "donnan" => true, "thickness" => 0.0)
+    post("/api/model", Dict("model" => model))
+    run = post("/api/run", Dict())
+    run["ok"] || @error "the suspension with a Donnan layer failed" run["error"] Base.get(run, "output", "")
+    s = run["results"]["surface"]
+    @test run["ok"] && s["film_nm"] > s["debye_nm"]
+    @test s["donnan"]["water_g"] ≈ 100 / run["results"]["binder_mass_g"] * 1.0e-3 * s["area_m2"] * s["debye_nm"] rtol = 1.0e-6
+    @test !isempty(s["donnan"]["excess"]["labels"])
+    post("/api/library", Dict("id" => "cem1-52.5n-gruyaert2010"))
+end
+
+@testset "a glass reacting by its law, with its heat" begin
+    post("/api/library", Dict("id" => "pc-siliceous-fly-ash-rilem-kinetics"))
+    model = api("/api/state")["model"]
+    model["calculation"]["horizon"] = 1.0
+    model["calculation"]["ages"] = [1.0]
+    post("/api/model", Dict("model" => model))
+    run = post("/api/run", Dict())
+    run["ok"] || @error "the run with a glass failed" run["error"] Base.get(run, "output", "")
+    @test run["ok"] && run["results"]["retcode"] == "Success"
+    res = run["results"]
+    k = findfirst(==("glass"), res["degrees"]["labels"])
+    @test k !== nothing && 0 < res["degrees"]["series"][k][end] < 1
+    # the glass has an enthalpy, estimated from its oxides: the heat is known
+    @test haskey(res["heat"], "heat") && res["heat"]["heat"][end] > 0
+    @test length(res["tga"]["states"]) == 1
     post("/api/library", Dict("id" => "cem1-52.5n-gruyaert2010"))
 end
 
@@ -133,7 +247,7 @@ end
     model["calculation"] = Dict("kind" => "kinetics", "horizon" => 2.0, "ages" => [1.0, 2.0], "rates" => rates)
     post("/api/model", Dict("model" => model))
     run = post("/api/run", Dict())
-    run["ok"] || @error "the kinetic run failed" run["error"] get(run, "output", "")
+    run["ok"] || @error "the kinetic run failed" run["error"] Base.get(run, "output", "")
     @test run["ok"] && run["results"]["kind"] == "kinetics"
     res = run["results"]
     @test CLS.call!(cp, :(using OrdinaryDiffEq)).ok
@@ -191,7 +305,7 @@ end
     )
     post("/api/model", Dict("model" => model))
     run = post("/api/run", Dict())
-    run["ok"] || @error "the semi-adiabatic run failed" run["error"] get(run, "output", "")
+    run["ok"] || @error "the semi-adiabatic run failed" run["error"] Base.get(run, "output", "")
     @test run["ok"] && run["results"]["retcode"] == "Success"
     h = run["results"]["heat"]
     reference = CLS.call!(
@@ -372,8 +486,12 @@ end
 @testset "watchdog" begin
     cp2 = CLS.ComputeProcess(; project, julia, boot = joinpath(CLS.WORKER_DIR, "boot.jl"))
     CLS.start!(cp2)
-    rss = something(CLS.process_rss(cp2.worker.proc_pid), 0)
-    r = CLS.call!(cp2, :(x = ones(UInt8, 600_000_000); sleep(30); sum(x)); cap = rss + 200 * 2^20)
+    rss = CLS.process_rss(cp2.worker.proc_pid)
+    @test rss !== nothing && rss > 0          # the watchdog reads the memory of the compute process
+    rss = something(rss, 0)
+    # random bytes, not ones: macOS compresses a uniform buffer to almost nothing,
+    # its resident size then stays under the cap and nothing is stopped
+    r = CLS.call!(cp2, :(x = rand(UInt8, 600_000_000); sleep(30); sum(x)); cap = rss + 200 * 2^20)
     @test !r.ok && r.stopped === :memory && occursin("Make the calculation smaller", r.error)
     @test CLS.status(cp2).state == "stopped"
     @test occursin("not ready", CLS.call!(cp2, :(1 + 1)).error)

@@ -1,5 +1,202 @@
 # Changelog
 
+## v0.41.0 — The studio completed: glasses in time, the surface of the C-S-H, thermograms, a cell that crosses a change of assemblage
+
+A minor release: three exported functions, a coupled run that resumes each
+solve from the one before and takes no decision on an amount in moles, two
+fixes of the semi-adiabatic cell under partial equilibrium, and ChemistryLab
+Studio given what its first version left out. It requires OptimaSolver 0.9.3.
+Results change within the tolerances of the solves, and the semi-adiabatic runs
+that used to stop short now reach their horizon.
+
+### Breaking changes
+
+- None in the API. The minor version moves because of the new exported
+  functions: below 1.0, a bound `ChemistryLab = "0.40"` does not admit 0.41, so
+  a package or an environment that bounds ChemistryLab must widen its bound to
+  take this release.
+- OptimaSolver 0.9.3 (`OptimaSolver = "0.9.3"`, in the package and in the
+  documentation), whose dual Newton method reclassifies its active set at every
+  iteration and compares no amount with a number of moles: the two
+  semi-adiabatic runs fixed below need it, and the semi-adiabatic mortar with
+  silica fume of the Lavergne et al. (2018) example needs 0.9.1, on which a
+  runaway iterate ends an attempt instead of raising from LAPACK; the chloride
+  binding of a paste under the limiting law needs 0.9.2, which takes a solution
+  whose potentials hold no composition at the edge of the model's domain
+  instead of sweeping it in a cycle (it certified on some machines only); and
+  the semi-adiabatic CEM I cell needs 0.9.3, on which a start holding amounts
+  that are not finite is read instead of raising from LAPACK. An environment
+  held at OptimaSolver 0.8 keeps ChemistryLab 0.40.
+- Answers may differ from 0.40.0 within the tolerances of the solves: the
+  equilibria are those of OptimaSolver 0.9, and a run now resumes each of its
+  solves from the one before.
+- `DualEquilibriumSolver(...; max_active_updates)` is deprecated and ignored,
+  as in OptimaSolver; `maxit` (500 by default) bounds the whole search.
+
+### Added
+
+- **`with_glass_species(recipe, system, names)`**: the recipe and the system in
+  which each named constituent known by its oxides (a slag, the glass of a fly
+  ash) takes a formula written from them (`glass_species`) in its material
+  and in the system: what a rate law needs to dissolve a glass, in one call
+  rather than the three steps a script wrote by hand.
+- **`glass_species(...; enthalpy = true)`**: the pseudo-species of a glass with
+  an enthalpy of formation and a heat capacity, functions of the temperature
+  (`glass_enthalpy` at 298.15 K carried by `glass_heat_capacity`), so that the
+  heat of its dissolution counts in a calorimeter, isothermal or
+  semi-adiabatic, under partial equilibrium; `with_glass_species` gives it by
+  default. `glass_heat_capacity` is now generic in the number type of the
+  fractions and of the temperature, which a semi-adiabatic cell differentiates.
+- **SO3 in a glass**: `glass_enthalpy` and `glass_heat_capacity` count it as
+  anhydrite less lime, from the first reference collection that holds both,
+  where they used to refuse it. No database holds crystalline SO3, yet every
+  slag and fly ash reports some, so the heat of their glass could not be
+  computed without leaving the SO3 out by name (`ignore`), which counts it at
+  zero enthalpy and so misses its heat. The sulfate is taken as bound to the
+  lime of the glass, as in a calcium sulfate, the same rule the example on
+  isothermal calorimetry follows.
+- **`literature_windows(state[, windows])`**: a decomposition window for every
+  release of the solids of a state, each the interval in which the cement
+  literature reads it, after the `windows` given (one's own intervals for some
+  releases, the literature's for the others): the water of portlandite (De Weerdt et al. 2011), of the
+  ettringites (Möschner et al. 2009), of the other hydrates over the interval
+  of the total bound water (L'Hôpital et al. 2016), the carbon dioxide of the
+  carbonates (Shi et al. 2016), read from their data files. A thermogram of a
+  paste in one call, which says where a loss is attributed rather than how a
+  phase decomposes.
+- **`with_csh_surface(rs; donnan, water)`**: the paste of a recipe state with
+  the surface of its C-S-H after Guo et al. (2018): the gel frozen at its
+  composition, portlandite fixing the activities it shares with it, the sites
+  and the area of the model referred to its silicon, the complexes whose ions
+  the system holds, a diffuse layer, and on request a Donnan layer, refused
+  with the reason when the pore water is a film thinner than the layer or
+  than the Debye length (a hardened paste): the layer is meant for a
+  suspension.
+- **A template from the Bogue phases of a clinker** (`clinker`, `gypsum`,
+  `calcite` in `data/recipe_templates.toml`), and with it the CEM I 52.5 N of
+  Lavergne et al. (2018), Table 9.
+
+### Changed
+
+- **A run resumes each solve from the one before.** The dual solve takes the
+  multipliers of an earlier answer and hands back its own
+  (`SciMLBase.solve(::DualEquilibriumSolver, state; y0, dual_state)`,
+  `solve_certified(...; y0, dual_state)`); a kinetic run keeps them beside its
+  partition, and both its right-hand side and the re-speciation of a step
+  resume the certified solve from them, the interior point serving only where
+  that does not certify. The interior point balanced 5 % of the partitions of
+  the suite, the others escalated to the certified solve from its answer:
+  resumed, the dual solve certifies 97 % of them at once. On the kinetic test
+  files that re-speciate, 616 s instead of 698 s; a ternary cement hydration
+  23 s instead of 56 s.
+- **No decision of a run is taken on an amount in moles.** A speciation is
+  retried, escalated or refused when an element row is off by more than a
+  converged speciation leaves it, relative to what the row holds, instead of
+  1e-6 mol, which let a trace element miss its whole budget and held a major
+  one to a millionth of a mole. The certificate judges each balance row
+  relative to itself; the reactivity rows of the implicit step are scaled by
+  the amount each reaction acts on; the fractions of a solid solution are of
+  degree zero in its amounts (those of a phase of 1e-14 mol were a percent
+  off); the activity floor is a molality, 1e-30 mol per kilogram of water.
+  Starts are no longer lifted to a floor: an exact zero is a pure phase on its
+  bound.
+- **Faster where it was slowest.** The three slowest test files, in fresh
+  processes, alternated with ChemistryLab 0.40.0 on OptimaSolver 0.8.8 on the
+  same machine (the minimum of two runs): 401 s against 517 s. A quaternary
+  cement hydration takes 285 s against 386 s, the binding of chloride by the
+  AFm phases 61 s against 63 s, the dissolution of glasses 55 s against 68 s.
+- **The repair stage of the certified search is gone.** It restarted the
+  search with a phase the certificate named, and certified nothing over the
+  test suite (0 of 6): the search of OptimaSolver 0.9 takes such a phase off
+  its bound itself.
+
+### Fixed
+
+- **A semi-adiabatic cell under partial equilibrium stopped at 1.22 days**, on
+  a CEM I paste with its four clinker phases by the law of Parrott and Killoh,
+  on some machines and not on others (with bounds checking, as `Pkg.test` runs
+  it): every trial step was rejected, and the run ended `Unstable`. At that
+  instant 7e-7 mol of monocarbonate holds the aluminum that ettringite and
+  hydrotalcite leave over, too little for the dual Newton method to put it in
+  its initial set, and without it no start converged. OptimaSolver 0.9 reads
+  every amount a start holds above zero as present, and the run resumes each
+  solve from the one before: it reaches its horizon on every machine.
+- **A semi-adiabatic cell at a reaction between pure phases.** Where two
+  assemblages exchange at one temperature (gypsum and anhydrite; near 53 °C in
+  a CEM I paste, ettringite and monocarbonate for monosulfate), the heat
+  balance of the cell jumps: the reaction takes the heat at that temperature
+  and holds the cell there until it is done. The Newton iteration on the
+  temperature had no root to converge to, and the run stopped. Where it fails,
+  the temperature is now bracketed and bisected. A jump of the balance within
+  1e-3 K is a cell held at the temperature of the exchange, to 2e-6 K, its
+  temperature then independent of the amounts, and the partition on the far
+  side of the jump starts the next solve. A run that passed takes the same
+  path as before. OptimaSolver 0.9 gives the partition across the exchange,
+  the phase that enters taking the place of the one it depends on, which its
+  dual Newton method could not reach from the side the run comes from.
+- **The pore solution of a state holding a glass** (its pH, its activities)
+  failed: a glass given a formula for its rate law has no standard Gibbs
+  energy, and the potentials of every species were evaluated. Such a species
+  now has none (NaN, so does its saturation index), which nothing at
+  equilibrium reads: `KineticsProblem` refuses it there.
+- **The aqueous inversion answered "no composition" to potentials that hold
+  one.** A solute of a component absent from the budget has a potential of
+  −∞; with the first charged solute so, the running log-sum-exp of the
+  ionic-strength equation read exp(−∞ + ∞) at the next one, the equation was
+  NaN everywhere, and the solution was left to the sweeps, whose outcome
+  depends on where they start. Such a solute now holds nothing and counts in no
+  ionic strength. In the temperature walk of a semi-adiabatic CEM I cell, 859
+  inversions answered nothing and none does now; the walk failed on the CI
+  runners of Linux and Windows under Julia 1.
+- **`add_thermo_model` from a heat capacity** (the SymbolicNumericIntegration
+  extension) failed with SymbolicUtils 4.53 on every integrated function holding
+  a power (H and G of a linear Cp): `toexpr` now writes `x^2` as
+  `Base.literal_pow(^, x, Val(2))`, which the model reader took for a call of
+  unknown type. The power is written back as `x ^ 2` before it is read.
+- **`speciated_states` with no instant** returns no state, where it failed
+  reading the first one: the ages a script asks of a run that stopped short
+  of all of them.
+
+### ChemistryLab Studio
+
+- **A glass can be given a rate law** (Waller, first order, or a law of one's
+  own): the script writes it a formula from its oxides, with an enthalpy, by
+  `with_glass_species`.
+- **The surface of the C-S-H**, in the System tab: computed after an
+  equilibrium or at each point of a path (an addition of salt gives the binding
+  of chloride by the surface beside the AFm phases), its results in a
+  *Surface* tab; a Donnan layer in expert mode.
+- **A *TGA* tab** for every calculation: the mass lost and its rate from 30 to
+  980 °C, in percent of the reference mass the papers use (the sample at 30 °C,
+  dry at 105, 500 or 800 °C, or ignited), and for one equilibrium the loss of
+  each phase. Each release of the solids takes the interval in which the
+  literature reads it, or the interval or logistic peak the Calculation tab
+  sets it; the tab lists the window of each release and its source. The script
+  builds the same windows and prints the loss on ignition from them, so that
+  the thermogram on the page is the script's.
+- **The loss of a semi-adiabatic cell** may carry the quadratic term of a
+  calibration (expert).
+- **New entries in the library**: the CEM I 52.5 N of Lavergne et al. (2018)
+  hydrating at w/b 0.50 and 0.32, and their mortar C100 in their
+  semi-adiabatic cell over 3.5 days (expert); a Portland cement with 30 % of siliceous fly
+  ash in time, its glass by the law of Waller; the binding of chloride by a
+  CEM I paste with the surface of its C-S-H.
+- **The memory guard saw nothing of the compute process on macOS**: it read its
+  resident size with `proc_pidinfo(…, PROC_PIDTASKINFO, …)`, which on the macOS
+  runners of GitHub never showed the watchdog the same process of
+  MeanFieldHomogenization's studio allocating 600 MB. It now reads its physical
+  footprint with `proc_pid_rusage`, compressed pages included; a test reads the
+  memory of a child process on every system.
+- The file picker leaves out an entry that refuses a stat (a file Windows holds
+  open at the root of a drive) rather than failing; the opener of the browser
+  is tested for every system on every runner.
+- The model of the page is of version 3 (the surface, the windows of the
+  thermogram); a script of version 2 opens as the same calculation.
+- docs: ChemistryLab is a library of scripts, and the studio an alternative to
+  them, presented after the chapters that teach the scripts, at the end of the
+  README and of "Getting started"; the tour of the studio shows the *TGA* and
+  *Surface* tabs, its screenshots retaken by the script of the studio.
+
 ## v0.40.0 — ChemistryLab Studio, and what a choice of species leaves out
 
 A minor release: it adds exported functions and two dependencies, and changes no

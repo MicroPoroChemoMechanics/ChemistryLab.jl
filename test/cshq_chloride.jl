@@ -117,7 +117,7 @@ include(joinpath(pkgdir(ChemistryLab), "data", "chloride", "member.jl"))
         cshq_cl = only(p for p in with if name(p) == "CSHQ_Cl")
         @test length(end_members(cshq_cl)) == 7
         # With CEMDATA18 alone the entry is skipped, and without a warning.
-        without = @test_logs min_level = Logging.Warn build_solid_solutions(datapath("solid_solutions.toml"), byname)
+        without = @test_logs_own min_level = Logging.Warn build_solid_solutions(datapath("solid_solutions.toml"), byname)
         @test !any(name(p) == "CSHQ_Cl" for p in without)
         # CSHQ and CSHQ_Cl describe one gel, and declaring both is refused.
         cshq = only(p for p in with if name(p) == "CSHQ")

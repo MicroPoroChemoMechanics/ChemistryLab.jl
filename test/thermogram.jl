@@ -368,3 +368,46 @@ include("reference_species.jl")
         @test_throws ArgumentError thermogram(st, windows; temperatures = grid, relative_to = :dry)
     end
 end
+
+@testsection "windows from the intervals of the literature" begin
+    c18 = Dict(symbol(s) => s for s in build_species(datapath("cemdata18-thermofun.json"); verbose = false))
+    solids = [c18[k] for k in ("Portlandite", "Gp", "Cal", "ettringite", "monosulphate12")]
+    prim = [c18[k] for k in ("H2O@", "H+", "Ca+2", "SO4-2", "CO3-2", "AlO2-")]
+    cs = ChemicalSystem(vcat(prim, solids), prim)
+    idx = Dict(symbol(sp) => k for (k, sp) in enumerate(cs.species))
+    n = Any[fill(1.0e-12u"mol", length(cs.species))...]
+    for (k, v) in ("Portlandite" => 1.0, "Gp" => 0.5, "Cal" => 0.2, "ettringite" => 0.1, "monosulphate12" => 0.1)
+        n[idx[k]] = v * u"mol"
+    end
+    st = ChemicalState(cs, n)
+    w = literature_windows(st)
+    # every release has its window, each from the table of its paper
+    @test isempty(phases_without_windows(st, w)) && isempty(windows_without_phases(st, w))
+    by(phase, product = :water) = only(x for x in w if x.phase == phase && x.releases === product)
+    interval(key) = (t = literature_table(key, "tga_intervals"); (ustrip(only(t.lower)), ustrip(only(t.upper))))
+    # a window keeps its midpoint and its width: its bounds come back to the ulp
+    same(a, b) = all(isapprox.(a, b; rtol = 1.0e-12))
+    @test same(window_interval(by("Portlandite")), interval("DeWeerdt2011")) && by("Portlandite").midpoint.source == "DeWeerdt2011"
+    @test same(window_interval(by("ettringite")), interval("Moschner2009")) && by("ettringite").midpoint.source == "Moschner2009"
+    @test same(window_interval(by("Cal", :carbon_dioxide)), interval("Shi2016"))
+    bound = (ustrip(literature_value("LHopital2016b", "bound_water_lower")), ustrip(literature_value("LHopital2016b", "bound_water_upper")))
+    @test same(window_interval(by("Gp")), bound) && same(window_interval(by("monosulphate12")), bound)
+    # the curve integrates to what the formulas hold
+    tg = thermogram(st, w; temperatures = collect(303.15:5.0:1253.15))
+    @test tg.loss[end] ≈ ustrip(us"kg", ignition_loss(st).total) rtol = 1.0e-9
+
+    # one's own windows first, the literature's for the releases they leave out:
+    # the water of portlandite and the carbon dioxide of calcite read elsewhere,
+    # the latter a logistic peak narrow enough to be over at 980 °C
+    own = [
+        DecompositionWindow("Portlandite"; between = (673.15, 793.15)),
+        DecompositionWindow("Cal", 1000.0, 5.0; releases = :carbon_dioxide),
+    ]
+    mixed = literature_windows(st, own)
+    @test mixed[1:2] == own && length(mixed) == length(w)
+    @test isempty(phases_without_windows(st, mixed))
+    @test [x for x in mixed[3:end]] == [x for x in w if !((x.phase, x.releases) in (("Portlandite", :water), ("Cal", :carbon_dioxide)))]
+    @test literature_windows(st, w) == w
+    tm = thermogram(st, mixed; temperatures = collect(303.15:5.0:1253.15))
+    @test tm.loss[end] ≈ tg.loss[end] rtol = 1.0e-12
+end

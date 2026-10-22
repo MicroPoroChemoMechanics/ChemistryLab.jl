@@ -83,7 +83,7 @@ end
     # Outside the measured range it clamps and says so once. An isotherm measured
     # between S = 0.3 and 1 says nothing at S = 0.05, and extrapolating a
     # logarithm there produces confident absurdity.
-    @test_logs (:warn,) t(0.05)
+    @test_logs_own (:warn,) t(0.05)
     @test t(0.05) == 0.44                          # already warned, now silent
     @test t(1.2) == 1.0
 

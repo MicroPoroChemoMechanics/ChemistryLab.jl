@@ -24,7 +24,48 @@ parameter_number(x::Real) = Float64(x)
 
 The results of a study, by the type of its `output`.
 """
-extract(study) = extract_output(study.output, study)
+function extract(study)
+    out = extract_output(study.output, study)
+    hasproperty(study, :surface) && (out["surface"] = surface_entry(study.surface, out["binder_mass_g"]))
+    return out
+end
+
+# The surface of the C-S-H (`with_csh_surface`): the moles of each surface
+# species and of each element its complexes hold, per 100 g of binder; the
+# potential of the surface (mV), the area, the film of pore water on it and the
+# Debye length (nm); the Donnan layer's water and its excess of each ion. A
+# path gives each as a series over its points.
+function surface_point(s, binder)
+    per100 = 100 / binder
+    out = Dict{String, Any}(
+        "complexes" => Dict{String, Any}("labels" => first.(s.complexes), "values" => [finite(per100 * x) for x in last.(s.complexes)]),
+        "bound" => Dict{String, Any}("labels" => string.(collect(keys(s.bound))), "values" => [finite(per100 * x) for x in values(s.bound)]),
+        "potential_mV" => finite(1000 * s.potential), "area_m2" => finite(s.area), "sites" => finite(per100 * s.sites),
+        "film_nm" => finite(1.0e9 * s.film), "debye_nm" => finite(1.0e9 * s.debye),
+        "certified" => s.certificate !== nothing && s.certificate.optimal === true,
+    )
+    if s.donnan !== nothing
+        c = s.donnan.contents
+        cs = s.donnan.result.state.system
+        # the ions the layer holds beyond the free solution's share of its water
+        excess = [symbol(cs.species[i]) => per100 * c.excess[i] for i in cs.idx_aqueous if abs(c.excess[i]) > 1.0e-12 && symbol(cs.species[i]) != "H2O@"]
+        out["donnan"] = Dict{String, Any}(
+            "water_g" => finite(per100 * 1000 * c.water),
+            "excess" => Dict{String, Any}("labels" => first.(excess), "values" => [finite(x) for x in last.(excess)]),
+        )
+    end
+    return out
+end
+surface_entry(s::NamedTuple, binder) = surface_point(s, binder)
+function surface_entry(s::AbstractVector, binder)
+    points = [surface_point(x, binder) for x in s]
+    labels = unique(l for p in points for l in p["bound"]["labels"])
+    return Dict{String, Any}(
+        "points" => points,
+        "bound" => Dict{String, Any}("labels" => labels, "series" => [[get(Dict(zip(p["bound"]["labels"], p["bound"]["values"])), l, 0.0) for p in points] for l in labels]),
+        "potential_mV" => [p["potential_mV"] for p in points],
+    )
+end
 
 "The name under which the aqueous species of a state are counted together."
 const PORE_SOLUTION = "pore solution"
@@ -65,6 +106,7 @@ function extract_output(rs::RecipeState, study)
     si = saturation_indices(rs.state, rs.model)
     out["saturation_indices"] = series(sort(si; byvalue = true, rev = true))
     out["certificate"] = certificate_entry(study.certificate)
+    out["tga"] = tga_series([rs.state], Float64(rs.recipe.binder_mass), windows_of(study))
     return out
 end
 
@@ -80,6 +122,7 @@ function extract_output(p::ProcessResult, study)
     elements = unique(k for s in solutions for k in keys(s.elements))
     fractions = [fractions_entry(rs) for rs in states]
     known = all(f -> haskey(f, "labels"), fractions)
+    binder = Float64(first(states).recipe.binder_mass)
     return Dict{String, Any}(
         "kind" => "path", "label" => string(p.label),
         "parameter" => [parameter_number(x) for x in p.parameter],
@@ -95,6 +138,7 @@ function extract_output(p::ProcessResult, study)
         "porosity" => [finite(porosity(rs).total) for rs in states],
         "bound_water" => [finite(bound_water(rs)) for rs in states],
         "certified" => [rs.certificate !== nothing && hasproperty(rs.certificate, :optimal) && rs.certificate.optimal === true for rs in states],
+        "tga" => tga_series([rs.state for rs in states], binder, windows_of(study)),
     )
 end
 
@@ -134,6 +178,7 @@ function extract_output(o::NamedTuple{(:problem, :solution, :ages, :states)}, st
         "bound_water" => [finite(in_unit(us"g", bound_water(st)) / binder) for st in states],
     )
     out["heat"] = heat_entry(kp.calorimeter, sol, kp, o, binder)
+    out["tga"] = tga_series(states, binder, windows_of(study))
     return out
 end
 
@@ -189,6 +234,64 @@ function heat_entry(cal::SemiAdiabaticCalorimeter, sol, kp, o, binder)
         "time" => t[keep] ./ 86400.0, "heat" => [finite(q / binder) for q in Q[keep]],
         "temperature" => [finite(x - ustrip(T_ZERO_CELSIUS_Q)) for x in T],
     )
+end
+
+# The thermogram of a state, from 30 to 980 °C as the papers the windows come
+# from record it, on the grid of the script's tables: every release over the
+# window the script set for it, the others over the interval in which the
+# literature reads them (`literature_windows`); the mass on the pan and the DTG,
+# per 100 g of binder; for one state, the loss of each phase too. The page
+# chooses the reference mass (the sample at 30 °C, dry at 105, 500 or 800 °C, or
+# ignited), points of this grid, so that the loss in percent of it is exact.
+const TGA_CELSIUS = 30.0:5.0:980.0
+const TGA_TEMPERATURES = collect(T_ZERO_CELSIUS .+ TGA_CELSIUS)
+
+"The windows the script of a study set: none in a script written before it could."
+windows_of(study) = hasproperty(study, :windows) ? study.windows : DecompositionWindow{Float64}[]
+
+function tga_entry(st, binder, given; by_phase::Bool = false)
+    tg = thermogram(st, literature_windows(st, given); temperatures = TGA_TEMPERATURES)
+    per100 = 100 * 1000 / binder          # kg of the state → g per 100 g of binder
+    out = Dict{String, Any}(
+        "mass" => [finite(per100 * m) for m in tg.mass],
+        "dtg" => [finite(per100 * d) for d in tg.dtg],
+    )
+    if by_phase
+        lost = sort!([k => v[end] for (k, v) in tg.by_phase]; by = last, rev = true)
+        keep = [k for (k, v) in lost if per100 * v > 0.01]   # a hundredth of a gram per 100 g
+        out["by_phase"] = Dict{String, Any}("labels" => keep, "series" => [[finite(per100 * x) for x in tg.by_phase[k]] for k in keep])
+    end
+    return out
+end
+
+# A window as the page lists it: the release it is for, its ends in °C (where 1 %
+# and 99 % of a logistic peak are released), its form and its source.
+function window_entry(w)
+    lo, hi = window_interval(w)
+    return Dict{String, Any}(
+        "key" => release_key(w.phase, w.releases), "from" => finite(lo - T_ZERO_CELSIUS), "to" => finite(hi - T_ZERO_CELSIUS),
+        "shape" => String(w.shape), "source" => w.midpoint.source,
+    )
+end
+
+"""
+The thermograms of a calculation's states, the sources of their windows, and for
+each release of their solids the window used, whether the script set it, and
+the literature's.
+"""
+function tga_series(states, binder, given)
+    entries = [tga_entry(st, binder, given; by_phase = length(states) == 1) for st in states]
+    used = unique(w -> (w.phase, w.releases), (w for st in states for w in literature_windows(st, given)))
+    literature = Dict(release_key(w.phase, w.releases) => window_entry(w) for st in states for w in literature_windows(st))
+    own = Set((w.phase, w.releases) for w in given)
+    windows = map(used) do w
+        e = window_entry(w)
+        e["own"] = (w.phase, w.releases) in own
+        e["literature"] = get(literature, e["key"], nothing)
+        return e
+    end
+    sources = sort!(unique(w.midpoint.source for w in used if !((w.phase, w.releases) in own)))
+    return Dict{String, Any}("temperature" => collect(TGA_CELSIUS), "states" => entries, "sources" => sources, "windows" => windows)
 end
 
 "Volume fractions of the points of a path, as one series per phase."

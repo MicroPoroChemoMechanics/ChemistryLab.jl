@@ -91,7 +91,11 @@ enthalpies of formation of the oxides themselves, ``\Delta_f H_{ox}``, come
 from a reference the caller chooses, so that the glass can be put on the scale
 of the database of the calculation it enters; the oxides of the analysis other
 than the four, Fe₂O₃, Na₂O, K₂O, TiO₂, MnO, are counted as their crystals, with
-no enthalpy of vitrification (assumed). At a temperature other than 298.15 K,
+no enthalpy of vitrification (assumed). SO₃ has no crystal in the databases: it
+is counted as anhydrite less lime,
+``\Delta_f H_{\mathrm{SO_3}} = \Delta_f H_{\mathrm{CaSO_4}} - \Delta_f H_{\mathrm{CaO}}``,
+the sulfate taken as bound to the lime of the glass as it is in a calcium
+sulfate, rather than as a free oxide. At a temperature other than 298.15 K,
 the heat capacity of section 1 is integrated, an oxide it does not cover taking
 that of its crystal, as [Richet1987](@citet) prescribes.
 

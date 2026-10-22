@@ -145,6 +145,51 @@ extents = [
 ]
 
 [[entry]]
+id = "pc-siliceous-fly-ash-rilem-kinetics"
+title = "Portland cement with 30 % siliceous fly ash in time, by rate laws"
+designation = "PC + 30 % siliceous fly ash"
+process = "kinetics"
+level = "expert"
+sources = ["Durdzinski2017", "Lavergne2018", "LothenbachWinnefeld2006"]
+summary = "The paste PC-SFA of the RILEM round robin (Durdzinski et al. 2017) hydrating over 90 days at 20 °C: the clinker phases by the law of Parrott and Killoh, and the glass of the fly ash by the law of Waller with the set Lavergne et al. (2018) give for a fly ash, which was not fitted to this one, so that its degree of reaction is an illustration. The glass, known by its oxides, takes a formula written from them, and an enthalpy estimated from them. The quartz and the mullite stay inert."
+
+[entry.model]
+version = 2
+title = "PC with 30 % siliceous fly ash, in time"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)", add = ["Qtz"] }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.4, temperature = 20.0 }
+
+[entry.model.calculation]
+kind = "kinetics"
+horizon = 90.0
+ages = [1.0, 7.0, 28.0, 90.0]
+calorimeter = { kind = "isothermal" }
+rates = [
+    { key = "C3S", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C2S", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C3A", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C4AF", value = { kind = "parrott_killoh_avrami" } },
+    { key = "glass", value = { kind = "waller", preset = "fly_ash" } },
+]
+
+[[entry.model.materials]]
+kind = "template"
+template = "PC (Durdzinski 2017), Bogue"
+fraction = 0.7
+extents = []
+
+[[entry.model.materials]]
+kind = "template"
+template = "siliceous fly ash (Durdzinski 2017)"
+fraction = 0.3
+extents = [
+    { key = "Quartz", value = { kind = "constant", value = 0.0 } },
+    { key = "Mullite", value = { kind = "constant", value = 0.0 } },
+]
+
+[[entry]]
 id = "slag-replacement-gruyaert2010"
 title = "Slag cements: the replacement of a CEM I 52.5 N by slag"
 designation = "CEM I 52.5 N + blast-furnace slag"
@@ -209,6 +254,111 @@ fraction = 1.0
 extents = []
 
 [[entry]]
+id = "cem1-lavergne2018-kinetics-wb050"
+title = "CEM I 52.5 N of Lavergne et al. (2018) hydrating at w/b 0.50"
+designation = "CEM I 52.5 N"
+process = "kinetics"
+level = "novice"
+sources = ["Lavergne2018", "LothenbachWinnefeld2006"]
+summary = "The CEM I 52.5 N of Lavergne et al. (2018), by the Bogue composition of its clinker with its gypsum and limestone (their Table 9), at the water-to-binder ratio of their mortars, 0.50 (Table 11), hydrating over 28 days at 20 °C: its four clinker phases by the law of Parrott and Killoh with the parameters the article gives, at the reference fineness of the law; the gypsum and the calcite at equilibrium from the start. The first run compiles for a few minutes."
+
+[entry.model]
+version = 2
+title = "CEM I 52.5 N (Lavergne 2018), w/b 0.50"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)" }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.5, temperature = 20.0 }
+
+[entry.model.calculation]
+kind = "kinetics"
+horizon = 28.0
+ages = [1.0, 2.0, 7.0, 28.0]
+calorimeter = { kind = "isothermal" }
+rates = [
+    { key = "C3S", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C2S", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C3A", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C4AF", value = { kind = "parrott_killoh_avrami" } },
+]
+
+[[entry.model.materials]]
+kind = "template"
+template = "CEM I 52.5 N (Lavergne 2018)"
+fraction = 1.0
+extents = []
+
+[[entry]]
+id = "cem1-lavergne2018-kinetics-wb032"
+title = "CEM I 52.5 N of Lavergne et al. (2018) hydrating at w/b 0.32"
+designation = "CEM I 52.5 N"
+process = "kinetics"
+level = "novice"
+sources = ["Lavergne2018", "LothenbachWinnefeld2006"]
+summary = "The same cement at the lower water-to-binder ratio of their mortars, 0.32 (Table 11): the water left to the clinker caps its hydration (the factor of Parrott and Killoh, and the maximum degree of Powers), where at 0.50 it does not, which is what comparing the two runs shows."
+
+[entry.model]
+version = 2
+title = "CEM I 52.5 N (Lavergne 2018), w/b 0.32"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)" }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.32, temperature = 20.0 }
+
+[entry.model.calculation]
+kind = "kinetics"
+horizon = 28.0
+ages = [1.0, 2.0, 7.0, 28.0]
+calorimeter = { kind = "isothermal" }
+rates = [
+    { key = "C3S", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C2S", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C3A", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C4AF", value = { kind = "parrott_killoh_avrami" } },
+]
+
+[[entry.model.materials]]
+kind = "template"
+template = "CEM I 52.5 N (Lavergne 2018)"
+fraction = 1.0
+extents = []
+
+[[entry]]
+id = "cem1-lavergne2018-semiadiabatic"
+title = "CEM I 52.5 N of Lavergne et al. (2018) in a semi-adiabatic cell"
+designation = "CEM I 52.5 N"
+process = "kinetics"
+level = "expert"
+sources = ["Lavergne2018", "LothenbachWinnefeld2006"]
+summary = "The mortar C100 of Lavergne et al. (2018) in their semi-adiabatic cell (NF EN 196-9), from 20 °C over the 3.5 days of the temperature they measured (Fig. 15(a)): the 371 g of cement of the mix (Table 11), at the water-to-binder ratio of its paste, 0.5013, once the water the sand absorbs (0.9 % of its mass) is set aside. The heat capacity of the cell, 1234 J/K, is that of the vessel (380 J/K, which the article prints in kJ/K), of the 1113 g of sand and of the water it absorbs, the paste's own being added by the run; its loss is the calibration of the article (Eq. 23), 75 J/(h K) and 0.26 J/(h K²), the quadratic term in expert mode. The four clinker phases react by the law of Parrott and Killoh with the parameters of the article, and the hydrates are at equilibrium: near 53 °C ettringite and monocarbonate give way to monosulfate at one temperature, where the cell then stays for several hours while that reaction takes the heat. The run takes about ten minutes, and the first one a few more to compile."
+
+[entry.model]
+version = 3
+title = "CEM I 52.5 N (Lavergne 2018), semi-adiabatic"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)" }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.5013, temperature = 20.0, binder_mass = 371.0 }
+
+[entry.model.calculation]
+kind = "kinetics"
+horizon = 3.5
+ages = [0.5, 1.0, 2.0, 3.5]
+calorimeter = { kind = "semi_adiabatic", heat_capacity = 1234.3, loss = 0.0208333, ambient = 20.0, loss_quadratic = 7.2222e-5 }
+rates = [
+    { key = "C3S", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C2S", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C3A", value = { kind = "parrott_killoh_avrami" } },
+    { key = "C4AF", value = { kind = "parrott_killoh_avrami" } },
+]
+
+[[entry.model.materials]]
+kind = "template"
+template = "CEM I 52.5 N (Lavergne 2018)"
+fraction = 1.0
+extents = []
+
+[[entry]]
 id = "cem1-carbonation"
 title = "Carbonation of a CEM I 52.5 N paste"
 designation = "CEM I 52.5 N"
@@ -225,6 +375,36 @@ system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Win
 activity = { kind = "cemdata18", electrolyte = "KOH" }
 mix = { kind = "mix", w_b = 0.5, temperature = 20.0 }
 calculation = { kind = "carbonation", amounts = [0.0, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0], age = 28.0 }
+
+[[entry.model.materials]]
+kind = "template"
+template = "CEM I 52.5 N (Gruyaert 2010), Bogue"
+fraction = 1.0
+extents = [
+    { key = "C3S", value = { kind = "constant", value = 0.8 } },
+    { key = "C2S", value = { kind = "constant", value = 0.45 } },
+    { key = "C3A", value = { kind = "constant", value = 0.9 } },
+    { key = "C4AF", value = { kind = "constant", value = 0.6 } },
+]
+
+[[entry]]
+id = "cem1-chloride-binding-surface"
+title = "Chloride binding by a CEM I 52.5 N paste, with the surface of its C-S-H"
+designation = "CEM I 52.5 N"
+process = "salt"
+level = "expert"
+sources = ["Gruyaert2010", "Guo2018", "LothenbachWinnefeld2006"]
+summary = "The paste of the CEM I 52.5 N of Gruyaert et al. (2010) at 28 days, sodium chloride added up to 0.02 mol per 100 g of binder (0.7 % of chloride), with Friedel's and Kuzel's salts among its phases, and at each point the sites of the model of Guo et al. (2018) on its C-S-H: the chloride the AFm phases take, and what the surface binds beside them. The degrees of reaction are illustrative values."
+
+[entry.model]
+version = 3
+title = "CEM I 52.5 N paste, chloride binding"
+database = { kind = "builtin", name = "cemdata18-thermofun.json" }
+system = { kind = "phase_list", phase_list = "Portland paste (Lothenbach and Winnefeld 2006)", add = ["C4AClH10", "C4AsClH12"] }
+activity = { kind = "cemdata18", electrolyte = "KOH" }
+mix = { kind = "mix", w_b = 0.5, temperature = 20.0 }
+calculation = { kind = "salt", salt = "NaCl", amounts = [0.0, 0.0025, 0.005, 0.01, 0.02], age = 28.0 }
+surface = { kind = "csh_surface" }
 
 [[entry.model.materials]]
 kind = "template"

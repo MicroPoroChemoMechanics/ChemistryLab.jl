@@ -132,7 +132,7 @@ const Forms = (() => {
     }
     function draw() {
       if (!all.length) {
-        box.replaceChildren(make("p", { class: "hint", text: t("no_keys") }));
+        box.replaceChildren(make("p", { class: "hint", text: ctx && ctx.noKeys ? ctx.noKeys(f) : t("no_keys") }));
         return;
       }
       box.replaceChildren(...all.map((key) => {

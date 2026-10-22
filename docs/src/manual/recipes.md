@@ -237,6 +237,10 @@ heat of the run. A glass has no formula to dissolve: [`glass_species`](@ref)
 gives it one from its own oxides, and [`with_species`](@ref) puts that species
 in its place, after which it can be given a rate
 ([What a recipe puts into the equilibrium](@ref sec-theory-recipes), Section 6).
+[`with_glass_species`](@ref) does both for every glass a dictionary of rates
+names, and adds the species to the system, with an enthalpy of formation
+estimated from the oxides so that the heat of the glass counts in a
+calorimeter.
 [`integrate`](@ref) then runs the problem, with an equilibrium solver for the
 partial equilibrium of the products, as in the [kinetics tutorial](@ref
 sec-kinetics).
