@@ -9,6 +9,7 @@ Pages = ["utils.md"]
 ```@autodocs
 Modules = [ChemistryLab]
 Pages = ["ChemistryLab.jl"]
+Filter = t -> t !== ChemistryLab.clstudio
 ```
 
 ## Physical constants
