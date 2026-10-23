@@ -987,6 +987,9 @@
   /* ── start ────────────────────────────────────────────────────── */
 
   document.addEventListener("DOMContentLoaded", async () => {
+    // First, so that the separators answer the mouse even when the server
+    // does not.
+    Split.init();
     await Studio.setLanguage(Studio.savedLanguage());
     $("#lang").textContent = Studio.language() === "en" ? "FR" : "EN";
     applyTheme(savedTheme());
