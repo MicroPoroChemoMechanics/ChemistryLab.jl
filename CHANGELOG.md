@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.41.1 — the studio starts again
+
+A patch release of ChemistryLab Studio; the chemistry is unchanged.
+
+### Fixed
+
+- **The compute process of the studio could not start with 0.41.0.** The
+  environment it prepares, `@chemistrylab-studio`, bounded OptimaSolver at
+  `"0.8"`, a bound copied by hand for 0.40, and ChemistryLab 0.41.0 requires
+  OptimaSolver 0.9.3: Pkg found no version to resolve, and the studio stopped
+  at "The compute process could not start". The bounds of the packages
+  ChemistryLab declares are now read from its own `Project.toml`, so that the
+  studio's environment follows them.
+- **An environment made by an earlier version is brought up to date.** It kept
+  the bounds that version wrote, which were replaced only after ChemistryLab
+  was added, the addition they forbade; they are now replaced first. An
+  environment made by 0.40 is repaired at the first launch.
+- **Each bound is read as a compat entry.** Given to `Pkg.add` as a version
+  specification, `"0.9.3"` meant 0.9.3 exactly, and `"6, 7"` was an error.
+
 ## v0.41.0 — The studio completed: glasses in time, the surface of the C-S-H, thermograms, a cell that crosses a change of assemblage
 
 A minor release: three exported functions, a coupled run that resumes each

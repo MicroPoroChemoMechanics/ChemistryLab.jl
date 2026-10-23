@@ -137,11 +137,26 @@ environment `project`, then precompile it.
 function environment_script(project::AbstractString, spec::EnvironmentSpec; update::Bool)
     shared = startswith(project, "@")
     target = shared ? project[2:end] : environment_dir(project)
-    adds = join(("Pkg.PackageSpec(name = $(repr(p)), version = $(repr(c)))" for (p, c) in spec.packages), ", ")
+    # Each bound is a compat entry, `"0.9.3"` meaning 0.9.3 up to 0.10 and `"6, 7"`
+    # either: read as a `VersionSpec`, the first would be 0.9.3 exactly and the
+    # second is no specification at all.
+    adds = join(("Pkg.PackageSpec(name = $(repr(p)), version = Pkg.Types.semver_spec($(repr(c))))" for (p, c) in spec.packages), ", ")
     bounds = join(("Pkg.compat($(repr(p)), $(repr(c)))" for (p, c) in spec.packages), "\n")
+    # The bounds an earlier version of the studio wrote into an existing
+    # environment are replaced first: left until after the additions, they held
+    # the new version of the studio's package back. An environment made by
+    # ChemistryLab 0.40 kept `OptimaSolver = "0.8"`, and ChemistryLab 0.41.0,
+    # which requires 0.9.3, could not be added there. `Pkg.compat` reports, and
+    # does not raise, the conflict the environment holds until then.
+    held = "[" * join(("$(repr(p)) => $(repr(c))" for (p, c) in spec.packages), ", ") * "]"
     return """
     import Pkg
     Pkg.activate($(repr(target)); shared = $shared)
+    let deps = Pkg.project().dependencies
+        for (name, bound) in $held
+            haskey(deps, name) && Pkg.compat(name, bound)
+        end
+    end
     $(join(parent_lines(spec.parent), "\n"))
     Pkg.add([$adds])
     $bounds
