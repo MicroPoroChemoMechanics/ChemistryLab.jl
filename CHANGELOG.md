@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.41.2 — the studio's panels resize again
+
+A patch release of ChemistryLab Studio; the chemistry is unchanged.
+
+### Fixed
+
+- **The separators between the studio's panels did not move.** The page drew
+  them, and the cursor changed over them, but the script that drags them was
+  never started, so the three columns and the output log kept the sizes of the
+  stylesheet. Dragging a separator now resizes the panels on each side, and
+  double-clicking it restores the default; the sizes are remembered by the
+  browser.
+- **The documentation of `clstudio` showed as missing** on the studio's page:
+  it was also collected by the Utilities page of the API, and Documenter
+  reports such a duplicate as a missing docstring.
+
 ## v0.41.1 — the studio starts again
 
 A patch release of ChemistryLab Studio; the chemistry is unchanged.
