@@ -1,6 +1,6 @@
 using ChemistryLab
 using DynamicQuantities
-import SymPy: symbols, Sym, N, subs, factor, simplify
+import SymPyPythonCall: symbols, Sym, N, subs, factor, simplify
 
 ## construction of a Reaction by a balance calculation with symbolic numbers
 a, b, g = symbols("a b g", real = true) ;
@@ -36,7 +36,7 @@ B = B[1:(end - 1), 1:end] # to remove the H line
 pprint(B, "m_" .* symbol.(oxides), "m_" .* symbol.(hydrates))
 pprint(subs.(inv(B), Ref(Dict(a => 1.8, b => 1, g => 4))), "m_" .* symbol.(hydrates), "m_" .* symbol.(oxides))
 
-# Alkane combustion with SymPy
+# Alkane combustion with SymPyPythonCall
 n = symbols("n", real = true) ; CₙH₂ₙ₊₂ = Species(:C => n, :H => 2n + 2) ;
 O₂, H₂O, CO₂ = Species.(split("O₂ H₂O CO₂")) ;
 r = Reaction([CₙH₂ₙ₊₂, O₂], [H₂O, CO₂])

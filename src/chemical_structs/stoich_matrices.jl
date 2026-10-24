@@ -153,8 +153,13 @@ function _exact_rank(A::AbstractMatrix)
 end
 
 # The floating-point rank, kept for element types that cannot be rationalized,
-# with the same defensive fallbacks the call sites relied on before.
+# with the same defensive fallbacks the call sites relied on before. An `Int`
+# whatever the element type: the rank of a `Sym` matrix comes back as a `Sym`,
+# which `convert` turns into an integer where `Int(x)` fails on SymPyPythonCall.
 function _float_rank(A::AbstractMatrix; rtol = 1.0e-6)
+    return convert(Int, _float_rank_value(A, rtol))
+end
+function _float_rank_value(A, rtol)
     return try
         rank(A; rtol = rtol)
     catch
@@ -757,7 +762,7 @@ function StoichMatrix(
     end
     M_subset = M[:, cols_candidates]
 
-    r = Int(safe_rank(M_subset))
+    r = safe_rank(M_subset)
     if optimize_primaries
         # A pivoted QR, so WHICH components come out depends on floating-point
         # comparisons — unlike the greedy branch below, which now ranks exactly.
@@ -773,7 +778,7 @@ function StoichMatrix(
         current_matrix = zeros(eltype(M_subset), size(M_subset, 1), 0)
         for j in axes(M_subset, 2)
             candidate = hcat(current_matrix, M_subset[:, j])
-            if Int(safe_rank(candidate)) > size(current_matrix, 2)
+            if safe_rank(candidate) > size(current_matrix, 2)
                 push!(pivot_idx, j)
                 current_matrix = candidate
                 if length(pivot_idx) == r

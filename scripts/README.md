@@ -73,4 +73,4 @@ directory activates `scripts/` itself.
 |---|---|
 | `tutorial_chemical_structures.jl` | formulas, species, reactions across five databases |
 | `tutorial_database_workflows.jl` | loading and inspecting a ThermoFun database |
-| `tutorial_symbolic_reactions.jl` | symbolic manipulation of reactions (needs SymPy) |
+| `tutorial_symbolic_reactions.jl` | symbolic manipulation of reactions (SymPyPythonCall: its first load installs Python and SymPy) |
