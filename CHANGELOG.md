@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.41.3 — reactions with SymPy coefficients through SymPyPythonCall
+
+A patch release. The chemistry is unchanged.
+
+### Fixed
+
+- **A reaction whose coefficients are SymPy symbols could not be built with
+  SymPyPythonCall.** The rank of its stoichiometric matrix came back as a
+  `Sym`, and `Int(x)` on it fails with SymPyPythonCall, where SymPy.jl accepted
+  it, so `Reaction`, `StoichMatrix` and every balance on symbolic species threw
+  a `MethodError`. The rank is now an integer whatever the element type, as its
+  documentation says. The case is tested, against a combustion balanced by
+  hand, in the environment of `test/extensions`, which now loads
+  SymPyPythonCall.
+
+### Changed
+
+- **The scripts use SymPyPythonCall instead of SymPy.jl**, as TensND and
+  MeanFieldHomogenization do: a single bridge to Python, PythonCall, for the
+  three packages. `scripts/Project.toml` no longer depends on PyCall, so the
+  bound that excluded PyCall 1.97.0 is gone with it. The first load installs
+  Python and SymPy through CondaPkg; nothing has to be configured by hand.
+
 ## v0.41.2 — the studio's panels resize again
 
 A patch release of ChemistryLab Studio; the chemistry is unchanged.

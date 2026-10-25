@@ -4,6 +4,7 @@
 # coverage job of the CI runs this file after the suite.
 #     julia --project=test/extensions test/extensions/runtests.jl
 using ChemistryLab, DynamicQuantities, SymbolicNumericIntegration, Test
+import SymPyPythonCall
 
 @testset "SymbolicNumericIntegrationExt: a model from its heat capacity" begin
     @test Base.get_extension(ChemistryLab, :SymbolicNumericIntegrationExt) !== nothing
@@ -41,4 +42,20 @@ using ChemistryLab, DynamicQuantities, SymbolicNumericIntegration, Test
         delete!(ChemistryLab.THERMO_MODELS, name)
         delete!(ChemistryLab.THERMO_FACTORIES, name)
     end
+end
+
+@testset "Reactions with SymPy coefficients" begin
+    # Stoichiometric coefficients may be SymPy symbols. Their matrix rank came
+    # back as a `Sym`, and `Int(x)` on it fails on SymPyPythonCall, so building
+    # such a reaction threw. The reference is the combustion balanced by hand:
+    # CₙH₂ₙ₊₂ + (3n+1)/2 O₂ = (n+1) H₂O + n CO₂.
+    n = SymPyPythonCall.symbols("n", real = true)
+    a = SymPyPythonCall.symbols("a", real = true)
+    @test ChemistryLab._float_rank([a 1; 1 a]) isa Int
+    alkane = Species(:C => n, :H => 2n + 2)
+    O₂, H₂O, CO₂ = Species.(split("O₂ H₂O CO₂"))
+    r = Reaction([alkane, O₂], [H₂O, CO₂])
+    @test SymPyPythonCall.simplify(r[O₂] + (3n + 1) / 2) == 0
+    @test SymPyPythonCall.simplify(r[H₂O] - (n + 1)) == 0
+    @test SymPyPythonCall.simplify(r[CO₂] - n) == 0
 end
