@@ -37,3 +37,9 @@ xGEMS.log
 # Python bytecode caches, written whenever a script under .github/scripts or
 # test/reference runs
 __pycache__/
+
+# Python environment that CondaPkg creates next to any environment loading
+# PythonCall (TensND -> SymPyPythonCall): docs/, scripts/, test/. Since CondaPkg
+# moved to pixi, the .gitignore it writes there no longer hides pixi.toml,
+# pixi.lock and its own files.
+.CondaPkg/
