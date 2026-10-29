@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.42.0 — Julia 1.13
+
+A minor release that changes no code: ChemistryLab now requires Julia 1.13,
+and accepts OptimaSolver 0.10, which requires it too.
+
+### Breaking changes
+
+- **Julia 1.13 or later** (`julia = "1.13"`, was `1.12`). The MPCM packages
+  stop testing Julia 1.12; the `min` job of the CI now runs 1.13. Under SemVer
+  below 1.0, this minor release is breaking whatever the API did: a package
+  bounded at `ChemistryLab = "0.41"` (the documentation of
+  MeanFieldHomogenization among them) must widen its bound to accept 0.42.
+
+### Changed
+
+- `OptimaSolver = "0.9.3, 0.10"`: OptimaSolver 0.10.0 changes no code either,
+  and requires Julia 1.13.
+
 ## v0.41.3 — reactions with SymPy coefficients through SymPyPythonCall
 
 A patch release. The chemistry is unchanged.
