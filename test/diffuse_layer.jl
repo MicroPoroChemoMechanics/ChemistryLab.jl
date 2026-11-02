@@ -213,6 +213,31 @@ end
     end
 end
 
+@testsection "pure water beside a diffuse layer: the acid-base row is searched" begin
+    # The same sites with no background electrolyte: the acid-base row, the row
+    # of the primary `H+`, then has a zero budget, and its ions hold some 1e-7 mol
+    # beside 55 mol of water. Weighed in the search of the dual Newton on the
+    # scale of the whole budget, that row counted for nothing and the search took
+    # 462 iterations; named to OptimaSolver as a row weighed by what it holds
+    # (`holdings_rows`), 36.
+    f = PHREEQC_DIFFUSE_LAYER
+    cs, st = _ddl_system(;
+        logK1 = f.logK_protonation, logK2 = f.logK_deprotonation, n_sites = f.n_sites,
+        area = f.area, m_na = 0.0, m_cl = 0.0, model = DiffuseLayer(; area = f.area),
+    )
+    b = Float64.(cs.SM.A) * Float64[ustrip(us"mol", x) for x in st.n]
+    ih = findfirst(p -> symbol(p) == "H+", cs.SM.primaries)
+    @test b[ih] == 0
+    des = DualEquilibriumSolver(cs, DiluteSolutionModel())
+    @test ChemistryLab._holdings_rows(des) == [ih]
+    ds = Ref{Any}(nothing)
+    eq, cert = solve_certified(des, (st,); b, dual_state = ds)
+    @test cert.optimal
+    @test ds[].iterations <= 100
+    # Neutral, the surface and the solution together.
+    @test abs(sum(charge(sp) * ustrip(us"mol", x) for (sp, x) in zip(cs.species, eq.n))) < 1.0e-15
+end
+
 @testsection "the diffuse layer against PHREEQC, by both routes" begin
     f = PHREEQC_DIFFUSE_LAYER
     dl = DiffuseLayer(; area = f.area)

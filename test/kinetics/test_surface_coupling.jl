@@ -12,6 +12,9 @@ include("../reference_species.jl")
 
 _gc(v) = SymbolicFunc(v * u"J/mol")
 
+# The net charge of a state, in moles of charge.
+_net_charge(s) = sum(charge(sp) * ustrip(us"mol", x) for (sp, x) in zip(s.system.species, s.n))
+
 # A solid releasing calcium at a constant rate, and an inert sorbent taking some
 # of it up. The rate is constant on purpose: the kinetic half is then exactly
 # integrable, so anything that disagrees is the **equilibrium map** — which is
@@ -410,6 +413,7 @@ end
     # `Xs + Ca²⁺ + H₂O = XsOHCa⁺ + H⁺`.
     function _kinetic_host_system(;
             Γ = 1.0e-5, ssa = 1.0e5, area = ShrinkingCoreArea(BETSurfaceArea(ssa * u"m^2/kg")),
+            model = IdealSiteMixing(),
         )
         sf(sym, g) = begin
             s = Species(sym; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
@@ -426,6 +430,7 @@ end
             "Xs", free, [silanolate, calcium];
             capacity = AreaSiteDensity(Γ * u"mol/m^2"),
             support = SurfaceSupport("portlandite", "Portlandite", area; coupling = SITES_FOLLOW_HOST),
+            model,
         )
         cs = ChemicalSystem(
             AbstractSpecies[h2o, hp, oh, ca, solid, free, silanolate, calcium],
@@ -483,10 +488,8 @@ end
         # What the vanishing sites held went back to the solution: calcium and
         # charge are conserved across the solid, the solution and the surface.
         ca_total(s) = mol(s, "Portlandite") + mol(s, "Ca+2") + mol(s, "XsOHCa+")
-        z = [Float64(charge(sp)) for sp in cs.species]
-        charge_of(s) = sum(z .* Float64[ustrip(us"mol", x) for x in s.n])
         @test maximum(abs(ca_total(s) - ca_total(state)) for s in states) < 1.0e-12
-        @test maximum(abs(charge_of(s) - charge_of(state)) for s in states) < 1.0e-12
+        @test maximum(abs(_net_charge(s) - _net_charge(state)) for s in states) < 1.0e-12
         @test mol(states[end], "XsOHCa+") > 0
 
         # A declaration and a starting composition that disagree are refused, as
@@ -497,6 +500,66 @@ end
         )
         # And without a partition to solve them in, the sites go nowhere.
         @test_throws ArgumentError KineticsProblem(cs, [kr], state, (0.0u"s", t_end * u"s"))
+    end
+
+    @testset "a run that starts in pure water, its sites under a diffuse layer" begin
+        # The same host and sites, the sites under a diffuse layer, and the run
+        # starting in pure water: no calcium in the solution, so the partition of
+        # the first instant holds its acid-base row at a zero budget, its ions at
+        # 1e-7 mol/kg beside 55 mol of water. The rate is constant, so that the
+        # host is known exactly, and reads the activity of Ca²⁺, so that the
+        # right-hand side solves the partition at every evaluation. Weighed in the
+        # search of the dual Newton on the scale of the whole budget, that row
+        # counted for nothing and the run stopped at its first step (`DtNaN`):
+        # ChemistryLab names it to OptimaSolver (`holdings_rows`).
+        cs, family = _kinetic_host_system(;
+            area = BETSurfaceArea(1.0e5u"m^2/kg"), model = DiffuseLayer(; specific_area = 1.0e5u"m^2/kg"),
+        )
+        nm = symbol.(cs.species)
+        idx(s) = findfirst(==(s), nm)
+        spc(s) = cs.species[idx(s)]
+        n_host0, k_rate, t_end = 1.0e-3, 2.0e-7, 600.0
+
+        state = ChemicalState(cs)
+        set_quantity!(state, "H2O@", moles_of_water() * u"mol")
+        set_quantity!(state, "Portlandite", n_host0 * u"mol")
+        state = host_consistent_state(state)
+        @test ustrip(us"mol", state.n[idx("Ca+2")]) == 0
+
+        dissolution = Reaction(
+            OrderedDict(spc("Portlandite") => 1),
+            OrderedDict(spc("Ca+2") => 1, spc("OH-") => 2);
+            symbol = "dissolution", equal_sign = '→',
+        )
+        st = zeros(Float64, length(nm))
+        st[idx("Portlandite")] = -1.0; st[idx("Ca+2")] = 1.0; st[idx("OH-")] = 2.0
+        kr = KineticReaction(dissolution, (T, P, t, n, lna, n0) -> k_rate + 0 * lna["Ca+2"], idx("Portlandite"), st)
+        es = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer())
+        kp = KineticsProblem(cs, [kr], state, (0.0u"s", t_end * u"s"); equilibrium_solver = es)
+        times = [0.0, 300.0, 600.0]
+        sol = integrate(kp, KineticsSolver(; ode_solver = Rodas5P(), reltol = 1.0e-10, abstol = 1.0e-16, saveat = times))
+        @test sol.retcode == ReturnCode.Success
+        @test sol.t[end] ≈ t_end
+        states = speciated_states(sol, kp)
+        mol(s, x) = ustrip(us"mol", s.n[idx(x)])
+        @test [mol(s, "Portlandite") for s in states] ≈ n_host0 .- k_rate .* times rtol = 1.0e-9
+        # The first partition is pure water beside its sites: neutral, at the
+        # ionic product of water, H⁺ released by the silanols.
+        @test maximum(abs(_net_charge(s)) for s in states) < 1.0e-14
+        @test mol(states[1], "H+") > mol(states[1], "OH-")
+
+        # The row it names is that of the primary H+, in the problem of an
+        # equilibrium as in that of an implicit step, and none in a system
+        # without the proton among its primaries.
+        des = DualEquilibriumSolver(cs, DiluteSolutionModel())
+        iH = findfirst(p -> symbol(p) == "H+", cs.SM.primaries)
+        @test ChemistryLab._holdings_rows(des) == [iH]
+        p = ChemistryLab._build_params(state)
+        n0 = ChemistryLab._build_n0(state)
+        @test ChemistryLab._dual_problem(des, p, n0).holdings_rows == [iH]
+        h2o, na, cl = reference_species(("H2O@", "Na+", "Cl-"))
+        brine = ChemicalSystem(AbstractSpecies[h2o, na, cl], AbstractSpecies[h2o, na, cl])
+        @test isempty(ChemistryLab._holdings_rows(DualEquilibriumSolver(brine, DiluteSolutionModel())))
     end
 
     # A family whose complex carries a fractional coefficient, the silicate bridging
@@ -589,8 +652,6 @@ end
         mol(s, x) = ustrip(us"mol", s.n[idx(x)])
         sites(s) = mol(s, "Xs") + mol(s, "XsOH-") + mol(s, "XsOHCa+")
         ca_total(s) = mol(s, "Portlandite") + mol(s, "Ca+2") + mol(s, "XsOHCa+")
-        z = [Float64(charge(sp)) for sp in cs.species]
-        charge_of(s) = sum(z .* Float64[ustrip(us"mol", x) for x in s.n])
         for coupling in (:reactions, :species)
             kss = KineticStepSolver(cs, DiluteSolutionModel(), [kr]; coupling)
             s = state
@@ -601,7 +662,7 @@ end
             @test mol(s, "Portlandite") ≈ n_host0 - 3 * k_rate * Δt rtol = 1.0e-9
             @test sites(s) ≈ N0 * mol(s, "Portlandite") / n_host0 rtol = 1.0e-8
             @test abs(ca_total(s) - ca_total(state)) < 1.0e-12
-            @test abs(charge_of(s) - charge_of(state)) < 1.0e-12
+            @test abs(_net_charge(s) - _net_charge(state)) < 1.0e-12
         end
 
         # On a shrinking core, the budget is not a coefficient times the host.

@@ -382,9 +382,19 @@ function _dual_problem(des::DualEquilibriumSolver, p, n0, blocks = nothing)
     return _optima_dual_problem(
         des.A, float.(p.ΔₐG⁰overRT), des.lna, phases, des.idx_pure, p,
         bl.gq, bl.hq, bl.cq, bl.q0, bl.qscale, bl.Aq, Int[],
-        1:des.n_element_rows,
+        1:des.n_element_rows, _holdings_rows(des),
     )
 end
+
+# The acid-base row of the system, the row of the primary `H+`, as OptimaSolver's
+# `holdings_rows`: its budget is zero in pure water and in any neutral solution,
+# and the search of the dual Newton then weighs it by what it holds, as PHREEQC
+# judges its charge balance on the ionic strength of the iterate. Weighed on the
+# scale of the whole budget, the row of water before any solid had dissolved, its
+# ions holding 5e-8 mol beside 22 mol of water, counted for nothing in the search,
+# and a kinetic run starting there stopped at its first step. A redox row, whose
+# carriers lie on one side and must vanish, is left on the scale of the budget.
+_holdings_rows(des::DualEquilibriumSolver) = findall(p -> symbol(p) == "H+", des.system.SM.primaries)
 
 """
     SciMLBase.solve(des::DualEquilibriumSolver, state; b = nothing, ϵ = 1e-16,
