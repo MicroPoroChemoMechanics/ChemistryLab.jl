@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.42.1 — the acid–base row named to the dual Newton
+
+A patch release. Requires OptimaSolver 0.10.2.
+
+### Fixed
+
+- **A partition whose acid–base row has a zero budget could be beyond the
+  search of the dual Newton.** In pure water, or in any neutral solution, the
+  row of the primary `H+` holds nothing on balance and its ions some 1e-7 mol/kg
+  beside 55 mol of water; weighed in the search on the scale of the whole
+  budget, that row counted for nothing, and a kinetic run starting in pure
+  water, a family of surface sites with a diffuse layer in its partition,
+  stopped at its first step (`DtNaN`). ChemistryLab now names that row to
+  OptimaSolver (`holdings_rows`, new in OptimaSolver 0.10.2), which weighs it by
+  what it holds, as PHREEQC judges its charge balance on the ionic strength of
+  the iterate: pure water beside a diffuse layer is certified in 36 iterations
+  instead of 462, and such a run starts. A redox row, whose carriers lie on one
+  side and must vanish, stays on the scale of the budget, and every other solve
+  is searched as before.
+
+### Changed
+
+- `OptimaSolver = "0.10.2"` (was `"0.9.3, 0.10"`), in the package and in the
+  documentation.
+
 ## v0.42.0 — Julia 1.13
 
 A minor release that changes no code: ChemistryLab now requires Julia 1.13,
