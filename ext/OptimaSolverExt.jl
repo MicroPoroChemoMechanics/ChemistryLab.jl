@@ -204,7 +204,7 @@ function ChemistryLab._optima_dual_problem(
         A, g, lna, phases, idx_bounded, params,
         gq = nothing, hq = nothing, cq = nothing,
         q0 = Float64[], qscale = Float64[], Aq = nothing,
-        always_active = Int[], conservation_rows = nothing,
+        always_active = Int[], conservation_rows = nothing, holdings_rows = Int[],
     )
     return DualNewtonProblem(
         A, g, lna;
@@ -215,6 +215,7 @@ function ChemistryLab._optima_dual_problem(
         always_active = always_active,
         conservation_rows = conservation_rows === nothing ?
             (1:size(A, 1)) : conservation_rows,
+        holdings_rows = holdings_rows,
     )
 end
 
