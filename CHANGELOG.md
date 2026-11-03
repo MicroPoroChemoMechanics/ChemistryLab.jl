@@ -1,5 +1,51 @@
 # Changelog
 
+## v0.42.2 — the curvature of the Gibbs energy, without its Jacobian
+
+A patch release. Requires OptimaSolver 0.10.3.
+
+### Changed
+
+- **The interior point reads the diagonal of the Gibbs Hessian from the
+  activity model, not from a forward-mode Jacobian.** At every iteration
+  `OptimaSolver` needs `∂μᵢ/∂nᵢ`, and read it off the whole Jacobian of `μ`: for
+  a cement paste of 96 species with the C-S-H surface of Guo et al., six passes
+  of the activity model on dual numbers and 314 kB per iteration, 30 % of the
+  time of an equilibrium. The models of the Debye–Hückel family (HKF, Davies,
+  Truesdell–Jones, LLNL) now give it directly: each solute through its molality
+  and the ionic strength, the solvent in one pass on a dual amount of water, and
+  the gas phase, the solid solutions and the site families by forward mode over
+  their own members only, electrostatics included. Each piece differentiates the
+  model's own code, so the diagonal is the one the Jacobian gave, to rounding
+  (1e-15 measured); it costs 3.7 µs and 16 kB instead of 50 µs and 314 kB. Other
+  activity models keep the Jacobian. On that paste an equilibrium from
+  `solve(::EquilibriumSolver)` or `equilibrate_certified` takes 23 ms and
+  allocates 43 MB, against 45 ms and 107 MB with 0.42.1 and OptimaSolver 0.10.2
+  (same machine, minimum of five), the composition unchanged to 1e-12 relative;
+  without the surface, 16 ms and 26 MB against 23 ms and 77 MB.
+- **The electrostatics of a site family are evaluated once per family, not once
+  per member.** The surface charge density, the potential of a diffuse layer and
+  those of three charge planes are shared by the members of a family; each member
+  now takes its share of a field computed once.
+- **The permittivity of water is kept for the temperature and the pressure of the
+  last call**, as the Debye–Hückel coefficients already were: a diffuse layer
+  that follows the temperature evaluated the water equation of state at every
+  evaluation of its potential, 6 % of the solve.
+
+### Fixed
+
+- **The derivative of a surface of three charge planes with respect to the
+  temperature was `NaN`** with the default infinite outer capacitance. The
+  potential of the 1-plane divided a vanishing term by `C₂RT`, which is infinite
+  with an infinite derivative; the 1-plane now takes the potential of the 2-plane
+  when `C₂` is infinite, which is the same value.
+
+### Changed (dependencies)
+
+- `OptimaSolver = "0.10.3"` (was `"0.10.2"`): the diagonal is handed to the
+  interior point through `p.hdiag`, which OptimaSolver 0.10.2 read in the wrong
+  variables.
+
 ## v0.42.1 — the acid–base row named to the dual Newton
 
 A patch release. Requires OptimaSolver 0.10.2.
