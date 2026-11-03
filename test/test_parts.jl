@@ -59,6 +59,7 @@ const TEST_PARTS = Dict(
         "surface_complexation.jl",
         "ion_exchange.jl",
         "diffuse_layer.jl",
+        "hessian_diagonal.jl",
         "surface_temperature.jl",
         "charge_planes.jl",
         "csh_surface.jl",

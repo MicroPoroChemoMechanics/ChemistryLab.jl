@@ -54,11 +54,16 @@ function _hessian_diagonal(μ, q)
     end
 end
 
+# The diagonal goes to the back-end whenever the potentials provide it exactly
+# (`_hessian_diagonal_hook`): it is the one the back-end would otherwise read off
+# a forward-mode Jacobian of `μ`, for a fraction of the cost.
 function _with_constraints(q::NamedTuple, A, b, μ)
     base = merge(q, (A = A, b = b))
-    return ChemistryLab.EXACT_HESSIAN[] ?
-        merge(base, (hdiag = _hessian_diagonal(μ, q),)) : base
+    ChemistryLab.EXACT_HESSIAN[] && return merge(base, (hdiag = _hessian_diagonal(μ, q),))
+    return _with_hessian_diagonal(base, ChemistryLab._hessian_diagonal_hook(μ, q))
 end
+_with_hessian_diagonal(q, ::Nothing) = q
+_with_hessian_diagonal(q, hdiag) = merge(q, (hdiag = hdiag,))
 
 function _build_optima_opt_prob(ep::EquilibriumProblem, μ, ::Val{:linear})
     f_gibbs(x, q) = dot(x, μ(x, q))

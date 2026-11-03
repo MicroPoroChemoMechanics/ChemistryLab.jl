@@ -291,16 +291,18 @@ true
 ```
 """
 function build_potentials(cs::ChemicalSystem, model::AbstractActivityModel)
-
     # Build the activity closure once — captures precomputed indices and constants
-    lna = _scoped_lna(activity_model(cs, model))
-
-    function μ(n::AbstractVector, p)
-        return p.ΔₐG⁰overRT .+ lna(n, p)       # μ_i/RT = ΔₐG⁰_i/RT + ln(a_i)
-    end
-
-    return μ
+    return _Potentials(_scoped_lna(activity_model(cs, model)))
 end
+
+# The chemical potentials `μᵢ/RT = ΔₐG⁰ᵢ/RT + ln aᵢ` of an activity closure
+# `lna`. A callable struct rather than a closure, so that the closure stays
+# reachable: the diagonal of the Gibbs Hessian is read from it
+# ([`_hessian_diagonal_hook`](@ref)).
+struct _Potentials{L} <: Function
+    lna::L
+end
+(μ::_Potentials)(n::AbstractVector, p) = p.ΔₐG⁰overRT .+ μ.lna(n, p)
 
 # ── HKF / Debye-Hückel B-dot activity model ──────────────────────────────────
 
@@ -1875,10 +1877,36 @@ potential rather than a `NaN`. That floor is a numerical guard, not a physical
 one: Gouy-Chapman genuinely diverges as the solution runs out of ions, and a
 diffuse layer in pure water is the model outside its range of validity.
 """
-_electrostatic_ln_a(
-    ::AbstractSiteMixingModel, ::Real, ::AbstractVector, n::AbstractVector,
-    ::Real, ::Real, ::Any
-) = zero(eltype(n))
+_electrostatic_ln_a(m::AbstractSiteMixingModel, z_k, z::AbstractVector, n::AbstractVector, I::Real, T::Real, ψ_given) =
+    _member_work(m, z_k, _family_field(m, z, n, I, T, ψ_given), n, T)
+
+# The work splits into what the members of a family share, the field of the
+# surface (`_family_field`: its charge density, or the potential of its plane or
+# planes, told by the solve when it carries it), and each member's share of it
+# (`_member_work`). The field is a sum over the whole support, and for a diffuse
+# layer an evaluation of the permittivity of water: computed once per family
+# rather than once per member, as `_site_mixing_lna!` does, it costs one
+# evaluation where it cost as many as the family has members, in every pass of
+# the forward-mode derivatives. The arithmetic of each member is unchanged.
+_family_field(::AbstractSiteMixingModel, z, n, I, T, ψ_given) = nothing
+_family_field(m::ConstantCapacitance, z, n, I, T, ψ_given) = _surface_charge_density(z, n, m.area)
+# TOLD rather than computed, when the solve carries the potential as an unknown.
+# That is the whole difference between a fixed-point iteration on the activity —
+# which stops contracting above a stiffness of about five — and a Newton step
+# that has the coupling in its Jacobian.
+_family_field(::DiffuseLayer, z, n, I, T, ψ_given) = ψ_given
+_family_field(m::DiffuseLayer, z, n, I, T, ::Nothing) = diffuse_layer_potential(m, z, n, I, T)
+# On a ChargePlanes surface the field is the potential of each of its planes.
+_family_field(::ChargePlanes, c, n, I, T, ψ_given) = ψ_given
+_family_field(m::ChargePlanes, c, n, I, T, ::Nothing) = charge_planes_potentials(m, c, n, I, T)
+
+_member_work(::AbstractSiteMixingModel, z_k, field, n::AbstractVector, T) = zero(eltype(n))
+_member_work(m::ConstantCapacitance, z_k::Real, σ, n::AbstractVector, T::Real) =
+    z_k * FARADAY * σ / (m.C * R_GAS * T)
+_member_work(m::DiffuseLayer, z_k::Real, ψ, n::AbstractVector, T::Real) = m.scale * z_k * ψ
+# The member's charge on each plane times that plane's potential.
+_member_work(::ChargePlanes, c_k::Tuple, ψ, n::AbstractVector, T::Real) =
+    c_k[1] * ψ[1] + c_k[2] * ψ[2] + c_k[3] * ψ[3]
 
 function _surface_charge_density(z::AbstractVector, n::AbstractVector, area::Real)
     acc = zero(eltype(n))
@@ -1886,36 +1914,6 @@ function _surface_charge_density(z::AbstractVector, n::AbstractVector, area::Rea
         acc += z[j] * n[j]
     end
     return FARADAY * acc / area
-end
-
-function _electrostatic_ln_a(
-        m::ConstantCapacitance, z_k::Real, z::AbstractVector, n::AbstractVector,
-        ::Real, T::Real, ::Any
-    )
-    σ = _surface_charge_density(z, n, m.area)
-    return z_k * FARADAY * σ / (m.C * R_GAS * T)
-end
-
-function _electrostatic_ln_a(
-        m::DiffuseLayer, z_k::Real, z::AbstractVector, n::AbstractVector,
-        I::Real, T::Real, ψ_given
-    )
-    # TOLD rather than computed, when the solve carries the potential as an
-    # unknown. That is the whole difference between a fixed-point iteration on
-    # the activity — which stops contracting above a stiffness of about five —
-    # and a Newton step that has the coupling in its Jacobian.
-    ψ_given === nothing || return m.scale * z_k * ψ_given
-    return m.scale * z_k * diffuse_layer_potential(m, z, n, I, T)
-end
-
-# On a ChargePlanes surface the work is the member's charge on each plane times
-# that plane's potential, told by the solve or computed from the composition.
-function _electrostatic_ln_a(
-        m::ChargePlanes, c_k::Tuple, c::AbstractVector, n::AbstractVector,
-        I::Real, T::Real, ψ_given
-    )
-    ψ = ψ_given === nothing ? charge_planes_potentials(m, c, n, I, T) : ψ_given
-    return c_k[1] * ψ[1] + c_k[2] * ψ[2] + c_k[3] * ψ[3]
 end
 
 """
@@ -2083,6 +2081,10 @@ function electrostatic_stiffness(
     ]
 end
 
+# The entry of family `f` in a list given per family, `default` when none is.
+_family_entry(::Nothing, f, default) = default
+_family_entry(v, f, default) = v[f]
+
 """
     _site_mixing_lna!(out, _n, site_groups, site_models, site_denticity,
                       site_charges, I, T, ϵ, ψ_site)
@@ -2119,23 +2121,23 @@ function _site_mixing_lna!(
     for (f, (grp, mdl, dent, z)) in enumerate(
             zip(site_groups, site_models, site_denticity, site_charges)
         )
-        ψ_given = ψ_site === nothing ? nothing : ψ_site[f]
+        ψ_given = _family_entry(ψ_site, f, nothing)
         # The charge that raises the potential is the SUPPORT's, over every
         # family on it — two families on one oxide share one surface and one Ψ.
-        sup_i = support_idx === nothing ? grp : support_idx[f]
-        sup_z = support_z === nothing ? z : support_z[f]
-        nsup = Vector{ET}(undef, length(sup_i))
-        @inbounds for (j, i) in enumerate(sup_i)
-            nsup[j] = _n[i]
-        end
+        sup_i = _family_entry(support_idx, f, grp)
+        sup_z = _family_entry(support_z, f, z)
+        nsup = @view _n[sup_i]
         n_total = sum(_site_weight(mdl, dent[j]) * _n[i] for (j, i) in enumerate(grp)) + ϵ
         x = Vector{ET}(undef, length(grp))
         @inbounds for (j, i) in enumerate(grp)
             x[j] = _site_weight(mdl, dent[j]) * _n[i] / n_total
         end
+        # The field of the surface once for the family, each member's share of
+        # it below (see `_family_field`).
+        field = _family_field(mdl, sup_z, nsup, I, T, ψ_given)
         @inbounds for (k, i) in enumerate(grp)
             out[i] = log(x[k] + ϵ) + _site_excess_ln_gamma(mdl, k, x, T) +
-                _electrostatic_ln_a(mdl, z[k], sup_z, nsup, I, T, ψ_given)
+                _member_work(mdl, z[k], field, nsup, T)
         end
     end
     return out
@@ -2266,6 +2268,9 @@ struct _DebyeHuckelLna{K, G, X, M} <: Function
     idx_gas::Vector{Int}
     gas_mix::G
     mix::X
+    # the members of the gas phase, the solid solutions and the site families:
+    # the species whose activities `_gas_lna!` and `_mixing_lna!` write
+    idx_mixing::Vector{Int}
 end
 
 function _debye_huckel_lna(cs::ChemicalSystem, zv::Vector{Int8}, kernel, MT::Type)
@@ -2277,7 +2282,8 @@ function _debye_huckel_lna(cs::ChemicalSystem, zv::Vector{Int8}, kernel, MT::Typ
     M_w = ustrip(us"kg/mol", cs.species[idx_solvent][:M])
     M = promote_type(_captured_number_type(mix), MT)
     aq = _AqueousFrame(idx_solvent, cs.idx_solutes, zv, M_w)
-    return _DebyeHuckelLna{typeof(kernel), typeof(gas_mix), typeof(mix), M}(kernel, aq, cs.idx_gas, gas_mix, mix)
+    idx_mixing = sort!(unique!(vcat(cs.idx_gas, reduce(vcat, cs.ss_groups; init = Int[]), reduce(vcat, cs.site_groups; init = Int[]))))
+    return _DebyeHuckelLna{typeof(kernel), typeof(gas_mix), typeof(mix), M}(kernel, aq, cs.idx_gas, gas_mix, mix, idx_mixing)
 end
 
 _ions(cs::ChemicalSystem, zv) = [i for i in cs.idx_solutes if !iszero(zv[i])]
@@ -2291,11 +2297,7 @@ function (f::_DebyeHuckelLna{K, G, X, M})(n::AbstractVector, p) where {K, G, X, 
     out = zeros(promote_type(eltype(_n), _number_type_of(p), M, _coefficient_type(f.kernel, A, B)), length(aq.zv))
     n_w = _n[aq.idx_solvent]
     denom_mol = n_w * aq.M_w            # kg of solvent
-    I = zero(eltype(_n))
-    @inbounds for i in aq.idx_solutes
-        I = I + (_n[i] / denom_mol) * aq.zv[i]^2
-    end
-    I = I / 2
+    I = _ionic_strength(aq, _n, denom_mol)
     sqrtI = sqrt(I + ϵ)                 # regularized to avoid Dual NaN at I = 0
     _solute_lna!(out, f.kernel, aq, _n, denom_mol, I, sqrtI, A, B)
     out[aq.idx_solvent] = _solvent_row(f.kernel, aq, _n, n_w, denom_mol, I, sqrtI, A, B, ϵ)
@@ -2304,6 +2306,16 @@ function (f::_DebyeHuckelLna{K, G, X, M})(n::AbstractVector, p) where {K, G, X, 
     # either out would give its members unit activity, silently.
     _mixing_lna!(out, _n, f.mix, p, ϵ)
     return out
+end
+
+# The molal ionic strength `I = ½ Σᵢ mᵢ zᵢ²` of the frame `aq` at the amounts `_n`,
+# `denom_mol` the kilograms of solvent.
+function _ionic_strength(aq::_AqueousFrame, _n, denom_mol)
+    I = zero(promote_type(eltype(_n), typeof(denom_mol)))
+    @inbounds for i in aq.idx_solutes
+        I = I + (_n[i] / denom_mol) * aq.zv[i]^2
+    end
+    return I / 2
 end
 
 const _LN10 = log(10.0)
