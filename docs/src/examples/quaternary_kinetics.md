@@ -60,7 +60,7 @@ end
 Each paste is integrated over the six months of [Scholer2015; Table 8](@cite),
 at 20 °C, in the activity model the authors used. Neither law reads the
 equilibrium partition, so the trajectory does not depend on it: the run solves
-it at each accepted step only to report it, with the interior point, and
+it at each accepted step only to report it, with OptimaSolver alone, and
 everything below is computed on the certified replay of each run
 ([`speciated_states`](@ref)).
 

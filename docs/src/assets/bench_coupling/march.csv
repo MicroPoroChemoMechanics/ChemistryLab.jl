@@ -1,0 +1,15 @@
+case,method,reltol,steps,time_s,time_per_step_ms,deviation
+clinker_eq,ODE restarted: Rodas5P,1e-04,50,7.256,145.1,6.491e-06
+clinker_eq,ODE restarted: Rodas5P,1e-06,50,7.527,150.5,1.263e-07
+clinker_eq,ODE restarted: Rosenbrock23,1e-04,50,14.23,284.6,9.460e-06
+clinker_eq,ODE restarted: Rosenbrock23,1e-06,50,14.33,286.7,6.998e-07
+clinker_eq,ODE restarted: AutoTsit5(Rosenbrock23()),1e-04,50,12.12,242.3,2.746e-06
+clinker_eq,ODE restarted: AutoTsit5(Rosenbrock23()),1e-06,50,11.87,237.5,1.674e-06
+clinker_eq,implicit step,NaN,50,0.699,13.98,7.227e-03
+calcite,ODE restarted: Rodas5P,1e-04,50,0.4763,9.526,8.960e-16
+calcite,ODE restarted: Rodas5P,1e-06,50,0.4541,9.083,8.960e-16
+calcite,ODE restarted: Rosenbrock23,1e-04,50,0.5178,10.36,8.960e-16
+calcite,ODE restarted: Rosenbrock23,1e-06,50,0.5892,11.78,8.960e-16
+calcite,ODE restarted: AutoTsit5(Rosenbrock23()),1e-04,50,0.2021,4.042,8.960e-16
+calcite,ODE restarted: AutoTsit5(Rosenbrock23()),1e-06,50,0.2728,5.455,8.960e-16
+calcite,implicit step,NaN,50,0.02533,0.5066,4.265e-10

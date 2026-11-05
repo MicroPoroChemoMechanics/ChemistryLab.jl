@@ -93,8 +93,8 @@ end
 ```
 
 Neither law reads the equilibrium partition, so the trajectory does not depend
-on it: the run solves it at each accepted step only to report it, with the
-interior point. Every number below is computed on the certified replay of the
+on it: the run solves it at each accepted step only to report it, with
+OptimaSolver alone. Every number below is computed on the certified replay of the
 run ([`speciated_states`](@ref)).
 
 The heat is read off the certified replay of the run ([`heat_release`](@ref)),

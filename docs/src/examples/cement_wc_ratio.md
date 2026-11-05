@@ -116,10 +116,10 @@ between "the solver returned" and "the answer is proved" has been measured at
     eq = solve(solver, deepcopy(fresh); certificate = cert)
     ```
 
-    With OptimaSolver loaded, the interior point's answer is not returned as it
-    stands: the dual Newton is started from it, and the composition it
-    certifies is returned, with its certificate in `cert[]`. The absent phases
-    are then at zero, where the interior point leaves them at its lower bound.
+    With OptimaSolver loaded, Ipopt's answer is not returned as it stands: the
+    dual Newton is started from it, and the composition it certifies is
+    returned, with its certificate in `cert[]`. The absent phases are then at
+    zero, where the interior point leaves them at its lower bound.
     It is left out of the executed page for two reasons, neither of them about
     the quality of Ipopt as an optimizer: it is an extra binary dependency for a
     calculation the package can already prove, and it starts the dual Newton

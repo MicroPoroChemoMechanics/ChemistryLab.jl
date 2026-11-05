@@ -428,9 +428,10 @@ can demand more, for which no finite composition exists. It belongs to the outer
 system, where the balance determines it.
 
 !!! note "What it buys, measured"
-    On calcite in pure water the certified pH is **9.90**, where the package's
-    interior-point solve alone stops at 6.96, a point its return code does not
-    distinguish from the minimum. On the Reaktoro reference (calcite, CO₂ and
+    On calcite in pure water the interior point of OptimaSolver
+    (`algorithm = :interior_point`) alone meets the charge balance to 3 %, at a
+    point its return code does not distinguish from the minimum; the certified
+    answer meets it to `10⁻¹²`. On the Reaktoro reference (calcite, CO₂ and
     water) both routes now agree with Reaktoro on every species: above `10⁻⁵` mol
     to `10⁻³` relative, the trace ions to 5 %, the worst being `CaOH⁺` at ×1.032
     on 1.6 nmol. That reference used to carry a `@test_broken` for `CaOH⁺` at

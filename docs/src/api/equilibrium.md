@@ -8,7 +8,7 @@ Pages = ["equilibrium.md"]
 
 ```@autodocs
 Modules = [ChemistryLab]
-Pages = ["equilibrium/activities.jl"]
+Pages = ["equilibrium/activities.jl", "equilibrium/hessian_diagonal.jl"]
 ```
 
 ## Real gases

@@ -1,0 +1,13 @@
+system,entry_point,time_ms,alloc_MB
+paste,cold: certified,10.274,25.13
+paste,cold: one back end,8.889,22.78
+paste,cold: solver rebuilt,9.015,22.81
+paste,warm,4.686,14.08
+paste,warm + multipliers,2.919,4.81
+paste,warm + multipliers - report,2.483,4.34
+paste with C-S-H surface,cold: certified,18.639,43.80
+paste with C-S-H surface,cold: one back end,18.575,43.70
+paste with C-S-H surface,cold: solver rebuilt,18.503,43.75
+paste with C-S-H surface,warm,13.580,34.77
+paste with C-S-H surface,warm + multipliers,8.752,17.93
+paste with C-S-H surface,warm + multipliers - report,8.348,17.48

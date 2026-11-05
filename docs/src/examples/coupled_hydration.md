@@ -257,8 +257,9 @@ end
   - **The C-S-H is `Jennite`**, the Cemdata18 end-member normalized per silicon.
     A real C-S-H is a solid solution of varying Ca/Si; using the CSHQ solid
     solution inside a coupled run is not exercised by this package's tests.
-  - **On a cement equilibrium the interior-point optimizer usually stops at its
-    iteration limit**, and its return code is not the thing to read. `integrate`
+  - **On a cement equilibrium a return code is not the thing to read**: the
+    interior point of OptimaSolver (`algorithm = :interior_point`) usually stops
+    there at its iteration limit, on a point close to the answer. `integrate`
     reports the worst element balance instead, separating the accepted steps —
     the trajectory — from the other solves, which never enter it. The
     compositions above do not rest on that solver: [`speciated_states`](@ref)
