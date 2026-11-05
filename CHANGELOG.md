@@ -1,13 +1,32 @@
 # Changelog
 
-## v0.42.2 — the curvature of the Gibbs energy, without its Jacobian
+## v0.42.2 — Optima's active set, and the chemistry at the nodes of a host code
 
-A patch release. Requires OptimaSolver 0.10.3.
+A patch release. Requires OptimaSolver 0.11, whose default back end is now the
+active-set iteration of Optima.
 
 ### Changed
 
-- **The interior point reads the diagonal of the Gibbs Hessian from the
-  activity model, not from a forward-mode Jacobian.** At every iteration
+- **OptimaSolver's active set is the default back end, and it is handed the
+  Hessian of the Gibbs energy.** With OptimaSolver 0.11, `OptimaOptimizer()` runs
+  the active-set iteration Reaktoro computes its equilibria with instead of the
+  interior point. ChemistryLab hands it, through `p.hess`, the Hessian exact on
+  its diagonal and, off it, the coupling of an ideal solution within each phase
+  (a solute and the solvent, the members of the gas, of a solid solution, of a
+  site family), as Reaktoro approximates it: a forward-mode Jacobian of the
+  activity model would cost as many passes of it as the system has species,
+  divided by the chunk. Unpolished, the active set meets the element balance to
+  `1e-14` on calcite solutions, where the interior point stopped at `1e-9`, and
+  every certified answer is unchanged (`1e-12` relative on the paste of
+  `scripts/bench_coupling/`). The interior point stays available as
+  `OptimaOptimizer(algorithm = :interior_point)`.
+- **A page on calling the chemistry from a host code**, *Inside a host code*
+  (Manual): what an equilibrium costs at a node by entry point, which ODE
+  integrator and which tolerances to use for a kinetic step, and the march a
+  finite-element code imposes, each table read from the CSV that a script of
+  `scripts/bench_coupling/` writes.
+- **The diagonal of the Gibbs Hessian comes from the activity model, not from a
+  forward-mode Jacobian.** At every iteration
   `OptimaSolver` needs `∂μᵢ/∂nᵢ`, and read it off the whole Jacobian of `μ`: for
   a cement paste of 96 species with the C-S-H surface of Guo et al., six passes
   of the activity model on dual numbers and 314 kB per iteration, 30 % of the
@@ -18,11 +37,12 @@ A patch release. Requires OptimaSolver 0.10.3.
   their own members only, electrostatics included. Each piece differentiates the
   model's own code, so the diagonal is the one the Jacobian gave, to rounding
   (1e-15 measured); it costs 3.7 µs and 16 kB instead of 50 µs and 314 kB. Other
-  activity models keep the Jacobian. On that paste an equilibrium from
-  `solve(::EquilibriumSolver)` or `equilibrate_certified` takes 23 ms and
-  allocates 43 MB, against 45 ms and 107 MB with 0.42.1 and OptimaSolver 0.10.2
-  (same machine, minimum of five), the composition unchanged to 1e-12 relative;
-  without the surface, 16 ms and 26 MB against 23 ms and 77 MB.
+  activity models keep the Jacobian. On that paste, with the active set and its
+  Hessian above, an equilibrium from `solve(::EquilibriumSolver)` or
+  `equilibrate_certified` takes 19 ms and allocates 44 MB, against 41 ms and
+  93 MB with 0.42.1 and OptimaSolver 0.10.2 (same machine, minimum of five), the
+  composition unchanged to 1e-12 relative; without the surface, 10 ms and 23 MB
+  against 25 ms and 82 MB.
 - **The electrostatics of a site family are evaluated once per family, not once
   per member.** The surface charge density, the potential of a diffuse layer and
   those of three charge planes are shared by the members of a family; each member
@@ -32,8 +52,36 @@ A patch release. Requires OptimaSolver 0.10.3.
   that follows the temperature evaluated the water equation of state at every
   evaluation of its potential, 6 % of the solve.
 
+### Added
+
+- **`n_initial`, a keyword of `KineticsProblem`, `kinetic_step` and
+  `kinetic_step_adaptive`**: the state whose amounts the rate laws read as their
+  `n_initial` argument. A host code (a finite-element or finite-volume solver)
+  that advances the chemistry of a node by its own steps restarts a run at each
+  of them, from the state the last one ended at; a Parrott–Killoh law counts its
+  degree of hydration `1 − n/n_initial` from that state, and so restarted at
+  `α = 0` at every step. Passed the state the history started from, the
+  restarted run follows the uninterrupted one. Without it, nothing changes.
+- **`start`, a keyword of `speciated_states`**: the speciated state the run
+  starts from, typically the last state of the previous run of such a host. The
+  replay of the run's instants then starts from it, instead of seeding a chain
+  of certified solves from the start of the trajectory and walking it up to the
+  first instant, which a run whose start carries no active set needs and a
+  restarted one does not. The cast composition a replay falls back on is
+  also projected on the budget only when the other two starts have failed: the
+  projection took most of the time of a replay that certified at once. On a
+  clinker whose products are left to thermodynamics, restarted every hour of a
+  host (`scripts/bench_coupling/integrators.jl`), a step then costs 145 ms
+  instead of 417 ms, the trajectory unchanged.
+
 ### Fixed
 
+- **The two half-steps of `kinetic_step_adaptive` read different rate laws.**
+  The second half-step started from the middle of the step and read it as its
+  `n_initial`, so that a law of the degree of reaction compared, through
+  Richardson's difference, two steps of different laws. The three steps now share
+  the reference of the step, the state it starts from unless `n_initial` gives
+  another.
 - **The derivative of a surface of three charge planes with respect to the
   temperature was `NaN`** with the default infinite outer capacitance. The
   potential of the 1-plane divided a vanishing term by `C₂RT`, which is infinite
@@ -42,9 +90,10 @@ A patch release. Requires OptimaSolver 0.10.3.
 
 ### Changed (dependencies)
 
-- `OptimaSolver = "0.10.3"` (was `"0.10.2"`): the diagonal is handed to the
-  interior point through `p.hdiag`, which OptimaSolver 0.10.2 read in the wrong
-  variables.
+- `OptimaSolver = "0.11"` (was `"0.10.2"`), in the package and in the
+  documentation: the Hessian is handed to the active set through `p.hess`, new
+  in 0.11, and the diagonal to the interior point through `p.hdiag`, which
+  OptimaSolver 0.10.2 read in the wrong variables.
 
 ## v0.42.1 — the acid–base row named to the dual Newton
 
