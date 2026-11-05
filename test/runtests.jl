@@ -257,6 +257,7 @@ end
     include("kinetics/test_feasibility.jl")
     include("kinetics/test_calibration.jl")
     include("kinetics/test_implicit_step.jl")
+    include("kinetics/test_rate_reference.jl")
     include("kinetics/test_pore_humidity.jl")
     include("kinetics/test_surface_coupling.jl")
     include("kinetics/test_sorption_kinetics.jl")

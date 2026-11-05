@@ -37,8 +37,9 @@ end
     b = A * [ustrip(us"mol", x) for x in st.n]
 
     des = DualEquilibriumSolver(cs, DiluteSolutionModel())
-    # The interior point's own answer, which `equilibrate` would polish.
-    ipm = ChemistryLab._unpolished(() -> equilibrate(st, OptimaOptimizer()))
+    # The answer of the interior point of OptimaSolver, which `equilibrate`
+    # would polish: one that stops short of the conditions on this problem.
+    ipm = ChemistryLab._unpolished(() -> equilibrate(st, OptimaOptimizer(algorithm = :interior_point)))
     dual = SciMLBase.solve(des, ipm; b = b)
 
     cert = optimality_certificate(des, dual; b = b)

@@ -129,6 +129,7 @@ const TEST_PARTS = Dict(
         "kinetics/test_feasibility.jl",
         "kinetics/test_calibration.jl",
         "kinetics/test_implicit_step.jl",
+        "kinetics/test_rate_reference.jl",
         "kinetics/test_pore_humidity.jl",
         "kinetics/test_surface_coupling.jl",
     ],

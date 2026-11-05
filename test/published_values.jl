@@ -84,7 +84,8 @@
 
         eq10, eq30 = equilibrated(10.0), equilibrated(30.0)
 
-        # NOTE: on its own, one of these two interior-point solves stops at
+        # NOTE: with the interior point of OptimaSolver, its default before
+        # 0.11, one of these two solves stops at
         # `MaxIters`, short of its own stationarity test rather than short of the
         # solution, which is the same symptom the trace species showed in
         # `equilibrium_reference.jl`; since 0.31 its answer is polished by the

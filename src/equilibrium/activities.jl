@@ -2271,6 +2271,9 @@ struct _DebyeHuckelLna{K, G, X, M} <: Function
     # the members of the gas phase, the solid solutions and the site families:
     # the species whose activities `_gas_lna!` and `_mixing_lna!` write
     idx_mixing::Vector{Int}
+    # the same members phase by phase, the gas phase first when there is one:
+    # the blocks of the ideal Hessian (`_ideal_hessian!`)
+    groups::Vector{Vector{Int}}
 end
 
 function _debye_huckel_lna(cs::ChemicalSystem, zv::Vector{Int8}, kernel, MT::Type)
@@ -2283,7 +2286,8 @@ function _debye_huckel_lna(cs::ChemicalSystem, zv::Vector{Int8}, kernel, MT::Typ
     M = promote_type(_captured_number_type(mix), MT)
     aq = _AqueousFrame(idx_solvent, cs.idx_solutes, zv, M_w)
     idx_mixing = sort!(unique!(vcat(cs.idx_gas, reduce(vcat, cs.ss_groups; init = Int[]), reduce(vcat, cs.site_groups; init = Int[]))))
-    return _DebyeHuckelLna{typeof(kernel), typeof(gas_mix), typeof(mix), M}(kernel, aq, cs.idx_gas, gas_mix, mix, idx_mixing)
+    groups = vcat(isempty(cs.idx_gas) ? Vector{Int}[] : [cs.idx_gas], cs.ss_groups, cs.site_groups)
+    return _DebyeHuckelLna{typeof(kernel), typeof(gas_mix), typeof(mix), M}(kernel, aq, cs.idx_gas, gas_mix, mix, idx_mixing, groups)
 end
 
 _ions(cs::ChemicalSystem, zv) = [i for i in cs.idx_solutes if !iszero(zv[i])]

@@ -400,8 +400,8 @@ the default).
 
 The default is *not* strict, and deliberately so: the back end's convergence
 flag does not by itself indicate whether a point is the minimum on these
-problems. It reports `MaxIters` on points that are numerically excellent — pure
-water comes back flagged while giving `[H⁺]/[OH⁻] = 1.000003` — and reports
+problems. The interior point of OptimaSolver reports `MaxIters` on points that
+are numerically excellent — pure water comes back flagged while giving `[H⁺]/[OH⁻] = 1.000003` — and reports
 success on points that are not the minimum. Raising on the flag alone would
 reject good answers and would still miss the bad ones, so it is offered as an
 opt-in for callers who want the strictest possible reading.

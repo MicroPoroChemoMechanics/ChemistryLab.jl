@@ -136,4 +136,39 @@ _jacobian_diagonal(lna, n, p) = diag(ForwardDiff.jacobian(x -> lna(x, p), n))
         @test ChemistryLab._hessian_diagonal_hook(ChemistryLab._Potentials((n, p) -> n), p) === nothing
         @test ChemistryLab._hessian_diagonal_hook((n, p) -> n, p) === nothing
     end
+
+    @testset "the Hessian the active set reads" begin
+        cs = _hd_system(; gas_eos = false)
+        μ = build_potentials(cs, HKFActivityModel())
+        n = _hd_amounts(cs, rng)
+        p = _hd_params(cs, n)
+        ns = length(n)
+        H = ChemistryLab._hessian_hook(μ, p)(zeros(ns, ns), n)
+        J = ForwardDiff.jacobian(x -> μ(x, p), n)
+        at(s) = findfirst(sp -> symbol(sp) == s, cs.species)
+        # the diagonal, exact
+        @test diag(H) ≈ diag(J) rtol = 1.0e-12
+        # off it, the coupling of an ideal mixture: exact within the ideal gas,
+        # whose members' log activities are their log mole fractions
+        gas = cs.idx_gas
+        @test H[gas, gas] ≈ J[gas, gas] rtol = 1.0e-12
+        @test H[at("CO2"), at("N2")] ≈ -1 / sum(n[gas])
+        # between a solute and the solvent, and nowhere else across phases
+        w = at("H2O@")
+        @test H[at("Na+"), w] == H[w, at("Na+")] == -1 / n[w]
+        @test iszero(H[at("Na+"), at("Cl-")])
+        @test iszero(H[at("Na+"), gas[1]])
+        # an amount on the floor moves nothing: its column is zero, as the
+        # Jacobian's is
+        for s in ("Ca(CO3)@", "XbO-")
+            @test iszero(H[:, at(s)]) && iszero(J[:, at(s)])
+        end
+        # with the temperature a dual number, under its own tag
+        mine(T) = diag(ChemistryLab._hessian_hook(μ, _hd_params(cs, n; T))(zeros(typeof(T), ns, ns), n))
+        theirs(T) = diag(ForwardDiff.jacobian(x -> μ(x, _hd_params(cs, n; T)), n))
+        @test ForwardDiff.derivative(mine, 310.0) ≈ ForwardDiff.derivative(theirs, 310.0) rtol = 1.0e-10
+        # none without a diagonal to build it on
+        @test ChemistryLab._hessian_hook(ChemistryLab._Potentials((n, p) -> n), p) === nothing
+        @test ChemistryLab._hessian_hook((n, p) -> n, p) === nothing
+    end
 end

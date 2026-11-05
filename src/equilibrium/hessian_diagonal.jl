@@ -3,8 +3,9 @@
 
 # ── The diagonal of the Gibbs Hessian, without the Jacobian ───────────────────
 #
-# The interior point needs `∂μᵢ/∂nᵢ` at every iteration, and only that: the
-# diagonal of `∇²G = ∂μ/∂n` (Gibbs–Duhem). Read off a forward-mode Jacobian of
+# The interior point of OptimaSolver needs `∂μᵢ/∂nᵢ` at every iteration, and only
+# that: the diagonal of `∇²G = ∂μ/∂n` (Gibbs–Duhem); its active set needs the
+# diagonal too, and the coupling within each phase (`_ideal_hessian!` below). Read off a forward-mode Jacobian of
 # `μ` it costs `ns / chunk` evaluations of the whole activity model on dual
 # numbers — six for 66 species — for `ns` numbers out of `ns²`. On a cement
 # paste with the C-S-H surface of Guo et al. that Jacobian was 30 % of the time
@@ -56,8 +57,9 @@ the Debye–Hückel family ([`HKFActivityModel`](@ref), [`DaviesActivityModel`](
 [`TruesdellJonesActivityModel`](@ref), [`LLNLActivityModel`](@ref)), whatever
 gas, solid solutions and site families the system holds.
 """
-_has_lna_diagonal(lna) = false
-_has_lna_diagonal(::_DebyeHuckelLna) = true
+# One method rather than one per type: a method whose body is a constant emits
+# no coverage counter, and the coverage of the CI counts it as never run.
+_has_lna_diagonal(lna) = lna isa _DebyeHuckelLna
 
 """
     _lna_diagonal!(d, lna, n, p) -> d
@@ -150,16 +152,72 @@ _Floored(n::AbstractVector, floor) = _Floored{promote_type(eltype(n), typeof(flo
 Base.size(x::_Floored) = size(x.n)
 Base.@propagate_inbounds Base.getindex(x::_Floored, i::Int) = max(x.n[i], x.floor)
 
-# A vector the solute terms write their dual values into, keeping only the
+# What the solute terms write their dual values into, keeping only the
 # derivative along the tag `T`: the derivatives of all the solutes in one pass,
-# without a vector of dual numbers. Its element type is that of the derivatives
-# it keeps; it is written to, never read.
-struct _DerivativeSink{T, E, V <: AbstractVector{E}} <: AbstractVector{E}
+# without a vector of dual numbers. The solute terms only assign to it, by index,
+# so it is no `AbstractVector`: it is written to, never read.
+struct _DerivativeSink{T, V <: AbstractVector}
     d::V
 end
-_DerivativeSink{T}(d::AbstractVector) where {T} = _DerivativeSink{T, eltype(d), typeof(d)}(d)
-Base.size(s::_DerivativeSink) = size(s.d)
+_DerivativeSink{T}(d::AbstractVector) where {T} = _DerivativeSink{T, typeof(d)}(d)
 Base.@propagate_inbounds function Base.setindex!(s::_DerivativeSink{T}, v, i::Int) where {T}
     s.d[i] = ForwardDiff.extract_derivative(T, v)
     return s
+end
+
+# ── The Hessian the active set of OptimaSolver reads ──────────────────────────
+#
+# The Gibbs Hessian `∂μ/∂n` with its exact diagonal (`_lna_diagonal!`) and, off
+# the diagonal, the coupling of an ideal solution within each phase, as Reaktoro
+# approximates it (`GibbsHessian::Approx`): in the aqueous phase,
+# `∂ln mᵢ/∂n_w = ∂ln a_w/∂nᵢ = −1/n_w` between a solute and the solvent; in a phase
+# of mole fractions (the gas, a solid solution, a site family),
+# `∂ln xᵢ/∂nⱼ = −1/N` for two members of total `N`. What the activity
+# coefficients add off the diagonal, the coupling of the ions through the ionic
+# strength or the excess of a solid solution, is left out: it is second order in
+# the step, and its full Jacobian costs as many evaluations of the activity model
+# as the system has species, divided by the chunk of the forward mode.
+
+"""
+    _hessian_hook(μ, q) -> Union{Nothing, Function}
+
+The Gibbs Hessian `∂μ/∂n` at the parameters `q`, exact on its diagonal and ideal
+off it, as a function `(H, n) -> H` filling the dense matrix `H`, for the active
+set of OptimaSolver to read in place of a forward-mode Jacobian of `μ`; `nothing`
+when the potentials `μ` do not provide a diagonal (see [`_lna_diagonal!`](@ref)).
+"""
+_hessian_hook(μ, q) = nothing
+function _hessian_hook(μ::_Potentials, q)
+    _has_lna_diagonal(μ.lna) || return nothing
+    lna = μ.lna
+    return (H, n) -> _ideal_hessian!(H, lna, n, q)
+end
+
+"""
+    _ideal_hessian!(H, lna, n, p) -> H
+
+Write into `H` the Jacobian of the log activities `lna(n, p)` with its exact
+diagonal and the ideal coupling within each phase off it. The column of an amount
+at or below the activity floor is zero, as the Jacobian of `max.(n, floor)` makes
+it.
+"""
+function _ideal_hessian!(H::AbstractMatrix, f::_DebyeHuckelLna, n::AbstractVector, p)
+    fl = _activity_floor(p)
+    _n = _Floored(n, fl)
+    fill!(H, zero(eltype(H)))
+    live(j) = _above_floor(n[j], fl)
+    w = f.aq.idx_solvent
+    inv_nw = inv(_n[w])
+    for i in f.aq.idx_solutes
+        live(w) && (H[i, w] = -inv_nw)
+        live(i) && (H[w, i] = -inv_nw)
+    end
+    for grp in f.groups
+        inv_N = inv(sum(_n[j] for j in grp))
+        for i in grp, j in grp
+            i != j && live(j) && (H[i, j] = -inv_N)
+        end
+    end
+    _lna_diagonal!(view(H, LinearAlgebra.diagind(H)), f, n, p)
+    return H
 end
