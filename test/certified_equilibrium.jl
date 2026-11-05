@@ -223,9 +223,9 @@ include("reference_species.jl")
 
     @testsection "the interior point alone is wrong on this case" begin
         # Not a target value: the point is that the certified route is two orders
-        # of magnitude better on a balance the old default reported as fine.
+        # of magnitude better on a balance the interior point reports as fine.
         st = calcite()
-        eq_bar = ChemistryLab._unpolished(() -> equilibrate(calcite(), OptimaOptimizer()))
+        eq_bar = ChemistryLab._unpolished(() -> equilibrate(calcite(), OptimaOptimizer(algorithm = :interior_point)))
         eq_cert, cert = equilibrate_certified(calcite())
         @test balance_rel(st, eq_bar) > 1.0e-3      # measured at 3.0e-2
         @test balance_rel(st, eq_cert) < 1.0e-8
@@ -234,6 +234,17 @@ include("reference_species.jl")
         # than 1e-3 in pH with OptimaSolver 0.8.7, by 5e-4 since 0.8.8 limits the
         # interior point's steps on the step it actually takes.
         @test abs(pH(eq_bar) - pH(eq_cert)) > 1.0e-4
+    end
+
+    @testsection "the active set alone is right on this case" begin
+        # OptimaSolver's default since 0.11, the iteration of Optima: its step
+        # holds the residual of the balance, which the interior point's lost.
+        st = calcite()
+        eq_as = ChemistryLab._unpolished(() -> equilibrate(calcite(), OptimaOptimizer()))
+        eq_cert, cert = equilibrate_certified(calcite())
+        @test cert.optimal
+        @test balance_rel(st, eq_as) < 1.0e-8
+        @test pH(eq_as) ≈ pH(eq_cert) atol = 1.0e-6
     end
 
     @testsection "b is fixed once, not taken from each start" begin
@@ -245,7 +256,8 @@ include("reference_species.jl")
         st = calcite()
         b0 = A * [ustrip(us"mol", x) for x in st.n]
         des = DualEquilibriumSolver(cs, DiluteSolutionModel())
-        bar = ChemistryLab._unpolished(() -> equilibrate(calcite(), OptimaOptimizer()))
+        # the interior point, whose answer violates the balance
+        bar = ChemistryLab._unpolished(() -> equilibrate(calcite(), OptimaOptimizer(algorithm = :interior_point)))
         from_raw = SciMLBase.solve(des, calcite(); b = b0)
         from_bar = SciMLBase.solve(des, bar; b = b0)
         # With the same b both routes must land on the same minimum.
@@ -265,9 +277,11 @@ include("reference_species.jl")
         # of equilibrium as the certified search, without the search.
         @test balance_rel(st, equilibrate(calcite(); certify = false, certificate = cref)) < 1.0e-8
         @test cref[].optimal
-        # Its raw answer is the one the polish corrects.
-        raw = ChemistryLab._unpolished(() -> equilibrate(calcite(); certify = false))
+        # The raw answer of a back end that stops short, the interior point, is
+        # the one the polish corrects.
+        raw = ChemistryLab._unpolished(() -> equilibrate(calcite(), OptimaOptimizer(algorithm = :interior_point)))
         @test balance_rel(st, raw) > 1.0e-3
+        @test balance_rel(st, equilibrate(calcite(), OptimaOptimizer(algorithm = :interior_point))) < 1.0e-8
         @test equilibrate(calcite(); certify = true) isa ChemicalState
     end
 
@@ -301,7 +315,7 @@ include("reference_species.jl")
         # The interior point stops short on this case: on its own, the solve is
         # counted as not converged. Polished, its answer is certified and its
         # return code is not checked, even under `STRICT_CONVERGENCE`.
-        es = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer())
+        es = EquilibriumSolver(cs, DiluteSolutionModel(), OptimaOptimizer(algorithm = :interior_point))
         quiet(f) = Base.CoreLogging.with_logger(f, Base.CoreLogging.NullLogger())
         before = ChemistryLab.NONCONVERGED[]
         quiet(() -> ChemistryLab._unpolished(() -> SciMLBase.solve(es, calcite())))

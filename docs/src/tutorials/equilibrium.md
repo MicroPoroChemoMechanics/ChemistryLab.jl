@@ -77,8 +77,8 @@ state_eq
     Calling `equilibrate(state)` with no extra arguments uses sensible defaults and is usually sufficient for aqueous geochemical problems.
 
 The call above does more than it shows. [`equilibrate`](@ref) starts from every
-interior-point back end that is loaded — Ipopt, and the one `OptimaSolver`
-provides — refines each answer with the dual Newton method of `OptimaSolver`, and
+back end that is loaded — the interior point of Ipopt and the active set of
+`OptimaSolver` — refines each answer with the dual Newton method of `OptimaSolver`, and
 returns the answer whose optimality it can prove. Which back ends exist, how they compare and how one of
 them is imposed are described in [Solving an equilibrium](@ref sec-solving),
 together with the constraints other than a fixed temperature and pressure, the

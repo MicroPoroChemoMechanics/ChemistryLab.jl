@@ -266,7 +266,7 @@ end
 _replay_temperature(sol, kp, t) = _run_temperature(sol, kp, t) * u"K"
 
 """
-    speciated_states(sol, kp::KineticsProblem; times = sol.t) -> Vector{ChemicalState}
+    speciated_states(sol, kp::KineticsProblem; times = sol.t, start = nothing) -> Vector{ChemicalState}
 
 The **speciated** compositions along a solution: the kinetic species read from
 the ODE state, and the equilibrium partition recovered by re-solving `φ(bₑ)` at
@@ -309,6 +309,16 @@ certifying solve nor its continuation recovers from that, both inheriting the
 start. With the run-up that instant is certified, at stationarity 9.1e-13 and
 element balance 6.1e-15 mol.
 
+# A run that starts where a speciated state ends
+
+`start`, a state of the problem's system, is the speciated composition at the
+first instant of the run, typically the last state of the previous run of a host
+code that restarts the chemistry of a node at each of its steps. The replay then
+starts from it, and skips the seed and the run-up above, which exist for a run
+whose start carries no active set. On the clinker of
+`scripts/bench_coupling/integrators.jl`, restarted every hour, the replay of the
+end of a run then costs about as much as the run, instead of seven times as much.
+
 # Examples
 
 ```julia
@@ -319,7 +329,7 @@ volume_fractions(states[end], groups; reference = state0)
 
 See also: [`state_at`](@ref), [`reaction_extents`](@ref), [`volume_fractions`](@ref).
 """
-function speciated_states(sol, kp::KineticsProblem; times = sol.t)
+function speciated_states(sol, kp::KineticsProblem; times = sol.t, start::Union{Nothing, ChemicalState} = nothing)
     p = sol.prob.p
 
     # No equilibrium partition: the kinetic reconstruction IS the composition.
@@ -373,9 +383,8 @@ function speciated_states(sol, kp::KineticsProblem; times = sol.t)
     )
     Pv = _plain(ustrip(us"Pa", p.P_q[])) * u"Pa"
 
-    certified, t_prev = des === nothing ? (nothing, nothing) : _replay_seed(des, sol, kp, sub, times, Pv)
+    certified, t_prev, guess = _replay_start(start, des, es, sol, kp, sub, times, Pv, guess)
     uncertified = Float64[]        # instants that could not be proved optimal
-    guess = _replay_run_up(es, sol, kp, sub, times, Pv, guess)
 
     out = ChemicalState[]
     for t in times
@@ -455,6 +464,20 @@ _plain_kelvin(T) = _plain(ustrip(us"K", T)) * u"K"
 #
 # The composition of the first seed that certifies, and its time; `nothing` for
 # both when none does.
+# Where the replay starts: the last certified composition and its time, and the
+# guess of the first instant. From the seed and the run-up below without a start;
+# from the partition of the start, the answer at the first instant of the run,
+# when the caller gives one.
+function _replay_start(::Nothing, des, es, sol, kp, sub, times, Pv, guess)
+    certified, t_prev = des === nothing ? (nothing, nothing) : _replay_seed(des, sol, kp, sub, times, Pv)
+    return certified, t_prev, _replay_run_up(es, sol, kp, sub, times, Pv, guess)
+end
+function _replay_start(start::ChemicalState, des, es, sol, kp, sub, times, Pv, guess)
+    _check_same_species(start, kp.system, "start")
+    n_start = Float64[_plain(ustrip(us"mol", start.n[i])) for i in kp.idx_equilibrium]
+    return n_start, float(first(sol.t)), max.(n_start, _EQ_GUESS_FLOOR)
+end
+
 function _replay_seed(des, sol, kp::KineticsProblem, sub, times, Pv)
     p = sol.prob.p
     t1 = float(first(times))
@@ -518,12 +541,12 @@ function _replay_run_up(es, sol, kp::KineticsProblem, sub, times, Pv, guess)
     return guess
 end
 
-# CERTIFY. The interior-point solve reaches a neighborhood;
+# CERTIFY. The back end reaches a neighborhood;
 # `DualEquilibriumSolver` brings the KKT conditions to tolerance and
 # PROVES optimality, the Gibbs problem being convex. This is not a
-# refinement: on the package's calcite reference the interior-point answer
-# is pH 6.96 against a certified 9.90, and 147 % out on a trace species
-# that the test suite records as `@test_broken`.
+# refinement: on the package's calcite reference the answer of the interior
+# point of OptimaSolver, its back end before 0.11, was pH 6.96 against a
+# certified 9.90, and 147 % out on a trace species.
 #
 # Three starting points, in order of expected quality: the interior-point
 # answer for this instant; the last certified composition, whose active
@@ -534,12 +557,13 @@ end
 # composition and state, and the last certified composition.
 function _replay_certify(des, sol, kp::KineticsProblem, sub, n_eq, eq, certified, t_prev, t, Tt, Pv, be)
     p = sol.prob.p
-    cold_start = Float64[max(x, _EQ_GUESS_FLOOR) for x in p.n_eq_init]
-    _budget_clip!(cold_start, p.Ae, be)
-    _restore_feasibility!(cold_start, p.Ae, be; maxit = 100_000)
-
+    # The cast composition, projected on the budget, only when the first two
+    # starts have failed: the projection takes up to 10⁵ sweeps, and was most of
+    # the time of a replay that certified from its first start.
+    cold_start = nothing
     proved = false
-    for guess0 in (n_eq, certified, cold_start)
+    for k in 1:3
+        guess0 = k == 1 ? n_eq : k == 2 ? certified : (cold_start = _cold_replay_start(p, be))
         guess0 === nothing && continue
         try
             st_dual = SciMLBase.solve(
@@ -586,6 +610,12 @@ function _replay_certify(des, sol, kp::KineticsProblem, sub, n_eq, eq, certified
     return _replay_full_search(
         proved, n_eq, eq, certified, sub, cold_start, Tt, Pv, activity_model(p.eq_solver), be,
     )
+end
+
+function _cold_replay_start(p, be)
+    start = Float64[max(x, _EQ_GUESS_FLOOR) for x in p.n_eq_init]
+    _budget_clip!(start, p.Ae, be)
+    return _restore_feasibility!(start, p.Ae, be; maxit = 100_000)
 end
 
 # The state of the whole system at an instant: the partition `n_eq`, lifted to

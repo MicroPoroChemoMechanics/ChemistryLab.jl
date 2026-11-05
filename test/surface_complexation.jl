@@ -1099,9 +1099,9 @@ end
         @test hosts[1] ≈ hosts[2] rtol = 1.0e-8
     end
 
-    @testset "the interior point and its derivatives impose the same coupling" begin
-        # Every solver path is constrained with the coupled matrix. The interior
-        # point is checked on the titrated system above, and so is the
+    @testset "the back end and its derivatives impose the same coupling" begin
+        # Every solver path is constrained with the coupled matrix. The back
+        # end is checked on the titrated system above, and so is the
         # derivative it returns through the implicit-function route: the site
         # identity `Σ n_sites = ν n_host` holds along any change of the budget,
         # so its derivative does too.
@@ -1144,10 +1144,10 @@ end
         eq = SciMLBase.solve(esolver, st; b = A * n0)
         n = Float64[ustrip(us"mol", x) for x in eq.n]
         z = [Float64(charge(sp)) for sp in cs.species]
-        # What is under test is the matrix the interior point is constrained
-        # with, and these three identities hold only with the coupled one. Its
-        # answer is not the minimum on this system, coupled or not: measured, it
-        # stops at a host of 2.5e-4 mol where the certified minimum is 7.8e-4,
+        # What is under test is the matrix the back end is constrained with,
+        # and these three identities hold only with the coupled one. The answer
+        # of the interior point of OptimaSolver is not the minimum on this
+        # system, coupled or not: measured, it stops at a host of 2.5e-4 mol where the certified minimum is 7.8e-4,
         # and at 3.1e-4 against 5.1e-4 with a fixed budget, which is why the
         # certified route decides wherever it can.
         @test sum(n[isite]) / n[ih] ≈ ν rtol = 1.0e-6

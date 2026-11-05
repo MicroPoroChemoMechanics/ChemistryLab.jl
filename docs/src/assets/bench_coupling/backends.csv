@@ -1,0 +1,29 @@
+case,route,balance_relative,stationarity,optimal,time_s
+calcite in water,OptimaSolver active set,5.97e-15,6.14e-12,true,0.0001663
+calcite in water,OptimaSolver interior point,2.68e-09,4.50e-06,false,0.0007469
+calcite in water,Ipopt,5.97e-15,1.40e-03,false,0.004991
+calcite in water,certified route,3.84e-16,3.12e-16,true,0.000649
+calcite + 1 mmol CO2,OptimaSolver active set,5.01e-14,3.27e-14,true,0.0001515
+calcite + 1 mmol CO2,OptimaSolver interior point,1.39e-10,5.66e-10,false,0.0004689
+calcite + 1 mmol CO2,Ipopt,5.01e-14,3.95e-04,false,0.005064
+calcite + 1 mmol CO2,certified route,4.12e-15,3.12e-16,true,0.0005955
+calcite + 50 mmol CO2,OptimaSolver active set,1.94e-15,1.05e-13,true,0.0001727
+calcite + 50 mmol CO2,OptimaSolver interior point,1.19e-12,9.41e-06,false,0.0002364
+calcite + 50 mmol CO2,Ipopt,1.94e-15,6.89e-04,false,0.004823
+calcite + 50 mmol CO2,certified route,5.55e-15,3.12e-16,true,0.0005844
+pure water,OptimaSolver active set,9.35e-18,3.89e-14,true,0.0004004
+pure water,OptimaSolver interior point,8.96e-16,1.13e-04,false,0.003169
+pure water,Ipopt,1.72e-10,6.61e-04,false,0.01124
+pure water,certified route,1.28e-16,5.94e-16,true,0.0007271
+CEM I paste w/b 0.30,OptimaSolver active set,5.06e-13,6.55e-05,false,0.005484
+CEM I paste w/b 0.30,OptimaSolver interior point,3.19e-09,7.93e-03,false,0.005664
+CEM I paste w/b 0.30,Ipopt,2.34e-06,3.30e-03,false,0.6978
+CEM I paste w/b 0.30,certified route,2.45e-15,2.92e-16,true,0.03093
+CEM I paste w/b 0.45,OptimaSolver active set,4.72e-13,5.16e-04,false,0.004737
+CEM I paste w/b 0.45,OptimaSolver interior point,6.95e-09,7.96e-03,false,0.004976
+CEM I paste w/b 0.45,Ipopt,2.27e-06,3.16e-03,false,0.9709
+CEM I paste w/b 0.45,certified route,1.10e-15,1.46e-16,true,0.0102
+CEM I paste w/b 0.60,OptimaSolver active set,2.05e-12,6.56e-05,false,0.004447
+CEM I paste w/b 0.60,OptimaSolver interior point,1.21e-08,7.96e-03,false,0.005751
+CEM I paste w/b 0.60,Ipopt,2.31e-06,2.90e-03,false,0.8111
+CEM I paste w/b 0.60,certified route,7.34e-16,1.46e-16,true,0.01114

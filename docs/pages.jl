@@ -131,6 +131,9 @@ pages = [
         "Solving and integrating" => [
             "manual/solving.md",
             "manual/kinetics_syntax.md",
+            # The two above, called at every node of a transport or structural
+            # code: what each entry point and each integrator costs there.
+            "manual/coupled_computations.md",
         ],
         # How much area a solid offers, and to what. One page because the same
         # objects serve a dissolution rate law and, later, the sites a surface

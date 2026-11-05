@@ -30,9 +30,10 @@ which this page includes, so the page and the script cannot drift apart.
     global optimality. All forty instants below are certified, with element
     balances between 1e-15 and 1e-11 mol.
 
-    The interior-point solve alone would not support that claim: on this package's
-    own calcite reference it returns pH 6.96 where the certified solve gives 9.90,
-    and on these problems its return code does not distinguish the two cases.
+    A back end's answer alone would not support that claim: on this package's own
+    calcite reference the interior point of OptimaSolver
+    (`algorithm = :interior_point`) meets the charge balance to 3 % only, and its
+    return code does not distinguish that point from the minimum.
 
 ## 1. The system and the dissolution reactions
 
@@ -175,15 +176,15 @@ solution belongs. Nothing in the input fixes it.
     Each speciation warm-starts from the previous one, and the guess is first
     clipped to the element budget and projected back into `{Aₑn = bₑ, n ≥ 0}`.
     Both matter: the warm start is the equilibrium of the *previous* `bₑ`, so once
-    the sulfate is spent it demands more of it than now exists, and the
-    interior-point solve would start outside its own feasible set. Solved instead
+    the sulfate is spent it demands more of it than now exists, and the solve
+    would start outside its own feasible set. Solved instead
     from a cold guess, the map returns no hydrates at all and a pore solution at
     pH 6, while the run itself computed 2.2 mol of C-S-H.
 
     [`speciated_states`](@ref) also walks the chain **up to** the first instant
     requested, through a few earlier times whose compositions are discarded. That
-    instant has no predecessor of its own, and without the run-up its
-    interior-point answer held 56 interior species where the answer has 25 — every
+    instant has no predecessor of its own, and without the run-up the answer of
+    its back end held 56 interior species where the answer has 25 — every
     candidate hydrate present, four of them at 1e-5 to 1e-6 mol — which no
     certifying Newton recovers from, since it inherits the start.
 

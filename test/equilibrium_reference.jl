@@ -188,7 +188,8 @@ const N_H2O, N_CAL, N_CO2 = RK.n_H2O, RK.n_Cal, RK.n_CO2
         # What the route does guarantee is asserted instead: on its own, it says
         # that it did not converge, and the point it returns conserves matter.
         stw = ChemicalState(csw, n)
-        schur = OptimaOptimizer(; nullspace_step = false)
+        # a route of the interior point, which the active set does not take
+        schur = OptimaOptimizer(; algorithm = :interior_point, nullspace_step = false)
         eqs = @test_logs_own (:warn, r"MaxIters") match_mode = :any ChemistryLab._unpolished(
             () -> equilibrate(stw, schur)
         )

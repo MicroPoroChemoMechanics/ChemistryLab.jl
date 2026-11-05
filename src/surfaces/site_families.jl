@@ -690,10 +690,17 @@ function charge_planes_potentials(m::ChargePlanes, c::AbstractVector, n::Abstrac
     σ0, σ1, σ2 = FARADAY .* (s0, s1, s2) ./ m.area
     κ = sqrt(8 * _permittivity(m, T) * VACUUM_PERMITTIVITY * R_GAS * T * 1000)
     ψ2 = 2 * asinh((σ0 + σ1 + σ2) / (κ * sqrt(max(I, eps(float(one(I)))))))
-    ψ1 = ψ2 + FARADAY * (σ0 + σ1) / (m.C2 * R_GAS * T)
+    ψ1 = _outer_layer_potential(m.C2, ψ2, σ0 + σ1, T)
     ψ0 = ψ1 + FARADAY * σ0 / (m.C1 * R_GAS * T)
     return ψ0, ψ1, ψ2
 end
+
+# `ψ₁ = ψ₂ + F(σ₀ + σ₁)/(C₂RT)`, and `ψ₂` itself when the outer capacitance is
+# infinite, the 1- and 2-planes then coinciding (the default). Not left to the
+# division: a value of zero, but with a temperature carrying derivatives the
+# denominator `C₂RT` is infinite with an infinite derivative, and the derivative
+# of every potential came out `NaN`. A test on data, not on the unknowns.
+_outer_layer_potential(C2, ψ2, σ, T) = isinf(C2) ? ψ2 : ψ2 + FARADAY * σ / (C2 * R_GAS * T)
 
 """
     water_relative_permittivity(T_K, P_Pa = 1.0e5) -> Real
@@ -708,10 +715,30 @@ to a hydrating paste without saying so.
 
 It evaluates the water equation of state, in about 7 µs (measured), and a
 [`DiffuseLayer`](@ref) that follows the temperature calls it at every evaluation of
-its potential.
+its potential. The last value computed from plain numbers is kept, so that the
+evaluations of one solve, at one temperature and one pressure, pay it once.
 """
 water_relative_permittivity(T_K::Real, P_Pa::Real = P_STANDARD) =
     water_electro_props_jn(T_K, P_Pa, water_thermo_props(T_K, P_Pa)).epsilon
+
+# The last `(T, P, ε_r)` computed from plain numbers, as `hkf_debye_huckel_params`
+# keeps its coefficients: a diffuse layer that follows the temperature asks for
+# the permittivity at every evaluation of its potential, in every pass of the
+# forward-mode derivatives, and on a C-S-H surface of a cement paste the water
+# equation of state behind it was 6 % of the solve. One entry and `@atomic`, for
+# the same reasons. Dual numbers are computed each time.
+mutable struct _LastPermittivity
+    @atomic entry::NTuple{3, Float64}
+end
+const _PERMITTIVITY_LAST = _LastPermittivity((NaN, NaN, NaN))
+
+function water_relative_permittivity(T_K::Float64, P_Pa::Float64 = P_STANDARD)
+    e = @atomic _PERMITTIVITY_LAST.entry
+    (e[1] === T_K && e[2] === P_Pa) && return e[3]
+    ε = water_electro_props_jn(T_K, P_Pa, water_thermo_props(T_K, P_Pa)).epsilon
+    @atomic _PERMITTIVITY_LAST.entry = (T_K, P_Pa, ε)
+    return ε
+end
 
 """
     is_electrostatic(model) -> Bool

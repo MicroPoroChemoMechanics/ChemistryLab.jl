@@ -32,9 +32,8 @@ using LinearAlgebra
 
 Equilibrium by Newton on the KKT system, in element-potential space.
 
-Where [`EquilibriumSolver`](@ref) minimizes `G` by an interior-point method over
-all species and stops on `MaxIters` for a cement, this solves the stationarity
-conditions directly and returns a result that
+Where [`EquilibriumSolver`](@ref) minimizes `G` with a back end over all species
+and returns its last iterate, this solves the stationarity conditions directly and returns a result that
 [`optimality_certificate`](@ref) can **prove** optimal — the Gibbs problem being
 convex, the KKT conditions are sufficient.
 
@@ -43,7 +42,7 @@ mass-action law `aᵢ = exp(uᵢ − gᵢ)` and a pure phase is present exactly 
 `uᵢ = gᵢ`, absent when undersaturated: the classical phase-stability criterion.
 
 Starting from the answer of an [`EquilibriumSolver`](@ref) is the intended use —
-the interior-point method reaches a neighborhood, this reaches the conditions.
+the back end reaches a neighborhood, this reaches the conditions.
 
 The keywords are OptimaSolver's `DualNewtonOptions`: `maxit` bounds the Newton
 search, whose active set is reclassified at every iteration, and `inner_tol` and
@@ -605,8 +604,8 @@ of one Gibbs energy, and a certified equilibrium computed with them is a
 composition consistent with its own activities rather than the minimum of an
 energy. `stationarity_abs` is the stationarity residual in `RT` units, before
 the scaling `stationarity` applies. Use it to audit any solver — including
-[`EquilibriumSolver`](@ref), whose interior-point back ends return their last
-iterate without stating whether it is the minimum.
+[`EquilibriumSolver`](@ref), whose back ends return their last iterate without
+stating whether it is the minimum.
 
 The three quantities are the stationarity of the interior species, the component
 balance, and the worst saturation index among absent phases (negative when every
@@ -1116,7 +1115,8 @@ is picking a route by taste and reporting its output unproved.
 
 It is also necessary, because no single route dominates. Measured on an LC³
 equilibrium at three degrees of reaction, with the dual Newton started from each
-interior-point back end in turn:
+interior point in turn, that of OptimaSolver (`algorithm = :interior_point`) and
+Ipopt's:
 
 | degree of reaction | from `OptimaOptimizer` | from `IpoptOptimizer` |
 |---|---|---|

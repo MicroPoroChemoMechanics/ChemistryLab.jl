@@ -1072,7 +1072,8 @@ function _equilibrate_certified(
 
     # `b` is fixed ONCE, from the state as given. Letting each start define its
     # own would pose a different problem for each: a start that violates the
-    # balance — the interior point does, by 3e-6 mol on this class of problem —
+    # balance — the interior point of OptimaSolver does, by 3e-6 mol on this
+    # class of problem —
     # shifts the component totals by exactly its own infeasibility, and the dual
     # solve then certifies the answer to the shifted problem. Measured, that gave
     # two "certified" compositions 0.2 % apart on dissolved calcium, which on a
@@ -1165,7 +1166,7 @@ _stops(s::_CertifiedSearch, cert) = s.stop !== nothing && s.stop(cert)
 # reports `MaxIters` raises, the `catch` below swallows it, and the search
 # silently loses that candidate — so a caller asking for strict results gets
 # a *worse* search than a caller who did not. Measured on a CEM I paste where
-# the interior point ends on `MaxIters`: with the flag set the route returned
+# the interior point of OptimaSolver ends on `MaxIters`: with the flag set the route returned
 # an element balance of 27.6 mol, and with it clear the very same call
 # returned 1.8e-14. The result is still judged strictly, at the end of
 # `_equilibrate_certified`, which is where the flag belongs.
@@ -1223,7 +1224,8 @@ function _first_starts(s::_CertifiedSearch, lp, autostart::Bool)
     # solves of five cements, it certified at once on the cold ones, where
     # nothing from the state as given does. The other two candidates the point
     # would give never certified before a start from the state did. The
-    # interior point from it never certified at all, and cost 1.5 to 10 s. The
+    # interior point of OptimaSolver, then its only algorithm, from it never
+    # certified at all, and cost 1.5 to 10 s. The
     # point itself certified twice, both times after a start from the state had.
     # On a warm start from a neighboring answer, those two cost 10 s the state
     # did not need, and on a paste nothing certifies from, 10 s before the

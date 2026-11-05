@@ -54,11 +54,20 @@ function _hessian_diagonal(μ, q)
     end
 end
 
+# The diagonal goes to the back-end whenever the potentials provide it exactly
+# (`_hessian_diagonal_hook`): it is the one the back-end would otherwise read off
+# a forward-mode Jacobian of `μ`, for a fraction of the cost.
 function _with_constraints(q::NamedTuple, A, b, μ)
     base = merge(q, (A = A, b = b))
-    return ChemistryLab.EXACT_HESSIAN[] ?
-        merge(base, (hdiag = _hessian_diagonal(μ, q),)) : base
+    ChemistryLab.EXACT_HESSIAN[] && return merge(base, (hdiag = _hessian_diagonal(μ, q),))
+    return _with_hessian(_with_hessian_diagonal(base, ChemistryLab._hessian_diagonal_hook(μ, q)), ChemistryLab._hessian_hook(μ, q))
 end
+_with_hessian_diagonal(q, ::Nothing) = q
+_with_hessian_diagonal(q, hdiag) = merge(q, (hdiag = hdiag,))
+# The Hessian the active set reads (`p.hess`), exact on its diagonal and ideal
+# off it, in place of a forward-mode Jacobian of `μ`.
+_with_hessian(q, ::Nothing) = q
+_with_hessian(q, hess) = merge(q, (hess = hess,))
 
 function _build_optima_opt_prob(ep::EquilibriumProblem, μ, ::Val{:linear})
     f_gibbs(x, q) = dot(x, μ(x, q))
@@ -170,10 +179,10 @@ end
 
 # ── __init__: register default solver (high priority — always overrides) ──────
 #
-# Measured on the cement equilibria this package targets, once the exact
-# conservation matrix is handed over (see `_with_constraints` above):
-# OptimaSolver reaches a 4e-14 element balance and is 3 to 26 times faster than
-# Ipopt. Pass a solver explicitly to override the choice.
+# Measured by `scripts/bench_coupling/backends.jl`, unpolished: the active set of
+# OptimaSolver meets the element balance to 1e-12 on cement pastes and to 1e-14 on
+# calcite solutions, thirty to two hundred times faster than Ipopt. Pass a solver
+# explicitly to override the choice.
 
 _default_optima_solver() = OptimaOptimizer(;
     use_fd_hessian = !ChemistryLab.EXACT_HESSIAN[],

@@ -67,6 +67,8 @@ struct KineticsProblem{
     νe::Matrix{Float64}         # (M × Nₑ) equilibrium columns
     νk::Matrix{Float64}         # (M × K)  kinetic columns
     Ae::Matrix{Float64}         # (C × Nₑ) formula matrix, equilibrium partition
+    # the state whose amounts the rate laws read as `n_initial`
+    rate_reference::ChemicalState
 end
 
 """
@@ -95,6 +97,12 @@ Construct from a [`ChemicalSystem`](@ref) that has `kinetic_species` declared
     [`IsothermalCalorimeter`](@ref), or [`SemiAdiabaticCalorimeter`](@ref).
   - `activity_model`: activity model for log-activity computation (default: dilute).
   - `equilibrium_solver`: `nothing` (no re-speciation) or an [`EquilibriumSolver`](@ref).
+  - `n_initial`: a [`ChemicalState`](@ref) of the same system whose amounts the
+    rate laws read as their `n_initial` argument; `initial_state` by default. A
+    host code that restarts a run at each of its steps, from the state the last
+    one ended at, passes the state of the first: a degree of reaction
+    `1 − n/n_initial` is then counted from the start of the history, not from
+    the start of the step.
 
 # Examples
 
@@ -119,7 +127,10 @@ function _build_kinetics_problem(
         calorimeter = nothing,
         activity_model::AbstractActivityModel = DiluteSolutionModel(),
         equilibrium_solver = nothing,
+        n_initial::Union{Nothing, ChemicalState} = nothing,
     )
+    reference = something(n_initial, initial_state)
+    _check_same_species(reference, system, "n_initial")
     n_sp = length(system.species)
     idx_kin = _kinetic_partition(system, kin_rxns)
     idx_eq = setdiff(1:n_sp, idx_kin)
@@ -199,7 +210,21 @@ function _build_kinetics_problem(
         collect(Int, idx_kin),
         collect(Int, idx_eq),
         ν, νe, νk, Ae,
+        reference,
     )
+end
+
+# A state of the species of `system`, in its order: its amounts are read by
+# position.
+function _check_same_species(state::ChemicalState, system::ChemicalSystem, what::AbstractString)
+    state.system === system && return nothing
+    symbol.(state.system.species) == symbol.(system.species) || throw(
+        ArgumentError(
+            "`$what` is a state of another system: its species must be those of the problem, " *
+                "in the same order; build it on the problem's system.",
+        ),
+    )
+    return nothing
 end
 
 """
@@ -292,6 +317,7 @@ function KineticsProblem(
         calorimeter = nothing,
         activity_model::AbstractActivityModel = DiluteSolutionModel(),
         equilibrium_solver = nothing,
+        n_initial::Union{Nothing, ChemicalState} = nothing,
     )
     kin_rxns = [
         r isa KineticReaction ? r : KineticReaction(system, r)
@@ -299,7 +325,7 @@ function KineticsProblem(
     ]
     return _build_kinetics_problem(
         system, kin_rxns, initial_state, tspan;
-        calorimeter, activity_model, equilibrium_solver,
+        calorimeter, activity_model, equilibrium_solver, n_initial,
     )
 end
 
@@ -311,6 +337,7 @@ function KineticsProblem(
         calorimeter = nothing,
         activity_model::AbstractActivityModel = DiluteSolutionModel(),
         equilibrium_solver = nothing,
+        n_initial::Union{Nothing, ChemicalState} = nothing,
     )
     isempty(system.idx_kinetic) &&
         throw(
@@ -323,7 +350,7 @@ function KineticsProblem(
     kin_rxns = [KineticReaction(system, rxn) for rxn in system.reactions]
     return _build_kinetics_problem(
         system, kin_rxns, initial_state, tspan;
-        calorimeter, activity_model, equilibrium_solver,
+        calorimeter, activity_model, equilibrium_solver, n_initial,
     )
 end
 
@@ -351,6 +378,7 @@ function _with_equilibrium_solver(kp::KineticsProblem, es)
         kp.system, kp.kinetic_reactions, kp.initial_state, kp.tspan,
         kp.calorimeter, kp.activity_model, es,
         kp.idx_kinetic, kp.idx_equilibrium, kp.ν, kp.νe, kp.νk, kp.Ae,
+        kp.rate_reference,
     )
 end
 
@@ -375,7 +403,7 @@ The number type of a run of `kp`: `Float64`, or the dual type covering the
 initial state, the calorimeter and every rate law.
 """
 function _kinetics_number_type(kp::KineticsProblem)
-    R = promote_type(Float64, _amount_number_type(kp.initial_state))
+    R = promote_type(Float64, _amount_number_type(kp.initial_state), _amount_number_type(kp.rate_reference))
     for kr in kp.kinetic_reactions
         R = promote_type(R, _captured_number_type(kr.rate_fn), _captured_number_type(kr.heat_per_mol))
     end
@@ -502,6 +530,9 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
     n_sp = length(kp.system.species)
     n_initial_full = R[ustrip(us"mol", state.n[i]) for i in 1:n_sp]
     n_full = copy(n_initial_full)
+    # what the rate laws read as `n_initial`, the initial state's unless the
+    # problem was given another
+    n_rate_initial = R[ustrip(us"mol", x) for x in kp.rate_reference.n]
 
     cp_fns = _Heterogeneous([haskey(sp, :Cp⁰) ? sp[:Cp⁰] : nothing for sp in kp.system.species])
     h_fns = _Heterogeneous([haskey(sp, :ΔₐH⁰) ? sp[:ΔₐH⁰] : nothing for sp in kp.system.species])
@@ -589,6 +620,7 @@ function build_kinetics_params(kp::KineticsProblem; ϵ::Float64 = 1.0e-30, R::Ty
         kin_rxns = kin_rxns,
         species_index = species_index,
         n_initial_full = n_initial_full,
+        n_rate_initial = n_rate_initial,
         n_full = n_full,
         cp_fns = cp_fns,
         h_fns = h_fns,
@@ -2060,7 +2092,7 @@ function _rates_read_speciation(p)
     n = p.n_full
     lna = p.lna_fn(n, _lna_params(p, p.T))
     rn, rl = _ReadRecorder(n), _ReadRecorder(lna)
-    n0 = StateView(p.n_initial_full, p.species_index)
+    n0 = StateView(p.n_rate_initial, p.species_index)
     t0 = zero(_plain(p.T))
     for kr in p.kin_rxns
         kr.rate_fn(p.T, p.P, t0, StateView(rn, p.species_index), StateView(rl, p.species_index), n0)
@@ -2442,7 +2474,7 @@ function build_kinetics_ode(kp::KineticsProblem)
         # ── 4. Build StateViews (O(1) named access) ─────────────────────
         n_sv = StateView(n_full, p.species_index)
         lna_sv = StateView(lna, p.species_index)
-        n0_sv = StateView(p.n_initial_full, p.species_index)
+        n0_sv = StateView(p.n_rate_initial, p.species_index)
 
         # ── 5. Evaluate kinetic rates r(T, P, t, n, lna, n₀) ────────────
         n_rxn = length(p.kin_rxns)

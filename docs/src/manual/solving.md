@@ -22,43 +22,46 @@ ChemistryLab provides two solver extensions. Load whichever fits your workflow:
 | `Optimization`, `OptimizationIpopt` | `IpoptOptimizer` | general-purpose, robust |
 | `OptimaSolver` | `OptimaOptimizer` | preferred when available |
 
-When both are loaded, `OptimaSolver` provides the default single back end, and on
-a cement equilibrium it is the faster of the two: 0.10 s against 0.28 s for Ipopt
-on a CEM I paste at w/c = 0.45. On a small calcite system Ipopt is both faster
-(0.015 s against 0.038 s) and far more accurate on the element balance (`3e-12`
-relative against `3e-2`). Which
-back end is quicker depends on the system, so neither ordering is worth stating
-as a rule.
+When both are loaded, `OptimaSolver` provides the default single back end. Since
+OptimaSolver 0.11 it runs the active-set iteration of Optima, the one Reaktoro
+computes its equilibria with; its interior point remains available as
+`OptimaOptimizer(algorithm = :interior_point)`. Here is what each back end
+returns on its own, before the dual Newton polishes it, against the certified
+route; the balance is the worst element row relative to what it holds, the
+stationarity is scaled as the certificate scales it, and the time is the minimum
+of three runs on one thread
+(`scripts/bench_coupling/backends.jl`, see
+[Reproducing the figures](@ref sec-host-coupling-reproduce)).
 
-What is worth stating is that, as configured here, **neither of them returns a
-KKT point** on a cement. Both satisfy the element balance to `10⁻¹⁴`–`10⁻⁹` and agree on the pH to
-three decimals, while their stationarity residual sits at 133 and 136 in `RT`
-units. That does not matter for a pH, and it matters a great deal for a trace
-species or a saturation index — which is why `equilibrate` certifies by default,
-at a cost of about 1.4 s on the same paste.
+```@example solving-backends
+using ChemistryLab, Markdown, Printf # hide
+rows = let lines = readlines(joinpath(pkgdir(ChemistryLab), "docs", "src", "assets", "bench_coupling", "backends.csv")) # hide
+    [Dict(zip(split(lines[1], ','), split(l, ','))) for l in lines[2:end] if !isempty(l)] # hide
+end # hide
+table = ["| case | route | balance | stationarity | proved | time (ms) |", "|:--|:--|--:|--:|:--:|--:|"] # hide
+for r in rows # hide
+    push!(table, @sprintf("| %s | %s | %.0e | %.0e | %s | %.2f |", r["case"], r["route"], # hide
+        parse(Float64, r["balance_relative"]), parse(Float64, r["stationarity"]), # hide
+        r["optimal"] == "true" ? "yes" : "no", 1.0e3 * parse(Float64, r["time_s"]))) # hide
+end # hide
+Markdown.parse(join(table, "\n")) # hide
+```
+
+On the aqueous systems the active set returns, by itself and within a
+millisecond, an answer the certificate proves. On a cement paste no back end
+does: the active set meets the balance to `10⁻¹²` but stops short of
+stationarity, and Ipopt takes about a second. The certified route, started from those answers, proves
+the paste in a few hundredths of a second, which is why `equilibrate` certifies
+by default.
 
 ### `equilibrate(state)` does not pick one of them — it proves the answer
 
-No single back end certifies every case measured below, so the one-argument
-`equilibrate` solves by **every** route available and keeps the answer
-[`optimality_certificate`](@ref) proves optimal. Measured, with the element
-balance judged row by row against each row's own budget:
-
-| case | interior point | dual Newton | certified route |
-|:--|--:|--:|--:|
-| calcite in water, 10–40 °C | **3.0e-2** | 3.0e-12 | certified |
-| calcite + 1 mmol CO₂ | 1.0e-3 | 6.3e-13 | certified |
-| calcite + 50 mmol CO₂ | 1.3e-16 | 8.5e-14 | certified |
-| pure water | 1.3e-16 | 1.3e-16 | certified |
-| CEM I paste, w/c 0.45 and 0.60 | 1.5e-14 | 2.0e-14 | certified |
-| CEM I paste, w/c 0.30 | 7.2e-16 | 3.3e-10, **not** certified | certified |
-
-Ten of ten certified through both routes; seven through the interior point alone,
-nine through the dual Newton alone. The interior point's 3 % on the first row is
-not a tolerance: it is a **charge balance met to 3 % only**, and the reason it
-cannot be improved is that the fraction-to-boundary rule caps its step
-at 15 % of a correction the next iteration re-poses — traced over twenty-three
-iterations with the residual frozen at 3.0e-6 and `‖dn‖` decaying at `1 − α`.
+No single back end certifies every case, so the one-argument `equilibrate`
+solves by **every** route available and keeps the answer
+[`optimality_certificate`](@ref) proves optimal: each back end's answer is
+polished by the dual Newton method, and the first proved answer is returned.
+The certificate decides rather than ranks, the problem being convex whenever the
+mixing terms are, so trying several starts is exact, not heuristic.
 
 ```julia
 state_eq = equilibrate(state)                   # certified where it can be (the default)
@@ -794,4 +797,6 @@ the aqueous models in [Activity models](@ref sec-theory-activity) and the mixing
 models in [Solid solutions](@ref sec-theory-solid-solutions). What the choice of
 model costs in numbers is measured in
 [What the choice of activity model costs](@ref sec-app-activity-models) and
-[Solid solution models, in numbers](@ref sec-app-solid-solutions).
+[Solid solution models, in numbers](@ref sec-app-solid-solutions). Which entry
+point to call when a transport or structural code solves an equilibrium at each
+of its nodes is in [Inside a host code](@ref sec-host-coupling).

@@ -157,6 +157,7 @@ module ChemistryLab
 
     include("equilibrium/real_gases.jl")
     include("equilibrium/activities.jl")
+    include("equilibrium/hessian_diagonal.jl")
     include("equilibrium/pitzer.jl")
     include("equilibrium/sit.jl")
     include("equilibrium/equilibrium_problems.jl")

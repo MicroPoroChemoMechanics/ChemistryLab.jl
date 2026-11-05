@@ -196,6 +196,12 @@ One implicit kinetic step of duration `Δt` from `state`.
 `t` is the absolute time handed to rate laws that depend on it. Pass a `Ref` as
 `parameters` to receive the reaction extents `Δξ` the step found.
 
+`n_initial`, a state of the same system, gives the amounts the rate laws read as
+their `n_initial` argument; by default they read `state`, the start of the step.
+A march of steps passes the state its history started from, so that a degree of
+reaction `1 − n/n_initial` is counted from there: from `state`, a Parrott–Killoh
+law would start every step at `α = 0`.
+
 `warm_start` equilibrates the starting GUESS when the system carries solid
 solutions, leaving the component totals untouched. Keep it on: a mixing phase is
 admitted by a tangent-plane test, and from a composition where the phase is
@@ -233,6 +239,7 @@ function kinetic_step(
         t = 0.0, ϵ::Float64 = _AMOUNT_FLOOR,
         warm_start::Bool = true,
         pin_minerals = :auto,
+        n_initial::Union{Nothing, ChemicalState} = nothing,
         parameters::Union{Nothing, Base.RefValue} = nothing,
         certificate::Union{Nothing, Base.RefValue} = nothing,
     )
@@ -241,7 +248,7 @@ function kinetic_step(
     # failed further down on a plain buffer; the derivatives of a kinetic run
     # are those `integrate` carries along the trajectory.
     D = promote_type(
-        _amount_number_type(state), _captured_number_type(Δt),
+        _amount_number_type(state), _reference_number_type(n_initial), _captured_number_type(Δt),
         (_captured_number_type(kr.rate_fn) for kr in kss.reactions)...,
     )
     D <: ForwardDiff.Dual && throw(
@@ -286,7 +293,7 @@ function kinetic_step(
             par_try = Ref(Float64[])
             out = kinetic_step(
                 kss, state, Δt;
-                t = t, ϵ = ϵ, warm_start = warm_start, pin_minerals = pin,
+                t = t, ϵ = ϵ, warm_start = warm_start, pin_minerals = pin, n_initial = n_initial,
                 parameters = par_try, certificate = cert_try,
             )
             err = _certificate_error(cert_try[])
@@ -308,7 +315,7 @@ function kinetic_step(
         Float64(Δt) : ustrip(us"s", Δt)
 
     kss.coupling === :species && return _kinetic_step_eliminated(
-        kss, state, Δt_s; t = t, ϵ = ϵ,
+        kss, state, Δt_s; t = t, ϵ = ϵ, n_initial = n_initial,
         parameters = parameters, certificate = certificate,
     )
 
@@ -332,7 +339,7 @@ function kinetic_step(
     T_K = p.T
     P_Pa = p.P
     idx = des.system.dict_species
-    rates = _step_rate_closure(kss, des, T_K, P_Pa, t, n0)
+    rates = _step_rate_closure(kss, des, T_K, P_Pa, t, _rate_reference(n_initial, n0, des.system))
 
     # The scale of each extent is the one the explicit rate predicts, the only
     # one available before the step is taken, floored, for a reaction starting at
@@ -626,6 +633,17 @@ Built once per step so the `StateView`s and the initial amounts are not rebuilt
 at every residual evaluation — the residual and its Jacobian are evaluated once
 per Newton iteration, on dual numbers.
 """
+# The amounts the rate laws read as `n_initial`: those of `reference` when the
+# caller gives one, those the step starts from otherwise.
+_rate_reference(::Nothing, n0, system) = n0
+function _rate_reference(reference::ChemicalState, n0, system)
+    _check_same_species(reference, system, "n_initial")
+    return Float64[ustrip(us"mol", x) for x in reference.n]
+end
+
+_reference_number_type(::Nothing) = Float64
+_reference_number_type(reference::ChemicalState) = _amount_number_type(reference)
+
 function _step_rate_closure(kss::KineticStepSolver, des, T, P, t, n0)
     index = Dict(symbol(s) => i for (i, s) in enumerate(des.system.species))
     n0_sv = StateView(n0, index)
@@ -670,7 +688,8 @@ error of its own.
 `Δt` is the step to attempt, `max_halvings` bounds the retries, and the tolerance
 is `abstol + reltol·sⱼ` per reaction, where `sⱼ` is the **amount the extent acts
 on** — `Σᵢ |Kᵢⱼ| nᵢ`, the kinetic minerals of reaction `j` at the start of the
-step.
+step. `n_initial` is that of [`kinetic_step`](@ref), the same for the three steps:
+`state` by default, not the middle of the step for the second half.
 
 Scaling by the extent instead, `reltol·|Δξⱼ|`, does not work, and the reason is
 worth stating because it is the obvious thing to write. `Δξ ∝ Δt`, so that
@@ -696,11 +715,16 @@ function kinetic_step_adaptive(
         t = 0.0, reltol::Float64 = 1.0e-4, abstol::Float64 = 1.0e-14,
         max_halvings::Int = 12, ϵ::Float64 = _AMOUNT_FLOOR,
         warm_start::Bool = true, pin_minerals = :auto,
+        n_initial::Union{Nothing, ChemicalState} = nothing,
         parameters::Union{Nothing, Base.RefValue} = nothing,
         error_estimate::Union{Nothing, Base.RefValue} = nothing,
     )
     Δt_s = Δt isa DynamicQuantities.AbstractQuantity ? ustrip(us"s", Δt) : Float64(Δt)
     Δt_s > 0 || throw(ArgumentError("`Δt` must be positive, got $Δt_s s."))
+    # One reference for the three steps: the second half-step starts from the
+    # middle, and taking its `n_initial` from there would compare, through
+    # Richardson's difference, two steps of different rate laws.
+    reference = something(n_initial, state)
 
     # `:auto` is resolved ONCE, here, and the same choice is used for the coarse
     # step and for both half-steps. Letting each of the three resolve it on its
@@ -718,7 +742,7 @@ function kinetic_step_adaptive(
             c = Ref{Any}(nothing)
             kinetic_step(
                 kss, state, Δt_s; t = t, ϵ = ϵ, warm_start = warm_start,
-                pin_minerals = pin, certificate = c,
+                pin_minerals = pin, n_initial = reference, certificate = c,
             )
             push!(errs, _certificate_error(c[]))
         end
@@ -728,7 +752,7 @@ function kinetic_step_adaptive(
     end
 
     common = (;
-        ϵ = ϵ, warm_start = warm_start, pin_minerals = pin_fixed,
+        ϵ = ϵ, warm_start = warm_start, pin_minerals = pin_fixed, n_initial = reference,
     )
 
     # The scale the tolerance is relative to: the amount each reaction acts on.
@@ -813,6 +837,7 @@ composition the step produces.
 function _kinetic_step_eliminated(
         kss::KineticStepSolver, state::ChemicalState, Δt_s::Float64;
         t = 0.0, ϵ::Float64 = _AMOUNT_FLOOR,
+        n_initial::Union{Nothing, ChemicalState} = nothing,
         parameters::Union{Nothing, Base.RefValue} = nothing,
         certificate::Union{Nothing, Base.RefValue} = nothing,
         maxit::Int = 50,
@@ -828,6 +853,7 @@ function _kinetic_step_eliminated(
 
     index = Dict(symbol(sp) => i for (i, sp) in enumerate(system.species))
     n0_sv = StateView(n0, index)
+    nref_sv = StateView(_rate_reference(n_initial, n0, system), index)
     n_full = copy(n0)
     # The certificate of the last composition, written by `compose` below: a
     # reference rather than a binding the closure reassigns, which Julia boxes.
@@ -855,7 +881,7 @@ function _kinetic_step_eliminated(
         end
         lna_sv = StateView(collect(des.lna(nf, p)), index)
         n_sv = StateView(nf, index)
-        rates = _promoted([kr.rate_fn(p.T, p.P, t, n_sv, lna_sv, n0_sv) for kr in kss.reactions])
+        rates = _promoted([kr.rate_fn(p.T, p.P, t, n_sv, lna_sv, nref_sv) for kr in kss.reactions])
         return (q .- Δt_s .* rates), nf
     end
     # The residual and its Jacobian from one evaluation on dual numbers, under
@@ -879,7 +905,7 @@ function _kinetic_step_eliminated(
     # Newton on `nr` unknowns, from the explicit prediction. Every rate law reads
     # the same activities at n0: they are evaluated once, not once per reaction.
     lna0_sv = StateView(collect(des.lna(n0, p)), index)
-    q = Float64[Δt_s * kss.reactions[j].rate_fn(p.T, p.P, t, n0_sv, lna0_sv, n0_sv) for j in 1:nr]
+    q = Float64[Δt_s * kss.reactions[j].rate_fn(p.T, p.P, t, n0_sv, lna0_sv, nref_sv) for j in 1:nr]
     F, J, n_full = residual_and_jacobian(q)
     for _ in 1:maxit
         maximum(abs, F) <= 1.0e-14 * max(1.0, maximum(abs, q)) && break

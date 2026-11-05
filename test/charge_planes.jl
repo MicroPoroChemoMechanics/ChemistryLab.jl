@@ -135,6 +135,24 @@ end
         @test m.ε_r ≈ water_relative_permittivity(298.15) rtol = 1.0e-12
     end
 
+    @testset "the potentials differentiate through the temperature" begin
+        # With the outer capacitance infinite (the default) the 1- and 2-planes
+        # coincide, so ψ₁ = ψ₂ and so are their derivatives. Left to the
+        # division by `C₂RT`, an infinite denominator with an infinite
+        # derivative, the derivative of every potential was `NaN`.
+        c = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (-1.0, 0.5, 0.0)]
+        n = [1.0e-3, 5.0e-4, 2.0e-4]
+        ψ(m, T) = ChemistryLab.charge_planes_potentials(m, c, n, 0.1, T)
+        m = ChargePlanes(; area = 60.0, C1 = 1.1)
+        d = ForwardDiff.derivative(T -> collect(ψ(m, T)), 310.0)
+        @test all(isfinite, d)
+        @test d[2] == d[3]
+        @test ψ(m, 310.0)[2] == ψ(m, 310.0)[3]
+        # and the limit of a finite capacitance growing without bound
+        d_big = ForwardDiff.derivative(T -> collect(ψ(ChargePlanes(; area = 60.0, C1 = 1.1, C2 = 1.0e12), T)), 310.0)
+        @test d ≈ d_big rtol = 1.0e-9
+    end
+
     @testset "the charges a species puts on the planes" begin
         s = Species("XsOH2Cl"; aggregate_state = AS_SURFACE, class = SC_SURFCOMPLEX)
         @test ChemistryLab._plane_charges(s) == (0.0, 0.0, 0.0)

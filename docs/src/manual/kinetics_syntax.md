@@ -165,7 +165,7 @@ where
 | `t` | s | Current integration time |
 | `n` | mol | Moles of all species — named access via [`StateView`](@ref) |
 | `lna` | — | Log-activities — named access via `StateView` |
-| `n_initial` | mol | Initial moles — named access via `StateView` |
+| `n_initial` | mol | Initial moles, those of the problem's initial state unless its `n_initial` keyword gives another — named access via `StateView` |
 
 ### What a rate law may depend on
 
@@ -789,4 +789,7 @@ The rate laws and the provenance of their parameters are discussed in
 coupling with equilibrium in [Coupling kinetics and equilibrium](@ref sec-coupling).
 The application pages [Hydration kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics) and
 [A complete CEM I 52.5 N, through its pore solution](@ref ex-ionic-opc) use
-these objects on complete cements.
+these objects on complete cements. Which integrator and which tolerances to use
+when a transport or structural code calls the kinetics at each of its nodes, and
+how to restart a run at each of its steps, is in
+[Inside a host code](@ref sec-host-coupling).

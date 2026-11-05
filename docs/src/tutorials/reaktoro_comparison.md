@@ -133,7 +133,8 @@ were the three wrong ones.
 The criterion is now relative to the variable's own bound, which is what
 "sitting on it" means.
 
-The last column is today's answer, still from the interior-point path. What
+The last column is the answer of the interior point of OptimaSolver, which was
+then its only algorithm. What
 closed the residual ×2.47 on `CaOH⁺` was **the convergence test** (`OptimaSolver`
 0.4.1): `is_converged` used to compare the residual evaluated at the *current*
 barrier level `μ`, a quantity that vanishes at the solution of the barrier
