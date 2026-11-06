@@ -803,7 +803,9 @@ One kinetic step with its length chosen from a local error estimate.
 Takes one step of `Δt` and two of `Δt/2`, compares the extents, and accepts the
 finer pair when the estimated error is within tolerance — halving and retrying
 otherwise. Returns the accepted state, the step actually taken, and a suggestion
-for the next one.
+for the next one: the local error of a first-order step grows as `Δt²`, so the
+suggestion is `0.9·Δt/√e` for an estimated error `e` relative to the tolerance,
+between a fifth and twice the step taken.
 
 The estimate is Richardson's for a first-order method: `ξ_fine − ξ_coarse` is the
 error of the coarse step to leading order. The error controlled is therefore on
@@ -935,9 +937,10 @@ function kinetic_step_adaptive(
 
         if err <= 1 && proved
             parameters === nothing || (parameters[] = ξ_fine)
-            # First order, so the step scales as the tolerance ratio itself,
-            # capped at doubling — the usual safety factor of 0.9.
-            Δt_next = h * min(2.0, max(0.2, 0.9 / max(err, 1.0e-10)))
+            # The local error of a first-order step grows as `h²`, so the step
+            # that meets the tolerance is `h/√err`: with the usual safety factor
+            # of 0.9, at most doubled and at least a fifth.
+            Δt_next = h * min(2.0, max(0.2, 0.9 / sqrt(max(err, 1.0e-10))))
             return (fine, h, Δt_next)
         end
         h /= 2

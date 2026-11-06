@@ -230,6 +230,22 @@ using LinearAlgebra
         @test maximum(abs, A_k * (n_r .- n_0)) <= 1.0e-10 * maximum(abs, A_k * n_0)
     end
 
+    @testsection "the adaptive step: its error grows as Δt², and the next step follows" begin
+        # Calcite relaxing to the equilibrium calcium in about 10³ s. Richardson's
+        # estimate measures the local error of an implicit Euler step, `O(Δt²)`:
+        # halving the step divides it by four, and the suggested step is
+        # `0.9·Δt/√e`.
+        start = water()
+        c = amounts(equilibrate(start; model = DiluteSolutionModel()))[i_Ca]
+        kss = KineticStepSolver(cs, DiluteSolutionModel(), [law((T, P, t, n, lna, n0) -> 1.0e-3 * (c - n["Ca+2"]))])
+        e1, e2 = Ref(0.0), Ref(0.0)
+        _, h1, next1 = kinetic_step_adaptive(kss, start, 100.0; error_estimate = e1)
+        _, h2, _ = kinetic_step_adaptive(kss, start, 50.0; error_estimate = e2)
+        @test h1 == 100.0 && h2 == 50.0
+        @test e1[] / e2[] ≈ 4 rtol = 0.1
+        @test next1 ≈ h1 * clamp(0.9 / sqrt(e1[]), 0.2, 2.0)
+    end
+
     @testsection "a step the domain refuses from its start, and a singular Newton step" begin
         # Calcite absent and a constant dissolution: no extent above zero is in
         # the domain.

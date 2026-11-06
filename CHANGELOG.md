@@ -62,6 +62,11 @@ Requires OptimaSolver 0.12.
 - **A potential carried as a dual number reaches the activity model.** The
   potentials told to the site families were held in a `Vector{Any}`, which the
   promotion of the parameters could not see.
+- **`kinetic_step_adaptive` suggests the step its error calls for.** The local
+  error of an implicit Euler step grows as `Δt²`, and the next step was scaled
+  by the error ratio itself instead of its square root, so the suggestion
+  overreacted to the estimate and the steps oscillated from one to the next.
+  It is now `0.9·Δt/√e`, between a fifth and twice the step.
 - **A step no longer warns about an equilibrium it has already judged.** The
   equilibrium solved inside the eliminated step printed "did not certify
   optimality" for a trial the Newton method then refused, beside a step that
