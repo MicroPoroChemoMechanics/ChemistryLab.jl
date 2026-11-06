@@ -276,7 +276,12 @@ _number_type_of(x) = _number_type_t(typeof(x))
 
 _number_type_t(::Type{T}) where {T <: ForwardDiff.Dual} = T
 _number_type_t(::Type{<:DynamicQuantities.AbstractQuantity{T}}) where {T} = _number_type_t(T)
-_number_type_t(::Type{<:AbstractArray{T}}) where {T <: ForwardDiff.Dual} = T
+_number_type_t(::Type{A}) where {A <: AbstractArray} = _eltype_number_type(eltype(A))
+# An entry type that is a union carries its number type in one of its members: the
+# potential of a site family is absent, one value or three planes
+# (`_PotentialSlot`), and only the last two hold a derivative.
+Base.@assume_effects :foldable _eltype_number_type(E) = E isa Union ?
+    promote_type(_eltype_number_type(E.a), _eltype_number_type(E.b)) : _number_type_t(E)
 _number_type_t(::Type) = Float64
 Base.@assume_effects :foldable function _number_type_t(::Type{T}) where {T <: Union{Tuple, NamedTuple}}
     R = Float64

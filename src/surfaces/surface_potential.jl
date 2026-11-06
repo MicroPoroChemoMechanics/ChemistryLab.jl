@@ -170,6 +170,10 @@ function _surface_potential_blocks(des, state, p, n0)
     )
 end
 
+# What a family is told of its surface's potential: nothing, one potential, or
+# those of the three planes of a `ChargePlanes` surface.
+const _PotentialSlot{T} = Union{Nothing, T, NTuple{3, T}}
+
 """
     _scatter(cs, supports, q, slots = eachindex(supports)) -> Vector
 
@@ -179,7 +183,10 @@ families share a surface: a number for a single plane, a triplet for a surface
 of three planes.
 """
 function _scatter(cs::ChemicalSystem, supports::Vector{Vector{Int}}, q, slots = eachindex(supports))
-    out = Vector{Any}(nothing, length(cs.site_families))
+    # Typed by the element of `q`, so that the promotion of the parameters
+    # (`_number_type_of`) sees a dual number carried by a potential.
+    T = eltype(q)
+    out = Vector{_PotentialSlot{T}}(nothing, length(cs.site_families))
     @inbounds for (k, grp) in enumerate(supports), f in grp
         s = slots[k]
         out[f] = s isa Integer ? q[s] : (length(s) == 1 ? q[first(s)] : Tuple(q[s]))

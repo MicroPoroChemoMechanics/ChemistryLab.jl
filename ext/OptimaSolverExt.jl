@@ -17,6 +17,7 @@ using OptimaSolver: OptimaOptimizer, DualNewtonProblem, DualNewtonOptions,
     SolutionPhase, dual_newton_solve, dual_newton_tangent, kkt_certificate, lp_start
 # Read at a dual answer exactly as the certificate reads it.
 using OptimaSolver: current_g, current_h, _degenerate_conservation_rows
+using OptimaSolver: OptimaParametricProblem, OptimaProblem, OptimaOptions, solve_active_set
 using SciMLBase
 using LinearAlgebra: dot, mul!
 using DynamicQuantities
@@ -238,6 +239,33 @@ _dual_newton_options(o) = DualNewtonOptions(;
 
 function ChemistryLab._optima_dual_solve(prob, b, x0, o; y0 = nothing)
     return dual_newton_solve(prob, b, x0; opts = _dual_newton_options(o), y0 = y0)
+end
+
+# The same problem, amounts and parameters together, by the active set on the
+# master problem with parameters: `∂f/∂n` is the dual problem's gradient at the
+# parameters, and the parameters are fixed by its residuals `cq`. Returned in the
+# shape of a dual solve, so that what reads one reads the other.
+function ChemistryLab._optima_parametric_solve(prob::DualNewtonProblem, b, x0, q0, lb, o)
+    isempty(q0) && return _optima_plain_solve(prob, b, x0, lb, o)
+    pp = OptimaParametricProblem(
+        prob.A, prob.Aq, b,
+        (g, n, q, _) -> (g .= current_g(prob, q) .+ current_h(prob, n, q)),
+        (v, n, q, _) -> (v .= prob.cq(n, q, prob.params));
+        lb = lb,
+    )
+    r = solve_active_set(pp, OptimaOptions(tol = o.tol, max_iter = o.maxit, verbose = o.verbose); u0 = x0, q0 = q0)
+    return (; x = r.n, y = r.y, q = r.q, converged = r.converged, iterations = r.iterations)
+end
+
+# Without parameters, the problem of the active set on the amounts alone.
+function _optima_plain_solve(prob::DualNewtonProblem, b, x0, lb, o)
+    op = OptimaProblem(
+        prob.A, b, (n, _) -> zero(eltype(n)),
+        (g, n, _) -> (g .= current_g(prob, Float64[]) .+ current_h(prob, n, Float64[]));
+        lb = lb,
+    )
+    r = solve_active_set(op, OptimaOptions(tol = o.tol, max_iter = o.maxit, verbose = o.verbose); u0 = x0)
+    return (; x = r.n, y = r.y, q = Float64[], converged = r.converged, iterations = r.iterations)
 end
 
 ChemistryLab._optima_lp(prob, b) = lp_start(prob, b)

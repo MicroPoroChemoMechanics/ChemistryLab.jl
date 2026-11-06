@@ -46,7 +46,7 @@ The third combination, which the ODE route does not offer: a
 solid-to-solid scheme whose **products are imposed by the stoichiometry**, solved
 inside the same Gibbs minimization as the aqueous equilibrium.
 
-`coupling = :reactions` (the default) puts one constraint per reaction, so the
+`coupling = :reactions` puts one constraint per reaction, so the
 minimization still rearranges the solids and the assemblage stays thermodynamic.
 `coupling = :species` puts one per kinetic species, `nᵢ = nᵢ(0) + Σⱼ νᵢⱼ Δξⱼ`, so
 every product follows the coefficients you wrote while the aqueous phase still
@@ -72,6 +72,35 @@ The pinned species are eliminated rather than constrained, which
 Use `:reactions` when the assemblage should come from thermodynamics, the ODE
 route when no aqueous coupling is needed, and `:species` when you want a
 stoichiometric scheme with the pore solution still at equilibrium.
+
+The default, `coupling = :reactions`, solves the composition and the extents
+together, which is the faster and crosses the corners of a rate law that
+switches mechanism (the least of three rates in the model of
+[Parrott and Killoh](@cite ParrottKilloh1984)). Where that solve does not
+certify, as for rates far from saturation, it finds the same step by Newton's
+method on the extents around the equilibrium they leave: in the `:species` form
+when every kinetic species is a pure phase with a reaction of its own, as a set
+of minerals each dissolving or precipitating at its rate. That Newton method
+keeps every kinetic amount non-negative, so a mineral that is absent starts to
+precipitate from zero. On such a set of minerals, when the rates are known to be
+far from saturation (a pore solution mixed with a solution it is not in
+equilibrium with), `coupling = :species` goes to that form directly and saves
+the simultaneous attempt at every step.
+
+A step that does not certify throws a [`KineticStepError`](@ref) naming the
+condition it fails. The most common is a rate law that does not vanish when its
+mineral is absent: a floor on the reactive area (nucleation) applied to
+dissolution as well as to precipitation dissolves a mineral the state does not
+hold, and no step can conserve matter. The floor belongs to precipitation only:
+
+```math
+r = k\,a\,M\,\tilde n\,(1 - \Omega),
+\qquad
+\tilde n = \begin{cases} n & \Omega < 1 \\ \max(n,\ n_\mathrm{nuc}) & \Omega \ge 1 \end{cases}
+```
+
+with ``n`` the amount of the mineral and ``n_\mathrm{nuc}`` that of its
+nucleation floor.
 
 ### The implicit step, in full
 
@@ -107,8 +136,7 @@ next. Three implicit solves per accepted step is the price.
 
 ```julia
 cert = Ref{Any}(nothing)
-st1 = kinetic_step(kss, st0, 1.0e5u"s"; certificate = cert)
-cert[].optimal                     # read it before trusting a step much longer than 1/k
+st1 = kinetic_step(kss, st0, 1.0e5u"s"; certificate = cert)   # certified, or a KineticStepError
 st2, Δt_used, Δt_next = kinetic_step_adaptive(kss, st0, 1.0e5u"s")   # one accepted step
 ```
 
@@ -140,8 +168,9 @@ reasons [The implicit step](@ref sec-theory-implicit-step) gives:
   - `warm_start` (default `true`) equilibrates the starting **guess** of a
     system with solid solutions before the step, leaving the component totals
     untouched;
-  - `pin_minerals` (default `:auto`) tries the step with and without the kinetic
-    minerals held in the active set and keeps the answer the certificate proves.
+  - `pin_minerals` (default `:auto`), for `coupling = :reactions`, tries the
+    step with and without the kinetic minerals held in the active set and keeps
+    the answer the certificate proves.
 
 Pass `certificate = Ref{Any}(nothing)` to see the proof. It is taken on the
 augmented problem, so a kinetically held mineral is not reported as

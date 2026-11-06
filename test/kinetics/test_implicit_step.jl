@@ -236,14 +236,19 @@ using LinearAlgebra
         end
         @test q_s[] ≈ Δt * (kss.M * [k1, k2]) rtol = 1.0e-8
 
-        # Neither branch certified, minerals pinned or free: the closer of the
-        # two is returned with its certificate, and the step says so. A search
-        # held to one Newton iteration certifies neither.
-        cert = Ref{Any}(nothing)
-        @test_logs_own (:warn, r"no implicit kinetic step was certified") match_mode = :any kinetic_step(
-            KineticStepSolver(cs2, DiluteSolutionModel(), krs; maxit = 1), deepcopy(st), Δt; certificate = cert,
-        )
-        @test cert[] !== nothing && !cert[].optimal
+        # Held to one Newton iteration, no route certifies, the simultaneous solve
+        # nor the extents found around the equilibrium: no composition is
+        # returned, and the error says which condition failed.
+        err = try
+            kinetic_step(KineticStepSolver(cs2, DiluteSolutionModel(), krs; maxit = 1), deepcopy(st), Δt)
+            nothing
+        catch e
+            e
+        end
+        @test err isa KineticStepError
+        @test err.cause === :equilibrium && err.Δt == Δt
+        @test err.certificate !== nothing && !err.certificate.optimal
+        @test occursin("does not certify", sprint(showerror, err))
     end
 
     @testsection "what is refused, and why" begin
