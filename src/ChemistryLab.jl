@@ -345,6 +345,7 @@ module ChemistryLab
         CapillaryWater,
         SaturatedCuring,
         KineticStepSolver,
+        KineticStepError,
         kinetic_step,
         kinetic_step_adaptive,
         AbstractSolidSolutionModel,

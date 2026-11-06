@@ -645,6 +645,31 @@ system, satisfied only by a multiplier that must reach the mineral's own
 chemical potential, of order ``10^2``–``10^3`` in ``RT``, and the Newton
 iteration stalls at a fixed point that its line search cannot leave.
 
+**Extents found around the equilibrium.** The simultaneous Newton iteration on
+the composition and the extents fails where a rate is far from saturation: a
+pore solution mixed with an exposure solution can leave a mineral at
+``\Omega \sim 10^6``, and the step of the composition then carries the extents
+far off. Where it does not certify, the same step is posed the other way: at
+given extents the composition is the equilibrium under the element rows and the
+reactivity rows ``\mathbf{K}^\mathsf{T}\mathbf{n} = \mathbf{K}^\mathsf{T}\mathbf{n}_0 + \Delta\boldsymbol{\xi}``,
+whose Jacobian with respect to ``\Delta\boldsymbol{\xi}`` follows from the
+implicit-function theorem, and the extents solve
+``\Delta\boldsymbol{\xi} - \Delta t\,\mathbf{M}\,\mathbf{r}(\mathbf{n}(\Delta\boldsymbol{\xi})) = \mathbf{0}``
+by a Newton iteration of their own. Each of its steps keeps the kinetic amounts
+non-negative, as the bounds of an active set are kept: shortened to the first
+that would cross zero, those already at zero projected back. Where ``\mathbf{K}``
+holds a pure phase per reaction this is the eliminated form above, which poses
+the same step with the kinetic amounts explicit. A rate that does not vanish
+when its mineral is absent has no step in that domain, and the step says so
+rather than returning one.
+The two ways are complementary. The Newton iteration on the extents needs the
+rate to be differentiable at the root, and a law that switches mechanism has
+corners: on a clinker under the laws of
+[Parrott and Killoh](@cite ParrottKilloh1984) it stops on the first step,
+where the simultaneous solve certifies every step. The `:reactions` step
+therefore tries the simultaneous solve first, the faster of the two, and the
+Newton iteration on the extents after.
+
 **Choosing the step, and why the certificate decides.** For a rate that
 vanishes at equilibrium the step has two solutions: the equilibrium root, and
 the composition with the mineral wholly dissolved, which satisfies the element

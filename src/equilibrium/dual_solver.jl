@@ -1301,6 +1301,7 @@ end
 
 _optima_dual_problem(args...) = _need_optima()
 _optima_dual_solve(args...; kwargs...) = _need_optima()
+_optima_parametric_solve(args...) = _need_optima()
 _optima_kkt_certificate(args...) = _need_optima()
 _optima_lp(args...) = _need_optima()
 _optima_complete_floored(args...) = _need_optima()

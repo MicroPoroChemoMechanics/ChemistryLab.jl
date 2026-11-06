@@ -1,5 +1,78 @@
 # Changelog
 
+## v0.43.0 — a kinetic step that is certified or says why
+
+Requires OptimaSolver 0.12.
+
+### Breaking changes
+
+- **`kinetic_step` throws a `KineticStepError` instead of returning a step that
+  is not certified.** A step whose solve had not converged was returned as the
+  last iterate, with a warning shown once per session, and the dual method it
+  ran meets the element balance only at convergence: a host code calling it at
+  every node received compositions that created or destroyed matter. The error
+  names the condition that failed and what to change; `kinetic_step_adaptive`
+  catches it and halves the step.
+- Below 1.0, Julia's resolver treats a minor release as breaking: a package with
+  `[compat] ChemistryLab = "0.42"` must widen its bound to accept 0.43.
+
+### Added
+
+- **`KineticStepError`**, with its `cause` (`:exhausted`, `:rate`,
+  `:equilibrium`, `:tolerance`), the step, the certificate and
+  a message. `:exhausted` names a reaction whose rate does not vanish when its
+  mineral is absent, the usual mistake of a nucleation floor applied to
+  dissolution as well as to precipitation.
+
+### Fixed
+
+- **The eliminated step (`:species`) stays in its domain.** Its Newton method on
+  the extents started from the explicit prediction, which can ask a reaction for
+  more of an element than the state holds, and it clamped an exhausted mineral
+  at zero while reporting the extent that had overshot. The prediction is now
+  halved until the equilibrium it leaves certifies; each step is shortened to the
+  first mineral it would take below zero, a mineral already at zero that it
+  pushes out is projected back, and a step is accepted when it lowers the
+  residual of the rate equations, judged relative to the amount each reaction
+  acts on. On a cement paste with a C-S-H solid solution, a diffuse layer and
+  four AFt/AFm minerals mixed with a sulfate solution, every step from 60 s to
+  12 h certifies and conserves the elements to 1.3e-10 mol/m³, in 0.04 to 1.2 s,
+  where steps took 16 to 48 s and returned hundreds of mol/m³ of matter created
+  or destroyed.
+- **The `:reactions` step certifies where its simultaneous solve does not.** The
+  composition and the extents were solved by one Newton method, which a rate far
+  from saturation (Ω of order 10⁶ in a pore solution mixed with an exposure
+  solution) takes off: on the cement paste above it certified no step. When that
+  solve does not certify, the extents are now found by Newton's method around the
+  equilibrium they leave, under the element and reactivity rows, its Jacobian
+  `dn/dΔξ` by the implicit-function theorem, the equilibrium solved a thousand
+  times tighter than the rate equations are judged and started, where it does
+  not converge, from OptimaSolver's active set; where `K` holds a pure phase per
+  reaction, from the eliminated form, which poses the same step. Both routes
+  share one Newton method on the extents and its domain. Every step of the paste
+  certifies under `:reactions`, the default, as under `:species`; where the
+  simultaneous solve certifies, nothing changes, so the step costs what it did.
+- **The potentials of a diffuse layer are unknowns of the `:reactions` step**, as
+  they are of the equilibrium (`_surface_potential_blocks`); left inside the
+  activity model, they coupled every member of the surface and the step did not
+  converge.
+- **A rate equation is judged at the rounding of the budget, not below.** Each is
+  judged relative to the amount its reaction acts on, never below `eps·max|b|`:
+  a reaction on a mineral the state does not hold has no amount of its own.
+- **A potential carried as a dual number reaches the activity model.** The
+  potentials told to the site families were held in a `Vector{Any}`, which the
+  promotion of the parameters could not see.
+- **`kinetic_step_adaptive` suggests the step its error calls for.** The local
+  error of an implicit Euler step grows as `Δt²`, and the next step was scaled
+  by the error ratio itself instead of its square root, so the suggestion
+  overreacted to the estimate and the steps oscillated from one to the next.
+  It is now `0.9·Δt/√e`, between a fifth and twice the step.
+- **A step no longer warns about an equilibrium it has already judged.** The
+  equilibrium solved inside the eliminated step printed "did not certify
+  optimality" for a trial the Newton method then refused, beside a step that
+  certified: the certificate of each trial is its verdict, and a refusal reaches
+  the caller as a `KineticStepError`.
+
 ## v0.42.2 — Optima's active set, and the chemistry at the nodes of a host code
 
 A patch release. Requires OptimaSolver 0.11, whose default back end is now the
