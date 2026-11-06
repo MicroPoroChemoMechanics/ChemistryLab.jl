@@ -33,6 +33,18 @@ gap = maximum(maximum(abs(getproperty(rows[k], f) - g(f, k)) for f in (:katoite,
 @printf("largest difference over the 101 steps: %.3f g\n", gap)
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/georget2022_hemicarbonate.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/georget2022_hemicarbonate.jl")
+```
+
+```@raw html
+</details>
+```
+
 ```@example hemicarbonate
 z = [r.zeta for r in rows]
 fig = plot(; xlabel = "ζ, CaCO₃ / (CaCO₃ + Ca(OH)₂), molar", ylabel = "g", legend = :outerright,

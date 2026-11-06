@@ -30,8 +30,9 @@ One family of sites, the strong sites of hydrous ferric oxide in the model of
 
 The constant is read from the copy of `phreeqc.dat` the test oracles use
 [ParkhurstAppelo2013](@cite). The family is kept to its free site and this one
-complex, and without a surface potential: it is not the full model of Dzombak and
-Morel, which also protonates and deprotonates the site and charges the surface.
+complex, and without a surface potential: it is not the full model of
+[DzombakMorel1990](@citet), which also protonates and deprotonates the site
+and charges the surface.
 
 ```@example slow
 using ChemistryLab, DynamicQuantities, OptimaSolver, OrderedCollections, OrdinaryDiffEq, Printf, Plots

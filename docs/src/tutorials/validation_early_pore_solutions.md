@@ -45,6 +45,18 @@ model = cemdata18_activity_model(:KOH)
 nothing # hide
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/scholer_2017.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/scholer_2017.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 1. Each analysis, speciated at its pH
 
 The analysis gives the total calcium, aluminum, sulfate, potassium, sodium and

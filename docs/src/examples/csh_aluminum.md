@@ -57,6 +57,18 @@ include(joinpath(pkgdir(ChemistryLab), "scripts", "csh_aluminum.jl"))
 nothing # hide
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/csh_aluminum.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/csh_aluminum.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 2. What the syntheses say before any model
 
 Two readings of the measurements decide how a model can be fitted on them.
@@ -267,6 +279,18 @@ for mix in DW11_MIXES
     e = solid_solution_totals(rs[1].state, "C-S-H").elements
     @printf("%-10s %9.2f %11.3f   %20s     %s\n", mix, e[:Ca] / e[:Si], e[:Al] / e[:Si], measured[mix], rs[1].certificate.optimal)
 end
+```
+
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/de_weerdt_2011.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/de_weerdt_2011.jl")
+```
+
+```@raw html
+</details>
 ```
 
 The gel of way A reaches a Ca/Si of about 1.5, where the measured one is 1.8

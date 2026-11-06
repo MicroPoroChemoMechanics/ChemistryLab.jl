@@ -167,8 +167,8 @@ end
 
 The log K of one reaction as a PHREEQC database states it: at 25 °C, with an
 enthalpy of reaction for the van 't Hoff equation, or an analytical expression
-of the temperature, which takes precedence over both (Parkhurst and Appelo
-2013, `SOLUTION_SPECIES` and `PHASES`). `add` holds the named expressions the
+of the temperature, which takes precedence over both
+[ParkhurstAppelo2013; `SOLUTION_SPECIES` and `PHASES`](@cite). `add` holds the named expressions the
 constant adds (`-add_logk`), as `(index, coefficient)`.
 """
 struct PhreeqcLogK{T <: Real} <: AbstractLogK

@@ -25,6 +25,18 @@ include(joinpath(pkgdir(ChemistryLab), "scripts", "asr_products.jl"))
 nothing # hide
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/asr_products.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/asr_products.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 1. Two sets of constants for the products
 
 The constants of the products come in two sets, and they disagree.

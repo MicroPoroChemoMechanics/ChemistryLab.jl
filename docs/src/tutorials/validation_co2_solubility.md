@@ -39,6 +39,18 @@ for P in sort(unique(round.(Int, d.P ./ 101325)))
 end
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/wiebe_gaddy1940_co2.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/wiebe_gaddy1940_co2.jl")
+```
+
+```@raw html
+</details>
+```
+
 The molality, in mol/kg, rises steeply up to 50 to 75 atm and then slowly: past
 that point the carbon dioxide is dense, and compressing it further raises its
 fugacity much less than its pressure.

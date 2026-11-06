@@ -33,6 +33,18 @@ end
 println("all certified: ", all(p -> p.certified, sweep))
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/berner1992_leaching.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/berner1992_leaching.jl")
+```
+
+```@raw html
+</details>
+```
+
 The gel spans a Ca/Si from 0.68, where amorphous silica appears beside it, to
 1.63, where portlandite does, at 20.3 mmol/L of calcium.
 [Berner1992; Appendix A](@citet) gathers six sets of measurements on synthetic

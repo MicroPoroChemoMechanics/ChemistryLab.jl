@@ -35,6 +35,18 @@ for i in eachindex(xrd.phases)
 end
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/balonis2010_chloride.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/balonis2010_chloride.jl")
+```
+
+```@raw html
+</details>
+```
+
 ```@example chloride
 phases = ((:ettringite, "ettringite"), (:monosulfate, "sulfate AFm"), (:kuzel, "Kuzel's salt"),
           (:friedel, "Friedel's salt"), (:monocarbonate, "monocarbonate"))

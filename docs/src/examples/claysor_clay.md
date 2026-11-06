@@ -10,8 +10,9 @@ point. This one is somebody else's model, read out of the file its authors
 published [ClaySor2023data](@cite), and run against the code they published it
 for.
 
-**ClaySor 2023** [Marinich2025](@cite) is the 2SPNE SC/CE model of Bradbury and
-Baeyens for illite and montmorillonite: two-site protolysis,
+**ClaySor 2023** [Marinich2025](@cite) is the 2SPNE SC/CE model of
+[BradburyBaeyens2009](@citet) for illite and of
+[BradburyBaeyens1997](@citet) for montmorillonite: two-site protolysis,
 **non-electrostatic**, plus cation exchange. It is a good test of this package
 for a reason beyond its constants — a clay carries **four site budgets on one
 solid**, three edge families and an exchanger, and they compete for the same

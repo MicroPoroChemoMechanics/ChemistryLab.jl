@@ -27,6 +27,18 @@ model = cemdata18_activity_model(:KOH)
 nothing # hide
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/snellings2022_heat.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/snellings2022_heat.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 1. What is computed, and what is assumed
 
 The paste is 100 g of the binder, its materials those of

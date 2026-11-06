@@ -53,6 +53,18 @@ println(CEM_I_TARGET)
 println(CEM_I_HOLDOUT)
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/hydration_calibration.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/hydration_calibration.jl")
+```
+
+```@raw html
+</details>
+```
+
 Each file states the four things a calibration must take as given rather than fit:
 
 ```@example calib
@@ -158,6 +170,18 @@ Q_prior = cal.columns["Q_prior"]
 for line in cal.provenance
     println("  ", line)
 end
+```
+
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/precomputed.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/precomputed.jl")
+```
+
+```@raw html
+</details>
 ```
 
 ```@raw html

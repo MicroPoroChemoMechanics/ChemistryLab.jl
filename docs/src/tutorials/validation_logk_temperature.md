@@ -36,6 +36,18 @@ for r in rows
 end
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/logk_temperature_check.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/logk_temperature_check.jl")
+```
+
+```@raw html
+</details>
+```
+
 The constants of two reactions along the range, the most and the least soluble
 of the calcium sulfates and carbonates:
 
@@ -60,7 +72,7 @@ quartz the more soluble.
 difference being that of the bisulfate ion, and by 0.05 at most for the
 minerals.
 Up to 90 °C they part by at most 0.24, for calcite, whose PHREEQC expression is
-a fit over 0 to 250 °C (its comment names Ellis 1959 and
+a fit over 0 to 250 °C (its comment names [Ellis1959](@citet) and
 [PlummerBusenberg1982](@citet)); aragonite, which PHREEQC gives another
 expression, agrees with Cemdata18 within 0.02 over the whole range. Gypsum and
 anhydrite stay within 0.11, the carbonate equilibria within 0.09, the water

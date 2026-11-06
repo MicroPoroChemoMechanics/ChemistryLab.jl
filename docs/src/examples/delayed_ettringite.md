@@ -32,6 +32,18 @@ for T in (5.0, 20.0, 50.0, 80.0)
 end
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/delayed_ettringite.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/delayed_ettringite.jl")
+```
+
+```@raw html
+</details>
+```
+
 ```@example def
 Ts = [5.0, 20.0, 50.0, 80.0]
 fig = plot(; yscale = :log10, xlabel = "temperature (°C)", ylabel = "dissolved sulfur (mmol/L)", legend = :bottomright,

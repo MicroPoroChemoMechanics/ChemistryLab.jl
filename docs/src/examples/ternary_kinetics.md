@@ -37,6 +37,18 @@ a, b, c = dw11_value("fly_ash_fit_a"), dw11_value("fly_ash_fit_b"), dw11_value("
 @printf("y = %g + %g ln(t + %g)\n", a, b, c)
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/deweerdt2011_kinetics.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/deweerdt2011_kinetics.jl")
+```
+
+```@raw html
+</details>
+```
+
 written on the degree of reaction `α` of the glass rather than on the time, as
 the Waller law [Waller1999](@cite) is: with `s` the glass's share of the fly
 ash, `y = 100 s α`, `t + c = exp((y − a)/b)`, and the rate is

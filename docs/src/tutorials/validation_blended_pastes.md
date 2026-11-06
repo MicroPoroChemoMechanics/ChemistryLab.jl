@@ -37,6 +37,18 @@ model = cemdata18_activity_model(:KOH)
 nothing # hide
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/de_weerdt_2011.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/de_weerdt_2011.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 1. The materials
 
 The clinker is described by its Rietveld phases ([DeWeerdt2011; Table 2](@cite))

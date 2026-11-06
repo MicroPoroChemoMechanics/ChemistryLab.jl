@@ -38,6 +38,18 @@ for i in eachindex(g.glass)
 end
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/snellings2013_glass.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/snellings2013_glass.jl")
+```
+
+```@raw html
+</details>
+```
+
 The rates are in mol of the glass's cations per m² and per second; the law
 meets every measurement within 0.1, inside the 0.15 [Snellings2013](@citet)
 gives as the error. The abscissas of the six points of the figure are
@@ -156,6 +168,18 @@ for (a, label) in ((:bet, "this law, BET area"), (:blaine, "this law, Blaine are
     println(rpad(label, 40), join((@sprintf("%7.1f", x) for x in sn22g_slag_degree(runs[a], days))))
 end
 println(rpad("measured, Snellings et al. (2022)", 40), join((@sprintf("%7.1f", ustrip(x)) for x in measured.degree_percent)))
+```
+
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/snellings2022_glass_law.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/snellings2022_glass_law.jl")
+```
+
+```@raw html
+</details>
 ```
 
 Over the BET surface the slag is gone in two days. Over the smaller surface the

@@ -41,6 +41,18 @@ for c in cements
 end
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/lothenbach2008_temperature.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/lothenbach2008_temperature.jl")
+```
+
+```@raw html
+</details>
+```
+
 The same law with the same constants leaves more of the SRPC unreacted than
 [Lothenbach2008](@citet) find, 71 % against about 80 %; the PLC is within two
 points. The article does not detail how it applies the fineness, "on the initial

@@ -43,6 +43,18 @@ setup = sn22p_setup()
 @printf("slag: τ = %.2f d at 20 °C, n = %.3f, Ea = %.1f kJ/mol, ceiling %.3f\n", θ.τ, θ.n, θ.Ea, θ.α_max)
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/snellings2022_pastes.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/snellings2022_pastes.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 2. The three runs
 
 ```@example slag-pastes
