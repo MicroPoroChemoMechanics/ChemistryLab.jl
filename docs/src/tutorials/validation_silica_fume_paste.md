@@ -23,6 +23,18 @@ include(joinpath(pkgdir(ChemistryLab), "scripts", "esdred_2014.jl"))
 nothing # hide
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/esdred_2014.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/esdred_2014.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 1. The binder and how far it has reacted
 
 The silicates of the clinker and the silica fume are followed by NMR: the

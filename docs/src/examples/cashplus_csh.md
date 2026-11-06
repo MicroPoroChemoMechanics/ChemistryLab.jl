@@ -346,6 +346,18 @@ for gel in (:CSHQ, :CASHNK)
 end
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/lothenbach_2008.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/lothenbach_2008.jl")
+```
+
+```@raw html
+</details>
+```
+
 The table sets the two calculations against the analysis, at each age. The
 model gives millimoles per kilogram of water and the analysis millimoles per liter
 of solution; they differ by a few percent at these concentrations.

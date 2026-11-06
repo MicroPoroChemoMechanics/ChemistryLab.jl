@@ -26,6 +26,18 @@ g = sw_charge_gap()
         g.cations, g.anions, g.Na_printed, g.Na_closed)
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/seawater.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/seawater.jl")
+```
+
+```@raw html
+</details>
+```
+
 The charge is closed on sodium, whose printed ratio to chloride is lower than
 that of ordinary seawater; [DeWeerdt2014](@citet) do not give the temperature of
 their calculation, and this one is at 20 °C.

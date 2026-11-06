@@ -40,6 +40,18 @@ for m in (mats.opc, mats.bfs, mats.fa)
 end
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/scholer2015_kinetics.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/scholer2015_kinetics.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 2. The time of each glass
 
 No parameter set of the Waller law is published for these materials. Its

@@ -51,6 +51,18 @@ cs = shi16_system()
 nothing # hide
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/shi_2016.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/shi_2016.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 1. The materials
 
 The cement is described by its phases: alite and belite measured by NMR, the

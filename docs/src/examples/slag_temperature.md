@@ -33,6 +33,18 @@ measured(d, T, w_b, t) = only(d.degree_percent[(d.temperature_C .== T) .& (d.w_b
         length(slag.age), length(clinker.age), join(Int.(temperatures), ", "), join(ratios, ", "))
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/snellings2022_kinetics.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/snellings2022_kinetics.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 2. The clinker under the published law
 
 The four clinker phases of the cement (Table 1, X-ray diffraction) dissolve

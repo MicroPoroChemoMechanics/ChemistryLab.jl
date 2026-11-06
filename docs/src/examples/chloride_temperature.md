@@ -20,8 +20,8 @@ sulfate as calcium sulfate at SO₃/Al₂O₃ = 1, the chloride as CaCl₂ at th
 ratio [Balonis2019](@citet) writes 2Cl/Al₂O₃ (1 for Friedel's salt), and the
 carbonate as calcite (`data/literature/Balonis2019.json`). ASSUMED: the 60 ml of
 water are 60 g; the activity model is the package's extended Debye–Hückel
-equation for a KOH solution, where the article uses Truesdell and Jones' with
-individual ion sizes.
+equation for a KOH solution, where the article uses that of
+[TruesdellJones1974](@citet) with individual ion sizes.
 
 ```@example chloride-temperature
 using ChemistryLab, DynamicQuantities, OptimaSolver, Printf, Plots
@@ -32,6 +32,18 @@ mixtures = literature_table(B19, "temperature_scans")
 for (fig, cl, co2) in zip(mixtures.figure, mixtures.cl2_al2o3, mixtures.co2_al2o3)
     @printf("%-8s 2Cl/Al2O3 = %.1f, CO2/Al2O3 = %.2f\n", fig, ustrip(cl), ustrip(co2))
 end
+```
+
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/balonis2019_temperature.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/balonis2019_temperature.jl")
+```
+
+```@raw html
+</details>
 ```
 
 ## 2. The phases from 0 to 99 °C

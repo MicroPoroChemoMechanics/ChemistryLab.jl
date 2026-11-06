@@ -52,6 +52,18 @@ model = cemdata18_activity_model(:KOH)
 nothing # hide
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/deschner_2012.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/deschner_2012.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 1. Each analysis, speciated at its hydroxide
 
 The analysis fixes the elements, in mmol per liter taken as mmol per kilogram of

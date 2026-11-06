@@ -33,6 +33,18 @@ model = cemdata18_activity_model(:KOH)
 nothing # hide
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/lothenbach_winnefeld_2006.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/lothenbach_winnefeld_2006.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 1. The cement
 
 [LothenbachWinnefeld2006](@citet) give the composition as normative phases,

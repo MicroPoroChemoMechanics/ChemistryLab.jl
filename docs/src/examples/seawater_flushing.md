@@ -45,6 +45,18 @@ g = dj_charge_gap()
         g.cations, g.anions, g.Na_printed, g.Na_closed)
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/seawater_flushing.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/seawater_flushing.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## The paste before exposure
 
 Before the exposure every element of the cement is in the paste, so its ratios

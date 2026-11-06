@@ -50,6 +50,18 @@ cs = build_ionic_system(:opc)
 ) count(s -> aggregate_state(s) == AS_CRYSTAL, cs.species)
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/ionic_hydration.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/ionic_hydration.jl")
+```
+
+```@raw html
+</details>
+```
+
 The dissolution reactions are **balanced by ChemistryLab** from the phase and the
 primaries, and come out in the expected acid-driven form:
 
@@ -121,6 +133,18 @@ heat_c = read_precomputed("ionic_opc_heat")
 for line in phases_c.provenance
     println("  ", line)
 end
+```
+
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/precomputed.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/precomputed.jl")
+```
+
+```@raw html
+</details>
 ```
 
 ```@raw html

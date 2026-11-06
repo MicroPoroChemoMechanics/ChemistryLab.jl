@@ -37,6 +37,18 @@ loss = ignition_loss(opc.eq)
         opc.certificate.optimal, g(loss.water), g(loss.carbon_dioxide))
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/gruyaert2010.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/gruyaert2010.jl")
+```
+
+```@raw html
+</details>
+```
+
 [`ignition_loss`](@ref) counts **hydrogen**, not formula water. Portlandite is
 `Ca(OH)₂`, has no `H₂O` written in it, and loses one per formula unit; a rule
 that searched the formula for `H₂O` would report none for it. Per phase:

@@ -30,6 +30,18 @@ for ca in unique(mix.Ca_Si_target)
 end
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/lhopital2016_aluminum.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/lhopital2016_aluminum.jl")
+```
+
+```@raw html
+</details>
+```
+
 Each synthesis is computed as it was prepared (`lh16a_state`): the lime, the
 silica fume and the monocalcium aluminate of [LHopital2016a; Appendix A](@cite),
 as the Cemdata18 records of the three solids, which dissolve, in 90 g of water

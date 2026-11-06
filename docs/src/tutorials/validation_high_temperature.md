@@ -30,6 +30,18 @@ for T_C in sort(unique(r.T_C))
 end
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/water_high_temperature.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/water_high_temperature.jl")
+```
+
+```@raw html
+</details>
+```
+
 ``Δ`` is this package's pKw minus theirs. From 25 to 400 °C the two differ by
 0.20 at most at every state of the table, close to the 0.16 standard deviation of
 the fit of [BanduraLvov2006](@citet) to the measurements, and within 0.3 at

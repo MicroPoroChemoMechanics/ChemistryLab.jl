@@ -12,6 +12,9 @@ using DocumenterVitepress
 using PrettyTables
 
 include("pages.jl")
+# `show_source`, which the pages call to show the scripts they include, and the
+# commit their GitHub links point to.
+include("source_links.jl")
 
 # Documenter checks the docstrings of every submodule of `modules`. Those of
 # `ChemistryLab.Studio` document the studio's code, not the package's API: only

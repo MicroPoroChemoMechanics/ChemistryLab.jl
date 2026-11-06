@@ -50,6 +50,18 @@ for (days, sb) in ((852, 0.5), (2, 0.85), (852, 0.85))
 end
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/gruyaert2010_kinetics.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/gruyaert2010_kinetics.jl")
+```
+
+```@raw html
+</details>
+```
+
 ```@example g10k
 tt = 10 .^ range(-1, log10(1018); length = 200)
 fig = plot(tt, α_waller.(tt); xscale = :log10, lw = 2, ylims = (0, 1), legend = :topleft,

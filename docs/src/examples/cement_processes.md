@@ -31,6 +31,18 @@ model = cemdata18_activity_model(:KOH)
 nothing # hide
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/de_weerdt_2011.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/de_weerdt_2011.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 1. The paste and its phases
 
 The phases a paste may form are a choice, and `data/phase_lists.toml` holds that

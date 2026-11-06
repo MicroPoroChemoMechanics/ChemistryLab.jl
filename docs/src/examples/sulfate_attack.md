@@ -41,6 +41,18 @@ for (lab, rows) in (("4 g/L", low), ("44 g/L", high))
 end
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/sulfate_attack.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/sulfate_attack.jl")
+```
+
+```@raw html
+</details>
+```
+
 The volumes are in mL per 100 g of cement. The AFm of sulfate turns into
 ettringite first; gypsum forms in 44 g/L of Na₂SO₄ and never in 4 g/L, as the
 SEM-EDS of [Lothenbach2010sulfate](@citet) found it, only in the mortar exposed

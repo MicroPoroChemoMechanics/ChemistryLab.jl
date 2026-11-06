@@ -50,6 +50,18 @@ model = cemdata18_activity_model(:KOH)
 nothing # hide
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/deschner_2013.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/deschner_2013.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## 1. Each analysis, speciated at its hydroxide and its temperature
 
 ```@example temperature
@@ -120,7 +132,8 @@ the third parameter of the activity model, `b_γ`, which the model keeps at its
 ([`cemdata18_activity_model`](@ref)); the complexes of sulfate with calcium and
 the alkalis, whose stability grows with temperature; and the database,
 Cemdata18 [Lothenbach2019](@cite) here, and for the authors the Nagra/PSI
-database with the cement data of [Lothenbach2008](@citet) and of Dilnesa et al.
+database with the cement data of [Lothenbach2008](@citet) and of
+[Dilnesa2011, Dilnesa2012](@citet).
 
 ## A test holds it
 

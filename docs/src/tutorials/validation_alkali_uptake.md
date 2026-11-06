@@ -39,6 +39,18 @@ for i in eachindex(mix.CaO)
 end
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/lhopital2016_alkali.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/lhopital2016_alkali.jl")
+```
+
+```@raw html
+</details>
+```
+
 Each batch is computed as it was prepared (`lh16_state`): the lime, the silica
 and the aluminate as the Cemdata18 records of the three solids, which dissolve,
 in 90 g of water with the hydroxide dissolved in it, at 20 °C. Beside the gel the

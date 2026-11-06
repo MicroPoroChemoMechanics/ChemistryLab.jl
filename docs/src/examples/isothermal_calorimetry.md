@@ -39,6 +39,18 @@ end
 @printf("  gypsum %4.1f %%, calcite %4.1f %%\n", 100c.gypsum, 100c.calcite)
 ```
 
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/gruyaert2010.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/gruyaert2010.jl")
+```
+
+```@raw html
+</details>
+```
+
 ## The cement alone
 
 The heat of the plain paste at the degree of hydration the image analysis gives,
