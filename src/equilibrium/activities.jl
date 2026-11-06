@@ -1072,8 +1072,8 @@ end
 """
     struct TruesdellJonesActivityModel{T<:Real} <: AbstractActivityModel
 
-The activity model of a PHREEQC database: the WATEQ equation of Truesdell and
-Jones (1974) for every species its `-gamma` option gives parameters to, and
+The activity model of a PHREEQC database: the WATEQ equation of
+[TruesdellJones1974](@citet) for every species its `-gamma` option gives parameters to, and
 PHREEQC's defaults for the others [ParkhurstAppelo2013; description of `SOLUTION_SPECIES`](@cite).
 
 # Formulas

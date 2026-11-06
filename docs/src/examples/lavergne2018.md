@@ -24,7 +24,7 @@ measured points and model estimates alike (`data/literature/Lavergne2018.json`).
         estimates, and to the measured degrees of hydration?
       - What phases does a Gibbs minimization give a CEM I paste as it hydrates,
         against the stoichiometric reactions of the article?
-      - How much heat do the cements of Lerch and Ford release in their first
+      - How much heat do the cements of [LerchFord1948](@citet) release in their first
         three days, and at what temperature does the model drift from the
         measurement?
       - What does silica fume in place of part of the cement change in the
@@ -219,6 +219,18 @@ M = Dict(c => ustrip(us"kg/mol", paste.cs[c][:M]) for c in clinker)
 clinker_mass(st) = sum(ustrip(us"mol", moles(st, c)) * M[c] for c in clinker)
 α = [1 - clinker_mass(st) / clinker_mass(paste.state0) for st in states]
 @printf("%s; α = %.2f after 28 days, %.2f after a year\n", paste.sol.retcode, α[13], α[end])
+```
+
+```@raw html
+<details class="source-file"><summary>Show the code of <code>scripts/ionic_hydration.jl</code>, included above</summary>
+```
+
+```@eval
+Main.show_source("scripts/ionic_hydration.jl")
+```
+
+```@raw html
+</details>
 ```
 
 The article's phases and the package's families are put side by side: its
@@ -507,7 +519,7 @@ every temperature.
 
 ## [Mortars of CEM I 52.5 N in a semi-adiabatic calorimeter, inside the kinetics](@id ex-semiadiabatic)
 
-The calorimeters of Lerch and Ford hold the paste at one temperature, and what
+The calorimeters of [LerchFord1948](@citet) hold the paste at one temperature, and what
 they record is read off the calculated trajectory as the enthalpy the paste
 loses. A semi-adiabatic calorimeter cannot be read that way. It lets the heat of
 hydration raise the temperature of the sample against the losses of the vessel,

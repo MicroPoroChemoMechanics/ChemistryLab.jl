@@ -675,7 +675,7 @@ temperature and pressure leave the reference point — and that is the half that
 carries a burial, an autoclave or a steam-cured calculation.
 
 [Duan2016; Table 4](@citet) give, for two reactions, constants computed by
-**HKF itself**, taken from Yu, Dong and Ruan (2008), at two temperatures. That
+**HKF itself**, taken from [Yu2008](@citet), at two temperatures. That
 column is the HKF reference of this chapter, and the only one.
 
 | | ChemistryLab | [Duan2016; Table 4](@cite) | difference |
