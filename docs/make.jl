@@ -16,6 +16,10 @@ include("pages.jl")
 # commit their GitHub links point to.
 include("source_links.jl")
 
+# The published data each page reads, shown folded under the block that reads
+# them, without the page asking for it: see the header of the file.
+include("literature_panels.jl")
+
 # Documenter checks the docstrings of every submodule of `modules`. Those of
 # `ChemistryLab.Studio` document the studio's code, not the package's API: only
 # `clstudio` belongs in the manual, in the Studio chapter.
