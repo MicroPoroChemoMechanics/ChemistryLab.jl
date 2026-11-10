@@ -102,9 +102,8 @@ end
 ```
 
 Water alone cannot describe an acid-base system: those three species span a
-two-dimensional space, and one component cannot reach it. The refusal matters
-more than it looks, because the decomposition is a least-squares projection and
-a projection never fails — asked for this, it used to answer `H+ = 0.4 H2O` and
+two-dimensional space, and one component cannot reach it. The refusal is needed because the decomposition is a least-squares projection and
+a projection never fails: it would answer `H+ = 0.4 H2O` and
 `OH- = 0.6 H2O`, which balances arithmetically and lets a solver make `H+` out of
 water with no `OH-` and no charge to pay for it.
 
@@ -358,7 +357,7 @@ wet
 ```
 
 This is the same display as above, on species that carry molar volumes: every
-column is now filled, the liquid and the solid are totaled separately, and the
+column is filled, the liquid and the solid are totaled separately, and the
 porosity at the bottom is a number rather than `NaN`.
 
 !!! note "A negative volume in that table is physics, not a defect"
@@ -394,7 +393,7 @@ porosity(wet)
 !!! warning "A volume of zero means missing data, not an empty phase"
     Every accessor that divides by a volume — `porosity`, and the molarity
     conventions of [`pH`](@ref) — returns `NaN` when the species carry no molar
-    volume. `NaN` here is the honest answer to `0/0` and a sign that the species
+    volume. `NaN` here is the value of `0/0` and a sign that the species
     came from formulas rather than from a database, not a defect in the state.
 
 ### Rescaling a state

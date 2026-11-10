@@ -69,10 +69,9 @@ Pages   = ["surfaces/diffuse_inventory.jl"]
 
 ## The site budget, and the declaration it has to match
 
-A family declares a capacity; a state carries amounts. Until these functions
-existed nothing compared the two, so a capacity could be changed with no effect
-on the answer and a certificate could report `optimal = true` over a budget the
-declaration contradicted.
+A family declares a capacity; a state carries amounts. These functions compare the
+two, so that a certificate cannot report `optimal = true` over a budget the
+declaration contradicts.
 
 ```@autodocs
 Modules = [ChemistryLab]

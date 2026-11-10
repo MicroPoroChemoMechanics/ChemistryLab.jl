@@ -63,7 +63,7 @@ The state the integrator advances holds the element amounts of the second set
 and the amount of calcite, for the reason
 [The partition](@ref sec-theory-pe-partition) gives.
 
-## 3. Three routes
+## 3. Three methods
 
 The ODE with the partition solved where the right-hand side is evaluated, which
 `integrate` chooses by itself for a law that reads it
@@ -111,7 +111,7 @@ cal_frozen = 0.05 .- vec(reaction_extents(frozen, kp))
 ## 4. The trajectories
 
 ```@example coupling
-# The saturation index along the right-hand-side route, on the certified replay;
+# The saturation index along the right-hand-side method, on the certified replay;
 # the start, in pure water, is left out of the logarithmic time axis.
 replay = with_logger(ConsoleLogger(diagnostics)) do # hide
 replay = speciated_states(rhs, kp)
@@ -137,9 +137,9 @@ savefig(fig, "coupling-calcite.svg"); nothing # hide
 @printf("worst log Ω on the replay after 10³ s: %.1e\n", maximum(abs, logΩ[rhs.t .> 1.0e3]))
 ```
 
-The two routes that treat the partition consistently reach the certified
+The two methods that treat the partition consistently reach the certified
 equilibrium, the saturation index falling to the tolerance of the minimization,
-about ``10^{-10}``, where it stays. The frozen one is the route
+about ``10^{-10}``, where it stays. The frozen one is the method
 [When the partition may be frozen within a step](@ref sec-theory-pe-splitting)
 explains: with the partition held over a step, the rate is constant over it, the
 step overshoots saturation, and the run is returned as a failure rather than a
@@ -151,4 +151,4 @@ success.
   the partition on a clinker, with a law that reads only the kinetic amounts.
 - [Validation against Reaktoro](@ref), the equilibrium and the coupling against a
   second code.
-- [Writing a kinetic model](@ref sec-kinetics-syntax), the syntax of the routes.
+- [Writing a kinetic model](@ref sec-kinetics-syntax), the syntax of the methods.

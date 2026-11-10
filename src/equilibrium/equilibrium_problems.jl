@@ -50,9 +50,9 @@ Applies to the default `b = A * u0` as well, which inherits the same abstract
 element type from `A`.
 
 Floating point rather than the promoted exact type (`Rational{Int}` here) because
-the numeric pipeline downstream is `Float64` throughout — `u0`, the bounds and
+the numeric chain downstream is `Float64` throughout — `u0`, the bounds and
 `DualEquilibriumSolver.A`, which has always converted — so keeping rationals
-would only pay for a rational-to-float conversion at every entry of every
+would only add a rational-to-float conversion at every entry of every
 product. The conversion is **lossy for a non-dyadic rational**: `2//5` becomes
 `0.4`, which is not equal to it. That is the same rounding the rest of the solver
 already applies, and the exact matrix is untouched in `system.SM.A`, where the

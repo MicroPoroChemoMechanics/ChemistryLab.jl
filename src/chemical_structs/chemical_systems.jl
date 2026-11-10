@@ -126,7 +126,7 @@ share a member if they share a site symbol, that a species carries exactly one,
 and that a shared symbol is refused above — so no input could reach the case.
 
 The reasoning skips a step. Members are matched to the system by `symbol`, and a
-symbol is a label: the species the lookup lands on need not be the species the
+symbol is a label: the species the lookup returns need not be the species the
 family validated. Two families with **different** site symbols and the same
 member labels therefore resolved to the same indices, one family's conservation
 row disappeared, and nothing said so. The same gap let a family hold `AS_SURFACE`

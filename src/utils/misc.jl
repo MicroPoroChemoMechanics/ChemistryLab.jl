@@ -34,7 +34,7 @@ log(1u"mmol/L")  = 0.0        two different answers
 
 Dispatch rather than a branch, so `Float64`, `ForwardDiff.Dual` and
 `Symbolics.Num` all take the first method untouched — none of them carries a
-dimension — and only a genuine `Quantity` pays for the test.
+dimension — and only a genuine `Quantity` incurs the test.
 
 A dimensionless `Quantity` passes: a ratio whose units cancel is a number, and
 saying so explicitly is the point. Anything else raises.
@@ -302,7 +302,7 @@ density of water, a Newton solve of its equation of state, and what is derived
 from it). On plain numbers it keeps a table of every call, emptied past
 `_MEMO_MAX` entries; on dual numbers it keeps the last call, matched by identity
 of its arguments (`===`: values and partials). Both under a lock. What it returns
-is what the function computes, bit for bit.
+is what the function computes, identical to the last digit.
 """
 struct _TPMemo{K, V}
     table::Dict{K, V}

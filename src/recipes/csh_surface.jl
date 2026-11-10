@@ -38,8 +38,8 @@ The paste of `rs` with the surface of its C-S-H, as the model of
 from its data file and referred to the silicon of the gel (the molar mass per
 silicon of their C-S-H), its surface complexes with the ions the system holds
 (those whose ion it lacks are left out), and a diffuse layer
-([`DiffuseLayer`](@ref)). The route is that of
-[Chloride binding in CEM III/A and CEM III/B](@ref sec-example-chloride-blended), route A:
+([`DiffuseLayer`](@ref)). The method is that of
+[Chloride binding in CEM III/A and CEM III/B](@ref sec-example-chloride-blended), method A:
 
  1. the solid solution `CSHQ` of `rs` is frozen at its composition
     ([`freeze_solid_solution`](@ref)), its alkalis returned to the solution,

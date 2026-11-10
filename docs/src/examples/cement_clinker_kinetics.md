@@ -63,10 +63,7 @@ Maximum degree of hydration from the [Powers1948](@cite) law:
 [Lavergne2018](@cite), the rate scaling as ``B / 385\;\text{m}^2/\text{kg}``.
 
 This uses [`parrott_killoh_avrami`](@ref) with `PK84_PARAMS_*`, the canonical
-formulation. The smoothed [`parrott_killoh`](@ref) variant this page used until
-v0.14.0 is deprecated: it is diffusion-limited from a few percent of hydration
-on, which held the mean degree at seven days to 0.234 and the heat released to
-115 kJ/kg — see [Two Parrott–Killoh variants](@ref pk-variants).
+formulation.
 
 ```@example clinker
 const α_max = powers_alpha_max(WC)      # 0.952 at w/c = 0.40
@@ -134,9 +131,8 @@ illustrative: the device of
 ``b = 0.26`` J/(h·K²), which [the pore-solution page](@ref ex-ionic-opc) uses.
 
 Since the second term is recomputed from the database at every step, the `Cp`
-field must carry the **fixed part only** — here the flask. This page used to add
-the cement and the mixing water to it as well, counting the sample twice and
-understating ``\Delta T`` by a factor of about 1.75.
+field must carry the fixed part only — here the flask — since the cement and the
+mixing water would otherwise be counted twice.
 
 ```@example clinker
 cal = SemiAdiabaticCalorimeter(;
@@ -205,12 +201,11 @@ sol_eq = integrate(kp_eq, KineticsSolver(; ode_solver = Rodas5P(),
 
 Two things are worth watching in that run.
 
-**The clinker follows the same laws, at another temperature.** `parrott_killoh`
+**The clinker follows the same laws, at another temperature.** `parrott_killoh_avrami`
 reads only the amounts of clinker and the temperature, never an activity. The
-heat, however, is no longer that of the four reactions written by hand: it is
+heat, however, is not that of the four reactions written by hand: it is
 the enthalpy the whole composition loses, the hydrates the minimization
-precipitates included, so the cell does not warm as it did, and `α(t)` moves
-through the temperature alone. Held at a fixed temperature, the degrees of
+precipitates included, and `α(t)` moves through the temperature alone. Held at a fixed temperature, the degrees of
 hydration would not move.
 
 **The products do move, and that is the point.** With the reactions written by

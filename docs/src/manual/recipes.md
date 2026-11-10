@@ -130,7 +130,7 @@ water and the residue:
 
 the void being the chemical shrinkage the reactions did not refill. With a slag
 glass of unknown density, the residue's volume is missing and the porosity
-cannot be computed: `NaN`, which is the honest answer. [`volume_fractions`](@ref)
+cannot be computed: `NaN`. [`volume_fractions`](@ref)
 of a recipe state divides the same initial volume among the phases, the
 unreacted parts and the void, and is refused for the same reason. [`bound_water`](@ref) is
 per gram of binder and [`pore_solution`](@ref) gives the pH and the dissolved

@@ -9,29 +9,29 @@ Kuzel's and Friedel's salts, and in its C-S-H. The salts are phases of
 CEMDATA18 [Lothenbach2019](@cite). The C-S-H is its CSHQ solid solution, whose
 end members hold calcium and alkalis but no chloride. This page salts the CEM
 III/A paste of the [blastfurnace cement page](@ref ex-cem3-slag) along two
-routes that give the C-S-H its share, then a CEM III/B paste without
-portlandite, along the one route that applies there.
+methods that give the C-S-H its share, then a CEM III/B paste without
+portlandite, along the one method that applies there.
 
-  - **Route A** keeps the surface model of the C-S-H that [Guo2018](@citet) use:
+  - **Method A** keeps the surface model of the C-S-H that [Guo2018](@citet) use:
     silanol sites that bind calcium, alkalis and chloride. It puts them on a
     C-S-H whose amount and composition a first equilibrium with CSHQ has
     decided, and which [`freeze_solid_solution`](@ref) then sets aside.
-  - **Route B** adds an end member to CSHQ, `CSHQ-Cl` = (CaCl₂)₀.₅, whose Gibbs
+  - **Method B** adds an end member to CSHQ, `CSHQ-Cl` = (CaCl₂)₀.₅, whose Gibbs
     energy was fitted on the sorption tests of [Hirao2005](@citet). It ships in
     `cemdata18-chloride.json`, and the phase is `CSHQ_Cl`.
 
 !!! warning "What these calculations are, and what they are not"
-      - Neither route says where the chloride sits in the gel.
+      - Neither method says where the chloride sits in the gel.
         [Plusquellec2016](@citet) found that chloride does not adsorb
         specifically on C-S-H. What a depletion measurement counts as bound accompanies the
         calcium the surface adsorbs, in the diffuse layer that screens it. The
-        surface complex of route A and the end member of route B are both
+        surface complex of method A and the end member of method B are both
         effective descriptions of that uptake.
-      - Route A freezes the gel at the composition of the chloride-free paste.
+      - Method A freezes the gel at the composition of the chloride-free paste.
         That is a sound approximation only while portlandite fixes the
         activities of calcium and hydroxide, and
         [`freeze_solid_solution`](@ref) refuses a paste without it.
-      - The end member of route B rests on three points of one gel at
+      - The end member of method B rests on three points of one gel at
         portlandite saturation. The fit is within 0.05 mmol/g at 0.5 and
         1 mol/L, and four times too high at 0.1 mol/L. Its dependence on the
         Ca/Si is the model's: the end member was chosen to follow the trend
@@ -113,7 +113,7 @@ nothing # hide
 ## The paste, before any chloride
 
 The first equilibrium is that of the CEM III page, recomputed. The paste holds
-portlandite, and its C-S-H holds part of the alkalis, which route A returns to
+portlandite, and its C-S-H holds part of the alkalis, which method A returns to
 the solution when it freezes the gel.
 
 ```@example clblend
@@ -132,7 +132,7 @@ water(eq) = mol(eq, "H2O@") * molar("H2O@") / 1000
         gel.elements[:Si], gel.elements[:Ca] / gel.elements[:Si], gel.elements[:Na], gel.elements[:K])
 ```
 
-## Route A: the published surface on a frozen gel
+## Method A: the published surface on a frozen gel
 
 The second system carries the hydrates, the chloride salts and the aqueous
 species of the first, and the sites. The C-S-H is no longer one of its phases,
@@ -236,13 +236,13 @@ monosulfate of the first stage carry sulfate for 0.0112. The surface holds
 fix the chloride activity, as in [the one-stage paste](@ref sec-example-csh-chloride).
 No Friedel's salt forms at these doses.
 
-[`with_csh_surface`](@ref) runs this route on the equilibrium of a recipe in
+[`with_csh_surface`](@ref) runs this method on the equilibrium of a recipe in
 one call: the gel frozen, the sites and the area of [Guo2018](@citet) referred
 to its silicon, the paste solved again, and what the surface holds.
 
-## Route B: chloride in the solid solution
+## Method B: chloride in the solid solution
 
-Route B needs no second stage: the paste and the salt are equilibrated
+Method B needs no second stage: the paste and the salt are equilibrated
 together, with `CSHQ_Cl` in place of CSHQ. The phase is read from
 `data/solid_solutions.toml` like the others; with CEMDATA18 alone its entry is
 skipped, since its end member is not there.
@@ -258,20 +258,20 @@ println("certified: ", count(c -> c.optimal, certs_b), " of ", length(certs_b))
 report(route_b, csB, "CSHQ-Cl")
 ```
 
-The two routes agree on the salts where most of the chloride is: Kuzel's salt
+The two methods agree on the salts where most of the chloride is: Kuzel's salt
 differs by 3 % at 0.4 %, and by a third at 0.05 %, where little of it forms. They
 differ on the C-S-H. The end member holds 0.00063 to 0.00066 mol of chloride
 where the surface holds 0.00018, and the paste binds 85 to 97 % of the chloride
 against 74 to 96 %. At the lowest dose the C-S-H holds half of the bound
-chloride in route B and a sixth in route A; at 0.4 % the AFm phases hold 94 to
-98 % of it in both. Route B leaves the portlandite where the first stage put it.
+chloride in method B and a sixth in method A; at 0.4 % the AFm phases hold 94 to
+98 % of it in both. Method B leaves the portlandite where the first stage put it.
 
 ## Without portlandite
 
 A CEM III/B at the lower bound of its clinker content, 20 %, with the same
 clinker, slag and reacted fractions, has no portlandite left, and its C-S-H has
-a Ca/Si of 1.52. Route A has nothing to rest on, and
-[`freeze_solid_solution`](@ref) says so. Route B applies unchanged.
+a Ca/Si of 1.52. Method A has nothing to rest on, and
+[`freeze_solid_solution`](@ref) says so. Method B applies unchanged.
 
 ```@example clblend
 CEM_III_B = 0.20        # clinker, the lower bound of CEM III/B in EN 197-1
@@ -307,9 +307,9 @@ function stacked(states, cs, gel_species, title; legend = false)
     end
     return p
 end
-panels = [stacked(route_a, cs2, "XwOHCl-", "CEM III/A, route A (surface)"; legend = :topleft),
-          stacked(route_b, csB, "CSHQ-Cl", "CEM III/A, route B (end member)"),
-          stacked(route_c, csB, "CSHQ-Cl", "CEM III/B, route B")]
+panels = [stacked(route_a, cs2, "XwOHCl-", "CEM III/A, method A (surface)"; legend = :topleft),
+          stacked(route_b, csB, "CSHQ-Cl", "CEM III/A, method B (end member)"),
+          stacked(route_c, csB, "CSHQ-Cl", "CEM III/B, method B")]
 # One scale for the three, with room above the tallest bar.
 plot(panels...; ylims = (0, 1.1 * maximum(ylims(p)[2] for p in panels)),
      layout = (1, 3), size = (1100, 360), left_margin = 6Plots.mm, bottom_margin = 8Plots.mm)

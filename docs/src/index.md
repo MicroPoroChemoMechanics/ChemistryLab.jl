@@ -58,8 +58,8 @@ features:
 
 ## What it does
 
-`ChemistryLab` handles chemical formulas, species and reactions as first-class
-objects, imports thermodynamic databases of the formats in common use
+`ChemistryLab` handles chemical formulas, species and reactions as objects
+in their own right, imports thermodynamic databases of the formats in common use
 ([Importing thermodynamic databases](@ref sec-importing-databases)), and solves
 equilibrium by Gibbs-energy minimization. Kinetics and chemo-mechanical coupling
 build on the same objects.
@@ -136,7 +136,7 @@ first calculation. The aqueous applications, beginning with
 enough to check by hand and are the place to test one's understanding before a
 larger system.
 
-**Holding the analysis of a cement.** The route from an oxide analysis to a
+**Holding the analysis of a cement.** The path from an oxide analysis to a
 chemical system is laid out in [Bogue calculation](@ref ex-bogue) and
 [Choosing the species list](@ref man-choosing-species); the binders of EN 197-1
 are then worked in increasing order of difficulty, from
@@ -174,7 +174,7 @@ of problems than this package attempts. ChemistryLab's own scope is
 narrower: a Julia-native formulation in which an equilibrium is returned with a
 certificate stating what it proves, differentiable end to end so that a
 calibration can be posed as an optimization, and with the cementitious special
-cases — cement chemist notation, Bogue, the oxide-budget entry route for a
+cases — cement chemist notation, Bogue, the oxide-budget entry method for a
 glass, the binder families of EN 197-1 — written as objects of the package.
 
 That is an addition to their work, not a substitute for it.

@@ -47,12 +47,12 @@ the back end reaches a neighborhood, this reaches the conditions.
 The keywords are OptimaSolver's `DualNewtonOptions`: `maxit` bounds the Newton
 search, whose active set is reclassified at every iteration, and `inner_tol` and
 `inner_maxit` the inner fixed point that recovers the phase compositions.
-`max_active_updates` is no longer used, and deprecated. `tol` and `si_tol` are
+`max_active_updates`: deprecated, ignored. `tol` and `si_tol` are
 also the thresholds of the certificate this solver issues, so loosening them
 loosens the proof, not only the search.
 `inner_fall_bound` (30) and `lenient_line_search` (`false`) change the path of
 the search and not the conditions of its answer; the steps of a kinetic run set
-them to `Inf` and `true`, which is where they pay (see OptimaSolver's
+them to `Inf` and `true`, which is where they are useful (see OptimaSolver's
 `DualNewtonOptions`).
 
 See also: [`optimality_certificate`](@ref), [`speciated_states`](@ref).
@@ -334,7 +334,7 @@ rule for when to supply one.
 [`common_tangent`](@ref) computes the binodal from the mixing model alone, in
 microseconds and with no reference to the rest of the system, and the search then
 refines it with the chemical potentials the system actually has — which is the
-pair that matters. That division is the whole point: the model's binodal is a
+pair that matters. That division is the purpose of the start: the model's binodal is a
 good *place to look*, not the answer. Extra starts can only raise the maximum the
 search returns, so they never take a verdict away and, as the last row shows, do
 not invent one.
@@ -1034,10 +1034,9 @@ end
     _judged_balance(cert) -> Float64
 
 The balance as the certificate judges it: `balance_relative`, the worst row
-relative to what it holds, as OptimaSolver's certificate judges it. Until 0.41.0
-the larger of that and `balance` in moles, which held a large row to an amount of
-matter and made the verdict depend on the size of the system. A certificate
-without the relative figure gives `balance`.
+relative to what it holds, as OptimaSolver's certificate judges it, so that the
+verdict does not depend on the size of the system. A certificate without the
+relative figure gives `balance`.
 """
 _judged_balance(cert) = hasproperty(cert, :balance_relative) ? cert.balance_relative : cert.balance
 
@@ -1067,7 +1066,7 @@ equation that makes it a *constrained* answer above one that satisfies both —
 the same hole OptimaSolver records for the kinetic step, where "a march that
 should have stopped at saturation dissolved everything and was proved optimal".
 Read with `hasproperty` because a certificate also arrives from the kinetic
-route, which builds its own.
+step, which builds its own.
 
 `worst_supersaturation` is clamped at zero because a negative value is not an
 error: it means every absent phase is undersaturated, as optimality requires.
@@ -1107,13 +1106,13 @@ that receives the multipliers of the answer returned.
 
 # Why trying more than one start is the rigorous thing to do, not a fudge
 
-The certificate is an **oracle**: for a convex problem it does not rank answers, it
-decides them. Given an oracle, running several routes and keeping a proved answer
-is not guesswork — the proof is the same proof whichever route produced the point,
-and nothing about it depends on having predicted the winner. What would be a fudge
-is picking a route by taste and reporting its output unproved.
+For a convex problem the certificate does not rank answers, it decides them. Running
+several starts and keeping a proved answer is therefore rigorous: the proof is the
+same proof whichever start produced the point, and nothing about it depends on
+having predicted the winner. Picking a start by taste and reporting its output
+unproved would not be.
 
-It is also necessary, because no single route dominates. Measured on an LC³
+Trying several starts is also necessary, because no single start dominates. Measured on an LC³
 equilibrium at three degrees of reaction, with the dual Newton started from each
 interior point in turn, that of OptimaSolver (`algorithm = :interior_point`) and
 Ipopt's:
@@ -1149,7 +1148,7 @@ dependency: whichever back ends are loaded are the ones available.
 reached from each start, keyed on the start object itself, and a start met again
 is answered from it instead of being solved a second time. The dual solve and
 the certificate are deterministic functions of the start once `des`, `b`, `ϵ`,
-`floor` and `constraint` are fixed, so the record is the result, bit for bit;
+`floor` and `constraint` are fixed, so the record is the result, identical to the last digit;
 the caller owns the dictionary and must not share it between calls that differ
 in any of those. [`equilibrate_certified`](@ref) keeps one for the duration of a
 call, because its search offers the same cached starts again after the

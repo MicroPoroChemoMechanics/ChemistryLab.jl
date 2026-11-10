@@ -294,7 +294,7 @@ carries, ``\sigma`` per unit area (C/m²), is a **closure**, and the simplest is
 capacitor: ``\sigma = C\,\Psi``, with ``C`` the capacitance per unit area
 (F/m²).
 
-### The elimination, and what it buys
+### The elimination, and what it gives
 
 The literature presents an electrostatic surface model as one extra unknown per
 surface with one extra equation. For the diffuse layer that is unavoidable: ``\Psi``
@@ -487,7 +487,7 @@ uncharged surface a solve without electrostatics would return.
 
 The elimination remains reachable, by `surface_potential = :eliminated`, and it
 is kept because it is what makes the statement above a measurement: over the
-same eighteen points, the eliminated route meets the optimality conditions at
+same eighteen points, the elimination method meets the optimality conditions at
 three and the unknown at all eighteen — in the `:self_consistent` sense, as the
 next paragraph says.
 

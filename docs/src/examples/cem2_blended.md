@@ -187,7 +187,7 @@ end
 
 ## 2. One species list for all three pastes
 
-The comparison is only honest if the three calculations are allowed to form the
+The comparison is meaningful only if the three calculations are allowed to form the
 same phases. So the species list is built once, with the carbonate AFm phases,
 the sulfate AFm and AFt phases, hydrotalcite for the magnesium, and the sulfur
 ladder the slag needs:

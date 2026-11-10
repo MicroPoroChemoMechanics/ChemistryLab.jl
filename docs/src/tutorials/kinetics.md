@@ -19,17 +19,17 @@ the aqueous speciation, re-equilibrated as the run advances, provides the
 activities and the saturation ratios those laws may read. The equations of the
 coupling are in [Kinetics under partial equilibrium](@ref sec-theory-pe-kinetics).
 
-## Two routes, and the one followed here
+## Two methods, and the one followed here
 
-A kinetic calculation advances in time by one of two routes. The implicit step,
+A kinetic calculation advances in time by one of two methods. The implicit step,
 [`kinetic_step`](@ref), performs one Gibbs minimization per time step with the
 reaction extents among the unknowns, so that the products are decided by
 thermodynamics; the integration of an ordinary differential equation,
 [`integrate`](@ref), follows the stoichiometry written in the kinetic reactions
 and leaves the step length to an adaptive solver. The choice between them, their
 respective limits and the implicit step in full are the subject of
-[Which route: two ways to advance in time](@ref sec-kinetics-routes). The run
-below follows the second route on a Portland clinker, and every call it makes is
+[Which method: two ways to advance in time](@ref sec-kinetics-routes). The run
+below follows the second method on a Portland clinker, and every call it makes is
 described in [Writing a kinetic model](@ref sec-kinetics-syntax).
 
 ## Full workflow: OPC clinker hydration with KineticsProblem

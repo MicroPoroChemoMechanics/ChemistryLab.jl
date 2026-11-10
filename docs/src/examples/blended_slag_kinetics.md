@@ -252,5 +252,5 @@ the miss of Section 1, read on a second observable.
   clinker the energies of [Lavergne2018](@citet); at 20 °C, the reference
   temperature of both laws, neither acts.
 - **The activation of the slag by portlandite**, and the early slowdown of the
-  cement in a paste that is mostly slag: no published law of either is wired, and
+  cement in a paste that is mostly slag: no published law of either is implemented, and
   Sections 1 and 3 show where their absence is measured.

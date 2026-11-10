@@ -40,7 +40,7 @@ reaction, `α = 1 − n/n₀`, without the caller having to track it.
 Two consequences worth stating plainly:
 
   - **A rate law may read any species, not only the ones in its own reaction.**
-    A dissolution rate catalyzed by `H+`, an SCM whose reaction is gated by the
+    A dissolution rate catalyzed by `H+`, an SCM whose reaction is switched on by the
     portlandite left, a mechanism inhibited by the sulfate in solution — all of
     these are written by reading `n` or `lna` at the species concerned. The
     reaction a rate is attached to fixes what the rate *consumes*; it does not
@@ -202,21 +202,6 @@ branch of **belite** reduces to ``k_1(1-\xi)``, which never limits, so C₂S is
 governed by the power law throughout. And **alite** never reaches its
 diffusion-controlled stage.
 
-!!! warning "Two Parrott–Killoh variants ship, and only one is attributed"
-    [`parrott_killoh`](@ref) is a *different*, smoothed variant that predates
-    this one in the package (the two are set side by side in
-    [the tutorial](@ref pk-variants)) — `min(max(r_{NG}, r_I), r_D)` with a damped
-    nucleation term — and its `PK_PARAMS_*` are not transferable to the
-    canonical law. It is deprecated and **the attribution to
-    [ParrottKilloh1984](@citet) was withdrawn** rather than repaired: its nucleation term carries no Avrami
-    logarithm, its shell coefficient sits in the diffusion expression, and no
-    published set matches its parameters. The primary source,
-    [ParrottKilloh1984](@citet), is a conference proceedings without a DOI that
-    could not be consulted here, so the attribution was withdrawn. Measured consequence: with `PK_PARAMS_*` all four
-    phases land on the diffusion branch almost immediately, and a CEM I at
-    w/c 0.40 reaches α ≈ 0.234 at seven days whatever the phase, the signature of
-    a rate set by the diffusion branch alone. Use [`parrott_killoh_avrami`](@ref).
-
 ### The dormant period, which this law does not have
 
 The law starts hydrating at once. Its Avrami branch is seeded at a small degree
@@ -304,12 +289,12 @@ recommended by [Lavergne2018](@citet). Its BET surface, about 20 000 m²/kg, is 
 different measurement of a different thing and must not be substituted — a factor
 of ten on the rate.
 
-That is now enforced rather than advised. [`BETSurfaceArea`](@ref) and
+That is enforced. [`BETSurfaceArea`](@ref) and
 [`BlaineSurfaceArea`](@ref) are distinct types, and the ratio that produces a
 fineness factor is defined only between two of the same kind, so handing a BET
 area to [`blaine_factor`](@ref) raises instead of returning a plausible number.
-A bare quantity is still read as a Blaine fineness, which is the contract every
-existing call relies on; see [Surface areas](@ref sec-manual-surfaces).
+A bare quantity is read as a Blaine fineness, the convention of the form without
+units; see [Surface areas](@ref sec-manual-surfaces).
 
 ### The laws of a blend that read the portlandite, and why they are not here
 
@@ -443,7 +428,7 @@ the data turn out not to constrain gets labeled as such instead of quoted.
 !!! warning "An evolving area needs its own calibration"
     The published constants were fitted with ``\beta_B`` frozen. Turning the
     area into a function of the state moves the law out of that fit, and the
-    honest response is to recalibrate — `scripts/hydration_calibration.jl` is
+    appropriate response is to recalibrate — `scripts/hydration_calibration.jl` is
     the machinery — not to keep the old constants and add a new factor on top.
 
 ## 5. How far the reaction can go: `α_max`
@@ -508,7 +493,7 @@ r = F\,\bigl(1 - \Omega^{p}\bigr), \qquad F \ge 0,\quad p > 0 ,
 ```
 
 meets both requirements whatever ``F``, since ``1 - \Omega^{p}`` has the sign of
-``\mathcal{A} = -RT\ln\Omega`` (section 1). Thermodynamics fixes nothing more.
+``\mathcal{A} = -RT\ln\Omega`` (section 1). Thermodynamics fixes no more than this.
 When one elementary step limits the reaction and its activated complex is in
 equilibrium with the reactants of that step, transition-state theory gives the
 same form with ``F`` the forward rate and ``p = 1/\bar\chi``, ``\bar\chi`` the

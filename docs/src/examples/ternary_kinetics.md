@@ -274,9 +274,9 @@ faster still, 2.4 and 1.8 wt.% at seven days against 4.4 computed: the filler
 effect of the fly ash, which [DeWeerdt2011](@citet) find, and which a law
 written for each phase of the cement alone does not carry.
 
-The clinker reacted is now overestimated, by 3 to 11 points, because the
-belite still reacts as the published law makes it, too fast for this clinker,
-and nothing compensates it any more. Under this law the rate of the belite is
+The clinker reacted is overestimated, by 3 to 11 points, because the
+belite reacts as the published law makes it, too fast for this clinker,
+and nothing compensates it. Under this law the rate of the belite is
 always its diffusion term, greatest at the mixing and decreasing from there,
 where the belite of these pastes waits a month: no value of the constants
 holds it. The portlandite of the pastes without fly ash follows the alite,

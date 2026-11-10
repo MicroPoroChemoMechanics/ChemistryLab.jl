@@ -46,7 +46,7 @@ of the standard molar volumes in the database.
 
 A Gibbs minimization under a conservation budget answers one question: what is
 the lowest-energy composition reachable *with the atoms available*. Water
-appears in it as hydrogen and oxygen, and nothing more. So the threshold it
+appears in it as hydrogen and oxygen only. So the threshold it
 predicts is the point at which the hydrogen runs out — that is, ``w/c \approx b``.
 
 Measured on the [w/c example](@ref sec-wc-ratio)'s species list, at equilibrium:
@@ -174,12 +174,12 @@ keep returning numbers; they have simply left the picture they were derived in.
 
 ## 5. So what *can* be predicted, and how
 
-Three routes, and they differ in what has to be assumed.
+Three methods, and they differ in what has to be assumed.
 
 **Impose ``\alpha``.** Give the minimization a degree of hydration and let it
 compute the assemblage — the construction of [LothenbachWinnefeld2006](@citet),
 used by the [w/c example](@ref sec-wc-ratio) below its stoichiometric bound and
-by the self-desiccation page throughout. Honest, and ``\alpha`` is an input:
+by the self-desiccation page throughout. ``\alpha`` is an input:
 either measured, or taken from `powers_alpha_max`.
 
 **Close the budget with a measured isotherm.** Take ``b`` and ``s`` from the
@@ -201,7 +201,7 @@ implements the empirical cut that stops hydration below about 80 % RH, and
 [`PoreHumidity`](@ref) computes that humidity from the current saturation, so a
 kinetic run arrests on its own. The arrest becomes a result of the integration
 rather than a criterion applied afterwards — while the *criterion* stays
-empirical. That is the honest ceiling of a 0D framework.
+empirical. That is the limit of a 0D framework.
 
 **Beyond 0D.** Making the arrest a genuine prediction needs a model with a length
 in it: a microstructural one, where the arrest emerges because the liquid path
@@ -319,7 +319,7 @@ the quantity a chemical-shrinkage test measures by watching a specimen drink.
     | water the cured specimen drew in | 0.0604 g |
     | [Powers1948](@citet), as ``k_{\text{sealed}} - k_{\text{saturated}}`` | 0.0600 g |
 
-    The two internal routes agree with each other to 0.3 %, and both land within
+    The two internal methods agree with each other to 0.3 %, and both fall within
     1 % of a number measured on pastes in 1948. They are not obliged to: the
     assemblage is a declared species list and not a real paste's, the molar
     volumes are ideal, and the coefficient of [Powers1948](@citet) is an average
@@ -403,7 +403,7 @@ doubling rather than an error.
     5 K apart it returns a rank of two out of four, which is the measurement
     saying so ([the executed case](@ref sec-example-tga)).
 
-[`phases_without_windows`](@ref) is the other half of the honesty: a phase with
+[`phases_without_windows`](@ref) is the other half of the accounting: a phase with
 no window contributes to the starting mass and never leaves, so a curve computed
 without noticing integrates to less than `ignition_loss` and says nothing about
 it. It reports `phase => product` pairs rather than phases, because **a phase

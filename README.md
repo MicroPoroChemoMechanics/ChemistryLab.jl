@@ -18,7 +18,7 @@
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.17756074-blue)](https://doi.org/10.5281/zenodo.17756074)
 
 `ChemistryLab.jl` handles chemical formulas, species and reactions as
-first-class objects, imports thermodynamic databases of the formats in common
+objects in their own right, imports thermodynamic databases of the formats in common
 use, and solves equilibrium by Gibbs-energy minimization. Kinetics and chemo-mechanical
 coupling build on the same objects.
 
@@ -431,7 +431,7 @@ Both are mature, carefully built and widely used, and both solve a wider range o
 problems than this package attempts. ChemistryLab's own scope is narrower: a
 Julia-native formulation in which an equilibrium comes with a certificate stating
 what it proves, differentiable end to end, with the cementitious special cases —
-cement chemist notation, Bogue, the oxide-budget entry route for a glass —
+cement chemist notation, Bogue, the oxide-budget entry method for a glass —
 written as objects of the package. That is a contribution on top of their work,
 not a replacement for it.
 

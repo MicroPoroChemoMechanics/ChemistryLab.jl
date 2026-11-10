@@ -78,7 +78,7 @@ Pages = ["chemical_structs/solid_solutions.jl", "chemical_structs/sublattice.jl"
 Newton on the KKT system in element-potential space, and the certificate that
 proves a composition optimal. See
 [Proving that an answer is the answer](@ref sec-theory-certificate) for the derivation, and
-[`equilibrate_certified`](@ref) for the route `equilibrate` takes by default.
+[`equilibrate_certified`](@ref) for the method `equilibrate` uses by default.
 
 ```@autodocs
 Modules = [ChemistryLab]

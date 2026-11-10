@@ -25,8 +25,7 @@ to pH 9 in sodium chloride, at three concentrations two decades apart.
 !!! note "A site density is not a free parameter here"
     A surface a thousand times more dilute carries a thousandth of the charge
     per unit area, raises a potential of a few millivolts, and would let a model
-    that did nothing at all pass for one that worked. The first draft of this
-    comparison made exactly that mistake and reported agreement.
+    that did nothing at all pass for one that worked.
 
 ```@example ddl
 using ChemistryLab, DynamicQuantities, SciMLBase, OptimaSolver, Logging
@@ -39,13 +38,13 @@ g0(v) = SymbolicFunc(v * u"J/mol")
 const DB = Dict(symbol(s) => s for s in
                 build_species(datapath("slop98-inorganic-thermofun.json"); verbose = false))
 
-# The oracle's recipe: one millimole of iron, with Dzombak and Morel's density
+# The reference calculation's setup: one millimole of iron, with Dzombak and Morel's density
 # of weak sites and the specific area they pair with it.
 dm(q) = literature_value("DzombakMorel1990", q)
 const N_FE    = 1.0e-3u"mol"
 const AREA    = ustrip(us"m^2", dm("specific_surface_area") * dm("molar_mass") * N_FE)
 const N_SITES = dm("weak_sites_per_mol_Fe") * ustrip(us"mol", N_FE)
-# PHREEQC's own constants, read from the copy of phreeqc.dat the oracle uses.
+# PHREEQC's own constants, read from the copy of phreeqc.dat the reference uses.
 const DAT  = read_sorption_model(datapath("phreeqc.dat"))
 log_k(product) = only(reactions_involving(DAT, product)).log_K.value
 const LOGK = (protonation = log_k("Hfo_wOH2+"), deprotonation = log_k("Hfo_wO-"))
@@ -89,9 +88,9 @@ support — is shared, which is what makes the comparisons comparable.
 # PHREEQC's diffuse-layer answer, read from the fixture the generator writes —
 # three background electrolytes, two decades apart, six pH values each.
 using JSON
-ORACLE = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference",
+REFERENCE = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference",
                                  "phreeqc_diffuse_layer.json"))
-println(ORACLE["model"], "\n", ORACLE["database"], "  md5 ", ORACLE["database_md5"])
+println(REFERENCE["model"], "\n", REFERENCE["database"], "  md5 ", REFERENCE["database_md5"])
 ```
 
 The ionic strength travels with every point, because PHREEQC
@@ -121,7 +120,7 @@ nothing # hide
 using Printf
 dl = DiffuseLayer(; area = AREA)
 worst_abs = 0.0
-for ser in ORACLE["series"]
+for ser in REFERENCE["series"]
     @printf("%5.0f mM NaCl  ", ser["nacl"] * 1000)
     for pt in ser["points"]
         r = titrate_hfo(pt, ser["nacl"]; model = dl)
@@ -131,9 +130,9 @@ for ser in ORACLE["series"]
     println()
 end
 print("  PHREEQC   ")
-for pt in ORACLE["series"][1]["points"]; @printf("%8.4f", pt["free"]); end
+for pt in REFERENCE["series"][1]["points"]; @printf("%8.4f", pt["free"]); end
 @printf("\n  pH        ")
-for pt in ORACLE["series"][1]["points"]; @printf("%8.1f", pt["pH"]); end
+for pt in REFERENCE["series"][1]["points"]; @printf("%8.1f", pt["pH"]); end
 @printf("\n\nworst absolute deviation over all 18 points: %.2e\n", worst_abs)
 ```
 
@@ -145,7 +144,7 @@ the protolysis is smaller and the curve sits closer to the one with no
 electrostatics at all — which is the whole physical content of the model, and
 the reason a comparison at one ionic strength would prove almost nothing.
 
-## Two routes to the same potential, and why there are two
+## Two methods to the same potential, and why there are two
 
 Gouy-Chapman's relation is monotone in ``\Psi``, so it inverts in closed form and
 the potential *can* be written as an ordinary activity coefficient. Doing that
@@ -155,8 +154,8 @@ point contracts only while the activity moves less than the composition does.
 
 ```@example ddl
 println("  pH   stiffness   eliminated        unknown")
-for pt in ORACLE["series"][1]["points"]
-    z, N = [0.0, 1.0, -1.0], ORACLE["n_sites"]
+for pt in REFERENCE["series"][1]["points"]
+    z, N = [0.0, 1.0, -1.0], REFERENCE["n_sites"]
     n_ref = N .* [pt["free"], pt["protonated"], pt["deprotonated"]]
     s = electrostatic_stiffness(dl, z, n_ref, pt["I"], 298.15)
     # A diverging point is printed as such; the solver's warning would repeat it.
@@ -173,14 +172,14 @@ end
 [`electrostatic_stiffness`](@ref) is that contraction factor, and
 [`ELECTROSTATIC_STIFFNESS_LIMIT`](@ref) is where it stops — bracketed by
 measurement on both sides rather than chosen: over these eighteen points,
-everything at or below 3.4 certified by the eliminated route and everything at
+everything at or below 3.4 certified by the elimination method and everything at
 or above 6.2 did not, with nothing between.
 
 Carrying ``\Psi`` as an unknown removes the fixed point instead of taming it.
 The closure ``\tilde\psi = 2\operatorname{asinh}(\sigma/\kappa\sqrt I)`` becomes an
 equation of the outer Newton, the activity model is *told* its potential, and
 the inner loop sees a constant. That is the default, and the right-hand column
-is what it buys.
+is what it gives.
 
 !!! note "The forecast needs a composition you believe"
     The stiffness is a property of the **answer**, so it is evaluated here at
@@ -201,7 +200,7 @@ p2 = plot(; xlabel = "pH", ylabel = "electrostatic stiffness", yscale = :log10,
           title = "Why the potential is an unknown", legend = :bottomright,
           ylims = (1.5, 400), legendfontsize = 7)
 
-for (k, ser) in enumerate(ORACLE["series"])
+for (k, ser) in enumerate(REFERENCE["series"])
     ph = [pt["pH"] for pt in ser["points"]]
     plot!(p1, ph, [pt["free"] for pt in ser["points"]]; color = cols[k], lw = 2,
           label = "PHREEQC, $(round(Int, ser["nacl"] * 1000)) mM NaCl")
@@ -209,7 +208,7 @@ for (k, ser) in enumerate(ORACLE["series"])
     stiff = [
         electrostatic_stiffness(
             dl, z,
-            ORACLE["n_sites"] .* [pt["free"], pt["protonated"], pt["deprotonated"]],
+            REFERENCE["n_sites"] .* [pt["free"], pt["protonated"], pt["deprotonated"]],
             pt["I"], 298.15,
         ) for pt in ser["points"]
     ]
@@ -256,9 +255,8 @@ plot(p1, p2; layout = (1, 2), size = (1000, 420), dpi = 130,
     and carrying the potential as an unknown does not change that.
     [The theory page](@ref sec-theory-surface) measures it, and separates it
     carefully from the constant capacitance, which is a gradient.
-  - The **published metal calibration of [DzombakMorel1990](@citet)** is now within reach: the
-    acid-base half is reproduced at circumneutral pH, which is where the
-    elimination used to stop. The metal half needs the zinc of
+  - The **published metal calibration of [DzombakMorel1990](@citet)** is within reach: the
+    acid-base half is reproduced at circumneutral pH. The metal half needs the zinc of
     [the sorption edge](@ref sec-example-hfo) run with the layer on, and that is
     the next step rather than a claim made here.
 

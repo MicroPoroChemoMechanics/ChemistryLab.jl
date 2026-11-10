@@ -88,7 +88,7 @@ itself.
 
 ## Certifying an answer
 
-[`equilibrate`](@ref) takes the certifying route by default, and it returns a
+[`equilibrate`](@ref) takes the certifying method by default, and it returns a
 composition together with a **proof** that it is the Gibbs minimum rather than
 the point an iteration stopped at. Why such a proof exists — the problem is
 convex, so the KKT conditions are sufficient and not merely necessary — what the

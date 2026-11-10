@@ -308,7 +308,7 @@ the form of the data of mass-action programs
 ([Mass action or minimization](@ref sec-theory-mass-action)), thus carries the
 same information as a table of Gibbs energies of formation, for the species it
 contains. For lime and portlandite, with Ca²⁺, H₂O and H⁺ as
-primaries, the matrix and the two routes to the Gibbs energy of slaking read:
+primaries, the matrix and the two ways to the Gibbs energy of slaking read:
 
 ```@example basics
 basis = [db["Ca+2"], db["H2O@"], db["H+"]]

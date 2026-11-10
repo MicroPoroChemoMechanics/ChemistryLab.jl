@@ -552,8 +552,8 @@ dependent shift of `ln a_w` is not derived from a convex `G` for an arbitrary
 retention law, so under `CapillaryWater` the certificate proves a **KKT point of
 the constrained problem** — stationarity, mass balance, no absent phase
 supersaturated, and the capillary closure satisfied — but not global optimality.
-The multi-start route still runs, so agreement across starts is evidence; it is
-not the proof the fixed-(T, P) route gives.
+The multi-start search still runs, so agreement across starts is evidence; it is
+not the proof the fixed-(T, P) search gives.
 
 # Reading the shift back
 

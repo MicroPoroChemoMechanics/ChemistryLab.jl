@@ -379,7 +379,7 @@ for α in (ALPHA_ASH, 1.0)
         # that refusal with `check_convexity = false` and none of it holds: inside
         # a spinodal the minimum is two compositions, the certificate loses the
         # sufficiency that rests on convexity, and the start would then decide
-        # which branch you land on. The certificate still decides every point
+        # which branch is reached. The certificate still decides every point
         # here, and a start is reused only once it has been certified.
         #
         # The certificate is printed below; the warning of a refusal would
@@ -492,9 +492,8 @@ for (label, cs) in ("CSHQ" => cs_q, "CNASH_ss" => cs_n)
 end
 ```
 
-Both models certify, and they disagree — which is the whole point of the section
-and is now a comparison of **two proved answers** rather than of a success
-against a failure.
+Both models certify, and they disagree — which is the subject of the section:
+it compares two proved answers.
 
 ```@example cem4
 # The full-reaction limit, every ash sphere dissolved. The certificate carries
@@ -522,11 +521,10 @@ pH is 12.10, below the floor of about 12.5 that portlandite holds, so the
 portlandite is gone and the alkalis have the `KSiOH` and `NaSiOH` members to go
 to; with `CNASH_ss` it is 13.20, since that gel has no potassium member.
 
-Until this version the page ran the Debye–Hückel limiting law, `å = 0`, and in
-the limit neither model certified: the solve stopped with element balances of 0.26 and 0.35 mol. The
-activity model Cemdata18 [Lothenbach2019](@cite) prescribes certifies both from
-the first solve, and for `CSHQ` nothing else changed. What did not close at the
-limit was the limiting law, not the minimization and not the phase list.
+The activity model Cemdata18 [Lothenbach2019](@cite) prescribes certifies both
+from the first solve. Under the Debye–Hückel limiting law, `å = 0`, neither model
+certifies: the solve stops with element balances of 0.26 and 0.35 mol, because
+the limiting law fails to close, not the minimization nor the phase list.
 
 Read the `CNASH_ss` limit for what it is. Its ionic strength, 1.09 mol/kg, is
 past the range Cemdata18 states for its model, about 1 mol/kg, and the
@@ -633,7 +631,7 @@ budget without those alkalis, or another gel, answers a different question.
     Everything above is the state the paste *tends to*, with the whole ash taken
     as reactive. A real fly ash binder reaches a fraction of it in a month. The
     figure is a map of the family's limit, and the way to a date on the calendar
-    is the coupled route of [the kinetic pages](@ref ex-ionic-opc), which needs a
+    is the coupled method of [the kinetic pages](@ref ex-ionic-opc), which needs a
     rate law for the ash — `waller` ships published parameters for fly ash, and
     that is the subject of the coupled runs rather than of this page.
 

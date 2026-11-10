@@ -1,8 +1,7 @@
 # =============================================================================
 #  gruyaert2010_kinetics.jl — the pastes of Gruyaert et al. (2010), in time
 #
-#  The CEM I 52.5 N and slag pastes of scripts/gruyaert2010.jl, no longer at the
-#  degrees of hydration the image analysis measured, but integrated from the
+#  The CEM I 52.5 N and slag pastes of scripts/gruyaert2010.jl, integrated from the
 #  mixing: the four clinker phases dissolve under the Parrott–Killoh law, the
 #  slag glass under the Waller law, and the equilibrium is solved along the way.
 #  The page docs/src/examples/blended_slag_kinetics.md compares the run with the
@@ -10,7 +9,7 @@
 #  (Fig. 7) of the article, which the run was not fitted to, except where said.
 #
 #  The materials, the system and the activity model are those of
-#  scripts/gruyaert2010.jl, so that the two routes cannot drift apart.
+#  scripts/gruyaert2010.jl, so that the two computations cannot drift apart.
 # =============================================================================
 
 # Once per module: the test suite includes the other file as well.

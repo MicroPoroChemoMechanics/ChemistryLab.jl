@@ -125,7 +125,7 @@ its elements. Three objects are involved.
 |:--|:--|
 | [`ChemicalSystem`](@ref) | the immutable description of the system: species, primaries, stoichiometric matrices; built once and reused |
 | [`ChemicalState`](@ref) | the mutable state: amounts in mol, temperature and pressure |
-| [`equilibrate`](@ref) | the solver, which tries every available route and returns the state that [`optimality_certificate`](@ref) proves to be the minimum; [`equilibrate_certified`](@ref) returns the certificate as well |
+| [`equilibrate`](@ref) | the solver, which tries every available start and returns the state that [`optimality_certificate`](@ref) proves to be the minimum; [`equilibrate_certified`](@ref) returns the certificate as well |
 
 ```@example from_scratch
 using Optimization, OptimizationIpopt
@@ -186,7 +186,7 @@ reader already knows.
   [Chemical Equilibrium](@ref sec-equilibrium), then to the aqueous examples,
   whose answers can be checked against closed forms, starting with
   [CO₂ dissolution and the carbonate system](@ref sec-co2-carbonate).
-- A reader holding the oxide analysis of a cement will find the route from an
+- A reader holding the oxide analysis of a cement will find the path from an
   analysis to a chemical system in [Bogue calculation](@ref ex-bogue), and the
   worked binders from [A CEM I from its clinker phases](@ref sec-cem1-from-clinker)
   onwards.

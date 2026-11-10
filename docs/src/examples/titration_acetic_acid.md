@@ -70,7 +70,7 @@ cs = ChemicalSystem(species, ["H2O@", "H+", "Ace-", "Na+"])
     ace_species = speciation(substances_org, split("AceH@ Ace-"); aggregate_state=[AS_AQUEOUS])
     species     = unique(s -> symbol(s), vcat(aq_species, ace_species))
     ```
-    Note that equilibrium calculations may be more expensive, and that the results
+    Equilibrium calculations may be more expensive, and the results
     assume the system reaches thermodynamic equilibrium — kinetic effects are not captured.
 
 ---

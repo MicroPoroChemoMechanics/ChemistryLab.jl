@@ -36,9 +36,8 @@ ones its files carry, counted over the ThermoFun files `datapath` obtains:
 `AS_SURFACE` has no ThermoFun counterpart: no database describes a surface
 complex, because it is a modeling declaration rather than a substance record.
 
-Both `AS_LIQUID` and `AS_SURFACE` are appended rather than inserted, so no
-existing member changes its integer value. It is here because a database the package reads uses it -- metallic mercury
-in `slop98-inorganic-thermofun.json` -- and until it was added that record read
+`AS_LIQUID` is present because a database the package reads uses it: metallic
+mercury in `slop98-inorganic-thermofun.json`. Without it that record would read
 as `AS_UNDEF`, an import silently losing what the file said.
 
 A label with no member to land on takes the fallback, and a fallback is a valid

@@ -198,7 +198,7 @@ corrected its solutes and left its solvent at ``x_w`` would set the two halves o
 one model against each other. [`TruesdellJonesActivityModel`](@ref) and
 [`SITActivityModel`](@ref) (§6a) keep it.
 
-The one approximation in the B-dot route is that ``\varphi`` uses a single
+The one approximation in the B-dot method is that ``\varphi`` uses a single
 charge-weighted mean radius,
 ``\mathring{a}_{\text{eff}} = \sum_i m_i z_i^2\mathring{a}_i / \sum_i m_i z_i^2``,
 where the ``\gamma_i`` use per-ion radii. §5 measures that too.
@@ -409,7 +409,7 @@ obtained with it, so changing it makes a compilation inconsistent with the model
 that produced it; [`SITActivityModel`](@ref) exposes it as a field only to make
 that visible.
 
-### What it buys, and where it stops
+### What it gives, and where it stops
 
 ``\gamma`` under SIT does not fall forever: the pairwise term is positive for
 many pairs and eventually overcomes the screening term, so the curve **turns

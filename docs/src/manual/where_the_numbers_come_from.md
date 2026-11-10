@@ -15,7 +15,7 @@ writing a script with it is this one:
 This page shows how to ask, for each kind of number, and is explicit about the
 few cases where typing one is the right thing to do.
 
-## Why this matters more than it looks
+## The cost of typing a number
 
 Typing a number that exists elsewhere is not a style preference. Three things go
 wrong, and all three are quiet:
@@ -149,7 +149,7 @@ exists". Three kinds legitimately do not:
     test, a rate coefficient being fitted, a capacitance you are exploring: these
     are inputs to the question, and writing them is the point. Where this
     package's tests build a species like `XsOH2+`, its standard energy is
-    *constructed* to be the log K under test — the oracle, derived rather than
+    *constructed* to be the log K under test — the reference value, derived rather than
     looked up — and every such place says so in a comment.
   - **Data with no database.** A ground granulated blast-furnace slag glass has
     no thermodynamic entry; its composition comes from a datasheet, and that
@@ -235,7 +235,7 @@ answer. [`is_evidence`](@ref) is therefore true only for `PROV_MEASURED` and
 weakest(Traced(1.0, PROV_MEASURED, "this work"), Traced(2.0, PROV_ESTIMATED, "an analog"))
 ```
 
-[`weakest`](@ref) is what a derived quantity can honestly claim about itself.
+[`weakest`](@ref) is what a derived quantity can claim about itself.
 Nothing propagates it automatically — `Traced` is deliberately **not** a `Real`,
 so it cannot flow silently into arithmetic and arrive at the far end with its
 history gone. Unwrapping with `ChemistryLab.value` is an act a reader can see.
@@ -329,7 +329,7 @@ null_participation(id)     # a and c, half each; b, none
 **Not** from the parameter's position relative to the rank. A rank of 2 counts
 *directions in parameter space*, and the parameter order is whatever the caller
 packed; reading it as "the first two are fine" would have cleared `a` and
-flagged `c` — the wrong answer, reached by a plausible route.
+flagged `c` — the wrong answer, reached by a plausible computation.
 
 !!! warning "A fit is not a mechanism"
     Reproducing a measurement establishes that a model *can* reproduce it.

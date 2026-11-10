@@ -426,8 +426,8 @@ The accessor a `row_label` or `col_label` names, or `identity` for anything else
 
 A fixed set rather than `eval(label)`: a printing keyword needs a choice among
 four functions, not the power to evaluate an arbitrary expression in this
-module, and `eval` at run time on a display path buys a world-age barrier for
-nothing. Behavior is unchanged for every name that was meaningful before; one
+module, and `eval` at run time on a display path introduces a world-age barrier for
+no benefit. Behavior is unchanged for every name that was meaningful before; one
 outside the set falls back to `identity`, which is what the surrounding `try`
 already gave it.
 

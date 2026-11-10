@@ -257,7 +257,7 @@ the fly ash cannot follow a slag that slows down by the third month; with a
 ceiling that rises with the water, one time, one exponent and one activation
 energy describe the three temperatures and the three w/b to 2.6 points of
 degree, a quarter of the measurement's uncertainty. The activation energy,
-67 kJ/mol, is that of [Snellings2022](@citet), found by another route, below the
+67 kJ/mol, is that of [Snellings2022](@citet), found by another method, below the
 83 kJ/mol of the fly-ash set. These are fitted constants, of one slag in one
 cement; on the two slags of the round robin [Durdzinski2017](@cite) they hold
 within 7.2 points in three series of four. They are not shipped as the package's

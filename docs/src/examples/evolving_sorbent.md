@@ -78,7 +78,7 @@ lnK(logK) = -RT * log(10.0^logK)         # ΔrG° = −RT ln K
 energy(v) = SymbolicFunc(v * u"J/mol")
 
 # Dzombak and Morel's weak sites per mole of iron, and PHREEQC's constants,
-# read from the copy of phreeqc.dat that the test oracles use.
+# read from the copy of phreeqc.dat that the tests use.
 ν = literature_value("DzombakMorel1990", "weak_sites_per_mol_Fe")
 dat = read_sorption_model(datapath("phreeqc.dat"))
 log_k(product) = only(reactions_involving(dat, product)).log_K.value

@@ -95,7 +95,7 @@ end
 The moles of sites the state actually carries for `family`: `Σ dᵢ nᵢ` over its
 members, with `dᵢ` the denticity read from each member's formula.
 
-This is exactly the left-hand side of the site conservation row, so comparing it
+This is the left-hand side of the site conservation row, so comparing it
 with [`declared_site_moles`](@ref) compares the declaration against what the
 solver will conserve.
 """
@@ -586,7 +586,7 @@ out at `0.0999 mol` where the uncoupled answer is `0.0883`.
 
 Giving the component the charge the free site carries with its site symbol
 removes the `Zz` primary altogether. The same run then converges at `4.8e-11`,
-`max|y|` is `227`, the host lands on `0.08826` against `0.08827` uncoupled, and
+`max|y|` is `227`, the host is at `0.08826` against `0.08827` uncoupled, and
 the coupling holds to `1.8e-7`.
 
 # Why this is measured and not inferred from `Zz` being a primary

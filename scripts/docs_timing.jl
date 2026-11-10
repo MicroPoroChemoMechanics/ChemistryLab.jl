@@ -32,7 +32,7 @@ using Printf
 
 # The packages `docs/make.jl` loads, in the same order, BEFORE any page runs.
 # Which extensions are active, and in which order they registered, decides the
-# route a certified solve takes: measured, a map that let the pages load Ipopt
+# way a certified solve proceeds: measured, a map that let the pages load Ipopt
 # themselves, late, put a different back end first and timed a different build.
 using ChemistryLab
 using Optimization, OptimizationIpopt

@@ -15,8 +15,8 @@
 The default of the keyword `ϵ`, `1e-16` mol: the smallest amount the
 interior-point back ends are bounded by, the amount of an absent product in a
 cold state, and the size of the regularizations that keep a square root or a
-ratio finite at zero (`sqrt(I + ϵ)`). It is no longer the floor of the
-activities; see [`_ACTIVITY_FLOOR`](@ref).
+ratio finite at zero (`sqrt(I + ϵ)`). The floor of the activities is
+[`_ACTIVITY_FLOOR`](@ref).
 """
 const _AMOUNT_FLOOR = 1.0e-16
 
@@ -26,9 +26,8 @@ const _AMOUNT_FLOOR = 1.0e-16
 The molality, in mol per kilogram of water, below which an activity model reads a
 species at this molality: `1e-30`. It keeps `log n` finite, and nothing else. The
 amount it stands for is that molality times the water of the state
-(`_activity_floor_amount`), so that the floor follows the size of the system:
-until 0.41.0 it was `1e-30` mol whatever the system, the same amount for a
-kilogram of paste and for a pore solution of a few grams.
+(`_activity_floor_amount`), so that the floor follows the size of the system,
+a kilogram of paste or a pore solution of a few grams.
 
 It is lower than `ϵ = 1e-16`, the floor that bounds the interior-point back ends
 and fills the absent products of a cold state, which is too high a floor for the

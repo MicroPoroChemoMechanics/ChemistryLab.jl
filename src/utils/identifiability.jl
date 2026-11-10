@@ -35,7 +35,7 @@ rounding of the computation, not as a condition number of a few hundred.
 The logarithm is undefined at zero, and so is this: rescale or shift a
 parameter that can vanish first.
 
-`relstep` is deprecated, accepted and ignored: the derivatives are exact.
+`relstep`: deprecated, ignored. The derivatives are exact.
 """
 function log_sensitivity(forward, θ; relstep = nothing)
     relstep === nothing || Base.depwarn(
@@ -275,7 +275,7 @@ ratio would say that the amplitude alone is determined, when the amplitude and
 the sum are, which is **two**. A factor of six is ordinary conditioning; a
 singular value at the rounding is a structure.
 
-Returns `length(S)` when no ratio exceeds `gap`, which is the honest answer for
+Returns `length(S)` when no ratio exceeds `gap`, which is the correct answer for
 a flat spectrum: everything is constrained, or nothing distinguishes what is
 not.
 """
@@ -319,7 +319,7 @@ caller packed. Reading the rank as "the first two parameters are fine" confuses
 an index with a subspace, and for a model where two parameters trade off it
 picks the wrong one — the one that happened to be listed second.
 
-The participation is the honest version. In a model where `a` and `c` enter only
+The participation is the unbiased version. In a model where `a` and `c` enter only
 as their product, it comes out `[0.5, 0, 0.5]`: neither `a` nor `c` is
 determined on its own, `b` is, and no ordering was consulted to say so.
 """

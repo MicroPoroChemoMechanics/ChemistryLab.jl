@@ -105,7 +105,7 @@ Gouy-Chapman closure as its equation, or three, one per plane, for a
 layer.
 
 `nothing` when no surface needs one, which is every system without a diffuse
-layer — so nothing pays for the possibility.
+layer — so nothing is spent on the possibility.
 
 # The closure, and why its residual is already dimensionless
 

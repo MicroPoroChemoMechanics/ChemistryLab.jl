@@ -266,10 +266,10 @@ step — correct for variable-temperature semi-adiabatic calorimetry.
     host is the first solid reactant of `rxn`.
   - `ϵ`: regularization floor near Ω = 1 (default `1e-16`).
 
-!!! note "The molar mass is no longer guessed"
-    A host species without an `:M` property used to fall back to 0.1 kg/mol,
-    silently, which is wrong by up to an order of magnitude and scales the whole
-    rate. It now raises, naming the species.
+!!! note "The molar mass is not guessed"
+    A host species without an `:M` property raises an error naming the species,
+    since a default molar mass would be wrong by up to an order of magnitude and
+    would scale the whole rate.
 
 # Returns
 

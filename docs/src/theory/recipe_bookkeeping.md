@@ -131,9 +131,9 @@ then adds to the budget
 ```
 
 the same contribution as the reacted part of the oxide constituent in Section 2,
-so that the kinetic route and the route of imposed extents put the same elements
+so that the kinetic method and the method of imposed extents put the same elements
 into the equilibrium at the same degree of reaction. The two masses differ,
 however: the solid loses ``\alpha_c m_c`` while the equilibrium gains
 ``\alpha_c m_c \sum_{k \in K_c} \omega_{c,k}``, the rest being what Section 3
-keeps aside on the route of imposed extents and what the formula unit does not
+keeps aside in the method of imposed extents and what the formula unit does not
 model on the kinetic one (`modeled_mass_fraction`).

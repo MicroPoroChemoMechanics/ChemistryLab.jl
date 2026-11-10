@@ -89,7 +89,7 @@ for (phase, pk) in (("C3S", PK84_PARAMS_C3S), ("C2S", PK84_PARAMS_C2S))
 end
 ```
 
-The negative H⁺ coefficient is the whole point: dissolving one mole of alite
+The negative H⁺ coefficient is essential: dissolving one mole of alite
 consumes six moles of protons, which is what a pore solution at pH 12.5 and
 above records.
 
@@ -271,7 +271,7 @@ end
     trajectory here does not depend on the speciation at all; the speciation is
     what you read out of it. A rate law reading log-activities feeds the
     speciation back into the trajectory: `integrate` then solves the partition at
-    every evaluation of the right-hand side, by the certified route, and the
+    every evaluation of the right-hand side, by the certified computation, and the
     balance is tight at every step, not just at the instants you ask for.
 
 ## 7. The certificate
@@ -299,5 +299,5 @@ cert = optimality_certificate(des, sub_state; b = be)
 
 ## Where to go next
 
-The same route applied to a complete CEM I, aluminate and ferrite included, is
+The same method applied to a complete CEM I, aluminate and ferrite included, is
 [A complete CEM I 52.5 N, through its pore solution](@ref ex-ionic-opc).

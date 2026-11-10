@@ -1002,7 +1002,7 @@ Two things to know before reading the numbers:
 
   - **The check is built in.** Every phase actually present at an equilibrium
     must come out at `LogSI = 0`; measured on a CEM I paste, the twelve present
-    solids land within 1.2e-12. If they do not, the state is not an equilibrium
+    solids come out within 1.2e-12. If they do not, the state is not an equilibrium
     and no other index in the result means anything.
   - **A solid-solution end-member's index is relative to its current mole
     fraction**, since its activity is `ln x`. For an end-member at the solver's
@@ -1246,7 +1246,7 @@ walk continues from, and every later one starts from the last. Built at the
 default 25 °C instead, the whole walk solved a problem at the wrong temperature,
 and the certificate, which reads the temperature off the state it is given,
 certified that problem: a pore solution meant for 20 °C came back 0.19 low in
-pH, the shift of pKw between the two temperatures, whenever this route was the
+pH, the shift of pKw between the two temperatures, whenever this start was the
 one that succeeded.
 """
 function _homotopy_rung(cs, A, i_w, n0, model, λ, start, ϵ, verbose, atol, rtol, T, P)

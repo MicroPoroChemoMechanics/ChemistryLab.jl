@@ -61,7 +61,7 @@ kss = KineticStepSolver(cs, DiluteSolutionModel(), [kr_calcite])
 st1 = kinetic_step(kss, st0, 60.0u"s")
 ```
 
-See also [`kinetic_step`](@ref), [`integrate`](@ref) for the `ODEProblem` route.
+See also [`kinetic_step`](@ref), [`integrate`](@ref) for the `ODEProblem` method.
 """
 struct KineticStepSolver{D, R <: AbstractVector}
     dual::D
@@ -234,9 +234,8 @@ law would start every step at `α = 0`.
 solutions, leaving the component totals untouched. Keep it on: a mixing phase is
 admitted by a tangent-plane test, and from a composition where the phase is
 absent the step does not reach its answer. Measured on C₃S dissolving into a
-C-S-H solution, a cold start did not certify: with OptimaSolver 0.7.4 it left one
-end-member at 2.7e-9 with a stationarity residual of 6.5, and with the exact outer
-Jacobian since it admits every end-member and stops at a KKT error of 1.75.
+C-S-H solution, a cold start does not certify: it admits every end-member and
+stops at a KKT error of 1.75.
 
 The rate laws are evaluated at the **end-of-step** composition, which is what
 makes the step implicit and stable on a stiff system. `Δt` is the caller's choice;
@@ -254,16 +253,14 @@ equations, a reactant exhausted by a rate that does not vanish) and what to chan
     refuses it and the step throws.
 
     Which root the Newton finds depends on its path, not on the chemistry.
-    Measured on calcite under `r = k(1 − Ω)` with `k = 10⁻⁵ mol/s`: with the
-    outer Jacobian of OptimaSolver 0.7.4, formed by differences, steps of `10⁴ s`
-    and `10⁶ s` converged to the right root on Julia 1.12 and to the other one on
-    1.13, and so did `10⁵ s` on 1.13.1. With the exact outer Jacobian all three
-    reach the equilibrium root and certify, on 1.13.1. Steps well inside the
-    relaxation time certify on either, and the certificate stays the arbiter.
+    Measured on calcite under `r = k(1 − Ω)` with `k = 10⁻⁵ mol/s`, with the
+    exact outer Jacobian, steps of `10⁴ s`, `10⁵ s` and `10⁶ s` all reach the
+    equilibrium root and certify, on Julia 1.13.1. Steps well inside the
+    relaxation time certify on either root, and the certificate stays the arbiter.
 
     [`kinetic_step_adaptive`](@ref) is the guarantee whatever the path: it
-    refuses an uncertified step and halves until one certifies. With 0.7.4 it
-    came back in seven steps on the same case; now it takes the interval in one.
+    refuses an uncertified step and halves until one certifies. On the same case it
+    takes the interval in one step.
 """
 function kinetic_step(
         kss::KineticStepSolver, state::ChemicalState, Δt;
@@ -636,7 +633,7 @@ slow step and the whole family is kinetic, as in [`integrate`](@ref).
 
 Pass an explicit list of species (symbols or indices) to override the partition.
 
-Several reactions may share a mineral — the whole point of a reaction-centric
+Several reactions may share a mineral — the purpose of a reaction-centric
 scheme, and what [Lavergne2018](@cite) needs for C₃A reacting through both an
 ettringite and a monosulfoaluminate pathway. Their columns must be **linearly
 independent**, though: two reactions differing only in products the partition
@@ -835,7 +832,7 @@ st, dt_used, dt_next = kinetic_step_adaptive(kss, st0, 3600.0u"s"; reltol = 1e-4
 ```
 
 See also [`kinetic_step`](@ref) for a step of a length you choose, and
-[`integrate`](@ref) for the `ODEProblem` route, which brings SciML's own
+[`integrate`](@ref) for the `ODEProblem` method, which brings SciML's own
 step-size control and its choice of stiff solvers.
 """
 function kinetic_step_adaptive(
@@ -1069,10 +1066,10 @@ end
 """
     _normalize_certificate(c) -> NamedTuple
 
-One shape for the certificate whichever route produced it.
+One shape for the certificate whichever formulation produced it.
 
 `kinetic_step` fills its `certificate` reference from `OptimaSolver`'s
-`kkt_certificate` on the `:reactions` route and from
+`kkt_certificate` on the `:reactions` formulation and from
 [`optimality_certificate`](@ref) on the `:species` one, and those name the
 element-balance field differently — `feasibility` against `balance`. Returning
 two shapes from one keyword is a trap for the caller, so both are mapped onto the

@@ -9,10 +9,10 @@ A kinetic model is assembled from a small number of objects: rate functions that
 read the state, rate constants, kinetic reactions that attach a rate to a
 stoichiometry, a problem that gathers them with an initial state, and optionally
 a calorimeter. This page describes each of them, after the choice between the
-two routes that advance a model in time, and ends with the features needed by
+two methods that advance a model in time, and ends with the features needed by
 multi-step hydration schemes.
 
-## [Which route: two ways to advance in time](@id sec-kinetics-routes)
+## [Which method: two ways to advance in time](@id sec-kinetics-routes)
 
 There are two, they answer different questions, and choosing wrongly is the most
 common mistake. Both take the same [`KineticReaction`](@ref) objects and the same
@@ -32,9 +32,9 @@ a mineral dissolving into a solution, carbonation, an assemblage you do not want
 to prescribe. It is the step of [Leal2017](@citet), the one Reaktoro implements,
 and it is unconditionally stable ([The implicit step](@ref sec-theory-implicit-step));
 [Coupling kinetics and equilibrium](@ref sec-coupling) runs it against the ODE
-route on calcite.
+method on calcite.
 
-**Use the ODE route** when the reactions themselves are the model — a
+**Use the ODE method** when the reactions themselves are the model — a
 stoichiometric hydration scheme in the form of [Lavergne2018](@citet), where
 `C₃S + H₂O → C-S-H + CH` is written out and the products are prescribed, not
 proposed. Every product then follows the coefficients you gave, several pathways
@@ -42,7 +42,7 @@ may share a mineral, and the integrator chooses the step.
 
 ### Prescribed products AND strong coupling: `coupling = :species`
 
-The third combination, which the ODE route does not offer: a
+The third combination, which the ODE method does not offer: a
 solid-to-solid scheme whose **products are imposed by the stoichiometry**, solved
 inside the same Gibbs minimization as the aqueous equilibrium.
 
@@ -70,7 +70,7 @@ The pinned species are eliminated rather than constrained, which
 [The implicit step](@ref sec-theory-implicit-step) explains.
 
 Use `:reactions` when the assemblage should come from thermodynamics, the ODE
-route when no aqueous coupling is needed, and `:species` when you want a
+method when no aqueous coupling is needed, and `:species` when you want a
 stoichiometric scheme with the pore solution still at equilibrium.
 
 The default, `coupling = :reactions`, solves the composition and the extents
@@ -141,7 +141,7 @@ st2, Δt_used, Δt_next = kinetic_step_adaptive(kss, st0, 1.0e5u"s")   # one acc
 ```
 
 A single step far beyond the relaxation time of a law that vanishes at
-equilibrium can land on a second root, the mineral wholly dissolved, which the
+equilibrium can reach a second root, the mineral wholly dissolved, which the
 certificate refuses and the adaptive march never accepts
 ([The implicit step](@ref sec-theory-implicit-step)).
 
@@ -151,7 +151,7 @@ either, and a trajectory that reaches amounts the system cannot hold is returned
 with `retcode = Unstable`. Why freezing the partition under a law that reads it
 overshoots the equilibrium is in
 [When the partition may be frozen within a step](@ref sec-theory-pe-splitting);
-[Coupling kinetics and equilibrium](@ref sec-coupling) shows the three routes on
+[Coupling kinetics and equilibrium](@ref sec-coupling) shows the three methods on
 one mineral.
 
 ### Solid solutions in the step, and the two settings the certificate decides
@@ -272,7 +272,7 @@ r_hydrogarnet = KineticFunc(
 _gate(x, xref) = tanh(max(x, zero(x)) / (1e-3 * xref))
 ```
 
-Note that the gates are written from the amounts, and that stage 2 consumes a
+The gates are written from the amounts, and stage 2 consumes a
 species stage 1 produced. Both work because the reaction extents are carried in
 the state, so a non-kinetic amount moves during the step — see the two rules
 below.
@@ -373,17 +373,6 @@ pk_C3S_fine = parrott_killoh_avrami(
 )
 ```
 
-!!! warning "`parrott_killoh` is deprecated — use `parrott_killoh_avrami`"
-    ChemistryLab also exports [`parrott_killoh`](@ref), a smoothed variant with its
-    own parameter sets `PK_PARAMS_*`. Its formulas are **not** those of
-    [ParrottKilloh1984](@cite) and its parameters match no published set, so the
-    attribution has been withdrawn. With `PK_PARAMS_*` the diffusion branch takes
-    over within the first few percent of hydration, and C₃S, C₂S and C₃A then all
-    land on α(7 d) = 0.2386 whatever their `K₁` — against the ≈ 0.61 the
-    literature reports for a CEM I at w/c = 0.40. See
-    [Two Parrott–Killoh variants](@ref pk-variants). Supplementary cementitious
-    materials do not follow Parrott–Killoh at all: use [`waller`](@ref).
-
 Rate evaluation:
 
 ```julia
@@ -395,7 +384,7 @@ lna   = StateView([0.0], index)
 r = pk_C3S(293.15, 1.0e5, 0.0, n_sv, lna, n0_sv)   # mol/s
 ```
 
-AD smoke-test:
+Quick test of the derivative by automatic differentiation:
 
 ```julia
 using ForwardDiff
@@ -426,7 +415,7 @@ tst = transition_state(
     surface,
 )
 
-# tst is a KineticFunc — same calling convention as parrott_killoh
+# tst is a KineticFunc — same calling convention as parrott_killoh_avrami
 kr = KineticReaction(cs, cs.dict_reactions["calcite dissolution"], tst)
 ```
 
@@ -710,41 +699,22 @@ differentiated. The observables read off it are exact derivatives of that
 solution: [`heat_flow`](@ref) from the derivative of the interpolant,
 [`heat_release`](@ref) from `−dH/dt` at each certified state.
 
-## [Two Parrott–Killoh variants](@id pk-variants)
+## [The Parrott–Killoh model](@id pk-variants)
 
-ChemistryLab ships **two** implementations of the clinker hydration model of
-[ParrottKilloh1984](@citet). They are not interchangeable, and their parameter sets are not
-transferable between them.
+[`parrott_killoh_avrami`](@ref) implements the clinker hydration model of
+[ParrottKilloh1984](@citet), with the parameters of that reference as reported by
+[LothenbachWinnefeld2006](@citet) and used by [Lavergne2018](@citet). The rate
+of a phase is the `min` of three mechanisms:
 
-| | [`parrott_killoh`](@ref) (deprecated) | [`parrott_killoh_avrami`](@ref) |
-|:--|:--|:--|
-| Nucleation–growth | `(K₁/N₁)(1-ξ)^N₁ / (1 + B·ξ^N₃)` | `(k₁/n₁)(1-ξ)(-ln(1-ξ))^(1-n₁)` (Avrami) |
-| Second mechanism | `K₂(1-ξ)^N₂` | `k₂(1-ξ)^(2/3) / (1-(1-ξ)^(1/3))` (Jander) |
-| Third mechanism | `3K₃(1-ξ)^(2/3) / (N₃(1-(1-ξ)^(1/3)))` | `k₃(1-ξ)^n₃` (power law) |
-| Combination | `min(max(r_NG, r_I), r_D)` | `min` of all three |
-| Parameters | `PK_PARAMS_C3S` …, provenance unestablished | [`PK84_PARAMS_C3S`](@ref) … |
-| Status | deprecated, warns once | **use this one** |
+| Mechanism | Rate |
+|:--|:--|
+| Nucleation–growth (Avrami) | `(k₁/n₁)(1-ξ)(-ln(1-ξ))^(1-n₁)` |
+| Diffusion (Jander) | `k₂(1-ξ)^(2/3) / (1-(1-ξ)^(1/3))` |
+| Phase boundary (power law) | `k₃(1-ξ)^n₃` |
 
-`parrott_killoh_avrami` is the **canonical 1984 formulation**, with the parameters
-of [ParrottKilloh1984](@citet) as reported by [LothenbachWinnefeld2006](@citet) and
-used by [Lavergne2018](@citet). Use it when you want the α(t) curves of the cement
-literature. A useful signature of a correct transcription: with those parameters
-C₂S has no nucleation–growth stage and C₃S no diffusion-controlled stage.
-
-`parrott_killoh` is kept only so that existing scripts keep running. Its
-nucleation–growth term carries no Avrami logarithm, `K₃` sits where the canonical
-form has `k₂`, `N₁ = 3.3` is the canonical `n₃`, and `k₃ = 1.1` has no counterpart
-at all — so the two are different models, not two parameterizations of one. The
-primary source, [ParrottKilloh1984](@citet), has no DOI and could not be
-consulted, so the smoothed variant is not attributed to it. With
-`PK_PARAMS_*` the diffusion branch takes over at α ≈ 0.003 (C₂S), 0.013 (C₃S) and
-0.057 (C₃A); those three then follow the closed form
-`α(t) = α_max·[1 − (1 − √(2·K₃·t / N₃))³]`, giving **α(7 d) = 0.2386 for all
-three**, while C₄AF is limited by its own nucleation branch and reaches only
-0.193. Converting the four clinker demos to the canonical variant moved a CEM I
-paste at w/c = 0.40 from a mean degree of 0.234 to 0.628, an adiabatic
-temperature rise from 2.0 to 14.2 °C, and the heat released at seven days from
-115 to 308 kJ/kg of cement.
+The parameters are [`PK84_PARAMS_C3S`](@ref) … A useful signature of a correct
+transcription: with those parameters C₂S has no nucleation–growth stage and C₃S no
+diffusion-controlled stage.
 
 ```julia
 pk = parrott_killoh_avrami(

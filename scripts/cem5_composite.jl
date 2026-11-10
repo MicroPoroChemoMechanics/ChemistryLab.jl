@@ -300,7 +300,7 @@ change what is found**, only whether the search finds it.
 Waive that refusal with `check_convexity = false` and none of it holds: inside a
 spinodal the minimum is two coexisting compositions rather than one, the
 certificate loses the sufficiency that rests on convexity, and the starting point
-would then decide which branch the answer lands on — which is exactly the
+would then decide which branch the answer reaches — which is exactly the
 path-dependence [the miscibility gap page](@ref ex-miscibility-gap) is about. The
 certificate decides at every step here, and a start is reused only after it has
 been certified.
