@@ -338,8 +338,8 @@ Here the consequence is reported.
 uses it says so, and what comes back from a solve is a **self-consistent
 speciation** — mass action and conservation satisfied together — not a
 certified minimum. Everything the other models certify, they still certify;
-this one buys agreement with the published calibrations at that price, and the
-price is written on it.
+this one gives agreement with the published calibrations at that cost, and the
+cost is written on it.
 
 # Fields
 
@@ -716,7 +716,7 @@ to a hydrating paste without saying so.
 It evaluates the water equation of state, in about 7 µs (measured), and a
 [`DiffuseLayer`](@ref) that follows the temperature calls it at every evaluation of
 its potential. The last value computed from plain numbers is kept, so that the
-evaluations of one solve, at one temperature and one pressure, pay it once.
+evaluations of one solve, at one temperature and one pressure, compute it once.
 """
 water_relative_permittivity(T_K::Real, P_Pa::Real = P_STANDARD) =
     water_electro_props_jn(T_K, P_Pa, water_thermo_props(T_K, P_Pa)).epsilon
@@ -807,7 +807,7 @@ aqueous solution.
 
 [`DiffuseLayer`](@ref) and [`ChargePlanes`](@ref) do. The activity closures test this once, when
 they are built, and skip the ionic-strength sum entirely when no family asks for
-it — so a system without a diffuse layer pays nothing for the possibility of
+it — so a system without a diffuse layer costs nothing for the possibility of
 one.
 """
 needs_ionic_strength(::AbstractSiteMixingModel) = false
@@ -876,7 +876,7 @@ end
     struct TotalSiteAmount{T<:Real} <: AbstractSiteCapacity
 
 A prescribed total number of moles of sites, independent of how much support is
-present. The honest description of a batch experiment on a fixed sorbent, and
+present. The description of a batch experiment on a fixed sorbent, and
 the form the first milestone's fixed-support scope uses.
 
 # Fields

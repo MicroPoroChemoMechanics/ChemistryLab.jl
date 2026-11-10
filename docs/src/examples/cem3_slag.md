@@ -378,7 +378,7 @@ end
 
 Read the two right-hand columns against each other. A **factor of three** on the
 alkali content moves the pH by **0.43 unit** and the portlandite by under **5 %**.
-That separation is the whole point: the calcium is held by portlandite and cannot
+The reason for that separation is that the calcium is held by portlandite and cannot
 follow, so in a cement paste the alkalis *are* the pH and the calcium hydroxide
 is only a floor beneath them.
 

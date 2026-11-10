@@ -211,7 +211,7 @@ Solid solution phases (e.g. C-S-H gel, AFm) group several end-member species wit
 mixing model. Because database species carry `class = SC_COMPONENT` rather than
 `class = SC_SSENDMEMBER`, they cannot be passed directly to [`SolidSolutionPhase`](@ref).
 
-[`build_solid_solutions`](@ref) automates the full pipeline:
+[`build_solid_solutions`](@ref) automates the whole chain of steps:
 
 1. Reads phase definitions from a TOML file.
 2. Looks up each end-member in a pre-built species dictionary.

@@ -78,7 +78,7 @@ fixes the notation of the whole chapter, which is that of the code, and
 [Standard states](@ref sec-theory-standard-states) completes it by stating what
 each activity is measured from. [Proving that an answer is the answer](@ref sec-theory-certificate)
 then explains why an equilibrium computed here can be checked rather than
-trusted: the optimality conditions can be audited on any composition, they are
+trusted: the optimality conditions can be checked on any composition, they are
 sufficient for a global minimum when the activities derive from one convex
 energy, and the certificate says whether they do. The same page fixes the
 meaning of stable, metastable and partial equilibrium, on which the kinetic

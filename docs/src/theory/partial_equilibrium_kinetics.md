@@ -550,7 +550,7 @@ cases apart from the rate laws themselves (`speciation = :auto`), and a
 trajectory that reaches amounts the system cannot hold is returned as a failure
 rather than a success.
 
-A semi-adiabatic calorimeter takes the second route whatever its laws read: its
+A semi-adiabatic calorimeter takes the second path whatever its laws read: its
 temperature is solved with the partition (Section 6).
 
 ## [4. The Jacobian](@id sec-theory-pe-jacobian)
@@ -836,7 +836,7 @@ participants, so that a reaction must be balanced for its heat to mean anything.
 
 ## [7. What is checked](@id sec-theory-pe-checks)
 
-The formulation is held to identities that a route sharing nothing with it
+The formulation is held to identities that a computation sharing nothing with it
 computes:
 
 - **The partition carries the integrated budget.** At every accepted step
@@ -884,11 +884,11 @@ computes:
 
 ## See also
 
-- [Coupling kinetics and equilibrium](@ref sec-coupling), the three routes run
+- [Coupling kinetics and equilibrium](@ref sec-coupling), the three methods run
   on one mineral, with their trajectories.
 - [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration),
   the partition on a clinker.
 - [A CEM I 52.5 N mortar in a semi-adiabatic calorimeter, inside the kinetics](@ref ex-semiadiabatic),
   the semi-adiabatic cell on a cement.
 - [Writing a kinetic model](@ref sec-kinetics-syntax), the syntax of the
-  routes and of the calorimeters.
+  methods and of the calorimeters.

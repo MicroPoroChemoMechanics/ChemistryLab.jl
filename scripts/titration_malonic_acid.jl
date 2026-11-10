@@ -122,9 +122,7 @@ end
 # ── Results ──────────────────────────────────────────────────────────────────
 #
 # Indices are looked up from the volume, never hard-coded: the grid has 201
-# points over 15 mL, so a step is 0.075 mL. An earlier version carried indices
-# from a 61-point grid and mislabeled all six lines — `pH_vals[6]` was announced
-# as 2.5 mL when it is 0.375 mL.
+# points over 15 mL, so a step is 0.075 mL.
 
 _at(V) = argmin(abs.(volumes_NaOH .- V))
 

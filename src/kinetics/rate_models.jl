@@ -757,89 +757,7 @@ end
 """
     parrott_killoh(params::NamedTuple, mineral_name::AbstractString; α_max=1.0) -> KineticFunc
 
-Build a smoothed three-mechanism clinker hydration rate as a
-[`KineticFunc`](@ref).
-
-!!! danger "Deprecated, and no longer attributed to Parrott & Killoh"
-    Use [`parrott_killoh_avrami`](@ref) with [`PK84_PARAMS_C3S`](@ref) and
-    siblings instead. This function is kept so that existing scripts keep
-    running, and it warns once per session.
-
-    **Why the attribution is withdrawn.** The formulas below are not those of
-    [ParrottKilloh1984](@citet): the nucleation–growth term carries no Avrami logarithm,
-    and `K₃` — a shell-formation coefficient — sits in the *diffusion*
-    expression where the canonical formulation uses `K₂`. Nor do the shipped
-    parameters match any published set: `N₁ = 3.3` is the canonical `n₃`, and
-    the canonical `k₃ = 1.1` has no counterpart at all. The primary source,
-    [ParrottKilloh1984](@citet), is a conference proceedings without a DOI that
-    could not be consulted, so the attribution is retracted rather than repaired
-    by an invented calibration.
-
-    **Why it matters.** With `PK_PARAMS_*` the diffusion branch takes over very
-    early — measured at `α/α_max` = 0.003 for C₂S, 0.013 for C₃S, 0.057 for C₃A,
-    and over the whole range for C₄AF — and governs throughout the interval a
-    seven-day run traverses, because its prefactor `3K₃/N₃ = 0.0018 d⁻¹` is 28
-    times smaller than the canonical `k₂ = 0.05 d⁻¹`. The rate then integrates
-    in closed form,
-
-        α(t) = α_max · [1 − (1 − √(2·K₃·t / N₃))³]
-
-    which is **independent of the phase**, because `K₃ = 0.0024 d⁻¹` and
-    `N₃ = 4` are identical in all four parameter sets. Measured on a CEM I at
-    w/c = 0.40 over seven days, C₃S, C₂S and C₃A all land on `α ≈ 0.239`, and
-    C₄AF lower still at 0.193 — there its own nucleation-growth branch is
-    slower than diffusion and limits instead. The weighted mean comes to 0.234. The
-    signature is
-    unmistakable: `K₁` spans a factor of 18 across the four phases and changes
-    almost nothing.
-
-`params` must be a `NamedTuple` with keys `K₁`, `N₁`, `K₂`, `N₂`, `K₃`, `N₃`,
-`B`, `Ea`, `T_ref`. All dimensional values accept plain `Real` (SI) or
-`DynamicQuantities.Quantity`.
-
-`mineral_name` is the PHREEQC formula string (e.g. `"C3S"`) used to look up the
-mineral moles in the `n` and `n_initial` [`StateView`](@ref)s.
-
-Three competing mechanisms determine the rate [ParrottKilloh1984](@cite):
-
-| Mechanism | Formula |
-|-----------|---------|
-| Nucleation–growth | `r_NG = (K₁/N₁)(1-ξ)^N₁ / (1 + B·ξ^N₃)` |
-| Interaction | `r_I = K₂(1-ξ)^N₂` |
-| Diffusion | `r_D = 3K₃(1-ξ)^(2/3) / (N₃·(1-(1-ξ)^(1/3)))` |
-
-The rate [mol/s] is `n_initial × Aₜ × min(max(r_NG, r_I), r_D)` where
-`ξ = α / α_max` is the normalized degree of hydration and
-`Aₜ = exp(-Ea/R × (1/T - 1/T_ref))` is the Arrhenius factor.
-
-`α_max` can be set to apply the water/cement ratio limit of [Powers1948](@citet):
-`α_max = powers_alpha_max(w_c)`.
-
-# Returns
-
-A [`KineticFunc`](@ref) — callable as
-`pk(T, P, t, n::StateView, lna::StateView, n_initial::StateView) -> Real [mol/s]`.
-AD-compatible (ForwardDiff-safe): no `Float64` casts in the evaluation path.
-
-# Examples
-
-Shown rather than run: the constructor warns by design, and a deprecation
-warning on stderr is not something a doctest should have to reproduce verbatim.
-The numerical behavior of this variant is pinned by the test suite instead — see
-the branch oracle in `test/kinetics/test_rate_models.jl`, which asserts that
-`PK_PARAMS_*` puts C3S, C2S and C3A on the diffusion branch within a few percent
-of hydration and that C4AF is limited by its own nucleation branch.
-
-```julia
-pk = parrott_killoh(PK_PARAMS_C3S, "C3S")
-idx = Dict("C3S" => 1)
-n0 = StateView([1.0], idx)
-lna = StateView([0.0], idx)
-pk(293.15, 1e5, 0.0, n0, lna, n0) > 0      # true
-```
-
-See also: [`PK_PARAMS_C3S`](@ref), [`PK_PARAMS_C2S`](@ref),
-[`PK_PARAMS_C3A`](@ref), [`PK_PARAMS_C4AF`](@ref).
+Deprecated: use [`parrott_killoh_avrami`](@ref).
 """
 function parrott_killoh(params::NamedTuple, mineral_name::AbstractString; α_max::Real = 1.0)
     K₁ = safe_ustrip(us"1/s", params.K₁)
@@ -903,44 +821,28 @@ end
 """
     PK_PARAMS_C3S :: NamedTuple
 
-Parameters of the deprecated smoothed variant [`parrott_killoh`](@ref) for alite
-(C₃S = Ca₃SiO₅), with keys `K₁`, `N₁`, `K₂`, `N₂`, `K₃`, `N₃`, `B`, `Ea`,
-`T_ref`.
-
-Their provenance is unestablished. They are read from the table
-`smoothed_variant` of `data/literature/ParrottKilloh1984.json`, which records
-them as such.
-
-```julia
-pk = parrott_killoh(PK_PARAMS_C3S, "C3S")
-# or with the water availability cap of Powers (1948):
-pk = parrott_killoh(PK_PARAMS_C3S, "C3S"; α_max = powers_alpha_max(w_c))
-```
+Deprecated: use [`PK84_PARAMS_C3S`](@ref).
 """
 const PK_PARAMS_C3S = _pk_smoothed_params("C3S")
 
 """
     PK_PARAMS_C2S :: NamedTuple
 
-Parameters of the deprecated smoothed variant for belite (C₂S = Ca₂SiO₄). See
-[`PK_PARAMS_C3S`](@ref).
+Deprecated: use [`PK84_PARAMS_C2S`](@ref).
 """
 const PK_PARAMS_C2S = _pk_smoothed_params("C2S")
 
 """
     PK_PARAMS_C3A :: NamedTuple
 
-Parameters of the deprecated smoothed variant for tricalcium aluminate
-(C₃A = Ca₃Al₂O₆) in the presence of sulfate (gypsum), corresponding to ettringite
-formation. See [`PK_PARAMS_C3S`](@ref).
+Deprecated: use [`PK84_PARAMS_C3A`](@ref).
 """
 const PK_PARAMS_C3A = _pk_smoothed_params("C3A")
 
 """
     PK_PARAMS_C4AF :: NamedTuple
 
-Parameters of the deprecated smoothed variant for tetracalcium aluminoferrite
-(C₄AF = Ca₄Al₂Fe₂O₁₀). See [`PK_PARAMS_C3S`](@ref).
+Deprecated: use [`PK84_PARAMS_C4AF`](@ref).
 """
 const PK_PARAMS_C4AF = _pk_smoothed_params("C4AF")
 
@@ -989,13 +891,8 @@ Blaine fineness factor ([`blaine_factor`](@ref)), `β_h` the relative-humidity
 reduction ([`humidity_factor`](@ref)) and `f` the water/cement factor
 ([`pk_wc_factor`](@ref)). Each is 1 when its keyword is `nothing`.
 
-!!! note "Two Parrott–Killoh variants ship with ChemistryLab"
-    [`parrott_killoh`](@ref) implements a *different*, smoothed variant
-    (`min(max(r_NG, r_I), r_D)` with a `B`-damped nucleation term) together with
-    the parameter set of [`PK_PARAMS_C3S`](@ref) and siblings. The two are not
-    interchangeable: their parameters are **not** transferable, and only
-    `parrott_killoh_avrami` with [`PK84_PARAMS_C3S`](@ref) reproduces the α(t)
-    curves published in the cement literature cited above.
+The parameters [`PK84_PARAMS_C3S`](@ref) and siblings reproduce the α(t) curves
+published in the cement literature cited above.
 
 With the canonical parameters, C₂S has no nucleation–growth stage and C₃S has no
 diffusion-controlled stage — an artifact of the 1984 fit that
@@ -1438,8 +1335,8 @@ Waller kinetics of additions.
     Passing a [`BETSurfaceArea`](@ref) raises instead of returning a number.
     Silica fume is about 20 000 m²/kg by BET and about 2 000 m²/kg by effective
     Blaine, so the substitution would multiply its hydration rate by ten. A bare
-    number is still read as a Blaine fineness, which is the historical contract;
-    type the argument to get the check.
+    number is read as a Blaine fineness; type the
+    argument to get the check.
 
 # Examples
 

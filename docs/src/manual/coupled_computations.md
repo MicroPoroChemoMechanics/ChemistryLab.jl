@@ -95,7 +95,7 @@ off.
 A node keeps its last answer and the multipliers of that answer, and each thread
 uses a solver of its own, since a solver keeps the start of its next solve. Below, four nodes of a column of calcite receive carbon dioxide at
 every step of their host, each more than the one before it; each call is the warm
-one, with the certified cold route as the fallback of an answer the certificate
+one, with the certified cold start as the fallback of an answer the certificate
 does not prove.
 
 ```@example host
@@ -124,7 +124,7 @@ for step in 1:5, k in eachindex(states)
     st, cert = solve_certified(des, (states[k],); b, y0 = ys[k], dual_state = y, report = false)
     if cert.optimal
         ys[k] = y[].y
-    else                                             # the cold route, where the warm one failed
+    else                                             # the cold start, where the warm one failed
         global fallbacks += 1
         st, cert = equilibrate_certified(states[k]; model, b)
         ys[k] = nothing
@@ -137,7 +137,7 @@ end
 
 Two things a call should not do:
 
-- **start from the host's initial state** at every step: the cold route then
+- **start from the host's initial state** at every step: the cold start then
   solves again what the previous step already solved;
 - **solve two identical nodes twice**: nodes that share a budget, at the start
   of a computation or where the transport has not yet arrived, share their
@@ -199,7 +199,7 @@ What the table says, case by case:
 - without a partition, or with one solved per accepted step, the explicit
   `Tsit5` is the fastest at every tolerance, five to six times faster than
   `Rodas5P` without a partition and 1.5 to 2 times with one: the laws are not
-  stiff enough for a stiff method to pay for its Jacobian, and with a partition
+  stiff enough for a stiff method to repay the cost of its Jacobian, and with a partition
   `Tsit5` takes fewer steps, hence fewer equilibria; at `10⁻⁸` the stiff methods
   are the more accurate;
 - with the partition read by the law, `Tsit5` takes tens of thousands of steps,
@@ -298,8 +298,8 @@ The implicit step is eight to twenty times cheaper than a restarted ODE, and its
 deviation is that of a first-order method over the host's step, of the order of
 `10⁻²` on the clinker at one-hour steps, where the restarted ODE meets its tolerance; on
 calcite, whose relaxation is far shorter than a host step, both reach the
-equilibrium. A restarted ODE pays at every host step what an uninterrupted run
-pays once, a start from a small step and the speciated state at its end, so
+equilibrium. A restarted ODE spends at every host step what an uninterrupted run
+spends once, a start from a small step and the speciated state at its end, so
 that a single run over the whole history of the clinker costs less than one of
 its host steps; on the clinker the stiff `Rodas5P` is then the cheapest, since
 the restart takes away the long steps the explicit methods win with.

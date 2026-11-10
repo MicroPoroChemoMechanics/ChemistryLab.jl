@@ -46,21 +46,13 @@ A ratio whose units cancel is a number, and works:
 log(2u"m/m"), exp(1u"1")
 ```
 
-!!! warning "This was not always so"
-    Up to and including 0.18.1, loading ChemistryLab extended some thirty `Base`
-    math functions to `DynamicQuantities.Quantity`, stripping the unit first. Two
-    consequences, and the second is the one that could change a result:
-
-    - the methods were **global**, so every package loaded beside this one
-      inherited them whether or not it asked;
-    - `ustrip` returns the value in SI **base** units, so the answer depended on
-      how the quantity had been written — `log(1u"mol/L")` gave `6.908` and
-      `log(1u"mmol/L")` gave `0.0`, for what is the same concentration scale one
-      thousand apart.
-
-    If you relied on `log(x)` accepting a dimensioned `x`, form the dimensionless
-    ratio yourself and take the logarithm of that. It is one more line, and it is
-    the line that says which reference the logarithm is taken against.
+!!! warning "Logarithm of a dimensioned quantity"
+    ChemistryLab does not extend the `Base` math functions to
+    `DynamicQuantities.Quantity`: since `ustrip` returns the value in SI base
+    units, `log(1u"mol/L")` would be `6.908` and `log(1u"mmol/L")` would be `0.0`
+    for the same concentration scale one thousand apart. The dimensionless ratio
+    is formed explicitly, and its logarithm taken, which states the reference
+    against which the logarithm is taken.
 
 ### Arithmetic with fractional stoichiometry
 
@@ -257,7 +249,7 @@ selected = build_species(datapath("cemdata18-thermofun.json"), split("Cal H2O@ H
 
 ### Low-level access: `read_thermofun_database`
 
-For direct DataFrame access (e.g. to inspect raw fields or apply custom filters), use `read_thermofun_database`. Note that `aggregate_state` is stored as a single-entry `Dict` — use `only(values(...))` to extract its string value:
+For direct DataFrame access (e.g. to inspect raw fields or apply custom filters), use `read_thermofun_database`. `aggregate_state` is stored as a single-entry `Dict` — use `only(values(...))` to extract its string value:
 
 ```julia
 df_elements, df_substances, df_reactions = read_thermofun_database(datapath("cemdata18-thermofun.json"))

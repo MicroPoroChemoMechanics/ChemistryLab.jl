@@ -120,7 +120,7 @@ f_scal(T = 500.0)
 ```
 
 !!! tip "Reaction thermodynamics"
-    This is exactly how ChemistryLab computes `r.ΔᵣH⁰`, `r.ΔᵣG⁰`, etc.: each species contributes its `ΔₐH⁰` function multiplied by its stoichiometric coefficient, and the sum is another callable function of T.
+    ChemistryLab computes `r.ΔᵣH⁰`, `r.ΔᵣG⁰`, etc.: each species contributes its `ΔₐH⁰` function multiplied by its stoichiometric coefficient, and the sum is another callable function of T.
 
 ---
 

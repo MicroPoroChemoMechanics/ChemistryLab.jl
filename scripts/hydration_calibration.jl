@@ -36,13 +36,7 @@ using LinearAlgebra
 using OptimaSolver
 using Optimization
 using OptimizationOptimJL
-# `NelderMead` explicitly, not through the `using` above: OptimizationOptimJL
-# 0.4.19 stopped re-exporting Optim's algorithm names. The binding still exists
-# in that module, so an explicit import works on either version — whereas
-# relying on the re-export made this script depend on which version the
-# environment happened to resolve. It failed in the test environment, which
-# resolves fresh from the registry, while a pinned `scripts/Manifest.toml`
-# still carrying 0.4.18 kept working.
+# `NelderMead` is imported explicitly from Optim.
 import OptimizationOptimJL: NelderMead
 using OrderedCollections
 using OrdinaryDiffEq
@@ -191,7 +185,7 @@ The two vendored records: the CEM I 52.5 R of Čížkovice at w/b = 0.50 and Bla
 397 m²/kg, fitted; and the CEM I 52.5 R of Ladce at w/b = 0.45 and Blaine
 415 m²/kg, predicted without refitting.
 
-The holdout is the only honest test available here of whether
+The holdout is the only unbiased test available here of whether
 [`powers_alpha_max`](@ref) and [`blaine_factor`](@ref) carry a calibration
 across mixes, which is the claim those two corrections make.
 """
@@ -339,7 +333,7 @@ to [`stoichiometric_run`](@ref) or [`run_ionic_hydration`](@ref).
 """
 induction_tstops(τ, m; n = 9) = collect(τ .* 10 .^ range(-0.6, 0.6; length = n))
 
-# The smoothing of the gate of the ferrite on portlandite, in mol per kilogram of
+# The smoothing of the activation of the ferrite on portlandite, in mol per kilogram of
 # binder: small against the 2 mol a paste forms, large against the precision of
 # the integration.
 const C4AF_CH_GATE = 1.0e-4
@@ -442,10 +436,10 @@ that, and for anyone whose data support more.
     Parrott & Killoh reported no diffusion-controlled stage for C₃S, and
     [`parrott_killoh_avrami`](@ref)'s docstring repeats it. The exact sensitivity
     agrees: at the published constants the Jander branch never becomes the
-    minimum, and `∂Q/∂log k₂` is zero over the whole record. Until 0.28.2 a
-    central difference with a 5 % step, crossing the kink of the minimum where
-    the branch comes within 5 % of binding, reported about an eighth of `k₁`'s
-    influence. The documentation page measures it.
+    minimum, and `∂Q/∂log k₂` is zero over the whole record. A central difference
+    with a 5 % step would cross the kink of the minimum where the branch comes
+    within 5 % of binding, and report about an eighth of `k₁`'s influence. The
+    documentation page measures it.
   - **Gypsum and calcite dissolution.** [`ionic_reactions`](@ref) deliberately
     makes them fast so sulfate is available to the minimization from the start
     rather than rate-limiting it. A step that does not limit cannot be calibrated.
@@ -746,7 +740,7 @@ cannot take what they have not yet made.
        several-fold. That gap is measured in the documentation page, and it is the
        quantitative argument for the coupled model.
 
-    So the surrogate is **not** used to calibrate. It is used where it is honest
+    So the surrogate is **not** used to calibrate. It is used where it is faithful
     and where being 700 times cheaper matters: exploring the shape of the loss and
     the sensitivity structure at a cost the coupled model cannot match.
 
@@ -894,23 +888,23 @@ Released heat [J/g] **and** heat flow [W/g] at `data.t`, from one forward solve.
     Fitting `Q + q̇` rather than `Q` alone took the residual on `Q` from 24.4 to
     27.6 J/g and the `τ_ind`–`k₁_C3S` correlation from 0.982 to **0.994**.
 
-    Until 0.28.2 `q̇` here was a centered difference of `Q` over the output grid,
-    log-spaced over two and a half decades and so coarse near the peak; it is now
-    the exact rate of the certified states. Neither the matched differencing of
-    model and measurement that was tried then (it re-weights the residuals on `Q`
-    rather than adding information, and was removed in 0.29.0) nor the
-    *instrument's* `q̇` at 77 s sampling on a grid four times finer near the peak
-    (0.24 h against 0.91 h) changed the outcome: 27.8 J/g and 0.994.
+    Here `q̇` is the exact rate of the certified states, not a centered difference
+    of `Q` over the output grid, which is log-spaced over two and a half decades
+    and so coarse near the peak. Neither a matched differencing of model and
+    measurement (it re-weights the residuals on `Q` rather than adding
+    information) nor the *instrument's* `q̇` at 77 s sampling on a grid four
+    times finer near the peak (0.24 h against 0.91 h) changes the outcome: 27.8
+    J/g and 0.994.
 
     So the `τ_ind`–`k₁_C3S` degeneracy is **structural in the rate law**, not an
     artifact of the observable or its discretization. Both parameters act on the
     same feature — when, and how fast, the acceleration happens — and calorimetry
     cannot separate them.
 
-    What the flow residual *does* buy is the dormancy timescale in absolute terms:
+    What the flow residual *does* give is the dormancy timescale in absolute terms:
     every flow-informed fit puts `τ` at 5.2-5.4 h against the 3.1 h of a `Q`-only
     surrogate fit, and the coupled `Q`-only fit independently gives 5.6 h. Three
-    routes agreeing, at the price of the `Q` residual. That is why the fit is on `Q`
+    methods agreeing, at the cost of the `Q` residual. That is why the fit is on `Q`
     alone, and why the flow is worth carrying anyway.
 
 Returns `(NaN…, NaN…)` on a failed solve, which [`calorimetry_loss`](@ref) turns
@@ -1043,7 +1037,7 @@ What a fit returns: the fitted parameters `θ` in native units, the `loss` reach
 objective evaluation, the `box` positions of [`box_position`](@ref), the number
 of forward solves `nevals`, and the wall-clock `seconds`.
 
-`trace` is kept because it is the only honest evidence that a derivative-free
+`trace` is kept because it is the only direct evidence that a derivative-free
 search converged rather than stopped: the documentation page plots it.
 """
 struct CalibrationResult
@@ -1300,9 +1294,7 @@ and an exponent.
 
 Costs one forward run on dual numbers. `spec` may be **wider** than the one that
 was fitted, provided `θ` is extended to match — that is how a parameter's
-sensitivity is shown to be negligible without spending an optimization on it.
-Until 0.28.2 this was central differences, `2n` forward solves.
-"""
+sensitivity is shown to be negligible without spending an optimization on it."""
 function sensitivity_matrix(θ, data; mode::Symbol = :surrogate, spec = CALIB_SPEC)
     return ChemistryLab.log_sensitivity(q -> forward_Q(q, data; mode, spec), θ)
 end
@@ -1351,7 +1343,7 @@ end
 Number of log-spaced instants the coupled loss is evaluated on.
 
 The coupled forward solve is dominated by the certified replay and the enthalpy
-sums, both linear in this number, so the grid is the main cost lever. Twenty
+sums, both linear in this number, so the grid is the main cost. Twenty
 instants over two and a half decades is eight per decade, which resolves every
 feature of these curves.
 """
@@ -1446,9 +1438,8 @@ is only its output.
 `S` are the singular values of `∂Q/∂log θ`, `V` its right singular vectors as rows
 per parameter, `correlation` the parameter correlation matrix from `(JᵀJ)⁻¹`,
 `noise` the residual standard deviation on the `n − p` degrees of freedom, and
-`stderr` the approximate **relative** standard errors it gives. Those two were
-scaled from the stored RMSE by `√(n/(n − p))` when 0.29.0 moved the noise level
-to that estimate, which is what `local_identifiability` now returns.
+`stderr` the approximate relative standard errors it gives. The noise level is
+the RMSE scaled by `√(n/(n − p))`, as `local_identifiability` returns it.
 """
 const MEASURED_IDENTIFIABILITY = (
     candidates = (

@@ -72,7 +72,7 @@ abstract type AbstractSpecificArea <: AbstractSurfaceModel end
 
 `x` as a bare number in `unit`, **refusing** a quantity that does not convert.
 
-A plain `Real` is taken to be already in SI, which is the documented contract of
+A plain `Real` is taken to be already in SI, which is the documented convention of
 every constructor in this file. A `Quantity` is converted, and one whose
 dimension does not match raises an `ArgumentError` naming the offending value.
 
@@ -186,7 +186,7 @@ area_method(::FixedSurfaceArea) = :fixed
 The specific area of `model` in m²/kg.
 
 Not defined for [`FixedSurfaceArea`](@ref), which carries a total area and no
-mass to divide it by; asking is a `MethodError`, which is the honest answer.
+mass to divide it by; asking is a `MethodError`, which is the intended answer.
 """
 function specific_area end
 
@@ -200,7 +200,7 @@ measurement.
 A = A_specific × n × M        [m²]
 ```
 
-the standard route in reactive-transport modeling [PalandriKharaka2004](@cite).
+the standard method in reactive-transport modeling [PalandriKharaka2004](@cite).
 Using it presumes the area accessible to the dissolving solute is the one the
 adsorbed gas saw, which is an assumption about the pore structure, not a
 measurement of it.

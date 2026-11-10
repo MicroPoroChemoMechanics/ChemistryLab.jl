@@ -28,7 +28,7 @@ it adds no information, and carrying it would impose the same constraint twice.
 Now add sulfur at two valences, say `SO4-2` and `HS-`. No fixed multiplier turns
 a sulfur atom into a charge any more: it depends on which sulfur. The charge row
 is then **independent**, and dropping it would let the calculation move electrons
-around for free — turning sulfide into sulfate at no cost, which is precisely
+around at no cost — turning sulfide into sulfate, which is precisely
 the wrong answer.
 
 So the test is a rank test, and it is the one the package performs:
@@ -140,7 +140,7 @@ almost a volt apart. Neither is wrong. They are the potentials **of those
 couples**, and they differ because that composition is not at redox
 equilibrium with itself. The numbers illustrate the arithmetic, not a pore
 solution: free Fe³⁺ at these amounts belongs to an acid solution, not to one at
-pH 13. A cement paste reaches the same situation by another route. Sulfate
+pH 13. A cement paste reaches the same situation by another path. Sulfate
 reduction is kinetically frozen on any time scale a cement cares about, so the
 sulfur couple retains whatever state the slag gave it, while faster couples
 relax, and the potentials read from different couples need not agree.
@@ -192,7 +192,7 @@ Putting the pieces together, the reason this chapter exists:
    sulfur equilibrium would give it, and nothing in a Gibbs minimization knows
    where.
 
-Point 4 is the honest limit of this chapter. The calculation is now able to pose
+Point 4 is the limit of this chapter. The calculation is now able to pose
 the question; a kinetic description of sulfate reduction, which this package does
 not have, is what would answer it.
 

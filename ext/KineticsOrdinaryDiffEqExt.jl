@@ -250,14 +250,13 @@ co-reactant consumed beyond what the system holds, by more than `rtol` of the
 most of it the element totals allow. A warning names the first such state, or,
 under `STRICT_CONVERGENCE`, an error is raised.
 
-A trajectory of that kind used to come back with `Success` and a warning on its
-final state alone, judged against twice the total amount of matter, which the
-water dominates. Measured on calcite dissolving under `r = k(1 − Ω)` over `10⁵ s`
-with the partition frozen within a step, `Rodas5P` ended on 487 mol of calcite
-from 0.05: frozen, the rate is constant within a step, and a step longer than the
-relaxation of `Ω` overshoots the equilibrium and reverses it. Such a law now has
-its partition solved in the right-hand side (`speciation = :rhs`), where this
-state is not reached; the check stands for every run.
+Such a trajectory is returned by the integrator as a success. Measured on calcite
+dissolving under `r = k(1 − Ω)` over `10⁵ s` with the partition frozen within a
+step, `Rodas5P` ends on 487 mol of calcite from 0.05: frozen, the rate is
+constant within a step, and a step longer than the relaxation of `Ω` overshoots
+the equilibrium and reverses it. Such a law has its partition solved in the
+right-hand side (`speciation = :rhs`), where this state is not reached; the check
+stands for every run.
 """
 function _flag_infeasible(sol, p, kp; rtol = ChemistryLab._FEASIBILITY_RTOL)
     k = findfirst(u -> ChemistryLab._kinetic_state_infeasible(p, u; rtol), sol.u)

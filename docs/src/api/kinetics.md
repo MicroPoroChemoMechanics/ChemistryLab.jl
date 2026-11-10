@@ -100,7 +100,7 @@ Pages   = ["kinetics/dissipation.jl"]
 
 One fully implicit problem per step, with the reaction extents as unknowns of the
 same Gibbs minimization. See
-[Which route: two ways to advance in time](@ref sec-kinetics-routes).
+[Which method: two ways to advance in time](@ref sec-kinetics-routes).
 
 ```@autodocs
 Modules = [ChemistryLab]

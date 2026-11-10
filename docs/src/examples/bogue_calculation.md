@@ -59,7 +59,7 @@ plot(p_in, p_out; layout = (1, 2), size = (760, 340), ylims = (0, 72), framestyl
 
 ## Via `mass_matrix`
 
-A more direct route uses `mass_matrix` on the canonical stoichiometric matrix. This expresses each species as a linear combination of the reference oxide components directly in mass rather than in moles, making Bogue's formulas immediate:
+A more direct method uses `mass_matrix` on the canonical stoichiometric matrix. This expresses each species as a linear combination of the reference oxide components directly in mass rather than in moles, making Bogue's formulas immediate:
 
 ```@example Bogue
 massCSM = mass_matrix(CanonicalStoichMatrix(cemspecies))

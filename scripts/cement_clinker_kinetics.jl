@@ -147,9 +147,7 @@ const TSPAN = (0.0, 7.0 * 86400.0)
 # `Cp` is the FIXED heat capacity only — the Dewar flask, 1 kg at about
 # 900 J/(kg·K). The paste's own heat capacity is `Σᵢ nᵢ Cp⁰ᵢ(T)`, which the
 # solver adds from the database at every step (see `extend_ode!`), so adding it
-# here as well would count it twice. This script used to pass
-# `1.0*800 + WC*4186 + 1.0*900 ≈ 3374 J/K`, i.e. flask + cement + water, which
-# put the total near 5.9 kJ/K instead of 3.4 and understated ΔT by about 1.75.
+# here as well would count it twice.
 #   quadratic losses: φ(ΔT) = a·ΔT + b·ΔT²
 cal = SemiAdiabaticCalorimeter(;
     Cp = 900.0u"J/K",              # Dewar flask alone

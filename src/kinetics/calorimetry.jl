@@ -188,8 +188,6 @@ equilibrium*). [`temperature_profile`](@ref) returns it.
     heat capacity to `Cp` therefore counts it **twice** and understates the
     temperature rise — by a factor of about 1.75 on a cement paste at w/c = 0.4,
     where the paste contributes some 2.5 kJ/K against 0.9 kJ/K for the flask.
-    Three scripts shipped with this package made exactly that mistake, and the
-    field description above used to invite it by saying "calorimeter + sample".
     Pass the vessel, and let the solver add the paste.
 
 # Examples

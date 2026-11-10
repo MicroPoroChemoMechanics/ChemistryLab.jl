@@ -166,7 +166,7 @@ certified assemblage out, measured calorimetry beside it:
 | page | family | what it is about |
 |:--|:--|:--|
 | [CEM II/A-LL and CEM II/B-S: the two different things a replacement can do](@ref ex-cem2-blended) | CEM II | a carbonate that rewrites the aluminate sequence, against a glass that brings magnesium |
-| [CEM III/A: a blastfurnace cement, and the oxidation state it needs](@ref ex-cem3-slag) | CEM III | the glass entry route, hydrotalcite, and sulfur at two oxidation states |
+| [CEM III/A: a blastfurnace cement, and the oxidation state it needs](@ref ex-cem3-slag) | CEM III | the glass entry method, hydrotalcite, and sulfur at two oxidation states |
 | [CEM IV/A (V) and CEM IV/B (V): a pozzolanic binder, and the C-S-H that has to carry the aluminum](@ref ex-cem4-pozzolanic) | CEM IV | `CSHQ` against `CNASH_ss`, and portlandite as the limiting reagent |
 | [CEM V/A (S-V): a composite binder, two glasses at once](@ref ex-cem5-composite) | CEM V | all four difficulties simultaneously, on one additive budget |
 

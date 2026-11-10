@@ -117,7 +117,7 @@ energy is a temperature sensitivity; at a single temperature it is not
 identifiable, and a fit that reported one would be reporting a number the data
 cannot contain. Every `Ea` therefore stays at its published value. A reader who
 wants a fitted `Ea` needs a second temperature: [Jaegle2025](@citet) is a
-CC-BY-4.0 route to one, at 20 °C and 35 °C on CEM I 42.5 R and 52.5 R, at the cost
+CC-BY-4.0 way to one, at 20 °C and 35 °C on CEM I 42.5 R and 52.5 R, at the cost
 of a 341 MB download covering only the first 24 hours.
 
 **There is no phase composition.** The deposit [Smilauer2025data](@cite) reports
@@ -135,7 +135,7 @@ of the mix it was published for.
 The coupled forward solves this page needs are performed **by this build**,
 through [`scripts/precomputed.jl`](https://github.com/MicroPoroChemoMechanics/ChemistryLab.jl/blob/main/scripts/precomputed.jl),
 which memoizes them per process so that the two pages asking for the same
-trajectory pay for it once. The calls are shown where they belong, unexecuted,
+trajectory compute it once. The calls are shown where they belong, unexecuted,
 because showing the call and running it twice would be the same computation
 written down twice.
 
@@ -260,7 +260,7 @@ Writing a reaction down does not make the sulfate balance hold.
 
 So the surrogate sends the aluminate to hydrogarnet instead, which real cement
 only reaches once the sulfate is gone, and leaves gypsum and limestone inert. What
-that buys, and what it costs:
+that gives, and what it costs:
 
 ```@example calib
 Q_surr = forward_Q(θ0, target; mode = :surrogate)
@@ -312,7 +312,7 @@ anything it is handed trying.
 Which settles what the surrogate is for. It is **not** a preconditioner and it is
 not where the parameters are chosen: an argument about identifiability drawn from
 a model with the wrong chemistry would be an argument about the wrong model. It is
-used for exactly two things, both honest — the comparison above, which is the
+used for exactly two things, both legitimate — the comparison above, which is the
 quantitative case for letting a Gibbs minimization pick the assemblage, and the
 one rate-law property of §4 that does not depend on the assemblage at all.
 Everything downstream runs on the coupled model.
@@ -503,8 +503,7 @@ A derivative-free search over the coupled model. **It is not run in this page**:
 at tens of seconds a solve and of the order of a hundred solves it is an hour of
 computation, which does not belong in a documentation build. `main()` in the
 script runs it; its result is stored as `CALIBRATED_THETA` and the run that
-produced it — grid, budget, residual reached — is recorded in `CHANGELOG.md` under
-v0.12.0. Reproducing it is one call to `main()`.
+produced it — grid, budget, residual reached — is recorded in `CHANGELOG.md`. Reproducing it is one call to `main()`.
 
 !!! note "Gradients"
     The objective is differentiable by forward mode, `AutoForwardDiff()`: a run is
@@ -595,7 +594,7 @@ Read that table before anything else on this page. The calibrated parameters are
 saw by about a quarter and degraded the record it had not seen by about a sixth.
 
 It would be easy to present this as a near miss and move on. It is not a near
-miss, it is the honest outcome of a five-parameter fit to one scalar curve, and §5
+miss, it is the expected outcome of a five-parameter fit to one scalar curve, and §5
 predicted it. At the optimum `k₁_C3S` and `τ_ind` are correlated at **0.994**: a
 longer dormant period followed by a faster rate produces very nearly the same
 heat curve, so the pair is one direction and not two numbers. The approximate
@@ -675,7 +674,7 @@ scalar observable will.
 
 There is a positive result inside the same table. Every flow-informed fit puts `τ`
 at 5.2-5.4 h where the `Q`-only fit says 3.1 h, and the *coupled* `Q`-only fit
-independently gives 5.6 h. Three routes agree on a dormant period of five to five
+independently gives 5.6 h. Three methods agree on a dormant period of five to five
 and a half hours, and the `Q`-only surrogate is the outlier. So the flow does
 determine the dormancy **timescale**, at the price of the `Q` residual and without
 decorrelating `τ` from `k₁`. That is the evidence behind the round `τ = 5 h` that
@@ -739,9 +738,9 @@ for δ in (-0.20, 0.20)
     run = run_ionic_hydration(; wb = target.meta.wb, clinker, gypsum = CALIB_GYPSUM,
         filler = CALIB_FILLER, blaine = target.meta.blaine * u"m^2/kg",
         tend = target.t[end], pk_params = apply_parameters(θ̂),
-        # The fitted induction period is part of the model being perturbed. An
-        # earlier version of this left it out, which quietly made the δ = 0 row a
-        # different model from the fit whose sensitivity it was reporting.
+        # The fitted induction period is part of the model being perturbed:
+        # without it the δ = 0 row would differ from the fit whose sensitivity
+        # is reported.
         induction = induction_of(θ̂), induction_phases = INDUCTION_PHASES,
         ode_solver = COUPLED_SOLVER)
     _, Q, _ = heat_release(run.sol, run.kp; times = target.t)

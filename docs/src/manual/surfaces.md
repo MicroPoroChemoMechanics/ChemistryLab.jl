@@ -97,9 +97,9 @@ itself with the surface of the whole powder.
 
 ## Two areas of different measurements do not compare
 
-This is the part worth reading even if the rest looks obvious. A BET area and a
+A BET area and a
 Blaine fineness are different measurements of different things, and the package
-now refuses to mix them:
+refuses to mix them:
 
 ```@example surfaces
 # The fineness figures of Lavergne et al. (2018), data/literature/Lavergne2018.json
@@ -115,8 +115,7 @@ The first number in that example is silica fume's BET area, about 20 000 m²/kg,
 against the Blaine fineness of reference of the clinker rate laws
 [Lavergne2018](@cite). The same article takes 2 000 m²/kg as the effective Blaine
 fineness of silica fume, which its kinetics were fitted with. Using
-the first where the second belongs multiplies its hydration rate by ten, and
-before this refusal nothing stopped it.
+the first where the second belongs multiplies its hydration rate by ten.
 
 Same measurement, and the ratio is just a ratio:
 
@@ -126,8 +125,7 @@ area_ratio(BlaineSurfaceArea(filler), BlaineSurfaceArea(lav("blaine_ref_clinker"
 ```
 
 which is exactly what [`blaine_factor`](@ref) computes. A bare number handed to
-it is still read as a Blaine fineness — that is the historical contract and it
-has not changed — so type the argument when you want the check:
+it is read as a Blaine fineness — the convention of the bare-number form — so type the argument when you want the check:
 
 ```@example surfaces
 blaine_factor(filler), blaine_factor(BlaineSurfaceArea(filler))
@@ -143,8 +141,9 @@ SurfaceSupport("calcite", "Cal", BETSurfaceArea(90.0))
 
 The rate factories take one in place of a bare area model, and that is what lets
 the molar mass be looked up once from the named species. It matters: a species
-with no `:M` used to fall back to 0.1 kg/mol silently, which scales the reactive
-area and therefore the whole rate. It now raises, naming the species.
+with no `:M` would otherwise fall back silently to a default molar mass, which
+scales the reactive area and therefore the whole rate. It raises instead, naming
+the species.
 
 For a sorbent whose amount is prescribed rather than solved for, leave the host
 out:

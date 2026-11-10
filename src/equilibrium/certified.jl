@@ -41,7 +41,7 @@ const _MAX_RESTARTS = 3
     _keep_better(eq, cert, eq2, cert2) -> (eq, cert)
 
 Keep the better of two answers: a certificate of optimality beats none, and
-otherwise the smaller KKT error wins. A round that buys nothing changes nothing,
+otherwise the smaller KKT error wins. A round that gains nothing changes nothing,
 which is what lets the restart loop run without ever making the answer worse.
 
 The optimality flag is compared **first**, in both directions. Ranking on the
@@ -74,7 +74,7 @@ one from being *chosen*. Measured on a CEM I with eight solid solutions: a wande
 iterate came back with the solvent at `x_w = 0.033` and an element balance of
 71 mol, the continuation's answer stood at 160, and the smaller number won — so
 the search settled on a composition in which the water had gone into the solids,
-and every route that conserved mass was discarded behind it.
+and every start that conserved mass was discarded behind it.
 
 Ranking on residuals alone cannot separate the two: both are large, and one is
 merely larger. The distinction that matters is not how big the residual is but
@@ -97,19 +97,19 @@ The starting points offered to [`solve_certified`](@ref), each back end solved
 only when the search actually asks for it, and cached once it has been.
 
 `solve_certified` returns at the **first** start that certifies, so solving
-every registered back end before the search begins pays for answers the search
+every registered back end before the search begins costs answers the search
 may never look at.
 
-Measured honestly, the gain depends entirely on whether the first start
+Measured, the gain depends entirely on whether the first start
 certifies. On the CEM I of `docs/src/examples/cem1_solid_solutions.md` it does
-**not**, the later starts are genuinely consumed, and this buys nothing: 107.9 s
+**not**, the later starts are genuinely consumed, and this gains nothing: 107.9 s
 against 105.1 s eager, within noise. The saving appears only where the first
 back end settles the problem, which is the common case for the smaller systems.
 So this is a correctness-of-effort change — never compute a start no one reads —
 and not a cement optimization; the expensive cement case needs a different
 answer.
 
-Cached, and that is not optional: the route search offers the same starts again
+Cached, and that is not optional: the search offers the same starts again
 after the ideal pre-solve and again after the continuation, so recomputing them
 each time would more than undo the gain.
 
@@ -188,7 +188,7 @@ active set instead of discovering it.
 
 That discovery is what was fragile. On a CEM I at `w/c = 0.5` with the eight
 distinct CEMDATA18 solid solutions, eighty phases sit at the bound in the cold
-state and the active-set search decides its route on comparisons of nearly equal
+state and the active-set search decides its path on comparisons of nearly equal
 quantities: `100/sum(oxides)` summed over a `Dict` and over an `OrderedDict`
 differ by one ulp, and that was enough to choose between an equilibrium certified
 to 1.1e-14 and a failure with an element balance of 71 mol. Started from the ideal
@@ -278,13 +278,13 @@ The amounts are those of an ideal phase at the potentials of the program, which
 is what the dual solve needs to start from; they do not meet the budget exactly,
 which it does not need either, `b` being fixed for the whole call.
 
-The first form gave every absent species `aⱼ` mol whatever its phase, capped at
-one mole. On a cement that is dozens of species near a mole, and pure phases the
-program found undersaturated among them. Measured from the cast state of four
-cements, the start was then 11 to 66 mol off a 4-mol budget, and on two of them
-nothing certified from it, so the search lost 9 and 15 s before the state as
-given certified. Placed in its phase, the start is 1.3 to 1.8 mol off, and all
-four certify from it at the first attempt, in 0.1 to 0.2 s.
+Giving every absent species `aⱼ` mol whatever its phase, capped at one mole,
+would put dozens of species near a mole on a cement, and pure phases the program
+found undersaturated among them. Measured from the cast state of four cements,
+such a start is 11 to 66 mol off a 4-mol budget, and on two of them nothing
+certifies from it, so the search loses 9 and 15 s before the state as given
+certifies. Placed in its phase, the start is 1.3 to 1.8 mol off, and all four
+certify from it at the first attempt, in 0.1 to 0.2 s.
 """
 function _lp_lifted_state(des::DualEquilibriumSolver, state::ChemicalState, lp, ϵ::Real)
     s, prob = lp.start, lp.prob
@@ -429,7 +429,7 @@ and when the element balance **pins** the phase's overall composition inside the
 gap, declaring it is enough: the minimization separates the two instances onto
 the common-tangent pair by itself, and the certificate proves it. Measured on a
 calcite/magnesite binary, where 0.025 mol of each fixes x̄ = 1/2 whatever the
-energetics say, the instances land on the binodal to within 1e-3 and in the
+energetics say, the instances reach the binodal to within 1e-3 and in the
 proportions the lever rule asks for.
 
 This function is for the case where nothing pins it. In a cement paste the AFm
@@ -699,7 +699,7 @@ rather than assumed: [`SolidSolutionPhase`](@ref) refuses a mixing model whose
 energy has a spinodal, so a system that was constructed at all is convex unless
 the refusal was explicitly waived or the phase given two instances. Then this
 becomes a genuine choice of branch, because inside a gap the starting point
-decides which lobe the answer lands in — see [`common_tangent`](@ref).
+decides which lobe the answer falls in — see [`common_tangent`](@ref).
 
 The certificate still decides every point. A refused point is returned like any
 other, with its certificate, and does **not** become the next start.
@@ -790,7 +790,7 @@ When no back end certifies from the state as given, an initial approximation is
 computed by continuation — [`homotopy_initial_state`](@ref) — and every back end
 is run again from it. This is what makes a realistic cement solvable without the
 caller knowing anything about the answer: from the cold state of a CEM I paste
-(all the mass in the reactants, every product at the `ϵ` floor) no route reaches
+(all the mass in the reactants, every product at the `ϵ` floor) no start reaches
 the optimum, and with the continuation the same call certifies.
 
 It costs nothing in the ordinary case, because it only runs when nothing else
@@ -802,7 +802,7 @@ at every step.
 # Options of the solvers
 
 `dual` is a `NamedTuple` of keywords for the [`DualEquilibriumSolver`](@ref) the
-route certifies with — `maxit`, `max_active_updates`, `inner_tol`, `inner_maxit`,
+certified search uses — `maxit`, `max_active_updates`, `inner_tol`, `inner_maxit`,
 `tol`, `si_tol` — for instance `dual = (; maxit = 1000)`. `tol` and `si_tol` are
 also the thresholds of the certificate, so loosening them loosens the proof. The
 other keywords go to the interior-point starts: `variable_space` sets their
@@ -824,15 +824,15 @@ is not positive, or a constraint leaves the sufficiency unestablished;
 with the B-dot and Davies models at their default settings, and the answer is a
 speciation consistent with its own activities.
 
-When no route yields a proof, the answer with the smallest KKT error is returned,
-its certificate says so, and a warning names the residual. That is the honest
+When no start yields a proof, the answer with the smallest KKT error is returned,
+its certificate says so, and a warning names the residual. That is the expected
 outcome, and it is not the same thing as a failure: on a low-water cement the
 returned composition satisfies the element balance to 1e-15 and has a
 supersaturated phase left out, which the certificate reports as
 `worst_supersaturation > 0`.
 
 Requires `OptimaSolver` (the dual Newton lives there). Systems without an aqueous
-phase, or without `H2O@`, cannot use the dual route; for those, this falls back to
+phase, or without `H2O@`, cannot use the dual Newton method; for those, this falls back to
 the plain [`equilibrate`](@ref) and returns `nothing` as the certificate.
 
 # A second activity model, when the first does not hold
@@ -1409,10 +1409,10 @@ _worst_row_text(des, eq, b, ::EquilibriumConstraint) = ""
 """
     UncertifiedEquilibrium <: Exception
 
-Raised when no route produced a certified equilibrium and the caller asked for
+Raised when no start produced a certified equilibrium and the caller asked for
 one: `equilibrate(state; certify = true)`, or any solve under
 [`STRICT_CONVERGENCE`](@ref). The answer with the smallest KKT error and its
-certificate travel with it, to be audited:
+certificate travel with it, to be examined:
 
 ```julia
 try

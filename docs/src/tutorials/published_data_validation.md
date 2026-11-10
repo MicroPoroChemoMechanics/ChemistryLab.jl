@@ -350,7 +350,7 @@ below it, the direction incongruent dissolution would take it; it never
 approaches 1.95. The floor is a property of the CSHQ model, not of the mixture:
 The model of [Atkins1992](@citet), on the same nominal C-S-H, gave 2.04.
 
-Sulfate lands close, but it is the one number here that moves freely with the
+Sulfate comes out close, but it is the one number here that moves freely with the
 Ca/Si — 0.76 at 1.0, 2.51 at 0.75 — so the agreement is not evidence of much.
 The model of [Atkins1992](@citet) gave 0.597; Cemdata18 gives 1.18, against 1.08
 measured.
@@ -368,7 +368,7 @@ measured.
 |:--|:--|
 | the solid-to-water ratio is not reported, and these assemblages are **not invariant** | wherever a C-S-H buffers the calcium, a fourfold change in loading moves the answer by a factor of two: mixture 1 (AFt + CSH 1.7) gives Ca = 8.0 mmol/L at one loading and 16.0 at four times it, against 2.67 measured |
 | four mixtures grew a phase [Atkins1992](@citet) identify as **metastable**, so the measured solution is not an equilibrium one | AFm in mixture 3, C₄AH₁₃ in 8 and 21, siliceous hydrogarnet in 30 — the paper says so itself and uses them to argue the point |
-| two are in **0.4 M NaOH** | past the range the B-dot term in [`HKFActivityModel`](@ref) was fitted for (`I ≲ 1 mol/kg`, and less for the water activity); a Pitzer model would be the honest instrument |
+| two are in **0.4 M NaOH** | past the range the B-dot term in [`HKFActivityModel`](@ref) was fitted for (`I ≲ 1 mol/kg`, and less for the water activity); a Pitzer model would be the appropriate instrument |
 
 [Atkins1992; Table 3](@citet) — pore fluids of five-year-old OPC, 30 % BFS and
 30 % FA pastes — is a better target for a future test: alkali and pH are
@@ -379,7 +379,7 @@ the CSHQ Na/K end members and belongs with the CEM I/II examples.
 
 [Kulik2021](@citet) Fig. 7A and [Lothenbach2019](@citet) Figs. 13-14 report the
 same thing: what happens to the aluminate phases as limestone replaces clinker.
-CemGEMS is the closest oracle this package has — same CEMDATA18, same
+CemGEMS is the closest independent reference this package has — same CEMDATA18, same
 Gibbs-energy minimization, and [Kulik2021](@citet) state that it and
 GEM-Selektor agree exactly. What it does not give is the cement it ran on, so
 what is checked is the part that does not depend on it: the order the phases
@@ -522,7 +522,7 @@ waters, and at these conditions the stable one is the **14-hydrate**, not the
 their `log K = −29.2628` is Cemdata07's value for the 12-hydrate, and Cemdata18
 *recalculated* it to −29.23 — [Lothenbach2019; Table 2](@cite) marks that entry
 `***`, "recalculated in this paper from ΔfG° values" — while carrying −29.26 for
-the 14-hydrate. Their number therefore lands within 0.003 of CEMDATA18's
+the 14-hydrate. Their number therefore falls within 0.003 of CEMDATA18's
 14-hydrate by arithmetic coincidence. The amount is the same either way.
 
 **Kuzel's salt**, half a chloride and half a sulfate per AFm layer, is the phase
@@ -609,7 +609,7 @@ chloride binding by C-S-H, and this chapter checks the dissolution half only.
 ### The machinery is not what is missing
 
 Worth separating, because the two failures look alike from the outside. The
-site-family route reproduces the chemistry it is given. On a 1 kg pore solution
+site-family method reproduces the chemistry it is given. On a 1 kg pore solution
 holding 20 mmol Ca, 100 mmol NaCl and 10 mmol KCl, with rows 1, 2, 4 and 5 and
 `DiffuseLayer`, every point certifies and the occupancies behave:
 
@@ -662,7 +662,7 @@ construction of the system refuses a family that binds calcium on the CSHQ solid
 solution for that reason, and the fixed budget used above is the published model
 as [Guo2018](@citet) write it.
 
-For a surface case that *is* checked against an external oracle, see
+For a surface case that *is* checked against an external reference, see
 `test/surface_complexation.jl`, which runs against PHREEQC
 [ParkhurstAppelo2013](@cite) at matched proton activity, and
 `test/diffuse_layer.jl`.

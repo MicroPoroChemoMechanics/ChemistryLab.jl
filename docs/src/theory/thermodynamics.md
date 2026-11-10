@@ -223,11 +223,10 @@ S_w^\circ = S^\star + \delta S, \qquad
 the three constants ``\delta`` making the three functions equal to the record's at
 the reference. The heat capacity is ``\partial H/\partial T`` and the volume
 ``M_w/\rho(T, P)``, so that the five functions are those of one Gibbs energy. At
-25 °C and 1 bar the solvent is the record; elsewhere it follows water, where
-0.33.0 extrapolated the heat capacity of 25 °C and held the volume at 1 bar
-constant: the Gibbs energy moves by 0.2 J/mol at most from 0 to 100 °C at 1 bar,
-the volume by the thermal expansion of water, 0.12 % at 20 °C and 2.6 % at
-80 °C, and the Gibbs energy by 0.53 kJ/mol at 300 °C and 1 kbar.
+25 °C and 1 bar the solvent is the record; elsewhere it follows water. Relative to a solvent with the heat capacity of 25 °C
+and the volume at 1 bar held constant, the Gibbs energy moves by 0.2 J/mol at most
+from 0 to 100 °C at 1 bar, the volume by the thermal expansion of water, 0.12 % at
+20 °C and 2.6 % at 80 °C, and the Gibbs energy by 0.53 kJ/mol at 300 °C and 1 kbar.
 
 The ThermoFun library uses the equation's functions without the shift, with
 ``T_{tr} = 273.15`` K in the constant ``T_{tr} S_{tr}``, a convention that places

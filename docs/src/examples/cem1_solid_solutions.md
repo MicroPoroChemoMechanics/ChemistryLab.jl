@@ -7,7 +7,7 @@
 A thermodynamic model of a cement is only as good as the list of phases it is
 allowed to form. Leave one out and the calculation cannot report it; put one in
 that does not belong and it can take mass that belongs elsewhere. The list is
-therefore a **modeling decision**, and the honest way to make it is to declare
+therefore a **modeling decision**, and the way to make it is to declare
 everything the database defines and let the minimization decide.
 
 This page does exactly that on a CEM I at `w/c = 0.5`, from the oxide analysis
@@ -462,7 +462,7 @@ Green is a certified answer, red is not.
 [Reaktoro](https://reaktoro.org) solves the same problem from the same
 literature [Leal2017](@cite) and reads the same ThermoFun file this package
 ships, which makes it a useful independent check — see
-[Validation against Reaktoro](@ref) for the small case where every knob is
+[Validation against Reaktoro](@ref) for the small case where every parameter is
 matched and the agreement is quantified species by species.
 
 On this cement the cross-check was run with

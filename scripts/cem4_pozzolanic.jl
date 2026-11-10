@@ -289,7 +289,7 @@ for α in (ALPHA_ASH, 1.0)
         # that refusal with `check_convexity = false` and none of it holds: inside
         # a spinodal the minimum is two compositions, the certificate loses the
         # sufficiency that rests on convexity, and the start would then decide
-        # which branch you land on. The certificate still decides every point
+        # which branch is reached. The certificate still decides every point
         # here, and a start is reused only once it has been certified.
         #
         # The certificate is printed below; the warning of a refusal would

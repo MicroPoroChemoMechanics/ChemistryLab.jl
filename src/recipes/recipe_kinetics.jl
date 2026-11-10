@@ -105,8 +105,8 @@ dissolve: [`glass_species`](@ref) of the oxides of `c` whose element `system`
 has a primary for. An oxide the system cannot hold (the TiO₂ or the P₂O₅ of a
 fly ash) stays out of the formula and in the mass `M` of material a formula
 unit stands for, as the part of it the formula does not model
-(`modeled_mass_fraction`), which is how [`budget`](@ref) keeps it aside on the
-route of imposed extents. The two routes then put the same elements into the
+(`modeled_mass_fraction`), which is how [`budget`](@ref) keeps it aside in the
+method of imposed extents. The two methods then put the same elements into the
 equilibrium at the same degree of reaction, to the five decimals at which the
 system writes every species over its primaries (5e-6 mol of a primary per mole
 of glass at most).

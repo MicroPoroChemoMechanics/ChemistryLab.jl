@@ -36,7 +36,7 @@ using ChemistryLab, DynamicQuantities, OptimaSolver, SciMLBase
 const RT = R_GAS * 298.15
 g0(v) = SymbolicFunc(v * u"J/mol")          # a constant standard energy
 
-# The constants are read from the copy of phreeqc.dat that the test oracles use,
+# The constants are read from the copy of phreeqc.dat that the tests use,
 # so this page and PHREEQC work from one set of numbers.
 dat = read_sorption_model(datapath("phreeqc.dat"))
 log_k(product) = only(reactions_involving(dat, product)).log_K.value
@@ -76,7 +76,7 @@ family  = SiteFamily("Hfo_w", free, [prot, depr];
                      capacity = TotalSiteAmount(N_sites * u"mol"), support)
 ```
 
-`TotalSiteAmount` is the honest description of a batch experiment: a weighed
+`TotalSiteAmount` is the faithful description of a batch experiment: a weighed
 sorbent, a known number of sites. The two other forms — a density per square
 meter, a capacity per kilogram — exist because published data comes in both, and
 converting between them would need an area that was not measured.

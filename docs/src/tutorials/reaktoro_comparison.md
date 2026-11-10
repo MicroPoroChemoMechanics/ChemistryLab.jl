@@ -6,7 +6,7 @@
 
 [Reaktoro](https://reaktoro.org) solves the same problem this package does, from
 the same literature [Leal2017](@cite), and is mature and widely used. It makes
-a good oracle — provided the comparison is set up so that a disagreement means
+a good reference — provided the comparison is set up so that a disagreement means
 something.
 
 This page reports what agrees, what does not, and by how much. The scripts that
@@ -16,9 +16,9 @@ checked on every CI run.
 
 ## Setting up a comparison that means something
 
-A cross-code comparison has **three** knobs, and each is worth tens of percent:
+A cross-code comparison has **three** parameters, and each is worth tens of percent:
 
-| knob | must match | what happens otherwise |
+| parameter | must match | what happens otherwise |
 |:--|:--|:--|
 | thermodynamic database | same file | different standard-state data, different answer |
 | species list | same species | see below — this one is subtle |
@@ -69,11 +69,11 @@ differences on every species:
 | calcite | −0.181251 | −0.181324 | 4.0×10⁻⁴ |
 
 Reaktoro's own spread across `h ∈ {10⁻³, 10⁻⁴, 10⁻⁵}` is `7.2×10⁻⁴`, so the
-residual difference sits **below the oracle's own truncation error**. This is as
+residual difference sits **below the truncation error of the reference itself**. This is as
 close as a comparison against a finite-difference reference can get.
 
 **Element balance.** Calcium has no source in this system, so the
-sensitivities of all Ca-bearing species must cancel. The implicit-function route
+sensitivities of all Ca-bearing species must cancel. The implicit-function method
 gives `2×10⁻¹⁶`, and a species absent from the solution gets identically zero
 (`2×10⁻⁹` in the finite-difference reference, the size of its truncation error).
 
@@ -95,83 +95,50 @@ gives `[H⁺]/[OH⁻] = 1.0`.
 `CaOH⁺`, the smallest amount in the system at 1.6 nmol, is the only species
 above 0.2 % out, and it is 3.2 % out. Nothing in the comparison is marked broken.
 
-### How the trace species were fixed
+### How the back-end treats the trace species
 
-Two defects in the back-end's Newton iteration, both now corrected in
-`OptimaSolver` 0.2.5.
+Two features of the Newton iteration of `OptimaSolver` matter for the trace species.
 
-**The step inverted the Hessian.** It formed the Schur complement
-`S = A H⁻¹ Aᵀ`, which needs `H` invertible — and a pure phase has unit activity,
-hence `∂²G/∂nᵢ² = 0` exactly. The step degenerates. The nullspace method is used
-instead: with `Z` a basis of `null(A)`,
+The step is computed by the nullspace method. The Schur complement
+`S = A H⁻¹ Aᵀ` needs `H` invertible, whereas a pure phase has unit activity,
+hence `∂²G/∂nᵢ² = 0` exactly. With `Z` a basis of `null(A)`, the step solves
 
 ```math
 (\mathbf{Z}^\mathsf{T} \mathbf{H} \mathbf{Z})\, \delta\mathbf{z} = -\mathbf{Z}^\mathsf{T}(\mathbf{e}_x + \mathbf{H}\, \delta\mathbf{n}_p),
 ```
 
-in which `H` appears only as a product. This is what the C++ Optima does by
-default; its `Rangespace` counterpart is documented there as suitable for
-invertible diagonal Hessians only. Pure water went from `[H⁺]/[OH⁻] = 3.78` to
-`1.0`.
+in which `H` appears only as a product. This is the default of the C++ Optima,
+whose `Rangespace` counterpart is documented there as suitable for invertible
+diagonal Hessians only. It gives `[H⁺]/[OH⁻] = 1.0` for pure water.
 
-**The convergence test skipped the trace species.** A variable was judged "at
-its bound" when its slack fell below `10⁻⁸ × max_slack` — a threshold scaled by
-the *largest* variable in the problem. With a solvent at 55 mol that threshold
-is `5.5×10⁻⁷`, so every trace ion below it was declared to sit on a bound of
-`10⁻¹⁶`, nine orders of magnitude away, and **its stationarity was never
-enforced**. The correlation was exact: the three species below the threshold
-were the three wrong ones.
+A variable is judged "at its bound" when its slack falls below a threshold
+relative to the variable's own bound, not to the largest variable in the
+problem. With a solvent at 55 mol, a threshold scaled by the largest slack is
+`5.5×10⁻⁷`, so every trace ion below it would be declared to sit on a bound of
+`10⁻¹⁶`, nine orders of magnitude away, and its stationarity would never be
+enforced.
 
-| species | amount | below the old threshold? | before | after the two fixes | today |
-|:--|--:|:--|--:|--:|--:|
-| CaOH⁺ | 3×10⁻⁸ | yes | ×20.8 | ×2.47 | ×1.032 |
-| OH⁻ | 9×10⁻⁸ | yes | ×3.19 | ×1.045 | ×1.002 |
-| H⁺ | 5×10⁻⁷ | yes | ×1.24 | ×1.006 | ×1.000 |
-| CO₃²⁻ | 1×10⁻⁶ | no | ×1.10 | ×1.003 | ×1.000 |
-| Ca(CO₃)@ | 6×10⁻⁶ | no | ×1.02 | ×1.0004 | ×1.000 |
+The convergence test uses the residual evaluated at `μ = 0`, which is the true
+KKT error. The residual at the current barrier level `μ` vanishes at the
+solution of the barrier subproblem whatever `μ` is, so a test on it can report
+success `O(μ)` away from the actual optimum, and the trace species are where
+that shows first. The residual at `μ = 0` cannot be met at a loose barrier.
 
-The criterion is now relative to the variable's own bound, which is what
-"sitting on it" means.
+The accuracy obtained on the smallest amounts is:
 
-The last column is the answer of the interior point of OptimaSolver, which was
-then its only algorithm. What
-closed the residual ×2.47 on `CaOH⁺` was **the convergence test** (`OptimaSolver`
-0.4.1): `is_converged` used to compare the residual evaluated at the *current*
-barrier level `μ`, a quantity that vanishes at the solution of the barrier
-subproblem whatever `μ` is — so the solver could report success `O(μ)` away from
-the actual optimum, and the trace species are where that shows first. It now uses
-the same residual at `μ = 0`, which is the true KKT error and cannot be met at a
-loose barrier.
+| species | amount | ratio to Reaktoro |
+|:--|--:|--:|
+| CaOH⁺ | 3×10⁻⁸ | ×1.032 |
+| OH⁻ | 9×10⁻⁸ | ×1.002 |
+| H⁺ | 5×10⁻⁷ | ×1.000 |
+| CO₃²⁻ | 1×10⁻⁶ | ×1.000 |
+| Ca(CO₃)@ | 6×10⁻⁶ | ×1.000 |
 
-The reason the ×2.47 had been accepted is worth recording. The argument was that
-Ipopt landed on the same point (×2.46), so the discrepancy looked like a property
-of the problem rather than of one solver. **Both were barrier iterations stopped,
-with the tolerances used here, short of stationarity at μ = 0**, the regime in
-which two solvers of the same family can agree with each other and not with the
-answer. Agreement between two back ends run under the same stopping rule is not
-evidence.
-
-### What the diagnosis cost, and what to skip next time
-
-Eight attempts, seven disproved by measurement. Recorded so the next one does
-not repeat them:
-
-| attempt | result |
-|:--|:--|
-| more iterations (300 → 200 000) | identical answer; stalled, not slow |
-| relative finite-difference step for the Hessian | worse (×20 → ×922) |
-| exact Hessian `∂μ/∂n` by AD | fixes water, breaks the mixed case (×3750) |
-| regularizing the pure-phase zero curvature | no effect at any magnitude |
-| capping the inverse curvature spread | no effect over five orders of magnitude |
-| analytic gradient `∂G/∂nᵢ = μᵢ` | correct in itself, changed nothing here |
-| Ipopt instead of the default back-end | 8× closer, still short |
-| log-space parameterization | works in neither back-end |
-| **nullspace step + bound criterion** | **both defects, both fixed** |
-
-What finally pointed the right way was comparing the *Gibbs energies* of the two
-answers rather than the compositions: ours was consistently **lower** on our own
-objective, which rules out "the solver failed to minimize" and puts the fault in
-what the solver was allowed to stop on.
+Agreement between two back ends run under the same stopping rule is not
+evidence of accuracy: two barrier iterations stopped short of stationarity at
+`μ = 0` can agree with each other and not with the exact solution. Comparing the
+Gibbs energies of two answers, rather than their compositions, tells whether the
+solver failed to minimize its own objective.
 
 ## The kinetics/equilibrium coupling
 
@@ -186,7 +153,7 @@ n_{\text{Cal}}(t) = n_{\text{Cal}}(0) - k t,
 
 — which removes every difference of rate-law convention between the codes and
 leaves only the question that matters: does the equilibrium partition follow
-``\mathbf{n}_e(t) = \varphi(\mathbf{b}_e(t))``? The oracle then needs no kinetics integrator at
+``\mathbf{n}_e(t) = \varphi(\mathbf{b}_e(t))``? The reference then needs no kinetics integrator at
 all, just one equilibrium solve per sample time.
 
 | t (s) | worst relative deviation | on |
@@ -197,12 +164,8 @@ all, just one equilibrium solve per sample time.
 | 3600 | 4.3 % | CO₂(aq) |
 
 The species carrying the largest deviation sits at `2.3×10⁻⁸` mol throughout.
-The assertions are in `test/coupling_reference.jl`, the oracle in
+The assertions are in `test/coupling_reference.jl`, the reference solution in
 `test/reference/reaktoro_coupling.py`.
-
-This test also earned its keep immediately: it hit a `PosDefException` in the
-nullspace step's Cholesky factorization, on a trajectory where a species sits at
-`10⁻¹⁶`. Fixed in `OptimaSolver` 0.2.6.
 
 Internal consistency is checked separately and independently: over a seven-day
 hydration run the partition constraint holds to `‖Aₑnₑ − bₑ‖∞ = 8.7×10⁻⁸` with

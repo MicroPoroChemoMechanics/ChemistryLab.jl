@@ -1997,7 +1997,7 @@ On a full OPC this was not a detail: the solve stopped on a point demanding
 0.732 mol of sulfate against the 0.267 mol available — 174 % over — and no
 tolerance, iteration budget, barrier setting or bound changed it, because none
 of them addresses an infeasible start. A projected-gradient phase-1 proved the
-set is non-empty (residual 3·10⁻¹²); this is the cheap way to land in it.
+set is non-empty (residual 3·10⁻¹²); this is the cheap way to reach it.
 
 Ending on the box clamp rather than the affine step matters: the affine
 projection alone leaves small negative amounts, which the barrier cannot accept.
@@ -2015,7 +2015,7 @@ producing a worse answer is a behavior of the back end not yet understood; until
 it is understood the in-run budget stays where it measures best. Note that the
 ranking depends on the back-end and should be re-measured if it changes.
 
-A replay ([`speciated_states`](@ref)) runs a handful of times and buys accuracy
+A replay ([`speciated_states`](@ref)) runs a handful of times and favors accuracy
 instead, asking for a much larger budget.
 """
 function _restore_feasibility!(n_eq, Ae, be; maxit::Int = 200, tol::Float64 = 1.0e-12)

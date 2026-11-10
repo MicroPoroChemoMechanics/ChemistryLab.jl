@@ -106,12 +106,9 @@ where a dilute model is not defensible.
     usually a hazard and here is the thing that makes this affordable.
 
     Nothing is approximated: the trajectory is integrated, then replayed and
-    certified instant by instant, by this build. It used to be read from a stored
-    file — a coupled equilibrium cost 583 ms and the site called for thousands of
-    them — and two solver fixes later it costs 17 ms, which makes computing it
-    affordable again. That is worth the build time: a stored result is a claim
-    about code that may since have changed, and keeping the two in step needed a
-    guard, a procedure, and a list of traps.
+    certified instant by instant, by this build. A coupled equilibrium costs 17 ms, which makes
+    computing it affordable. A stored result would be a claim about code that may
+    since have changed.
 
 ```@example ionicopc
 include(joinpath(pkgdir(ChemistryLab), "scripts", "precomputed.jl"))

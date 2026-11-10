@@ -324,7 +324,7 @@ change what is found**, only whether the search finds it.
 Waive that refusal with `check_convexity = false` and none of it holds: inside a
 spinodal the minimum is two coexisting compositions rather than one, the
 certificate loses the sufficiency that rests on convexity, and the starting point
-would then decide which branch the answer lands on — which is exactly the
+would then decide which branch the answer reaches — which is exactly the
 path-dependence [the miscibility gap page](@ref ex-miscibility-gap) is about. The
 certificate decides at every step here, and a start is reused only after it has
 been certified.
@@ -526,7 +526,7 @@ Read the columns against each other. The **portlandite** falls by a quarter
 across the three ages — that is the pozzolanic reaction, and the reason the
 family exists. The **pH** moves the other way and by little, thirteen
 hundredths of a unit, because it is the alkalis that set it and the glasses
-release them only slowly; the calcium hydroxide is a floor beneath, not a lever.
+release them only slowly; the calcium hydroxide is a floor beneath, not a control.
 And every one of the three **certifies**, with the element balances the table
 prints, all below 10⁻¹⁰.
 
@@ -544,10 +544,9 @@ degree of reaction for their own materials.
     past the range Cemdata18 [Lothenbach2019](@cite) states for its activity
     model, about 1 mol/kg. The certificate reports it (`within_activity_range`),
     and the answer is then a composition consistent with an extrapolated
-    activity model, certified as such and no more. Until this version the page
-    ran the limiting law (`å = 0`), under which the same paste did not certify:
-    the iteration ended with an element balance off by 3·10⁻¹ mol and a pH of
-    14.4. What the section says about the reacted fraction stands: a 48
+    activity model, certified as such and no more. Under the limiting law
+    (`å = 0`) the same paste does not certify: the iteration ends with an element
+    balance off by 3·10⁻¹ mol and a pH of 14.4. What the section says about the reacted fraction stands: a 48
     %-replaced binder never dissolves its glasses entirely, and the fraction,
     not the limit, describes a specimen.
 
@@ -628,4 +627,4 @@ The pages of this group compute where a binder ends; how it gets there is the
 subject of the applications in time, beginning with
 [Hydration kinetics of a CEM I 52.5 R clinker](@ref sec-clinker-kinetics), and of
 [A complete CEM I 52.5 N, through its pore solution](@ref ex-ionic-opc) for the
-coupled route.
+coupled method.

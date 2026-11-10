@@ -673,7 +673,7 @@ of every default is set out on [`HKFActivityModel`](@ref).
 `å` imposes **one common** ion size on every charged aqueous species,
 overriding the per-species tables. Use it to reproduce a published model that
 was run with a single ion-size parameter — which is what GEM-Selektor
-[Kulik2013](@cite), PHREEQC's `-gamma` and most cement models do. Note that
+[Kulik2013](@cite), PHREEQC's `-gamma` and most cement models do. The
 `å_default` does **not** do this: it is only the last resort of the lookup chain
 and is reached only for charges no table covers. `å = 0` gives the Debye-Hückel
 limiting law plus the B-dot term.
@@ -1507,11 +1507,10 @@ that a wrong entry is caught by reading rather than by a wrong result, and a
 solutions had only the second, with the formula transcribed into a docstring
 beside it -- two copies of one law, free to drift.
 
-This is the first form. The second stays exactly where it was, on the hot path,
-untouched: `_excess_ln_gamma` is still what every activity evaluation calls, and
-this function is never in that path. What the pair buys is a test that they
-agree, which is what makes the written formula true by construction rather than
-by proofreading.
+This is the first form. The second stays on the hot path: `_excess_ln_gamma` is
+what every activity evaluation calls, and this function is never in that path.
+The pair allows a test that they agree, which makes the written formula true by
+construction rather than by proofreading.
 
 # Example
 

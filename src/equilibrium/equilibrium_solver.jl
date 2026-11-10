@@ -238,10 +238,10 @@ const _SOLVER_FACTORIES = Function[]
 Whether the KKT solver and its certificate are loaded. Set by
 `OptimaSolverExt.__init__`, and false otherwise: the dual Newton lives in
 `OptimaSolver`, so with only the Ipopt extension loaded there is no certifying
-route and `equilibrate` must take its plain path rather than raise.
+search and `equilibrate` must take its plain path rather than raise.
 
 Registering a back end is not the same question. `OptimizationIpopt` registers a
-factory, which makes it a usable STARTING POINT for the certified route, but it
+factory, which makes it a usable STARTING POINT for the certified search, but it
 cannot certify anything by itself.
 """
 const _DUAL_AVAILABLE = Ref(false)
@@ -526,7 +526,7 @@ _relaxed_convergence(f) = with(f, _STRICT_OVERRIDE => false)
 """
     _EXPLORING_STARTS
 
-Set while a multi-start route is computing or trying **starting points**, so the
+Set while a multi-start search is computing or trying **starting points**, so the
 diagnostics of a candidate are not reported as diagnostics of the answer.
 
 A start that does not converge is ordinary and expected: `equilibrate_certified`
@@ -569,7 +569,7 @@ The two coincide when the activities are the gradient of one Gibbs energy,
 homogeneous of degree one: then `n⋅μ(n)` is that energy and its gradient is `μ`.
 For the extended Debye–Hückel models in general use they are not, and the
 minimum of `n⋅μ(n)` is another composition than the equilibrium. Polished, every
-route returns the composition its certificate describes, and the derivatives
+start returns the composition its certificate describes, and the derivatives
 lifted at it are those of the map it returns.
 
 It is the default of the `polish` keyword of a back end's `solve`. The searches
@@ -652,7 +652,7 @@ The Schur complement forms `S = A H⁻¹ Aᵀ`, so it needs `H` invertible — a
 pure phase has unit activity, hence exactly zero curvature. The nullspace method
 writes `dn = dnₚ + Z dz` with `Z` a basis of `null(A)` and solves
 `(Zᵀ H Z) dz = −Zᵀ(ex + H dnₚ)`, in which `H` appears only as a product. This is
-the route the C++ Optima takes by default, and its `Rangespace` counterpart —
+the method the C++ Optima takes by default, and its `Rangespace` counterpart —
 the Schur complement — is documented there as suitable for invertible diagonal
 Hessians only.
 
@@ -702,7 +702,7 @@ No optimization solver is asked to iterate on dual numbers — most cannot, and
 Ipopt, a C library, does not operate on them. The equilibrium is solved by
 `esolver` on the values of the outermost level of duals, polished by the dual
 Newton (see [`_POLISH`](@ref)), and the answer is lifted by the
-implicit-function theorem at it, as the certified route lifts its own
+implicit-function theorem at it, as the certified search lifts its own
 (`_lift_equilibrium`): exact at every level of a nested differentiation, with
 the active set read off the answer. The conditions lifted are those of the dual
 Newton, `μ(n) = −Aᵀy` on the species present, and the polish is what makes them
@@ -776,7 +776,7 @@ Differentiate the equilibrium map implicitly at a composition already found, and
 return it carrying the dual parts.
 
 Split out of [`_solve_dual`](@ref) so the same derivative can be attached to an
-answer obtained by any route — in particular to a certified one, which is solved
+answer obtained by any method — in particular to a certified one, which is solved
 in real arithmetic by construction. Pushing duals through the iteration itself
 would be wrong anyway: an active set has a discrete component, so the map
 `b ↦ n*(b)` is smooth only piecewise, and the derivative belongs at the solution
@@ -934,7 +934,7 @@ using OptimaSolver
 state_eq = equilibrate(state, OptimaOptimizer())
 ```
 
-**One-argument form** — solves by every available route and returns the answer
+**One-argument form** — solves from every available start and returns the answer
 [`optimality_certificate`](@ref) accepts; its `scope` says what that proves (a
 global minimum, a KKT point, or a self-consistent speciation):
 
@@ -945,7 +945,7 @@ cert = Ref{Any}()
 state_eq = equilibrate(state; certificate = cert)   # cert[] === nothing if none
 ```
 
-The certified route is the default because a single back end does not certify
+The certified search is the default because a single back end does not certify
 every case here: measured on calcite dissolving in water, the interior point
 returns a composition whose **charge balance is met to 3 % only**, because
 the fraction-to-boundary rule caps its step and the residual stops moving. The
@@ -960,13 +960,13 @@ certificate was computed. `certify` has three values:
   - `nothing` (the default): the certified search where it applies — OptimaSolver
     loaded, an aqueous phase with `H2O@` — and the single back end otherwise;
   - `true`: the certified search, an `ArgumentError` where it does not apply,
-    and an [`UncertifiedEquilibrium`](@ref) where no route certifies, rather
+    and an [`UncertifiedEquilibrium`](@ref) where no start certifies, rather
     than an answer that was never certified;
   - `false`: the single back end, its answer polished by the dual Newton where
     the certified search would apply.
 
 Every back end's answer is polished in that way, the two-argument form's
-included, so that all routes return a composition satisfying the same conditions
+included, so that all back ends return a composition satisfying the same conditions
 of equilibrium (see `ChemistryLab._POLISH`). Without OptimaSolver, a back end
 that minimizes `n⋅μ(n)`, such as Ipopt, refuses an activity model that breaks the
 Gibbs–Duhem relation, since its minimum is then not the equilibrium.

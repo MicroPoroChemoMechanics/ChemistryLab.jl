@@ -46,8 +46,8 @@ end
 A value carrying how it was obtained and from where.
 
 `Traced` is **not** a `Real`. That is deliberate: a number that flowed silently
-into arithmetic would arrive at the far end with its provenance gone, and the
-whole point is that losing it should be an act rather than an accident. Unwrap
+into arithmetic would arrive at the far end with its provenance gone, whereas
+losing it should be an act rather than an accident. Unwrap
 it with [`value`](@ref) at the boundary where it enters a calculation, which is
 where a reader can see the claim being dropped.
 
@@ -139,7 +139,7 @@ is_evidence(t) = provenance(t) in (PROV_MEASURED, PROV_PUBLISHED)
     weakest(ts...) -> ProvenanceKind
 
 The least sound provenance among its arguments — what a result computed from
-them can honestly claim.
+them can claim.
 
 Nothing here propagates it automatically, because [`Traced`](@ref) is not a
 number and does not do arithmetic. This is the function to call where a derived

@@ -2,12 +2,8 @@
 #
 # The coupled trajectories the documentation plots, COMPUTED BY THE BUILD.
 #
-# They were stored in CSV files for a while, because a coupled hydration run cost
-# tens of minutes and the site called for several. Two solver fixes later a warm
-# equilibrium costs 17 ms instead of 583 ms, and computing them is affordable
-# again -- which is worth the build time, because a stored result is a claim
-# about code that may since have changed, and keeping the two in step needed a
-# guard, a procedure and a documented list of traps.
+# A warm equilibrium costs 17 ms, so computing them is affordable, and worth the
+# build time: a stored result is a claim about code that may since have changed.
 #
 # `read_precomputed` keeps its name and its return shape, so the pages that read
 # it did not change. What changed is where the numbers come from.
@@ -94,25 +90,21 @@ end
 `map(f, xs)`, on as many threads as the session was started with.
 
 The trajectories are independent -- separate systems, separate solver buffers,
-separate ODE states -- so this changes wall time and nothing else. It was
-measured rather than assumed. The two coupled 28-day runs of
-`calibration_target`, on two threads:
+separate ODE states -- so this changes wall time and nothing else. The two
+coupled 28-day runs of `calibration_target`, on two threads:
 
 | | wall time |
 |:--|--:|
 | one after the other | 1093.4 s |
 | together | 593.2 s (x1.84) |
 
-and both vectors came back **identical bit for bit** to the serial ones, maximum
-deviation exactly 0. The globals the solve path mutates are a warning gate, a
-warning counter, and the memo of compiled functions each thermodynamic factory
-keeps (every trajectory builds its species, and the factories are shared). That
-memo is locked: unguarded, the concurrent insertions of the first trajectories
-corrupted it, and a build of this page on four threads ended in a segmentation
-fault.
+and both vectors are identical to the serial ones, maximum deviation exactly 0.
+The globals the solve path mutates are a warning switch, a warning counter, and
+the memo of compiled functions each thermodynamic factory keeps (every
+trajectory builds its species, and the factories are shared). That memo is
+locked, because concurrent insertions of the first trajectories would corrupt it.
 
-With one thread the call is an ordinary `map`, so a default session behaves
-exactly as it did before.
+With one thread the call is an ordinary `map`.
 """
 function _par_map(f, xs)
     Threads.nthreads() == 1 && return map(f, xs)
@@ -123,8 +115,8 @@ end
     _provenance(what; instants, window, extra) -> Vector{String}
 
 What a figure can say about where its numbers came from: the package version,
-the commit, the sampling and the composition. The same block the stored files
-used to carry, now describing a run this build performed.
+the commit, the sampling and the composition. The block
+describes a run this build performed.
 """
 function _provenance(what; instants, window, extra = String[])
     commit = try
@@ -174,8 +166,7 @@ function _ionic_case(tag::AbstractString)
         # How many instants are PROVED optimal, not merely converged. Taken from
         # `speciated_states` itself, which decides it per instant and warns;
         # re-deriving it here would be a second opinion with no authority over
-        # the first, and an earlier attempt at exactly that reported 0 of 80
-        # where the replay had certified 79. The warning goes to a buffer so it
+        # the first. The warning goes to a buffer so it
         # does not also reach the page twice, and its text is kept.
         logbuf = IOBuffer()
         states = Logging.with_logger(Logging.SimpleLogger(logbuf, Logging.Info)) do
@@ -307,11 +298,9 @@ end
 Released heat [J/g] at `data.t` from one coupled run on `clinker`.
 
 Everything except the clinker is held at what the calibration itself used --
-the fitted rate constants, **and the fitted induction period**, which an earlier
-version of this function left out. That omission made the δ = 0 row a different
-model from the fit whose sensitivity it was supposed to measure, so its RMSE was
-not the fit's RMSE. It is now the same call `forward_Q` makes, with the clinker
-as its only freedom.
+the fitted rate constants and the fitted induction period. It is the same call
+`forward_Q` makes, with the clinker as its only freedom, so the δ = 0 row is the
+fit whose sensitivity is measured and its RMSE is the fit's RMSE.
 """
 function _sensitivity_Q(clinker, data)
     run = run_ionic_hydration(;

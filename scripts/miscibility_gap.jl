@@ -118,7 +118,7 @@ One system, differing only in how the AFm binary is declared.
 certify. For those the multi-start cascade -- every backend, then the ideal
 pre-solve, then the homotopy continuation -- cannot help: there is no admissible
 single-composition minimum for it to find, so it spends minutes arriving at the
-answer the first route already gave. The certificate reported is the same one
+answer the first start already gave. The certificate reported is the same one
 either way; declining the cascade declines only the search for a better start.
 """
 function run_case(afm_phase; autostart = true)

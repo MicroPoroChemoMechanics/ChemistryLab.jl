@@ -86,7 +86,7 @@ c     = sum(last.(compo))   # cement mass fraction (= 0.984 here)
 using OptimaSolver
 ```
 
-That route returns `(state, certificate)`, and the certificate is what makes the
+That form returns `(state, certificate)`, and the certificate is what makes the
 numbers below quotable: for a convex problem the KKT conditions are *sufficient*,
 so `cert.optimal == true` is a **proof** that the composition is the Gibbs
 minimum and not merely the point an iteration stopped at. Every value on this

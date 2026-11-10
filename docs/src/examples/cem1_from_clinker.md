@@ -290,7 +290,7 @@ cannot run out. Two ways round it, and this page takes the first:
     the Gibbs energy at each step, ettringite while sulfate lasts and monosulfate
     afterwards. That is
     [The silicates of a CEM I clinker, hydrating end to end](@ref sec-coupled-hydration), and it is the
-    honest route to a sulfate-bearing aluminate.
+    appropriate way to a sulfate-bearing aluminate.
 
 ## 9. What this page assumed
 

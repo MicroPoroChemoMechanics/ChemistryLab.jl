@@ -22,12 +22,12 @@ ChemistryLab provides two solver extensions. Load whichever fits your workflow:
 | `Optimization`, `OptimizationIpopt` | `IpoptOptimizer` | general-purpose, robust |
 | `OptimaSolver` | `OptimaOptimizer` | preferred when available |
 
-When both are loaded, `OptimaSolver` provides the default single back end. Since
-OptimaSolver 0.11 it runs the active-set iteration of Optima, the one Reaktoro
+When both are loaded, `OptimaSolver` provides the default single back end. It runs
+the active-set iteration of Optima, the one Reaktoro
 computes its equilibria with; its interior point remains available as
 `OptimaOptimizer(algorithm = :interior_point)`. Here is what each back end
 returns on its own, before the dual Newton polishes it, against the certified
-route; the balance is the worst element row relative to what it holds, the
+search; the balance is the worst element row relative to what it holds, the
 stationarity is scaled as the certificate scales it, and the time is the minimum
 of three runs on one thread
 (`scripts/bench_coupling/backends.jl`, see
@@ -38,7 +38,7 @@ using ChemistryLab, Markdown, Printf # hide
 rows = let lines = readlines(joinpath(pkgdir(ChemistryLab), "docs", "src", "assets", "bench_coupling", "backends.csv")) # hide
     [Dict(zip(split(lines[1], ','), split(l, ','))) for l in lines[2:end] if !isempty(l)] # hide
 end # hide
-table = ["| case | route | balance | stationarity | proved | time (ms) |", "|:--|:--|--:|--:|:--:|--:|"] # hide
+table = ["| case | method | balance | stationarity | proved | time (ms) |", "|:--|:--|--:|--:|:--:|--:|"] # hide
 for r in rows # hide
     push!(table, @sprintf("| %s | %s | %.0e | %.0e | %s | %.2f |", r["case"], r["route"], # hide
         parse(Float64, r["balance_relative"]), parse(Float64, r["stationarity"]), # hide
@@ -50,14 +50,14 @@ Markdown.parse(join(table, "\n")) # hide
 On the aqueous systems the active set returns, by itself and within a
 millisecond, an answer the certificate proves. On a cement paste no back end
 does: the active set meets the balance to `10⁻¹²` but stops short of
-stationarity, and Ipopt takes about a second. The certified route, started from those answers, proves
+stationarity, and Ipopt takes about a second. The certified search, started from those answers, proves
 the paste in a few hundredths of a second, which is why `equilibrate` certifies
 by default.
 
 ### `equilibrate(state)` does not pick one of them — it proves the answer
 
 No single back end certifies every case, so the one-argument `equilibrate`
-solves by **every** route available and keeps the answer
+solves from **every** start available and keeps the answer
 [`optimality_certificate`](@ref) proves optimal: each back end's answer is
 polished by the dual Newton method, and the first proved answer is returned.
 The certificate decides rather than ranks, the problem being convex whenever the
@@ -83,12 +83,10 @@ row holds, so that an element present as a trace is balanced to the same
 relative accuracy as a major one. A phase made of such a trace, which cannot
 hold the amounts in moles the search compares it with, is judged on the scale of
 what it can hold once the search has sent it away and taken it back
-(OptimaSolver ≥ 0.8.7): a portlandite suspension whose aluminum is a ``10^{-9}`` mol seed of ettringite
-certifies, with the gypsum where a seed of ``10^{-6}`` mol puts it. Before that,
-no route certified it, the aluminum row ended several times out and the gypsum
-14 % off at 1.74 mmol.
+a portlandite suspension whose aluminum is a ``10^{-9}`` mol seed of ettringite
+certifies, with the gypsum where a seed of ``10^{-6}`` mol puts it.
 
-When no route certifies, `equilibrate` and [`equilibrate_certified`](@ref)
+When no start certifies, `equilibrate` and [`equilibrate_certified`](@ref)
 return the answer with the smallest KKT error and warn, once per session, naming
 the row furthest out, judged as the certificate judges it. That answer is not an
 equilibrium. Ask for one with `certify = true`, which raises
@@ -105,7 +103,7 @@ catch e
 end
 ```
 
-[`optimality_certificate`](@ref) audits any state against its budget:
+[`optimality_certificate`](@ref) checks any state against its budget:
 `balance` is the worst row in moles, `balance_relative` the worst relative to
 what it holds.
 
@@ -127,17 +125,17 @@ Davies, whose dissolved carbon dioxide carries a salting-out term with no
 partner.
 
 So every back end's answer is **polished**: the dual Newton is started from it,
-and the composition it certifies is the one returned. The route then decides how
+and the composition it certifies is the one returned. The start then decides how
 fast the answer is reached, not which answer it is, and a derivative taken through
 it is that of the composition returned. Without OptimaSolver nothing can polish,
 and a back end that minimizes `n⋅μ(n)` refuses a model that breaks the
 Gibbs–Duhem relation, with an error that names it, rather than return a
 composition that is not the equilibrium.
 
-### What the certified route does first
+### What the certified search does first
 
 With every activity at one, the equilibrium is a linear program over the pure
-phases, `minimize gᵀn subject to A n = b, n ≥ 0`, and the certified route solves
+phases, `minimize gᵀn subject to A n = b, n ≥ 0`, and the certified search solves
 it before anything else.
 
   - A budget that **no** non-negative amounts of the declared species can meet
@@ -269,11 +267,11 @@ temperature is an unknown of the system. And against itself: solving at a *fixed
 temperature equal to the one the adiabatic solve found returns the same
 composition to `1e-12`.
 
-A volume constraint on a **condensed** system is **refused**, with the lever it
+A volume constraint on a **condensed** system is **refused**, with the quantity it
 measured named in the error. The molar volumes of the minerals in Cemdata18 do
 not depend on pressure — `V⁰(1 bar) = V⁰(100 bar)` to the last bit for `Cal` —
 water's falls by 0.44 % over 100 bar, and the partial volumes of a few aqueous
-ions vary, `OH⁻`'s by 8 % over 100 bar. The relative lever `(∂V/∂P)·P/V` of
+ions vary, `OH⁻`'s by 8 % over 100 bar. The relative sensitivity `(∂V/∂P)·P/V` of
 water alone is `4.5e-5` at 1 bar, some **225 bar to change its volume by one
 percent**, and a paste, whose solids do not move, has less. That is the physics,
 not a solver limitation: the volume of a nearly incompressible condensed system
@@ -286,7 +284,7 @@ binder actually needs — use [`porosity`](@ref) with a reference state instead.
     system, so a constraint other than `FixedTP` requires `OptimaSolver` and a
     system with an aqueous phase and `H2O@`. Asking for one otherwise raises,
     rather than being silently ignored. `equilibrate(state; constraint = ...)`
-    routes through the certified path, so the answer still comes with its proof.
+    goes through the certified path, so the answer still comes with its proof.
 
 ## Differentiating an equilibrium
 
@@ -298,7 +296,7 @@ Crossing the **solve** works as well, and without asking any solver to iterate o
 dual numbers — Ipopt, a C library, does not operate on them. The equilibrium is
 solved once at the primal values, by the back end chosen and polished, and the
 sensitivities come from the conditions of equilibrium at the answer, the
-implicit-function-theorem route:
+implicit-function-theorem method:
 
 ```math
 \begin{bmatrix} \mathbf{H} & \mathbf{A}^\mathsf{T} \\ \mathbf{A} & \mathbf{0} \end{bmatrix}
@@ -331,12 +329,12 @@ ForwardDiff.derivative(f, 0.01)     # → 0.163095
 ```
 
 Each mole of carbon dioxide added dissolves 0.16 mol of calcite at this point,
-where 3.7 mmol are dissolved. The certified route, `equilibrate(state)` or
+where 3.7 mmol are dissolved. The certified search, `equilibrate(state)` or
 `equilibrate_certified`, returns the same derivative to fifteen digits: it
 lifts its answer the same way, with the active set frozen and the
 constraint's unknowns included, so the titrant a prescribed pH needs or the
 temperature an adiabatic solve reaches comes back with its derivative too. Both
-routes lift one level of duals at a time, so that a derivative nested in another
+methods lift one level of duals at a time, so that a derivative nested in another
 (a gradient differentiated again for a Hessian, as an inversion needs) is exact
 at every level, and both lift whatever carries the duals: the amounts, the
 temperature, the budget, the standard potentials of the species or the
@@ -361,7 +359,7 @@ rest rather than return derivatives that are not there.
     leading share of the response is pinned, and the system re-solved.
 
 !!! note "Verified against Reaktoro"
-    On calcite + CO₂ + water, `∂n/∂(CO₂)` from this route agrees with the
+    On calcite + CO₂ + water, `∂n/∂(CO₂)` from this method agrees with the
     package's own finite differences to `9×10⁻⁵` — the finite-difference
     truncation error — and with [Reaktoro](https://reaktoro.org) 2.13 reading
     **the same Cemdata18 file**, over the same eleven species, under the same
@@ -378,13 +376,13 @@ rest rather than return derivatives that are not there.
 
     The equilibrium amounts agree to the same order (`Ca²⁺` 3.5281×10⁻³ against
     3.52902×10⁻³). Reaktoro's own spread across `h ∈ {10⁻³, 10⁻⁴, 10⁻⁵}` is
-    `7.2×10⁻⁴`, so the residual difference sits below the oracle's truncation
-    error on every species.
+    `7.2×10⁻⁴`, so the residual difference sits below the truncation
+    error of the reference on every species.
 
     The absent gas species gets exactly zero from the active-set treatment; the
     finite-difference reference gives `2×10⁻⁹`, the size of its truncation error.
 
-!!! warning "A cross-code comparison has three knobs, not one"
+!!! warning "A cross-code comparison has three parameters, not one"
     Database, species list and activity model all have to match, and each is
     worth tens of percent here. Reading Cemdata18 in both codes but leaving
     Reaktoro on its HKF activity model against this package's default
@@ -416,7 +414,7 @@ contributes almost nothing to the optimality test. A
 starting state in which most species sit at that floor, such as one built from a
 recipe, then already passes the test of the interior point: from it, an explicit
 solver in the logarithmic space returns the start or stops without converging.
-Called without a solver, [`equilibrate`](@ref) goes through the certified route,
+Called without a solver, [`equilibrate`](@ref) goes through the certified search,
 whose answer does not depend on this choice; with an explicit solver, the
 logarithmic space is to be started from a solved state:
 

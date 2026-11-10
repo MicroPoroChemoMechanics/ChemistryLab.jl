@@ -443,7 +443,7 @@ rate law and not in the Gibbs energy, and that the proportional *form* of
 [Powers1948](@citet) is no evidence for his coefficient. Both are testable on
 the material at hand, so both are measured here rather than asserted.
 
-### The thermodynamic route, measured
+### The thermodynamic computation, measured
 
 [`CapillaryWater`](@ref) imposes a water activity on the equilibrium itself. If
 self-desiccation arrested hydration thermodynamically, imposing the arrest
@@ -472,7 +472,7 @@ end
 From saturation down to the arrest humidity the assemblage is identical to six
 digits — the imposed shift moves the answer by less than the printing precision —
 and each of those answers is certified. The last row is there to show the other
-half of that: further down, no route certifies, the last column says so, and the
+half of that: further down, no start certifies, the last column says so, and the
 answer [`equilibrate_certified`](@ref) returns is a KKT candidate rather than a
 proof. The arithmetic in the opening admonition says why
 nothing is expected to happen in that range anyway.
@@ -514,8 +514,8 @@ end
 ```
 
 The last column is the same number at every ``w/c``, in both blocks, to every
-digit printed — and the two blocks disagree with each other by 18 %. That is the
-whole point: the *constancy* of ``\alpha_{\max}/(w/c)`` is an identity of the
+digit printed — and the two blocks disagree with each other by 18 %. Hence the
+*constancy* of ``\alpha_{\max}/(w/c)`` is an identity of the
 construction and carries no information, while its *value*, ``1/k``, carries all
 of it. A page that quoted a five-digit agreement between that ratio and
 ``1/0.42 = 2.381`` would be quoting its own arithmetic, which is why §5 reports

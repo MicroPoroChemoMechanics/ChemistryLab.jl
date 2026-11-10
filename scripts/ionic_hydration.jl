@@ -55,9 +55,9 @@ const IONIC_CEMENT = let bogue = literature_table("Lavergne2018", "cement_bogue"
     )
 end
 
-# Four systems. `:opc` is the model; the three smaller ones are the ladder that
-# was used to isolate what made it hard, and they are kept because reproducing an
-# intermediate is the fastest way to localize a regression.
+# Four systems. `:opc` is the model; the three smaller ones are a ladder that
+# isolates what makes the model hard; reproducing an intermediate is the fastest
+# way to localize a regression.
 const IONIC_SYSTEMS = Dict(
     :silicates => (
         anhydrous = ["C3S", "C2S"],
@@ -105,11 +105,8 @@ Measured over 28 days with the dormant period of
 What the dormant period changes is the **early** heat, and little else worth
 reporting: `Q(6 h)` falls from 74.1 to 40.2 J/g, which is the point of it, while
 the 28-day pore solution (pH 12.754) and porosity (0.3635 against 0.3634) do not
-move and the integrator takes 216 steps instead of 200. Both configurations were
-re-measured when the default changed. An earlier version of this docstring claimed
-202 steps and pH 12.58; the 200 and 12.754 measured **without** any dormant period
-show that figure had already drifted for an unrelated reason, so the difference is
-not an effect of this change.
+move and the integrator takes 216 steps instead of 200. Without any dormant
+period the run takes 200 steps and gives pH 12.754.
 
 The aluminate sequence comes out of the free-energy
 minimization with no sequencing rule written anywhere — ettringite forms early,

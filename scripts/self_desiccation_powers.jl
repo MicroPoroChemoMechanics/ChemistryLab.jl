@@ -275,7 +275,7 @@ println("\nMeasured porosity of their mix CO (their Table 4): 30.3 %")
 # Section 7 of the tutorial prints the same two tables.
 
 println("\n", "="^78)
-println("5. NEGATIVE CONTROL A — THE THERMODYNAMIC ROUTE DOES NOT ARREST HYDRATION")
+println("5. NEGATIVE CONTROL A — THE THERMODYNAMIC CALCULATION DOES NOT ARREST HYDRATION")
 println("="^78)
 println("Imposing the arrest humidity on a paste with all its cement available.")
 println("If self-desiccation were thermodynamic, cement would be left over.\n")
@@ -296,7 +296,7 @@ for aw in (1.0, 0.9, 0.8, 0.5)
     )
 end
 println("\nUnchanged to six digits down to the arrest humidity, every answer certified.")
-println("Below that no route certifies — the warning is the guard, not a result.")
+println("Below that no calculation certifies — the warning is the guard, not a result.")
 
 println("\n", "="^78)
 println("5. NEGATIVE CONTROL B — THE PROPORTIONAL FORM CARRIES NO INFORMATION")

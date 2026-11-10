@@ -13,7 +13,7 @@ trajectory.
 
 What remains empirical is the **criterion** — [`humidity_factor`](@ref)
 implements the cut that stops hydration below about 80 % RH — not the arrest
-itself. That is the honest ceiling of a 0D framework, and
+itself. That is the limit of a 0D framework, and
 [the water budget](@ref sec-theory-water-budget) §4 explains why nothing in
 thermodynamics can replace it.
 
@@ -106,7 +106,7 @@ end
 nothing # hide
 ```
 
-## 2. The arrest, and where it lands
+## 2. The arrest, and where it stops
 
 ```@example sdk
 println("  w/c   α(C3S) coupled   α(C3S) uncoupled   Powers w/c/0.42   S at 90 d   RH at 90 d")
@@ -129,11 +129,11 @@ humidity coupled, the degree of hydration depends on `w/c`, and does so because
 the paste dried itself.
 
 **It stops where `humidity_factor` cuts, at the saturation the static budget
-assumes.** For the drier mixes the internal humidity lands on 0.800 and the pore
-saturation on 0.786 — and 0.786 is exactly the ``S^\ast`` the
+assumes.** For the drier mixes the internal humidity reaches 0.800 and the pore
+saturation 0.786 — and 0.786 is exactly the ``S^\ast`` the
 [static page](@ref sec-self-desiccation) reads off the *same* retention curve at
 RH 0.80. The trajectory arrives at the number the budget assumes, by a different
-route, with nothing arranged to make it so. That agreement is the closest thing
+method, with nothing arranged to make it so. That agreement is the closest thing
 to a validation available here.
 
 **The proportionality is gone, and that is informative.** The static
@@ -144,18 +144,17 @@ rises with `w/c`, because a wet paste has not finished self-desiccating within
 ninety days — the arrest is then set by the integration window rather than by
 the water. The 0.42 of [Powers1948](@citet) sits just below the dry-end value.
 
-## 3. What was in the way
+## 3. The saturated initial state
 
-This run could not be performed before, and the reason is worth recording
-because it is invisible from the object's own behavior. Every van Genuchten
-retention law has an **unbounded** ``\mathrm{d}p_c/\mathrm{d}S`` at full
-saturation, and a sealed paste starts saturated. An implicit solver
-differentiates the rate law at its first step, so it received an infinite
-Jacobian entry and returned at ``t = 0`` with every degree of hydration at zero.
+Every van Genuchten retention law has an unbounded ``\mathrm{d}p_c/\mathrm{d}S``
+at full saturation, and a sealed paste starts saturated. An implicit solver
+differentiates the rate law at its first step, so without a treatment it would
+receive an infinite Jacobian entry and return at ``t = 0`` with every degree of
+hydration at zero.
 
-[`PoreHumidity`](@ref) now returns the saturated value as a constant — water at
+[`PoreHumidity`](@ref) returns the saturated value as a constant — water at
 zero suction has ``a_w = 1``, which is not in doubt — so the derivative there is
-zero instead of infinite. That is a **regularization and not an identity**: the
+zero instead of infinite. That is a regularization and not an identity: the
 true derivative is unbounded. It applies within ``10^{-10}`` of saturation, in
 practice the initial condition alone, and the solver leaves that point on its
 first successful step.

@@ -39,8 +39,8 @@ end-member gives its chemical potential and hence its activity:
 \boxed{\;\ln a_k = \ln x_k\;}
 ```
 
-That is [`IdealSolidSolutionModel`](@ref), and it is the default. Note what it
-already buys: an end-member at ``x_k = 10^{-3}`` has ``\ln a_k = -6.9``, so its
+That is [`IdealSolidSolutionModel`](@ref), and it is the default. It
+already gives this: an end-member at ``x_k = 10^{-3}`` has ``\ln a_k = -6.9``, so its
 saturation index is shifted by ``-3`` decades relative to the pure phase. A trace
 component is *stabilized* by being diluted in a host, which is why a solid
 solution can take up an ion that would never precipitate as its own phase.
@@ -88,8 +88,7 @@ G = \underbrace{\sum_k x_k\mu_k^\circ}_{\text{mechanical mixture}}
 \ln\gamma_k = \frac{\partial}{\partial n_k}\!\left(\frac{n\,G^{\text{ex}}}{RT}\right) ,
 ```
 
-and then ``\ln a_k = \ln x_k + \ln\gamma_k``. This is exactly what the code
-does: for these models `_ss_log_activities!` writes
+and then ``\ln a_k = \ln x_k + \ln\gamma_k``. The code does exactly this: for these models `_ss_log_activities!` writes
 `log(x[k] + ϵ) + _excess_ln_gamma(model, k, x, T)` into the log-activity vector,
 so the two terms are visibly separate and a model supplies only the second. The
 model of section 7 is written differently, and has its own method.
@@ -889,7 +888,7 @@ pressure; the model takes their values at the conditions of the calculation.
 interactions rescaled by the size of the end-member considered,
 ``W^*_{ij} = 2\alpha_k W_{ij}/(\alpha_i + \alpha_j)``, their double sum running over
 ``j > i``, the range the excess energy implies. A shorter
-route goes through the excess itself. Substituting ``\varphi``,
+method goes through the excess itself. Substituting ``\varphi``,
 
 ```math
 G^{\text{ex}} = \frac{Q(\mathbf{x})}{A(\mathbf{x})},

@@ -149,7 +149,7 @@ One system, differing only in how the AFm binary is declared.
 certify. For those the multi-start cascade -- every backend, then the ideal
 pre-solve, then the homotopy continuation -- cannot help: there is no admissible
 single-composition minimum for it to find, so it spends minutes arriving at the
-answer the first route already gave. The certificate reported is the same one
+answer the first start already gave. The certificate reported is the same one
 either way; declining the cascade declines only the search for a better start.
 """
 function run_case(afm_phase; autostart = true)
@@ -291,7 +291,7 @@ expecting it to keep the two lobes apart:
 
 Inside a gap **only the proportions move**: the two compositions are the same
 whatever the overall composition is. So once the pair is known, how a given
-overall composition ``\bar{x}`` separates is the lever rule and nothing more —
+overall composition ``\bar{x}`` separates is given by the lever rule alone —
 which [`miscibility_split`](@ref) returns, together with the Gibbs energy the
 separation releases:
 

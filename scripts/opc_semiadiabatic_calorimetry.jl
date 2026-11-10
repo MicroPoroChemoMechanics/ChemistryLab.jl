@@ -82,11 +82,7 @@ set_quantity!(state0, "H2O@", WC * u"kg")
 # Parrott & Killoh (1984) as reported by Lothenbach et al. (2008); activation
 # energies from their Table 4.
 #
-# This script used to carry a byte-for-byte local copy of `PK_PARAMS_*` under
-# the name `PK_SMOOTHED_*` and feed it to the now-deprecated `parrott_killoh`.
-# That path is diffusion-limited from a few percent of hydration on and gave a
-# mean degree of 0.234 at seven days against the 0.61 the literature reports —
-# see the deprecation note on `parrott_killoh`.
+# The constants are used with `parrott_killoh_avrami`.
 
 const BLAINE = 380.0u"m^2/kg"   # ordinary CEM I fineness
 

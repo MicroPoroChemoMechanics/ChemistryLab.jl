@@ -165,10 +165,10 @@ molar mass it uses, so the comparison is of the two solvers and of nothing else.
 
 ```@example cshcl
 using JSON
-ORACLE = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference",
+REFERENCE = JSON.parsefile(joinpath(pkgdir(ChemistryLab), "test", "reference",
                                  "phreeqc_csh_paste.json"))
 worst = (phase = 0.0, surface = 0.0, pH = 0.0, psi_mV = 0.0)
-for pt in ORACLE["points"]
+for pt in REFERENCE["points"]
     k = findfirst(≈(pt["nacl"]), NACL)
     eq, r = states[k], rows[k]
     for (ph, m) in pt["phases"]
@@ -182,12 +182,12 @@ for pt in ORACLE["points"]
                                  psi_mV = max(worst.psi_mV, abs(r.psi_mV - 1000pt["psi_V"]))))
 end
 @printf("over %d points: %.1e mol on a phase, %.1e mol on a surface species,\n",
-        length(ORACLE["points"]), worst.phase, worst.surface)
+        length(REFERENCE["points"]), worst.phase, worst.surface)
 @printf("%.1e on the pH, %.3f mV on the potential\n", worst.pH, worst.psi_mV)
 ```
 
 ```@example cshcl
-pts = ORACLE["points"]
+pts = REFERENCE["points"]
 p_psi = plot(NACL, [r.psi_mV for r in rows]; lw = 2, label = "here", ylabel = "Ψ (mV)",
              xlabel = "NaCl (mol/kg)", title = "Surface potential", titlefontsize = 10)
 scatter!(p_psi, [pt["nacl"] for pt in pts], [1000pt["psi_V"] for pt in pts]; color = :black, ms = 4,

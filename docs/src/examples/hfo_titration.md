@@ -46,7 +46,7 @@ g0(v) = SymbolicFunc(v * u"J/mol")
 mRT(logK) = -RT * log(10.0^logK)
 
 # PHREEQC's own constants for this model, read from the copy of phreeqc.dat
-# that the test oracles use rather than typed again.
+# that the tests use rather than typed again.
 dat = read_sorption_model(datapath("phreeqc.dat"))
 log_k(product) = only(reactions_involving(dat, product)).log_K.value
 logK_prot, logK_depr = log_k("Hfo_wOH2+"), log_k("Hfo_wO-")
@@ -129,7 +129,7 @@ at(7.0)
 ```
 
 At pH 7, nine tenths of the zinc is on the surface — and **half of it sits on
-sites that are forty times scarcer**. That is what a thousandfold affinity buys.
+sites that are forty times scarcer**. That is the effect of a thousandfold affinity.
 
 ## The edge
 

@@ -156,7 +156,7 @@ each kind of absent or vanishing species. Writing ``\mathbf{u} = -\mathbf{A}^\ma
 The last row is Michelsen's tangent-plane measure, and it is a separate test
 because a mixing phase needs one: its members are never exactly zero while it
 exists, so they are neither interior nor at a bound, and a solid solution left out
-of the assemblage used to pass the certificate **unexamined**. The trial
+of the assemblage would otherwise pass the certificate unexamined. The trial
 composition is refined against the phase's own activity model, so the test is not
 the ideal approximation.
 
@@ -194,7 +194,7 @@ kilogram of water, the sites vanished and the answer was certified; from
 
 These conditions are sufficient for a global minimum only when the chemical
 potentials are the gradient of one Gibbs energy and that energy is convex over
-the feasible set. The first property can be measured at the audited composition,
+the feasible set. The first property can be measured at the composition examined,
 since the second derivatives of one energy commute: the Jacobian of the log
 activities has to be symmetric. It is for the ideal dilute model, whose solvent
 row is the partner of the solutes' ``\ln m_i``, for Davies [Davies1962](@cite)
@@ -427,17 +427,15 @@ others [Richet2001; Sec. 11.6d, Eq. (11.116), p. 276](@cite), and an arbitrary `
 can demand more, for which no finite composition exists. It belongs to the outer
 system, where the balance determines it.
 
-!!! note "What it buys, measured"
+!!! note "What it gives, measured"
     On calcite in pure water the interior point of OptimaSolver
     (`algorithm = :interior_point`) alone meets the charge balance to 3 %, at a
     point its return code does not distinguish from the minimum; the certified
     answer meets it to `10⁻¹²`. On the Reaktoro reference (calcite, CO₂ and
-    water) both routes now agree with Reaktoro on every species: above `10⁻⁵` mol
+    water) both methods agree with Reaktoro on every species: above `10⁻⁵` mol
     to `10⁻³` relative, the trace ions to 5 %, the worst being `CaOH⁺` at ×1.032
-    on 1.6 nmol. That reference used to carry a `@test_broken` for `CaOH⁺` at
-    ×2.47; what closed it was the convergence test moving to the true KKT error at
-    `μ = 0` (`OptimaSolver` 0.4.1), and `test/equilibrium_reference.jl` is now 26
-    plain assertions.
+    on 1.6 nmol. The convergence test is on the true KKT error at `μ = 0`, and
+    `test/equilibrium_reference.jl` holds 26 plain assertions.
 
     [`speciated_states`](@ref) certifies every instant it replays and names any it
     cannot. On a full ordinary Portland cement over 28 days, all forty replayed

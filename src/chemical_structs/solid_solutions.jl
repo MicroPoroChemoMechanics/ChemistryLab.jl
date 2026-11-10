@@ -509,8 +509,8 @@ SolidSolutionPhase("AFm_SO4_OH", [c4ah13, monosulphate];
 solved with one, and [`equilibrate_certified`](@ref) adds the second only when its
 certificate finds the phase wanting to split, through [`with_instances`](@ref):
 the answer is then a state of the enlarged system, whose `solid_solutions` hold
-the two instances. A caller whose composition stays outside the gap never pays
-for the second copy. `:auto` is refused for a convex model, as `instances = 2`
+the two instances. A caller whose composition stays outside the gap never needs
+the second copy. `:auto` is refused for a convex model, as `instances = 2`
 is.
 
 # Example
@@ -1162,7 +1162,7 @@ f_\\alpha = \\frac{x_\\beta - \\bar{x}}{x_\\beta - x_\\alpha},
 \\qquad f_\\beta = 1 - f_\\alpha ,
 ```
 
-which is mass balance and nothing more: ``f_\\alpha x_\\alpha + f_\\beta x_\\beta = \\bar{x}``.
+which is the mass balance: ``f_\\alpha x_\\alpha + f_\\beta x_\\beta = \\bar{x}``.
 
 `Δg` is the distance from the curve down to the common tangent at `x̄`,
 

@@ -249,7 +249,7 @@ is caught rather than read off a missing peak.
 
 Every phase of `state` that carries hydrogen or carbon and has **no window**
 contributes its mass to the starting point and never leaves — which is the
-honest behavior, because a phase nobody said when to decompose has not been
+faithful behavior, because a phase nobody said when to decompose has not been
 modeled. [`phases_without_windows`](@ref) is how to find out that this happened
 rather than to discover it from a curve that integrates to the wrong total.
 
@@ -500,7 +500,7 @@ themselves, which is why both are reported rather than one.
 
 A window on a phase that is genuinely absent — a paste with no calcite — is not
 an error and shows up here too; the two are indistinguishable from inside, and
-naming them is all this can honestly do.
+naming them is all this can do.
 """
 function windows_without_phases(
         state::ChemicalState, windows::AbstractVector{<:DecompositionWindow},
