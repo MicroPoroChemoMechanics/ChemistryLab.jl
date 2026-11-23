@@ -19,8 +19,9 @@ theory of activity models derives the law it rests on.
   density and permittivity were written as `1.824829238e6` and `50.29158649`;
   they are now `e²/(8π ε₀ k_B ln 10)·κ₁` and `κ₁`, with
   `κ₁ = √(2e²N_A ρ/(ε₀ k_B))`, evaluated once from the CODATA values. `A` and
-  `B` move by `−9.6×10⁻⁶` and `−2.4×10⁻⁵` relative, which changes every
-  temperature-dependent activity coefficient in the sixth digit. The tabulated
+  `B` move by `−9.6×10⁻⁶` and `−2.4×10⁻⁵` relative, and the Debye-Hückel term
+  of `ln γ` of a temperature-dependent model by relative amounts of that order.
+  The tabulated
   defaults at 25 °C (`A = 0.5114`, `B = 0.3288`) are unchanged.
 
 ### Documentation
