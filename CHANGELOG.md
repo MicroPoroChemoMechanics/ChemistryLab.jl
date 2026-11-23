@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## v0.43.1 — the Debye-Hückel law derived, its constants from the library
+
+A patch release: the constants of the Debye-Hückel law are computed from the
+fundamental constants of the library, two of which are now exported, and the
+theory of activity models derives the law it rests on.
 
 ### Added
 
