@@ -48,7 +48,9 @@ R_GAS       # the same constant, as a bare Float64 in J/(mol·K)
 ```
 
 The set currently exported is `R_GAS`/`R_GAS_Q` (gas constant),
-`FARADAY`/`FARADAY_Q` and `VACUUM_PERMITTIVITY`/`VACUUM_PERMITTIVITY_Q`, with
+`FARADAY`/`FARADAY_Q`, `VACUUM_PERMITTIVITY`/`VACUUM_PERMITTIVITY_Q`,
+`ELEMENTARY_CHARGE_Q` and `BOLTZMANN_Q` (from which the Debye-Hückel ``A`` and
+``B`` are computed), with
 `P_STANDARD`/`P_STANDARD_Q`, the standard-state pressure of 1 bar, which is a
 convention rather than a measured constant.
 `ChemistryLab.RT_over_F(T)` gives the Nernst scale `RT/F` in volts; it is not

@@ -106,6 +106,22 @@ surface charge density and the potential it raises, in [`DiffuseLayer`](@ref).
 const VACUUM_PERMITTIVITY = ustrip(us"F/m", VACUUM_PERMITTIVITY_Q)
 
 """
+    ELEMENTARY_CHARGE_Q
+
+The elementary charge with its dimensions, `1.602176634e-19 C`, from
+`DynamicQuantities.Constants.e` (exact by the 2019 SI redefinition).
+"""
+const ELEMENTARY_CHARGE_Q = _DQConstants.e
+
+"""
+    BOLTZMANN_Q
+
+The Boltzmann constant with its dimensions, `1.380649e-23 J/K`, from
+`DynamicQuantities.Constants.k_B` (exact by the 2019 SI redefinition).
+"""
+const BOLTZMANN_Q = _DQConstants.k_B
+
+"""
     P_STANDARD_Q
 
 The standard-state pressure with its dimensions, `1 bar`: the pressure at which

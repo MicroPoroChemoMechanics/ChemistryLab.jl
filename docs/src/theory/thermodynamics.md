@@ -150,7 +150,11 @@ Aqueous solutes use the model `:solute_hkf88_reaktoro`, the
 Helgeson-Kirkham-Flowers (HKF) equation of state [Helgeson1981](@cite) in its
 revised form [TangerHelgeson1988](@cite), whose standard Gibbs energy adds two
 contributions of different origins to the reference value
-[AndersonCrerar1993](@cite) (§17.9). The first, called nonsolvation, describes
+[AndersonCrerar1993](@cite) (§17.9). This equation of state is not the activity
+model of the same name, [`HKFActivityModel`](@ref): the first gives the standard
+potential ``\mu_i^\circ`` of a solute alone in water, the second its activity
+coefficient among the other ions ([Two meanings of HKF](@ref sec-theory-activity)).
+The first contribution, called nonsolvation, describes
 the species itself through a heat capacity (coefficients ``c_1``, ``c_2``) and a
 volume (coefficients ``a_1`` to ``a_4``) that depend on ``T`` and ``P``, the
 pressure entering through ``P - P_r`` and ``\ln[(\Psi + P)/(\Psi + P_r)]`` with

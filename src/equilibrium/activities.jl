@@ -383,18 +383,34 @@ function _hkf_sigma(x::T) where {T <: Real}
     end
 end
 
+# The Debye-Hückel factors in front of `√ρ / √(εᵣT)` (B) and `√ρ / (εᵣT)^(3/2)`
+# (A), ρ in g/cm³, derived in §1 of the theory page of activity models: the
+# inverse Debye length per `√I` of a solution of unit density and unit `εᵣT`, and
+# that length times `e²/(8π ε₀ k_B)`, per ln 10.
+const _DH_KAPPA = sqrt(
+    2 * ELEMENTARY_CHARGE_Q^2 * AVOGADRO_Q * 1u"g/cm^3" * 1u"mol/kg" /
+        (VACUUM_PERMITTIVITY_Q * BOLTZMANN_Q * 1u"K")
+)
+const _DH_B_FACTOR = ustrip(us"1/Å", _DH_KAPPA)
+const _DH_A_FACTOR = ustrip(
+    ELEMENTARY_CHARGE_Q^2 * _DH_KAPPA / (8π * VACUUM_PERMITTIVITY_Q * BOLTZMANN_Q * 1u"K")
+) / log(10)
+
 """
     hkf_debye_huckel_params(T_K, P_Pa) -> NamedTuple{(:A, :B)}
 
 Compute the Debye-Hückel A and B parameters from the water density ρ [g/cm³]
 and dielectric constant εᵣ at temperature `T_K` (K) and pressure `P_Pa` (Pa).
 
-Formulas [Helgeson1981](@cite):
+The Debye-Hückel law gives them in terms of the elementary charge `e`, the
+Avogadro constant `N_A`, the Boltzmann constant `k_B` and the electric constant
+`ε₀` ([Activity models](@ref sec-theory-activity), §1):
 ```
-A(T,P) = 1.824829238×10⁶ × √ρ / (εᵣ T)^(3/2)    [(kg/mol)^(1/2)]
-B(T,P) = 50.29158649      × √ρ / √(εᵣ T)          [Å⁻¹ (kg/mol)^(1/2)]
+B(T,P) = √(2 e² N_A ρ / (ε₀ k_B)) / √(εᵣ T)                    [Å⁻¹ (kg/mol)^(1/2)]
+A(T,P) = e² / (8π ε₀ k_B ln 10) · √(2 e² N_A ρ / (ε₀ k_B)) / (εᵣ T)^(3/2)   [(kg/mol)^(1/2)]
 ```
-where ρ is in g/cm³.
+the two factors in front of `√ρ` being computed once from the constants of the
+library (CODATA): `50.2904` and `1.824812×10⁶` with ρ in g/cm³.
 
 Uses `water_thermo_props` (HGK equation of state [Haar1984](@cite)) and
 `water_electro_props_jn` (Johnson-Norton dielectric constant
@@ -419,9 +435,7 @@ function hkf_debye_huckel_params(T_K, P_Pa)
     wep = water_electro_props_jn(T_K, P_Pa, wtp)
     ρ_gcm3 = wtp.D / 1000                       # kg/m³ → g/cm³
     εT = wep.epsilon * T_K                   # dimensionless × K
-    A = 1.824829238e6 * sqrt(ρ_gcm3) / εT^(3 // 2)
-    B = 50.29158649 * sqrt(ρ_gcm3) / sqrt(εT)
-    return (A = A, B = B)
+    return (A = _DH_A_FACTOR * sqrt(ρ_gcm3) / εT^(3 // 2), B = _DH_B_FACTOR * sqrt(ρ_gcm3) / sqrt(εT))
 end
 
 # The last `(T, P, A, B)` computed from plain numbers. An activity model with
@@ -440,14 +454,10 @@ const _DEBYE_HUCKEL_LAST = _LastDebyeHuckel((NaN, NaN, NaN, NaN))
 function hkf_debye_huckel_params(T_K::Float64, P_Pa::Float64)
     e = @atomic _DEBYE_HUCKEL_LAST.entry
     (e[1] === T_K && e[2] === P_Pa) && return (A = e[3], B = e[4])
-    wtp = water_thermo_props(T_K, P_Pa)
-    wep = water_electro_props_jn(T_K, P_Pa, wtp)
-    ρ_gcm3 = wtp.D / 1000
-    εT = wep.epsilon * T_K
-    A = 1.824829238e6 * sqrt(ρ_gcm3) / εT^(3 // 2)
-    B = 50.29158649 * sqrt(ρ_gcm3) / sqrt(εT)
-    @atomic _DEBYE_HUCKEL_LAST.entry = (T_K, P_Pa, A, B)
-    return (A = A, B = B)
+    # The generic method computes; this one only remembers.
+    AB = invoke(hkf_debye_huckel_params, Tuple{Any, Any}, T_K, P_Pa)
+    @atomic _DEBYE_HUCKEL_LAST.entry = (T_K, P_Pa, AB.A, AB.B)
+    return AB
 end
 
 # Internal: Setschenow (salting-out) coefficient lookup for a neutral aqueous
@@ -511,6 +521,9 @@ end
 The extended Debye-Hückel model with a B-dot term — the workhorse of aqueous
 geochemistry, and the model PHREEQC and EQ3/6 use
 [Helgeson1969, Helgeson1981, ParkhurstAppelo2013](@cite).
+
+Not to be confused with the HKF equation of state of the standard properties of
+aqueous species, by the same authors, which gives `μ°` and not `γ`.
 
 # Formulas
 

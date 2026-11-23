@@ -62,6 +62,17 @@ end
     @test isapprox(p.A, llnl.A[i25]; rtol = 1.0e-3)
     @test isapprox(p.B, llnl.B[i25]; rtol = 1.0e-3)
 
+    # The factors of √ρ in B and A, recomputed in plain SI numbers, the unit
+    # conversions written by hand rather than left to the unit library:
+    # κ² = 2e²N_A ρ I/(ε₀ εᵣ k_B T) for ρ = 10³ kg/m³, I = 1 mol/kg, εᵣT = 1 K,
+    # B in Å⁻¹ = 10¹⁰ m⁻¹, and A = e²κ/(8π ε₀ k_B ln 10).
+    e = ustrip(us"C", ELEMENTARY_CHARGE_Q)
+    k_B = ustrip(us"J/K", BOLTZMANN_Q)
+    ε₀ = ustrip(us"F/m", VACUUM_PERMITTIVITY_Q)
+    κ = sqrt(2 * e^2 * AVOGADRO * 1.0e3 / (ε₀ * k_B))                # m⁻¹
+    @test ChemistryLab._DH_B_FACTOR ≈ κ / 1.0e10 rtol = 1.0e-12
+    @test ChemistryLab._DH_A_FACTOR ≈ e^2 * κ / (8π * ε₀ * k_B * log(10)) rtol = 1.0e-12
+
     # A increases with temperature (water structure breaks down)
     p100 = hkf_debye_huckel_params(373.15, 1.0e5)
     @test p100.A > p.A

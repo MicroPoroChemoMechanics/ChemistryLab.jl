@@ -29,6 +29,17 @@ The five built-in models — [`DiluteSolutionModel`](@ref),
 [`SITActivityModel`](@ref) and [`PitzerActivityModel`](@ref) — differ in both;
 §5 measures by how much for the first three, and §6a and §6 treat the other two.
 
+!!! note "Two meanings of HKF"
+    The initials of Helgeson, Kirkham and Flowers [Helgeson1981](@cite) name two
+    different things in this package. [`HKFActivityModel`](@ref) is an
+    **activity model**: the extended Debye-Hückel law derived in §1, the term
+    ``\dot{B} I`` of §2, the Setschenow form for neutral species and a water
+    activity consistent with them; it gives ``\gamma_i``. The **HKF equation of
+    state** ([Aqueous solutes](@ref sec-theory-hkf)) gives the standard
+    properties of a solute, hence ``\mu_i^\circ``, and knows nothing of the
+    other ions. Debye-Hückel is the first term of the former, not a part of the
+    latter.
+
 ## 1. Where the ``\sqrt{I}`` comes from
 
 An ion in a solution of ions is not in the same state as one alone at the same
@@ -38,58 +49,146 @@ because their energy there is lower — so the ion sits at the center of a diffu
 **ionic cloud** of opposite net charge. That cloud screens the ion's own field
 and lowers its energy, which is why activity coefficients of ions are *below* 1.
 
-The classical treatment takes three steps, and the assumptions it makes on the
-way are exactly the assumptions that later fail:
+The classical treatment takes four steps, and the assumptions it makes on the
+way are exactly the assumptions that later fail. An ion ``i`` of charge
+``z_i e`` sits at the origin; ``\varepsilon = \varepsilon_0\varepsilon_r`` is
+the permittivity of the solvent, ``\rho_w`` the density of water, and the
+molality ``m_j`` of the ion ``j`` far from the origin is a number density
+``n_j^0 = N_A\rho_w m_j``.
 
-1. **Poisson's equation** relates the mean potential to the mean charge density,
-   ``\nabla^2\psi = -\rho/(\varepsilon_0\varepsilon_r)``, with the solvent
-   entering only as a **continuum of bulk permittivity** ``\varepsilon_r``.
-2. **Boltzmann statistics** give the local ion densities,
-   ``n_j(r) = n_j^0\exp(-z_j e\psi/k_BT)``, treating the ions as *independent* in
-   the mean field of all the others.
-3. **Linearization**, ``z_j e \psi \ll k_B T``, turns the pair into
-   ``\nabla^2\psi = \kappa^2\psi``, whose solution is a screened Coulomb
-   potential with a single length scale
+1. **Poisson's equation** relates the mean potential ``\psi(r)`` around the
+   ion to the mean charge density ``\rho_e(r)``, the solvent entering only as a
+   **continuum of bulk permittivity**: ``\Delta\psi = -\rho_e/\varepsilon``.
+2. **Boltzmann statistics** give the mean densities,
+   ``n_j(r) = n_j^0\exp(-z_j e\psi/k_BT)``, treating the ions as *independent*
+   in the mean field of all the others.
+3. **Linearization**, ``z_j e \psi \ll k_B T``. With electroneutrality,
+   ``\sum_j z_j n_j^0 = 0``, the charge density
+   ``\rho_e = e\sum_j z_j n_j`` reduces to ``-\varepsilon\kappa^2\psi`` with
+   ```math
+   \kappa^2 = \frac{e^2}{\varepsilon k_B T}\sum_j z_j^2 n_j^0
+            = \frac{2 e^2 N_A \rho_w}{\varepsilon_0\varepsilon_r k_B T}\, I ,
+   \qquad I = \tfrac12\sum_j m_j z_j^2 ,
+   ```
+   and Poisson's equation becomes ``\Delta\psi = \kappa^2\psi``. The length
+   ``\kappa^{-1}`` is the **Debye length**; ``\kappa \propto \sqrt{I}``.
+4. **Exclusion**: no other ion comes closer to the center than a distance
+   ``\mathring{a}``, so that for ``r < \mathring{a}`` the only charge is the
+   central one and ``\Delta\psi = 0``.
+
+### The potential around the ion
+
+The radial solutions, the inner one with the central charge and the outer one
+bounded at infinity, are
 
 ```math
-\kappa^{-1} = \left(\frac{\varepsilon_0\varepsilon_r k_B T}
-                        {2 e^2 N_A \rho_w I}\right)^{1/2}
+\psi(r) = \frac{z_i e}{4\pi\varepsilon\, r} + C \quad (r < \mathring{a}),
+\qquad
+\psi(r) = D\,\frac{\mathrm{e}^{-\kappa r}}{r} \quad (r > \mathring{a}) .
 ```
 
-the **Debye length**. Charging the central ion reversibly inside its own cloud
-gives the excess chemical potential, and hence
+The potential and the radial field are continuous at ``r = \mathring{a}``,
+where there is no charge. The field gives
+``D\,\mathrm{e}^{-\kappa\mathring{a}}(1+\kappa\mathring{a}) = z_i e/(4\pi\varepsilon)``,
+then the potential gives ``C``:
 
 ```math
-\log_{10}\gamma_i = -A z_i^2 \sqrt{I} \qquad\text{(the limiting law)} ,
+D = \frac{z_i e}{4\pi\varepsilon}\,\frac{\mathrm{e}^{\kappa\mathring{a}}}{1+\kappa\mathring{a}} ,
+\qquad
+C = \frac{z_i e}{4\pi\varepsilon\,\mathring{a}}\Bigl(\frac{1}{1+\kappa\mathring{a}} - 1\Bigr)
+  = -\frac{z_i e}{4\pi\varepsilon}\,\frac{\kappa}{1+\kappa\mathring{a}} .
 ```
 
-exact as ``I \to 0``. The ``\sqrt{I}`` is not fitted: it is ``\kappa``, and
-``\kappa \propto \sqrt{I}``.
+``C`` is the potential that the cloud creates at the center of the ion. It is
+negative for a cation, positive for an anion: the cloud screens.
 
-Two ions cannot approach closer than the sum of their radii, so the cloud is
-excluded from a shell of radius ``\mathring{a}`` around the central ion. Carrying
-that through gives the **extended** law, which is what
-[`HKFActivityModel`](@ref) implements:
+### Charging the ion
+
+The excess chemical potential of the ion is the reversible work needed to
+bring its charge from ``0`` to ``z_i e`` with the cloud present, less the work
+needed to charge it alone, which belongs to the standard state. The cloud is
+that of the other ions, so ``\kappa`` stays fixed, while ``C`` is proportional
+to the charge ``q`` being built up; per ion,
+
+```math
+k_B T\ln\gamma_i = \int_0^{z_i e} C(q)\,\mathrm{d}q
+  = -\frac{\kappa}{4\pi\varepsilon(1+\kappa\mathring{a})}\int_0^{z_i e} q\,\mathrm{d}q
+  = -\frac{z_i^2 e^2}{8\pi\varepsilon}\,\frac{\kappa}{1+\kappa\mathring{a}} .
+```
+
+Writing ``\kappa = B\sqrt{I}`` and passing to decimal logarithms gives the
+**extended law**, which [`HKFActivityModel`](@ref) implements,
 
 ```math
 \log_{10}\gamma_i = -\frac{A z_i^2\sqrt{I}}{1 + B\mathring{a}_i\sqrt{I}} ,
 \qquad
-I = \tfrac{1}{2}\sum_j m_j z_j^2 .
+B = \sqrt{\frac{2 e^2 N_A\rho_w}{\varepsilon_0 k_B}}\,\frac{1}{\sqrt{\varepsilon_r T}} ,
+\qquad
+A = \frac{e^2}{8\pi\varepsilon_0 k_B\ln 10}\,\frac{B}{\varepsilon_r T} ,
 ```
 
-### ``A`` and ``B`` are properties of water, not fitting constants
-
-Collecting the constants of step 3 gives, with ``\rho_w`` in g/cm³ and
-``\varepsilon_r`` the relative permittivity of water,
+and, as ``\mathring{a} \to 0``, the **limiting law**
 
 ```math
-A = 1.824829238\times10^{6}\,\frac{\sqrt{\rho_w}}{(\varepsilon_r T)^{3/2}} ,
-\qquad
-B = 50.29158649\,\frac{\sqrt{\rho_w}}{\sqrt{\varepsilon_r T}} ,
+\log_{10}\gamma_i = -A z_i^2 \sqrt{I} .
 ```
 
-which is what [`hkf_debye_huckel_params`](@ref) evaluates from this package's own
-equation of state for water. So the ``A = 0.5114`` and ``B = 0.3288`` that the
+It is exact as ``I \to 0``: the cloud then spreads over a distance
+``\kappa^{-1}`` much larger than the size of the ion, where the potential is
+small and the linearization of step 3 holds. The ``\sqrt{I}`` is not fitted: it
+is ``\kappa``.
+
+The three relations can be checked symbolically: the two potentials solve their
+equations, they match at ``r = \mathring{a}``, and the charging integral gives
+the law above.
+
+```@example debye_huckel
+using Symbolics
+@variables r a κ q ε
+ψ_in = q / (4π * ε * r) - q * κ / (4π * ε * (1 + κ * a))
+ψ_out = q / (4π * ε) * exp(κ * a) / (1 + κ * a) * exp(-κ * r) / r
+∂r = Differential(r)
+laplacian(ψ) = expand_derivatives(∂r(r^2 * expand_derivatives(∂r(ψ)))) / r^2   # radial
+at_a(f) = substitute(f, Dict(r => a))
+point = Dict(r => 1.7, a => 0.4, κ => 2.3, q => 1.1, ε => 0.9)   # any values
+residuals = [
+    laplacian(ψ_out) - κ^2 * ψ_out,                                # Δψ = κ²ψ outside
+    laplacian(ψ_in),                                               # Δψ = 0 inside
+    at_a(ψ_in - ψ_out),                                            # continuous potential
+    at_a(expand_derivatives(∂r(ψ_in - ψ_out))),                    # continuous field
+]
+value_at(f) = Symbolics.value(substitute(f, point; fold = Val(true)))
+maximum(abs ∘ value_at, residuals)
+```
+
+The work up to a charge ``Q`` is the primitive of ``C`` that vanishes at
+``Q = 0``:
+
+```@example debye_huckel
+C(q) = -q * κ / (4π * ε * (1 + κ * a))                 # the cloud at the center
+W(Q) = -Q^2 * κ / (8π * ε * (1 + κ * a))               # the work up to the charge Q
+@variables Q
+simplify(expand_derivatives(Differential(Q)(W(Q))) - C(Q)), W(0)
+```
+### ``A`` and ``B`` are properties of water, not fitting constants
+
+``A`` and ``B`` hold four fundamental constants and two properties of water,
+``\rho_w`` and ``\varepsilon_r``, at the temperature and the pressure of the
+solution. With ``\rho_w`` in g/cm³ and ``B`` in Å⁻¹(kg/mol)^½, the constants
+combine into two numbers, computed by the package from the CODATA values:
+
+```@example debye_huckel
+using ChemistryLab, DynamicQuantities
+κ₁ = sqrt(2 * ELEMENTARY_CHARGE_Q^2 * AVOGADRO_Q * 1u"g/cm^3" * 1u"mol/kg" /
+          (VACUUM_PERMITTIVITY_Q * BOLTZMANN_Q * 1u"K"))   # κ for unit ρ_w, I and ε_r T
+B₁ = ustrip(us"1/Å", κ₁)
+A₁ = ustrip(ELEMENTARY_CHARGE_Q^2 / (8π * VACUUM_PERMITTIVITY_Q * BOLTZMANN_Q * 1u"K") * κ₁) / log(10)
+B₁, A₁
+```
+
+[`hkf_debye_huckel_params`](@ref) evaluates ``A`` and ``B`` from these two
+numbers and the density and permittivity given by this package's own equation of
+state for water. So the ``A = 0.5114`` and ``B = 0.3288`` that the
 models carry as defaults at 25 °C are **derived** as well as tabulated: they
 agree to 0.01 % with the values of the LLNL aqueous model that
 [ParkhurstAppelo2013](@citet) tabulate, from 0 to 100 °C — compared at three
