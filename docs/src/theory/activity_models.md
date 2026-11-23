@@ -49,8 +49,8 @@ because their energy there is lower — so the ion sits at the center of a diffu
 **ionic cloud** of opposite net charge. That cloud screens the ion's own field
 and lowers its energy, which is why activity coefficients of ions are *below* 1.
 
-The classical treatment takes four steps, and the assumptions it makes on the
-way are exactly the assumptions that later fail. An ion ``i`` of charge
+The classical treatment [Debye1923](@cite) takes four steps, and the
+assumptions it makes on the way are exactly the assumptions that later fail. An ion ``i`` of charge
 ``z_i e`` sits at the origin; ``\varepsilon = \varepsilon_0\varepsilon_r`` is
 the permittivity of the solvent, ``\rho_w`` the density of water, and the
 molality ``m_j`` of the ion ``j`` far from the origin is a number density
@@ -106,9 +106,11 @@ negative for a cation, positive for an anion: the cloud screens.
 
 The excess chemical potential of the ion is the reversible work needed to
 bring its charge from ``0`` to ``z_i e`` with the cloud present, less the work
-needed to charge it alone, which belongs to the standard state. The cloud is
-that of the other ions, so ``\kappa`` stays fixed, while ``C`` is proportional
-to the charge ``q`` being built up; per ion,
+needed to charge it alone, which belongs to the standard state. Only the
+central ion is charged, the others keeping their charges: this is the
+assumption of the charging process, under which ``\kappa``, set by the other
+ions, stays fixed while ``C`` is proportional to the charge ``q`` being built
+up. Per ion,
 
 ```math
 k_B T\ln\gamma_i = \int_0^{z_i e} C(q)\,\mathrm{d}q
@@ -133,10 +135,11 @@ and, as ``\mathring{a} \to 0``, the **limiting law**
 \log_{10}\gamma_i = -A z_i^2 \sqrt{I} .
 ```
 
-It is exact as ``I \to 0``: the cloud then spreads over a distance
-``\kappa^{-1}`` much larger than the size of the ion, where the potential is
-small and the linearization of step 3 holds. The ``\sqrt{I}`` is not fitted: it
-is ``\kappa``.
+As ``I \to 0`` the cloud spreads over a distance ``\kappa^{-1}`` much larger
+than the size of the ion, where the potential is small, so that the
+linearization of step 3 and the neglect of the size become accurate together:
+the limiting law is the dilute end of the theory. The ``\sqrt{I}`` is not
+fitted: it is ``\kappa``.
 
 The three relations can be checked symbolically: the two potentials solve their
 equations, they match at ``r = \mathring{a}``, and the charging integral gives
@@ -144,7 +147,7 @@ the law above.
 
 ```@example debye_huckel
 using Symbolics
-@variables r a κ q ε
+@variables r a κ q ε            # a stands for å, ε for ε₀εᵣ
 ψ_in = q / (4π * ε * r) - q * κ / (4π * ε * (1 + κ * a))
 ψ_out = q / (4π * ε) * exp(κ * a) / (1 + κ * a) * exp(-κ * r) / r
 ∂r = Differential(r)
@@ -170,6 +173,7 @@ W(Q) = -Q^2 * κ / (8π * ε * (1 + κ * a))               # the work up to the 
 @variables Q
 simplify(expand_derivatives(Differential(Q)(W(Q))) - C(Q)), W(0)
 ```
+
 ### ``A`` and ``B`` are properties of water, not fitting constants
 
 ``A`` and ``B`` hold four fundamental constants and two properties of water,
