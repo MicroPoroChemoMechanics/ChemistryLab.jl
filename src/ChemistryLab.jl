@@ -412,6 +412,8 @@ module ChemistryLab
         as_traced,
         null_participation,
         VACUUM_PERMITTIVITY_Q,
+        ELEMENTARY_CHARGE_Q,
+        BOLTZMANN_Q,
         FARADAY_Q,
         P_STANDARD,
         P_STANDARD_Q,

@@ -1,5 +1,42 @@
 # Changelog
 
+## v0.43.1 — the Debye-Hückel law derived, its constants from the library
+
+A patch release: the constants of the Debye-Hückel law are computed from the
+fundamental constants of the library, two of which are now exported, and the
+theory of activity models derives the law it rests on.
+
+### Added
+
+- **`ELEMENTARY_CHARGE_Q` and `BOLTZMANN_Q`**, the elementary charge and the
+  Boltzmann constant with their dimensions, from `DynamicQuantities.Constants`,
+  beside the constants already exported.
+
+### Changed
+
+- **The Debye-Hückel `A` and `B` of `hkf_debye_huckel_params` are computed from
+  the constants of the library.** The two factors in front of the water
+  density and permittivity were written as `1.824829238e6` and `50.29158649`;
+  they are now `e²/(8π ε₀ k_B ln 10)·κ₁` and `κ₁`, with
+  `κ₁ = √(2e²N_A ρ/(ε₀ k_B))`, evaluated once from the CODATA values. The old
+  numbers are the same expressions evaluated with the constants recommended in
+  1963 (they are recovered to `4×10⁻⁸` from `e = 4.80298×10⁻¹⁰` esu,
+  `N_A = 6.02252×10²³` and `k_B = 1.38054×10⁻¹⁶` erg/K), not a rounding. `A` and
+  `B` move by `−9.6×10⁻⁶` and `−2.4×10⁻⁵` relative, and the Debye-Hückel term
+  of `ln γ` of a temperature-dependent model by relative amounts of that order.
+  The tabulated
+  defaults at 25 °C (`A = 0.5114`, `B = 0.3288`) are unchanged.
+
+### Documentation
+
+- **The Debye-Hückel law is derived** in the theory page of activity models:
+  the linearized cloud around an ion of radius `å`, the potential it creates at
+  the center, the charging of the ion, then the extended law and its limit,
+  each step checked by an executed symbolic block.
+- **The two meanings of HKF are told apart**: the activity model
+  `HKFActivityModel`, which gives `γ`, and the HKF equation of state of the
+  standard properties of solutes, which gives `μ°`.
+
 ## v0.43.0 — a kinetic step that is certified or says why
 
 Requires OptimaSolver 0.12.
