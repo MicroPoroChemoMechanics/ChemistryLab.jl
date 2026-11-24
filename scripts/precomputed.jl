@@ -90,24 +90,28 @@ end
 `map(f, xs)`, on as many threads as the session was started with.
 
 The trajectories are independent -- separate systems, separate solver buffers,
-separate ODE states -- so this changes wall time and nothing else. The two
-coupled 28-day runs of `calibration_target`, on two threads:
+separate ODE states -- so this changes wall time and nothing else. The six
+coupled 28-day runs of the calibration page (`warm_precomputed`), compilation
+included, in a fresh Julia 1.13.4 session on a two-core machine:
 
 | | wall time |
 |:--|--:|
-| one after the other | 1093.4 s |
-| together | 593.2 s (x1.84) |
+| one thread | 113.7 s |
+| two threads | 87.3 s |
 
-and both vectors are identical to the serial ones, maximum deviation exactly 0.
 The globals the solve path mutates are a warning switch, a warning counter, and
 the memo of compiled functions each thermodynamic factory keeps (every
 trajectory builds its species, and the factories are shared). That memo is
 locked, because concurrent insertions of the first trajectories would corrupt it.
 
-With one thread the call is an ordinary `map`.
+With one thread the calls run one after the other. Either way the result is a
+`Vector{Any}`: `map` would ask the compiler for the return type of `f` to type
+its result, and for `read_precomputed`, whose branches reach every coupled
+trajectory, that question kept Julia 1.13.4 in type inference for more than
+twenty minutes before a single trajectory started.
 """
 function _par_map(f, xs)
-    Threads.nthreads() == 1 && return map(f, xs)
+    Threads.nthreads() == 1 && return Any[f(x) for x in xs]
     return fetch.([Threads.@spawn f(x) for x in xs])
 end
 

@@ -167,12 +167,10 @@ jobs:
   # `docs/shards.jl`; a page no group names falls into `rest`. Each shard is a
   # partial build (`docs/partial.jl`), which demotes cross references to warnings
   # and refuses to deploy -- the references are the preflight's to check.
-  # 180 minutes: the shard `calibration`, one page on its own, took 96 and
-  # 110 minutes on two pull requests of November 2026 and passed 120 on a third.
   pages:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
