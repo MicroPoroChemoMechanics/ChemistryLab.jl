@@ -72,8 +72,13 @@ the first mixes two.
 # Each synthesis at equilibrium at 80 °C, in each set. The warnings of the solver,
 # if any, are kept out of the page; the certificates are printed.
 runs = with_logger(NullLogger()) do # hide
-# `Any`: a container typed on the states it holds compiles for minutes.
-runs = Dict{Symbol, Any}(set => sl19_syntheses(set) for set in (:jin, :shi))
+# A loop rather than a generator: a container built from a generator first asks
+# the compiler for the type of its elements, which here costs more than an hour.
+runs = Dict{Symbol, Any}()
+for set in (:jin, :shi)
+    runs[set] = sl19_syntheses(set)
+end
+runs # hide
 end # hide
 println("sample   series    XRD                        set :jin                      set :shi")
 for (a, b) in zip(runs[:jin], runs[:shi])

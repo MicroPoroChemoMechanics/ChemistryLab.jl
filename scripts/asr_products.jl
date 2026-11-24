@@ -135,19 +135,19 @@ function _sl19_solids(symbols)
 end
 
 """
-    sl19_syntheses(set) -> Vector{NamedTuple}
+    sl19_syntheses(set) -> Vector{Any}
 
-Each mix of Table 1 at equilibrium at 80 °C with the products of `set`: its
-sample and series, whether it certified, the solids present, the Si, alkali and
-Ca of the solution (mmol/L) and the measured ones with the phases of the XRD
-(Table 6, `NaN` and an empty string where the paper gives none), the ionic
-strength (mol/kg) and the equilibrium.
+One named tuple per mix of Table 1 at equilibrium at 80 °C with the products of
+`set`: its sample and series, whether it certified, the solids present, the Si,
+alkali and Ca of the solution (mmol/L) and the measured ones with the phases of
+the XRD (Table 6, `NaN` and an empty string where the paper gives none), the
+ionic strength (mol/kg) and the equilibrium.
 """
 function sl19_syntheses(set)
     mixes = literature_table(SL19, "mixes")
     sol = literature_table(SL19, "solutions")
     systems = Dict{String, Any}()
-    return map(eachindex(mixes.sample)) do i
+    synthesis = function (i)
         alkali = startswith(mixes.series[i], "K") ? "K" : "Na"
         cs = get!(() -> sl19_system(alkali, set), systems, alkali)
         eq, cert = equilibrate_certified(sl19_state(cs, i); model = SL19_MODEL[alkali])
@@ -157,13 +157,17 @@ function sl19_syntheses(set)
         solids = [symbol(cs.species[k]) for k in eachindex(n) if !(k in cs.idx_aqueous) && n[k] > 1.0e-7]
         j = findfirst(k -> sol.sample[k] == mixes.sample[i] && sol.series[k] == mixes.series[i], eachindex(sol.sample))
         meas(c) = j === nothing ? NaN : (x = getproperty(sol, c)[j]; x === nothing || ismissing(x) ? NaN : Float64(ustrip(us"mmol/L", x)))
-        (;
+        return (;
             sample = mixes.sample[i], series = mixes.series[i], alkali, certified = cert.optimal,
             solids = _sl19_solids(solids), Si = dissolved(:Si), A = dissolved(Symbol(alkali)), Ca = dissolved(:Ca),
             Si_meas = meas(:Si), A_meas = meas(Symbol(alkali)), Ca_meas = meas(:Ca),
             xrd = j === nothing ? "" : String(sol.phases_xrd[j]), I = ionic_strength(eq), state = eq,
         )
     end
+    # `Any[...]` rather than `map`: `map` asks the compiler for the return type of
+    # `synthesis`, a named tuple that holds a `ChemicalState`, and on Julia 1.13.4
+    # that question alone took 24 minutes before the first solve.
+    return Any[synthesis(i) for i in eachindex(mixes.sample)]
 end
 
 """
