@@ -40,6 +40,10 @@ fetch_databases()
 # needs a pruned SOURCE tree and not just a pruned page tree.
 include("partial.jl")
 
+# The full site built in shards that run side by side, then assembled and
+# rendered once: `CHEMLAB_DOCS_SHARD` and `CHEMLAB_DOCS_ASSEMBLE`. See its header.
+include("shard_build.jl")
+
 # ── Guard: no page may set the plot font ─────────────────────────────────────
 #
 # Documenter runs every `@example` block in ONE process, so `default(fontfamily
@@ -482,7 +486,9 @@ function Logging.handle_message(
     )
 end
 
-PARTIAL_BUILD || let t0 = time()
+# Skipped by a shard and by the assembly as well: the pre-flight is a job of its
+# own there, which the assembly waits for.
+(PARTIAL_BUILD || SHARD_BUILD || ASSEMBLY_BUILD) || let t0 = time()
     @info "pre-flight: draft build (checks only, no example executed)"
     mktempdir() do draftdir
         Logging.with_logger(RecordingLogger(Logging.current_logger(), _PREFLIGHT_LOG)) do
@@ -500,7 +506,7 @@ PARTIAL_BUILD || let t0 = time()
                     edit_link = nothing, repolink = nothing,
                     size_threshold = nothing, size_threshold_warn = nothing,
                 ),
-                source = DOCS_SOURCE,
+                source = BUILD_SOURCE,
                 build = draftdir,
                 pages = pages,
                 plugins = [
@@ -573,18 +579,25 @@ makedocs(;
         devurl = "dev",
         deploy_url = "https://MicroPoroChemoMechanics.github.io/ChemistryLab.jl",
         description = "Aqueous and cement chemistry in Julia: speciation, equilibrium and kinetics",
+        # A shard stops at the Markdown; the assembly renders the site.
+        build_vitepress = !SHARD_BUILD,
     ),
     # `src`, or the pruned symlink tree a partial build stands up. Filtering
     # `pages` alone would leave every other page still executing.
-    source=DOCS_SOURCE,
+    source=BUILD_SOURCE,
     pages=pages,
-    plugins=[bib],
+    plugins=ASSEMBLY_BUILD ?
+        [bib, ShardOutputs(DOCS_ASSEMBLE, source_pages(joinpath(@__DIR__, "src")))] :
+        [bib],
     # A partial build can resolve neither a reference into a page it did not
     # build nor a docstring whose API page it pruned, so those two are demoted
-    # THERE AND ONLY THERE. The full build keeps the narrow list, which is what
-    # makes it the gate.
+    # there. A shard and the assembly build the pages they do not execute as
+    # drafts, whose figures are not written, so `cross_references` alone is
+    # demoted there; `shard_build.jl` says what checks it instead. The full
+    # build keeps the narrow list, which is what makes it the gate.
     warnonly=PARTIAL_BUILD ?
         [:docs_block, :cross_references, :missing_docs, :linkcheck] :
+        (SHARD_BUILD || ASSEMBLY_BUILD) ? [:docs_block, :cross_references] :
         [:docs_block],
     # Doctests have their own job in `.github/workflows/Documentation.yml`, which
     # finishes in minutes. Left at the default `true` they run inside this build
@@ -607,6 +620,11 @@ end  # Logging.with_logger
 # mistake is one command away and silent until the site is already gone.
 if PARTIAL_BUILD
     @info "partial build: deployment skipped"
+elseif SHARD_BUILD
+    export_shard(
+        joinpath(@__DIR__, "build"), joinpath(@__DIR__, "src"), SHARD_EXECUTED,
+        joinpath(@__DIR__, "shard_out", DOCS_SHARD),
+    )
 else
     DocumenterVitepress.deploydocs(;
         repo         = "github.com/MicroPoroChemoMechanics/ChemistryLab.jl.git",

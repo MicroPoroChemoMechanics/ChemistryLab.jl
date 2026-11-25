@@ -23,21 +23,21 @@ end
 - by parsing a string containing eventually fractional or decimal coefficients
 
 ```@example 1
-using ChemistryLab #hide
+using ChemistryLab
 f = Formula("C3AFS5//8H4.32")
 ```
 
 - from a dictionary
 
 ```@example 1
-using ChemistryLab #hide
+using ChemistryLab
 fCaCO3 = Formula(Dict(:Ca => 1, :C => 1, :O => 3))
 ```
 
 - from atom groups
 
 ```@example
-using ChemistryLab #hide
+using ChemistryLab
 fCO2 = AtomGroup(:C) + AtomGroup(2,:O)
 ```
 

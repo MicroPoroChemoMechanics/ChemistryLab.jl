@@ -14,14 +14,140 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:
-  # The full build, and the only one that deploys. It runs on `main`, on tags and
-  # on demand; a pull request is checked instead by the two jobs that follow it,
-  # `preflight` and `pages`, which together cover every executed block and every
-  # cross reference in a fraction of the wall time. Run this one by hand
-  # (`workflow_dispatch`) on a branch when the rendered site itself is in doubt.
-  build:
-    #needs: test
-    if: github.event_name != 'pull_request'
+  # The site is built in three steps, the same on a pull request, on `main` and
+  # on a tag; only the last step deploys, and only on `main` and on a tag.
+  #
+  # One: the draft build of the WHOLE page tree, with every `@example` skipped.
+  # It decides in minutes what the shards leave to it -- the cross references
+  # between pages, the page tree, the bibliography.
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+        actions: write # julia-actions/cache prunes the caches it created
+        contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        id: julia
+        with:
+          version: '1'
+      - uses: julia-actions/cache@v3
+        with:
+          cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia=${{ steps.julia.outputs.julia-version }}
+      - uses: actions/cache@v4
+        with:
+          path: docs/node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('docs/package.json') }}
+          restore-keys: ${{ runner.os }}-npm-
+      # Same registry fallback as the build job, and for the same reason.
+      - name: Install the General registry
+        shell: julia --color=yes {0}
+        run: |
+          using Pkg
+          regdir = joinpath(first(DEPOT_PATH), "registries")
+          if isdir(joinpath(regdir, "General")) || isfile(joinpath(regdir, "General.tar.gz"))
+              @info "General registry already installed"
+          else
+              try
+                  Pkg.Registry.add("General")
+              catch err
+                  @warn "Pkg server could not serve the registry; cloning from GitHub" err
+                  withenv("JULIA_PKG_SERVER" => "") do
+                      Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/JuliaRegistries/General.git"))
+                  end
+              end
+          end
+      - name: Install dependencies
+        shell: julia --project=docs/ --color=yes {0}
+        run: |
+            using Pkg
+            Pkg.develop(PackageSpec(path=pwd()))
+            Pkg.instantiate()
+      - name: Draft build (checks only)
+        env:
+            CHEMLAB_DOCS_PREFLIGHT_ONLY: '1'
+        run: julia --project=docs/ docs/make.jl
+
+  # Two: every page executed, in shards that run side by side. The groups and the
+  # reason they are balanced the way they are live in `docs/shards.jl`; a page no
+  # group names falls into `rest`. A shard builds the whole page tree but
+  # executes only its own pages, the others as drafts, and hands over the
+  # Markdown of its pages and the files their blocks wrote
+  # (`docs/shard_build.jl`).
+  pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [cem4, binders, hydration, calibration, calorimetry, blends, rest]
+    permissions:
+        actions: write # julia-actions/cache prunes the caches it created
+        contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        id: julia
+        with:
+          version: '1'
+      # One depot cache for the shards, which build from the same environment: a
+      # cache per shard made seven of the twenty that overflowed the 10 GB a
+      # repository may hold, so that the caches evicted each other.
+      - uses: julia-actions/cache@v3
+        with:
+          cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia=${{ steps.julia.outputs.julia-version }}
+          include-matrix: false
+      - uses: actions/cache@v4
+        with:
+          path: docs/node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('docs/package.json') }}
+          restore-keys: ${{ runner.os }}-npm-
+      # Same registry fallback as the build job, and for the same reason.
+      - name: Install the General registry
+        shell: julia --color=yes {0}
+        run: |
+          using Pkg
+          regdir = joinpath(first(DEPOT_PATH), "registries")
+          if isdir(joinpath(regdir, "General")) || isfile(joinpath(regdir, "General.tar.gz"))
+              @info "General registry already installed"
+          else
+              try
+                  Pkg.Registry.add("General")
+              catch err
+                  @warn "Pkg server could not serve the registry; cloning from GitHub" err
+                  withenv("JULIA_PKG_SERVER" => "") do
+                      Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/JuliaRegistries/General.git"))
+                  end
+              end
+          end
+      - name: Install dependencies
+        shell: julia --project=docs/ --color=yes {0}
+        run: |
+            using Pkg
+            Pkg.develop(PackageSpec(path=pwd()))
+            Pkg.instantiate()
+      - name: Build the pages of the shard
+        env:
+            CHEMLAB_DOCS_SHARD: ${{ matrix.shard }}
+            JULIA_DEBUG: Documenter
+            JULIA_NUM_THREADS: '4'
+            OPENBLAS_NUM_THREADS: '1'
+        run: julia --project=docs/ docs/make.jl
+      - uses: actions/upload-artifact@v7
+        with:
+          name: docs-shard-${{ matrix.shard }}
+          path: docs/shard_out/${{ matrix.shard }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 3
+
+  # Three: the whole tree built once more as drafts, the Markdown of every page
+  # replaced by the one its shard emitted, then rendered by VitePress, which
+  # refuses dead links, and deployed (`main` and tags; `deploydocs` declines on
+  # a pull request).
+  assemble:
+    needs: [preflight, pages]
     runs-on: ubuntu-latest
     # A bound keeps a hung build from occupying a runner indefinitely. It is a
     # safety net, NOT a capacity plan: when a build approaches this, the cause is
@@ -29,7 +155,7 @@ jobs:
     # GR emits `GKS: glyph missing from current font` and the build stops there,
     # so the font is now pinned once in `docs/make.jl` and no page may override
     # it. A healthy build produces no such line.
-    timeout-minutes: 240
+    timeout-minutes: 90
     permissions:
         actions: write # needed to allow julia-actions/cache to proactively delete old caches that it has created
         pull-requests: read
@@ -91,8 +217,14 @@ jobs:
       # at all, and a build that is working normally is indistinguishable in the
       # log from one that has hung. That ambiguity cost two hours of runner time
       # once; the extra lines are worth it.
+      # One directory per shard under `docs/shard_in`.
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: docs-shard-*
+          path: docs/shard_in
       - name: Build and deploy
         env:
+            CHEMLAB_DOCS_ASSEMBLE: ${{ github.workspace }}/docs/shard_in
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
             JULIA_DEBUG: Documenter
@@ -106,136 +238,6 @@ jobs:
             JULIA_NUM_THREADS: '4'
             # One thread per BLAS call, so the concurrency above is not
             # multiplied by a second layer competing for the same cores.
-            OPENBLAS_NUM_THREADS: '1'
-        run: julia --project=docs/ docs/make.jl
-
-  # Pull requests, part one: the draft build of the WHOLE page tree, with every
-  # `@example` skipped. It decides what no shard can -- the cross references
-  # between pages, the page tree, the bibliography -- in minutes.
-  preflight:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    permissions:
-        actions: write # julia-actions/cache prunes the caches it created
-        contents: read
-    steps:
-      - uses: actions/checkout@v7
-      - uses: julia-actions/setup-julia@v3
-        id: julia
-        with:
-          version: '1'
-      - uses: julia-actions/cache@v3
-        with:
-          cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia=${{ steps.julia.outputs.julia-version }}
-      - uses: actions/cache@v4
-        with:
-          path: docs/node_modules
-          key: ${{ runner.os }}-npm-${{ hashFiles('docs/package.json') }}
-          restore-keys: ${{ runner.os }}-npm-
-      # Same registry fallback as the build job, and for the same reason.
-      - name: Install the General registry
-        shell: julia --color=yes {0}
-        run: |
-          using Pkg
-          regdir = joinpath(first(DEPOT_PATH), "registries")
-          if isdir(joinpath(regdir, "General")) || isfile(joinpath(regdir, "General.tar.gz"))
-              @info "General registry already installed"
-          else
-              try
-                  Pkg.Registry.add("General")
-              catch err
-                  @warn "Pkg server could not serve the registry; cloning from GitHub" err
-                  withenv("JULIA_PKG_SERVER" => "") do
-                      Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/JuliaRegistries/General.git"))
-                  end
-              end
-          end
-      - name: Install dependencies
-        shell: julia --project=docs/ --color=yes {0}
-        run: |
-            using Pkg
-            Pkg.develop(PackageSpec(path=pwd()))
-            Pkg.instantiate()
-      - name: Draft build (checks only)
-        env:
-            CHEMLAB_DOCS_PREFLIGHT_ONLY: '1'
-        run: julia --project=docs/ docs/make.jl
-
-  # Pull requests, part two: every page, built for real, in shards that run side
-  # by side. The groups and the reason they are balanced the way they are live in
-  # `docs/shards.jl`; a page no group names falls into `rest`. Each shard is a
-  # partial build (`docs/partial.jl`), which demotes cross references to warnings
-  # and refuses to deploy -- the references are the preflight's to check.
-  pages:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [cem4, binders, hydration, calibration, calorimetry, blends, rest]
-    permissions:
-        actions: write # julia-actions/cache prunes the caches it created
-        contents: read
-    steps:
-      - uses: actions/checkout@v7
-      - uses: julia-actions/setup-julia@v3
-        id: julia
-        with:
-          version: '1'
-      # One depot cache for the shards, which build from the same environment: a
-      # cache per shard made seven of the twenty that overflowed the 10 GB a
-      # repository may hold, so that the caches evicted each other.
-      - uses: julia-actions/cache@v3
-        with:
-          cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia=${{ steps.julia.outputs.julia-version }}
-          include-matrix: false
-      - uses: actions/cache@v4
-        with:
-          path: docs/node_modules
-          key: ${{ runner.os }}-npm-${{ hashFiles('docs/package.json') }}
-          restore-keys: ${{ runner.os }}-npm-
-      # Same registry fallback as the build job, and for the same reason.
-      - name: Install the General registry
-        shell: julia --color=yes {0}
-        run: |
-          using Pkg
-          regdir = joinpath(first(DEPOT_PATH), "registries")
-          if isdir(joinpath(regdir, "General")) || isfile(joinpath(regdir, "General.tar.gz"))
-              @info "General registry already installed"
-          else
-              try
-                  Pkg.Registry.add("General")
-              catch err
-                  @warn "Pkg server could not serve the registry; cloning from GitHub" err
-                  withenv("JULIA_PKG_SERVER" => "") do
-                      Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/JuliaRegistries/General.git"))
-                  end
-              end
-          end
-      - name: Install dependencies
-        shell: julia --project=docs/ --color=yes {0}
-        run: |
-            using Pkg
-            Pkg.develop(PackageSpec(path=pwd()))
-            Pkg.instantiate()
-      - name: Pages of shard ${{ matrix.shard }}
-        shell: julia --color=yes {0}
-        run: |
-            # `pwd()`, not a bare relative path: this script runs from a
-            # temporary file, and `include` resolves against the including file.
-            include(joinpath(pwd(), "docs", "pages.jl"))
-            include(joinpath(pwd(), "docs", "shards.jl"))
-            sel = shard_pages("${{ matrix.shard }}", page_leaves(pages))
-            println(join(sel, "\n"))
-            open(ENV["GITHUB_ENV"], "a") do io
-                println(io, "CHEMLAB_DOCS_ONLY=", join(sel, ","))
-            end
-      - name: Build the pages of the shard
-        env:
-            JULIA_DEBUG: Documenter
-            JULIA_NUM_THREADS: '4'
             OPENBLAS_NUM_THREADS: '1'
         run: julia --project=docs/ docs/make.jl
 

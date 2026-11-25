@@ -53,21 +53,14 @@ end
 
 From the definition of species, it is possible to construct a stoichiometric matrix that establishes the relationship between species and chemical elements for species or oxides for cement species. This is called canonical decomposition.
 
-```@setup database_stoichiometry
-    using ChemistryLab
-```
-
-## Stoichiometric matrix for species
-
-Any species can be described as a linear combination of chemical elements. A species vector can be expressed as a function of the chemical elements on which they depend. This dependence leads to the creation of a stoichiometric matrix.
-
-```julia
+```@example database_stoichiometry
 using ChemistryLab
 H2O = Species("H₂O", symbol="H₂O@", aggregate_state=AS_AQUEOUS, class=SC_AQSOLVENT)
 HSO4 = Species("HSO₄⁻", symbol="HSO₄⁻", aggregate_state=AS_AQUEOUS, class=SC_COMPONENT)
 CO2 = Species(Dict(:C => 1, :O => 2); symbol="CO₂", aggregate_state=AS_GAS, class=SC_GASFLUID)
 species = [H2O, HSO4, CO2]
 CSM = CanonicalStoichMatrix(species)
+nothing # hide
 ```
 
 !!! note "Display of the stoichiometric matrix"
@@ -78,12 +71,6 @@ CSM = CanonicalStoichMatrix(species)
     ```
 
 ```@example database_stoichiometry
-H2O = Species("H₂O", symbol="H₂O@", aggregate_state=AS_AQUEOUS, class=SC_AQSOLVENT) #hide
-HSO4 = Species("HSO₄⁻", symbol="H₂O@", aggregate_state=AS_AQUEOUS, class=SC_COMPONENT) #hide
-CO2 = Species(Dict(:C => 1, :O => 2); symbol="CO₂", aggregate_state=AS_GAS, class=SC_GASFLUID) #hide
-species = [H2O, HSO4, CO2] #hide
-CSM = CanonicalStoichMatrix(species) #hide
-
 pprint(CSM)
 ```
 
@@ -130,25 +117,26 @@ pprint(SM)
 
 The recommended workflow loads all species from a JSON file with `build_species`, filters them with `speciation`, then builds a `ChemicalSystem` which internally computes both the canonical stoichiometric matrix (`CSM`) and the primary-based stoichiometric matrix (`SM`).
 
-```julia
+```@example example1
 using ChemistryLab
 
 # 1. Load all species from the database
 all_species = build_species(datapath("cemdata18-thermofun.json"))
+nothing # hide
 ```
 
 For a given set of seed species (e.g. Portlandite and water), `speciation` selects all species whose atomic composition is a subset of the seed atoms:
 
-```julia
+```@example example1
 # 2. Filter to the relevant chemical space
 species = speciation(all_species, split("Portlandite H2O@");
-              aggregate_state=[AS_AQUEOUS], exclude_species=split("H2@ O2@"))
+              aggregate_state=[AS_AQUEOUS], exclude_species=split("H2@ O2@ FeOH+ Fe+2"))
 ```
 
 Primary species candidates for the Cemdata18 database [Lothenbach2019](@cite)
 are available via `CEMDATA_PRIMARIES`:
 
-```julia
+```@example example1
 # 3. Select primaries present in our species subset
 dict_species = Dict(symbol(s) => s for s in species)
 candidate_primaries = [dict_species[s] for s in CEMDATA_PRIMARIES if haskey(dict_species, s)]
@@ -156,17 +144,7 @@ candidate_primaries = [dict_species[s] for s in CEMDATA_PRIMARIES if haskey(dict
 
 A `ChemicalSystem` then computes both stoichiometric matrices at construction time:
 
-```@setup example1
-    using ChemistryLab #hide
-    all_species = build_species(datapath("cemdata18-thermofun.json")) #hide
-    species = speciation(all_species, split("Portlandite H2O@");
-                  aggregate_state=[AS_AQUEOUS], exclude_species=split("H2@ O2@ FeOH+ Fe+2")) #hide
-    dict_species = Dict(symbol(s) => s for s in species) #hide
-    candidate_primaries = [dict_species[s] for s in CEMDATA_PRIMARIES if haskey(dict_species, s)] #hide
-    cs = ChemicalSystem(species, candidate_primaries) #hide
-```
-
-```julia
+```@example example1
 cs = ChemicalSystem(species, candidate_primaries)
 ```
 

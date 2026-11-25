@@ -7,7 +7,7 @@ Pages = ["parsing_tools.md"]
 ## Examples
 
 ```@example colored_formula
-using ChemistryLab # hide
+using ChemistryLab
 for s in ("HSO₄²⁻", "HSO4-2", "(CaO)₄//₃(SiO₂)₁(H₂O)₁₃//₆")
     println(colored_formula(s))
 end
