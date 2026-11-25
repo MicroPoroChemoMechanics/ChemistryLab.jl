@@ -67,7 +67,7 @@ Documenter = "1.17"
 # environment is resolved afresh on every CI run, so the release of
 # DocumenterCitations 1.5.0 broke a job that had passed the day before.
 DocumenterCitations = "1"
-DocumenterVitepress = "0.3"
+DocumenterVitepress = "0.3.6"
 DynamicQuantities = "1"
 # Declared because the Pitzer application page differentiates the chemical
 # potentials through the model closure inside an executed `@example` block, and
