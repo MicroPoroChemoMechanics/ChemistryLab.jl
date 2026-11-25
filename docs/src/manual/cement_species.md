@@ -22,8 +22,9 @@ end
 
 Here are several example of `CemSpecies` construction:
 
-```@setup example_cemspecies
+```@example example_cemspecies
     using ChemistryLab
+nothing # hide
 ```
 
 ```@example example_cemspecies
@@ -93,7 +94,6 @@ spC3S = Species(C3S)
 Or more complex one:
 
 ```@example example_cemspecies
-using ChemistryLab #hide
 CSH = Species("(SiO2)1(CaO)1.666667(H2O)2.1", aggregate_state=AS_CRYSTAL, class=SC_COMPONENT)
 jennite = CemSpecies(CSH)
 ```

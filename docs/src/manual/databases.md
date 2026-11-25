@@ -156,8 +156,8 @@ setdiff(symbol.(ext_asr), symbol.(base))
 In practice, only a small subset of the database is relevant to a given problem. `speciation` filters a species list to those whose atomic composition is a subset of the atoms found in a set of *seed* species:
 
 ```@example database
-using ChemistryLab #hide
-all_species = build_species(datapath("cemdata18-thermofun.json")) #hide
+using ChemistryLab
+all_species = build_species(datapath("cemdata18-thermofun.json"))
 # Keep only species that can form from the calcite / water system
 species_calcite = speciation(all_species, split("Cal H2O@");
                              aggregate_state=[AS_AQUEOUS],

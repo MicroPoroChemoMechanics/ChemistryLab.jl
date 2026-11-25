@@ -30,7 +30,7 @@ end
 - a `Formula`
 
 ```@example
-using ChemistryLab #hide
+using ChemistryLab
 fH2O = Formula("H2O")
 H2O = Species(fH2O, aggregate_state=AS_AQUEOUS, class=SC_AQSOLVENT)
 ```
@@ -38,14 +38,14 @@ H2O = Species(fH2O, aggregate_state=AS_AQUEOUS, class=SC_AQSOLVENT)
 - a string
 
 ```@example
-using ChemistryLab #hide
+using ChemistryLab
 HSO4⁻ = Species("HSO₄⁻", aggregate_state=AS_AQUEOUS, class=SC_COMPONENT)
 ```
 
 - a dictionary
 
 ```@example
-using ChemistryLab #hide
+using ChemistryLab
 CO2 = Species(Dict(:C => 1, :O => 2), aggregate_state=AS_GAS, class=SC_GASFLUID)
 ```
 
@@ -53,14 +53,14 @@ CO2 = Species(Dict(:C => 1, :O => 2), aggregate_state=AS_GAS, class=SC_GASFLUID)
     To add a charge when creating species with a dictionary, you must add, after the dictionary, the value of the charge (charge is considered an argument of the composite type).
 
 ```@example
-using ChemistryLab #hide
+using ChemistryLab
 SiO₃²⁻ = Species(Dict(:Si => 1, :O => 3), -2, aggregate_state=AS_AQUEOUS, class=SC_COMPONENT)
 ```
 
 Keyword arguments such as `name`, `symbol`, `aggregate_state`, `class` can be added during construction.
 
 ```@example H2O
-using ChemistryLab #hide
+using ChemistryLab
 fH₂O = Formula("H2O")
 H₂O = Species(fH₂O; name="Water", symbol="H₂O@", aggregate_state=AS_AQUEOUS, class=SC_AQSOLVENT)
 ```
@@ -68,7 +68,7 @@ H₂O = Species(fH₂O; name="Water", symbol="H₂O@", aggregate_state=AS_AQUEOU
 And `symbol` accept unicode characters.
 
 ```@example CO2
-using ChemistryLab #hide
+using ChemistryLab
 CO₂ = Species(Dict(:C=>1, :O=>2); name="Carbon dioxide", symbol="CO₂⤴", aggregate_state=AS_GAS, class=SC_GASFLUID)
 ```
 

@@ -61,7 +61,7 @@ ChemistryLab preserves rational coefficients when parsing fractional formulas (u
 As an example, Rankinite (Ca₃Si₂O₇) can be written as a half-unit formula where each coefficient is a ratio:
 
 ```@example advanced
-using ChemistryLab #hide
+using ChemistryLab
 f = Formula("Ca3//2Si1O7//2")   # half the formula unit of Rankinite (Ca₃Si₂O₇)
 composition(f)  # OrderedDict(:Ca => 3//2, :Si => 1, :O => 7//2)
 ```

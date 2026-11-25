@@ -23,7 +23,7 @@ cost = (number of nodes) × (number of host steps) × (cost of one call)
 and only the last factor is the chemistry's. This page measures it for each way
 of calling, and says which call to make when.
 
-```@setup host
+```@example host
 using ChemistryLab, Markdown, Printf
 
 # The tables of this page are the CSV files the scripts of
@@ -46,7 +46,7 @@ end
 ms(x) = @sprintf("%.1f", 1.0e3 * parse(Float64, x))
 fixed(x; d = 1) = @sprintf("%.*f", d, parse(Float64, x))
 sci(x) = (v = parse(Float64, x); isnan(v) ? "—" : @sprintf("%.0e", v))
-nothing
+nothing # hide
 ```
 
 ## [Equilibrium at a node](@id sec-host-coupling-equilibrium)

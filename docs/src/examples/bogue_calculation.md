@@ -13,9 +13,9 @@ Bogue's formulas allow us to find the masses of $\ce{C3S}$, $\ce{C2S}$, $\ce{C3A
 The recommended approach builds a `ChemicalSystem` once, which computes both stoichiometric matrices and all derived structures automatically. The four clinker phases are the species; the four oxide components (C=$\ce{CaO}$, S=$\ce{SiO2}$, A=$\ce{Al2O3}$, F=$\ce{Fe2O3}$) are the primaries:
 
 ```@example Bogue
-using ChemistryLab #hide
-using DynamicQuantities #hide
-using PrettyTables #hide
+using ChemistryLab
+using DynamicQuantities
+using PrettyTables
 cemspecies = CemSpecies.(split("C3S C2S C3A C4AF"))
 oxides = CemSpecies.(split("C S A F"))
 
